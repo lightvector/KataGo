@@ -45,8 +45,8 @@ static NNEvaluator* startNNEval(
     nnPolicyTemperature,
     openCLTunerFile,
     openCLReTunePerBoardSize,
-    useFP16,
-    useNHWC
+    useFP16 ? enabled_t::TRUE : enabled_t::FALSE,
+    useNHWC ? enabled_t::TRUE : enabled_t::FALSE
   );
 
   int numNNServerThreadsPerModel = 1;

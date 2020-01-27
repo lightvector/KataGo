@@ -20,6 +20,8 @@ ComputeContext* NeuralNet::createComputeContext(
   int nnYLen,
   string openCLTunerFile,
   bool openCLReTunePerBoardSize,
+  enabled_t useFP16Mode,
+  enabled_t useNHWCMode,
   const LoadedModel* loadedModel
 ) {
   (void)gpuIdxs;
@@ -28,6 +30,8 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)nnYLen;
   (void)openCLTunerFile;
   (void)openCLReTunePerBoardSize;
+  (void)useFP16Mode;
+  (void)useNHWCMode;
   (void)loadedModel;
   throw StringError("Dummy neural net backend: NeuralNet::createComputeContext unimplemented");
 }
@@ -64,25 +68,17 @@ ComputeHandle* NeuralNet::createComputeHandle(
   const LoadedModel* loadedModel,
   Logger* logger,
   int maxBatchSize,
-  int nnXLen,
-  int nnYLen,
   bool requireExactNNLen,
   bool inputsUseNHWC,
-  int gpuIdxForThisThread,
-  bool useFP16,
-  bool useNHWC
+  int gpuIdxForThisThread
 ) {
   (void)context;
   (void)loadedModel;
   (void)logger;
   (void)maxBatchSize;
-  (void)nnXLen;
-  (void)nnYLen;
   (void)requireExactNNLen;
   (void)inputsUseNHWC;
   (void)gpuIdxForThisThread;
-  (void)useFP16;
-  (void)useNHWC;
   throw StringError("Dummy neural net backend: NeuralNet::createLocalGpuHandle unimplemented");
 }
 

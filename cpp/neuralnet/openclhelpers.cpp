@@ -189,8 +189,8 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
   assert(numPlatforms <= platformIds.size());
   platformIds.resize(numPlatforms);
 
-  constexpr int bufLen = 2048;
-  char buf[bufLen];
+  constexpr int bufLen = 16384;
+  vector<char> buf(bufLen);
   for(int i = 0; i<bufLen; i++)
     buf[i] = '\0';
 
@@ -199,20 +199,20 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
   for(int platformIdx = 0; platformIdx < numPlatforms && numDevicesTotal < deviceIds.size(); platformIdx++) {
     size_t sizeRet;
 
-    err = clGetPlatformInfo(platformIds[platformIdx], CL_PLATFORM_NAME, bufLen, buf, &sizeRet);
+    err = clGetPlatformInfo(platformIds[platformIdx], CL_PLATFORM_NAME, bufLen, buf.data(), &sizeRet);
     assert(sizeRet < bufLen-1);
     CHECK_ERR(err);
-    string name = string(buf);
+    string name = string(buf.data());
 
-    err = clGetPlatformInfo(platformIds[platformIdx], CL_PLATFORM_VENDOR, bufLen, buf, &sizeRet);
+    err = clGetPlatformInfo(platformIds[platformIdx], CL_PLATFORM_VENDOR, bufLen, buf.data(), &sizeRet);
     assert(sizeRet < bufLen-1);
     CHECK_ERR(err);
-    string vendor = string(buf);
+    string vendor = string(buf.data());
 
-    err = clGetPlatformInfo(platformIds[platformIdx], CL_PLATFORM_VERSION, bufLen, buf, &sizeRet);
+    err = clGetPlatformInfo(platformIds[platformIdx], CL_PLATFORM_VERSION, bufLen, buf.data(), &sizeRet);
     assert(sizeRet < bufLen-1);
     CHECK_ERR(err);
-    string version = string(buf);
+    string version = string(buf.data());
 
     if(logger != NULL)
       logger->write("Found OpenCL Platform " + Global::intToString(platformIdx) + ": " + name + " (" + vendor + ") (" + version + ")");
@@ -240,25 +240,30 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
   for(int gpuIdx = 0; gpuIdx<numDevicesTotal; gpuIdx++) {
     size_t sizeRet;
 
-    err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_NAME, bufLen, buf, &sizeRet);
+    err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_NAME, bufLen, buf.data(), &sizeRet);
     assert(sizeRet < bufLen-1);
     CHECK_ERR(err);
-    string name = string(buf);
+    string name = string(buf.data());
 
-    err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_VENDOR, bufLen, buf, &sizeRet);
+    err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_VENDOR, bufLen, buf.data(), &sizeRet);
     assert(sizeRet < bufLen-1);
     CHECK_ERR(err);
-    string vendor = string(buf);
+    string vendor = string(buf.data());
 
     cl_device_type deviceType;
     err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_TYPE, sizeof(cl_device_type), &deviceType, &sizeRet);
     assert(sizeRet <= sizeof(cl_device_type));
     CHECK_ERR(err);
 
-    err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_VERSION, bufLen, buf, &sizeRet);
+    err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_VERSION, bufLen, buf.data(), &sizeRet);
     assert(sizeRet < bufLen-1);
     CHECK_ERR(err);
-    string openCLVersion = string(buf);
+    string openCLVersion = string(buf.data());
+
+    err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_EXTENSIONS, bufLen, buf.data(), &sizeRet);
+    assert(sizeRet < bufLen-1);
+    CHECK_ERR(err);
+    string extensions = string(buf.data());
 
     if(logger != NULL)
       logger->write("Found OpenCL Device " + Global::intToString(gpuIdx) + ": " + name + " (" + vendor + ")");
@@ -299,6 +304,7 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     info.vendor = vendor;
     info.deviceType = deviceType;
     info.openCLVersion = openCLVersion;
+    info.extensions = extensions;
     info.defaultDesirability = defaultDesirability;
     allDeviceInfos.push_back(info);
   }

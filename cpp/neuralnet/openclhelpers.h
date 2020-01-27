@@ -18,6 +18,7 @@ struct DeviceInfo {
   std::string vendor;
   cl_device_type deviceType;
   std::string openCLVersion;
+  std::string extensions;
 
   int defaultDesirability;
 

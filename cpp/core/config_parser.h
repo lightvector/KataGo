@@ -5,6 +5,7 @@
 
 #include "../core/global.h"
 #include "../core/logger.h"
+#include "../core/commontypes.h"
 
 /* Parses simple configs like:
 
@@ -35,6 +36,7 @@ class ConfigParser {
 
   std::string getString(const std::string& key);
   bool getBool(const std::string& key);
+  enabled_t getEnabled(const std::string& key);
   int getInt(const std::string& key);
   int64_t getInt64(const std::string& key);
   uint64_t getUInt64(const std::string& key);

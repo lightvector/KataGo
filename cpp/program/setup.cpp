@@ -171,25 +171,25 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     std::sort(gpuIdxs.begin(), gpuIdxs.end());
     std::unique(gpuIdxs.begin(), gpuIdxs.end());
 
-    bool useFP16 = false;
+    enabled_t useFP16Mode = enabled_t::AUTO;
     if(cfg.contains(backendPrefix+"UseFP16-"+idxStr))
-      useFP16 = cfg.getBool(backendPrefix+"UseFP16-"+idxStr);
+      useFP16Mode = cfg.getEnabled(backendPrefix+"UseFP16-"+idxStr);
     else if(cfg.contains("useFP16-"+idxStr))
-      useFP16 = cfg.getBool("useFP16-"+idxStr);
+      useFP16Mode = cfg.getEnabled("useFP16-"+idxStr);
     else if(cfg.contains(backendPrefix+"UseFP16"))
-      useFP16 = cfg.getBool(backendPrefix+"UseFP16");
+      useFP16Mode = cfg.getEnabled(backendPrefix+"UseFP16");
     else if(cfg.contains("useFP16"))
-      useFP16 = cfg.getBool("useFP16");
+      useFP16Mode = cfg.getEnabled("useFP16");
 
-    bool useNHWC = false;
+    enabled_t useNHWCMode = enabled_t::AUTO;
     if(cfg.contains(backendPrefix+"UseNHWC"+idxStr))
-      useNHWC = cfg.getBool(backendPrefix+"UseNHWC"+idxStr);
+      useNHWCMode = cfg.getEnabled(backendPrefix+"UseNHWC"+idxStr);
     else if(cfg.contains("useNHWC"+idxStr))
-      useNHWC = cfg.getBool("useNHWC"+idxStr);
+      useNHWCMode = cfg.getEnabled("useNHWC"+idxStr);
     else if(cfg.contains(backendPrefix+"UseNHWC"))
-      useNHWC = cfg.getBool(backendPrefix+"UseNHWC");
+      useNHWCMode = cfg.getEnabled(backendPrefix+"UseNHWC");
     else if(cfg.contains("useNHWC"))
-      useNHWC = cfg.getBool("useNHWC");
+      useNHWCMode = cfg.getEnabled("useNHWC");
 
     int forcedSymmetry = -1;
     if(cfg.contains("nnForcedSymmetry"))
@@ -197,8 +197,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     logger.write(
       "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
-      + " useFP16 " + Global::boolToString(useFP16)
-      + " useNHWC " + Global::boolToString(useNHWC)
+      + " useFP16 " + useFP16Mode.toString()
+      + " useNHWC " + useNHWCMode.toString()
     );
 
     NNEvaluator* nnEval = new NNEvaluator(
@@ -219,8 +219,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnPolicyTemperature,
       openCLTunerFile,
       openCLReTunePerBoardSize,
-      useFP16,
-      useNHWC
+      useFP16Mode,
+      useNHWCMode
     );
 
     int defaultSymmetry = forcedSymmetry >= 0 ? forcedSymmetry : 0;

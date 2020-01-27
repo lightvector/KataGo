@@ -2,6 +2,7 @@
 #define NEURALNET_NNINTERFACE_H_
 
 #include "../core/global.h"
+#include "../core/commontypes.h"
 #include "../core/hash.h"
 #include "../core/logger.h"
 #include "../neuralnet/desc.h"
@@ -52,6 +53,8 @@ namespace NeuralNet {
     int nnYLen,
     std::string openCLTunerFile,
     bool openCLReTunePerBoardSize,
+    enabled_t useFP16Mode,
+    enabled_t useNHWCMode,
     const LoadedModel* loadedModel
   );
   //A ComputeContext should NOT be freed until all ComputeHandles created using it have also been freed.
@@ -71,13 +74,9 @@ namespace NeuralNet {
     const LoadedModel* loadedModel,
     Logger* logger,
     int maxBatchSize,
-    int nnXLen,
-    int nnYLen,
     bool requireExactNNLen,
     bool inputsUseNHWC,
-    int gpuIdxForThisThread,
-    bool useFP16,
-    bool useNHWC
+    int gpuIdxForThisThread
   );
   void freeComputeHandle(ComputeHandle* computeHandle);
 

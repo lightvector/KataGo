@@ -2604,7 +2604,13 @@ struct Buffers {
 
 //------------------------------------------------------------------------------
 
-//Cuda implementation doesn't need this
+struct ComputeContext {
+  int nnXLen;
+  int nnYLen;
+  enabled_t useFP16Mode;
+  enabled_t useNHWCMode;
+};
+
 ComputeContext* NeuralNet::createComputeContext(
   const std::vector<int>& gpuIdxs,
   Logger* logger,
@@ -2612,22 +2618,27 @@ ComputeContext* NeuralNet::createComputeContext(
   int nnYLen,
   string openCLTunerFile,
   bool openCLReTunePerBoardSize,
+  enabled_t useFP16Mode,
+  enabled_t useNHWCMode,
   const LoadedModel* loadedModel
 ) {
   (void)gpuIdxs;
   (void)logger;
-  (void)nnXLen;
-  (void)nnYLen;
   (void)openCLTunerFile;
   (void)openCLReTunePerBoardSize;
   (void)loadedModel;
-  return NULL;
+
+  ComputeContext* context = new ComputeContext();
+  context->nnXLen = nnXLen;
+  context->nnYLen = nnYLen;
+  context->useFP16Mode = useFP16Mode;
+  context->useNHWCMode = useNHWCMode;
+  return context;
 }
 
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
-  assert(computeContext == NULL);
+  delete computeContext;
 }
-
 
 //------------------------------------------------------------------------------
 
@@ -2684,16 +2695,10 @@ ComputeHandle* NeuralNet::createComputeHandle(
   const LoadedModel* loadedModel,
   Logger* logger,
   int maxBatchSize,
-  int nnXLen,
-  int nnYLen,
   bool requireExactNNLen,
   bool inputsUseNHWC,
-  int gpuIdxForThisThread,
-  bool useFP16,
-  bool useNHWC
+  int gpuIdxForThisThread
 ) {
-  (void)context;
-
   //Use whatever CUDA believes GPU 0 to be.
   if(gpuIdxForThisThread == -1)
     gpuIdxForThisThread = 0;
@@ -2711,8 +2716,28 @@ ComputeHandle* NeuralNet::createComputeHandle(
     );
     logger->write("Cuda backend: Model version " + Global::intToString(loadedModel->modelDesc.version));
   }
-  if(useFP16 && (prop.major < 5 || (prop.major == 5 && prop.minor < 3)))
-    throw StringError("Cuda device versions below 5.3 do not support useFP16=true");
+  bool useFP16 = false;
+  bool useNHWC = false;
+  if(prop.major < 5 || (prop.major == 5 && prop.minor < 3)) {
+    if(context->useFP16Mode == enabled_t::TRUE)
+      throw StringError("Cuda device versions below 5.3 do not support useFP16=true");
+    if(context->useNHWCMode == enabled_t::TRUE)
+      useNHWC = true;
+  }
+  else if(prop.major < 7) {
+    if(context->useFP16Mode == enabled_t::TRUE)
+      useFP16 = true;
+    if(context->useNHWCMode == enabled_t::TRUE)
+      useNHWC = true;
+  }
+  else {
+    if(context->useFP16Mode == enabled_t::TRUE || context->useFP16Mode == enabled_t::AUTO)
+      useFP16 = true;
+    if(context->useNHWCMode == enabled_t::TRUE || (context->useNHWCMode == enabled_t::AUTO && useFP16))
+      useNHWC = true;
+  }
+  int nnXLen = context->nnXLen;
+  int nnYLen = context->nnYLen;
 
   ComputeHandle* gpuHandle = new ComputeHandle(
     loadedModel,prop.major,prop.minor,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,useFP16,useNHWC

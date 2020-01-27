@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "../core/global.h"
+#include "../core/commontypes.h"
 #include "../core/logger.h"
 #include "../core/multithread.h"
 #include "../game/board.h"
@@ -92,8 +93,8 @@ class NNEvaluator {
     float nnPolicyTemperature,
     std::string openCLTunerFile,
     bool openCLReTunePerBoardSize,
-    bool useFP16,
-    bool useNHWC
+    enabled_t useFP16Mode,
+    enabled_t useNHWCMode
   );
   ~NNEvaluator();
 
@@ -103,8 +104,8 @@ class NNEvaluator {
   int getMaxBatchSize() const;
   int getNNXLen() const;
   int getNNYLen() const;
-  bool getUsingFP16() const;
-  bool getUsingNHWC() const;
+  enabled_t getUsingFP16Mode() const;
+  enabled_t getUsingNHWCMode() const;
 
   //Return the "nearest" supported ruleset to desiredRules by this model.
   //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
@@ -160,8 +161,8 @@ class NNEvaluator {
   bool requireExactNNLen;
   int policySize;
   bool inputsUseNHWC;
-  bool usingFP16;
-  bool usingNHWC;
+  enabled_t usingFP16Mode;
+  enabled_t usingNHWCMode;
 
   ComputeContext* computeContext;
   LoadedModel* loadedModel;
@@ -198,7 +199,7 @@ class NNEvaluator {
   //Helper, for internal use only
   void serve(
     NNServerBuf& buf, Rand& rand, Logger* logger, bool doRandomize, int defaultSymmetry,
-    int gpuIdxForThisThread, bool useFP16, bool useNHWC
+    int gpuIdxForThisThread
   );
 };
 

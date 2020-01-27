@@ -70,8 +70,8 @@ NNEvaluator::NNEvaluator(
   float nnPolicyTemp,
   string openCLTunerFile,
   bool openCLReTunePerBoardSize,
-  bool useFP16,
-  bool useNHWC
+  enabled_t useFP16Mode,
+  enabled_t useNHWCMode
 )
   :modelName(mName),
    modelFileName(mFileName),
@@ -80,8 +80,8 @@ NNEvaluator::NNEvaluator(
    requireExactNNLen(rExactNNLen),
    policySize(NNPos::getPolicySize(xLen,yLen)),
    inputsUseNHWC(iUseNHWC),
-   usingFP16(useFP16),
-   usingNHWC(useNHWC),
+   usingFP16Mode(useFP16Mode),
+   usingNHWCMode(useNHWCMode),
    computeContext(NULL),
    loadedModel(NULL),
    nnCacheTable(NULL),
@@ -127,7 +127,9 @@ NNEvaluator::NNEvaluator(
     loadedModel = NeuralNet::loadModelFile(modelFileName, modelFileIdx);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
-    computeContext = NeuralNet::createComputeContext(gpuIdxs,logger,nnXLen,nnYLen,openCLTunerFile,openCLReTunePerBoardSize,loadedModel);
+    computeContext = NeuralNet::createComputeContext(
+      gpuIdxs,logger,nnXLen,nnYLen,openCLTunerFile,openCLReTunePerBoardSize,usingFP16Mode,usingNHWCMode,loadedModel
+    );
   }
   else {
     modelVersion = NNModelVersion::defaultModelVersion;
@@ -183,11 +185,11 @@ int NNEvaluator::getNNXLen() const {
 int NNEvaluator::getNNYLen() const {
   return nnYLen;
 }
-bool NNEvaluator::getUsingFP16() const {
-  return usingFP16;
+enabled_t NNEvaluator::getUsingFP16Mode() const {
+  return usingFP16Mode;
 }
-bool NNEvaluator::getUsingNHWC() const {
-  return usingNHWC;
+enabled_t NNEvaluator::getUsingNHWCMode() const {
+  return usingNHWCMode;
 }
 
 
@@ -222,7 +224,7 @@ void NNEvaluator::clearCache() {
 static void serveEvals(
   int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger,
   NNEvaluator* nnEval, const LoadedModel* loadedModel,
-  int gpuIdxForThisThread, bool useFP16, bool useNHWC
+  int gpuIdxForThisThread
 ) {
   NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
   Rand rand(randSeed + ":NNEvalServerThread:" + Global::intToString(threadIdx));
@@ -230,7 +232,7 @@ static void serveEvals(
   //Used to have a try catch around this but actually we're in big trouble if this raises an exception
   //and causes possibly the only nnEval thread to die, so actually go ahead and let the exception escape to
   //toplevel for easier debugging
-  nnEval->serve(*buf,rand,logger,doRandomize,defaultSymmetry,gpuIdxForThisThread,useFP16,useNHWC);
+  nnEval->serve(*buf,rand,logger,doRandomize,defaultSymmetry,gpuIdxForThisThread);
   delete buf;
 }
 
@@ -250,7 +252,7 @@ void NNEvaluator::spawnServerThreads(
   for(int i = 0; i<numThreads; i++) {
     int gpuIdxForThisThread = gpuIdxByServerThread[i];
     std::thread* thread = new std::thread(
-      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,loadedModel,gpuIdxForThisThread,usingFP16,usingNHWC
+      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,loadedModel,gpuIdxForThisThread
     );
     serverThreads.push_back(thread);
   }
@@ -274,7 +276,7 @@ void NNEvaluator::killServerThreads() {
 
 void NNEvaluator::serve(
   NNServerBuf& buf, Rand& rand, Logger* logger, bool doRandomize, int defaultSymmetry,
-  int gpuIdxForThisThread, bool useFP16, bool useNHWC
+  int gpuIdxForThisThread
 ) {
 
   ComputeHandle* gpuHandle = NULL;
@@ -284,13 +286,9 @@ void NNEvaluator::serve(
       loadedModel,
       logger,
       maxNumRows,
-      nnXLen,
-      nnYLen,
       requireExactNNLen,
       inputsUseNHWC,
-      gpuIdxForThisThread,
-      useFP16,
-      useNHWC
+      gpuIdxForThisThread
     );
 
   vector<NNOutput*> outputBuf;
