@@ -302,7 +302,6 @@ struct ComputeHandleInternal {
   cl_kernel transposeNCHWKernel;
   cl_kernel mirrorKernel;
   cl_kernel extractChannel0NCHWKernel;
-  cl_kernel xgemmDirectBatchedNNKernel;
   cl_kernel xgemmDirectBatchedTTKernel;
   cl_kernel xgemmDirectStridedBatchedNNKernel;
   cl_kernel xgemmBatchedNNKernel;
@@ -370,8 +369,6 @@ struct ComputeHandleInternal {
     CHECK_ERR(err);
     extractChannel0NCHWKernel = clCreateKernel(progs->extractChannel0NCHWProgram, "extractChannel0NCHW", &err);
     CHECK_ERR(err);
-    xgemmDirectBatchedNNKernel = clCreateKernel(progs->xgemmDirectProgram, "XgemmDirectBatchedNN", &err);
-    CHECK_ERR(err);
     xgemmDirectBatchedTTKernel = clCreateKernel(progs->xgemmDirectProgram, "XgemmDirectBatchedTT", &err);
     CHECK_ERR(err);
     xgemmDirectStridedBatchedNNKernel = clCreateKernel(progs->xgemmDirectProgram, "XgemmDirectStridedBatchedNN", &err);
@@ -405,7 +402,6 @@ struct ComputeHandleInternal {
     clReleaseKernel(transposeNCHWKernel);
     clReleaseKernel(mirrorKernel);
     clReleaseKernel(extractChannel0NCHWKernel);
-    clReleaseKernel(xgemmDirectBatchedNNKernel);
     clReleaseKernel(xgemmDirectBatchedTTKernel);
     clReleaseKernel(xgemmDirectStridedBatchedNNKernel);
     clReleaseKernel(xgemmBatchedNNKernel);
