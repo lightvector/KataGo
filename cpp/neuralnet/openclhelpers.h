@@ -5,6 +5,8 @@
 #include "../core/logger.h"
 #include "../neuralnet/openclincludes.h"
 
+#include "../external/half-2.1.0/include/half.hpp"
+
 #define CHECK_ERR(x) { OpenCLHelpers::checkErrors((x),__FILE__,#x,__LINE__); }
 
 struct OpenCLTuneParams;
@@ -23,6 +25,7 @@ struct DeviceInfo {
   std::string extensions;
 
   int defaultDesirability;
+  bool supportsFP16Compute;
 
   static constexpr int MAX_PLATFORMS = 32;
   static constexpr int MAX_DEVICES = 512;
@@ -92,10 +95,16 @@ namespace OpenCLHelpers {
   );
 
   cl_mem createReadOnlyBuffer(cl_context context, std::vector<float>& data);
+  cl_mem createReadOnlyBuffer(cl_context context, std::vector<half_float::half>& data);
   cl_mem createReadWriteBuffer(cl_context context, std::vector<float>& data);
-  cl_mem createReadWriteBuffer(cl_context context, size_t numFloats);
+  cl_mem createReadWriteBuffer(cl_context context, std::vector<half_float::half>& data);
+  cl_mem createReadWriteBufferFloat(cl_context context, size_t numElts);
+  cl_mem createReadWriteBufferHalf(cl_context context, size_t numElts);
 
-  void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numFloats, std::vector<float>& dstBuf);
+  void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf);
+  void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<half_float::half>& dstBuf);
+  void blockingReadBufferHalfToFloat(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf);
+  void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf, bool useFP16);
 
   size_t powerOf2ify(size_t size);
   size_t roundUpToMultiple(size_t size, size_t ofThis);

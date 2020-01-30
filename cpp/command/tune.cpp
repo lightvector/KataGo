@@ -1,5 +1,6 @@
 #include "../core/global.h"
 #include "../core/config_parser.h"
+#include "../core/commontypes.h"
 #include "../core/timer.h"
 #include "../core/makedir.h"
 #include "../command/commandline.h"
@@ -27,6 +28,8 @@ int MainCmds::tuner(int argc, const char* const* argv) {
   vector<int> gpuIdxs;
   int nnXLen;
   int nnYLen;
+  string useFP16Str;
+  enabled_t useFP16Mode;
   int batchSize;
   int winograd3x3TileSize;
   bool full;
@@ -39,6 +42,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> gpuIdxsArg("","gpus","Specific GPU/device number(s) to tune, comma-separated (default all)",false,string(),"GPUS");
     TCLAP::ValueArg<int> nnXLenArg("","xsize","Width of board to tune for",false,OpenCLTuner::DEFAULT_X_SIZE,"INT");
     TCLAP::ValueArg<int> nnYLenArg("","ysize","Height of board to tune for",false,OpenCLTuner::DEFAULT_Y_SIZE,"INT");
+    TCLAP::ValueArg<string> useFP16Arg("","useFP16","Use FP16? true|false|auto (default auto)",false,"auto","BOOL_OR_AUTO");
     TCLAP::ValueArg<int> batchSizeArg("","batchsize","Batch size to tune for",false,OpenCLTuner::DEFAULT_BATCH_SIZE,"INT");
     TCLAP::ValueArg<int> winograd3x3TileSizeArg("","winograd3x3tilesize","Batch size to tune for",false,OpenCLTuner::DEFAULT_WINOGRAD_3X3_TILE_SIZE,"INT");
     TCLAP::SwitchArg fullArg("","full","Test more possible configurations");
@@ -50,6 +54,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     cmd.add(gpuIdxsArg);
     cmd.add(nnXLenArg);
     cmd.add(nnYLenArg);
+    cmd.add(useFP16Arg);
     cmd.add(batchSizeArg);
     cmd.add(fullArg);
     cmd.parse(argc,argv);
@@ -59,9 +64,15 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     gpuIdxsStr = gpuIdxsArg.getValue();
     nnXLen = nnXLenArg.getValue();
     nnYLen = nnYLenArg.getValue();
+    useFP16Str = useFP16Arg.getValue();
     batchSize = batchSizeArg.getValue();
     winograd3x3TileSize = winograd3x3TileSizeArg.getValue();
     full = fullArg.getValue();
+
+    if(!enabled_t::tryParse(useFP16Str,useFP16Mode)) {
+      cerr << "Error: Could not parse -useFP16 as bool or auto: " << useFP16Str << endl;
+      return 1;
+    }
 
     if(gpuIdxsStr.size() > 0) {
       vector<string> pieces = Global::split(gpuIdxsStr,',');
@@ -158,6 +169,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
       batchSize,
       nnXLen,
       nnYLen,
+      useFP16Mode,
       &modelDesc,
       full,
       winograd3x3TileSize,

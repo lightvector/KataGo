@@ -2,6 +2,7 @@
 #define NEURALNET_OPENCL_TUNER_H_
 
 #include "../core/global.h"
+#include "../core/commontypes.h"
 #include "../core/logger.h"
 #include "../neuralnet/desc.h"
 #include "../neuralnet/nninputs.h"
@@ -51,6 +52,10 @@ struct OpenCLTuneParams {
     bool isSimple() const;
   };
   XGemmParams xGemm = XGemmParams();
+
+  bool shouldUseFP16Storage = false;
+  bool shouldUseFP16Compute = false;
+  XGemmParams xGemm16 = XGemmParams();
 
   struct Conv3x3Params {
     //Winograd input and output tile sizes
@@ -130,6 +135,7 @@ namespace OpenCLTuner {
     int batchSize,
     int nnXLen,
     int nnYLen,
+    enabled_t useFP16Mode,
     const ModelDesc* model,
     bool full,
     int winograd3x3TileSize,
@@ -149,6 +155,7 @@ namespace OpenCLTuner {
     bool openCLReTunePerBoardSize,
     int nnXLen,
     int nnYLen,
+    enabled_t useFP16Mode,
     const ModelDesc* model,
     bool full
   );

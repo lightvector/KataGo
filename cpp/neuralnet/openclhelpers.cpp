@@ -5,6 +5,8 @@
 
 using namespace std;
 
+using half_t = half_float::half;
+
 const char* OpenCLHelpers::getErrorMessage(cl_int error)
 {
   switch(error){
@@ -140,6 +142,18 @@ cl_mem OpenCLHelpers::createReadOnlyBuffer(cl_context clContext, vector<float>& 
   CHECK_ERR(err);
   return buf;
 }
+cl_mem OpenCLHelpers::createReadOnlyBuffer(cl_context clContext, vector<half_t>& data) {
+  cl_int err;
+  cl_mem buf = clCreateBuffer(
+    clContext,
+    CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+    byteSizeofVectorContents(data),
+    data.data(),
+    &err
+  );
+  CHECK_ERR(err);
+  return buf;
+}
 
 cl_mem OpenCLHelpers::createReadWriteBuffer(cl_context clContext, vector<float>& data) {
   cl_int err;
@@ -153,17 +167,45 @@ cl_mem OpenCLHelpers::createReadWriteBuffer(cl_context clContext, vector<float>&
   CHECK_ERR(err);
   return buf;
 }
+cl_mem OpenCLHelpers::createReadWriteBuffer(cl_context clContext, vector<half_t>& data) {
+  cl_int err;
+  cl_mem buf = clCreateBuffer(
+    clContext,
+    CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+    byteSizeofVectorContents(data),
+    data.data(),
+    &err
+  );
+  CHECK_ERR(err);
+  return buf;
+}
 
-cl_mem OpenCLHelpers::createReadWriteBuffer(cl_context clContext, size_t numFloats) {
+cl_mem OpenCLHelpers::createReadWriteBufferFloat(cl_context clContext, size_t numElts) {
   //Minimum allocation size, just in case, to avoid allocations of size 0
-  if(numFloats < 32)
-    numFloats = 32;
+  if(numElts < 32)
+    numElts = 32;
 
   cl_int err;
   cl_mem buf = clCreateBuffer(
     clContext,
     CL_MEM_READ_WRITE,
-    numFloats * sizeof(float),
+    numElts * sizeof(float),
+    NULL,
+    &err
+  );
+  CHECK_ERR(err);
+  return buf;
+}
+cl_mem OpenCLHelpers::createReadWriteBufferHalf(cl_context clContext, size_t numElts) {
+  //Minimum allocation size, just in case, to avoid allocations of size 0
+  if(numElts < 32)
+    numElts = 32;
+
+  cl_int err;
+  cl_mem buf = clCreateBuffer(
+    clContext,
+    CL_MEM_READ_WRITE,
+    numElts * sizeof(half_t),
     NULL,
     &err
   );
@@ -172,12 +214,32 @@ cl_mem OpenCLHelpers::createReadWriteBuffer(cl_context clContext, size_t numFloa
 }
 
 
-void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numFloats, std::vector<float>& dstBuf) {
-  dstBuf.resize(numFloats);
+void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf) {
+  dstBuf.resize(numElts);
   cl_bool blocking = CL_TRUE;
   cl_int err;
   err = clEnqueueReadBuffer(commandQueue, srcBuf, blocking, 0, byteSizeofVectorContents(dstBuf), dstBuf.data(), 0, NULL, NULL);
   CHECK_ERR(err);
+}
+void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<half_t>& dstBuf) {
+  dstBuf.resize(numElts);
+  cl_bool blocking = CL_TRUE;
+  cl_int err;
+  err = clEnqueueReadBuffer(commandQueue, srcBuf, blocking, 0, byteSizeofVectorContents(dstBuf), dstBuf.data(), 0, NULL, NULL);
+  CHECK_ERR(err);
+}
+void OpenCLHelpers::blockingReadBufferHalfToFloat(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf) {
+  vector<half_t> tmpHalf;
+  blockingReadBuffer(commandQueue, srcBuf, numElts, tmpHalf);
+   dstBuf.resize(numElts);
+  for(size_t i = 0; i<numElts; i++)
+    dstBuf[i] = tmpHalf[i];
+}
+void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf, bool useFP16) {
+  if(useFP16)
+    blockingReadBufferHalfToFloat(commandQueue, srcBuf, numElts, dstBuf);
+  else
+    blockingReadBuffer(commandQueue, srcBuf, numElts, dstBuf);
 }
 
 vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
@@ -330,6 +392,7 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     info.openCLVersion = openCLVersion;
     info.extensions = extensions;
     info.defaultDesirability = defaultDesirability;
+    info.supportsFP16Compute = (extensions.find("cl_khr_fp16") != string::npos);
     allDeviceInfos.push_back(info);
   }
 
@@ -448,7 +511,7 @@ DevicesContext::DevicesContext(const vector<DeviceInfo>& allDeviceInfos, const v
     string message =
       "Using OpenCL Device " + Global::intToString(gpuIdxsToUse[i]) + ": " + device->info.name +
       " (" + device->info.vendor + ") " +
-      device->info.openCLVersion;
+      device->info.openCLVersion + " (Extensions: " + device->info.extensions + ")";
     if(logger != NULL) {
       logger->write(message);
       if(!logger->isLoggingToStdout() && !logger->isLoggingToStderr())
