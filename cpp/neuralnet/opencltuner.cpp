@@ -1792,7 +1792,7 @@ void OpenCLTuner::tune(
     currentConfig = result;
 
     //Try FP16 storage if allowed
-    if(useFP16Mode == enabled_t::FALSE) {
+    if(useFP16Mode == enabled_t::False) {
       currentConfig.shouldUseFP16Storage = false;
       cout << "Not enabling FP16 storage since FP16 disabled" << endl;
     }
