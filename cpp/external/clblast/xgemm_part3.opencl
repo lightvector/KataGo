@@ -7,6 +7,9 @@
 // Author(s):
 //   Cedric Nugteren <www.cedricnugteren.nl>
 //
+// MODIFIED by David Wu ("lightvector") to remove some unnecessary parts of the interfaces
+// for this project's use, such as alpha and beta scaling.
+//
 // This is part 3 of 4 of the GEMM kernel. See part 1 for more information.
 //
 // =================================================================================================
@@ -21,24 +24,24 @@ R"(
 
 INLINE_FUNC int clblast_get_sub_group_local_id() {
 
-  // Intel extension 
+  // Intel extension
   #if SUBGROUP_SHUFFLING_INTEL == 1
   return get_sub_group_local_id();
-  
+
   // Nvidia inline PTX
   #elif SUBGROUP_SHUFFLING_NVIDIA_PRE_VOLTA == 1 || SUBGROUP_SHUFFLING_NVIDIA_POST_VOLTA == 1
   int ret;
   asm volatile("mov.u32 %0, %%laneid;" : "=r"(ret) );
   return ret;
-  #endif 
+  #endif
 }
 
 INLINE_FUNC realN clblast_sub_group_shuffle(realN reg, int src) {
 
-  // Intel extension 
+  // Intel extension
   #if SUBGROUP_SHUFFLING_INTEL == 1
   return intel_sub_group_shuffle(reg, src);
-  
+
   // Nvidia inline PTX
   // Volta and later requires .sync shuffle instructions with an extra mask arg
   #elif SUBGROUP_SHUFFLING_NVIDIA_PRE_VOLTA == 1 || SUBGROUP_SHUFFLING_NVIDIA_POST_VOLTA == 1
@@ -56,7 +59,7 @@ INLINE_FUNC realN clblast_sub_group_shuffle(realN reg, int src) {
 // Main body of the matrix-multiplication algorithm. It calls various (inlined) functions.
 INLINE_FUNC void XgemmBody(const int kSizeM, const int kSizeN, const int kSizeK,
                            const __global realM* restrict agm, const __global realN* restrict bgm,
-                           __global realM* cgm, const real alpha, const real beta
+                           __global realM* cgm
                            #if SA == 1 && SB == 1
                              , LOCAL_PTR realM* alm, LOCAL_PTR realN* blm
                            #elif SA == 1
@@ -293,7 +296,7 @@ INLINE_FUNC void XgemmBody(const int kSizeM, const int kSizeN, const int kSizeK,
     barrier(CLK_GLOBAL_MEM_FENCE);
   #endif
 
-  // Stores an MWG * NWG tile of results and performs the multiplication with alpha and beta
+  // Stores an MWG * NWG tile of results
   #if GEMMK == 0
     const int cld = kSizeM;
   #elif GEMMK == 1
@@ -303,7 +306,7 @@ INLINE_FUNC void XgemmBody(const int kSizeM, const int kSizeN, const int kSizeK,
   for (int _ni = 0; _ni < NWI; _ni += 1) {
     #pragma unroll
     for (int _mi = 0; _mi < MWI/VWM; _mi += 1) {
-      StoreResults(cgm, cpm[_ni * (MWI/VWM) + _mi], _mi, _ni, cld, alpha, beta);
+      StoreResults(cgm, cpm[_ni * (MWI/VWM) + _mi], _mi, _ni, cld);
     }
   }
 }

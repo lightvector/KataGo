@@ -7,6 +7,9 @@
 // Author(s):
 //   Cedric Nugteren <www.cedricnugteren.nl>
 //
+// MODIFIED by David Wu ("lightvector") to remove some unnecessary parts of the interfaces
+// for this project's use, such as alpha and beta scaling.
+//
 // This is part 4 of 4 of the GEMM kernel. See part 1 for more information.
 //
 // =================================================================================================
@@ -21,13 +24,9 @@ R"(
 // Main entry point of the kernel. This is the upper-triangular version.
 __kernel __attribute__((reqd_work_group_size(MDIMC, NDIMC, 1)))
 void XgemmUpper(const int kSizeN, const int kSizeK,
-                const real_arg arg_alpha,
-                const real_arg arg_beta,
                 const __global realM* restrict agm,
                 const __global realN* restrict bgm,
                 __global realM* cgm) {
-  const real alpha = GetRealArg(arg_alpha);
-  const real beta = GetRealArg(arg_beta);
 
   // Skip these threads if they do not contain threads contributing to the upper-triangle
   if ((GetGroupID1() + 1)*NWG < GetGroupID0()*MWG) {
@@ -44,26 +43,22 @@ void XgemmUpper(const int kSizeN, const int kSizeK,
 
   // Computes the matrix-multiplication and stores the result in global memory
   #if SA == 1 && SB == 1
-    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm, alpha, beta, alm, blm);
+    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm, alm, blm);
   #elif SA == 1
-    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm, alpha, beta, alm);
+    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm, alm);
   #elif SB == 1
-    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm, alpha, beta, blm);
+    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm, blm);
   #else
-    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm, alpha, beta);
+    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm);
   #endif
 }
 
 // Main entry point of the kernel. This is the lower-triangular version.
 __kernel __attribute__((reqd_work_group_size(MDIMC, NDIMC, 1)))
 void XgemmLower(const int kSizeN, const int kSizeK,
-                const real_arg arg_alpha,
-                const real_arg arg_beta,
                 const __global realM* restrict agm,
                 const __global realN* restrict bgm,
                 __global realM* cgm) {
-  const real alpha = GetRealArg(arg_alpha);
-  const real beta = GetRealArg(arg_beta);
 
   // Skip these threads if they do not contain threads contributing to the lower-triangle
   if (GetGroupID1()*NWG > (GetGroupID0() + 1)*MWG) {
@@ -80,13 +75,13 @@ void XgemmLower(const int kSizeN, const int kSizeK,
 
   // Computes the matrix-multiplication and stores the result in global memory
   #if SA == 1 && SB == 1
-    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm, alpha, beta, alm, blm);
+    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm, alm, blm);
   #elif SA == 1
-    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm, alpha, beta, alm);
+    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm, alm);
   #elif SB == 1
-    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm, alpha, beta, blm);
+    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm, blm);
   #else
-    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm, alpha, beta);
+    XgemmBody(kSizeN, kSizeN, kSizeK, agm, bgm, cgm);
   #endif
 }
 
@@ -97,14 +92,10 @@ void XgemmLower(const int kSizeN, const int kSizeK,
 // Main entry point of the kernel. This is the regular full version.
 __kernel __attribute__((reqd_work_group_size(MDIMC, NDIMC, 1)))
 void Xgemm(const int kSizeM, const int kSizeN, const int kSizeK,
-           const real_arg arg_alpha,
-           const real_arg arg_beta,
            const __global realM* restrict agm,
            const __global realN* restrict bgm,
            __global realM* cgm,
            const int b_offset, const int c_offset) {
-  const real alpha = GetRealArg(arg_alpha);
-  const real beta = GetRealArg(arg_beta);
 
   // Adds the offsets (in case of use of a single temporary buffer for A, B, and C)
   bgm = &bgm[b_offset];
@@ -120,13 +111,13 @@ void Xgemm(const int kSizeM, const int kSizeN, const int kSizeK,
 
   // Computes the matrix-multiplication and stores the result in global memory
   #if SA == 1 && SB == 1
-    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm, alpha, beta, alm, blm);
+    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm, alm, blm);
   #elif SA == 1
-    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm, alpha, beta, alm);
+    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm, alm);
   #elif SB == 1
-    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm, alpha, beta, blm);
+    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm, blm);
   #else
-    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm, alpha, beta);
+    XgemmBody(kSizeM, kSizeN, kSizeK, agm, bgm, cgm);
   #endif
 }
 

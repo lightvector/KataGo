@@ -983,7 +983,7 @@ __kernel void extractChannel0NCHW(__global float* in, __global float* out, int n
 }
 )%%";
 
-
+//
 string OpenCLKernels::xgemmDirect =
 "#define ROUTINE_GEMMBATCHED\n"
 "#define ROUTINE_GEMMSTRIDEDBATCHED\n"
