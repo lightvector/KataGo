@@ -124,6 +124,7 @@ bool OpenCLHelpers::tryCompileProgram(const string& name, cl_context context, co
     buf = compileProgram(name,context,devices,str,options);
   }
   catch(CompileError& e) {
+    cout << e.what() << endl;
     (void)e;
     return false;
   }

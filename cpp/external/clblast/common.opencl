@@ -9,6 +9,8 @@
 //
 // This file contains the common defines and type-defs for the CLBlast OpenCL kernels.
 //
+// MODIFIED from the original by David Wu (lightvector) to add FP16 storage with FP32 compute as an option.
+//
 // =================================================================================================
 
 // Enables loading of this file using the C++ pre-processor's #include (C++11 standard raw string
@@ -20,6 +22,35 @@ R"(
 // this file is used outside of the CLBlast library.
 #ifndef PRECISION
   #define PRECISION 32      // Data-types: half, single or double precision, complex or regular
+#endif
+
+// =================================================================================================
+
+#ifndef PRECISION_STORAGE
+  #define PRECISION_STORAGE 32
+#endif
+
+#if PRECISION_STORAGE == 16
+  typedef half realstore;
+  #if PRECISION == 16
+    typedef half2 realstore2;
+    typedef half4 realstore4;
+    typedef half8 realstore8;
+    typedef half16 realstore16;
+  #else
+    //If we don't have true fp16 compute support, halfn vector types won't exist, so substitute
+    //another type with the same datawidth. The vload and vstore functions and such will still work.
+    typedef short2 realstore2;
+    typedef short4 realstore4;
+    typedef short8 realstore8;
+    typedef short16 realstore16;
+  #endif
+#elif PRECISION_STORAGE == 32
+  typedef float realstore;
+  typedef float2 realstore2;
+  typedef float4 realstore4;
+  typedef float8 realstore8;
+  typedef float16 realstore16;
 #endif
 
 // =================================================================================================
@@ -58,7 +89,7 @@ R"(
   #define ONE 1.0f
   #define SMALLEST -1.0e37f
 
-// Double-precision 
+// Double-precision
 #elif PRECISION == 64
   typedef double real;
   typedef double2 real2;
@@ -143,7 +174,7 @@ R"(
 #if PRECISION == 3232 || PRECISION == 6464
   #define ImagToZero(a) a.y = ZERO
 #else
-  #define ImagToZero(a) 
+  #define ImagToZero(a)
 #endif
 
 // Sets a variable to one
@@ -237,7 +268,7 @@ R"(
 #if PRECISION == 3232 || PRECISION == 6464
   #define COMPLEX_CONJUGATE(value) value.x = value.x; value.y = -value.y
 #else
-  #define COMPLEX_CONJUGATE(value) 
+  #define COMPLEX_CONJUGATE(value)
 #endif
 
 // =================================================================================================

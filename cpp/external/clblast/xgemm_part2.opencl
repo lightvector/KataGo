@@ -68,7 +68,7 @@ INLINE_FUNC realM MultiplyAddVector(realM cvec, const realM avec, const real bva
 
 // Writes the results in Cpm to the global array in Cgm.
 // Cgm := A*B = Cpm
-INLINE_FUNC void StoreResults(__global realM* cgm, realM c_value, const int _mi, const int _ni,
+INLINE_FUNC void StoreResults(__global realstoreM* cgm, realM c_value, const int _mi, const int _ni,
                               const int kSizeM) {
   #if STRM == 0
     int mg = _mi + get_local_id(0)*(MWI/VWM);
@@ -86,7 +86,7 @@ INLINE_FUNC void StoreResults(__global realM* cgm, realM c_value, const int _mi,
 
   realM xval = c_value;
 
-  cgm[index] = xval;
+  STOREGLOBALM(cgm,index,xval);
 }
 
 )"

@@ -24,9 +24,9 @@ R"(
 // Main entry point of the kernel. This is the upper-triangular version.
 __kernel __attribute__((reqd_work_group_size(MDIMC, NDIMC, 1)))
 void XgemmUpper(const int kSizeN, const int kSizeK,
-                const __global realM* restrict agm,
-                const __global realN* restrict bgm,
-                __global realM* cgm) {
+                const __global realstoreM* restrict agm,
+                const __global realstoreN* restrict bgm,
+                __global realstoreM* cgm) {
 
   // Skip these threads if they do not contain threads contributing to the upper-triangle
   if ((GetGroupID1() + 1)*NWG < GetGroupID0()*MWG) {
@@ -35,10 +35,10 @@ void XgemmUpper(const int kSizeN, const int kSizeK,
 
   // Allocates workgroup-private memory (local memory)
   #if SA == 1
-    __local realM alm[KWG * MWG/VWM];
+    __local realstoreM alm[KWG * MWG/VWM];
   #endif
   #if SB == 1
-    __local realN blm[KWG * NWG/VWN];
+    __local realstoreN blm[KWG * NWG/VWN];
   #endif
 
   // Computes the matrix-multiplication and stores the result in global memory
@@ -56,9 +56,9 @@ void XgemmUpper(const int kSizeN, const int kSizeK,
 // Main entry point of the kernel. This is the lower-triangular version.
 __kernel __attribute__((reqd_work_group_size(MDIMC, NDIMC, 1)))
 void XgemmLower(const int kSizeN, const int kSizeK,
-                const __global realM* restrict agm,
-                const __global realN* restrict bgm,
-                __global realM* cgm) {
+                const __global realstoreM* restrict agm,
+                const __global realstoreN* restrict bgm,
+                __global realstoreM* cgm) {
 
   // Skip these threads if they do not contain threads contributing to the lower-triangle
   if (GetGroupID1()*NWG > (GetGroupID0() + 1)*MWG) {
@@ -67,10 +67,10 @@ void XgemmLower(const int kSizeN, const int kSizeK,
 
   // Allocates workgroup-private memory (local memory)
   #if SA == 1
-    __local realM alm[KWG * MWG/VWM];
+    __local realstoreM alm[KWG * MWG/VWM];
   #endif
   #if SB == 1
-    __local realN blm[KWG * NWG/VWN];
+    __local realstoreN blm[KWG * NWG/VWN];
   #endif
 
   // Computes the matrix-multiplication and stores the result in global memory
@@ -92,9 +92,9 @@ void XgemmLower(const int kSizeN, const int kSizeK,
 // Main entry point of the kernel. This is the regular full version.
 __kernel __attribute__((reqd_work_group_size(MDIMC, NDIMC, 1)))
 void Xgemm(const int kSizeM, const int kSizeN, const int kSizeK,
-           const __global realM* restrict agm,
-           const __global realN* restrict bgm,
-           __global realM* cgm,
+           const __global realstoreM* restrict agm,
+           const __global realstoreN* restrict bgm,
+           __global realstoreM* cgm,
            const int b_offset, const int c_offset) {
 
   // Adds the offsets (in case of use of a single temporary buffer for A, B, and C)
@@ -103,10 +103,10 @@ void Xgemm(const int kSizeM, const int kSizeN, const int kSizeK,
 
   // Allocates workgroup-private memory (local memory)
   #if SA == 1
-    __local realM alm[KWG * MWG/VWM];
+    __local realstoreM alm[KWG * MWG/VWM];
   #endif
   #if SB == 1
-    __local realN blm[KWG * NWG/VWN];
+    __local realstoreN blm[KWG * NWG/VWN];
   #endif
 
   // Computes the matrix-multiplication and stores the result in global memory

@@ -1041,7 +1041,7 @@ __kernel void extractChannel0NCHW(__global realstore* in, __global realstore* ou
 }
 )%%";
 
-//!
+//.
 string OpenCLKernels::xgemmDirect =
 "#define ROUTINE_GEMMBATCHED\n"
 "#define ROUTINE_GEMMSTRIDEDBATCHED\n"

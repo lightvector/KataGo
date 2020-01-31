@@ -578,7 +578,8 @@ static bool testAllConfigs(
   OpenCLTuneParams referenceConfig,
   ostream& out,
   std::function<string(const OpenCLTuneParams&)> getDesc,
-  std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)> testConfig
+  std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)> testConfig,
+  double& bestKernelsPerSecondBuf
 ) {
   vector<OpenCLTuneParams> configs = configsToTest;
 
@@ -650,6 +651,8 @@ static bool testAllConfigs(
     out << "ERROR: Could not find any configuration that worked" << endl;
     return false;
   }
+
+  bestKernelsPerSecondBuf = bestKernelsPerSecond;
   return true;
 }
 
@@ -811,6 +814,7 @@ static void tuneXGemmDirect(
   };
 
   bool stopOnReferenceImplFail = false;
+  double bestKernelsPerSecond = 0.0;
   testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -818,7 +822,8 @@ static void tuneXGemmDirect(
     referenceConfig,
     out,
     std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
-    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test)
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
+    bestKernelsPerSecond
   );
   tunedConfig = currentConfig;
 }
@@ -835,10 +840,15 @@ static void tuneXGemm(
   const ModelDesc* model,
   bool full,
   ostream& out,
-  OpenCLTuneParams& tunedConfig
+  bool useFP16Storage,
+  OpenCLTuneParams& tunedConfig,
+  double& bestKernelsPerSecond
 ) {
   out << "------------------------------------------------------" << endl;
-  out << "Tuning xGemm for convolutions" << endl;
+  if(useFP16Storage)
+    out << "Tuning xGemm for convolutions - trying with FP16 storage" << endl;
+  else
+    out << "Tuning xGemm for convolutions" << endl;
 
   vector<OpenCLTuneParams> configs;
   configs.push_back(currentConfig);
@@ -919,7 +929,8 @@ static void tuneXGemm(
     cl_program program;
     bool compileSuc = tryCompileProgram(
       "xgemmProgram", context, deviceIdsToUse, OpenCLKernels::xgemm,
-      cfg.xGemm.compileOptions(), program
+      cfg.xGemm.compileOptions() + (useFP16Storage ? " -DPRECISION_STORAGE=16" : ""),
+      program
     );
     if(!compileSuc) { accums.bad = true; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
     cl_kernel kernel = clCreateKernel(program, "XgemmBatched", &err);
@@ -943,11 +954,24 @@ static void tuneXGemm(
     int maxChannelsPadded = roundUpToMultiple(maxChannels,std::max(cfg.xGemm.NWG,cfg.xGemm.KWG));
 
     int ioNumFloats = numTilesTotalPadded * maxChannelsPadded * inTileXYSize;
-    cl_mem input = randomReadOnly3dPaddedBufferFloat(
-      "tuneXGemm3x3Input", context, inTileXYSize, maxChannels, maxChannelsPadded, numTilesTotal, numTilesTotalPadded, 1.0);
-    cl_mem filter = randomReadOnly3dPaddedBufferFloat(
-      "tuneXGemm3x3Filter", context, inTileXYSize, maxChannels, maxChannelsPadded, maxChannels, maxChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3));
-    cl_mem output = createReadWriteBufferFloat(context, ioNumFloats);
+
+    cl_mem input;
+    cl_mem filter;
+    cl_mem output;
+    if(useFP16Storage) {
+      input = randomReadOnly3dPaddedBufferHalf(
+        "tuneXGemm3x3Input", context, inTileXYSize, maxChannels, maxChannelsPadded, numTilesTotal, numTilesTotalPadded, 1.0);
+      filter = randomReadOnly3dPaddedBufferHalf(
+        "tuneXGemm3x3Filter", context, inTileXYSize, maxChannels, maxChannelsPadded, maxChannels, maxChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3));
+      output = createReadWriteBufferHalf(context, ioNumFloats);
+    }
+    else {
+      input = randomReadOnly3dPaddedBufferFloat(
+        "tuneXGemm3x3Input", context, inTileXYSize, maxChannels, maxChannelsPadded, numTilesTotal, numTilesTotalPadded, 1.0);
+      filter = randomReadOnly3dPaddedBufferFloat(
+        "tuneXGemm3x3Filter", context, inTileXYSize, maxChannels, maxChannelsPadded, maxChannels, maxChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3));
+      output = createReadWriteBufferFloat(context, ioNumFloats);
+    }
 
     const int reps = 6;
     for(int i = 0; i<reps; i++) {
@@ -986,6 +1010,8 @@ static void tuneXGemm(
 
     if(accums.bad)
       ret.assign(ioNumFloats,0.0);
+    else if(useFP16Storage)
+      blockingReadBufferHalfToFloat(commandQueue, output, ioNumFloats, ret);
     else
       blockingReadBuffer(commandQueue, output, ioNumFloats, ret);
 
@@ -1012,7 +1038,8 @@ static void tuneXGemm(
     return accums;
   };
 
-  bool stopOnReferenceImplFail = false;
+  bool stopOnReferenceImplFail = useFP16Storage;
+  bestKernelsPerSecond = 0.0;
   testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -1020,7 +1047,8 @@ static void tuneXGemm(
     referenceConfig,
     out,
     std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
-    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test)
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
+    bestKernelsPerSecond
   );
   tunedConfig = currentConfig;
 }
@@ -1216,6 +1244,7 @@ static void tuneXGemm16(
   };
 
   bool stopOnReferenceImplFail = true;
+  double bestKernelsPerSecond = 0.0;
   bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -1223,7 +1252,8 @@ static void tuneXGemm16(
     referenceConfig,
     out,
     std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
-    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test)
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
+    bestKernelsPerSecond
   );
   if(!suc) {
     out << "FP16 tuning failed despite device claiming to support, assuming no FP16 support" << endl;
@@ -1372,6 +1402,7 @@ static void tuneTransform(
   };
 
   bool stopOnReferenceImplFail = false;
+  double bestKernelsPerSecond = 0.0;
   testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -1379,7 +1410,8 @@ static void tuneTransform(
     referenceConfig,
     out,
     std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
-    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test)
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
+    bestKernelsPerSecond
   );
 
   tunedConfig = currentConfig;
@@ -1522,6 +1554,7 @@ static void tuneUntransform(
   };
 
   bool stopOnReferenceImplFail = false;
+  double bestKernelsPerSecond = 0.0;
   testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -1529,7 +1562,8 @@ static void tuneUntransform(
     referenceConfig,
     out,
     std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
-    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test)
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
+    bestKernelsPerSecond
   );
 
   tunedConfig = currentConfig;
@@ -1651,6 +1685,7 @@ static void tuneGPool(
   };
 
   bool stopOnReferenceImplFail = false;
+  double bestKernelsPerSecond = 0.0;
   testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -1658,7 +1693,8 @@ static void tuneGPool(
     referenceConfig,
     out,
     std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
-    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test)
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
+    bestKernelsPerSecond
   );
 
   tunedConfig = currentConfig;
@@ -1735,6 +1771,8 @@ void OpenCLTuner::tune(
 
   {
     OpenCLTuneParams result;
+    bool useFP16Storage = false;
+    double bestKernelsPerSecond = 0.0;
     tuneXGemm(
       currentConfig,
       untunedConfig,
@@ -1747,13 +1785,50 @@ void OpenCLTuner::tune(
       model,
       full,
       out,
-      result
+      useFP16Storage,
+      result,
+      bestKernelsPerSecond
     );
     currentConfig = result;
+
+    //Try FP16 storage if allowed
+    if(useFP16Mode == enabled_t::FALSE) {
+      currentConfig.shouldUseFP16Storage = false;
+      cout << "Not enabling FP16 storage since FP16 disabled" << endl;
+    }
+    else {
+      OpenCLTuneParams result16;
+      bool useFP16Storage16 = true;
+      double bestKernelsPerSecond16 = 0.0;
+      tuneXGemm(
+        currentConfig,
+        untunedConfig,
+        context,
+        commandQueue,
+        deviceIdsToUse,
+        batchSize,
+        nnXLen,
+        nnYLen,
+        model,
+        full,
+        out,
+        useFP16Storage16,
+        result16,
+        bestKernelsPerSecond16
+      );
+
+      if(bestKernelsPerSecond16 > 1.2 * bestKernelsPerSecond) {
+        currentConfig = result16;
+        currentConfig.shouldUseFP16Storage = true;
+        cout << "Enabling FP16 storage due to better performance" << endl;
+      }
+      else {
+        currentConfig.shouldUseFP16Storage = false;
+        cout << "Not enabling FP16 storage since not much better" << endl;
+      }
+    }
   }
 
-  //=======================================================================================
-  //Tune xGemm16
   if((!device->info.supportsFP16Compute || useFP16Mode == enabled_t::False) && useFP16Mode != enabled_t::True)
   {
     currentConfig.xGemm16 = currentConfig.xGemm;

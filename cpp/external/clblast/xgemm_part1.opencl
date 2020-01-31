@@ -22,18 +22,18 @@
 // For kernel 1, both A and C are transposed w.r.t. the above
 //
 // Or as an image (assuming column-major)
-//       K                      
-//    o-------o                 
-//    |       |                 
-//  N | [B^T] |                 
-//    |       |                 
-//    o-------o                 
-//        K               N     
-//    o-------o        o-----o  
-//  M |  [A]  |      M | [C] |  
-//    |       |        |     |  
-//    o-------o        o-----o  
-//                              
+//       K
+//    o-------o
+//    |       |
+//  N | [B^T] |
+//    |       |
+//    o-------o
+//        K               N
+//    o-------o        o-----o
+//  M |  [A]  |      M | [C] |
+//    |       |        |     |
+//    o-------o        o-----o
+//
 //
 // This kernel is separated into multiple files. This is part 1 out of 4.
 //
@@ -148,27 +148,147 @@ R"(
 // Data-widths in dimension M
 #if VWM == 1
     typedef real realM;
+    typedef realstore realstoreM;
+    #if PRECISION_STORAGE == 16 && PRECISION == 32
+        #define LOADGLOBALM(__buf,__x) vloada_half((__x),(const __global half*)(__buf))
+        #define LOADGLOBALTOVECM(__buf,__x) vload_half((__x),(__buf))
+        #define LOADLOCALM(__buf,__x) vloada_half((__x),(LOCAL_PTR half*)(__buf))
+        #define STOREGLOBALM(__buf,__x,__val) vstorea_half((__val),(__x),(__global half*)(__buf))
+    #else
+        #define LOADGLOBALM(__buf,__x) ((__buf)[(__x)])
+        #define LOADGLOBALTOVECM(__buf,__x) ((__buf)[(__x)])
+        #define LOADLOCALM(__buf,__x) ((__buf)[(__x)])
+        #define STOREGLOBALM(__buf,__x,__val) ((__buf)[(__x)] = (__val))
+    #endif
 #elif VWM == 2
     typedef real2 realM;
+    typedef realstore2 realstoreM;
+    #if PRECISION_STORAGE == 16 && PRECISION == 32
+        #define LOADGLOBALM(__buf,__x) vloada_half2((__x),(const __global half*)(__buf))
+        #define LOADGLOBALTOVECM(__buf,__x) vload_half2((__x),(__buf))
+        #define LOADLOCALM(__buf,__x) vloada_half2((__x),(LOCAL_PTR half*)(__buf))
+        #define STOREGLOBALM(__buf,__x,__val) vstorea_half2((__val),(__x),(__global half*)(__buf))
+    #else
+        #define LOADGLOBALM(__buf,__x) ((__buf)[(__x)])
+        #define LOADGLOBALTOVECM(__buf,__x) vload2((__x),(__buf))
+        #define LOADLOCALM(__buf,__x) ((__buf)[(__x)])
+        #define STOREGLOBALM(__buf,__x,__val) ((__buf)[(__x)] = (__val))
+    #endif
 #elif VWM == 4
     typedef real4 realM;
+    typedef realstore4 realstoreM;
+    #if PRECISION_STORAGE == 16 && PRECISION == 32
+        #define LOADGLOBALM(__buf,__x) vloada_half4((__x),(const __global half*)(__buf))
+        #define LOADGLOBALTOVECM(__buf,__x) vload_half4((__x),(__buf))
+        #define LOADLOCALM(__buf,__x) vloada_half4((__x),(LOCAL_PTR half*)(__buf))
+        #define STOREGLOBALM(__buf,__x,__val) vstorea_half4((__val),(__x),(__global half*)(__buf))
+    #else
+        #define LOADGLOBALM(__buf,__x) ((__buf)[(__x)])
+        #define LOADGLOBALTOVECM(__buf,__x) vload4((__x),(__buf))
+        #define LOADLOCALM(__buf,__x) ((__buf)[(__x)])
+        #define STOREGLOBALM(__buf,__x,__val) ((__buf)[(__x)] = (__val))
+    #endif
 #elif VWM == 8
     typedef real8 realM;
+    typedef realstore8 realstoreM;
+    #if PRECISION_STORAGE == 16 && PRECISION == 32
+        #define LOADGLOBALM(__buf,__x) vloada_half8((__x),(const __global half*)(__buf))
+        #define LOADGLOBALTOVECM(__buf,__x) vload_half8((__x),(__buf))
+        #define LOADLOCALM(__buf,__x) vloada_half8((__x),(LOCAL_PTR half*)(__buf))
+        #define STOREGLOBALM(__buf,__x,__val) vstorea_half8((__val),(__x),(__global half*)(__buf))
+    #else
+        #define LOADGLOBALM(__buf,__x) ((__buf)[(__x)])
+        #define LOADGLOBALTOVECM(__buf,__x) vload8((__x),(__buf))
+        #define LOADLOCALM(__buf,__x) ((__buf)[(__x)])
+        #define STOREGLOBALM(__buf,__x,__val) ((__buf)[(__x)] = (__val))
+    #endif
 #elif VWM == 16
     typedef real16 realM;
+    typedef realstore16 realstoreM;
+    #if PRECISION_STORAGE == 16 && PRECISION == 32
+        #define LOADGLOBALM(__buf,__x) vloada_half16((__x),(const __global half*)(__buf))
+        #define LOADGLOBALTOVECM(__buf,__x) vload_half16((__x),(__buf))
+        #define LOADLOCALM(__buf,__x) vloada_half16((__x),(LOCAL_PTR half*)(__buf))
+        #define STOREGLOBALM(__buf,__x,__val) vstorea_half16((__val),(__x),(__global half*)(__buf))
+    #else
+        #define LOADGLOBALM(__buf,__x) ((__buf)[(__x)])
+        #define LOADGLOBALTOVECM(__buf,__x) vload16((__x),(__buf))
+        #define LOADLOCALM(__buf,__x) ((__buf)[(__x)])
+        #define STOREGLOBALM(__buf,__x,__val) ((__buf)[(__x)] = (__val))
+    #endif
 #endif
 
 // Data-widths in dimension N
 #if VWN == 1
     typedef real realN;
+    typedef realstore realstoreN;
+    #if PRECISION_STORAGE == 16 && PRECISION == 32
+        #define LOADGLOBALN(__buf,__x) vloada_half((__x),(const __global half*)(__buf))
+        #define LOADGLOBALTOVECN(__buf,__x) vload_half((__x),(__buf))
+        #define LOADLOCALN(__buf,__x) vloada_half((__x),(LOCAL_PTR half*)(__buf))
+        #define STOREGLOBALN(__buf,__x,__val) vstorea_half((__val),(__x),(__global half*)(__buf))
+    #else
+        #define LOADGLOBALN(__buf,__x) ((__buf)[(__x)])
+        #define LOADGLOBALTOVECN(__buf,__x) ((__buf)[(__x)])
+        #define LOADLOCALN(__buf,__x) ((__buf)[(__x)])
+        #define STOREGLOBALN(__buf,__x,__val) ((__buf)[(__x)] = (__val))
+    #endif
 #elif VWN == 2
     typedef real2 realN;
+    typedef realstore2 realstoreN;
+    #if PRECISION_STORAGE == 16 && PRECISION == 32
+        #define LOADGLOBALN(__buf,__x) vloada_half2((__x),(const __global half*)(__buf))
+        #define LOADGLOBALTOVECN(__buf,__x) vload_half2((__x),(__buf))
+        #define LOADLOCALN(__buf,__x) vloada_half2((__x),(LOCAL_PTR half*)(__buf))
+        #define STOREGLOBALN(__buf,__x,__val) vstorea_half2((__val),(__x),(__global half*)(__buf))
+    #else
+        #define LOADGLOBALN(__buf,__x) ((__buf)[(__x)])
+        #define LOADGLOBALTOVECN(__buf,__x) vload2((__x),(__buf))
+        #define LOADLOCALN(__buf,__x) ((__buf)[(__x)])
+        #define STOREGLOBALN(__buf,__x,__val) ((__buf)[(__x)] = (__val))
+    #endif
 #elif VWN == 4
     typedef real4 realN;
+    typedef realstore4 realstoreN;
+    #if PRECISION_STORAGE == 16 && PRECISION == 32
+        #define LOADGLOBALN(__buf,__x) vloada_half4((__x),(const __global half*)(__buf))
+        #define LOADGLOBALTOVECN(__buf,__x) vload_half4((__x),(__buf))
+        #define LOADLOCALN(__buf,__x) vloada_half4((__x),(LOCAL_PTR half*)(__buf))
+        #define STOREGLOBALN(__buf,__x,__val) vstorea_half4((__val),(__x),(__global half*)(__buf))
+    #else
+        #define LOADGLOBALN(__buf,__x) ((__buf)[(__x)])
+        #define LOADGLOBALTOVECN(__buf,__x) vload4((__x),(__buf))
+        #define LOADLOCALN(__buf,__x) ((__buf)[(__x)])
+        #define STOREGLOBALN(__buf,__x,__val) ((__buf)[(__x)] = (__val))
+    #endif
 #elif VWN == 8
     typedef real8 realN;
+    typedef realstore8 realstoreN;
+    #if PRECISION_STORAGE == 16 && PRECISION == 32
+        #define LOADGLOBALN(__buf,__x) vloada_half8((__x),(const __global half*)(__buf))
+        #define LOADGLOBALTOVECN(__buf,__x) vload_half8((__x),(__buf))
+        #define LOADLOCALN(__buf,__x) vloada_half8((__x),(LOCAL_PTR half*)(__buf))
+        #define STOREGLOBALN(__buf,__x,__val) vstorea_half8((__val),(__x),(__global half*)(__buf))
+    #else
+        #define LOADGLOBALN(__buf,__x) ((__buf)[(__x)])
+        #define LOADGLOBALTOVECN(__buf,__x) vload8((__x),(__buf))
+        #define LOADLOCALN(__buf,__x) ((__buf)[(__x)])
+        #define STOREGLOBALN(__buf,__x,__val) ((__buf)[(__x)] = (__val))
+    #endif
 #elif VWN == 16
     typedef real16 realN;
+    typedef realstore16 realstoreN;
+    #if PRECISION_STORAGE == 16 && PRECISION == 32
+        #define LOADGLOBALN(__buf,__x) vloada_half16((__x),(const __global half*)(__buf))
+        #define LOADGLOBALTOVECN(__buf,__x) vload_half16((__x),(__buf))
+        #define LOADLOCALN(__buf,__x) vloada_half16((__x),(LOCAL_PTR half*)(__buf))
+        #define STOREGLOBALN(__buf,__x,__val) vstorea_half16((__val),(__x),(__global half*)(__buf))
+    #else
+        #define LOADGLOBALN(__buf,__x) ((__buf)[(__x)])
+        #define LOADGLOBALTOVECN(__buf,__x) vload16((__x),(__buf))
+        #define LOADLOCALN(__buf,__x) ((__buf)[(__x)])
+        #define STOREGLOBALN(__buf,__x,__val) ((__buf)[(__x)] = (__val))
+    #endif
 #endif
 
 // =================================================================================================
@@ -221,7 +341,7 @@ INLINE_FUNC realM InitAccRegisters() {
 // Caches global off-chip memory into local (shared) memory on-chip. This function is specific for
 // caching the A input matrix.
 #if SA == 1
-INLINE_FUNC void GlobalToLocalA(const __global realM* restrict agm, LOCAL_PTR realM* alm,
+INLINE_FUNC void GlobalToLocalA(const __global realstoreM* restrict agm, LOCAL_PTR realstoreM* alm,
                                 const int kSizeM, const int tid, const int kwg) {
   const int la0 = tid % MDIMA;
   const int la1 = tid / MDIMA;
@@ -251,7 +371,7 @@ INLINE_FUNC void GlobalToLocalA(const __global realM* restrict agm, LOCAL_PTR re
 
 // Same as above, but now for the B input matrix
 #if SB == 1
-INLINE_FUNC void GlobalToLocalB(const __global realN* restrict bgm, LOCAL_PTR realN* blm,
+INLINE_FUNC void GlobalToLocalB(const __global realstoreN* restrict bgm, LOCAL_PTR realstoreN* blm,
                                 const int kSizeN, const int tid, const int kwg) {
   const int lb0 = tid % NDIMB;
   const int lb1 = tid / NDIMB;
@@ -284,7 +404,7 @@ INLINE_FUNC void GlobalToLocalB(const __global realN* restrict bgm, LOCAL_PTR re
 // Caches global off-chip memory directly into per-thread private memory (registers). This function
 // is specific for caching the A input matrix.
 #if SA == 0 && GEMMK == 0
-INLINE_FUNC realM GlobalToPrivateA(const __global realM* restrict agm, const int _mi,
+INLINE_FUNC realM GlobalToPrivateA(const __global realstoreM* restrict agm, const int _mi,
                                    const int kSizeM, const int idk, const int kwg) {
   // Computes the indices based on strided/non-strided access
   #if STRM == 0
@@ -297,7 +417,7 @@ INLINE_FUNC realM GlobalToPrivateA(const __global realM* restrict agm, const int
   int idm = mg + GetGroupID0() * (MWG/VWM);
 
   // Loads the data from global memory (not transposed) and stores into registers
-  return agm[idk*(kSizeM/VWM) + idm];
+  return LOADGLOBALM(agm,idk*(kSizeM/VWM) + idm);
 }
 #endif
 
@@ -316,7 +436,7 @@ INLINE_FUNC realN GlobalToPrivateB(const __global realN* restrict bgm, const int
   int idn = ng + GetGroupID1() * (NWG/VWN);
 
   // Loads the data from global memory (transposed) and stores into registers
-  return bgm[idk*(kSizeN/VWN) + idn];
+  return LOADGLOBALN(bgm,idk*(kSizeN/VWN) + idn);
 }
 #endif
 
@@ -325,48 +445,28 @@ INLINE_FUNC realN GlobalToPrivateB(const __global realN* restrict bgm, const int
 
 // Caches global off-chip memory directly into per-thread private memory (registers). This function
 // is specific for caching the A input matrix for kernel 1.
-INLINE_FUNC realN GlobalToPrivateA2D(const __global real* restrict a_ptr, const int tid_y, const int _ni,
+INLINE_FUNC realN GlobalToPrivateA2D(const __global realstore* restrict a_ptr, const int tid_y, const int _ni,
                                      const int kSizeK, const int idk, const int _ki) {
   #if PRECISION == 3232 || PRECISION == 6464
     const int a_index = (tid_y * NWI + _ni) * (kSizeK / VWN) + idk / VWN + _ki;
-    const __global realN* restrict agm = (const __global realN* restrict) a_ptr;
-    return agm[a_index];
+    const __global realstoreN* restrict agm = (const __global realstoreN* restrict) a_ptr;
+    return LOADGLOBALM(agm,a_index);
   #else
     const int a_index = (tid_y * NWI + _ni) * kSizeK + idk + _ki * VWN;
-    #if VWN == 1
-      return a_ptr[a_index];
-    #elif VWN == 2
-      return vload2(0, a_ptr + a_index);
-    #elif VWN == 4
-      return vload4(0, a_ptr + a_index);
-    #elif VWN == 8
-      return vload8(0, a_ptr + a_index);
-    #elif VWN == 16
-      return vload16(0, a_ptr + a_index);
-    #endif
+    return LOADGLOBALTOVECM(a_ptr + a_index,0);
   #endif
 }
 
 // Same as above, but now for the B input matrix
-INLINE_FUNC realM GlobalToPrivateB2D(const __global real* restrict b_ptr, const int tid_x, const int _mi,
+INLINE_FUNC realM GlobalToPrivateB2D(const __global realstore* restrict b_ptr, const int tid_x, const int _mi,
                                      const int kSizeN, const int idk, const int _ki) {
   #if PRECISION == 3232 || PRECISION == 6464
     const int b_index = (idk + _ki) * (kSizeN / VWM) + tid_x * (MWI / VWM) + _mi;
-    const __global realM* restrict bgm = (const __global realM* restrict) b_ptr;
-    return bgm[b_index];
+    const __global realstoreM* restrict bgm = (const __global realstoreM* restrict) b_ptr;
+    return LOADGLOBALN(bgm,b_index);
   #else
     const int b_index = (idk + _ki) * kSizeN + tid_x * MWI + _mi * VWM;
-    #if VWM == 1
-      return b_ptr[b_index];
-    #elif VWM == 2
-      return vload2(0, b_ptr + b_index);
-    #elif VWM == 4
-      return vload4(0, b_ptr + b_index);
-    #elif VWM == 8
-      return vload8(0, b_ptr + b_index);
-    #elif VWM == 16
-      return vload16(0, b_ptr + b_index);
-    #endif
+    return LOADGLOBALTOVECM(b_ptr + b_index,0);
   #endif
 }
 
@@ -376,25 +476,25 @@ INLINE_FUNC realM GlobalToPrivateB2D(const __global real* restrict b_ptr, const 
 // Caches on-chip local memory into per-thread private memory (registers). This function is specific
 // for caching the A input matrix.
 #if SA == 1
-INLINE_FUNC realM LocalToPrivateA(LOCAL_PTR realM* alm, const int _mi, const int kg) {
+INLINE_FUNC realM LocalToPrivateA(LOCAL_PTR realstoreM* alm, const int _mi, const int kg) {
   #if STRM == 0
     int mg = _mi + get_local_id(0)*(MWI/VWM);
   #elif STRM == 1
     int mg = get_local_id(0) + _mi*MDIMC;
   #endif
-  return alm[kg*(MWG/VWM) + mg];
+  return LOADLOCALM(alm,kg*(MWG/VWM) + mg);
 }
 #endif
 
 // Same as above, but now for the B input matrix
 #if SB == 1
-INLINE_FUNC realN LocalToPrivateB(LOCAL_PTR realN* blm, const int _ni, const int kg) {
+INLINE_FUNC realN LocalToPrivateB(LOCAL_PTR realstoreN* blm, const int _ni, const int kg) {
   #if STRN == 0
     int ng = _ni + get_local_id(1)*(NWI/VWN);
   #elif STRN == 1
     int ng = get_local_id(1) + _ni*NDIMC;
   #endif
-  return blm[kg*(NWG/VWN) + ng];
+  return LOADLOCALN(blm,kg*(NWG/VWN) + ng);
 }
 #endif
 

@@ -24,25 +24,25 @@ R"(
 
 __kernel __attribute__((reqd_work_group_size(MDIMC, NDIMC, 1)))
 void XgemmBatched(const int kSizeM, const int kSizeN, const int kSizeK,
-                  const __global realM* restrict agm, const int a_one, const int a_two,
-                  const __global realN* restrict bgm, const int b_one, const int b_two,
-                  __global realM* cgm, const int c_one, const int c_two) {
+                  const __global realstoreM* restrict agm, const int a_one, const int a_two,
+                  const __global realstoreN* restrict bgm, const int b_one, const int b_two,
+                  __global realstoreM* cgm, const int c_one, const int c_two) {
   const int batch = get_group_id(2);
 
   // Sets the offsets
   const int a_offset = batch * a_one * a_two;
   const int b_offset = batch * b_one * b_two;
   const int c_offset = batch * c_one * c_two;
-  const __global realM* restrict agm_ = &agm[a_offset / VWM];
-  const __global realN* restrict bgm_ = &bgm[b_offset / VWN];
-  __global realM* restrict cgm_ = &cgm[c_offset / VWM];
+  const __global realstoreM* restrict agm_ = &agm[a_offset / VWM];
+  const __global realstoreN* restrict bgm_ = &bgm[b_offset / VWN];
+  __global realstoreM* restrict cgm_ = &cgm[c_offset / VWM];
 
   // Allocates workgroup-private memory (local memory)
   #if SA == 1
-    __local realM alm[KWG * MWG/VWM];
+    __local realstoreM alm[KWG * MWG/VWM];
   #endif
   #if SB == 1
-    __local realN blm[KWG * NWG/VWN];
+    __local realstoreN blm[KWG * NWG/VWN];
   #endif
 
   // Computes the matrix-multiplication and stores the result in global memory
@@ -63,25 +63,25 @@ void XgemmBatched(const int kSizeM, const int kSizeN, const int kSizeK,
 
 __kernel __attribute__((reqd_work_group_size(MDIMC, NDIMC, 1)))
 void XgemmStridedBatched(const int kSizeM, const int kSizeN, const int kSizeK,
-                         const __global realM* restrict agm, const int a_one, const int a_two,
-                         const __global realN* restrict bgm, const int b_one, const int b_two,
-                         __global realM* cgm, const int c_one, const int c_two) {
+                         const __global realstoreM* restrict agm, const int a_one, const int a_two,
+                         const __global realstoreN* restrict bgm, const int b_one, const int b_two,
+                         __global realstoreM* cgm, const int c_one, const int c_two) {
   const int batch = get_group_id(2);
 
   // Sets the offsets
   const int a_offset = batch * a_one * a_two;
   const int b_offset = batch * b_one * b_two;
   const int c_offset = batch * c_one * c_two;
-  const __global realM* restrict agm_ = &agm[a_offset / VWM];
-  const __global realN* restrict bgm_ = &bgm[b_offset / VWN];
-  __global realM* restrict cgm_ = &cgm[c_offset / VWM];
+  const __global realstoreM* restrict agm_ = &agm[a_offset / VWM];
+  const __global realstoreN* restrict bgm_ = &bgm[b_offset / VWN];
+  __global realstoreM* restrict cgm_ = &cgm[c_offset / VWM];
 
   // Allocates workgroup-private memory (local memory)
   #if SA == 1
-    __local realM alm[KWG * MWG/VWM];
+    __local realstoreM alm[KWG * MWG/VWM];
   #endif
   #if SB == 1
-    __local realN blm[KWG * NWG/VWN];
+    __local realstoreN blm[KWG * NWG/VWN];
   #endif
 
   // Computes the matrix-multiplication and stores the result in global memory
