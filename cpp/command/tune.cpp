@@ -159,9 +159,6 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     }
 
     OpenCLTuneParams results;
-    auto handleBestSoFar = [&results](const OpenCLTuneParams& bestSoFar) {
-      results = bestSoFar;
-    };
     OpenCLTuner::tune(
       initialParams,
       devicesContext,
@@ -174,7 +171,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
       full,
       winograd3x3TileSize,
       cout,
-      std::function<void(const OpenCLTuneParams&)>(handleBestSoFar)
+      results
     );
 
     OpenCLTuneParams::save(outputFile, results);

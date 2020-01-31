@@ -140,7 +140,7 @@ namespace OpenCLTuner {
     bool full,
     int winograd3x3TileSize,
     std::ostream& out,
-    std::function<void(const OpenCLTuneParams&)> handleBestSoFar
+    OpenCLTuneParams& tunedConfig
   );
 
   std::string defaultDirectory(bool makeDir, const std::string& homeDataDirOverride);
