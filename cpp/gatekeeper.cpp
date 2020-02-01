@@ -216,6 +216,8 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   string acceptedModelsDir;
   string rejectedModelsDir;
   string sgfOutputDir;
+  bool noAutoRejectOldModels;
+  bool quitIfNoNetsToTest;
   try {
     TCLAP::CmdLine cmd("Test neural nets to see if they should be accepted", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use",true,string(),"FILE");
@@ -223,17 +225,23 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",true,string(),"DIR");
     TCLAP::ValueArg<string> acceptedModelsDirArg("","accepted-models-dir","Dir to write good models to",true,string(),"DIR");
     TCLAP::ValueArg<string> rejectedModelsDirArg("","rejected-models-dir","Dir to write bad models to",true,string(),"DIR");
+    TCLAP::SwitchArg noAutoRejectOldModelsArg("","no-autoreject-old-models","Test older models than the latest accepted model");
+    TCLAP::SwitchArg quitIfNoNetsToTestArg("","quit-if-no-nets-to-test","Terminate instead of waiting for a new net to test");
     cmd.add(configFileArg);
     cmd.add(testModelsDirArg);
     cmd.add(sgfOutputDirArg);
     cmd.add(acceptedModelsDirArg);
     cmd.add(rejectedModelsDirArg);
+    cmd.add(noAutoRejectOldModelsArg);
+    cmd.add(quitIfNoNetsToTestArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     testModelsDir = testModelsDirArg.getValue();
     sgfOutputDir = sgfOutputDirArg.getValue();
     acceptedModelsDir = acceptedModelsDirArg.getValue();
     rejectedModelsDir = rejectedModelsDirArg.getValue();
+    noAutoRejectOldModels = noAutoRejectOldModelsArg.getValue();
+    quitIfNoNetsToTest = quitIfNoNetsToTestArg.getValue();
 
     auto checkDirNonEmpty = [](const char* flag, const string& s) {
       if(s.length() <= 0)
@@ -311,7 +319,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   };
 
   auto loadLatestNeuralNet =
-    [&testModelsDir,&rejectedModelsDir,&acceptedModelsDir,&sgfOutputDir,&logger,&cfg,numGameThreads]() -> NetAndStuff* {
+    [&testModelsDir,&rejectedModelsDir,&acceptedModelsDir,&sgfOutputDir,&logger,&cfg,numGameThreads,noAutoRejectOldModels]() -> NetAndStuff* {
     Rand rand;
 
     string testModelName;
@@ -336,7 +344,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
       return NULL;
     }
 
-    if(acceptedModelTime > testModelTime) {
+    if(acceptedModelTime > testModelTime && !noAutoRejectOldModels) {
       string renameDest = rejectedModelsDir + "/" + testModelName;
       logger.write("Rejecting " + testModelDir + " automatically since older than best accepted model");
       logger.write("Moving " + testModelDir + " to " + renameDest);
@@ -433,10 +441,15 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     netAndStuff = loadLatestNeuralNet();
 
     if(netAndStuff == NULL) {
-      for(int i = 0; i<4; i++) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        if(shouldStop.load())
-          break;
+      if(quitIfNoNetsToTest) {
+        shouldStop.store(true);
+      }
+      else {
+        for(int i = 0; i<4; i++) {
+          std::this_thread::sleep_for(std::chrono::seconds(1));
+          if(shouldStop.load())
+            break;
+        }
       }
       continue;
     }

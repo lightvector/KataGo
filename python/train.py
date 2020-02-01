@@ -44,6 +44,7 @@ parser.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule',
 parser.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
 parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, required=True)
 parser.add_argument('-epochs-per-export', help='Export model once every this many epochs', type=int, required=False)
+parser.add_argument('-max-epochs-this-instance', help='Terminate training after this many more epochs', type=int, required=False)
 parser.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between epochs', type=int, required=False)
 parser.add_argument('-swa-sub-epoch-scale', help='Number of sub-epochs to average in expectation together for SWA', type=float, required=False)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
@@ -64,6 +65,7 @@ lr_scale = args["lr_scale"]
 gnorm_clip_scale = args["gnorm_clip_scale"]
 sub_epochs = args["sub_epochs"]
 epochs_per_export = args["epochs_per_export"]
+max_epochs_this_instance = args["max_epochs_this_instance"]
 sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
 swa_sub_epoch_scale = args["swa_sub_epoch_scale"]
 verbose = args["verbose"]
@@ -646,6 +648,10 @@ while True:
     estimator.evaluate(
       (lambda: val_input_fn(vdatadir))
     )
+
+  if max_epochs_this_instance is not None and max_epochs_this_instance >= 0 and num_epochs_this_instance >= max_epochs_this_instance:
+    print("Done")
+    break
 
   if sleep_seconds_per_epoch is None:
     time.sleep(1)
