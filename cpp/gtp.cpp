@@ -90,8 +90,9 @@ static void updatePlayoutDoublingAdvantage(
   if(dynamicPlayoutDoublingAdvantageCapPerOppLead <= 0.0)
     return;
 
+  double pdaScalingStartPoints = 7.0;
   double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
-  if(initialBlackAdvantageInPoints < 3.0 || pla != params.playoutDoublingAdvantagePla) {
+  if(initialBlackAdvantageInPoints < pdaScalingStartPoints || pla != params.playoutDoublingAdvantagePla) {
     desiredPlayoutDoublingAdvantage = 0.0;
   }
   else {
@@ -102,8 +103,9 @@ static void updatePlayoutDoublingAdvantage(
     //Hard cap of 2.5 in this parameter, since more extreme values start to reach into values without good training.
     //Scale mildly with board size - small board a given point lead counts as "more".
     double pdaCap = std::min(
-      2.5,
-      dynamicPlayoutDoublingAdvantageCapPerOppLead * initialBlackAdvantageInPoints * pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.25)
+      2.75,
+      dynamicPlayoutDoublingAdvantageCapPerOppLead *
+      (initialBlackAdvantageInPoints - pdaScalingStartPoints) * pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.25)
     );
     pdaCap = round(pdaCap / increment) * increment;
 
