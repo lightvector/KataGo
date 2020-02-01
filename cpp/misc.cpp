@@ -5,6 +5,7 @@
 #include "dataio/sgf.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
+#include "program/playutils.h"
 #include "program/play.h"
 #include "main.h"
 
@@ -316,7 +317,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
           double temperature = 0.8;
           bool allowPass = false;
           Loc banMove = Board::NULL_LOC;
-          Loc loc = Play::chooseRandomPolicyMove(nnOutput.get(), board, hist, pla, rand, temperature, allowPass, banMove);
+          Loc loc = PlayUtils::chooseRandomPolicyMove(nnOutput.get(), board, hist, pla, rand, temperature, allowPass, banMove);
           nextMove.loc = loc;
         }
 
@@ -344,7 +345,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
       } //Close while(true)
 
       int numVisits = 20;
-      Play::adjustKomiToEven(bot->getSearch(),bot->getSearch(),board,hist,pla,numVisits,logger,OtherGameProperties(),rand);
+      PlayUtils::adjustKomiToEven(bot->getSearch(),bot->getSearch(),board,hist,pla,numVisits,logger,OtherGameProperties(),rand);
       double komi = hist.rules.komi + 0.3 * rand.nextGaussian();
       komi = 0.5 * round(2.0 * komi);
       hist.setKomi((float)komi);
@@ -460,8 +461,8 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
       double searchFactor =
         //Speed up when either player is winning confidently, not just the winner only
         std::min(
-          Play::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,P_BLACK),
-          Play::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,P_WHITE)
+          PlayUtils::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,P_BLACK),
+          PlayUtils::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,P_WHITE)
         );
       Loc moveLoc = bot->genMoveSynchronousAnalyze(pla,tc,searchFactor,callbackPeriod,callback);
 

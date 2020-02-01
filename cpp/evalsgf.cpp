@@ -4,6 +4,7 @@
 #include "dataio/sgf.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
+#include "program/playutils.h"
 #include "program/play.h"
 #include "main.h"
 
@@ -356,7 +357,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
 
   if(printLead) {
     BoardHistory hist2(hist);
-    double lead = Play::computeLead(
+    double lead = PlayUtils::computeLead(
       bot->getSearch(), bot->getSearch(), board, hist2, nextPla,
       20, logger, OtherGameProperties()
     );

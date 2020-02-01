@@ -4,6 +4,7 @@
 #include "dataio/sgf.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
+#include "program/playutils.h"
 #include "program/play.h"
 #include "main.h"
 
@@ -497,7 +498,7 @@ struct GTPEngine {
             cout << " ";
           const AnalysisData& data = buf[i];
           double winrate = 0.5 * (1.0 + data.winLossValue);
-          double lcb = Play::getHackedLCBForWinrate(search,data,pla);
+          double lcb = PlayUtils::getHackedLCBForWinrate(search,data,pla);
           if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
             winrate = 1.0-winrate;
             lcb = 1.0 - lcb;
@@ -542,7 +543,7 @@ struct GTPEngine {
           double winrate = 0.5 * (1.0 + data.winLossValue);
           double utility = data.utility;
           //We still hack the LCB for consistency with LZ-analyze
-          double lcb = Play::getHackedLCBForWinrate(search,data,pla);
+          double lcb = PlayUtils::getHackedLCBForWinrate(search,data,pla);
           ///But now we also offer the proper LCB that KataGo actually uses.
           double utilityLcb = data.lcb;
           double scoreMean = data.scoreMean;
@@ -622,7 +623,7 @@ struct GTPEngine {
     }
 
     //Play faster when winning
-    double searchFactor = Play::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,pla);
+    double searchFactor = PlayUtils::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,pla);
     lastSearchFactor = searchFactor;
 
     Loc moveLoc;
@@ -762,12 +763,11 @@ struct GTPEngine {
   }
 
   void placeFixedHandicap(int n, string& response, bool& responseIsError) {
-    //If asked to place more, we just go ahead and only place up to 30, or a quarter of the board
     int xSize = bot->getRootBoard().x_size;
     int ySize = bot->getRootBoard().y_size;
     Board board(xSize,ySize);
     try {
-      Play::placeFixedHandicap(board,n);
+      PlayUtils::placeFixedHandicap(board,n);
     }
     catch(const StringError& e) {
       responseIsError = true;
@@ -817,7 +817,7 @@ struct GTPEngine {
     BoardHistory hist(board,pla,currentRules,0);
     double extraBlackTemperature = 0.25;
     Rand rand;
-    Play::playExtraBlack(bot->getSearch(), n, board, hist, extraBlackTemperature, rand);
+    PlayUtils::playExtraBlack(bot->getSearch(), n, board, hist, extraBlackTemperature, rand);
     //Also switch the initial player, expecting white should be next.
     hist.clear(board,P_WHITE,currentRules,0);
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);

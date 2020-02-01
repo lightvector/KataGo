@@ -225,6 +225,7 @@ if(BUILD_MCTS)
     search/distributiontable.cpp
     search/analysisdata.cpp
     program/setup.cpp
+    program/playutils.cpp
     program/play.cpp
     ${GIT_HEADER_FILE_ALWAYS_UPDATED}
     tests/testboardarea.cpp

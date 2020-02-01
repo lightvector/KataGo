@@ -3,6 +3,7 @@
 #include "core/timer.h"
 #include "search/asyncbot.h"
 #include "program/setup.h"
+#include "program/playutils.h"
 #include "program/play.h"
 #include "main.h"
 
@@ -145,7 +146,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         const AnalysisData& data = buf[i];
         double winrate = 0.5 * (1.0 + data.winLossValue);
         double utility = data.utility;
-        double lcb = Play::getHackedLCBForWinrate(search,data,pla);
+        double lcb = PlayUtils::getHackedLCBForWinrate(search,data,pla);
         double utilityLcb = data.lcb;
         double scoreMean = data.scoreMean;
         double lead = data.lead;

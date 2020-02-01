@@ -3,6 +3,7 @@
 #include "../dataio/trainingwrite.h"
 #include "../dataio/sgf.h"
 #include "../neuralnet/nneval.h"
+#include "../program/playutils.h"
 #include "../program/play.h"
 
 using namespace std;
@@ -283,13 +284,13 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       Board board = forkData.forks[0]->board;
       BoardHistory hist = forkData.forks[0]->hist;
       Player pla = forkData.forks[0]->pla;
-      Play::adjustKomiToEven(
+      PlayUtils::adjustKomiToEven(
         bot, bot, board, hist, pla,
         fancyModes.cheapSearchVisits, logger, OtherGameProperties(), rand
       );
       BoardHistory hist2 = forkData.forks[0]->hist;
       float oldKomi = hist2.rules.komi;
-      double lead = Play::computeLead(
+      double lead = PlayUtils::computeLead(
         bot, bot, board, hist2, pla,
         fancyModes.cheapSearchVisits, logger, OtherGameProperties()
       );
@@ -481,7 +482,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     BoardHistory hist(board,pla,rules,0);
     int compensateKomiVisits = 50;
     OtherGameProperties otherGameProps;
-    double lead = Play::computeLead(bot,bot,board,hist,pla,compensateKomiVisits,logger,otherGameProps);
+    double lead = PlayUtils::computeLead(bot,bot,board,hist,pla,compensateKomiVisits,logger,otherGameProps);
     assert(hist.rules.komi == komi);
     cout << board << endl;
     cout << "LEAD: " << lead << endl;

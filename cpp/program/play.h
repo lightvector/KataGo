@@ -277,18 +277,6 @@ struct FancyModes {
 
 //Functions to run a single game or other things
 namespace Play {
-  //Use the given bot to play free handicap stones, modifying the board and hist in the process and setting the bot's position to it.
-  void playExtraBlack(
-    Search* bot,
-    int numExtraBlack,
-    Board& board,
-    BoardHistory& hist,
-    double temperature,
-    Rand& gameRand
-  );
-
-  //Set board to empty and place fixed handicap stones, raising an exception if invalid
-  void placeFixedHandicap(Board& board, int n);
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
   FinishedGameData* runGame(
@@ -331,60 +319,6 @@ namespace Play {
     const GameInitializer* gameInit,
     Rand& gameRand
   );
-
-  ReportedSearchValues getWhiteScoreValues(
-    Search* bot,
-    const Board& board,
-    const BoardHistory& hist,
-    Player pla,
-    int64_t numVisits,
-    Logger& logger,
-    const OtherGameProperties& otherGameProps
-  );
-
-  Loc chooseRandomPolicyMove(
-    const NNOutput* nnOutput,
-    const Board& board,
-    const BoardHistory& hist,
-    Player pla,
-    Rand& gameRand,
-    double temperature,
-    bool allowPass,
-    Loc banMove
-  );
-
-  void adjustKomiToEven(
-    Search* botB,
-    Search* botW,
-    const Board& board,
-    BoardHistory& hist,
-    Player pla,
-    int64_t numVisits,
-    Logger& logger,
-    const OtherGameProperties& otherGameProps,
-    Rand& rand
-  );
-
-  float computeLead(
-    Search* botB,
-    Search* botW,
-    const Board& board,
-    BoardHistory& hist,
-    Player pla,
-    int64_t numVisits,
-    Logger& logger,
-    const OtherGameProperties& otherGameProps
-  );
-
-  double getSearchFactor(
-    double searchFactorWhenWinningThreshold,
-    double searchFactorWhenWinning,
-    const SearchParams& params,
-    const std::vector<double>& recentWinLossValues,
-    Player pla
-  );
-
-  double getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla);
 }
 
 
