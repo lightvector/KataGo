@@ -399,8 +399,11 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
   {
     Setup::initializeSession(cfg);
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    int defaultMaxBatchSize = -1;
     nnEval = Setup::initializeNNEvaluator(
-      modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
+      modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+      Setup::SETUP_FOR_OTHER
     );
   }
   logger.write("Loaded neural net");

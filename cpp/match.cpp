@@ -137,8 +137,12 @@ int MainCmds::match(int argc, const char* const* argv) {
   //Initialize neural net inference engine globals, and load models
   Setup::initializeSession(cfg);
   const vector<string>& nnModelNames = nnModelFiles;
-  vector<NNEvaluator*> nnEvals =
-    Setup::initializeNNEvaluators(nnModelNames,nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN);
+  int defaultMaxBatchSize = -1;
+  vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
+    nnModelNames,nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,
+    NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+    Setup::SETUP_FOR_MATCH
+  );
   logger.write("Loaded neural net");
 
   vector<NNEvaluator*> nnEvalsByBot(numBots);

@@ -2707,15 +2707,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
 
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop,gpuIdxForThisThread);
-  if(logger != NULL) {
-    logger->write(
-      "Cuda backend: Found GPU " + string(prop.name)
-      + " memory " + Global::uint64ToString(prop.totalGlobalMem)
-      + " compute capability major " + Global::intToString(prop.major)
-      + " minor " + Global::intToString(prop.minor)
-    );
-    logger->write("Cuda backend: Model version " + Global::intToString(loadedModel->modelDesc.version));
-  }
+
   bool useFP16 = false;
   bool useNHWC = false;
   //Old GPUs - use FP32 and explicitly fail if FP16 enabled
@@ -2748,6 +2740,20 @@ ComputeHandle* NeuralNet::createComputeHandle(
   }
   int nnXLen = context->nnXLen;
   int nnYLen = context->nnYLen;
+
+  if(logger != NULL) {
+    logger->write(
+      "Cuda backend: Found GPU " + string(prop.name)
+      + " memory " + Global::uint64ToString(prop.totalGlobalMem)
+      + " compute capability major " + Global::intToString(prop.major)
+      + " minor " + Global::intToString(prop.minor)
+    );
+    logger->write(
+      "Cuda backend: Model version " + Global::intToString(loadedModel->modelDesc.version) +
+      " useFP16 = " + Global::boolToString(useFP16) +
+      " useNHWC = " + Global::boolToString(useNHWC)
+    );
+  }
 
   ComputeHandle* gpuHandle = new ComputeHandle(
     loadedModel,prop.major,prop.minor,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,useFP16,useNHWC

@@ -98,8 +98,12 @@ namespace {
       auto iter = loadedNets.find(nnModelFile);
       NetAndStuff* netAndStuff;
       if(iter == loadedNets.end()) {
-        NNEvaluator* nnEval =
-          Setup::initializeNNEvaluator(nnModelFile,nnModelFile,*cfg,logger,seedRand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN);
+        int defaultMaxBatchSize = -1;
+        NNEvaluator* nnEval = Setup::initializeNNEvaluator(
+          nnModelFile,nnModelFile,*cfg,logger,seedRand,maxConcurrentEvals,
+          NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+          Setup::SETUP_FOR_MATCH
+        );
         netAndStuff = new NetAndStuff(nnEval);
         loadedNets[nnModelFile] = netAndStuff;
 

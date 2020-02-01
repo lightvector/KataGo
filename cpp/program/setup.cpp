@@ -17,11 +17,13 @@ NNEvaluator* Setup::initializeNNEvaluator(
   Rand& seedRand,
   int maxConcurrentEvals,
   int defaultNNXLen,
-  int defaultNNYLen
+  int defaultNNYLen,
+  int defaultMaxBatchSize,
+  setup_for_t setupFor
 ) {
   vector<NNEvaluator*> nnEvals =
     initializeNNEvaluators(
-      {nnModelName},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,defaultNNXLen,defaultNNYLen
+      {nnModelName},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,defaultNNXLen,defaultNNYLen,defaultMaxBatchSize,setupFor
     );
   assert(nnEvals.size() == 1);
   return nnEvals[0];
@@ -35,7 +37,9 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   Rand& seedRand,
   int maxConcurrentEvals,
   int defaultNNXLen,
-  int defaultNNYLen
+  int defaultNNYLen,
+  int defaultMaxBatchSize,
+  setup_for_t setupFor
 ) {
   vector<NNEvaluator*> nnEvals;
   assert(nnModelNames.size() == nnModelFiles.size());
@@ -108,7 +112,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("nnPolicyTemperature"))
       nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature",0.01f,5.0f);
 
-    bool nnRandomize = cfg.getBool("nnRandomize");
+    bool nnRandomize = cfg.contains("nnRandomize") ? cfg.getBool("nnRandomize") : true;
+
     string nnRandSeed;
     if(cfg.contains("nnRandSeed" + idxStr))
       nnRandSeed = cfg.getString("nnRandSeed" + idxStr);
@@ -118,8 +123,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnRandSeed = Global::uint64ToString(seedRand.nextUInt64());
     logger.write("nnRandSeed" + idxStr + " = " + nnRandSeed);
 
-
-    int numNNServerThreadsPerModel = cfg.getInt("numNNServerThreadsPerModel",1,1024);
+    int numNNServerThreadsPerModel =
+      cfg.contains("numNNServerThreadsPerModel") ? cfg.getInt("numNNServerThreadsPerModel",1,1024) : 1;
 
     vector<int> gpuIdxByServerThread;
     for(int j = 0; j<numNNServerThreadsPerModel; j++) {
@@ -201,20 +206,46 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       + " useNHWC " + useNHWCMode.toString()
     );
 
+    int nnCacheSizePowerOfTwo =
+      cfg.contains("nnCacheSizePowerOfTwo") ? cfg.getInt("nnCacheSizePowerOfTwo", -1, 48) :
+      setupFor == SETUP_FOR_GTP ? 20 :
+      setupFor == SETUP_FOR_BENCHMARK ? 20 :
+      setupFor == SETUP_FOR_MATCH ? 21 :
+      setupFor == SETUP_FOR_ANALYSIS ? 23 :
+      cfg.getInt("nnCacheSizePowerOfTwo", -1, 48);
+
+    int nnMutexPoolSizePowerOfTwo =
+      cfg.contains("nnMutexPoolSizePowerOfTwo") ? cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24) :
+      setupFor == SETUP_FOR_GTP ? 16 :
+      setupFor == SETUP_FOR_BENCHMARK ? 16 :
+      setupFor == SETUP_FOR_MATCH ? 17 :
+      setupFor == SETUP_FOR_ANALYSIS ? 17 :
+      cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24);
+
+    int nnMaxBatchSize;
+    if(defaultMaxBatchSize > 0) {
+      nnMaxBatchSize =
+        cfg.contains("nnMaxBatchSize") ? cfg.getInt("nnMaxBatchSize", 1, 65536) :
+        defaultMaxBatchSize;
+    }
+    else {
+      nnMaxBatchSize = cfg.getInt("nnMaxBatchSize", 1, 65536);
+    }
+
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
       nnModelFile,
       gpuIdxs,
       &logger,
       modelFileIdx,
-      cfg.getInt("nnMaxBatchSize", 1, 65536),
+      nnMaxBatchSize,
       maxConcurrentEvals,
       nnXLen,
       nnYLen,
       requireExactNNLen,
       inputsUseNHWC,
-      cfg.getInt("nnCacheSizePowerOfTwo", -1, 48),
-      cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24),
+      nnCacheSizePowerOfTwo,
+      nnMutexPoolSizePowerOfTwo,
       debugSkipNeuralNet,
       nnPolicyTemperature,
       openCLTunerFile,
@@ -296,8 +327,8 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("searchFactorAfterTwoPass"+idxStr)) params.searchFactorAfterTwoPass = cfg.getDouble("searchFactorAfterTwoPass"+idxStr, 0.0, 1.0);
     else if(cfg.contains("searchFactorAfterTwoPass"))   params.searchFactorAfterTwoPass = cfg.getDouble("searchFactorAfterTwoPass",        0.0, 1.0);
 
-    if(cfg.contains("numSearchThreads"+idxStr)) params.numThreads = cfg.getInt("numSearchThreads"+idxStr, 1, 1024);
-    else                                        params.numThreads = cfg.getInt("numSearchThreads",        1, 1024);
+    if(cfg.contains("numSearchThreads"+idxStr)) params.numThreads = cfg.getInt("numSearchThreads"+idxStr, 1, 4096);
+    else                                        params.numThreads = cfg.getInt("numSearchThreads",        1, 4096);
 
     if(cfg.contains("winLossUtilityFactor"+idxStr)) params.winLossUtilityFactor = cfg.getDouble("winLossUtilityFactor"+idxStr, 0.0, 1.0);
     else if(cfg.contains("winLossUtilityFactor"))   params.winLossUtilityFactor = cfg.getDouble("winLossUtilityFactor",        0.0, 1.0);

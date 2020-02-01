@@ -179,9 +179,11 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   {
     Setup::initializeSession(cfg);
     int maxConcurrentEvals = maxNumThreadsInATest * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    int defaultMaxBatchSize = std::max(8,maxNumThreadsInATest);
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,
-      sgf->xSize,sgf->ySize
+      sgf->xSize,sgf->ySize,defaultMaxBatchSize,
+      Setup::SETUP_FOR_BENCHMARK
     );
   }
   logger.write("Loaded neural net");

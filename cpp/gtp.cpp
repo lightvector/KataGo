@@ -301,8 +301,11 @@ struct GTPEngine {
     }
 
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    int defaultMaxBatchSize = std::max(params.numThreads,8);
     nnEval = Setup::initializeNNEvaluator(
-      nnModelFile,nnModelFile,cfg,logger,seedRand,maxConcurrentEvals,boardXSize,boardYSize
+      nnModelFile,nnModelFile,cfg,logger,seedRand,maxConcurrentEvals,
+      boardXSize,boardYSize,defaultMaxBatchSize,
+      Setup::SETUP_FOR_GTP
     );
     logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
 

@@ -10,6 +10,8 @@ namespace Setup {
 
   void initializeSession(ConfigParser& cfg);
 
+  enum setup_for_t { SETUP_FOR_GTP, SETUP_FOR_BENCHMARK, SETUP_FOR_MATCH, SETUP_FOR_ANALYSIS, SETUP_FOR_OTHER };
+
   NNEvaluator* initializeNNEvaluator(
     const std::string& nnModelNames,
     const std::string& nnModelFiles,
@@ -18,7 +20,9 @@ namespace Setup {
     Rand& seedRand,
     int maxConcurrentEvals,
     int defaultNNXLen,
-    int defaultNNYLen
+    int defaultNNYLen,
+    int defaultMaxBatchSize,
+    setup_for_t setupFor
   );
 
   std::vector<NNEvaluator*> initializeNNEvaluators(
@@ -29,7 +33,9 @@ namespace Setup {
     Rand& seedRand,
     int maxConcurrentEvals,
     int defaultNNXLen,
-    int defaultNNYLen
+    int defaultNNYLen,
+    int defaultMaxBatchSize,
+    setup_for_t setupFor
   );
 
   //Loads search parameters for bot from config, by bot idx.

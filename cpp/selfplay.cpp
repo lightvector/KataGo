@@ -345,10 +345,13 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
     // * 2 + 16 just in case to have plenty of room
     int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
+    int defaultMaxBatchSize = -1;
 
     Rand rand;
     NNEvaluator* nnEval = Setup::initializeNNEvaluator(
-      modelName,modelFile,cfg,logger,rand,maxConcurrentEvals,NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN
+      modelName,modelFile,cfg,logger,rand,maxConcurrentEvals,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+      Setup::SETUP_FOR_OTHER
     );
     logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
 
