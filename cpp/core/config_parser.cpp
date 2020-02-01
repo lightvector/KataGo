@@ -145,13 +145,7 @@ vector<bool> ConfigParser::getBools(const string& key) {
 enabled_t ConfigParser::getEnabled(const string& key) {
   string value = Global::trim(Global::toLower(getString(key)));
   enabled_t x;
-  if(value == "1" || value == "t" || value == "true" || value == "enabled" || value == "y" || value == "yes")
-    x = enabled_t::TRUE;
-  else if(value == "0" || value == "f" || value == "false" || value == "disabled" || value == "n" || value == "no")
-    x = enabled_t::FALSE;
-  else if(value == "auto")
-    x = enabled_t::AUTO;
-  else
+  if(!enabled_t::tryParse(value,x))
     throw IOError("Could not parse '" + value + "' as bool or auto for key '" + key + "' in config file " + fileName);
   return x;
 }

@@ -14,6 +14,19 @@ struct enabled_t {
   std::string toString() {
     return x == TRUE ? "true" : x == FALSE ? "false" : "auto";
   }
+
+  static bool tryParse(const std::string& v, enabled_t& buf) {
+    if(v == "1" || v == "t" || v == "true" || v == "enabled" || v == "y" || v == "yes")
+      buf = TRUE;
+    else if(v == "0" || v == "f" || v == "false" || v == "disabled" || v == "n" || v == "no")
+      buf = FALSE;
+    else if(v == "auto")
+      buf = AUTO;
+    else
+      return false;
+    return true;
+  }
+
 };
 
 #endif //COMMONTYPES_H
