@@ -34,7 +34,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> sgfFileArg("","sgf", "Optional game to sample positions from (default: uses a built-in-set of positions)",false,string(),"FILE");
     TCLAP::ValueArg<int> boardSizeArg("","boardsize", "Size of board to benchmark on (9-19), default 19",false,-1,"SIZE");
     TCLAP::ValueArg<long> visitsArg("v","visits","How many visits to use per search (default " + Global::int64ToString(defaultMaxVisits) + ")",false,(long)defaultMaxVisits,"VISITS");
-    TCLAP::ValueArg<string> threadsArg("t","threads","Test using these many threads, comma-separated (default 1,2,4,6,8,12,16)",false,string("1,2,4,6,8,12,16"),"THREADS");
+    TCLAP::ValueArg<string> threadsArg("t","threads","Test using these many threads, comma-separated (default 1,2,4,6,8,12,16,24)",false,string("1,2,4,6,8,12,16,24"),"THREADS");
     TCLAP::ValueArg<int> numPositionsPerGameArg("n","numpositions","How many positions to sample from a game (default 10)",false,10,"NUM");
     cmd.add(configFileArg);
     cmd.add(modelFileArg);
@@ -275,9 +275,21 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     delete bot;
   };
 
-  //From some test matches by lightvector using g104
-  const double eloCostPerThread = 8;
+  //From some test matches by lightvector using g170
   const double eloGainPerDoubling = 250;
+  auto computeEloCost = [&](double baseVisits, int numThreads) {
+    //Completely ad-hoc formula that approximately fits noisy tests. Probably not very good
+    //but then again the recommendation of this benchmark program is very rough anyways, it
+    //doesn't need to be all that great.
+    return numThreads * 7.0 * pow(1600.0 / (800.0 + baseVisits),0.85);
+  };
+  auto computeEloEffect = [&](double totalVisits, double totalSeconds, int numThreads) {
+    double visitsPerSecond = totalVisits / totalSeconds;
+    double gain = eloGainPerDoubling * log(visitsPerSecond) / log(2);
+    double visitsIn5Seconds = visitsPerSecond * 5.0;
+    double cost = computeEloCost(visitsIn5Seconds, numThreads);
+    return gain - cost;
+  };
 
   cout << endl;
   cout << "Testing using " << maxVisits << " visits.";
@@ -305,6 +317,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   if(numThreadsToTest.size() > 1)
     cout << "Testing different numbers of threads: " << endl;
   vector<double> eloEffects;
+  int bestEloEffectIdx = 0;
   for(int i = 0; i<numThreadsToTest.size(); i++) {
     int numThreads = numThreadsToTest[i];
     int64_t totalVisits;
@@ -314,7 +327,10 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     int64_t numNNBatches;
     double avgBatchSize;
     testNumThreads(numThreads,totalVisits,totalSeconds,totalPositions,numNNEvals,numNNBatches,avgBatchSize);
-    eloEffects.push_back(eloGainPerDoubling * log(totalVisits / totalSeconds) / log(2) - eloCostPerThread * numThreads);
+    eloEffects.push_back(computeEloEffect(totalVisits,totalSeconds,numThreads));
+    if(eloEffects[eloEffects.size()-1] > eloEffects[bestEloEffectIdx])
+      bestEloEffectIdx = eloEffects.size()-1;
+
     cout << "\rnumSearchThreads = " << Global::strprintf("%2d",numThreads) << ":"
          << " " << totalPositions << " / " << possiblePositionIdxs.size() << " positions,"
          << " visits/s = " << Global::strprintf("%.2f",totalVisits / totalSeconds)
@@ -334,21 +350,24 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 
   if(numThreadsToTest.size() > 1) {
     cout << endl;
-    cout << "Based on some test data, each thread costs perhaps ~" << eloCostPerThread << " Elo holding visits fixed (by making MCTS worse)." << endl;
     cout << "Based on some test data, each speed doubling gains perhaps ~" << eloGainPerDoubling << " Elo by searching deeper." << endl;
-    cout << "So APPROXIMATELY based on this benchmark: " << endl;
+    cout << "Based on some test data, each thread costs perhaps 7 Elo if using 800 visits, and 2 Elo if using 5000 visits (by making MCTS worse)." << endl;
+    cout << "So APPROXIMATELY based on this benchmark, if you intend to do a 5 second search: " << endl;
     for(int i = 0; i<numThreadsToTest.size(); i++) {
       int numThreads = numThreadsToTest[i];
       double eloEffect = eloEffects[i] - eloEffects[0];
       cout << "numSearchThreads = " << Global::strprintf("%2d",numThreads) << ": ";
       if(i == 0)
-        cout << "(baseline)" << endl;
+        cout << "(baseline)" << (i == bestEloEffectIdx ? " (recommended)" : "") << endl;
       else
-        cout << Global::strprintf("%+5.0f",eloEffect) << " Elo" << endl;
+        cout << Global::strprintf("%+5.0f",eloEffect) << " Elo" << (i == bestEloEffectIdx ? " (recommended)" : "") << endl;
     }
     cout << endl;
     cout << "If you care about performance, you may want to edit numSearchThreads in " << configFile << " based on the above results!" << endl;
-    cout << "If interested see also other notes about performance and mem usage in the top of that file." << endl;
+    cout << "If you intend to do much longer searches, you can try slightly higher numSearchThreads if you still see clear speedups." << endl;
+    cout << "If you intend to do short or fixed-visit searches, use lower numSearchThreads for better strength, high threads will weaken strength." << endl;
+
+    cout << "If interested see also other notes about performance and mem usage in the top of " << configFile << endl;
   }
   cout << endl;
 
