@@ -1971,7 +1971,7 @@ FinishedGameData* Play::runGame(
           else
             gameData->finalSekiAreas[i] = false;
         }
-        delete independentLifeArea;
+        delete[] independentLifeArea;
       }
     }
     gameData->whiteValueTargetsByTurn.push_back(finalValueTargets);
