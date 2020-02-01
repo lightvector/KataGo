@@ -191,8 +191,8 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   //Run on a sample position just to get any initialization and logs out of the way
   {
     Board board(sgf->xSize,sgf->ySize);
-    BoardHistory hist;
     Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,Rules(),0);
     SearchParams thisParams = params;
     thisParams.numThreads = 1;
     thisParams.maxVisits = 5;
@@ -201,6 +201,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     AsyncBot* bot = new AsyncBot(thisParams, nnEval, &logger, Global::uint64ToString(seedRand.nextUInt64()));
     bot->setPosition(nextPla,board,hist);
     bot->genMoveSynchronous(nextPla,TimeControls());
+    delete bot;
   }
   cout.flush();
   cerr.flush();
