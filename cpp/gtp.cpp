@@ -303,7 +303,7 @@ struct GTPEngine {
     }
 
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    int defaultMaxBatchSize = std::max(params.numThreads,8);
+    int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
     nnEval = Setup::initializeNNEvaluator(
       nnModelFile,nnModelFile,cfg,logger,seedRand,maxConcurrentEvals,
       boardXSize,boardYSize,defaultMaxBatchSize,

@@ -179,7 +179,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   {
     Setup::initializeSession(cfg);
     int maxConcurrentEvals = maxNumThreadsInATest * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    int defaultMaxBatchSize = std::max(8,maxNumThreadsInATest);
+    int defaultMaxBatchSize = std::max(8,((maxNumThreadsInATest+3)/4)*4);
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,
       sgf->xSize,sgf->ySize,defaultMaxBatchSize,
