@@ -304,7 +304,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 #ifdef USE_CUDA_BACKEND
   cout << "Your GTP config is currently set to cudaUseFP16 = " << nnEval->getUsingFP16Mode().toString()
        << " and cudaUseNHWC = " << nnEval->getUsingNHWCMode().toString() << endl;
-  if(nnEval->getUsingFP16Mode() == enabled_t::FALSE)
+  if(nnEval->getUsingFP16Mode() == enabled_t::False)
     cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080) setting these both to true may give a large performance boost." << endl;
 #endif
 #ifdef USE_OPENCL_BACKEND

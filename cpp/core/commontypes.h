@@ -2,7 +2,7 @@
 #define COMMONTYPES_H
 
 struct enabled_t {
-  enum value { TRUE, FALSE, AUTO };
+  enum value { True, False, AUTO };
   value x;
 
   enabled_t() = default;
@@ -12,14 +12,14 @@ struct enabled_t {
   constexpr bool operator!=(enabled_t a) const { return x != a.x; }
 
   std::string toString() {
-    return x == TRUE ? "true" : x == FALSE ? "false" : "auto";
+    return x == True ? "true" : x == False ? "false" : "auto";
   }
 
   static bool tryParse(const std::string& v, enabled_t& buf) {
     if(v == "1" || v == "t" || v == "true" || v == "enabled" || v == "y" || v == "yes")
-      buf = TRUE;
+      buf = True;
     else if(v == "0" || v == "f" || v == "false" || v == "disabled" || v == "n" || v == "no")
-      buf = FALSE;
+      buf = False;
     else if(v == "auto")
       buf = AUTO;
     else
