@@ -52,6 +52,9 @@ namespace Tests {
 
   //testnn.cpp
   void runNNLayerTests();
+
+  //testownership.cpp
+  void runOwnershipTests(const std::string& configFile, const std::string& modelFile);
 }
 
 namespace TestCommon {

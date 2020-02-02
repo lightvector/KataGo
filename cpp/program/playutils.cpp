@@ -483,3 +483,151 @@ double PlayUtils::getSearchFactor(
   }
   return searchFactor;
 }
+
+vector<double> PlayUtils::computeOwnership(
+  Search* bot,
+  const Board& board,
+  const BoardHistory& hist,
+  Player pla,
+  int64_t numVisits,
+  Logger& logger
+) {
+  assert(numVisits > 0);
+  bool oldAlwaysIncludeOwnerMap = bot->alwaysIncludeOwnerMap;
+  bot->setAlwaysIncludeOwnerMap(true);
+
+  SearchParams oldParams = bot->searchParams;
+  SearchParams newParams = oldParams;
+  newParams.maxVisits = numVisits;
+  newParams.maxPlayouts = numVisits;
+  newParams.rootNoiseEnabled = false;
+  newParams.rootPolicyTemperature = 1.0;
+  newParams.rootPolicyTemperatureEarly = 1.0;
+  newParams.rootFpuReductionMax = newParams.fpuReductionMax;
+  newParams.rootFpuLossProp = newParams.fpuLossProp;
+  newParams.rootDesiredPerChildVisitsCoeff = 0.0;
+  newParams.rootNumSymmetriesToSample = 1;
+  newParams.playoutDoublingAdvantagePla = C_EMPTY;
+  newParams.playoutDoublingAdvantage = 0.0;
+  if(newParams.numThreads > (numVisits+7)/8)
+    newParams.numThreads = (numVisits+7)/8;
+
+  bot->setParams(newParams);
+  bot->setPosition(pla,board,hist);
+  bot->runWholeSearch(pla,logger);
+
+  int64_t minVisitsForOwnership = 2;
+  vector<double> ownerships = bot->getAverageTreeOwnership(minVisitsForOwnership);
+
+  bot->setParams(oldParams);
+  bot->setAlwaysIncludeOwnerMap(oldAlwaysIncludeOwnerMap);
+  bot->clearSearch();
+
+  return ownerships;
+}
+
+vector<bool> PlayUtils::computeAnticipatedStatusesSimple(
+  const Board& board,
+  const BoardHistory& hist
+) {
+  vector<bool> isAlive(Board::MAX_ARR_SIZE,false);
+
+  //Treat all stones as alive under a no result
+  if(hist.isGameFinished && hist.isNoResult) {
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] != C_EMPTY)
+          isAlive[loc] = true;
+      }
+    }
+  }
+  //Else use Tromp-taylorlike scoring, except recognizing pass-dead stones.
+  else {
+    Color area[Board::MAX_ARR_SIZE];
+    BoardHistory histCopy = hist;
+    histCopy.endAndScoreGameNow(board,area);
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] != C_EMPTY) {
+          isAlive[loc] = board.colors[loc] == area[loc];
+        }
+      }
+    }
+  }
+  return isAlive;
+}
+
+vector<bool> PlayUtils::computeAnticipatedStatusesWithOwnership(
+  Search* bot,
+  const Board& board,
+  const BoardHistory& hist,
+  Player pla,
+  int64_t numVisits,
+  Logger& logger
+) {
+  if(hist.isGameFinished)
+    return computeAnticipatedStatusesSimple(board,hist);
+
+  vector<bool> isAlive(Board::MAX_ARR_SIZE,false);
+  bool solved[Board::MAX_ARR_SIZE];
+  for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
+    isAlive[i] = false;
+    solved[i] = false;
+  }
+
+  vector<double> ownerships = computeOwnership(bot,board,hist,pla,numVisits,logger);
+  int nnXLen = bot->nnXLen;
+  int nnYLen = bot->nnYLen;
+
+  //Heuristic:
+  //Stones are considered dead if their average ownership is less than 0.2 equity in their own color,
+  //or if the worst equity in the chain is less than -0.6 equity in their color.
+  double avgThresholdForLife = 0.2;
+  double worstThresholdForLife = -0.6;
+
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      if(solved[loc])
+        continue;
+
+      if(board.colors[loc] == P_WHITE || board.colors[loc] == P_BLACK) {
+        int pos = NNPos::locToPos(loc,board.x_size,nnXLen,nnYLen);
+        double minOwnership = ownerships[pos];
+        double maxOwnership = ownerships[pos];
+        double ownershipSum = 0.0;
+        double count = 0;
+
+        //Run through the whole chain
+        Loc cur = loc;
+        do {
+          pos = NNPos::locToPos(cur,board.x_size,nnXLen,nnYLen);
+          minOwnership = std::min(ownerships[pos],minOwnership);
+          maxOwnership = std::max(ownerships[pos],maxOwnership);
+          ownershipSum += ownerships[pos];
+          count += 1.0;
+          cur = board.next_in_chain[cur];
+        } while (cur != loc);
+
+        double avgOwnership = ownershipSum / count;
+        bool alive;
+        if(board.colors[loc] == P_WHITE)
+          alive = avgOwnership > avgThresholdForLife && minOwnership > worstThresholdForLife;
+        else
+          alive = avgOwnership < -avgThresholdForLife && maxOwnership < -worstThresholdForLife;
+
+        //Run through the whole chain again, recording the result
+        cur = loc;
+        do {
+          isAlive[cur] = alive;
+          solved[cur] = true;
+          cur = board.next_in_chain[cur];
+        } while (cur != loc);
+      }
+    }
+  }
+  return isAlive;
+
+}

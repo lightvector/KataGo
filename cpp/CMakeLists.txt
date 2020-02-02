@@ -234,6 +234,7 @@ if(BUILD_MCTS)
     tests/testscore.cpp
     tests/testsgf.cpp
     tests/testnninputs.cpp
+    tests/testownership.cpp
     tests/testsearch.cpp
     tests/testtime.cpp
     tests/testtrainingwrite.cpp

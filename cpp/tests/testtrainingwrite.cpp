@@ -483,7 +483,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     int compensateKomiVisits = 50;
     OtherGameProperties otherGameProps;
     double lead = PlayUtils::computeLead(bot,bot,board,hist,pla,compensateKomiVisits,logger,otherGameProps);
-    assert(hist.rules.komi == komi);
+    testAssert(hist.rules.komi == komi);
     cout << board << endl;
     cout << "LEAD: " << lead << endl;
     delete bot;
@@ -888,6 +888,95 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
 
   for(int r = 0; r<ruless.size(); r++) {
     run(sgfStr,"def",ruless[r]);
+  }
+
+  {
+    cout << "==============================================================" << endl;
+    cout << "Also testing status logic inference!" << endl;
+    NNEvaluator* nnEval = startNNEval(modelFile,"status nneval",logger,0,true,false,false);
+    SearchParams params;
+    string searchRandSeed = "test statuses";
+    Search* bot = new Search(params, nnEval, searchRandSeed);
+
+    auto testStatuses = [&nnEval,&bot,&logger](const Board& board, const BoardHistory& hist, Player pla) {
+      int numVisits = 50;
+      vector<double> ownership = PlayUtils::computeOwnership(bot,board,hist,pla,numVisits,logger);
+      vector<bool> isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot,board,hist,pla,numVisits,logger);
+      testAssert(bot->alwaysIncludeOwnerMap == false);
+      cout << "Search assumes " << PlayerIO::playerToString(pla) << " first" << endl;
+      cout << "Rules " << hist.rules << endl;
+      cout << board << endl;
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          Loc loc = Location::getLoc(x,y,board.x_size);
+          if(board.colors[loc] == C_EMPTY)
+            cout << ".";
+          else
+            cout << (isAlive[loc] ? "a" : "d");
+        }
+        cout << endl;
+      }
+      cout << endl;
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          int pos = NNPos::xyToPos(x,y,bot->nnXLen);
+          int ownershipValue = (int)round(100*ownership[pos]);
+          string s;
+          if(ownershipValue >= 99)
+            s = "    W";
+          else if(ownershipValue <= -99)
+            s = "    B";
+          else
+            s = Global::strprintf(" %+4d", ownershipValue);
+          cout << s;
+        }
+        cout << endl;
+      }
+      cout << endl;
+    };
+
+    {
+      Board board = Board::parseBoard(9,9,R"%%(
+.........
+.o...o...
+..x......
+oooooooo.
+xxxxxxxx.
+ox.......
+.ox.x..x.
+oox.x....
+.o.......
+)%%");
+      BoardHistory hist(board,P_BLACK,Rules::parseRules("tromp-taylor"),0);
+      testStatuses(board,hist,P_BLACK);
+      BoardHistory hist2(board,P_WHITE,Rules::parseRules("tromp-taylor"),0);
+      testStatuses(board,hist2,P_WHITE);
+    }
+    //The neural net that we're using for this test actually produces a lot of nonsense because it doesn't
+    //understand the seki. But that's okay, we'll just leave this test here anyways
+    {
+      Board board = Board::parseBoard(9,9,R"%%(
+o.o.xxo.x
+oooooxxxx
+xxxxxoooo
+....x....
+xxx..o.o.
+ooxxx.o..
+.ooox.o..
+xo.ox.xoo
+.xxox.xx.
+)%%");
+      BoardHistory hist(board,P_WHITE,Rules::parseRules("tromp-taylor"),0);
+      testStatuses(board,hist,P_WHITE);
+      BoardHistory hist2(board,P_WHITE,Rules::parseRules("japanese"),0);
+      testStatuses(board,hist2,P_WHITE);
+
+    }
+
+    delete bot;
+    delete nnEval;
+
+    cout << "==============================================================" << endl;
   }
 
   NeuralNet::globalCleanup();

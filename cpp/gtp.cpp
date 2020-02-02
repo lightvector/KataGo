@@ -1607,21 +1607,51 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     }
 
     else if(command == "final_score") {
-      //Returns the resulting score if this position were scored AS-IS (players repeatedly passing until the game ends),
-      //rather than attempting to estimate what the score would be with further playouts
       Board board = engine->bot->getRootBoard();
       BoardHistory hist = engine->bot->getRootHist();
+      Player pla = engine->bot->getRootPla();
 
-      //For GTP purposes, we treat noResult as a draw since there is no provision for anything else.
-      if(!hist.isGameFinished)
-        hist.endAndScoreGameNow(board);
+      //If the game is finished, then we score the game as-is.
+      //If it's not finished, then we try to get a bit clever.
+      Player winner = C_EMPTY;
+      double finalWhiteMinusBlackScore = 0.0;
+      if(hist.isGameFinished) {
+        //For GTP purposes, we treat noResult as a draw since there is no provision for anything else.
+        winner = hist.winner;
+        finalWhiteMinusBlackScore = hist.finalWhiteMinusBlackScore;
+      }
+      else {
+        //Make absolutely sure we can restore the bot's old state
+        const Player oldPla = engine->bot->getRootPla();
+        const Board oldBoard = engine->bot->getRootBoard();
+        const BoardHistory oldHist = engine->bot->getRootHist();
 
-      if(hist.winner == C_EMPTY)
+        int64_t numVisits = std::max(50, params.numThreads * 10);
+        //Try computing the lead for white
+        double lead = PlayUtils::computeLead(engine->bot->getSearch(),NULL,board,hist,pla,numVisits,logger,OtherGameProperties());
+
+        //Restore
+        engine->bot->getSearch()->setPosition(oldPla,oldBoard,oldHist);
+
+        //Also try computing the score if we just terminated and scored the game as-is directly
+        //If we're within 0.5 point plus 5%, then assume the direct scoring of the game is correct.
+
+        //Round lead to nearest integer or half-integer
+        if(hist.rules.gameResultWillBeInteger())
+          lead = round(lead);
+        else
+          lead = round(lead+0.5)-0.5;
+
+        finalWhiteMinusBlackScore = lead;
+        winner = lead > 0 ? P_WHITE : lead < 0 ? P_BLACK : C_EMPTY;
+      }
+
+      if(winner == C_EMPTY)
         response = "0";
-      else if(hist.winner == C_BLACK)
-        response = "B+" + Global::strprintf("%.1f",-hist.finalWhiteMinusBlackScore);
-      else if(hist.winner == C_WHITE)
-        response = "W+" + Global::strprintf("%.1f",hist.finalWhiteMinusBlackScore);
+      else if(winner == C_BLACK)
+        response = "B+" + Global::strprintf("%.1f",-finalWhiteMinusBlackScore);
+      else if(winner == C_WHITE)
+        response = "W+" + Global::strprintf("%.1f",finalWhiteMinusBlackScore);
       else
         ASSERT_UNREACHABLE;
     }
@@ -1646,34 +1676,37 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         }
 
         if(statusMode < 3) {
+          //Make absolutely sure we can restore the bot's old state
+          const Player oldPla = engine->bot->getRootPla();
+          const Board oldBoard = engine->bot->getRootBoard();
+          const BoardHistory oldHist = engine->bot->getRootHist();
+
           vector<Loc> locsToReport;
           Board board = engine->bot->getRootBoard();
           BoardHistory hist = engine->bot->getRootHist();
+          Player pla = engine->bot->getRootPla();
 
-          if(hist.isGameFinished && hist.isNoResult) {
-            //Treat all stones as alive under a no result
-            if(statusMode == 0) {
-              for(int y = 0; y<board.y_size; y++) {
-                for(int x = 0; x<board.x_size; x++) {
-                  Loc loc = Location::getLoc(x,y,board.x_size);
-                  if(board.colors[loc] != C_EMPTY)
-                    locsToReport.push_back(loc);
-                }
-              }
-            }
-          }
-          else {
-            Color area[Board::MAX_ARR_SIZE];
-            hist.endAndScoreGameNow(board,area);
+          int64_t numVisits = std::max(100, params.numThreads * 20);
+          vector<bool> isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(engine->bot->getSearch(),board,hist,pla,numVisits,logger);
+
+          //Restore
+          engine->bot->getSearch()->setPosition(oldPla,oldBoard,oldHist);
+
+          if(statusMode == 0) {
             for(int y = 0; y<board.y_size; y++) {
               for(int x = 0; x<board.x_size; x++) {
                 Loc loc = Location::getLoc(x,y,board.x_size);
-                if(board.colors[loc] != C_EMPTY) {
-                  if(statusMode == 0 && board.colors[loc] == area[loc])
-                    locsToReport.push_back(loc);
-                  else if(statusMode == 2 && board.colors[loc] != area[loc])
-                    locsToReport.push_back(loc);
-                }
+                if(board.colors[loc] != C_EMPTY && isAlive[loc])
+                  locsToReport.push_back(loc);
+              }
+            }
+          }
+          if(statusMode == 2) {
+            for(int y = 0; y<board.y_size; y++) {
+              for(int x = 0; x<board.x_size; x++) {
+                Loc loc = Location::getLoc(x,y,board.x_size);
+                if(board.colors[loc] != C_EMPTY && !isAlive[loc])
+                  locsToReport.push_back(loc);
               }
             }
           }

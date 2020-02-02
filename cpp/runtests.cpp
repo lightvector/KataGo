@@ -243,3 +243,20 @@ int MainCmds::runnnonmanyposestest(int argc, const char* const* argv) {
 
   return 0;
 }
+
+int MainCmds::runownershiptests(int argc, const char* const* argv) {
+  if(argc != 3) {
+    cerr << "Must supply exactly two arguments: GTP_CONFIG MODEL_FILE" << endl;
+    return 1;
+  }
+  Board::initHash();
+  ScoreValue::initTables();
+
+  Tests::runOwnershipTests(
+    string(argv[1]),
+    string(argv[2])
+  );
+
+  ScoreValue::freeTables();
+  return 0;
+}

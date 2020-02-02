@@ -21,6 +21,7 @@ namespace MainCmds {
   int runselfplayinittests(int argc, const char* const* argv);
   int runsekitrainwritetests(int argc, const char* const* argv);
   int runnnonmanyposestest(int argc, const char* const* argv);
+  int runownershiptests(int argc, const char* const* argv);
 
   int lzcost(int argc, const char* const* argv);
   int demoplay(int argc, const char* const* argv);

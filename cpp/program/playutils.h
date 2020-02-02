@@ -58,6 +58,7 @@ namespace PlayUtils {
     Rand& rand
   );
 
+  //Lead from WHITE's perspective
   float computeLead(
     Search* botB,
     Search* botW,
@@ -79,14 +80,34 @@ namespace PlayUtils {
 
   double getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla);
 
-  /* void computeAnticipatedTerritoryScoring( */
-  /*   Search* bot, */
-  /*   const Board& board, */
-  /*   BoardHistory& hist, */
-  /*   Player pla, */
-  /*   int64_t numVisits, */
-  /*   Color area[Board::MAX_ARR_SIZE] */
-  /* ); */
+  std::vector<double> computeOwnership(
+    Search* bot,
+    const Board& board,
+    const BoardHistory& hist,
+    Player pla,
+    int64_t numVisits,
+    Logger& logger
+  );
+
+  //Determine all living and dead stones, if the game were terminated right now and
+  //the rules were interpreted naively and directly.
+  //Returns a vector indexed by board Loc (length Board::MAX_ARR_SIZE).
+  std::vector<bool> computeAnticipatedStatusesSimple(
+    const Board& board,
+    const BoardHistory& hist
+  );
+
+  //Determine all living and dead stones, trying to be clever and use the ownership prediction
+  //of the neural net.
+  //Returns a vector indexed by board Loc (length Board::MAX_ARR_SIZE).
+  std::vector<bool> computeAnticipatedStatusesWithOwnership(
+    Search* bot,
+    const Board& board,
+    const BoardHistory& hist,
+    Player pla,
+    int64_t numVisits,
+    Logger& logger
+  );
 
 }
 
