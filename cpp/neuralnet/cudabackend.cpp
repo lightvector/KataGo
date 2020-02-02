@@ -2725,8 +2725,10 @@ ComputeHandle* NeuralNet::createComputeHandle(
       useNHWC = true;
   }
   //On Pascal architecture, default to using FP16 operations
+  //Actually, just use FP32 - there's a risk that on certain cards this might just be a lot worse.
+  //A user manually fine-tuning for performance can just enable it themselves if they know how.
   else if(prop.major < 7) {
-    if(context->useFP16Mode == enabled_t::True || context->useFP16Mode == enabled_t::Auto)
+    if(context->useFP16Mode == enabled_t::True)
       useFP16 = true;
     if(context->useNHWCMode == enabled_t::True)
       useNHWC = true;
