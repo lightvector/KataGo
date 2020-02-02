@@ -2712,30 +2712,30 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool useNHWC = false;
   //Old GPUs - use FP32 and explicitly fail if FP16 enabled
   if(prop.major < 5 || (prop.major == 5 && prop.minor < 3)) {
-    if(context->useFP16Mode == enabled_t::TRUE)
+    if(context->useFP16Mode == enabled_t::True)
       throw StringError("Cuda device versions below 5.3 do not support useFP16=true");
-    if(context->useNHWCMode == enabled_t::TRUE)
+    if(context->useNHWCMode == enabled_t::True)
       useNHWC = true;
   }
   //In theory these GPUs support FP16, so allow if the user wants.
   else if(prop.major < 6) {
-    if(context->useFP16Mode == enabled_t::TRUE)
+    if(context->useFP16Mode == enabled_t::True)
       useFP16 = true;
-    if(context->useNHWCMode == enabled_t::TRUE)
+    if(context->useNHWCMode == enabled_t::True)
       useNHWC = true;
   }
   //On Pascal architecture, default to using FP16 operations
   else if(prop.major < 7) {
-    if(context->useFP16Mode == enabled_t::TRUE || context->useFP16Mode == enabled_t::AUTO)
+    if(context->useFP16Mode == enabled_t::True || context->useFP16Mode == enabled_t::AUTO)
       useFP16 = true;
-    if(context->useNHWCMode == enabled_t::TRUE)
+    if(context->useNHWCMode == enabled_t::True)
       useNHWC = true;
   }
   //On Volta and higher, use FP16 and NHWC together because we have tensor cores.
   else {
-    if(context->useFP16Mode == enabled_t::TRUE || context->useFP16Mode == enabled_t::AUTO)
+    if(context->useFP16Mode == enabled_t::True || context->useFP16Mode == enabled_t::AUTO)
       useFP16 = true;
-    if(context->useNHWCMode == enabled_t::TRUE || (context->useNHWCMode == enabled_t::AUTO && useFP16))
+    if(context->useNHWCMode == enabled_t::True || (context->useNHWCMode == enabled_t::AUTO && useFP16))
       useNHWC = true;
   }
   int nnXLen = context->nnXLen;
