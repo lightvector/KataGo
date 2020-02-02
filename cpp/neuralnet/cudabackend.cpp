@@ -2726,16 +2726,16 @@ ComputeHandle* NeuralNet::createComputeHandle(
   }
   //On Pascal architecture, default to using FP16 operations
   else if(prop.major < 7) {
-    if(context->useFP16Mode == enabled_t::True || context->useFP16Mode == enabled_t::AUTO)
+    if(context->useFP16Mode == enabled_t::True || context->useFP16Mode == enabled_t::Auto)
       useFP16 = true;
     if(context->useNHWCMode == enabled_t::True)
       useNHWC = true;
   }
   //On Volta and higher, use FP16 and NHWC together because we have tensor cores.
   else {
-    if(context->useFP16Mode == enabled_t::True || context->useFP16Mode == enabled_t::AUTO)
+    if(context->useFP16Mode == enabled_t::True || context->useFP16Mode == enabled_t::Auto)
       useFP16 = true;
-    if(context->useNHWCMode == enabled_t::True || (context->useNHWCMode == enabled_t::AUTO && useFP16))
+    if(context->useNHWCMode == enabled_t::True || (context->useNHWCMode == enabled_t::Auto && useFP16))
       useNHWC = true;
   }
   int nnXLen = context->nnXLen;

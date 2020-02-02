@@ -2,7 +2,7 @@
 #define COMMONTYPES_H
 
 struct enabled_t {
-  enum value { True, False, AUTO };
+  enum value { False, True, Auto };
   value x;
 
   enabled_t() = default;
@@ -21,7 +21,7 @@ struct enabled_t {
     else if(v == "0" || v == "f" || v == "false" || v == "disabled" || v == "n" || v == "no")
       buf = False;
     else if(v == "auto")
-      buf = AUTO;
+      buf = Auto;
     else
       return false;
     return true;

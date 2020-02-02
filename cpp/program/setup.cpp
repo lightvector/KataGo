@@ -176,7 +176,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     std::sort(gpuIdxs.begin(), gpuIdxs.end());
     std::unique(gpuIdxs.begin(), gpuIdxs.end());
 
-    enabled_t useFP16Mode = enabled_t::AUTO;
+    enabled_t useFP16Mode = enabled_t::Auto;
     if(cfg.contains(backendPrefix+"UseFP16-"+idxStr))
       useFP16Mode = cfg.getEnabled(backendPrefix+"UseFP16-"+idxStr);
     else if(cfg.contains("useFP16-"+idxStr))
@@ -186,7 +186,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("useFP16"))
       useFP16Mode = cfg.getEnabled("useFP16");
 
-    enabled_t useNHWCMode = enabled_t::AUTO;
+    enabled_t useNHWCMode = enabled_t::Auto;
     if(cfg.contains(backendPrefix+"UseNHWC"+idxStr))
       useNHWCMode = cfg.getEnabled(backendPrefix+"UseNHWC"+idxStr);
     else if(cfg.contains("useNHWC"+idxStr))
