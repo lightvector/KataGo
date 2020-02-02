@@ -1495,6 +1495,128 @@ suicideCount 87
   expect("Board undo test move counts",out,expected);
 }
 
+void Tests::runBoardHandicapTest() {
+  cout << "Running board handicap test" << endl;
+  {
+    Board board = Board(19,19);
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("chinese");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    testAssert(hist.computeNumHandicapStones() == 0);
+    testAssert(hist.computeWhiteHandicapBonus() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,3,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    testAssert(hist.computeWhiteHandicapBonus() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,4,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    testAssert(hist.computeWhiteHandicapBonus() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,5,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    testAssert(hist.computeWhiteHandicapBonus() == 0);
+    hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+    testAssert(hist.computeNumHandicapStones() == 3);
+    testAssert(hist.computeWhiteHandicapBonus() == 3);
+  }
+
+  {
+    Board board = Board(19,19);
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("chinese");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,3,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    testAssert(hist.computeWhiteHandicapBonus() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,4,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 2);
+    testAssert(hist.computeWhiteHandicapBonus() == 2);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,5,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 3);
+    testAssert(hist.computeWhiteHandicapBonus() == 3);
+  }
+
+  {
+    Board board = Board(19,19);
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("aga");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,3,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    testAssert(hist.computeWhiteHandicapBonus() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,4,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 2);
+    testAssert(hist.computeWhiteHandicapBonus() == 1);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,5,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 3);
+    testAssert(hist.computeWhiteHandicapBonus() == 2);
+  }
+
+  {
+    Board board = Board(19,19);
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("aga");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,3,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    testAssert(hist.computeWhiteHandicapBonus() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_WHITE, NULL);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    testAssert(hist.computeWhiteHandicapBonus() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,4,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 2);
+    testAssert(hist.computeWhiteHandicapBonus() == 1);
+    hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_WHITE, NULL);
+    testAssert(hist.computeNumHandicapStones() == 2);
+    testAssert(hist.computeWhiteHandicapBonus() == 1);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,5,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 3);
+    testAssert(hist.computeWhiteHandicapBonus() == 2);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,6,board.x_size), P_WHITE, NULL);
+    testAssert(hist.computeNumHandicapStones() == 3);
+    testAssert(hist.computeWhiteHandicapBonus() == 2);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,7,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 3);
+    testAssert(hist.computeWhiteHandicapBonus() == 2);
+  }
+
+  {
+    Board board = Board(19,19);
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("chinese");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,3,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    testAssert(hist.computeWhiteHandicapBonus() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,4,board.x_size), P_WHITE, NULL);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    testAssert(hist.computeWhiteHandicapBonus() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,5,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    testAssert(hist.computeWhiteHandicapBonus() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_WHITE, NULL);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    testAssert(hist.computeWhiteHandicapBonus() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,6,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    testAssert(hist.computeWhiteHandicapBonus() == 0);
+    hist.makeBoardMoveAssumeLegal(board, Location::getLoc(3,7,board.x_size), P_BLACK, NULL);
+    testAssert(hist.computeNumHandicapStones() == 0);
+    testAssert(hist.computeWhiteHandicapBonus() == 0);
+  }
+
+}
 
 void Tests::runBoardStressTest() {
   cout << "Running board stress test" << endl;

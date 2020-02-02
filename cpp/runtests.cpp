@@ -34,6 +34,7 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   Tests::runRulesTests();
 
   Tests::runBoardUndoTest();
+  Tests::runBoardHandicapTest();
   Tests::runBoardStressTest();
 
   Tests::runSgfTests();

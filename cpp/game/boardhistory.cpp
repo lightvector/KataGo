@@ -368,9 +368,16 @@ int BoardHistory::computeNumHandicapStones() const {
       Loc moveLoc = moveHistory[i].loc;
       Player movePla = moveHistory[i].pla;
       if(movePla != P_BLACK) {
-        //Two white moves in a row? Re-set count.
-        if(i+1 < moveHistory.size() && moveHistory[i+1].pla != P_BLACK)
+        //Two white moves in a row? Re-set count and quit out.
+        if(i+1 < moveHistory.size() && moveHistory[i+1].pla != P_BLACK) {
           blackNonPassTurnsToStart = 0;
+          break;
+        }
+        //White move is a single isolated pass? Assume that it's still a handicap game, it's just that the black
+        //moves are interleaved with white passes. Ignore it and continue.
+        if(moveLoc == Board::PASS_LOC)
+          continue;
+        //Otherwise quit out, we have a normal white move.
         break;
       }
       if(moveLoc != Board::PASS_LOC && moveLoc != Board::NULL_LOC)
