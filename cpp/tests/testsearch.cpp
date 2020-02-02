@@ -43,10 +43,10 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
 
   if(!opts.ignorePosition)
     bot->setPosition(nextPla,board,hist);
-  Search* search = bot->getSearch();
 
   for(int i = 0; i<opts.numMovesInARow; i++) {
     Loc move = bot->genMoveSynchronous(nextPla,TimeControls());
+    const Search* search = bot->getSearch();
 
     Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
 
@@ -89,6 +89,7 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
     }
   }
 
+  const Search* search = bot->getSearch();
   search->nnEvaluator->clearCache();
   search->nnEvaluator->clearStats();
   if(!opts.noClearBot)
@@ -527,7 +528,7 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     runBotOnSgf(bot, sgfStr, rules, 234, 0.5, opts);
 
     //Try to check that search tree is idempotent under simply rebeginning the search
-    Search* search = bot->getSearch();
+    Search* search = bot->getSearchStopAndWait();
     PrintTreeOptions options;
     options = options.maxDepth(1);
     cout << "Beginning search again and then reprinting, should be same" << endl;

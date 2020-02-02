@@ -54,7 +54,8 @@ Player AsyncBot::getRootPla() const {
   return search->rootPla;
 }
 
-Search* AsyncBot::getSearch() {
+Search* AsyncBot::getSearchStopAndWait() {
+  stopAndWait();
   return search;
 }
 const Search* AsyncBot::getSearch() const {

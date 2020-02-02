@@ -244,7 +244,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bot->setPosition(nextPla,board,hist);
 
   //Print initial state----------------------------------------------------------------
-  Search* search = bot->getSearch();
+  const Search* search = bot->getSearchStopAndWait();
   ostringstream sout;
   sout << "Rules: " << hist.rules << endl;
   sout << "Encore phase " << hist.encorePhase << endl;
@@ -358,7 +358,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   if(printLead) {
     BoardHistory hist2(hist);
     double lead = PlayUtils::computeLead(
-      bot->getSearch(), bot->getSearch(), board, hist2, nextPla,
+      bot->getSearchStopAndWait(), NULL, board, hist2, nextPla,
       20, logger, OtherGameProperties()
     );
     cout << "LEAD: " << lead << endl;

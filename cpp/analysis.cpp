@@ -138,7 +138,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
       int minMoves = 0;
       vector<AnalysisData> buf;
-      Search* search = bot->getSearch();
+      const Search* search = bot->getSearch();
       search->getAnalysisData(buf,minMoves,false,request->analysisPVLen);
 
       json moveInfos = json::array();

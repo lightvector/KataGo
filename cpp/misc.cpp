@@ -15,7 +15,7 @@
 using namespace std;
 
 static void writeLine(
-  Search* search, const BoardHistory& baseHist,
+  const Search* search, const BoardHistory& baseHist,
   const vector<double>& winLossHistory, const vector<double>& scoreHistory, const vector<double>& scoreStdevHistory
 ) {
   const Board board = search->getRootBoard();
@@ -307,7 +307,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
 
         if(nextMove.loc == Board::NULL_LOC) {
           wasSpecified = false;
-          Search* search = bot->getSearch();
+          Search* search = bot->getSearchStopAndWait();
           NNResultBuf buf;
           MiscNNInputParams nnInputParams;
           nnInputParams.drawEquivalentWinsForWhite = search->searchParams.drawEquivalentWinsForWhite;
@@ -345,7 +345,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
       } //Close while(true)
 
       int numVisits = 20;
-      PlayUtils::adjustKomiToEven(bot->getSearch(),bot->getSearch(),board,hist,pla,numVisits,logger,OtherGameProperties(),rand);
+      PlayUtils::adjustKomiToEven(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,logger,OtherGameProperties(),rand);
       double komi = hist.rules.komi + 0.3 * rand.nextGaussian();
       komi = 0.5 * round(2.0 * komi);
       hist.setKomi((float)komi);
@@ -445,7 +445,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 
     double callbackPeriod = 0.05;
 
-    auto callback = [&baseHist,&recentWinLossValues,&recentScores,&recentScoreStdevs](Search* search) {
+    auto callback = [&baseHist,&recentWinLossValues,&recentScores,&recentScoreStdevs](const Search* search) {
       writeLine(search,baseHist,recentWinLossValues,recentScores,recentScoreStdevs);
     };
 

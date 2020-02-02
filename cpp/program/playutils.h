@@ -48,7 +48,7 @@ namespace PlayUtils {
 
   void adjustKomiToEven(
     Search* botB,
-    Search* botW,
+    Search* botW, //can be NULL if only one bot
     const Board& board,
     BoardHistory& hist,
     Player pla,
@@ -61,7 +61,7 @@ namespace PlayUtils {
   //Lead from WHITE's perspective
   float computeLead(
     Search* botB,
-    Search* botW,
+    Search* botW, //can be NULL if only one bot
     const Board& board,
     BoardHistory& hist,
     Player pla,

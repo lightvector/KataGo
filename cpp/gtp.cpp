@@ -452,11 +452,11 @@ struct GTPEngine {
     double secondsPerReport = 1e30;
   };
 
-  std::function<void(Search* search)> getAnalyzeCallback(Player pla, AnalyzeArgs args) {
-    std::function<void(Search* search)> callback;
+  std::function<void(const Search* search)> getAnalyzeCallback(Player pla, AnalyzeArgs args) {
+    std::function<void(const Search* search)> callback;
     //analyze
     if(!args.kata && !args.lz) {
-      callback = [args,pla,this](Search* search) {
+      callback = [args,pla,this](const Search* search) {
         vector<AnalysisData> buf;
         search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
         if(buf.size() > args.maxMoves)
@@ -484,7 +484,7 @@ struct GTPEngine {
     }
     //lz-analyze
     else if(!args.kata) {
-      callback = [args,pla,this](Search* search) {
+      callback = [args,pla,this](const Search* search) {
         vector<AnalysisData> buf;
         search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
         if(buf.size() > args.maxMoves)
@@ -521,7 +521,7 @@ struct GTPEngine {
     }
     //kata-analyze
     else {
-      callback = [args,pla,this](Search* search) {
+      callback = [args,pla,this](const Search* search) {
         vector<AnalysisData> buf;
         search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
         if(buf.size() > args.maxMoves)
@@ -628,7 +628,7 @@ struct GTPEngine {
 
     Loc moveLoc;
     if(args.analyzing) {
-      std::function<void(Search* search)> callback = getAnalyzeCallback(pla,args);
+      std::function<void(const Search* search)> callback = getAnalyzeCallback(pla,args);
       if(args.showOwnership)
         bot->setAlwaysIncludeOwnerMap(true);
       else
@@ -801,6 +801,8 @@ struct GTPEngine {
   }
 
   void placeFreeHandicap(int n, string& response, bool& responseIsError) {
+    stopAndWait();
+
     //If asked to place more, we just go ahead and only place up to 30, or a quarter of the board
     int xSize = bot->getRootBoard().x_size;
     int ySize = bot->getRootBoard().y_size;
@@ -817,7 +819,7 @@ struct GTPEngine {
     BoardHistory hist(board,pla,currentRules,0);
     double extraBlackTemperature = 0.25;
     Rand rand;
-    PlayUtils::playExtraBlack(bot->getSearch(), n, board, hist, extraBlackTemperature, rand);
+    PlayUtils::playExtraBlack(bot->getSearchStopAndWait(), n, board, hist, extraBlackTemperature, rand);
     //Also switch the initial player, expecting white should be next.
     hist.clear(board,P_WHITE,currentRules,0);
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
@@ -856,6 +858,55 @@ struct GTPEngine {
 
     double searchFactor = 1e40; //go basically forever
     bot->analyze(pla, searchFactor, args.secondsPerReport, callback);
+  }
+
+  double computeLead(Logger& logger) {
+    stopAndWait();
+
+    //Make absolutely sure we can restore the bot's old state
+    const Player oldPla = bot->getRootPla();
+    const Board oldBoard = bot->getRootBoard();
+    const BoardHistory oldHist = bot->getRootHist();
+
+    Board board = bot->getRootBoard();
+    BoardHistory hist = bot->getRootHist();
+    Player pla = bot->getRootPla();
+
+    int64_t numVisits = std::max(50, params.numThreads * 10);
+    //Try computing the lead for white
+    double lead = PlayUtils::computeLead(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,logger,OtherGameProperties());
+
+    //Restore
+    bot->setPosition(oldPla,oldBoard,oldHist);
+
+    //Round lead to nearest integer or half-integer
+    if(hist.rules.gameResultWillBeInteger())
+      lead = round(lead);
+    else
+      lead = round(lead+0.5)-0.5;
+
+    return lead;
+  }
+
+  vector<bool> computeAnticipatedStatusesWithOwnership(Logger& logger) {
+    stopAndWait();
+
+    //Make absolutely sure we can restore the bot's old state
+    const Player oldPla = bot->getRootPla();
+    const Board oldBoard = bot->getRootBoard();
+    const BoardHistory oldHist = bot->getRootHist();
+
+    Board board = bot->getRootBoard();
+    BoardHistory hist = bot->getRootHist();
+    Player pla = bot->getRootPla();
+
+    int64_t numVisits = std::max(100, params.numThreads * 20);
+    vector<bool> isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot->getSearchStopAndWait(),board,hist,pla,numVisits,logger);
+
+    //Restore
+    bot->setPosition(oldPla,oldBoard,oldHist);
+
+    return isAlive;
   }
 
 };
@@ -1607,9 +1658,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     }
 
     else if(command == "final_score") {
-      Board board = engine->bot->getRootBoard();
+      engine->stopAndWait();
+
       BoardHistory hist = engine->bot->getRootHist();
-      Player pla = engine->bot->getRootPla();
 
       //If the game is finished, then we score the game as-is.
       //If it's not finished, then we try to get a bit clever.
@@ -1621,27 +1672,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         finalWhiteMinusBlackScore = hist.finalWhiteMinusBlackScore;
       }
       else {
-        //Make absolutely sure we can restore the bot's old state
-        const Player oldPla = engine->bot->getRootPla();
-        const Board oldBoard = engine->bot->getRootBoard();
-        const BoardHistory oldHist = engine->bot->getRootHist();
-
-        int64_t numVisits = std::max(50, params.numThreads * 10);
-        //Try computing the lead for white
-        double lead = PlayUtils::computeLead(engine->bot->getSearch(),NULL,board,hist,pla,numVisits,logger,OtherGameProperties());
-
-        //Restore
-        engine->bot->getSearch()->setPosition(oldPla,oldBoard,oldHist);
-
-        //Also try computing the score if we just terminated and scored the game as-is directly
-        //If we're within 0.5 point plus 5%, then assume the direct scoring of the game is correct.
-
-        //Round lead to nearest integer or half-integer
-        if(hist.rules.gameResultWillBeInteger())
-          lead = round(lead);
-        else
-          lead = round(lead+0.5)-0.5;
-
+        double lead = engine->computeLead(logger);
         finalWhiteMinusBlackScore = lead;
         winner = lead > 0 ? P_WHITE : lead < 0 ? P_BLACK : C_EMPTY;
       }
@@ -1676,21 +1707,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         }
 
         if(statusMode < 3) {
-          //Make absolutely sure we can restore the bot's old state
-          const Player oldPla = engine->bot->getRootPla();
-          const Board oldBoard = engine->bot->getRootBoard();
-          const BoardHistory oldHist = engine->bot->getRootHist();
-
-          vector<Loc> locsToReport;
+          vector<bool> isAlive = engine->computeAnticipatedStatusesWithOwnership(logger);
           Board board = engine->bot->getRootBoard();
-          BoardHistory hist = engine->bot->getRootHist();
-          Player pla = engine->bot->getRootPla();
-
-          int64_t numVisits = std::max(100, params.numThreads * 20);
-          vector<bool> isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(engine->bot->getSearch(),board,hist,pla,numVisits,logger);
-
-          //Restore
-          engine->bot->getSearch()->setPosition(oldPla,oldBoard,oldHist);
+          vector<Loc> locsToReport;
 
           if(statusMode == 0) {
             for(int y = 0; y<board.y_size; y++) {
