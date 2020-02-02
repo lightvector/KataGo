@@ -209,7 +209,7 @@ Example instructions to start up these things (assuming you have appropriate mac
    * `cd python; ./selfplay/shuffle_and_export_loop.sh $BASEDIR/ $SCRATCH_DIRECTORY $NUM_THREADS $USE_GATING`
      * This starts both the shuffler and exporter. The shuffler will use the scratch directory with the specified number of threads to shuffle in parallel. Make sure you have some disk space. You probably want as many threads as you have cores. If not using the gatekeeper, specify `0` for `$USE_GATING`, else specify `1`.
      * Also, if you're low on disk space, take a look also at the `./selfplay/shuffle.sh` script (which is called by `shuffle_and_export_loop.sh`). Right now it's *very* conservative about cleaning up old shuffles but you could tweak it to be a bit more aggressive.
-   * `cd python; ./selfplay/train.sh $BASEDIR/ $TRAININGNAME main b6c96 -lr-scale 1.0 >> log.txt 2>&1 & disown`
+   * `cd python; ./selfplay/train.sh $BASEDIR/ $TRAININGNAME b6c96 main -lr-scale 1.0 >> log.txt 2>&1 & disown`
      * This starts the training. You may want to look at or edit the train.sh script, it also snapshots the state of the repo for logging, as well as contains some training parameters that can be tweaked.
      * The third argument controls some export behavior:
         * `main` - this is the main net for selfplay, save it regularly to `$BASEDIR/tfsavedmodels_toexport` which the export loop will export regularly for gating.
