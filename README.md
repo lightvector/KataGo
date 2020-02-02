@@ -96,14 +96,15 @@ If your GPU is a top-end NVIDIA GPU and supports FP16 and tensor cores, then the
 ### How To Use
 KataGo supports a few commands. All of these commands require a "model" file that contains the neural net. Most also require a "config" file that specifies parameters for how KataGo behaves. KataGo's precompiled releases should come packaged with example configs (`gtp_example.cfg`). If you care about performance, you will likely want to edit this config for yourself - extensive comments and notes are provided in the config.
 
-Run a benchmark to test performance and help you choose how many threads to use for best performance. You can then edit your GTP config to use this many threads.
-**If you are running KataGo for the first time, you probably want to do this before anything else, to test if KataGo works and pick a number of threads. And on the OpenCL version, to give KataGo a chance to autotune itself, which could take a while.**
+**If you are running KataGo for the first time, you probably want to run the benchmark before anything else, to test if KataGo works and pick a number of threads. And on the OpenCL version, to give KataGo a chance to autotune itself, which could take a while.**
+
+To run a benchmark to test performance and help you choose how many threads to use for best performance. You can then edit your GTP config to use this many threads:
 
    * `./katago benchmark -model <NEURALNET>.txt.gz -config <GTP_CONFIG>.cfg`
 
-Run a GTP engine using a downloaded KataGo neural net and example provided config. **This is the command you want to tell your GUI (Lizzie, Sabaki, GoGui, etc) to use to run KataGo** (with the actual paths to your neural net and config files substituted in, of course).
+To run a GTP engine using a downloaded KataGo neural net and example provided config:
 
-   * `./katago gtp -model <NEURALNET>.txt.gz -config <GTP_CONFIG>.cfg`
+   * `./katago gtp -model <NEURALNET>.txt.gz -config <GTP_CONFIG>.cfg` - **This is the command you want to tell your GUI (Lizzie, Sabaki, GoGui, etc) to use to run KataGo** (with the actual paths to your neural net and config files substituted in, of course).
 
 Run a JSON-based [analysis engine](docs/Analysis_Engine.md) that can do efficient batched evaluations for a backend Go service:
 
