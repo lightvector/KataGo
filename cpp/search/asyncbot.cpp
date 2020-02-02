@@ -69,10 +69,6 @@ void AsyncBot::setPosition(Player pla, const Board& board, const BoardHistory& h
   stopAndWait();
   search->setPosition(pla,board,history);
 }
-void AsyncBot::setRulesAndClearHistory(Rules rules, int encorePhase) {
-  stopAndWait();
-  search->setRulesAndClearHistory(rules,encorePhase);
-}
 void AsyncBot::setKomiIfNew(float newKomi) {
   stopAndWait();
   search->setKomiIfNew(newKomi);

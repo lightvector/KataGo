@@ -28,7 +28,6 @@ class AsyncBot {
   //Setup, same as in search.h
   //Calling any of these will stop any ongoing search, waiting for a full stop.
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
-  void setRulesAndClearHistory(Rules rules, int encorePhase);
   void setKomiIfNew(float newKomi);
   void setRootPassLegal(bool b);
   void setAlwaysIncludeOwnerMap(bool b);

@@ -80,7 +80,18 @@ static double initialBlackAdvantage(const BoardHistory& hist) {
   return 15.0 * extraBlackStones + (7.0 - hist.rules.komi);
 }
 
-static void updatePlayoutDoublingAdvantage(
+static bool noWhiteStonesOnBoard(const Board& board) {
+  for(int y = 0; y < board.y_size; y++) {
+    for(int x = 0; x < board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      if(board.colors[loc] == P_WHITE)
+        return false;
+    }
+  }
+  return true;
+}
+
+static void updatePlayoutDoublingAdvantageHelper(
   AsyncBot* bot, const Board& board, const BoardHistory& hist, Player pla,
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead,
   const vector<double>& recentWinLossValues,
@@ -110,8 +121,8 @@ static void updatePlayoutDoublingAdvantage(
     );
     pdaCap = round(pdaCap / increment) * increment;
 
-    //No history? Then this is a new game or a newly set position
-    if(recentWinLossValues.size() <= 0) {
+    //No history, or literally no white stones on board? Then this is a new game or a newly set position
+    if(recentWinLossValues.size() <= 0 || noWhiteStonesOnBoard(board)) {
       //Just use the cap
       desiredPlayoutDoublingAdvantage = pdaCap;
     }
@@ -353,12 +364,8 @@ struct GTPEngine {
     initialPla = newInitialPla;
     moveHistory = newMoveHistory;
     recentWinLossValues.clear();
-    updatePlayoutDoublingAdvantage(
-      bot,board,hist,params.playoutDoublingAdvantagePla,
-      dynamicPlayoutDoublingAdvantageCapPerOppLead,
-      recentWinLossValues,
-      desiredPlayoutDoublingAdvantage,params
-    );
+    //Update it assuming the bot will be playing as params.playoutDoublingAdvantagePla
+    updatePlayoutDoublingAdvantage(params.playoutDoublingAdvantagePla);
   }
 
   void clearBoard() {
@@ -375,6 +382,16 @@ struct GTPEngine {
   void updateKomiIfNew(float newKomi) {
     bot->setKomiIfNew(newKomi);
     currentRules.komi = newKomi;
+  }
+
+  //Update playout doubling advantage for the engine for playing as pla
+  void updatePlayoutDoublingAdvantage(Player pla) {
+    updatePlayoutDoublingAdvantageHelper(
+      bot,bot->getRootBoard(),bot->getRootHist(),pla,
+      dynamicPlayoutDoublingAdvantageCapPerOppLead,
+      recentWinLossValues,
+      desiredPlayoutDoublingAdvantage,params
+    );
   }
 
   bool play(Loc loc, Player pla) {
@@ -619,6 +636,8 @@ struct GTPEngine {
     nnEval->clearStats();
     TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
 
+    //Update PDA given whatever the most recent values are
+    updatePlayoutDoublingAdvantage(pla);
     //Make sure we have the right PDA parameters, in case someone ran analysis in the meantime.
     if(dynamicPlayoutDoublingAdvantageCapPerOppLead != 0.0 &&
        params.playoutDoublingAdvantage != desiredPlayoutDoublingAdvantage) {
@@ -726,12 +745,6 @@ struct GTPEngine {
 
     //Adjust handicap games ------------------------
     recentWinLossValues.push_back(winLossValue);
-    updatePlayoutDoublingAdvantage(
-      bot,bot->getRootBoard(),bot->getRootHist(),pla,
-      dynamicPlayoutDoublingAdvantageCapPerOppLead,
-      recentWinLossValues,
-      desiredPlayoutDoublingAdvantage,params
-    );
 
     //Resignation, actual reporting of chosen move---------------------
 

@@ -257,14 +257,12 @@ void Search::setPlayerAndClearHistory(Player pla) {
   rootPla = pla;
   rootBoard.clearSimpleKoLoc();
   Rules rules = rootHistory.rules;
-  rootHistory.clear(rootBoard,rootPla,rules,rootHistory.encorePhase);
-  rootKoHashTable->recompute(rootHistory);
-}
 
-void Search::setRulesAndClearHistory(Rules rules, int encorePhase) {
-  clearSearch();
-  rootBoard.clearSimpleKoLoc();
-  rootHistory.clear(rootBoard,rootPla,rules,encorePhase);
+  //Preserve this value even when we get multiple moves in a row by some player
+  bool assumeMultipleStartingBlackMovesAreHandicap = rootHistory.assumeMultipleStartingBlackMovesAreHandicap;
+  rootHistory.clear(rootBoard,rootPla,rules,rootHistory.encorePhase);
+  rootHistory.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+
   rootKoHashTable->recompute(rootHistory);
 }
 

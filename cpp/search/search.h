@@ -190,7 +190,6 @@ struct Search {
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
 
   void setPlayerAndClearHistory(Player pla);
-  void setRulesAndClearHistory(Rules rules, int encorePhase);
   void setKomiIfNew(float newKomi); //Does not clear history, does clear search unless komi is equal.
   void setRootPassLegal(bool b);
   void setAlwaysIncludeOwnerMap(bool b);
