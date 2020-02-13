@@ -81,7 +81,7 @@ You can download a few selected neural nets from the [releases page](https://git
 ## Setting Up and Running KataGo
 KataGo implements just a GTP engine - GTP is a simple text protocol that Go software uses to communicate with engines. It does NOT have a graphical interface on its own. So generally, you will want to use KataGo along with a GUI or analysis program, such as [Lizzie](https://github.com/featurecat/lizzie) or [Sabaki](https://sabaki.yichuanshen.de/). Both of these programs also support KataGo's score estimates and visualization as well. NOTE: a version of KataGo is also packaged directly with Lizzie's latest Windows release, but this is a somewhat older version and doesn't support some recent features.
 
-KataGo currently officially supports both Windows and Linux. KataGo should also run fine on OSX, but I don't personally have a good way to compile or test an OSX version - so for this you may need to compile it yourself or check with OSX users who have been able to compile it. Generally, testing across different OS versions and compilers has not been done, so if you encounter problems, feel free to open an issue.
+KataGo currently officially supports both Windows and Linux. KataGo can be installed via [Homebrew](https://brew.sh) on MacOS (use `brew install katago`. The latest config files and networks are installed in katagos `share` directory. To find its location use `brew ls katago`). Generally, testing across different OS versions and compilers has not been done, so if you encounter problems, feel free to open an issue.
 
 ### OpenCL vs CUDA
 KataGo has both an OpenCL version and a CUDA version.
