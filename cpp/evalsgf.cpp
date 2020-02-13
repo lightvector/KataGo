@@ -36,7 +36,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     KataGoCommandLine cmd("Run a search on a position from an sgf file");
     cmd.addConfigFileArg("","gtp_example.cfg");
     cmd.addOverrideConfigArg();
-    cmd.addModelFileArg("");
+    cmd.addModelFileArg();
 
     TCLAP::UnlabeledValueArg<string> sgfFileArg("","Sgf file to analyze",true,string(),"FILE");
     TCLAP::ValueArg<int> moveNumArg("m","move-num","Sgf move num to analyze, 1-indexed",true,0,"MOVENUM");

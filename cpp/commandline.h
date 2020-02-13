@@ -16,10 +16,11 @@ class KataGoCommandLine : public TCLAP::CmdLine
   KataGoCommandLine(const std::string& message);
   ~KataGoCommandLine();
 
-  //Empty string indicates no default
-  void addModelFileArg(const std::string& defaultModelPath);
+  static std::string defaultGtpConfigFileName();
+
+  void addModelFileArg();
   //Empty string indicates no default or no example
-  void addConfigFileArg(const std::string& defaultConfigPath, const std::string& exampleConfigFile);
+  void addConfigFileArg(const std::string& defaultConfigFileName, const std::string& exampleConfigFile);
   void addOverrideConfigArg();
 
   std::string getModelFile();
