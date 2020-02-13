@@ -1171,6 +1171,26 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
 }
 
 
+class KataGoCommandLine : public TCLAP::CmdLine
+{
+public:
+    TCLAP::ValueArg<string> nnModelFileArg;
+    
+    KataGoCommandLine(const std::string& message)
+        :
+            TCLAP::CmdLine(message, ' ', Version::getKataGoVersionForHelp(),true),
+            nnModelFileArg("","model","Neural net model file",true, defaultNNModelPath(),"FILE")
+    {
+        this->add(this->nnModelFileArg);
+    }
+    
+    static string defaultNNModelPath() {
+        // TODO search for a network configured by symlink in ~/.katago/default_network.txt.gz
+        // and provide that as. the default value if available.
+        return string();
+    }
+};
+
 int MainCmds::gtp(int argc, const char* const* argv) {
   Board::initHash();
   ScoreValue::initTables();
@@ -1181,18 +1201,16 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   string overrideVersion;
   string overrideConfig;
   try {
-    TCLAP::CmdLine cmd("Run GTP engine", ' ', Version::getKataGoVersionForHelp(),true);
+    KataGoCommandLine cmd("Run GTP engine");
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
-    TCLAP::ValueArg<string> nnModelFileArg("","model","Neural net model file",true,string(),"FILE");
     TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
     TCLAP::ValueArg<string> overrideConfigArg("","override-config","Override config parameters. Format: \"key=value, key=value,...\"",false,string(),"KEYVALUEPAIRS");
     cmd.add(configFileArg);
-    cmd.add(nnModelFileArg);
     cmd.add(overrideVersionArg);
     cmd.add(overrideConfigArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
-    nnModelFile = nnModelFileArg.getValue();
+    nnModelFile = cmd.nnModelFileArg.getValue();
     overrideVersion = overrideVersionArg.getValue();
     overrideConfig = overrideConfigArg.getValue();
   }
