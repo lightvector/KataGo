@@ -504,7 +504,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 
       if(3 * bestThreads > 2 * ternarySearchMax) {
         ternarySearchMax *= 2;
-        cout << endl << "Optimal number of threads is fairly high, doubling the search limit and trying again." << endl;
+        cout << endl << endl << "Optimal number of threads is fairly high, doubling the search limit and trying again." << endl;
       } else {
         stopped = true;
 
