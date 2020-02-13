@@ -451,6 +451,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
       }
     }
 
+    cout << endl;
     printResults(eloEffects, bestEloEffectIdx);
   }
   
