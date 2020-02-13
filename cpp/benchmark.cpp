@@ -354,17 +354,12 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
                 << " avgBatchSize = " << Global::strprintf("%.2f",avgBatchSize)
                 << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)";
 
-    cout << "\rnumSearchThreads = " << Global::strprintf("%2d",numThreads) << ":"
-         << " " << totalPositions << " / " << possiblePositionIdxs.size() << " positions,"
-         << " visits/s = " << Global::strprintf("%.2f",totalVisits / totalSeconds)
-         << " nnEvals/s = " << Global::strprintf("%.2f",numNNEvals / totalSeconds)
-         << " nnBatches/s = " << Global::strprintf("%.2f",numNNBatches / totalSeconds)
-         << " avgBatchSize = " << Global::strprintf("%.2f",avgBatchSize)
-         << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)";
+    string outputString = outputStream.str();
+    cout << outputString;
     
     cout << std::flush;
 
-    return make_pair(eloEffect, outputStream.str());
+    return make_pair(eloEffect, outputString);
   };
 
   auto printResults = [&](vector<double> eloEffects, int bestEloEffectIdx) {
