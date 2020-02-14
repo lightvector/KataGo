@@ -1186,7 +1186,7 @@ public:
     
     static string defaultNNModelPath() {
         // TODO search for a network configured by symlink in ~/.katago/default_network.txt.gz
-        // and provide that as. the default value if available.
+        // and provide that as the default value if available.
         return string();
     }
 };
