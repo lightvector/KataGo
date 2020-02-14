@@ -83,7 +83,7 @@ KataGo implements just a GTP engine - GTP is a simple text protocol that Go soft
 
 ### Windows and Linux
 
-KataGo currently officially supports both Windows and Linux, with [precompiled executables provided each release](https://github.com/lightvector/KataGo/releases). Not all different OS verisons and compilers have been tested, so if you encounter problems, feel free to open an issue. KataGo can also of course be compiled from source on Windows via MSVC on Windows or on Linux via usual compilers like g++, documented further down.
+KataGo currently officially supports both Windows and Linux, with [precompiled executables provided each release](https://github.com/lightvector/KataGo/releases). Not all different OS versions and compilers have been tested, so if you encounter problems, feel free to open an issue. KataGo can also of course be compiled from source on Windows via MSVC on Windows or on Linux via usual compilers like g++, documented further down.
 
 ### Installing via HomeBrew (MacOS)
 The community also provides KataGo packages for [Homebrew](https://brew.sh) on MacOS - releases there may lag behind official releases slightly. 
