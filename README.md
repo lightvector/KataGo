@@ -81,9 +81,9 @@ You can download a few selected neural nets from the [releases page](https://git
 ## Setting Up and Running KataGo
 KataGo implements just a GTP engine - GTP is a simple text protocol that Go software uses to communicate with engines. It does NOT have a graphical interface on its own. So generally, you will want to use KataGo along with a GUI or analysis program, such as [Lizzie](https://github.com/featurecat/lizzie) or [Sabaki](https://sabaki.yichuanshen.de/). Both of these programs also support KataGo's score estimates and visualization as well. NOTE: a version of KataGo is also packaged directly with Lizzie's latest Windows release, but this is a somewhat older version and doesn't support some recent features.
 
-KataGo currently officially supports both Windows and Linux. The community provides KataGo packages for [Homebrew](https://brew.sh) on MacOS - releasses there will lag behind official releases slightly. Generally, testing across different OS versions and compilers has not been done, so if you encounter problems, feel free to open an issue.
+KataGo currently officially supports both Windows and Linux, with a few [precompiled executables each release](https://github.com/lightvector/KataGo/releases). The community also provides KataGo packages for [Homebrew](https://brew.sh) on MacOS - releases there will lag behind official releases slightly. Generally, testing across different OS versions and compilers has not been done, so if you encounter problems, feel free to open an issue.
 
-### Installing via HomeBrew
+### Installing via HomeBrew (MacOS)
 Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep gtp) -model $(brew list --verbose katago | grep .txt.gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
 
 ### OpenCL vs CUDA
