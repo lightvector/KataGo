@@ -93,6 +93,10 @@ void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
   delete loadedModel;
 }
 
+string NeuralNet::getModelName(const LoadedModel* loadedModel) {
+  return loadedModel->modelDesc.name;
+}
+
 int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
   return loadedModel->modelDesc.version;
 }
@@ -2311,8 +2315,12 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool inputsUseNHWC,
   int gpuIdxForThisThread
 ) {
-  if(logger != NULL)
+  if(logger != NULL) {
     logger->write("OpenCL backend: Model version " + Global::intToString(loadedModel->modelDesc.version));
+    logger->write(
+      "OpenCL backend: Model name: " + loadedModel->modelDesc.name
+    );
+  }
 
   //Current implementation always tolerates excess nn len
   (void)requireExactNNLen;

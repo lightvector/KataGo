@@ -173,6 +173,12 @@ string NNEvaluator::getModelName() const {
 string NNEvaluator::getModelFileName() const {
   return modelFileName;
 }
+string NNEvaluator::getInternalModelName() const {
+  if(loadedModel == NULL)
+    return "random";
+  else
+    return NeuralNet::getModelName(loadedModel);
+}
 bool NNEvaluator::isNeuralNetLess() const {
   return debugSkipNeuralNet;
 }

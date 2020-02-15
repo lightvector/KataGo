@@ -36,6 +36,7 @@ namespace NeuralNet {
   LoadedModel* loadModelFile(const std::string& file, int modelFileIdx);
   void freeLoadedModel(LoadedModel* loadedModel);
 
+  std::string getModelName(const LoadedModel* loadedModel);
   int getModelVersion(const LoadedModel* loadedModel);
 
   //Return the "nearest" supported ruleset to desiredRules by this model.

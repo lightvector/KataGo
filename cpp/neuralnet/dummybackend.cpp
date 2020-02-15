@@ -51,6 +51,11 @@ void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
   throw StringError("Dummy neural net backend: NeuralNet::freeLoadedModel unimplemented");
 }
 
+string getModelName(const LoadedModel* loadedModel) {
+  (void)loadedModel;
+  throw StringError("Dummy neural net backend: NeuralNet::getModelName unimplemented");
+}
+
 int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
   (void)loadedModel;
   throw StringError("Dummy neural net backend: NeuralNet::getModelVersion unimplemented");

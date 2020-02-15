@@ -2401,6 +2401,10 @@ void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
   delete loadedModel;
 }
 
+string NeuralNet::getModelName(const LoadedModel* loadedModel) {
+  return loadedModel->modelDesc.name;
+}
+
 int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
   return loadedModel->modelDesc.version;
 }
@@ -2754,6 +2758,9 @@ ComputeHandle* NeuralNet::createComputeHandle(
       "Cuda backend: Model version " + Global::intToString(loadedModel->modelDesc.version) +
       " useFP16 = " + Global::boolToString(useFP16) +
       " useNHWC = " + Global::boolToString(useNHWC)
+    );
+    logger->write(
+      "Cuda backend: Model name: " + loadedModel->modelDesc.name
     );
   }
 
