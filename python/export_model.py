@@ -7,6 +7,7 @@ import time
 import logging
 import json
 import datetime
+import struct
 
 import tensorflow as tf
 import numpy as np
@@ -26,6 +27,7 @@ parser.add_argument('-name-scope', help='Name scope for model variables', requir
 parser.add_argument('-export-dir', help='model file dir to save to', required=True)
 parser.add_argument('-model-name', help='name to record in model file', required=True)
 parser.add_argument('-filename-prefix', help='filename prefix to save to within dir', required=True)
+parser.add_argument('-txt', help='write floats as text instead of binary', action='store_true', required=False)
 parser.add_argument('-for-cuda', help='dump model file for cuda backend', action='store_true', required=False)
 args = vars(parser.parse_args())
 
@@ -34,6 +36,7 @@ name_scope = args["name_scope"]
 export_dir = args["export_dir"]
 model_name = args["model_name"]
 filename_prefix = args["filename_prefix"]
+binary_floats = (not args["txt"])
 for_cuda = args["for_cuda"]
 
 loglines = []
@@ -103,9 +106,19 @@ with tf.compat.v1.Session(config=tfconfig) as session:
         f.write(line + "\n")
 
   else:
-    f = open(export_dir + "/" + filename_prefix + ".txt", "w")
+    extension = (".bin" if binary_floats else ".txt")
+    mode = ("wb" if binary_floats else "w")
+    f = open(export_dir + "/" + filename_prefix + extension, mode)
     def writeln(s):
-      f.write(str(s)+"\n")
+      if binary_floats:
+        f.write((str(s)+"\n").encode(encoding="ascii",errors="backslashreplace"))
+      else:
+        f.write(str(s)+"\n")
+    def writestr(s):
+      if binary_floats:
+        f.write(s.encode(encoding="ascii",errors="backslashreplace"))
+      else:
+        f.write(s)
 
     writeln(model_name)
     writeln(model.version) #version
@@ -120,28 +133,37 @@ with tf.compat.v1.Session(config=tfconfig) as session:
         return np.array(variables[name+":0"].eval())
 
     def write_weights(weights):
-      if len(weights.shape) == 0:
-        f.write(weights)
-      elif len(weights.shape) == 1:
-        f.write(" ".join(str(weights[x0]) for x0 in range(weights.shape[0])))
-      elif len(weights.shape) == 2:
-        f.write("\n".join(" ".join(str(weights[x0,x1])
-                                   for x1 in range(weights.shape[1]))
-                          for x0 in range(weights.shape[0])))
-      elif len(weights.shape) == 3:
-        f.write("\n".join("   ".join(" ".join(str(weights[x0,x1,x2])
-                                              for x2 in range(weights.shape[2]))
-                                     for x1 in range(weights.shape[1]))
-                          for x0 in range(weights.shape[0])))
-      elif len(weights.shape) == 4:
-        f.write("\n".join("       ".join("   ".join(" ".join(str(weights[x0,x1,x2,x3])
-                                                             for x3 in range(weights.shape[3]))
-                                                    for x2 in range(weights.shape[2]))
-                                         for x1 in range(weights.shape[1]))
-                          for x0 in range(weights.shape[0])))
+      if binary_floats:
+        # Little endian
+        reshaped = np.reshape(weights,[-1])
+        num_weights = len(reshaped)
+        writestr("@BIN@")
+        f.write(struct.pack(f'<{num_weights}f',*reshaped))
+        writestr("\n")
       else:
-        assert(False)
-      f.write("\n")
+        if len(weights.shape) == 0:
+          f.write(weights)
+        elif len(weights.shape) == 1:
+          f.write(" ".join(str(weights[x0]) for x0 in range(weights.shape[0])))
+        elif len(weights.shape) == 2:
+          f.write("\n".join(" ".join(str(weights[x0,x1])
+                                     for x1 in range(weights.shape[1]))
+                            for x0 in range(weights.shape[0])))
+        elif len(weights.shape) == 3:
+          f.write("\n".join("   ".join(" ".join(str(weights[x0,x1,x2])
+                                                for x2 in range(weights.shape[2]))
+                                       for x1 in range(weights.shape[1]))
+                            for x0 in range(weights.shape[0])))
+        elif len(weights.shape) == 4:
+          f.write("\n".join("       ".join("   ".join(" ".join(str(weights[x0,x1,x2,x3])
+                                                               for x3 in range(weights.shape[3]))
+                                                      for x2 in range(weights.shape[2]))
+                                           for x1 in range(weights.shape[1]))
+                            for x0 in range(weights.shape[0])))
+        else:
+          assert(False)
+
+        writestr("\n")
 
     def write_conv(name,diam,in_channels,out_channels,dilation,weights):
       writeln(name)

@@ -1,6 +1,7 @@
 Running test for selfplay initialization with NN
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -126,6 +127,7 @@ whiteValueTargetsByTurn 1 1 0 0 7.5 7.5
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -337,6 +339,7 @@ Last moves D3 D9 E11
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -490,6 +493,7 @@ Last moves D4 D9 H8 J4 C7 D3 E3 C3 E4
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -615,6 +619,7 @@ XXXXXXXXXXX
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -768,6 +773,7 @@ Last moves H4
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -893,6 +899,7 @@ whiteValueTargetsByTurn 1 1 0 0 6.5 6.5
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -1018,6 +1025,7 @@ whiteValueTargetsByTurn 1 1 0 0 7.5 7.5
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -1143,6 +1151,7 @@ whiteValueTargetsByTurn 1 1 0 0 6.5 6.5
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -1268,6 +1277,7 @@ whiteValueTargetsByTurn 1 1 0 0 7.5 7.5
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -1393,6 +1403,7 @@ whiteValueTargetsByTurn 1 1 0 0 6.5 6.5
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -1576,6 +1587,7 @@ Last moves D8 H4 F7
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -1759,6 +1771,7 @@ Last moves F1 J8
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -1942,6 +1955,7 @@ Last moves J8 D3 J10
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -2097,6 +2111,7 @@ Last moves J8 J5
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -2280,6 +2295,7 @@ Last moves C4 J4 G3 C8 B11
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -2435,6 +2451,7 @@ Last moves J2 D8 H9 F9 L3
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -2588,6 +2605,7 @@ Last moves C4 C8 E9 D4 D5
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -2769,6 +2787,7 @@ Last moves H9 D3 C8 C5 H7 J5 E3 E4 F3
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -2924,6 +2943,7 @@ Last moves F9 A8
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -3107,6 +3127,7 @@ Last moves K8 J4 H3 J8 J9 H9 H8 J7 C1
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -3262,6 +3283,7 @@ Last moves J6 A8
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -3445,6 +3467,7 @@ Last moves J8 J3 H3 J4 F3 J6 F7
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -3628,6 +3651,7 @@ Last moves K5 G8
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -3753,6 +3777,7 @@ whiteValueTargetsByTurn 1 1 0 0 33.5 33.5
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -3878,6 +3903,7 @@ whiteValueTargetsByTurn 1 1 0 0 39 39
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -4059,6 +4085,7 @@ Last moves H8 H4 J3 J4 H3 F9 G9 F8 D9 F5 F3 J9
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -4214,6 +4241,7 @@ Last moves J9 D3 C6 C5 D6 J8 H8 C3
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -4395,6 +4423,7 @@ Last moves J9 C3 C6 F3 J2 G5 J6
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -4520,6 +4549,7 @@ whiteValueTargetsByTurn 1 1 0 0 35 35
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -4645,6 +4675,7 @@ whiteValueTargetsByTurn 1 1 0 0 33.5 33.5
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -4798,6 +4829,7 @@ Last moves H8 J4 D8 D4 G3 C6 J6 H3 G4 K6
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -4953,6 +4985,7 @@ Last moves J8 D9 C6 H9 J9 J4 J3
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -5106,6 +5139,7 @@ Last moves C8 D4 B4 C6 B6 F2
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -5289,6 +5323,7 @@ Last moves D10
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -5414,6 +5449,7 @@ whiteValueTargetsByTurn 1 1 0 0 7 7
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -5539,6 +5575,7 @@ whiteValueTargetsByTurn 1 1 0 0 19 19
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -5722,6 +5759,7 @@ Last moves H7
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -5905,6 +5943,7 @@ Last moves J3 C3 B5 E3 B3 G8 D3
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -6031,6 +6070,7 @@ whiteValueTargetsByTurn 1 1 0 0 34 34
 Running more tests for selfplay
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -6198,6 +6238,7 @@ whiteValueTargetsByTurn 15 1 0 0 7.5 7.5
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -6410,6 +6451,7 @@ whiteValueTargetsByTurn 30 1 0 0 7.5 7.5
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -6622,6 +6664,7 @@ whiteValueTargetsByTurn 30 1 0 0 7 7
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -7620,6 +7663,7 @@ whiteValueTargetsByTurn 30 1 0 0 7.5 7.5
 
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
    A B C D E F G H J
  9 . . . . . . . . .
@@ -7636,6 +7680,7 @@ HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
 LEAD: -3.55227
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
    A B C D E F G H J
  9 . . . . . . . . .
@@ -7652,6 +7697,7 @@ HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
 LEAD: -3.05227
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
    A B C D E F G H J
  9 . . . . . . . . .
@@ -7668,6 +7714,7 @@ HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
 LEAD: -2.55227
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
    A B C D E F G H J
  9 . . . . . . . . .
@@ -7684,6 +7731,7 @@ HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
 LEAD: -2.05227
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
    A B C D E F G H J
  9 . . . . . . . . .
@@ -7700,6 +7748,7 @@ HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
 LEAD: -1.55227
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 HASH: E47BBD59BA73650CEBCE64675EBBF366
    A B C D E F G H J
  9 . X . . . . . . .
@@ -7716,6 +7765,7 @@ HASH: E47BBD59BA73650CEBCE64675EBBF366
 LEAD: -40.2736
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 HASH: E47BBD59BA73650CEBCE64675EBBF366
    A B C D E F G H J
  9 . X . . . . . . .
@@ -7732,6 +7782,7 @@ HASH: E47BBD59BA73650CEBCE64675EBBF366
 LEAD: -39.7736
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 HASH: E47BBD59BA73650CEBCE64675EBBF366
    A B C D E F G H J
  9 . X . . . . . . .
@@ -7748,6 +7799,7 @@ HASH: E47BBD59BA73650CEBCE64675EBBF366
 LEAD: -39.2736
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 HASH: E47BBD59BA73650CEBCE64675EBBF366
    A B C D E F G H J
  9 . X . . . . . . .
@@ -7764,6 +7816,7 @@ HASH: E47BBD59BA73650CEBCE64675EBBF366
 LEAD: -38.7736
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 HASH: E47BBD59BA73650CEBCE64675EBBF366
    A B C D E F G H J
  9 . X . . . . . . .
@@ -7780,6 +7833,7 @@ HASH: E47BBD59BA73650CEBCE64675EBBF366
 LEAD: -38.2736
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
    A B C D E F G H J
  9 . . . . . . . . .
@@ -7796,6 +7850,7 @@ HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
 LEAD: -3.91506
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
    A B C D E F G H J
  9 . . . . . . . . .
@@ -7812,6 +7867,7 @@ HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
 LEAD: -3.41506
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
    A B C D E F G H J
  9 . . . . . . . . .
@@ -7828,6 +7884,7 @@ HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
 LEAD: -2.91506
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
    A B C D E F G H J
  9 . . . . . . . . .
@@ -7844,6 +7901,7 @@ HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
 LEAD: -2.41506
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
    A B C D E F G H J
  9 . . . . . . . . .
@@ -7860,6 +7918,7 @@ HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
 LEAD: -1.91506
 : Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend: Model version 4 useFP16 = false useNHWC = false
+: Cuda backend: Model name: b6c96-s156348160-d118286860
 koSIMPLEscoreTERRITORYtaxNONEsui0komi-9.5
 Start moves size 0 Start pla Black XY 11 11 Extra black 0 Draw equiv 0.782389 Modes 0 0 0 Forkstuff 0 0
 koSIMPLEscoreAREAtaxSEKIsui1button1komi6

@@ -46,6 +46,9 @@
 .selfPlayOpts {
   color: #0088bb;
 }
+.whiteHandicapBonus {
+  color: #666666;
+}
 
 button {
   margin: 5px;
@@ -136,7 +139,41 @@ function checkChineseLike() {
     "scoringArea",
     "taxNone",
     "multiStoneSuicideDisallowed",
+    "buttonNotUsed",
+    "whiteHandicapBonusN"
+  ]);
+};
+
+  
+function checkAGALike() {
+  checkNames([
+    "koSituational",
+    "scoringArea",
+    "taxNone",
+    "multiStoneSuicideDisallowed",
+    "buttonNotUsed",
+    "whiteHandicapBonusN1"
+  ]);
+};
+
+function checkStoneScoring() {
+  checkNames([
+    "koSimple",
+    "scoringArea",
+    "taxAll",
+    "multiStoneSuicideDisallowed",
     "buttonNotUsed"
+  ]);
+};
+
+function checkNZLike() {
+  checkNames([
+    "koSituational",
+    "scoringArea",
+    "taxNone",
+    "multiStoneSuicideAllowed",
+    "buttonNotUsed",
+    "whiteHandicapBonus0"
   ]);
 };
 
@@ -146,7 +183,8 @@ function checkJapaneseLike() {
     "scoringTerritory",
     "taxSeki",
     "multiStoneSuicideDisallowed",
-    "buttonNotUsed"
+    "buttonNotUsed",
+    "whiteHandicapBonus0"
   ]);
 };
 
@@ -179,6 +217,9 @@ window.onload = function() {
 <body>
 
 <h1>KataGo's Supported Go Rules (Version 1) </h1>
+This page describes the full rigorous rules implemented by KataGo. These rules are supported in KataGo version 1.3 and later.
+  
+<p>
 A hope also is that this document can serve as a reference for anyone to implement any subset of such rules themselves - including a rigorous nearly-Japanese rules that bots can use for self-play or for competitive matches completely without need for outside adjudication or dispute resolution or any other protocol besides just the bots making ordinary plays.
 <p>
 I believe the nearly-Japanese rules should correctly handle a wide variety of details, so long as both players play to rationally maximize their score. For example:
@@ -199,12 +240,17 @@ Updated from <a href="./rulesv0.html">Version 0</a> are some details of the clea
 
 Click the buttons or individually uncheck some of the boxes to hide parts of the logic for rules you don't care about.
 <br/>
+NOTE: Some online servers that claim to implement certain rules might actually differ. For example, OGS's implementation of Chinese rules uses positional superko, which differs from actual practice in Chinese Go tournaments that normally use just a simple ko rule. If you're implementing a bot to run on a server, always look up the details!
+<br/>
 
 <div class="flex-horizontal">
 <button onclick="checkEverything()">Check All</button>
-<button onclick="checkChineseLike()">Chineselike Rules</button>
-<button onclick="checkJapaneseLike()">Japaneselike Rules</button>
+<button onclick="checkChineseLike()">Chinese-like Rules</button>
+<button onclick="checkJapaneseLike()">Japanese-like Rules</button>
 <button onclick="checkTrompTaylor()">Tromp-Taylor Rules</button>
+<button onclick="checkAGALike()">AGA-like Rules</button>
+<button onclick="checkNZLike()">New Zealand-like Rules</button>
+<button onclick="checkStoneScoring()">Stone-Scoring Rules</button>
 </div>
 
 <ul>
@@ -240,6 +286,13 @@ Click the buttons or individually uncheck some of the boxes to hide parts of the
 <div class="flex-vertical">
 <span><input type="checkbox" id="buttonUsed" name="hasButton" value="buttonUsed"><label for="buttonUsed">Used</label></span>
 <span><input type="checkbox" id="buttonNotUsed" name="hasButton" value="buttonNotUsed"><label for="buttonNotUsed">Not Used</label></span>
+</div>
+</li>
+<li class="whiteHandicapBonus"><span class="definition">WhiteHandicapBonus</span>: <br/> How many bonus points white receives during handicap games when black gets N stones. KataGo supports handicap games, but for simplicity, this rules document does NOT describe them. These checkboxes are included merely to provide a convenience reference as how this quirk of handicap game scoring differs between rulesets.
+<div class="flex-vertical">
+<span><input type="checkbox" id="whiteHandicapBonus0" name="whiteHandicapBonus" value="whiteHandicapBonus0"><label for="whiteHandicapBonus0">0</label></span>
+<span><input type="checkbox" id="whiteHandicapBonusN1" name="whiteHandicapBonus" value="whiteHandicapBonusN1"><label for="whiteHandicapBonusN1">N-1</label></span>
+<span><input type="checkbox" id="whiteHandicapBonusN" name="whiteHandicapBonus" value="whiteHandicapBonusN"><label for="whiteHandicapBonusN">N</label></span>
 </div>
 </li>
 <li class="selfPlayOpts"><span class="definition">SelfPlayOpts</span>: <br/> Some optimizations that KataGo uses for self-play. These theoretically could make a difference to correct play in extremely contrived situations involving things like carefully constructed superko histories, but for all practical purposes these rules modifications are compatible with the rules without these modifications and simply speed up self-play a via faster game end, even if one or both players want to prolong the game.
@@ -289,6 +342,8 @@ Pseudolegal moves
 <br/>
 ...<span class="condition">(if MultiStoneSuicide is Disallowed)</span> and also subject to the restriction that resolving captures of the player's own color must NOT empty any points.
 </span>
+<br/>
+<br/>
 For any regions emptied by the steps of resolving captures, we say that the move <span class="definition">captures</span> those regions.
 </li>
 </ol>
@@ -408,6 +463,11 @@ The game ends and is scored as follows:
 </li>
 
 </ul>
+
+<span class="note whiteHandicapBonus0 whiteHandicapBonusN1 whiteHandicapBonusN">
+Although handicap games are not a focus of these rules, see <a href="#note11" id="ref11">[11]</a> for some notes about handicap game scoring.
+</span>
+
 <p>
 <span class="gameEnd">The player with the higher score wins, or the game is a draw if equal score.</span>
 </span>
@@ -516,6 +576,10 @@ After the second cleanup phase ends, the game ends and is scored as follows:
 </ul>
 
 See <a href="#note10" id="ref10">[10]</a> for some remarks about the scoring.
+<br/>
+<span class="note whiteHandicapBonus0 whiteHandicapBonusN1 whiteHandicapBonusN">
+Although handicap games are not a focus of these rules, see <a href="#note11" id="ref11">[11]</a> for some notes about handicap game scoring.
+</span>
 
 <p>
 <span class="gameEnd">The player with the higher score wins, or the game is a draw if equal score.</span>
@@ -637,6 +701,12 @@ The "color at the start of the second cleanup phase" condition prevents one-side
 <br/><br/>
 We go ahead and have an allowance for Button Go here too. This may seem odd, since normally the intent is as a way obtain territory-scoring granularity with area-scoring, so if already using territory-scoring, why would one want such a rule? But at least when we came to implement it in KataGo, it seemed programatically no more complex (simpler, even) to just have it as an option always, and formulating it this way makes for more natural extension to Coupon Go if desired, which *does* make sense in territory scoring. KataGo for now does NOT actually support territory + button though.
 (<a href="#ref10">Back</a>)</span></span>
+
+<span class="note whiteHandicapBonus0 whiteHandicapBonusN1 whiteHandicapBonusN">
+<span><hr></span>
+<span id="note11">[11]
+A number of human rulesets allow for Black to begin with N >= 2 stones on the board when playing a game between two differently-skilled players, with these stones being placed in a ruleset-specified way, and with White making the first actual game move instead of Black. For various reasons, during handicap games many of these rulesets give White bonus points based on N, additionally on top of any komi or other settings. Some rulesets give 0 points, some give N-1 points, and some give N points.
+(<a href="#ref11">Back</a>)</span></span>
 
 </div>
 
