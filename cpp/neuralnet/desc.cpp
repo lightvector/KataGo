@@ -1181,6 +1181,9 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
       bool binaryFloats = Global::isSuffix(lower,".bin.gz");
       descBuf = std::move(ModelDesc(uncompressedIn,binaryFloats));
     }
+    else {
+      throw StringError("Model file should end with .txt, .bin, .txt.gz, or .bin.gz");
+    }
   }
   catch(const StringError& e) {
     throw StringError("Error loading or parsing model file " + fileName + ": " + e.what());
