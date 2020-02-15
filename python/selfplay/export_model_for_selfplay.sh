@@ -4,7 +4,7 @@
 #Takes any models in tfsavedmodels_toexport_extra/ and outputs a cuda-runnable model file to models_extra/
 #Should be run periodically.
 
-if [[ $# -ne 2 ]]
+if [[ $# -ne 3 ]]
 then
     echo "Usage: $0 NAMEPREFIX BASEDIR USEGATING"
     echo "NAMEPREFIX string prefix for this training run, try to pick something globally unique. Will be displayed to users when KataGo loads the model."
