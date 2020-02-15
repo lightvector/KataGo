@@ -107,9 +107,18 @@ with tf.compat.v1.Session(config=tfconfig) as session:
 
   else:
     extension = (".bin" if binary_floats else ".txt")
-    f = open(export_dir + "/" + filename_prefix + extension, "w")
+    mode = ("wb" if binary_floats else "w")
+    f = open(export_dir + "/" + filename_prefix + extension, mode)
     def writeln(s):
-      f.write(str(s)+"\n")
+      if binary_floats:
+        f.write((str(s)+"\n").encode(encoding="ascii",errors="backslashreplace"))
+      else:
+        f.write(str(s)+"\n")
+    def writestr(s):
+      if binary_floats:
+        f.write(s.encode(encoding="ascii",errors="backslashreplace"))
+      else:
+        f.write(s)
 
     writeln(model_name)
     writeln(model.version) #version
@@ -126,8 +135,11 @@ with tf.compat.v1.Session(config=tfconfig) as session:
     def write_weights(weights):
       if binary_floats:
         # Little endian
-        f.write(struct.pack(f'@BIN@<{numWeights}f',*np.reshape(weights,[-1])))
-        f.write("\n")
+        reshaped = np.reshape(weights,[-1])
+        num_weights = len(reshaped)
+        writestr("@BIN@")
+        f.write(struct.pack(f'<{num_weights}f',*reshaped))
+        writestr("\n")
       else:
         if len(weights.shape) == 0:
           f.write(weights)
@@ -151,7 +163,7 @@ with tf.compat.v1.Session(config=tfconfig) as session:
         else:
           assert(False)
 
-        f.write("\n")
+        writestr("\n")
 
     def write_conv(name,diam,in_channels,out_channels,dilation,weights):
       writeln(name)
