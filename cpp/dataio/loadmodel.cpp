@@ -28,13 +28,19 @@ bool LoadModel::findLatestModel(const string& modelsDir, Logger& logger, string&
   modelDir = "/dev/null";
   if(hasLatestTime) {
     modelName = latestPath.filename().string();
-    modelFile = modelsDir + "/" + modelName + "/model.txt.gz";
     modelDir = modelsDir + "/" + modelName;
+    modelFile = modelsDir + "/" + modelName + "/model.bin.gz";
     if(!bfs::exists(bfs::path(modelFile))) {
-      modelFile = modelsDir + "/" + modelName + "/model.txt";
+      modelFile = modelsDir + "/" + modelName + "/model.txt.gz";
       if(!bfs::exists(bfs::path(modelFile))) {
-        logger.write("Warning: Skipping model " + modelName + " due to not finding model.txt or model.txt.gz");
-        return false;
+        modelFile = modelsDir + "/" + modelName + "/model.bin";
+        if(!bfs::exists(bfs::path(modelFile))) {
+          modelFile = modelsDir + "/" + modelName + "/model.txt";
+          if(!bfs::exists(bfs::path(modelFile))) {
+            logger.write("Warning: Skipping model " + modelName + " due to not finding model.{bin,txt} or model.{bin,txt}.gz");
+            return false;
+          }
+        }
       }
     }
   }
