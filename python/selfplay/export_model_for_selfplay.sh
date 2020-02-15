@@ -6,11 +6,14 @@
 
 if [[ $# -ne 2 ]]
 then
-    echo "Usage: $0 BASEDIR USEGATING"
+    echo "Usage: $0 NAMEPREFIX BASEDIR USEGATING"
+    echo "NAMEPREFIX string prefix for this training run, try to pick something globally unique. Will be displayed to users when KataGo loads the model."
     echo "BASEDIR containing selfplay data and models and related directories"
     echo "USEGATING = 1 to use gatekeeper, 0 to not use gatekeeper and output directly to models/"
     exit 0
 fi
+NAMEPREFIX="$1"
+shift
 BASEDIR="$1"
 shift
 USEGATING="$1"
@@ -57,7 +60,7 @@ function exportStuff() {
                 python3 ./export_model.py \
                         -saved-model-dir "$SRC"/saved_model \
                         -export-dir "$TMPDST" \
-                        -model-name "$NAME" \
+                        -model-name "$NAMEPREFIX""-""$NAME" \
                         -name-scope "swa_model" \
                         -filename-prefix model \
                         -for-cuda
