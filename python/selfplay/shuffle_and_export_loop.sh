@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-if [[ $# -lt 4 ]]
+if [[ $# -lt 5 ]]
 then
     echo "Usage: $0 NAMEPREFIX BASEDIR TMPDIR NTHREADS USEGATING"
     echo "NAMEPREFIX string prefix for this training run, try to pick something globally unique. Will be displayed to users when KataGo loads the model."
