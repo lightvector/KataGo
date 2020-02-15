@@ -170,6 +170,8 @@ static NNEvaluator* startNNEval(
     gpuIdxByServerThread
   );
 
+  //Hack to get more consistent ordering of log messages spawned by nnEval threads with other output.
+  std::this_thread::sleep_for(std::chrono::duration<double>(0.1));
   return nnEval;
 }
 
