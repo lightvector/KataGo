@@ -21,7 +21,7 @@ struct ConvLayerDesc {
   std::vector<float> weights;
 
   ConvLayerDesc();
-  ConvLayerDesc(std::istream& in);
+  ConvLayerDesc(std::istream& in, bool binaryFloats);
   ConvLayerDesc(ConvLayerDesc&& other);
 
   ConvLayerDesc(const ConvLayerDesc&) = delete;
@@ -42,7 +42,7 @@ struct BatchNormLayerDesc {
   std::vector<float> bias;
 
   BatchNormLayerDesc();
-  BatchNormLayerDesc(std::istream& in);
+  BatchNormLayerDesc(std::istream& in, bool binaryFloats);
   BatchNormLayerDesc(BatchNormLayerDesc&& other);
 
   BatchNormLayerDesc(const BatchNormLayerDesc&) = delete;
@@ -71,7 +71,7 @@ struct MatMulLayerDesc {
   std::vector<float> weights;
 
   MatMulLayerDesc();
-  MatMulLayerDesc(std::istream& in);
+  MatMulLayerDesc(std::istream& in, bool binaryFloats);
   MatMulLayerDesc(MatMulLayerDesc&& other);
 
   MatMulLayerDesc(const MatMulLayerDesc&) = delete;
@@ -86,7 +86,7 @@ struct MatBiasLayerDesc {
   std::vector<float> weights;
 
   MatBiasLayerDesc();
-  MatBiasLayerDesc(std::istream& in);
+  MatBiasLayerDesc(std::istream& in, bool binaryFloats);
   MatBiasLayerDesc(MatBiasLayerDesc&& other);
 
   MatBiasLayerDesc(const MatBiasLayerDesc&) = delete;
@@ -105,7 +105,7 @@ struct ResidualBlockDesc {
   ConvLayerDesc finalConv;
 
   ResidualBlockDesc();
-  ResidualBlockDesc(std::istream& in);
+  ResidualBlockDesc(std::istream& in, bool binaryFloats);
   ResidualBlockDesc(ResidualBlockDesc&& other);
 
   ResidualBlockDesc(const ResidualBlockDesc&) = delete;
@@ -127,7 +127,7 @@ struct DilatedResidualBlockDesc {
   ConvLayerDesc finalConv;
 
   DilatedResidualBlockDesc();
-  DilatedResidualBlockDesc(std::istream& in);
+  DilatedResidualBlockDesc(std::istream& in, bool binaryFloats);
   DilatedResidualBlockDesc(DilatedResidualBlockDesc&& other);
 
   DilatedResidualBlockDesc(const DilatedResidualBlockDesc&) = delete;
@@ -153,7 +153,7 @@ struct GlobalPoolingResidualBlockDesc {
   ConvLayerDesc finalConv;
 
   GlobalPoolingResidualBlockDesc();
-  GlobalPoolingResidualBlockDesc(std::istream& in, int vrsn);
+  GlobalPoolingResidualBlockDesc(std::istream& in, int vrsn, bool binaryFloats);
   GlobalPoolingResidualBlockDesc(GlobalPoolingResidualBlockDesc&& other);
 
   GlobalPoolingResidualBlockDesc(const GlobalPoolingResidualBlockDesc&) = delete;
@@ -185,7 +185,7 @@ struct TrunkDesc {
 
   TrunkDesc();
   ~TrunkDesc();
-  TrunkDesc(std::istream& in, int vrsn);
+  TrunkDesc(std::istream& in, int vrsn, bool binaryFloats);
   TrunkDesc(TrunkDesc&& other);
 
   TrunkDesc(const TrunkDesc&) = delete;
@@ -211,7 +211,7 @@ struct PolicyHeadDesc {
 
   PolicyHeadDesc();
   ~PolicyHeadDesc();
-  PolicyHeadDesc(std::istream& in, int vrsn);
+  PolicyHeadDesc(std::istream& in, int vrsn, bool binaryFloats);
   PolicyHeadDesc(PolicyHeadDesc&& other);
 
   PolicyHeadDesc(const PolicyHeadDesc&) = delete;
@@ -239,7 +239,7 @@ struct ValueHeadDesc {
 
   ValueHeadDesc();
   ~ValueHeadDesc();
-  ValueHeadDesc(std::istream& in, int vrsn);
+  ValueHeadDesc(std::istream& in, int vrsn, bool binaryFloats);
   ValueHeadDesc(ValueHeadDesc&& other);
 
   ValueHeadDesc(const ValueHeadDesc&) = delete;
@@ -265,7 +265,7 @@ struct ModelDesc {
 
   ModelDesc();
   ~ModelDesc();
-  ModelDesc(std::istream& in);
+  ModelDesc(std::istream& in, bool binaryFloats);
   ModelDesc(ModelDesc&& other);
 
   ModelDesc(const ModelDesc&) = delete;

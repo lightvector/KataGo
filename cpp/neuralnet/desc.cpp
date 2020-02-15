@@ -33,7 +33,7 @@ static float readFloatFast(istream& in, string& tmp) {
   return x;
 }
 
-void readFloats(istream& in, size_t numFloats, bool binaryFloats, const string& name, vector<float>& buf) {
+static void readFloats(istream& in, size_t numFloats, bool binaryFloats, const string& name, vector<float>& buf) {
   buf.resize(numFloats);
   if(!binaryFloats) {
     string tmp;
@@ -48,7 +48,7 @@ void readFloats(istream& in, size_t numFloats, bool binaryFloats, const string& 
     assert(sizeof(float) == 4);
     {
       string s;
-      while((char)in.get() != "@") {}
+      while((char)in.get() != '@') {}
       s += (char)in.get();
       s += (char)in.get();
       s += (char)in.get();
