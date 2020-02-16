@@ -33,7 +33,7 @@ namespace NeuralNet {
 
   // Model I/O -----------------------------------------------------------------
 
-  LoadedModel* loadModelFile(const std::string& file, int modelFileIdx);
+  LoadedModel* loadModelFile(const std::string& file);
   void freeLoadedModel(LoadedModel* loadedModel);
 
   std::string getModelName(const LoadedModel* loadedModel);

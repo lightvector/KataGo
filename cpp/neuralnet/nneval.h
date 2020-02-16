@@ -80,7 +80,6 @@ class NNEvaluator {
     const std::string& modelFileName,
     const std::vector<int>& gpuIdxs,
     Logger* logger,
-    int modelFileIdx,
     int maxBatchSize,
     int maxConcurrentEvals,
     int nnXLen,

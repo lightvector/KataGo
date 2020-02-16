@@ -57,7 +57,6 @@ NNEvaluator::NNEvaluator(
   const string& mFileName,
   const vector<int>& gpuIdxs,
   Logger* logger,
-  int modelFileIdx,
   int maxBatchSize,
   int maxConcurrentEvals,
   int xLen,
@@ -124,7 +123,7 @@ NNEvaluator::NNEvaluator(
     nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo, nnMutexPoolSizePowerofTwo);
 
   if(!debugSkipNeuralNet) {
-    loadedModel = NeuralNet::loadModelFile(modelFileName, modelFileIdx);
+    loadedModel = NeuralNet::loadModelFile(modelFileName);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
     computeContext = NeuralNet::createComputeContext(

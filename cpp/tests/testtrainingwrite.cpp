@@ -16,7 +16,6 @@ static NNEvaluator* startNNEval(
   const string& modelName = modelFile;
   vector<int> gpuIdxByServerThread = {0};
   vector<int> gpuIdxs = {0};
-  int modelFileIdx = 0;
   int maxBatchSize = 16;
   int maxConcurrentEvals = 1024;
   int nnXLen = NNPos::MAX_BOARD_LEN;
@@ -33,7 +32,6 @@ static NNEvaluator* startNNEval(
     modelFile,
     gpuIdxs,
     &logger,
-    modelFileIdx,
     maxBatchSize,
     maxConcurrentEvals,
     nnXLen,

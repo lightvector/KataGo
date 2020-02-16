@@ -116,7 +116,6 @@ static NNEvaluator* startNNEval(
 ) {
   vector<int> gpuIdxByServerThread = {0};
   vector<int> gpuIdxs = {0};
-  int modelFileIdx = 0;
   int maxBatchSize = 16;
   //bool inputsUseNHWC = true;
   int nnCacheSizePowerOfTwo = 16;
@@ -131,7 +130,6 @@ static NNEvaluator* startNNEval(
     modelFile,
     gpuIdxs,
     &logger,
-    modelFileIdx,
     maxBatchSize,
     maxConcurrentEvals,
     nnXLen,

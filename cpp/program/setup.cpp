@@ -68,7 +68,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     bool debugSkipNeuralNetDefault = (nnModelFile == "/dev/null");
     bool debugSkipNeuralNet = cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") : debugSkipNeuralNetDefault;
-    int modelFileIdx = i;
 
     int nnXLen = std::max(defaultNNXLen,7);
     int nnYLen = std::max(defaultNNYLen,7);
@@ -237,7 +236,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnModelFile,
       gpuIdxs,
       &logger,
-      modelFileIdx,
       nnMaxBatchSize,
       maxConcurrentEvals,
       nnXLen,

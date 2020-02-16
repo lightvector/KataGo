@@ -40,9 +40,8 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
   throw StringError("Dummy neural net backend: NeuralNet::freeComputeContext unimplemented");
 }
 
-LoadedModel* NeuralNet::loadModelFile(const string& file, int modelFileIdx) {
+LoadedModel* NeuralNet::loadModelFile(const string& file) {
   (void)file;
-  (void)modelFileIdx;
   throw StringError("Dummy neural net backend: NeuralNet::loadModelFile unimplemented");
 }
 
