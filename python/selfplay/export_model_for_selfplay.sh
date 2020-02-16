@@ -76,10 +76,13 @@ function exportStuff() {
                 #Make a bunch of the directories that selfplay will need so that there isn't a race on the selfplay
                 #machines to concurrently make it, since sometimes concurrent making of the same directory can corrupt
                 #a filesystem
-                mkdir -p "$BASEDIR"/selfplay/"$NAME"
-                mkdir -p "$BASEDIR"/selfplay/"$NAME"/sgfs
-                mkdir -p "$BASEDIR"/selfplay/"$NAME"/tdata
-                mkdir -p "$BASEDIR"/selfplay/"$NAME"/vdata
+                if [ "$TODIR" != "models_extra" ]
+                then
+                    mkdir -p "$BASEDIR"/selfplay/"$NAME"
+                    mkdir -p "$BASEDIR"/selfplay/"$NAME"/sgfs
+                    mkdir -p "$BASEDIR"/selfplay/"$NAME"/tdata
+                    mkdir -p "$BASEDIR"/selfplay/"$NAME"/vdata
+                fi
 
                 #Sleep a little to allow some tolerance on the filesystem
                 sleep 5
