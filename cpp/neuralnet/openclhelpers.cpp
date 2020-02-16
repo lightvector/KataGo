@@ -265,22 +265,23 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     CHECK_ERR(err);
     string extensions = string(buf.data());
 
-    if(logger != NULL)
-      logger->write("Found OpenCL Device " + Global::intToString(gpuIdx) + ": " + name + " (" + vendor + ")");
-
     int defaultDesirability = 0;
     //Compute desirability for this device for default device selection
     {
-      string lowercaseVendor = Global::toLower(vendor);
-      if(lowercaseVendor.find("advanced micro devices") != string::npos) defaultDesirability += 1000000;
-      else if(lowercaseVendor.find("amd") != string::npos) defaultDesirability += 1000000;
-      else if(lowercaseVendor.find("nvidia") != string::npos) defaultDesirability += 1000000;
-      else if(lowercaseVendor.find("intel") != string::npos) defaultDesirability += 500000;
+      //We should make sure CPUs don't get ranked above GPUs even if they have good vendor
+      bool isCPU = ((deviceType & CL_DEVICE_TYPE_CPU) != 0);
 
-      if(deviceType == CL_DEVICE_TYPE_GPU) defaultDesirability += 100000;
-      else if(deviceType == CL_DEVICE_TYPE_ACCELERATOR) defaultDesirability += 50000;
-      else if((deviceType & CL_DEVICE_TYPE_GPU) != 0) defaultDesirability += 20000;
-      else if(deviceType == CL_DEVICE_TYPE_DEFAULT) defaultDesirability += 10000;
+      string lowercaseVendor = Global::toLower(vendor);
+      if(lowercaseVendor.find("advanced micro devices") != string::npos && !isCPU) defaultDesirability += 10000000;
+      else if(lowercaseVendor.find("amd") != string::npos && !isCPU) defaultDesirability += 10000000;
+      else if(lowercaseVendor.find("nvidia") != string::npos && !isCPU) defaultDesirability += 10000000;
+      else if(lowercaseVendor.find("intel") != string::npos && !isCPU) defaultDesirability += 5000000;
+
+      if(deviceType == CL_DEVICE_TYPE_GPU) defaultDesirability += 1000000;
+      else if(deviceType == CL_DEVICE_TYPE_ACCELERATOR) defaultDesirability += 500000;
+      else if((deviceType & CL_DEVICE_TYPE_GPU) != 0) defaultDesirability += 200000;
+      else if((deviceType & CL_DEVICE_TYPE_ACCELERATOR) != 0) defaultDesirability += 100000;
+      else if(deviceType == CL_DEVICE_TYPE_DEFAULT) defaultDesirability += 50000;
 
       vector<string> versionPieces = Global::split(Global::trim(openCLVersion));
       if(versionPieces.size() >= 2) {
@@ -296,6 +297,9 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
         }
       }
     }
+
+    if(logger != NULL)
+      logger->write("Found OpenCL Device " + Global::intToString(gpuIdx) + ": " + name + " (" + vendor + ")" + " (score " + Global::intToString(defaultDesirability) + ")");
 
     DeviceInfo info;
     info.gpuIdx = gpuIdx;
