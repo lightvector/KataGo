@@ -219,12 +219,12 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
 
     cl_uint numDevices;
     err = clGetDeviceIDs(
-      platformIds[platformIdx], CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR, deviceIds.size() - numDevicesTotal,
+      platformIds[platformIdx], CL_DEVICE_TYPE_CPU | CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR, deviceIds.size() - numDevicesTotal,
       deviceIds.data() + numDevicesTotal, &numDevices);
     //Allow there to be 0 devices on this platform, just move on to the next
     if(err == CL_DEVICE_NOT_FOUND) {
       if(logger != NULL)
-        logger->write("Found 0 device(s) on platform " + Global::intToString(platformIdx) + " with type GPU or Accelerator, skipping");
+        logger->write("Found 0 device(s) on platform " + Global::intToString(platformIdx) + " with type CPU or GPU or Accelerator, skipping");
       continue;
     }
 
@@ -232,7 +232,7 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     assert(numDevices <= deviceIds.size());
     numDevicesTotal += numDevices;
     if(logger != NULL)
-      logger->write("Found " + Global::intToString(numDevices) + " device(s) on platform " + Global::intToString(platformIdx) + " with type GPU or Accelerator");
+      logger->write("Found " + Global::intToString(numDevices) + " device(s) on platform " + Global::intToString(platformIdx) + " with type CPU or GPU or Accelerator");
   }
   deviceIds.resize(numDevicesTotal);
 
