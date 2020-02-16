@@ -7,6 +7,8 @@
 #include "main.h"
 
 #include <chrono>
+#include <map>
+#include <sstream>
 
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>
@@ -27,6 +29,9 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   int64_t maxVisits;
   string desiredThreadsStr;
   int numPositionsPerGame;
+  bool useTernarySearch; // If enabled, we will ignore the desired threads parameter
+  int ternarySearchMax = 32;
+  int secondsPerGameMove;
   try {
     TCLAP::CmdLine cmd("Benchmark to test speed with different numbers of threads", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use, same as for gtp (see gtp_example.cfg)",true,string(),"FILE");
@@ -36,6 +41,10 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     TCLAP::ValueArg<long> visitsArg("v","visits","How many visits to use per search (default " + Global::int64ToString(defaultMaxVisits) + ")",false,(long)defaultMaxVisits,"VISITS");
     TCLAP::ValueArg<string> threadsArg("t","threads","Test using these many threads, comma-separated (default 1,2,4,6,8,12,16,24)",false,string("1,2,4,6,8,12,16,24"),"THREADS");
     TCLAP::ValueArg<int> numPositionsPerGameArg("n","numpositions","How many positions to sample from a game (default 10)",false,10,"NUM");
+    TCLAP::SwitchArg useTernarySearchArg("s","ternarysearch","Whether or not to ternary search for the optimal number of threads (default false)");
+    TCLAP::ValueArg<int> secondsPerGameMoveArg("i","time","Typical amount of time per move you will spend while playing, in seconds (default 5)",false,5,"SECONDS");
+    
+
     cmd.add(configFileArg);
     cmd.add(modelFileArg);
     cmd.add(sgfFileArg);
@@ -43,6 +52,8 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     cmd.add(visitsArg);
     cmd.add(threadsArg);
     cmd.add(numPositionsPerGameArg);
+    cmd.add(useTernarySearchArg);
+    cmd.add(secondsPerGameMoveArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     modelFile = modelFileArg.getValue();
@@ -51,6 +62,8 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     maxVisits = (int64_t)visitsArg.getValue();
     desiredThreadsStr = threadsArg.getValue();
     numPositionsPerGame = numPositionsPerGameArg.getValue();
+    useTernarySearch = useTernarySearchArg.getValue();
+    secondsPerGameMove = secondsPerGameMoveArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -68,7 +81,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 
   vector<int> numThreadsToTest;
   int maxNumThreadsInATest = 1;
-  {
+  if(!useTernarySearch) {
     vector<string> desiredThreadsPieces = Global::split(desiredThreadsStr,',');
     for(int i = 0; i<desiredThreadsPieces.size(); i++) {
       string s = Global::trim(desiredThreadsPieces[i]);
@@ -287,8 +300,8 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   auto computeEloEffect = [&](double totalVisits, double totalSeconds, int numThreads) {
     double visitsPerSecond = totalVisits / totalSeconds;
     double gain = eloGainPerDoubling * log(visitsPerSecond) / log(2);
-    double visitsIn5Seconds = visitsPerSecond * 5.0;
-    double cost = computeEloCost(visitsIn5Seconds, numThreads);
+    double visitsPerMove = visitsPerSecond * secondsPerGameMove; //approximation since it's probably larger, but comment below mentions "5 seconds per move", so it should still be OK
+    double cost = computeEloCost(visitsPerMove, numThreads);
     return gain - cost;
   };
 
@@ -300,6 +313,10 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   }
   else
     cout << endl;
+
+  if(useTernarySearch) 
+    cout << "Using ternary search; ignoring threads parameters." << endl;
+  
   cout << endl;
 #ifdef USE_CUDA_BACKEND
   cout << "Your GTP config is currently set to cudaUseFP16 = " << nnEval->getUsingFP16Mode().toString()
@@ -315,12 +332,8 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 #endif
   cout << endl;
   cout << "Your GTP config is currently set to use numSearchThreads = " << params.numThreads << endl;
-  if(numThreadsToTest.size() > 1)
-    cout << "Testing different numbers of threads: " << endl;
-  vector<double> eloEffects;
-  int bestEloEffectIdx = 0;
-  for(int i = 0; i<numThreadsToTest.size(); i++) {
-    int numThreads = numThreadsToTest[i];
+
+  auto testNumThreadsAndReturnOutput = [&](int numThreads) {
     int64_t totalVisits;
     double totalSeconds;
     int64_t totalPositions;
@@ -328,32 +341,32 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     int64_t numNNBatches;
     double avgBatchSize;
     testNumThreads(numThreads,totalVisits,totalSeconds,totalPositions,numNNEvals,numNNBatches,avgBatchSize);
-    eloEffects.push_back(computeEloEffect(totalVisits,totalSeconds,numThreads));
-    if(eloEffects[eloEffects.size()-1] > eloEffects[bestEloEffectIdx])
-      bestEloEffectIdx = eloEffects.size()-1;
+    
+    double eloEffect = computeEloEffect(totalVisits,totalSeconds,numThreads);
 
-    cout << "\rnumSearchThreads = " << Global::strprintf("%2d",numThreads) << ":"
-         << " " << totalPositions << " / " << possiblePositionIdxs.size() << " positions,"
-         << " visits/s = " << Global::strprintf("%.2f",totalVisits / totalSeconds)
-         << " nnEvals/s = " << Global::strprintf("%.2f",numNNEvals / totalSeconds)
-         << " nnBatches/s = " << Global::strprintf("%.2f",numNNBatches / totalSeconds)
-         << " avgBatchSize = " << Global::strprintf("%.2f",avgBatchSize)
-         << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)";
-    if(numThreadsToTest.size() > 1) {
-      if(i == 0)
-        cout << " (EloDiff baseline)";
-      else
-        cout << " (EloDiff " << Global::strprintf("%+.0f",eloEffects[i] - eloEffects[0]) << ")";
-    }
+    stringstream outputStream;
+
+    outputStream << "\rnumSearchThreads = " << Global::strprintf("%2d",numThreads) << ":"
+                << " " << totalPositions << " / " << possiblePositionIdxs.size() << " positions,"
+                << " visits/s = " << Global::strprintf("%.2f",totalVisits / totalSeconds)
+                << " nnEvals/s = " << Global::strprintf("%.2f",numNNEvals / totalSeconds)
+                << " nnBatches/s = " << Global::strprintf("%.2f",numNNBatches / totalSeconds)
+                << " avgBatchSize = " << Global::strprintf("%.2f",avgBatchSize)
+                << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)";
+
+    string outputString = outputStream.str();
+    cout << outputString;
+    
     cout << std::flush;
-  }
-  cout << endl;
 
-  if(numThreadsToTest.size() > 1) {
+    return make_pair(eloEffect, outputString);
+  };
+
+  auto printResults = [&](vector<double> eloEffects, int bestEloEffectIdx) {
     cout << endl;
     cout << "Based on some test data, each speed doubling gains perhaps ~" << eloGainPerDoubling << " Elo by searching deeper." << endl;
     cout << "Based on some test data, each thread costs perhaps 7 Elo if using 800 visits, and 2 Elo if using 5000 visits (by making MCTS worse)." << endl;
-    cout << "So APPROXIMATELY based on this benchmark, if you intend to do a 5 second search: " << endl;
+    cout << "So APPROXIMATELY based on this benchmark, if you intend to do a " << secondsPerGameMove << " second search: " << endl;
     for(int i = 0; i<numThreadsToTest.size(); i++) {
       int numThreads = numThreadsToTest[i];
       double eloEffect = eloEffects[i] - eloEffects[0];
@@ -365,12 +378,144 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     }
     cout << endl;
     cout << "If you care about performance, you may want to edit numSearchThreads in " << configFile << " based on the above results!" << endl;
-    cout << "If you intend to do much longer searches, you can try slightly higher numSearchThreads if you still see clear speedups." << endl;
+    cout << "If you intend to do much longer searches, configure the seconds per game move you expect with the -ti flag and benchmark again." << endl;
     cout << "If you intend to do short or fixed-visit searches, use lower numSearchThreads for better strength, high threads will weaken strength." << endl;
 
     cout << "If interested see also other notes about performance and mem usage in the top of " << configFile << endl;
+  };
+
+  if(!useTernarySearch) {
+    if(numThreadsToTest.size() > 1)
+      cout << "Testing different numbers of threads: " << endl;
+    vector<double> eloEffects;
+    int bestEloEffectIdx = 0;
+
+    for(int i = 0; i<numThreadsToTest.size(); i++) {
+      int numThreads = numThreadsToTest[i];
+      
+      auto result = testNumThreadsAndReturnOutput(numThreads);
+
+      eloEffects.push_back(result.first);
+
+      if(numThreadsToTest.size() > 1) {
+        if(i == 0)
+          cout << " (EloDiff baseline)";
+        else
+          cout << " (EloDiff " << Global::strprintf("%+.0f",eloEffects[i] - eloEffects[0]) << ")";
+      }
+
+      if(eloEffects[eloEffects.size()-1] > eloEffects[bestEloEffectIdx])
+        bestEloEffectIdx = eloEffects.size()-1;
+    }
+    cout << endl;
+
+    if(numThreadsToTest.size() > 1) {
+      printResults(eloEffects, bestEloEffectIdx);
+    }
+    cout << endl;
+  } else {
+    map<int, double> threadEloCache; // key is threads, value is elo effect
+    map<int, string> statistics; // key is threads, value is computed stats string
+
+    auto getEloEffect = [&](int numThreads) {
+      if(threadEloCache.find(numThreads) == threadEloCache.end()) {
+        auto result = testNumThreadsAndReturnOutput(numThreads);
+        threadEloCache[numThreads] = result.first;
+        statistics[numThreads] = result.second;
+      }
+
+
+      return threadEloCache[numThreads];
+    };
+
+    
+
+    // There is a special ternary search on the integers that converges faster, but since the function of threads -> elo is not perfectly convex (too noisy)
+    // we will use the traditional ternary search.
+
+    bool stopped = false;
+
+    vector<int> trials;
+    int twopow = 1;
+    for(int i = 0; i < 20; i++) {
+      // 5 * (2 ** 17) is way more than enough; 17 because we only add odd multiples to the vector, evens are just other powers of two.
+
+      trials.push_back(twopow);
+      trials.push_back(twopow * 3);
+      trials.push_back(twopow * 5);
+
+      twopow *= 2;
+    }
+
+    sort(trials.begin(), trials.end());
+
+    while(!stopped) {
+      int start = 0;
+      int end = ternarySearchMax;
+
+      cout << "Search range: ";
+
+      for(int i = 0; i < trials.size(); i++) {
+        if(trials[i] > ternarySearchMax) {
+          end = i - 1;
+          break;
+        }
+        cout << trials[i] << ", ";
+      }
+      cout << endl;
+
+
+      while(start <= end) {
+        int firstMid = start + (end - start) / 3;
+        int secondMid = end - (end - start) / 3;
+
+        double effect1 = getEloEffect(trials[firstMid]);
+        double effect2 = getEloEffect(trials[secondMid]);
+        if(effect1 < effect2) {
+          start = firstMid + 1;
+        } else {
+          end = secondMid - 1;
+        }
+      }
+
+      vector<double> eloEffects;
+      int bestEloEffectIdx = 0;
+      double bestElo = 0;
+      int bestThreads = 0;
+
+      numThreadsToTest.clear();
+      for(auto it : threadEloCache) {
+        numThreadsToTest.push_back(it.first);
+        eloEffects.push_back(it.second);
+
+        if(it.second > bestElo) {
+          bestThreads = it.first;
+          bestElo = it.second;
+          bestEloEffectIdx = eloEffects.size() - 1;
+        }
+      }
+      
+      // If our optimal thread count is in the top 3/4 of the maximum search limit, double the search limit and repeat.
+
+      if(3 * bestThreads > 2 * ternarySearchMax) {
+        ternarySearchMax *= 2;
+        cout << endl << endl << "Optimal number of threads is fairly high, doubling the search limit and trying again." << endl;
+      } else {
+        stopped = true;
+
+        cout << endl << endl << "Ordered summary of results: " << endl << endl;
+
+        for(auto it : statistics) {
+          cout << it.second << endl;
+        }
+
+        cout << endl;
+        printResults(eloEffects, bestEloEffectIdx);
+      }
+    }
+    
   }
-  cout << endl;
+  
 
   delete nnEval;
   NeuralNet::globalCleanup();
