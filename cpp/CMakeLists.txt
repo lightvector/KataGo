@@ -230,6 +230,7 @@ if(BUILD_MCTS)
     ${GIT_HEADER_FILE_ALWAYS_UPDATED}
     tests/testboardarea.cpp
     tests/testboardbasic.cpp
+    tests/testcommon.cpp
     tests/testrules.cpp
     tests/testscore.cpp
     tests/testsgf.cpp

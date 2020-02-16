@@ -1,4 +1,7 @@
 #include "../program/playutils.h"
+#include "../core/timer.h"
+
+#include <sstream>
 
 using namespace std;
 
@@ -630,4 +633,185 @@ vector<bool> PlayUtils::computeAnticipatedStatusesWithOwnership(
   }
   return isAlive;
 
+}
+
+string PlayUtils::BenchmarkResults::toStringNotDone() const {
+  ostringstream out;
+  out << "numSearchThreads = " << Global::strprintf("%2d",numThreads) << ":"
+      << " " << totalPositionsSearched << " / " << totalPositions << " positions,"
+      << " visits/s = " << Global::strprintf("%.2f",totalVisits / totalSeconds)
+      << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)";
+  return out.str();
+}
+string PlayUtils::BenchmarkResults::toString() const {
+  ostringstream out;
+  out << "numSearchThreads = " << Global::strprintf("%2d",numThreads) << ":"
+      << " " << totalPositionsSearched << " / " << totalPositions << " positions,"
+      << " visits/s = " << Global::strprintf("%.2f",totalVisits / totalSeconds)
+      << " nnEvals/s = " << Global::strprintf("%.2f",numNNEvals / totalSeconds)
+      << " nnBatches/s = " << Global::strprintf("%.2f",numNNBatches / totalSeconds)
+      << " avgBatchSize = " << Global::strprintf("%.2f",avgBatchSize)
+      << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)";
+  return out.str();
+}
+string PlayUtils::BenchmarkResults::toStringWithElo(const BenchmarkResults* baseline, double secondsPerGameMove) const {
+  ostringstream out;
+  out << "numSearchThreads = " << Global::strprintf("%2d",numThreads) << ":"
+      << " " << totalPositionsSearched << " / " << totalPositions << " positions,"
+      << " visits/s = " << Global::strprintf("%.2f",totalVisits / totalSeconds)
+      << " nnEvals/s = " << Global::strprintf("%.2f",numNNEvals / totalSeconds)
+      << " nnBatches/s = " << Global::strprintf("%.2f",numNNBatches / totalSeconds)
+      << " avgBatchSize = " << Global::strprintf("%.2f",avgBatchSize)
+      << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)";
+
+  if(baseline == NULL)
+    out << " (EloDiff baseline)";
+  else {
+    double diff = computeEloEffect(secondsPerGameMove) - baseline->computeEloEffect(secondsPerGameMove);
+    out << " (EloDiff " << Global::strprintf("%+.0f",diff) << ")";
+  }
+  return out.str();
+}
+
+//From some test matches by lightvector using g170
+static constexpr double eloGainPerDoubling = 250;
+
+double PlayUtils::BenchmarkResults::computeEloEffect(double secondsPerGameMove) const {
+  auto computeEloCost = [&](double baseVisits) {
+    //Completely ad-hoc formula that approximately fits noisy tests. Probably not very good
+    //but then again the recommendation of this benchmark program is very rough anyways, it
+    //doesn't need to be all that great.
+    return numThreads * 7.0 * pow(1600.0 / (800.0 + baseVisits),0.85);
+  };
+
+  double visitsPerSecond = totalVisits / totalSeconds;
+  double gain = eloGainPerDoubling * log(visitsPerSecond) / log(2);
+  double visitsPerMove = visitsPerSecond * secondsPerGameMove;
+  double cost = computeEloCost(visitsPerMove);
+  return gain - cost;
+}
+
+void PlayUtils::BenchmarkResults::printEloComparison(const vector<BenchmarkResults>& results, double secondsPerGameMove) {
+  int bestIdx = 0;
+  for(int i = 1; i<results.size(); i++) {
+    if(results[i].computeEloEffect(secondsPerGameMove) > results[bestIdx].computeEloEffect(secondsPerGameMove))
+      bestIdx = i;
+  }
+
+  cout << endl;
+  cout << "Based on some test data, each speed doubling gains perhaps ~" << eloGainPerDoubling << " Elo by searching deeper." << endl;
+  cout << "Based on some test data, each thread costs perhaps 7 Elo if using 800 visits, and 2 Elo if using 5000 visits (by making MCTS worse)." << endl;
+  cout << "So APPROXIMATELY based on this benchmark, if you intend to do a " << secondsPerGameMove << " second search: " << endl;
+  for(int i = 0; i<results.size(); i++) {
+    int numThreads = results[i].numThreads;
+    double eloEffect = results[i].computeEloEffect(secondsPerGameMove) - results[0].computeEloEffect(secondsPerGameMove);
+    cout << "numSearchThreads = " << Global::strprintf("%2d",numThreads) << ": ";
+    if(i == 0)
+      cout << "(baseline)" << (i == bestIdx ? " (recommended)" : "") << endl;
+    else
+      cout << Global::strprintf("%+5.0f",eloEffect) << " Elo" << (i == bestIdx ? " (recommended)" : "") << endl;
+  }
+  cout << endl;
+}
+
+
+PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
+  const SearchParams& params,
+  const CompactSgf* sgf,
+  int numPositionsToUse,
+  NNEvaluator* nnEval,
+  Logger& logger,
+  const BenchmarkResults* baseline,
+  double secondsPerGameMove,
+  bool printElo
+) {
+  //Pick random positions from the SGF file, but deterministically
+  vector<Move> moves = sgf->moves;
+  string posSeed = "benchmarkPosSeed|";
+  for(int i = 0; i<moves.size(); i++) {
+    posSeed += Global::intToString((int)moves[i].loc);
+    posSeed += "|";
+  }
+
+  vector<int> possiblePositionIdxs;
+  {
+    Rand posRand(posSeed);
+    for(int i = 0; i<moves.size(); i++) {
+      possiblePositionIdxs.push_back(i);
+    }
+    for(int i = possiblePositionIdxs.size()-1; i > 1; i--) {
+      int r = posRand.nextUInt(i);
+      int tmp = possiblePositionIdxs[i];
+      possiblePositionIdxs[i] = possiblePositionIdxs[r];
+      possiblePositionIdxs[r] = tmp;
+    }
+    if(possiblePositionIdxs.size() > numPositionsToUse)
+      possiblePositionIdxs.resize(numPositionsToUse);
+  }
+
+  std::sort(possiblePositionIdxs.begin(),possiblePositionIdxs.end());
+
+  BenchmarkResults results;
+  results.numThreads = params.numThreads;
+  results.totalPositions = possiblePositionIdxs.size();
+
+  nnEval->clearCache();
+  nnEval->clearStats();
+
+  Rand seedRand;
+  Search* bot = new Search(params,nnEval,Global::uint64ToString(seedRand.nextUInt64()));
+
+  //Ignore the SGF rules, except for komi. Just use Tromp-taylor.
+  Rules initialRules = Rules::getTrompTaylorish();
+  //Take the komi from the sgf, otherwise ignore the rules in the sgf
+  initialRules.komi = sgf->komi;
+
+  Board board;
+  Player nextPla;
+  BoardHistory hist;
+  sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+
+  int moveNum = 0;
+
+  for(int i = 0; i<possiblePositionIdxs.size(); i++) {
+    cout << "\r" << results.toStringNotDone() << "      " << std::flush;
+
+    int nextIdx = possiblePositionIdxs[i];
+    while(moveNum < moves.size() && moveNum < nextIdx) {
+      bool suc = hist.makeBoardMoveTolerant(board,moves[moveNum].loc,moves[moveNum].pla);
+      if(!suc) {
+        cerr << endl;
+        cerr << board << endl;
+        cerr << "SGF Illegal move " << (moveNum+1) << " for " << PlayerIO::colorToChar(moves[moveNum].pla) << ": " << Location::toString(moves[moveNum].loc,board) << endl;
+        throw StringError("Illegal move in SGF");
+      }
+      nextPla = getOpp(moves[moveNum].pla);
+      moveNum += 1;
+    }
+
+    bot->clearSearch();
+    bot->setPosition(nextPla,board,hist);
+    nnEval->clearCache();
+
+    ClockTimer timer;
+    bot->runWholeSearch(nextPla,logger);
+    double seconds = timer.getSeconds();
+
+    results.totalPositionsSearched += 1;
+    results.totalSeconds += seconds;
+    results.totalVisits += bot->getRootVisits();
+  }
+
+  results.numNNEvals = nnEval->numRowsProcessed();
+  results.numNNBatches = nnEval->numBatchesProcessed();
+  results.avgBatchSize = nnEval->averageProcessedBatchSize();
+
+  if(printElo)
+    cout << "\r" << results.toStringWithElo(baseline,secondsPerGameMove) << std::endl;
+  else
+    cout << "\r" << results.toString() << std::endl;
+
+  delete bot;
+
+  return results;
 }
