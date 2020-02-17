@@ -1124,7 +1124,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   //Also check loggingToStderr so that we don't duplicate the message from the log file
   if(startupPrintMessageToStderr && !loggingToStderr) {
     cerr << "Loaded model " << nnModelFile << endl;
-    cerr << "Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName());
+    cerr << "Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()) << endl;
     cerr << "GTP ready, beginning main protocol loop" << endl;
   }
 
