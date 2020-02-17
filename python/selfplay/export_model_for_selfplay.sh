@@ -4,7 +4,7 @@
 #Takes any models in tfsavedmodels_toexport_extra/ and outputs a cuda-runnable model file to models_extra/
 #Should be run periodically.
 
-if [[ $# -ne 2 ]]
+if [[ $# -ne 3 ]]
 then
     echo "Usage: $0 NAMEPREFIX BASEDIR USEGATING"
     echo "NAMEPREFIX string prefix for this training run, try to pick something globally unique. Will be displayed to users when KataGo loads the model."
@@ -76,10 +76,13 @@ function exportStuff() {
                 #Make a bunch of the directories that selfplay will need so that there isn't a race on the selfplay
                 #machines to concurrently make it, since sometimes concurrent making of the same directory can corrupt
                 #a filesystem
-                mkdir -p "$BASEDIR"/selfplay/"$NAME"
-                mkdir -p "$BASEDIR"/selfplay/"$NAME"/sgfs
-                mkdir -p "$BASEDIR"/selfplay/"$NAME"/tdata
-                mkdir -p "$BASEDIR"/selfplay/"$NAME"/vdata
+                if [ "$TODIR" != "models_extra" ]
+                then
+                    mkdir -p "$BASEDIR"/selfplay/"$NAME"
+                    mkdir -p "$BASEDIR"/selfplay/"$NAME"/sgfs
+                    mkdir -p "$BASEDIR"/selfplay/"$NAME"/tdata
+                    mkdir -p "$BASEDIR"/selfplay/"$NAME"/vdata
+                fi
 
                 #Sleep a little to allow some tolerance on the filesystem
                 sleep 5
