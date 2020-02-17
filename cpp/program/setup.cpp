@@ -222,7 +222,10 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24);
 
     int nnMaxBatchSize;
-    if(defaultMaxBatchSize > 0) {
+    if(setupFor == SETUP_FOR_BENCHMARK) {
+      nnMaxBatchSize = defaultMaxBatchSize;
+    }
+    else if(defaultMaxBatchSize > 0) {
       nnMaxBatchSize =
         cfg.contains("nnMaxBatchSize") ? cfg.getInt("nnMaxBatchSize", 1, 65536) :
         defaultMaxBatchSize;

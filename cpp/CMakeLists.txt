@@ -224,6 +224,7 @@ if(BUILD_MCTS)
     search/asyncbot.cpp
     search/distributiontable.cpp
     search/analysisdata.cpp
+    program/gtpconfig.cpp
     program/setup.cpp
     program/playutils.cpp
     program/play.cpp

@@ -22,11 +22,13 @@ static void printHelp(int argc, const char* argv[]) {
 ---Common subcommands------------------
 
 gtp : Runs GTP engine that can be plugged into any standard Go GUI for play/analysis.
+benchmark : Test speed with different numbers of search threads.
+genconfig : User-friendly interface to generate a config with rules and automatic performance tuning.
+
 match : Run self-play match games based on a config, more efficient than gtp due to batching.
 version : Print version and exit.
 
 analysis : Runs an engine designed to analyze entire games in parallel.
-benchmark : Test speed with different numbers of search threads.
 tuner : (OpenCL only) Run tuning to find and optimize parameters that work on your GPU.
 
 ---Selfplay training subcommands---------
@@ -69,6 +71,8 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::evalsgf(argc-1,&argv[1]);
   else if(subcommand == "gatekeeper")
     return MainCmds::gatekeeper(argc-1,&argv[1]);
+  else if(subcommand == "genconfig")
+    return MainCmds::genconfig(argc-1,&argv[1],argv[0]);
   else if(subcommand == "gtp")
     return MainCmds::gtp(argc-1,&argv[1]);
   else if(subcommand == "tuner")
