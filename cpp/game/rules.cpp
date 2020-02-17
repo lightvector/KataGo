@@ -234,6 +234,15 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     rules.whiteHandicapBonusRule = Rules::WHB_N;
     rules.komi = 7.5;
   }
+  else if(lowercased == "chinese-ogs") {
+    rules.scoringRule = Rules::SCORING_AREA;
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.taxRule = Rules::TAX_NONE;
+    rules.multiStoneSuicideLegal = false;
+    rules.hasButton = false;
+    rules.whiteHandicapBonusRule = Rules::WHB_N;
+    rules.komi = 7.5;
+  }
   else if(
     lowercased == "ancient-area" || lowercased == "ancient_area" || lowercased == "ancient area" ||
     lowercased == "stone-scoring" || lowercased == "stone_scoring" || lowercased == "stone scoring"

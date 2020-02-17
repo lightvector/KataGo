@@ -6,6 +6,7 @@
 
 using namespace std;
 
+
 ConfigParser::ConfigParser(const string& fname)
   :fileName(fname),contents(),keyValues(),usedKeysMutex(),usedKeys()
 {
@@ -13,6 +14,20 @@ ConfigParser::ConfigParser(const string& fname)
   if(!in.is_open())
     throw IOError("Could not open config file: " + fileName);
 
+  initialize(in);
+}
+
+ConfigParser::ConfigParser(istream& in)
+  :fileName(),contents(),keyValues(),usedKeysMutex(),usedKeys()
+{
+  initialize(in);
+}
+
+ConfigParser::ConfigParser(const map<string, string>& kvs)
+  :fileName(),contents(),keyValues(kvs),usedKeysMutex(),usedKeys()
+{}
+
+void ConfigParser::initialize(istream& in) {
   int lineNum = 0;
   string line;
   ostringstream contentStream;
@@ -37,10 +52,6 @@ ConfigParser::ConfigParser(const string& fname)
   }
   contents = contentStream.str();
 }
-
-ConfigParser::ConfigParser(const map<string, string>& kvs)
-  :fileName(),contents(),keyValues(kvs),usedKeysMutex(),usedKeys()
-{}
 
 ConfigParser::~ConfigParser()
 {}

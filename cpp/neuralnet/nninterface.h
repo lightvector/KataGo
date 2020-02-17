@@ -31,6 +31,9 @@ namespace NeuralNet {
   // Call globalCleanup() at program termination.
   void globalCleanup();
 
+  //Print available backend devices
+  void printDevices();
+
   // Model I/O -----------------------------------------------------------------
 
   LoadedModel* loadModelFile(const std::string& file);

@@ -91,6 +91,9 @@ void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
     throw StringError("Dummy neural net backend: NeuralNet::freeLocalGpuHandle unimplemented");
 }
 
+void NeuralNet::printDevices() {
+}
+
 InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen) {
   (void)loadedModel;
   (void)maxBatchSize;

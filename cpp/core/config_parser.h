@@ -19,6 +19,7 @@ baz = yay
 class ConfigParser {
  public:
   ConfigParser(const std::string& file);
+  ConfigParser(std::istream& in);
   ConfigParser(const std::map<std::string, std::string>& kvs);
   ~ConfigParser();
 
@@ -72,6 +73,8 @@ class ConfigParser {
 
   mutable std::mutex usedKeysMutex;
   std::set<std::string> usedKeys;
+
+  void initialize(std::istream& in);
 };
 
 
