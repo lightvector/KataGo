@@ -508,7 +508,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
     cout << endl;
     string prompt =
       "What rules should KataGo use by default for play and analysis?\n"
-      "(tromp-taylor, chinese, japanese, aga, korean, new-zealand, bga, chinese-ogs, stone-scoring, aga-button):\n";
+      "(chinese, japanese, korean, tromp-taylor, aga, chinese-ogs, new-zealand, bga, stone-scoring, aga-button):\n";
     promptAndParseInput(prompt, [&](const string& line) { configRules = Rules::parseRules(line); });
   }
 
@@ -516,70 +516,106 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
   cout << "=========================================================================" << endl;
   cout << "SEARCH LIMITS" << endl;
 
-  bool hadAnySearchLimits = false;
+  bool useSearchLimit = false;
   {
     cout << endl;
     string prompt =
-      "Specify max number of visits per move when playing games, leave blank for no limit:\n";
+      "When playing games, KataGo will always obey the time controls given by the GUI/tournament/match/online server.\n"
+      "But you can specify an additional limit to make KataGo move much faster. This does NOT affect analysis/review,\n"
+      "only affects playing games. Add a limit? (y/n) (default n):\n";
     promptAndParseInput(prompt, [&](const string& line) {
-        if(line == "") configMaxVisits = ((int64_t)1) << 50;
-        else {
-          configMaxVisits = Global::stringToInt64(line);
-          if(configMaxVisits < 1 || configMaxVisits > 1000000000)
-            throw StringError("Must be between 1 and 1000000000");
-          hadAnySearchLimits = true;
-        }
+        if(line == "") useSearchLimit = false;
+        else parseYN(line,useSearchLimit);
       });
   }
 
-  {
+  if(!useSearchLimit) {
     cout << endl;
     string prompt =
-      "Specify max number of playouts per move when playing games, leave blank for no limit:\n";
-    promptAndParseInput(prompt, [&](const string& line) {
-        if(line == "") configMaxPlayouts = ((int64_t)1) << 50;
-        else {
-          configMaxPlayouts = Global::stringToInt64(line);
-          if(configMaxPlayouts < 1 || configMaxPlayouts > 1000000000)
-            throw StringError("Must be between 1 and 1000000000");
-          hadAnySearchLimits = true;
-        }
-      });
-  }
-
-  {
-    cout << endl;
-    string prompt =
-      "Specify max time KataGo should think per move in seconds. Can leave blank if KataGo if will be given a\n"
-      "time control during the match, or if you already gave a visit or playout max:\n";
-    promptAndParseInput(prompt, [&](const string& line) {
-        if(line == "") configMaxTime = 1.0e20;
-        else {
-          configMaxTime = Global::stringToDouble(line);
-          if(isnan(configMaxTime) || configMaxTime <= 0 || configMaxTime >= 1.0e20)
-            throw StringError("Must positive and less than 1e20");
-          hadAnySearchLimits = true;
-        }
-      });
-  }
-
-  if(!hadAnySearchLimits) {
-    cout << endl;
-    string prompt =
-      "WARNING: No limits configured for KataGo. KataGo will still obey any time controls provided by the\n"
-      "GUI or server or match script you're using, but if they don't specify any, KataGo will think forever.\n"
-      "(press enter to continue)\n";
+      "NOTE: No limits configured for KataGo. KataGo will obey time controls provided by the GUI or server or match script\n"
+      "but if they don't specify any, when playing games KataGo may think forever without moving. (press enter to continue)\n";
     promptAndParseInput(prompt, [&](const string& line) {
         (void)line;
       });
   }
 
+  else {
+    string whatLimit = "";
+    {
+      cout << endl;
+      string prompt =
+        "What to limit per move? Visits, playouts, or seconds?:\n";
+      promptAndParseInput(prompt, [&](const string& line) {
+          string s = Global::toLower(line);
+          if(s == "visits" || s == "playouts" || s == "seconds") whatLimit = s;
+          else if(s == "visit") whatLimit = "visits";
+          else if(s == "playout") whatLimit = "playouts";
+          else if(s == "second") whatLimit = "seconds";
+          else throw StringError("Please specify one of \"visits\" or \"playouts\" or '\"seconds\"");
+        });
+    }
+
+    if(whatLimit == "visits") {
+      cout << endl;
+      string prompt =
+        "Specify max number of visits/move when playing games (doesn't affect analysis), leave blank for default (500):\n";
+      promptAndParseInput(prompt, [&](const string& line) {
+          if(line == "") configMaxVisits = 500;
+          else {
+            configMaxVisits = Global::stringToInt64(line);
+            if(configMaxVisits < 1 || configMaxVisits > 1000000000)
+              throw StringError("Must be between 1 and 1000000000");
+          }
+        });
+    }
+    else if(whatLimit == "playouts") {
+      cout << endl;
+      string prompt =
+        "Specify max number of playouts/move when playing games (doesn't affect analysis), leave blank for default (300):\n";
+      promptAndParseInput(prompt, [&](const string& line) {
+          if(line == "") configMaxPlayouts = 300;
+          else {
+            configMaxPlayouts = Global::stringToInt64(line);
+            if(configMaxPlayouts < 1 || configMaxPlayouts > 1000000000)
+              throw StringError("Must be between 1 and 1000000000");
+          }
+        });
+    }
+    else if(whatLimit == "seconds") {
+      cout << endl;
+      string prompt =
+        "Specify max time/move in seconds when playing games (doesn't affect analysis). Leave blank for default (10):\n";
+      promptAndParseInput(prompt, [&](const string& line) {
+          if(line == "") configMaxTime = 10.0;
+          else {
+            configMaxTime = Global::stringToDouble(line);
+            if(isnan(configMaxTime) || configMaxTime <= 0 || configMaxTime >= 1.0e20)
+              throw StringError("Must positive and less than 1e20");
+          }
+        });
+    }
+  }
+
+  bool usePonder = false;
   {
     cout << endl;
     string prompt =
-      "Specify max num seconds KataGo should ponder during the opponent's turn. Leave blank to disable pondering:\n";
+      "When playing games, KataGo can optionally ponder during the opponent's turn. This gives faster/stronger play\n"
+      "in real games but should NOT be enabled if you are running tests with fixed limits (pondering may exceed those\n"
+      "limits), or to avoid stealing the opponent's compute time when testing two bots on the same machine.\n"
+      "Enable pondering? (y/n, default n):";
     promptAndParseInput(prompt, [&](const string& line) {
-        if(line == "") configMaxPonderTime = -1.0;
+        if(line == "") usePonder = false;
+        else parseYN(line,usePonder);
+      });
+  }
+
+  if(usePonder) {
+    cout << endl;
+    string prompt =
+      "Specify max num seconds KataGo should ponder during the opponent's turn. Leave blank for no limit:\n";
+    promptAndParseInput(prompt, [&](const string& line) {
+        if(line == "") configMaxPonderTime = 1.0e20;
         else {
           configMaxPonderTime = Global::stringToDouble(line);
           if(isnan(configMaxPonderTime) || configMaxPonderTime <= 0 || configMaxPonderTime >= 1.0e20)
@@ -616,7 +652,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
   {
     cout << endl;
     string prompt =
-      "By default, KataGo will cache up to about 3GB of positions in memory (RAM), in addition to \n"
+      "By default, KataGo will cache up to about 3GB of positions in memory (RAM), in addition to\n"
       "whatever the current search is using. Specify a max in GB or leave blank for default:\n";
     promptAndParseInput(prompt, [&](const string& line) {
         string s = Global::toLower(line);
@@ -704,7 +740,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
     {
       cout << endl;
       string prompt =
-        "Specify number of seconds per move to test/tune performance with (default " + Global::doubleToString(defaultSecondsPerGameMove) + "), leave blank for default:\n";
+        "Specify number of seconds/move to optimize performance for (default " + Global::doubleToString(defaultSecondsPerGameMove) + "), leave blank for default:\n";
       promptAndParseInput(prompt, [&](const string& line) {
           if(line == "") secondsPerGameMove = defaultSecondsPerGameMove;
           else {
@@ -767,7 +803,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
   cout << "=========================================================================" << endl;
   cout << "DONE" << endl;
   cout << endl;
-  cout << "Writing new config to " << outputFile << endl;
+  cout << "Writing new config file to " << outputFile << endl;
   ofstream out(outputFile, ofstream::out | ofstream::trunc);
   out << configFileContents;
   out.close();
@@ -776,6 +812,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
   cout << firstCommand << " gtp -model '" << modelFile << "' -config '" << outputFile << "'" << endl;
   cout << endl;
 
+  cout << "Feel free to look at and edit the above config file further by hand in a txt editor." << endl;
   cout << "For more detailed notes about performance and what options in the config do, see:" << endl;
   cout << "https://github.com/lightvector/KataGo/blob/master/cpp/configs/gtp_example.cfg" << endl;
   cout << endl;
