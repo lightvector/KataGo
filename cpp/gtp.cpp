@@ -6,6 +6,7 @@
 #include "program/setup.h"
 #include "program/playutils.h"
 #include "program/play.h"
+#include "commandline.h"
 #include "main.h"
 
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
@@ -1170,26 +1171,6 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
   return args;
 }
 
-
-class KataGoCommandLine : public TCLAP::CmdLine
-{
-public:
-    TCLAP::ValueArg<string> nnModelFileArg;
-    
-    KataGoCommandLine(const std::string& message)
-        :
-            TCLAP::CmdLine(message, ' ', Version::getKataGoVersionForHelp(),true),
-            nnModelFileArg("","model","Neural net model file",true, defaultNNModelPath(),"FILE")
-    {
-        this->add(this->nnModelFileArg);
-    }
-    
-    static string defaultNNModelPath() {
-        // TODO search for a network configured by symlink in ~/.katago/default_network.txt.gz
-        // and provide that as the default value if available.
-        return string();
-    }
-};
 
 int MainCmds::gtp(int argc, const char* const* argv) {
   Board::initHash();
