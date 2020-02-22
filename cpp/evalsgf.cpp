@@ -230,7 +230,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     bool includeOwnerMap = true;
     MiscNNInputParams nnInputParams;
     nnInputParams.drawEquivalentWinsForWhite = params.drawEquivalentWinsForWhite;
-    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,NULL,skipCache,includeOwnerMap);
+    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
     cout << "Rules: " << hist.rules << endl;
     cout << "Encore phase " << hist.encorePhase << endl;

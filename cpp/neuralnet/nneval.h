@@ -123,7 +123,6 @@ class NNEvaluator {
     Player nextPlayer,
     const MiscNNInputParams& nnInputParams,
     NNResultBuf& buf,
-    Logger* logger,
     bool skipCache,
     bool includeOwnerMap
   );
@@ -137,7 +136,6 @@ class NNEvaluator {
     bool doRandomize,
     std::string randSeed,
     int defaultSymmetry,
-    Logger& logger,
     std::vector<int> gpuIdxByServerThread
   );
 
@@ -166,6 +164,7 @@ class NNEvaluator {
   ComputeContext* computeContext;
   LoadedModel* loadedModel;
   NNCacheTable* nnCacheTable;
+  Logger* logger;
 
   bool debugSkipNeuralNet;
 
@@ -196,7 +195,7 @@ class NNEvaluator {
  public:
   //Helper, for internal use only
   void serve(
-    NNServerBuf& buf, Rand& rand, Logger* logger, bool doRandomize, int defaultSymmetry,
+    NNServerBuf& buf, Rand& rand, bool doRandomize, int defaultSymmetry,
     int gpuIdxForThisThread
   );
 };

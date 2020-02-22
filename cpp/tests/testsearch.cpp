@@ -171,7 +171,6 @@ static NNEvaluator* startNNEval(
     nnRandomize,
     nnRandSeed,
     defaultSymmetry,
-    logger,
     gpuIdxByServerThread
   );
 
@@ -357,7 +356,7 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     NNResultBuf buf;
     bool skipCache = true;
     bool includeOwnerMap = true;
-    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,NULL,skipCache,includeOwnerMap);
+    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
     printPolicyValueOwnership(board,buf);
 
@@ -367,7 +366,7 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
 
     cout << "With root temperature===================" << endl;
     nnInputParams.nnPolicyTemperature = 1.5f;
-    nnEvalPTemp->evaluate(board,hist,nextPla,nnInputParams,buf,NULL,skipCache,includeOwnerMap);
+    nnEvalPTemp->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
     printPolicyValueOwnership(board,buf);
 
@@ -395,12 +394,12 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     NNResultBuf buf;
     bool skipCache = true;
     bool includeOwnerMap = true;
-    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,NULL,skipCache,includeOwnerMap);
+    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
     printPolicyValueOwnership(board,buf);
 
     cout << "NNLen 11" << endl;
     NNResultBuf buf11;
-    nnEval11->evaluate(board,hist,nextPla,nnInputParams,buf11,NULL,skipCache,includeOwnerMap);
+    nnEval11->evaluate(board,hist,nextPla,nnInputParams,buf11,skipCache,includeOwnerMap);
     testAssert(buf11.result->nnXLen == 11);
     testAssert(buf11.result->nnYLen == 11);
     printPolicyValueOwnership(board,buf11);
@@ -540,13 +539,13 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     PrintTreeOptions options;
     options = options.maxDepth(1);
     cout << "Beginning search again and then reprinting, should be same" << endl;
-    search->beginSearch(logger);
+    search->beginSearch();
     search->printTree(cout, search->rootNode, options, P_WHITE);
     cout << "Making a move O3, should still be same" << endl;
     bot->makeMove(Location::ofString("O3",19,19), P_WHITE);
     search->printTree(cout, search->rootNode, options, P_WHITE);
     cout << "Beginning search again and then reprinting, now score utils should change a little" << endl;
-    search->beginSearch(logger);
+    search->beginSearch();
     search->printTree(cout, search->rootNode, options, P_WHITE);
 
     delete bot;
@@ -1217,7 +1216,7 @@ o..oo.x
       cout << endl;
 
       cout << "But the moment we begin a search, it should no longer." << endl;
-      search->beginSearch(logger);
+      search->beginSearch();
       testAssert(!hasSuicideRootMoves(search));
       testAssert(!hasPassAliveRootMoves(search));
 
@@ -1279,11 +1278,11 @@ o..o.oo
       search->printTree(cout, search->rootNode, options, P_WHITE);
 
       cout << "Begin search is idempotent?" << endl;
-      search->beginSearch(logger);
+      search->beginSearch();
       search->printTree(cout, search->rootNode, options, P_WHITE);
       search->makeMove(Location::ofString("B1",board),nextPla);
       search->printTree(cout, search->rootNode, options, P_WHITE);
-      search->beginSearch(logger);
+      search->beginSearch();
       search->printTree(cout, search->rootNode, options, P_WHITE);
 
       delete search;
@@ -1522,7 +1521,7 @@ void Tests::runNNOnTinyBoard(const string& modelFile, bool inputsNHWC, bool cuda
   NNResultBuf buf;
   bool skipCache = true;
   bool includeOwnerMap = true;
-  nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,NULL,skipCache,includeOwnerMap);
+  nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
   printPolicyValueOwnership(board,buf);
   cout << endl << endl;
@@ -1565,7 +1564,7 @@ void Tests::runNNSymmetries(const string& modelFile, bool inputsNHWC, bool cudaN
     NNResultBuf buf;
     bool skipCache = true;
     bool includeOwnerMap = true;
-    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,NULL,skipCache,includeOwnerMap);
+    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
     printPolicyValueOwnership(board,buf);
     cout << endl << endl;
@@ -1606,7 +1605,7 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool cuda
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
     sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnNumber);
-    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,NULL,skipCache,includeOwnerMap);
+    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
     winProbs.push_back(buf.result->whiteWinProb);
     scoreMeans.push_back(buf.result->whiteScoreMean);

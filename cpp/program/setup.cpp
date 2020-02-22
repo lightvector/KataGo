@@ -254,7 +254,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       (forcedSymmetry >= 0 ? false : nnRandomize),
       nnRandSeed,
       defaultSymmetry,
-      logger,
       gpuIdxByServerThread
     );
 

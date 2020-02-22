@@ -54,7 +54,6 @@ static NNEvaluator* startNNEval(
     nnRandomize,
     seed,
     defaultSymmetry,
-    logger,
     gpuIdxByServerThread
   );
 

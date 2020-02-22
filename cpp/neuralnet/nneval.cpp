@@ -56,7 +56,7 @@ NNEvaluator::NNEvaluator(
   const string& mName,
   const string& mFileName,
   const vector<int>& gpuIdxs,
-  Logger* logger,
+  Logger* lg,
   int maxBatchSize,
   int maxConcurrentEvals,
   int xLen,
@@ -83,6 +83,7 @@ NNEvaluator::NNEvaluator(
    computeContext(NULL),
    loadedModel(NULL),
    nnCacheTable(NULL),
+   logger(lg),
    debugSkipNeuralNet(skipNeuralNet),
    serverThreads(),
    serverWaitingForBatchStart(),
@@ -225,7 +226,7 @@ void NNEvaluator::clearCache() {
 }
 
 static void serveEvals(
-  int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger,
+  int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry,
   NNEvaluator* nnEval, const LoadedModel* loadedModel,
   int gpuIdxForThisThread
 ) {
@@ -235,7 +236,7 @@ static void serveEvals(
   //Used to have a try catch around this but actually we're in big trouble if this raises an exception
   //and causes possibly the only nnEval thread to die, so actually go ahead and let the exception escape to
   //toplevel for easier debugging
-  nnEval->serve(*buf,rand,logger,doRandomize,defaultSymmetry,gpuIdxForThisThread);
+  nnEval->serve(*buf,rand,doRandomize,defaultSymmetry,gpuIdxForThisThread);
   delete buf;
 }
 
@@ -244,7 +245,6 @@ void NNEvaluator::spawnServerThreads(
   bool doRandomize,
   string randSeed,
   int defaultSymmetry,
-  Logger& logger,
   vector<int> gpuIdxByServerThread
 ) {
   if(serverThreads.size() != 0)
@@ -255,7 +255,7 @@ void NNEvaluator::spawnServerThreads(
   for(int i = 0; i<numThreads; i++) {
     int gpuIdxForThisThread = gpuIdxByServerThread[i];
     std::thread* thread = new std::thread(
-      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,loadedModel,gpuIdxForThisThread
+      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,this,loadedModel,gpuIdxForThisThread
     );
     serverThreads.push_back(thread);
   }
@@ -278,7 +278,7 @@ void NNEvaluator::killServerThreads() {
 }
 
 void NNEvaluator::serve(
-  NNServerBuf& buf, Rand& rand, Logger* logger, bool doRandomize, int defaultSymmetry,
+  NNServerBuf& buf, Rand& rand, bool doRandomize, int defaultSymmetry,
   int gpuIdxForThisThread
 ) {
 
@@ -467,7 +467,6 @@ void NNEvaluator::evaluate(
   Player nextPlayer,
   const MiscNNInputParams& nnInputParams,
   NNResultBuf& buf,
-  Logger* logger,
   bool skipCache,
   bool includeOwnerMap
 ) {

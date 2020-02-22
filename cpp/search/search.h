@@ -253,7 +253,7 @@ struct Search {
   //Manual playout-by-playout interface------------------------------------------------
 
   //Call once at the start of each search
-  void beginSearch(Logger& logger);
+  void beginSearch();
 
   //Within-search functions, threadsafe-------------------------------------------
   void runSinglePlayout(SearchThread& thread);
@@ -299,7 +299,7 @@ private:
 
   bool isAllowedRootMove(Loc moveLoc) const;
 
-  void computeRootValues(Logger& logger);
+  void computeRootValues();
 
   double getScoreUtility(double scoreMeanSum, double scoreMeanSqSum, double weightSum) const;
   double getScoreUtilityDiff(double scoreMeanSum, double scoreMeanSqSum, double weightSum, double delta) const;

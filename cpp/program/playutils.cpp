@@ -86,7 +86,7 @@ void PlayUtils::playExtraBlack(
   for(int i = 0; i<numExtraBlack; i++) {
     MiscNNInputParams nnInputParams;
     nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
-    bot->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,NULL,false,false);
+    bot->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,false,false);
     std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
     bool allowPass = false;
