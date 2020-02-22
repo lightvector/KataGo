@@ -45,6 +45,7 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
 
 static const int64_t defaultMaxVisits = 800;
 static constexpr double defaultSecondsPerGameMove = 5.0;
+static const int ternarySearchInitialMax = 32;
 
 int MainCmds::benchmark(int argc, const char* const* argv) {
   Board::initHash();
@@ -176,6 +177,8 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     }
     reallocateNNEvalWithEnoughBatchSize(maxThreads);
   }
+  else
+    reallocateNNEvalWithEnoughBatchSize(ternarySearchInitialMax);
 
   cout << endl;
   cout << "Testing using " << maxVisits << " visits." << endl;
@@ -360,7 +363,7 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
 
   sort(possibleNumbersOfThreads.begin(), possibleNumbersOfThreads.end());
 
-  int ternarySearchMax = 32;
+  int ternarySearchMax = ternarySearchInitialMax;
   while(true) {
     reallocateNNEvalWithEnoughBatchSize(ternarySearchMax);
     cout << endl;
