@@ -1552,8 +1552,11 @@ void Tests::runNNSymmetries(const string& modelFile, bool inputsNHWC, bool cudaN
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",13,13,0,inputsNHWC,cudaNHWC,useFP16,false,false);
   for(int symmetry = 0; symmetry<8; symmetry++) {
-    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",13,13,symmetry,inputsNHWC,cudaNHWC,useFP16,false,false);
+    nnEval->respawnServerThreads(false,symmetry);
+    nnEval->clearCache();
+    nnEval->clearStats();
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -1564,8 +1567,8 @@ void Tests::runNNSymmetries(const string& modelFile, bool inputsNHWC, bool cudaN
     printPolicyValueOwnership(board,buf);
     cout << endl << endl;
 
-    delete nnEval;
   }
+  delete nnEval;
   NeuralNet::globalCleanup();
 }
 
