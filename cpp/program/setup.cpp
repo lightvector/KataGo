@@ -105,12 +105,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("inputsUseNHWC"))
       inputsUseNHWC = cfg.getBool("inputsUseNHWC");
 
-    float nnPolicyTemperature = 1.0f;
-    if(cfg.contains("nnPolicyTemperature"+idxStr))
-      nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature"+idxStr,0.01f,5.0f);
-    else if(cfg.contains("nnPolicyTemperature"))
-      nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature",0.01f,5.0f);
-
     bool nnRandomize = cfg.contains("nnRandomize") ? cfg.getBool("nnRandomize") : true;
 
     string nnRandSeed;
@@ -248,7 +242,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnCacheSizePowerOfTwo,
       nnMutexPoolSizePowerOfTwo,
       debugSkipNeuralNet,
-      nnPolicyTemperature,
       openCLTunerFile,
       openCLReTunePerBoardSize,
       useFP16Mode,
@@ -465,6 +458,13 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("playoutDoublingAdvantagePla"+idxStr)) params.playoutDoublingAdvantagePla = parsePlayer("playoutDoublingAdvantagePla",cfg.getString("playoutDoublingAdvantagePla"+idxStr));
     else if(cfg.contains("playoutDoublingAdvantagePla"))   params.playoutDoublingAdvantagePla = parsePlayer("playoutDoublingAdvantagePla",cfg.getString("playoutDoublingAdvantagePla"));
     else                                                   params.playoutDoublingAdvantagePla = C_EMPTY;
+
+    if(cfg.contains("nnPolicyTemperature"+idxStr))
+      params.nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature"+idxStr,0.01f,5.0f);
+    else if(cfg.contains("nnPolicyTemperature"))
+      params.nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature",0.01f,5.0f);
+    else
+      params.nnPolicyTemperature = 1.0f;
 
     if(cfg.contains("mutexPoolSize"+idxStr)) params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize"+idxStr, 1, 1 << 24);
     else if(cfg.contains("mutexPoolSize"))   params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize",        1, 1 << 24);

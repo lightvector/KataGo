@@ -24,7 +24,6 @@ static NNEvaluator* startNNEval(
   int nnCacheSizePowerOfTwo = 16;
   int nnMutexPoolSizePowerOfTwo = 12;
   bool debugSkipNeuralNet = modelFile == "/dev/null";
-  float nnPolicyTemperature = 1.0;
   const string openCLTunerFile = "";
   bool openCLReTunePerBoardSize = false;
   NNEvaluator* nnEval = new NNEvaluator(
@@ -41,7 +40,6 @@ static NNEvaluator* startNNEval(
     nnCacheSizePowerOfTwo,
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
-    nnPolicyTemperature,
     openCLTunerFile,
     openCLReTunePerBoardSize,
     useFP16 ? enabled_t::True : enabled_t::False,

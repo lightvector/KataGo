@@ -29,6 +29,10 @@ uint64_t Hash::basicLCong(uint64_t x)
 {
   return 2862933555777941757ULL*x + 3037000493ULL;
 }
+uint64_t Hash::basicLCong2(uint64_t x)
+{
+  return 6364136223846793005ULL*x + 1442695040888963407ULL;
+}
 
 //MurmurHash3 finalization - good avalanche properties
 //Reversible, but maps 0 -> 0

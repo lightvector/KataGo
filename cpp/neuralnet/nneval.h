@@ -89,7 +89,6 @@ class NNEvaluator {
     int nnCacheSizePowerOfTwo,
     int nnMutexPoolSizePowerofTwo,
     bool debugSkipNeuralNet,
-    float nnPolicyTemperature,
     std::string openCLTunerFile,
     bool openCLReTunePerBoardSize,
     enabled_t useFP16Mode,
@@ -169,7 +168,6 @@ class NNEvaluator {
   NNCacheTable* nnCacheTable;
 
   bool debugSkipNeuralNet;
-  float nnPolicyInvTemperature;
 
   int modelVersion;
   int inputsVersion;

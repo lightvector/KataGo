@@ -66,7 +66,6 @@ NNEvaluator::NNEvaluator(
   int nnCacheSizePowerOfTwo,
   int nnMutexPoolSizePowerofTwo,
   bool skipNeuralNet,
-  float nnPolicyTemp,
   string openCLTunerFile,
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
@@ -85,7 +84,6 @@ NNEvaluator::NNEvaluator(
    loadedModel(NULL),
    nnCacheTable(NULL),
    debugSkipNeuralNet(skipNeuralNet),
-   nnPolicyInvTemperature(1.0f/nnPolicyTemp),
    serverThreads(),
    serverWaitingForBatchStart(),
    bufferMutex(),
@@ -588,6 +586,8 @@ void NNEvaluator::evaluate(
   }
   else {
     float* policy = buf.result->policyProbs;
+
+    float nnPolicyInvTemperature = 1.0f / nnInputParams.nnPolicyTemperature;
 
     int xSize = board.x_size;
     int ySize = board.y_size;

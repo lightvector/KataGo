@@ -18,6 +18,7 @@ namespace Hash
   uint64_t combine(uint32_t hi, uint32_t lo);
 
   uint64_t basicLCong(uint64_t x);
+  uint64_t basicLCong2(uint64_t x);
   uint64_t murmurMix(uint64_t x);
   uint64_t splitMix64(uint64_t x);
 

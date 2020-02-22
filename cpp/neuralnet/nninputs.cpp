@@ -37,6 +37,8 @@ const Hash128 MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS =
   Hash128(0x0c2b96f4b8ae2da9ULL, 0x5a14dee208fec0edULL);
 const Hash128 MiscNNInputParams::ZOBRIST_PLAYOUT_DOUBLINGS =
   Hash128(0xa5e6114d380bfc1dULL, 0x4160557f1222f4adULL);
+const Hash128 MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP =
+  Hash128(0xebcbdfeec6f4334bULL, 0xb85e43ee243b5ad2ULL);
 
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
@@ -649,6 +651,16 @@ Hash128 NNInputs::getHash(
     hash.hash1 += Hash::basicLCong((uint64_t)playoutDoublingsDiscretized);
     hash ^= MiscNNInputParams::ZOBRIST_PLAYOUT_DOUBLINGS;
   }
+
+  //Fold in policy temperature
+  if(nnInputParams.nnPolicyTemperature != 1.0f) {
+    int64_t nnPolicyTemperatureDiscretized = (int64_t)(nnInputParams.nnPolicyTemperature*2048.0f);
+    hash.hash0 ^= Hash::basicLCong2((uint64_t)nnPolicyTemperatureDiscretized);
+    hash.hash1 = Hash::splitMix64(hash.hash1 + (uint64_t)nnPolicyTemperatureDiscretized);
+    hash.hash0 += hash.hash1;
+    hash ^= MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP;
+  }
+
   return hash;
 }
 
