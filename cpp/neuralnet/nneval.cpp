@@ -55,7 +55,6 @@ NNServerBuf::~NNServerBuf() {
 NNEvaluator::NNEvaluator(
   const string& mName,
   const string& mFileName,
-  const vector<int>& gpuIdxs,
   Logger* lg,
   int maxBatchSize,
   int maxConcurrentEvals,
@@ -69,7 +68,10 @@ NNEvaluator::NNEvaluator(
   string openCLTunerFile,
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
-  enabled_t useNHWCMode
+  enabled_t useNHWCMode,
+  int numThr,
+  const vector<int>& gpuIdxByServerThr,
+  const string& rSeed
 )
   :modelName(mName),
    modelFileName(mFileName),
@@ -80,11 +82,15 @@ NNEvaluator::NNEvaluator(
    inputsUseNHWC(iUseNHWC),
    usingFP16Mode(useFP16Mode),
    usingNHWCMode(useNHWCMode),
+   numThreads(numThr),
+   gpuIdxByServerThread(gpuIdxByServerThr),
+   randSeed(rSeed),
+   debugSkipNeuralNet(skipNeuralNet),
    computeContext(NULL),
    loadedModel(NULL),
    nnCacheTable(NULL),
    logger(lg),
-   debugSkipNeuralNet(skipNeuralNet),
+   numServerThreadsEverSpawned(0),
    serverThreads(),
    serverWaitingForBatchStart(),
    bufferMutex(),
@@ -107,6 +113,8 @@ NNEvaluator::NNEvaluator(
     throw StringError("maxConcurrentEvals is negative: " + Global::intToString(maxConcurrentEvals));
   if(maxBatchSize <= 0)
     throw StringError("maxBatchSize is negative: " + Global::intToString(maxBatchSize));
+  if(gpuIdxByServerThread.size() != numThreads)
+    throw StringError("gpuIdxByServerThread.size() != numThreads");
 
   //Add three, just to give a bit of extra headroom, and make it a power of two
   numResultBufss = maxConcurrentEvals / maxBatchSize + 3;
@@ -122,6 +130,9 @@ NNEvaluator::NNEvaluator(
     nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo, nnMutexPoolSizePowerofTwo);
 
   if(!debugSkipNeuralNet) {
+    vector<int> gpuIdxs = gpuIdxByServerThread;
+    std::sort(gpuIdxs.begin(), gpuIdxs.end());
+    std::unique(gpuIdxs.begin(), gpuIdxs.end());
     loadedModel = NeuralNet::loadModelFile(modelFileName);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
@@ -226,12 +237,12 @@ void NNEvaluator::clearCache() {
 }
 
 static void serveEvals(
-  int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry,
+  bool doRandomize, string randSeedThisThread, int defaultSymmetry,
   NNEvaluator* nnEval, const LoadedModel* loadedModel,
   int gpuIdxForThisThread
 ) {
   NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
-  Rand rand(randSeed + ":NNEvalServerThread:" + Global::intToString(threadIdx));
+  Rand rand(randSeedThisThread);
 
   //Used to have a try catch around this but actually we're in big trouble if this raises an exception
   //and causes possibly the only nnEval thread to die, so actually go ahead and let the exception escape to
@@ -241,21 +252,18 @@ static void serveEvals(
 }
 
 void NNEvaluator::spawnServerThreads(
-  int numThreads,
   bool doRandomize,
-  string randSeed,
-  int defaultSymmetry,
-  vector<int> gpuIdxByServerThread
+  int defaultSymmetry
 ) {
   if(serverThreads.size() != 0)
     throw StringError("NNEvaluator::spawnServerThreads called when threads were already running!");
-  if(gpuIdxByServerThread.size() != numThreads)
-    throw StringError("gpuIdxByServerThread.size() != numThreads");
 
   for(int i = 0; i<numThreads; i++) {
     int gpuIdxForThisThread = gpuIdxByServerThread[i];
+    string randSeedThisThread = randSeed + ":NNEvalServerThread:" + Global::intToString(numServerThreadsEverSpawned);
+    numServerThreadsEverSpawned++;
     std::thread* thread = new std::thread(
-      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,this,loadedModel,gpuIdxForThisThread
+      &serveEvals,doRandomize,randSeedThisThread,defaultSymmetry,this,loadedModel,gpuIdxForThisThread
     );
     serverThreads.push_back(thread);
   }
@@ -275,6 +283,14 @@ void NNEvaluator::killServerThreads() {
 
   //Can unset now that threads are dead
   isKilled = false;
+}
+
+void NNEvaluator::respawnServerThreads(
+  bool doRandomize,
+  int defaultSymmetry
+) {
+  killServerThreads();
+  spawnServerThreads(doRandomize,defaultSymmetry);
 }
 
 void NNEvaluator::serve(

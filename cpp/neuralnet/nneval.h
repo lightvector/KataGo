@@ -78,7 +78,6 @@ class NNEvaluator {
   NNEvaluator(
     const std::string& modelName,
     const std::string& modelFileName,
-    const std::vector<int>& gpuIdxs,
     Logger* logger,
     int maxBatchSize,
     int maxConcurrentEvals,
@@ -92,9 +91,15 @@ class NNEvaluator {
     std::string openCLTunerFile,
     bool openCLReTunePerBoardSize,
     enabled_t useFP16Mode,
-    enabled_t useNHWCMode
+    enabled_t useNHWCMode,
+    int numThreads,
+    const std::vector<int>& gpuIdxByServerThread,
+    const std::string& randSeed
   );
   ~NNEvaluator();
+
+  NNEvaluator(const NNEvaluator& other) = delete;
+  NNEvaluator& operator=(const NNEvaluator& other) = delete;
 
   std::string getModelName() const;
   std::string getModelFileName() const;
@@ -127,16 +132,18 @@ class NNEvaluator {
     bool includeOwnerMap
   );
 
-  //Actually spawn threads and return the results.
+  //Actually spawn threads to handle evaluations.
   //If doRandomize, uses randSeed as a seed, further randomized per-thread
   //If not doRandomize, uses defaultSymmetry for all nn evaluations.
   //This function itself is not threadsafe.
   void spawnServerThreads(
-    int numThreads,
     bool doRandomize,
-    std::string randSeed,
-    int defaultSymmetry,
-    std::vector<int> gpuIdxByServerThread
+    int defaultSymmetry
+  );
+  //Kills and restarts the server threads, possibly with new parameters.
+  void respawnServerThreads(
+    bool doRandomize,
+    int defaultSymmetry
   );
 
   //Kill spawned server threads and join and free them. This function is not threadsafe, and along with spawnServerThreads
@@ -151,26 +158,29 @@ class NNEvaluator {
   void clearStats();
 
  private:
-  std::string modelName;
-  std::string modelFileName;
-  int nnXLen;
-  int nnYLen;
-  bool requireExactNNLen;
-  int policySize;
-  bool inputsUseNHWC;
-  enabled_t usingFP16Mode;
-  enabled_t usingNHWCMode;
+  const std::string modelName;
+  const std::string modelFileName;
+  const int nnXLen;
+  const int nnYLen;
+  const bool requireExactNNLen;
+  const int policySize;
+  const bool inputsUseNHWC;
+  const enabled_t usingFP16Mode;
+  const enabled_t usingNHWCMode;
+  const int numThreads;
+  const std::vector<int> gpuIdxByServerThread;
+  const std::string randSeed;
+  const bool debugSkipNeuralNet;
 
   ComputeContext* computeContext;
   LoadedModel* loadedModel;
   NNCacheTable* nnCacheTable;
   Logger* logger;
 
-  bool debugSkipNeuralNet;
-
   int modelVersion;
   int inputsVersion;
 
+  int numServerThreadsEverSpawned;
   std::vector<std::thread*> serverThreads;
 
   std::condition_variable serverWaitingForBatchStart;

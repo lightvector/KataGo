@@ -15,7 +15,6 @@ static NNEvaluator* startNNEval(
 ) {
   const string& modelName = modelFile;
   vector<int> gpuIdxByServerThread = {0};
-  vector<int> gpuIdxs = {0};
   int maxBatchSize = 16;
   int maxConcurrentEvals = 1024;
   int nnXLen = NNPos::MAX_BOARD_LEN;
@@ -26,10 +25,12 @@ static NNEvaluator* startNNEval(
   bool debugSkipNeuralNet = modelFile == "/dev/null";
   const string openCLTunerFile = "";
   bool openCLReTunePerBoardSize = false;
+  int numNNServerThreadsPerModel = 1;
+  bool nnRandomize = false;
+
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
     modelFile,
-    gpuIdxs,
     &logger,
     maxBatchSize,
     maxConcurrentEvals,
@@ -43,18 +44,15 @@ static NNEvaluator* startNNEval(
     openCLTunerFile,
     openCLReTunePerBoardSize,
     useFP16 ? enabled_t::True : enabled_t::False,
-    useNHWC ? enabled_t::True : enabled_t::False
+    useNHWC ? enabled_t::True : enabled_t::False,
+    numNNServerThreadsPerModel,
+    gpuIdxByServerThread,
+    seed
   );
 
-  int numNNServerThreadsPerModel = 1;
-  bool nnRandomize = false;
-
   nnEval->spawnServerThreads(
-    numNNServerThreadsPerModel,
     nnRandomize,
-    seed,
-    defaultSymmetry,
-    gpuIdxByServerThread
+    defaultSymmetry
   );
 
   //Sleep briefly so that any debug messages printed by nnEval threads are output first

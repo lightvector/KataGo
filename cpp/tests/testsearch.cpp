@@ -123,7 +123,6 @@ static NNEvaluator* startNNEval(
   bool requireExactNNLen
 ) {
   vector<int> gpuIdxByServerThread = {0};
-  vector<int> gpuIdxs = {0};
   int maxBatchSize = 16;
   //bool inputsUseNHWC = true;
   int nnCacheSizePowerOfTwo = 16;
@@ -133,10 +132,18 @@ static NNEvaluator* startNNEval(
   bool openCLReTunePerBoardSize = false;
   const string& modelName = modelFile;
   const string openCLTunerFile = "";
+  int numNNServerThreadsPerModel = 1;
+  bool nnRandomize = false;
+  string nnRandSeed = "runSearchTestsRandSeed"+seed;
+
+  if(defaultSymmetry == -1) {
+    nnRandomize = true;
+    defaultSymmetry = 0;
+  }
+
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
     modelFile,
-    gpuIdxs,
     &logger,
     maxBatchSize,
     maxConcurrentEvals,
@@ -150,28 +157,16 @@ static NNEvaluator* startNNEval(
     openCLTunerFile,
     openCLReTunePerBoardSize,
     useFP16 ? enabled_t::True : enabled_t::False,
-    useNHWC ? enabled_t::True : enabled_t::False
+    useNHWC ? enabled_t::True : enabled_t::False,
+    numNNServerThreadsPerModel,
+    gpuIdxByServerThread,
+    nnRandSeed
   );
   (void)inputsUseNHWC;
 
-  int numNNServerThreadsPerModel = 1;
-  bool nnRandomize = false;
-  string nnRandSeed = "runSearchTestsRandSeed"+seed;
-
-  if(defaultSymmetry == -1) {
-    nnRandomize = true;
-    defaultSymmetry = 0;
-  }
-  //int defaultSymmetry = 0;
-  //bool useFP16 = false;
-  //bool useNHWC = false;
-
   nnEval->spawnServerThreads(
-    numNNServerThreadsPerModel,
     nnRandomize,
-    nnRandSeed,
-    defaultSymmetry,
-    gpuIdxByServerThread
+    defaultSymmetry
   );
 
   //Hack to get more consistent ordering of log messages spawned by nnEval threads with other output.

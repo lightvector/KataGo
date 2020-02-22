@@ -165,10 +165,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     if(cfg.contains("openclReTunePerBoardSize"))
       openCLReTunePerBoardSize = cfg.getBool("openclReTunePerBoardSize");
 
-    vector<int> gpuIdxs = gpuIdxByServerThread;
-    std::sort(gpuIdxs.begin(), gpuIdxs.end());
-    std::unique(gpuIdxs.begin(), gpuIdxs.end());
-
     enabled_t useFP16Mode = enabled_t::Auto;
     if(cfg.contains(backendPrefix+"UseFP16-"+idxStr))
       useFP16Mode = cfg.getEnabled(backendPrefix+"UseFP16-"+idxStr);
@@ -231,7 +227,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
       nnModelFile,
-      gpuIdxs,
       &logger,
       nnMaxBatchSize,
       maxConcurrentEvals,
@@ -245,16 +240,16 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       openCLTunerFile,
       openCLReTunePerBoardSize,
       useFP16Mode,
-      useNHWCMode
+      useNHWCMode,
+      numNNServerThreadsPerModel,
+      gpuIdxByServerThread,
+      nnRandSeed
     );
 
     int defaultSymmetry = forcedSymmetry >= 0 ? forcedSymmetry : 0;
     nnEval->spawnServerThreads(
-      numNNServerThreadsPerModel,
       (forcedSymmetry >= 0 ? false : nnRandomize),
-      nnRandSeed,
-      defaultSymmetry,
-      gpuIdxByServerThread
+      defaultSymmetry
     );
 
     nnEvals.push_back(nnEval);
