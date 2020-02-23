@@ -74,7 +74,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `scoreMean` - Same as scoreLead. "Mean" is a slight misnomer, but this field exists to preserve compatibility with existing tools.
          * `scoreStdev` - The predicted standard deviation of the final score of the game after this move, in points. (NOTE: due to the mechanics of MCTS, this value will be **significantly biased high** currently, although it can still be informative as *relative* indicator).
          * `scoreLead` - The predicted average number of points that the current side is leading by (with this many points fewer, it would be an even game).
-         * `scoreSelfplay` - The predicted average value of the final score of the game after this move during selfplay, in points. (NOTE: users should usually prefer scoreLead, since scoreSelfplay may be biased by the fact that KataGo isn't perfectly score-maximizing).
+         * `scoreSelfplay` - The predicted average value of the final score of the game after this move from low-playout noisy selfplay, in points. (NOTE: users should usually prefer scoreLead, since scoreSelfplay may be biased by the fact that KataGo isn't perfectly score-maximizing).
          * `prior` - The policy prior of the move, as a float in [0,1].
          * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility.
          * `lcb` - The [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move's winrate, as a float in [0,1].
@@ -94,16 +94,16 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      * Output format is of the form `SYMMETRY <integer 0-7> <key> <value(s)> <key> <value(s)> ...`, possibly with additional whitespace or newlines between any tokens. In the case of "all", multiple such outputs of this form are concatenated together.
      * Possible keys are currently
      ```
-     whiteWin (1 float)
-     whiteLoss (1 float)
-     noResult (1 float)
-     whiteScoreMean (1 float)
-     whiteScoreMeanSq (1 float)
-     whiteLead (1 float)
-     policy (boardXSize * boardYSize floats, including possibly NAN for illegal moves)
-     whiteOwnership (boardXSize * boardYSize floats)
+     whiteWin (1 float)  - believed probability that white wins
+     whiteLoss (1 float) - believed probability that black wins
+     noResult (1 float)  - believed probability of noresult due to triple ko
+     whiteLead (1 float) - predicted number of points that white is ahead by (this is the preferred score value for user display).
+     whiteScoreSelfplay (1 float) - predicted mean score that would result from low-playout noisy selfplay (may be biased, Kata isn't fully score-maximizing).
+     whiteScoreSelfplaySq (1 float) - predicted mean square of score that would result via low-playout noisy selfplay
+     policy (boardXSize * boardYSize floats, including possibly NAN for illegal moves) - policy distribution for next move
+     whiteOwnership (boardXSize * boardYSize floats) - predicted ownership by white (from -1 to 1).
      ```
-     Any consumers of this data should attempt to be robust to any pattern of whitespace within the output, as well as possibly the future addition of new keys and values.
+     Any consumers of this data should attempt to be robust to any pattern of whitespace within the output, as well as possibly the future addition of new keys and values. The ordering of the keys is also not guaranteed - consumers should be capable of handling any permutation of them.
   * `kata-get-param PARAM`, `kata-set-param PARAM VALUE`
      * Get a parameter or set a parameter to a given value.
      * Currently, the only supported PARAM is `playoutDoublingAdvantage (float)`. More may be added later.

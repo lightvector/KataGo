@@ -988,9 +988,9 @@ struct GTPEngine {
         out << "whiteWin " << Global::strprintf("%.6f",nnOutput->whiteWinProb) << endl;
         out << "whiteLoss " << Global::strprintf("%.6f",nnOutput->whiteLossProb) << endl;
         out << "noResult " << Global::strprintf("%.6f",nnOutput->whiteNoResultProb) << endl;
-        out << "whiteScoreMean " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
-        out << "whiteScoreMeanSq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
         out << "whiteLead " << Global::strprintf("%.3f",nnOutput->whiteLead) << endl;
+        out << "whiteScoreSelfplay " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
+        out << "whiteScoreSelfplaySq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
 
         out << "policy" << endl;
         for(int y = 0; y<board.y_size; y++) {
