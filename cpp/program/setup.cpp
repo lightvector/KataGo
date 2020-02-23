@@ -224,6 +224,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnMaxBatchSize = cfg.getInt("nnMaxBatchSize", 1, 65536);
     }
 
+    int defaultSymmetry = forcedSymmetry >= 0 ? forcedSymmetry : 0;
+
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
       nnModelFile,
@@ -243,14 +245,12 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       useNHWCMode,
       numNNServerThreadsPerModel,
       gpuIdxByServerThread,
-      nnRandSeed
-    );
-
-    int defaultSymmetry = forcedSymmetry >= 0 ? forcedSymmetry : 0;
-    nnEval->spawnServerThreads(
+      nnRandSeed,
       (forcedSymmetry >= 0 ? false : nnRandomize),
       defaultSymmetry
     );
+
+    nnEval->spawnServerThreads();
 
     nnEvals.push_back(nnEval);
   }

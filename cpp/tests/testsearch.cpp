@@ -160,14 +160,13 @@ static NNEvaluator* startNNEval(
     useNHWC ? enabled_t::True : enabled_t::False,
     numNNServerThreadsPerModel,
     gpuIdxByServerThread,
-    nnRandSeed
-  );
-  (void)inputsUseNHWC;
-
-  nnEval->spawnServerThreads(
+    nnRandSeed,
     nnRandomize,
     defaultSymmetry
   );
+  (void)inputsUseNHWC;
+
+  nnEval->spawnServerThreads();
 
   //Hack to get more consistent ordering of log messages spawned by nnEval threads with other output.
   std::this_thread::sleep_for(std::chrono::duration<double>(0.1));
@@ -1554,7 +1553,8 @@ void Tests::runNNSymmetries(const string& modelFile, bool inputsNHWC, bool cudaN
 
   NNEvaluator* nnEval = startNNEval(modelFile,logger,"",13,13,0,inputsNHWC,cudaNHWC,useFP16,false,false);
   for(int symmetry = 0; symmetry<8; symmetry++) {
-    nnEval->respawnServerThreads(false,symmetry);
+    nnEval->setDoRandomize(false);
+    nnEval->setDefaultSymmetry(symmetry);
     nnEval->clearCache();
     nnEval->clearStats();
 

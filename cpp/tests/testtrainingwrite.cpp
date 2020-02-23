@@ -47,13 +47,12 @@ static NNEvaluator* startNNEval(
     useNHWC ? enabled_t::True : enabled_t::False,
     numNNServerThreadsPerModel,
     gpuIdxByServerThread,
-    seed
-  );
-
-  nnEval->spawnServerThreads(
+    seed,
     nnRandomize,
     defaultSymmetry
   );
+
+  nnEval->spawnServerThreads();
 
   //Sleep briefly so that any debug messages printed by nnEval threads are output first
   std::this_thread::sleep_for (std::chrono::duration<double>(0.03));

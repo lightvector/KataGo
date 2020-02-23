@@ -71,7 +71,9 @@ NNEvaluator::NNEvaluator(
   enabled_t useNHWCMode,
   int numThr,
   const vector<int>& gpuIdxByServerThr,
-  const string& rSeed
+  const string& rSeed,
+  bool doRandomize,
+  int defaultSymmetry
 )
   :modelName(mName),
    modelFileName(mFileName),
@@ -92,14 +94,16 @@ NNEvaluator::NNEvaluator(
    logger(lg),
    numServerThreadsEverSpawned(0),
    serverThreads(),
-   serverWaitingForBatchStart(),
-   bufferMutex(),
-   isKilled(false),
    maxNumRows(maxBatchSize),
    numResultBufss(),
    numResultBufssMask(),
    m_numRowsProcessed(0),
    m_numBatchesProcessed(0),
+   serverWaitingForBatchStart(),
+   bufferMutex(),
+   isKilled(false),
+   currentDoRandomize(doRandomize),
+   currentDefaultSymmetry(defaultSymmetry),
    m_resultBufss(NULL),
    m_currentResultBufsLen(0),
    m_currentResultBufsIdx(0),
@@ -207,6 +211,22 @@ enabled_t NNEvaluator::getUsingNHWCMode() const {
   return usingNHWCMode;
 }
 
+bool NNEvaluator::getDoRandomize() const {
+  lock_guard<std::mutex> lock(bufferMutex);
+  return currentDoRandomize;
+}
+int NNEvaluator::getDefaultSymmetry() const {
+  lock_guard<std::mutex> lock(bufferMutex);
+  return currentDefaultSymmetry;
+}
+void NNEvaluator::setDoRandomize(bool b) {
+  lock_guard<std::mutex> lock(bufferMutex);
+  currentDoRandomize = b;
+}
+void NNEvaluator::setDefaultSymmetry(int s) {
+  lock_guard<std::mutex> lock(bufferMutex);
+  currentDefaultSymmetry = s;
+}
 
 Rules NNEvaluator::getSupportedRules(const Rules& desiredRules, bool& supported) {
   if(loadedModel == NULL) {
@@ -237,7 +257,7 @@ void NNEvaluator::clearCache() {
 }
 
 static void serveEvals(
-  bool doRandomize, string randSeedThisThread, int defaultSymmetry,
+  string randSeedThisThread,
   NNEvaluator* nnEval, const LoadedModel* loadedModel,
   int gpuIdxForThisThread
 ) {
@@ -247,23 +267,19 @@ static void serveEvals(
   //Used to have a try catch around this but actually we're in big trouble if this raises an exception
   //and causes possibly the only nnEval thread to die, so actually go ahead and let the exception escape to
   //toplevel for easier debugging
-  nnEval->serve(*buf,rand,doRandomize,defaultSymmetry,gpuIdxForThisThread);
+  nnEval->serve(*buf,rand,gpuIdxForThisThread);
   delete buf;
 }
 
-void NNEvaluator::spawnServerThreads(
-  bool doRandomize,
-  int defaultSymmetry
-) {
+void NNEvaluator::spawnServerThreads() {
   if(serverThreads.size() != 0)
     throw StringError("NNEvaluator::spawnServerThreads called when threads were already running!");
-
   for(int i = 0; i<numThreads; i++) {
     int gpuIdxForThisThread = gpuIdxByServerThread[i];
     string randSeedThisThread = randSeed + ":NNEvalServerThread:" + Global::intToString(numServerThreadsEverSpawned);
     numServerThreadsEverSpawned++;
     std::thread* thread = new std::thread(
-      &serveEvals,doRandomize,randSeedThisThread,defaultSymmetry,this,loadedModel,gpuIdxForThisThread
+      &serveEvals,randSeedThisThread,this,loadedModel,gpuIdxForThisThread
     );
     serverThreads.push_back(thread);
   }
@@ -285,16 +301,8 @@ void NNEvaluator::killServerThreads() {
   isKilled = false;
 }
 
-void NNEvaluator::respawnServerThreads(
-  bool doRandomize,
-  int defaultSymmetry
-) {
-  killServerThreads();
-  spawnServerThreads(doRandomize,defaultSymmetry);
-}
-
 void NNEvaluator::serve(
-  NNServerBuf& buf, Rand& rand, bool doRandomize, int defaultSymmetry,
+  NNServerBuf& buf, Rand& rand,
   int gpuIdxForThisThread
 ) {
 
@@ -336,7 +344,8 @@ void NNEvaluator::serve(
       m_oldestResultBufsIdx = (m_oldestResultBufsIdx + 1) & numResultBufssMask;
       numRows = maxNumRows;
     }
-
+    bool doRandomize = currentDoRandomize;
+    int defaultSymmetry = currentDefaultSymmetry;
     lock.unlock();
 
     if(debugSkipNeuralNet) {
