@@ -86,7 +86,7 @@ KataGo implements just a GTP engine - GTP is a simple text protocol that Go soft
 KataGo currently officially supports both Windows and Linux, with [precompiled executables provided each release](https://github.com/lightvector/KataGo/releases). Not all different OS versions and compilers have been tested, so if you encounter problems, feel free to open an issue. KataGo can also of course be compiled from source on Windows via MSVC on Windows or on Linux via usual compilers like g++, documented further down.
 
 ### Installing via HomeBrew (MacOS)
-The community also provides KataGo packages for [Homebrew](https://brew.sh) on MacOS - releases there may lag behind official releases slightly. 
+The community also provides KataGo packages for [Homebrew](https://brew.sh) on MacOS - releases there may lag behind official releases slightly.
 
 Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep gtp) -model $(brew list --verbose katago | grep .txt.gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
 
@@ -213,18 +213,26 @@ You may need to play with learning rates, batch sizes, and the balance between t
 Example instructions to start up these things (assuming you have appropriate machines set up), with some base directory $BASEDIR to hold the all the models and training data generated with a few hundred GB of disk space. The below commands assume you're running from the root of the repo and that you can run bash scripts.
    * `cpp/katago selfplay -output-dir $BASEDIR/selfplay -models-dir $BASEDIR/models -config-file cpp/configs/SELFPLAYCONFIG.cfg >> log.txt 2>&1 & disown`
      * Some example configs for different numbers of GPUs are: configs/selfplay{1,2,4,8a,8b,8c}.cfg. You may want to edit them depending on your specs - for example to change the sizes of various tables depending on how much memory you have, or to specify gpu indices if you're doing things like putting some mix of training, gatekeeper, and self-play on the same machines or GPUs instead of on separate ones. Note that the number of game threads in these configs is very large, probably far larger than the number of cores on your machine. This is intentional, as each thread only currently runs synchronously with respect to neural net queries, so a large number of parallel games is needed to take advantage of batching.
+     * Take a look at the generated `log.txt` for any errors and/or for running stats on started games and occasional neural net query stats.
+     * Edit the config to change the number of playouts used or other parameters, or to set a cap on the number of games generated after which selfplay should terminate.
    * `cd python; ./selfplay/shuffle_and_export_loop.sh $BASEDIR/ $SCRATCH_DIRECTORY $NUM_THREADS $USE_GATING`
      * This starts both the shuffler and exporter. The shuffler will use the scratch directory with the specified number of threads to shuffle in parallel. Make sure you have some disk space. You probably want as many threads as you have cores. If not using the gatekeeper, specify `0` for `$USE_GATING`, else specify `1`.
      * Also, if you're low on disk space, take a look also at the `./selfplay/shuffle.sh` script (which is called by `shuffle_and_export_loop.sh`). Right now it's *very* conservative about cleaning up old shuffles but you could tweak it to be a bit more aggressive.
+     * You can also edit `./selfplay/shuffle.sh` if you want to change any details about the lookback window for training data.
+     * The loop script will output `outshuffle.txt` and `outexport.txt` in the directory you run it from, take a look at these to see the output of the shuffle program and/or any errors it encountered.
    * `cd python; ./selfplay/train.sh $BASEDIR/ $TRAININGNAME b6c96 main -lr-scale 1.0 >> log.txt 2>&1 & disown`
      * This starts the training. You may want to look at or edit the train.sh script, it also snapshots the state of the repo for logging, as well as contains some training parameters that can be tweaked.
      * The third argument controls some export behavior:
         * `main` - this is the main net for selfplay, save it regularly to `$BASEDIR/tfsavedmodels_toexport` which the export loop will export regularly for gating.
         * `extra` - save models to `$BASEDIR/tfsavedmodels_toexport_extra`, which the export loop will then export to `$BASEDIR/models_extra`, a directory that does not feed into gating or selfplay.
         * `trainonly` - the neural net without exporting anything. This is useful for when you are trying to jointly train additional models of different sizes and there's no point to have them export anything yet (maybe they're too weak to bother testing).
-     * Any additional arguments, like "-lr-scale 1.0" will simply get forwarded on to train.py.
+     * Any additional arguments, like "-lr-scale 1.0" to adjust learning rate will simply get forwarded on to train.py. The argument `-max-epochs-this-instance` can be used to make training terminate after a few epochs, instead of running forever. Run train.py with -help for other arguments.
+     * Take a look at the generated `log.txt` for any possible errors, as well as running stats on training and loss statistics.
+     * You can choose a different size than b6c96 if desired. Configuration is in `python/modelconfigs.py`, which you can also edit to add other sizes.
    * `cpp/katago gatekeeper -rejected-models-dir $BASEDIR/rejectedmodels -accepted-models-dir $BASEDIR/models/ -sgf-output-dir $BASEDIR/gatekeepersgf/ -test-models-dir $BASEDIR/modelstobetested/ -config-file cpp/configs/GATEKEEPERCONFIG.cfg >> log.txt 2>&1 & disown`
      * This starts the gatekeeper. Some example configs for different numbers of GPUs are: configs/gatekeeper{1,2a,2b,2c}.cfg. Again, you may want to edit these. The number of simultaneous game threads here is also large for the same reasons as for selfplay. No need to start this if specifying `0` for `$USE_GATING`.
+     * Take a look at the generated `log.txt` for any errors and/or for the game-by-game progress of each testing match that the gatekeeper runs.
+     * The argument `-quit-if-no-nets-to-test` can make gatekeeper terminate after testing all nets queued for testing, instead of running forever and waiting for more. Run with -help to see other arguments as well.
 
 ## Contributors
 
