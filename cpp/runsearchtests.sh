@@ -20,6 +20,7 @@
 ./katago runnnsymmetriestest models/g103-b6c96-s103408384-d26419149.txt.gz false false false | tee tests/results/runNNSymmetriesTest.txt
 
 ./katago runsearchtestsv8 models/g170-b6c96-s175395328-d26788732.txt.gz false false false | tee tests/results/runSearchTestsV8.txt
+./katago runsearchtestsv8 models/g170-b6c96-s175395328-d26788732.bin.gz false false false | tee tests/results/runSearchTestsV8Bin.txt
 
 exit 0
 }
