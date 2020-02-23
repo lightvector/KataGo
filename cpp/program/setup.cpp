@@ -496,43 +496,65 @@ Rules Setup::loadSingleRulesExceptForKomi(
 ) {
   Rules rules;
 
-  string koRule = cfg.getString("koRule", Rules::koRuleStrings());
-  string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
-  bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
-  bool hasButton = cfg.contains("hasButton") ? cfg.getBool("hasButton") : false;
-  float komi = 7.5f;
+  if(cfg.contains("rules")) {
+    if(cfg.contains("koRule")) throw StringError("Cannot both specify 'rules' and individual rules like koRule");
+    if(cfg.contains("scoringRule")) throw StringError("Cannot both specify 'rules' and individual rules like scoringRule");
+    if(cfg.contains("multiStoneSuicideLegal")) throw StringError("Cannot both specify 'rules' and individual rules like multiStoneSuicideLegal");
+    if(cfg.contains("hasButton")) throw StringError("Cannot both specify 'rules' and individual rules like hasButton");
+    if(cfg.contains("taxRule")) throw StringError("Cannot both specify 'rules' and individual rules like taxRule");
+    if(cfg.contains("whiteHandicapBonus")) throw StringError("Cannot both specify 'rules' and individual rules like whiteHandicapBonus");
+    if(cfg.contains("whiteBonusPerHandicapStone")) throw StringError("Cannot both specify 'rules' and individual rules like whiteBonusPerHandicapStone");
 
-  rules.koRule = Rules::parseKoRule(koRule);
-  rules.scoringRule = Rules::parseScoringRule(scoringRule);
-  rules.multiStoneSuicideLegal = multiStoneSuicideLegal;
-  rules.hasButton = hasButton;
-  rules.komi = komi;
-
-  if(cfg.contains("taxRule")) {
-    string taxRule = cfg.getString("taxRule", Rules::taxRuleStrings());
-    rules.taxRule = Rules::parseTaxRule(taxRule);
+    rules = Rules::parseRules(cfg.getString("rules"));
   }
   else {
-    rules.taxRule = (rules.scoringRule == Rules::SCORING_TERRITORY ? Rules::TAX_SEKI : Rules::TAX_NONE);
-  }
+    string koRule = cfg.getString("koRule", Rules::koRuleStrings());
+    string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
+    bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
+    bool hasButton = cfg.contains("hasButton") ? cfg.getBool("hasButton") : false;
+    float komi = 7.5f;
 
-  if(rules.hasButton && rules.scoringRule != Rules::SCORING_AREA)
-    throw StringError("Config specifies hasButton=true on a scoring system other than AREA");
+    rules.koRule = Rules::parseKoRule(koRule);
+    rules.scoringRule = Rules::parseScoringRule(scoringRule);
+    rules.multiStoneSuicideLegal = multiStoneSuicideLegal;
+    rules.hasButton = hasButton;
+    rules.komi = komi;
 
-  //Also handles parsing of legacy option whiteBonusPerHandicapStone
-  if(cfg.contains("whiteBonusPerHandicapStone") && cfg.contains("whiteHandicapBonus"))
-    throw StringError("May specify only one of whiteBonusPerHandicapStone and whiteHandicapBonus in config");
-  else if(cfg.contains("whiteHandicapBonus"))
-    rules.whiteHandicapBonusRule = Rules::parseWhiteHandicapBonusRule(cfg.getString("whiteHandicapBonus", Rules::whiteHandicapBonusRuleStrings()));
-  else if(cfg.contains("whiteBonusPerHandicapStone")) {
-    int whiteBonusPerHandicapStone = cfg.getInt("whiteBonusPerHandicapStone",0,1);
-    if(whiteBonusPerHandicapStone == 0)
-      rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
+    if(cfg.contains("taxRule")) {
+      string taxRule = cfg.getString("taxRule", Rules::taxRuleStrings());
+      rules.taxRule = Rules::parseTaxRule(taxRule);
+    }
+    else {
+      rules.taxRule = (rules.scoringRule == Rules::SCORING_TERRITORY ? Rules::TAX_SEKI : Rules::TAX_NONE);
+    }
+
+    if(rules.hasButton && rules.scoringRule != Rules::SCORING_AREA)
+      throw StringError("Config specifies hasButton=true on a scoring system other than AREA");
+
+    //Also handles parsing of legacy option whiteBonusPerHandicapStone
+    if(cfg.contains("whiteBonusPerHandicapStone") && cfg.contains("whiteHandicapBonus"))
+      throw StringError("May specify only one of whiteBonusPerHandicapStone and whiteHandicapBonus in config");
+    else if(cfg.contains("whiteHandicapBonus"))
+      rules.whiteHandicapBonusRule = Rules::parseWhiteHandicapBonusRule(cfg.getString("whiteHandicapBonus", Rules::whiteHandicapBonusRuleStrings()));
+    else if(cfg.contains("whiteBonusPerHandicapStone")) {
+      int whiteBonusPerHandicapStone = cfg.getInt("whiteBonusPerHandicapStone",0,1);
+      if(whiteBonusPerHandicapStone == 0)
+        rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
+      else
+        rules.whiteHandicapBonusRule = Rules::WHB_N;
+    }
     else
-      rules.whiteHandicapBonusRule = Rules::WHB_N;
+      rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
   }
-  else
-    rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
 
   return rules;
+}
+
+vector<pair<set<string>,set<string>>> Setup::getMutexKeySets() {
+  vector<pair<set<string>,set<string>>> mutexKeySets = {
+    std::make_pair<set<string>,set<string>>(
+    {"rules"},{"koRule","scoringRule","multiStoneSuicideLegal","taxRule","hasButton","whiteBonusPerHandicapStone","whiteHandicapBonus"}
+    ),
+  };
+  return mutexKeySets;
 }

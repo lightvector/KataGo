@@ -27,7 +27,9 @@ class ConfigParser {
   ConfigParser& operator=(const ConfigParser& other) = delete;
 
   void overrideKeys(const std::map<std::string, std::string>& newkvs);
-  void overrideKeys(const std::string& commaSeparatedValues);
+  //mutexKeySets: For each pair of sets (A,B), if newkvs contains anything in A, erase every existing key that overlaps with B, and vice versa.
+  void overrideKeys(const std::map<std::string, std::string>& newkvs, const std::vector<std::pair<std::set<std::string>,std::set<std::string>>>& mutexKeySets);
+  static std::map<std::string,std::string> parseCommaSeparated(const std::string& commaSeparatedValues);
 
   void warnUnusedKeys(std::ostream& out, Logger* logger) const;
   void markAllKeysUsedWithPrefix(const std::string& prefix);

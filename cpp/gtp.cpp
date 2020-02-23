@@ -1159,8 +1159,12 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   }
 
   ConfigParser cfg(configFile);
-  if(overrideConfig != "")
-    cfg.overrideKeys(overrideConfig);
+  if(overrideConfig != "") {
+    map<string,string> newkvs = ConfigParser::parseCommaSeparated(overrideConfig);
+    //HACK to avoid a common possible conflict - if we specify some of the rules options on one side, the other side should be erased.
+    vector<pair<set<string>,set<string>>> mutexKeySets = Setup::getMutexKeySets();
+    cfg.overrideKeys(newkvs,mutexKeySets);
+  }
 
   Logger logger;
   logger.addFile(cfg.getString("logFile"));

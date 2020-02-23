@@ -66,11 +66,49 @@ string ConfigParser::getContents() const {
 
 void ConfigParser::overrideKeys(const map<string, string>& newkvs) {
   for(auto iter = newkvs.begin(); iter != newkvs.end(); ++iter) {
-    keyValues[iter->first] = iter->second;
+    //Assume zero-length values mean to delete a key
+    if(iter->second.length() <= 0 && keyValues.find(iter->first) != keyValues.end())
+      keyValues.erase(iter->first);
+    else
+      keyValues[iter->first] = iter->second;
   }
+  fileName += " or command-line override";
 }
 
-void ConfigParser::overrideKeys(const string& commaSeparatedValues) {
+
+void ConfigParser::overrideKeys(const map<string, string>& newkvs, const vector<pair<set<string>,set<string>>>& mutexKeySets) {
+  for(size_t i = 0; i<mutexKeySets.size(); i++) {
+    const set<string>& a = mutexKeySets[i].first;
+    const set<string>& b = mutexKeySets[i].second;
+    bool hasA = false;
+    for(auto iter = a.begin(); iter != a.end(); ++iter) {
+      if(newkvs.find(*iter) != newkvs.end()) {
+        hasA = true;
+        break;
+      }
+    }
+    bool hasB = false;
+    for(auto iter = b.begin(); iter != b.end(); ++iter) {
+      if(newkvs.find(*iter) != newkvs.end()) {
+        hasB = true;
+        break;
+      }
+    }
+    if(hasA) {
+      for(auto iter = b.begin(); iter != b.end(); ++iter)
+        keyValues.erase(*iter);
+    }
+    if(hasB) {
+      for(auto iter = a.begin(); iter != a.end(); ++iter)
+        keyValues.erase(*iter);
+    }
+  }
+
+  overrideKeys(newkvs);
+}
+
+map<string,string> ConfigParser::parseCommaSeparated(const string& commaSeparatedValues) {
+  map<string,string> keyValues;
   vector<string> pieces = Global::split(commaSeparatedValues,',');
   for(size_t i = 0; i<pieces.size(); i++) {
     string s = Global::trim(pieces[i]);
@@ -84,6 +122,7 @@ void ConfigParser::overrideKeys(const string& commaSeparatedValues) {
     string value = Global::trim(s.substr(pos+1));
     keyValues[key] = value;
   }
+  return keyValues;
 }
 
 void ConfigParser::markAllKeysUsedWithPrefix(const string& prefix) {
