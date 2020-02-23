@@ -1136,18 +1136,22 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   string configFile;
   string nnModelFile;
   string overrideVersion;
+  string overrideConfig;
   try {
     TCLAP::CmdLine cmd("Run GTP engine", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
     TCLAP::ValueArg<string> nnModelFileArg("","model","Neural net model file",true,string(),"FILE");
     TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
+    TCLAP::ValueArg<string> overrideConfigArg("","override-config","Override config parameters. Format: \"key=value, key=value,...\"",false,string(),"KEYVALUEPAIRS");
     cmd.add(configFileArg);
     cmd.add(nnModelFileArg);
     cmd.add(overrideVersionArg);
+    cmd.add(overrideConfigArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     nnModelFile = nnModelFileArg.getValue();
     overrideVersion = overrideVersionArg.getValue();
+    overrideConfig = overrideConfigArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -1155,6 +1159,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   }
 
   ConfigParser cfg(configFile);
+  if(overrideConfig != "")
+    cfg.overrideKeys(overrideConfig);
 
   Logger logger;
   logger.addFile(cfg.getString("logFile"));

@@ -64,6 +64,28 @@ string ConfigParser::getContents() const {
   return contents;
 }
 
+void ConfigParser::overrideKeys(const map<string, string>& newkvs) {
+  for(auto iter = newkvs.begin(); iter != newkvs.end(); ++iter) {
+    keyValues[iter->first] = iter->second;
+  }
+}
+
+void ConfigParser::overrideKeys(const string& commaSeparatedValues) {
+  vector<string> pieces = Global::split(commaSeparatedValues,',');
+  for(size_t i = 0; i<pieces.size(); i++) {
+    string s = Global::trim(pieces[i]);
+    if(s.length() <= 0)
+      continue;
+    size_t pos = s.find("=");
+    if(pos == string::npos)
+      throw IOError("Could not parse kv pair, could not find '=' in:" + s);
+
+    string key = Global::trim(s.substr(0,pos));
+    string value = Global::trim(s.substr(pos+1));
+    keyValues[key] = value;
+  }
+}
+
 void ConfigParser::markAllKeysUsedWithPrefix(const string& prefix) {
   std::lock_guard<std::mutex> lock(usedKeysMutex);
   for(auto iter = keyValues.begin(); iter != keyValues.end(); ++iter) {

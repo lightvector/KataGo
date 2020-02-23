@@ -26,6 +26,9 @@ class ConfigParser {
   ConfigParser(const ConfigParser& other) = delete;
   ConfigParser& operator=(const ConfigParser& other) = delete;
 
+  void overrideKeys(const std::map<std::string, std::string>& newkvs);
+  void overrideKeys(const std::string& commaSeparatedValues);
+
   void warnUnusedKeys(std::ostream& out, Logger* logger) const;
   void markAllKeysUsedWithPrefix(const std::string& prefix);
 
