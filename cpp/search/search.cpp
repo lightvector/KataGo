@@ -776,10 +776,10 @@ void Search::computeRootValues() {
       NNResultBuf nnResultBuf;
       bool skipCache = false;
       bool includeOwnerMap = true;
-      bool isRoot = true;
+      // bool isRoot = true;
       MiscNNInputParams nnInputParams;
       nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
-      nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
+      nnInputParams.conservativePass = searchParams.conservativePass;
       nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
       if(searchParams.playoutDoublingAdvantage != 0) {
         Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPla : searchParams.playoutDoublingAdvantagePla;
@@ -1690,7 +1690,7 @@ void Search::initNodeNNOutput(
   bool includeOwnerMap = isRoot || alwaysIncludeOwnerMap;
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
-  nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
+  nnInputParams.conservativePass = searchParams.conservativePass;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
   if(searchParams.playoutDoublingAdvantage != 0) {
     Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPla : searchParams.playoutDoublingAdvantagePla;
