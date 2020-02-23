@@ -88,3 +88,19 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      * The final move made will be reported as a single line `play <vertex or "pass" or "resign">`, followed by the usual double-newline.
   * `kata-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR`
      * Same as `lz-genmove_analyze` except with the options and fields of `kata-analyze` rather than `lz-analyze`
+  * `kata-raw-nn SYMMETRY`
+     * `SYMMETRY` should be an integer from 0-7 or "all".
+     * Reports the result of a raw neural net evaluation from KataGo, or multiple raw evaluations in the case of "all".
+     * Output format is of the form `SYMMETRY <integer 0-7> <key> <value(s)> <key> <value(s)> ...`, possibly with additional whitespace or newlines between any tokens. In the case of "all", multiple such outputs of this form are concatenated together.
+     * Possible keys are currently
+     ```
+     whiteWin (1 float)
+     whiteLoss (1 float)
+     noResult (1 float)
+     whiteScoreMean (1 float)
+     whiteScoreMeanSq (1 float)
+     whiteLead (1 float)
+     policy (boardXSize * boardYSize floats, including possibly NAN for illegal moves)
+     whiteOwnership (boardXSize * boardYSize floats)
+     ```
+     Any consumers of this data should attempt to be robust to any pattern of whitespace within the output, as well as possibly the future addition of new keys and values.

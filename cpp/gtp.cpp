@@ -63,6 +63,9 @@ static const vector<string> knownCommands = {
   "lz-analyze",
   "kata-analyze",
 
+  //Display raw neural net evaluations
+  "kata-raw-nn",
+
   //Stop any ongoing ponder or analyze
   "stop",
 };
@@ -94,51 +97,54 @@ static bool noWhiteStonesOnBoard(const Board& board) {
 static void updatePlayoutDoublingAdvantageHelper(
   AsyncBot* bot, const Board& board, const BoardHistory& hist, Player pla,
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead,
+  const double staticPlayoutDoublingAdvantage,
   const vector<double>& recentWinLossValues,
   double& desiredPlayoutDoublingAdvantage,
   SearchParams& params
 ) {
   (void)board;
-  if(dynamicPlayoutDoublingAdvantageCapPerOppLead <= 0.0)
-    return;
-
-  double pdaScalingStartPoints = 7.0;
-  double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
-  if(initialBlackAdvantageInPoints < pdaScalingStartPoints || pla != params.playoutDoublingAdvantagePla) {
-    desiredPlayoutDoublingAdvantage = 0.0;
+  if(dynamicPlayoutDoublingAdvantageCapPerOppLead <= 0.0) {
+    desiredPlayoutDoublingAdvantage = staticPlayoutDoublingAdvantage;
   }
   else {
-    //What increment to adjust desiredPlayoutDoublingAdvantage at.
-    //Power of 2 to avoid any rounding issues.
-    const double increment = 0.125;
-
-    //Hard cap of 2.5 in this parameter, since more extreme values start to reach into values without good training.
-    //Scale mildly with board size - small board a given point lead counts as "more".
-    double pdaCap = std::min(
-      2.75,
-      dynamicPlayoutDoublingAdvantageCapPerOppLead *
-      (initialBlackAdvantageInPoints - pdaScalingStartPoints) * pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.25)
-    );
-    pdaCap = round(pdaCap / increment) * increment;
-
-    //No history, or literally no white stones on board? Then this is a new game or a newly set position
-    if(recentWinLossValues.size() <= 0 || noWhiteStonesOnBoard(board)) {
-      //Just use the cap
-      desiredPlayoutDoublingAdvantage = pdaCap;
+    double pdaScalingStartPoints = 7.0;
+    double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
+    if(initialBlackAdvantageInPoints < pdaScalingStartPoints || pla != params.playoutDoublingAdvantagePla) {
+      desiredPlayoutDoublingAdvantage = 0.0;
     }
     else {
-      double winLossValue = recentWinLossValues[recentWinLossValues.size()-1];
-      if(pla == P_BLACK)
-        winLossValue = -winLossValue;
+      //What increment to adjust desiredPlayoutDoublingAdvantage at.
+      //Power of 2 to avoid any rounding issues.
+      const double increment = 0.125;
 
-      //Keep winLossValue between 5% and 25%, subject to available caps.
-      if(winLossValue < -0.9)
-        desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage + 0.125;
-      else if(winLossValue > -0.5)
-        desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage - 0.125;
+      //Hard cap of 2.5 in this parameter, since more extreme values start to reach into values without good training.
+      //Scale mildly with board size - small board a given point lead counts as "more".
+      double pdaCap = std::min(
+        2.75,
+        dynamicPlayoutDoublingAdvantageCapPerOppLead *
+        (initialBlackAdvantageInPoints - pdaScalingStartPoints) * pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.25)
+      );
+      pdaCap = round(pdaCap / increment) * increment;
 
-      desiredPlayoutDoublingAdvantage = std::max(desiredPlayoutDoublingAdvantage, 0.0);
-      desiredPlayoutDoublingAdvantage = std::min(desiredPlayoutDoublingAdvantage, pdaCap);
+      //No history, or literally no white stones on board? Then this is a new game or a newly set position
+      if(recentWinLossValues.size() <= 0 || noWhiteStonesOnBoard(board)) {
+        //Just use the cap
+        desiredPlayoutDoublingAdvantage = pdaCap;
+      }
+      else {
+        double winLossValue = recentWinLossValues[recentWinLossValues.size()-1];
+        if(pla == P_BLACK)
+          winLossValue = -winLossValue;
+
+        //Keep winLossValue between 5% and 25%, subject to available caps.
+        if(winLossValue < -0.9)
+          desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage + 0.125;
+        else if(winLossValue > -0.5)
+          desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage - 0.125;
+
+        desiredPlayoutDoublingAdvantage = std::max(desiredPlayoutDoublingAdvantage, 0.0);
+        desiredPlayoutDoublingAdvantage = std::min(desiredPlayoutDoublingAdvantage, pdaCap);
+      }
     }
   }
 
@@ -232,6 +238,7 @@ struct GTPEngine {
   const int analysisPVLen;
   const bool preventEncore;
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead;
+  double staticPlayoutDoublingAdvantage;
 
   NNEvaluator* nnEval;
   AsyncBot* bot;
@@ -255,7 +262,8 @@ struct GTPEngine {
 
   GTPEngine(
     const string& modelFile, SearchParams initialParams, Rules initialRules,
-    bool assumeMultiBlackHandicap, bool prevtEncore, double dynamicPDACapPerOppLead,
+    bool assumeMultiBlackHandicap, bool prevtEncore,
+    double dynamicPDACapPerOppLead, double staticPDA,
     Player persp, int pvLen
   )
     :nnModelFile(modelFile),
@@ -263,6 +271,7 @@ struct GTPEngine {
      analysisPVLen(pvLen),
      preventEncore(prevtEncore),
      dynamicPlayoutDoublingAdvantageCapPerOppLead(dynamicPDACapPerOppLead),
+     staticPlayoutDoublingAdvantage(staticPDA),
      nnEval(NULL),
      bot(NULL),
      currentRules(initialRules),
@@ -274,6 +283,7 @@ struct GTPEngine {
      moveHistory(),
      recentWinLossValues(),
      lastSearchFactor(1.0),
+     desiredPlayoutDoublingAdvantage(staticPDA),
      perspective(persp)
   {
   }
@@ -384,11 +394,16 @@ struct GTPEngine {
     currentRules.komi = newKomi;
   }
 
+  void setStaticPlayoutDoublingAdvantage(double d) {
+    staticPlayoutDoublingAdvantage = d;
+  }
+
   //Update playout doubling advantage for the engine for playing as pla
   void updatePlayoutDoublingAdvantage(Player pla) {
     updatePlayoutDoublingAdvantageHelper(
       bot,bot->getRootBoard(),bot->getRootHist(),pla,
       dynamicPlayoutDoublingAdvantageCapPerOppLead,
+      staticPlayoutDoublingAdvantage,
       recentWinLossValues,
       desiredPlayoutDoublingAdvantage,params
     );
@@ -860,10 +875,10 @@ struct GTPEngine {
 
   void analyze(Player pla, AnalyzeArgs args) {
     assert(args.analyzing);
-    //In dynamic mode, analysis should ALWAYS be with 0.0, to prevent random hard-to-predict changes
+    //Analysis should ALWAYS be with the static value to prevent random hard-to-predict changes
     //for users.
-    if(dynamicPlayoutDoublingAdvantageCapPerOppLead != 0.0 && params.playoutDoublingAdvantage != 0.0) {
-      params.playoutDoublingAdvantage = 0.0;
+    if(params.playoutDoublingAdvantage != staticPlayoutDoublingAdvantage) {
+      params.playoutDoublingAdvantage = staticPlayoutDoublingAdvantage;
       bot->setParams(params);
     }
 
@@ -879,6 +894,12 @@ struct GTPEngine {
 
   double computeLead(Logger& logger) {
     stopAndWait();
+
+    //ALWAYS use 0 to prevent bias
+    if(params.playoutDoublingAdvantage != 0.0) {
+      params.playoutDoublingAdvantage = 0.0;
+      bot->setParams(params);
+    }
 
     //Make absolutely sure we can restore the bot's old state
     const Player oldPla = bot->getRootPla();
@@ -908,6 +929,12 @@ struct GTPEngine {
   vector<bool> computeAnticipatedStatusesWithOwnership(Logger& logger) {
     stopAndWait();
 
+    //ALWAYS use 0 to prevent bias
+    if(params.playoutDoublingAdvantage != 0.0) {
+      params.playoutDoublingAdvantage = 0.0;
+      bot->setParams(params);
+    }
+
     //Make absolutely sure we can restore the bot's old state
     const Player oldPla = bot->getRootPla();
     const Board oldBoard = bot->getRootBoard();
@@ -924,6 +951,72 @@ struct GTPEngine {
     bot->setPosition(oldPla,oldBoard,oldHist);
 
     return isAlive;
+  }
+
+  //-1 means all
+  string rawNN(int whichSymmetry) {
+    if(nnEval == NULL)
+      return "";
+    ostringstream out;
+
+    bool oldDoRandomize = nnEval->getDoRandomize();
+    int oldDefaultSymmetry = nnEval->getDefaultSymmetry();
+
+    for(int symmetry = 0; symmetry<8; symmetry++) {
+      if(whichSymmetry == -1 || whichSymmetry == symmetry) {
+        nnEval->setDoRandomize(false);
+        nnEval->setDefaultSymmetry(symmetry);
+        Board board = bot->getRootBoard();
+        BoardHistory hist = bot->getRootHist();
+        Player nextPla = bot->getRootPla();
+
+        MiscNNInputParams nnInputParams;
+        nnInputParams.playoutDoublingAdvantage =
+          (params.playoutDoublingAdvantagePla == C_EMPTY || params.playoutDoublingAdvantagePla == nextPla) ?
+          staticPlayoutDoublingAdvantage : -staticPlayoutDoublingAdvantage;
+        NNResultBuf buf;
+        bool skipCache = true;
+        bool includeOwnerMap = true;
+        nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+        NNOutput* nnOutput = buf.result.get();
+        out << "symmetry " << symmetry << endl;
+        out << "whiteWin " << Global::strprintf("%.6f",nnOutput->whiteWinProb) << endl;
+        out << "whiteLoss " << Global::strprintf("%.6f",nnOutput->whiteLossProb) << endl;
+        out << "noResult " << Global::strprintf("%.6f",nnOutput->whiteNoResultProb) << endl;
+        out << "whiteScoreMean " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
+        out << "whiteScoreMeanSq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
+        out << "whiteLead " << Global::strprintf("%.3f",nnOutput->whiteLead) << endl;
+
+        out << "policy" << endl;
+        for(int y = 0; y<board.y_size; y++) {
+          for(int x = 0; x<board.x_size; x++) {
+            int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+            float prob = nnOutput->policyProbs[pos];
+            if(prob < 0)
+              out << "    NAN ";
+            else
+              out << Global::strprintf("%8.6f ", prob);
+          }
+          out << endl;
+        }
+
+        out << "whiteOwnership" << endl;
+        for(int y = 0; y<board.y_size; y++) {
+          for(int x = 0; x<board.x_size; x++) {
+            int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+            float whiteOwn = nnOutput->whiteOwnerMap[pos];
+            out << Global::strprintf("%9.7f ", whiteOwn);
+          }
+          out << endl;
+        }
+        out << endl;
+      }
+    }
+
+    nnEval->setDoRandomize(oldDoRandomize);
+    nnEval->setDefaultSymmetry(oldDefaultSymmetry);
+    return Global::trim(out.str());
   }
 
 };
@@ -1101,16 +1194,17 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead =
     cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") ? cfg.getDouble("dynamicPlayoutDoublingAdvantageCapPerOppLead",0.0,0.5) : 0.0;
-  if(cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") && (cfg.contains("playoutDoublingAdvantage") || cfg.contains("playoutDoublingAdvantage0")))
-    throw StringError("Cannot specify both dynamicPlayoutDoublingAdvantageCapPerOppLead and playoutDoublingAdvantage");
   if(cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") && params.playoutDoublingAdvantagePla == C_EMPTY)
     throw StringError("When specifying dynamicPlayoutDoublingAdvantageCapPerOppLead, must specify a player for playoutDoublingAdvantagePla");
+  double staticPlayoutDoublingAdvantage = params.playoutDoublingAdvantage;
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
     nnModelFile,params,initialRules,
-    assumeMultipleStartingBlackMovesAreHandicap,preventEncore,dynamicPlayoutDoublingAdvantageCapPerOppLead,
+    assumeMultipleStartingBlackMovesAreHandicap,preventEncore,
+    dynamicPlayoutDoublingAdvantageCapPerOppLead,
+    staticPlayoutDoublingAdvantage,
     perspective,analysisPVLen
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,-1,-1);
@@ -1888,6 +1982,26 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         //No response - currentlyAnalyzing will make sure we get a newline at the appropriate time, when stopped.
         suppressResponse = true;
         currentlyAnalyzing = true;
+      }
+    }
+
+    else if(command == "kata-raw-nn") {
+      int whichSymmetry = -1;
+      bool parsed = false;
+      if(pieces.size() == 1) {
+        string s = Global::trim(Global::toLower(pieces[0]));
+        if(s == "all")
+          parsed = true;
+        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= 7)
+          parsed = true;
+      }
+
+      if(!parsed) {
+        responseIsError = true;
+        response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-nn but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        response = engine->rawNN(whichSymmetry);
       }
     }
 
