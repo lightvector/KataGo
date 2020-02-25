@@ -1661,7 +1661,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           tc.timeLeftInPeriod = 0;
         }
         else {
-          tc.mainTimeLeft = 0.9;
+          tc.mainTimeLeft = 0.0;
           tc.inOvertime = true;
           tc.numPeriodsLeftIncludingCurrent = 1;
           tc.numStonesLeftInPeriod = stones;
