@@ -72,6 +72,9 @@ static const vector<string> knownCommands = {
   //Display raw neural net evaluations
   "kata-raw-nn",
 
+  //Some debug commands
+  "kata-debug-print-tc",
+
   //Stop any ongoing ponder or analyze
   "stop",
 };
@@ -377,6 +380,8 @@ struct GTPEngine {
       boardXSize,boardYSize,defaultMaxBatchSize,
       Setup::SETUP_FOR_GTP
     );
+    //Hack to get more consistent log message ordering
+    std::this_thread::sleep_for(std::chrono::duration<double>(0.05));
     logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
 
     {
@@ -1214,6 +1219,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   bool logSearchInfo = cfg.getBool("logSearchInfo");
   bool loggingToStderr = false;
 
+  bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
+  if(!logTimeStamp)
+    logger.setLogTime(false);
+
   bool startupPrintMessageToStderr = true;
   if(cfg.contains("startupPrintMessageToStderr"))
     startupPrintMessageToStderr = cfg.getBool("startupPrintMessageToStderr");
@@ -1789,6 +1798,12 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
         }
       }
+    }
+
+    else if(command == "kata-debug-print-tc") {
+      response += "Black "+ engine->bTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),initialParams.lagBuffer);
+      response += "\n";
+      response += "White "+ engine->wTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),initialParams.lagBuffer);
     }
 
     else if(command == "play") {

@@ -44,6 +44,9 @@ struct TimeControls {
   //recommendedTime - recommended mean time to search
   //maxTime - very bad to go over this time, possibly immediately losing
   void getTime(const Board& board, const BoardHistory& hist, double lagBuffer, double& minTime, double& recommendedTime, double& maxTime) const;
+
+  std::string toDebugString() const;
+  std::string toDebugString(const Board& board, const BoardHistory& hist, double lagBuffer) const;
 };
 
 #endif  // SEARCH_TIMECONTROLS_H_

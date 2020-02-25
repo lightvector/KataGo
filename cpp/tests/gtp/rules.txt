@@ -1,0 +1,9 @@
+kata-get-rules
+kata-set-rules japanese
+kata-get-rules
+kata-set-rules chinese
+kata-get-rules
+kgs-rules chinese
+kata-get-rules
+kgs-rules new_zealand
+kata-get-rules

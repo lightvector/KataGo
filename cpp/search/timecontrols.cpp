@@ -1,5 +1,7 @@
 #include "../search/timecontrols.h"
 
+#include <sstream>
+
 TimeControls::TimeControls()
   :originalMainTime(1.0e30),
    increment(0.0),
@@ -52,6 +54,57 @@ TimeControls TimeControls::canadianOrByoYomiTime(
   tc.timeLeftInPeriod = 0;
   return tc;
 }
+
+std::string TimeControls::toDebugString(const Board& board, const BoardHistory& hist, double lagBuffer) const {
+  std::ostringstream out;
+  out << "originalMainTime " << originalMainTime;
+  if(increment != 0)
+    out << "increment " << increment;
+  if(originalNumPeriods != 0)
+    out << " originalNumPeriods " << originalNumPeriods;
+  if(numStonesPerPeriod != 0)
+    out << " numStonesPerPeriod " << numStonesPerPeriod;
+  if(perPeriodTime != 0)
+    out << " perPeriodTime " << perPeriodTime;
+  out << " mainTimeLeft " << mainTimeLeft;
+  out << " inOvertime " << inOvertime;
+  if(numPeriodsLeftIncludingCurrent != 0)
+    out << " numPeriodsLeftIncludingCurrent " << numPeriodsLeftIncludingCurrent;
+  if(numStonesLeftInPeriod != 0)
+    out << " numStonesLeftInPeriod " << numStonesLeftInPeriod;
+  if(timeLeftInPeriod != 0)
+    out << " timeLeftInPeriod " << timeLeftInPeriod;
+
+  double minTime;
+  double recommendedTime;
+  double maxTime;
+  getTime(board,hist,lagBuffer,minTime,recommendedTime,maxTime);
+  out << " minRecMax " << minTime << " " << recommendedTime << " " << maxTime;
+  return out.str();
+}
+
+std::string TimeControls::toDebugString() const {
+  std::ostringstream out;
+  out << "originalMainTime " << originalMainTime;
+  if(increment != 0)
+    out << "increment " << increment;
+  if(originalNumPeriods != 0)
+    out << "originalNumPeriods " << originalNumPeriods;
+  if(numStonesPerPeriod != 0)
+    out << "numStonesPerPeriod " << numStonesPerPeriod;
+  if(perPeriodTime != 0)
+    out << "perPeriodTime " << perPeriodTime;
+  out << "mainTimeLeft " << mainTimeLeft;
+  out << "inOvertime " << inOvertime;
+  if(numPeriodsLeftIncludingCurrent != 0)
+    out << "numPeriodsLeftIncludingCurrent " << numPeriodsLeftIncludingCurrent;
+  if(numStonesLeftInPeriod != 0)
+    out << "numStonesLeftInPeriod " << numStonesLeftInPeriod;
+  if(timeLeftInPeriod != 0)
+    out << "timeLeftInPeriod " << timeLeftInPeriod;
+  return out.str();
+}
+
 
 static double applyLagBuffer(double time, double lagBuffer) {
   if(time < 2.0 * lagBuffer)

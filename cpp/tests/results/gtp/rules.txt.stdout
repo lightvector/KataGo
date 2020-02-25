@@ -1,0 +1,18 @@
+= {"hasButton":false,"ko":"POSITIONAL","scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+
+= 
+
+= {"hasButton":false,"ko":"SIMPLE","scoring":"TERRITORY","suicide":false,"tax":"SEKI","whiteHandicapBonus":"0"}
+
+= 
+
+= {"hasButton":false,"ko":"SIMPLE","scoring":"AREA","suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}
+
+= 
+
+= {"hasButton":false,"ko":"POSITIONAL","scoring":"AREA","suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}
+
+= 
+
+= {"hasButton":false,"ko":"SITUATIONAL","scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+
