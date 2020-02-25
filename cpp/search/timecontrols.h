@@ -21,7 +21,7 @@ struct TimeControls {
   int originalNumPeriods;
   int numStonesPerPeriod;
   double perPeriodTime;
-  
+
   double mainTimeLeft;
   bool inOvertime;
   int numPeriodsLeftIncludingCurrent;
@@ -31,6 +31,14 @@ struct TimeControls {
   //Construct a TimeControls with unlimited main time and otherwise zero initialized.
   TimeControls();
   ~TimeControls();
+
+  static TimeControls absoluteTime(double mainTime);
+  static TimeControls canadianOrByoYomiTime(
+    double mainTime,
+    double perPeriodTime,
+    int numPeriods,
+    int numStonesPerPeriod
+  );
 
   //minTime - if you use less than this, you are wasting time that will not be reclaimed
   //recommendedTime - recommended mean time to search
