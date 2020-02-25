@@ -40,6 +40,7 @@ static const vector<string> knownCommands = {
   //Get or change a few limited params dynamically
   "kata-get-param",
   "kata-set-param",
+  "kgs-rules",
 
   "genmove",
   "genmove_debug", //Prints additional info to stderr
@@ -1488,6 +1489,46 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             responseIsError = true;
             response = error;
           }
+        }
+      }
+    }
+
+    else if(command == "kgs-rules") {
+      bool parseSuccess = false;
+      Rules newRules;
+      if(pieces.size() <= 0) {
+        responseIsError = true;
+        response = "Expected one argument kgs-rules";
+      }
+      else {
+        string s = Global::toLower(Global::trim(pieces[0]));
+        if(s == "chinese") {
+          newRules = Rules::parseRulesWithoutKomi("chinese-ogs",engine->getCurrentRules().komi);
+          parseSuccess = true;
+        }
+        else if(s == "aga") {
+          newRules = Rules::parseRulesWithoutKomi("aga",engine->getCurrentRules().komi);
+          parseSuccess = true;
+        }
+        else if(s == "new_zealand") {
+          newRules = Rules::parseRulesWithoutKomi("new_zealand",engine->getCurrentRules().komi);
+          parseSuccess = true;
+        }
+        else if(s == "japanese") {
+          newRules = Rules::parseRulesWithoutKomi("japanese",engine->getCurrentRules().komi);
+          parseSuccess = true;
+        }
+        else {
+          responseIsError = true;
+          response = "Unknown rules '" + s + "'";
+        }
+      }
+      if(parseSuccess) {
+        string error;
+        bool suc = engine->setRulesNotIncludingKomi(newRules,error);
+        if(!suc) {
+          responseIsError = true;
+          response = error;
         }
       }
     }
