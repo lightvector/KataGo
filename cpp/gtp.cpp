@@ -54,6 +54,7 @@ static const vector<string> knownCommands = {
   "place_free_handicap",
   "set_free_handicap",
   "time_settings",
+  "kgs-time_settings",
   "time_left",
   "final_score",
   "final_status_list",
@@ -78,6 +79,46 @@ static const vector<string> knownCommands = {
 static bool tryParseLoc(const string& s, const Board& b, Loc& loc) {
   return Location::tryOfString(s,b,loc);
 }
+
+static bool timeIsValid(const double& time) {
+  if(isnan(time) || time < 0.0 || time > 1e50)
+    return false;
+  return true;
+}
+
+static double parseMainTime(const vector<string>& args, int argIdx) {
+  double mainTime = 0.0;
+  if(args.size() <= argIdx || !Global::tryStringToDouble(args[argIdx],mainTime))
+    throw StringError("Expected float for main time as argument " + Global::intToString(argIdx));
+  if(!timeIsValid(mainTime))
+    throw StringError("Main time is an invalid value: " + args[argIdx]);
+  return mainTime;
+}
+static double parsePerPeriodTime(const vector<string>& args, int argIdx) {
+  double perPeriodTime = 0.0;
+  if(args.size() <= argIdx || !Global::tryStringToDouble(args[argIdx],perPeriodTime))
+    throw StringError("Expected float for byo-yomi per-period time as argument " + Global::intToString(argIdx));
+  if(!timeIsValid(perPeriodTime))
+    throw StringError("byo-yomi per-period time is an invalid value: " + args[argIdx]);
+  return perPeriodTime;
+}
+static int parseByoYomiStones(const vector<string>& args, int argIdx) {
+  int byoYomiStones = 0;
+  if(args.size() <= argIdx || !Global::tryStringToInt(args[argIdx],byoYomiStones))
+    throw StringError("Expected int for byo-yomi overtime stones as argument " + Global::intToString(argIdx));
+  if(byoYomiStones < 0 || byoYomiStones > 1000000)
+    throw StringError("byo-yomi overtime stones is an invalid value: " + args[argIdx]);
+  return byoYomiStones;
+}
+static int parseByoYomiPeriods(const vector<string>& args, int argIdx) {
+  int byoYomiPeriods = 0;
+  if(args.size() <= argIdx || !Global::tryStringToInt(args[argIdx],byoYomiPeriods))
+    throw StringError("Expected int for byo-yomi overtime periods as argument " + Global::intToString(argIdx));
+  if(byoYomiPeriods < 0 || byoYomiPeriods > 1000000)
+    throw StringError("byo-yomi overtime periods is an invalid value: " + args[argIdx]);
+  return byoYomiPeriods;
+}
+
 
 static double initialBlackAdvantage(const BoardHistory& hist) {
   //Assume an advantage of 15 * number of black stones beyond the one black normally gets on the first move and komi
@@ -1572,60 +1613,116 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       double mainTime;
       double byoYomiTime;
       int byoYomiStones;
-      if(pieces.size() != 3
-         || !Global::tryStringToDouble(pieces[0],mainTime)
-         || !Global::tryStringToDouble(pieces[1],byoYomiTime)
-         || !Global::tryStringToInt(pieces[2],byoYomiStones)
-         ) {
-        responseIsError = true;
-        response = "Expected 2 floats and an int for time_settings but got '" + Global::concat(pieces," ") + "'";
+      bool success = false;
+      try {
+        mainTime = parseMainTime(pieces,0);
+        byoYomiTime = parsePerPeriodTime(pieces,1);
+        byoYomiStones = parseByoYomiStones(pieces,2);
+        success = true;
       }
-      else if(isnan(mainTime) || mainTime < 0.0 || mainTime > 1e50) {
+      catch(const StringError& e) {
         responseIsError = true;
-        response = "invalid main_time";
+        response = e.what();
       }
-      else if(isnan(byoYomiTime) || byoYomiTime < 0.0 || byoYomiTime > 1e50) {
-        responseIsError = true;
-        response = "invalid byo_yomi_time";
-      }
-      else if(byoYomiStones < 0 || byoYomiStones > 100000) {
-        responseIsError = true;
-        response = "invalid byo_yomi_stones";
-      }
-      else {
+      if(success) {
         TimeControls tc;
         //This means no time limits, according to gtp spec
-        if(byoYomiStones == 0 && byoYomiTime > 0.0) {
-          //do nothing, tc already no limits by default
-        }
-        //Absolute time
-        else if(byoYomiStones == 0) {
-          tc.originalMainTime = mainTime;
-          tc.increment = 0.0;
-          tc.originalNumPeriods = 0;
-          tc.numStonesPerPeriod = 0;
-          tc.perPeriodTime = 0.0;
-          tc.mainTimeLeft = mainTime;
-          tc.inOvertime = false;
-          tc.numPeriodsLeftIncludingCurrent = 0;
-          tc.numStonesLeftInPeriod = 0;
-          tc.timeLeftInPeriod = 0;
-        }
-        else {
-          tc.originalMainTime = mainTime;
-          tc.increment = 0.0;
-          tc.originalNumPeriods = 1;
-          tc.numStonesPerPeriod = byoYomiStones;
-          tc.perPeriodTime = byoYomiTime;
-          tc.mainTimeLeft = mainTime;
-          tc.inOvertime = false;
-          tc.numPeriodsLeftIncludingCurrent = 1;
-          tc.numStonesLeftInPeriod = 0;
-          tc.timeLeftInPeriod = 0;
-        }
-
+        if(byoYomiStones == 0 && byoYomiTime > 0.0)
+          tc = TimeControls();
+        else if(byoYomiStones == 0)
+          tc = TimeControls::absoluteTime(mainTime);
+        else
+          tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,1,byoYomiStones);
         engine->bTimeControls = tc;
         engine->wTimeControls = tc;
+      }
+    }
+
+    else if(command == "kgs-time_settings") {
+      if(pieces.size() < 1) {
+        responseIsError = true;
+        response = "Expected 'none', 'absolute', 'byoyomi', or 'canadian' as first argument for kgs-time_settings";
+      }
+      else {
+        string what = Global::toLower(Global::trim(pieces[0]));
+        TimeControls tc;
+        if(what == "none") {
+          tc = TimeControls();
+          engine->bTimeControls = tc;
+          engine->wTimeControls = tc;
+        }
+        else if(what == "absolute") {
+          double mainTime;
+          bool success = false;
+          try {
+            mainTime = parseMainTime(pieces,1);
+            success = true;
+          }
+          catch(const StringError& e) {
+            responseIsError = true;
+            response = e.what();
+          }
+          if(success) {
+            tc = TimeControls::absoluteTime(mainTime);
+            engine->bTimeControls = tc;
+            engine->wTimeControls = tc;
+          }
+        }
+        else if(what == "canadian") {
+          double mainTime;
+          double byoYomiTime;
+          int byoYomiStones;
+          bool success = false;
+          try {
+            mainTime = parseMainTime(pieces,1);
+            byoYomiTime = parsePerPeriodTime(pieces,2);
+            byoYomiStones = parseByoYomiStones(pieces,3);
+            success = true;
+          }
+          catch(const StringError& e) {
+            responseIsError = true;
+            response = e.what();
+          }
+          if(success) {
+            //Use the same hack in time-settings - if somehow someone specifies positive overtime but 0 stones for it, intepret as no time control
+            if(byoYomiStones == 0 && byoYomiTime > 0.0)
+              tc = TimeControls();
+            else if(byoYomiStones == 0)
+              tc = TimeControls::absoluteTime(mainTime);
+            else
+              tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,1,byoYomiStones);
+            engine->bTimeControls = tc;
+            engine->wTimeControls = tc;
+          }
+        }
+        else if(what == "byoyomi") {
+          double mainTime;
+          double byoYomiTime;
+          int byoYomiPeriods;
+          bool success = false;
+          try {
+            mainTime = parseMainTime(pieces,1);
+            byoYomiTime = parsePerPeriodTime(pieces,2);
+            byoYomiPeriods = parseByoYomiPeriods(pieces,3);
+            success = true;
+          }
+          catch(const StringError& e) {
+            responseIsError = true;
+            response = e.what();
+          }
+          if(success) {
+            if(byoYomiPeriods == 0)
+              tc = TimeControls::absoluteTime(mainTime);
+            else
+              tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,byoYomiPeriods,1);
+            engine->bTimeControls = tc;
+            engine->wTimeControls = tc;
+          }
+        }
+        else {
+          responseIsError = true;
+          response = "Expected 'none', 'absolute', 'byoyomi', or 'canadian' as first argument for kgs-time_settings";
+        }
       }
     }
 
@@ -1652,28 +1749,45 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
       else {
         TimeControls tc = pla == P_BLACK ? engine->bTimeControls : engine->wTimeControls;
-        //Main time
-        if(stones == 0) {
-          tc.mainTimeLeft = time;
-          tc.inOvertime = false;
-          tc.numPeriodsLeftIncludingCurrent = tc.originalNumPeriods;
-          tc.numStonesLeftInPeriod = 0;
-          tc.timeLeftInPeriod = 0;
+        if(stones > 0 && tc.originalNumPeriods <= 0) {
+          responseIsError = true;
+          response = "stones left in period is > 0 but the time control used does not have any overtime periods";
         }
         else {
-          tc.mainTimeLeft = 0.0;
-          tc.inOvertime = true;
-          tc.numPeriodsLeftIncludingCurrent = 1;
-          tc.numStonesLeftInPeriod = stones;
-          tc.timeLeftInPeriod = time;
-        }
-        if(pla == P_BLACK)
-          engine->bTimeControls = tc;
-        else
-          engine->wTimeControls = tc;
+          //Main time
+          if(stones == 0) {
+            tc.mainTimeLeft = time;
+            tc.inOvertime = false;
+            tc.numPeriodsLeftIncludingCurrent = tc.originalNumPeriods;
+            tc.numStonesLeftInPeriod = 0;
+            tc.timeLeftInPeriod = 0;
+          }
+          else {
+            //Hack for KGS byo-yomi - interpret num stones as periods instead
+            if(tc.originalNumPeriods > 1 && tc.numStonesPerPeriod == 1) {
+              tc.mainTimeLeft = 0.0;
+              tc.inOvertime = true;
+              tc.numPeriodsLeftIncludingCurrent = std::min(stones,tc.originalNumPeriods);
+              tc.numStonesLeftInPeriod = 1;
+              tc.timeLeftInPeriod = time;
+            }
+            //Normal canadian time interpertation of GTP
+            else {
+              tc.mainTimeLeft = 0.0;
+              tc.inOvertime = true;
+              tc.numPeriodsLeftIncludingCurrent = 1;
+              tc.numStonesLeftInPeriod = std::min(stones,tc.numStonesPerPeriod);
+              tc.timeLeftInPeriod = time;
+            }
+          }
+          if(pla == P_BLACK)
+            engine->bTimeControls = tc;
+          else
+            engine->wTimeControls = tc;
 
-        //In case the controller tells us komi every move, restart pondering afterward.
-        maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
+          //In case the controller tells us komi every move, restart pondering afterward.
+          maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
+        }
       }
     }
 

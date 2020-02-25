@@ -46,6 +46,14 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * This is an extension for playing on KGS, via kgsGtp.
       * As specified by kgsGtp docs, `RULES` should be one of `chinese | aga | japanese | new_zealand`.
       * For this extension, `chinese` actually maps to `chinese-kgs` above. Otherwise, has the same effect as `kata-set-rules`.
+   * `kgs-time-settings KIND ...`
+      * This is an extension for playing on KGS, via kgsGtp.
+      * As specified by kgsGtp docs, `KIND` should be one of `none | absolute | canadian | byoyomi`.
+         * `none` indicates no time control
+         * `absolute` should be followed by a single float `MAINTIME` specifying the time in seconds.
+         * `canadian` should be followed by `MAINTIME BYOYOMITIME BYOYOMISTONES` (float,float,int) specifying the main time, the length of the canadian overtime period, and the number of stones that must be played in that period.
+         * `byoyomi` should be followed by `MAINTIME BYOYOMITIME BYOYOMIPERIODS` (float,float,int) specifying the main time, the length of each byo-yomi period, and the number of byo-yomi periods.
+
    * `lz-analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR ...`
       * Begin searching and optionally outputting live analysis to stdout. Assumes the normal player to move next unless otherwise specified.
       * Possible key-value pairs:
