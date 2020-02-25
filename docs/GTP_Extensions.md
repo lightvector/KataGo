@@ -53,7 +53,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `absolute` should be followed by a single float `MAINTIME` specifying the time in seconds.
          * `canadian` should be followed by `MAINTIME BYOYOMITIME BYOYOMISTONES` (float,float,int) specifying the main time, the length of the canadian overtime period, and the number of stones that must be played in that period.
          * `byoyomi` should be followed by `MAINTIME BYOYOMITIME BYOYOMIPERIODS` (float,float,int) specifying the main time, the length of each byo-yomi period, and the number of byo-yomi periods.
-
+      * NOTE: As a hack, KGS also expects that when using `byoyomi`, the controller should provide the number of periods left in place of the number of stones left for the GTP `time-settings` command.
    * `lz-analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR ...`
       * Begin searching and optionally outputting live analysis to stdout. Assumes the normal player to move next unless otherwise specified.
       * Possible key-value pairs:
