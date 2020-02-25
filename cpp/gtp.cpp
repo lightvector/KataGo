@@ -1503,7 +1503,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       else {
         string s = Global::toLower(Global::trim(pieces[0]));
         if(s == "chinese") {
-          newRules = Rules::parseRulesWithoutKomi("chinese-ogs",engine->getCurrentRules().komi);
+          newRules = Rules::parseRulesWithoutKomi("chinese-kgs",engine->getCurrentRules().komi);
           parseSuccess = true;
         }
         else if(s == "aga") {

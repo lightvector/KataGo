@@ -234,7 +234,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     rules.whiteHandicapBonusRule = Rules::WHB_N;
     rules.komi = 7.5;
   }
-  else if(lowercased == "chinese-ogs") {
+  else if(lowercased == "chinese_ogs" || lowercased == "chinese-ogs" || lowercased == "chinese_kgs" || lowercased == "chinese-kgs") {
     rules.scoringRule = Rules::SCORING_AREA;
     rules.koRule = Rules::KO_POSITIONAL;
     rules.taxRule = Rules::TAX_NONE;
