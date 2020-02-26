@@ -1165,20 +1165,20 @@ MoveNum: 1 HASH: 586BECB9C001E514C07C9C510B56540F
  1 . . X O . O . O .
 
 Root visits: 80
-NN rows: 68
-NN batches: 68
+NN rows: 69
+NN batches: 69
 NN avg batch size: 1
 PV: A1 J6 C3 pass B4 pass A4 pass B1 pass
 Tree:
-: T 104.35c W  95.23c S   9.11c ( +9.4 L  +9.4) N      80  --  A1 J6 C3 pass B4 pass A4
+: T 104.16c W  95.23c S   8.93c ( +9.2 L  +9.2) N      80  --  A1 J6 C3 pass B4 pass A4
 ---White(^)---
-A1  : T 108.99c W  99.50c S   9.49c ( +9.8 L  +9.8) LCB  108.33c P 56.62% WF 34.48% PSV      72 N      72  --  A1 J6 C3 pass B4 pass A4 pass
-pss : T -37.96c W -36.34c S  -1.62c ( -1.5 L  -1.5) LCB -260.00c P  7.32% WF  5.27% PSV       0 N       1  --  pass
-A4  : T  11.91c W  10.25c S   1.66c ( +1.6 L  +1.6) LCB -260.00c P  5.18% WF 10.01% PSV       0 N       1  --  A4
-J6  : T  28.62c W  26.58c S   2.04c ( +1.9 L  +1.9) LCB -260.00c P  4.56% WF 12.41% PSV       0 N       1  --  J6
+A1  : T 108.80c W  99.50c S   9.30c ( +9.6 L  +9.6) LCB  108.11c P 56.62% WF 34.42% PSV      72 N      72  --  A1 J6 C3 pass B4 pass A4 pass
+pss : T -37.96c W -36.34c S  -1.62c ( -1.5 L  -1.5) LCB -260.00c P  7.32% WF  5.28% PSV       0 N       1  --  pass
+A4  : T  11.91c W  10.25c S   1.66c ( +1.6 L  +1.6) LCB -260.00c P  5.18% WF 10.02% PSV       0 N       1  --  A4
+J6  : T  28.62c W  26.58c S   2.04c ( +1.9 L  +1.9) LCB -260.00c P  4.56% WF 12.43% PSV       0 N       1  --  J6
 C3  : T -55.58c W -53.40c S  -2.18c ( -2.1 L  -2.1) LCB -260.00c P  3.82% WF  4.25% PSV       0 N       1  --  C3
-B4  : T  77.60c W  73.92c S   3.68c ( +3.5 L  +3.5) LCB -260.00c P  2.85% WF 22.23% PSV       0 N       1  --  B4
-J7  : T -26.83c W -26.37c S  -0.46c ( -0.4 L  -0.4) LCB -260.00c P  2.41% WF  6.07% PSV       0 N       1  --  J7
+B4  : T  77.60c W  73.92c S   3.68c ( +3.5 L  +3.5) LCB -260.00c P  2.85% WF 22.24% PSV       0 N       1  --  B4
+J7  : T -26.83c W -26.37c S  -0.46c ( -0.4 L  -0.4) LCB -260.00c P  2.41% WF  6.08% PSV       0 N       1  --  J7
 H7  : T -37.90c W -36.83c S  -1.07c ( -1.0 L  -1.0) LCB -260.00c P  1.64% WF  5.28% PSV       0 N       1  --  H7
 GAME 14 ==========================================================================
 Root noise and temperature across moves
