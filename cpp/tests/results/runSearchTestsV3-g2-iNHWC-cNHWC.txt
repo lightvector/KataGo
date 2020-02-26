@@ -1196,20 +1196,20 @@ Root visits: 80
 NN rows: 67
 NN batches: 67
 NN avg batch size: 1
-PV: A1 J6 C3 pass B4 pass A4 pass
+PV: A1 J6 C3 pass B4 pass A4 pass B1
 Tree:
-: T 101.02c W  92.38c S   8.64c ( +8.9 L  +8.9) N      80  --  A1 J6 C3 pass B4 pass A4
+: T 100.84c W  92.37c S   8.47c ( +8.7 L  +8.7) N      80  --  A1 J6 C3 pass B4 pass A4
 ---White(^)---
-A1  : T 108.72c W  99.54c S   9.18c ( +9.4 L  +9.4) LCB  108.18c P 38.34% WF 47.04% PSV      69 N      69  --  A1 J6 C3 pass B4 pass A4 pass
+A1  : T 108.53c W  99.54c S   8.99c ( +9.2 L  +9.2) LCB  107.91c P 38.34% WF 46.99% PSV      69 N      69  --  A1 J6 C3 pass B4 pass A4 pass
 J6  : T -30.34c W -29.93c S  -0.41c ( -0.4 L  -0.4) LCB -260.00c P  7.64% WF  7.73% PSV       0 N       1  --  J6
-pss : T -87.35c W -82.20c S  -5.15c ( -5.0 L  -5.0) LCB -260.00c P  7.53% WF  3.84% PSV       0 N       1  --  pass
+pss : T -87.35c W -82.20c S  -5.15c ( -5.0 L  -5.0) LCB -260.00c P  7.53% WF  3.85% PSV       0 N       1  --  pass
 C3  : T -73.58c W -70.01c S  -3.57c ( -3.4 L  -3.4) LCB -260.00c P  7.02% WF  4.52% PSV       0 N       1  --  C3
-A4  : T -83.19c W -78.72c S  -4.47c ( -4.3 L  -4.3) LCB -260.00c P  5.69% WF  4.03% PSV       0 N       1  --  A4
-B4  : T -45.52c W -43.53c S  -1.99c ( -1.9 L  -1.9) LCB -260.00c P  4.27% WF  6.37% PSV       0 N       1  --  B4
-J7  : T -63.82c W -61.28c S  -2.54c ( -2.4 L  -2.4) LCB -260.00c P  3.22% WF  5.08% PSV       0 N       1  --  J7
-E4  : T -35.09c W -33.24c S  -1.85c ( -1.7 L  -1.7) LCB -260.00c P  1.85% WF  7.27% PSV       0 N       1  --  E4
-C4  : T -72.74c W -69.09c S  -3.65c ( -3.5 L  -3.5) LCB -260.00c P  1.69% WF  4.56% PSV       0 N       1  --  C4
-H7  : T -58.51c W -55.84c S  -2.67c ( -2.5 L  -2.5) LCB -260.00c P  1.63% WF  5.42% PSV       0 N       1  --  H7
+A4  : T -83.19c W -78.72c S  -4.47c ( -4.3 L  -4.3) LCB -260.00c P  5.69% WF  4.04% PSV       0 N       1  --  A4
+B4  : T -45.52c W -43.53c S  -1.99c ( -1.9 L  -1.9) LCB -260.00c P  4.27% WF  6.38% PSV       0 N       1  --  B4
+J7  : T -63.82c W -61.28c S  -2.54c ( -2.4 L  -2.4) LCB -260.00c P  3.22% WF  5.09% PSV       0 N       1  --  J7
+E4  : T -35.09c W -33.24c S  -1.85c ( -1.7 L  -1.7) LCB -260.00c P  1.85% WF  7.28% PSV       0 N       1  --  E4
+C4  : T -72.74c W -69.09c S  -3.65c ( -3.5 L  -3.5) LCB -260.00c P  1.69% WF  4.57% PSV       0 N       1  --  C4
+H7  : T -58.51c W -55.84c S  -2.67c ( -2.5 L  -2.5) LCB -260.00c P  1.63% WF  5.43% PSV       0 N       1  --  H7
 H9  : T -81.20c W -76.46c S  -4.74c ( -4.6 L  -4.6) LCB -260.00c P  1.43% WF  4.13% PSV       0 N       1  --  H9
 GAME 14 ==========================================================================
 Root noise and temperature across moves

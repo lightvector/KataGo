@@ -1169,16 +1169,16 @@ NN batches: 68
 NN avg batch size: 1
 PV: A1 J6 C3 pass B4 pass A4 pass B1 pass
 Tree:
-: T 104.34c W  95.23c S   9.11c ( +9.4 L  +9.4) N      80  --  A1 J6 C3 pass B4 pass A4
+: T 104.14c W  95.23c S   8.91c ( +9.2 L  +9.2) N      80  --  A1 J6 C3 pass B4 pass A4
 ---White(^)---
-A1  : T 108.99c W  99.50c S   9.49c ( +9.8 L  +9.8) LCB  108.33c P 56.65% WF 34.58% PSV      72 N      72  --  A1 J6 C3 pass B4 pass A4 pass
+A1  : T 108.79c W  99.51c S   9.28c ( +9.6 L  +9.6) LCB  108.11c P 56.65% WF 34.52% PSV      72 N      72  --  A1 J6 C3 pass B4 pass A4 pass
 pss : T -38.26c W -36.61c S  -1.64c ( -1.6 L  -1.6) LCB -260.00c P  7.32% WF  5.27% PSV       0 N       1  --  pass
-A4  : T  11.26c W   9.64c S   1.62c ( +1.5 L  +1.5) LCB -260.00c P  5.19% WF  9.95% PSV       0 N       1  --  A4
-J6  : T  28.03c W  26.01c S   2.02c ( +1.9 L  +1.9) LCB -260.00c P  4.55% WF 12.35% PSV       0 N       1  --  J6
+A4  : T  11.26c W   9.64c S   1.62c ( +1.5 L  +1.5) LCB -260.00c P  5.19% WF  9.96% PSV       0 N       1  --  A4
+J6  : T  28.03c W  26.01c S   2.02c ( +1.9 L  +1.9) LCB -260.00c P  4.55% WF 12.37% PSV       0 N       1  --  J6
 C3  : T -56.26c W -54.05c S  -2.21c ( -2.1 L  -2.1) LCB -260.00c P  3.82% WF  4.23% PSV       0 N       1  --  C3
-B4  : T  77.49c W  73.82c S   3.67c ( +3.5 L  +3.5) LCB -260.00c P  2.85% WF 22.26% PSV       0 N       1  --  B4
+B4  : T  77.49c W  73.82c S   3.67c ( +3.5 L  +3.5) LCB -260.00c P  2.85% WF 22.28% PSV       0 N       1  --  B4
 J7  : T -26.94c W -26.47c S  -0.47c ( -0.4 L  -0.4) LCB -260.00c P  2.40% WF  6.08% PSV       0 N       1  --  J7
-H7  : T -38.03c W -36.95c S  -1.08c ( -1.0 L  -1.0) LCB -260.00c P  1.63% WF  5.28% PSV       0 N       1  --  H7
+H7  : T -38.03c W -36.95c S  -1.08c ( -1.0 L  -1.0) LCB -260.00c P  1.63% WF  5.29% PSV       0 N       1  --  H7
 GAME 14 ==========================================================================
 Root noise and temperature across moves
 
