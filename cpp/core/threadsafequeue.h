@@ -31,6 +31,11 @@ class ThreadSafeQueue
   inline ~ThreadSafeQueue()
   {}
 
+  ThreadSafeQueue(const ThreadSafeQueue&) = delete;
+  ThreadSafeQueue& operator=(const ThreadSafeQueue&) = delete;
+  ThreadSafeQueue(ThreadSafeQueue&&) = delete;
+  ThreadSafeQueue& operator=(ThreadSafeQueue&&) = delete;
+
   inline size_t size()
   {
     std::lock_guard<std::mutex> lock(mutex);
