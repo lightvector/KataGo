@@ -152,6 +152,8 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
   recommendedTime = 0.0;
   maxTime = 0.0;
 
+  double lagBufferToUse = lagBuffer;
+
   //Fischer or absolute time handling
   if(increment > 0 || numPeriodsLeftIncludingCurrent <= 0) {
     if(inOvertime)
@@ -203,13 +205,17 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
       minTime = (numStonesLeftInPeriod <= 1) ? timeLeftInPeriod : 0.0;
       recommendedTime = timeLeftInPeriod / numStonesLeftInPeriod;
       maxTime = timeLeftInPeriod / (0.75 * numStonesLeftInPeriod + 0.25);
+
+      //Increase the lagbuffer a little if we're actually on the last stone of the last byo yomi (i.e. running out actually kills us)
+      if(numPeriodsLeftIncludingCurrent <= 1 && numStonesLeftInPeriod <= 1)
+        lagBufferToUse *= 1.5;
     }
   }
 
   //Lag buffer
-  minTime = applyLagBuffer(minTime,lagBuffer);
-  recommendedTime = applyLagBuffer(recommendedTime,lagBuffer);
-  maxTime = applyLagBuffer(maxTime,lagBuffer);
+  minTime = applyLagBuffer(minTime,lagBufferToUse);
+  recommendedTime = applyLagBuffer(recommendedTime,lagBufferToUse);
+  maxTime = applyLagBuffer(maxTime,lagBufferToUse);
 
   //Just in case
   if(maxTime < 0)

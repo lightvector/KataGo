@@ -14715,10 +14715,10 @@ board19Late min rec max = 0 9 11
 ===================================================================
 Basic 1h byo yomi time controls, 1 periods of 30s, just entered overtime
 ===================================================================
-board9Early min rec max = 29 29 29
-board9Late min rec max = 29 29 29
-board19Early min rec max = 29 29 29
-board19Late min rec max = 29 29 29
+board9Early min rec max = 28.5 28.5 28.5
+board9Late min rec max = 28.5 28.5 28.5
+board19Early min rec max = 28.5 28.5 28.5
+board19Late min rec max = 28.5 28.5 28.5
 ===================================================================
 Basic 1h byo yomi time controls, 5 periods of 30s, just entered overtime
 ===================================================================
@@ -14736,10 +14736,10 @@ board19Late min rec max = 0 9 11
 ===================================================================
 Basic 1h byo yomi time controls, 1 periods of 30s, entered overtime 15s used
 ===================================================================
-board9Early min rec max = 14 14 14
-board9Late min rec max = 14 14 14
-board19Early min rec max = 14 14 14
-board19Late min rec max = 14 14 14
+board9Early min rec max = 13.5 13.5 13.5
+board9Late min rec max = 13.5 13.5 13.5
+board19Early min rec max = 13.5 13.5 13.5
+board19Late min rec max = 13.5 13.5 13.5
 ===================================================================
 Basic 1h byo yomi time controls, 5 periods of 30s, entered overtime 15s used
 ===================================================================
@@ -14764,10 +14764,10 @@ board19Late min rec max = 0 6.5 7.57143
 ===================================================================
 Basic 1h byo yomi time controls, 3 moves canadian in 30s, entered overtime 15s used, 1 moves left
 ===================================================================
-board9Early min rec max = 14 14 14
-board9Late min rec max = 14 14 14
-board19Early min rec max = 14 14 14
-board19Late min rec max = 14 14 14
+board9Early min rec max = 13.5 13.5 13.5
+board9Late min rec max = 13.5 13.5 13.5
+board19Early min rec max = 13.5 13.5 13.5
+board19Late min rec max = 13.5 13.5 13.5
 Running score and utility tests
 On-board even 9x9, komi 7.5
 Black self komi wins/draw=0.5: -7.5
