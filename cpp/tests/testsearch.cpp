@@ -1035,8 +1035,12 @@ ooooooo
       search->runWholeSearch(nextPla,logger);
 
       //In theory nothing requires this, but it would be kind of crazy if this were false
-      testAssert(search->rootNode->numChildren > 1);
-      Loc locToDescend = search->rootNode->children[1]->prevMoveLoc;
+      testAssert(search->rootNode->iterateAndCountChildren() > 1);
+      int childrenCapacity;
+      const SearchChildPointer* children = search->rootNode->getChildren(childrenCapacity);
+      testAssert(childrenCapacity > 1);
+      testAssert(children[1].getIfAllocated() != NULL);
+      Loc locToDescend = children[1].getIfAllocated()->prevMoveLoc;
 
       PrintTreeOptions options;
       options = options.maxDepth(1);
@@ -1106,15 +1110,25 @@ o..oo.x
     nextPla = getOpp(nextPla);
 
     auto hasSuicideRootMoves = [](const Search* search) {
-      for(int i = 0; i<search->rootNode->numChildren; i++) {
-        if(search->rootBoard.isSuicide(search->rootNode->children[i]->prevMoveLoc,search->rootPla))
+      int childrenCapacity;
+      const SearchChildPointer* children = search->rootNode->getChildren(childrenCapacity);
+      for(int i = 0; i<childrenCapacity; i++) {
+        const SearchNode* child = children[i].getIfAllocated();
+        if(child == NULL)
+          break;
+        if(search->rootBoard.isSuicide(child->prevMoveLoc,search->rootPla))
           return true;
       }
       return false;
     };
     auto hasPassAliveRootMoves = [](const Search* search) {
-      for(int i = 0; i<search->rootNode->numChildren; i++) {
-        if(search->rootSafeArea[search->rootNode->children[i]->prevMoveLoc] != C_EMPTY)
+      int childrenCapacity;
+      const SearchChildPointer* children = search->rootNode->getChildren(childrenCapacity);
+      for(int i = 0; i<childrenCapacity; i++) {
+        const SearchNode* child = children[i].getIfAllocated();
+        if(child == NULL)
+          break;
+        if(search->rootSafeArea[child->prevMoveLoc] != C_EMPTY)
           return true;
       }
       return false;

@@ -768,7 +768,17 @@ static void recordTreePositionsRec(
   vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf,
   Loc excludeLoc0, Loc excludeLoc1
 ) {
-  if(node->numChildren <= 0)
+  int numChildren = 0;
+  int childrenCapacity;
+  const SearchChildPointer* children = node->getChildren(childrenCapacity);
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
+    numChildren++;
+  }
+
+  if(numChildren <= 0)
     return;
 
   if(plaAlwaysBest && node != toMoveBot->rootNode) {
@@ -786,8 +796,8 @@ static void recordTreePositionsRec(
   //Best child is the one with the largest number of visits, find it
   int bestChildIdx = 0;
   int64_t bestChildVisits = 0;
-  for(int i = 1; i<node->numChildren; i++) {
-    const SearchNode* child = node->children[i];
+  for(int i = 1; i<numChildren; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
     while(child->statsLock.test_and_set(std::memory_order_acquire));
     int64_t numVisits = child->stats.visits;
     child->statsLock.clear(std::memory_order_release);
@@ -797,14 +807,14 @@ static void recordTreePositionsRec(
     }
   }
 
-  for(int i = 0; i<node->numChildren; i++) {
+  for(int i = 0; i<numChildren; i++) {
     bool newPlaAlwaysBest = oppAlwaysBest;
     bool newOppAlwaysBest = plaAlwaysBest && i == bestChildIdx;
 
     if(!newPlaAlwaysBest && !newOppAlwaysBest)
       continue;
 
-    const SearchNode* child = node->children[i];
+    const SearchNode* child = children[i].getIfAllocated();
     if(child->prevMoveLoc == excludeLoc0 || child->prevMoveLoc == excludeLoc1)
       continue;
 
@@ -1354,9 +1364,10 @@ FinishedGameData* Play::runGame(
       Loc sidePositionForkLoc = Board::NULL_LOC;
       if(fancyModes.forkSidePositionProb > 0.0 && gameRand.nextBool(fancyModes.forkSidePositionProb)) {
         assert(toMoveBot->rootNode != NULL);
-        assert(toMoveBot->rootNode->nnOutput != nullptr);
+        const NNOutput* nnOutput = toMoveBot->rootNode->getNNOutput();
+        assert(nnOutput != NULL);
         Loc banMove = loc;
-        sidePositionForkLoc = chooseRandomForkingMove(toMoveBot->rootNode->nnOutput.get(), board, hist, pla, gameRand, banMove);
+        sidePositionForkLoc = chooseRandomForkingMove(nnOutput, board, hist, pla, gameRand, banMove);
         if(sidePositionForkLoc != Board::NULL_LOC) {
           SidePosition* sp = new SidePosition(board,hist,pla,gameData->changedNeuralNets.size());
           sp->hist.makeBoardMoveAssumeLegal(sp->board,sidePositionForkLoc,sp->pla,NULL);
