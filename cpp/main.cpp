@@ -169,11 +169,11 @@ int main(int argc, const char* argv[]) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.3.2");
+  return string("1.3.3");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.3.2");
+  return string("KataGo v1.3.3");
 }
 
 string Version::getGitRevision() {
