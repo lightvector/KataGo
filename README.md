@@ -40,6 +40,7 @@ Just for fun, here's a table of the Elo strength of selected versions, based on 
 | g170e-b10c128-s1141046784-d204142634  | (extended training 10 block)  | -  |   296 |
 | g170-b15c192-s497233664-d149638345 |   (last selfplay 15 block) | 7.5  |      509 |
 | g170e-b15c192-s1305382144-d335919935  | (extended training 15 block)  | -  |   867 |
+| g170e-b15c192-s1672170752-d466197061  | (extended training 15 block)  | -  |   921 |
 | g170-b20c256x2-s668214784-d222255714  | (20 block)  |  15.5 |   956 |
 | g170-b20c256x2-s1039565568-d285739972  | (20 block)   | 21.5 |    1063 |
 | g170-b20c256x2-s1420141824-d350969033  | (20 block)   | 27.5 |    1157 |
