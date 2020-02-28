@@ -31,7 +31,8 @@ static vector<PlayUtils::BenchmarkResults> doFixedTuneThreads(
   NNEvaluator*& nnEval,
   Logger& logger,
   double secondsPerGameMove,
-  vector<int> numThreadsToTest
+  vector<int> numThreadsToTest,
+  bool printElo
 );
 static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
   const SearchParams& params,
@@ -206,7 +207,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 
   vector<PlayUtils::BenchmarkResults> results;
   if(!autoTuneThreads) {
-    results = doFixedTuneThreads(params,sgf,numPositionsPerGame,nnEval,logger,secondsPerGameMove,numThreadsToTest);
+    results = doFixedTuneThreads(params,sgf,numPositionsPerGame,nnEval,logger,secondsPerGameMove,numThreadsToTest,true);
   }
   else {
     results = doAutoTuneThreads(params,sgf,numPositionsPerGame,nnEval,logger,secondsPerGameMove,reallocateNNEvalWithEnoughBatchSize);
@@ -281,7 +282,8 @@ static vector<PlayUtils::BenchmarkResults> doFixedTuneThreads(
   NNEvaluator*& nnEval,
   Logger& logger,
   double secondsPerGameMove,
-  vector<int> numThreadsToTest
+  vector<int> numThreadsToTest,
+  bool printElo
 ) {
   vector<PlayUtils::BenchmarkResults> results;
 
@@ -290,7 +292,6 @@ static vector<PlayUtils::BenchmarkResults> doFixedTuneThreads(
 
   for(int i = 0; i<numThreadsToTest.size(); i++) {
     const PlayUtils::BenchmarkResults* baseline = (i == 0) ? NULL : &results[0];
-    bool printElo = true;
     SearchParams thisParams = params;
     thisParams.numThreads = numThreadsToTest[i];
     PlayUtils::BenchmarkResults result = PlayUtils::benchmarkSearchOnPositionsAndPrint(
@@ -730,22 +731,23 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
   updateConfigContents();
 
   if(!skipThreadTuning) {
-    int64_t maxVisits = defaultMaxVisits;
+    int64_t maxVisitsFromUser = -1;
     double secondsPerGameMove = defaultSecondsPerGameMove;
     {
       cout << endl;
       string prompt =
-        "Specify number of visits to use test/tune performance with (default " + Global::intToString(defaultMaxVisits) + "), leave blank for default.\n"
-        "Increase for more accurate results, decrease your GPU is old and this is taking forever:\n";
+        "Specify number of visits to use test/tune performance with, leave blank for default based on GPU speed.\n"
+        "Use large number for more accurate results, small if your GPU is old and this is taking forever:\n";
       promptAndParseInput(prompt, [&](const string& line) {
-          if(line == "") maxVisits = defaultMaxVisits;
+          if(line == "") maxVisitsFromUser = -1;
           else {
-            maxVisits = Global::stringToInt64(line);
-            if(maxVisits < 1 || maxVisits > 1000000000)
+            maxVisitsFromUser = Global::stringToInt64(line);
+            if(maxVisitsFromUser < 1 || maxVisitsFromUser > 1000000000)
               throw StringError("Must be between 1 and 1000000000");
           }
         });
     }
+
     {
       cout << endl;
       string prompt =
@@ -768,8 +770,8 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
     logger.write("Loading model and initializing benchmark...");
 
     SearchParams params = Setup::loadSingleParams(cfg);
-    params.maxVisits = maxVisits;
-    params.maxPlayouts = maxVisits;
+    params.maxVisits = defaultMaxVisits;
+    params.maxPlayouts = defaultMaxVisits;
     params.maxTime = 1e20;
     params.searchFactorAfterOnePass = 1.0;
     params.searchFactorAfterTwoPass = 1.0;
@@ -784,11 +786,30 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
     };
     cout << endl;
 
+    int64_t maxVisits;
+    if(maxVisitsFromUser > 0) {
+      maxVisits = maxVisitsFromUser;
+    }
+    else {
+      cout << "Running quick initial benchmark at 16 threads!" << endl;
+      vector<int> numThreads = {16};
+      reallocateNNEvalWithEnoughBatchSize(ternarySearchInitialMax);
+      vector<PlayUtils::BenchmarkResults> results = doFixedTuneThreads(params,sgf,3,nnEval,logger,secondsPerGameMove,numThreads,false);
+      double visitsPerSecond = results[0].totalVisits / (results[0].totalSeconds + 0.00001);
+      //Make tests use about 1 second each
+      maxVisits = (int64_t)round(visitsPerSecond/100.0) * 100;
+      if(maxVisits < 200) maxVisits = 200;
+      if(maxVisits > 10000) maxVisits = 10000;
+    }
+
+    params.maxVisits = maxVisits;
+    params.maxPlayouts = maxVisits;
+
     const int numPositionsPerGame = 10;
 
     cout << "=========================================================================" << endl;
     cout << "TUNING NOW" << endl;
-
+    cout << "Tuning using " << maxVisits << " visits." << endl;
 
     vector<PlayUtils::BenchmarkResults> results;
     results = doAutoTuneThreads(params,sgf,numPositionsPerGame,nnEval,logger,secondsPerGameMove,reallocateNNEvalWithEnoughBatchSize);
