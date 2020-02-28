@@ -691,19 +691,25 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
 
   bool skipThreadTuning = false;
   if(bfs::exists(bfs::path(outputFile))) {
-    promptAndParseInput(
-      "Actually " + outputFile + " already exists, skip performance tuning and just use the settings already in that config (y/n)?\n",
-      [&](const string& line) { parseYN(line,skipThreadTuning); }
-    );
-
+    int oldConfigNumSearchThreads = -1;
     try {
       ConfigParser oldCfg(outputFile);
-      configNumSearchThreads = oldCfg.getInt("numSearchThreads",1,4096);
+      oldConfigNumSearchThreads = oldCfg.getInt("numSearchThreads",1,4096);
     }
     catch(const StringError&) {
-      cout << "Error: old config does not specify numSearchThreads or otherwise could not be parsed." << endl;
-      cout << "Beginning performance tuning anyways." << endl;
-      skipThreadTuning = false;
+      cout << "NOTE: Overwritten config does not specify numSearchThreads or otherwise could not be parsed." << endl;
+      cout << "Beginning performance tuning to set this." << endl;
+    }
+    if(oldConfigNumSearchThreads > 0) {
+      promptAndParseInput(
+        "Actually " + outputFile + " already exists, can skip performance tuning if desired and just use\nthe number of threads (" +
+        Global::intToString(oldConfigNumSearchThreads) + ") "
+        "already in that config (all other settings will still be overwritten).\nSkip performance tuning (y/n)?\n",
+        [&](const string& line) { parseYN(line,skipThreadTuning); }
+      );
+      if(skipThreadTuning) {
+        configNumSearchThreads = oldConfigNumSearchThreads;
+      }
     }
   }
 
