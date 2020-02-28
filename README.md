@@ -77,7 +77,7 @@ See also https://github.com/lightvector/GoNN for some earlier research. KataGo i
 ## Where To Download Stuff
 You can download precompiled executables for KataGo on the [releases page](https://github.com/lightvector/KataGo/releases) for Windows and Linux.
 
-You can download a few selected neural nets from the [releases page](https://github.com/lightvector/KataGo/releases) or download additional other neural nets from [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html)).
+You can download a few selected neural nets from the [releases page](https://github.com/lightvector/KataGo/releases) or download additional other neural nets from [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html)). There are two different model formats, indicated by ".txt.gz" versus ".bin.gz". Starting with v1.3.3, KataGo is moving to ".bin.gz" which is a binary format that is a little smaller on disk and faster to load. ".bin.gz" files will only work with v1.3.3 and later, but v1.3.3 and later can still load all earlier formats.
 
 **See sections below, particularly "How To Use" and "Tuning for Performance" sections below for how to use KataGo and things you may want to do before actually using KataGo.**
 
@@ -93,7 +93,7 @@ KataGo currently officially supports both Windows and Linux, with [precompiled e
 ### Installing via HomeBrew (MacOS)
 The community also provides KataGo packages for [Homebrew](https://brew.sh) on MacOS - releases there may lag behind official releases slightly.
 
-Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep gtp) -model $(brew list --verbose katago | grep .bin.gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
+Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep gtp) -model $(brew list --verbose katago | grep .gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
 
 ### OpenCL vs CUDA
 KataGo has both an OpenCL version and a CUDA version.
@@ -112,23 +112,23 @@ KataGo supports a few commands. All of these commands require a "model" file tha
 
 To run a benchmark to test performance and help you choose how many threads to use for best performance. You can then edit your GTP config to use this many threads:
 
-   * `./katago benchmark -model <NEURALNET>.bin.gz -config <GTP_CONFIG>.cfg`
+   * `./katago benchmark -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg`
 
 To automatically tune threads and other settings for you based on an interactive prompt, and generate a GTP config for you:
 
-   * `./katago genconfig -model <NEURALNET>.bin.gz -output <PATH_TO_SAVE_GTP_CONFIG>.cfg`
+   * `./katago genconfig -model <NEURALNET>.gz -output <PATH_TO_SAVE_GTP_CONFIG>.cfg`
 
 To run a GTP engine using a downloaded KataGo neural net and GTP config:
 
-   * `./katago gtp -model <NEURALNET>.bin.gz -config <GTP_CONFIG>.cfg` - **This is the command you want to tell your GUI (Lizzie, Sabaki, GoGui, etc) to use to run KataGo** (with the actual paths to your neural net and config files substituted in, of course).
+   * `./katago gtp -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg` - **This is the command you want to tell your GUI (Lizzie, Sabaki, GoGui, etc) to use to run KataGo** (with the actual paths to your neural net and config files substituted in, of course).
 
 Run a JSON-based [analysis engine](docs/Analysis_Engine.md) that can do efficient batched evaluations for a backend Go service:
 
-   * `./katago analysis -model <NEURALNET>.bin.gz -config <ANALYSIS_CONFIG>.cfg -analysis-threads N`
+   * `./katago analysis -model <NEURALNET>.gz -config <ANALYSIS_CONFIG>.cfg -analysis-threads N`
 
 For OpenCL only: run or re-run the tuner to optimize for your particular GPU.
 
-   * `./katago tuner -model <NEURALNET>.bin.gz`
+   * `./katago tuner -model <NEURALNET>.gz`
 
 
 ### Tuning for Performance
@@ -138,11 +138,11 @@ The OpenCL version will also automatically run a tuner on the first startup to o
 
 To test KataGo's performance with different settings you're trying and also to help choose a number of threads:
 
-`./katago benchmark -model <NEURALNET>.bin.gz -config <GTP_CONFIG>.cfg`
+`./katago benchmark -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg`
 
 Or to do so automatically and generate a config appropriately:
 
-`./katago genconfig -model <NEURALNET>.bin.gz -output <PATH_TO_SAVE_GTP_CONFIG>.cfg`
+`./katago genconfig -model <NEURALNET>.gz -output <PATH_TO_SAVE_GTP_CONFIG>.cfg`
 
 ### Features for Developers
 
