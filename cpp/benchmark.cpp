@@ -482,7 +482,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
 
   if(bfs::exists(bfs::path(outputFile))) {
     bool b = false;
-    promptAndParseInput("File " + outputFile + " already exists, okay to overwrite it (y/n)?\n", [&](const string& line) { parseYN(line,b); });
+    promptAndParseInput("File " + outputFile + " already exists, okay to overwrite it with an entirely new config (y/n)?\n", [&](const string& line) { parseYN(line,b); });
     if(!b) {
       cout << "Please provide an alternate file path to output the generated config to via '-output NEWFILEPATH'" << endl;
       return 0;
