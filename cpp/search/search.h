@@ -86,7 +86,7 @@ struct SearchNode {
   int32_t virtualLosses;
 
   //--------------------------------------------------------------------------------
-  SearchNode(Search& search, SearchThread& thread, Loc prevMoveLoc);
+  SearchNode(Search& search, Player prevPla, Rand& rand, Loc prevMoveLoc);
   ~SearchNode();
 
   SearchNode(const SearchNode&) = delete;

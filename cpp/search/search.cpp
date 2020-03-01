@@ -80,14 +80,15 @@ double Search::getScoreStdev(double scoreMean, double scoreMeanSq) {
 
 //-----------------------------------------------------------------------------------------
 
-SearchNode::SearchNode(Search& search, SearchThread& thread, Loc moveLoc)
-  :lockIdx(),nextPla(thread.pla),prevMoveLoc(moveLoc),
+SearchNode::SearchNode(Search& search, Player prevPla, Rand& rand, Loc prevLoc)
+  :lockIdx(),
+   nextPla(getOpp(prevPla)),prevMoveLoc(prevLoc),
    nnOutput(),
    nnOutputAge(0),
    children(NULL),numChildren(0),childrenCapacity(0),
    stats(),virtualLosses(0)
 {
-  lockIdx = thread.rand.nextUInt(search.mutexPool->getNumMutexes());
+  lockIdx = rand.nextUInt(search.mutexPool->getNumMutexes());
 }
 SearchNode::~SearchNode() {
   if(children != NULL) {
@@ -619,7 +620,7 @@ void Search::beginSearch() {
   SearchThread dummyThread(-1, *this, NULL);
 
   if(rootNode == NULL) {
-    rootNode = new SearchNode(*this, dummyThread, Board::NULL_LOC);
+    rootNode = new SearchNode(*this, getOpp(rootPla), dummyThread.rand, Board::NULL_LOC);
   }
   else {
     //If the root node has any existing children, then prune things down if there are moves that should not be allowed at the root.
@@ -1837,34 +1838,23 @@ void Search::playoutDescend(
   //Allocate a new child node if necessary
   SearchNode* child;
   if(bestChildIdx == node.numChildren) {
-    assert(thread.history.isLegal(thread.board,moveLoc,thread.pla));
-    thread.history.makeBoardMoveAssumeLegal(thread.board,moveLoc,thread.pla,rootKoHashTable);
-    thread.pla = getOpp(thread.pla);
-
     node.numChildren++;
-    child = new SearchNode(*this,thread,moveLoc);
+    child = new SearchNode(*this,thread.pla,thread.rand,moveLoc);
     node.children[bestChildIdx] = child;
-
-    while(child->statsLock.test_and_set(std::memory_order_acquire));
-    child->virtualLosses += searchParams.numVirtualLossesPerThread;
-    child->statsLock.clear(std::memory_order_release);
-
-    lock.unlock();
   }
   else {
     child = node.children[bestChildIdx];
-
-    while(child->statsLock.test_and_set(std::memory_order_acquire));
-    child->virtualLosses += searchParams.numVirtualLossesPerThread;
-    child->statsLock.clear(std::memory_order_release);
-
-    //Unlock before making moves if the child already exists since we don't depend on it at this point
-    lock.unlock();
-
-    assert(thread.history.isLegal(thread.board,moveLoc,thread.pla));
-    thread.history.makeBoardMoveAssumeLegal(thread.board,moveLoc,thread.pla,rootKoHashTable);
-    thread.pla = getOpp(thread.pla);
   }
+
+  while(child->statsLock.test_and_set(std::memory_order_acquire));
+  child->virtualLosses += searchParams.numVirtualLossesPerThread;
+  child->statsLock.clear(std::memory_order_release);
+
+  //Unlock before making moves if the child already exists since we don't depend on it at this point
+  lock.unlock();
+
+  thread.history.makeBoardMoveAssumeLegal(thread.board,moveLoc,thread.pla,rootKoHashTable);
+  thread.pla = getOpp(thread.pla);
 
   //Recurse!
   playoutDescend(thread,*child,posesWithChildBuf,false,searchParams.numVirtualLossesPerThread);
