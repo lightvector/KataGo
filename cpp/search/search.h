@@ -91,13 +91,14 @@ struct SearchNode {
   std::atomic<int> state;
   static constexpr int STATE_UNEVALUATED = 0;
   static constexpr int STATE_EVALUATING = 1;
-  static constexpr int STATE_LEAF = 2;
-  static constexpr int STATE_EXPANDED0 = 3;
+  static constexpr int STATE_EXPANDED0 = 2;
+  static constexpr int STATE_GROWING1 = 3;
   static constexpr int STATE_EXPANDED1 = 4;
-  static constexpr int STATE_EXPANDED2 = 5;
+  static constexpr int STATE_GROWING2 = 5;
+  static constexpr int STATE_EXPANDED2 = 6;
 
   //During search, will only ever transition from NULL -> non-NULL.
-  //Guaranteed to be non-NULL once state >= STATE_LEAF.
+  //Guaranteed to be non-NULL once state >= STATE_EXPANDED0.
   //After this is non-NULL, might rarely change mid-search, but it is guaranteed that old values remain
   //valid to access for the duration of the search and will not be deallocated.
   std::atomic<std::shared_ptr<NNOutput>*> nnOutput;
@@ -105,12 +106,12 @@ struct SearchNode {
 
   //During search, each will only ever transition from NULL -> non-NULL.
   //We get progressive resizing of children array simply by moving on to a later array.
-  std::atomic<SearchChildPointer*> children0; //Guaranteed to be non-NULL once state >= STATE_EXPANDED0
-  std::atomic<SearchChildPointer*> children1; //Guaranteed to be non-NULL once state >= STATE_EXPANDED1
-  std::atomic<SearchChildPointer*> children2; //Guaranteed to be non-NULL once state >= STATE_EXPANDED2
+  SearchChildPointer* children0; //Guaranteed to be non-NULL once state >= STATE_EXPANDED0
+  SearchChildPointer* children1; //Guaranteed to be non-NULL once state >= STATE_EXPANDED1
+  SearchChildPointer* children2; //Guaranteed to be non-NULL once state >= STATE_EXPANDED2
 
-  static constexpr int CHILDREN0SIZE = 6;
-  static constexpr int CHILDREN1SIZE = 48;
+  static constexpr int CHILDREN0SIZE = 8;
+  static constexpr int CHILDREN1SIZE = 64;
   static constexpr int CHILDREN2SIZE = NNPos::MAX_NN_POLICY_SIZE;
 
   //Lightweight mutable---------------------------------------------------------------
@@ -146,11 +147,12 @@ struct SearchNode {
   void storeNNOutputForNewLeaf(std::shared_ptr<NNOutput>* newNNOutput);
 
   //Used within search to update state and allocate children arrays
-  void maybeExpandChildrenCapacityForNewChild(int& stateValue, int numChildrenFullPlusOne);
+  void initializeChildren();
+  bool maybeExpandChildrenCapacityForNewChild(int& stateValue, int numChildrenFullPlusOne);
 
 private:
   int getChildrenCapacity(int stateValue) const;
-  void tryExpandingChildrenCapacityAssumeFull(int& stateValue);
+  bool tryExpandingChildrenCapacityAssumeFull(int& stateValue);
 };
 
 //Per-thread state
@@ -367,6 +369,7 @@ struct Search {
   //Helpers-----------------------------------------------------------------------
 private:
   static constexpr double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
+  static constexpr double EVALUATING_SELECTION_VALUE_PENALTY = 1e20;
 
   double getResultUtility(double winValue, double noResultValue) const;
   double getResultUtilityFromNN(const NNOutput& nnOutput) const;

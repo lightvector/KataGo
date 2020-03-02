@@ -135,15 +135,17 @@ int SearchNode::iterateAndCountChildren() const {
 //Precondition: Assumes that we have actually checked the children array that stateValue suggests that
 //we should use, and every slot, and that every slot in it is full up to numChildrenFullPlusOne-1, and
 //that we have found a new legal child to add.
-//Postcondition: node state, stateValue, children arrays are all updated if needed so that they are large enough.
+//Postcondition:
+//Returns true: node state, stateValue, children arrays are all updated if needed so that they are large enough.
+//Returns false: failure since another thread is handling it.
 //Thread-safe.
-void SearchNode::maybeExpandChildrenCapacityForNewChild(int& stateValue, int numChildrenFullPlusOne) {
+bool SearchNode::maybeExpandChildrenCapacityForNewChild(int& stateValue, int numChildrenFullPlusOne) {
   int capacity = getChildrenCapacity(stateValue);
   if(capacity < numChildrenFullPlusOne) {
     assert(capacity == numChildrenFullPlusOne-1);
-    tryExpandingChildrenCapacityAssumeFull(stateValue);
+    return tryExpandingChildrenCapacityAssumeFull(stateValue);
   }
-  assert(getChildrenCapacity(stateValue) >= numChildrenFullPlusOne);
+  return true;
 }
 
 int SearchNode::getChildrenCapacity(int stateValue) const {
@@ -156,23 +158,24 @@ int SearchNode::getChildrenCapacity(int stateValue) const {
   return 0;
 }
 
+void SearchNode::initializeChildren() {
+  assert(children0 == NULL);
+  children0 = new SearchChildPointer[SearchNode::CHILDREN0SIZE];
+}
+
 //Precondition: Assumes that we have actually checked the childen array that stateValue suggests that
 //we should use, and that every slot in it is full.
-void SearchNode::tryExpandingChildrenCapacityAssumeFull(int& stateValue) {
-  if(stateValue < SearchNode::STATE_EXPANDED0) {
-    assert(stateValue == SearchNode::STATE_LEAF);
-    SearchChildPointer* children = new SearchChildPointer[SearchNode::CHILDREN0SIZE];
-    SearchChildPointer* expected = NULL;
-    bool suc = children0.compare_exchange_strong(expected,children,std::memory_order_acq_rel);
-    if(!suc)
-      delete children;
-    suc = state.compare_exchange_strong(stateValue,SearchNode::STATE_EXPANDED0,std::memory_order_acq_rel);
-    if(!suc) { assert(stateValue >= SearchNode::STATE_EXPANDED0); }
-    else { stateValue = SearchNode::STATE_EXPANDED0; }
-  }
-  else if(stateValue < SearchNode::STATE_EXPANDED1) {
+bool SearchNode::tryExpandingChildrenCapacityAssumeFull(int& stateValue) {
+  if(stateValue < SearchNode::STATE_EXPANDED1) {
+    if(stateValue == SearchNode::STATE_GROWING1)
+      return false;
+    assert(stateValue == SearchNode::STATE_EXPANDED0);
+    bool suc = state.compare_exchange_strong(stateValue,SearchNode::STATE_GROWING1,std::memory_order_acq_rel);
+    if(!suc) return false;
+    stateValue = SearchNode::STATE_GROWING1;
+
     SearchChildPointer* children = new SearchChildPointer[SearchNode::CHILDREN1SIZE];
-    SearchChildPointer* oldChildren = children0.load(std::memory_order_acquire);
+    SearchChildPointer* oldChildren = children0;
     for(int i = 0; i<SearchNode::CHILDREN0SIZE; i++) {
       //Loading relaxed is fine since by precondition, we've already observed that all of these
       //are non-null, so loading again it must be still true and we don't need any other synchronization.
@@ -183,18 +186,21 @@ void SearchNode::tryExpandingChildrenCapacityAssumeFull(int& stateValue) {
       //be released shortly and that will ensure consumers see these childs, with an acquire on the whole array.
       children[i].storeRelaxed(child);
     }
-    SearchChildPointer* expected = NULL;
-    bool suc = children1.compare_exchange_strong(expected,children,std::memory_order_acq_rel);
-    if(!suc) {
-      delete children;
-    }
-    suc = state.compare_exchange_strong(stateValue,SearchNode::STATE_EXPANDED1,std::memory_order_acq_rel);
-    if(!suc) { assert(stateValue >= SearchNode::STATE_EXPANDED1); }
-    else { stateValue = SearchNode::STATE_EXPANDED1; }
+    assert(children1 == NULL);
+    children1 = children;
+    state.store(SearchNode::STATE_EXPANDED1,std::memory_order_release);
+    stateValue = SearchNode::STATE_EXPANDED1;
   }
   else if(stateValue < SearchNode::STATE_EXPANDED2) {
+    if(stateValue == SearchNode::STATE_GROWING2)
+      return false;
+    assert(stateValue == SearchNode::STATE_EXPANDED1);
+    bool suc = state.compare_exchange_strong(stateValue,SearchNode::STATE_GROWING2,std::memory_order_acq_rel);
+    if(!suc) return false;
+    stateValue = SearchNode::STATE_GROWING2;
+
     SearchChildPointer* children = new SearchChildPointer[SearchNode::CHILDREN2SIZE];
-    SearchChildPointer* oldChildren = children1.load(std::memory_order_acquire);
+    SearchChildPointer* oldChildren = children1;
     for(int i = 0; i<SearchNode::CHILDREN1SIZE; i++) {
       //Loading relaxed is fine since by precondition, we've already observed that all of these
       //are non-null, so loading again it must be still true and we don't need any other synchronization.
@@ -205,29 +211,29 @@ void SearchNode::tryExpandingChildrenCapacityAssumeFull(int& stateValue) {
       //be released shortly and that will ensure consumers see these childs, with an acquire on the whole array.
       children[i].storeRelaxed(child);
     }
-    SearchChildPointer* expected = NULL;
-    bool suc = children2.compare_exchange_strong(expected,children,std::memory_order_acq_rel);
-    if(!suc) {
-      delete children;
-    }
-    suc = state.compare_exchange_strong(stateValue,SearchNode::STATE_EXPANDED2,std::memory_order_acq_rel);
-    if(!suc) { assert(stateValue >= SearchNode::STATE_EXPANDED2); }
-    else { stateValue = SearchNode::STATE_EXPANDED2; }
+    assert(children2 == NULL);
+    children2 = children;
+    state.store(SearchNode::STATE_EXPANDED2,std::memory_order_release);
+    stateValue = SearchNode::STATE_EXPANDED2;
   }
+  else {
+    ASSERT_UNREACHABLE;
+  }
+  return true;
 }
 
 const SearchChildPointer* SearchNode::getChildren(int stateValue, int& childrenCapacity) const {
   if(stateValue >= SearchNode::STATE_EXPANDED2) {
     childrenCapacity = SearchNode::CHILDREN2SIZE;
-    return children2.load(std::memory_order_acquire);
+    return children2;
   }
   if(stateValue >= SearchNode::STATE_EXPANDED1) {
     childrenCapacity = SearchNode::CHILDREN1SIZE;
-    return children1.load(std::memory_order_acquire);
+    return children1;
   }
   if(stateValue >= SearchNode::STATE_EXPANDED0) {
     childrenCapacity = SearchNode::CHILDREN0SIZE;
-    return children0.load(std::memory_order_acquire);
+    return children0;
   }
   childrenCapacity = 0;
   return NULL;
@@ -235,15 +241,15 @@ const SearchChildPointer* SearchNode::getChildren(int stateValue, int& childrenC
 SearchChildPointer* SearchNode::getChildren(int stateValue, int& childrenCapacity) {
   if(stateValue >= SearchNode::STATE_EXPANDED2) {
     childrenCapacity = SearchNode::CHILDREN2SIZE;
-    return children2.load(std::memory_order_acquire);
+    return children2;
   }
   if(stateValue >= SearchNode::STATE_EXPANDED1) {
     childrenCapacity = SearchNode::CHILDREN1SIZE;
-    return children1.load(std::memory_order_acquire);
+    return children1;
   }
   if(stateValue >= SearchNode::STATE_EXPANDED0) {
     childrenCapacity = SearchNode::CHILDREN0SIZE;
-    return children0.load(std::memory_order_acquire);
+    return children0;
   }
   childrenCapacity = 0;
   return NULL;
@@ -290,15 +296,12 @@ SearchNode::~SearchNode() {
     assert(child == NULL);
   }
 
-  children = children2.load();
-  if(children != NULL)
-    delete children;
-  children = children1.load();
-  if(children != NULL)
-    delete children;
-  children = children0.load();
-  if(children != NULL)
-    delete children;
+  if(children2 != NULL)
+    delete children2;
+  if(children1 != NULL)
+    delete children1;
+  if(children0 != NULL)
+    delete children0;
 
   if(nnOutput != NULL)
     delete nnOutput;
@@ -1746,9 +1749,14 @@ void Search::selectBestChildToDescend(
     bool isDuringSearch = true;
     double selectionValue = getExploreSelectionValue(node,policyProbs,child,totalChildVisits,fpuValue,parentUtility,isDuringSearch,&thread);
     if(selectionValue > maxSelectionValue) {
-      maxSelectionValue = selectionValue;
-      bestChildIdx = i;
-      bestChildMoveLoc = moveLoc;
+      if(child->state.load(std::memory_order_acquire) == SearchNode::STATE_EVALUATING) {
+        selectionValue -= EVALUATING_SELECTION_VALUE_PENALTY;
+      }
+      if(selectionValue > maxSelectionValue) {
+        maxSelectionValue = selectionValue;
+        bestChildIdx = i;
+        bestChildMoveLoc = moveLoc;
+      }
     }
 
     posesWithChildBuf[getPos(moveLoc)] = true;
@@ -2153,7 +2161,8 @@ bool Search::playoutDescend(
     else {
       //Perform the nn evaluation and finish!
       initNodeNNOutput(thread,node,isRoot,false,virtualLossesToSubtract,false);
-      node.state.store(SearchNode::STATE_LEAF, std::memory_order_release);
+      node.initializeChildren();
+      node.state.store(SearchNode::STATE_EXPANDED0, std::memory_order_release);
       return true;
     }
   }
@@ -2163,7 +2172,7 @@ bool Search::playoutDescend(
     return false;
   }
 
-  assert(nodeState >= SearchNode::STATE_LEAF);
+  assert(nodeState >= SearchNode::STATE_EXPANDED0);
   maybeRecomputeExistingNNOutput(thread,node,isRoot);
 
   //Find the best child to descend down
@@ -2207,7 +2216,13 @@ bool Search::playoutDescend(
     if(bestChildIdx >= numChildrenFound) {
       assert(bestChildIdx == numChildrenFound);
       assert(bestChildIdx < NNPos::MAX_NN_POLICY_SIZE);
-      node.maybeExpandChildrenCapacityForNewChild(nodeState, numChildrenFound+1);
+      bool suc = node.maybeExpandChildrenCapacityForNewChild(nodeState, numChildrenFound+1);
+      //Someone else is expanding. Loop again trying to select the best child to explore.
+      if(!suc) {
+        std::this_thread::yield();
+        nodeState = node.state.load(std::memory_order_acquire);
+        continue;
+      }
 
       int childrenCapacity;
       SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
@@ -2217,11 +2232,12 @@ bool Search::playoutDescend(
       child->virtualLosses += searchParams.numVirtualLossesPerThread;
       child->statsLock.clear(std::memory_order_release);
 
-      bool suc = children[bestChildIdx].storeIfNull(child);
+      suc = children[bestChildIdx].storeIfNull(child);
       if(!suc) {
         //Someone got there ahead of us. Delete and loop again trying to select the best child to explore.
         delete child;
         child = NULL;
+        std::this_thread::yield();
         nodeState = node.state.load(std::memory_order_acquire);
         continue;
       }
