@@ -45,7 +45,7 @@ struct ReportedSearchValues {
 
 struct NodeStats {
   int64_t visits;
-  double winValueSum;
+  double winLossValueSum;
   double noResultValueSum;
   double scoreMeanSum;
   double scoreMeanSqSum;
@@ -440,7 +440,7 @@ private:
   static constexpr double FUTILE_VISITS_PRUNE_VALUE = -1e40;
   static constexpr double EVALUATING_SELECTION_VALUE_PENALTY = 1e20;
 
-  double getResultUtility(double winValue, double noResultValue) const;
+  double getResultUtility(double winlossValue, double noResultValue) const;
   double getResultUtilityFromNN(const NNOutput& nnOutput) const;
   static double getScoreStdev(double scoreMean, double scoreMeanSq);
   double interpolateEarly(double halflife, double earlyValue, double value) const;
@@ -545,7 +545,7 @@ private:
 
   void addLeafValue(
     SearchNode& node,
-    double winValue,
+    double winLossValue,
     double noResultValue,
     double scoreMean,
     double scoreMeanSq,
