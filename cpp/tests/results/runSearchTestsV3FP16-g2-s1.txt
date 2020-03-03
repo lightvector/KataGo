@@ -483,7 +483,7 @@ G9  : T  61.04c W  59.79c S   1.25c ( +1.4 L  +1.4) LCB  132.84c P  1.92% WF   9
 D10 : T  65.27c W  63.92c S   1.35c ( +1.6 L  +1.6) LCB  102.48c P  2.57% WF   6.8 PSV       6 N       7  --  D10 D6 L5
 E9  : T  65.96c W  64.54c S   1.43c ( +1.6 L  +1.6) LCB  106.85c P  2.52% WF   5.8 PSV       6 N       6  --  E9 D6 L5
 pss : T  95.51c W  93.53c S   1.98c ( +2.3 L  +2.3) LCB  284.27c P  6.25% WF   2.4 PSV       3 N       3  --  pass pass
-D6  : T  68.08c W  66.40c S   1.68c ( +1.9 L  +1.9) LCB  103.00c P  2.05% WF   2.9 PSV       3 N       3  --  D6 C6
+D6  : T  68.08c W  66.40c S   1.68c ( +1.9 L  +1.9) LCB  102.99c P  2.05% WF   2.9 PSV       3 N       3  --  D6 C6
 A6  : T  85.01c W  83.18c S   1.83c ( +2.1 L  +2.1) LCB  260.00c P  0.99% WF   0.9 PSV       0 N       1  --  A6
 B8  : T  84.53c W  82.77c S   1.76c ( +2.0 L  +2.0) LCB  260.00c P  0.88% WF   0.9 PSV       0 N       1  --  B8
 B7  : T  86.52c W  84.62c S   1.90c ( +2.2 L  +2.2) LCB  260.00c P  0.88% WF   0.9 PSV       0 N       1  --  B7
