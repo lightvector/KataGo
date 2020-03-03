@@ -40,7 +40,7 @@ struct ReportedSearchValues {
 
 struct NodeStats {
   int64_t visits;
-  double winValueSum;
+  double winLossValueSum;
   double noResultValueSum;
   double scoreMeanSum;
   double scoreMeanSqSum;
@@ -172,7 +172,7 @@ struct SearchThread {
   std::vector<double> weightFactorBuf;
   std::vector<double> weightBuf;
   std::vector<double> weightSqBuf;
-  std::vector<double> winValuesBuf;
+  std::vector<double> winLossValuesBuf;
   std::vector<double> noResultValuesBuf;
   std::vector<double> scoreMeansBuf;
   std::vector<double> scoreMeanSqsBuf;
@@ -371,7 +371,7 @@ private:
   static constexpr double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
   static constexpr double EVALUATING_SELECTION_VALUE_PENALTY = 1e20;
 
-  double getResultUtility(double winValue, double noResultValue) const;
+  double getResultUtility(double winlossValue, double noResultValue) const;
   double getResultUtilityFromNN(const NNOutput& nnOutput) const;
   static double getScoreStdev(double scoreMean, double scoreMeanSq);
   double interpolateEarly(double halflife, double earlyValue, double value) const;
@@ -456,7 +456,7 @@ private:
     bool isRoot
   ) const;
 
-  void addLeafValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, double lead, int32_t virtualLossesToSubtract);
+  void addLeafValue(SearchNode& node, double winlossValue, double noResultValue, double scoreMean, double scoreMeanSq, double lead, int32_t virtualLossesToSubtract);
 
   void maybeRecomputeExistingNNOutput(
     SearchThread& thread, SearchNode& node, bool isRoot

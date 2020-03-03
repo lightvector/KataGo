@@ -301,7 +301,7 @@ bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values)
     return false;
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
-  double winValueSum = node.stats.winValueSum;
+  double winLossValueSum = node.stats.winLossValueSum;
   double noResultValueSum = node.stats.noResultValueSum;
   double scoreMeanSum = node.stats.scoreMeanSum;
   double scoreMeanSqSum = node.stats.scoreMeanSqSum;
@@ -311,8 +311,7 @@ bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values)
 
   assert(weightSum > 0.0);
 
-  values.winValue = winValueSum / weightSum;
-  values.lossValue = (weightSum - winValueSum - noResultValueSum) / weightSum;
+  values.winLossValue = winLossValueSum / weightSum;
   values.noResultValue = noResultValueSum / weightSum;
   double scoreMean = scoreMeanSum / weightSum;
   double scoreMeanSq = scoreMeanSqSum / weightSum;
@@ -323,22 +322,20 @@ bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values)
   values.expectedScoreStdev = scoreStdev;
   values.lead = leadSum / weightSum;
 
-  //Perform a little normalization - due to tiny floating point errors, winValue and lossValue could be outside [0,1].
-  //(particularly lossValue, as it was produced by subtractions from weightSum that could have lost precision).
-  if(values.winValue < 0.0) values.winValue = 0.0;
-  if(values.lossValue < 0.0) values.lossValue = 0.0;
+  //Clamp. Due to tiny floating point errors, these could be outside range.
+  if(values.winLossValue < -1.0) values.winLossValue = -1.0;
+  if(values.winLossValue > 1.0) values.winLossValue = 1.0;
   if(values.noResultValue < 0.0) values.noResultValue = 0.0;
-  double sum = values.winValue + values.lossValue + values.noResultValue;
-  assert(sum > 0.9 && sum < 1.1); //If it's wrong by more than this, we have a bigger bug somewhere
-  values.winValue /= sum;
-  values.lossValue /= sum;
-  values.noResultValue /= sum;
+  if(values.noResultValue > 1.0-abs(values.winLossValue)) values.noResultValue = 1.0-abs(values.winLossValue);
 
-  double winLossValue = values.winValue - values.lossValue;
-  assert(winLossValue > -1.01 && winLossValue < 1.01); //Sanity check, but allow generously for float imprecision
-  if(winLossValue > 1.0) winLossValue = 1.0;
-  if(winLossValue < -1.0) winLossValue = -1.0;
-  values.winLossValue = winLossValue;
+  values.winValue = 0.5 * (values.winLossValue + (1.0 - values.noResultValue));
+  values.lossValue = 0.5 * (-values.winLossValue + (1.0 - values.noResultValue));
+
+  //Handle float imprecision
+  if(values.winValue < 0.0) values.winValue = 0.0;
+  if(values.winValue > 1.0) values.winValue = 1.0;
+  if(values.lossValue < 0.0) values.lossValue = 0.0;
+  if(values.lossValue > 1.0) values.lossValue = 1.0;
 
   return true;
 }
@@ -671,7 +668,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
   double parentScoreMean, double parentScoreStdev, double parentLead, int maxPVDepth
 ) const {
   int64_t numVisits = 0;
-  double winValueSum = 0.0;
+  double winLossValueSum = 0.0;
   double noResultValueSum = 0.0;
   double scoreMeanSum = 0.0;
   double scoreMeanSqSum = 0.0;
@@ -683,7 +680,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
   if(child != NULL) {
     while(child->statsLock.test_and_set(std::memory_order_acquire));
     numVisits = child->stats.visits;
-    winValueSum = child->stats.winValueSum;
+    winLossValueSum = child->stats.winLossValueSum;
     noResultValueSum = child->stats.noResultValueSum;
     scoreMeanSum = child->stats.scoreMeanSum;
     scoreMeanSqSum = child->stats.scoreMeanSqSum;
@@ -708,17 +705,16 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     data.ess = 0.0;
   }
   else {
-    double winValue = winValueSum / weightSum;
-    double lossValue = (weightSum - winValueSum - noResultValueSum) / weightSum;
+    double winLossValue = winLossValueSum / weightSum;
     double noResultValue = noResultValueSum / weightSum;
     double scoreMean = scoreMeanSum / weightSum;
     double scoreMeanSq = scoreMeanSqSum / weightSum;
     double lead = leadSum / weightSum;
 
     data.utility = utilitySum / weightSum;
-    data.resultUtility = getResultUtility(winValue, noResultValue);
+    data.resultUtility = getResultUtility(winLossValue, noResultValue);
     data.scoreUtility = data.utility - data.resultUtility;
-    data.winLossValue = winValue - lossValue;
+    data.winLossValue = winLossValue;
     data.scoreMean = scoreMean;
     data.scoreStdev = getScoreStdev(scoreMean,scoreMeanSq);
     data.lead = lead;
@@ -805,8 +801,7 @@ void Search::getAnalysisData(
   double parentLead;
   {
     while(node.statsLock.test_and_set(std::memory_order_acquire));
-    double winValueSum = node.stats.winValueSum;
-    double noResultValueSum = node.stats.noResultValueSum;
+    double winLossValueSum = node.stats.winLossValueSum;
     double scoreMeanSum = node.stats.scoreMeanSum;
     double scoreMeanSqSum = node.stats.scoreMeanSqSum;
     double leadSum = node.stats.leadSum;
@@ -814,10 +809,7 @@ void Search::getAnalysisData(
     node.statsLock.clear(std::memory_order_release);
     assert(weightSum > 0.0);
 
-    double winValue = winValueSum / weightSum;
-    double lossValue = (weightSum - winValueSum - noResultValueSum) / weightSum;
-
-    parentWinLossValue = winValue - lossValue;
+    parentWinLossValue = winLossValueSum / weightSum;
     parentScoreMean = scoreMeanSum / weightSum;
     double scoreMeanSq = scoreMeanSqSum / weightSum;
     parentScoreStdev = getScoreStdev(parentScoreMean,scoreMeanSq);
