@@ -19,17 +19,19 @@ ReportedSearchValues::~ReportedSearchValues()
 {}
 
 NodeStats::NodeStats()
-  :visits(0),winLossValueSum(0.0),noResultValueSum(0.0),scoreMeanSum(0.0),scoreMeanSqSum(0.0),leadSum(0.0),utilitySum(0.0),utilitySqSum(0.0),weightSum(0.0),weightSqSum(0.0)
+  :visits(0),
+   winLossValueSum(0.0),
+   noResultValueSum(0.0),
+   scoreMeanSum(0.0),
+   scoreMeanSqSum(0.0),
+   leadSum(0.0),
+   utilitySum(0.0),
+   utilitySqSum(0.0),
+   weightSum(0.0),
+   weightSqSum(0.0)
 {}
 NodeStats::~NodeStats()
 {}
-
-double NodeStats::getResultUtilitySum(const SearchParams& searchParams) const {
-  return (
-    winLossValueSum * searchParams.winLossUtilityFactor +
-    noResultValueSum * searchParams.noResultUtilityForWhite
-  );
-}
 
 double Search::getResultUtility(double winLossValue, double noResultValue) const {
   return (
@@ -941,9 +943,7 @@ void Search::beginSearch() {
           const SearchNode* child = children[i].getIfAllocated();
           if(child == NULL)
             break;
-          while(child->statsLock.test_and_set(std::memory_order_acquire));
-          int64_t childVisits = child->stats.visits;
-          child->statsLock.clear(std::memory_order_release);
+          int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
           newNumVisits += childVisits;
         }
         //For the node's own visit itself
@@ -951,9 +951,9 @@ void Search::beginSearch() {
 
         //Set the visits in place
         while(node.statsLock.test_and_set(std::memory_order_acquire));
-        node.stats.visits = newNumVisits;
+        node.stats.visits.store(newNumVisits,std::memory_order_release);
         node.statsLock.clear(std::memory_order_release);
-
+ 
         //Update all other stats
         recomputeNodeStats(node, dummyThread, 0, 0, true);
       }
@@ -990,8 +990,6 @@ void Search::recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, b
     assert(child == NULL);
   }
 
-
-
   //If this node has children, it MUST also have an nnOutput.
   if(foundAnyChildren) {
     NNOutput* nnOutput = node.getNNOutput();
@@ -1003,13 +1001,12 @@ void Search::recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, b
   //Again, this would be a little wrong if this function were running concurrently with anything else in the
   //case that new children were added in the meantime. Although maybe it would be okay.
   if(!foundAnyChildren) {
-    while(node.statsLock.test_and_set(std::memory_order_acquire));
-    double resultUtilitySum = node.stats.getResultUtilitySum(searchParams);
-    double scoreMeanSum = node.stats.scoreMeanSum;
-    double scoreMeanSqSum = node.stats.scoreMeanSqSum;
-    double weightSum = node.stats.weightSum;
-    int64_t numVisits = node.stats.visits;
-    node.statsLock.clear(std::memory_order_release);
+    int64_t numVisits = node.stats.visits.load(std::memory_order_acquire);
+    double winLossValueSum = node.stats.winLossValueSum.load(std::memory_order_acquire);
+    double noResultValueSum = node.stats.noResultValueSum.load(std::memory_order_acquire);
+    double scoreMeanSum = node.stats.scoreMeanSum.load(std::memory_order_acquire);
+    double scoreMeanSqSum = node.stats.scoreMeanSqSum.load(std::memory_order_acquire);
+    double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
 
     //It's possible that this node has 0 weight in the case where it's the root node
     //and has 0 visits because we began a search and then stopped it before any playouts happened.
@@ -1019,15 +1016,15 @@ void Search::recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, b
       assert(isRoot);
     }
     else {
+      double resultUtility = getResultUtility(winLossValueSum / weightSum, noResultValueSum / weightSum);
       double scoreUtility = getScoreUtility(scoreMeanSum, scoreMeanSqSum, weightSum);
-
-      double newUtility = resultUtilitySum / weightSum + scoreUtility;
+      double newUtility = resultUtility + scoreUtility;
       double newUtilitySum = newUtility * weightSum;
       double newUtilitySqSum = newUtility * newUtility * weightSum;
 
       while(node.statsLock.test_and_set(std::memory_order_acquire));
-      node.stats.utilitySum = newUtilitySum;
-      node.stats.utilitySqSum = newUtilitySqSum;
+      node.stats.utilitySum.store(newUtilitySum,std::memory_order_release);
+      node.stats.utilitySqSum.store(newUtilitySqSum,std::memory_order_release);
       node.statsLock.clear(std::memory_order_release);
     }
   }
@@ -1058,11 +1055,9 @@ void Search::computeRootValues() {
     double expectedScore = 0.0;
     if(rootNode != NULL) {
       const SearchNode& node = *rootNode;
-      while(node.statsLock.test_and_set(std::memory_order_acquire));
-      double scoreMeanSum = node.stats.scoreMeanSum;
-      double weightSum = node.stats.weightSum;
-      int64_t numVisits = node.stats.visits;
-      node.statsLock.clear(std::memory_order_release);
+      int64_t numVisits = node.stats.visits.load(std::memory_order_acquire);
+      double scoreMeanSum = node.stats.scoreMeanSum.load(std::memory_order_acquire);
+      double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
       if(numVisits > 0 && weightSum > 0) {
         foundExpectedScoreFromTree = true;
         expectedScore = scoreMeanSum / weightSum;
@@ -1108,9 +1103,7 @@ void Search::computeRootValues() {
 int64_t Search::getRootVisits() const {
   if(rootNode == NULL)
     return 0;
-  while(rootNode->statsLock.test_and_set(std::memory_order_acquire));
-  int64_t n = rootNode->stats.visits;
-  rootNode->statsLock.clear(std::memory_order_release);
+  int64_t n = rootNode->stats.visits.load(std::memory_order_acquire);
   return n;
 }
 
@@ -1568,22 +1561,21 @@ double Search::getExploreSelectionValue(
   int movePos = getPos(moveLoc);
   float nnPolicyProb = parentPolicyProbs[movePos];
 
-  while(child->statsLock.test_and_set(std::memory_order_acquire));
-  int64_t childVisits = child->stats.visits;
-  double utilitySum = child->stats.utilitySum;
-  double scoreMeanSum = child->stats.scoreMeanSum;
-  double scoreMeanSqSum = child->stats.scoreMeanSqSum;
-  double weightSum = child->stats.weightSum;
-  int32_t childVirtualLosses = child->virtualLosses;
-  child->statsLock.clear(std::memory_order_release);
+  int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
+  double scoreMeanSum = child->stats.scoreMeanSum.load(std::memory_order_acquire);
+  double scoreMeanSqSum = child->stats.scoreMeanSqSum.load(std::memory_order_acquire);
+  double utilitySum = child->stats.utilitySum.load(std::memory_order_acquire);
+  double weightSum = child->stats.weightSum.load(std::memory_order_acquire);
+  int32_t childVirtualLosses = child->virtualLosses.load(std::memory_order_acquire);
 
   //It's possible that childVisits is actually 0 here with multithreading because we're visiting this node while a child has
-  //been expanded but its thread not yet finished its first visit
+  //been expanded but its thread not yet finished its first visit.
+  //It's also possible that we observe weightSum <= 0 even though childVisits >= due to multithreading, the two could
+  //be out of sync briefly since they are separate atomics.
   double childUtility;
-  if(childVisits <= 0)
+  if(childVisits <= 0 || weightSum <= 0.0)
     childUtility = fpuValue;
   else {
-    assert(weightSum > 0.0);
     childUtility = utilitySum / weightSum;
 
     //Tiny adjustment for passing
@@ -1634,18 +1626,16 @@ int64_t Search::getReducedPlaySelectionVisits(
   int movePos = getPos(moveLoc);
   float nnPolicyProb = parentPolicyProbs[movePos];
 
-  while(child->statsLock.test_and_set(std::memory_order_acquire));
-  int64_t childVisits = child->stats.visits;
-  double utilitySum = child->stats.utilitySum;
-  double scoreMeanSum = child->stats.scoreMeanSum;
-  double scoreMeanSqSum = child->stats.scoreMeanSqSum;
-  double weightSum = child->stats.weightSum;
-  child->statsLock.clear(std::memory_order_release);
+  int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
+  double scoreMeanSum = child->stats.scoreMeanSum.load(std::memory_order_acquire);
+  double scoreMeanSqSum = child->stats.scoreMeanSqSum.load(std::memory_order_acquire);
+  double utilitySum = child->stats.utilitySum.load(std::memory_order_acquire);
+  double weightSum = child->stats.weightSum.load(std::memory_order_acquire);
 
   //Child visits may be 0 if this function is called in a multithreaded context, such as during live analysis
-  if(childVisits <= 0)
+  //Weight sum may also be 0 if it's out of sync.
+  if(childVisits <= 0 || weightSum <= 0.0)
     return 0;
-  assert(weightSum > 0.0);
 
   //Tiny adjustment for passing
   double endingScoreBonus = getEndingWhiteScoreBonus(parent,child);
@@ -1663,10 +1653,8 @@ int64_t Search::getReducedPlaySelectionVisits(
 
 double Search::getFpuValueForChildrenAssumeVisited(const SearchNode& node, Player pla, bool isRoot, double policyProbMassVisited, double& parentUtility) const {
   if(searchParams.fpuUseParentAverage) {
-    while(node.statsLock.test_and_set(std::memory_order_acquire));
-    double utilitySum = node.stats.utilitySum;
-    double weightSum = node.stats.weightSum;
-    node.statsLock.clear(std::memory_order_release);
+    double utilitySum = node.stats.utilitySum.load(std::memory_order_acquire);
+    double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
 
     assert(weightSum > 0.0);
     parentUtility = utilitySum / weightSum;
@@ -1720,10 +1708,7 @@ void Search::selectBestChildToDescend(
     float nnPolicyProb = policyProbs[movePos];
     policyProbMassVisited += nnPolicyProb;
 
-    while(child->statsLock.test_and_set(std::memory_order_acquire));
-    int64_t childVisits = child->stats.visits;
-    child->statsLock.clear(std::memory_order_release);
-
+    int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
     totalChildVisits += childVisits;
   }
   //Probability mass should not sum to more than 1, giving a generous allowance
@@ -1834,22 +1819,21 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     if(child == NULL)
       break;
 
-    while(child->statsLock.test_and_set(std::memory_order_acquire));
-    int64_t childVisits = child->stats.visits;
-    double winLossValueSum = child->stats.winLossValueSum;
-    double noResultValueSum = child->stats.noResultValueSum;
-    double scoreMeanSum = child->stats.scoreMeanSum;
-    double scoreMeanSqSum = child->stats.scoreMeanSqSum;
-    double leadSum = child->stats.leadSum;
-    double weightSum = child->stats.weightSum;
-    double weightSqSum = child->stats.weightSqSum;
-    double utilitySum = child->stats.utilitySum;
-    double utilitySqSum = child->stats.utilitySqSum;
-    child->statsLock.clear(std::memory_order_release);
+    //TODO think about whether we can ever be stuck with permanently stale stats with the
+    //last writer out
+    int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
+    double winLossValueSum = child->stats.winLossValueSum.load(std::memory_order_acquire);
+    double noResultValueSum = child->stats.noResultValueSum.load(std::memory_order_acquire);
+    double scoreMeanSum = child->stats.scoreMeanSum.load(std::memory_order_acquire);
+    double scoreMeanSqSum = child->stats.scoreMeanSqSum.load(std::memory_order_acquire);
+    double leadSum = child->stats.leadSum.load(std::memory_order_acquire);
+    double utilitySum = child->stats.utilitySum.load(std::memory_order_acquire);
+    double utilitySqSum = child->stats.utilitySqSum.load(std::memory_order_acquire);
+    double weightSum = child->stats.weightSum.load(std::memory_order_acquire);
+    double weightSqSum = child->stats.weightSqSum.load(std::memory_order_acquire);
 
-    if(childVisits <= 0)
+    if(childVisits <= 0 || weightSum <= 0.0)
       continue;
-    assert(weightSum > 0.0);
 
     double childUtility = utilitySum / weightSum;
 
@@ -1954,21 +1938,21 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   }
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
-  node.stats.visits += numVisitsToAdd;
+  node.stats.visits.fetch_add(numVisitsToAdd,std::memory_order_release);
   //It's possible that these values are a bit wrong if there's a race and two threads each try to update this
   //each of them only having some of the latest updates for all the children. We just accept this and let the
   //error persist, it will get fixed the next time a visit comes through here and the values will at least
   //be consistent with each other within this node, since statsLock at least ensures these three are set atomically.
-  node.stats.winLossValueSum = winLossValueSum;
-  node.stats.noResultValueSum = noResultValueSum;
-  node.stats.scoreMeanSum = scoreMeanSum;
-  node.stats.scoreMeanSqSum = scoreMeanSqSum;
-  node.stats.leadSum = leadSum;
-  node.stats.utilitySum = utilitySum;
-  node.stats.utilitySqSum = utilitySqSum;
-  node.stats.weightSum = weightSum;
-  node.stats.weightSqSum = weightSqSum;
-  node.virtualLosses -= virtualLossesToSubtract;
+  node.stats.winLossValueSum.store(winLossValueSum,std::memory_order_release);
+  node.stats.noResultValueSum.store(noResultValueSum,std::memory_order_release);
+  node.stats.scoreMeanSum.store(scoreMeanSum,std::memory_order_release);
+  node.stats.scoreMeanSqSum.store(scoreMeanSqSum,std::memory_order_release);
+  node.stats.leadSum.store(leadSum,std::memory_order_release);
+  node.stats.utilitySum.store(utilitySum,std::memory_order_release);
+  node.stats.utilitySqSum.store(utilitySqSum,std::memory_order_release);
+  node.stats.weightSum.store(weightSum,std::memory_order_release);
+  node.stats.weightSqSum.store(weightSqSum,std::memory_order_release);
+  node.virtualLosses.fetch_add(-virtualLossesToSubtract,std::memory_order_release);
   node.statsLock.clear(std::memory_order_release);
 }
 
@@ -1984,23 +1968,25 @@ bool Search::runSinglePlayout(SearchThread& thread) {
   return finishedPlayout;
 }
 
-void Search::addLeafValue(SearchNode& node, double winLossValue, double noResultValue, double scoreMean, double scoreMeanSq, double lead, int32_t virtualLossesToSubtract) {
+void Search::accumVisitsAndSetLeafValue(SearchNode& node, double winLossValue, double noResultValue, double scoreMean, double scoreMeanSq, double lead, int32_t virtualLossesToSubtract) {
   double utility =
     getResultUtility(winLossValue, noResultValue)
     + getScoreUtility(scoreMean, scoreMeanSq, 1.0);
+  double utilitySq = utility * utility;
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
-  node.stats.visits += 1;
-  node.stats.winLossValueSum += winLossValue;
-  node.stats.noResultValueSum += noResultValue;
-  node.stats.scoreMeanSum += scoreMean;
-  node.stats.scoreMeanSqSum += scoreMeanSq;
-  node.stats.leadSum += lead;
-  node.stats.utilitySum += utility;
-  node.stats.utilitySqSum += utility * utility;
-  node.stats.weightSum += 1.0;
-  node.stats.weightSqSum += 1.0;
-  node.virtualLosses -= virtualLossesToSubtract;
+  int64_t oldNumVisits = node.stats.visits.fetch_add(1,std::memory_order_release);
+  int newNumVisits = oldNumVisits + 1;
+  node.stats.winLossValueSum.store(winLossValue);
+  node.stats.noResultValueSum.store(noResultValue,std::memory_order_release);
+  node.stats.scoreMeanSum.store(scoreMean,std::memory_order_release);
+  node.stats.scoreMeanSqSum.store(scoreMeanSq,std::memory_order_release);
+  node.stats.leadSum.store(lead,std::memory_order_release);
+  node.stats.utilitySum.store(utility,std::memory_order_release);
+  node.stats.utilitySqSum.store(utilitySq,std::memory_order_release);
+  node.stats.weightSum.store(1.0,std::memory_order_release);
+  node.stats.weightSqSum.store(1.0 / (double)newNumVisits,std::memory_order_release);
+  node.virtualLosses.fetch_add(-virtualLossesToSubtract,std::memory_order_release);
   node.statsLock.clear(std::memory_order_release);
 }
 
@@ -2112,7 +2098,7 @@ void Search::initNodeNNOutput(
   double scoreMeanSq = (double)nnOutput->whiteScoreMeanSq;
   double lead = (double)nnOutput->whiteLead;
 
-  addLeafValue(node,winProb-lossProb,noResultProb,scoreMean,scoreMeanSq,lead,virtualLossesToSubtract);
+  accumVisitsAndSetLeafValue(node,winProb-lossProb,noResultProb,scoreMean,scoreMeanSq,lead,virtualLossesToSubtract);
 }
 
 bool Search::playoutDescend(
@@ -2138,7 +2124,7 @@ bool Search::playoutDescend(
       double scoreMean = 0.0;
       double scoreMeanSq = 0.0;
       double lead = 0.0;
-      addLeafValue(node, winLossValue, noResultValue, scoreMean, scoreMeanSq, lead, virtualLossesToSubtract);
+      accumVisitsAndSetLeafValue(node, winLossValue, noResultValue, scoreMean, scoreMeanSq, lead, virtualLossesToSubtract);
       return true;
     }
     else {
@@ -2147,7 +2133,7 @@ bool Search::playoutDescend(
       double scoreMean = ScoreValue::whiteScoreDrawAdjust(thread.history.finalWhiteMinusBlackScore,searchParams.drawEquivalentWinsForWhite,thread.history);
       double scoreMeanSq = ScoreValue::whiteScoreMeanSqOfScoreGridded(thread.history.finalWhiteMinusBlackScore,searchParams.drawEquivalentWinsForWhite);
       double lead = scoreMean;
-      addLeafValue(node, winLossValue, noResultValue, scoreMean, scoreMeanSq, lead, virtualLossesToSubtract);
+      accumVisitsAndSetLeafValue(node, winLossValue, noResultValue, scoreMean, scoreMeanSq, lead, virtualLossesToSubtract);
       return true;
     }
   }
@@ -2230,9 +2216,7 @@ bool Search::playoutDescend(
       SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
       assert(childrenCapacity > bestChildIdx);
       child = new SearchNode(thread.pla,bestChildMoveLoc);
-      while(child->statsLock.test_and_set(std::memory_order_acquire));
-      child->virtualLosses += searchParams.numVirtualLossesPerThread;
-      child->statsLock.clear(std::memory_order_release);
+      child->virtualLosses.fetch_add(searchParams.numVirtualLossesPerThread,std::memory_order_release);
 
       suc = children[bestChildIdx].storeIfNull(child);
       if(!suc) {
@@ -2251,9 +2235,7 @@ bool Search::playoutDescend(
       child = children[bestChildIdx].getIfAllocated();
       assert(child != NULL);
 
-      while(child->statsLock.test_and_set(std::memory_order_acquire));
-      child->virtualLosses += searchParams.numVirtualLossesPerThread;
-      child->statsLock.clear(std::memory_order_release);
+      child->virtualLosses.fetch_add(searchParams.numVirtualLossesPerThread,std::memory_order_release);
     }
 
     break;
@@ -2271,9 +2253,7 @@ bool Search::playoutDescend(
     updateStatsAfterPlayout(node,thread,virtualLossesToSubtract,isRoot);
   }
   else {
-    while(node.statsLock.test_and_set(std::memory_order_acquire));
-    node.virtualLosses -= virtualLossesToSubtract;
-    node.statsLock.clear(std::memory_order_release);
+    node.virtualLosses.fetch_add(-virtualLossesToSubtract,std::memory_order_release);
   }
   return finishedPlayout;
 }

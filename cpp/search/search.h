@@ -39,16 +39,16 @@ struct ReportedSearchValues {
 };
 
 struct NodeStats {
-  int64_t visits;
-  double winLossValueSum;
-  double noResultValueSum;
-  double scoreMeanSum;
-  double scoreMeanSqSum;
-  double leadSum;
-  double utilitySum;
-  double utilitySqSum;
-  double weightSum;
-  double weightSqSum;
+  std::atomic<int64_t> visits;
+  std::atomic<double> winLossValueSum;
+  std::atomic<double> noResultValueSum;
+  std::atomic<double> scoreMeanSum;
+  std::atomic<double> scoreMeanSqSum;
+  std::atomic<double> leadSum;
+  std::atomic<double> utilitySum;
+  std::atomic<double> utilitySqSum;
+  std::atomic<double> weightSum;
+  std::atomic<double> weightSqSum;
 
   NodeStats();
   ~NodeStats();
@@ -57,8 +57,6 @@ struct NodeStats {
   NodeStats& operator=(const NodeStats&) = delete;
   NodeStats(NodeStats&& other) = delete;
   NodeStats& operator=(NodeStats&& other) = delete;
-
-  double getResultUtilitySum(const SearchParams& searchParams) const;
 };
 
 struct SearchChildPointer {
@@ -115,10 +113,10 @@ struct SearchNode {
   static constexpr int CHILDREN2SIZE = NNPos::MAX_NN_POLICY_SIZE;
 
   //Lightweight mutable---------------------------------------------------------------
-  //Protected under statsLock
+  //Protected under statsLock for writing
   NodeStats stats;
-  //Also protected under statsLock
-  int32_t virtualLosses;
+  
+  std::atomic<int32_t> virtualLosses;
 
   //--------------------------------------------------------------------------------
   SearchNode(Player prevPla, Loc prevMoveLoc);
@@ -456,7 +454,11 @@ private:
     bool isRoot
   ) const;
 
-  void addLeafValue(SearchNode& node, double winlossValue, double noResultValue, double scoreMean, double scoreMeanSq, double lead, int32_t virtualLossesToSubtract);
+  void accumVisitsAndSetLeafValue(
+    SearchNode& node,
+    double winlossValue, double noResultValue, double scoreMean, double scoreMeanSq, double lead,
+    int32_t virtualLossesToSubtract
+  );
 
   void maybeRecomputeExistingNNOutput(
     SearchThread& thread, SearchNode& node, bool isRoot
