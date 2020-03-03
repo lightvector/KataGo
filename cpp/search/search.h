@@ -181,7 +181,9 @@ struct Search {
   Search(const Search&) = delete;
   Search& operator=(const Search&) = delete;
 
-  //Outside-of-search functions-------------------------------------------
+  //TOP-LEVEL OUTSIDE-OF-SEARCH CONTROL -----------------------------------------------------------
+  //Functions for setting the board position or other parameters, clearing, and running search.
+  //None of these top-level functions are thread-safe. They should only ever be called sequentially.
 
   const Board& getRootBoard() const;
   const BoardHistory& getRootHist() const;
@@ -209,6 +211,32 @@ struct Search {
   bool isLegalTolerant(Loc moveLoc, Player movePla) const;
   bool isLegalStrict(Loc moveLoc, Player movePla) const;
 
+  //Run an entire search from start to finish
+  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger);
+  void runWholeSearch(Player movePla, Logger& logger);
+  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow);
+
+  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, bool pondering);
+  void runWholeSearch(Player movePla, Logger& logger, bool pondering);
+  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering);
+
+  void runWholeSearch(
+    Logger& logger,
+    std::atomic<bool>& shouldStopNow,
+    std::atomic<bool>& searchBegun, //will be set to true once search has begun and tree inspection is safe
+    bool pondering,
+    const TimeControls& tc,
+    double searchFactor
+  );
+
+  //SEARCH RESULTS AND TREE INSPECTION -------------------------------------------------------------
+  //All of these functions are safe to call in multithreadedly WHILE the search is ongoing, to print out
+  //intermediate states of the search, so long as the search has initialized itself and actually begun.
+  //In particular, they are allowed to run concurrently with runWholeSearch, so long as searchBegun has
+  //been flagged true, continuing up until the next call to any other top-level control function above or
+  //the next runWholeSearch call.
+  //They are NOT safe to call in parallel with any of the other top level-functions besides the search.
+
   //Choose a move at the root of the tree, with randomization, if possible.
   //Might return Board::NULL_LOC if there is no root.
   Loc getChosenMoveLoc();
@@ -229,37 +257,18 @@ struct Search {
   static uint32_t chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature);
   static void addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs);
 
-  //Get the values recorded for the root node
+  //Get the values recorded for the root node, if possible.
   bool getRootValues(ReportedSearchValues& values) const;
-  ReportedSearchValues getRootValuesAssertSuccess() const;
+  //Same, same, but throws an exception if no values could be obtained
+  ReportedSearchValues getRootValuesRequireSuccess() const;
   //Same, but works on a node within the search, not just the root
   bool getNodeValues(const SearchNode& node, ReportedSearchValues& values) const;
 
-  //Get the combined utility recorded for the root node
-  double getRootUtility() const;
   //Get the number of visits recorded for the root node
   int64_t getRootVisits() const;
+  //Get the surprisingness (kl-divergence) of the search result given the policy prior.
+  double getPolicySurprise() const;
 
-  //Run an entire search from start to finish
-  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger);
-  void runWholeSearch(Player movePla, Logger& logger);
-  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow);
-
-  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, bool pondering);
-  void runWholeSearch(Player movePla, Logger& logger, bool pondering);
-  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering);
-
-  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering, const TimeControls& tc, double searchFactor);
-
-  //Manual playout-by-playout interface------------------------------------------------
-
-  //Call once at the start of each search
-  void beginSearch();
-
-  //Within-search functions, threadsafe-------------------------------------------
-  void runSinglePlayout(SearchThread& thread);
-
-  //Tree-inspection functions---------------------------------------------------------------
   void printPV(std::ostream& out, const SearchNode* node, int maxDepth) const;
   void printPVForMove(std::ostream& out, const SearchNode* node, Loc move, int maxDepth) const;
   void printTree(std::ostream& out, const SearchNode* node, PrintTreeOptions options, Player perspective) const;
@@ -267,16 +276,14 @@ struct Search {
   void printRootOwnershipMap(std::ostream& out, Player perspective) const;
   void printRootEndingScoreValueBonus(std::ostream& out) const;
 
-  //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
-  //or changing parameters or clearing search.
+  //Get detailed analysis data, designed for lz-analyze and kata-analyze commands.
   void getAnalysisData(std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
   void getAnalysisData(const SearchNode& node, std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
+
   //Append the PV from node n onward (not including node n's move)
   void appendPV(std::vector<Loc>& buf, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues, const SearchNode* n, int maxDepth) const;
   //Append the PV from node n for specified move, assuming move is a child move of node n
   void appendPVForMove(std::vector<Loc>& buf, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues, const SearchNode* n, Loc move, int maxDepth) const;
-
-  double getPolicySurprise() const;
 
   //Get the ownership map averaged throughout the search tree.
   //Must have ownership present on all neural net evals.
@@ -284,7 +291,9 @@ struct Search {
   //or changing parameters or clearing search.
   std::vector<double> getAverageTreeOwnership(int64_t minVisits) const;
 
-  int64_t numRootVisits() const;
+  //Expert manual playout-by-playout interface------------------------------------------------
+  void beginSearch();
+  void runSinglePlayout(SearchThread& thread);
 
   //Helpers-----------------------------------------------------------------------
 private:

@@ -201,7 +201,7 @@ ReportedSearchValues PlayUtils::getWhiteScoreValues(
   bot->setPosition(pla,board,hist);
   bot->runWholeSearch(pla,logger);
 
-  ReportedSearchValues values = bot->getRootValuesAssertSuccess();
+  ReportedSearchValues values = bot->getRootValuesRequireSuccess();
   bot->setParams(oldParams);
   return values;
 }

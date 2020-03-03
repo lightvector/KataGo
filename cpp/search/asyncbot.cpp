@@ -279,7 +279,8 @@ void AsyncBot::internalSearchThreadLoop() {
     //Kick off analysis callback loop if desired
     condition_variable callbackLoopWaiting;
     atomic<bool> callbackLoopShouldStop(false);
-    auto callbackLoop = [this,callbackPeriod,&callback,&callbackLoopWaiting,&callbackLoopShouldStop]() {
+    atomic<bool> searchBegun(false);
+    auto callbackLoop = [this,callbackPeriod,&callback,&callbackLoopWaiting,&callbackLoopShouldStop,&searchBegun]() {
       unique_lock<std::mutex> callbackLock(controlMutex);
       while(true) {
         callbackLoopWaiting.wait_for(
@@ -289,6 +290,8 @@ void AsyncBot::internalSearchThreadLoop() {
         );
         if(callbackLoopShouldStop.load())
           break;
+        if(!searchBegun.load(std::memory_order_acquire))
+          continue;
         callbackLock.unlock();
         callback(search);
         callbackLock.lock();
@@ -301,7 +304,7 @@ void AsyncBot::internalSearchThreadLoop() {
       callbackLoopThread = std::thread(callbackLoop);
     }
 
-    search->runWholeSearch(*logger,shouldStopNow,pondering,tc,searchFactor);
+    search->runWholeSearch(*logger,shouldStopNow,searchBegun,pondering,tc,searchFactor);
     Loc moveLoc = search->getChosenMoveLoc();
 
     if(callbackPeriod >= 0) {

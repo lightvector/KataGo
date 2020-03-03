@@ -671,7 +671,7 @@ static void logSearch(Search* bot, Logger& logger, Loc loc) {
   ostringstream sout;
   Board::printBoard(sout, bot->getRootBoard(), loc, &(bot->getRootHist().moveHistory));
   sout << "\n";
-  sout << "Root visits: " << bot->numRootVisits() << "\n";
+  sout << "Root visits: " << bot->getRootVisits() << "\n";
   sout << "Policy surprise " << bot->getPolicySurprise() << "\n";
   sout << "PV: ";
   bot->printPV(sout, bot->rootNode, 25);
@@ -1384,7 +1384,7 @@ FinishedGameData* Play::runGame(
     }
 
     if(fancyModes.allowResignation || fancyModes.reduceVisits) {
-      ReportedSearchValues values = toMoveBot->getRootValuesAssertSuccess();
+      ReportedSearchValues values = toMoveBot->getRootValuesRequireSuccess();
       historicalMctsWinLossValues.push_back(values.winLossValue);
     }
 

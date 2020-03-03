@@ -296,23 +296,41 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
 
   if(rootNode != NULL) {
     bool foundChild = false;
+    int foundChildIdx = -1;
     for(int i = 0; i<rootNode->numChildren; i++) {
       SearchNode* child = rootNode->children[i];
-      if(child->prevMoveLoc == moveLoc) {
-        //Grab out the node to prevent its deletion along with the root
-        //Delete the root and replace it with the child
-        rootNode->children[i] = NULL;
-        delete rootNode;
-        rootNode = child;
-        rootNode->prevMoveLoc = Board::NULL_LOC;
+      if(!foundChild && child->prevMoveLoc == moveLoc) {
         foundChild = true;
+        foundChildIdx = i;
         break;
       }
     }
-    if(!foundChild) {
+
+    //Just in case, make sure the child has an nnOutput, otherwise no point keeping it.
+    //This is a safeguard against any oddity involving node preservation into states that
+    //were considered terminal.
+    if(foundChild) {
+      SearchNode* child = rootNode->children[foundChildIdx];
+      std::mutex& mutex = mutexPool->getMutex(child->lockIdx);
+      lock_guard<std::mutex> lock(mutex);
+      if(child->nnOutput == nullptr)
+        foundChild = false;
+    }
+
+    if(foundChild) {
+      //Grab out the node to prevent its deletion along with the root
+      //Delete the root and replace it with the child
+      SearchNode* child = rootNode->children[foundChildIdx];
+      rootNode->children[foundChildIdx] = NULL;
+      delete rootNode;
+      rootNode = child;
+      rootNode->prevMoveLoc = Board::NULL_LOC;
+    }
+    else {
       clearSearch();
     }
   }
+
   //If the white handicap bonus changes due to the move, we will also need to recompute everything since this is
   //basically like a change to the komi.
   float oldWhiteHandicapBonusScore = rootHistory.whiteHandicapBonusScore;
@@ -324,7 +342,6 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
   if(rootHistory.whiteHandicapBonusScore != oldWhiteHandicapBonusScore)
     clearSearch();
 
-  //TODO test this and other conservativepass
   //In the case that we are conservativePass and a pass would end the game, need to clear the search.
   //This is because deeper in the tree, such a node would have been explored as ending the game, but now that
   //it's a root pass, it needs to be treated as if it no longer ends the game.
@@ -435,10 +452,18 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow) {
 }
 
 void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering) {
-  runWholeSearch(logger,shouldStopNow,pondering,TimeControls(),1.0);
+  std::atomic<bool> searchBegun(false);
+  runWholeSearch(logger,shouldStopNow,searchBegun,pondering,TimeControls(),1.0);
 }
 
-void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering, const TimeControls& tc, double searchFactor) {
+void Search::runWholeSearch(
+  Logger& logger,
+  std::atomic<bool>& shouldStopNow,
+  std::atomic<bool>& searchBegun,
+  bool pondering,
+  const TimeControls& tc,
+  double searchFactor
+) {
 
   ClockTimer timer;
   atomic<int64_t> numPlayoutsShared(0);
@@ -481,7 +506,8 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bo
   }
 
   beginSearch();
-  int64_t numNonPlayoutVisits = numRootVisits();
+  searchBegun.store(true,std::memory_order_release);
+  int64_t numNonPlayoutVisits = getRootVisits();
 
   auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,maxVisits,maxPlayouts,maxTime](int threadIdx) {
     SearchThread* stbuf = new SearchThread(threadIdx,*this,&logger);
@@ -752,7 +778,7 @@ void Search::computeRootValues() {
   }
 }
 
-int64_t Search::numRootVisits() const {
+int64_t Search::getRootVisits() const {
   if(rootNode == NULL)
     return 0;
   while(rootNode->statsLock.test_and_set(std::memory_order_acquire));

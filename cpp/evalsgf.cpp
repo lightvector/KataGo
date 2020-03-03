@@ -344,7 +344,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   }
 
   sout << "Time taken: " << timer.getSeconds() << "\n";
-  sout << "Root visits: " << search->numRootVisits() << "\n";
+  sout << "Root visits: " << search->getRootVisits() << "\n";
   sout << "NN rows: " << nnEval->numRowsProcessed() << endl;
   sout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
   sout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;

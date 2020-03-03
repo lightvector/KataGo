@@ -482,7 +482,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
       double expectedScore;
       double expectedScoreStdev;
       {
-        ReportedSearchValues values = bot->getSearch()->getRootValuesAssertSuccess();
+        ReportedSearchValues values = bot->getSearch()->getRootValuesRequireSuccess();
         winLossValue = values.winLossValue;
         expectedScore = values.expectedScore;
         expectedScoreStdev = values.expectedScoreStdev;

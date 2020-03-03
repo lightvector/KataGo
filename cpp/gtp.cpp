@@ -265,7 +265,7 @@ static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator
   Board::printBoard(out, bot->getRootBoard(), moveLoc, &(bot->getRootHist().moveHistory));
   out << bot->getRootHist().rules << "\n";
   out << "Time taken: " << timeTaken << "\n";
-  out << "Root visits: " << search->numRootVisits() << "\n";
+  out << "Root visits: " << search->getRootVisits() << "\n";
   out << "NN rows: " << nnEval->numRowsProcessed() << endl;
   out << "NN batches: " << nnEval->numBatchesProcessed() << endl;
   out << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
@@ -770,7 +770,7 @@ struct GTPEngine {
     double winLossValue;
     double lead;
     {
-      values = bot->getSearch()->getRootValuesAssertSuccess();
+      values = bot->getSearch()->getRootValuesRequireSuccess();
       winLossValue = values.winLossValue;
       lead = values.lead;
     }

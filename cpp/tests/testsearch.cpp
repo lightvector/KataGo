@@ -54,7 +54,7 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
 
     Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
 
-    cout << "Root visits: " << search->numRootVisits() << "\n";
+    cout << "Root visits: " << search->getRootVisits() << "\n";
     cout << "NN rows: " << search->nnEvaluator->numRowsProcessed() << endl;
     cout << "NN batches: " << search->nnEvaluator->numBatchesProcessed() << endl;
     cout << "NN avg batch size: " << search->nnEvaluator->averageProcessedBatchSize() << endl;
