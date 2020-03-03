@@ -43,6 +43,27 @@ struct ReportedSearchValues {
   ~ReportedSearchValues();
 };
 
+struct NodeStatsAtomic {
+  std::atomic<int64_t> visits;
+  std::atomic<double> winLossValueSum;
+  std::atomic<double> noResultValueSum;
+  std::atomic<double> scoreMeanSum;
+  std::atomic<double> scoreMeanSqSum;
+  std::atomic<double> leadSum;
+  std::atomic<double> utilitySum;
+  std::atomic<double> utilitySqSum;
+  std::atomic<double> weightSum;
+  std::atomic<double> weightSqSum;
+
+  NodeStatsAtomic();
+  ~NodeStatsAtomic();
+
+  NodeStatsAtomic(const NodeStatsAtomic&) = delete;
+  NodeStatsAtomic& operator=(const NodeStatsAtomic&) = delete;
+  NodeStatsAtomic(NodeStatsAtomic&& other) = delete;
+  NodeStatsAtomic& operator=(NodeStatsAtomic&& other) = delete;
+};
+
 struct NodeStats {
   int64_t visits;
   double winLossValueSum;
@@ -56,14 +77,13 @@ struct NodeStats {
   double weightSqSum;
 
   NodeStats();
+  NodeStats(const NodeStatsAtomic& other);
   ~NodeStats();
 
   NodeStats(const NodeStats&) = default;
   NodeStats& operator=(const NodeStats&) = default;
   NodeStats(NodeStats&& other) = default;
   NodeStats& operator=(NodeStats&& other) = default;
-
-  double getResultUtilitySum(const SearchParams& searchParams) const;
 };
 
 struct MoreNodeStats {
@@ -137,10 +157,10 @@ struct SearchNode {
   static constexpr int CHILDREN2SIZE = NNPos::MAX_NN_POLICY_SIZE;
 
   //Lightweight mutable---------------------------------------------------------------
-  //Protected under statsLock
-  NodeStats stats;
-  //Also protected under statsLock
-  int32_t virtualLosses;
+  //Protected under statsLock for writing
+  NodeStatsAtomic stats;
+
+  std::atomic<int32_t> virtualLosses;
 
   //Protected under the entryLock in subtreeValueBiasTableEntry
   //Used only if subtreeValueBiasTableEntry is not nullptr.
