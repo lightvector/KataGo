@@ -52,8 +52,10 @@ struct NodeStats {
   NodeStats();
   ~NodeStats();
 
-  NodeStats(const NodeStats& other);
-  NodeStats& operator=(const NodeStats& other);
+  NodeStats(const NodeStats&) = delete;
+  NodeStats& operator=(const NodeStats&) = delete;
+  NodeStats(NodeStats&& other) = delete;
+  NodeStats& operator=(NodeStats&& other) = delete;
 
   double getResultUtilitySum(const SearchParams& searchParams) const;
 };
@@ -91,9 +93,8 @@ struct SearchNode {
 
   SearchNode(const SearchNode&) = delete;
   SearchNode& operator=(const SearchNode&) = delete;
-
-  SearchNode(SearchNode&& other) noexcept;
-  SearchNode& operator=(SearchNode&& other) noexcept;
+  SearchNode(SearchNode&& other) = delete;
+  SearchNode& operator=(SearchNode&& other) = delete;
 };
 
 //Per-thread state

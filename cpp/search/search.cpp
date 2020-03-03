@@ -24,32 +24,6 @@ NodeStats::NodeStats()
 NodeStats::~NodeStats()
 {}
 
-NodeStats::NodeStats(const NodeStats& other)
-  :visits(other.visits),
-   winValueSum(other.winValueSum),
-   noResultValueSum(other.noResultValueSum),
-   scoreMeanSum(other.scoreMeanSum),
-   scoreMeanSqSum(other.scoreMeanSqSum),
-   leadSum(other.leadSum),
-   utilitySum(other.utilitySum),
-   utilitySqSum(other.utilitySqSum),
-   weightSum(other.weightSum),
-   weightSqSum(other.weightSqSum)
-{}
-NodeStats& NodeStats::operator=(const NodeStats& other) {
-  visits = other.visits;
-  winValueSum = other.winValueSum;
-  noResultValueSum = other.noResultValueSum;
-  scoreMeanSum = other.scoreMeanSum;
-  scoreMeanSqSum = other.scoreMeanSqSum;
-  leadSum = other.leadSum;
-  utilitySum = other.utilitySum;
-  utilitySqSum = other.utilitySqSum;
-  weightSum = other.weightSum;
-  weightSqSum = other.weightSqSum;
-  return *this;
-}
-
 double NodeStats::getResultUtilitySum(const SearchParams& searchParams) const {
   return (
     (2.0*winValueSum - weightSum + noResultValueSum) * searchParams.winLossUtilityFactor +
@@ -96,33 +70,6 @@ SearchNode::~SearchNode() {
       delete children[i];
   }
   delete[] children;
-}
-
-SearchNode::SearchNode(SearchNode&& other) noexcept
-  :lockIdx(other.lockIdx),
-   nextPla(other.nextPla),prevMoveLoc(other.prevMoveLoc),
-   nnOutput(std::move(other.nnOutput)),
-   nnOutputAge(other.nnOutputAge),
-   stats(other.stats),virtualLosses(other.virtualLosses)
-{
-  children = other.children;
-  other.children = NULL;
-  numChildren = other.numChildren;
-  childrenCapacity = other.childrenCapacity;
-}
-SearchNode& SearchNode::operator=(SearchNode&& other) noexcept {
-  lockIdx = other.lockIdx;
-  nextPla = other.nextPla;
-  prevMoveLoc = other.prevMoveLoc;
-  nnOutput = std::move(other.nnOutput);
-  nnOutputAge = other.nnOutputAge;
-  children = other.children;
-  other.children = NULL;
-  numChildren = other.numChildren;
-  childrenCapacity = other.childrenCapacity;
-  stats = other.stats;
-  virtualLosses = other.virtualLosses;
-  return *this;
 }
 
 //-----------------------------------------------------------------------------------------
@@ -353,10 +300,10 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
       SearchNode* child = rootNode->children[i];
       if(child->prevMoveLoc == moveLoc) {
         //Grab out the node to prevent its deletion along with the root
-        SearchNode* node = new SearchNode(std::move(*child));
         //Delete the root and replace it with the child
+        rootNode->children[i] = NULL;
         delete rootNode;
-        rootNode = node;
+        rootNode = child;
         rootNode->prevMoveLoc = Board::NULL_LOC;
         foundChild = true;
         break;
