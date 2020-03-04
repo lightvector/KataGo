@@ -485,11 +485,8 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
   AutoMatchPairer * autoMatchPairer = new AutoMatchPairer(cfg,resultsDir,numBots,botNames,nnModelFilesByBot,paramss);
 
   //Initialize object for randomizing game settings and running games
-  FancyModes fancyModes;
-  fancyModes.allowResignation = cfg.getBool("allowResignation");
-  fancyModes.resignThreshold = cfg.getDouble("resignThreshold",-1.0,0.0); //Threshold on [-1,1], regardless of winLossUtilityFactor
-  fancyModes.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, fancyModes, logger);
+  PlaySettings playSettings = PlaySettings::loadForMatch(cfg);
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, playSettings, logger);
 
 
   //Done loading!

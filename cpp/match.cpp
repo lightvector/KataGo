@@ -158,11 +158,8 @@ int MainCmds::match(int argc, const char* const* argv) {
   MatchPairer* matchPairer = new MatchPairer(cfg,numBots,botNames,nnEvalsByBot,paramss,forSelfPlay,forGateKeeper,excludeBot);
 
   //Initialize object for randomizing game settings and running games
-  FancyModes fancyModes;
-  fancyModes.allowResignation = cfg.getBool("allowResignation");
-  fancyModes.resignThreshold = cfg.getDouble("resignThreshold",-1.0,0.0); //Threshold on [-1,1], regardless of winLossUtilityFactor
-  fancyModes.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, fancyModes, logger);
+  PlaySettings playSettings = PlaySettings::loadForMatch(cfg);
+  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, playSettings, logger);
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
