@@ -544,8 +544,8 @@ private:
 
   double pruneNoiseWeight(std::vector<MoreNodeStats>& statsBuf, int numChildren, double totalChildWeight, const double* policyProbsBuf) const;
 
-  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot);
-  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot);
+  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot);
+  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, bool isRoot);
   void recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, bool isRoot);
   void recursivelyRemoveSubtreeValueBiasBeforeDeleteSynchronous(SearchNode* node);
 
@@ -567,23 +567,22 @@ private:
     double scoreMeanSq,
     double lead,
     double weight,
-    int32_t virtualLossesToSubtract,
     bool isTerminal
   );
-  void addCurentNNOutputAsLeafValue(SearchNode& node, int32_t virtualLossesToSubtract);
+  void addCurentNNOutputAsLeafValue(SearchNode& node);
 
   void maybeRecomputeExistingNNOutput(
     SearchThread& thread, SearchNode& node, bool isRoot
   );
   void initNodeNNOutput(
     SearchThread& thread, SearchNode& node,
-    bool isRoot, bool skipCache, int32_t virtualLossesToSubtract, bool isReInit
+    bool isRoot, bool skipCache, bool isReInit
   );
 
   bool playoutDescend(
     SearchThread& thread, SearchNode& node,
     bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
-    bool isRoot, int32_t virtualLossesToSubtract
+    bool isRoot
   );
 
   bool shouldSuppressPass(const SearchNode* n) const;

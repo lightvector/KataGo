@@ -1211,7 +1211,7 @@ void Search::beginSearch(bool pondering) {
         node.statsLock.clear(std::memory_order_release);
 
         //Update all other stats
-        recomputeNodeStats(node, dummyThread, 0, 0, true);
+        recomputeNodeStats(node, dummyThread, 0, true);
       }
     }
 
@@ -1279,6 +1279,11 @@ void Search::recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, b
     assert(nnOutput != NULL);
   }
 
+  //Also, something is wrong if we have virtual losses at this point
+  int32_t numVirtualLosses = node.virtualLosses.load(std::memory_order_acquire);
+  (void)numVirtualLosses;
+  assert(numVirtualLosses == 0);
+
   //If the node has no children, then just update its utility directly
   //Again, this would be a little wrong if this function were running concurrently with anything else in the
   //case that new children were added in the meantime. Although maybe it would be okay.
@@ -1312,7 +1317,7 @@ void Search::recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, b
   }
   else {
     //Otherwise recompute it using the usual method
-    recomputeNodeStats(node, thread, 0, 0, isRoot);
+    recomputeNodeStats(node, thread, 0, isRoot);
   }
 }
 
@@ -2422,14 +2427,14 @@ double Search::pruneNoiseWeight(vector<MoreNodeStats>& statsBuf, int numChildren
 }
 
 
-void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot) {
-  recomputeNodeStats(node,thread,1,virtualLossesToSubtract,isRoot);
+void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot) {
+  recomputeNodeStats(node,thread,1,isRoot);
 }
 
 //Recompute all the stats of this node based on its children, except its visits and virtual losses, which are not child-dependent and
 //are updated in the manner specified.
 //Assumes this node has an nnOutput
-void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot) {
+void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, bool isRoot) {
   //Find all children and compute weighting of the children based on their values
   vector<MoreNodeStats>& statsBuf = thread.statsBuf;
   int numGoodChildren = 0;
@@ -2595,7 +2600,6 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   node.stats.utilitySqSum.store(utilitySqSum,std::memory_order_release);
   node.stats.weightSum.store(weightSum,std::memory_order_release);
   node.stats.weightSqSum.store(weightSqSum,std::memory_order_release);
-  node.virtualLosses.fetch_add(-virtualLossesToSubtract,std::memory_order_release);
   node.statsLock.clear(std::memory_order_release);
 }
 
@@ -2604,7 +2608,7 @@ bool Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft)
   thread.upperBoundVisitsLeft = upperBoundVisitsLeft;
 
   bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE];
-  bool finishedPlayout = playoutDescend(thread,*rootNode,posesWithChildBuf,true,0);
+  bool finishedPlayout = playoutDescend(thread,*rootNode,posesWithChildBuf,true);
 
   //Restore thread state back to the root state
   thread.pla = rootPla;
@@ -2622,7 +2626,6 @@ void Search::addLeafValue(
   double scoreMeanSq,
   double lead,
   double weight,
-  int32_t virtualLossesToSubtract,
   bool isTerminal
 ) {
   double utility =
@@ -2654,7 +2657,6 @@ void Search::addLeafValue(
   node.stats.utilitySqSum.store(node.stats.utilitySqSum.load(std::memory_order_relaxed) + utilitySq * weight ,std::memory_order_release);
   node.stats.weightSum.store(node.stats.weightSum.load(std::memory_order_relaxed) + weight,std::memory_order_release);
   node.stats.weightSqSum.store(node.stats.weightSqSum.load(std::memory_order_relaxed) + weightSq,std::memory_order_release);
-  node.virtualLosses.fetch_add(-virtualLossesToSubtract,std::memory_order_release);
   node.statsLock.clear(std::memory_order_release);
 }
 
@@ -2681,7 +2683,7 @@ void Search::maybeRecomputeExistingNNOutput(
          (searchParams.conservativePass && thread.history.passWouldEndGame(thread.board,thread.pla)) ||
          searchParams.rootNumSymmetriesToSample > 1
       ) {
-        initNodeNNOutput(thread,node,isRoot,false,0,true);
+        initNodeNNOutput(thread,node,isRoot,false,true);
       }
       //We also need to recompute the root nn if we have root noise or temperature and that's missing.
       else {
@@ -2698,7 +2700,7 @@ void Search::maybeRecomputeExistingNNOutput(
 //If isReInit is false, assumes that this thread is the ONLY thread going to compute an nneval for this node!
 void Search::initNodeNNOutput(
   SearchThread& thread, SearchNode& node,
-  bool isRoot, bool skipCache, int32_t virtualLossesToSubtract, bool isReInit
+  bool isRoot, bool skipCache, bool isReInit
 ) {
   bool includeOwnerMap = isRoot || alwaysIncludeOwnerMap;
   MiscNNInputParams nnInputParams;
@@ -2762,10 +2764,10 @@ void Search::initNodeNNOutput(
   if(isReInit)
     return;
 
-  addCurentNNOutputAsLeafValue(node,virtualLossesToSubtract);
+  addCurentNNOutputAsLeafValue(node);
 }
 
-void Search::addCurentNNOutputAsLeafValue(SearchNode& node, int32_t virtualLossesToSubtract) {
+void Search::addCurentNNOutputAsLeafValue(SearchNode& node) {
   const NNOutput* nnOutput = node.getNNOutput();
   assert(nnOutput != NULL);
   //Values in the search are from the perspective of white positive always
@@ -2776,7 +2778,7 @@ void Search::addCurentNNOutputAsLeafValue(SearchNode& node, int32_t virtualLosse
   double scoreMeanSq = (double)nnOutput->whiteScoreMeanSq;
   double lead = (double)nnOutput->whiteLead;
   double weight = computeWeightFromNNOutput(nnOutput);
-  addLeafValue(node,winProb-lossProb,noResultProb,scoreMean,scoreMeanSq,lead,weight,virtualLossesToSubtract,false);
+  addLeafValue(node,winProb-lossProb,noResultProb,scoreMean,scoreMeanSq,lead,weight,false);
 }
 
 
@@ -2807,7 +2809,7 @@ double Search::computeWeightFromNNOutput(const NNOutput* nnOutput) const {
 bool Search::playoutDescend(
   SearchThread& thread, SearchNode& node,
   bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
-  bool isRoot, int32_t virtualLossesToSubtract
+  bool isRoot
 ) {
   //Hit terminal node, finish
   //In the case where we're forcing the search to make another move at the root, don't terminate, actually run search for a move more.
@@ -2828,7 +2830,7 @@ bool Search::playoutDescend(
       double scoreMeanSq = 0.0;
       double lead = 0.0;
       double weight = (searchParams.useUncertainty && nnEvaluator->supportsShorttermError()) ? searchParams.uncertaintyMaxWeight : 1.0;
-      addLeafValue(node, winLossValue, noResultValue, scoreMean, scoreMeanSq, lead, weight, virtualLossesToSubtract, true);
+      addLeafValue(node, winLossValue, noResultValue, scoreMean, scoreMeanSq, lead, weight, true);
       return true;
     }
     else {
@@ -2838,7 +2840,7 @@ bool Search::playoutDescend(
       double scoreMeanSq = ScoreValue::whiteScoreMeanSqOfScoreGridded(thread.history.finalWhiteMinusBlackScore,searchParams.drawEquivalentWinsForWhite);
       double lead = scoreMean;
       double weight = (searchParams.useUncertainty && nnEvaluator->supportsShorttermError()) ? searchParams.uncertaintyMaxWeight : 1.0;
-      addLeafValue(node, winLossValue, noResultValue, scoreMean, scoreMeanSq, lead, weight, virtualLossesToSubtract, true);
+      addLeafValue(node, winLossValue, noResultValue, scoreMean, scoreMeanSq, lead, weight, true);
       return true;
     }
   }
@@ -2853,7 +2855,7 @@ bool Search::playoutDescend(
     }
     else {
       //Perform the nn evaluation and finish!
-      initNodeNNOutput(thread,node,isRoot,false,virtualLossesToSubtract,false);
+      initNodeNNOutput(thread,node,isRoot,false,false);
       node.initializeChildren();
       node.state.store(SearchNode::STATE_EXPANDED0, std::memory_order_release);
       return true;
@@ -2882,7 +2884,7 @@ bool Search::playoutDescend(
     //Regenerate the neural net call and continue
     if(bestChildIdx >= 0 && !thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla)) {
       bool isReInit = true;
-      initNodeNNOutput(thread,node,isRoot,true,0,isReInit);
+      initNodeNNOutput(thread,node,isRoot,true,isReInit);
 
       if(thread.logStream != NULL) {
         NNOutput* nnOutput = node.getNNOutput();
@@ -2907,7 +2909,7 @@ bool Search::playoutDescend(
       //TODO add test case
       //This might happen if all moves have been forbidden. The node will just get stuck at 1 visit forever then
       //and we won't do any search.
-      addCurentNNOutputAsLeafValue(node,virtualLossesToSubtract);
+      addCurentNNOutputAsLeafValue(node);
       return true;
     }
 
@@ -2964,14 +2966,11 @@ bool Search::playoutDescend(
   thread.pla = getOpp(thread.pla);
 
   //Recurse!
-  bool finishedPlayout = playoutDescend(thread,*child,posesWithChildBuf,false,1);
-
+  bool finishedPlayout = playoutDescend(thread,*child,posesWithChildBuf,false);
   //Update this node stats
-  if(finishedPlayout) {
-    updateStatsAfterPlayout(node,thread,virtualLossesToSubtract,isRoot);
-  }
-  else {
-    node.virtualLosses.fetch_add(-virtualLossesToSubtract,std::memory_order_release);
-  }
+  if(finishedPlayout)
+    updateStatsAfterPlayout(node,thread,isRoot);
+  child->virtualLosses.fetch_add(-1,std::memory_order_release);
+
   return finishedPlayout;
 }
