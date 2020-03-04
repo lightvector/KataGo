@@ -475,7 +475,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
         sout << "MoveLoc: " << Location::toString(moveLoc,bot->getRootBoard()) << "\n";
         logger.write(sout.str());
         cerr << sout.str() << endl;
-        throw new StringError("illegal move");
+        throw StringError("illegal move");
       }
 
       double winLossValue;
