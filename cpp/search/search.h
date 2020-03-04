@@ -111,9 +111,9 @@ struct SearchNode {
   //Lightweight mutable---------------------------------------------------------------
   //Protected under statsLock for writing
   NodeStats stats;
-  
   std::atomic<int32_t> virtualLosses;
-
+  std::atomic<int32_t> dirtyCounter;
+  
   //--------------------------------------------------------------------------------
   SearchNode(Player prevPla, Loc prevMoveLoc);
   ~SearchNode();
@@ -437,7 +437,7 @@ private:
   double getFpuValueForChildrenAssumeVisited(const SearchNode& node, Player pla, bool isRoot, double policyProbMassVisited, double& parentUtility) const;
 
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot);
-  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, bool isRoot);
+  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot);
   void recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, bool isRoot);
 
   void maybeRecomputeNormToTApproxTable();
