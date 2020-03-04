@@ -938,7 +938,7 @@ void Search::beginSearch() {
         else {
           assert(children == node.children0);
         }
-        
+
         //For the node's own visit itself
         newNumVisits += 1;
 
@@ -946,7 +946,7 @@ void Search::beginSearch() {
         while(node.statsLock.test_and_set(std::memory_order_acquire));
         node.stats.visits.store(newNumVisits,std::memory_order_release);
         node.statsLock.clear(std::memory_order_release);
- 
+
         //Update all other stats
         recomputeNodeStats(node, dummyThread, 0, true);
       }
@@ -1944,7 +1944,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     weightSqSum = weightSqSum * factor * factor;
   }
 
-  
+
   //Also add in the direct evaluation of this node.
   {
     const NNOutput* nnOutput = node.getNNOutput();
@@ -1980,10 +1980,6 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   //TODO statslock may be unnecessary now with the dirtyCounter mechanism?
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.visits.fetch_add(numVisitsToAdd,std::memory_order_release);
-  //It's possible that these values are a bit wrong if there's a race and two threads each try to update this
-  //each of them only having some of the latest updates for all the children. We just accept this and let the
-  //error persist, it will get fixed the next time a visit comes through here and the values will at least
-  //be consistent with each other within this node, since statsLock at least ensures these three are set atomically.
   node.stats.winLossValueSum.store(winLossValueSum,std::memory_order_release);
   node.stats.noResultValueSum.store(noResultValueSum,std::memory_order_release);
   node.stats.scoreMeanSum.store(scoreMeanSum,std::memory_order_release);
