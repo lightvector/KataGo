@@ -1897,6 +1897,22 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     weightSqSum += weightScaling * weightScaling * weightSqSums[i];
   }
 
+  //Renormalize so that the final computed weight of this node is equal to totalChildVisits.
+  //This should limit the amount of weirdness that can result if these values are read out-of-sync.
+  if(weightSum > 1e-10 && totalChildVisits > 0) {
+    double factor = totalChildVisits / weightSum;
+    winLossValueSum = winLossValueSum * factor;
+    noResultValueSum = noResultValueSum * factor;
+    scoreMeanSum = scoreMeanSum * factor;
+    scoreMeanSqSum = scoreMeanSqSum * factor;
+    leadSum = leadSum * factor;
+    utilitySum = utilitySum * factor;
+    utilitySqSum = utilitySqSum * factor;
+    weightSum = totalChildVisits;
+    weightSqSum = weightSqSum * factor * factor;
+  }
+
+  
   //Also add in the direct evaluation of this node.
   {
     const NNOutput* nnOutput = node.getNNOutput();
