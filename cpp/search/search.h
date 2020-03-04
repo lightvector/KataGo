@@ -61,11 +61,7 @@ struct NodeStats {
 
 struct SearchChildPointer {
 private:
-  //Relies on the fact that the bottom bit of any pointer are always 0 due to word alignment in addressing.
-  //Bit 0 is a tag.
-  //If tag == 0, then this is a SearchNode* pointer.
-  //If tag == 1, then bits 32-63 contain the Loc of the move.
-  std::atomic<uint64_t> data;
+  std::atomic<SearchNode*> data;
 public:
   SearchChildPointer();
   SearchNode* getIfAllocated();

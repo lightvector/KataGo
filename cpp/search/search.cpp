@@ -57,44 +57,32 @@ double Search::getScoreStdev(double scoreMean, double scoreMeanSq) {
 //-----------------------------------------------------------------------------------------
 
 SearchChildPointer::SearchChildPointer():
-  data(reinterpret_cast<uint64_t>((SearchNode*)(NULL)))
+  data(NULL)
 {}
 
 SearchNode* SearchChildPointer::getIfAllocated() {
-  uint64_t x = data.load(std::memory_order_acquire);
-  if((x & 0x1) != 0)
-    return NULL;
-  return reinterpret_cast<SearchNode*>(x);
+  return data.load(std::memory_order_acquire);
 }
 
 const SearchNode* SearchChildPointer::getIfAllocated() const {
-  uint64_t x = data.load(std::memory_order_acquire);
-  if((x & 0x1) != 0)
-    return NULL;
-  return reinterpret_cast<const SearchNode*>(x);
+  return data.load(std::memory_order_acquire);
 }
 
 SearchNode* SearchChildPointer::getIfAllocatedRelaxed() {
-  uint64_t x = data.load(std::memory_order_relaxed);
-  if((x & 0x1) != 0)
-    return NULL;
-  return reinterpret_cast<SearchNode*>(x);
+  return data.load(std::memory_order_relaxed);
 }
 
 void SearchChildPointer::store(SearchNode* node) {
-  uint64_t x = reinterpret_cast<uint64_t>(node);
-  data.store(x, std::memory_order_release);
+  data.store(node, std::memory_order_release);
 }
 
 void SearchChildPointer::storeRelaxed(SearchNode* node) {
-  uint64_t x = reinterpret_cast<uint64_t>(node);
-  data.store(x, std::memory_order_relaxed);
+  data.store(node, std::memory_order_relaxed);
 }
 
 bool SearchChildPointer::storeIfNull(SearchNode* node) {
-  uint64_t x = reinterpret_cast<uint64_t>(node);
-  uint64_t expected = reinterpret_cast<uint64_t>((SearchNode*)NULL);
-  return data.compare_exchange_strong(expected, x, std::memory_order_acq_rel);
+  SearchNode* expected = NULL;
+  return data.compare_exchange_strong(expected, node, std::memory_order_acq_rel);
 }
 
 //-----------------------------------------------------------------------------------------
@@ -403,20 +391,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    oldNNOutputsToCleanUpMutex(),
    oldNNOutputsToCleanUp()
 {
-  //Attempt to fail noisily if we're not on a system where the low bits of a pointer are 0.
-  //Of course, not guaranteed to work, lowest bit might be 0 just by chance on a system where they aren't always.
-  // {
-  //   SearchNode* node = NULL;
-  //   uint64_t x = reinterpret_cast<uint64_t>(node);
-  //   if((x & 0x1) != 0)
-  //     throw new StringError("Lowest bit of NULL is not 0 on this system, search pointer code will not work!");
-  //   node = new SearchNode(P_BLACK, Board::NULL_LOC);
-  //   x = reinterpret_cast<uint64_t>(node);
-  //   if((x & 0x1) != 0)
-  //     throw new StringError("Lowest bit of test node pointer is not 0 on this system, search pointer code will not work!");
-  //   delete node;
-  // }
-
   nnXLen = nnEval->getNNXLen();
   nnYLen = nnEval->getNNYLen();
   assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
@@ -865,8 +839,6 @@ void Search::runWholeSearch(
   }
 }
 
-//TODO and currently the filtering doesn't filter the lesser arrays. should it?
-
 //If we're being asked to search from a position where the game is over, this is fine. Just keep going, the boardhistory
 //should reasonably tolerate just continuing. We do NOT want to clear history because we could inadvertently make a move
 //that an external ruleset COULD think violated superko.
@@ -946,6 +918,26 @@ void Search::beginSearch() {
           int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
           newNumVisits += childVisits;
         }
+
+        //Just for cleanliness after filtering - delete the smaller children arrays.
+        //They should never be accessed in the upcoming search because all threads
+        //spawned will of course be synchronized with any writes we make here,
+        //including the current state of the node, so if we've moved on to a
+        //higher-capacity array the lower ones will never be accessed.
+        if(children == node.children2) {
+          delete node.children1;
+          node.children1 = NULL;
+          delete node.children0;
+          node.children0 = NULL;
+        }
+        else if(children == node.children1) {
+          delete node.children0;
+          node.children0 = NULL;
+        }
+        else {
+          assert(children == node.children0);
+        }
+        
         //For the node's own visit itself
         newNumVisits += 1;
 
