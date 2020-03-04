@@ -436,8 +436,8 @@ private:
 
   double getFpuValueForChildrenAssumeVisited(const SearchNode& node, Player pla, bool isRoot, double policyProbMassVisited, double& parentUtility) const;
 
-  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot);
-  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot);
+  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot);
+  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, bool isRoot);
   void recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, bool isRoot);
 
   void maybeRecomputeNormToTApproxTable();
@@ -452,8 +452,7 @@ private:
 
   void accumVisitsAndSetLeafValue(
     SearchNode& node,
-    double winlossValue, double noResultValue, double scoreMean, double scoreMeanSq, double lead,
-    int32_t virtualLossesToSubtract
+    double winlossValue, double noResultValue, double scoreMean, double scoreMeanSq, double lead
   );
 
   void maybeRecomputeExistingNNOutput(
@@ -461,13 +460,13 @@ private:
   );
   void initNodeNNOutput(
     SearchThread& thread, SearchNode& node,
-    bool isRoot, bool skipCache, int32_t virtualLossesToSubtract, bool isReInit
+    bool isRoot, bool skipCache, bool isReInit
   );
 
   bool playoutDescend(
     SearchThread& thread, SearchNode& node,
     bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
-    bool isRoot, int32_t virtualLossesToSubtract
+    bool isRoot
   );
 
   bool shouldSuppressPass(const SearchNode* n) const;
