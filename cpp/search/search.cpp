@@ -138,7 +138,8 @@ SearchNode::SearchNode(Player prevPla, Loc prevLoc, SearchNode* p)
    stats(),
    virtualLosses(0),
    lastSubtreeValueBiasDeltaSum(0.0),lastSubtreeValueBiasWeight(0.0),
-   subtreeValueBiasTableEntry()
+   subtreeValueBiasTableEntry(),
+   dirtyCounter(0)
 {
 }
 
@@ -2428,7 +2429,28 @@ double Search::pruneNoiseWeight(vector<MoreNodeStats>& statsBuf, int numChildren
 
 
 void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot) {
-  recomputeNodeStats(node,thread,1,isRoot);
+  //The thread that grabs a 0 from this peforms the recomputation of stats.
+  int32_t oldDirtyCounter = node.dirtyCounter.fetch_add(1,std::memory_order_acq_rel);
+  assert(oldDirtyCounter >= 0);
+  //If we atomically grab a nonzero, then we know another thread must already be doing the work, so we can skip the update ourselves.
+  if(oldDirtyCounter > 0)
+    return;
+  int32_t numVisitsCompleted = 1;
+  while(true) {
+    //Perform update
+    recomputeNodeStats(node,thread,numVisitsCompleted,isRoot);
+    //Now attempt to undo the counter
+    oldDirtyCounter = node.dirtyCounter.fetch_add(-numVisitsCompleted,std::memory_order_acq_rel);
+    int32_t newDirtyCounter = oldDirtyCounter - numVisitsCompleted;
+    //If no other threads incremented it in the meantime, so our decrement hits zero, we're done.
+    if(newDirtyCounter <= 0) {
+      assert(newDirtyCounter == 0);
+      break;
+    }
+    //Otherwise, more threads incremented this more in the meantime. So we need to loop again and add their visits, recomputing again.
+    numVisitsCompleted = newDirtyCounter;
+    continue;
+  }
 }
 
 //Recompute all the stats of this node based on its children, except its visits and virtual losses, which are not child-dependent and
@@ -2448,8 +2470,6 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
       break;
     MoreNodeStats& stats = statsBuf[numGoodChildren];
 
-    //TODO think about whether we can ever be stuck with permanently stale stats with the
-    //last writer out
     stats.stats = NodeStats(child->stats);
 
     if(stats.stats.visits <= 0 || stats.stats.weightSum <= 0.0)
@@ -2585,6 +2605,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     weightSum += weight;
   }
 
+  //TODO statslock may be unnecessary now with the dirtyCounter mechanism?
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.visits.fetch_add(numVisitsToAdd,std::memory_order_release);
   //It's possible that these values are a bit wrong if there's a race and two threads each try to update this

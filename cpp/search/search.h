@@ -155,7 +155,6 @@ struct SearchNode {
   //Lightweight mutable---------------------------------------------------------------
   //Protected under statsLock for writing
   NodeStatsAtomic stats;
-
   std::atomic<int32_t> virtualLosses;
 
   //Protected under the entryLock in subtreeValueBiasTableEntry
@@ -165,6 +164,8 @@ struct SearchNode {
   double lastSubtreeValueBiasDeltaSum;
   double lastSubtreeValueBiasWeight;
   std::shared_ptr<SubtreeValueBiasEntry> subtreeValueBiasTableEntry;
+
+  std::atomic<int32_t> dirtyCounter;
 
   //--------------------------------------------------------------------------------
   SearchNode(Player prevPla, Loc prevMoveLoc, SearchNode* parent);
@@ -545,7 +546,7 @@ private:
   double pruneNoiseWeight(std::vector<MoreNodeStats>& statsBuf, int numChildren, double totalChildWeight, const double* policyProbsBuf) const;
 
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot);
-  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, bool isRoot);
+  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot);
   void recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, bool isRoot);
   void recursivelyRemoveSubtreeValueBiasBeforeDeleteSynchronous(SearchNode* node);
 
