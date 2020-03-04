@@ -13640,31 +13640,31 @@ HASH: 94959097515D55649C5B7E91CF40EBBD
  1 O . . O . O O
 
 
-: T  40.83c W  38.36c S   2.47c ( +0.0 L  +0.0) SMSQ 134.4 USQ 0.44421 W 247.51 WSQ   194.98 N     400  --  B1 E7 pass D6 pass pass
+: T  40.83c W  38.36c S   2.47c ( +0.0 L  +0.0) SMSQ 134.4 USQ 0.44421 W 400.00 WSQ   509.23 N     400  --  B1 E7 pass D6 pass pass
 ---White(^)---
-B1  : T  48.16c W  45.41c S   2.74c ( +0.0 L  +0.0) LCB   33.83c P 12.18% WF 50.78% PSV     286 SMSQ 118.7 USQ 0.52090 W 155.11 WSQ   103.00 N     286  --  B1 E7 pass D6 pass pass
-E1  : T   8.38c W   5.90c S   2.48c ( +0.4 L  +0.4) LCB   -5.12c P 60.64% WF 13.49% PSV      29 SMSQ 198.5 USQ 0.09245 W  39.19 WSQ    18.45 N      85  --  E1 C1 pass B1 F1 D3 A3 B2
-pss : T  -1.98c W   4.73c S  -6.71c ( -2.9 L  -2.9) LCB  -33.68c P 17.22% WF 15.83% PSV       6 SMSQ 235.9 USQ 0.03919 W   9.21 WSQ     6.52 N      13  --  pass D6 B1 B7 E7 A5 C5
-C1  : T   8.56c W   7.06c S   1.51c ( +0.0 L  +0.0) LCB  -34.06c P  9.97% WF 19.89% PSV       4 SMSQ 223.9 USQ 0.09706 W  10.69 WSQ     7.68 N      15  --  C1 pass B1 B7 pass E7 pass
+B1  : T  48.16c W  45.41c S   2.74c ( +0.0 L  +0.0) LCB   33.83c P 12.18% WF 50.78% PSV     286 SMSQ 118.7 USQ 0.52090 W 286.00 WSQ   350.17 N     286  --  B1 E7 pass D6 pass pass
+E1  : T   8.38c W   5.90c S   2.48c ( +0.4 L  +0.4) LCB   -5.12c P 60.64% WF 13.49% PSV      29 SMSQ 198.5 USQ 0.09245 W  85.00 WSQ    86.75 N      85  --  E1 C1 pass B1 F1 D3 A3 B2
+pss : T  -1.98c W   4.73c S  -6.71c ( -2.9 L  -2.9) LCB  -33.68c P 17.22% WF 15.83% PSV       6 SMSQ 235.9 USQ 0.03919 W  13.00 WSQ    13.01 N      13  --  pass D6 B1 B7 E7 A5 C5
+C1  : T   8.56c W   7.06c S   1.51c ( +0.0 L  +0.0) LCB  -34.06c P  9.97% WF 19.89% PSV       4 SMSQ 223.9 USQ 0.09706 W  15.00 WSQ    15.11 N      15  --  C1 pass B1 B7 pass E7 pass
 Begin search is idempotent?
-: T  38.80c W  38.15c S   0.65c ( +0.0 L  +0.0) SMSQ 134.9 USQ 0.41980 W 246.70 WSQ   192.33 N     400  --  B1 E7 pass D6 pass pass
+: T  38.80c W  38.15c S   0.65c ( +0.0 L  +0.0) SMSQ 134.9 USQ 0.41980 W 400.00 WSQ   505.63 N     400  --  B1 E7 pass D6 pass pass
 ---White(^)---
-B1  : T  46.05c W  45.24c S   0.81c ( +0.0 L  +0.0) LCB   31.97c P 12.18% WF 50.22% PSV     286 SMSQ 119.1 USQ 0.49278 W 155.09 WSQ   102.43 N     286  --  B1 E7 pass D6 pass pass
-E1  : T   7.10c W   5.93c S   1.17c ( +0.4 L  +0.4) LCB   -6.30c P 60.64% WF 13.72% PSV      30 SMSQ 198.5 USQ 0.08919 W  39.17 WSQ    18.42 N      85  --  E1 C1 pass B1 F1 D3 A3 B2
-pss : T  -3.16c W   4.73c S  -7.89c ( -2.9 L  -2.9) LCB  -34.77c P 17.22% WF 16.00% PSV       6 SMSQ 235.9 USQ 0.03957 W   9.21 WSQ     6.53 N      13  --  pass D6 B1 B7 E7 A5 C5
-C1  : T   7.27c W   7.06c S   0.21c ( +0.0 L  +0.0) LCB  -34.89c P  9.97% WF 20.06% PSV       5 SMSQ 223.8 USQ 0.09310 W  10.69 WSQ     7.67 N      15  --  C1 pass B1 B7 pass E7 pass
-: T  46.05c W  45.24c S   0.81c ( +0.0 L  +0.0) SMSQ 119.1 USQ 0.49278 W 155.09 WSQ   102.43 N     286  --  E7 pass D6 pass pass
+B1  : T  46.05c W  45.24c S   0.81c ( +0.0 L  +0.0) LCB   31.97c P 12.18% WF 50.22% PSV     286 SMSQ 119.1 USQ 0.49278 W 286.00 WSQ   348.34 N     286  --  B1 E7 pass D6 pass pass
+E1  : T   7.10c W   5.93c S   1.17c ( +0.4 L  +0.4) LCB   -6.30c P 60.64% WF 13.72% PSV      30 SMSQ 198.5 USQ 0.08919 W  85.00 WSQ    86.73 N      85  --  E1 C1 pass B1 F1 D3 A3 B2
+pss : T  -3.16c W   4.73c S  -7.89c ( -2.9 L  -2.9) LCB  -34.77c P 17.22% WF 16.00% PSV       6 SMSQ 235.9 USQ 0.03957 W  13.00 WSQ    13.01 N      13  --  pass D6 B1 B7 E7 A5 C5
+C1  : T   7.27c W   7.06c S   0.21c ( +0.0 L  +0.0) LCB  -34.89c P  9.97% WF 20.06% PSV       5 SMSQ 223.8 USQ 0.09310 W  15.00 WSQ    15.11 N      15  --  C1 pass B1 B7 pass E7 pass
+: T  46.05c W  45.24c S   0.81c ( +0.0 L  +0.0) SMSQ 119.1 USQ 0.49278 W 286.00 WSQ   348.34 N     286  --  E7 pass D6 pass pass
 ---Black(v)---
-E7  : T  33.19c W  32.69c S   0.50c ( -0.0 L  -0.0) LCB   54.63c P  1.90% WF 41.82% PSV     320 SMSQ 146.0 USQ 0.36868 W  62.36 WSQ    39.57 N     115  --  E7 pass D6 pass pass
-D6  : T  53.60c W  52.64c S   0.96c ( +0.0 L  +0.0) LCB   75.98c P  5.27% WF 25.51% PSV     119 SMSQ  99.8 USQ 0.56808 W  65.70 WSQ    44.06 N     119  --  D6 pass B7 pass pass
-B7  : T  57.87c W  56.92c S   0.95c ( +0.0 L  +0.0) LCB  108.22c P  9.61% WF 24.15% PSV      26 SMSQ 106.6 USQ 0.59333 W  20.37 WSQ    17.40 N      26  --  B7 pass D6 pass pass
-pss : T  95.90c W  93.72c S   2.17c ( +0.3 L  +0.3) LCB  122.11c P 83.22% WF  8.52% PSV      25 SMSQ  17.9 USQ 0.99384 W  20.83 WSQ    17.46 N      25  --  pass pass
-: T  46.00c W  45.24c S   0.76c ( +0.0 L  +0.0) SMSQ 119.1 USQ 0.49211 W 155.09 WSQ   102.41 N     286  --  E7 pass D6 pass pass
+E7  : T  33.19c W  32.69c S   0.50c ( -0.0 L  -0.0) LCB   54.63c P  1.90% WF 41.82% PSV     320 SMSQ 146.0 USQ 0.36868 W 115.00 WSQ   134.57 N     115  --  E7 pass D6 pass pass
+D6  : T  53.60c W  52.64c S   0.96c ( +0.0 L  +0.0) LCB   75.98c P  5.27% WF 25.51% PSV     119 SMSQ  99.8 USQ 0.56808 W 119.00 WSQ   144.56 N     119  --  D6 pass B7 pass pass
+B7  : T  57.87c W  56.92c S   0.95c ( +0.0 L  +0.0) LCB  108.22c P  9.61% WF 24.15% PSV      26 SMSQ 106.6 USQ 0.59333 W  26.00 WSQ    28.34 N      26  --  B7 pass D6 pass pass
+pss : T  95.90c W  93.72c S   2.17c ( +0.3 L  +0.3) LCB  122.11c P 83.22% WF  8.52% PSV      25 SMSQ  17.9 USQ 0.99384 W  25.00 WSQ    25.14 N      25  --  pass pass
+: T  46.00c W  45.24c S   0.76c ( +0.0 L  +0.0) SMSQ 119.1 USQ 0.49211 W 286.00 WSQ   348.29 N     286  --  E7 pass D6 pass pass
 ---Black(v)---
-E7  : T  33.15c W  32.69c S   0.46c ( -0.0 L  -0.0) LCB   54.58c P  1.90% WF 41.81% PSV     320 SMSQ 146.0 USQ 0.36817 W  62.36 WSQ    39.57 N     115  --  E7 pass D6 pass pass
-D6  : T  53.54c W  52.64c S   0.91c ( +0.0 L  +0.0) LCB   75.92c P  5.27% WF 25.51% PSV     119 SMSQ  99.8 USQ 0.56729 W  65.70 WSQ    44.06 N     119  --  D6 pass B7 pass pass
-B7  : T  57.82c W  56.92c S   0.90c ( +0.0 L  +0.0) LCB  108.14c P  9.61% WF 24.15% PSV      26 SMSQ 106.6 USQ 0.59252 W  20.37 WSQ    17.39 N      26  --  B7 pass D6 pass pass
-pss : T  95.83c W  93.72c S   2.11c ( +0.3 L  +0.3) LCB  122.03c P 83.22% WF  8.53% PSV      25 SMSQ  17.9 USQ 0.99252 W  20.83 WSQ    17.45 N      25  --  pass pass
+E7  : T  33.15c W  32.69c S   0.46c ( -0.0 L  -0.0) LCB   54.58c P  1.90% WF 41.81% PSV     320 SMSQ 146.0 USQ 0.36817 W 115.00 WSQ   134.55 N     115  --  E7 pass D6 pass pass
+D6  : T  53.54c W  52.64c S   0.91c ( +0.0 L  +0.0) LCB   75.92c P  5.27% WF 25.51% PSV     119 SMSQ  99.8 USQ 0.56729 W 119.00 WSQ   144.54 N     119  --  D6 pass B7 pass pass
+B7  : T  57.82c W  56.92c S   0.90c ( +0.0 L  +0.0) LCB  108.14c P  9.61% WF 24.15% PSV      26 SMSQ 106.6 USQ 0.59252 W  26.00 WSQ    28.34 N      26  --  B7 pass D6 pass pass
+pss : T  95.83c W  93.72c S   2.11c ( +0.3 L  +0.3) LCB  122.03c P 83.22% WF  8.53% PSV      25 SMSQ  17.9 USQ 0.99252 W  25.00 WSQ    25.14 N      25  --  pass pass
 
 ===================================================================
 Non-square board search
