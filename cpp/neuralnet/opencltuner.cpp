@@ -528,6 +528,8 @@ static void shuffleConfigs(
   vector<OpenCLTuneParams>& configs
 ) {
   Rand rand;
+  if(configs.size() == 0)
+    return;
   for(int i = configs.size()-1; i > 0; i--) {
     int j = rand.nextUInt(i+1);
     std::swap(configs[i],configs[j]);

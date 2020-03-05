@@ -577,6 +577,8 @@ bool MatchPairer::getMatchup(
 
 pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
   if(nextMatchups.size() <= 0) {
+    if(numBots == 0)
+      throw StringError("MatchPairer::getMatchupPairUnsynchronized: no bots to match up");
     if(numBots == 1)
       return make_pair(0,0);
 
@@ -1683,6 +1685,8 @@ static void replayGameUpToMove(const FinishedGameData* finishedGameData, int mov
     hist.clear(board,pla,rules,finishedGameData->startHist.initialEncorePhase);
 
   //Make sure it's prior to the last move
+  if(finishedGameData->endHist.moveHistory.size() <= 0)
+    return;
   moveIdx = std::min(moveIdx,(int)(finishedGameData->endHist.moveHistory.size()-1));
 
   //Replay all those moves
