@@ -206,7 +206,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   //Load runner settings
   const int numGameThreads = cfg.getInt("numGameThreads",1,16384);
-  const string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
+  const string gameSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
   //Width and height of the board to use when writing data, typically 19
   const int dataBoardLen = cfg.getInt("dataBoardLen",9,37);
@@ -257,7 +257,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   fancyModes.forSelfPlay = true;
   fancyModes.dataXLen = dataBoardLen;
   fancyModes.dataYLen = dataBoardLen;
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, fancyModes, logger);
+  GameRunner* gameRunner = new GameRunner(cfg, fancyModes, logger);
 
   Setup::initializeSession(cfg);
 
@@ -431,12 +431,14 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     &netAndStuffsMutex,&netAndStuffs,
     switchNetsMidGame,
     &fancyModes,
-    &forkData
+    &forkData,
+    &gameSeedBase
   ](int threadIdx) {
     vector<std::atomic<bool>*> stopConditions = {&shouldStop};
 
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
     string prevModelName;
+    Rand thisLoopSeedRand;
     while(true) {
       if(shouldStop.load())
         break;
@@ -475,12 +477,12 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
       FinishedGameData* gameData = NULL;
 
-      int64_t gameIdx;
       MatchPairer::BotSpec botSpecB;
       MatchPairer::BotSpec botSpecW;
-      if(netAndStuff->matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
+      if(netAndStuff->matchPairer->getMatchup(botSpecB, botSpecW, logger)) {
+        string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
-          gameIdx, botSpecB, botSpecW, forkData, logger,
+          seed, botSpecB, botSpecW, forkData, logger,
           stopConditions,
           (switchNetsMidGame ? &checkForNewNNEval : NULL)
         );

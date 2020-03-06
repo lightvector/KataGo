@@ -228,10 +228,11 @@ void Rand::init()
   }
 #endif
 
-  uint64_t hash[4];
+  char hash[65];
   SHA2::get256(s.c_str(), hash);
-
-  init(Global::uint64ToHexString(hash[0]));
+  assert(hash[64] == '\0');
+  string hashed(hash);
+  init(hashed);
 }
 
 void Rand::init(uint64_t seed)

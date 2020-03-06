@@ -183,7 +183,7 @@ class MatchPairer {
 
   //Get next matchup and log stuff
   bool getMatchup(
-    int64_t& gameIdx, BotSpec& botSpecB, BotSpec& botSpecW, Logger& logger
+    BotSpec& botSpecB, BotSpec& botSpecW, Logger& logger
   );
 
  private:
@@ -329,19 +329,18 @@ class GameRunner {
   bool logMoves;
   int maxMovesPerGame;
   bool clearBotBeforeSearch;
-  std::string searchRandSeedBase;
   FancyModes fancyModes;
   GameInitializer* gameInit;
 
 public:
-  GameRunner(ConfigParser& cfg, const std::string& searchRandSeedBase, FancyModes fancyModes, Logger& logger);
-  GameRunner(ConfigParser& cfg, const std::string& earchsRandSeedBase, const std::string& gameInitRandSeed, FancyModes fModes, Logger& logger);
+  GameRunner(ConfigParser& cfg, FancyModes fancyModes, Logger& logger);
+  GameRunner(ConfigParser& cfg, const std::string& gameInitRandSeed, FancyModes fModes, Logger& logger);
   ~GameRunner();
 
   //Will return NULL if stopped before the game completes. The caller is responsible for freeing the data
   //if it isn't NULL.
   FinishedGameData* runGame(
-    int64_t gameIdx,
+    const std::string& seed,
     const MatchPairer::BotSpec& botSpecB,
     const MatchPairer::BotSpec& botSpecW,
     ForkData* forkData,

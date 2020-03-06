@@ -201,12 +201,11 @@ namespace {
     {}
 
     bool getMatchup(
-      NetManager* manager, int64_t& gameIdx, string& forBot, MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW, Logger& logger
+      NetManager* manager, string& forBot, MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW, Logger& logger
     )
     {
       std::lock_guard<std::mutex> lock(getMatchupMutex);
 
-      gameIdx = numGamesStartedSoFar;
       numGamesStartedSoFar += 1;
       if(numGamesStartedSoFar % logGamesEvery == 0)
         logger.write("Started " + Global::int64ToString(numGamesStartedSoFar) + " games");
@@ -459,8 +458,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
 
   //Load match runner settings
   int numGameThreads = cfg.getInt("numGameThreads",1,16384);
-
-  string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
+  const string gameSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
   //Work out an upper bound on how many concurrent nneval requests we could end up making.
   int maxConcurrentEvals;
@@ -489,7 +487,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
   fancyModes.allowResignation = cfg.getBool("allowResignation");
   fancyModes.resignThreshold = cfg.getDouble("resignThreshold",-1.0,0.0); //Threshold on [-1,1], regardless of winLossUtilityFactor
   fancyModes.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, fancyModes, logger);
+  GameRunner* gameRunner = new GameRunner(cfg, fancyModes, logger);
 
 
   //Done loading!
@@ -511,26 +509,27 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
   ofstream* resultOut = new ofstream(resultsDir + "/" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".results.csv");
 
   auto runMatchLoop = [
-    &gameRunner,&autoMatchPairer,&sgfOutputDir,&logger,&resultLock,&resultOut,&manager
+    &gameRunner,&autoMatchPairer,&sgfOutputDir,&logger,&resultLock,&resultOut,&manager,&gameSeedBase
   ](
     uint64_t threadHash
   ) {
     ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(threadHash) + ".sgfs")) : NULL;
     vector<std::atomic<bool>*> stopConditions = {&sigReceived};
 
+    Rand thisLoopSeedRand;
     while(true) {
       if(sigReceived.load())
         break;
 
       FinishedGameData* gameData = NULL;
 
-      int64_t gameIdx;
       string forBot;
       MatchPairer::BotSpec botSpecB;
       MatchPairer::BotSpec botSpecW;
-      if(autoMatchPairer->getMatchup(manager, gameIdx, forBot, botSpecB, botSpecW, logger)) {
+      if(autoMatchPairer->getMatchup(manager, forBot, botSpecB, botSpecW, logger)) {
+        string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
-          gameIdx, botSpecB, botSpecW, NULL, logger,
+          seed, botSpecB, botSpecW, NULL, logger,
           stopConditions, NULL
         );
       }

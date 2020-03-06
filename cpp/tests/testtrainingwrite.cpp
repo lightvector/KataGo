@@ -756,10 +756,11 @@ xxxxxxxx.
     botSpec.baseParams.maxVisits = 10;
     ForkData* forkData = new ForkData();
 
-    GameRunner* gameRunner = new GameRunner(cfg, "game init test search seed", "game init test game seed", fancyModes, logger);
+    GameRunner* gameRunner = new GameRunner(cfg, "game init test game seed", fancyModes, logger);
     std::vector<std::atomic<bool>*> stopConditions;
     for(int i = 0; i<100; i++) {
-      FinishedGameData* data = gameRunner->runGame(i, botSpec, botSpec, forkData, logger, stopConditions, NULL);
+      string seed = "game init test search seed:" + Global::int64ToString(i);
+      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, logger, stopConditions, NULL);
       cout << data->startHist.rules << endl;
       cout << "Start moves size " << data->startHist.moveHistory.size()
            << " Start pla " << PlayerIO::playerToString(data->startPla)
