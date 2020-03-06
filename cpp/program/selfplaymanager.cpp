@@ -220,7 +220,7 @@ void SelfplayManager::countOneGameStarted(NNEvaluator* nnEval) {
   lock.unlock();
 
   if(logger != NULL && gameStartedCount % logGamesEvery == 0) {
-    logger->write("Started " + Global::int64ToString(gameStartedCount) + " games");
+    logger->write("Started " + Global::int64ToString(gameStartedCount) + " games with " + nnEval->getModelName());
   }
   int64_t logNNEvery = logGamesEvery*100 > 1000 ? logGamesEvery*100 : 1000;
   if(logger != NULL && gameStartedCount % logNNEvery == 0) {
