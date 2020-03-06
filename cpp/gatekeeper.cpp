@@ -274,10 +274,10 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
 
   //Load runner settings
   const int numGameThreads = cfg.getInt("numGameThreads",1,16384);
-  const string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
+  const string gameSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
   PlaySettings playSettings = PlaySettings::loadForGatekeeper(cfg);
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, playSettings, logger);
+  GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
 
   Setup::initializeSession(cfg);
 
@@ -385,7 +385,9 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   auto gameLoop = [
     &gameRunner,
     &logger,
-    &netAndStuffMutex,&netAndStuff
+    &netAndStuffMutex,
+    &netAndStuff,
+    &gameSeedBase
   ](int threadIdx) {
     std::unique_lock<std::mutex> lock(netAndStuffMutex);
     netAndStuff->registerGameThread();
@@ -393,6 +395,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
 
     vector<std::atomic<bool>*> stopConditions = {&shouldStop,&(netAndStuff->terminated)};
 
+    Rand thisLoopSeedRand;
     while(true) {
       if(shouldStop.load() || netAndStuff->terminated.load())
         break;
@@ -401,12 +404,12 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
 
       FinishedGameData* gameData = NULL;
 
-      int64_t gameIdx;
       MatchPairer::BotSpec botSpecB;
       MatchPairer::BotSpec botSpecW;
-      if(netAndStuff->matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
+      if(netAndStuff->matchPairer->getMatchup(botSpecB, botSpecW, logger)) {
+        string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
-          gameIdx, botSpecB, botSpecW, NULL, logger,
+          seed, botSpecB, botSpecW, NULL, logger,
           stopConditions, NULL
         );
       }

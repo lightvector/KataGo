@@ -536,7 +536,7 @@ int64_t MatchPairer::getNumGamesTotalToGenerate() const {
 }
 
 bool MatchPairer::getMatchup(
-  int64_t& gameIdx, BotSpec& botSpecB, BotSpec& botSpecW, Logger& logger
+  BotSpec& botSpecB, BotSpec& botSpecW, Logger& logger
 )
 {
   std::lock_guard<std::mutex> lock(getMatchupMutex);
@@ -544,7 +544,6 @@ bool MatchPairer::getMatchup(
   if(numGamesStartedSoFar >= numGamesTotal)
     return false;
 
-  gameIdx = numGamesStartedSoFar;
   numGamesStartedSoFar += 1;
 
   if(numGamesStartedSoFar % logGamesEvery == 0)
@@ -1864,9 +1863,8 @@ void Play::maybeSekiForkGame(
   }
 }
 
-GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, PlaySettings pSettings, Logger& logger)
+GameRunner::GameRunner(ConfigParser& cfg, PlaySettings pSettings, Logger& logger)
   :logSearchInfo(),logMoves(),maxMovesPerGame(),clearBotBeforeSearch(),
-   searchRandSeedBase(sRandSeedBase),
    playSettings(pSettings),
    gameInit(NULL)
 {
@@ -1878,9 +1876,8 @@ GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, PlaySetti
   //Initialize object for randomizing game settings
   gameInit = new GameInitializer(cfg,logger);
 }
-GameRunner::GameRunner(ConfigParser& cfg, const string& sRandSeedBase, const string& gameInitRandSeed, PlaySettings pSettings, Logger& logger)
+GameRunner::GameRunner(ConfigParser& cfg, const string& gameInitRandSeed, PlaySettings pSettings, Logger& logger)
   :logSearchInfo(),logMoves(),maxMovesPerGame(),clearBotBeforeSearch(),
-   searchRandSeedBase(sRandSeedBase),
    playSettings(pSettings),
    gameInit(NULL)
 {
@@ -1898,7 +1895,7 @@ GameRunner::~GameRunner() {
 }
 
 FinishedGameData* GameRunner::runGame(
-  int64_t gameIdx,
+  const string& seed,
   const MatchPairer::BotSpec& bSpecB,
   const MatchPairer::BotSpec& bSpecW,
   ForkData* forkData,
@@ -1909,8 +1906,7 @@ FinishedGameData* GameRunner::runGame(
   MatchPairer::BotSpec botSpecB = bSpecB;
   MatchPairer::BotSpec botSpecW = bSpecW;
 
-  string searchRandSeed = searchRandSeedBase + ":" + Global::int64ToString(gameIdx);
-  Rand gameRand(searchRandSeed + ":" + "forGameRand");
+  Rand gameRand(seed + ":" + "forGameRand");
 
   const InitialPosition* initialPosition = NULL;
   bool usedSekiForkHackPosition = false;
@@ -1967,12 +1963,12 @@ FinishedGameData* GameRunner::runGame(
   Search* botB;
   Search* botW;
   if(botSpecB.botIdx == botSpecW.botIdx) {
-    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, searchRandSeed);
+    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, seed);
     botW = botB;
   }
   else {
-    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, searchRandSeed + "@B");
-    botW = new Search(botSpecW.baseParams, botSpecW.nnEval, searchRandSeed + "@W");
+    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, seed + "@B");
+    botW = new Search(botSpecW.baseParams, botSpecW.nnEval, seed + "@W");
   }
 
   FinishedGameData* finishedGameData = Play::runGame(

@@ -81,7 +81,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   //Load runner settings
   const int numGameThreads = cfg.getInt("numGameThreads",1,16384);
-  const string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
+  const string gameSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
   //Width and height of the board to use when writing data, typically 19
   const int dataBoardLen = cfg.getInt("dataBoardLen",9,37);
@@ -104,7 +104,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   //Initialize object for randomizing game settings and running games
   PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg,dataBoardLen);
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, playSettings, logger);
+  GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
   bool autoCleanupAllButLatestIfUnused = true;
   SelfplayManager* manager = new SelfplayManager(validationProp, maxDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
 
@@ -227,11 +227,13 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     &numGamesStarted,
     &forkData,
     maxGamesTotal,
-    &baseParams
+    &baseParams,
+    &gameSeedBase
   ](int threadIdx) {
     vector<std::atomic<bool>*> stopConditions = {&shouldStop};
 
     string prevModelName;
+    Rand thisLoopSeedRand;
     while(true) {
       if(shouldStop.load())
         break;
@@ -269,8 +271,10 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
         botSpecB.nnEval = nnEval;
         botSpecB.baseParams = baseParams;
         MatchPairer::BotSpec botSpecW = botSpecB;
+
+        string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
-          gameIdx, botSpecB, botSpecW, forkData, logger,
+          seed, botSpecB, botSpecW, forkData, logger,
           stopConditions,
           (switchNetsMidGame ? &checkForNewNNEval : NULL)
         );
