@@ -802,16 +802,18 @@ o.xoo.x
             printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,c);
             return getAndClear(out);
           };
-          auto printOwnership = [&]() {
+          auto printScoring = [&]() {
             Board b(board);
             BoardHistory h(hist);
             Color area[Board::MAX_ARR_SIZE];
-            float ownership[Board::MAX_ARR_SIZE];
+            float scoring[Board::MAX_ARR_SIZE];
             h.endAndScoreGameNow(b,area);
-            NNInputs::fillOwnership(b,area,false,board.x_size,board.y_size,ownership);
+            NNInputs::fillScoring(b,area,false,scoring);
             for(int y = 0; y<board.y_size; y++) {
-              for(int x = 0; x<board.x_size; x++)
-                cout << Global::strprintf("%4.0f",100*ownership[x+y*board.x_size]) << " ";
+              for(int x = 0; x<board.x_size; x++) {
+                Loc loc = Location::getLoc(x,y,board.x_size);
+                cout << Global::strprintf("%4.0f",100*scoring[loc]) << " ";
+              }
               cout << endl;
             }
             cout << endl;
@@ -826,7 +828,7 @@ o.xoo.x
             for(int i = 0; i<hist.moveHistory.size(); i++)
               cout << Location::toString(hist.moveHistory[i].loc,board) << " ";
             cout << actualNHWC;
-            printOwnership();
+            printScoring();
           };
 
           cout << "=========================================== " << endl;

@@ -212,28 +212,25 @@ double ScoreValue::expectedWhiteScoreValue(double whiteScoreMean, double whiteSc
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
 
-void NNInputs::fillOwnership(
+void NNInputs::fillScoring(
   const Board& board,
   const Color* area,
   bool groupTax,
-  int nnXLen,
-  int nnYLen,
-  float* ownership
+  float* scoring
 ) {
   if(!groupTax) {
-    std::fill(ownership, ownership + nnXLen*nnYLen, 0.0f);
+    std::fill(scoring, scoring + Board::MAX_ARR_SIZE, 0.0f);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
-        int pos = NNPos::locToPos(loc,board.x_size,nnXLen,nnYLen);
         Color areaColor = area[loc];
         if(areaColor == P_BLACK)
-          ownership[pos] = -1.0f;
+          scoring[loc] = -1.0f;
         else if(areaColor == P_WHITE)
-          ownership[pos] = 1.0f;
+          scoring[loc] = 1.0f;
         else {
           assert(areaColor == C_EMPTY);
-          ownership[pos] = 0;
+          scoring[loc] = 0;
         }
       }
     }
@@ -243,7 +240,7 @@ void NNInputs::fillOwnership(
     Loc queue[Board::MAX_ARR_SIZE];
 
     std::fill(visited, visited + Board::MAX_ARR_SIZE, false);
-    std::fill(ownership, ownership + nnXLen*nnYLen, 0.0f);
+    std::fill(scoring, scoring + Board::MAX_ARR_SIZE, 0.0f);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
@@ -280,17 +277,15 @@ void NNInputs::fillOwnership(
           for(int j = 0; j<queueTail; j++) {
             Loc next = queue[j];
             queueHead++;
-            int pos = NNPos::locToPos(next,board.x_size,nnXLen,nnYLen);
             if(board.colors[next] != areaColor)
-              ownership[pos] = territoryValue;
+              scoring[next] = territoryValue;
             else
-              ownership[pos] = fullValue;
+              scoring[next] = fullValue;
           }
         }
         else {
           assert(areaColor == C_EMPTY);
-          int pos = NNPos::locToPos(loc,board.x_size,nnXLen,nnYLen);
-          ownership[pos] = 0;
+          scoring[loc] = 0;
         }
       }
     }

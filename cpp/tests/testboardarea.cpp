@@ -1564,7 +1564,7 @@ NonPassAliveSelfConn white
 
   //============================================================================
   {
-    const char* name = "groupTaxOwnership";
+    const char* name = "groupTaxScoring";
     Color result[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(13,13,R"%%(
 .xo.o.o...xx.
@@ -1582,34 +1582,31 @@ o.oxo.o...x.x
 .o.o.o....xx.
 )%%");
 
-    int nnXLen = board.x_size;
-    int nnYLen = board.y_size;
-
     bool multiStoneSuicideLegal = false;
     bool nonPassAliveStones = true;
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = true;
     board.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,multiStoneSuicideLegal);
 
-    float ownership[NNPos::MAX_BOARD_AREA];
+    float scoring[NNPos::MAX_BOARD_AREA];
 
     out << endl;
     out << "No group tax" << endl;
-    NNInputs::fillOwnership(board,result,false,nnXLen,nnYLen,ownership);
+    NNInputs::fillScoring(board,result,false,scoring);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,nnXLen);
-        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        out << Global::strprintf("%4.0f ", scoring[loc]*100);
       }
       out << endl;
     }
     out << endl;
     out << "Group tax" << endl;
-    NNInputs::fillOwnership(board,result,true,nnXLen,nnYLen,ownership);
+    NNInputs::fillScoring(board,result,true,scoring);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,nnXLen);
-        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        out << Global::strprintf("%4.0f ", scoring[loc]*100);
       }
       out << endl;
     }
@@ -1653,7 +1650,7 @@ Group tax
 
   //============================================================================
   {
-    const char* name = "groupTaxOwnership2";
+    const char* name = "groupTaxScoring2";
     Color result[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(13,13,R"%%(
 .xo.ox.oooooo
@@ -1671,34 +1668,31 @@ ox.oxooooxooo
 ox.oxo.o.x.o.
 )%%");
 
-    int nnXLen = board.x_size;
-    int nnYLen = board.y_size;
-
     bool multiStoneSuicideLegal = true;
     bool nonPassAliveStones = true;
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = false;
     board.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,multiStoneSuicideLegal);
 
-    float ownership[NNPos::MAX_BOARD_AREA];
+    float scoring[NNPos::MAX_BOARD_AREA];
 
     out << endl;
     out << "No group tax" << endl;
-    NNInputs::fillOwnership(board,result,false,nnXLen,nnYLen,ownership);
+    NNInputs::fillScoring(board,result,false,scoring);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,nnXLen);
-        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        out << Global::strprintf("%4.0f ", scoring[loc]*100);
       }
       out << endl;
     }
     out << endl;
     out << "Group tax" << endl;
-    NNInputs::fillOwnership(board,result,true,nnXLen,nnYLen,ownership);
+    NNInputs::fillScoring(board,result,true,scoring);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,nnXLen);
-        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        out << Global::strprintf("%4.0f ", scoring[loc]*100);
       }
       out << endl;
     }
@@ -1742,7 +1736,7 @@ Group tax
 
   //============================================================================
   {
-    const char* name = "groupTaxOwnership2 but with unsafe territories on";
+    const char* name = "groupTaxScoring2 but with unsafe territories on";
     Color result[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(13,13,R"%%(
 .xo.ox.oooooo
@@ -1760,34 +1754,31 @@ ox.oxooooxooo
 ox.oxo.o.x.o.
 )%%");
 
-    int nnXLen = board.x_size;
-    int nnYLen = board.y_size;
-
     bool multiStoneSuicideLegal = true;
     bool nonPassAliveStones = true;
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = true;
     board.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,multiStoneSuicideLegal);
 
-    float ownership[NNPos::MAX_BOARD_AREA];
+    float scoring[NNPos::MAX_BOARD_AREA];
 
     out << endl;
     out << "No group tax" << endl;
-    NNInputs::fillOwnership(board,result,false,nnXLen,nnYLen,ownership);
+    NNInputs::fillScoring(board,result,false,scoring);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,nnXLen);
-        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        out << Global::strprintf("%4.0f ", scoring[loc]*100);
       }
       out << endl;
     }
     out << endl;
     out << "Group tax" << endl;
-    NNInputs::fillOwnership(board,result,true,nnXLen,nnYLen,ownership);
+    NNInputs::fillScoring(board,result,true,scoring);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,nnXLen);
-        out << Global::strprintf("%4.0f ", ownership[pos]*100);
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        out << Global::strprintf("%4.0f ", scoring[loc]*100);
       }
       out << endl;
     }

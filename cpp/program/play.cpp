@@ -1484,18 +1484,11 @@ FinishedGameData* Play::runGame(
     }
     gameData->whiteValueTargetsByTurn.push_back(finalValueTargets);
 
-    int dataXLen = playSettings.dataXLen;
-    int dataYLen = playSettings.dataYLen;
-    assert(dataXLen > 0);
-    assert(dataYLen > 0);
     assert(gameData->finalWhiteScoring == NULL);
-
-    gameData->finalWhiteScoring = new float[dataXLen*dataYLen];
-    NNInputs::fillOwnership(board,gameData->finalOwnership,hist.rules.taxRule == Rules::TAX_ALL,dataXLen,dataYLen,gameData->finalWhiteScoring);
+    gameData->finalWhiteScoring = new float[Board::MAX_ARR_SIZE];
+    NNInputs::fillScoring(board,gameData->finalOwnership,hist.rules.taxRule == Rules::TAX_ALL,gameData->finalWhiteScoring);
 
     gameData->hasFullData = true;
-    gameData->dataXLen = dataXLen;
-    gameData->dataYLen = dataYLen;
 
     vector<double> valueSurpriseByTurn;
     {

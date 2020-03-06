@@ -224,7 +224,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   const bool switchNetsMidGame = cfg.getBool("switchNetsMidGame");
 
   //Initialize object for randomizing game settings and running games
-  PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg,dataBoardLen);
+  PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg);
   GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
 
   Setup::initializeSession(cfg);
