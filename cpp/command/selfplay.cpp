@@ -2,8 +2,6 @@
 #include "../core/datetime.h"
 #include "../core/makedir.h"
 #include "../core/config_parser.h"
-#include "../core/timer.h"
-#include "../core/threadsafequeue.h"
 #include "../dataio/sgf.h"
 #include "../dataio/trainingwrite.h"
 #include "../dataio/loadmodel.h"
@@ -106,7 +104,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   //Initialize object for randomizing game settings and running games
   PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg);
   GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
-  SelfplayManager* manager = new SelfplayManager(validationProp, maxDataQueueSize, &logger, logGamesEvery);
+  bool autoCleanupAllButLatestIfUnused = true;
+  SelfplayManager* manager = new SelfplayManager(validationProp, maxDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
 
   Setup::initializeSession(cfg);
 
@@ -308,14 +307,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
         break;
       string lastNetName = manager->getLatestModelName();
       bool success = loadLatestNeuralNetIntoManager(&lastNetName);
+      (void)success;
 
-      if(success) {
-        //Mark all older nets draining
-        vector<string> modelNames = manager->modelNames();
-        assert(modelNames.size() > 0);
-        for(size_t i = 0; i < modelNames.size()-1; i++)
-          manager->scheduleCleanupModelWhenFree(modelNames[i]);
-      }
       if(shouldStop.load())
         break;
 
@@ -324,12 +317,6 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
       modelLoadSleepVar.wait_for(lock, std::chrono::seconds(20), [](){return shouldStop.load();});
     }
 
-    //As part of cleanup, anything remaining, schedule to be freed when possible and prevent new games.
-    {
-      vector<string> modelNames = manager->modelNames();
-      for(size_t i = 0; i < modelNames.size()-1; i++)
-        manager->scheduleCleanupModelWhenFree(modelNames[i]);
-    }
     logger.write("Model loading loop thread terminating");
   };
 

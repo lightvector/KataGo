@@ -8,7 +8,13 @@
 
 class SelfplayManager {
  public:
-  SelfplayManager(double validationProp, int maxDataQueueSize, Logger* logger, int64_t logGamesEvery);
+  SelfplayManager(
+    double validationProp,
+    int maxDataQueueSize,
+    Logger* logger,
+    int64_t logGamesEvery,
+    bool autoCleanupAllButLatestIfUnused
+  );
   ~SelfplayManager();
 
   SelfplayManager(const SelfplayManager& other);
@@ -39,9 +45,6 @@ class SelfplayManager {
   //Release a model either by name or by the nnEval object that was returned.
   void release(const std::string& modelName);
   void release(NNEvaluator* nnEval);
-  //Prevent all future use of this model.
-  //Schedules it to be cleaned up once nothing more is acquiring it and all data is written.
-  void scheduleCleanupModelWhenFree(const std::string& modelName);
 
   //====================================================================================
   //These should only be called by a thread that has currently acquired the model.
@@ -63,8 +66,6 @@ class SelfplayManager {
 
     ThreadSafeQueue<FinishedGameData*> finishedGameQueue;
     int acquireCount;
-    bool isDraining;
-    std::condition_variable isFreeVar;
 
     TrainingDataWriter* tdataWriter;
     TrainingDataWriter* vdataWriter;
@@ -82,6 +83,7 @@ class SelfplayManager {
   const int maxDataQueueSize;
   Logger* logger;
   const int64_t logGamesEvery;
+  const bool autoCleanupAllButLatestIfUnused;
 
   mutable std::mutex managerMutex;
   std::vector<ModelData*> modelDatas;
@@ -90,7 +92,7 @@ class SelfplayManager {
 
   NNEvaluator* acquireModelAlreadyLocked(SelfplayManager::ModelData* foundData);
   void releaseAlreadyLocked(SelfplayManager::ModelData* foundData);
-  void scheduleCleanupModelWhenFreeAlreadyLocked(SelfplayManager::ModelData* foundData);
+  void maybeAutoCleanupAlreadyLocked();
 
  public:
   //For internal use
