@@ -74,8 +74,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 B3 77 J7 10 D3 3 J4 8 D4 1 
 whiteValueTargetsByTurn 0 0.555213 0.444787 0 2.28382 - 
@@ -197,8 +195,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 policyTargetsByTurn 0 unreducedNumVisits 20 J8 6 H9 10 H8 6 J4 4 H4 1 
 whiteValueTargetsByTurn 0 0.53378 0.46622 0 1.80453 - 
@@ -406,8 +402,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 E4 36 C4 58 E2 4 
 whiteValueTargetsByTurn 0 0.524619 0.475381 0 1.06717 - 
@@ -557,8 +551,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C8 13 D4 12 C4 7 D3 5 D9 6 D8 11 H8 9 H9 9 J8 7 H3 8 J4 5 H4 5 
 whiteValueTargetsByTurn 0 0.511855 0.488145 0 0.875535 - 
@@ -680,8 +672,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 policyTargetsByTurn 0 unreducedNumVisits 20 C8 10 D4 2 C4 2 D3 2 D9 2 D8 10 H8 2 H9 2 J8 2 
 whiteValueTargetsByTurn 0 0.523714 0.476286 0 1.28118 - 
@@ -831,8 +821,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 policyTargetsByTurn 0 unreducedNumVisits 20 H8 19 
 whiteValueTargetsByTurn 0 0.421813 0.578187 0 -2.89874 - 
@@ -954,8 +942,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 policyTargetsByTurn 0 unreducedNumVisits 20 G9 10 G8 10 J6 1 
 whiteValueTargetsByTurn 0 0.489236 0.510764 0 -0.0560741 - 
@@ -1077,8 +1063,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C4 21 H3 29 H4 15 D3 14 D4 14 J4 5 
 whiteValueTargetsByTurn 0 0.525839 0.474161 0 1.36822 - 
@@ -1200,8 +1184,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 D3 28 C4 34 D4 33 C3 1 
 whiteValueTargetsByTurn 0 0.523102 0.476898 0 1.14998 - 
@@ -1323,8 +1305,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 policyTargetsByTurn 0 unreducedNumVisits 20 G4 10 G9 6 G2 3 C8 1 H2 1 
 whiteValueTargetsByTurn 0 0.564559 0.435441 0 2.39098 - 
@@ -1446,8 +1426,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 D5 25 J4 56 E5 16 D6 1 
 whiteValueTargetsByTurn 0 0.509799 0.490201 0 1.32181 - 
@@ -1627,8 +1605,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 policyTargetsByTurn 0 unreducedNumVisits 20 D9 10 C8 8 J8 6 H9 4 D8 6 H8 4 
 whiteValueTargetsByTurn 0 0.679427 0.320573 0 8.68437 - 
@@ -1808,8 +1784,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 E8 62 E9 23 F8 10 F9 1 D4 1 
 whiteValueTargetsByTurn 0 0.475394 0.524606 0 0.0513598 - 
@@ -1989,8 +1963,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 20 C4 10 D3 3 H3 4 D4 1 H4 1 
 whiteValueTargetsByTurn 0 0.527197 0.472803 0 2.32894 - 
@@ -2142,8 +2114,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 policyTargetsByTurn 0 unreducedNumVisits 20 J6 12 E9 3 D9 3 J7 1 
 whiteValueTargetsByTurn 0 0.538327 0.461673 0 2.81561 - 
@@ -2323,8 +2293,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 G3 71 G4 15 H3 9 H4 3 
 whiteValueTargetsByTurn 0 0.525389 0.474611 0 1.69337 - 
@@ -2476,8 +2444,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C5 46 D3 14 C3 15 D5 22 
 whiteValueTargetsByTurn 0 0.476108 0.523893 0 -0.203081 - 
@@ -2627,8 +2593,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 policyTargetsByTurn 0 unreducedNumVisits 20 H5 11 E3 6 J4 1 F3 1 
 whiteValueTargetsByTurn 0 0.434649 0.565351 0 -2.09095 - 
@@ -2806,8 +2770,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 J8 50 H8 35 H9 12 C7 1 F3 1 
 whiteValueTargetsByTurn 0 0.493782 0.506218 0 0.516775 - 
@@ -2959,8 +2921,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 policyTargetsByTurn 0 unreducedNumVisits 20 G8 18 H11 1 
 whiteValueTargetsByTurn 0 0.426293 0.573707 0 -1.87102 - 
@@ -3140,8 +3100,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C10 92 C8 7 
 whiteValueTargetsByTurn 0 0.477875 0.522125 0 -0.239921 - 
@@ -3293,8 +3251,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 G8 93 H7 5 G7 0 
 whiteValueTargetsByTurn 0 0.558538 0.441462 0 4.02049 - 
@@ -3474,8 +3430,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 policyTargetsByTurn 0 unreducedNumVisits 20 D9 13 D8 3 C8 3 
 whiteValueTargetsByTurn 0 0.565377 0.434623 0 4.00981 - 
@@ -3655,8 +3609,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 J3 62 H6 20 H4 15 K6 1 
 whiteValueTargetsByTurn 0 0.454822 0.545178 0 -1.61142 - 
@@ -3778,8 +3730,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 J4 28 H3 44 H4 22 J3 1 
 whiteValueTargetsByTurn 0 0.607812 0.392188 0 6.23538 - 
@@ -3901,8 +3851,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 F4 32 G3 17 G4 44 H7 0 F5 1 
 whiteValueTargetsByTurn 0 0.560364 0.439636 0 3.8811 - 
@@ -4080,8 +4028,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 J7 99 
 whiteValueTargetsByTurn 0 0.485836 0.514164 0 0.148094 - 
@@ -4233,8 +4179,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 G3 72 F4 10 G5 6 F5 3 C4 5 H6 1 D3 1 
 whiteValueTargetsByTurn 0 0.556808 0.443192 0 3.67258 - 
@@ -4412,8 +4356,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 L4 11 H5 10 K3 7 G3 66 L7 1 
 whiteValueTargetsByTurn 0 0.672111 0.327889 0 7.02181 - 
@@ -4535,8 +4477,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 H9 65 H7 26 C9 5 E8 1 G8 1 H6 0 
 whiteValueTargetsByTurn 0 0.491386 0.508614 0 0.667169 - 
@@ -4658,8 +4598,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 H5 79 E3 12 C9 6 
 whiteValueTargetsByTurn 0 0.427882 0.572118 0 -2.40332 - 
@@ -4809,8 +4747,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 G3 51 H3 24 F9 21 G9 3 
 whiteValueTargetsByTurn 0 0.193147 0.806853 0 -11.6092 - 
@@ -4962,8 +4898,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C5 37 B7 42 C7 7 B5 5 H8 6 D8 2 
 whiteValueTargetsByTurn 0 0.0585428 0.941457 0 -24.0108 - 
@@ -5113,8 +5047,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 policyTargetsByTurn 0 unreducedNumVisits 20 J4 10 H3 7 H4 4 
 whiteValueTargetsByTurn 0 0.552598 0.447402 0 2.5188 - 
@@ -5294,8 +5226,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 policyTargetsByTurn 0 unreducedNumVisits 20 D8 10 D9 7 C8 2 
 whiteValueTargetsByTurn 0 0.535342 0.464658 0 2.11885 - 
@@ -5417,8 +5347,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 policyTargetsByTurn 0 unreducedNumVisits 20 C4 16 D4 1 H9 2 
 whiteValueTargetsByTurn 0 0.579835 0.420165 0 4.30861 - 
@@ -5540,8 +5468,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 policyTargetsByTurn 0 unreducedNumVisits 20 J8 16 H9 1 J9 1 H8 1 
 whiteValueTargetsByTurn 0 0.490642 0.509358 0 0.646035 - 
@@ -5721,8 +5647,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 policyTargetsByTurn 0 unreducedNumVisits 20 J4 10 G4 6 F5 4 J9 1 
 whiteValueTargetsByTurn 0 0.512217 0.487783 0 1.34971 - 
@@ -5902,8 +5826,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 policyTargetsByTurn 0 unreducedNumVisits 20 C8 13 J5 5 F9 1 
 whiteValueTargetsByTurn 0 0.463259 0.536741 0 -0.734867 - 
@@ -6029,8 +5951,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 targetWeightByTurn 1 1
 targetWeightByTurn 2 1
@@ -6194,8 +6114,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 1
 targetWeightByTurn 1 1
 targetWeightByTurn 2 1
@@ -6404,8 +6322,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 targetWeightByTurn 1 1
 targetWeightByTurn 2 1
@@ -7400,8 +7316,6 @@ mode 0
 modeMeta1 0
 modeMeta2 0
 hasFullData 1
-dataXLen 11
-dataYLen 11
 targetWeightByTurn 0 0
 targetWeightByTurn 1 0
 targetWeightByTurn 2 0

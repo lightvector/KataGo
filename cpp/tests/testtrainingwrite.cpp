@@ -109,8 +109,6 @@ void Tests::runTrainingWriteTests() {
     playSettings.initGamesWithPolicy = true;
     playSettings.forkSidePositionProb = 0.10;
     playSettings.forSelfPlay = true;
-    playSettings.dataXLen = nnXLen;
-    playSettings.dataYLen = nnYLen;
     Rand rand(seedBase+"play");
     OtherGameProperties otherGameProps;
     FinishedGameData* gameData = Play::runGame(
@@ -188,9 +186,6 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
   cout << "Running test for selfplay initialization with NN" << endl;
   NeuralNet::globalInitialize();
 
-  int nnXLen = 11;
-  int nnYLen = 11;
-
   Logger logger;
   logger.setLogToStdout(true);
   logger.setLogTime(false);
@@ -245,8 +240,6 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     playSettings.earlyForkGameMaxChoices = 2;
     playSettings.compensateKomiVisits = 5;
     playSettings.forSelfPlay = true;
-    playSettings.dataXLen = nnXLen;
-    playSettings.dataYLen = nnYLen;
 
     string searchRandSeed = seedBase+"search";
     Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
@@ -353,9 +346,6 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
   cout << "Running more tests for selfplay" << endl;
   NeuralNet::globalInitialize();
 
-  int nnXLen = 11;
-  int nnYLen = 11;
-
   Logger logger;
   logger.setLogToStdout(true);
   logger.setLogTime(false);
@@ -416,8 +406,6 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       playSettings.policySurpriseDataWeight = 0.8;
 
     playSettings.forSelfPlay = true;
-    playSettings.dataXLen = nnXLen;
-    playSettings.dataYLen = nnYLen;
 
     string searchRandSeed = seedBase+"search";
     Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
@@ -715,8 +703,6 @@ xxxxxxxx.
 
     playSettings.sekiForkHack = true;
     playSettings.forSelfPlay = true;
-    playSettings.dataXLen = 13;
-    playSettings.dataYLen = 13;
 
     nnEval->clearCache();
     nnEval->clearStats();
@@ -840,8 +826,6 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     playSettings.earlyForkGameMaxChoices = 2;
     playSettings.compensateKomiVisits = 5;
     playSettings.forSelfPlay = true;
-    playSettings.dataXLen = nnXLen;
-    playSettings.dataYLen = nnYLen;
 
     string searchRandSeed = seedBase+"search";
     Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);

@@ -55,8 +55,6 @@ struct PlaySettings {
 
   //Enable full data recording and a variety of other minor tweaks applying only for self-play training.
   bool forSelfPlay;
-  int dataXLen; //When self-play data recording, the width/height of the tensor
-  int dataYLen; //When self-play data recording, the width/height of the tensor
 
   //Asymmetric playouts training
   double handicapAsymmetricPlayoutProb; //Probability of asymmetric playouts on handicap games
@@ -69,7 +67,7 @@ struct PlaySettings {
 
   static PlaySettings loadForMatch(ConfigParser& cfg);
   static PlaySettings loadForGatekeeper(ConfigParser& cfg);
-  static PlaySettings loadForSelfplay(ConfigParser& cfg, int dataBoardLen);
+  static PlaySettings loadForSelfplay(ConfigParser& cfg);
 };
 
 #endif // PROGRAM_PLAYSETTINGS_H_

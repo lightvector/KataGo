@@ -83,13 +83,11 @@ namespace NNInputs {
 
   //If groupTax is specified, for each color region of area, reduce weight on empty spaces equally to reduce the total sum by 2.
   //(but should handle seki correctly)
-  void fillOwnership(
+  void fillScoring(
     const Board& board,
     const Color* area,
     bool groupTax,
-    int nnXLen,
-    int nnYLen,
-    float* ownership
+    float* scoring
   );
 }
 

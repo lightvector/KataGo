@@ -10,7 +10,7 @@ PlaySettings::PlaySettings()
    policySurpriseDataWeight(0.0),
    recordTreePositions(false),recordTreeThreshold(0),recordTreeTargetWeight(0.0f),
    allowResignation(false),resignThreshold(0.0),resignConsecTurns(1),
-   forSelfPlay(false),dataXLen(-1),dataYLen(-1),
+   forSelfPlay(false),
    handicapAsymmetricPlayoutProb(0.0),normalAsymmetricPlayoutProb(0.0),maxAsymmetricRatio(2.0)
 {}
 PlaySettings::~PlaySettings()
@@ -33,7 +33,7 @@ PlaySettings PlaySettings::loadForGatekeeper(ConfigParser& cfg) {
   return playSettings;
 }
 
-PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg, int dataBoardLen) {
+PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
   PlaySettings playSettings;
   playSettings.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
   playSettings.forkSidePositionProb = cfg.getDouble("forkSidePositionProb",0.0,1.0);
@@ -64,8 +64,6 @@ PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg, int dataBoardLen) 
   playSettings.minAsymmetricCompensateKomiProb = cfg.getDouble("minAsymmetricCompensateKomiProb",0.0,1.0);
   playSettings.sekiForkHack = true;
   playSettings.forSelfPlay = true;
-  playSettings.dataXLen = dataBoardLen;
-  playSettings.dataYLen = dataBoardLen;
 
   return playSettings;
 }

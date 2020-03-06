@@ -63,8 +63,6 @@ struct FinishedGameData {
 
   //If false, then we don't have these below vectors and ownership information
   bool hasFullData;
-  int dataXLen;
-  int dataYLen;
   std::vector<float> targetWeightByTurn;
   std::vector<PolicyTarget> policyTargetsByTurn;
   std::vector<ValueTargets> whiteValueTargetsByTurn;
