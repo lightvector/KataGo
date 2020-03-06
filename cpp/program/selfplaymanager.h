@@ -2,6 +2,7 @@
 #define PROGRAM_SELFPLAYMANAGER_H_
 
 #include "../core/threadsafequeue.h"
+#include "../core/timer.h"
 #include "../dataio/sgf.h"
 #include "../dataio/trainingwrite.h"
 #include "../neuralnet/nneval.h"
@@ -46,6 +47,9 @@ class SelfplayManager {
   void release(const std::string& modelName);
   void release(NNEvaluator* nnEval);
 
+  //Clean up any currently-unused models if their last usage was older than this many seconds ago.
+  void cleanupUnusedModelsOlderThan(double seconds);
+
   //====================================================================================
   //These should only be called by a thread that has currently acquired the model.
 
@@ -63,6 +67,7 @@ class SelfplayManager {
     std::string modelName;
     NNEvaluator* nnEval;
     int64_t gameStartedCount;
+    double lastReleaseTime;
 
     ThreadSafeQueue<FinishedGameData*> finishedGameQueue;
     int acquireCount;
@@ -73,7 +78,8 @@ class SelfplayManager {
 
     ModelData(
       const std::string& name, NNEvaluator* neval, int maxDataQueueSize,
-      TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, std::ofstream* sOut
+      TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, std::ofstream* sOut,
+      double initialLastReleaseTime
     );
     ~ModelData();
   };
@@ -84,6 +90,8 @@ class SelfplayManager {
   Logger* logger;
   const int64_t logGamesEvery;
   const bool autoCleanupAllButLatestIfUnused;
+
+  const ClockTimer timer;
 
   mutable std::mutex managerMutex;
   std::vector<ModelData*> modelDatas;

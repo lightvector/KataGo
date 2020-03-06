@@ -4,11 +4,13 @@ using namespace std;
 
 SelfplayManager::ModelData::ModelData(
   const string& name, NNEvaluator* neval, int maxDQueueSize,
-  TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, ofstream* sOut
+  TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, ofstream* sOut,
+  double initialTime
 ):
   modelName(name),
   nnEval(neval),
   gameStartedCount(0),
+  lastReleaseTime(initialTime),
   finishedGameQueue(maxDQueueSize),
   acquireCount(0),
   tdataWriter(tdWriter),
@@ -40,6 +42,7 @@ SelfplayManager::SelfplayManager(
   logger(lg),
   logGamesEvery(logEvery),
   autoCleanupAllButLatestIfUnused(autoCleanup),
+  timer(),
   managerMutex(),
   modelDatas(),
   numDataWriteLoopsActive(0),
@@ -82,6 +85,24 @@ void SelfplayManager::maybeAutoCleanupAlreadyLocked() {
   }
 }
 
+
+void SelfplayManager::cleanupUnusedModelsOlderThan(double seconds) {
+  std::lock_guard<std::mutex> lock(managerMutex);
+  double now = timer.getSeconds();
+  for(size_t i = 0; i<modelDatas.size()-1; i++) {
+    ModelData* foundData = modelDatas[i];
+    if(foundData->acquireCount <= 0 && now - foundData->lastReleaseTime > seconds) {
+      assert(foundData->acquireCount == 0);
+      //Trigger data writing loop to quit once it reaches end of its queue
+      foundData->finishedGameQueue.setReadOnly();
+      //We don't delete here, data write loop is responsible for deleting ModelData.
+      modelDatas.erase(modelDatas.begin()+i);
+      i--;
+    }
+  }
+}
+
+
 void SelfplayManager::loadModelAndStartDataWriting(
   NNEvaluator* nnEval,
   TrainingDataWriter* tdataWriter,
@@ -96,7 +117,8 @@ void SelfplayManager::loadModelAndStartDataWriting(
     }
   }
 
-  ModelData* newModel = new ModelData(modelName,nnEval,maxDataQueueSize,tdataWriter,vdataWriter,sgfOut);
+  double initialTime = timer.getSeconds();
+  ModelData* newModel = new ModelData(modelName,nnEval,maxDataQueueSize,tdataWriter,vdataWriter,sgfOut,initialTime);
   modelDatas.push_back(newModel);
   numDataWriteLoopsActive++;
   std::thread newThread(dataWriteLoop,this,newModel);
@@ -125,6 +147,7 @@ NNEvaluator* SelfplayManager::acquireModelAlreadyLocked(ModelData* foundData) {
   return foundData->nnEval;
 }
 void SelfplayManager::releaseAlreadyLocked(ModelData* foundData) {
+  foundData->lastReleaseTime = timer.getSeconds();
   foundData->acquireCount -= 1;
 }
 
