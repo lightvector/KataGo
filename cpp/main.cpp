@@ -27,6 +27,8 @@ gtp : Runs GTP engine that can be plugged into any standard Go GUI for play/anal
 benchmark : Test speed with different numbers of search threads.
 genconfig : User-friendly interface to generate a config with rules and automatic performance tuning.
 
+contribute : Connect to online distributed KataGo training and run perpetually contributing selfplay games.
+
 match : Run self-play match games based on a config, more efficient than gtp due to batching.
 version : Print version and exit.
 
@@ -69,6 +71,8 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::analysis(argc-1,&argv[1]);
   if(subcommand == "benchmark")
     return MainCmds::benchmark(argc-1,&argv[1]);
+  if(subcommand == "contribute")
+    return MainCmds::contribute(argc-1,&argv[1]);
   if(subcommand == "evalsgf")
     return MainCmds::evalsgf(argc-1,&argv[1]);
   else if(subcommand == "gatekeeper")

@@ -1,0 +1,400 @@
+#include "core/global.h"
+#include "core/config_parser.h"
+#include "core/datetime.h"
+#include "core/timer.h"
+#include "core/makedir.h"
+#include "dataio/loadmodel.h"
+#include "neuralnet/modelversion.h"
+#include "search/asyncbot.h"
+#include "program/play.h"
+#include "program/setup.h"
+#include "program/selfplaymanager.h"
+#include "distributed/client.h"
+#include "commandline.h"
+#include "main.h"
+
+#include <sstream>
+#include <chrono>
+#include <csignal>
+
+using namespace std;
+
+static std::atomic<bool> sigReceived(false);
+static std::atomic<bool> shouldStop(false);
+static void signalHandler(int signal)
+{
+  if(signal == SIGINT || signal == SIGTERM) {
+    sigReceived.store(true);
+    shouldStop.store(true);
+  }
+}
+
+//-----------------------------------------------------------------------------------------
+
+static const string defaultBaseDir = "katago_contribute";
+static const int defaultMaxSimultaneousGames = 16;
+static const int defaultUnloadUnusedModelsAfter = 60 * 60;
+static const int defaultDeleteUnusedModelsAfter = 6 * 60 * 60;
+
+namespace {
+  struct GameTask {
+    Client::Task task;
+    SelfplayManager* manager;
+    NNEvaluator* nnEvalBlack;
+    NNEvaluator* nnEvalWhite;
+  };
+}
+
+static void runAndUploadSingleGame(GameTask gameTask, Logger& logger, const string& seed, ForkData* forkData, string sgfsDir, Rand& rand) {
+  vector<std::atomic<bool>*> stopConditions = {&shouldStop};
+
+  istringstream taskCfgIn(gameTask.task.config);
+  ConfigParser taskCfg(taskCfgIn);
+
+  NNEvaluator* nnEvalBlack = gameTask.nnEvalBlack;
+  NNEvaluator* nnEvalWhite = gameTask.nnEvalWhite;
+
+  SearchParams baseParams;
+  PlaySettings playSettings;
+  try {
+    baseParams = Setup::loadSingleParams(taskCfg);
+    playSettings = PlaySettings::loadForSelfplay(taskCfg);
+  }
+  catch(StringError& e) {
+    cerr << e.what() << endl;
+    throw;
+  }
+
+  MatchPairer::BotSpec botSpecB;
+  MatchPairer::BotSpec botSpecW;
+  botSpecB.botIdx = 0;
+  botSpecB.botName = nnEvalBlack->getModelName();
+  botSpecB.nnEval = nnEvalBlack;
+  botSpecB.baseParams = baseParams;
+  if(nnEvalWhite == nnEvalBlack)
+    botSpecW = botSpecB;
+  else {
+    botSpecW.botIdx = 1;
+    botSpecW.botName = nnEvalWhite->getModelName();
+    botSpecW.nnEval = nnEvalWhite;
+    botSpecW.baseParams = baseParams;
+  }
+
+  GameRunner* gameRunner = new GameRunner(taskCfg, playSettings, logger);
+
+  //Check for unused config keys
+  taskCfg.warnUnusedKeys(cerr,&logger);
+
+  FinishedGameData* gameData = gameRunner->runGame(
+    seed, botSpecB, botSpecW, forkData, logger,
+    stopConditions, NULL
+  );
+
+  if(gameData != NULL) {
+    if(gameTask.task.doWriteTrainingData) {
+      gameTask.manager->withDataWriters(nnEvalBlack,[gameData,&gameTask](TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut) {
+          (void)vdataWriter;
+          (void)sgfOut;
+          tdataWriter->writeGame(*gameData);
+          string resultingFilename;
+          bool producedFile = tdataWriter->flushIfNonempty(resultingFilename);
+          if(producedFile)
+            Client::uploadTrainingData(gameTask.task,resultingFilename);
+        });
+    }
+
+    string sgfOutputDir;
+    if(gameTask.task.isEvaluationGame)
+      sgfOutputDir = sgfsDir + "/" + gameTask.task.taskGroup;
+    else
+      sgfOutputDir = sgfsDir + "/" + nnEvalBlack->getModelName();
+    string sgfFile = sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgf";
+
+    ofstream out(sgfFile);
+    WriteSgf::writeSgf(out,gameData->bName,gameData->wName,gameData->endHist,gameData,false);
+    out.close();
+    Client::uploadSGF(gameTask.task,sgfFile);
+  }
+
+  delete gameData;
+  delete gameRunner;
+}
+
+
+int MainCmds::contribute(int argc, const char* const* argv) {
+  Board::initHash();
+  ScoreValue::initTables();
+  Rand seedRand;
+
+  string baseDir;
+  int maxSimultaneousGames;
+  int unloadUnusedModelsAfter;
+  int deleteUnusedModelsAfter;
+  string userConfigFile;
+  string overrideUserConfig;
+  try {
+    KataGoCommandLine cmd("Run KataGo to generate training data for distributed training");
+    TCLAP::ValueArg<string> baseDirArg(
+      "","base-dir","Directory to download models, write game results, etc. (default ./katago_contribute)",
+      false,defaultBaseDir,"DIR"
+    );
+    TCLAP::ValueArg<int> maxSimultaneousGamesArg(
+      "","max-simultaneous-games","Number of games to play simultaneously (default "+ Global::intToString(defaultMaxSimultaneousGames)+")",
+      false,defaultMaxSimultaneousGames,"NGAMES"
+    );
+    TCLAP::ValueArg<int> unloadUnusedModelsAfterArg(
+      "","unload-unused-models-after","After a model is unused in memory for this many seconds, unload it (default "+ Global::intToString(defaultUnloadUnusedModelsAfter)+")",
+      false,defaultUnloadUnusedModelsAfter,"SECONDS"
+    );
+    TCLAP::ValueArg<int> deleteUnusedModelsAfterArg(
+      "","delete-unused-models-after","After a model is unused for this many seconds, delete it from disk (default "+ Global::intToString(defaultDeleteUnusedModelsAfter)+")",
+      false,defaultDeleteUnusedModelsAfter,"SECONDS"
+    );
+    TCLAP::ValueArg<string> userConfigFileArg("","config","Config file to use for GPU settings",false,string(),"FILE");
+    TCLAP::ValueArg<string> overrideUserConfigArg("","override-config","Override config parameters. Format: \"key=value, key=value,...\"",false,string(),"KEYVALUEPAIRS");
+    cmd.add(baseDirArg);
+    cmd.add(maxSimultaneousGamesArg);
+    cmd.add(unloadUnusedModelsAfterArg);
+    cmd.add(deleteUnusedModelsAfterArg);
+    cmd.add(userConfigFileArg);
+    cmd.add(overrideUserConfigArg);
+    cmd.parse(argc,argv);
+    baseDir = baseDirArg.getValue();
+    maxSimultaneousGames = maxSimultaneousGamesArg.getValue();
+    unloadUnusedModelsAfter = unloadUnusedModelsAfterArg.getValue();
+    deleteUnusedModelsAfter = deleteUnusedModelsAfterArg.getValue();
+    userConfigFile = userConfigFileArg.getValue();
+    overrideUserConfig = overrideUserConfigArg.getValue();
+
+    if(maxSimultaneousGames <= 0 || maxSimultaneousGames > 100000)
+      throw StringError("-max-simultaneous-games: invalid value");
+    if(unloadUnusedModelsAfter < 0 || unloadUnusedModelsAfter > 1000000000)
+      throw StringError("-unload-unused-models-after: invalid value");
+    if(deleteUnusedModelsAfter < 0 || deleteUnusedModelsAfter > 1000000000)
+      throw StringError("-delete-unused-models-after: invalid value");
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  ConfigParser* userCfg;
+  if(userConfigFile == "") {
+    istringstream userCfgIn("");
+    userCfg = new ConfigParser(userCfgIn);
+  }
+  else {
+    userCfg = new ConfigParser(userConfigFile);
+  }
+  if(overrideUserConfig != "") {
+    map<string,string> newkvs = ConfigParser::parseCommaSeparated(overrideUserConfig);
+    //HACK to avoid a common possible conflict - if we specify some of the rules options on one side, the other side should be erased.
+    vector<pair<set<string>,set<string>>> mutexKeySets = Setup::getMutexKeySets();
+    userCfg->overrideKeys(newkvs,mutexKeySets);
+  }
+
+  if(!std::atomic_is_lock_free(&shouldStop))
+    throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
+  std::signal(SIGINT, signalHandler);
+  std::signal(SIGTERM, signalHandler);
+
+  //Connect to server and get global parameters for the run.
+  const Client::RunParameters runParams = Client::getRunParameters();
+
+  MakeDir::make(baseDir);
+  baseDir = baseDir + "/" + runParams.runId;
+  MakeDir::make(baseDir);
+
+  const string modelsDir = baseDir + "/models";
+  const string sgfsDir = baseDir + "/sgfs";
+  const string tdataDir = baseDir + "/tdata";
+  const string logsDir = baseDir + "/logs";
+
+  MakeDir::make(modelsDir);
+  MakeDir::make(sgfsDir);
+  MakeDir::make(tdataDir);
+  MakeDir::make(logsDir);
+
+  Logger logger;
+  //Log to random file name to better support starting/stopping as well as multiple parallel runs
+  logger.addFile(logsDir + "/log" + DateTime::getCompactDateTimeString() + "-" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".log");
+  logger.setLogToStdout(true);
+
+  logger.write("Distributed Self Play Engine starting...");
+  logger.write(Version::getKataGoVersionForHelp());
+  logger.write(string("Git revision: ") + Version::getGitRevision());
+
+  //Don't write "validation" data for distributed self-play. If the server-side wants to split out some data as "validation" for training
+  //then that can be done server-side.
+  const double validationProp = 0.0;
+  //If we ever get more than this many games behind on writing data, something is weird.
+  const int maxDataQueueSize = maxSimultaneousGames * 4;
+  const int logGamesEvery = 1;
+
+  const string gameSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
+
+  Setup::initializeSession(*userCfg);
+
+  //Shared across all game threads
+  ThreadSafeQueue<GameTask> gameTaskQueue(1);
+  ForkData* forkData = new ForkData();
+  std::atomic<int64_t> numGamesStarted(0);
+
+  auto runGameLoop = [&logger,forkData,&gameSeedBase,&gameTaskQueue,&numGamesStarted,&sgfsDir]() {
+    Rand thisLoopSeedRand;
+    while(true) {
+      GameTask gameTask;
+      bool success = gameTaskQueue.waitPop(gameTask);
+      if(!success)
+        break;
+      if(!shouldStop.load()) {
+        string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
+        int64_t gameIdx = numGamesStarted.fetch_add(1,std::memory_order_acq_rel);
+        logger.write(
+          "Started game " + Global::int64ToString(gameIdx) + " (" + (
+            gameTask.nnEvalBlack == gameTask.nnEvalWhite ?
+            gameTask.nnEvalBlack->getModelName() :
+            (gameTask.nnEvalBlack->getModelName() + " vs " + gameTask.nnEvalWhite->getModelName())
+          ) + ")"
+        );
+        runAndUploadSingleGame(gameTask,logger,seed,forkData,sgfsDir,thisLoopSeedRand);
+      }
+      gameTask.manager->release(gameTask.nnEvalBlack);
+      gameTask.manager->release(gameTask.nnEvalWhite);
+    }
+  };
+
+  auto loadNeuralNetIntoManager =
+    [&runParams,&tdataDir,&sgfsDir,&logger,&userCfg,maxSimultaneousGames](
+      SelfplayManager* manager, const string& modelName, const string& modelFile
+    ) {
+
+    if(manager->hasModel(modelName))
+      return;
+
+    logger.write("Found new neural net " + modelName);
+
+    int maxConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGames * 2 + 16;
+    int defaultMaxBatchSize = maxSimultaneousGames;
+
+    //Unlike local self-play, which waits to accumulate a fixed number of rows before writing, distributed selfplay writes
+    //training data game by game. So we set a buffer size here large enough to always hold all the rows of a game.
+    //These values should be vastly more than enough, yet still not use too much memory.
+    double firstFileRandMinProp = 1.0;
+    int maxRowsPerTrainFile = 20000;
+
+    Rand rand;
+    NNEvaluator* nnEval = Setup::initializeNNEvaluator(
+      modelName,modelFile,*userCfg,logger,rand,maxConcurrentEvals,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+      Setup::SETUP_FOR_DISTRIBUTED
+    );
+    assert(!nnEval->isNeuralNetLess());
+    logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
+
+    string sgfOutputDir = sgfsDir + "/" + modelName;
+    string tdataOutputDir = tdataDir + "/" + modelName;
+    MakeDir::make(sgfOutputDir);
+    MakeDir::make(tdataOutputDir);
+
+    //Note that this inputsVersion passed here is NOT necessarily the same as the one used in the neural net self play, it
+    //simply controls the input feature version for the written data
+    const int inputsVersion = runParams.inputsVersion;
+    const int dataBoardLen = runParams.dataBoardLen;
+    TrainingDataWriter* tdataWriter = new TrainingDataWriter(
+      tdataOutputDir, inputsVersion, maxRowsPerTrainFile, firstFileRandMinProp, dataBoardLen, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
+    TrainingDataWriter* vdataWriter = NULL;
+    ofstream* sgfOut = NULL;
+
+    logger.write("Loaded new neural net " + nnEval->getModelName());
+    manager->loadModelNoDataWritingLoop(nnEval, tdataWriter, vdataWriter, sgfOut);
+  };
+
+  //For distributed selfplay, we have a single thread primarily in charge of the manager, so we turn this off
+  //to ensure there is no asynchronous removal of models.
+  bool autoCleanupAllButLatestIfUnused = false;
+  SelfplayManager* manager = new SelfplayManager(validationProp, maxDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
+
+  //Start game loop threads! Yay!
+  vector<std::thread> gameThreads;
+  for(int i = 0; i<maxSimultaneousGames; i++) {
+    gameThreads.push_back(std::thread(runGameLoop));
+  }
+
+  //Loop acquiring tasks and feeding them to game threads
+  while(true) {
+    if(shouldStop.load())
+      break;
+    Client::Task task = Client::getNextTask(logger,baseDir);
+
+    if(task.runId != runParams.runId) {
+      throw StringError(
+        "This self-play client was started with the run \"" + task.runId +
+        "\" but the server now appears to be hosting a new run \"" + runParams.runId +
+        "\", you may need to re-start this client."
+      );
+    }
+
+    if(task.isEvaluationGame) {
+      string sgfOutputDir = sgfsDir + "/" + task.taskGroup;
+      MakeDir::make(sgfOutputDir);
+    }
+
+    //TODO should we have a mechanism to interrupt the download to quit faster in response to shouldStop?
+    Client::downloadModelIfNotPresent(task.modelNameBlack,modelsDir);
+    Client::downloadModelIfNotPresent(task.modelNameWhite,modelsDir);
+    if(shouldStop.load())
+      break;
+
+    string modelFileBlack = Client::getModelPath(task.modelNameBlack,modelsDir);
+    string modelFileWhite = Client::getModelPath(task.modelNameWhite,modelsDir);
+    //Update model file modified times as a way to track which ones we've used recently or not
+    LoadModel::setLastModifiedTimeToNow(modelFileBlack,logger);
+    if(modelFileWhite != modelFileBlack)
+      LoadModel::setLastModifiedTimeToNow(modelFileWhite,logger);
+
+    loadNeuralNetIntoManager(manager,task.modelNameBlack,modelFileBlack);
+    loadNeuralNetIntoManager(manager,task.modelNameWhite,modelFileWhite);
+    if(shouldStop.load())
+      break;
+
+    //Game loop threads are responsible for releasing when done.
+    NNEvaluator* nnEvalBlack = manager->acquireModel(task.modelNameBlack);
+    NNEvaluator* nnEvalWhite = manager->acquireModel(task.modelNameWhite);
+
+    manager->cleanupUnusedModelsOlderThan(unloadUnusedModelsAfter);
+    time_t modelFileAgeLimit = time(NULL) - deleteUnusedModelsAfter;
+    LoadModel::deleteModelsOlderThan(modelsDir,logger,modelFileAgeLimit);
+
+    GameTask gameTask;
+    gameTask.task = task;
+    gameTask.manager = manager;
+    gameTask.nnEvalBlack = nnEvalBlack;
+    gameTask.nnEvalWhite = nnEvalWhite;
+
+    bool suc = gameTaskQueue.waitPush(gameTask);
+    (void)suc;
+    assert(suc);
+  }
+
+  //This should trigger game threads to quit
+  gameTaskQueue.setReadOnly();
+
+  //Wait for all game threads to stop
+  for(int i = 0; i<gameThreads.size(); i++)
+    gameThreads[i].join();
+
+  //At this point, nothing else except possibly data write loops are running, within the selfplay manager.
+  delete manager;
+
+  //Delete and clean up everything else
+  NeuralNet::globalCleanup();
+  delete forkData;
+  ScoreValue::freeTables();
+  delete userCfg;
+
+  if(sigReceived.load())
+    logger.write("Exited cleanly after signal");
+  logger.write("All cleaned up, quitting");
+  return 0;
+}
