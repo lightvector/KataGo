@@ -3,6 +3,7 @@
 namespace MainCmds {
   int analysis(int argc, const char* const* argv);
   int benchmark(int argc, const char* const* argv);
+  int contribute(int argc, const char* const* argv);
   int evalsgf(int argc, const char* const* argv);
   int gatekeeper(int argc, const char* const* argv);
   int genconfig(int argc, const char* const* argv, const char* firstCommand);
