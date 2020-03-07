@@ -142,6 +142,16 @@ string SelfplayManager::getLatestModelName() const {
   return modelDatas[modelDatas.size()-1]->modelName;
 }
 
+bool SelfplayManager::hasModel(const std::string& modelName) const {
+  std::lock_guard<std::mutex> lock(managerMutex);
+  for(size_t i = 0; i<modelDatas.size(); i++) {
+    if(modelDatas[i]->modelName == modelName)
+      return true;
+  }
+  return false;
+}
+
+
 NNEvaluator* SelfplayManager::acquireModelAlreadyLocked(ModelData* foundData) {
   foundData->acquireCount += 1;
   return foundData->nnEval;

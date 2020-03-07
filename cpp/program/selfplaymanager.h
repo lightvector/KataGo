@@ -38,6 +38,7 @@ class SelfplayManager {
   //Models that aren't cleaned up yet are in the order from earliest to latest
   std::vector<std::string> modelNames() const;
   std::string getLatestModelName() const;
+  bool hasModel(const std::string& modelName) const;
 
   //Returns NULL if acquire failed (such as if that model was scheduled to be cleaned up or already cleaned up,).
   //Must call release when done, and cease using the NNEvaluator after that.
