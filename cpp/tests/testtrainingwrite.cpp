@@ -751,7 +751,9 @@ xxxxxxxx.
            << " XY " << data->startBoard.x_size << " " << data->startBoard.y_size
            << " Extra black " << data->numExtraBlack
            << " Draw equiv " << data->drawEquivalentWinsForWhite
-           << " Modes " << data->mode << " " << data->modeMeta1 << " " << data->modeMeta2
+           << " Mode " << data->mode
+           << " BeganInEncorePhase " << data->beganInEncorePhase
+           << " UsedInitialPosition " << data->usedInitialPosition
            << " Forkstuff " << forkData->forks.size() << " " << forkData->sekiForks.size()
            << endl;
       delete data;

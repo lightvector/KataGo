@@ -1227,9 +1227,16 @@ FinishedGameData* Play::runGame(
   gameData->playoutDoublingAdvantage = otherGameProps.playoutDoublingAdvantage;
 
   gameData->numExtraBlack = extraBlackAndKomi.extraBlack;
-  gameData->mode = 0;
-  gameData->modeMeta1 = 0;
-  gameData->modeMeta2 = 0;
+  gameData->mode = FinishedGameData::MODE_NORMAL;
+  gameData->beganInEncorePhase = 0;
+  gameData->usedInitialPosition = 0;
+
+  if(extraBlackAndKomi.extraBlack > 0)
+    gameData->mode = FinishedGameData::MODE_HANDICAP;
+  if(otherGameProps.isSgfPos)
+    gameData->mode = FinishedGameData::MODE_SGFPOS;
+  if(otherGameProps.isFork)
+    gameData->mode = FinishedGameData::MODE_FORK;
 
   //In selfplay, record all the policy maps and evals and such as well for training data
   bool recordFullData = playSettings.forSelfPlay;
@@ -1276,9 +1283,9 @@ FinishedGameData* Play::runGame(
       int encorePhase = gameRand.nextInt(1,2);
       hist.clear(board,pla,hist.rules,encorePhase);
 
-      gameData->mode = 1;
-      gameData->modeMeta1 = encorePhase;
-      gameData->modeMeta2 = 0;
+      gameData->mode = FinishedGameData::MODE_CLEANUP_TRAINING;
+      gameData->beganInEncorePhase = encorePhase;
+      gameData->usedInitialPosition = 0;
     }
   }
 
@@ -1977,7 +1984,7 @@ FinishedGameData* GameRunner::runGame(
   );
 
   if(initialPosition != NULL)
-    finishedGameData->modeMeta2 = 1;
+    finishedGameData->usedInitialPosition = 1;
 
   //Make sure not to write the game if we terminated in the middle of this game!
   if(shouldStop(stopConditions)) {

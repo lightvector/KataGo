@@ -63,8 +63,8 @@ FinishedGameData::FinishedGameData()
 
    numExtraBlack(0),
    mode(0),
-   modeMeta1(0),
-   modeMeta2(0),
+   beganInEncorePhase(0),
+   usedInitialPosition(0),
 
    hasFullData(false),
    targetWeightByTurn(),
@@ -114,8 +114,8 @@ void FinishedGameData::printDebug(ostream& out) const {
   out << "hitTurnLimit " << hitTurnLimit << endl;
   out << "numExtraBlack " << numExtraBlack << endl;
   out << "mode " << mode << endl;
-  out << "modeMeta1 " << modeMeta1 << endl;
-  out << "modeMeta2 " << modeMeta2 << endl;
+  out << "beganInEncorePhase " << beganInEncorePhase << endl;
+  out << "usedInitialPosition " << usedInitialPosition << endl;
   out << "hasFullData " << hasFullData << endl;
   for(int i = 0; i<targetWeightByTurn.size(); i++)
     out << "targetWeightByTurn " << i << " " << targetWeightByTurn[i] << endl;
@@ -494,8 +494,8 @@ void TrainingWriteBuffers::addRow(
 
   //Metadata about how the game was initialized
   rowGlobal[55] = data.mode;
-  rowGlobal[56] = data.modeMeta1;
-  rowGlobal[57] = data.modeMeta2;
+  rowGlobal[56] = data.beganInEncorePhase;
+  rowGlobal[57] = data.usedInitialPosition;
   rowGlobal[58] = isSidePosition ? 1.0f : 0.0f;
 
   //Unused

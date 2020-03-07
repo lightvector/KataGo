@@ -58,8 +58,8 @@ struct FinishedGameData {
   //Metadata about how the game was initialized
   int numExtraBlack;
   int mode;
-  int modeMeta1;
-  int modeMeta2;
+  int beganInEncorePhase;
+  int usedInitialPosition;
 
   //If false, then we don't have these below vectors and ownership information
   bool hasFullData;
@@ -73,6 +73,12 @@ struct FinishedGameData {
 
   std::vector<SidePosition*> sidePositions;
   std::vector<ChangedNeuralNet*> changedNeuralNets;
+
+  static constexpr int MODE_NORMAL = 0;
+  static constexpr int MODE_CLEANUP_TRAINING = 1;
+  static constexpr int MODE_FORK = 2;
+  static constexpr int MODE_HANDICAP = 3;
+  static constexpr int MODE_SGFPOS = 4;
 
   FinishedGameData();
   ~FinishedGameData();

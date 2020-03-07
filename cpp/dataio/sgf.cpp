@@ -1104,10 +1104,26 @@ void WriteSgf::writeSgf(
   size_t startTurnIdx = 0;
   if(gameData != NULL && gameData->hasFullData) {
     startTurnIdx = gameData->startHist.moveHistory.size();
-    out << "C[startTurnIdx=" << startTurnIdx
-        << "," << "mode=" << gameData->mode
-        << "," << "modeM1=" << gameData->modeMeta1
-        << "," << "modeM2=" << gameData->modeMeta2;
+    out << "C[startTurnIdx=" << startTurnIdx;
+
+    if(gameData->mode == FinishedGameData::MODE_NORMAL)
+      out << "," << "mode=normal";
+    else if(gameData->mode == FinishedGameData::MODE_CLEANUP_TRAINING)
+      out << "," << "mode=cleanuptraining";
+    else if(gameData->mode == FinishedGameData::MODE_FORK)
+      out << "," << "mode=fork";
+    else if(gameData->mode == FinishedGameData::MODE_HANDICAP)
+      out << "," << "mode=handicap";
+    else if(gameData->mode == FinishedGameData::MODE_SGFPOS)
+      out << "," << "mode=sgfpos";
+    else
+      out << "," << "mode=other";
+
+    if(gameData->beganInEncorePhase != 0)
+      out << "," << "beganInEncorePhase=" << gameData->beganInEncorePhase;
+    if(gameData->usedInitialPosition != 0)
+      out << "," << "usedInitialPosition=" << gameData->usedInitialPosition;
+
     for(int j = 0; j<gameData->changedNeuralNets.size(); j++) {
       out << ",newNeuralNetTurn" << gameData->changedNeuralNets[j]->turnNumber
           << "=" << gameData->changedNeuralNets[j]->name;
