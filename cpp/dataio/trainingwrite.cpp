@@ -814,22 +814,32 @@ void TrainingDataWriter::writeAndClearIfFull() {
   }
 }
 
-void TrainingDataWriter::flushIfNonempty() {
-  if(writeBuffers->curRows > 0) {
-    isFirstFile = false;
 
-    if(debugOut != NULL) {
-      writeBuffers->writeToTextOstream(*debugOut);
-      writeBuffers->clear();
-    }
-    else {
-      string filename = outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".npz";
-      string tmpFilename = filename + ".tmp";
-      writeBuffers->writeToZipFile(tmpFilename);
-      writeBuffers->clear();
-      std::rename(tmpFilename.c_str(),filename.c_str());
-    }
+
+void TrainingDataWriter::flushIfNonempty() {
+  string resultingFilename;
+  flushIfNonempty(resultingFilename);
+}
+
+bool TrainingDataWriter::flushIfNonempty(string& resultingFilename) {
+  if(writeBuffers->curRows <= 0)
+    return false;
+
+  isFirstFile = false;
+
+  if(debugOut != NULL) {
+    writeBuffers->writeToTextOstream(*debugOut);
+    writeBuffers->clear();
+    resultingFilename = "";
   }
+  else {
+    resultingFilename = outputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".npz";
+    string tmpFilename = resultingFilename + ".tmp";
+    writeBuffers->writeToZipFile(tmpFilename);
+    writeBuffers->clear();
+    std::rename(tmpFilename.c_str(),resultingFilename.c_str());
+  }
+  return true;
 }
 
 void TrainingDataWriter::writeGame(const FinishedGameData& data) {

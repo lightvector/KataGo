@@ -26,7 +26,14 @@ class SelfplayManager {
   //All below functions are internally synchronized and thread-safe.
 
   //SelfplayManager takes responsibility for deleting the data writers and closing and deleting sgfOut.
+  //loadModelNoDataWritingLoop is for the manual writing interface
   void loadModelAndStartDataWriting(
+    NNEvaluator* nnEval,
+    TrainingDataWriter* tdataWriter,
+    TrainingDataWriter* vdataWriter,
+    std::ofstream* sgfOut
+  );
+  void loadModelNoDataWritingLoop(
     NNEvaluator* nnEval,
     TrainingDataWriter* tdataWriter,
     TrainingDataWriter* vdataWriter,
@@ -58,8 +65,15 @@ class SelfplayManager {
   void countOneGameStarted(NNEvaluator* nnEval);
 
   //SelfplayManager takes responsibility for deleting the gameData once written.
+  //Use these only if loadModelAndStartDataWriting was used to start the model.
   void enqueueDataToWrite(const std::string& modelName, FinishedGameData* gameData);
   void enqueueDataToWrite(NNEvaluator* nnEval, FinishedGameData* gameData);
+
+  //Use these if loadModelNoDataWritingLoop was used to start the model.
+  void withDataWriters(
+    NNEvaluator* nnEval,
+    std::function<void(TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut)> f
+  );
 
   //====================================================================================
 
@@ -69,6 +83,7 @@ class SelfplayManager {
     NNEvaluator* nnEval;
     int64_t gameStartedCount;
     double lastReleaseTime;
+    bool hasDataWriteLoop;
 
     ThreadSafeQueue<FinishedGameData*> finishedGameQueue;
     int acquireCount;
@@ -80,7 +95,8 @@ class SelfplayManager {
     ModelData(
       const std::string& name, NNEvaluator* neval, int maxDataQueueSize,
       TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, std::ofstream* sOut,
-      double initialLastReleaseTime
+      double initialLastReleaseTime,
+      bool hasDataWriteLoop
     );
     ~ModelData();
   };
