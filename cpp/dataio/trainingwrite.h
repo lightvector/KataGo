@@ -217,6 +217,7 @@ class TrainingDataWriter {
 
   void writeGame(const FinishedGameData& data);
   void flushIfNonempty();
+  bool flushIfNonempty(std::string& resultingFilename);
 
  private:
   std::string outputDir;

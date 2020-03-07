@@ -67,33 +67,40 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     const string& nnModelFile = nnModelFiles[i];
 
     bool debugSkipNeuralNetDefault = (nnModelFile == "/dev/null");
-    bool debugSkipNeuralNet = cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") : debugSkipNeuralNetDefault;
+    bool debugSkipNeuralNet =
+      setupFor == SETUP_FOR_DISTRIBUTED ? false :
+      cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") :
+      debugSkipNeuralNetDefault;
 
     int nnXLen = std::max(defaultNNXLen,7);
     int nnYLen = std::max(defaultNNYLen,7);
-    if(cfg.contains("maxBoardXSizeForNNBuffer" + idxStr))
-      nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
-    else if(cfg.contains("maxBoardXSizeForNNBuffer"))
-      nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
-    else if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
-      nnXLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
-    else if(cfg.contains("maxBoardSizeForNNBuffer"))
-      nnXLen = cfg.getInt("maxBoardSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+    if(setupFor != SETUP_FOR_DISTRIBUTED) {
+      if(cfg.contains("maxBoardXSizeForNNBuffer" + idxStr))
+        nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+      else if(cfg.contains("maxBoardXSizeForNNBuffer"))
+        nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+      else if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
+        nnXLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+      else if(cfg.contains("maxBoardSizeForNNBuffer"))
+        nnXLen = cfg.getInt("maxBoardSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
 
-    if(cfg.contains("maxBoardYSizeForNNBuffer" + idxStr))
-      nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
-    else if(cfg.contains("maxBoardYSizeForNNBuffer"))
-      nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
-    else if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
-      nnYLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
-    else if(cfg.contains("maxBoardSizeForNNBuffer"))
-      nnYLen = cfg.getInt("maxBoardSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+      if(cfg.contains("maxBoardYSizeForNNBuffer" + idxStr))
+        nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+      else if(cfg.contains("maxBoardYSizeForNNBuffer"))
+        nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+      else if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
+        nnYLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+      else if(cfg.contains("maxBoardSizeForNNBuffer"))
+        nnYLen = cfg.getInt("maxBoardSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+    }
 
     bool requireExactNNLen = false;
-    if(cfg.contains("requireMaxBoardSize" + idxStr))
-      requireExactNNLen = cfg.getBool("requireMaxBoardSize" + idxStr);
-    else if(cfg.contains("requireMaxBoardSize"))
-      requireExactNNLen = cfg.getBool("requireMaxBoardSize");
+    if(setupFor != SETUP_FOR_DISTRIBUTED) {
+      if(cfg.contains("requireMaxBoardSize" + idxStr))
+        requireExactNNLen = cfg.getBool("requireMaxBoardSize" + idxStr);
+      else if(cfg.contains("requireMaxBoardSize"))
+        requireExactNNLen = cfg.getBool("requireMaxBoardSize");
+    }
 
     bool inputsUseNHWC = backendPrefix == "opencl" ? false : true;
     if(cfg.contains(backendPrefix+"InputsUseNHWC"+idxStr))
@@ -105,10 +112,15 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("inputsUseNHWC"))
       inputsUseNHWC = cfg.getBool("inputsUseNHWC");
 
-    bool nnRandomize = cfg.contains("nnRandomize") ? cfg.getBool("nnRandomize") : true;
+    bool nnRandomize =
+      setupFor == SETUP_FOR_DISTRIBUTED ? true :
+      cfg.contains("nnRandomize") ? cfg.getBool("nnRandomize") :
+      true;
 
     string nnRandSeed;
-    if(cfg.contains("nnRandSeed" + idxStr))
+    if(setupFor == SETUP_FOR_DISTRIBUTED)
+      nnRandSeed = Global::uint64ToString(seedRand.nextUInt64());
+    else if(cfg.contains("nnRandSeed" + idxStr))
       nnRandSeed = cfg.getString("nnRandSeed" + idxStr);
     else if(cfg.contains("nnRandSeed"))
       nnRandSeed = cfg.getString("nnRandSeed");
@@ -186,7 +198,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       useNHWCMode = cfg.getEnabled("useNHWC");
 
     int forcedSymmetry = -1;
-    if(cfg.contains("nnForcedSymmetry"))
+    if(setupFor != SETUP_FOR_DISTRIBUTED && cfg.contains("nnForcedSymmetry"))
       forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,7);
 
     logger.write(
@@ -199,6 +211,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.contains("nnCacheSizePowerOfTwo") ? cfg.getInt("nnCacheSizePowerOfTwo", -1, 48) :
       setupFor == SETUP_FOR_GTP ? 20 :
       setupFor == SETUP_FOR_BENCHMARK ? 20 :
+      setupFor == SETUP_FOR_DISTRIBUTED ? 21 :
       setupFor == SETUP_FOR_MATCH ? 21 :
       setupFor == SETUP_FOR_ANALYSIS ? 23 :
       cfg.getInt("nnCacheSizePowerOfTwo", -1, 48);
@@ -207,12 +220,13 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.contains("nnMutexPoolSizePowerOfTwo") ? cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24) :
       setupFor == SETUP_FOR_GTP ? 16 :
       setupFor == SETUP_FOR_BENCHMARK ? 16 :
+      setupFor == SETUP_FOR_DISTRIBUTED ? 17 :
       setupFor == SETUP_FOR_MATCH ? 17 :
       setupFor == SETUP_FOR_ANALYSIS ? 17 :
       cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24);
 
     int nnMaxBatchSize;
-    if(setupFor == SETUP_FOR_BENCHMARK) {
+    if(setupFor == SETUP_FOR_BENCHMARK || setupFor == SETUP_FOR_DISTRIBUTED) {
       nnMaxBatchSize = defaultMaxBatchSize;
     }
     else if(defaultMaxBatchSize > 0) {

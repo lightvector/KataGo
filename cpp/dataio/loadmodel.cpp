@@ -67,10 +67,15 @@ void LoadModel::deleteModelsOlderThan(const string& modelsDir, Logger& logger, c
     bfs::path filePath = iter->path();
     if(bfs::is_directory(filePath))
       continue;
-
-    time_t thisTime = bfs::last_write_time(filePath);
-    if(thisTime < time) {
-      pathsToRemove.push_back(filePath);
+    string filePathStr = filePath.string();
+    if(Global::isSuffix(filePathStr,".bin.gz") ||
+       Global::isSuffix(filePathStr,".txt.gz") ||
+       Global::isSuffix(filePathStr,".bin") ||
+       Global::isSuffix(filePathStr,".txt")) {
+      time_t thisTime = bfs::last_write_time(filePath);
+      if(thisTime < time) {
+        pathsToRemove.push_back(filePath);
+      }
     }
   }
 
