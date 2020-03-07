@@ -243,8 +243,10 @@ if(BUILD_MCTS)
     tests/testtime.cpp
     tests/testtrainingwrite.cpp
     tests/testnn.cpp
+    distributed/client.cpp
     analysis.cpp
     benchmark.cpp
+    contribute.cpp
     evalsgf.cpp
     gatekeeper.cpp
     gtp.cpp
