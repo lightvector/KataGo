@@ -171,9 +171,16 @@ KataGo is written in C++. It should compile on Linux or OSX via g++ that support
       * If you want to do self-play training and research, probably Google perftools `libgoogle-perftools-dev` for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc that will eventually run your machine out of memory, but better mallocs handle it fine.
    * Clone this repo:
       * `git clone https://github.com/lightvector/KataGo.git`
+   * Install [conan](https://conan.io/)
+      * `pip install conan`
+      * Consider activating new ABI if you are using GCC > 5.1 (see https://docs.conan.io/en/latest/howtos/manage_gcc_abi.html#manage-gcc-abi):
+        * `conan profile new default --detect`
+        * `conan profile update settings.compiler.libcxx=libstdc++11 default`
    * Compile using CMake and make in the cpp directory:
       * `cd KataGo/cpp`
-      * `cmake . -DBUILD_MCTS=1 -DUSE_BACKEND=OPENCL` or `cmake . -DBUILD_MCTS=1 -DUSE_BACKEND=CUDA` depending on which backend you want. Specify also `-DUSE_TCMALLOC=1` if using TCMalloc. Compiling will also call git commands to embed the git hash into the compiled executable, specify also `-DNO_GIT_REVISION=1` to disable it if this is causing issues for you.
+      * `mkdir build && cd build`
+      * `conan install ..`
+      * `cmake .. -DBUILD_MCTS=1 -DUSE_BACKEND=OPENCL` or `cmake .. -DBUILD_MCTS=1 -DUSE_BACKEND=CUDA` depending on which backend you want. Specify also `-DUSE_TCMALLOC=1` if using TCMalloc. Compiling will also call git commands to embed the git hash into the compiled executable, specify also `-DNO_GIT_REVISION=1` to disable it if this is causing issues for you.
       * `make`
    * Done! You should now have a compiled `katago` executable in your working directory.
    * Pre-trained neural nets are available on the [releases page](https://github.com/lightvector/KataGo/releases) or more from [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html).
