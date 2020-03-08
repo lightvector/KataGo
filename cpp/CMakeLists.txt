@@ -32,7 +32,8 @@ set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
 set(Boost_USE_STATIC_LIBS_ON 0 CACHE BOOL "Compile against boost statically instead of dynamically")
 
-#------------------------------------------------------------------------------------
+set(USE_DISTRIBUTED 0 CACHE BOOL "Use distributed code")
+set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA OPENCL)
 
 #--------------------------- BACKEND -----------------------------------------------------------------------------------
 
@@ -83,8 +84,12 @@ else()
   message(FATAL_ERROR "Unrecognized backend: " ${USE_BACKEND})
 endif()
 
-if((NOT BUILD_WRITE) AND (NOT BUILD_MCTS))
-  message(FATAL_ERROR "Please specify one or more of -DBUILD_WRITE=1 or -DBUILD_MCTS=1")
+#--------------------------- DISTRIBUTED ----------------------------------------------------------------------------------
+
+# TODO: once we know conan work well for every platform, move the include and setup out of the feature flag
+if(USE_DISTRIBUTED)
+  include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+  conan_basic_setup()
 endif()
 
 
@@ -115,8 +120,8 @@ else()
   set(GIT_HEADER_FILE_ALWAYS_UPDATED_BARE program/gitinfoupdated.h)
   set(GIT_HEADER_FILE_BARE program/gitinfo.h)
   set(GIT_HEADER_FILE_TEMPLATE ${CMAKE_SOURCE_DIR}/${GIT_HEADER_FILE_TEMPLATE_BARE})
-  set(GIT_HEADER_FILE_ALWAYS_UPDATED ${CMAKE_BINARY_DIR}/../${GIT_HEADER_FILE_ALWAYS_UPDATED_BARE})
-  set(GIT_HEADER_FILE ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_BARE})
+  set(GIT_HEADER_FILE_ALWAYS_UPDATED ${CMAKE_SOURCE_DIR}/${GIT_HEADER_FILE_ALWAYS_UPDATED_BARE})
+  set(GIT_HEADER_FILE ${CMAKE_SOURCE_DIR}/${GIT_HEADER_FILE_BARE})
 
   add_custom_command(
     OUTPUT ${GIT_HEADER_FILE_ALWAYS_UPDATED}
@@ -275,7 +280,7 @@ endif(USE_TCMALLOC)
 
 if(USE_DISTRIBUTED)
   message("-DUSE_DISTRIBUTED=1 is set, compiling code and dependencies to contribute to distributed_effort")
-  target_link_libraries(katago {CONAN_LIBS})
+  target_link_libraries(katago ${CONAN_LIBS})
 endif()
 
 #------------------------------------------------------------------------------------
@@ -322,4 +327,4 @@ if(CMAKE_COMPILER_IS_GNUCC)
   endif()
 endif()
 
-target_include_directories(katago PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/..)
+target_include_directories(katago PUBLIC ${CMAKE_SOURCE_DIR})
