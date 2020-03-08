@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 14)
 include_directories(external)
 include_directories(external/tclap-1.2.1/include)
 
+#--------------------------- PLATFORM SPECIFIC -------------------------------------------------------------------------
+
 if(APPLE)
   # Fix linking on 10.14+. See https://stackoverflow.com/questions/54068035
   include_directories(/usr/local/include)
@@ -20,84 +22,88 @@ if(NOT WIN32)
   set(ColorBoldRed "${ColorRed}${ColorBold}")
 endif()
 
-#------------------------------------------------------------------------------------
+#--------------------------- CONFIG ------------------------------------------------------------------------------------
 
-# set(BUILD_WRITE 0 CACHE BOOL "Build 'write' executable for neural net training data (deprecated)")
-set(BUILD_MCTS 1 CACHE BOOL "Build 'katago' for GTP engine and other tools (you probably want this)")
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
 set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA OPENCL)
+
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
 set(Boost_USE_STATIC_LIBS_ON 0 CACHE BOOL "Compile against boost statically instead of dynamically")
 
 #------------------------------------------------------------------------------------
 
-if(BUILD_WRITE)
-  message("-DBUILD_WRITE=1 is set, building 'write' executable for writing neural net training data from sgfs or LZ data files")
-endif()
-if(BUILD_MCTS)
-  message("-DBUILD_MCTS=1 is set, building 'katago' executable for mcts-backed GTP engine and other tools")
+#--------------------------- BACKEND -----------------------------------------------------------------------------------
 
-  if(USE_BACKEND STREQUAL "CUDA")
-    message("-DUSE_BACKEND=CUDA, using CUDA backend")
+message("Building 'katago' executable for mcts-backed GTP engine and other tools")
+if(USE_BACKEND STREQUAL "CUDA")
+  message("-DUSE_BACKEND=CUDA, using CUDA backend")
 
-    # Ensure dynamic cuda linking
-    set(CMAKE_CUDA_FLAGS "" CACHE STRING "")
-    if(CMAKE_CUDA_FLAGS)
-      list(REMOVE_ITEM CMAKE_CUDA_FLAGS "-cudart static")
-    endif()
-    string(APPEND CMAKE_CUDA_FLAGS "-cudart shared")
-
-    enable_language(CUDA)
-
-    if(MSVC)
-      # Ensure dynamic cuda linking
-      if(CMAKE_CUDA_HOST_IMPLICIT_LINK_LIBRARIES)
-        list(REMOVE_ITEM CMAKE_CUDA_HOST_IMPLICIT_LINK_LIBRARIES "cudart_static")
-        list(REMOVE_ITEM CMAKE_CUDA_HOST_IMPLICIT_LINK_LIBRARIES "cudadevrt")
-        list(APPEND CMAKE_CUDA_HOST_IMPLICIT_LINK_LIBRARIES "cudart")
-      endif()
-      if(CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES)
-        list(REMOVE_ITEM CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES "cudart_static")
-        list(REMOVE_ITEM CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES "cudadevrt")
-        list(APPEND CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES "cudart")
-      endif()
-    endif()
-
-    set(CUDA_STANDARD 11)
-    set(NEURALNET_BACKEND_SOURCES neuralnet/cudabackend.cpp neuralnet/cudahelpers.cu)
-    set(CMAKE_CUDA_FLAGS
-      "-gencode arch=compute_30,code=sm_30 -gencode arch=compute_30,code=compute_30 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_53,code=sm_53 -gencode arch=compute_53,code=compute_53 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_70,code=compute_70"
-      )
-  elseif(USE_BACKEND STREQUAL "OPENCL")
-    message("-DUSE_BACKEND=OPENCL, using OpenCL backend")
-    set(NEURALNET_BACKEND_SOURCES
-      neuralnet/openclbackend.cpp
-      neuralnet/openclkernels.cpp
-      neuralnet/openclhelpers.cpp
-      neuralnet/opencltuner.cpp
-      )
-  elseif(USE_BACKEND STREQUAL "")
-    message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=OPENCL to compile with the respective backend.${ColorReset}")
-    set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
-  else()
-    message(FATAL_ERROR "Unrecognized backend: " ${USE_BACKEND})
+  # Ensure dynamic cuda linking
+  set(CMAKE_CUDA_FLAGS "" CACHE STRING "")
+  if(CMAKE_CUDA_FLAGS)
+    list(REMOVE_ITEM CMAKE_CUDA_FLAGS "-cudart static")
   endif()
+  string(APPEND CMAKE_CUDA_FLAGS "-cudart shared")
+
+  enable_language(CUDA)
+
+  if(MSVC)
+    # Ensure dynamic cuda linking
+    if(CMAKE_CUDA_HOST_IMPLICIT_LINK_LIBRARIES)
+      list(REMOVE_ITEM CMAKE_CUDA_HOST_IMPLICIT_LINK_LIBRARIES "cudart_static")
+      list(REMOVE_ITEM CMAKE_CUDA_HOST_IMPLICIT_LINK_LIBRARIES "cudadevrt")
+      list(APPEND CMAKE_CUDA_HOST_IMPLICIT_LINK_LIBRARIES "cudart")
+    endif()
+    if(CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES)
+      list(REMOVE_ITEM CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES "cudart_static")
+      list(REMOVE_ITEM CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES "cudadevrt")
+      list(APPEND CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES "cudart")
+    endif()
+  endif()
+
+  set(CUDA_STANDARD 11)
+  set(NEURALNET_BACKEND_SOURCES neuralnet/cudabackend.cpp neuralnet/cudahelpers.cu)
+  set(CMAKE_CUDA_FLAGS
+    "-gencode arch=compute_30,code=sm_30 -gencode arch=compute_30,code=compute_30 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_53,code=sm_53 -gencode arch=compute_53,code=compute_53 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_70,code=compute_70"
+    )
+elseif(USE_BACKEND STREQUAL "OPENCL")
+  message("-DUSE_BACKEND=OPENCL, using OpenCL backend")
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/openclbackend.cpp
+    neuralnet/openclkernels.cpp
+    neuralnet/openclhelpers.cpp
+    neuralnet/opencltuner.cpp
+    )
+elseif(USE_BACKEND STREQUAL "")
+  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=OPENCL to compile with the respective backend.${ColorReset}")
+  set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
+else()
+  message(FATAL_ERROR "Unrecognized backend: " ${USE_BACKEND})
 endif()
 
 if((NOT BUILD_WRITE) AND (NOT BUILD_MCTS))
   message(FATAL_ERROR "Please specify one or more of -DBUILD_WRITE=1 or -DBUILD_MCTS=1")
 endif()
 
+
+#--------------------------- TCMALLOC ----------------------------------------------------------------------------------
+
+# TODO: see if it is installable with conan, eg with https://github.com/hoxnox/conan-gperftools/blob/master/conanfile.py
+# or with https://github.com/lasote/conan-gperftools
 if(USE_TCMALLOC)
   message("-DUSE_TCMALLOC=1 is set, using tcmalloc as the allocator")
+  find_library(TCMALLOC_LIB NAMES tcmalloc_minimal HINTS /usr)
+  if(NOT TCMALLOC_LIB)
+    message(FATAL_ERROR "Could not find tcmalloc")
+  endif()
 endif()
 
 # set (Gperftools_DIR "${CMAKE_CURRENT_LIST_DIR}/cmake/")
 # find_package(Gperftools REQUIRED)
 
-#------------------------------------------------------------------------------------
+#--------------------------- GIT ---------------------------------------------------------------------------------------
 
 if(NO_GIT_REVISION)
   message("-DNO_GIT_REVISION=1 is set, avoiding including the Git revision in compiled executable")
@@ -109,7 +115,7 @@ else()
   set(GIT_HEADER_FILE_ALWAYS_UPDATED_BARE program/gitinfoupdated.h)
   set(GIT_HEADER_FILE_BARE program/gitinfo.h)
   set(GIT_HEADER_FILE_TEMPLATE ${CMAKE_SOURCE_DIR}/${GIT_HEADER_FILE_TEMPLATE_BARE})
-  set(GIT_HEADER_FILE_ALWAYS_UPDATED ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_ALWAYS_UPDATED_BARE})
+  set(GIT_HEADER_FILE_ALWAYS_UPDATED ${CMAKE_BINARY_DIR}/../${GIT_HEADER_FILE_ALWAYS_UPDATED_BARE})
   set(GIT_HEADER_FILE ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_BARE})
 
   add_custom_command(
@@ -123,6 +129,8 @@ else()
     )
 endif()
 
+#--------------------------- DIRENT ------------------------------------------------------------------------------------
+
 include(CheckIncludeFile)
 check_include_file("dirent.h" HAVE_DIRENT)
 if(NOT HAVE_DIRENT)
@@ -131,223 +139,179 @@ if(NOT HAVE_DIRENT)
   add_compile_definitions(NO_DIRENT_H)
 endif()
 
-#------------------------------------------------------------------------------------
+#--------------------------- KATAGO ------------------------------------------------------------------------------------
 
+add_executable(katago
+  core/global.cpp
+  core/bsearch.cpp
+  core/config_parser.cpp
+  core/datetime.cpp
+  core/elo.cpp
+  core/fancymath.cpp
+  core/hash.cpp
+  core/logger.cpp
+  core/makedir.cpp
+  core/md5.cpp
+  core/multithread.cpp
+  core/rand.cpp
+  core/rand_helpers.cpp
+  core/sha2.cpp
+  core/test.cpp
+  core/threadsafequeue.cpp
+  core/timer.cpp
+  game/board.cpp
+  game/rules.cpp
+  game/boardhistory.cpp
+  dataio/sgf.cpp
+  dataio/numpywrite.cpp
+  dataio/trainingwrite.cpp
+  dataio/loadmodel.cpp
+  dataio/lzparse.cpp
+  dataio/homedata.cpp
+  neuralnet/nninputs.cpp
+  neuralnet/modelversion.cpp
+  neuralnet/nneval.cpp
+  neuralnet/desc.cpp
+  ${NEURALNET_BACKEND_SOURCES}
+  search/timecontrols.cpp
+  search/searchparams.cpp
+  search/mutexpool.cpp
+  search/search.cpp
+  search/searchresults.cpp
+  search/asyncbot.cpp
+  search/distributiontable.cpp
+  search/analysisdata.cpp
+  program/gtpconfig.cpp
+  program/setup.cpp
+  program/playutils.cpp
+  program/playsettings.cpp
+  program/play.cpp
+  program/selfplaymanager.cpp
+  ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+  tests/testboardarea.cpp
+  tests/testboardbasic.cpp
+  tests/testcommon.cpp
+  tests/testrules.cpp
+  tests/testscore.cpp
+  tests/testsgf.cpp
+  tests/testnninputs.cpp
+  tests/testownership.cpp
+  tests/testsearch.cpp
+  tests/testtime.cpp
+  tests/testtrainingwrite.cpp
+  tests/testnn.cpp
+  distributed/client.cpp
+  analysis.cpp
+  benchmark.cpp
+  contribute.cpp
+  evalsgf.cpp
+  gatekeeper.cpp
+  gtp.cpp
+  match.cpp
+  matchauto.cpp
+  selfplay.cpp
+  misc.cpp
+  runtests.cpp
+  lzcost.cpp
+  sandbox.cpp
+  tune.cpp
+  main.cpp
+  )
+
+if(USE_BACKEND STREQUAL "CUDA")
+  target_compile_definitions(katago PRIVATE USE_CUDA_BACKEND)
+  find_package(CUDA REQUIRED)
+  find_path(CUDNN_INCLUDE_DIR cudnn.h HINTS ${CUDNN_ROOT_DIR} ${CUDA_TOOLKIT_ROOT_DIR} PATH_SUFFIXES cuda/include include)
+  if((NOT CUDNN_INCLUDE_DIR))
+    message(ERROR "${ColorBoldRed} cudnn.h was NOT found, specify CUDNN_INCLUDE_DIR to indicate where it is. ${ColorReset}")
+  endif()
+  find_library(CUDNN_LIBRARY libcudnn.so PATHS /usr/local/cuda/lib64 /opt/cuda/lib64)
+  include_directories(SYSTEM ${CUDA_INCLUDE_DIRS} ${CUDNN_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
+  target_link_libraries(katago ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
+elseif(USE_BACKEND STREQUAL "OPENCL")
+  target_compile_definitions(katago PRIVATE USE_OPENCL_BACKEND)
+  find_package(OpenCL REQUIRED)
+  include_directories(${OpenCL_INCLUDE_DIRS})
+  link_directories(${OpenCL_LIBRARY})
+  target_link_libraries (katago ${OpenCL_LIBRARY})
+endif()
+
+if(NO_GIT_REVISION)
+  target_compile_definitions(katago PRIVATE NO_GIT_REVISION)
+endif()
+
+# TODO: move to conan
+find_package(ZLIB REQUIRED)
+if(ZLIB_FOUND)
+  include_directories(${ZLIB_INCLUDE_DIRS})
+  target_link_libraries(katago ${ZLIB_LIBRARIES})
+endif(ZLIB_FOUND)
+
+# TODO: move to conan
+find_library(LIBZIP_LIBRARY NAMES zip)
+find_path(LIBZIP_INCLUDE_DIR_ZIP NAMES zip.h)
+find_path(LIBZIP_INCLUDE_DIR_ZIPCONF NAMES zipconf.h)
+if((NOT LIBZIP_LIBRARY) OR (NOT LIBZIP_INCLUDE_DIR_ZIP) OR (NOT LIBZIP_INCLUDE_DIR_ZIPCONF))
+  target_compile_definitions(katago PRIVATE NO_LIBZIP)
+  message(WARNING "${ColorBoldRed}WARNING: libzip library was NOT found. KataGo should still work for GTP/matches/analysis if everything else is good, but selfplay for writing training data will not be possible.${ColorReset}")
+else()
+  include_directories(${LIBZIP_INCLUDE_DIR_ZIP})
+  include_directories(${LIBZIP_INCLUDE_DIR_ZIPCONF})
+  target_link_libraries(katago ${LIBZIP_LIBRARY})
+endif()
+
+# TODO: move to conan
+if(Boost_USE_STATIC_LIBS_ON)
+  set(Boost_USE_STATIC_LIBS ON)
+endif()
+find_package(Boost COMPONENTS system filesystem REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
+target_link_libraries(katago ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
+
+# TODO: move to conan if possible, see above
 if(USE_TCMALLOC)
-  find_library(TCMALLOC_LIB NAMES tcmalloc_minimal HINTS /usr)
-  if(NOT TCMALLOC_LIB)
-    message(FATAL_ERROR "Could not find tcmalloc")
-  endif()
+  target_link_libraries(katago ${TCMALLOC_LIB})
+endif(USE_TCMALLOC)
+
+if(USE_DISTRIBUTED)
+  message("-DUSE_DISTRIBUTED=1 is set, compiling code and dependencies to contribute to distributed_effort")
+  target_link_libraries(katago {CONAN_LIBS})
 endif()
-
-#------------------------------------------------------------------------------------
-
-if(BUILD_WRITE)
-  add_executable(write
-    core/bsearch.cpp
-    core/datetime.cpp
-    core/global.cpp
-    core/hash.cpp
-    core/md5.cpp
-    core/rand.cpp
-    core/sha2.cpp
-    core/timer.cpp
-    game/board.cpp
-    game/rules.cpp
-    game/boardhistory.cpp
-    neuralnet/nninputs.cpp
-    dataio/datapool.cpp
-    dataio/lzparse.cpp
-    dataio/sgf.cpp
-    ${GIT_HEADER_FILE_ALWAYS_UPDATED}
-    write.cpp
-    )
-
-  find_package(HDF5 REQUIRED COMPONENTS C CXX)
-
-  if(HDF5_FOUND)
-    include_directories(${HDF5_INCLUDE_DIRS})
-    target_link_libraries (write ${HDF5_LIBRARIES})
-  endif (HDF5_FOUND)
-
-  if(NO_GIT_REVISION)
-    target_compile_definitions(write PRIVATE NO_GIT_REVISION)
-  endif()
-
-  #Suppress min and max macros on windows
-  if(MSVC)
-    target_compile_definitions(write PRIVATE NOMINMAX)
-  endif()
-
-endif()
-
-#------------------------------------------------------------------------------------
-
-if(BUILD_MCTS)
-  add_executable(katago
-    core/global.cpp
-    core/bsearch.cpp
-    core/config_parser.cpp
-    core/datetime.cpp
-    core/elo.cpp
-    core/fancymath.cpp
-    core/hash.cpp
-    core/logger.cpp
-    core/makedir.cpp
-    core/md5.cpp
-    core/multithread.cpp
-    core/rand.cpp
-    core/rand_helpers.cpp
-    core/sha2.cpp
-    core/test.cpp
-    core/threadsafequeue.cpp
-    core/timer.cpp
-    game/board.cpp
-    game/rules.cpp
-    game/boardhistory.cpp
-    dataio/sgf.cpp
-    dataio/numpywrite.cpp
-    dataio/trainingwrite.cpp
-    dataio/loadmodel.cpp
-    dataio/lzparse.cpp
-    dataio/homedata.cpp
-    neuralnet/nninputs.cpp
-    neuralnet/modelversion.cpp
-    neuralnet/nneval.cpp
-    neuralnet/desc.cpp
-    ${NEURALNET_BACKEND_SOURCES}
-    search/timecontrols.cpp
-    search/searchparams.cpp
-    search/mutexpool.cpp
-    search/search.cpp
-    search/searchresults.cpp
-    search/asyncbot.cpp
-    search/distributiontable.cpp
-    search/analysisdata.cpp
-    program/gtpconfig.cpp
-    program/setup.cpp
-    program/playutils.cpp
-    program/playsettings.cpp
-    program/play.cpp
-    program/selfplaymanager.cpp
-    ${GIT_HEADER_FILE_ALWAYS_UPDATED}
-    tests/testboardarea.cpp
-    tests/testboardbasic.cpp
-    tests/testcommon.cpp
-    tests/testrules.cpp
-    tests/testscore.cpp
-    tests/testsgf.cpp
-    tests/testnninputs.cpp
-    tests/testownership.cpp
-    tests/testsearch.cpp
-    tests/testtime.cpp
-    tests/testtrainingwrite.cpp
-    tests/testnn.cpp
-    distributed/client.cpp
-    analysis.cpp
-    benchmark.cpp
-    contribute.cpp
-    evalsgf.cpp
-    gatekeeper.cpp
-    gtp.cpp
-    match.cpp
-    matchauto.cpp
-    selfplay.cpp
-    misc.cpp
-    runtests.cpp
-    lzcost.cpp
-    sandbox.cpp
-    tune.cpp
-    main.cpp
-    )
-
-  if(USE_BACKEND STREQUAL "CUDA")
-    target_compile_definitions(katago PRIVATE USE_CUDA_BACKEND)
-    find_package(CUDA REQUIRED)
-    find_path(CUDNN_INCLUDE_DIR cudnn.h HINTS ${CUDNN_ROOT_DIR} ${CUDA_TOOLKIT_ROOT_DIR} PATH_SUFFIXES cuda/include include)
-    if((NOT CUDNN_INCLUDE_DIR))
-      message(ERROR "${ColorBoldRed} cudnn.h was NOT found, specify CUDNN_INCLUDE_DIR to indicate where it is. ${ColorReset}")
-    endif()
-    find_library(CUDNN_LIBRARY libcudnn.so PATHS /usr/local/cuda/lib64 /opt/cuda/lib64)
-    include_directories(SYSTEM ${CUDA_INCLUDE_DIRS} ${CUDNN_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
-    target_link_libraries(katago ${CUDNN_LIBRARY} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
-  elseif(USE_BACKEND STREQUAL "OPENCL")
-    target_compile_definitions(katago PRIVATE USE_OPENCL_BACKEND)
-    find_package(OpenCL REQUIRED)
-    include_directories(${OpenCL_INCLUDE_DIRS})
-    link_directories(${OpenCL_LIBRARY})
-    target_link_libraries (katago ${OpenCL_LIBRARY})
-  endif()
-
-  if(NO_GIT_REVISION)
-    target_compile_definitions(katago PRIVATE NO_GIT_REVISION)
-  endif()
-
-  find_package(ZLIB REQUIRED)
-  if(ZLIB_FOUND)
-    include_directories(${ZLIB_INCLUDE_DIRS})
-    target_link_libraries(katago ${ZLIB_LIBRARIES})
-  endif(ZLIB_FOUND)
-
-  find_library(LIBZIP_LIBRARY NAMES zip)
-  find_path(LIBZIP_INCLUDE_DIR_ZIP NAMES zip.h)
-  find_path(LIBZIP_INCLUDE_DIR_ZIPCONF NAMES zipconf.h)
-  if((NOT LIBZIP_LIBRARY) OR (NOT LIBZIP_INCLUDE_DIR_ZIP) OR (NOT LIBZIP_INCLUDE_DIR_ZIPCONF))
-    target_compile_definitions(katago PRIVATE NO_LIBZIP)
-    message(WARNING "${ColorBoldRed}WARNING: libzip library was NOT found. KataGo should still work for GTP/matches/analysis if everything else is good, but selfplay for writing training data will not be possible.${ColorReset}")
-  else()
-    include_directories(${LIBZIP_INCLUDE_DIR_ZIP})
-    include_directories(${LIBZIP_INCLUDE_DIR_ZIPCONF})
-    target_link_libraries(katago ${LIBZIP_LIBRARY})
-  endif()
-
-  if(Boost_USE_STATIC_LIBS_ON)
-    set(Boost_USE_STATIC_LIBS ON)
-  endif()
-  find_package(Boost COMPONENTS system filesystem REQUIRED)
-  include_directories(${Boost_INCLUDE_DIRS})
-  target_link_libraries(katago ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
-  # Getting boost to work on MSVC seems to require forcing it to link
-  # with dlls instead of static, and needs this option
-  if(MSVC AND (NOT Boost_USE_STATIC_LIBS_ON))
-    target_compile_definitions(katago PRIVATE BOOST_ALL_DYN_LINK)
-  endif()
-
-  if(USE_TCMALLOC)
-    target_link_libraries(katago ${TCMALLOC_LIB})
-  endif(USE_TCMALLOC)
-
-  # Suppress min and max macros on windows
-  # Also define a few other things for windows
-  if(MSVC)
-    target_compile_definitions(katago PRIVATE NOMINMAX)
-    target_compile_definitions(katago PRIVATE BYTE_ORDER=1234)
-    target_compile_definitions(katago PRIVATE LITTLE_ENDIAN=1234)
-    target_compile_definitions(katago PRIVATE BIG_ENDIAN=4321)
-    # core/rand.cpp uses winsock for a gethostname
-    target_link_libraries(katago ws2_32)
-
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
-  endif()
-
-  # On g++ it seems like we need to explicitly link threads as well.
-  # It seems sometimes this is implied by other options automatically like when we enable CUDA, but we get link errors
-  # if we don't explicitly require threads it when attempting to build without CUDA
-  if(CMAKE_COMPILER_IS_GNUCC AND (NOT USE_BACKEND STREQUAL "CUDA"))
-    find_package (Threads REQUIRED)
-    target_link_libraries(katago Threads::Threads)
-  endif()
-
-endif()
-
 
 #------------------------------------------------------------------------------------
 
 # add_compile_definitions(NDEBUG)
 
+if(MSVC)
+  # Getting boost to work on MSVC seems to require forcing it to link
+  # with dlls instead of static, and needs this option
+  if(NOT Boost_USE_STATIC_LIBS_ON)
+    target_compile_definitions(katago PRIVATE BOOST_ALL_DYN_LINK)
+  endif()
+
+  # Suppress min and max macros on windows
+  # Also define a few other things for windows
+  target_compile_definitions(katago PRIVATE NOMINMAX)
+  target_compile_definitions(katago PRIVATE BYTE_ORDER=1234)
+  target_compile_definitions(katago PRIVATE LITTLE_ENDIAN=1234)
+  target_compile_definitions(katago PRIVATE BIG_ENDIAN=4321)
+  # core/rand.cpp uses winsock for a gethostname
+  target_link_libraries(katago ws2_32)
+
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
+endif()
+
 if(CMAKE_COMPILER_IS_GNUCC)
   if(NOT (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm"))
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse")
+  endif()
+
+  # On g++ it seems like we need to explicitly link threads as well.
+  # It seems sometimes this is implied by other options automatically like when we enable CUDA, but we get link errors
+  # if we don't explicitly require threads it when attempting to build without CUDA
+  if(NOT USE_BACKEND STREQUAL "CUDA")
+    find_package (Threads REQUIRED)
+    target_link_libraries(katago Threads::Threads)
   endif()
 
   if(USE_TCMALLOC)
@@ -358,4 +322,4 @@ if(CMAKE_COMPILER_IS_GNUCC)
   endif()
 endif()
 
-target_include_directories(katago PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(katago PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/..)
