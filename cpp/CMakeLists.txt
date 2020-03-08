@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10.2)
-project(writedata)
+project(katago)
 
 set(CMAKE_CXX_STANDARD 14)
 
