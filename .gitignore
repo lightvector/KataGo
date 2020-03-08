@@ -4,6 +4,7 @@
 __pycache__
 *.h5
 *.log
+*.cbp
 
 tmp*.txt
 
@@ -31,6 +32,7 @@ cpp/program/gitinfo.h
 
 data/
 versions/
+cpp/build
 
 export_model_cuda.sh
 mixmodels.sh
