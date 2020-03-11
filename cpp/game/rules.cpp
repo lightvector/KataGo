@@ -15,7 +15,7 @@ Rules::Rules() {
   multiStoneSuicideLegal = true;
   hasButton = false;
   whiteHandicapBonusRule = WHB_ZERO;
-  komi = 7.5f;
+  komi = 7.0f;
 }
 
 Rules::Rules(int kRule, int sRule, int tRule, bool suic, bool button, int whbRule, float km)

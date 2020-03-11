@@ -1,0 +1,2567 @@
+Beginning shuffle at 2020-03-10 17:59:31
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m9.921s
+user	0m0.205s
+sys	0m0.041s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 17:59:51
+
+
+Beginning shuffle at 2020-03-10 18:00:11
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.177s
+user	0m0.159s
+sys	0m0.020s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:00:21
+
+
+Beginning shuffle at 2020-03-10 18:00:41
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.170s
+user	0m0.158s
+sys	0m0.012s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:00:51
+
+
+Beginning shuffle at 2020-03-10 18:01:11
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.170s
+user	0m0.155s
+sys	0m0.016s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:01:21
+
+
+Beginning shuffle at 2020-03-10 18:01:41
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.171s
+user	0m0.161s
+sys	0m0.012s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:01:51
+
+
+Beginning shuffle at 2020-03-10 18:02:11
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.168s
+user	0m0.144s
+sys	0m0.024s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:02:22
+
+
+Beginning shuffle at 2020-03-10 18:02:42
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.169s
+user	0m0.151s
+sys	0m0.020s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:02:52
+
+
+Beginning shuffle at 2020-03-10 18:03:12
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.169s
+user	0m0.164s
+sys	0m0.005s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:03:22
+
+
+Beginning shuffle at 2020-03-10 18:03:42
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.171s
+user	0m0.140s
+sys	0m0.033s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:03:52
+
+
+Beginning shuffle at 2020-03-10 18:04:12
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.172s
+user	0m0.157s
+sys	0m0.016s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:04:22
+
+
+Beginning shuffle at 2020-03-10 18:04:42
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.168s
+user	0m0.153s
+sys	0m0.016s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:04:53
+
+
+Beginning shuffle at 2020-03-10 18:05:13
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.169s
+user	0m0.155s
+sys	0m0.016s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:05:23
+
+
+Beginning shuffle at 2020-03-10 18:05:43
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.172s
+user	0m0.153s
+sys	0m0.020s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:05:53
+
+
+Beginning shuffle at 2020-03-10 18:06:13
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.173s
+user	0m0.142s
+sys	0m0.032s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:06:23
+
+
+Beginning shuffle at 2020-03-10 18:06:43
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.171s
+user	0m0.140s
+sys	0m0.032s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:06:53
+
+
+Beginning shuffle at 2020-03-10 18:07:13
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.171s
+user	0m0.153s
+sys	0m0.020s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:07:24
+
+
+Beginning shuffle at 2020-03-10 18:07:44
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.261s
+user	0m0.242s
+sys	0m0.020s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:07:54
+
+
+Beginning shuffle at 2020-03-10 18:08:14
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.339s
+user	0m0.418s
+sys	0m0.164s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:08:24
+
+
+Beginning shuffle at 2020-03-10 18:08:44
+2020-03-10 18:08:48.041596: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:08:48.041756: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:08:48.041778: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m46.609s
+user	0m2.529s
+sys	0m0.409s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:09:41
+
+
+Beginning shuffle at 2020-03-10 18:10:01
+2020-03-10 18:10:02.731691: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:10:02.731822: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:10:02.731843: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.482s
+user	0m2.403s
+sys	0m0.380s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:10:14
+
+
+Beginning shuffle at 2020-03-10 18:10:34
+2020-03-10 18:10:35.242743: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:10:35.242874: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:10:35.242894: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.484s
+user	0m2.410s
+sys	0m0.375s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:10:46
+
+
+Beginning shuffle at 2020-03-10 18:11:06
+2020-03-10 18:11:07.760964: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:11:07.761095: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:11:07.761115: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.467s
+user	0m2.404s
+sys	0m0.364s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:11:19
+
+
+Beginning shuffle at 2020-03-10 18:11:39
+2020-03-10 18:11:40.315882: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:11:40.316040: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:11:40.316065: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.613s
+user	0m2.523s
+sys	0m0.387s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:11:51
+
+
+Beginning shuffle at 2020-03-10 18:12:11
+2020-03-10 18:12:12.926589: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:12:12.926724: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:12:12.926742: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.515s
+user	0m2.325s
+sys	0m0.491s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:12:24
+
+
+Beginning shuffle at 2020-03-10 18:12:44
+2020-03-10 18:12:45.515664: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:12:45.515819: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:12:45.515843: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.520s
+user	0m2.425s
+sys	0m0.396s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:12:56
+
+
+Beginning shuffle at 2020-03-10 18:13:16
+2020-03-10 18:13:18.036733: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:13:18.036889: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:13:18.036914: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.454s
+user	0m2.378s
+sys	0m0.377s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:13:29
+
+
+Beginning shuffle at 2020-03-10 18:13:49
+2020-03-10 18:13:50.528542: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:13:50.528669: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:13:50.528690: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.468s
+user	0m2.429s
+sys	0m0.339s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:14:01
+
+
+Beginning shuffle at 2020-03-10 18:14:21
+2020-03-10 18:14:23.077560: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:14:23.077700: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:14:23.077720: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.500s
+user	0m2.349s
+sys	0m0.452s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:14:34
+
+
+Beginning shuffle at 2020-03-10 18:14:54
+2020-03-10 18:14:55.563042: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:14:55.563200: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:14:55.563225: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.425s
+user	0m2.347s
+sys	0m0.377s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:15:06
+
+
+Beginning shuffle at 2020-03-10 18:15:26
+2020-03-10 18:15:28.039591: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:15:28.039730: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:15:28.039749: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.484s
+user	0m2.349s
+sys	0m0.436s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:15:39
+
+
+Beginning shuffle at 2020-03-10 18:15:59
+2020-03-10 18:16:00.544169: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:16:00.544303: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:16:00.544325: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.458s
+user	0m2.371s
+sys	0m0.386s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:16:11
+
+
+Beginning shuffle at 2020-03-10 18:16:31
+2020-03-10 18:16:33.058504: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:16:33.058638: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:16:33.058658: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.470s
+user	0m2.382s
+sys	0m0.388s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:16:44
+
+
+Beginning shuffle at 2020-03-10 18:17:04
+2020-03-10 18:17:05.562805: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:17:05.562931: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:17:05.562950: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.458s
+user	0m2.373s
+sys	0m0.385s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:17:16
+
+
+Beginning shuffle at 2020-03-10 18:17:36
+2020-03-10 18:17:38.050296: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:17:38.050421: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:17:38.050442: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.464s
+user	0m2.383s
+sys	0m0.382s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:17:49
+
+
+Beginning shuffle at 2020-03-10 18:18:09
+2020-03-10 18:18:10.555886: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:18:10.556020: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:18:10.556039: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.478s
+user	0m2.454s
+sys	0m0.323s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:18:21
+
+
+Beginning shuffle at 2020-03-10 18:18:41
+2020-03-10 18:18:43.080135: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:18:43.080264: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:18:43.080285: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+Traceback (most recent call last):
+  File "./shuffle.py", line 18, in <module>
+    from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+ModuleNotFoundError: No module named 'tensorflow.python_io'
+
+real	0m2.481s
+user	0m2.415s
+sys	0m0.362s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:18:54
+
+
+Beginning shuffle at 2020-03-10 18:19:14
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.344s
+user	0m0.402s
+sys	0m0.158s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:19:24
+
+
+Beginning shuffle at 2020-03-10 18:19:44
+Traceback (most recent call last):
+  File "./shuffle.py", line 17, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.284s
+user	0m0.349s
+sys	0m0.222s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:19:55
+
+
+Beginning shuffle at 2020-03-10 18:20:15
+No rows found
+
+real	0m2.437s
+user	0m2.421s
+sys	0m0.362s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:20:27
+
+
+Beginning shuffle at 2020-03-10 18:20:31
+No rows found
+
+real	0m2.560s
+user	0m2.345s
+sys	0m0.408s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:20:44
+
+
+Beginning shuffle at 2020-03-10 18:20:47
+No rows found
+
+real	0m2.353s
+user	0m2.383s
+sys	0m0.316s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:20:59
+
+
+Beginning shuffle at 2020-03-10 18:21:04
+No rows found
+
+real	0m2.369s
+user	0m2.333s
+sys	0m0.381s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:21:16
+
+
+Beginning shuffle at 2020-03-10 18:21:19
+No rows found
+
+real	0m2.400s
+user	0m2.378s
+sys	0m0.369s
+Beginning shuffle at 2020-03-10 18:21:22
+No rows found
+
+real	0m2.414s
+user	0m2.397s
+sys	0m0.363s
+Beginning shuffle at 2020-03-10 18:21:28
+No rows found
+
+real	0m2.532s
+user	0m2.449s
+sys	0m0.429s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:21:32
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:21:35
+
+
+Beginning shuffle at 2020-03-10 18:21:36
+No rows found
+
+real	0m2.510s
+user	0m2.464s
+sys	0m0.392s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:21:41
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:21:49
+
+
+Beginning shuffle at 2020-03-10 18:21:52
+No rows found
+
+real	0m2.561s
+user	0m2.509s
+sys	0m0.397s
+Beginning shuffle at 2020-03-10 18:21:55
+No rows found
+
+real	0m2.542s
+user	0m2.500s
+sys	0m0.387s
+Beginning shuffle at 2020-03-10 18:22:01
+No rows found
+
+real	0m2.421s
+user	0m2.390s
+sys	0m0.376s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:22:04
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:22:07
+
+
+Beginning shuffle at 2020-03-10 18:22:09
+No rows found
+
+real	0m2.362s
+user	0m2.365s
+sys	0m0.343s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:22:13
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:22:21
+
+
+Beginning shuffle at 2020-03-10 18:22:25
+No rows found
+
+real	0m2.380s
+user	0m2.314s
+sys	0m0.410s
+Beginning shuffle at 2020-03-10 18:22:27
+No rows found
+
+real	0m2.370s
+user	0m2.367s
+sys	0m0.349s
+Beginning shuffle at 2020-03-10 18:22:33
+No rows found
+
+real	0m2.392s
+user	0m2.321s
+sys	0m0.417s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:22:37
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:22:40
+
+
+Beginning shuffle at 2020-03-10 18:22:41
+No rows found
+
+real	0m2.399s
+user	0m2.401s
+sys	0m0.343s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:22:46
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:22:53
+
+
+Beginning shuffle at 2020-03-10 18:22:57
+No rows found
+
+real	0m2.390s
+user	0m2.327s
+sys	0m0.409s
+Beginning shuffle at 2020-03-10 18:23:00
+No rows found
+
+real	0m2.379s
+user	0m2.344s
+sys	0m0.379s
+Beginning shuffle at 2020-03-10 18:23:06
+No rows found
+
+real	0m2.407s
+user	0m2.345s
+sys	0m0.409s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:23:09
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:23:12
+
+
+Beginning shuffle at 2020-03-10 18:23:13
+No rows found
+
+real	0m2.366s
+user	0m2.358s
+sys	0m0.354s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:23:18
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:23:26
+
+
+Beginning shuffle at 2020-03-10 18:23:29
+No rows found
+
+real	0m2.475s
+user	0m2.451s
+sys	0m0.370s
+Beginning shuffle at 2020-03-10 18:23:32
+No rows found
+
+real	0m2.447s
+user	0m2.419s
+sys	0m0.374s
+Beginning shuffle at 2020-03-10 18:23:38
+No rows found
+
+real	0m2.377s
+user	0m2.336s
+sys	0m0.386s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:23:42
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:23:45
+
+
+Beginning shuffle at 2020-03-10 18:23:46
+No rows found
+
+real	0m2.368s
+user	0m2.365s
+sys	0m0.347s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:23:51
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:23:58
+
+
+Beginning shuffle at 2020-03-10 18:24:02
+No rows found
+
+real	0m2.542s
+user	0m2.525s
+sys	0m0.362s
+Beginning shuffle at 2020-03-10 18:24:05
+No rows found
+
+real	0m2.528s
+user	0m2.474s
+sys	0m0.399s
+Beginning shuffle at 2020-03-10 18:24:11
+No rows found
+
+real	0m2.414s
+user	0m2.341s
+sys	0m0.417s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:24:14
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:24:17
+
+
+Beginning shuffle at 2020-03-10 18:24:18
+No rows found
+
+real	0m2.363s
+user	0m2.310s
+sys	0m0.399s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:24:23
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:24:31
+
+
+Beginning shuffle at 2020-03-10 18:24:34
+No rows found
+
+real	0m2.463s
+user	0m2.418s
+sys	0m0.389s
+Beginning shuffle at 2020-03-10 18:24:37
+No rows found
+
+real	0m2.374s
+user	0m2.393s
+sys	0m0.327s
+Beginning shuffle at 2020-03-10 18:24:43
+No rows found
+
+real	0m2.373s
+user	0m2.274s
+sys	0m0.445s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:24:47
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:24:50
+
+
+Beginning shuffle at 2020-03-10 18:24:51
+No rows found
+
+real	0m2.385s
+user	0m2.380s
+sys	0m0.351s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:24:55
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:25:03
+
+
+Beginning shuffle at 2020-03-10 18:25:07
+No rows found
+
+real	0m2.373s
+user	0m2.351s
+sys	0m0.368s
+Beginning shuffle at 2020-03-10 18:25:10
+No rows found
+
+real	0m2.360s
+user	0m2.277s
+sys	0m0.429s
+Beginning shuffle at 2020-03-10 18:25:15
+No rows found
+
+real	0m2.355s
+user	0m2.369s
+sys	0m0.331s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:25:19
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:25:22
+
+
+Beginning shuffle at 2020-03-10 18:25:23
+No rows found
+
+real	0m2.375s
+user	0m2.335s
+sys	0m0.368s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:25:28
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:25:35
+
+
+Beginning shuffle at 2020-03-10 18:25:39
+No rows found
+
+real	0m2.375s
+user	0m2.300s
+sys	0m0.420s
+Beginning shuffle at 2020-03-10 18:25:42
+No rows found
+
+real	0m2.360s
+user	0m2.305s
+sys	0m0.400s
+Beginning shuffle at 2020-03-10 18:25:48
+No rows found
+
+real	0m2.420s
+user	0m2.406s
+sys	0m0.360s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:25:52
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:25:55
+
+
+Beginning shuffle at 2020-03-10 18:25:56
+No rows found
+
+real	0m2.365s
+user	0m2.428s
+sys	0m0.281s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:26:00
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:26:08
+
+
+Beginning shuffle at 2020-03-10 18:26:12
+No rows found
+
+real	0m2.396s
+user	0m2.346s
+sys	0m0.394s
+Beginning shuffle at 2020-03-10 18:26:15
+No rows found
+
+real	0m2.368s
+user	0m2.312s
+sys	0m0.402s
+Beginning shuffle at 2020-03-10 18:26:20
+No rows found
+
+real	0m2.370s
+user	0m2.314s
+sys	0m0.400s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:26:24
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:26:27
+
+
+Beginning shuffle at 2020-03-10 18:26:28
+No rows found
+
+real	0m2.383s
+user	0m2.378s
+sys	0m0.350s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:26:33
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:26:40
+
+
+Beginning shuffle at 2020-03-10 18:26:44
+No rows found
+
+real	0m2.391s
+user	0m2.342s
+sys	0m0.394s
+Beginning shuffle at 2020-03-10 18:26:47
+No rows found
+
+real	0m2.352s
+user	0m2.325s
+sys	0m0.370s
+Beginning shuffle at 2020-03-10 18:26:53
+No rows found
+
+real	0m2.341s
+user	0m2.332s
+sys	0m0.355s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:26:57
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:26:59
+
+
+Beginning shuffle at 2020-03-10 18:27:00
+No rows found
+
+real	0m2.398s
+user	0m2.349s
+sys	0m0.395s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:27:05
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:27:13
+
+
+Beginning shuffle at 2020-03-10 18:27:17
+No rows found
+
+real	0m2.343s
+user	0m2.315s
+sys	0m0.374s
+Beginning shuffle at 2020-03-10 18:27:19
+No rows found
+
+real	0m2.345s
+user	0m2.335s
+sys	0m0.354s
+Beginning shuffle at 2020-03-10 18:27:25
+No rows found
+
+real	0m2.419s
+user	0m2.441s
+sys	0m0.324s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:27:29
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:27:32
+
+
+Beginning shuffle at 2020-03-10 18:27:33
+No rows found
+
+real	0m2.357s
+user	0m2.353s
+sys	0m0.348s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:27:38
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:27:45
+
+
+Beginning shuffle at 2020-03-10 18:27:49
+No rows found
+
+real	0m2.355s
+user	0m2.345s
+sys	0m0.355s
+Beginning shuffle at 2020-03-10 18:27:52
+No rows found
+
+real	0m2.388s
+user	0m2.339s
+sys	0m0.394s
+Beginning shuffle at 2020-03-10 18:27:58
+No rows found
+
+real	0m2.373s
+user	0m2.369s
+sys	0m0.350s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:28:01
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:28:04
+
+
+Beginning shuffle at 2020-03-10 18:28:05
+No rows found
+
+real	0m2.371s
+user	0m2.285s
+sys	0m0.432s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:28:10
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:28:18
+
+
+Beginning shuffle at 2020-03-10 18:28:21
+No rows found
+
+real	0m2.553s
+user	0m2.515s
+sys	0m0.384s
+Beginning shuffle at 2020-03-10 18:28:24
+No rows found
+
+real	0m2.509s
+user	0m2.421s
+sys	0m0.434s
+Beginning shuffle at 2020-03-10 18:28:30
+No rows found
+
+real	0m2.388s
+user	0m2.357s
+sys	0m0.376s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:28:34
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:28:37
+
+
+Beginning shuffle at 2020-03-10 18:28:38
+No rows found
+
+real	0m2.359s
+user	0m2.284s
+sys	0m0.422s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:28:42
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:28:50
+
+
+Beginning shuffle at 2020-03-10 18:28:54
+No rows found
+
+real	0m2.407s
+user	0m2.362s
+sys	0m0.392s
+Beginning shuffle at 2020-03-10 18:28:57
+No rows found
+
+real	0m2.359s
+user	0m2.332s
+sys	0m0.373s
+Beginning shuffle at 2020-03-10 18:29:02
+No rows found
+
+real	0m2.376s
+user	0m2.325s
+sys	0m0.397s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:29:06
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:29:09
+
+
+Beginning shuffle at 2020-03-10 18:29:10
+No rows found
+
+real	0m2.482s
+user	0m2.470s
+sys	0m0.358s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:29:15
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:29:22
+
+
+Beginning shuffle at 2020-03-10 18:29:26
+No rows found
+
+real	0m2.334s
+user	0m2.283s
+sys	0m0.396s
+Beginning shuffle at 2020-03-10 18:29:29
+No rows found
+
+real	0m2.385s
+user	0m2.382s
+sys	0m0.348s
+Beginning shuffle at 2020-03-10 18:29:35
+No rows found
+
+real	0m2.341s
+user	0m2.309s
+sys	0m0.376s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:29:39
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:29:42
+
+
+Beginning shuffle at 2020-03-10 18:29:42
+No rows found
+
+real	0m2.436s
+user	0m2.376s
+sys	0m0.406s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:29:47
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:29:55
+
+
+Beginning shuffle at 2020-03-10 18:29:59
+No rows found
+
+real	0m2.435s
+user	0m2.406s
+sys	0m0.375s
+Beginning shuffle at 2020-03-10 18:30:02
+No rows found
+
+real	0m2.380s
+user	0m2.327s
+sys	0m0.398s
+Beginning shuffle at 2020-03-10 18:30:07
+No rows found
+
+real	0m2.383s
+user	0m2.330s
+sys	0m0.399s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:30:11
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:30:14
+
+
+Beginning shuffle at 2020-03-10 18:30:15
+No rows found
+
+real	0m2.379s
+user	0m2.341s
+sys	0m0.382s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:30:20
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:30:27
+
+
+Beginning shuffle at 2020-03-10 18:30:31
+No rows found
+
+real	0m2.348s
+user	0m2.319s
+sys	0m0.375s
+Beginning shuffle at 2020-03-10 18:30:34
+No rows found
+
+real	0m2.412s
+user	0m2.382s
+sys	0m0.369s
+Beginning shuffle at 2020-03-10 18:30:40
+No rows found
+
+real	0m2.549s
+user	0m2.515s
+sys	0m0.379s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:30:44
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:30:46
+
+
+Beginning shuffle at 2020-03-10 18:30:47
+No rows found
+
+real	0m2.390s
+user	0m2.351s
+sys	0m0.383s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:30:52
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:31:00
+
+
+Beginning shuffle at 2020-03-10 18:31:04
+No rows found
+
+real	0m2.405s
+user	0m2.361s
+sys	0m0.389s
+Beginning shuffle at 2020-03-10 18:31:06
+No rows found
+
+real	0m2.373s
+user	0m2.352s
+sys	0m0.367s
+Beginning shuffle at 2020-03-10 18:31:12
+No rows found
+
+real	0m2.379s
+user	0m2.382s
+sys	0m0.343s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:31:16
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:31:19
+
+
+Beginning shuffle at 2020-03-10 18:31:20
+No rows found
+
+real	0m2.413s
+user	0m2.410s
+sys	0m0.348s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:31:25
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:31:32
+
+
+Beginning shuffle at 2020-03-10 18:31:36
+No rows found
+
+real	0m2.369s
+user	0m2.372s
+sys	0m0.307s
+Beginning shuffle at 2020-03-10 18:31:39
+No rows found
+
+real	0m2.397s
+user	0m2.361s
+sys	0m0.383s
+Beginning shuffle at 2020-03-10 18:31:45
+No rows found
+
+real	0m2.527s
+user	0m2.516s
+sys	0m0.355s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:31:49
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:31:51
+
+
+Beginning shuffle at 2020-03-10 18:31:52
+No rows found
+
+real	0m2.403s
+user	0m2.346s
+sys	0m0.403s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:31:57
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:32:05
+
+
+Beginning shuffle at 2020-03-10 18:32:09
+No rows found
+
+real	0m2.365s
+user	0m2.309s
+sys	0m0.401s
+Beginning shuffle at 2020-03-10 18:32:11
+No rows found
+
+real	0m2.386s
+user	0m2.312s
+sys	0m0.418s
+Beginning shuffle at 2020-03-10 18:32:17
+No rows found
+
+real	0m2.397s
+user	0m2.334s
+sys	0m0.409s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:32:21
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:32:24
+
+
+Beginning shuffle at 2020-03-10 18:32:25
+No rows found
+
+real	0m2.417s
+user	0m2.404s
+sys	0m0.357s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:32:30
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:32:37
+
+
+Beginning shuffle at 2020-03-10 18:32:41
+No rows found
+
+real	0m2.398s
+user	0m2.394s
+sys	0m0.350s
+Beginning shuffle at 2020-03-10 18:32:44
+No rows found
+
+real	0m2.382s
+user	0m2.326s
+sys	0m0.401s
+Beginning shuffle at 2020-03-10 18:32:50
+No rows found
+
+real	0m2.475s
+user	0m2.439s
+sys	0m0.382s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:32:53
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:32:56
+
+
+Beginning shuffle at 2020-03-10 18:32:57
+No rows found
+
+real	0m2.393s
+user	0m2.370s
+sys	0m0.367s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:33:02
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:33:10
+
+
+Beginning shuffle at 2020-03-10 18:33:13
+No rows found
+
+real	0m2.368s
+user	0m2.362s
+sys	0m0.352s
+Beginning shuffle at 2020-03-10 18:33:16
+No rows found
+
+real	0m2.392s
+user	0m2.352s
+sys	0m0.386s
+Beginning shuffle at 2020-03-10 18:33:22
+No rows found
+
+real	0m2.395s
+user	0m2.407s
+sys	0m0.334s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:33:26
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:33:29
+
+
+Beginning shuffle at 2020-03-10 18:33:30
+No rows found
+
+real	0m2.386s
+user	0m2.407s
+sys	0m0.324s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:33:35
+
+
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:33:42
+
+
+Beginning shuffle at 2020-03-10 18:33:46
+No rows found
+
+real	0m2.392s
+user	0m2.336s
+sys	0m0.402s
+Beginning shuffle at 2020-03-10 18:33:49
+No rows found
+
+real	0m2.381s
+user	0m2.395s
+sys	0m0.331s
+Beginning shuffle at 2020-03-10 18:36:19
+No rows found
+
+real	0m6.968s
+user	0m2.542s
+sys	0m0.541s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:36:36
+
+
+Beginning shuffle at 2020-03-10 18:36:56
+No rows found
+
+real	0m2.523s
+user	0m2.460s
+sys	0m0.408s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:37:08
+
+
+Beginning shuffle at 2020-03-10 18:37:28
+No rows found
+
+real	0m2.477s
+user	0m2.464s
+sys	0m0.357s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:37:41
+
+
+Beginning shuffle at 2020-03-10 18:38:01
+No rows found
+
+real	0m2.442s
+user	0m2.433s
+sys	0m0.354s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:38:13
+
+
+Beginning shuffle at 2020-03-10 18:38:33
+No rows found
+
+real	0m2.386s
+user	0m2.372s
+sys	0m0.360s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:38:46
+
+
+Beginning shuffle at 2020-03-10 18:39:06
+No rows found
+
+real	0m2.371s
+user	0m2.363s
+sys	0m0.354s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:39:18
+
+
+Beginning shuffle at 2020-03-10 18:39:38
+No rows found
+
+real	0m5.209s
+user	0m3.701s
+sys	0m0.403s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:39:53
+
+
+Beginning shuffle at 2020-03-10 18:40:13
+No rows found
+
+real	0m2.555s
+user	0m2.538s
+sys	0m0.361s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:40:26
+
+
+Beginning shuffle at 2020-03-10 18:40:46
+No rows found
+
+real	0m2.383s
+user	0m2.397s
+sys	0m0.331s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:40:58
+
+
+Beginning shuffle at 2020-03-10 18:41:19
+No rows found
+
+real	0m2.387s
+user	0m2.297s
+sys	0m0.436s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:41:31
+
+
+Beginning shuffle at 2020-03-10 18:41:51
+No rows found
+
+real	0m2.398s
+user	0m2.325s
+sys	0m0.419s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:42:03
+
+
+Beginning shuffle at 2020-03-10 18:42:23
+No rows found
+
+real	0m2.364s
+user	0m2.364s
+sys	0m0.346s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:42:36
+
+
+Beginning shuffle at 2020-03-10 18:42:56
+No rows found
+
+real	0m2.334s
+user	0m2.304s
+sys	0m0.375s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:43:08
+
+
+Beginning shuffle at 2020-03-10 18:43:28
+No rows found
+
+real	0m2.511s
+user	0m2.447s
+sys	0m0.409s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:43:41
+
+
+Beginning shuffle at 2020-03-10 18:44:01
+No rows found
+
+real	0m2.578s
+user	0m2.601s
+sys	0m0.319s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:44:13
+
+
+Beginning shuffle at 2020-03-10 18:44:33
+No rows found
+
+real	0m2.333s
+user	0m2.292s
+sys	0m0.386s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:44:46
+
+
+Beginning shuffle at 2020-03-10 18:45:06
+No rows found
+
+real	0m2.400s
+user	0m2.369s
+sys	0m0.377s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:45:18
+
+
+Beginning shuffle at 2020-03-10 18:45:38
+No rows found
+
+real	0m2.370s
+user	0m2.318s
+sys	0m0.397s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:45:51
+
+
+Beginning shuffle at 2020-03-10 18:46:11
+No rows found
+
+real	0m2.396s
+user	0m2.339s
+sys	0m0.402s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:46:23
+
+
+Beginning shuffle at 2020-03-10 18:46:43
+No rows found
+
+real	0m2.410s
+user	0m2.379s
+sys	0m0.374s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:46:56
+
+
+Beginning shuffle at 2020-03-10 18:47:16
+No rows found
+
+real	0m2.341s
+user	0m2.279s
+sys	0m0.407s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:47:28
+
+
+Beginning shuffle at 2020-03-10 18:47:48
+No rows found
+
+real	0m2.413s
+user	0m2.341s
+sys	0m0.417s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:48:00
+
+
+Beginning shuffle at 2020-03-10 18:48:20
+No rows found
+
+real	0m2.360s
+user	0m2.305s
+sys	0m0.399s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:48:33
+
+
+Beginning shuffle at 2020-03-10 18:48:53
+No rows found
+
+real	0m2.372s
+user	0m2.328s
+sys	0m0.390s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:49:05
+
+
+Beginning shuffle at 2020-03-10 18:49:25
+No rows found
+
+real	0m2.369s
+user	0m2.330s
+sys	0m0.384s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:49:38
+
+
+Beginning shuffle at 2020-03-10 18:49:58
+No rows found
+
+real	0m2.367s
+user	0m2.322s
+sys	0m0.391s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-10 18:50:10
+
+
+Beginning shuffle at 2020-03-10 18:50:30
+No rows found
+
+real	0m2.379s
+user	0m2.324s
+sys	0m0.400s
+Beginning shuffle at 2020-03-11 08:38:46
+No rows found
+
+real	0m10.754s
+user	0m3.355s
+sys	0m0.635s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:39:07
+
+
+Beginning shuffle at 2020-03-11 08:39:27
+No rows found
+
+real	0m2.436s
+user	0m2.441s
+sys	0m0.341s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:39:40
+
+
+Beginning shuffle at 2020-03-11 08:40:00
+No rows found
+
+real	0m2.373s
+user	0m2.330s
+sys	0m0.380s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:40:12
+
+
+Beginning shuffle at 2020-03-11 08:40:32
+No rows found
+
+real	0m2.345s
+user	0m2.353s
+sys	0m0.339s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:40:45
+
+
+Beginning shuffle at 2020-03-11 08:41:05
+No rows found
+
+real	0m2.452s
+user	0m2.390s
+sys	0m0.407s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:41:17
+
+
+Beginning shuffle at 2020-03-11 08:41:37
+No rows found
+
+real	0m2.361s
+user	0m2.326s
+sys	0m0.381s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:41:49
+
+
+Beginning shuffle at 2020-03-11 08:42:10
+No rows found
+
+real	0m2.351s
+user	0m2.333s
+sys	0m0.364s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:42:22
+
+
+Beginning shuffle at 2020-03-11 08:42:42
+No rows found
+
+real	0m2.363s
+user	0m2.262s
+sys	0m0.447s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:42:54
+
+
+Beginning shuffle at 2020-03-11 08:43:14
+No rows found
+
+real	0m2.377s
+user	0m2.407s
+sys	0m0.316s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:43:27
+
+
+Beginning shuffle at 2020-03-11 08:43:47
+No rows found
+
+real	0m2.385s
+user	0m2.324s
+sys	0m0.407s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:43:59
+
+
+Beginning shuffle at 2020-03-11 08:44:19
+No rows found
+
+real	0m2.365s
+user	0m2.368s
+sys	0m0.343s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:44:32
+
+
+Beginning shuffle at 2020-03-11 08:44:52
+No rows found
+
+real	0m2.362s
+user	0m2.332s
+sys	0m0.377s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:45:04
+
+
+Beginning shuffle at 2020-03-11 08:45:24
+No rows found
+
+real	0m2.407s
+user	0m2.387s
+sys	0m0.366s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:45:36
+
+
+Beginning shuffle at 2020-03-11 08:45:56
+No rows found
+
+real	0m2.386s
+user	0m2.331s
+sys	0m0.401s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:46:09
+
+
+Beginning shuffle at 2020-03-11 08:46:29
+No rows found
+
+real	0m2.373s
+user	0m2.304s
+sys	0m0.415s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:46:41
+
+
+Beginning shuffle at 2020-03-11 08:47:01
+No rows found
+
+real	0m2.345s
+user	0m2.343s
+sys	0m0.348s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:47:14
+
+
+Beginning shuffle at 2020-03-11 08:47:34
+No rows found
+
+real	0m2.354s
+user	0m2.325s
+sys	0m0.375s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:47:46
+
+
+Beginning shuffle at 2020-03-11 08:48:06
+No rows found
+
+real	0m2.369s
+user	0m2.375s
+sys	0m0.339s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:48:18
+
+
+Beginning shuffle at 2020-03-11 08:48:38
+No rows found
+
+real	0m2.342s
+user	0m2.317s
+sys	0m0.371s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:48:51
+
+
+Beginning shuffle at 2020-03-11 08:49:11
+No rows found
+
+real	0m2.333s
+user	0m2.254s
+sys	0m0.425s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:49:23
+
+
+Beginning shuffle at 2020-03-11 08:49:43
+No rows found
+
+real	0m2.349s
+user	0m2.349s
+sys	0m0.346s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:49:56
+
+
+Beginning shuffle at 2020-03-11 08:50:16
+No rows found
+
+real	0m2.384s
+user	0m2.380s
+sys	0m0.350s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:50:28
+
+
+Beginning shuffle at 2020-03-11 08:50:48
+No rows found
+
+real	0m2.366s
+user	0m2.392s
+sys	0m0.319s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:51:00
+
+
+Beginning shuffle at 2020-03-11 08:51:20
+No rows found
+
+real	0m2.388s
+user	0m2.320s
+sys	0m0.414s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:51:33
+
+
+Beginning shuffle at 2020-03-11 08:51:53
+No rows found
+
+real	0m2.373s
+user	0m2.377s
+sys	0m0.343s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:52:05
+
+
+Beginning shuffle at 2020-03-11 08:52:25
+No rows found
+
+real	0m2.871s
+user	0m2.828s
+sys	0m0.389s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:52:38
+
+
+Beginning shuffle at 2020-03-11 08:55:07
+No rows found
+
+real	0m10.000s
+user	0m3.786s
+sys	0m0.674s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:55:28
+
+
+Beginning shuffle at 2020-03-11 08:55:48
+No rows found
+
+real	0m2.436s
+user	0m2.354s
+sys	0m0.402s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:56:00
+
+
+Beginning shuffle at 2020-03-11 08:56:20
+No rows found
+
+real	0m2.428s
+user	0m2.414s
+sys	0m0.359s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:56:32
+
+
+Beginning shuffle at 2020-03-11 08:56:52
+No rows found
+
+real	0m2.479s
+user	0m2.511s
+sys	0m0.314s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:57:05
+
+
+Beginning shuffle at 2020-03-11 08:57:25
+No rows found
+
+real	0m2.533s
+user	0m2.527s
+sys	0m0.352s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:57:38
+
+
+Beginning shuffle at 2020-03-11 08:57:58
+No rows found
+
+real	0m2.510s
+user	0m2.491s
+sys	0m0.364s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:58:10
+
+
+Beginning shuffle at 2020-03-11 08:58:30
+No rows found
+
+real	0m2.464s
+user	0m2.407s
+sys	0m0.403s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:58:43
+
+
+Beginning shuffle at 2020-03-11 08:59:03
+No rows found
+
+real	0m2.477s
+user	0m2.456s
+sys	0m0.366s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:59:15
+
+
+Beginning shuffle at 2020-03-11 08:59:35
+No rows found
+
+real	0m2.434s
+user	0m2.377s
+sys	0m0.403s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 08:59:48
+
+
+Beginning shuffle at 2020-03-11 09:00:08
+No rows found
+
+real	0m2.471s
+user	0m2.413s
+sys	0m0.403s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:00:20
+
+
+Beginning shuffle at 2020-03-11 09:00:40
+No rows found
+
+real	0m2.404s
+user	0m2.346s
+sys	0m0.403s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:00:53
+
+
+Beginning shuffle at 2020-03-11 09:01:13
+No rows found
+
+real	0m2.353s
+user	0m2.348s
+sys	0m0.351s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:01:25
+
+
+Beginning shuffle at 2020-03-11 09:01:45
+No rows found
+
+real	0m2.353s
+user	0m2.358s
+sys	0m0.341s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:01:57
+
+
+Beginning shuffle at 2020-03-11 09:02:17
+No rows found
+
+real	0m2.352s
+user	0m2.318s
+sys	0m0.380s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:02:30
+
+
+Beginning shuffle at 2020-03-11 09:02:50
+No rows found
+
+real	0m2.343s
+user	0m2.352s
+sys	0m0.337s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:03:02
+
+
+Beginning shuffle at 2020-03-11 09:03:22
+No rows found
+
+real	0m2.401s
+user	0m2.365s
+sys	0m0.382s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:03:35
+
+
+Beginning shuffle at 2020-03-11 09:03:55
+No rows found
+
+real	0m2.335s
+user	0m2.368s
+sys	0m0.314s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:04:07
+
+
+Beginning shuffle at 2020-03-11 09:04:27
+No rows found
+
+real	0m2.378s
+user	0m2.342s
+sys	0m0.383s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:04:39
+
+
+Beginning shuffle at 2020-03-11 09:04:59
+No rows found
+
+real	0m2.428s
+user	0m2.385s
+sys	0m0.389s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:05:12
+
+
+Beginning shuffle at 2020-03-11 09:05:32
+No rows found
+
+real	0m2.358s
+user	0m2.317s
+sys	0m0.386s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:05:44
+
+
+Beginning shuffle at 2020-03-11 09:06:04
+No rows found
+
+real	0m2.410s
+user	0m2.380s
+sys	0m0.376s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:06:17
+
+
+Beginning shuffle at 2020-03-11 09:06:37
+No rows found
+
+real	0m2.412s
+user	0m2.353s
+sys	0m0.405s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:06:49
+
+
+Beginning shuffle at 2020-03-11 09:07:09
+No rows found
+
+real	0m2.362s
+user	0m2.321s
+sys	0m0.387s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:07:21
+
+
+Beginning shuffle at 2020-03-11 09:07:42
+No rows found
+
+real	0m2.371s
+user	0m2.344s
+sys	0m0.373s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:07:54
+
+
+Beginning shuffle at 2020-03-11 09:08:14
+No rows found
+
+real	0m2.381s
+user	0m2.384s
+sys	0m0.343s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:08:26
+
+
+Beginning shuffle at 2020-03-11 09:08:46
+No rows found
+
+real	0m2.388s
+user	0m2.353s
+sys	0m0.381s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:08:59
+
+
+Beginning shuffle at 2020-03-11 09:09:19
+No rows found
+
+real	0m2.421s
+user	0m2.383s
+sys	0m0.383s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:09:31
+
+
+Beginning shuffle at 2020-03-11 09:09:51
+No rows found
+
+real	0m2.391s
+user	0m2.398s
+sys	0m0.338s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:10:04
+
+
+Beginning shuffle at 2020-03-11 09:10:24
+No rows found
+
+real	0m2.364s
+user	0m2.363s
+sys	0m0.347s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:10:36
+
+
+Beginning shuffle at 2020-03-11 09:10:56
+No rows found
+
+real	0m2.328s
+user	0m2.310s
+sys	0m0.363s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:11:08
+
+
+Beginning shuffle at 2020-03-11 09:11:28
+No rows found
+
+real	0m2.360s
+user	0m2.324s
+sys	0m0.383s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:11:41
+
+
+Beginning shuffle at 2020-03-11 09:12:01
+No rows found
+
+real	0m2.378s
+user	0m2.365s
+sys	0m0.359s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:12:13
+
+
+Beginning shuffle at 2020-03-11 09:12:33
+No rows found
+
+real	0m2.374s
+user	0m2.296s
+sys	0m0.424s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:12:46
+
+
+Beginning shuffle at 2020-03-11 09:13:06
+No rows found
+
+real	0m2.341s
+user	0m2.327s
+sys	0m0.360s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:13:18
+
+
+Beginning shuffle at 2020-03-11 09:13:38
+No rows found
+
+real	0m2.396s
+user	0m2.444s
+sys	0m0.298s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:13:50
+
+
+Beginning shuffle at 2020-03-11 09:14:10
+No rows found
+
+real	0m2.401s
+user	0m2.370s
+sys	0m0.377s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:14:23
+
+
+Beginning shuffle at 2020-03-11 09:14:43
+No rows found
+
+real	0m2.343s
+user	0m2.329s
+sys	0m0.359s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:14:55
+
+
+Beginning shuffle at 2020-03-11 09:15:15
+No rows found
+
+real	0m2.393s
+user	0m2.354s
+sys	0m0.385s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:15:28
+
+
+Beginning shuffle at 2020-03-11 09:15:48
+No rows found
+
+real	0m2.339s
+user	0m2.327s
+sys	0m0.358s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:16:00
+
+
+Beginning shuffle at 2020-03-11 09:16:20
+No rows found
+
+real	0m2.360s
+user	0m2.309s
+sys	0m0.397s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:16:32
+
+
+Beginning shuffle at 2020-03-11 09:16:53
+No rows found
+
+real	0m2.317s
+user	0m2.242s
+sys	0m0.420s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:17:05
+
+
+Beginning shuffle at 2020-03-11 09:17:25
+No rows found
+
+real	0m4.563s
+user	0m3.633s
+sys	0m0.366s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:17:40
+
+
+Beginning shuffle at 2020-03-11 09:18:00
+No rows found
+
+real	0m3.577s
+user	0m3.379s
+sys	0m0.355s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:18:13
+
+
+Beginning shuffle at 2020-03-11 09:18:33
+No rows found
+
+real	0m3.497s
+user	0m3.290s
+sys	0m0.377s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:18:47
+
+
+Beginning shuffle at 2020-03-11 09:19:07
+No rows found
+
+real	0m2.345s
+user	0m2.349s
+sys	0m0.343s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:19:19
+
+
+Beginning shuffle at 2020-03-11 09:19:39
+No rows found
+
+real	0m2.538s
+user	0m2.534s
+sys	0m0.350s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:19:52
+
+
+Beginning shuffle at 2020-03-11 09:20:12
+No rows found
+
+real	0m2.375s
+user	0m2.265s
+sys	0m0.455s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:20:24
+
+
+Beginning shuffle at 2020-03-11 09:20:44
+No rows found
+
+real	0m2.379s
+user	0m2.344s
+sys	0m0.381s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:20:57
+
+
+Beginning shuffle at 2020-03-11 09:21:17
+No rows found
+
+real	0m2.352s
+user	0m2.322s
+sys	0m0.375s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:21:29
+
+
+Beginning shuffle at 2020-03-11 09:21:49
+No rows found
+
+real	0m2.389s
+user	0m2.417s
+sys	0m0.318s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:22:01
+
+
+Beginning shuffle at 2020-03-11 09:22:21
+No rows found
+
+real	0m2.530s
+user	0m2.483s
+sys	0m0.392s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:22:34
+
+
+Beginning shuffle at 2020-03-11 09:22:54
+No rows found
+
+real	0m2.332s
+user	0m2.342s
+sys	0m0.335s
+Cleaning up any old dirs
+Finished shuffle at 2020-03-11 09:23:06
+
+
+Beginning shuffle at 2020-03-11 09:23:26

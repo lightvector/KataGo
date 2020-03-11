@@ -71,7 +71,7 @@ bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
 
 Board::Board()
 {
-  init(19,19);
+  init(9,9);
 }
 
 Board::Board(int x, int y)

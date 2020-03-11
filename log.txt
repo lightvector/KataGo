@@ -1,0 +1,1362 @@
+2020-03-10 17:59:17+0000: Self Play Engine starting...
+2020-03-10 17:59:17+0000: Git revision: 88c182a8a9426f996e2f72e3fd5ea55ae82d62e0
+2020-03-10 17:59:17+0000: Loaded all config stuff, starting self play
+2020-03-10 17:59:17+0000: Found new neural net random
+2020-03-10 17:59:17+0000: nnRandSeed0 = 5358642238951942189
+2020-03-10 17:59:17+0000: After dedups: nnModelFile0 = /dev/null useFP16 auto useNHWC auto
+2020-03-10 17:59:17+0000: Loaded latest neural net random from: /dev/null
+2020-03-10 17:59:17+0000: Data write loop starting for neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 0 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 1 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 2 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 3 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 5 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 4 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 6 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 7 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 8 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 9 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Started 10 games
+2020-03-10 17:59:17+0000: Game loop thread 10 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 12 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 11 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 13 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 14 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 15 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 16 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 18 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 17 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 19 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Started 20 games
+2020-03-10 17:59:17+0000: Game loop thread 20 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 21 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 23 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 22 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 24 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 25 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 26 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 27 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 28 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 29 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Started 30 games
+2020-03-10 17:59:17+0000: Game loop thread 30 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 31 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 32 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 33 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 34 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 35 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 36 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 37 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 38 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 39 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 40 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Started 40 games
+2020-03-10 17:59:17+0000: Game loop thread 41 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 42 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 43 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 44 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 45 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 46 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 47 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 48 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 49 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Started 50 games
+2020-03-10 17:59:17+0000: Game loop thread 50 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 51 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 52 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 53 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 54 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 55 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 56 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 57 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 58 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 59 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Started 60 games
+2020-03-10 17:59:17+0000: Game loop thread 60 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 61 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 62 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 63 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 64 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 65 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 66 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 67 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 68 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 69 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Started 70 games
+2020-03-10 17:59:17+0000: Game loop thread 70 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 71 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 72 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 73 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 74 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 75 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 76 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 77 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 78 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 79 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Started 80 games
+2020-03-10 17:59:17+0000: Game loop thread 80 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 81 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 82 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 83 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 84 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 85 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 86 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 87 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 88 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 89 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Started 90 games
+2020-03-10 17:59:17+0000: Game loop thread 90 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 91 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 92 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 93 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 94 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 95 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 96 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 97 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 98 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 99 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Started 100 games
+2020-03-10 17:59:17+0000: Game loop thread 100 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 101 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 102 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 103 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 104 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 105 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 106 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 107 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 108 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 109 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Started 110 games
+2020-03-10 17:59:17+0000: Game loop thread 110 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 111 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 112 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 113 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 114 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 115 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 116 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 117 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 118 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 119 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Started 120 games
+2020-03-10 17:59:17+0000: Game loop thread 120 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 121 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 122 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 123 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 124 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 125 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 126 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Game loop thread 127 starting game on new neural net: random
+2020-03-10 17:59:17+0000: Model loading loop thread starting
+katago: /home/ubuntu/KataGo/cpp/neuralnet/nninputs.cpp:1944: void NNInputs::fillRowV7(const Board&, const BoardHistory&, Player, const MiscNNInputParams&, int, int, bool, float*, float*): Assertion `board.x_size <= nnXLen' failed.
+2020-03-10 18:22:01+0000: Gatekeeper Engine starting...
+2020-03-10 18:22:01+0000: Git revision: 88c182a8a9426f996e2f72e3fd5ea55ae82d62e0
+2020-03-10 18:22:01+0000: Loaded all config stuff, watching for new neural nets in /home/ubuntu/katago/model/modelstobetested/
+2020-03-10 18:35:59+0000: Self Play Engine starting...
+2020-03-10 18:35:59+0000: Git revision: 88c182a8a9426f996e2f72e3fd5ea55ae82d62e0
+2020-03-10 18:35:59+0000: Loaded all config stuff, starting self play
+2020-03-10 18:35:59+0000: Found new neural net random
+2020-03-10 18:35:59+0000: nnRandSeed0 = 17072111639219895741
+2020-03-10 18:35:59+0000: After dedups: nnModelFile0 = /dev/null useFP16 auto useNHWC auto
+2020-03-10 18:35:59+0000: Loaded latest neural net random from: /dev/null
+2020-03-10 18:35:59+0000: Data write loop starting for neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 0 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 1 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 2 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 3 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 4 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 5 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 7 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 6 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 9 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 8 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Started 10 games
+2020-03-10 18:35:59+0000: Game loop thread 11 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 10 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 12 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 13 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 14 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 15 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 16 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 17 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 18 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 19 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Started 20 games
+2020-03-10 18:35:59+0000: Game loop thread 20 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 21 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 22 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 23 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 24 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 25 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 26 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 27 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 28 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 29 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Started 30 games
+2020-03-10 18:35:59+0000: Game loop thread 30 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 31 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 32 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 33 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 34 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 35 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 36 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 37 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 38 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 39 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Started 40 games
+2020-03-10 18:35:59+0000: Game loop thread 40 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 41 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 42 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 43 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 44 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 45 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 46 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 47 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 48 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 49 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Started 50 games
+2020-03-10 18:35:59+0000: Game loop thread 50 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 51 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 52 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 53 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 54 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 55 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 56 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 57 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 58 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 63 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 59 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 60 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 61 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 62 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Started 60 games
+2020-03-10 18:35:59+0000: Game loop thread 67 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 65 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 66 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 64 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 68 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 69 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 70 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Started 70 games
+2020-03-10 18:35:59+0000: Game loop thread 71 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 72 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 73 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 74 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 75 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 76 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 77 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 78 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 79 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Started 80 games
+2020-03-10 18:35:59+0000: Game loop thread 80 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 81 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 82 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 83 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 84 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 85 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 86 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 87 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 88 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 89 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Started 90 games
+2020-03-10 18:35:59+0000: Game loop thread 90 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 91 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 92 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 93 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 94 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 95 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 96 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 97 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 98 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 99 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Started 100 games
+2020-03-10 18:35:59+0000: Game loop thread 100 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 101 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 102 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 103 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 104 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 105 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 106 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 107 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 108 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 109 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Started 110 games
+2020-03-10 18:35:59+0000: Game loop thread 110 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 111 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 112 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 113 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 114 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 115 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 116 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 117 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 118 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 119 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Started 120 games
+2020-03-10 18:35:59+0000: Game loop thread 120 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 121 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 122 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 123 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 124 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 125 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 126 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Game loop thread 127 starting game on new neural net: random
+2020-03-10 18:35:59+0000: Model loading loop thread starting
+corrupted size vs. prev_size
+2020-03-10 18:37:35+0000: Gatekeeper Engine starting...
+2020-03-10 18:37:35+0000: Git revision: 88c182a8a9426f996e2f72e3fd5ea55ae82d62e0
+2020-03-10 18:37:35+0000: Loaded all config stuff, watching for new neural nets in /home/ubuntu/katago/model/modelstobetested/
+2020-03-10 18:39:38+0000: Self Play Engine starting...
+2020-03-10 18:39:38+0000: Git revision: 88c182a8a9426f996e2f72e3fd5ea55ae82d62e0
+2020-03-10 18:39:38+0000: Loaded all config stuff, starting self play
+2020-03-10 18:39:38+0000: Found new neural net random
+2020-03-10 18:39:38+0000: nnRandSeed0 = 3866728888716633712
+2020-03-10 18:39:38+0000: After dedups: nnModelFile0 = /dev/null useFP16 auto useNHWC auto
+2020-03-10 18:39:38+0000: Loaded latest neural net random from: /dev/null
+2020-03-10 18:39:38+0000: Data write loop starting for neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 0 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 1 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 2 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 3 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 4 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 5 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 6 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 7 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 8 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 9 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Started 10 games
+2020-03-10 18:39:38+0000: Game loop thread 10 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 12 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 11 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 13 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 14 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 15 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 16 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 17 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 18 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 20 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Started 20 games
+2020-03-10 18:39:38+0000: Game loop thread 19 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 21 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 22 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 23 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 24 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 25 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 26 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 27 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 28 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 29 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Started 30 games
+2020-03-10 18:39:38+0000: Game loop thread 30 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 31 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 32 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 33 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 34 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 35 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 36 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 37 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 38 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 39 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Started 40 games
+2020-03-10 18:39:38+0000: Game loop thread 40 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 41 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 42 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 43 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 44 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 45 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 46 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 47 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 48 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 49 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Started 50 games
+2020-03-10 18:39:38+0000: Game loop thread 51 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 50 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 52 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 53 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 54 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 55 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 56 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 57 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 58 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 59 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Started 60 games
+2020-03-10 18:39:38+0000: Game loop thread 60 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 61 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 62 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 63 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 64 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 65 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 66 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 67 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 68 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 69 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Started 70 games
+2020-03-10 18:39:38+0000: Game loop thread 70 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 71 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 72 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 73 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 74 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 75 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 76 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 77 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 78 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 79 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Started 80 games
+2020-03-10 18:39:38+0000: Game loop thread 80 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 81 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 82 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 83 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 84 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 85 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 86 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 87 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 88 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 89 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Started 90 games
+2020-03-10 18:39:38+0000: Game loop thread 90 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 91 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 92 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 93 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 94 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 95 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 96 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 97 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 98 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 99 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Started 100 games
+2020-03-10 18:39:38+0000: Game loop thread 100 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 101 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 102 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 103 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 104 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 105 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 106 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 107 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 108 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 109 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Started 110 games
+2020-03-10 18:39:38+0000: Game loop thread 110 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 111 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 112 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 113 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 114 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 115 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 116 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 118 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 117 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 119 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Started 120 games
+2020-03-10 18:39:38+0000: Game loop thread 120 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 121 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 122 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 123 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 124 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 125 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 126 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Game loop thread 127 starting game on new neural net: random
+2020-03-10 18:39:38+0000: Model loading loop thread starting
+2020-03-10 18:42:31+0000: Self Play Engine starting...
+2020-03-10 18:42:31+0000: Git revision: 88c182a8a9426f996e2f72e3fd5ea55ae82d62e0
+2020-03-10 18:42:31+0000: Loaded all config stuff, starting self play
+2020-03-10 18:42:31+0000: Found new neural net random
+2020-03-10 18:42:31+0000: nnRandSeed0 = 5407522961809880772
+2020-03-10 18:42:31+0000: After dedups: nnModelFile0 = /dev/null useFP16 auto useNHWC auto
+2020-03-10 18:42:31+0000: Loaded latest neural net random from: /dev/null
+2020-03-10 18:42:31+0000: Data write loop starting for neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 0 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 1 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 2 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 3 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 4 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 5 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 6 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 7 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 8 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 9 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Started 10 games
+2020-03-10 18:42:31+0000: Game loop thread 10 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 11 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 12 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 13 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 14 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 15 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 17 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 16 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 18 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 19 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Started 20 games
+2020-03-10 18:42:31+0000: Game loop thread 20 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 21 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 22 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 23 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 24 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 25 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 26 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 27 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 28 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 29 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Started 30 games
+2020-03-10 18:42:31+0000: Game loop thread 30 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 31 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 32 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 33 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 34 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 35 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 36 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 37 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 38 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 39 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Started 40 games
+2020-03-10 18:42:31+0000: Game loop thread 40 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 41 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 42 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 43 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 44 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 45 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 46 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 47 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 48 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 49 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Started 50 games
+2020-03-10 18:42:31+0000: Game loop thread 50 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 51 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 52 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 53 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 54 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 55 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 56 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 57 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 58 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 59 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Started 60 games
+2020-03-10 18:42:31+0000: Game loop thread 61 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 62 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 60 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 63 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 64 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 65 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 66 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 67 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 70 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 69 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 68 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Started 70 games
+2020-03-10 18:42:31+0000: Game loop thread 71 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 72 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 73 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 74 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 75 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 76 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 77 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 78 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 79 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Started 80 games
+2020-03-10 18:42:31+0000: Game loop thread 80 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 81 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 82 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 83 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 84 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 85 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 86 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 87 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 88 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 89 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 90 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Started 90 games
+2020-03-10 18:42:31+0000: Game loop thread 91 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 92 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 93 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 94 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 95 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 96 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 97 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 98 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 99 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Started 100 games
+2020-03-10 18:42:31+0000: Game loop thread 100 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 101 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 102 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 103 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 104 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 105 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 106 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 107 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 108 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 109 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Started 110 games
+2020-03-10 18:42:31+0000: Game loop thread 110 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 111 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 112 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 113 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 114 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 115 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 116 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 117 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 118 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 119 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Started 120 games
+2020-03-10 18:42:31+0000: Game loop thread 120 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 121 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 122 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 123 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 124 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 125 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 126 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Game loop thread 127 starting game on new neural net: random
+2020-03-10 18:42:31+0000: Model loading loop thread starting
+katago: /home/ubuntu/KataGo/cpp/neuralnet/nninputs.cpp:1944: void NNInputs::fillRowV7(const Board&, const BoardHistory&, Player, const MiscNNInputParams&, int, int, bool, float*, float*): Assertion `board.x_size <= nnXLen' failed.
+2020-03-10 18:44:03+0000: Self Play Engine starting...
+2020-03-10 18:44:03+0000: Git revision: 88c182a8a9426f996e2f72e3fd5ea55ae82d62e0
+2020-03-10 18:44:03+0000: Loaded all config stuff, starting self play
+2020-03-10 18:44:03+0000: Found new neural net random
+2020-03-10 18:44:03+0000: nnRandSeed0 = 13488694325967605322
+2020-03-10 18:44:03+0000: After dedups: nnModelFile0 = /dev/null useFP16 auto useNHWC auto
+2020-03-10 18:44:03+0000: Loaded latest neural net random from: /dev/null
+2020-03-10 18:44:03+0000: Data write loop starting for neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 0 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 1 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 2 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 3 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 4 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 5 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 6 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 7 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 8 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 9 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Started 10 games
+2020-03-10 18:44:03+0000: Game loop thread 10 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 11 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 15 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 16 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 12 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 14 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 13 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 17 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 21 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 23 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Started 20 games
+2020-03-10 18:44:03+0000: Game loop thread 19 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 20 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 18 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 24 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 26 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 28 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 27 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 25 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 29 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 31 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Started 30 games
+2020-03-10 18:44:03+0000: Game loop thread 22 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 30 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 35 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 36 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 34 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 37 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 33 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 32 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 38 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 39 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Started 40 games
+2020-03-10 18:44:03+0000: Game loop thread 41 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 40 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 44 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 45 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 46 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 48 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 42 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 47 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 43 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 50 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Started 50 games
+2020-03-10 18:44:03+0000: Game loop thread 49 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 51 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 55 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 52 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 53 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 57 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 56 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 54 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 58 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 62 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Started 60 games
+2020-03-10 18:44:03+0000: Game loop thread 63 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 59 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 60 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 61 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 67 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 64 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 65 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 68 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 66 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 70 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Started 70 games
+2020-03-10 18:44:03+0000: Game loop thread 72 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 71 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 69 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 73 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 77 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 78 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 74 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 75 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 76 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 80 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 81 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Started 80 games
+2020-03-10 18:44:03+0000: Game loop thread 84 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 85 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 82 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 83 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 86 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 88 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 79 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 89 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 91 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Started 90 games
+2020-03-10 18:44:03+0000: Game loop thread 92 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 87 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 90 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 93 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 95 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 96 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 94 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 98 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 100 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 97 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Started 100 games
+2020-03-10 18:44:03+0000: Game loop thread 101 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 103 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 104 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 105 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 106 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 99 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 102 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 110 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 107 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 112 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 111 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 109 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 108 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Started 110 games
+2020-03-10 18:44:03+0000: Game loop thread 115 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 113 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 117 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 120 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 121 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 114 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 122 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Started 120 games
+2020-03-10 18:44:03+0000: Game loop thread 123 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 124 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 116 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 119 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 118 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 125 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 126 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Game loop thread 127 starting game on new neural net: random
+2020-03-10 18:44:03+0000: Model loading loop thread starting
+malloc(): memory corruption
+2020-03-11 08:38:36+0000: Self Play Engine starting...
+2020-03-11 08:38:36+0000: Git revision: 88c182a8a9426f996e2f72e3fd5ea55ae82d62e0
+2020-03-11 08:38:36+0000: Loaded all config stuff, starting self play
+2020-03-11 08:38:36+0000: Found new neural net random
+2020-03-11 08:38:36+0000: nnRandSeed0 = 17108723758093229904
+2020-03-11 08:38:36+0000: After dedups: nnModelFile0 = /dev/null useFP16 auto useNHWC auto
+2020-03-11 08:38:36+0000: Loaded latest neural net random from: /dev/null
+2020-03-11 08:38:36+0000: Data write loop starting for neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 1 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 0 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 2 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 4 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 5 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 3 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 8 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 7 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 6 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 9 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Started 10 games
+2020-03-11 08:38:36+0000: Game loop thread 10 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 11 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 12 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 14 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 13 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 15 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 16 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 17 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 18 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 19 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Started 20 games
+2020-03-11 08:38:36+0000: Game loop thread 20 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 22 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 21 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 23 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 24 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 25 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 26 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 27 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 28 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 29 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Started 30 games
+2020-03-11 08:38:36+0000: Game loop thread 30 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 31 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 32 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 33 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 34 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 35 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 36 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 37 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 38 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 39 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Started 40 games
+2020-03-11 08:38:36+0000: Game loop thread 40 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 41 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 42 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 43 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 44 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 45 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 46 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 47 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 48 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 49 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Started 50 games
+2020-03-11 08:38:36+0000: Game loop thread 50 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 51 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 52 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 53 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 54 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 55 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 56 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 57 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 58 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 59 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Started 60 games
+2020-03-11 08:38:36+0000: Game loop thread 60 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 61 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 62 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 63 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 64 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 65 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 66 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 67 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 68 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 69 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Started 70 games
+2020-03-11 08:38:36+0000: Game loop thread 70 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 71 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 72 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 73 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 74 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 75 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 76 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 77 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 78 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 79 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Started 80 games
+2020-03-11 08:38:36+0000: Game loop thread 80 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 81 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 82 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 83 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 84 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 85 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 86 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 87 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 88 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 89 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Started 90 games
+2020-03-11 08:38:36+0000: Game loop thread 90 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 91 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 92 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 93 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 94 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 95 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 96 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 97 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 98 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 99 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Started 100 games
+2020-03-11 08:38:36+0000: Game loop thread 100 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 101 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 102 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 103 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 104 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 105 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 106 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 107 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 108 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 109 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Started 110 games
+2020-03-11 08:38:36+0000: Game loop thread 110 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 111 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 112 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 113 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 114 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 115 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 116 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 117 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 118 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 119 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 120 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Started 120 games
+2020-03-11 08:38:36+0000: Game loop thread 121 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 122 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 123 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 124 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 125 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 126 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Game loop thread 127 starting game on new neural net: random
+2020-03-11 08:38:36+0000: Model loading loop thread starting
+katago: /home/ubuntu/KataGo/cpp/neuralnet/nninputs.cpp:1944: void NNInputs::fillRowV7(const Board&, const BoardHistory&, Player, const MiscNNInputParams&, int, int, bool, float*, float*): Assertion `board.x_size <= nnXLen' failed.
+2020-03-11 08:39:29+0000: Gatekeeper Engine starting...
+2020-03-11 08:39:29+0000: Git revision: 88c182a8a9426f996e2f72e3fd5ea55ae82d62e0
+2020-03-11 08:39:29+0000: Loaded all config stuff, watching for new neural nets in /home/ubuntu/katago/model/modelstobetested/
+2020-03-11 08:54:53+0000: Self Play Engine starting...
+2020-03-11 08:54:53+0000: Git revision: 88c182a8a9426f996e2f72e3fd5ea55ae82d62e0-dirty
+2020-03-11 08:54:53+0000: Loaded all config stuff, starting self play
+2020-03-11 08:54:53+0000: Found new neural net random
+2020-03-11 08:54:53+0000: nnRandSeed0 = 4264013501512394652
+2020-03-11 08:54:53+0000: After dedups: nnModelFile0 = /dev/null useFP16 auto useNHWC auto
+2020-03-11 08:54:53+0000: Loaded latest neural net random from: /dev/null
+2020-03-11 08:54:53+0000: Data write loop starting for neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 0 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 1 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 4 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 2 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 3 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 5 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 7 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 6 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 8 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 9 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Started 10 games
+2020-03-11 08:54:53+0000: Game loop thread 10 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 11 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 12 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 13 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 14 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 15 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 16 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 17 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 18 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 19 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Started 20 games
+2020-03-11 08:54:53+0000: Game loop thread 20 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 21 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 22 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 23 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 24 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 25 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 26 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 27 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 29 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 28 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Started 30 games
+2020-03-11 08:54:53+0000: Game loop thread 30 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 31 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 32 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 33 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 34 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 35 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 36 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 37 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 38 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 39 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Started 40 games
+2020-03-11 08:54:53+0000: Game loop thread 40 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 41 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 42 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 43 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 44 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 45 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 46 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 47 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 48 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 49 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Started 50 games
+2020-03-11 08:54:53+0000: Game loop thread 50 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 51 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 52 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 53 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 54 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 55 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 56 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 57 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 58 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 59 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Started 60 games
+2020-03-11 08:54:53+0000: Game loop thread 60 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 61 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 62 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 63 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 64 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 65 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 66 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 67 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 68 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 69 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Started 70 games
+2020-03-11 08:54:53+0000: Game loop thread 70 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 71 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 72 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 73 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 74 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 75 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 76 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 77 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 78 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 79 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Started 80 games
+2020-03-11 08:54:53+0000: Game loop thread 80 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 81 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 82 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 83 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 84 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 85 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 86 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 87 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 88 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 89 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Started 90 games
+2020-03-11 08:54:53+0000: Game loop thread 90 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 91 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 92 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 93 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 94 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 95 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 96 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 97 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 98 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 99 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Started 100 games
+2020-03-11 08:54:53+0000: Game loop thread 100 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 101 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 102 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 103 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 104 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 105 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 106 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 107 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 108 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 109 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Started 110 games
+2020-03-11 08:54:53+0000: Game loop thread 110 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 111 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 112 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 113 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 114 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 115 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 116 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 117 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 118 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 119 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 120 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Started 120 games
+2020-03-11 08:54:53+0000: Game loop thread 121 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 122 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 123 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 124 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 125 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 126 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Game loop thread 127 starting game on new neural net: random
+2020-03-11 08:54:53+0000: Model loading loop thread starting
+corrupted size vs. prev_size
+2020-03-11 08:55:36+0000: Gatekeeper Engine starting...
+2020-03-11 08:55:36+0000: Git revision: 88c182a8a9426f996e2f72e3fd5ea55ae82d62e0-dirty
+2020-03-11 08:55:36+0000: Loaded all config stuff, watching for new neural nets in /home/ubuntu/katago/model/modelstobetested/
+2020-03-11 09:12:05+0000: Self Play Engine starting...
+2020-03-11 09:12:05+0000: Git revision: 88c182a8a9426f996e2f72e3fd5ea55ae82d62e0-dirty
+2020-03-11 09:12:05+0000: Loaded all config stuff, starting self play
+2020-03-11 09:12:05+0000: Found new neural net random
+2020-03-11 09:12:05+0000: nnRandSeed0 = 11518532665578472701
+2020-03-11 09:12:05+0000: After dedups: nnModelFile0 = /dev/null useFP16 auto useNHWC auto
+2020-03-11 09:12:05+0000: Loaded latest neural net random from: /dev/null
+2020-03-11 09:12:05+0000: Data write loop starting for neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 0 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 1 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 2 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 3 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 4 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 5 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 7 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 6 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 8 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 9 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Started 10 games
+2020-03-11 09:12:05+0000: Game loop thread 11 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 10 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 12 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 13 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 14 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 15 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 16 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 17 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 18 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 19 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Started 20 games
+2020-03-11 09:12:05+0000: Game loop thread 20 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 21 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 22 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 23 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 24 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 25 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 26 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 27 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 28 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 29 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Started 30 games
+2020-03-11 09:12:05+0000: Game loop thread 30 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 31 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 32 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 33 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 34 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 35 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 36 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 37 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 38 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 39 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Started 40 games
+2020-03-11 09:12:05+0000: Game loop thread 40 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 41 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 42 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 43 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 44 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 45 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 46 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 47 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 48 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 49 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Started 50 games
+2020-03-11 09:12:05+0000: Game loop thread 50 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 51 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 52 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 53 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 54 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 55 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 56 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 57 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 58 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 59 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Started 60 games
+2020-03-11 09:12:05+0000: Game loop thread 60 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 61 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 62 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 63 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 64 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 65 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 66 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 67 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 68 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 69 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 70 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 71 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Started 70 games
+2020-03-11 09:12:05+0000: Game loop thread 72 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 73 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 74 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 75 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 76 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 77 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 78 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 79 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Started 80 games
+2020-03-11 09:12:05+0000: Game loop thread 80 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 81 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 82 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 83 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 84 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 85 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 86 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 87 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 88 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 89 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Started 90 games
+2020-03-11 09:12:05+0000: Game loop thread 90 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 91 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 92 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 93 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 94 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 95 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 96 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 97 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 98 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 99 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 100 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Started 100 games
+2020-03-11 09:12:05+0000: Game loop thread 101 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 102 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 103 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 104 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 105 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 106 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 107 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 108 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 109 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Started 110 games
+2020-03-11 09:12:05+0000: Game loop thread 110 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 111 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 112 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 113 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 114 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 115 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 116 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 117 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 118 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 119 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Started 120 games
+2020-03-11 09:12:05+0000: Game loop thread 120 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 121 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 122 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 123 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 124 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 125 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 126 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Game loop thread 127 starting game on new neural net: random
+2020-03-11 09:12:05+0000: Model loading loop thread starting
+double free or corruption (out)
+2020-03-11 09:17:14+0000: Self Play Engine starting...
+2020-03-11 09:17:14+0000: Git revision: 88c182a8a9426f996e2f72e3fd5ea55ae82d62e0-dirty
+2020-03-11 09:17:14+0000: Loaded all config stuff, starting self play
+2020-03-11 09:17:14+0000: Found new neural net random
+2020-03-11 09:17:14+0000: nnRandSeed0 = 18075383745508094641
+2020-03-11 09:17:14+0000: After dedups: nnModelFile0 = /dev/null useFP16 auto useNHWC auto
+2020-03-11 09:17:14+0000: Loaded latest neural net random from: /dev/null
+2020-03-11 09:17:14+0000: Data write loop starting for neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 0 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 1 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 2 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 3 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 4 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 5 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 6 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 7 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 8 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 9 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Started 10 games
+2020-03-11 09:17:14+0000: Game loop thread 10 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 11 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 12 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 13 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 14 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 15 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 16 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 17 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 19 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 18 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Started 20 games
+2020-03-11 09:17:14+0000: Game loop thread 20 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 22 starting game on new neural net: random
+2020-03-11 09:17:14+0000: Game loop thread 23 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 21 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 24 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 25 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 26 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 27 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 28 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 29 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Started 30 games
+2020-03-11 09:17:15+0000: Game loop thread 30 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 31 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 32 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 33 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 34 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 35 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 36 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 37 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 38 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 39 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Started 40 games
+2020-03-11 09:17:15+0000: Game loop thread 40 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 41 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 42 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 43 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 44 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 45 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 46 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 47 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 48 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 49 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Started 50 games
+2020-03-11 09:17:15+0000: Game loop thread 50 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 51 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 52 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 53 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 54 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 55 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 56 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 57 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 58 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 59 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Started 60 games
+2020-03-11 09:17:15+0000: Game loop thread 60 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 61 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 62 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 63 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 64 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 65 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 66 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 67 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 68 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 69 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Started 70 games
+2020-03-11 09:17:15+0000: Game loop thread 70 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 71 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 72 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 73 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 74 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 75 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 76 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 77 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 78 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 79 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Started 80 games
+2020-03-11 09:17:15+0000: Game loop thread 80 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 81 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 82 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 83 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 84 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 85 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 86 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 87 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 88 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 89 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Started 90 games
+2020-03-11 09:17:15+0000: Game loop thread 90 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 91 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 92 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 93 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 94 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 95 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 96 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 97 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 98 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 99 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Started 100 games
+2020-03-11 09:17:15+0000: Game loop thread 100 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 101 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 102 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 103 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 105 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 104 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 106 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 107 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 108 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 109 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Started 110 games
+2020-03-11 09:17:15+0000: Game loop thread 110 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 111 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 112 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 113 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 114 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 115 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 116 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 117 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 118 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 119 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Started 120 games
+2020-03-11 09:17:15+0000: Game loop thread 120 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 121 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 122 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 123 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 124 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 125 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 126 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Game loop thread 127 starting game on new neural net: random
+2020-03-11 09:17:15+0000: Model loading loop thread starting
+2020-03-11 09:18:20+0000: Started 130 games
+katago: /home/ubuntu/KataGo/cpp/neuralnet/nninputs.cpp:1944: void NNInputs::fillRowV7(const Board&, const BoardHistory&, Player, const MiscNNInputParams&, int, int, bool, float*, float*): Assertion `board.x_size <= nnXLen' failed.

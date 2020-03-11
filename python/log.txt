@@ -1,0 +1,364 @@
++ mkdir -p /home/ubuntu/katago/model//train/test
++ git show --no-patch --no-color
++ git diff --no-color
++ git diff --staged --no-color
++ '[' main == main ']'
++ EXPORT_SUBDIR=tfsavedmodels_toexport
++ EXTRAFLAG=
++ python3 ./train.py -traindir /home/ubuntu/katago/model//train/test -datadir /home/ubuntu/katago/model//shuffleddata/current/ -exportdir /home/ubuntu/katago/model//tfsavedmodels_toexport -exportprefix test -pos-len 19 -batch-size 256 -samples-per-epoch 1000000 -gpu-memory-frac 0.6 -model-kind b6c96 -sub-epochs 4 -swa-sub-epoch-scale 4 -lr-scale 1.0
++ tee -a /home/ubuntu/katago/model//train/test/stdout.txt
+Traceback (most recent call last):
+  File "./train.py", line 16, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.062s
+user	0m0.044s
+sys	0m0.019s
++ mkdir -p /home/ubuntu/katago/model//train/test
++ git show --no-patch --no-color
++ git diff --no-color
++ git diff --staged --no-color
++ '[' main == main ']'
++ EXPORT_SUBDIR=tfsavedmodels_toexport
++ EXTRAFLAG=
++ python3 ./train.py -traindir /home/ubuntu/katago/model//train/test -datadir /home/ubuntu/katago/model//shuffleddata/current/ -exportdir /home/ubuntu/katago/model//tfsavedmodels_toexport -exportprefix test -pos-len 19 -batch-size 256 -samples-per-epoch 1000000 -gpu-memory-frac 0.6 -model-kind b6c96 -sub-epochs 4 -swa-sub-epoch-scale 4 -lr-scale 1.0
++ tee -a /home/ubuntu/katago/model//train/test/stdout.txt
+Traceback (most recent call last):
+  File "./train.py", line 16, in <module>
+    import tensorflow as tf
+ModuleNotFoundError: No module named 'tensorflow'
+
+real	0m0.062s
+user	0m0.040s
+sys	0m0.023s
++ mkdir -p /home/ubuntu/katago/model//train/test
++ git show --no-patch --no-color
++ git diff --no-color
++ git diff --staged --no-color
++ '[' main == main ']'
++ EXPORT_SUBDIR=tfsavedmodels_toexport
++ EXTRAFLAG=
++ python3 ./train.py -traindir /home/ubuntu/katago/model//train/test -datadir /home/ubuntu/katago/model//shuffleddata/current/ -exportdir /home/ubuntu/katago/model//tfsavedmodels_toexport -exportprefix test -pos-len 19 -batch-size 256 -samples-per-epoch 1000000 -gpu-memory-frac 0.6 -model-kind b6c96 -sub-epochs 4 -swa-sub-epoch-scale 4 -lr-scale 1.0
++ tee -a /home/ubuntu/katago/model//train/test/stdout.txt
+2020-03-10 18:11:21.754695: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer.so.6'; dlerror: libnvinfer.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:11:21.754829: W tensorflow/stream_executor/platform/default/dso_loader.cc:55] Could not load dynamic library 'libnvinfer_plugin.so.6'; dlerror: libnvinfer_plugin.so.6: cannot open shared object file: No such file or directory; LD_LIBRARY_PATH: /usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:/home/ubuntu/src/cntk/bindings/python/cntk/libs:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/efa/lib:/usr/local/cuda/lib:/opt/amazon/efa/lib:/usr/local/mpi/lib:/usr/lib64/openmpi/lib/:/usr/local/cuda/lib64:/usr/local/lib:/usr/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/mpi/lib:/lib/:
+2020-03-10 18:11:21.754852: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:30] Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+['./train.py', '-traindir', '/home/ubuntu/katago/model//train/test', '-datadir', '/home/ubuntu/katago/model//shuffleddata/current/', '-exportdir', '/home/ubuntu/katago/model//tfsavedmodels_toexport', '-exportprefix', 'test', '-pos-len', '19', '-batch-size', '256', '-samples-per-epoch', '1000000', '-gpu-memory-frac', '0.6', '-model-kind', 'b6c96', '-sub-epochs', '4', '-swa-sub-epoch-scale', '4', '-lr-scale', '1.0']
+2020-03-10 18:11:23.200464: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcuda.so.1
+2020-03-10 18:11:24.502216: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:981] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+2020-03-10 18:11:24.503029: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1555] Found device 0 with properties: 
+pciBusID: 0000:00:1e.0 name: Tesla K80 computeCapability: 3.7
+coreClock: 0.8235GHz coreCount: 13 deviceMemorySize: 11.17GiB deviceMemoryBandwidth: 223.96GiB/s
+2020-03-10 18:11:24.505894: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcudart.so.10.1
+2020-03-10 18:11:26.280371: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcublas.so.10
+2020-03-10 18:11:27.076435: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcufft.so.10
+2020-03-10 18:11:27.347894: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcurand.so.10
+2020-03-10 18:11:29.349954: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcusolver.so.10
+2020-03-10 18:11:29.683864: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcusparse.so.10
+2020-03-10 18:11:29.687847: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcudnn.so.7
+2020-03-10 18:11:29.688015: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:981] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+2020-03-10 18:11:29.688885: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:981] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+2020-03-10 18:11:29.689640: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1697] Adding visible gpu devices: 0
+2020-03-10 18:11:29.690309: I tensorflow/core/platform/cpu_feature_guard.cc:142] Your CPU supports instructions that this TensorFlow binary was not compiled to use: AVX2 FMA
+2020-03-10 18:11:29.715701: I tensorflow/core/platform/profile_utils/cpu_utils.cc:94] CPU Frequency: 2300035000 Hz
+2020-03-10 18:11:29.716138: I tensorflow/compiler/xla/service/service.cc:168] XLA service 0x55657457d970 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
+2020-03-10 18:11:29.716171: I tensorflow/compiler/xla/service/service.cc:176]   StreamExecutor device (0): Host, Default Version
+2020-03-10 18:11:30.217408: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:981] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+2020-03-10 18:11:30.218314: I tensorflow/compiler/xla/service/service.cc:168] XLA service 0x5565747568b0 initialized for platform CUDA (this does not guarantee that XLA will be used). Devices:
+2020-03-10 18:11:30.218347: I tensorflow/compiler/xla/service/service.cc:176]   StreamExecutor device (0): Tesla K80, Compute Capability 3.7
+2020-03-10 18:11:30.218571: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:981] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+2020-03-10 18:11:30.219335: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1555] Found device 0 with properties: 
+pciBusID: 0000:00:1e.0 name: Tesla K80 computeCapability: 3.7
+coreClock: 0.8235GHz coreCount: 13 deviceMemorySize: 11.17GiB deviceMemoryBandwidth: 223.96GiB/s
+2020-03-10 18:11:30.219407: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcudart.so.10.1
+2020-03-10 18:11:30.219449: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcublas.so.10
+2020-03-10 18:11:30.219477: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcufft.so.10
+2020-03-10 18:11:30.219514: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcurand.so.10
+2020-03-10 18:11:30.219538: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcusolver.so.10
+2020-03-10 18:11:30.219625: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcusparse.so.10
+2020-03-10 18:11:30.219662: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcudnn.so.7
+2020-03-10 18:11:30.219757: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:981] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+2020-03-10 18:11:30.220577: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:981] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+2020-03-10 18:11:30.221306: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1697] Adding visible gpu devices: 0
+2020-03-10 18:11:30.221355: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcudart.so.10.1
+2020-03-10 18:11:30.223696: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1096] Device interconnect StreamExecutor with strength 1 edge matrix:
+2020-03-10 18:11:30.223724: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1102]      0 
+2020-03-10 18:11:30.223733: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1115] 0:   N 
+2020-03-10 18:11:30.223876: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:981] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+2020-03-10 18:11:30.224665: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:981] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+2020-03-10 18:11:30.225422: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1241] Created TensorFlow device (/job:localhost/replica:0/task:0/device:GPU:0 with 10804 MB memory) -> physical GPU (device: 0, name: Tesla K80, pci bus id: 0000:00:1e.0, compute capability: 3.7)
+Traceback (most recent call last):
+  File "./train.py", line 133, in <module>
+    swa_model = Model(model_config,pos_len,placeholders={})
+  File "/home/ubuntu/KataGo/python/model.py", line 116, in __init__
+    self.build_model(config,placeholders)
+  File "/home/ubuntu/KataGo/python/model.py", line 852, in build_model
+    tf.compat.v1.placeholder(tf.float32, [None] + self.bin_input_shape, name="bin_inputs"))
+  File "/home/ubuntu/.local/lib/python3.6/site-packages/tensorflow_core/python/ops/array_ops.py", line 2715, in placeholder
+    raise RuntimeError("tf.placeholder() is not compatible with "
+RuntimeError: tf.placeholder() is not compatible with eager execution.
+
+real	0m10.612s
+user	0m2.457s
+sys	0m0.602s
++ mkdir -p /home/ubuntu/katago/model//train/test
++ git show --no-patch --no-color
++ git diff --no-color
++ git diff --staged --no-color
++ '[' main == main ']'
++ EXPORT_SUBDIR=tfsavedmodels_toexport
++ EXTRAFLAG=
++ python3 ./train.py -traindir /home/ubuntu/katago/model//train/test -datadir /home/ubuntu/katago/model//shuffleddata/current/ -exportdir /home/ubuntu/katago/model//tfsavedmodels_toexport -exportprefix test -pos-len 19 -batch-size 256 -samples-per-epoch 1000000 -gpu-memory-frac 0.6 -model-kind b6c96 -sub-epochs 4 -swa-sub-epoch-scale 4 -lr-scale 1.0
++ tee -a /home/ubuntu/katago/model//train/test/stdout.txt
+['./train.py', '-traindir', '/home/ubuntu/katago/model//train/test', '-datadir', '/home/ubuntu/katago/model//shuffleddata/current/', '-exportdir', '/home/ubuntu/katago/model//tfsavedmodels_toexport', '-exportprefix', 'test', '-pos-len', '19', '-batch-size', '256', '-samples-per-epoch', '1000000', '-gpu-memory-frac', '0.6', '-model-kind', 'b6c96', '-sub-epochs', '4', '-swa-sub-epoch-scale', '4', '-lr-scale', '1.0']
+WARNING:tensorflow:From /home/ubuntu/KataGo/python/model.py:1129: where (from tensorflow.python.ops.array_ops) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use tf.where in 2.0, which has the same broadcast rule as np.where
+Build SWA graph for SWA update and saving, 66 variables
+Beginning training
+INFO:tensorflow:Using config: {'_model_dir': '/home/ubuntu/katago/model//train/test', '_tf_random_seed': None, '_save_summary_steps': 100, '_save_checkpoints_steps': 1000000000, '_save_checkpoints_secs': None, '_session_config': gpu_options {
+  per_process_gpu_memory_fraction: 0.6
+}
+, '_keep_checkpoint_max': 10, '_keep_checkpoint_every_n_hours': 1000000, '_log_step_count_steps': 100, '_train_distribute': None, '_device_fn': None, '_protocol': None, '_eval_distribute': None, '_experimental_distribute': None, '_experimental_max_worker_delay_secs': None, '_session_creation_timeout_secs': 7200, '_service': None, '_cluster_spec': <tensorflow.python.training.server_lib.ClusterSpec object at 0x7f973c75fcc0>, '_task_type': 'worker', '_task_id': 0, '_global_id_in_cluster': 0, '_master': '', '_evaluation_master': '', '_is_chief': True, '_num_ps_replicas': 0, '_num_worker_replicas': 1}
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182031/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182047/train.json
++ mkdir -p /home/ubuntu/katago/model//train/test
++ git show --no-patch --no-color
++ git diff --no-color
++ git diff --staged --no-color
++ '[' main == main ']'
++ EXPORT_SUBDIR=tfsavedmodels_toexport
++ EXTRAFLAG=
++ python3 ./train.py -traindir /home/ubuntu/katago/model//train/test -datadir /home/ubuntu/katago/model//shuffleddata/current/ -exportdir /home/ubuntu/katago/model//tfsavedmodels_toexport -exportprefix test -pos-len 19 -batch-size 256 -samples-per-epoch 1000000 -gpu-memory-frac 0.6 -model-kind b6c96 -sub-epochs 4 -swa-sub-epoch-scale 4 -lr-scale 1.0
++ tee -a /home/ubuntu/katago/model//train/test/stdout.txt
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182128/train.json
+['./train.py', '-traindir', '/home/ubuntu/katago/model//train/test', '-datadir', '/home/ubuntu/katago/model//shuffleddata/current/', '-exportdir', '/home/ubuntu/katago/model//tfsavedmodels_toexport', '-exportprefix', 'test', '-pos-len', '19', '-batch-size', '256', '-samples-per-epoch', '1000000', '-gpu-memory-frac', '0.6', '-model-kind', 'b6c96', '-sub-epochs', '4', '-swa-sub-epoch-scale', '4', '-lr-scale', '1.0']
+WARNING:tensorflow:From /home/ubuntu/KataGo/python/model.py:1129: where (from tensorflow.python.ops.array_ops) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use tf.where in 2.0, which has the same broadcast rule as np.where
+Build SWA graph for SWA update and saving, 66 variables
+Beginning training
+INFO:tensorflow:Using config: {'_model_dir': '/home/ubuntu/katago/model//train/test', '_tf_random_seed': None, '_save_summary_steps': 100, '_save_checkpoints_steps': 1000000000, '_save_checkpoints_secs': None, '_session_config': gpu_options {
+  per_process_gpu_memory_fraction: 0.6
+}
+, '_keep_checkpoint_max': 10, '_keep_checkpoint_every_n_hours': 1000000, '_log_step_count_steps': 100, '_train_distribute': None, '_device_fn': None, '_protocol': None, '_eval_distribute': None, '_experimental_distribute': None, '_experimental_max_worker_delay_secs': None, '_session_creation_timeout_secs': 7200, '_service': None, '_cluster_spec': <tensorflow.python.training.server_lib.ClusterSpec object at 0x7f363fd38b70>, '_task_type': 'worker', '_task_id': 0, '_global_id_in_cluster': 0, '_master': '', '_evaluation_master': '', '_is_chief': True, '_num_ps_replicas': 0, '_num_worker_replicas': 1}
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182136/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182201/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182201/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182233/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182233/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182300/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182306/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182332/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182332/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182402/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182405/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182418/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182434/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182451/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182451/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182523/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182523/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182556/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182556/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182628/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182628/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182700/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182700/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182733/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182733/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182758/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182805/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182830/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182830/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182902/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182902/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182929/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-182935/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183002/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183002/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183031/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183034/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183104/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183106/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183120/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183136/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183152/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183152/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183225/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183225/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183257/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183257/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183330/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183330/train.json
++ mkdir -p /home/ubuntu/katago/model//train/test
++ git show --no-patch --no-color
++ git diff --no-color
++ git diff --staged --no-color
++ '[' main == main ']'
++ EXPORT_SUBDIR=tfsavedmodels_toexport
++ EXTRAFLAG=
++ python3 ./train.py -traindir /home/ubuntu/katago/model//train/test -datadir /home/ubuntu/katago/model//shuffleddata/current/ -exportdir /home/ubuntu/katago/model//tfsavedmodels_toexport -exportprefix test -pos-len 19 -batch-size 256 -samples-per-epoch 1000000 -gpu-memory-frac 0.6 -model-kind b6c96 -sub-epochs 4 -swa-sub-epoch-scale 4 -lr-scale 1.0
++ tee -a /home/ubuntu/katago/model//train/test/stdout.txt
+['./train.py', '-traindir', '/home/ubuntu/katago/model//train/test', '-datadir', '/home/ubuntu/katago/model//shuffleddata/current/', '-exportdir', '/home/ubuntu/katago/model//tfsavedmodels_toexport', '-exportprefix', 'test', '-pos-len', '19', '-batch-size', '256', '-samples-per-epoch', '1000000', '-gpu-memory-frac', '0.6', '-model-kind', 'b6c96', '-sub-epochs', '4', '-swa-sub-epoch-scale', '4', '-lr-scale', '1.0']
+WARNING:tensorflow:From /home/ubuntu/KataGo/python/model.py:1129: where (from tensorflow.python.ops.array_ops) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use tf.where in 2.0, which has the same broadcast rule as np.where
+Build SWA graph for SWA update and saving, 66 variables
+Beginning training
+INFO:tensorflow:Using config: {'_model_dir': '/home/ubuntu/katago/model//train/test', '_tf_random_seed': None, '_save_summary_steps': 100, '_save_checkpoints_steps': 1000000000, '_save_checkpoints_secs': None, '_session_config': gpu_options {
+  per_process_gpu_memory_fraction: 0.6
+}
+, '_keep_checkpoint_max': 10, '_keep_checkpoint_every_n_hours': 1000000, '_log_step_count_steps': 100, '_train_distribute': None, '_device_fn': None, '_protocol': None, '_eval_distribute': None, '_experimental_distribute': None, '_experimental_max_worker_delay_secs': None, '_session_creation_timeout_secs': 7200, '_service': None, '_cluster_spec': <tensorflow.python.training.server_lib.ClusterSpec object at 0x7f1e4e86ecc0>, '_task_type': 'worker', '_task_id': 0, '_global_id_in_cluster': 0, '_master': '', '_evaluation_master': '', '_is_chief': True, '_num_ps_replicas': 0, '_num_worker_replicas': 1}
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183619/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183656/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183728/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183801/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183833/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183906/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-183938/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184013/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184046/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184118/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184151/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184151/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184223/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184256/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184328/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184401/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184433/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184506/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184538/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184611/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184643/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184716/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184748/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184820/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184853/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184853/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184925/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184958/train.json
++ mkdir -p /home/ubuntu/katago/model//train/test
++ git show --no-patch --no-color
++ git diff --no-color
++ git diff --staged --no-color
++ '[' main == main ']'
++ EXPORT_SUBDIR=tfsavedmodels_toexport
++ EXTRAFLAG=
++ python3 ./train.py -traindir /home/ubuntu/katago/model//train/test -datadir /home/ubuntu/katago/model//shuffleddata/current/ -exportdir /home/ubuntu/katago/model//tfsavedmodels_toexport -exportprefix test -pos-len 19 -batch-size 256 -samples-per-epoch 1000000 -gpu-memory-frac 0.6 -model-kind b6c96 -sub-epochs 4 -swa-sub-epoch-scale 4 -lr-scale 1.0
++ tee -a /home/ubuntu/katago/model//train/test/stdout.txt
+['./train.py', '-traindir', '/home/ubuntu/katago/model//train/test', '-datadir', '/home/ubuntu/katago/model//shuffleddata/current/', '-exportdir', '/home/ubuntu/katago/model//tfsavedmodels_toexport', '-exportprefix', 'test', '-pos-len', '19', '-batch-size', '256', '-samples-per-epoch', '1000000', '-gpu-memory-frac', '0.6', '-model-kind', 'b6c96', '-sub-epochs', '4', '-swa-sub-epoch-scale', '4', '-lr-scale', '1.0']
+WARNING:tensorflow:From /home/ubuntu/KataGo/python/model.py:1129: where (from tensorflow.python.ops.array_ops) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use tf.where in 2.0, which has the same broadcast rule as np.where
+Build SWA graph for SWA update and saving, 66 variables
+Beginning training
+INFO:tensorflow:Using config: {'_model_dir': '/home/ubuntu/katago/model//train/test', '_tf_random_seed': None, '_save_summary_steps': 100, '_save_checkpoints_steps': 1000000000, '_save_checkpoints_secs': None, '_session_config': gpu_options {
+  per_process_gpu_memory_fraction: 0.6
+}
+, '_keep_checkpoint_max': 10, '_keep_checkpoint_every_n_hours': 1000000, '_log_step_count_steps': 100, '_train_distribute': None, '_device_fn': None, '_protocol': None, '_eval_distribute': None, '_experimental_distribute': None, '_experimental_max_worker_delay_secs': None, '_session_creation_timeout_secs': 7200, '_service': None, '_cluster_spec': <tensorflow.python.training.server_lib.ClusterSpec object at 0x7f336863eb70>, '_task_type': 'worker', '_task_id': 0, '_global_id_in_cluster': 0, '_master': '', '_evaluation_master': '', '_is_chief': True, '_num_ps_replicas': 0, '_num_worker_replicas': 1}
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200310-184958/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-083846/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-083927/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084000/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084032/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084105/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084137/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084209/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084242/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084314/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084314/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084347/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084419/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084452/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084524/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084556/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084629/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084701/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084734/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084806/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084838/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084911/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-084943/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-085016/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-085016/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-085048/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-085120/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-085153/train.json
++ mkdir -p /home/ubuntu/katago/model//train/test
++ git show --no-patch --no-color
++ git diff --no-color
++ git diff --staged --no-color
++ '[' main == main ']'
++ EXPORT_SUBDIR=tfsavedmodels_toexport
++ EXTRAFLAG=
++ tee -a /home/ubuntu/katago/model//train/test/stdout.txt
++ python3 ./train.py -traindir /home/ubuntu/katago/model//train/test -datadir /home/ubuntu/katago/model//shuffleddata/current/ -exportdir /home/ubuntu/katago/model//tfsavedmodels_toexport -exportprefix test -pos-len 19 -batch-size 256 -samples-per-epoch 1000000 -gpu-memory-frac 0.6 -model-kind b6c96 -sub-epochs 4 -swa-sub-epoch-scale 4 -lr-scale 1.0
+['./train.py', '-traindir', '/home/ubuntu/katago/model//train/test', '-datadir', '/home/ubuntu/katago/model//shuffleddata/current/', '-exportdir', '/home/ubuntu/katago/model//tfsavedmodels_toexport', '-exportprefix', 'test', '-pos-len', '19', '-batch-size', '256', '-samples-per-epoch', '1000000', '-gpu-memory-frac', '0.6', '-model-kind', 'b6c96', '-sub-epochs', '4', '-swa-sub-epoch-scale', '4', '-lr-scale', '1.0']
+WARNING:tensorflow:From /home/ubuntu/KataGo/python/model.py:1129: where (from tensorflow.python.ops.array_ops) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use tf.where in 2.0, which has the same broadcast rule as np.where
+Build SWA graph for SWA update and saving, 66 variables
+Beginning training
+INFO:tensorflow:Using config: {'_model_dir': '/home/ubuntu/katago/model//train/test', '_tf_random_seed': None, '_save_summary_steps': 100, '_save_checkpoints_steps': 1000000000, '_save_checkpoints_secs': None, '_session_config': gpu_options {
+  per_process_gpu_memory_fraction: 0.6
+}
+, '_keep_checkpoint_max': 10, '_keep_checkpoint_every_n_hours': 1000000, '_log_step_count_steps': 100, '_train_distribute': None, '_device_fn': None, '_protocol': None, '_eval_distribute': None, '_experimental_distribute': None, '_experimental_max_worker_delay_secs': None, '_session_creation_timeout_secs': 7200, '_service': None, '_cluster_spec': <tensorflow.python.training.server_lib.ClusterSpec object at 0x7fbdacb0eda0>, '_task_type': 'worker', '_task_id': 0, '_global_id_in_cluster': 0, '_master': '', '_evaluation_master': '', '_is_chief': True, '_num_ps_replicas': 0, '_num_worker_replicas': 1}
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-085225/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-085507/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-085548/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-085620/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-085652/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-085725/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-085758/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-085830/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-085903/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-085935/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090008/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090008/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090040/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090113/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090145/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090217/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090250/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090322/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090355/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090427/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090459/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090532/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090604/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090637/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090637/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090709/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090742/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090814/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090846/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090919/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-090951/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091024/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091056/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091128/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091201/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091233/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091306/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091338/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091338/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091410/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091443/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091515/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091548/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091620/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091653/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091725/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091800/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091833/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091907/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091907/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-091939/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-092012/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-092044/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-092117/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-092149/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-092221/train.json
+Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: /home/ubuntu/katago/model/shuffleddata/20200311-092254/train.json
