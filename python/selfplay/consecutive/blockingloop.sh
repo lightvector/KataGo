@@ -45,5 +45,5 @@ do
     cd "$SCRIPTDIR" && ./selfplay/export_model_for_selfplay.sh "$TRAININGNAME" "$BASEDIR" 1; cd -
     ./gatekeeper.sh "$KATAEXEC" "$BASEDIR" | tee -a gatekeeper.txt
     #move so we don't have to count by rows
-    mv "$BASEDIR"/selfplay/* "$BASEDIR"/selfplay_old
+    rsync -a "$BASEDIR"/selfplay/* "$BASEDIR"/selfplay_old --remove-source-files
 done
