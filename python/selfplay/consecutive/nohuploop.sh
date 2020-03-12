@@ -1,7 +1,7 @@
 #!/bin/sh
-BASEDIR="$HOME"/code/backup
-SCRIPTDIR="$HOME"/code/kata/python
-KATAEXEC="./katago"
+BASEDIR="$HOME"/selfplay
+SCRIPTDIR="../.."
+KATAEXEC="../../../cpp/katago"
 THREADS=12
 TRAININGNAME="freshtwenty"
 MODELKIND="b20c256"
