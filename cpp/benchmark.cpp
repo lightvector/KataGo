@@ -639,7 +639,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
     cout << endl;
 
     string prompt =
-      "Specify devices/GPUs to use (for example \"0,1,2\" to use devices 0, 1, and 2). Leave blank for good default:\n";
+      "Specify devices/GPUs to use (for example \"0,1,2\" to use devices 0, 1, and 2). Leave blank for a default SINGLE-GPU config:\n";
     promptAndParseInput(prompt, [&](const string& line) {
         vector<string> pieces = Global::split(line,',');
         configDeviceIdxs.clear();
@@ -796,8 +796,8 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
       reallocateNNEvalWithEnoughBatchSize(ternarySearchInitialMax);
       vector<PlayUtils::BenchmarkResults> results = doFixedTuneThreads(params,sgf,3,nnEval,logger,secondsPerGameMove,numThreads,false);
       double visitsPerSecond = results[0].totalVisits / (results[0].totalSeconds + 0.00001);
-      //Make tests use about 1 second each
-      maxVisits = (int64_t)round(visitsPerSecond/100.0) * 100;
+      //Make tests use about 2 seconds each
+      maxVisits = (int64_t)round(2.0 * visitsPerSecond/100.0) * 100;
       if(maxVisits < 200) maxVisits = 200;
       if(maxVisits > 10000) maxVisits = 10000;
     }
