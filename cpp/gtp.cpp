@@ -60,6 +60,7 @@ static const vector<string> knownCommands = {
   "final_status_list",
 
   "loadsgf",
+  "printsgf",
 
   //GTP extensions for board analysis
   // "genmove_analyze",
@@ -2185,6 +2186,24 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             engine->setPositionAndRules(sgfNextPla, sgfBoard, sgfHist, sgfInitialBoard, sgfInitialNextPla, sgfHist.moveHistory);
           }
         }
+      }
+    }
+
+    else if(command == "printsgf") {
+      if(pieces.size() != 0 && pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected zero or one argument for print but got '" + Global::concat(pieces," ") + "'";
+      }
+      else if(pieces.size() == 0 || pieces[0] == "-") {
+        ostringstream out;
+        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true);
+        response = out.str();
+      }
+      else {
+        ofstream out(pieces[0]);
+        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true);
+        out.close();
+        response = "";
       }
     }
 

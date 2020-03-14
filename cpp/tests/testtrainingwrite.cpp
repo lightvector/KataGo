@@ -132,7 +132,7 @@ void Tests::runTrainingWriteTests() {
     cout << "Num captured white stones " << gameData->endHist.getRecentBoard(0).numWhiteCaptures << endl;
 
     if(cheapLongSgf) {
-      WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData);
+      WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData,false);
     }
     else {
       dataWriter.writeGame(*gameData);

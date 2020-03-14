@@ -1035,7 +1035,8 @@ void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist) {
 void WriteSgf::writeSgf(
   ostream& out, const string& bName, const string& wName,
   const BoardHistory& endHist,
-  const FinishedGameData* gameData
+  const FinishedGameData* gameData,
+  bool tryNicerRulesString
 ) {
   const Board& initialBoard = endHist.initialBoard;
   const Rules& rules = endHist.rules;
@@ -1066,7 +1067,7 @@ void WriteSgf::writeSgf(
 
   out << "HA[" << handicap << "]";
   out << "KM[" << rules.komi << "]";
-  out << "RU[" << rules.toStringNoKomi() << "]";
+  out << "RU[" << (tryNicerRulesString ? rules.toStringNoKomiMaybeNice() : rules.toStringNoKomi()) << "]";
   printGameResult(out,endHist);
 
   bool hasAB = false;

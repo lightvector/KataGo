@@ -1,0 +1,13 @@
+printsgf
+boardsize 9
+kata-set-rules japanese
+play b c3
+play w c6
+play b c9
+printsgf -
+clear_board
+rectangular_boardsize 9:13
+kata-set-rules chinese
+place_free_handicap 3
+genmove w
+printsgf

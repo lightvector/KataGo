@@ -41,6 +41,7 @@ struct Rules {
   bool operator==(const Rules& other) const;
   bool operator!=(const Rules& other) const;
 
+  bool equalsIgnoringKomi(const Rules& other) const;
   bool gameResultWillBeInteger() const;
 
   static Rules getTrompTaylorish();
@@ -71,6 +72,7 @@ struct Rules {
   friend std::ostream& operator<<(std::ostream& out, const Rules& rules);
   std::string toString() const;
   std::string toStringNoKomi() const;
+  std::string toStringNoKomiMaybeNice() const;
   std::string toJsonString() const;
   std::string toJsonStringNoKomi() const;
 

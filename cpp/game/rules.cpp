@@ -47,6 +47,16 @@ bool Rules::operator!=(const Rules& other) const {
     komi != other.komi;
 }
 
+bool Rules::equalsIgnoringKomi(const Rules& other) const {
+  return
+    koRule == other.koRule &&
+    scoringRule == other.scoringRule &&
+    taxRule == other.taxRule &&
+    multiStoneSuicideLegal == other.multiStoneSuicideLegal &&
+    hasButton == other.hasButton &&
+    whiteHandicapBonusRule == other.whiteHandicapBonusRule;
+}
+
 bool Rules::gameResultWillBeInteger() const {
   bool komiIsInteger = ((int)komi) == komi;
   return komiIsInteger != hasButton;
@@ -492,6 +502,25 @@ bool Rules::tryParseRulesWithoutKomi(const string& sOrig, Rules& buf, float komi
   buf = rules;
   return true;
 }
+
+string Rules::toStringNoKomiMaybeNice() const {
+  if(equalsIgnoringKomi(parseRulesHelper("TrompTaylor",false)))
+    return "TrompTaylor";
+  if(equalsIgnoringKomi(parseRulesHelper("Japanese",false)))
+    return "Japanese";
+  if(equalsIgnoringKomi(parseRulesHelper("Chinese",false)))
+    return "Chinese";
+  if(equalsIgnoringKomi(parseRulesHelper("Chinese-OGS",false)))
+    return "Chinese-OGS";
+  if(equalsIgnoringKomi(parseRulesHelper("AGA",false)))
+    return "AGA";
+  if(equalsIgnoringKomi(parseRulesHelper("StoneScoring",false)))
+    return "StoneScoring";
+  if(equalsIgnoringKomi(parseRulesHelper("NewZealand",false)))
+    return "NewZealand";
+  return toStringNoKomi();
+}
+
 
 const Hash128 Rules::ZOBRIST_KO_RULE_HASH[4] = {
   Hash128(0x3cc7e0bf846820f6ULL, 0x1fb7fbde5fc6ba4eULL),  //Based on sha256 hash of Rules::KO_SIMPLE

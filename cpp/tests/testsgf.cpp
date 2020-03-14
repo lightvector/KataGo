@@ -52,7 +52,7 @@ void Tests::runSgfTests() {
       //Test SGF writing roundtrip.
       //This is not exactly holding if there is pass for ko, but should be good in all other cases
       ostringstream out2;
-      WriteSgf::writeSgf(out2,"foo","bar",hist,NULL);
+      WriteSgf::writeSgf(out2,"foo","bar",hist,NULL,false);
       CompactSgf* sgf2 = CompactSgf::parse(out2.str());
       Board board2;
       BoardHistory hist2;
