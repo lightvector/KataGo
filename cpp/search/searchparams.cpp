@@ -42,6 +42,7 @@ SearchParams::SearchParams()
    conservativePass(false),
    fillDameBeforePass(false),
    localExplore(false),
+   avoidMYTDaggerHackPla(C_EMPTY),
    playoutDoublingAdvantage(0.0),
    playoutDoublingAdvantagePla(C_EMPTY),
    nnPolicyTemperature(1.0f),

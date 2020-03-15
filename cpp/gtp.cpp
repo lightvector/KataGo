@@ -307,13 +307,14 @@ struct GTPEngine {
   vector<double> recentWinLossValues;
   double lastSearchFactor;
   double desiredPlayoutDoublingAdvantage;
+  bool avoidMYTDaggerHack;
 
   Player perspective;
 
   GTPEngine(
     const string& modelFile, SearchParams initialParams, Rules initialRules,
     bool assumeMultiBlackHandicap, bool prevtEncore,
-    double dynamicPDACapPerOppLead, double staticPDA,
+    double dynamicPDACapPerOppLead, double staticPDA, bool avoidDagger,
     Player persp, int pvLen
   )
     :nnModelFile(modelFile),
@@ -334,6 +335,7 @@ struct GTPEngine {
      recentWinLossValues(),
      lastSearchFactor(1.0),
      desiredPlayoutDoublingAdvantage(staticPDA),
+     avoidMYTDaggerHack(avoidDagger),
      perspective(persp)
   {
   }
@@ -705,10 +707,15 @@ struct GTPEngine {
 
     //Update PDA given whatever the most recent values are
     updatePlayoutDoublingAdvantage(pla);
-    //Make sure we have the right PDA parameters, in case someone ran analysis in the meantime.
+    //Make sure we have the right parameters, in case someone ran analysis in the meantime.
     if(dynamicPlayoutDoublingAdvantageCapPerOppLead != 0.0 &&
        params.playoutDoublingAdvantage != desiredPlayoutDoublingAdvantage) {
       params.playoutDoublingAdvantage = desiredPlayoutDoublingAdvantage;
+      bot->setParams(params);
+    }
+    Player avoidMYTDaggerHackPla = avoidMYTDaggerHack ? pla : C_EMPTY;
+    if(params.avoidMYTDaggerHackPla != avoidMYTDaggerHackPla) {
+      params.avoidMYTDaggerHackPla = avoidMYTDaggerHackPla;
       bot->setParams(params);
     }
 
@@ -931,6 +938,10 @@ struct GTPEngine {
     //for users.
     if(params.playoutDoublingAdvantage != staticPlayoutDoublingAdvantage) {
       params.playoutDoublingAdvantage = staticPlayoutDoublingAdvantage;
+      bot->setParams(params);
+    }
+    if(params.avoidMYTDaggerHackPla != C_EMPTY) {
+      params.avoidMYTDaggerHackPla = C_EMPTY;
       bot->setParams(params);
     }
 
@@ -1271,6 +1282,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   if(cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") && initialParams.playoutDoublingAdvantagePla == C_EMPTY)
     throw StringError("When specifying dynamicPlayoutDoublingAdvantageCapPerOppLead, must specify a player for playoutDoublingAdvantagePla");
   double staticPlayoutDoublingAdvantage = initialParams.playoutDoublingAdvantage;
+  const bool avoidMYTDaggerHack = cfg.contains("avoidMYTDaggerHack") ? cfg.getBool("avoidMYTDaggerHack") : false;
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
@@ -1278,7 +1290,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     nnModelFile,initialParams,initialRules,
     assumeMultipleStartingBlackMovesAreHandicap,preventEncore,
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
-    staticPlayoutDoublingAdvantage,
+    staticPlayoutDoublingAdvantage,avoidMYTDaggerHack,
     perspective,analysisPVLen
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,-1,-1);

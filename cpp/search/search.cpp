@@ -755,6 +755,7 @@ void Search::computeRootValues() {
       nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
       nnInputParams.conservativePass = searchParams.conservativePass;
       nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
+      nnInputParams.avoidMYTDaggerHack = searchParams.avoidMYTDaggerHackPla == pla;
       if(searchParams.playoutDoublingAdvantage != 0) {
         Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPla : searchParams.playoutDoublingAdvantagePla;
         nnInputParams.playoutDoublingAdvantage = (
@@ -1666,6 +1667,7 @@ void Search::initNodeNNOutput(
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
   nnInputParams.conservativePass = searchParams.conservativePass;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
+  nnInputParams.avoidMYTDaggerHack = searchParams.avoidMYTDaggerHackPla == thread.pla;
   if(searchParams.playoutDoublingAdvantage != 0) {
     Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPla : searchParams.playoutDoublingAdvantagePla;
     nnInputParams.playoutDoublingAdvantage = (

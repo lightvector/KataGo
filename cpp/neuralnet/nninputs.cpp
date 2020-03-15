@@ -39,6 +39,8 @@ const Hash128 MiscNNInputParams::ZOBRIST_PLAYOUT_DOUBLINGS =
   Hash128(0xa5e6114d380bfc1dULL, 0x4160557f1222f4adULL);
 const Hash128 MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP =
   Hash128(0xebcbdfeec6f4334bULL, 0xb85e43ee243b5ad2ULL);
+const Hash128 MiscNNInputParams::ZOBRIST_AVOID_MYTDAGGER_HACK =
+  Hash128(0x612d22ec402ce054ULL, 0x0db915c49de527aeULL);
 
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
@@ -660,6 +662,9 @@ Hash128 NNInputs::getHash(
     hash.hash0 += hash.hash1;
     hash ^= MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP;
   }
+
+  if(nnInputParams.avoidMYTDaggerHack)
+    hash ^= MiscNNInputParams::ZOBRIST_AVOID_MYTDAGGER_HACK;
 
   return hash;
 }

@@ -54,6 +54,7 @@ struct SearchParams {
   bool conservativePass; //Never assume one's own pass will end the game.
   bool fillDameBeforePass; //When territory scoring, heuristically discourage passing before filling the dame.
   bool localExplore; //Explore local tacticy moves a little more, to try to find some blind spots.
+  Player avoidMYTDaggerHackPla; //Hacky hack to avoid a particular pattern that gives some KG nets some trouble. Should become unnecessary in the future.
 
   double playoutDoublingAdvantage; //Play as if we have this many doublings of playouts vs the opponent
   Player playoutDoublingAdvantagePla; //Negate playoutDoublingAdvantage when making a move for the opponent of this player. If empty, opponent of the root player.

@@ -445,6 +445,8 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("localExplore"+idxStr)) params.localExplore = cfg.getBool("localExplore"+idxStr);
     else if(cfg.contains("localExplore"))   params.localExplore = cfg.getBool("localExplore");
     else                                    params.localExplore = false;
+    //Controlled by GTP directly, not used in any other mode
+    params.avoidMYTDaggerHackPla = C_EMPTY;
 
     if(cfg.contains("playoutDoublingAdvantage"+idxStr)) params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage"+idxStr,-3.0,3.0);
     else if(cfg.contains("playoutDoublingAdvantage"))   params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage",-3.0,3.0);
