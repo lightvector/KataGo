@@ -1715,10 +1715,60 @@ void Search::initNodeNNOutput(
   addLeafValue(node,winProb,noResultProb,scoreMean,scoreMeanSq,lead,virtualLossesToSubtract);
 }
 
+void Search::applyAnnealedTempToNNOutput(SearchNode &node, int depth) {
+  //Why do we do this here, separately from initNodeNNOutput? It's because we're scaling the temperature with depth. 
+  //If we are reusing the tree, then the desired NN outputs will be different once you switch to the next move, since the depth is different, so you have to recompute the values.
+  //This isn't good with regards to floating point precision issues since we're constantly rescaling. 
+  //Maybe there's a better way (ex. storing originals in the node and recomputing used versions)? Try that later.
+
+  //The idea here is that by having high temp near the top of the tree, we'll explore more surprising moves, but as we descend further down the tree we'll think sharper
+  //and look deeper down the tree, which can give us better winrate estimates (at least, that's the hope).
+  //(This is assuming initialPolicyTemperature > finalPolicyTemperature. But it might also work well the other way around.)
+
+  //For training games you probably want to set initialPolicyTemperature = finalPolicyTemperature = 1, since the root might be messed up (not too sure about this).
+  //Currently testing with match (full strength) games only.
+
+  if (abs(1.0 - searchParams.initialPolicyTemperature) < 0.001 && abs(1.0 - searchParams.finalPolicyTemperature) < 0.001) {
+    return; //no need to do anything with 1.0 temp
+  }
+
+  //Copy nnOutput as we're about to modify its policy to add temperature
+  {
+    shared_ptr<NNOutput> newNNOutput = std::make_shared<NNOutput>(*(node.nnOutput));
+    //Replace the old pointer
+    node.nnOutput = newNNOutput;
+  }
+
+  double difference = searchParams.initialPolicyTemperature - searchParams.finalPolicyTemperature;
+
+  //same formula as from interpolateEarly but with depth instead
+  double rawHalflives = depth / searchParams.policyAnnealingHalflife;
+  double halflives = rawHalflives * 19.0 / sqrt(rootBoard.x_size*rootBoard.y_size);
+  double currentTemperature = searchParams.finalPolicyTemperature + difference * pow(0.5, halflives);
+
+  double sum = 0.0;
+  float* policyProbs = node.nnOutput->policyProbs;
+  for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++) {
+    //powf on a 3700x takes approx. 6.5 ms for 1 million calls with exponent = 1.2 (aka: 150 million calls per second). 
+    //Definitely not a limiting factor.
+    if (policyProbs[i] < 0.0f) continue; //since policies are negative for invalid moves
+
+    //this is equivalent to policy softmax temperature
+    policyProbs[i] = pow(policyProbs[i], node.lastTemperature / currentTemperature); 
+    sum += policyProbs[i];
+  }
+
+  for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++) {
+    if (policyProbs[i] >= 0.0f) policyProbs[i] /= sum;
+  }
+
+  node.lastTemperature = currentTemperature;
+}
+
 void Search::playoutDescend(
   SearchThread& thread, SearchNode& node,
   bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
-  bool isRoot, int32_t virtualLossesToSubtract
+  bool isRoot, int32_t virtualLossesToSubtract, int depth
 ) {
   //Hit terminal node, finish
   //In the case where we're forcing the search to make another move at the root, don't terminate, actually run search for a move more.
@@ -1762,6 +1812,9 @@ void Search::playoutDescend(
   }
 
   maybeRecomputeExistingNNOutput(thread,node,isRoot);
+
+  //Rescale node NN output based on our depth
+  applyAnnealedTempToNNOutput(node,depth);
 
   //Not leaf node, so recurse
 
@@ -1830,7 +1883,7 @@ void Search::playoutDescend(
   thread.pla = getOpp(thread.pla);
 
   //Recurse!
-  playoutDescend(thread,*child,posesWithChildBuf,false,searchParams.numVirtualLossesPerThread);
+  playoutDescend(thread,*child,posesWithChildBuf,false,searchParams.numVirtualLossesPerThread, depth + 1);
 
   //Update this node stats
   updateStatsAfterPlayout(node,thread,virtualLossesToSubtract,isRoot);

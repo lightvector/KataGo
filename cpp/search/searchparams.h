@@ -22,6 +22,9 @@ struct SearchParams {
   double fpuLossProp; //Scale fpu this proportion of the way towards assuming a move is a loss.
   bool fpuUseParentAverage; //Use parent average value for fpu rather than parent nn value.
   double valueWeightExponent; //Amount to apply a downweighting of children with very bad values relative to good ones
+  double initialPolicyTemperature; //Policy temperature at depth 0 of the search
+  double finalPolicyTemperature; //Policy temperature at depth inf of the search
+  double policyAnnealingHalflife; //Halflife of decay from policy temperature at depth 0 to depth inf
 
   //Root parameters
   bool rootNoiseEnabled;

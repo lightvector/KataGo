@@ -76,6 +76,7 @@ struct SearchNode {
   //it while locked, it's safe to read it while unlocked.
   std::shared_ptr<NNOutput> nnOutput;
   uint32_t nnOutputAge;
+  double lastTemperature = 1.0;
 
   SearchNode** children;
   uint16_t numChildren;
@@ -388,11 +389,12 @@ private:
     SearchThread& thread, SearchNode& node,
     bool isRoot, bool skipCache, int32_t virtualLossesToSubtract, bool isReInit
   );
+  void applyAnnealedTempToNNOutput(SearchNode &node, int depth);
 
   void playoutDescend(
     SearchThread& thread, SearchNode& node,
     bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
-    bool isRoot, int32_t virtualLossesToSubtract
+    bool isRoot, int32_t virtualLossesToSubtract, int depth = 0
   );
 
   bool shouldSuppressPassAlreadyLocked(const SearchNode* n) const;

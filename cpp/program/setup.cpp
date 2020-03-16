@@ -362,8 +362,18 @@ vector<SearchParams> Setup::loadParams(
     else                                           params.fpuUseParentAverage = true;
 
     if(cfg.contains("valueWeightExponent"+idxStr)) params.valueWeightExponent = cfg.getDouble("valueWeightExponent"+idxStr, 0.0, 1.0);
-    else if(cfg.contains("valueWeightExponent")) params.valueWeightExponent = cfg.getDouble("valueWeightExponent", 0.0, 1.0);
-    else params.valueWeightExponent = 0.5;
+    else if(cfg.contains("valueWeightExponent"))   params.valueWeightExponent = cfg.getDouble("valueWeightExponent", 0.0, 1.0);
+    else                                           params.valueWeightExponent = 0.5;
+
+    if(cfg.contains("initialPolicyTemperature"+idxStr)) params.initialPolicyTemperature = cfg.getDouble("initialPolicyTemperature"+idxStr, 0.001, 100.0);
+    else if(cfg.contains("initialPolicyTemperature"))   params.initialPolicyTemperature = cfg.getDouble("initialPolicyTemperature", 0.001, 10.0);
+    else                                                params.initialPolicyTemperature = 1.0;
+    if(cfg.contains("finalPolicyTemperature"+idxStr)) params.finalPolicyTemperature = cfg.getDouble("finalPolicyTemperature"+idxStr, 0.001, 100.0);
+    else if(cfg.contains("finalPolicyTemperature"))   params.finalPolicyTemperature = cfg.getDouble("finalPolicyTemperature", 0.001, 100.0);
+    else                                              params.finalPolicyTemperature = 1.0;
+    if(cfg.contains("policyAnnealingHalflife"+idxStr)) params.policyAnnealingHalflife = cfg.getDouble("policyAnnealingHalflife"+idxStr, 1.0, 1000.0);
+    else if(cfg.contains("policyAnnealingHalflife"))   params.policyAnnealingHalflife = cfg.getDouble("policyAnnealingHalflife", 1.0, 1000.0);
+    else                                               params.policyAnnealingHalflife = 1;
 
     if(cfg.contains("rootNoiseEnabled"+idxStr)) params.rootNoiseEnabled = cfg.getBool("rootNoiseEnabled"+idxStr);
     else if(cfg.contains("rootNoiseEnabled"))   params.rootNoiseEnabled = cfg.getBool("rootNoiseEnabled");
