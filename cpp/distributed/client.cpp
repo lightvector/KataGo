@@ -49,7 +49,9 @@ Task Connection::getNextTask(const string& baseDir) {
   task.taskGroup = "testgroup";
   task.runId = "testrun";
   task.modelNameBlack = "g170-b10c128-s197428736-d67404019";
+  task.modelUrlBlack = "TODO";
   task.modelNameWhite = "g170-b10c128-s197428736-d67404019";
+  task.modelUrlWhite = "TODO";
   task.doWriteTrainingData = true;
   task.isEvaluationGame = false;
 
@@ -63,8 +65,10 @@ string Connection::getModelPath(const string& modelName, const string& modelDir)
   return modelDir + "/" + modelName + ".bin.gz";
 }
 
-void Connection::downloadModelIfNotPresent(const string& modelName, const string& modelDir) {
+void Connection::downloadModelIfNotPresent(const string& modelName, const string& modelDir, const string& modelUrl) {
   std::lock_guard<std::mutex> lock(mutex);
+
+  (void)modelUrl;
 
   string path = getModelPath(modelName,modelDir);
   ifstream test(path.c_str());

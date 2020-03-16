@@ -22,7 +22,9 @@ namespace Client {
     std::string runId;
 
     std::string modelNameBlack;
+    std::string modelUrlBlack;
     std::string modelNameWhite;
+    std::string modelUrlWhite;
 
     std::string config;
     bool doWriteTrainingData;
@@ -43,7 +45,7 @@ namespace Client {
     Task getNextTask(const std::string& baseDir);
 
     static std::string getModelPath(const std::string& modelName, const std::string& modelDir);
-    void downloadModelIfNotPresent(const std::string& modelName, const std::string& modelDir);
+    void downloadModelIfNotPresent(const std::string& modelName, const std::string& modelDir, const std::string& modelUrl);
 
     void uploadTrainingGameAndData(const Task& task, const std::string& sgfFilePath, const std::string& npzFilePath);
     void uploadEvaluationGame(const Task& task, const std::string& sgfFilePath);
