@@ -365,8 +365,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     }
 
     //TODO should we have a mechanism to interrupt the download to quit faster in response to shouldStop?
-    connection->downloadModelIfNotPresent(task.modelNameBlack,modelsDir);
-    connection->downloadModelIfNotPresent(task.modelNameWhite,modelsDir);
+    connection->downloadModelIfNotPresent(task.modelNameBlack,modelsDir,task.modelUrlBlack);
+    connection->downloadModelIfNotPresent(task.modelNameWhite,modelsDir,task.modelUrlWhite);
     if(shouldStop.load())
       break;
 
