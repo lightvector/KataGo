@@ -389,6 +389,7 @@ if(BUILD_DISTRIBUTED)
   target_compile_definitions(katago PRIVATE BUILD_DISTRIBUTED)
   find_package(OpenSSL REQUIRED)
   target_link_libraries(katago ${OPENSSL_SSL_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARIES})
+  include_directories(external/httplib)
 endif()
 
 #------------------------------------------------------------------------------------
