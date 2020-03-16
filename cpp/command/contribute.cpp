@@ -58,7 +58,7 @@ namespace {
   };
 }
 
-static void runAndUploadSingleGame(GameTask gameTask, Logger& logger, const string& seed, ForkData* forkData, string sgfsDir, Rand& rand) {
+static void runAndUploadSingleGame(Client::Connection* connection, GameTask gameTask, Logger& logger, const string& seed, ForkData* forkData, string sgfsDir, Rand& rand) {
   vector<std::atomic<bool>*> stopConditions = {&shouldStop};
 
   istringstream taskCfgIn(gameTask.task.config);
@@ -104,18 +104,6 @@ static void runAndUploadSingleGame(GameTask gameTask, Logger& logger, const stri
   );
 
   if(gameData != NULL) {
-    if(gameTask.task.doWriteTrainingData) {
-      gameTask.manager->withDataWriters(nnEvalBlack,[gameData,&gameTask](TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut) {
-          (void)vdataWriter;
-          (void)sgfOut;
-          tdataWriter->writeGame(*gameData);
-          string resultingFilename;
-          bool producedFile = tdataWriter->flushIfNonempty(resultingFilename);
-          if(producedFile)
-            Client::uploadTrainingData(gameTask.task,resultingFilename);
-        });
-    }
-
     string sgfOutputDir;
     if(gameTask.task.isEvaluationGame)
       sgfOutputDir = sgfsDir + "/" + gameTask.task.taskGroup;
@@ -126,7 +114,23 @@ static void runAndUploadSingleGame(GameTask gameTask, Logger& logger, const stri
     ofstream out(sgfFile);
     WriteSgf::writeSgf(out,gameData->bName,gameData->wName,gameData->endHist,gameData,false);
     out.close();
-    Client::uploadSGF(gameTask.task,sgfFile);
+
+    if(gameTask.task.doWriteTrainingData) {
+      gameTask.manager->withDataWriters(
+        nnEvalBlack,
+        [gameData,&gameTask,&sgfFile,&connection](TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut) {
+          (void)vdataWriter;
+          (void)sgfOut;
+          tdataWriter->writeGame(*gameData);
+          string resultingFilename;
+          bool producedFile = tdataWriter->flushIfNonempty(resultingFilename);
+          if(producedFile)
+            connection->uploadTrainingGameAndData(gameTask.task,sgfFile,resultingFilename);
+        });
+    }
+    else {
+      connection->uploadEvaluationGame(gameTask.task,sgfFile);
+    }
   }
 
   delete gameData;
@@ -163,7 +167,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       "","delete-unused-models-after","After a model is unused for this many seconds, delete it from disk (default "+ Global::intToString(defaultDeleteUnusedModelsAfter)+")",
       false,defaultDeleteUnusedModelsAfter,"SECONDS"
     );
-    TCLAP::ValueArg<string> userConfigFileArg("","config","Config file to use for GPU settings",false,string(),"FILE");
+    TCLAP::ValueArg<string> userConfigFileArg("","config","Config file to use for server connection and/or GPU settings",false,string(),"FILE");
     TCLAP::ValueArg<string> overrideUserConfigArg("","override-config","Override config parameters. Format: \"key=value, key=value,...\"",false,string(),"KEYVALUEPAIRS");
     cmd.add(baseDirArg);
     cmd.add(maxSimultaneousGamesArg);
@@ -211,8 +215,21 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
+  Logger logger;
+  logger.setLogToStdout(true);
+
+  logger.write("Distributed Self Play Engine starting...");
+  logger.write(Version::getKataGoVersionForHelp());
+  logger.write(string("Git revision: ") + Version::getGitRevision());
+
+  string serverUrl = userCfg->getString("serverUrl");
+  int serverPort = userCfg->contains("serverPort") ? userCfg->getInt("serverPort",0,65535) : 80;
+  string username = userCfg->getString("username");
+  string password = userCfg->getString("password");
+
   //Connect to server and get global parameters for the run.
-  const Client::RunParameters runParams = Client::getRunParameters();
+  Client::Connection* connection = new Client::Connection(serverUrl,serverPort,username,password,&logger);
+  const Client::RunParameters runParams = connection->getRunParameters();
 
   MakeDir::make(baseDir);
   baseDir = baseDir + "/" + runParams.runId;
@@ -228,14 +245,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   MakeDir::make(tdataDir);
   MakeDir::make(logsDir);
 
-  Logger logger;
   //Log to random file name to better support starting/stopping as well as multiple parallel runs
   logger.addFile(logsDir + "/log" + DateTime::getCompactDateTimeString() + "-" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".log");
-  logger.setLogToStdout(true);
-
-  logger.write("Distributed Self Play Engine starting...");
-  logger.write(Version::getKataGoVersionForHelp());
-  logger.write(string("Git revision: ") + Version::getGitRevision());
 
   //Don't write "validation" data for distributed self-play. If the server-side wants to split out some data as "validation" for training
   //then that can be done server-side.
@@ -253,7 +264,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   ForkData* forkData = new ForkData();
   std::atomic<int64_t> numGamesStarted(0);
 
-  auto runGameLoop = [&logger,forkData,&gameSeedBase,&gameTaskQueue,&numGamesStarted,&sgfsDir]() {
+  auto runGameLoop = [&logger,forkData,&gameSeedBase,&gameTaskQueue,&numGamesStarted,&sgfsDir,&connection]() {
     Rand thisLoopSeedRand;
     while(true) {
       GameTask gameTask;
@@ -270,7 +281,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
             (gameTask.nnEvalBlack->getModelName() + " vs " + gameTask.nnEvalWhite->getModelName())
           ) + ")"
         );
-        runAndUploadSingleGame(gameTask,logger,seed,forkData,sgfsDir,thisLoopSeedRand);
+        runAndUploadSingleGame(connection,gameTask,logger,seed,forkData,sgfsDir,thisLoopSeedRand);
       }
       gameTask.manager->release(gameTask.nnEvalBlack);
       gameTask.manager->release(gameTask.nnEvalWhite);
@@ -338,7 +349,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   while(true) {
     if(shouldStop.load())
       break;
-    Client::Task task = Client::getNextTask(logger,baseDir);
+    Client::Task task = connection->getNextTask(baseDir);
 
     if(task.runId != runParams.runId) {
       throw StringError(
@@ -354,13 +365,13 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     }
 
     //TODO should we have a mechanism to interrupt the download to quit faster in response to shouldStop?
-    Client::downloadModelIfNotPresent(task.modelNameBlack,modelsDir);
-    Client::downloadModelIfNotPresent(task.modelNameWhite,modelsDir);
+    connection->downloadModelIfNotPresent(task.modelNameBlack,modelsDir);
+    connection->downloadModelIfNotPresent(task.modelNameWhite,modelsDir);
     if(shouldStop.load())
       break;
 
-    string modelFileBlack = Client::getModelPath(task.modelNameBlack,modelsDir);
-    string modelFileWhite = Client::getModelPath(task.modelNameWhite,modelsDir);
+    string modelFileBlack = Client::Connection::getModelPath(task.modelNameBlack,modelsDir);
+    string modelFileWhite = Client::Connection::getModelPath(task.modelNameWhite,modelsDir);
     //Update model file modified times as a way to track which ones we've used recently or not
     LoadModel::setLastModifiedTimeToNow(modelFileBlack,logger);
     if(modelFileWhite != modelFileBlack)
@@ -399,6 +410,9 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
   //At this point, nothing else except possibly data write loops are running, within the selfplay manager.
   delete manager;
+
+  //Now we can close the connection since all data is written
+  delete connection;
 
   //Delete and clean up everything else
   NeuralNet::globalCleanup();

@@ -4,7 +4,34 @@
 
 using namespace std;
 
-Client::RunParameters Client::getRunParameters() {
+using Client::Connection;
+using Client::Task;
+using Client::RunParameters;
+
+Connection::Connection(const string& serverUrl, int serverPort, const string& username, const string& password, Logger* lg)
+  :httpClient(NULL),
+   httpsClient(NULL), //TODO currently unused
+   logger(lg),
+   mutex()
+{
+  (void)serverUrl;
+  (void)username;
+  (void)password;
+
+  httpClient = new httplib::Client(serverUrl, serverPort);
+  httpClient->set_basic_auth(username.c_str(), password.c_str());
+  auto res = httpClient->Get("/api/users/");
+  logger->write(res->body);
+}
+
+Connection::~Connection() {
+  delete httpClient;
+  delete httpsClient;
+}
+
+RunParameters Connection::getRunParameters() {
+  std::lock_guard<std::mutex> lock(mutex);
+
   RunParameters runParams;
   runParams.runId = "testrun";
   runParams.dataBoardLen = 19;
@@ -14,8 +41,9 @@ Client::RunParameters Client::getRunParameters() {
 }
 
 
-Client::Task Client::getNextTask(Logger& logger, const string& baseDir) {
-  (void)logger;
+Task Connection::getNextTask(const string& baseDir) {
+  std::lock_guard<std::mutex> lock(mutex);
+
   Task task;
   task.taskId = "test";
   task.taskGroup = "testgroup";
@@ -30,11 +58,14 @@ Client::Task Client::getNextTask(Logger& logger, const string& baseDir) {
   return task;
 }
 
-string Client::getModelPath(const string& modelName, const string& modelDir) {
+//STATIC method
+string Connection::getModelPath(const string& modelName, const string& modelDir) {
   return modelDir + "/" + modelName + ".bin.gz";
 }
 
-void Client::downloadModelIfNotPresent(const string& modelName, const string& modelDir) {
+void Connection::downloadModelIfNotPresent(const string& modelName, const string& modelDir) {
+  std::lock_guard<std::mutex> lock(mutex);
+
   string path = getModelPath(modelName,modelDir);
   ifstream test(path.c_str());
   if(!test.good()) {
@@ -42,12 +73,14 @@ void Client::downloadModelIfNotPresent(const string& modelName, const string& mo
   }
 }
 
-void Client::uploadTrainingData(const Task& task, const string& filePath) {
-  cout << "UPLOAD TRAINING DATA " << task.taskId << " " << task.taskGroup << " " << task.runId << " " << filePath << endl;
+void Connection::uploadTrainingGameAndData(const Task& task, const string& sgfFilePath, const string& npzFilePath) {
+  std::lock_guard<std::mutex> lock(mutex);
+  cout << "UPLOAD TRAINING DATA " << task.taskId << " " << task.taskGroup << " " << task.runId << " " << sgfFilePath << " " << npzFilePath << endl;
 }
 
-void Client::uploadSGF(const Task& task, const string& filePath) {
-  cout << "UPLOAD SGF " << task.taskId << " " << task.taskGroup << " " << task.runId << " " << filePath << endl;
+void Connection::uploadEvaluationGame(const Task& task, const string& sgfFilePath) {
+  std::lock_guard<std::mutex> lock(mutex);
+  cout << "UPLOAD SGF " << task.taskId << " " << task.taskGroup << " " << task.runId << " " << sgfFilePath << endl;
 }
 
 #endif //BUILD_DISTRIBUTED
