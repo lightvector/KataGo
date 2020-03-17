@@ -56,7 +56,6 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
   scoreDistrN = npz["scoreDistrN"]
   valueTargetsNCHW = npz["valueTargetsNCHW"]
 
-  #print("Shardify shuffling... (mem usage %dMB)" % memusage_mb())
   joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW))
 
   num_rows_to_keep = binaryInputNCHWPacked.shape[0]
@@ -90,7 +89,6 @@ def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
   return num_out_files
 
 def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_batch_multiple):
-  #print("Merging shards for output file: %s (%d shards to merge)" % (filename,num_shards_to_merge))
   tfoptions = TFRecordOptions(TFRecordCompressionType.ZLIB)
   record_writer = TFRecordWriter(filename,tfoptions)
 
@@ -103,8 +101,6 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
 
   for input_idx in range(num_shards_to_merge):
     shard_filename = os.path.join(out_tmp_dir, str(input_idx) + ".npz")
-    #print("Merge loading shard: %d (mem usage %dMB)" % (input_idx,memusage_mb()))
-
     npz = np.load(shard_filename)
     assert(set(npz.keys()) == set(keys))
 
@@ -125,7 +121,6 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
   ###
   #WARNING - if adding anything here, also add it to joint_shuffle below!
   ###
-  #print("Merge concatenating... (mem usage %dMB)" % memusage_mb())
   binaryInputNCHWPacked = np.concatenate(binaryInputNCHWPackeds)
   globalInputNC = np.concatenate(globalInputNCs)
   policyTargetsNCMove = np.concatenate(policyTargetsNCMoves)
@@ -133,10 +128,8 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
   scoreDistrN = np.concatenate(scoreDistrNs)
   valueTargetsNCHW = np.concatenate(valueTargetsNCHWs)
 
-  #print("Merge shuffling... (mem usage %dMB)" % memusage_mb())
   joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW))
 
-  #print("Merge writing in batches...")
   num_rows = binaryInputNCHWPacked.shape[0]
   #Just truncate and lose the batch at the end, it's fine
   num_batches = (num_rows // (batch_size * ensure_batch_multiple)) * ensure_batch_multiple
@@ -159,8 +152,6 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
   jsonfilename = os.path.splitext(filename)[0] + ".json"
   with open(jsonfilename,"w") as f:
     json.dump({"num_rows":num_rows,"num_batches":num_batches},f)
-
-  #print("Merge done %s (%d rows)" % (filename, num_batches * batch_size))
 
   record_writer.close()
   return num_batches * batch_size
@@ -199,7 +190,6 @@ if __name__ == '__main__':
 
   all_files = []
   for d in dirs:
-    # print(d)
     for (path,dirnames,filenames) in os.walk(d):
       filenames = [os.path.join(path,filename) for filename in filenames if filename.endswith('.npz')]
       filenames = [(filename,os.path.getmtime(filename)) for filename in filenames]
@@ -263,7 +253,6 @@ if __name__ == '__main__':
     else:
       num_random_rows_capped = min(num_random_rows_capped + num_rows, min_rows)
 
-    #print("Training data file %s: %d rows" % (filename,num_rows))
     files_with_row_range.append((filename,row_range))
 
     #If we already have a window size bigger than max, then just stop
