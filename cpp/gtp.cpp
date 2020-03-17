@@ -157,9 +157,10 @@ static void updatePlayoutDoublingAdvantageHelper(
     desiredPlayoutDoublingAdvantage = staticPlayoutDoublingAdvantage;
   }
   else {
-    double pdaScalingStartPoints = 7.0;
+    double boardSizeScaling = pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.75);
+    double pdaScalingStartPoints = std::max(7.0 / boardSizeScaling, 2.0);
     double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
-    if(initialBlackAdvantageInPoints < pdaScalingStartPoints || pla != params.playoutDoublingAdvantagePla) {
+    if(initialBlackAdvantageInPoints < pdaScalingStartPoints || pla != params.playoutDoublingAdvantagePla || board.x_size <= 7 || board.y_size <= 7) {
       desiredPlayoutDoublingAdvantage = 0.0;
     }
     else {
@@ -172,7 +173,7 @@ static void updatePlayoutDoublingAdvantageHelper(
       double pdaCap = std::min(
         2.75,
         dynamicPlayoutDoublingAdvantageCapPerOppLead *
-        (initialBlackAdvantageInPoints - pdaScalingStartPoints) * pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.25)
+        (initialBlackAdvantageInPoints - pdaScalingStartPoints) * boardSizeScaling
       );
       pdaCap = round(pdaCap / increment) * increment;
 
