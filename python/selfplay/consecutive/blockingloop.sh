@@ -43,7 +43,7 @@ do
     train main -lr-scale 0.03
     #1 means gatekeeper true
     cd "$SCRIPTDIR" && ./selfplay/export_model_for_selfplay.sh "$TRAININGNAME" "$BASEDIR" 1; cd -
-    ./gatekeeper.sh "$KATAEXEC" "$BASEDIR" | tee -a gatekeeper.txt
+    ./gatekeeper.sh "$KATAEXEC" "$BASEDIR" | tee -a gkeeper.txt
     #move so we don't have to count by rows
     rsync -a "$BASEDIR"/selfplay/* "$BASEDIR"/selfplay_old --remove-source-files
 done
