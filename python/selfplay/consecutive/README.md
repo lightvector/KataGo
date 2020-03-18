@@ -4,7 +4,7 @@ You can train your own network using these scripts on one machine, by switching 
 
 ## Instructions
 
-Either copy the files to another folder or run them from where they are. Copy a relevant configuration file and rename it `keeper1.cfg` to this folder. Copy a relevant selfplay configuration file and rename it `selfplay1.cfg` to the same folder. Edit the paths in `nohup.sh` to reflect the correct location of your selfplay data and katago folder/executable.
+Either copy the files to another folder or run them from where they are. Copy a relevant configuration file and rename it `keeper1.cfg` to this folder. Copy a relevant selfplay configuration file and rename it `selfplay1.cfg` to the same folder. Edit the paths in `nohuploop.sh` to reflect the correct location of your selfplay data and katago folder/executable.
 
 ## Suggested settings for learning
 
@@ -18,4 +18,4 @@ You can modify `-pos-len` in `train.sh` to the biggest size you are going to tra
 
 ## How to run
 
-Just run the `./nohup.sh` script and you can close the terminal - it will run in the background. You can `tail -f log_all.txt` to check how it's going at any point in time and `cat gatekeeper.txt` to see the score of the latest test. The old selfplays will be stored in `selfplay_old` so if you want to train a larger model in the future you should train on these.
+Just run the `./nohuploop.sh` script and you can close the terminal - it will run in the background. You can `tail -f log_all.txt` to check how it's going at any point in time and `cat gatekeeper.txt` to see the score of the latest test. The old selfplays will be stored in `selfplay_old` so if you want to train a larger model in the future you should train on these.
