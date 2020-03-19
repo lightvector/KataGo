@@ -35,12 +35,17 @@ while true
 do
     "$KATAEXEC" selfplay -output-dir "$BASEDIR"/selfplay -models-dir "$BASEDIR"/models -config-file selfplay1.cfg
     shuffle
-    train trainonly -lr-scale 1.0
-    shuffle
-    train trainonly -lr-scale 0.1
+    ##uncomment these lines to do cyclical learning rates
+    #train trainonly -lr-scale 1.0
+    #shuffle
+    #train trainonly -lr-scale 0.1
     #finally generate a network
-    shuffle
-    train main -lr-scale 0.03
+    #shuffle
+    #train main -lr-scale 0.03
+    
+    ##comment this line when doing cyclical learning rates
+    train main -lr-scale 1.0
+    
     #1 means gatekeeper true
     cd "$SCRIPTDIR" && ./selfplay/export_model_for_selfplay.sh "$TRAININGNAME" "$BASEDIR" 1; cd -
     ./gatekeeper.sh "$KATAEXEC" "$BASEDIR" | tee -a gkeeper.txt
