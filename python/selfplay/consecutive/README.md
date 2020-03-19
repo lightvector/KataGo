@@ -8,7 +8,7 @@ Either copy the files to another folder or run them from where they are. Copy a 
 
 ## Suggested settings for learning
 
-In `shuffle.sh` you should edit the min rows to 10000 because we're going to be working with less data to start. Expand window per row should be set to 1, taper window exponent to 1. In train.py you should decrease the samples per epoch to 250000 since we will generate fewer games to have a smaller learning loop. In your own copy of `selfplay1.cfg` you should set the amount of games to 3000, keeping cheap visits on. I suggest you reduce the visits in `keeper1.cfg` down to 100 or lower, because it cuts into your selfplay time significantly.
+In `shuffle.sh` you should edit the min rows to 10000 because we're going to be working with less data to start. Expand window per row should be set to 1, taper window exponent to 1. In train.py you should decrease the samples per epoch to 200000 since we will generate fewer games to have a smaller learning loop. The samples per epoch should be similar to the amount of rows in your shuffle, since this script already runs learning on the same data three times at different learning rates. In your own copy of `selfplay1.cfg` you should set the amount of games to 3000, keeping cheap visits on. I suggest you reduce the visits in `keeper1.cfg` down to 100 or lower, because it cuts into your selfplay time significantly.
 
 ## Modifications for smaller board sizes.
 
