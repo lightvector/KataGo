@@ -19,3 +19,7 @@ You can modify `-pos-len` in `train.sh` to the biggest size you are going to tra
 ## How to run
 
 Just run the `./nohuploop.sh` script and you can close the terminal - it will run in the background. You can `tail -f log_all.txt` to check how it's going at any point in time and `cat gatekeeper.txt` to see the score of the latest test. The old selfplays will be stored in `selfplay_old` so if you want to train a larger model in the future you should train on these.
+
+## Backing up logs
+
+Moving the files with `mv` won't work since the script will still write to the same physical address on the disk. But you can `cp` the file to another location and empty the current one.
