@@ -369,7 +369,6 @@ struct GTPEngine {
       logger.write("Cleaned up old neural net and bot");
     }
 
-    //Initial setup
     bool wasDefault = false;
     if(boardXSize == -1 || boardYSize == -1) {
       boardXSize = 19;
@@ -396,7 +395,7 @@ struct GTPEngine {
       }
     }
 
-    //On initial setup, size the board to whatever the neural net was initialized with
+    //On default setup, also override board size to whatever the neural net was initialized with
     //So that if the net was initalized smaller, we don't fail with a big board
     if(wasDefault) {
       boardXSize = nnEval->getNNXLen();
@@ -1285,6 +1284,15 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   double staticPlayoutDoublingAdvantage = initialParams.playoutDoublingAdvantage;
   const bool avoidMYTDaggerHack = cfg.contains("avoidMYTDaggerHack") ? cfg.getBool("avoidMYTDaggerHack") : false;
 
+  const int defaultBoardXSize =
+    cfg.contains("defaultBoardXSize") ? cfg.getInt("defaultBoardXSize",2,Board::MAX_LEN) :
+    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
+    -1;
+  const int defaultBoardYSize =
+    cfg.contains("defaultBoardYSize") ? cfg.getInt("defaultBoardYSize",2,Board::MAX_LEN) :
+    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
+    -1;
+
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
@@ -1294,7 +1302,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     staticPlayoutDoublingAdvantage,avoidMYTDaggerHack,
     perspective,analysisPVLen
   );
-  engine->setOrResetBoardSize(cfg,logger,seedRand,-1,-1);
+  engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize);
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
