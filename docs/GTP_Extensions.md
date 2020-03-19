@@ -104,6 +104,10 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      * The final move made will be reported as a single line `play <vertex or "pass" or "resign">`, followed by the usual double-newline.
   * `kata-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR`
      * Same as `lz-genmove_analyze` except with the options and fields of `kata-analyze` rather than `lz-analyze`
+  * `analyze, genmove_analyze`
+     * Same as `kata-analyze` and `kata-genmove_analyze`, but intended specifically for the Sabaki GUI app in that all floating point values are always formatted with a decimal point, even when a value happens to be an integer. May also have slightly less compact output in other ways (e.g. extra trailing zeros on some decimals).
+     * The output format of `analyze` and `genmove_analyze` may update in future versions if Sabaki's format updates.
+
   * `kata-raw-nn SYMMETRY`
      * `SYMMETRY` should be an integer from 0-7 or "all".
      * Reports the result of a raw neural net evaluation from KataGo, or multiple raw evaluations in the case of "all".
