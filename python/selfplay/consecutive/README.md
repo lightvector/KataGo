@@ -12,7 +12,7 @@ In `shuffle.sh` you should edit the min rows to 10000 because we're going to be 
 
 ## Modifications for smaller board sizes.
 
-In both config files you should change the settings. Set `bSizes` to the board size you wish to train, `bSizeRelProbs` should be set to `1`. Set `komiAllowIntegerProb` to `1.0` to allow for draws. `handicapProb` should be `0.0` on boards smaller than 19x19 because it's too imbalanced.
+In both config files you should change the settings. Set `bSizes` to the board size you wish to train, `bSizeRelProbs` should be set to `1`. `handicapProb` should be `0.0` on very small boards if you don't want it to learn lopsided situations.
 
 You can modify `-pos-len` in `train.sh` to the biggest size you are going to train for.
 
@@ -23,3 +23,7 @@ Just run the `./nohuploop.sh` script and you can close the terminal - it will ru
 ## Backing up logs
 
 Moving the files with `mv` won't work since the script will still write to the same physical address on the disk. But you can `cp` the file to another location and empty the current one.
+
+## How to stop
+
+The script writes to save_pid.txt which has the PID of the script process running in the background. You can use the `kill` command to stop it.
