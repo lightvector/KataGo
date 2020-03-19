@@ -1,0 +1,23 @@
+fixed_handicap 7
+showboard
+genmove_debug w
+clear_board
+place_free_handicap 3
+showboard
+genmove_debug w
+play b A1
+genmove_debug w
+play b C1
+genmove_debug w
+play b B1
+genmove_debug w
+clear_board
+set_free_handicap c4 q16 d17
+showboard
+play w Q4
+genmove_debug b
+boardsize 13
+fixed_handicap 3
+showboard
+play w K4
+genmove_debug b

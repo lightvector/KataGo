@@ -130,13 +130,13 @@ void PlayUtils::placeFixedHandicap(Board& board, int n) {
     board.setStone(Location::getLoc(xCoords[xi],yCoords[yi],board.x_size),P_BLACK);
   };
   if(n == 2) { s(0,1); s(1,0); }
-  else if(n == 3) { s(0,1); s(1,0); s(1,1); }
-  else if(n == 4) { s(0,1); s(1,0); s(1,1); s(0,0); }
-  else if(n == 5) { s(0,1); s(1,0); s(1,1); s(0,0); s(2,2); }
-  else if(n == 6) { s(0,1); s(1,0); s(1,1); s(0,0); s(0,2); s(1,2); }
-  else if(n == 7) { s(0,1); s(1,0); s(1,1); s(0,0); s(0,2); s(1,2); s(2,2); }
-  else if(n == 8) { s(0,1); s(1,0); s(1,1); s(0,0); s(0,2); s(1,2); s(2,0); s(2,1); }
-  else if(n == 9) { s(0,1); s(1,0); s(1,1); s(0,0); s(0,2); s(1,2); s(2,0); s(2,1); s(2,2); }
+  else if(n == 3) { s(0,1); s(1,0); s(0,0); }
+  else if(n == 4) { s(0,1); s(1,0); s(0,0); s(1,1); }
+  else if(n == 5) { s(0,1); s(1,0); s(0,0); s(1,1); s(2,2); }
+  else if(n == 6) { s(0,1); s(1,0); s(0,0); s(1,1); s(0,2); s(1,2); }
+  else if(n == 7) { s(0,1); s(1,0); s(0,0); s(1,1); s(0,2); s(1,2); s(2,2); }
+  else if(n == 8) { s(0,1); s(1,0); s(0,0); s(1,1); s(0,2); s(1,2); s(2,0); s(2,1); }
+  else if(n == 9) { s(0,1); s(1,0); s(0,0); s(1,1); s(0,2); s(1,2); s(2,0); s(2,1); s(2,2); }
   else { ASSERT_UNREACHABLE; }
 }
 

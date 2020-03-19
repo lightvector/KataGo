@@ -145,7 +145,7 @@ static bool noWhiteStonesOnBoard(const Board& board) {
 }
 
 static void updatePlayoutDoublingAdvantageHelper(
-  AsyncBot* bot, const Board& board, const BoardHistory& hist, Player pla,
+  AsyncBot* bot, const Board& board, const BoardHistory& hist,
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead,
   const double staticPlayoutDoublingAdvantage,
   const vector<double>& recentWinLossValues,
@@ -160,7 +160,9 @@ static void updatePlayoutDoublingAdvantageHelper(
     double boardSizeScaling = pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.75);
     double pdaScalingStartPoints = std::max(7.0 / boardSizeScaling, 2.0);
     double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
-    if(initialBlackAdvantageInPoints < pdaScalingStartPoints || pla != params.playoutDoublingAdvantagePla || board.x_size <= 7 || board.y_size <= 7) {
+    Player disadvantagedPla = initialBlackAdvantageInPoints >= 0 ? P_WHITE : P_BLACK;
+    double initialAdvantageInPoints = abs(initialBlackAdvantageInPoints);
+    if(initialAdvantageInPoints < pdaScalingStartPoints || board.x_size <= 7 || board.y_size <= 7) {
       desiredPlayoutDoublingAdvantage = 0.0;
     }
     else {
@@ -168,12 +170,12 @@ static void updatePlayoutDoublingAdvantageHelper(
       //Power of 2 to avoid any rounding issues.
       const double increment = 0.125;
 
-      //Hard cap of 2.5 in this parameter, since more extreme values start to reach into values without good training.
+      //Hard cap of 2.75 in this parameter, since more extreme values start to reach into values without good training.
       //Scale mildly with board size - small board a given point lead counts as "more".
       double pdaCap = std::min(
         2.75,
         dynamicPlayoutDoublingAdvantageCapPerOppLead *
-        (initialBlackAdvantageInPoints - pdaScalingStartPoints) * boardSizeScaling
+        (initialAdvantageInPoints - pdaScalingStartPoints) * boardSizeScaling
       );
       pdaCap = round(pdaCap / increment) * increment;
 
@@ -184,7 +186,8 @@ static void updatePlayoutDoublingAdvantageHelper(
       }
       else {
         double winLossValue = recentWinLossValues[recentWinLossValues.size()-1];
-        if(pla == P_BLACK)
+        //Convert to perspective of disadvantagedPla
+        if(disadvantagedPla == P_BLACK)
           winLossValue = -winLossValue;
 
         //Keep winLossValue between 5% and 25%, subject to available caps.
@@ -193,9 +196,12 @@ static void updatePlayoutDoublingAdvantageHelper(
         else if(winLossValue > -0.5)
           desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage - 0.125;
 
-        desiredPlayoutDoublingAdvantage = std::max(desiredPlayoutDoublingAdvantage, 0.0);
+        desiredPlayoutDoublingAdvantage = std::max(desiredPlayoutDoublingAdvantage, -pdaCap);
         desiredPlayoutDoublingAdvantage = std::min(desiredPlayoutDoublingAdvantage, pdaCap);
       }
+
+      if(params.playoutDoublingAdvantagePla == getOpp(disadvantagedPla))
+        desiredPlayoutDoublingAdvantage = -desiredPlayoutDoublingAdvantage;
     }
   }
 
@@ -272,7 +278,9 @@ static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator
   out << "NN batches: " << nnEval->numBatchesProcessed() << endl;
   out << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
   if(search->searchParams.playoutDoublingAdvantage != 0)
-    out << "PlayoutDoublingAdvantage: " << search->searchParams.playoutDoublingAdvantage << endl;
+    out << "PlayoutDoublingAdvantage: " << (
+      search->getRootPla() == getOpp(search->searchParams.playoutDoublingAdvantagePla) ?
+      -search->searchParams.playoutDoublingAdvantage : search->searchParams.playoutDoublingAdvantage) << endl;
   out << "PV: ";
   search->printPV(out, search->rootNode, 25);
   out << "\n";
@@ -428,8 +436,7 @@ struct GTPEngine {
     initialPla = newInitialPla;
     moveHistory = newMoveHistory;
     recentWinLossValues.clear();
-    //Update it assuming the bot will be playing as params.playoutDoublingAdvantagePla
-    updatePlayoutDoublingAdvantage(params.playoutDoublingAdvantagePla);
+    updatePlayoutDoublingAdvantage();
   }
 
   void clearBoard() {
@@ -452,10 +459,9 @@ struct GTPEngine {
     staticPlayoutDoublingAdvantage = d;
   }
 
-  //Update playout doubling advantage for the engine for playing as pla
-  void updatePlayoutDoublingAdvantage(Player pla) {
+  void updatePlayoutDoublingAdvantage() {
     updatePlayoutDoublingAdvantageHelper(
-      bot,bot->getRootBoard(),bot->getRootHist(),pla,
+      bot,bot->getRootBoard(),bot->getRootHist(),
       dynamicPlayoutDoublingAdvantageCapPerOppLead,
       staticPlayoutDoublingAdvantage,
       recentWinLossValues,
@@ -706,7 +712,7 @@ struct GTPEngine {
     TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
 
     //Update PDA given whatever the most recent values are
-    updatePlayoutDoublingAdvantage(pla);
+    updatePlayoutDoublingAdvantage();
     //Make sure we have the right parameters, in case someone ran analysis in the meantime.
     if(dynamicPlayoutDoublingAdvantageCapPerOppLead != 0.0 &&
        params.playoutDoublingAdvantage != desiredPlayoutDoublingAdvantage) {
