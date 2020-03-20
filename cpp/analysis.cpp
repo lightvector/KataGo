@@ -37,16 +37,14 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   string modelFile;
   int numAnalysisThreads;
   try {
-    TCLAP::CmdLine cmd("Run parallel analysis engine", ' ', Version::getKataGoVersionForHelp(),true);
+    KataGoCommandLine cmd("Run parallel analysis engine");
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
-    TCLAP::ValueArg<string> modelFileArg("","model","Neural net model file",true,string(),"FILE");
     TCLAP::ValueArg<int> numAnalysisThreadsArg("","analysis-threads","Analysis up to this many positions in parallel",true,0,"THREADS");
     cmd.add(configFileArg);
-    cmd.add(modelFileArg);
     cmd.add(numAnalysisThreadsArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
-    modelFile = modelFileArg.getValue();
+    modelFile = cmd.modelFileArg.getValue();
     numAnalysisThreads = numAnalysisThreadsArg.getValue();
 
     if(numAnalysisThreads <= 0 || numAnalysisThreads >= 16384)

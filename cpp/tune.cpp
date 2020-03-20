@@ -29,8 +29,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
   int winograd3x3TileSize;
   bool full;
   try {
-    TCLAP::CmdLine cmd("Perform GPU tuning", ' ', Version::getKataGoVersionForHelp(),true);
-    TCLAP::ValueArg<string> modelFileArg("","model","Neural net model file to use",true,string(),"FILE");
+    KataGoCommandLine cmd("Perform GPU tuning");
     TCLAP::ValueArg<string> outputFileArg("","output","Filename to output tuning configration to",false,string(),"FILE");
     TCLAP::ValueArg<string> gpuIdxsArg("","gpus","Specific GPU/device number(s) to tune, comma-separated (default all)",false,string(),"GPUS");
     TCLAP::ValueArg<int> nnXLenArg("","xsize","Width of board to tune for",false,OpenCLTuner::DEFAULT_X_SIZE,"INT");
@@ -38,7 +37,6 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     TCLAP::ValueArg<int> batchSizeArg("","batchsize","Batch size to tune for",false,OpenCLTuner::DEFAULT_BATCH_SIZE,"INT");
     TCLAP::ValueArg<int> winograd3x3TileSizeArg("","winograd3x3tilesize","Batch size to tune for",false,OpenCLTuner::DEFAULT_WINOGRAD_3X3_TILE_SIZE,"INT");
     TCLAP::SwitchArg fullArg("","full","Test more possible configurations");
-    cmd.add(modelFileArg);
     cmd.add(outputFileArg);
     cmd.add(gpuIdxsArg);
     cmd.add(nnXLenArg);
@@ -46,7 +44,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     cmd.add(batchSizeArg);
     cmd.add(fullArg);
     cmd.parse(argc,argv);
-    modelFile = modelFileArg.getValue();
+    modelFile = cmd.modelFileArg.getValue();
     outputFile = outputFileArg.getValue();
     gpuIdxsStr = gpuIdxsArg.getValue();
     nnXLen = nnXLenArg.getValue();

@@ -367,16 +367,14 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
   string logFile;
   string modelFile;
   try {
-    TCLAP::CmdLine cmd("Self-play demo dumping status to stdout", ' ', Version::getKataGoVersion(),true);
+    KataGoCommandLine cmd("Self-play demo dumping status to stdout");
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use",true,string(),"FILE");
-    TCLAP::ValueArg<string> modelFileArg("","model","Neural net model file to use",true,string(),"FILE");
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
     cmd.add(configFileArg);
-    cmd.add(modelFileArg);
     cmd.add(logFileArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
-    modelFile = modelFileArg.getValue();
+    modelFile = cmd.modelFileArg.getValue();
     logFile = logFileArg.getValue();
   }
   catch (TCLAP::ArgException &e) {

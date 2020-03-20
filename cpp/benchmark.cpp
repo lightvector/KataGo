@@ -62,9 +62,8 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   bool autoTuneThreads;
   int secondsPerGameMove;
   try {
-    TCLAP::CmdLine cmd("Benchmark to test speed with different numbers of threads", ' ', Version::getKataGoVersionForHelp(),true);
+    KataGoCommandLine cmd("Benchmark to test speed with different numbers of threads");
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use, same as for gtp (see gtp_example.cfg)",true,string(),"FILE");
-    TCLAP::ValueArg<string> modelFileArg("","model","Neural net model file to use",true,string(),"FILE");
     TCLAP::ValueArg<string> sgfFileArg("","sgf", "Optional game to sample positions from (default: uses a built-in-set of positions)",false,string(),"FILE");
     TCLAP::ValueArg<int> boardSizeArg("","boardsize", "Size of board to benchmark on (9-19), default 19",false,-1,"SIZE");
     TCLAP::ValueArg<long> visitsArg("v","visits","How many visits to use per search (default " + Global::int64ToString(defaultMaxVisits) + ")",false,(long)defaultMaxVisits,"VISITS");
@@ -75,7 +74,6 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
                                                Global::doubleToString(defaultSecondsPerGameMove) + ")",false,defaultSecondsPerGameMove,"SECONDS");
 
     cmd.add(configFileArg);
-    cmd.add(modelFileArg);
     cmd.add(sgfFileArg);
     cmd.add(boardSizeArg);
     cmd.add(visitsArg);
@@ -86,7 +84,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     cmd.parse(argc,argv);
 
     configFile = configFileArg.getValue();
-    modelFile = modelFileArg.getValue();
+    modelFile = cmd.modelFileArg.getValue();
     sgfFile = sgfFileArg.getValue();
     boardSize = boardSizeArg.getValue();
     maxVisits = (int64_t)visitsArg.getValue();
@@ -435,16 +433,14 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
   string outputFile;
   string modelFile;
   try {
-    TCLAP::CmdLine cmd("Automatically generate and tune a new GTP config", ' ', Version::getKataGoVersionForHelp(),true);
+    KataGoCommandLine cmd("Automatically generate and tune a new GTP config");
     TCLAP::ValueArg<string> outputFileArg("","output","Path to write new config (default gtp.cfg)",false,string("gtp.cfg"),"FILE");
-    TCLAP::ValueArg<string> modelFileArg("","model","Neural net model file to use",true,string(),"FILE");
 
     cmd.add(outputFileArg);
-    cmd.add(modelFileArg);
     cmd.parse(argc,argv);
 
     outputFile = outputFileArg.getValue();
-    modelFile = modelFileArg.getValue();
+    modelFile = cmd.modelFileArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
