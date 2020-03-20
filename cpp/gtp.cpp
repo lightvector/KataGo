@@ -196,7 +196,7 @@ static void updatePlayoutDoublingAdvantageHelper(
         else if(winLossValue > -0.5)
           desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage - 0.125;
 
-        desiredPlayoutDoublingAdvantage = std::max(desiredPlayoutDoublingAdvantage, -pdaCap);
+        desiredPlayoutDoublingAdvantage = std::max(desiredPlayoutDoublingAdvantage, 0.0);
         desiredPlayoutDoublingAdvantage = std::min(desiredPlayoutDoublingAdvantage, pdaCap);
       }
 
