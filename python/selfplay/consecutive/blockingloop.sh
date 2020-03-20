@@ -28,7 +28,7 @@ function shuffle() {
 }
 
 function train() {
-    cd "$SCRIPTDIR" && ./selfplay/train.sh "$BASEDIR"/ "$TRAININGNAME" "$MODELKIND" $1 -max-epochs-this-instance 1 $2 $3; cd -
+    ./trainonce.sh "$BASEDIR" "$TRAININGNAME" "$MODELKIND" "$MODELKIND" "$*"
 }
 
 while true
@@ -36,7 +36,7 @@ do
     "$KATAEXEC" selfplay -output-dir "$BASEDIR"/selfplay -models-dir "$BASEDIR"/models -config-file selfplay1.cfg
     shuffle
     ##uncomment these lines to do cyclical learning rates
-    #train trainonly -lr-scale 1.0
+    #train trainonly
     #shuffle
     #train trainonly -lr-scale 0.1
     #finally generate a network
@@ -44,7 +44,7 @@ do
     #train main -lr-scale 0.03
     
     ##comment this line when doing cyclical learning rates
-    train main -lr-scale 1.0
+    train main
     
     #move so we don't have to count by rows
     rsync -a "$BASEDIR"/selfplay/* "$BASEDIR"/selfplay_old --remove-source-files
