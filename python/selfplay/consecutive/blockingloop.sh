@@ -38,18 +38,18 @@ do
     "$KATAEXEC" selfplay -output-dir "$BASEDIR"/selfplay -models-dir "$BASEDIR"/models -config-file selfplay1.cfg
     shuffle
     ##uncomment these lines to do cyclical learning rates
-    #train trainonly
+    #train trainonly -max-epochs-this-instance 1
     #shuffle
-    #train trainonly -lr-scale 0.1
+    #train trainonly -max-epochs-this-instance 1 -lr-scale 0.1
     #finally generate a network
     #shuffle
-    #train main -lr-scale 0.03
+    #train main -max-epochs-this-instance 1 -lr-scale 0.03
     
     ##comment this line when doing cyclical learning rates
-    train main
+    train main -max-epochs-this-instance 1
     
-    #move so we don't have to count by rows
-    rsync -a "$BASEDIR"/selfplay/* "$BASEDIR"/selfplay_old --remove-source-files
+    ##uncomment this line to move old data to another folder every network
+    #rsync -a "$BASEDIR"/selfplay/* "$BASEDIR"/selfplay_old --remove-source-files
     
     #1 means gatekeeper true
     cd "$SCRIPTDIR" && "$SELFPLAY"/export_model_for_selfplay.sh "$TRAININGNAME" "$BASEDIR" 1; cd -
