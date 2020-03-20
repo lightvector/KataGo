@@ -30,7 +30,7 @@ function shuffle() {
 }
 
 function train() {
-    ./trainonce.sh "$BASEDIR" "$SCRIPTDIR" "$TRAININGNAME" "$MODELKIND" "$*"
+    cd "$SCRIPTDIR" && "$SELFPLAY"/train.sh "$BASEDIR"/ "$TRAININGNAME" "$MODELKIND" "$*"; cd -
 }
 
 while true
