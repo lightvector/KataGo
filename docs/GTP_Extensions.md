@@ -87,7 +87,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
             * `visits` - The number of visits invested into the move so far.
             * `winrate` - The winrate of the move so far, as a float in [0,1].
             * `scoreMean` - Same as scoreLead. "Mean" is a slight misnomer, but this field exists to preserve compatibility with existing tools.
-            * `scoreStdev` - The predicted standard deviation of the final score of the game after this move, in points. (NOTE: due to the mechanics of MCTS, this value will be **significantly biased high** currently, although it can still be informative as *relative* indicator).
+            * `scoreStdev` - The predicted standard deviation of the final score of the game after this move, in points. (NOTE: due to the mechanics of MCTS, this value will be **significantly biased high** currently, although it can still be informative as a *relative* indicator).
             * `scoreLead` - The predicted average number of points that the current side is leading by (with this many points fewer, it would be an even game).
             * `scoreSelfplay` - The predicted average value of the final score of the game after this move from low-playout noisy selfplay, in points. (NOTE: users should usually prefer scoreLead, since scoreSelfplay may be biased by the fact that KataGo isn't perfectly score-maximizing).
             * `prior` - The policy prior of the move, as a float in [0,1].
@@ -104,6 +104,10 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      * The final move made will be reported as a single line `play <vertex or "pass" or "resign">`, followed by the usual double-newline.
   * `kata-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR`
      * Same as `lz-genmove_analyze` except with the options and fields of `kata-analyze` rather than `lz-analyze`
+  * `analyze, genmove_analyze`
+     * Same as `kata-analyze` and `kata-genmove_analyze`, but intended specifically for the Sabaki GUI app in that all floating point values are always formatted with a decimal point, even when a value happens to be an integer. May also have slightly less compact output in other ways (e.g. extra trailing zeros on some decimals).
+     * The output format of `analyze` and `genmove_analyze` may update in future versions if Sabaki's format updates.
+
   * `kata-raw-nn SYMMETRY`
      * `SYMMETRY` should be an integer from 0-7 or "all".
      * Reports the result of a raw neural net evaluation from KataGo, or multiple raw evaluations in the case of "all".

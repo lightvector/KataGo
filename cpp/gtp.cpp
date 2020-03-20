@@ -550,36 +550,8 @@ struct GTPEngine {
 
   std::function<void(const Search* search)> getAnalyzeCallback(Player pla, AnalyzeArgs args) {
     std::function<void(const Search* search)> callback;
-    //analyze
-    if(!args.kata && !args.lz) {
-      callback = [args,pla,this](const Search* search) {
-        vector<AnalysisData> buf;
-        search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
-        if(buf.size() > args.maxMoves)
-          buf.resize(args.maxMoves);
-        if(buf.size() <= 0)
-          return;
-
-        const Board board = search->getRootBoard();
-        for(int i = 0; i<buf.size(); i++) {
-          if(i > 0)
-            cout << " ";
-          const AnalysisData& data = buf[i];
-          double winrate = 0.5 * (1.0 + data.winLossValue);
-          if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
-            winrate = 1.0-winrate;
-          }
-          cout << "info";
-          cout << " move " << Location::toString(data.move,board);
-          cout << " visits " << data.numVisits;
-          cout << " winrate " << round(winrate * 10000.0);
-          cout << " order " << data.order;
-        }
-        cout << endl;
-      };
-    }
     //lz-analyze
-    else if(!args.kata) {
+    if(args.lz && !args.kata) {
       callback = [args,pla,this](const Search* search) {
         vector<AnalysisData> buf;
         search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
@@ -615,7 +587,7 @@ struct GTPEngine {
         cout << endl;
       };
     }
-    //kata-analyze
+    //kata-analyze, analyze (sabaki)
     else {
       callback = [args,pla,this](const Search* search) {
         vector<AnalysisData> buf;
@@ -631,10 +603,17 @@ struct GTPEngine {
           ownership = search->getAverageTreeOwnership(ownershipMinVisits);
         }
 
+        ostringstream out;
+        if(!args.kata) {
+          //Hack for sabaki - ensure always showing decimal point. Also causes output to be more verbose with trailing zeros,
+          //unfortunately, despite doing not improving the precision of the values.
+          out << std::showpoint;
+        }
+
         const Board board = search->getRootBoard();
         for(int i = 0; i<buf.size(); i++) {
           if(i > 0)
-            cout << " ";
+            out << " ";
           const AnalysisData& data = buf[i];
           double winrate = 0.5 * (1.0 + data.winLossValue);
           double utility = data.utility;
@@ -652,43 +631,43 @@ struct GTPEngine {
             lead = -lead;
             utilityLcb = -utilityLcb;
           }
-          cout << "info";
-          cout << " move " << Location::toString(data.move,board);
-          cout << " visits " << data.numVisits;
-          cout << " utility " << utility;
-          cout << " winrate " << winrate;
-          cout << " scoreMean " << lead;
-          cout << " scoreStdev " << data.scoreStdev;
-          cout << " scoreLead " << lead;
-          cout << " scoreSelfplay " << scoreMean;
-          cout << " prior " << data.policyPrior;
-          cout << " lcb " << lcb;
-          cout << " utilityLcb " << utilityLcb;
-          cout << " order " << data.order;
-          cout << " pv ";
+          out << "info";
+          out << " move " << Location::toString(data.move,board);
+          out << " visits " << data.numVisits;
+          out << " utility " << utility;
+          out << " winrate " << winrate;
+          out << " scoreMean " << lead;
+          out << " scoreStdev " << data.scoreStdev;
+          out << " scoreLead " << lead;
+          out << " scoreSelfplay " << scoreMean;
+          out << " prior " << data.policyPrior;
+          out << " lcb " << lcb;
+          out << " utilityLcb " << utilityLcb;
+          out << " order " << data.order;
+          out << " pv ";
           if(preventEncore && data.pvContainsPass())
-            data.writePVUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
+            data.writePVUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
           else
-            data.writePV(cout,board);
+            data.writePV(out,board);
         }
 
         if(args.showOwnership) {
-          cout << " ";
+          out << " ";
 
-          cout << "ownership";
+          out << "ownership";
           int nnXLen = search->nnXLen;
           for(int y = 0; y<board.y_size; y++) {
             for(int x = 0; x<board.x_size; x++) {
               int pos = NNPos::xyToPos(x,y,nnXLen);
               if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
-                cout << " " << -ownership[pos];
+                out << " " << -ownership[pos];
               else
-                cout << " " << ownership[pos];
+                out << " " << ownership[pos];
             }
           }
         }
 
-        cout << endl;
+        cout << out.str() << endl;
       };
     }
     return callback;
@@ -1278,7 +1257,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const double searchFactorWhenWinning = cfg.contains("searchFactorWhenWinning") ? cfg.getDouble("searchFactorWhenWinning",0.01,1.0) : 1.0;
   const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
   const bool ogsChatToStderr = cfg.contains("ogsChatToStderr") ? cfg.getBool("ogsChatToStderr") : false;
-  const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 9;
+  const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,1000) : 13;
   const bool assumeMultipleStartingBlackMovesAreHandicap =
     cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
   const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
