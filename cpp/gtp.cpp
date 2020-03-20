@@ -1180,15 +1180,14 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   string overrideConfig;
   try {
     KataGoCommandLine cmd("Run GTP engine");
-    TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
+    cmd.addConfigFileArg();
     cmd.addModelFileArg();
     TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
     TCLAP::ValueArg<string> overrideConfigArg("","override-config","Override config parameters. Format: \"key=value, key=value,...\"",false,string(),"KEYVALUEPAIRS");
-    cmd.add(configFileArg);
     cmd.add(overrideVersionArg);
     cmd.add(overrideConfigArg);
     cmd.parse(argc,argv);
-    configFile = configFileArg.getValue();
+    configFile = cmd.configFileArg.getValue();
     nnModelFile = cmd.modelFileArg.getValue();
     overrideVersion = overrideVersionArg.getValue();
     overrideConfig = overrideConfigArg.getValue();

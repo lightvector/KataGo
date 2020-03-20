@@ -24,16 +24,22 @@ class KataGoCommandLine : public TCLAP::CmdLine
 {
 public:
     TCLAP::ValueArg<string> modelFileArg;
+    TCLAP::ValueArg<string> configFileArg;
     
     KataGoCommandLine(const std::string& message)
         :
             TCLAP::CmdLine(message, ' ', Version::getKataGoVersionForHelp(),true),
-            modelFileArg("","model","Neural net model file", !hasDefaultModelPath(), defaultModelPath(),"FILE")
+            modelFileArg("","model","Neural net model file", !hasDefaultModelPath(), defaultModelPath(),"FILE"),
+            configFileArg("","config","Config file to use (see configs/*_example.cfg)",true,string(),"FILE")
     {
     }
     
     void addModelFileArg() {
         this->add(this->modelFileArg);
+    }
+    
+    void addConfigFileArg() {
+        this->add(this->configFileArg);
     }
     
     static std::string defaultModelPath() {

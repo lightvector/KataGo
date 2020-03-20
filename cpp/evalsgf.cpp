@@ -34,7 +34,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool rawNN;
   try {
     KataGoCommandLine cmd("Run a search on a position from an sgf file");
-    TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
+    cmd.addConfigFileArg();
     cmd.addModelFileArg();
     TCLAP::UnlabeledValueArg<string> sgfFileArg("","Sgf file to analyze",true,string(),"FILE");
     TCLAP::ValueArg<int> moveNumArg("m","move-num","Sgf move num to analyze, 1-indexed",true,0,"MOVENUM");
@@ -52,7 +52,6 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
     TCLAP::SwitchArg printLeadArg("","print-lead","Compute and print lead");
     TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
-    cmd.add(configFileArg);
     cmd.add(sgfFileArg);
     cmd.add(moveNumArg);
     cmd.add(printBranchArg);
@@ -70,7 +69,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printLeadArg);
     cmd.add(rawNNArg);
     cmd.parse(argc,argv);
-    configFile = configFileArg.getValue();
+    configFile = cmd.configFileArg.getValue();
     modelFile = cmd.modelFileArg.getValue();
     sgfFile = sgfFileArg.getValue();
     moveNum = moveNumArg.getValue();

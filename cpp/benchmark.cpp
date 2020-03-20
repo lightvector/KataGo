@@ -63,7 +63,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   int secondsPerGameMove;
   try {
     KataGoCommandLine cmd("Benchmark to test speed with different numbers of threads");
-    TCLAP::ValueArg<string> configFileArg("","config","Config file to use, same as for gtp (see gtp_example.cfg)",true,string(),"FILE");
+    cmd.addConfigFileArg();
     cmd.addModelFileArg();
     TCLAP::ValueArg<string> sgfFileArg("","sgf", "Optional game to sample positions from (default: uses a built-in-set of positions)",false,string(),"FILE");
     TCLAP::ValueArg<int> boardSizeArg("","boardsize", "Size of board to benchmark on (9-19), default 19",false,-1,"SIZE");
@@ -74,7 +74,6 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     TCLAP::ValueArg<int> secondsPerGameMoveArg("i","time","Typical amount of time per move spent while playing, in seconds (default " +
                                                Global::doubleToString(defaultSecondsPerGameMove) + ")",false,defaultSecondsPerGameMove,"SECONDS");
 
-    cmd.add(configFileArg);
     cmd.add(sgfFileArg);
     cmd.add(boardSizeArg);
     cmd.add(visitsArg);
@@ -84,7 +83,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     cmd.add(secondsPerGameMoveArg);
     cmd.parse(argc,argv);
 
-    configFile = configFileArg.getValue();
+    configFile = cmd.configFileArg.getValue();
     modelFile = cmd.modelFileArg.getValue();
     sgfFile = sgfFileArg.getValue();
     boardSize = boardSizeArg.getValue();

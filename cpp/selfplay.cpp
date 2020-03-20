@@ -166,14 +166,13 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   string outputDir;
   try {
     KataGoCommandLine cmd("Generate training data via self play");
-    TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use",true,string(),"FILE");
+    cmd.addConfigFileArg();
     TCLAP::ValueArg<string> modelsDirArg("","models-dir","Dir to poll and load models from",true,string(),"DIR");
     TCLAP::ValueArg<string> outputDirArg("","output-dir","Dir to output files",true,string(),"DIR");
-    cmd.add(configFileArg);
     cmd.add(modelsDirArg);
     cmd.add(outputDirArg);
     cmd.parse(argc,argv);
-    configFile = configFileArg.getValue();
+    configFile = cmd.configFileArg.getValue();
     modelsDir = modelsDirArg.getValue();
     outputDir = outputDirArg.getValue();
 

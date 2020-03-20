@@ -368,13 +368,12 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
   string modelFile;
   try {
     KataGoCommandLine cmd("Self-play demo dumping status to stdout");
-    TCLAP::ValueArg<string> configFileArg("","config","Config file to use",true,string(),"FILE");
+    cmd.addConfigFileArg();
     cmd.addModelFileArg();
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
-    cmd.add(configFileArg);
     cmd.add(logFileArg);
     cmd.parse(argc,argv);
-    configFile = configFileArg.getValue();
+    configFile = cmd.configFileArg.getValue();
     modelFile = cmd.modelFileArg.getValue();
     logFile = logFileArg.getValue();
   }

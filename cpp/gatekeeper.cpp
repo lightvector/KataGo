@@ -218,14 +218,13 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   bool quitIfNoNetsToTest;
   try {
     KataGoCommandLine cmd("Test neural nets to see if they should be accepted");
-    TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use",true,string(),"FILE");
+    cmd.addConfigFileArg();
     TCLAP::ValueArg<string> testModelsDirArg("","test-models-dir","Dir to poll and load models from",true,string(),"DIR");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",true,string(),"DIR");
     TCLAP::ValueArg<string> acceptedModelsDirArg("","accepted-models-dir","Dir to write good models to",true,string(),"DIR");
     TCLAP::ValueArg<string> rejectedModelsDirArg("","rejected-models-dir","Dir to write bad models to",true,string(),"DIR");
     TCLAP::SwitchArg noAutoRejectOldModelsArg("","no-autoreject-old-models","Test older models than the latest accepted model");
     TCLAP::SwitchArg quitIfNoNetsToTestArg("","quit-if-no-nets-to-test","Terminate instead of waiting for a new net to test");
-    cmd.add(configFileArg);
     cmd.add(testModelsDirArg);
     cmd.add(sgfOutputDirArg);
     cmd.add(acceptedModelsDirArg);
@@ -233,7 +232,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     cmd.add(noAutoRejectOldModelsArg);
     cmd.add(quitIfNoNetsToTestArg);
     cmd.parse(argc,argv);
-    configFile = configFileArg.getValue();
+    configFile = cmd.configFileArg.getValue();
     testModelsDir = testModelsDirArg.getValue();
     sgfOutputDir = sgfOutputDirArg.getValue();
     acceptedModelsDir = acceptedModelsDirArg.getValue();

@@ -31,14 +31,13 @@ int MainCmds::match(int argc, const char* const* argv) {
   string sgfOutputDir;
   try {
     KataGoCommandLine cmd("Play different nets against each other with different search settings");
-    TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/match_example.cfg)",true,string(),"FILE");
+    cmd.addConfigFileArg();
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",false,string(),"DIR");
-    cmd.add(configFileArg);
     cmd.add(logFileArg);
     cmd.add(sgfOutputDirArg);
     cmd.parse(argc,argv);
-    configFile = configFileArg.getValue();
+    configFile = cmd.configFileArg.getValue();
     logFile = logFileArg.getValue();
     sgfOutputDir = sgfOutputDirArg.getValue();
   }
