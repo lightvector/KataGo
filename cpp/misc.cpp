@@ -369,6 +369,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
   try {
     KataGoCommandLine cmd("Self-play demo dumping status to stdout");
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use",true,string(),"FILE");
+    cmd.addModelFileArg();
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
     cmd.add(configFileArg);
     cmd.add(logFileArg);

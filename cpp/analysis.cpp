@@ -39,6 +39,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   try {
     KataGoCommandLine cmd("Run parallel analysis engine");
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
+    cmd.addModelFileArg();
     TCLAP::ValueArg<int> numAnalysisThreadsArg("","analysis-threads","Analysis up to this many positions in parallel",true,0,"THREADS");
     cmd.add(configFileArg);
     cmd.add(numAnalysisThreadsArg);

@@ -30,6 +30,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
   bool full;
   try {
     KataGoCommandLine cmd("Perform GPU tuning");
+    cmd.addModelFileArg();
     TCLAP::ValueArg<string> outputFileArg("","output","Filename to output tuning configration to",false,string(),"FILE");
     TCLAP::ValueArg<string> gpuIdxsArg("","gpus","Specific GPU/device number(s) to tune, comma-separated (default all)",false,string(),"GPUS");
     TCLAP::ValueArg<int> nnXLenArg("","xsize","Width of board to tune for",false,OpenCLTuner::DEFAULT_X_SIZE,"INT");

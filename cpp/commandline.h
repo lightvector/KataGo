@@ -30,6 +30,9 @@ public:
             TCLAP::CmdLine(message, ' ', Version::getKataGoVersionForHelp(),true),
             modelFileArg("","model","Neural net model file", !hasDefaultModelPath(), defaultModelPath(),"FILE")
     {
+    }
+    
+    void addModelFileArg() {
         this->add(this->modelFileArg);
     }
     

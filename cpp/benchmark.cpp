@@ -64,6 +64,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   try {
     KataGoCommandLine cmd("Benchmark to test speed with different numbers of threads");
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use, same as for gtp (see gtp_example.cfg)",true,string(),"FILE");
+    cmd.addModelFileArg();
     TCLAP::ValueArg<string> sgfFileArg("","sgf", "Optional game to sample positions from (default: uses a built-in-set of positions)",false,string(),"FILE");
     TCLAP::ValueArg<int> boardSizeArg("","boardsize", "Size of board to benchmark on (9-19), default 19",false,-1,"SIZE");
     TCLAP::ValueArg<long> visitsArg("v","visits","How many visits to use per search (default " + Global::int64ToString(defaultMaxVisits) + ")",false,(long)defaultMaxVisits,"VISITS");
@@ -434,6 +435,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
   string modelFile;
   try {
     KataGoCommandLine cmd("Automatically generate and tune a new GTP config");
+    cmd.addModelFileArg();
     TCLAP::ValueArg<string> outputFileArg("","output","Path to write new config (default gtp.cfg)",false,string("gtp.cfg"),"FILE");
 
     cmd.add(outputFileArg);
