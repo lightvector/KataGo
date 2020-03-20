@@ -1191,7 +1191,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     cmd.add(overrideConfigArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
-    nnModelFile = cmd.nnModelFileArg.getValue();
+    nnModelFile = cmd.modelFileArg.getValue();
     overrideVersion = overrideVersionArg.getValue();
     overrideConfig = overrideConfigArg.getValue();
   }

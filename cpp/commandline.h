@@ -23,14 +23,14 @@ using namespace std;
 class KataGoCommandLine : public TCLAP::CmdLine
 {
 public:
-    TCLAP::ValueArg<string> nnModelFileArg;
+    TCLAP::ValueArg<string> modelFileArg;
     
     KataGoCommandLine(const std::string& message)
         :
             TCLAP::CmdLine(message, ' ', Version::getKataGoVersionForHelp(),true),
-            nnModelFileArg("","model","Neural net model file", !hasDefaultModelPath(), defaultModelPath(),"FILE")
+            modelFileArg("","model","Neural net model file", !hasDefaultModelPath(), defaultModelPath(),"FILE")
     {
-        this->add(this->nnModelFileArg);
+        this->add(this->modelFileArg);
     }
     
     static std::string defaultModelPath() {
