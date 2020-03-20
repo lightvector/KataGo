@@ -22,4 +22,6 @@ shift
 EXPORTMODE="$1"
 shift
 
-cd "$SCRIPTDIR" && ./selfplay/train.sh "$BASEDIR"/ "$TRAININGNAME" "$MODELKIND" "$TRAININGNAME" -max-epochs-this-instance 1 "$*"
+SELFPLAY="$PWD"/..
+
+cd "$SCRIPTDIR" && "$SELFPLAY"/train.sh "$BASEDIR"/ "$TRAININGNAME" "$MODELKIND" "$TRAININGNAME" -max-epochs-this-instance 1 "$*"
