@@ -1,5 +1,5 @@
 #!/bin/bash -eu
-if [[ $# -lt 3 ]]
+if [[ $# -lt 6 ]]
 then
     echo "Usage: $0 BASEDIR SCRIPTDIR KATAEXEC NTHREADS TRAININGNAME MODELKIND"
     echo "BASEDIR containing selfplay data and models and related directories"
