@@ -114,7 +114,7 @@ int MainCmds::lzcost(int argc, const char* const* argv) {
   double sampleProb;
   string outFile;
   try {
-    TCLAP::CmdLine cmd("Sgf->HDF5 data writer", ' ', Version::getKataGoVersionForHelp(),true);
+    KataGoCommandLine cmd("Sgf->HDF5 data writer");
     TCLAP::MultiArg<string> lzdirArg("","lzdir","Directory of leela zero gzipped data files",false,"DIR");
     TCLAP::ValueArg<double> sampleProbArg("","sampleprob","Probability to sample a file",true,0.0,"PROB");
     TCLAP::ValueArg<string> outFileArg("","out","File to write results",true,string(),"FILE");
