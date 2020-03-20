@@ -23,8 +23,10 @@ shift
 MODELKIND="$1"
 shift
 
+$SELFPLAY="$PWD"/..
+
 function shuffle() {
-    cd "$SCRIPTDIR" && ./selfplay/shuffle.sh "$BASEDIR"/ "$BASEDIR"/scratch "$THREADS"; cd -
+    cd "$SCRIPTDIR" && "$SELFPLAY"/shuffle.sh "$BASEDIR"/ "$BASEDIR"/scratch "$THREADS"; cd -
 }
 
 function train() {
@@ -50,7 +52,7 @@ do
     rsync -a "$BASEDIR"/selfplay/* "$BASEDIR"/selfplay_old --remove-source-files
     
     #1 means gatekeeper true
-    cd "$SCRIPTDIR" && ./selfplay/export_model_for_selfplay.sh "$TRAININGNAME" "$BASEDIR" 1; cd -
+    cd "$SCRIPTDIR" && "$SELFPLAY"/export_model_for_selfplay.sh "$TRAININGNAME" "$BASEDIR" 1; cd -
     ./gatekeeper.sh "$KATAEXEC" "$BASEDIR" | tee -a gkeeper.txt
 
 done
