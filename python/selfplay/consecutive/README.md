@@ -26,4 +26,4 @@ Moving the files with `mv` won't work since the script will still write to the s
 
 ## How to stop
 
-The script writes to save_pid.txt which has the PID of the script process running in the background. You can use the `kill` command to stop it. It will finish the last step it's doing, since this only ends the outer loop.
+The script writes to `save_pid.txt` which has the PID of the script process running in the background. You can use the `kill` command to stop it. It will finish the last step it's doing, since this only ends the outer loop.
