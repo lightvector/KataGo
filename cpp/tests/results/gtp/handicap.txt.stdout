@@ -30,9 +30,9 @@ W stones captured: 0
 
 = 
 
-= D16 Q4 D3
+= D16 R4 D3
 
-= MoveNum: 0 HASH: DE5BAC46DB5425AEF57A631276BAE66C
+= MoveNum: 0 HASH: C8C4A026AA6DCCB6DC2ABC84580943C4
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -49,7 +49,7 @@ W stones captured: 0
  7 . . . . . . . . . . . . . . . . . . .
  6 . . . . . . . . . . . . . . . . . . .
  5 . . . . . . . . . . . . . . . . . . .
- 4 . . . . . . . . . . . . . . . X . . .
+ 4 . . . . . . . . . . . . . . . . X . .
  3 . . . X . . . . . . . . . . . . . . .
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
@@ -58,19 +58,19 @@ Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide
 B stones captured: 0
 W stones captured: 0
 
-= R16
+= Q17
 
 = 
 
-= P16
+= Q15
 
 = 
 
-= C17
+= P3
 
 = 
 
-= D17
+= R7
 
 = 
 

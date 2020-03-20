@@ -897,7 +897,7 @@ struct GTPEngine {
     setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
   }
 
-  void placeFreeHandicap(int n, string& response, bool& responseIsError) {
+  void placeFreeHandicap(int n, string& response, bool& responseIsError, Rand& rand) {
     stopAndWait();
 
     //If asked to place more, we just go ahead and only place up to 30, or a quarter of the board
@@ -915,7 +915,6 @@ struct GTPEngine {
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,currentRules,0);
     double extraBlackTemperature = 0.25;
-    Rand rand;
     PlayUtils::playExtraBlack(bot->getSearchStopAndWait(), n, board, hist, extraBlackTemperature, rand);
     //Also switch the initial player, expecting white should be next.
     hist.clear(board,P_WHITE,currentRules,0);
@@ -1298,6 +1297,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     cfg.contains("defaultBoardYSize") ? cfg.getInt("defaultBoardYSize",2,Board::MAX_LEN) :
     cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
     -1;
+  const bool forDeterministicTesting =
+    cfg.contains("forDeterministicTesting") ? cfg.getBool("forDeterministicTesting") : false;
+
+  if(forDeterministicTesting)
+    seedRand.init("forDeterministicTesting");
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
@@ -1992,7 +1996,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "Board is not empty";
       }
       else {
-        engine->placeFreeHandicap(n,response,responseIsError);
+        engine->placeFreeHandicap(n,response,responseIsError,seedRand);
       }
     }
 
