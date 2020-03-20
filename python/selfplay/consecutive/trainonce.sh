@@ -24,4 +24,4 @@ shift
 
 SELFPLAY="$PWD"/..
 
-cd "$SCRIPTDIR" && "$SELFPLAY"/train.sh "$BASEDIR"/ "$TRAININGNAME" "$MODELKIND" -max-epochs-this-instance 1 "$*"
+cd "$SCRIPTDIR" && "$SELFPLAY"/train.sh "$BASEDIR"/ "$TRAININGNAME" "$MODELKIND" "$EXPORTMODE" -max-epochs-this-instance 1 "$*"
