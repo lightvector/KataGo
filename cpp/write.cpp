@@ -5,6 +5,7 @@
 #include "dataio/sgf.h"
 #include "dataio/lzparse.h"
 #include "dataio/datapool.h"
+#include "commandline.h"
 #include "main.h"
 #include <fstream>
 #include <algorithm>
@@ -17,9 +18,6 @@
 
 #include <H5Cpp.h>
 using namespace H5;
-
-#define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
-#include <tclap/CmdLine.h>
 
 using namespace std;
 

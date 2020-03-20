@@ -7,12 +7,10 @@
 #include "search/asyncbot.h"
 #include "program/setup.h"
 #include "program/play.h"
+#include "commandline.h"
 #include "main.h"
 
 #include <boost/filesystem.hpp>
-
-#define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
-#include <tclap/CmdLine.h>
 
 #include <csignal>
 

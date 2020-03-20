@@ -2,6 +2,7 @@
 #include "core/config_parser.h"
 #include "core/timer.h"
 #include "core/makedir.h"
+#include "commandline.h"
 #include "main.h"
 
 #ifdef USE_OPENCL_BACKEND
@@ -9,9 +10,6 @@
 #endif
 
 using namespace std;
-
-#define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
-#include <tclap/CmdLine.h>
 
 int MainCmds::tuner(int argc, const char* const* argv) {
 #ifndef USE_OPENCL_BACKEND

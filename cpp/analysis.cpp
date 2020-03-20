@@ -5,10 +5,8 @@
 #include "program/setup.h"
 #include "program/playutils.h"
 #include "program/play.h"
+#include "commandline.h"
 #include "main.h"
-
-#define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
-#include <tclap/CmdLine.h>
 
 #include "external/nlohmann_json/json.hpp"
 

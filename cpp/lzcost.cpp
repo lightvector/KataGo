@@ -2,12 +2,10 @@
 #include "game/board.h"
 #include "game/boardhistory.h"
 #include "dataio/lzparse.h"
+#include "commandline.h"
 #include "main.h"
 #include <fstream>
 #include <algorithm>
-
-#define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
-#include <tclap/CmdLine.h>
 
 using namespace std;
 

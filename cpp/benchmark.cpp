@@ -7,6 +7,7 @@
 #include "program/playutils.h"
 #include "program/gtpconfig.h"
 #include "tests/tests.h"
+#include "commandline.h"
 #include "main.h"
 
 #include <chrono>
@@ -16,9 +17,6 @@
 
 #include <boost/filesystem.hpp>
 namespace bfs = boost::filesystem;
-
-#define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
-#include <tclap/CmdLine.h>
 
 using namespace std;
 
