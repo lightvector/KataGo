@@ -29,37 +29,43 @@ public:
     KataGoCommandLine(const std::string& message)
         :
             TCLAP::CmdLine(message, ' ', Version::getKataGoVersionForHelp(),true),
-            modelFileArg("","model","Neural net model file", !hasDefaultModelPath(), defaultModelPath(),"FILE"),
-            configFileArg("","config","Config file to use (see configs/*_example.cfg)",true,string(),"FILE")
+            modelFileArg("","model","Neural net model file. Defaults to: " + defaultModelPath(), 
+                !hasDefaultModelPath(), defaultModelPath(),"FILE"),
+            configFileArg("","config","Config file to use (see configs/*_example.cfg). Defaults to: " + defaultConfigPath(), 
+                !hasDefaultConfigPath(),defaultConfigPath(),"FILE")
     {
     }
+    
+#pragma mark modelFileArg
     
     void addModelFileArg() {
         this->add(this->modelFileArg);
     }
     
-    void addConfigFileArg() {
-        this->add(this->configFileArg);
-    }
-    
     static std::string defaultModelPath() {
-        // TODO search for a network configured by symlink in ~/.katago/default_network.txt.gz
-        // and provide that as the default value if available.
-        
-        bfs::path homeDirectory = getHomeDirectory();
-        bfs::path standardModelPath = homeDirectory / ".config/katago/standard_model.txt.gz";
-        // cout << standard_model_location << endl;
-        if ( bfs::exists(standardModelPath)) {
-            return standardModelPath.native();
-        }
-        
-        // no default network found
-        return std::string();
+        return defaultPathIfItExists("default_model.bin.gz");
     }
     
     static bool hasDefaultModelPath() {
         return ! defaultModelPath().empty();
     }
+    
+#pragma mark configFileArg
+    
+    void addConfigFileArg() {
+        this->add(this->configFileArg);
+    }
+    
+    static std::string defaultConfigPath() {
+        return defaultPathIfItExists("default_config.cfg");
+    }
+    
+    static bool hasDefaultConfigPath() {
+        return ! defaultModelPath().empty();
+    }
+    
+    
+#pragma mark Support code
     
     static bfs::path getHomeDirectory() {
         bfs::path homeDirectory;
@@ -76,5 +82,16 @@ public:
         #error Unknown operating system!
 #endif
         return homeDirectory;
+    }
+    
+    static std::string defaultPathIfItExists(bfs::path standardFileName) {
+        bfs::path homeDirectory = getHomeDirectory();
+        bfs::path standardModelPath = homeDirectory / ".katago" / standardFileName;
+        if ( bfs::exists(standardModelPath)) {
+            return standardModelPath.native();
+        }
+        
+        // no default file found
+        return std::string();
     }
 };
