@@ -243,6 +243,7 @@ if(BUILD_MCTS)
     tests/testnn.cpp
     analysis.cpp
     benchmark.cpp
+    commandline.cpp
     evalsgf.cpp
     gatekeeper.cpp
     gtp.cpp

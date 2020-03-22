@@ -6,10 +6,8 @@
 #include "program/setup.h"
 #include "program/playutils.h"
 #include "program/play.h"
+#include "commandline.h"
 #include "main.h"
-
-#define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
-#include <tclap/CmdLine.h>
 
 using namespace std;
 
@@ -18,7 +16,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   ScoreValue::initTables();
   Rand seedRand;
 
-  string configFile;
+  ConfigParser cfg;
   string modelFile;
   string sgfFile;
   int moveNum;
@@ -35,9 +33,11 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool printLead;
   bool rawNN;
   try {
-    TCLAP::CmdLine cmd("Run a search on a position from an sgf file", ' ', Version::getKataGoVersionForHelp(),true);
-    TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
-    TCLAP::ValueArg<string> modelFileArg("","model","Neural net model file to use",true,string(),"FILE");
+    KataGoCommandLine cmd("Run a search on a position from an sgf file");
+    cmd.addConfigFileArg("","gtp_example.cfg");
+    cmd.addOverrideConfigArg();
+    cmd.addModelFileArg("");
+
     TCLAP::UnlabeledValueArg<string> sgfFileArg("","Sgf file to analyze",true,string(),"FILE");
     TCLAP::ValueArg<int> moveNumArg("m","move-num","Sgf move num to analyze, 1-indexed",true,0,"MOVENUM");
     TCLAP::ValueArg<string> printBranchArg("","print-branch","Move branch in search tree to print",false,string(),"MOVE MOVE ...");
@@ -54,8 +54,6 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
     TCLAP::SwitchArg printLeadArg("","print-lead","Compute and print lead");
     TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
-    cmd.add(configFileArg);
-    cmd.add(modelFileArg);
     cmd.add(sgfFileArg);
     cmd.add(moveNumArg);
     cmd.add(printBranchArg);
@@ -73,8 +71,8 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printLeadArg);
     cmd.add(rawNNArg);
     cmd.parse(argc,argv);
-    configFile = configFileArg.getValue();
-    modelFile = modelFileArg.getValue();
+
+    modelFile = cmd.getModelFile();
     sgfFile = sgfFileArg.getValue();
     moveNum = moveNumArg.getValue();
     printBranch = printBranchArg.getValue();
@@ -105,17 +103,16 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     }
     if(extraMoves.length() <= 0)
       extraMoves = extra;
+
+    cmd.getConfig(cfg);
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
     return 1;
   }
 
-  //Parse config and rules -------------------------------------------------------------------
-
-  ConfigParser cfg(configFile);
+  //Parse rules -------------------------------------------------------------------
   Rules defaultRules = Rules::getTrompTaylorish();
-
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,P_BLACK);
 
   //Parse sgf file and board ------------------------------------------------------------------

@@ -11,10 +11,8 @@
 #include "search/asyncbot.h"
 #include "program/setup.h"
 #include "program/play.h"
+#include "commandline.h"
 #include "main.h"
-
-#define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
-#include <tclap/CmdLine.h>
 
 #include <chrono>
 #include <csignal>
@@ -163,19 +161,19 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   ScoreValue::initTables();
   Rand seedRand;
 
-  string configFile;
+  ConfigParser cfg;
   string modelsDir;
   string outputDir;
   try {
-    TCLAP::CmdLine cmd("Generate training data via self play", ' ', Version::getKataGoVersionForHelp(),true);
-    TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use",true,string(),"FILE");
+    KataGoCommandLine cmd("Generate training data via self play");
+    cmd.addConfigFileArg("","");
+
     TCLAP::ValueArg<string> modelsDirArg("","models-dir","Dir to poll and load models from",true,string(),"DIR");
     TCLAP::ValueArg<string> outputDirArg("","output-dir","Dir to output files",true,string(),"DIR");
-    cmd.add(configFileArg);
     cmd.add(modelsDirArg);
     cmd.add(outputDirArg);
     cmd.parse(argc,argv);
-    configFile = configFileArg.getValue();
+
     modelsDir = modelsDirArg.getValue();
     outputDir = outputDirArg.getValue();
 
@@ -185,12 +183,13 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     };
     checkDirNonEmpty("models-dir",modelsDir);
     checkDirNonEmpty("output-dir",outputDir);
+
+    cmd.getConfig(cfg);
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
     return 1;
   }
-  ConfigParser cfg(configFile);
 
   MakeDir::make(outputDir);
   MakeDir::make(modelsDir);

@@ -6,10 +6,8 @@
 #include "program/setup.h"
 #include "program/playutils.h"
 #include "program/play.h"
+#include "commandline.h"
 #include "main.h"
-
-#define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
-#include <tclap/CmdLine.h>
 
 using namespace std;
 
@@ -1176,37 +1174,26 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   ScoreValue::initTables();
   Rand seedRand;
 
-  string configFile;
+  ConfigParser cfg;
   string nnModelFile;
   string overrideVersion;
-  string overrideConfig;
   try {
-    TCLAP::CmdLine cmd("Run GTP engine", ' ', Version::getKataGoVersionForHelp(),true);
-    TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
-    TCLAP::ValueArg<string> nnModelFileArg("","model","Neural net model file",true,string(),"FILE");
+    KataGoCommandLine cmd("Run GTP engine");
+    cmd.addConfigFileArg("","gtp_example.cfg");
+    cmd.addOverrideConfigArg();
+    cmd.addModelFileArg("");
+
     TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
-    TCLAP::ValueArg<string> overrideConfigArg("","override-config","Override config parameters. Format: \"key=value, key=value,...\"",false,string(),"KEYVALUEPAIRS");
-    cmd.add(configFileArg);
-    cmd.add(nnModelFileArg);
     cmd.add(overrideVersionArg);
-    cmd.add(overrideConfigArg);
     cmd.parse(argc,argv);
-    configFile = configFileArg.getValue();
-    nnModelFile = nnModelFileArg.getValue();
+    nnModelFile = cmd.getModelFile();
     overrideVersion = overrideVersionArg.getValue();
-    overrideConfig = overrideConfigArg.getValue();
+
+    cmd.getConfig(cfg);
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
     return 1;
-  }
-
-  ConfigParser cfg(configFile);
-  if(overrideConfig != "") {
-    map<string,string> newkvs = ConfigParser::parseCommaSeparated(overrideConfig);
-    //HACK to avoid a common possible conflict - if we specify some of the rules options on one side, the other side should be erased.
-    vector<pair<set<string>,set<string>>> mutexKeySets = Setup::getMutexKeySets();
-    cfg.overrideKeys(newkvs,mutexKeySets);
   }
 
   Logger logger;

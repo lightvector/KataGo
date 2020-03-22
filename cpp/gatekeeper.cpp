@@ -10,12 +10,10 @@
 #include "search/asyncbot.h"
 #include "program/setup.h"
 #include "program/play.h"
+#include "commandline.h"
 #include "main.h"
 
 #include <sstream>
-
-#define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
-#include <tclap/CmdLine.h>
 
 #include <cstdio>
 #include <chrono>
@@ -211,7 +209,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   ScoreValue::initTables();
   Rand seedRand;
 
-  string configFile;
+  ConfigParser cfg;
   string testModelsDir;
   string acceptedModelsDir;
   string rejectedModelsDir;
@@ -219,15 +217,15 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   bool noAutoRejectOldModels;
   bool quitIfNoNetsToTest;
   try {
-    TCLAP::CmdLine cmd("Test neural nets to see if they should be accepted", ' ', Version::getKataGoVersionForHelp(),true);
-    TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use",true,string(),"FILE");
+    KataGoCommandLine cmd("Test neural nets to see if they should be accepted");
+    cmd.addConfigFileArg("","");
+
     TCLAP::ValueArg<string> testModelsDirArg("","test-models-dir","Dir to poll and load models from",true,string(),"DIR");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",true,string(),"DIR");
     TCLAP::ValueArg<string> acceptedModelsDirArg("","accepted-models-dir","Dir to write good models to",true,string(),"DIR");
     TCLAP::ValueArg<string> rejectedModelsDirArg("","rejected-models-dir","Dir to write bad models to",true,string(),"DIR");
     TCLAP::SwitchArg noAutoRejectOldModelsArg("","no-autoreject-old-models","Test older models than the latest accepted model");
     TCLAP::SwitchArg quitIfNoNetsToTestArg("","quit-if-no-nets-to-test","Terminate instead of waiting for a new net to test");
-    cmd.add(configFileArg);
     cmd.add(testModelsDirArg);
     cmd.add(sgfOutputDirArg);
     cmd.add(acceptedModelsDirArg);
@@ -235,7 +233,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     cmd.add(noAutoRejectOldModelsArg);
     cmd.add(quitIfNoNetsToTestArg);
     cmd.parse(argc,argv);
-    configFile = configFileArg.getValue();
+
     testModelsDir = testModelsDirArg.getValue();
     sgfOutputDir = sgfOutputDirArg.getValue();
     acceptedModelsDir = acceptedModelsDirArg.getValue();
@@ -251,12 +249,13 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     checkDirNonEmpty("sgf-output-dir",sgfOutputDir);
     checkDirNonEmpty("accepted-models-dir",acceptedModelsDir);
     checkDirNonEmpty("rejected-models-dir",rejectedModelsDir);
+
+    cmd.getConfig(cfg);
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
     return 1;
   }
-  ConfigParser cfg(configFile);
 
   MakeDir::make(testModelsDir);
   MakeDir::make(acceptedModelsDir);

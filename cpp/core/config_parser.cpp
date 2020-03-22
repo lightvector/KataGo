@@ -6,31 +6,58 @@
 
 using namespace std;
 
+ConfigParser::ConfigParser()
+  :initialized(false),fileName(),contents(),keyValues(),usedKeysMutex(),usedKeys()
+{}
 
 ConfigParser::ConfigParser(const string& fname)
-  :fileName(fname),contents(),keyValues(),usedKeysMutex(),usedKeys()
+  :initialized(false),fileName(),contents(),keyValues(),usedKeysMutex(),usedKeys()
 {
-  ifstream in(fileName);
-  if(!in.is_open())
-    throw IOError("Could not open config file: " + fileName);
-
-  initialize(in);
+  initialize(fname);
 }
 
 ConfigParser::ConfigParser(istream& in)
-  :fileName(),contents(),keyValues(),usedKeysMutex(),usedKeys()
+  :initialized(false),fileName(),contents(),keyValues(),usedKeysMutex(),usedKeys()
 {
   initialize(in);
 }
 
 ConfigParser::ConfigParser(const map<string, string>& kvs)
-  :fileName(),contents(),keyValues(kvs),usedKeysMutex(),usedKeys()
-{}
+  :initialized(false),fileName(),contents(),keyValues(),usedKeysMutex(),usedKeys()
+{
+  initialize(kvs);
+}
+
+void ConfigParser::initialize(const string& fname) {
+  if(initialized)
+    throw StringError("ConfigParser already initialized, cannot initialize again");
+  ifstream in(fname);
+  if(!in.is_open())
+    throw IOError("Could not open config file: " + fname);
+  initializeInternal(in);
+  fileName = fname;
+  initialized = true;
+}
 
 void ConfigParser::initialize(istream& in) {
+  if(initialized)
+    throw StringError("ConfigParser already initialized, cannot initialize again");
+  initializeInternal(in);
+  initialized = true;
+}
+
+void ConfigParser::initialize(const map<string, string>& kvs) {
+  if(initialized)
+    throw StringError("ConfigParser already initialized, cannot initialize again");
+  keyValues = kvs;
+  initialized = true;
+}
+
+void ConfigParser::initializeInternal(istream& in) {
   int lineNum = 0;
   string line;
   ostringstream contentStream;
+  keyValues.clear();
   while(getline(in,line)) {
     contentStream << line << "\n";
     lineNum += 1;

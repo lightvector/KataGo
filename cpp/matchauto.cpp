@@ -7,13 +7,10 @@
 #include "search/asyncbot.h"
 #include "program/setup.h"
 #include "program/play.h"
+#include "commandline.h"
 #include "main.h"
 
 #include <boost/filesystem.hpp>
-
-#define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
-#include <tclap/CmdLine.h>
-
 #include <csignal>
 
 using namespace std;
@@ -399,31 +396,33 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
   ScoreValue::initTables();
   Rand seedRand;
 
-  string configFile;
+  ConfigParser cfg;
   string logFile;
   string sgfOutputDir;
   string resultsDir;
   try {
-    TCLAP::CmdLine cmd("Play different nets against each other with different search settings", ' ', Version::getKataGoVersionForHelp(),true);
-    TCLAP::ValueArg<string> configFileArg("","config-file","Config file to use (see configs/match_example.cfg)",true,string(),"FILE");
+    KataGoCommandLine cmd("Play different nets against each other with different search settings");
+    cmd.addConfigFileArg("","");
+    cmd.addOverrideConfigArg();
+
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",false,string(),"DIR");
     TCLAP::ValueArg<string> resultsDirArg("","results-dir","Dir to read/write win loss result files",true,string(),"DIR");
-    cmd.add(configFileArg);
     cmd.add(logFileArg);
     cmd.add(sgfOutputDirArg);
     cmd.add(resultsDirArg);
     cmd.parse(argc,argv);
-    configFile = configFileArg.getValue();
+
     logFile = logFileArg.getValue();
     sgfOutputDir = sgfOutputDirArg.getValue();
     resultsDir = resultsDirArg.getValue();
-  }
+
+    cmd.getConfig(cfg);
+}
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
     return 1;
   }
-  ConfigParser cfg(configFile);
 
   Logger logger;
   logger.addFile(logFile);

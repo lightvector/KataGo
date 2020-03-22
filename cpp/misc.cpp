@@ -7,10 +7,8 @@
 #include "program/setup.h"
 #include "program/playutils.h"
 #include "program/play.h"
+#include "commandline.h"
 #include "main.h"
-
-#define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
-#include <tclap/CmdLine.h>
 
 using namespace std;
 
@@ -365,27 +363,27 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
   ScoreValue::initTables();
   Rand seedRand;
 
-  string configFile;
+  ConfigParser cfg;
   string logFile;
   string modelFile;
   try {
-    TCLAP::CmdLine cmd("Self-play demo dumping status to stdout", ' ', Version::getKataGoVersion(),true);
-    TCLAP::ValueArg<string> configFileArg("","config","Config file to use",true,string(),"FILE");
-    TCLAP::ValueArg<string> modelFileArg("","model","Neural net model file to use",true,string(),"FILE");
+    KataGoCommandLine cmd("Self-play demo dumping status to stdout");
+    cmd.addConfigFileArg("","");
+    cmd.addModelFileArg("");
+
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
-    cmd.add(configFileArg);
-    cmd.add(modelFileArg);
     cmd.add(logFileArg);
     cmd.parse(argc,argv);
-    configFile = configFileArg.getValue();
-    modelFile = modelFileArg.getValue();
+
+    modelFile = cmd.getModelFile();
     logFile = logFileArg.getValue();
+
+    cmd.getConfig(cfg);
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
     return 1;
   }
-  ConfigParser cfg(configFile);
 
   Logger logger;
   logger.addFile(logFile);

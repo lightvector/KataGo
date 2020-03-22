@@ -18,6 +18,7 @@ baz = yay
 
 class ConfigParser {
  public:
+  ConfigParser();
   ConfigParser(const std::string& file);
   ConfigParser(std::istream& in);
   ConfigParser(const std::map<std::string, std::string>& kvs);
@@ -25,6 +26,12 @@ class ConfigParser {
 
   ConfigParser(const ConfigParser& other) = delete;
   ConfigParser& operator=(const ConfigParser& other) = delete;
+  ConfigParser(ConfigParser&& other) = delete;
+  ConfigParser& operator=(ConfigParser&& other) = delete;
+
+  void initialize(const std::string& file);
+  void initialize(std::istream& in);
+  void initialize(const std::map<std::string, std::string>& kvs);
 
   void overrideKeys(const std::map<std::string, std::string>& newkvs);
   //mutexKeySets: For each pair of sets (A,B), if newkvs contains anything in A, erase every existing key that overlaps with B, and vice versa.
@@ -72,6 +79,7 @@ class ConfigParser {
   std::vector<double> getDoubles(const std::string& key, double min, double max);
 
  private:
+  bool initialized;
   std::string fileName;
   std::string contents;
   std::map<std::string, std::string> keyValues;
@@ -79,7 +87,7 @@ class ConfigParser {
   mutable std::mutex usedKeysMutex;
   std::set<std::string> usedKeys;
 
-  void initialize(std::istream& in);
+  void initializeInternal(std::istream& in);
 };
 
 
