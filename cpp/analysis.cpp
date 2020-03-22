@@ -88,10 +88,12 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       Setup::SETUP_FOR_ANALYSIS
     );
   }
-  logger.write("Loaded model "+ modelFile);
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
+
+  logger.write("Loaded config "+ cfg.getFileName());
+  logger.write("Loaded model "+ modelFile);
 
   ThreadSafeQueue<string*> toWriteQueue;
   auto writeLoop = [&toWriteQueue]() {

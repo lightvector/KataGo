@@ -176,6 +176,9 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   else
     reallocateNNEvalWithEnoughBatchSize(ternarySearchInitialMax);
 
+  logger.write("Loaded config " + cfg.getFileName());
+  logger.write("Loaded model "+ modelFile);
+
   cout << endl;
   cout << "Testing using " << maxVisits << " visits." << endl;
   if(maxVisits == defaultMaxVisits) {
@@ -431,6 +434,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
 
   string outputFile;
   string modelFile;
+  bool modelFileIsDefault;
   try {
     KataGoCommandLine cmd("Automatically generate and tune a new GTP config");
     cmd.addModelFileArg();
@@ -441,6 +445,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
 
     outputFile = outputFileArg.getValue();
     modelFile = cmd.getModelFile();
+    modelFileIsDefault = cmd.modelFileIsDefault();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -833,7 +838,10 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
   out.close();
 
   cout << "You should be now able to run KataGo with this config via something like:" << endl;
-  cout << firstCommand << " gtp -model '" << modelFile << "' -config '" << outputFile << "'" << endl;
+  if(modelFileIsDefault)
+    cout << firstCommand << " gtp -config '" << outputFile << "'" << endl;
+  else
+    cout << firstCommand << " gtp -model '" << modelFile << "' -config '" << outputFile << "'" << endl;
   cout << endl;
 
   cout << "Feel free to look at and edit the above config file further by hand in a txt editor." << endl;

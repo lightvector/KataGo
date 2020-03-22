@@ -1283,11 +1283,13 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
+  logger.write("Loaded config " + cfg.getFileName());
   logger.write("Loaded model "+ nnModelFile);
   logger.write("Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()));
   logger.write("GTP ready, beginning main protocol loop");
   //Also check loggingToStderr so that we don't duplicate the message from the log file
   if(startupPrintMessageToStderr && !loggingToStderr) {
+    cerr << "Loaded config " << cfg.getFileName() << endl;
     cerr << "Loaded model " << nnModelFile << endl;
     cerr << "Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()) << endl;
     cerr << "GTP ready, beginning main protocol loop" << endl;

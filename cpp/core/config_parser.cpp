@@ -99,7 +99,7 @@ void ConfigParser::overrideKeys(const map<string, string>& newkvs) {
     else
       keyValues[iter->first] = iter->second;
   }
-  fileName += " or command-line override";
+  fileName += " and/or command-line overrides";
 }
 
 
