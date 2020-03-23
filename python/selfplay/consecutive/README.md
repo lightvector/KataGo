@@ -12,9 +12,13 @@ In `shuffle.sh` you should edit the min rows to 50000 because we're going to be 
 
 You have to decide on the amount of times you will generate a network on each 200K rows. At first, you'll want multiple networks to be generated in this time, as the extra learning is beneficial at the start of the run, and each one will be stronger. So maybe set the max games in `selfplay1.cfg` to a number that gives 50K usable rows in the beginning, keep the shuffle rows at 200K. You'll generate ~4 networks on each 200K rows of data that way, but you can try different values. When you get more gatekeeping fails, you increase the number of games to generate fewer networks (generating them too often is not efficient). Once you hit one network per each 200K window, expand window per row should be set to 1, taper window exponent to 1. You can uncomment the `rsync` line in the script to learn on each set of games exactly once.
 
-This is a smaller learning window than the KataGo main runs. I've tried every smaller one, but anything below 200K had overfitting problems.
+This is a smaller learning window than the KataGo main runs. I've tried every smaller one, but anything below 200K had overfitting problems. As the network gets even stronger you may need to train on a larger window size.
 
-## Modifications for smaller board sizes.
+## Increasing the network size
+
+The way the main KataGo run does it is the new network is trained on existing training data. I've had success using only 2 million rows to train a network from scratch. It took me 50+ nets to achieve the previous level. I used cycling learning rates, but I haven't actually compared the results of just pure training on existing data. The reason I use cycling learning rates is that existing networks are stronger right after a learning rate cut, so I always do one epoch at cut learning rates.
+
+## Modifications for smaller board sizes
 
 In both config files you should change the settings. Set `bSizes` to the board size you wish to train, `bSizeRelProbs` should be set to `1`. `handicapProb` should be `0.0` on very small boards if you don't want it to learn lopsided situations.
 
