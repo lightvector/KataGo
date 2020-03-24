@@ -42,24 +42,148 @@ static string getDefaultTxtModelPath() {
 
 //--------------------------------------------------------------------------------------
 
+//This is basically TCLAP's StdOutput but some of the methods reimplemented to do a few nicer things.
+class KataHelpOutput : public TCLAP::StdOutput
+{
+  int numBuiltInArgs;
+  int shortUsageArgLimit;
+
+  public:
+
+  KataHelpOutput(int numBuiltIn, int shortUsageLimit)
+    :TCLAP::StdOutput(),
+    numBuiltInArgs(numBuiltIn),
+    shortUsageArgLimit(shortUsageLimit)
+  {}
+
+  virtual ~KataHelpOutput() {}
+
+
+  void setShortUsageArgLimit(int n) {
+    shortUsageArgLimit = n;
+  }
+
+  virtual void _shortUsage(TCLAP::CmdLineInterface& _cmd, ostream& os) const
+  {
+    using namespace TCLAP;
+    list<Arg*> argList = _cmd.getArgList();
+    vector<Arg*> argVec = vector<Arg*>(argList.begin(),argList.end());
+    string progName = _cmd.getProgramName();
+    XorHandler xorHandler = _cmd.getXorHandler();
+    vector<vector<Arg*>> xorList = xorHandler.getXorList();
+
+    string s = progName + " ";
+
+    // first the xor
+    for(int i = 0; static_cast<unsigned int>(i) < xorList.size(); i++)
+    {
+      s += " {";
+      for(ArgVectorIterator it = xorList[i].begin(); it != xorList[i].end(); it++)
+        s += (*it)->shortID() + "|";
+
+      s[s.length()-1] = '}';
+    }
+
+    // TCLAP adds arguments in reverse order for some reason. So we iterate in reverse for help output.
+    // Also we limit based on shortUsageArgLimit.
+    int lowerLimit = shortUsageArgLimit < 0 ? 0 : std::max(0, (int)argVec.size() - numBuiltInArgs - 1 - shortUsageArgLimit + 1);
+    for(int i = argVec.size() - numBuiltInArgs - 1; i >= lowerLimit; i--) {
+      if(!xorHandler.contains(argVec[i]))
+        s += " " + argVec[i]->shortID();
+    }
+
+    if(lowerLimit > 0)
+      s += " [...other flags...]";
+
+    // if the program name is too long, then adjust the second line offset
+    int secondLineOffset = static_cast<int>(progName.length()) + 2;
+    if(secondLineOffset > 75/2)
+      secondLineOffset = static_cast<int>(75/2);
+
+    spacePrint(os, s, 75, 3, secondLineOffset);
+  }
+
+  virtual void _longUsage(TCLAP::CmdLineInterface& _cmd, ostream& os) const
+  {
+    using namespace TCLAP;
+    list<Arg*> argList = _cmd.getArgList();
+    vector<Arg*> argVec = vector<Arg*>(argList.begin(),argList.end());
+    string message = _cmd.getMessage();
+    XorHandler xorHandler = _cmd.getXorHandler();
+    vector<vector<Arg*>> xorList = xorHandler.getXorList();
+
+    // first the xor
+    for(int i = 0; static_cast<unsigned int>(i) < xorList.size(); i++)
+    {
+      for(ArgVectorIterator it = xorList[i].begin(); it != xorList[i].end(); it++)
+      {
+        spacePrint(os, (*it)->longID(), 75, 3, 3);
+        spacePrint(os, (*it)->getDescription(), 75, 5, 0);
+
+        if(it+1 != xorList[i].end())
+          spacePrint(os, "-- OR --", 75, 9, 0);
+      }
+      os << endl << endl;
+    }
+
+    // TCLAP adds arguments in reverse order for some reason. So we iterate in reverse for help output.
+    // Also we limit based on shortUsageArgLimit.
+    for(int i = argVec.size() - numBuiltInArgs - 1; i >= 0; i--) {
+      if(!xorHandler.contains(argVec[i])) {
+        spacePrint(os, argVec[i]->longID(), 75, 3, 3);
+        spacePrint(os, argVec[i]->getDescription(), 75, 5, 0);
+        os << endl;
+      }
+    }
+
+    //Now also show the default args.
+    for(int i = argVec.size() - numBuiltInArgs; i < argVec.size(); i++) {
+      if(!xorHandler.contains(argVec[i])) {
+        spacePrint(os, argVec[i]->longID(), 75, 3, 3);
+        spacePrint(os, argVec[i]->getDescription(), 75, 5, 0);
+        os << endl;
+      }
+    }
+
+    os << endl;
+
+    spacePrint(os, message, 75, 3, 0);
+  }
+
+
+};
+
+
+//--------------------------------------------------------------------------------------
+
 
 KataGoCommandLine::KataGoCommandLine(const string& message)
   :TCLAP::CmdLine(message, ' ', Version::getKataGoVersionForHelp(),true),
   modelFileArg(NULL),
   configFileArg(NULL),
   overrideConfigArg(NULL),
-  defaultConfigFileName()
-{}
+  defaultConfigFileName(),
+  numBuiltInArgs(_argList.size()),
+  helpOutput(NULL)
+{
+  helpOutput = new KataHelpOutput(numBuiltInArgs, -1);
+  setOutput(helpOutput);
+}
 
 KataGoCommandLine::~KataGoCommandLine() {
   delete modelFileArg;
   delete configFileArg;
   delete overrideConfigArg;
+  delete helpOutput;
 }
 
 
 string KataGoCommandLine::defaultGtpConfigFileName() {
   return "default_gtp.cfg";
+}
+
+void KataGoCommandLine::setShortUsageArgLimit() {
+  helpOutput->setShortUsageArgLimit(_argList.size() - numBuiltInArgs);
 }
 
 void KataGoCommandLine::addModelFileArg() {

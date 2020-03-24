@@ -39,6 +39,9 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     TCLAP::ValueArg<int> batchSizeArg("","batchsize","Batch size to tune for",false,OpenCLTuner::DEFAULT_BATCH_SIZE,"INT");
     TCLAP::ValueArg<int> winograd3x3TileSizeArg("","winograd3x3tilesize","Batch size to tune for",false,OpenCLTuner::DEFAULT_WINOGRAD_3X3_TILE_SIZE,"INT");
     TCLAP::SwitchArg fullArg("","full","Test more possible configurations");
+
+    cmd.setShortUsageArgLimit();
+
     cmd.add(outputFileArg);
     cmd.add(gpuIdxsArg);
     cmd.add(nnXLenArg);

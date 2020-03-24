@@ -230,6 +230,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     cmd.add(sgfOutputDirArg);
     cmd.add(acceptedModelsDirArg);
     cmd.add(rejectedModelsDirArg);
+    cmd.setShortUsageArgLimit();
     cmd.add(noAutoRejectOldModelsArg);
     cmd.add(quitIfNoNetsToTestArg);
     cmd.parse(argc,argv);

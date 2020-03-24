@@ -1180,8 +1180,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   try {
     KataGoCommandLine cmd("Run GTP engine");
     cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
-    cmd.addOverrideConfigArg();
     cmd.addModelFileArg();
+    cmd.setShortUsageArgLimit();
+    cmd.addOverrideConfigArg();
 
     TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
     cmd.add(overrideVersionArg);
