@@ -33,5 +33,6 @@ namespace MainCmds {
 namespace Version {
   std::string getKataGoVersion();
   std::string getKataGoVersionForHelp();
+  std::string getKataGoVersionFullInfo();
   std::string getGitRevision();
 }
