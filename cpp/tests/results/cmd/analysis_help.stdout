@@ -1,0 +1,34 @@
+
+USAGE: 
+
+   analysis  -analysis-threads <THREADS> [-model <FILE>] [-override-config
+             <KEYVALUEPAIRS>] -config <FILE> [--] [-version] [-h]
+
+
+Where: 
+
+   -analysis-threads <THREADS>
+     (required)  Analysis up to this many positions in parallel
+
+   -model <FILE>
+     Neural net model file. Defaults to: ~/.katago/default_model.bin.gz
+
+   -override-config <KEYVALUEPAIRS>
+     Override config parameters. Format: "key=value, key=value,..."
+
+   -config <FILE>
+     (required)  Config file to use (see analysis_example.cfg or
+     configs/analysis_example.cfg).
+
+   --,  -ignore_rest
+     Ignores the rest of the labeled arguments following this flag.
+
+   -version
+     Displays version information and exits.
+
+   -h,  -help
+     Displays usage information and exits.
+
+
+   Run parallel analysis engine
+

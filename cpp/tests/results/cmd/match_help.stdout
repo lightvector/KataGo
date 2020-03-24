@@ -1,0 +1,34 @@
+
+USAGE: 
+
+   match  [-sgf-output-dir <DIR>] -log-file <FILE> [-override-config
+          <KEYVALUEPAIRS>] -config <FILE> [--] [-version] [-h]
+
+
+Where: 
+
+   -sgf-output-dir <DIR>
+     Dir to output sgf files
+
+   -log-file <FILE>
+     (required)  Log file to output to
+
+   -override-config <KEYVALUEPAIRS>
+     Override config parameters. Format: "key=value, key=value,..."
+
+   -config <FILE>
+     (required)  Config file to use (see match_example.cfg or
+     configs/match_example.cfg).
+
+   --,  -ignore_rest
+     Ignores the rest of the labeled arguments following this flag.
+
+   -version
+     Displays version information and exits.
+
+   -h,  -help
+     Displays usage information and exits.
+
+
+   Play different nets against each other with different search settings
+

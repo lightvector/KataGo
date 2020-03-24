@@ -1,0 +1,44 @@
+
+USAGE: 
+
+   gatekeeper  [-quit-if-no-nets-to-test] [-no-autoreject-old-models]
+               -rejected-models-dir <DIR> -accepted-models-dir <DIR>
+               -sgf-output-dir <DIR> -test-models-dir <DIR> -config <FILE>
+               [--] [-version] [-h]
+
+
+Where: 
+
+   -quit-if-no-nets-to-test
+     Terminate instead of waiting for a new net to test
+
+   -no-autoreject-old-models
+     Test older models than the latest accepted model
+
+   -rejected-models-dir <DIR>
+     (required)  Dir to write bad models to
+
+   -accepted-models-dir <DIR>
+     (required)  Dir to write good models to
+
+   -sgf-output-dir <DIR>
+     (required)  Dir to output sgf files
+
+   -test-models-dir <DIR>
+     (required)  Dir to poll and load models from
+
+   -config <FILE>
+     (required)  Config file to use.
+
+   --,  -ignore_rest
+     Ignores the rest of the labeled arguments following this flag.
+
+   -version
+     Displays version information and exits.
+
+   -h,  -help
+     Displays usage information and exits.
+
+
+   Test neural nets to see if they should be accepted
+

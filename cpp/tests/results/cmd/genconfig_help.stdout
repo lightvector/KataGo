@@ -1,0 +1,26 @@
+
+USAGE: 
+
+   genconfig  [-output <FILE>] [-model <FILE>] [--] [-version] [-h]
+
+
+Where: 
+
+   -output <FILE>
+     Path to write new config (default gtp.cfg)
+
+   -model <FILE>
+     Neural net model file. Defaults to: ~/.katago/default_model.bin.gz
+
+   --,  -ignore_rest
+     Ignores the rest of the labeled arguments following this flag.
+
+   -version
+     Displays version information and exits.
+
+   -h,  -help
+     Displays usage information and exits.
+
+
+   Automatically generate and tune a new GTP config
+
