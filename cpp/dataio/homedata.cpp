@@ -10,8 +10,10 @@
 #include <windows.h>
 #include <shlwapi.h>
 #pragma comment(lib, "shlwapi.lib")
-#include <pathcch.h>
-#pragma comment(lib, "pathcch.lib")
+// Avoid using this for now so as to maintain compatibility with any old windows 7 users,
+// even though PathRemoveFileSpecW is deprecated, it should still work.
+// #include <pathcch.h>
+// #pragma comment(lib, "pathcch.lib")
 #endif
 
 #include "../core/makedir.h"
@@ -22,17 +24,20 @@ using namespace std;
 
 //On Windows, this function returns the executable's directory
 string HomeData::getDefaultFilesDir() {
-  constexpr size_t bufSize = MAX_PATH;
+  //HACK: add 2048 to the buffer size to be resilient to longer paths, beyond MAX_PATH.
+  constexpr size_t bufSize = MAX_PATH + 2048;
   wchar_t buf[bufSize];
   DWORD length = GetModuleFileNameW(NULL, buf, bufSize);
   if(length <= 0) //failure
     throw StringError("Could not find containing directory of KataGo executable");
-  #if (NTDDI_VERSION >= NTDDI_WIN8)
-  PathCchRemoveFileSpec(buf, bufSize);
-  #else
+  if(length >= bufSize) //failure, path truncated
+    throw StringError("Could not get containing directory of KataGo executable, path is too long");
+  // #if (NTDDI_VERSION >= NTDDI_WIN8)
+  // PathCchRemoveFileSpec(buf, bufSize);
+  // #else
   PathRemoveFileSpecW(buf);
-  #endif
-  constexpr size_t buf2Size = (MAX_PATH+1) * 2;
+  // #endif
+  constexpr size_t buf2Size = (bufSize+1) * 2;
   char buf2[buf2Size];
   size_t ret;
   wcstombs_s(&ret, buf2, buf2Size, buf, buf2Size-1);
@@ -48,17 +53,20 @@ string HomeData::getDefaultFilesDirForHelpMessage() {
 
 //On Windows, instead of home directory, we just make something inside the directory containing the executable
 string HomeData::getHomeDataDir(bool makeDir) {
-  constexpr size_t bufSize = MAX_PATH;
+  //HACK: add 2048 to the buffer size to be resilient to longer paths, beyond MAX_PATH.
+  constexpr size_t bufSize = MAX_PATH + 2048;
   wchar_t buf[bufSize];
   DWORD length = GetModuleFileNameW(NULL, buf, bufSize);
   if(length <= 0) //failure
     throw StringError("Could not access containing directory of KataGo executable");
-  #if (NTDDI_VERSION >= NTDDI_WIN8)
-  PathCchRemoveFileSpec(buf, bufSize);
-  #else
+  if(length >= bufSize) //failure, path truncated
+    throw StringError("Could not get containing directory of KataGo executable, path is too long");
+  // #if (NTDDI_VERSION >= NTDDI_WIN8)
+  // PathCchRemoveFileSpec(buf, bufSize);
+  // #else
   PathRemoveFileSpecW(buf);
-  #endif
-  constexpr size_t buf2Size = (MAX_PATH+1) * 2;
+  // #endif
+  constexpr size_t buf2Size = (bufSize+1) * 2;
   char buf2[buf2Size];
   size_t ret;
   wcstombs_s(&ret, buf2, buf2Size, buf, buf2Size-1);

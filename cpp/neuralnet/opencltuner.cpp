@@ -1585,6 +1585,11 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
     logger->write("No existing tuning parameters found or parseable or valid at: " + openCLTunerFile);
     logger->write("Performing autotuning");
   }
+  if(logger == NULL || (!logger->isLoggingToStdout() && !logger->isLoggingToStderr())) {
+    cerr << "No existing tuning parameters found or parseable or valid at: " << openCLTunerFile << endl;
+    cerr << "Performing autotuning" << endl;
+  }
+  
   OpenCLTuneParams results;
   auto handleBestSoFar = [&results](const OpenCLTuneParams& bestSoFar) {
     results = bestSoFar;
@@ -1621,6 +1626,9 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
   OpenCLTuneParams::save(openCLTunerFile, results);
   if(logger != NULL)
     logger->write("Done tuning, saved results to " + openCLTunerFile);
+  if(logger == NULL || (!logger->isLoggingToStdout() && !logger->isLoggingToStderr()))
+    cerr << "Done tuning, saved results to " << openCLTunerFile << endl;
+  
   return results;
 
 }
