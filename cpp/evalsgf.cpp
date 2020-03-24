@@ -33,7 +33,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool printLead;
   bool rawNN;
   try {
-    KataGoCommandLine cmd("Run a search on a position from an sgf file");
+    KataGoCommandLine cmd("Run a search on a position from an sgf file, for debugging.");
     cmd.addConfigFileArg("","gtp_example.cfg");
     cmd.addModelFileArg();
 

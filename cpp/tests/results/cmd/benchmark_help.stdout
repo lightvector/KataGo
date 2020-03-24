@@ -1,4 +1,9 @@
 
+DESCRIPTION: 
+
+   Benchmark with gtp config to test speed with different numbers of
+   threads.
+
 USAGE: 
 
    benchmark  [-config <FILE>] [-model <FILE>] [-v <VISITS>] [-t <THREADS>]
@@ -50,6 +55,4 @@ Where:
      Displays usage information and exits.
 
 
-   Benchmark with gtp config to test speed with different numbers of
-   threads
 

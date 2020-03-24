@@ -29,7 +29,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
   int winograd3x3TileSize;
   bool full;
   try {
-    KataGoCommandLine cmd("Perform GPU tuning");
+    KataGoCommandLine cmd("Perform GPU tuning for OpenCL.");
     cmd.addModelFileArg();
 
     TCLAP::ValueArg<string> outputFileArg("","output","Filename to output tuning configration to",false,string(),"FILE");

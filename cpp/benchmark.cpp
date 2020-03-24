@@ -62,7 +62,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   bool autoTuneThreads;
   int secondsPerGameMove;
   try {
-    KataGoCommandLine cmd("Benchmark with gtp config to test speed with different numbers of threads");
+    KataGoCommandLine cmd("Benchmark with gtp config to test speed with different numbers of threads.");
     cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
     cmd.addModelFileArg();
     TCLAP::ValueArg<long> visitsArg("v","visits","How many visits to use per search (default " + Global::int64ToString(defaultMaxVisits) + ")",false,(long)defaultMaxVisits,"VISITS");
@@ -439,7 +439,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
   string modelFile;
   bool modelFileIsDefault;
   try {
-    KataGoCommandLine cmd("Automatically generate and tune a new GTP config");
+    KataGoCommandLine cmd("Automatically generate and tune a new GTP config.");
     cmd.addModelFileArg();
 
     TCLAP::ValueArg<string> outputFileArg("","output","Path to write new config (default gtp.cfg)",false,string("gtp.cfg"),"FILE");

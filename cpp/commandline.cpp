@@ -63,6 +63,18 @@ class KataHelpOutput : public TCLAP::StdOutput
     shortUsageArgLimit = n;
   }
 
+  virtual void usage(TCLAP::CmdLineInterface& _cmd )
+  {
+    string message = _cmd.getMessage();
+    cout << endl << "DESCRIPTION: " << endl << endl;
+    spacePrint(cout, message, 75, 3, 0);
+    cout << endl << "USAGE: " << endl << endl;
+    _shortUsage( _cmd, cout );
+    cout << endl << endl << "Where: " << endl << endl;
+    _longUsage( _cmd, cout );
+    cout << endl;
+  }
+
   virtual void _shortUsage(TCLAP::CmdLineInterface& _cmd, ostream& os) const
   {
     using namespace TCLAP;
@@ -108,7 +120,6 @@ class KataHelpOutput : public TCLAP::StdOutput
     using namespace TCLAP;
     list<Arg*> argList = _cmd.getArgList();
     vector<Arg*> argVec = vector<Arg*>(argList.begin(),argList.end());
-    string message = _cmd.getMessage();
     XorHandler xorHandler = _cmd.getXorHandler();
     vector<vector<Arg*>> xorList = xorHandler.getXorList();
 
@@ -146,8 +157,6 @@ class KataHelpOutput : public TCLAP::StdOutput
     }
 
     os << endl;
-
-    spacePrint(os, message, 75, 3, 0);
   }
 
 

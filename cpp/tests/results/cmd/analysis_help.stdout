@@ -1,4 +1,8 @@
 
+DESCRIPTION: 
+
+   Run KataGo parallel JSON-based analysis engine.
+
 USAGE: 
 
    analysis  -config <FILE> [-model <FILE>] [...other flags...]
@@ -29,5 +33,4 @@ Where:
      Displays usage information and exits.
 
 
-   Run parallel analysis engine
 

@@ -1,4 +1,8 @@
 
+DESCRIPTION: 
+
+   Automatically generate and tune a new GTP config.
+
 USAGE: 
 
    genconfig  [-model <FILE>] [-output <FILE>]
@@ -22,5 +26,4 @@ Where:
      Displays usage information and exits.
 
 
-   Automatically generate and tune a new GTP config
 

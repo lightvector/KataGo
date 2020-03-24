@@ -1,4 +1,8 @@
 
+DESCRIPTION: 
+
+   Generate training data via self play.
+
 USAGE: 
 
    selfplay  -config <FILE> -models-dir <DIR> -output-dir <DIR>
@@ -25,5 +29,4 @@ Where:
      Displays usage information and exits.
 
 
-   Generate training data via self play
 

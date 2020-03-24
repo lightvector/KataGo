@@ -1,4 +1,9 @@
 
+DESCRIPTION: 
+
+   Test neural nets to see if they should be accepted for self-play
+   training data generation.
+
 USAGE: 
 
    gatekeeper  -config <FILE> -test-models-dir <DIR> -sgf-output-dir <DIR>
@@ -39,5 +44,4 @@ Where:
      Displays usage information and exits.
 
 
-   Test neural nets to see if they should be accepted
 

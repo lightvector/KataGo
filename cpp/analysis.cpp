@@ -37,7 +37,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   string modelFile;
   int numAnalysisThreads;
   try {
-    KataGoCommandLine cmd("Run parallel analysis engine");
+    KataGoCommandLine cmd("Run KataGo parallel JSON-based analysis engine.");
     cmd.addConfigFileArg("","analysis_example.cfg");
     cmd.addModelFileArg();
     cmd.setShortUsageArgLimit();

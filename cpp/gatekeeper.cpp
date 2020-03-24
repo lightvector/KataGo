@@ -217,7 +217,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   bool noAutoRejectOldModels;
   bool quitIfNoNetsToTest;
   try {
-    KataGoCommandLine cmd("Test neural nets to see if they should be accepted");
+    KataGoCommandLine cmd("Test neural nets to see if they should be accepted for self-play training data generation.");
     cmd.addConfigFileArg("","");
 
     TCLAP::ValueArg<string> testModelsDirArg("","test-models-dir","Dir to poll and load models from",true,string(),"DIR");

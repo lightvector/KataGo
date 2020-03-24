@@ -1,4 +1,9 @@
 
+DESCRIPTION: 
+
+   Play different nets against each other with different search settings in
+   a match or tournament.
+
 USAGE: 
 
    match  -config <FILE> -log-file <FILE> [-sgf-output-dir <DIR>] [...other
@@ -30,5 +35,4 @@ Where:
      Displays usage information and exits.
 
 
-   Play different nets against each other with different search settings
 

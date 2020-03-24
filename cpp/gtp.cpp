@@ -1178,7 +1178,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   string nnModelFile;
   string overrideVersion;
   try {
-    KataGoCommandLine cmd("Run GTP engine");
+    KataGoCommandLine cmd("Run KataGo main GTP engine for playing games or casual analysis.");
     cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
     cmd.addModelFileArg();
     cmd.setShortUsageArgLimit();
