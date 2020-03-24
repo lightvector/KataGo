@@ -7,8 +7,11 @@
 #include <pwd.h>
 #endif
 #ifdef OS_IS_WINDOWS
-#include <Windows.h>
-#include <Shlwapi.h>
+#include <windows.h>
+#include <shlwapi.h>
+#pragma comment(lib, "shlwapi.lib")
+#include <pathcch.h>
+#pragma comment(lib, "pathcch.lib")
 #endif
 
 #include "../core/makedir.h"
@@ -19,39 +22,48 @@ using namespace std;
 
 //On Windows, this function returns the executable's directory
 string HomeData::getDefaultFilesDir() {
-  size_t bufSize = MAX_PATH;
-  TCHAR buf[bufSize];
-  DWORD length = GetModuleFileName(NULL, buf, bufSize);
+  constexpr size_t bufSize = MAX_PATH;
+  wchar_t buf[bufSize];
+  DWORD length = GetModuleFileNameW(NULL, buf, bufSize);
   if(length <= 0) //failure
     throw StringError("Could not find containing directory of KataGo executable");
   #if (NTDDI_VERSION >= NTDDI_WIN8)
   PathCchRemoveFileSpec(buf, bufSize);
   #else
-  PathRemoveFileSpec(buf);
+  PathRemoveFileSpecW(buf);
   #endif
-  string executableDir(buf);
+  constexpr size_t buf2Size = (MAX_PATH+1) * 2;
+  char buf2[buf2Size];
+  size_t ret;
+  wcstombs_s(&ret, buf2, buf2Size, buf, buf2Size-1);
+  
+  string executableDir(buf2);
   return executableDir;
 }
 
 string HomeData::getDefaultFilesDirForHelpMessage() {
-  return "(dir containing katago.exe)"
+  return "(dir containing katago.exe)";
 }
 
 
 //On Windows, instead of home directory, we just make something inside the directory containing the executable
 string HomeData::getHomeDataDir(bool makeDir) {
-  size_t bufSize = MAX_PATH;
-  TCHAR buf[bufSize];
-  DWORD length = GetModuleFileName(NULL, buf, bufSize);
+  constexpr size_t bufSize = MAX_PATH;
+  wchar_t buf[bufSize];
+  DWORD length = GetModuleFileNameW(NULL, buf, bufSize);
   if(length <= 0) //failure
     throw StringError("Could not access containing directory of KataGo executable");
   #if (NTDDI_VERSION >= NTDDI_WIN8)
   PathCchRemoveFileSpec(buf, bufSize);
   #else
-  PathRemoveFileSpec(buf);
+  PathRemoveFileSpecW(buf);
   #endif
+  constexpr size_t buf2Size = (MAX_PATH+1) * 2;
+  char buf2[buf2Size];
+  size_t ret;
+  wcstombs_s(&ret, buf2, buf2Size, buf, buf2Size-1);
 
-  string homeDataDir(buf);
+  string homeDataDir(buf2);
   homeDataDir += "/KataGoData";
   if(makeDir) MakeDir::make(homeDataDir);
   return homeDataDir;
