@@ -42,13 +42,22 @@ static void readFloats(istream& in, size_t numFloats, bool binaryFloats, const s
       CHECKFINITE(x,name);
       buf[i] = x;
     }
+    if(in.fail())
+      throw StringError(name + ": could not read float weights. Invalid model - perhaps you are trying to load a .bin.gz model as a .txt.gz model?");
   }
   else {
     //KataGo hacky model format - "@BIN@" followed by the expected number of 32 bit floats, in little-endian binary
     assert(sizeof(float) == 4);
     {
       string s;
-      while((char)in.get() != '@') {}
+      int numCharsBeforeAt = 0;
+      while((char)in.get() != '@') {
+        numCharsBeforeAt++;
+        //Something is wrong, there should not be this much whitespace
+        if(numCharsBeforeAt > 100 || in.fail()) {
+          throw StringError(name + ": could not read float weights. Invalid model - perhaps you are trying to load a .txt.gz model as a .bin.gz model?");
+        }
+      }
       s += (char)in.get();
       s += (char)in.get();
       s += (char)in.get();
@@ -1133,7 +1142,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
       if(zret != Z_OK) {
         (void)inflateEnd(&zs);
         delete compressed;
-        throw StringError("Error while ungzipping file");
+        throw StringError("Error while ungzipping file. Invalid model file?");
       }
 
       zs.avail_in = compressed->size();
@@ -1149,15 +1158,15 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
         case Z_NEED_DICT:
           (void)inflateEnd(&zs);
           delete compressed;
-          throw StringError("Error while ungzipping file, Z_NEED_DICT");
+          throw StringError("Error while ungzipping file, Z_NEED_DICT. Invalid model file?");
         case Z_DATA_ERROR:
           (void)inflateEnd(&zs);
           delete compressed;
-          throw StringError("Error while ungzipping file, Z_DATA_ERROR");
+          throw StringError("Error while ungzipping file, Z_DATA_ERROR. Invalid model file?");
         case Z_MEM_ERROR:
           (void)inflateEnd(&zs);
           delete compressed;
-          throw StringError("Error while ungzipping file, Z_MEM_ERROR");
+          throw StringError("Error while ungzipping file, Z_MEM_ERROR. Invalid model file?");
         default:
           break;
         }
@@ -1189,7 +1198,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
       descBuf = std::move(ModelDesc(uncompressedIn,binaryFloats));
     }
     else {
-      throw StringError("Model file should end with .txt, .bin, .txt.gz, or .bin.gz");
+      throw StringError("Model file should end with .txt, .bin, .txt.gz, or .bin.gz. (Do NOT rename the file to have such an extension. If it doesn't have such an extension already, it's probably the wrong file, renaming will not help).");
     }
   }
   catch(const StringError& e) {
