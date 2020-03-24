@@ -1,16 +1,16 @@
 
 USAGE: 
 
-   genconfig  [-output <FILE>] [-model <FILE>] [--] [-version] [-h]
+   genconfig  [-model <FILE>] [-output <FILE>]
 
 
 Where: 
 
-   -output <FILE>
-     Path to write new config (default gtp.cfg)
-
    -model <FILE>
      Neural net model file. Defaults to: ~/.katago/default_model.bin.gz
+
+   -output <FILE>
+     Path to write new config (default gtp.cfg)
 
    --,  -ignore_rest
      Ignores the rest of the labeled arguments following this flag.

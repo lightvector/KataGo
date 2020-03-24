@@ -1,24 +1,24 @@
 
 USAGE: 
 
-   match  [-sgf-output-dir <DIR>] -log-file <FILE> [-override-config
-          <KEYVALUEPAIRS>] -config <FILE> [--] [-version] [-h]
+   match  -config <FILE> -log-file <FILE> [-sgf-output-dir <DIR>] [...other
+          flags...]
 
 
 Where: 
 
-   -sgf-output-dir <DIR>
-     Dir to output sgf files
+   -config <FILE>
+     (required)  Config file to use (see match_example.cfg or
+     configs/match_example.cfg).
 
    -log-file <FILE>
      (required)  Log file to output to
 
+   -sgf-output-dir <DIR>
+     Dir to output sgf files
+
    -override-config <KEYVALUEPAIRS>
      Override config parameters. Format: "key=value, key=value,..."
-
-   -config <FILE>
-     (required)  Config file to use (see match_example.cfg or
-     configs/match_example.cfg).
 
    --,  -ignore_rest
      Ignores the rest of the labeled arguments following this flag.

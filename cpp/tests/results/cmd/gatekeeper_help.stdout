@@ -1,34 +1,33 @@
 
 USAGE: 
 
-   gatekeeper  [-quit-if-no-nets-to-test] [-no-autoreject-old-models]
-               -rejected-models-dir <DIR> -accepted-models-dir <DIR>
-               -sgf-output-dir <DIR> -test-models-dir <DIR> -config <FILE>
-               [--] [-version] [-h]
+   gatekeeper  -config <FILE> -test-models-dir <DIR> -sgf-output-dir <DIR>
+               -accepted-models-dir <DIR> -rejected-models-dir <DIR>
+               [...other flags...]
 
 
 Where: 
 
-   -quit-if-no-nets-to-test
-     Terminate instead of waiting for a new net to test
-
-   -no-autoreject-old-models
-     Test older models than the latest accepted model
-
-   -rejected-models-dir <DIR>
-     (required)  Dir to write bad models to
-
-   -accepted-models-dir <DIR>
-     (required)  Dir to write good models to
-
-   -sgf-output-dir <DIR>
-     (required)  Dir to output sgf files
+   -config <FILE>
+     (required)  Config file to use.
 
    -test-models-dir <DIR>
      (required)  Dir to poll and load models from
 
-   -config <FILE>
-     (required)  Config file to use.
+   -sgf-output-dir <DIR>
+     (required)  Dir to output sgf files
+
+   -accepted-models-dir <DIR>
+     (required)  Dir to write good models to
+
+   -rejected-models-dir <DIR>
+     (required)  Dir to write bad models to
+
+   -no-autoreject-old-models
+     Test older models than the latest accepted model
+
+   -quit-if-no-nets-to-test
+     Terminate instead of waiting for a new net to test
 
    --,  -ignore_rest
      Ignores the rest of the labeled arguments following this flag.

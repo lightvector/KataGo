@@ -1,20 +1,19 @@
 
 USAGE: 
 
-   selfplay  -output-dir <DIR> -models-dir <DIR> -config <FILE> [--]
-             [-version] [-h]
+   selfplay  -config <FILE> -models-dir <DIR> -output-dir <DIR>
 
 
 Where: 
 
-   -output-dir <DIR>
-     (required)  Dir to output files
+   -config <FILE>
+     (required)  Config file to use.
 
    -models-dir <DIR>
      (required)  Dir to poll and load models from
 
-   -config <FILE>
-     (required)  Config file to use.
+   -output-dir <DIR>
+     (required)  Dir to output files
 
    --,  -ignore_rest
      Ignores the rest of the labeled arguments following this flag.
