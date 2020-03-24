@@ -33,7 +33,7 @@ RunParameters Connection::getRunParameters() {
   std::lock_guard<std::mutex> lock(mutex);
 
   RunParameters runParams;
-  runParams.runId = "testrun";
+  runParams.runName = "testrun";
   runParams.dataBoardLen = 19;
   runParams.inputsVersion = 7;
   runParams.maxSearchThreadsAllowed = 8;
@@ -47,7 +47,7 @@ Task Connection::getNextTask(const string& baseDir) {
   Task task;
   task.taskId = "test";
   task.taskGroup = "testgroup";
-  task.runId = "testrun";
+  task.runName = "testrun";
   task.modelNameBlack = "g170-b10c128-s197428736-d67404019";
   task.modelUrlBlack = "TODO";
   task.modelNameWhite = "g170-b10c128-s197428736-d67404019";
@@ -79,12 +79,12 @@ void Connection::downloadModelIfNotPresent(const string& modelName, const string
 
 void Connection::uploadTrainingGameAndData(const Task& task, const string& sgfFilePath, const string& npzFilePath) {
   std::lock_guard<std::mutex> lock(mutex);
-  cout << "UPLOAD TRAINING DATA " << task.taskId << " " << task.taskGroup << " " << task.runId << " " << sgfFilePath << " " << npzFilePath << endl;
+  cout << "UPLOAD TRAINING DATA " << task.taskId << " " << task.taskGroup << " " << task.runName << " " << sgfFilePath << " " << npzFilePath << endl;
 }
 
 void Connection::uploadEvaluationGame(const Task& task, const string& sgfFilePath) {
   std::lock_guard<std::mutex> lock(mutex);
-  cout << "UPLOAD SGF " << task.taskId << " " << task.taskGroup << " " << task.runId << " " << sgfFilePath << endl;
+  cout << "UPLOAD SGF " << task.taskId << " " << task.taskGroup << " " << task.runName << " " << sgfFilePath << endl;
 }
 
 #endif //BUILD_DISTRIBUTED

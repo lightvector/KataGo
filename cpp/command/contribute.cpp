@@ -232,7 +232,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   const Client::RunParameters runParams = connection->getRunParameters();
 
   MakeDir::make(baseDir);
-  baseDir = baseDir + "/" + runParams.runId;
+  baseDir = baseDir + "/" + runParams.runName;
   MakeDir::make(baseDir);
 
   const string modelsDir = baseDir + "/models";
@@ -351,10 +351,10 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       break;
     Client::Task task = connection->getNextTask(baseDir);
 
-    if(task.runId != runParams.runId) {
+    if(task.runName != runParams.runName) {
       throw StringError(
-        "This self-play client was started with the run \"" + task.runId +
-        "\" but the server now appears to be hosting a new run \"" + runParams.runId +
+        "This self-play client was started with the run \"" + task.runName +
+        "\" but the server now appears to be hosting a new run \"" + runParams.runName +
         "\", you may need to re-start this client."
       );
     }
