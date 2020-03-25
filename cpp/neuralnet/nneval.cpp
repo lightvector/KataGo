@@ -55,9 +55,7 @@ NNServerBuf::~NNServerBuf() {
 NNEvaluator::NNEvaluator(
   const string& mName,
   const string& mFileName,
-  const vector<int>& gpuIdxs,
-  Logger* logger,
-  int modelFileIdx,
+  Logger* lg,
   int maxBatchSize,
   int maxConcurrentEvals,
   int xLen,
@@ -67,11 +65,15 @@ NNEvaluator::NNEvaluator(
   int nnCacheSizePowerOfTwo,
   int nnMutexPoolSizePowerofTwo,
   bool skipNeuralNet,
-  float nnPolicyTemp,
   string openCLTunerFile,
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
-  enabled_t useNHWCMode
+  enabled_t useNHWCMode,
+  int numThr,
+  const vector<int>& gpuIdxByServerThr,
+  const string& rSeed,
+  bool doRandomize,
+  int defaultSymmetry
 )
   :modelName(mName),
    modelFileName(mFileName),
@@ -82,20 +84,26 @@ NNEvaluator::NNEvaluator(
    inputsUseNHWC(iUseNHWC),
    usingFP16Mode(useFP16Mode),
    usingNHWCMode(useNHWCMode),
+   numThreads(numThr),
+   gpuIdxByServerThread(gpuIdxByServerThr),
+   randSeed(rSeed),
+   debugSkipNeuralNet(skipNeuralNet),
    computeContext(NULL),
    loadedModel(NULL),
    nnCacheTable(NULL),
-   debugSkipNeuralNet(skipNeuralNet),
-   nnPolicyInvTemperature(1.0f/nnPolicyTemp),
+   logger(lg),
+   numServerThreadsEverSpawned(0),
    serverThreads(),
-   serverWaitingForBatchStart(),
-   bufferMutex(),
-   isKilled(false),
    maxNumRows(maxBatchSize),
    numResultBufss(),
    numResultBufssMask(),
    m_numRowsProcessed(0),
    m_numBatchesProcessed(0),
+   serverWaitingForBatchStart(),
+   bufferMutex(),
+   isKilled(false),
+   currentDoRandomize(doRandomize),
+   currentDefaultSymmetry(defaultSymmetry),
    m_resultBufss(NULL),
    m_currentResultBufsLen(0),
    m_currentResultBufsIdx(0),
@@ -109,6 +117,8 @@ NNEvaluator::NNEvaluator(
     throw StringError("maxConcurrentEvals is negative: " + Global::intToString(maxConcurrentEvals));
   if(maxBatchSize <= 0)
     throw StringError("maxBatchSize is negative: " + Global::intToString(maxBatchSize));
+  if(gpuIdxByServerThread.size() != numThreads)
+    throw StringError("gpuIdxByServerThread.size() != numThreads");
 
   //Add three, just to give a bit of extra headroom, and make it a power of two
   numResultBufss = maxConcurrentEvals / maxBatchSize + 3;
@@ -124,7 +134,10 @@ NNEvaluator::NNEvaluator(
     nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo, nnMutexPoolSizePowerofTwo);
 
   if(!debugSkipNeuralNet) {
-    loadedModel = NeuralNet::loadModelFile(modelFileName, modelFileIdx);
+    vector<int> gpuIdxs = gpuIdxByServerThread;
+    std::sort(gpuIdxs.begin(), gpuIdxs.end());
+    std::unique(gpuIdxs.begin(), gpuIdxs.end());
+    loadedModel = NeuralNet::loadModelFile(modelFileName);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
     computeContext = NeuralNet::createComputeContext(
@@ -198,6 +211,22 @@ enabled_t NNEvaluator::getUsingNHWCMode() const {
   return usingNHWCMode;
 }
 
+bool NNEvaluator::getDoRandomize() const {
+  lock_guard<std::mutex> lock(bufferMutex);
+  return currentDoRandomize;
+}
+int NNEvaluator::getDefaultSymmetry() const {
+  lock_guard<std::mutex> lock(bufferMutex);
+  return currentDefaultSymmetry;
+}
+void NNEvaluator::setDoRandomize(bool b) {
+  lock_guard<std::mutex> lock(bufferMutex);
+  currentDoRandomize = b;
+}
+void NNEvaluator::setDefaultSymmetry(int s) {
+  lock_guard<std::mutex> lock(bufferMutex);
+  currentDefaultSymmetry = s;
+}
 
 Rules NNEvaluator::getSupportedRules(const Rules& desiredRules, bool& supported) {
   if(loadedModel == NULL) {
@@ -228,37 +257,29 @@ void NNEvaluator::clearCache() {
 }
 
 static void serveEvals(
-  int threadIdx, bool doRandomize, string randSeed, int defaultSymmetry, Logger* logger,
+  string randSeedThisThread,
   NNEvaluator* nnEval, const LoadedModel* loadedModel,
   int gpuIdxForThisThread
 ) {
   NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
-  Rand rand(randSeed + ":NNEvalServerThread:" + Global::intToString(threadIdx));
+  Rand rand(randSeedThisThread);
 
   //Used to have a try catch around this but actually we're in big trouble if this raises an exception
   //and causes possibly the only nnEval thread to die, so actually go ahead and let the exception escape to
   //toplevel for easier debugging
-  nnEval->serve(*buf,rand,logger,doRandomize,defaultSymmetry,gpuIdxForThisThread);
+  nnEval->serve(*buf,rand,gpuIdxForThisThread);
   delete buf;
 }
 
-void NNEvaluator::spawnServerThreads(
-  int numThreads,
-  bool doRandomize,
-  string randSeed,
-  int defaultSymmetry,
-  Logger& logger,
-  vector<int> gpuIdxByServerThread
-) {
+void NNEvaluator::spawnServerThreads() {
   if(serverThreads.size() != 0)
     throw StringError("NNEvaluator::spawnServerThreads called when threads were already running!");
-  if(gpuIdxByServerThread.size() != numThreads)
-    throw StringError("gpuIdxByServerThread.size() != numThreads");
-
   for(int i = 0; i<numThreads; i++) {
     int gpuIdxForThisThread = gpuIdxByServerThread[i];
+    string randSeedThisThread = randSeed + ":NNEvalServerThread:" + Global::intToString(numServerThreadsEverSpawned);
+    numServerThreadsEverSpawned++;
     std::thread* thread = new std::thread(
-      &serveEvals,i,doRandomize,randSeed,defaultSymmetry,&logger,this,loadedModel,gpuIdxForThisThread
+      &serveEvals,randSeedThisThread,this,loadedModel,gpuIdxForThisThread
     );
     serverThreads.push_back(thread);
   }
@@ -281,7 +302,7 @@ void NNEvaluator::killServerThreads() {
 }
 
 void NNEvaluator::serve(
-  NNServerBuf& buf, Rand& rand, Logger* logger, bool doRandomize, int defaultSymmetry,
+  NNServerBuf& buf, Rand& rand,
   int gpuIdxForThisThread
 ) {
 
@@ -323,7 +344,8 @@ void NNEvaluator::serve(
       m_oldestResultBufsIdx = (m_oldestResultBufsIdx + 1) & numResultBufssMask;
       numRows = maxNumRows;
     }
-
+    bool doRandomize = currentDoRandomize;
+    int defaultSymmetry = currentDefaultSymmetry;
     lock.unlock();
 
     if(debugSkipNeuralNet) {
@@ -470,7 +492,6 @@ void NNEvaluator::evaluate(
   Player nextPlayer,
   const MiscNNInputParams& nnInputParams,
   NNResultBuf& buf,
-  Logger* logger,
   bool skipCache,
   bool includeOwnerMap
 ) {
@@ -589,6 +610,8 @@ void NNEvaluator::evaluate(
   }
   else {
     float* policy = buf.result->policyProbs;
+
+    float nnPolicyInvTemperature = 1.0f / nnInputParams.nnPolicyTemperature;
 
     int xSize = board.x_size;
     int ySize = board.y_size;

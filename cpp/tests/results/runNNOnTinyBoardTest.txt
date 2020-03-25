@@ -1,0 +1,34 @@
+: Cuda backend: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
+: Cuda backend: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend: Model name: g170-b6c96-s175395328-d26788732
+HASH: 287A94A165C37E90C8C22E46D9593AA2
+   A B C D E
+ 5 . . . . .
+ 4 . . . X .
+ 3 . . O . .
+ 2 . X X O .
+ 1 . . . . .
+
+
+
+Win 90.25c
+Loss 9.75c
+NoResult 0.00c
+ScoreMean 9.4
+ScoreMeanSq 243.0
+Lead 7.9
+VarTimeLeft 128.7
+Policy
+   0    0    0    0    0 
+   0    3  150    -    0 
+   0  237    -  607    0 
+   0    -    -    -    0 
+   0    0    0    1    0 
+  -21  -257    65  -419   121 
+ -129  -354  -489  -148   241 
+ -341  -367  -295    46   292 
+ -322  -457   -81   559   277 
+ -247  -394  -127  -132    91 
+
+
+

@@ -2391,8 +2391,7 @@ struct LoadedModel {
   LoadedModel& operator=(const LoadedModel&) = delete;
 };
 
-LoadedModel* NeuralNet::loadModelFile(const string& file, int modelFileIdx) {
-  (void)modelFileIdx;
+LoadedModel* NeuralNet::loadModelFile(const string& file) {
   LoadedModel* loadedModel = new LoadedModel(file);
   return loadedModel;
 }
@@ -2773,6 +2772,19 @@ ComputeHandle* NeuralNet::createComputeHandle(
 void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
   delete gpuHandle;
 }
+
+//------------------------------------------------------------------------------
+
+void NeuralNet::printDevices() {
+  int numDevices = 0;
+  cudaGetDeviceCount(&numDevices);
+  for(int i = 0; i<numDevices; i++) {
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, i);
+    cout << "Found CUDA device " << i << ": " << prop.name << endl;
+  }
+}
+
 
 //------------------------------------------------------------------------------
 

@@ -24,32 +24,6 @@ NodeStats::NodeStats()
 NodeStats::~NodeStats()
 {}
 
-NodeStats::NodeStats(const NodeStats& other)
-  :visits(other.visits),
-   winValueSum(other.winValueSum),
-   noResultValueSum(other.noResultValueSum),
-   scoreMeanSum(other.scoreMeanSum),
-   scoreMeanSqSum(other.scoreMeanSqSum),
-   leadSum(other.leadSum),
-   utilitySum(other.utilitySum),
-   utilitySqSum(other.utilitySqSum),
-   weightSum(other.weightSum),
-   weightSqSum(other.weightSqSum)
-{}
-NodeStats& NodeStats::operator=(const NodeStats& other) {
-  visits = other.visits;
-  winValueSum = other.winValueSum;
-  noResultValueSum = other.noResultValueSum;
-  scoreMeanSum = other.scoreMeanSum;
-  scoreMeanSqSum = other.scoreMeanSqSum;
-  leadSum = other.leadSum;
-  utilitySum = other.utilitySum;
-  utilitySqSum = other.utilitySqSum;
-  weightSum = other.weightSum;
-  weightSqSum = other.weightSqSum;
-  return *this;
-}
-
 double NodeStats::getResultUtilitySum(const SearchParams& searchParams) const {
   return (
     (2.0*winValueSum - weightSum + noResultValueSum) * searchParams.winLossUtilityFactor +
@@ -80,14 +54,15 @@ double Search::getScoreStdev(double scoreMean, double scoreMeanSq) {
 
 //-----------------------------------------------------------------------------------------
 
-SearchNode::SearchNode(Search& search, SearchThread& thread, Loc moveLoc)
-  :lockIdx(),nextPla(thread.pla),prevMoveLoc(moveLoc),
+SearchNode::SearchNode(Search& search, Player prevPla, Rand& rand, Loc prevLoc)
+  :lockIdx(),
+   nextPla(getOpp(prevPla)),prevMoveLoc(prevLoc),
    nnOutput(),
    nnOutputAge(0),
    children(NULL),numChildren(0),childrenCapacity(0),
    stats(),virtualLosses(0)
 {
-  lockIdx = thread.rand.nextUInt(search.mutexPool->getNumMutexes());
+  lockIdx = rand.nextUInt(search.mutexPool->getNumMutexes());
 }
 SearchNode::~SearchNode() {
   if(children != NULL) {
@@ -95,33 +70,6 @@ SearchNode::~SearchNode() {
       delete children[i];
   }
   delete[] children;
-}
-
-SearchNode::SearchNode(SearchNode&& other) noexcept
-  :lockIdx(other.lockIdx),
-   nextPla(other.nextPla),prevMoveLoc(other.prevMoveLoc),
-   nnOutput(std::move(other.nnOutput)),
-   nnOutputAge(other.nnOutputAge),
-   stats(other.stats),virtualLosses(other.virtualLosses)
-{
-  children = other.children;
-  other.children = NULL;
-  numChildren = other.numChildren;
-  childrenCapacity = other.childrenCapacity;
-}
-SearchNode& SearchNode::operator=(SearchNode&& other) noexcept {
-  lockIdx = other.lockIdx;
-  nextPla = other.nextPla;
-  prevMoveLoc = other.prevMoveLoc;
-  nnOutput = std::move(other.nnOutput);
-  nnOutputAge = other.nnOutputAge;
-  children = other.children;
-  other.children = NULL;
-  numChildren = other.numChildren;
-  childrenCapacity = other.childrenCapacity;
-  stats = other.stats;
-  virtualLosses = other.virtualLosses;
-  return *this;
 }
 
 //-----------------------------------------------------------------------------------------
@@ -348,23 +296,41 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
 
   if(rootNode != NULL) {
     bool foundChild = false;
+    int foundChildIdx = -1;
     for(int i = 0; i<rootNode->numChildren; i++) {
       SearchNode* child = rootNode->children[i];
-      if(child->prevMoveLoc == moveLoc) {
-        //Grab out the node to prevent its deletion along with the root
-        SearchNode* node = new SearchNode(std::move(*child));
-        //Delete the root and replace it with the child
-        delete rootNode;
-        rootNode = node;
-        rootNode->prevMoveLoc = Board::NULL_LOC;
+      if(!foundChild && child->prevMoveLoc == moveLoc) {
         foundChild = true;
+        foundChildIdx = i;
         break;
       }
     }
-    if(!foundChild) {
+
+    //Just in case, make sure the child has an nnOutput, otherwise no point keeping it.
+    //This is a safeguard against any oddity involving node preservation into states that
+    //were considered terminal.
+    if(foundChild) {
+      SearchNode* child = rootNode->children[foundChildIdx];
+      std::mutex& mutex = mutexPool->getMutex(child->lockIdx);
+      lock_guard<std::mutex> lock(mutex);
+      if(child->nnOutput == nullptr)
+        foundChild = false;
+    }
+
+    if(foundChild) {
+      //Grab out the node to prevent its deletion along with the root
+      //Delete the root and replace it with the child
+      SearchNode* child = rootNode->children[foundChildIdx];
+      rootNode->children[foundChildIdx] = NULL;
+      delete rootNode;
+      rootNode = child;
+      rootNode->prevMoveLoc = Board::NULL_LOC;
+    }
+    else {
       clearSearch();
     }
   }
+
   //If the white handicap bonus changes due to the move, we will also need to recompute everything since this is
   //basically like a change to the komi.
   float oldWhiteHandicapBonusScore = rootHistory.whiteHandicapBonusScore;
@@ -376,7 +342,6 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
   if(rootHistory.whiteHandicapBonusScore != oldWhiteHandicapBonusScore)
     clearSearch();
 
-  //TODO test this and other conservativepass
   //In the case that we are conservativePass and a pass would end the game, need to clear the search.
   //This is because deeper in the tree, such a node would have been explored as ending the game, but now that
   //it's a root pass, it needs to be treated as if it no longer ends the game.
@@ -487,10 +452,18 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow) {
 }
 
 void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering) {
-  runWholeSearch(logger,shouldStopNow,pondering,TimeControls(),1.0);
+  std::atomic<bool> searchBegun(false);
+  runWholeSearch(logger,shouldStopNow,searchBegun,pondering,TimeControls(),1.0);
 }
 
-void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering, const TimeControls& tc, double searchFactor) {
+void Search::runWholeSearch(
+  Logger& logger,
+  std::atomic<bool>& shouldStopNow,
+  std::atomic<bool>& searchBegun,
+  bool pondering,
+  const TimeControls& tc,
+  double searchFactor
+) {
 
   ClockTimer timer;
   atomic<int64_t> numPlayoutsShared(0);
@@ -532,8 +505,9 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bo
     }
   }
 
-  beginSearch(logger);
-  int64_t numNonPlayoutVisits = numRootVisits();
+  beginSearch();
+  searchBegun.store(true,std::memory_order_release);
+  int64_t numNonPlayoutVisits = getRootVisits();
 
   auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,maxVisits,maxPlayouts,maxTime](int threadIdx) {
     SearchThread* stbuf = new SearchThread(threadIdx,*this,&logger);
@@ -592,7 +566,7 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bo
 //If we're being asked to search from a position where the game is over, this is fine. Just keep going, the boardhistory
 //should reasonably tolerate just continuing. We do NOT want to clear history because we could inadvertently make a move
 //that an external ruleset COULD think violated superko.
-void Search::beginSearch(Logger& logger) {
+void Search::beginSearch() {
   if(rootBoard.x_size > nnXLen || rootBoard.y_size > nnYLen)
     throw StringError("Search got from NNEval nnXLen = " + Global::intToString(nnXLen) +
                       " nnYLen = " + Global::intToString(nnYLen) + " but was asked to search board with larger x or y size");
@@ -609,7 +583,7 @@ void Search::beginSearch(Logger& logger) {
     clearSearch();
   rootPlaDuringLastSearch = rootPla;
 
-  computeRootValues(logger);
+  computeRootValues();
   maybeRecomputeNormToTApproxTable();
 
   //Sanity-check a few things
@@ -619,7 +593,7 @@ void Search::beginSearch(Logger& logger) {
   SearchThread dummyThread(-1, *this, NULL);
 
   if(rootNode == NULL) {
-    rootNode = new SearchNode(*this, dummyThread, Board::NULL_LOC);
+    rootNode = new SearchNode(*this, getOpp(rootPla), dummyThread.rand, Board::NULL_LOC);
   }
   else {
     //If the root node has any existing children, then prune things down if there are moves that should not be allowed at the root.
@@ -737,7 +711,7 @@ void Search::recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, b
 }
 
 
-void Search::computeRootValues(Logger& logger) {
+void Search::computeRootValues() {
   //rootSafeArea is strictly pass-alive groups and strictly safe territory.
   bool nonPassAliveStones = false;
   bool safeBigTerritories = false;
@@ -776,10 +750,11 @@ void Search::computeRootValues(Logger& logger) {
       NNResultBuf nnResultBuf;
       bool skipCache = false;
       bool includeOwnerMap = true;
-      bool isRoot = true;
+      // bool isRoot = true;
       MiscNNInputParams nnInputParams;
       nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
-      nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
+      nnInputParams.conservativePass = searchParams.conservativePass;
+      nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
       if(searchParams.playoutDoublingAdvantage != 0) {
         Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPla : searchParams.playoutDoublingAdvantagePla;
         nnInputParams.playoutDoublingAdvantage = (
@@ -789,7 +764,7 @@ void Search::computeRootValues(Logger& logger) {
       nnEvaluator->evaluate(
         board, hist, pla,
         nnInputParams,
-        nnResultBuf, &logger, skipCache, includeOwnerMap
+        nnResultBuf, skipCache, includeOwnerMap
       );
       expectedScore = nnResultBuf.result->whiteScoreMean;
     }
@@ -803,7 +778,7 @@ void Search::computeRootValues(Logger& logger) {
   }
 }
 
-int64_t Search::numRootVisits() const {
+int64_t Search::getRootVisits() const {
   if(rootNode == NULL)
     return 0;
   while(rootNode->statsLock.test_and_set(std::memory_order_acquire));
@@ -1689,7 +1664,8 @@ void Search::initNodeNNOutput(
   bool includeOwnerMap = isRoot || alwaysIncludeOwnerMap;
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
-  nnInputParams.conservativePass = isRoot && searchParams.conservativePass;
+  nnInputParams.conservativePass = searchParams.conservativePass;
+  nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
   if(searchParams.playoutDoublingAdvantage != 0) {
     Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPla : searchParams.playoutDoublingAdvantagePla;
     nnInputParams.playoutDoublingAdvantage = (
@@ -1703,7 +1679,7 @@ void Search::initNodeNNOutput(
       nnEvaluator->evaluate(
         thread.board, thread.history, thread.pla,
         nnInputParams,
-        thread.nnResultBuf, thread.logger, skipCacheThisIteration, includeOwnerMap
+        thread.nnResultBuf, skipCacheThisIteration, includeOwnerMap
       );
       ptrs.push_back(std::move(thread.nnResultBuf.result));
     }
@@ -1713,7 +1689,7 @@ void Search::initNodeNNOutput(
     nnEvaluator->evaluate(
       thread.board, thread.history, thread.pla,
       nnInputParams,
-      thread.nnResultBuf, thread.logger, skipCache, includeOwnerMap
+      thread.nnResultBuf, skipCache, includeOwnerMap
     );
     node.nnOutput = std::move(thread.nnResultBuf.result);
   }
@@ -1835,34 +1811,23 @@ void Search::playoutDescend(
   //Allocate a new child node if necessary
   SearchNode* child;
   if(bestChildIdx == node.numChildren) {
-    assert(thread.history.isLegal(thread.board,moveLoc,thread.pla));
-    thread.history.makeBoardMoveAssumeLegal(thread.board,moveLoc,thread.pla,rootKoHashTable);
-    thread.pla = getOpp(thread.pla);
-
     node.numChildren++;
-    child = new SearchNode(*this,thread,moveLoc);
+    child = new SearchNode(*this,thread.pla,thread.rand,moveLoc);
     node.children[bestChildIdx] = child;
-
-    while(child->statsLock.test_and_set(std::memory_order_acquire));
-    child->virtualLosses += searchParams.numVirtualLossesPerThread;
-    child->statsLock.clear(std::memory_order_release);
-
-    lock.unlock();
   }
   else {
     child = node.children[bestChildIdx];
-
-    while(child->statsLock.test_and_set(std::memory_order_acquire));
-    child->virtualLosses += searchParams.numVirtualLossesPerThread;
-    child->statsLock.clear(std::memory_order_release);
-
-    //Unlock before making moves if the child already exists since we don't depend on it at this point
-    lock.unlock();
-
-    assert(thread.history.isLegal(thread.board,moveLoc,thread.pla));
-    thread.history.makeBoardMoveAssumeLegal(thread.board,moveLoc,thread.pla,rootKoHashTable);
-    thread.pla = getOpp(thread.pla);
   }
+
+  while(child->statsLock.test_and_set(std::memory_order_acquire));
+  child->virtualLosses += searchParams.numVirtualLossesPerThread;
+  child->statsLock.clear(std::memory_order_release);
+
+  //Unlock before making moves if the child already exists since we don't depend on it at this point
+  lock.unlock();
+
+  thread.history.makeBoardMoveAssumeLegal(thread.board,moveLoc,thread.pla,rootKoHashTable);
+  thread.pla = getOpp(thread.pla);
 
   //Recurse!
   playoutDescend(thread,*child,posesWithChildBuf,false,searchParams.numVirtualLossesPerThread);

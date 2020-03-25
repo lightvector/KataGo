@@ -1,6 +1,6 @@
 # KataGo
 
-KataGo is an implementation of AlphaZero-like training in Go with a lot of modifications and enhancements that greatly improve upon basic self-play learning. Many of these take advantage of game-specific features and training targets, but also a surprising number of them are non-specific and could easily be tried in other games. Due to these enhancements, early training is immensely faster than in other zero-style bots - with only a few strong GPUs for a few days, even a single person should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board. KataGo's latest run used about 29 GPUs, rather than thousands (like AlphaZero and ELF) first reached superhuman levels on that hardware in perhaps just three to six days, and reached strength similar to ELF in about 14 days. With minor adjustments and another 8 GPUs, it has also now surpassed Leela Zero at 30-40 days, hopefully making KataGo one of the top open source Go engines available.
+KataGo is an implementation of AlphaZero-like training in Go with a lot of modifications and enhancements that greatly improve upon basic self-play learning. Many of these take advantage of game-specific features and training targets, but also a surprising number of them are non-specific and could easily be tried in other games. Due to these enhancements, early training is immensely faster than in other zero-style bots - with only a few strong GPUs for a few days, even a single person should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board. KataGo's latest run used about 29 GPUs, rather than thousands (like AlphaZero and ELF) first reached superhuman levels on that hardware in perhaps just three to six days, and reached strength similar to ELF in about 14 days. With minor adjustments and another 8 GPUs, at 30-40 days, it has also now either nearly reached or already surpassed Leela Zero (varies by hardware, time, playouts) hopefully making KataGo one of the top open source Go engines available. It is continuing to train and improve further.
 
 Paper about the major new ideas and techniques used in KataGo: [Accelerating Self-Play Learning in Go (arXiv)](https://arxiv.org/abs/1902.10565).
 A few further improvements have been found and incorporated into the latest run that are not described in this paper - some post about this might happen eventually.
@@ -18,41 +18,46 @@ KataGo's engine also aims to be a useful tool for Go players and developers, and
 
 ## Current Status and History
 
-KataGo is on its third major official run! As of the end of January 2020 after training for a little more than a month, it appears to be as strong or stronger than Leela Zero's final official 40-block nets at moderate numbers of playouts (thousands to low tens of thousands), despite only using a 20-block net. Earlier, it also surpassed the prior 19-day official run from June 2019 in only about 12-14 days, and at this point is almost 400 Elo stronger. This is due to various training improvements which were not present in prior runs. In addition to reaching stronger faster, this third run adds support for Japanese rules, stronger handicap play, and greatly more accurate score estimation. And going into February 2020, KataGo will be switching to some bigger nets!
+KataGo is on its third major official run! As of the end of January 2020 after training for a little more than a month, it appears to be as strong or stronger than Leela Zero's final official 40-block nets at moderate numbers of playouts (thousands to low tens of thousands), despite only using a 20-block net. Earlier, it also surpassed the prior 19-day official run from June 2019 in only about 12-14 days, and at this point is almost 400 Elo stronger. This is due to various training improvements which were not present in prior runs. In addition to reaching stronger faster, this third run adds support for Japanese rules, stronger handicap play, and greatly more accurate score estimation. Training was delayed for a large chunk of February 2020 due to hardware/logistical issues, but has resumed and KataGo is now starting to train some bigger nets!
 
 Strong 20 block x 256 channel networks are available for download! See the [releases page](https://github.com/lightvector/KataGo/releases) for the latest release and these neural nets. Download more trained neural nets [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html). Also available for download are a few *very* strong smaller nets. These include a fast 10-block network that nearly matches the strength of many earlier 15 block nets, including KataGo best 15-block net from last year and Leela Zero's LZ150. This new run also features a very strong 15-block network that should be approximately the strength of ELFv2, a 20-block network, at least at low thousands of playouts. Hopefully they are useful for users with weaker hardware.
 
-Here is a graph of the improvement so far as of about 38 days:
+Here is a graph of the improvement so far as of about 50 days:
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/readme/jan2020vsjune2019.png" height="350"/></td></tr>
 <tr><td><sub>X axis is days of training, log scale. (note: hardware is about the same but not entirely identical). Y axis is relative Elo rating based on some 1200-visit test matches. The abrupt jump at the end of the June 2019 run is due to a LR drop in that run that the current run, gradually, still has only partially applied.</sub></tr></td>
 </table>
 
-Currently the run is using about 37 GPUs (increased from about 29 after surpassing last year's run in 14 days) and hopes to continue to improve further.
+Currently the run is using about 47 GPUs and hopes to continue to improve further. (Only 29 GPUs were used to surpass last year's run in the first 14 days. After 14 days increased to 37 GPUs, then after 24 more days increased again to around 47 GPUs) 
 
-Just for fun, here's a table of the Elo strength of selected versions, based on a few tens of thousands of games between these and other versions in a pool (1200 visits). Current run:
+Just for fun, here's a table of the Elo strength of selected versions, based on a few tens of thousands of games between these and other versions in a pool (1200 visits). These are based on fixed search tree size, NOT fixed computation time. Current run:
 
 | Neural Net | Note | Approx Days Selfplay | Elo |
 |-------------|-------|---------------|------|
-| g170-b6c96-s175395328-d26788732 | (last selfplay 6 block)   | 0.75    |      -1163 |
-| g170-b10c128-s197428736-d67404019 |  (last selfplay 10 block)  | 1.75  |      -288 |
-| g170e-b10c128-s1141046784-d204142634  | (extended training 10 block)  | -  |   280 |
-| g170-b15c192-s497233664-d149638345 |   (last selfplay 15 block) | 7.5  |      501 |
-| g170e-b15c192-s1305382144-d335919935  | (extended training 15 block)  | -  |   863 |
-| g170-b20c256x2-s668214784-d222255714  | (20 block)  |  15.5 |   957 |
-| g170-b20c256x2-s1039565568-d285739972  | (20 block)   | 21.5 |    1061 |
-| g170-b20c256x2-s1420141824-d350969033  | (20 block)   | 27.5 |    1152 |
-| g170-b20c256x2-s1913382912-d435450331  | (20 block)   | 35.5 |    1269 |
+| g170-b6c96-s175395328-d26788732 | (last selfplay 6 block)   | 0.75    |      -1167 |
+| g170-b10c128-s197428736-d67404019 |  (last selfplay 10 block)  | 1.75  |      -279 |
+| g170e-b10c128-s1141046784-d204142634  | (extended training 10 block)  | -  |   296 |
+| g170-b15c192-s497233664-d149638345 |   (last selfplay 15 block) | 7.5  |      509 |
+| g170e-b15c192-s1305382144-d335919935  | (extended training 15 block)  | -  |   867 |
+| g170e-b15c192-s1672170752-d466197061  | (extended training 15 block)  | -  |   921 |
+| g170-b20c256x2-s668214784-d222255714  | (20 block)  |  15.5 |   956 |
+| g170-b20c256x2-s1039565568-d285739972  | (20 block)   | 21.5 |    1063 |
+| g170-b20c256x2-s1420141824-d350969033  | (20 block)   | 27.5 |    1157 |
+| g170-b20c256x2-s1913382912-d435450331  | (20 block)  | 35.5 |    1266 |
+| g170-b20c256x2-s2107843328-d468617949  | (last selfplay 20 block)  | 38.5 |    1281 |
+| g170e-b20c256x2-s2430231552-d525879064 | (extended training 20 block)  | -  | 1341  |
+| g170-b30c320x2-s1287828224-d525929064  | (30 block more channels)  | 47.5 |    1405 |
+| g170-b40c256x2-s1349368064-d524332537  | (40 block less channels)  | 47   |    1401 |
 
 And for comparison to the old 2019 June official run (Elos computed within the same pool):
 
 | Neural Net | Note | Approx Days Selfplay |  Elo |
 |-------------|-------|---------------|------|
-| g104-b6c96-s97778688-d23397744 | (last selfplay 6 block)   |  0.75 |    -1135 |
-| g104-b10c128-s110887936-d54937276  | (last selfplay 10 block)     |  1.75 |    -480 |
-| g104-b15c192-s297383936-d140330251  | (last selfplay 15 block)    |  7.5 |    325 |
-| g104-b20c256-s447913472-d241840887  | (last selfplay 20 block)   |  19 |    893 |
+| g104-b6c96-s97778688-d23397744 | (last selfplay 6 block)   |  0.75 |    -1133 |
+| g104-b10c128-s110887936-d54937276  | (last selfplay 10 block)     |  1.75 |    -482 |
+| g104-b15c192-s297383936-d140330251  | (last selfplay 15 block)    |  7.5 |    331 |
+| g104-b20c256-s447913472-d241840887  | (last selfplay 20 block)   |  19 |    904 |
 
 ### Older Runs
 
@@ -72,7 +77,7 @@ See also https://github.com/lightvector/GoNN for some earlier research. KataGo i
 ## Where To Download Stuff
 You can download precompiled executables for KataGo on the [releases page](https://github.com/lightvector/KataGo/releases) for Windows and Linux.
 
-You can download a few selected neural nets from the [releases page](https://github.com/lightvector/KataGo/releases) or download additional other neural nets from [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html)).
+You can download a few selected neural nets from the [releases page](https://github.com/lightvector/KataGo/releases) or download additional other neural nets from [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html)). There are two different model formats, indicated by ".txt.gz" versus ".bin.gz". Starting with v1.3.3, KataGo is moving to ".bin.gz" which is a binary format that is a little smaller on disk and faster to load. ".bin.gz" files will only work with v1.3.3 and later, but v1.3.3 and later can still load all earlier formats.
 
 **See sections below, particularly "How To Use" and "Tuning for Performance" sections below for how to use KataGo and things you may want to do before actually using KataGo.**
 
@@ -86,9 +91,9 @@ KataGo implements just a GTP engine - GTP is a simple text protocol that Go soft
 KataGo currently officially supports both Windows and Linux, with [precompiled executables provided each release](https://github.com/lightvector/KataGo/releases). Not all different OS versions and compilers have been tested, so if you encounter problems, feel free to open an issue. KataGo can also of course be compiled from source on Windows via MSVC on Windows or on Linux via usual compilers like g++, documented further down.
 
 ### Installing via HomeBrew (MacOS)
-The community also provides KataGo packages for [Homebrew](https://brew.sh) on MacOS - releases there may lag behind official releases slightly. 
+The community also provides KataGo packages for [Homebrew](https://brew.sh) on MacOS - releases there may lag behind official releases slightly.
 
-Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep gtp) -model $(brew list --verbose katago | grep .txt.gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
+Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep gtp) -model $(brew list --verbose katago | grep .gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
 
 ### OpenCL vs CUDA
 KataGo has both an OpenCL version and a CUDA version.
@@ -103,23 +108,27 @@ If your GPU is a top-end NVIDIA GPU and supports FP16 and tensor cores, then the
 ### How To Use
 KataGo supports a few commands. All of these commands require a "model" file that contains the neural net. Most also require a "config" file that specifies parameters for how KataGo behaves. KataGo's precompiled releases should come packaged with example configs (`gtp_example.cfg`). If you care about performance, you will likely want to edit this config for yourself - extensive comments and notes are provided in the config.
 
-**If you are running KataGo for the first time, you probably want to run the benchmark before anything else, to test if KataGo works and pick a number of threads. And on the OpenCL version, to give KataGo a chance to autotune itself, which could take a while.**
+**If you are running KataGo for the first time, you probably want to run the benchmark OR the genconfig options before anything else, to test if KataGo works and pick a number of threads. And on the OpenCL version, to give KataGo a chance to autotune itself, which could take a while.**
 
 To run a benchmark to test performance and help you choose how many threads to use for best performance. You can then edit your GTP config to use this many threads:
 
-   * `./katago benchmark -model <NEURALNET>.txt.gz -config <GTP_CONFIG>.cfg`
+   * `./katago benchmark -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg`
 
-To run a GTP engine using a downloaded KataGo neural net and example provided config:
+To automatically tune threads and other settings for you based on an interactive prompt, and generate a GTP config for you:
 
-   * `./katago gtp -model <NEURALNET>.txt.gz -config <GTP_CONFIG>.cfg` - **This is the command you want to tell your GUI (Lizzie, Sabaki, GoGui, etc) to use to run KataGo** (with the actual paths to your neural net and config files substituted in, of course).
+   * `./katago genconfig -model <NEURALNET>.gz -output <PATH_TO_SAVE_GTP_CONFIG>.cfg`
+
+To run a GTP engine using a downloaded KataGo neural net and GTP config:
+
+   * `./katago gtp -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg` - **This is the command you want to tell your GUI (Lizzie, Sabaki, GoGui, etc) to use to run KataGo** (with the actual paths to your neural net and config files substituted in, of course).
 
 Run a JSON-based [analysis engine](docs/Analysis_Engine.md) that can do efficient batched evaluations for a backend Go service:
 
-   * `./katago analysis -model <NEURALNET>.txt.gz -config <ANALYSIS_CONFIG>.cfg -analysis-threads N`
+   * `./katago analysis -model <NEURALNET>.gz -config <ANALYSIS_CONFIG>.cfg -analysis-threads N`
 
 For OpenCL only: run or re-run the tuner to optimize for your particular GPU.
 
-   * `./katago tuner -model <NEURALNET>.txt.gz`
+   * `./katago tuner -model <NEURALNET>.gz`
 
 
 ### Tuning for Performance
@@ -129,7 +138,11 @@ The OpenCL version will also automatically run a tuner on the first startup to o
 
 To test KataGo's performance with different settings you're trying and also to help choose a number of threads:
 
-`./katago benchmark -model <NEURALNET>.txt.gz -config <GTP_CONFIG>.cfg`
+`./katago benchmark -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg`
+
+Or to do so automatically and generate a config appropriately:
+
+`./katago genconfig -model <NEURALNET>.gz -output <PATH_TO_SAVE_GTP_CONFIG>.cfg`
 
 ### Features for Developers
 
@@ -213,18 +226,27 @@ You may need to play with learning rates, batch sizes, and the balance between t
 Example instructions to start up these things (assuming you have appropriate machines set up), with some base directory $BASEDIR to hold the all the models and training data generated with a few hundred GB of disk space. The below commands assume you're running from the root of the repo and that you can run bash scripts.
    * `cpp/katago selfplay -output-dir $BASEDIR/selfplay -models-dir $BASEDIR/models -config-file cpp/configs/SELFPLAYCONFIG.cfg >> log.txt 2>&1 & disown`
      * Some example configs for different numbers of GPUs are: configs/selfplay{1,2,4,8a,8b,8c}.cfg. You may want to edit them depending on your specs - for example to change the sizes of various tables depending on how much memory you have, or to specify gpu indices if you're doing things like putting some mix of training, gatekeeper, and self-play on the same machines or GPUs instead of on separate ones. Note that the number of game threads in these configs is very large, probably far larger than the number of cores on your machine. This is intentional, as each thread only currently runs synchronously with respect to neural net queries, so a large number of parallel games is needed to take advantage of batching.
-   * `cd python; ./selfplay/shuffle_and_export_loop.sh $BASEDIR/ $SCRATCH_DIRECTORY $NUM_THREADS $USE_GATING`
+     * Take a look at the generated `log.txt` for any errors and/or for running stats on started games and occasional neural net query stats.
+     * Edit the config to change the number of playouts used or other parameters, or to set a cap on the number of games generated after which selfplay should terminate.
+   * `cd python; ./selfplay/shuffle_and_export_loop.sh $NAMEOFRUN $BASEDIR/ $SCRATCH_DIRECTORY $NUM_THREADS $USE_GATING`
+     * `$NAMEOFRUN` should be a short alphanumeric string that ideally should be globally unique, to distinguish models from your run if you choose to share your results with others. It will get prefixed on to the internal names of exported models, which will appear in log messages when KataGo loads the model. 
      * This starts both the shuffler and exporter. The shuffler will use the scratch directory with the specified number of threads to shuffle in parallel. Make sure you have some disk space. You probably want as many threads as you have cores. If not using the gatekeeper, specify `0` for `$USE_GATING`, else specify `1`.
      * Also, if you're low on disk space, take a look also at the `./selfplay/shuffle.sh` script (which is called by `shuffle_and_export_loop.sh`). Right now it's *very* conservative about cleaning up old shuffles but you could tweak it to be a bit more aggressive.
+     * You can also edit `./selfplay/shuffle.sh` if you want to change any details about the lookback window for training data.
+     * The loop script will output `outshuffle.txt` and `outexport.txt` in the directory you run it from, take a look at these to see the output of the shuffle program and/or any errors it encountered.
    * `cd python; ./selfplay/train.sh $BASEDIR/ $TRAININGNAME b6c96 main -lr-scale 1.0 >> log.txt 2>&1 & disown`
      * This starts the training. You may want to look at or edit the train.sh script, it also snapshots the state of the repo for logging, as well as contains some training parameters that can be tweaked.
      * The third argument controls some export behavior:
         * `main` - this is the main net for selfplay, save it regularly to `$BASEDIR/tfsavedmodels_toexport` which the export loop will export regularly for gating.
         * `extra` - save models to `$BASEDIR/tfsavedmodels_toexport_extra`, which the export loop will then export to `$BASEDIR/models_extra`, a directory that does not feed into gating or selfplay.
         * `trainonly` - the neural net without exporting anything. This is useful for when you are trying to jointly train additional models of different sizes and there's no point to have them export anything yet (maybe they're too weak to bother testing).
-     * Any additional arguments, like "-lr-scale 1.0" will simply get forwarded on to train.py.
+     * Any additional arguments, like "-lr-scale 1.0" to adjust learning rate will simply get forwarded on to train.py. The argument `-max-epochs-this-instance` can be used to make training terminate after a few epochs, instead of running forever. Run train.py with -help for other arguments.
+     * Take a look at the generated `log.txt` for any possible errors, as well as running stats on training and loss statistics.
+     * You can choose a different size than b6c96 if desired. Configuration is in `python/modelconfigs.py`, which you can also edit to add other sizes.
    * `cpp/katago gatekeeper -rejected-models-dir $BASEDIR/rejectedmodels -accepted-models-dir $BASEDIR/models/ -sgf-output-dir $BASEDIR/gatekeepersgf/ -test-models-dir $BASEDIR/modelstobetested/ -config-file cpp/configs/GATEKEEPERCONFIG.cfg >> log.txt 2>&1 & disown`
      * This starts the gatekeeper. Some example configs for different numbers of GPUs are: configs/gatekeeper{1,2a,2b,2c}.cfg. Again, you may want to edit these. The number of simultaneous game threads here is also large for the same reasons as for selfplay. No need to start this if specifying `0` for `$USE_GATING`.
+     * Take a look at the generated `log.txt` for any errors and/or for the game-by-game progress of each testing match that the gatekeeper runs.
+     * The argument `-quit-if-no-nets-to-test` can make gatekeeper terminate after testing all nets queued for testing, instead of running forever and waiting for more. Run with -help to see other arguments as well.
 
 ## Contributors
 

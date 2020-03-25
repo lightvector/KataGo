@@ -29,9 +29,11 @@ struct MiscNNInputParams {
   double drawEquivalentWinsForWhite = 0.5;
   bool conservativePass = false;
   double playoutDoublingAdvantage = 0.0;
+  float nnPolicyTemperature = 1.0f;
 
   static const Hash128 ZOBRIST_CONSERVATIVE_PASS;
   static const Hash128 ZOBRIST_PLAYOUT_DOUBLINGS;
+  static const Hash128 ZOBRIST_NN_POLICY_TEMP;
 };
 
 namespace NNInputs {

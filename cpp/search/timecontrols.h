@@ -21,7 +21,7 @@ struct TimeControls {
   int originalNumPeriods;
   int numStonesPerPeriod;
   double perPeriodTime;
-  
+
   double mainTimeLeft;
   bool inOvertime;
   int numPeriodsLeftIncludingCurrent;
@@ -32,10 +32,21 @@ struct TimeControls {
   TimeControls();
   ~TimeControls();
 
+  static TimeControls absoluteTime(double mainTime);
+  static TimeControls canadianOrByoYomiTime(
+    double mainTime,
+    double perPeriodTime,
+    int numPeriods,
+    int numStonesPerPeriod
+  );
+
   //minTime - if you use less than this, you are wasting time that will not be reclaimed
   //recommendedTime - recommended mean time to search
   //maxTime - very bad to go over this time, possibly immediately losing
   void getTime(const Board& board, const BoardHistory& hist, double lagBuffer, double& minTime, double& recommendedTime, double& maxTime) const;
+
+  std::string toDebugString() const;
+  std::string toDebugString(const Board& board, const BoardHistory& hist, double lagBuffer) const;
 };
 
 #endif  // SEARCH_TIMECONTROLS_H_

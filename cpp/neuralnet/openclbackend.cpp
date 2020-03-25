@@ -83,8 +83,7 @@ struct LoadedModel {
   LoadedModel& operator=(const LoadedModel&) = delete;
 };
 
-LoadedModel* NeuralNet::loadModelFile(const string& file, int modelFileIdx) {
-  (void)modelFileIdx;
+LoadedModel* NeuralNet::loadModelFile(const string& file) {
   LoadedModel* loadedModel = new LoadedModel(file);
   return loadedModel;
 }
@@ -2330,6 +2329,19 @@ ComputeHandle* NeuralNet::createComputeHandle(
 
 void NeuralNet::freeComputeHandle(ComputeHandle* handle) {
   delete handle;
+}
+
+//------------------------------------------------------------------------------
+
+void NeuralNet::printDevices() {
+  vector<DeviceInfo> devices = DeviceInfo::getAllDeviceInfosOnSystem(NULL);
+  for(int i = 0; i<devices.size(); i++) {
+    const DeviceInfo& device = devices[i];
+    string msg =
+      "Found OpenCL Device " + Global::intToString(device.gpuIdx) + ": " + device.name + " (" + device.vendor + ")" +
+      " (score " + Global::intToString(device.defaultDesirability) + ")";
+    cout << msg << endl;
+  }
 }
 
 //--------------------------------------------------------------

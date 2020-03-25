@@ -25,6 +25,8 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * `RULES` should either be a JSON dictionary in the same format of `kata-get-rules`, or be a shorthand string like `tromp-taylor`. Some possible shorthand strings are:
          * `tromp-taylor  : Equivalent to {"hasButton":false,"ko":"POSITIONAL", "scoring":"AREA",     "suicide":true, "tax":"NONE","whiteHandicapBonus":"0"}`
          * `chinese       : Equivalent to {"hasButton":false,"ko":"SIMPLE",     "scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}`
+         * `chinese-ogs   : Equivalent to {"hasButton":false,"ko":"POSITIONAL", "scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}`
+         * `chinese-kgs   : Equivalent to {"hasButton":false,"ko":"POSITIONAL", "scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}`
          * `japanese      : Equivalent to {"hasButton":false,"ko":"SIMPLE",     "scoring":"TERRITORY","suicide":false,"tax":"SEKI","whiteHandicapBonus":"0"}`
          * `korean        : Equivalent to {"hasButton":false,"ko":"SIMPLE",     "scoring":"TERRITORY","suicide":false,"tax":"SEKI","whiteHandicapBonus":"0"}`
          * `stone-scoring : Equivalent to {"hasButton":false,"ko":"SIMPLE",     "scoring":"AREA",     "suicide":false,"tax":"ALL", "whiteHandicapBonus":"0"}`
@@ -35,10 +37,23 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * KataGo does NOT claim that the above rules are _exactly_ a match. These are merely the _closest_ settings that KataGo has to those countries' rulesets.
       * A small number of combinations are currently not supported by even the latest neural nets, for example `scoring TERRITORY` and `hasButton true`.
       * Older neural nets for KataGo will also not support many of the options, and setting these rules will fail if these neural nets are being used.
+      * Note the distinction between the `chinese` and `chinese-ogs, chinese-kgs`. Often in Chinese tournaments, contrary to their nominal written rules, which specify positional superko, only simple ko is used, and triple ko typically does result in the referree voiding the game. However, many servers have implemented the nominal written rules rather than the actually-used rules.
    * `kata-set-rule RULE VALUE`
       * Sets a single field of the current rules, leaving other fields unaffected.
       * For example, `kata-set-rule ko SIMPLE`.
       * May fail, if setting this field would result in a combination of rules that is not supported by the current neural net.
+   * `kgs-rules RULES`
+      * This is an extension for playing on KGS, via kgsGtp.
+      * As specified by kgsGtp docs, `RULES` should be one of `chinese | aga | japanese | new_zealand`.
+      * For this extension, `chinese` actually maps to `chinese-kgs` above. Otherwise, has the same effect as `kata-set-rules`.
+   * `kgs-time-settings KIND ...`
+      * This is an extension for playing on KGS, via kgsGtp.
+      * As specified by kgsGtp docs, `KIND` should be one of `none | absolute | canadian | byoyomi`.
+         * `none` indicates no time control
+         * `absolute` should be followed by a single float `MAINTIME` specifying the time in seconds.
+         * `canadian` should be followed by `MAINTIME BYOYOMITIME BYOYOMISTONES` (float,float,int) specifying the main time, the length of the canadian overtime period, and the number of stones that must be played in that period.
+         * `byoyomi` should be followed by `MAINTIME BYOYOMITIME BYOYOMIPERIODS` (float,float,int) specifying the main time, the length of each byo-yomi period, and the number of byo-yomi periods.
+      * NOTE: As a hack, KGS also expects that when using `byoyomi`, the controller should provide the number of periods left in place of the number of stones left for the GTP `time-settings` command.
    * `lz-analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR ...`
       * Begin searching and optionally outputting live analysis to stdout. Assumes the normal player to move next unless otherwise specified.
       * Possible key-value pairs:
@@ -74,7 +89,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `scoreMean` - Same as scoreLead. "Mean" is a slight misnomer, but this field exists to preserve compatibility with existing tools.
          * `scoreStdev` - The predicted standard deviation of the final score of the game after this move, in points. (NOTE: due to the mechanics of MCTS, this value will be **significantly biased high** currently, although it can still be informative as *relative* indicator).
          * `scoreLead` - The predicted average number of points that the current side is leading by (with this many points fewer, it would be an even game).
-         * `scoreSelfplay` - The predicted average value of the final score of the game after this move during selfplay, in points. (NOTE: users should usually prefer scoreLead, since scoreSelfplay may be biased by the fact that KataGo isn't perfectly score-maximizing).
+         * `scoreSelfplay` - The predicted average value of the final score of the game after this move from low-playout noisy selfplay, in points. (NOTE: users should usually prefer scoreLead, since scoreSelfplay may be biased by the fact that KataGo isn't perfectly score-maximizing).
          * `prior` - The policy prior of the move, as a float in [0,1].
          * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility.
          * `lcb` - The [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move's winrate, as a float in [0,1].
@@ -88,3 +103,22 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      * The final move made will be reported as a single line `play <vertex or "pass" or "resign">`, followed by the usual double-newline.
   * `kata-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR`
      * Same as `lz-genmove_analyze` except with the options and fields of `kata-analyze` rather than `lz-analyze`
+  * `kata-raw-nn SYMMETRY`
+     * `SYMMETRY` should be an integer from 0-7 or "all".
+     * Reports the result of a raw neural net evaluation from KataGo, or multiple raw evaluations in the case of "all".
+     * Output format is of the form `SYMMETRY <integer 0-7> <key> <value(s)> <key> <value(s)> ...`, possibly with additional whitespace or newlines between any tokens. In the case of "all", multiple such outputs of this form are concatenated together.
+     * Possible keys are currently
+     ```
+     whiteWin (1 float)  - believed probability that white wins
+     whiteLoss (1 float) - believed probability that black wins
+     noResult (1 float)  - believed probability of noresult due to triple ko
+     whiteLead (1 float) - predicted number of points that white is ahead by (this is the preferred score value for user display).
+     whiteScoreSelfplay (1 float) - predicted mean score that would result from low-playout noisy selfplay (may be biased, Kata isn't fully score-maximizing).
+     whiteScoreSelfplaySq (1 float) - predicted mean square of score that would result via low-playout noisy selfplay
+     policy (boardXSize * boardYSize floats, including possibly NAN for illegal moves) - policy distribution for next move
+     whiteOwnership (boardXSize * boardYSize floats) - predicted ownership by white (from -1 to 1).
+     ```
+     Any consumers of this data should attempt to be robust to any pattern of whitespace within the output, as well as possibly the future addition of new keys and values. The ordering of the keys is also not guaranteed - consumers should be capable of handling any permutation of them.
+  * `kata-get-param PARAM`, `kata-set-param PARAM VALUE`
+     * Get a parameter or set a parameter to a given value.
+     * Currently, the only supported PARAM is `playoutDoublingAdvantage (float)`. More may be added later.

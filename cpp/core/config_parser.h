@@ -19,11 +19,17 @@ baz = yay
 class ConfigParser {
  public:
   ConfigParser(const std::string& file);
+  ConfigParser(std::istream& in);
   ConfigParser(const std::map<std::string, std::string>& kvs);
   ~ConfigParser();
 
   ConfigParser(const ConfigParser& other) = delete;
   ConfigParser& operator=(const ConfigParser& other) = delete;
+
+  void overrideKeys(const std::map<std::string, std::string>& newkvs);
+  //mutexKeySets: For each pair of sets (A,B), if newkvs contains anything in A, erase every existing key that overlaps with B, and vice versa.
+  void overrideKeys(const std::map<std::string, std::string>& newkvs, const std::vector<std::pair<std::set<std::string>,std::set<std::string>>>& mutexKeySets);
+  static std::map<std::string,std::string> parseCommaSeparated(const std::string& commaSeparatedValues);
 
   void warnUnusedKeys(std::ostream& out, Logger* logger) const;
   void markAllKeysUsedWithPrefix(const std::string& prefix);
@@ -72,6 +78,8 @@ class ConfigParser {
 
   mutable std::mutex usedKeysMutex;
   std::set<std::string> usedKeys;
+
+  void initialize(std::istream& in);
 };
 
 

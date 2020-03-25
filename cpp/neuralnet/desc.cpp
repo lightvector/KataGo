@@ -1100,11 +1100,18 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
   try {
     string lower = Global::toLower(fileName);
     //Read model file with no compression if it's directly named .txt or .bin
-    if(Global::isSuffix(lower,".txt") || Global::isSuffix(lower,".bin")) {
+    if(Global::isSuffix(lower,".txt")) {
       std::ifstream in(fileName);
       if(!in.good())
         throw StringError("Could not open file - does not exist or invalid permissions?");
-      bool binaryFloats = Global::isSuffix(lower,".bin");
+      bool binaryFloats = false;
+      descBuf = std::move(ModelDesc(in,binaryFloats));
+    }
+    else if(Global::isSuffix(lower,".bin")) {
+      std::ifstream in(fileName, ios::in | ios::binary);
+      if(!in.good())
+        throw StringError("Could not open file - does not exist or invalid permissions?");
+      bool binaryFloats = true;
       descBuf = std::move(ModelDesc(in,binaryFloats));
     }
     else if(Global::isSuffix(lower,".txt.gz") || Global::isSuffix(lower,".bin.gz")) {

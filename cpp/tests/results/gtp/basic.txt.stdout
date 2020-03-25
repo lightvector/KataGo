@@ -1,0 +1,30 @@
+= C4
+
+= R16
+
+= 
+
+= R4
+
+= R16
+
+= 
+
+= F5
+
+= MoveNum: 1 HASH: 36B4CCD42D5A3A8EF2457E304969C11F
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . . X . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+Next player: White
+Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+

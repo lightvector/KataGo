@@ -311,7 +311,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
           NNResultBuf buf;
           MiscNNInputParams nnInputParams;
           nnInputParams.drawEquivalentWinsForWhite = search->searchParams.drawEquivalentWinsForWhite;
-          search->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,NULL,false,false);
+          search->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,false,false);
           std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
           double temperature = 0.8;
@@ -475,14 +475,14 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
         sout << "MoveLoc: " << Location::toString(moveLoc,bot->getRootBoard()) << "\n";
         logger.write(sout.str());
         cerr << sout.str() << endl;
-        throw new StringError("illegal move");
+        throw StringError("illegal move");
       }
 
       double winLossValue;
       double expectedScore;
       double expectedScoreStdev;
       {
-        ReportedSearchValues values = bot->getSearch()->getRootValuesAssertSuccess();
+        ReportedSearchValues values = bot->getSearch()->getRootValuesRequireSuccess();
         winLossValue = values.winLossValue;
         expectedScore = values.expectedScore;
         expectedScoreStdev = values.expectedScoreStdev;

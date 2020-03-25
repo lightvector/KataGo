@@ -37,6 +37,11 @@ static const vector<string> knownCommands = {
   "kata-set-rule",
   "kata-set-rules",
 
+  //Get or change a few limited params dynamically
+  "kata-get-param",
+  "kata-set-param",
+  "kgs-rules",
+
   "genmove",
   "genmove_debug", //Prints additional info to stderr
   "search_debug", //Prints additional info to stderr, doesn't actually make the move
@@ -49,6 +54,7 @@ static const vector<string> knownCommands = {
   "place_free_handicap",
   "set_free_handicap",
   "time_settings",
+  "kgs-time_settings",
   "time_left",
   "final_score",
   "final_status_list",
@@ -63,6 +69,12 @@ static const vector<string> knownCommands = {
   "lz-analyze",
   "kata-analyze",
 
+  //Display raw neural net evaluations
+  "kata-raw-nn",
+
+  //Some debug commands
+  "kata-debug-print-tc",
+
   //Stop any ongoing ponder or analyze
   "stop",
 };
@@ -70,6 +82,46 @@ static const vector<string> knownCommands = {
 static bool tryParseLoc(const string& s, const Board& b, Loc& loc) {
   return Location::tryOfString(s,b,loc);
 }
+
+static bool timeIsValid(const double& time) {
+  if(isnan(time) || time < 0.0 || time > 1e50)
+    return false;
+  return true;
+}
+
+static double parseMainTime(const vector<string>& args, int argIdx) {
+  double mainTime = 0.0;
+  if(args.size() <= argIdx || !Global::tryStringToDouble(args[argIdx],mainTime))
+    throw StringError("Expected float for main time as argument " + Global::intToString(argIdx));
+  if(!timeIsValid(mainTime))
+    throw StringError("Main time is an invalid value: " + args[argIdx]);
+  return mainTime;
+}
+static double parsePerPeriodTime(const vector<string>& args, int argIdx) {
+  double perPeriodTime = 0.0;
+  if(args.size() <= argIdx || !Global::tryStringToDouble(args[argIdx],perPeriodTime))
+    throw StringError("Expected float for byo-yomi per-period time as argument " + Global::intToString(argIdx));
+  if(!timeIsValid(perPeriodTime))
+    throw StringError("byo-yomi per-period time is an invalid value: " + args[argIdx]);
+  return perPeriodTime;
+}
+static int parseByoYomiStones(const vector<string>& args, int argIdx) {
+  int byoYomiStones = 0;
+  if(args.size() <= argIdx || !Global::tryStringToInt(args[argIdx],byoYomiStones))
+    throw StringError("Expected int for byo-yomi overtime stones as argument " + Global::intToString(argIdx));
+  if(byoYomiStones < 0 || byoYomiStones > 1000000)
+    throw StringError("byo-yomi overtime stones is an invalid value: " + args[argIdx]);
+  return byoYomiStones;
+}
+static int parseByoYomiPeriods(const vector<string>& args, int argIdx) {
+  int byoYomiPeriods = 0;
+  if(args.size() <= argIdx || !Global::tryStringToInt(args[argIdx],byoYomiPeriods))
+    throw StringError("Expected int for byo-yomi overtime periods as argument " + Global::intToString(argIdx));
+  if(byoYomiPeriods < 0 || byoYomiPeriods > 1000000)
+    throw StringError("byo-yomi overtime periods is an invalid value: " + args[argIdx]);
+  return byoYomiPeriods;
+}
+
 
 static double initialBlackAdvantage(const BoardHistory& hist) {
   //Assume an advantage of 15 * number of black stones beyond the one black normally gets on the first move and komi
@@ -94,51 +146,54 @@ static bool noWhiteStonesOnBoard(const Board& board) {
 static void updatePlayoutDoublingAdvantageHelper(
   AsyncBot* bot, const Board& board, const BoardHistory& hist, Player pla,
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead,
+  const double staticPlayoutDoublingAdvantage,
   const vector<double>& recentWinLossValues,
   double& desiredPlayoutDoublingAdvantage,
   SearchParams& params
 ) {
   (void)board;
-  if(dynamicPlayoutDoublingAdvantageCapPerOppLead <= 0.0)
-    return;
-
-  double pdaScalingStartPoints = 7.0;
-  double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
-  if(initialBlackAdvantageInPoints < pdaScalingStartPoints || pla != params.playoutDoublingAdvantagePla) {
-    desiredPlayoutDoublingAdvantage = 0.0;
+  if(dynamicPlayoutDoublingAdvantageCapPerOppLead <= 0.0) {
+    desiredPlayoutDoublingAdvantage = staticPlayoutDoublingAdvantage;
   }
   else {
-    //What increment to adjust desiredPlayoutDoublingAdvantage at.
-    //Power of 2 to avoid any rounding issues.
-    const double increment = 0.125;
-
-    //Hard cap of 2.5 in this parameter, since more extreme values start to reach into values without good training.
-    //Scale mildly with board size - small board a given point lead counts as "more".
-    double pdaCap = std::min(
-      2.75,
-      dynamicPlayoutDoublingAdvantageCapPerOppLead *
-      (initialBlackAdvantageInPoints - pdaScalingStartPoints) * pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.25)
-    );
-    pdaCap = round(pdaCap / increment) * increment;
-
-    //No history, or literally no white stones on board? Then this is a new game or a newly set position
-    if(recentWinLossValues.size() <= 0 || noWhiteStonesOnBoard(board)) {
-      //Just use the cap
-      desiredPlayoutDoublingAdvantage = pdaCap;
+    double pdaScalingStartPoints = 7.0;
+    double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
+    if(initialBlackAdvantageInPoints < pdaScalingStartPoints || pla != params.playoutDoublingAdvantagePla) {
+      desiredPlayoutDoublingAdvantage = 0.0;
     }
     else {
-      double winLossValue = recentWinLossValues[recentWinLossValues.size()-1];
-      if(pla == P_BLACK)
-        winLossValue = -winLossValue;
+      //What increment to adjust desiredPlayoutDoublingAdvantage at.
+      //Power of 2 to avoid any rounding issues.
+      const double increment = 0.125;
 
-      //Keep winLossValue between 5% and 25%, subject to available caps.
-      if(winLossValue < -0.9)
-        desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage + 0.125;
-      else if(winLossValue > -0.5)
-        desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage - 0.125;
+      //Hard cap of 2.5 in this parameter, since more extreme values start to reach into values without good training.
+      //Scale mildly with board size - small board a given point lead counts as "more".
+      double pdaCap = std::min(
+        2.75,
+        dynamicPlayoutDoublingAdvantageCapPerOppLead *
+        (initialBlackAdvantageInPoints - pdaScalingStartPoints) * pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.25)
+      );
+      pdaCap = round(pdaCap / increment) * increment;
 
-      desiredPlayoutDoublingAdvantage = std::max(desiredPlayoutDoublingAdvantage, 0.0);
-      desiredPlayoutDoublingAdvantage = std::min(desiredPlayoutDoublingAdvantage, pdaCap);
+      //No history, or literally no white stones on board? Then this is a new game or a newly set position
+      if(recentWinLossValues.size() <= 0 || noWhiteStonesOnBoard(board)) {
+        //Just use the cap
+        desiredPlayoutDoublingAdvantage = pdaCap;
+      }
+      else {
+        double winLossValue = recentWinLossValues[recentWinLossValues.size()-1];
+        if(pla == P_BLACK)
+          winLossValue = -winLossValue;
+
+        //Keep winLossValue between 5% and 25%, subject to available caps.
+        if(winLossValue < -0.9)
+          desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage + 0.125;
+        else if(winLossValue > -0.5)
+          desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage - 0.125;
+
+        desiredPlayoutDoublingAdvantage = std::max(desiredPlayoutDoublingAdvantage, 0.0);
+        desiredPlayoutDoublingAdvantage = std::min(desiredPlayoutDoublingAdvantage, pdaCap);
+      }
     }
   }
 
@@ -210,7 +265,7 @@ static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator
   Board::printBoard(out, bot->getRootBoard(), moveLoc, &(bot->getRootHist().moveHistory));
   out << bot->getRootHist().rules << "\n";
   out << "Time taken: " << timeTaken << "\n";
-  out << "Root visits: " << search->numRootVisits() << "\n";
+  out << "Root visits: " << search->getRootVisits() << "\n";
   out << "NN rows: " << nnEval->numRowsProcessed() << endl;
   out << "NN batches: " << nnEval->numBatchesProcessed() << endl;
   out << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
@@ -232,6 +287,7 @@ struct GTPEngine {
   const int analysisPVLen;
   const bool preventEncore;
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead;
+  double staticPlayoutDoublingAdvantage;
 
   NNEvaluator* nnEval;
   AsyncBot* bot;
@@ -255,7 +311,8 @@ struct GTPEngine {
 
   GTPEngine(
     const string& modelFile, SearchParams initialParams, Rules initialRules,
-    bool assumeMultiBlackHandicap, bool prevtEncore, double dynamicPDACapPerOppLead,
+    bool assumeMultiBlackHandicap, bool prevtEncore,
+    double dynamicPDACapPerOppLead, double staticPDA,
     Player persp, int pvLen
   )
     :nnModelFile(modelFile),
@@ -263,6 +320,7 @@ struct GTPEngine {
      analysisPVLen(pvLen),
      preventEncore(prevtEncore),
      dynamicPlayoutDoublingAdvantageCapPerOppLead(dynamicPDACapPerOppLead),
+     staticPlayoutDoublingAdvantage(staticPDA),
      nnEval(NULL),
      bot(NULL),
      currentRules(initialRules),
@@ -274,6 +332,7 @@ struct GTPEngine {
      moveHistory(),
      recentWinLossValues(),
      lastSearchFactor(1.0),
+     desiredPlayoutDoublingAdvantage(staticPDA),
      perspective(persp)
   {
   }
@@ -321,6 +380,8 @@ struct GTPEngine {
       boardXSize,boardYSize,defaultMaxBatchSize,
       Setup::SETUP_FOR_GTP
     );
+    //Hack to get more consistent log message ordering
+    std::this_thread::sleep_for(std::chrono::duration<double>(0.05));
     logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
 
     {
@@ -384,11 +445,16 @@ struct GTPEngine {
     currentRules.komi = newKomi;
   }
 
+  void setStaticPlayoutDoublingAdvantage(double d) {
+    staticPlayoutDoublingAdvantage = d;
+  }
+
   //Update playout doubling advantage for the engine for playing as pla
   void updatePlayoutDoublingAdvantage(Player pla) {
     updatePlayoutDoublingAdvantageHelper(
       bot,bot->getRootBoard(),bot->getRootHist(),pla,
       dynamicPlayoutDoublingAdvantageCapPerOppLead,
+      staticPlayoutDoublingAdvantage,
       recentWinLossValues,
       desiredPlayoutDoublingAdvantage,params
     );
@@ -704,7 +770,7 @@ struct GTPEngine {
     double winLossValue;
     double lead;
     {
-      values = bot->getSearch()->getRootValuesAssertSuccess();
+      values = bot->getSearch()->getRootValuesRequireSuccess();
       winLossValue = values.winLossValue;
       lead = values.lead;
     }
@@ -860,10 +926,10 @@ struct GTPEngine {
 
   void analyze(Player pla, AnalyzeArgs args) {
     assert(args.analyzing);
-    //In dynamic mode, analysis should ALWAYS be with 0.0, to prevent random hard-to-predict changes
+    //Analysis should ALWAYS be with the static value to prevent random hard-to-predict changes
     //for users.
-    if(dynamicPlayoutDoublingAdvantageCapPerOppLead != 0.0 && params.playoutDoublingAdvantage != 0.0) {
-      params.playoutDoublingAdvantage = 0.0;
+    if(params.playoutDoublingAdvantage != staticPlayoutDoublingAdvantage) {
+      params.playoutDoublingAdvantage = staticPlayoutDoublingAdvantage;
       bot->setParams(params);
     }
 
@@ -879,6 +945,12 @@ struct GTPEngine {
 
   double computeLead(Logger& logger) {
     stopAndWait();
+
+    //ALWAYS use 0 to prevent bias
+    if(params.playoutDoublingAdvantage != 0.0) {
+      params.playoutDoublingAdvantage = 0.0;
+      bot->setParams(params);
+    }
 
     //Make absolutely sure we can restore the bot's old state
     const Player oldPla = bot->getRootPla();
@@ -908,6 +980,12 @@ struct GTPEngine {
   vector<bool> computeAnticipatedStatusesWithOwnership(Logger& logger) {
     stopAndWait();
 
+    //ALWAYS use 0 to prevent bias
+    if(params.playoutDoublingAdvantage != 0.0) {
+      params.playoutDoublingAdvantage = 0.0;
+      bot->setParams(params);
+    }
+
     //Make absolutely sure we can restore the bot's old state
     const Player oldPla = bot->getRootPla();
     const Board oldBoard = bot->getRootBoard();
@@ -926,6 +1004,80 @@ struct GTPEngine {
     return isAlive;
   }
 
+  //-1 means all
+  string rawNN(int whichSymmetry) {
+    if(nnEval == NULL)
+      return "";
+    ostringstream out;
+
+    bool oldDoRandomize = nnEval->getDoRandomize();
+    int oldDefaultSymmetry = nnEval->getDefaultSymmetry();
+
+    for(int symmetry = 0; symmetry<8; symmetry++) {
+      if(whichSymmetry == -1 || whichSymmetry == symmetry) {
+        nnEval->setDoRandomize(false);
+        nnEval->setDefaultSymmetry(symmetry);
+        Board board = bot->getRootBoard();
+        BoardHistory hist = bot->getRootHist();
+        Player nextPla = bot->getRootPla();
+
+        MiscNNInputParams nnInputParams;
+        nnInputParams.playoutDoublingAdvantage =
+          (params.playoutDoublingAdvantagePla == C_EMPTY || params.playoutDoublingAdvantagePla == nextPla) ?
+          staticPlayoutDoublingAdvantage : -staticPlayoutDoublingAdvantage;
+        NNResultBuf buf;
+        bool skipCache = true;
+        bool includeOwnerMap = true;
+        nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+        NNOutput* nnOutput = buf.result.get();
+        out << "symmetry " << symmetry << endl;
+        out << "whiteWin " << Global::strprintf("%.6f",nnOutput->whiteWinProb) << endl;
+        out << "whiteLoss " << Global::strprintf("%.6f",nnOutput->whiteLossProb) << endl;
+        out << "noResult " << Global::strprintf("%.6f",nnOutput->whiteNoResultProb) << endl;
+        out << "whiteLead " << Global::strprintf("%.3f",nnOutput->whiteLead) << endl;
+        out << "whiteScoreSelfplay " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
+        out << "whiteScoreSelfplaySq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
+
+        out << "policy" << endl;
+        for(int y = 0; y<board.y_size; y++) {
+          for(int x = 0; x<board.x_size; x++) {
+            int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+            float prob = nnOutput->policyProbs[pos];
+            if(prob < 0)
+              out << "    NAN ";
+            else
+              out << Global::strprintf("%8.6f ", prob);
+          }
+          out << endl;
+        }
+
+        out << "whiteOwnership" << endl;
+        for(int y = 0; y<board.y_size; y++) {
+          for(int x = 0; x<board.x_size; x++) {
+            int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+            float whiteOwn = nnOutput->whiteOwnerMap[pos];
+            out << Global::strprintf("%9.7f ", whiteOwn);
+          }
+          out << endl;
+        }
+        out << endl;
+      }
+    }
+
+    nnEval->setDoRandomize(oldDoRandomize);
+    nnEval->setDefaultSymmetry(oldDefaultSymmetry);
+    return Global::trim(out.str());
+  }
+
+  SearchParams getParams() {
+    return params;
+  }
+
+  void setParams(SearchParams p) {
+    params = p;
+    bot->setParams(params);
+  }
 };
 
 
@@ -1031,18 +1183,22 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   string configFile;
   string nnModelFile;
   string overrideVersion;
+  string overrideConfig;
   try {
     TCLAP::CmdLine cmd("Run GTP engine", ' ', Version::getKataGoVersionForHelp(),true);
     TCLAP::ValueArg<string> configFileArg("","config","Config file to use (see configs/gtp_example.cfg)",true,string(),"FILE");
     TCLAP::ValueArg<string> nnModelFileArg("","model","Neural net model file",true,string(),"FILE");
     TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
+    TCLAP::ValueArg<string> overrideConfigArg("","override-config","Override config parameters. Format: \"key=value, key=value,...\"",false,string(),"KEYVALUEPAIRS");
     cmd.add(configFileArg);
     cmd.add(nnModelFileArg);
     cmd.add(overrideVersionArg);
+    cmd.add(overrideConfigArg);
     cmd.parse(argc,argv);
     configFile = configFileArg.getValue();
     nnModelFile = nnModelFileArg.getValue();
     overrideVersion = overrideVersionArg.getValue();
+    overrideConfig = overrideConfigArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -1050,12 +1206,22 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   }
 
   ConfigParser cfg(configFile);
+  if(overrideConfig != "") {
+    map<string,string> newkvs = ConfigParser::parseCommaSeparated(overrideConfig);
+    //HACK to avoid a common possible conflict - if we specify some of the rules options on one side, the other side should be erased.
+    vector<pair<set<string>,set<string>>> mutexKeySets = Setup::getMutexKeySets();
+    cfg.overrideKeys(newkvs,mutexKeySets);
+  }
 
   Logger logger;
   logger.addFile(cfg.getString("logFile"));
   bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
   bool logSearchInfo = cfg.getBool("logSearchInfo");
   bool loggingToStderr = false;
+
+  bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
+  if(!logTimeStamp)
+    logger.setLogTime(false);
 
   bool startupPrintMessageToStderr = true;
   if(cfg.contains("startupPrintMessageToStderr"))
@@ -1076,13 +1242,13 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   //Defaults to 7.5 komi, gtp will generally override this
   Rules initialRules = Setup::loadSingleRulesExceptForKomi(cfg);
 
-  SearchParams params = Setup::loadSingleParams(cfg);
-  logger.write("Using " + Global::intToString(params.numThreads) + " CPU thread(s) for search");
+  SearchParams initialParams = Setup::loadSingleParams(cfg);
+  logger.write("Using " + Global::intToString(initialParams.numThreads) + " CPU thread(s) for search");
   //Set a default for conservativePass that differs from matches or selfplay
   if(!cfg.contains("conservativePass") && !cfg.contains("conservativePass0"))
-    params.conservativePass = true;
+    initialParams.conservativePass = true;
   if(!cfg.contains("fillDameBeforePass") && !cfg.contains("fillDameBeforePass0"))
-    params.fillDameBeforePass = true;
+    initialParams.fillDameBeforePass = true;
 
   const bool ponderingEnabled = cfg.getBool("ponderingEnabled");
   const bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : true;
@@ -1101,16 +1267,17 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead =
     cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") ? cfg.getDouble("dynamicPlayoutDoublingAdvantageCapPerOppLead",0.0,0.5) : 0.0;
-  if(cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") && (cfg.contains("playoutDoublingAdvantage") || cfg.contains("playoutDoublingAdvantage0")))
-    throw StringError("Cannot specify both dynamicPlayoutDoublingAdvantageCapPerOppLead and playoutDoublingAdvantage");
-  if(cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") && params.playoutDoublingAdvantagePla == C_EMPTY)
+  if(cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") && initialParams.playoutDoublingAdvantagePla == C_EMPTY)
     throw StringError("When specifying dynamicPlayoutDoublingAdvantageCapPerOppLead, must specify a player for playoutDoublingAdvantagePla");
+  double staticPlayoutDoublingAdvantage = initialParams.playoutDoublingAdvantage;
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
-    nnModelFile,params,initialRules,
-    assumeMultipleStartingBlackMovesAreHandicap,preventEncore,dynamicPlayoutDoublingAdvantageCapPerOppLead,
+    nnModelFile,initialParams,initialRules,
+    assumeMultipleStartingBlackMovesAreHandicap,preventEncore,
+    dynamicPlayoutDoublingAdvantageCapPerOppLead,
+    staticPlayoutDoublingAdvantage,
     perspective,analysisPVLen
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,-1,-1);
@@ -1124,7 +1291,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   //Also check loggingToStderr so that we don't duplicate the message from the log file
   if(startupPrintMessageToStderr && !loggingToStderr) {
     cerr << "Loaded model " << nnModelFile << endl;
-    cerr << "Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName());
+    cerr << "Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()) << endl;
     cerr << "GTP ready, beginning main protocol loop" << endl;
   }
 
@@ -1376,64 +1543,195 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
+    else if(command == "kgs-rules") {
+      bool parseSuccess = false;
+      Rules newRules;
+      if(pieces.size() <= 0) {
+        responseIsError = true;
+        response = "Expected one argument kgs-rules";
+      }
+      else {
+        string s = Global::toLower(Global::trim(pieces[0]));
+        if(s == "chinese") {
+          newRules = Rules::parseRulesWithoutKomi("chinese-kgs",engine->getCurrentRules().komi);
+          parseSuccess = true;
+        }
+        else if(s == "aga") {
+          newRules = Rules::parseRulesWithoutKomi("aga",engine->getCurrentRules().komi);
+          parseSuccess = true;
+        }
+        else if(s == "new_zealand") {
+          newRules = Rules::parseRulesWithoutKomi("new_zealand",engine->getCurrentRules().komi);
+          parseSuccess = true;
+        }
+        else if(s == "japanese") {
+          newRules = Rules::parseRulesWithoutKomi("japanese",engine->getCurrentRules().komi);
+          parseSuccess = true;
+        }
+        else {
+          responseIsError = true;
+          response = "Unknown rules '" + s + "'";
+        }
+      }
+      if(parseSuccess) {
+        string error;
+        bool suc = engine->setRulesNotIncludingKomi(newRules,error);
+        if(!suc) {
+          responseIsError = true;
+          response = error;
+        }
+      }
+    }
+
+    else if(command == "kata-get-param") {
+      if(pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected one arguments for kata-get-param but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        //SearchParams params = engine->getParams();
+        if(pieces[0] == "playoutDoublingAdvantage") {
+          response = Global::doubleToString(engine->staticPlayoutDoublingAdvantage);
+        }
+        else {
+          responseIsError = true;
+          response = "Invalid parameter";
+        }
+      }
+    }
+
+    else if(command == "kata-set-param") {
+      if(pieces.size() != 2) {
+        responseIsError = true;
+        response = "Expected two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        //SearchParams params = engine->getParams();
+        double d;
+        if(pieces[0] == "playoutDoublingAdvantage" && Global::tryStringToDouble(pieces[1],d) && d >= -3.0 && d <= 3.0) {
+          engine->setStaticPlayoutDoublingAdvantage(d);
+        }
+        else {
+          responseIsError = true;
+          response = "Invalid parameter or parameter value";
+        }
+      }
+    }
+
     else if(command == "time_settings") {
       double mainTime;
       double byoYomiTime;
       int byoYomiStones;
-      if(pieces.size() != 3
-         || !Global::tryStringToDouble(pieces[0],mainTime)
-         || !Global::tryStringToDouble(pieces[1],byoYomiTime)
-         || !Global::tryStringToInt(pieces[2],byoYomiStones)
-         ) {
-        responseIsError = true;
-        response = "Expected 2 floats and an int for time_settings but got '" + Global::concat(pieces," ") + "'";
+      bool success = false;
+      try {
+        mainTime = parseMainTime(pieces,0);
+        byoYomiTime = parsePerPeriodTime(pieces,1);
+        byoYomiStones = parseByoYomiStones(pieces,2);
+        success = true;
       }
-      else if(isnan(mainTime) || mainTime < 0.0 || mainTime > 1e50) {
+      catch(const StringError& e) {
         responseIsError = true;
-        response = "invalid main_time";
+        response = e.what();
       }
-      else if(isnan(byoYomiTime) || byoYomiTime < 0.0 || byoYomiTime > 1e50) {
-        responseIsError = true;
-        response = "invalid byo_yomi_time";
-      }
-      else if(byoYomiStones < 0 || byoYomiStones > 100000) {
-        responseIsError = true;
-        response = "invalid byo_yomi_stones";
-      }
-      else {
+      if(success) {
         TimeControls tc;
         //This means no time limits, according to gtp spec
-        if(byoYomiStones == 0 && byoYomiTime > 0.0) {
-          //do nothing, tc already no limits by default
-        }
-        //Absolute time
-        else if(byoYomiStones == 0) {
-          tc.originalMainTime = mainTime;
-          tc.increment = 0.0;
-          tc.originalNumPeriods = 0;
-          tc.numStonesPerPeriod = 0;
-          tc.perPeriodTime = 0.0;
-          tc.mainTimeLeft = mainTime;
-          tc.inOvertime = false;
-          tc.numPeriodsLeftIncludingCurrent = 0;
-          tc.numStonesLeftInPeriod = 0;
-          tc.timeLeftInPeriod = 0;
-        }
-        else {
-          tc.originalMainTime = mainTime;
-          tc.increment = 0.0;
-          tc.originalNumPeriods = 1;
-          tc.numStonesPerPeriod = byoYomiStones;
-          tc.perPeriodTime = byoYomiTime;
-          tc.mainTimeLeft = mainTime;
-          tc.inOvertime = false;
-          tc.numPeriodsLeftIncludingCurrent = 1;
-          tc.numStonesLeftInPeriod = 0;
-          tc.timeLeftInPeriod = 0;
-        }
-
+        if(byoYomiStones == 0 && byoYomiTime > 0.0)
+          tc = TimeControls();
+        else if(byoYomiStones == 0)
+          tc = TimeControls::absoluteTime(mainTime);
+        else
+          tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,1,byoYomiStones);
         engine->bTimeControls = tc;
         engine->wTimeControls = tc;
+      }
+    }
+
+    else if(command == "kgs-time_settings") {
+      if(pieces.size() < 1) {
+        responseIsError = true;
+        response = "Expected 'none', 'absolute', 'byoyomi', or 'canadian' as first argument for kgs-time_settings";
+      }
+      else {
+        string what = Global::toLower(Global::trim(pieces[0]));
+        TimeControls tc;
+        if(what == "none") {
+          tc = TimeControls();
+          engine->bTimeControls = tc;
+          engine->wTimeControls = tc;
+        }
+        else if(what == "absolute") {
+          double mainTime;
+          bool success = false;
+          try {
+            mainTime = parseMainTime(pieces,1);
+            success = true;
+          }
+          catch(const StringError& e) {
+            responseIsError = true;
+            response = e.what();
+          }
+          if(success) {
+            tc = TimeControls::absoluteTime(mainTime);
+            engine->bTimeControls = tc;
+            engine->wTimeControls = tc;
+          }
+        }
+        else if(what == "canadian") {
+          double mainTime;
+          double byoYomiTime;
+          int byoYomiStones;
+          bool success = false;
+          try {
+            mainTime = parseMainTime(pieces,1);
+            byoYomiTime = parsePerPeriodTime(pieces,2);
+            byoYomiStones = parseByoYomiStones(pieces,3);
+            success = true;
+          }
+          catch(const StringError& e) {
+            responseIsError = true;
+            response = e.what();
+          }
+          if(success) {
+            //Use the same hack in time-settings - if somehow someone specifies positive overtime but 0 stones for it, intepret as no time control
+            if(byoYomiStones == 0 && byoYomiTime > 0.0)
+              tc = TimeControls();
+            else if(byoYomiStones == 0)
+              tc = TimeControls::absoluteTime(mainTime);
+            else
+              tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,1,byoYomiStones);
+            engine->bTimeControls = tc;
+            engine->wTimeControls = tc;
+          }
+        }
+        else if(what == "byoyomi") {
+          double mainTime;
+          double byoYomiTime;
+          int byoYomiPeriods;
+          bool success = false;
+          try {
+            mainTime = parseMainTime(pieces,1);
+            byoYomiTime = parsePerPeriodTime(pieces,2);
+            byoYomiPeriods = parseByoYomiPeriods(pieces,3);
+            success = true;
+          }
+          catch(const StringError& e) {
+            responseIsError = true;
+            response = e.what();
+          }
+          if(success) {
+            if(byoYomiPeriods == 0)
+              tc = TimeControls::absoluteTime(mainTime);
+            else
+              tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,byoYomiPeriods,1);
+            engine->bTimeControls = tc;
+            engine->wTimeControls = tc;
+          }
+        }
+        else {
+          responseIsError = true;
+          response = "Expected 'none', 'absolute', 'byoyomi', or 'canadian' as first argument for kgs-time_settings";
+        }
       }
     }
 
@@ -1460,29 +1758,52 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
       else {
         TimeControls tc = pla == P_BLACK ? engine->bTimeControls : engine->wTimeControls;
-        //Main time
-        if(stones == 0) {
-          tc.mainTimeLeft = time;
-          tc.inOvertime = false;
-          tc.numPeriodsLeftIncludingCurrent = tc.originalNumPeriods;
-          tc.numStonesLeftInPeriod = 0;
-          tc.timeLeftInPeriod = 0;
+        if(stones > 0 && tc.originalNumPeriods <= 0) {
+          responseIsError = true;
+          response = "stones left in period is > 0 but the time control used does not have any overtime periods";
         }
         else {
-          tc.mainTimeLeft = 0.9;
-          tc.inOvertime = true;
-          tc.numPeriodsLeftIncludingCurrent = 1;
-          tc.numStonesLeftInPeriod = stones;
-          tc.timeLeftInPeriod = time;
-        }
-        if(pla == P_BLACK)
-          engine->bTimeControls = tc;
-        else
-          engine->wTimeControls = tc;
+          //Main time
+          if(stones == 0) {
+            tc.mainTimeLeft = time;
+            tc.inOvertime = false;
+            tc.numPeriodsLeftIncludingCurrent = tc.originalNumPeriods;
+            tc.numStonesLeftInPeriod = 0;
+            tc.timeLeftInPeriod = 0;
+          }
+          else {
+            //Hack for KGS byo-yomi - interpret num stones as periods instead
+            if(tc.originalNumPeriods > 1 && tc.numStonesPerPeriod == 1) {
+              tc.mainTimeLeft = 0.0;
+              tc.inOvertime = true;
+              tc.numPeriodsLeftIncludingCurrent = std::min(stones,tc.originalNumPeriods);
+              tc.numStonesLeftInPeriod = 1;
+              tc.timeLeftInPeriod = time;
+            }
+            //Normal canadian time interpertation of GTP
+            else {
+              tc.mainTimeLeft = 0.0;
+              tc.inOvertime = true;
+              tc.numPeriodsLeftIncludingCurrent = 1;
+              tc.numStonesLeftInPeriod = std::min(stones,tc.numStonesPerPeriod);
+              tc.timeLeftInPeriod = time;
+            }
+          }
+          if(pla == P_BLACK)
+            engine->bTimeControls = tc;
+          else
+            engine->wTimeControls = tc;
 
-        //In case the controller tells us komi every move, restart pondering afterward.
-        maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
+          //In case the controller tells us komi every move, restart pondering afterward.
+          maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
+        }
       }
+    }
+
+    else if(command == "kata-debug-print-tc") {
+      response += "Black "+ engine->bTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),initialParams.lagBuffer);
+      response += "\n";
+      response += "White "+ engine->wTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),initialParams.lagBuffer);
     }
 
     else if(command == "play") {
@@ -1888,6 +2209,26 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         //No response - currentlyAnalyzing will make sure we get a newline at the appropriate time, when stopped.
         suppressResponse = true;
         currentlyAnalyzing = true;
+      }
+    }
+
+    else if(command == "kata-raw-nn") {
+      int whichSymmetry = -1;
+      bool parsed = false;
+      if(pieces.size() == 1) {
+        string s = Global::trim(Global::toLower(pieces[0]));
+        if(s == "all")
+          parsed = true;
+        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= 7)
+          parsed = true;
+      }
+
+      if(!parsed) {
+        responseIsError = true;
+        response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-nn but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        response = engine->rawNN(whichSymmetry);
       }
     }
 

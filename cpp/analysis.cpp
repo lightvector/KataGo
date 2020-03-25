@@ -52,7 +52,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     numAnalysisThreads = numAnalysisThreadsArg.getValue();
 
     if(numAnalysisThreads <= 0 || numAnalysisThreads >= 16384)
-      throw new StringError("Invalid value for numAnalysisThreads");
+      throw StringError("Invalid value for numAnalysisThreads");
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;

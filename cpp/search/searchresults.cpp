@@ -273,38 +273,16 @@ void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNo
   radiusBuf = radius;
 }
 
-double Search::getRootUtility() const {
-  assert(rootNode != NULL);
-  const SearchNode& node = *rootNode;
-
-  while(node.statsLock.test_and_set(std::memory_order_acquire));
-  double utilitySum = node.stats.utilitySum;
-  double weightSum = node.stats.weightSum;
-  node.statsLock.clear(std::memory_order_release);
-
-  assert(weightSum > 0.0);
-  return utilitySum / weightSum;
-}
-
-int64_t Search::getRootVisits() const {
-  assert(rootNode != NULL);
-  const SearchNode& node = *rootNode;
-
-  while(node.statsLock.test_and_set(std::memory_order_acquire));
-  int64_t numVisits = node.stats.visits;
-  node.statsLock.clear(std::memory_order_release);
-
-  return numVisits;
-}
-
 bool Search::getRootValues(ReportedSearchValues& values) const {
-  assert(rootNode != NULL);
+  if(rootNode == NULL)
+    return false;
   return getNodeValues(*rootNode,values);
 }
 
-ReportedSearchValues Search::getRootValuesAssertSuccess() const {
+ReportedSearchValues Search::getRootValuesRequireSuccess() const {
   ReportedSearchValues values;
-  assert(rootNode != NULL);
+  if(rootNode == NULL)
+    throw StringError("Bug? Bot search root was null");
   bool success = getNodeValues(*rootNode,values);
   if(!success)
     throw StringError("Bug? Bot search returned no root values");
