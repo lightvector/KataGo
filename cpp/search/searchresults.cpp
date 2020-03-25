@@ -289,6 +289,58 @@ ReportedSearchValues Search::getRootValuesRequireSuccess() const {
   return values;
 }
 
+bool Search::getRootRawNNValues(ReportedSearchValues& values) const {
+  if(rootNode == NULL)
+    return false;
+  return getNodeRawNNValues(*rootNode,values);
+}
+
+ReportedSearchValues Search::getRootRawNNValuesRequireSuccess() const {
+  ReportedSearchValues values;
+  if(rootNode == NULL)
+    throw StringError("Bug? Bot search root was null");
+  bool success = getNodeRawNNValues(*rootNode,values);
+  if(!success)
+    throw StringError("Bug? Bot search returned no root values");
+  return values;
+}
+
+bool Search::getNodeRawNNValues(const SearchNode& node, ReportedSearchValues& values) const {
+  std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
+  unique_lock<std::mutex> lock(mutex);
+  shared_ptr<NNOutput> nnOutput = node.nnOutput;
+  lock.unlock();
+  if(nnOutput == nullptr)
+    return false;
+
+  values.winValue = nnOutput->whiteWinProb;
+  values.lossValue = nnOutput->whiteLossProb;
+  values.noResultValue = nnOutput->whiteNoResultProb;
+
+  double scoreMean = nnOutput->whiteScoreMean;
+  double scoreMeanSq = nnOutput->whiteScoreMeanSq;
+  double scoreStdev = getScoreStdev(scoreMean,scoreMeanSq);
+  values.staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
+  values.dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
+  values.expectedScore = scoreMean;
+  values.expectedScoreStdev = scoreStdev;
+  values.lead = nnOutput->whiteLead;
+
+  //Sanity check
+  assert(values.winValue >= 0.0);
+  assert(values.lossValue >= 0.0);
+  assert(values.noResultValue >= 0.0);
+  assert(values.winValue + values.lossValue + values.noResultValue < 1.001);
+
+  double winLossValue = values.winValue - values.lossValue;
+  if(winLossValue > 1.0) winLossValue = 1.0;
+  if(winLossValue < -1.0) winLossValue = -1.0;
+  values.winLossValue = winLossValue;
+
+  return true;
+}
+
+
 bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values) const {
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
   unique_lock<std::mutex> lock(mutex);
@@ -495,7 +547,7 @@ double Search::getPolicySurprise() const {
   double surprise = 0.0;
   for(int i = 0; i<playSelectionValues.size(); i++) {
     int pos = getPos(locs[i]);
-    double policy = policyProbsFromNN[pos];
+    double policy = std::max((double)policyProbsFromNN[pos],1e-100);
     double target = playSelectionValues[i] / sumPlaySelectionValues;
     if(target > 1e-100)
       surprise += target * (log(target)-log(policy));

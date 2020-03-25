@@ -7,7 +7,7 @@ PlaySettings::PlaySettings()
    sekiForkHack(false),fancyKomiVarying(false),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
    reduceVisits(false),reduceVisitsThreshold(100.0),reduceVisitsThresholdLookback(1),reducedVisitsMin(0),reducedVisitsWeight(1.0f),
-   policySurpriseDataWeight(0.0),
+   policySurpriseDataWeight(0.0),valueSurpriseDataWeight(0.0),
    recordTreePositions(false),recordTreeThreshold(0),recordTreeTargetWeight(0.0f),
    allowResignation(false),resignThreshold(0.0),resignConsecTurns(1),
    forSelfPlay(false),dataXLen(-1),dataYLen(-1),
@@ -58,6 +58,7 @@ PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg, int dataBoardLen) 
   playSettings.reducedVisitsMin = cfg.getInt("reducedVisitsMin",1,10000000);
   playSettings.reducedVisitsWeight = cfg.getFloat("reducedVisitsWeight",0.0f,1.0f);
   playSettings.policySurpriseDataWeight = cfg.getDouble("policySurpriseDataWeight",0.0f,1.0f);
+  playSettings.valueSurpriseDataWeight = cfg.getDouble("valueSurpriseDataWeight",0.0f,1.0f);
   playSettings.handicapAsymmetricPlayoutProb = cfg.getDouble("handicapAsymmetricPlayoutProb",0.0,1.0);
   playSettings.normalAsymmetricPlayoutProb = cfg.getDouble("normalAsymmetricPlayoutProb",0.0,1.0);
   playSettings.maxAsymmetricRatio = cfg.getDouble("maxAsymmetricRatio",1.0,100.0);
@@ -66,6 +67,9 @@ PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg, int dataBoardLen) 
   playSettings.forSelfPlay = true;
   playSettings.dataXLen = dataBoardLen;
   playSettings.dataYLen = dataBoardLen;
+
+  if(playSettings.policySurpriseDataWeight + playSettings.valueSurpriseDataWeight > 1.0)
+    throw StringError("policySurpriseDataWeight + valueSurpriseDataWeight > 1.0");
 
   return playSettings;
 }

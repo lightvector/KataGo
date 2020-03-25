@@ -42,6 +42,8 @@ struct PlaySettings {
 
   //Probabilistically favor samples that had high policy surprise (kl divergence).
   double policySurpriseDataWeight;
+  //Probabilistically favor samples that had high winLossValue surprise (kl divergence).
+  double valueSurpriseDataWeight;
 
   //Record positions from within the search tree that had at least this many visits, recording only with this weight.
   bool recordTreePositions;

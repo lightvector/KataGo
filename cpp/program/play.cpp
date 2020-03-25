@@ -1298,6 +1298,7 @@ FinishedGameData* Play::runGame(
 
   vector<double> historicalMctsWinLossValues;
   vector<double> policySurpriseByTurn;
+  vector<ReportedSearchValues> rawNNValues;
 
   //Main play loop
   for(int i = 0; i<maxMovesPerGame; i++) {
@@ -1329,6 +1330,7 @@ FinishedGameData* Play::runGame(
       gameData->policyTargetsByTurn.push_back(PolicyTarget(policyTarget,unreducedNumVisits));
       gameData->targetWeightByTurn.push_back(limits.targetWeight);
       policySurpriseByTurn.push_back(toMoveBot->getPolicySurprise());
+      rawNNValues.push_back(toMoveBot->getRootRawNNValuesRequireSuccess());
 
       ValueTargets whiteValueTargets;
       extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode);
@@ -1491,8 +1493,38 @@ FinishedGameData* Play::runGame(
     gameData->dataXLen = dataXLen;
     gameData->dataYLen = dataYLen;
 
+    vector<double> valueSurpriseByTurn;
+    {
+      const vector<ValueTargets>& whiteValueTargetsByTurn = gameData->whiteValueTargetsByTurn;
+      assert(whiteValueTargetsByTurn.size() == gameData->targetWeightByTurn.size() + 1);
+      assert(rawNNValues.size() == gameData->targetWeightByTurn.size());
+      valueSurpriseByTurn.resize(rawNNValues.size());
+
+      int boardArea = board.x_size * board.y_size;
+      double nowFactor = 1.0/(1.0 + boardArea * 0.016);
+
+      double winValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].win;
+      double lossValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].loss;
+      double noResultValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].noResult;
+      for(int i = rawNNValues.size()-1; i >= 0; i++) {
+        winValue = winValue + nowFactor * (whiteValueTargetsByTurn[i].win - winValue);
+        lossValue = lossValue + nowFactor * (whiteValueTargetsByTurn[i].loss - lossValue);
+        noResultValue = noResultValue + nowFactor * (whiteValueTargetsByTurn[i].noResult - noResultValue);
+
+        double valueSurprise = 0.0;
+        if(winValue > 1e-100) valueSurprise += winValue * (log(winValue) - log(std::max((double)rawNNValues[i].winValue,1e-100)));
+        if(lossValue > 1e-100) valueSurprise += lossValue * (log(lossValue) - log(std::max((double)rawNNValues[i].lossValue,1e-100)));
+        if(noResultValue > 1e-100) valueSurprise += noResultValue * (log(noResultValue) - log(std::max((double)rawNNValues[i].noResultValue,1e-100)));
+
+        //Just in case, guard against float imprecision
+        if(valueSurprise < 0.0)
+          valueSurprise = 0.0;
+        valueSurpriseByTurn[i] = valueSurprise;
+      }
+    }
+
     //Compute desired expectation with which to write main game rows
-    if(playSettings.policySurpriseDataWeight > 0) {
+    if(playSettings.policySurpriseDataWeight > 0 || playSettings.valueSurpriseDataWeight > 0) {
       int numWeights = gameData->targetWeightByTurn.size();
       assert(numWeights == policySurpriseByTurn.size());
 
@@ -1517,27 +1549,37 @@ FinishedGameData* Play::runGame(
         //Part of the weight will be proportional to surprisePropValue which is just policySurprise on normal rows
         //and the excess policySurprise beyond threshold on shallow searches.
         //First pass - we sum up the surpriseValue.
-        double sumSurprisePropValue = 0.0;
+        double sumPolicySurprisePropValue = 0.0;
+        double sumValueSurprisePropValue = 0.0;
         for(int i = 0; i<numWeights; i++) {
           float targetWeight = gameData->targetWeightByTurn[i];
           double policySurprise = policySurpriseByTurn[i];
-          double surprisePropValue =
+          double valueSurprise = valueSurpriseByTurn[i];
+          double policySurprisePropValue =
             targetWeight * policySurprise + (1-targetWeight) * std::max(0.0,policySurprise-thresholdToIncludeReduced);
-          sumSurprisePropValue += surprisePropValue;
+          double valueSurprisePropValue =
+            targetWeight * valueSurprise;
+          sumPolicySurprisePropValue += policySurprisePropValue;
+          sumValueSurprisePropValue += valueSurprisePropValue;
         }
 
         //Just in case, avoid div by 0
-        if(sumSurprisePropValue > 1e-10) {
-          for(int i = 0; i<numWeights; i++) {
-            float targetWeight = gameData->targetWeightByTurn[i];
-            double policySurprise = policySurpriseByTurn[i];
-            double surprisePropValue =
-              targetWeight * policySurprise + (1-targetWeight) * std::max(0.0,policySurprise-thresholdToIncludeReduced);
-            double newValue =
-              (1.0-playSettings.policySurpriseDataWeight) * targetWeight
-              + playSettings.policySurpriseDataWeight * surprisePropValue * sumWeights / sumSurprisePropValue;
-            gameData->targetWeightByTurn[i] = (float)(newValue);
-          }
+        sumPolicySurprisePropValue = std::max(sumPolicySurprisePropValue,1e-10);
+        sumValueSurprisePropValue = std::max(sumValueSurprisePropValue,1e-10);
+
+        for(int i = 0; i<numWeights; i++) {
+          float targetWeight = gameData->targetWeightByTurn[i];
+          double policySurprise = policySurpriseByTurn[i];
+          double valueSurprise = valueSurpriseByTurn[i];
+          double policySurprisePropValue =
+            targetWeight * policySurprise + (1-targetWeight) * std::max(0.0,policySurprise-thresholdToIncludeReduced);
+          double valueSurprisePropValue =
+            targetWeight * valueSurprise;
+          double newValue =
+            (1.0-playSettings.policySurpriseDataWeight-playSettings.valueSurpriseDataWeight) * targetWeight
+            + playSettings.policySurpriseDataWeight * policySurprisePropValue * sumWeights / sumPolicySurprisePropValue
+            + playSettings.valueSurpriseDataWeight * valueSurprisePropValue * sumWeights / sumValueSurprisePropValue;
+          gameData->targetWeightByTurn[i] = (float)(newValue);
         }
       }
     }
