@@ -1506,7 +1506,7 @@ FinishedGameData* Play::runGame(
       double winValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].win;
       double lossValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].loss;
       double noResultValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].noResult;
-      for(int i = rawNNValues.size()-1; i >= 0; i++) {
+      for(int i = rawNNValues.size()-1; i >= 0; i--) {
         winValue = winValue + nowFactor * (whiteValueTargetsByTurn[i].win - winValue);
         lossValue = lossValue + nowFactor * (whiteValueTargetsByTurn[i].loss - lossValue);
         noResultValue = noResultValue + nowFactor * (whiteValueTargetsByTurn[i].noResult - noResultValue);
@@ -1657,7 +1657,7 @@ FinishedGameData* Play::runGame(
     }
 
     //Resolve probabilistic weights of things
-    {
+    if(!playSettings.noResolveTargetWeights) {
       auto resolveWeight = [&gameRand](float weight){
         if(weight <= 0) weight = 0;
         float floored = floor(weight);

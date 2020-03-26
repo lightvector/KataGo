@@ -50,6 +50,9 @@ struct PlaySettings {
   int recordTreeThreshold;
   float recordTreeTargetWeight;
 
+  //Don't stochastically integerify target weights
+  bool noResolveTargetWeights;
+
   //Resign conditions
   bool allowResignation;
   double resignThreshold; //Require that mcts win value is less than this

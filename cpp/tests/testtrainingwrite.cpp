@@ -367,7 +367,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     const Rules& rules,
     bool testAsym,
     bool testLead,
-    bool testSurpriseWeight
+    bool testPolicySurpriseWeight,
+    bool testValueSurpriseWeight
   ) {
     nnEval->clearCache();
     nnEval->clearStats();
@@ -400,7 +401,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
-    int maxMovesPerGame = (testLead || testSurpriseWeight) ? 30 : 15;
+    int maxMovesPerGame = (testLead || testPolicySurpriseWeight || testValueSurpriseWeight) ? 30 : 15;
     vector<std::atomic<bool>*> stopConditions;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
@@ -412,8 +413,12 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     playSettings.minAsymmetricCompensateKomiProb = 0.5;
     if(testLead)
       playSettings.estimateLeadProb = 0.7;
-    if(testSurpriseWeight)
+    if(testPolicySurpriseWeight)
       playSettings.policySurpriseDataWeight = 0.8;
+    if(testValueSurpriseWeight) {
+      playSettings.valueSurpriseDataWeight = 0.15;
+      playSettings.noResolveTargetWeights = true;
+    }
 
     playSettings.forSelfPlay = true;
     playSettings.dataXLen = nnXLen;
@@ -433,7 +438,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       otherGameProps.playoutDoublingAdvantage = log(3.0) / log(2.0);
       otherGameProps.playoutDoublingAdvantagePla = P_WHITE;
     }
-    bool logSearchInfo = testSurpriseWeight;
+    bool logSearchInfo = testPolicySurpriseWeight;
     FinishedGameData* gameData = Play::runGame(
       initialBoard,initialPla,initialHist,extraBlackAndKomi,
       botSpec,botSpec,
@@ -453,12 +458,13 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
   };
 
 
-  run("testasym!",Rules::getTrompTaylorish(),true,false,false);
-  run("test lead!",Rules::getTrompTaylorish(),false,true,false);
+  run("testasym!",Rules::getTrompTaylorish(),true,false,false,false);
+  run("test lead!",Rules::getTrompTaylorish(),false,true,false,false);
   Rules r = Rules::getTrompTaylorish();
   r.hasButton = true;
-  run("test lead int button!",r,false,true,false);
-  run("test surprise!",Rules::getTrompTaylorish(),false,false,true);
+  run("test lead int button!",r,false,true,false,false);
+  run("test surprise!",Rules::getTrompTaylorish(),false,false,true,false);
+  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true);
 
 
   //Test lead specifically on a final position
