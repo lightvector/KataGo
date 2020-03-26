@@ -1530,17 +1530,30 @@ FinishedGameData* Play::runGame(
 
       double sumWeights = 0.0;
       double sumPolicySurpriseWeighted = 0.0;
+      double sumValueSurpriseWeighted = 0.0;
       for(int i = 0; i<numWeights; i++) {
         float targetWeight = gameData->targetWeightByTurn[i];
         assert(targetWeight >= 0.0 && targetWeight <= 1.0);
         sumWeights += targetWeight;
         double policySurprise = policySurpriseByTurn[i];
         assert(policySurprise >= 0.0);
+        double valueSurprise = valueSurpriseByTurn[i];
+        assert(valueSurprise >= 0.0);
         sumPolicySurpriseWeighted += policySurprise * targetWeight;
+        sumValueSurpriseWeighted += valueSurprise * targetWeight;
       }
 
       if(sumWeights >= 1) {
         double averagePolicySurpriseWeighted = sumPolicySurpriseWeighted / sumWeights;
+        double averageValueSurpriseWeighted = sumValueSurpriseWeighted / sumWeights;
+
+        //It's possible that we have very little value surprise, such as if the game was initialized lopsided and never again changed
+        //from that and the expected player won. So if the total value surprise on targetWeighted turns is too small, then also don't
+        //do much valueSurpriseDataWeight, since it would be basically dividing by almost zero, in potentially weird ways.
+        double valueSurpriseDataWeight = playSettings.valueSurpriseDataWeight;
+        if(averageValueSurpriseWeighted < 0.015) { //0.015 logits on average, pretty arbitrary, mainly just intended limit to extreme cases.
+          valueSurpriseDataWeight *= averageValueSurpriseWeighted / 0.015;
+        }
 
         //We also include some rows from non-full searches, if despite the shallow search
         //they were quite surprising to the policy.
@@ -1576,9 +1589,9 @@ FinishedGameData* Play::runGame(
           double valueSurprisePropValue =
             targetWeight * valueSurprise;
           double newValue =
-            (1.0-playSettings.policySurpriseDataWeight-playSettings.valueSurpriseDataWeight) * targetWeight
+            (1.0-playSettings.policySurpriseDataWeight-valueSurpriseDataWeight) * targetWeight
             + playSettings.policySurpriseDataWeight * policySurprisePropValue * sumWeights / sumPolicySurprisePropValue
-            + playSettings.valueSurpriseDataWeight * valueSurprisePropValue * sumWeights / sumValueSurprisePropValue;
+            + valueSurpriseDataWeight * valueSurprisePropValue * sumWeights / sumValueSurprisePropValue;
           gameData->targetWeightByTurn[i] = (float)(newValue);
         }
       }
