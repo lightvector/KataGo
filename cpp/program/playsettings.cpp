@@ -1,7 +1,7 @@
 #include "../program/playsettings.h"
 
 PlaySettings::PlaySettings()
-  :initGamesWithPolicy(false),forkSidePositionProb(0.0),
+  :initGamesWithPolicy(false),compensateAfterPolicyInitProb(0.0),forkSidePositionProb(0.0),
    compensateKomiVisits(20),estimateLeadVisits(10),estimateLeadProb(0.0),
    earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),forkGameProb(0.0),forkGameMinChoices(1),earlyForkGameMaxChoices(1),forkGameMaxChoices(1),
    sekiForkHack(false),fancyKomiVarying(false),
@@ -37,6 +37,7 @@ PlaySettings PlaySettings::loadForGatekeeper(ConfigParser& cfg) {
 PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg, int dataBoardLen) {
   PlaySettings playSettings;
   playSettings.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
+  playSettings.compensateAfterPolicyInitProb = cfg.getDouble("compensateAfterPolicyInitProb",0.0,1.0);
   playSettings.forkSidePositionProb = cfg.getDouble("forkSidePositionProb",0.0,1.0);
 
   playSettings.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 20;

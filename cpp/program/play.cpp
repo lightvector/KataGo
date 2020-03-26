@@ -428,7 +428,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     pla = P_BLACK;
     hist.clear(board,pla,rules,0);
     otherGameProps.isSgfPos = false;
-    otherGameProps.allowPolicyInit = true;
+    otherGameProps.allowPolicyInit = true; //Handicap and regular games do allow policy init
     otherGameProps.isFork = false;
     makeGameFairProb = extraBlackAndKomi.extraBlack > 0 ? handicapCompensateKomiProb : 0.0;
   }
@@ -1257,6 +1257,9 @@ FinishedGameData* Play::runGame(
     double proportionOfBoardArea = 1.0 / 25.0;
     double temperature = 1.0;
     initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
+    if(playSettings.compensateAfterPolicyInitProb > 0.0 && gameRand.nextBool(playSettings.compensateAfterPolicyInitProb)) {
+      PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,logger,otherGameProps,gameRand);
+    }
   }
 
   //Make sure there's some minimum tiny amount of data about how the encore phases work

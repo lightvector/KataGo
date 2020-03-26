@@ -6,6 +6,7 @@
 struct PlaySettings {
   //Play a bunch of mostly policy-distributed moves at the start to initialize a game.
   bool initGamesWithPolicy;
+  double compensateAfterPolicyInitProb; //Chance to adjust komi to cancel the effect of imbalanced init
   //Occasionally try some alternative moves and search the responses to them.
   double forkSidePositionProb;
 
