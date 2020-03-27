@@ -37,7 +37,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          -min-rows 250000 \
          -max-rows 1000000000 \
          -expand-window-per-row 0.4 \
-         -taper-window-exponent 0.675 \
+         -taper-window-exponent 0.65 \
          -out-dir "$BASEDIR"/shuffleddata/$OUTDIRTRAIN \
          -out-tmp-dir "$TMPDIR"/train \
          -approx-rows-per-out-file 70000 \
