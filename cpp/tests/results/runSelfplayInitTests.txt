@@ -6563,6 +6563,7 @@ seedBase: test surprise!
 
 Root visits: 100
 Policy surprise 0.104435
+Raw WL -0.0148067
 PV: H9 H4 J6 C6 C5 D6
 Tree:
 : T   5.53c W   4.75c S   0.78c ( +1.3 L  +1.3) N     100  --  H9 H4 J6 C6 C5 D6
@@ -6591,6 +6592,7 @@ H3  : T   9.99c W   8.81c S   1.17c ( +2.0 L  +2.0) LCB   43.92c P  9.64% WF 15.
 
 Root visits: 50
 Policy surprise 0.0891616
+Raw WL 0.092012
 PV: J4 G3 J7 J8 H7 F9 H3 G4 C4
 Tree:
 : T   4.60c W   3.92c S   0.68c ( +1.2 L  +1.2) N      50  --  J4 G3 J7 J8 H7 F9 H3
@@ -6616,6 +6618,7 @@ H4  : T   3.62c W   3.05c S   0.57c ( +1.0 L  +1.0) LCB  -10.11c P 32.77% WF 32.
 
 Root visits: 100
 Policy surprise 0.105007
+Raw WL -0.0817821
 PV: G3 J7 J8 H7 F9 H3 G4 C4 C5 C3 D5 E2
 Tree:
 : T   5.51c W   4.80c S   0.71c ( +1.2 L  +1.2) N     100  --  G3 J7 J8 H7 F9 H3 G4
@@ -6643,6 +6646,7 @@ G4  : T  23.99c W  21.04c S   2.95c ( +5.1 L  +5.1) LCB  260.00c P  3.53% WF 17.
 
 Root visits: 100
 Policy surprise 0.0842742
+Raw WL 0.162377
 PV: J7 J8 H7 F9 H3 G4 C4 C5 C3 D5 E2
 Tree:
 : T   4.81c W   4.17c S   0.63c ( +1.1 L  +1.1) N     100  --  J7 J8 H7 F9 H3 G4 C4
@@ -6670,6 +6674,7 @@ C4  : T  -6.02c W  -5.52c S  -0.49c ( -0.8 L  -0.8) LCB -260.00c P  2.92% WF 18.
 
 Root visits: 100
 Policy surprise 0.130182
+Raw WL -0.0671026
 PV: J8 H7 F9 H3 G4 C4 C5 C3 D5 E2 F2 E3
 Tree:
 : T   5.85c W   5.12c S   0.73c ( +1.2 L  +1.2) N     100  --  J8 H7 F9 H3 G4 C4 C5
@@ -6697,6 +6702,7 @@ F9  : T  22.64c W  19.76c S   2.88c ( +5.0 L  +5.0) LCB  260.00c P  2.83% WF 18.
 
 Root visits: 100
 Policy surprise 0.104439
+Raw WL 0.144677
 PV: H7 F9 H3 G4 C4 C5 C3 D5 E2 F2 E3 F5
 Tree:
 : T   6.49c W   5.71c S   0.78c ( +1.3 L  +1.3) N     100  --  H7 F9 H3 G4 C4 C5 C3
@@ -6720,6 +6726,7 @@ H7  : T   6.39c W   5.62c S   0.77c ( +1.3 L  +1.3) LCB    0.85c P 90.08% WF 100
 
 Root visits: 100
 Policy surprise 0.128561
+Raw WL -0.089275
 PV: F9 H3 G4 C4 C5 C3 D5 E2 F2 E3 F5
 Tree:
 : T   6.64c W   5.84c S   0.79c ( +1.3 L  +1.3) N     100  --  F9 H3 G4 C4 C5 C3 D5
@@ -6745,6 +6752,7 @@ D9  : T  10.00c W   8.76c S   1.23c ( +2.1 L  +2.1) LCB  138.19c P  2.90% WF 32.
 
 Root visits: 100
 Policy surprise 0.19233
+Raw WL 0.147448
 PV: H3 G4 C4 C5 C3 D5 E2 F2 E3 F5 F8
 Tree:
 : T   6.18c W   5.47c S   0.72c ( +1.2 L  +1.2) N     100  --  H3 G4 C4 C5 C3 D5 E2
@@ -6772,6 +6780,7 @@ C6  : T -14.49c W -13.40c S  -1.09c ( -1.8 L  -1.8) LCB -260.00c P  5.73% WF 17.
 
 Root visits: 100
 Policy surprise 0.0959179
+Raw WL -0.0507668
 PV: G4 C4 C5 C3 D5 E2 F2 E3 F5 H2 B8
 Tree:
 : T   7.40c W   6.57c S   0.83c ( +1.4 L  +1.4) N     100  --  G4 C4 C5 C3 D5 E2 F2
@@ -6798,6 +6807,7 @@ H2  : T   4.20c W   3.53c S   0.68c ( +1.1 L  +1.1) LCB   28.15c P  4.67% WF 25.
 
 Root visits: 50
 Policy surprise 0.268884
+Raw WL 0.157433
 PV: C4 C5 C3 D5 E2 F2 E3 F5 H2 B8
 Tree:
 : T   9.86c W   8.83c S   1.03c ( +1.7 L  +1.7) N      50  --  C4 C5 C3 D5 E2 F2 E3
@@ -6823,6 +6833,7 @@ C6  : T -13.02c W -11.97c S  -1.05c ( -1.8 L  -1.8) LCB -260.00c P  9.52% WF 28.
 
 Root visits: 50
 Policy surprise 0.134046
+Raw WL -0.134252
 PV: C5 C3 D5 E2 F2 E3 F5 H2 B8
 Tree:
 : T   9.51c W   8.51c S   1.00c ( +1.7 L  +1.7) N      50  --  C5 C3 D5 E2 F2 E3 F5
@@ -6847,6 +6858,7 @@ C3  : T  19.90c W  18.07c S   1.83c ( +2.9 L  +2.9) LCB   36.94c P 44.69% WF 43.
 
 Root visits: 50
 Policy surprise 0.0583133
+Raw WL 0.154526
 PV: C3 D5 E2 F2 E3 F5 H2 B8
 Tree:
 : T   5.35c W   4.71c S   0.64c ( +1.1 L  +1.1) N      50  --  C3 D5 E2 F2 E3 F5 H2
@@ -6870,6 +6882,7 @@ C3  : T   5.10c W   4.49c S   0.61c ( +1.1 L  +1.1) LCB   -1.85c P 94.34% WF 100
 
 Root visits: 100
 Policy surprise 0.109673
+Raw WL 0.00285947
 PV: D5 E2 F7 E9 C9 C8 E10 F8 G8
 Tree:
 : T   3.10c W   2.68c S   0.42c ( +0.7 L  +0.7) N     100  --  D5 E2 F7 E9 C9 C8 E10
@@ -6896,6 +6909,7 @@ D6  : T  10.33c W   9.03c S   1.30c ( +2.3 L  +2.3) LCB  260.00c P  4.96% WF 24.
 
 Root visits: 50
 Policy surprise 0.102461
+Raw WL 0.0389491
 PV: E2 F2 E3 F5 C7 B4
 Tree:
 : T   4.31c W   3.75c S   0.56c ( +1.0 L  +1.0) N      50  --  E2 F2 E3 F5 C7 B4
@@ -6921,6 +6935,7 @@ E9  : T -14.20c W -13.09c S  -1.11c ( -2.0 L  -2.0) LCB -260.00c P  6.74% WF 29.
 
 Root visits: 100
 Policy surprise 0.425297
+Raw WL -0.117405
 PV: B8 F8 G8 G7 F7 E8
 Tree:
 : T   3.21c W   2.76c S   0.46c ( +0.8 L  +0.8) N     100  --  B8 F8 G8 G7 F7 E8
@@ -6953,6 +6968,7 @@ G2  : T  22.96c W  20.57c S   2.39c ( +4.2 L  +4.2) LCB  260.00c P  3.53% WF  8.
 
 Root visits: 50
 Policy surprise 0.195535
+Raw WL 0.103196
 PV: F8 G8 G7 F7 E8 F6
 Tree:
 : T  -2.64c W  -2.51c S  -0.13c ( -0.2 L  -0.2) N      50  --  F8 G8 G7 F7 E8 F6
@@ -6982,6 +6998,7 @@ B7  : T -13.02c W -11.90c S  -1.12c ( -2.0 L  -2.0) LCB -250.06c P  7.01% WF 12.
 
 Root visits: 50
 Policy surprise 0.530993
+Raw WL -0.0801108
 PV: G8 G7 F7 E8 F6 H8 G9 J9 J10 K8 K9 E10
 Tree:
 : T  -8.88c W  -8.15c S  -0.74c ( -1.3 L  -1.3) N      50  --  G8 G7 F7 E8 F6 H8 G9
@@ -7008,6 +7025,7 @@ F2  : T  26.46c W  23.57c S   2.89c ( +5.0 L  +5.0) LCB  260.00c P  4.17% WF 21.
 
 Root visits: 50
 Policy surprise 0.131949
+Raw WL -0.0589053
 PV: G7 F7 E8 F6 H8 G9 J9 J10 K8 K9 E10
 Tree:
 : T -14.34c W -13.06c S  -1.29c ( -2.3 L  -2.3) N      50  --  G7 F7 E8 F6 H8 G9 J9
@@ -7033,6 +7051,7 @@ E9  : T -18.45c W -16.73c S  -1.73c ( -3.1 L  -3.1) LCB -176.32c P  6.65% WF 32.
 
 Root visits: 50
 Policy surprise 0.385972
+Raw WL -0.0126394
 PV: F7 E8 F6 H8 G9 J9 J10 K8 K9 B7 C7 C8
 Tree:
 : T -12.91c W -11.83c S  -1.08c ( -2.0 L  -2.0) N      50  --  F7 E8 F6 H8 G9 J9 J10
@@ -7058,6 +7077,7 @@ H4  : T  26.47c W  23.61c S   2.86c ( +5.0 L  +5.0) LCB  260.00c P  5.63% WF 26.
 
 Root visits: 50
 Policy surprise 0.0890754
+Raw WL -0.0789392
 PV: E8 F6 H8 G9 J9 J10 K8 K9 E10 C9 K10
 Tree:
 : T -15.13c W -13.81c S  -1.32c ( -2.4 L  -2.4) N      50  --  E8 F6 H8 G9 J9 J10 K8
@@ -7082,6 +7102,7 @@ H8  : T -33.29c W -30.25c S  -3.04c ( -5.0 L  -5.0) LCB -260.00c P 10.42% WF 44.
 
 Root visits: 100
 Policy surprise 0.256813
+Raw WL -0.0709497
 PV: F6 H8 G9 J9 J10 K8 K9 E9 C9 K10 J8 L9
 Tree:
 : T  -7.10c W  -6.61c S  -0.50c ( -0.9 L  -0.9) N     100  --  F6 H8 G9 J9 J10 K8 K9
@@ -7109,6 +7130,7 @@ J5  : T  13.52c W  12.11c S   1.41c ( +2.5 L  +2.5) LCB  260.00c P  3.98% WF 18.
 
 Root visits: 100
 Policy surprise 0.75396
+Raw WL -0.0293048
 PV: B9 D10 B7 C8 C7 C9 B5 D7 H8 G9
 Tree:
 : T  -7.44c W  -6.90c S  -0.54c ( -1.0 L  -1.0) N     100  --  B9 D10 B7 C8 C7 C9 B5
@@ -7139,6 +7161,7 @@ F10 : T -33.37c W -30.38c S  -3.00c ( -5.4 L  -5.4) LCB -260.00c P  3.39% WF 11.
 
 Root visits: 50
 Policy surprise 0.346897
+Raw WL -0.139907
 PV: D10 B7 C8 C7 C9 B5 D7 H8 G9
 Tree:
 : T   1.50c W   1.15c S   0.35c ( +0.6 L  +0.6) N      50  --  D10 B7 C8 C7 C9 B5 D7
@@ -7168,6 +7191,7 @@ D3  : T   2.71c W   2.22c S   0.49c ( +0.9 L  +0.9) LCB  260.00c P  4.55% WF 14.
 
 Root visits: 50
 Policy surprise 0.370288
+Raw WL -0.136439
 PV: B7 C8 C7 C9 B5 D7 H8 G9 J9 B6 C6 D6
 Tree:
 : T  -1.60c W  -1.38c S  -0.22c ( -0.5 L  -0.5) N      50  --  B7 C8 C7 C9 B5 D7 H8
@@ -7196,6 +7220,7 @@ C8  : T -30.07c W -27.38c S  -2.68c ( -4.9 L  -4.9) LCB -260.00c P  7.09% WF 14.
 
 Root visits: 50
 Policy surprise 0.26411
+Raw WL 0.0181588
 PV: C8 C7 C9 B5 D7 H8 G9 J9 B6 C6 B4 A6 B3
 Tree:
 : T   6.29c W   5.71c S   0.58c ( +1.0 L  +1.0) N      50  --  C8 C7 C9 B5 D7 H8 G9
@@ -7223,6 +7248,7 @@ D3  : T  22.04c W  19.75c S   2.29c ( +4.0 L  +4.0) LCB  260.00c P  4.31% WF 18.
 
 Root visits: 100
 Policy surprise 0.344215
+Raw WL 0.102318
 PV: C7 C9 B5 D7 H8 G9 J9 B6 C6 B4 A6 B3 B2 D3 C2 D2
 Tree:
 : T   6.75c W   6.18c S   0.57c ( +0.9 L  +0.9) N     100  --  C7 C9 B5 D7 H8 G9 J9
@@ -7250,6 +7276,7 @@ E10 : T -37.28c W -33.57c S  -3.72c ( -6.8 L  -6.8) LCB -260.00c P  3.20% WF 16.
 
 Root visits: 100
 Policy surprise 0.0199884
+Raw WL -0.0184343
 PV: C9 B5 D7 H8 G9 J9 B6 C6 B4 A6 B3 B2 D3 C2 D2
 Tree:
 : T   9.66c W   8.79c S   0.86c ( +1.4 L  +1.4) N     100  --  C9 B5 D7 H8 G9 J9 B6
@@ -7273,6 +7300,7 @@ C9  : T   9.77c W   8.90c S   0.87c ( +1.4 L  +1.4) LCB   21.92c P 98.02% WF 100
 
 Root visits: 50
 Policy surprise 0.172673
+Raw WL 0.0968913
 PV: B5 D7 H8 G9 J9 B6 C6 B4 A6 B3 B2 D3 C2
 Tree:
 : T  16.80c W  15.41c S   1.39c ( +2.2 L  +2.2) N      50  --  B5 D7 H8 G9 J9 B6 C6
@@ -7297,6 +7325,7 @@ H8  : T -23.92c W -21.87c S  -2.05c ( -3.6 L  -3.6) LCB -260.00c P  7.96% WF 39.
 
 Root visits: 50
 Policy surprise 0.156967
+Raw WL 0.186426
 PV: D7 H8 G9 J9 B6 C6 B4 A6 B3 B2 D3 C2
 Tree:
 : T  18.22c W  16.75c S   1.47c ( +2.3 L  +2.3) N      50  --  D7 H8 G9 J9 B6 C6 B4
@@ -7322,6 +7351,7 @@ B4  : T  37.74c W  33.43c S   4.32c ( +7.8 L  +7.8) LCB  260.00c P  7.79% WF 29.
 
 Root visits: 50
 Policy surprise 0.606059
+Raw WL -0.0282618
 PV: H8 G9 J9 B6 C6 B4 A6 B3 B2 D3 C2 D2
 Tree:
 : T  20.07c W  18.51c S   1.57c ( +2.4 L  +2.4) N      50  --  H8 G9 J9 B6 C6 B4 A6
