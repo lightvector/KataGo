@@ -1,0 +1,32 @@
+
+DESCRIPTION: 
+
+   Generate training data via self play.
+
+USAGE: 
+
+   selfplay  -config <FILE> -models-dir <DIR> -output-dir <DIR>
+
+
+Where: 
+
+   -config <FILE>
+     (required)  Config file to use.
+
+   -models-dir <DIR>
+     (required)  Dir to poll and load models from
+
+   -output-dir <DIR>
+     (required)  Dir to output files
+
+   --,  -ignore_rest
+     Ignores the rest of the labeled arguments following this flag.
+
+   -version
+     Displays version information and exits.
+
+   -h,  -help
+     Displays usage information and exits.
+
+
+

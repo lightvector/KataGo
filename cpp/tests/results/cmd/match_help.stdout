@@ -1,0 +1,38 @@
+
+DESCRIPTION: 
+
+   Play different nets against each other with different search settings in
+   a match or tournament.
+
+USAGE: 
+
+   match  -config <FILE> -log-file <FILE> [-sgf-output-dir <DIR>] [...other
+          flags...]
+
+
+Where: 
+
+   -config <FILE>
+     (required)  Config file to use (see match_example.cfg or
+     configs/match_example.cfg).
+
+   -log-file <FILE>
+     (required)  Log file to output to
+
+   -sgf-output-dir <DIR>
+     Dir to output sgf files
+
+   -override-config <KEYVALUEPAIRS>
+     Override config parameters. Format: "key=value, key=value,..."
+
+   --,  -ignore_rest
+     Ignores the rest of the labeled arguments following this flag.
+
+   -version
+     Displays version information and exits.
+
+   -h,  -help
+     Displays usage information and exits.
+
+
+

@@ -1,0 +1,36 @@
+
+DESCRIPTION: 
+
+   Run KataGo main GTP engine for playing games or casual analysis.
+
+USAGE: 
+
+   gtp  [-config <FILE>] [-model <FILE>] [...other flags...]
+
+
+Where: 
+
+   -config <FILE>
+     Config file to use (see gtp_example.cfg or configs/gtp_example.cfg).
+     Defaults to: ~/.katago/default_gtp.cfg
+
+   -model <FILE>
+     Neural net model file. Defaults to: ~/.katago/default_model.bin.gz
+
+   -override-config <KEYVALUEPAIRS>
+     Override config parameters. Format: "key=value, key=value,..."
+
+   -override-version <VERSION>
+     Force KataGo to say a certain value in response to gtp version command
+
+   --,  -ignore_rest
+     Ignores the rest of the labeled arguments following this flag.
+
+   -version
+     Displays version information and exits.
+
+   -h,  -help
+     Displays usage information and exits.
+
+
+

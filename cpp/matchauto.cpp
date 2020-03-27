@@ -401,9 +401,8 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
   string sgfOutputDir;
   string resultsDir;
   try {
-    KataGoCommandLine cmd("Play different nets against each other with different search settings");
+    KataGoCommandLine cmd("Play different nets against each other with different search settings in a match or tournament, experimental.");
     cmd.addConfigFileArg("","");
-    cmd.addOverrideConfigArg();
 
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",false,string(),"DIR");
@@ -411,6 +410,10 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
     cmd.add(logFileArg);
     cmd.add(sgfOutputDirArg);
     cmd.add(resultsDirArg);
+
+    cmd.setShortUsageArgLimit();
+    cmd.addOverrideConfigArg();
+
     cmd.parse(argc,argv);
 
     logFile = logFileArg.getValue();

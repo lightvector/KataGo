@@ -33,13 +33,13 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool printLead;
   bool rawNN;
   try {
-    KataGoCommandLine cmd("Run a search on a position from an sgf file");
+    KataGoCommandLine cmd("Run a search on a position from an sgf file, for debugging.");
     cmd.addConfigFileArg("","gtp_example.cfg");
-    cmd.addOverrideConfigArg();
-    cmd.addModelFileArg("");
+    cmd.addModelFileArg();
 
     TCLAP::UnlabeledValueArg<string> sgfFileArg("","Sgf file to analyze",true,string(),"FILE");
     TCLAP::ValueArg<int> moveNumArg("m","move-num","Sgf move num to analyze, 1-indexed",true,0,"MOVENUM");
+
     TCLAP::ValueArg<string> printBranchArg("","print-branch","Move branch in search tree to print",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> printArg("p","print","Alias for -print-branch",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> extraMovesArg("","extra-moves","Extra moves to force-play before doing search",false,string(),"MOVE MOVE ...");
@@ -56,6 +56,11 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
     cmd.add(sgfFileArg);
     cmd.add(moveNumArg);
+
+    cmd.setShortUsageArgLimit();
+
+    cmd.addOverrideConfigArg();
+
     cmd.add(printBranchArg);
     cmd.add(printArg);
     cmd.add(extraMovesArg);

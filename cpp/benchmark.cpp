@@ -62,24 +62,27 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   bool autoTuneThreads;
   int secondsPerGameMove;
   try {
-    KataGoCommandLine cmd("Benchmark with gtp config to test speed with different numbers of threads");
-    cmd.addConfigFileArg("","gtp_example.cfg");
-    cmd.addOverrideConfigArg();
-    cmd.addModelFileArg("");
-
-    TCLAP::ValueArg<string> sgfFileArg("","sgf", "Optional game to sample positions from (default: uses a built-in-set of positions)",false,string(),"FILE");
-    TCLAP::ValueArg<int> boardSizeArg("","boardsize", "Size of board to benchmark on (9-19), default 19",false,-1,"SIZE");
+    KataGoCommandLine cmd("Benchmark with gtp config to test speed with different numbers of threads.");
+    cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
+    cmd.addModelFileArg();
     TCLAP::ValueArg<long> visitsArg("v","visits","How many visits to use per search (default " + Global::int64ToString(defaultMaxVisits) + ")",false,(long)defaultMaxVisits,"VISITS");
     TCLAP::ValueArg<string> threadsArg("t","threads","Test these many threads, comma-separated (default " + defaultThreadsToTest + ")",false,defaultThreadsToTest,"THREADS");
     TCLAP::ValueArg<int> numPositionsPerGameArg("n","numpositions","How many positions to sample from a game (default 10)",false,10,"NUM");
+    TCLAP::ValueArg<string> sgfFileArg("","sgf", "Optional game to sample positions from (default: uses a built-in-set of positions)",false,string(),"FILE");
+    TCLAP::ValueArg<int> boardSizeArg("","boardsize", "Size of board to benchmark on (9-19), default 19",false,-1,"SIZE");
     TCLAP::SwitchArg autoTuneThreadsArg("s","tune","Automatically search for the optimal number of threads");
     TCLAP::ValueArg<int> secondsPerGameMoveArg("i","time","Typical amount of time per move spent while playing, in seconds (default " +
                                                Global::doubleToString(defaultSecondsPerGameMove) + ")",false,defaultSecondsPerGameMove,"SECONDS");
-    cmd.add(sgfFileArg);
-    cmd.add(boardSizeArg);
     cmd.add(visitsArg);
     cmd.add(threadsArg);
     cmd.add(numPositionsPerGameArg);
+
+    cmd.setShortUsageArgLimit();
+
+    cmd.addOverrideConfigArg();
+
+    cmd.add(sgfFileArg);
+    cmd.add(boardSizeArg);
     cmd.add(autoTuneThreadsArg);
     cmd.add(secondsPerGameMoveArg);
     cmd.parse(argc,argv);
@@ -175,6 +178,9 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   }
   else
     reallocateNNEvalWithEnoughBatchSize(ternarySearchInitialMax);
+
+  logger.write("Loaded config " + cfg.getFileName());
+  logger.write("Loaded model "+ modelFile);
 
   cout << endl;
   cout << "Testing using " << maxVisits << " visits." << endl;
@@ -431,9 +437,10 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
 
   string outputFile;
   string modelFile;
+  bool modelFileIsDefault;
   try {
-    KataGoCommandLine cmd("Automatically generate and tune a new GTP config");
-    cmd.addModelFileArg("");
+    KataGoCommandLine cmd("Automatically generate and tune a new GTP config.");
+    cmd.addModelFileArg();
 
     TCLAP::ValueArg<string> outputFileArg("","output","Path to write new config (default gtp.cfg)",false,string("gtp.cfg"),"FILE");
     cmd.add(outputFileArg);
@@ -441,6 +448,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
 
     outputFile = outputFileArg.getValue();
     modelFile = cmd.getModelFile();
+    modelFileIsDefault = cmd.modelFileIsDefault();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -833,7 +841,10 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
   out.close();
 
   cout << "You should be now able to run KataGo with this config via something like:" << endl;
-  cout << firstCommand << " gtp -model '" << modelFile << "' -config '" << outputFile << "'" << endl;
+  if(modelFileIsDefault)
+    cout << firstCommand << " gtp -config '" << outputFile << "'" << endl;
+  else
+    cout << firstCommand << " gtp -model '" << modelFile << "' -config '" << outputFile << "'" << endl;
   cout << endl;
 
   cout << "Feel free to look at and edit the above config file further by hand in a txt editor." << endl;

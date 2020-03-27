@@ -10,3 +10,13 @@ do
 done
 
 sed 's/^Time taken:.*/Time taken: ###/g' -i tests/results/gtp/*
+
+mkdir -p tests/results/cmd
+rm -f tests/results/cmd/*
+./katago analysis -help > tests/results/cmd/analysis_help.stdout
+./katago benchmark -help > tests/results/cmd/benchmark_help.stdout
+./katago genconfig -help > tests/results/cmd/genconfig_help.stdout
+./katago gtp -help > tests/results/cmd/gtp_help.stdout
+./katago gatekeeper -help > tests/results/cmd/gatekeeper_help.stdout
+./katago match -help > tests/results/cmd/match_help.stdout
+./katago selfplay -help > tests/results/cmd/selfplay_help.stdout

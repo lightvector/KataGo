@@ -1,0 +1,36 @@
+
+DESCRIPTION: 
+
+   Run KataGo parallel JSON-based analysis engine.
+
+USAGE: 
+
+   analysis  -config <FILE> [-model <FILE>] [...other flags...]
+
+
+Where: 
+
+   -config <FILE>
+     (required)  Config file to use (see analysis_example.cfg or
+     configs/analysis_example.cfg).
+
+   -model <FILE>
+     Neural net model file. Defaults to: ~/.katago/default_model.bin.gz
+
+   -override-config <KEYVALUEPAIRS>
+     Override config parameters. Format: "key=value, key=value,..."
+
+   -analysis-threads <THREADS>
+     (required)  Analysis up to this many positions in parallel
+
+   --,  -ignore_rest
+     Ignores the rest of the labeled arguments following this flag.
+
+   -version
+     Displays version information and exits.
+
+   -h,  -help
+     Displays usage information and exits.
+
+
+

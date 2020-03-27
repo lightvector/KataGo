@@ -1,0 +1,47 @@
+
+DESCRIPTION: 
+
+   Test neural nets to see if they should be accepted for self-play
+   training data generation.
+
+USAGE: 
+
+   gatekeeper  -config <FILE> -test-models-dir <DIR> -sgf-output-dir <DIR>
+               -accepted-models-dir <DIR> -rejected-models-dir <DIR>
+               [...other flags...]
+
+
+Where: 
+
+   -config <FILE>
+     (required)  Config file to use.
+
+   -test-models-dir <DIR>
+     (required)  Dir to poll and load models from
+
+   -sgf-output-dir <DIR>
+     (required)  Dir to output sgf files
+
+   -accepted-models-dir <DIR>
+     (required)  Dir to write good models to
+
+   -rejected-models-dir <DIR>
+     (required)  Dir to write bad models to
+
+   -no-autoreject-old-models
+     Test older models than the latest accepted model
+
+   -quit-if-no-nets-to-test
+     Terminate instead of waiting for a new net to test
+
+   --,  -ignore_rest
+     Ignores the rest of the labeled arguments following this flag.
+
+   -version
+     Displays version information and exits.
+
+   -h,  -help
+     Displays usage information and exits.
+
+
+

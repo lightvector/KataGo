@@ -29,8 +29,8 @@ int MainCmds::tuner(int argc, const char* const* argv) {
   int winograd3x3TileSize;
   bool full;
   try {
-    KataGoCommandLine cmd("Perform GPU tuning");
-    cmd.addModelFileArg("");
+    KataGoCommandLine cmd("Perform GPU tuning for OpenCL.");
+    cmd.addModelFileArg();
 
     TCLAP::ValueArg<string> outputFileArg("","output","Filename to output tuning configration to",false,string(),"FILE");
     TCLAP::ValueArg<string> gpuIdxsArg("","gpus","Specific GPU/device number(s) to tune, comma-separated (default all)",false,string(),"GPUS");
@@ -39,6 +39,9 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     TCLAP::ValueArg<int> batchSizeArg("","batchsize","Batch size to tune for",false,OpenCLTuner::DEFAULT_BATCH_SIZE,"INT");
     TCLAP::ValueArg<int> winograd3x3TileSizeArg("","winograd3x3tilesize","Batch size to tune for",false,OpenCLTuner::DEFAULT_WINOGRAD_3X3_TILE_SIZE,"INT");
     TCLAP::SwitchArg fullArg("","full","Test more possible configurations");
+
+    cmd.setShortUsageArgLimit();
+
     cmd.add(outputFileArg);
     cmd.add(gpuIdxsArg);
     cmd.add(nnXLenArg);

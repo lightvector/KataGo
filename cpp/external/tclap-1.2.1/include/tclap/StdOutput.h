@@ -78,7 +78,7 @@ class StdOutput : public CmdLineOutput
 		 * \param c - The CmdLine object the output is generated for. 
          * \param os - The stream to write the message to.
          */
-        void _shortUsage( CmdLineInterface& c, std::ostream& os ) const;
+        virtual void _shortUsage( CmdLineInterface& c, std::ostream& os ) const;
 
         /**
 		 * Writes a longer usage message with long and short args, 
@@ -86,7 +86,7 @@ class StdOutput : public CmdLineOutput
 		 * \param c - The CmdLine object the output is generated for. 
 		 * \param os - The stream to write the message to.
 		 */
-		void _longUsage( CmdLineInterface& c, std::ostream& os ) const;
+		virtual void _longUsage( CmdLineInterface& c, std::ostream& os ) const;
 
 		/**
 		 * This function inserts line breaks and indents long strings 

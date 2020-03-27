@@ -1,0 +1,58 @@
+
+DESCRIPTION: 
+
+   Benchmark with gtp config to test speed with different numbers of
+   threads.
+
+USAGE: 
+
+   benchmark  [-config <FILE>] [-model <FILE>] [-v <VISITS>] [-t <THREADS>]
+              [-n <NUM>] [...other flags...]
+
+
+Where: 
+
+   -config <FILE>
+     Config file to use (see gtp_example.cfg or configs/gtp_example.cfg).
+     Defaults to: ~/.katago/default_gtp.cfg
+
+   -model <FILE>
+     Neural net model file. Defaults to: ~/.katago/default_model.bin.gz
+
+   -v <VISITS>,  -visits <VISITS>
+     How many visits to use per search (default 800)
+
+   -t <THREADS>,  -threads <THREADS>
+     Test these many threads, comma-separated (default 1,2,4,6,8,12,16,24)
+
+   -n <NUM>,  -numpositions <NUM>
+     How many positions to sample from a game (default 10)
+
+   -override-config <KEYVALUEPAIRS>
+     Override config parameters. Format: "key=value, key=value,..."
+
+   -sgf <FILE>
+     Optional game to sample positions from (default: uses a built-in-set
+     of positions)
+
+   -boardsize <SIZE>
+     Size of board to benchmark on (9-19), default 19
+
+   -s,  -tune
+     Automatically search for the optimal number of threads
+
+   -i <SECONDS>,  -time <SECONDS>
+     Typical amount of time per move spent while playing, in seconds
+     (default 5)
+
+   --,  -ignore_rest
+     Ignores the rest of the labeled arguments following this flag.
+
+   -version
+     Displays version information and exits.
+
+   -h,  -help
+     Displays usage information and exits.
+
+
+
