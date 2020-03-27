@@ -658,6 +658,7 @@ static void logSearch(Search* bot, Logger& logger, Loc loc) {
   sout << "\n";
   sout << "Root visits: " << bot->getRootVisits() << "\n";
   sout << "Policy surprise " << bot->getPolicySurprise() << "\n";
+  sout << "Raw WL " << bot->getRootRawNNValuesRequireSuccess().winLossValue << "\n";
   sout << "PV: ";
   bot->printPV(sout, bot->rootNode, 25);
   sout << "\n";
@@ -1522,7 +1523,8 @@ FinishedGameData* Play::runGame(
         //Just in case, guard against float imprecision
         if(valueSurprise < 0.0)
           valueSurprise = 0.0;
-        valueSurpriseByTurn[i] = valueSurprise;
+        //Cap value surprise at extreme value, to reduce the chance of a ridiculous weight on a move.
+        valueSurpriseByTurn[i] = std::min(valueSurprise,1.0);
       }
     }
 
@@ -1554,8 +1556,8 @@ FinishedGameData* Play::runGame(
         //from that and the expected player won. So if the total value surprise on targetWeighted turns is too small, then also don't
         //do much valueSurpriseDataWeight, since it would be basically dividing by almost zero, in potentially weird ways.
         double valueSurpriseDataWeight = playSettings.valueSurpriseDataWeight;
-        if(averageValueSurpriseWeighted < 0.015) { //0.015 logits on average, pretty arbitrary, mainly just intended limit to extreme cases.
-          valueSurpriseDataWeight *= averageValueSurpriseWeighted / 0.015;
+        if(averageValueSurpriseWeighted < 0.010) { //0.010 logits on average, pretty arbitrary, mainly just intended limit to extreme cases.
+          valueSurpriseDataWeight *= averageValueSurpriseWeighted / 0.010;
         }
 
         //We also include some rows from non-full searches, if despite the shallow search
