@@ -10,7 +10,7 @@ Loren Puchalla Fiore ("lpuchallafiore") - for a wide variety of code refactors a
 "iopq" - for a fix to python script imports
 Brett Harrison - coauthor of part of the original game board code
 Annie Wagner ("featurecat") - slight readme edits
-Martin Häcker ("dwt") - minor bugfix, MacOS support
+Martin Häcker ("dwt") - minor bugfix, MacOS support, commandline improvements
 "yenw" - simple compile fix on MacOS.
 Adrian Petrescu ("apetresc") - MacOS support
 Anson Hu ("farmersrice") - frontend features and logic
