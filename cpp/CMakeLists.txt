@@ -22,7 +22,7 @@ if(NOT WIN32)
   set(ColorBoldRed "${ColorRed}${ColorBold}")
 endif()
 
-#--------------------------- CONFIG ------------------------------------------------------------------------------------
+#--------------------------- CMAKE VARIABLES (partly for Cmake GUI) ----------------------------------------------------
 
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
@@ -32,11 +32,9 @@ set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
 set(Boost_USE_STATIC_LIBS_ON 0 CACHE BOOL "Compile against boost statically instead of dynamically")
 
-#------------------------------------------------------------------------------------
+#--------------------------- NEURAL NET BACKEND ------------------------------------------------------------------------
 
-#--------------------------- BACKEND -----------------------------------------------------------------------------------
-
-message("Building 'katago' executable for mcts-backed GTP engine and other tools")
+message("Building 'katago' executable for GTP engine and other tools")
 if(USE_BACKEND STREQUAL "CUDA")
   message("-DUSE_BACKEND=CUDA, using CUDA backend")
 
@@ -83,15 +81,9 @@ else()
   message(FATAL_ERROR "Unrecognized backend: " ${USE_BACKEND})
 endif()
 
-if((NOT BUILD_WRITE) AND (NOT BUILD_MCTS))
-  message(FATAL_ERROR "Please specify one or more of -DBUILD_WRITE=1 or -DBUILD_MCTS=1")
-endif()
-
 
 #--------------------------- TCMALLOC ----------------------------------------------------------------------------------
 
-# TODO: see if it is installable with conan, eg with https://github.com/hoxnox/conan-gperftools/blob/master/conanfile.py
-# or with https://github.com/lasote/conan-gperftools
 if(USE_TCMALLOC)
   message("-DUSE_TCMALLOC=1 is set, using tcmalloc as the allocator")
   find_library(TCMALLOC_LIB NAMES tcmalloc_minimal HINTS /usr)
@@ -115,9 +107,8 @@ else()
   set(GIT_HEADER_FILE_ALWAYS_UPDATED_BARE program/gitinfoupdated.h)
   set(GIT_HEADER_FILE_BARE program/gitinfo.h)
   set(GIT_HEADER_FILE_TEMPLATE ${CMAKE_SOURCE_DIR}/${GIT_HEADER_FILE_TEMPLATE_BARE})
-  set(GIT_HEADER_FILE_ALWAYS_UPDATED ${CMAKE_BINARY_DIR}/../${GIT_HEADER_FILE_ALWAYS_UPDATED_BARE})
+  set(GIT_HEADER_FILE_ALWAYS_UPDATED ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_ALWAYS_UPDATED_BARE})
   set(GIT_HEADER_FILE ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_BARE})
-
   add_custom_command(
     OUTPUT ${GIT_HEADER_FILE_ALWAYS_UPDATED}
     COMMAND ${CMAKE_COMMAND} -E copy ${GIT_HEADER_FILE_TEMPLATE} ${GIT_HEADER_FILE_ALWAYS_UPDATED}
@@ -139,7 +130,7 @@ if(NOT HAVE_DIRENT)
   add_compile_definitions(NO_DIRENT_H)
 endif()
 
-#--------------------------- KATAGO ------------------------------------------------------------------------------------
+#--------------------------- KATAGO COMPILING AND LINKING --------------------------------------------------------------
 
 add_executable(katago
   core/global.cpp
@@ -238,14 +229,12 @@ if(NO_GIT_REVISION)
   target_compile_definitions(katago PRIVATE NO_GIT_REVISION)
 endif()
 
-# TODO: move to conan
 find_package(ZLIB REQUIRED)
 if(ZLIB_FOUND)
   include_directories(${ZLIB_INCLUDE_DIRS})
   target_link_libraries(katago ${ZLIB_LIBRARIES})
 endif(ZLIB_FOUND)
 
-# TODO: move to conan
 find_library(LIBZIP_LIBRARY NAMES zip)
 find_path(LIBZIP_INCLUDE_DIR_ZIP NAMES zip.h)
 find_path(LIBZIP_INCLUDE_DIR_ZIPCONF NAMES zipconf.h)
@@ -258,7 +247,6 @@ else()
   target_link_libraries(katago ${LIBZIP_LIBRARY})
 endif()
 
-# TODO: move to conan
 if(Boost_USE_STATIC_LIBS_ON)
   set(Boost_USE_STATIC_LIBS ON)
 endif()
@@ -266,15 +254,10 @@ find_package(Boost COMPONENTS system filesystem REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 target_link_libraries(katago ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
 
-# TODO: move to conan if possible, see above
 if(USE_TCMALLOC)
   target_link_libraries(katago ${TCMALLOC_LIB})
 endif(USE_TCMALLOC)
 
-if(USE_DISTRIBUTED)
-  message("-DUSE_DISTRIBUTED=1 is set, compiling code and dependencies to contribute to distributed_effort")
-  target_link_libraries(katago {CONAN_LIBS})
-endif()
 
 #------------------------------------------------------------------------------------
 
@@ -320,4 +303,4 @@ if(CMAKE_COMPILER_IS_GNUCC)
   endif()
 endif()
 
-target_include_directories(katago PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/..)
+target_include_directories(katago PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
