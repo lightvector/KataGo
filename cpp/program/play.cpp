@@ -491,6 +491,7 @@ MatchPairer::MatchPairer(
    baseParamss(bParamss),
    excludeBot(exclude),
    secondaryBots(),
+   blackPriority(),
    nextMatchups(),
    nextMatchupsBuf(),
    rand(),
@@ -519,6 +520,13 @@ MatchPairer::MatchPairer(
       secondaryBots = cfg.getInts("secondaryBots",0,4096);
     for(int i = 0; i<secondaryBots.size(); i++)
       assert(secondaryBots[i] >= 0 && secondaryBots[i] < numBots);
+    for(int i = 0; i<numBots; i++) {
+      string idxStr = Global::intToString(i);
+      if(cfg.contains("blackPriority" + idxStr))
+        blackPriority.push_back(cfg.getInt("blackPriority" + idxStr));
+      else
+        blackPriority.push_back(0);
+    }
     numGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
   }
 
@@ -561,6 +569,10 @@ bool MatchPairer::getMatchup(
   }
 
   pair<int,int> matchup = getMatchupPairUnsynchronized();
+  if(blackPriority.size() > 0 && blackPriority.size() == numBots && blackPriority[matchup.first] < blackPriority[matchup.second]) {
+    matchup = make_pair(matchup.second,matchup.first);
+  }
+
   botSpecB.botIdx = matchup.first;
   botSpecB.botName = botNames[matchup.first];
   botSpecB.nnEval = nnEvals[matchup.first];
