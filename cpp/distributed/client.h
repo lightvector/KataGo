@@ -1,3 +1,5 @@
+#ifdef BUILD_DISTRIBUTED
+
 #ifndef DISTRIBUTED_CLIENT_H_
 #define DISTRIBUTED_CLIENT_H_
 
@@ -35,3 +37,5 @@ namespace Client {
 }
 
 #endif //DISTRIBUTED_CLIENT_H_
+
+#endif //BUILD_DISTRIBUTED

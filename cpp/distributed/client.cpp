@@ -1,3 +1,5 @@
+#ifdef BUILD_DISTRIBUTED
+
 #include "../distributed/client.h"
 
 using namespace std;
@@ -47,3 +49,5 @@ void Client::uploadTrainingData(const Task& task, const string& filePath) {
 void Client::uploadSGF(const Task& task, const string& filePath) {
   cout << "UPLOAD SGF " << task.taskId << " " << task.taskGroup << " " << task.runId << " " << filePath << endl;
 }
+
+#endif //BUILD_DISTRIBUTED
