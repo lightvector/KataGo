@@ -739,11 +739,13 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
     for(int i = 0; i<moves.size(); i++) {
       possiblePositionIdxs.push_back(i);
     }
-    for(int i = possiblePositionIdxs.size()-1; i > 1; i--) {
-      int r = posRand.nextUInt(i);
-      int tmp = possiblePositionIdxs[i];
-      possiblePositionIdxs[i] = possiblePositionIdxs[r];
-      possiblePositionIdxs[r] = tmp;
+    if(possiblePositionIdxs.size() > 0) {
+      for(int i = possiblePositionIdxs.size()-1; i > 1; i--) {
+        int r = posRand.nextUInt(i);
+        int tmp = possiblePositionIdxs[i];
+        possiblePositionIdxs[i] = possiblePositionIdxs[r];
+        possiblePositionIdxs[r] = tmp;
+      }
     }
     if(possiblePositionIdxs.size() > numPositionsToUse)
       possiblePositionIdxs.resize(numPositionsToUse);

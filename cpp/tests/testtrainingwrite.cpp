@@ -105,12 +105,12 @@ void Tests::runTrainingWriteTests() {
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = cheapLongSgf ? 200 : 40;
     vector<std::atomic<bool>*> stopConditions;
-    FancyModes fancyModes;
-    fancyModes.initGamesWithPolicy = true;
-    fancyModes.forkSidePositionProb = 0.10;
-    fancyModes.forSelfPlay = true;
-    fancyModes.dataXLen = nnXLen;
-    fancyModes.dataYLen = nnYLen;
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.forkSidePositionProb = 0.10;
+    playSettings.forSelfPlay = true;
+    playSettings.dataXLen = nnXLen;
+    playSettings.dataYLen = nnYLen;
     Rand rand(seedBase+"play");
     OtherGameProperties otherGameProps;
     FinishedGameData* gameData = Play::runGame(
@@ -120,7 +120,7 @@ void Tests::runTrainingWriteTests() {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, stopConditions,
-      fancyModes, otherGameProps,
+      playSettings, otherGameProps,
       rand,
       NULL
     );
@@ -233,20 +233,20 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 1;
     vector<std::atomic<bool>*> stopConditions;
-    FancyModes fancyModes;
-    fancyModes.initGamesWithPolicy = true;
-    fancyModes.forkSidePositionProb = 0.40;
-    fancyModes.cheapSearchProb = 0.5;
-    fancyModes.cheapSearchVisits = 20;
-    fancyModes.cheapSearchTargetWeight = 0.123f;
-    fancyModes.earlyForkGameProb = 0.5;
-    fancyModes.earlyForkGameExpectedMoveProp = 0.05;
-    fancyModes.forkGameMinChoices = 2;
-    fancyModes.earlyForkGameMaxChoices = 2;
-    fancyModes.compensateKomiVisits = 5;
-    fancyModes.forSelfPlay = true;
-    fancyModes.dataXLen = nnXLen;
-    fancyModes.dataYLen = nnYLen;
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.forkSidePositionProb = 0.40;
+    playSettings.cheapSearchProb = 0.5;
+    playSettings.cheapSearchVisits = 20;
+    playSettings.cheapSearchTargetWeight = 0.123f;
+    playSettings.earlyForkGameProb = 0.5;
+    playSettings.earlyForkGameExpectedMoveProp = 0.05;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 2;
+    playSettings.compensateKomiVisits = 5;
+    playSettings.forSelfPlay = true;
+    playSettings.dataXLen = nnXLen;
+    playSettings.dataYLen = nnYLen;
 
     string searchRandSeed = seedBase+"search";
     Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
@@ -260,13 +260,13 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, stopConditions,
-      fancyModes, otherGameProps,
+      playSettings, otherGameProps,
       rand,
       NULL
     );
 
     ForkData forkData;
-    Play::maybeForkGame(gameData,&forkData,fancyModes,rand,bot);
+    Play::maybeForkGame(gameData,&forkData,playSettings,rand,bot);
 
     cout << "====================================================================================================" << endl;
     cout << "====================================================================================================" << endl;
@@ -281,13 +281,13 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       Player pla = forkData.forks[0]->pla;
       PlayUtils::adjustKomiToEven(
         bot, bot, board, hist, pla,
-        fancyModes.cheapSearchVisits, logger, OtherGameProperties(), rand
+        playSettings.cheapSearchVisits, logger, OtherGameProperties(), rand
       );
       BoardHistory hist2 = forkData.forks[0]->hist;
       float oldKomi = hist2.rules.komi;
       double lead = PlayUtils::computeLead(
         bot, bot, board, hist2, pla,
-        fancyModes.cheapSearchVisits, logger, OtherGameProperties()
+        playSettings.cheapSearchVisits, logger, OtherGameProperties()
       );
       cout << "Lead: " << lead << endl;
       hist.printDebugInfo(cout,board);
@@ -367,7 +367,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     const Rules& rules,
     bool testAsym,
     bool testLead,
-    bool testSurpriseWeight
+    bool testPolicySurpriseWeight,
+    bool testValueSurpriseWeight
   ) {
     nnEval->clearCache();
     nnEval->clearStats();
@@ -400,24 +401,28 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
-    int maxMovesPerGame = (testLead || testSurpriseWeight) ? 30 : 15;
+    int maxMovesPerGame = (testLead || testPolicySurpriseWeight || testValueSurpriseWeight) ? 30 : 15;
     vector<std::atomic<bool>*> stopConditions;
-    FancyModes fancyModes;
-    fancyModes.initGamesWithPolicy = true;
-    fancyModes.forkSidePositionProb = 0.0;
-    fancyModes.cheapSearchProb = 0.5;
-    fancyModes.cheapSearchVisits = 50;
-    fancyModes.cheapSearchTargetWeight = 0.456f;
-    fancyModes.compensateKomiVisits = 10;
-    fancyModes.minAsymmetricCompensateKomiProb = 0.5;
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.forkSidePositionProb = 0.0;
+    playSettings.cheapSearchProb = 0.5;
+    playSettings.cheapSearchVisits = 50;
+    playSettings.cheapSearchTargetWeight = 0.456f;
+    playSettings.compensateKomiVisits = 10;
+    playSettings.minAsymmetricCompensateKomiProb = 0.5;
     if(testLead)
-      fancyModes.estimateLeadProb = 0.7;
-    if(testSurpriseWeight)
-      fancyModes.policySurpriseDataWeight = 0.8;
+      playSettings.estimateLeadProb = 0.7;
+    if(testPolicySurpriseWeight)
+      playSettings.policySurpriseDataWeight = 0.8;
+    if(testValueSurpriseWeight) {
+      playSettings.valueSurpriseDataWeight = 0.15;
+      playSettings.noResolveTargetWeights = true;
+    }
 
-    fancyModes.forSelfPlay = true;
-    fancyModes.dataXLen = nnXLen;
-    fancyModes.dataYLen = nnYLen;
+    playSettings.forSelfPlay = true;
+    playSettings.dataXLen = nnXLen;
+    playSettings.dataYLen = nnYLen;
 
     string searchRandSeed = seedBase+"search";
     Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
@@ -433,7 +438,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       otherGameProps.playoutDoublingAdvantage = log(3.0) / log(2.0);
       otherGameProps.playoutDoublingAdvantagePla = P_WHITE;
     }
-    bool logSearchInfo = testSurpriseWeight;
+    bool logSearchInfo = testPolicySurpriseWeight;
     FinishedGameData* gameData = Play::runGame(
       initialBoard,initialPla,initialHist,extraBlackAndKomi,
       botSpec,botSpec,
@@ -441,7 +446,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, logSearchInfo, false,
       maxMovesPerGame, stopConditions,
-      fancyModes, otherGameProps,
+      playSettings, otherGameProps,
       rand,
       NULL
     );
@@ -453,12 +458,13 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
   };
 
 
-  run("testasym!",Rules::getTrompTaylorish(),true,false,false);
-  run("test lead!",Rules::getTrompTaylorish(),false,true,false);
+  run("testasym!",Rules::getTrompTaylorish(),true,false,false,false);
+  run("test lead!",Rules::getTrompTaylorish(),false,true,false,false);
   Rules r = Rules::getTrompTaylorish();
   r.hasButton = true;
-  run("test lead int button!",r,false,true,false);
-  run("test surprise!",Rules::getTrompTaylorish(),false,false,true);
+  run("test lead int button!",r,false,true,false,false);
+  run("test surprise!",Rules::getTrompTaylorish(),false,false,true,false);
+  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true);
 
 
   //Test lead specifically on a final position
@@ -704,19 +710,19 @@ xxxxxxxx.
   }
 
   {
-    //Big giant test of certain fancyModes parts and game initialization
-    FancyModes fancyModes;
+    //Big giant test of certain playSettings parts and game initialization
+    PlaySettings playSettings;
     //Not testing these - covered by other tests
-    fancyModes.initGamesWithPolicy = false;
-    fancyModes.forkSidePositionProb = false;
+    playSettings.initGamesWithPolicy = false;
+    playSettings.forkSidePositionProb = false;
 
-    fancyModes.compensateKomiVisits = 20;
-    fancyModes.fancyKomiVarying = true;
+    playSettings.compensateKomiVisits = 20;
+    playSettings.fancyKomiVarying = true;
 
-    fancyModes.sekiForkHack = true;
-    fancyModes.forSelfPlay = true;
-    fancyModes.dataXLen = 13;
-    fancyModes.dataYLen = 13;
+    playSettings.sekiForkHack = true;
+    playSettings.forSelfPlay = true;
+    playSettings.dataXLen = 13;
+    playSettings.dataYLen = 13;
 
     nnEval->clearCache();
     nnEval->clearStats();
@@ -754,10 +760,11 @@ xxxxxxxx.
     botSpec.baseParams.maxVisits = 10;
     ForkData* forkData = new ForkData();
 
-    GameRunner* gameRunner = new GameRunner(cfg, "game init test search seed", "game init test game seed", fancyModes, logger);
+    GameRunner* gameRunner = new GameRunner(cfg, "game init test game seed", playSettings, logger);
     std::vector<std::atomic<bool>*> stopConditions;
     for(int i = 0; i<100; i++) {
-      FinishedGameData* data = gameRunner->runGame(i, botSpec, botSpec, forkData, logger, stopConditions, NULL);
+      string seed = "game init test search seed:" + Global::int64ToString(i);
+      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, logger, stopConditions, NULL);
       cout << data->startHist.rules << endl;
       cout << "Start moves size " << data->startHist.moveHistory.size()
            << " Start pla " << PlayerIO::playerToString(data->startPla)
@@ -827,20 +834,20 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 1;
     vector<std::atomic<bool>*> stopConditions;
-    FancyModes fancyModes;
-    fancyModes.initGamesWithPolicy = false;
-    fancyModes.forkSidePositionProb = 0;
-    fancyModes.cheapSearchProb = 0;
-    fancyModes.cheapSearchVisits = 0;
-    fancyModes.cheapSearchTargetWeight = 0;
-    fancyModes.earlyForkGameProb = 0;
-    fancyModes.earlyForkGameExpectedMoveProp = 0;
-    fancyModes.forkGameMinChoices = 2;
-    fancyModes.earlyForkGameMaxChoices = 2;
-    fancyModes.compensateKomiVisits = 5;
-    fancyModes.forSelfPlay = true;
-    fancyModes.dataXLen = nnXLen;
-    fancyModes.dataYLen = nnYLen;
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = false;
+    playSettings.forkSidePositionProb = 0;
+    playSettings.cheapSearchProb = 0;
+    playSettings.cheapSearchVisits = 0;
+    playSettings.cheapSearchTargetWeight = 0;
+    playSettings.earlyForkGameProb = 0;
+    playSettings.earlyForkGameExpectedMoveProp = 0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 2;
+    playSettings.compensateKomiVisits = 5;
+    playSettings.forSelfPlay = true;
+    playSettings.dataXLen = nnXLen;
+    playSettings.dataYLen = nnYLen;
 
     string searchRandSeed = seedBase+"search";
     Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
@@ -854,7 +861,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, stopConditions,
-      fancyModes, otherGameProps,
+      playSettings, otherGameProps,
       rand,
       NULL
     );

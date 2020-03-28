@@ -205,7 +205,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   //Load runner settings
   const int numGameThreads = cfg.getInt("numGameThreads",1,16384);
-  const string searchRandSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
+  const string gameSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
   //Width and height of the board to use when writing data, typically 19
   const int dataBoardLen = cfg.getInt("dataBoardLen",9,37);
@@ -224,39 +224,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   const bool switchNetsMidGame = cfg.getBool("switchNetsMidGame");
 
   //Initialize object for randomizing game settings and running games
-  FancyModes fancyModes;
-  fancyModes.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
-  fancyModes.forkSidePositionProb = cfg.getDouble("forkSidePositionProb",0.0,1.0);
-
-  fancyModes.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 20;
-  fancyModes.estimateLeadVisits = cfg.contains("estimateLeadVisits") ? cfg.getInt("estimateLeadVisits",1,10000) : 6;
-  fancyModes.estimateLeadProb = cfg.contains("estimateLeadProb") ? cfg.getDouble("estimateLeadProb",0.0,1.0) : 0.0;
-  fancyModes.fancyKomiVarying = cfg.contains("fancyKomiVarying") ? cfg.getBool("fancyKomiVarying") : false;
-
-  fancyModes.earlyForkGameProb = cfg.getDouble("earlyForkGameProb",0.0,0.5);
-  fancyModes.earlyForkGameExpectedMoveProp = cfg.getDouble("earlyForkGameExpectedMoveProp",0.0,1.0);
-  fancyModes.forkGameProb = cfg.getDouble("forkGameProb",0,0.5);
-  fancyModes.forkGameMinChoices = cfg.getInt("forkGameMinChoices",1,100);
-  fancyModes.earlyForkGameMaxChoices = cfg.getInt("earlyForkGameMaxChoices",1,100);
-  fancyModes.forkGameMaxChoices = cfg.getInt("forkGameMaxChoices",1,100);
-  fancyModes.cheapSearchProb = cfg.getDouble("cheapSearchProb",0.0,1.0);
-  fancyModes.cheapSearchVisits = cfg.getInt("cheapSearchVisits",1,10000000);
-  fancyModes.cheapSearchTargetWeight = cfg.getFloat("cheapSearchTargetWeight",0.0f,1.0f);
-  fancyModes.reduceVisits = cfg.getBool("reduceVisits");
-  fancyModes.reduceVisitsThreshold = cfg.getDouble("reduceVisitsThreshold",0.0,0.999999);
-  fancyModes.reduceVisitsThresholdLookback = cfg.getInt("reduceVisitsThresholdLookback",0,1000);
-  fancyModes.reducedVisitsMin = cfg.getInt("reducedVisitsMin",1,10000000);
-  fancyModes.reducedVisitsWeight = cfg.getFloat("reducedVisitsWeight",0.0f,1.0f);
-  fancyModes.policySurpriseDataWeight = cfg.getDouble("policySurpriseDataWeight",0.0f,1.0f);
-  fancyModes.handicapAsymmetricPlayoutProb = cfg.getDouble("handicapAsymmetricPlayoutProb",0.0,1.0);
-  fancyModes.normalAsymmetricPlayoutProb = cfg.getDouble("normalAsymmetricPlayoutProb",0.0,1.0);
-  fancyModes.maxAsymmetricRatio = cfg.getDouble("maxAsymmetricRatio",1.0,100.0);
-  fancyModes.minAsymmetricCompensateKomiProb = cfg.getDouble("minAsymmetricCompensateKomiProb",0.0,1.0);
-  fancyModes.sekiForkHack = true;
-  fancyModes.forSelfPlay = true;
-  fancyModes.dataXLen = dataBoardLen;
-  fancyModes.dataYLen = dataBoardLen;
-  GameRunner* gameRunner = new GameRunner(cfg, searchRandSeedBase, fancyModes, logger);
+  PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg,dataBoardLen);
+  GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
 
   Setup::initializeSession(cfg);
 
@@ -429,13 +398,14 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     &logger,
     &netAndStuffsMutex,&netAndStuffs,
     switchNetsMidGame,
-    &fancyModes,
-    &forkData
+    &forkData,
+    &gameSeedBase
   ](int threadIdx) {
     vector<std::atomic<bool>*> stopConditions = {&shouldStop};
 
     std::unique_lock<std::mutex> lock(netAndStuffsMutex);
     string prevModelName;
+    Rand thisLoopSeedRand;
     while(true) {
       if(shouldStop.load())
         break;
@@ -474,12 +444,12 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
       FinishedGameData* gameData = NULL;
 
-      int64_t gameIdx;
       MatchPairer::BotSpec botSpecB;
       MatchPairer::BotSpec botSpecW;
-      if(netAndStuff->matchPairer->getMatchup(gameIdx, botSpecB, botSpecW, logger)) {
+      if(netAndStuff->matchPairer->getMatchup(botSpecB, botSpecW, logger)) {
+        string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
-          gameIdx, botSpecB, botSpecW, forkData, logger,
+          seed, botSpecB, botSpecW, forkData, logger,
           stopConditions,
           (switchNetsMidGame ? &checkForNewNNEval : NULL)
         );

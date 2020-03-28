@@ -6563,6 +6563,7 @@ seedBase: test surprise!
 
 Root visits: 100
 Policy surprise 0.104435
+Raw WL -0.0148067
 PV: H9 H4 J6 C6 C5 D6
 Tree:
 : T   5.53c W   4.75c S   0.78c ( +1.3 L  +1.3) N     100  --  H9 H4 J6 C6 C5 D6
@@ -6591,6 +6592,7 @@ H3  : T   9.99c W   8.81c S   1.17c ( +2.0 L  +2.0) LCB   43.92c P  9.64% WF 15.
 
 Root visits: 50
 Policy surprise 0.0891616
+Raw WL 0.092012
 PV: J4 G3 J7 J8 H7 F9 H3 G4 C4
 Tree:
 : T   4.60c W   3.92c S   0.68c ( +1.2 L  +1.2) N      50  --  J4 G3 J7 J8 H7 F9 H3
@@ -6616,6 +6618,7 @@ H4  : T   3.62c W   3.05c S   0.57c ( +1.0 L  +1.0) LCB  -10.11c P 32.77% WF 32.
 
 Root visits: 100
 Policy surprise 0.105007
+Raw WL -0.0817821
 PV: G3 J7 J8 H7 F9 H3 G4 C4 C5 C3 D5 E2
 Tree:
 : T   5.51c W   4.80c S   0.71c ( +1.2 L  +1.2) N     100  --  G3 J7 J8 H7 F9 H3 G4
@@ -6643,6 +6646,7 @@ G4  : T  23.99c W  21.04c S   2.95c ( +5.1 L  +5.1) LCB  260.00c P  3.53% WF 17.
 
 Root visits: 100
 Policy surprise 0.0842742
+Raw WL 0.162377
 PV: J7 J8 H7 F9 H3 G4 C4 C5 C3 D5 E2
 Tree:
 : T   4.81c W   4.17c S   0.63c ( +1.1 L  +1.1) N     100  --  J7 J8 H7 F9 H3 G4 C4
@@ -6670,6 +6674,7 @@ C4  : T  -6.02c W  -5.52c S  -0.49c ( -0.8 L  -0.8) LCB -260.00c P  2.92% WF 18.
 
 Root visits: 100
 Policy surprise 0.130182
+Raw WL -0.0671026
 PV: J8 H7 F9 H3 G4 C4 C5 C3 D5 E2 F2 E3
 Tree:
 : T   5.85c W   5.12c S   0.73c ( +1.2 L  +1.2) N     100  --  J8 H7 F9 H3 G4 C4 C5
@@ -6697,6 +6702,7 @@ F9  : T  22.64c W  19.76c S   2.88c ( +5.0 L  +5.0) LCB  260.00c P  2.83% WF 18.
 
 Root visits: 100
 Policy surprise 0.104439
+Raw WL 0.144677
 PV: H7 F9 H3 G4 C4 C5 C3 D5 E2 F2 E3 F5
 Tree:
 : T   6.49c W   5.71c S   0.78c ( +1.3 L  +1.3) N     100  --  H7 F9 H3 G4 C4 C5 C3
@@ -6720,6 +6726,7 @@ H7  : T   6.39c W   5.62c S   0.77c ( +1.3 L  +1.3) LCB    0.85c P 90.08% WF 100
 
 Root visits: 100
 Policy surprise 0.128561
+Raw WL -0.089275
 PV: F9 H3 G4 C4 C5 C3 D5 E2 F2 E3 F5
 Tree:
 : T   6.64c W   5.84c S   0.79c ( +1.3 L  +1.3) N     100  --  F9 H3 G4 C4 C5 C3 D5
@@ -6745,6 +6752,7 @@ D9  : T  10.00c W   8.76c S   1.23c ( +2.1 L  +2.1) LCB  138.19c P  2.90% WF 32.
 
 Root visits: 100
 Policy surprise 0.19233
+Raw WL 0.147448
 PV: H3 G4 C4 C5 C3 D5 E2 F2 E3 F5 F8
 Tree:
 : T   6.18c W   5.47c S   0.72c ( +1.2 L  +1.2) N     100  --  H3 G4 C4 C5 C3 D5 E2
@@ -6772,6 +6780,7 @@ C6  : T -14.49c W -13.40c S  -1.09c ( -1.8 L  -1.8) LCB -260.00c P  5.73% WF 17.
 
 Root visits: 100
 Policy surprise 0.0959179
+Raw WL -0.0507668
 PV: G4 C4 C5 C3 D5 E2 F2 E3 F5 H2 B8
 Tree:
 : T   7.40c W   6.57c S   0.83c ( +1.4 L  +1.4) N     100  --  G4 C4 C5 C3 D5 E2 F2
@@ -6798,6 +6807,7 @@ H2  : T   4.20c W   3.53c S   0.68c ( +1.1 L  +1.1) LCB   28.15c P  4.67% WF 25.
 
 Root visits: 50
 Policy surprise 0.268884
+Raw WL 0.157433
 PV: C4 C5 C3 D5 E2 F2 E3 F5 H2 B8
 Tree:
 : T   9.86c W   8.83c S   1.03c ( +1.7 L  +1.7) N      50  --  C4 C5 C3 D5 E2 F2 E3
@@ -6823,6 +6833,7 @@ C6  : T -13.02c W -11.97c S  -1.05c ( -1.8 L  -1.8) LCB -260.00c P  9.52% WF 28.
 
 Root visits: 50
 Policy surprise 0.134046
+Raw WL -0.134252
 PV: C5 C3 D5 E2 F2 E3 F5 H2 B8
 Tree:
 : T   9.51c W   8.51c S   1.00c ( +1.7 L  +1.7) N      50  --  C5 C3 D5 E2 F2 E3 F5
@@ -6847,6 +6858,7 @@ C3  : T  19.90c W  18.07c S   1.83c ( +2.9 L  +2.9) LCB   36.94c P 44.69% WF 43.
 
 Root visits: 50
 Policy surprise 0.0583133
+Raw WL 0.154526
 PV: C3 D5 E2 F2 E3 F5 H2 B8
 Tree:
 : T   5.35c W   4.71c S   0.64c ( +1.1 L  +1.1) N      50  --  C3 D5 E2 F2 E3 F5 H2
@@ -6870,6 +6882,7 @@ C3  : T   5.10c W   4.49c S   0.61c ( +1.1 L  +1.1) LCB   -1.85c P 94.34% WF 100
 
 Root visits: 100
 Policy surprise 0.109673
+Raw WL 0.00285947
 PV: D5 E2 F7 E9 C9 C8 E10 F8 G8
 Tree:
 : T   3.10c W   2.68c S   0.42c ( +0.7 L  +0.7) N     100  --  D5 E2 F7 E9 C9 C8 E10
@@ -6896,6 +6909,7 @@ D6  : T  10.33c W   9.03c S   1.30c ( +2.3 L  +2.3) LCB  260.00c P  4.96% WF 24.
 
 Root visits: 50
 Policy surprise 0.102461
+Raw WL 0.0389491
 PV: E2 F2 E3 F5 C7 B4
 Tree:
 : T   4.31c W   3.75c S   0.56c ( +1.0 L  +1.0) N      50  --  E2 F2 E3 F5 C7 B4
@@ -6921,6 +6935,7 @@ E9  : T -14.20c W -13.09c S  -1.11c ( -2.0 L  -2.0) LCB -260.00c P  6.74% WF 29.
 
 Root visits: 100
 Policy surprise 0.425297
+Raw WL -0.117405
 PV: B8 F8 G8 G7 F7 E8
 Tree:
 : T   3.21c W   2.76c S   0.46c ( +0.8 L  +0.8) N     100  --  B8 F8 G8 G7 F7 E8
@@ -6953,6 +6968,7 @@ G2  : T  22.96c W  20.57c S   2.39c ( +4.2 L  +4.2) LCB  260.00c P  3.53% WF  8.
 
 Root visits: 50
 Policy surprise 0.195535
+Raw WL 0.103196
 PV: F8 G8 G7 F7 E8 F6
 Tree:
 : T  -2.64c W  -2.51c S  -0.13c ( -0.2 L  -0.2) N      50  --  F8 G8 G7 F7 E8 F6
@@ -6982,6 +6998,7 @@ B7  : T -13.02c W -11.90c S  -1.12c ( -2.0 L  -2.0) LCB -250.06c P  7.01% WF 12.
 
 Root visits: 50
 Policy surprise 0.530993
+Raw WL -0.0801108
 PV: G8 G7 F7 E8 F6 H8 G9 J9 J10 K8 K9 E10
 Tree:
 : T  -8.88c W  -8.15c S  -0.74c ( -1.3 L  -1.3) N      50  --  G8 G7 F7 E8 F6 H8 G9
@@ -7008,6 +7025,7 @@ F2  : T  26.46c W  23.57c S   2.89c ( +5.0 L  +5.0) LCB  260.00c P  4.17% WF 21.
 
 Root visits: 50
 Policy surprise 0.131949
+Raw WL -0.0589053
 PV: G7 F7 E8 F6 H8 G9 J9 J10 K8 K9 E10
 Tree:
 : T -14.34c W -13.06c S  -1.29c ( -2.3 L  -2.3) N      50  --  G7 F7 E8 F6 H8 G9 J9
@@ -7033,6 +7051,7 @@ E9  : T -18.45c W -16.73c S  -1.73c ( -3.1 L  -3.1) LCB -176.32c P  6.65% WF 32.
 
 Root visits: 50
 Policy surprise 0.385972
+Raw WL -0.0126394
 PV: F7 E8 F6 H8 G9 J9 J10 K8 K9 B7 C7 C8
 Tree:
 : T -12.91c W -11.83c S  -1.08c ( -2.0 L  -2.0) N      50  --  F7 E8 F6 H8 G9 J9 J10
@@ -7058,6 +7077,7 @@ H4  : T  26.47c W  23.61c S   2.86c ( +5.0 L  +5.0) LCB  260.00c P  5.63% WF 26.
 
 Root visits: 50
 Policy surprise 0.0890754
+Raw WL -0.0789392
 PV: E8 F6 H8 G9 J9 J10 K8 K9 E10 C9 K10
 Tree:
 : T -15.13c W -13.81c S  -1.32c ( -2.4 L  -2.4) N      50  --  E8 F6 H8 G9 J9 J10 K8
@@ -7082,6 +7102,7 @@ H8  : T -33.29c W -30.25c S  -3.04c ( -5.0 L  -5.0) LCB -260.00c P 10.42% WF 44.
 
 Root visits: 100
 Policy surprise 0.256813
+Raw WL -0.0709497
 PV: F6 H8 G9 J9 J10 K8 K9 E9 C9 K10 J8 L9
 Tree:
 : T  -7.10c W  -6.61c S  -0.50c ( -0.9 L  -0.9) N     100  --  F6 H8 G9 J9 J10 K8 K9
@@ -7109,6 +7130,7 @@ J5  : T  13.52c W  12.11c S   1.41c ( +2.5 L  +2.5) LCB  260.00c P  3.98% WF 18.
 
 Root visits: 100
 Policy surprise 0.75396
+Raw WL -0.0293048
 PV: B9 D10 B7 C8 C7 C9 B5 D7 H8 G9
 Tree:
 : T  -7.44c W  -6.90c S  -0.54c ( -1.0 L  -1.0) N     100  --  B9 D10 B7 C8 C7 C9 B5
@@ -7139,6 +7161,7 @@ F10 : T -33.37c W -30.38c S  -3.00c ( -5.4 L  -5.4) LCB -260.00c P  3.39% WF 11.
 
 Root visits: 50
 Policy surprise 0.346897
+Raw WL -0.139907
 PV: D10 B7 C8 C7 C9 B5 D7 H8 G9
 Tree:
 : T   1.50c W   1.15c S   0.35c ( +0.6 L  +0.6) N      50  --  D10 B7 C8 C7 C9 B5 D7
@@ -7168,6 +7191,7 @@ D3  : T   2.71c W   2.22c S   0.49c ( +0.9 L  +0.9) LCB  260.00c P  4.55% WF 14.
 
 Root visits: 50
 Policy surprise 0.370288
+Raw WL -0.136439
 PV: B7 C8 C7 C9 B5 D7 H8 G9 J9 B6 C6 D6
 Tree:
 : T  -1.60c W  -1.38c S  -0.22c ( -0.5 L  -0.5) N      50  --  B7 C8 C7 C9 B5 D7 H8
@@ -7196,6 +7220,7 @@ C8  : T -30.07c W -27.38c S  -2.68c ( -4.9 L  -4.9) LCB -260.00c P  7.09% WF 14.
 
 Root visits: 50
 Policy surprise 0.26411
+Raw WL 0.0181588
 PV: C8 C7 C9 B5 D7 H8 G9 J9 B6 C6 B4 A6 B3
 Tree:
 : T   6.29c W   5.71c S   0.58c ( +1.0 L  +1.0) N      50  --  C8 C7 C9 B5 D7 H8 G9
@@ -7223,6 +7248,7 @@ D3  : T  22.04c W  19.75c S   2.29c ( +4.0 L  +4.0) LCB  260.00c P  4.31% WF 18.
 
 Root visits: 100
 Policy surprise 0.344215
+Raw WL 0.102318
 PV: C7 C9 B5 D7 H8 G9 J9 B6 C6 B4 A6 B3 B2 D3 C2 D2
 Tree:
 : T   6.75c W   6.18c S   0.57c ( +0.9 L  +0.9) N     100  --  C7 C9 B5 D7 H8 G9 J9
@@ -7250,6 +7276,7 @@ E10 : T -37.28c W -33.57c S  -3.72c ( -6.8 L  -6.8) LCB -260.00c P  3.20% WF 16.
 
 Root visits: 100
 Policy surprise 0.0199884
+Raw WL -0.0184343
 PV: C9 B5 D7 H8 G9 J9 B6 C6 B4 A6 B3 B2 D3 C2 D2
 Tree:
 : T   9.66c W   8.79c S   0.86c ( +1.4 L  +1.4) N     100  --  C9 B5 D7 H8 G9 J9 B6
@@ -7273,6 +7300,7 @@ C9  : T   9.77c W   8.90c S   0.87c ( +1.4 L  +1.4) LCB   21.92c P 98.02% WF 100
 
 Root visits: 50
 Policy surprise 0.172673
+Raw WL 0.0968913
 PV: B5 D7 H8 G9 J9 B6 C6 B4 A6 B3 B2 D3 C2
 Tree:
 : T  16.80c W  15.41c S   1.39c ( +2.2 L  +2.2) N      50  --  B5 D7 H8 G9 J9 B6 C6
@@ -7297,6 +7325,7 @@ H8  : T -23.92c W -21.87c S  -2.05c ( -3.6 L  -3.6) LCB -260.00c P  7.96% WF 39.
 
 Root visits: 50
 Policy surprise 0.156967
+Raw WL 0.186426
 PV: D7 H8 G9 J9 B6 C6 B4 A6 B3 B2 D3 C2
 Tree:
 : T  18.22c W  16.75c S   1.47c ( +2.3 L  +2.3) N      50  --  D7 H8 G9 J9 B6 C6 B4
@@ -7322,6 +7351,7 @@ B4  : T  37.74c W  33.43c S   4.32c ( +7.8 L  +7.8) LCB  260.00c P  7.79% WF 29.
 
 Root visits: 50
 Policy surprise 0.606059
+Raw WL -0.0282618
 PV: H8 G9 J9 B6 C6 B4 A6 B3 B2 D3 C2 D2
 Tree:
 : T  20.07c W  18.51c S   1.57c ( +2.4 L  +2.4) N      50  --  H8 G9 J9 B6 C6 B4 A6
@@ -7536,6 +7566,216 @@ whiteValueTargetsByTurn 30 1 0 0 7.5 7.5
  0.000 0.000 1.000 -1.000 0.000 0.000 -1.000 0.000 1.000 0.000 0.000
  0.000 0.000 1.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+
+====================================================================================================
+====================================================================================================
+====================================================================================================
+seedBase: test value surprise!
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 02CC2C75236DC4CE6B76B77510259151
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . X . O . X . . .
+ 8 . . . . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . O . . . . . . .
+ 3 . . . . . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 4
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D9 F9 H9 D4 
+end
+HASH: 309534CB6E278CA08BB3FAEC2BF11E9F
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . X . O . X X . .
+ 8 . . . . . . . . . X .
+ 7 . . X X . O O X X O .
+ 6 . . O O O . X O O O .
+ 5 . . . . . X X X O . .
+ 4 . . . O . X O O X O .
+ 3 . . . . . X . . X O .
+ 2 . . . . . . . . X O .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 34
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D9 F9 H9 D4 D7 H4 H7 F7 G5 G4 F5 E6 F4 D6 C7 C6 F3 J6 J7 H6 G6 G7 H5 J5 J4 K4 J3 K3 J2 K7 K8 K6 J9 K2 
+gameHash 4BDE43E0F1C397716C7FAAEF32C50572
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+modeMeta1 0
+modeMeta2 0
+hasFullData 1
+dataXLen 11
+dataYLen 11
+targetWeightByTurn 0 0.890113
+targetWeightByTurn 1 0.871235
+targetWeightByTurn 2 0.394177
+targetWeightByTurn 3 0.888174
+targetWeightByTurn 4 0.393331
+targetWeightByTurn 5 0.400336
+targetWeightByTurn 6 0.85903
+targetWeightByTurn 7 0.423557
+targetWeightByTurn 8 0.393757
+targetWeightByTurn 9 0.891493
+targetWeightByTurn 10 0.894511
+targetWeightByTurn 11 0.879742
+targetWeightByTurn 12 0.399085
+targetWeightByTurn 13 0.951275
+targetWeightByTurn 14 0.85018
+targetWeightByTurn 15 0.447477
+targetWeightByTurn 16 0.392731
+targetWeightByTurn 17 1.12869
+targetWeightByTurn 18 0.995277
+targetWeightByTurn 19 0.503249
+targetWeightByTurn 20 0.404562
+targetWeightByTurn 21 0.408738
+targetWeightByTurn 22 0.393603
+targetWeightByTurn 23 0.853761
+targetWeightByTurn 24 0.412706
+targetWeightByTurn 25 0.398897
+targetWeightByTurn 26 1.04071
+targetWeightByTurn 27 0.585216
+targetWeightByTurn 28 1.15341
+targetWeightByTurn 29 1.25298
+policyTargetsByTurn 0 unreducedNumVisits 100 H4 19 H3 19 D7 24 J4 20 H7 6 C7 7 C6 3 
+policyTargetsByTurn 1 unreducedNumVisits 100 H4 43 J4 42 H3 3 H8 3 J7 6 
+policyTargetsByTurn 2 unreducedNumVisits 50 H7 38 J7 10 J6 1 
+policyTargetsByTurn 3 unreducedNumVisits 100 F7 39 F4 19 J5 14 J6 10 C6 5 C5 10 
+policyTargetsByTurn 4 unreducedNumVisits 50 G5 14 J4 10 F6 9 C4 11 E5 3 
+policyTargetsByTurn 5 unreducedNumVisits 50 G4 32 E6 10 H6 6 H5 1 
+policyTargetsByTurn 6 unreducedNumVisits 100 F5 61 E5 19 H5 9 E6 9 F4 1 
+policyTargetsByTurn 7 unreducedNumVisits 50 E6 27 H5 12 F4 6 H6 4 
+policyTargetsByTurn 8 unreducedNumVisits 50 F4 40 H5 7 E5 0 E4 1 
+policyTargetsByTurn 9 unreducedNumVisits 100 D6 76 F3 10 C6 4 H6 4 H5 4 J6 1 
+policyTargetsByTurn 10 unreducedNumVisits 100 C7 75 F3 10 C6 6 H5 7 F2 0 
+policyTargetsByTurn 11 unreducedNumVisits 100 C6 40 H6 5 H5 26 F3 12 J5 7 J6 9 
+policyTargetsByTurn 12 unreducedNumVisits 50 F3 23 H5 9 F2 7 E3 6 J5 3 G3 1 
+policyTargetsByTurn 13 unreducedNumVisits 100 J5 25 J6 60 H5 7 H6 6 
+policyTargetsByTurn 14 unreducedNumVisits 100 J7 58 H6 20 J3 9 
+policyTargetsByTurn 15 unreducedNumVisits 50 H6 41 H2 5 J3 3 
+policyTargetsByTurn 16 unreducedNumVisits 50 G6 41 G7 2 H2 1 H5 2 J3 1 
+policyTargetsByTurn 17 unreducedNumVisits 100 G7 67 H2 4 J3 28 
+policyTargetsByTurn 18 unreducedNumVisits 100 J3 7 J4 3 H5 84 H2 2 K6 2 
+policyTargetsByTurn 19 unreducedNumVisits 50 J5 29 K6 20 
+policyTargetsByTurn 20 unreducedNumVisits 50 J4 48 J3 1 
+policyTargetsByTurn 21 unreducedNumVisits 50 K4 37 K7 8 J3 3 
+policyTargetsByTurn 22 unreducedNumVisits 50 J3 49 
+policyTargetsByTurn 23 unreducedNumVisits 100 K3 93 K7 5 
+policyTargetsByTurn 24 unreducedNumVisits 50 J2 46 K2 2 K7 1 
+policyTargetsByTurn 25 unreducedNumVisits 50 K7 44 K2 4 J9 1 
+policyTargetsByTurn 26 unreducedNumVisits 100 K8 99 
+policyTargetsByTurn 27 unreducedNumVisits 50 K6 27 L6 17 L7 2 J8 2 
+policyTargetsByTurn 28 unreducedNumVisits 50 K2 5 J9 27 K9 9 J8 3 
+policyTargetsByTurn 29 unreducedNumVisits 50 K2 45 L5 2 E2 1 
+whiteValueTargetsByTurn 0 0.471729 0.528271 0 -0.61909 - 
+whiteValueTargetsByTurn 1 0.463663 0.536337 0 -0.867334 - 
+whiteValueTargetsByTurn 2 0.450546 0.549454 0 -1.34756 - 
+whiteValueTargetsByTurn 3 0.452402 0.547598 0 -1.32916 - 
+whiteValueTargetsByTurn 4 0.458073 0.541928 0 -1.20088 - 
+whiteValueTargetsByTurn 5 0.443511 0.556489 0 -1.77169 - 
+whiteValueTargetsByTurn 6 0.443142 0.556858 0 -1.71979 - 
+whiteValueTargetsByTurn 7 0.435006 0.564994 0 -2.29439 - 
+whiteValueTargetsByTurn 8 0.436501 0.563499 0 -2.42045 - 
+whiteValueTargetsByTurn 9 0.438304 0.561696 0 -2.37519 - 
+whiteValueTargetsByTurn 10 0.451615 0.548385 0 -1.8641 - 
+whiteValueTargetsByTurn 11 0.444078 0.555922 0 -2.23586 - 
+whiteValueTargetsByTurn 12 0.441299 0.558701 0 -2.22468 - 
+whiteValueTargetsByTurn 13 0.436279 0.563721 0 -2.5608 - 
+whiteValueTargetsByTurn 14 0.422892 0.577108 0 -3.23157 - 
+whiteValueTargetsByTurn 15 0.417362 0.582638 0 -3.53815 - 
+whiteValueTargetsByTurn 16 0.386287 0.613713 0 -5.16823 - 
+whiteValueTargetsByTurn 17 0.396158 0.603842 0 -4.60188 - 
+whiteValueTargetsByTurn 18 0.346224 0.653776 0 -6.96084 - 
+whiteValueTargetsByTurn 19 0.325912 0.674088 0 -7.92808 - 
+whiteValueTargetsByTurn 20 0.311902 0.688098 0 -8.31736 - 
+whiteValueTargetsByTurn 21 0.303763 0.696237 0 -8.78838 - 
+whiteValueTargetsByTurn 22 0.328709 0.671291 0 -7.62566 - 
+whiteValueTargetsByTurn 23 0.313211 0.686789 0 -8.4206 - 
+whiteValueTargetsByTurn 24 0.328144 0.671856 0 -7.64552 - 
+whiteValueTargetsByTurn 25 0.321762 0.678238 0 -7.95775 - 
+whiteValueTargetsByTurn 26 0.32558 0.67442 0 -7.79538 - 
+whiteValueTargetsByTurn 27 0.325389 0.674611 0 -7.81701 - 
+whiteValueTargetsByTurn 28 0.335171 0.664829 0 -6.97736 - 
+whiteValueTargetsByTurn 29 0.323511 0.676489 0 -7.38849 - 
+whiteValueTargetsByTurn 30 1 0 0 7.5 7.5 
+...........
+...........
+...X.O.XX..
+.........X.
+..XX.OOXXO.
+..OOO.XOOO.
+.....XXXO..
+...O.XOOXO.
+.....X..XO.
+........XO.
+...........
+...........
+...........
+...X.O.XX..
+.........X.
+..XX.OOXXO.
+..OOO.XOOO.
+.....XXXO..
+...O.XOOXO.
+.....X..XO.
+........XO.
+...........
+00000000000
+00000000000
+00010101100
+00000000010
+00110111110
+00111011110
+00000111100
+00010111110
+00000100110
+00000000110
+00000000000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 1.000 0.000 -1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000
+ 0.000 0.000 -1.000 -1.000 0.000 1.000 1.000 -1.000 -1.000 1.000 0.000
+ 0.000 0.000 1.000 1.000 1.000 0.000 -1.000 1.000 1.000 1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 -1.000 -1.000 -1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 -1.000 1.000 1.000 -1.000 1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 -1.000 1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 
 HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11

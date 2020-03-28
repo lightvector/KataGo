@@ -227,6 +227,7 @@ if(BUILD_MCTS)
     program/gtpconfig.cpp
     program/setup.cpp
     program/playutils.cpp
+    program/playsettings.cpp
     program/play.cpp
     ${GIT_HEADER_FILE_ALWAYS_UPDATED}
     tests/testboardarea.cpp

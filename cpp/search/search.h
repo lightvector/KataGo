@@ -264,6 +264,11 @@ struct Search {
   //Same, but works on a node within the search, not just the root
   bool getNodeValues(const SearchNode& node, ReportedSearchValues& values) const;
 
+  //Same, but based only on the single raw neural net evaluation.
+  bool getRootRawNNValues(ReportedSearchValues& values) const;
+  ReportedSearchValues getRootRawNNValuesRequireSuccess() const;
+  bool getNodeRawNNValues(const SearchNode& node, ReportedSearchValues& values) const;
+
   //Get the number of visits recorded for the root node
   int64_t getRootVisits() const;
   //Get the surprisingness (kl-divergence) of the search result given the policy prior.

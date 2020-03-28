@@ -51,7 +51,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     numAnalysisThreads = numAnalysisThreadsArg.getValue();
 
     if(numAnalysisThreads <= 0 || numAnalysisThreads >= 16384)
-      throw new StringError("Invalid value for numAnalysisThreads");
+      throw StringError("Invalid value for numAnalysisThreads");
 
     cmd.getConfig(cfg);
   }

@@ -12,6 +12,7 @@
 #include "../game/boardhistory.h"
 #include "../search/search.h"
 #include "../search/searchparams.h"
+#include "../program/playsettings.h"
 
 struct InitialPosition {
   Board board;
@@ -57,8 +58,6 @@ struct OtherGameProperties {
   Player playoutDoublingAdvantagePla = C_EMPTY;
 };
 
-struct FancyModes;
-
 //Object choosing random initial rules and board sizes for games. Threadsafe.
 class GameInitializer {
  public:
@@ -79,7 +78,7 @@ class GameInitializer {
     ExtraBlackAndKomi& extraBlackAndKomi,
     SearchParams& params,
     const InitialPosition* initialPosition,
-    const FancyModes& fancyModes,
+    const PlaySettings& playSettings,
     OtherGameProperties& otherGameProps
   );
 
@@ -88,7 +87,7 @@ class GameInitializer {
     Board& board, Player& pla, BoardHistory& hist,
     ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
-    const FancyModes& fancyModes,
+    const PlaySettings& playSettings,
     OtherGameProperties& otherGameProps
   );
 
@@ -100,7 +99,7 @@ class GameInitializer {
     Board& board, Player& pla, BoardHistory& hist,
     ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
-    const FancyModes& fancyModes,
+    const PlaySettings& playSettings,
     OtherGameProperties& otherGameProps
   );
 
@@ -183,7 +182,7 @@ class MatchPairer {
 
   //Get next matchup and log stuff
   bool getMatchup(
-    int64_t& gameIdx, BotSpec& botSpecB, BotSpec& botSpecW, Logger& logger
+    BotSpec& botSpecB, BotSpec& botSpecW, Logger& logger
   );
 
  private:
@@ -210,70 +209,6 @@ class MatchPairer {
   std::pair<int,int> getMatchupPairUnsynchronized();
 };
 
-struct FancyModes {
-  //Play a bunch of mostly policy-distributed moves at the start to initialize a game.
-  bool initGamesWithPolicy;
-  //Occasionally try some alternative moves and search the responses to them.
-  double forkSidePositionProb;
-
-  //Use this many visits in a short search to estimate the score, for adjusting komi
-  int compensateKomiVisits;
-  int estimateLeadVisits;
-  //On each train position, estimate the lead in points with this probability
-  double estimateLeadProb;
-
-  //Occasionally fork an entire new game to try out an experimental move in the opening
-  double earlyForkGameProb; //Expected number of early forked games per game
-  double earlyForkGameExpectedMoveProp; //Fork on average within the first board area * this prop moves
-  double forkGameProb; //Expected number of forked games per game
-  int forkGameMinChoices; //Fork between the favorite of this many random legal moves, at minimum
-  int earlyForkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
-  int forkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
-
-  //Hack to make learning of seki easier - fork positions with different rules when we have sekis
-  bool sekiForkHack;
-  //Hack to improve learning of very weird komi and very lopsided positions
-  bool fancyKomiVarying;
-
-  //With this probability, use only this many visits for a move, and record it with only this weight
-  double cheapSearchProb;
-  int cheapSearchVisits;
-  float cheapSearchTargetWeight;
-
-  //Attenuate the number of visits used in positions where one player or the other is extremely winning
-  bool reduceVisits;
-  double reduceVisitsThreshold; //When mcts value is more extreme than this
-  int reduceVisitsThresholdLookback; //Value must be more extreme over the last this many turns
-  int reducedVisitsMin; //Number of visits at the most extreme winrate
-  float reducedVisitsWeight; //Amount of weight to put on the training sample at minimum visits winrate.
-
-  //Probabilistically favor samples that had high policy surprise (kl divergence).
-  double policySurpriseDataWeight;
-
-  //Record positions from within the search tree that had at least this many visits, recording only with this weight.
-  bool recordTreePositions;
-  int recordTreeThreshold;
-  float recordTreeTargetWeight;
-
-  //Resign conditions
-  bool allowResignation;
-  double resignThreshold; //Require that mcts win value is less than this
-  double resignConsecTurns; //Require that both players have agreed on it continuously for this many turns
-
-  //Enable full data recording and a variety of other minor tweaks applying only for self-play training.
-  bool forSelfPlay;
-  int dataXLen; //When self-play data recording, the width/height of the tensor
-  int dataYLen; //When self-play data recording, the width/height of the tensor
-
-  //Asymmetric playouts training
-  double handicapAsymmetricPlayoutProb; //Probability of asymmetric playouts on handicap games
-  double normalAsymmetricPlayoutProb; //Probability of asymmetric playouts on normal games
-  double maxAsymmetricRatio;
-  double minAsymmetricCompensateKomiProb; //Minimum probability to make game fair if asymmetric (other probs will also override)
-
-  FancyModes();
-  ~FancyModes();
-};
 
 //Functions to run a single game or other things
 namespace Play {
@@ -286,7 +221,7 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
-    const FancyModes& fancyModes, const OtherGameProperties& otherGameProps,
+    const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
@@ -299,7 +234,7 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
-    const FancyModes& fancyModes, const OtherGameProperties& otherGameProps,
+    const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
@@ -307,7 +242,7 @@ namespace Play {
   void maybeForkGame(
     const FinishedGameData* finishedGameData,
     ForkData* forkData,
-    const FancyModes& fancyModes,
+    const PlaySettings& playSettings,
     Rand& gameRand,
     Search* bot
   );
@@ -315,7 +250,7 @@ namespace Play {
   void maybeSekiForkGame(
     const FinishedGameData* finishedGameData,
     ForkData* forkData,
-    const FancyModes& fancyModes,
+    const PlaySettings& playSettings,
     const GameInitializer* gameInit,
     Rand& gameRand
   );
@@ -329,19 +264,18 @@ class GameRunner {
   bool logMoves;
   int maxMovesPerGame;
   bool clearBotBeforeSearch;
-  std::string searchRandSeedBase;
-  FancyModes fancyModes;
+  PlaySettings playSettings;
   GameInitializer* gameInit;
 
 public:
-  GameRunner(ConfigParser& cfg, const std::string& searchRandSeedBase, FancyModes fancyModes, Logger& logger);
-  GameRunner(ConfigParser& cfg, const std::string& earchsRandSeedBase, const std::string& gameInitRandSeed, FancyModes fModes, Logger& logger);
+  GameRunner(ConfigParser& cfg, PlaySettings playSettings, Logger& logger);
+  GameRunner(ConfigParser& cfg, const std::string& gameInitRandSeed, PlaySettings fModes, Logger& logger);
   ~GameRunner();
 
   //Will return NULL if stopped before the game completes. The caller is responsible for freeing the data
   //if it isn't NULL.
   FinishedGameData* runGame(
-    int64_t gameIdx,
+    const std::string& seed,
     const MatchPairer::BotSpec& botSpecB,
     const MatchPairer::BotSpec& botSpecW,
     ForkData* forkData,
