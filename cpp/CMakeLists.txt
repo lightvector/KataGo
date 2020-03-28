@@ -120,16 +120,6 @@ else()
     )
 endif()
 
-#--------------------------- DIRENT ------------------------------------------------------------------------------------
-
-include(CheckIncludeFile)
-check_include_file("dirent.h" HAVE_DIRENT)
-if(NOT HAVE_DIRENT)
-  unset(HAVE_DIRENT CACHE)
-  message(WARNING "dirent.h not found, compiling without it (KataGo should still work fine except for some rare dev-only test tools)")
-  add_compile_definitions(NO_DIRENT_H)
-endif()
-
 #--------------------------- KATAGO COMPILING AND LINKING --------------------------------------------------------------
 
 add_executable(katago
