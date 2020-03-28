@@ -24,6 +24,7 @@ endif()
 
 #--------------------------- CMAKE VARIABLES (partly for Cmake GUI) ----------------------------------------------------
 
+set(BUILD_DISTRIBUTED 0 CACHE BOOL "Build with http support for contributing to distributed training")
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
 set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA OPENCL)
@@ -251,6 +252,12 @@ if(USE_TCMALLOC)
   target_link_libraries(katago ${TCMALLOC_LIB})
 endif(USE_TCMALLOC)
 
+if(BUILD_DISTRIBUTED)
+  message("-DBUILD_DISTRIBUTED=1 is set, compiling code and dependencies to contribute to distributed training")
+  target_compile_definitions(katago PRIVATE BUILD_DISTRIBUTED)
+  find_package(OpenSSL REQUIRED)
+  target_link_libraries(katago ${OPENSSL_SSL_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARIES})
+endif()
 
 #------------------------------------------------------------------------------------
 
