@@ -190,21 +190,21 @@ add_executable(katago
   tests/testtime.cpp
   tests/testtrainingwrite.cpp
   tests/testnn.cpp
-  analysis.cpp
-  benchmark.cpp
-  commandline.cpp
-  evalsgf.cpp
-  gatekeeper.cpp
-  gtp.cpp
-  match.cpp
-  matchauto.cpp
-  selfplay.cpp
-  misc.cpp
-  runtests.cpp
-  lzcost.cpp
-  sandbox.cpp
-  tune.cpp
-  main.cpp
+  command/commandline.cpp
+  command/analysis.cpp
+  command/benchmark.cpp
+  command/evalsgf.cpp
+  command/gatekeeper.cpp
+  command/gtp.cpp
+  command/lzcost.cpp
+  command/match.cpp
+  command/matchauto.cpp
+  command/misc.cpp
+  command/runtests.cpp
+  command/sandbox.cpp
+  command/selfplay.cpp
+  command/tune.cpp
+  command/main.cpp
   )
 
 if(USE_BACKEND STREQUAL "CUDA")

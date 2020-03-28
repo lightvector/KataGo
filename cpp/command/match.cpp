@@ -1,13 +1,13 @@
-#include "core/global.h"
-#include "core/makedir.h"
-#include "core/config_parser.h"
-#include "core/timer.h"
-#include "dataio/sgf.h"
-#include "search/asyncbot.h"
-#include "program/setup.h"
-#include "program/play.h"
-#include "commandline.h"
-#include "main.h"
+#include "../core/global.h"
+#include "../core/makedir.h"
+#include "../core/config_parser.h"
+#include "../core/timer.h"
+#include "../dataio/sgf.h"
+#include "../search/asyncbot.h"
+#include "../program/setup.h"
+#include "../program/play.h"
+#include "../command/commandline.h"
+#include "../command/main.h"
 
 #include <csignal>
 

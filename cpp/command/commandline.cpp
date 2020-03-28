@@ -1,9 +1,9 @@
-#include "commandline.h"
+#include "../command/commandline.h"
 
-#include "core/os.h"
-#include "dataio/homedata.h"
-#include "program/setup.h"
-#include "main.h"
+#include "../core/os.h"
+#include "../dataio/homedata.h"
+#include "../program/setup.h"
+#include "../command/main.h"
 
 #include <boost/filesystem.hpp>
 namespace bfs = boost::filesystem;

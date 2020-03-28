@@ -1,9 +1,9 @@
-#include "core/global.h"
-#include "game/board.h"
-#include "game/boardhistory.h"
-#include "dataio/lzparse.h"
-#include "commandline.h"
-#include "main.h"
+#include "../core/global.h"
+#include "../game/board.h"
+#include "../game/boardhistory.h"
+#include "../dataio/lzparse.h"
+#include "../command/commandline.h"
+#include "../command/main.h"
 
 #include <fstream>
 #include <algorithm>

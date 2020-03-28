@@ -1,7 +1,7 @@
 #ifndef COMMANDLINE_H_
 #define COMMANDLINE_H_
 
-#include "core/config_parser.h"
+#include "../core/config_parser.h"
 
 #define TCLAP_NAMESTARTSTRING "-" //Use single dashes for all flags
 #include <tclap/CmdLine.h>

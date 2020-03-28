@@ -1,16 +1,16 @@
 
 #include <sstream>
-#include "core/global.h"
-#include "core/bsearch.h"
-#include "core/rand.h"
-#include "core/elo.h"
-#include "core/fancymath.h"
-#include "game/board.h"
-#include "game/rules.h"
-#include "game/boardhistory.h"
-#include "neuralnet/nninputs.h"
-#include "tests/tests.h"
-#include "main.h"
+#include "../core/global.h"
+#include "../core/bsearch.h"
+#include "../core/rand.h"
+#include "../core/elo.h"
+#include "../core/fancymath.h"
+#include "../game/board.h"
+#include "../game/rules.h"
+#include "../game/boardhistory.h"
+#include "../neuralnet/nninputs.h"
+#include "../tests/tests.h"
+#include "../command/main.h"
 
 using namespace std;
 

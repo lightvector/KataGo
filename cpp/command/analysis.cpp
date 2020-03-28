@@ -1,14 +1,14 @@
-#include "core/global.h"
-#include "core/config_parser.h"
-#include "core/timer.h"
-#include "search/asyncbot.h"
-#include "program/setup.h"
-#include "program/playutils.h"
-#include "program/play.h"
-#include "commandline.h"
-#include "main.h"
+#include "../core/global.h"
+#include "../core/config_parser.h"
+#include "../core/timer.h"
+#include "../search/asyncbot.h"
+#include "../program/setup.h"
+#include "../program/playutils.h"
+#include "../program/play.h"
+#include "../command/commandline.h"
+#include "../command/main.h"
 
-#include "external/nlohmann_json/json.hpp"
+#include "../external/nlohmann_json/json.hpp"
 
 using namespace std;
 using json = nlohmann::json;

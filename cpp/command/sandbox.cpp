@@ -1,15 +1,15 @@
 
-#include "core/global.h"
-#include "core/timer.h"
-#include "core/logger.h"
-#include "game/board.h"
-#include "game/boardhistory.h"
-#include "neuralnet/nninputs.h"
-#include "neuralnet/nneval.h"
-#include "search/searchparams.h"
-#include "search/search.h"
-#include "search/asyncbot.h"
-#include "main.h"
+#include "../core/global.h"
+#include "../core/timer.h"
+#include "../core/logger.h"
+#include "../game/board.h"
+#include "../game/boardhistory.h"
+#include "../neuralnet/nninputs.h"
+#include "../neuralnet/nneval.h"
+#include "../search/searchparams.h"
+#include "../search/search.h"
+#include "../search/asyncbot.h"
+#include "../command/main.h"
 
 using namespace std;
 

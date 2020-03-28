@@ -1,4 +1,4 @@
-#include "core/global.h"
+#include "../core/global.h"
 
 namespace MainCmds {
   int analysis(int argc, const char* const* argv);
