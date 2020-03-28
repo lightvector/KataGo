@@ -3,7 +3,7 @@
 #include "../game/boardhistory.h"
 #include "../dataio/lzparse.h"
 #include "../command/commandline.h"
-#include "../command/main.h"
+#include "../main.h"
 
 #include <fstream>
 #include <algorithm>

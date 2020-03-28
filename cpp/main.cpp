@@ -1,11 +1,11 @@
-#include "../command/main.h"
+#include "main.h"
 
-#include "../core/os.h"
+#include "core/os.h"
 
 #ifdef NO_GIT_REVISION
 #define GIT_REVISION "<omitted>"
 #else
-#include "../program/gitinfo.h"
+#include "program/gitinfo.h"
 #endif
 
 #include <sstream>

@@ -8,7 +8,7 @@
 #include "../program/playutils.h"
 #include "../program/play.h"
 #include "../command/commandline.h"
-#include "../command/main.h"
+#include "../main.h"
 
 using namespace std;
 

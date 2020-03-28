@@ -11,7 +11,7 @@
 #include "../program/setup.h"
 #include "../program/play.h"
 #include "../command/commandline.h"
-#include "../command/main.h"
+#include "../main.h"
 
 #include <sstream>
 

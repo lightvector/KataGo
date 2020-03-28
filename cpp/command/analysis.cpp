@@ -6,7 +6,7 @@
 #include "../program/playutils.h"
 #include "../program/play.h"
 #include "../command/commandline.h"
-#include "../command/main.h"
+#include "../main.h"
 
 #include "../external/nlohmann_json/json.hpp"
 

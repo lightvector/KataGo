@@ -9,7 +9,7 @@
 #include "../search/searchparams.h"
 #include "../search/search.h"
 #include "../search/asyncbot.h"
-#include "../command/main.h"
+#include "../main.h"
 
 using namespace std;
 

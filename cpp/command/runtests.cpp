@@ -10,7 +10,7 @@
 #include "../game/boardhistory.h"
 #include "../neuralnet/nninputs.h"
 #include "../tests/tests.h"
-#include "../command/main.h"
+#include "../main.h"
 
 using namespace std;
 

@@ -8,7 +8,7 @@
 #include "../program/gtpconfig.h"
 #include "../tests/tests.h"
 #include "../command/commandline.h"
-#include "../command/main.h"
+#include "../main.h"
 
 #include <chrono>
 #include <map>

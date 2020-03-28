@@ -3,7 +3,7 @@
 #include "../core/timer.h"
 #include "../core/makedir.h"
 #include "../command/commandline.h"
-#include "../command/main.h"
+#include "../main.h"
 
 #ifdef USE_OPENCL_BACKEND
 #include "../neuralnet/opencltuner.h"

@@ -37,7 +37,6 @@ Summary of source folders, in approximate dependency order, from lowest level to
   * `selfplay.cpp` - Selfplay data generation engine.
   * `gatekeeper.cpp` - Gating engine to filter neural nets for selfplay data generation.
   * `match.cpp` - Match engine for testing different parameters that can use huge batch sizes to efficiently play games in parallel.
-  * `main.{cpp,h}` - Main function that dispatches to the appropriate subcommand.
 
 Other folders:
 

@@ -3,7 +3,7 @@
 #include "../core/os.h"
 #include "../dataio/homedata.h"
 #include "../program/setup.h"
-#include "../command/main.h"
+#include "../main.h"
 
 #include <boost/filesystem.hpp>
 namespace bfs = boost::filesystem;
