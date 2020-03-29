@@ -44,7 +44,9 @@ vector<string> HomeData::getDefaultFilesDirs() {
   wcstombs_s(&ret, buf2, buf2Size, buf, buf2Size-1);
 
   string executableDir(buf2);
-  return vector<string>(executableDir);
+  vector<string> dirs;
+  dirs.push_back(executableDir);
+  return dirs;
 }
 
 string HomeData::getDefaultFilesDirForHelpMessage() {
