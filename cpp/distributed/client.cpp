@@ -77,12 +77,12 @@ void Connection::downloadModelIfNotPresent(const string& modelName, const string
   }
 }
 
-void Connection::uploadTrainingGameAndData(const Task& task, const string& sgfFilePath, const string& npzFilePath) {
+void Connection::uploadTrainingGameAndData(const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, const string& npzFilePath) {
   std::lock_guard<std::mutex> lock(mutex);
   cout << "UPLOAD TRAINING DATA " << task.taskId << " " << task.taskGroup << " " << task.runName << " " << sgfFilePath << " " << npzFilePath << endl;
 }
 
-void Connection::uploadEvaluationGame(const Task& task, const string& sgfFilePath) {
+void Connection::uploadEvaluationGame(const Task& task, const FinishedGameData* gameData, const string& sgfFilePath) {
   std::lock_guard<std::mutex> lock(mutex);
   cout << "UPLOAD SGF " << task.taskId << " " << task.taskGroup << " " << task.runName << " " << sgfFilePath << endl;
 }

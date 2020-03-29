@@ -6,6 +6,7 @@
 #include "../core/logger.h"
 #include "../distributed/httplib_wrapper.h"
 #include "../core/multithread.h"
+#include "../dataio/trainingwrite.h"
 
 namespace Client {
 
@@ -47,8 +48,8 @@ namespace Client {
     static std::string getModelPath(const std::string& modelName, const std::string& modelDir);
     void downloadModelIfNotPresent(const std::string& modelName, const std::string& modelDir, const std::string& modelUrl);
 
-    void uploadTrainingGameAndData(const Task& task, const std::string& sgfFilePath, const std::string& npzFilePath);
-    void uploadEvaluationGame(const Task& task, const std::string& sgfFilePath);
+    void uploadTrainingGameAndData(const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath, const std::string& npzFilePath);
+    void uploadEvaluationGame(const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath);
 
   private:
     httplib::Client* httpClient;

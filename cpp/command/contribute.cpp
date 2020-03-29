@@ -125,11 +125,11 @@ static void runAndUploadSingleGame(Client::Connection* connection, GameTask game
           string resultingFilename;
           bool producedFile = tdataWriter->flushIfNonempty(resultingFilename);
           if(producedFile)
-            connection->uploadTrainingGameAndData(gameTask.task,sgfFile,resultingFilename);
+            connection->uploadTrainingGameAndData(gameTask.task,gameData,sgfFile,resultingFilename);
         });
     }
     else {
-      connection->uploadEvaluationGame(gameTask.task,sgfFile);
+      connection->uploadEvaluationGame(gameTask.task,gameData,sgfFile);
     }
   }
 
