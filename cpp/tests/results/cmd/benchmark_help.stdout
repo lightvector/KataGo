@@ -14,10 +14,12 @@ Where:
 
    -config <FILE>
      Config file to use (see gtp_example.cfg or configs/gtp_example.cfg).
-     Defaults to: ~/.katago/default_gtp.cfg
+     Defaults to: (dir containing katago.exe, or else
+     ~/.katago)/default_gtp.cfg
 
    -model <FILE>
-     Neural net model file. Defaults to: ~/.katago/default_model.bin.gz
+     Neural net model file. Defaults to: (dir containing katago.exe, or
+     else ~/.katago)/default_model.bin.gz
 
    -v <VISITS>,  -visits <VISITS>
      How many visits to use per search (default 800)
