@@ -116,9 +116,17 @@ KataGo supports a few commands. All of these commands require a "model" file tha
 
 **If you are running KataGo for the first time, you probably want to run the benchmark OR the genconfig options before anything else, to test if KataGo works and pick a number of threads. And on the OpenCL version, to give KataGo a chance to autotune itself, which could take a while.**
 
+**For all of the below commands, you can omit the `-model` argument if you've put the model file into the same directory as the katago executable as `default_model.bin.gz` or `default_model.txt.gz`.**
+
+**For all of the commands that require a GTP config, you can omit the `-config` argument if you've put the GTP config file into the same directory as the katago executable as `default_gtp.cfg`.**
+
 To run a benchmark to test performance and help you choose how many threads to use for best performance. You can then edit your GTP config to use this many threads:
 
    * `./katago benchmark -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg`
+
+Or for example as noted above in bold, if you have a default config and model in the right place:
+
+  * `./katago benchmark`
 
 To automatically tune threads and other settings for you based on an interactive prompt, and generate a GTP config for you:
 
@@ -126,7 +134,15 @@ To automatically tune threads and other settings for you based on an interactive
 
 To run a GTP engine using a downloaded KataGo neural net and GTP config:
 
-   * `./katago gtp -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg` - **This is the command you want to tell your GUI (Lizzie, Sabaki, GoGui, etc) to use to run KataGo** (with the actual paths to your neural net and config files substituted in, of course).
+   * `./katago gtp -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg`
+   * Or from a different path: `whatever/path/to/katago gtp -model whatever/path/to/<NEURALNET>.gz -config /whatever/path/to/<GTP_CONFIG>.cfg`
+   * **This is the command to tell your GUI (Lizzie, Sabaki, GoGui, etc) to use to run KataGo** (with the actual paths to everything substituted currectly, of course).
+
+Or for example as noted earlier above in bold, if you have a default config and model in the right place:
+
+  * `./katago gtp`
+  * Or from a different path: `whatever/path/to/katago gtp`
+  * **Alternatively, this is the command you want to tell your GUI (Lizzie, Sabaki, GoGui, etc) to use to run KataGo** (if you have a default config and model file).
 
 Run a JSON-based [analysis engine](docs/Analysis_Engine.md) that can do efficient batched evaluations for a backend Go service:
 

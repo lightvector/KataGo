@@ -25,19 +25,26 @@ static bool doesPathExist(const string& path) {
 static string getDefaultConfigPathForHelp(const string& defaultConfigFileName) {
   return HomeData::getDefaultFilesDirForHelpMessage() + "/" + defaultConfigFileName;
 }
-static string getDefaultConfigPath(const string& defaultConfigFileName) {
-  return HomeData::getDefaultFilesDir() + "/" + defaultConfigFileName;
+static vector<string> getDefaultConfigPaths(const string& defaultConfigFileName) {
+  vector<string> v = HomeData::getDefaultFilesDirs();
+  for(int i = 0; i<v.size(); i++) {
+    v[i] = v[i] + "/" + defaultConfigFileName;
+  }
+  return v;
 }
 
 static string getDefaultModelPathForHelp() {
   return HomeData::getDefaultFilesDirForHelpMessage() + "/" + "default_model.bin.gz";
 }
 
-static string getDefaultBinModelPath() {
-  return HomeData::getDefaultFilesDir() + "/" + "default_model.bin.gz";
-}
-static string getDefaultTxtModelPath() {
-  return HomeData::getDefaultFilesDir() + "/" + "default_model.txt.gz";
+static vector<string> getDefaultModelPaths() {
+  vector<string> dirs = HomeData::getDefaultFilesDirs();
+  vector<string> ret;
+  for(int i = 0; i<dirs.size(); i++) {
+    ret.push_back(dirs[i] + "/" + "default_model.bin.gz");
+    ret.push_back(dirs[i] + "/" + "default_model.txt.gz");
+  }
+  return ret;
 }
 
 //--------------------------------------------------------------------------------------
@@ -241,20 +248,21 @@ string KataGoCommandLine::getModelFile() const {
   assert(modelFileArg != NULL);
   string modelFile = modelFileArg->getValue();
   if(modelFile.empty()) {
-    string defaultBinModelPath;
-    string defaultTxtModelPath;
+    string pathForErrMsg;
     try {
-      defaultBinModelPath = getDefaultBinModelPath();
-      if(doesPathExist(defaultBinModelPath))
-        return defaultBinModelPath;
-      defaultTxtModelPath = getDefaultTxtModelPath();
-      if(doesPathExist(defaultTxtModelPath))
-        return defaultTxtModelPath;
+      vector<string> paths = getDefaultModelPaths();
+      if(paths.size() > 0)
+        pathForErrMsg = paths[0];
+      for(const string& path: paths)
+        if(doesPathExist(path))
+          return path;
     }
     catch(const StringError& err) {
       throw StringError(string("'-model MODELFILENAME.bin.gz was not provided but encountered error searching for default: ") + err.what());
     }
-    throw StringError("-model MODELFILENAME.bin.gz was not specified to tell KataGo where to find the neural net model, and default was not found at " + defaultBinModelPath);
+    if(pathForErrMsg == "")
+      pathForErrMsg = getDefaultModelPathForHelp();
+    throw StringError("-model MODELFILENAME.bin.gz was not specified to tell KataGo where to find the neural net model, and default was not found at " + pathForErrMsg);
   }
   return modelFile;
 }
@@ -267,16 +275,21 @@ string KataGoCommandLine::getConfigFile() const {
   assert(configFileArg != NULL);
   string configFile = configFileArg->getValue();
   if(configFile.empty() && !defaultConfigFileName.empty()) {
-    string defaultConfigPath;
+    string pathForErrMsg;
     try {
-      defaultConfigPath = getDefaultConfigPath(defaultConfigFileName);
-      if(doesPathExist(defaultConfigPath))
-        return defaultConfigPath;
+      vector<string> paths = getDefaultConfigPaths(defaultConfigFileName);
+      if(paths.size() > 0)
+        pathForErrMsg = paths[0];
+      for(const string& path: paths)
+        if(doesPathExist(path))
+          return path;
     }
     catch(const StringError& err) {
       throw StringError(string("'-config CONFIG_FILE_NAME.cfg was not provided but encountered error searching for default: ") + err.what());
     }
-    throw StringError("-config CONFIG_FILE_NAME.cfg was not specified to tell KataGo where to find the config, and default was not found at " + defaultConfigPath);
+    if(pathForErrMsg == "")
+      pathForErrMsg = getDefaultConfigPathForHelp(defaultConfigFileName);
+    throw StringError("-config CONFIG_FILE_NAME.cfg was not specified to tell KataGo where to find the config, and default was not found at " + pathForErrMsg);
   }
   return configFile;
 }

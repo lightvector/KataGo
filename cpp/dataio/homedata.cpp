@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
+#include <boost/filesystem.hpp>
 #endif
 #ifdef OS_IS_WINDOWS
 #include <windows.h>
@@ -23,7 +24,7 @@ using namespace std;
 #ifdef OS_IS_WINDOWS
 
 //On Windows, this function returns the executable's directory
-string HomeData::getDefaultFilesDir() {
+vector<string> HomeData::getDefaultFilesDirs() {
   //HACK: add 2048 to the buffer size to be resilient to longer paths, beyond MAX_PATH.
   constexpr size_t bufSize = MAX_PATH + 2048;
   wchar_t buf[bufSize];
@@ -41,9 +42,9 @@ string HomeData::getDefaultFilesDir() {
   char buf2[buf2Size];
   size_t ret;
   wcstombs_s(&ret, buf2, buf2Size, buf, buf2Size-1);
-  
+
   string executableDir(buf2);
-  return executableDir;
+  return vector<string>(executableDir);
 }
 
 string HomeData::getDefaultFilesDirForHelpMessage() {
@@ -79,13 +80,27 @@ string HomeData::getHomeDataDir(bool makeDir) {
 #endif
 
 #ifdef OS_IS_UNIX_OR_APPLE
-//On Linux, this function returns a katago-specific subdirectory of the home directory, same as getHomeDataDir
-string HomeData::getDefaultFilesDir() {
-  return getHomeDataDir(false);
+//On Linux, this function returns two locations:
+//The directory containing the excutable.
+//A katago-specific subdirectory of the home directory, same as getHomeDataDir.
+vector<string> HomeData::getDefaultFilesDirs() {
+  namespace bfs = boost::filesystem;
+  constexpr int bufSize = 2048;
+  char result[bufSize];
+  ssize_t count = readlink("/proc/self/exe", result, bufSize);
+  vector<string> ret;
+  if(count >= 0 && count < bufSize-1) {
+    string exePath(result,count);
+    const bfs::path path(exePath);
+    string exeDir = path.parent_path().string();
+    ret.push_back(exeDir);
+  }
+  ret.push_back(getHomeDataDir(false));
+  return ret;
 }
 
 string HomeData::getDefaultFilesDirForHelpMessage() {
-  return "~/.katago";
+  return "(dir containing katago.exe, or else ~/.katago)";
 }
 
 string HomeData::getHomeDataDir(bool makeDir) {

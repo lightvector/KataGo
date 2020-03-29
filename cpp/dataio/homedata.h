@@ -4,9 +4,9 @@
 #include "../core/global.h"
 
 namespace HomeData {
-  //Returns a directory for reading files that may have been installed as defaults to
-  //command line arguments. May throw StringError if filesystem access fails.
-  std::string getDefaultFilesDir();
+  //Returns directory for reading files that may have been installed as defaults to
+  //command line arguments, in order of preference. May throw StringError if filesystem access fails.
+  std::vector<std::string> getDefaultFilesDirs();
   //A version that doesn't access the file system, intended for help messages, and should never fail.
   std::string getDefaultFilesDirForHelpMessage();
 
