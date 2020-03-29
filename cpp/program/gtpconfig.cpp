@@ -65,6 +65,12 @@ dynamicPlayoutDoublingAdvantageCapPerOppLead = 0.04
 # Controls which side dynamicPlayoutDoublingAdvantageCapPerOppLead or playoutDoublingAdvantage applies to.
 playoutDoublingAdvantagePla = WHITE
 
+# Misc Behavior --------------------
+
+# Uncomment and set to true to make KataGo avoid a particular joseki that some KataGo nets misevaluate,
+# and also to improve opening diversity versus some particular other bots that like to play it all the time.
+# avoidMYTDaggerHack = false
+
 # Search limits-----------------------------------------------------------------------------------
 
 # If provided, limit maximum number of root visits per search to this much. (With tree reuse, visits do count earlier search)
