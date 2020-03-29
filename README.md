@@ -1,6 +1,6 @@
 # KataGo
 
-KataGo is an implementation of AlphaZero-like training in Go with a lot of modifications and enhancements that greatly improve upon basic self-play learning. Many of these take advantage of game-specific features and training targets, but also a surprising number of them are non-specific and could easily be tried in other games. Due to these enhancements, early training is immensely faster than in other zero-style bots - with only a few strong GPUs for a few days, even a single person should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board. KataGo's latest run used about 29 GPUs, rather than thousands (like AlphaZero and ELF) first reached superhuman levels on that hardware in perhaps just three to six days, and reached strength similar to ELF in about 14 days. With minor adjustments and another 8 GPUs, at 30-40 days, it has also now either nearly reached or already surpassed Leela Zero (varies by hardware, time, playouts) hopefully making KataGo one of the top open source Go engines available. It is continuing to train and improve further.
+KataGo is an implementation of AlphaZero-like training in Go with a lot of modifications and enhancements that greatly improve upon basic self-play learning. Many of these take advantage of game-specific features and training targets, but also a surprising number of them are non-specific and could easily be tried in other games. Due to these enhancements, early training is immensely faster than in other zero-style bots - with only a few strong GPUs for a few days, even a single person should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board. KataGo's latest run used about 29 GPUs, rather than thousands (like AlphaZero and ELF) first reached superhuman levels on that hardware in perhaps just three to six days, and reached strength similar to ELF in about 14 days. With minor adjustments and another 8 GPUs, at around 40 days it roughly reached or surpassed Leela Zero (but varies by hardware, time, playouts, settings) hopefully making KataGo one of the top open source Go engines available. It is continuing to train and improve further.
 
 Paper about the major new ideas and techniques used in KataGo: [Accelerating Self-Play Learning in Go (arXiv)](https://arxiv.org/abs/1902.10565).
 A few further improvements have been found and incorporated into the latest run that are not described in this paper - some post about this might happen eventually.
@@ -18,37 +18,43 @@ KataGo's engine also aims to be a useful tool for Go players and developers, and
 
 ## Current Status and History
 
-KataGo is on its third major official run! As of the end of January 2020 after training for a little more than a month, it appears to be as strong or stronger than Leela Zero's final official 40-block nets at moderate numbers of playouts (thousands to low tens of thousands), despite only using a 20-block net. Earlier, it also surpassed the prior 19-day official run from June 2019 in only about 12-14 days, and at this point is almost 400 Elo stronger. This is due to various training improvements which were not present in prior runs. In addition to reaching stronger faster, this third run adds support for Japanese rules, stronger handicap play, and greatly more accurate score estimation. Training was delayed for a large chunk of February 2020 due to hardware/logistical issues, but has resumed and KataGo is now starting to train some bigger nets!
+KataGo is on its third major official run! As of the end of March 2020 after training for about 2.5 months, it appears to be as strong or stronger than Leela Zero's final official 40-block nets at moderate numbers of playouts (thousands to low tens of thousands), including with only its 20-block net, except for one notable opening pattern that Leela Zero still handles much better. Earlier, it also surpassed the prior 19-day official run from June 2019 in only about 12-14 days, and at this point is almost 400 Elo stronger. This is due to various training improvements which were not present in prior runs. In addition to reaching stronger faster, this third run adds support for Japanese rules, stronger handicap play, and greatly more accurate score estimation.
 
-Strong 20 block x 256 channel networks are available for download! See the [releases page](https://github.com/lightvector/KataGo/releases) for the latest release and these neural nets. Download more trained neural nets [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html). Also available for download are a few *very* strong smaller nets. These include a fast 10-block network that nearly matches the strength of many earlier 15 block nets, including KataGo best 15-block net from last year and Leela Zero's LZ150. This new run also features a very strong 15-block network that should be approximately the strength of ELFv2, a 20-block network, at least at low thousands of playouts. Hopefully they are useful for users with weaker hardware.
+Strong networks are available for download! See the [releases page](https://github.com/lightvector/KataGo/releases) for the latest release and these neural nets. A history of older and alternative neural nets can be found [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html), including a few *very* strong smaller nets. These include a fast 10-block network that nearly matches the strength of many earlier 15 block nets, including KataGo best 15-block net from last year and Leela Zero's LZ150. This new run also features a very strong 15-block network that should be approximately the strength of ELFv2, a 20-block network, at least at low thousands of playouts. Hopefully they are useful for users with weaker hardware.
 
-Here is a graph of the improvement so far as of about 50 days:
+Here is a graph of the improvement so far as of about 80 days:
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/readme/jan2020vsjune2019.png" height="350"/></td></tr>
 <tr><td><sub>X axis is days of training, log scale. (note: hardware is about the same but not entirely identical). Y axis is relative Elo rating based on some 1200-visit test matches. The abrupt jump at the end of the June 2019 run is due to a LR drop in that run that the current run, gradually, still has only partially applied.</sub></tr></td>
 </table>
 
-Currently the run is using about 47 GPUs and hopes to continue to improve further. (Only 29 GPUs were used to surpass last year's run in the first 14 days. After 14 days increased to 37 GPUs, then after 24 more days increased again to around 47 GPUs) 
+Currently the run is using about 47 GPUs and hopes to continue to improve further. (Only 29 GPUs were used to surpass last year's run in the first 14 days. After 14 days increased to 37 GPUs, then after 24 more days increased again to around 47 GPUs)
 
 Just for fun, here's a table of the Elo strength of selected versions, based on a few tens of thousands of games between these and other versions in a pool (1200 visits). These are based on fixed search tree size, NOT fixed computation time. Current run:
 
 | Neural Net | Note | Approx Days Selfplay | Elo |
 |-------------|-------|---------------|------|
-| g170-b6c96-s175395328-d26788732 | (last selfplay 6 block)   | 0.75    |      -1167 |
-| g170-b10c128-s197428736-d67404019 |  (last selfplay 10 block)  | 1.75  |      -279 |
-| g170e-b10c128-s1141046784-d204142634  | (extended training 10 block)  | -  |   296 |
-| g170-b15c192-s497233664-d149638345 |   (last selfplay 15 block) | 7.5  |      509 |
-| g170e-b15c192-s1305382144-d335919935  | (extended training 15 block)  | -  |   867 |
-| g170e-b15c192-s1672170752-d466197061  | (extended training 15 block)  | -  |   921 |
-| g170-b20c256x2-s668214784-d222255714  | (20 block)  |  15.5 |   956 |
-| g170-b20c256x2-s1039565568-d285739972  | (20 block)   | 21.5 |    1063 |
-| g170-b20c256x2-s1420141824-d350969033  | (20 block)   | 27.5 |    1157 |
-| g170-b20c256x2-s1913382912-d435450331  | (20 block)  | 35.5 |    1266 |
-| g170-b20c256x2-s2107843328-d468617949  | (last selfplay 20 block)  | 38.5 |    1281 |
-| g170e-b20c256x2-s2430231552-d525879064 | (extended training 20 block)  | -  | 1341  |
-| g170-b30c320x2-s1287828224-d525929064  | (30 block more channels)  | 47.5 |    1405 |
-| g170-b40c256x2-s1349368064-d524332537  | (40 block less channels)  | 47   |    1401 |
+| g170-b6c96-s175395328-d26788732 | (last selfplay 6 block)   | 0.75    |      -1176 |
+| g170-b10c128-s197428736-d67404019 |  (last selfplay 10 block)  | 1.75  |      -281 |
+| g170e-b10c128-s1141046784-d204142634  | (extended training 10 block)  | -  |   307 |
+| g170-b15c192-s497233664-d149638345 |   (last selfplay 15 block) | 7.5  |      514 |
+| g170e-b15c192-s1305382144-d335919935  | (extended training 15 block)  | -  |   875 |
+| g170e-b15c192-s1672170752-d466197061  | (extended training 15 block)  | -  |   933 |
+| g170-b20c256x2-s668214784-d222255714  | (20 block)  |  15.5 |   955 |
+| g170-b20c256x2-s1039565568-d285739972  | (20 block)   | 21.5 |    1068 |
+| g170-b20c256x2-s1420141824-d350969033  | (20 block)   | 27.5 |    1170 |
+| g170-b20c256x2-s1913382912-d435450331  | (20 block)  | 35.5 |    1269 |
+| g170-b20c256x2-s2107843328-d468617949  | (last selfplay 20 block)  | 38.5 |    1293 |
+| g170e-b20c256x2-s2430231552-d525879064 | (extended training 20 block)  | 47.5  | 1346  |
+| g170-b30c320x2-s1287828224-d525929064  | (30 block more channels)  | 47.5 |    1409 |
+| g170-b40c256x2-s1349368064-d524332537  | (40 block less channels)  | 47   |    1405 |
+| g170e-b20c256x2-s2971705856-d633407024 | (extended training 20 block)  | 64.5  | 1407  |
+| g170-b30c320x2-s1840604672-d633482024  | (30 block more channels)  | 64.5 |    1525 |
+| g170-b40c256x2-s1929311744-d633132024  | (40 block less channels)  | 64.5   |    1513 |
+| g170e-b20c256x2-s3354994176-d716845198 | (extended training 20 block)  | 78  | 1445  |
+| g170-b30c320x2-s2271129088-d716970897  | (30 block more channels)  | 78   |    1545 |
+| g170-b40c256x2-s2383550464-d716628997  | (40 block less channels)  | 78   |    1554 |
 
 And for comparison to the old 2019 June official run (Elos computed within the same pool):
 
@@ -229,7 +235,7 @@ Example instructions to start up these things (assuming you have appropriate mac
      * Take a look at the generated `log.txt` for any errors and/or for running stats on started games and occasional neural net query stats.
      * Edit the config to change the number of playouts used or other parameters, or to set a cap on the number of games generated after which selfplay should terminate.
    * `cd python; ./selfplay/shuffle_and_export_loop.sh $NAMEOFRUN $BASEDIR/ $SCRATCH_DIRECTORY $NUM_THREADS $USE_GATING`
-     * `$NAMEOFRUN` should be a short alphanumeric string that ideally should be globally unique, to distinguish models from your run if you choose to share your results with others. It will get prefixed on to the internal names of exported models, which will appear in log messages when KataGo loads the model. 
+     * `$NAMEOFRUN` should be a short alphanumeric string that ideally should be globally unique, to distinguish models from your run if you choose to share your results with others. It will get prefixed on to the internal names of exported models, which will appear in log messages when KataGo loads the model.
      * This starts both the shuffler and exporter. The shuffler will use the scratch directory with the specified number of threads to shuffle in parallel. Make sure you have some disk space. You probably want as many threads as you have cores. If not using the gatekeeper, specify `0` for `$USE_GATING`, else specify `1`.
      * Also, if you're low on disk space, take a look also at the `./selfplay/shuffle.sh` script (which is called by `shuffle_and_export_loop.sh`). Right now it's *very* conservative about cleaning up old shuffles but you could tweak it to be a bit more aggressive.
      * You can also edit `./selfplay/shuffle.sh` if you want to change any details about the lookback window for training data.
