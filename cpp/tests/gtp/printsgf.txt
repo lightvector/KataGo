@@ -11,3 +11,5 @@ kata-set-rules chinese
 place_free_handicap 3
 genmove w
 printsgf
+kata-set-rule tax seki
+printsgf
