@@ -9,11 +9,10 @@
 #include "../core/global.h"
 #include "../core/multithread.h"
 
+
 template<typename T>
-class ThreadSafeQueue
+class ThreadSafeContainer
 {
-  std::vector<T> elts;
-  size_t headIdx;
   size_t maxSize;
   bool closed;
   bool readOnly;
@@ -21,21 +20,28 @@ class ThreadSafeQueue
   std::condition_variable notEmptyCondVar;
   std::condition_variable notFullCondVar;
 
+  // abstract methods to be implemented in derived clases
+  virtual void pushUnsynchronized(T elt) = 0;
+  virtual T popUnsynchronized() = 0;
+  virtual void clearUnsynchronized() = 0;
+  virtual size_t sizeUnsynchronized() = 0;
+
  public:
-  inline ThreadSafeQueue()
-    :elts(),headIdx(0),maxSize(0x7FFFFFFF),closed(false),readOnly(false),mutex(),notEmptyCondVar(),notFullCondVar()
+  inline ThreadSafeContainer()
+    :maxSize(0x7FFFFFFF),closed(false),readOnly(false),mutex(),notEmptyCondVar(),notFullCondVar()
   {}
-  inline ThreadSafeQueue(size_t maxSz)
-    :elts(),headIdx(0),maxSize(maxSz),closed(false),readOnly(false),mutex(),notEmptyCondVar(),notFullCondVar()
+  inline ThreadSafeContainer(size_t maxSz)
+    :maxSize(maxSz),closed(false),readOnly(false),mutex(),notEmptyCondVar(),notFullCondVar()
   {}
-  inline ~ThreadSafeQueue()
+  inline ~ThreadSafeContainer()
   {}
 
-  ThreadSafeQueue(const ThreadSafeQueue&) = delete;
-  ThreadSafeQueue& operator=(const ThreadSafeQueue&) = delete;
-  ThreadSafeQueue(ThreadSafeQueue&&) = delete;
-  ThreadSafeQueue& operator=(ThreadSafeQueue&&) = delete;
+  ThreadSafeContainer(const ThreadSafeContainer&) = delete;
+  ThreadSafeContainer& operator=(const ThreadSafeContainer&) = delete;
+  ThreadSafeContainer(ThreadSafeContainer&&) = delete;
+  ThreadSafeContainer& operator=(ThreadSafeContainer&&) = delete;
 
+  // thread-safe wrappers
   inline size_t size()
   {
     std::lock_guard<std::mutex> lock(mutex);
@@ -59,7 +65,7 @@ class ThreadSafeQueue
   inline void close() {
     std::lock_guard<std::mutex> lock(mutex);
     closed = true;
-    elts.clear();
+    clearUnsynchronized();
     notFullCondVar.notify_all();
     notEmptyCondVar.notify_all();
   }
@@ -83,20 +89,20 @@ class ThreadSafeQueue
       notFullCondVar.wait(lock);
     if(closed || readOnly)
       return false;
-    elts.push_back(elt);
+    pushUnsynchronized(elt);
     if(sizeUnsynchronized() == 1)
       notEmptyCondVar.notify_all();
     return true;
   }
 
-  //Push an element without blocking, but can exceed maxSize of the queue.
+  //Push an element without blocking, but cavn exceed maxSize of the queue.
   //Returns true if the push was successful, false if the queue was closed or readonly.
   inline bool forcePush(T elt)
   {
     std::unique_lock<std::mutex> lock(mutex);
     if(closed || readOnly)
       return false;
-    elts.push_back(elt);
+    pushUnsynchronized(elt);
     if(sizeUnsynchronized() == 1)
       notEmptyCondVar.notify_all();
     return true;
@@ -133,14 +139,26 @@ class ThreadSafeQueue
     buf = popUnsynchronized();
     return true;
   }
+};
 
- private:
-  inline size_t sizeUnsynchronized()
-  {
-    assert(elts.size() >= headIdx);
-    return elts.size() - headIdx;
+
+template<typename T>
+class ThreadSafeQueue: public ThreadSafeContainer<T>
+{
+  size_t headIdx;
+  std::vector<T> elts;
+
+ public:
+  inline ThreadSafeQueue():
+    ThreadSafeContainer<T>(), headIdx(0), elts()
+  {}
+  inline ThreadSafeQueue(size_t maxSz):
+    ThreadSafeContainer<T>(maxSz), headIdx(0), elts()
+  {}
+
+  inline void pushUnsynchronized(T elt) {
+    elts.push_back(elt);
   }
-
   inline T popUnsynchronized()
   {
     T elt = elts[headIdx];
@@ -158,6 +176,58 @@ class ThreadSafeQueue
     return elt;
   }
 
+  inline void clearUnsynchronized() {
+     elts.clear();
+   }
+
+  inline size_t sizeUnsynchronized()
+  {
+    assert(elts.size() >= headIdx);
+    return elts.size() - headIdx;
+  }
+
 };
+
+
+template<typename KT,typename VT>
+class ThreadSafePriorityQueue: public ThreadSafeContainer<std::pair<KT,VT> >
+{
+  size_t headIdx;
+  typedef std::pair<KT,VT> T;
+  std::priority_queue<T> queue;
+
+ public:
+  inline ThreadSafePriorityQueue():
+    ThreadSafeContainer<T>(), headIdx(0), queue()
+  {}
+  inline ThreadSafePriorityQueue(size_t maxSz):
+    ThreadSafeContainer<T>(maxSz), headIdx(0), queue()
+  {}
+
+  inline void pushUnsynchronized(T elt) {
+    queue.push(elt);
+  }
+  inline T popUnsynchronized()
+  {
+    T item = queue.top();
+    queue.pop();
+    return item;
+  }
+
+  inline void clearUnsynchronized() {
+     while(!queue.empty())
+       queue.pop();
+   }
+
+  inline size_t sizeUnsynchronized()
+  {
+    return queue.size();
+  }
+
+};
+
+
+
+
 
 #endif  // CORE_THREADSAFEQUEUE_H_
