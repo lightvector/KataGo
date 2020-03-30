@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <queue>
 
 //GLOBAL DEFINES AND FLAGS----------------------------------------------------
 #ifdef __GNUG__  //On g++ only

@@ -16,6 +16,7 @@ using json = nlohmann::json;
 struct AnalyzeRequest {
   string id;
   int turnNumber;
+  int priority;
 
   Board board;
   BoardHistory hist;
@@ -36,6 +37,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   ConfigParser cfg;
   string modelFile;
   int numAnalysisThreads;
+  int request_counter = 0x7FFFFFFF; // tie breaker for requests with same priority
+
   try {
     KataGoCommandLine cmd("Run KataGo parallel JSON-based analysis engine.");
     cmd.addConfigFileArg("","analysis_example.cfg");
@@ -108,7 +111,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     }
   };
 
-  ThreadSafeQueue<AnalyzeRequest*> toAnalyzeQueue;
+  ThreadSafePriorityQueue<std::pair<int,int>, AnalyzeRequest*> toAnalyzeQueue;
 
   auto analysisLoop = [&params,&nnEval,&logger,perspective,&toAnalyzeQueue,&toWriteQueue,&preventEncore]() {
     Rand threadRand;
@@ -116,10 +119,11 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
 
     while(true) {
-      AnalyzeRequest* request;
-      bool suc = toAnalyzeQueue.waitPop(request);
+      std::pair<std::pair<int,int>,AnalyzeRequest*> analysis_item;
+      bool suc = toAnalyzeQueue.waitPop(analysis_item);
       if(!suc)
         break;
+      AnalyzeRequest* request = analysis_item.second;
 
       SearchParams thisParams = params;
       thisParams.maxVisits = request->maxVisits;
@@ -276,6 +280,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     rbase.rootFpuReductionMax = params.rootFpuReductionMax;
     rbase.rootPolicyTemperature = params.rootPolicyTemperature;
     rbase.includeOwnership = false;
+    rbase.priority = 0;
 
     auto parseInteger = [&input,&rbase,&reportErrorForId](const char* field, int64_t& buf, int64_t min, int64_t max, const char* errorMessage) {
       try {
@@ -544,6 +549,13 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       if(!suc)
         continue;
     }
+    if(input.find("priority") != input.end()) {
+      int64_t buf;
+      bool suc = parseInteger("priority", buf, -0x7FFFFFFF,0x7FFFFFFF, "Must be a number from -2,147,483,647 to 2,147,483,647");
+      if(!suc)
+        continue;
+      rbase.priority = buf;
+    }
 
     Board board(boardXSize,boardYSize);
     for(int i = 0; i<placements.size(); i++) {
@@ -586,6 +598,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         newRequest->rootFpuReductionMax = rbase.rootFpuReductionMax;
         newRequest->rootPolicyTemperature = rbase.rootPolicyTemperature;
         newRequest->includeOwnership = rbase.includeOwnership;
+        newRequest->priority = rbase.priority;
         newRequests.push_back(newRequest);
       }
       if(turnNumber >= moveHistory.size())
@@ -615,7 +628,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     }
 
     for(int i = 0; i<newRequests.size(); i++)
-      toAnalyzeQueue.forcePush(newRequests[i]);
+      toAnalyzeQueue.forcePush( std::make_pair( std::make_pair(newRequests[i]->priority, request_counter--), newRequests[i] ) );
     newRequests.clear();
   }
 
