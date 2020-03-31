@@ -37,7 +37,6 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   ConfigParser cfg;
   string modelFile;
   int numAnalysisThreads;
-  int request_counter = 0x7FFFFFFF; // tie breaker for requests with same priority
 
   try {
     KataGoCommandLine cmd("Run KataGo parallel JSON-based analysis engine.");
@@ -111,7 +110,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     }
   };
 
-  ThreadSafePriorityQueue<std::pair<int,int>, AnalyzeRequest*> toAnalyzeQueue;
+  ThreadSafePriorityQueue<std::pair<int,int64_t>, AnalyzeRequest*> toAnalyzeQueue;
+  int64_t numRequestsSoFar = 0; // used as tie breaker for requests with same priority
 
   auto analysisLoop = [&params,&nnEval,&logger,perspective,&toAnalyzeQueue,&toWriteQueue,&preventEncore]() {
     Rand threadRand;
@@ -119,11 +119,11 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
 
     while(true) {
-      std::pair<std::pair<int,int>,AnalyzeRequest*> analysis_item;
-      bool suc = toAnalyzeQueue.waitPop(analysis_item);
+      std::pair<std::pair<int,int64_t>,AnalyzeRequest*> analysisItem;
+      bool suc = toAnalyzeQueue.waitPop(analysisItem);
       if(!suc)
         break;
-      AnalyzeRequest* request = analysis_item.second;
+      AnalyzeRequest* request = analysisItem.second;
 
       SearchParams thisParams = params;
       thisParams.maxVisits = request->maxVisits;
@@ -554,7 +554,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       bool suc = parseInteger("priority", buf, -0x7FFFFFFF,0x7FFFFFFF, "Must be a number from -2,147,483,647 to 2,147,483,647");
       if(!suc)
         continue;
-      rbase.priority = buf;
+      rbase.priority = (int)buf;
     }
 
     Board board(boardXSize,boardYSize);
@@ -627,8 +627,12 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       continue;
     }
 
-    for(int i = 0; i<newRequests.size(); i++)
-      toAnalyzeQueue.forcePush( std::make_pair( std::make_pair(newRequests[i]->priority, request_counter--), newRequests[i] ) );
+    for(int i = 0; i<newRequests.size(); i++) {
+      //Compare first by user-provided priority, and next breaks ties by preferring earlier requests.
+      std::pair<int,int64_t> priorityKey = std::make_pair(newRequests[i]->priority, -numRequestsSoFar);
+      toAnalyzeQueue.forcePush( std::make_pair(priorityKey, newRequests[i]) );
+      numRequestsSoFar++;
+    }
     newRequests.clear();
   }
 

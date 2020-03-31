@@ -14,6 +14,7 @@ Martin Häcker ("dwt") - minor bugfix, MacOS support, commandline improvements
 "yenw" - simple compile fix on MacOS.
 Adrian Petrescu ("apetresc") - MacOS support
 Anson Hu ("farmersrice") - frontend features and logic
+"sanderland" - priority queue for analysis engine
 
 Separately from the authors of the content in this repo, additional special thanks to:
 Junyan Xu ("alreadydone") - for much testing and troubleshooting for Windows support
