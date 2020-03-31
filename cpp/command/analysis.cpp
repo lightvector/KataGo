@@ -528,7 +528,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
     if(input.find("analysisPVLen") != input.end()) {
       int64_t buf;
-      bool suc = parseInteger("analysisPVLen", buf, 1, 100, "Must be an integer from 1 to 100");
+      bool suc = parseInteger("analysisPVLen", buf, 1, 1000, "Must be an integer from 1 to 1000");
       if(!suc)
         continue;
       rbase.analysisPVLen = (int)buf;
