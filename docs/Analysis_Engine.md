@@ -50,6 +50,7 @@ Explanation of fields (including some optional fields not present in the above q
    * `rootPolicyTemperature (float)`: Optional. Set this to a value > 1 to make KataGo do a wider search.
    * `rootFpuReductionMax (float)`: Optional. Set this to 0 to make KataGo more willing to try a variety of moves.
    * `includeOwnership (boolean)`: Optional. If true, report ownership prediction as a result. Will double memory usage and reduce performance slightly.
+   * `priority (int)`: Optional. Analysis threads will prefer handling queries with the highest priority unless already started on another task, breaking ties in favor of earlier queries. If not specified, defaults to 0.
 
 #### Responses
 
