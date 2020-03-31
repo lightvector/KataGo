@@ -21,6 +21,9 @@ The protocol is entirely asynchronous - new requests on stdin can be accepted at
 whenever those analyses finish, and possibly in a different order than the requests were provided. As described below, each query
 may specify *multiple* positions to be analyzed and therefore may generate *multiple* results.
 
+If stdin is closed, the engine will attempt to stop all threads as soon as possible, clean up, and exit, without necessarily
+finishing the analysis of whatever queries are open at the time.
+
 #### Queries
 
 Each query line written to stdin should be a JSON dictionary with certain fields. Note again that every query must be a *single line* - multi-line JSON queries are NOT supported. An example query would be:

@@ -71,10 +71,11 @@ class AsyncBot {
     double callbackPeriod, std::function<void(Search* search)> callback
   );
 
-
   //Signal an ongoing genMove or ponder to stop as soon as possible, and wait for the stop to happen.
   //Safe to call even if nothing is running.
   void stopAndWait();
+  //Same, but does NOT wait for the stop. Also safe to call even if nothing is running.
+  void stopWithoutWait();
 
 
  private:

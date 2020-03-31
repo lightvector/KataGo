@@ -110,14 +110,16 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     }
   };
 
+  auto pushToWrite = [&toWriteQueue](string* s) {
+    bool suc = toWriteQueue.forcePush(s);
+    if(!suc)
+      delete s;
+  };
+
   ThreadSafePriorityQueue<std::pair<int,int64_t>, AnalyzeRequest*> toAnalyzeQueue;
   int64_t numRequestsSoFar = 0; // used as tie breaker for requests with same priority
 
-  auto analysisLoop = [&params,&nnEval,&logger,perspective,&toAnalyzeQueue,&toWriteQueue,&preventEncore]() {
-    Rand threadRand;
-    string searchRandSeed = Global::uint64ToHexString(threadRand.nextUInt64());
-    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
-
+  auto analysisLoop = [&params,perspective,&toAnalyzeQueue,&toWriteQueue,&preventEncore,&pushToWrite](AsyncBot* bot) {
     while(true) {
       std::pair<std::pair<int,int64_t>,AnalyzeRequest*> analysisItem;
       bool suc = toAnalyzeQueue.waitPop(analysisItem);
@@ -208,42 +210,45 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         }
         ret["ownership"] = ownerships;
       }
-      toWriteQueue.forcePush(new string(ret.dump()));
+      pushToWrite(new string(ret.dump()));
 
       //Free up bot resources in case it's a while before we do more search
       bot->clearSearch();
       delete request;
     }
-    delete bot;
   };
 
   vector<std::thread> threads;
+  vector<AsyncBot*> bots;
   threads.push_back(std::thread(writeLoop));
   for(int i = 0; i<numAnalysisThreads; i++) {
-    threads.push_back(std::thread(analysisLoop));
+    string searchRandSeed = Global::uint64ToHexString(seedRand.nextUInt64()) + Global::uint64ToHexString(seedRand.nextUInt64());
+    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+    threads.push_back(std::thread(analysisLoop,bot));
+    bots.push_back(bot);
   }
 
   logger.write("Analyzing up to " + Global::intToString(numAnalysisThreads) + " positions at at time in parallel");
   logger.write("Started, ready to begin handling requests");
 
-  auto reportError = [&toWriteQueue](const string& s) {
+  auto reportError = [&pushToWrite](const string& s) {
     json ret;
     ret["error"] = s;
-    toWriteQueue.forcePush(new string(ret.dump()));
+    pushToWrite(new string(ret.dump()));
   };
-  auto reportErrorForId = [&toWriteQueue](const string& id, const string& field, const string& s) {
+  auto reportErrorForId = [&pushToWrite](const string& id, const string& field, const string& s) {
     json ret;
     ret["id"] = id;
     ret["field"] = field;
     ret["error"] = s;
-    toWriteQueue.forcePush(new string(ret.dump()));
+    pushToWrite(new string(ret.dump()));
   };
-  auto reportWarningForId = [&toWriteQueue](const string& id, const string& field, const string& s) {
+  auto reportWarningForId = [&pushToWrite](const string& id, const string& field, const string& s) {
     json ret;
     ret["id"] = id;
     ret["field"] = field;
     ret["warning"] = s;
-    toWriteQueue.forcePush(new string(ret.dump()));
+    pushToWrite(new string(ret.dump()));
   };
 
   string line;
@@ -630,16 +635,26 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     for(int i = 0; i<newRequests.size(); i++) {
       //Compare first by user-provided priority, and next breaks ties by preferring earlier requests.
       std::pair<int,int64_t> priorityKey = std::make_pair(newRequests[i]->priority, -numRequestsSoFar);
-      toAnalyzeQueue.forcePush( std::make_pair(priorityKey, newRequests[i]) );
+      bool suc = toAnalyzeQueue.forcePush( std::make_pair(priorityKey, newRequests[i]) );
+      assert(suc);
+      (void)suc;
       numRequestsSoFar++;
     }
     newRequests.clear();
   }
 
+  //Making toWriteQueue readOnly will immediately halt futher output and signal the write loop thread to terminate.
   toWriteQueue.setReadOnly();
+  //Making these readOnly should signal the analysis loop threads to terminate.
   toAnalyzeQueue.setReadOnly();
+  //Interrupt any searches going on to help the analysis threads realize to terminate faster.
+  for(int i = 0; i<bots.size(); i++)
+    bots[i]->stopWithoutWait();
+
   for(int i = 0; i<threads.size(); i++)
     threads[i].join();
+  for(int i = 0; i<bots.size(); i++)
+    delete bots[i];
 
   logger.write(nnEval->getModelFileName());
   logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
