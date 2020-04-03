@@ -784,8 +784,12 @@ struct GTPEngine {
            << " Winrate " << Global::strprintf("%.2f%%", winrate * 100.0)
            << " ScoreLead " << Global::strprintf("%.1f", leadForPrinting)
            << " ScoreStdev " << Global::strprintf("%.1f", values.expectedScoreStdev);
-      if(params.playoutDoublingAdvantage != 0.0)
-        cerr << Global::strprintf(" (PDA %.2f)", params.playoutDoublingAdvantage);
+      if(params.playoutDoublingAdvantage != 0.0) {
+        cerr << Global::strprintf(
+          " (PDA %.2f)",
+          bot->getSearch()->getRootPla() == getOpp(params.playoutDoublingAdvantagePla) ?
+          -params.playoutDoublingAdvantage : params.playoutDoublingAdvantage);
+      }
       cerr << " PV ";
       bot->getSearch()->printPVForMove(cerr,bot->getSearch()->rootNode, moveLoc, analysisPVLen);
       cerr << endl;
