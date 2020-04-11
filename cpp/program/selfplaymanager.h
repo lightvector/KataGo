@@ -5,11 +5,10 @@
 #include "../dataio/sgf.h"
 #include "../dataio/trainingwrite.h"
 #include "../neuralnet/nneval.h"
-#include "../program/play.h"
 
 class SelfplayManager {
  public:
-  SelfplayManager(Logger* logger, int64_t logGamesEvery);
+  SelfplayManager(double validationProp, int maxDataQueueSize, Logger* logger, int64_t logGamesEvery);
   ~SelfplayManager();
 
   SelfplayManager(const SelfplayManager& other);
@@ -21,13 +20,10 @@ class SelfplayManager {
 
   //SelfplayManager takes responsibility for deleting the data writers and closing and deleting sgfOut.
   void loadModelAndStartDataWriting(
-    const std::string& modelName,
     NNEvaluator* nnEval,
     TrainingDataWriter* tdataWriter,
     TrainingDataWriter* vdataWriter,
-    std::ofstream* sgfOut,
-    int maxDataQueueSize,
-    double validationProp
+    std::ofstream* sgfOut
   );
 
   //For all of the below, model names are simply from nnEval->getModelName().
@@ -63,14 +59,12 @@ class SelfplayManager {
   struct ModelData {
     std::string modelName;
     NNEvaluator* nnEval;
-    double validationProp;
     int64_t gameStartedCount;
 
-    int maxDataQueueSize;
     ThreadSafeQueue<FinishedGameData*> finishedGameQueue;
-    int numGameThreads;
+    int acquireCount;
     bool isDraining;
-    std::condition_variable noGameThreadsLeftVar;
+    std::condition_variable isFreeVar;
 
     TrainingDataWriter* tdataWriter;
     TrainingDataWriter* vdataWriter;
@@ -79,12 +73,14 @@ class SelfplayManager {
 
     ModelData(
       const std::string& name, NNEvaluator* neval, int maxDataQueueSize,
-      TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, std::ofstream* sOut, double validationProp
+      TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, std::ofstream* sOut
     );
     ~ModelData();
   };
 
  private:
+  const double validationProp;
+  const int maxDataQueueSize;
   Logger* logger;
   const int64_t logGamesEvery;
 

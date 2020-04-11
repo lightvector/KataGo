@@ -106,7 +106,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   //Initialize object for randomizing game settings and running games
   PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg);
   GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
-  SelfplayManager* manager = new SelfplayManager(&logger, logGamesEvery);
+  SelfplayManager* manager = new SelfplayManager(validationProp, maxDataQueueSize, &logger, logGamesEvery);
 
   Setup::initializeSession(cfg);
 
@@ -121,10 +121,11 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
+
   //Returns true if a new net was loaded.
   auto loadLatestNeuralNetIntoManager =
-    [inputsVersion,manager,maxDataQueueSize,maxRowsPerTrainFile,maxRowsPerValFile,firstFileRandMinProp,dataBoardLen,
-     &modelsDir,&outputDir,&logger,&cfg,validationProp,numGameThreads](const string* lastNetName) -> bool {
+    [inputsVersion,&manager,maxRowsPerTrainFile,maxRowsPerValFile,firstFileRandMinProp,dataBoardLen,
+     &modelsDir,&outputDir,&logger,&cfg,numGameThreads](const string* lastNetName) -> bool {
 
     string modelName;
     string modelFile;
@@ -200,8 +201,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
       vdataOutputDir, inputsVersion, maxRowsPerValFile, firstFileRandMinProp, dataBoardLen, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
     ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs")) : NULL;
 
-    logger.write("Model loading loop thread loaded new neural net " + modelName);
-    manager->loadModelAndStartDataWriting(modelName, nnEval, tdataWriter, vdataWriter, sgfOut, maxDataQueueSize, validationProp);
+    logger.write("Model loading loop thread loaded new neural net " + nnEval->getModelName());
+    manager->loadModelAndStartDataWriting(nnEval, tdataWriter, vdataWriter, sgfOut);
     return true;
   };
 
@@ -236,7 +237,6 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     while(true) {
       if(shouldStop.load())
         break;
-
       NNEvaluator* nnEval = manager->acquireLatest();
       assert(nnEval != NULL);
 
@@ -306,7 +306,6 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     while(true) {
       if(shouldStop.load())
         break;
-
       string lastNetName = manager->getLatestModelName();
       bool success = loadLatestNeuralNetIntoManager(&lastNetName);
 
@@ -317,7 +316,6 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
         for(size_t i = 0; i < modelNames.size()-1; i++)
           manager->scheduleCleanupModelWhenFree(modelNames[i]);
       }
-
       if(shouldStop.load())
         break;
 

@@ -1,21 +1,18 @@
 #include "../program/selfplaymanager.h"
-#include "../program/setup.h"
 
 using namespace std;
 
 SelfplayManager::ModelData::ModelData(
   const string& name, NNEvaluator* neval, int maxDQueueSize,
-  TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, ofstream* sOut, double vProp
+  TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, ofstream* sOut
 ):
   modelName(name),
   nnEval(neval),
-  validationProp(vProp),
   gameStartedCount(0),
-  maxDataQueueSize(maxDQueueSize),
   finishedGameQueue(maxDQueueSize),
-  numGameThreads(0),
+  acquireCount(0),
   isDraining(false),
-  noGameThreadsLeftVar(),
+  isFreeVar(),
   tdataWriter(tdWriter),
   vdataWriter(vdWriter),
   sgfOut(sOut),
@@ -33,8 +30,10 @@ SelfplayManager::ModelData::~ModelData() {
 }
 
 SelfplayManager::SelfplayManager(
-  Logger* lg, int64_t logEvery
+  double vProp, int maxDQueueSize, Logger* lg, int64_t logEvery
 ):
+  validationProp(vProp),
+  maxDataQueueSize(maxDQueueSize),
   logger(lg),
   logGamesEvery(logEvery),
   managerMutex(),
@@ -49,7 +48,7 @@ SelfplayManager::~SelfplayManager() {
   //Mark everything as draining so our data writing loops quit, once every model's users release
   for(size_t i = 0; i<modelDatas.size(); i++) {
     //If a client tries to delete this while something is still acquired, there's something wrong.
-    assert(modelDatas[i]->numGameThreads == 0);
+    assert(modelDatas[i]->acquireCount == 0);
     //Go ahead and mark everything to be cleaned up though, otherwise if things look fine
     scheduleCleanupModelWhenFreeAlreadyLocked(modelDatas[i]);
   }
@@ -64,14 +63,12 @@ static void dataWriteLoop(SelfplayManager* manager, SelfplayManager::ModelData* 
 }
 
 void SelfplayManager::loadModelAndStartDataWriting(
-  const string& modelName,
   NNEvaluator* nnEval,
   TrainingDataWriter* tdataWriter,
   TrainingDataWriter* vdataWriter,
-  ofstream* sgfOut,
-  int maxDataQueueSize,
-  double validationProp
+  ofstream* sgfOut
 ) {
+  string modelName = nnEval->getModelName();
   std::unique_lock<std::mutex> lock(managerMutex);
   for(size_t i = 0; i<modelDatas.size(); i++) {
     if(modelDatas[i]->modelName == modelName) {
@@ -79,7 +76,7 @@ void SelfplayManager::loadModelAndStartDataWriting(
     }
   }
 
-  ModelData* newModel = new ModelData(modelName,nnEval,maxDataQueueSize,tdataWriter,vdataWriter,sgfOut,validationProp);
+  ModelData* newModel = new ModelData(modelName,nnEval,maxDataQueueSize,tdataWriter,vdataWriter,sgfOut);
   modelDatas.push_back(newModel);
   numDataWriteLoopsActive++;
   std::thread newThread(dataWriteLoop,this,newModel);
@@ -102,20 +99,20 @@ string SelfplayManager::getLatestModelName() const {
 }
 
 NNEvaluator* SelfplayManager::acquireModelAlreadyLocked(ModelData* foundData) {
-  foundData->numGameThreads += 1;
+  foundData->acquireCount += 1;
   return foundData->nnEval;
 }
 void SelfplayManager::releaseAlreadyLocked(ModelData* foundData) {
-  foundData->numGameThreads -= 1;
-  if(foundData->numGameThreads <= 0) {
-    foundData->noGameThreadsLeftVar.notify_all();
+  foundData->acquireCount -= 1;
+  if(foundData->acquireCount <= 0) {
+    foundData->isFreeVar.notify_all();
     if(foundData->isDraining)
       foundData->finishedGameQueue.setReadOnly();
   }
 }
 void SelfplayManager::scheduleCleanupModelWhenFreeAlreadyLocked(ModelData* foundData) {
   foundData->isDraining = true;
-  if(foundData->numGameThreads <= 0) {
+  if(foundData->acquireCount <= 0) {
     foundData->finishedGameQueue.setReadOnly();
   }
 }
@@ -254,8 +251,8 @@ void SelfplayManager::runDataWriteLoop(ModelData* modelData) {
 
    while(true) {
     size_t size = modelData->finishedGameQueue.size();
-    if(size > modelData->maxDataQueueSize / 2 && logger != NULL)
-      logger->write(Global::strprintf("WARNING: Struggling to keep up writing data, %d games enqueued out of %d max",size,modelData->maxDataQueueSize));
+    if(size > maxDataQueueSize / 2 && logger != NULL)
+      logger->write(Global::strprintf("WARNING: Struggling to keep up writing data, %d games enqueued out of %d max",size,maxDataQueueSize));
 
     FinishedGameData* gameData;
     bool suc = modelData->finishedGameQueue.waitPop(gameData);
@@ -264,7 +261,7 @@ void SelfplayManager::runDataWriteLoop(ModelData* modelData) {
 
     assert(gameData != NULL);
 
-    if(modelData->rand.nextBool(modelData->validationProp))
+    if(modelData->rand.nextBool(validationProp))
       modelData->vdataWriter->writeGame(*gameData);
     else
       modelData->tdataWriter->writeGame(*gameData);
@@ -289,8 +286,8 @@ void SelfplayManager::runDataWriteLoop(ModelData* modelData) {
   std::unique_lock<std::mutex> lock(managerMutex);
 
   //Make sure all threads are completely done with it
-  while(modelData->numGameThreads > 0)
-    modelData->noGameThreadsLeftVar.wait(lock);
+  while(modelData->acquireCount > 0)
+    modelData->isFreeVar.wait(lock);
 
   //Find where our modelData is and remove it
   string name = modelData->modelName;
@@ -315,7 +312,7 @@ void SelfplayManager::runDataWriteLoop(ModelData* modelData) {
     logger->write("Final NN avg batch size: " + Global::doubleToString(modelData->nnEval->averageProcessedBatchSize()));
   }
 
-  assert(modelData->numGameThreads == 0);
+  assert(modelData->acquireCount == 0);
   assert(modelData->isDraining);
   delete modelData;
 
