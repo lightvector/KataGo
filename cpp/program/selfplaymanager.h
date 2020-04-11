@@ -69,7 +69,6 @@ class SelfplayManager {
     TrainingDataWriter* tdataWriter;
     TrainingDataWriter* vdataWriter;
     std::ofstream* sgfOut;
-    Rand rand;
 
     ModelData(
       const std::string& name, NNEvaluator* neval, int maxDataQueueSize,

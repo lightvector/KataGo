@@ -15,8 +15,7 @@ SelfplayManager::ModelData::ModelData(
   isFreeVar(),
   tdataWriter(tdWriter),
   vdataWriter(vdWriter),
-  sgfOut(sOut),
-  rand()
+  sgfOut(sOut)
 {
 }
 
@@ -181,7 +180,6 @@ void SelfplayManager::countOneGameStarted(NNEvaluator* nnEval) {
 
   foundData->gameStartedCount += 1;
   int64_t gameStartedCount = foundData->gameStartedCount;
-
   lock.unlock();
 
   if(logger != NULL && gameStartedCount % logGamesEvery == 0) {
@@ -249,7 +247,8 @@ void SelfplayManager::runDataWriteLoop(ModelData* modelData) {
   if(logger != NULL)
     logger->write("Data write loop starting for neural net: " + modelData->modelName);
 
-   while(true) {
+  Rand rand;
+  while(true) {
     size_t size = modelData->finishedGameQueue.size();
     if(size > maxDataQueueSize / 2 && logger != NULL)
       logger->write(Global::strprintf("WARNING: Struggling to keep up writing data, %d games enqueued out of %d max",size,maxDataQueueSize));
@@ -261,7 +260,7 @@ void SelfplayManager::runDataWriteLoop(ModelData* modelData) {
 
     assert(gameData != NULL);
 
-    if(modelData->rand.nextBool(validationProp))
+    if(rand.nextBool(validationProp))
       modelData->vdataWriter->writeGame(*gameData);
     else
       modelData->tdataWriter->writeGame(*gameData);
@@ -329,5 +328,4 @@ void SelfplayManager::runDataWriteLoop(ModelData* modelData) {
     dataWriteLoopsAreDone.notify_all();
   }
   lock.unlock();
-
 }
