@@ -217,7 +217,7 @@ static bool shouldResign(
   double lead,
   const double resignThreshold,
   const int resignConsecTurns,
-  const int resignMinScoreDifference
+  const double resignMinScoreDifference
 ) {
   double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
 
@@ -251,7 +251,8 @@ static bool shouldResign(
     return false;
   if(resignConsecTurns > recentWinLossValues.size())
     return false;
-  if(abs(lead) < resignMinScoreDifference) //Don't resign close games.
+  //Don't resign close games.
+  if((pla == P_WHITE && lead > -resignMinScoreDifference) || (pla == P_BLACK && lead < resignMinScoreDifference))
     return false;
 
   for(int i = 0; i<resignConsecTurns; i++) {
@@ -678,7 +679,7 @@ struct GTPEngine {
     Player pla,
     Logger& logger, double searchFactorWhenWinningThreshold, double searchFactorWhenWinning,
     bool cleanupBeforePass, bool ogsChatToStderr,
-    bool allowResignation, double resignThreshold, int resignConsecTurns, int resignMinScoreDifference,
+    bool allowResignation, double resignThreshold, int resignConsecTurns, double resignMinScoreDifference,
     bool logSearchInfo, bool debug, bool playChosenMove,
     string& response, bool& responseIsError, bool& maybeStartPondering,
     AnalyzeArgs args
@@ -1246,7 +1247,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
   const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
   const int resignConsecTurns = cfg.contains("resignConsecTurns") ? cfg.getInt("resignConsecTurns",1,100) : 3;
-  const int resignMinScoreDifference = cfg.contains("resignMinScoreDifference") ? cfg.getInt("resignMinScoreDifference",0,1000) : 0;
+  const double resignMinScoreDifference = cfg.contains("resignMinScoreDifference") ? cfg.getDouble("resignMinScoreDifference",0.0,1000.0) : -1e10;
 
   Setup::initializeSession(cfg);
 

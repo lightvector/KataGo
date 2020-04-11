@@ -47,7 +47,7 @@ $$WHITE_HANDICAP_BONUS
 allowResignation = true
 resignThreshold = -0.90
 resignConsecTurns = 3
-# Uncomment to make katago not resign close games if lead is below
+# Uncomment to make katago not resign close games, behind by fewer than this many points
 # resignMinScoreDifference = 10
 
 # Handicap -------------
