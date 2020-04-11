@@ -390,7 +390,7 @@ void SelfplayManager::withDataWriters(
     }
   }
   if(foundData == NULL)
-    throw StringError("SelfplayManager::enqueueDataToWrite: could not find model. Possible bug - client did not acquire model?");
+    throw StringError("SelfplayManager::withDataWriters: could not find model. Possible bug - client did not acquire model?");
   assert(foundData->hasDataWriteLoop == false);
 
   f(foundData->tdataWriter, foundData->vdataWriter, foundData->sgfOut);
