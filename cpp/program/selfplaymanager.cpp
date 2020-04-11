@@ -4,13 +4,13 @@
 using namespace std;
 
 SelfplayManager::ModelData::ModelData(
-  ConfigParser& cfg, const string& name, NNEvaluator* neval, int maxDQueueSize,
+  const string& name, NNEvaluator* neval, int maxDQueueSize,
   TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, ofstream* sOut, double vProp
 ):
   modelName(name),
   nnEval(neval),
-  matchPairer(NULL),
   validationProp(vProp),
+  gameStartedCount(0),
   maxDataQueueSize(maxDQueueSize),
   finishedGameQueue(maxDQueueSize),
   numGameThreads(0),
@@ -21,17 +21,9 @@ SelfplayManager::ModelData::ModelData(
   sgfOut(sOut),
   rand()
 {
-   SearchParams baseParams = Setup::loadSingleParams(cfg);
-
-   //Initialize object for randomly pairing bots. Actually since this is only selfplay, this only
-   //ever gives is the trivial self-pairing, but we use it also for keeping the game count and some logging.
-   bool forSelfPlay = true;
-   bool forGateKeeper = false;
-   matchPairer = new MatchPairer(cfg, 1, {modelName}, {nnEval}, {baseParams}, forSelfPlay, forGateKeeper);
 }
 
 SelfplayManager::ModelData::~ModelData() {
-  delete matchPairer;
   delete nnEval;
   delete tdataWriter;
   if(vdataWriter != NULL)
@@ -41,9 +33,10 @@ SelfplayManager::ModelData::~ModelData() {
 }
 
 SelfplayManager::SelfplayManager(
-  Logger* lg
+  Logger* lg, int64_t logEvery
 ):
   logger(lg),
+  logGamesEvery(logEvery),
   managerMutex(),
   modelDatas(),
   numDataWriteLoopsActive(0),
@@ -76,7 +69,6 @@ void SelfplayManager::loadModelAndStartDataWriting(
   TrainingDataWriter* tdataWriter,
   TrainingDataWriter* vdataWriter,
   ofstream* sgfOut,
-  ConfigParser& cfg,
   int maxDataQueueSize,
   double validationProp
 ) {
@@ -87,7 +79,7 @@ void SelfplayManager::loadModelAndStartDataWriting(
     }
   }
 
-  ModelData* newModel = new ModelData(cfg,modelName,nnEval,maxDataQueueSize,tdataWriter,vdataWriter,sgfOut,validationProp);
+  ModelData* newModel = new ModelData(modelName,nnEval,maxDataQueueSize,tdataWriter,vdataWriter,sgfOut,validationProp);
   modelDatas.push_back(newModel);
   numDataWriteLoopsActive++;
   std::thread newThread(dataWriteLoop,this,newModel);
@@ -178,7 +170,7 @@ void SelfplayManager::release(NNEvaluator* nnEval) {
     releaseAlreadyLocked(foundData);
 }
 
-bool SelfplayManager::countOneGameStarted(NNEvaluator* nnEval, MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW) {
+void SelfplayManager::countOneGameStarted(NNEvaluator* nnEval) {
   std::unique_lock<std::mutex> lock(managerMutex);
   ModelData* foundData = NULL;
   for(size_t i = 0; i<modelDatas.size(); i++) {
@@ -190,10 +182,21 @@ bool SelfplayManager::countOneGameStarted(NNEvaluator* nnEval, MatchPairer::BotS
   if(foundData == NULL)
     throw StringError("SelfplayManager::countOneGameStarted: could not find model. Possible bug - client did not acquire model?");
 
+  foundData->gameStartedCount += 1;
+  int64_t gameStartedCount = foundData->gameStartedCount;
+
   lock.unlock();
 
-  //TODO logger might be null, can't always dereference
-  return foundData->matchPairer->getMatchup(botSpecB, botSpecW, *logger);
+  if(logger != NULL && gameStartedCount % logGamesEvery == 0) {
+    logger->write("Started " + Global::int64ToString(gameStartedCount) + " games");
+  }
+  int64_t logNNEvery = logGamesEvery*100 > 1000 ? logGamesEvery*100 : 1000;
+  if(logger != NULL && gameStartedCount % logNNEvery == 0) {
+    logger->write(nnEval->getModelFileName());
+    logger->write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
+    logger->write("NN batches: " + Global::int64ToString(nnEval->numBatchesProcessed()));
+    logger->write("NN avg batch size: " + Global::doubleToString(nnEval->averageProcessedBatchSize()));
+  }
 }
 
 void SelfplayManager::enqueueDataToWrite(const string& modelName, FinishedGameData* gameData) {

@@ -9,7 +9,7 @@
 
 class SelfplayManager {
  public:
-  SelfplayManager(Logger* logger);
+  SelfplayManager(Logger* logger, int64_t logGamesEvery);
   ~SelfplayManager();
 
   SelfplayManager(const SelfplayManager& other);
@@ -26,7 +26,6 @@ class SelfplayManager {
     TrainingDataWriter* tdataWriter,
     TrainingDataWriter* vdataWriter,
     std::ofstream* sgfOut,
-    ConfigParser& cfg,
     int maxDataQueueSize,
     double validationProp
   );
@@ -52,7 +51,7 @@ class SelfplayManager {
   //These should only be called by a thread that has currently acquired the model.
 
   //Increment a counter and maybe log some stats
-  bool countOneGameStarted(NNEvaluator* nnEval, MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW);
+  void countOneGameStarted(NNEvaluator* nnEval);
 
   //SelfplayManager takes responsibility for deleting the gameData once written.
   void enqueueDataToWrite(const std::string& modelName, FinishedGameData* gameData);
@@ -64,8 +63,8 @@ class SelfplayManager {
   struct ModelData {
     std::string modelName;
     NNEvaluator* nnEval;
-    MatchPairer* matchPairer;
     double validationProp;
+    int64_t gameStartedCount;
 
     int maxDataQueueSize;
     ThreadSafeQueue<FinishedGameData*> finishedGameQueue;
@@ -79,7 +78,7 @@ class SelfplayManager {
     Rand rand;
 
     ModelData(
-      ConfigParser& cfg, const std::string& name, NNEvaluator* neval, int maxDataQueueSize,
+      const std::string& name, NNEvaluator* neval, int maxDataQueueSize,
       TrainingDataWriter* tdWriter, TrainingDataWriter* vdWriter, std::ofstream* sOut, double validationProp
     );
     ~ModelData();
@@ -87,6 +86,7 @@ class SelfplayManager {
 
  private:
   Logger* logger;
+  const int64_t logGamesEvery;
 
   mutable std::mutex managerMutex;
   std::vector<ModelData*> modelDatas;

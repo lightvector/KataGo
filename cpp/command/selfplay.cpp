@@ -97,13 +97,16 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   const double firstFileRandMinProp = cfg.getDouble("firstFileRandMinProp",0.0,1.0);
 
   const double validationProp = cfg.getDouble("validationProp",0.0,0.5);
+  const int64_t maxGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
+  const int64_t logGamesEvery = cfg.getInt64("logGamesEvery",1,1000000);
 
   const bool switchNetsMidGame = cfg.getBool("switchNetsMidGame");
+  const SearchParams baseParams = Setup::loadSingleParams(cfg);
 
   //Initialize object for randomizing game settings and running games
   PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg);
   GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
-  SelfplayManager* manager = new SelfplayManager(&logger);
+  SelfplayManager* manager = new SelfplayManager(&logger, logGamesEvery);
 
   Setup::initializeSession(cfg);
 
@@ -198,7 +201,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs")) : NULL;
 
     logger.write("Model loading loop thread loaded new neural net " + modelName);
-    manager->loadModelAndStartDataWriting(modelName, nnEval, tdataWriter, vdataWriter, sgfOut, cfg, maxDataQueueSize, validationProp);
+    manager->loadModelAndStartDataWriting(modelName, nnEval, tdataWriter, vdataWriter, sgfOut, maxDataQueueSize, validationProp);
     return true;
   };
 
@@ -213,13 +216,17 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   cfg.warnUnusedKeys(cerr,&logger);
 
   //Shared across all game loop threads
+  std::atomic<int64_t> numGamesStarted(0);
   ForkData* forkData = new ForkData();
   auto gameLoop = [
     &gameRunner,
     &manager,
     &logger,
     switchNetsMidGame,
+    &numGamesStarted,
     &forkData,
+    maxGamesTotal,
+    &baseParams,
     &gameSeedBase
   ](int threadIdx) {
     vector<std::atomic<bool>*> stopConditions = {&shouldStop};
@@ -256,9 +263,16 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
       FinishedGameData* gameData = NULL;
 
-      MatchPairer::BotSpec botSpecB;
-      MatchPairer::BotSpec botSpecW;
-      if(manager->countOneGameStarted(nnEval, botSpecB, botSpecW)) {
+      int64_t gameIdx = numGamesStarted.fetch_add(1,std::memory_order_acq_rel);
+      if(gameIdx < maxGamesTotal) {
+        manager->countOneGameStarted(nnEval);
+        MatchPairer::BotSpec botSpecB;
+        botSpecB.botIdx = 0;
+        botSpecB.botName = nnEval->getModelName();
+        botSpecB.nnEval = nnEval;
+        botSpecB.baseParams = baseParams;
+        MatchPairer::BotSpec botSpecW = botSpecB;
+
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
           seed, botSpecB, botSpecW, forkData, logger,
@@ -338,7 +352,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   //wait for it to die.
   {
     //Lock so that we don't race where we notify the loading thread to wake when it's still in
-    //its own critical section but not yet slept
+    //its own critical section but not yet slept, and to ensure the two agree on shouldStop.
     std::lock_guard<std::mutex> lock(modelLoadMutex);
     modelLoadSleepVar.notify_all();
   }
