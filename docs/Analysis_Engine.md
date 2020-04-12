@@ -21,6 +21,9 @@ The protocol is entirely asynchronous - new requests on stdin can be accepted at
 whenever those analyses finish, and possibly in a different order than the requests were provided. As described below, each query
 may specify *multiple* positions to be analyzed and therefore may generate *multiple* results.
 
+If stdin is closed, the engine will attempt to stop all threads as soon as possible, clean up, and exit, without necessarily
+finishing the analysis of whatever queries are open at the time.
+
 #### Queries
 
 Each query line written to stdin should be a JSON dictionary with certain fields. Note again that every query must be a *single line* - multi-line JSON queries are NOT supported. An example query would be:
@@ -50,6 +53,7 @@ Explanation of fields (including some optional fields not present in the above q
    * `rootPolicyTemperature (float)`: Optional. Set this to a value > 1 to make KataGo do a wider search.
    * `rootFpuReductionMax (float)`: Optional. Set this to 0 to make KataGo more willing to try a variety of moves.
    * `includeOwnership (boolean)`: Optional. If true, report ownership prediction as a result. Will double memory usage and reduce performance slightly.
+   * `priority (int)`: Optional. Analysis threads will prefer handling queries with the highest priority unless already started on another task, breaking ties in favor of earlier queries. If not specified, defaults to 0.
 
 #### Responses
 

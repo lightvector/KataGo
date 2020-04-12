@@ -244,7 +244,10 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     rules.whiteHandicapBonusRule = Rules::WHB_N;
     rules.komi = 7.5;
   }
-  else if(lowercased == "chinese_ogs" || lowercased == "chinese-ogs" || lowercased == "chinese_kgs" || lowercased == "chinese-kgs") {
+  else if(
+    lowercased == "chineseogs" || lowercased == "chinese_ogs" || lowercased == "chinese-ogs" ||
+    lowercased == "chinesekgs" || lowercased == "chinese_kgs" || lowercased == "chinese-kgs"
+  ) {
     rules.scoringRule = Rules::SCORING_AREA;
     rules.koRule = Rules::KO_POSITIONAL;
     rules.taxRule = Rules::TAX_NONE;
@@ -254,8 +257,8 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     rules.komi = 7.5;
   }
   else if(
-    lowercased == "ancient-area" || lowercased == "ancient_area" || lowercased == "ancient area" ||
-    lowercased == "stone-scoring" || lowercased == "stone_scoring" || lowercased == "stone scoring"
+    lowercased == "ancientarea" || lowercased == "ancient-area" || lowercased == "ancient_area" || lowercased == "ancient area" ||
+    lowercased == "stonescoring" || lowercased == "stone-scoring" || lowercased == "stone_scoring" || lowercased == "stone scoring"
   ) {
     rules.scoringRule = Rules::SCORING_AREA;
     rules.koRule = Rules::KO_SIMPLE;
@@ -265,7 +268,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
     rules.komi = 7.5;
   }
-  else if(lowercased == "ancient-territory" || lowercased == "ancient_territory" || lowercased == "ancient territory") {
+  else if(lowercased == "ancientterritory" || lowercased == "ancient-territory" || lowercased == "ancient_territory" || lowercased == "ancient territory") {
     rules.scoringRule = Rules::SCORING_TERRITORY;
     rules.koRule = Rules::KO_SIMPLE;
     rules.taxRule = Rules::TAX_ALL;
@@ -274,7 +277,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
     rules.komi = 6.5;
   }
-  else if(lowercased == "aga-button" || lowercased == "aga_button" || lowercased == "aga button") {
+  else if(lowercased == "agabutton" || lowercased == "aga-button" || lowercased == "aga_button" || lowercased == "aga button") {
     rules.scoringRule = Rules::SCORING_AREA;
     rules.koRule = Rules::KO_SITUATIONAL;
     rules.taxRule = Rules::TAX_NONE;
@@ -292,7 +295,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     rules.whiteHandicapBonusRule = Rules::WHB_N_MINUS_ONE;
     rules.komi = 7.5;
   }
-  else if(lowercased == "nz" || lowercased == "new zealand" || lowercased == "new-zealand" || lowercased == "new_zealand") {
+  else if(lowercased == "nz" || lowercased == "newzealand" || lowercased == "new zealand" || lowercased == "new-zealand" || lowercased == "new_zealand") {
     rules.scoringRule = Rules::SCORING_AREA;
     rules.koRule = Rules::KO_SITUATIONAL;
     rules.taxRule = Rules::TAX_NONE;

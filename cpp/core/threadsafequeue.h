@@ -9,6 +9,7 @@
 #include "../core/global.h"
 #include "../core/multithread.h"
 
+#include <queue>
 
 template<typename T>
 class ThreadSafeContainer
@@ -20,7 +21,7 @@ class ThreadSafeContainer
   std::condition_variable notEmptyCondVar;
   std::condition_variable notFullCondVar;
 
-  // abstract methods to be implemented in derived clases
+  // Abstract methods to be implemented in derived classes
   virtual void pushUnsynchronized(T elt) = 0;
   virtual T popUnsynchronized() = 0;
   virtual void clearUnsynchronized() = 0;
@@ -41,7 +42,7 @@ class ThreadSafeContainer
   ThreadSafeContainer(ThreadSafeContainer&&) = delete;
   ThreadSafeContainer& operator=(ThreadSafeContainer&&) = delete;
 
-  // thread-safe wrappers
+  // Thread-safe wrappers
   inline size_t size()
   {
     std::lock_guard<std::mutex> lock(mutex);
@@ -60,8 +61,8 @@ class ThreadSafeContainer
     return readOnly;
   }
 
-  //Close the queue. Any elements still in the queue will be dropped and never read.
-  //All blocked threads will unblock and any further reads or writes will not occur (with the respective functions returning false).
+  // Close the queue. Any elements still in the queue will be dropped and never read.
+  // All blocked threads will unblock and any further reads or writes will not occur (with the respective functions returning false).
   inline void close() {
     std::lock_guard<std::mutex> lock(mutex);
     closed = true;
@@ -70,9 +71,9 @@ class ThreadSafeContainer
     notEmptyCondVar.notify_all();
   }
 
-  //Set the queue to be read only.
-  //All blocked threads will unblock and any further writes will not occur (with the respective functions returning false).
-  //All further reads will never block, but will continue to pop remaining elements in the queue until none are left.
+  // Set the queue to be read only.
+  // All blocked threads will unblock and any further writes will not occur (with the respective functions returning false).
+  // All further reads will never block, but will continue to pop remaining elements in the queue until none are left.
   inline void setReadOnly() {
     std::lock_guard<std::mutex> lock(mutex);
     readOnly = true;
@@ -80,8 +81,8 @@ class ThreadSafeContainer
     notEmptyCondVar.notify_all();
   }
 
-  //Wait until the queue is not full or is closed or is readonly, and then push an element into the queue.
-  //Returns true if the push was successful, false if the queue was closed or readonly.
+  // Wait until the queue is not full or is closed or is readonly, and then push an element into the queue.
+  // Returns true if the push was successful, false if the queue was closed or readonly.
   inline bool waitPush(T elt)
   {
     std::unique_lock<std::mutex> lock(mutex);
@@ -95,8 +96,8 @@ class ThreadSafeContainer
     return true;
   }
 
-  //Push an element without blocking, but cavn exceed maxSize of the queue.
-  //Returns true if the push was successful, false if the queue was closed or readonly.
+  // Push an element without blocking, but can exceed maxSize of the queue.
+  // Returns true if the push was successful, false if the queue was closed or readonly.
   inline bool forcePush(T elt)
   {
     std::unique_lock<std::mutex> lock(mutex);
@@ -108,8 +109,8 @@ class ThreadSafeContainer
     return true;
   }
 
-  //Attempt to pop an element into buf without blocking.
-  //Returns true if successful, returns false if the queue is closed or empty.
+  // Attempt to pop an element into buf without blocking.
+  // Returns true if successful, returns false if the queue is closed or empty.
   inline bool tryPop(T& buf)
   {
     std::lock_guard<std::mutex> lock(mutex);
@@ -123,8 +124,8 @@ class ThreadSafeContainer
     return true;
   }
 
-  //Wait until the queue is not empty or is closed or is readonly, and then pop an element into buf.
-  //Returns true if successful, returns false if the queue is closed, or empty and readonly.
+  // Wait until the queue is not empty or is closed or is readonly, and then pop an element into buf.
+  // Returns true if successful, returns false if the queue is closed, or empty and readonly.
   inline bool waitPop(T& buf)
   {
     std::unique_lock<std::mutex> lock(mutex);
@@ -143,7 +144,7 @@ class ThreadSafeContainer
 
 
 template<typename T>
-class ThreadSafeQueue: public ThreadSafeContainer<T>
+class ThreadSafeQueue final : public ThreadSafeContainer<T>
 {
   size_t headIdx;
   std::vector<T> elts;
@@ -156,11 +157,10 @@ class ThreadSafeQueue: public ThreadSafeContainer<T>
     ThreadSafeContainer<T>(maxSz), headIdx(0), elts()
   {}
 
-  inline void pushUnsynchronized(T elt) {
+  inline void pushUnsynchronized(T elt) override {
     elts.push_back(elt);
   }
-  inline T popUnsynchronized()
-  {
+  inline T popUnsynchronized() override {
     T elt = elts[headIdx];
     headIdx++;
     size_t eltsSize = elts.size();
@@ -176,21 +176,20 @@ class ThreadSafeQueue: public ThreadSafeContainer<T>
     return elt;
   }
 
-  inline void clearUnsynchronized() {
-     elts.clear();
-   }
+  inline void clearUnsynchronized() override {
+    elts.clear();
+  }
 
-  inline size_t sizeUnsynchronized()
-  {
+  inline size_t sizeUnsynchronized() override {
     assert(elts.size() >= headIdx);
     return elts.size() - headIdx;
   }
 
 };
 
-
+//Will return the elements with HIGHEST KT first, according to the comparison on KT.
 template<typename KT,typename VT>
-class ThreadSafePriorityQueue: public ThreadSafeContainer<std::pair<KT,VT> >
+class ThreadSafePriorityQueue final : public ThreadSafeContainer<std::pair<KT,VT> >
 {
   size_t headIdx;
   typedef std::pair<KT,VT> T;
@@ -204,29 +203,25 @@ class ThreadSafePriorityQueue: public ThreadSafeContainer<std::pair<KT,VT> >
     ThreadSafeContainer<T>(maxSz), headIdx(0), queue()
   {}
 
-  inline void pushUnsynchronized(T elt) {
+  inline void pushUnsynchronized(T elt) override {
     queue.push(elt);
   }
-  inline T popUnsynchronized()
-  {
+  inline T popUnsynchronized() override {
     T item = queue.top();
     queue.pop();
     return item;
   }
 
-  inline void clearUnsynchronized() {
-     while(!queue.empty())
-       queue.pop();
-   }
+  inline void clearUnsynchronized() override {
+    while(!queue.empty())
+      queue.pop();
+  }
 
-  inline size_t sizeUnsynchronized()
-  {
+  inline size_t sizeUnsynchronized() override {
     return queue.size();
   }
 
 };
-
-
 
 
 

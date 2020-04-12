@@ -236,6 +236,10 @@ Loc AsyncBot::genMoveSynchronousAnalyze(
   return moveLoc;
 }
 
+void AsyncBot::stopWithoutWait() {
+  shouldStopNow.store(true);
+}
+
 void AsyncBot::stopAndWait() {
   shouldStopNow.store(true);
   waitForSearchToEnd();
