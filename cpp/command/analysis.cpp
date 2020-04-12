@@ -27,6 +27,7 @@ struct AnalyzeRequest {
   double rootFpuReductionMax;
   double rootPolicyTemperature;
   bool includeOwnership;
+  bool includePolicy;
 };
 
 int MainCmds::analysis(int argc, const char* const* argv) {
@@ -145,8 +146,11 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
       int minMoves = 0;
       vector<AnalysisData> buf;
+      AnalysisData rootData;
+      float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+
       const Search* search = bot->getSearch();
-      search->getAnalysisData(buf,minMoves,false,request->analysisPVLen);
+      search->getExtendedAnalysisData(buf,rootData,policyProbs,minMoves,false,request->analysisPVLen);
 
       json moveInfos = json::array();
       for(int i = 0; i<buf.size(); i++) {
@@ -190,6 +194,48 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       }
       ret["moveInfos"] = moveInfos;
 
+      // stats for requested move itself
+      json rootInfo;
+      Player rootPla = getOpp(request->nextPla);
+      double winrate = 0.5 * (1.0 + rootData.winLossValue);
+      double utility = rootData.utility;
+      double lcb = PlayUtils::getHackedLCBForWinrate(search,rootData,rootPla);
+      double utilityLcb = rootData.lcb;
+      double scoreMean = rootData.scoreMean;
+      double lead = rootData.lead;
+
+      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK)) {
+        winrate = 1.0-winrate;
+        lcb = 1.0 - lcb;
+        utility = -utility;
+        scoreMean = -scoreMean;
+        lead = -lead;
+        utilityLcb = -utilityLcb;
+      }
+      rootInfo["visits"] = rootData.numVisits;
+      rootInfo["utility"] = utility;
+      rootInfo["winrate"] = winrate;
+      rootInfo["scoreSelfplay"] = scoreMean;
+      // rootInfo["scoreMean"] = lead; // do we need 'backward compatibility' here for a new field?
+      rootInfo["scoreLead"] = lead;
+      rootInfo["scoreStdev"] = rootData.scoreStdev;
+      rootInfo["lcb"] = lcb;
+      ret["rootInfo"] = rootInfo;
+
+      // policy
+      if(request->includePolicy) {
+        json policy = json::array();
+        int nnXLen = bot->getSearch()->nnXLen;
+        const Board& board = request->board;
+        for(int y = 0; y<board.y_size; y++) {
+          for(int x = 0; x<board.x_size; x++) {
+            int pos = NNPos::xyToPos(x,y,nnXLen);
+            policy.push_back(policyProbs[pos]);
+          }
+        }
+        ret["policy"] = policy;
+      }
+      // ownership
       if(request->includeOwnership) {
         static constexpr int ownershipMinVisits = 3;
         vector<double> ownership = search->getAverageTreeOwnership(ownershipMinVisits);
@@ -285,6 +331,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     rbase.rootFpuReductionMax = params.rootFpuReductionMax;
     rbase.rootPolicyTemperature = params.rootPolicyTemperature;
     rbase.includeOwnership = false;
+    rbase.includePolicy = false;
     rbase.priority = 0;
 
     auto parseInteger = [&input,&rbase,&reportErrorForId](const char* field, int64_t& buf, int64_t min, int64_t max, const char* errorMessage) {
@@ -554,6 +601,11 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       if(!suc)
         continue;
     }
+    if(input.find("includePolicy") != input.end()) {
+      bool suc = parseBoolean("includePolicy", rbase.includePolicy, "Must be a boolean");
+      if(!suc)
+        continue;
+    }
     if(input.find("priority") != input.end()) {
       int64_t buf;
       bool suc = parseInteger("priority", buf, -0x7FFFFFFF,0x7FFFFFFF, "Must be a number from -2,147,483,647 to 2,147,483,647");
@@ -603,6 +655,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         newRequest->rootFpuReductionMax = rbase.rootFpuReductionMax;
         newRequest->rootPolicyTemperature = rbase.rootPolicyTemperature;
         newRequest->includeOwnership = rbase.includeOwnership;
+        newRequest->includePolicy = rbase.includePolicy;
         newRequest->priority = rbase.priority;
         newRequests.push_back(newRequest);
       }

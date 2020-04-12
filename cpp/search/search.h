@@ -282,8 +282,10 @@ struct Search {
   void printRootEndingScoreValueBonus(std::ostream& out) const;
 
   //Get detailed analysis data, designed for lz-analyze and kata-analyze commands.
-  void getAnalysisData(std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
   void getAnalysisData(const SearchNode& node, std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
+  void getAnalysisData(std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
+  void getExtendedAnalysisData(const SearchNode& node, std::vector<AnalysisData>& buf,AnalysisData& nodeData, float (&policyProbs)[NNPos::MAX_NN_POLICY_SIZE], int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
+  void getExtendedAnalysisData(std::vector<AnalysisData>& buf,AnalysisData& nodeData, float (&policyProbs)[NNPos::MAX_NN_POLICY_SIZE], int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
 
   //Append the PV from node n onward (not including node n's move)
   void appendPV(std::vector<Loc>& buf, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues, const SearchNode* n, int maxDepth) const;
