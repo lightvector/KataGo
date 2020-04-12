@@ -28,7 +28,32 @@ finishing the analysis of whatever queries are open at the time.
 
 Each query line written to stdin should be a JSON dictionary with certain fields. Note again that every query must be a *single line* - multi-line JSON queries are NOT supported. An example query would be:
 
-```{"id":"foo","initialStones":[["B","Q4"],["B","C4"]],"moves":[["W","P5"],["B","P6"]],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"analyzeTurns":[0,1,2]}```
+```json{"id":"foo","initialStones":[["B","Q4"],["B","C4"]],"moves":[["W","P5"],["B","P6"]],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"analyzeTurns":[0,1,2]}```
+
+<details>
+<summary>
+See formatted query for readability (but note that this is not valid input for KataGo).
+</summary>
+
+```json
+{
+    "id": "foo",
+    "initialStones": [
+        ["B", "Q4"],
+        ["B", "C4"]
+    ],
+    "moves": [
+        ["W", "P5"],
+        ["B", "P6"]
+    ],
+    "rules": "tromp-taylor",
+    "komi": 7.5,
+    "boardXSize": 19,
+    "boardYSize": 19,
+    "analyzeTurns": [0, 1, 2]
+}
+```
+</details>
 
 This example query specifies a 2-stone handicap game record with certain properties, and requests analysis of turns 0,1,2 of the game, which should produce three results.
 
@@ -53,6 +78,7 @@ Explanation of fields (including some optional fields not present in the above q
    * `rootPolicyTemperature (float)`: Optional. Set this to a value > 1 to make KataGo do a wider search.
    * `rootFpuReductionMax (float)`: Optional. Set this to 0 to make KataGo more willing to try a variety of moves.
    * `includeOwnership (boolean)`: Optional. If true, report ownership prediction as a result. Will double memory usage and reduce performance slightly.
+   * `includePolicy (boolean)`: Optional. If true, report neural network policy as a result in a similar format to `includeOwnership`. Will not signficiantly affect performance. 
    * `priority (int)`: Optional. Analysis threads will prefer handling queries with the highest priority unless already started on another task, breaking ties in favor of earlier queries. If not specified, defaults to 0.
 
 #### Responses
@@ -69,8 +95,88 @@ Upon an error or a warning, responses will have one of the following formats:
 In the case of a warning, the query will still proceed to generate analysis responses.
 
 An example successful analysis response might be:
+```json
+{"id":"foo","moveInfos":[{"lcb":0.8740855166489953,"move":"Q5","order":0,"prior":0.8934692740440369,"pv":["Q5","R5","Q6","P4","O5","O4","R6","S5","N4","N5","N3"],"scoreLead":8.18535151076558,"scoreMean":8.18535151076558,"scoreSelfplay":10.414442461570038,"scoreStdev":23.987067985850913,"utility":0.7509536097709347,"utilityLcb":0.7717092488727239,"visits":495,"winrate":0.8666727883983563},{"lcb":1.936558574438095,"move":"D4","order":1,"prior":0.021620146930217743,"pv":["D4","Q5"],"scoreLead":12.300520420074463,"scoreMean":12.300520420074463,"scoreSelfplay":15.386500358581543,"scoreStdev":24.661467510313432,"utility":0.9287495791972984,"utilityLcb":2.8000000000000003,"visits":2,"winrate":0.9365585744380951},{"lcb":1.9393062554299831,"move":"Q16","order":2,"prior":0.006689758971333504,"pv":["Q16"],"scoreLead":12.97426986694336,"scoreMean":12.97426986694336,"scoreSelfplay":16.423904418945313,"scoreStdev":25.34494674587838,"utility":0.9410896213959669,"utilityLcb":2.8000000000000003,"visits":1,"winrate":0.9393062554299831},{"lcb":1.9348860532045364,"move":"D16","order":3,"prior":0.0064553022384643555,"pv":["D16"],"scoreLead":12.066888809204102,"scoreMean":12.066888809204102,"scoreSelfplay":15.591397285461426,"scoreStdev":25.65390196745236,"utility":0.9256971928661066,"utilityLcb":2.8000000000000003,"visits":1,"winrate":0.9348860532045364}],"rootInfo":{"lcb":0.8672585456293346,"scoreLead":8.219540952281882,"scoreSelfplay":10.456476293719811,"scoreStdev":23.99829921716391,"utility":0.7524437705003542,"visits":500,"winrate":0.8672585456293346},"turnNumber":2}
+```
+<details>
+<summary>
+See formatted response.
+</summary>
 
-```{"id":"foo","moveInfos":[{"lcb":0.7122210771137392,"move":"Q5","order":0,"prior":0.9710574746131897,"pv":["Q5","R5","Q6","R6","Q7","Q16","O3","Q3","R7","C16","E4"],"scoreLead":5.151662428174664,"scoreMean":5.151662428174664,"scoreSelfplay":6.876265583480511,"scoreStdev":24.963090370015202,"utility":0.4258535451266437,"utilityLcb":0.4459466007602151,"visits":998,"winrate":0.705044985816035},{"lcb":1.7784587604273838,"move":"D4","order":1,"prior":0.0046987771056592464,"pv":["D4"],"scoreLead":7.866552352905273,"scoreMean":7.866552352905273,"scoreSelfplay":10.166152000427246,"scoreStdev":25.506060917814644,"utility":0.595283210234703,"utilityLcb":2.8000000000000003,"visits":1,"winrate":0.7784587604273838}],"turnNumber":2}```
+```json
+{
+    "id": "foo",
+    "moveInfos": [{
+        "lcb": 0.8740855166489953,
+        "move": "Q5",
+        "order": 0,
+        "prior": 0.8934692740440369,
+        "pv": ["Q5", "R5", "Q6", "P4", "O5", "O4", "R6", "S5", "N4", "N5", "N3"],
+        "scoreLead": 8.18535151076558,
+        "scoreMean": 8.18535151076558,
+        "scoreSelfplay": 10.414442461570038,
+        "scoreStdev": 23.987067985850913,
+        "utility": 0.7509536097709347,
+        "utilityLcb": 0.7717092488727239,
+        "visits": 495,
+        "winrate": 0.8666727883983563
+    }, {
+        "lcb": 1.936558574438095,
+        "move": "D4",
+        "order": 1,
+        "prior": 0.021620146930217743,
+        "pv": ["D4", "Q5"],
+        "scoreLead": 12.300520420074463,
+        "scoreMean": 12.300520420074463,
+        "scoreSelfplay": 15.386500358581543,
+        "scoreStdev": 24.661467510313432,
+        "utility": 0.9287495791972984,
+        "utilityLcb": 2.8000000000000003,
+        "visits": 2,
+        "winrate": 0.9365585744380951
+    }, {
+        "lcb": 1.9393062554299831,
+        "move": "Q16",
+        "order": 2,
+        "prior": 0.006689758971333504,
+        "pv": ["Q16"],
+        "scoreLead": 12.97426986694336,
+        "scoreMean": 12.97426986694336,
+        "scoreSelfplay": 16.423904418945313,
+        "scoreStdev": 25.34494674587838,
+        "utility": 0.9410896213959669,
+        "utilityLcb": 2.8000000000000003,
+        "visits": 1,
+        "winrate": 0.9393062554299831
+    }, {
+        "lcb": 1.9348860532045364,
+        "move": "D16",
+        "order": 3,
+        "prior": 0.0064553022384643555,
+        "pv": ["D16"],
+        "scoreLead": 12.066888809204102,
+        "scoreMean": 12.066888809204102,
+        "scoreSelfplay": 15.591397285461426,
+        "scoreStdev": 25.65390196745236,
+        "utility": 0.9256971928661066,
+        "utilityLcb": 2.8000000000000003,
+        "visits": 1,
+        "winrate": 0.9348860532045364
+    }],
+    "rootInfo": {
+        "lcb": 0.8672585456293346,
+        "scoreLead": 8.219540952281882,
+        "scoreSelfplay": 10.456476293719811,
+        "scoreStdev": 23.99829921716391,
+        "utility": 0.7524437705003542,
+        "visits": 500,
+        "winrate": 0.8672585456293346
+    },
+    "turnNumber": 2
+}
+```
+</details>
+
 
 **All values will be from the perspective of `reportAnalysisWinratesAs` as specified in the analysis config file.**
 
@@ -92,4 +198,6 @@ Explanation of fields:
       * `utilityLcb` - The LCB of the move's utility.
       * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
       * `pv` - The principal variation following this move. May be of variable length or even empty.
+   * `rootInfo`: A JSON dictionary with fields containing statistics for requested move itself calculated in the same way as they would be for the next moves. Current fields are: `winrate`, `scoreLead`, `scoreSelfplay`, `utility`, `lcb`, `utilityLcb`, `visits`.
    * `ownership` - If `includeOwnership` was true, then this field will be included. It is a JSON array of length `boardYSize * boardXSize` with values from -1 to 1 indicating the predicted ownership.
+   * `policy` - If `includePolicy` was true, then this field will be included. It is a JSON array of length `boardYSize * boardXSize` with positive values summing to 1 indicating the neural network's prediction of the best move before any search, and `-1` indicating illegal moves.
