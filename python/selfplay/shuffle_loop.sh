@@ -15,11 +15,17 @@ shift
 NTHREADS="$1"
 shift
 
+GITROOTDIR="$(git rev-parse --show-toplevel)"
+
 basedir="$(realpath "$BASEDIRRAW")"
 tmpdir="$(realpath "$TMPDIRRAW")"
 
-while true
-do
-    ./selfplay/shuffle.sh "$basedir" "$tmpdir" "$NTHREADS"
-    sleep 20
-done
+mkdir -p "$basedir"/logs
+
+(
+    while true
+    do
+        "$GITROOTDIR"/python/selfplay/shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" "$@"
+        sleep 20
+    done
+) >> "$basedir"/logs/outshuffle.txt 2>&1 & disown

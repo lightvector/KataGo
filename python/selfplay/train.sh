@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-#Runs tensorflow training in train/$TRAININGNAME
+#Runs tensorflow training in $BASEDIR/train/$TRAININGNAME
 #Should be run once per persistent training process.
 #Outputs results in tfsavedmodels_toexport/ in an ongoing basis (EXPORTMODE == "main").
 #Or, to tfsavedmodels_toexport_extra/ (EXPORTMODE == "extra").
@@ -11,7 +11,7 @@ then
     echo "Usage: $0 BASEDIR TRAININGNAME MODELKIND EXPORTMODE OTHERARGS"
     echo "BASEDIR containing selfplay data and models and related directories"
     echo "TRANINGNAME name to prefix models with, specific to this training daemon"
-    echo "MODELKIND what size model to train"
+    echo "MODELKIND what size model to train, like b10c128, see ../modelconfigs.py"
     echo "EXPORTMODE 'main': train and export for selfplay. 'extra': train and export extra non-selfplay model. 'trainonly': train without export"
     exit 0
 fi
@@ -23,6 +23,8 @@ MODELKIND="$1"
 shift
 EXPORTMODE="$1"
 shift
+
+GITROOTDIR="$(git rev-parse --show-toplevel)"
 
 #------------------------------------------------------------------------------
 set -x
@@ -49,7 +51,7 @@ else
     exit 1
 fi
 
-time python3 ./train.py \
+time python3 "$GITROOTDIR"/python/train.py \
      -traindir "$BASEDIR"/train/"$TRAININGNAME" \
      -datadir "$BASEDIR"/shuffleddata/current/ \
      -exportdir "$BASEDIR"/"$EXPORT_SUBDIR" \

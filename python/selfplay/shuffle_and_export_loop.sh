@@ -21,11 +21,14 @@ shift
 USEGATING="$1"
 shift
 
+GITROOTDIR="$(git rev-parse --show-toplevel)"
+
 basedir="$(realpath "$BASEDIRRAW")"
 tmpdir="$(realpath "$TMPDIRRAW")"
 
 mkdir -p "$basedir"/scripts
-cp ./*.py ./selfplay/*.sh "$basedir"/scripts
+mkdir -p "$basedir"/logs
+cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.sh "$basedir"/scripts
 
 (
     cd "$basedir"/scripts
@@ -34,7 +37,7 @@ cp ./*.py ./selfplay/*.sh "$basedir"/scripts
         ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" "$@"
         sleep 20
     done
-) >> outshuffle.txt 2>&1 & disown
+) >> "$basedir"/logs/outshuffle.txt 2>&1 & disown
 
 (
     cd "$basedir"/scripts
@@ -43,4 +46,4 @@ cp ./*.py ./selfplay/*.sh "$basedir"/scripts
         ./export_model_for_selfplay.sh "$NAMEPREFIX" "$basedir" "$USEGATING"
         sleep 10
     done
-) >> outexport.txt 2>&1 & disown
+) >> "$basedir"/logs/outexport.txt 2>&1 & disown
