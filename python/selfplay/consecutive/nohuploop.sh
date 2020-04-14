@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash -eu
 BASEDIR="$HOME"/selfplay
 SCRIPTDIR="../.."
 KATAEXEC="../../../cpp/katago"
