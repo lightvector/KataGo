@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -eu
 if [[ $# -lt 2 ]]
 then
     echo "Usage: $0 KATAEXEC BASEDIR"
