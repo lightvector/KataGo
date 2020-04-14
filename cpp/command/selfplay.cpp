@@ -39,18 +39,27 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   ConfigParser cfg;
   string modelsDir;
   string outputDir;
+  int64_t maxGamesTotal = ((int64_t)1) << 62;
   try {
     KataGoCommandLine cmd("Generate training data via self play.");
     cmd.addConfigFileArg("","");
 
     TCLAP::ValueArg<string> modelsDirArg("","models-dir","Dir to poll and load models from",true,string(),"DIR");
     TCLAP::ValueArg<string> outputDirArg("","output-dir","Dir to output files",true,string(),"DIR");
+    TCLAP::ValueArg<string> maxGamesTotalArg("","max-games-total","Terminate after this many games",false,string(),"NGAMES");
     cmd.add(modelsDirArg);
     cmd.add(outputDirArg);
+    cmd.add(maxGamesTotalArg);
     cmd.parse(argc,argv);
 
     modelsDir = modelsDirArg.getValue();
     outputDir = outputDirArg.getValue();
+    string maxGamesTotalStr = maxGamesTotalArg.getValue();
+    if(maxGamesTotalStr != "") {
+      bool suc = Global::tryStringToInt64(maxGamesTotalStr,maxGamesTotal);
+      if(!suc || maxGamesTotal <= 0)
+        throw StringError("-max-games-total must be a positive integer");
+    }
 
     auto checkDirNonEmpty = [](const char* flag, const string& s) {
       if(s.length() <= 0)
@@ -95,7 +104,6 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   const double firstFileRandMinProp = cfg.getDouble("firstFileRandMinProp",0.0,1.0);
 
   const double validationProp = cfg.getDouble("validationProp",0.0,0.5);
-  const int64_t maxGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
   const int64_t logGamesEvery = cfg.getInt64("logGamesEvery",1,1000000);
 
   const bool switchNetsMidGame = cfg.getBool("switchNetsMidGame");
