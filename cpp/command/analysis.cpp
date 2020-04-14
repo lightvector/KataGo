@@ -223,7 +223,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         assert(search->rootNode != NULL && search->rootNode->nnOutput != nullptr); //Should always be populated after a search with at least 1 visit.
         std::copy(search->rootNode->nnOutput->policyProbs, search->rootNode->nnOutput->policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
         json policy = json::array();
-        int nnXLen = bot->getSearch()->nnXLen;
+        int nnXLen = bot->getSearch()->nnXLen, nnYLen = bot->getSearch()->nnYLen;
         const Board& board = request->board;
         for(int y = 0; y<board.y_size; y++) {
           for(int x = 0; x<board.x_size; x++) {
@@ -231,6 +231,9 @@ int MainCmds::analysis(int argc, const char* const* argv) {
             policy.push_back(policyProbs[pos]);
           }
         }
+
+        int passLoc = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
+        policy.push_back(policyProbs[passLoc]);
         ret["policy"] = policy;
       }
       // ownership
