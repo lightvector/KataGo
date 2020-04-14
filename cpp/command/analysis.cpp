@@ -211,7 +211,6 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       rootInfo["visits"] = search->rootNode->stats.visits; // not in ReportedSearchValues
       rootInfo["winrate"] = winrate;
       rootInfo["scoreSelfplay"] = scoreMean;
-      // rootInfo["scoreMean"] = lead; // do we need 'backward compatibility' here for a new field?
       rootInfo["scoreLead"] = lead;
       rootInfo["scoreStdev"] = rootVals.expectedScoreStdev;
       rootInfo["utility"] = utility;
