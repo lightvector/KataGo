@@ -146,11 +146,9 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
       int minMoves = 0;
       vector<AnalysisData> buf;
-      AnalysisData rootData;
-      float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
 
       const Search* search = bot->getSearch();
-      search->getExtendedAnalysisData(buf,rootData,policyProbs,minMoves,false,request->analysisPVLen);
+      search->getAnalysisData(buf,minMoves,false,request->analysisPVLen);
 
       json moveInfos = json::array();
       for(int i = 0; i<buf.size(); i++) {
@@ -169,7 +167,6 @@ int MainCmds::analysis(int argc, const char* const* argv) {
           lead = -lead;
           utilityLcb = -utilityLcb;
         }
-
         json moveInfo;
         moveInfo["move"] = Location::toString(data.move,request->board);
         moveInfo["visits"] = data.numVisits;
@@ -195,35 +192,36 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       ret["moveInfos"] = moveInfos;
 
       // stats for requested move itself
+      ReportedSearchValues rootVals;
+      search->getRootValues(rootVals);
       json rootInfo;
       Player rootPla = getOpp(request->nextPla);
-      double winrate = 0.5 * (1.0 + rootData.winLossValue);
-      double utility = rootData.utility;
-      double lcb = PlayUtils::getHackedLCBForWinrate(search,rootData,rootPla);
-      double utilityLcb = rootData.lcb;
-      double scoreMean = rootData.scoreMean;
-      double lead = rootData.lead;
+
+      double winrate = 0.5 * (1.0 + rootVals.winLossValue);
+      double scoreMean = rootVals.expectedScore;
+      double lead = rootVals.lead;
+      double utility = rootVals.utility;
 
       if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK)) {
         winrate = 1.0-winrate;
-        lcb = 1.0 - lcb;
-        utility = -utility;
         scoreMean = -scoreMean;
         lead = -lead;
-        utilityLcb = -utilityLcb;
+        utility = -utility;
       }
-      rootInfo["visits"] = rootData.numVisits;
-      rootInfo["utility"] = utility;
+      rootInfo["visits"] = search->rootNode->stats.visits; // not in ReportedSearchValues
       rootInfo["winrate"] = winrate;
       rootInfo["scoreSelfplay"] = scoreMean;
       // rootInfo["scoreMean"] = lead; // do we need 'backward compatibility' here for a new field?
       rootInfo["scoreLead"] = lead;
-      rootInfo["scoreStdev"] = rootData.scoreStdev;
-      rootInfo["lcb"] = lcb;
+      rootInfo["scoreStdev"] = rootVals.expectedScoreStdev;
+      rootInfo["utility"] = utility;
       ret["rootInfo"] = rootInfo;
 
       // policy
       if(request->includePolicy) {
+        float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+        assert(search->rootNode != NULL && search->rootNode->nnOutput != nullptr); //Should always be populated after a search with at least 1 visit.
+        std::copy(search->rootNode->nnOutput->policyProbs, search->rootNode->nnOutput->policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
         json policy = json::array();
         int nnXLen = bot->getSearch()->nnXLen;
         const Board& board = request->board;

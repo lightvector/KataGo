@@ -180,11 +180,13 @@ See formatted response.
 
 **All values will be from the perspective of `reportAnalysisWinratesAs` as specified in the analysis config file.**
 
-Explanation of fields:
+Consumers of this data should attempt to be robust to possible addition of both new top-level fields in the future, as well as additions to fields in `moveInfos` or `rootInfo`.
+
+Current fields are:
 
    * `id`: The same id string that was provided on the query.
    * `turnNumber`: The turn number being analyzed.
-   * `moveInfos`: A list of JSON dictionaries, one per move that KataGo considered, with fields indicating the results of analysis. Consumers of this data should attempt to be robust to possible addition of new fields in the future. Current fields are:
+   * `moveInfos`: A list of JSON dictionaries, one per move that KataGo considered, with fields indicating the results of analysis. Current fields are:
       * `move` - The move being analyzed.
       * `visits` - The number of visits invested into the move.
       * `winrate` - The winrate of the move, as a float in [0,1].
@@ -198,6 +200,6 @@ Explanation of fields:
       * `utilityLcb` - The LCB of the move's utility.
       * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
       * `pv` - The principal variation following this move. May be of variable length or even empty.
-   * `rootInfo`: A JSON dictionary with fields containing statistics for requested move itself calculated in the same way as they would be for the next moves. Current fields are: `winrate`, `scoreLead`, `scoreSelfplay`, `utility`, `lcb`, `utilityLcb`, `visits`.
+   * `rootInfo`: A JSON dictionary with fields containing statistics for requested move itself calculated in the same way as they would be for the next moves. Current fields are: `winrate`, `scoreLead`, `scoreSelfplay`, `utility`, `visits`.
    * `ownership` - If `includeOwnership` was true, then this field will be included. It is a JSON array of length `boardYSize * boardXSize` with values from -1 to 1 indicating the predicted ownership.
    * `policy` - If `includePolicy` was true, then this field will be included. It is a JSON array of length `boardYSize * boardXSize` with positive values summing to 1 indicating the neural network's prediction of the best move before any search, and `-1` indicating illegal moves.

@@ -356,6 +356,8 @@ bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values)
   double scoreMeanSqSum = node.stats.scoreMeanSqSum;
   double leadSum = node.stats.leadSum;
   double weightSum = node.stats.weightSum;
+  double utilitySum = node.stats.utilitySum;
+
   node.statsLock.clear(std::memory_order_release);
 
   assert(weightSum > 0.0);
@@ -371,6 +373,7 @@ bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values)
   values.expectedScore = scoreMean;
   values.expectedScoreStdev = scoreStdev;
   values.lead = leadSum / weightSum;
+  values.utility = utilitySum / weightSum;
 
   //Perform a little normalization - due to tiny floating point errors, winValue and lossValue could be outside [0,1].
   //(particularly lossValue, as it was produced by subtractions from weightSum that could have lost precision).
@@ -788,31 +791,16 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
 }
 
 void Search::getAnalysisData(
-  const SearchNode& node, vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth
-) const {
-  AnalysisData nodeData; // not used, just defined here so the function can be called with fewer parameters
-  float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
-  getExtendedAnalysisData(node, buf, nodeData, policyProbs, minMovesToTryToGet, includeWeightFactors, maxPVDepth);
-}
-
-void Search::getAnalysisData(
-  vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth
-) const {
-  getAnalysisData(*rootNode, buf, minMovesToTryToGet, includeWeightFactors, maxPVDepth);
-}
-
-// Extended version includes root node AnalysisData and policy probabilities, used in analysis engine
-void Search::getExtendedAnalysisData(
-  vector<AnalysisData>& buf,AnalysisData& nodeData, float (&policyProbs)[NNPos::MAX_NN_POLICY_SIZE], int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth
+  vector<AnalysisData>& buf,int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth
 ) const {
   buf.clear();
   if(rootNode == NULL)
     return;
-  getExtendedAnalysisData(*rootNode, buf, nodeData, policyProbs, minMovesToTryToGet, includeWeightFactors, maxPVDepth);
+  getAnalysisData(*rootNode, buf, minMovesToTryToGet, includeWeightFactors, maxPVDepth);
 }
 
-void Search::getExtendedAnalysisData(
-  const SearchNode& node, vector<AnalysisData>& buf, AnalysisData& nodeData, float (&policyProbs)[NNPos::MAX_NN_POLICY_SIZE], int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth
+void Search::getAnalysisData(
+  const SearchNode& node, vector<AnalysisData>& buf,int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth
 ) const {
   buf.clear();
   vector<SearchNode*> children;
@@ -823,6 +811,7 @@ void Search::getExtendedAnalysisData(
   vector<double> scratchValues;
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
+  float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
   {
     std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
     lock_guard<std::mutex> lock(mutex);
@@ -859,6 +848,10 @@ void Search::getExtendedAnalysisData(
     assert(policyProbMassVisited <= 1.0001);
   }
 
+  double parentWinLossValue;
+  double parentScoreMean;
+  double parentScoreStdev;
+  double parentLead;
   {
     while(node.statsLock.test_and_set(std::memory_order_acquire));
     double winValueSum = node.stats.winValueSum;
@@ -872,29 +865,23 @@ void Search::getExtendedAnalysisData(
 
     double winValue = winValueSum / weightSum;
     double lossValue = (weightSum - winValueSum - noResultValueSum) / weightSum;
-    double noResultValue = noResultValueSum / weightSum;
 
-    nodeData.winLossValue = winValue - lossValue;
-    nodeData.scoreMean = scoreMeanSum / weightSum;
+    parentWinLossValue = winValue - lossValue;
+    parentScoreMean = scoreMeanSum / weightSum;
     double scoreMeanSq = scoreMeanSqSum / weightSum;
-    nodeData.scoreStdev = getScoreStdev(nodeData.scoreMean,scoreMeanSq);
-    nodeData.lead = leadSum / weightSum;
-    // added
-    nodeData.numVisits = node.stats.visits;
-    nodeData.utility = node.stats.utilitySum / weightSum;
-    nodeData.resultUtility = getResultUtility(winValue, noResultValue);
-    nodeData.scoreUtility = nodeData.utility - nodeData.resultUtility;
-    nodeData.winLossValue = winValue - lossValue;
+    parentScoreStdev = getScoreStdev(parentScoreMean,scoreMeanSq);
+    parentLead = leadSum / weightSum;
   }
 
-  double fpuValue = getFpuValueForChildrenAssumeVisited(node, node.nextPla, true, policyProbMassVisited, nodeData.utility);
+  double parentUtility;
+  double fpuValue = getFpuValueForChildrenAssumeVisited(node, node.nextPla, true, policyProbMassVisited, parentUtility);
 
   for(int i = 0; i<numChildren; i++) {
     SearchNode* child = children[i];
     double policyProb = policyProbs[getPos(child->prevMoveLoc)];
     AnalysisData data = getAnalysisDataOfSingleChild(
-      child, scratchLocs, scratchValues, child->prevMoveLoc, policyProb, fpuValue, nodeData.utility, nodeData.winLossValue,
-      nodeData.scoreMean, nodeData.scoreStdev, nodeData.lead, maxPVDepth
+      child, scratchLocs, scratchValues, child->prevMoveLoc, policyProb, fpuValue, parentUtility, parentWinLossValue,
+      parentScoreMean, parentScoreStdev, parentLead, maxPVDepth
     );
     data.playSelectionValue = playSelectionValues[i];
     //Make sure data.lcb is from white's perspective, for consistency with everything else
@@ -948,8 +935,8 @@ void Search::getExtendedAnalysisData(
 
       Loc bestMove = NNPos::posToLoc(bestPos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
       AnalysisData data = getAnalysisDataOfSingleChild(
-        NULL, scratchLocs, scratchValues, bestMove, bestPolicy, fpuValue,nodeData.utility, nodeData.winLossValue,
-        nodeData.scoreMean, nodeData.scoreStdev, nodeData.lead, maxPVDepth
+        NULL, scratchLocs, scratchValues, bestMove, bestPolicy, fpuValue, parentUtility, parentWinLossValue,
+        parentScoreMean, parentScoreStdev, parentLead, maxPVDepth
       );
       buf.push_back(data);
     }
