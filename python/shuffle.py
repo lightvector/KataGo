@@ -286,12 +286,16 @@ if __name__ == '__main__':
   desired_input_files = []
   desired_input_files_with_row_range = []
   num_rows_total = 0
-  for (filename,(start_row,end_row)) in files_with_row_range:
+  len_files_with_row_range = len(files_with_row_range)
+  print_stride = 1 + len(files_with_row_range) // 40
+  for i in range(len(files_with_row_range)):
+    (filename,(start_row,end_row)) = files_with_row_range[i]
     desired_input_files.append(filename)
     desired_input_files_with_row_range.append((filename,(start_row,end_row)))
 
     num_rows_total += (end_row - start_row)
-    print("Using: %s (%d-%d) (%d/%d desired rows)" % (filename,start_row,end_row,num_rows_total,desired_num_rows))
+    if i % print_stride == 0 or num_rows_total >= desired_num_rows or i == len_files_with_row_range - 1:
+      print("Using: %s (%d-%d) (%d/%d desired rows)" % (filename,start_row,end_row,num_rows_total,desired_num_rows))
     if num_rows_total >= desired_num_rows:
       break
 
