@@ -283,7 +283,7 @@ The normal pipeline, and the method that all scripts and configs are geared for 
 It is also possible to run _synchronously_, with each step sequentially following the previous, which could be suitable for attempting to run on only one machine with only one GPU. An example script is provided in `python/selfplay/synchronous_loop.sh` for how to do this. In particular it:
   * Provides a `-max-games-total` to the selfplay so it terminates after a certain number of games.
   * Provides smaller values of `-keep-target-rows` for the shuffler to reduce the data per cycle and `-samples-per-epoch` and `-max-epochs-this-instance 1` for the training to terminate after training on a smaller number of samples instead of going forever.
-  * If using the gatekeeper at all, provides `-quit-if-no-nets-to-test` to it so that it terminates after gatekeeping any nets produced by training.
+  * If using the gatekeeper at all, provides `-quit-if-no-nets-to-test` to it so that it terminates after gatekeeping any nets produced by training. Not using gating (passing in 0 for `USEGATING`) will be faster and will save compute power, and the whole loop works perfectly fine without it, but having it at first can be nice to help debugging and make sure that things are working and that the net is actually getting stronger.
 
 The default parameters in the example synchronous loop script are NOT heavily tested, and unlike the asynchronous setup, have NOT been used for KataGo's primary training runs, so it is quite possible that they are suboptimal, and will need some experimentation. The right parameters may also vary depending on what you're training - for example a 9x9-only run may prefer a different number of samples and windowing policy than 19x19, etc.
 
