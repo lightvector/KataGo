@@ -18,7 +18,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `tax: ("NONE" | "SEKI" | "ALL")` - Modification to the scoring rule, indicating whether territory in SEKI is taxed, or whether ALL groups pay a tax of up to 2 points for eyes.
          * `suicide: (true | false)` - Whether multi-stone suicide is legal.
          * `hasButton: (true | false)` - Whether [button Go](https://senseis.xmp.net/?ButtonGo) is being used.
-         * `whiteHandicapBonus` ("0" | "N-1" | "N") - In handicap games, whether white gets 0, N-1, or N bonus points, where N is the number of black handicap stones.
+         * `whiteHandicapBonus ("0" | "N-1" | "N")` - In handicap games, whether white gets 0, N-1, or N bonus points, where N is the number of black handicap stones.
       * **NOTE: It is possible that more fields and more options for these fields will be added in the future.**
    * `kata-set-rules RULES`
       * Sets the current rules KataGo should be using. Does NOT otherwise affect the board position.
@@ -36,7 +36,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `aga-button    : Equivalent to {"hasButton":true, "ko":"SITUATIONAL","scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N-1"}`
       * KataGo does NOT claim that the above rules are _exactly_ a match. These are merely the _closest_ settings that KataGo has to those countries' rulesets.
       * A small number of combinations are currently not supported by even the latest neural nets, for example `scoring TERRITORY` and `hasButton true`.
-      * Older neural nets for KataGo will also not support many of the options, and setting these rules will fail if these neural nets are being used.
+      * Older neural nets for KataGo (nets released before v1.3) will also not support many of the options, and setting these rules will fail if these neural nets are being used.
       * Note the distinction between the `chinese` and `chinese-ogs, chinese-kgs`. Often in Chinese tournaments, contrary to their nominal written rules, which specify positional superko, only simple ko is used, and triple ko typically does result in the referree voiding the game. However, many servers have implemented the nominal written rules rather than the actually-used rules.
    * `kata-set-rule RULE VALUE`
       * Sets a single field of the current rules, leaving other fields unaffected.
