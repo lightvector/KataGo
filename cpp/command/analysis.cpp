@@ -150,6 +150,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       const Search* search = bot->getSearch();
       search->getAnalysisData(buf,minMoves,false,request->analysisPVLen);
 
+      // Stats for all the individual moves
       json moveInfos = json::array();
       for(int i = 0; i<buf.size(); i++) {
         const AnalysisData& data = buf[i];
@@ -191,35 +192,40 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       }
       ret["moveInfos"] = moveInfos;
 
-      // stats for requested move itself
-      ReportedSearchValues rootVals;
-      search->getRootValues(rootVals);
-      json rootInfo;
-      Player rootPla = getOpp(request->nextPla);
+      //Should always be populated after a search with at least 1 visit.
+      assert(search->rootNode != NULL && search->rootNode->nnOutput != nullptr);
 
-      double winrate = 0.5 * (1.0 + rootVals.winLossValue);
-      double scoreMean = rootVals.expectedScore;
-      double lead = rootVals.lead;
-      double utility = rootVals.utility;
+      // Stats for root position
+      {
+        ReportedSearchValues rootVals;
+        search->getRootValues(rootVals);
+        Player rootPla = getOpp(request->nextPla);
 
-      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK)) {
-        winrate = 1.0-winrate;
-        scoreMean = -scoreMean;
-        lead = -lead;
-        utility = -utility;
+        double winrate = 0.5 * (1.0 + rootVals.winLossValue);
+        double scoreMean = rootVals.expectedScore;
+        double lead = rootVals.lead;
+        double utility = rootVals.utility;
+
+        if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK)) {
+          winrate = 1.0-winrate;
+          scoreMean = -scoreMean;
+          lead = -lead;
+          utility = -utility;
+        }
+
+        json rootInfo;
+        rootInfo["visits"] = search->rootNode->stats.visits; // not in ReportedSearchValues
+        rootInfo["winrate"] = winrate;
+        rootInfo["scoreSelfplay"] = scoreMean;
+        rootInfo["scoreLead"] = lead;
+        rootInfo["scoreStdev"] = rootVals.expectedScoreStdev;
+        rootInfo["utility"] = utility;
+        ret["rootInfo"] = rootInfo;
       }
-      rootInfo["visits"] = search->rootNode->stats.visits; // not in ReportedSearchValues
-      rootInfo["winrate"] = winrate;
-      rootInfo["scoreSelfplay"] = scoreMean;
-      rootInfo["scoreLead"] = lead;
-      rootInfo["scoreStdev"] = rootVals.expectedScoreStdev;
-      rootInfo["utility"] = utility;
-      ret["rootInfo"] = rootInfo;
 
-      // policy
+      // Raw policy prior
       if(request->includePolicy) {
         float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
-        assert(search->rootNode != NULL && search->rootNode->nnOutput != nullptr); //Should always be populated after a search with at least 1 visit.
         std::copy(search->rootNode->nnOutput->policyProbs, search->rootNode->nnOutput->policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
         json policy = json::array();
         int nnXLen = bot->getSearch()->nnXLen, nnYLen = bot->getSearch()->nnYLen;
@@ -231,11 +237,11 @@ int MainCmds::analysis(int argc, const char* const* argv) {
           }
         }
 
-        int passLoc = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
-        policy.push_back(policyProbs[passLoc]);
+        int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
+        policy.push_back(policyProbs[passPos]);
         ret["policy"] = policy;
       }
-      // ownership
+      // Average tree ownership
       if(request->includeOwnership) {
         static constexpr int ownershipMinVisits = 3;
         vector<double> ownership = search->getAverageTreeOwnership(ownershipMinVisits);
