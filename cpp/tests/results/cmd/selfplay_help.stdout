@@ -6,6 +6,7 @@ DESCRIPTION:
 USAGE: 
 
    selfplay  -config <FILE> -models-dir <DIR> -output-dir <DIR>
+             [-max-games-total <NGAMES>]
 
 
 Where: 
@@ -18,6 +19,9 @@ Where:
 
    -output-dir <DIR>
      (required)  Dir to output files
+
+   -max-games-total <NGAMES>
+     Terminate after this many games
 
    --,  -ignore_rest
      Ignores the rest of the labeled arguments following this flag.
