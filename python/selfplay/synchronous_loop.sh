@@ -42,7 +42,7 @@ mkdir -p "$SCRATCHDIR"
 mkdir -p "$BASEDIR"/selfplay
 mkdir -p "$BASEDIR"/gatekeepersgf
 
-# NOTE: You probably want to edit settings in the cpp/configs/selfplay1.cfg.
+# NOTE: You probably want to edit settings in the cpp/configs/selfplay1.cfg - what board sizes and rules, you want to learn, number of visits to use, etc.
 # NOTE: You may want to adjust these numbers.
 NUM_GAMES_PER_CYCLE=1000
 NUM_THREADS_FOR_SHUFFLING=8
