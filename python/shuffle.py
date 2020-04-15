@@ -160,9 +160,9 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Shuffle data files')
   parser.add_argument('dirs', metavar='DIR', nargs='+', help='Directories of training data files')
-  parser.add_argument('-min-rows', type=int, required=True, help='Minimum training rows to use')
-  parser.add_argument('-max-rows', type=int, required=True, help='Maximum training rows to use')
-  parser.add_argument('-keep-target-rows', type=int, required=False, help='Target number of rows to actually keep in the final data set')
+  parser.add_argument('-min-rows', type=int, required=False, help='Minimum training rows to use, default 250k')
+  parser.add_argument('-max-rows', type=int, required=False, help='Maximum training rows to use, default unbounded')
+  parser.add_argument('-keep-target-rows', type=int, required=False, help='Target number of rows to actually keep in the final data set, default 1.2M')
   parser.add_argument('-expand-window-per-row', type=float, required=True, help='Beyond min rows, initially expand the window by this much every post-random data row')
   parser.add_argument('-taper-window-exponent', type=float, required=True, help='Make the window size asymtotically grow as this power of the data rows')
   parser.add_argument('-out-dir', required=True, help='Dir to output training files')
@@ -187,6 +187,14 @@ if __name__ == '__main__':
   ensure_batch_multiple = 1
   if args.ensure_batch_multiple is not None:
     ensure_batch_multiple = args.ensure_batch_multiple
+  if min_rows is None:
+    print("NOTE: -min-rows was not specified, defaulting to requiring 250K rows before shuffling.")
+    min_rows = 250000
+  if keep_target_rows is None:
+    print("NOTE: -keep-target-rows was not specified, defaulting to keeping the first 1.2M rows.")
+    print("(slightly larger than default training epoch size of 1M, to give 1 epoch of data regardless of discreteness rows or batches per output file)")
+    print("If you intended to shuffle the whole dataset instead, pass in -keep-target-rows <very large number>")
+    keep_target_rows = 1200000
 
   all_files = []
   for d in dirs:
@@ -256,7 +264,7 @@ if __name__ == '__main__':
     files_with_row_range.append((filename,row_range))
 
     #If we already have a window size bigger than max, then just stop
-    if num_desired_rows() >= max_rows:
+    if max_rows is not None and num_desired_rows() >= max_rows:
       break
 
   if os.path.exists(out_dir):
@@ -280,7 +288,7 @@ if __name__ == '__main__':
   #Now assemble only the files we need to hit our desired window size
   desired_num_rows = num_desired_rows()
   desired_num_rows = max(desired_num_rows,min_rows)
-  desired_num_rows = min(desired_num_rows,max_rows)
+  desired_num_rows = min(desired_num_rows,max_rows) if max_rows is not None else desired_num_rows
   print("Desired num rows: %d / %d" % (desired_num_rows,num_rows_total))
 
   desired_input_files = []

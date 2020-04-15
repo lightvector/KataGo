@@ -36,7 +36,7 @@ parser.add_argument('-exportdir', help='Directory to export models periodically'
 parser.add_argument('-exportprefix', help='Prefix to append to names of models', required=True)
 parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
 parser.add_argument('-batch-size', help='Expected batch size of the input data, must match tfrecords', type=int, required=True)
-parser.add_argument('-samples-per-epoch', help='Number of data samples to consider as one epoch', type=int, required=True)
+parser.add_argument('-samples-per-epoch', help='Number of data samples to consider as one epoch', type=int, required=False)
 parser.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
 parser.add_argument('-gpu-memory-frac', help='Fraction of gpu memory to use', type=float, required=True)
 parser.add_argument('-model-kind', help='String name for what model to use', required=True)
@@ -73,6 +73,9 @@ swa_sub_epoch_scale = args["swa_sub_epoch_scale"]
 verbose = args["verbose"]
 no_export = args["no_export"]
 logfilemode = "a"
+
+if samples_per_epoch is None:
+  samples_per_epoch = 1000000
 
 if not os.path.exists(traindir):
   os.makedirs(traindir)

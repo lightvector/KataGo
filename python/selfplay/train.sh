@@ -6,12 +6,13 @@
 #Or, to tfsavedmodels_toexport_extra/ (EXPORTMODE == "extra").
 #Or just trains without exporting (EXPORTMODE == "trainonly").
 
-if [[ $# -lt 4 ]]
+if [[ $# -lt 5 ]]
 then
-    echo "Usage: $0 BASEDIR TRAININGNAME MODELKIND EXPORTMODE OTHERARGS"
+    echo "Usage: $0 BASEDIR TRAININGNAME MODELKIND BATCHSIZE EXPORTMODE OTHERARGS"
     echo "BASEDIR containing selfplay data and models and related directories"
     echo "TRANINGNAME name to prefix models with, specific to this training daemon"
     echo "MODELKIND what size model to train, like b10c128, see ../modelconfigs.py"
+    echo "BATCHSIZE number of samples to concat together per batch for training, must match shuffle"
     echo "EXPORTMODE 'main': train and export for selfplay. 'extra': train and export extra non-selfplay model. 'trainonly': train without export"
     exit 0
 fi
@@ -20,6 +21,8 @@ shift
 TRAININGNAME="$1"
 shift
 MODELKIND="$1"
+shift
+BATCHSIZE="$1"
 shift
 EXPORTMODE="$1"
 shift
@@ -57,8 +60,7 @@ time python3 "$GITROOTDIR"/python/train.py \
      -exportdir "$BASEDIR"/"$EXPORT_SUBDIR" \
      -exportprefix "$TRAININGNAME" \
      -pos-len 19 \
-     -batch-size 256 \
-     -samples-per-epoch 1000000 \
+     -batch-size "$BATCHSIZE" \
      -gpu-memory-frac 0.6 \
      -model-kind "$MODELKIND" \
      -sub-epochs 4 \
