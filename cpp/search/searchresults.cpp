@@ -356,6 +356,8 @@ bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values)
   double scoreMeanSqSum = node.stats.scoreMeanSqSum;
   double leadSum = node.stats.leadSum;
   double weightSum = node.stats.weightSum;
+  double utilitySum = node.stats.utilitySum;
+
   node.statsLock.clear(std::memory_order_release);
 
   assert(weightSum > 0.0);
@@ -371,6 +373,7 @@ bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values)
   values.expectedScore = scoreMean;
   values.expectedScoreStdev = scoreStdev;
   values.lead = leadSum / weightSum;
+  values.utility = utilitySum / weightSum;
 
   //Perform a little normalization - due to tiny floating point errors, winValue and lossValue could be outside [0,1].
   //(particularly lossValue, as it was produced by subtractions from weightSum that could have lost precision).

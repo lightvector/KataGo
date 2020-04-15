@@ -32,6 +32,7 @@ struct ReportedSearchValues {
   double expectedScoreStdev;
   double lead;
   double winLossValue;
+  double utility;
 
   ReportedSearchValues();
   ~ReportedSearchValues();
