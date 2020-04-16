@@ -162,11 +162,11 @@ int main(int argc, const char* argv[]) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.3.5");
+  return string("1.3.5+bs29");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.3.5");
+  return string("KataGo v1.3.5+bs29 (special board size 29 version)");
 }
 
 string Version::getKataGoVersionFullInfo() {

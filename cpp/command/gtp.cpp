@@ -381,8 +381,8 @@ struct GTPEngine {
 
     bool wasDefault = false;
     if(boardXSize == -1 || boardYSize == -1) {
-      boardXSize = 19;
-      boardYSize = 19;
+      boardXSize = 29;
+      boardYSize = 29;
       wasDefault = true;
     }
 
@@ -1225,6 +1225,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   }
 
   logger.write("GTP Engine starting...");
+  logger.write("Special compiled for larger board size, with some performance cost.");
   logger.write(Version::getKataGoVersionForHelp());
   //Also check loggingToStderr so that we don't duplicate the message from the log file
   if(startupPrintMessageToStderr && !loggingToStderr) {
