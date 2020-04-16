@@ -1,5 +1,7 @@
 # KataGo
 
+**This is a just-for-fun special branch of the code modified to work on board sizes up to 29x29, at the cost of possibly reduced performance and significantly increased memory usage (cost still present even if only run on smaller boards).**
+
 KataGo is an implementation of AlphaZero-like training in Go with a lot of modifications and enhancements that greatly improve upon basic self-play learning. Many of these take advantage of game-specific features and training targets, but also a surprising number of them are non-specific and could easily be tried in other games. Due to these enhancements, early training is immensely faster than in other zero-style bots - with only a few strong GPUs for a few days, even a single person should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board. KataGo's latest run used about 29 GPUs, rather than thousands (like AlphaZero and ELF) first reached superhuman levels on that hardware in perhaps just three to six days, and reached strength similar to ELF in about 14 days. With minor adjustments and another 8 GPUs, at around 40 days it roughly reached or surpassed Leela Zero (but varies by hardware, time, playouts, settings) hopefully making KataGo one of the top open source Go engines available. It is continuing to train and improve further.
 
 Paper about the major new ideas and techniques used in KataGo: [Accelerating Self-Play Learning in Go (arXiv)](https://arxiv.org/abs/1902.10565).
