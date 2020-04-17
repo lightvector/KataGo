@@ -28,6 +28,16 @@ ConfigParser::ConfigParser(const map<string, string>& kvs)
   initialize(kvs);
 }
 
+ConfigParser::ConfigParser(const ConfigParser& source) {
+  if(!source.initialized)
+    throw StringError("Can only copy a ConfigParser which has been initialized.");
+  initialized = source.initialized;
+  fileName = source.fileName;
+  contents = source.contents;
+  keyValues = source.keyValues;
+  usedKeys = source.usedKeys;
+}
+
 void ConfigParser::initialize(const string& fname) {
   if(initialized)
     throw StringError("ConfigParser already initialized, cannot initialize again");
@@ -52,6 +62,8 @@ void ConfigParser::initialize(const map<string, string>& kvs) {
   keyValues = kvs;
   initialized = true;
 }
+
+
 
 void ConfigParser::initializeInternal(istream& in) {
   int lineNum = 0;
@@ -99,7 +111,7 @@ void ConfigParser::overrideKeys(const map<string, string>& newkvs) {
     else
       keyValues[iter->first] = iter->second;
   }
-  fileName += " and/or command-line overrides";
+  fileName += " and/or command-line and query overrides";
 }
 
 

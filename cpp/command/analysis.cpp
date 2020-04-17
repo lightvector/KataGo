@@ -28,6 +28,7 @@ struct AnalyzeRequest {
   double rootPolicyTemperature;
   bool includeOwnership;
   bool includePolicy;
+  map<std::string,std::string> overrideSettings;
 };
 
 int MainCmds::analysis(int argc, const char* const* argv) {
@@ -70,16 +71,13 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   logger.write("Analysis Engine starting...");
   logger.write(Version::getKataGoVersionForHelp());
 
+  // Load to check for unused config keys and global settings
   SearchParams params = Setup::loadSingleParams(cfg);
-  //Set a default for conservativePass that differs from matches or selfplay
-  if(!cfg.contains("conservativePass") && !cfg.contains("conservativePass0"))
-    params.conservativePass = true;
-
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 15;
-  const Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
   const bool assumeMultipleStartingBlackMovesAreHandicap =
     cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
   const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
+  (void)Setup::parseReportAnalysisWinrates(cfg,C_EMPTY); // to stop complaints about unused keys which we will use later
 
   NNEvaluator* nnEval;
   {
@@ -120,7 +118,27 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   ThreadSafePriorityQueue<std::pair<int,int64_t>, AnalyzeRequest*> toAnalyzeQueue;
   int64_t numRequestsSoFar = 0; // used as tie breaker for requests with same priority
 
-  auto analysisLoop = [&params,perspective,&toAnalyzeQueue,&toWriteQueue,&preventEncore,&pushToWrite](AsyncBot* bot) {
+  auto reportError = [&pushToWrite](const string& s) {
+    json ret;
+    ret["error"] = s;
+    pushToWrite(new string(ret.dump()));
+  };
+  auto reportErrorForId = [&pushToWrite](const string& id, const string& field, const string& s) {
+    json ret;
+    ret["id"] = id;
+    ret["field"] = field;
+    ret["error"] = s;
+    pushToWrite(new string(ret.dump()));
+  };
+  auto reportWarningForId = [&pushToWrite](const string& id, const string& field, const string& s) {
+    json ret;
+    ret["id"] = id;
+    ret["field"] = field;
+    ret["warning"] = s;
+    pushToWrite(new string(ret.dump()));
+  };
+
+  auto analysisLoop = [&cfg,&toAnalyzeQueue,&toWriteQueue,&preventEncore,&pushToWrite,&reportError](AsyncBot* bot) {
     while(true) {
       std::pair<std::pair<int,int64_t>,AnalyzeRequest*> analysisItem;
       bool suc = toAnalyzeQueue.waitPop(analysisItem);
@@ -128,14 +146,30 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         break;
       AnalyzeRequest* request = analysisItem.second;
 
-      SearchParams thisParams = params;
-      thisParams.maxVisits = request->maxVisits;
-      thisParams.rootFpuReductionMax = request->rootFpuReductionMax;
-      thisParams.rootPolicyTemperature = request->rootPolicyTemperature;
-      thisParams.rootPolicyTemperatureEarly = request->rootPolicyTemperature;
+      // Reload settings to allow overrides
+      ConfigParser localCfg(cfg);
+      SearchParams localParams;
+      Player perspective;
+      try {
+          localCfg.overrideKeys(request->overrideSettings);
+          localParams = Setup::loadSingleParams(localCfg);
+           perspective = Setup::parseReportAnalysisWinrates(localCfg,C_EMPTY);
+          //Set a default for conservativePass that differs from matches or selfplay
+          if(!localCfg.contains("conservativePass") && !localCfg.contains("conservativePass0"))
+          localParams.conservativePass = true;
+      }
+      catch(StringError& exception) {
+        reportError("Could not set settings for query " + std::string(request->id) + ": " + exception.what());
+        continue;
+      }
+
+      localParams.maxVisits = request->maxVisits;
+      localParams.rootFpuReductionMax = request->rootFpuReductionMax;
+      localParams.rootPolicyTemperature = request->rootPolicyTemperature;
+      localParams.rootPolicyTemperatureEarly = request->rootPolicyTemperature;
       bot->setPosition(request->nextPla,request->board,request->hist);
       bot->setAlwaysIncludeOwnerMap(request->includeOwnership);
-      bot->setParams(thisParams);
+      bot->setParams(localParams);
 
       Player pla = request->nextPla;
       bot->genMoveSynchronous(pla, TimeControls());
@@ -271,8 +305,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   };
 
   vector<std::thread> threads;
+  std::thread write_thread = std::thread(writeLoop);
   vector<AsyncBot*> bots;
-  threads.push_back(std::thread(writeLoop));
   for(int i = 0; i<numAnalysisThreads; i++) {
     string searchRandSeed = Global::uint64ToHexString(seedRand.nextUInt64()) + Global::uint64ToHexString(seedRand.nextUInt64());
     AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
@@ -283,25 +317,6 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   logger.write("Analyzing up to " + Global::intToString(numAnalysisThreads) + " positions at at time in parallel");
   logger.write("Started, ready to begin handling requests");
 
-  auto reportError = [&pushToWrite](const string& s) {
-    json ret;
-    ret["error"] = s;
-    pushToWrite(new string(ret.dump()));
-  };
-  auto reportErrorForId = [&pushToWrite](const string& id, const string& field, const string& s) {
-    json ret;
-    ret["id"] = id;
-    ret["field"] = field;
-    ret["error"] = s;
-    pushToWrite(new string(ret.dump()));
-  };
-  auto reportWarningForId = [&pushToWrite](const string& id, const string& field, const string& s) {
-    json ret;
-    ret["id"] = id;
-    ret["field"] = field;
-    ret["warning"] = s;
-    pushToWrite(new string(ret.dump()));
-  };
 
   string line;
   json input;
@@ -339,6 +354,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     rbase.includeOwnership = false;
     rbase.includePolicy = false;
     rbase.priority = 0;
+    rbase.overrideSettings = map<std::string,std::string>();
 
     auto parseInteger = [&input,&rbase,&reportErrorForId](const char* field, int64_t& buf, int64_t min, int64_t max, const char* errorMessage) {
       try {
@@ -619,6 +635,17 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         continue;
       rbase.priority = (int)buf;
     }
+    if(input.find("overrideSettings") != input.end()) {
+      json settings = input["overrideSettings"];
+      if(!settings.is_object()) {
+        reportErrorForId(rbase.id, "overrideSettings", "Must be an object" );
+        continue;
+      }
+      for (auto it = settings.begin(); it != settings.end(); ++it) {
+        rbase.overrideSettings[it.key()] = it.value().is_string() ? std::string(it.value()): it.value().dump(); // always convert to string
+      }
+    }
+
 
     Board board(boardXSize,boardYSize);
     for(int i = 0; i<placements.size(); i++) {
@@ -663,6 +690,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         newRequest->includeOwnership = rbase.includeOwnership;
         newRequest->includePolicy = rbase.includePolicy;
         newRequest->priority = rbase.priority;
+        newRequest->overrideSettings = rbase.overrideSettings;
         newRequests.push_back(newRequest);
       }
       if(turnNumber >= moveHistory.size())
@@ -702,18 +730,24 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     newRequests.clear();
   }
 
-  //Making toWriteQueue readOnly will immediately halt futher output and signal the write loop thread to terminate.
-  toWriteQueue.setReadOnly();
-  //Making these readOnly should signal the analysis loop threads to terminate.
+  // Wait for searches to finish and then stop.
+  while(!toAnalyzeQueue.empty())
+    std::this_thread::sleep_for(std::chrono::duration<double>(0.01));
+  // Making these readOnly should signal the analysis loop threads to terminate.
   toAnalyzeQueue.setReadOnly();
-  //Interrupt any searches going on to help the analysis threads realize to terminate faster.
-  for(int i = 0; i<bots.size(); i++)
-    bots[i]->stopWithoutWait();
 
-  for(int i = 0; i<threads.size(); i++)
-    threads[i].join();
   for(int i = 0; i<bots.size(); i++)
+  {
+    threads[i].join();
+    bots[i]->stopAndWait(); // after thread joins due to empty queue, otherwise bot is killed before starting on last job
     delete bots[i];
+  }
+
+  while(!toWriteQueue.empty())
+    std::this_thread::sleep_for(std::chrono::duration<double>(0.001));
+  // Making toWriteQueue readOnly will immediately halt futher output and signal the write loop thread to terminate.
+  toWriteQueue.setReadOnly();
+  write_thread.join();
 
   logger.write(nnEval->getModelFileName());
   logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
