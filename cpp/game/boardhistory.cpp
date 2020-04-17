@@ -970,7 +970,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   }
 
   //Handicap bonus score
-  if(movePla == P_WHITE)
+  if(movePla == P_WHITE && moveLoc != Board::PASS_LOC)
     whiteHasMoved = true;
   if(assumeMultipleStartingBlackMovesAreHandicap && !whiteHasMoved && movePla == P_BLACK && rules.whiteHandicapBonusRule != Rules::WHB_ZERO) {
     whiteHandicapBonusScore = computeWhiteHandicapBonus();
