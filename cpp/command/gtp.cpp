@@ -121,14 +121,22 @@ static int parseByoYomiPeriods(const vector<string>& args, int argIdx) {
   return byoYomiPeriods;
 }
 
-
+//Assumes that stones are worth 15 points area and 14 points territory, and that 7 komi is fair
 static double initialBlackAdvantage(const BoardHistory& hist) {
-  //Assume an advantage of 15 * number of black stones beyond the one black normally gets on the first move and komi
-  int extraBlackStones = hist.computeNumHandicapStones();
+  int handicapStones = hist.computeNumHandicapStones();
+  if(handicapStones <= 1)
+    return 7.0 - hist.rules.komi;
+
   //Subtract one since white gets the first move afterward
-  if(extraBlackStones > 0)
-    extraBlackStones -= 1;
-  return 15.0 * extraBlackStones + (7.0 - hist.rules.komi);
+  int extraBlackStones = handicapStones - 1;
+  double stoneValue = hist.rules.scoringRule == Rules::SCORING_AREA ? 15.0 : 14.0;
+  double whiteHandicapBonus = 0.0;
+  if(hist.rules.whiteHandicapBonusRule == Rules::WHB_N)
+    whiteHandicapBonus += handicapStones;
+  else if(hist.rules.whiteHandicapBonusRule == Rules::WHB_N_MINUS_ONE)
+    whiteHandicapBonus += handicapStones-1;
+
+  return stoneValue * extraBlackStones + (7.0 - hist.rules.komi - whiteHandicapBonus);
 }
 
 static bool noWhiteStonesOnBoard(const Board& board) {
@@ -154,7 +162,7 @@ static void updateDynamicPDAHelper(
   }
   else {
     double boardSizeScaling = pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.75);
-    double pdaScalingStartPoints = std::max(7.0 / boardSizeScaling, 2.0);
+    double pdaScalingStartPoints = std::max(4.0 / boardSizeScaling, 2.0);
     double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
     Player disadvantagedPla = initialBlackAdvantageInPoints >= 0 ? P_WHITE : P_BLACK;
     double initialAdvantageInPoints = abs(initialBlackAdvantageInPoints);
