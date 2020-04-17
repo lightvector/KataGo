@@ -60,12 +60,21 @@ resignConsecTurns = 3
 # Defaults to true! Uncomment and set to false to disable this behavior.
 # assumeMultipleStartingBlackMovesAreHandicap = true
 
-# Makes katago dynamically adjust to play more aggressively in handicap games based on the handicap and the current state of the game.
-# Comment to disable this and make KataGo play the same always.
-dynamicPlayoutDoublingAdvantageCapPerOppLead = 0.04
+# Makes katago dynamically adjust to play more aggressively in handicap or altered-komi games based on the degree of disadvantage
+# and whether the disadvantaged side has caught up. Does NOT affect analysis (lz-analyze, kata-analyze, used by programs like Lizzie).
+# Uncomment and set this to 0 to disable this and make KataGo play the same always.
+# dynamicPlayoutDoublingAdvantageCapPerOppLead = 0.045
 
-# Controls which side dynamicPlayoutDoublingAdvantageCapPerOppLead or playoutDoublingAdvantage applies to.
-playoutDoublingAdvantagePla = WHITE
+# Instead of setting dynamicPlayoutDoublingAdvantageCapPerOppLead, you can uncomment this and set this to a value from -3.0 to 3.0
+# to set KataGo's aggression to a FIXED level. DOES affect analysis (lz-analyze, kata-analyze, used by programs like Lizzie).
+# Negative makes KataGo behave as if it is much weaker than the opponent, preferring to play defensively.
+# Positive makes KataGo behave as if it is much stronger than the opponent, prefering to play aggressively or even overplay slightly.
+# playoutDoublingAdvantage = 0.0
+
+# Uncommenting one of these will enforce that the FIXED playoutDoublingAdvantage will only apply when KataGo plays the specified color
+# and will be negated when playing the opposite color.
+# playoutDoublingAdvantagePla = BLACK
+# playoutDoublingAdvantagePla = WHITE
 
 # Misc Behavior --------------------
 
