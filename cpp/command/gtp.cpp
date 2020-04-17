@@ -142,17 +142,15 @@ static bool noWhiteStonesOnBoard(const Board& board) {
   return true;
 }
 
-static void updatePlayoutDoublingAdvantageHelper(
-  AsyncBot* bot, const Board& board, const BoardHistory& hist,
+static void updateDynamicPDAHelper(
+  const Board& board, const BoardHistory& hist,
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead,
-  const double staticPlayoutDoublingAdvantage,
   const vector<double>& recentWinLossValues,
-  double& desiredPlayoutDoublingAdvantage,
-  SearchParams& params
+  double& desiredDynamicPDAForWhite
 ) {
   (void)board;
   if(dynamicPlayoutDoublingAdvantageCapPerOppLead <= 0.0) {
-    desiredPlayoutDoublingAdvantage = staticPlayoutDoublingAdvantage;
+    desiredDynamicPDAForWhite = 0.0;
   }
   else {
     double boardSizeScaling = pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.75);
@@ -161,10 +159,13 @@ static void updatePlayoutDoublingAdvantageHelper(
     Player disadvantagedPla = initialBlackAdvantageInPoints >= 0 ? P_WHITE : P_BLACK;
     double initialAdvantageInPoints = abs(initialBlackAdvantageInPoints);
     if(initialAdvantageInPoints < pdaScalingStartPoints || board.x_size <= 7 || board.y_size <= 7) {
-      desiredPlayoutDoublingAdvantage = 0.0;
+      desiredDynamicPDAForWhite = 0.0;
     }
     else {
-      //What increment to adjust desiredPlayoutDoublingAdvantage at.
+      double desiredDynamicPDAForDisadvantagedPla =
+        (disadvantagedPla == P_WHITE) ? desiredDynamicPDAForWhite : -desiredDynamicPDAForWhite;
+
+      //What increment to adjust desiredPDA at.
       //Power of 2 to avoid any rounding issues.
       const double increment = 0.125;
 
@@ -180,7 +181,7 @@ static void updatePlayoutDoublingAdvantageHelper(
       //No history, or literally no white stones on board? Then this is a new game or a newly set position
       if(recentWinLossValues.size() <= 0 || noWhiteStonesOnBoard(board)) {
         //Just use the cap
-        desiredPlayoutDoublingAdvantage = pdaCap;
+        desiredDynamicPDAForDisadvantagedPla = pdaCap;
       }
       else {
         double winLossValue = recentWinLossValues[recentWinLossValues.size()-1];
@@ -190,22 +191,16 @@ static void updatePlayoutDoublingAdvantageHelper(
 
         //Keep winLossValue between 5% and 25%, subject to available caps.
         if(winLossValue < -0.9)
-          desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage + 0.125;
+          desiredDynamicPDAForDisadvantagedPla = desiredDynamicPDAForDisadvantagedPla + 0.125;
         else if(winLossValue > -0.5)
-          desiredPlayoutDoublingAdvantage = desiredPlayoutDoublingAdvantage - 0.125;
+          desiredDynamicPDAForDisadvantagedPla = desiredDynamicPDAForDisadvantagedPla - 0.125;
 
-        desiredPlayoutDoublingAdvantage = std::max(desiredPlayoutDoublingAdvantage, 0.0);
-        desiredPlayoutDoublingAdvantage = std::min(desiredPlayoutDoublingAdvantage, pdaCap);
+        desiredDynamicPDAForDisadvantagedPla = std::max(desiredDynamicPDAForDisadvantagedPla, 0.0);
+        desiredDynamicPDAForDisadvantagedPla = std::min(desiredDynamicPDAForDisadvantagedPla, pdaCap);
       }
 
-      if(params.playoutDoublingAdvantagePla == getOpp(disadvantagedPla))
-        desiredPlayoutDoublingAdvantage = -desiredPlayoutDoublingAdvantage;
+      desiredDynamicPDAForWhite = (disadvantagedPla == P_WHITE) ? desiredDynamicPDAForDisadvantagedPla : -desiredDynamicPDAForDisadvantagedPla;
     }
-  }
-
-  if(params.playoutDoublingAdvantage != desiredPlayoutDoublingAdvantage) {
-    params.playoutDoublingAdvantage = desiredPlayoutDoublingAdvantage;
-    bot->setParams(params);
   }
 }
 
@@ -317,7 +312,7 @@ struct GTPEngine {
 
   vector<double> recentWinLossValues;
   double lastSearchFactor;
-  double desiredPlayoutDoublingAdvantage;
+  double desiredDynamicPDAForWhite;
   bool avoidMYTDaggerHack;
 
   Player perspective;
@@ -345,7 +340,7 @@ struct GTPEngine {
      moveHistory(),
      recentWinLossValues(),
      lastSearchFactor(1.0),
-     desiredPlayoutDoublingAdvantage(staticPDA),
+     desiredDynamicPDAForWhite(0.0),
      avoidMYTDaggerHack(avoidDagger),
      perspective(persp)
   {
@@ -438,7 +433,7 @@ struct GTPEngine {
     initialPla = newInitialPla;
     moveHistory = newMoveHistory;
     recentWinLossValues.clear();
-    updatePlayoutDoublingAdvantage();
+    updateDynamicPDA();
   }
 
   void clearBoard() {
@@ -461,13 +456,12 @@ struct GTPEngine {
     staticPlayoutDoublingAdvantage = d;
   }
 
-  void updatePlayoutDoublingAdvantage() {
-    updatePlayoutDoublingAdvantageHelper(
-      bot,bot->getRootBoard(),bot->getRootHist(),
+  void updateDynamicPDA() {
+    updateDynamicPDAHelper(
+      bot->getRootBoard(),bot->getRootHist(),
       dynamicPlayoutDoublingAdvantageCapPerOppLead,
-      staticPlayoutDoublingAdvantage,
       recentWinLossValues,
-      desiredPlayoutDoublingAdvantage,params
+      desiredDynamicPDAForWhite
     );
   }
 
@@ -692,13 +686,21 @@ struct GTPEngine {
     nnEval->clearStats();
     TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
 
-    //Update PDA given whatever the most recent values are
-    updatePlayoutDoublingAdvantage();
+    //Update dynamic PDA given whatever the most recent values are, if we're using dynamic
+    updateDynamicPDA();
     //Make sure we have the right parameters, in case someone ran analysis in the meantime.
-    if(dynamicPlayoutDoublingAdvantageCapPerOppLead != 0.0 &&
-       params.playoutDoublingAdvantage != desiredPlayoutDoublingAdvantage) {
-      params.playoutDoublingAdvantage = desiredPlayoutDoublingAdvantage;
-      bot->setParams(params);
+    if(dynamicPlayoutDoublingAdvantageCapPerOppLead != 0.0) {
+      double desiredDynamicPDA =
+        (params.playoutDoublingAdvantagePla == P_WHITE) ? desiredDynamicPDAForWhite :
+        (params.playoutDoublingAdvantagePla == P_BLACK) ? -desiredDynamicPDAForWhite :
+        (params.playoutDoublingAdvantagePla == C_EMPTY && pla == P_WHITE) ? desiredDynamicPDAForWhite :
+        (params.playoutDoublingAdvantagePla == C_EMPTY && pla == P_BLACK) ? -desiredDynamicPDAForWhite :
+        (assert(false),0.0);
+
+      if(params.playoutDoublingAdvantage != desiredDynamicPDA) {
+        params.playoutDoublingAdvantage = desiredDynamicPDA;
+        bot->setParams(params);
+      }
     }
     Player avoidMYTDaggerHackPla = avoidMYTDaggerHack ? pla : C_EMPTY;
     if(params.avoidMYTDaggerHackPla != avoidMYTDaggerHackPla) {
@@ -1260,8 +1262,6 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead =
     cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") ? cfg.getDouble("dynamicPlayoutDoublingAdvantageCapPerOppLead",0.0,0.5) : 0.0;
-  if(cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") && initialParams.playoutDoublingAdvantagePla == C_EMPTY)
-    throw StringError("When specifying dynamicPlayoutDoublingAdvantageCapPerOppLead, must specify a player for playoutDoublingAdvantagePla");
   double staticPlayoutDoublingAdvantage = initialParams.playoutDoublingAdvantage;
   const bool avoidMYTDaggerHack = cfg.contains("avoidMYTDaggerHack") ? cfg.getBool("avoidMYTDaggerHack") : false;
 

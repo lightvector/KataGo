@@ -126,4 +126,4 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      Any consumers of this data should attempt to be robust to any pattern of whitespace within the output, as well as possibly the future addition of new keys and values. The ordering of the keys is also not guaranteed - consumers should be capable of handling any permutation of them.
   * `kata-get-param PARAM`, `kata-set-param PARAM VALUE`
      * Get a parameter or set a parameter to a given value.
-     * Currently, the only supported PARAM is `playoutDoublingAdvantage (float)`. More may be added later.
+     * Currently, the only supported PARAM is `playoutDoublingAdvantage (float)`. Setting this affects the value used for analysis, and affects play only if the config is not already set to use dynamicPlayoutDoublingAdvantageCapPerOppLead. More params may be added later.
