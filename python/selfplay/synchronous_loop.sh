@@ -1,5 +1,6 @@
 #!/bin/bash -eu
 set -o pipefail
+{
 
 # Runs the entire self-play process synchronously in a loop, training a single size of neural net appropriately.
 # Assumes you have the cpp directory compiled and the katago executable is there.
@@ -75,3 +76,6 @@ do
     echo "Gatekeeper"
     time "$GITROOTDIR"/cpp/katago gatekeeper -rejected-models-dir "$BASEDIR"/rejectedmodels -accepted-models-dir "$BASEDIR"/models/ -sgf-output-dir "$BASEDIR"/gatekeepersgf/ -test-models-dir "$BASEDIR"/modelstobetested/ -config "$GITROOTDIR"/cpp/configs/gatekeeper1.cfg -quit-if-no-nets-to-test | tee -a "$BASEDIR"/gatekeepersgf/stdout.txt
 done
+
+exit 0
+}
