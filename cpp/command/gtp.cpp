@@ -303,6 +303,7 @@ struct GTPEngine {
   const bool preventEncore;
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead;
   double staticPlayoutDoublingAdvantage;
+  bool staticPDATakesPrecedence;
 
   NNEvaluator* nnEval;
   AsyncBot* bot;
@@ -328,7 +329,8 @@ struct GTPEngine {
   GTPEngine(
     const string& modelFile, SearchParams initialParams, Rules initialRules,
     bool assumeMultiBlackHandicap, bool prevtEncore,
-    double dynamicPDACapPerOppLead, double staticPDA, bool avoidDagger,
+    double dynamicPDACapPerOppLead, double staticPDA, bool staticPDAPrecedence,
+    bool avoidDagger,
     Player persp, int pvLen
   )
     :nnModelFile(modelFile),
@@ -337,6 +339,7 @@ struct GTPEngine {
      preventEncore(prevtEncore),
      dynamicPlayoutDoublingAdvantageCapPerOppLead(dynamicPDACapPerOppLead),
      staticPlayoutDoublingAdvantage(staticPDA),
+     staticPDATakesPrecedence(staticPDAPrecedence),
      nnEval(NULL),
      bot(NULL),
      currentRules(initialRules),
@@ -462,6 +465,7 @@ struct GTPEngine {
 
   void setStaticPlayoutDoublingAdvantage(double d) {
     staticPlayoutDoublingAdvantage = d;
+    staticPDATakesPrecedence = true;
   }
 
   void updateDynamicPDA() {
@@ -697,7 +701,13 @@ struct GTPEngine {
     //Update dynamic PDA given whatever the most recent values are, if we're using dynamic
     updateDynamicPDA();
     //Make sure we have the right parameters, in case someone ran analysis in the meantime.
-    if(dynamicPlayoutDoublingAdvantageCapPerOppLead != 0.0) {
+    if(staticPDATakesPrecedence) {
+      if(params.playoutDoublingAdvantage != staticPlayoutDoublingAdvantage) {
+        params.playoutDoublingAdvantage = staticPlayoutDoublingAdvantage;
+        bot->setParams(params);
+      }
+    }
+    else {
       double desiredDynamicPDA =
         (params.playoutDoublingAdvantagePla == P_WHITE) ? desiredDynamicPDAForWhite :
         (params.playoutDoublingAdvantagePla == P_BLACK) ? -desiredDynamicPDAForWhite :
@@ -1271,6 +1281,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead =
     cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") ? cfg.getDouble("dynamicPlayoutDoublingAdvantageCapPerOppLead",0.0,0.5) : 0.045;
   double staticPlayoutDoublingAdvantage = initialParams.playoutDoublingAdvantage;
+  const bool staticPDATakesPrecedence = cfg.contains("playoutDoublingAdvantage") && !cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead");
   const bool avoidMYTDaggerHack = cfg.contains("avoidMYTDaggerHack") ? cfg.getBool("avoidMYTDaggerHack") : false;
 
   const int defaultBoardXSize =
@@ -1293,7 +1304,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     nnModelFile,initialParams,initialRules,
     assumeMultipleStartingBlackMovesAreHandicap,preventEncore,
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
-    staticPlayoutDoublingAdvantage,avoidMYTDaggerHack,
+    staticPlayoutDoublingAdvantage,staticPDATakesPrecedence,
+    avoidMYTDaggerHack,
     perspective,analysisPVLen
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize);
