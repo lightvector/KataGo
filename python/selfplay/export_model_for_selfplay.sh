@@ -1,5 +1,6 @@
 #!/bin/bash -eu
-
+set -o pipefail
+{
 #Takes any models in tfsavedmodels_toexport/ and outputs a cuda-runnable model file to modelstobetested/
 #Takes any models in tfsavedmodels_toexport_extra/ and outputs a cuda-runnable model file to models_extra/
 #Should be run periodically.
@@ -102,3 +103,6 @@ else
     exportStuff "tfsavedmodels_toexport" "modelstobetested"
 fi
 exportStuff "tfsavedmodels_toexport_extra" "models_extra"
+
+exit 0
+}

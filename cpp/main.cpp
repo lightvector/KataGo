@@ -113,6 +113,8 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::lzcost(argc-1,&argv[1]);
   else if(subcommand == "demoplay")
     return MainCmds::demoplay(argc-1,&argv[1]);
+  else if(subcommand == "printclockinfo")
+    return MainCmds::printclockinfo(argc-1,&argv[1]);
   else if(subcommand == "sandbox")
     return MainCmds::sandbox();
   else if(subcommand == "version") {

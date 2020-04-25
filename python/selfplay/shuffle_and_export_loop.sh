@@ -1,5 +1,6 @@
 #!/bin/bash -eu
-
+set -o pipefail
+{
 if [[ $# -lt 6 ]]
 then
     echo "Usage: $0 NAMEPREFIX BASEDIR TMPDIR NTHREADS BATCHSIZE USEGATING"
@@ -50,3 +51,6 @@ cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.sh "$basedir"/scrip
         sleep 10
     done
 ) >> "$basedir"/logs/outexport.txt 2>&1 & disown
+
+exit 0
+}
