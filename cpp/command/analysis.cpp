@@ -22,13 +22,11 @@ struct AnalyzeRequest {
   BoardHistory hist;
   Player nextPla;
 
-  int64_t maxVisits;
+  SearchParams params;
+  Player perspective;
   int analysisPVLen;
-  double rootFpuReductionMax;
-  double rootPolicyTemperature;
   bool includeOwnership;
   bool includePolicy;
-  map<std::string,std::string> overrideSettings;
 };
 
 int MainCmds::analysis(int argc, const char* const* argv) {
@@ -152,8 +150,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   };
 
   auto analysisLoop = [
-    &cfg,&defaultParams,&defaultPerspective,&loadParams,&logger,
-    &toAnalyzeQueue,&toWriteQueue,&preventEncore,&pushToWrite,&reportError
+    &logger,&toAnalyzeQueue,&toWriteQueue,&preventEncore,&pushToWrite,&reportError
   ](AsyncBot* bot) {
     while(true) {
       std::pair<std::pair<int,int64_t>,AnalyzeRequest*> analysisItem;
@@ -162,30 +159,9 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         break;
       AnalyzeRequest* request = analysisItem.second;
 
-      // Reload settings to allow overrides
-      SearchParams localParams = defaultParams;
-      Player perspective = defaultPerspective;
-      if(!request->overrideSettings.empty()) {
-        try {
-          ConfigParser localCfg(cfg);
-          localCfg.overrideKeys(request->overrideSettings);
-          loadParams(localCfg, localParams, perspective);
-          SearchParams::failIfParamsDifferOnUnchangeableParameter(defaultParams,localParams);
-        }
-        catch(const StringError& exception) {
-          reportError("Could not set settings for query " + std::string(request->id) + ": " + exception.what());
-          delete request;
-          continue;
-        }
-      }
-
-      localParams.maxVisits = request->maxVisits;
-      localParams.rootFpuReductionMax = request->rootFpuReductionMax;
-      localParams.rootPolicyTemperature = request->rootPolicyTemperature;
-      localParams.rootPolicyTemperatureEarly = request->rootPolicyTemperature;
       bot->setPosition(request->nextPla,request->board,request->hist);
       bot->setAlwaysIncludeOwnerMap(request->includeOwnership);
-      bot->setParams(localParams);
+      bot->setParams(request->params);
 
       Player pla = request->nextPla;
       bot->genMoveSynchronous(pla, TimeControls());
@@ -199,6 +175,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
       const Search* search = bot->getSearch();
       search->getAnalysisData(buf,minMoves,false,request->analysisPVLen);
+
+      const Player perspective = request->perspective;
 
       // Stats for all the individual moves
       json moveInfos = json::array();
@@ -367,14 +345,11 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     rbase.id = input["id"].get<string>();
 
     //Defaults
-    rbase.maxVisits = defaultParams.maxVisits;
+    rbase.params = defaultParams;
     rbase.analysisPVLen = analysisPVLen;
-    rbase.rootFpuReductionMax = defaultParams.rootFpuReductionMax;
-    rbase.rootPolicyTemperature = defaultParams.rootPolicyTemperature;
     rbase.includeOwnership = false;
     rbase.includePolicy = false;
     rbase.priority = 0;
-    rbase.overrideSettings = map<std::string,std::string>();
 
     auto parseInteger = [&input,&rbase,&reportErrorForId](const char* field, int64_t& buf, int64_t min, int64_t max, const char* errorMessage) {
       try {
@@ -614,8 +589,34 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       }
     }
 
+    if(input.find("overrideSettings") != input.end()) {
+      json settings = input["overrideSettings"];
+      if(!settings.is_object()) {
+        reportErrorForId(rbase.id, "overrideSettings", "Must be an object");
+        continue;
+      }
+      std::map<string,string> overrideSettings;
+      for(auto it = settings.begin(); it != settings.end(); ++it) {
+        overrideSettings[it.key()] = it.value().is_string() ? std::string(it.value()): it.value().dump(); // always convert to string
+      }
+
+      // Reload settings to allow overrides
+      if(!overrideSettings.empty()) {
+        try {
+          ConfigParser localCfg(cfg);
+          localCfg.overrideKeys(overrideSettings);
+          loadParams(localCfg, rbase.params, rbase.perspective);
+          SearchParams::failIfParamsDifferOnUnchangeableParameter(defaultParams,rbase.params);
+        }
+        catch(const StringError& exception) {
+          reportErrorForId(rbase.id, "overrideSettings", string("Could not set settings: ") + exception.what());
+          continue;
+        }
+      }
+    }
+
     if(input.find("maxVisits") != input.end()) {
-      bool suc = parseInteger("maxVisits", rbase.maxVisits, 1, (int64_t)1 << 50, "Must be an integer from 1 to 2^50");
+      bool suc = parseInteger("maxVisits", rbase.params.maxVisits, 1, (int64_t)1 << 50, "Must be an integer from 1 to 2^50");
       if(!suc)
         continue;
     }
@@ -629,14 +630,15 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     }
 
     if(input.find("rootFpuReductionMax") != input.end()) {
-      bool suc = parseDouble("rootFpuReductionMax", rbase.rootFpuReductionMax, 0.0, 2.0, "Must be a number from 0.0 to 2.0");
+      bool suc = parseDouble("rootFpuReductionMax", rbase.params.rootFpuReductionMax, 0.0, 2.0, "Must be a number from 0.0 to 2.0");
       if(!suc)
         continue;
     }
     if(input.find("rootPolicyTemperature") != input.end()) {
-      bool suc = parseDouble("rootPolicyTemperature", rbase.rootPolicyTemperature, 0.01, 100.0, "Must be a number from 0.01 to 100.0");
+      bool suc = parseDouble("rootPolicyTemperature", rbase.params.rootPolicyTemperature, 0.01, 100.0, "Must be a number from 0.01 to 100.0");
       if(!suc)
         continue;
+      rbase.params.rootPolicyTemperatureEarly = rbase.params.rootPolicyTemperature;
     }
     if(input.find("includeOwnership") != input.end()) {
       bool suc = parseBoolean("includeOwnership", rbase.includeOwnership, "Must be a boolean");
@@ -654,16 +656,6 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       if(!suc)
         continue;
       rbase.priority = (int)buf;
-    }
-    if(input.find("overrideSettings") != input.end()) {
-      json settings = input["overrideSettings"];
-      if(!settings.is_object()) {
-        reportErrorForId(rbase.id, "overrideSettings", "Must be an object");
-        continue;
-      }
-      for (auto it = settings.begin(); it != settings.end(); ++it) {
-        rbase.overrideSettings[it.key()] = it.value().is_string() ? std::string(it.value()): it.value().dump(); // always convert to string
-      }
     }
 
 
@@ -703,14 +695,11 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         newRequest->board = board;
         newRequest->hist = hist;
         newRequest->nextPla = nextPla;
-        newRequest->maxVisits = rbase.maxVisits;
+        newRequest->params = rbase.params;
         newRequest->analysisPVLen = rbase.analysisPVLen;
-        newRequest->rootFpuReductionMax = rbase.rootFpuReductionMax;
-        newRequest->rootPolicyTemperature = rbase.rootPolicyTemperature;
         newRequest->includeOwnership = rbase.includeOwnership;
         newRequest->includePolicy = rbase.includePolicy;
         newRequest->priority = rbase.priority;
-        newRequest->overrideSettings = rbase.overrideSettings;
         newRequests.push_back(newRequest);
       }
       if(turnNumber >= moveHistory.size())
