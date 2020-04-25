@@ -33,7 +33,6 @@ AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l, const st
 AsyncBot::~AsyncBot() {
   stopAndWait();
   assert(!isRunning);
-  assert(!isKilled);
   {
     lock_guard<std::mutex> lock(controlMutex);
     isKilled = true;
@@ -119,6 +118,9 @@ void AsyncBot::genMove(Player movePla, int searchId, const TimeControls& tc, dou
   unique_lock<std::mutex> lock(controlMutex);
   stopAndWaitAlreadyLocked(lock);
   assert(!isRunning);
+  if(isKilled)
+    return;
+
   if(movePla != search->rootPla)
     search->setPlayerAndClearHistory(movePla);
 
@@ -164,6 +166,8 @@ void AsyncBot::ponder(double sf) {
   unique_lock<std::mutex> lock(controlMutex);
   if(isRunning)
     return;
+  if(isKilled)
+    return;
 
   queuedSearchId = 0;
   queuedOnMove = std::function<void(Loc,int)>(ignoreMove);
@@ -182,6 +186,9 @@ void AsyncBot::analyze(Player movePla, double sf, double callbackPeriod, std::fu
   unique_lock<std::mutex> lock(controlMutex);
   stopAndWaitAlreadyLocked(lock);
   assert(!isRunning);
+  if(isKilled)
+    return;
+
   if(movePla != search->rootPla)
     search->setPlayerAndClearHistory(movePla);
 
@@ -205,6 +212,9 @@ void AsyncBot::genMoveAnalyze(
   unique_lock<std::mutex> lock(controlMutex);
   stopAndWaitAlreadyLocked(lock);
   assert(!isRunning);
+  if(isKilled)
+    return;
+
   if(movePla != search->rootPla)
     search->setPlayerAndClearHistory(movePla);
 
@@ -240,6 +250,13 @@ void AsyncBot::stopWithoutWait() {
   shouldStopNow.store(true);
 }
 
+void AsyncBot::setKilled() {
+  lock_guard<std::mutex> lock(controlMutex);
+  isKilled = true;
+  shouldStopNow.store(true);
+  threadWaitingToSearch.notify_all();
+}
+
 void AsyncBot::stopAndWait() {
   shouldStopNow.store(true);
   waitForSearchToEnd();
@@ -266,8 +283,12 @@ void AsyncBot::internalSearchThreadLoop() {
   while(true) {
     while(!isRunning && !isKilled)
       threadWaitingToSearch.wait(lock);
-    if(isKilled)
+    if(isKilled) {
+      isRunning = false;
+      isPondering = false;
+      userWaitingForStop.notify_all();
       break;
+    }
 
     bool pondering = isPondering;
     TimeControls tc = timeControls;

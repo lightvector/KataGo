@@ -39,6 +39,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   ConfigParser cfg;
   string modelFile;
   int numAnalysisThreads;
+  bool quitWithoutWaiting;
 
   try {
     KataGoCommandLine cmd("Run KataGo parallel JSON-based analysis engine.");
@@ -48,11 +49,14 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     cmd.addOverrideConfigArg();
 
     TCLAP::ValueArg<int> numAnalysisThreadsArg("","analysis-threads","Analysis up to this many positions in parallel",true,0,"THREADS");
+    TCLAP::SwitchArg quitWithoutWaitingArg("","quit-without-waiting","When stdin is closed, quit quickly without waiting for queued tasks");
     cmd.add(numAnalysisThreadsArg);
+    cmd.add(quitWithoutWaitingArg);
     cmd.parse(argc,argv);
 
     modelFile = cmd.getModelFile();
     numAnalysisThreads = numAnalysisThreadsArg.getValue();
+    quitWithoutWaiting = quitWithoutWaitingArg.getValue();
 
     if(numAnalysisThreads <= 0 || numAnalysisThreads >= 16384)
       throw StringError("Invalid value for numAnalysisThreads");
@@ -71,18 +75,27 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   logger.write("Analysis Engine starting...");
   logger.write(Version::getKataGoVersionForHelp());
 
-  // Load to check for unused config keys and global settings
-  SearchParams params = Setup::loadSingleParams(cfg);
+  auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective) {
+    params = Setup::loadSingleParams(config);
+    perspective = Setup::parseReportAnalysisWinrates(config,C_EMPTY);
+    //Set a default for conservativePass that differs from matches or selfplay
+    if(!config.contains("conservativePass") && !config.contains("conservativePass0"))
+      params.conservativePass = true;
+  };
+
+  SearchParams defaultParams;
+  Player defaultPerspective;
+  loadParams(cfg, defaultParams, defaultPerspective);
+
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 15;
   const bool assumeMultipleStartingBlackMovesAreHandicap =
     cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
   const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
-  (void)Setup::parseReportAnalysisWinrates(cfg,C_EMPTY); // to stop complaints about unused keys which we will use later
 
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
-    int maxConcurrentEvals = numAnalysisThreads * params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    int maxConcurrentEvals = numAnalysisThreads * defaultParams.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     int defaultMaxBatchSize = -1;
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,
@@ -138,7 +151,10 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     pushToWrite(new string(ret.dump()));
   };
 
-  auto analysisLoop = [&cfg,&toAnalyzeQueue,&toWriteQueue,&preventEncore,&pushToWrite,&reportError](AsyncBot* bot) {
+  auto analysisLoop = [
+    &cfg,&defaultParams,&defaultPerspective,&loadParams,&logger,
+    &toAnalyzeQueue,&toWriteQueue,&preventEncore,&pushToWrite,&reportError
+  ](AsyncBot* bot) {
     while(true) {
       std::pair<std::pair<int,int64_t>,AnalyzeRequest*> analysisItem;
       bool suc = toAnalyzeQueue.waitPop(analysisItem);
@@ -147,20 +163,20 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       AnalyzeRequest* request = analysisItem.second;
 
       // Reload settings to allow overrides
-      ConfigParser localCfg(cfg);
-      SearchParams localParams;
-      Player perspective;
-      try {
+      SearchParams localParams = defaultParams;
+      Player perspective = defaultPerspective;
+      if(!request->overrideSettings.empty()) {
+        try {
+          ConfigParser localCfg(cfg);
           localCfg.overrideKeys(request->overrideSettings);
-          localParams = Setup::loadSingleParams(localCfg);
-           perspective = Setup::parseReportAnalysisWinrates(localCfg,C_EMPTY);
-          //Set a default for conservativePass that differs from matches or selfplay
-          if(!localCfg.contains("conservativePass") && !localCfg.contains("conservativePass0"))
-          localParams.conservativePass = true;
-      }
-      catch(StringError& exception) {
-        reportError("Could not set settings for query " + std::string(request->id) + ": " + exception.what());
-        continue;
+          loadParams(localCfg, localParams, perspective);
+          SearchParams::failIfParamsDifferOnUnchangeableParameter(defaultParams,localParams);
+        }
+        catch(const StringError& exception) {
+          reportError("Could not set settings for query " + std::string(request->id) + ": " + exception.what());
+          delete request;
+          continue;
+        }
       }
 
       localParams.maxVisits = request->maxVisits;
@@ -226,8 +242,12 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       }
       ret["moveInfos"] = moveInfos;
 
-      //Should always be populated after a search with at least 1 visit.
-      assert(search->rootNode != NULL && search->rootNode->nnOutput != nullptr);
+      //If the search didn't have any root or root neural net output, it must have been interrupted and we must be quitting imminently
+      if(search->rootNode == NULL || search->rootNode->nnOutput == nullptr) {
+        logger.write("Note: Search quitting due to no visits - this is normal and possible when shutting down but a bug under any other situation.");
+        delete request;
+        continue;
+      }
 
       // Stats for root position
       {
@@ -309,7 +329,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   vector<AsyncBot*> bots;
   for(int i = 0; i<numAnalysisThreads; i++) {
     string searchRandSeed = Global::uint64ToHexString(seedRand.nextUInt64()) + Global::uint64ToHexString(seedRand.nextUInt64());
-    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+    AsyncBot* bot = new AsyncBot(defaultParams, nnEval, &logger, searchRandSeed);
     threads.push_back(std::thread(analysisLoop,bot));
     bots.push_back(bot);
   }
@@ -347,10 +367,10 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     rbase.id = input["id"].get<string>();
 
     //Defaults
-    rbase.maxVisits = params.maxVisits;
+    rbase.maxVisits = defaultParams.maxVisits;
     rbase.analysisPVLen = analysisPVLen;
-    rbase.rootFpuReductionMax = params.rootFpuReductionMax;
-    rbase.rootPolicyTemperature = params.rootPolicyTemperature;
+    rbase.rootFpuReductionMax = defaultParams.rootFpuReductionMax;
+    rbase.rootPolicyTemperature = defaultParams.rootPolicyTemperature;
     rbase.includeOwnership = false;
     rbase.includePolicy = false;
     rbase.priority = 0;
@@ -638,7 +658,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     if(input.find("overrideSettings") != input.end()) {
       json settings = input["overrideSettings"];
       if(!settings.is_object()) {
-        reportErrorForId(rbase.id, "overrideSettings", "Must be an object" );
+        reportErrorForId(rbase.id, "overrideSettings", "Must be an object");
         continue;
       }
       for (auto it = settings.begin(); it != settings.end(); ++it) {
@@ -730,24 +750,33 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     newRequests.clear();
   }
 
-  // Wait for searches to finish and then stop.
-  while(!toAnalyzeQueue.empty())
-    std::this_thread::sleep_for(std::chrono::duration<double>(0.01));
-  // Making these readOnly should signal the analysis loop threads to terminate.
-  toAnalyzeQueue.setReadOnly();
-
-  for(int i = 0; i<bots.size(); i++)
-  {
-    threads[i].join();
-    bots[i]->stopAndWait(); // after thread joins due to empty queue, otherwise bot is killed before starting on last job
-    delete bots[i];
+  if(quitWithoutWaiting) {
+    //Making this readOnly will halt futher output that isn't already queued and signal the write loop thread to terminate.
+    toWriteQueue.setReadOnly();
+    //Making this readOnly should signal the analysis loop threads to terminate once they have nothing left.
+    toAnalyzeQueue.setReadOnly();
+    //Interrupt any searches going on to help the analysis threads realize to terminate faster.
+    for(int i = 0; i<bots.size(); i++)
+      bots[i]->stopWithoutWait();
+    for(int i = 0; i<bots.size(); i++)
+      bots[i]->setKilled();
+    for(int i = 0; i<threads.size(); i++)
+      threads[i].join();
+    write_thread.join();
+  }
+  else {
+    //Making this readOnly should signal the analysis loop threads to terminate once they have nothing left.
+    toAnalyzeQueue.setReadOnly();
+    //Wait patiently for everything to finish
+    for(int i = 0; i<threads.size(); i++)
+      threads[i].join();
+    //Signal the write loop thread to terminate
+    toWriteQueue.setReadOnly();
+    write_thread.join();
   }
 
-  while(!toWriteQueue.empty())
-    std::this_thread::sleep_for(std::chrono::duration<double>(0.001));
-  // Making toWriteQueue readOnly will immediately halt futher output and signal the write loop thread to terminate.
-  toWriteQueue.setReadOnly();
-  write_thread.join();
+  for(int i = 0; i<bots.size(); i++)
+    delete bots[i];
 
   logger.write(nnEval->getModelFileName());
   logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));

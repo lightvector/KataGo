@@ -31,6 +31,7 @@ ConfigParser::ConfigParser(const map<string, string>& kvs)
 ConfigParser::ConfigParser(const ConfigParser& source) {
   if(!source.initialized)
     throw StringError("Can only copy a ConfigParser which has been initialized.");
+  std::lock_guard<std::mutex> lock(source.usedKeysMutex);
   initialized = source.initialized;
   fileName = source.fileName;
   contents = source.contents;
