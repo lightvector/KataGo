@@ -604,9 +604,17 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       if(!overrideSettings.empty()) {
         try {
           ConfigParser localCfg(cfg);
+          //Ignore any unused keys in the ORIGINAL config
+          localCfg.markAllKeysUsedWithPrefix("");
           localCfg.overrideKeys(overrideSettings);
           loadParams(localCfg, rbase.params, rbase.perspective);
           SearchParams::failIfParamsDifferOnUnchangeableParameter(defaultParams,rbase.params);
+          //Hard failure on unused override keys newly present in the config
+          vector<string> unusedKeys = localCfg.unusedKeys();
+          if(unusedKeys.size() > 0) {
+            reportErrorForId(rbase.id, "overrideSettings", string("Unknown config params: ") + Global::concat(unusedKeys,","));
+            continue;
+          }
         }
         catch(const StringError& exception) {
           reportErrorForId(rbase.id, "overrideSettings", string("Could not set settings: ") + exception.what());
