@@ -71,6 +71,10 @@ static const vector<string> knownCommands = {
   //Display raw neural net evaluations
   "kata-raw-nn",
 
+  //Misc other stuff
+  "cputime",
+  "gomill-cpu_time",
+
   //Some debug commands
   "kata-debug-print-tc",
 
@@ -326,6 +330,8 @@ struct GTPEngine {
 
   Player perspective;
 
+  double genmoveTimeSum;
+
   GTPEngine(
     const string& modelFile, SearchParams initialParams, Rules initialRules,
     bool assumeMultiBlackHandicap, bool prevtEncore,
@@ -353,7 +359,8 @@ struct GTPEngine {
      lastSearchFactor(1.0),
      desiredDynamicPDAForWhite(0.0),
      avoidMYTDaggerHack(avoidDagger),
-     perspective(persp)
+     perspective(persp),
+     genmoveTimeSum(0.0)
   {
   }
 
@@ -369,6 +376,10 @@ struct GTPEngine {
 
   Rules getCurrentRules() {
     return currentRules;
+  }
+
+  void clearStatsForNewGame() {
+    genmoveTimeSum = 0.0;
   }
 
   //Specify -1 for the sizes for a default
@@ -431,6 +442,7 @@ struct GTPEngine {
     BoardHistory hist(board,pla,currentRules,0);
     vector<Move> newMoveHistory;
     setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
+    clearStatsForNewGame();
   }
 
   void setPositionAndRules(Player pla, const Board& board, const BoardHistory& h, const Board& newInitialBoard, Player newInitialPla, const vector<Move> newMoveHistory) {
@@ -456,6 +468,7 @@ struct GTPEngine {
     BoardHistory hist(board,pla,currentRules,0);
     vector<Move> newMoveHistory;
     setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
+    clearStatsForNewGame();
   }
 
   void updateKomiIfNew(float newKomi) {
@@ -690,11 +703,12 @@ struct GTPEngine {
     string& response, bool& responseIsError, bool& maybeStartPondering,
     AnalyzeArgs args
   ) {
+    ClockTimer timer;
+
     response = "";
     responseIsError = false;
     maybeStartPondering = false;
 
-    ClockTimer timer;
     nnEval->clearStats();
     TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
 
@@ -755,6 +769,7 @@ struct GTPEngine {
       sout << "Pla: " << PlayerIO::playerToString(pla) << "\n";
       sout << "MoveLoc: " << Location::toString(moveLoc,bot->getRootBoard()) << "\n";
       logger.write(sout.str());
+      genmoveTimeSum += timer.getSeconds();
       return;
     }
 
@@ -790,7 +805,20 @@ struct GTPEngine {
       lead = values.lead;
     }
 
+    //Record data for resignation or adjusting handicap behavior ------------------------
+    recentWinLossValues.push_back(winLossValue);
+
+    //Decide whether we should resign---------------------
+    bool resigned = allowResignation && shouldResign(
+      bot->getRootBoard(),bot->getRootHist(),pla,recentWinLossValues,lead,
+      resignThreshold,resignConsecTurns,resignMinScoreDifference
+    );
+
+
+    //Snapshot the time NOW - all meaningful play-related computation time is done, the rest is just
+    //output of various things.
     double timeTaken = timer.getSeconds();
+    genmoveTimeSum += timeTaken;
 
     //Chatting and logging ----------------------------
 
@@ -828,16 +856,7 @@ struct GTPEngine {
       printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken,perspective);
     }
 
-    //Adjust handicap games ------------------------
-    recentWinLossValues.push_back(winLossValue);
-
-    //Resignation, actual reporting of chosen move---------------------
-
-    bool resigned = allowResignation && shouldResign(
-      bot->getRootBoard(),bot->getRootHist(),pla,recentWinLossValues,lead,
-      resignThreshold,resignConsecTurns,resignMinScoreDifference
-    );
-
+    //Actual reporting of chosen move---------------------
     if(resigned)
       response = "resign";
     else
@@ -856,6 +875,7 @@ struct GTPEngine {
     if(args.analyzing) {
       response = "play " + response;
     }
+
     return;
   }
 
@@ -900,6 +920,7 @@ struct GTPEngine {
 
     vector<Move> newMoveHistory;
     setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
+    clearStatsForNewGame();
   }
 
   void placeFreeHandicap(int n, string& response, bool& responseIsError, Rand& rand) {
@@ -940,6 +961,7 @@ struct GTPEngine {
 
     vector<Move> newMoveHistory;
     setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
+    clearStatsForNewGame();
   }
 
   void analyze(Player pla, AnalyzeArgs args) {
@@ -2278,6 +2300,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       else {
         response = engine->rawNN(whichSymmetry);
       }
+    }
+
+
+    else if(command == "cputime" || command == "gomill-cpu_time") {
+      response = Global::doubleToString(engine->genmoveTimeSum);
     }
 
     else if(command == "stop") {
