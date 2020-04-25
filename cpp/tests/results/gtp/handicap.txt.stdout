@@ -58,11 +58,7 @@ Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide
 B stones captured: 0
 W stones captured: 0
 
-= Q17
-
-= 
-
-= Q15
+= R16
 
 = 
 
@@ -70,7 +66,11 @@ W stones captured: 0
 
 = 
 
-= R7
+= Q5
+
+= 
+
+= R5
 
 = 
 
@@ -132,5 +132,5 @@ W stones captured: 0
 
 = 
 
-= L3
+= L4
 

@@ -1,5 +1,6 @@
 #!/bin/bash -eu
-
+set -o pipefail
+{
 if [[ $# -ne 4 ]]
 then
     echo "Usage: $0 BASEDIR TMPDIR NTHREADS BATCHSIZE"
@@ -32,3 +33,6 @@ mkdir -p "$basedir"/logs
         sleep 20
     done
 ) >> "$basedir"/logs/outshuffle.txt 2>&1 & disown
+
+exit 0
+}

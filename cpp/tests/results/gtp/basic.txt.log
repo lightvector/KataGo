@@ -7,7 +7,7 @@
 : Cuda backend: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend: Model name: g170-b6c96-s175395328-d26788732
 : Loaded neural net with nnXLen 19 nnYLen 19
-: Loaded config configs/gtp_example.cfg and/or command-line overrides
+: Loaded config configs/gtp_example.cfg and/or command-line and query overrides
 : Loaded model models/g170-b6c96-s175395328-d26788732.bin.gz
 : Model name: g170-b6c96-s175395328-d26788732
 : GTP ready, beginning main protocol loop

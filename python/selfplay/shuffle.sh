@@ -1,5 +1,6 @@
 #!/bin/bash -eu
-
+set -o pipefail
+{
 #Shuffles and copies selfplay training from selfplay/ to shuffleddata/current/
 #Should be run periodically.
 
@@ -73,3 +74,6 @@ echo "Finished shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
 #Make a little space between shuffles
 echo ""
 echo ""
+
+exit 0
+}

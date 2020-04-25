@@ -22,9 +22,9 @@ class ConfigParser {
   ConfigParser(const std::string& file);
   ConfigParser(std::istream& in);
   ConfigParser(const std::map<std::string, std::string>& kvs);
+  ConfigParser(const ConfigParser& source);
   ~ConfigParser();
 
-  ConfigParser(const ConfigParser& other) = delete;
   ConfigParser& operator=(const ConfigParser& other) = delete;
   ConfigParser(ConfigParser&& other) = delete;
   ConfigParser& operator=(ConfigParser&& other) = delete;

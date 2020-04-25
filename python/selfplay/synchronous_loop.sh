@@ -1,5 +1,6 @@
 #!/bin/bash -eu
 set -o pipefail
+{
 
 # Runs the entire self-play process synchronously in a loop, training a single size of neural net appropriately.
 # Assumes you have the cpp directory compiled and the katago executable is there.
@@ -42,7 +43,7 @@ mkdir -p "$SCRATCHDIR"
 mkdir -p "$BASEDIR"/selfplay
 mkdir -p "$BASEDIR"/gatekeepersgf
 
-# NOTE: You probably want to edit settings in the cpp/configs/selfplay1.cfg.
+# NOTE: You probably want to edit settings in the cpp/configs/selfplay1.cfg - what board sizes and rules, you want to learn, number of visits to use, etc.
 # NOTE: You may want to adjust these numbers.
 NUM_GAMES_PER_CYCLE=1000
 NUM_THREADS_FOR_SHUFFLING=8
@@ -75,3 +76,6 @@ do
     echo "Gatekeeper"
     time "$GITROOTDIR"/cpp/katago gatekeeper -rejected-models-dir "$BASEDIR"/rejectedmodels -accepted-models-dir "$BASEDIR"/models/ -sgf-output-dir "$BASEDIR"/gatekeepersgf/ -test-models-dir "$BASEDIR"/modelstobetested/ -config "$GITROOTDIR"/cpp/configs/gatekeeper1.cfg -quit-if-no-nets-to-test | tee -a "$BASEDIR"/gatekeepersgf/stdout.txt
 done
+
+exit 0
+}

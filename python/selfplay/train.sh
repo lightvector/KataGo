@@ -1,5 +1,6 @@
 #!/bin/bash -eu
-
+set -o pipefail
+{
 #Runs tensorflow training in $BASEDIR/train/$TRAININGNAME
 #Should be run once per persistent training process.
 #Outputs results in tfsavedmodels_toexport/ in an ongoing basis (EXPORTMODE == "main").
@@ -68,3 +69,6 @@ time python3 "$GITROOTDIR"/python/train.py \
      $EXTRAFLAG \
      "$@" \
      2>&1 | tee -a "$BASEDIR"/train/"$TRAININGNAME"/stdout.txt
+
+exit 0
+}

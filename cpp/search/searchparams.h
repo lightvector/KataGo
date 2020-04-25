@@ -88,6 +88,8 @@ struct SearchParams {
 
   //Params to use for testing, with some more recent values representative of more real use (as of Jan 2019)
   static SearchParams forTestsV1();
+
+  static void failIfParamsDifferOnUnchangeableParameter(const SearchParams& initial, const SearchParams& dynamic);
 };
 
 #endif  // SEARCH_SEARCHPARAMS_H_

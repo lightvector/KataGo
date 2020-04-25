@@ -26,6 +26,7 @@ class ThreadSafeContainer
   virtual T popUnsynchronized() = 0;
   virtual void clearUnsynchronized() = 0;
   virtual size_t sizeUnsynchronized() = 0;
+  virtual bool empty() = 0;
 
  public:
   inline ThreadSafeContainer()
@@ -185,6 +186,10 @@ class ThreadSafeQueue final : public ThreadSafeContainer<T>
     return elts.size() - headIdx;
   }
 
+  inline bool empty() override {
+    return elts.empty();
+  }
+
 };
 
 //Will return the elements with HIGHEST KT first, according to the comparison on KT.
@@ -221,6 +226,9 @@ class ThreadSafePriorityQueue final : public ThreadSafeContainer<std::pair<KT,VT
     return queue.size();
   }
 
+  inline bool empty() override {
+    return queue.empty();
+  }
 };
 
 

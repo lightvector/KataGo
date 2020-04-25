@@ -76,6 +76,8 @@ class AsyncBot {
   void stopAndWait();
   //Same, but does NOT wait for the stop. Also safe to call even if nothing is running.
   void stopWithoutWait();
+  //Call this to permanently kill this bot and prevent future search.
+  void setKilled();
 
 
  private:

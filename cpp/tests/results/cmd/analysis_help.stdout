@@ -24,6 +24,9 @@ Where:
    -analysis-threads <THREADS>
      (required)  Analysis up to this many positions in parallel
 
+   -quit-without-waiting
+     When stdin is closed, quit quickly without waiting for queued tasks
+
    --,  -ignore_rest
      Ignores the rest of the labeled arguments following this flag.
 

@@ -22,10 +22,9 @@ struct AnalyzeRequest {
   BoardHistory hist;
   Player nextPla;
 
-  int64_t maxVisits;
+  SearchParams params;
+  Player perspective;
   int analysisPVLen;
-  double rootFpuReductionMax;
-  double rootPolicyTemperature;
   bool includeOwnership;
   bool includePolicy;
 };
@@ -38,6 +37,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   ConfigParser cfg;
   string modelFile;
   int numAnalysisThreads;
+  bool quitWithoutWaiting;
 
   try {
     KataGoCommandLine cmd("Run KataGo parallel JSON-based analysis engine.");
@@ -47,11 +47,14 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     cmd.addOverrideConfigArg();
 
     TCLAP::ValueArg<int> numAnalysisThreadsArg("","analysis-threads","Analysis up to this many positions in parallel",true,0,"THREADS");
+    TCLAP::SwitchArg quitWithoutWaitingArg("","quit-without-waiting","When stdin is closed, quit quickly without waiting for queued tasks");
     cmd.add(numAnalysisThreadsArg);
+    cmd.add(quitWithoutWaitingArg);
     cmd.parse(argc,argv);
 
     modelFile = cmd.getModelFile();
     numAnalysisThreads = numAnalysisThreadsArg.getValue();
+    quitWithoutWaiting = quitWithoutWaitingArg.getValue();
 
     if(numAnalysisThreads <= 0 || numAnalysisThreads >= 16384)
       throw StringError("Invalid value for numAnalysisThreads");
@@ -70,13 +73,19 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   logger.write("Analysis Engine starting...");
   logger.write(Version::getKataGoVersionForHelp());
 
-  SearchParams params = Setup::loadSingleParams(cfg);
-  //Set a default for conservativePass that differs from matches or selfplay
-  if(!cfg.contains("conservativePass") && !cfg.contains("conservativePass0"))
-    params.conservativePass = true;
+  auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective) {
+    params = Setup::loadSingleParams(config);
+    perspective = Setup::parseReportAnalysisWinrates(config,C_EMPTY);
+    //Set a default for conservativePass that differs from matches or selfplay
+    if(!config.contains("conservativePass") && !config.contains("conservativePass0"))
+      params.conservativePass = true;
+  };
+
+  SearchParams defaultParams;
+  Player defaultPerspective;
+  loadParams(cfg, defaultParams, defaultPerspective);
 
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 15;
-  const Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
   const bool assumeMultipleStartingBlackMovesAreHandicap =
     cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
   const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
@@ -84,7 +93,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
-    int maxConcurrentEvals = numAnalysisThreads * params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    int maxConcurrentEvals = numAnalysisThreads * defaultParams.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     int defaultMaxBatchSize = -1;
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,
@@ -120,7 +129,29 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   ThreadSafePriorityQueue<std::pair<int,int64_t>, AnalyzeRequest*> toAnalyzeQueue;
   int64_t numRequestsSoFar = 0; // used as tie breaker for requests with same priority
 
-  auto analysisLoop = [&params,perspective,&toAnalyzeQueue,&toWriteQueue,&preventEncore,&pushToWrite](AsyncBot* bot) {
+  auto reportError = [&pushToWrite](const string& s) {
+    json ret;
+    ret["error"] = s;
+    pushToWrite(new string(ret.dump()));
+  };
+  auto reportErrorForId = [&pushToWrite](const string& id, const string& field, const string& s) {
+    json ret;
+    ret["id"] = id;
+    ret["field"] = field;
+    ret["error"] = s;
+    pushToWrite(new string(ret.dump()));
+  };
+  auto reportWarningForId = [&pushToWrite](const string& id, const string& field, const string& s) {
+    json ret;
+    ret["id"] = id;
+    ret["field"] = field;
+    ret["warning"] = s;
+    pushToWrite(new string(ret.dump()));
+  };
+
+  auto analysisLoop = [
+    &logger,&toAnalyzeQueue,&toWriteQueue,&preventEncore,&pushToWrite,&reportError
+  ](AsyncBot* bot) {
     while(true) {
       std::pair<std::pair<int,int64_t>,AnalyzeRequest*> analysisItem;
       bool suc = toAnalyzeQueue.waitPop(analysisItem);
@@ -128,14 +159,9 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         break;
       AnalyzeRequest* request = analysisItem.second;
 
-      SearchParams thisParams = params;
-      thisParams.maxVisits = request->maxVisits;
-      thisParams.rootFpuReductionMax = request->rootFpuReductionMax;
-      thisParams.rootPolicyTemperature = request->rootPolicyTemperature;
-      thisParams.rootPolicyTemperatureEarly = request->rootPolicyTemperature;
       bot->setPosition(request->nextPla,request->board,request->hist);
       bot->setAlwaysIncludeOwnerMap(request->includeOwnership);
-      bot->setParams(thisParams);
+      bot->setParams(request->params);
 
       Player pla = request->nextPla;
       bot->genMoveSynchronous(pla, TimeControls());
@@ -149,6 +175,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
       const Search* search = bot->getSearch();
       search->getAnalysisData(buf,minMoves,false,request->analysisPVLen);
+
+      const Player perspective = request->perspective;
 
       // Stats for all the individual moves
       json moveInfos = json::array();
@@ -192,8 +220,12 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       }
       ret["moveInfos"] = moveInfos;
 
-      //Should always be populated after a search with at least 1 visit.
-      assert(search->rootNode != NULL && search->rootNode->nnOutput != nullptr);
+      //If the search didn't have any root or root neural net output, it must have been interrupted and we must be quitting imminently
+      if(search->rootNode == NULL || search->rootNode->nnOutput == nullptr) {
+        logger.write("Note: Search quitting due to no visits - this is normal and possible when shutting down but a bug under any other situation.");
+        delete request;
+        continue;
+      }
 
       // Stats for root position
       {
@@ -271,11 +303,11 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   };
 
   vector<std::thread> threads;
+  std::thread write_thread = std::thread(writeLoop);
   vector<AsyncBot*> bots;
-  threads.push_back(std::thread(writeLoop));
   for(int i = 0; i<numAnalysisThreads; i++) {
     string searchRandSeed = Global::uint64ToHexString(seedRand.nextUInt64()) + Global::uint64ToHexString(seedRand.nextUInt64());
-    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+    AsyncBot* bot = new AsyncBot(defaultParams, nnEval, &logger, searchRandSeed);
     threads.push_back(std::thread(analysisLoop,bot));
     bots.push_back(bot);
   }
@@ -283,25 +315,6 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   logger.write("Analyzing up to " + Global::intToString(numAnalysisThreads) + " positions at at time in parallel");
   logger.write("Started, ready to begin handling requests");
 
-  auto reportError = [&pushToWrite](const string& s) {
-    json ret;
-    ret["error"] = s;
-    pushToWrite(new string(ret.dump()));
-  };
-  auto reportErrorForId = [&pushToWrite](const string& id, const string& field, const string& s) {
-    json ret;
-    ret["id"] = id;
-    ret["field"] = field;
-    ret["error"] = s;
-    pushToWrite(new string(ret.dump()));
-  };
-  auto reportWarningForId = [&pushToWrite](const string& id, const string& field, const string& s) {
-    json ret;
-    ret["id"] = id;
-    ret["field"] = field;
-    ret["warning"] = s;
-    pushToWrite(new string(ret.dump()));
-  };
 
   string line;
   json input;
@@ -332,10 +345,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     rbase.id = input["id"].get<string>();
 
     //Defaults
-    rbase.maxVisits = params.maxVisits;
+    rbase.params = defaultParams;
     rbase.analysisPVLen = analysisPVLen;
-    rbase.rootFpuReductionMax = params.rootFpuReductionMax;
-    rbase.rootPolicyTemperature = params.rootPolicyTemperature;
     rbase.includeOwnership = false;
     rbase.includePolicy = false;
     rbase.priority = 0;
@@ -578,8 +589,42 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       }
     }
 
+    if(input.find("overrideSettings") != input.end()) {
+      json settings = input["overrideSettings"];
+      if(!settings.is_object()) {
+        reportErrorForId(rbase.id, "overrideSettings", "Must be an object");
+        continue;
+      }
+      std::map<string,string> overrideSettings;
+      for(auto it = settings.begin(); it != settings.end(); ++it) {
+        overrideSettings[it.key()] = it.value().is_string() ? std::string(it.value()): it.value().dump(); // always convert to string
+      }
+
+      // Reload settings to allow overrides
+      if(!overrideSettings.empty()) {
+        try {
+          ConfigParser localCfg(cfg);
+          //Ignore any unused keys in the ORIGINAL config
+          localCfg.markAllKeysUsedWithPrefix("");
+          localCfg.overrideKeys(overrideSettings);
+          loadParams(localCfg, rbase.params, rbase.perspective);
+          SearchParams::failIfParamsDifferOnUnchangeableParameter(defaultParams,rbase.params);
+          //Hard failure on unused override keys newly present in the config
+          vector<string> unusedKeys = localCfg.unusedKeys();
+          if(unusedKeys.size() > 0) {
+            reportErrorForId(rbase.id, "overrideSettings", string("Unknown config params: ") + Global::concat(unusedKeys,","));
+            continue;
+          }
+        }
+        catch(const StringError& exception) {
+          reportErrorForId(rbase.id, "overrideSettings", string("Could not set settings: ") + exception.what());
+          continue;
+        }
+      }
+    }
+
     if(input.find("maxVisits") != input.end()) {
-      bool suc = parseInteger("maxVisits", rbase.maxVisits, 1, (int64_t)1 << 50, "Must be an integer from 1 to 2^50");
+      bool suc = parseInteger("maxVisits", rbase.params.maxVisits, 1, (int64_t)1 << 50, "Must be an integer from 1 to 2^50");
       if(!suc)
         continue;
     }
@@ -593,14 +638,15 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     }
 
     if(input.find("rootFpuReductionMax") != input.end()) {
-      bool suc = parseDouble("rootFpuReductionMax", rbase.rootFpuReductionMax, 0.0, 2.0, "Must be a number from 0.0 to 2.0");
+      bool suc = parseDouble("rootFpuReductionMax", rbase.params.rootFpuReductionMax, 0.0, 2.0, "Must be a number from 0.0 to 2.0");
       if(!suc)
         continue;
     }
     if(input.find("rootPolicyTemperature") != input.end()) {
-      bool suc = parseDouble("rootPolicyTemperature", rbase.rootPolicyTemperature, 0.01, 100.0, "Must be a number from 0.01 to 100.0");
+      bool suc = parseDouble("rootPolicyTemperature", rbase.params.rootPolicyTemperature, 0.01, 100.0, "Must be a number from 0.01 to 100.0");
       if(!suc)
         continue;
+      rbase.params.rootPolicyTemperatureEarly = rbase.params.rootPolicyTemperature;
     }
     if(input.find("includeOwnership") != input.end()) {
       bool suc = parseBoolean("includeOwnership", rbase.includeOwnership, "Must be a boolean");
@@ -619,6 +665,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         continue;
       rbase.priority = (int)buf;
     }
+
 
     Board board(boardXSize,boardYSize);
     for(int i = 0; i<placements.size(); i++) {
@@ -656,10 +703,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         newRequest->board = board;
         newRequest->hist = hist;
         newRequest->nextPla = nextPla;
-        newRequest->maxVisits = rbase.maxVisits;
+        newRequest->params = rbase.params;
         newRequest->analysisPVLen = rbase.analysisPVLen;
-        newRequest->rootFpuReductionMax = rbase.rootFpuReductionMax;
-        newRequest->rootPolicyTemperature = rbase.rootPolicyTemperature;
         newRequest->includeOwnership = rbase.includeOwnership;
         newRequest->includePolicy = rbase.includePolicy;
         newRequest->priority = rbase.priority;
@@ -702,16 +747,31 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     newRequests.clear();
   }
 
-  //Making toWriteQueue readOnly will immediately halt futher output and signal the write loop thread to terminate.
-  toWriteQueue.setReadOnly();
-  //Making these readOnly should signal the analysis loop threads to terminate.
-  toAnalyzeQueue.setReadOnly();
-  //Interrupt any searches going on to help the analysis threads realize to terminate faster.
-  for(int i = 0; i<bots.size(); i++)
-    bots[i]->stopWithoutWait();
+  if(quitWithoutWaiting) {
+    //Making this readOnly will halt futher output that isn't already queued and signal the write loop thread to terminate.
+    toWriteQueue.setReadOnly();
+    //Making this readOnly should signal the analysis loop threads to terminate once they have nothing left.
+    toAnalyzeQueue.setReadOnly();
+    //Interrupt any searches going on to help the analysis threads realize to terminate faster.
+    for(int i = 0; i<bots.size(); i++)
+      bots[i]->stopWithoutWait();
+    for(int i = 0; i<bots.size(); i++)
+      bots[i]->setKilled();
+    for(int i = 0; i<threads.size(); i++)
+      threads[i].join();
+    write_thread.join();
+  }
+  else {
+    //Making this readOnly should signal the analysis loop threads to terminate once they have nothing left.
+    toAnalyzeQueue.setReadOnly();
+    //Wait patiently for everything to finish
+    for(int i = 0; i<threads.size(); i++)
+      threads[i].join();
+    //Signal the write loop thread to terminate
+    toWriteQueue.setReadOnly();
+    write_thread.join();
+  }
 
-  for(int i = 0; i<threads.size(); i++)
-    threads[i].join();
   for(int i = 0; i<bots.size(); i++)
     delete bots[i];
 
