@@ -10,6 +10,8 @@
 #include "../command/commandline.h"
 #include "../main.h"
 
+#include <chrono>
+
 using namespace std;
 
 static void writeLine(
@@ -549,4 +551,12 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
   logger.write("All cleaned up, quitting");
   return 0;
 
+}
+
+int MainCmds::printclockinfo(int argc, const char* const* argv) {
+  (void)argc;
+  (void)argv;
+  cout << "Tick unit in seconds: " << std::chrono::steady_clock::period::num << " / " <<  std::chrono::steady_clock::period::den << endl;
+  cout << "Ticks since epoch: " << std::chrono::steady_clock::now().time_since_epoch().count() << endl;
+  return 0;
 }

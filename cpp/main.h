@@ -26,6 +26,7 @@ namespace MainCmds {
 
   int lzcost(int argc, const char* const* argv);
   int demoplay(int argc, const char* const* argv);
+  int printclockinfo(int argc, const char* const* argv);
 
   int sandbox();
 }
