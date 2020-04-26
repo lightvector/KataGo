@@ -704,6 +704,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         newRequest->hist = hist;
         newRequest->nextPla = nextPla;
         newRequest->params = rbase.params;
+        newRequest->perspective = rbase.perspective;
         newRequest->analysisPVLen = rbase.analysisPVLen;
         newRequest->includeOwnership = rbase.includeOwnership;
         newRequest->includePolicy = rbase.includePolicy;
