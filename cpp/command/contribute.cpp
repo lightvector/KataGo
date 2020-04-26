@@ -223,12 +223,11 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   logger.write(string("Git revision: ") + Version::getGitRevision());
 
   string serverUrl = userCfg->getString("serverUrl");
-  int serverPort = userCfg->contains("serverPort") ? userCfg->getInt("serverPort",0,65535) : 80;
   string username = userCfg->getString("username");
   string password = userCfg->getString("password");
 
   //Connect to server and get global parameters for the run.
-  Client::Connection* connection = new Client::Connection(serverUrl,serverPort,username,password,&logger);
+  Client::Connection* connection = new Client::Connection(serverUrl,username,password,&logger);
   const Client::RunParameters runParams = connection->getRunParameters();
 
   MakeDir::make(baseDir);

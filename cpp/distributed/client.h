@@ -34,7 +34,7 @@ namespace Client {
 
   class Connection {
   public:
-    Connection(const std::string& serverUrl, int serverPort, const std::string& username, const std::string& password, Logger* logger);
+    Connection(const std::string& serverUrl, const std::string& username, const std::string& password, Logger* logger);
     ~Connection();
 
     Connection(const Connection&) = delete;
@@ -52,8 +52,14 @@ namespace Client {
     void uploadEvaluationGame(const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath);
 
   private:
+    std::shared_ptr<httplib::Response> get(const std::string& subPath);
+
+
     httplib::Client* httpClient;
     httplib::SSLClient* httpsClient;
+    bool isSSL;
+    std::string baseResourcePath;
+
     Logger* logger;
 
     //TODO if httplib is thread-safe, then we can remove this
