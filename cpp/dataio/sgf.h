@@ -160,8 +160,10 @@ namespace WriteSgf {
     bool tryNicerRulesString
   );
 
-  //If hist is a finished game, print the result to out, else do nothing
+  //If hist is a finished game, print the result to out along with SGF tag, else do nothing
   void printGameResult(std::ostream& out, const BoardHistory& hist);
+  //Get the game result without a surrounding sgf tag
+  std::string gameResultNoSgfTag(const BoardHistory& hist);
 }
 
 #endif  // DATAIO_SGF_H_

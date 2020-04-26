@@ -74,12 +74,13 @@ struct FinishedGameData {
   std::vector<SidePosition*> sidePositions;
   std::vector<ChangedNeuralNet*> changedNeuralNets;
 
-  static constexpr int MODE_HINTPOS = 5;
+  static constexpr int NUM_MODES = 6;
   static constexpr int MODE_NORMAL = 0;
   static constexpr int MODE_CLEANUP_TRAINING = 1;
   static constexpr int MODE_FORK = 2;
   static constexpr int MODE_HANDICAP = 3;
   static constexpr int MODE_SGFPOS = 4;
+  static constexpr int MODE_HINTPOS = 5;
 
   FinishedGameData();
   ~FinishedGameData();
