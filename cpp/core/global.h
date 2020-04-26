@@ -95,6 +95,8 @@ namespace Global
   //Check prefix/suffix
   bool isPrefix(const std::string& s, const std::string& prefix);
   bool isSuffix(const std::string& s, const std::string& suffix);
+  std::string chopPrefix(const std::string& s, const std::string& prefix);
+  std::string chopSuffix(const std::string& s, const std::string& suffix);
 
   //Trim whitespace off both ends of string
   std::string trim(const std::string& s);

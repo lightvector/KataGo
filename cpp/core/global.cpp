@@ -272,6 +272,19 @@ bool Global::isSuffix(const string& s, const string& suffix)
   return result == 0;
 }
 
+string Global::chopPrefix(const string& s, const string& prefix)
+{
+  if(!isPrefix(s,prefix))
+    throw StringError("Global::chopPrefix: \n" + prefix + "\nis not a prefix of\n" + s);
+  return s.substr(prefix.size());
+}
+string Global::chopSuffix(const string& s, const string& suffix)
+{
+  if(!isSuffix(s,suffix))
+    throw StringError("Global::chopSuffix: \n" + suffix + "\nis not a suffix of\n" + s);
+  return s.substr(0,s.size()-suffix.size());
+}
+
 
 string Global::trim(const string& s)
 {
