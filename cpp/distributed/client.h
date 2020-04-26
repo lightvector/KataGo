@@ -43,16 +43,18 @@ namespace Client {
     Connection& operator=(Connection&&) = delete;
 
     RunParameters getRunParameters();
-    Task getNextTask(const std::string& baseDir);
+    Task getNextTask(const std::string& baseDir, bool retryOnFailure);
 
     static std::string getModelPath(const std::string& modelName, const std::string& modelDir);
-    void downloadModelIfNotPresent(const std::string& modelName, const std::string& modelDir, const std::string& modelUrl);
+    void downloadModelIfNotPresent(const std::string& modelName, const std::string& modelDir, const std::string& modelUrl, bool retryOnFailure);
 
-    void uploadTrainingGameAndData(const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath, const std::string& npzFilePath);
-    void uploadEvaluationGame(const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath);
+    void uploadTrainingGameAndData(const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath, const std::string& npzFilePath, bool retryOnFailure);
+    void uploadEvaluationGame(const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath, bool retryOnFailure);
 
   private:
     std::shared_ptr<httplib::Response> get(const std::string& subPath);
+    std::shared_ptr<httplib::Response> post(const std::string& subPath, const std::string& data, const std::string& dtype);
+    std::shared_ptr<httplib::Response> getBigFile(const std::string& fullPath, std::function<bool(const char* data, size_t data_length)> f);
 
 
     httplib::Client* httpClient;
