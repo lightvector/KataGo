@@ -115,6 +115,7 @@ static void runAndUploadSingleGame(Client::Connection* connection, GameTask game
     WriteSgf::writeSgf(out,gameData->bName,gameData->wName,gameData->endHist,gameData,false);
     out.close();
 
+    const bool retryOnFailure = true;
     if(gameTask.task.doWriteTrainingData) {
       gameTask.manager->withDataWriters(
         nnEvalBlack,
@@ -125,11 +126,11 @@ static void runAndUploadSingleGame(Client::Connection* connection, GameTask game
           string resultingFilename;
           bool producedFile = tdataWriter->flushIfNonempty(resultingFilename);
           if(producedFile)
-            connection->uploadTrainingGameAndData(gameTask.task,gameData,sgfFile,resultingFilename);
+            connection->uploadTrainingGameAndData(gameTask.task,gameData,sgfFile,resultingFilename,retryOnFailure);
         });
     }
     else {
-      connection->uploadEvaluationGame(gameTask.task,gameData,sgfFile);
+      connection->uploadEvaluationGame(gameTask.task,gameData,sgfFile,retryOnFailure);
     }
   }
 
@@ -345,10 +346,12 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   }
 
   //Loop acquiring tasks and feeding them to game threads
+  bool anyTaskSuccessfullyParsedYet = false;
   while(true) {
     if(shouldStop.load())
       break;
-    Client::Task task = connection->getNextTask(baseDir);
+    bool retryOnFailure = anyTaskSuccessfullyParsedYet;
+    Client::Task task = connection->getNextTask(baseDir,retryOnFailure);
 
     if(task.runName != runParams.runName) {
       throw StringError(
@@ -364,8 +367,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     }
 
     //TODO should we have a mechanism to interrupt the download to quit faster in response to shouldStop?
-    connection->downloadModelIfNotPresent(task.modelNameBlack,modelsDir,task.modelUrlBlack);
-    connection->downloadModelIfNotPresent(task.modelNameWhite,modelsDir,task.modelUrlWhite);
+    connection->downloadModelIfNotPresent(task.modelNameBlack,modelsDir,task.modelUrlBlack,retryOnFailure);
+    connection->downloadModelIfNotPresent(task.modelNameWhite,modelsDir,task.modelUrlWhite,retryOnFailure);
     if(shouldStop.load())
       break;
 
@@ -395,6 +398,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     gameTask.nnEvalBlack = nnEvalBlack;
     gameTask.nnEvalWhite = nnEvalWhite;
 
+    anyTaskSuccessfullyParsedYet = true;
     bool suc = gameTaskQueue.waitPush(gameTask);
     (void)suc;
     assert(suc);

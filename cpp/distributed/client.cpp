@@ -3,10 +3,16 @@
 #include "../distributed/client.h"
 #include "../game/board.h"
 #include "../neuralnet/modelversion.h"
+#include "../neuralnet/desc.h"
 #include "../external/nlohmann_json/json.hpp"
 
 #include <cmath>
+#include <fstream>
 #include <sstream>
+#include <chrono>
+
+#include <boost/filesystem.hpp>
+namespace bfs = boost::filesystem;
 
 using namespace std;
 using json = nlohmann::json;
@@ -139,7 +145,7 @@ Connection::~Connection() {
   delete httpsClient;
 }
 
-std::shared_ptr<httplib::Response> Connection::get(const string& subPath) {
+static string concatPaths(const string& baseResourcePath, const string& subPath) {
   string queryPath;
   if(Global::isSuffix(baseResourcePath,"/") && Global::isPrefix(subPath,"/"))
     queryPath = Global::chopSuffix(baseResourcePath,"/") + subPath;
@@ -147,6 +153,11 @@ std::shared_ptr<httplib::Response> Connection::get(const string& subPath) {
     queryPath = baseResourcePath + subPath;
   else
     queryPath = baseResourcePath + "/" + subPath;
+  return queryPath;
+}
+
+std::shared_ptr<httplib::Response> Connection::get(const string& subPath) {
+  string queryPath = concatPaths(baseResourcePath,subPath);
 
   std::lock_guard<std::mutex> lock(mutex);
   if(isSSL) {
@@ -162,6 +173,45 @@ std::shared_ptr<httplib::Response> Connection::get(const string& subPath) {
   }
   else {
     return httpClient->Get(queryPath.c_str());
+  }
+}
+
+std::shared_ptr<httplib::Response> Connection::getBigFile(const string& fullPath, std::function<bool(const char *data, size_t data_length)> f) {
+  std::lock_guard<std::mutex> lock(mutex);
+  if(isSSL) {
+    std::shared_ptr<httplib::Response> response = httpsClient->Get(fullPath.c_str(),f);
+    if(response == nullptr) {
+      auto result = httpsClient->get_openssl_verify_result();
+      if(result) {
+        string err = X509_verify_cert_error_string(result);
+        logger->write("SSL certificate validation error (X509) - is the website secure?: " + err);
+      }
+    }
+    return response;
+  }
+  else {
+    return httpClient->Get(fullPath.c_str(),f);
+  }
+}
+
+
+std::shared_ptr<httplib::Response> Connection::post(const string& subPath, const string& data, const string& dtype) {
+  string queryPath = concatPaths(baseResourcePath,subPath);
+
+  std::lock_guard<std::mutex> lock(mutex);
+  if(isSSL) {
+    std::shared_ptr<httplib::Response> response = httpsClient->Post(queryPath.c_str(),data.c_str(),dtype.c_str());
+    if(response == nullptr) {
+      auto result = httpsClient->get_openssl_verify_result();
+      if(result) {
+        string err = X509_verify_cert_error_string(result);
+        logger->write("SSL certificate validation error (X509) - is the website secure?: " + err);
+      }
+    }
+    return response;
+  }
+  else {
+    return httpClient->Post(queryPath.c_str(),data.c_str(),dtype.c_str());
   }
 }
 
@@ -252,21 +302,79 @@ RunParameters Connection::getRunParameters() {
   }
 }
 
+static void retryLoop(const char* errorLabel, bool retryOnFailure, Logger* logger, std::function<void()> f) {
+  double failureInterval = 5.0;
+  int maxTries = retryOnFailure ? 40 : 1;
+  for(int i = 0; i<maxTries; i++) {
+    try {
+      f();
+    }
+    catch(const StringError& e) {
+      if(i >= maxTries-1)
+        throw;
+      logger->write(string(errorLabel) + "Error connecting to server, possibly an internet blip, or possibly the server is down or temporarily misconfigured, waiting " + Global::doubleToString(failureInterval) + " seconds and trying again.");
+      logger->write(string("Error was:\n") + e.what());
+      std::this_thread::sleep_for(std::chrono::duration<double>(failureInterval));
+      failureInterval = round(failureInterval * 1.3 + 1.0);
+      continue;
+    }
+    if(i > 0)
+      logger->write(string(errorLabel) + "Connection to server is back!");
+    break;
+  }
+}
 
-Task Connection::getNextTask(const string& baseDir) {
+Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
+  (void)baseDir;
   Task task;
-  task.taskId = "test";
-  task.taskGroup = "testgroup";
-  task.runName = "testrun";
-  task.modelNameBlack = "g170-b10c128-s197428736-d67404019";
-  task.modelUrlBlack = "TODO";
-  task.modelNameWhite = "g170-b10c128-s197428736-d67404019";
-  task.modelUrlWhite = "TODO";
-  task.doWriteTrainingData = true;
-  task.isEvaluationGame = false;
 
-  string config = Global::readFile(baseDir + "/" + "testDistributedConfig.cfg");
-  task.config = config;
+  auto f = [&]() {
+    json response = parseJson(post("/api/tasks/","","text/plain"));
+    //TODO
+    //lightvector: when I tried this I got back this kind of response
+    //{"type":"dynamic","kind":"training","config":"FILL ME","network":{"name":"","model_file":null}}
+
+    string kind = parse<string>(response,"kind");
+    if(kind == "training") {
+      json networkProperties = parse<json>(response,"network");
+
+      task.taskId = ""; //TODO Server doesn't care? What about avoiding multiply reporting games?
+      task.taskGroup = parse<string>(networkProperties,"name");
+      task.runName = ""; //TODO have server report run name here
+      task.config = parse<string>(response,"config");
+      task.modelNameBlack = parse<string>(networkProperties,"name");
+      task.modelUrlBlack = parse<string>(networkProperties,"model_file");
+      task.modelNameWhite = task.modelNameBlack;
+      task.modelUrlWhite = task.modelUrlWhite;
+      task.doWriteTrainingData = true;
+      task.isEvaluationGame = false;
+    }
+    else if(kind == "ranking_estimation") {
+      //TODO is this right?
+      json blackNetworkProperties = parse<json>(response,"black_network");
+      json whiteNetworkProperties = parse<json>(response,"white_network");
+
+      task.taskId = ""; //TODO Server doesn't care? What about avoiding multiply reporting games?
+      //TODO can we have this be the newest network?
+      task.taskGroup = "evaluation_" + parse<string>(blackNetworkProperties,"name");
+      task.runName = ""; //TODO have server report run name here
+      task.config = parse<string>(response,"config");
+      task.modelNameBlack = parse<string>(blackNetworkProperties,"name");
+      task.modelUrlBlack = parse<string>(blackNetworkProperties,"model_file");
+      task.modelNameWhite = parse<string>(whiteNetworkProperties,"name");
+      task.modelUrlWhite = parse<string>(whiteNetworkProperties,"model_file");
+      task.doWriteTrainingData = false;
+      task.isEvaluationGame = true;
+    }
+    else {
+      throw StringError("kind was neither 'training' or 'ranking_estimation' in json response: " + response.dump());
+    }
+  };
+  retryLoop("getNextTask",retryOnFailure,logger,f);
+
+  //TODO just for reference
+  // string config = Global::readFile(baseDir + "/" + "testDistributedConfig.cfg");
+  // task.config = config;
   return task;
 }
 
@@ -275,21 +383,58 @@ string Connection::getModelPath(const string& modelName, const string& modelDir)
   return modelDir + "/" + modelName + ".bin.gz";
 }
 
-void Connection::downloadModelIfNotPresent(const string& modelName, const string& modelDir, const string& modelUrl) {
-  (void)modelUrl;
-
+void Connection::downloadModelIfNotPresent(const string& modelName, const string& modelDir, const string& modelUrl, bool retryOnFailure) {
   string path = getModelPath(modelName,modelDir);
-  ifstream test(path.c_str());
-  if(!test.good()) {
-    throw StringError("Currently for testing, " + path + " is expected to be a valid KataGo model file");
-  }
+  string tmpPath = path + ".tmp";
+
+  //Model already exists
+  if(bfs::exists(bfs::path(path)))
+    return;
+
+  auto f = [&]() {
+    size_t totalDataSize = 0;
+    ofstream out(tmpPath,ios::binary);
+
+    //TODO can we also have the server tell us the total data length expected as well as the sha256 hash of the file
+    //so that we can verify download integrity?
+    std::shared_ptr<httplib::Response> response = getBigFile(
+      modelUrl, [&out,&totalDataSize](const char* data, size_t data_length) {
+        out.write(data, data_length);
+        totalDataSize += data_length;
+        return true;
+      }
+    );
+    out.close();
+
+    if(response == nullptr)
+      throw StringError("No response from server");
+    if(response->status != 200) {
+      ostringstream outs;
+      debugPrintResponse(outs,response);
+      throw StringError("Server gave response that was not status code 200 OK\n" + outs.str());
+    }
+
+    //TODO
+    //if(totalDataSize != expectedDataSize) ...
+
+    //Attempt to load the model file to verify integrity
+    {
+      ModelDesc* descBuf = new ModelDesc();
+      ModelDesc::loadFromFileMaybeGZipped(tmpPath,*descBuf);
+      delete descBuf;
+    }
+
+    //Done! Rename the file into the right place
+    std::rename(tmpPath.c_str(),path.c_str());
+  };
+  retryLoop("downloadModelIfNotPresent",retryOnFailure,logger,f);
 }
 
-void Connection::uploadTrainingGameAndData(const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, const string& npzFilePath) {
+void Connection::uploadTrainingGameAndData(const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, const string& npzFilePath, bool retryOnFailure) {
   cout << "UPLOAD TRAINING DATA " << task.taskId << " " << task.taskGroup << " " << task.runName << " " << sgfFilePath << " " << npzFilePath << endl;
 }
 
-void Connection::uploadEvaluationGame(const Task& task, const FinishedGameData* gameData, const string& sgfFilePath) {
+void Connection::uploadEvaluationGame(const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, bool retryOnFailure) {
   cout << "UPLOAD SGF " << task.taskId << " " << task.taskGroup << " " << task.runName << " " << sgfFilePath << endl;
 }
 
