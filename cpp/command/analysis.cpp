@@ -73,9 +73,9 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   logger.write("Analysis Engine starting...");
   logger.write(Version::getKataGoVersionForHelp());
 
-  auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective) {
+  auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective,Player defaultPerspective=C_EMPTY) {
     params = Setup::loadSingleParams(config);
-    perspective = Setup::parseReportAnalysisWinrates(config,C_EMPTY);
+    perspective = Setup::parseReportAnalysisWinrates(config,defaultPerspective);
     //Set a default for conservativePass that differs from matches or selfplay
     if(!config.contains("conservativePass") && !config.contains("conservativePass0"))
       params.conservativePass = true;
@@ -607,7 +607,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
           //Ignore any unused keys in the ORIGINAL config
           localCfg.markAllKeysUsedWithPrefix("");
           localCfg.overrideKeys(overrideSettings);
-          loadParams(localCfg, rbase.params, rbase.perspective);
+          loadParams(localCfg, rbase.params, rbase.perspective, defaultPerspective);
           SearchParams::failIfParamsDifferOnUnchangeableParameter(defaultParams,rbase.params);
           //Hard failure on unused override keys newly present in the config
           vector<string> unusedKeys = localCfg.unusedKeys();
@@ -704,6 +704,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         newRequest->hist = hist;
         newRequest->nextPla = nextPla;
         newRequest->params = rbase.params;
+        newRequest->perspective = rbase.perspective;
         newRequest->analysisPVLen = rbase.analysisPVLen;
         newRequest->includeOwnership = rbase.includeOwnership;
         newRequest->includePolicy = rbase.includePolicy;
