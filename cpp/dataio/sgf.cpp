@@ -1032,6 +1032,26 @@ void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist) {
   }
 }
 
+string WriteSgf::gameResultNoSgfTag(const BoardHistory& hist) {
+  if(!hist.isGameFinished)
+    return "";
+  else if(hist.isNoResult)
+    return "Void";
+  else if(hist.isResignation && hist.winner == C_BLACK)
+    return "B+R";
+  else if(hist.isResignation && hist.winner == C_WHITE)
+    return "W+R";
+  else if(hist.winner == C_BLACK)
+    return "B+" + Global::doubleToString(-hist.finalWhiteMinusBlackScore);
+  else if(hist.winner == C_WHITE)
+    return "W+" + Global::doubleToString(hist.finalWhiteMinusBlackScore);
+  else if(hist.winner == C_EMPTY)
+    return "0";
+  else
+    ASSERT_UNREACHABLE;
+  return "";
+}
+
 void WriteSgf::writeSgf(
   ostream& out, const string& bName, const string& wName,
   const BoardHistory& endHist,
@@ -1107,6 +1127,7 @@ void WriteSgf::writeSgf(
     startTurnIdx = gameData->startHist.moveHistory.size();
     out << "C[startTurnIdx=" << startTurnIdx;
 
+    static_assert(FinishedGameData::NUM_MODES == 5, "");
     if(gameData->mode == FinishedGameData::MODE_NORMAL)
       out << "," << "mode=normal";
     else if(gameData->mode == FinishedGameData::MODE_CLEANUP_TRAINING)
