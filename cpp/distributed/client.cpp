@@ -1,9 +1,15 @@
 #ifdef BUILD_DISTRIBUTED
 
 #include "../distributed/client.h"
+
+#include "../core/config_parser.h"
 #include "../game/board.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/desc.h"
+#include "../search/searchparams.h"
+#include "../program/playsettings.h"
+#include "../program/setup.h"
+#include "../dataio/sgf.h"
 #include "../external/nlohmann_json/json.hpp"
 
 #include <cmath>
@@ -215,6 +221,27 @@ std::shared_ptr<httplib::Response> Connection::post(const string& subPath, const
   }
 }
 
+std::shared_ptr<httplib::Response> Connection::postMulti(const string& subPath, const httplib::MultipartFormDataItems& data) {
+  string queryPath = concatPaths(baseResourcePath,subPath);
+
+  std::lock_guard<std::mutex> lock(mutex);
+  if(isSSL) {
+    std::shared_ptr<httplib::Response> response = httpsClient->Post(queryPath.c_str(),data);
+    if(response == nullptr) {
+      auto result = httpsClient->get_openssl_verify_result();
+      if(result) {
+        string err = X509_verify_cert_error_string(result);
+        logger->write("SSL certificate validation error (X509) - is the website secure?: " + err);
+      }
+    }
+    return response;
+  }
+  else {
+    return httpClient->Post(queryPath.c_str(),data);
+  }
+}
+
+
 static void throwFieldNotFound(const json& response, const char* field) {
   throw StringError(string("Field ") + field + " not found in json response: " + response.dump());
 }
@@ -340,12 +367,18 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
 
       task.taskId = ""; //TODO Server doesn't care? What about avoiding multiply reporting games?
       task.taskGroup = parse<string>(networkProperties,"name");
-      task.runName = ""; //TODO have server report run name here
+      task.runName = "g170"; //TODO have server report run name here
       task.config = parse<string>(response,"config");
-      task.modelNameBlack = parse<string>(networkProperties,"name");
-      task.modelUrlBlack = parse<string>(networkProperties,"model_file");
+      if(networkProperties.find("model_file") != networkProperties.end() && networkProperties["model_file"].is_null()) {
+        task.modelNameBlack = "random";
+        task.modelUrlBlack = "";
+      }
+      else {
+        task.modelNameBlack = parse<string>(networkProperties,"name");
+        task.modelUrlBlack = parse<string>(networkProperties,"model_file");
+      }
       task.modelNameWhite = task.modelNameBlack;
-      task.modelUrlWhite = task.modelUrlWhite;
+      task.modelUrlWhite = task.modelUrlBlack;
       task.doWriteTrainingData = true;
       task.isEvaluationGame = false;
     }
@@ -357,17 +390,43 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
       task.taskId = ""; //TODO Server doesn't care? What about avoiding multiply reporting games?
       //TODO can we have this be the newest network?
       task.taskGroup = "evaluation_" + parse<string>(blackNetworkProperties,"name");
-      task.runName = ""; //TODO have server report run name here
+      task.runName = "g170"; //TODO have server report run name here
       task.config = parse<string>(response,"config");
-      task.modelNameBlack = parse<string>(blackNetworkProperties,"name");
-      task.modelUrlBlack = parse<string>(blackNetworkProperties,"model_file");
-      task.modelNameWhite = parse<string>(whiteNetworkProperties,"name");
-      task.modelUrlWhite = parse<string>(whiteNetworkProperties,"model_file");
+
+      if(blackNetworkProperties.find("model_file") != blackNetworkProperties.end() && blackNetworkProperties["model_file"].is_null()) {
+        task.modelNameBlack = "random";
+        task.modelUrlBlack = "";
+      }
+      else {
+        task.modelNameBlack = parse<string>(blackNetworkProperties,"name");
+        task.modelUrlBlack = parse<string>(blackNetworkProperties,"model_file");
+      }
+      if(whiteNetworkProperties.find("model_file") != whiteNetworkProperties.end() && whiteNetworkProperties["model_file"].is_null()) {
+        task.modelNameWhite = "random";
+        task.modelUrlWhite = "";
+      }
+      else {
+        task.modelNameWhite = parse<string>(whiteNetworkProperties,"name");
+        task.modelUrlWhite = parse<string>(whiteNetworkProperties,"model_file");
+      }
       task.doWriteTrainingData = false;
       task.isEvaluationGame = true;
     }
     else {
       throw StringError("kind was neither 'training' or 'ranking_estimation' in json response: " + response.dump());
+    }
+
+    //Go ahead and try to parse most of the normal fields out of the task config, so as to catch errors early
+    try {
+      istringstream taskCfgIn(task.config);
+      ConfigParser taskCfg(taskCfgIn);
+      SearchParams baseParams = Setup::loadSingleParams(taskCfg);
+      PlaySettings playSettings = PlaySettings::loadForSelfplay(taskCfg);
+      (void)baseParams;
+      (void)playSettings;
+    }
+    catch(StringError& e) {
+      throw StringError(string("Error parsing task config from server: ") + e.what() + "\nConfig was:\n" + task.config);
     }
   };
   retryLoop("getNextTask",retryOnFailure,logger,f);
@@ -380,10 +439,15 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
 
 //STATIC method
 string Connection::getModelPath(const string& modelName, const string& modelDir) {
+  if(modelName == "random")
+    return "/dev/null";
   return modelDir + "/" + modelName + ".bin.gz";
 }
 
 void Connection::downloadModelIfNotPresent(const string& modelName, const string& modelDir, const string& modelUrl, bool retryOnFailure) {
+  if(modelName == "random" && modelUrl.size() <= 0)
+    return;
+
   string path = getModelPath(modelName,modelDir);
   string tmpPath = path + ".tmp";
 
@@ -431,11 +495,130 @@ void Connection::downloadModelIfNotPresent(const string& modelName, const string
 }
 
 void Connection::uploadTrainingGameAndData(const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, const string& npzFilePath, bool retryOnFailure) {
-  cout << "UPLOAD TRAINING DATA " << task.taskId << " " << task.taskGroup << " " << task.runName << " " << sgfFilePath << " " << npzFilePath << endl;
+  ifstream sgfIn(sgfFilePath);
+  if(!sgfIn.good())
+    throw IOError(string("Error: sgf file was deleted or wasn't written out for upload?") + sgfFilePath);
+  string sgfContents((istreambuf_iterator<char>(sgfIn)), istreambuf_iterator<char>());
+  sgfIn.close();
+
+  ifstream npzIn(npzFilePath,ios::in|ios::binary);
+  if(!npzIn.good())
+    throw IOError(string("Error: npz file was deleted or wasn't written out for upload?") + npzFilePath);
+  string npzContents((istreambuf_iterator<char>(npzIn)), istreambuf_iterator<char>());
+  npzIn.close();
+
+  auto f = [&]() {
+    json data;
+    //TODO client doesn't need to upload these, right?
+    //data["url"] = ...;
+    //data["created_at"] = ...;
+    data["playouts_per_sec"] = 0; //TODO
+    data["board_size_x"] = gameData->startBoard.x_size;
+    data["board_size_y"] = gameData->startBoard.y_size;
+    data["handicap"] = gameData->numExtraBlack > 0 ? (gameData->numExtraBlack + 1) : 0;
+    data["komi"] = gameData->startHist.rules.komi;
+    data["rules_params"] = json::parse(gameData->startHist.rules.toJsonStringNoKomi());
+    json extraParams;
+    extraParams["playout_doubling_advantage"] = gameData->playoutDoublingAdvantage;
+    extraParams["playout_doubling_advantage_pla"] = PlayerIO::playerToString(gameData->playoutDoublingAdvantagePla);
+    extraParams["draw_equivalent_wins_for_white"] = gameData->drawEquivalentWinsForWhite;
+    static_assert(FinishedGameData::NUM_MODES == 5,"");
+    extraParams["mode"] = (
+      gameData->mode == FinishedGameData::MODE_NORMAL ? "normal" :
+      gameData->mode == FinishedGameData::MODE_CLEANUP_TRAINING ? "cleanup_training" :
+      gameData->mode == FinishedGameData::MODE_FORK ? "fork" :
+      gameData->mode == FinishedGameData::MODE_HANDICAP ? "handicap" :
+      gameData->mode == FinishedGameData::MODE_SGFPOS ? "sgfpos" :
+      "unknown"
+    );
+    data["game_extra_params"] = extraParams;
+    data["result"] = WriteSgf::gameResultNoSgfTag(gameData->endHist);
+    data["score"] = gameData->endHist.finalWhiteMinusBlackScore;
+    data["has_resigned"] = gameData->endHist.isResignation;
+    data["initial_position_sgf_file"] = ""; //TODO
+    data["initial_position_extra_params"] = json({}); //TODO
+    data["sgf_file"] = ""; //TODO
+    {
+      ostringstream o;
+      o << gameData->gameHash;
+      data["game_hash"] = o.str();
+    }
+    data["unpacked_file"] = ""; //TODO
+    data["run"] = task.runName;
+    data["white_network"] = task.modelNameWhite;
+    data["black_network"] = task.modelNameBlack;
+
+    //TODO is this right?
+    httplib::MultipartFormDataItems items = {
+      { "data", data.dump(), "data", "application/json" },
+      { "sgf_file", sgfContents, "foo.sgf", "text/plain" },
+      { "unpacked_file", npzContents, "foo.npz", "application/octet-stream" },
+    };
+
+    std::shared_ptr<httplib::Response> response = postMulti("/games/training/",items);
+
+    if(response == nullptr)
+      throw StringError("No response from server");
+    if(response->status != 200 && response->status != 201 && response->status != 202) {
+      ostringstream outs;
+      debugPrintResponse(outs,response);
+      throw StringError("Server gave response that was not status code 200 OK or 201 Created or 202 Accepted\n" + outs.str());
+    }
+  };
+  retryLoop("uploadTrainingGameAndData",retryOnFailure,logger,f);
 }
 
 void Connection::uploadEvaluationGame(const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, bool retryOnFailure) {
-  cout << "UPLOAD SGF " << task.taskId << " " << task.taskGroup << " " << task.runName << " " << sgfFilePath << endl;
+  ifstream sgfIn(sgfFilePath);
+  if(!sgfIn.good())
+    throw IOError(string("Error: sgf file was deleted or wasn't written out for upload?") + sgfFilePath);
+  string sgfContents((istreambuf_iterator<char>(sgfIn)), istreambuf_iterator<char>());
+  sgfIn.close();
+
+  auto f = [&]() {
+    json data;
+    //TODO client doesn't need to upload these, right?
+    //data["url"] = ...;
+    //data["created_at"] = ...;
+    data["playouts_per_sec"] = 0; //TODO
+    data["board_size_x"] = gameData->startBoard.x_size;
+    data["board_size_y"] = gameData->startBoard.y_size;
+    data["handicap"] = gameData->numExtraBlack > 0 ? (gameData->numExtraBlack + 1) : 0;
+    data["komi"] = gameData->startHist.rules.komi;
+    data["rules_params"] = json::parse(gameData->startHist.rules.toJsonStringNoKomi());
+    data["game_extra_params"] = json({});
+    data["result"] = WriteSgf::gameResultNoSgfTag(gameData->endHist);
+    data["score"] = gameData->endHist.finalWhiteMinusBlackScore;
+    data["has_resigned"] = gameData->endHist.isResignation;
+    data["initial_position_sgf_file"] = ""; //TODO
+    data["initial_position_extra_params"] = json({}); //TODO
+    data["sgf_file"] = ""; //TODO
+    {
+      ostringstream o;
+      o << gameData->gameHash;
+      data["game_hash"] = o.str();
+    }
+    data["run"] = task.runName;
+    data["white_network"] = task.modelNameWhite;
+    data["black_network"] = task.modelNameBlack;
+
+    //TODO is this right?
+    httplib::MultipartFormDataItems items = {
+      { "data", data.dump(), "data", "application/json" },
+      { "sgf_file", sgfContents, "foo.sgf", "text/plain" },
+    };
+
+    std::shared_ptr<httplib::Response> response = postMulti("/games/ranking_estimation/",items);
+
+    if(response == nullptr)
+      throw StringError("No response from server");
+    if(response->status != 200 && response->status != 201 && response->status != 202) {
+      ostringstream outs;
+      debugPrintResponse(outs,response);
+      throw StringError("Server gave response that was not status code 200 OK or 201 Created or 202 Accepted\n" + outs.str());
+    }
+  };
+  retryLoop("uploadEvaluationGame",retryOnFailure,logger,f);
 }
 
 #endif //BUILD_DISTRIBUTED

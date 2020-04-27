@@ -55,6 +55,7 @@ namespace Client {
     std::shared_ptr<httplib::Response> get(const std::string& subPath);
     std::shared_ptr<httplib::Response> post(const std::string& subPath, const std::string& data, const std::string& dtype);
     std::shared_ptr<httplib::Response> getBigFile(const std::string& fullPath, std::function<bool(const char* data, size_t data_length)> f);
+    std::shared_ptr<httplib::Response> postMulti(const std::string& subPath, const httplib::MultipartFormDataItems& data);
 
 
     httplib::Client* httpClient;
