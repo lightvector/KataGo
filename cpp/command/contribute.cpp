@@ -74,6 +74,7 @@ static void runAndUploadSingleGame(Client::Connection* connection, GameTask game
     playSettings = PlaySettings::loadForSelfplay(taskCfg);
   }
   catch(StringError& e) {
+    cerr << "Error parsing task config" << endl;
     cerr << e.what() << endl;
     throw;
   }
@@ -313,7 +314,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
       Setup::SETUP_FOR_DISTRIBUTED
     );
-    assert(!nnEval->isNeuralNetLess());
+    assert(!nnEval->isNeuralNetLess() || modelName == "random");
     logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
 
     string sgfOutputDir = sgfsDir + "/" + modelName;
@@ -372,12 +373,15 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     if(shouldStop.load())
       break;
 
+    //Update model file modified times as a way to track which ones we've used recently or not
     string modelFileBlack = Client::Connection::getModelPath(task.modelNameBlack,modelsDir);
     string modelFileWhite = Client::Connection::getModelPath(task.modelNameWhite,modelsDir);
-    //Update model file modified times as a way to track which ones we've used recently or not
-    LoadModel::setLastModifiedTimeToNow(modelFileBlack,logger);
-    if(modelFileWhite != modelFileBlack)
+    if(task.modelNameBlack != "random") {
+      LoadModel::setLastModifiedTimeToNow(modelFileBlack,logger);
+    }
+    if(task.modelNameWhite != "random" && task.modelNameWhite != task.modelNameBlack) {
       LoadModel::setLastModifiedTimeToNow(modelFileWhite,logger);
+    }
 
     loadNeuralNetIntoManager(manager,task.modelNameBlack,modelFileBlack);
     loadNeuralNetIntoManager(manager,task.modelNameWhite,modelFileWhite);
