@@ -17,19 +17,24 @@ namespace Client {
     int maxSearchThreadsAllowed;
   };
 
+  struct ModelInfo {
+    std::string name;
+    std::string url;
+    int64_t bytes;
+    std::string sha256;
+  };
+
   struct Task {
     std::string taskId;
     std::string taskGroup;
     std::string runName;
 
-    std::string modelNameBlack;
-    std::string modelUrlBlack;
-    std::string modelNameWhite;
-    std::string modelUrlWhite;
+    ModelInfo modelBlack;
+    ModelInfo modelWhite;
 
     std::string config;
     bool doWriteTrainingData;
-    bool isEvaluationGame;
+    bool isRatingGame;
   };
 
   class Connection {
@@ -45,11 +50,11 @@ namespace Client {
     RunParameters getRunParameters();
     Task getNextTask(const std::string& baseDir, bool retryOnFailure);
 
-    static std::string getModelPath(const std::string& modelName, const std::string& modelDir);
-    void downloadModelIfNotPresent(const std::string& modelName, const std::string& modelDir, const std::string& modelUrl, bool retryOnFailure);
+    static std::string getModelPath(const Client::ModelInfo& modelInfo, const std::string& modelDir);
+    void downloadModelIfNotPresent(const Client::ModelInfo& modelInfo, const std::string& modelDir, bool retryOnFailure);
 
     void uploadTrainingGameAndData(const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath, const std::string& npzFilePath, bool retryOnFailure);
-    void uploadEvaluationGame(const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath, bool retryOnFailure);
+    void uploadRatingGame(const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath, bool retryOnFailure);
 
   private:
     std::shared_ptr<httplib::Response> get(const std::string& subPath);

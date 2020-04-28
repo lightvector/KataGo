@@ -106,7 +106,7 @@ static void runAndUploadSingleGame(Client::Connection* connection, GameTask game
 
   if(gameData != NULL) {
     string sgfOutputDir;
-    if(gameTask.task.isEvaluationGame)
+    if(gameTask.task.isRatingGame)
       sgfOutputDir = sgfsDir + "/" + gameTask.task.taskGroup;
     else
       sgfOutputDir = sgfsDir + "/" + nnEvalBlack->getModelName();
@@ -131,7 +131,7 @@ static void runAndUploadSingleGame(Client::Connection* connection, GameTask game
         });
     }
     else {
-      connection->uploadEvaluationGame(gameTask.task,gameData,sgfFile,retryOnFailure);
+      connection->uploadRatingGame(gameTask.task,gameData,sgfFile,retryOnFailure);
     }
   }
 
@@ -362,35 +362,35 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       );
     }
 
-    if(task.isEvaluationGame) {
+    if(task.isRatingGame) {
       string sgfOutputDir = sgfsDir + "/" + task.taskGroup;
       MakeDir::make(sgfOutputDir);
     }
 
     //TODO should we have a mechanism to interrupt the download to quit faster in response to shouldStop?
-    connection->downloadModelIfNotPresent(task.modelNameBlack,modelsDir,task.modelUrlBlack,retryOnFailure);
-    connection->downloadModelIfNotPresent(task.modelNameWhite,modelsDir,task.modelUrlWhite,retryOnFailure);
+    connection->downloadModelIfNotPresent(task.modelBlack,modelsDir,retryOnFailure);
+    connection->downloadModelIfNotPresent(task.modelWhite,modelsDir,retryOnFailure);
     if(shouldStop.load())
       break;
 
     //Update model file modified times as a way to track which ones we've used recently or not
-    string modelFileBlack = Client::Connection::getModelPath(task.modelNameBlack,modelsDir);
-    string modelFileWhite = Client::Connection::getModelPath(task.modelNameWhite,modelsDir);
-    if(task.modelNameBlack != "random") {
+    string modelFileBlack = Client::Connection::getModelPath(task.modelBlack,modelsDir);
+    string modelFileWhite = Client::Connection::getModelPath(task.modelWhite,modelsDir);
+    if(task.modelBlack.name != "random") {
       LoadModel::setLastModifiedTimeToNow(modelFileBlack,logger);
     }
-    if(task.modelNameWhite != "random" && task.modelNameWhite != task.modelNameBlack) {
+    if(task.modelWhite.name != "random" && task.modelWhite.name != task.modelBlack.name) {
       LoadModel::setLastModifiedTimeToNow(modelFileWhite,logger);
     }
 
-    loadNeuralNetIntoManager(manager,task.modelNameBlack,modelFileBlack);
-    loadNeuralNetIntoManager(manager,task.modelNameWhite,modelFileWhite);
+    loadNeuralNetIntoManager(manager,task.modelBlack.name,modelFileBlack);
+    loadNeuralNetIntoManager(manager,task.modelWhite.name,modelFileWhite);
     if(shouldStop.load())
       break;
 
     //Game loop threads are responsible for releasing when done.
-    NNEvaluator* nnEvalBlack = manager->acquireModel(task.modelNameBlack);
-    NNEvaluator* nnEvalWhite = manager->acquireModel(task.modelNameWhite);
+    NNEvaluator* nnEvalBlack = manager->acquireModel(task.modelBlack.name);
+    NNEvaluator* nnEvalWhite = manager->acquireModel(task.modelWhite.name);
 
     manager->cleanupUnusedModelsOlderThan(unloadUnusedModelsAfter);
     time_t modelFileAgeLimit = time(NULL) - deleteUnusedModelsAfter;

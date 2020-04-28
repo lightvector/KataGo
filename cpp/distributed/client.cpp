@@ -351,6 +351,23 @@ static void retryLoop(const char* errorLabel, bool retryOnFailure, Logger* logge
   }
 }
 
+static Client::ModelInfo parseModelInfo(const json& networkProperties) {
+  Client::ModelInfo model;
+  if(networkProperties.find("model_file") != networkProperties.end() && networkProperties["model_file"].is_null()) {
+    model.name = "random";
+    model.url = "";
+    model.bytes = 0;
+    model.sha256 = "";
+  }
+  else {
+    model.name = parse<string>(networkProperties,"name");
+    model.url = parse<string>(networkProperties,"model_file");
+    model.bytes = parse<int64_t>(networkProperties,"model_file_bytes");
+    model.sha256 = parse<string>(networkProperties,"model_file_sha256");
+  }
+  return model;
+}
+
 Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
   (void)baseDir;
   Task task;
@@ -369,48 +386,25 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
       task.taskGroup = parse<string>(networkProperties,"name");
       task.runName = "g170"; //TODO have server report run name here
       task.config = parse<string>(response,"config");
-      if(networkProperties.find("model_file") != networkProperties.end() && networkProperties["model_file"].is_null()) {
-        task.modelNameBlack = "random";
-        task.modelUrlBlack = "";
-      }
-      else {
-        task.modelNameBlack = parse<string>(networkProperties,"name");
-        task.modelUrlBlack = parse<string>(networkProperties,"model_file");
-      }
-      task.modelNameWhite = task.modelNameBlack;
-      task.modelUrlWhite = task.modelUrlBlack;
+      task.modelBlack = parseModelInfo(networkProperties);
+      task.modelWhite = task.modelBlack;
       task.doWriteTrainingData = true;
-      task.isEvaluationGame = false;
+      task.isRatingGame = false;
     }
-    else if(kind == "ranking_estimation") {
+    else if(kind == "ranking") {
       //TODO is this right?
       json blackNetworkProperties = parse<json>(response,"black_network");
       json whiteNetworkProperties = parse<json>(response,"white_network");
 
       task.taskId = ""; //TODO Server doesn't care? What about avoiding multiply reporting games?
       //TODO can we have this be the newest network?
-      task.taskGroup = "evaluation_" + parse<string>(blackNetworkProperties,"name");
+      task.taskGroup = "rating_" + parse<string>(blackNetworkProperties,"name");
       task.runName = "g170"; //TODO have server report run name here
       task.config = parse<string>(response,"config");
-
-      if(blackNetworkProperties.find("model_file") != blackNetworkProperties.end() && blackNetworkProperties["model_file"].is_null()) {
-        task.modelNameBlack = "random";
-        task.modelUrlBlack = "";
-      }
-      else {
-        task.modelNameBlack = parse<string>(blackNetworkProperties,"name");
-        task.modelUrlBlack = parse<string>(blackNetworkProperties,"model_file");
-      }
-      if(whiteNetworkProperties.find("model_file") != whiteNetworkProperties.end() && whiteNetworkProperties["model_file"].is_null()) {
-        task.modelNameWhite = "random";
-        task.modelUrlWhite = "";
-      }
-      else {
-        task.modelNameWhite = parse<string>(whiteNetworkProperties,"name");
-        task.modelUrlWhite = parse<string>(whiteNetworkProperties,"model_file");
-      }
+      task.modelBlack = parseModelInfo(blackNetworkProperties);
+      task.modelWhite = parseModelInfo(whiteNetworkProperties);
       task.doWriteTrainingData = false;
-      task.isEvaluationGame = true;
+      task.isRatingGame = true;
     }
     else {
       throw StringError("kind was neither 'training' or 'ranking_estimation' in json response: " + response.dump());
@@ -438,17 +432,17 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
 }
 
 //STATIC method
-string Connection::getModelPath(const string& modelName, const string& modelDir) {
-  if(modelName == "random")
+string Connection::getModelPath(const Client::ModelInfo& modelInfo, const string& modelDir) {
+  if(modelInfo.name == "random")
     return "/dev/null";
-  return modelDir + "/" + modelName + ".bin.gz";
+  return modelDir + "/" + modelInfo.name + ".bin.gz";
 }
 
-void Connection::downloadModelIfNotPresent(const string& modelName, const string& modelDir, const string& modelUrl, bool retryOnFailure) {
-  if(modelName == "random" && modelUrl.size() <= 0)
+void Connection::downloadModelIfNotPresent(const Client::ModelInfo& modelInfo, const string& modelDir, bool retryOnFailure) {
+  if(modelInfo.name == "random" && modelInfo.url.size() <= 0)
     return;
 
-  string path = getModelPath(modelName,modelDir);
+  string path = getModelPath(modelInfo,modelDir);
   string tmpPath = path + ".tmp";
 
   //Model already exists
@@ -462,7 +456,7 @@ void Connection::downloadModelIfNotPresent(const string& modelName, const string
     //TODO can we also have the server tell us the total data length expected as well as the sha256 hash of the file
     //so that we can verify download integrity?
     std::shared_ptr<httplib::Response> response = getBigFile(
-      modelUrl, [&out,&totalDataSize](const char* data, size_t data_length) {
+      modelInfo.url, [&out,&totalDataSize](const char* data, size_t data_length) {
         out.write(data, data_length);
         totalDataSize += data_length;
         return true;
@@ -478,8 +472,13 @@ void Connection::downloadModelIfNotPresent(const string& modelName, const string
       throw StringError("Server gave response that was not status code 200 OK\n" + outs.str());
     }
 
-    //TODO
-    //if(totalDataSize != expectedDataSize) ...
+    if(totalDataSize != modelInfo.bytes)
+      throw StringError(
+        "Model file was incompletely downloaded, only got " + Global::int64ToString(totalDataSize) +
+        " bytes out of " + Global::int64ToString(modelInfo.bytes)
+      );
+
+    //TODO maybe also verify sha256 matches the one gotten from the server
 
     //Attempt to load the model file to verify integrity
     {
@@ -508,16 +507,12 @@ void Connection::uploadTrainingGameAndData(const Task& task, const FinishedGameD
   npzIn.close();
 
   auto f = [&]() {
-    json data;
-    //TODO client doesn't need to upload these, right?
-    //data["url"] = ...;
-    //data["created_at"] = ...;
-    data["playouts_per_sec"] = 0; //TODO
-    data["board_size_x"] = gameData->startBoard.x_size;
-    data["board_size_y"] = gameData->startBoard.y_size;
-    data["handicap"] = gameData->numExtraBlack > 0 ? (gameData->numExtraBlack + 1) : 0;
-    data["komi"] = gameData->startHist.rules.komi;
-    data["rules_params"] = json::parse(gameData->startHist.rules.toJsonStringNoKomi());
+    double playoutsPerSec = 0; //TODO
+    int boardSizeX = gameData->startBoard.x_size;
+    int boardSizeY = gameData->startBoard.y_size;
+    int handicap = (gameData->numExtraBlack > 0 ? (gameData->numExtraBlack + 1) : 0);
+    double komi = gameData->startHist.rules.komi;
+    string rulesParams = json::parse(gameData->startHist.rules.toJsonStringNoKomi());
     json extraParams;
     extraParams["playout_doubling_advantage"] = gameData->playoutDoublingAdvantage;
     extraParams["playout_doubling_advantage_pla"] = PlayerIO::playerToString(gameData->playoutDoublingAdvantagePla);
@@ -531,28 +526,41 @@ void Connection::uploadTrainingGameAndData(const Task& task, const FinishedGameD
       gameData->mode == FinishedGameData::MODE_SGFPOS ? "sgfpos" :
       "unknown"
     );
-    data["game_extra_params"] = extraParams;
-    data["result"] = WriteSgf::gameResultNoSgfTag(gameData->endHist);
-    data["score"] = gameData->endHist.finalWhiteMinusBlackScore;
-    data["has_resigned"] = gameData->endHist.isResignation;
-    data["initial_position_sgf_file"] = ""; //TODO
-    data["initial_position_extra_params"] = json({}); //TODO
-    data["sgf_file"] = ""; //TODO
+    string gameExtraParams = extraParams.dump();
+    string result = WriteSgf::gameResultNoSgfTag(gameData->endHist);
+    double score = gameData->endHist.finalWhiteMinusBlackScore;
+    string hasResigned = gameData->endHist.isResignation ? "true" : "false";
+    string initialPositionSgfFile = ""; //TODO
+    string initialPositionExtraParams = "{}"; //TODO
+    string gameHash;
     {
       ostringstream o;
       o << gameData->gameHash;
-      data["game_hash"] = o.str();
+      gameHash = o.str();
     }
-    data["unpacked_file"] = ""; //TODO
-    data["run"] = task.runName;
-    data["white_network"] = task.modelNameWhite;
-    data["black_network"] = task.modelNameBlack;
+    string run = task.runName;
+    string whiteNetwork = task.modelWhite.name;
+    string blackNetwork = task.modelBlack.name;
 
-    //TODO is this right?
     httplib::MultipartFormDataItems items = {
-      { "data", data.dump(), "data", "application/json" },
-      { "sgf_file", sgfContents, "foo.sgf", "text/plain" },
-      { "unpacked_file", npzContents, "foo.npz", "application/octet-stream" },
+      { "playouts_per_sec", Global::doubleToString(playoutsPerSec), "", "" },
+      { "board_size_x", Global::intToString(boardSizeX), "", "" },
+      { "board_size_y", Global::intToString(boardSizeY), "", "" },
+      { "handicap", Global::intToString(handicap), "", "" },
+      { "komi", Global::doubleToString(komi), "", "" },
+      { "rules_params", rulesParams, "", "" },
+      { "game_extra_params", gameExtraParams, "", "" },
+      { "result", result, "", "" },
+      { "score", Global::doubleToString(score), "", "" },
+      { "has_resigned", hasResigned, "", "" },
+      { "initial_position_sgf_file", initialPositionSgfFile, "", "text/plain" },
+      { "initial_position_extra_params", initialPositionExtraParams, "", "" },
+      { "game_hash", gameHash, "", "" },
+      { "run", run, "", ""},
+      { "white_network", whiteNetwork, "", ""},
+      { "black_network", blackNetwork, "", ""},
+      { "sgf_file", sgfContents, "", "text/plain" },
+      { "unpacked_file", npzContents, "", "application/octet-stream" },
     };
 
     std::shared_ptr<httplib::Response> response = postMulti("/games/training/",items);
@@ -568,7 +576,7 @@ void Connection::uploadTrainingGameAndData(const Task& task, const FinishedGameD
   retryLoop("uploadTrainingGameAndData",retryOnFailure,logger,f);
 }
 
-void Connection::uploadEvaluationGame(const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, bool retryOnFailure) {
+void Connection::uploadRatingGame(const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, bool retryOnFailure) {
   ifstream sgfIn(sgfFilePath);
   if(!sgfIn.good())
     throw IOError(string("Error: sgf file was deleted or wasn't written out for upload?") + sgfFilePath);
@@ -576,36 +584,46 @@ void Connection::uploadEvaluationGame(const Task& task, const FinishedGameData* 
   sgfIn.close();
 
   auto f = [&]() {
-    json data;
-    //TODO client doesn't need to upload these, right?
-    //data["url"] = ...;
-    //data["created_at"] = ...;
-    data["playouts_per_sec"] = 0; //TODO
-    data["board_size_x"] = gameData->startBoard.x_size;
-    data["board_size_y"] = gameData->startBoard.y_size;
-    data["handicap"] = gameData->numExtraBlack > 0 ? (gameData->numExtraBlack + 1) : 0;
-    data["komi"] = gameData->startHist.rules.komi;
-    data["rules_params"] = json::parse(gameData->startHist.rules.toJsonStringNoKomi());
-    data["game_extra_params"] = json({});
-    data["result"] = WriteSgf::gameResultNoSgfTag(gameData->endHist);
-    data["score"] = gameData->endHist.finalWhiteMinusBlackScore;
-    data["has_resigned"] = gameData->endHist.isResignation;
-    data["initial_position_sgf_file"] = ""; //TODO
-    data["initial_position_extra_params"] = json({}); //TODO
-    data["sgf_file"] = ""; //TODO
+    double playoutsPerSec = 0; //TODO
+    int boardSizeX = gameData->startBoard.x_size;
+    int boardSizeY = gameData->startBoard.y_size;
+    int handicap = (gameData->numExtraBlack > 0 ? (gameData->numExtraBlack + 1) : 0);
+    double komi = gameData->startHist.rules.komi;
+    string rulesParams = json::parse(gameData->startHist.rules.toJsonStringNoKomi());
+    string gameExtraParams = json({}).dump();
+    string result = WriteSgf::gameResultNoSgfTag(gameData->endHist);
+    double score = gameData->endHist.finalWhiteMinusBlackScore;
+    string hasResigned = gameData->endHist.isResignation ? "true" : "false";
+    string initialPositionSgfFile = ""; //TODO
+    string initialPositionExtraParams = "{}"; //TODO
+    string gameHash;
     {
       ostringstream o;
       o << gameData->gameHash;
-      data["game_hash"] = o.str();
+      gameHash = o.str();
     }
-    data["run"] = task.runName;
-    data["white_network"] = task.modelNameWhite;
-    data["black_network"] = task.modelNameBlack;
+    string run = task.runName;
+    string whiteNetwork = task.modelWhite.name;
+    string blackNetwork = task.modelBlack.name;
 
-    //TODO is this right?
     httplib::MultipartFormDataItems items = {
-      { "data", data.dump(), "data", "application/json" },
-      { "sgf_file", sgfContents, "foo.sgf", "text/plain" },
+      { "playouts_per_sec", Global::doubleToString(playoutsPerSec), "", "" },
+      { "board_size_x", Global::intToString(boardSizeX), "", "" },
+      { "board_size_y", Global::intToString(boardSizeY), "", "" },
+      { "handicap", Global::intToString(handicap), "", "" },
+      { "komi", Global::doubleToString(komi), "", "" },
+      { "rules_params", rulesParams, "", "" },
+      { "game_extra_params", gameExtraParams, "", "" },
+      { "result", result, "", "" },
+      { "score", Global::doubleToString(score), "", "" },
+      { "has_resigned", hasResigned, "", "" },
+      { "initial_position_sgf_file", initialPositionSgfFile, "", "text/plain" },
+      { "initial_position_extra_params", initialPositionExtraParams, "", "" },
+      { "game_hash", gameHash, "", "" },
+      { "run", run, "", ""},
+      { "white_network", whiteNetwork, "", ""},
+      { "black_network", blackNetwork, "", ""},
+      { "sgf_file", sgfContents, "", "text/plain" },
     };
 
     std::shared_ptr<httplib::Response> response = postMulti("/games/ranking_estimation/",items);
@@ -618,7 +636,7 @@ void Connection::uploadEvaluationGame(const Task& task, const FinishedGameData* 
       throw StringError("Server gave response that was not status code 200 OK or 201 Created or 202 Accepted\n" + outs.str());
     }
   };
-  retryLoop("uploadEvaluationGame",retryOnFailure,logger,f);
+  retryLoop("uploadRatingGame",retryOnFailure,logger,f);
 }
 
 #endif //BUILD_DISTRIBUTED
