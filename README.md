@@ -120,15 +120,15 @@ KataGo supports a few commands. All of these commands require a "model" file tha
 
 **For all of the commands that require a GTP config, you can omit the `-config` argument if you've put the GTP config file into the same directory as the katago executable as `default_gtp.cfg`.**
 
-To run a benchmark to test performance and help you choose how many threads to use for best performance. You can then edit your GTP config to use this many threads:
+To run a benchmark to test performance and help you choose how many threads to use for best performance. You can then manually edit your GTP config to use this many threads:
 
-   * `./katago benchmark -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg`
+   * `./katago benchmark -tune -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg`
 
 Or for example as noted above in bold, if you have a default config and model in the right place:
 
-  * `./katago benchmark`
+  * `./katago benchmark -tune`
 
-To automatically tune threads and other settings for you based on an interactive prompt, and generate a GTP config for you:
+To automatically tune threads and other settings for you based on asking simple questions, and generate a GTP config for you:
 
    * `./katago genconfig -model <NEURALNET>.gz -output <PATH_TO_SAVE_GTP_CONFIG>.cfg`
 
