@@ -9,11 +9,6 @@ import json
 import datetime
 import math
 
-import tensorflow as tf
-import numpy as np
-
-from model import Model
-
 b6c96 = {
   "version":8,
   "support_japanese_rules":True,
@@ -316,4 +311,14 @@ config_of_name = {
   "b30c320": b30c320,
   "b40c256": b40c256,
   "b40c384": b40c384
+}
+
+num_parameters_of_name = {
+  "b6c96": 1038541,
+  "b10c128": 3008589,
+  "b15c192": 9948685,
+  "b20c256": 23514141,
+  "b30c320": 54555581,
+  "b40c256": 46687069,
+  "b40c384": 104192685
 }
