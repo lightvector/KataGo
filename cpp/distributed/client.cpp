@@ -374,17 +374,13 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
 
   auto f = [&]() {
     json response = parseJson(post("/api/tasks/","","text/plain"));
-    //TODO
-    //lightvector: when I tried this I got back this kind of response
-    //{"type":"dynamic","kind":"training","config":"FILL ME","network":{"name":"","model_file":null}}
-
     string kind = parse<string>(response,"kind");
     if(kind == "training") {
       json networkProperties = parse<json>(response,"network");
 
       task.taskId = ""; //TODO Server doesn't care? What about avoiding multiply reporting games?
       task.taskGroup = parse<string>(networkProperties,"name");
-      task.runName = "g170"; //TODO have server report run name here
+      task.runName = parse<string>(response,"run");
       task.config = parse<string>(response,"config");
       task.modelBlack = parseModelInfo(networkProperties);
       task.modelWhite = task.modelBlack;
@@ -392,14 +388,24 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
       task.isRatingGame = false;
     }
     else if(kind == "ranking") {
-      //TODO is this right?
-      json blackNetworkProperties = parse<json>(response,"black_network");
-      json whiteNetworkProperties = parse<json>(response,"white_network");
+      json content = parse<json>(response,"content");
+      json blackNetworkProperties = parse<json>(content,"black_network");
+      json whiteNetworkProperties = parse<json>(content,"white_network");
+
+      string blackCreatedAt = parse<string>(blackNetworkProperties,"created_at");
+      string whiteCreatedAt = parse<string>(whiteNetworkProperties,"created_at");
+      //A bit hacky - we rely on the fact that the server reports these in ISO 8601 and therefore
+      //lexicographic compare is correct to determine recency
+      string mostRecentName;
+      if(std::lexicographical_compare(blackCreatedAt.begin(),blackCreatedAt.end(),whiteCreatedAt.begin(),whiteCreatedAt.end()))
+        mostRecentName = parse<string>(whiteNetworkProperties,"name");
+      else
+        mostRecentName = parse<string>(blackNetworkProperties,"name");
 
       task.taskId = ""; //TODO Server doesn't care? What about avoiding multiply reporting games?
-      //TODO can we have this be the newest network?
-      task.taskGroup = "rating_" + parse<string>(blackNetworkProperties,"name");
-      task.runName = "g170"; //TODO have server report run name here
+
+      task.taskGroup = "rating_" + mostRecentName;
+      task.runName = parse<string>(response,"run");
       task.config = parse<string>(response,"config");
       task.modelBlack = parseModelInfo(blackNetworkProperties);
       task.modelWhite = parseModelInfo(whiteNetworkProperties);
@@ -424,10 +430,6 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
     }
   };
   retryLoop("getNextTask",retryOnFailure,logger,f);
-
-  //TODO just for reference
-  // string config = Global::readFile(baseDir + "/" + "testDistributedConfig.cfg");
-  // task.config = config;
   return task;
 }
 
@@ -453,8 +455,6 @@ void Connection::downloadModelIfNotPresent(const Client::ModelInfo& modelInfo, c
     size_t totalDataSize = 0;
     ofstream out(tmpPath,ios::binary);
 
-    //TODO can we also have the server tell us the total data length expected as well as the sha256 hash of the file
-    //so that we can verify download integrity?
     std::shared_ptr<httplib::Response> response = getBigFile(
       modelInfo.url, [&out,&totalDataSize](const char* data, size_t data_length) {
         out.write(data, data_length);
