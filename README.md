@@ -170,28 +170,27 @@ Or to do so automatically and generate a config appropriately:
 ### Common Causes of Errors
 This section summarizes a number of common issues that some users have encountered that caused KataGo to not be able to run.
 
-* Issues with specific GPUs or GPU drivers
-   * If you are observing any crashes in KataGo while attempting to run the benchmark or the program itself, and you have one of the below GPUs, then this is likely the reason.
+#### Issues with specific GPUs or GPU drivers
+If you are observing any crashes in KataGo while attempting to run the benchmark or the program itself, and you have one of the below GPUs, then this is likely the reason.
    
-   * AMD Radeon RX 5700
-      * AMD's drivers for OpenCL for this GPU have been buggy ever since this GPU was released, and as of May 2020 AMD has still never released a fix so there is no solution. If you are using this GPU, you will just not be able to run KataGo (and probably Leela Zero and other Go engines will fail too) and you will probably also obtain incorrect calculations or crash if doing anything else scientific or mathematical that uses OpenCL. See for example these reddit threads: [[1]](https://www.reddit.com/r/Amd/comments/ebso1x/its_not_just_setihome_any_mathematic_or/) or [[2]](https://www.reddit.com/r/BOINC/comments/ebiz18/psa_please_remove_your_amd_rx5700xt_from_setihome/) or this [L19 thread](https://lifein19x19.com/viewtopic.php?f=18&t=17093).
-   * OpenCL Mesa
-      * These drivers for OpenCL on AMD GPUs are buggy. If you are using certain AMD GPUs and on startup before crashing you see KataGo printing something like `Found OpenCL Platform 0: ... (Mesa) (OpenCL 1.1 Mesa ...) ...` then you are using the Mesa drivers. You will need to change your drivers, see for example this [KataGo issue](https://github.com/lightvector/KataGo/issues/182#issuecomment-607943405) which links to [this thread](https://bbs.archlinux.org/viewtopic.php?pid=1895516#p1895516).
-   * Intel Integrated Graphics
-      * For weaker/older machines, or for various laptops or other devices that don't have a dedicated separate GPU, KataGo might end up using the weak "Intel Integrated Graphics" that is built in with the CPU. Often this will work fine (although of course KataGo will be very slow and only get a tiny number of playouts compared to using a real dedicated GPU), but various versions of Intel Integrated Graphics are buggy and will simply not work at all. See for example this [issue](https://github.com/lightvector/KataGo/issues/54) or this [issue](https://github.com/lightvector/KataGo/issues/78), or this [other issue](https://github.com/CNugteren/CLBlast/issues/280) on the github of the more general matrix math library that KataGo uses.
+* AMD Radeon RX 5700 - AMD's drivers for OpenCL for this GPU have been buggy ever since this GPU was released, and as of May 2020 AMD has still never released a fix. If you are using this GPU, you will just not be able to run KataGo (Leela Zero and other Go engines will probably fail too) and will probably also obtain incorrect calculations or crash if doing anything else scientific or mathematical that uses OpenCL. See for example these reddit threads: [[1]](https://www.reddit.com/r/Amd/comments/ebso1x/its_not_just_setihome_any_mathematic_or/) or [[2]](https://www.reddit.com/r/BOINC/comments/ebiz18/psa_please_remove_your_amd_rx5700xt_from_setihome/) or this [L19 thread](https://lifein19x19.com/viewtopic.php?f=18&t=17093).
+* OpenCL Mesa - These drivers for OpenCL on AMD GPUs are buggy. If you are using an AMD GPU and on startup before crashing you see KataGo printing something like
+`Found OpenCL Platform 0: ... (Mesa) (OpenCL 1.1 Mesa ...) ...`
+then you are using the Mesa drivers. You will need to change your drivers, see for example this [KataGo issue](https://github.com/lightvector/KataGo/issues/182#issuecomment-607943405) which links to [this thread](https://bbs.archlinux.org/viewtopic.php?pid=1895516#p1895516).
+* Intel Integrated Graphics - For weaker/older machines or laptops or devices that don't have a dedicated GPU, KataGo might end up using the weak "Intel Integrated Graphics" that is built in with the CPU. Often this will work fine (although KataGo will be slow and only get a tiny number of playouts compared to using a real GPU), but various versions of Intel Integrated Graphics can also be buggy and not work at all. If a driver update doesn't work for you, then the only solution is to upgrade to a better GPU. See for example this [issue](https://github.com/lightvector/KataGo/issues/54) or this [issue](https://github.com/lightvector/KataGo/issues/78), or this [other Github's issue](https://github.com/CNugteren/CLBlast/issues/280).
 
-* General Issues
-   * KataGo seems to hang or is "loading" forever on startup in Lizzie/Sabaki/q5go/GoReviewPartner/etc. 
-      * Likely either you have some misconfiguration, have specified file paths incorrectly, a bad GPU, etc. Almost all of these GUIs do a very poor job of reporting errors and will often completely swallow the error message from KataGo that would have told you was was wrong. Try running KataGo's `benchmark` or `gtp` commands directly on the command line, as described [above](https://github.com/lightvector/KataGo#how-to-use).
-      * Sometimes there is no error at all, it is merely that the *first* time KataGo runs on a given neural network size, it needs to do some expensive tuning, which may take a few minutes. Again this is clearer if you run the `benchmark` command directly in the command line. After tuning, then subsequent runs will be faster.
+#### General Issues
+* KataGo seems to hang or is "loading" forever on startup in Lizzie/Sabaki/q5go/GoReviewPartner/etc. 
+   * Likely either you have some misconfiguration, have specified file paths incorrectly, a bad GPU, etc. Almost all of these GUIs do a poor job of reporting errors and may completely swallow the error message from KataGo that would have told you what was wrong. Try running KataGo's `benchmark` or `gtp` directly on the command line, as described [above](https://github.com/lightvector/KataGo#how-to-use).
+   * Sometimes there is no error at all, it is merely that the *first* time KataGo runs on a given network size, it needs to do some expensive tuning, which may take a few minutes. Again this is clearer if you run the `benchmark` command directly in the command line. After tuning, then subsequent runs will be faster.
       
-   * Works on command line but having trouble figuring out the right file paths to specify for Lizzie/Sabaki/ZBaduk/etc.
-      * As described [above](https://github.com/lightvector/KataGo#how-to-use), you can simplify by naming your config `default_gtp.cfg` and naming whichever neural network file you've downloaded to `default_model.bin.gz` (for newer `.bin.gz` models) or `default_model.txt.gz` (for older `.txt.gz` models). Stick those into the same directory as KataGo's executable, and then you don't need  to specify `-config` or `-model` paths at all.
+* Works on command line but having trouble figuring out the right file paths to specify for Lizzie/Sabaki/ZBaduk/etc.
+   * As described [above](https://github.com/lightvector/KataGo#how-to-use), you can name your config `default_gtp.cfg` and name whichever network file you've downloaded to `default_model.bin.gz` (for newer `.bin.gz` models) or `default_model.txt.gz` (for older `.txt.gz` models). Stick those into the same directory as KataGo's executable, and then you don't need to specify `-config` or `-model` paths at all.
 
-   * An error like `Could not create file` when trying to run the initial tuning or benchmark.
-      * KataGo probably does not have access permissions to write files in the directory where you placed it. On Windows for example, the `Program Files` directory and its subdirectories are often restricted to only allow writes with admin-level permissions. Try placing KataGo somewhere else.
+* An error like `Could not create file` when trying to run the initial tuning or benchmark.
+   * KataGo probably does not have access permissions to write files in the directory where you placed it. On Windows for example, the `Program Files` directory and its subdirectories are often restricted to only allow writes with admin-level permissions. Try placing KataGo somewhere else.
 
-### Features for Developers
+## Features for Developers
 
 #### GTP Extensions:
 In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/gtp/), KataGo supports a few additional commands, for use with analysis tools and other programs.
