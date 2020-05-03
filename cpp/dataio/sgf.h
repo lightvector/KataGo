@@ -32,6 +32,7 @@ struct SgfNode {
 
   Color getPLSpecifiedColor() const;
   Rules getRulesFromRUTagOrFail() const;
+  Player getSgfWinner() const;
 };
 
 struct Sgf {
@@ -111,6 +112,7 @@ struct CompactSgf {
   int ySize;
   int depth;
   float komi;
+  Player sgfWinner;
   Hash128 hash;
 
   CompactSgf(const Sgf* sgf);

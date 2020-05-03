@@ -56,7 +56,6 @@ runselfplayinittests : Run some tests involving selfplay training init using a n
 runsekitrainwritetests : Run some tests involving seki train output
 
 ---Dev/experimental subcommands-------------
-nnerror
 demoplay
 lzcost
 matchauto

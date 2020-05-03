@@ -2446,9 +2446,25 @@ ostream& operator<<(ostream& out, const Board& board) {
 }
 
 
+string Board::toStringSimple(const Board& board, char lineDelimiter) {
+  string s;
+  for(int y = 0; y < board.y_size; y++) {
+    for(int x = 0; x < board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      s += PlayerIO::colorToChar(board.colors[loc]);
+    }
+    s += lineDelimiter;
+  }
+  return s;
+}
+
 Board Board::parseBoard(int xSize, int ySize, const string& s) {
+  return parseBoard(xSize,ySize,s,'\n');
+}
+
+Board Board::parseBoard(int xSize, int ySize, const string& s, char lineDelimiter) {
   Board board(xSize,ySize);
-  vector<string> lines = Global::split(Global::trim(s),'\n');
+  vector<string> lines = Global::split(Global::trim(s),lineDelimiter);
 
   //Throw away coordinate labels line if it exists
   if(lines.size() == ySize+1 && Global::isPrefix(lines[0],"A"))
