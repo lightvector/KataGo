@@ -250,6 +250,17 @@ Rules SgfNode::getRulesFromRUTagOrFail() const {
   return parsed;
 }
 
+Player SgfNode::getSgfWinner() const {
+  if(!hasProperty("RE"))
+    return C_EMPTY;
+  string s = Global::toLower(getSingleProperty("RE"));
+  if(Global::isPrefix(s,"b+") || Global::isPrefix(s,"black+"))
+    return P_BLACK;
+  if(Global::isPrefix(s,"w+") || Global::isPrefix(s,"white+"))
+    return P_WHITE;
+  return C_EMPTY;
+}
+
 Sgf::Sgf()
 {}
 Sgf::~Sgf() {
@@ -319,8 +330,16 @@ float Sgf::getKomi() const {
   bool suc = Global::tryStringToFloat(nodes[0]->getSingleProperty("KM"), komi);
   if(!suc)
     propertyFail("Could not parse komi in sgf");
-  if(!Rules::komiIsIntOrHalfInt(komi))
-    propertyFail("Komi in sgf is not integer or half-integer");
+
+  if(!Rules::komiIsIntOrHalfInt(komi)) {
+    //Hack - if the komi is a quarter integer and it looks like a Chines GoGoD file, then double komi and accept
+    if(Rules::komiIsIntOrHalfInt(komi*2.0f) && nodes[0]->hasProperty("US") && nodes[0]->hasProperty("RU") &&
+       Global::isPrefix(nodes[0]->getSingleProperty("US"),"GoGoD") &&
+       Global::toLower(nodes[0]->getSingleProperty("RU")) == "chinese")
+      komi *= 2.0f;
+    else
+      propertyFail("Komi in sgf is not integer or half-integer");
+  }
   return komi;
 }
 
@@ -826,6 +845,8 @@ CompactSgf::CompactSgf(const Sgf* sgf)
 
   checkNonEmpty(sgf->nodes);
   rootNode = *(sgf->nodes[0]);
+
+  sgfWinner = rootNode.getSgfWinner();
 }
 
 CompactSgf::CompactSgf(Sgf&& sgf)
@@ -858,6 +879,8 @@ CompactSgf::CompactSgf(Sgf&& sgf)
     delete sgf.children[i];
     sgf.children[i] = NULL;
   }
+
+  sgfWinner = rootNode.getSgfWinner();
 }
 
 CompactSgf::~CompactSgf() {
