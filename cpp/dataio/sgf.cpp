@@ -2,7 +2,10 @@
 
 #include "../core/sha2.h"
 
+#include "../external/nlohmann_json/json.hpp"
+
 using namespace std;
+using json = nlohmann::json;
 
 SgfNode::SgfNode()
   :props(NULL),move(0,0,C_EMPTY)
@@ -541,7 +544,55 @@ void Sgf::samplePositionIfUniqueHelper(
   for(int i = startTurn; i<hist.moveHistory.size(); i++)
     sampleBuf.moves.push_back(hist.moveHistory[i]);
   sampleBuf.initialTurnNumber = initialTurnNumber + startTurn;
+  sampleBuf.hintLoc = Board::NULL_LOC;
   f(sampleBuf);
+}
+
+
+string Sgf::PositionSample::toJsonLine(const Sgf::PositionSample& sample) {
+  json data;
+  data["xSize"] = sample.board.x_size;
+  data["ySize"] = sample.board.y_size;
+  data["board"] = Board::toStringSimple(sample.board,'/');
+  data["nextPla"] = PlayerIO::playerToStringShort(sample.nextPla);
+  vector<string> moveLocs;
+  vector<string> movePlas;
+  for(size_t i = 0; i<sample.moves.size(); i++)
+    moveLocs.push_back(Location::toString(sample.moves[i].loc,sample.board));
+  for(size_t i = 0; i<sample.moves.size(); i++)
+    movePlas.push_back(PlayerIO::playerToStringShort(sample.moves[i].pla));
+
+  data["movesLocs"] = moveLocs;
+  data["movesPlas"] = movePlas;
+  data["initialTurnNumber"] = sample.initialTurnNumber;
+  data["hintLoc"] = Location::toString(sample.hintLoc,sample.board);
+  return data.dump();
+}
+
+Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
+  json data = json::parse(s);
+  PositionSample sample;
+  try {
+    int xSize = data["xSize"].get<int>();
+    int ySize = data["ySize"].get<int>();
+    sample.board = Board::parseBoard(xSize,ySize,data["board"].get<string>(),'/');
+    sample.nextPla = PlayerIO::parsePlayer(data["nextPla"].get<string>());
+    vector<string> moveLocs = data["moveLocs"].get<vector<string>>();
+    vector<string> movePlas = data["movePlas"].get<vector<string>>();
+    if(moveLocs.size() != movePlas.size())
+      throw StringError("moveLocs.size() != movePlas.size()");
+    for(size_t i = 0; i<moveLocs.size(); i++) {
+      Loc moveLoc = Location::ofString(moveLocs[i],sample.board);
+      Player movePla = PlayerIO::parsePlayer(movePlas[i]);
+      sample.moves.push_back(Move(moveLoc,movePla));
+    }
+    sample.initialTurnNumber = data["initialTurnNumber"].get<int>();
+    sample.hintLoc = Location::ofString(data["hintLoc"].get<string>(),sample.board);
+  }
+  catch(nlohmann::detail::exception& e) {
+    throw StringError("Error parsing position sample json\n" + s + "\n" + e.what());
+  }
+  return sample;
 }
 
 //PARSING---------------------------------------------------------------------

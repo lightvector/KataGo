@@ -2237,6 +2237,16 @@ string PlayerIO::playerToString(Color c)
   }
 }
 
+string PlayerIO::playerToStringShort(Color c)
+{
+  switch(c) {
+  case C_BLACK: return "B";
+  case C_WHITE: return "W";
+  case C_EMPTY: return "E";
+  default:  return "";
+  }
+}
+
 bool PlayerIO::tryParsePlayer(const string& s, Player& pla) {
   string str = Global::toLower(s);
   if(str == "black" || str == "b") {
@@ -2248,6 +2258,14 @@ bool PlayerIO::tryParsePlayer(const string& s, Player& pla) {
     return true;
   }
   return false;
+}
+
+Player PlayerIO::parsePlayer(const string& s) {
+  Player pla = C_EMPTY;
+  bool suc = tryParsePlayer(s,pla);
+  if(!suc)
+    throw StringError("Could not parse player: " + s);
+  return pla;
 }
 
 string Location::toStringMach(Loc loc, int x_size)
