@@ -93,6 +93,10 @@ class GameInitializer {
 
   Rules randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const;
 
+  //Only sample the space of possible rules
+  Rules createRules();
+  bool isAllowedBSize(int xSize, int ySize);
+
  private:
   void initShared(ConfigParser& cfg, Logger& logger);
   void createGameSharedUnsynchronized(
@@ -102,6 +106,7 @@ class GameInitializer {
     const PlaySettings& playSettings,
     OtherGameProperties& otherGameProps
   );
+  Rules createRulesUnsynchronized();
 
   std::mutex createGameMutex;
   Rand rand;

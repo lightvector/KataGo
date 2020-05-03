@@ -341,6 +341,35 @@ Rules GameInitializer::randomizeScoringAndTaxRules(Rules rules, Rand& randToUse)
   return rules;
 }
 
+bool GameInitializer::isAllowedBSize(int xSize, int ySize) {
+  if(!contains(allowedBSizes,xSize))
+    return false;
+  if(!contains(allowedBSizes,ySize))
+    return false;
+  if(allowRectangleProb <= 0.0 && xSize != ySize)
+    return false;
+  return true;
+}
+
+Rules GameInitializer::createRules() {
+  lock_guard<std::mutex> lock(createGameMutex);
+  return createRulesUnsynchronized();
+}
+
+Rules GameInitializer::createRulesUnsynchronized() {
+  Rules rules;
+  rules.koRule = allowedKoRules[rand.nextUInt(allowedKoRules.size())];
+  rules.scoringRule = allowedScoringRules[rand.nextUInt(allowedScoringRules.size())];
+  rules.taxRule = allowedTaxRules[rand.nextUInt(allowedTaxRules.size())];
+  rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[rand.nextUInt(allowedMultiStoneSuicideLegals.size())];
+
+  if(rules.scoringRule == Rules::SCORING_AREA)
+    rules.hasButton = allowedButtons[rand.nextUInt(allowedButtons.size())];
+  else
+    rules.hasButton = false;
+  return rules;
+}
+
 void GameInitializer::createGameSharedUnsynchronized(
   Board& board, Player& pla, BoardHistory& hist,
   ExtraBlackAndKomi& extraBlackAndKomi,
@@ -377,16 +406,7 @@ void GameInitializer::createGameSharedUnsynchronized(
   if(allowRectangleProb > 0 && rand.nextBool(allowRectangleProb))
     ySizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size());
 
-  Rules rules;
-  rules.koRule = allowedKoRules[rand.nextUInt(allowedKoRules.size())];
-  rules.scoringRule = allowedScoringRules[rand.nextUInt(allowedScoringRules.size())];
-  rules.taxRule = allowedTaxRules[rand.nextUInt(allowedTaxRules.size())];
-  rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[rand.nextUInt(allowedMultiStoneSuicideLegals.size())];
-
-  if(rules.scoringRule == Rules::SCORING_AREA)
-    rules.hasButton = allowedButtons[rand.nextUInt(allowedButtons.size())];
-  else
-    rules.hasButton = false;
+  Rules rules = createRulesUnsynchronized();
 
   if(startPosesProb > 0 && rand.nextBool(startPosesProb)) {
     assert(startPoses.size() > 0);
@@ -398,6 +418,9 @@ void GameInitializer::createGameSharedUnsynchronized(
     hist.clear(board,pla,rules,0);
     hist.setInitialTurnNumber(startPos.initialTurnNumber);
     for(size_t i = 0; i<startPos.moves.size(); i++) {
+      bool isLegal = hist.isLegal(board,startPos.moves[i].loc,startPos.moves[i].pla);
+      if(!isLegal)
+        break;
       hist.makeBoardMoveAssumeLegal(board,startPos.moves[i].loc,startPos.moves[i].pla,NULL);
       pla = getOpp(startPos.moves[i].pla);
     }
