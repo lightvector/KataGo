@@ -12,8 +12,19 @@
 #include "../main.h"
 
 #include <chrono>
+#include <csignal>
 
 using namespace std;
+
+static std::atomic<bool> sigReceived(false);
+static std::atomic<bool> shouldStop(false);
+static void signalHandler(int signal)
+{
+  if(signal == SIGINT || signal == SIGTERM) {
+    sigReceived.store(true);
+    shouldStop.store(true);
+  }
+}
 
 static void writeLine(
   const Search* search, const BoardHistory& baseHist,
@@ -687,6 +698,12 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   }
 
   MakeDir::make(outDir);
+
+  if(!std::atomic_is_lock_free(&shouldStop))
+    throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
+  std::signal(SIGINT, signalHandler);
+  std::signal(SIGTERM, signalHandler);
+
   ThreadSafeQueue<string*> toWriteQueue;
   auto writeLoop = [&toWriteQueue,&outDir]() {
     int fileCounter = 0;
@@ -728,6 +745,9 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     Search* search = new Search(params,nnEval,searchRandSeed);
 
     while(true) {
+      if(shouldStop.load(std::memory_order_acquire))
+        break;
+
       int64_t idx;
       bool success = sgfQueue.waitPop(idx);
       if(!success)
@@ -831,6 +851,8 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
       if(winLossValues.size() <= 0)
         continue;
+      if(shouldStop.load(std::memory_order_acquire))
+        continue;
 
       vector<double> futureValue(winLossValues.size()+1);
       vector<double> futureLead(winLossValues.size()+1);
@@ -861,6 +883,10 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
       //cout << fileName << endl;
       for(int m = minMoveIdx; m<moves.size(); m++) {
+
+        if(shouldStop.load(std::memory_order_acquire))
+          break;
+
         //cout << m << endl;
         //Look for surprising moves that turned out not poorly
         if(policyPriors[m] < 0.08 + rand.nextDouble(0.04)) {
@@ -965,7 +991,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   }
 
   for(int64_t i = 0; i<sgfFiles.size(); i++) {
-    sgfQueue.waitPush(i);
+    sgfQueue.forcePush(i);
   }
   sgfQueue.setReadOnly();
 
