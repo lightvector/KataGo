@@ -46,7 +46,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * This is an extension for playing on KGS, via kgsGtp.
       * As specified by kgsGtp docs, `RULES` should be one of `chinese | aga | japanese | new_zealand`.
       * For this extension, `chinese` actually maps to `chinese-kgs` above. Otherwise, has the same effect as `kata-set-rules`.
-   * `kgs-time-settings KIND ...`
+   * `kgs-time_settings KIND ...`
       * This is an extension for playing on KGS, via kgsGtp.
       * As specified by kgsGtp docs, `KIND` should be one of `none | absolute | canadian | byoyomi`.
          * `none` indicates no time control
