@@ -32,8 +32,10 @@ static inline Color getOpp(Color c)
 //Conversions for players and colors
 namespace PlayerIO {
   char colorToChar(Color c);
+  std::string playerToStringShort(Player p);
   std::string playerToString(Player p);
   bool tryParsePlayer(const std::string& s, Player& pla);
+  Player parsePlayer(const std::string& s);
 }
 
 //Location of a point on the board
