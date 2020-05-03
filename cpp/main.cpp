@@ -108,6 +108,8 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::runsekitrainwritetests(argc-1,&argv[1]);
   else if(subcommand == "runnnonmanyposestest")
     return MainCmds::runnnonmanyposestest(argc-1,&argv[1]);
+  else if(subcommand == "dataminesgfs")
+    return MainCmds::dataminesgfs(argc-1,&argv[1]);
   else if(subcommand == "lzcost")
     return MainCmds::lzcost(argc-1,&argv[1]);
   else if(subcommand == "demoplay")
