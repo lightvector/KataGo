@@ -22,6 +22,7 @@ namespace Client {
     std::string url;
     int64_t bytes;
     std::string sha256;
+    bool isRandom;
   };
 
   struct Task {

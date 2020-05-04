@@ -52,7 +52,6 @@ log("uploaded_dir" + ": " + uploaded_dir)
 log("base_server_url" + ": " + base_server_url)
 
 network_size = model_name.split("-")[0]
-nb_parameters = modelconfigs.num_parameters_of_name[network_size]
 
 possible_parents = []
 for fname in os.listdir(uploaded_dir):
@@ -69,9 +68,6 @@ url = base_server_url + "networks/"
 data = {
   "name": name,
   "network_size": network_size,
-  "nb_parameters": nb_parameters,
-  "model_architecture_details": {},
-  "model_file": "TODO", #TODO presumably we upload and then put this here?
   "parent_network": possible_parents[-1][0]
 }
 

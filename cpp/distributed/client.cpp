@@ -301,7 +301,7 @@ static T parseReal(const json& response, const char* field, T min, T max) {
 
 RunParameters Connection::getRunParameters() {
   try {
-    json response = parseJson(get("/api/runs/"));
+    json response = parseJson(get("/api/runs/client/"));
 
     vector<json> runs;
     try {
@@ -353,18 +353,11 @@ static void retryLoop(const char* errorLabel, bool retryOnFailure, Logger* logge
 
 static Client::ModelInfo parseModelInfo(const json& networkProperties) {
   Client::ModelInfo model;
-  if(networkProperties.find("model_file") != networkProperties.end() && networkProperties["model_file"].is_null()) {
-    model.name = "random";
-    model.url = "";
-    model.bytes = 0;
-    model.sha256 = "";
-  }
-  else {
-    model.name = parse<string>(networkProperties,"name");
-    model.url = parse<string>(networkProperties,"model_file");
-    model.bytes = parse<int64_t>(networkProperties,"model_file_bytes");
-    model.sha256 = parse<string>(networkProperties,"model_file_sha256");
-  }
+  model.name = parse<string>(networkProperties,"name");
+  model.url = parse<string>(networkProperties,"model_file");
+  model.bytes = parse<int64_t>(networkProperties,"model_file_bytes");
+  model.sha256 = parse<string>(networkProperties,"model_file_sha256");
+  model.isRandom = parse<bool>(networkProperties,"is_random");
   return model;
 }
 
@@ -375,7 +368,7 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
   auto f = [&]() {
     json response = parseJson(post("/api/tasks/","","text/plain"));
     string kind = parse<string>(response,"kind");
-    if(kind == "training") {
+    if(kind == "selfplay") {
       json networkProperties = parse<json>(response,"network");
 
       task.taskId = ""; //TODO Server doesn't care? What about avoiding multiply reporting games?
@@ -387,7 +380,7 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
       task.doWriteTrainingData = true;
       task.isRatingGame = false;
     }
-    else if(kind == "ranking") {
+    else if(kind == "rating") {
       json content = parse<json>(response,"content");
       json blackNetworkProperties = parse<json>(content,"black_network");
       json whiteNetworkProperties = parse<json>(content,"white_network");
@@ -413,7 +406,7 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
       task.isRatingGame = true;
     }
     else {
-      throw StringError("kind was neither 'training' or 'ranking_estimation' in json response: " + response.dump());
+      throw StringError("kind was neither 'selfplay' or 'rating' in json response: " + response.dump());
     }
 
     //Go ahead and try to parse most of the normal fields out of the task config, so as to catch errors early
@@ -435,13 +428,13 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
 
 //STATIC method
 string Connection::getModelPath(const Client::ModelInfo& modelInfo, const string& modelDir) {
-  if(modelInfo.name == "random")
+  if(modelInfo.isRandom)
     return "/dev/null";
   return modelDir + "/" + modelInfo.name + ".bin.gz";
 }
 
 void Connection::downloadModelIfNotPresent(const Client::ModelInfo& modelInfo, const string& modelDir, bool retryOnFailure) {
-  if(modelInfo.name == "random" && modelInfo.url.size() <= 0)
+  if(modelInfo.isRandom)
     return;
 
   string path = getModelPath(modelInfo,modelDir);
@@ -507,18 +500,17 @@ void Connection::uploadTrainingGameAndData(const Task& task, const FinishedGameD
   npzIn.close();
 
   auto f = [&]() {
-    double playoutsPerSec = 0; //TODO
     int boardSizeX = gameData->startBoard.x_size;
     int boardSizeY = gameData->startBoard.y_size;
     int handicap = (gameData->numExtraBlack > 0 ? (gameData->numExtraBlack + 1) : 0);
     double komi = gameData->startHist.rules.komi;
-    string rulesParams = json::parse(gameData->startHist.rules.toJsonStringNoKomi());
-    json extraParams;
-    extraParams["playout_doubling_advantage"] = gameData->playoutDoublingAdvantage;
-    extraParams["playout_doubling_advantage_pla"] = PlayerIO::playerToString(gameData->playoutDoublingAdvantagePla);
-    extraParams["draw_equivalent_wins_for_white"] = gameData->drawEquivalentWinsForWhite;
+    string rules = json::parse(gameData->startHist.rules.toJsonStringNoKomi());
+    json extraMetadata;
+    extraMetadata["playout_doubling_advantage"] = gameData->playoutDoublingAdvantage;
+    extraMetadata["playout_doubling_advantage_pla"] = PlayerIO::playerToString(gameData->playoutDoublingAdvantagePla);
+    extraMetadata["draw_equivalent_wins_for_white"] = gameData->drawEquivalentWinsForWhite;
     static_assert(FinishedGameData::NUM_MODES == 5,"");
-    extraParams["mode"] = (
+    extraMetadata["mode"] = (
       gameData->mode == FinishedGameData::MODE_NORMAL ? "normal" :
       gameData->mode == FinishedGameData::MODE_CLEANUP_TRAINING ? "cleanup_training" :
       gameData->mode == FinishedGameData::MODE_FORK ? "fork" :
@@ -526,36 +518,30 @@ void Connection::uploadTrainingGameAndData(const Task& task, const FinishedGameD
       gameData->mode == FinishedGameData::MODE_SGFPOS ? "sgfpos" :
       "unknown"
     );
-    string gameExtraParams = extraParams.dump();
-    string result = WriteSgf::gameResultNoSgfTag(gameData->endHist);
+    string winner = gameData->endHist.winner == P_WHITE ? "W" : gameData->endHist.winner == P_BLACK ? "B" : gameData->endHist.isNoResult ? "-" : "0";
     double score = gameData->endHist.finalWhiteMinusBlackScore;
     string hasResigned = gameData->endHist.isResignation ? "true" : "false";
-    string initialPositionSgfFile = ""; //TODO
-    string initialPositionExtraParams = "{}"; //TODO
-    string gameHash;
+    string gameUid;
     {
       ostringstream o;
       o << gameData->gameHash;
-      gameHash = o.str();
+      gameUid = o.str();
     }
     string run = task.runName;
     string whiteNetwork = task.modelWhite.name;
     string blackNetwork = task.modelBlack.name;
 
     httplib::MultipartFormDataItems items = {
-      { "playouts_per_sec", Global::doubleToString(playoutsPerSec), "", "" },
       { "board_size_x", Global::intToString(boardSizeX), "", "" },
       { "board_size_y", Global::intToString(boardSizeY), "", "" },
       { "handicap", Global::intToString(handicap), "", "" },
       { "komi", Global::doubleToString(komi), "", "" },
-      { "rules_params", rulesParams, "", "" },
-      { "game_extra_params", gameExtraParams, "", "" },
-      { "result", result, "", "" },
+      { "rules", rules, "", "" },
+      { "extra_metadata", extraMetadata.dump(), "", "" },
+      { "winner", winner, "", "" },
       { "score", Global::doubleToString(score), "", "" },
-      { "has_resigned", hasResigned, "", "" },
-      { "initial_position_sgf_file", initialPositionSgfFile, "", "text/plain" },
-      { "initial_position_extra_params", initialPositionExtraParams, "", "" },
-      { "game_hash", gameHash, "", "" },
+      { "resigned", hasResigned, "", "" },
+      { "kg_game_uid", gameUid, "", "" },
       { "run", run, "", ""},
       { "white_network", whiteNetwork, "", ""},
       { "black_network", blackNetwork, "", ""},
@@ -584,42 +570,36 @@ void Connection::uploadRatingGame(const Task& task, const FinishedGameData* game
   sgfIn.close();
 
   auto f = [&]() {
-    double playoutsPerSec = 0; //TODO
     int boardSizeX = gameData->startBoard.x_size;
     int boardSizeY = gameData->startBoard.y_size;
     int handicap = (gameData->numExtraBlack > 0 ? (gameData->numExtraBlack + 1) : 0);
     double komi = gameData->startHist.rules.komi;
-    string rulesParams = json::parse(gameData->startHist.rules.toJsonStringNoKomi());
-    string gameExtraParams = json({}).dump();
-    string result = WriteSgf::gameResultNoSgfTag(gameData->endHist);
+    string rules = json::parse(gameData->startHist.rules.toJsonStringNoKomi());
+    json extraMetadata = json({});
+    string winner = gameData->endHist.winner == P_WHITE ? "W" : gameData->endHist.winner == P_BLACK ? "B" : gameData->endHist.isNoResult ? "-" : "0";
     double score = gameData->endHist.finalWhiteMinusBlackScore;
     string hasResigned = gameData->endHist.isResignation ? "true" : "false";
-    string initialPositionSgfFile = ""; //TODO
-    string initialPositionExtraParams = "{}"; //TODO
-    string gameHash;
+    string gameUid;
     {
       ostringstream o;
       o << gameData->gameHash;
-      gameHash = o.str();
+      gameUid = o.str();
     }
     string run = task.runName;
     string whiteNetwork = task.modelWhite.name;
     string blackNetwork = task.modelBlack.name;
 
     httplib::MultipartFormDataItems items = {
-      { "playouts_per_sec", Global::doubleToString(playoutsPerSec), "", "" },
       { "board_size_x", Global::intToString(boardSizeX), "", "" },
       { "board_size_y", Global::intToString(boardSizeY), "", "" },
       { "handicap", Global::intToString(handicap), "", "" },
       { "komi", Global::doubleToString(komi), "", "" },
-      { "rules_params", rulesParams, "", "" },
-      { "game_extra_params", gameExtraParams, "", "" },
-      { "result", result, "", "" },
+      { "rules", rules, "", "" },
+      { "extra_metadata", extraMetadata.dump(), "", "" },
+      { "winner", winner, "", "" },
       { "score", Global::doubleToString(score), "", "" },
-      { "has_resigned", hasResigned, "", "" },
-      { "initial_position_sgf_file", initialPositionSgfFile, "", "text/plain" },
-      { "initial_position_extra_params", initialPositionExtraParams, "", "" },
-      { "game_hash", gameHash, "", "" },
+      { "resigned", hasResigned, "", "" },
+      { "kg_game_uid", gameUid, "", "" },
       { "run", run, "", ""},
       { "white_network", whiteNetwork, "", ""},
       { "black_network", blackNetwork, "", ""},

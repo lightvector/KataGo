@@ -314,7 +314,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
       Setup::SETUP_FOR_DISTRIBUTED
     );
-    assert(!nnEval->isNeuralNetLess() || modelName == "random");
+    assert(!nnEval->isNeuralNetLess() || modelFile == "/dev/null");
     logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
 
     string sgfOutputDir = sgfsDir + "/" + modelName;
@@ -376,10 +376,10 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     //Update model file modified times as a way to track which ones we've used recently or not
     string modelFileBlack = Client::Connection::getModelPath(task.modelBlack,modelsDir);
     string modelFileWhite = Client::Connection::getModelPath(task.modelWhite,modelsDir);
-    if(task.modelBlack.name != "random") {
+    if(!task.modelBlack.isRandom) {
       LoadModel::setLastModifiedTimeToNow(modelFileBlack,logger);
     }
-    if(task.modelWhite.name != "random" && task.modelWhite.name != task.modelBlack.name) {
+    if(!task.modelWhite.isRandom && task.modelWhite.name != task.modelBlack.name) {
       LoadModel::setLastModifiedTimeToNow(modelFileWhite,logger);
     }
 

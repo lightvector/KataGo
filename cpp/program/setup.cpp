@@ -72,7 +72,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     const string& nnModelName = nnModelNames[i];
     const string& nnModelFile = nnModelFiles[i];
 
-    bool debugSkipNeuralNetDefault = (nnModelFile == "/dev/null") || (nnModelName == "random" && nnModelFile == "");
+    bool debugSkipNeuralNetDefault = (nnModelFile == "/dev/null");
     bool debugSkipNeuralNet =
       setupFor == SETUP_FOR_DISTRIBUTED ? debugSkipNeuralNetDefault :
       cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") :
