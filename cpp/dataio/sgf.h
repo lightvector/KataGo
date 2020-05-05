@@ -86,6 +86,8 @@ struct Sgf {
   //f is allowed to mutate and consume sample.
   void iterAllUniquePositions(std::set<Hash128>& uniqueHashes, std::function<void(PositionSample&)> f) const;
 
+  static std::set<Hash128> readExcludes(const std::vector<std::string>& files);
+
   private:
   void getMovesHelper(std::vector<Move>& moves, int xSize, int ySize) const;
 
@@ -105,7 +107,6 @@ struct Sgf {
     std::set<Hash128>& uniqueHashes,
     std::function<void(PositionSample&)> f
   ) const;
-
 };
 
 struct CompactSgf {

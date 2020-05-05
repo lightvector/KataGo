@@ -249,7 +249,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     startPosCumProbs.clear();
     startPosesProb = cfg.getDouble("startPosesProb",0.0,1.0);
 
-    string dir = cfg.getString("startPosesFromSgfDir");
+    vector<string> dirs = Global::split(cfg.getString("startPosesFromSgfDir"),',');
+    vector<string> excludes = Global::split(cfg.contains("startPosesSgfExcludes") ? cfg.getString("startPosesSgfExcludes") : "",',');
     double startPosesLoadProb = cfg.getDouble("startPosesLoadProb",0.0,1.0);
     double startPosesTurnWeightLambda = cfg.getDouble("startPosesTurnWeightLambda",-10,10);
 
@@ -257,8 +258,14 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     std::function<bool(const string&)> fileFilter = [](const string& fileName) {
       return Global::isSuffix(fileName,".sgf");
     };
-    Global::collectFiles(dir, fileFilter, files);
-    logger.write("Found " + Global::uint64ToString(files.size()) + " sgf files in " + dir);
+    for(int i = 0; i<dirs.size(); i++) {
+      string dir = Global::trim(dirs[i]);
+      if(dir.size() > 0)
+        Global::collectFiles(dir, fileFilter, files);
+    }
+    std::set<Hash128> excludeHashes = Sgf::readExcludes(files);
+    logger.write("Found " + Global::uint64ToString(files.size()) + " sgf files");
+    logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
     std::set<Hash128> uniqueHashes;
     std::function<void(Sgf::PositionSample&)> posHandler = [startPosesLoadProb,this](Sgf::PositionSample& posSample) {
       if(rand.nextBool(startPosesLoadProb))
@@ -266,10 +273,11 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     };
     for(size_t i = 0; i<files.size(); i++) {
       Sgf* sgf = Sgf::loadFile(files[i]);
-      sgf->iterAllUniquePositions(uniqueHashes, posHandler);
+      if(!contains(excludeHashes,sgf->hash))
+        sgf->iterAllUniquePositions(uniqueHashes, posHandler);
       delete sgf;
     }
-    logger.write("Loaded " + Global::uint64ToString(startPoses.size()) + " start positions from " + dir);
+    logger.write("Loaded " + Global::uint64ToString(startPoses.size()) + " start positions");
 
     startPosCumProbs = generateCumProbs(startPoses, startPosesTurnWeightLambda);
 
@@ -288,13 +296,17 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     hintPosCumProbs.clear();
     hintPosesProb = cfg.getDouble("hintPosesProb",0.0,1.0);
 
-    string dir = cfg.getString("hintPosesDir");
+    vector<string> dirs = Global::split(cfg.getString("hintPosesDir"),',');
 
     vector<string> files;
     std::function<bool(const string&)> fileFilter = [](const string& fileName) {
       return Global::isSuffix(fileName,".hintposes.txt");
     };
-    Global::collectFiles(dir, fileFilter, files);
+    for(int i = 0; i<dirs.size(); i++) {
+      string dir = Global::trim(dirs[i]);
+      if(dir.size() > 0)
+        Global::collectFiles(dir, fileFilter, files);
+    }
 
     for(size_t i = 0; i<files.size(); i++) {
       vector<string> lines = Global::readFileLines(files[i],'\n');
@@ -311,7 +323,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
         }
       }
     }
-    logger.write("Loaded " + Global::uint64ToString(hintPoses.size()) + " hint positions from " + dir);
+    logger.write("Loaded " + Global::uint64ToString(hintPoses.size()) + " hint positions");
 
     hintPosCumProbs = generateCumProbs(hintPoses, 0.0);
 

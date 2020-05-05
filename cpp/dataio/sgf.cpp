@@ -548,6 +548,44 @@ void Sgf::samplePositionIfUniqueHelper(
   f(sampleBuf);
 }
 
+static uint64_t parseHex64(const string& str) {
+  assert(str.length() == 16);
+  uint64_t x = 0;
+  for(int i = 0; i<16; i++) {
+    x *= 16;
+    if(str[i] >= '0' && str[i] <= '9')
+      x += str[i] - '0';
+    else if(str[i] >= 'a' && str[i] <= 'f')
+      x += str[i] - 'a' + 10;
+    else if(str[i] >= 'A' && str[i] <= 'F')
+      x += str[i] - 'A' + 10;
+    else
+      assert(false);
+  }
+  return x;
+}
+
+set<Hash128> Sgf::readExcludes(const vector<string>& files) {
+  set<Hash128> excludeHashes;
+  for(int i = 0; i<files.size(); i++) {
+    string excludeHashesFile = Global::trim(files[i]);
+    if(excludeHashesFile.size() <= 0)
+      continue;
+    vector<string> hashes = Global::readFileLines(excludeHashesFile,'\n');
+    for(int64_t j = 0; j < hashes.size(); j++) {
+      const string& hash128 = Global::trim(Global::stripComments(hashes[j]));
+      if(hash128.length() <= 0)
+        continue;
+      if(hash128.length() != 32)
+        throw IOError("Could not parse hashpair in exclude hashes file: " + hash128);
+
+      uint64_t hash0 = parseHex64(hash128.substr(0,16));
+      uint64_t hash1 = parseHex64(hash128.substr(16,16));
+      excludeHashes.insert(Hash128(hash0,hash1));
+    }
+  }
+  return excludeHashes;
+}
 
 string Sgf::PositionSample::toJsonLine(const Sgf::PositionSample& sample) {
   json data;
