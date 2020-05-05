@@ -1191,6 +1191,8 @@ void WriteSgf::writeSgf(
       out << "," << "mode=handicap";
     else if(gameData->mode == FinishedGameData::MODE_SGFPOS)
       out << "," << "mode=sgfpos";
+    else if(gameData->mode == FinishedGameData::MODE_HINTPOS)
+      out << "," << "mode=hintpos";
     else
       out << "," << "mode=other";
 

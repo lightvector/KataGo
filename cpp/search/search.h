@@ -137,6 +137,7 @@ struct Search {
   Board rootBoard;
   BoardHistory rootHistory;
   bool rootPassLegal;
+  Loc rootHintLoc;
 
   //Precomputed values at the root
   Color* rootSafeArea;
@@ -195,6 +196,7 @@ struct Search {
   void setPlayerAndClearHistory(Player pla);
   void setKomiIfNew(float newKomi); //Does not clear history, does clear search unless komi is equal.
   void setRootPassLegal(bool b);
+  void setRootHintLoc(Loc hintLoc);
   void setAlwaysIncludeOwnerMap(bool b);
   void setParams(SearchParams params);
   void setParamsNoClearing(SearchParams params); //Does not clear search

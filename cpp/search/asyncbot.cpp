@@ -77,6 +77,10 @@ void AsyncBot::setRootPassLegal(bool b) {
   stopAndWait();
   search->setRootPassLegal(b);
 }
+void AsyncBot::setRootHintLoc(Loc loc) {
+  stopAndWait();
+  search->setRootHintLoc(loc);
+}
 void AsyncBot::setAlwaysIncludeOwnerMap(bool b) {
   stopAndWait();
   search->setAlwaysIncludeOwnerMap(b);
