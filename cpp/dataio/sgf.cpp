@@ -346,6 +346,19 @@ float Sgf::getKomi() const {
   return komi;
 }
 
+int Sgf::getHandicapValue() const {
+  checkNonEmpty(nodes);
+  //Default, if SGF doesn't specify
+  if(!nodes[0]->hasProperty("HA"))
+    return 0;
+
+  int handicapValue = 0;
+  bool suc = Global::tryStringToInt(nodes[0]->getSingleProperty("HA"), handicapValue);
+  if(!suc)
+    propertyFail("Could not parse handicap value in sgf");
+  return handicapValue;
+}
+
 bool Sgf::hasRules() const {
   checkNonEmpty(nodes);
   return nodes[0]->hasProperty("RU");

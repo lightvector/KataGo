@@ -57,6 +57,7 @@ struct Sgf {
   float getKomi() const;
   bool hasRules() const;
   Rules getRulesOrFail() const;
+  int getHandicapValue() const;
 
   void getPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
   void getMoves(std::vector<Move>& moves, int xSize, int ySize) const;
