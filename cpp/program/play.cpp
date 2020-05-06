@@ -263,7 +263,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
       if(dir.size() > 0)
         Global::collectFiles(dir, fileFilter, files);
     }
-    std::set<Hash128> excludeHashes = Sgf::readExcludes(files);
+    std::set<Hash128> excludeHashes = Sgf::readExcludes(excludes);
     logger.write("Found " + Global::uint64ToString(files.size()) + " sgf files");
     logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
     std::set<Hash128> uniqueHashes;
@@ -271,11 +271,14 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
       if(rand.nextBool(startPosesLoadProb))
         startPoses.push_back(posSample);
     };
+    int64_t numExcluded = 0;
     for(size_t i = 0; i<files.size(); i++) {
       Sgf* sgf = NULL;
       try {
         sgf = Sgf::loadFile(files[i]);
-        if(!contains(excludeHashes,sgf->hash))
+        if(contains(excludeHashes,sgf->hash))
+          numExcluded += 1;
+        else
           sgf->iterAllUniquePositions(uniqueHashes, posHandler);
       }
       catch(const StringError& e) {
@@ -284,7 +287,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
       if(sgf != NULL)
         delete sgf;
     }
-    logger.write("Loaded " + Global::uint64ToString(startPoses.size()) + " start positions");
+    logger.write("Kept " + Global::uint64ToString(startPoses.size()) + " start positions");
+    logger.write("Excluded " + Global::int64ToString(numExcluded) + " start positions");
 
     startPosCumProbs = generateCumProbs(startPoses, startPosesTurnWeightLambda);
 
