@@ -107,6 +107,7 @@ void Tests::runTrainingWriteTests() {
     vector<std::atomic<bool>*> stopConditions;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.04;
     playSettings.forkSidePositionProb = 0.10;
     playSettings.forSelfPlay = true;
     Rand rand(seedBase+"play");
@@ -230,6 +231,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     vector<std::atomic<bool>*> stopConditions;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.04;
     playSettings.forkSidePositionProb = 0.40;
     playSettings.cheapSearchProb = 0.5;
     playSettings.cheapSearchVisits = 20;
@@ -415,6 +417,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     vector<std::atomic<bool>*> stopConditions;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.04;
     playSettings.forkSidePositionProb = 0.0;
     playSettings.cheapSearchProb = 0.5;
     playSettings.cheapSearchVisits = 50;

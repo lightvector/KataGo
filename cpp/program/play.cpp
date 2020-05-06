@@ -485,7 +485,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     );
     otherGameProps.isSgfPos = startPos.hintLoc == Board::NULL_LOC;
     otherGameProps.isHintPos = startPos.hintLoc != Board::NULL_LOC;
-    otherGameProps.allowPolicyInit = false; //On sgf positions, don't play extra moves at start
+    otherGameProps.allowPolicyInit = startPos.hintLoc == Board::NULL_LOC; //On sgf positions, do allow extra moves at start
     otherGameProps.isFork = false;
     otherGameProps.hintLoc = startPos.hintLoc;
     otherGameProps.hintTurn = hist.moveHistory.size();
@@ -1381,11 +1381,13 @@ FinishedGameData* Play::runGame(
   };
 
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
-    double proportionOfBoardArea = 1.0 / 25.0;
-    double temperature = 1.0;
-    initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
-    if(playSettings.compensateAfterPolicyInitProb > 0.0 && gameRand.nextBool(playSettings.compensateAfterPolicyInitProb)) {
-      PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,logger,otherGameProps,gameRand);
+    double proportionOfBoardArea = otherGameProps.isSgfPos ? playSettings.startPosesPolicyInitAreaProp : playSettings.policyInitAreaProp;
+    if(proportionOfBoardArea > 0) {
+      double temperature = 1.0;
+      initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
+      if(playSettings.compensateAfterPolicyInitProb > 0.0 && gameRand.nextBool(playSettings.compensateAfterPolicyInitProb)) {
+        PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,logger,otherGameProps,gameRand);
+      }
     }
   }
 
