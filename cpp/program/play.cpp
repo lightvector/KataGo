@@ -272,10 +272,17 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
         startPoses.push_back(posSample);
     };
     for(size_t i = 0; i<files.size(); i++) {
-      Sgf* sgf = Sgf::loadFile(files[i]);
-      if(!contains(excludeHashes,sgf->hash))
-        sgf->iterAllUniquePositions(uniqueHashes, posHandler);
-      delete sgf;
+      Sgf* sgf = NULL;
+      try {
+        sgf = Sgf::loadFile(files[i]);
+        if(!contains(excludeHashes,sgf->hash))
+          sgf->iterAllUniquePositions(uniqueHashes, posHandler);
+      }
+      catch(const StringError& e) {
+        logger.write("Invalid SGF " + files[i] + ": " + e.what());
+      }
+      if(sgf != NULL)
+        delete sgf;
     }
     logger.write("Loaded " + Global::uint64ToString(startPoses.size()) + " start positions");
 
