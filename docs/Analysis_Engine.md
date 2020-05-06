@@ -21,8 +21,9 @@ The protocol is entirely asynchronous - new requests on stdin can be accepted at
 whenever those analyses finish, and possibly in a different order than the requests were provided. As described below, each query
 may specify *multiple* positions to be analyzed and therefore may generate *multiple* results.
 
-If stdin is closed, the engine will attempt to stop all threads as soon as possible, clean up, and exit, without necessarily
-finishing the analysis of whatever queries are open at the time.
+If stdin is closed, then the engine will finish the analysis of all queued queries before exiting, unless `-quit-without-waiting` was
+provided on the initial command line, in which case it will attempt to stop all threads and still exit cleanly but without
+necessarily finishing the analysis of whatever queries are open at the time.
 
 #### Queries
 

@@ -46,7 +46,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * This is an extension for playing on KGS, via kgsGtp.
       * As specified by kgsGtp docs, `RULES` should be one of `chinese | aga | japanese | new_zealand`.
       * For this extension, `chinese` actually maps to `chinese-kgs` above. Otherwise, has the same effect as `kata-set-rules`.
-   * `kgs-time-settings KIND ...`
+   * `kgs-time_settings KIND ...`
       * This is an extension for playing on KGS, via kgsGtp.
       * As specified by kgsGtp docs, `KIND` should be one of `none | absolute | canadian | byoyomi`.
          * `none` indicates no time control
@@ -128,5 +128,5 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      * Get a parameter or set a parameter to a given value.
      * Currently, the only supported PARAM is `playoutDoublingAdvantage (float)`. Setting this affects the value used for analysis, and affects play only if the config is not already set to use dynamicPlayoutDoublingAdvantageCapPerOppLead. More params may be added later.
   * `cputime`, `gomill-cpu_time`
-     * Returns the approximate total wall-clock-time spent during the handling of `genmove` or the various flavors of `genmove_analyze` commands described above so far during a game, as a floating point number of seconds. Does NOT currently count time spent during pondering or during the various `lz-analyze`, `kata-analayze`, etc.
+     * Returns the approximate total wall-clock-time spent during the handling of `genmove` or the various flavors of `genmove_analyze` commands described above so far during a game, as a floating point number of seconds. Does NOT currently count time spent during pondering or during the various `lz-analyze`, `kata-analyze`, etc.
      * Note: Gomill specifies that its variant of the command should return the total time summed across CPUs. For KataGo, this time is both unuseful and hard to measure because much of the time is spent waiting on the GPU, not on the CPU, and with different threads sometimes blocking each other through the multitheading and often exceeding the number of cores on a user's system, time spent on CPUs is hard to make sense of. So instead we report wall-clock-time, which is far more useful to record and should correspond more closely to what users may want to know for actual practical benchmarking and performance.

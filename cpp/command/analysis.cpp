@@ -597,7 +597,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       }
       std::map<string,string> overrideSettings;
       for(auto it = settings.begin(); it != settings.end(); ++it) {
-        overrideSettings[it.key()] = it.value().is_string() ? std::string(it.value()): it.value().dump(); // always convert to string
+        overrideSettings[it.key()] = it.value().is_string() ? it.value().get<string>(): it.value().dump(); // always convert to string
       }
 
       // Reload settings to allow overrides
@@ -704,6 +704,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         newRequest->hist = hist;
         newRequest->nextPla = nextPla;
         newRequest->params = rbase.params;
+        newRequest->perspective = rbase.perspective;
         newRequest->analysisPVLen = rbase.analysisPVLen;
         newRequest->includeOwnership = rbase.includeOwnership;
         newRequest->includePolicy = rbase.includePolicy;
