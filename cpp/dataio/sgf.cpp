@@ -600,8 +600,8 @@ string Sgf::PositionSample::toJsonLine(const Sgf::PositionSample& sample) {
   for(size_t i = 0; i<sample.moves.size(); i++)
     movePlas.push_back(PlayerIO::playerToStringShort(sample.moves[i].pla));
 
-  data["movesLocs"] = moveLocs;
-  data["movesPlas"] = movePlas;
+  data["moveLocs"] = moveLocs;
+  data["movePlas"] = movePlas;
   data["initialTurnNumber"] = sample.initialTurnNumber;
   data["hintLoc"] = Location::toString(sample.hintLoc,sample.board);
   return data.dump();

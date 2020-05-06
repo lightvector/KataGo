@@ -288,7 +288,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
         delete sgf;
     }
     logger.write("Kept " + Global::uint64ToString(startPoses.size()) + " start positions");
-    logger.write("Excluded " + Global::int64ToString(numExcluded) + " start positions");
+    logger.write("Excluded " + Global::int64ToString(numExcluded) + "/" + Global::uint64ToString(files.size()) + " sgf files");
 
     startPosCumProbs = generateCumProbs(startPoses, startPosesTurnWeightLambda);
 
