@@ -49,8 +49,13 @@ struct ExtraBlackAndKomi {
 
 struct OtherGameProperties {
   bool isSgfPos = false;
+  bool isHintPos = false;
   bool allowPolicyInit = true;
   bool isFork = false;
+
+  int hintTurn = -1;
+  Hash128 hintPosHash;
+  Loc hintLoc = Board::NULL_LOC;
 
   //Note: these two behave slightly differently than the ones in searchParams - as properties for the whole
   //game, they make the playouts *actually* vary instead of only making the neural net think they do.
@@ -132,6 +137,7 @@ class GameInitializer {
   double handicapProb;
   double handicapCompensateKomiProb;
   double forkCompensateKomiProb;
+  double sgfCompensateKomiProb;
   double komiBigStdevProb;
   float komiBigStdev;
   bool komiAuto;
@@ -143,6 +149,10 @@ class GameInitializer {
   std::vector<Sgf::PositionSample> startPoses;
   std::vector<double> startPosCumProbs;
   double startPosesProb;
+
+  std::vector<Sgf::PositionSample> hintPoses;
+  std::vector<double> hintPosCumProbs;
+  double hintPosesProb;
 };
 
 
@@ -260,6 +270,13 @@ namespace Play {
     const GameInitializer* gameInit,
     Rand& gameRand
   );
+
+  void maybeHintForkGame(
+    const FinishedGameData* finishedGameData,
+    ForkData* forkData,
+    const OtherGameProperties& otherGameProps
+  );
+
 }
 
 

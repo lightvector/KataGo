@@ -30,6 +30,7 @@ class AsyncBot {
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
   void setKomiIfNew(float newKomi);
   void setRootPassLegal(bool b);
+  void setRootHintLoc(Loc loc);
   void setAlwaysIncludeOwnerMap(bool b);
   void setParams(SearchParams params);
   void setPlayerIfNew(Player movePla);

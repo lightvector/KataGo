@@ -7690,6 +7690,590 @@ whiteValueTargetsByTurn 30 1 0 0 7.5 7.5
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 
+====================================================================================================
+====================================================================================================
+====================================================================================================
+seedBase: test hint!
+: MoveNum: 0 HASH: 1FF90C1B1F2FA28BCB79C15FC361B0A2
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . X . . . .
+ 8 . . . . . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . O O . .
+ 3 . . . . . @ O X X . .
+ 2 . . . . . O X . . . .
+ 1 . . . . . . . . . . .
+
+
+Root visits: 400
+Policy surprise 0.0982152
+Raw WL 0.0726679
+PV: F3 G4 E2 H2 F1 J2 D5 D3 E4 C5 C6 C4
+Tree:
+: T   9.15c W   7.78c S   1.36c ( +2.4 L  +2.4) N     400  --  F3 G4 E2 H2 F1 J2 D5
+---Black(v)---
+F3  : T  -5.77c W  -5.58c S  -0.19c ( -0.3 L  -0.3) LCB   -2.22c P 86.25% WF 43.53% PSV     220 N     220  --  F3 G4 E2 H2 F1 J2 D5 D3
+G4  : T  20.55c W  18.17c S   2.38c ( +4.1 L  +4.1) LCB   44.40c P  6.01% WF 27.98% PSV       3 N       3  --  G4 F3 K4
+K4  : T  23.17c W  20.42c S   2.74c ( +4.8 L  +4.8) LCB  260.00c P  3.55% WF 26.35% PSV       1 N       1  --  K4
+A1  : T  92.86c W  82.78c S  10.08c (+17.4 L +17.4) LCB   94.52c P  2.00% WF  2.13% PSV       0 N     175  --  A1 G4 C4 D8 D9 E8 E9 F8
+
+: MoveNum: 1 HASH: 8149B856D14D18AB3F4C9F5986465BD0
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . X . . . .
+ 8 . . . . . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . @ O O . .
+ 3 . . . . . X O X X . .
+ 2 . . . . . O X . . . .
+ 1 . . . . . . . . . . .
+
+
+Root visits: 100
+Policy surprise 0.00809197
+Raw WL 0.0526078
+PV: G4 E2 H2 F1 J2 D5 D3 E4 C4 C5 B5
+Tree:
+: T  -5.97c W  -5.77c S  -0.20c ( -0.3 L  -0.3) N     100  --  G4 E2 H2 F1 J2 D5 D3
+---White(^)---
+G4  : T  -6.09c W  -5.88c S  -0.21c ( -0.3 L  -0.3) LCB  -10.84c P 99.19% WF 100.00% PSV      99 N      99  --  G4 E2 H2 F1 J2 D5 D3 E4
+
+: MoveNum: 2 HASH: 6AD7C73E65E8378A8671427E5218618A
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . X . . . .
+ 8 . . . . . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . O O O . .
+ 3 . . . . . X O X X . .
+ 2 . . . . @ O X . . . .
+ 1 . . . . . . . . . . .
+
+
+Root visits: 100
+Policy surprise 0.011541
+Raw WL -0.0810401
+PV: E2 H2 F1 J2 D5 D3 E4 C4 C5 B5
+Tree:
+: T  -6.04c W  -5.84c S  -0.20c ( -0.3 L  -0.3) N     100  --  E2 H2 F1 J2 D5 D3 E4
+---Black(v)---
+E2  : T  -6.02c W  -5.82c S  -0.20c ( -0.3 L  -0.3) LCB   -1.26c P 98.85% WF 100.00% PSV      99 N      99  --  E2 H2 F1 J2 D5 D3 E4 C4
+
+: MoveNum: 3 HASH: 3BF4F0AD3EDD86F65AB1067C0BD1EBA4
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . X . . . .
+ 8 . . . . . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . O2O O . .
+ 3 . . . . . X1O X X . .
+ 2 . . . . X3O X @ . . .
+ 1 . . . . . . . . . . .
+
+
+Root visits: 100
+Policy surprise 0.115936
+Raw WL 0.107647
+PV: H2 F1 J2 D5 D3 E4 C4 C5 B5
+Tree:
+: T  -6.00c W  -5.80c S  -0.20c ( -0.3 L  -0.3) N     100  --  H2 F1 J2 D5 D3 E4 C4
+---White(^)---
+H2  : T  -6.19c W  -5.97c S  -0.22c ( -0.4 L  -0.4) LCB  -10.88c P 89.05% WF 100.00% PSV      99 N      99  --  H2 F1 J2 D5 D3 E4 C4 C5
+
+: MoveNum: 4 HASH: 250C1AF5587C74137CA1B607327C1146
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . X . . . .
+ 8 . . . . . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . O1O O . .
+ 3 . . . . . X O X X . .
+ 2 . . . . X2O X O3. . .
+ 1 . . . . . @ . . . . .
+
+
+Root visits: 50
+Policy surprise 0.0104535
+Raw WL -0.115523
+PV: F1 J2 D5 D3 E4 C5 C6
+Tree:
+: T  -6.76c W  -6.46c S  -0.30c ( -0.5 L  -0.5) N      50  --  F1 J2 D5 D3 E4 C5 C6
+---Black(v)---
+F1  : T  -6.65c W  -6.36c S  -0.29c ( -0.5 L  -0.5) LCB    0.56c P 98.96% WF 100.00% PSV      49 N      49  --  F1 J2 D5 D3 E4 C5 C6
+
+: MoveNum: 5 HASH: A742C80F0C845DC176DF8B421AC97D97
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . X . . . .
+ 8 . . . . . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . O O O . .
+ 3 . . . . . X O X X . .
+ 2 . . . . X1. X O2@ . .
+ 1 . . . . . X3. . . . .
+
+
+Root visits: 100
+Policy surprise 0.0367691
+Raw WL 0.0740316
+PV: J2 D5 D3 E4 C4 C5 B5
+Tree:
+: T  -5.96c W  -5.76c S  -0.20c ( -0.3 L  -0.3) N     100  --  J2 D5 D3 E4 C4 C5 B5
+---White(^)---
+J2  : T  -6.10c W  -5.89c S  -0.21c ( -0.3 L  -0.3) LCB  -10.77c P 96.39% WF 100.00% PSV      99 N      99  --  J2 D5 D3 E4 C4 C5 B5
+
+: MoveNum: 6 HASH: BDC50823F47DD6F67697A8E5A69FB315
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . X . . . .
+ 8 . . . . . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . @ . . . . . . .
+ 4 . . . . . . O O O . .
+ 3 . . . . . X O X X . .
+ 2 . . . . X . X O1O3. .
+ 1 . . . . . X2. . . . .
+
+
+Root visits: 50
+Policy surprise 0.335161
+Raw WL -0.0976073
+PV: D5 D3 E4 C5 C6
+Tree:
+: T  -7.50c W  -7.13c S  -0.36c ( -0.6 L  -0.6) N      50  --  D5 D3 E4 C5 C6
+---Black(v)---
+D5  : T -10.64c W  -9.99c S  -0.64c ( -1.1 L  -1.1) LCB   -0.32c P 21.80% WF 16.54% PSV      22 N      22  --  D5 D3 E4 C5 C6
+K3  : T  -7.23c W  -6.83c S  -0.40c ( -0.7 L  -0.7) LCB    8.66c P 27.95% WF 15.51% PSV      17 N      17  --  K3 K2 D5 D3 F4 C5 C6 C4
+C4  : T  -6.55c W  -6.35c S  -0.20c ( -0.3 L  -0.3) LCB   32.98c P 10.64% WF 15.37% PSV       6 N       6  --  C4 D9 D8
+C5  : T   5.85c W   5.16c S   0.68c ( +1.1 L  +1.1) LCB  260.00c P  6.34% WF 13.70% PSV       1 N       1  --  C5
+J9  : T  14.36c W  12.38c S   1.98c ( +3.3 L  +3.3) LCB  260.00c P  5.70% WF 12.55% PSV       1 N       1  --  J9
+E5  : T   4.48c W   3.90c S   0.57c ( +1.0 L  +1.0) LCB  260.00c P  5.48% WF 13.89% PSV       1 N       1  --  E5
+H8  : T  15.13c W  13.25c S   1.88c ( +3.1 L  +3.1) LCB  260.00c P  4.74% WF 12.44% PSV       1 N       1  --  H8
+
+: MoveNum: 7 HASH: 041EBB742424AC6276156DAE08602F1B
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . X . . . .
+ 8 . . . . . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . X3. . . . . . .
+ 4 . . . . . . O O O . .
+ 3 . . . @ . X O X X . .
+ 2 . . . . X . X O O2. .
+ 1 . . . . . X1. . . . .
+
+
+Root visits: 100
+Policy surprise 0.321075
+Raw WL -0.00960252
+PV: D3 E4 C5 C6 C4
+Tree:
+: T  -7.36c W  -7.01c S  -0.35c ( -0.6 L  -0.6) N     100  --  D3 E4 C5 C6 C4
+---White(^)---
+D3  : T  -6.69c W  -6.33c S  -0.36c ( -0.6 L  -0.6) LCB  -16.72c P 13.73% WF  9.57% PSV      20 N      20  --  D3 E4 C5 C6 C4
+C7  : T   2.82c W   2.15c S   0.67c ( +1.1 L  +1.1) LCB  -13.36c P  4.50% WF 11.16% PSV      17 N      17  --  C7 D8 D7 E7 E6
+C3  : T  -3.45c W  -3.28c S  -0.17c ( -0.3 L  -0.3) LCB  -23.63c P  4.82% WF 10.07% PSV      13 N      13  --  C3 C4 D3 F4 E5 D4
+D9  : T -13.32c W -12.52c S  -0.81c ( -1.3 L  -1.3) LCB  -29.46c P 12.34% WF  8.57% PSV       9 N       9  --  D9 C8 D8 D7 E7
+E9  : T  -9.55c W  -9.00c S  -0.55c ( -0.9 L  -0.9) LCB  -32.97c P  9.62% WF  9.12% PSV       9 N       9  --  E9 D7 G8
+D8  : T -12.63c W -11.78c S  -0.85c ( -1.4 L  -1.4) LCB  -42.59c P 11.48% WF  8.69% PSV       8 N       8  --  D8 D9 E8 E9
+H9  : T -16.34c W -15.19c S  -1.15c ( -1.9 L  -1.9) LCB  -74.43c P 11.31% WF  8.25% PSV       6 N       6  --  H9 G8 C8 D9 B5
+E8  : T -11.79c W -11.05c S  -0.74c ( -1.3 L  -1.3) LCB  -46.40c P  7.50% WF  8.85% PSV       6 N       6  --  E8 D7 D9 D8 E9
+C8  : T -12.75c W -12.02c S  -0.72c ( -1.2 L  -1.2) LCB  -96.14c P  4.46% WF  8.75% PSV       3 N       5  --  C8 D9 B5
+E4  : T -13.73c W -13.03c S  -0.70c ( -1.1 L  -1.1) LCB -168.05c P  5.25% WF  8.72% PSV       3 N       3  --  E4 D4 D9
+
+: MoveNum: 8 HASH: 3DB9D5D1C34A64D317FAE22BB3CDFAAE
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . X . . . .
+ 8 . . . . . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . X2. . . . . . .
+ 4 . . . . @ . O O O . .
+ 3 . . . O3. X O X X . .
+ 2 . . . . X . X O O1. .
+ 1 . . . . . X . . . . .
+
+
+Root visits: 100
+Policy surprise 0.150072
+Raw WL -0.0769724
+PV: E4 B5 C4 B4 C3 C8 D8 C7 B9
+Tree:
+: T -11.52c W -10.71c S  -0.80c ( -1.3 L  -1.3) N     100  --  E4 B5 C4 B4 C3 C8 D8
+---Black(v)---
+E4  : T -13.91c W -12.85c S  -1.06c ( -1.8 L  -1.8) LCB   -5.61c P 38.93% WF 22.53% PSV      60 N      60  --  E4 B5 C4 B4 C3 C8 D8 C7
+F4  : T  -7.74c W  -7.25c S  -0.48c ( -0.8 L  -0.8) LCB    2.41c P 32.48% WF 19.65% PSV      24 N      24  --  F4 C5 C6 C4 B6 E5 F5 D6
+C3  : T -11.34c W -10.79c S  -0.55c ( -0.9 L  -0.9) LCB   10.36c P 10.24% WF 21.18% PSV      10 N      10  --  C3 C4 D4 B3
+K3  : T  -1.61c W  -1.80c S   0.19c ( +0.3 L  +0.3) LCB  126.56c P  5.96% WF 18.76% PSV       3 N       3  --  K3 K2 F4
+D2  : T   3.39c W   2.74c S   0.65c ( +1.1 L  +1.1) LCB  260.00c P  7.07% WF 17.88% PSV       2 N       2  --  D2 C3
+
+: MoveNum: 9 HASH: FDA17F48AEB458FF58B105AAEB35C52D
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . X . . . .
+ 8 . . . . . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . @ . X1. . . . . . .
+ 4 . . . . X3. O O O . .
+ 3 . . . O2. X O X X . .
+ 2 . . . . X . X O O . .
+ 1 . . . . . X . . . . .
+
+
+Root visits: 100
+Policy surprise 0.399403
+Raw WL 0.021892
+PV: B5 C4 B4 C3 C8 D8 C7 B9
+Tree:
+: T -10.56c W  -9.81c S  -0.75c ( -1.3 L  -1.3) N     100  --  B5 C4 B4 C3 C8 D8 C7
+---White(^)---
+B5  : T  -8.18c W  -7.64c S  -0.53c ( -0.9 L  -0.9) LCB  -15.87c P 24.14% WF 15.96% PSV      50 N      50  --  B5 C4 B4 C3 C8 D8 C7 B9
+C5  : T -18.35c W -16.85c S  -1.50c ( -2.5 L  -2.5) LCB  -39.88c P 26.51% WF 12.98% PSV      16 N      16  --  C5 C4 C6 B4 D9
+C8  : T  -0.78c W  -0.99c S   0.21c ( +0.3 L  +0.3) LCB  -18.82c P  3.32% WF 17.52% PSV      13 N      13  --  C8 D9 B5 C4 B4 C3
+C4  : T -19.58c W -17.92c S  -1.66c ( -2.9 L  -2.9) LCB  -44.54c P 20.57% WF 12.82% PSV      12 N      12  --  C4 C5 B5 B6 B3 A5 B4 C2
+D8  : T -16.11c W -14.85c S  -1.26c ( -2.1 L  -2.1) LCB  -75.91c P  4.65% WF 13.97% PSV       3 N       4  --  D8 C8 D7
+C7  : T -18.19c W -17.06c S  -1.12c ( -1.9 L  -1.9) LCB -120.00c P  3.95% WF 13.68% PSV       2 N       3  --  C7 B5 D9
+D9  : T -25.00c W -23.57c S  -1.43c ( -2.4 L  -2.4) LCB -260.00c P  3.12% WF 13.07% PSV       1 N       1  --  D9
+
+: MoveNum: 10 HASH: 5EDFAF58C6500798F5E274045A51C1D5
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . X . . . .
+ 8 . . . . . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . O3. X . . . . . . .
+ 4 . . @ . X2. O O O . .
+ 3 . . . O1. X O X X . .
+ 2 . . . . X . X O O . .
+ 1 . . . . . X . . . . .
+
+
+Root visits: 50
+Policy surprise 0.0927718
+Raw WL -0.20839
+PV: C4 B4 C3 C8 D8 C7 B9
+Tree:
+: T  -8.18c W  -7.64c S  -0.53c ( -0.9 L  -0.9) N      50  --  C4 B4 C3 C8 D8 C7 B9
+---Black(v)---
+C4  : T -10.21c W  -9.41c S  -0.80c ( -1.3 L  -1.3) LCB    0.63c P 45.60% WF 21.90% PSV      30 N      30  --  C4 B4 C3 C8 D8 C7 B9
+B3  : T  -6.58c W  -6.28c S  -0.30c ( -0.5 L  -0.5) LCB   17.70c P 19.18% WF 20.44% PSV       9 N       9  --  B3 C8 D9 D8
+C7  : T  -2.44c W  -2.65c S   0.22c ( +0.4 L  +0.4) LCB   65.85c P 12.77% WF 19.42% PSV       4 N       4  --  C7 C6
+C6  : T   7.56c W   6.39c S   1.18c ( +2.0 L  +2.0) LCB  260.39c P 13.41% WF 17.10% PSV       3 N       3  --  C6 B6 B7
+K3  : T  -9.06c W  -8.23c S  -0.83c ( -1.4 L  -1.4) LCB   48.93c P  5.65% WF 21.15% PSV       3 N       3  --  K3 K2 C4
+
+: MoveNum: 11 HASH: FD58E49030B59C361C92837BB2304571
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . X . . . .
+ 8 . . @ . . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . O2. X . . . . . . .
+ 4 . . X3. X1. O O O . .
+ 3 . . . O . X O X X . .
+ 2 . . . . X . X O O . .
+ 1 . . . . . X . . . . .
+
+
+Root visits: 100
+Policy surprise 0.150348
+Raw WL -0.159563
+PV: C8 D8 C7 B9 B4 C3 D7
+Tree:
+: T -13.38c W -12.29c S  -1.09c ( -1.8 L  -1.8) N     100  --  C8 D8 C7 B9 B4 C3 D7
+---White(^)---
+C8  : T -11.92c W -11.01c S  -0.91c ( -1.5 L  -1.5) LCB  -19.96c P 35.81% WF 27.03% PSV      48 N      48  --  C8 D8 C7 B9 B4 C3 D7
+B4  : T -14.22c W -12.97c S  -1.25c ( -2.0 L  -2.0) LCB  -24.62c P 33.29% WF 25.65% PSV      34 N      34  --  B4 C3 C8 D8 C7 B9 B3 B2
+C7  : T -14.76c W -13.62c S  -1.15c ( -1.9 L  -1.9) LCB  -32.22c P 15.69% WF 25.47% PSV      15 N      16  --  C7 B4 D9 D10 D8 E10 B9
+D8  : T -31.77c W -28.97c S  -2.80c ( -4.7 L  -4.7) LCB -260.00c P  3.85% WF 21.85% PSV       1 N       1  --  D8
+
+: MoveNum: 12 HASH: 92502931B9C69317C8E9F17BDE09F771
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . X . . . .
+ 8 . . O3@ . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . O1. X . . . . . . .
+ 4 . . X2. X . O O O . .
+ 3 . . . O . X O X X . .
+ 2 . . . . X . X O O . .
+ 1 . . . . . X . . . . .
+
+
+Root visits: 50
+Policy surprise 0.121869
+Raw WL -0.269578
+PV: D8 C7 B9 B4 C3 D7
+Tree:
+: T -10.91c W -10.09c S  -0.82c ( -1.3 L  -1.3) N      50  --  D8 C7 B9 B4 C3 D7
+---Black(v)---
+D8  : T -13.88c W -12.77c S  -1.12c ( -1.8 L  -1.8) LCB   -4.10c P 40.48% WF 54.30% PSV      29 N      29  --  D8 C7 B9 B4 C3 D7
+D9  : T  -5.26c W  -4.97c S  -0.29c ( -0.5 L  -0.5) LCB   11.15c P 52.52% WF 45.70% PSV      20 N      20  --  D9 B4 C3 B3 B2 B9 B10
+
+: MoveNum: 13 HASH: 2C66C4A053974C58FC6ADCFDEE659971
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . @ X . . . X . . . .
+ 8 . . O2X3. . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . O . X . . . . . . .
+ 4 . . X1. X . O O O . .
+ 3 . . . O . X O X X . .
+ 2 . . . . X . X O O . .
+ 1 . . . . . X . . . . .
+
+
+Root visits: 100
+Policy surprise 0.236465
+Raw WL -0.202232
+PV: B9 B8 C7 B7 C6 B10 D9 C10 E8 D7
+Tree:
+: T -12.82c W -11.75c S  -1.07c ( -1.8 L  -1.8) N     100  --  B9 B8 C7 B7 C6 B10 D9
+---White(^)---
+B9  : T  -7.55c W  -6.99c S  -0.56c ( -1.0 L  -1.0) LCB  -18.48c P 24.51% WF 20.81% PSV      48 N      48  --  B9 B8 C7 B7 C6 B10 D9 C10
+C7  : T -19.13c W -17.38c S  -1.74c ( -2.9 L  -2.9) LCB  -35.01c P 37.53% WF 16.19% PSV      22 N      25  --  C7 B9 B4 C3 D7 E8 B3 B2
+B4  : T -13.41c W -12.30c S  -1.11c ( -1.8 L  -1.8) LCB  -26.56c P 17.91% WF 18.30% PSV      16 N      20  --  B4 C3 C7 B9 D7 E8 B3
+D9  : T -26.75c W -24.63c S  -2.12c ( -3.4 L  -3.4) LCB -151.02c P  7.71% WF 15.46% PSV       3 N       3  --  D9 E9 D10
+D7  : T -41.46c W -37.87c S  -3.59c ( -5.9 L  -5.9) LCB -260.00c P  6.23% WF 13.02% PSV       1 N       2  --  D7 C7
+B8  : T -26.33c W -24.58c S  -1.75c ( -2.8 L  -2.8) LCB -260.00c P  3.07% WF 16.23% PSV       1 N       1  --  B8
+
+: MoveNum: 14 HASH: 9DEAA2284769B22EEBB11816E028A91F
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . O3X . . . X . . . .
+ 8 . @ O1X2. . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . O . X . . . . . . .
+ 4 . . X . X . O O O . .
+ 3 . . . O . X O X X . .
+ 2 . . . . X . X O O . .
+ 1 . . . . . X . . . . .
+
+
+Root visits: 100
+Policy surprise 0.205996
+Raw WL -0.221935
+PV: B8 C7 B7 C6 B10 D9 C10 E8 D7 D6 E7 E6
+Tree:
+: T -10.65c W  -9.76c S  -0.89c ( -1.5 L  -1.5) N     100  --  B8 C7 B7 C6 B10 D9 C10
+---Black(v)---
+B8  : T -12.58c W -11.56c S  -1.02c ( -1.7 L  -1.7) LCB   -0.19c P 20.80% WF 22.19% PSV      45 N      45  --  B8 C7 B7 C6 B10 D9 C10 E8
+C7  : T -13.82c W -12.56c S  -1.27c ( -2.1 L  -2.1) LCB   10.00c P 40.40% WF 22.63% PSV      31 N      31  --  C7 B8 B7 D9 C10 D7 E8 C6
+D9  : T   5.52c W   4.95c S   0.57c ( +0.9 L  +0.9) LCB   32.20c P 28.86% WF 15.53% PSV      12 N      13  --  D9 B7 B10 B4
+K3  : T -10.36c W  -9.49c S  -0.87c ( -1.4 L  -1.4) LCB   22.20c P  5.04% WF 21.06% PSV       7 N       8  --  K3 K2 C7 B8 D9
+C10 : T   0.64c W   0.43c S   0.22c ( +0.4 L  +0.4) LCB  260.00c P  3.77% WF 18.59% PSV       2 N       2  --  C10 C7
+
+ Forkstuff 1 0
+HASH: 056B55CC9CE2C51801A41E56E6305746
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . X . . . .
+ 8 . . . . . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . O O . .
+ 3 . . . . . . O X X . .
+ 2 . . . . . O X . . . .
+ 1 X . . . . . . . . . .
+
+
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 1FF90C1B1F2FA28BCB79C15FC361B0A2
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . X . . . .
+ 8 . . . . . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . O O . .
+ 3 . . . . . . O X X . .
+ 2 . . . . . O X . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+end
+HASH: FA9F2C528D0B8912B07E3B1A3CD349A9
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . O X . . . X . . . .
+ 8 . X O X . . . . O . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . O . X . . . . . . .
+ 4 . . X . X . O O O . .
+ 3 . . . O . X O X X . .
+ 2 . . . . X . X O O . .
+ 1 . . . . . X . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 15
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves F3 G4 E2 H2 F1 J2 D5 D3 E4 B5 C4 C8 D8 B9 B8 
+gameHash 75F978022E93CC282260C483B8D873A9
+hitTurnLimit 1
+numExtraBlack 0
+mode 5
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 1
+targetWeightByTurn 1 1
+targetWeightByTurn 2 1
+targetWeightByTurn 3 1
+targetWeightByTurn 4 0
+targetWeightByTurn 5 1
+targetWeightByTurn 6 0
+targetWeightByTurn 7 1
+targetWeightByTurn 8 1
+targetWeightByTurn 9 1
+targetWeightByTurn 10 0
+targetWeightByTurn 11 1
+targetWeightByTurn 12 0
+targetWeightByTurn 13 1
+targetWeightByTurn 14 1
+policyTargetsByTurn 0 unreducedNumVisits 400 F3 220 G4 3 K4 1 A1 0 
+policyTargetsByTurn 1 unreducedNumVisits 100 G4 99 
+policyTargetsByTurn 2 unreducedNumVisits 100 E2 99 
+policyTargetsByTurn 3 unreducedNumVisits 100 H2 99 
+policyTargetsByTurn 4 unreducedNumVisits 50 F1 49 
+policyTargetsByTurn 5 unreducedNumVisits 100 J2 99 
+policyTargetsByTurn 6 unreducedNumVisits 50 K3 17 D5 22 C4 6 C5 1 J9 1 E5 1 H8 1 
+policyTargetsByTurn 7 unreducedNumVisits 100 D3 20 D9 9 D8 8 H9 6 E9 9 E8 6 E4 3 C4 2 C3 13 C7 17 C8 3 
+policyTargetsByTurn 8 unreducedNumVisits 100 E4 60 F4 24 C3 10 D2 2 K3 3 
+policyTargetsByTurn 9 unreducedNumVisits 100 C5 16 B5 50 C4 12 D8 3 C7 2 C8 13 D9 1 
+policyTargetsByTurn 10 unreducedNumVisits 50 C4 30 B3 9 C6 3 C7 4 K3 3 
+policyTargetsByTurn 11 unreducedNumVisits 100 C8 48 B4 34 C7 15 D8 1 
+policyTargetsByTurn 12 unreducedNumVisits 50 D9 20 D8 29 
+policyTargetsByTurn 13 unreducedNumVisits 100 C7 22 B9 48 B4 16 D9 3 D7 1 B8 1 
+policyTargetsByTurn 14 unreducedNumVisits 100 C7 31 D9 12 B8 45 K3 7 C10 2 
+whiteValueTargetsByTurn 0 0.471167 0.528833 0 -0.330873 - 
+whiteValueTargetsByTurn 1 0.471167 0.528833 0 -0.330873 - 
+whiteValueTargetsByTurn 2 0.4708 0.5292 0 -0.336809 - 
+whiteValueTargetsByTurn 3 0.470999 0.529001 0 -0.337958 - 
+whiteValueTargetsByTurn 4 0.46769 0.53231 0 -0.506513 - 
+whiteValueTargetsByTurn 5 0.4712 0.5288 0 -0.328352 - 
+whiteValueTargetsByTurn 6 0.46433 0.53567 0 -0.613732 - 
+whiteValueTargetsByTurn 7 0.464941 0.535059 0 -0.586738 - 
+whiteValueTargetsByTurn 8 0.446426 0.553574 0 -1.33335 - 
+whiteValueTargetsByTurn 9 0.450951 0.549049 0 -1.25212 - 
+whiteValueTargetsByTurn 10 0.461795 0.538205 0 -0.887762 - 
+whiteValueTargetsByTurn 11 0.438531 0.561469 0 -1.78428 - 
+whiteValueTargetsByTurn 12 0.449558 0.550442 0 -1.3489 - 
+whiteValueTargetsByTurn 13 0.441251 0.558749 0 -1.77167 - 
+whiteValueTargetsByTurn 14 0.451211 0.548789 0 -1.50692 - 
+whiteValueTargetsByTurn 15 1 0 0 4.5 4.5 
+...........
+...........
+.OX...X....
+.XOX....O..
+...........
+...........
+.O.X.......
+..X.X.OOO..
+...O.XOXX..
+....XXXOO..
+.....X.....
+...........
+...........
+.OX...X....
+.XOX....O..
+...........
+...........
+.O.X.......
+..X.X.OOO..
+...O.XOXX..
+....XXXOO..
+.....X.....
+00000000000
+00000000000
+01100010000
+01110000100
+00000000000
+00000000000
+01010000000
+00101011100
+00010111100
+00001111100
+00000100000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 1.000 -1.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000
+ 0.000 -1.000 1.000 -1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 1.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 -1.000 0.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 -1.000 1.000 -1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 -1.000 -1.000 -1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000
+
 HASH: 718CF87DDD7BB3C9003DC76AFC3C2A11
    A B C D E F G H J
  9 . . . . . . . . .

@@ -139,7 +139,7 @@ SearchThread::~SearchThread() {
 static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
 Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
-  :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),
+  :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),rootHintLoc(Board::NULL_LOC),
    rootSafeArea(NULL),
    recentScoreCenter(0.0),
    alwaysIncludeOwnerMap(false),
@@ -224,6 +224,10 @@ void Search::setKomiIfNew(float newKomi) {
 void Search::setRootPassLegal(bool b) {
   clearSearch();
   rootPassLegal = b;
+}
+
+void Search::setRootHintLoc(Loc loc) {
+  rootHintLoc = loc;
 }
 
 void Search::setAlwaysIncludeOwnerMap(bool b) {
@@ -862,7 +866,7 @@ void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int
 void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, SearchNode& node, bool isRoot) const {
   if(!isRoot)
     return;
-  if(!searchParams.rootNoiseEnabled && searchParams.rootPolicyTemperature == 1.0 && searchParams.rootPolicyTemperatureEarly == 1.0)
+  if(!searchParams.rootNoiseEnabled && searchParams.rootPolicyTemperature == 1.0 && searchParams.rootPolicyTemperatureEarly == 1.0 && rootHintLoc == Board::NULL_LOC)
     return;
   if(node.nnOutput->noisedPolicyProbs != NULL)
     return;
@@ -915,6 +919,21 @@ void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, Searc
     addDirichletNoise(searchParams, thread.rand, policySize, noisedPolicyProbs);
   }
 
+  //Move a small amount of policy to the hint move, around the same level that noising it would achieve
+  if(rootHintLoc != Board::NULL_LOC) {
+    const float propToMove = 0.02f;
+    int pos = getPos(rootHintLoc);
+    if(noisedPolicyProbs[pos] >= 0) {
+      double amountToMove = 0.0;
+      for(int i = 0; i<policySize; i++) {
+        if(noisedPolicyProbs[i] >= 0) {
+          amountToMove += noisedPolicyProbs[i] * propToMove;
+          noisedPolicyProbs[i] *= (1.0f-propToMove);
+        }
+      }
+      noisedPolicyProbs[pos] += (float)amountToMove;
+    }
+  }
 }
 
 bool Search::isAllowedRootMove(Loc moveLoc) const {
@@ -1253,10 +1272,23 @@ double Search::getExploreSelectionValue(
   if(isDuringSearch)
     nnPolicyProb = adjustExplorePolicyProb(*thread,parent,moveLoc,nnPolicyProb,parentUtility,totalChildVisits,childVisits,childUtility);
 
-  //Hack to get the root to funnel more visits down child branches
-  if(isDuringSearch && (&parent == rootNode) && searchParams.rootDesiredPerChildVisitsCoeff > 0.0) {
-    if(childVisits < sqrt(nnPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff)) {
-      return 1e20;
+  if(isDuringSearch && (&parent == rootNode)) {
+    //Hack to get the root to funnel more visits down child branches
+    if(searchParams.rootDesiredPerChildVisitsCoeff > 0.0) {
+      if(childVisits < sqrt(nnPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff)) {
+        return 1e20;
+      }
+    }
+    //Hack for hintloc - must search this move almost as often as the most searched move
+    if(rootHintLoc != Board::NULL_LOC && moveLoc == rootHintLoc) {
+      for(int i = 0; i<parent.numChildren; i++) {
+        const SearchNode* c = parent.children[i];
+        while(c->statsLock.test_and_set(std::memory_order_acquire));
+        int64_t cVisits = c->stats.visits;
+        c->statsLock.clear(std::memory_order_release);
+        if(childVisits+1 < cVisits * 0.8)
+          return 1e20;
+      }
     }
   }
 
