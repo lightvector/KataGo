@@ -45,7 +45,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
    * `kgs-rules RULES`
       * This is an extension for playing on KGS, via kgsGtp.
       * As specified by kgsGtp docs, `RULES` should be one of `chinese | aga | japanese | new_zealand`.
-      * For this extension, `chinese` actually maps to `chinese-kgs` above. Otherwise, has the same effect as `kata-set-rules`.
+      * Has the same behavior as `kata-set-rules` except that `chinese` maps to `chinese-kgs` above.
    * `kgs-time_settings KIND ...`
       * This is an extension for playing on KGS, via kgsGtp.
       * As specified by kgsGtp docs, `KIND` should be one of `none | absolute | canadian | byoyomi`.
@@ -73,7 +73,8 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
          * `pv` - The principal variation following this move. May be of variable length or even empty.
       * All output values are from the perspective of the current player, unless otherwise configured in KataGo's gtp config.
-      * This command will terminate upon any new GTP command being received, as well as upon a raw newline being received, including outputting the usual double-newline that signals a completed GTP response.
+      * This command is a bit unusual for GTP in that it will run forever on its own, but asynchronously if any new GTP command or a raw newline is received, then it will terminate.
+      * Upon termination, it will still output the usual double-newline that signals a completed GTP response.
 
    * `kata-analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR ...`
       * Same as `lz-analyze` except a slightly different output format and some additional options and fields.
@@ -100,8 +101,9 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
             * Following is BoardHeight*BoardWidth many consecutive floats in [-1,1] separated by spaces, predicting the final ownership of every board location from the perspective of the current player. Floats are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
   * `lz-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR`
      * Same as `genmove` except will also produce `lz-analyze`-like output while the move is being searched.
-     * Behaves like a normal synchronous GTP command, unlike `lz-analyze`. Will NOT terminate prematurely due a newline or addiional GTP command.
-     * The final move made will be reported as a single line `play <vertex or "pass" or "resign">`, followed by the usual double-newline.
+     * Like `lz-analyze`, will immediately begin printing a partial GTP response, with a new line every `interval` centiseconds.
+     * Unlike `lz-analyze`, will teriminate on its own after the normal amount of time that a `genmove` would take and will NOT terminate prematurely or asynchronously upon recipt of a newline or an additional GTP command.
+     * The final move made will be reported as a single line `play <vertex or "pass" or "resign">`, followed by the usual double-newline that signals a complete GTP response.
   * `kata-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR`
      * Same as `lz-genmove_analyze` except with the options and fields of `kata-analyze` rather than `lz-analyze`
   * `analyze, genmove_analyze`
