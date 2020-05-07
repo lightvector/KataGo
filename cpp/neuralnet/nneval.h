@@ -108,6 +108,7 @@ class NNEvaluator {
   std::string getInternalModelName() const;
   bool isNeuralNetLess() const;
   int getMaxBatchSize() const;
+  int getNumGpus() const;
   int getNNXLen() const;
   int getNNYLen() const;
   enabled_t getUsingFP16Mode() const;

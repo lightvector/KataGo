@@ -198,6 +198,13 @@ bool NNEvaluator::isNeuralNetLess() const {
 int NNEvaluator::getMaxBatchSize() const {
   return maxNumRows;
 }
+int NNEvaluator::getNumGpus() const {
+  std::set<int> gpuIdxs;
+  for(int i = 0; i<gpuIdxByServerThread.size(); i++) {
+    gpuIdxs.insert(i);
+  }
+  return (int)gpuIdxs.size();
+}
 int NNEvaluator::getNNXLen() const {
   return nnXLen;
 }
