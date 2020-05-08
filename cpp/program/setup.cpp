@@ -461,6 +461,9 @@ vector<SearchParams> Setup::loadParams(
     else                                    params.localExplore = false;
     //Controlled by GTP directly, not used in any other mode
     params.avoidMYTDaggerHackPla = C_EMPTY;
+    if(cfg.contains("wideRootNoise"+idxStr)) params.wideRootNoise = cfg.getDouble("wideRootNoise"+idxStr, 0.0, 5.0);
+    else if(cfg.contains("wideRootNoise"))   params.wideRootNoise = cfg.getDouble("wideRootNoise", 0.0, 5.0);
+    else                                     params.wideRootNoise = 0.0;
 
     if(cfg.contains("playoutDoublingAdvantage"+idxStr)) params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage"+idxStr,-3.0,3.0);
     else if(cfg.contains("playoutDoublingAdvantage"))   params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage",-3.0,3.0);

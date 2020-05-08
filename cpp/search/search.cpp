@@ -1221,11 +1221,30 @@ int Search::getPos(Loc moveLoc) const {
   return NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
 }
 
+static void maybeApplyWideRootNoise(
+  double& childUtility,
+  float& nnPolicyProb,
+  const SearchParams& searchParams,
+  SearchThread* thread,
+  const SearchNode& parent
+) {
+  //For very large wideRootNoise, go ahead and also smooth out the policy
+  nnPolicyProb = (float)pow(nnPolicyProb, 1.0 / (4.0*searchParams.wideRootNoise + 1.0));
+  if(thread->rand.nextBool(0.5)) {
+    double bonus = searchParams.wideRootNoise * abs(thread->rand.nextGaussian());
+    if(parent.nextPla == P_WHITE)
+      childUtility += bonus;
+    else
+      childUtility -= bonus;
+  }
+}
+
+
 //Parent must be locked
 double Search::getExploreSelectionValue(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
   int64_t totalChildVisits, double fpuValue, double parentUtility,
-  bool isDuringSearch, const SearchThread* thread
+  bool isDuringSearch, SearchThread* thread
 ) const {
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
@@ -1290,14 +1309,23 @@ double Search::getExploreSelectionValue(
           return 1e20;
       }
     }
+
+    if(searchParams.wideRootNoise > 0.0) {
+      maybeApplyWideRootNoise(childUtility, nnPolicyProb, searchParams, thread, parent);
+    }
   }
 
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
 }
 
-double Search::getNewExploreSelectionValue(const SearchNode& parent, float nnPolicyProb, int64_t totalChildVisits, double fpuValue) const {
+double Search::getNewExploreSelectionValue(const SearchNode& parent, float nnPolicyProb, int64_t totalChildVisits, double fpuValue, SearchThread* thread) const {
   int64_t childVisits = 0;
   double childUtility = fpuValue;
+
+  if((&parent == rootNode) && searchParams.wideRootNoise > 0.0) {
+    maybeApplyWideRootNoise(childUtility, nnPolicyProb, searchParams, thread, parent);
+  }
+
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
 }
 
@@ -1370,7 +1398,7 @@ double Search::getFpuValueForChildrenAssumeVisited(const SearchNode& node, Playe
 
 //Assumes node is locked
 void Search::selectBestChildToDescend(
-  const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
+  SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
   bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
   bool isRoot) const
 {
@@ -1453,7 +1481,7 @@ void Search::selectBestChildToDescend(
     }
   }
   if(bestNewMoveLoc != Board::NULL_LOC) {
-    double selectionValue = getNewExploreSelectionValue(node,bestNewNNPolicyProb,totalChildVisits,fpuValue);
+    double selectionValue = getNewExploreSelectionValue(node,bestNewNNPolicyProb,totalChildVisits,fpuValue,&thread);
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
       bestChildIdx = numChildren;

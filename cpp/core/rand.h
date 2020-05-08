@@ -279,7 +279,7 @@ inline double Rand::nextGaussian()
 inline double Rand::nextExponential()
 {
   double r = 0.0;
-  while(r <= 1e-16)
+  while(r <= 1e-17)
     r = nextDouble();
   return -log(r);
 }

@@ -305,15 +305,20 @@ struct GTPEngine {
   const bool assumeMultipleStartingBlackMovesAreHandicap;
   const int analysisPVLen;
   const bool preventEncore;
+
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead;
   double staticPlayoutDoublingAdvantage;
   bool staticPDATakesPrecedence;
+  double genmoveWideRootNoise;
+  double analysisWideRootNoise;
 
   NNEvaluator* nnEval;
   AsyncBot* bot;
   Rules currentRules; //Should always be the same as the rules in bot, if bot is not NULL.
 
+  //Stores the params we want to be using during genmoves or analysis
   SearchParams params;
+
   TimeControls bTimeControls;
   TimeControls wTimeControls;
 
@@ -337,6 +342,7 @@ struct GTPEngine {
     bool assumeMultiBlackHandicap, bool prevtEncore,
     double dynamicPDACapPerOppLead, double staticPDA, bool staticPDAPrecedence,
     bool avoidDagger,
+    double genmoveWRN, double analysisWRN,
     Player persp, int pvLen
   )
     :nnModelFile(modelFile),
@@ -346,6 +352,8 @@ struct GTPEngine {
      dynamicPlayoutDoublingAdvantageCapPerOppLead(dynamicPDACapPerOppLead),
      staticPlayoutDoublingAdvantage(staticPDA),
      staticPDATakesPrecedence(staticPDAPrecedence),
+     genmoveWideRootNoise(genmoveWRN),
+     analysisWideRootNoise(analysisWRN),
      nnEval(NULL),
      bot(NULL),
      currentRules(initialRules),
@@ -479,6 +487,14 @@ struct GTPEngine {
   void setStaticPlayoutDoublingAdvantage(double d) {
     staticPlayoutDoublingAdvantage = d;
     staticPDATakesPrecedence = true;
+  }
+  void setAnalysisWideRootNoise(double x) {
+    analysisWideRootNoise = x;
+  }
+  void setRootPolicyTemperature(double x) {
+    params.rootPolicyTemperature = x;
+    bot->setParams(params);
+    bot->clearSearch();
   }
 
   void updateDynamicPDA() {
@@ -739,6 +755,10 @@ struct GTPEngine {
       params.avoidMYTDaggerHackPla = avoidMYTDaggerHackPla;
       bot->setParams(params);
     }
+    if(params.wideRootNoise != genmoveWideRootNoise) {
+      params.wideRootNoise = genmoveWideRootNoise;
+      bot->setParams(params);
+    }
 
     //Play faster when winning
     double searchFactor = PlayUtils::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,pla);
@@ -974,6 +994,11 @@ struct GTPEngine {
     }
     if(params.avoidMYTDaggerHackPla != C_EMPTY) {
       params.avoidMYTDaggerHackPla = C_EMPTY;
+      bot->setParams(params);
+    }
+    //Also wide root, if desired
+    if(params.wideRootNoise != analysisWideRootNoise) {
+      params.wideRootNoise = analysisWideRootNoise;
       bot->setParams(params);
     }
 
@@ -1320,6 +1345,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   if(forDeterministicTesting)
     seedRand.init("forDeterministicTesting");
 
+  const double genmoveWideRootNoise = initialParams.wideRootNoise;
+  const double analysisWideRootNoise =
+    cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : genmoveWideRootNoise;
+
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
@@ -1328,6 +1357,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
     staticPlayoutDoublingAdvantage,staticPDATakesPrecedence,
     avoidMYTDaggerHack,
+    genmoveWideRootNoise,analysisWideRootNoise,
     perspective,analysisPVLen
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize);
@@ -1641,9 +1671,15 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "Expected one arguments for kata-get-param but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        //SearchParams params = engine->getParams();
+        SearchParams params = engine->getParams();
         if(pieces[0] == "playoutDoublingAdvantage") {
           response = Global::doubleToString(engine->staticPlayoutDoublingAdvantage);
+        }
+        else if(pieces[0] == "rootPolicyTemperature") {
+          response = Global::doubleToString(params.rootPolicyTemperature);
+        }
+        else if(pieces[0] == "analysisWideRootNoise") {
+          response = Global::doubleToString(engine->analysisWideRootNoise);
         }
         else {
           responseIsError = true;
@@ -1658,14 +1694,34 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "Expected two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        //SearchParams params = engine->getParams();
         double d;
-        if(pieces[0] == "playoutDoublingAdvantage" && Global::tryStringToDouble(pieces[1],d) && d >= -3.0 && d <= 3.0) {
-          engine->setStaticPlayoutDoublingAdvantage(d);
+        if(pieces[0] == "playoutDoublingAdvantage") {
+          if(Global::tryStringToDouble(pieces[1],d) && d >= -3.0 && d <= 3.0)
+            engine->setStaticPlayoutDoublingAdvantage(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be float from -3.0 to 3.0";
+          }
+        }
+        else if(pieces[0] == "rootPolicyTemperature") {
+          if(Global::tryStringToDouble(pieces[1],d) && d >= 0.01 && d <= 100.0)
+            engine->setRootPolicyTemperature(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be float from 0.01 to 100.0";
+          }
+        }
+        else if(pieces[0] == "analysisWideRootNoise") {
+          if(Global::tryStringToDouble(pieces[1],d) && d >= 0.0 && d <= 5.0)
+            engine->setAnalysisWideRootNoise(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be float from 0.0 to 2.0";
+          }
         }
         else {
           responseIsError = true;
-          response = "Invalid parameter or parameter value";
+          response = "Unknown or invalid parameter: " + pieces[0];
         }
       }
     }

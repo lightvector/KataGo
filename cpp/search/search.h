@@ -362,9 +362,9 @@ private:
   double getExploreSelectionValue(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     int64_t totalChildVisits, double fpuValue, double parentUtility,
-    bool isDuringSearch, const SearchThread* thread
+    bool isDuringSearch, SearchThread* thread
   ) const;
-  double getNewExploreSelectionValue(const SearchNode& parent, float nnPolicyProb, int64_t totalChildVisits, double fpuValue) const;
+  double getNewExploreSelectionValue(const SearchNode& parent, float nnPolicyProb, int64_t totalChildVisits, double fpuValue, SearchThread* thread) const;
 
   //Parent must be locked
   int64_t getReducedPlaySelectionVisits(
@@ -382,7 +382,7 @@ private:
   double getNormToTApproxForLCB(int64_t numVisits) const;
 
   void selectBestChildToDescend(
-    const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
+    SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
     bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
     bool isRoot
   ) const;

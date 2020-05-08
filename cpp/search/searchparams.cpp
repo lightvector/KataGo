@@ -43,6 +43,7 @@ SearchParams::SearchParams()
    fillDameBeforePass(false),
    localExplore(false),
    avoidMYTDaggerHackPla(C_EMPTY),
+   wideRootNoise(0.0),
    playoutDoublingAdvantage(0.0),
    playoutDoublingAdvantagePla(C_EMPTY),
    nnPolicyTemperature(1.0f),
