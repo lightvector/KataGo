@@ -456,9 +456,6 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("fillDameBeforePass"+idxStr)) params.fillDameBeforePass = cfg.getBool("fillDameBeforePass"+idxStr);
     else if(cfg.contains("fillDameBeforePass"))   params.fillDameBeforePass = cfg.getBool("fillDameBeforePass");
     else                                          params.fillDameBeforePass = false;
-    if(cfg.contains("localExplore"+idxStr)) params.localExplore = cfg.getBool("localExplore"+idxStr);
-    else if(cfg.contains("localExplore"))   params.localExplore = cfg.getBool("localExplore");
-    else                                    params.localExplore = false;
     //Controlled by GTP directly, not used in any other mode
     params.avoidMYTDaggerHackPla = C_EMPTY;
     if(cfg.contains("wideRootNoise"+idxStr)) params.wideRootNoise = cfg.getDouble("wideRootNoise"+idxStr, 0.0, 5.0);

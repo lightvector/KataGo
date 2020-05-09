@@ -41,7 +41,6 @@ SearchParams::SearchParams()
    rootPruneUselessMoves(false),
    conservativePass(false),
    fillDameBeforePass(false),
-   localExplore(false),
    avoidMYTDaggerHackPla(C_EMPTY),
    wideRootNoise(0.0),
    playoutDoublingAdvantage(0.0),
