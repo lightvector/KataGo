@@ -25,7 +25,7 @@ logToStderr = false
 
 # Uncomment and and set to a positive value to make KataGo explore the top move(s) less deeply and accurately,
 # but explore and give evaluations to a greater variety of moves.
-# A value of 0.05 will give a mild but noticeably wider search.
+# A value like 0.03 or 0.06 will give various mildly but still noticeably wider searches.
 # An extreme value like 1 will distribute many playouts across every move on the board, even very bad moves.
 # analysisWideRootNoise = 0.0
 
