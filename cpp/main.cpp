@@ -169,7 +169,7 @@ string Version::getKataGoVersion() {
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.4.0");
+  return string("KataGo v1.4.0+kt104");
 }
 
 string Version::getKataGoVersionFullInfo() {

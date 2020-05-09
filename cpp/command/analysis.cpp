@@ -427,7 +427,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     {
       int64_t xBuf;
       int64_t yBuf;
-      static const string boardSizeError = string("Must provide an integer from 2 to ") + Global::intToString(Board::MAX_LEN);
+      static const string boardSizeError = string("Must provide an integer from 1 to ") + Global::intToString(Board::MAX_LEN);
       if(input.find("boardXSize") == input.end()) {
         reportErrorForId(rbase.id, "boardXSize", boardSizeError.c_str());
         continue;
@@ -436,11 +436,11 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         reportErrorForId(rbase.id, "boardYSize", boardSizeError.c_str());
         continue;
       }
-      if(!parseInteger("boardXSize", xBuf, 2, Board::MAX_LEN, boardSizeError.c_str())) {
+      if(!parseInteger("boardXSize", xBuf, 1, Board::MAX_LEN, boardSizeError.c_str())) {
         reportErrorForId(rbase.id, "boardXSize", boardSizeError.c_str());
         continue;
       }
-      if(!parseInteger("boardYSize", yBuf, 2, Board::MAX_LEN, boardSizeError.c_str())) {
+      if(!parseInteger("boardYSize", yBuf, 1, Board::MAX_LEN, boardSizeError.c_str())) {
         reportErrorForId(rbase.id, "boardYSize", boardSizeError.c_str());
         continue;
       }
