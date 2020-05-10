@@ -139,7 +139,7 @@ SearchThread::~SearchThread() {
 static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
 Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
-  :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),rootHintLoc(Board::NULL_LOC),
+  :rootPla(P_BLACK),rootPlaFlippedWhenPondering(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),rootHintLoc(Board::NULL_LOC),
    rootSafeArea(NULL),
    recentScoreCenter(0.0),
    alwaysIncludeOwnerMap(false),
@@ -195,6 +195,7 @@ Player Search::getRootPla() const {
 void Search::setPosition(Player pla, const Board& board, const BoardHistory& history) {
   clearSearch();
   rootPla = pla;
+  rootPlaFlippedWhenPondering = pla;
   rootBoard = board;
   rootHistory = history;
   rootKoHashTable->recompute(rootHistory);
@@ -203,6 +204,7 @@ void Search::setPosition(Player pla, const Board& board, const BoardHistory& his
 void Search::setPlayerAndClearHistory(Player pla) {
   clearSearch();
   rootPla = pla;
+  rootPlaFlippedWhenPondering = pla;
   rootBoard.clearSimpleKoLoc();
   Rules rules = rootHistory.rules;
 
@@ -341,6 +343,7 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
 
   rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable,preventEncore);
   rootPla = getOpp(rootPla);
+  rootPlaFlippedWhenPondering = rootPla;
   rootKoHashTable->recompute(rootHistory);
 
   if(rootHistory.whiteHandicapBonusScore != oldWhiteHandicapBonusScore)
@@ -477,6 +480,9 @@ void Search::runWholeSearch(
   if(!std::atomic_is_lock_free(&shouldStopNow))
     logger.write("Warning: bool atomic shouldStopNow is not lock free");
 
+  //Flip player if needed
+  rootPlaFlippedWhenPondering = pondering ? getOpp(rootPla) : rootPla;
+
   //Compute caps on search
   int64_t maxVisits = pondering ? searchParams.maxVisitsPondering : searchParams.maxVisits;
   int64_t maxPlayouts = pondering ? searchParams.maxPlayoutsPondering : searchParams.maxPlayouts;
@@ -583,7 +589,11 @@ void Search::beginSearch() {
     clearSearch();
   //In the case we are doing playoutDoublingAdvantage without a specific player (so, doing the root player)
   //and the root player changes, we need to clear the tree since we need new evals for the new way around
-  if(rootPlaDuringLastSearch != rootPla && searchParams.playoutDoublingAdvantage != 0 && searchParams.playoutDoublingAdvantagePla == C_EMPTY)
+  //We need to use rootPlaFlippedWhenPondering because playoutDoublingAdvantage is supposed to apply to the player
+  //playing the game, who is actually the opponent on a ponder search.
+  if(rootPlaDuringLastSearch != rootPlaFlippedWhenPondering &&
+     searchParams.playoutDoublingAdvantage != 0 &&
+     searchParams.playoutDoublingAdvantagePla == C_EMPTY)
     clearSearch();
   rootPlaDuringLastSearch = rootPla;
 
@@ -761,7 +771,7 @@ void Search::computeRootValues() {
       nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
       nnInputParams.avoidMYTDaggerHack = searchParams.avoidMYTDaggerHackPla == pla;
       if(searchParams.playoutDoublingAdvantage != 0) {
-        Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPla : searchParams.playoutDoublingAdvantagePla;
+        Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPlaFlippedWhenPondering : searchParams.playoutDoublingAdvantagePla;
         nnInputParams.playoutDoublingAdvantage = (
           getOpp(pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
         );
@@ -1671,7 +1681,7 @@ void Search::initNodeNNOutput(
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
   nnInputParams.avoidMYTDaggerHack = searchParams.avoidMYTDaggerHackPla == thread.pla;
   if(searchParams.playoutDoublingAdvantage != 0) {
-    Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPla : searchParams.playoutDoublingAdvantagePla;
+    Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPlaFlippedWhenPondering : searchParams.playoutDoublingAdvantagePla;
     nnInputParams.playoutDoublingAdvantage = (
       getOpp(thread.pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
     );
