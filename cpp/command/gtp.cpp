@@ -1,6 +1,8 @@
 #include "../core/global.h"
 #include "../core/config_parser.h"
 #include "../core/timer.h"
+#include "../core/datetime.h"
+#include "../core/makedir.h"
 #include "../dataio/sgf.h"
 #include "../search/asyncbot.h"
 #include "../program/setup.h"
@@ -1273,7 +1275,16 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   }
 
   Logger logger;
-  logger.addFile(cfg.getString("logFile"));
+  if(cfg.contains("logFile") && cfg.contains("logDir"))
+    throw StringError("Cannot specify both logFile and logDir in config");
+  else if(cfg.contains("logFile"))
+    logger.addFile(cfg.getString("logFile"));
+  else {
+    MakeDir::make(cfg.getString("logDir"));
+    Rand rand;
+    logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(rand.nextUInt()) + ".log");
+  }
+
   bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
   bool logSearchInfo = cfg.getBool("logSearchInfo");
   bool loggingToStderr = false;
