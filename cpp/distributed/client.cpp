@@ -509,13 +509,14 @@ void Connection::uploadTrainingGameAndData(const Task& task, const FinishedGameD
     extraMetadata["playout_doubling_advantage"] = gameData->playoutDoublingAdvantage;
     extraMetadata["playout_doubling_advantage_pla"] = PlayerIO::playerToString(gameData->playoutDoublingAdvantagePla);
     extraMetadata["draw_equivalent_wins_for_white"] = gameData->drawEquivalentWinsForWhite;
-    static_assert(FinishedGameData::NUM_MODES == 5,"");
+    static_assert(FinishedGameData::NUM_MODES == 6,"");
     extraMetadata["mode"] = (
       gameData->mode == FinishedGameData::MODE_NORMAL ? "normal" :
       gameData->mode == FinishedGameData::MODE_CLEANUP_TRAINING ? "cleanup_training" :
       gameData->mode == FinishedGameData::MODE_FORK ? "fork" :
       gameData->mode == FinishedGameData::MODE_HANDICAP ? "handicap" :
       gameData->mode == FinishedGameData::MODE_SGFPOS ? "sgfpos" :
+      gameData->mode == FinishedGameData::MODE_HINTPOS ? "hintpos" :
       "unknown"
     );
     string winner = gameData->endHist.winner == P_WHITE ? "W" : gameData->endHist.winner == P_BLACK ? "B" : gameData->endHist.isNoResult ? "-" : "0";
