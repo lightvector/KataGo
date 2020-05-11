@@ -27,6 +27,12 @@ using Client::Connection;
 using Client::Task;
 using Client::RunParameters;
 
+static constexpr int MAX_RUN_NAME_LEN = 32;
+static constexpr int MAX_NETWORK_NAME_LEN = 128;
+static constexpr int MAX_URL_LEN = 4096;
+static constexpr int MAX_TIME_LEN = 128;
+static constexpr int MAX_CONFIG_NAME_LEN = 32768;
+
 static void debugPrintResponse(ostream& out, const std::shared_ptr<httplib::Response>& response) {
   out << "---RESPONSE---------------------" << endl;
   if(response == nullptr)
@@ -64,6 +70,79 @@ static json parseJson(const std::shared_ptr<httplib::Response>& response) {
   }
 }
 
+//Hacky custom URL parsing, probably isn't fully general but should be good enough for now.
+struct Url {
+  string originalString;
+  bool isSSL;
+  string host;
+  int port;
+  string path;
+
+  static Url parse(const string& s) {
+    if(s.size() > MAX_URL_LEN)
+      throw StringError("Invalid URL, too long: " + s);
+    Url ret;
+    ret.originalString = s;
+
+    string url = s;
+    if(Global::isPrefix(url,"http://")) {
+      url = Global::chopPrefix(url,"http://");
+      ret.isSSL = false;
+      ret.port = 80;
+    }
+    else if(Global::isPrefix(url,"https://")) {
+      url = Global::chopPrefix(url,"https://");
+      ret.isSSL = true;
+      ret.port = 443;
+    }
+    else {
+      throw StringError("Url must start with 'http://' or 'https://', got: " + s);
+    }
+
+    string hostAndPort = url.find_first_of("/") == string::npos ? url : url.substr(0, url.find_first_of("/"));
+    url = Global::chopPrefix(url,hostAndPort);
+
+    string host;
+    if(hostAndPort.find_first_of(":") == string::npos) {
+      ret.host = hostAndPort;
+    }
+    else {
+      ret.host = hostAndPort.substr(0,hostAndPort.find_first_of(":"));
+      bool suc = Global::tryStringToInt(hostAndPort.substr(hostAndPort.find_first_of(":")+1),ret.port);
+      if(!suc)
+        throw StringError("Could not parse port in url as int: " + hostAndPort.substr(hostAndPort.find_first_of(":")+1));
+      if(ret.port < 0)
+        throw StringError("Url port was negative: " + hostAndPort.substr(hostAndPort.find_first_of(":")+1));
+    }
+
+    if(url.size() <= 0)
+      ret.path = "/";
+    else
+      ret.path = url;
+
+    return ret;
+  }
+};
+
+static std::shared_ptr<httplib::Response> oneShotDownload(Logger* logger, const Url& url, std::function<bool(const char *data, size_t data_length)> f) {
+  if(!url.isSSL) {
+    std::unique_ptr<httplib::Client> httpClient = std::unique_ptr<httplib::Client>(new httplib::Client(url.host, url.port));
+    return httpClient->Get(url.path.c_str(),f);
+  }
+  else {
+    std::unique_ptr<httplib::SSLClient> httpsClient = std::unique_ptr<httplib::SSLClient>(new httplib::SSLClient(url.host, url.port));
+    std::shared_ptr<httplib::Response> response = httpsClient->Get(url.path.c_str(),f);
+    if(response == nullptr) {
+      auto result = httpsClient->get_openssl_verify_result();
+      if(result) {
+        string err = X509_verify_cert_error_string(result);
+        logger->write("SSL certificate validation error (X509) - is the website secure?: " + err);
+      }
+    }
+    return response;
+  }
+}
+
 Connection::Connection(const string& serverUrl, const string& username, const string& password, Logger* lg)
   :httpClient(NULL),
    httpsClient(NULL),
@@ -72,39 +151,17 @@ Connection::Connection(const string& serverUrl, const string& username, const st
    logger(lg),
    mutex()
 {
-  //Hacky custom URL parsing, probably isn't fully general but should be good enough for now.
-  string url = serverUrl;
-  int port;
-  if(Global::isPrefix(url,"http://")) {
-    url = Global::chopPrefix(url,"http://");
-    isSSL = false;
-    port = 80;
+  Url url;
+  try {
+    url = Url::parse(serverUrl);
   }
-  else if(Global::isPrefix(url,"https://")) {
-    url = Global::chopPrefix(url,"https://");
-    isSSL = true;
-    port = 443;
-  }
-  else {
-    throw StringError("serverUrl must start with 'http://' or 'https://'");
-  }
-  string hostAndPort = url.find_first_of("/") == string::npos ? url : url.substr(0, url.find_first_of("/"));
-  url = Global::chopPrefix(url,hostAndPort);
-
-  string host;
-  if(hostAndPort.find_first_of(":") == string::npos) {
-    host = hostAndPort;
-  }
-  else {
-    host = hostAndPort.substr(0,hostAndPort.find_first_of(":"));
-    bool suc = Global::tryStringToInt(hostAndPort.substr(hostAndPort.find_first_of(":")+1),port);
-    if(!suc)
-      throw StringError("Could not parse port in serverUrl as int: " + hostAndPort.substr(hostAndPort.find_first_of(":")+1));
-    if(port < 0)
-      throw StringError("serverUrl port was negative: " + hostAndPort.substr(hostAndPort.find_first_of(":")+1));
+  catch(const StringError& e) {
+    throw StringError(string("Could not parse serverUrl in config: ") + e.what());
   }
 
-  baseResourcePath = url;
+  isSSL = url.isSSL;
+
+  baseResourcePath = url.path;
   if(Global::isSuffix(baseResourcePath,"/"))
     baseResourcePath = Global::chopSuffix(baseResourcePath,"/");
   if(baseResourcePath.size() <= 0)
@@ -112,15 +169,16 @@ Connection::Connection(const string& serverUrl, const string& username, const st
 
   logger->write("Attempting to connect to server");
   logger->write("isSSL: " + string(isSSL ? "true" : "false"));
-  logger->write("host: " + host);
-  logger->write("port: " + Global::intToString(port));
+  logger->write("host: " + url.host);
+  logger->write("port: " + Global::intToString(url.port));
   logger->write("baseResourcePath: " + baseResourcePath);
 
   if(!isSSL) {
-    httpClient = new httplib::Client(host, port);
+    httpClient = new httplib::Client(url.host, url.port);
   }
   else {
-    httpsClient = new httplib::SSLClient(host, port);
+    httpsClient = new httplib::SSLClient(url.host, url.port);
+    //TODO
     // httpsClient->set_ca_cert_path("./ca-bundle.crt");
     // httpsClient->enable_server_certificate_verification(true);
   }
@@ -181,25 +239,6 @@ std::shared_ptr<httplib::Response> Connection::get(const string& subPath) {
     return httpClient->Get(queryPath.c_str());
   }
 }
-
-std::shared_ptr<httplib::Response> Connection::getBigFile(const string& fullPath, std::function<bool(const char *data, size_t data_length)> f) {
-  std::lock_guard<std::mutex> lock(mutex);
-  if(isSSL) {
-    std::shared_ptr<httplib::Response> response = httpsClient->Get(fullPath.c_str(),f);
-    if(response == nullptr) {
-      auto result = httpsClient->get_openssl_verify_result();
-      if(result) {
-        string err = X509_verify_cert_error_string(result);
-        logger->write("SSL certificate validation error (X509) - is the website secure?: " + err);
-      }
-    }
-    return response;
-  }
-  else {
-    return httpClient->Get(fullPath.c_str(),f);
-  }
-}
-
 
 std::shared_ptr<httplib::Response> Connection::post(const string& subPath, const string& data, const string& dtype) {
   string queryPath = concatPaths(baseResourcePath,subPath);
@@ -263,6 +302,21 @@ static T parse(const json& response, const char* field) {
   throw StringError("BUG, should not reach here");
 }
 
+static string parseString(const json& response, const char* field, size_t maxLen) {
+  if(response.find(field) == response.end())
+    throwFieldNotFound(response,field);
+  try {
+    string x = response[field].get<string>();
+    if(x.size() >= maxLen)
+      throw StringError(string("Field ") + " had Invalid response, length too long: " + Global::uint64ToString(x.size()));
+    return x;
+  }
+  catch(nlohmann::detail::exception& e) {
+    throwInvalidValue(response,field);
+  }
+  throw StringError("BUG, should not reach here");
+}
+
 template <typename T>
 static T parseInteger(const json& response, const char* field, T min, T max) {
   if(response.find(field) == response.end())
@@ -301,24 +355,9 @@ static T parseReal(const json& response, const char* field, T min, T max) {
 
 RunParameters Connection::getRunParameters() {
   try {
-    json response = parseJson(get("/api/runs/client/"));
-
-    vector<json> runs;
-    try {
-      runs = response["results"].get<vector<json>>();
-    }
-    catch(nlohmann::detail::exception& e) {
-      throw StringError(string("Could not parse runs from server response: ") + e.what() + "\nResponse was:\n" + response.dump());
-    }
-    if(runs.size() <= 0)
-      throw StringError("No active runs found from server, response was:\n" + response.dump());
-
-    //TODO do something better here
-    //For now just choose the first
-    json run = runs[0];
-
+    json run = parseJson(get("/api/runs/current_for_client/"));
     RunParameters runParams;
-    runParams.runName = parse<string>(run,"name");
+    runParams.runName = parseString(run,"name",MAX_RUN_NAME_LEN);
     runParams.dataBoardLen = parseInteger<int>(run,"data_board_len",3,Board::MAX_LEN);
     runParams.inputsVersion = parseInteger<int>(run,"inputs_version",NNModelVersion::oldestInputsVersionImplemented,NNModelVersion::latestInputsVersionImplemented);
     runParams.maxSearchThreadsAllowed = parseInteger<int>(run,"max_search_threads_allowed",1,16384);
@@ -353,10 +392,10 @@ static void retryLoop(const char* errorLabel, bool retryOnFailure, Logger* logge
 
 static Client::ModelInfo parseModelInfo(const json& networkProperties) {
   Client::ModelInfo model;
-  model.name = parse<string>(networkProperties,"name");
-  model.url = parse<string>(networkProperties,"model_file");
+  model.name = parseString(networkProperties,"name",MAX_NETWORK_NAME_LEN);
+  model.url = parseString(networkProperties,"model_file",MAX_URL_LEN);
   model.bytes = parse<int64_t>(networkProperties,"model_file_bytes");
-  model.sha256 = parse<string>(networkProperties,"model_file_sha256");
+  model.sha256 = parseString(networkProperties,"model_file_sha256",64);
   model.isRandom = parse<bool>(networkProperties,"is_random");
   return model;
 }
@@ -367,14 +406,15 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
 
   auto f = [&]() {
     json response = parseJson(post("/api/tasks/","","text/plain"));
-    string kind = parse<string>(response,"kind");
+    string kind = parseString(response,"kind",32);
     if(kind == "selfplay") {
       json networkProperties = parse<json>(response,"network");
+      json runProperties = parse<json>(response,"run");
 
       task.taskId = ""; //TODO Server doesn't care? What about avoiding multiply reporting games?
-      task.taskGroup = parse<string>(networkProperties,"name");
-      task.runName = parse<string>(response,"run");
-      task.config = parse<string>(response,"config");
+      task.taskGroup = parseString(networkProperties,"name",MAX_NETWORK_NAME_LEN);
+      task.runName = parseString(runProperties,"name",MAX_RUN_NAME_LEN);
+      task.config = parseString(response,"config",MAX_CONFIG_NAME_LEN);
       task.modelBlack = parseModelInfo(networkProperties);
       task.modelWhite = task.modelBlack;
       task.doWriteTrainingData = true;
@@ -384,22 +424,23 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
       json content = parse<json>(response,"content");
       json blackNetworkProperties = parse<json>(content,"black_network");
       json whiteNetworkProperties = parse<json>(content,"white_network");
+      json runProperties = parse<json>(response,"run");
 
-      string blackCreatedAt = parse<string>(blackNetworkProperties,"created_at");
-      string whiteCreatedAt = parse<string>(whiteNetworkProperties,"created_at");
+      string blackCreatedAt = parseString(blackNetworkProperties,"created_at",MAX_TIME_LEN);
+      string whiteCreatedAt = parseString(whiteNetworkProperties,"created_at",MAX_TIME_LEN);
       //A bit hacky - we rely on the fact that the server reports these in ISO 8601 and therefore
       //lexicographic compare is correct to determine recency
       string mostRecentName;
       if(std::lexicographical_compare(blackCreatedAt.begin(),blackCreatedAt.end(),whiteCreatedAt.begin(),whiteCreatedAt.end()))
-        mostRecentName = parse<string>(whiteNetworkProperties,"name");
+        mostRecentName = parseString(whiteNetworkProperties,"name",MAX_NETWORK_NAME_LEN);
       else
-        mostRecentName = parse<string>(blackNetworkProperties,"name");
+        mostRecentName = parseString(blackNetworkProperties,"name",MAX_NETWORK_NAME_LEN);
 
       task.taskId = ""; //TODO Server doesn't care? What about avoiding multiply reporting games?
 
       task.taskGroup = "rating_" + mostRecentName;
-      task.runName = parse<string>(response,"run");
-      task.config = parse<string>(response,"config");
+      task.runName = parseString(runProperties,"name",MAX_RUN_NAME_LEN);
+      task.config = parseString(response,"config",MAX_CONFIG_NAME_LEN);
       task.modelBlack = parseModelInfo(blackNetworkProperties);
       task.modelWhite = parseModelInfo(whiteNetworkProperties);
       task.doWriteTrainingData = false;
@@ -444,12 +485,20 @@ void Connection::downloadModelIfNotPresent(const Client::ModelInfo& modelInfo, c
   if(bfs::exists(bfs::path(path)))
     return;
 
+  Url url;
+  try {
+    url = Url::parse(modelInfo.url);
+  }
+  catch(const StringError& e) {
+    throw StringError(string("Could not parse URL to download model: ") + e.what());
+  }
+
   auto f = [&]() {
     size_t totalDataSize = 0;
     ofstream out(tmpPath,ios::binary);
 
-    std::shared_ptr<httplib::Response> response = getBigFile(
-      modelInfo.url, [&out,&totalDataSize](const char* data, size_t data_length) {
+    std::shared_ptr<httplib::Response> response = oneShotDownload(
+      logger, url, [&out,&totalDataSize](const char* data, size_t data_length) {
         out.write(data, data_length);
         totalDataSize += data_length;
         return true;
@@ -554,6 +603,9 @@ void Connection::uploadTrainingGameAndData(const Task& task, const FinishedGameD
 
     if(response == nullptr)
       throw StringError("No response from server");
+    if(response->status == 409) {
+      logger->write("Server returned 409, data is uploaded already or has a key conflict, so skipping, response was: " + response->body);
+    }
     if(response->status != 200 && response->status != 201 && response->status != 202) {
       ostringstream outs;
       debugPrintResponse(outs,response);
@@ -611,6 +663,9 @@ void Connection::uploadRatingGame(const Task& task, const FinishedGameData* game
 
     if(response == nullptr)
       throw StringError("No response from server");
+    if(response->status == 409) {
+      logger->write("Server returned 409, data is uploaded already or has a key conflict, so skipping, response was: " + response->body);
+    }
     if(response->status != 200 && response->status != 201 && response->status != 202) {
       ostringstream outs;
       debugPrintResponse(outs,response);
