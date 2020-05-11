@@ -377,6 +377,7 @@ RunParameters Connection::getRunParameters() {
     json run = parseJson(get("/api/runs/current_for_client/"));
     RunParameters runParams;
     runParams.runName = parseString(run,"name",MAX_RUN_NAME_LEN);
+    runParams.infoUrl = parseString(run,"url",MAX_URL_LEN);
     runParams.dataBoardLen = parseInteger<int>(run,"data_board_len",3,Board::MAX_LEN);
     runParams.inputsVersion = parseInteger<int>(run,"inputs_version",NNModelVersion::oldestInputsVersionImplemented,NNModelVersion::latestInputsVersionImplemented);
     runParams.maxSearchThreadsAllowed = parseInteger<int>(run,"max_search_threads_allowed",1,16384);
@@ -425,7 +426,8 @@ static bool retryLoop(const char* errorLabel, bool retryOnFailure, Logger* logge
 static Client::ModelInfo parseModelInfo(const json& networkProperties) {
   Client::ModelInfo model;
   model.name = parseString(networkProperties,"name",MAX_NETWORK_NAME_LEN);
-  model.url = parseStringOrNull(networkProperties,"model_file",MAX_URL_LEN);
+  model.infoUrl = parseStringOrNull(networkProperties,"url",MAX_URL_LEN);
+  model.downloadUrl = parseStringOrNull(networkProperties,"model_file",MAX_URL_LEN);
   model.bytes = parse<int64_t>(networkProperties,"model_file_bytes");
   model.sha256 = parseString(networkProperties,"model_file_sha256",64);
   model.isRandom = parse<bool>(networkProperties,"is_random");
@@ -445,6 +447,7 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
       task.taskId = ""; //Not currently used by server
       task.taskGroup = parseString(networkProperties,"name",MAX_NETWORK_NAME_LEN);
       task.runName = parseString(runProperties,"name",MAX_RUN_NAME_LEN);
+      task.runInfoUrl = parseString(runProperties,"url",MAX_URL_LEN);
       task.config = parseString(response,"config",MAX_CONFIG_NAME_LEN);
       task.modelBlack = parseModelInfo(networkProperties);
       task.modelWhite = task.modelBlack;
@@ -471,6 +474,7 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
 
       task.taskGroup = "rating_" + mostRecentName;
       task.runName = parseString(runProperties,"name",MAX_RUN_NAME_LEN);
+      task.runInfoUrl = parseString(runProperties,"url",MAX_URL_LEN);
       task.config = parseString(response,"config",MAX_CONFIG_NAME_LEN);
       task.modelBlack = parseModelInfo(blackNetworkProperties);
       task.modelWhite = parseModelInfo(whiteNetworkProperties);
@@ -520,7 +524,7 @@ bool Connection::downloadModelIfNotPresent(
 
   Url url;
   try {
-    url = Url::parse(modelInfo.url);
+    url = Url::parse(modelInfo.downloadUrl);
   }
   catch(const StringError& e) {
     throw StringError(string("Could not parse URL to download model: ") + e.what());
@@ -613,9 +617,9 @@ bool Connection::uploadTrainingGameAndData(
       o << gameData->gameHash;
       gameUid = o.str();
     }
-    string run = task.runName;
-    string whiteNetwork = task.modelWhite.name;
-    string blackNetwork = task.modelBlack.name;
+    string run = task.runInfoUrl;
+    string whiteNetwork = task.modelWhite.infoUrl;
+    string blackNetwork = task.modelBlack.infoUrl;
 
     httplib::MultipartFormDataItems items = {
       { "board_size_x", Global::intToString(boardSizeX), "", "" },
@@ -632,10 +636,10 @@ bool Connection::uploadTrainingGameAndData(
       { "white_network", whiteNetwork, "", ""},
       { "black_network", blackNetwork, "", ""},
       { "sgf_file", sgfContents, "", "text/plain" },
-      { "unpacked_file", npzContents, "", "application/octet-stream" },
+      { "training_data_file", npzContents, "", "application/octet-stream" },
     };
 
-    std::shared_ptr<httplib::Response> response = postMulti("/games/training/",items);
+    std::shared_ptr<httplib::Response> response = postMulti("/api/games/training/",items);
 
     if(response == nullptr)
       throw StringError("No response from server");
@@ -677,9 +681,9 @@ bool Connection::uploadRatingGame(
       o << gameData->gameHash;
       gameUid = o.str();
     }
-    string run = task.runName;
-    string whiteNetwork = task.modelWhite.name;
-    string blackNetwork = task.modelBlack.name;
+    string run = task.runInfoUrl;
+    string whiteNetwork = task.modelWhite.infoUrl;
+    string blackNetwork = task.modelBlack.infoUrl;
 
     httplib::MultipartFormDataItems items = {
       { "board_size_x", Global::intToString(boardSizeX), "", "" },
@@ -698,7 +702,7 @@ bool Connection::uploadRatingGame(
       { "sgf_file", sgfContents, "", "text/plain" },
     };
 
-    std::shared_ptr<httplib::Response> response = postMulti("/games/ranking_estimation/",items);
+    std::shared_ptr<httplib::Response> response = postMulti("/api/games/rating/",items);
 
     if(response == nullptr)
       throw StringError("No response from server");

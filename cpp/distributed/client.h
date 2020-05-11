@@ -12,6 +12,7 @@ namespace Client {
 
   struct RunParameters {
     std::string runName;
+    std::string infoUrl;
     int dataBoardLen;
     int inputsVersion;
     int maxSearchThreadsAllowed;
@@ -19,7 +20,8 @@ namespace Client {
 
   struct ModelInfo {
     std::string name;
-    std::string url;
+    std::string infoUrl;
+    std::string downloadUrl;
     int64_t bytes;
     std::string sha256;
     bool isRandom;
@@ -29,6 +31,7 @@ namespace Client {
     std::string taskId;
     std::string taskGroup;
     std::string runName;
+    std::string runInfoUrl;
 
     ModelInfo modelBlack;
     ModelInfo modelWhite;
