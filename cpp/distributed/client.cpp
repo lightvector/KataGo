@@ -43,10 +43,10 @@ static void debugPrintResponse(ostream& out, const std::shared_ptr<httplib::Resp
       out << "Header: " << it->first + ": " + it->second << endl;
     }
     out << "Body:" << endl;
-    if(response->body.size() <= 1000)
+    if(response->body.size() <= 3000)
       out << response->body << endl;
     else {
-      out << response->body.substr(0,1000) << endl;
+      out << response->body.substr(0,3000) << endl;
       out << "<TRUNCATED due to length>" << endl;
     }
   }
@@ -317,6 +317,25 @@ static string parseString(const json& response, const char* field, size_t maxLen
   throw StringError("BUG, should not reach here");
 }
 
+static string parseStringOrNull(const json& response, const char* field, size_t maxLen) {
+  if(response.find(field) == response.end())
+    throwFieldNotFound(response,field);
+  try {
+    json fieldJson = response[field];
+    if(fieldJson.is_null())
+      return string();
+    string x = fieldJson.get<string>();
+    if(x.size() >= maxLen)
+      throw StringError(string("Field ") + " had Invalid response, length too long: " + Global::uint64ToString(x.size()));
+    return x;
+  }
+  catch(nlohmann::detail::exception& e) {
+    throwInvalidValue(response,field);
+  }
+  throw StringError("BUG, should not reach here");
+}
+
+
 template <typename T>
 static T parseInteger(const json& response, const char* field, T min, T max) {
   if(response.find(field) == response.end())
@@ -368,7 +387,10 @@ RunParameters Connection::getRunParameters() {
   }
 }
 
-static void retryLoop(const char* errorLabel, bool retryOnFailure, Logger* logger, std::function<void()> f) {
+static bool retryLoop(const char* errorLabel, bool retryOnFailure, Logger* logger, std::atomic<bool>& shouldStop, std::function<void()> f) {
+  if(shouldStop.load())
+    return false;
+  double stopPollFrequency = 2.0;
   double failureInterval = 5.0;
   int maxTries = retryOnFailure ? 40 : 1;
   for(int i = 0; i<maxTries; i++) {
@@ -378,9 +400,18 @@ static void retryLoop(const char* errorLabel, bool retryOnFailure, Logger* logge
     catch(const StringError& e) {
       if(i >= maxTries-1)
         throw;
-      logger->write(string(errorLabel) + "Error connecting to server, possibly an internet blip, or possibly the server is down or temporarily misconfigured, waiting " + Global::doubleToString(failureInterval) + " seconds and trying again.");
+      logger->write(string(errorLabel) + ": Error connecting to server, possibly an internet blip, or possibly the server is down or temporarily misconfigured, waiting " + Global::doubleToString(failureInterval) + " seconds and trying again.");
       logger->write(string("Error was:\n") + e.what());
-      std::this_thread::sleep_for(std::chrono::duration<double>(failureInterval));
+
+
+      double intervalRemaining = failureInterval;
+      while(intervalRemaining > 0.0) {
+        double sleepTime = std::min(intervalRemaining, stopPollFrequency);
+        if(shouldStop.load())
+          return false;
+        intervalRemaining -= sleepTime;
+        std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
+      }
       failureInterval = round(failureInterval * 1.3 + 1.0);
       continue;
     }
@@ -388,21 +419,21 @@ static void retryLoop(const char* errorLabel, bool retryOnFailure, Logger* logge
       logger->write(string(errorLabel) + "Connection to server is back!");
     break;
   }
+  return true;
 }
 
 static Client::ModelInfo parseModelInfo(const json& networkProperties) {
   Client::ModelInfo model;
   model.name = parseString(networkProperties,"name",MAX_NETWORK_NAME_LEN);
-  model.url = parseString(networkProperties,"model_file",MAX_URL_LEN);
+  model.url = parseStringOrNull(networkProperties,"model_file",MAX_URL_LEN);
   model.bytes = parse<int64_t>(networkProperties,"model_file_bytes");
   model.sha256 = parseString(networkProperties,"model_file_sha256",64);
   model.isRandom = parse<bool>(networkProperties,"is_random");
   return model;
 }
 
-Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
+bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFailure, std::atomic<bool>& shouldStop) {
   (void)baseDir;
-  Task task;
 
   auto f = [&]() {
     json response = parseJson(post("/api/tasks/","","text/plain"));
@@ -411,7 +442,7 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
       json networkProperties = parse<json>(response,"network");
       json runProperties = parse<json>(response,"run");
 
-      task.taskId = ""; //TODO Server doesn't care? What about avoiding multiply reporting games?
+      task.taskId = ""; //Not currently used by server
       task.taskGroup = parseString(networkProperties,"name",MAX_NETWORK_NAME_LEN);
       task.runName = parseString(runProperties,"name",MAX_RUN_NAME_LEN);
       task.config = parseString(response,"config",MAX_CONFIG_NAME_LEN);
@@ -436,7 +467,7 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
       else
         mostRecentName = parseString(blackNetworkProperties,"name",MAX_NETWORK_NAME_LEN);
 
-      task.taskId = ""; //TODO Server doesn't care? What about avoiding multiply reporting games?
+      task.taskId = ""; //Not currently used by server
 
       task.taskGroup = "rating_" + mostRecentName;
       task.runName = parseString(runProperties,"name",MAX_RUN_NAME_LEN);
@@ -463,8 +494,7 @@ Task Connection::getNextTask(const string& baseDir, bool retryOnFailure) {
       throw StringError(string("Error parsing task config from server: ") + e.what() + "\nConfig was:\n" + task.config);
     }
   };
-  retryLoop("getNextTask",retryOnFailure,logger,f);
-  return task;
+  return retryLoop("getNextTask",retryOnFailure,logger,shouldStop,f);
 }
 
 //STATIC method
@@ -474,16 +504,19 @@ string Connection::getModelPath(const Client::ModelInfo& modelInfo, const string
   return modelDir + "/" + modelInfo.name + ".bin.gz";
 }
 
-void Connection::downloadModelIfNotPresent(const Client::ModelInfo& modelInfo, const string& modelDir, bool retryOnFailure) {
+bool Connection::downloadModelIfNotPresent(
+  const Client::ModelInfo& modelInfo, const string& modelDir,
+  bool retryOnFailure, std::atomic<bool>& shouldStop
+) {
   if(modelInfo.isRandom)
-    return;
+    return true;
 
   string path = getModelPath(modelInfo,modelDir);
   string tmpPath = path + ".tmp";
 
   //Model already exists
   if(bfs::exists(bfs::path(path)))
-    return;
+    return true;
 
   Url url;
   try {
@@ -498,10 +531,10 @@ void Connection::downloadModelIfNotPresent(const Client::ModelInfo& modelInfo, c
     ofstream out(tmpPath,ios::binary);
 
     std::shared_ptr<httplib::Response> response = oneShotDownload(
-      logger, url, [&out,&totalDataSize](const char* data, size_t data_length) {
+      logger, url, [&out,&totalDataSize,&shouldStop](const char* data, size_t data_length) {
         out.write(data, data_length);
         totalDataSize += data_length;
-        return true;
+        return !shouldStop.load();
       }
     );
     out.close();
@@ -532,10 +565,13 @@ void Connection::downloadModelIfNotPresent(const Client::ModelInfo& modelInfo, c
     //Done! Rename the file into the right place
     std::rename(tmpPath.c_str(),path.c_str());
   };
-  retryLoop("downloadModelIfNotPresent",retryOnFailure,logger,f);
+  return retryLoop("downloadModelIfNotPresent",retryOnFailure,logger,shouldStop,f);
 }
 
-void Connection::uploadTrainingGameAndData(const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, const string& npzFilePath, bool retryOnFailure) {
+bool Connection::uploadTrainingGameAndData(
+  const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, const string& npzFilePath,
+  bool retryOnFailure, std::atomic<bool>& shouldStop
+) {
   ifstream sgfIn(sgfFilePath);
   if(!sgfIn.good())
     throw IOError(string("Error: sgf file was deleted or wasn't written out for upload?") + sgfFilePath);
@@ -553,7 +589,7 @@ void Connection::uploadTrainingGameAndData(const Task& task, const FinishedGameD
     int boardSizeY = gameData->startBoard.y_size;
     int handicap = (gameData->numExtraBlack > 0 ? (gameData->numExtraBlack + 1) : 0);
     double komi = gameData->startHist.rules.komi;
-    string rules = json::parse(gameData->startHist.rules.toJsonStringNoKomi());
+    string rules = gameData->startHist.rules.toJsonStringNoKomi();
     json extraMetadata;
     extraMetadata["playout_doubling_advantage"] = gameData->playoutDoublingAdvantage;
     extraMetadata["playout_doubling_advantage_pla"] = PlayerIO::playerToString(gameData->playoutDoublingAdvantagePla);
@@ -612,10 +648,13 @@ void Connection::uploadTrainingGameAndData(const Task& task, const FinishedGameD
       throw StringError("Server gave response that was not status code 200 OK or 201 Created or 202 Accepted\n" + outs.str());
     }
   };
-  retryLoop("uploadTrainingGameAndData",retryOnFailure,logger,f);
+  return retryLoop("uploadTrainingGameAndData",retryOnFailure,logger,shouldStop,f);
 }
 
-void Connection::uploadRatingGame(const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, bool retryOnFailure) {
+bool Connection::uploadRatingGame(
+  const Task& task, const FinishedGameData* gameData, const string& sgfFilePath,
+  bool retryOnFailure, std::atomic<bool>& shouldStop
+) {
   ifstream sgfIn(sgfFilePath);
   if(!sgfIn.good())
     throw IOError(string("Error: sgf file was deleted or wasn't written out for upload?") + sgfFilePath);
@@ -627,7 +666,7 @@ void Connection::uploadRatingGame(const Task& task, const FinishedGameData* game
     int boardSizeY = gameData->startBoard.y_size;
     int handicap = (gameData->numExtraBlack > 0 ? (gameData->numExtraBlack + 1) : 0);
     double komi = gameData->startHist.rules.komi;
-    string rules = json::parse(gameData->startHist.rules.toJsonStringNoKomi());
+    string rules = gameData->startHist.rules.toJsonStringNoKomi();
     json extraMetadata = json({});
     string winner = gameData->endHist.winner == P_WHITE ? "W" : gameData->endHist.winner == P_BLACK ? "B" : gameData->endHist.isNoResult ? "-" : "0";
     double score = gameData->endHist.finalWhiteMinusBlackScore;
@@ -672,7 +711,7 @@ void Connection::uploadRatingGame(const Task& task, const FinishedGameData* game
       throw StringError("Server gave response that was not status code 200 OK or 201 Created or 202 Accepted\n" + outs.str());
     }
   };
-  retryLoop("uploadRatingGame",retryOnFailure,logger,f);
+  return retryLoop("uploadRatingGame",retryOnFailure,logger,shouldStop,f);
 }
 
 #endif //BUILD_DISTRIBUTED

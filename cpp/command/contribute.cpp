@@ -120,18 +120,28 @@ static void runAndUploadSingleGame(Client::Connection* connection, GameTask game
     if(gameTask.task.doWriteTrainingData) {
       gameTask.manager->withDataWriters(
         nnEvalBlack,
-        [gameData,&gameTask,&sgfFile,&connection](TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut) {
+        [gameData,&gameTask,&sgfFile,&connection,&logger](TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut) {
           (void)vdataWriter;
           (void)sgfOut;
           tdataWriter->writeGame(*gameData);
           string resultingFilename;
           bool producedFile = tdataWriter->flushIfNonempty(resultingFilename);
-          if(producedFile)
-            connection->uploadTrainingGameAndData(gameTask.task,gameData,sgfFile,resultingFilename,retryOnFailure);
+          //It's possible we'll have zero data if the game started in a nearly finished position and cheap search never
+          //gave us a real turn of search, in which case just ignore that game.
+          if(producedFile) {
+            bool suc = connection->uploadTrainingGameAndData(gameTask.task,gameData,sgfFile,resultingFilename,retryOnFailure,shouldStop);
+            if(suc)
+              logger.write("Uploaded sgf " + sgfFile + " and training data " + resultingFilename);
+          }
+          else {
+            logger.write("Skipping uploading sgf " + sgfFile + " since it's an empty game");
+          }
         });
     }
     else {
-      connection->uploadRatingGame(gameTask.task,gameData,sgfFile,retryOnFailure);
+      bool suc = connection->uploadRatingGame(gameTask.task,gameData,sgfFile,retryOnFailure,shouldStop);
+      if(suc)
+        logger.write("Uploaded sgf " + sgfFile);
     }
   }
 
@@ -349,10 +359,14 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   //Loop acquiring tasks and feeding them to game threads
   bool anyTaskSuccessfullyParsedYet = false;
   while(true) {
+    std::this_thread::sleep_for(std::chrono::duration<double>(1.0));
     if(shouldStop.load())
       break;
     bool retryOnFailure = anyTaskSuccessfullyParsedYet;
-    Client::Task task = connection->getNextTask(baseDir,retryOnFailure);
+    Client::Task task;
+    bool suc = connection->getNextTask(task,baseDir,retryOnFailure,shouldStop);
+    if(!suc)
+      continue;
 
     if(task.runName != runParams.runName) {
       throw StringError(
@@ -367,11 +381,12 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       MakeDir::make(sgfOutputDir);
     }
 
-    //TODO should we have a mechanism to interrupt the download to quit faster in response to shouldStop?
-    connection->downloadModelIfNotPresent(task.modelBlack,modelsDir,retryOnFailure);
-    connection->downloadModelIfNotPresent(task.modelWhite,modelsDir,retryOnFailure);
+    bool suc1 = connection->downloadModelIfNotPresent(task.modelBlack,modelsDir,retryOnFailure,shouldStop);
+    bool suc2 = connection->downloadModelIfNotPresent(task.modelWhite,modelsDir,retryOnFailure,shouldStop);
     if(shouldStop.load())
       break;
+    if(!suc1 || !suc2)
+      continue;
 
     //Update model file modified times as a way to track which ones we've used recently or not
     string modelFileBlack = Client::Connection::getModelPath(task.modelBlack,modelsDir);
@@ -403,7 +418,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     gameTask.nnEvalWhite = nnEvalWhite;
 
     anyTaskSuccessfullyParsedYet = true;
-    bool suc = gameTaskQueue.waitPush(gameTask);
+    suc = gameTaskQueue.waitPush(gameTask);
     (void)suc;
     assert(suc);
   }

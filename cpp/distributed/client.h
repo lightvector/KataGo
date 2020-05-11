@@ -49,13 +49,35 @@ namespace Client {
     Connection& operator=(Connection&&) = delete;
 
     RunParameters getRunParameters();
-    Task getNextTask(const std::string& baseDir, bool retryOnFailure);
+    //Returns true if a task was obtained. Returns false if no task was obtained, but not due to an error (e.g. shouldStop).
+    //Raises an exception upon a repeated error that persists long enough.
+    bool getNextTask(
+      Task& task,
+      const std::string& baseDir,
+      bool retryOnFailure, std::atomic<bool>& shouldStop
+    );
 
     static std::string getModelPath(const Client::ModelInfo& modelInfo, const std::string& modelDir);
-    void downloadModelIfNotPresent(const Client::ModelInfo& modelInfo, const std::string& modelDir, bool retryOnFailure);
 
-    void uploadTrainingGameAndData(const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath, const std::string& npzFilePath, bool retryOnFailure);
-    void uploadRatingGame(const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath, bool retryOnFailure);
+    //Returns true if a model was downloaded or download was not necessary.
+    //Returns false if a model count not be downloaded, but not due to an error (e.g. shouldStop).
+    //Raises an exception upon a repeated error that persists long enough.
+    bool downloadModelIfNotPresent(
+      const Client::ModelInfo& modelInfo, const std::string& modelDir,
+      bool retryOnFailure, std::atomic<bool>& shouldStop
+    );
+
+    //Returns true if data was uploaded or upload was not needed.
+    //Returns false if it was not, but not due to an error (e.g. shouldStop).
+    //Raises an exception upon a repeated error that persists long enough.
+    bool uploadTrainingGameAndData(
+      const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath, const std::string& npzFilePath,
+      bool retryOnFailure, std::atomic<bool>& shouldStop
+    );
+    bool uploadRatingGame(
+      const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath,
+      bool retryOnFailure, std::atomic<bool>& shouldStop
+    );
 
   private:
     std::shared_ptr<httplib::Response> get(const std::string& subPath);
