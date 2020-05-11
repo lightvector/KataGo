@@ -814,7 +814,7 @@ static void logSearch(Search* bot, Logger& logger, Loc loc) {
 
 static bool shouldStop(vector<std::atomic<bool>*>& stopConditions) {
   for(int j = 0; j<stopConditions.size(); j++) {
-    if(stopConditions[j]->load())
+    if(stopConditions[j]->load(std::memory_order_acquire))
       return true;
   }
   return false;
