@@ -58,7 +58,10 @@ namespace {
   };
 }
 
-static void runAndUploadSingleGame(Client::Connection* connection, GameTask gameTask, Logger& logger, const string& seed, ForkData* forkData, string sgfsDir, Rand& rand) {
+static void runAndUploadSingleGame(
+  Client::Connection* connection, GameTask gameTask, int64_t gameIdx,
+  Logger& logger, const string& seed, ForkData* forkData, string sgfsDir, Rand& rand
+) {
   vector<std::atomic<bool>*> stopConditions = {&shouldStop};
 
   istringstream taskCfgIn(gameTask.task.config);
@@ -120,7 +123,7 @@ static void runAndUploadSingleGame(Client::Connection* connection, GameTask game
     if(gameTask.task.doWriteTrainingData) {
       gameTask.manager->withDataWriters(
         nnEvalBlack,
-        [gameData,&gameTask,&sgfFile,&connection,&logger](TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut) {
+        [gameData,&gameTask,gameIdx,&sgfFile,&connection,&logger](TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut) {
           (void)vdataWriter;
           (void)sgfOut;
           tdataWriter->writeGame(*gameData);
@@ -131,17 +134,17 @@ static void runAndUploadSingleGame(Client::Connection* connection, GameTask game
           if(producedFile) {
             bool suc = connection->uploadTrainingGameAndData(gameTask.task,gameData,sgfFile,resultingFilename,retryOnFailure,shouldStop);
             if(suc)
-              logger.write("Uploaded sgf " + sgfFile + " and training data " + resultingFilename);
+              logger.write("Finished game " + Global::int64ToString(gameIdx)  + " (training), uploaded sgf " + sgfFile + " and training data " + resultingFilename);
           }
           else {
-            logger.write("Skipping uploading sgf " + sgfFile + " since it's an empty game");
+            logger.write("Finished game " + Global::int64ToString(gameIdx) + " (training), skipping uploading sgf " + sgfFile + " since it's an empty game");
           }
         });
     }
     else {
       bool suc = connection->uploadRatingGame(gameTask.task,gameData,sgfFile,retryOnFailure,shouldStop);
       if(suc)
-        logger.write("Uploaded sgf " + sgfFile);
+        logger.write("Finished game " + Global::int64ToString(gameIdx) + " (rating), uploaded sgf " + sgfFile);
     }
   }
 
@@ -292,7 +295,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
             (gameTask.nnEvalBlack->getModelName() + " vs " + gameTask.nnEvalWhite->getModelName())
           ) + ")"
         );
-        runAndUploadSingleGame(connection,gameTask,logger,seed,forkData,sgfsDir,thisLoopSeedRand);
+        runAndUploadSingleGame(connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand);
       }
       gameTask.manager->release(gameTask.nnEvalBlack);
       gameTask.manager->release(gameTask.nnEvalWhite);
