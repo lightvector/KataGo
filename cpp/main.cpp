@@ -170,6 +170,7 @@ string Version::getKataGoVersion() {
 
 string Version::getKataGoVersionForHelp() {
   return string("KataGo v1.4.1+kt105");
+}
 
 string Version::getKataGoVersionFullInfo() {
   ostringstream out;
