@@ -28,6 +28,7 @@ MoveNum: 0 HASH: 7BF12F3F24903F0C225CD6C55BA8BA1F
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 100
 NN rows: 96
 NN batches: 96
 NN avg batch size: 1
@@ -70,6 +71,7 @@ MoveNum: 1 HASH: 1B4A47063949C09BE5F5B9661C676D55
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 90
 NN rows: 77
 NN batches: 77
 NN avg batch size: 1
@@ -112,6 +114,7 @@ MoveNum: 0 HASH: 7BF12F3F24903F0C225CD6C55BA8BA1F
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 100
 NN rows: 0
 NN batches: 0
 NN avg batch size: -nan
@@ -154,6 +157,7 @@ MoveNum: 1 HASH: 0CEAE8B4B0275F9498D45099084F186C
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 91
 NN rows: 72
 NN batches: 72
 NN avg batch size: 1
@@ -186,6 +190,7 @@ MoveNum: 0 HASH: 17AD8355BCC635F80E2BB25E4F9F5690
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 100
 NN rows: 100
 NN batches: 100
 NN avg batch size: 1

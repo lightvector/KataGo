@@ -145,6 +145,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    alwaysIncludeOwnerMap(false),
    searchParams(params),numSearchesBegun(0),searchNodeAge(0),
    rootPlaDuringLastSearch(C_EMPTY),
+   lastSearchNumPlayouts(0),
    randSeed(rSeed),
    normToTApproxZ(0.0),
    nnEvaluator(nnEval),
@@ -571,6 +572,9 @@ void Search::runWholeSearch(
       threads[i].join();
     delete[] threads;
   }
+
+  //Relaxed since should be synchronized already due to the joins
+  lastSearchNumPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
 }
 
 //If we're being asked to search from a position where the game is over, this is fine. Just keep going, the boardhistory

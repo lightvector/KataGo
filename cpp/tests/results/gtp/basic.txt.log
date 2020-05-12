@@ -37,6 +37,7 @@
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 100
 NN rows: 96
 NN batches: 96
 NN avg batch size: 1
@@ -82,6 +83,7 @@ D4  : T  -1.22c W  -1.33c S   0.11c ( -0.2 L  -0.0) LCB -117.86c P  4.67% WF  6.
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 90
 NN rows: 77
 NN batches: 77
 NN avg batch size: 1
@@ -129,6 +131,7 @@ Q4  : T  -0.54c W  -0.30c S  -0.24c ( -0.3 L  -0.3) LCB  -45.88c P  4.97% WF  9.
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 100
 NN rows: 0
 NN batches: 0
 NN avg batch size: -nan
@@ -174,6 +177,7 @@ D4  : T  -1.22c W  -1.33c S   0.11c ( -0.2 L  -0.0) LCB -117.86c P  4.67% WF  6.
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 91
 NN rows: 72
 NN batches: 72
 NN avg batch size: 1
@@ -218,6 +222,7 @@ D16 : T  -1.03c W  -0.73c S  -0.30c ( -0.3 L  -0.4) LCB  -42.05c P  5.61% WF  9.
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 100
 NN rows: 100
 NN batches: 100
 NN avg batch size: 1

@@ -176,9 +176,9 @@ void AsyncBot::ponder(double sf) {
   queuedSearchId = 0;
   queuedOnMove = std::function<void(Loc,int)>(ignoreMove);
   isRunning = true;
-  isPondering = true;
+  isPondering = true; //True - we are searching on the opponent's turn "for" the opponent's opponent
   shouldStopNow = false;
-  timeControls = TimeControls();
+  timeControls = TimeControls(); //Blank time controls since opponent's clock is running, not ours, so no cap other than searchFactor
   searchFactor = sf;
   analyzeCallbackPeriod = -1;
   analyzeCallback = std::function<void(Search*)>();
@@ -199,9 +199,9 @@ void AsyncBot::analyze(Player movePla, double sf, double callbackPeriod, std::fu
   queuedSearchId = 0;
   queuedOnMove = std::function<void(Loc,int)>(ignoreMove);
   isRunning = true;
-  isPondering = true;
+  isPondering = false; //This should indeed be false because we are searching for the current player, not the last player we did a regular search for.
   shouldStopNow = false;
-  timeControls = TimeControls();
+  timeControls = TimeControls(); //Blank time controls since no clock is not running, we don't cap search time other than through searchFactor.
   searchFactor = sf;
   analyzeCallbackPeriod = callbackPeriod;
   analyzeCallback = callback;
