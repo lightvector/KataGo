@@ -4,6 +4,8 @@
 //  Copyright (c) 2020 Yuji Hirose. All rights reserved.
 //  MIT License
 //
+//  MODIFIED by lightvector to allow users to specify the multipart form data boundary
+//  to be able to alter its length and to avoid repeatedly initializing an mt19937
 
 #ifndef CPPHTTPLIB_HTTPLIB_H
 #define CPPHTTPLIB_HTTPLIB_H
@@ -521,6 +523,8 @@ private:
   bool parse_request_line(const char *s, Request &req);
   bool write_response(Stream &strm, bool last_connection, const Request &req,
                       Response &res);
+  bool write_response(Stream &strm, bool last_connection, const Request &req,
+                      Response &res, const std::string& user_boundary);
   bool write_content_with_provider(Stream &strm, const Request &req,
                                    Response &res, const std::string &boundary,
                                    const std::string &content_type);
@@ -627,6 +631,10 @@ public:
 
   std::shared_ptr<Response> Post(const char *path, const Headers &headers,
                                  const MultipartFormDataItems &items);
+
+  std::shared_ptr<Response> Post(const char *path, const Headers &headers,
+                                 const MultipartFormDataItems &items,
+                                 const std::string& user_boundary);
 
   std::shared_ptr<Response> Put(const char *path, const std::string &body,
                                 const char *content_type);
@@ -3037,6 +3045,12 @@ inline bool Server::parse_request_line(const char *s, Request &req) {
 
 inline bool Server::write_response(Stream &strm, bool last_connection,
                                    const Request &req, Response &res) {
+  return write_response(strm, last_connection, req, res, std::string());
+}
+
+inline bool Server::write_response(Stream &strm, bool last_connection,
+                                   const Request &req, Response &res,
+                                   const std::string& user_boundary) {
   assert(res.status != -1);
 
   if (400 <= res.status && error_handler_) { error_handler_(req, res); }
@@ -3071,7 +3085,10 @@ inline bool Server::write_response(Stream &strm, bool last_connection,
   std::string boundary;
 
   if (req.ranges.size() > 1) {
-    boundary = detail::make_multipart_data_boundary();
+    if (user_boundary.size() > 0)
+      boundary = user_boundary;
+    else
+      boundary = detail::make_multipart_data_boundary();
 
     auto it = res.headers.find("Content-Type");
     if (it != res.headers.end()) {
@@ -4171,7 +4188,17 @@ Client::Post(const char *path, const MultipartFormDataItems &items) {
 inline std::shared_ptr<Response>
 Client::Post(const char *path, const Headers &headers,
              const MultipartFormDataItems &items) {
-  auto boundary = detail::make_multipart_data_boundary();
+  return Post(path,headers,items,std::string());
+}
+inline std::shared_ptr<Response>
+Client::Post(const char *path, const Headers &headers,
+             const MultipartFormDataItems &items,
+             const std::string& user_boundary) {
+  std::string boundary;
+  if (user_boundary.size() > 0)
+    boundary = user_boundary;
+  else
+    boundary = detail::make_multipart_data_boundary();
 
   std::string body;
 

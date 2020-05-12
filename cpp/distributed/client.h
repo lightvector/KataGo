@@ -4,6 +4,7 @@
 #define DISTRIBUTED_CLIENT_H_
 
 #include "../core/logger.h"
+#include "../core/rand.h"
 #include "../distributed/httplib_wrapper.h"
 #include "../core/multithread.h"
 #include "../dataio/trainingwrite.h"
@@ -94,6 +95,7 @@ namespace Client {
     std::string baseResourcePath;
 
     Logger* logger;
+    Rand rand;
 
     //TODO if httplib is thread-safe, then we can remove this
     std::mutex mutex;

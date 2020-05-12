@@ -149,6 +149,7 @@ Connection::Connection(const string& serverUrl, const string& username, const st
    isSSL(false),
    baseResourcePath(),
    logger(lg),
+   rand(),
    mutex()
 {
   Url url;
@@ -262,10 +263,11 @@ std::shared_ptr<httplib::Response> Connection::post(const string& subPath, const
 
 std::shared_ptr<httplib::Response> Connection::postMulti(const string& subPath, const httplib::MultipartFormDataItems& data) {
   string queryPath = concatPaths(baseResourcePath,subPath);
+  string boundary = Global::uint64ToString(rand.nextUInt64()) + Global::uint64ToString(rand.nextUInt64());
 
   std::lock_guard<std::mutex> lock(mutex);
   if(isSSL) {
-    std::shared_ptr<httplib::Response> response = httpsClient->Post(queryPath.c_str(),data);
+    std::shared_ptr<httplib::Response> response = httpsClient->Post(queryPath.c_str(),httplib::Headers(),data,boundary);
     if(response == nullptr) {
       auto result = httpsClient->get_openssl_verify_result();
       if(result) {
@@ -276,7 +278,7 @@ std::shared_ptr<httplib::Response> Connection::postMulti(const string& subPath, 
     return response;
   }
   else {
-    return httpClient->Post(queryPath.c_str(),data);
+    return httpClient->Post(queryPath.c_str(),httplib::Headers(),data,boundary);
   }
 }
 
