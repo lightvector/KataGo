@@ -52,6 +52,9 @@ const BoardHistory& AsyncBot::getRootHist() const {
 Player AsyncBot::getRootPla() const {
   return search->rootPla;
 }
+Player AsyncBot::getPlayoutDoublingAdvantagePla() const {
+  return search->getPlayoutDoublingAdvantagePla();
+}
 
 Search* AsyncBot::getSearchStopAndWait() {
   stopAndWait();

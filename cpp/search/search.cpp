@@ -193,6 +193,10 @@ Player Search::getRootPla() const {
   return rootPla;
 }
 
+Player Search::getPlayoutDoublingAdvantagePla() const {
+  return searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPlaFlippedWhenPondering : searchParams.playoutDoublingAdvantagePla;
+}
+
 void Search::setPosition(Player pla, const Board& board, const BoardHistory& history) {
   clearSearch();
   rootPla = pla;
@@ -775,7 +779,7 @@ void Search::computeRootValues() {
       nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
       nnInputParams.avoidMYTDaggerHack = searchParams.avoidMYTDaggerHackPla == pla;
       if(searchParams.playoutDoublingAdvantage != 0) {
-        Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPlaFlippedWhenPondering : searchParams.playoutDoublingAdvantagePla;
+        Player playoutDoublingAdvantagePla = getPlayoutDoublingAdvantagePla();
         nnInputParams.playoutDoublingAdvantage = (
           getOpp(pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
         );
@@ -1685,7 +1689,7 @@ void Search::initNodeNNOutput(
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
   nnInputParams.avoidMYTDaggerHack = searchParams.avoidMYTDaggerHackPla == thread.pla;
   if(searchParams.playoutDoublingAdvantage != 0) {
-    Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPlaFlippedWhenPondering : searchParams.playoutDoublingAdvantagePla;
+    Player playoutDoublingAdvantagePla = getPlayoutDoublingAdvantagePla();
     nnInputParams.playoutDoublingAdvantage = (
       getOpp(thread.pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
     );

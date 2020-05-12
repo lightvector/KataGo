@@ -291,7 +291,7 @@ static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator
   out << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
   if(search->searchParams.playoutDoublingAdvantage != 0)
     out << "PlayoutDoublingAdvantage: " << (
-      search->getRootPla() == getOpp(search->searchParams.playoutDoublingAdvantagePla) ?
+      search->getRootPla() == getOpp(search->getPlayoutDoublingAdvantagePla()) ?
       -search->searchParams.playoutDoublingAdvantage : search->searchParams.playoutDoublingAdvantage) << endl;
   out << "PV: ";
   search->printPV(out, search->rootNode, 25);
