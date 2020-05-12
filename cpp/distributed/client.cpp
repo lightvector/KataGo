@@ -635,8 +635,8 @@ bool Connection::uploadTrainingGameAndData(
       { "run", run, "", ""},
       { "white_network", whiteNetwork, "", ""},
       { "black_network", blackNetwork, "", ""},
-      { "sgf_file", sgfContents, "", "text/plain" },
-      { "training_data_file", npzContents, "", "application/octet-stream" },
+      { "sgf_file", sgfContents, gameUid + ".sgf", "text/plain" },
+      { "training_data_file", npzContents, gameUid + ".npz", "application/octet-stream" },
     };
 
     std::shared_ptr<httplib::Response> response = postMulti("/api/games/training/",items);
