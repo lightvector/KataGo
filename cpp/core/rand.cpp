@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <sstream>
+#include <thread>
 
 #include "../core/global.h"
 #include "../core/hash.h"
@@ -188,7 +189,12 @@ static atomic<int> inits(0);
 
 void Rand::init()
 {
+  //Assemble entropy sources
+
+  //Atomic incrementing counter, within this run of this program
   int x = inits++;
+
+  //Various clocks
   uint64_t time0 = (uint64_t)time(NULL);
   uint32_t clock0 = (uint32_t)clock();
   int64_t precisionTime = ClockTimer::getPrecisionSystemTime();
@@ -227,6 +233,28 @@ void Rand::init()
       s += string(hostNameBuf);
   }
 #endif
+
+  //Mix thread id.
+  {
+    std::hash<std::thread::id> hashOfThread;
+    size_t hash = hashOfThread(std::this_thread::get_id());
+    s += "|";
+    s += Global::uint64ToHexString((uint64_t)hash);
+  }
+
+  //Mix address of stack and heap
+  {
+    int stackVal = 0;
+    int* heapVal = new int[1];
+    size_t stackAddr = (size_t)(&stackVal);
+    size_t heapAddr = (size_t)(heapVal);
+    delete heapVal;
+    s += "|";
+    s += Global::uint64ToHexString((uint64_t)stackAddr);
+    s += Global::uint64ToHexString((uint64_t)heapAddr);
+  }
+
+  //cout << s << endl;
 
   char hash[65];
   SHA2::get256(s.c_str(), hash);
