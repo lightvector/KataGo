@@ -135,6 +135,7 @@ struct SearchThread {
 struct Search {
   //Constant during search------------------------------------------------
   Player rootPla;
+  Player rootPlaFlippedWhenPondering;
   Board rootBoard;
   BoardHistory rootHistory;
   bool rootPassLegal;

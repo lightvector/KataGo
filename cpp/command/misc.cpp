@@ -568,8 +568,13 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 int MainCmds::printclockinfo(int argc, const char* const* argv) {
   (void)argc;
   (void)argv;
+#ifdef OS_IS_WINDOWS
+  cout << "Does nothing on windows, disabled" << endl;
+#endif
+#ifdef OS_IS_UNIX_OR_APPLE
   cout << "Tick unit in seconds: " << std::chrono::steady_clock::period::num << " / " <<  std::chrono::steady_clock::period::den << endl;
   cout << "Ticks since epoch: " << std::chrono::steady_clock::now().time_since_epoch().count() << endl;
+#endif
   return 0;
 }
 
@@ -952,12 +957,12 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       }
     }
   };
-  
+
   const int64_t maxSgfQueueSize = 1024;
   ThreadSafeQueue<int64_t> sgfQueue(maxSgfQueueSize);
   std::atomic<int64_t> numSgfsBegun(0);
   std::atomic<int64_t> numSgfsDone(0);
-  
+
   auto processSgfLoop = [&sgfFiles,&logger,&processSgf,&permutation,&sgfQueue,&params,&numSgfsBegun,&numSgfsDone,&nnEval]() {
     Rand rand;
     string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
@@ -990,8 +995,8 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       int64_t numDone = 1+numSgfsDone.fetch_add(1);
       if(numDone % 20 == 0)
         logger.write("Done " + Global::int64ToString(numDone) + " sgfs");
-      
-      delete sgf;    
+
+      delete sgf;
     }
 
     delete search;
@@ -1012,7 +1017,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     threads[i].join();
 
   logger.write("All sgfs processes, waiting for writing");
-  
+
   toWriteQueue.setReadOnly();
   writeLoopThread.join();
 

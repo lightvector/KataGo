@@ -7,7 +7,9 @@ static const string gtpBase = R"%%(
 # Logs------------------------------------------------------------------------------------
 
 # Where to output log?
-logFile = gtp.log
+logDir = gtp_logs    # Each run of KataGo will log to a separate file in this dir
+# logFile = gtp.log  # Use this instead of logDir to just specify a single file directly
+
 # Logging options
 logAllGTPCommunication = true
 logSearchInfo = true
