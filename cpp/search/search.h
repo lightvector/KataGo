@@ -135,7 +135,6 @@ struct SearchThread {
 struct Search {
   //Constant during search------------------------------------------------
   Player rootPla;
-  Player rootPlaFlippedWhenPondering;
   Board rootBoard;
   BoardHistory rootHistory;
   bool rootPassLegal;
@@ -151,7 +150,9 @@ struct Search {
   SearchParams searchParams;
   int64_t numSearchesBegun;
   uint32_t searchNodeAge;
-  Player rootPlaDuringLastSearch;
+  Player plaThatSearchIsFor;
+  Player plaThatSearchIsForLastSearch;
+  int64_t lastSearchNumPlayouts;
 
   std::string randSeed;
 
@@ -191,6 +192,7 @@ struct Search {
   const Board& getRootBoard() const;
   const BoardHistory& getRootHist() const;
   Player getRootPla() const;
+  Player getPlayoutDoublingAdvantagePla() const;
 
   //Clear all results of search and sets a new position or something else
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
@@ -220,6 +222,7 @@ struct Search {
   void runWholeSearch(Player movePla, Logger& logger);
   void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow);
 
+  //Pondering indicates that we are searching "for" the last player that we did a non-ponder search for, and should use ponder search limits.
   Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, bool pondering);
   void runWholeSearch(Player movePla, Logger& logger, bool pondering);
   void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering);
@@ -301,7 +304,7 @@ struct Search {
   std::vector<double> getAverageTreeOwnership(int64_t minVisits) const;
 
   //Expert manual playout-by-playout interface------------------------------------------------
-  void beginSearch();
+  void beginSearch(bool pondering);
   void runSinglePlayout(SearchThread& thread);
 
   //Helpers-----------------------------------------------------------------------

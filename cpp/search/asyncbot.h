@@ -17,6 +17,7 @@ class AsyncBot {
   const Board& getRootBoard() const;
   const BoardHistory& getRootHist() const;
   Player getRootPla() const;
+  Player getPlayoutDoublingAdvantagePla() const;
   SearchParams getParams() const;
 
   //Get the search directly. If the asyncbot is doing anything asynchronous, the search MAY STILL BE RUNNING!

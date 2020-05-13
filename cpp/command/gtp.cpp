@@ -285,12 +285,13 @@ static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator
   out << bot->getRootHist().rules << "\n";
   out << "Time taken: " << timeTaken << "\n";
   out << "Root visits: " << search->getRootVisits() << "\n";
+  out << "New playouts: " << search->lastSearchNumPlayouts << "\n";
   out << "NN rows: " << nnEval->numRowsProcessed() << endl;
   out << "NN batches: " << nnEval->numBatchesProcessed() << endl;
   out << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
   if(search->searchParams.playoutDoublingAdvantage != 0)
     out << "PlayoutDoublingAdvantage: " << (
-      search->getRootPla() == getOpp(search->searchParams.playoutDoublingAdvantagePla) ?
+      search->getRootPla() == getOpp(search->getPlayoutDoublingAdvantagePla()) ?
       -search->searchParams.playoutDoublingAdvantage : search->searchParams.playoutDoublingAdvantage) << endl;
   out << "PV: ";
   search->printPV(out, search->rootNode, 25);

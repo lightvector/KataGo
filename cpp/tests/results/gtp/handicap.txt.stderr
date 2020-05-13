@@ -1,4 +1,4 @@
-KataGo v1.4.1
+KataGo v1.4.2
 Loaded config configs/gtp_example.cfg and/or command-line and query overrides
 Loaded model models/g170-b6c96-s175395328-d26788732.bin.gz
 Model name: g170-b6c96-s175395328-d26788732
@@ -28,6 +28,7 @@ MoveNum: 0 HASH: E153F25F78076E50698FEB13372D62DB
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 100
 NN rows: 100
 NN batches: 100
 NN avg batch size: 1
@@ -71,6 +72,7 @@ MoveNum: 0 HASH: C8C4A026AA6DCCB6DC2ABC84580943C4
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 100
 NN rows: 84
 NN batches: 84
 NN avg batch size: 1
@@ -111,6 +113,7 @@ MoveNum: 2 HASH: 1E9E1E18E3D2716A1BAFE3BC4B4B5E00
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 100
 NN rows: 97
 NN batches: 97
 NN avg batch size: 1
@@ -152,6 +155,7 @@ MoveNum: 4 HASH: D27ED7A3ADEA93E6137E228672EDEDEC
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 100
 NN rows: 100
 NN batches: 100
 NN avg batch size: 1
@@ -193,6 +197,7 @@ MoveNum: 6 HASH: 5905DB49C2781D30069144878FEDCDBE
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 100
 NN rows: 97
 NN batches: 97
 NN avg batch size: 1
@@ -228,6 +233,7 @@ MoveNum: 1 HASH: E438EA007391E7E2375DB017412B67BA
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 100
 NN rows: 97
 NN batches: 97
 NN avg batch size: 1
@@ -261,6 +267,7 @@ MoveNum: 1 HASH: A740AFE552ECED2B189F1F197F8D0FB0
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
+New playouts: 100
 NN rows: 98
 NN batches: 98
 NN avg batch size: 1
@@ -279,3 +286,67 @@ K3  : T  66.52c W  63.99c S   2.53c ( +9.8 L +10.1) LCB  -36.73c P  4.02% WF  4.
 L6  : T  68.12c W  65.16c S   2.96c (+10.3 L +10.6) LCB  -11.83c P  2.85% WF  4.43% PSV       5 N       5  --  L6 F3 D7
 D7  : T  60.57c W  59.59c S   0.98c ( +8.4 L  +9.2) LCB  -51.43c P  5.69% WF  4.01% PSV       4 N       4  --  D7 D11 C11
 G10 : T  61.30c W  59.51c S   1.79c ( +9.1 L  +9.7) LCB -155.48c P  4.46% WF  4.05% PSV       3 N       4  --  G10 C6 F3
+MoveNum: 2 HASH: 882B03D22CFBA11DCBE488CA409ECCF2
+   A B C D E F G H J K L M N
+13 . . . . . . . . . . . . .
+12 . . . . . . . . . . . . .
+11 . . . . . . . . . . . . .
+10 . . . X . . . . . X . . .
+ 9 . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . .
+ 5 . . . . . . . . . . @ . .
+ 4 . . . X . . . . . O X . .
+ 3 . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Time taken: ###
+Root visits: 100
+New playouts: 100
+NN rows: 88
+NN batches: 88
+NN avg batch size: 1
+PlayoutDoublingAdvantage: 2.125
+PV: L5 L3 K5 J2 H11 L8 H3 J3
+Tree:
+: T -75.99c W -71.06c S  -4.93c (-11.7 L -11.7) N     100  --  L5 L3 K5 J2 H11 L8 H3
+---White(^)---
+L5  : T -74.85c W -69.95c S  -4.90c (-11.8 L -11.6) LCB  -81.52c P 41.26% WF 26.11% PSV      58 N      58  --  L5 L3 K5 J2 H11 L8 H3 J3
+L3  : T -78.92c W -73.77c S  -5.15c (-11.8 L -12.1) LCB  -89.28c P 32.11% WF 23.85% PSV      28 N      28  --  L3 L5 M3 K5 J4 J5 H4 H5
+K5  : T -75.00c W -70.44c S  -4.56c (-11.4 L -11.2) LCB -102.29c P 10.16% WF 25.78% PSV      11 N      11  --  K5 L5 L3 L6
+K3  : T -80.04c W -74.31c S  -5.73c (-12.4 L -12.7) LCB -280.00c P  3.71% WF 24.25% PSV       2 N       2  --  K3 L5
+MoveNum: 3 HASH: AB8038BF9DCC5B2733ACAB86E6E9FE6D
+   A B C D E F G H J K L M N
+13 . . . . . . . . . . . . .
+12 . . . . . . . . . . . . .
+11 . . . . . . . . . . . . .
+10 . . . X . . . . . X . . .
+ 9 . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . .
+ 5 . . . . . . . . . . O3. .
+ 4 . . . X . . . . . O1X2. .
+ 3 . . . . . . . . . . @ . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Time taken: ###
+Root visits: 100
+New playouts: 100
+NN rows: 43
+NN batches: 43
+NN avg batch size: 1
+PlayoutDoublingAdvantage: -2.125
+PV: L3 K5 J2 H11 L8 H3 J3 H4 H2
+Tree:
+: T  74.82c W  69.48c S   5.34c (+11.7 L +11.5) N     100  --  L3 K5 J2 H11 L8 H3 J3
+---Black(^)---
+L3  : T  75.90c W  70.33c S   5.57c (+11.9 L +11.7) LCB   71.26c P 78.46% WF 28.53% PSV      92 N      92  --  L3 K5 J2 H11 L8 H3 J3 H4
+K3  : T  57.06c W  55.38c S   1.68c ( +8.0 L  +8.5) LCB  -61.59c P 13.65% WF 21.21% PSV       4 N       5  --  K3 L3 M4 M3
+K5  : T  61.89c W  59.27c S   2.62c ( +8.9 L  +8.7) LCB -280.00c P  3.66% WF 24.45% PSV       1 N       1  --  K5
+M5  : T  67.41c W  63.09c S   4.32c (+10.8 L +10.4) LCB -280.00c P  2.09% WF 25.81% PSV       1 N       1  --  M5

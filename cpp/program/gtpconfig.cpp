@@ -98,17 +98,21 @@ resignConsecTurns = 3
 
 # Search limits-----------------------------------------------------------------------------------
 
+# For all of "maxVisits", "maxPlayouts", "maxTime", search will still try to follow GTP time controls and may make a move
+# faster than the specified max if GTP tells it that it is playing under a clock as well in the current game.
+
 # If provided, limit maximum number of root visits per search to this much. (With tree reuse, visits do count earlier search)
 $$MAX_VISITS
 # If provided, limit maximum number of new playouts per search to this much. (With tree reuse, playouts do not count earlier search)
 $$MAX_PLAYOUTS
-# If provided, cap search time at this many seconds (search will still try to follow GTP time controls)
+# If provided, cap search time at this many seconds.
 $$MAX_TIME
 
 # Ponder on the opponent's turn?
 $$PONDERING
+# Note: you can also set "maxVisitsPondering" or "maxPlayoutsPondering" too.
 
-# Number of seconds to buffer for lag for GTP time controls
+# Number of seconds to buffer for lag for GTP time controls - will move a bit faster assuming there is this much lag per move.
 lagBuffer = 1.0
 
 # Number of threads to use in search
@@ -193,15 +197,15 @@ string GTPConfig::makeConfig(
   else { ASSERT_UNREACHABLE; }
 
   if(maxVisits < ((int64_t)1 << 50)) replace("$$MAX_VISITS", "maxVisits = " + Global::int64ToString(maxVisits));
-  else                               replace("$$MAX_VISITS", "#maxVisits = 500");
+  else                               replace("$$MAX_VISITS", "# maxVisits = 500");
   if(maxPlayouts < ((int64_t)1 << 50)) replace("$$MAX_PLAYOUTS", "maxPlayouts = " + Global::int64ToString(maxPlayouts));
-  else                                 replace("$$MAX_PLAYOUTS", "#maxPlayouts = 300");
+  else                                 replace("$$MAX_PLAYOUTS", "# maxPlayouts = 300");
   if(maxTime < 1e20)                   replace("$$MAX_TIME", "maxTime = " + Global::doubleToString(maxTime));
-  else                                 replace("$$MAX_TIME", "#maxTime = 10");
+  else                                 replace("$$MAX_TIME", "# maxTime = 10");
 
-  if(maxPonderTime <= 0)               replace("$$PONDERING", "ponderingEnabled = false\n#maxTimePondering = 60");
+  if(maxPonderTime <= 0)               replace("$$PONDERING", "ponderingEnabled = false\n# maxTimePondering = 60");
   else if(maxPonderTime < 1e20)        replace("$$PONDERING", "ponderingEnabled = true\nmaxTimePondering = " + Global::doubleToString(maxPonderTime));
-  else                                 replace("$$PONDERING", "ponderingEnabled = true\n#maxTimePondering = 60");
+  else                                 replace("$$PONDERING", "ponderingEnabled = true\n# maxTimePondering = 60");
 
   replace("$$NUM_SEARCH_THREADS", Global::intToString(numSearchThreads));
   replace("$$NN_CACHE_SIZE_POWER_OF_TWO", Global::intToString(nnCacheSizePowerOfTwo));
