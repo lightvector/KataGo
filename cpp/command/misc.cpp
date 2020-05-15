@@ -883,8 +883,23 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
           //   cout << Location::toString(missedLoc,boards[m]) << endl;
           // }
 
+          //Bot DOES see the move?
+          if(moveLoc == missedLoc) {
+            //Still good to learn from given that policy was really low
+            Sgf::PositionSample sample;
+            const int numMovesToRecord = 7;
+            int startIdx = std::max(0,m-numMovesToRecord);
+            sample.board = boards[startIdx];
+            sample.nextPla = nextPlas[startIdx];
+            for(int j = startIdx; j<m; j++)
+              sample.moves.push_back(moves[j]);
+            sample.initialTurnNumber = startIdx;
+            sample.hintLoc = moves[m].loc;
+            toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sample)));
+          }
+
           //Bot doesn't see the move?
-          if(moveLoc != missedLoc) {
+          else if(moveLoc != missedLoc) {
             vector<Loc> locs;
             vector<double> playSelectionValues;
             search->getPlaySelectionValues(locs,playSelectionValues,1.0);
