@@ -390,7 +390,7 @@ struct GTPEngine {
   }
 
   void clearStatsForNewGame() {
-    genmoveTimeSum = 0.0;
+    //Currently nothing
   }
 
   //Specify -1 for the sizes for a default
