@@ -30,7 +30,6 @@ set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA OPENCL)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
-set(Boost_USE_STATIC_LIBS_ON 0 CACHE BOOL "Compile against boost statically instead of dynamically")
 
 #--------------------------- NEURAL NET BACKEND ------------------------------------------------------------------------
 
@@ -183,18 +182,6 @@ add_executable(katago
   tests/testnn.cpp
   command/commandline.cpp
   command/analysis.cpp
-  command/benchmark.cpp
-  command/evalsgf.cpp
-  command/gatekeeper.cpp
-  command/gtp.cpp
-  command/lzcost.cpp
-  command/match.cpp
-  command/matchauto.cpp
-  command/misc.cpp
-  command/runtests.cpp
-  command/sandbox.cpp
-  command/selfplay.cpp
-  command/tune.cpp
   main.cpp
   )
 
@@ -226,21 +213,9 @@ if(ZLIB_FOUND)
   target_link_libraries(katago ${ZLIB_LIBRARIES})
 endif(ZLIB_FOUND)
 
-find_library(LIBZIP_LIBRARY NAMES zip)
-find_path(LIBZIP_INCLUDE_DIR_ZIP NAMES zip.h)
-find_path(LIBZIP_INCLUDE_DIR_ZIPCONF NAMES zipconf.h)
-if((NOT LIBZIP_LIBRARY) OR (NOT LIBZIP_INCLUDE_DIR_ZIP) OR (NOT LIBZIP_INCLUDE_DIR_ZIPCONF))
-  target_compile_definitions(katago PRIVATE NO_LIBZIP)
-  message(WARNING "${ColorBoldRed}WARNING: libzip library was NOT found. KataGo should still work for GTP/matches/analysis if everything else is good, but selfplay for writing training data will not be possible.${ColorReset}")
-else()
-  include_directories(${LIBZIP_INCLUDE_DIR_ZIP})
-  include_directories(${LIBZIP_INCLUDE_DIR_ZIPCONF})
-  target_link_libraries(katago ${LIBZIP_LIBRARY})
-endif()
+target_compile_definitions(katago PRIVATE NO_LIBZIP)
 
-if(Boost_USE_STATIC_LIBS_ON)
-  set(Boost_USE_STATIC_LIBS ON)
-endif()
+set(Boost_USE_STATIC_LIBS ON)
 find_package(Boost COMPONENTS system filesystem REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 target_link_libraries(katago ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
@@ -255,11 +230,6 @@ endif(USE_TCMALLOC)
 # add_compile_definitions(NDEBUG)
 
 if(MSVC)
-  # Getting boost to work on MSVC seems to require forcing it to link
-  # with dlls instead of static, and needs this option
-  if(NOT Boost_USE_STATIC_LIBS_ON)
-    target_compile_definitions(katago PRIVATE BOOST_ALL_DYN_LINK)
-  endif()
 
   # Suppress min and max macros on windows
   # Also define a few other things for windows
@@ -275,7 +245,8 @@ endif()
 
 if(CMAKE_COMPILER_IS_GNUCC)
   if(NOT (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm"))
-    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse")
+    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse -ffunction-sections  -fdata-sections -flto -Os")
+    set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections -flto")
   endif()
 
   # On g++ it seems like we need to explicitly link threads as well.

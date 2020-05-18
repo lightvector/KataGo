@@ -274,6 +274,12 @@ void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNo
 }
 
 bool Search::getRootValues(ReportedSearchValues& values) const {
+  values.dynamicScoreValue = 0.0;
+  values.utility = 0.0;
+  values.lead = 0.0;
+  values.winLossValue = 0.0;
+  values.expectedScoreStdev = 0.0;
+  values.expectedScore = 0.0;
   if(rootNode == NULL)
     return false;
   return getNodeValues(*rootNode,values);
