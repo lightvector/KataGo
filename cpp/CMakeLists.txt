@@ -38,12 +38,15 @@ message("Building 'katago' executable for GTP engine and other tools")
 if(USE_BACKEND STREQUAL "CUDA")
   message("-DUSE_BACKEND=CUDA, using CUDA backend")
 
-  # Ensure dynamic cuda linking
-  set(CMAKE_CUDA_FLAGS "" CACHE STRING "")
-  if(CMAKE_CUDA_FLAGS)
-    list(REMOVE_ITEM CMAKE_CUDA_FLAGS "-cudart static")
+  
+  # Ensure dynamic cuda linking (Versions prior to 3.17)
+  if (${CMAKE_VERSION} VERSION_LESS "3.17")
+    set(CMAKE_CUDA_FLAGS "" CACHE STRING "")
+    if(CMAKE_CUDA_FLAGS)
+      list(REMOVE_ITEM CMAKE_CUDA_FLAGS "-cudart static")
+    endif()
+    string(APPEND CMAKE_CUDA_FLAGS "-cudart shared")
   endif()
-  string(APPEND CMAKE_CUDA_FLAGS "-cudart shared")
 
   enable_language(CUDA)
 
@@ -62,6 +65,12 @@ if(USE_BACKEND STREQUAL "CUDA")
   endif()
 
   set(CUDA_STANDARD 11)
+  
+  # Ensure dynamic cuda linking (Versions from 3.17)
+  if (${CMAKE_VERSION} VERSION_GREATER "3.16")
+    set(CMAKE_CUDA_RUNTIME_LIBRARY SHARED)
+  endif()
+
   set(NEURALNET_BACKEND_SOURCES neuralnet/cudabackend.cpp neuralnet/cudahelpers.cu)
   set(CMAKE_CUDA_FLAGS
     "-gencode arch=compute_30,code=sm_30 -gencode arch=compute_30,code=compute_30 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_53,code=sm_53 -gencode arch=compute_53,code=compute_53 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_70,code=compute_70"
