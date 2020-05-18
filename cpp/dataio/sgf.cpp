@@ -346,6 +346,19 @@ float Sgf::getKomi() const {
   return komi;
 }
 
+int Sgf::getHandicapValue() const {
+  checkNonEmpty(nodes);
+  //Default, if SGF doesn't specify
+  if(!nodes[0]->hasProperty("HA"))
+    return 0;
+
+  int handicapValue = 0;
+  bool suc = Global::tryStringToInt(nodes[0]->getSingleProperty("HA"), handicapValue);
+  if(!suc)
+    propertyFail("Could not parse handicap value in sgf");
+  return handicapValue;
+}
+
 bool Sgf::hasRules() const {
   checkNonEmpty(nodes);
   return nodes[0]->hasProperty("RU");
@@ -408,7 +421,11 @@ void Sgf::loadAllUniquePositions(
 void Sgf::iterAllUniquePositions(
   std::set<Hash128>& uniqueHashes, std::function<void(PositionSample&)> f
 ) const {
-  Board board;
+  XYSize size = getXYSize();
+  int xSize = size.x;
+  int ySize = size.y;
+
+  Board board(xSize,ySize);
   Player nextPla = nodes.size() > 0 ? nodes[0]->getPLSpecifiedColor() : C_EMPTY;
   if(nextPla == C_EMPTY)
     nextPla = C_BLACK;
@@ -416,10 +433,6 @@ void Sgf::iterAllUniquePositions(
   rules.koRule = Rules::KO_SITUATIONAL;
   rules.multiStoneSuicideLegal = true;
   BoardHistory hist(board,nextPla,rules,0);
-
-  XYSize size = getXYSize();
-  int xSize = size.x;
-  int ySize = size.y;
 
   PositionSample sampleBuf;
   iterAllUniquePositionsHelper(board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,f);
