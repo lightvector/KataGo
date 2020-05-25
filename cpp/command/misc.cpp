@@ -607,6 +607,8 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   string outDir;
   int numSearchThreads;
   vector<string> excludeHashesFiles;
+  bool gameMode;
+  bool treeMode;
   try {
     KataGoCommandLine cmd("Search for suprising good moves in sgfs");
     cmd.addConfigFileArg("","");
@@ -616,16 +618,25 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> outDirArg("","outdir","Directory to write results",true,string(),"DIR");
     TCLAP::ValueArg<int> numSearchThreadsArg("","threads","Number of threads",true,1,"THREADS");
     TCLAP::MultiArg<string> excludeHashesArg("","exclude-hashes","Specify a list of hashes to filter out, one per line in a txt file",false,"FILEOF(HASH,HASH)");
+    TCLAP::SwitchArg gameModeArg("","game-mode","Game mode");
+    TCLAP::SwitchArg treeModeArg("","tree-mode","Tree mode");
     cmd.add(sgfDirArg);
     cmd.add(outDirArg);
     cmd.add(numSearchThreadsArg);
     cmd.add(excludeHashesArg);
+    cmd.add(gameModeArg);
+    cmd.add(treeModeArg);
     cmd.parse(argc,argv);
     nnModelFile = cmd.getModelFile();
     sgfDirs = sgfDirArg.getValue();
     outDir = outDirArg.getValue();
     numSearchThreads = numSearchThreadsArg.getValue();
     excludeHashesFiles = excludeHashesArg.getValue();
+    gameMode = gameModeArg.getValue();
+    treeMode = treeModeArg.getValue();
+
+    if(gameMode == treeMode)
+      throw StringError("Must specify either -game-mode or -tree-mode");
 
     cmd.getConfig(cfg);
   }
@@ -740,7 +751,125 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     }
   };
 
-  auto processSgf = [&logger,&permutation,&excludeHashes,&gameInit,&nnEval,&toWriteQueue](
+  static const int minMoveIdx = 4;
+
+  //We want surprising moves that turned out not poorly
+  //The more surprising, the more times we will write it out.
+  auto numTimesToWriteOfPolicy = [](double policyProb, Rand& rand) {
+    if(policyProb < 0)
+      return 0;
+    double numTimesToWriteFloat = 0.15 / (policyProb + 0.03) - 0.5;
+    if(numTimesToWriteFloat <= 0)
+      return 0;
+    int numTimesToWrite = (int)floor(numTimesToWriteFloat);
+    if(rand.nextBool(numTimesToWriteFloat - numTimesToWrite))
+      numTimesToWrite += 1;
+    return numTimesToWrite;
+  };
+
+
+  auto expensiveEvaluateMove = [&toWriteQueue,&logger](
+    Search* search, Loc missedLoc,
+    Player nextPla, const Board& board, const BoardHistory& hist,
+    const Sgf::PositionSample& sample,
+    Rand& rand,
+    int numTimesToWrite
+  ) {
+    //cout << "EXPENSIVE" << endl;
+    //Do a more expensive search before and after
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla,logger,shouldStop);
+    if(shouldStop.load(std::memory_order_acquire))
+      return;
+    Loc moveLoc = search->getChosenMoveLoc();
+
+    // const Player perspective = P_WHITE;
+    // {
+    //   ostringstream preOut;
+    //   Board::printBoard(preOut, search->getRootBoard(), moveLoc, &(search->getRootHist().moveHistory));
+    //   search->printTree(preOut, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
+    //   cout << preOut.str() << endl;
+    //   cout << Location::toString(missedLoc,board) << endl;
+    // }
+
+    //Bot DOES see the move?
+    if(moveLoc == missedLoc) {
+      //Still good to learn from given that policy was really low
+      for(int n = 0; n<numTimesToWrite; n++)
+        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sample)));
+    }
+
+    //Bot doesn't see the move?
+    else if(moveLoc != missedLoc) {
+      vector<Loc> locs;
+      vector<double> playSelectionValues;
+      search->getPlaySelectionValues(locs,playSelectionValues,1.0);
+      //Did the move not get much of the play selection value?
+      double psvSum = 0.0;
+      double psvForMove = 0.0;
+      for(int k = 0; k<playSelectionValues.size(); k++) {
+        psvSum += playSelectionValues[k];
+        if(locs[k] == missedLoc)
+          psvForMove = playSelectionValues[k];
+      }
+      if(psvForMove < psvSum * (0.10 + rand.nextDouble(0.90))) {
+        // cout << "SECOND EXPENSIVE" << endl;
+
+        ReportedSearchValues preValues = search->getRootValuesRequireSuccess();
+
+        // ostringstream preOut;
+        // Board::printBoard(preOut, search->getRootBoard(), moveLoc, &(search->getRootHist().moveHistory));
+        // search->printTree(preOut, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
+
+        Board newBoard = board;
+        BoardHistory newHist = hist;
+        Player newNextPla = nextPla;
+        if(!hist.isLegal(newBoard,missedLoc,newNextPla))
+          return;
+        newHist.makeBoardMoveAssumeLegal(newBoard,missedLoc,newNextPla,NULL);
+        newNextPla = getOpp(newNextPla);
+
+        search->setPosition(newNextPla,newBoard,newHist);
+        search->runWholeSearch(newNextPla,logger,shouldStop);
+        if(shouldStop.load(std::memory_order_acquire))
+          return;
+
+        // {
+        //   ostringstream postOut;
+        //   Board::printBoard(postOut, search->getRootBoard(), Board::NULL_LOC, &(search->getRootHist().moveHistory));
+        //   search->printTree(postOut, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
+        //   cout << postOut.str() << endl;
+        // }
+
+        const double utilityThreshold = 0.005;
+
+        ReportedSearchValues postValues = search->getRootValuesRequireSuccess();
+        if((nextPla == P_WHITE && postValues.utility > preValues.utility + utilityThreshold) ||
+           (nextPla == P_BLACK && postValues.utility < preValues.utility - utilityThreshold)) {
+          // ostringstream postOut;
+          // Board::printBoard(postOut, search->getRootBoard(), Board::NULL_LOC, &(search->getRootHist().moveHistory));
+          // search->printTree(postOut, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
+
+          // cout << "YAAAAAAY" << endl;
+
+          //Moves that the bot didn't see get written out more
+          numTimesToWrite *= 2;
+
+          for(int n = 0; n<numTimesToWrite; n++)
+            toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sample)));
+
+          // string s;
+          // s += "=======================================================\n";
+          // s += preOut.str();
+          // s += "\nMOVE = " + Location::toString(missedLoc,board) + "\n";
+          // s += postOut.str();
+          // cout << s << endl;
+        }
+      }
+    }
+  };
+
+  auto processSgfGame = [&logger,&excludeHashes,&gameInit,&nnEval,&expensiveEvaluateMove,&numTimesToWriteOfPolicy](
     Search* search, Rand& rand, const string& fileName, CompactSgf* sgf
   ) {
     if(contains(excludeHashes,sgf->hash))
@@ -850,9 +979,6 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
     const double scoreLeadWeight = 0.01;
     const double sumThreshold = 0.005;
-    const double utilityThreshold = 0.005;
-    const Player perspective = P_WHITE;
-    const int minMoveIdx = 4;
 
     //cout << fileName << endl;
     for(int m = minMoveIdx; m<moves.size(); m++) {
@@ -862,176 +988,261 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
       //cout << m << endl;
       //Look for surprising moves that turned out not poorly
-      if(policyPriors[m] < 0.08 + rand.nextDouble(0.04)) {
-        double pastSum = pastValue[m] + pastLead[m]*scoreLeadWeight;
-        double futureSum = futureValue[m] + futureLead[m]*scoreLeadWeight;
-        if((nextPlas[m] == P_WHITE && futureSum > pastSum + sumThreshold) ||
-           (nextPlas[m] == P_BLACK && futureSum < pastSum - sumThreshold)) {
-          Loc missedLoc = moves[m].loc;
-          //cout << "EXPENSIVE" << endl;
-          //Do a more expensive search before and after
-          search->setPosition(nextPlas[m],boards[m],hists[m]);
-          search->runWholeSearch(nextPlas[m],logger,shouldStop);
-          if(shouldStop.load(std::memory_order_acquire))
-            break;
-          Loc moveLoc = search->getChosenMoveLoc();
-          // {
-          //   ostringstream preOut;
-          //   Board::printBoard(preOut, search->getRootBoard(), moveLoc, &(search->getRootHist().moveHistory));
-          //   search->printTree(preOut, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
-          //   cout << preOut.str() << endl;
-          //   cout << Location::toString(missedLoc,boards[m]) << endl;
-          // }
+      //The more surprising, the more times we will write it out.
+      int numTimesToWrite = numTimesToWriteOfPolicy(policyPriors[m],rand);
+      if(numTimesToWrite <= 0)
+        continue;
 
-          //Bot DOES see the move?
-          if(moveLoc == missedLoc) {
-            //Still good to learn from given that policy was really low
-            Sgf::PositionSample sample;
-            const int numMovesToRecord = 7;
-            int startIdx = std::max(0,m-numMovesToRecord);
-            sample.board = boards[startIdx];
-            sample.nextPla = nextPlas[startIdx];
-            for(int j = startIdx; j<m; j++)
-              sample.moves.push_back(moves[j]);
-            sample.initialTurnNumber = startIdx;
-            sample.hintLoc = moves[m].loc;
-            toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sample)));
-          }
-
-          //Bot doesn't see the move?
-          else if(moveLoc != missedLoc) {
-            vector<Loc> locs;
-            vector<double> playSelectionValues;
-            search->getPlaySelectionValues(locs,playSelectionValues,1.0);
-            //Did the move not get much of the play selection value?
-            double psvSum = 0.0;
-            double psvForMove = 0.0;
-            for(int k = 0; k<playSelectionValues.size(); k++) {
-              psvSum += playSelectionValues[k];
-              if(locs[k] == missedLoc)
-                psvForMove = playSelectionValues[k];
-            }
-            if(psvForMove < psvSum * (0.10 + rand.nextDouble(0.90))) {
-              // cout << "SECOND EXPENSIVE" << endl;
-
-              ReportedSearchValues preValues = search->getRootValuesRequireSuccess();
-              ostringstream preOut;
-              Board::printBoard(preOut, search->getRootBoard(), moveLoc, &(search->getRootHist().moveHistory));
-              search->printTree(preOut, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
-
-              search->setPosition(nextPlas[m+1],boards[m+1],hists[m+1]);
-              // {
-              //   //Seed the mcts tree with the variation from the game
-              //   int maxMovesToSeed = 30;
-              //   vector<Loc> seedMoves;
-              //   for(int k = m+1; k<moves.size() && k < m + maxMovesToSeed; k++)
-              //     seedMoves.push_back(moves[k].loc);
-              //   search->setSeededMoveSequence(seedMoves,logger);
-              // }
-              search->runWholeSearch(nextPlas[m+1],logger,shouldStop);
-              if(shouldStop.load(std::memory_order_acquire))
-                break;
-
-              // {
-              //   ostringstream postOut;
-              //   Board::printBoard(postOut, search->getRootBoard(), Board::NULL_LOC, &(search->getRootHist().moveHistory));
-              //   search->printTree(postOut, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
-              //   cout << postOut.str() << endl;
-              // }
-
-              ReportedSearchValues postValues = search->getRootValuesRequireSuccess();
-              if((nextPlas[m] == P_WHITE && postValues.utility > preValues.utility + utilityThreshold) ||
-                 (nextPlas[m] == P_BLACK && postValues.utility < preValues.utility - utilityThreshold)) {
-                ostringstream postOut;
-                Board::printBoard(postOut, search->getRootBoard(), Board::NULL_LOC, &(search->getRootHist().moveHistory));
-                search->printTree(postOut, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
-
-                // cout << "YAAAAAAY" << endl;
-
-                Sgf::PositionSample sample;
-                const int numMovesToRecord = 7;
-                int startIdx = std::max(0,m-numMovesToRecord);
-                sample.board = boards[startIdx];
-                sample.nextPla = nextPlas[startIdx];
-                for(int j = startIdx; j<m; j++)
-                  sample.moves.push_back(moves[j]);
-                sample.initialTurnNumber = startIdx;
-                sample.hintLoc = moves[m].loc;
-                toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sample)));
-
-                // string s;
-                // s += "=======================================================\n";
-                // s += preOut.str();
-                // s += "\nMOVE = " + Location::toString(missedLoc,boards[m]) + "\n";
-                // s += postOut.str();
-                // cout << s << endl;
-              }
-            }
-          }
-        }
+      double pastSum = pastValue[m] + pastLead[m]*scoreLeadWeight;
+      double futureSum = futureValue[m] + futureLead[m]*scoreLeadWeight;
+      if((nextPlas[m] == P_WHITE && futureSum > pastSum + sumThreshold) ||
+         (nextPlas[m] == P_BLACK && futureSum < pastSum - sumThreshold)) {
+        //Good
       }
+      else
+        continue;
+
+      Sgf::PositionSample sample;
+      const int numMovesToRecord = 7;
+      int startIdx = std::max(0,m-numMovesToRecord);
+      sample.board = boards[startIdx];
+      sample.nextPla = nextPlas[startIdx];
+      for(int j = startIdx; j<m; j++)
+        sample.moves.push_back(moves[j]);
+      sample.initialTurnNumber = startIdx;
+      sample.hintLoc = moves[m].loc;
+
+      expensiveEvaluateMove(
+        search, moves[m].loc, nextPlas[m], boards[m], hists[m],
+        sample, rand, numTimesToWrite
+      );
     }
   };
 
-  const int64_t maxSgfQueueSize = 1024;
-  ThreadSafeQueue<int64_t> sgfQueue(maxSgfQueueSize);
-  std::atomic<int64_t> numSgfsBegun(0);
-  std::atomic<int64_t> numSgfsDone(0);
+  auto treePosHandler = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,&numTimesToWriteOfPolicy](Search* search, Rand& rand, const BoardHistory& treeHist) {
+    if(shouldStop.load(std::memory_order_acquire))
+      return;
+    int moveHistorySize = treeHist.moveHistory.size();
+    if(moveHistorySize <= 0)
+      return;
+    if(treeHist.initialTurnNumber + treeHist.moveHistory.size() < minMoveIdx)
+      return;
 
-  auto processSgfLoop = [&sgfFiles,&logger,&processSgf,&permutation,&sgfQueue,&params,&numSgfsBegun,&numSgfsDone,&nnEval]() {
-    Rand rand;
-    string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
-    Search* search = new Search(params,nnEval,searchRandSeed);
-
-    while(true) {
-      if(shouldStop.load(std::memory_order_acquire))
+    //Snap the position 7 turns ago so as to include 7 moves of history.
+    int turnsAgoToSnap = 0;
+    while(turnsAgoToSnap < 7) {
+      if(turnsAgoToSnap >= moveHistorySize)
         break;
-
-      int64_t idx;
-      bool success = sgfQueue.waitPop(idx);
-      if(!success)
+      //If a player played twice in a row, then instead snap so as not to have a move history
+      //with a double move by the same player.
+      if(turnsAgoToSnap > 0 && treeHist.moveHistory[moveHistorySize - turnsAgoToSnap - 1].pla == treeHist.moveHistory[moveHistorySize - turnsAgoToSnap].pla)
         break;
-      int64_t numBegun = 1+numSgfsBegun.fetch_add(1);
-      if(numBegun % 20 == 0)
-        logger.write("Begun " + Global::int64ToString(numBegun) + " sgfs");
+      turnsAgoToSnap++;
+    }
+    int startTurn = moveHistorySize - turnsAgoToSnap;
+    //If the start turn is past the end of the last move, we don't actually have a move we're judging if it's good, so we quit.
+    if(startTurn >= moveHistorySize)
+      return;
 
-      const string& fileName = sgfFiles[permutation[idx]];
-      CompactSgf* sgf = NULL;
+    //Play moves out until we get back to where we need to be.
+    //This is hacky and makes everything quadratic, but whatever
+    Board board = treeHist.initialBoard;
+    for(int i = 0; i<startTurn; i++) {
+      bool multiStoneSuicideLegal = true;
+      //Just in case
+      if(!board.isLegal(treeHist.moveHistory[i].loc,treeHist.moveHistory[i].pla,multiStoneSuicideLegal))
+        return;
+      board.playMoveAssumeLegal(treeHist.moveHistory[i].loc,treeHist.moveHistory[i].pla);
+    }
+
+    Sgf::PositionSample sample;
+    sample.board = board;
+    sample.nextPla = treeHist.moveHistory[startTurn].pla;
+    for(int j = startTurn; j<moveHistorySize-1; j++)
+      sample.moves.push_back(treeHist.moveHistory[j]);
+    sample.initialTurnNumber = startTurn;
+    sample.hintLoc = treeHist.moveHistory[moveHistorySize-1].loc;
+
+    //Don't use the SGF rules - randomize them for a bit more entropy
+    Rules rules = gameInit->createRules();
+
+    //Now play the rest of the moves out, except the last, which we keep as the potential hintloc
+    int encorePhase = 0;
+    Player pla = sample.nextPla;
+    BoardHistory hist(board,pla,rules,encorePhase);
+    int numSampleMoves = sample.moves.size();
+    for(int i = 0; i<numSampleMoves; i++) {
+      if(!hist.isLegal(board,sample.moves[i].loc,sample.moves[i].pla))
+        return;
+      assert(sample.moves[i].pla == pla);
+      hist.makeBoardMoveAssumeLegal(board,sample.moves[i].loc,sample.moves[i].pla,NULL);
+      pla = getOpp(pla);
+    }
+
+    //Make sure the hinted move is legal too
+    int hintIdx = treeHist.moveHistory.size()-1;
+    if(!treeHist.isLegal(board,treeHist.moveHistory[hintIdx].loc,treeHist.moveHistory[hintIdx].pla))
+      return;
+    assert(treeHist.moveHistory[hintIdx].pla == pla);
+    assert(treeHist.moveHistory[hintIdx].loc == sample.hintLoc);
+
+    MiscNNInputParams nnInputParams;
+    NNResultBuf buf;
+    bool skipCache = true; //Always ignore cache so that we get more entropy on repeated board positions due to symmetries
+    bool includeOwnerMap = false;
+    nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+    shared_ptr<NNOutput>& nnOutput = buf.result;
+
+    int pos = NNPos::locToPos(sample.hintLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
+    double policyProb = nnOutput->policyProbs[pos];
+
+    int numTimesToWrite = numTimesToWriteOfPolicy(policyProb,rand);
+    if(numTimesToWrite <= 0)
+      return;
+
+    expensiveEvaluateMove(
+      search, sample.hintLoc, pla, board, hist,
+      sample, rand, numTimesToWrite
+    );
+  };
+
+  //Begin writing
+  std::thread writeLoopThread(writeLoop);
+
+  //In game mode, iterate through sgf games, which are expected to be nonbranching, and see if there are unexpected good moves,
+  //requiring the outcome in the game to have been good.
+  if(gameMode) {
+    const int64_t maxSgfQueueSize = 1024;
+    ThreadSafeQueue<int64_t> sgfQueue(maxSgfQueueSize);
+    std::atomic<int64_t> numSgfsBegun(0);
+    std::atomic<int64_t> numSgfsDone(0);
+
+    auto processSgfLoop = [&sgfFiles,&logger,&processSgfGame,&permutation,&sgfQueue,&params,&numSgfsBegun,&numSgfsDone,&nnEval]() {
+      Rand rand;
+      string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
+      Search* search = new Search(params,nnEval,searchRandSeed);
+
+      while(true) {
+        if(shouldStop.load(std::memory_order_acquire))
+          break;
+
+        int64_t idx;
+        bool success = sgfQueue.waitPop(idx);
+        if(!success)
+          break;
+        int64_t numBegun = 1+numSgfsBegun.fetch_add(1);
+        if(numBegun % 20 == 0)
+          logger.write("Begun " + Global::int64ToString(numBegun) + " sgfs");
+
+        const string& fileName = sgfFiles[permutation[idx]];
+        CompactSgf* sgf = NULL;
+        try {
+          sgf = CompactSgf::loadFile(fileName);
+        }
+        catch(const StringError& e) {
+          logger.write("Invalid SGF " + fileName + ": " + e.what());
+          continue;
+        }
+
+        logger.write("Starting " + fileName);
+        processSgfGame(search,rand,fileName,sgf);
+        int64_t numDone = 1+numSgfsDone.fetch_add(1);
+        if(numDone % 20 == 0)
+          logger.write("Done " + Global::int64ToString(numDone) + " sgfs");
+
+        delete sgf;
+      }
+
+      delete search;
+    };
+
+    vector<std::thread> threads;
+    for(int i = 0; i<numSearchThreads; i++) {
+      threads.push_back(std::thread(processSgfLoop));
+    }
+
+    for(int64_t i = 0; i<sgfFiles.size(); i++) {
+      sgfQueue.forcePush(i);
+    }
+    sgfQueue.setReadOnly();
+
+    for(int i = 0; i<threads.size(); i++)
+      threads[i].join();
+  }
+
+  else if(treeMode) {
+    const int64_t maxPosQueueSize = 1024;
+    ThreadSafeQueue<BoardHistory*> posQueue(maxPosQueueSize);
+    std::atomic<int64_t> numPosesBegun(0);
+    std::atomic<int64_t> numPosesDone(0);
+
+    auto processPosLoop = [&logger,&posQueue,&params,&numPosesBegun,&numPosesDone,&nnEval,&treePosHandler]() {
+      Rand rand;
+      string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
+      Search* search = new Search(params,nnEval,searchRandSeed);
+
+      while(true) {
+        if(shouldStop.load(std::memory_order_acquire))
+          break;
+
+        BoardHistory* hist;
+        bool success = posQueue.waitPop(hist);
+        if(!success)
+          break;
+        int64_t numBegun = 1+numPosesBegun.fetch_add(1);
+        if(numBegun % 20 == 0)
+          logger.write("Begun " + Global::int64ToString(numBegun) + " poses");
+
+        treePosHandler(search, rand, *hist);
+
+        int64_t numDone = 1+numPosesDone.fetch_add(1);
+        if(numDone % 20 == 0)
+          logger.write("Done " + Global::int64ToString(numDone) + " poses");
+
+        delete hist;
+      }
+      delete search;
+      posQueue.setReadOnly();
+    };
+
+    vector<std::thread> threads;
+    for(int i = 0; i<numSearchThreads; i++) {
+      threads.push_back(std::thread(processPosLoop));
+    }
+
+    std::set<Hash128> uniqueHashes;
+    for(int i = 0; i<sgfFiles.size(); i++) {
+      const string& fileName = sgfFiles[i];
+      Sgf* sgf = NULL;
       try {
-        sgf = CompactSgf::loadFile(fileName);
+        sgf = Sgf::loadFile(fileName);
       }
       catch(const StringError& e) {
         logger.write("Invalid SGF " + fileName + ": " + e.what());
         continue;
       }
+      if(contains(excludeHashes,sgf->hash))
+        continue;
 
       logger.write("Starting " + fileName);
-      processSgf(search,rand,fileName,sgf);
-      int64_t numDone = 1+numSgfsDone.fetch_add(1);
-      if(numDone % 20 == 0)
-        logger.write("Done " + Global::int64ToString(numDone) + " sgfs");
-
+      sgf->iterAllUniquePositions(
+        uniqueHashes, [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist) {
+          //Doesn't have enough history, doesn't have hintloc the way we want it
+          (void)unusedSample;
+          posQueue.waitPush(new BoardHistory(hist));
+        }
+      );
       delete sgf;
     }
 
-    delete search;
-  };
+    posQueue.setReadOnly();
 
-  vector<std::thread> threads;
-  std::thread writeLoopThread(writeLoop);
-  for(int i = 0; i<numSearchThreads; i++) {
-    threads.push_back(std::thread(processSgfLoop));
+    for(int i = 0; i<threads.size(); i++)
+      threads[i].join();
   }
 
-  for(int64_t i = 0; i<sgfFiles.size(); i++) {
-    sgfQueue.forcePush(i);
-  }
-  sgfQueue.setReadOnly();
-
-  for(int i = 0; i<threads.size(); i++)
-    threads[i].join();
-
-  logger.write("All sgfs processes, waiting for writing");
+  logger.write("All sgfs processed, waiting for writing");
 
   toWriteQueue.setReadOnly();
   writeLoopThread.join();

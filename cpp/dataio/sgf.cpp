@@ -411,7 +411,8 @@ void Sgf::getMovesHelper(vector<Move>& moves, int xSize, int ySize) const {
 void Sgf::loadAllUniquePositions(
   std::set<Hash128>& uniqueHashes, vector<PositionSample>& samples
 ) const {
-  std::function<void(PositionSample&)> f = [&samples](PositionSample& sample) {
+  std::function<void(PositionSample&, const BoardHistory&)> f = [&samples](PositionSample& sample, const BoardHistory& hist) {
+    (void)hist;
     samples.push_back(sample);
   };
 
@@ -419,7 +420,7 @@ void Sgf::loadAllUniquePositions(
 }
 
 void Sgf::iterAllUniquePositions(
-  std::set<Hash128>& uniqueHashes, std::function<void(PositionSample&)> f
+  std::set<Hash128>& uniqueHashes, std::function<void(PositionSample&,const BoardHistory&)> f
 ) const {
   XYSize size = getXYSize();
   int xSize = size.x;
@@ -444,7 +445,7 @@ void Sgf::iterAllUniquePositionsHelper(
   PositionSample& sampleBuf,
   int initialTurnNumber,
   std::set<Hash128>& uniqueHashes,
-  std::function<void(PositionSample&)> f
+  std::function<void(PositionSample&,const BoardHistory&)> f
 ) const {
   vector<Move> buf;
   for(int i = 0; i<nodes.size(); i++) {
@@ -511,7 +512,7 @@ void Sgf::samplePositionIfUniqueHelper(
   PositionSample& sampleBuf,
   int initialTurnNumber,
   std::set<Hash128>& uniqueHashes,
-  std::function<void(PositionSample&)> f
+  std::function<void(PositionSample&,const BoardHistory&)> f
 ) const {
   //If the game is over or there were two consecutive passes, skip
   if(hist.isGameFinished || (
@@ -558,7 +559,7 @@ void Sgf::samplePositionIfUniqueHelper(
     sampleBuf.moves.push_back(hist.moveHistory[i]);
   sampleBuf.initialTurnNumber = initialTurnNumber + startTurn;
   sampleBuf.hintLoc = Board::NULL_LOC;
-  f(sampleBuf);
+  f(sampleBuf,hist);
 }
 
 static uint64_t parseHex64(const string& str) {

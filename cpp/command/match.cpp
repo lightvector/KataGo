@@ -224,6 +224,7 @@ int MainCmds::match(int argc, const char* const* argv) {
       sgfOut->close();
       delete sgfOut;
     }
+    logger.write("Match loop thread terminating");
   };
 
   Rand hashRand;
