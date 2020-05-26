@@ -8,7 +8,7 @@ set -o pipefail
 if [[ $# -ne 3 ]]
 then
     echo "Usage: $0 NAMEPREFIX BASEDIR USEGATING"
-    echo "Currently expects to be run from within the `python` directory of the KataGo repo, or otherwise in the same dir as export_model.py."
+    echo "Currently expects to be run from within the 'python' directory of the KataGo repo, or otherwise in the same dir as export_model.py."
     echo "NAMEPREFIX string prefix for this training run, try to pick something globally unique. Will be displayed to users when KataGo loads the model."
     echo "BASEDIR containing selfplay data and models and related directories"
     echo "USEGATING = 1 to use gatekeeper, 0 to not use gatekeeper and output directly to models/"

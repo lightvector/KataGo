@@ -12,7 +12,7 @@ set -o pipefail
 if [[ $# -lt 5 ]]
 then
     echo "Usage: $0 NAMEPREFIX BASEDIR TRAININGNAME MODELKIND USEGATING"
-    echo "Assumes katago is built in the `cpp` directory of the KataGo repo and the executable is present at cpp/katago."
+    echo "Assumes katago is built in the 'cpp' directory of the KataGo repo and the executable is present at cpp/katago."
     echo "NAMEPREFIX string prefix for this training run, try to pick something globally unique. Will be displayed to users when KataGo loads the model."
     echo "BASEDIR containing selfplay data and models and related directories"
     echo "TRANINGNAME name to prefix models with, specific to this training daemon"
