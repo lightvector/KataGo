@@ -39,22 +39,36 @@ def joint_shuffle(arrs):
 def memusage_mb():
   return psutil.Process(os.getpid()).memory_info().rss // 1048576
 
-def shardify(input_idx, input_file, num_out_files, out_tmp_dirs, keep_prob):
+def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob):
   np.random.seed([int.from_bytes(os.urandom(4), byteorder='little') for i in range(4)])
 
-  #print("Shardify reading: " + input_file)
-  npz = np.load(input_file)
-  assert(set(npz.keys()) == set(keys))
+  assert(len(input_file_group) > 0)
 
-  ###
-  #WARNING - if adding anything here, also add it to joint_shuffle below!
-  ###
-  binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
-  globalInputNC = npz["globalInputNC"]
-  policyTargetsNCMove = npz["policyTargetsNCMove"]
-  globalTargetsNC = npz["globalTargetsNC"]
-  scoreDistrN = npz["scoreDistrN"]
-  valueTargetsNCHW = npz["valueTargetsNCHW"]
+  if len(input_file_group) == 1:
+    npz = np.load(input_file_group[0])
+    assert(set(npz.keys()) == set(keys))
+    ###
+    #WARNING - if adding anything here, also add it to joint_shuffle below!
+    ###
+    binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
+    globalInputNC = npz["globalInputNC"]
+    policyTargetsNCMove = npz["policyTargetsNCMove"]
+    globalTargetsNC = npz["globalTargetsNC"]
+    scoreDistrN = npz["scoreDistrN"]
+    valueTargetsNCHW = npz["valueTargetsNCHW"]
+  else:
+    npzs = [np.load(input_file) for input_file in input_file_group]
+    for npz in npzs:
+      assert(set(npz.keys()) == set(keys))
+    ###
+    #WARNING - if adding anything here, also add it to joint_shuffle below!
+    ###
+    binaryInputNCHWPacked = np.concatenate([npz["binaryInputNCHWPacked"] for npz in npzs], axis=0)
+    globalInputNC = np.concatenate([npz["globalInputNC"] for npz in npzs], axis=0)
+    policyTargetsNCMove = np.concatenate([npz["policyTargetsNCMove"] for npz in npzs], axis=0)
+    globalTargetsNC = np.concatenate([npz["globalTargetsNC"] for npz in npzs], axis=0)
+    scoreDistrN = np.concatenate([npz["scoreDistrN"] for npz in npzs], axis=0)
+    valueTargetsNCHW = np.concatenate([npz["valueTargetsNCHW"] for npz in npzs], axis=0)
 
   joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW))
 
@@ -171,6 +185,7 @@ if __name__ == '__main__':
   parser.add_argument('-num-processes', type=int, required=True, help='Number of multiprocessing processes')
   parser.add_argument('-batch-size', type=int, required=True, help='Batch size to write training examples in')
   parser.add_argument('-ensure-batch-multiple', type=int, required=False, help='Ensure each file is a multiple of this many batches')
+  parser.add_argument('-worker-group-size', type=int, required=False, help='Internally, target having many rows per parallel sharding worker')
 
   args = parser.parse_args()
   dirs = args.dirs
@@ -187,6 +202,10 @@ if __name__ == '__main__':
   ensure_batch_multiple = 1
   if args.ensure_batch_multiple is not None:
     ensure_batch_multiple = args.ensure_batch_multiple
+  worker_group_size = args.worker_group_size
+  if worker_group_size is None:
+    worker_group_size = 80000
+
   if min_rows is None:
     print("NOTE: -min-rows was not specified, defaulting to requiring 250K rows before shuffling.")
     min_rows = 250000
@@ -298,7 +317,7 @@ if __name__ == '__main__':
   print_stride = 1 + len(files_with_row_range) // 40
   for i in range(len(files_with_row_range)):
     (filename,(start_row,end_row)) = files_with_row_range[i]
-    desired_input_files.append(filename)
+    desired_input_files.append((filename,end_row-start_row))
     desired_input_files_with_row_range.append((filename,(start_row,end_row)))
 
     num_rows_total += (end_row - start_row)
@@ -332,21 +351,38 @@ if __name__ == '__main__':
   for tmp_dir in out_tmp_dirs:
     os.mkdir(tmp_dir)
 
+  desired_input_file_groups = []
+  group_size_so_far = 0
+  group_so_far = []
+  for (input_file,num_rows_in_file) in desired_input_files:
+    if num_rows_in_file <= 0:
+      continue
+    group_so_far.append(input_file)
+    group_size_so_far += num_rows_in_file
+    if group_size_so_far >= worker_group_size:
+      desired_input_file_groups.append(group_so_far)
+      group_so_far = []
+      group_size_so_far = 0
+  if group_size_so_far > 0:
+    desired_input_file_groups.append(group_so_far)
+    group_so_far = []
+    group_size_so_far = 0
+  print("Grouping %d input files into %d sharding groups" % (len(desired_input_files),len(desired_input_file_groups)),flush=True)
+
   with multiprocessing.Pool(num_processes) as pool:
     print("Beginning sharding",flush=True)
     t0 = time.time()
     shard_results = pool.starmap(shardify, [
-      (input_idx, desired_input_files[input_idx], num_out_files, out_tmp_dirs, keep_prob) for input_idx in range(len(desired_input_files))
+      (input_idx, desired_input_file_groups[input_idx], num_out_files, out_tmp_dirs, keep_prob) for input_idx in range(len(desired_input_file_groups))
     ])
     t1 = time.time()
-    print("Done sharding, number of shards by input file:",flush=True)
-    # print(list(zip(desired_input_files,shard_results)),flush=True)
+    print("Done sharding",flush=True)
     print("Time taken: " + str(t1-t0),flush=True)
     sys.stdout.flush()
 
     print("Beginning merging",flush=True)
     t0 = time.time()
-    num_shards_to_merge = len(desired_input_files)
+    num_shards_to_merge = len(desired_input_file_groups)
     merge_results = pool.starmap(merge_shards, [
       (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size,ensure_batch_multiple) for idx in range(len(out_files))
     ])
