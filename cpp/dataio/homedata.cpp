@@ -102,14 +102,14 @@ vector<string> HomeData::getDefaultFilesDirs() {
 }
 
 string HomeData::getDefaultFilesDirForHelpMessage() {
-  return "(dir containing katago.exe, or else ~/.katago)";
+  return "(dir containing katago.exe, or else ~/.katrain)";
 }
 
 string HomeData::getHomeDataDir(bool makeDir) {
   string homeDataDir;
   const char* home =  getenv("HOME");
   if(home != NULL) {
-    homeDataDir = string(home) + "/.katago";
+    homeDataDir = string(home) + "/.katrain";
     if(makeDir) MakeDir::make(homeDataDir);
     return homeDataDir;
   }
@@ -128,13 +128,13 @@ string HomeData::getHomeDataDir(bool makeDir) {
   //Just make something in the current directory
   if(result == NULL) {
     delete[] buf;
-    homeDataDir = "./.katago";
+    homeDataDir = "./.katrain";
     if(makeDir) MakeDir::make(homeDataDir);
     return homeDataDir;
   }
   homeDataDir = string(result->pw_dir);
   delete[] buf;
-  homeDataDir += "/.katago";
+  homeDataDir += "/.katrain";
   if(makeDir) MakeDir::make(homeDataDir);
   return homeDataDir;
 }
