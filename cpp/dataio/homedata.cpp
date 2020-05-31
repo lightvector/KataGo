@@ -52,6 +52,8 @@ vector<string> HomeData::getDefaultFilesDirs() {
 string HomeData::getDefaultFilesDirForHelpMessage() {
   return "(dir containing katago.exe)";
 }
+/*
+#include <UserEnv.h>
 
 std::wstring getHomeDirWindows()
 {
@@ -59,25 +61,39 @@ std::wstring getHomeDirWindows()
     HANDLE token = GetCurrentProcessToken();
 
     GetUserProfileDirectoryW(token, NULL, &size);
-    if (size == 0) return "" 
+    if(size == 0)
+      return std::wstring();
     std::wstring home(size, 0);
-    if (!GetUserProfileDirectoryW(token, &home[0], &size)) return ""
+    if(!GetUserProfileDirectoryW(token, &home[0], &size))
+      return std::wstring();
     return home;
+}*/
+
+string getHomeDirWindows(){
+  char* userprofile = getenv("USERPROFILE");
+  if(userprofile!=NULL)
+    return string(userprofile);
+  char* homedrive = getenv("HOMEDRIVE");
+  char* homepath = getenv("HOMEPATH");
+  if(homedrive != NULL && homepath != NULL)
+    return string(homedrive) + string(homepath);
+  return string();
 }
 
-//On Windows, use other env vars to get home dir, if it fails we just make something inside the directory containing the executable
+
+
+  //On Windows, use other env vars to get home dir, if it fails we just make something inside the directory containing the executable
 string HomeData::getHomeDataDir(bool makeDir) {
   //HACK: add 2048 to the buffer size to be resilient to longer paths, beyond MAX_PATH.
   constexpr size_t bufSize = MAX_PATH + 2048;
   wchar_t buf[bufSize];
   constexpr size_t buf2Size = (bufSize+1) * 2;
   char buf2[buf2Size];
+  size_t ret;
 
-  wstring_t homedir = getHomeDirWindows()
-  if(homedir!="") {
-    wcstombs_s(&ret, buf2, buf2Size, homedir.begin(), buf2Size-1);
-    string homeDataDir(buf2);
-    homeDataDir += "/.katrain";
+  string homedir = getHomeDirWindows();
+  if(!homedir.empty()) {
+    string homeDataDir = homedir + "/.katrain";
     if(makeDir) MakeDir::make(homeDataDir);
     return homeDataDir;
   }
@@ -94,7 +110,6 @@ string HomeData::getHomeDataDir(bool makeDir) {
   PathRemoveFileSpecW(buf);
   // #endif
 
-  size_t ret;
   wcstombs_s(&ret, buf2, buf2Size, buf, buf2Size-1);
 
   string homeDataDir(buf2);
