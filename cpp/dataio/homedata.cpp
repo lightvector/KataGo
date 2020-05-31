@@ -53,12 +53,36 @@ string HomeData::getDefaultFilesDirForHelpMessage() {
   return "(dir containing katago.exe)";
 }
 
+std::wstring getHomeDirWindows()
+{
+    DWORD size = 0;
+    HANDLE token = GetCurrentProcessToken();
 
-//On Windows, instead of home directory, we just make something inside the directory containing the executable
+    GetUserProfileDirectoryW(token, NULL, &size);
+    if (size == 0) return "" 
+    std::wstring home(size, 0);
+    if (!GetUserProfileDirectoryW(token, &home[0], &size)) return ""
+    return home;
+}
+
+//On Windows, use other env vars to get home dir, if it fails we just make something inside the directory containing the executable
 string HomeData::getHomeDataDir(bool makeDir) {
   //HACK: add 2048 to the buffer size to be resilient to longer paths, beyond MAX_PATH.
   constexpr size_t bufSize = MAX_PATH + 2048;
   wchar_t buf[bufSize];
+  constexpr size_t buf2Size = (bufSize+1) * 2;
+  char buf2[buf2Size];
+
+  wstring_t homedir = getHomeDirWindows()
+  if(homedir!="") {
+    wcstombs_s(&ret, buf2, buf2Size, homedir.begin(), buf2Size-1);
+    string homeDataDir(buf2);
+    homeDataDir += "/.katrain";
+    if(makeDir) MakeDir::make(homeDataDir);
+    return homeDataDir;
+  }
+
+  // use current directory
   DWORD length = GetModuleFileNameW(NULL, buf, bufSize);
   if(length <= 0) //failure
     throw StringError("Could not access containing directory of KataGo executable");
@@ -69,8 +93,7 @@ string HomeData::getHomeDataDir(bool makeDir) {
   // #else
   PathRemoveFileSpecW(buf);
   // #endif
-  constexpr size_t buf2Size = (bufSize+1) * 2;
-  char buf2[buf2Size];
+
   size_t ret;
   wcstombs_s(&ret, buf2, buf2Size, buf, buf2Size-1);
 
