@@ -52,13 +52,53 @@ vector<string> HomeData::getDefaultFilesDirs() {
 string HomeData::getDefaultFilesDirForHelpMessage() {
   return "(dir containing katago.exe)";
 }
+/*
+#include <UserEnv.h>
+
+std::wstring getHomeDirWindows()
+{
+    DWORD size = 0;
+    HANDLE token = GetCurrentProcessToken();
+
+    GetUserProfileDirectoryW(token, NULL, &size);
+    if(size == 0)
+      return std::wstring();
+    std::wstring home(size, 0);
+    if(!GetUserProfileDirectoryW(token, &home[0], &size))
+      return std::wstring();
+    return home;
+}*/
+
+string getHomeDirWindows(){
+  char* userprofile = getenv("USERPROFILE");
+  if(userprofile!=NULL)
+    return string(userprofile);
+  char* homedrive = getenv("HOMEDRIVE");
+  char* homepath = getenv("HOMEPATH");
+  if(homedrive != NULL && homepath != NULL)
+    return string(homedrive) + string(homepath);
+  return string();
+}
 
 
-//On Windows, instead of home directory, we just make something inside the directory containing the executable
+
+  //On Windows, use other env vars to get home dir, if it fails we just make something inside the directory containing the executable
 string HomeData::getHomeDataDir(bool makeDir) {
   //HACK: add 2048 to the buffer size to be resilient to longer paths, beyond MAX_PATH.
   constexpr size_t bufSize = MAX_PATH + 2048;
   wchar_t buf[bufSize];
+  constexpr size_t buf2Size = (bufSize+1) * 2;
+  char buf2[buf2Size];
+  size_t ret;
+
+  string homedir = getHomeDirWindows();
+  if(!homedir.empty()) {
+    string homeDataDir = homedir + "/.katrain";
+    if(makeDir) MakeDir::make(homeDataDir);
+    return homeDataDir;
+  }
+
+  // use current directory
   DWORD length = GetModuleFileNameW(NULL, buf, bufSize);
   if(length <= 0) //failure
     throw StringError("Could not access containing directory of KataGo executable");
@@ -69,9 +109,7 @@ string HomeData::getHomeDataDir(bool makeDir) {
   // #else
   PathRemoveFileSpecW(buf);
   // #endif
-  constexpr size_t buf2Size = (bufSize+1) * 2;
-  char buf2[buf2Size];
-  size_t ret;
+
   wcstombs_s(&ret, buf2, buf2Size, buf, buf2Size-1);
 
   string homeDataDir(buf2);
@@ -102,14 +140,14 @@ vector<string> HomeData::getDefaultFilesDirs() {
 }
 
 string HomeData::getDefaultFilesDirForHelpMessage() {
-  return "(dir containing katago.exe, or else ~/.katago)";
+  return "(dir containing katago.exe, or else ~/.katrain)";
 }
 
 string HomeData::getHomeDataDir(bool makeDir) {
   string homeDataDir;
   const char* home =  getenv("HOME");
   if(home != NULL) {
-    homeDataDir = string(home) + "/.katago";
+    homeDataDir = string(home) + "/.katrain";
     if(makeDir) MakeDir::make(homeDataDir);
     return homeDataDir;
   }
@@ -128,13 +166,13 @@ string HomeData::getHomeDataDir(bool makeDir) {
   //Just make something in the current directory
   if(result == NULL) {
     delete[] buf;
-    homeDataDir = "./.katago";
+    homeDataDir = "./.katrain";
     if(makeDir) MakeDir::make(homeDataDir);
     return homeDataDir;
   }
   homeDataDir = string(result->pw_dir);
   delete[] buf;
-  homeDataDir += "/.katago";
+  homeDataDir += "/.katrain";
   if(makeDir) MakeDir::make(homeDataDir);
   return homeDataDir;
 }

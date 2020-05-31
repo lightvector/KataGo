@@ -84,9 +84,9 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   logger.write("Analysis Engine starting...");
   logger.write(Version::getKataGoVersionForHelp());
 
-  auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective) {
+  auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective, Player defaultPerspective) {
     params = Setup::loadSingleParams(config);
-    perspective = Setup::parseReportAnalysisWinrates(config,C_EMPTY);
+    perspective = Setup::parseReportAnalysisWinrates(config,defaultPerspective);
     //Set a default for conservativePass that differs from matches or selfplay
     if(!config.contains("conservativePass") && !config.contains("conservativePass0"))
       params.conservativePass = true;
@@ -94,7 +94,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
   SearchParams defaultParams;
   Player defaultPerspective;
-  loadParams(cfg, defaultParams, defaultPerspective);
+  loadParams(cfg, defaultParams, defaultPerspective, C_EMPTY);
 
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 15;
   const bool assumeMultipleStartingBlackMovesAreHandicap =
@@ -370,6 +370,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
     //Defaults
     rbase.params = defaultParams;
+    rbase.perspective = defaultPerspective;
     rbase.analysisPVLen = analysisPVLen;
     rbase.includeOwnership = false;
     rbase.includePolicy = false;
@@ -631,7 +632,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
           //Ignore any unused keys in the ORIGINAL config
           localCfg.markAllKeysUsedWithPrefix("");
           localCfg.overrideKeys(overrideSettings);
-          loadParams(localCfg, rbase.params, rbase.perspective);
+          loadParams(localCfg, rbase.params, rbase.perspective, defaultPerspective);
           SearchParams::failIfParamsDifferOnUnchangeableParameter(defaultParams,rbase.params);
           //Hard failure on unused override keys newly present in the config
           vector<string> unusedKeys = localCfg.unusedKeys();
