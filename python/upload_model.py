@@ -115,8 +115,8 @@ with open(model_file,"rb") as model_file_handle:
 
 log("Post status code: " + str(result.status_code))
 log("Post result: " + str(result.text))
-if result.status_code == 409:
-  log("Got 409 error, network already uploaded? So assuming everything is good")
+if result.status_code == 400 and str(result.text).find("already exist") != -1:
+  log("Got 400 error with substring 'already exist', network already uploaded? So assuming everything is good")
   write_log()
 elif result.status_code == 200 or result.status_code == 201 or result.status_code == 202:
   log("Post success")

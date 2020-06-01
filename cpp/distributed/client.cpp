@@ -645,8 +645,8 @@ bool Connection::uploadTrainingGameAndData(
 
     if(response == nullptr)
       throw StringError("No response from server");
-    if(response->status == 409) {
-      logger->write("Server returned 409, data is uploaded already or has a key conflict, so skipping, response was: " + response->body);
+    if(response->status == 400 && response->body.find("already exist") != string::npos) {
+      logger->write("Server returned 400 with 'already exist', data is probably uploaded already or has a key conflict, so skipping, response was: " + response->body);
     }
     if(response->status != 200 && response->status != 201 && response->status != 202) {
       ostringstream outs;
@@ -708,8 +708,8 @@ bool Connection::uploadRatingGame(
 
     if(response == nullptr)
       throw StringError("No response from server");
-    if(response->status == 409) {
-      logger->write("Server returned 409, data is uploaded already or has a key conflict, so skipping, response was: " + response->body);
+    if(response->status == 400 && response->body.find("already exist") != string::npos) {
+      logger->write("Server returned 400 with 'already exist', data is uploaded already or has a key conflict, so skipping, response was: " + response->body);
     }
     if(response->status != 200 && response->status != 201 && response->status != 202) {
       ostringstream outs;
