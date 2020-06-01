@@ -11,6 +11,7 @@
 #include "../program/setup.h"
 #include "../dataio/sgf.h"
 #include "../external/nlohmann_json/json.hpp"
+#include "../main.h"
 
 #include <cmath>
 #include <fstream>
@@ -440,7 +441,11 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
   (void)baseDir;
 
   auto f = [&]() {
-    json response = parseJson(post("/api/tasks/","","text/plain"));
+    httplib::MultipartFormDataItems items = {
+      { "git_revision", Version::getGitRevision(), "", "" },
+    };
+    json response = parseJson(postMulti("/api/tasks/",items));
+
     string kind = parseString(response,"kind",32);
     if(kind == "selfplay") {
       json networkProperties = parse<json>(response,"network");
