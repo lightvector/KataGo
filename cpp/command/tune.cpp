@@ -114,17 +114,17 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     DevicesContext devicesContext(allDeviceInfos, {gpuIdx}, &logger, enableProfiling);
 
     cout << "==============================================================================" << endl;
-    const InitializedDevice& device = devicesContext.findGpuExn(gpuIdx);
-    if(contains(alreadyTunedNames, device.info.name)) {
-      cout << "Skipping tuning " << gpuIdx << " due to same name as an earlier tuned GPU: " << device.info.name << endl;
+    const InitializedDevice* device = devicesContext.findGpuExn(gpuIdx);
+    if(contains(alreadyTunedNames, device->info.name)) {
+      cout << "Skipping tuning " << gpuIdx << " due to same name as an earlier tuned GPU: " << device->info.name << endl;
       continue;
     }
-    alreadyTunedNames.insert(device.info.name);
-    cout << "Tuning device " << gpuIdx << ": " << device.info.name << endl;
+    alreadyTunedNames.insert(device->info.name);
+    cout << "Tuning device " << gpuIdx << ": " << device->info.name << endl;
 
     if(outputFile == "") {
       string dir = OpenCLTuner::defaultDirectory(true);
-      outputFile = dir + "/" + OpenCLTuner::defaultFileName(device.info.name, nnXLen, nnYLen, &modelDesc);
+      outputFile = dir + "/" + OpenCLTuner::defaultFileName(device->info.name, nnXLen, nnYLen, &modelDesc);
     }
 
     OpenCLTuneParams initialParams;

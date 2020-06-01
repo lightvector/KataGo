@@ -228,14 +228,21 @@ struct ComputeContext {
 
     for(int i = 0; i<devicesContext->uniqueDeviceNamesToUse.size(); i++) {
       const string& name = devicesContext->uniqueDeviceNamesToUse[i];
-      vector<InitializedDevice> devicesForName = devicesContext->findDevicesToUseWithName(name);
+      vector<const InitializedDevice*> devicesForName = devicesContext->findDevicesToUseWithName(name);
       vector<cl_device_id> deviceIdsForName = devicesContext->findDeviceIdsToUseWithName(name);
       assert(devicesForName.size() > 0);
       assert(deviceIdsForName.size() > 0);
-
+      for(int j = 1; j<devicesForName.size(); j++) {
+        if(devicesForName[j]->info.platformId != devicesForName[0]->info.platformId) {
+          logger->write("WARNING: Two GPUs/devices in use have identical names but different platform ids... probably things will fail shortly");
+          logger->write("Device " + Global::intToString(devicesForName[0]->info.gpuIdx) + " Platform " + devicesForName[0]->info.platformDesc);
+          logger->write("Device " + Global::intToString(devicesForName[j]->info.gpuIdx) + " Platform " + devicesForName[j]->info.platformDesc);
+        }
+      }
       //In case we need to autotune, use the 0th device with that name that the user wants us to use
-      OpenCLTuneParams tuneParams = getParamsForDeviceName(name, devicesForName[0].info.gpuIdx);
-      CompiledPrograms* compiledPrograms = new CompiledPrograms(devicesContext->context, deviceIdsForName, tuneParams);
+      //Assume that they all use the same opencl context too since if they have the same name they should be the same platform
+      OpenCLTuneParams tuneParams = getParamsForDeviceName(name, devicesForName[0]->info.gpuIdx);
+      CompiledPrograms* compiledPrograms = new CompiledPrograms(devicesForName[0]->context, deviceIdsForName, tuneParams);
       compiledProgramsByDeviceName[name] = compiledPrograms;
     }
   }
@@ -341,10 +348,10 @@ struct ComputeHandleInternal {
   ComputeHandleInternal(ComputeContext* ctx, int gpuIdx, bool inputsUseNHWC) {
     computeContext = ctx;
 
-    clContext = computeContext->devicesContext->context;
-    const InitializedDevice& device = computeContext->devicesContext->findGpuExn(gpuIdx);
-    commandQueue = device.commandQueue;
-    CompiledPrograms* progs = computeContext->compiledProgramsByDeviceName[device.info.name];
+    const InitializedDevice* device = computeContext->devicesContext->findGpuExn(gpuIdx);
+    clContext = device->context;
+    commandQueue = device->commandQueue;
+    CompiledPrograms* progs = computeContext->compiledProgramsByDeviceName[device->info.name];
     assert(progs != NULL);
     tuneParams = progs->tuneParams;
 

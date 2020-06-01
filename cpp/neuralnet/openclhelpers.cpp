@@ -181,9 +181,14 @@ void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem src
 }
 
 vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
+  //Some opencl headers/implementations are buggy and have more platforms or more devices than they
+  //say their maximum is, so just add a buffer.
+  static constexpr size_t maxPlatforms = MAX_PLATFORMS + 128;
+  static constexpr size_t maxDevices = MAX_DEVICES + 1024;
+
   cl_int err;
   cl_uint numPlatforms;
-  vector<cl_platform_id> platformIds(MAX_PLATFORMS);
+  vector<cl_platform_id> platformIds(maxPlatforms);
   err = clGetPlatformIDs(platformIds.size(), platformIds.data(), &numPlatforms);
   CHECK_ERR(err);
   assert(numPlatforms <= platformIds.size());
@@ -195,31 +200,35 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     buf[i] = '\0';
 
   int numDevicesTotal = 0;
-  vector<cl_device_id> deviceIds(MAX_DEVICES);
+  vector<cl_device_id> deviceIds(maxDevices);
+  vector<cl_platform_id> platformIdsForDevices;
+  vector<string> platformDescsForDevices;
   for(int platformIdx = 0; platformIdx < numPlatforms && numDevicesTotal < deviceIds.size(); platformIdx++) {
     size_t sizeRet;
+    cl_platform_id platformId = platformIds[platformIdx];
 
-    err = clGetPlatformInfo(platformIds[platformIdx], CL_PLATFORM_NAME, bufLen, buf.data(), &sizeRet);
+    err = clGetPlatformInfo(platformId, CL_PLATFORM_NAME, bufLen, buf.data(), &sizeRet);
     assert(sizeRet < bufLen-1);
     CHECK_ERR(err);
     string name = string(buf.data());
 
-    err = clGetPlatformInfo(platformIds[platformIdx], CL_PLATFORM_VENDOR, bufLen, buf.data(), &sizeRet);
+    err = clGetPlatformInfo(platformId, CL_PLATFORM_VENDOR, bufLen, buf.data(), &sizeRet);
     assert(sizeRet < bufLen-1);
     CHECK_ERR(err);
     string vendor = string(buf.data());
 
-    err = clGetPlatformInfo(platformIds[platformIdx], CL_PLATFORM_VERSION, bufLen, buf.data(), &sizeRet);
+    err = clGetPlatformInfo(platformId, CL_PLATFORM_VERSION, bufLen, buf.data(), &sizeRet);
     assert(sizeRet < bufLen-1);
     CHECK_ERR(err);
     string version = string(buf.data());
 
+    string desc =  name + " (" + vendor + ") (" + version + ")";
     if(logger != NULL)
-      logger->write("Found OpenCL Platform " + Global::intToString(platformIdx) + ": " + name + " (" + vendor + ") (" + version + ")");
+      logger->write("Found OpenCL Platform " + Global::intToString(platformIdx) + ": " + desc);
 
     cl_uint numDevices;
     err = clGetDeviceIDs(
-      platformIds[platformIdx], CL_DEVICE_TYPE_CPU | CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR, deviceIds.size() - numDevicesTotal,
+      platformId, CL_DEVICE_TYPE_CPU | CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR, deviceIds.size() - numDevicesTotal,
       deviceIds.data() + numDevicesTotal, &numDevices);
     //Allow there to be 0 devices on this platform, just move on to the next
     if(err == CL_DEVICE_NOT_FOUND) {
@@ -228,9 +237,14 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
       continue;
     }
 
+    for(size_t i = 0; i < numDevices; i++) {
+      platformIdsForDevices.push_back(platformId);
+      platformDescsForDevices.push_back(desc);
+    }
+
     CHECK_ERR(err);
-    assert(numDevices <= deviceIds.size());
     numDevicesTotal += numDevices;
+    assert(numDevicesTotal <= deviceIds.size());
     if(logger != NULL)
       logger->write("Found " + Global::intToString(numDevices) + " device(s) on platform " + Global::intToString(platformIdx) + " with type CPU or GPU or Accelerator");
   }
@@ -299,11 +313,17 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     }
 
     if(logger != NULL)
-      logger->write("Found OpenCL Device " + Global::intToString(gpuIdx) + ": " + name + " (" + vendor + ")" + " (score " + Global::intToString(defaultDesirability) + ")");
+      logger->write(
+        "Found OpenCL Device " + Global::intToString(gpuIdx) +
+        ": " + name + " (" + vendor + ")" + " (score " +
+        Global::intToString(defaultDesirability) + ")"
+      );
 
     DeviceInfo info;
     info.gpuIdx = gpuIdx;
     info.deviceId = deviceIds[gpuIdx];
+    info.platformId = platformIdsForDevices[gpuIdx];
+    info.platformDesc = platformDescsForDevices[gpuIdx];
     info.name = name;
     info.vendor = vendor;
     info.deviceType = deviceType;
@@ -320,7 +340,8 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
 
 
 DevicesContext::DevicesContext(const vector<DeviceInfo>& allDeviceInfos, const vector<int>& gIdxsToUse, Logger* logger, bool enableProfiling)
-  : devicesToUse(),
+  : initializedPlatforms(),
+    devicesToUse(),
     uniqueDeviceNamesToUse()
 {
   defaultGpuIdx = 0;
@@ -360,30 +381,72 @@ DevicesContext::DevicesContext(const vector<DeviceInfo>& allDeviceInfos, const v
     deviceIdsToUse.push_back(allDeviceInfos[gpuIdx].deviceId);
   }
 
-  cl_int err;
-  cl_context_properties* properties = NULL;
-  cl_uint numDevicesToUse = (cl_uint)deviceIdsToUse.size();
-  context = clCreateContext(properties, numDevicesToUse, deviceIdsToUse.data(), NULL, NULL, &err);
-  CHECK_ERR(err);
+  for(size_t i = 0; i<gpuIdxsToUse.size(); i++) {
+    const DeviceInfo& deviceInfo = allDeviceInfos[i];
+    cl_device_id deviceId = deviceInfo.deviceId;
+    cl_platform_id platformId = deviceInfo.platformId;
+    if(!contains(initializedPlatforms,platformId)) {
+      InitializedPlatform* initializedPlatform = new InitializedPlatform();
+      initializedPlatform->platformId = platformId;
+      initializedPlatform->platformDesc = deviceInfo.platformDesc;
+      initializedPlatforms[platformId] = initializedPlatform;
+    }
+    InitializedPlatform* initializedPlatform = initializedPlatforms[platformId];
+    initializedPlatform->deviceIdsToUseForThisPlatform.push_back(deviceId);
+  }
+
+  for(auto iter = initializedPlatforms.begin(); iter != initializedPlatforms.end(); ++iter) {
+    InitializedPlatform* initializedPlatform = iter->second;
+    cl_platform_id platformId = initializedPlatform->platformId;
+    initializedPlatform->properties.push_back(CL_CONTEXT_PLATFORM);
+    initializedPlatform->properties.push_back((cl_context_properties)platformId);
+    initializedPlatform->properties.push_back(0);
+
+    string message =
+      "Creating context for OpenCL Platform: " + initializedPlatform->platformDesc;
+    if(logger != NULL) {
+      logger->write(message);
+      if(!logger->isLoggingToStdout() && !logger->isLoggingToStderr())
+        cerr << message << endl;
+    }
+
+    cl_int err;
+    initializedPlatform->context = clCreateContext(
+      initializedPlatform->properties.data(),
+      initializedPlatform->deviceIdsToUseForThisPlatform.size(),
+      initializedPlatform->deviceIdsToUseForThisPlatform.data(),
+      NULL,
+      NULL,
+      &err
+    );
+    CHECK_ERR(err);
+  }
 
   for(size_t i = 0; i<gpuIdxsToUse.size(); i++) {
+    const DeviceInfo& deviceInfo = allDeviceInfos[i];
+    cl_device_id deviceId = deviceInfo.deviceId;
+    cl_platform_id platformId = deviceInfo.platformId;
+    cl_context context = initializedPlatforms[platformId]->context;
+
     //TODO - someday, maybe consider CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
+    cl_int err;
     cl_command_queue commandQueue;
     if(enableProfiling)
-      commandQueue = clCreateCommandQueue(context, deviceIdsToUse[i], CL_QUEUE_PROFILING_ENABLE, &err);
+      commandQueue = clCreateCommandQueue(context, deviceId, CL_QUEUE_PROFILING_ENABLE, &err);
     else
-      commandQueue = clCreateCommandQueue(context, deviceIdsToUse[i], 0, &err);
+      commandQueue = clCreateCommandQueue(context, deviceId, 0, &err);
 
     CHECK_ERR(err);
-    InitializedDevice device;
-    device.info = allDeviceInfos[gpuIdxsToUse[i]];
-    device.commandQueue = commandQueue;
+    InitializedDevice* device = new InitializedDevice();
+    device->info = deviceInfo;
+    device->context = context;
+    device->commandQueue = commandQueue;
     devicesToUse.push_back(device);
 
     string message =
-      "Using OpenCL Device " + Global::intToString(gpuIdxsToUse[i]) + ": " + device.info.name +
-      " (" + device.info.vendor + ") " +
-      device.info.openCLVersion;
+      "Using OpenCL Device " + Global::intToString(gpuIdxsToUse[i]) + ": " + device->info.name +
+      " (" + device->info.vendor + ") " +
+      device->info.openCLVersion;
     if(logger != NULL) {
       logger->write(message);
       if(!logger->isLoggingToStdout() && !logger->isLoggingToStderr())
@@ -392,44 +455,52 @@ DevicesContext::DevicesContext(const vector<DeviceInfo>& allDeviceInfos, const v
   }
 
   for(size_t i = 0; i<gpuIdxsToUse.size(); i++) {
-    if(contains(uniqueDeviceNamesToUse, devicesToUse[i].info.name))
+    if(contains(uniqueDeviceNamesToUse, devicesToUse[i]->info.name))
       continue;
-    uniqueDeviceNamesToUse.push_back(devicesToUse[i].info.name);
+    uniqueDeviceNamesToUse.push_back(devicesToUse[i]->info.name);
   }
 }
 
 DevicesContext::~DevicesContext() {
   for(int i = 0; i<devicesToUse.size(); i++) {
-    clFlush(devicesToUse[i].commandQueue);
-    clFinish(devicesToUse[i].commandQueue);
-    clReleaseCommandQueue(devicesToUse[i].commandQueue);
+    InitializedDevice* device = devicesToUse[i];
+    clFlush(device->commandQueue);
+    clFinish(device->commandQueue);
+    clReleaseCommandQueue(device->commandQueue);
+    delete device;
   }
-  clReleaseContext(context);
+
+  for(auto iter = initializedPlatforms.begin(); iter != initializedPlatforms.end(); ++iter) {
+    InitializedPlatform* initializedPlatform = iter->second;
+    clReleaseContext(initializedPlatform->context);
+    delete initializedPlatform;
+  }
 }
 
-const InitializedDevice& DevicesContext::findGpuExn(int gpuIdx) const {
+const InitializedDevice* DevicesContext::findGpuExn(int gpuIdx) const {
   if(gpuIdx == -1)
     gpuIdx = defaultGpuIdx;
   for(int i = 0; i<devicesToUse.size(); i++) {
-    if(devicesToUse[i].info.gpuIdx == gpuIdx)
+    if(devicesToUse[i]->info.gpuIdx == gpuIdx)
       return devicesToUse[i];
   }
   throw StringError("BUG? Attempted to create ComputeHandle for a gpuIdx that was not part of the DevicesContext: " + Global::intToString(gpuIdx));
 }
 
-vector<InitializedDevice> DevicesContext::findDevicesToUseWithName(const string& name) const {
-  vector<InitializedDevice> devices;
+vector<const InitializedDevice*> DevicesContext::findDevicesToUseWithName(const string& name) const {
+  vector<const InitializedDevice*> devices;
   for(int i = 0; i<devicesToUse.size(); i++) {
-    if(devicesToUse[i].info.name == name)
+    if(devicesToUse[i]->info.name == name) {
       devices.push_back(devicesToUse[i]);
+    }
   }
   return devices;
 }
 vector<cl_device_id> DevicesContext::findDeviceIdsToUseWithName(const string& name) const {
   vector<cl_device_id> deviceIds;
   for(int i = 0; i<devicesToUse.size(); i++) {
-    if(devicesToUse[i].info.name == name)
-      deviceIds.push_back(devicesToUse[i].info.deviceId);
+    if(devicesToUse[i]->info.name == name)
+      deviceIds.push_back(devicesToUse[i]->info.deviceId);
   }
   return deviceIds;
 }

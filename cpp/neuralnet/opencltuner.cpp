@@ -660,10 +660,10 @@ void OpenCLTuner::tune(
   ostream& out,
   std::function<void(const OpenCLTuneParams&)> handleBestSoFar
 ) {
-  const InitializedDevice& device = devicesContext.findGpuExn(gpuIdx);
-  const cl_context& context = devicesContext.context;
-  cl_command_queue commandQueue = device.commandQueue;
-  const vector<cl_device_id>& deviceIdsToUse = { device.info.deviceId };
+  const InitializedDevice* device = devicesContext.findGpuExn(gpuIdx);
+  const cl_context& context = device->context;
+  cl_command_queue commandQueue = device->commandQueue;
+  const vector<cl_device_id>& deviceIdsToUse = { device->info.deviceId };
 
   OpenCLTuneParams untunedConfig = OpenCLTuneParams();
   OpenCLTuneParams currentConfig = initialConfig;
@@ -1591,7 +1591,7 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
     cerr << "No existing tuning parameters found or parseable or valid at: " << openCLTunerFile << endl;
     cerr << "Performing autotuning" << endl;
   }
-  
+
   OpenCLTuneParams results;
   auto handleBestSoFar = [&results](const OpenCLTuneParams& bestSoFar) {
     results = bestSoFar;
@@ -1630,7 +1630,7 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
     logger->write("Done tuning, saved results to " + openCLTunerFile);
   if(logger == NULL || (!logger->isLoggingToStdout() && !logger->isLoggingToStderr()))
     cerr << "Done tuning, saved results to " << openCLTunerFile << endl;
-  
+
   return results;
 
 }
