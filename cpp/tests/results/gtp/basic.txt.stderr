@@ -1,6 +1,6 @@
 KataGo v1.4.2
 Loaded config configs/gtp_example.cfg and/or command-line and query overrides
-Loaded model models/g170-b6c96-s175395328-d26788732.bin.gz
+Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
 Model name: g170-b6c96-s175395328-d26788732
 GTP ready, beginning main protocol loop
 MoveNum: 0 HASH: 7BF12F3F24903F0C225CD6C55BA8BA1F

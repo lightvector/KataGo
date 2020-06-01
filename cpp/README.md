@@ -29,6 +29,7 @@ Summary of source folders, in approximate dependency order, from lowest level to
   * `playutils.{cpp,h}` - Miscellaneous: handicap placement, ownership and final stone status, computing high-level stats to report, benchmarking.
   * `play.{cpp,h}` - Running matches and self-play games.
 * `tests` - A variety of tests.
+  * `models` - A directory with a small number of small-sized (and not very strong) models for running tests.
 * `command` - Top-level subcommands callable by users. GTP, analysis commands, benchmarking, selfplay data generation, etc.
   * `commandline.{cpp,h}` - Common command line logic shared by all subcommands.
   * `gtp.cpp` - Main GTP engine.
@@ -41,4 +42,3 @@ Summary of source folders, in approximate dependency order, from lowest level to
 Other folders:
 
 * `configs` - Default or example configs for many of the different subcommands.
-* `models` - A small number of small-sized (and not very strong) models for running tests.
