@@ -28,6 +28,7 @@ Summary of source folders, in approximate dependency order, from lowest level to
   * `setup.{cpp,h}` - Functions for parsing configs for search parameters, parsing parameters for initializing the neural net.
   * `playutils.{cpp,h}` - Miscellaneous: handicap placement, ownership and final stone status, computing high-level stats to report, benchmarking.
   * `play.{cpp,h}` - Running matches and self-play games.
+* `distributed` - Code for talking to https webserver for volunteers to contribute distributed self-play games for training.
 * `tests` - A variety of tests.
   * `models` - A directory with a small number of small-sized (and not very strong) models for running tests.
 * `command` - Top-level subcommands callable by users. GTP, analysis commands, benchmarking, selfplay data generation, etc.
@@ -35,6 +36,7 @@ Summary of source folders, in approximate dependency order, from lowest level to
   * `gtp.cpp` - Main GTP engine.
   * `analysis.cpp` - JSON-based analysis engine that can use large batch sizes to analyze positions in parallel.
   * `benchmark.cpp` - Performance benchmarking.
+  * `contribute.cpp` - Command for volunteers to contribute distributed self-play games for training.
   * `selfplay.cpp` - Selfplay data generation engine.
   * `gatekeeper.cpp` - Gating engine to filter neural nets for selfplay data generation.
   * `match.cpp` - Match engine for testing different parameters that can use huge batch sizes to efficiently play games in parallel.
