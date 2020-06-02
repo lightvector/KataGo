@@ -7,7 +7,7 @@ set -o pipefail
 if [[ $# -ne 3 ]]
 then
     echo "Usage: $0 RUNNAME BASEDIR CONNECTION_CONFIG"
-    echo "Currently expects to be run from within the 'python' directory of the KataGo repo, or otherwise in the same dir as export_model.py."
+    echo "Currently expects to be run from within the 'python' directory of the KataGo repo, or otherwise in the same dir as upload_model.py."
     echo "RUNNAME should match what the server uses as the run name, try to pick something globally unique. Will prefix model names in uploaded files."
     echo "BASEDIR containing selfplay data and models and related directories"
     echo "CONNECTION_CONFIG config containing serverUrl, username, password"
@@ -50,12 +50,11 @@ function uploadStuff() {
                 rm -rf "$TMPDST"
                 mkdir "$TMPDST"
 
-                cp "$SRC"/model.bin "$TMPDST"/"RUNNAME"-"$NAME".bin
-                gzip "$TMPDST"/"RUNNAME"-"$NAME".bin
+                cp "$SRC"/model.bin.gz "$TMPDST"/"RUNNAME"-"$NAME".bin.gz
                 cp "$SRC"/model.config.json "$TMPDST"/model.config.json
                 cp -r "$SRC"/saved_model "$TMPDST"/saved_model
                 zip -r "$TMPDST"/"RUNNAME"-"$NAME".zip "$TMPDST"/"RUNNAME"-"$NAME".bin.gz "$TMPDST"/model.config.json "$TMPDST"/saved_model
-                rm -r "$TMPDST"/"RUNNAME"-"$NAME".bin.gz "$TMPDST"/model.config.json "$TMPDST"/saved_model
+                rm -r "$TMPDST"/model.config.json "$TMPDST"/saved_model
                 cp -r "$SRC"/non_swa_saved_model "$TMPDST"/non_swa_saved_model
                 zip -r "$TMPDST"/"RUNNAME"-"$NAME"_non_swa.zip "$TMPDST"/non_swa_saved_model
                 rm -r "$TMPDST"/non_swa_saved_model
