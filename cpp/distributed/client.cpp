@@ -462,9 +462,8 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
       task.isRatingGame = false;
     }
     else if(kind == "rating") {
-      json content = parse<json>(response,"content");
-      json blackNetworkProperties = parse<json>(content,"black_network");
-      json whiteNetworkProperties = parse<json>(content,"white_network");
+      json blackNetworkProperties = parse<json>(response,"black_network");
+      json whiteNetworkProperties = parse<json>(response,"white_network");
       json runProperties = parse<json>(response,"run");
 
       string blackCreatedAt = parseString(blackNetworkProperties,"created_at",MAX_TIME_LEN);
