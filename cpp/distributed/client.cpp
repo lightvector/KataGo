@@ -496,7 +496,11 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
       istringstream taskCfgIn(task.config);
       ConfigParser taskCfg(taskCfgIn);
       SearchParams baseParams = Setup::loadSingleParams(taskCfg);
-      PlaySettings playSettings = PlaySettings::loadForSelfplay(taskCfg);
+      PlaySettings playSettings;
+      if(task.isRatingGame)
+        playSettings = PlaySettings::loadForGatekeeper(taskCfg);
+      else
+        playSettings = PlaySettings::loadForSelfplay(taskCfg);
       (void)baseParams;
       (void)playSettings;
     }

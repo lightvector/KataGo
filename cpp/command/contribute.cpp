@@ -74,7 +74,10 @@ static void runAndUploadSingleGame(
   PlaySettings playSettings;
   try {
     baseParams = Setup::loadSingleParams(taskCfg);
-    playSettings = PlaySettings::loadForSelfplay(taskCfg);
+    if(gameTask.task.isRatingGame)
+      playSettings = PlaySettings::loadForGatekeeper(taskCfg);
+    else
+      playSettings = PlaySettings::loadForSelfplay(taskCfg);
   }
   catch(StringError& e) {
     cerr << "Error parsing task config" << endl;
