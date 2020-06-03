@@ -517,6 +517,11 @@ string Connection::getModelPath(const Client::ModelInfo& modelInfo, const string
     return "/dev/null";
   return modelDir + "/" + modelInfo.name + ".bin.gz";
 }
+static string getTmpModelPath(const Client::ModelInfo& modelInfo, const string& modelDir) {
+  if(modelInfo.isRandom)
+    return "/dev/null";
+  return modelDir + "/" + modelInfo.name + ".tmp.bin.gz";
+}
 
 bool Connection::downloadModelIfNotPresent(
   const Client::ModelInfo& modelInfo, const string& modelDir,
@@ -526,7 +531,7 @@ bool Connection::downloadModelIfNotPresent(
     return true;
 
   string path = getModelPath(modelInfo,modelDir);
-  string tmpPath = path + ".tmp";
+  string tmpPath = getTmpModelPath(modelInfo,modelDir);
 
   //Model already exists
   if(bfs::exists(bfs::path(path)))
