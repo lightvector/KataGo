@@ -16,7 +16,7 @@ then
 fi
 RUNNAME="$1"
 shift
-BASEDIR="$1"
+BASEDIRRAW="$1"
 shift
 CONNECTION_CONFIG="$1"
 shift

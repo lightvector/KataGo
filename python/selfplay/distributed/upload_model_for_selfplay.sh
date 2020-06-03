@@ -102,7 +102,7 @@ function uploadStuff() {
                 #Sleep a little to allow some tolerance on the filesystem
                 sleep 3
 
-                echo "Done exporting:" "$NAME" "to" "$TARGET"
+                echo "Done uploading to server:" "$NAME" " and moved to" "$TARGET"
             fi
         fi
     done
