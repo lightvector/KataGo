@@ -62,6 +62,23 @@ static void runAndUploadSingleGame(
   Client::Connection* connection, GameTask gameTask, int64_t gameIdx,
   Logger& logger, const string& seed, ForkData* forkData, string sgfsDir, Rand& rand
 ) {
+  if(gameTask.task.isRatingGame) {
+    logger.write(
+      "Starting game " + Global::int64ToString(gameIdx) + " (rating) (" + (
+        (gameTask.nnEvalBlack->getModelName() + " vs " + gameTask.nnEvalWhite->getModelName())
+      ) + ")"
+    );
+  }
+  else {
+    logger.write(
+      "Starting game " + Global::int64ToString(gameIdx) + " (training) (" + (
+        gameTask.nnEvalBlack == gameTask.nnEvalWhite ?
+        gameTask.nnEvalBlack->getModelName() :
+        (gameTask.nnEvalBlack->getModelName() + " vs " + gameTask.nnEvalWhite->getModelName())
+      ) + ")"
+    );
+  }
+
   vector<std::atomic<bool>*> stopConditions = {&shouldStop};
 
   istringstream taskCfgIn(gameTask.task.config);
@@ -149,6 +166,9 @@ static void runAndUploadSingleGame(
       if(suc)
         logger.write("Finished game " + Global::int64ToString(gameIdx) + " (rating), uploaded sgf " + sgfFile);
     }
+  }
+  else {
+    logger.write("Terminating game " + Global::int64ToString(gameIdx));
   }
 
   delete gameData;
@@ -291,13 +311,6 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       if(!shouldStop.load()) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         int64_t gameIdx = numGamesStarted.fetch_add(1,std::memory_order_acq_rel);
-        logger.write(
-          "Started game " + Global::int64ToString(gameIdx) + " (" + (
-            gameTask.nnEvalBlack == gameTask.nnEvalWhite ?
-            gameTask.nnEvalBlack->getModelName() :
-            (gameTask.nnEvalBlack->getModelName() + " vs " + gameTask.nnEvalWhite->getModelName())
-          ) + ")"
-        );
         runAndUploadSingleGame(connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand);
       }
       gameTask.manager->release(gameTask.nnEvalBlack);
@@ -428,6 +441,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     (void)suc;
     assert(suc);
   }
+  logger.write("Beginning shutdown");
 
   //This should trigger game threads to quit
   gameTaskQueue.setReadOnly();
