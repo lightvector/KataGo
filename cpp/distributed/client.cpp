@@ -714,7 +714,7 @@ bool Connection::uploadRatingGame(
       { "run", run, "", ""},
       { "white_network", whiteNetwork, "", ""},
       { "black_network", blackNetwork, "", ""},
-      { "sgf_file", sgfContents, "", "text/plain" },
+      { "sgf_file", sgfContents, gameUid + ".sgf", "text/plain" },
     };
 
     std::shared_ptr<httplib::Response> response = postMulti("/api/games/rating/",items);
