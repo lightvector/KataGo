@@ -310,7 +310,7 @@ static string parseString(const json& response, const char* field, size_t maxLen
     throwFieldNotFound(response,field);
   try {
     string x = response[field].get<string>();
-    if(x.size() >= maxLen)
+    if(x.size() > maxLen)
       throw StringError(string("Field ") + " had Invalid response, length too long: " + Global::uint64ToString(x.size()));
     return x;
   }
@@ -328,7 +328,7 @@ static string parseStringOrNull(const json& response, const char* field, size_t 
     if(fieldJson.is_null())
       return string();
     string x = fieldJson.get<string>();
-    if(x.size() >= maxLen)
+    if(x.size() > maxLen)
       throw StringError(string("Field ") + " had Invalid response, length too long: " + Global::uint64ToString(x.size()));
     return x;
   }
