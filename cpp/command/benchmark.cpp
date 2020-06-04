@@ -50,8 +50,6 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   Board::initHash();
   ScoreValue::initTables();
 
-  static const string defaultThreadsToTest = "1,2,4,6,8,12,16,24";
-
   ConfigParser cfg;
   string modelFile;
   string sgfFile;
@@ -66,11 +64,11 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
     cmd.addModelFileArg();
     TCLAP::ValueArg<long> visitsArg("v","visits","How many visits to use per search (default " + Global::int64ToString(defaultMaxVisits) + ")",false,(long)defaultMaxVisits,"VISITS");
-    TCLAP::ValueArg<string> threadsArg("t","threads","Test these many threads, comma-separated (default " + defaultThreadsToTest + ")",false,defaultThreadsToTest,"THREADS");
+    TCLAP::ValueArg<string> threadsArg("t","threads","Test these many threads, comma-separated, e.g. '4,8,12,16' ",false,"","THREADS");
     TCLAP::ValueArg<int> numPositionsPerGameArg("n","numpositions","How many positions to sample from a game (default 10)",false,10,"NUM");
     TCLAP::ValueArg<string> sgfFileArg("","sgf", "Optional game to sample positions from (default: uses a built-in-set of positions)",false,string(),"FILE");
     TCLAP::ValueArg<int> boardSizeArg("","boardsize", "Size of board to benchmark on (9-19), default 19",false,-1,"SIZE");
-    TCLAP::SwitchArg autoTuneThreadsArg("s","tune","Automatically search for the optimal number of threads");
+    TCLAP::SwitchArg autoTuneThreadsArg("s","tune","Automatically search for the optimal number of threads (default if not specifying specific numbers of threads)");
     TCLAP::ValueArg<int> secondsPerGameMoveArg("i","time","Typical amount of time per move spent while playing, in seconds (default " +
                                                Global::doubleToString(defaultSecondsPerGameMove) + ")",false,defaultSecondsPerGameMove,"SECONDS");
     cmd.add(visitsArg);
@@ -106,8 +104,12 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
       throw StringError("Number of positions per game to use: invalid value " + Global::intToString(numPositionsPerGame));
     if(secondsPerGameMove <= 0 || secondsPerGameMove > 1000000)
       throw StringError("Number of seconds per game move to assume: invalid value " + Global::doubleToString(secondsPerGameMove));
-    if(desiredThreadsStr != defaultThreadsToTest && autoTuneThreads)
+    if(desiredThreadsStr != "" && autoTuneThreads)
       throw StringError("Cannot both automatically tune threads and specify fixed exact numbers of threads to test");
+
+    //Apply default
+    if(desiredThreadsStr == "")
+      autoTuneThreads = true;
 
     if(!autoTuneThreads) {
       vector<string> desiredThreadsPieces = Global::split(desiredThreadsStr,',');
