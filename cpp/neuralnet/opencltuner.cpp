@@ -1509,8 +1509,8 @@ void OpenCLTuner::tune(
 
 }
 
-string OpenCLTuner::defaultDirectory(bool makeDir) {
-  string dir = HomeData::getHomeDataDir(true);
+string OpenCLTuner::defaultDirectory(bool makeDir, const string& homeDataDirOverride) {
+  string dir = HomeData::getHomeDataDir(true,homeDataDirOverride);
   dir += "/opencltuning";
   if(makeDir)
     MakeDir::make(dir);
@@ -1542,6 +1542,7 @@ static OpenCLTuneParams loadFromTunerFile(const string& fileName, Logger* logger
 
 OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
   string openCLTunerFile,
+  const string& homeDataDirOverride,
   const string& gpuName,
   int gpuIdxForTuning,
   Logger* logger,
@@ -1555,7 +1556,7 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
     return loadFromTunerFile(openCLTunerFile,logger);
   }
 
-  string dir = OpenCLTuner::defaultDirectory(true);
+  string dir = OpenCLTuner::defaultDirectory(true,homeDataDirOverride);
   openCLTunerFile = dir + "/" + OpenCLTuner::defaultFileName(gpuName, nnXLen, nnYLen, model);
 
   //Try loading the config for the proper size

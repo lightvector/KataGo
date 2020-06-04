@@ -65,7 +65,8 @@ NNEvaluator::NNEvaluator(
   int nnCacheSizePowerOfTwo,
   int nnMutexPoolSizePowerofTwo,
   bool skipNeuralNet,
-  string openCLTunerFile,
+  const string& openCLTunerFile,
+  const string& homeDataDirOverride,
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
   enabled_t useNHWCMode,
@@ -141,7 +142,9 @@ NNEvaluator::NNEvaluator(
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
     computeContext = NeuralNet::createComputeContext(
-      gpuIdxs,logger,nnXLen,nnYLen,openCLTunerFile,openCLReTunePerBoardSize,usingFP16Mode,usingNHWCMode,loadedModel
+      gpuIdxs,logger,nnXLen,nnYLen,
+      openCLTunerFile,homeDataDirOverride,openCLReTunePerBoardSize,
+      usingFP16Mode,usingNHWCMode,loadedModel
     );
   }
   else {

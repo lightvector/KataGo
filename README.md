@@ -162,7 +162,7 @@ Run a JSON-based [analysis engine](docs/Analysis_Engine.md) that can do efficien
 
 For OpenCL only: run or re-run the tuner to optimize for your particular GPU.
 
-   * `./katago tuner -model <NEURALNET>.gz`
+   * `./katago tuner -config <GTP_CONFIG>.cfg -model <NEURALNET>.gz`
 
 
 ### Tuning for Performance

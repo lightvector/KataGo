@@ -4,7 +4,7 @@ using namespace std;
 
 static const string gtpBase = R"%%(
 
-# Logs------------------------------------------------------------------------------------
+# Logs and files--------------------------------------------------------------------------
 
 # Where to output log?
 logDir = gtp_logs    # Each run of KataGo will log to a separate file in this dir
@@ -14,6 +14,9 @@ logDir = gtp_logs    # Each run of KataGo will log to a separate file in this di
 logAllGTPCommunication = true
 logSearchInfo = true
 logToStderr = false
+
+# Optionally override where KataGo will attempt to save things like openCLTuner files and other cached data.
+# homeDataDir = DIRECTORY
 
 # Analysis------------------------------------------------------------------------------------
 

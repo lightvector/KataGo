@@ -35,9 +35,11 @@ class KataGoCommandLine : public TCLAP::CmdLine
   bool modelFileIsDefault() const;
   //cfg must be uninitialized, this will initialize it based on user-provided arguments
   void getConfig(ConfigParser& cfg) const;
+  void getConfigAllowEmpty(ConfigParser& cfg) const;
 
  private:
   std::string getConfigFile() const;
+  void maybeApplyOverrideConfigArg(ConfigParser& cfg) const;
 };
 
 #endif //COMMANDLINE_H_

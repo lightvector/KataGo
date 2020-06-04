@@ -18,7 +18,8 @@ ComputeContext* NeuralNet::createComputeContext(
   Logger* logger,
   int nnXLen,
   int nnYLen,
-  string openCLTunerFile,
+  const string& openCLTunerFile,
+  const string& homeDataDirOverride,
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
   enabled_t useNHWCMode,
@@ -29,6 +30,7 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)nnXLen;
   (void)nnYLen;
   (void)openCLTunerFile;
+  (void)homeDataDirOverride;
   (void)openCLReTunePerBoardSize;
   (void)useFP16Mode;
   (void)useNHWCMode;

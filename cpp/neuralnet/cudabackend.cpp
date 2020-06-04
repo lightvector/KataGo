@@ -2619,7 +2619,8 @@ ComputeContext* NeuralNet::createComputeContext(
   Logger* logger,
   int nnXLen,
   int nnYLen,
-  string openCLTunerFile,
+  const string& openCLTunerFile,
+  const string& homeDataDirOverride,
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
   enabled_t useNHWCMode,
@@ -2628,6 +2629,7 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)gpuIdxs;
   (void)logger;
   (void)openCLTunerFile;
+  (void)homeDataDirOverride;
   (void)openCLReTunePerBoardSize;
   (void)loadedModel;
 

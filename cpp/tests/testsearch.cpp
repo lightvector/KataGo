@@ -132,6 +132,7 @@ static NNEvaluator* startNNEval(
   bool openCLReTunePerBoardSize = false;
   const string& modelName = modelFile;
   const string openCLTunerFile = "";
+  const string homeDataDirOverride = "";
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
   string nnRandSeed = "runSearchTestsRandSeed"+seed;
@@ -155,6 +156,7 @@ static NNEvaluator* startNNEval(
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
     openCLTunerFile,
+    homeDataDirOverride,
     openCLReTunePerBoardSize,
     useFP16 ? enabled_t::True : enabled_t::False,
     useNHWC ? enabled_t::True : enabled_t::False,

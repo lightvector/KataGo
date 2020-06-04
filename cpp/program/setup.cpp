@@ -170,6 +170,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         gpuIdxByServerThread.push_back(-1);
     }
 
+    string homeDataDirOverride = loadHomeDataDirOverride(cfg);
+
     string openCLTunerFile;
     if(cfg.contains("openclTunerFile"))
       openCLTunerFile = cfg.getString("openclTunerFile");
@@ -254,6 +256,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnMutexPoolSizePowerOfTwo,
       debugSkipNeuralNet,
       openCLTunerFile,
+      homeDataDirOverride,
       openCLReTunePerBoardSize,
       useFP16Mode,
       useNHWCMode,
@@ -270,6 +273,15 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   }
 
   return nnEvals;
+}
+
+string Setup::loadHomeDataDirOverride(
+  ConfigParser& cfg
+){
+  string homeDataDirOverride;
+  if(cfg.contains("homeDataDir"))
+    homeDataDirOverride = cfg.getString("homeDataDir");
+  return homeDataDirOverride;
 }
 
 SearchParams Setup::loadSingleParams(

@@ -63,6 +63,10 @@ namespace Setup {
     ConfigParser& cfg
   );
 
+  std::string loadHomeDataDirOverride(
+    ConfigParser& cfg
+  );
+
   //Get sets of options that are mutually exclusive. Intended for use in configParser
   std::vector<std::pair<std::set<std::string>,std::set<std::string>>> getMutexKeySets();
 }
