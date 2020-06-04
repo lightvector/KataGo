@@ -33,7 +33,7 @@ int MainCmds::match(int argc, const char* const* argv) {
     KataGoCommandLine cmd("Play different nets against each other with different search settings in a match or tournament.");
     cmd.addConfigFileArg("","match_example.cfg");
 
-    TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
+    TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",false,string(),"FILE");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",false,string(),"DIR");
 
     cmd.add(logFileArg);

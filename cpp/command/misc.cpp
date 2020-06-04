@@ -385,7 +385,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
     cmd.addConfigFileArg("","");
     cmd.addModelFileArg();
 
-    TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
+    TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",false,string(),"FILE");
     cmd.add(logFileArg);
     cmd.parse(argc,argv);
 

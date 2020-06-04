@@ -1280,7 +1280,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     throw StringError("Cannot specify both logFile and logDir in config");
   else if(cfg.contains("logFile"))
     logger.addFile(cfg.getString("logFile"));
-  else {
+  else if(cfg.contains("logDir")) {
     MakeDir::make(cfg.getString("logDir"));
     Rand rand;
     logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(rand.nextUInt()) + ".log");
