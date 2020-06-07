@@ -609,6 +609,8 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   vector<string> excludeHashesFiles;
   bool gameMode;
   bool treeMode;
+  int sgfSplitCount;
+  int sgfSplitIdx;
   try {
     KataGoCommandLine cmd("Search for suprising good moves in sgfs");
     cmd.addConfigFileArg("","");
@@ -620,12 +622,16 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     TCLAP::MultiArg<string> excludeHashesArg("","exclude-hashes","Specify a list of hashes to filter out, one per line in a txt file",false,"FILEOF(HASH,HASH)");
     TCLAP::SwitchArg gameModeArg("","game-mode","Game mode");
     TCLAP::SwitchArg treeModeArg("","tree-mode","Tree mode");
+    TCLAP::ValueArg<int> sgfSplitCountArg("","sgf-split-count","Number of splits",false,1,"N");
+    TCLAP::ValueArg<int> sgfSplitIdxArg("","sgf-split-idx","Which split",false,0,"IDX");
     cmd.add(sgfDirArg);
     cmd.add(outDirArg);
     cmd.add(numSearchThreadsArg);
     cmd.add(excludeHashesArg);
     cmd.add(gameModeArg);
     cmd.add(treeModeArg);
+    cmd.add(sgfSplitCountArg);
+    cmd.add(sgfSplitIdxArg);
     cmd.parse(argc,argv);
     nnModelFile = cmd.getModelFile();
     sgfDirs = sgfDirArg.getValue();
@@ -634,6 +640,8 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     excludeHashesFiles = excludeHashesArg.getValue();
     gameMode = gameModeArg.getValue();
     treeMode = treeModeArg.getValue();
+    sgfSplitCount = sgfSplitCountArg.getValue();
+    sgfSplitIdx = sgfSplitIdxArg.getValue();
 
     if(gameMode == treeMode)
       throw StringError("Must specify either -game-mode or -tree-mode");
@@ -721,7 +729,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   std::signal(SIGTERM, signalHandler);
 
   ThreadSafeQueue<string*> toWriteQueue;
-  auto writeLoop = [&toWriteQueue,&outDir]() {
+  auto writeLoop = [&toWriteQueue,&outDir,&sgfSplitCount,&sgfSplitIdx]() {
     int fileCounter = 0;
     int numWrittenThisFile = 0;
     ofstream* out = NULL;
@@ -736,7 +744,10 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
           out->close();
           delete out;
         }
-        out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + ".hintposes.txt");
+        if(sgfSplitCount > 1)
+          out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + "." + Global::intToString(sgfSplitIdx) + ".hintposes.txt");
+        else
+          out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + ".hintposes.txt");
         fileCounter += 1;
         numWrittenThisFile = 0;
       }
@@ -768,7 +779,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   };
 
 
-  auto expensiveEvaluateMove = [&toWriteQueue,&logger](
+  auto expensiveEvaluateMove = [&toWriteQueue,&logger,&gameMode](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample,
@@ -795,6 +806,11 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     //Bot DOES see the move?
     if(moveLoc == missedLoc) {
       //Still good to learn from given that policy was really low
+      if(gameMode)
+        numTimesToWrite = (numTimesToWrite + rand.nextUInt(4)) / 4;
+      //Still good to learn from given that policy was really low
+      else
+        numTimesToWrite = numTimesToWrite * 1;
       for(int n = 0; n<numTimesToWrite; n++)
         toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sample)));
     }
@@ -883,6 +899,8 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     BoardHistory hist;
     sgf->setupInitialBoardAndHist(rules, board, nextPla, hist);
     if(!gameInit->isAllowedBSize(board.x_size,board.y_size))
+      return;
+    if(board.x_size != 19 || board.y_size != 19)
       return;
 
     const bool preventEncore = true;
@@ -1117,8 +1135,9 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     ThreadSafeQueue<int64_t> sgfQueue(maxSgfQueueSize);
     std::atomic<int64_t> numSgfsBegun(0);
     std::atomic<int64_t> numSgfsDone(0);
+    std::atomic<int64_t> numSgfsSkipped(0);
 
-    auto processSgfLoop = [&sgfFiles,&logger,&processSgfGame,&permutation,&sgfQueue,&params,&numSgfsBegun,&numSgfsDone,&nnEval]() {
+    auto processSgfLoop = [&sgfFiles,&logger,&processSgfGame,&permutation,&sgfQueue,&params,&numSgfsBegun,&numSgfsDone,&nnEval,&sgfSplitIdx,&sgfSplitCount,&numSgfsSkipped]() {
       Rand rand;
       string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
       Search* search = new Search(params,nnEval,searchRandSeed);
@@ -1146,10 +1165,15 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
         }
 
         logger.write("Starting " + fileName);
-        processSgfGame(search,rand,fileName,sgf);
+        if(sgfSplitCount <= 1 || ((int)(sgf->hash.hash0 & 0x7FFFFFFF) % sgfSplitCount) == sgfSplitIdx)
+          processSgfGame(search,rand,fileName,sgf);
+        else
+          numSgfsSkipped.fetch_add(1);
+
         int64_t numDone = 1+numSgfsDone.fetch_add(1);
+        int64_t numSkipped = numSgfsSkipped.load();
         if(numDone % 20 == 0)
-          logger.write("Done " + Global::int64ToString(numDone) + " sgfs");
+          logger.write("Done " + Global::int64ToString(numDone) + " sgfs, " + Global::int64ToString(numSkipped) + " skipped");
 
         delete sgf;
       }
@@ -1224,6 +1248,10 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       }
       if(contains(excludeHashes,sgf->hash))
         continue;
+      if(sgfSplitCount > 1 && ((int)(sgf->hash.hash0 & 0x7FFFFFFF) % sgfSplitCount) != sgfSplitIdx) {
+        logger.write("Skipping " + fileName);
+        continue;
+      }
 
       logger.write("Starting " + fileName);
       sgf->iterAllUniquePositions(
@@ -1246,6 +1274,11 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
   toWriteQueue.setReadOnly();
   writeLoopThread.join();
+
+  logger.write(nnEval->getModelFileName());
+  logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
+  logger.write("NN batches: " + Global::int64ToString(nnEval->numBatchesProcessed()));
+  logger.write("NN avg batch size: " + Global::doubleToString(nnEval->averageProcessedBatchSize()));
 
   logger.write("All done");
 
