@@ -1393,6 +1393,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   string line;
   while(cin) {
     getline(cin,line);
+    if(!cin)
+      break;
 
     //Parse command, extracting out the command itself, the arguments, and any GTP id number for the command.
     string command;
