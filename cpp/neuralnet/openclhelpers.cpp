@@ -382,7 +382,8 @@ DevicesContext::DevicesContext(const vector<DeviceInfo>& allDeviceInfos, const v
   }
 
   for(size_t i = 0; i<gpuIdxsToUse.size(); i++) {
-    const DeviceInfo& deviceInfo = allDeviceInfos[i];
+    int gpuIdx = gpuIdxsToUse[i];
+    const DeviceInfo& deviceInfo = allDeviceInfos[gpuIdx];
     cl_device_id deviceId = deviceInfo.deviceId;
     cl_platform_id platformId = deviceInfo.platformId;
     if(!contains(initializedPlatforms,platformId)) {
@@ -423,7 +424,8 @@ DevicesContext::DevicesContext(const vector<DeviceInfo>& allDeviceInfos, const v
   }
 
   for(size_t i = 0; i<gpuIdxsToUse.size(); i++) {
-    const DeviceInfo& deviceInfo = allDeviceInfos[i];
+    int gpuIdx = gpuIdxsToUse[i];
+    const DeviceInfo& deviceInfo = allDeviceInfos[gpuIdx];
     cl_device_id deviceId = deviceInfo.deviceId;
     cl_platform_id platformId = deviceInfo.platformId;
     cl_context context = initializedPlatforms[platformId]->context;
