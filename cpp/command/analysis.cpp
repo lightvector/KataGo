@@ -342,8 +342,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
   string line;
   json input;
-  while(cin) {
-    getline(cin,line);
+  while(getline(cin,line)) {
     line = Global::trim(line);
     if(line.length() == 0)
       continue;

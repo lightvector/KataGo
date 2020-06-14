@@ -1391,11 +1391,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   bool currentlyAnalyzing = false;
   string line;
-  while(cin) {
-    getline(cin,line);
-    if(!cin)
-      break;
-
+  while(getline(cin,line)) {
     //Parse command, extracting out the command itself, the arguments, and any GTP id number for the command.
     string command;
     vector<string> pieces;

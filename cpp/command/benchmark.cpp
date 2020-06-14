@@ -462,9 +462,13 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
       try {
         cout << prompt << std::flush;
         string line;
-        std::getline(std::cin, line);
-        parse(Global::trim(line));
-        break;
+        if(std::getline(std::cin, line)) {
+          parse(Global::trim(line));
+          break;
+        }
+        else {
+          break;
+        }
       }
       catch(const StringError& err) {
         string what = err.what();
@@ -472,6 +476,9 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
         if(what.length() > 0)
           cout << err.what() << endl;
       }
+    }
+    if(!std::cin) {
+      throw StringError("Stdin was closed - failing and not generating a config");
     }
   };
 
