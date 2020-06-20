@@ -110,8 +110,12 @@ struct CompiledPrograms {
   OpenCLTuneParams tuneParams;
 
   cl_program conv2dNCHWProgram;
-  cl_program winogradConv3x3NCHWProgram;
-  cl_program winogradConv5x5NCHWProgram;
+  cl_program winogradConv3x3NCHWTransformProgram;
+  cl_program winogradConv3x3NCHWBNReluTransformProgram;
+  cl_program winogradConv3x3NCHWUntransformProgram;
+  cl_program winogradConv5x5NCHWTransformProgram;
+  cl_program winogradConv5x5NCHWBNReluTransformProgram;
+  cl_program winogradConv5x5NCHWUntransformProgram;
   cl_program scaleBiasMaskNCHWProgram;
   cl_program scaleBiasMaskReluNCHWProgram;
   cl_program addPointWiseProgram;
@@ -131,12 +135,28 @@ struct CompiledPrograms {
     tuneParams = tParams;
 
     conv2dNCHWProgram = compileProgram("conv2dNCHWProgram", context, deviceIdsToUse, OpenCLKernels::conv2dNCHW, "");
-    winogradConv3x3NCHWProgram = compileProgram(
-      "winogradConv3x3NCHWProgram", context, deviceIdsToUse, OpenCLKernels::winogradConvNCHW,
+    winogradConv3x3NCHWTransformProgram = compileProgram(
+      "winogradConv3x3NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHW,
       tuneParams.conv3x3.compileOptions()
     );
-    winogradConv5x5NCHWProgram = compileProgram(
-      "winogradConv5x5NCHWProgram", context, deviceIdsToUse, OpenCLKernels::winogradConvNCHW,
+    winogradConv3x3NCHWBNReluTransformProgram = compileProgram(
+      "winogradConv3x3NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHW,
+      tuneParams.conv3x3.compileOptions()
+    );
+    winogradConv3x3NCHWUntransformProgram = compileProgram(
+      "winogradConv3x3NCHWUntransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradUntransformNCHW,
+      tuneParams.conv3x3.compileOptions()
+    );
+    winogradConv5x5NCHWTransformProgram = compileProgram(
+      "winogradConv5x5NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHW,
+      tuneParams.conv5x5.compileOptions()
+    );
+    winogradConv5x5NCHWBNReluTransformProgram = compileProgram(
+      "winogradConv5x5NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHW,
+      tuneParams.conv5x5.compileOptions()
+    );
+    winogradConv5x5NCHWUntransformProgram = compileProgram(
+      "winogradConv5x5NCHWUntransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradUntransformNCHW,
       tuneParams.conv5x5.compileOptions()
     );
 
@@ -170,8 +190,12 @@ struct CompiledPrograms {
 
   ~CompiledPrograms() {
     clReleaseProgram(conv2dNCHWProgram);
-    clReleaseProgram(winogradConv3x3NCHWProgram);
-    clReleaseProgram(winogradConv5x5NCHWProgram);
+    clReleaseProgram(winogradConv3x3NCHWTransformProgram);
+    clReleaseProgram(winogradConv3x3NCHWBNReluTransformProgram);
+    clReleaseProgram(winogradConv3x3NCHWUntransformProgram);
+    clReleaseProgram(winogradConv5x5NCHWTransformProgram);
+    clReleaseProgram(winogradConv5x5NCHWBNReluTransformProgram);
+    clReleaseProgram(winogradConv5x5NCHWUntransformProgram);
     clReleaseProgram(scaleBiasMaskNCHWProgram);
     clReleaseProgram(scaleBiasMaskReluNCHWProgram);
     clReleaseProgram(addPointWiseProgram);
@@ -370,18 +394,18 @@ struct ComputeHandleInternal {
     conv2dNCHWKernel = clCreateKernel(progs->conv2dNCHWProgram, "conv2dNCHW", &err);
     CHECK_ERR(err);
 
-    winogradConv3x3NCHWTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWProgram, "transform", &err);
+    winogradConv3x3NCHWTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWTransformProgram, "transform", &err);
     CHECK_ERR(err);
-    winogradConv3x3NCHWBNReluTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWProgram, "bnReluTransform", &err);
+    winogradConv3x3NCHWBNReluTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWBNReluTransformProgram, "bnReluTransform", &err);
     CHECK_ERR(err);
-    winogradConv3x3NCHWUntransformKernel = clCreateKernel(progs->winogradConv3x3NCHWProgram, "untransform", &err);
+    winogradConv3x3NCHWUntransformKernel = clCreateKernel(progs->winogradConv3x3NCHWUntransformProgram, "untransform", &err);
     CHECK_ERR(err);
 
-    winogradConv5x5NCHWTransformKernel = clCreateKernel(progs->winogradConv5x5NCHWProgram, "transform", &err);
+    winogradConv5x5NCHWTransformKernel = clCreateKernel(progs->winogradConv5x5NCHWTransformProgram, "transform", &err);
     CHECK_ERR(err);
-    winogradConv5x5NCHWBNReluTransformKernel = clCreateKernel(progs->winogradConv5x5NCHWProgram, "bnReluTransform", &err);
+    winogradConv5x5NCHWBNReluTransformKernel = clCreateKernel(progs->winogradConv5x5NCHWBNReluTransformProgram, "bnReluTransform", &err);
     CHECK_ERR(err);
-    winogradConv5x5NCHWUntransformKernel = clCreateKernel(progs->winogradConv5x5NCHWProgram, "untransform", &err);
+    winogradConv5x5NCHWUntransformKernel = clCreateKernel(progs->winogradConv5x5NCHWUntransformProgram, "untransform", &err);
     CHECK_ERR(err);
 
     scaleBiasMaskNCHWKernel = clCreateKernel(progs->scaleBiasMaskNCHWProgram, "scaleBiasMaskNCHW", &err);

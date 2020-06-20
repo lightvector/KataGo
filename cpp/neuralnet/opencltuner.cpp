@@ -1070,7 +1070,7 @@ void OpenCLTuner::tune(
       cl_int err;
       cl_program program;
       bool compileSuc = tryCompileProgram(
-        "winogradConv3x3NCHWProgram", context, deviceIdsToUse, OpenCLKernels::winogradConvNCHW,
+        "winogradConv3x3NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHW,
         cfg.conv3x3.compileOptions(), program
       );
       if(!compileSuc) { accums.bad = true; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
@@ -1170,12 +1170,12 @@ void OpenCLTuner::tune(
     if(full) {
       addConfigs(configs,SETTER(conv3x3.untransLocalSize0),{1,2,4,8,16,32,64});
       addConfigs(configs,SETTER(conv3x3.untransLocalSize1),{1,2,4,8,16,32,64});
-      addConfigs(configs,SETTER(conv3x3.untransLocalSize2),{1,2,4,8,16,32,64});
+      addConfigs(configs,SETTER(conv3x3.untransLocalSize2),{1,2,4,8,16,32});
     }
     else {
-      addConfigs(configs,SETTER(conv3x3.untransLocalSize0),{1,2,4,8,16,32});
-      addConfigs(configs,SETTER(conv3x3.untransLocalSize1),{1,2,4,8,16,32});
-      addConfigs(configs,SETTER(conv3x3.untransLocalSize2),{1,2,4,8,16,32});
+      addConfigs(configs,SETTER(conv3x3.untransLocalSize0),{1,2,8,16,32});
+      addConfigs(configs,SETTER(conv3x3.untransLocalSize1),{1,2,4,16,32});
+      addConfigs(configs,SETTER(conv3x3.untransLocalSize2),{1,2,4,8,16});
     }
 
     filterConfigs(configs,ISVALID(conv3x3));
@@ -1195,7 +1195,7 @@ void OpenCLTuner::tune(
       cl_int err;
       cl_program program;
       bool compileSuc = tryCompileProgram(
-        "winogradConv3x3NCHWProgram", context, deviceIdsToUse, OpenCLKernels::winogradConvNCHW,
+        "winogradConv3x3NCHWUntransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradUntransformNCHW,
         cfg.conv3x3.compileOptions(), program
       );
       if(!compileSuc) { accums.bad = true; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
