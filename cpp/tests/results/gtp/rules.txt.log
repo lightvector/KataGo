@@ -1,5 +1,6 @@
 : GTP Engine starting...
-: KataGo v1.4.4
+: KataGo v1.4.5
+: Using TrompTaylor rules initially, unless GTP/GUI overrides this
 : Using 1 CPU thread(s) for search
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
@@ -14,18 +15,22 @@
 : Controller: kata-get-rules
 : = {"hasButton":false,"ko":"POSITIONAL","scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 : Controller: kata-set-rules japanese
+: Changed rules to Japanese
 : = 
 : Controller: kata-get-rules
 : = {"hasButton":false,"ko":"SIMPLE","scoring":"TERRITORY","suicide":false,"tax":"SEKI","whiteHandicapBonus":"0"}
 : Controller: kata-set-rules chinese
+: Changed rules to Chinese
 : = 
 : Controller: kata-get-rules
 : = {"hasButton":false,"ko":"SIMPLE","scoring":"AREA","suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}
 : Controller: kgs-rules chinese
+: Changed rules to Chinese-OGS
 : = 
 : Controller: kata-get-rules
 : = {"hasButton":false,"ko":"POSITIONAL","scoring":"AREA","suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}
 : Controller: kgs-rules new_zealand
+: Changed rules to NewZealand
 : = 
 : Controller: kata-get-rules
 : = {"hasButton":false,"ko":"SITUATIONAL","scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}

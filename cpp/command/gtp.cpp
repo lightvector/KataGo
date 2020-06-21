@@ -1312,6 +1312,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   //Defaults to 7.5 komi, gtp will generally override this
   Rules initialRules = Setup::loadSingleRulesExceptForKomi(cfg);
+  logger.write("Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this");
+  if(startupPrintMessageToStderr && !loggingToStderr) {
+    cerr << "Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this" << endl;
+  }
 
   SearchParams initialParams = Setup::loadSingleParams(cfg);
   logger.write("Using " + Global::intToString(initialParams.numThreads) + " CPU thread(s) for search");
@@ -1604,6 +1608,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           responseIsError = true;
           response = error;
         }
+        logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+        if(!loggingToStderr)
+          cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
       }
     }
 
@@ -1631,6 +1638,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             responseIsError = true;
             response = error;
           }
+          logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+          if(!loggingToStderr)
+            cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
         }
       }
     }
@@ -1672,6 +1682,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           responseIsError = true;
           response = error;
         }
+        logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+        if(!loggingToStderr)
+          cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
       }
     }
 

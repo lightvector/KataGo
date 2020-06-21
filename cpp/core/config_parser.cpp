@@ -45,8 +45,8 @@ void ConfigParser::initialize(const string& fname) {
   ifstream in(fname);
   if(!in.is_open())
     throw IOError("Could not open config file: " + fname);
-  initializeInternal(in);
   fileName = fname;
+  initializeInternal(in);
   initialized = true;
 }
 
@@ -88,6 +88,8 @@ void ConfigParser::initializeInternal(istream& in) {
 
     string key = Global::trim(line.substr(0,pos));
     string value = Global::trim(line.substr(pos+1));
+    if(keyValues.find(key) != keyValues.end())
+      throw IOError("Key '" + key + "' + was specified multiple times in " + fileName + ", you probably didn't mean to do this, please delete one of them");
     keyValues[key] = value;
   }
   contents = contentStream.str();
