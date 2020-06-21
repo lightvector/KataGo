@@ -1,8 +1,10 @@
 # KataGo
 
-As of early/mid 2020, KataGo is one of the strongest open source Go bots available online, and on most common hardware should be moderately stronger than Leela Zero in most positions if tuned for performance. KataGo was trained using AlphaZero-like training with many modifications and enhancements that greatly improve the self-play learning, starting entirely from scratch with no outside data. Some of its enhancements take advantage of game-specific features and training targets, but also many of the techniques are general and could be applied in other games. Due to these enhancements, early training is immensely faster than in other zero-style bots - with only a few strong GPUs for a few days, even a single researcher/enthusiast should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board.
+As of early/mid 2020, KataGo is one of the strongest open source Go bots available online, and on most common hardware should be stronger than Leela Zero in most positions. KataGo was trained using AlphaZero-like training with many modifications and enhancements that greatly improve the self-play learning, starting entirely from scratch with no outside data. Some of its enhancements take advantage of game-specific features and training targets, but also many of the techniques are general and could be applied in other games. Due to these enhancements, early training is immensely faster than in other zero-style bots - with only a few strong GPUs for a few days, even a single researcher/enthusiast should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board.
 
-KataGo's latest run used about 29 GPUs, rather than thousands (like AlphaZero and ELF), first reached superhuman levels on that hardware in perhaps just three to six days, and reached strength similar to ELF in about 14 days. With minor adjustments and a few more GPUs, starting around 40 days it roughly began to match or surpass Leela Zero in some tests with different configurations, time controls, and hardware. And finally after about four months of training time, the current run may be wrapping up fairly soon, but we hope to be able to continue it or begin another run in the future.
+Experimentally, KataGo did also try some limited ways of using external data at the end of its June 2020 run. The results were mixed, and did not clearly appear to give any improvements in overall playing strength, which prior to that point had already surpassed that of other known open-source bots at the time.
+
+KataGo's latest run used about 28 GPUs, rather than thousands (like AlphaZero and ELF), first reached superhuman levels on that hardware in perhaps just three to six days, and reached strength similar to ELF in about 14 days. With minor adjustments and some more GPUs, starting around 40 days it roughly began to match surpass Leela Zero in some tests with different configurations, time controls, and hardware. The run continued for a total of about five months of training time, reaching several hundred Elo stronger than Leela Zero and likely other open-source bots. The run has ended for now, but we hope to be able to continue it or begin another run in the future!
 
 Paper about the major new ideas and techniques used in KataGo: [Accelerating Self-Play Learning in Go (arXiv)](https://arxiv.org/abs/1902.10565).
 A few further improvements have been found and incorporated into the latest run that are not described in this paper - some post about this might happen eventually.
@@ -21,20 +23,22 @@ KataGo's engine also aims to be a useful tool for Go players and developers, and
 
 ## Current Status and History
 
-KataGo is on its third major official run! As of May 2020 after about 4 months of actual training time, it appears to be overall moderately stronger than Leela Zero's final official 40-block nets at moderate numbers of playouts (thousands to low tens of thousands), including with only its 20-block net, except for one notable opening pattern that Leela Zero still handles much better. Earlier, it also surpassed the prior 19-day official run from June 2019 in only about 12-14 days, and at this point is more than 700 Elo stronger. This is due to various training improvements which were not present in prior runs. In addition to reaching stronger faster, this third run adds support for Japanese rules, stronger handicap play, and more accurate score estimation.
+KataGo has completed its third major official run! Running from December 2019 to June 2020 using about total 5 months of time (KataGo did not run entirely continuously during that time), it appears to be signficantly stronger than Leela Zero's final official 40-block nets at moderate numbers of playouts (thousands to low tens of thousands), including with only its 20-block net. Earlier, it also surpassed the prior 19-day official run from June 2019 in only about 12-14 days, and by the end reached more than 700 Elo stronger. This is due to various training improvements which were not present in prior runs. In addition to reaching stronger faster, this third run adds support for Japanese rules, stronger handicap play, and more accurate score estimation.
 
-Strong networks are available for download! See the [releases page](https://github.com/lightvector/KataGo/releases) for the latest release and these neural nets. A history of older and alternative neural nets can be found [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html), including a few *very* strong smaller nets. These include a fast 10-block network that nearly matches the strength of many earlier 15 block nets, including KataGo best 15-block net from last year and Leela Zero's LZ150. This new run also features a very strong 15-block network that should be approximately the strength of ELFv2, a 20-block network, at least at low thousands of playouts. Hopefully they are useful for users with weaker hardware.
+Strong networks are available for download! See the [releases page](https://github.com/lightvector/KataGo/releases) for the latest release and these neural nets. A history of older and alternative neural nets can be found [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html), including a few *very* strong smaller nets. These include a fast 10-block network that nearly matches the strength of many earlier 15 block nets, including KataGo best 15-block net from last year and Leela Zero's LZ150. This new run also features a very strong 15-block network that should be approximately the strength of ELFv2, a 20-block network, at least at low thousands of playouts. They may be useful for users with weaker hardware. However, KataGo's latest 20-block network is so vastly much stronger than the 15-block net (perhaps 500-800 Elo at equal playouts!) that even on fairly weak hardware it likely dominates the 15-block net even taking into account how much slower it runs. 
 
-Here is a graph of the improvement so far as of about 120 days:
+Here is a graph of the improvement so over the course of the 157 training days of the run:
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/readme/jan2020vsjune2019.png" height="350"/></td></tr>
-<tr><td><sub>X axis is days of training, log scale. (note: hardware is about the same but not entirely identical). Y axis is relative Elo rating based on some 1200-visit test matches. The abrupt jump at the end of the June 2019 run is due to a LR drop in that run that the current run applied in a more gradual way.</sub></tr></td>
+<tr><td><sub>X axis is days of training, log scale. (note: hardware is not entirely consistent during this time but most of the time was 44 V100 GPUs). Y axis is relative Elo rating based on some 1200-visit test matches. The abrupt jumps at the ends of each run are due to learning rate drops at the ends of those runs. The instability just before that in the June 2020 run is due to the last 40 days of that run being used to play with experimental changes, not all of which were improvements. 117 days is the last "clean" point prior to these changes.</sub></tr></td>
 </table>
 
-Currently the run is using about 47 GPUs (40 of which are for self-play data generation). Only 29 GPUs were used to surpass last year's run in the first 14 days. After 14 days this was increased to 37 GPUs, then after 24 more days increased again to the current 47 GPUs.
+The first 117 days of the run were clean and adhered to "semi-zero" standards. In particular, game-specific input features and auxiliary training targets were used, most of which are described in KataGo's [paper](https://arxiv.org/abs/1902.10565). However there was no use of outside data nor any special heuristics or expert logic encoded into the search for biasing or selecting moves, beyond some minor optimizations to end finished games a little faster. Only minimal adjustments were made to the ongoing training, via high-level hyperparameters (e.g. decaying the learning rate, the schedule for enlarging the neural net, etc). The last 40 days of the run then began to experiment with some limited ways of using external data to see the effects.
 
-Just for fun, here's a table of the Elo strength of selected versions, based on a few tens of thousands of games between these and other versions in a pool (1200 visits). These are based on fixed search tree size, NOT fixed computation time. Current run:
+The run used about 46 GPUs for most of its duration. Of these, 40 were for self-play data generation, and up to 4 for training the main neural nets for the run, and 2 for gating games. Only 28 GPUs were used to surpass last year's run in the first 14 days. For days 14 to 38 this was increased to 36 GPUs, then from day 38 onward increased again to the current 46 GPUs, which was the number used for the rest of the run. One extra 47th GPU was used sometimes during the experimental changes in the last 40 days. Additionally, at times up to 3 more GPUs were used for training some extra networks such as extended smaller networks for end-users with weaker hardware, but these played no role in the run proper.
+
+Just for fun, are tables of the Elo strength of selected versions, based on a few tens of thousands of games between these and other versions in a pool (1200 visits). These are based on fixed search tree size, NOT fixed computation time. For the first 117 days:
 
 | Neural Net | Note | Approx Days Selfplay | Elo |
 |-------------|-------|---------------|------|
@@ -65,8 +69,33 @@ Just for fun, here's a table of the Elo strength of selected versions, based on 
 | g170-b30c320x2-s3530176512-d968463914  | (30 block more channels)  | 117  | 1643 |
 | g170-b40c256x2-s3708042240-d967973220  | (40 block less channels)  | 117  | 1687 |
 
+Neural nets following some of the more experimental training changes in the last 40 days, where various changes to the training involving external data were tried, with mixed results:
 
-And for comparison to the old 2019 June official run (Elos computed within the same pool):
+| Neural Net | Note | Approx Days Selfplay | Elo |
+|-------------|-------|---------------|------|
+| g170-b30c320x2-s3910534144-d1045712926  | (30 block more channels)  | 129 |     1651 |
+| g170-b40c256x2-s4120339456-d1045882697  | (40 block less channels)  | 129 |   1698 |
+| g170e-b20c256x2-s4667204096-d1045479207 | (extended training 20 block) | 129 |     1561 |
+| g170-b30c320x2-s4141693952-d1091071549  | (30 block more channels)  | 136.5 |   1653 |
+| g170-b40c256x2-s4368856832-d1091190099  | (40 block less channels)  | 136.5 |   1680 |
+| g170e-b20c256x2-s4842585088-d1091433838 | (extended training 20 block) | 136.5 |     1547 |
+| g170-b30c320x2-s4432082944-d1149895217  | (30 block more channels)  | 145.5 |   1648 |
+| g170-b40c256x2-s4679779328-d1149909226  | (40 block less channels)  | 145.5  |  1690 |
+| g170e-b20c256x2-s5055114240-d1149032340 | (extended training 20 block) | 145.5 |     1539 |
+
+Neural nets resulting from final learning rate drops. Some of the experimental uses of external data were continued here, but the large gains are most definitely due to learning rate drops rather than those uses:
+
+| Neural Net | Note | Approx Days Selfplay | Elo |
+|-------------|-------|---------------|------|
+| g170-b30c320x2-s4574191104-d1178681586  | (learning rate drop by 3.5x)  | 150 |   1759   |
+| g170-b40c256x2-s4833666560-d1179059206  | (learning rate drop by 3.5x)  | 150 |   1788 |
+| g170e-b20c256x2-s5132547840-d1177695086 | (learning rate drop by 2x) | 150 |     1577 |
+| g170-b30c320x2-s4824661760-d122953669   | (learning rate drop by another 2x)  | 157 |   1908 |
+| g170-b40c256x2-s5095420928-d1229425124  | (learning rate drop by another 2x)  | 157 |   1919 |
+| g170e-b20c256x2-s5303129600-d1228401921 | (learning rate drop by another 2x) | 157 |    1645 |
+
+
+And for comparison to the old 2019 June official run: (these Elos are directly measured rather than inferred, as these older networks competed directly pool of test games):
 
 | Neural Net | Note | Approx Days Selfplay |  Elo |
 |-------------|-------|---------------|------|
@@ -75,11 +104,19 @@ And for comparison to the old 2019 June official run (Elos computed within the s
 | g104-b15c192-s297383936-d140330251  | (last selfplay 15 block)    |  7.5 |    327 |
 | g104-b20c256-s447913472-d241840887  | (last selfplay 20 block)   |  19 |    908 |
 
+### Comparisons to Other Bots
+
+For some tests versus Leela Zero and ELF, see https://github.com/lightvector/KataGo/issues/254, as well as #test-results in https://discord.gg/bqkZAz3 and various casual tests run by various users in https://lifein19x19.com/viewtopic.php?f=18&t=17195 and https://lifein19x19.com/viewtopic.php?f=18&t=17474 at various points in KataGo's progression. See also the [paper](https://arxiv.org/abs/1902.10565) for test results regarding KataGo's June 2019 run ("g104") against some opponents - but also note that KataGo's June 2019 run learned somewhere between 1.5x and 2x less efficiently than more recent and much better June 2020 run ("g170").
+
+Based on some of these tests, although most of these used all different parameters and match conditions and hardware, *if one were to try to put Leela Zero on the same Elo scale as in the above tables, one could maybe guess LZ272 to be very roughly somewhere between 1200 and 1400 Elo*. But note also that the above Elos, due to being computed primarly by match games with earlier networks in the same run (although selected with high variety to avoid "rock-paper-scissors" issues) are likely to *not* be fully linear/transitive to other bots. Or even to other KataGo networks, particularly for larger differences. For example, it would not be surprising if one were to take two networks that were a large 400 Elo apart, and discover that in a direct test that the stronger one did not win quite precisely win 10 games per 1 lost game as the Elo model would predict.
+
+On 9x9 (KataGo's same networks can handle all common board sizes), KataGo topped the CGOS ladder in May 2020 using one V100 GPU, [playing more than 100 games](http://www.yss-aya.com/cgos/9x9/cross/katab40s37-awsp3.html) against other top bots including many specially-trained 9x9 bots, as well as many games against moderately weaker 9x9 bots. Against the strongest several opponents, it won close to half of these games, while losing only a single time ever (the rest of the games were draws). An [alternate version](http://www.yss-aya.com/cgos/9x9/cross/katab40s37-pda1.html) configured to be more aggressive and/or even to deliberately overplay won more than half of its games against the strongest opponents, seemingly drawing less often at the cost of losing a few additional games.
+
 ### Older Runs
 
-The first serious run of KataGo ran for 7 days in February 2019 on up to 35xV100 GPUs. This is the run featured the [early versions](https://arxiv.org/abs/1902.10565v2) of KataGo's research paper. It achieved close to LZ130 strength before it was halted, or up to just barely superhuman.
+The first serious run of KataGo ran for 7 days in February 2019 on up to 35 V100 GPUs. This is the run featured the [early versions](https://arxiv.org/abs/1902.10565v2) of KataGo's research paper. It achieved close to LZ130 strength before it was halted, or up to just barely superhuman.
 
-Following some further improvements and much-improved hyperparameters, KataGo performed a second serious run in May-June a max of 28xV100 GPUs, surpassing the February run after just three and a half days. The run was halted after 19 days, with the final 20-block networks reaching a final strength slightly stronger than LZ-ELFv2! (This is Facebook's very strong 20-block ELF network, running on Leela Zero's search architecture). Comparing to the yet larger Leela Zero 40-block networks, KataGo's network falls somewhere around LZ200 at visit parity, despite only itself being 20 blocks. [Recent versions](https://arxiv.org/abs/1902.10565) of the paper have been updated to reflect this run. Here is a graph of Elo ratings of KataGo's June run compared to Leela Zero and ELF based on a set of test games, where the X axis is an approximate measure of self-play computation required (note: log scale).
+Following some further improvements and much-improved hyperparameters, KataGo performed a second serious run in May-June 2019 with a max of 28 V100 GPUs, surpassing the February run after just three and a half days. The run was halted after 19 days, with the final 20-block networks reaching a final strength slightly stronger than LZ-ELFv2! (This is Facebook's very strong 20-block ELF network, running on Leela Zero's search architecture). Comparing to the yet larger Leela Zero 40-block networks, KataGo's network falls somewhere around LZ200 at visit parity, despite only itself being 20 blocks. [Recent versions](https://arxiv.org/abs/1902.10565) of the paper have been updated to reflect this run. Here is a graph of Elo ratings of KataGo's June run compared to Leela Zero and ELF based on a set of test games, where the X axis is an approximate measure of self-play computation required (note: log scale).
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/readme/katajunevslz.png" height="350"/></td></tr>
@@ -102,7 +139,7 @@ You can download a few selected neural nets from the [releases page](https://git
 ## Setting Up and Running KataGo
 KataGo implements just a GTP engine - GTP is a simple text protocol that Go software uses to communicate with engines. It does NOT have a graphical interface on its own. So generally, you will want to use KataGo along with a GUI or analysis program, such as [Lizzie](https://github.com/featurecat/lizzie) or [Sabaki](https://sabaki.yichuanshen.de/). Both of these programs also support KataGo's score estimates and visualization as well.
 
-**Warning: the version of KataGo packaged directly with Lizzie is fairly OLD. The net is quite weak compared to the latest nets, and the executable may not support the latest models or features. Download a newer version of both the net and executable from the [releases page](https://github.com/lightvector/KataGo/releases).**
+**Warning: the version of KataGo packaged directly with Lizzie is not the newest. The net in the 0.7.3 release is good, but not the strongest, and as KataGo updates in the future, more features may be added that aren't supported by the Lizzie-packaged versoin. Download a newer version of both the net and executable from the [releases page](https://github.com/lightvector/KataGo/releases).**
 
 ### Windows and Linux
 
