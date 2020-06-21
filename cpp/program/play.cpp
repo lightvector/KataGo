@@ -425,6 +425,11 @@ bool GameInitializer::isAllowedBSize(int xSize, int ySize) {
   return true;
 }
 
+std::vector<int> GameInitializer::getAllowedBSizes() const {
+  return allowedBSizes;
+}
+
+
 Rules GameInitializer::createRules() {
   lock_guard<std::mutex> lock(createGameMutex);
   return createRulesUnsynchronized();
@@ -2160,6 +2165,10 @@ GameRunner::GameRunner(ConfigParser& cfg, const string& gameInitRandSeed, PlaySe
 
 GameRunner::~GameRunner() {
   delete gameInit;
+}
+
+const GameInitializer* GameRunner::getGameInitializer() const {
+  return gameInit;
 }
 
 FinishedGameData* GameRunner::runGame(
