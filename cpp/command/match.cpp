@@ -137,13 +137,33 @@ int MainCmds::match(int argc, const char* const* argv) {
     maxConcurrentEvals = maxConcurrentEvals * 2 + 16;
   }
 
+  //Initialize object for randomizing game settings and running games
+  PlaySettings playSettings = PlaySettings::loadForMatch(cfg);
+  GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
+  int maxBoardSizeUsed = 0;
+  {
+    vector<int> allowedBSizes = gameRunner->getGameInitializer()->getAllowedBSizes();
+    for(size_t i = 0; i<allowedBSizes.size(); i++) {
+      if(maxBoardSizeUsed < allowedBSizes[i])
+        maxBoardSizeUsed = allowedBSizes[i];
+    }
+    if(maxBoardSizeUsed <= 0)
+      maxBoardSizeUsed = NNPos::MAX_BOARD_LEN;
+    if(maxBoardSizeUsed > NNPos::MAX_BOARD_LEN)
+      throw StringError(
+        "Max board size used is greater than the largest size supported by the neural net: "
+        + Global::intToString(maxBoardSizeUsed) + " > " + Global::intToString(NNPos::MAX_BOARD_LEN)
+      );
+    logger.write("Initializing neural net buffer to be size " + Global::intToString(maxBoardSizeUsed) + " since that's the largest board size tested");
+  }
+
   //Initialize neural net inference engine globals, and load models
   Setup::initializeSession(cfg);
   const vector<string>& nnModelNames = nnModelFiles;
   int defaultMaxBatchSize = -1;
   vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
     nnModelNames,nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,
-    NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+    maxBoardSizeUsed,maxBoardSizeUsed,defaultMaxBatchSize,
     Setup::SETUP_FOR_MATCH
   );
   logger.write("Loaded neural net");
@@ -159,10 +179,6 @@ int MainCmds::match(int argc, const char* const* argv) {
   bool forSelfPlay = false;
   bool forGateKeeper = false;
   MatchPairer* matchPairer = new MatchPairer(cfg,numBots,botNames,nnEvalsByBot,paramss,forSelfPlay,forGateKeeper,excludeBot);
-
-  //Initialize object for randomizing game settings and running games
-  PlaySettings playSettings = PlaySettings::loadForMatch(cfg);
-  GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
