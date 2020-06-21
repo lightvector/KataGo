@@ -83,16 +83,16 @@ Neural nets following some of the more experimental training changes in the last
 | g170-b40c256x2-s4679779328-d1149909226  | (40 block less channels)  | 145.5  |  1690 |
 | g170e-b20c256x2-s5055114240-d1149032340 | (extended training 20 block) | 145.5 |     1539 |
 
-Neural nets resulting from final learning rate drops. Some of the experimental uses of external data were continued here, but the large gains are most definitely due to learning rate drops rather than those uses:
+Neural nets resulting from final learning rate drops. Some of the experimental uses of external data were continued here, but the large gains are most definitely due to learning rate drops rather than those uses. **The last three nets in this table are KataGo's final nets from this run!**
 
 | Neural Net | Note | Approx Days Selfplay | Elo |
 |-------------|-------|---------------|------|
 | g170-b30c320x2-s4574191104-d1178681586  | (learning rate drop by 3.5x)  | 150 |   1759   |
 | g170-b40c256x2-s4833666560-d1179059206  | (learning rate drop by 3.5x)  | 150 |   1788 |
 | g170e-b20c256x2-s5132547840-d1177695086 | (learning rate drop by 2x) | 150 |     1577 |
-| g170-b30c320x2-s4824661760-d122953669   | (learning rate drop by another 2x)  | 157 |   1908 |
-| g170-b40c256x2-s5095420928-d1229425124  | (learning rate drop by another 2x)  | 157 |   1919 |
-| g170e-b20c256x2-s5303129600-d1228401921 | (learning rate drop by another 2x) | 157 |    1645 |
+| **g170-b30c320x2-s4824661760-d122953669**   | **(learning rate drop by another 2x)**  | **157** |   **1908** |
+| **g170-b40c256x2-s5095420928-d1229425124**  | **(learning rate drop by another 2x)**  | **157** |   **1919** |
+| **g170e-b20c256x2-s5303129600-d1228401921** | **(learning rate drop by another 2x)** | **157** |    **1645** |
 
 
 And for comparison to the old 2019 June official run: (these Elos are directly measured rather than inferred, as these older networks competed directly pool of test games):
@@ -109,7 +109,7 @@ As of June 2020, KataGo appears to be significantly stronger than several other 
 
 For some tests versus Leela Zero and ELF, see https://github.com/lightvector/KataGo/issues/254, as well as #test-results in https://discord.gg/bqkZAz3 and various casual tests run by various users in https://lifein19x19.com/viewtopic.php?f=18&t=17195 and https://lifein19x19.com/viewtopic.php?f=18&t=17474 at various points in KataGo's progression. See also the [paper](https://arxiv.org/abs/1902.10565) for test results regarding KataGo's June 2019 run ("g104") against some opponents - but also note that KataGo's June 2019 run learned somewhere between 1.5x and 2x less efficiently than more recent and much better June 2020 run ("g170").
 
-Based on some of these tests, although most of these used all different parameters and match conditions and hardware, **if one were to try to put Leela Zero on the same Elo scale as in the above tables, one could maybe guess LZ272 to be very roughly somewhere between 1200 and 1400 Elo**. But note also that the above Elos, due to being computed primarly by match games with earlier networks in the same run (although selected with high variety to avoid "rock-paper-scissors" issues) are likely to *not* be fully linear/transitive to other bots. Or even to other KataGo networks, particularly for larger differences. For example, it would not be surprising if one were to take two networks that were a large 400 Elo apart, and discover that in a direct test that the stronger one did not win quite precisely win 10 games per 1 lost game as the Elo model would predict.
+Based on some of these tests, although most of these used all different parameters and match conditions and hardware, **if one were to try to put Leela Zero on the same Elo scale as in the above tables, one could maybe guess LZ272 to be very roughly somewhere between 1200 and 1400 Elo**. But note also that the above Elos, due to being computed primarly by match games with earlier networks in the same run (although selected with high variety to avoid "rock-paper-scissors" issues) are likely to *not* be fully linear/transitive to other bots. Or even to other KataGo networks, particularly for larger differences. For example, it would not be surprising if one were to take two networks that were a large 400 Elo apart, and discover that in a direct test that the stronger one did not win quite precisely win 10 games per 1 lost game as the Elo model would predict, although one might expect still something close.
 
 On 9x9 (KataGo's same networks can handle all common board sizes), KataGo topped the CGOS ladder in May 2020 using one V100 GPU, [playing more than 100 games](http://www.yss-aya.com/cgos/9x9/cross/katab40s37-awsp3.html) against other top bots including many specially-trained 9x9 bots, as well as many games against moderately weaker 9x9 bots. Against the strongest several opponents, it won close to half of these games, while losing only a single time ever (the rest of the games were draws). An [alternate version](http://www.yss-aya.com/cgos/9x9/cross/katab40s37-pda1.html) configured to be more aggressive and/or even to deliberately overplay won more than half of its games against the strongest opponents, seemingly drawing less often at the cost of losing a few additional games.
 
