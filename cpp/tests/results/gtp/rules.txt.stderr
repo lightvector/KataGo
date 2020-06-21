@@ -1,5 +1,10 @@
 KataGo v1.4.4
+Using TrompTaylor rules initially, unless GTP/GUI overrides this
 Loaded config configs/gtp_example.cfg and/or command-line and query overrides
 Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
 Model name: g170-b6c96-s175395328-d26788732
 GTP ready, beginning main protocol loop
+Changed rules to Japanese
+Changed rules to Chinese
+Changed rules to Chinese-OGS
+Changed rules to NewZealand
