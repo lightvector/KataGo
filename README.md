@@ -1,6 +1,36 @@
 # KataGo
 
-As of early/mid 2020, KataGo is one of the strongest open source Go bots available online, and on most common hardware should be stronger than Leela Zero in most positions. KataGo was trained using AlphaZero-like training with many modifications and enhancements that greatly improve the self-play learning, starting entirely from scratch with no outside data. Some of its enhancements take advantage of game-specific features and training targets, but also many of the techniques are general and could be applied in other games. Due to these enhancements, early training is immensely faster than in other zero-style bots - with only a few strong GPUs for a few days, even a single researcher/enthusiast should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board.
+* [Summary](#summary)
+* [Current Status and History](#current-status-and-history)
+  * [Comparisons to Other Bots](#comparisons-to-other-bots)
+  * [Older Runs](#older-runs)
+* [Where To Download Stuff](#where-to-download-stuff)
+* [Setting Up and Running KataGo](#setting-up-and-running-katago)
+  * [GUIs](#guis)
+  * [Windows and Linux](#windows-and-linux)
+  * [MacOS](#macos)
+  * [OpenCL vs CUDA](#opencl-vs-cuda)
+  * [How To Use](#how-to-use)
+  * [Tuning for Performance](#tuning-for-performance)
+  * [Common Questions and Issues](#common-questions-and-issues)
+    * [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers)
+    * [Common Problems](#common-problems)
+    * [Other Questions](#other-questions)
+* [Features for Developers](#features-for-developers)
+  * [GTP Extensions](#gtp-extensions)
+  * [Analysis Engine](#analysis-engine)
+* [Compiling KataGo](#compiling-katago)
+  * [Linux](#linux)
+  * [Windows](#windows)
+* [Selfplay Training](#selfplay-training)
+* [Contributors](#contributors)
+* [License](#license)
+
+## Summary
+
+As of early/mid 2020, KataGo is one of the strongest open source Go bots available online, and should be stronger than Leela Zero in most positions.
+
+KataGo was trained using an AlphaZero-like process with many enhancements and improvements, learning entirely from scratch with no outside data. Some of the improvements take advantage of game-specific features and training targets, but also many of the techniques are general and could be applied in other games. As a result, early training is immensely faster than in other zero-style bots - with only a few strong GPUs for a few days, any researcher/enthusiast should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board. If tuned well, a training run using only a *single* top-end consumer GPU could possibly train a bot from scratch to beyond human pro strength within a few months.
 
 Experimentally, KataGo did also try some limited ways of using external data at the end of its June 2020 run. The results were mixed, and did not clearly appear to give any improvements in overall playing strength, which prior to that point had already surpassed that of other known open-source bots at the time.
 
@@ -23,7 +53,7 @@ KataGo's engine also aims to be a useful tool for Go players and developers, and
 
 ## Current Status and History
 
-KataGo has completed its third major official run! Running from December 2019 to June 2020 using about total 5 months of time (KataGo did not run entirely continuously during that time), it appears to be signficantly stronger than Leela Zero's final official 40-block nets at moderate numbers of playouts (thousands to low tens of thousands), including with only its 20-block net. Earlier, it also surpassed the prior 19-day official run from June 2019 in only about 12-14 days, and by the end reached more than 700 Elo stronger. This is due to various training improvements which were not present in prior runs. In addition to reaching stronger faster, this third run adds support for Japanese rules, stronger handicap play, and more accurate score estimation.
+KataGo has completed its third major official run! It lasted from December 2019 to June 2020 using about 5 months of time (KataGo did not run entirely continuously during that time) and appears to have reached signficantly stronger than Leela Zero's final official 40-block nets at moderate numbers of playouts (thousands to low tens of thousands), including with only its 20-block net. Earlier, it also surpassed the prior 19-day official run from June 2019 in only about 12-14 days, and by the end reached more than 700 Elo stronger. This is due to various training improvements which were not present in prior runs. In addition to reaching stronger faster, this third run adds support for Japanese rules, stronger handicap play, and more accurate score estimation.
 
 Strong networks are available for download! See the [releases page](https://github.com/lightvector/KataGo/releases) for the latest release and these neural nets. A history of older and alternative neural nets can be found [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html), including a few *very* strong smaller nets. These include a fast 10-block network that nearly matches the strength of many earlier 15 block nets, including KataGo best 15-block net from last year and Leela Zero's LZ150. This new run also features a very strong 15-block network that should be approximately the strength of ELFv2, a 20-block network, at least at low thousands of playouts. They may be useful for users with weaker hardware. However, KataGo's latest 20-block network is so vastly much stronger than the 15-block net (perhaps 500-800 Elo at equal playouts!) that even on fairly weak hardware it likely dominates the 15-block net even taking into account how much slower it runs. 
 
@@ -95,7 +125,7 @@ Neural nets resulting from final learning rate drops. Some of the experimental u
 | **g170e-b20c256x2-s5303129600-d1228401921** | **(learning rate drop by another 2x)** | **157** |    **1645** |
 
 
-And for comparison to the old 2019 June official run: (these Elos are directly measured rather than inferred, as these older networks competed directly pool of test games):
+And for comparison to the old 2019 June official run: (these Elos are directly measured rather than inferred, as these older networks competed directly in the same pool of test games):
 
 | Neural Net | Note | Approx Days Selfplay |  Elo |
 |-------------|-------|---------------|------|
@@ -109,9 +139,9 @@ As of June 2020, KataGo appears to be significantly stronger than several other 
 
 For some tests versus Leela Zero and ELF, see https://github.com/lightvector/KataGo/issues/254, as well as #test-results in https://discord.gg/bqkZAz3 and various casual tests run by various users in https://lifein19x19.com/viewtopic.php?f=18&t=17195 and https://lifein19x19.com/viewtopic.php?f=18&t=17474 at various points in KataGo's progression. See also the [paper](https://arxiv.org/abs/1902.10565) for test results regarding KataGo's June 2019 run ("g104") against some opponents - but also note that KataGo's June 2019 run learned somewhere between 1.5x and 2x less efficiently than more recent and much better June 2020 run ("g170").
 
-Based on some of these tests, although most of these used all different parameters and match conditions and hardware, **if one were to try to put Leela Zero on the same Elo scale as in the above tables, one could maybe guess LZ272 to be very roughly somewhere between 1200 and 1400 Elo**. But note also that the above Elos, due to being computed primarly by match games with earlier networks in the same run (although selected with high variety to avoid "rock-paper-scissors" issues) are likely to *not* be fully linear/transitive to other bots. Or even to other KataGo networks, particularly for larger differences. For example, it would not be surprising if one were to take two networks that were a large 400 Elo apart, and discover that in a direct test that the stronger one did not win quite precisely win 10 games per 1 lost game as the Elo model would predict, although one might expect still something close.
+Based on some of these tests, although most of these used all different parameters and match conditions and hardware, **if one were to try to put Leela Zero on the same Elo scale as in the above tables, one could maybe guess LZ272 to be very roughly somewhere between 1250 and 1450 Elo**. But note also that the above Elos, due to being computed primarly by match games with earlier networks in the same run (although selected with high variety to avoid "rock-paper-scissors" issues) are likely to *not* be fully linear/transitive to other bots. Or even to other KataGo networks, particularly for larger differences. For example, it would not be surprising if one were to take two networks that were a large 400 Elo apart, and discover that in a direct test that the stronger one did not win quite precisely win 10 games per 1 lost game as the Elo model would predict, although one might expect still something close.
 
-On 9x9 (KataGo's same networks can handle all common board sizes), KataGo topped the CGOS ladder in May 2020 using one V100 GPU, [playing more than 100 games](http://www.yss-aya.com/cgos/9x9/cross/katab40s37-awsp3.html) against other top bots including many specially-trained 9x9 bots, as well as many games against moderately weaker 9x9 bots. Against the strongest several opponents, it won close to half of these games, while losing only a single time ever (the rest of the games were draws). An [alternate version](http://www.yss-aya.com/cgos/9x9/cross/katab40s37-pda1.html) configured to be more aggressive and/or even to deliberately overplay won more than half of its games against the strongest opponents, seemingly drawing less often at the cost of losing a few additional games.
+On 9x9 (KataGo's same networks can handle all common board sizes), KataGo topped the CGOS ladder in May 2020 using one V100 GPU, [playing more than 100 games](http://www.yss-aya.com/cgos/9x9/cross/katab40s37-awsp3.html) against other top bots including many specially-trained 9x9 bots, as well as many games against moderately weaker 9x9 bots. Against the strongest several opponents, it won close to half of these games, while losing only one game ever (the rest of the games were draws). An [alternate version](http://www.yss-aya.com/cgos/9x9/cross/katab40s37-pda1.html) configured to be more aggressive and/or even to deliberately overplay won more than half of its games against the strongest opponents, seemingly drawing less often at the cost of losing a few additional games.
 
 ### Older Runs
 
@@ -131,22 +161,25 @@ See also https://github.com/lightvector/GoNN for some earlier research. KataGo i
 ## Where To Download Stuff
 You can download precompiled executables for KataGo on the [releases page](https://github.com/lightvector/KataGo/releases) for Windows and Linux.
 
-You can download a few selected neural nets from the [releases page](https://github.com/lightvector/KataGo/releases) or download additional other neural nets from [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html)). There are two different model formats, indicated by ".txt.gz" versus ".bin.gz". Starting with v1.3.3, KataGo is moving to ".bin.gz" which is a binary format that is a little smaller on disk and faster to load. ".bin.gz" files will only work with v1.3.3 and later, but v1.3.3 and later can still load all earlier formats.
-
-**See sections below, particularly "How To Use" and "Tuning for Performance" sections below for how to use KataGo and things you may want to do before actually using KataGo.**
-
-**If using the OpenCL version, KataGo will need to tune itself the first time it starts - try running the `benchmark` command described below.**
+You can download a few selected neural nets from the [releases page](https://github.com/lightvector/KataGo/releases) or download additional other neural nets from [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html)). There are two different model formats, indicated by ".txt.gz" versus ".bin.gz". This was due to a model format change starting with v1.3.3 - recent versions of KataGo support both but the latter will be both smaller on disk and faster to load.
 
 ## Setting Up and Running KataGo
-KataGo implements just a GTP engine - GTP is a simple text protocol that Go software uses to communicate with engines. It does NOT have a graphical interface on its own. So generally, you will want to use KataGo along with a GUI or analysis program, such as [Lizzie](https://github.com/featurecat/lizzie) or [Sabaki](https://sabaki.yichuanshen.de/). Both of these programs also support KataGo's score estimates and visualization as well.
+KataGo implements just a GTP engine, which is a simple text protocol that Go software uses. It does NOT have a graphical interface on its own. So generally, you will want to use KataGo along with a GUI or analysis program. A few of them bundle KataGo in their download so that you can get everything from one place rather than downloading separately and managing the file paths and commands.
 
-**Warning: the version of KataGo packaged directly with Lizzie is not the newest. The net in the 0.7.3 release is good, but not the strongest, and as KataGo updates in the future, more features may be added that aren't supported by the Lizzie-packaged versoin. Download a newer version of both the net and executable from the [releases page](https://github.com/lightvector/KataGo/releases).**
+### GUIs
+This is by no means a complete list - there are lots of things out there. But, writing as of 2020, a few of the easier and/or popular ones might be:
+
+* [KaTrain](https://github.com/sanderland/katrain) - KaTrain might be the easiest to set up for non-technical users, offering an all-in-one package (no need to download KataGo separately!), modified-strength bots for weaker players, and good analysis features.
+* [Lizzie](https://github.com/featurecat/lizzie) - Lizzie is very popular for running long interactive analyses and visualizing them as they happen. Lizzie also offers an all-in-one package. However keep mind that KataGo's OpenCL version may take quite a while to tune and load on the very first startup as described [here](#opencl-vs-cuda), and Lizzie does a poor job of displaying this progress as it happens. And in case of an actual error or failure, Lizzie's interface is not the best at explaining these errors and will appear to hang forever. The version of KataGo packaged with Lizzie is quite strong but might not always be the newest or strongest, so once you have it working, you may want to download KataGo and a newer network from [releases page](https://github.com/lightvector/KataGo/releases) and replace Lizzie's versions with them.
+* [q5Go](https://github.com/bernds/q5Go) and [Sabaki](https://sabaki.yichuanshen.de/) are general SGF editors and GUIs that support KataGo, including KataGo's score estimation, and many high-quality features.
+
+Generally, for GUIs that don't offer an all-in-one package, you will need to download KataGo (or any other Go engine of your choice!) and tell the GUI the proper command line to run to invoke your engine, with the proper file paths involved. See [How To Use](#how-to-use) below for details on KataGo's command line interface.
 
 ### Windows and Linux
 
 KataGo currently officially supports both Windows and Linux, with [precompiled executables provided each release](https://github.com/lightvector/KataGo/releases). Not all different OS versions and compilers have been tested, so if you encounter problems, feel free to open an issue. KataGo can also of course be compiled from source on Windows via MSVC on Windows or on Linux via usual compilers like g++, documented further down.
 
-### Installing via HomeBrew (MacOS)
+### MacOS 
 The community also provides KataGo packages for [Homebrew](https://brew.sh) on MacOS - releases there may lag behind official releases slightly.
 
 Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep gtp) -model $(brew list --verbose katago | grep .gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
@@ -155,70 +188,62 @@ Use `brew install katago`. The latest config files and networks are installed in
 KataGo has both an OpenCL version and a CUDA version.
 
   * The CUDA version requires installing [CUDA](https://developer.nvidia.com/cuda-zone) and [CUDNN](https://developer.nvidia.com/cudnn) and a modern NVIDIA GPU.
-  * The OpenCL version should be able to run with many other GPUs or accelerators that support [OpenCL](https://en.wikipedia.org/wiki/OpenCL), such AMD GPUs, as well CPU-based OpenCL implementations or things like Intel Integrated Graphics. (Note: Intel integrated graphics though is a toss-up - many versions of Intel's OpenCL seem to be buggy). It also doesn't require the hassle of CUDA and CUDNN and is more likely to work out of the box so long as you do have a decently modern GPU.
+  * The OpenCL version should be able to run with many other GPUs or accelerators that support [OpenCL](https://en.wikipedia.org/wiki/OpenCL), such AMD GPUs, as well CPU-based OpenCL implementations or things like Intel Integrated Graphics. (Note: Intel integrated graphics though is a toss-up - many versions of Intel's OpenCL seem to be buggy). It also doesn't require the hassle of CUDA and CUDNN and is more likely to work out of the box so long as you do have a decently modern GPU. **However, it also need to take some time when run for the very first time to tune itself.** For many systems, this will take 5-30 seconds, but on a few older/slower systems, may take many minutes or longer.
 
-Depending on hardware and settings, in practice the OpenCL version seems to range from anywhere to several times slower to moderately faster than the CUDA version. More optimization work may happen in the future though - the OpenCL version has definitely not reached the limit of how well it can be optimized. It also has not been tested for self-play training with extremely large batch sizes to run hundreds of games in parallel, all of KataGo's main training runs so far have been performed with the CUDA implementation.
+Most users have reported that the OpenCL version is faster than the CUDA versionm EXCEPT if your GPU is a top-end NVIDIA GPU that supports FP16 and tensor cores. Then the CUDA version is likely to be by far the fastest and strongest, since currently only it supports tensor core operations.
 
-If your GPU is a top-end NVIDIA GPU and supports FP16 and tensor cores, then the CUDA version is likely to be by far the fastest and strongest, so long you specifically set KataGo to use FP16, and you increase and tune threads and batch size appropriately. See "Tuning for Performance" below.
+For **either** implementation, it's recommended that you also tune the number of threads used if you care about optimal performance, as it can make a factor of 2-3 difference in the speed. See "Tuning for Performance" below. However, if you mostly just want to get it working, then the default untuned settings should also be still reasonable.
 
 ### How To Use
-KataGo supports a few commands. All of these commands require a "model" file that contains the neural net. Most also require a "config" file that specifies parameters for how KataGo behaves. KataGo's precompiled releases should come packaged with example configs (`gtp_example.cfg`). If you care about performance, you will likely want to edit this config for yourself - extensive comments and notes are provided in the config.
+Again, KataGo is just an engine and does not have its own graphical interface. So generally you will want to use KataGo along with a [GUI or analysis program](#guis).
+If you encounter any problems while setting this up, check out [Common Questions and Issues](#common-questions-and-issues).
 
-**If you are running KataGo for the first time, you probably want to run the benchmark OR the genconfig options before anything else, to test if KataGo works and pick a number of threads. And on the OpenCL version, to give KataGo a chance to autotune itself, which could take a while.**
+KataGo supports several commands.
 
-**For all of the below commands, you can omit the `-model` argument if you've put the model file into the same directory as the katago executable as `default_model.bin.gz` or `default_model.txt.gz`.**
+All of these commands require a "model" file that contains the neural net, which ends in a `.bin.gz` or a `.txt.gz` or occasionally just a `.gz` extension. **However, you can omit specifying the model if it is named `default_model.bin.gz` or `default_model.txt.gz` and located in the same directory as the katago executable.**
 
-**For all of the commands that require a GTP config, you can omit the `-config` argument if you've put the GTP config file into the same directory as the katago executable as `default_gtp.cfg`.**
+Most of these commands also require a GTP "config" file that ends in `.cfg` that that specifies parameters for how KataGo behaves. **However, you can omit specifying the GTP config if it is named `default_gtp.cfg` and located in the same directory as the katago executable.**
 
-To run a benchmark to test performance and help you choose how many threads to use for best performance. You can then manually edit your GTP config to use this many threads:
-
-   * `./katago benchmark -tune -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg`
-
-Or for example as noted above in bold, if you have a default config and model in the right place:
-
-  * `./katago benchmark -tune`
-
-To automatically tune threads and other settings for you based on asking simple questions, and generate a GTP config for you:
-
-   * `./katago genconfig -model <NEURALNET>.gz -output <PATH_TO_SAVE_GTP_CONFIG>.cfg`
+If you are running KataGo for the first time, you may want to run the benchmark OR the genconfig commands on the command line before anything else, to test if KataGo works and pick a number of threads. And on the OpenCL version, to give KataGo a chance to autotune OpenCL, which could take a while.
 
 To run a GTP engine using a downloaded KataGo neural net and GTP config:
 
    * `./katago gtp -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg`
    * Or from a different path: `whatever/path/to/katago gtp -model whatever/path/to/<NEURALNET>.gz -config /whatever/path/to/<GTP_CONFIG>.cfg`
-   * **This is the command to tell your GUI (Lizzie, Sabaki, GoGui, etc) to use to run KataGo** (with the actual paths to everything substituted currectly, of course).
+   * **This is the command to tell your GUI (Lizzie, q5Go, Sabaki, GoGui, etc) to use to run KataGo** (with the actual paths to everything substituted currectly, of course).
 
-Or for example as noted earlier above in bold, if you have a default config and model in the right place:
+Or as noted earlier, if you have a default config and model named correctly in the same directory as KataGo:
 
-  * `./katago gtp`
-  * Or from a different path: `whatever/path/to/katago gtp`
-  * **Alternatively, this is the command you want to tell your GUI (Lizzie, Sabaki, GoGui, etc) to use to run KataGo** (if you have a default config and model file).
+   * `./katago gtp`
+   * Or from a different path: `whatever/path/to/katago gtp`
+   * **Alternatively, this is the command you want to tell your GUI (Lizzie, q5Go, Sabaki, GoGui, etc) to use to run KataGo** (if you have a default config and model).
+
+To run a benchmark to test performance and help you choose how many threads to use for best performance. You can then manually edit your GTP config to use this many threads:
+
+   * `./katago benchmark -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg`
+
+Or as noted earlier, if you have a default config and model named correctly in the same directory as KataGo:
+
+   * `./katago benchmark`
+
+To automatically tune threads and other settings for you based on asking simple questions, and generate a GTP config for you:
+
+   * `./katago genconfig -model <NEURALNET>.gz -output <PATH_TO_SAVE_GTP_CONFIG>.cfg`
 
 Run a JSON-based [analysis engine](docs/Analysis_Engine.md) that can do efficient batched evaluations for a backend Go service:
 
    * `./katago analysis -model <NEURALNET>.gz -config <ANALYSIS_CONFIG>.cfg -analysis-threads N`
-
-For OpenCL only: run or re-run the tuner to optimize for your particular GPU.
-
-   * `./katago tuner -config <GTP_CONFIG>.cfg -model <NEURALNET>.gz`
-
+   
 
 ### Tuning for Performance
-You will very likely want to tune some of the parameters in `gtp_example.cfg` or `configs/gtp_example.cfg` for your system for good performance, including the number of threads, fp16 usage (CUDA only), NN cache size, pondering settings, and so on. You can also adjust things like KataGo's resign threshold or utility function. All of this should be documented already directly in that [example config file](cpp/configs/gtp_example.cfg).
 
-The OpenCL version will also automatically run a tuner on the first startup to optimize the neural net for your particular device or GPU. This might take a little time, but is completely normal and expected.
+The most important parameter to optimize for KataGo's performance is the number of threads to use - this can easily make a factor of 2 or 3 difference.
 
-To test KataGo's performance with different settings you're trying and also to help choose a number of threads:
-
-`./katago benchmark -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg`
-
-Or to do so automatically and generate a config appropriately:
-
-`./katago genconfig -model <NEURALNET>.gz -output <PATH_TO_SAVE_GTP_CONFIG>.cfg`
+Secondarily, you can also read over the parameters in your GTP config (`default_gtp.cfg` or `gtp_example.cfg` or `configs/gtp_example.cfg`, etc). A lot of other settings are described in there that you can set to adjust KataGo's resource usage, or choose which GPUs to use. You can also adjust things like KataGo's resign threshold, pondering behavior or utility function. Most parameters are documented directly inline in the [example config file](cpp/configs/gtp_example.cfg). Many can also be interactively set when generating a config via the `genconfig` command described above.
 
 
-### Common Causes of Errors
-This section summarizes a number of common issues that some users have encountered that caused KataGo to not be able to run.
+### Common Questions and Issues
+This section summarizes a number of common questions and issues when running KataGo.
 
 #### Issues with specific GPUs or GPU drivers
 If you are observing any crashes in KataGo while attempting to run the benchmark or the program itself, and you have one of the below GPUs, then this is likely the reason.
@@ -229,23 +254,35 @@ If you are observing any crashes in KataGo while attempting to run the benchmark
 then you are using the Mesa drivers. You will need to change your drivers, see for example this [KataGo issue](https://github.com/lightvector/KataGo/issues/182#issuecomment-607943405) which links to [this thread](https://bbs.archlinux.org/viewtopic.php?pid=1895516#p1895516).
 * **Intel Integrated Graphics** - For weaker/older machines or laptops or devices that don't have a dedicated GPU, KataGo might end up using the weak "Intel Integrated Graphics" that is built in with the CPU. Often this will work fine (although KataGo will be slow and only get a tiny number of playouts compared to using a real GPU), but various versions of Intel Integrated Graphics can also be buggy and not work at all. If a driver update doesn't work for you, then the only solution is to upgrade to a better GPU. See for example this [issue](https://github.com/lightvector/KataGo/issues/54) or this [issue](https://github.com/lightvector/KataGo/issues/78), or this [other Github's issue](https://github.com/CNugteren/CLBlast/issues/280).
 
-#### Common Issues / Questions
+#### Common Problems
 * **KataGo seems to hang or is "loading" forever on startup in Lizzie/Sabaki/q5go/GoReviewPartner/etc.**
-   * Likely either you have some misconfiguration, have specified file paths incorrectly, a bad GPU, etc. Almost all of these GUIs do a poor job of reporting errors and may completely swallow the error message from KataGo that would have told you what was wrong. Try running KataGo's `benchmark` or `gtp` directly on the command line, as described [above](https://github.com/lightvector/KataGo#how-to-use).
+   * Likely either you have some misconfiguration, have specified file paths incorrectly, a bad GPU, etc. Many of these GUIs do a poor job of reporting errors and may completely swallow the error message from KataGo that would have told you what was wrong. Try running KataGo's `benchmark` or `gtp` directly on the command line, as described [above](#how-to-use).
    * Sometimes there is no error at all, it is merely that the *first* time KataGo runs on a given network size, it needs to do some expensive tuning, which may take a few minutes. Again this is clearer if you run the `benchmark` command directly in the command line. After tuning, then subsequent runs will be faster.
 
-* **KataGo works on the command line but having trouble specfying the right file paths for Lizzie/Sabaki/ZBaduk/etc.**
-   * As described [above](https://github.com/lightvector/KataGo#how-to-use), you can name your config `default_gtp.cfg` and name whichever network file you've downloaded to `default_model.bin.gz` (for newer `.bin.gz` models) or `default_model.txt.gz` (for older `.txt.gz` models). Stick those into the same directory as KataGo's executable, and then you don't need to specify `-config` or `-model` paths at all.
+* **KataGo works on the command line but having trouble specfying the right file paths for the GUI.**
+   * As described [above](#how-to-use), you can name your config `default_gtp.cfg` and name whichever network file you've downloaded to `default_model.bin.gz` (for newer `.bin.gz` models) or `default_model.txt.gz` (for older `.txt.gz` models). Stick those into the same directory as KataGo's executable, and then you don't need to specify `-config` or `-model` paths at all.
 
 * **KataGo gives an error like `Could not create file` when trying to run the initial tuning.**
    * KataGo probably does not have access permissions to write files in the directory where you placed it.
    * On Windows for example, the `Program Files` directory and its subdirectories are often restricted to only allow writes with admin-level permissions. Try placing KataGo somewhere else.
 
+* **I'm getting a different error or still want further help.**
+   * Check out [the discord chat where Leela Zero, KataGo, and other bots hang out](https://discord.gg/bqkZAz3) and ask in the "#help" channel.
+   * If you think you've found a bug in KataGo itself, feel free also to [open an issue](https://github.com/lightvector/KataGo/issues).
+
+#### Other Questions
 * **How do I make KataGo use Japanese rules or other rules?**
    * KataGo supports some [GTP extensions](docs/GTP_Extensions.md) for developers of GUIs to set the rules, but unfortunately as of June 2020, only a few of them make use of this. So as a workaround, there are a few ways:
      * Edit KataGo's config (`default_gtp.cfg` or `gtp_example.cfg` or `gtp.cfg`, or whatever you've named it) to use `rules=japanese` or `rules=chinese` or whatever you need, or set the individual rules `koRule`,`scoringRule`,`taxRule`, etc. to what they should be. See [here](https://github.com/lightvector/KataGo/blob/master/cpp/configs/gtp_example.cfg#L91) for where this is in the config, or and see [this webpage](https://lightvector.github.io/KataGo/rules.html) for the full description of KataGo's ruleset.
      * Use the `genconfig` command (`./katago genconfig -model <NEURALNET>.gz -output <PATH_TO_SAVE_GTP_CONFIG>.cfg`) to generate a config, and it will interactively help you, including asking you for what default rules you want.
      * If your GUI allows access directly to the GTP console (for example, press `E` in Lizzie), then you can run `kata-set-rules japanese` or similar for other rules directly in the GTP console, to change the rules dynamically in the middle of a game or an analysis session.
+
+* **Which model/network should I use?**
+   * For weaker or mid-range GPUs, try the final 20-block network from [here](https://github.com/lightvector/KataGo/releases/tag/v1.4.5), which is the best of its size.
+   * For top-tier GPUs and/or for the highest-quality analysis if you're going to use many thousands and thousands of playouts and long thinking times, try the final 40-block network from [here](https://github.com/lightvector/KataGo/releases/tag/v1.4.5), which is more costly to run but should be the strongest and best overall.
+   * If you care a lot about theoretical purity - no outside data, bot learns strictly on its own - use the 20 or 40 block nets from [this release](https://github.com/lightvector/KataGo/releases/tag/v1.4.0), which are pure in this way and still much stronger than Leela Zero, but also not quite as strong as the final nets.
+   * If you want some nets that are much faster to run, and each with their own interesting style of play due to their unique stages of learning, try any of the "b10c128" or "b15c192" Extended Training Nets [here](https://d3dndmfyhecmj0.cloudfront.net/g170/neuralnets/index.html) which are 10 block and 15 block networks from earlier in the run that are much weaker but still pro-level-and-beyond.
+
 
 ## Features for Developers
 

@@ -1587,10 +1587,12 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
   if(logger != NULL) {
     logger->write("No existing tuning parameters found or parseable or valid at: " + openCLTunerFile);
     logger->write("Performing autotuning");
+    logger->write("*** On some systems, this may take several minutes, please be patient ***");
   }
   if(logger == NULL || (!logger->isLoggingToStdout() && !logger->isLoggingToStderr())) {
     cerr << "No existing tuning parameters found or parseable or valid at: " << openCLTunerFile << endl;
     cerr << "Performing autotuning" << endl;
+    cerr << "*** On some systems, this may take several minutes, please be patient ***" << endl;
   }
 
   OpenCLTuneParams results;
