@@ -147,6 +147,10 @@ struct Search {
 
   bool alwaysIncludeOwnerMap;
 
+  bool isProblemAnalyze;
+  Loc problemAnalyzeTopLeftCorner;
+  Loc problemAnalyzeBottomRightCorner;
+
   SearchParams searchParams;
   int64_t numSearchesBegun;
   uint32_t searchNodeAge;
@@ -201,6 +205,9 @@ struct Search {
   void setKomiIfNew(float newKomi); //Does not clear history, does clear search unless komi is equal.
   void setRootPassLegal(bool b);
   void setRootHintLoc(Loc hintLoc);
+  void setProblemAnalyze(bool b);
+  void setProblemAnalyzeTopLeftCorner(Loc b);
+  void setProblemAnalyzeBottomRightCorner(Loc b);
   void setAlwaysIncludeOwnerMap(bool b);
   void setParams(SearchParams params);
   void setParamsNoClearing(SearchParams params); //Does not clear search

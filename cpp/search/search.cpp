@@ -144,6 +144,9 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    rootSafeArea(NULL),
    recentScoreCenter(0.0),
    alwaysIncludeOwnerMap(false),
+   isProblemAnalyze(false),
+   problemAnalyzeTopLeftCorner(Board::NULL_LOC),
+   problemAnalyzeBottomRightCorner(Board::NULL_LOC),
    searchParams(params),numSearchesBegun(0),searchNodeAge(0),
    plaThatSearchIsFor(C_EMPTY),plaThatSearchIsForLastSearch(C_EMPTY),
    lastSearchNumPlayouts(0),
@@ -243,6 +246,24 @@ void Search::setAlwaysIncludeOwnerMap(bool b) {
     clearSearch();
   alwaysIncludeOwnerMap = b;
 }
+void Search::setProblemAnalyze(bool b) {
+  if(!isProblemAnalyze && b)
+    clearSearch();
+  isProblemAnalyze = b;
+}
+
+void Search::setProblemAnalyzeTopLeftCorner(Loc b) {
+  if (problemAnalyzeTopLeftCorner != b)
+    clearSearch();
+  problemAnalyzeTopLeftCorner = b;
+}
+
+void Search::setProblemAnalyzeBottomRightCorner(Loc b) {
+  if (problemAnalyzeBottomRightCorner != b)
+    clearSearch();
+  problemAnalyzeBottomRightCorner = b;
+}
+
 
 void Search::setParams(SearchParams params) {
   clearSearch();
@@ -957,6 +978,33 @@ void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, Searc
   }
 }
 
+bool search::isInProblemArea(Loc moveLoc) const {
+  assert(moveLoc == Board::PASS_LOC || rootBoard.isOnBoard(moveLoc));
+  if (problemAnalyzeTopLeftCorner == Board::NULL_LOC || problemAnalyzeBottomRightCorner == Board::NULL_LOC) {
+    // not limit
+    return true;
+  }
+  int x = Location::getX(moveLoc);
+  int y = Location::getY(moveLoc);
+  int x1 = Location::getX(problemAnalyzeTopLeftCorner);
+  int x2 = Location::getX(problemAnalyzeBottomRightCorner);
+  int y1 = Location::getY(problemAnalyzeTopLeftCorner);
+  int y2 = Location::getY(problemAnalyzeBottomRightCorner);
+  if (x1 > x2) {
+    // swap
+    int tmp = x1;
+    x1 = x2;
+    x2 = tmp;
+  }
+  if (y1 > y2) {
+    // swap
+    int tmp = y1;
+    y1 = y2;
+    y2 = tmp;
+  }
+  return x >= x1 && x <= x2 && y >= y1 && y <= y2;
+}
+
 bool Search::isAllowedRootMove(Loc moveLoc) const {
   assert(moveLoc == Board::PASS_LOC || rootBoard.isOnBoard(moveLoc));
 
@@ -1426,6 +1474,9 @@ void Search::selectBestChildToDescend(
 
     Loc moveLoc = NNPos::posToLoc(movePos,thread.board.x_size,thread.board.y_size,nnXLen,nnYLen);
     if(moveLoc == Board::NULL_LOC)
+      continue;
+
+    if(isProblemAnalyze && !isInProblemArea(moveLoc))
       continue;
 
     //Special logic for the root

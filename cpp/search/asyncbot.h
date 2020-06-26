@@ -33,6 +33,9 @@ class AsyncBot {
   void setRootPassLegal(bool b);
   void setRootHintLoc(Loc loc);
   void setAlwaysIncludeOwnerMap(bool b);
+  void setProblemAnalyze(bool b);
+  void setProblemAnalyzeTopLeftCorner(Loc b);
+  void setProblemAnalyzeBottomRightCorner(Loc b);
   void setParams(SearchParams params);
   void setPlayerIfNew(Player movePla);
   void clearSearch();
