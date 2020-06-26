@@ -327,7 +327,8 @@ private:
   int getPos(Loc moveLoc) const;
 
   bool isAllowedRootMove(Loc moveLoc) const;
-
+  bool isInProblemArea(Loc moveLoc) const;
+  
   void computeRootValues();
 
   double getScoreUtility(double scoreMeanSum, double scoreMeanSqSum, double weightSum) const;

@@ -978,18 +978,18 @@ void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, Searc
   }
 }
 
-bool search::isInProblemArea(Loc moveLoc) const {
+bool Search::isInProblemArea(Loc moveLoc) const {
   assert(moveLoc == Board::PASS_LOC || rootBoard.isOnBoard(moveLoc));
   if (problemAnalyzeTopLeftCorner == Board::NULL_LOC || problemAnalyzeBottomRightCorner == Board::NULL_LOC) {
     // not limit
     return true;
   }
-  int x = Location::getX(moveLoc);
-  int y = Location::getY(moveLoc);
-  int x1 = Location::getX(problemAnalyzeTopLeftCorner);
-  int x2 = Location::getX(problemAnalyzeBottomRightCorner);
-  int y1 = Location::getY(problemAnalyzeTopLeftCorner);
-  int y2 = Location::getY(problemAnalyzeBottomRightCorner);
+  int x = Location::getX(moveLoc, rootBoard.x_size);
+  int y = Location::getY(moveLoc, rootBoard.x_size);
+  int x1 = Location::getX(problemAnalyzeTopLeftCorner, rootBoard.x_size);
+  int x2 = Location::getX(problemAnalyzeBottomRightCorner, rootBoard.x_size);
+  int y1 = Location::getY(problemAnalyzeTopLeftCorner, rootBoard.x_size);
+  int y2 = Location::getY(problemAnalyzeBottomRightCorner, rootBoard.x_size);
   if (x1 > x2) {
     // swap
     int tmp = x1;

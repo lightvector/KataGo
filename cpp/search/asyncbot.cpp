@@ -93,9 +93,9 @@ void AsyncBot::setProblemAnalyze(bool b) {
   search->setProblemAnalyze(b);
 }
 
-void AsyncBot::setProblemAnalyzeTopLeft(Loc b) {
+void AsyncBot::setProblemAnalyzeTopLeftCorner(Loc b) {
   stopAndWait();
-  search->setProblemAnalyzeTopLeft(b);
+  search->setProblemAnalyzeTopLeftCorner(b);
 }
 
 void AsyncBot::setProblemAnalyzeBottomRightCorner(Loc b) {
