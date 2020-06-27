@@ -1849,7 +1849,7 @@ void Search::playoutDescend(
   //The absurdly rare case that the move chosen is not legal
   //(this should only happen either on a bug or where the nnHash doesn't have full legality information or when there's an actual hash collision).
   //Regenerate the neural net call and continue
-  if(!thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla)) {
+  if(!thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla) && !isProblemAnalyze) {
     bool isReInit = true;
     initNodeNNOutput(thread,node,isRoot,true,0,isReInit);
 
