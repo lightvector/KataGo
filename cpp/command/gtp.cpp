@@ -69,7 +69,7 @@ static const vector<string> knownCommands = {
   // "analyze",
   "lz-analyze",
   "kata-analyze",
-
+  "kata-problem_analyze",
   //Display raw neural net evaluations
   "kata-raw-nn",
 
