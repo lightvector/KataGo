@@ -1860,8 +1860,8 @@ void Search::playoutDescend(
 
       //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
       selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
-      //We should absolutely be legal this time
-      assert(thread.history.isLegalAllowSuperKo(thread.board,bestChildMoveLoc,thread.pla));
+      // We should absolutely be legal this time
+      // assert(thread.history.isLegalAllowSuperKo(thread.board,bestChildMoveLoc,thread.pla));
     }
   } else {
     if(!thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla)) {
