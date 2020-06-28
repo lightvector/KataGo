@@ -1675,7 +1675,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
 
 void Search::runSinglePlayout(SearchThread& thread) {
   bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE];
-  playoutDescend(thread,*rootNode,posesWithChildBuf,true,0);
+  playoutDescend(thread,*rootNode,posesWithChildBuf,true,0, 0);
 
   //Restore thread state back to the root state
   thread.pla = rootPla;
@@ -1794,7 +1794,8 @@ void Search::initNodeNNOutput(
 void Search::playoutDescend(
   SearchThread& thread, SearchNode& node,
   bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
-  bool isRoot, int32_t virtualLossesToSubtract
+  bool isRoot, int32_t virtualLossesToSubtract,
+  int32_t depth
 ) {
   //Hit terminal node, finish
   //In the case where we're forcing the search to make another move at the root, don't terminate, actually run search for a move more.
@@ -1849,18 +1850,34 @@ void Search::playoutDescend(
   //The absurdly rare case that the move chosen is not legal
   //(this should only happen either on a bug or where the nnHash doesn't have full legality information or when there's an actual hash collision).
   //Regenerate the neural net call and continue
-  if(!thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla) && !isProblemAnalyze) {
-    bool isReInit = true;
-    initNodeNNOutput(thread,node,isRoot,true,0,isReInit);
+  if (isProblemAnalyze) {
+    if(!thread.history.isLegalAllowSuperKo(thread.board,bestChildMoveLoc,thread.pla)) {
+      bool isReInit = true;
+      initNodeNNOutput(thread,node,isRoot,true,0,isReInit);
 
-    if(thread.logStream != NULL)
-      (*thread.logStream) << "WARNING: Chosen move not legal so regenerated nn output, nnhash=" << node.nnOutput->nnHash << endl;
+      if(thread.logStream != NULL)
+        (*thread.logStream) << "WARNING: Chosen move not legal so regenerated nn output, nnhash=" << node.nnOutput->nnHash << endl;
 
-    //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
-    selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
-    //We should absolutely be legal this time
-    assert(thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla));
+      //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
+      selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
+      //We should absolutely be legal this time
+      assert(thread.history.isLegalAllowSuperKo(thread.board,bestChildMoveLoc,thread.pla));
+    }
+  } else {
+    if(!thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla)) {
+      bool isReInit = true;
+      initNodeNNOutput(thread,node,isRoot,true,0,isReInit);
+
+      if(thread.logStream != NULL)
+        (*thread.logStream) << "WARNING: Chosen move not legal so regenerated nn output, nnhash=" << node.nnOutput->nnHash << endl;
+
+      //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
+      selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
+      //We should absolutely be legal this time
+      assert(thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla));
+    }
   }
+
 
   if(bestChildIdx < -1) {
     lock.unlock();
@@ -1906,8 +1923,10 @@ void Search::playoutDescend(
   thread.pla = getOpp(thread.pla);
 
   //Recurse!
-  playoutDescend(thread,*child,posesWithChildBuf,false,searchParams.numVirtualLossesPerThread);
-
+  if (!isProblemAnalyze || depth < 50) {
+    playoutDescend(thread,*child,posesWithChildBuf,false,searchParams.numVirtualLossesPerThread, depth + 1);
+  }
+  
   //Update this node stats
   updateStatsAfterPlayout(node,thread,virtualLossesToSubtract,isRoot);
 }

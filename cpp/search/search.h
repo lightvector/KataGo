@@ -407,7 +407,8 @@ private:
   void playoutDescend(
     SearchThread& thread, SearchNode& node,
     bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
-    bool isRoot, int32_t virtualLossesToSubtract
+    bool isRoot, int32_t virtualLossesToSubtract,
+    int32_t depth
   );
 
   bool shouldSuppressPassAlreadyLocked(const SearchNode* n) const;
