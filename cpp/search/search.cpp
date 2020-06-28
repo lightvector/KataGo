@@ -1881,6 +1881,7 @@ void Search::playoutDescend(
 
   if(bestChildIdx < -1) {
     lock.unlock();
+    assert(false);
     throw StringError("Search error: No move with sane selection value - can't even pass?");
   }
 
