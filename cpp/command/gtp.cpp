@@ -1378,6 +1378,16 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize);
 
+  //If nobody specified any time limit in any way, then assume a relatively fast time control
+  if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime")) {
+    double mainTime = 1.0;
+    double byoYomiTime = 5.0;
+    int byoYomiPeriods = 5;
+    TimeControls tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,byoYomiPeriods,1);
+    engine->bTimeControls = tc;
+    engine->wTimeControls = tc;
+  }
+
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
