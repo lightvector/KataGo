@@ -425,14 +425,6 @@ void NNEvaluator::serve(
       continue;
     }
 
-    int symmetry = defaultSymmetry;
-    if(doRandomize)
-      symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
-    bool* symmetriesBuffer = NeuralNet::getSymmetriesInplace(buf.inputBuffers);
-    symmetriesBuffer[0] = (symmetry & 0x1) != 0;
-    symmetriesBuffer[1] = (symmetry & 0x2) != 0;
-    symmetriesBuffer[2] = (symmetry & 0x4) != 0;
-
     outputBuf.clear();
     for(int row = 0; row<numRows; row++) {
       NNOutput* emptyOutput = new NNOutput();
@@ -446,24 +438,11 @@ void NNEvaluator::serve(
       outputBuf.push_back(emptyOutput);
     }
 
-    int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
-    int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
-    int rowSpatialLen = numSpatialFeatures * nnXLen * nnYLen;
-    int rowGlobalLen = numGlobalFeatures;
-    assert(rowSpatialLen == NeuralNet::getBatchEltSpatialLen(buf.inputBuffers));
-    assert(rowGlobalLen == NeuralNet::getBatchEltGlobalLen(buf.inputBuffers));
+    int symmetry = defaultSymmetry;
+    if(doRandomize)
+      symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
 
-    for(int row = 0; row<numRows; row++) {
-      float* rowSpatialInput = NeuralNet::getBatchEltSpatialInplace(buf.inputBuffers,row);
-      float* rowGlobalInput = NeuralNet::getBatchEltGlobalInplace(buf.inputBuffers,row);
-
-      const float* rowSpatial = buf.resultBufs[row]->rowSpatial;
-      const float* rowGlobal = buf.resultBufs[row]->rowGlobal;
-      std::copy(rowSpatial,rowSpatial+rowSpatialLen,rowSpatialInput);
-      std::copy(rowGlobal,rowGlobal+rowGlobalLen,rowGlobalInput);
-    }
-
-    NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, outputBuf);
+    NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, buf.resultBufs, symmetry, outputBuf);
     assert(outputBuf.size() == numRows);
 
     m_numRowsProcessed.fetch_add(numRows, std::memory_order_relaxed);

@@ -137,6 +137,11 @@ struct NNOutput {
   void debugPrint(std::ostream& out, const Board& board);
 };
 
+namespace SymmetryHelpers {
+  void copyInputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry);
+  void copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry);
+}
+
 //Utility functions for computing the "scoreValue", the unscaled utility of various numbers of points, prior to multiplication by
 //staticScoreUtilityFactor or dynamicScoreUtilityFactor (see searchparams.h)
 namespace ScoreValue {

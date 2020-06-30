@@ -19,8 +19,6 @@ namespace OpenCLKernels {
   extern std::string addChannelBiasesNCHW;
   extern std::string addCBiasesNC;
   extern std::string addCBiasesNCRelu;
-  extern std::string transposeNCHW;
-  extern std::string mirror;
   extern std::string extractChannel0NCHW;
 
   extern std::string xgemmDirect;

@@ -110,19 +110,6 @@ struct OpenCLTuneParams {
   };
   GPoolParams gPool = GPoolParams();
 
-  struct TransposeParams {
-    int TILEDIM = 1;
-    int TILESTRIDE = 1;
-    int NCSTRIDE = 1;
-
-    std::string desc() const;
-    std::string compileOptions() const;
-    void fillFromDesc(const std::string& fileName, const std::string& desc);
-    bool isValid() const;
-  };
-  TransposeParams transpose = TransposeParams();
-
-
   bool operator==(const OpenCLTuneParams& other) const;
   bool isValid() const;
 

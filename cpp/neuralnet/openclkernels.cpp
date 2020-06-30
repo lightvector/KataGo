@@ -962,69 +962,6 @@ __kernel void addCBiasesNCRelu(
 )%%";
 
 
-string OpenCLKernels::transposeNCHW = R"%%(
-//Defines
-//TILEDIM - width and height of tile to use for transposing
-//TILESTRIDE - y step size across tile
-//LOCALSIZE - TILEDIM * (TILEDIM+1)
-//+1 avoids bank conflicts
-//get_local_size(2) is assumed to be 1
-
-__kernel void transposeNCHW(
-  __global float* in,
-  __global float* out,
-  int xSize,
-  int ySize,
-  int ncSize
-) {
-  const int tileDimP1 = TILEDIM+1;
-  const int xLocal = get_local_id(0);
-  const int yLocal = get_local_id(1);
-  const int xIdx = get_global_id(0);
-  const int yBase = get_group_id(1) * TILEDIM;
-  const int nc = get_global_id(2);
-  const int xySize = xSize * ySize;
-
-  __local float tileNCHW[LOCALSIZE];
-
-  if(xIdx < xSize && nc < ncSize) {
-    for(int j = yLocal; j < TILEDIM && yBase+j < ySize; j += TILESTRIDE) {
-      int inIdx = xIdx + xSize * (yBase+j) + xySize * nc;
-      tileNCHW[j*tileDimP1 + xLocal] = in[inIdx];
-    }
-  }
-
-  barrier(CLK_LOCAL_MEM_FENCE);
-
-  //Transpose idx
-  int outXIdx = get_group_id(1) * TILEDIM + xLocal;
-  int outYBase = get_group_id(0) * TILEDIM;
-
-  if(outXIdx < ySize && nc < ncSize) {
-    for(int j = yLocal; j < TILEDIM && outYBase+j < xSize; j += TILESTRIDE) {
-      int outIdx = outXIdx + ySize * (outYBase+j) + xySize * nc;
-      out[outIdx] = tileNCHW[xLocal*tileDimP1 + j];
-    }
-  }
-}
-)%%";
-
-
-string OpenCLKernels::mirror = R"%%(
-__kernel void mirror(__global float* in, __global float* out, int batchSize, int mSize, int subSize)
-{
-  const int subIdx = get_global_id(0);
-  const int mIdx = get_global_id(1);
-  const int batchIdx = get_global_id(2);
-  if(subIdx < subSize && mIdx < mSize && batchIdx < batchSize) {
-    int inIdx = subIdx + subSize * (mIdx + mSize * batchIdx);
-    int outIdx = subIdx + subSize * ((mSize-mIdx-1) + mSize * batchIdx);
-    out[outIdx] = in[inIdx];
-  }
-}
-)%%";
-
-
 string OpenCLKernels::extractChannel0NCHW = R"%%(
 __kernel void extractChannel0NCHW(__global float* in, __global float* out, int nSize, int cSize, int xySize)
 {

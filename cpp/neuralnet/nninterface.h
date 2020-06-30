@@ -8,6 +8,9 @@
 #include "../neuralnet/desc.h"
 #include "../neuralnet/nninputs.h"
 
+//Defined in nneval.h
+struct NNResultBuf;
+
 // A handle to cross-thread cross-gpu initialization state.
 // Create one of these per process, although creating more is fine.
 struct ComputeContext;
@@ -94,36 +97,26 @@ namespace NeuralNet {
   //One of them ("spatial") is 3-dimensional per-batch-element (4-dimensional including the batch dimension N),
   //containing floats for the the values of different features (C) across the space of the board (H,W),
   //such as placement of stones and prior move locations.
-
   //The other ("global") is 1-dimensional per-batch-element containing floats for features that are
   //global to the board state, such as game rules and komi.
-
-  // Returns a pointer to a float array of size getBatchEltSpatialLen() = H * W * C in
-  // NHWC or NCHW format that can be filled with the spatial input features.
-  float* getBatchEltSpatialInplace(InputBuffers* buffers, int nIdx);
-  // Returns a pointer to a float array of size getBatchEltGlobalLen() that can be
-  // filled with the global input features.
-  float* getBatchEltGlobalInplace(InputBuffers* buffers, int nIdx);
-
-  // Returns a pointer to bool array of length 3 to input the board symmetries that should
-  // be used to rotate/reflect the board for the neural net.
-  bool* getSymmetriesInplace(InputBuffers* buffers);
-
-  // The total number of spatial features ("C"), times nnYLen ("H"), times nnXLen ("W")
-  int getBatchEltSpatialLen(const InputBuffers* buffers);
-  // The total number of global features
-  int getBatchEltGlobalLen(const InputBuffers* buffers);
 
   //Perform Neural Net Evals ---------------------------------------------------------
 
   // Preconditions:
-  // buffers has been filled with input data for all values of nIdx in [0,numBatchEltsFilled-1]
+  // buffers inputBufs[nIdx]->{rowSpatial,rowGlobal} have been filled with input data for all values of nIdx in [0,numBatchEltsFilled-1]
   // outputs has length numBatchEltsFilled containing allocated but possibly-uninitialized NNOutput structs.
 
   // Result: mutably writes the results of the numBatchEltsFilled many parallel neural net evaluations
   // into the NNOutput structs.
   // All outputs are in logits - all final activation functions softmax, tanh, etc. are NOT applied.
-  void getOutput(ComputeHandle* computeHandle, InputBuffers* buffers, int numBatchEltsFilled, std::vector<NNOutput*>& outputs);
+  void getOutput(
+    ComputeHandle* computeHandle,
+    InputBuffers* buffers,
+    int numBatchEltsFilled,
+    NNResultBuf** inputBufs,
+    int symmetry,
+    std::vector<NNOutput*>& outputs
+  );
 
 
   //FOR TESTING -----------------------------------------------------------------------
@@ -179,18 +172,6 @@ namespace NeuralNet {
     bool useNHWC,
     const std::vector<float>& inputBuffer,
     const std::vector<float>& maskBuffer,
-    std::vector<float>& outputBuffer
-  );
-
-  bool testEvaluateSymmetry(
-    int batchSize,
-    int numChannels,
-    int nnXLen,
-    int nnYLen,
-    bool useFP16,
-    bool useNHWC,
-    const bool* symmetries,
-    const std::vector<float>& inputBuffer,
     std::vector<float>& outputBuffer
   );
 

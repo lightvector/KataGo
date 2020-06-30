@@ -3,6 +3,7 @@
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/openclincludes.h"
 #include "../neuralnet/nninputs.h"
+#include "../neuralnet/nneval.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/openclkernels.h"
 #include "../neuralnet/opencltuner.h"
@@ -125,8 +126,6 @@ struct CompiledPrograms {
   cl_program addChannelBiasesNCHWProgram;
   cl_program addCBiasesNCProgram;
   cl_program addCBiasesNCReluProgram;
-  cl_program transposeNCHWProgram;
-  cl_program mirrorProgram;
   cl_program extractChannel0NCHWProgram;
   cl_program xgemmDirectProgram;
   cl_program xgemmProgram;
@@ -178,11 +177,6 @@ struct CompiledPrograms {
     addChannelBiasesNCHWProgram = compileProgram("addChannelBiasesNCHWProgram", context, deviceIdsToUse, OpenCLKernels::addChannelBiasesNCHW, "");
     addCBiasesNCProgram = compileProgram("addCBiasesNCProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNC, "");
     addCBiasesNCReluProgram = compileProgram("addCBiasesNCReluProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCRelu, "");
-    transposeNCHWProgram = compileProgram(
-      "transposeNCHWProgram", context, deviceIdsToUse, OpenCLKernels::transposeNCHW,
-      tuneParams.transpose.compileOptions()
-    );
-    mirrorProgram = compileProgram("mirrorProgram", context, deviceIdsToUse, OpenCLKernels::mirror, "");
     extractChannel0NCHWProgram = compileProgram("extractChannel0NCHWProgram", context, deviceIdsToUse, OpenCLKernels::extractChannel0NCHW, "");
     xgemmDirectProgram = compileProgram("xgemmDirectProgram", context, deviceIdsToUse, OpenCLKernels::xgemmDirect, tuneParams.xGemmDirect.compileOptions());
     xgemmProgram = compileProgram("xgemmProgram", context, deviceIdsToUse, OpenCLKernels::xgemm, tuneParams.xGemm.compileOptions());
@@ -205,8 +199,6 @@ struct CompiledPrograms {
     clReleaseProgram(addChannelBiasesNCHWProgram);
     clReleaseProgram(addCBiasesNCProgram);
     clReleaseProgram(addCBiasesNCReluProgram);
-    clReleaseProgram(transposeNCHWProgram);
-    clReleaseProgram(mirrorProgram);
     clReleaseProgram(extractChannel0NCHWProgram);
     clReleaseProgram(xgemmDirectProgram);
     clReleaseProgram(xgemmProgram);
@@ -359,8 +351,6 @@ struct ComputeHandleInternal {
   cl_kernel addChannelBiasesNCHWKernel;
   cl_kernel addCBiasesNCKernel;
   cl_kernel addCBiasesNCReluKernel;
-  cl_kernel transposeNCHWKernel;
-  cl_kernel mirrorKernel;
   cl_kernel extractChannel0NCHWKernel;
   cl_kernel xgemmDirectBatchedTTKernel;
   cl_kernel xgemmDirectStridedBatchedNNKernel;
@@ -426,10 +416,6 @@ struct ComputeHandleInternal {
     CHECK_ERR(err);
     addCBiasesNCReluKernel = clCreateKernel(progs->addCBiasesNCReluProgram, "addCBiasesNCRelu", &err);
     CHECK_ERR(err);
-    transposeNCHWKernel = clCreateKernel(progs->transposeNCHWProgram, "transposeNCHW", &err);
-    CHECK_ERR(err);
-    mirrorKernel = clCreateKernel(progs->mirrorProgram, "mirror", &err);
-    CHECK_ERR(err);
     extractChannel0NCHWKernel = clCreateKernel(progs->extractChannel0NCHWProgram, "extractChannel0NCHW", &err);
     CHECK_ERR(err);
     xgemmDirectBatchedTTKernel = clCreateKernel(progs->xgemmDirectProgram, "XgemmDirectBatchedTT", &err);
@@ -462,8 +448,6 @@ struct ComputeHandleInternal {
     clReleaseKernel(addChannelBiasesNCHWKernel);
     clReleaseKernel(addCBiasesNCKernel);
     clReleaseKernel(addCBiasesNCReluKernel);
-    clReleaseKernel(transposeNCHWKernel);
-    clReleaseKernel(mirrorKernel);
     clReleaseKernel(extractChannel0NCHWKernel);
     clReleaseKernel(xgemmDirectBatchedTTKernel);
     clReleaseKernel(xgemmDirectStridedBatchedNNKernel);
@@ -555,89 +539,6 @@ static void performValueHeadPool(ComputeHandleInternal* handle, int batchSize, i
   CHECK_ERR(err);
   MAYBE_PROFILE("PerformVHPool");
   MAYBE_FREE_EVENT;
-}
-
-static void transposeNCHW(ComputeHandleInternal* handle, int batchSize, int cSize, int nnXLen, int nnYLen, cl_mem input, cl_mem output) {
-  cl_int err;
-  MAYBE_EVENT;
-
-  err = OpenCLHelpers::transposeNCHW(
-    handle->transposeNCHWKernel,
-    handle->commandQueue,
-    handle->tuneParams,
-    batchSize, cSize, nnXLen, nnYLen,
-    input, output,
-    MAYBE_EVENTREF
-  );
-  CHECK_ERR(err);
-  MAYBE_PROFILE("TransposeNCHW");
-  MAYBE_FREE_EVENT;
-}
-
-static void doMirror(ComputeHandleInternal* handle, int batchSize, int mSize, int subSize, cl_mem input, cl_mem output) {
-  cl_int err;
-  static constexpr int nKernelDims = 3;
-  size_t globalSizes[nKernelDims] = {powerOf2ify(subSize),powerOf2ify(mSize),powerOf2ify(batchSize)};
-  size_t* localSizes = NULL;
-
-  cl_kernel kernel = handle->mirrorKernel;
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&output);
-  clSetKernelArg(kernel, 2, sizeof(int), (void *)&batchSize);
-  clSetKernelArg(kernel, 3, sizeof(int), (void *)&mSize);
-  clSetKernelArg(kernel, 4, sizeof(int), (void *)&subSize);
-
-  MAYBE_EVENT;
-  err = clEnqueueNDRangeKernel(
-    handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
-  );
-  CHECK_ERR(err);
-  MAYBE_PROFILE("DoMirror");
-  MAYBE_FREE_EVENT;
-}
-
-static void doMirrorNCHW(ComputeHandleInternal* handle, int batchSize, int cSize, int nnXLen, int nnYLen, bool mirrorY, bool mirrorX, cl_mem input, cl_mem output) {
-  if(mirrorY && mirrorX)
-    doMirror(handle,batchSize*cSize,nnYLen*nnXLen,1,input,output);
-  else if(mirrorY)
-    doMirror(handle,batchSize*cSize,nnYLen,nnXLen,input,output);
-  else if(mirrorX)
-    doMirror(handle,batchSize*cSize*nnYLen,nnXLen,1,input,output);
-  else {
-    cl_int err;
-    err = clEnqueueCopyBuffer(handle->commandQueue, input, output, 0, 0, sizeof(float)*batchSize*cSize*nnYLen*nnXLen, 0, NULL, NULL);
-    CHECK_ERR(err);
-  }
-}
-
-static void applySymmetriesNCHW(
-  ComputeHandleInternal* handle,
-  const bool* symmetriesBuffer, bool inverse, int batchSize, int cSize, int nnXLen, int nnYLen,
-  cl_mem input, cl_mem inputScratch
-) {
-  if(!symmetriesBuffer[0] && !symmetriesBuffer[1] && !symmetriesBuffer[2])
-    return;
-
-  cl_int err;
-  if(inverse) {
-    if(symmetriesBuffer[2] && nnXLen == nnYLen)
-      transposeNCHW(handle, batchSize, cSize, nnXLen, nnYLen, input, inputScratch);
-    else {
-      err = clEnqueueCopyBuffer(handle->commandQueue, input, inputScratch, 0, 0, sizeof(float)*batchSize*cSize*nnYLen*nnXLen, 0, NULL, NULL);
-      CHECK_ERR(err);
-    }
-    doMirrorNCHW(handle, batchSize, cSize, nnYLen, nnXLen, symmetriesBuffer[0], symmetriesBuffer[1], inputScratch, input);
-  }
-  else {
-    doMirrorNCHW(handle, batchSize, cSize, nnYLen, nnXLen, symmetriesBuffer[0], symmetriesBuffer[1], input, inputScratch);
-
-    if(symmetriesBuffer[2] && nnXLen == nnYLen)
-      transposeNCHW(handle, batchSize, cSize, nnXLen, nnYLen, inputScratch, input);
-    else {
-      err = clEnqueueCopyBuffer(handle->commandQueue, inputScratch, input, 0, 0, sizeof(float)*batchSize*cSize*nnYLen*nnXLen, 0, NULL, NULL);
-      CHECK_ERR(err);
-    }
-  }
 }
 
 
@@ -1738,7 +1639,6 @@ struct PolicyHead {
 
   void apply(
     ComputeHandleInternal* handle,
-    const bool* symmetriesBuffer,
     int batchSize,
     cl_mem mask,
     cl_mem maskSum,
@@ -1749,7 +1649,6 @@ struct PolicyHead {
     cl_mem gpoolOut2,
     cl_mem gpoolConcat,
     cl_mem gpoolBias,
-    cl_mem p2Out,
     cl_mem policyPass,
     cl_mem policy,
     cl_mem convWorkspace,
@@ -1782,10 +1681,6 @@ struct PolicyHead {
 
     p1BN->apply(handle,batchSize,true,p1OutA,p1OutB,mask);
     p2Conv->apply(handle,batchSize,p1OutB,policy,convWorkspace,convWorkspace2);
-
-    bool inverse = true;
-    applySymmetriesNCHW(handle, symmetriesBuffer, inverse, batchSize, p2Channels, nnXLen, nnYLen, policy, p2Out);
-
     gpoolToPassMul->apply(handle,batchSize,gpoolConcat,policyPass);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
@@ -1873,7 +1768,6 @@ struct ValueHead {
 
   void apply(
     ComputeHandleInternal* handle,
-    const bool* symmetriesBuffer,
     int batchSize,
     cl_mem mask,
     cl_mem maskSum,
@@ -1885,7 +1779,6 @@ struct ValueHead {
     cl_mem value,
     cl_mem scoreValue,
     cl_mem ownership,
-    cl_mem ownershipScratch,
     cl_mem convWorkspace,
     cl_mem convWorkspace2
   ) const {
@@ -1912,9 +1805,6 @@ struct ValueHead {
     #endif
 
     vOwnershipConv->apply(handle,batchSize,v1Out2,ownership,convWorkspace,convWorkspace2);
-
-    bool inverse = true;
-    applySymmetriesNCHW(handle, symmetriesBuffer, inverse, batchSize, ownershipChannels, nnXLen, nnYLen, ownership, ownershipScratch);
   }
 
 };
@@ -2040,10 +1930,8 @@ struct Model {
   void apply(
     ComputeHandleInternal* handle,
     int batchSize,
-    bool* symmetriesBuffer,
 
     cl_mem input,
-    cl_mem inputScratch,
     cl_mem inputGlobal,
     cl_mem mask,
     cl_mem maskSum,
@@ -2058,7 +1946,6 @@ struct Model {
 
     cl_mem p1Out,
     cl_mem p1Out2,
-    cl_mem p2Out,
     cl_mem policyPass,
     cl_mem policy,
 
@@ -2069,14 +1956,10 @@ struct Model {
     cl_mem value,
     cl_mem scoreValue,
     cl_mem ownership,
-    cl_mem ownershipScratch,
 
     cl_mem convWorkspace,
     cl_mem convWorkspace2
   ) {
-
-    bool inverse = false;
-    applySymmetriesNCHW(handle, symmetriesBuffer, inverse, batchSize, numInputChannels, nnXLen, nnYLen, input, inputScratch);
 
     {
       cl_kernel kernel = handle->extractChannel0NCHWKernel;
@@ -2122,7 +2005,6 @@ struct Model {
     );
     policyHead->apply(
       handle,
-      symmetriesBuffer,
       batchSize,
       mask,
       maskSum,
@@ -2133,7 +2015,6 @@ struct Model {
       gpoolOut2,
       gpoolConcat,
       gpoolBias,
-      p2Out,
       policyPass,
       policy,
       convWorkspace,
@@ -2141,7 +2022,6 @@ struct Model {
     );
     valueHead->apply(
       handle,
-      symmetriesBuffer,
       batchSize,
       mask,
       maskSum,
@@ -2153,7 +2033,6 @@ struct Model {
       value,
       scoreValue,
       ownership,
-      ownershipScratch,
       convWorkspace,
       convWorkspace2
     );
@@ -2165,7 +2044,6 @@ struct Model {
 
 struct Buffers {
   cl_mem input;
-  cl_mem inputScratch;
   cl_mem inputGlobal;
   size_t inputElts;
   size_t inputGlobalElts;
@@ -2184,7 +2062,6 @@ struct Buffers {
 
   cl_mem p1Out;
   cl_mem p1Out2;
-  cl_mem p2Out;
   cl_mem policyPass;
   cl_mem policy;
   size_t policyPassElts;
@@ -2199,7 +2076,6 @@ struct Buffers {
   cl_mem scoreValue;
   size_t scoreValueElts;
   cl_mem ownership;
-  cl_mem ownershipScratch;
   size_t ownershipElts;
 
   cl_mem convWorkspace;
@@ -2217,7 +2093,6 @@ struct Buffers {
     inputGlobalElts = m.numInputGlobalChannels * batchElts;
 
     input = createReadWriteBuffer(handle, inputElts);
-    inputScratch = createReadWriteBuffer(handle, inputElts);
     inputGlobal = createReadWriteBuffer(handle, inputGlobalElts);
 
     mask = createReadWriteBuffer(handle, batchXYElts);
@@ -2236,7 +2111,6 @@ struct Buffers {
 
     p1Out = createReadWriteBuffer(handle, m.policyHead->p1Channels * batchXYElts);
     p1Out2 = createReadWriteBuffer(handle, m.policyHead->p1Channels * batchXYElts);
-    p2Out = createReadWriteBuffer(handle, m.policyHead->p2Channels * batchXYElts);
     policyPassElts = m.policyHead->p2Channels * batchElts;
     policyPass = createReadWriteBuffer(handle, policyPassElts);
     policyElts = m.policyHead->p2Channels * batchXYElts;
@@ -2256,7 +2130,6 @@ struct Buffers {
 
     ownershipElts = m.valueHead->ownershipChannels * batchXYElts;
     ownership = createReadWriteBuffer(handle, ownershipElts);
-    ownershipScratch = createReadWriteBuffer(handle, ownershipElts);
 
     size_t convWorkspaceElts = m.requiredConvWorkspaceElts(handle);
     convWorkspace = createReadWriteBuffer(handle, convWorkspaceElts);
@@ -2265,7 +2138,6 @@ struct Buffers {
 
   ~Buffers() {
     clReleaseMemObject(input);
-    clReleaseMemObject(inputScratch);
     clReleaseMemObject(inputGlobal);
 
     clReleaseMemObject(mask);
@@ -2282,7 +2154,6 @@ struct Buffers {
 
     clReleaseMemObject(p1Out);
     clReleaseMemObject(p1Out2);
-    clReleaseMemObject(p2Out);
     clReleaseMemObject(policyPass);
     clReleaseMemObject(policy);
 
@@ -2293,7 +2164,6 @@ struct Buffers {
     clReleaseMemObject(value);
     clReleaseMemObject(scoreValue);
     clReleaseMemObject(ownership);
-    clReleaseMemObject(ownershipScratch);
 
     clReleaseMemObject(convWorkspace);
     clReleaseMemObject(convWorkspace2);
@@ -2313,17 +2183,19 @@ struct ComputeHandle {
   int nnXLen;
   int nnYLen;
   int policySize;
+  bool inputsUseNHWC;
 
   ComputeHandle(
-    ComputeContext* context, const LoadedModel* loadedModel, int maxBatchSize, int gpuIdx, bool inputsUseNHWC
+    ComputeContext* context, const LoadedModel* loadedModel, int maxBatchSize, int gpuIdx, bool inputsNHWC
   ) {
     nnXLen = context->nnXLen;
     nnYLen = context->nnYLen;
 
-    handle = new ComputeHandleInternal(context, gpuIdx, inputsUseNHWC);
+    handle = new ComputeHandleInternal(context, gpuIdx, inputsNHWC);
     model = new Model(handle, &(loadedModel->modelDesc), maxBatchSize, nnXLen, nnYLen);
     buffers = new Buffers(handle, *model);
     policySize = NNPos::getPolicySize(nnXLen, nnYLen);
+    inputsUseNHWC = inputsNHWC;
   }
 
   ~ComputeHandle() {
@@ -2406,7 +2278,6 @@ struct InputBuffers {
 
   float* userInputBuffer; //Host pointer
   float* userInputGlobalBuffer; //Host pointer
-  bool* symmetriesBuffer; //Host pointer
 
   float* policyPassResults; //Host pointer
   float* policyResults; //Host pointer
@@ -2449,7 +2320,6 @@ struct InputBuffers {
 
     userInputBuffer = new float[(size_t)m.numInputChannels * maxBatchSize * xSize * ySize];
     userInputGlobalBuffer = new float[(size_t)m.numInputGlobalChannels * maxBatchSize];
-    symmetriesBuffer = new bool[NNInputs::NUM_SYMMETRY_BOOLS];
 
     policyPassResults = new float[(size_t)maxBatchSize * 1];
     policyResults = new float[(size_t)maxBatchSize * xSize * ySize];
@@ -2462,7 +2332,6 @@ struct InputBuffers {
   ~InputBuffers() {
     delete[] userInputBuffer;
     delete[] userInputGlobalBuffer;
-    delete[] symmetriesBuffer;
     delete[] policyPassResults;
     delete[] policyResults;
     delete[] valueResults;
@@ -2484,32 +2353,13 @@ void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
   delete inputBuffers;
 }
 
-float* NeuralNet::getBatchEltSpatialInplace(InputBuffers* inputBuffers, int nIdx) {
-  assert(nIdx < inputBuffers->maxBatchSize);
-  return inputBuffers->userInputBuffer + (inputBuffers->singleInputElts * nIdx);
-}
-
-float* NeuralNet::getBatchEltGlobalInplace(InputBuffers* inputBuffers, int nIdx) {
-  assert(nIdx < inputBuffers->maxBatchSize);
-  return inputBuffers->userInputGlobalBuffer + (inputBuffers->singleInputGlobalElts * nIdx);
-}
-
-int NeuralNet::getBatchEltSpatialLen(const InputBuffers* inputBuffers) {
-  return inputBuffers->singleInputElts;
-}
-int NeuralNet::getBatchEltGlobalLen(const InputBuffers* inputBuffers) {
-  return inputBuffers->singleInputGlobalElts;
-}
-
-bool* NeuralNet::getSymmetriesInplace(InputBuffers* inputBuffers) {
-  return inputBuffers->symmetriesBuffer;
-}
-
 
 void NeuralNet::getOutput(
   ComputeHandle* gpuHandle,
   InputBuffers* inputBuffers,
   int numBatchEltsFilled,
+  NNResultBuf** inputBufs,
+  int symmetry,
   vector<NNOutput*>& outputs
 ) {
   assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
@@ -2518,6 +2368,23 @@ void NeuralNet::getOutput(
   int nnXLen = gpuHandle->nnXLen;
   int nnYLen = gpuHandle->nnYLen;
   int version = gpuHandle->model->version;
+
+  int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
+  int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
+  assert(numSpatialFeatures == gpuHandle->model->numInputChannels);
+  assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
+  assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
+
+  for(int nIdx = 0; nIdx<batchSize; nIdx++) {
+    float* rowSpatialInput = inputBuffers->userInputBuffer + (inputBuffers->singleInputElts * nIdx);
+    float* rowGlobalInput = inputBuffers->userInputGlobalBuffer + (inputBuffers->singleInputGlobalElts * nIdx);
+
+    const float* rowGlobal = inputBufs[nIdx]->rowGlobal;
+    const float* rowSpatial = inputBufs[nIdx]->rowSpatial;
+    std::copy(rowGlobal,rowGlobal+numGlobalFeatures,rowGlobalInput);
+    SymmetryHelpers::copyInputsWithSymmetry(rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, gpuHandle->inputsUseNHWC, symmetry);
+  }
+
   Buffers* buffers = gpuHandle->buffers;
 
   assert(inputBuffers->userInputBufferElts == buffers->inputElts);
@@ -2564,10 +2431,8 @@ void NeuralNet::getOutput(
   gpuHandle->model->apply(
     handle,
     batchSize,
-    inputBuffers->symmetriesBuffer,
 
     buffers->input,
-    buffers->inputScratch,
     buffers->inputGlobal,
 
     buffers->mask,
@@ -2584,7 +2449,6 @@ void NeuralNet::getOutput(
 
     buffers->p1Out,
     buffers->p1Out2,
-    buffers->p2Out,
     buffers->policyPass,
     buffers->policy,
 
@@ -2595,7 +2459,6 @@ void NeuralNet::getOutput(
     buffers->value,
     buffers->scoreValue,
     buffers->ownership,
-    buffers->ownershipScratch,
 
     buffers->convWorkspace,
     buffers->convWorkspace2
@@ -2658,16 +2521,13 @@ void NeuralNet::getOutput(
     assert(output->nnXLen == nnXLen);
     assert(output->nnYLen == nnYLen);
 
+    const float* policySrcBuf = inputBuffers->policyResults + row * inputBuffers->singlePolicyResultElts;
     float* policyProbs = output->policyProbs;
 
     //These are not actually correct, the client does the postprocessing to turn them into
     //policy probabilities and white game outcome probabilities
     //Also we don't fill in the nnHash here either
-    std::copy(
-      inputBuffers->policyResults + row * inputBuffers->singlePolicyResultElts,
-      inputBuffers->policyResults + (row+1) * inputBuffers->singlePolicyResultElts,
-      policyProbs
-    );
+    SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, symmetry);
     policyProbs[inputBuffers->singlePolicyResultElts] = inputBuffers->policyPassResults[row];
 
     int numValueChannels = gpuHandle->model->numValueChannels;
@@ -2679,12 +2539,9 @@ void NeuralNet::getOutput(
     //As above, these are NOT actually from white's perspective, but rather the player to move.
     //As usual the client does the postprocessing.
     if(output->whiteOwnerMap != NULL) {
+      const float* ownershipSrcBuf = inputBuffers->ownershipResults + row * nnXLen * nnYLen;
       assert(gpuHandle->model->numOwnershipChannels == 1);
-      std::copy(
-        inputBuffers->ownershipResults + row * nnXLen * nnYLen,
-        inputBuffers->ownershipResults + (row+1) * nnXLen * nnYLen,
-        output->whiteOwnerMap
-      );
+      SymmetryHelpers::copyOutputsWithSymmetry(ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, symmetry);
     }
 
     if(version >= 8) {
@@ -2986,47 +2843,5 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   return true;
 }
 
-bool NeuralNet::testEvaluateSymmetry(
-  int batchSize,
-  int numChannels,
-  int nnXLen,
-  int nnYLen,
-  bool useFP16,
-  bool useNHWC,
-  const bool* symmetries,
-  const std::vector<float>& inputBuffer,
-  std::vector<float>& outputBuffer
-) {
-  Logger* logger = NULL;
-  int gpuIdx = 0;
-
-  if(useFP16 != false)
-    return false;
-  if(useNHWC != false)
-    return false;
-
-  ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger, nnXLen, nnYLen, useFP16, useNHWC);
-  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC);
-
-  size_t numFloats = (size_t)batchSize * nnXLen * nnYLen * numChannels;
-  if(numFloats != inputBuffer.size())
-    throw StringError("testEvaluateSymmetry: unexpected input buffer size");
-  outputBuffer.resize(numFloats);
-
-  vector<float> inputTmp = inputBuffer;
-  cl_mem input = createReadWriteBuffer(handle,inputTmp);
-  cl_mem inputScratch = createReadWriteBuffer(handle,numFloats);
-
-  applySymmetriesNCHW(handle, symmetries, false, batchSize, numChannels, nnXLen, nnYLen, input, inputScratch);
-
-  blockingReadBuffer(handle->commandQueue, input, numFloats, outputBuffer);
-
-  clReleaseMemObject(input);
-  clReleaseMemObject(inputScratch);
-  delete handle;
-  freeComputeContext(context);
-
-  return true;
-}
 
 #endif  // USE_OPENCL_BACKEND
