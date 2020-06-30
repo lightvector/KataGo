@@ -1,10 +1,10 @@
+#ifdef USE_EIGEN_BACKEND
+
 /** Eigen3 backend.
  *
  * Only supports float32 computation with NHWC memory layout (at runtime and as input).
- * Does not currently support symmetries.
  */
 
-// CR lpuchallafiore: Add support for symmetries.
 // CR lpuchallafiore: Add multi-threading support (see "Evaluating with a Thread Pool" in the Eigen Tensor docs).
 
 #include "../neuralnet/nninterface.h"
@@ -23,42 +23,109 @@ using namespace std;
 using Eigen::Tensor;
 
 // Debugging -----------------------------------------------------------------------------------------------------------
-void printTensor4Size(const string& name, const Tensor<SCALAR, 4>& t) {
-  cout << name << " rank=" << t.NumDimensions << " - ";
-  for(int i = 0; i < t.NumDimensions; i++) {
-    cout << t.dimension(i) << "x";
-  }
-  cout << endl;
-}
+// static void printTensor4Size(const string& name, const Tensor<SCALAR, 4>& t) {
+//   cout << name << " rank=" << t.NumDimensions << " - ";
+//   for(int i = 0; i < t.NumDimensions; i++) {
+//     cout << t.dimension(i) << "x";
+//   }
+//   cout << endl;
+// }
 
-// NHWC
-void printTensor4(const string& name, const Tensor<SCALAR, 4>& t) {
-  printTensor4Size(name, t);
-  for(int n = 0; n < t.dimension(3); n++) {
-    cout << "n = " << n << endl;
-    for(int h = 0; h < t.dimension(2); h++) {
-      for(int w = 0; w < t.dimension(1); w++) {
-        for(int c = 0; c < t.dimension(0); c++) {
-          cout << t(c, w, h, n) << (c == t.dimension(0) - 1 ? ", " : " ");
-        }
-      }
-      cout << endl;
-    }
-    cout << endl;
-  }
-}
+// // NHWC
+// static void printTensor4(const string& name, const Tensor<SCALAR, 4>& t) {
+//   printTensor4Size(name, t);
+//   for(int n = 0; n < t.dimension(3); n++) {
+//     cout << "n = " << n << endl;
+//     for(int h = 0; h < t.dimension(2); h++) {
+//       for(int w = 0; w < t.dimension(1); w++) {
+//         for(int c = 0; c < t.dimension(0); c++) {
+//           cout << t(c, w, h, n) << (c == t.dimension(0) - 1 ? ", " : " ");
+//         }
+//       }
+//       cout << endl;
+//     }
+//     cout << endl;
+//   }
+// }
 
-// LoadedModel / ModelDesc ---------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 struct LoadedModel {
   ModelDesc modelDesc;
 
-  LoadedModel(istream& in) { modelDesc = std::move(ModelDesc(in)); }
+  LoadedModel(const string& fileName) {
+    ModelDesc::loadFromFileMaybeGZipped(fileName,modelDesc);
+  }
 
   LoadedModel() = delete;
   LoadedModel(const LoadedModel&) = delete;
   LoadedModel& operator=(const LoadedModel&) = delete;
 };
+
+LoadedModel* NeuralNet::loadModelFile(const string& file) {
+  LoadedModel* loadedModel = new LoadedModel(file);
+  return loadedModel;
+}
+
+void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
+  delete loadedModel;
+}
+
+string NeuralNet::getModelName(const LoadedModel* loadedModel) {
+  return loadedModel->modelDesc.name;
+}
+
+int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
+  return loadedModel->modelDesc.version;
+}
+
+Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
+  return loadedModel->modelDesc.getSupportedRules(desiredRules, supported);
+}
+
+//------------------------------------------------------------------------------
+
+struct ComputeContext {
+  int nnXLen;
+  int nnYLen;
+};
+
+ComputeContext* NeuralNet::createComputeContext(
+  const std::vector<int>& gpuIdxs,
+  Logger* logger,
+  int nnXLen,
+  int nnYLen,
+  const string& openCLTunerFile,
+  const string& homeDataDirOverride,
+  bool openCLReTunePerBoardSize,
+  enabled_t useFP16Mode,
+  enabled_t useNHWCMode,
+  const LoadedModel* loadedModel
+) {
+  (void)gpuIdxs;
+  (void)logger;
+  (void)openCLTunerFile;
+  (void)homeDataDirOverride;
+  (void)openCLReTunePerBoardSize;
+  (void)loadedModel;
+
+  bool useFP16 = useFP16Mode == enabled_t::True ? true : false;
+  bool useNHWC = useNHWCMode == enabled_t::False ? false : true;
+
+  if(useFP16)
+    throw StringError("Eigen backend: useFP16 = true not supported");
+  if(!useNHWC)
+    throw StringError("Eigen backend: useNHWC = false not supported");
+
+  ComputeContext* context = new ComputeContext();
+  context->nnXLen = nnXLen;
+  context->nnYLen = nnYLen;
+  return context;
+}
+
+void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
+  delete computeContext;
+}
 
 // Layers --------------------------------------------------------------------------------------------------------------
 
@@ -75,17 +142,20 @@ struct ConvLayer {
   ConvLayer(const ConvLayer&) = delete;
   ConvLayer& operator=(const ConvLayer&) = delete;
 
-  ConvLayer(const ConvLayerDesc& desc, int maxBatchSize) {
+  ConvLayer(const ConvLayerDesc& desc) {
     name = desc.name;
     int convYSize = desc.convYSize;
     int convXSize = desc.convXSize;
     inChannels = desc.inChannels;
     outChannels = desc.outChannels;
-    // CR lpuchallafiore: dilation?
+    //Currently eigen impl doesn't support dilated convs
     int dilationY = desc.dilationY;
     int dilationX = desc.dilationX;
-    int paddingX = (convXSize / 2) * dilationX;
-    int paddingY = (convYSize / 2) * dilationY;
+    paddingX = (convXSize / 2) * dilationX;
+    paddingY = (convYSize / 2) * dilationY;
+
+    if(dilationX != 1 || dilationY != 1)
+      throw StringError("Eigen backend: Encountered convolution dilation factors other than 1, not supported");
 
     assert(convXSize % 2 == 1);
     assert(convYSize % 2 == 1);
@@ -96,11 +166,10 @@ struct ConvLayer {
     paddings[3] = make_pair(0, 0);                // N
 
     // CR-someday lpuchallafiore: optimize NHWC vs NCHW, etc.
-    kernel = Eigen::TensorMap<const Tensor<SCALAR, 4>>(
-      (float*)&desc.weights[0], convXSize, convYSize, inChannels, outChannels);
+    kernel = Eigen::TensorMap<const Tensor<const SCALAR, 4>>(
+      &desc.weights[0], convXSize, convYSize, inChannels, outChannels);
   }
 
-  // CR lpuchallafiore: accumulate?
   void apply(const Tensor<SCALAR, 4>& input, Tensor<SCALAR, 4>* output, bool accumulate) const {
     auto padded = input.pad(paddings);
 
@@ -118,7 +187,10 @@ struct ConvLayer {
           sum += inNC.convolve(kChip, dims);
         }
 
-        output->chip(n, 3).chip(oc, 0) = sum;
+        if(accumulate)
+          output->chip(n, 3).chip(oc, 0) += sum;
+        else
+          output->chip(n, 3).chip(oc, 0) = sum;
       }
     }
   }
@@ -158,7 +230,8 @@ struct BatchNormLayer {
     bool applyRelu,
     const Tensor<SCALAR, 4>& input,
     const Tensor<SCALAR, 3>& mask,
-    Tensor<SCALAR, 4>* output) const {
+    Tensor<SCALAR, 4>* output
+  ) const {
 
     *output = Tensor<SCALAR, 4>(input.dimension(0), input.dimension(1), input.dimension(2), input.dimension(3));
     for (int c = 0; c < input.dimension(0); c++) {
@@ -174,6 +247,7 @@ struct BatchNormLayer {
     }
   }
 };
+
 // Model and Buffer I/O ------------------------------------------------------------------------------------------------
 
 struct InputBuffers {
@@ -190,8 +264,8 @@ struct InputBuffers {
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
 
-    int xSize = m.version >= 3 ? nnXLen : m.xSizePreV3;
-    int ySize = m.version >= 3 ? nnYLen : m.ySizePreV3;
+    int xSize = nnXLen;
+    int ySize = nnYLen;
 
     maxBatchSize = maxBatchSz;
     singleInputElts = m.numInputChannels * xSize * ySize;
@@ -220,59 +294,27 @@ void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
   delete inputBuffers;
 }
 
-float* NeuralNet::getBatchEltSpatialInplace(InputBuffers* inputBuffers, int nIdx) {
-  assert(nIdx < inputBuffers->maxBatchSize);
-  return inputBuffers->spatialInput.data() + (inputBuffers->singleInputElts * nIdx);
-}
+// float* NeuralNet::getBatchEltSpatialInplace(InputBuffers* inputBuffers, int nIdx) {
+//   assert(nIdx < inputBuffers->maxBatchSize);
+//   return inputBuffers->spatialInput.data() + (inputBuffers->singleInputElts * nIdx);
+// }
 
-float* NeuralNet::getBatchEltGlobalInplace(InputBuffers* inputBuffers, int rowIdx) {
-  assert(rowIdx < inputBuffers->maxBatchSize);
-  return inputBuffers->globalInput.data() + (inputBuffers->singleInputGlobalElts * rowIdx);
-}
+// float* NeuralNet::getBatchEltGlobalInplace(InputBuffers* inputBuffers, int rowIdx) {
+//   assert(rowIdx < inputBuffers->maxBatchSize);
+//   return inputBuffers->globalInput.data() + (inputBuffers->singleInputGlobalElts * rowIdx);
+// }
 
-int NeuralNet::getBatchEltSpatialLen(const InputBuffers* inputBuffers) {
-  return inputBuffers->singleInputElts;
-}
-int NeuralNet::getBatchEltGlobalLen(const InputBuffers* inputBuffers) {
-  return inputBuffers->singleInputGlobalElts;
-}
+// int NeuralNet::getBatchEltSpatialLen(const InputBuffers* inputBuffers) {
+//   return inputBuffers->singleInputElts;
+// }
+// int NeuralNet::getBatchEltGlobalLen(const InputBuffers* inputBuffers) {
+//   return inputBuffers->singleInputGlobalElts;
+// }
 
-bool* NeuralNet::getSymmetriesInplace(InputBuffers* inputBuffers) {
-  return inputBuffers->symmetriesBuffer;
-}
+// bool* NeuralNet::getSymmetriesInplace(InputBuffers* inputBuffers) {
+//   return inputBuffers->symmetriesBuffer;
+// }
 
-LoadedModel* NeuralNet::loadModelFile(const string& file, int modelFileIdx) {
-  (void)modelFileIdx;
-
-  try {
-    // zstr has a bad property of simply aborting if the file doesn't exist
-    // So we try to catch this common error by explicitly testing first if the
-    // file exists by trying to open it normally to turn it into a regular C++
-    // exception.
-    {
-      ifstream testIn(file);
-      if(!testIn.good())
-        throw StringError("File does not exist or could not be opened");
-    }
-    zstr::ifstream in(file);
-    LoadedModel* loadedModel = new LoadedModel(in);
-    return loadedModel;
-  } catch(const StringError& e) {
-    throw StringError("Error parsing model file " + file + ": " + e.what());
-  }
-}
-
-void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
-  delete loadedModel;
-}
-
-int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
-  return loadedModel->modelDesc.version;
-}
-
-Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
-  return loadedModel->modelDesc.getSupportedRules(desiredRules, supported);
-}
 
 // NeuralNet -----------------------------------------------------------------------------------------------------------
 
@@ -285,35 +327,39 @@ void NeuralNet::globalCleanup() {
 }
 
 struct ComputeHandle {
+  const ComputeContext* context;
+  int maxBatchSize;
   // unique_ptr<Model> model;
-  int nnXLen;
-  int nnYLen;
-  bool requireExactPosLen;
-  int policySize;
 
-  ComputeHandle(const LoadedModel& loadedModel, int maxBatchSize, int xLen, int yLen, bool rExactPosLen)
-    :  // model(make_unique<Model>(loadedModel.modelDesc, maxBatchSize, xLen, yLen)),
-      nnXLen(xLen),
-      nnYLen(yLen),
-      requireExactPosLen(rExactPosLen),
-      policySize(NNPos::getPolicySize(nnXLen, nnYLen)) {}
+  ComputeHandle(const ComputeContext* ctx, const LoadedModel& loadedModel, int maxBSize)
+    : context(ctx),
+      maxBatchSize(maxBSize)
+    // model(make_unique<Model>(loadedModel.modelDesc, maxBatchSize, xLen, yLen)),
+  {}
 };
 
 ComputeHandle* NeuralNet::createComputeHandle(
+  ComputeContext* context,
   const LoadedModel* loadedModel,
   Logger* logger,
   int maxBatchSize,
-  int nnXLen,
-  int nnYLen,
-  bool requireExactPosLen,
+  bool requireExactNNLen,
   bool inputsUseNHWC,
-  int cudaGpuIdxForThisThread,
-  bool useFP16,
-  bool cudaUseNHWC) {
-  (void)cudaUseNHWC;      // Always use NHWC
-  (void)useFP16;          // Always use FP32
-  assert(inputsUseNHWC);  // Only support inputs in NHWC format.
-  return new ComputeHandle(*loadedModel, maxBatchSize, nnXLen, nnYLen, requireExactPosLen);
+  int gpuIdxForThisThread
+) {
+  if(logger != NULL) {
+    logger->write("Eigen backend: Model version " + Global::intToString(loadedModel->modelDesc.version));
+    logger->write(
+      "Eigen backend: Model name: " + loadedModel->modelDesc.name
+    );
+  }
+
+  (void)requireExactNNLen; //We don't bother with mask optimizations if we know exact sizes right now.
+  (void)gpuIdxForThisThread; //Doesn't matter
+
+  if(!inputsUseNHWC)
+    throw StringError("Eigen backend: inputsUseNHWC = false unsupported");
+  return new ComputeHandle(context, *loadedModel, maxBatchSize);
 }
 
 void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
@@ -322,10 +368,23 @@ void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
 
 void NeuralNet::getOutput(
   ComputeHandle* gpuHandle,
-  InputBuffers* buffers,
-  int numFilledRows,
-  vector<NNOutput*>& outputs) {
+  InputBuffers* inputBuffers,
+  int numBatchEltsFilled,
+  NNResultBuf** inputBufs,
+  int symmetry,
+  vector<NNOutput*>& outputs
+) {
+  (void)gpuHandle;
+  (void)inputBuffers;
+  (void)numBatchEltsFilled;
+  (void)inputBufs;
+  (void)symmetry;
+  (void)outputs;
   assert(false);
+}
+
+
+void NeuralNet::printDevices() {
 }
 
 // FOR TESTING ---------------------------------------------------------------------------------------------------------
@@ -337,21 +396,20 @@ bool NeuralNet::testEvaluateConv(
   bool useFP16,
   bool useNHWC,
   const std::vector<float>& inputBuffer,
-  std::vector<float>& outputBuffer) {
-  if(useNHWC && !useFP16) {
-    ConvLayer layer(*desc, batchSize);
-    Eigen::TensorMap<const Tensor<SCALAR, 4>> inTensor(
-      (float*)&inputBuffer[0], desc->inChannels, nnXLen, nnYLen, batchSize);
-    Tensor<SCALAR, 4> outTensor;
-
-    layer.apply(inTensor, &outTensor, false);
-
-    outputBuffer.resize(outTensor.size());
-    memcpy(&outputBuffer[0], outTensor.data(), sizeof(SCALAR) * outTensor.size());
-    return true;
-  } else {
+  std::vector<float>& outputBuffer
+) {
+  if(!useNHWC || useFP16)
     return false;
-  }
+  ConvLayer layer(*desc);
+  Eigen::TensorMap<const Tensor<const SCALAR, 4>> inTensor(
+    &inputBuffer[0], desc->inChannels, nnXLen, nnYLen, batchSize);
+  Tensor<SCALAR, 4> outTensor;
+
+  layer.apply(inTensor, &outTensor, false);
+
+  outputBuffer.resize(outTensor.size());
+  memcpy(&outputBuffer[0], outTensor.data(), sizeof(SCALAR) * outTensor.size());
+  return true;
 }
 
 // Mask should be in 'NHW' format (no "C" channel).
@@ -364,22 +422,20 @@ bool NeuralNet::testEvaluateBatchNorm(
   bool useNHWC,
   const std::vector<float>& inputBuffer,
   const std::vector<float>& maskBuffer,
-  std::vector<float>& outputBuffer) {
-  if(useNHWC && !useFP16) {
-    BatchNormLayer layer(*desc);
-    Eigen::TensorMap<const Tensor<SCALAR, 4>> inTensor(
-      (float*)&inputBuffer[0], desc->numChannels, nnXLen, nnYLen, batchSize);
-    Eigen::TensorMap<const Tensor<SCALAR, 3>> maskTensor((float*)&maskBuffer[0], nnXLen, nnYLen, batchSize);
-    Tensor<SCALAR, 4> outTensor;
-
-    layer.apply(false, inTensor, maskTensor, &outTensor);
-
-    outputBuffer.resize(outTensor.size());
-    memcpy(&outputBuffer[0], outTensor.data(), sizeof(SCALAR) * outTensor.size());
-    return true;
-  } else {
+  std::vector<float>& outputBuffer
+) {
+  if(!useNHWC || useFP16)
     return false;
-  }
+  BatchNormLayer layer(*desc);
+  Eigen::TensorMap<const Tensor<const SCALAR, 4>> inTensor(&inputBuffer[0], desc->numChannels, nnXLen, nnYLen, batchSize);
+  Eigen::TensorMap<const Tensor<const SCALAR, 3>> maskTensor(&maskBuffer[0], nnXLen, nnYLen, batchSize);
+  Tensor<SCALAR, 4> outTensor;
+
+  layer.apply(false, inTensor, maskTensor, &outTensor);
+
+  outputBuffer.resize(outTensor.size());
+  memcpy(&outputBuffer[0], outTensor.data(), sizeof(SCALAR) * outTensor.size());
+  return true;
 }
 
 bool NeuralNet::testEvaluateResidualBlock(
@@ -391,7 +447,17 @@ bool NeuralNet::testEvaluateResidualBlock(
   bool useNHWC,
   const std::vector<float>& inputBuffer,
   const std::vector<float>& maskBuffer,
-  std::vector<float>& outputBuffer) {
+  std::vector<float>& outputBuffer
+) {
+  (void)desc;
+  (void)batchSize;
+  (void)nnXLen;
+  (void)nnYLen;
+  (void)useFP16;
+  (void)useNHWC;
+  (void)inputBuffer;
+  (void)maskBuffer;
+  (void)outputBuffer;
   return false;
 }
 
@@ -404,6 +470,18 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   bool useNHWC,
   const std::vector<float>& inputBuffer,
   const std::vector<float>& maskBuffer,
-  std::vector<float>& outputBuffer) {
+  std::vector<float>& outputBuffer
+) {
+  (void)desc;
+  (void)batchSize;
+  (void)nnXLen;
+  (void)nnYLen;
+  (void)useFP16;
+  (void)useNHWC;
+  (void)inputBuffer;
+  (void)maskBuffer;
+  (void)outputBuffer;
   return false;
 }
+
+#endif  // USE_EIGEN_BACKEND
