@@ -1232,7 +1232,6 @@ struct ResidualBlock {
     cl_mem convWorkspace,
     cl_mem convWorkspace2
   ) {
-    (void)midScratch;
     if((regularConv.convXSize == 3 && regularConv.convYSize == 3) || (regularConv.convXSize == 5 && regularConv.convYSize == 5))
       regularConv.applyWithBNRelu(handle,&preBN,batchSize,trunk,mid,mask,convWorkspace,convWorkspace2);
     else {
@@ -1319,7 +1318,6 @@ struct GlobalPoolingResidualBlock {
     cl_mem convWorkspace,
     cl_mem convWorkspace2
   ) {
-    (void)midScratch;
     preBN.apply(handle,batchSize,true,trunk,trunkScratch,mask);
     regularConv.apply(handle,batchSize,trunkScratch,mid,convWorkspace,convWorkspace2);
     gpoolConv.apply(handle,batchSize,trunkScratch,gpoolOut,convWorkspace,convWorkspace2);

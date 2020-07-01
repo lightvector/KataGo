@@ -170,10 +170,9 @@ struct ConvLayer {
       &desc.weights[0], convXSize, convYSize, inChannels, outChannels);
   }
 
-  void apply(const Tensor<SCALAR, 4>& input, Tensor<SCALAR, 4>* output, bool accumulate) const {
+  void apply(const Tensor<SCALAR, 4>& input, Tensor<SCALAR, 4>& output, bool accumulate) const {
     auto padded = input.pad(paddings);
-
-    *output = Tensor<SCALAR, 4>(outChannels, input.dimension(1), input.dimension(2), input.dimension(3));
+    assert(output.dimension(0) == outChannels);
     for(int n = 0; n < input.dimension(3); n++) {
       auto inN = padded.chip(n, 3);
       for(int oc = 0; oc < outChannels; oc++) {
@@ -188,13 +187,15 @@ struct ConvLayer {
         }
 
         if(accumulate)
-          output->chip(n, 3).chip(oc, 0) += sum;
+          output.chip(n, 3).chip(oc, 0) += sum;
         else
-          output->chip(n, 3).chip(oc, 0) = sum;
+          output.chip(n, 3).chip(oc, 0) = sum;
       }
     }
   }
 };
+
+//--------------------------------------------------------------
 
 struct BatchNormLayer {
   string name;
@@ -229,24 +230,66 @@ struct BatchNormLayer {
   void apply(
     bool applyRelu,
     const Tensor<SCALAR, 4>& input,
-    const Tensor<SCALAR, 3>& mask,
-    Tensor<SCALAR, 4>* output
+    Tensor<SCALAR, 4>& output,
+    const Tensor<SCALAR, 3>& mask
   ) const {
 
-    *output = Tensor<SCALAR, 4>(input.dimension(0), input.dimension(1), input.dimension(2), input.dimension(3));
+    output = Tensor<SCALAR, 4>(input.dimension(0), input.dimension(1), input.dimension(2), input.dimension(3));
     for (int c = 0; c < input.dimension(0); c++) {
       auto inC = input.chip(c, 0);
       auto x = inC * mergedScale[c] + mergedBias[c];
       if (applyRelu) {
         auto z = Tensor<SCALAR, 3>(mask.dimension(0), mask.dimension(1), mask.dimension(2)).setZero();
-        output->chip(c, 0) = (mask == 1.f).select(x.cwiseMax(0.f), z);
+        output.chip(c, 0) = (mask == 1.f).select(x.cwiseMax(0.f), z);
       } else {
         auto z = Tensor<SCALAR, 3>(mask.dimension(0), mask.dimension(1), mask.dimension(2)).setZero();
-        output->chip(c, 0) = (mask == 1.f).select(x, z);
+        output.chip(c, 0) = (mask == 1.f).select(x, z);
       }
     }
   }
 };
+
+//--------------------------------------------------------------
+
+struct ResidualBlock {
+  string name;
+  BatchNormLayer preBN;
+  ConvLayer regularConv;
+  BatchNormLayer midBN;
+  ConvLayer finalConv;
+
+  ResidualBlock(
+    const ResidualBlockDesc& desc
+  ): name(desc.name),
+     preBN(desc.preBN),
+     regularConv(desc.regularConv),
+     midBN(desc.midBN),
+     finalConv(desc.finalConv)
+  {
+  }
+
+  ~ResidualBlock() {
+  }
+
+  ResidualBlock() = delete;
+  ResidualBlock(const ResidualBlock&) = delete;
+  ResidualBlock& operator=(const ResidualBlock&) = delete;
+
+  void apply(
+    Tensor<SCALAR, 4>& trunk,
+    Tensor<SCALAR, 4>& trunkScratch,
+    Tensor<SCALAR, 4>& mid,
+    Tensor<SCALAR, 4>& midScratch,
+    const Tensor<SCALAR, 3>& mask
+  ) const {
+    preBN.apply(true,trunk,trunkScratch,mask);
+    regularConv.apply(trunkScratch,mid,false);
+    midBN.apply(true,mid,midScratch,mask);
+    finalConv.apply(midScratch,trunk,true);
+  }
+
+};
+
 
 // Model and Buffer I/O ------------------------------------------------------------------------------------------------
 
@@ -403,9 +446,9 @@ bool NeuralNet::testEvaluateConv(
   ConvLayer layer(*desc);
   Eigen::TensorMap<const Tensor<const SCALAR, 4>> inTensor(
     &inputBuffer[0], desc->inChannels, nnXLen, nnYLen, batchSize);
-  Tensor<SCALAR, 4> outTensor;
+  Tensor<SCALAR, 4> outTensor(desc->outChannels, nnXLen, nnYLen, batchSize);
 
-  layer.apply(inTensor, &outTensor, false);
+  layer.apply(inTensor, outTensor, false);
 
   outputBuffer.resize(outTensor.size());
   memcpy(&outputBuffer[0], outTensor.data(), sizeof(SCALAR) * outTensor.size());
@@ -429,9 +472,9 @@ bool NeuralNet::testEvaluateBatchNorm(
   BatchNormLayer layer(*desc);
   Eigen::TensorMap<const Tensor<const SCALAR, 4>> inTensor(&inputBuffer[0], desc->numChannels, nnXLen, nnYLen, batchSize);
   Eigen::TensorMap<const Tensor<const SCALAR, 3>> maskTensor(&maskBuffer[0], nnXLen, nnYLen, batchSize);
-  Tensor<SCALAR, 4> outTensor;
+  Tensor<SCALAR, 4> outTensor(desc->numChannels, nnXLen, nnYLen, batchSize);
 
-  layer.apply(false, inTensor, maskTensor, &outTensor);
+  layer.apply(false, inTensor, outTensor, maskTensor);
 
   outputBuffer.resize(outTensor.size());
   memcpy(&outputBuffer[0], outTensor.data(), sizeof(SCALAR) * outTensor.size());
@@ -449,16 +492,24 @@ bool NeuralNet::testEvaluateResidualBlock(
   const std::vector<float>& maskBuffer,
   std::vector<float>& outputBuffer
 ) {
-  (void)desc;
-  (void)batchSize;
-  (void)nnXLen;
-  (void)nnYLen;
-  (void)useFP16;
-  (void)useNHWC;
-  (void)inputBuffer;
-  (void)maskBuffer;
-  (void)outputBuffer;
-  return false;
+  if(!useNHWC || useFP16)
+    return false;
+  ResidualBlock block(*desc);
+  Eigen::TensorMap<const Tensor<const SCALAR, 4>> inTensor(&inputBuffer[0], desc->preBN.numChannels, nnXLen, nnYLen, batchSize);
+  Eigen::TensorMap<const Tensor<const SCALAR, 3>> maskTensor(&maskBuffer[0], nnXLen, nnYLen, batchSize);
+
+  Tensor<SCALAR, 4> trunkTensor(desc->preBN.numChannels, nnXLen, nnYLen, batchSize);
+  Tensor<SCALAR, 4> trunkScratchTensor(desc->preBN.numChannels, nnXLen, nnYLen, batchSize);
+  Tensor<SCALAR, 4> midTensor(desc->finalConv.inChannels, nnXLen, nnYLen, batchSize);
+  Tensor<SCALAR, 4> midScratchTensor(desc->finalConv.inChannels, nnXLen, nnYLen, batchSize);
+
+  trunkTensor = inTensor;
+
+  block.apply(trunkTensor,trunkScratchTensor,midTensor,midScratchTensor,maskTensor);
+
+  outputBuffer.resize(trunkTensor.size());
+  memcpy(&outputBuffer[0], trunkTensor.data(), sizeof(SCALAR) * trunkTensor.size());
+  return true;
 }
 
 bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
