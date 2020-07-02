@@ -22,6 +22,16 @@ static void checkApproxEqual(
   int cyxSize = cSize * ySize * xSize;
   int yxSize = ySize * xSize;
 
+  int totalSize = nSize * cSize * ySize * xSize;
+  if (expected.size() < totalSize) {
+    cout << "Size mismatch: expected = " << expected.size() << " totalSize = " << totalSize << endl;
+    return;
+  }
+  if (vec.size() < totalSize) {
+    cout << "Size mismatch: vec = " << vec.size() << " totalSize = " << totalSize << endl;
+    return;
+  }
+
   bool mismatch = false;
   for(int n = 0; n < nSize; n++) {
     for(int c = 0; c < cSize; c++) {
