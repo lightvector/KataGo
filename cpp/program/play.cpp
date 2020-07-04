@@ -1451,6 +1451,7 @@ FinishedGameData* Play::runGame(
       //Since we played out the game a bunch we should get a good mix of stones that were present or not present at the start
       //of the second encore phase if we're going into the second.
       int encorePhase = gameRand.nextInt(1,2);
+      board.clearSimpleKoLoc();
       hist.clear(board,pla,hist.rules,encorePhase);
 
       gameData->mode = FinishedGameData::MODE_CLEANUP_TRAINING;

@@ -741,6 +741,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       Player movePla = moveHistory[turnNumber].pla;
       Loc moveLoc = moveHistory[turnNumber].loc;
       if(movePla != nextPla) {
+        board.clearSimpleKoLoc();
         hist.clear(board,movePla,rules,hist.encorePhase);
         hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
       }
