@@ -38,8 +38,8 @@ void XgemmDirectBatchedNN(const int kSizeM, const int kSizeN, const int kSizeK,
   const int c_offset = batch * kSizeM * kSizeN;
   const int a_conjugate = 0;
   const int b_conjugate = 0;
-  __local realstore alm[WGD * (WGD + PADA)];
-  __local realstore blm[WGD * (WGD + PADB)];
+  __local real alm[WGD * (WGD + PADA)];
+  __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
               agm, a_offset, a_ld, bgm, b_offset, b_ld, cgm, c_offset, c_ld,
               alm, blm, 0, 0, c_transpose, a_conjugate, b_conjugate);
@@ -60,8 +60,8 @@ void XgemmDirectBatchedNT(const int kSizeM, const int kSizeN, const int kSizeK,
   const int c_offset = batch * kSizeM * kSizeN;
   const int a_conjugate = 0;
   const int b_conjugate = 0;
-  __local realstore alm[WGD * (WGD + PADA)];
-  __local realstore blm[WGD * (WGD + PADB)];
+  __local real alm[WGD * (WGD + PADA)];
+  __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
               agm, a_offset, a_ld, bgm, b_offset, b_ld, cgm, c_offset, c_ld,
               alm, blm, 0, 1, c_transpose, a_conjugate, b_conjugate);
@@ -82,8 +82,8 @@ void XgemmDirectBatchedTN(const int kSizeM, const int kSizeN, const int kSizeK,
   const int c_offset = batch * kSizeM * kSizeN;
   const int a_conjugate = 0;
   const int b_conjugate = 0;
-  __local realstore alm[WGD * (WGD + PADA)];
-  __local realstore blm[WGD * (WGD + PADB)];
+  __local real alm[WGD * (WGD + PADA)];
+  __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
               agm, a_offset, a_ld, bgm, b_offset, b_ld, cgm, c_offset, c_ld,
               alm, blm, 1, 0, c_transpose, a_conjugate, b_conjugate);
@@ -104,8 +104,8 @@ void XgemmDirectBatchedTT(const int kSizeM, const int kSizeN, const int kSizeK,
   const int c_offset = batch * kSizeM * kSizeN;
   const int a_conjugate = 0;
   const int b_conjugate = 0;
-  __local realstore alm[WGD * (WGD + PADA)];
-  __local realstore blm[WGD * (WGD + PADB)];
+  __local real alm[WGD * (WGD + PADA)];
+  __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
               agm, a_offset, a_ld, bgm, b_offset, b_ld, cgm, c_offset, c_ld,
               alm, blm, 1, 1, c_transpose, a_conjugate, b_conjugate);
@@ -130,8 +130,8 @@ void XgemmDirectStridedBatchedNN(const int kSizeM, const int kSizeN, const int k
   const int c_offset_batch = c_stride * batch;
   const int a_conjugate = 0;
   const int b_conjugate = 0;
-  __local realstore alm[WGD * (WGD + PADA)];
-  __local realstore blm[WGD * (WGD + PADB)];
+  __local real alm[WGD * (WGD + PADA)];
+  __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
               agm, a_offset_batch, a_ld, bgm, b_offset_batch, b_ld, cgm, c_offset_batch, c_ld,
               alm, blm, 0, 0, c_transpose, a_conjugate, b_conjugate);
@@ -152,8 +152,8 @@ void XgemmDirectStridedBatchedNT(const int kSizeM, const int kSizeN, const int k
   const int c_offset_batch = c_stride * batch;
   const int a_conjugate = 0;
   const int b_conjugate = 0;
-  __local realstore alm[WGD * (WGD + PADA)];
-  __local realstore blm[WGD * (WGD + PADB)];
+  __local real alm[WGD * (WGD + PADA)];
+  __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
               agm, a_offset_batch, a_ld, bgm, b_offset_batch, b_ld, cgm, c_offset_batch, c_ld,
               alm, blm, 0, 1, c_transpose, a_conjugate, b_conjugate);
@@ -174,8 +174,8 @@ void XgemmDirectStridedBatchedTN(const int kSizeM, const int kSizeN, const int k
   const int c_offset_batch = c_stride * batch;
   const int a_conjugate = 0;
   const int b_conjugate = 0;
-  __local realstore alm[WGD * (WGD + PADA)];
-  __local realstore blm[WGD * (WGD + PADB)];
+  __local real alm[WGD * (WGD + PADA)];
+  __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
               agm, a_offset_batch, a_ld, bgm, b_offset_batch, b_ld, cgm, c_offset_batch, c_ld,
               alm, blm, 1, 0, c_transpose, a_conjugate, b_conjugate);
@@ -196,8 +196,8 @@ void XgemmDirectStridedBatchedTT(const int kSizeM, const int kSizeN, const int k
   const int c_offset_batch = c_stride * batch;
   const int a_conjugate = 0;
   const int b_conjugate = 0;
-  __local realstore alm[WGD * (WGD + PADA)];
-  __local realstore blm[WGD * (WGD + PADB)];
+  __local real alm[WGD * (WGD + PADA)];
+  __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
               agm, a_offset_batch, a_ld, bgm, b_offset_batch, b_ld, cgm, c_offset_batch, c_ld,
               alm, blm, 1, 1, c_transpose, a_conjugate, b_conjugate);

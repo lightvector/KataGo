@@ -68,7 +68,7 @@ R"(
 
 #if PRECISION_STORAGE == 16 && PRECISION == 32
     #define LOADGLOBAL(__buf,__x) vloada_half((__x),(const __global half*)(__buf))
-    #define LOADLOCAL(__buf,__x) vloada_half((__x),(LOCAL_PTR half*)(__buf))
+    #define LOADLOCAL(__buf,__x) ((__buf)[(__x)])
     #define STOREGLOBAL(__buf,__x,__val) vstorea_half((__val),(__x),(__global half*)(__buf))
     #define SetToZeroStore(a) (a) = 0
 #else
@@ -85,7 +85,7 @@ R"(
     typedef realstore realstoreMD;
     #if PRECISION_STORAGE == 16 && PRECISION == 32
         #define LOADGLOBALM(__buf,__x) vloada_half((__x),(const __global half*)(__buf))
-        #define LOADLOCALM(__buf,__x) vloada_half((__x),(LOCAL_PTR half*)(__buf))
+        #define LOADLOCALM(__buf,__x) ((__buf)[(__x)])
         #define STOREGLOBALM(__buf,__x,__val) vstorea_half((__val),(__x),(__global half*)(__buf))
     #else
         #define LOADGLOBALM(__buf,__x) ((__buf)[(__x)])
@@ -97,8 +97,7 @@ R"(
     typedef realstore2 realstoreMD;
     #if PRECISION_STORAGE == 16 && PRECISION == 32
         #define LOADGLOBALM(__buf,__x) vloada_half2((__x),(const __global half*)(__buf))
-        #define LOADGLOBALTOVECM(__buf,__x) vload_half2((__x),(__buf))
-        #define LOADLOCALM(__buf,__x) vloada_half2((__x),(LOCAL_PTR half*)(__buf))
+        #define LOADLOCALM(__buf,__x) ((__buf)[(__x)])
         #define STOREGLOBALM(__buf,__x,__val) vstorea_half2((__val),(__x),(__global half*)(__buf))
     #else
         #define LOADGLOBALM(__buf,__x) ((__buf)[(__x)])
@@ -110,7 +109,7 @@ R"(
     typedef realstore4 realstoreMD;
     #if PRECISION_STORAGE == 16 && PRECISION == 32
         #define LOADGLOBALM(__buf,__x) vloada_half4((__x),(const __global half*)(__buf))
-        #define LOADLOCALM(__buf,__x) vloada_half4((__x),(LOCAL_PTR half*)(__buf))
+        #define LOADLOCALM(__buf,__x) ((__buf)[(__x)])
         #define STOREGLOBALM(__buf,__x,__val) vstorea_half4((__val),(__x),(__global half*)(__buf))
     #else
         #define LOADGLOBALM(__buf,__x) ((__buf)[(__x)])
@@ -122,7 +121,7 @@ R"(
     typedef realstore8 realstoreMD;
     #if PRECISION_STORAGE == 16 && PRECISION == 32
         #define LOADGLOBALM(__buf,__x) vloada_half8((__x),(const __global half*)(__buf))
-        #define LOADLOCALM(__buf,__x) vloada_half8((__x),(LOCAL_PTR half*)(__buf))
+        #define LOADLOCALM(__buf,__x) ((__buf)[(__x)])
         #define STOREGLOBALM(__buf,__x,__val) vstorea_half8((__val),(__x),(__global half*)(__buf))
     #else
         #define LOADGLOBALM(__buf,__x) ((__buf)[(__x)])
@@ -134,7 +133,7 @@ R"(
     typedef realstore16 realstoreMD;
     #if PRECISION_STORAGE == 16 && PRECISION == 32
         #define LOADGLOBALM(__buf,__x) vloada_half16((__x),(const __global half*)(__buf))
-        #define LOADLOCALM(__buf,__x) vloada_half16((__x),(LOCAL_PTR half*)(__buf))
+        #define LOADLOCALM(__buf,__x) ((__buf)[(__x)])
         #define STOREGLOBALM(__buf,__x,__val) vstorea_half16((__val),(__x),(__global half*)(__buf))
     #else
         #define LOADGLOBALM(__buf,__x) ((__buf)[(__x)])
@@ -149,7 +148,7 @@ R"(
     typedef realstore realstoreND;
     #if PRECISION_STORAGE == 16 && PRECISION == 32
         #define LOADGLOBALN(__buf,__x) vloada_half((__x),(const __global half*)(__buf))
-        #define LOADLOCALN(__buf,__x) vloada_half((__x),(LOCAL_PTR half*)(__buf))
+        #define LOADLOCALN(__buf,__x) ((__buf)[(__x)])
         #define STOREGLOBALN(__buf,__x,__val) vstorea_half((__val),(__x),(__global half*)(__buf))
     #else
         #define LOADGLOBALN(__buf,__x) ((__buf)[(__x)])
@@ -161,7 +160,7 @@ R"(
     typedef realstore2 realstoreND;
     #if PRECISION_STORAGE == 16 && PRECISION == 32
         #define LOADGLOBALN(__buf,__x) vloada_half2((__x),(const __global half*)(__buf))
-        #define LOADLOCALN(__buf,__x) vloada_half2((__x),(LOCAL_PTR half*)(__buf))
+        #define LOADLOCALN(__buf,__x) ((__buf)[(__x)])
         #define STOREGLOBALN(__buf,__x,__val) vstorea_half2((__val),(__x),(__global half*)(__buf))
     #else
         #define LOADGLOBALN(__buf,__x) ((__buf)[(__x)])
@@ -173,7 +172,7 @@ R"(
     typedef realstore4 realstoreND;
     #if PRECISION_STORAGE == 16 && PRECISION == 32
         #define LOADGLOBALN(__buf,__x) vloada_half4((__x),(const __global half*)(__buf))
-        #define LOADLOCALN(__buf,__x) vloada_half4((__x),(LOCAL_PTR half*)(__buf))
+        #define LOADLOCALN(__buf,__x) ((__buf)[(__x)])
         #define STOREGLOBALN(__buf,__x,__val) vstorea_half4((__val),(__x),(__global half*)(__buf))
     #else
         #define LOADGLOBALN(__buf,__x) ((__buf)[(__x)])
@@ -185,7 +184,7 @@ R"(
     typedef realstore8 realstoreND;
     #if PRECISION_STORAGE == 16 && PRECISION == 32
         #define LOADGLOBALN(__buf,__x) vloada_half8((__x),(const __global half*)(__buf))
-        #define LOADLOCALN(__buf,__x) vloada_half8((__x),(LOCAL_PTR half*)(__buf))
+        #define LOADLOCALN(__buf,__x) ((__buf)[(__x)])
         #define STOREGLOBALN(__buf,__x,__val) vstorea_half8((__val),(__x),(__global half*)(__buf))
     #else
         #define LOADGLOBALN(__buf,__x) ((__buf)[(__x)])
@@ -197,7 +196,7 @@ R"(
     typedef realstore16 realstoreND;
     #if PRECISION_STORAGE == 16 && PRECISION == 32
         #define LOADGLOBALN(__buf,__x) vloada_half16((__x),(const __global half*)(__buf))
-        #define LOADLOCALN(__buf,__x) vloada_half16((__x),(LOCAL_PTR half*)(__buf))
+        #define LOADLOCALN(__buf,__x) ((__buf)[(__x)])
         #define STOREGLOBALN(__buf,__x,__val) vstorea_half16((__val),(__x),(__global half*)(__buf))
     #else
         #define LOADGLOBALN(__buf,__x) ((__buf)[(__x)])
@@ -268,7 +267,7 @@ INLINE_FUNC real GlobalToPrivateCheckedB(const __global realstore* restrict bgms
 
 // Caches on-chip local memory into per-thread private memory (registers). This function is specific
 // for caching the A input matrix.
-INLINE_FUNC real LocalToPrivateDirectA(LOCAL_PTR realstore* alm, const int _mi, const int kg,
+INLINE_FUNC real LocalToPrivateDirectA(LOCAL_PTR real* alm, const int _mi, const int kg,
                                        const int a_transpose) {
   const int mg = _mi + get_local_id(0)*MWID;
   const int index = (a_transpose) ? mg*(WGD + PADA) + kg : kg*(WGD + PADA) + mg;
@@ -276,7 +275,7 @@ INLINE_FUNC real LocalToPrivateDirectA(LOCAL_PTR realstore* alm, const int _mi, 
 }
 
 // Same as above, but now for the B input matrix
-INLINE_FUNC real LocalToPrivateDirectB(LOCAL_PTR realstore* blm, const int _ni, const int kg,
+INLINE_FUNC real LocalToPrivateDirectB(LOCAL_PTR real* blm, const int _ni, const int kg,
                                        const int b_transpose) {
   const int ng = _ni + get_local_id(1)*NWID;
   const int index = (b_transpose) ? ng*(WGD + PADB) + kg : kg*(WGD + PADB) + ng;

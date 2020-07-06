@@ -1041,7 +1041,8 @@ __kernel void extractChannel0NCHW(__global realstore* in, __global realstore* ou
   const int xyIdx = get_global_id(0);
   const int nIdx = get_global_id(1);
   if(xyIdx < xySize && nIdx < nSize) {
-    out[nIdx * xySize + xyIdx] = in[nIdx * cSize * xySize + xyIdx];
+    real result = LOAD(in,nIdx * cSize * xySize + xyIdx);
+    STORE(out,nIdx * xySize + xyIdx,result);
   }
 }
 )%%";

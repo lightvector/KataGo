@@ -26,7 +26,7 @@ INLINE_FUNC void XgemmDirect(const int kSizeM, const int kSizeN, const int kSize
                              const __global realstoreMD* restrict agm, const int a_offset, const int a_ld,
                              const __global realstoreND* restrict bgm, const int b_offset, const int b_ld,
                              __global realstore* cgm, const int c_offset, const int c_ld,
-                             LOCAL_PTR realstore* alm, LOCAL_PTR realstore* blm,
+                             LOCAL_PTR real* alm, LOCAL_PTR real* blm,
                              const int a_transpose, const int b_transpose, const int c_transpose,
                              const int a_conjugate, const int b_conjugate) {
   const real alpha = GetRealArg(arg_alpha);
@@ -227,8 +227,8 @@ void XgemmDirectNN(const int kSizeM, const int kSizeN, const int kSizeK,
                             const __global realstoreND* restrict bgm, const int b_offset, const int b_ld,
                             __global realstore* cgm, const int c_offset, const int c_ld,
                             const int c_transpose, const int a_conjugate, const int b_conjugate) {
-  __local realstore alm[WGD * (WGD + PADA)];
-  __local realstore blm[WGD * (WGD + PADB)];
+  __local real alm[WGD * (WGD + PADA)];
+  __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
               agm, a_offset, a_ld, bgm, b_offset, b_ld, cgm, c_offset, c_ld,
               alm, blm, 0, 0, c_transpose, a_conjugate, b_conjugate);
@@ -242,8 +242,8 @@ void XgemmDirectNT(const int kSizeM, const int kSizeN, const int kSizeK,
                             const __global realstoreND* restrict bgm, const int b_offset, const int b_ld,
                             __global realstore* cgm, const int c_offset, const int c_ld,
                             const int c_transpose, const int a_conjugate, const int b_conjugate) {
-  __local realstore alm[WGD * (WGD + PADA)];
-  __local realstore blm[WGD * (WGD + PADB)];
+  __local real alm[WGD * (WGD + PADA)];
+  __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
               agm, a_offset, a_ld, bgm, b_offset, b_ld, cgm, c_offset, c_ld,
               alm, blm, 0, 1, c_transpose, a_conjugate, b_conjugate);
@@ -257,8 +257,8 @@ void XgemmDirectTN(const int kSizeM, const int kSizeN, const int kSizeK,
                             const __global realstoreND* restrict bgm, const int b_offset, const int b_ld,
                             __global realstore* cgm, const int c_offset, const int c_ld,
                             const int c_transpose, const int a_conjugate, const int b_conjugate) {
-  __local realstore alm[WGD * (WGD + PADA)];
-  __local realstore blm[WGD * (WGD + PADB)];
+  __local real alm[WGD * (WGD + PADA)];
+  __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
               agm, a_offset, a_ld, bgm, b_offset, b_ld, cgm, c_offset, c_ld,
               alm, blm, 1, 0, c_transpose, a_conjugate, b_conjugate);
@@ -272,8 +272,8 @@ void XgemmDirectTT(const int kSizeM, const int kSizeN, const int kSizeK,
                             const __global realstoreND* restrict bgm, const int b_offset, const int b_ld,
                             __global realstore* cgm, const int c_offset, const int c_ld,
                             const int c_transpose, const int a_conjugate, const int b_conjugate) {
-  __local realstore alm[WGD * (WGD + PADA)];
-  __local realstore blm[WGD * (WGD + PADB)];
+  __local real alm[WGD * (WGD + PADA)];
+  __local real blm[WGD * (WGD + PADB)];
   XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
               agm, a_offset, a_ld, bgm, b_offset, b_ld, cgm, c_offset, c_ld,
               alm, blm, 1, 1, c_transpose, a_conjugate, b_conjugate);

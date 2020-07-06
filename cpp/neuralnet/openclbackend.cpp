@@ -150,6 +150,7 @@ struct CompiledPrograms {
   cl_program addCBiasesNCReluProgram;
   cl_program extractChannel0NCHWProgram;
   cl_program xgemmDirectProgram;
+  cl_program xgemmDirectProgramAlwaysFP32;
   cl_program xgemmProgram;
 
   CompiledPrograms(
@@ -243,6 +244,10 @@ struct CompiledPrograms {
       "xgemmDirectProgram", context, deviceIdsToUse, OpenCLKernels::xgemmDirect,
       tuneParams.xGemmDirect.compileOptions() + maybeFP16CompileOptions
     );
+    xgemmDirectProgramAlwaysFP32 = compileProgram(
+      "xgemmDirectProgramAlwaysFP32", context, deviceIdsToUse, OpenCLKernels::xgemmDirect,
+      tuneParams.xGemmDirect.compileOptions()
+    );
     if(tuneParams.shouldUseFP16Storage && tuneParams.shouldUseFP16Compute) {
       xgemmProgram = compileProgram(
         "xgemmProgram", context, deviceIdsToUse, OpenCLKernels::xgemm,
@@ -276,6 +281,7 @@ struct CompiledPrograms {
     clReleaseProgram(addCBiasesNCReluProgram);
     clReleaseProgram(extractChannel0NCHWProgram);
     clReleaseProgram(xgemmDirectProgram);
+    clReleaseProgram(xgemmDirectProgramAlwaysFP32);
     clReleaseProgram(xgemmProgram);
   }
 
@@ -503,7 +509,7 @@ struct ComputeHandleInternal {
     CHECK_ERR(err);
     extractChannel0NCHWKernel = clCreateKernel(progs->extractChannel0NCHWProgram, "extractChannel0NCHW", &err);
     CHECK_ERR(err);
-    xgemmDirectBatchedTTKernel = clCreateKernel(progs->xgemmDirectProgram, "XgemmDirectBatchedTT", &err);
+    xgemmDirectBatchedTTKernel = clCreateKernel(progs->xgemmDirectProgramAlwaysFP32, "XgemmDirectBatchedTT", &err);
     CHECK_ERR(err);
     xgemmDirectStridedBatchedNNKernel = clCreateKernel(progs->xgemmDirectProgram, "XgemmDirectStridedBatchedNN", &err);
     CHECK_ERR(err);
@@ -559,7 +565,7 @@ static cl_mem createReadWriteBuffer(ComputeHandleInternal* handle, vector<float>
     vector<half_t> dataHalf(data.size());
     for(size_t i = 0; i<data.size(); i++)
       dataHalf[i] = half_float::half_cast<half_t>(data[i]);
-    return createReadWriteBuffer(handle->clContext,data);
+    return createReadWriteBuffer(handle->clContext,dataHalf);
   }
   else
     return createReadWriteBuffer(handle->clContext,data);
@@ -2758,9 +2764,6 @@ bool NeuralNet::testEvaluateConv(
   cl_int err;
   int gpuIdx = 0;
 
-  //TODO here and elsewhere, allow when ready
-  // if(useFP16 != false)
-  //   return false;
   if(useNHWC != false)
     return false;
 
@@ -2814,8 +2817,6 @@ bool NeuralNet::testEvaluateBatchNorm(
   cl_int err;
   int gpuIdx = 0;
 
-  if(useFP16 != false)
-    return false;
   if(useNHWC != false)
     return false;
 
@@ -2866,8 +2867,6 @@ bool NeuralNet::testEvaluateResidualBlock(
   Logger* logger = NULL;
   int gpuIdx = 0;
 
-  if(useFP16 != false)
-    return false;
   if(useNHWC != false)
     return false;
 
@@ -2929,8 +2928,6 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   Logger* logger = NULL;
   int gpuIdx = 0;
 
-  if(useFP16 != false)
-    return false;
   if(useNHWC != false)
     return false;
 
