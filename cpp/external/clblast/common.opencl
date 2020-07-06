@@ -9,7 +9,7 @@
 //
 // This file contains the common defines and type-defs for the CLBlast OpenCL kernels.
 //
-// MODIFIED from the original by David Wu (lightvector) to add FP16 storage with FP32 compute as an option.
+// MODIFIED from the original by David Wu ("lightvector") to add FP16 storage with FP32 compute as an option.
 //
 // =================================================================================================
 

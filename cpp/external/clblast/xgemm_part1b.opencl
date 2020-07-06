@@ -10,6 +10,7 @@
 // MODIFIED by David Wu ("lightvector") to remove some unnecessary parts of the interfaces
 // for this project's use, such as alpha and beta scaling, and to split part1 into 1a and 1b
 // as it was too large.
+// MODIFIED from the original by David Wu ("lightvector") to add FP16 storage with FP32 compute as an option.
 //
 // This is part 1b of 4 of the GEMM kernel. See part 1 for more information.
 //

@@ -4,6 +4,9 @@
 
 using namespace std;
 
+string OpenCLKernels::fp16StorageDefine = " -DPRECISION_STORAGE=16";
+string OpenCLKernels::fp16ComputeDefine = " -DPRECISION=16";
+
 string OpenCLKernels::common = R"%%(
 #ifndef PRECISION
   #define PRECISION 32
@@ -786,8 +789,10 @@ __kernel void addPointWise(
 ) {
   const int s = get_global_id(0);
 
-  if(s < size)
-    accum[s] += value[s];
+  if(s < size) {
+    real result = LOAD(accum,s) + LOAD(value,s);
+    STORE(accum,s,result);
+  }
 }
 )%%";
 

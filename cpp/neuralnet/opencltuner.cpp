@@ -929,7 +929,7 @@ static void tuneXGemm(
     cl_program program;
     bool compileSuc = tryCompileProgram(
       "xgemmProgram", context, deviceIdsToUse, OpenCLKernels::xgemm,
-      cfg.xGemm.compileOptions() + (useFP16Storage ? " -DPRECISION_STORAGE=16" : ""),
+      cfg.xGemm.compileOptions() + (useFP16Storage ? OpenCLKernels::fp16StorageDefine : ""),
       program
     );
     if(!compileSuc) { accums.bad = true; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
@@ -1149,7 +1149,7 @@ static void tuneXGemm16(
     cl_program program;
     bool compileSuc = tryCompileProgram(
       "xgemmProgram", context, deviceIdsToUse, OpenCLKernels::xgemm,
-      cfg.xGemm16.compileOptions() + " -DPRECISION=16 -DPRECISION_STORAGE=16",
+      cfg.xGemm16.compileOptions() + OpenCLKernels::fp16StorageDefine + OpenCLKernels::fp16ComputeDefine,
       program
     );
     if(!compileSuc) { accums.bad = true; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
@@ -1858,14 +1858,14 @@ void OpenCLTuner::tune(
   string maybeFP16CompileOptions;
   if(currentConfig.shouldUseFP16Storage) {
     out << "Using FP16 storage!" << endl;
-    maybeFP16CompileOptions += " -DPRECISION_STORAGE=16";
+    maybeFP16CompileOptions += OpenCLKernels::fp16StorageDefine;
   }
   else {
     out << "Using FP32 storage!" << endl;
   }
   if(currentConfig.shouldUseFP16Compute) {
     out << "Using FP16 compute!" << endl;
-    maybeFP16CompileOptions += " -DPRECISION=16";
+    maybeFP16CompileOptions += OpenCLKernels::fp16ComputeDefine;
   }
   else {
     out << "Using FP32 compute!" << endl;

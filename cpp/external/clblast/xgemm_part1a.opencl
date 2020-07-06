@@ -10,6 +10,7 @@
 // MODIFIED by David Wu ("lightvector") to remove some unnecessary parts of the interfaces
 // for this project's use, such as alpha and beta scaling, and to split part1 into 1a and 1b
 // as it was too large.
+// MODIFIED from the original by David Wu ("lightvector") to add FP16 storage with FP32 compute as an option.
 //
 // This file contains two optimized matrix-multiplication kernels:
 // - Kernel 0: inspired by the paper by Matsumoto et al. and the tutorial on

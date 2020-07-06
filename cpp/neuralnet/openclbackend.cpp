@@ -15,6 +15,23 @@ using namespace OpenCLHelpers;
 
 using half_t = half_float::half;
 
+//======================================================================================================
+/*
+  FP16 CONVENTIONS.
+
+  When using FP16...
+  - Every "spatial" tensor is in FP16.
+  -- So, the NHWC tensors for the trunk, and the NHW tensor for the mask are FP16.
+  - Additionally, batch norm scales and biases are in FP16.
+  - But everything else is NOT in FP16. In particular:
+  -- The initial matmul for the global features are FP32
+  -- Global pooling an FP16 tensor produces FP32 pooled values
+  -- Value head and policy head's global pooling produce FP32 pooled values.
+  -- This means that every MatMul layer and MatBias layer is operating in FP32.
+  -- Basically, everything non-spatial (except for batch norm) is FP32.
+
+*/
+
 //Define this to print out some of the intermediate values of the neural net
 //#define DEBUG_INTERMEDIATE_VALUES
 
@@ -112,6 +129,9 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
 struct CompiledPrograms {
   OpenCLTuneParams tuneParams;
 
+  bool usingFP16Storage;
+  bool usingFP16Compute;
+
   cl_program conv2dNCHWProgram;
   cl_program winogradConv3x3NCHWTransformProgram;
   cl_program winogradConv3x3NCHWBNReluTransformProgram;
@@ -132,56 +152,109 @@ struct CompiledPrograms {
   cl_program xgemmDirectProgram;
   cl_program xgemmProgram;
 
-  CompiledPrograms(const cl_context& context, const vector<cl_device_id>& deviceIdsToUse, const OpenCLTuneParams& tParams) {
+  CompiledPrograms(
+    const cl_context& context,
+    const vector<cl_device_id>& deviceIdsToUse,
+    const OpenCLTuneParams& tParams,
+    bool useFP16Storage,
+    bool useFP16Compute
+  ) {
     tuneParams = tParams;
 
-    conv2dNCHWProgram = compileProgram("conv2dNCHWProgram", context, deviceIdsToUse, OpenCLKernels::conv2dNCHW, "");
+    usingFP16Storage = useFP16Storage;
+    usingFP16Compute = useFP16Compute;
+
+    string maybeFP16CompileOptions = "";
+    if(useFP16Storage)
+      maybeFP16CompileOptions += OpenCLKernels::fp16StorageDefine;
+    if(useFP16Compute)
+      maybeFP16CompileOptions += OpenCLKernels::fp16ComputeDefine;
+
+    conv2dNCHWProgram = compileProgram(
+      "conv2dNCHWProgram", context, deviceIdsToUse, OpenCLKernels::conv2dNCHW,
+      maybeFP16CompileOptions
+    );
     winogradConv3x3NCHWTransformProgram = compileProgram(
       "winogradConv3x3NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHW,
-      tuneParams.conv3x3.compileOptions()
+      tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions
     );
     winogradConv3x3NCHWBNReluTransformProgram = compileProgram(
       "winogradConv3x3NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHW,
-      tuneParams.conv3x3.compileOptions()
+      tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions
     );
     winogradConv3x3NCHWUntransformProgram = compileProgram(
       "winogradConv3x3NCHWUntransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradUntransformNCHW,
-      tuneParams.conv3x3.compileOptions()
+      tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions
     );
     winogradConv5x5NCHWTransformProgram = compileProgram(
       "winogradConv5x5NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHW,
-      tuneParams.conv5x5.compileOptions()
+      tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions
     );
     winogradConv5x5NCHWBNReluTransformProgram = compileProgram(
       "winogradConv5x5NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHW,
-      tuneParams.conv5x5.compileOptions()
+      tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions
     );
     winogradConv5x5NCHWUntransformProgram = compileProgram(
       "winogradConv5x5NCHWUntransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradUntransformNCHW,
-      tuneParams.conv5x5.compileOptions()
+      tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions
     );
 
-    scaleBiasMaskNCHWProgram = compileProgram("scaleBiasMaskNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskNCHW, "");
-    scaleBiasMaskReluNCHWProgram = compileProgram("scaleBiasMaskReluNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskReluNCHW, "");
-    addPointWiseProgram = compileProgram("addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise, "");
+    scaleBiasMaskNCHWProgram = compileProgram(
+      "scaleBiasMaskNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskNCHW,
+      maybeFP16CompileOptions
+    );
+    scaleBiasMaskReluNCHWProgram = compileProgram(
+      "scaleBiasMaskReluNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskReluNCHW,
+      maybeFP16CompileOptions
+    );
+    addPointWiseProgram = compileProgram(
+      "addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise,
+      maybeFP16CompileOptions
+    );
     sumChannelsNCHWProgram = compileProgram(
       "sumChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::sumChannelsNCHW,
-      tuneParams.gPool.compileOptions()
+      tuneParams.gPool.compileOptions() + maybeFP16CompileOptions
     );
     gPoolChannelsNCHWProgram = compileProgram(
       "gPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::gPoolChannelsNCHW,
-      tuneParams.gPool.compileOptions()
+      tuneParams.gPool.compileOptions() + maybeFP16CompileOptions
     );
     valueHeadPoolChannelsNCHWProgram = compileProgram(
       "valueHeadPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::valueHeadPoolChannelsNCHW,
-      tuneParams.gPool.compileOptions()
+      tuneParams.gPool.compileOptions() + maybeFP16CompileOptions
     );
-    addChannelBiasesNCHWProgram = compileProgram("addChannelBiasesNCHWProgram", context, deviceIdsToUse, OpenCLKernels::addChannelBiasesNCHW, "");
-    addCBiasesNCProgram = compileProgram("addCBiasesNCProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNC, "");
-    addCBiasesNCReluProgram = compileProgram("addCBiasesNCReluProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCRelu, "");
-    extractChannel0NCHWProgram = compileProgram("extractChannel0NCHWProgram", context, deviceIdsToUse, OpenCLKernels::extractChannel0NCHW, "");
-    xgemmDirectProgram = compileProgram("xgemmDirectProgram", context, deviceIdsToUse, OpenCLKernels::xgemmDirect, tuneParams.xGemmDirect.compileOptions());
-    xgemmProgram = compileProgram("xgemmProgram", context, deviceIdsToUse, OpenCLKernels::xgemm, tuneParams.xGemm.compileOptions());
+    addChannelBiasesNCHWProgram = compileProgram(
+      "addChannelBiasesNCHWProgram", context, deviceIdsToUse, OpenCLKernels::addChannelBiasesNCHW,
+      maybeFP16CompileOptions
+    );
+    addCBiasesNCProgram = compileProgram(
+      "addCBiasesNCProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNC,
+      maybeFP16CompileOptions
+    );
+    addCBiasesNCReluProgram = compileProgram(
+      "addCBiasesNCReluProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCRelu,
+      maybeFP16CompileOptions
+    );
+    extractChannel0NCHWProgram = compileProgram(
+      "extractChannel0NCHWProgram", context, deviceIdsToUse, OpenCLKernels::extractChannel0NCHW,
+      maybeFP16CompileOptions
+    );
+    xgemmDirectProgram = compileProgram(
+      "xgemmDirectProgram", context, deviceIdsToUse, OpenCLKernels::xgemmDirect,
+      tuneParams.xGemmDirect.compileOptions() + maybeFP16CompileOptions
+    );
+    if(tuneParams.shouldUseFP16Storage && tuneParams.shouldUseFP16Compute) {
+      xgemmProgram = compileProgram(
+        "xgemmProgram", context, deviceIdsToUse, OpenCLKernels::xgemm,
+        tuneParams.xGemm16.compileOptions() + maybeFP16CompileOptions
+      );
+    }
+    else {
+      xgemmProgram = compileProgram(
+        "xgemmProgram", context, deviceIdsToUse, OpenCLKernels::xgemm,
+        tuneParams.xGemm.compileOptions() + maybeFP16CompileOptions
+      );
+    }
   }
 
   ~CompiledPrograms() {
@@ -260,7 +333,14 @@ struct ComputeContext {
       //In case we need to autotune, use the 0th device with that name that the user wants us to use
       //Assume that they all use the same opencl context too since if they have the same name they should be the same platform
       OpenCLTuneParams tuneParams = getParamsForDeviceName(name, devicesForName[0]->info.gpuIdx);
-      CompiledPrograms* compiledPrograms = new CompiledPrograms(devicesForName[0]->context, deviceIdsForName, tuneParams);
+
+      bool useFP16Storage = useFP16Mode == enabled_t::True || (useFP16Mode == enabled_t::Auto && tuneParams.shouldUseFP16Storage);
+      bool useFP16Compute = (useFP16Mode == enabled_t::True || useFP16Mode == enabled_t::Auto) && tuneParams.shouldUseFP16Compute;
+
+      CompiledPrograms* compiledPrograms = new CompiledPrograms(
+        devicesForName[0]->context, deviceIdsForName, tuneParams,
+        useFP16Storage, useFP16Compute
+      );
       compiledProgramsByDeviceName[name] = compiledPrograms;
     }
   }
@@ -339,8 +419,10 @@ struct ComputeHandleInternal {
   cl_command_queue commandQueue;
   OpenCLTuneParams tuneParams;
 
-  cl_kernel conv2dNCHWKernel;
+  bool usingFP16Storage;
+  bool usingFP16Compute;
 
+  cl_kernel conv2dNCHWKernel;
   cl_kernel winogradConv3x3NCHWTransformKernel;
   cl_kernel winogradConv3x3NCHWBNReluTransformKernel;
   cl_kernel winogradConv3x3NCHWUntransformKernel;
@@ -365,7 +447,7 @@ struct ComputeHandleInternal {
   vector<std::function<void()>> profileCallbacks;
   vector<std::function<void()>> profileResultPrinters;
 
-  ComputeHandleInternal(ComputeContext* ctx, int gpuIdx, bool inputsUseNHWC, bool useNHWC, bool useFP16) {
+  ComputeHandleInternal(ComputeContext* ctx, int gpuIdx, bool inputsUseNHWC, bool useNHWC) {
     computeContext = ctx;
 
     const InitializedDevice* device = computeContext->devicesContext->findGpuExn(gpuIdx);
@@ -379,8 +461,9 @@ struct ComputeHandleInternal {
       throw StringError("OpenCL backend: inputsUseNHWC = false required, other configurations not supported");
     if(useNHWC != false)
       throw StringError("OpenCL backend: useNHWC = false required, other configurations not supported");
-    if(useFP16 != false)
-      throw StringError("OpenCL backend: useFP16 = false required, other configurations not supported");
+
+    usingFP16Storage = progs->usingFP16Storage;
+    usingFP16Compute = progs->usingFP16Compute;
 
     cl_int err;
     conv2dNCHWKernel = clCreateKernel(progs->conv2dNCHWProgram, "conv2dNCHW", &err);
@@ -1124,7 +1207,7 @@ struct MatMulLayer {
         weights[oc * inChannels + ic] = desc->weights[ic * outChannels + oc];
       }
     }
-    //TODO think about this
+    //See notes about FP16 conventions at the top of file
     bool useFP16 = false;
     matBuf = createReadOnlyBuffer(handle,weights,useFP16);
   }
@@ -1169,6 +1252,7 @@ struct MatBiasLayer {
 
     assert(desc->weights.size() == numChannels);
     vector<float> weights = desc->weights;
+    //See notes about FP16 conventions at the top of file
     bool useFP16 = false;
     biasBuf = createReadOnlyBuffer(handle,weights,useFP16);
   }
@@ -1302,7 +1386,7 @@ struct GlobalPoolingResidualBlock {
      regularConv(handle,&desc->regularConv,nnX,nnY,useFP16),
      gpoolConv(handle,&desc->gpoolConv,nnX,nnY,useFP16),
      gpoolBN(handle,&desc->gpoolBN,nnX,nnY,useFP16),
-     gpoolToBiasMul(handle,&desc->gpoolToBiasMul), //TODO verify that float -> half occurs properly here
+     gpoolToBiasMul(handle,&desc->gpoolToBiasMul),
      midBN(handle,&desc->midBN,nnX,nnY,useFP16),
      finalConv(handle,&desc->finalConv,nnX,nnY,useFP16),
      nnXLen(nnX),
@@ -1424,12 +1508,10 @@ struct Trunk {
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,dilatedNumChannels);
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,gpoolNumChannels);
 
-    //TODO we need an initial conversion to FP16 too
     initialConv = new ConvLayer(handle,&desc->initialConv,nnXLen,nnYLen,useFP16);
     initialMatMul = new MatMulLayer(handle,&desc->initialMatMul);
 
     trunkTipBN = new BatchNormLayer(handle,&desc->trunkTipBN,nnXLen,nnYLen,useFP16);
-    //TODO need conversion to FP32 for policy head??
 
     assert(desc->blocks.size() == numBlocks);
     for(int i = 0; i<numBlocks; i++) {
@@ -1625,7 +1707,8 @@ struct PolicyHead {
     ComputeHandleInternal* handle,
     const PolicyHeadDesc* desc,
     int nnX,
-    int nnY
+    int nnY,
+    bool useFP16
   ) {
     name = desc->name;
     version = desc->version;
@@ -1635,11 +1718,9 @@ struct PolicyHead {
     g1Channels = desc->g1Conv.outChannels;
     p2Channels = desc->p2Conv.outChannels;
 
-    //Need conversion as we go from trunk to here?
-    bool useFP16 = false;
     p1Conv = new ConvLayer(handle,&desc->p1Conv,nnXLen,nnYLen,useFP16);
     g1Conv = new ConvLayer(handle,&desc->g1Conv,nnXLen,nnYLen,useFP16);
-    g1BN = new BatchNormLayer(handle,&desc->g1BN,nnXLen,nnYLen,useFP16); //TODO UHOH
+    g1BN = new BatchNormLayer(handle,&desc->g1BN,nnXLen,nnYLen,useFP16);
     gpoolToBiasMul = new MatMulLayer(handle,&desc->gpoolToBiasMul);
     p1BN = new BatchNormLayer(handle,&desc->p1BN,nnXLen,nnYLen,useFP16);
     p2Conv = new ConvLayer(handle,&desc->p2Conv,nnXLen,nnYLen,useFP16);
@@ -1751,7 +1832,8 @@ struct ValueHead {
     ComputeHandleInternal* handle,
     const ValueHeadDesc* desc,
     int nnX,
-    int nnY
+    int nnY,
+    bool useFP16
   ) {
     name = desc->name;
     version = desc->version;
@@ -1763,7 +1845,6 @@ struct ValueHead {
     scoreValueChannels = desc->sv3Mul.outChannels;
     ownershipChannels = desc->vOwnershipConv.outChannels;
 
-    bool useFP16 = false;
     v1Conv = new ConvLayer(handle,&desc->v1Conv,nnXLen,nnYLen,useFP16);
     v1BN = new BatchNormLayer(handle,&desc->v1BN,nnXLen,nnYLen,useFP16);
     v2Mul = new MatMulLayer(handle,&desc->v2Mul);
@@ -1936,8 +2017,8 @@ struct Model {
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,numOwnershipChannels);
 
     trunk = new Trunk(handle,&desc->trunk,maxBatchSize,nnXLen,nnYLen,useFP16);
-    policyHead = new PolicyHead(handle,&desc->policyHead,nnXLen,nnYLen);
-    valueHead = new ValueHead(handle,&desc->valueHead,nnXLen,nnYLen);
+    policyHead = new PolicyHead(handle,&desc->policyHead,nnXLen,nnYLen,useFP16);
+    valueHead = new ValueHead(handle,&desc->valueHead,nnXLen,nnYLen,useFP16);
   }
 
   ~Model()
@@ -2214,6 +2295,8 @@ struct ComputeHandle {
   int nnYLen;
   int policySize;
   bool inputsUseNHWC;
+  bool usingFP16Storage;
+  bool usingFP16Compute;
 
   ComputeHandle(
     ComputeContext* context, const LoadedModel* loadedModel, int maxBatchSize, int gpuIdx, bool inputsNHWC
@@ -2221,12 +2304,12 @@ struct ComputeHandle {
     nnXLen = context->nnXLen;
     nnYLen = context->nnYLen;
 
-    //For both of these, Auto => false
     bool useNHWC = context->usingNHWCMode == enabled_t::True ? true : false;
-    bool useFP16 = context->usingFP16Mode == enabled_t::True ? true : false;
+    handle = new ComputeHandleInternal(context, gpuIdx, inputsNHWC, useNHWC);
+    usingFP16Storage = handle->usingFP16Storage;
+    usingFP16Compute = handle->usingFP16Compute;
 
-    handle = new ComputeHandleInternal(context, gpuIdx, inputsNHWC, useNHWC, useFP16);
-    model = new Model(handle, &(loadedModel->modelDesc), maxBatchSize, nnXLen, nnYLen, useFP16);
+    model = new Model(handle, &(loadedModel->modelDesc), maxBatchSize, nnXLen, nnYLen, usingFP16Storage);
     buffers = new Buffers(handle, *model);
     policySize = NNPos::getPolicySize(nnXLen, nnYLen);
     inputsUseNHWC = inputsNHWC;
@@ -2253,16 +2336,22 @@ ComputeHandle* NeuralNet::createComputeHandle(
   int gpuIdxForThisThread
 ) {
   if(logger != NULL) {
-    logger->write("OpenCL backend: Model version " + Global::intToString(loadedModel->modelDesc.version));
-    logger->write(
-      "OpenCL backend: Model name: " + loadedModel->modelDesc.name
-    );
+    logger->write("OpenCL backend: Device " + Global::intToString(gpuIdxForThisThread) + " Model version " + Global::intToString(loadedModel->modelDesc.version));
+    logger->write("OpenCL backend: Device " + Global::intToString(gpuIdxForThisThread) + " Model name: " + loadedModel->modelDesc.name);
   }
 
   //Current implementation always tolerates excess nn len
   (void)requireExactNNLen;
+  ComputeHandle* handle = new ComputeHandle(context,loadedModel,maxBatchSize,gpuIdxForThisThread,inputsUseNHWC);
 
-  return new ComputeHandle(context,loadedModel,maxBatchSize,gpuIdxForThisThread,inputsUseNHWC);
+  if(logger != NULL) {
+    logger->write(
+      "OpenCL backend: Device " + Global::intToString(gpuIdxForThisThread) +
+      " FP16Storage " + Global::boolToString(handle->usingFP16Storage) +
+      " FP16Compute " + Global::boolToString(handle->usingFP16Compute)
+    );
+  }
+  return handle;
 }
 
 void NeuralNet::freeComputeHandle(ComputeHandle* handle) {
@@ -2288,19 +2377,12 @@ struct InputBuffers {
   int maxBatchSize;
 
   size_t singleInputElts;
-  size_t singleInputBytes;
   size_t singleInputGlobalElts;
-  size_t singleInputGlobalBytes;
   size_t singlePolicyPassResultElts;
-  size_t singlePolicyPassResultBytes;
   size_t singlePolicyResultElts;
-  size_t singlePolicyResultBytes;
   size_t singleValueResultElts;
-  size_t singleValueResultBytes;
   size_t singleScoreValueResultElts;
-  size_t singleScoreValueResultBytes;
   size_t singleOwnershipResultElts;
-  size_t singleOwnershipResultBytes;
 
   size_t userInputBufferElts;
   size_t userInputGlobalBufferElts;
@@ -2311,13 +2393,16 @@ struct InputBuffers {
   size_t ownershipResultBufferElts;
 
   float* userInputBuffer; //Host pointer
+  half_t* userInputBufferHalf; //Host pointer
   float* userInputGlobalBuffer; //Host pointer
 
   float* policyPassResults; //Host pointer
   float* policyResults; //Host pointer
+  half_t* policyResultsHalf; //Host pointer
   float* valueResults; //Host pointer
   float* scoreValueResults; //Host pointer
   float* ownershipResults; //Host pointer
+  half_t* ownershipResultsHalf; //Host pointer
 
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
@@ -2327,19 +2412,12 @@ struct InputBuffers {
 
     maxBatchSize = maxBatchSz;
     singleInputElts = (size_t)m.numInputChannels * xSize * ySize;
-    singleInputBytes = (size_t)m.numInputChannels * xSize * ySize * sizeof(float);
     singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
-    singleInputGlobalBytes = (size_t)m.numInputGlobalChannels * sizeof(float);
     singlePolicyPassResultElts = (size_t)(1);
-    singlePolicyPassResultBytes = (size_t)(1) * sizeof(float);
     singlePolicyResultElts = (size_t)(xSize * ySize);
-    singlePolicyResultBytes = (size_t)(xSize * ySize) * sizeof(float);
     singleValueResultElts = (size_t)m.numValueChannels;
-    singleValueResultBytes = (size_t)m.numValueChannels * sizeof(float);
     singleScoreValueResultElts = (size_t)m.numScoreValueChannels;
-    singleScoreValueResultBytes = (size_t)m.numScoreValueChannels * sizeof(float);
     singleOwnershipResultElts = (size_t)m.numOwnershipChannels * xSize * ySize;
-    singleOwnershipResultBytes = (size_t)m.numOwnershipChannels * xSize * ySize * sizeof(float);
 
     assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
@@ -2353,24 +2431,30 @@ struct InputBuffers {
     ownershipResultBufferElts = (size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels;
 
     userInputBuffer = new float[(size_t)m.numInputChannels * maxBatchSize * xSize * ySize];
+    userInputBufferHalf = new half_t[(size_t)m.numInputChannels * maxBatchSize * xSize * ySize];
     userInputGlobalBuffer = new float[(size_t)m.numInputGlobalChannels * maxBatchSize];
 
     policyPassResults = new float[(size_t)maxBatchSize * 1];
     policyResults = new float[(size_t)maxBatchSize * xSize * ySize];
+    policyResultsHalf = new half_t[(size_t)maxBatchSize * xSize * ySize];
     valueResults = new float[(size_t)maxBatchSize * m.numValueChannels];
 
     scoreValueResults = new float[(size_t)maxBatchSize * m.numScoreValueChannels];
     ownershipResults = new float[(size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels];
+    ownershipResultsHalf = new half_t[(size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels];
   }
 
   ~InputBuffers() {
     delete[] userInputBuffer;
+    delete[] userInputBufferHalf;
     delete[] userInputGlobalBuffer;
     delete[] policyPassResults;
     delete[] policyResults;
+    delete[] policyResultsHalf;
     delete[] valueResults;
     delete[] scoreValueResults;
     delete[] ownershipResults;
+    delete[] ownershipResultsHalf;
   }
 
   InputBuffers() = delete;
@@ -2425,36 +2509,55 @@ void NeuralNet::getOutput(
   assert(inputBuffers->userInputGlobalBufferElts == buffers->inputGlobalElts);
   assert(inputBuffers->policyResultBufferElts == buffers->policyElts);
   assert(inputBuffers->valueResultBufferElts == buffers->valueElts);
-  assert(inputBuffers->singleInputBytes == inputBuffers->singleInputElts*4);
-  assert(inputBuffers->singleInputGlobalBytes == inputBuffers->singleInputGlobalElts*4);
   assert(inputBuffers->singlePolicyResultElts + inputBuffers->singlePolicyPassResultElts == gpuHandle->policySize);
-  assert(inputBuffers->singlePolicyResultBytes + inputBuffers->singlePolicyPassResultBytes == gpuHandle->policySize * sizeof(float));
   assert(inputBuffers->scoreValueResultBufferElts == buffers->scoreValueElts);
   assert(inputBuffers->ownershipResultBufferElts == buffers->ownershipElts);
   assert(inputBuffers->singleOwnershipResultElts == nnXLen*nnYLen);
-  assert(inputBuffers->singleOwnershipResultBytes == nnXLen*nnYLen * sizeof(float));
 
   ComputeHandleInternal* handle = gpuHandle->handle;
+  bool useFP16Storage = gpuHandle->usingFP16Storage;
 
   cl_int err;
-  err = clEnqueueWriteBuffer(
-    handle->commandQueue,
-    buffers->input,
-    CL_FALSE,
-    0,
-    inputBuffers->singleInputBytes*batchSize,
-    inputBuffers->userInputBuffer,
-    0,
-    NULL,
-    NULL
-  );
-  CHECK_ERR(err);
+
+  if(useFP16Storage) {
+    size_t numElts = inputBuffers->singleInputElts * batchSize;
+    for(size_t i = 0; i<numElts; i++)
+      inputBuffers->userInputBufferHalf[i] = half_float::half_cast<half_t>(inputBuffers->userInputBuffer[i]);
+
+    err = clEnqueueWriteBuffer(
+      handle->commandQueue,
+      buffers->input,
+      CL_FALSE,
+      0,
+      inputBuffers->singleInputElts * sizeof(half_t) * batchSize,
+      inputBuffers->userInputBufferHalf,
+      0,
+      NULL,
+      NULL
+    );
+    CHECK_ERR(err);
+  }
+  else {
+    err = clEnqueueWriteBuffer(
+      handle->commandQueue,
+      buffers->input,
+      CL_FALSE,
+      0,
+      inputBuffers->singleInputElts * sizeof(float) * batchSize,
+      inputBuffers->userInputBuffer,
+      0,
+      NULL,
+      NULL
+    );
+    CHECK_ERR(err);
+  }
+
   err = clEnqueueWriteBuffer(
     handle->commandQueue,
     buffers->inputGlobal,
     CL_FALSE,
     0,
-    inputBuffers->singleInputGlobalBytes*batchSize,
+    inputBuffers->singleInputGlobalElts * sizeof(float) * batchSize,
     inputBuffers->userInputGlobalBuffer,
     0,
     NULL,
@@ -2500,25 +2603,54 @@ void NeuralNet::getOutput(
 
   cl_bool blocking = CL_TRUE;
   err = clEnqueueReadBuffer(
-    handle->commandQueue, buffers->policyPass, blocking, 0, inputBuffers->singlePolicyPassResultBytes*batchSize, inputBuffers->policyPassResults, 0, NULL, NULL
+    handle->commandQueue, buffers->policyPass, blocking, 0,
+    inputBuffers->singlePolicyPassResultElts*sizeof(float)*batchSize, inputBuffers->policyPassResults, 0, NULL, NULL
+  );
+  CHECK_ERR(err);
+  if(useFP16Storage) {
+    err = clEnqueueReadBuffer(
+      handle->commandQueue, buffers->policy, blocking, 0,
+      inputBuffers->singlePolicyResultElts*sizeof(half_t)*batchSize, inputBuffers->policyResultsHalf, 0, NULL, NULL
+    );
+    CHECK_ERR(err);
+    size_t numElts = inputBuffers->singlePolicyResultElts * batchSize;
+    for(size_t i = 0; i<numElts; i++)
+      inputBuffers->policyResults[i] = inputBuffers->policyResultsHalf[i];
+  }
+  else {
+    err = clEnqueueReadBuffer(
+      handle->commandQueue, buffers->policy, blocking, 0,
+      inputBuffers->singlePolicyResultElts*sizeof(float)*batchSize, inputBuffers->policyResults, 0, NULL, NULL
+    );
+    CHECK_ERR(err);
+  }
+  err = clEnqueueReadBuffer(
+    handle->commandQueue, buffers->value, blocking, 0,
+    inputBuffers->singleValueResultElts*sizeof(float)*batchSize, inputBuffers->valueResults, 0, NULL, NULL
   );
   CHECK_ERR(err);
   err = clEnqueueReadBuffer(
-    handle->commandQueue, buffers->policy, blocking, 0, inputBuffers->singlePolicyResultBytes*batchSize, inputBuffers->policyResults, 0, NULL, NULL
+    handle->commandQueue, buffers->scoreValue, blocking, 0,
+    inputBuffers->singleScoreValueResultElts*sizeof(float)*batchSize, inputBuffers->scoreValueResults, 0, NULL, NULL
   );
   CHECK_ERR(err);
-  err = clEnqueueReadBuffer(
-    handle->commandQueue, buffers->value, blocking, 0, inputBuffers->singleValueResultBytes*batchSize, inputBuffers->valueResults, 0, NULL, NULL
-  );
-  CHECK_ERR(err);
-  err = clEnqueueReadBuffer(
-    handle->commandQueue, buffers->scoreValue, blocking, 0, inputBuffers->singleScoreValueResultBytes*batchSize, inputBuffers->scoreValueResults, 0, NULL, NULL
-  );
-  CHECK_ERR(err);
-  err = clEnqueueReadBuffer(
-    handle->commandQueue, buffers->ownership, blocking, 0, inputBuffers->singleOwnershipResultBytes*batchSize, inputBuffers->ownershipResults, 0, NULL, NULL
-  );
-  CHECK_ERR(err);
+  if(useFP16Storage) {
+    err = clEnqueueReadBuffer(
+      handle->commandQueue, buffers->ownership, blocking, 0,
+      inputBuffers->singleOwnershipResultElts*sizeof(half_t)*batchSize, inputBuffers->ownershipResultsHalf, 0, NULL, NULL
+    );
+    CHECK_ERR(err);
+    size_t numElts = inputBuffers->singleOwnershipResultElts * batchSize;
+    for(size_t i = 0; i<numElts; i++)
+      inputBuffers->ownershipResults[i] = inputBuffers->ownershipResultsHalf[i];
+  }
+  else {
+    err = clEnqueueReadBuffer(
+      handle->commandQueue, buffers->ownership, blocking, 0,
+      inputBuffers->singleOwnershipResultElts*sizeof(float)*batchSize, inputBuffers->ownershipResults, 0, NULL, NULL
+    );
+    CHECK_ERR(err);
+  }
 
   #ifdef PROFILE_KERNELS
   {
@@ -2627,13 +2759,13 @@ bool NeuralNet::testEvaluateConv(
   int gpuIdx = 0;
 
   //TODO here and elsewhere, allow when ready
-  if(useFP16 != false)
-    return false;
+  // if(useFP16 != false)
+  //   return false;
   if(useNHWC != false)
     return false;
 
   ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger, nnXLen, nnYLen, useFP16, useNHWC);
-  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC, useNHWC, useFP16);
+  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC, useNHWC);
 
   ConvLayer* layer = new ConvLayer(handle, desc, nnXLen, nnYLen, useFP16);
 
@@ -2688,7 +2820,7 @@ bool NeuralNet::testEvaluateBatchNorm(
     return false;
 
   ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger, nnXLen, nnYLen, useFP16, useNHWC);
-  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC, useNHWC, useFP16);
+  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC, useNHWC);
 
   BatchNormLayer* layer = new BatchNormLayer(handle, desc, nnXLen, nnYLen, useFP16);
 
@@ -2740,7 +2872,7 @@ bool NeuralNet::testEvaluateResidualBlock(
     return false;
 
   ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger, nnXLen, nnYLen, useFP16, useNHWC);
-  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC, useNHWC, useFP16);
+  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC, useNHWC);
 
   ResidualBlock* layer = new ResidualBlock(handle, desc, nnXLen, nnYLen, useFP16);
 
@@ -2803,7 +2935,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
     return false;
 
   ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger, nnXLen, nnYLen, useFP16, useNHWC);
-  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC, useNHWC, useFP16);
+  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC, useNHWC);
 
   GlobalPoolingResidualBlock* layer = new GlobalPoolingResidualBlock(handle, desc, nnXLen, nnYLen, useFP16);
 

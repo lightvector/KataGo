@@ -4,6 +4,9 @@
 #include "../core/global.h"
 
 namespace OpenCLKernels {
+  extern std::string fp16StorageDefine;
+  extern std::string fp16ComputeDefine;
+
   extern std::string common;
   extern std::string conv2dNCHW;
   extern std::string winogradTransformNCHW;
