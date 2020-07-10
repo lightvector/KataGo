@@ -129,7 +129,9 @@ static int parseByoYomiPeriods(const vector<string>& args, int argIdx) {
 
 //Assumes that stones are worth 15 points area and 14 points territory, and that 7 komi is fair
 static double initialBlackAdvantage(const BoardHistory& hist) {
-  int handicapStones = hist.computeNumHandicapStones();
+  BoardHistory histCopy = hist;
+  histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+  int handicapStones = histCopy.computeNumHandicapStones();
   if(handicapStones <= 1)
     return 7.0 - hist.rules.komi;
 
