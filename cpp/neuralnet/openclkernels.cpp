@@ -1069,4 +1069,10 @@ string OpenCLKernels::xgemm =
 #include "../external/clblast/xgemm_batched.opencl"
 ;
 
+string OpenCLKernels::hgemmWmma =
+""
+#include "../external/clblast/common.opencl"
+#include "../neuralnet/hgemm_wmma.opencl"
+;
+
 #endif

@@ -10,6 +10,9 @@
 #define CHECK_ERR(x) { OpenCLHelpers::checkErrors((x),__FILE__,#x,__LINE__); }
 
 struct OpenCLTuneParams;
+namespace OpenCLParams {
+  struct XGemmParams;
+}
 
 struct DeviceInfo {
   //Indexes whatever order that OpenCL gives us devices, across all platforms.
@@ -74,7 +77,7 @@ struct DevicesContext {
 };
 
 namespace OpenCLHelpers {
-  const char* getErrorMessage(cl_int error);
+  const std::string getErrorMessage(cl_int error);
   void checkErrors(cl_int error, const char* file, const char* func, int line);
 
   struct CompileError final : public StringError { CompileError(const char* msg):StringError(msg) {}; CompileError(const std::string& msg):StringError(msg) {}; };
@@ -91,7 +94,8 @@ namespace OpenCLHelpers {
     const std::vector<cl_device_id>& devices,
     const std::string& str,
     const std::string& options,
-    cl_program& buf
+    cl_program& buf,
+    std::string& errorMessage
   );
 
   cl_mem createReadOnlyBuffer(cl_context context, std::vector<float>& data);
@@ -110,6 +114,16 @@ namespace OpenCLHelpers {
   size_t roundUpToMultiple(size_t size, size_t ofThis);
 
   cl_int doBatchedXGemm_KM_KN_NM(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLParams::XGemmParams& tuneParams,
+    int M, int N, int K,
+    cl_mem A, cl_mem B, cl_mem C,
+    int numBatchElts,
+    cl_event* eventBuf
+  );
+
+  cl_int doBatchedHGemmWmma_KM_KN_NM(
     cl_kernel kernel,
     cl_command_queue commandQueue,
     const OpenCLTuneParams& tuneParams,

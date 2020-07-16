@@ -7,7 +7,7 @@ using namespace std;
 
 using half_t = half_float::half;
 
-const char* OpenCLHelpers::getErrorMessage(cl_int error)
+const string OpenCLHelpers::getErrorMessage(cl_int error)
 {
   switch(error){
   case 0: return "CL_SUCCESS";
@@ -77,7 +77,7 @@ const char* OpenCLHelpers::getErrorMessage(cl_int error)
   case -1003: return "CL_INVALID_D3D10_RESOURCE_KHR";
   case -1004: return "CL_D3D10_RESOURCE_ALREADY_ACQUIRED_KHR";
   case -1005: return "CL_D3D10_RESOURCE_NOT_ACQUIRED_KHR";
-  default: return "Unknown OpenCL error";
+  default: return "Unknown OpenCL error " + Global::intToString(error);
   }
 }
 
@@ -119,13 +119,20 @@ cl_program OpenCLHelpers::compileProgram(const string& name, cl_context context,
   return program;
 }
 
-bool OpenCLHelpers::tryCompileProgram(const string& name, cl_context context, const vector<cl_device_id>& devices, const string& str, const string& options, cl_program& buf) {
+bool OpenCLHelpers::tryCompileProgram(
+  const string& name,
+  cl_context context,
+  const vector<cl_device_id>& devices,
+  const string& str,
+  const string& options,
+  cl_program& buf,
+  string& errorMessage
+) {
   try {
     buf = compileProgram(name,context,devices,str,options);
   }
   catch(CompileError& e) {
-    cout << e.what() << endl;
-    (void)e;
+    errorMessage = e.what();
     return false;
   }
   return true;
@@ -600,7 +607,7 @@ size_t OpenCLHelpers::roundUpToMultiple(size_t size, size_t ofThis) {
 cl_int OpenCLHelpers::doBatchedXGemm_KM_KN_NM(
   cl_kernel kernel,
   cl_command_queue commandQueue,
-  const OpenCLTuneParams& tuneParams,
+  const OpenCLParams::XGemmParams& tuneParams,
   int M, int N, int K,
   cl_mem A, cl_mem B, cl_mem C,
   int numBatchElts,
@@ -619,18 +626,57 @@ cl_int OpenCLHelpers::doBatchedXGemm_KM_KN_NM(
   clSetKernelArg(kernel,10, sizeof(int), (void *)&M);
   clSetKernelArg(kernel,11, sizeof(int), (void *)&N);
 
-  assert(M % tuneParams.xGemm.MWG == 0);
-  assert(N % tuneParams.xGemm.NWG == 0);
-  assert(K % tuneParams.xGemm.KWG == 0);
+  assert(M % tuneParams.MWG == 0);
+  assert(N % tuneParams.NWG == 0);
+  assert(K % tuneParams.KWG == 0);
 
   static constexpr int nKernelDims = 3;
-  const size_t MDIMC = tuneParams.xGemm.MDIMC;
-  const size_t NDIMC = tuneParams.xGemm.NDIMC;
-  const size_t MWG = tuneParams.xGemm.MWG;
-  const size_t NWG = tuneParams.xGemm.NWG;
+  const size_t MDIMC = tuneParams.MDIMC;
+  const size_t NDIMC = tuneParams.NDIMC;
+  const size_t MWG = tuneParams.MWG;
+  const size_t NWG = tuneParams.NWG;
 
   size_t globalSizes[nKernelDims] = {M * MDIMC / MWG, N * NDIMC / NWG, (size_t)numBatchElts};
   size_t localSizes[nKernelDims] = {MDIMC, NDIMC, 1};
+
+  cl_int err;
+  err = clEnqueueNDRangeKernel(
+    commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
+  );
+  return err;
+}
+
+cl_int OpenCLHelpers::doBatchedHGemmWmma_KM_KN_NM(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
+  int M, int N, int K,
+  cl_mem A, cl_mem B, cl_mem C,
+  int numBatchElts,
+  cl_event* eventBuf
+) {
+  clSetKernelArg(kernel, 0, sizeof(int), (void *)&M);
+  clSetKernelArg(kernel, 1, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 2, sizeof(int), (void *)&K);
+  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&A);
+  clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&B);
+  clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&C);
+
+  assert(M % tuneParams.hGemmWmma.MWG == 0);
+  assert(N % tuneParams.hGemmWmma.NWG == 0);
+  assert(K % tuneParams.hGemmWmma.KWG == 0);
+
+  static constexpr int nKernelDims = 3;
+  const size_t MWAVE = tuneParams.hGemmWmma.MWAVE;
+  const size_t NWAVE = tuneParams.hGemmWmma.NWAVE;
+  const size_t MWARP = tuneParams.hGemmWmma.MWARP;
+  const size_t NWARP = tuneParams.hGemmWmma.NWARP;
+  const size_t MWG = tuneParams.hGemmWmma.MWG;
+  const size_t NWG = tuneParams.hGemmWmma.NWG;
+  const size_t WARP_SIZE = 32;
+
+  size_t globalSizes[nKernelDims] = {M * MWAVE / MWG / MWARP * WARP_SIZE, N * NWAVE / NWG / NWARP, (size_t)numBatchElts};
+  size_t localSizes[nKernelDims] = {MWAVE/MWARP * WARP_SIZE, NWAVE/NWARP, 1};
 
   cl_int err;
   err = clEnqueueNDRangeKernel(

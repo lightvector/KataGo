@@ -131,6 +131,7 @@ struct CompiledPrograms {
 
   bool usingFP16Storage;
   bool usingFP16Compute;
+  bool usingFP16TensorCores;
 
   cl_program conv2dNCHWProgram;
   cl_program winogradConv3x3NCHWTransformProgram;
@@ -158,12 +159,14 @@ struct CompiledPrograms {
     const vector<cl_device_id>& deviceIdsToUse,
     const OpenCLTuneParams& tParams,
     bool useFP16Storage,
-    bool useFP16Compute
+    bool useFP16Compute,
+    bool useFP16TensorCores
   ) {
     tuneParams = tParams;
 
     usingFP16Storage = useFP16Storage;
     usingFP16Compute = useFP16Compute;
+    usingFP16TensorCores = useFP16TensorCores;
 
     string maybeFP16CompileOptions = "";
     if(useFP16Storage)
@@ -248,7 +251,13 @@ struct CompiledPrograms {
       "xgemmDirectProgramAlwaysFP32", context, deviceIdsToUse, OpenCLKernels::xgemmDirect,
       tuneParams.xGemmDirect.compileOptions()
     );
-    if(tuneParams.shouldUseFP16Storage && tuneParams.shouldUseFP16Compute) {
+    if(usingFP16TensorCores) {
+      xgemmProgram = compileProgram(
+        "hgemmWmmaProgram", context, deviceIdsToUse, OpenCLKernels::hgemmWmma,
+        tuneParams.hGemmWmma.compileOptions() + maybeFP16CompileOptions
+      );
+    }
+    else if(usingFP16Compute) {
       xgemmProgram = compileProgram(
         "xgemmProgram", context, deviceIdsToUse, OpenCLKernels::xgemm,
         tuneParams.xGemm16.compileOptions() + maybeFP16CompileOptions
@@ -342,10 +351,11 @@ struct ComputeContext {
 
       bool useFP16Storage = useFP16Mode == enabled_t::True || (useFP16Mode == enabled_t::Auto && tuneParams.shouldUseFP16Storage);
       bool useFP16Compute = (useFP16Mode == enabled_t::True || useFP16Mode == enabled_t::Auto) && tuneParams.shouldUseFP16Compute;
+      bool useFP16TensorCores = (useFP16Mode == enabled_t::True || useFP16Mode == enabled_t::Auto) && tuneParams.shouldUseFP16TensorCores;
 
       CompiledPrograms* compiledPrograms = new CompiledPrograms(
         devicesForName[0]->context, deviceIdsForName, tuneParams,
-        useFP16Storage, useFP16Compute
+        useFP16Storage, useFP16Compute, useFP16TensorCores
       );
       compiledProgramsByDeviceName[name] = compiledPrograms;
     }
@@ -381,7 +391,9 @@ static ComputeContext* createComputeContextForTesting(
     (void)name;
     (void)gpuIdxForTuning;
     //Just use default values
-    return OpenCLTuneParams();
+    OpenCLTuneParams params = OpenCLTuneParams();
+    //params.shouldUseFP16TensorCores = true;
+    return params;
   };
   return new ComputeContext(gpuIdxs,logger,nnXLen,nnYLen,useFP16Mode,useNHWCMode,getParamsForDeviceName);
 }
@@ -404,9 +416,15 @@ ComputeContext* NeuralNet::createComputeContext(
   std::function<OpenCLTuneParams(const string&,int)> getParamsForDeviceName =
     [&openCLTunerFile,&homeDataDirOverride,openCLReTunePerBoardSize,logger,nnXLen,nnYLen,useFP16Mode,loadedModel](const string& name, int gpuIdxForTuning) {
     bool full = false;
+    enabled_t testFP16Mode = useFP16Mode;
+    enabled_t testFP16StorageMode = useFP16Mode;
+    enabled_t testFP16ComputeMode = enabled_t::Auto;
+    enabled_t testFP16TensorCoresMode = enabled_t::Auto;
+
     return OpenCLTuner::loadOrAutoTune(
       openCLTunerFile,homeDataDirOverride,name,gpuIdxForTuning,logger,openCLReTunePerBoardSize,
-      nnXLen,nnYLen,useFP16Mode,
+      nnXLen,nnYLen,
+      testFP16Mode,testFP16StorageMode,testFP16ComputeMode,testFP16TensorCoresMode,
       &(loadedModel->modelDesc),full);
   };
   return new ComputeContext(gpuIdxs,logger,nnXLen,nnYLen,useFP16Mode,useNHWCMode,getParamsForDeviceName);
@@ -427,6 +445,7 @@ struct ComputeHandleInternal {
 
   bool usingFP16Storage;
   bool usingFP16Compute;
+  bool usingFP16TensorCores;
 
   cl_kernel conv2dNCHWKernel;
   cl_kernel winogradConv3x3NCHWTransformKernel;
@@ -470,6 +489,7 @@ struct ComputeHandleInternal {
 
     usingFP16Storage = progs->usingFP16Storage;
     usingFP16Compute = progs->usingFP16Compute;
+    usingFP16TensorCores = progs->usingFP16TensorCores;
 
     cl_int err;
     conv2dNCHWKernel = clCreateKernel(progs->conv2dNCHWProgram, "conv2dNCHW", &err);
@@ -513,7 +533,10 @@ struct ComputeHandleInternal {
     CHECK_ERR(err);
     xgemmDirectStridedBatchedNNKernel = clCreateKernel(progs->xgemmDirectProgram, "XgemmDirectStridedBatchedNN", &err);
     CHECK_ERR(err);
-    xgemmBatchedNNKernel = clCreateKernel(progs->xgemmProgram, "XgemmBatched", &err);
+    if(usingFP16TensorCores)
+      xgemmBatchedNNKernel = clCreateKernel(progs->xgemmProgram, "hgemmWmmaBatched", &err);
+    else
+      xgemmBatchedNNKernel = clCreateKernel(progs->xgemmProgram, "XgemmBatched", &err);
     CHECK_ERR(err);
   }
 
@@ -548,6 +571,17 @@ struct ComputeHandleInternal {
   ComputeHandleInternal() = delete;
   ComputeHandleInternal(const ComputeHandleInternal&) = delete;
   ComputeHandleInternal& operator=(const ComputeHandleInternal&) = delete;
+
+  int getXGemmMPaddingMult() const {
+    return tuneParams.getXGemmMPaddingMult(usingFP16Compute,usingFP16TensorCores);
+  }
+  int getXGemmNPaddingMult() const {
+    return tuneParams.getXGemmNPaddingMult(usingFP16Compute,usingFP16TensorCores);
+  }
+  int getXGemmKPaddingMult() const {
+    return tuneParams.getXGemmKPaddingMult(usingFP16Compute,usingFP16TensorCores);
+  }
+
 };
 
 static cl_mem createReadOnlyBuffer(ComputeHandleInternal* handle, vector<float>& data, bool useFP16) {
@@ -847,8 +881,8 @@ struct ConvLayer {
       int outTileXSize = convXSize == 3 ? handle->tuneParams.conv3x3.OUTTILE_XSIZE : handle->tuneParams.conv5x5.OUTTILE_XSIZE;
       int outTileYSize = convYSize == 3 ? handle->tuneParams.conv3x3.OUTTILE_YSIZE : handle->tuneParams.conv5x5.OUTTILE_YSIZE;
 
-      int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.NWG);
-      int inChannelsPadded = roundUpToMultiple(inChannels, handle->tuneParams.xGemm.KWG);
+      int outChannelsPadded = roundUpToMultiple(outChannels, handle->getXGemmNPaddingMult());
+      int inChannelsPadded = roundUpToMultiple(inChannels, handle->getXGemmKPaddingMult());
 
       numTilesX = (nnXLen + outTileXSize - 1) / outTileXSize;
       numTilesY = (nnYLen + outTileYSize - 1) / outTileYSize;
@@ -956,9 +990,9 @@ struct ConvLayer {
   }
 
   size_t requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
-    int numTilesTotalPadded = roundUpToMultiple(maxBatchSize * numTilesX * numTilesY, handle->tuneParams.xGemm.MWG);
-    int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.NWG);
-    int inChannelsPadded = roundUpToMultiple(inChannels, handle->tuneParams.xGemm.KWG);
+    int numTilesTotalPadded = roundUpToMultiple(maxBatchSize * numTilesX * numTilesY, handle->getXGemmMPaddingMult());
+    int outChannelsPadded = roundUpToMultiple(outChannels, handle->getXGemmNPaddingMult());
+    int inChannelsPadded = roundUpToMultiple(inChannels, handle->getXGemmKPaddingMult());
     return
       numTilesTotalPadded *
       std::max(inChannelsPadded,outChannelsPadded) *
@@ -999,8 +1033,8 @@ struct ConvLayer {
           handle->tuneParams,
           input,convWorkspace,
           nnXLen,nnYLen,
-          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.MWG, //M in gemm
-          inChannels,handle->tuneParams.xGemm.KWG,                    //K in gemm
+          batchSize,numTilesX,numTilesY,handle->getXGemmMPaddingMult(), //M in gemm
+          inChannels,handle->getXGemmKPaddingMult(),                    //K in gemm
           convXSize,
           MAYBE_EVENTREF
         );
@@ -1011,21 +1045,34 @@ struct ConvLayer {
       }
 
       {
-        int numTilesTotalPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, handle->tuneParams.xGemm.MWG);
-        int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.NWG);
-        int inChannelsPadded = roundUpToMultiple(inChannels, handle->tuneParams.xGemm.KWG);
+        int numTilesTotalPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, handle->getXGemmMPaddingMult());
+        int outChannelsPadded = roundUpToMultiple(outChannels, handle->getXGemmNPaddingMult());
+        int inChannelsPadded = roundUpToMultiple(inChannels, handle->getXGemmKPaddingMult());
 
         cl_int err;
         MAYBE_EVENT;
-        err = doBatchedXGemm_KM_KN_NM(
-          handle->xgemmBatchedNNKernel,
-          handle->commandQueue,
-          handle->tuneParams,
-          numTilesTotalPadded, outChannelsPadded, inChannelsPadded,
-          convWorkspace, filter, convWorkspace2,
-          inTileXYSize,
-          MAYBE_EVENTREF
-        );
+        if(handle->usingFP16TensorCores) {
+          err = doBatchedHGemmWmma_KM_KN_NM(
+            handle->xgemmBatchedNNKernel,
+            handle->commandQueue,
+            handle->tuneParams,
+            numTilesTotalPadded, outChannelsPadded, inChannelsPadded,
+            convWorkspace, filter, convWorkspace2,
+            inTileXYSize,
+            MAYBE_EVENTREF
+          );
+        }
+        else {
+          err = doBatchedXGemm_KM_KN_NM(
+            handle->xgemmBatchedNNKernel,
+            handle->commandQueue,
+            handle->usingFP16Compute ? handle->tuneParams.xGemm16 : handle->tuneParams.xGemm,
+            numTilesTotalPadded, outChannelsPadded, inChannelsPadded,
+            convWorkspace, filter, convWorkspace2,
+            inTileXYSize,
+            MAYBE_EVENTREF
+          );
+        }
         CHECK_ERR(err);
         if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("MATMULCONV3x3"); }
         else { MAYBE_PROFILE("MATMULCONV5x5"); }
@@ -1043,8 +1090,8 @@ struct ConvLayer {
           handle->tuneParams,
           convWorkspace2,output,
           nnXLen,nnYLen,
-          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.MWG, //M in gemm
-          outChannels,handle->tuneParams.xGemm.NWG,                   //N in gemm
+          batchSize,numTilesX,numTilesY,handle->getXGemmMPaddingMult(), //M in gemm
+          outChannels,handle->getXGemmNPaddingMult(),                   //N in gemm
           convXSize,
           MAYBE_EVENTREF
         );
@@ -1125,8 +1172,8 @@ struct ConvLayer {
           bnLayer->mergedBiasBuf,
           mask,
           nnXLen,nnYLen,
-          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.MWG, //M in gemm
-          inChannels,handle->tuneParams.xGemm.KWG,                    //K in gemm
+          batchSize,numTilesX,numTilesY,handle->getXGemmMPaddingMult(), //M in gemm
+          inChannels,handle->getXGemmKPaddingMult(),                    //K in gemm
           convXSize,
           MAYBE_EVENTREF
         );
@@ -1137,21 +1184,34 @@ struct ConvLayer {
       }
 
       {
-        int numTilesTotalPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, handle->tuneParams.xGemm.MWG);
-        int outChannelsPadded = roundUpToMultiple(outChannels, handle->tuneParams.xGemm.NWG);
-        int inChannelsPadded = roundUpToMultiple(inChannels, handle->tuneParams.xGemm.KWG);
+        int numTilesTotalPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, handle->getXGemmMPaddingMult());
+        int outChannelsPadded = roundUpToMultiple(outChannels, handle->getXGemmNPaddingMult());
+        int inChannelsPadded = roundUpToMultiple(inChannels, handle->getXGemmKPaddingMult());
 
         cl_int err;
         MAYBE_EVENT;
-        err = doBatchedXGemm_KM_KN_NM(
-          handle->xgemmBatchedNNKernel,
-          handle->commandQueue,
-          handle->tuneParams,
-          numTilesTotalPadded, outChannelsPadded, inChannelsPadded,
-          convWorkspace, filter, convWorkspace2,
-          inTileXYSize,
-          MAYBE_EVENTREF
-        );
+        if(handle->usingFP16TensorCores) {
+          err = doBatchedHGemmWmma_KM_KN_NM(
+            handle->xgemmBatchedNNKernel,
+            handle->commandQueue,
+            handle->tuneParams,
+            numTilesTotalPadded, outChannelsPadded, inChannelsPadded,
+            convWorkspace, filter, convWorkspace2,
+            inTileXYSize,
+            MAYBE_EVENTREF
+          );
+        }
+        else {
+          err = doBatchedXGemm_KM_KN_NM(
+            handle->xgemmBatchedNNKernel,
+            handle->commandQueue,
+            handle->usingFP16Compute ? handle->tuneParams.xGemm16 : handle->tuneParams.xGemm,
+            numTilesTotalPadded, outChannelsPadded, inChannelsPadded,
+            convWorkspace, filter, convWorkspace2,
+            inTileXYSize,
+            MAYBE_EVENTREF
+          );
+        }
         CHECK_ERR(err);
         if(convXSize == 3 && convYSize == 3) { MAYBE_PROFILE("MATMULCONV3x3"); }
         else { MAYBE_PROFILE("MATMULCONV5x5"); }
@@ -1169,8 +1229,8 @@ struct ConvLayer {
           handle->tuneParams,
           convWorkspace2,output,
           nnXLen,nnYLen,
-          batchSize,numTilesX,numTilesY,handle->tuneParams.xGemm.MWG, //M in gemm
-          outChannels,handle->tuneParams.xGemm.NWG,                   //N in gemm
+          batchSize,numTilesX,numTilesY,handle->getXGemmMPaddingMult(), //M in gemm
+          outChannels,handle->getXGemmNPaddingMult(),                   //N in gemm
           convXSize,
           MAYBE_EVENTREF
         );
@@ -2303,6 +2363,7 @@ struct ComputeHandle {
   bool inputsUseNHWC;
   bool usingFP16Storage;
   bool usingFP16Compute;
+  bool usingFP16TensorCores;
 
   ComputeHandle(
     ComputeContext* context, const LoadedModel* loadedModel, int maxBatchSize, int gpuIdx, bool inputsNHWC
@@ -2314,6 +2375,7 @@ struct ComputeHandle {
     handle = new ComputeHandleInternal(context, gpuIdx, inputsNHWC, useNHWC);
     usingFP16Storage = handle->usingFP16Storage;
     usingFP16Compute = handle->usingFP16Compute;
+    usingFP16TensorCores = handle->usingFP16TensorCores;
 
     model = new Model(handle, &(loadedModel->modelDesc), maxBatchSize, nnXLen, nnYLen, usingFP16Storage);
     buffers = new Buffers(handle, *model);
@@ -2341,9 +2403,15 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool inputsUseNHWC,
   int gpuIdxForThisThread
 ) {
+  auto deviceStr = [&]() {
+    if(gpuIdxForThisThread < 0)
+      return string("");
+    return " Device " + Global::intToString(gpuIdxForThisThread);
+  };
+
   if(logger != NULL) {
-    logger->write("OpenCL backend: Device " + Global::intToString(gpuIdxForThisThread) + " Model version " + Global::intToString(loadedModel->modelDesc.version));
-    logger->write("OpenCL backend: Device " + Global::intToString(gpuIdxForThisThread) + " Model name: " + loadedModel->modelDesc.name);
+    logger->write("OpenCL backend:" + deviceStr() + " Model version " + Global::intToString(loadedModel->modelDesc.version));
+    logger->write("OpenCL backend:" + deviceStr() + " Model name: " + loadedModel->modelDesc.name);
   }
 
   //Current implementation always tolerates excess nn len
@@ -2352,9 +2420,10 @@ ComputeHandle* NeuralNet::createComputeHandle(
 
   if(logger != NULL) {
     logger->write(
-      "OpenCL backend: Device " + Global::intToString(gpuIdxForThisThread) +
+      "OpenCL backend:" + deviceStr() +
       " FP16Storage " + Global::boolToString(handle->usingFP16Storage) +
-      " FP16Compute " + Global::boolToString(handle->usingFP16Compute)
+      " FP16Compute " + Global::boolToString(handle->usingFP16Compute) +
+      " FP16TensorCores " + Global::boolToString(handle->usingFP16TensorCores)
     );
   }
   return handle;
