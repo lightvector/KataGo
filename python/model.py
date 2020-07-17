@@ -387,7 +387,7 @@ class Model:
     bArea = board.size * board.size
     whiteKomi = rules["whiteKomi"]
     if rules["scoringRule"] == "SCORING_TERRITORY":
-      selfKomi = (whiteKomi if pla == Board.WHITE else -whiteKomi+1)
+      selfKomi = (whiteKomi+1 if pla == Board.WHITE else -whiteKomi)
     else:
       selfKomi = (whiteKomi if pla == Board.WHITE else -whiteKomi)
 
