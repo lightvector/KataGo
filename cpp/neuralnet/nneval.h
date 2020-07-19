@@ -201,6 +201,8 @@ class NNEvaluator {
   //Everything under here is protected under bufferMutex--------------------------------------------
 
   bool isKilled; //Flag used for killing server threads
+  int numServerThreadsStartingUp; //Counter for waiting until server threads are spawned
+  std::condition_variable mainThreadWaitingForSpawn; //Condvar for waiting until server threads are spawned
 
   //Randomization settings for symmetries
   bool currentDoRandomize;

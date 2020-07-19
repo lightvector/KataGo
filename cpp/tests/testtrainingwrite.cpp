@@ -55,9 +55,6 @@ static NNEvaluator* startNNEval(
   );
 
   nnEval->spawnServerThreads();
-
-  //Sleep briefly so that any debug messages printed by nnEval threads are output first
-  std::this_thread::sleep_for (std::chrono::duration<double>(0.03));
   return nnEval;
 }
 

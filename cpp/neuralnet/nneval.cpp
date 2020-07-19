@@ -103,6 +103,8 @@ NNEvaluator::NNEvaluator(
    serverWaitingForBatchStart(),
    bufferMutex(),
    isKilled(false),
+   numServerThreadsStartingUp(0),
+   mainThreadWaitingForSpawn(),
    currentDoRandomize(doRandomize),
    currentDefaultSymmetry(defaultSymmetry),
    m_resultBufss(NULL),
@@ -284,6 +286,8 @@ static void serveEvals(
 void NNEvaluator::spawnServerThreads() {
   if(serverThreads.size() != 0)
     throw StringError("NNEvaluator::spawnServerThreads called when threads were already running!");
+
+  numServerThreadsStartingUp = numThreads;
   for(int i = 0; i<numThreads; i++) {
     int gpuIdxForThisThread = gpuIdxByServerThread[i];
     string randSeedThisThread = randSeed + ":NNEvalServerThread:" + Global::intToString(numServerThreadsEverSpawned);
@@ -293,6 +297,10 @@ void NNEvaluator::spawnServerThreads() {
     );
     serverThreads.push_back(thread);
   }
+
+  unique_lock<std::mutex> lock(bufferMutex);
+  while(numServerThreadsStartingUp > 0)
+    mainThreadWaitingForSpawn.wait(lock);
 }
 
 void NNEvaluator::killServerThreads() {
@@ -327,6 +335,13 @@ void NNEvaluator::serve(
       inputsUseNHWC,
       gpuIdxForThisThread
     );
+
+  {
+    lock_guard<std::mutex> lock(bufferMutex);
+    numServerThreadsStartingUp--;
+    if(numServerThreadsStartingUp <= 0)
+      mainThreadWaitingForSpawn.notify_all();
+  }
 
   vector<NNOutput*> outputBuf;
 
