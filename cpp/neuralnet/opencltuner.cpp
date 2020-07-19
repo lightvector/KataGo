@@ -704,6 +704,7 @@ static bool testAllConfigs(
   ostream& out,
   bool verboseErrors,
   bool verboseTuner,
+  double errorToleranceScale,
   std::function<string(const OpenCLTuneParams&)> getDesc,
   std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)> testConfig,
   double& bestKernelsPerSecondBuf
@@ -713,6 +714,7 @@ static bool testAllConfigs(
   //Insert the reference configuration first
   configs.insert(configs.begin(),referenceConfig);
 
+  double bestScore = 0.0;
   double bestKernelsPerSecond = 0.0;
   int lastBestIdx = 0;
   bool anythingGoodYet = false;
@@ -750,6 +752,7 @@ static bool testAllConfigs(
       numTestedRunnable++;
 
       double squerr = 0.0;
+      double sqmag = 0.0;
       if(referenceRet.size() != ret.size())
         squerr = std::numeric_limits<double>::infinity();
       else {
@@ -759,21 +762,27 @@ static bool testAllConfigs(
           else {
             double diff = (double)referenceRet[j] - (double)ret[j];
             squerr += diff * diff;
+            sqmag += (double)referenceRet[j] * (double)referenceRet[j];
           }
         }
       }
 
       double kernelsPerSecond = accums.weightCounted / accums.weightedTimeTaken;
+      double errorProp = sqrt(squerr / (sqmag + 1e-30));
+      if(!isfinite(errorProp) || errorProp > 1.0)
+        errorProp = 1.0;
 
-      if(verboseTuner || kernelsPerSecond > bestKernelsPerSecond) {
+      double score = kernelsPerSecond * (1.0 - sqrt(errorProp / (errorProp + errorToleranceScale)));
+      if(verboseTuner || score > bestScore) {
         out << "Tuning " << i << "/"  << configs.size()
             << (i == 0 ? " (reference)" : "")
             << " Calls/sec " << kernelsPerSecond
             << " L2Error " << squerr
             << " " << getDesc(configs[i]) << endl;
       }
-      if(kernelsPerSecond > bestKernelsPerSecond) {
+      if(score > bestScore) {
         bestKernelsPerSecond = kernelsPerSecond;
+        bestScore = score;
         currentConfig = configs[i];
         lastBestIdx = i;
       }
@@ -953,6 +962,7 @@ static void tuneXGemmDirect(
 
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.05;
   testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -961,6 +971,7 @@ static void tuneXGemmDirect(
     out,
     verboseErrors,
     verboseTuner,
+    errorToleranceScale,
     std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
     bestKernelsPerSecond
@@ -1183,6 +1194,7 @@ static bool tuneXGemm(
 
   bool stopOnReferenceImplFail = useFP16Storage;
   bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.05;
   bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -1191,6 +1203,7 @@ static bool tuneXGemm(
     out,
     verboseErrors,
     verboseTuner,
+    errorToleranceScale,
     std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
     bestKernelsPerSecond
@@ -1396,6 +1409,7 @@ static bool tuneXGemm16(
 
   bool stopOnReferenceImplFail = true;
   bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.05;
   bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -1404,6 +1418,7 @@ static bool tuneXGemm16(
     out,
     verboseErrors,
     verboseTuner,
+    errorToleranceScale,
     std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
     bestKernelsPerSecond
@@ -1591,6 +1606,7 @@ static bool tuneHGemmWmma(
 
   bool stopOnReferenceImplFail = true;
   bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.02;
   bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -1599,6 +1615,7 @@ static bool tuneHGemmWmma(
     out,
     verboseErrors,
     verboseTuner,
+    errorToleranceScale,
     std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
     bestKernelsPerSecond
@@ -1752,6 +1769,7 @@ static void tuneTransform(
 
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.05;
   testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -1760,6 +1778,7 @@ static void tuneTransform(
     out,
     verboseErrors,
     verboseTuner,
+    errorToleranceScale,
     std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
     bestKernelsPerSecond
@@ -1914,6 +1933,7 @@ static void tuneUntransform(
 
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.05;
   testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -1922,6 +1942,7 @@ static void tuneUntransform(
     out,
     verboseErrors,
     verboseTuner,
+    errorToleranceScale,
     std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
     bestKernelsPerSecond
@@ -2051,6 +2072,7 @@ static void tuneGPool(
 
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.05;
   testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -2059,6 +2081,7 @@ static void tuneGPool(
     out,
     verboseErrors,
     verboseTuner,
+    errorToleranceScale,
     std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret)>(test),
     bestKernelsPerSecond
