@@ -1,14 +1,11 @@
 // -*- Mode: c++; c-basic-offset: 4; tab-width: 4; -*-
 
-//Edited by David Wu in Jun 2019 to fix one minor bug where the help flag was 
-//incorrectly displayed as "--help" regardless of TCLAP_NAMESTARTSTRING
-
 /****************************************************************************** 
  * 
  *  file:  StdOutput.h
  * 
  *  Copyright (c) 2004, Michael E. Smoot
- *  All rights reverved.
+ *  All rights reserved.
  * 
  *  See the file COPYING in the top directory of this distribution for
  *  more information.
@@ -78,7 +75,7 @@ class StdOutput : public CmdLineOutput
 		 * \param c - The CmdLine object the output is generated for. 
          * \param os - The stream to write the message to.
          */
-        virtual void _shortUsage( CmdLineInterface& c, std::ostream& os ) const;
+        void _shortUsage( CmdLineInterface& c, std::ostream& os ) const;
 
         /**
 		 * Writes a longer usage message with long and short args, 
@@ -86,7 +83,7 @@ class StdOutput : public CmdLineOutput
 		 * \param c - The CmdLine object the output is generated for. 
 		 * \param os - The stream to write the message to.
 		 */
-		virtual void _longUsage( CmdLineInterface& c, std::ostream& os ) const;
+		void _longUsage( CmdLineInterface& c, std::ostream& os ) const;
 
 		/**
 		 * This function inserts line breaks and indents long strings 
@@ -146,7 +143,8 @@ inline void StdOutput::failure( CmdLineInterface& _cmd,
 			_shortUsage( _cmd, std::cerr );	
 
 			std::cerr << std::endl << "For complete USAGE and HELP type: " 
-					  << std::endl << "   " << progName << " " << TCLAP_NAMESTARTSTRING << "help" 
+					  << std::endl << "   " << progName << " "
+					  << Arg::nameStartString() << "help"
 					  << std::endl << std::endl;
 		}
 	else
