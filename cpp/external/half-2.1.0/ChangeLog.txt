@@ -1,3 +1,6 @@
+NOTE: This version locally modified for KataGo to fix some g++ compiler warnings
+about default switch cases.
+
 Release Notes
 =============
 

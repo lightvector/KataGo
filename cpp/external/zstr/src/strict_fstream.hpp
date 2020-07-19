@@ -1,5 +1,6 @@
 //MODIFIED by David J Wu ("lightvector") to fix a bug in the in the implementation of strerror
-//that would cause an invalid memory operation.
+//that would cause an invalid string operation, and increase the error message buf size.
+//MODIFIED by Loren P Fiore to add more cases to the OS-based preprocessor switches.
 
 #ifndef __STRICT_FSTREAM_HPP
 #define __STRICT_FSTREAM_HPP
