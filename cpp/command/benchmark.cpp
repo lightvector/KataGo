@@ -201,9 +201,8 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 #endif
 #ifdef USE_OPENCL_BACKEND
   cout << "You are currently using the OpenCL version of KataGo." << endl;
-  //TODO update when we have FP16 opencl
   cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080), "
-       << "using the Cuda version of KataGo instead may give a large performance boost." << endl;
+       << "using the Cuda version of KataGo instead may give a mild performance boost." << endl;
 #endif
   cout << endl;
   cout << "Your GTP config is currently set to use numSearchThreads = " << params.numThreads << endl;
