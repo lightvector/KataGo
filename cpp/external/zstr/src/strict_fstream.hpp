@@ -25,7 +25,7 @@ namespace strict_fstream
 /// Ref: http://stackoverflow.com/a/901316/717706
 static std::string strerror()
 {
-    std::string buff(128, '\0');
+    std::string buff(256, '\0');
 #ifdef _WIN32
     if (strerror_s(&buff[0], buff.size(), errno) != 0)
     {
