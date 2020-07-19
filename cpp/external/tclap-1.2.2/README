@@ -1,4 +1,8 @@
 
+(This version of tclap is MODIFIED slightly by David Wu ("lightvector") to
+make some functions virtual to allow hooking in for a bit more customization
+of help output.)
+
 TCLAP - Templatized Command Line Argument Parser
 
 This is a simple C++ library that facilitates parsing command line
@@ -11,6 +15,3 @@ To find out what the latest changes are read the NEWS file in this directory.
 
 
 Any and all feedback is welcome to:  Mike Smoot <mes@aescon.com>
-
-
-

@@ -20,6 +20,9 @@
  *  
  *****************************************************************************/ 
 
+/* MODIFIED slightly by David Wu ("lightvector") to make some functions
+ * virtual to allow hooking in for a bit more customization of help output. */
+
 #ifndef TCLAP_STDCMDLINEOUTPUT_H
 #define TCLAP_STDCMDLINEOUTPUT_H
 
@@ -75,7 +78,7 @@ class StdOutput : public CmdLineOutput
 		 * \param c - The CmdLine object the output is generated for. 
          * \param os - The stream to write the message to.
          */
-        void _shortUsage( CmdLineInterface& c, std::ostream& os ) const;
+        virtual void _shortUsage( CmdLineInterface& c, std::ostream& os ) const;
 
         /**
 		 * Writes a longer usage message with long and short args, 
@@ -83,7 +86,7 @@ class StdOutput : public CmdLineOutput
 		 * \param c - The CmdLine object the output is generated for. 
 		 * \param os - The stream to write the message to.
 		 */
-		void _longUsage( CmdLineInterface& c, std::ostream& os ) const;
+		virtual void _longUsage( CmdLineInterface& c, std::ostream& os ) const;
 
 		/**
 		 * This function inserts line breaks and indents long strings 
