@@ -4,7 +4,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
 
    * `rectangular_boardsize X Y`
       * Sets the board size to a potentially non-square size, width `X` and height `Y`. KataGo's official neural nets are currently not actually trained with non-square sizes, but they actually seem to generalize to them pretty well.
-   * `set_position COLOR VERTEX COLOR VERTEX COLOR VERTEX ...
+   * `set_position COLOR VERTEX COLOR VERTEX COLOR VERTEX ...`
       * Directly specify an initial board position as a sequence of color-vertex pairs, replacing the current board.
       * The newly-set position is assumed to have no move history. Therefore:
          * There are no ko or superko prohibitions yet in the specified position.
