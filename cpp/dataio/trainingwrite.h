@@ -74,6 +74,7 @@ struct FinishedGameData {
   std::vector<SidePosition*> sidePositions;
   std::vector<ChangedNeuralNet*> changedNeuralNets;
 
+  static constexpr int MODE_HINTPOS = 5;
   static constexpr int MODE_NORMAL = 0;
   static constexpr int MODE_CLEANUP_TRAINING = 1;
   static constexpr int MODE_FORK = 2;
@@ -115,10 +116,10 @@ struct TrainingWriteBuffers {
 
   //Value targets and other metadata, from the perspective of the player to move
   //C0-3: Categorial game result, win,loss,noresult, and also score. Draw is encoded as some blend of win and loss based on drawEquivalentWinsForWhite.
-  //C4-7: MCTS win-loss-noresult estimate td-like target, lambda = 35/36, nowFactor = 1/36
-  //C8-11: MCTS win-loss-noresult estimate td-like target, lambda = 11/12, nowFactor = 1/12
-  //C12-15: MCTS win-loss-noresult estimate td-like target, lambda = 3/4, nowFactor = 1/4
-  //C16-19: MCTS win-loss-noresult estimate td-like target, lambda = 0, nowFactor = 1 (no-temporal-averaging MCTS search result)
+  //C4-7: MCTS win-loss-noresult estimate td-like target, lambda = 1 - 1/(1 + boardArea * 0.176)
+  //C8-11: MCTS win-loss-noresult estimate td-like target, lambda = 1 - 1/(1 + boardArea * 0.056)
+  //C12-15: MCTS win-loss-noresult estimate td-like target, lambda = 1 - 1/(1 + boardArea * 0.016)
+  //C16-19: MCTS win-loss-noresult estimate td-like target, lambda = 0 (so, actually just the immediate MCTS result).
 
   //C20: Actual final score, from the perspective of the player to move, adjusted for draw utility, zero if C27 is zero.
   //C21: Lead in points, number of points to make the game fair, zero if C29 is zero.
@@ -153,11 +154,16 @@ struct TrainingWriteBuffers {
   //C53: First turn of this game that was selfplay for training rather than initialization (e.g. handicap stones, random init of the starting board pos)
   //C54: Number of extra moves black got at the start (i.e. handicap games)
 
-  //C55-56: Game type, game typesource metadata
-  // 0 = normal self-play game. C51 unused
-  // 1 = encore-training game. C51 is the starting encore phase
-  //C57: 0 = normal, 1 = whole game was forked with an experimental move in the opening
-  //C58: 0 = normal, 1 = training sample was an isolated side position forked off of main game
+  //C55-56: Game type, how the game was initialized
+  //0 = normal self-play game.
+  //1 = cleanup-phase-training game. C56 is the starting encore phase
+  //2 = fork from another self-play game.
+  //3 = handicap game
+  //4 = sampled from an external SGF position (e.g. human data or other bots).
+  //5 = sampled from a hint position (e.g. blindspot training).
+
+  //C57: Contains some data but is actually redundant with C55.
+  //C58: Contains some data but is actually redundant with C55.
   //C59: Unused
   //C60: Number of visits in the search generating this row, prior to any reduction.
   //C61: Number of bonus points the player to move will get onward from this point in the game
@@ -171,7 +177,7 @@ struct TrainingWriteBuffers {
   //making 2*dataXLen*dataYLen+2*EXTRA_SCORE_DISTR_RADIUS indices in total.
   //Index of the actual score is labeled with 100, the rest labeled with 0, from the perspective of the player to move.
   //Except in case of integer komi, the value can be split between two adjacent labels based on value of draw.
-  //Arbitrary if C26 has weight 0.
+  //Arbitrary if C27 has weight 0.
   NumpyBuffer<int8_t> scoreDistrN;
 
   //Spatial value-related targets

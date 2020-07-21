@@ -4,22 +4,36 @@ using namespace std;
 
 static const string gtpBase = R"%%(
 
-# Logs------------------------------------------------------------------------------------
+# Logs and files--------------------------------------------------------------------------
 
 # Where to output log?
-logFile = gtp.log
+logDir = gtp_logs    # Each run of KataGo will log to a separate file in this dir
+# logFile = gtp.log  # Use this instead of logDir to just specify a single file directly
+
 # Logging options
 logAllGTPCommunication = true
 logSearchInfo = true
 logToStderr = false
 
+# Optionally override where KataGo will attempt to save things like openCLTuner files and other cached data.
+# homeDataDir = DIRECTORY
+
+# Analysis------------------------------------------------------------------------------------
+
 # Configure the maximum length of analysis printed out by lz-analyze and other places.
 # Controls the number of moves after the first move in a variation.
-# analysisPVLen = 13
+# analysisPVLen = 15
 
 # Report winrates for chat and analysis as (BLACK|WHITE|SIDETOMOVE).
 # Default is SIDETOMOVE, which is what tools that use LZ probably also expect
 # reportAnalysisWinratesAs = SIDETOMOVE
+
+# Uncomment and and set to a positive value to make KataGo explore the top move(s) less deeply and accurately,
+# but explore and give evaluations to a greater variety of moves, for analysis (does NOT affect play).
+# A value like 0.03 or 0.06 will give various mildly but still noticeably wider searches.
+# An extreme value like 1 will distribute many playouts across every move on the board, even very bad moves.
+# analysisWideRootNoise = 0.0
+
 
 # Default rules------------------------------------------------------------------------------------
 # See https://lightvector.github.io/KataGo/rules.html for a description of the rules.
@@ -87,17 +101,21 @@ resignConsecTurns = 3
 
 # Search limits-----------------------------------------------------------------------------------
 
+# For all of "maxVisits", "maxPlayouts", "maxTime", search will still try to follow GTP time controls and may make a move
+# faster than the specified max if GTP tells it that it is playing under a clock as well in the current game.
+
 # If provided, limit maximum number of root visits per search to this much. (With tree reuse, visits do count earlier search)
 $$MAX_VISITS
 # If provided, limit maximum number of new playouts per search to this much. (With tree reuse, playouts do not count earlier search)
 $$MAX_PLAYOUTS
-# If provided, cap search time at this many seconds (search will still try to follow GTP time controls)
+# If provided, cap search time at this many seconds.
 $$MAX_TIME
 
 # Ponder on the opponent's turn?
 $$PONDERING
+# Note: you can also set "maxVisitsPondering" or "maxPlayoutsPondering" too.
 
-# Number of seconds to buffer for lag for GTP time controls
+# Number of seconds to buffer for lag for GTP time controls - will move a bit faster assuming there is this much lag per move.
 lagBuffer = 1.0
 
 # Number of threads to use in search
@@ -182,15 +200,15 @@ string GTPConfig::makeConfig(
   else { ASSERT_UNREACHABLE; }
 
   if(maxVisits < ((int64_t)1 << 50)) replace("$$MAX_VISITS", "maxVisits = " + Global::int64ToString(maxVisits));
-  else                               replace("$$MAX_VISITS", "#maxVisits = 500");
+  else                               replace("$$MAX_VISITS", "# maxVisits = 500");
   if(maxPlayouts < ((int64_t)1 << 50)) replace("$$MAX_PLAYOUTS", "maxPlayouts = " + Global::int64ToString(maxPlayouts));
-  else                                 replace("$$MAX_PLAYOUTS", "#maxPlayouts = 300");
+  else                                 replace("$$MAX_PLAYOUTS", "# maxPlayouts = 300");
   if(maxTime < 1e20)                   replace("$$MAX_TIME", "maxTime = " + Global::doubleToString(maxTime));
-  else                                 replace("$$MAX_TIME", "#maxTime = 10");
+  else                                 replace("$$MAX_TIME", "# maxTime = 10");
 
-  if(maxPonderTime <= 0)               replace("$$PONDERING", "ponderingEnabled = false\n#maxTimePondering = 60");
+  if(maxPonderTime <= 0)               replace("$$PONDERING", "ponderingEnabled = false\n# maxTimePondering = 60");
   else if(maxPonderTime < 1e20)        replace("$$PONDERING", "ponderingEnabled = true\nmaxTimePondering = " + Global::doubleToString(maxPonderTime));
-  else                                 replace("$$PONDERING", "ponderingEnabled = true\n#maxTimePondering = 60");
+  else                                 replace("$$PONDERING", "ponderingEnabled = true\n# maxTimePondering = 60");
 
   replace("$$NUM_SEARCH_THREADS", Global::intToString(numSearchThreads));
   replace("$$NN_CACHE_SIZE_POWER_OF_TWO", Global::intToString(nnCacheSizePowerOfTwo));

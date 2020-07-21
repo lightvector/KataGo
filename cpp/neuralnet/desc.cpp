@@ -1123,7 +1123,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
       bool binaryFloats = true;
       descBuf = std::move(ModelDesc(in,binaryFloats));
     }
-    else if(Global::isSuffix(lower,".txt.gz") || Global::isSuffix(lower,".bin.gz")) {
+    else if(Global::isSuffix(lower,".txt.gz") || Global::isSuffix(lower,".bin.gz") || Global::isSuffix(lower,".gz")) {
       string* compressed = new string();
       readEntireFileIntoString(fileName,*compressed);
 
@@ -1189,16 +1189,34 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
       //Free up memory for compressed string
       delete compressed;
 
-      //Now, initialize an istream to read from the string
-      NonCopyingStreamBuf uncompressedStreamBuf(uncompressed);
-      std::istream uncompressedIn(&uncompressedStreamBuf);
-
-      //And read in the model desc
-      bool binaryFloats = Global::isSuffix(lower,".bin.gz");
-      descBuf = std::move(ModelDesc(uncompressedIn,binaryFloats));
+      bool binaryFloats = !Global::isSuffix(lower,".txt.gz");
+      try {
+        //Now, initialize an istream to read from the string
+        NonCopyingStreamBuf uncompressedStreamBuf(uncompressed);
+        std::istream uncompressedIn(&uncompressedStreamBuf);
+        //And read in the model desc
+        descBuf = std::move(ModelDesc(uncompressedIn,binaryFloats));
+      }
+      catch(const StringError& e) {
+        //On failure, try again to read as a .txt.gz file if the extension was ambiguous
+        bool tryAgain = binaryFloats && !Global::isSuffix(lower,".bin.gz");
+        if(!tryAgain)
+          throw;
+        else {
+          binaryFloats = false;
+          try {
+            NonCopyingStreamBuf uncompressedStreamBuf(uncompressed);
+            std::istream uncompressedIn(&uncompressedStreamBuf);
+            descBuf = std::move(ModelDesc(uncompressedIn,binaryFloats));
+          }
+          catch(const StringError& e2) {
+            throw StringError(string("Could neither parse .gz model as .txt.gz model nor as .bin.gz model, errors were:\n") + e2.what() + "\n" + e.what());
+          }
+        }
+      }
     }
     else {
-      throw StringError("Model file should end with .txt, .bin, .txt.gz, or .bin.gz. (Do NOT rename the file to have such an extension. If it doesn't have such an extension already, it's probably the wrong file, renaming will not help).");
+      throw StringError("Model file should end with .txt, .bin, .txt.gz, .bin.gz, or possibly just .gz. (If it doesn't have one of these extensions already, it's probably the wrong file, renaming will probably NOT help).");
     }
   }
   catch(const StringError& e) {

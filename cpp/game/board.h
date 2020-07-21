@@ -32,8 +32,10 @@ static inline Color getOpp(Color c)
 //Conversions for players and colors
 namespace PlayerIO {
   char colorToChar(Color c);
+  std::string playerToStringShort(Player p);
   std::string playerToString(Player p);
   bool tryParsePlayer(const std::string& s, Player& pla);
+  Player parsePlayer(const std::string& s);
 }
 
 //Location of a point on the board
@@ -158,10 +160,10 @@ struct Board
   bool isIllegalSuicide(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
   //Check if moving here is illegal due to simple ko
   bool isKoBanned(Loc loc) const;
-  //Check if moving here is legal.
-  bool isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
   //Check if moving here is legal, ignoring simple ko
   bool isLegalIgnoringKo(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
+  //Check if moving here is legal. Equivalent to isLegalIgnoringKo && !isKoBanned
+  bool isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
   //Check if this location is on the board
   bool isOnBoard(Loc loc) const;
   //Check if this location contains a simple eye for the specified player.
@@ -241,7 +243,9 @@ struct Board
   void checkConsistency() const;
 
   static Board parseBoard(int xSize, int ySize, const std::string& s);
+  static Board parseBoard(int xSize, int ySize, const std::string& s, char lineDelimiter);
   static void printBoard(std::ostream& out, const Board& board, Loc markLoc, const std::vector<Move>* hist);
+  static std::string toStringSimple(const Board& board, char lineDelimiter);
 
   //Data--------------------------------------------
 

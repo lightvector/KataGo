@@ -1,6 +1,8 @@
 #include "../core/global.h"
 #include "../core/config_parser.h"
 #include "../core/timer.h"
+#include "../core/datetime.h"
+#include "../core/makedir.h"
 #include "../search/asyncbot.h"
 #include "../program/setup.h"
 #include "../program/playutils.h"
@@ -67,15 +69,24 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   }
 
   Logger logger;
-  logger.addFile(cfg.getString("logFile"));
+  if(cfg.contains("logFile") && cfg.contains("logDir"))
+    throw StringError("Cannot specify both logFile and logDir in config");
+  else if(cfg.contains("logFile"))
+    logger.addFile(cfg.getString("logFile"));
+  else if(cfg.contains("logDir")) {
+    MakeDir::make(cfg.getString("logDir"));
+    Rand rand;
+    logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(rand.nextUInt()) + ".log");
+  }
+
   logger.setLogToStderr(true);
 
   logger.write("Analysis Engine starting...");
   logger.write(Version::getKataGoVersionForHelp());
 
-  auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective) {
+  auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective, Player defaultPerspective) {
     params = Setup::loadSingleParams(config);
-    perspective = Setup::parseReportAnalysisWinrates(config,C_EMPTY);
+    perspective = Setup::parseReportAnalysisWinrates(config,defaultPerspective);
     //Set a default for conservativePass that differs from matches or selfplay
     if(!config.contains("conservativePass") && !config.contains("conservativePass0"))
       params.conservativePass = true;
@@ -83,7 +94,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
   SearchParams defaultParams;
   Player defaultPerspective;
-  loadParams(cfg, defaultParams, defaultPerspective);
+  loadParams(cfg, defaultParams, defaultPerspective, C_EMPTY);
 
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 15;
   const bool assumeMultipleStartingBlackMovesAreHandicap =
@@ -100,6 +111,19 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
       Setup::SETUP_FOR_ANALYSIS
     );
+  }
+
+  int nnMaxBatchSizeTotal = nnEval->getNumGpus() * nnEval->getMaxBatchSize();
+  int numThreadsTotal = defaultParams.numThreads * numAnalysisThreads;
+  if(nnMaxBatchSizeTotal * 1.5 <= numThreadsTotal) {
+    logger.write(
+      Global::strprintf(
+        "Note: nnMaxBatchSize * number of GPUs (%d) is smaller than numSearchThreads * numAnalysisThreads (%d)",
+        nnMaxBatchSizeTotal, numThreadsTotal
+      )
+    );
+    logger.write("The number of simultaneous threads that might query the GPU could be larger than the batch size that the GPU will handle at once.");
+    logger.write("It may improve performance to increase nnMaxBatchSize, unless you are constrained on GPU memory.");
   }
 
   //Check for unused config keys
@@ -318,8 +342,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
   string line;
   json input;
-  while(cin) {
-    getline(cin,line);
+  while(getline(cin,line)) {
     line = Global::trim(line);
     if(line.length() == 0)
       continue;
@@ -346,6 +369,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
     //Defaults
     rbase.params = defaultParams;
+    rbase.perspective = defaultPerspective;
     rbase.analysisPVLen = analysisPVLen;
     rbase.includeOwnership = false;
     rbase.includePolicy = false;
@@ -607,7 +631,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
           //Ignore any unused keys in the ORIGINAL config
           localCfg.markAllKeysUsedWithPrefix("");
           localCfg.overrideKeys(overrideSettings);
-          loadParams(localCfg, rbase.params, rbase.perspective);
+          loadParams(localCfg, rbase.params, rbase.perspective, defaultPerspective);
           SearchParams::failIfParamsDifferOnUnchangeableParameter(defaultParams,rbase.params);
           //Hard failure on unused override keys newly present in the config
           vector<string> unusedKeys = localCfg.unusedKeys();
@@ -717,6 +741,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       Player movePla = moveHistory[turnNumber].pla;
       Loc moveLoc = moveHistory[turnNumber].loc;
       if(movePla != nextPla) {
+        board.clearSimpleKoLoc();
         hist.clear(board,movePla,rules,hist.encorePhase);
         hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
       }

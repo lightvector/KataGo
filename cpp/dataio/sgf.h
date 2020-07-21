@@ -32,6 +32,7 @@ struct SgfNode {
 
   Color getPLSpecifiedColor() const;
   Rules getRulesFromRUTagOrFail() const;
+  Player getSgfWinner() const;
 };
 
 struct Sgf {
@@ -56,6 +57,7 @@ struct Sgf {
   float getKomi() const;
   bool hasRules() const;
   Rules getRulesOrFail() const;
+  int getHandicapValue() const;
 
   void getPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
   void getMoves(std::vector<Move>& moves, int xSize, int ySize) const;
@@ -70,6 +72,11 @@ struct Sgf {
     std::vector<Move> moves;
     //Turn number as of the start of board.
     int initialTurnNumber;
+    //Hinted move that may be good at the end of position sample, or Board::NULL_LOC
+    Loc hintLoc;
+
+    static std::string toJsonLine(const PositionSample& sample);
+    static PositionSample ofJsonLine(const std::string& s);
   };
 
   //Loads SGF all unique positions in ALL branches of that SGF.
@@ -78,7 +85,9 @@ struct Sgf {
   //May raise an exception on illegal moves or other SGF issues, only partially appending things on to the boards and hists.
   void loadAllUniquePositions(std::set<Hash128>& uniqueHashes, std::vector<PositionSample>& samples) const;
   //f is allowed to mutate and consume sample.
-  void iterAllUniquePositions(std::set<Hash128>& uniqueHashes, std::function<void(PositionSample&)> f) const;
+  void iterAllUniquePositions(std::set<Hash128>& uniqueHashes, std::function<void(PositionSample&,const BoardHistory&)> f) const;
+
+  static std::set<Hash128> readExcludes(const std::vector<std::string>& files);
 
   private:
   void getMovesHelper(std::vector<Move>& moves, int xSize, int ySize) const;
@@ -90,16 +99,15 @@ struct Sgf {
     PositionSample& sampleBuf,
     int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
-    std::function<void(PositionSample&)> f
+    std::function<void(PositionSample&,const BoardHistory&)> f
   ) const;
   void samplePositionIfUniqueHelper(
     Board& board, BoardHistory& hist, Player nextPla,
     PositionSample& sampleBuf,
     int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
-    std::function<void(PositionSample&)> f
+    std::function<void(PositionSample&,const BoardHistory&)> f
   ) const;
-
 };
 
 struct CompactSgf {
@@ -111,6 +119,7 @@ struct CompactSgf {
   int ySize;
   int depth;
   float komi;
+  Player sgfWinner;
   Hash128 hash;
 
   CompactSgf(const Sgf* sgf);

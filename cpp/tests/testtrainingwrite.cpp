@@ -24,6 +24,7 @@ static NNEvaluator* startNNEval(
   int nnMutexPoolSizePowerOfTwo = 12;
   bool debugSkipNeuralNet = modelFile == "/dev/null";
   const string openCLTunerFile = "";
+  const string homeDataDirOverride = "";
   bool openCLReTunePerBoardSize = false;
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
@@ -42,6 +43,7 @@ static NNEvaluator* startNNEval(
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
     openCLTunerFile,
+    homeDataDirOverride,
     openCLReTunePerBoardSize,
     useFP16 ? enabled_t::True : enabled_t::False,
     useNHWC ? enabled_t::True : enabled_t::False,
@@ -53,9 +55,6 @@ static NNEvaluator* startNNEval(
   );
 
   nnEval->spawnServerThreads();
-
-  //Sleep briefly so that any debug messages printed by nnEval threads are output first
-  std::this_thread::sleep_for (std::chrono::duration<double>(0.03));
   return nnEval;
 }
 
@@ -107,6 +106,7 @@ void Tests::runTrainingWriteTests() {
     vector<std::atomic<bool>*> stopConditions;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.04;
     playSettings.forkSidePositionProb = 0.10;
     playSettings.forSelfPlay = true;
     Rand rand(seedBase+"play");
@@ -230,6 +230,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     vector<std::atomic<bool>*> stopConditions;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.04;
     playSettings.forkSidePositionProb = 0.40;
     playSettings.cheapSearchProb = 0.5;
     playSettings.cheapSearchVisits = 20;
@@ -358,7 +359,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     bool testAsym,
     bool testLead,
     bool testPolicySurpriseWeight,
-    bool testValueSurpriseWeight
+    bool testValueSurpriseWeight,
+    bool testHint
   ) {
     nnEval->clearCache();
     nnEval->clearStats();
@@ -380,7 +382,26 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     Board initialBoard(11,11);
     Player initialPla = P_BLACK;
     int initialEncorePhase = 0;
+    if(testHint) {
+      initialBoard = Board::parseBoard(11,11,R"%%(
+...........
+...........
+..x...x....
+........o..
+...........
+...........
+...........
+.......oo..
+......oxx..
+.....ox....
+...........
+)%%");
+
+    }
+
     BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
+    if(testHint)
+      initialHist.setInitialTurnNumber(10);
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = 0;
@@ -395,6 +416,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     vector<std::atomic<bool>*> stopConditions;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.04;
     playSettings.forkSidePositionProb = 0.0;
     playSettings.cheapSearchProb = 0.5;
     playSettings.cheapSearchVisits = 50;
@@ -426,7 +448,14 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       otherGameProps.playoutDoublingAdvantage = log(3.0) / log(2.0);
       otherGameProps.playoutDoublingAdvantagePla = P_WHITE;
     }
-    bool logSearchInfo = testPolicySurpriseWeight;
+    if(testHint) {
+      otherGameProps.isHintPos = true;
+      otherGameProps.hintTurn = initialHist.moveHistory.size();
+      otherGameProps.hintPosHash = initialBoard.pos_hash;
+      otherGameProps.hintLoc = Location::ofString("A1",initialBoard);
+      otherGameProps.allowPolicyInit = false;
+    }
+    bool logSearchInfo = testPolicySurpriseWeight || testHint;
     FinishedGameData* gameData = Play::runGame(
       initialBoard,initialPla,initialHist,extraBlackAndKomi,
       botSpec,botSpec,
@@ -438,6 +467,13 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       rand,
       NULL
     );
+    if(testHint) {
+      ForkData forkData;
+      Play::maybeHintForkGame(gameData, &forkData, otherGameProps);
+      cout << " Forkstuff " << forkData.forks.size() << " " << forkData.sekiForks.size() << endl;
+      for(int i = 0; i<forkData.forks.size(); i++)
+        cout << forkData.forks[0]->board << endl;
+    }
 
     gameData->printDebug(cout);
     delete gameData;
@@ -446,13 +482,14 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
   };
 
 
-  run("testasym!",Rules::getTrompTaylorish(),true,false,false,false);
-  run("test lead!",Rules::getTrompTaylorish(),false,true,false,false);
+  run("testasym!",Rules::getTrompTaylorish(),true,false,false,false,false);
+  run("test lead!",Rules::getTrompTaylorish(),false,true,false,false,false);
   Rules r = Rules::getTrompTaylorish();
   r.hasButton = true;
-  run("test lead int button!",r,false,true,false,false);
-  run("test surprise!",Rules::getTrompTaylorish(),false,false,true,false);
-  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true);
+  run("test lead int button!",r,false,true,false,false,false);
+  run("test surprise!",Rules::getTrompTaylorish(),false,false,true,false,false);
+  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true,false);
+  run("test hint!",Rules::getTrompTaylorish(),false,false,false,false,true);
 
 
   //Test lead specifically on a final position

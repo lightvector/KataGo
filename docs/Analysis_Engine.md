@@ -11,8 +11,10 @@ This engine can be run via:
 ```./katago analysis -config CONFIG_FILE -model MODEL_FILE -analysis-threads NUM_ANALYSIS_THREADS```
 
 An example config file is provided in `cpp/configs/analysis_example.cfg`. Adjusting this config is recommended, for example
-setting `cudaUseFP16 = true` and `cudaUseNHWC = true` if you have a GPU with FP16 tensor core support, adjusting
-`nnCacheSizePowerOfTwo` based on how much RAM you have, and adjusting `numSearchThreads` and `NUM_ANALYSIS_THREADS` as desired.
+`nnCacheSizePowerOfTwo` based on how much RAM you have, and adjusting `numSearchThreads` (the number of MCTS threads operating simultaneously on the same position)
+and `NUM_ANALYSIS_THREADS` (the number of positions that will be analyzed at the same time, *each* of which will use `numSearchThreads` many search threads).
+
+See the [example analysis config](https://github.com/lightvector/KataGo/blob/master/cpp/configs/analysis_example.cfg#L60) for a fairly detailed discussion of how to tune these parameters.
 
 ### Protocol
 

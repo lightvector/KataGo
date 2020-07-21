@@ -1,6 +1,8 @@
 #include "../core/global.h"
 #include "../core/config_parser.h"
 #include "../core/timer.h"
+#include "../core/datetime.h"
+#include "../core/makedir.h"
 #include "../dataio/sgf.h"
 #include "../search/asyncbot.h"
 #include "../program/setup.h"
@@ -26,6 +28,7 @@ static const vector<string> knownCommands = {
   "rectangular_boardsize",
 
   "clear_board",
+  "set_position",
   "komi",
   "play",
   "undo",
@@ -127,7 +130,9 @@ static int parseByoYomiPeriods(const vector<string>& args, int argIdx) {
 
 //Assumes that stones are worth 15 points area and 14 points territory, and that 7 komi is fair
 static double initialBlackAdvantage(const BoardHistory& hist) {
-  int handicapStones = hist.computeNumHandicapStones();
+  BoardHistory histCopy = hist;
+  histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+  int handicapStones = histCopy.computeNumHandicapStones();
   if(handicapStones <= 1)
     return 7.0 - hist.rules.komi;
 
@@ -283,12 +288,13 @@ static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator
   out << bot->getRootHist().rules << "\n";
   out << "Time taken: " << timeTaken << "\n";
   out << "Root visits: " << search->getRootVisits() << "\n";
+  out << "New playouts: " << search->lastSearchNumPlayouts << "\n";
   out << "NN rows: " << nnEval->numRowsProcessed() << endl;
   out << "NN batches: " << nnEval->numBatchesProcessed() << endl;
   out << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
   if(search->searchParams.playoutDoublingAdvantage != 0)
     out << "PlayoutDoublingAdvantage: " << (
-      search->getRootPla() == getOpp(search->searchParams.playoutDoublingAdvantagePla) ?
+      search->getRootPla() == getOpp(search->getPlayoutDoublingAdvantagePla()) ?
       -search->searchParams.playoutDoublingAdvantage : search->searchParams.playoutDoublingAdvantage) << endl;
   out << "PV: ";
   search->printPV(out, search->rootNode, 25);
@@ -305,15 +311,20 @@ struct GTPEngine {
   const bool assumeMultipleStartingBlackMovesAreHandicap;
   const int analysisPVLen;
   const bool preventEncore;
+
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead;
   double staticPlayoutDoublingAdvantage;
   bool staticPDATakesPrecedence;
+  double genmoveWideRootNoise;
+  double analysisWideRootNoise;
 
   NNEvaluator* nnEval;
   AsyncBot* bot;
   Rules currentRules; //Should always be the same as the rules in bot, if bot is not NULL.
 
+  //Stores the params we want to be using during genmoves or analysis
   SearchParams params;
+
   TimeControls bTimeControls;
   TimeControls wTimeControls;
 
@@ -337,6 +348,7 @@ struct GTPEngine {
     bool assumeMultiBlackHandicap, bool prevtEncore,
     double dynamicPDACapPerOppLead, double staticPDA, bool staticPDAPrecedence,
     bool avoidDagger,
+    double genmoveWRN, double analysisWRN,
     Player persp, int pvLen
   )
     :nnModelFile(modelFile),
@@ -346,6 +358,8 @@ struct GTPEngine {
      dynamicPlayoutDoublingAdvantageCapPerOppLead(dynamicPDACapPerOppLead),
      staticPlayoutDoublingAdvantage(staticPDA),
      staticPDATakesPrecedence(staticPDAPrecedence),
+     genmoveWideRootNoise(genmoveWRN),
+     analysisWideRootNoise(analysisWRN),
      nnEval(NULL),
      bot(NULL),
      currentRules(initialRules),
@@ -379,7 +393,7 @@ struct GTPEngine {
   }
 
   void clearStatsForNewGame() {
-    genmoveTimeSum = 0.0;
+    //Currently nothing
   }
 
   //Specify -1 for the sizes for a default
@@ -410,8 +424,6 @@ struct GTPEngine {
       boardXSize,boardYSize,defaultMaxBatchSize,
       Setup::SETUP_FOR_GTP
     );
-    //Hack to get more consistent log message ordering
-    std::this_thread::sleep_for(std::chrono::duration<double>(0.05));
     logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
 
     {
@@ -471,6 +483,35 @@ struct GTPEngine {
     clearStatsForNewGame();
   }
 
+  bool setPosition(const vector<Move>& initialStones) {
+    assert(bot->getRootHist().rules == currentRules);
+    int newXSize = bot->getRootBoard().x_size;
+    int newYSize = bot->getRootBoard().y_size;
+    Board board(newXSize,newYSize);
+    for(int i = 0; i<initialStones.size(); i++) {
+      if(!board.isOnBoard(initialStones[i].loc) || board.colors[initialStones[i].loc] != C_EMPTY) {
+        return false;
+      }
+      bool suc = board.setStone(initialStones[i].loc, initialStones[i].pla);
+      if(!suc) {
+        return false;
+      }
+    }
+
+    //Make sure nothing died along the way
+    for(int i = 0; i<initialStones.size(); i++) {
+      if(board.colors[initialStones[i].loc] != initialStones[i].pla) {
+        return false;
+      }
+    }
+    Player pla = P_BLACK;
+    BoardHistory hist(board,pla,currentRules,0);
+    vector<Move> newMoveHistory;
+    setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
+    clearStatsForNewGame();
+    return true;
+  }
+
   void updateKomiIfNew(float newKomi) {
     bot->setKomiIfNew(newKomi);
     currentRules.komi = newKomi;
@@ -479,6 +520,14 @@ struct GTPEngine {
   void setStaticPlayoutDoublingAdvantage(double d) {
     staticPlayoutDoublingAdvantage = d;
     staticPDATakesPrecedence = true;
+  }
+  void setAnalysisWideRootNoise(double x) {
+    analysisWideRootNoise = x;
+  }
+  void setRootPolicyTemperature(double x) {
+    params.rootPolicyTemperature = x;
+    bot->setParams(params);
+    bot->clearSearch();
   }
 
   void updateDynamicPDA() {
@@ -739,6 +788,10 @@ struct GTPEngine {
       params.avoidMYTDaggerHackPla = avoidMYTDaggerHackPla;
       bot->setParams(params);
     }
+    if(params.wideRootNoise != genmoveWideRootNoise) {
+      params.wideRootNoise = genmoveWideRootNoise;
+      bot->setParams(params);
+    }
 
     //Play faster when winning
     double searchFactor = PlayUtils::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,pla);
@@ -974,6 +1027,11 @@ struct GTPEngine {
     }
     if(params.avoidMYTDaggerHackPla != C_EMPTY) {
       params.avoidMYTDaggerHackPla = C_EMPTY;
+      bot->setParams(params);
+    }
+    //Also wide root, if desired
+    if(params.wideRootNoise != analysisWideRootNoise) {
+      params.wideRootNoise = analysisWideRootNoise;
       bot->setParams(params);
     }
 
@@ -1248,7 +1306,16 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   }
 
   Logger logger;
-  logger.addFile(cfg.getString("logFile"));
+  if(cfg.contains("logFile") && cfg.contains("logDir"))
+    throw StringError("Cannot specify both logFile and logDir in config");
+  else if(cfg.contains("logFile"))
+    logger.addFile(cfg.getString("logFile"));
+  else if(cfg.contains("logDir")) {
+    MakeDir::make(cfg.getString("logDir"));
+    Rand rand;
+    logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(rand.nextUInt()) + ".log");
+  }
+
   bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
   bool logSearchInfo = cfg.getBool("logSearchInfo");
   bool loggingToStderr = false;
@@ -1275,6 +1342,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   //Defaults to 7.5 komi, gtp will generally override this
   Rules initialRules = Setup::loadSingleRulesExceptForKomi(cfg);
+  logger.write("Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this");
+  if(startupPrintMessageToStderr && !loggingToStderr) {
+    cerr << "Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this" << endl;
+  }
 
   SearchParams initialParams = Setup::loadSingleParams(cfg);
   logger.write("Using " + Global::intToString(initialParams.numThreads) + " CPU thread(s) for search");
@@ -1320,6 +1391,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   if(forDeterministicTesting)
     seedRand.init("forDeterministicTesting");
 
+  const double genmoveWideRootNoise = initialParams.wideRootNoise;
+  const double analysisWideRootNoise =
+    cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : genmoveWideRootNoise;
+
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
@@ -1328,9 +1403,20 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
     staticPlayoutDoublingAdvantage,staticPDATakesPrecedence,
     avoidMYTDaggerHack,
+    genmoveWideRootNoise,analysisWideRootNoise,
     perspective,analysisPVLen
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize);
+
+  //If nobody specified any time limit in any way, then assume a relatively fast time control
+  if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime")) {
+    double mainTime = 1.0;
+    double byoYomiTime = 5.0;
+    int byoYomiPeriods = 5;
+    TimeControls tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,byoYomiPeriods,1);
+    engine->bTimeControls = tc;
+    engine->wTimeControls = tc;
+  }
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
@@ -1349,9 +1435,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   bool currentlyAnalyzing = false;
   string line;
-  while(cin) {
-    getline(cin,line);
-
+  while(getline(cin,line)) {
     //Parse command, extracting out the command itself, the arguments, and any GTP id number for the command.
     string command;
     vector<string> pieces;
@@ -1564,6 +1648,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           responseIsError = true;
           response = error;
         }
+        logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+        if(!loggingToStderr)
+          cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
       }
     }
 
@@ -1591,6 +1678,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             responseIsError = true;
             response = error;
           }
+          logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+          if(!loggingToStderr)
+            cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
         }
       }
     }
@@ -1632,6 +1722,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           responseIsError = true;
           response = error;
         }
+        logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+        if(!loggingToStderr)
+          cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
       }
     }
 
@@ -1641,9 +1734,15 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "Expected one arguments for kata-get-param but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        //SearchParams params = engine->getParams();
+        SearchParams params = engine->getParams();
         if(pieces[0] == "playoutDoublingAdvantage") {
           response = Global::doubleToString(engine->staticPlayoutDoublingAdvantage);
+        }
+        else if(pieces[0] == "rootPolicyTemperature") {
+          response = Global::doubleToString(params.rootPolicyTemperature);
+        }
+        else if(pieces[0] == "analysisWideRootNoise") {
+          response = Global::doubleToString(engine->analysisWideRootNoise);
         }
         else {
           responseIsError = true;
@@ -1658,14 +1757,34 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "Expected two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        //SearchParams params = engine->getParams();
         double d;
-        if(pieces[0] == "playoutDoublingAdvantage" && Global::tryStringToDouble(pieces[1],d) && d >= -3.0 && d <= 3.0) {
-          engine->setStaticPlayoutDoublingAdvantage(d);
+        if(pieces[0] == "playoutDoublingAdvantage") {
+          if(Global::tryStringToDouble(pieces[1],d) && d >= -3.0 && d <= 3.0)
+            engine->setStaticPlayoutDoublingAdvantage(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be float from -3.0 to 3.0";
+          }
+        }
+        else if(pieces[0] == "rootPolicyTemperature") {
+          if(Global::tryStringToDouble(pieces[1],d) && d >= 0.01 && d <= 100.0)
+            engine->setRootPolicyTemperature(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be float from 0.01 to 100.0";
+          }
+        }
+        else if(pieces[0] == "analysisWideRootNoise") {
+          if(Global::tryStringToDouble(pieces[1],d) && d >= 0.0 && d <= 5.0)
+            engine->setAnalysisWideRootNoise(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be float from 0.0 to 2.0";
+          }
         }
         else {
           responseIsError = true;
-          response = "Invalid parameter or parameter value";
+          response = "Unknown or invalid parameter: " + pieces[0];
         }
       }
     }
@@ -1880,6 +1999,47 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           response = "illegal move";
         }
         maybeStartPondering = true;
+      }
+    }
+
+    else if(command == "set_position") {
+      if(pieces.size() % 2 != 0) {
+        responseIsError = true;
+        response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        vector<Move> initialStones;
+        for(int i = 0; i<pieces.size(); i += 2) {
+          Player pla;
+          Loc loc;
+          if(!PlayerIO::tryParsePlayer(pieces[i],pla)) {
+            responseIsError = true;
+            response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
+            response += "could not parse color: '" + pieces[0] + "'";
+            break;
+          }
+          else if(!tryParseLoc(pieces[i+1],engine->bot->getRootBoard(),loc)) {
+            responseIsError = true;
+            response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
+            response += "Could not parse vertex: '" + pieces[1] + "'";
+            break;
+          }
+          else if(loc == Board::PASS_LOC) {
+            responseIsError = true;
+            response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
+            response += "Could not parse vertex: '" + pieces[1] + "'";
+            break;
+          }
+          initialStones.push_back(Move(loc,pla));
+        }
+        if(!responseIsError) {
+          bool suc = engine->setPosition(initialStones);
+          if(!suc) {
+            responseIsError = true;
+            response = "Illegal stone placements - overlapping stones or stones with no liberties?";
+          }
+          maybeStartPondering = false;
+        }
       }
     }
 

@@ -7,7 +7,7 @@ set -o pipefail
 if [[ $# -lt 4 ]]
 then
     echo "Usage: $0 BASEDIR TMPDIR NTHREADS BATCHSIZE"
-    echo "Currently expects to be run from within the `python` directory of the KataGo repo, or otherwise in the same dir as shuffle.py."
+    echo "Currently expects to be run from within the 'python' directory of the KataGo repo, or otherwise in the same dir as shuffle.py."
     echo "BASEDIR containing selfplay data and models and related directories"
     echo "TMPDIR scratch space, ideally on fast local disk, unique to this loop"
     echo "NTHREADS number of parallel threads/processes to use in shuffle"

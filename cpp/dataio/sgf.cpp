@@ -2,7 +2,10 @@
 
 #include "../core/sha2.h"
 
+#include "../external/nlohmann_json/json.hpp"
+
 using namespace std;
+using json = nlohmann::json;
 
 SgfNode::SgfNode()
   :props(NULL),move(0,0,C_EMPTY)
@@ -250,6 +253,17 @@ Rules SgfNode::getRulesFromRUTagOrFail() const {
   return parsed;
 }
 
+Player SgfNode::getSgfWinner() const {
+  if(!hasProperty("RE"))
+    return C_EMPTY;
+  string s = Global::toLower(getSingleProperty("RE"));
+  if(Global::isPrefix(s,"b+") || Global::isPrefix(s,"black+"))
+    return P_BLACK;
+  if(Global::isPrefix(s,"w+") || Global::isPrefix(s,"white+"))
+    return P_WHITE;
+  return C_EMPTY;
+}
+
 Sgf::Sgf()
 {}
 Sgf::~Sgf() {
@@ -319,9 +333,30 @@ float Sgf::getKomi() const {
   bool suc = Global::tryStringToFloat(nodes[0]->getSingleProperty("KM"), komi);
   if(!suc)
     propertyFail("Could not parse komi in sgf");
-  if(!Rules::komiIsIntOrHalfInt(komi))
-    propertyFail("Komi in sgf is not integer or half-integer");
+
+  if(!Rules::komiIsIntOrHalfInt(komi)) {
+    //Hack - if the komi is a quarter integer and it looks like a Chines GoGoD file, then double komi and accept
+    if(Rules::komiIsIntOrHalfInt(komi*2.0f) && nodes[0]->hasProperty("US") && nodes[0]->hasProperty("RU") &&
+       Global::isPrefix(nodes[0]->getSingleProperty("US"),"GoGoD") &&
+       Global::toLower(nodes[0]->getSingleProperty("RU")) == "chinese")
+      komi *= 2.0f;
+    else
+      propertyFail("Komi in sgf is not integer or half-integer");
+  }
   return komi;
+}
+
+int Sgf::getHandicapValue() const {
+  checkNonEmpty(nodes);
+  //Default, if SGF doesn't specify
+  if(!nodes[0]->hasProperty("HA"))
+    return 0;
+
+  int handicapValue = 0;
+  bool suc = Global::tryStringToInt(nodes[0]->getSingleProperty("HA"), handicapValue);
+  if(!suc)
+    propertyFail("Could not parse handicap value in sgf");
+  return handicapValue;
 }
 
 bool Sgf::hasRules() const {
@@ -376,7 +411,8 @@ void Sgf::getMovesHelper(vector<Move>& moves, int xSize, int ySize) const {
 void Sgf::loadAllUniquePositions(
   std::set<Hash128>& uniqueHashes, vector<PositionSample>& samples
 ) const {
-  std::function<void(PositionSample&)> f = [&samples](PositionSample& sample) {
+  std::function<void(PositionSample&, const BoardHistory&)> f = [&samples](PositionSample& sample, const BoardHistory& hist) {
+    (void)hist;
     samples.push_back(sample);
   };
 
@@ -384,9 +420,13 @@ void Sgf::loadAllUniquePositions(
 }
 
 void Sgf::iterAllUniquePositions(
-  std::set<Hash128>& uniqueHashes, std::function<void(PositionSample&)> f
+  std::set<Hash128>& uniqueHashes, std::function<void(PositionSample&,const BoardHistory&)> f
 ) const {
-  Board board;
+  XYSize size = getXYSize();
+  int xSize = size.x;
+  int ySize = size.y;
+
+  Board board(xSize,ySize);
   Player nextPla = nodes.size() > 0 ? nodes[0]->getPLSpecifiedColor() : C_EMPTY;
   if(nextPla == C_EMPTY)
     nextPla = C_BLACK;
@@ -394,10 +434,6 @@ void Sgf::iterAllUniquePositions(
   rules.koRule = Rules::KO_SITUATIONAL;
   rules.multiStoneSuicideLegal = true;
   BoardHistory hist(board,nextPla,rules,0);
-
-  XYSize size = getXYSize();
-  int xSize = size.x;
-  int ySize = size.y;
 
   PositionSample sampleBuf;
   iterAllUniquePositionsHelper(board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,f);
@@ -409,7 +445,7 @@ void Sgf::iterAllUniquePositionsHelper(
   PositionSample& sampleBuf,
   int initialTurnNumber,
   std::set<Hash128>& uniqueHashes,
-  std::function<void(PositionSample&)> f
+  std::function<void(PositionSample&,const BoardHistory&)> f
 ) const {
   vector<Move> buf;
   for(int i = 0; i<nodes.size(); i++) {
@@ -476,7 +512,7 @@ void Sgf::samplePositionIfUniqueHelper(
   PositionSample& sampleBuf,
   int initialTurnNumber,
   std::set<Hash128>& uniqueHashes,
-  std::function<void(PositionSample&)> f
+  std::function<void(PositionSample&,const BoardHistory&)> f
 ) const {
   //If the game is over or there were two consecutive passes, skip
   if(hist.isGameFinished || (
@@ -522,7 +558,93 @@ void Sgf::samplePositionIfUniqueHelper(
   for(int i = startTurn; i<hist.moveHistory.size(); i++)
     sampleBuf.moves.push_back(hist.moveHistory[i]);
   sampleBuf.initialTurnNumber = initialTurnNumber + startTurn;
-  f(sampleBuf);
+  sampleBuf.hintLoc = Board::NULL_LOC;
+  f(sampleBuf,hist);
+}
+
+static uint64_t parseHex64(const string& str) {
+  assert(str.length() == 16);
+  uint64_t x = 0;
+  for(int i = 0; i<16; i++) {
+    x *= 16;
+    if(str[i] >= '0' && str[i] <= '9')
+      x += str[i] - '0';
+    else if(str[i] >= 'a' && str[i] <= 'f')
+      x += str[i] - 'a' + 10;
+    else if(str[i] >= 'A' && str[i] <= 'F')
+      x += str[i] - 'A' + 10;
+    else
+      assert(false);
+  }
+  return x;
+}
+
+set<Hash128> Sgf::readExcludes(const vector<string>& files) {
+  set<Hash128> excludeHashes;
+  for(int i = 0; i<files.size(); i++) {
+    string excludeHashesFile = Global::trim(files[i]);
+    if(excludeHashesFile.size() <= 0)
+      continue;
+    vector<string> hashes = Global::readFileLines(excludeHashesFile,'\n');
+    for(int64_t j = 0; j < hashes.size(); j++) {
+      const string& hash128 = Global::trim(Global::stripComments(hashes[j]));
+      if(hash128.length() <= 0)
+        continue;
+      if(hash128.length() != 32)
+        throw IOError("Could not parse hashpair in exclude hashes file: " + hash128);
+
+      uint64_t hash0 = parseHex64(hash128.substr(0,16));
+      uint64_t hash1 = parseHex64(hash128.substr(16,16));
+      excludeHashes.insert(Hash128(hash0,hash1));
+    }
+  }
+  return excludeHashes;
+}
+
+string Sgf::PositionSample::toJsonLine(const Sgf::PositionSample& sample) {
+  json data;
+  data["xSize"] = sample.board.x_size;
+  data["ySize"] = sample.board.y_size;
+  data["board"] = Board::toStringSimple(sample.board,'/');
+  data["nextPla"] = PlayerIO::playerToStringShort(sample.nextPla);
+  vector<string> moveLocs;
+  vector<string> movePlas;
+  for(size_t i = 0; i<sample.moves.size(); i++)
+    moveLocs.push_back(Location::toString(sample.moves[i].loc,sample.board));
+  for(size_t i = 0; i<sample.moves.size(); i++)
+    movePlas.push_back(PlayerIO::playerToStringShort(sample.moves[i].pla));
+
+  data["moveLocs"] = moveLocs;
+  data["movePlas"] = movePlas;
+  data["initialTurnNumber"] = sample.initialTurnNumber;
+  data["hintLoc"] = Location::toString(sample.hintLoc,sample.board);
+  return data.dump();
+}
+
+Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
+  json data = json::parse(s);
+  PositionSample sample;
+  try {
+    int xSize = data["xSize"].get<int>();
+    int ySize = data["ySize"].get<int>();
+    sample.board = Board::parseBoard(xSize,ySize,data["board"].get<string>(),'/');
+    sample.nextPla = PlayerIO::parsePlayer(data["nextPla"].get<string>());
+    vector<string> moveLocs = data["moveLocs"].get<vector<string>>();
+    vector<string> movePlas = data["movePlas"].get<vector<string>>();
+    if(moveLocs.size() != movePlas.size())
+      throw StringError("moveLocs.size() != movePlas.size()");
+    for(size_t i = 0; i<moveLocs.size(); i++) {
+      Loc moveLoc = Location::ofString(moveLocs[i],sample.board);
+      Player movePla = PlayerIO::parsePlayer(movePlas[i]);
+      sample.moves.push_back(Move(moveLoc,movePla));
+    }
+    sample.initialTurnNumber = data["initialTurnNumber"].get<int>();
+    sample.hintLoc = Location::ofString(data["hintLoc"].get<string>(),sample.board);
+  }
+  catch(nlohmann::detail::exception& e) {
+    throw StringError("Error parsing position sample json\n" + s + "\n" + e.what());
+  }
+  return sample;
 }
 
 //PARSING---------------------------------------------------------------------
@@ -826,6 +948,8 @@ CompactSgf::CompactSgf(const Sgf* sgf)
 
   checkNonEmpty(sgf->nodes);
   rootNode = *(sgf->nodes[0]);
+
+  sgfWinner = rootNode.getSgfWinner();
 }
 
 CompactSgf::CompactSgf(Sgf&& sgf)
@@ -858,6 +982,8 @@ CompactSgf::CompactSgf(Sgf&& sgf)
     delete sgf.children[i];
     sgf.children[i] = NULL;
   }
+
+  sgfWinner = rootNode.getSgfWinner();
 }
 
 CompactSgf::~CompactSgf() {
@@ -1117,6 +1243,8 @@ void WriteSgf::writeSgf(
       out << "," << "mode=handicap";
     else if(gameData->mode == FinishedGameData::MODE_SGFPOS)
       out << "," << "mode=sgfpos";
+    else if(gameData->mode == FinishedGameData::MODE_HINTPOS)
+      out << "," << "mode=hintpos";
     else
       out << "," << "mode=other";
 

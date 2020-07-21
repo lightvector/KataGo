@@ -13,7 +13,8 @@ namespace HomeData {
   //Returns a directory suitable for writing data that KataGo generates automatically, such as auto-tuning data.
   //May throw StringError if filesystem access fails.
   //If makeDir is true, will attempt to create the directory if it doesn't exist.
-  std::string getHomeDataDir(bool makeDir);
+  //If homeDataDirOverride is nonempty, then just uses homeDataDirOverride.
+  std::string getHomeDataDir(bool makeDir, const std::string& homeDataDirOverride);
 }
 
 #endif //DATAIO_HOMEDATA_H_

@@ -56,7 +56,6 @@ runselfplayinittests : Run some tests involving selfplay training init using a n
 runsekitrainwritetests : Run some tests involving seki train output
 
 ---Dev/experimental subcommands-------------
-nnerror
 demoplay
 lzcost
 matchauto
@@ -109,6 +108,8 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::runsekitrainwritetests(argc-1,&argv[1]);
   else if(subcommand == "runnnonmanyposestest")
     return MainCmds::runnnonmanyposestest(argc-1,&argv[1]);
+  else if(subcommand == "dataminesgfs")
+    return MainCmds::dataminesgfs(argc-1,&argv[1]);
   else if(subcommand == "lzcost")
     return MainCmds::lzcost(argc-1,&argv[1]);
   else if(subcommand == "demoplay")
@@ -164,11 +165,11 @@ int main(int argc, const char* argv[]) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.3.5");
+  return string("1.4.5");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.3.5");
+  return string("KataGo v1.4.5");
 }
 
 string Version::getKataGoVersionFullInfo() {

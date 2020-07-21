@@ -88,7 +88,8 @@ class NNEvaluator {
     int nnCacheSizePowerOfTwo,
     int nnMutexPoolSizePowerofTwo,
     bool debugSkipNeuralNet,
-    std::string openCLTunerFile,
+    const std::string& openCLTunerFile,
+    const std::string& homeDataDirOverride,
     bool openCLReTunePerBoardSize,
     enabled_t useFP16Mode,
     enabled_t useNHWCMode,
@@ -108,6 +109,7 @@ class NNEvaluator {
   std::string getInternalModelName() const;
   bool isNeuralNetLess() const;
   int getMaxBatchSize() const;
+  int getNumGpus() const;
   int getNNXLen() const;
   int getNNYLen() const;
   enabled_t getUsingFP16Mode() const;
@@ -199,6 +201,8 @@ class NNEvaluator {
   //Everything under here is protected under bufferMutex--------------------------------------------
 
   bool isKilled; //Flag used for killing server threads
+  int numServerThreadsStartingUp; //Counter for waiting until server threads are spawned
+  std::condition_variable mainThreadWaitingForSpawn; //Condvar for waiting until server threads are spawned
 
   //Randomization settings for symmetries
   bool currentDoRandomize;

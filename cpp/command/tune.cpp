@@ -6,6 +6,7 @@
 #include "../main.h"
 
 #ifdef USE_OPENCL_BACKEND
+#include "../program/setup.h"
 #include "../neuralnet/opencltuner.h"
 #endif
 
@@ -19,6 +20,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
   return 0;
 #else
 
+  ConfigParser cfg;
   string modelFile;
   string outputFile;
   string gpuIdxsStr;
@@ -30,6 +32,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
   bool full;
   try {
     KataGoCommandLine cmd("Perform GPU tuning for OpenCL.");
+    cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
     cmd.addModelFileArg();
 
     TCLAP::ValueArg<string> outputFileArg("","output","Filename to output tuning configration to",false,string(),"FILE");
@@ -41,6 +44,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     TCLAP::SwitchArg fullArg("","full","Test more possible configurations");
 
     cmd.setShortUsageArgLimit();
+    cmd.addOverrideConfigArg();
 
     cmd.add(outputFileArg);
     cmd.add(gpuIdxsArg);
@@ -79,11 +83,15 @@ int MainCmds::tuner(int argc, const char* const* argv) {
         gpuIdxs.push_back(parsed);
       }
     }
+
+    cmd.getConfigAllowEmpty(cfg);
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
     return 1;
   }
+
+  string homeDataDirOverride = Setup::loadHomeDataDirOverride(cfg);
 
   Logger logger;
   logger.setLogToStdout(true);
@@ -114,17 +122,17 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     DevicesContext devicesContext(allDeviceInfos, {gpuIdx}, &logger, enableProfiling);
 
     cout << "==============================================================================" << endl;
-    const InitializedDevice& device = devicesContext.findGpuExn(gpuIdx);
-    if(contains(alreadyTunedNames, device.info.name)) {
-      cout << "Skipping tuning " << gpuIdx << " due to same name as an earlier tuned GPU: " << device.info.name << endl;
+    const InitializedDevice* device = devicesContext.findGpuExn(gpuIdx);
+    if(contains(alreadyTunedNames, device->info.name)) {
+      cout << "Skipping tuning " << gpuIdx << " due to same name as an earlier tuned GPU: " << device->info.name << endl;
       continue;
     }
-    alreadyTunedNames.insert(device.info.name);
-    cout << "Tuning device " << gpuIdx << ": " << device.info.name << endl;
+    alreadyTunedNames.insert(device->info.name);
+    cout << "Tuning device " << gpuIdx << ": " << device->info.name << endl;
 
     if(outputFile == "") {
-      string dir = OpenCLTuner::defaultDirectory(true);
-      outputFile = dir + "/" + OpenCLTuner::defaultFileName(device.info.name, nnXLen, nnYLen, &modelDesc);
+      string dir = OpenCLTuner::defaultDirectory(true,homeDataDirOverride);
+      outputFile = dir + "/" + OpenCLTuner::defaultFileName(device->info.name, nnXLen, nnYLen, &modelDesc);
     }
 
     OpenCLTuneParams initialParams;

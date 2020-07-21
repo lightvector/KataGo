@@ -139,12 +139,14 @@ SearchThread::~SearchThread() {
 static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
 Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
-  :rootPla(P_BLACK),rootBoard(),rootHistory(),rootPassLegal(true),
+  :rootPla(P_BLACK),
+   rootBoard(),rootHistory(),rootPassLegal(true),rootHintLoc(Board::NULL_LOC),
    rootSafeArea(NULL),
    recentScoreCenter(0.0),
    alwaysIncludeOwnerMap(false),
    searchParams(params),numSearchesBegun(0),searchNodeAge(0),
-   rootPlaDuringLastSearch(C_EMPTY),
+   plaThatSearchIsFor(C_EMPTY),plaThatSearchIsForLastSearch(C_EMPTY),
+   lastSearchNumPlayouts(0),
    randSeed(rSeed),
    normToTApproxZ(0.0),
    nnEvaluator(nnEval),
@@ -192,9 +194,14 @@ Player Search::getRootPla() const {
   return rootPla;
 }
 
+Player Search::getPlayoutDoublingAdvantagePla() const {
+  return searchParams.playoutDoublingAdvantagePla == C_EMPTY ? plaThatSearchIsFor : searchParams.playoutDoublingAdvantagePla;
+}
+
 void Search::setPosition(Player pla, const Board& board, const BoardHistory& history) {
   clearSearch();
   rootPla = pla;
+  plaThatSearchIsFor = C_EMPTY;
   rootBoard = board;
   rootHistory = history;
   rootKoHashTable->recompute(rootHistory);
@@ -203,6 +210,7 @@ void Search::setPosition(Player pla, const Board& board, const BoardHistory& his
 void Search::setPlayerAndClearHistory(Player pla) {
   clearSearch();
   rootPla = pla;
+  plaThatSearchIsFor = C_EMPTY;
   rootBoard.clearSimpleKoLoc();
   Rules rules = rootHistory.rules;
 
@@ -224,6 +232,10 @@ void Search::setKomiIfNew(float newKomi) {
 void Search::setRootPassLegal(bool b) {
   clearSearch();
   rootPassLegal = b;
+}
+
+void Search::setRootHintLoc(Loc loc) {
+  rootHintLoc = loc;
 }
 
 void Search::setAlwaysIncludeOwnerMap(bool b) {
@@ -272,10 +284,11 @@ bool Search::isLegalTolerant(Loc moveLoc, Player movePla) const {
     //we're robust to GTP or an sgf file saying that a move was made that violates superko or things like that.
     //In the encore, we also need to ignore the simple ko loc, since the board itself will report a move as illegal
     //when actually it is a legal pass-for-ko.
-    if(rootHistory.encorePhase >= 1)
-      return rootBoard.isLegalIgnoringKo(moveLoc,rootPla,multiStoneSuicideLegal);
-    else
-      return rootBoard.isLegal(moveLoc,rootPla,multiStoneSuicideLegal);
+    if(!rootBoard.isLegalIgnoringKo(moveLoc,rootPla,multiStoneSuicideLegal))
+      return false;
+    if(rootHistory.encorePhase <= 0 && rootBoard.isKoBanned(moveLoc))
+      return false;
+    return true;
   }
 }
 
@@ -505,7 +518,7 @@ void Search::runWholeSearch(
     }
   }
 
-  beginSearch();
+  beginSearch(pondering);
   searchBegun.store(true,std::memory_order_release);
   int64_t numNonPlayoutVisits = getRootVisits();
 
@@ -561,12 +574,15 @@ void Search::runWholeSearch(
       threads[i].join();
     delete[] threads;
   }
+
+  //Relaxed since should be synchronized already due to the joins
+  lastSearchNumPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
 }
 
 //If we're being asked to search from a position where the game is over, this is fine. Just keep going, the boardhistory
 //should reasonably tolerate just continuing. We do NOT want to clear history because we could inadvertently make a move
 //that an external ruleset COULD think violated superko.
-void Search::beginSearch() {
+void Search::beginSearch(bool pondering) {
   if(rootBoard.x_size > nnXLen || rootBoard.y_size > nnYLen)
     throw StringError("Search got from NNEval nnXLen = " + Global::intToString(nnXLen) +
                       " nnYLen = " + Global::intToString(nnYLen) + " but was asked to search board with larger x or y size");
@@ -577,11 +593,21 @@ void Search::beginSearch() {
   searchNodeAge++;
   if(searchNodeAge == 0) //Just in case, as we roll over
     clearSearch();
+
+  if(!pondering)
+    plaThatSearchIsFor = rootPla;
+  //If we begin the game with a ponder, then assume that "we" are the opposing side until we see otherwise.
+  if(plaThatSearchIsFor == C_EMPTY)
+    plaThatSearchIsFor = getOpp(rootPla);
+
   //In the case we are doing playoutDoublingAdvantage without a specific player (so, doing the root player)
-  //and the root player changes, we need to clear the tree since we need new evals for the new way around
-  if(rootPlaDuringLastSearch != rootPla && searchParams.playoutDoublingAdvantage != 0 && searchParams.playoutDoublingAdvantagePla == C_EMPTY)
+  //and the player that the search is for changes, we need to clear the tree since we need new evals for the new way around
+  if(plaThatSearchIsForLastSearch != plaThatSearchIsFor &&
+     searchParams.playoutDoublingAdvantage != 0 &&
+     searchParams.playoutDoublingAdvantagePla == C_EMPTY)
     clearSearch();
-  rootPlaDuringLastSearch = rootPla;
+  plaThatSearchIsForLastSearch = plaThatSearchIsFor;
+  //cout << "BEGINSEARCH " << PlayerIO::playerToString(rootPla) << " " << PlayerIO::playerToString(plaThatSearchIsFor) << endl;
 
   computeRootValues();
   maybeRecomputeNormToTApproxTable();
@@ -757,7 +783,7 @@ void Search::computeRootValues() {
       nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
       nnInputParams.avoidMYTDaggerHack = searchParams.avoidMYTDaggerHackPla == pla;
       if(searchParams.playoutDoublingAdvantage != 0) {
-        Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPla : searchParams.playoutDoublingAdvantagePla;
+        Player playoutDoublingAdvantagePla = getPlayoutDoublingAdvantagePla();
         nnInputParams.playoutDoublingAdvantage = (
           getOpp(pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
         );
@@ -862,7 +888,7 @@ void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int
 void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, SearchNode& node, bool isRoot) const {
   if(!isRoot)
     return;
-  if(!searchParams.rootNoiseEnabled && searchParams.rootPolicyTemperature == 1.0 && searchParams.rootPolicyTemperatureEarly == 1.0)
+  if(!searchParams.rootNoiseEnabled && searchParams.rootPolicyTemperature == 1.0 && searchParams.rootPolicyTemperatureEarly == 1.0 && rootHintLoc == Board::NULL_LOC)
     return;
   if(node.nnOutput->noisedPolicyProbs != NULL)
     return;
@@ -915,6 +941,21 @@ void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, Searc
     addDirichletNoise(searchParams, thread.rand, policySize, noisedPolicyProbs);
   }
 
+  //Move a small amount of policy to the hint move, around the same level that noising it would achieve
+  if(rootHintLoc != Board::NULL_LOC) {
+    const float propToMove = 0.02f;
+    int pos = getPos(rootHintLoc);
+    if(noisedPolicyProbs[pos] >= 0) {
+      double amountToMove = 0.0;
+      for(int i = 0; i<policySize; i++) {
+        if(noisedPolicyProbs[i] >= 0) {
+          amountToMove += noisedPolicyProbs[i] * propToMove;
+          noisedPolicyProbs[i] *= (1.0f-propToMove);
+        }
+      }
+      noisedPolicyProbs[pos] += (float)amountToMove;
+    }
+  }
 }
 
 bool Search::isAllowedRootMove(Loc moveLoc) const {
@@ -1144,70 +1185,36 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
     return -extraRootPoints;
 }
 
-static bool nearWeakStones(const Board& board, Loc loc, Player pla) {
-  Player opp = getOpp(pla);
-  for(int i = 0; i < 4; i++) {
-    Loc adj = loc + board.adj_offsets[i];
-    if(board.colors[adj] == opp && board.getNumLiberties(adj) <= 4)
-      return true;
-    else if(board.colors[adj] == C_EMPTY) {
-      for(int j = 0; j < 4; j++) {
-        Loc adjadj = adj + board.adj_offsets[j];
-        if(board.colors[adjadj] == opp) {
-          if(board.getNumLiberties(adjadj) <= 3)
-            return true;
-        }
-      }
-    }
-  }
-  return false;
-}
-
-float Search::adjustExplorePolicyProb(
-  const SearchThread& thread, const SearchNode& parent, Loc moveLoc, float nnPolicyProb,
-  double parentUtility, double totalChildVisits, double childVisits, double& childUtility
-) const {
-  (void)totalChildVisits;
-  //Near the tree root, explore local moves a bit more for root player
-  if(searchParams.localExplore &&
-     parent.nextPla == rootPla && thread.history.moveHistory.size() > 0 &&
-     thread.history.moveHistory.size() <= rootHistory.moveHistory.size() + 2
-  ) {
-    Loc prevLoc = thread.history.moveHistory[thread.history.moveHistory.size()-1].loc;
-    if(moveLoc != Board::PASS_LOC && prevLoc != Board::PASS_LOC) {
-      //Within sqrt(5) of the opponent's move
-      //Within 2 of a group with <= 3 liberties, or touching opp stone with <= 4 liberties
-      //Not self atari
-      const Board& board = thread.board;
-      int distanceSq = Location::euclideanDistanceSquared(moveLoc,prevLoc,board.x_size);
-      if(distanceSq <= 5 && board.getNumLibertiesAfterPlay(moveLoc,parent.nextPla,2) >= 2) {
-        if(nearWeakStones(board, moveLoc, parent.nextPla)) {
-          float averageToward = distanceSq <= 2 ? 0.06f : distanceSq <= 4 ? 0.04f : 0.03f;
-          //Behave as if policy is a few points higher
-          if(nnPolicyProb < averageToward)
-            nnPolicyProb = 0.5f * (nnPolicyProb + averageToward);
-          if(childVisits > 0 && (parent.nextPla == P_WHITE ? (childUtility < parentUtility) : (childUtility > parentUtility))) {
-            //Also encourage a bit more exploration even if value is bad
-            double parentWeight = sqrt(childVisits);
-            childUtility = (parentUtility * parentWeight + childUtility * childVisits) / (parentWeight + childVisits);
-          }
-        }
-      }
-    }
-  }
-  return nnPolicyProb;
-}
-
 int Search::getPos(Loc moveLoc) const {
   return NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
 }
+
+static void maybeApplyWideRootNoise(
+  double& childUtility,
+  float& nnPolicyProb,
+  const SearchParams& searchParams,
+  SearchThread* thread,
+  const SearchNode& parent
+) {
+  //For very large wideRootNoise, go ahead and also smooth out the policy
+  nnPolicyProb = (float)pow(nnPolicyProb, 1.0 / (4.0*searchParams.wideRootNoise + 1.0));
+  if(thread->rand.nextBool(0.5)) {
+    double bonus = searchParams.wideRootNoise * abs(thread->rand.nextGaussian());
+    if(parent.nextPla == P_WHITE)
+      childUtility += bonus;
+    else
+      childUtility -= bonus;
+  }
+}
+
 
 //Parent must be locked
 double Search::getExploreSelectionValue(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
   int64_t totalChildVisits, double fpuValue, double parentUtility,
-  bool isDuringSearch, const SearchThread* thread
+  bool isDuringSearch, SearchThread* thread
 ) const {
+  (void)parentUtility;
   Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
   float nnPolicyProb = parentPolicyProbs[movePos];
@@ -1250,22 +1257,41 @@ double Search::getExploreSelectionValue(
     childUtility = childUtility + (virtualLossUtility - childUtility) * virtualLossVisitFrac;
   }
 
-  if(isDuringSearch)
-    nnPolicyProb = adjustExplorePolicyProb(*thread,parent,moveLoc,nnPolicyProb,parentUtility,totalChildVisits,childVisits,childUtility);
+  if(isDuringSearch && (&parent == rootNode)) {
+    //Hack to get the root to funnel more visits down child branches
+    if(searchParams.rootDesiredPerChildVisitsCoeff > 0.0) {
+      if(childVisits < sqrt(nnPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff)) {
+        return 1e20;
+      }
+    }
+    //Hack for hintloc - must search this move almost as often as the most searched move
+    if(rootHintLoc != Board::NULL_LOC && moveLoc == rootHintLoc) {
+      for(int i = 0; i<parent.numChildren; i++) {
+        const SearchNode* c = parent.children[i];
+        while(c->statsLock.test_and_set(std::memory_order_acquire));
+        int64_t cVisits = c->stats.visits;
+        c->statsLock.clear(std::memory_order_release);
+        if(childVisits+1 < cVisits * 0.8)
+          return 1e20;
+      }
+    }
 
-  //Hack to get the root to funnel more visits down child branches
-  if(isDuringSearch && (&parent == rootNode) && searchParams.rootDesiredPerChildVisitsCoeff > 0.0) {
-    if(childVisits < sqrt(nnPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff)) {
-      return 1e20;
+    if(searchParams.wideRootNoise > 0.0) {
+      maybeApplyWideRootNoise(childUtility, nnPolicyProb, searchParams, thread, parent);
     }
   }
 
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
 }
 
-double Search::getNewExploreSelectionValue(const SearchNode& parent, float nnPolicyProb, int64_t totalChildVisits, double fpuValue) const {
+double Search::getNewExploreSelectionValue(const SearchNode& parent, float nnPolicyProb, int64_t totalChildVisits, double fpuValue, SearchThread* thread) const {
   int64_t childVisits = 0;
   double childUtility = fpuValue;
+
+  if((&parent == rootNode) && searchParams.wideRootNoise > 0.0) {
+    maybeApplyWideRootNoise(childUtility, nnPolicyProb, searchParams, thread, parent);
+  }
+
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
 }
 
@@ -1338,7 +1364,7 @@ double Search::getFpuValueForChildrenAssumeVisited(const SearchNode& node, Playe
 
 //Assumes node is locked
 void Search::selectBestChildToDescend(
-  const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
+  SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
   bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
   bool isRoot) const
 {
@@ -1412,8 +1438,6 @@ void Search::selectBestChildToDescend(
     }
 
     float nnPolicyProb = policyProbs[movePos];
-    double childUtility = 0.0; //dummy, we don't care
-    nnPolicyProb = adjustExplorePolicyProb(thread,node,moveLoc,nnPolicyProb,parentUtility,totalChildVisits,0,childUtility);
 
     if(nnPolicyProb > bestNewNNPolicyProb) {
       bestNewNNPolicyProb = nnPolicyProb;
@@ -1421,7 +1445,7 @@ void Search::selectBestChildToDescend(
     }
   }
   if(bestNewMoveLoc != Board::NULL_LOC) {
-    double selectionValue = getNewExploreSelectionValue(node,bestNewNNPolicyProb,totalChildVisits,fpuValue);
+    double selectionValue = getNewExploreSelectionValue(node,bestNewNNPolicyProb,totalChildVisits,fpuValue,&thread);
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
       bestChildIdx = numChildren;
@@ -1669,7 +1693,7 @@ void Search::initNodeNNOutput(
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
   nnInputParams.avoidMYTDaggerHack = searchParams.avoidMYTDaggerHackPla == thread.pla;
   if(searchParams.playoutDoublingAdvantage != 0) {
-    Player playoutDoublingAdvantagePla = searchParams.playoutDoublingAdvantagePla == C_EMPTY ? rootPla : searchParams.playoutDoublingAdvantagePla;
+    Player playoutDoublingAdvantagePla = getPlayoutDoublingAdvantagePla();
     nnInputParams.playoutDoublingAdvantage = (
       getOpp(thread.pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
     );

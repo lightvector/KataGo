@@ -218,7 +218,30 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   komiAuto = cfg.contains("komiAuto") ? cfg.getBool("komiAuto") : false;
 
   forkCompensateKomiProb = cfg.contains("forkCompensateKomiProb") ? cfg.getDouble("forkCompensateKomiProb",0.0,1.0) : handicapCompensateKomiProb;
+  sgfCompensateKomiProb = cfg.contains("sgfCompensateKomiProb") ? cfg.getDouble("sgfCompensateKomiProb",0.0,1.0) : forkCompensateKomiProb;
   komiAllowIntegerProb = cfg.contains("komiAllowIntegerProb") ? cfg.getDouble("komiAllowIntegerProb",0.0,1.0) : 1.0;
+
+  auto generateCumProbs = [](const vector<Sgf::PositionSample> poses, double lambda) {
+    int minInitialTurnNumber = 0;
+    for(size_t i = 0; i<poses.size(); i++)
+      minInitialTurnNumber = std::min(minInitialTurnNumber, poses[i].initialTurnNumber);
+
+    vector<double> cumProbs;
+    cumProbs.resize(poses.size());
+    for(size_t i = 0; i<poses.size(); i++) {
+      int64_t startTurn = poses[i].initialTurnNumber + (int64_t)poses[i].moves.size() - minInitialTurnNumber;
+      cumProbs[i] = exp(-startTurn * lambda);
+    }
+    for(size_t i = 0; i<poses.size(); i++) {
+      if(!(cumProbs[i] > -1e200 && cumProbs[i] < 1e200)) {
+        throw StringError("startPos found bad unnormalized probability: " + Global::doubleToString(cumProbs[i]));
+      }
+    }
+    for(size_t i = 1; i<poses.size(); i++)
+      cumProbs[i] += cumProbs[i-1];
+
+    return cumProbs;
+  };
 
   startPosesProb = 0.0;
   if(cfg.contains("startPosesFromSgfDir")) {
@@ -226,7 +249,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     startPosCumProbs.clear();
     startPosesProb = cfg.getDouble("startPosesProb",0.0,1.0);
 
-    string dir = cfg.getString("startPosesFromSgfDir");
+    vector<string> dirs = Global::split(cfg.getString("startPosesFromSgfDir"),',');
+    vector<string> excludes = Global::split(cfg.contains("startPosesSgfExcludes") ? cfg.getString("startPosesSgfExcludes") : "",',');
     double startPosesLoadProb = cfg.getDouble("startPosesLoadProb",0.0,1.0);
     double startPosesTurnWeightLambda = cfg.getDouble("startPosesTurnWeightLambda",-10,10);
 
@@ -234,36 +258,40 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     std::function<bool(const string&)> fileFilter = [](const string& fileName) {
       return Global::isSuffix(fileName,".sgf");
     };
-    Global::collectFiles(dir, fileFilter, files);
-    logger.write("Found " + Global::uint64ToString(files.size()) + " sgf files in " + dir);
+    for(int i = 0; i<dirs.size(); i++) {
+      string dir = Global::trim(dirs[i]);
+      if(dir.size() > 0)
+        Global::collectFiles(dir, fileFilter, files);
+    }
+    std::set<Hash128> excludeHashes = Sgf::readExcludes(excludes);
+    logger.write("Found " + Global::uint64ToString(files.size()) + " sgf files");
+    logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
     std::set<Hash128> uniqueHashes;
-    std::function<void(Sgf::PositionSample&)> posHandler = [startPosesLoadProb,this](Sgf::PositionSample& posSample) {
+    std::function<void(Sgf::PositionSample&, const BoardHistory&)> posHandler = [startPosesLoadProb,this](Sgf::PositionSample& posSample, const BoardHistory& hist) {
+      (void)hist;
       if(rand.nextBool(startPosesLoadProb))
         startPoses.push_back(posSample);
     };
+    int64_t numExcluded = 0;
     for(size_t i = 0; i<files.size(); i++) {
-      Sgf* sgf = Sgf::loadFile(files[i]);
-      sgf->iterAllUniquePositions(uniqueHashes, posHandler);
-      delete sgf;
-    }
-    logger.write("Loaded " + Global::uint64ToString(startPoses.size()) + " start positions from " + dir);
-
-    int minInitialTurnNumber = 0;
-    for(size_t i = 0; i<startPoses.size(); i++)
-      minInitialTurnNumber = std::min(minInitialTurnNumber, startPoses[i].initialTurnNumber);
-
-    startPosCumProbs.resize(startPoses.size());
-    for(size_t i = 0; i<startPoses.size(); i++) {
-      int64_t startTurn = startPoses[i].initialTurnNumber + (int64_t)startPoses[i].moves.size() - minInitialTurnNumber;
-      startPosCumProbs[i] = exp(-startTurn * startPosesTurnWeightLambda);
-    }
-    for(size_t i = 0; i<startPoses.size(); i++) {
-      if(!(startPosCumProbs[i] > -1e200 && startPosCumProbs[i] < 1e200)) {
-        throw StringError("startPos found bad unnormalized probability: " + Global::doubleToString(startPosCumProbs[i]));
+      Sgf* sgf = NULL;
+      try {
+        sgf = Sgf::loadFile(files[i]);
+        if(contains(excludeHashes,sgf->hash))
+          numExcluded += 1;
+        else
+          sgf->iterAllUniquePositions(uniqueHashes, posHandler);
       }
+      catch(const StringError& e) {
+        logger.write("Invalid SGF " + files[i] + ": " + e.what());
+      }
+      if(sgf != NULL)
+        delete sgf;
     }
-    for(size_t i = 1; i<startPoses.size(); i++)
-      startPosCumProbs[i] += startPosCumProbs[i-1];
+    logger.write("Kept " + Global::uint64ToString(startPoses.size()) + " start positions");
+    logger.write("Excluded " + Global::int64ToString(numExcluded) + "/" + Global::uint64ToString(files.size()) + " sgf files");
+
+    startPosCumProbs = generateCumProbs(startPoses, startPosesTurnWeightLambda);
 
     if(startPoses.size() <= 0) {
       logger.write("No start positions loaded, disabling start position logic");
@@ -271,6 +299,52 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     }
     else {
       logger.write("Cumulative unnormalized probability for start poses: " + Global::doubleToString(startPosCumProbs[startPoses.size()-1]));
+    }
+  }
+
+  hintPosesProb = 0.0;
+  if(cfg.contains("hintPosesDir")) {
+    hintPoses.clear();
+    hintPosCumProbs.clear();
+    hintPosesProb = cfg.getDouble("hintPosesProb",0.0,1.0);
+
+    vector<string> dirs = Global::split(cfg.getString("hintPosesDir"),',');
+
+    vector<string> files;
+    std::function<bool(const string&)> fileFilter = [](const string& fileName) {
+      return Global::isSuffix(fileName,".hintposes.txt");
+    };
+    for(int i = 0; i<dirs.size(); i++) {
+      string dir = Global::trim(dirs[i]);
+      if(dir.size() > 0)
+        Global::collectFiles(dir, fileFilter, files);
+    }
+
+    for(size_t i = 0; i<files.size(); i++) {
+      vector<string> lines = Global::readFileLines(files[i],'\n');
+      for(size_t j = 0; j<lines.size(); j++) {
+        string line = Global::trim(lines[j]);
+        if(line.size() > 0) {
+          try {
+            Sgf::PositionSample posSample = Sgf::PositionSample::ofJsonLine(line);
+            hintPoses.push_back(posSample);
+          }
+          catch(const StringError& err) {
+            logger.write(string("ERROR parsing hintpos: ") + err.what());
+          }
+        }
+      }
+    }
+    logger.write("Loaded " + Global::uint64ToString(hintPoses.size()) + " hint positions");
+
+    hintPosCumProbs = generateCumProbs(hintPoses, 0.0);
+
+    if(hintPoses.size() <= 0) {
+      logger.write("No hint positions loaded, disabling hint position logic");
+      hintPosesProb = 0;
+    }
+    else {
+      logger.write("Cumulative unnormalized probability for hint poses: " + Global::doubleToString(hintPosCumProbs[hintPoses.size()-1]));
     }
   }
 
@@ -341,6 +415,40 @@ Rules GameInitializer::randomizeScoringAndTaxRules(Rules rules, Rand& randToUse)
   return rules;
 }
 
+bool GameInitializer::isAllowedBSize(int xSize, int ySize) {
+  if(!contains(allowedBSizes,xSize))
+    return false;
+  if(!contains(allowedBSizes,ySize))
+    return false;
+  if(allowRectangleProb <= 0.0 && xSize != ySize)
+    return false;
+  return true;
+}
+
+std::vector<int> GameInitializer::getAllowedBSizes() const {
+  return allowedBSizes;
+}
+
+
+Rules GameInitializer::createRules() {
+  lock_guard<std::mutex> lock(createGameMutex);
+  return createRulesUnsynchronized();
+}
+
+Rules GameInitializer::createRulesUnsynchronized() {
+  Rules rules;
+  rules.koRule = allowedKoRules[rand.nextUInt(allowedKoRules.size())];
+  rules.scoringRule = allowedScoringRules[rand.nextUInt(allowedScoringRules.size())];
+  rules.taxRule = allowedTaxRules[rand.nextUInt(allowedTaxRules.size())];
+  rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[rand.nextUInt(allowedMultiStoneSuicideLegals.size())];
+
+  if(rules.scoringRule == Rules::SCORING_AREA)
+    rules.hasButton = allowedButtons[rand.nextUInt(allowedButtons.size())];
+  else
+    rules.hasButton = false;
+  return rules;
+}
+
 void GameInitializer::createGameSharedUnsynchronized(
   Board& board, Player& pla, BoardHistory& hist,
   ExtraBlackAndKomi& extraBlackAndKomi,
@@ -363,8 +471,11 @@ void GameInitializer::createGameSharedUnsynchronized(
     assert(extraBlackAndKomi.extraBlack == 0);
     hist.setKomi(extraBlackAndKomi.komi);
     otherGameProps.isSgfPos = false;
+    otherGameProps.isHintPos = false;
     otherGameProps.allowPolicyInit = false; //On initial positions, don't play extra moves at start
     otherGameProps.isFork = true;
+    otherGameProps.hintLoc = Board::NULL_LOC;
+    otherGameProps.hintTurn = -1;
     extraBlackAndKomi.makeGameFair = rand.nextBool(forkCompensateKomiProb);
     extraBlackAndKomi.makeGameFairForEmptyBoard = false;
     return;
@@ -377,30 +488,39 @@ void GameInitializer::createGameSharedUnsynchronized(
   if(allowRectangleProb > 0 && rand.nextBool(allowRectangleProb))
     ySizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size());
 
-  Rules rules;
-  rules.koRule = allowedKoRules[rand.nextUInt(allowedKoRules.size())];
-  rules.scoringRule = allowedScoringRules[rand.nextUInt(allowedScoringRules.size())];
-  rules.taxRule = allowedTaxRules[rand.nextUInt(allowedTaxRules.size())];
-  rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[rand.nextUInt(allowedMultiStoneSuicideLegals.size())];
+  Rules rules = createRulesUnsynchronized();
 
-  if(rules.scoringRule == Rules::SCORING_AREA)
-    rules.hasButton = allowedButtons[rand.nextUInt(allowedButtons.size())];
-  else
-    rules.hasButton = false;
-
+  const Sgf::PositionSample* posSample = NULL;
   if(startPosesProb > 0 && rand.nextBool(startPosesProb)) {
     assert(startPoses.size() > 0);
     size_t r = rand.nextIndexCumulative(startPosCumProbs.data(),startPosCumProbs.size());
     assert(r < startPosCumProbs.size());
-    const Sgf::PositionSample& startPos = startPoses[r];
+    posSample = &(startPoses[r]);
+  }
+  else if(hintPosesProb > 0 && rand.nextBool(hintPosesProb)) {
+    assert(hintPoses.size() > 0);
+    size_t r = rand.nextIndexCumulative(hintPosCumProbs.data(),hintPosCumProbs.size());
+    assert(r < hintPosCumProbs.size());
+    posSample = &(hintPoses[r]);
+  }
+  if(posSample != NULL) {
+    const Sgf::PositionSample& startPos = *posSample;
     board = startPos.board;
     pla = startPos.nextPla;
     hist.clear(board,pla,rules,0);
     hist.setInitialTurnNumber(startPos.initialTurnNumber);
+    Loc hintLoc = startPos.hintLoc;
     for(size_t i = 0; i<startPos.moves.size(); i++) {
+      bool isLegal = hist.isLegal(board,startPos.moves[i].loc,startPos.moves[i].pla);
+      if(!isLegal) {
+        //If we stop due to illegality, it doesn't make sense to still use the hintLoc
+        hintLoc = Board::NULL_LOC;
+        break;
+      }
       hist.makeBoardMoveAssumeLegal(board,startPos.moves[i].loc,startPos.moves[i].pla,NULL);
       pla = getOpp(startPos.moves[i].pla);
     }
+
     //No handicap when starting from a sampled position.
     double thisHandicapProb = 0.0;
     extraBlackAndKomi = chooseExtraBlackAndKomi(
@@ -408,10 +528,14 @@ void GameInitializer::createGameSharedUnsynchronized(
       thisHandicapProb, numExtraBlackFixed,
       komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
     );
-    otherGameProps.isSgfPos = true;
-    otherGameProps.allowPolicyInit = false; //On sgf positions, don't play extra moves at start
+    otherGameProps.isSgfPos = hintLoc == Board::NULL_LOC;
+    otherGameProps.isHintPos = hintLoc != Board::NULL_LOC;
+    otherGameProps.allowPolicyInit = hintLoc == Board::NULL_LOC; //On sgf positions, do allow extra moves at start
     otherGameProps.isFork = false;
-    makeGameFairProb = forkCompensateKomiProb;
+    otherGameProps.hintLoc = hintLoc;
+    otherGameProps.hintTurn = hist.moveHistory.size();
+    otherGameProps.hintPosHash = board.pos_hash;
+    makeGameFairProb = sgfCompensateKomiProb;
   }
   else {
     int xSize = allowedBSizes[xSizeIdx];
@@ -428,8 +552,11 @@ void GameInitializer::createGameSharedUnsynchronized(
     pla = P_BLACK;
     hist.clear(board,pla,rules,0);
     otherGameProps.isSgfPos = false;
+    otherGameProps.isHintPos = false;
     otherGameProps.allowPolicyInit = true; //Handicap and regular games do allow policy init
     otherGameProps.isFork = false;
+    otherGameProps.hintLoc = Board::NULL_LOC;
+    otherGameProps.hintTurn = -1;
     makeGameFairProb = extraBlackAndKomi.extraBlack > 0 ? handicapCompensateKomiProb : 0.0;
   }
 
@@ -943,13 +1070,15 @@ struct SearchLimitsThisMove {
   //game, they make the playouts *actually* vary instead of only making the neural net think they do.
   double playoutDoublingAdvantage;
   Player playoutDoublingAdvantagePla;
+
+  Loc hintLoc;
 };
 
 static SearchLimitsThisMove getSearchLimitsThisMove(
   const Search* toMoveBot, Player pla, const PlaySettings& playSettings, Rand& gameRand,
   const vector<double>& historicalMctsWinLossValues,
   bool clearBotBeforeSearch,
-  OtherGameProperties otherGameProps
+  const OtherGameProperties& otherGameProps
 ) {
   bool doAlterVisitsPlayouts = false;
   int64_t numAlterVisits = toMoveBot->searchParams.maxVisits;
@@ -959,8 +1088,21 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
   float targetWeight = 1.0f;
   double playoutDoublingAdvantage = 0.0;
   Player playoutDoublingAdvantagePla = C_EMPTY;
+  Loc hintLoc = Board::NULL_LOC;
 
-  if(playSettings.cheapSearchProb > 0.0 && gameRand.nextBool(playSettings.cheapSearchProb)) {
+  if(otherGameProps.hintLoc != Board::NULL_LOC) {
+    const BoardHistory& hist = toMoveBot->getRootHist();
+    if(otherGameProps.hintTurn == hist.moveHistory.size() &&
+       otherGameProps.hintPosHash == toMoveBot->getRootBoard().pos_hash) {
+      hintLoc = otherGameProps.hintLoc;
+      doAlterVisitsPlayouts = true;
+      double cap = (double)((int64_t)1L << 50);
+      numAlterVisits = (int64_t)ceil(std::min(cap, numAlterVisits * 4.0));
+      numAlterPlayouts = (int64_t)ceil(std::min(cap, numAlterPlayouts * 4.0));
+    }
+  }
+
+  if(hintLoc == Board::NULL_LOC && playSettings.cheapSearchProb > 0.0 && gameRand.nextBool(playSettings.cheapSearchProb)) {
     if(playSettings.cheapSearchVisits <= 0)
       throw StringError("playSettings.cheapSearchVisits <= 0");
     if(playSettings.cheapSearchVisits > toMoveBot->searchParams.maxVisits ||
@@ -978,7 +1120,7 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
       removeRootNoise = true;
     }
   }
-  else if(playSettings.reduceVisits) {
+  else if(hintLoc == Board::NULL_LOC && playSettings.reduceVisits) {
     if(playSettings.reducedVisitsMin <= 0)
       throw StringError("playSettings.reducedVisitsMin <= 0");
     if(playSettings.reducedVisitsMin > toMoveBot->searchParams.maxVisits ||
@@ -1050,6 +1192,7 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
   limits.targetWeight = targetWeight;
   limits.playoutDoublingAdvantage = playoutDoublingAdvantage;
   limits.playoutDoublingAdvantagePla = playoutDoublingAdvantagePla;
+  limits.hintLoc = hintLoc;
   return limits;
 }
 
@@ -1102,7 +1245,14 @@ static Loc runBotWithLimits(
       toMoveBot->runWholeSearchAndGetMove(pla,logger);
       toMoveBot->searchParams.maxVisits = oldMaxVisits;
     }
+
+    if(limits.hintLoc != Board::NULL_LOC)
+      toMoveBot->setRootHintLoc(limits.hintLoc);
+
     loc = toMoveBot->runWholeSearchAndGetMove(pla,logger);
+
+    if(limits.hintLoc != Board::NULL_LOC)
+      toMoveBot->setRootHintLoc(Board::NULL_LOC);
 
     toMoveBot->searchParams = oldParams;
   }
@@ -1248,6 +1398,8 @@ FinishedGameData* Play::runGame(
     gameData->mode = FinishedGameData::MODE_HANDICAP;
   if(otherGameProps.isSgfPos)
     gameData->mode = FinishedGameData::MODE_SGFPOS;
+  if(otherGameProps.isHintPos)
+    gameData->mode = FinishedGameData::MODE_HINTPOS;
   if(otherGameProps.isFork)
     gameData->mode = FinishedGameData::MODE_FORK;
 
@@ -1274,11 +1426,13 @@ FinishedGameData* Play::runGame(
   };
 
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
-    double proportionOfBoardArea = 1.0 / 25.0;
-    double temperature = 1.0;
-    initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
-    if(playSettings.compensateAfterPolicyInitProb > 0.0 && gameRand.nextBool(playSettings.compensateAfterPolicyInitProb)) {
-      PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,logger,otherGameProps,gameRand);
+    double proportionOfBoardArea = otherGameProps.isSgfPos ? playSettings.startPosesPolicyInitAreaProp : playSettings.policyInitAreaProp;
+    if(proportionOfBoardArea > 0) {
+      double temperature = 1.0;
+      initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
+      if(playSettings.compensateAfterPolicyInitProb > 0.0 && gameRand.nextBool(playSettings.compensateAfterPolicyInitProb)) {
+        PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,logger,otherGameProps,gameRand);
+      }
     }
   }
 
@@ -1297,6 +1451,7 @@ FinishedGameData* Play::runGame(
       //Since we played out the game a bunch we should get a good mix of stones that were present or not present at the start
       //of the second encore phase if we're going into the second.
       int encorePhase = gameRand.nextInt(1,2);
+      board.clearSimpleKoLoc();
       hist.clear(board,pla,hist.rules,encorePhase);
 
       gameData->mode = FinishedGameData::MODE_CLEANUP_TRAINING;
@@ -1502,6 +1657,12 @@ FinishedGameData* Play::runGame(
       }
     }
     gameData->whiteValueTargetsByTurn.push_back(finalValueTargets);
+
+    //If we had a hintloc, then don't trust the first value, it will be corrupted a bit by the forced playouts.
+    //Just copy the next turn's value.
+    if(otherGameProps.hintLoc != Board::NULL_LOC) {
+      gameData->whiteValueTargetsByTurn[0] = gameData->whiteValueTargetsByTurn[std::min((size_t)1,gameData->whiteValueTargetsByTurn.size()-1)];
+    }
 
     assert(gameData->finalWhiteScoring == NULL);
     gameData->finalWhiteScoring = new float[Board::MAX_ARR_SIZE];
@@ -1935,6 +2096,47 @@ void Play::maybeSekiForkGame(
   }
 }
 
+void Play::maybeHintForkGame(
+  const FinishedGameData* finishedGameData,
+  ForkData* forkData,
+  const OtherGameProperties& otherGameProps
+) {
+  if(forkData == NULL)
+    return;
+  //Just for conceptual simplicity, don't early fork games that started in the encore
+  if(finishedGameData->startHist.encorePhase != 0)
+    return;
+  bool hintFork =
+    otherGameProps.hintLoc != Board::NULL_LOC &&
+    finishedGameData->startBoard.pos_hash == otherGameProps.hintPosHash &&
+    finishedGameData->startHist.moveHistory.size() == otherGameProps.hintTurn &&
+    finishedGameData->endHist.moveHistory.size() > finishedGameData->startHist.moveHistory.size() &&
+    finishedGameData->endHist.moveHistory[finishedGameData->startHist.moveHistory.size()].loc != otherGameProps.hintLoc;
+
+  if(!hintFork)
+    return;
+
+  Board board;
+  Player pla;
+  BoardHistory hist;
+  replayGameUpToMove(finishedGameData, finishedGameData->startHist.moveHistory.size(), finishedGameData->startHist.rules, board, hist, pla);
+  //Just in case if somehow the game is over now, don't actually do anything
+  if(hist.isGameFinished)
+    return;
+
+  if(!hist.isLegal(board,otherGameProps.hintLoc,pla))
+    return;
+
+  hist.makeBoardMoveAssumeLegal(board,otherGameProps.hintLoc,pla,NULL);
+  pla = getOpp(pla);
+
+  //If the game is over now, don't actually do anything
+  if(hist.isGameFinished)
+    return;
+  forkData->add(new InitialPosition(board,hist,pla));
+}
+
+
 GameRunner::GameRunner(ConfigParser& cfg, PlaySettings pSettings, Logger& logger)
   :logSearchInfo(),logMoves(),maxMovesPerGame(),clearBotBeforeSearch(),
    playSettings(pSettings),
@@ -1964,6 +2166,10 @@ GameRunner::GameRunner(ConfigParser& cfg, const string& gameInitRandSeed, PlaySe
 
 GameRunner::~GameRunner() {
   delete gameInit;
+}
+
+const GameInitializer* GameRunner::getGameInitializer() const {
+  return gameInit;
 }
 
 FinishedGameData* GameRunner::runGame(
@@ -2073,6 +2279,7 @@ FinishedGameData* GameRunner::runGame(
   if(!usedSekiForkHackPosition) {
     Play::maybeSekiForkGame(finishedGameData, forkData, playSettings, gameInit, gameRand);
   }
+  Play::maybeHintForkGame(finishedGameData, forkData, otherGameProps);
 
   if(botW != botB)
     delete botW;

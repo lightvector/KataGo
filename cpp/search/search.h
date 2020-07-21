@@ -138,6 +138,7 @@ struct Search {
   Board rootBoard;
   BoardHistory rootHistory;
   bool rootPassLegal;
+  Loc rootHintLoc;
 
   //Precomputed values at the root
   Color* rootSafeArea;
@@ -149,7 +150,9 @@ struct Search {
   SearchParams searchParams;
   int64_t numSearchesBegun;
   uint32_t searchNodeAge;
-  Player rootPlaDuringLastSearch;
+  Player plaThatSearchIsFor;
+  Player plaThatSearchIsForLastSearch;
+  int64_t lastSearchNumPlayouts;
 
   std::string randSeed;
 
@@ -189,6 +192,7 @@ struct Search {
   const Board& getRootBoard() const;
   const BoardHistory& getRootHist() const;
   Player getRootPla() const;
+  Player getPlayoutDoublingAdvantagePla() const;
 
   //Clear all results of search and sets a new position or something else
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
@@ -196,6 +200,7 @@ struct Search {
   void setPlayerAndClearHistory(Player pla);
   void setKomiIfNew(float newKomi); //Does not clear history, does clear search unless komi is equal.
   void setRootPassLegal(bool b);
+  void setRootHintLoc(Loc hintLoc);
   void setAlwaysIncludeOwnerMap(bool b);
   void setParams(SearchParams params);
   void setParamsNoClearing(SearchParams params); //Does not clear search
@@ -217,6 +222,7 @@ struct Search {
   void runWholeSearch(Player movePla, Logger& logger);
   void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow);
 
+  //Pondering indicates that we are searching "for" the last player that we did a non-ponder search for, and should use ponder search limits.
   Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, bool pondering);
   void runWholeSearch(Player movePla, Logger& logger, bool pondering);
   void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering);
@@ -298,7 +304,7 @@ struct Search {
   std::vector<double> getAverageTreeOwnership(int64_t minVisits) const;
 
   //Expert manual playout-by-playout interface------------------------------------------------
-  void beginSearch();
+  void beginSearch(bool pondering);
   void runSinglePlayout(SearchThread& thread);
 
   //Helpers-----------------------------------------------------------------------
@@ -334,11 +340,6 @@ private:
   //Parent must be locked
   void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, double& lcbBuf, double& radiusBuf) const;
 
-  float adjustExplorePolicyProb(
-    const SearchThread& thread, const SearchNode& parent, Loc moveLoc, float nnPolicyProb,
-    double parentUtility, double totalChildVisits, double childVisits, double& childUtility
-  ) const;
-
   double getExploreSelectionValue(
     double nnPolicyProb, int64_t totalChildVisits, int64_t childVisits,
     double childUtility, Player pla
@@ -360,9 +361,9 @@ private:
   double getExploreSelectionValue(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     int64_t totalChildVisits, double fpuValue, double parentUtility,
-    bool isDuringSearch, const SearchThread* thread
+    bool isDuringSearch, SearchThread* thread
   ) const;
-  double getNewExploreSelectionValue(const SearchNode& parent, float nnPolicyProb, int64_t totalChildVisits, double fpuValue) const;
+  double getNewExploreSelectionValue(const SearchNode& parent, float nnPolicyProb, int64_t totalChildVisits, double fpuValue, SearchThread* thread) const;
 
   //Parent must be locked
   int64_t getReducedPlaySelectionVisits(
@@ -380,7 +381,7 @@ private:
   double getNormToTApproxForLCB(int64_t numVisits) const;
 
   void selectBestChildToDescend(
-    const SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
+    SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
     bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
     bool isRoot
   ) const;

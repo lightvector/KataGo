@@ -132,6 +132,7 @@ static NNEvaluator* startNNEval(
   bool openCLReTunePerBoardSize = false;
   const string& modelName = modelFile;
   const string openCLTunerFile = "";
+  const string homeDataDirOverride = "";
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
   string nnRandSeed = "runSearchTestsRandSeed"+seed;
@@ -155,6 +156,7 @@ static NNEvaluator* startNNEval(
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
     openCLTunerFile,
+    homeDataDirOverride,
     openCLReTunePerBoardSize,
     useFP16 ? enabled_t::True : enabled_t::False,
     useNHWC ? enabled_t::True : enabled_t::False,
@@ -533,13 +535,13 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     PrintTreeOptions options;
     options = options.maxDepth(1);
     cout << "Beginning search again and then reprinting, should be same" << endl;
-    search->beginSearch();
+    search->beginSearch(false);
     search->printTree(cout, search->rootNode, options, P_WHITE);
     cout << "Making a move O3, should still be same" << endl;
     bot->makeMove(Location::ofString("O3",19,19), P_WHITE);
     search->printTree(cout, search->rootNode, options, P_WHITE);
     cout << "Beginning search again and then reprinting, now score utils should change a little" << endl;
-    search->beginSearch();
+    search->beginSearch(false);
     search->printTree(cout, search->rootNode, options, P_WHITE);
 
     delete bot;
@@ -851,6 +853,268 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
     delete sgf;
   }
 
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Testing PDA + pondering, p200 v400" << endl;
+    cout << "===================================================================" << endl;
+
+    Board board = Board::parseBoard(13,13,R"%%(
+.............
+.............
+.............
+.........x...
+.............
+.............
+.............
+.............
+.............
+..o......x...
+.............
+.............
+.............
+)%%");
+
+    const Player startPla = P_WHITE;
+    const Rules rules = Rules::getTrompTaylorish();
+    const BoardHistory hist(board,startPla,rules,0);
+    SearchParams baseParams = SearchParams::forTestsV1();
+    baseParams.maxVisits = 400;
+    baseParams.maxVisitsPondering = 600;
+    baseParams.maxPlayouts = 200;
+    baseParams.maxPlayoutsPondering = 300;
+
+    nnEval->clearCache(); nnEval->clearStats();
+
+    auto printSearchResults = [](const Search* search) {
+      cout << search->rootBoard << endl;
+      cout << "Root visits: " << search->getRootVisits() << "\n";
+      cout << "Last search playouts: " << search->lastSearchNumPlayouts << "\n";
+      cout << "NN rows: " << search->nnEvaluator->numRowsProcessed() << endl;
+      cout << "NN batches: " << search->nnEvaluator->numBatchesProcessed() << endl;
+      cout << "NN avg batch size: " << search->nnEvaluator->averageProcessedBatchSize() << endl;
+      if(search->searchParams.playoutDoublingAdvantage != 0)
+        cout << "PlayoutDoublingAdvantage: " << (
+          search->getRootPla() == getOpp(search->getPlayoutDoublingAdvantagePla()) ?
+          -search->searchParams.playoutDoublingAdvantage : search->searchParams.playoutDoublingAdvantage) << endl;
+      cout << "PV: ";
+      search->printPV(cout, search->rootNode, 25);
+      cout << "\n";
+      cout << "Tree:\n";
+      PrintTreeOptions options;
+      options = options.maxDepth(1);
+      search->printTree(cout, search->rootNode, options, P_WHITE);
+    };
+
+    {
+      SearchParams params = baseParams;
+      params.playoutDoublingAdvantage = 1.5;
+      cout << "Basic search with PDA 1.5, no player" << endl;
+
+      Search* search = new Search(params, nnEval, "autoSearchRandSeed3");
+      Player nextPla;
+
+      search->setPosition(startPla,board,hist); nextPla = startPla;
+
+      Loc moveLoc = search->runWholeSearchAndGetMove(nextPla,logger); printSearchResults(search);
+
+      cout << "Search next player - should clear tree and flip PDA" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      moveLoc = search->runWholeSearchAndGetMove(nextPla,logger); printSearchResults(search);
+
+      cout << "Search next player - should clear tree and flip PDA" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      search->runWholeSearch(nextPla,logger); printSearchResults(search);
+
+      delete search;
+      nnEval->clearCache(); nnEval->clearStats();
+    }
+
+    {
+      SearchParams params = baseParams;
+      params.playoutDoublingAdvantage = 1.5;
+      params.playoutDoublingAdvantagePla = P_BLACK;
+      cout << "Basic search with PDA 1.5, force black" << endl;
+
+      Search* search = new Search(params, nnEval, "autoSearchRandSeed3");
+      Player nextPla;
+
+      search->setPosition(startPla,board,hist); nextPla = startPla;
+
+      Loc moveLoc = search->runWholeSearchAndGetMove(nextPla,logger); printSearchResults(search);
+
+      cout << "Search next player - should preserve tree" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      moveLoc = search->runWholeSearchAndGetMove(nextPla,logger); printSearchResults(search);
+
+      cout << "Search next player - should preserve tree" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      moveLoc = search->runWholeSearchAndGetMove(nextPla,logger); printSearchResults(search);
+
+      cout << "Search next player PONDERING - should preserve tree" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      bool pondering = true;
+      moveLoc = search->runWholeSearchAndGetMove(nextPla,logger,pondering); printSearchResults(search);
+
+      cout << "Search next player - should preserve tree" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      search->runWholeSearch(nextPla,logger); printSearchResults(search);
+
+      delete search;
+      nnEval->clearCache(); nnEval->clearStats();
+    }
+
+    {
+      SearchParams params = baseParams;
+      params.playoutDoublingAdvantage = 1.5;
+      params.playoutDoublingAdvantagePla = P_WHITE;
+      cout << "Basic search with PDA 1.5, force white" << endl;
+
+      Search* search = new Search(params, nnEval, "autoSearchRandSeed3");
+      Player nextPla;
+
+      search->setPosition(startPla,board,hist); nextPla = startPla;
+
+      Loc moveLoc = search->runWholeSearchAndGetMove(nextPla,logger); printSearchResults(search);
+
+      cout << "Search next player - should preserve tree" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      moveLoc = search->runWholeSearchAndGetMove(nextPla,logger); printSearchResults(search);
+
+      cout << "Search next player - should preserve tree" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      moveLoc = search->runWholeSearchAndGetMove(nextPla,logger); printSearchResults(search);
+
+      cout << "Search next player PONDERING - should preserve tree" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      bool pondering = true;
+      moveLoc = search->runWholeSearchAndGetMove(nextPla,logger,pondering); printSearchResults(search);
+
+      cout << "Search next player PONDERING - an extra time, should preserve tree" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      pondering = true;
+      moveLoc = search->runWholeSearchAndGetMove(nextPla,logger,pondering); printSearchResults(search);
+
+      cout << "Search next player - should preserve tree" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      search->runWholeSearch(nextPla,logger); printSearchResults(search);
+
+      delete search;
+      nnEval->clearCache(); nnEval->clearStats();
+    }
+
+    {
+      SearchParams params = baseParams;
+      params.playoutDoublingAdvantage = 1.5;
+      cout << "Basic search with PDA 1.5, no player" << endl;
+
+      Search* search = new Search(params, nnEval, "autoSearchRandSeed3");
+      Player nextPla;
+
+      search->setPosition(startPla,board,hist); nextPla = startPla;
+
+      Loc moveLoc = search->runWholeSearchAndGetMove(nextPla,logger); printSearchResults(search);
+
+      cout << "Search next player PONDERING - should keep prior tree and PDA" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      bool pondering = true;
+      moveLoc = search->runWholeSearchAndGetMove(nextPla,logger,pondering); printSearchResults(search);
+
+      cout << "Search next player - should keep tree from ponder" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      search->runWholeSearch(nextPla,logger); printSearchResults(search);
+
+      delete search;
+      nnEval->clearCache(); nnEval->clearStats();
+    }
+
+    {
+      SearchParams params = baseParams;
+      params.playoutDoublingAdvantage = 1.5;
+      cout << "Basic search with PDA 1.5, no player" << endl;
+
+      Search* search = new Search(params, nnEval, "autoSearchRandSeed3");
+      Player nextPla;
+
+      search->setPosition(startPla,board,hist); nextPla = startPla;
+
+      Loc moveLoc = search->runWholeSearchAndGetMove(nextPla,logger); printSearchResults(search);
+
+      cout << "Search next player PONDERING - should keep prior tree and PDA" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      bool pondering = true;
+      moveLoc = search->runWholeSearchAndGetMove(nextPla,logger,pondering); printSearchResults(search);
+
+      cout << "Search next player PONDERING an extra time - should keep prior tree and PDA" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      pondering = true;
+      moveLoc = search->runWholeSearchAndGetMove(nextPla,logger,pondering); printSearchResults(search);
+
+      cout << "Search next player - now should lose the tree and PDA, because the player it is for is different" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      search->runWholeSearch(nextPla,logger); printSearchResults(search);
+
+      delete search;
+      nnEval->clearCache(); nnEval->clearStats();
+    }
+
+    {
+      SearchParams params = baseParams;
+      params.playoutDoublingAdvantage = 1.5;
+      cout << "Basic search with PDA 1.5, no player" << endl;
+
+      Search* search = new Search(params, nnEval, "autoSearchRandSeed3");
+      Player nextPla;
+
+      search->setPosition(startPla,board,hist); nextPla = startPla;
+
+      Loc moveLoc = search->runWholeSearchAndGetMove(nextPla,logger); printSearchResults(search);
+
+      cout << "Search next player PONDERING - should keep prior tree and PDA" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      bool pondering = true;
+      moveLoc = search->runWholeSearchAndGetMove(nextPla,logger,pondering); printSearchResults(search);
+
+      cout << "Search next player PONDERING - should still keep prior tree and PDA" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      pondering = true;
+      search->runWholeSearch(nextPla,logger,pondering); printSearchResults(search);
+
+      cout << "Without making a move - convert ponder to regular search, should still keep tree and PDA" << endl;
+      search->runWholeSearch(nextPla,logger); printSearchResults(search);
+
+      nnEval->clearCache(); nnEval->clearStats();
+
+      cout << "Set position to original, search PONDERING" << endl;
+      search->setPosition(startPla,board,hist); nextPla = startPla;
+      pondering = true;
+      search->runWholeSearch(nextPla,logger,pondering); printSearchResults(search);
+
+      cout << "Without making a move, convert to regular search, should not keep tree" << endl;
+      cout << "and should not benefit from cache, since search would guess the opponent as 'our' side" << endl;
+      moveLoc = search->runWholeSearchAndGetMove(nextPla,logger); printSearchResults(search);
+
+      cout << "But should be fine thereafter. Make two moves and continue" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      search->makeMove(Location::ofString("D4",board),nextPla); nextPla = getOpp(nextPla);
+      search->runWholeSearch(nextPla,logger); printSearchResults(search);
+
+      nnEval->clearCache(); nnEval->clearStats();
+
+      cout << "Set position to original, search PONDERING" << endl;
+      search->setPosition(startPla,board,hist); nextPla = startPla;
+      pondering = true;
+      moveLoc = search->runWholeSearchAndGetMove(nextPla,logger,pondering); printSearchResults(search);
+
+      cout << "Play that move and real search on the next position, should keep tree because correct guess of side" << endl;
+      search->makeMove(moveLoc,nextPla); nextPla = getOpp(nextPla);
+      search->runWholeSearch(nextPla,logger); printSearchResults(search);
+
+      delete search;
+      nnEval->clearCache(); nnEval->clearStats();
+    }
+
+  }
 }
 
 void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16) {
@@ -1210,7 +1474,7 @@ o..oo.x
       cout << endl;
 
       cout << "But the moment we begin a search, it should no longer." << endl;
-      search->beginSearch();
+      search->beginSearch(false);
       testAssert(!hasSuicideRootMoves(search));
       testAssert(!hasPassAliveRootMoves(search));
 
@@ -1272,11 +1536,11 @@ o..o.oo
       search->printTree(cout, search->rootNode, options, P_WHITE);
 
       cout << "Begin search is idempotent?" << endl;
-      search->beginSearch();
+      search->beginSearch(false);
       search->printTree(cout, search->rootNode, options, P_WHITE);
       search->makeMove(Location::ofString("B1",board),nextPla);
       search->printTree(cout, search->rootNode, options, P_WHITE);
-      search->beginSearch();
+      search->beginSearch(false);
       search->printTree(cout, search->rootNode, options, P_WHITE);
 
       delete search;

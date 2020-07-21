@@ -21,3 +21,5 @@ fixed_handicap 3
 showboard
 play w K4
 genmove_debug b
+genmove_debug w
+genmove_debug b

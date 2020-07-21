@@ -14,6 +14,8 @@ struct DeviceInfo {
   int gpuIdx;
 
   cl_device_id deviceId;
+  cl_platform_id platformId;
+  std::string platformDesc;
   std::string name;
   std::string vendor;
   cl_device_type deviceType;
@@ -27,20 +29,29 @@ struct DeviceInfo {
   static std::vector<DeviceInfo> getAllDeviceInfosOnSystem(Logger* logger);
 };
 
+struct InitializedPlatform {
+  cl_context context;
+  cl_platform_id platformId;
+  std::string platformDesc;
+  std::vector<cl_context_properties> properties;
+  std::vector<cl_device_id> deviceIdsToUseForThisPlatform;
+};
+
 struct InitializedDevice {
   DeviceInfo info;
+  cl_context context;
   cl_command_queue commandQueue;
 };
 
 //Wrapper around cl_context for sharing initialization code
 struct DevicesContext {
-  cl_context context;
-
   //Index of the default device to use if not specified (user-provided gpuIdx == -1)
   int defaultGpuIdx;
+  //All platforms with for which we made a context, for freeing each exactly once in destructor
+  std::map<cl_platform_id,InitializedPlatform*> initializedPlatforms;
 
   //Filtered and initialized subset of allDeviceInfos
-  std::vector<InitializedDevice> devicesToUse;
+  std::vector<InitializedDevice*> devicesToUse;
   //All unique names of devices being used
   std::vector<std::string> uniqueDeviceNamesToUse;
 
@@ -53,9 +64,9 @@ struct DevicesContext {
 
   //Given the gpuIdx, find the initialized device of that GPU. Fails if it was not a gpuIdx provided in
   //gpuIdxsToUse upon creation of this DevicesContext.
-  const InitializedDevice& findGpuExn(int gpuIdx) const;
+  const InitializedDevice* findGpuExn(int gpuIdx) const;
   //Find devices being used with a given name
-  std::vector<InitializedDevice> findDevicesToUseWithName(const std::string& name) const;
+  std::vector<const InitializedDevice*> findDevicesToUseWithName(const std::string& name) const;
   std::vector<cl_device_id> findDeviceIdsToUseWithName(const std::string& name) const;
 };
 

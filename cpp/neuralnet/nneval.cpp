@@ -65,7 +65,8 @@ NNEvaluator::NNEvaluator(
   int nnCacheSizePowerOfTwo,
   int nnMutexPoolSizePowerofTwo,
   bool skipNeuralNet,
-  string openCLTunerFile,
+  const string& openCLTunerFile,
+  const string& homeDataDirOverride,
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
   enabled_t useNHWCMode,
@@ -102,6 +103,8 @@ NNEvaluator::NNEvaluator(
    serverWaitingForBatchStart(),
    bufferMutex(),
    isKilled(false),
+   numServerThreadsStartingUp(0),
+   mainThreadWaitingForSpawn(),
    currentDoRandomize(doRandomize),
    currentDefaultSymmetry(defaultSymmetry),
    m_resultBufss(NULL),
@@ -141,7 +144,9 @@ NNEvaluator::NNEvaluator(
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
     computeContext = NeuralNet::createComputeContext(
-      gpuIdxs,logger,nnXLen,nnYLen,openCLTunerFile,openCLReTunePerBoardSize,usingFP16Mode,usingNHWCMode,loadedModel
+      gpuIdxs,logger,nnXLen,nnYLen,
+      openCLTunerFile,homeDataDirOverride,openCLReTunePerBoardSize,
+      usingFP16Mode,usingNHWCMode,loadedModel
     );
   }
   else {
@@ -197,6 +202,13 @@ bool NNEvaluator::isNeuralNetLess() const {
 }
 int NNEvaluator::getMaxBatchSize() const {
   return maxNumRows;
+}
+int NNEvaluator::getNumGpus() const {
+  std::set<int> gpuIdxs;
+  for(int i = 0; i<gpuIdxByServerThread.size(); i++) {
+    gpuIdxs.insert(i);
+  }
+  return (int)gpuIdxs.size();
 }
 int NNEvaluator::getNNXLen() const {
   return nnXLen;
@@ -274,6 +286,8 @@ static void serveEvals(
 void NNEvaluator::spawnServerThreads() {
   if(serverThreads.size() != 0)
     throw StringError("NNEvaluator::spawnServerThreads called when threads were already running!");
+
+  numServerThreadsStartingUp = numThreads;
   for(int i = 0; i<numThreads; i++) {
     int gpuIdxForThisThread = gpuIdxByServerThread[i];
     string randSeedThisThread = randSeed + ":NNEvalServerThread:" + Global::intToString(numServerThreadsEverSpawned);
@@ -283,6 +297,10 @@ void NNEvaluator::spawnServerThreads() {
     );
     serverThreads.push_back(thread);
   }
+
+  unique_lock<std::mutex> lock(bufferMutex);
+  while(numServerThreadsStartingUp > 0)
+    mainThreadWaitingForSpawn.wait(lock);
 }
 
 void NNEvaluator::killServerThreads() {
@@ -317,6 +335,13 @@ void NNEvaluator::serve(
       inputsUseNHWC,
       gpuIdxForThisThread
     );
+
+  {
+    lock_guard<std::mutex> lock(bufferMutex);
+    numServerThreadsStartingUp--;
+    if(numServerThreadsStartingUp <= 0)
+      mainThreadWaitingForSpawn.notify_all();
+  }
 
   vector<NNOutput*> outputBuf;
 

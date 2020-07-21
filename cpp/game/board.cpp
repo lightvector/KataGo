@@ -1243,13 +1243,13 @@ void Board::changeSurroundingLiberties(Loc loc, Player pla, int delta)
 
 int Location::distance(Loc loc0, Loc loc1, int x_size) {
   int dx = getX(loc1,x_size) - getX(loc0,x_size);
-  int dy = (loc1-loc0+dx) / (x_size+1);
+  int dy = (loc1-loc0-dx) / (x_size+1);
   return (dx >= 0 ? dx : -dx) + (dy >= 0 ? dy : -dy);
 }
 
 int Location::euclideanDistanceSquared(Loc loc0, Loc loc1, int x_size) {
   int dx = getX(loc1,x_size) - getX(loc0,x_size);
-  int dy = (loc1-loc0+dx) / (x_size+1);
+  int dy = (loc1-loc0-dx) / (x_size+1);
   return dx*dx + dy*dy;
 }
 
@@ -2237,6 +2237,16 @@ string PlayerIO::playerToString(Color c)
   }
 }
 
+string PlayerIO::playerToStringShort(Color c)
+{
+  switch(c) {
+  case C_BLACK: return "B";
+  case C_WHITE: return "W";
+  case C_EMPTY: return "E";
+  default:  return "";
+  }
+}
+
 bool PlayerIO::tryParsePlayer(const string& s, Player& pla) {
   string str = Global::toLower(s);
   if(str == "black" || str == "b") {
@@ -2248,6 +2258,14 @@ bool PlayerIO::tryParsePlayer(const string& s, Player& pla) {
     return true;
   }
   return false;
+}
+
+Player PlayerIO::parsePlayer(const string& s) {
+  Player pla = C_EMPTY;
+  bool suc = tryParsePlayer(s,pla);
+  if(!suc)
+    throw StringError("Could not parse player: " + s);
+  return pla;
 }
 
 string Location::toStringMach(Loc loc, int x_size)
@@ -2446,9 +2464,25 @@ ostream& operator<<(ostream& out, const Board& board) {
 }
 
 
+string Board::toStringSimple(const Board& board, char lineDelimiter) {
+  string s;
+  for(int y = 0; y < board.y_size; y++) {
+    for(int x = 0; x < board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      s += PlayerIO::colorToChar(board.colors[loc]);
+    }
+    s += lineDelimiter;
+  }
+  return s;
+}
+
 Board Board::parseBoard(int xSize, int ySize, const string& s) {
+  return parseBoard(xSize,ySize,s,'\n');
+}
+
+Board Board::parseBoard(int xSize, int ySize, const string& s, char lineDelimiter) {
   Board board(xSize,ySize);
-  vector<string> lines = Global::split(Global::trim(s),'\n');
+  vector<string> lines = Global::split(Global::trim(s),lineDelimiter);
 
   //Throw away coordinate labels line if it exists
   if(lines.size() == ySize+1 && Global::isPrefix(lines[0],"A"))

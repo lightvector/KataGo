@@ -1,7 +1,8 @@
 #include "../program/playsettings.h"
 
 PlaySettings::PlaySettings()
-  :initGamesWithPolicy(false),compensateAfterPolicyInitProb(0.0),forkSidePositionProb(0.0),
+  :initGamesWithPolicy(false),policyInitAreaProp(0.0),startPosesPolicyInitAreaProp(0.0),
+   compensateAfterPolicyInitProb(0.0),forkSidePositionProb(0.0),
    compensateKomiVisits(20),estimateLeadVisits(10),estimateLeadProb(0.0),
    earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),forkGameProb(0.0),forkGameMinChoices(1),earlyForkGameMaxChoices(1),forkGameMaxChoices(1),
    sekiForkHack(false),fancyKomiVarying(false),
@@ -37,6 +38,8 @@ PlaySettings PlaySettings::loadForGatekeeper(ConfigParser& cfg) {
 PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
   PlaySettings playSettings;
   playSettings.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
+  playSettings.policyInitAreaProp = cfg.contains("policyInitAreaProp") ? cfg.getDouble("policyInitAreaProp",0.0,1.0) : 0.04;
+  playSettings.startPosesPolicyInitAreaProp = cfg.contains("startPosesPolicyInitAreaProp") ? cfg.getDouble("startPosesPolicyInitAreaProp",0.0,1.0) : 0.0;
   playSettings.compensateAfterPolicyInitProb = cfg.getDouble("compensateAfterPolicyInitProb",0.0,1.0);
   playSettings.forkSidePositionProb = cfg.getDouble("forkSidePositionProb",0.0,1.0);
 

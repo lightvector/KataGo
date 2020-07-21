@@ -4,6 +4,15 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
 
    * `rectangular_boardsize X Y`
       * Sets the board size to a potentially non-square size, width `X` and height `Y`. KataGo's official neural nets are currently not actually trained with non-square sizes, but they actually seem to generalize to them pretty well.
+   * `set_position COLOR VERTEX COLOR VERTEX COLOR VERTEX ...`
+      * Directly specify an initial board position as a sequence of color-vertex pairs, replacing the current board.
+      * The newly-set position is assumed to have no move history. Therefore:
+         * There are no ko or superko prohibitions yet in the specified position.
+         * If using any territory scoring rules, it is assumed that there are no captures so far.
+      * Part of the reason for this command is because modern neural-net-based bots, KataGo included, may mildly bias their move suggestions based on the recent moves. This command provides a way to set initial board positions (e.g. whole-board tsumego) without using successive `play` commands which might imply a ridiculous move history.
+      * It is NOT recommended to use this command to place the starting stones for handicap games. Use the standard GTP commands `fixed_handicap`, `place_free_handicap`, and/or `set_free_handicap` instead.
+      * Calling `set_position` with zero arguments is equivalent to calling `clear_board`.
+      * Fails, reports a normal GTP error message, and leaves the board state unchanged if any vertex is specified more than once or if the final configuration would contain stones with zero liberties.
    * `clear_cache`
       * Clears the search tree and the NN cache. Can be used to force KataGo to re-search a position freshly, re-randomizing the search on that position, or to free up memory.
    * `stop`
@@ -45,7 +54,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
    * `kgs-rules RULES`
       * This is an extension for playing on KGS, via kgsGtp.
       * As specified by kgsGtp docs, `RULES` should be one of `chinese | aga | japanese | new_zealand`.
-      * For this extension, `chinese` actually maps to `chinese-kgs` above. Otherwise, has the same effect as `kata-set-rules`.
+      * Has the same behavior as `kata-set-rules` except that `chinese` maps to `chinese-kgs` above.
    * `kgs-time_settings KIND ...`
       * This is an extension for playing on KGS, via kgsGtp.
       * As specified by kgsGtp docs, `KIND` should be one of `none | absolute | canadian | byoyomi`.
@@ -73,7 +82,8 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
          * `pv` - The principal variation following this move. May be of variable length or even empty.
       * All output values are from the perspective of the current player, unless otherwise configured in KataGo's gtp config.
-      * This command will terminate upon any new GTP command being received, as well as upon a raw newline being received, including outputting the usual double-newline that signals a completed GTP response.
+      * This command is a bit unusual for GTP in that it will run forever on its own, but asynchronously if any new GTP command or a raw newline is received, then it will terminate.
+      * Upon termination, it will still output the usual double-newline that signals a completed GTP response.
 
    * `kata-analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR ...`
       * Same as `lz-analyze` except a slightly different output format and some additional options and fields.
@@ -100,8 +110,9 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
             * Following is BoardHeight*BoardWidth many consecutive floats in [-1,1] separated by spaces, predicting the final ownership of every board location from the perspective of the current player. Floats are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
   * `lz-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR`
      * Same as `genmove` except will also produce `lz-analyze`-like output while the move is being searched.
-     * Behaves like a normal synchronous GTP command, unlike `lz-analyze`. Will NOT terminate prematurely due a newline or addiional GTP command.
-     * The final move made will be reported as a single line `play <vertex or "pass" or "resign">`, followed by the usual double-newline.
+     * Like `lz-analyze`, will immediately begin printing a partial GTP response, with a new line every `interval` centiseconds.
+     * Unlike `lz-analyze`, will teriminate on its own after the normal amount of time that a `genmove` would take and will NOT terminate prematurely or asynchronously upon recipt of a newline or an additional GTP command.
+     * The final move made will be reported as a single line `play <vertex or "pass" or "resign">`, followed by the usual double-newline that signals a complete GTP response.
   * `kata-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR`
      * Same as `lz-genmove_analyze` except with the options and fields of `kata-analyze` rather than `lz-analyze`
   * `analyze, genmove_analyze`
@@ -128,5 +139,5 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      * Get a parameter or set a parameter to a given value.
      * Currently, the only supported PARAM is `playoutDoublingAdvantage (float)`. Setting this affects the value used for analysis, and affects play only if the config is not already set to use dynamicPlayoutDoublingAdvantageCapPerOppLead. More params may be added later.
   * `cputime`, `gomill-cpu_time`
-     * Returns the approximate total wall-clock-time spent during the handling of `genmove` or the various flavors of `genmove_analyze` commands described above so far during a game, as a floating point number of seconds. Does NOT currently count time spent during pondering or during the various `lz-analyze`, `kata-analyze`, etc.
+     * Returns the approximate total wall-clock-time spent during the handling of `genmove` or the various flavors of `genmove_analyze` commands described above so far during the entire current instance of the engine, as a floating point number of seconds. Does NOT currently count time spent during pondering or during the various `lz-analyze`, `kata-analyze`, etc.
      * Note: Gomill specifies that its variant of the command should return the total time summed across CPUs. For KataGo, this time is both unuseful and hard to measure because much of the time is spent waiting on the GPU, not on the CPU, and with different threads sometimes blocking each other through the multitheading and often exceeding the number of cores on a user's system, time spent on CPUs is hard to make sense of. So instead we report wall-clock-time, which is far more useful to record and should correspond more closely to what users may want to know for actual practical benchmarking and performance.

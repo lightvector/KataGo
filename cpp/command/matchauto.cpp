@@ -403,7 +403,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
     KataGoCommandLine cmd("Play different nets against each other with different search settings in a match or tournament, experimental.");
     cmd.addConfigFileArg("","");
 
-    TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",true,string(),"FILE");
+    TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",false,string(),"FILE");
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",false,string(),"DIR");
     TCLAP::ValueArg<string> resultsDirArg("","results-dir","Dir to read/write win loss result files",true,string(),"DIR");
     cmd.add(logFileArg);

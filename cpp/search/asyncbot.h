@@ -17,6 +17,7 @@ class AsyncBot {
   const Board& getRootBoard() const;
   const BoardHistory& getRootHist() const;
   Player getRootPla() const;
+  Player getPlayoutDoublingAdvantagePla() const;
   SearchParams getParams() const;
 
   //Get the search directly. If the asyncbot is doing anything asynchronous, the search MAY STILL BE RUNNING!
@@ -30,6 +31,7 @@ class AsyncBot {
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
   void setKomiIfNew(float newKomi);
   void setRootPassLegal(bool b);
+  void setRootHintLoc(Loc loc);
   void setAlwaysIncludeOwnerMap(bool b);
   void setParams(SearchParams params);
   void setPlayerIfNew(Player movePla);
