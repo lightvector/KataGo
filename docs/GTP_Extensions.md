@@ -4,6 +4,15 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
 
    * `rectangular_boardsize X Y`
       * Sets the board size to a potentially non-square size, width `X` and height `Y`. KataGo's official neural nets are currently not actually trained with non-square sizes, but they actually seem to generalize to them pretty well.
+   * `set_position COLOR VERTEX COLOR VERTEX COLOR VERTEX ...
+      * Directly specify an initial board position as a sequence of color-vertex pairs, replacing the current board.
+      * The newly-set position is assumed to have no move history. Therefore:
+         * There are no ko or superko prohibitions yet in the specified position.
+         * If using any territory scoring rules, it is assumed that there are no captures so far.
+      * Part of the reason for this command is because modern neural-net-based bots, KataGo included, may mildly bias their move suggestions based on the recent moves. This command provides a way to set initial board positions (e.g. whole-board tsumego) without using successive `play` commands which might imply a ridiculous move history.
+      * It is NOT recommended to use this command to place the starting stones for handicap games. Use the standard GTP commands `fixed_handicap`, `place_free_handicap`, and/or `set_free_handicap` instead.
+      * Calling `set_position` with zero arguments is equivalent to calling `clear_board`.
+      * Fails, reports a normal GTP error message, and leaves the board state unchanged if any vertex is specified more than once or if the final configuration would contain stones with zero liberties.
    * `clear_cache`
       * Clears the search tree and the NN cache. Can be used to force KataGo to re-search a position freshly, re-randomizing the search on that position, or to free up memory.
    * `stop`

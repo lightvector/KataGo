@@ -28,6 +28,7 @@ static const vector<string> knownCommands = {
   "rectangular_boardsize",
 
   "clear_board",
+  "set_position",
   "komi",
   "play",
   "undo",
@@ -480,6 +481,35 @@ struct GTPEngine {
     vector<Move> newMoveHistory;
     setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
     clearStatsForNewGame();
+  }
+
+  bool setPosition(const vector<Move>& initialStones) {
+    assert(bot->getRootHist().rules == currentRules);
+    int newXSize = bot->getRootBoard().x_size;
+    int newYSize = bot->getRootBoard().y_size;
+    Board board(newXSize,newYSize);
+    for(int i = 0; i<initialStones.size(); i++) {
+      if(!board.isOnBoard(initialStones[i].loc) || board.colors[initialStones[i].loc] != C_EMPTY) {
+        return false;
+      }
+      bool suc = board.setStone(initialStones[i].loc, initialStones[i].pla);
+      if(!suc) {
+        return false;
+      }
+    }
+
+    //Make sure nothing died along the way
+    for(int i = 0; i<initialStones.size(); i++) {
+      if(board.colors[initialStones[i].loc] != initialStones[i].pla) {
+        return false;
+      }
+    }
+    Player pla = P_BLACK;
+    BoardHistory hist(board,pla,currentRules,0);
+    vector<Move> newMoveHistory;
+    setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
+    clearStatsForNewGame();
+    return true;
   }
 
   void updateKomiIfNew(float newKomi) {
@@ -1969,6 +1999,47 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           response = "illegal move";
         }
         maybeStartPondering = true;
+      }
+    }
+
+    else if(command == "set_position") {
+      if(pieces.size() % 2 != 0) {
+        responseIsError = true;
+        response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        vector<Move> initialStones;
+        for(int i = 0; i<pieces.size(); i += 2) {
+          Player pla;
+          Loc loc;
+          if(!PlayerIO::tryParsePlayer(pieces[i],pla)) {
+            responseIsError = true;
+            response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
+            response += "could not parse color: '" + pieces[0] + "'";
+            break;
+          }
+          else if(!tryParseLoc(pieces[i+1],engine->bot->getRootBoard(),loc)) {
+            responseIsError = true;
+            response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
+            response += "Could not parse vertex: '" + pieces[1] + "'";
+            break;
+          }
+          else if(loc == Board::PASS_LOC) {
+            responseIsError = true;
+            response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
+            response += "Could not parse vertex: '" + pieces[1] + "'";
+            break;
+          }
+          initialStones.push_back(Move(loc,pla));
+        }
+        if(!responseIsError) {
+          bool suc = engine->setPosition(initialStones);
+          if(!suc) {
+            responseIsError = true;
+            response = "Illegal stone placements - overlapping stones or stones with no liberties?";
+          }
+          maybeStartPondering = false;
+        }
       }
     }
 

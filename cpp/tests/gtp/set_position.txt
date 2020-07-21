@@ -1,0 +1,31 @@
+showboard
+set_position b c3 W q16 black q17 BLACK k10 black c5 WHITE q13
+showboard
+set_position
+showboard
+boardsize 13
+showboard
+set_position w d3 w d10 w j10
+showboard
+set_position b d3 b d10 b j10
+showboard
+set_position b d3 b d10 b j10 b
+showboard
+set_position w d3 w    d10  w  j10
+showboard
+set_position b d3 b d3
+showboard
+set_position b d3 w d3
+showboard
+set_position b d4 w d3 w e4 w d5
+showboard
+set_position b d4 w d3 w e4 w d5 w c4
+showboard
+set_position b pass
+showboard
+boardsize 3
+showboard
+set_position b a1 b a2 b a3 b b1 b b2 b b3 b c1 b c2
+showboard
+set_position b a1 b a2 b a3 b b1 b b2 b b3 b c1 b c2 b c3
+showboard
