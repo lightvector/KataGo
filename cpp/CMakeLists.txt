@@ -4,7 +4,7 @@ project(katago)
 set(CMAKE_CXX_STANDARD 14)
 
 include_directories(external)
-include_directories(external/tclap-1.2.1/include)
+include_directories(external/tclap-1.2.2/include)
 
 #--------------------------- PLATFORM SPECIFIC -------------------------------------------------------------------------
 

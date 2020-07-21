@@ -73,7 +73,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     throw StringError("Cannot specify both logFile and logDir in config");
   else if(cfg.contains("logFile"))
     logger.addFile(cfg.getString("logFile"));
-  else {
+  else if(cfg.contains("logDir")) {
     MakeDir::make(cfg.getString("logDir"));
     Rand rand;
     logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(rand.nextUInt()) + ".log");
@@ -342,8 +342,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
   string line;
   json input;
-  while(cin) {
-    getline(cin,line);
+  while(getline(cin,line)) {
     line = Global::trim(line);
     if(line.length() == 0)
       continue;
@@ -742,6 +741,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       Player movePla = moveHistory[turnNumber].pla;
       Loc moveLoc = moveHistory[turnNumber].loc;
       if(movePla != nextPla) {
+        board.clearSimpleKoLoc();
         hist.clear(board,movePla,rules,hist.encorePhase);
         hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
       }

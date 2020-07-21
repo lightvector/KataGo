@@ -660,10 +660,10 @@ void OpenCLTuner::tune(
   ostream& out,
   std::function<void(const OpenCLTuneParams&)> handleBestSoFar
 ) {
-  const InitializedDevice& device = devicesContext.findGpuExn(gpuIdx);
-  const cl_context& context = devicesContext.context;
-  cl_command_queue commandQueue = device.commandQueue;
-  const vector<cl_device_id>& deviceIdsToUse = { device.info.deviceId };
+  const InitializedDevice* device = devicesContext.findGpuExn(gpuIdx);
+  const cl_context& context = device->context;
+  cl_command_queue commandQueue = device->commandQueue;
+  const vector<cl_device_id>& deviceIdsToUse = { device->info.deviceId };
 
   OpenCLTuneParams untunedConfig = OpenCLTuneParams();
   OpenCLTuneParams currentConfig = initialConfig;
@@ -1070,7 +1070,7 @@ void OpenCLTuner::tune(
       cl_int err;
       cl_program program;
       bool compileSuc = tryCompileProgram(
-        "winogradConv3x3NCHWProgram", context, deviceIdsToUse, OpenCLKernels::winogradConvNCHW,
+        "winogradConv3x3NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHW,
         cfg.conv3x3.compileOptions(), program
       );
       if(!compileSuc) { accums.bad = true; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
@@ -1170,12 +1170,12 @@ void OpenCLTuner::tune(
     if(full) {
       addConfigs(configs,SETTER(conv3x3.untransLocalSize0),{1,2,4,8,16,32,64});
       addConfigs(configs,SETTER(conv3x3.untransLocalSize1),{1,2,4,8,16,32,64});
-      addConfigs(configs,SETTER(conv3x3.untransLocalSize2),{1,2,4,8,16,32,64});
+      addConfigs(configs,SETTER(conv3x3.untransLocalSize2),{1,2,4,8,16,32});
     }
     else {
-      addConfigs(configs,SETTER(conv3x3.untransLocalSize0),{1,2,4,8,16,32});
-      addConfigs(configs,SETTER(conv3x3.untransLocalSize1),{1,2,4,8,16,32});
-      addConfigs(configs,SETTER(conv3x3.untransLocalSize2),{1,2,4,8,16,32});
+      addConfigs(configs,SETTER(conv3x3.untransLocalSize0),{1,2,8,16,32});
+      addConfigs(configs,SETTER(conv3x3.untransLocalSize1),{1,2,4,16,32});
+      addConfigs(configs,SETTER(conv3x3.untransLocalSize2),{1,2,4,8,16});
     }
 
     filterConfigs(configs,ISVALID(conv3x3));
@@ -1195,7 +1195,7 @@ void OpenCLTuner::tune(
       cl_int err;
       cl_program program;
       bool compileSuc = tryCompileProgram(
-        "winogradConv3x3NCHWProgram", context, deviceIdsToUse, OpenCLKernels::winogradConvNCHW,
+        "winogradConv3x3NCHWUntransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradUntransformNCHW,
         cfg.conv3x3.compileOptions(), program
       );
       if(!compileSuc) { accums.bad = true; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
@@ -1509,8 +1509,8 @@ void OpenCLTuner::tune(
 
 }
 
-string OpenCLTuner::defaultDirectory(bool makeDir) {
-  string dir = HomeData::getHomeDataDir(true);
+string OpenCLTuner::defaultDirectory(bool makeDir, const string& homeDataDirOverride) {
+  string dir = HomeData::getHomeDataDir(true,homeDataDirOverride);
   dir += "/opencltuning";
   if(makeDir)
     MakeDir::make(dir);
@@ -1542,6 +1542,7 @@ static OpenCLTuneParams loadFromTunerFile(const string& fileName, Logger* logger
 
 OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
   string openCLTunerFile,
+  const string& homeDataDirOverride,
   const string& gpuName,
   int gpuIdxForTuning,
   Logger* logger,
@@ -1555,7 +1556,7 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
     return loadFromTunerFile(openCLTunerFile,logger);
   }
 
-  string dir = OpenCLTuner::defaultDirectory(true);
+  string dir = OpenCLTuner::defaultDirectory(true,homeDataDirOverride);
   openCLTunerFile = dir + "/" + OpenCLTuner::defaultFileName(gpuName, nnXLen, nnYLen, model);
 
   //Try loading the config for the proper size
@@ -1586,12 +1587,14 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
   if(logger != NULL) {
     logger->write("No existing tuning parameters found or parseable or valid at: " + openCLTunerFile);
     logger->write("Performing autotuning");
+    logger->write("*** On some systems, this may take several minutes, please be patient ***");
   }
   if(logger == NULL || (!logger->isLoggingToStdout() && !logger->isLoggingToStderr())) {
     cerr << "No existing tuning parameters found or parseable or valid at: " << openCLTunerFile << endl;
     cerr << "Performing autotuning" << endl;
+    cerr << "*** On some systems, this may take several minutes, please be patient ***" << endl;
   }
-  
+
   OpenCLTuneParams results;
   auto handleBestSoFar = [&results](const OpenCLTuneParams& bestSoFar) {
     results = bestSoFar;
@@ -1630,7 +1633,7 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
     logger->write("Done tuning, saved results to " + openCLTunerFile);
   if(logger == NULL || (!logger->isLoggingToStdout() && !logger->isLoggingToStderr()))
     cerr << "Done tuning, saved results to " << openCLTunerFile << endl;
-  
+
   return results;
 
 }

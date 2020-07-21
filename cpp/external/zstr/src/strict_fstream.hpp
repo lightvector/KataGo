@@ -1,5 +1,6 @@
 //MODIFIED by David J Wu ("lightvector") to fix a bug in the in the implementation of strerror
-//that would cause an invalid memory operation.
+//that would cause an invalid string operation, and increase the error message buf size.
+//MODIFIED by Loren P Fiore to add more cases to the OS-based preprocessor switches.
 
 #ifndef __STRICT_FSTREAM_HPP
 #define __STRICT_FSTREAM_HPP
@@ -24,7 +25,7 @@ namespace strict_fstream
 /// Ref: http://stackoverflow.com/a/901316/717706
 static std::string strerror()
 {
-    std::string buff(128, '\0');
+    std::string buff(256, '\0');
 #ifdef _WIN32
     if (strerror_s(&buff[0], buff.size(), errno) != 0)
     {

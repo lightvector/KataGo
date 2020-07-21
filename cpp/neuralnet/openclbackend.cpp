@@ -110,8 +110,12 @@ struct CompiledPrograms {
   OpenCLTuneParams tuneParams;
 
   cl_program conv2dNCHWProgram;
-  cl_program winogradConv3x3NCHWProgram;
-  cl_program winogradConv5x5NCHWProgram;
+  cl_program winogradConv3x3NCHWTransformProgram;
+  cl_program winogradConv3x3NCHWBNReluTransformProgram;
+  cl_program winogradConv3x3NCHWUntransformProgram;
+  cl_program winogradConv5x5NCHWTransformProgram;
+  cl_program winogradConv5x5NCHWBNReluTransformProgram;
+  cl_program winogradConv5x5NCHWUntransformProgram;
   cl_program scaleBiasMaskNCHWProgram;
   cl_program scaleBiasMaskReluNCHWProgram;
   cl_program addPointWiseProgram;
@@ -131,12 +135,28 @@ struct CompiledPrograms {
     tuneParams = tParams;
 
     conv2dNCHWProgram = compileProgram("conv2dNCHWProgram", context, deviceIdsToUse, OpenCLKernels::conv2dNCHW, "");
-    winogradConv3x3NCHWProgram = compileProgram(
-      "winogradConv3x3NCHWProgram", context, deviceIdsToUse, OpenCLKernels::winogradConvNCHW,
+    winogradConv3x3NCHWTransformProgram = compileProgram(
+      "winogradConv3x3NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHW,
       tuneParams.conv3x3.compileOptions()
     );
-    winogradConv5x5NCHWProgram = compileProgram(
-      "winogradConv5x5NCHWProgram", context, deviceIdsToUse, OpenCLKernels::winogradConvNCHW,
+    winogradConv3x3NCHWBNReluTransformProgram = compileProgram(
+      "winogradConv3x3NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHW,
+      tuneParams.conv3x3.compileOptions()
+    );
+    winogradConv3x3NCHWUntransformProgram = compileProgram(
+      "winogradConv3x3NCHWUntransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradUntransformNCHW,
+      tuneParams.conv3x3.compileOptions()
+    );
+    winogradConv5x5NCHWTransformProgram = compileProgram(
+      "winogradConv5x5NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHW,
+      tuneParams.conv5x5.compileOptions()
+    );
+    winogradConv5x5NCHWBNReluTransformProgram = compileProgram(
+      "winogradConv5x5NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHW,
+      tuneParams.conv5x5.compileOptions()
+    );
+    winogradConv5x5NCHWUntransformProgram = compileProgram(
+      "winogradConv5x5NCHWUntransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradUntransformNCHW,
       tuneParams.conv5x5.compileOptions()
     );
 
@@ -170,8 +190,12 @@ struct CompiledPrograms {
 
   ~CompiledPrograms() {
     clReleaseProgram(conv2dNCHWProgram);
-    clReleaseProgram(winogradConv3x3NCHWProgram);
-    clReleaseProgram(winogradConv5x5NCHWProgram);
+    clReleaseProgram(winogradConv3x3NCHWTransformProgram);
+    clReleaseProgram(winogradConv3x3NCHWBNReluTransformProgram);
+    clReleaseProgram(winogradConv3x3NCHWUntransformProgram);
+    clReleaseProgram(winogradConv5x5NCHWTransformProgram);
+    clReleaseProgram(winogradConv5x5NCHWBNReluTransformProgram);
+    clReleaseProgram(winogradConv5x5NCHWUntransformProgram);
     clReleaseProgram(scaleBiasMaskNCHWProgram);
     clReleaseProgram(scaleBiasMaskReluNCHWProgram);
     clReleaseProgram(addPointWiseProgram);
@@ -228,14 +252,21 @@ struct ComputeContext {
 
     for(int i = 0; i<devicesContext->uniqueDeviceNamesToUse.size(); i++) {
       const string& name = devicesContext->uniqueDeviceNamesToUse[i];
-      vector<InitializedDevice> devicesForName = devicesContext->findDevicesToUseWithName(name);
+      vector<const InitializedDevice*> devicesForName = devicesContext->findDevicesToUseWithName(name);
       vector<cl_device_id> deviceIdsForName = devicesContext->findDeviceIdsToUseWithName(name);
       assert(devicesForName.size() > 0);
       assert(deviceIdsForName.size() > 0);
-
+      for(int j = 1; j<devicesForName.size(); j++) {
+        if(devicesForName[j]->info.platformId != devicesForName[0]->info.platformId) {
+          logger->write("WARNING: Two GPUs/devices in use have identical names but different platform ids... probably things will fail shortly");
+          logger->write("Device " + Global::intToString(devicesForName[0]->info.gpuIdx) + " Platform " + devicesForName[0]->info.platformDesc);
+          logger->write("Device " + Global::intToString(devicesForName[j]->info.gpuIdx) + " Platform " + devicesForName[j]->info.platformDesc);
+        }
+      }
       //In case we need to autotune, use the 0th device with that name that the user wants us to use
-      OpenCLTuneParams tuneParams = getParamsForDeviceName(name, devicesForName[0].info.gpuIdx);
-      CompiledPrograms* compiledPrograms = new CompiledPrograms(devicesContext->context, deviceIdsForName, tuneParams);
+      //Assume that they all use the same opencl context too since if they have the same name they should be the same platform
+      OpenCLTuneParams tuneParams = getParamsForDeviceName(name, devicesForName[0]->info.gpuIdx);
+      CompiledPrograms* compiledPrograms = new CompiledPrograms(devicesForName[0]->context, deviceIdsForName, tuneParams);
       compiledProgramsByDeviceName[name] = compiledPrograms;
     }
   }
@@ -280,7 +311,8 @@ ComputeContext* NeuralNet::createComputeContext(
   Logger* logger,
   int nnXLen,
   int nnYLen,
-  string openCLTunerFile,
+  const string& openCLTunerFile,
+  const string& homeDataDirOverride,
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
   enabled_t useNHWCMode,
@@ -290,9 +322,9 @@ ComputeContext* NeuralNet::createComputeContext(
     throw StringError("NeuralNet::createComputeContext - specified no gpus to use");
 
   std::function<OpenCLTuneParams(const string&,int)> getParamsForDeviceName =
-    [&openCLTunerFile,openCLReTunePerBoardSize,logger,nnXLen,nnYLen,loadedModel](const string& name, int gpuIdxForTuning) {
+    [&openCLTunerFile,&homeDataDirOverride,openCLReTunePerBoardSize,logger,nnXLen,nnYLen,loadedModel](const string& name, int gpuIdxForTuning) {
     bool full = false;
-    return OpenCLTuner::loadOrAutoTune(openCLTunerFile,name,gpuIdxForTuning,logger,openCLReTunePerBoardSize,nnXLen,nnYLen,&(loadedModel->modelDesc),full);
+    return OpenCLTuner::loadOrAutoTune(openCLTunerFile,homeDataDirOverride,name,gpuIdxForTuning,logger,openCLReTunePerBoardSize,nnXLen,nnYLen,&(loadedModel->modelDesc),full);
   };
   return new ComputeContext(gpuIdxs,logger,nnXLen,nnYLen,useFP16Mode,useNHWCMode,getParamsForDeviceName);
 }
@@ -341,10 +373,10 @@ struct ComputeHandleInternal {
   ComputeHandleInternal(ComputeContext* ctx, int gpuIdx, bool inputsUseNHWC) {
     computeContext = ctx;
 
-    clContext = computeContext->devicesContext->context;
-    const InitializedDevice& device = computeContext->devicesContext->findGpuExn(gpuIdx);
-    commandQueue = device.commandQueue;
-    CompiledPrograms* progs = computeContext->compiledProgramsByDeviceName[device.info.name];
+    const InitializedDevice* device = computeContext->devicesContext->findGpuExn(gpuIdx);
+    clContext = device->context;
+    commandQueue = device->commandQueue;
+    CompiledPrograms* progs = computeContext->compiledProgramsByDeviceName[device->info.name];
     assert(progs != NULL);
     tuneParams = progs->tuneParams;
 
@@ -362,18 +394,18 @@ struct ComputeHandleInternal {
     conv2dNCHWKernel = clCreateKernel(progs->conv2dNCHWProgram, "conv2dNCHW", &err);
     CHECK_ERR(err);
 
-    winogradConv3x3NCHWTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWProgram, "transform", &err);
+    winogradConv3x3NCHWTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWTransformProgram, "transform", &err);
     CHECK_ERR(err);
-    winogradConv3x3NCHWBNReluTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWProgram, "bnReluTransform", &err);
+    winogradConv3x3NCHWBNReluTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWBNReluTransformProgram, "bnReluTransform", &err);
     CHECK_ERR(err);
-    winogradConv3x3NCHWUntransformKernel = clCreateKernel(progs->winogradConv3x3NCHWProgram, "untransform", &err);
+    winogradConv3x3NCHWUntransformKernel = clCreateKernel(progs->winogradConv3x3NCHWUntransformProgram, "untransform", &err);
     CHECK_ERR(err);
 
-    winogradConv5x5NCHWTransformKernel = clCreateKernel(progs->winogradConv5x5NCHWProgram, "transform", &err);
+    winogradConv5x5NCHWTransformKernel = clCreateKernel(progs->winogradConv5x5NCHWTransformProgram, "transform", &err);
     CHECK_ERR(err);
-    winogradConv5x5NCHWBNReluTransformKernel = clCreateKernel(progs->winogradConv5x5NCHWProgram, "bnReluTransform", &err);
+    winogradConv5x5NCHWBNReluTransformKernel = clCreateKernel(progs->winogradConv5x5NCHWBNReluTransformProgram, "bnReluTransform", &err);
     CHECK_ERR(err);
-    winogradConv5x5NCHWUntransformKernel = clCreateKernel(progs->winogradConv5x5NCHWProgram, "untransform", &err);
+    winogradConv5x5NCHWUntransformKernel = clCreateKernel(progs->winogradConv5x5NCHWUntransformProgram, "untransform", &err);
     CHECK_ERR(err);
 
     scaleBiasMaskNCHWKernel = clCreateKernel(progs->scaleBiasMaskNCHWProgram, "scaleBiasMaskNCHW", &err);

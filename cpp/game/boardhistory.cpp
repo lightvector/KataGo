@@ -716,13 +716,20 @@ void BoardHistory::setKoRecapBlocked(Loc loc, bool b) {
 
 bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) const {
   //Ko-moves in the encore that are recapture blocked are interpreted as pass-for-ko, so they are legal
-  if(encorePhase > 0 && moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE && moveLoc != Board::PASS_LOC) {
-    Loc koCaptureLoc = board.getKoCaptureLoc(moveLoc,movePla);
-    if(koCaptureLoc != Board::NULL_LOC && koRecapBlocked[koCaptureLoc] && board.colors[koCaptureLoc] == getOpp(movePla))
-      return true;
+  if(encorePhase > 0) {
+    if(moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE && moveLoc != Board::PASS_LOC) {
+      Loc koCaptureLoc = board.getKoCaptureLoc(moveLoc,movePla);
+      if(koCaptureLoc != Board::NULL_LOC && koRecapBlocked[koCaptureLoc] && board.colors[koCaptureLoc] == getOpp(movePla))
+        return true;
+    }
   }
-
-  if(!board.isLegal(moveLoc,movePla,rules.multiStoneSuicideLegal))
+  else {
+    //Only check ko bans during normal play.
+    //Ko mechanics in the encore are totally different, we ignore simple ko loc.
+    if(board.isKoBanned(moveLoc))
+      return false;
+  }
+  if(!board.isLegalIgnoringKo(moveLoc,movePla,rules.multiStoneSuicideLegal))
     return false;
   if(superKoBanned[moveLoc])
     return false;
@@ -806,14 +813,18 @@ bool BoardHistory::isFinalPhase() const {
 
 bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla) {
   bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
-  if(!board.isLegal(moveLoc,movePla,multiStoneSuicideLegal))
+  if(encorePhase <= 0 && board.isKoBanned(moveLoc))
+    return false;
+  if(!board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
     return false;
   makeBoardMoveAssumeLegal(board,moveLoc,movePla,NULL);
   return true;
 }
 bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla, bool preventEncore) {
   bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
-  if(!board.isLegal(moveLoc,movePla,multiStoneSuicideLegal))
+  if(encorePhase <= 0 && board.isKoBanned(moveLoc))
+    return false;
+  if(!board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
     return false;
   makeBoardMoveAssumeLegal(board,moveLoc,movePla,NULL,preventEncore);
   return true;

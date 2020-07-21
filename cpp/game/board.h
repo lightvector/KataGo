@@ -160,10 +160,10 @@ struct Board
   bool isIllegalSuicide(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
   //Check if moving here is illegal due to simple ko
   bool isKoBanned(Loc loc) const;
-  //Check if moving here is legal.
-  bool isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
   //Check if moving here is legal, ignoring simple ko
   bool isLegalIgnoringKo(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
+  //Check if moving here is legal. Equivalent to isLegalIgnoringKo && !isKoBanned
+  bool isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
   //Check if this location is on the board
   bool isOnBoard(Loc loc) const;
   //Check if this location contains a simple eye for the specified player.

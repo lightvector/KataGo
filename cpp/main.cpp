@@ -77,11 +77,11 @@ int main(int argc, const char* argv[]) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.4.2+kt1.1");
+  return string("1.4.5+kt1.3.3");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.4.2+kt1.1 (minified)");
+  return string("KataGo v1.4.5+kt1.3.3 (minified)");
 }
 
 string Version::getKataGoVersionFullInfo() {

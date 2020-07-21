@@ -102,6 +102,8 @@ class GameInitializer {
   Rules createRules();
   bool isAllowedBSize(int xSize, int ySize);
 
+  std::vector<int> getAllowedBSizes() const;
+
  private:
   void initShared(ConfigParser& cfg, Logger& logger);
   void createGameSharedUnsynchronized(
@@ -306,6 +308,8 @@ public:
     std::vector<std::atomic<bool>*>& stopConditions,
     std::function<NNEvaluator*()>* checkForNewNNEval
   );
+
+  const GameInitializer* getGameInitializer() const;
 
 };
 

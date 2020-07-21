@@ -40,7 +40,8 @@ void Logger::addOStream(ostream& out) {
   ostreams.push_back(&out);
 }
 void Logger::addFile(const string& file) {
-  files.push_back(new ofstream(file, ofstream::app));
+  if(file != "")
+    files.push_back(new ofstream(file, ofstream::app));
 }
 
 void Logger::write(const string& str, bool endLine) {

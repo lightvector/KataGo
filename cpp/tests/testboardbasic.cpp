@@ -724,6 +724,121 @@ After white
 
   //============================================================================
   {
+    const char* name = "Distance";
+    Board board(17,12);
+
+    auto testDistance = [&](int x0, int y0, int x1, int y1) {
+      out << "distance (" << x0 << "," << y0 << ") (" << x1 << "," << y1 << ") = " <<
+      Location::distance(Location::getLoc(x0,y0,board.x_size),Location::getLoc(x1,y1,board.x_size),board.x_size) << endl;
+    };
+    auto testEuclideanDistance = [&](int x0, int y0, int x1, int y1) {
+      out << "euclideanSq (" << x0 << "," << y0 << ") (" << x1 << "," << y1 << ") = " <<
+      Location::euclideanDistanceSquared(Location::getLoc(x0,y0,board.x_size),Location::getLoc(x1,y1,board.x_size),board.x_size) << endl;
+    };
+    testDistance(13,6,12,3);
+    testDistance(13,6,12,4);
+    testDistance(13,6,12,5);
+    testDistance(13,6,12,6);
+    testDistance(13,6,12,7);
+    testDistance(13,6,13,3);
+    testDistance(13,6,13,4);
+    testDistance(13,6,13,5);
+    testDistance(13,6,13,6);
+    testDistance(13,6,13,7);
+    testDistance(13,6,14,3);
+    testDistance(13,6,14,4);
+    testDistance(13,6,14,5);
+    testDistance(13,6,14,6);
+    testDistance(13,6,14,7);
+    testDistance(13,6,15,3);
+    testDistance(13,6,15,4);
+    testDistance(13,6,15,5);
+    testDistance(13,6,15,6);
+    testDistance(13,6,15,7);
+    testDistance(13,6,0,0);
+    testDistance(13,6,16,11);
+    testDistance(13,6,0,11);
+    testDistance(13,6,16,0);
+    testEuclideanDistance(13,6,12,3);
+    testEuclideanDistance(13,6,12,4);
+    testEuclideanDistance(13,6,12,5);
+    testEuclideanDistance(13,6,12,6);
+    testEuclideanDistance(13,6,12,7);
+    testEuclideanDistance(13,6,13,3);
+    testEuclideanDistance(13,6,13,4);
+    testEuclideanDistance(13,6,13,5);
+    testEuclideanDistance(13,6,13,6);
+    testEuclideanDistance(13,6,13,7);
+    testEuclideanDistance(13,6,14,3);
+    testEuclideanDistance(13,6,14,4);
+    testEuclideanDistance(13,6,14,5);
+    testEuclideanDistance(13,6,14,6);
+    testEuclideanDistance(13,6,14,7);
+    testEuclideanDistance(13,6,15,3);
+    testEuclideanDistance(13,6,15,4);
+    testEuclideanDistance(13,6,15,5);
+    testEuclideanDistance(13,6,15,6);
+    testEuclideanDistance(13,6,15,7);
+    testEuclideanDistance(13,6,0,0);
+    testEuclideanDistance(13,6,16,11);
+    testEuclideanDistance(13,6,0,11);
+    testEuclideanDistance(13,6,16,0);
+
+    string expected = R"%%(
+distance (13,6) (12,3) = 4
+distance (13,6) (12,4) = 3
+distance (13,6) (12,5) = 2
+distance (13,6) (12,6) = 1
+distance (13,6) (12,7) = 2
+distance (13,6) (13,3) = 3
+distance (13,6) (13,4) = 2
+distance (13,6) (13,5) = 1
+distance (13,6) (13,6) = 0
+distance (13,6) (13,7) = 1
+distance (13,6) (14,3) = 4
+distance (13,6) (14,4) = 3
+distance (13,6) (14,5) = 2
+distance (13,6) (14,6) = 1
+distance (13,6) (14,7) = 2
+distance (13,6) (15,3) = 5
+distance (13,6) (15,4) = 4
+distance (13,6) (15,5) = 3
+distance (13,6) (15,6) = 2
+distance (13,6) (15,7) = 3
+distance (13,6) (0,0) = 19
+distance (13,6) (16,11) = 8
+distance (13,6) (0,11) = 18
+distance (13,6) (16,0) = 9
+euclideanSq (13,6) (12,3) = 10
+euclideanSq (13,6) (12,4) = 5
+euclideanSq (13,6) (12,5) = 2
+euclideanSq (13,6) (12,6) = 1
+euclideanSq (13,6) (12,7) = 2
+euclideanSq (13,6) (13,3) = 9
+euclideanSq (13,6) (13,4) = 4
+euclideanSq (13,6) (13,5) = 1
+euclideanSq (13,6) (13,6) = 0
+euclideanSq (13,6) (13,7) = 1
+euclideanSq (13,6) (14,3) = 10
+euclideanSq (13,6) (14,4) = 5
+euclideanSq (13,6) (14,5) = 2
+euclideanSq (13,6) (14,6) = 1
+euclideanSq (13,6) (14,7) = 2
+euclideanSq (13,6) (15,3) = 13
+euclideanSq (13,6) (15,4) = 8
+euclideanSq (13,6) (15,5) = 5
+euclideanSq (13,6) (15,6) = 4
+euclideanSq (13,6) (15,7) = 5
+euclideanSq (13,6) (0,0) = 205
+euclideanSq (13,6) (16,11) = 34
+euclideanSq (13,6) (0,11) = 194
+euclideanSq (13,6) (16,0) = 45
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
     const char* name = "IsAdjacentToPla";
     Board board = Board::parseBoard(9,9,R"%%(
 .........

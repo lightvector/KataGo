@@ -294,11 +294,7 @@ string KataGoCommandLine::getConfigFile() const {
   return configFile;
 }
 
-//cfg must be uninitialized, this will initialize it based on user-provided arguments
-void KataGoCommandLine::getConfig(ConfigParser& cfg) const {
-  string configFile = getConfigFile();
-  cfg.initialize(configFile);
-
+void KataGoCommandLine::maybeApplyOverrideConfigArg(ConfigParser& cfg) const {
   if(overrideConfigArg != NULL) {
     string overrideConfig = overrideConfigArg->getValue();
     if(overrideConfig != "") {
@@ -308,5 +304,21 @@ void KataGoCommandLine::getConfig(ConfigParser& cfg) const {
       cfg.overrideKeys(newkvs,mutexKeySets);
     }
   }
+}
 
+//cfg must be uninitialized, this will initialize it based on user-provided arguments
+void KataGoCommandLine::getConfig(ConfigParser& cfg) const {
+  string configFile = getConfigFile();
+  cfg.initialize(configFile);
+  maybeApplyOverrideConfigArg(cfg);
+}
+
+void KataGoCommandLine::getConfigAllowEmpty(ConfigParser& cfg) const {
+  if(configFileArg->getValue().empty() && defaultConfigFileName.empty()) {
+    cfg.initialize(std::map<string,string>());
+    maybeApplyOverrideConfigArg(cfg);
+  }
+  else {
+    getConfig(cfg);
+  }
 }

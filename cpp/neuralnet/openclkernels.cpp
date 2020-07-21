@@ -133,7 +133,7 @@ __kernel void conv2dNCHW(
 )%%";
 
 
-string OpenCLKernels::winogradConvNCHW = R"%%(
+string OpenCLKernels::winogradTransformNCHW = R"%%(
 
 //Expected defines---------------------------------
 
@@ -317,6 +317,33 @@ __kernel void transform(
 
 }
 
+)%%";
+
+string OpenCLKernels::winogradBNReluTransformNCHW = R"%%(
+
+//Expected defines---------------------------------
+
+//Dimension of input tile
+//INTILE_XSIZE 4 for F(2x2,3x3)
+//INTILE_YSIZE 4 for F(2x2,3x3)
+
+//Dimension of conv
+//CONV_XSIZE 3 for F(2x2,3x3)
+//CONV_YSIZE 3 for F(2x2,3x3)
+
+//Output tile size
+//OUTTILE_XSIZE 2 for F(2x2,3x3)
+//OUTTILE_YSIZE 2 for F(2x2,3x3)
+
+//Location of the upper left corner of the zeroth tile
+//INTILE_XOFFSET (-1) for F(2x2,3x3)
+//INTILE_YOFFSET (-1) for F(2x2,3x3)
+
+#define SQRT8 2.82842712475f
+#define SQRT2 1.41421356237f
+#define SQRTHALF 0.70710678118f
+#define SQRTEIGHTH 0.35355339059f
+
 __kernel void bnReluTransform(
   __global float* restrict input,  //N, ic, H, W
   __global float* restrict transformed, //(INTILE_YSIZE, INTILE_XSIZE), (ic), (batch, tileY, tileX) where the last two dimenions are padded
@@ -479,6 +506,32 @@ __kernel void bnReluTransform(
 
 }
 
+)%%";
+
+string OpenCLKernels::winogradUntransformNCHW = R"%%(
+
+//Expected defines---------------------------------
+
+//Dimension of input tile
+//INTILE_XSIZE 4 for F(2x2,3x3)
+//INTILE_YSIZE 4 for F(2x2,3x3)
+
+//Dimension of conv
+//CONV_XSIZE 3 for F(2x2,3x3)
+//CONV_YSIZE 3 for F(2x2,3x3)
+
+//Output tile size
+//OUTTILE_XSIZE 2 for F(2x2,3x3)
+//OUTTILE_YSIZE 2 for F(2x2,3x3)
+
+//Location of the upper left corner of the zeroth tile
+//INTILE_XOFFSET (-1) for F(2x2,3x3)
+//INTILE_YOFFSET (-1) for F(2x2,3x3)
+
+#define SQRT8 2.82842712475f
+#define SQRT2 1.41421356237f
+#define SQRTHALF 0.70710678118f
+#define SQRTEIGHTH 0.35355339059f
 
 __kernel void untransform(
   __global float* restrict transformed, //(INTILE_YSIZE, INTILE_XSIZE), (oc), (batch, tileY, tileX) //where the last two dims are padded

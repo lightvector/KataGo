@@ -425,6 +425,11 @@ bool GameInitializer::isAllowedBSize(int xSize, int ySize) {
   return true;
 }
 
+std::vector<int> GameInitializer::getAllowedBSizes() const {
+  return allowedBSizes;
+}
+
+
 Rules GameInitializer::createRules() {
   lock_guard<std::mutex> lock(createGameMutex);
   return createRulesUnsynchronized();
@@ -1446,6 +1451,7 @@ FinishedGameData* Play::runGame(
       //Since we played out the game a bunch we should get a good mix of stones that were present or not present at the start
       //of the second encore phase if we're going into the second.
       int encorePhase = gameRand.nextInt(1,2);
+      board.clearSimpleKoLoc();
       hist.clear(board,pla,hist.rules,encorePhase);
 
       gameData->mode = FinishedGameData::MODE_CLEANUP_TRAINING;
@@ -2160,6 +2166,10 @@ GameRunner::GameRunner(ConfigParser& cfg, const string& gameInitRandSeed, PlaySe
 
 GameRunner::~GameRunner() {
   delete gameInit;
+}
+
+const GameInitializer* GameRunner::getGameInitializer() const {
+  return gameInit;
 }
 
 FinishedGameData* GameRunner::runGame(

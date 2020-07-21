@@ -6,8 +6,8 @@ DESCRIPTION:
 
 USAGE: 
 
-   match  -config <FILE> -log-file <FILE> [-sgf-output-dir <DIR>] [...other
-          flags...]
+   match  -config <FILE> [-log-file <FILE>] [-sgf-output-dir <DIR>]
+          [...other flags...]
 
 
 Where: 
@@ -17,7 +17,7 @@ Where:
      configs/match_example.cfg).
 
    -log-file <FILE>
-     (required)  Log file to output to
+     Log file to output to
 
    -sgf-output-dir <DIR>
      Dir to output sgf files

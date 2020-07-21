@@ -6,7 +6,7 @@ for CMDFILE in tests/gtp/*
 do
     echo $CMDFILE
     BASENAME=$(basename "$CMDFILE")
-    ./katago gtp -config configs/gtp_example.cfg -model models/g170-b6c96-s175395328-d26788732.bin.gz -override-config "logFile=tests/results/gtp/$BASENAME.log, logDir=, logTimeStamp=false, maxVisits=100, maxPlayouts=10000, numSearchThreads=1, nnRandomize=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, cudaUseNHWC = false" < $CMDFILE 1> tests/results/gtp/$BASENAME.stdout 2> tests/results/gtp/$BASENAME.stderr
+    ./katago gtp -config configs/gtp_example.cfg -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz -override-config "logFile=tests/results/gtp/$BASENAME.log, logDir=, logTimeStamp=false, maxVisits=100, maxPlayouts=10000, numSearchThreads=1, nnRandomize=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, cudaUseNHWC = false" < $CMDFILE 1> tests/results/gtp/$BASENAME.stdout 2> tests/results/gtp/$BASENAME.stderr
 done
 
 sed 's/^Time taken:.*/Time taken: ###/g' -i tests/results/gtp/*
