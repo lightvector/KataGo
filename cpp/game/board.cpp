@@ -1749,6 +1749,8 @@ void Board::calculateAreaForPla(
 ) const {
   Color opp = getOpp(pla);
 
+  //https://senseis.xmp.net/?BensonsAlgorithm
+  //https://zhuanlan.zhihu.com/p/110998764
   //First compute all empty-or-opp regions
 
   //For each loc, if it's empty or opp, the index of the region
@@ -1928,6 +1930,7 @@ void Board::calculateAreaForPla(
   int numPlaHeads = 0;
   Loc allPlaHeads[MAX_PLAY_SIZE];
   {
+    /*
     //Accumulate with duplicates
     {
       Loc prevHead = NULL_LOC;
@@ -1956,6 +1959,12 @@ void Board::calculateAreaForPla(
       }
     }
     numPlaHeads = newNumPlaHeads;
+    */
+    
+    for(Loc loc = 0; loc < MAX_ARR_SIZE; loc++) {
+      if(colors[loc] == pla && chain_head[loc] == loc)
+        allPlaHeads[numPlaHeads++] = loc;
+    }
   }
   bool plaHasBeenKilled[MAX_PLAY_SIZE];
   for(int i = 0; i<numPlaHeads; i++)
