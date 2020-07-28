@@ -140,7 +140,7 @@ struct TrainingWriteBuffers {
   //C36-40: Precomputed mask values indicating if we should use historical moves 1-5, if we desire random history masking.
   //1 means use, 0 means don't use.
 
-  //C41-46: 128-bit hash identifying the game which should also be output in the SGF data.
+  //C41-46: 128-bit hash identifying the game, different rows from the same game share the same value.
   //Split into chunks of 22, 22, 20, 22, 22, 20 bits, little-endian style (since floats have > 22 bits of precision).
 
   //C47: Komi, adjusted for draw utility and points costed or paid so far, from the perspective of the player to move.

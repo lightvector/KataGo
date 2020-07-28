@@ -1232,6 +1232,7 @@ void WriteSgf::writeSgf(
   if(gameData != NULL && gameData->hasFullData) {
     startTurnIdx = gameData->startHist.moveHistory.size();
     out << "C[startTurnIdx=" << startTurnIdx;
+    out << ",gameHash=" << gameData->gameHash;
 
     if(gameData->mode == FinishedGameData::MODE_NORMAL)
       out << "," << "mode=normal";
