@@ -181,6 +181,8 @@ string Version::getKataGoVersionFullInfo() {
   out << "Using CUDA backend" << endl;
 #elif defined(USE_OPENCL_BACKEND)
   out << "Using OpenCL backend" << endl;
+#elif defined(USE_EIGEN_BACKEND)
+  out << "Using Eigen(CPU) backend" << endl;
 #else
   out << "Using dummy backend" << endl;
 #endif

@@ -26,7 +26,7 @@ endif()
 
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
-set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA OPENCL)
+set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA OPENCL EIGEN)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
@@ -73,6 +73,11 @@ elseif(USE_BACKEND STREQUAL "OPENCL")
     neuralnet/openclkernels.cpp
     neuralnet/openclhelpers.cpp
     neuralnet/opencltuner.cpp
+    )
+elseif(USE_BACKEND STREQUAL "EIGEN")
+  message("-DUSE_BACKEND=EIGEN, using Eigen CPU backend")
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/eigenbackend.cpp
     )
 elseif(USE_BACKEND STREQUAL "")
   message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=OPENCL to compile with the respective backend.${ColorReset}")
@@ -214,6 +219,11 @@ elseif(USE_BACKEND STREQUAL "OPENCL")
   include_directories(${OpenCL_INCLUDE_DIRS})
   link_directories(${OpenCL_LIBRARY})
   target_link_libraries (katago ${OpenCL_LIBRARY})
+elseif(USE_BACKEND STREQUAL "EIGEN")
+  target_compile_definitions(katago PRIVATE USE_EIGEN_BACKEND)
+  find_package(Eigen3 REQUIRED)
+  include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS})
+  message("Found Eigen3 at ${EIGEN3_INCLUDE_DIRS}")
 endif()
 
 if(NO_GIT_REVISION)
