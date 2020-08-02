@@ -59,8 +59,8 @@ namespace OpenCLParams {
     int NWAVE = 16;
     int MWARP = 16;
     int NWARP = 16;
-    int VWM = 1;
-    int VWN = 1;
+    int VWM = 2;
+    int VWN = 2;
     int SA = 0;
     int SB = 0;
 
