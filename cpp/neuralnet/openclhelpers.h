@@ -5,9 +5,14 @@
 #include "../core/logger.h"
 #include "../neuralnet/openclincludes.h"
 
+#include "../external/half-2.1.0/include/half.hpp"
+
 #define CHECK_ERR(x) { OpenCLHelpers::checkErrors((x),__FILE__,#x,__LINE__); }
 
 struct OpenCLTuneParams;
+namespace OpenCLParams {
+  struct XGemmParams;
+}
 
 struct DeviceInfo {
   //Indexes whatever order that OpenCL gives us devices, across all platforms.
@@ -23,6 +28,7 @@ struct DeviceInfo {
   std::string extensions;
 
   int defaultDesirability;
+  bool supportsFP16Compute;
 
   static constexpr int MAX_PLATFORMS = 32;
   static constexpr int MAX_DEVICES = 512;
@@ -71,7 +77,7 @@ struct DevicesContext {
 };
 
 namespace OpenCLHelpers {
-  const char* getErrorMessage(cl_int error);
+  const std::string getErrorMessage(cl_int error);
   void checkErrors(cl_int error, const char* file, const char* func, int line);
 
   struct CompileError final : public StringError { CompileError(const char* msg):StringError(msg) {}; CompileError(const std::string& msg):StringError(msg) {}; };
@@ -88,19 +94,36 @@ namespace OpenCLHelpers {
     const std::vector<cl_device_id>& devices,
     const std::string& str,
     const std::string& options,
-    cl_program& buf
+    cl_program& buf,
+    std::string& errorMessage
   );
 
   cl_mem createReadOnlyBuffer(cl_context context, std::vector<float>& data);
+  cl_mem createReadOnlyBuffer(cl_context context, std::vector<half_float::half>& data);
   cl_mem createReadWriteBuffer(cl_context context, std::vector<float>& data);
-  cl_mem createReadWriteBuffer(cl_context context, size_t numFloats);
+  cl_mem createReadWriteBuffer(cl_context context, std::vector<half_float::half>& data);
+  cl_mem createReadWriteBufferFloat(cl_context context, size_t numElts);
+  cl_mem createReadWriteBufferHalf(cl_context context, size_t numElts);
 
-  void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numFloats, std::vector<float>& dstBuf);
+  void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf);
+  void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<half_float::half>& dstBuf);
+  void blockingReadBufferHalfToFloat(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf);
+  void blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf, bool useFP16);
 
   size_t powerOf2ify(size_t size);
   size_t roundUpToMultiple(size_t size, size_t ofThis);
 
   cl_int doBatchedXGemm_KM_KN_NM(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLParams::XGemmParams& tuneParams,
+    int M, int N, int K,
+    cl_mem A, cl_mem B, cl_mem C,
+    int numBatchElts,
+    cl_event* eventBuf
+  );
+
+  cl_int doBatchedHGemmWmma_KM_KN_NM(
     cl_kernel kernel,
     cl_command_queue commandQueue,
     const OpenCLTuneParams& tuneParams,
@@ -205,15 +228,6 @@ namespace OpenCLHelpers {
     int batchSize,
     int nnXLen,
     int nnYLen,
-    cl_event* eventBuf
-  );
-
-  cl_int transposeNCHW(
-    cl_kernel kernel,
-    cl_command_queue commandQueue,
-    const OpenCLTuneParams& tuneParams,
-    int batchSize, int cSize, int nnXLen, int nnYLen,
-    cl_mem input, cl_mem output,
     cl_event* eventBuf
   );
 

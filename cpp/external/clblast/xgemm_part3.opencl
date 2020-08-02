@@ -9,6 +9,7 @@
 //
 // MODIFIED by David Wu ("lightvector") to remove some unnecessary parts of the interfaces
 // for this project's use, such as alpha and beta scaling.
+// MODIFIED from the original by David Wu ("lightvector") to add FP16 storage with FP32 compute as an option.
 //
 // This is part 3 of 4 of the GEMM kernel. See part 1 for more information.
 //
@@ -58,14 +59,14 @@ INLINE_FUNC realN clblast_sub_group_shuffle(realN reg, int src) {
 
 // Main body of the matrix-multiplication algorithm. It calls various (inlined) functions.
 INLINE_FUNC void XgemmBody(const int kSizeM, const int kSizeN, const int kSizeK,
-                           const __global realM* restrict agm, const __global realN* restrict bgm,
-                           __global realM* cgm
+                           const __global realstoreM* restrict agm, const __global realstoreN* restrict bgm,
+                           __global realstoreM* cgm
                            #if SA == 1 && SB == 1
-                             , LOCAL_PTR realM* alm, LOCAL_PTR realN* blm
+                             , LOCAL_PTR realstoreM* alm, LOCAL_PTR realstoreN* blm
                            #elif SA == 1
-                             , LOCAL_PTR realM* alm
+                             , LOCAL_PTR realstoreM* alm
                            #elif SB == 1
-                             , LOCAL_PTR realN* blm
+                             , LOCAL_PTR realstoreN* blm
                            #endif
                            ) {
 
@@ -90,8 +91,8 @@ INLINE_FUNC void XgemmBody(const int kSizeM, const int kSizeN, const int kSizeK,
   realM cpm[NWI*(MWI/VWM)]; // NWI * MWI
 
   #if GEMMK == 1
-    const __global real* restrict a_ptr = (const __global real* restrict) &agm[0];
-    const __global real* restrict b_ptr = (const __global real* restrict) &bgm[0];
+    const __global realstore* restrict a_ptr = (const __global realstore* restrict) &agm[0];
+    const __global realstore* restrict b_ptr = (const __global realstore* restrict) &bgm[0];
     const int tid_x = get_local_id(0) + MDIMC * GetGroupID0();
     const int tid_y = get_local_id(1) + NDIMC * GetGroupID1();
   #endif

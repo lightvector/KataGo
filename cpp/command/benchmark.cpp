@@ -201,9 +201,8 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 #endif
 #ifdef USE_OPENCL_BACKEND
   cout << "You are currently using the OpenCL version of KataGo." << endl;
-  //TODO update when we have FP16 opencl
   cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080), "
-       << "using the Cuda version of KataGo instead may give a large performance boost." << endl;
+       << "using the Cuda version of KataGo instead may give a mild performance boost." << endl;
 #endif
   cout << endl;
   cout << "Your GTP config is currently set to use numSearchThreads = " << params.numThreads << endl;
@@ -367,20 +366,28 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
 
   sort(possibleNumbersOfThreads.begin(), possibleNumbersOfThreads.end());
 
+  int ternarySearchMin = 1;
   int ternarySearchMax = ternarySearchInitialMax;
   while(true) {
     reallocateNNEvalWithEnoughBatchSize(ternarySearchMax);
     cout << endl;
 
     int start = 0;
-    int end = ternarySearchMax;
-
-    cout << "Possible numbers of threads to test: ";
+    int end = possibleNumbersOfThreads.size()-1;
     for(int i = 0; i < possibleNumbersOfThreads.size(); i++) {
+      if(possibleNumbersOfThreads[i] < ternarySearchMin) {
+        start = i + 1;
+      }
       if(possibleNumbersOfThreads[i] > ternarySearchMax) {
         end = i - 1;
         break;
       }
+    }
+    if(start > end)
+      start = end;
+
+    cout << "Possible numbers of threads to test: ";
+    for(int i = start; i <= end; i++) {
       cout << possibleNumbersOfThreads[i] << ", ";
     }
     cout << endl;
@@ -414,7 +421,8 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
     }
 
     // If our optimal thread count is in the top 2/3 of the maximum search limit, triple the search limit and repeat.
-    if(3 * bestThreads > 2 * ternarySearchMax && ternarySearchMax < 1000) {
+    if(3 * bestThreads > 2 * ternarySearchMax && ternarySearchMax < 5000) {
+      ternarySearchMin = ternarySearchMax / 2;
       ternarySearchMax *= 3;
       cout << endl << endl << "Optimal number of threads is fairly high, tripling the search limit and trying again." << endl << endl;
       continue;

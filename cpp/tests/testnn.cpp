@@ -8,7 +8,7 @@ using namespace std;
 static bool approxEqual(float x, float y, bool useFP16) {
   float tolerance;
   if(useFP16)
-    tolerance = 0.01f * std::max(std::abs(x),std::max(std::abs(y),1.0f));
+    tolerance = 0.03f * std::max(std::abs(x),std::max(std::abs(y),3.0f));
   else
     tolerance = 0.0001f * std::max(std::abs(x),std::max(std::abs(y),1.0f));
   return std::abs(x - y) < tolerance;
@@ -904,186 +904,6 @@ static void testGlobalPoolingResidualBlock(int64_t& numTestsRun) {
 
 }
 
-static void testSymmetries(int64_t& numTestsRun) {
-
-  auto testConfigurations = [&](
-    const string& label,
-    int batchSize, int numChannels, int nnXLen, int nnYLen,
-    const bool* symmetries,
-    const vector<float>& input, const vector<float>& expected
-  ) {
-    for(int useNHWC = 0; useNHWC <= 1; useNHWC++) {
-      for(int useFP16 = 0; useFP16 <= 1; useFP16++) {
-        vector<float> inputThisLoop = useNHWC ? NCHWtoNHWC(input,batchSize,numChannels,nnYLen,nnXLen) : input;
-        vector<float> expectedThisLoop = useNHWC ? NCHWtoNHWC(expected,batchSize,numChannels,nnYLen,nnXLen) : expected;
-
-        vector<float> outputThisLoop;
-        bool supported = NeuralNet::testEvaluateSymmetry(
-          batchSize,numChannels,nnXLen,nnYLen,useFP16,useNHWC,symmetries,inputThisLoop,outputThisLoop
-        );
-
-        if(supported) {
-          numTestsRun += 1;
-          string subLabel = label + Global::strprintf(" useNHWC %d useFP16 %d", useNHWC, useFP16);
-          if(useNHWC)
-            CHECK_APPROX_EQUAL(subLabel,outputThisLoop,expectedThisLoop,batchSize,nnYLen,nnXLen,numChannels,useFP16);
-          else
-            CHECK_APPROX_EQUAL(subLabel,outputThisLoop,expectedThisLoop,batchSize,numChannels,nnYLen,nnXLen,useFP16);
-        }
-      }
-    }
-  };
-
-  {
-    int nnYLen = 3;
-    int nnXLen = 3;
-
-    //NCHW
-    vector<float> input({
-        0,1,2,
-        3,4,5,
-        6,7,8,
-
-        3,0,4,
-        0,5,0,
-        0,6,0,
-
-        1,0,0,
-        1,1,1,
-        1,0,1,
-    });
-
-    {
-      string label("Symmetry 0");
-      bool symmetries[3] = {false,false,false};
-      //NCHW
-      vector<float> expected({
-        0,1,2,
-        3,4,5,
-        6,7,8,
-
-        3,0,4,
-        0,5,0,
-        0,6,0,
-
-        1,0,0,
-        1,1,1,
-        1,0,1,
-      });
-      testConfigurations(label,3,1,nnXLen,nnYLen,symmetries,input,expected);
-      testConfigurations(label,1,3,nnXLen,nnYLen,symmetries,input,expected);
-    }
-
-    {
-      string label("Symmetry 1");
-      bool symmetries[3] = {true,false,false};
-      //NCHW
-      vector<float> expected({
-        6,7,8,
-        3,4,5,
-        0,1,2,
-
-        0,6,0,
-        0,5,0,
-        3,0,4,
-
-        1,0,1,
-        1,1,1,
-        1,0,0,
-      });
-      testConfigurations(label,3,1,nnXLen,nnYLen,symmetries,input,expected);
-      testConfigurations(label,1,3,nnXLen,nnYLen,symmetries,input,expected);
-    }
-
-    {
-      string label("Symmetry 2");
-      bool symmetries[3] = {false,true,false};
-      //NCHW
-      vector<float> expected({
-        2,1,0,
-        5,4,3,
-        8,7,6,
-
-        4,0,3,
-        0,5,0,
-        0,6,0,
-
-        0,0,1,
-        1,1,1,
-        1,0,1,
-      });
-      testConfigurations(label,3,1,nnXLen,nnYLen,symmetries,input,expected);
-      testConfigurations(label,1,3,nnXLen,nnYLen,symmetries,input,expected);
-    }
-
-    {
-      string label("Symmetry 3");
-      bool symmetries[3] = {true,true,false};
-      //NCHW
-      vector<float> expected({
-        8,7,6,
-        5,4,3,
-        2,1,0,
-
-        0,6,0,
-        0,5,0,
-        4,0,3,
-
-        1,0,1,
-        1,1,1,
-        0,0,1,
-      });
-      testConfigurations(label,3,1,nnXLen,nnYLen,symmetries,input,expected);
-      testConfigurations(label,1,3,nnXLen,nnYLen,symmetries,input,expected);
-    }
-
-    {
-      string label("Symmetry 4");
-      bool symmetries[3] = {false,false,true};
-      //NCHW
-      vector<float> expected({
-        0,3,6,
-        1,4,7,
-        2,5,8,
-
-        3,0,0,
-        0,5,6,
-        4,0,0,
-
-        1,1,1,
-        0,1,0,
-        0,1,1,
-      });
-      testConfigurations(label,3,1,nnXLen,nnYLen,symmetries,input,expected);
-      testConfigurations(label,1,3,nnXLen,nnYLen,symmetries,input,expected);
-    }
-
-    {
-      string label("Symmetry 6");
-      bool symmetries[3] = {false,true,true};
-      //NCHW
-      vector<float> expected({
-        2,5,8,
-        1,4,7,
-        0,3,6,
-
-        4,0,0,
-        0,5,6,
-        3,0,0,
-
-        0,1,1,
-        0,1,0,
-        1,1,1,
-      });
-      testConfigurations(label,3,1,nnXLen,nnYLen,symmetries,input,expected);
-      testConfigurations(label,1,3,nnXLen,nnYLen,symmetries,input,expected);
-    }
-
-  }
-
-}
-
-
 
 void Tests::runNNLayerTests() {
   NeuralNet::globalInitialize();
@@ -1092,8 +912,80 @@ void Tests::runNNLayerTests() {
   testBatchNormLayer(numTestsRun);
   testResidualBlock(numTestsRun);
   testGlobalPoolingResidualBlock(numTestsRun);
-  testSymmetries(numTestsRun);
   NeuralNet::globalCleanup();
   cout << "Tested " << numTestsRun << " configurations" << endl;
   cout << "Done" << endl;
+}
+
+
+void Tests::runNNSymmetryTests() {
+  auto testConfigurations = [&](
+    const string& label,
+    int batchSize, int numChannels, int nnXLen, int nnYLen,
+    const vector<float>& input
+  ) {
+    for(int useNHWC = 0; useNHWC <= 1; useNHWC++) {
+      for(int symmetry = 0; symmetry < 8; symmetry++) {
+        vector<float> inputThisLoop = useNHWC ? NCHWtoNHWC(input,batchSize,numChannels,nnYLen,nnXLen) : input;
+        vector<float> outputThisLoop(inputThisLoop.size());
+        SymmetryHelpers::copyInputsWithSymmetry(
+          inputThisLoop.data(),outputThisLoop.data(),batchSize,nnXLen,nnYLen,numChannels,useNHWC,symmetry
+        );
+        cout << label << " useNHWC " << useNHWC << " " << symmetry << endl;
+        for(int i = 0; i<outputThisLoop.size(); i++)
+          cout << outputThisLoop[i] << " ";
+        cout << endl;
+      }
+    }
+    for(int symmetry = 0; symmetry < 8; symmetry++) {
+      vector<float> inputThisLoop = input;
+      vector<float> outputThisLoop(inputThisLoop.size());
+      SymmetryHelpers::copyOutputsWithSymmetry(
+        inputThisLoop.data(),outputThisLoop.data(),batchSize*numChannels,nnXLen,nnYLen,symmetry
+      );
+      cout << label << " OUTPUT " << endl;
+      for(int i = 0; i<outputThisLoop.size(); i++)
+        cout << outputThisLoop[i] << " ";
+      cout << endl;
+    }
+  };
+
+  {
+    {
+      //NCHW
+      vector<float> input({
+        0,1,2,
+        3,4,5,
+        6,7,8,
+
+        3,0,4,
+        0,5,0,
+        0,6,0,
+
+        1,0,0,
+        1,1,1,
+        1,0,1,
+      });
+      testConfigurations("Symmetry 3-1-3-3",3,1,3,3,input);
+      testConfigurations("Symmetry 1-3-3-3",1,3,3,3,input);
+    }
+
+    {
+      //NCHW
+      vector<float> input({
+        0,1,2,3,
+        4,5,6,7,
+        8,9,10,11,
+
+        12,13,14,15,
+        16,17,18,19,
+        20,21,22,23
+      });
+
+      testConfigurations("Symmetry 2-1-3-4",2,1,3,4,input);
+      testConfigurations("Symmetry 2-3-2-2",2,3,2,2,input);
+    }
+
+  }
+
 }

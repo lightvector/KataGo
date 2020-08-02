@@ -55,7 +55,7 @@ KataGo's engine also aims to be a useful tool for Go players and developers, and
 
 KataGo has completed its third major official run! It lasted from December 2019 to June 2020 using about 5 months of time (KataGo did not run entirely continuously during that time) and appears to have reached significantly stronger than Leela Zero's final official 40-block nets at moderate numbers of playouts (thousands to low tens of thousands), including with only its 20-block net. Earlier, it also surpassed the prior 19-day official run from June 2019 in only about 12-14 days, and by the end reached more than 700 Elo stronger. This is due to various training improvements which were not present in prior runs. In addition to reaching stronger faster, this third run adds support for Japanese rules, stronger handicap play, and more accurate score estimation.
 
-Strong networks are available for download! See the [releases page](https://github.com/lightvector/KataGo/releases) for the latest release and these neural nets. A history of older and alternative neural nets can be found [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html), including a few *very* strong smaller nets. These include a fast 10-block network that nearly matches the strength of many earlier 15 block nets, including KataGo best 15-block net from last year and Leela Zero's LZ150. This new run also features a very strong 15-block network that should be approximately the strength of ELFv2, a 20-block network, at least at low thousands of playouts. They may be useful for users with weaker hardware. However, KataGo's latest 20-block network is so vastly much stronger than the 15-block net (perhaps 500-800 Elo at equal playouts!) that even on fairly weak hardware it likely dominates the 15-block net even taking into account how much slower it runs. 
+Strong networks are available for download! See the [releases page](https://github.com/lightvector/KataGo/releases) for the latest release and these neural nets. A history of older and alternative neural nets can be found [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html), including a few *very* strong smaller nets. These include a fast 10-block network that nearly matches the strength of many earlier 15 block nets, including KataGo best 15-block net from last year and Leela Zero's LZ150. This new run also features a very strong 15-block network that should be approximately the strength of ELFv2, a 20-block network, at least at low thousands of playouts. They may be useful for users with weaker hardware. However, KataGo's latest 20-block network is so vastly much stronger than the 15-block net (perhaps 500-800 Elo at equal playouts!) that even on fairly weak hardware it likely dominates the 15-block net even taking into account how much slower it runs.
 
 Here is a graph of the improvement so over the course of the 157 training days of the run:
 
@@ -179,7 +179,7 @@ Generally, for GUIs that don't offer an all-in-one package, you will need to dow
 
 KataGo currently officially supports both Windows and Linux, with [precompiled executables provided each release](https://github.com/lightvector/KataGo/releases). Not all different OS versions and compilers have been tested, so if you encounter problems, feel free to open an issue. KataGo can also of course be compiled from source on Windows via MSVC on Windows or on Linux via usual compilers like g++, documented further down.
 
-### MacOS 
+### MacOS
 The community also provides KataGo packages for [Homebrew](https://brew.sh) on MacOS - releases there may lag behind official releases slightly.
 
 Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep gtp) -model $(brew list --verbose katago | grep .gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
@@ -190,7 +190,7 @@ KataGo has both an OpenCL version and a CUDA version.
   * The CUDA version requires installing [CUDA](https://developer.nvidia.com/cuda-zone) and [CUDNN](https://developer.nvidia.com/cudnn) and a modern NVIDIA GPU.
   * The OpenCL version should be able to run with many other GPUs or accelerators that support [OpenCL](https://en.wikipedia.org/wiki/OpenCL), such AMD GPUs, as well CPU-based OpenCL implementations or things like Intel Integrated Graphics. (Note: Intel integrated graphics though is a toss-up - many versions of Intel's OpenCL seem to be buggy). It also doesn't require the hassle of CUDA and CUDNN and is more likely to work out of the box so long as you do have a decently modern GPU. **However, it also need to take some time when run for the very first time to tune itself.** For many systems, this will take 5-30 seconds, but on a few older/slower systems, may take many minutes or longer.
 
-Most users have reported that the OpenCL version is faster than the CUDA version EXCEPT if your GPU is a top-end NVIDIA GPU that supports FP16 and tensor cores. Then the CUDA version is likely to be by far the fastest and strongest, since currently only the CUDA version supports tensor core operations (this may change in a future release).
+Most users have reported that the OpenCL version is faster than the CUDA version EXCEPT if your GPU is a top-end NVIDIA GPU that supports FP16 and tensor cores. Then the CUDA version is likely to be a little faster and therefore stronger (but possibly the OpenCL implementation can be optimized more in the future).
 
 For **either** implementation, it's recommended that you also tune the number of threads used if you care about optimal performance, as it can make a factor of 2-3 difference in the speed. See "Tuning for Performance" below. However, if you mostly just want to get it working, then the default untuned settings should also be still reasonable.
 
@@ -233,7 +233,7 @@ To automatically tune threads and other settings for you based on asking simple 
 Run a JSON-based [analysis engine](docs/Analysis_Engine.md) that can do efficient batched evaluations for a backend Go service:
 
    * `./katago analysis -model <NEURALNET>.gz -config <ANALYSIS_CONFIG>.cfg -analysis-threads N`
-   
+
 
 ### Tuning for Performance
 

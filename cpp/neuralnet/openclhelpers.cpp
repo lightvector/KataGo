@@ -5,7 +5,9 @@
 
 using namespace std;
 
-const char* OpenCLHelpers::getErrorMessage(cl_int error)
+using half_t = half_float::half;
+
+const string OpenCLHelpers::getErrorMessage(cl_int error)
 {
   switch(error){
   case 0: return "CL_SUCCESS";
@@ -75,7 +77,7 @@ const char* OpenCLHelpers::getErrorMessage(cl_int error)
   case -1003: return "CL_INVALID_D3D10_RESOURCE_KHR";
   case -1004: return "CL_D3D10_RESOURCE_ALREADY_ACQUIRED_KHR";
   case -1005: return "CL_D3D10_RESOURCE_NOT_ACQUIRED_KHR";
-  default: return "Unknown OpenCL error";
+  default: return "Unknown OpenCL error " + Global::intToString(error);
   }
 }
 
@@ -117,18 +119,38 @@ cl_program OpenCLHelpers::compileProgram(const string& name, cl_context context,
   return program;
 }
 
-bool OpenCLHelpers::tryCompileProgram(const string& name, cl_context context, const vector<cl_device_id>& devices, const string& str, const string& options, cl_program& buf) {
+bool OpenCLHelpers::tryCompileProgram(
+  const string& name,
+  cl_context context,
+  const vector<cl_device_id>& devices,
+  const string& str,
+  const string& options,
+  cl_program& buf,
+  string& errorMessage
+) {
   try {
     buf = compileProgram(name,context,devices,str,options);
   }
   catch(CompileError& e) {
-    (void)e;
+    errorMessage = e.what();
     return false;
   }
   return true;
 }
 
 cl_mem OpenCLHelpers::createReadOnlyBuffer(cl_context clContext, vector<float>& data) {
+  cl_int err;
+  cl_mem buf = clCreateBuffer(
+    clContext,
+    CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+    byteSizeofVectorContents(data),
+    data.data(),
+    &err
+  );
+  CHECK_ERR(err);
+  return buf;
+}
+cl_mem OpenCLHelpers::createReadOnlyBuffer(cl_context clContext, vector<half_t>& data) {
   cl_int err;
   cl_mem buf = clCreateBuffer(
     clContext,
@@ -153,17 +175,45 @@ cl_mem OpenCLHelpers::createReadWriteBuffer(cl_context clContext, vector<float>&
   CHECK_ERR(err);
   return buf;
 }
+cl_mem OpenCLHelpers::createReadWriteBuffer(cl_context clContext, vector<half_t>& data) {
+  cl_int err;
+  cl_mem buf = clCreateBuffer(
+    clContext,
+    CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+    byteSizeofVectorContents(data),
+    data.data(),
+    &err
+  );
+  CHECK_ERR(err);
+  return buf;
+}
 
-cl_mem OpenCLHelpers::createReadWriteBuffer(cl_context clContext, size_t numFloats) {
+cl_mem OpenCLHelpers::createReadWriteBufferFloat(cl_context clContext, size_t numElts) {
   //Minimum allocation size, just in case, to avoid allocations of size 0
-  if(numFloats < 32)
-    numFloats = 32;
+  if(numElts < 32)
+    numElts = 32;
 
   cl_int err;
   cl_mem buf = clCreateBuffer(
     clContext,
     CL_MEM_READ_WRITE,
-    numFloats * sizeof(float),
+    numElts * sizeof(float),
+    NULL,
+    &err
+  );
+  CHECK_ERR(err);
+  return buf;
+}
+cl_mem OpenCLHelpers::createReadWriteBufferHalf(cl_context clContext, size_t numElts) {
+  //Minimum allocation size, just in case, to avoid allocations of size 0
+  if(numElts < 32)
+    numElts = 32;
+
+  cl_int err;
+  cl_mem buf = clCreateBuffer(
+    clContext,
+    CL_MEM_READ_WRITE,
+    numElts * sizeof(half_t),
     NULL,
     &err
   );
@@ -172,12 +222,32 @@ cl_mem OpenCLHelpers::createReadWriteBuffer(cl_context clContext, size_t numFloa
 }
 
 
-void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numFloats, std::vector<float>& dstBuf) {
-  dstBuf.resize(numFloats);
+void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf) {
+  dstBuf.resize(numElts);
   cl_bool blocking = CL_TRUE;
   cl_int err;
   err = clEnqueueReadBuffer(commandQueue, srcBuf, blocking, 0, byteSizeofVectorContents(dstBuf), dstBuf.data(), 0, NULL, NULL);
   CHECK_ERR(err);
+}
+void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<half_t>& dstBuf) {
+  dstBuf.resize(numElts);
+  cl_bool blocking = CL_TRUE;
+  cl_int err;
+  err = clEnqueueReadBuffer(commandQueue, srcBuf, blocking, 0, byteSizeofVectorContents(dstBuf), dstBuf.data(), 0, NULL, NULL);
+  CHECK_ERR(err);
+}
+void OpenCLHelpers::blockingReadBufferHalfToFloat(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf) {
+  vector<half_t> tmpHalf;
+  blockingReadBuffer(commandQueue, srcBuf, numElts, tmpHalf);
+   dstBuf.resize(numElts);
+  for(size_t i = 0; i<numElts; i++)
+    dstBuf[i] = tmpHalf[i];
+}
+void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf, bool useFP16) {
+  if(useFP16)
+    blockingReadBufferHalfToFloat(commandQueue, srcBuf, numElts, dstBuf);
+  else
+    blockingReadBuffer(commandQueue, srcBuf, numElts, dstBuf);
 }
 
 vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
@@ -330,6 +400,7 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     info.openCLVersion = openCLVersion;
     info.extensions = extensions;
     info.defaultDesirability = defaultDesirability;
+    info.supportsFP16Compute = (extensions.find("cl_khr_fp16") != string::npos);
     allDeviceInfos.push_back(info);
   }
 
@@ -448,7 +519,7 @@ DevicesContext::DevicesContext(const vector<DeviceInfo>& allDeviceInfos, const v
     string message =
       "Using OpenCL Device " + Global::intToString(gpuIdxsToUse[i]) + ": " + device->info.name +
       " (" + device->info.vendor + ") " +
-      device->info.openCLVersion;
+      device->info.openCLVersion + " (Extensions: " + device->info.extensions + ")";
     if(logger != NULL) {
       logger->write(message);
       if(!logger->isLoggingToStdout() && !logger->isLoggingToStderr())
@@ -536,7 +607,7 @@ size_t OpenCLHelpers::roundUpToMultiple(size_t size, size_t ofThis) {
 cl_int OpenCLHelpers::doBatchedXGemm_KM_KN_NM(
   cl_kernel kernel,
   cl_command_queue commandQueue,
-  const OpenCLTuneParams& tuneParams,
+  const OpenCLParams::XGemmParams& tuneParams,
   int M, int N, int K,
   cl_mem A, cl_mem B, cl_mem C,
   int numBatchElts,
@@ -555,18 +626,57 @@ cl_int OpenCLHelpers::doBatchedXGemm_KM_KN_NM(
   clSetKernelArg(kernel,10, sizeof(int), (void *)&M);
   clSetKernelArg(kernel,11, sizeof(int), (void *)&N);
 
-  assert(M % tuneParams.xGemm.MWG == 0);
-  assert(N % tuneParams.xGemm.NWG == 0);
-  assert(K % tuneParams.xGemm.KWG == 0);
+  assert(M % tuneParams.MWG == 0);
+  assert(N % tuneParams.NWG == 0);
+  assert(K % tuneParams.KWG == 0);
 
   static constexpr int nKernelDims = 3;
-  const size_t MDIMC = tuneParams.xGemm.MDIMC;
-  const size_t NDIMC = tuneParams.xGemm.NDIMC;
-  const size_t MWG = tuneParams.xGemm.MWG;
-  const size_t NWG = tuneParams.xGemm.NWG;
+  const size_t MDIMC = tuneParams.MDIMC;
+  const size_t NDIMC = tuneParams.NDIMC;
+  const size_t MWG = tuneParams.MWG;
+  const size_t NWG = tuneParams.NWG;
 
   size_t globalSizes[nKernelDims] = {M * MDIMC / MWG, N * NDIMC / NWG, (size_t)numBatchElts};
   size_t localSizes[nKernelDims] = {MDIMC, NDIMC, 1};
+
+  cl_int err;
+  err = clEnqueueNDRangeKernel(
+    commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
+  );
+  return err;
+}
+
+cl_int OpenCLHelpers::doBatchedHGemmWmma_KM_KN_NM(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
+  int M, int N, int K,
+  cl_mem A, cl_mem B, cl_mem C,
+  int numBatchElts,
+  cl_event* eventBuf
+) {
+  clSetKernelArg(kernel, 0, sizeof(int), (void *)&M);
+  clSetKernelArg(kernel, 1, sizeof(int), (void *)&N);
+  clSetKernelArg(kernel, 2, sizeof(int), (void *)&K);
+  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&A);
+  clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&B);
+  clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&C);
+
+  assert(M % tuneParams.hGemmWmma.MWG == 0);
+  assert(N % tuneParams.hGemmWmma.NWG == 0);
+  assert(K % tuneParams.hGemmWmma.KWG == 0);
+
+  static constexpr int nKernelDims = 3;
+  const size_t MWAVE = tuneParams.hGemmWmma.MWAVE;
+  const size_t NWAVE = tuneParams.hGemmWmma.NWAVE;
+  const size_t MWARP = tuneParams.hGemmWmma.MWARP;
+  const size_t NWARP = tuneParams.hGemmWmma.NWARP;
+  const size_t MWG = tuneParams.hGemmWmma.MWG;
+  const size_t NWG = tuneParams.hGemmWmma.NWG;
+  const size_t WARP_SIZE = 32;
+
+  size_t globalSizes[nKernelDims] = {M * MWAVE / MWG / MWARP * WARP_SIZE, N * NWAVE / NWG / NWARP, (size_t)numBatchElts};
+  size_t localSizes[nKernelDims] = {MWAVE/MWARP * WARP_SIZE, NWAVE/NWARP, 1};
 
   cl_int err;
   err = clEnqueueNDRangeKernel(
@@ -942,42 +1052,5 @@ cl_int OpenCLHelpers::computeMaskSums(
   return err;
 }
 
-
-cl_int OpenCLHelpers::transposeNCHW(
-  cl_kernel kernel,
-  cl_command_queue commandQueue,
-  const OpenCLTuneParams& tuneParams,
-  int batchSize, int cSize, int nnXLen, int nnYLen,
-  cl_mem input, cl_mem output,
-  cl_event* eventBuf
-) {
-  static constexpr int nKernelDims = 3;
-  int TILEDIM = tuneParams.transpose.TILEDIM;
-  int TILESTRIDE = tuneParams.transpose.TILESTRIDE;
-  size_t localSizes[nKernelDims] = {
-    (size_t)TILEDIM,
-    (size_t)TILESTRIDE,
-    std::min((size_t)tuneParams.transpose.NCSTRIDE,powerOf2ify(batchSize*cSize))
-  };
-  size_t globalSizes[nKernelDims] = {
-    (size_t)(nnXLen+TILEDIM-1)/TILEDIM*localSizes[0],
-    (size_t)(nnYLen+TILEDIM-1)/TILEDIM*localSizes[1],
-    roundUpToMultiple(batchSize*cSize,localSizes[2])
-  };
-
-  int ncLen = batchSize*cSize;
-
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&output);
-  clSetKernelArg(kernel, 2, sizeof(int), (void *)&nnXLen);
-  clSetKernelArg(kernel, 3, sizeof(int), (void *)&nnYLen);
-  clSetKernelArg(kernel, 4, sizeof(int), (void *)&ncLen);
-
-  cl_int err;
-  err = clEnqueueNDRangeKernel(
-    commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
-  );
-  return err;
-}
 
 #endif

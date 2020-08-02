@@ -9,6 +9,7 @@
 //
 // MODIFIED by David Wu ("lightvector") to remove some unnecessary parts of the interfaces
 // for this project's use.
+// MODIFIED from the original by David Wu ("lightvector") to add FP16 storage with FP32 compute as an option.
 //
 // This file contains the batched version of the direct GEMM kernels. See part 1 for information
 // about the non-batched version of the kernel.
@@ -25,9 +26,9 @@ R"(
 // Direct version of the batched GEMM kernel with [A, B] = [non-transposed, non-transposed]
 __kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
 void XgemmDirectBatchedNN(const int kSizeM, const int kSizeN, const int kSizeK,
-                          const __global realMD* restrict agm, const int a_ld,
-                          const __global realND* restrict bgm, const int b_ld,
-                          __global real* cgm, const int c_ld,
+                          const __global realstoreMD* restrict agm, const int a_ld,
+                          const __global realstoreND* restrict bgm, const int b_ld,
+                          __global realstore* cgm, const int c_ld,
                           const int c_transpose) {
   const int batch = get_group_id(2);
   const real_arg arg_alpha = 1;
@@ -47,9 +48,9 @@ void XgemmDirectBatchedNN(const int kSizeM, const int kSizeN, const int kSizeK,
 // Direct version of the batched GEMM kernel with [A, B] = [non-transposed, transposed]
 __kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
 void XgemmDirectBatchedNT(const int kSizeM, const int kSizeN, const int kSizeK,
-                          const __global realMD* restrict agm, const int a_ld,
-                          const __global realND* restrict bgm, const int b_ld,
-                          __global real* cgm, const int c_ld,
+                          const __global realstoreMD* restrict agm, const int a_ld,
+                          const __global realstoreND* restrict bgm, const int b_ld,
+                          __global realstore* cgm, const int c_ld,
                           const int c_transpose) {
   const int batch = get_group_id(2);
   const real_arg arg_alpha = 1;
@@ -69,9 +70,9 @@ void XgemmDirectBatchedNT(const int kSizeM, const int kSizeN, const int kSizeK,
 // Direct version of the batched GEMM kernel with [A, B] = [transposed, non-transposed]
 __kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
 void XgemmDirectBatchedTN(const int kSizeM, const int kSizeN, const int kSizeK,
-                          const __global realMD* restrict agm, const int a_ld,
-                          const __global realND* restrict bgm, const int b_ld,
-                          __global real* cgm, const int c_ld,
+                          const __global realstoreMD* restrict agm, const int a_ld,
+                          const __global realstoreND* restrict bgm, const int b_ld,
+                          __global realstore* cgm, const int c_ld,
                           const int c_transpose) {
   const int batch = get_group_id(2);
   const real_arg arg_alpha = 1;
@@ -91,9 +92,9 @@ void XgemmDirectBatchedTN(const int kSizeM, const int kSizeN, const int kSizeK,
 // Direct version of the batched GEMM kernel with [A, B] = [transposed, transposed]
 __kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
 void XgemmDirectBatchedTT(const int kSizeM, const int kSizeN, const int kSizeK,
-                          const __global realMD* restrict agm, const int a_ld,
-                          const __global realND* restrict bgm, const int b_ld,
-                          __global real* cgm, const int c_ld,
+                          const __global realstoreMD* restrict agm, const int a_ld,
+                          const __global realstoreND* restrict bgm, const int b_ld,
+                          __global realstore* cgm, const int c_ld,
                           const int c_transpose) {
   const int batch = get_group_id(2);
   const real_arg arg_alpha = 1;
@@ -117,9 +118,9 @@ void XgemmDirectBatchedTT(const int kSizeM, const int kSizeN, const int kSizeK,
 // Direct version of the strided-batched GEMM kernel with [A, B] = [non-transposed, non-transposed]
 __kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
 void XgemmDirectStridedBatchedNN(const int kSizeM, const int kSizeN, const int kSizeK,
-                                 const __global realMD* restrict agm, const int a_ld, const int a_stride,
-                                 const __global realND* restrict bgm, const int b_ld, const int b_stride,
-                                 __global real* cgm, const int c_ld, const int c_stride,
+                                 const __global realstoreMD* restrict agm, const int a_ld, const int a_stride,
+                                 const __global realstoreND* restrict bgm, const int b_ld, const int b_stride,
+                                 __global realstore* cgm, const int c_ld, const int c_stride,
                                  const int c_transpose) {
   const int batch = get_group_id(2);
   const real_arg arg_alpha = 1;
@@ -139,9 +140,9 @@ void XgemmDirectStridedBatchedNN(const int kSizeM, const int kSizeN, const int k
 // Direct version of the strided-batched GEMM kernel with [A, B] = [non-transposed, transposed]
 __kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
 void XgemmDirectStridedBatchedNT(const int kSizeM, const int kSizeN, const int kSizeK,
-                                 const __global realMD* restrict agm, const int a_ld, const int a_stride,
-                                 const __global realND* restrict bgm, const int b_ld, const int b_stride,
-                                 __global real* cgm, const int c_ld, const int c_stride,
+                                 const __global realstoreMD* restrict agm, const int a_ld, const int a_stride,
+                                 const __global realstoreND* restrict bgm, const int b_ld, const int b_stride,
+                                 __global realstore* cgm, const int c_ld, const int c_stride,
                                  const int c_transpose) {
   const int batch = get_group_id(2);
   const real_arg arg_alpha = 1;
@@ -161,9 +162,9 @@ void XgemmDirectStridedBatchedNT(const int kSizeM, const int kSizeN, const int k
 // Direct version of the strided-batched GEMM kernel with [A, B] = [transposed, non-transposed]
 __kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
 void XgemmDirectStridedBatchedTN(const int kSizeM, const int kSizeN, const int kSizeK,
-                                 const __global realMD* restrict agm, const int a_ld, const int a_stride,
-                                 const __global realND* restrict bgm, const int b_ld, const int b_stride,
-                                 __global real* cgm, const int c_ld, const int c_stride,
+                                 const __global realstoreMD* restrict agm, const int a_ld, const int a_stride,
+                                 const __global realstoreND* restrict bgm, const int b_ld, const int b_stride,
+                                 __global realstore* cgm, const int c_ld, const int c_stride,
                                  const int c_transpose) {
   const int batch = get_group_id(2);
   const real_arg arg_alpha = 1;
@@ -183,9 +184,9 @@ void XgemmDirectStridedBatchedTN(const int kSizeM, const int kSizeN, const int k
 // Direct version of the strided-batched GEMM kernel with [A, B] = [transposed, transposed]
 __kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
 void XgemmDirectStridedBatchedTT(const int kSizeM, const int kSizeN, const int kSizeK,
-                                 const __global realMD* restrict agm, const int a_ld, const int a_stride,
-                                 const __global realND* restrict bgm, const int b_ld, const int b_stride,
-                                 __global real* cgm, const int c_ld, const int c_stride,
+                                 const __global realstoreMD* restrict agm, const int a_ld, const int a_stride,
+                                 const __global realstoreND* restrict bgm, const int b_ld, const int b_stride,
+                                 __global realstore* cgm, const int c_ld, const int c_stride,
                                  const int c_transpose) {
   const int batch = get_group_id(2);
   const real_arg arg_alpha = 1;
