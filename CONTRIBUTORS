@@ -16,6 +16,7 @@ Adrian Petrescu ("apetresc") - MacOS support
 Anson Hu ("farmersrice") - frontend features and logic
 Sander Land ("sanderland") - priority, rootInfo, includePolicy options for analysis engine
 Alexander Noack ("shammyx") - minor customization for resign logic
+"yffbit" - minor optimization for benson's algorithm
 
 Separately from the authors of the content in this repo, additional special thanks to:
 Junyan Xu ("alreadydone") - for much testing and troubleshooting for Windows support

@@ -1929,43 +1929,11 @@ void Board::calculateAreaForPla(
   //Also accumulate all player heads
   int numPlaHeads = 0;
   Loc allPlaHeads[MAX_PLAY_SIZE];
-  {
-    /*
-    //Accumulate with duplicates
-    {
-      Loc prevHead = NULL_LOC;
-      for(int y = 0; y < y_size; y++) {
-        for(int x = 0; x < x_size; x++) {
-          Loc loc = Location::getLoc(x,y,x_size);
-          if(colors[loc] == pla) {
-            //Eagerly dedup though when we can.
-            if(numPlaHeads > 0 && chain_head[loc] == prevHead)
-              continue;
-            prevHead = chain_head[loc];
-            allPlaHeads[numPlaHeads++] = chain_head[loc];
-          }
-        }
-      }
-    }
-    //Filter duplicates
-    std::sort(allPlaHeads,allPlaHeads+numPlaHeads);
-    int newNumPlaHeads = 0;
-    Loc prevHead = NULL_LOC;
-    for(int i = 0; i<numPlaHeads; i++) {
-      if(allPlaHeads[i] != prevHead) {
-        prevHead = allPlaHeads[i];
-        allPlaHeads[newNumPlaHeads] = allPlaHeads[i];
-        newNumPlaHeads++;
-      }
-    }
-    numPlaHeads = newNumPlaHeads;
-    */
-    
-    for(Loc loc = 0; loc < MAX_ARR_SIZE; loc++) {
-      if(colors[loc] == pla && chain_head[loc] == loc)
-        allPlaHeads[numPlaHeads++] = loc;
-    }
+  for(Loc loc = 0; loc < MAX_ARR_SIZE; loc++) {
+    if(colors[loc] == pla && chain_head[loc] == loc)
+      allPlaHeads[numPlaHeads++] = loc;
   }
+
   bool plaHasBeenKilled[MAX_PLAY_SIZE];
   for(int i = 0; i<numPlaHeads; i++)
     plaHasBeenKilled[i] = false;
