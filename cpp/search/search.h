@@ -145,6 +145,11 @@ struct Search {
   //Used to center for dynamic scorevalue
   double recentScoreCenter;
 
+  //If the opponent is mirroring, then the color of that opponent, for countering mirroring
+  Player mirroringPla;
+  double mirrorAdvantage; //Number of points the opponent wins by if mirror holds indefinitely.
+  bool mirrorCenterIsSymmetric;
+
   bool alwaysIncludeOwnerMap;
 
   SearchParams searchParams;
@@ -308,6 +313,8 @@ struct Search {
   void runSinglePlayout(SearchThread& thread);
 
   //Helpers-----------------------------------------------------------------------
+  int getPos(Loc moveLoc) const;
+
 private:
   static constexpr double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
 
@@ -317,7 +324,6 @@ private:
   double interpolateEarly(double halflife, double earlyValue, double value) const;
 
   void maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, SearchNode& node, bool isRoot) const;
-  int getPos(Loc moveLoc) const;
 
   bool isAllowedRootMove(Loc moveLoc) const;
 

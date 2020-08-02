@@ -492,6 +492,10 @@ vector<SearchParams> Setup::loadParams(
     else
       params.nnPolicyTemperature = 1.0f;
 
+    if(cfg.contains("antiMirror"+idxStr)) params.antiMirror = cfg.getBool("antiMirror"+idxStr);
+    else if(cfg.contains("antiMirror"))   params.antiMirror = cfg.getBool("antiMirror");
+    else                                  params.antiMirror = false;
+
     if(cfg.contains("mutexPoolSize"+idxStr)) params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize"+idxStr, 1, 1 << 24);
     else if(cfg.contains("mutexPoolSize"))   params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize",        1, 1 << 24);
     else                                     params.mutexPoolSize = 16384;
