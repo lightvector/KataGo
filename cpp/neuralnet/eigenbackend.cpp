@@ -253,8 +253,6 @@ struct ConvLayer {
     //Currently eigen impl doesn't support dilated convs
     int dilationY = desc.dilationY;
     int dilationX = desc.dilationX;
-    int paddingX = (convXSize / 2) * dilationX;
-    int paddingY = (convYSize / 2) * dilationY;
 
     if(dilationX != 1 || dilationY != 1)
       throw StringError("Eigen backend: Encountered convolution dilation factors other than 1, not supported");
@@ -262,38 +260,35 @@ struct ConvLayer {
     assert(convXSize % 2 == 1);
     assert(convYSize % 2 == 1);
 
-    paddings[0] = make_pair(0, 0);                // C
-    paddings[1] = make_pair(paddingX, paddingX);  // W
-    paddings[2] = make_pair(paddingY, paddingY);  // H
-    paddings[3] = make_pair(0, 0);                // N
-
     // CR-someday lpuchallafiore: optimize NHWC vs NCHW, etc.
     kernel = TensorMap<const Tensor<const SCALAR, 4>>(
       desc.weights.data(), convXSize, convYSize, inChannels, outChannels);
   }
 
   void apply(CONSTTENSORMAP4* input, TENSORMAP4* output, bool accumulate) const {
-    auto padded = input->pad(paddings);
     assert(output->dimension(0) == outChannels);
-    for(int n = 0; n < input->dimension(3); n++) {
-      auto inN = padded.chip(n, 3);
-      for(int oc = 0; oc < outChannels; oc++) {
-        TENSOR2 sum(input->dimension(1), input->dimension(2));
-        sum.setZero();
-
-        for(int ic = 0; ic < inChannels; ic++) {
-          Eigen::array<ptrdiff_t, 2> dims({0, 1});
-          auto kChip = kernel.chip(oc, 3).chip(ic, 2);
-          auto inNC = inN.chip(ic, 0);
-          sum += inNC.convolve(kChip, dims);
-        }
-
-        if(accumulate)
-          output->chip(n, 3).chip(oc, 0) += sum;
-        else
-          output->chip(n, 3).chip(oc, 0) = sum;
-      }
-    }
+    int i_c = input->dimension(0), i_w = input->dimension(1);
+    int i_h = input->dimension(2), i_n = input->dimension(3);
+    int k_w = kernel.dimension(0), k_h = kernel.dimension(1);
+    int k_ic = kernel.dimension(2), k_oc = kernel.dimension(3);
+    assert(i_c == k_ic);
+    int vector_size = k_ic * k_w * k_h;
+    Eigen::array<int, 4> matched_order({3, 2, 0, 1});
+    Eigen::array<int, 2> as_row_vectors({k_oc, vector_size});
+    Eigen::array<int, 2> as_col_vectors({vector_size, i_w * i_h * i_n});
+    Eigen::array<Eigen::IndexPair<int>, 1> as_matrix_product
+      = {Eigen::IndexPair<int> (1, 0)};
+    Eigen::array<int, 4> output_shape({k_oc, i_w, i_h, i_n});
+    auto cooked_kernel = kernel.shuffle(matched_order)
+      .reshape(as_row_vectors);
+    auto cooked_input = input->extract_image_patches(k_w, k_h)
+      .reshape(as_col_vectors);
+    auto convolution = cooked_kernel.contract(cooked_input, as_matrix_product)
+      .reshape(output_shape);
+    if(accumulate)
+      *output += convolution;
+    else
+      *output = convolution;
   }
 };
 
