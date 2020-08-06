@@ -237,7 +237,8 @@ struct ConvLayer {
   string name;
 
   Eigen::array<pair<int, int>, 4> paddings;
-  TENSOR4 kernel;
+  TENSOR2 cooked_kernel;
+  int k_w, k_h, k_ic, k_oc, vector_size;
   int inChannels, outChannels;
 
   ConvLayer() = delete;
@@ -261,26 +262,28 @@ struct ConvLayer {
     assert(convYSize % 2 == 1);
 
     // CR-someday lpuchallafiore: optimize NHWC vs NCHW, etc.
+    TENSOR4 kernel;
     kernel = TensorMap<const Tensor<const SCALAR, 4>>(
       desc.weights.data(), convXSize, convYSize, inChannels, outChannels);
+    k_w = kernel.dimension(0);
+    k_h = kernel.dimension(1);
+    k_ic = kernel.dimension(2);
+    k_oc = kernel.dimension(3);
+    vector_size = k_ic * k_w * k_h;
+    Eigen::array<int, 4> matched_order({3, 2, 0, 1});
+    Eigen::array<int, 2> as_row_vectors({k_oc, vector_size});
+    cooked_kernel = kernel.shuffle(matched_order).reshape(as_row_vectors);
   }
 
   void apply(CONSTTENSORMAP4* input, TENSORMAP4* output, bool accumulate) const {
     assert(output->dimension(0) == outChannels);
     int i_c = input->dimension(0), i_w = input->dimension(1);
     int i_h = input->dimension(2), i_n = input->dimension(3);
-    int k_w = kernel.dimension(0), k_h = kernel.dimension(1);
-    int k_ic = kernel.dimension(2), k_oc = kernel.dimension(3);
     assert(i_c == k_ic);
-    int vector_size = k_ic * k_w * k_h;
-    Eigen::array<int, 4> matched_order({3, 2, 0, 1});
-    Eigen::array<int, 2> as_row_vectors({k_oc, vector_size});
     Eigen::array<int, 2> as_col_vectors({vector_size, i_w * i_h * i_n});
     Eigen::array<Eigen::IndexPair<int>, 1> as_matrix_product
       = {Eigen::IndexPair<int> (1, 0)};
     Eigen::array<int, 4> output_shape({k_oc, i_w, i_h, i_n});
-    auto cooked_kernel = kernel.shuffle(matched_order)
-      .reshape(as_row_vectors);
     auto cooked_input = input->extract_image_patches(k_w, k_h)
       .reshape(as_col_vectors);
     auto convolution = cooked_kernel.contract(cooked_input, as_matrix_product)
