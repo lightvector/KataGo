@@ -238,17 +238,28 @@ struct ConvLayer {
 
   Eigen::array<pair<int, int>, 4> paddings;
   TENSOR2 cooked_kernel;
+  TENSOR3 winogradKernel;
   int k_w, k_h, k_ic, k_oc, vector_size;
   int inChannels, outChannels;
+
+  int convYSize;
+  int convXSize;
+
+  int nnXLen;
+  int nnYLen;
+  int numTilesX;
+  int numTilesY;
+  int inTileXYSize;
+  int outTileXYSize;
 
   ConvLayer() = delete;
   ConvLayer(const ConvLayer&) = delete;
   ConvLayer& operator=(const ConvLayer&) = delete;
 
-  ConvLayer(const ConvLayerDesc& desc) {
+  ConvLayer(const ConvLayerDesc& desc, int nnX, int nnY) {
     name = desc.name;
-    int convYSize = desc.convYSize;
-    int convXSize = desc.convXSize;
+    convYSize = desc.convYSize;
+    convXSize = desc.convXSize;
     inChannels = desc.inChannels;
     outChannels = desc.outChannels;
     //Currently eigen impl doesn't support dilated convs
@@ -261,7 +272,86 @@ struct ConvLayer {
     assert(convXSize % 2 == 1);
     assert(convYSize % 2 == 1);
 
-    // CR-someday lpuchallafiore: optimize NHWC vs NCHW, etc.
+    nnXLen = nnX;
+    nnYLen = nnY;
+
+    if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
+      const int inTileXSize = 6;
+      const int inTileYSize = 6;
+      const int outTileXSize = convXSize == 5 ? 2 : 4;
+      const int outTileYSize = convYSize == 5 ? 2 : 4;
+
+      numTilesX = (nnXLen + outTileXSize - 1) / outTileXSize;
+      numTilesY = (nnYLen + outTileYSize - 1) / outTileYSize;
+      inTileXYSize = inTileXSize * inTileYSize;
+      outTileXYSize = outTileXSize * outTileYSize;
+
+      static constexpr int maxTileXSize = 6;
+      static constexpr int maxTileYSize = 6;
+
+      //INTILE_YSIZE, INTILE_XSIZE, ic, oc
+      vector<float> transWeights(inTileXYSize * inChannels * outChannels);
+      auto transform3x3_6 = [](float& a0, float& a1, float& a2, float& a3, float& a4, float& a5) {
+        float z0 = a0; float z1 = a1; float z2 = a2;
+        a0 = 0.25f * z0;
+        a1 = (float)( (1.0 / 6.0) * (-z0 - z1 - z2) );
+        a2 = (float)( (1.0 / 6.0) * (-z0 + z1 - z2) );
+        a3 = (float)( (1.0 / 24.0) * (z0 + 2.0*z1 + 4.0*z2) );
+        a4 = (float)( (1.0 / 24.0) * (z0 - 2.0*z1 + 4.0*z2) );
+        a5 = 1.0f * z2;
+      };
+      auto transform5x5_6 = [](float& a0, float& a1, float& a2, float& a3, float& a4, float& a5) {
+        float z0 = a0; float z1 = a1; float z2 = a2; float z3 = a3; float z4 = a4;
+        a0 = 0.25f * z0;
+        a1 = (float)( (1.0 / 6.0) * (-z0 - z1 - z2 - z3 - z4) );
+        a2 = (float)( (1.0 / 6.0) * (-z0 + z1 - z2 + z3 - z4) );
+        a3 = (float)( (1.0 / 24.0) * (z0 + 2.0*z1 + 4.0*z2 + 8.0*z3 + 16.0*z4) );
+        a4 = (float)( (1.0 / 24.0) * (z0 - 2.0*z1 + 4.0*z2 - 8.0*z3 + 16.0*z4) );
+        a5 = 1.0f * z4;
+      };
+
+      for(int oc = 0; oc < outChannels; oc++) {
+        for(int ic = 0; ic < inChannels; ic++) {
+          float tmp[maxTileYSize][maxTileXSize];
+          for(int subY = 0; subY < convYSize; subY++) {
+            for(int subX = 0; subX < convXSize; subX++) {
+              if(oc < outChannels && ic < inChannels)
+                tmp[subY][subX] = desc.weights[((oc * inChannels + ic) * convYSize + subY) * convXSize + subX];
+              else
+                tmp[subY][subX] = 0.0f;
+            }
+          }
+
+          if(convXSize == 3) {
+            for(int subY = 0; subY < convYSize; subY++)
+              transform3x3_6(tmp[subY][0], tmp[subY][1], tmp[subY][2], tmp[subY][3], tmp[subY][4], tmp[subY][5]);
+          }
+          else if(convXSize == 5) {
+            for(int subY = 0; subY < convYSize; subY++)
+              transform5x5_6(tmp[subY][0], tmp[subY][1], tmp[subY][2], tmp[subY][3], tmp[subY][4], tmp[subY][5]);
+          }
+
+          if(convYSize == 3) {
+            for(int subX = 0; subX < inTileXSize; subX++)
+              transform3x3_6(tmp[0][subX], tmp[1][subX], tmp[2][subX], tmp[3][subX], tmp[4][subX], tmp[5][subX]);
+          }
+          else if(convYSize == 5) {
+            for(int subX = 0; subX < inTileXSize; subX++)
+              transform5x5_6(tmp[0][subX], tmp[1][subX], tmp[2][subX], tmp[3][subX], tmp[4][subX], tmp[5][subX]);
+          }
+
+          for(int subY = 0; subY < inTileYSize; subY++) {
+            for(int subX = 0; subX < inTileXSize; subX++) {
+              transWeights[((subY*inTileXSize + subX)*inChannels + ic)*outChannels + oc] = tmp[subY][subX];
+            }
+          }
+        }
+      }
+
+      winogradKernel = TensorMap<const Tensor<const SCALAR, 3>>(
+        transWeights.data(), outChannels, inChannels, inTileXSize * inTileYSize);
+    }
+
     TENSOR4 kernel;
     kernel = TensorMap<const Tensor<const SCALAR, 4>>(
       desc.weights.data(), convXSize, convYSize, inChannels, outChannels);
@@ -277,6 +367,214 @@ struct ConvLayer {
 
   void apply(CONSTTENSORMAP4* input, TENSORMAP4* output, bool accumulate) const {
     assert(output->dimension(0) == outChannels);
+    if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
+      constexpr int inTileXSize = 6;
+      constexpr int inTileYSize = 6;
+      const int inTileXOffset = convXSize == 5 ? -2 : -1;
+      const int inTileYOffset = convYSize == 5 ? -2 : -1;
+      const int outTileXSize = convXSize == 5 ? 2 : 4;
+      const int outTileYSize = convYSize == 5 ? 2 : 4;
+      float tile[inTileYSize][inTileXSize];
+
+      const int batchSize = input->dimension(3);
+      const int xSize = input->dimension(1);
+      const int ySize = input->dimension(2);
+      TENSOR3 transformedInput(inChannels, batchSize * numTilesY * numTilesX, inTileXSize * inTileYSize);
+      TENSOR3 transformedOutput(outChannels, batchSize * numTilesY * numTilesX, inTileXSize * inTileYSize);
+      for(int n = 0; n < batchSize; n++) {
+        for(int ic = 0; ic < inChannels; ic++) {
+          for(int yTile = 0; yTile < numTilesY; yTile++) {
+            for(int xTile = 0; xTile < numTilesX; xTile++) {
+              for(int dy = 0; dy < inTileYSize; dy++) {
+                for(int dx = 0; dx < inTileXSize; dx++) {
+                  int x = xTile*outTileXSize+dx+inTileXOffset;
+                  int y = yTile*outTileYSize+dy+inTileYOffset;
+                  float z;
+                  if(x < 0 || y < 0 || x >= xSize || y >= ySize)
+                    z = 0.0f;
+                  else
+                    z = (*input)(ic,x,y,n);
+                  tile[dy][dx] = z;
+                }
+              }
+
+              for(int subY = 0; subY < inTileYSize; subY++) {
+                float z0 = tile[subY][0];
+                float z1 = tile[subY][1];
+                float z2 = tile[subY][2];
+                float z3 = tile[subY][3];
+                float z4 = tile[subY][4];
+                float z5 = tile[subY][5];
+                tile[subY][0] = 4.0f*z0 - 5.0f*z2 + z4;
+                tile[subY][1] = - 4.0f*z1 - 4.0f*z2 + z3 + z4;
+                tile[subY][2] =   4.0f*z1 - 4.0f*z2 - z3 + z4;
+                tile[subY][3] = - 2.0f*z1 - z2 + 2.0f*z3 + z4;
+                tile[subY][4] =   2.0f*z1 - z2 - 2.0f*z3 + z4;
+                tile[subY][5] = 4.0f*z1 - 5.0f*z3 + z5;
+              }
+              for(int subX = 0; subX < inTileXSize; subX++) {
+                float z0 = tile[0][subX];
+                float z1 = tile[1][subX];
+                float z2 = tile[2][subX];
+                float z3 = tile[3][subX];
+                float z4 = tile[4][subX];
+                float z5 = tile[5][subX];
+                tile[0][subX] = 4.0f*z0 - 5.0f*z2 + z4;
+                tile[1][subX] = - 4.0f*z1 - 4.0f*z2 + z3 + z4;
+                tile[2][subX] =   4.0f*z1 - 4.0f*z2 - z3 + z4;
+                tile[3][subX] = - 2.0f*z1 - z2 + 2.0f*z3 + z4;
+                tile[4][subX] =   2.0f*z1 - z2 - 2.0f*z3 + z4;
+                tile[5][subX] = 4.0f*z1 - 5.0f*z3 + z5;
+              }
+              int batchTileXTileY = n * numTilesY * numTilesX + yTile * numTilesX + xTile;
+              for(int dy = 0; dy < inTileYSize; dy++) {
+                for(int dx = 0; dx < inTileXSize; dx++) {
+                  transformedInput(ic, batchTileXTileY, dy * inTileXSize + dx) = tile[dy][dx];
+                }
+              }
+            }
+          }
+        }
+      }
+
+      //TODO: Does eigen have a fast batched matrix multiply?
+      //Here we just manually iterate over the 36 matrices that need to get multiplied.
+      //What would be really ideal is if also the batched matrix multiply were implemented to operate
+      //on *interleaved* matrices.
+      //
+      //What I mean is: right now, the shape of these matrices is (in column-major format, the fastest varying index is the leftmost):
+      //transformedInputMap: [input channel, batch and tile, subtile index 0-35]
+      //winogradKernelMap: [output channel, input channel, subtile index 0-35]
+      //transformedOutputMap: [output channel, batch and tile, subtile index 0-35]
+      //And the operation we'd like to perform is
+      //for i = 0 to 35: transformedOutputMap[:,:,i] = gemm(winogradKernelMap[:,:,i], transformedInputMap[:,:,i])
+
+      //But it would be super sweet if we could store these matrices in this order instead:
+      //transformedInputMap: [subtile index 0-35, input channel, batch and tile]
+      //winogradKernelMap: [subtile index 0-35, output channel, input channel]
+      //transformedOutputMap: [subtile index 0-35, output channel, batch and tile]
+      //And do this operation:
+      //for i = 0 to 35: transformedOutputMap[i,:,:] = gemm(winogradKernelMap[i,:,:], transformedInputMap[i,:,:])
+      //
+      //If we actually did this as 36 separate matrix multiplies, then this would suck, because it would destroy
+      //memory locality - elements would be separated by a stride of 36 now.
+      //BUT - one can also view this as a plain matrix multiply, except instead of "float", the primitive unit would be
+      //"vector of length 36" and addition and multiplication simply become pointwise addition and pointwise multiplication.
+      //If there were a library function capable of handling this "interleaved" format and doing it all in one go, then
+      //the benefit would be that in the transform and untransform operations, we would probably get massively better
+      //memory locality. Because in the real matrix, the subtile index 0-36 is one of the fastest-varying indices because
+      //it corresponds to the x,y position within a single winograd tile of the matrix.
+
+      for(int dy = 0; dy < inTileYSize; dy++) {
+        for(int dx = 0; dx < inTileXSize; dx++) {
+          int subTileIdx = dy * inTileXSize + dx;
+          auto transformedInputMap = Eigen::Map<Eigen::Matrix<SCALAR,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>>(
+            (float*)transformedInput.data() + subTileIdx * batchSize * numTilesY * numTilesX * inChannels,
+            inChannels,
+            batchSize * numTilesY * numTilesX
+          );
+          auto winogradKernelMap = Eigen::Map<Eigen::Matrix<SCALAR,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>>(
+            (float*)winogradKernel.data() + subTileIdx * outChannels * inChannels,
+            outChannels,
+            inChannels
+          );
+          auto transformedOutputMap = Eigen::Map<Eigen::Matrix<SCALAR,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>>(
+            (float*)transformedOutput.data() + subTileIdx * batchSize * numTilesY * numTilesX * outChannels,
+            outChannels,
+            batchSize * numTilesY * numTilesX
+          );
+          transformedOutputMap = winogradKernelMap * transformedInputMap;
+        }
+      }
+
+      for(int n = 0; n < batchSize; n++) {
+        for(int oc = 0; oc < outChannels; oc++) {
+          for(int yTile = 0; yTile < numTilesY; yTile++) {
+            for(int xTile = 0; xTile < numTilesX; xTile++) {
+              int batchTileXTileY = n * numTilesY * numTilesX + yTile * numTilesX + xTile;
+              for(int dy = 0; dy < inTileYSize; dy++) {
+                for(int dx = 0; dx < inTileXSize; dx++) {
+                  tile[dy][dx] = transformedOutput(oc, batchTileXTileY, dy * inTileXSize + dx);
+                }
+              }
+
+              if(convXSize == 5 && convYSize == 5) {
+                for(int subY = 0; subY < inTileYSize; subY++) {
+                  float z0 = tile[subY][0];
+                  float z1 = tile[subY][1];
+                  float z2 = tile[subY][2];
+                  float z3 = tile[subY][3];
+                  float z4 = tile[subY][4];
+                  float z5 = tile[subY][5];
+                  tile[subY][0] = z0 + z1 + z2 + z3 + z4;
+                  tile[subY][1] = (z1-z2) + 2.0f*(z3-z4) + z5;
+                }
+                for(int subX = 0; subX < outTileXSize; subX++) {
+                  float z0 = tile[0][subX];
+                  float z1 = tile[1][subX];
+                  float z2 = tile[2][subX];
+                  float z3 = tile[3][subX];
+                  float z4 = tile[4][subX];
+                  float z5 = tile[5][subX];
+                  tile[0][subX] = z0 + z1 + z2 + z3 + z4;
+                  tile[1][subX] = (z1-z2) + 2.0f*(z3-z4) + z5;
+                }
+              }
+              else {
+                for(int subY = 0; subY < inTileYSize; subY++) {
+                  float z0 = tile[subY][0];
+                  float z1 = tile[subY][1];
+                  float z2 = tile[subY][2];
+                  float z3 = tile[subY][3];
+                  float z4 = tile[subY][4];
+                  float z5 = tile[subY][5];
+                  tile[subY][0] = z0 + z1 + z2 + z3 + z4;
+                  tile[subY][1] = (z1-z2) + 2.0f*(z3-z4);
+                  tile[subY][2] = (z1+z2) + 4.0f*(z3+z4);
+                  tile[subY][3] = (z1-z2) + 8.0f*(z3-z4) + z5;
+                }
+                for(int subX = 0; subX < outTileXSize; subX++) {
+                  float z0 = tile[0][subX];
+                  float z1 = tile[1][subX];
+                  float z2 = tile[2][subX];
+                  float z3 = tile[3][subX];
+                  float z4 = tile[4][subX];
+                  float z5 = tile[5][subX];
+                  tile[0][subX] = z0 + z1 + z2 + z3 + z4;
+                  tile[1][subX] = (z1-z2) + 2.0f*(z3-z4);
+                  tile[2][subX] = (z1+z2) + 4.0f*(z3+z4);
+                  tile[3][subX] = (z1-z2) + 8.0f*(z3-z4) + z5;
+                }
+              }
+
+              if(accumulate) {
+                for(int dy = 0; dy < outTileYSize; dy++) {
+                  for(int dx = 0; dx < outTileXSize; dx++) {
+                    int x = xTile*outTileXSize+dx;
+                    int y = yTile*outTileYSize+dy;
+                    if(!(x < 0 || y < 0 || x >= xSize || y >= ySize))
+                      (*output)(oc,x,y,n) += tile[dy][dx];
+                  }
+                }
+              }
+              else {
+                for(int dy = 0; dy < outTileYSize; dy++) {
+                  for(int dx = 0; dx < outTileXSize; dx++) {
+                    int x = xTile*outTileXSize+dx;
+                    int y = yTile*outTileYSize+dy;
+                    if(!(x < 0 || y < 0 || x >= xSize || y >= ySize))
+                      (*output)(oc,x,y,n) = tile[dy][dx];
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    else {
+    //TODO fix indentation - currently left limited to minimize git diff and merge conflict due to whitespace
+
     int i_c = input->dimension(0), i_w = input->dimension(1);
     int i_h = input->dimension(2), i_n = input->dimension(3);
     assert(i_c == k_ic);
@@ -292,6 +590,7 @@ struct ConvLayer {
       *output += convolution;
     else
       *output = convolution;
+    }
   }
 };
 
@@ -435,12 +734,12 @@ struct ResidualBlock final : public ResidualBlockIntf {
 
   ~ResidualBlock(){}
 
-  ResidualBlock(const ResidualBlockDesc& desc)
+  ResidualBlock(const ResidualBlockDesc& desc, int nnX, int nnY)
     : name(desc.name),
       preBN(desc.preBN),
-      regularConv(desc.regularConv),
+      regularConv(desc.regularConv,nnX,nnY),
       midBN(desc.midBN),
-      finalConv(desc.finalConv) {}
+      finalConv(desc.finalConv,nnX,nnY) {}
 
   void apply(
     TENSORMAP4* trunk,
@@ -515,18 +814,18 @@ struct GlobalPoolingResidualBlock final : public ResidualBlockIntf {
 
   ~GlobalPoolingResidualBlock(){}
 
-  GlobalPoolingResidualBlock(const GlobalPoolingResidualBlockDesc& desc)
+  GlobalPoolingResidualBlock(const GlobalPoolingResidualBlockDesc& desc, int nnX, int nnY)
     : name(desc.name),
       preBN(desc.preBN),
       preActivation(desc.preActivation),
-      regularConv(desc.regularConv),
-      gpoolConv(desc.gpoolConv),
+      regularConv(desc.regularConv,nnX,nnY),
+      gpoolConv(desc.gpoolConv,nnX,nnY),
       gpoolBN(desc.gpoolBN),
       gpoolActivation(desc.gpoolActivation),
       gpoolToBiasMul(desc.gpoolToBiasMul),
       midBN(desc.midBN),
       midActivation(desc.midActivation),
-      finalConv(desc.finalConv) {}
+      finalConv(desc.finalConv,nnX,nnY) {}
 
   void apply(
     TENSORMAP4* trunk,
@@ -586,11 +885,11 @@ struct Trunk {
   Trunk(const Trunk&) = delete;
   Trunk& operator=(const Trunk&) = delete;
 
-  Trunk(const TrunkDesc& desc)
+  Trunk(const TrunkDesc& desc, int nnX, int nnY)
     : name(desc.name),
       version(desc.version),
       numBlocks(desc.numBlocks),
-      initialConv(desc.initialConv),
+      initialConv(desc.initialConv,nnX,nnY),
       initialMatMul(desc.initialMatMul),
       trunkTipBN(desc.trunkTipBN),
       trunkTipActivation(desc.trunkTipActivation)
@@ -598,7 +897,7 @@ struct Trunk {
     for (int i = 0; i < numBlocks; ++i) {
       if (desc.blocks[i].first == ORDINARY_BLOCK_KIND) {
         ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)desc.blocks[i].second;
-        ResidualBlockIntf* block = new ResidualBlock(*blockDesc);
+        ResidualBlockIntf* block = new ResidualBlock(*blockDesc,nnX,nnY);
         blocks.push_back(make_pair(ORDINARY_BLOCK_KIND, block));
       }
       else if (desc.blocks[i].first == DILATED_BLOCK_KIND) {
@@ -606,7 +905,7 @@ struct Trunk {
       }
       else if (desc.blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
         GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)desc.blocks[i].second;
-        GlobalPoolingResidualBlock* block = new GlobalPoolingResidualBlock(*blockDesc);
+        GlobalPoolingResidualBlock* block = new GlobalPoolingResidualBlock(*blockDesc,nnX,nnY);
         blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND, block));
       }
       else {
@@ -686,17 +985,17 @@ struct PolicyHead {
   PolicyHead(const PolicyHead&) = delete;
   PolicyHead& operator=(const PolicyHead&) = delete;
 
-  PolicyHead(const PolicyHeadDesc& desc)
+  PolicyHead(const PolicyHeadDesc& desc, int nnX, int nnY)
     : name(desc.name),
       version(desc.version),
-      p1Conv(desc.p1Conv),
-      g1Conv(desc.g1Conv),
+      p1Conv(desc.p1Conv,nnX,nnY),
+      g1Conv(desc.g1Conv,nnX,nnY),
       g1BN(desc.g1BN),
       g1Activation(desc.g1Activation),
       gpoolToBiasMul(desc.gpoolToBiasMul),
       p1BN(desc.p1BN),
       p1Activation(desc.p1Activation),
-      p2Conv(desc.p2Conv),
+      p2Conv(desc.p2Conv,nnX,nnY),
       gpoolToPassMul(desc.gpoolToPassMul) {}
 
   void apply(
@@ -745,10 +1044,10 @@ struct ValueHead {
   ValueHead(const ValueHead&) = delete;
   ValueHead& operator=(const ValueHead&) = delete;
 
-  ValueHead(const ValueHeadDesc& desc)
+  ValueHead(const ValueHeadDesc& desc, int nnX, int nnY)
     : name(desc.name),
       version(desc.version),
-      v1Conv(desc.v1Conv),
+      v1Conv(desc.v1Conv,nnX,nnY),
       v1BN(desc.v1BN),
       v1Activation(desc.v1Activation),
       v2Mul(desc.v2Mul),
@@ -758,7 +1057,7 @@ struct ValueHead {
       v3Bias(desc.v3Bias),
       sv3Mul(desc.sv3Mul),
       sv3Bias(desc.sv3Bias),
-      vOwnershipConv(desc.vOwnershipConv) {}
+      vOwnershipConv(desc.vOwnershipConv,nnX,nnY) {}
 
   void apply(
     CONSTTENSORMAP4* trunk,
@@ -809,15 +1108,15 @@ struct Model {
   Model(const Model&) = delete;
   Model& operator=(const Model&) = delete;
 
-  Model(const ModelDesc& desc)
+  Model(const ModelDesc& desc, int nnX, int nnY)
     : name(desc.name), version(desc.version), numInputChannels(desc.numInputChannels),
       numInputGlobalChannels(desc.numInputGlobalChannels),
       numValueChannels(desc.numValueChannels),
       numScoreValueChannels(desc.numScoreValueChannels),
       numOwnershipChannels(desc.numOwnershipChannels),
-      trunk(desc.trunk),
-      policyHead(desc.policyHead),
-      valueHead(desc.valueHead) {}
+      trunk(desc.trunk,nnX,nnY),
+      policyHead(desc.policyHead,nnX,nnY),
+      valueHead(desc.valueHead,nnX,nnY) {}
 
   void apply(
     CONSTTENSORMAP4* input,
@@ -1078,7 +1377,7 @@ struct ComputeHandle {
     : context(ctx),
       maxBatchSize(maxBSize),
       inputsUseNHWC(iNHWC),
-      model(loadedModel.modelDesc),
+      model(loadedModel.modelDesc,context->nnXLen,context->nnYLen),
       buffers(loadedModel.modelDesc,maxBSize,ctx->nnXLen,ctx->nnYLen)
   {}
 };
@@ -1297,7 +1596,7 @@ bool NeuralNet::testEvaluateConv(
 ) {
   if(!useNHWC || useFP16)
     return false;
-  ConvLayer layer(*desc);
+  ConvLayer layer(*desc,nnXLen,nnYLen);
   TENSORMAP4 inTensor(
     (float*)inputBuffer.data(), desc->inChannels, nnXLen, nnYLen, batchSize);
   TENSOR4 outTensorBuf(desc->outChannels, nnXLen, nnYLen, batchSize);
@@ -1354,7 +1653,7 @@ bool NeuralNet::testEvaluateResidualBlock(
 ) {
   if(!useNHWC || useFP16)
     return false;
-  ResidualBlock block(*desc);
+  ResidualBlock block(*desc,nnXLen,nnYLen);
   TENSORMAP4 inTensor((float*)inputBuffer.data(), desc->preBN.numChannels, nnXLen, nnYLen, batchSize);
   TENSORMAP3 mask((float*)maskBuffer.data(), nnXLen, nnYLen, batchSize);
 
@@ -1403,7 +1702,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   if(!useNHWC || useFP16)
     return false;
 
-  GlobalPoolingResidualBlock block(*desc);
+  GlobalPoolingResidualBlock block(*desc,nnXLen,nnYLen);
 
   TENSORMAP4 inTensor((float*)inputBuffer.data(), desc->preBN.numChannels, nnXLen, nnYLen, batchSize);
   TENSORMAP3 mask((float*)maskBuffer.data(), nnXLen, nnYLen, batchSize);
