@@ -1,3 +1,4 @@
+// modified by Harald Han to make it compatible with CUDNN 8 but it no longer works with CUDNN 7
 #ifdef USE_CUDA_BACKEND
 #include "../neuralnet/cudaerrorcheck.h"
 #include "../neuralnet/cudaincludes.h"
@@ -183,7 +184,7 @@ struct ConvLayer {
   int outChannels;
   cudnnFilterDescriptor_t filterDescriptor;
   cudnnConvolutionDescriptor_t convolutionDescriptor;
-  cudnnConvolutionFwdAlgo_t* convolutionAlgorithms; //array of one for each batch size
+  cudnnConvolutionFwdAlgoPerf_t* convolutionAlgorithms; //array of one for each batch size
   void* filterBuf;
 
   ConvLayer() = delete;
@@ -247,26 +248,29 @@ struct ConvLayer {
     if(useFP16 && tensorCoresSupported)
       CUDNN_ERR(name.c_str(),cudnnSetConvolutionMathType(convolutionDescriptor, CUDNN_TENSOR_OP_MATH));
 
-    convolutionAlgorithms = new cudnnConvolutionFwdAlgo_t[maxBatchSize];
+    convolutionAlgorithms = new cudnnConvolutionFwdAlgoPerf_t[maxBatchSize];
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       if(useFP16 && dilationX <= 1 && dilationY <= 1) {
-        convolutionAlgorithms[batchSize-1] = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
+        convolutionAlgorithms[batchSize-1].algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
       }
       else {
         const cudnnTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize-1];
         const cudnnTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize-1];
 
-        size_t bytesMemoryLimit = 0;
-        CUDNN_ERR(name.c_str(),cudnnGetConvolutionForwardAlgorithm(
+	int requestedAlgoCount = CUDNN_CONVOLUTION_FWD_ALGO_COUNT;
+	int returnedAlgoCount = -1;
+	cudnnConvolutionFwdAlgoPerf_t results[2* CUDNN_CONVOLUTION_FWD_ALGO_COUNT];
+        CUDNN_ERR(name.c_str(),cudnnGetConvolutionForwardAlgorithm_v7(
           cudaHandles->cudnn,
           inputDescriptor,
           filterDescriptor,
           convolutionDescriptor,
           outputDescriptor,
-          CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
-          bytesMemoryLimit,
-          &(convolutionAlgorithms[batchSize-1])
+	  requestedAlgoCount,
+	  &returnedAlgoCount,
+	  results
         ));
+	convolutionAlgorithms[batchSize-1] = results[0];
       }
     }
 
@@ -311,7 +315,7 @@ struct ConvLayer {
       filterDescriptor,
       convolutionDescriptor,
       outputDescriptor,
-      convolutionAlgorithms[batchSize-1],
+      convolutionAlgorithms[batchSize-1].algo,
       &workspaceBytes
     ));
 
@@ -339,7 +343,7 @@ struct ConvLayer {
       filterDescriptor,
       filterBuf,
       convolutionDescriptor,
-      convolutionAlgorithms[batchSize-1],
+      convolutionAlgorithms[batchSize-1].algo,
       workspaceBuf,
       workspaceBytes,
       &beta,
