@@ -444,11 +444,17 @@ DevicesContext::DevicesContext(const vector<DeviceInfo>& allDeviceInfos, const v
   vector<cl_device_id> deviceIdsToUse;
   for(size_t i = 0; i<gpuIdxsToUse.size(); i++) {
     int gpuIdx = gpuIdxsToUse[i];
-    if(gpuIdx < 0 || gpuIdx >= allDeviceInfos.size())
+    if(gpuIdx < 0 || gpuIdx >= allDeviceInfos.size()) {
+      if(allDeviceInfos.size() <= 0) {
+        throw StringError(
+          "No OpenCL devices were found on your system. If you believe you do have a GPU or other device with OpenCL installed, then your OpenCL installation or drivers may be buggy or broken or otherwise failing to detect your device."
+        );
+      }
       throw StringError(
         "Requested gpuIdx/device " + Global::intToString(gpuIdx) +
         " was not found, valid devices range from 0 to " + Global::intToString((int)allDeviceInfos.size() - 1)
       );
+    }
     deviceIdsToUse.push_back(allDeviceInfos[gpuIdx].deviceId);
   }
 
