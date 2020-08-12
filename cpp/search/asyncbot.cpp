@@ -87,6 +87,22 @@ void AsyncBot::setAlwaysIncludeOwnerMap(bool b) {
   stopAndWait();
   search->setAlwaysIncludeOwnerMap(b);
 }
+
+void AsyncBot::setProblemAnalyze(bool b) {
+  stopAndWait();
+  search->setProblemAnalyze(b);
+}
+
+void AsyncBot::setProblemAnalyzeTopLeftCorner(Loc b) {
+  stopAndWait();
+  search->setProblemAnalyzeTopLeftCorner(b);
+}
+
+void AsyncBot::setProblemAnalyzeBottomRightCorner(Loc b) {
+  stopAndWait();
+  search->setProblemAnalyzeBottomRightCorner(b);
+}
+
 void AsyncBot::setParams(SearchParams params) {
   stopAndWait();
   search->setParams(params);

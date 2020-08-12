@@ -70,7 +70,7 @@ static const vector<string> knownCommands = {
   // "analyze",
   "lz-analyze",
   "kata-analyze",
-
+  "kata-problem_analyze",
   //Display raw neural net evaluations
   "kata-raw-nn",
 
@@ -620,7 +620,12 @@ struct GTPEngine {
     int minMoves = 0;
     int maxMoves = 10000000;
     bool showOwnership = false;
+    bool isProblemAnalyze = false;
+    Loc problemAnalyzeTopLeftCorner = Board::NULL_LOC;
+    Loc problemAnalyzeBottomRightCorner = Board::NULL_LOC;
+
     double secondsPerReport = 1e30;
+
   };
 
   std::function<void(const Search* search)> getAnalyzeCallback(Player pla, AnalyzeArgs args) {
@@ -1053,7 +1058,16 @@ struct GTPEngine {
       bot->setAlwaysIncludeOwnerMap(true);
     else
       bot->setAlwaysIncludeOwnerMap(false);
-
+    if (args.isProblemAnalyze)  {
+      bot->setProblemAnalyze(true);
+      bot->setProblemAnalyzeTopLeftCorner(args.problemAnalyzeTopLeftCorner);
+      bot->setProblemAnalyzeBottomRightCorner(args.problemAnalyzeBottomRightCorner);
+    } else {
+      bot->setProblemAnalyze(false);
+      bot->setProblemAnalyzeTopLeftCorner(Board::NULL_LOC);
+      bot->setProblemAnalyzeBottomRightCorner(Board::NULL_LOC);
+    }
+      
     double searchFactor = 1e40; //go basically forever
     bot->analyze(pla, searchFactor, args.secondsPerReport, callback);
   }
@@ -1197,16 +1211,20 @@ struct GTPEngine {
 
 
 //User should pre-fill pla with a default value, as it will not get filled in if the parsed command doesn't specify
-static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const vector<string>& pieces, Player& pla, bool& parseFailed) {
+static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const vector<string>& pieces, GTPEngine* engine, bool& parseFailed) {
+  Player pla = engine->bot->getRootPla();
+  Board board = engine->bot->getRootBoard();
+
   int numArgsParsed = 0;
 
   bool isLZ = (command == "lz-analyze" || command == "lz-genmove_analyze");
-  bool isKata = (command == "kata-analyze" || command == "kata-genmove_analyze");
+  bool isKata = (command == "kata-analyze" || command == "kata-genmove_analyze" || command == "kata-problem_analyze");
   double lzAnalyzeInterval = 1e30;
   int minMoves = 0;
   int maxMoves = 10000000;
   bool showOwnership = false;
-
+  Loc problemAnalyzeTopLeftCorner = Board::NULL_LOC;
+  Loc problemAnalyzeBottomRightCorner = Board::NULL_LOC;
   parseFailed = false;
 
   //Format:
@@ -1271,6 +1289,10 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
     }
     else if(isKata && key == "ownership" && Global::tryStringToBool(value,showOwnership)) {
       continue;
+    } else if(isKata && key == "topleft" && Location::tryOfString(value, board, problemAnalyzeTopLeftCorner)) {
+      continue;
+    } else if(isKata && key == "bottomright" && Location::tryOfString(value, board, problemAnalyzeBottomRightCorner)) {
+      continue;
     }
 
     parseFailed = true;
@@ -1286,6 +1308,10 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
   args.minMoves = minMoves;
   args.maxMoves = maxMoves;
   args.showOwnership = showOwnership;
+  args.problemAnalyzeTopLeftCorner = problemAnalyzeTopLeftCorner;
+  args.problemAnalyzeBottomRightCorner = problemAnalyzeBottomRightCorner;
+  args.isProblemAnalyze = command == "kata-problem_analyze";
+
   return args;
 }
 
@@ -2097,7 +2123,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     else if(command == "genmove_analyze" || command == "lz-genmove_analyze" || command == "kata-genmove_analyze") {
       Player pla = engine->bot->getRootPla();
       bool parseFailed = false;
-      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed);
+      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, engine, parseFailed);
       if(parseFailed) {
         responseIsError = true;
         response = "Could not parse genmove_analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
@@ -2435,10 +2461,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
-    else if(command == "analyze" || command == "lz-analyze" || command == "kata-analyze") {
+    else if(command == "analyze" || command == "lz-analyze" || command == "kata-analyze" || command == "kata-problem_analyze") {
       Player pla = engine->bot->getRootPla();
       bool parseFailed = false;
-      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed);
+      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, engine, parseFailed);
 
       if(parseFailed) {
         responseIsError = true;

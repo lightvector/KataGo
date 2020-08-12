@@ -737,6 +737,20 @@ bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) cons
   return true;
 }
 
+bool BoardHistory::isLegalAllowSuperKo(const Board& board, Loc moveLoc, Player movePla) const {
+  //Ko-moves in the encore that are recapture blocked are interpreted as pass-for-ko, so they are legal
+  if(encorePhase > 0 && moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE && moveLoc != Board::PASS_LOC) {
+    Loc koCaptureLoc = board.getKoCaptureLoc(moveLoc,movePla);
+    if(koCaptureLoc != Board::NULL_LOC && koRecapBlocked[koCaptureLoc] && board.colors[koCaptureLoc] == getOpp(movePla))
+      return true;
+  }
+
+  if(!board.isLegal(moveLoc,movePla,rules.multiStoneSuicideLegal))
+    return false;
+
+  return true;
+}
+
 bool BoardHistory::isPassForKo(const Board& board, Loc moveLoc, Player movePla) const {
   if(encorePhase > 0 && moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE && moveLoc != Board::PASS_LOC) {
     Loc koCaptureLoc = board.getKoCaptureLoc(moveLoc,movePla);

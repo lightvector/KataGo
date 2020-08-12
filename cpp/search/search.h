@@ -152,6 +152,10 @@ struct Search {
 
   bool alwaysIncludeOwnerMap;
 
+  bool isProblemAnalyze;
+  Loc problemAnalyzeTopLeftCorner;
+  Loc problemAnalyzeBottomRightCorner;
+
   SearchParams searchParams;
   int64_t numSearchesBegun;
   uint32_t searchNodeAge;
@@ -206,6 +210,9 @@ struct Search {
   void setKomiIfNew(float newKomi); //Does not clear history, does clear search unless komi is equal.
   void setRootPassLegal(bool b);
   void setRootHintLoc(Loc hintLoc);
+  void setProblemAnalyze(bool b);
+  void setProblemAnalyzeTopLeftCorner(Loc b);
+  void setProblemAnalyzeBottomRightCorner(Loc b);
   void setAlwaysIncludeOwnerMap(bool b);
   void setParams(SearchParams params);
   void setParamsNoClearing(SearchParams params); //Does not clear search
@@ -326,7 +333,8 @@ private:
   void maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, SearchNode& node, bool isRoot) const;
 
   bool isAllowedRootMove(Loc moveLoc) const;
-
+  bool isInProblemArea(Loc moveLoc) const;
+  
   void computeRootValues();
 
   double getScoreUtility(double scoreMeanSum, double scoreMeanSqSum, double weightSum) const;
@@ -405,7 +413,8 @@ private:
   void playoutDescend(
     SearchThread& thread, SearchNode& node,
     bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
-    bool isRoot, int32_t virtualLossesToSubtract
+    bool isRoot, int32_t virtualLossesToSubtract,
+    int32_t depth
   );
 
   bool shouldSuppressPassAlreadyLocked(const SearchNode* n) const;

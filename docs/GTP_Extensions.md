@@ -113,7 +113,15 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      * Like `lz-analyze`, will immediately begin printing a partial GTP response, with a new line every `interval` centiseconds.
      * Unlike `lz-analyze`, will teriminate on its own after the normal amount of time that a `genmove` would take and will NOT terminate prematurely or asynchronously upon recipt of a newline or an additional GTP command.
      * The final move made will be reported as a single line `play <vertex or "pass" or "resign">`, followed by the usual double-newline that signals a complete GTP response.
-  * `kata-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR`
+  * `kata-problem_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR`
+     * this extented GTP command is used for solving life-dead problems. 
+     * Same as `kata-analyze` except with the options and fields :
+     * Additional possible key-value pairs:
+       * `topleft M19` - Sets the problem valid area - the top left corner
+       * `bottomright T14` - Sets the problem valid area - the bottom right corner
+     * if `topoleft` or `bottomright` is not set, use the full board.
+     
+   * `kata-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR`
      * Same as `lz-genmove_analyze` except with the options and fields of `kata-analyze` rather than `lz-analyze`
   * `analyze, genmove_analyze`
      * Same as `kata-analyze` and `kata-genmove_analyze`, but intended specifically for the Sabaki GUI app in that all floating point values are always formatted with a decimal point, even when a value happens to be an integer. May also have slightly less compact output in other ways (e.g. extra trailing zeros on some decimals).

@@ -147,6 +147,9 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    mirrorAdvantage(0.0),
    mirrorCenterIsSymmetric(false),
    alwaysIncludeOwnerMap(false),
+   isProblemAnalyze(false),
+   problemAnalyzeTopLeftCorner(Board::NULL_LOC),
+   problemAnalyzeBottomRightCorner(Board::NULL_LOC),
    searchParams(params),numSearchesBegun(0),searchNodeAge(0),
    plaThatSearchIsFor(C_EMPTY),plaThatSearchIsForLastSearch(C_EMPTY),
    lastSearchNumPlayouts(0),
@@ -246,6 +249,24 @@ void Search::setAlwaysIncludeOwnerMap(bool b) {
     clearSearch();
   alwaysIncludeOwnerMap = b;
 }
+void Search::setProblemAnalyze(bool b) {
+  if(!isProblemAnalyze && b)
+    clearSearch();
+  isProblemAnalyze = b;
+}
+
+void Search::setProblemAnalyzeTopLeftCorner(Loc b) {
+  if (problemAnalyzeTopLeftCorner != b)
+    clearSearch();
+  problemAnalyzeTopLeftCorner = b;
+}
+
+void Search::setProblemAnalyzeBottomRightCorner(Loc b) {
+  if (problemAnalyzeBottomRightCorner != b)
+    clearSearch();
+  problemAnalyzeBottomRightCorner = b;
+}
+
 
 void Search::setParams(SearchParams params) {
   clearSearch();
@@ -1029,6 +1050,33 @@ void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, Searc
   }
 }
 
+bool Search::isInProblemArea(Loc moveLoc) const {
+  assert(moveLoc == Board::PASS_LOC || rootBoard.isOnBoard(moveLoc));
+  if (problemAnalyzeTopLeftCorner == Board::NULL_LOC || problemAnalyzeBottomRightCorner == Board::NULL_LOC) {
+    // not limit
+    return true;
+  }
+  int x = Location::getX(moveLoc, rootBoard.x_size);
+  int y = Location::getY(moveLoc, rootBoard.x_size);
+  int x1 = Location::getX(problemAnalyzeTopLeftCorner, rootBoard.x_size);
+  int x2 = Location::getX(problemAnalyzeBottomRightCorner, rootBoard.x_size);
+  int y1 = Location::getY(problemAnalyzeTopLeftCorner, rootBoard.x_size);
+  int y2 = Location::getY(problemAnalyzeBottomRightCorner, rootBoard.x_size);
+  if (x1 > x2) {
+    // swap
+    int tmp = x1;
+    x1 = x2;
+    x2 = tmp;
+  }
+  if (y1 > y2) {
+    // swap
+    int tmp = y1;
+    y1 = y2;
+    y2 = tmp;
+  }
+  return x >= x1 && x <= x2 && y >= y1 && y <= y2;
+}
+
 bool Search::isAllowedRootMove(Loc moveLoc) const {
   assert(moveLoc == Board::PASS_LOC || rootBoard.isOnBoard(moveLoc));
 
@@ -1624,6 +1672,9 @@ void Search::selectBestChildToDescend(
     if(moveLoc == Board::NULL_LOC)
       continue;
 
+    if(isProblemAnalyze && !isInProblemArea(moveLoc))
+      continue;
+
     //Special logic for the root
     if(isRoot) {
       assert(thread.board.pos_hash == rootBoard.pos_hash);
@@ -1823,7 +1874,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
 
 void Search::runSinglePlayout(SearchThread& thread) {
   bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE];
-  playoutDescend(thread,*rootNode,posesWithChildBuf,true,0);
+  playoutDescend(thread,*rootNode,posesWithChildBuf,true,0, 0);
 
   //Restore thread state back to the root state
   thread.pla = rootPla;
@@ -1942,7 +1993,8 @@ void Search::initNodeNNOutput(
 void Search::playoutDescend(
   SearchThread& thread, SearchNode& node,
   bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
-  bool isRoot, int32_t virtualLossesToSubtract
+  bool isRoot, int32_t virtualLossesToSubtract,
+  int32_t depth
 ) {
   //Hit terminal node, finish
   //In the case where we're forcing the search to make another move at the root, don't terminate, actually run search for a move more.
@@ -1997,21 +2049,38 @@ void Search::playoutDescend(
   //The absurdly rare case that the move chosen is not legal
   //(this should only happen either on a bug or where the nnHash doesn't have full legality information or when there's an actual hash collision).
   //Regenerate the neural net call and continue
-  if(!thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla)) {
-    bool isReInit = true;
-    initNodeNNOutput(thread,node,isRoot,true,0,isReInit);
+  if (isProblemAnalyze) {
+    if(!thread.history.isLegalAllowSuperKo(thread.board,bestChildMoveLoc,thread.pla)) {
+      bool isReInit = true;
+      initNodeNNOutput(thread,node,isRoot,true,0,isReInit);
 
-    if(thread.logStream != NULL)
-      (*thread.logStream) << "WARNING: Chosen move not legal so regenerated nn output, nnhash=" << node.nnOutput->nnHash << endl;
+      if(thread.logStream != NULL)
+        (*thread.logStream) << "WARNING: Chosen move not legal so regenerated nn output, nnhash=" << node.nnOutput->nnHash << endl;
 
-    //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
-    selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
-    //We should absolutely be legal this time
-    assert(thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla));
+      //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
+      selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
+      // We should absolutely be legal this time
+      // assert(thread.history.isLegalAllowSuperKo(thread.board,bestChildMoveLoc,thread.pla));
+    }
+  } else {
+    if(!thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla)) {
+      bool isReInit = true;
+      initNodeNNOutput(thread,node,isRoot,true,0,isReInit);
+
+      if(thread.logStream != NULL)
+        (*thread.logStream) << "WARNING: Chosen move not legal so regenerated nn output, nnhash=" << node.nnOutput->nnHash << endl;
+
+      //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
+      selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
+      //We should absolutely be legal this time
+      assert(thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla));
+    }
   }
+
 
   if(bestChildIdx < -1) {
     lock.unlock();
+    assert(false);
     throw StringError("Search error: No move with sane selection value - can't even pass?");
   }
 
@@ -2054,8 +2123,10 @@ void Search::playoutDescend(
   thread.pla = getOpp(thread.pla);
 
   //Recurse!
-  playoutDescend(thread,*child,posesWithChildBuf,false,searchParams.numVirtualLossesPerThread);
-
+  if (!isProblemAnalyze || depth < 50) {
+    playoutDescend(thread,*child,posesWithChildBuf,false,searchParams.numVirtualLossesPerThread, depth + 1);
+  }
+  
   //Update this node stats
   updateStatsAfterPlayout(node,thread,virtualLossesToSubtract,isRoot);
 }
