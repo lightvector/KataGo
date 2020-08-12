@@ -5,7 +5,8 @@
  * Only supports float32 computation with NHWC memory layout (at runtime and as input).
  */
 
-// CR lpuchallafiore: Add multi-threading support (see "Evaluating with a Thread Pool" in the Eigen Tensor docs).
+//TODO someday - not sure how to make thread pool work with TensorMap. It works with Tensor, but TensorMap doesn't seem to have a device(...) method.
+//#define EIGEN_USE_THREADS
 
 #include "../neuralnet/nninterface.h"
 
@@ -194,22 +195,6 @@ static void poolRowsGPool(CONSTTENSORMAP4* in, TENSORMAP2* out, const float* mas
   }
 }
 
-// // Given input [n,w,h,c] fills output of shape [n,c] with sum over c.
-// static void poolRowsSum(CONSTTENSORMAP4* in, TENSORMAP2* out, float scaleSum) {
-//   for (int n = 0; n < in->dimension(3); n++) {
-//     for (int c = 0; c < in->dimension(0); c++) {
-//       float s = 0.f;
-//       for (int h = 0; h < in->dimension(2); h++) {
-//         for (int w = 0; w < in->dimension(1); w++) {
-//           float x = in(c, w, h, n);
-//           s += x;
-//         }
-//       }
-//       out(c, n) = s * scaleSum;
-//     }
-//   }
-// }
-
 static void poolRowsValueHead(CONSTTENSORMAP4* in, TENSORMAP2* out, const float* maskSum) {
   for (int n = 0; n < in->dimension(3); n++) {
     for (int c = 0; c < in->dimension(0); c++) {
@@ -234,23 +219,36 @@ static size_t roundUpToMultiple(size_t size, size_t ofThis) {
   return (size + ofThis - 1) / ofThis * ofThis;
 }
 
+// --------------------------------------------------------------------------------------------------------------
+
+struct ComputeHandleInternal {
+  //static constexpr int numEigenThreads = 2;
+  //Eigen::ThreadPool threadPool;
+  //Eigen::ThreadPoolDevice device;
+
+  ComputeHandleInternal()
+  {
+  }
+};
+
 // Layers --------------------------------------------------------------------------------------------------------------
 
 // Convolution layer with zero-padding.
 struct ConvLayer {
   string name;
 
-  Eigen::array<pair<int, int>, 4> paddings;
-  TENSOR2 cooked_kernel;
+  TENSOR2 imagePatchKernel;
   TENSOR3 winogradKernel;
-  int k_w, k_h, k_ic, k_oc, vector_size;
-  int inChannels, outChannels;
+  int inChannels;
+  int outChannels;
 
   int convYSize;
   int convXSize;
-
   int nnXLen;
   int nnYLen;
+
+  int imagePatchSize;
+
   int numTilesX;
   int numTilesY;
   int inTileXYSize;
@@ -280,6 +278,8 @@ struct ConvLayer {
     nnYLen = nnY;
 
     if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
+      imagePatchSize = 0; //not used in this branch
+
       const int inTileXSize = 6;
       const int inTileYSize = 6;
       const int outTileXSize = convXSize == 5 ? 2 : 4;
@@ -356,17 +356,18 @@ struct ConvLayer {
         transWeights.data(), outChannels, inChannels, inTileXSize * inTileYSize);
     }
 
-    TENSOR4 kernel;
-    kernel = TensorMap<const Tensor<const SCALAR, 4>>(
-      desc.weights.data(), convXSize, convYSize, inChannels, outChannels);
-    k_w = kernel.dimension(0);
-    k_h = kernel.dimension(1);
-    k_ic = kernel.dimension(2);
-    k_oc = kernel.dimension(3);
-    vector_size = k_ic * k_w * k_h;
-    Eigen::array<int, 4> matched_order({3, 2, 0, 1});
-    Eigen::array<int, 2> as_row_vectors({k_oc, vector_size});
-    cooked_kernel = kernel.shuffle(matched_order).reshape(as_row_vectors);
+    else {
+      numTilesX = 0; //not used in this branch
+      numTilesY = 0; //not used in this branch
+      inTileXYSize = 0; //not used in this branch
+      outTileXYSize = 0; //not used in this branch
+
+      TENSOR4 kernel = TensorMap<const Tensor<const SCALAR, 4>>(desc.weights.data(), convXSize, convYSize, inChannels, outChannels);
+      imagePatchSize = convXSize * convYSize * inChannels;
+      Eigen::array<int, 4> dimensionPermutatation({3, 2, 0, 1});
+      Eigen::array<int, 2> newShape({outChannels, imagePatchSize});
+      imagePatchKernel = kernel.shuffle(dimensionPermutatation).reshape(newShape);
+    }
   }
 
   size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
@@ -381,8 +382,16 @@ struct ConvLayer {
     return 0;
   }
 
-  void apply(CONSTTENSORMAP4* input, TENSORMAP4* output, float* convWorkspace, bool accumulate) const {
+  void apply(ComputeHandleInternal* handle, CONSTTENSORMAP4* input, TENSORMAP4* output, float* convWorkspace, bool accumulate) const {
+    (void)handle;
     assert(output->dimension(0) == outChannels);
+    assert(input->dimension(0) == inChannels);
+    assert(input->dimension(1) == nnXLen);
+    assert(input->dimension(2) == nnYLen);
+    const int batchSize = input->dimension(3);
+    const int xSize = nnXLen;
+    const int ySize = nnYLen;
+
     if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
       constexpr int inTileXSize = 6;
       constexpr int inTileYSize = 6;
@@ -391,9 +400,6 @@ struct ConvLayer {
       const int outTileXSize = convXSize == 5 ? 2 : 4;
       const int outTileYSize = convYSize == 5 ? 2 : 4;
 
-      const int batchSize = input->dimension(3);
-      const int xSize = input->dimension(1);
-      const int ySize = input->dimension(2);
       float* tile = convWorkspace;
       float* tile2 = tile + inTileXSize * inTileYSize * roundUpToMultiple(std::max(inChannels,outChannels),32);
       float* convWorkspaceIn = tile2 + inTileXSize * inTileYSize * roundUpToMultiple(std::max(inChannels,outChannels),32);
@@ -477,34 +483,10 @@ struct ConvLayer {
         }
       }
 
-      //TODO: Does eigen have a fast batched matrix multiply?
+      //TODO someday: Does eigen have a fast batched matrix multiply?
       //Here we just manually iterate over the 36 matrices that need to get multiplied.
-      //What would be really ideal is if also the batched matrix multiply were implemented to operate
-      //on *interleaved* matrices.
-      //
-      //What I mean is: right now, the shape of these matrices is (in column-major format, the fastest varying index is the leftmost):
-      //transformedInputMap: [input channel, batch and tile, subtile index 0-35]
-      //winogradKernelMap: [output channel, input channel, subtile index 0-35]
-      //transformedOutputMap: [output channel, batch and tile, subtile index 0-35]
-      //And the operation we'd like to perform is
-      //for i = 0 to 35: transformedOutputMap[:,:,i] = gemm(winogradKernelMap[:,:,i], transformedInputMap[:,:,i])
-
-      //But it would be super sweet if we could store these matrices in this order instead:
-      //transformedInputMap: [subtile index 0-35, input channel, batch and tile]
-      //winogradKernelMap: [subtile index 0-35, output channel, input channel]
-      //transformedOutputMap: [subtile index 0-35, output channel, batch and tile]
-      //And do this operation:
-      //for i = 0 to 35: transformedOutputMap[i,:,:] = gemm(winogradKernelMap[i,:,:], transformedInputMap[i,:,:])
-      //
-      //If we actually did this as 36 separate matrix multiplies, then this would suck, because it would destroy
-      //memory locality - elements would be separated by a stride of 36 now.
-      //BUT - one can also view this as a plain matrix multiply, except instead of "float", the primitive unit would be
-      //"vector of length 36" and addition and multiplication simply become pointwise addition and pointwise multiplication.
-      //If there were a library function capable of handling this "interleaved" format and doing it all in one go, then
-      //the benefit would be that in the transform and untransform operations, we would probably get massively better
-      //memory locality. Because in the real matrix, the subtile index 0-36 is one of the fastest-varying indices because
-      //it corresponds to the x,y position within a single winograd tile of the matrix.
-
+      //Also, if eigen were to support *interleaved* matrices (viewing it as a matrix whose element is
+      //a vector of length 36 instead of a float), that might allow for improved transform/untransform implementations.
       for(int dy = 0; dy < inTileYSize; dy++) {
         for(int dx = 0; dx < inTileXSize; dx++) {
           int subTileIdx = dy * inTileXSize + dx;
@@ -654,23 +636,15 @@ struct ConvLayer {
       }
     }
     else {
-    //TODO fix indentation - currently left limited to minimize git diff and merge conflict due to whitespace
-
-    int i_c = input->dimension(0), i_w = input->dimension(1);
-    int i_h = input->dimension(2), i_n = input->dimension(3);
-    assert(i_c == k_ic);
-    Eigen::array<int, 2> as_col_vectors({vector_size, i_w * i_h * i_n});
-    Eigen::array<Eigen::IndexPair<int>, 1> as_matrix_product
-      = {Eigen::IndexPair<int> (1, 0)};
-    Eigen::array<int, 4> output_shape({k_oc, i_w, i_h, i_n});
-    auto cooked_input = input->extract_image_patches(k_w, k_h)
-      .reshape(as_col_vectors);
-    auto convolution = cooked_kernel.contract(cooked_input, as_matrix_product)
-      .reshape(output_shape);
-    if(accumulate)
-      *output += convolution;
-    else
-      *output = convolution;
+      Eigen::array<int, 2> imagePatchColVectorShape({imagePatchSize, xSize*ySize*batchSize});
+      Eigen::array<Eigen::IndexPair<int>, 1> contractionDims = {Eigen::IndexPair<int>(1, 0)};
+      Eigen::array<int, 4> outputShape({outChannels,xSize,ySize,batchSize});
+      auto imagePatches = input->extract_image_patches(convXSize,convYSize).reshape(imagePatchColVectorShape);
+      auto convolution = imagePatchKernel.contract(imagePatches, contractionDims).reshape(outputShape);
+      if(accumulate)
+        *output += convolution;
+      else
+        *output = convolution;
     }
   }
 };
@@ -787,6 +761,7 @@ struct ResidualBlockIntf {
   virtual ~ResidualBlockIntf(){}
 
   virtual void apply(
+    ComputeHandleInternal* handle,
     TENSORMAP4* trunk,
     TENSORMAP4* trunkScratch,
     TENSORMAP4* regularOut,
@@ -833,6 +808,7 @@ struct ResidualBlock final : public ResidualBlockIntf {
   }
 
   void apply(
+    ComputeHandleInternal* handle,
     TENSORMAP4* trunk,
     TENSORMAP4* trunkScratch,
     TENSORMAP4* regularOut,
@@ -856,35 +832,11 @@ struct ResidualBlock final : public ResidualBlockIntf {
     (void)maskSum;
     const bool applyBNRelu = true;
     preBN.apply(applyBNRelu, trunk, trunkScratch, mask);
-    regularConv.apply(trunkScratch, midIn, convWorkspace, false);
+    regularConv.apply(handle, trunkScratch, midIn, convWorkspace, false);
     midBN.apply(applyBNRelu, midIn, midScratch, mask);
-    finalConv.apply(midScratch, trunk, convWorkspace, true);
+    finalConv.apply(handle, midScratch, trunk, convWorkspace, true);
   }
 };
-
-// // Given two tensors with shapes inA: [n, h, w, cA] and inB: [n, h, w, cB]
-// // Copy them into a single tensor out: [n, h, w, cA + cB]
-// TENSOR4 concatTensors(CONSTTENSOR4& a, CONSTTENSOR4& b) {
-//   assert(a->dimension(1) == b->dimension(1) && a->dimension(2) == b->dimension(2) && a->dimension(3) == b->dimension(3));
-//   TENSOR4 x = TENSOR4(/* C */ a->dimension(0) + b->dimension(0),
-//                                           /* W */ a->dimension(1),
-//                                           /* H */ a->dimension(2),
-//                                           /* N */ a->dimension(3));
-//   for (int n = 0; n < a->dimension(3); n++) {
-//     for (int h = 0; h < a->dimension(2); h++) {
-//       for (int w = 0; w < a->dimension(1); w++) {
-//         int c = 0;
-//         for (int ca = 0; a->dimension(0); ca++, c++) {
-//           x(c,w,h,n) = a(ca,w,h,n);
-//         }
-//         for (int cb = 0; b->dimension(0); cb++, c++) {
-//           x(c,w,h,n) = b(cb,w,h,n);
-//         }
-//       }
-//     }
-//   }
-//   return x;
-// }
 
 
 struct GlobalPoolingResidualBlock final : public ResidualBlockIntf {
@@ -928,6 +880,7 @@ struct GlobalPoolingResidualBlock final : public ResidualBlockIntf {
   }
 
   void apply(
+    ComputeHandleInternal* handle,
     TENSORMAP4* trunk,
     TENSORMAP4* trunkScratch,
     TENSORMAP4* regularOut,
@@ -949,9 +902,9 @@ struct GlobalPoolingResidualBlock final : public ResidualBlockIntf {
     DTENSOR("mask", mask);
     preBN.apply(applyBNRelu, trunk, trunkScratch, mask);
     DTENSOR("trunkScratch", trunkScratch);
-    regularConv.apply(trunkScratch, regularOut, convWorkspace, false);
+    regularConv.apply(handle, trunkScratch, regularOut, convWorkspace, false);
     DTENSOR("regularOut", regularOut);
-    gpoolConv.apply(trunkScratch, gpoolOut, convWorkspace, false);
+    gpoolConv.apply(handle, trunkScratch, gpoolOut, convWorkspace, false);
     DTENSOR("gpoolOut", gpoolOut);
     gpoolBN.apply(applyBNRelu, gpoolOut, gpoolOut2, mask);
     DTENSOR("gpoolOut2", gpoolOut2);
@@ -959,7 +912,7 @@ struct GlobalPoolingResidualBlock final : public ResidualBlockIntf {
     gpoolToBiasMul.apply(gpoolConcat, gpoolBias);
     addNCBiasInplace(regularOut, gpoolBias);
     midBN.apply(applyBNRelu, regularOut, regularScratch, mask);
-    finalConv.apply(regularScratch, trunk, convWorkspace, true);
+    finalConv.apply(handle, regularScratch, trunk, convWorkspace, true);
     DSHAPE("trunk", trunk);
     DSHAPE("trunkScratch", trunkScratch);
     DSHAPE("regularOut", regularOut);
@@ -1030,6 +983,7 @@ struct Trunk {
   }
 
   void apply(
+    ComputeHandleInternal* handle,
     CONSTTENSORMAP4* input,
     CONSTTENSORMAP2* inputGlobal,
     TENSORMAP2* inputMatMulOut,
@@ -1048,7 +1002,7 @@ struct Trunk {
     float* convWorkspace
   ) const {
 
-    initialConv.apply(input, trunkScratch, convWorkspace, false);
+    initialConv.apply(handle, input, trunkScratch, convWorkspace, false);
     initialMatMul.apply(inputGlobal, inputMatMulOut);
     addNCBiasInplace(trunkScratch, inputMatMulOut);
 
@@ -1056,6 +1010,7 @@ struct Trunk {
     // Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
     for (auto block : blocks) {
       block.second->apply(
+        handle,
         trunkScratch,
         trunk,
         regularOut,
@@ -1118,6 +1073,7 @@ struct PolicyHead {
   }
 
   void apply(
+    ComputeHandleInternal* handle,
     CONSTTENSORMAP4* trunk,
     TENSORMAP4* p1Out,
     TENSORMAP4* p1Out2,
@@ -1132,14 +1088,14 @@ struct PolicyHead {
     float* convWorkspace
   ) const {
     const bool applyBNRelu = true;
-    p1Conv.apply(trunk, p1Out, convWorkspace, false);
-    g1Conv.apply(trunk, g1Out, convWorkspace, false);
+    p1Conv.apply(handle, trunk, p1Out, convWorkspace, false);
+    g1Conv.apply(handle, trunk, g1Out, convWorkspace, false);
     g1BN.apply(applyBNRelu, g1Out, g1Out2, mask);
     poolRowsGPool(g1Out2, g1Concat, maskSum);
     gpoolToBiasMul.apply(g1Concat, g1Bias);
     addNCBiasInplace(p1Out, g1Bias);
     p1BN.apply(true, p1Out, p1Out2, mask);
-    p2Conv.apply(p1Out2, policy, convWorkspace, false);
+    p2Conv.apply(handle, p1Out2, policy, convWorkspace, false);
     gpoolToPassMul.apply(g1Concat, policyPass);
   }
 };
@@ -1187,6 +1143,7 @@ struct ValueHead {
   }
 
   void apply(
+    ComputeHandleInternal* handle,
     CONSTTENSORMAP4* trunk,
     TENSORMAP4* v1Out,
     TENSORMAP4* v1Out2,
@@ -1200,7 +1157,7 @@ struct ValueHead {
     float* convWorkspace
   ) const {
     bool applyBNRelu = true;
-    v1Conv.apply(trunk, v1Out, convWorkspace, false);
+    v1Conv.apply(handle, trunk, v1Out, convWorkspace, false);
     v1BN.apply(applyBNRelu, v1Out, v1Out2, mask);
     poolRowsValueHead(v1Out2, v1Mean, maskSum);
     v2Mul.apply(v1Mean, v2Out);
@@ -1212,7 +1169,7 @@ struct ValueHead {
     sv3Mul.apply(v2Out, scoreValue);
     sv3Bias.apply(scoreValue);
 
-    vOwnershipConv.apply(v1Out2, ownership, convWorkspace, false);
+    vOwnershipConv.apply(handle, v1Out2, ownership, convWorkspace, false);
   }
 };
 
@@ -1257,6 +1214,7 @@ struct Model {
   }
 
   void apply(
+    ComputeHandleInternal* handle,
     CONSTTENSORMAP4* input,
     CONSTTENSORMAP2* inputGlobal,
     TENSORMAP2* inputMatMulOut,
@@ -1296,6 +1254,7 @@ struct Model {
     computeMaskSum(mask,maskSum);
 
     trunk.apply(
+      handle,
       input,
       inputGlobal,
       inputMatMulOut,
@@ -1314,6 +1273,7 @@ struct Model {
       convWorkspace
     );
     policyHead.apply(
+      handle,
       trunkBuf,
       p1Out,
       p1Out2,
@@ -1328,6 +1288,7 @@ struct Model {
       convWorkspace
     );
     valueHead.apply(
+      handle,
       trunkBuf,
       v1Out,
       v1Out2,
@@ -1475,27 +1436,6 @@ void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
   delete inputBuffers;
 }
 
-// float* NeuralNet::getBatchEltSpatialInplace(InputBuffers* inputBuffers, int nIdx) {
-//   assert(nIdx < inputBuffers->maxBatchSize);
-//   return inputBuffers->spatialInput.data() + (inputBuffers->singleInputElts * nIdx);
-// }
-
-// float* NeuralNet::getBatchEltGlobalInplace(InputBuffers* inputBuffers, int rowIdx) {
-//   assert(rowIdx < inputBuffers->maxBatchSize);
-//   return inputBuffers->globalInput.data() + (inputBuffers->singleInputGlobalElts * rowIdx);
-// }
-
-// int NeuralNet::getBatchEltSpatialLen(const InputBuffers* inputBuffers) {
-//   return inputBuffers->singleInputElts;
-// }
-// int NeuralNet::getBatchEltGlobalLen(const InputBuffers* inputBuffers) {
-//   return inputBuffers->singleInputGlobalElts;
-// }
-
-// bool* NeuralNet::getSymmetriesInplace(InputBuffers* inputBuffers) {
-//   return inputBuffers->symmetriesBuffer;
-// }
-
 
 // NeuralNet -----------------------------------------------------------------------------------------------------------
 
@@ -1513,6 +1453,7 @@ struct ComputeHandle {
   bool inputsUseNHWC;
   Model model;
   Buffers* buffers;
+  ComputeHandleInternal handleInternal;
 
   ComputeHandle() = delete;
   ComputeHandle(const ComputeHandle&) = delete;
@@ -1522,7 +1463,8 @@ struct ComputeHandle {
     : context(ctx),
       maxBatchSize(maxBSize),
       inputsUseNHWC(iNHWC),
-      model(loadedModel.modelDesc,context->nnXLen,context->nnYLen,maxBSize)
+      model(loadedModel.modelDesc,context->nnXLen,context->nnYLen,maxBSize),
+      handleInternal()
   {
     buffers = new Buffers(loadedModel.modelDesc,model,maxBSize,ctx->nnXLen,ctx->nnYLen);
   }
@@ -1630,6 +1572,7 @@ void NeuralNet::getOutput(
   vector<float>& convWorkspace = buffers.convWorkspace;
 
   computeHandle->model.apply(
+    &computeHandle->handleInternal,
     &input,
     &inputGlobal,
     &inputMatMulOut,
@@ -1755,7 +1698,8 @@ bool NeuralNet::testEvaluateConv(
   size_t convWorkspaceElts = layer.requiredConvWorkspaceElts(batchSize);
   vector<float> convWorkspace(convWorkspaceElts);
 
-  layer.apply(&inTensor, &outTensor, convWorkspace.data(), false);
+  ComputeHandleInternal handle;
+  layer.apply(&handle, &inTensor, &outTensor, convWorkspace.data(), false);
 
   outputBuffer.resize(outTensorBuf.size());
   memcpy(outputBuffer.data(), outTensorBuf.data(), sizeof(SCALAR) * outTensorBuf.size());
@@ -1789,10 +1733,6 @@ bool NeuralNet::testEvaluateBatchNorm(
   return true;
 }
 
-// CR lpuchallafiore: test evaluate activation layer.
-// CR lpuchallafiore: test evaluate matmul layer.
-// CR lpuchallafiore: test evaluate matbias layer.
-
 bool NeuralNet::testEvaluateResidualBlock(
   const ResidualBlockDesc* desc,
   int batchSize,
@@ -1824,7 +1764,9 @@ bool NeuralNet::testEvaluateResidualBlock(
 
   trunk = inTensor;
 
+  ComputeHandleInternal handle;
   block.apply(
+    &handle,
     &trunk,
     &trunkScratch,
     NULL,
@@ -1888,7 +1830,9 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
 
   trunk = inTensor;
 
+  ComputeHandleInternal handle;
   block.apply(
+    &handle,
     &trunk,
     &trunkScratch,
     &regularOut,
@@ -1911,7 +1855,3 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
 }
 
 #endif  // USE_EIGEN_BACKEND
-
-// CR lpuchallafiore: test evaluate Trunk
-// CR lpuchallafiore: test evaluate Policy Head
-// CR lpuchallafiore: test evaluate Value Head

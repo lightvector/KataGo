@@ -18,6 +18,7 @@ Sander Land ("sanderland") - priority, rootInfo, includePolicy options for analy
 Alexander Noack ("shammyx") - minor customization for resign logic
 "yffbit" - minor optimization for benson's algorithm
 Michael Reilly ("OmnipotentEntity") - minor workaround for CUDA on some cmake versions
+Hiraoka ("kaorahi") - for help optimizing Eigen backend
 
 Separately from the authors of the content in this repo, additional special thanks to:
 Junyan Xu ("alreadydone") - for much testing and troubleshooting for Windows support
