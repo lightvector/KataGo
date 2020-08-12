@@ -84,7 +84,8 @@ namespace NeuralNet {
     int maxBatchSize,
     bool requireExactNNLen,
     bool inputsUseNHWC,
-    int gpuIdxForThisThread
+    int gpuIdxForThisThread,
+    int serverThreadIdx
   );
   void freeComputeHandle(ComputeHandle* computeHandle);
 

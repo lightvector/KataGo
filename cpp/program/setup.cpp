@@ -132,8 +132,23 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnRandSeed = Global::uint64ToString(seedRand.nextUInt64());
     logger.write("nnRandSeed" + idxStr + " = " + nnRandSeed);
 
+#ifndef USE_EIGEN_BACKEND
     int numNNServerThreadsPerModel =
       cfg.contains("numNNServerThreadsPerModel") ? cfg.getInt("numNNServerThreadsPerModel",1,1024) : 1;
+#else
+    int numSearchThreads =
+      cfg.contains("numSearchThreads0") ? cfg.getInt("numSearchThreads0", 1, 4096) :
+      cfg.contains("numSearchThreads") ? cfg.getInt("numSearchThreads", 1, 4096) :
+      1;
+    int numNNServerThreadsPerModel =
+      cfg.contains("numNNServerThreadsPerModel") ? cfg.getInt("numNNServerThreadsPerModel",1,1024) :
+      setupFor == SETUP_FOR_DISTRIBUTED ? 16 :
+      setupFor == SETUP_FOR_MATCH ? std::max(numSearchThreads*2,16) :
+      setupFor == SETUP_FOR_ANALYSIS ? std::max(numSearchThreads*2,16) :
+      setupFor == SETUP_FOR_GTP ? numSearchThreads :
+      setupFor == SETUP_FOR_BENCHMARK ? numSearchThreads :
+      cfg.getInt("numNNServerThreadsPerModel",1,1024);
+#endif
 
     vector<int> gpuIdxByServerThread;
     for(int j = 0; j<numNNServerThreadsPerModel; j++) {

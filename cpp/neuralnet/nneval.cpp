@@ -271,7 +271,8 @@ void NNEvaluator::clearCache() {
 static void serveEvals(
   string randSeedThisThread,
   NNEvaluator* nnEval, const LoadedModel* loadedModel,
-  int gpuIdxForThisThread
+  int gpuIdxForThisThread,
+  int serverThreadIdx
 ) {
   NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
   Rand rand(randSeedThisThread);
@@ -279,8 +280,15 @@ static void serveEvals(
   //Used to have a try catch around this but actually we're in big trouble if this raises an exception
   //and causes possibly the only nnEval thread to die, so actually go ahead and let the exception escape to
   //toplevel for easier debugging
-  nnEval->serve(*buf,rand,gpuIdxForThisThread);
+  nnEval->serve(*buf,rand,gpuIdxForThisThread,serverThreadIdx);
   delete buf;
+}
+
+void NNEvaluator::setNumThreads(const vector<int>& gpuIdxByServerThr) {
+  if(serverThreads.size() != 0)
+    throw StringError("NNEvaluator::setNumThreads called when threads were already running!");
+  numThreads = gpuIdxByServerThr.size();
+  gpuIdxByServerThread = gpuIdxByServerThr;
 }
 
 void NNEvaluator::spawnServerThreads() {
@@ -293,7 +301,7 @@ void NNEvaluator::spawnServerThreads() {
     string randSeedThisThread = randSeed + ":NNEvalServerThread:" + Global::intToString(numServerThreadsEverSpawned);
     numServerThreadsEverSpawned++;
     std::thread* thread = new std::thread(
-      &serveEvals,randSeedThisThread,this,loadedModel,gpuIdxForThisThread
+      &serveEvals,randSeedThisThread,this,loadedModel,gpuIdxForThisThread,i
     );
     serverThreads.push_back(thread);
   }
@@ -321,7 +329,8 @@ void NNEvaluator::killServerThreads() {
 
 void NNEvaluator::serve(
   NNServerBuf& buf, Rand& rand,
-  int gpuIdxForThisThread
+  int gpuIdxForThisThread,
+  int serverThreadIdx
 ) {
 
   ComputeHandle* gpuHandle = NULL;
@@ -333,7 +342,8 @@ void NNEvaluator::serve(
       maxNumRows,
       requireExactNNLen,
       inputsUseNHWC,
-      gpuIdxForThisThread
+      gpuIdxForThisThread,
+      serverThreadIdx
     );
 
   {

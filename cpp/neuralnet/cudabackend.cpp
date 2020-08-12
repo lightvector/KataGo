@@ -2607,7 +2607,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
   int maxBatchSize,
   bool requireExactNNLen,
   bool inputsUseNHWC,
-  int gpuIdxForThisThread
+  int gpuIdxForThisThread,
+  int serverThreadIdx
 ) {
   //Use whatever CUDA believes GPU 0 to be.
   if(gpuIdxForThisThread == -1)
@@ -2655,18 +2656,18 @@ ComputeHandle* NeuralNet::createComputeHandle(
 
   if(logger != NULL) {
     logger->write(
-      "Cuda backend: Found GPU " + string(prop.name)
+      "Cuda backend thread " + Global::intToString(serverThreadIdx) + ": Found GPU " + string(prop.name)
       + " memory " + Global::uint64ToString(prop.totalGlobalMem)
       + " compute capability major " + Global::intToString(prop.major)
       + " minor " + Global::intToString(prop.minor)
     );
     logger->write(
-      "Cuda backend: Model version " + Global::intToString(loadedModel->modelDesc.version) +
+      "Cuda backend thread " + Global::intToString(serverThreadIdx) + ": Model version " + Global::intToString(loadedModel->modelDesc.version) +
       " useFP16 = " + Global::boolToString(useFP16) +
       " useNHWC = " + Global::boolToString(useNHWC)
     );
     logger->write(
-      "Cuda backend: Model name: " + loadedModel->modelDesc.name
+      "Cuda backend thread " + Global::intToString(serverThreadIdx) + ": Model name: " + loadedModel->modelDesc.name
     );
   }
 

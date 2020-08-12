@@ -146,6 +146,9 @@ class NNEvaluator {
   //should have calls to it and spawnServerThreads singlethreaded.
   void killServerThreads();
 
+  //Set the number of threads and what gpus they use. Only call this if threads are not spawned yet, or have been killed.
+  void setNumThreads(const std::vector<int>& gpuIdxByServerThr);
+
   //These are thread-safe. Setting them in the middle of operation might only affect future
   //neural net evals, rather than any in-flight.
   bool getDoRandomize() const;
@@ -170,8 +173,8 @@ class NNEvaluator {
   const bool inputsUseNHWC;
   const enabled_t usingFP16Mode;
   const enabled_t usingNHWCMode;
-  const int numThreads;
-  const std::vector<int> gpuIdxByServerThread;
+  int numThreads;
+  std::vector<int> gpuIdxByServerThread;
   const std::string randSeed;
   const bool debugSkipNeuralNet;
 
@@ -218,7 +221,7 @@ class NNEvaluator {
 
  public:
   //Helper, for internal use only
-  void serve(NNServerBuf& buf, Rand& rand,int gpuIdxForThisThread);
+  void serve(NNServerBuf& buf, Rand& rand, int gpuIdxForThisThread, int serverThreadIdx);
 };
 
 #endif  // NEURALNET_NNEVAL_H_

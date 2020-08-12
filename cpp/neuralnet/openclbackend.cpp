@@ -2399,7 +2399,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
   int maxBatchSize,
   bool requireExactNNLen,
   bool inputsUseNHWC,
-  int gpuIdxForThisThread
+  int gpuIdxForThisThread,
+  int serverThreadIdx
 ) {
   auto deviceStr = [&]() {
     if(gpuIdxForThisThread < 0)
@@ -2408,8 +2409,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
   };
 
   if(logger != NULL) {
-    logger->write("OpenCL backend:" + deviceStr() + " Model version " + Global::intToString(loadedModel->modelDesc.version));
-    logger->write("OpenCL backend:" + deviceStr() + " Model name: " + loadedModel->modelDesc.name);
+    logger->write("OpenCL backend thread " + Global::intToString(serverThreadIdx) + ":" + deviceStr() + " Model version " + Global::intToString(loadedModel->modelDesc.version));
+    logger->write("OpenCL backend thread " + Global::intToString(serverThreadIdx) + ":" + deviceStr() + " Model name: " + loadedModel->modelDesc.name);
   }
 
   //Current implementation always tolerates excess nn len
@@ -2418,7 +2419,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
 
   if(logger != NULL) {
     logger->write(
-      "OpenCL backend:" + deviceStr() +
+      "OpenCL backend thread " + Global::intToString(serverThreadIdx) + ":" + deviceStr() +
       " FP16Storage " + Global::boolToString(handle->usingFP16Storage) +
       " FP16Compute " + Global::boolToString(handle->usingFP16Compute) +
       " FP16TensorCores " + Global::boolToString(handle->usingFP16TensorCores)

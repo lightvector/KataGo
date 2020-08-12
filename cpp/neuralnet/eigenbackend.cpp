@@ -1481,11 +1481,12 @@ ComputeHandle* NeuralNet::createComputeHandle(
   int maxBatchSize,
   bool requireExactNNLen,
   bool inputsUseNHWC,
-  int gpuIdxForThisThread
+  int gpuIdxForThisThread,
+  int serverThreadIdx
 ) {
   if(logger != NULL) {
-    logger->write("Eigen (CPU) backend: Model version " + Global::intToString(loadedModel->modelDesc.version));
-    logger->write("Eigen (CPU) backend: Model name: " + loadedModel->modelDesc.name);
+    logger->write("Eigen (CPU) backend thread " + Global::intToString(serverThreadIdx) + ": Model version " + Global::intToString(loadedModel->modelDesc.version));
+    logger->write("Eigen (CPU) backend thread " + Global::intToString(serverThreadIdx) + ": Model name: " + loadedModel->modelDesc.name);
   }
 
   (void)requireExactNNLen; //We don't bother with mask optimizations if we know exact sizes right now.
