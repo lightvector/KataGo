@@ -303,6 +303,11 @@ static void setNumThreads(SearchParams& params, NNEvaluator* nnEval, Logger& log
   //Also since we killed and respawned all the threads, re-warm them
   Rand seedRand;
   warmStartNNEval(sgf,logger,params,nnEval,seedRand);
+#else
+  (void)nnEval;
+  (void)logger;
+  (void)numThreads;
+  (void)sgf;
 #endif
 }
 
