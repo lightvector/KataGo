@@ -85,6 +85,12 @@ Explanation of fields (including some optional fields not present in the above q
    * `includeOwnership (boolean)`: Optional. If true, report ownership prediction as a result. Will double memory usage and reduce performance slightly.
    * `includePolicy (boolean)`: Optional. If true, report neural network raw policy as a result. Will not signficiantly affect performance.
    * `includePVVisits (boolean)`: Optional. If true, report the number of visits for each move in any reported pv.
+   * `avoidMoves (list of dicts)`: Optional. If true, UNTILDEPTH` - Prohibit the search from exploring the specified moves for the specified player, until a certain number of ply deep in the search. Each dict must contain these fields:
+      * `player` - the player to prohibit, `"B"` or `"W"`.
+      * `moves` - an array of move locations to prohibit, such as `["C3","Q4","pass"]`
+      * `untilDepth` - a positive integer, indicating the ply such that moves are prohibited before that ply.
+      * Multiple dicts can specify different `untilDepth` for different sets of moves. The behavior is unspecified if a move is specified more than once with different `untilDepth`.
+   * `allowMoves (list of dicts)`: Optional. Same as `avoidMoves` except prohibits all moves EXCEPT the moves specified. Currently, the list of dicts must also be length 1.
    * `overrideSettings (object)`: Optional. Specify any number of `paramName:value` entries in this object to override those params from command line `CONFIG_FILE` for this query. Most search parameters can be overriden: `cpuctExploration`, `winLossUtilityFactor`, etc.
    * `priority (int)`: Optional. Analysis threads will prefer handling queries with the highest priority unless already started on another task, breaking ties in favor of earlier queries. If not specified, defaults to 0.
 

@@ -69,8 +69,9 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `interval CENTISECONDS` - Output a line every this many centiseconds. Alternate way to specify interval besides as the second argument.
          * `minmoves N` - Output stats for at least N different legal moves if possible (will likely cause KataGo to output stats on 0-visit moves)
          * `maxmoves N` - Output stats for at most N different legal moves (NOTE: Leela Zero does NOT currently support this field)
-         * `allow ...` - Not currently implemented in KataGo.
-         * `avoid ...` - Not currently implemented in KataGo.
+         * `avoid PLAYER VERTEX,VERTEX,... UNTILDEPTH` - Prohibit the search from exploring the specified moves for the specified player, until `UNTILDEPTH` ply deep in the search.
+            * May be supplied multiple times with different `UNTILDEPTH` for different sets of moves. The behavior is unspecified if a move is specified more than once with different `UNTILDEPTH`.
+         * `allow PLAYER VERTEX,VERTEX,... UNTILDEPTH` - Equivalent to `avoid` on all vertices EXCEPT for the specified vertices. Can only be specified once, and cannot be specified at the same time as `avoid`.
       * Output format:
          * Outputted lines look like `info move E4 visits 1178 winrate 4802 prior 2211 lcb 4781 order 0 pv E4 E3 F3 D3 F4 P4 P3 O3 Q3 O4 K3 Q6 S6 E16 E17 info move P16 visits 1056 winrate 4796 prior 2206 lcb 4769 order 1 pv P16 P17 O17 Q17 O16 E16 E17 F17 D17 F16 K17 D14 B14 P3 info move E3 visits 264 winrate 4752 prior 944 lcb 4722 order 2 pv E3 D5 P16 P17 O17 Q17 O16 E17 H17 D15 C15 D14 info move E16 visits 262 winrate 4741 prior 1047 lcb 4709 order 3 pv E16 P4 P3 O3 Q3 O4 P16 P17 O17 Q17 O16 Q14`
          * `info` - Indicates the start of information for a new possible move

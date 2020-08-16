@@ -167,15 +167,25 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
   if(numChildren == 0) {
     if(nnOutput == nullptr || &node != rootNode || !allowDirectPolicyMoves)
       return false;
-    for(int movePos = 0; movePos<policySize; movePos++) {
-      Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
-      float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
-      double policyProb = policyProbs[movePos];
-      if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb < 0 || !isAllowedRootMove(moveLoc))
+
+    bool obeyAllowedRootMove = true;
+    while(true) {
+      for(int movePos = 0; movePos<policySize; movePos++) {
+        Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
+        float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+        double policyProb = policyProbs[movePos];
+        if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb < 0 || (obeyAllowedRootMove && !isAllowedRootMove(moveLoc)))
+          continue;
+        locs.push_back(moveLoc);
+        playSelectionValues.push_back(policyProb);
+        numChildren++;
+      }
+      //Still no children? Then at this point just ignore isAllowedRootMove.
+      if(numChildren == 0 && obeyAllowedRootMove) {
+        obeyAllowedRootMove = false;
         continue;
-      locs.push_back(moveLoc);
-      playSelectionValues.push_back(policyProb);
-      numChildren++;
+      }
+      break;
     }
   }
 
