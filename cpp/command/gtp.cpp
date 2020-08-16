@@ -620,6 +620,7 @@ struct GTPEngine {
     int minMoves = 0;
     int maxMoves = 10000000;
     bool showOwnership = false;
+    bool showPVVisits = false;
     double secondsPerReport = 1e30;
   };
 
@@ -658,6 +659,13 @@ struct GTPEngine {
             data.writePVUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
           else
             data.writePV(cout,board);
+          if(args.showPVVisits) {
+            cout << " pvVisits ";
+            if(preventEncore && data.pvContainsPass())
+              data.writePVVisitsUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
+            else
+              data.writePVVisits(cout);
+          }
         }
         cout << endl;
       };
@@ -724,6 +732,13 @@ struct GTPEngine {
             data.writePVUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
           else
             data.writePV(out,board);
+          if(args.showPVVisits) {
+            out << " pvVisits ";
+            if(preventEncore && data.pvContainsPass())
+              data.writePVVisitsUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
+            else
+              data.writePVVisits(out);
+          }
         }
 
         if(args.showOwnership) {
@@ -1206,6 +1221,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
   int minMoves = 0;
   int maxMoves = 10000000;
   bool showOwnership = false;
+  bool showPVVisits = false;
 
   parseFailed = false;
 
@@ -1218,6 +1234,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
   //minmoves <int min number of moves to show>
   //maxmoves <int max number of moves to show>
   //ownership <bool whether to show ownership or not>
+  //pvVisits <bool whether to show pvVisits or not>
 
   //Parse optional player
   if(pieces.size() > numArgsParsed && PlayerIO::tryParsePlayer(pieces[numArgsParsed],pla))
@@ -1272,6 +1289,9 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
     else if(isKata && key == "ownership" && Global::tryStringToBool(value,showOwnership)) {
       continue;
     }
+    else if(isKata && key == "pvVisits" && Global::tryStringToBool(value,showPVVisits)) {
+      continue;
+    }
 
     parseFailed = true;
     break;
@@ -1286,6 +1306,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
   args.minMoves = minMoves;
   args.maxMoves = maxMoves;
   args.showOwnership = showOwnership;
+  args.showPVVisits = showPVVisits;
   return args;
 }
 

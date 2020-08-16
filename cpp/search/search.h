@@ -298,9 +298,9 @@ struct Search {
   void getAnalysisData(const SearchNode& node, std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
 
   //Append the PV from node n onward (not including node n's move)
-  void appendPV(std::vector<Loc>& buf, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues, const SearchNode* n, int maxDepth) const;
+  void appendPV(std::vector<Loc>& buf, std::vector<int64_t>& visitsBuf, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues, const SearchNode* n, int maxDepth) const;
   //Append the PV from node n for specified move, assuming move is a child move of node n
-  void appendPVForMove(std::vector<Loc>& buf, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues, const SearchNode* n, Loc move, int maxDepth) const;
+  void appendPVForMove(std::vector<Loc>& buf, std::vector<int64_t>& visitsBuf, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues, const SearchNode* n, Loc move, int maxDepth) const;
 
   //Get the ownership map averaged throughout the search tree.
   //Must have ownership present on all neural net evals.

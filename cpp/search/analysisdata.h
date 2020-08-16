@@ -25,6 +25,7 @@ struct AnalysisData {
   double weightFactor; //Due to child value weighting
   int order; //Preference order of the moves, 0 is best
   std::vector<Loc> pv;
+  std::vector<int64_t> pvVisits;
 
   const SearchNode* node; //ONLY valid so long as search is not cleared
 
@@ -38,7 +39,9 @@ struct AnalysisData {
 
   bool pvContainsPass() const;
   void writePV(std::ostream& out, const Board& board) const;
+  void writePVVisits(std::ostream& out) const;
   void writePVUpToPhaseEnd(std::ostream& out, const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const;
+  void writePVVisitsUpToPhaseEnd(std::ostream& out, const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const;
   int getPVLenUpToPhaseEnd(const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const;
 };
 

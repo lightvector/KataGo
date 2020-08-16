@@ -29,6 +29,7 @@ struct AnalyzeRequest {
   int analysisPVLen;
   bool includeOwnership;
   bool includePolicy;
+  bool includePVVisits;
 };
 
 int MainCmds::analysis(int argc, const char* const* argv) {
@@ -240,6 +241,13 @@ int MainCmds::analysis(int argc, const char* const* argv) {
           pv.push_back(Location::toString(data.pv[j],request->board));
         moveInfo["pv"] = pv;
 
+        if(request->includePVVisits) {
+          assert(data.pvVisits.size() >= pvLen);
+          json pvVisits = json::array();
+          for(int j = 0; j<pvLen; j++)
+            pvVisits.push_back(data.pvVisits[j]);
+          moveInfo["pvVisits"] = pvVisits;
+        }
         moveInfos.push_back(moveInfo);
       }
       ret["moveInfos"] = moveInfos;
@@ -373,6 +381,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     rbase.analysisPVLen = analysisPVLen;
     rbase.includeOwnership = false;
     rbase.includePolicy = false;
+    rbase.includePVVisits = false;
     rbase.priority = 0;
 
     auto parseInteger = [&input,&rbase,&reportErrorForId](const char* field, int64_t& buf, int64_t min, int64_t max, const char* errorMessage) {
@@ -682,6 +691,11 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       if(!suc)
         continue;
     }
+    if(input.find("includePVVisits") != input.end()) {
+      bool suc = parseBoolean("includePVVisits", rbase.includePVVisits, "Must be a boolean");
+      if(!suc)
+        continue;
+    }
     if(input.find("priority") != input.end()) {
       int64_t buf;
       bool suc = parseInteger("priority", buf, -0x7FFFFFFF,0x7FFFFFFF, "Must be a number from -2,147,483,647 to 2,147,483,647");
@@ -732,6 +746,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         newRequest->analysisPVLen = rbase.analysisPVLen;
         newRequest->includeOwnership = rbase.includeOwnership;
         newRequest->includePolicy = rbase.includePolicy;
+        newRequest->includePVVisits = rbase.includePVVisits;
         newRequest->priority = rbase.priority;
         newRequests.push_back(newRequest);
       }
