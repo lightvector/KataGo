@@ -2200,7 +2200,7 @@ void OpenCLTuner::tune(
     bool shouldTestFP16 = testFP16Mode != enabled_t::False;
     //Try FP16 if allowed
     if(!shouldTestFP16) {
-      cout << "Not enabling FP16 for anything since FP16 disabled" << endl;
+      out << "Not enabling FP16 for anything since FP16 disabled" << endl;
     }
     else {
       const double bestKernelsPerSecondFP32Only = bestKernelsPerSecond;
@@ -2235,7 +2235,7 @@ void OpenCLTuner::tune(
         }
         else if(bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP < bestKernelsPerSecond) {
           currentConfig = result16;
-          cout << "FP16 tensor cores not significantly faster, not enabling" << endl;
+          out << "FP16 tensor cores not significantly faster, not enabling" << endl;
         }
         else {
           currentConfig = result16;
@@ -2243,7 +2243,7 @@ void OpenCLTuner::tune(
           currentConfig.shouldUseFP16TensorCores = true;
           bestKernelsPerSecond = bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP;
           foundGoodFP16 = true;
-          cout << "Enabling FP16 tensor cores due to better performance" << endl;
+          out << "Enabling FP16 tensor cores due to better performance" << endl;
         }
       }
 
@@ -2275,12 +2275,12 @@ void OpenCLTuner::tune(
         }
         else if(bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP < bestKernelsPerSecondFP32Only) {
           currentConfig = result16;
-          cout << "FP16 compute not significantly faster, not enabling" << endl;
+          out << "FP16 compute not significantly faster, not enabling" << endl;
         }
         else if(bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP < bestKernelsPerSecond) {
           currentConfig = result16;
           currentConfig.shouldUseFP16Compute = true;
-          cout << "FP16 compute not significantly faster than tensor cores, using it generally but using tensor cores for convs" << endl;
+          out << "FP16 compute not significantly faster than tensor cores, using it generally but using tensor cores for convs" << endl;
         }
         else {
           currentConfig = result16;
@@ -2289,7 +2289,7 @@ void OpenCLTuner::tune(
           currentConfig.shouldUseFP16TensorCores = false;
           bestKernelsPerSecond = bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP;
           foundGoodFP16 = true;
-          cout << "Enabling FP16 compute due to better performance" << endl;
+          out << "Enabling FP16 compute due to better performance" << endl;
         }
       }
 
@@ -2321,7 +2321,7 @@ void OpenCLTuner::tune(
           out << "FP16 storage tuning failed, assuming no FP16 storage support" << endl;
         }
         else if(bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP < bestKernelsPerSecond) {
-          cout << "FP16 storage not significantly faster, not enabling on its own" << endl;
+          out << "FP16 storage not significantly faster, not enabling on its own" << endl;
         }
         else {
           currentConfig = result16;
@@ -2330,7 +2330,7 @@ void OpenCLTuner::tune(
           currentConfig.shouldUseFP16TensorCores = false;
           bestKernelsPerSecond = bestKernelsPerSecond16 / FP16_REQUIRED_SPEEDUP;
           foundGoodFP16 = true;
-          cout << "Enabling FP16 storage due to better performance" << endl;
+          out << "Enabling FP16 storage due to better performance" << endl;
         }
       }
     }
