@@ -14,7 +14,7 @@ Martin Häcker ("dwt") - minor bugfix, MacOS support, commandline improvements
 "yenw" - simple compile fix on MacOS.
 Adrian Petrescu ("apetresc") - MacOS support
 Anson Hu ("farmersrice") - frontend features and logic
-Sander Land ("sanderland") - priority, rootInfo, includePolicy options for analysis engine
+Sander Land ("sanderland") - many options for analysis engine, various bugfixes and other work
 Alexander Noack ("shammyx") - minor customization for resign logic
 "yffbit" - minor optimization for benson's algorithm
 Michael Reilly ("OmnipotentEntity") - minor workaround for CUDA on some cmake versions
