@@ -364,8 +364,8 @@ struct ConvLayer {
 
       TENSOR4 kernel = TensorMap<const Tensor<const SCALAR, 4>>(desc.weights.data(), convXSize, convYSize, inChannels, outChannels);
       imagePatchSize = convXSize * convYSize * inChannels;
-      Eigen::array<int, 4> dimensionPermutatation({3, 2, 0, 1});
-      Eigen::array<int, 2> newShape({outChannels, imagePatchSize});
+      Eigen::array<Eigen::Index, 4> dimensionPermutatation = {3, 2, 0, 1};
+      Eigen::array<Eigen::Index, 2> newShape = {outChannels, imagePatchSize};
       imagePatchKernel = kernel.shuffle(dimensionPermutatation).reshape(newShape);
     }
   }
@@ -374,7 +374,7 @@ struct ConvLayer {
     if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
       constexpr int inTileXSize = 6;
       constexpr int inTileYSize = 6;
-      int totalChannelsRounded = roundUpToMultiple(inChannels,32) + roundUpToMultiple(outChannels,32);
+      size_t totalChannelsRounded = roundUpToMultiple(inChannels,32) + roundUpToMultiple(outChannels,32);
       size_t sizeForTransforms = totalChannelsRounded * maxBatchSize * numTilesY * numTilesX * inTileXSize * inTileYSize;
       size_t sizeForTileBufs = 2 * inTileXSize * inTileYSize * roundUpToMultiple(std::max(inChannels,outChannels),32);
       return sizeForTransforms + sizeForTileBufs;
@@ -636,9 +636,9 @@ struct ConvLayer {
       }
     }
     else {
-      Eigen::array<int, 2> imagePatchColVectorShape({imagePatchSize, xSize*ySize*batchSize});
+      Eigen::array<Eigen::Index, 2> imagePatchColVectorShape = {imagePatchSize, xSize*ySize*batchSize};
       Eigen::array<Eigen::IndexPair<int>, 1> contractionDims = {Eigen::IndexPair<int>(1, 0)};
-      Eigen::array<int, 4> outputShape({outChannels,xSize,ySize,batchSize});
+      Eigen::array<Eigen::Index, 4> outputShape = {outChannels,xSize,ySize,batchSize};
       auto imagePatches = input->extract_image_patches(convXSize,convYSize).reshape(imagePatchColVectorShape);
       auto convolution = imagePatchKernel.contract(imagePatches, contractionDims).reshape(outputShape);
       if(accumulate)
