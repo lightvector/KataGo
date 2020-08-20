@@ -74,7 +74,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> sgfFileArg("","sgf", "Optional game to sample positions from (default: uses a built-in-set of positions)",false,string(),"FILE");
     TCLAP::ValueArg<int> boardSizeArg("","boardsize", "Size of board to benchmark on (9-19), default 19",false,-1,"SIZE");
     TCLAP::SwitchArg autoTuneThreadsArg("s","tune","Automatically search for the optimal number of threads (default if not specifying specific numbers of threads)");
-    TCLAP::ValueArg<int> secondsPerGameMoveArg("i","time","Typical amount of time per move spent while playing, in seconds (default " +
+    TCLAP::ValueArg<double> secondsPerGameMoveArg("i","time","Typical amount of time per move spent while playing, in seconds (default " +
                                                Global::doubleToString(defaultSecondsPerGameMove) + ")",false,defaultSecondsPerGameMove,"SECONDS");
     cmd.add(visitsArg);
     cmd.add(threadsArg);

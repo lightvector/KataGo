@@ -197,7 +197,7 @@ void AnalysisData::writePVVisitsUpToPhaseEnd(std::ostream& out, const Board& ini
   for(int j = 0; j<pv.size(); j++) {
     if(j > 0)
       out << " ";
-    out << Location::toString(pvVisits[j],board);
+    out << pvVisits[j];
 
     hist.makeBoardMoveAssumeLegal(board,pv[j],nextPla,NULL);
     nextPla = getOpp(nextPla);

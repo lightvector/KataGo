@@ -733,6 +733,10 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
         }
       }
     }
+
+    if(nextMatchupsBuf.size() <= 0)
+      throw StringError("MatchPairer::getMatchupPairUnsynchronized: no matchups generated");
+    
     //Shuffle
     for(int i = nextMatchupsBuf.size()-1; i >= 1; i--) {
       int j = (int)rand.nextUInt(i+1);
