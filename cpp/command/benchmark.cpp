@@ -63,7 +63,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   vector<int> numThreadsToTest;
   int numPositionsPerGame;
   bool autoTuneThreads;
-  int secondsPerGameMove;
+  double secondsPerGameMove;
   try {
     KataGoCommandLine cmd("Benchmark with gtp config to test speed with different numbers of threads.");
     cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
