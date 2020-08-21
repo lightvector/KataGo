@@ -100,7 +100,7 @@ cl_program OpenCLHelpers::compileProgram(const string& name, cl_context context,
 
   const string opts = options + " -cl-mad-enable -cl-fast-relaxed-math -cl-no-signed-zeros -cl-denorms-are-zero";
 
-  err = clBuildProgram(program, 0, NULL, opts.c_str(), NULL, NULL);
+  err = clBuildProgram(program, devices.size(), devices.data(), opts.c_str(), NULL, NULL);
   if(err != 0) {
     string s;
     s += OpenCLHelpers::getErrorMessage(err) + string("\n");
