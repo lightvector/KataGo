@@ -886,31 +886,23 @@ static void tuneXGemmDirect(
     string compileError;
     bool compileSuc = tryCompileProgram(
       "xgemmDirectProgram", context, deviceIdsToUse, OpenCLKernels::xgemmDirect,
-      cfg.xGemmDirect.compileOptions(),
+      cfg.xGemmDirect.compileOptions() + " -DROUTINE_GEMMSTRIDEDBATCHED",
       program, compileError
     );
     if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
-    cl_kernel kernel = clCreateKernel(program, "XgemmDirectBatchedNN", &err);
+    cl_kernel kernel = clCreateKernel(program, "XgemmDirectStridedBatchedNN", &err);
     if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
-    int numTilesX = (nnXLen + cfg.conv3x3.OUTTILE_XSIZE - 1) / cfg.conv3x3.OUTTILE_XSIZE;
-    int numTilesY = (nnYLen + cfg.conv3x3.OUTTILE_YSIZE - 1) / cfg.conv3x3.OUTTILE_YSIZE;
-    int numTilesTotal = batchSize * numTilesX * numTilesY;
-
-    int inTileXSize = cfg.conv3x3.INTILE_XSIZE;
-    int inTileYSize = cfg.conv3x3.INTILE_YSIZE;
-    int inTileXYSize = inTileXSize * inTileYSize;
-
-    int maxChannels = model->maxConvChannels(3,3);
+    int maxChannels = model->maxConvChannels(1,1);
     maxChannels = std::max(model->trunk.trunkNumChannels,maxChannels);
     maxChannels = std::max(model->trunk.midNumChannels,maxChannels);
     maxChannels = std::max(model->trunk.regularNumChannels,maxChannels);
     maxChannels = std::max(model->trunk.gpoolNumChannels,maxChannels);
 
-    int ioNumFloats = numTilesTotal * maxChannels * inTileXYSize;
-    int filterNumFloats = maxChannels * maxChannels * inTileXYSize;
-    cl_mem input = randomReadOnlyBufferFloat("tuneXGemmDirect3x3Input", context, ioNumFloats, 1.0);
-    cl_mem filter = randomReadOnlyBufferFloat("tuneXGemmDirect3x3Filter", context, filterNumFloats, 1.0 / sqrt(maxChannels * 3 * 3));
+    int ioNumFloats = batchSize*nnXLen*nnYLen*maxChannels;
+    int filterNumFloats = maxChannels * maxChannels;
+    cl_mem input = randomReadOnlyBufferFloat("tuneXGemmDirectInput", context, ioNumFloats, 1.0);
+    cl_mem filter = randomReadOnlyBufferFloat("tuneXGemmDirectFilter", context, filterNumFloats, 1.0 / sqrt(maxChannels));
     cl_mem output = createReadWriteBufferFloat(context, ioNumFloats);
 
     const int reps = 6;
@@ -929,14 +921,19 @@ static void tuneXGemmDirect(
       default: ASSERT_UNREACHABLE; break;
       }
 
+      int filterStride = 0; //Reuse same filter for all matrices in batch
+      int inputStride = nnXLen*nnYLen * inChannels;
+      int outputStride = nnXLen*nnYLen * outChannels;
+
       cl_event event;
-      err = doBatchedXGemmDirect_KM_KN_NM(
+      err = doStridedBatchedXGemmDirect_KM_KN_NM(
         kernel,
         commandQueue,
         cfg,
-        numTilesTotal, outChannels, inChannels,
+        nnXLen*nnYLen, outChannels, inChannels,
+        inputStride, filterStride, outputStride,
         input, filter, output,
-        inTileXYSize,
+        batchSize,
         &event
       );
 

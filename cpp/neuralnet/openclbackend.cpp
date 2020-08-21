@@ -245,11 +245,11 @@ struct CompiledPrograms {
     );
     xgemmDirectProgram = compileProgram(
       "xgemmDirectProgram", context, deviceIdsToUse, OpenCLKernels::xgemmDirect,
-      tuneParams.xGemmDirect.compileOptions() + maybeFP16CompileOptions
+      tuneParams.xGemmDirect.compileOptions() + maybeFP16CompileOptions + " -DROUTINE_GEMMSTRIDEDBATCHED"
     );
     xgemmDirectProgramAlwaysFP32 = compileProgram(
       "xgemmDirectProgramAlwaysFP32", context, deviceIdsToUse, OpenCLKernels::xgemmDirect,
-      tuneParams.xGemmDirect.compileOptions()
+      tuneParams.xGemmDirect.compileOptions() + " -DROUTINE_GEMMBATCHED"
     );
     if(usingFP16TensorCores) {
       xgemmProgram = compileProgram(
