@@ -53,8 +53,9 @@ struct InitializedDevice {
 struct DevicesContext {
   //Index of the default device to use if not specified (user-provided gpuIdx == -1)
   int defaultGpuIdx;
-  //All platforms with for which we made a context, for freeing each exactly once in destructor
-  std::map<cl_platform_id,InitializedPlatform*> initializedPlatforms;
+  //All platforms with for which we made a context
+  //A platform might be in here more than once, with different contexts
+  std::vector<InitializedPlatform*> initializedPlatforms;
 
   //Filtered and initialized subset of allDeviceInfos
   std::vector<InitializedDevice*> devicesToUse;

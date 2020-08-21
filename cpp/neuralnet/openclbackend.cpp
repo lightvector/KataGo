@@ -303,7 +303,7 @@ struct CompiledPrograms {
 
 struct ComputeContext {
   DevicesContext* devicesContext;
-  map<string,CompiledPrograms*> compiledProgramsByDeviceName;
+  map<cl_device_id,CompiledPrograms*> compiledProgramsByDeviceId;
   int nnXLen;
   int nnYLen;
   enabled_t usingFP16Mode;
@@ -332,37 +332,27 @@ struct ComputeContext {
     vector<DeviceInfo> allDeviceInfos = DeviceInfo::getAllDeviceInfosOnSystem(logger);
     devicesContext = new DevicesContext(allDeviceInfos,gIdxs,logger,liveProfilingKernels);
 
-    for(int i = 0; i<devicesContext->uniqueDeviceNamesToUse.size(); i++) {
-      const string& name = devicesContext->uniqueDeviceNamesToUse[i];
-      vector<const InitializedDevice*> devicesForName = devicesContext->findDevicesToUseWithName(name);
-      vector<cl_device_id> deviceIdsForName = devicesContext->findDeviceIdsToUseWithName(name);
-      assert(devicesForName.size() > 0);
-      assert(deviceIdsForName.size() > 0);
-      for(int j = 1; j<devicesForName.size(); j++) {
-        if(devicesForName[j]->info.platformId != devicesForName[0]->info.platformId) {
-          logger->write("WARNING: Two GPUs/devices in use have identical names but different platform ids... probably things will fail shortly");
-          logger->write("Device " + Global::intToString(devicesForName[0]->info.gpuIdx) + " Platform " + devicesForName[0]->info.platformDesc);
-          logger->write("Device " + Global::intToString(devicesForName[j]->info.gpuIdx) + " Platform " + devicesForName[j]->info.platformDesc);
-        }
-      }
-      //In case we need to autotune, use the 0th device with that name that the user wants us to use
-      //Assume that they all use the same opencl context too since if they have the same name they should be the same platform
-      OpenCLTuneParams tuneParams = getParamsForDeviceName(name, devicesForName[0]->info.gpuIdx);
+    for(int i = 0; i<devicesContext->devicesToUse.size(); i++) {
+      const InitializedDevice* device = devicesContext->devicesToUse[i];
+      const string& name = device->info.name;
+      vector<cl_device_id> deviceIds = { device->info.deviceId };
+
+      OpenCLTuneParams tuneParams = getParamsForDeviceName(name, device->info.gpuIdx);
 
       bool useFP16Storage = useFP16Mode == enabled_t::True || (useFP16Mode == enabled_t::Auto && tuneParams.shouldUseFP16Storage);
       bool useFP16Compute = (useFP16Mode == enabled_t::True || useFP16Mode == enabled_t::Auto) && tuneParams.shouldUseFP16Compute;
       bool useFP16TensorCores = (useFP16Mode == enabled_t::True || useFP16Mode == enabled_t::Auto) && tuneParams.shouldUseFP16TensorCores;
 
       CompiledPrograms* compiledPrograms = new CompiledPrograms(
-        devicesForName[0]->context, deviceIdsForName, tuneParams,
+        device->context, deviceIds, tuneParams,
         useFP16Storage, useFP16Compute, useFP16TensorCores
       );
-      compiledProgramsByDeviceName[name] = compiledPrograms;
+      compiledProgramsByDeviceId[device->info.deviceId] = compiledPrograms;
     }
   }
 
   ~ComputeContext() {
-    for(auto it = compiledProgramsByDeviceName.begin(); it != compiledProgramsByDeviceName.end(); ++it) {
+    for(auto it = compiledProgramsByDeviceId.begin(); it != compiledProgramsByDeviceId.end(); ++it) {
       CompiledPrograms* compiledPrograms = it->second;
       delete compiledPrograms;
     }
@@ -478,7 +468,7 @@ struct ComputeHandleInternal {
     const InitializedDevice* device = computeContext->devicesContext->findGpuExn(gpuIdx);
     clContext = device->context;
     commandQueue = device->commandQueue;
-    CompiledPrograms* progs = computeContext->compiledProgramsByDeviceName[device->info.name];
+    CompiledPrograms* progs = computeContext->compiledProgramsByDeviceId[device->info.deviceId];
     assert(progs != NULL);
     tuneParams = progs->tuneParams;
 
