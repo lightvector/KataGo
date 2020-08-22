@@ -30,8 +30,8 @@ class AsyncBot {
   //Calling any of these will stop any ongoing search, waiting for a full stop.
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
   void setKomiIfNew(float newKomi);
-  void setRootPassLegal(bool b);
   void setRootHintLoc(Loc loc);
+  void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
   void setAlwaysIncludeOwnerMap(bool b);
   void setParams(SearchParams params);
   void setPlayerIfNew(Player movePla);

@@ -75,9 +75,9 @@ void AsyncBot::setKomiIfNew(float newKomi) {
   stopAndWait();
   search->setKomiIfNew(newKomi);
 }
-void AsyncBot::setRootPassLegal(bool b) {
+void AsyncBot::setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec) {
   stopAndWait();
-  search->setRootPassLegal(b);
+  search->setAvoidMoveUntilByLoc(bVec,wVec);
 }
 void AsyncBot::setRootHintLoc(Loc loc) {
   stopAndWait();

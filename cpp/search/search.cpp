@@ -140,7 +140,8 @@ static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
 Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
   :rootPla(P_BLACK),
-   rootBoard(),rootHistory(),rootPassLegal(true),rootHintLoc(Board::NULL_LOC),
+   rootBoard(),rootHistory(),rootHintLoc(Board::NULL_LOC),
+   avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),
    rootSafeArea(NULL),
    recentScoreCenter(0.0),
    mirroringPla(C_EMPTY),
@@ -208,6 +209,8 @@ void Search::setPosition(Player pla, const Board& board, const BoardHistory& his
   rootBoard = board;
   rootHistory = history;
   rootKoHashTable->recompute(rootHistory);
+  avoidMoveUntilByLocBlack.clear();
+  avoidMoveUntilByLocWhite.clear();
 }
 
 void Search::setPlayerAndClearHistory(Player pla) {
@@ -216,13 +219,14 @@ void Search::setPlayerAndClearHistory(Player pla) {
   plaThatSearchIsFor = C_EMPTY;
   rootBoard.clearSimpleKoLoc();
   Rules rules = rootHistory.rules;
-
   //Preserve this value even when we get multiple moves in a row by some player
   bool assumeMultipleStartingBlackMovesAreHandicap = rootHistory.assumeMultipleStartingBlackMovesAreHandicap;
   rootHistory.clear(rootBoard,rootPla,rules,rootHistory.encorePhase);
   rootHistory.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
 
   rootKoHashTable->recompute(rootHistory);
+  avoidMoveUntilByLocBlack.clear();
+  avoidMoveUntilByLocWhite.clear();
 }
 
 void Search::setKomiIfNew(float newKomi) {
@@ -232,9 +236,12 @@ void Search::setKomiIfNew(float newKomi) {
   }
 }
 
-void Search::setRootPassLegal(bool b) {
+void Search::setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec) {
+  if(avoidMoveUntilByLocBlack == bVec && avoidMoveUntilByLocWhite == wVec)
+    return;
   clearSearch();
-  rootPassLegal = b;
+  avoidMoveUntilByLocBlack = bVec;
+  avoidMoveUntilByLocWhite = wVec;
 }
 
 void Search::setRootHintLoc(Loc loc) {
@@ -354,6 +361,8 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
   rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable,preventEncore);
   rootPla = getOpp(rootPla);
   rootKoHashTable->recompute(rootHistory);
+  avoidMoveUntilByLocBlack.clear();
+  avoidMoveUntilByLocWhite.clear();
 
   if(rootHistory.whiteHandicapBonusScore != oldWhiteHandicapBonusScore)
     clearSearch();
@@ -614,10 +623,6 @@ void Search::beginSearch(bool pondering) {
 
   computeRootValues();
   maybeRecomputeNormToTApproxTable();
-
-  //Sanity-check a few things
-  if(!rootPassLegal && searchParams.rootPruneUselessMoves)
-    throw StringError("Both rootPassLegal=false and searchParams.rootPruneUselessMoves=true are specified, this could leave the bot without legal moves!");
 
   SearchThread dummyThread(-1, *this, NULL);
 
@@ -1032,11 +1037,6 @@ void Search::maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, Searc
 bool Search::isAllowedRootMove(Loc moveLoc) const {
   assert(moveLoc == Board::PASS_LOC || rootBoard.isOnBoard(moveLoc));
 
-  //For use on some online go servers, we want to be able to support a cleanup mode, where we force
-  //the capture of stones that our training ruleset would consider simply dead by virtue of them
-  //being pass-dead, so we add an option to forbid passing at the root.
-  if(!rootPassLegal && moveLoc == Board::PASS_LOC)
-    return false;
   //A bad situation that can happen that unnecessarily prolongs training games is where one player
   //repeatedly passes and the other side repeatedly fills the opponent's space and/or suicides over and over.
   //To mitigate some of this and save computation, we make it so that at the root, if the last four moves by the opponent
@@ -1400,6 +1400,7 @@ static void maybeApplyAntiMirrorForcedExplore(
   }
 }
 
+
 //Parent must be locked
 double Search::getExploreSelectionValue(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
@@ -1612,6 +1613,8 @@ void Search::selectBestChildToDescend(
     posesWithChildBuf[getPos(moveLoc)] = true;
   }
 
+  const std::vector<int>& avoidMoveUntilByLoc = thread.pla == P_BLACK ? avoidMoveUntilByLocBlack : avoidMoveUntilByLocWhite;
+
   //Try the new child with the best policy value
   Loc bestNewMoveLoc = Board::NULL_LOC;
   float bestNewNNPolicyProb = -1.0f;
@@ -1629,6 +1632,12 @@ void Search::selectBestChildToDescend(
       assert(thread.board.pos_hash == rootBoard.pos_hash);
       assert(thread.pla == rootPla);
       if(!isAllowedRootMove(moveLoc))
+        continue;
+    }
+    if(avoidMoveUntilByLoc.size() > 0) {
+      assert(avoidMoveUntilByLoc.size() >= Board::MAX_ARR_SIZE);
+      int untilDepth = avoidMoveUntilByLoc[moveLoc];
+      if(thread.history.moveHistory.size() - rootHistory.moveHistory.size() < untilDepth)
         continue;
     }
 
@@ -1929,13 +1938,16 @@ void Search::initNodeNNOutput(
   if(isReInit)
     return;
 
+  addCurentNNOutputAsLeafValue(node,virtualLossesToSubtract);
+}
+
+void Search::addCurentNNOutputAsLeafValue(SearchNode& node, int32_t virtualLossesToSubtract) {
   //Values in the search are from the perspective of white positive always
   double winProb = (double)node.nnOutput->whiteWinProb;
   double noResultProb = (double)node.nnOutput->whiteNoResultProb;
   double scoreMean = (double)node.nnOutput->whiteScoreMean;
   double scoreMeanSq = (double)node.nnOutput->whiteScoreMeanSq;
   double lead = (double)node.nnOutput->whiteLead;
-
   addLeafValue(node,winProb,noResultProb,scoreMean,scoreMeanSq,lead,virtualLossesToSubtract);
 }
 
@@ -1997,7 +2009,7 @@ void Search::playoutDescend(
   //The absurdly rare case that the move chosen is not legal
   //(this should only happen either on a bug or where the nnHash doesn't have full legality information or when there's an actual hash collision).
   //Regenerate the neural net call and continue
-  if(!thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla)) {
+  if(bestChildIdx >= 0 && !thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla)) {
     bool isReInit = true;
     initNodeNNOutput(thread,node,isRoot,true,0,isReInit);
 
@@ -2006,13 +2018,18 @@ void Search::playoutDescend(
 
     //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
     selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
-    //We should absolutely be legal this time
-    assert(thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla));
+    if(bestChildIdx >= 0) {
+      //We should absolutely be legal this time
+      assert(thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla));
+    }
   }
 
-  if(bestChildIdx < -1) {
+  if(bestChildIdx <= -1) {
+    //This might happen if all moves have been forbidden. The node will just get stuck at 1 visit forever then
+    //and we won't do any search.
     lock.unlock();
-    throw StringError("Search error: No move with sane selection value - can't even pass?");
+    addCurentNNOutputAsLeafValue(node,virtualLossesToSubtract);
+    return;
   }
 
   //Reallocate the children array to increase capacity if necessary

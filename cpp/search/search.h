@@ -137,8 +137,13 @@ struct Search {
   Player rootPla;
   Board rootBoard;
   BoardHistory rootHistory;
-  bool rootPassLegal;
   Loc rootHintLoc;
+
+  //External user-specified moves that are illegal or that should be nontrivially searched, and the number of turns for which they should
+  //be excluded. Empty if not active, else of length MAX_ARR_SIZE and nonzero anywhere a move should be banned, for the number of ply
+  //of depth that it should be banned.
+  std::vector<int> avoidMoveUntilByLocBlack;
+  std::vector<int> avoidMoveUntilByLocWhite;
 
   //Precomputed values at the root
   Color* rootSafeArea;
@@ -204,8 +209,8 @@ struct Search {
 
   void setPlayerAndClearHistory(Player pla);
   void setKomiIfNew(float newKomi); //Does not clear history, does clear search unless komi is equal.
-  void setRootPassLegal(bool b);
   void setRootHintLoc(Loc hintLoc);
+  void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
   void setAlwaysIncludeOwnerMap(bool b);
   void setParams(SearchParams params);
   void setParamsNoClearing(SearchParams params); //Does not clear search
@@ -393,6 +398,7 @@ private:
   ) const;
 
   void addLeafValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, double lead, int32_t virtualLossesToSubtract);
+  void addCurentNNOutputAsLeafValue(SearchNode& node, int32_t virtualLossesToSubtract);
 
   void maybeRecomputeExistingNNOutput(
     SearchThread& thread, SearchNode& node, bool isRoot

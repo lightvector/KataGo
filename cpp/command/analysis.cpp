@@ -30,6 +30,9 @@ struct AnalyzeRequest {
   bool includeOwnership;
   bool includePolicy;
   bool includePVVisits;
+
+  vector<int> avoidMoveUntilByLocBlack;
+  vector<int> avoidMoveUntilByLocWhite;
 };
 
 int MainCmds::analysis(int argc, const char* const* argv) {
@@ -198,6 +201,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       bot->setPosition(request->nextPla,request->board,request->hist);
       bot->setAlwaysIncludeOwnerMap(request->includeOwnership);
       bot->setParams(request->params);
+      bot->setAvoidMoveUntilByLoc(request->avoidMoveUntilByLocBlack,request->avoidMoveUntilByLocWhite);
 
       Player pla = request->nextPla;
       bot->genMoveSynchronous(pla, TimeControls());
@@ -404,14 +408,16 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     rbase.includePolicy = false;
     rbase.includePVVisits = false;
     rbase.priority = 0;
+    rbase.avoidMoveUntilByLocBlack.clear();
+    rbase.avoidMoveUntilByLocWhite.clear();
 
-    auto parseInteger = [&input,&rbase,&reportErrorForId](const char* field, int64_t& buf, int64_t min, int64_t max, const char* errorMessage) {
+    auto parseInteger = [&rbase,&reportErrorForId](const json& dict, const char* field, int64_t& buf, int64_t min, int64_t max, const char* errorMessage) {
       try {
-        if(!input[field].is_number_integer()) {
+        if(!dict[field].is_number_integer()) {
           reportErrorForId(rbase.id, field, errorMessage);
           return false;
         }
-        int64_t x = input[field].get<int64_t>();
+        int64_t x = dict[field].get<int64_t>();
         if(x < min || x > max) {
           reportErrorForId(rbase.id, field, errorMessage);
           return false;
@@ -426,13 +432,13 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       }
     };
 
-    auto parseDouble = [&input,&rbase,&reportErrorForId](const char* field, double& buf, double min, double max, const char* errorMessage) {
+    auto parseDouble = [&rbase,&reportErrorForId](const json& dict, const char* field, double& buf, double min, double max, const char* errorMessage) {
       try {
-        if(!input[field].is_number()) {
+        if(!dict[field].is_number()) {
           reportErrorForId(rbase.id, field, errorMessage);
           return false;
         }
-        double x = input[field].get<double>();
+        double x = dict[field].get<double>();
         if(!isfinite(x) || x < min || x > max) {
           reportErrorForId(rbase.id, field, errorMessage);
           return false;
@@ -447,13 +453,13 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       }
     };
 
-    auto parseBoolean = [&input,&rbase,&reportErrorForId](const char* field, bool& buf, const char* errorMessage) {
+    auto parseBoolean = [&rbase,&reportErrorForId](const json& dict, const char* field, bool& buf, const char* errorMessage) {
       try {
-        if(!input[field].is_boolean()) {
+        if(!dict[field].is_boolean()) {
           reportErrorForId(rbase.id, field, errorMessage);
           return false;
         }
-        buf = input[field].get<bool>();
+        buf = dict[field].get<bool>();
         return true;
       }
       catch(nlohmann::detail::exception& e) {
@@ -461,6 +467,20 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         reportErrorForId(rbase.id, field, errorMessage);
         return false;
       }
+    };
+
+    auto parsePlayer = [&rbase,&reportErrorForId](const json& dict, const char* field, Player& buf) {
+      buf = C_EMPTY;
+      try {
+        string s = dict[field].get<string>();
+        PlayerIO::tryParsePlayer(s,buf);
+      }
+      catch(nlohmann::detail::exception&) {}
+      if(buf != P_BLACK && buf != P_WHITE) {
+        reportErrorForId(rbase.id, field, "Must be \"b\" or \"w\"");
+        return false;
+      }
+      return true;
     };
 
     int boardXSize;
@@ -477,11 +497,11 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         reportErrorForId(rbase.id, "boardYSize", boardSizeError.c_str());
         continue;
       }
-      if(!parseInteger("boardXSize", xBuf, 2, Board::MAX_LEN, boardSizeError.c_str())) {
+      if(!parseInteger(input, "boardXSize", xBuf, 2, Board::MAX_LEN, boardSizeError.c_str())) {
         reportErrorForId(rbase.id, "boardXSize", boardSizeError.c_str());
         continue;
       }
-      if(!parseInteger("boardYSize", yBuf, 2, Board::MAX_LEN, boardSizeError.c_str())) {
+      if(!parseInteger(input, "boardYSize", yBuf, 2, Board::MAX_LEN, boardSizeError.c_str())) {
         reportErrorForId(rbase.id, "boardYSize", boardSizeError.c_str());
         continue;
       }
@@ -489,13 +509,42 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       boardYSize = (int)yBuf;
     }
 
-    auto parseBoardLocs = [&input,boardXSize,boardYSize,&rbase,&reportErrorForId](const char* field, vector<Move>& buf, bool allowPass) {
+    auto parseBoardLocs = [boardXSize,boardYSize,&rbase,&reportErrorForId](const json& dict, const char* field, vector<Loc>& buf, bool allowPass) {
       buf.clear();
-      if(!input[field].is_array()) {
+      if(!dict[field].is_array()) {
+        reportErrorForId(rbase.id, field, "Must be an array of GTP board vertices");
+        return false;
+      }
+      for(auto& elt : dict[field]) {
+        string s;
+        try {
+          s = elt.get<string>();
+        }
+        catch(nlohmann::detail::exception& e) {
+          (void)e;
+          reportErrorForId(rbase.id, field, "Must be an array of GTP board vertices");
+          return false;
+        }
+
+        Loc loc;
+        if(!Location::tryOfString(s, boardXSize, boardYSize, loc) ||
+           (!allowPass && loc == Board::PASS_LOC) ||
+           (loc == Board::NULL_LOC)) {
+          reportErrorForId(rbase.id, field, "Could not parse board location: " + s);
+          return false;
+        }
+        buf.push_back(loc);
+      }
+      return true;
+    };
+
+    auto parseBoardMoves = [boardXSize,boardYSize,&rbase,&reportErrorForId](const json& dict, const char* field, vector<Move>& buf, bool allowPass) {
+      buf.clear();
+      if(!dict[field].is_array()) {
         reportErrorForId(rbase.id, field, "Must be an array of pairs of the form: [\"b\" or \"w\", GTP board vertex]");
         return false;
       }
-      for(auto& elt : input[field]) {
+      for(auto& elt : dict[field]) {
         if(!elt.is_array() || elt.size() != 2) {
           reportErrorForId(rbase.id, field, "Must be an array of pairs of the form: [\"b\" or \"w\", GTP board vertex]");
           return false;
@@ -533,12 +582,12 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
     vector<Move> placements;
     if(input.find("initialStones") != input.end()) {
-      if(!parseBoardLocs("initialStones", placements, false))
+      if(!parseBoardMoves(input, "initialStones", placements, false))
         continue;
     }
     vector<Move> moveHistory;
     if(input.find("moves") != input.end()) {
-      if(!parseBoardLocs("moves", moveHistory, true))
+      if(!parseBoardMoves(input, "moves", moveHistory, true))
         continue;
     }
     else {
@@ -547,15 +596,9 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     }
     Player initialPlayer = C_EMPTY;
     if(input.find("initialPlayer") != input.end()) {
-      try {
-        string s = input["initialPlayer"].get<string>();
-        PlayerIO::tryParsePlayer(s,initialPlayer);
-      }
-      catch(nlohmann::detail::exception&) {}
-      if(initialPlayer != P_BLACK && initialPlayer != P_WHITE) {
-        reportErrorForId(rbase.id, "initialPlayer", "Must be \"b\" or \"w\"");
+      bool suc = parsePlayer(input, "initialPlayer", initialPlayer);
+      if(!suc)
         continue;
-      }
     }
 
     vector<bool> shouldAnalyze(moveHistory.size()+1,false);
@@ -617,7 +660,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       static_assert(Rules::MIN_USER_KOMI == -150.0f, "");
       static_assert(Rules::MAX_USER_KOMI == 150.0f, "");
       const char* msg = "Must be a integer or half-integer from -150.0 to 150.0";
-      bool suc = parseDouble("komi", komi, Rules::MIN_USER_KOMI, Rules::MAX_USER_KOMI, msg);
+      bool suc = parseDouble(input, "komi", komi, Rules::MIN_USER_KOMI, Rules::MAX_USER_KOMI, msg);
       if(!suc)
         continue;
       rules.komi = (float)komi;
@@ -678,51 +721,109 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     }
 
     if(input.find("maxVisits") != input.end()) {
-      bool suc = parseInteger("maxVisits", rbase.params.maxVisits, 1, (int64_t)1 << 50, "Must be an integer from 1 to 2^50");
+      bool suc = parseInteger(input, "maxVisits", rbase.params.maxVisits, 1, (int64_t)1 << 50, "Must be an integer from 1 to 2^50");
       if(!suc)
         continue;
     }
 
     if(input.find("analysisPVLen") != input.end()) {
       int64_t buf;
-      bool suc = parseInteger("analysisPVLen", buf, 1, 1000, "Must be an integer from 1 to 1000");
+      bool suc = parseInteger(input, "analysisPVLen", buf, 1, 1000, "Must be an integer from 1 to 1000");
       if(!suc)
         continue;
       rbase.analysisPVLen = (int)buf;
     }
 
     if(input.find("rootFpuReductionMax") != input.end()) {
-      bool suc = parseDouble("rootFpuReductionMax", rbase.params.rootFpuReductionMax, 0.0, 2.0, "Must be a number from 0.0 to 2.0");
+      bool suc = parseDouble(input, "rootFpuReductionMax", rbase.params.rootFpuReductionMax, 0.0, 2.0, "Must be a number from 0.0 to 2.0");
       if(!suc)
         continue;
     }
     if(input.find("rootPolicyTemperature") != input.end()) {
-      bool suc = parseDouble("rootPolicyTemperature", rbase.params.rootPolicyTemperature, 0.01, 100.0, "Must be a number from 0.01 to 100.0");
+      bool suc = parseDouble(input, "rootPolicyTemperature", rbase.params.rootPolicyTemperature, 0.01, 100.0, "Must be a number from 0.01 to 100.0");
       if(!suc)
         continue;
       rbase.params.rootPolicyTemperatureEarly = rbase.params.rootPolicyTemperature;
     }
     if(input.find("includeOwnership") != input.end()) {
-      bool suc = parseBoolean("includeOwnership", rbase.includeOwnership, "Must be a boolean");
+      bool suc = parseBoolean(input, "includeOwnership", rbase.includeOwnership, "Must be a boolean");
       if(!suc)
         continue;
     }
     if(input.find("includePolicy") != input.end()) {
-      bool suc = parseBoolean("includePolicy", rbase.includePolicy, "Must be a boolean");
+      bool suc = parseBoolean(input, "includePolicy", rbase.includePolicy, "Must be a boolean");
       if(!suc)
         continue;
     }
     if(input.find("includePVVisits") != input.end()) {
-      bool suc = parseBoolean("includePVVisits", rbase.includePVVisits, "Must be a boolean");
+      bool suc = parseBoolean(input, "includePVVisits", rbase.includePVVisits, "Must be a boolean");
       if(!suc)
         continue;
     }
     if(input.find("priority") != input.end()) {
       int64_t buf;
-      bool suc = parseInteger("priority", buf, -0x7FFFFFFF,0x7FFFFFFF, "Must be a number from -2,147,483,647 to 2,147,483,647");
+      bool suc = parseInteger(input, "priority", buf, -0x7FFFFFFF,0x7FFFFFFF, "Must be a number from -2,147,483,647 to 2,147,483,647");
       if(!suc)
         continue;
       rbase.priority = (int)buf;
+    }
+
+    bool hasAllowMoves = input.find("allowMoves") != input.end();
+    bool hasAvoidMoves = input.find("avoidMoves") != input.end();
+    if(hasAllowMoves || hasAvoidMoves) {
+      if(hasAllowMoves && hasAvoidMoves) {
+        reportErrorForId(rbase.id, "allowMoves", string("Cannot specify both allowMoves and avoidMoves"));
+        continue;
+      }
+      string field = hasAllowMoves ? "allowMoves" : "avoidMoves";
+      json& avoidParamsList = input[field];
+      if(!avoidParamsList.is_array()) {
+        reportErrorForId(rbase.id, field, string("Must be a list of dicts with subfields 'player', 'moves', 'untilDepth'"));
+        continue;
+      }
+      if(hasAllowMoves && avoidParamsList.size() > 1) {
+        reportErrorForId(rbase.id, field, string("Currently allowMoves only allows one entry"));
+        continue;
+      }
+
+      bool failed = false;
+      for(size_t i = 0; i<avoidParamsList.size(); i++) {
+        json& avoidParams = avoidParamsList[i];
+        if(avoidParams.find("moves") == avoidParams.end() ||
+           avoidParams.find("untilDepth") == avoidParams.end() ||
+           avoidParams.find("player") == avoidParams.end()) {
+          reportErrorForId(rbase.id, field, string("Must be a list of dicts with subfields 'player', 'moves', 'untilDepth'"));
+          failed = true;
+          break;
+        }
+
+        Player avoidPla;
+        vector<Loc> parsedLocs;
+        int64_t untilDepth;
+        bool suc;
+        suc = parsePlayer(avoidParams, "player", avoidPla);
+        if(!suc) { failed = true; break; }
+        suc = parseBoardLocs(avoidParams, "moves", parsedLocs, true);
+        if(!suc) { failed = true; break; }
+        suc = parseInteger(avoidParams, "untilDepth", untilDepth, 1, 1000000000, "Must be a positive integer");
+        if(!suc) { failed = true; break; }
+
+        vector<int>& avoidMoveUntilByLoc = avoidPla == P_BLACK ? rbase.avoidMoveUntilByLocBlack : rbase.avoidMoveUntilByLocWhite;
+        avoidMoveUntilByLoc.resize(Board::MAX_ARR_SIZE);
+        if(hasAllowMoves) {
+          std::fill(avoidMoveUntilByLoc.begin(),avoidMoveUntilByLoc.end(),(int)untilDepth);
+          for(Loc loc: parsedLocs) {
+            avoidMoveUntilByLoc[loc] = 0;
+          }
+        }
+        else {
+          for(Loc loc: parsedLocs) {
+            avoidMoveUntilByLoc[loc] = (int)untilDepth;
+          }
+        }
+      }
+      if(failed)
+        continue;
     }
 
 
@@ -769,6 +870,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         newRequest->includePolicy = rbase.includePolicy;
         newRequest->includePVVisits = rbase.includePVVisits;
         newRequest->priority = rbase.priority;
+        newRequest->avoidMoveUntilByLocBlack = rbase.avoidMoveUntilByLocBlack;
+        newRequest->avoidMoveUntilByLocWhite = rbase.avoidMoveUntilByLocWhite;
         newRequests.push_back(newRequest);
       }
       if(turnNumber >= moveHistory.size())
