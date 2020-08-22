@@ -344,7 +344,7 @@ KataGo is written in C++. It should compile on Linux or OSX via g++ that support
    * Configure using CMake GUI and compile in MSVC:
       * Select `KataGo/cpp` as the source code directory in [CMake GUI](https://cmake.org/runningcmake/).
       * Set the build directory to wherever you would like the built executable to be produced.
-      * Click "Configure". For the generator select your MSVC version, and also select "x64" for the platform if you're on 64-bit windows.
+      * Click "Configure". For the generator select your MSVC version, and also select "x64" for the optional platform if you're on 64-bit windows, don't use win32.
       * If you get errors where CMake has not automatically found Boost, ZLib, etc, point it to the appropriate places according to the error messages:
         * `BOOST_ROOT` - point this to your boost installation directory.
         * `ZLIB_INCLUDE_DIR` - point this to the directory containing `zlib.h` and other headers
