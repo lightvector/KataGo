@@ -80,13 +80,19 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(rand.nextUInt()) + ".log");
   }
 
-  logger.setLogToStderr(true);
+  const bool logToStderr = cfg.contains("logToStderr") ? cfg.getBool("logToStderr") : true;
+  if(logToStderr)
+    logger.setLogToStderr(true);
 
   logger.write("Analysis Engine starting...");
   logger.write(Version::getKataGoVersionForHelp());
+  if(!logToStderr) {
+    cerr << Version::getKataGoVersionForHelp() << endl;
+  }
 
-  const bool logAllRequests = cfg.getBool("logAllRequests");
-  const bool logSearchInfo = cfg.getBool("logSearchInfo");
+  const bool logAllRequests = cfg.contains("logAllRequests") ? cfg.getBool("logAllRequests") : false;
+  const bool logAllResponses = cfg.contains("logAllResponses") ? cfg.getBool("logAllResponses") : false;
+  const bool logSearchInfo = cfg.contains("logSearchInfo") ? cfg.getBool("logSearchInfo") : false;
 
   auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective, Player defaultPerspective) {
     params = Setup::loadSingleParams(config);
@@ -137,13 +143,15 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   logger.write("Loaded model "+ modelFile);
 
   ThreadSafeQueue<string*> toWriteQueue;
-  auto writeLoop = [&toWriteQueue]() {
+  auto writeLoop = [&toWriteQueue,&logAllResponses,&logger]() {
     while(true) {
       string* message;
       bool suc = toWriteQueue.waitPop(message);
       if(!suc)
         break;
       cout << *message << endl;
+      if(logAllResponses)
+        logger.write("Response: " + *message);
       delete message;
     }
   };
@@ -354,7 +362,9 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
   logger.write("Analyzing up to " + Global::intToString(numAnalysisThreads) + " positions at at time in parallel");
   logger.write("Started, ready to begin handling requests");
-
+  if(!logToStderr) {
+    cerr << "Started, ready to begin handling requests" << endl;
+  }
 
   string line;
   json input;
@@ -365,7 +375,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
     if(logAllRequests)
       logger.write("Request: " + line);
-    
+
     try {
       input = json::parse(line);
     }
