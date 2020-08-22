@@ -9,7 +9,7 @@
   * [GUIs](#guis)
   * [Windows and Linux](#windows-and-linux)
   * [MacOS](#macos)
-  * [OpenCL vs CUDA](#opencl-vs-cuda)
+  * [OpenCL vs CUDA vs Eigen](#opencl-vs-cuda-vs-eigen)
   * [How To Use](#how-to-use)
   * [Tuning for Performance](#tuning-for-performance)
   * [Common Questions and Issues](#common-questions-and-issues)
@@ -184,15 +184,21 @@ The community also provides KataGo packages for [Homebrew](https://brew.sh) on M
 
 Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep gtp) -model $(brew list --verbose katago | grep .gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
 
-### OpenCL vs CUDA
-KataGo has both an OpenCL version and a CUDA version.
+### OpenCL vs CUDA vs Eigen
+KataGo has three backends, OpenCL (GPU), CUDA (GPU), and Eigen (CPU).
 
-  * The CUDA version requires installing [CUDA](https://developer.nvidia.com/cuda-zone) and [CUDNN](https://developer.nvidia.com/cudnn) and a modern NVIDIA GPU.
-  * The OpenCL version should be able to run with many other GPUs or accelerators that support [OpenCL](https://en.wikipedia.org/wiki/OpenCL), such AMD GPUs, as well CPU-based OpenCL implementations or things like Intel Integrated Graphics. (Note: Intel integrated graphics though is a toss-up - many versions of Intel's OpenCL seem to be buggy). It also doesn't require the hassle of CUDA and CUDNN and is more likely to work out of the box so long as you do have a decently modern GPU. **However, it also need to take some time when run for the very first time to tune itself.** For many systems, this will take 5-30 seconds, but on a few older/slower systems, may take many minutes or longer.
+The quick summary is:
+  * Use OpenCL if you have any good or decent GPU.
+  * Use Eigen with AVX2 if you don't have a GPU or if your GPU is too old/weak to work with OpenCL, and you just want a plain CPU KataGo.
+  * Use Eigen without AVX2 if your CPU is old or on a low-end device that doesn't support AVX2.
+  * You can try CUDA you have a top-end NVIDIA FP16 + tensor-core GPU and you are willing to go through the hassle to install CUDA+CUDNN. It might or might not be faster than OpenCL, you can try it out to see.
 
-Most users have reported that the OpenCL version is faster than the CUDA version EXCEPT if your GPU is a top-end NVIDIA GPU that supports FP16 and tensor cores. Then the CUDA version is likely to be a little faster and therefore stronger (but possibly the OpenCL implementation can be optimized more in the future).
+More in detail:
+  * OpenCL is a general GPU backend should be able to run with any GPUs or accelerators that support [OpenCL](https://en.wikipedia.org/wiki/OpenCL), including NVIDIA GPUs, AMD GPUs, as well CPU-based OpenCL implementations or things like Intel Integrated Graphics. This is the most general GPU version of KataGo and doesn't require a complicated install like CUDA does, so is most likely to work out of the box as long as you have a fairly modern GPU. **However, it also need to take some time when run for the very first time to tune itself.** For many systems, this will take 5-30 seconds, but on a few older/slower systems, may take many minutes or longer. Also, the quality of OpenCL implementations is sometimes inconsistent, particularly for Intel Integrated Graphics and for AMD GPUs that are older than several years, so it might not work for very old machines, as well as specific buggy newer AMD GPUs, see also [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers).
+  * CUDA is a GPU backend specific to NVIDIA GPUs (it will not work with AMD or Intel or any other GPUs) and requires installing [CUDA](https://developer.nvidia.com/cuda-zone) and [CUDNN](https://developer.nvidia.com/cudnn) and a modern NVIDIA GPU. On most GPUs, the OpenCL implementation will actually beat NVIDIA's own CUDA/CUDNN at performance. The exception is for top-end NVIDIA GPUs that support FP16 and tensor cores, in which case sometimes one is better and sometimes the other is better.
+  * Eigen is a *CPU* backend that should work widely *without* needing a GPU or fancy drivers. Use this if you don't have a good GPU or really any GPU at all. It will be quite significantly slower than OpenCL or CUDA, but on a good CPU can still often get 10 to 20 playouts per second if using the smaller (15 or 20) block neural nets. Eigen can also be compiled with AVX2 and FMA support, which can provide a big performance boost for Intel and AMD CPUs from the last few years. However, it will not run at all on older CPUs (and possibly even some recent but low-power modern CPUs) that don't support these fancy vector instructions.
 
-For **either** implementation, it's recommended that you also tune the number of threads used if you care about optimal performance, as it can make a factor of 2-3 difference in the speed. See "Tuning for Performance" below. However, if you mostly just want to get it working, then the default untuned settings should also be still reasonable.
+For **any** implementation, it's recommended that you also tune the number of threads used if you care about optimal performance, as it can make a factor of 2-3 difference in the speed. See "Tuning for Performance" below. However, if you mostly just want to get it working, then the default untuned settings should also be still reasonable.
 
 ### How To Use
 Again, KataGo is just an engine and does not have its own graphical interface. So generally you will want to use KataGo along with a [GUI or analysis program](#guis).
@@ -249,7 +255,7 @@ This section summarizes a number of common questions and issues when running Kat
 If you are observing any crashes in KataGo while attempting to run the benchmark or the program itself, and you have one of the below GPUs, then this is likely the reason.
 
 * **AMD Radeon RX 5700** - AMD's drivers for OpenCL for this GPU have been buggy ever since this GPU was released, and as of May 2020 AMD has still never released a fix. If you are using this GPU, you will just not be able to run KataGo (Leela Zero and other Go engines will probably fail too) and will probably also obtain incorrect calculations or crash if doing anything else scientific or mathematical that uses OpenCL. See for example these reddit threads: [[1]](https://www.reddit.com/r/Amd/comments/ebso1x/its_not_just_setihome_any_mathematic_or/) or [[2]](https://www.reddit.com/r/BOINC/comments/ebiz18/psa_please_remove_your_amd_rx5700xt_from_setihome/) or this [L19 thread](https://lifein19x19.com/viewtopic.php?f=18&t=17093).
-* **OpenCL Mesa** - These drivers for OpenCL on AMD GPUs are buggy. If you are using an AMD GPU and on startup before crashing you see KataGo printing something like
+* **OpenCL Mesa** - These drivers for OpenCL are buggy. Particularly if on startup before crashing you see KataGo printing something like
 `Found OpenCL Platform 0: ... (Mesa) (OpenCL 1.1 Mesa ...) ...`
 then you are using the Mesa drivers. You will need to change your drivers, see for example this [KataGo issue](https://github.com/lightvector/KataGo/issues/182#issuecomment-607943405) which links to [this thread](https://bbs.archlinux.org/viewtopic.php?pid=1895516#p1895516).
 * **Intel Integrated Graphics** - For weaker/older machines or laptops or devices that don't have a dedicated GPU, KataGo might end up using the weak "Intel Integrated Graphics" that is built in with the CPU. Often this will work fine (although KataGo will be slow and only get a tiny number of playouts compared to using a real GPU), but various versions of Intel Integrated Graphics can also be buggy and not work at all. If a driver update doesn't work for you, then the only solution is to upgrade to a better GPU. See for example this [issue](https://github.com/lightvector/KataGo/issues/54) or this [issue](https://github.com/lightvector/KataGo/issues/78), or this [other Github's issue](https://github.com/CNugteren/CLBlast/issues/280).
@@ -305,15 +311,19 @@ KataGo is written in C++. It should compile on Linux or OSX via g++ that support
    * Requirements
       * CMake with a minimum version of 3.10.2 - for example `sudo apt install cmake` on Debian, or download from https://cmake.org/download/ if that doesn't give you a recent-enough version.
       * Some version of g++ that supports at least C++14.
-      * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. (Of course, CPU implementations may be quite slow).
+      * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. But if using CPU, Eigen should be better.
       * If using the CUDA backend, CUDA 10.2 and CUDNN 7.6.5 (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
+      * If using the Eigen backend, Eigen3. With Debian packages, (i.e. apt or apt-get), this should be `libeigen3-dev`.
       * zlib, libzip, boost filesystem. With Debian packages (i.e. apt or apt-get), these should be `zlib1g-dev`, `libzip-dev`, `libboost-filesystem-dev`.
       * If you want to do self-play training and research, probably Google perftools `libgoogle-perftools-dev` for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc that will eventually run your machine out of memory, but better mallocs handle it fine.
    * Clone this repo:
       * `git clone https://github.com/lightvector/KataGo.git`
    * Compile using CMake and make in the cpp directory:
       * `cd KataGo/cpp`
-      * `cmake . -DUSE_BACKEND=OPENCL` or `cmake . -DUSE_BACKEND=CUDA` depending on which backend you want. Specify also `-DUSE_TCMALLOC=1` if using TCMalloc. Compiling will also call git commands to embed the git hash into the compiled executable, specify also `-DNO_GIT_REVISION=1` to disable it if this is causing issues for you.
+      * `cmake . -DUSE_BACKEND=OPENCL` or `cmake . -DUSE_BACKEND=CUDA` or `cmake . -DUSE_BACKEND=EIGEN` depending on which backend you want.
+         * Specify also `-DUSE_TCMALLOC=1` if using TCMalloc.
+         * Compiling will also call git commands to embed the git hash into the compiled executable, specify also `-DNO_GIT_REVISION=1` to disable it if this is causing issues for you.
+         * Specify `-DUSE_AVX2=1` to also compile Eigen with AVX2 and FMA support, which will make it incompatible with old CPUs but much faster. (If you want to go further, you can also add `-DCMAKE_CXX_FLAGS='-march=native'` which will specialize to precisely your machine's CPU, but the exe might not run on other machines at all).
       * `make`
    * Done! You should now have a compiled `katago` executable in your working directory.
    * Pre-trained neural nets are available on the [releases page](https://github.com/lightvector/KataGo/releases) or more from [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html).
@@ -324,8 +334,9 @@ KataGo is written in C++. It should compile on Linux or OSX via g++ that support
    * Requirements
       * CMake with a minimum version of 3.10.2, GUI version strongly recommended (https://cmake.org/download/)
       * Microsoft Visual Studio for C++. Version 15 (2017) has been tested and should work, other versions might work as well.
-      * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. (Of course, CPU implementations may be quite slow).
+      * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. But if using CPU, Eigen should be better.
       * If using the CUDA backend, CUDA 10.2 and CUDNN 7.6.5 (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
+      * If using the Eigen backend, Eigen3, version 3.3.x. (http://eigen.tuxfamily.org/index.php?title=Main_Page#Download).
       * Boost. You can obtain prebuilt libraries for Windows at: https://www.boost.org/users/download/ -> "Prebuilt windows binaries" -> "1.70.0". For example, boost_1_70_0-msvc-14.1-64.exe if you're on 64-bit windows. Note that MSVC 14.1 libraries (2015) are directly-compatible with MSVC 15 (2017).
       * zlib. The following package might work, https://www.nuget.org/packages/zlib-vc140-static-64/, or alternatively you can build it yourself via something like: https://github.com/kiyolee/zlib-win-build
       * libzip (optional, needed only for self-play training) - for example https://github.com/kiyolee/libzip-win-build
@@ -334,8 +345,15 @@ KataGo is written in C++. It should compile on Linux or OSX via g++ that support
       * Select `KataGo/cpp` as the source code directory in [CMake GUI](https://cmake.org/runningcmake/).
       * Set the build directory to wherever you would like the built executable to be produced.
       * Click "Configure". For the generator select your MSVC version, and also select "x64" for the platform if you're on 64-bit windows.
-      * If you get errors where CMake has not automatically found Boost, ZLib, etc, point it to the appropriate places according to the error messages (by setting `BOOST_ROOT`, `ZLIB_INCLUDE_DIR`, `ZLIB_LIBRARY`, etc). Note that "*_LIBRARY" expects to be pointed to the ".lib" file, whereas the ".dll" file is what you actually need to run.
-      * Also set `USE_BACKEND` to `OPENCL` or `CUDA`, and adjust options like `NO_GIT_REVISION` if needed, and run "Configure" again as needed.
+      * If you get errors where CMake has not automatically found Boost, ZLib, etc, point it to the appropriate places according to the error messages:
+        * `BOOST_ROOT` - point this to your boost installation directory.
+        * `ZLIB_INCLUDE_DIR` - point this to the directory containing `zlib.h` and other headers
+        * `ZLIB_LIBRARY` - point this to the `libz.lib` resulting from building zlib. Note that "*_LIBRARY" expects to be pointed to the ".lib" file, whereas the ".dll" file is the file that needs to be included with KataGo at runtime.
+      * Also set `USE_BACKEND` to `OPENCL` or `CUDA`, or `EIGEN` depending on what backend you want to use.
+      * Set any other options you want and re-run "Configure" again as needed after setting them. Such as:
+         * `NO_GIT_REVISION` if you don't have Git or if cmake is not finding it.
+         * `NO_LIBZIP` if you don't care about running self-play training and you don't have libzip.
+         * `USE_AVX2` if you want to compile with AVX2 and FMA instructions, which will fail on some CPUs but speed up Eigen greatly on CPUs that support them.
       * Once running "Configure" looks good, run "Generate" and then open MSVC and build as normal in MSVC.
    * Done! You should now have a compiled `katago.exe` executable in your working directory.
    * Note: You may need to copy the ".dll" files corresponding to the various ".lib" files you compiled with into the directory containing katago.exe.

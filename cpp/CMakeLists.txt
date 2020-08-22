@@ -31,6 +31,7 @@ set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA OPENCL EIGEN)
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
 set(Boost_USE_STATIC_LIBS_ON 0 CACHE BOOL "Compile against boost statically instead of dynamically")
+set(USE_AVX2 0 CACHE BOOL "Compile with AVX2")
 
 #--------------------------- NEURAL NET BACKEND ------------------------------------------------------------------------
 
@@ -38,7 +39,7 @@ message("Building 'katago' executable for GTP engine and other tools")
 if(USE_BACKEND STREQUAL "CUDA")
   message("-DUSE_BACKEND=CUDA, using CUDA backend")
 
-  
+
   # Ensure dynamic cuda linking (Versions prior to 3.17)
   if (${CMAKE_VERSION} VERSION_LESS "3.17")
     set(CMAKE_CUDA_FLAGS "" CACHE STRING "")
@@ -65,7 +66,7 @@ if(USE_BACKEND STREQUAL "CUDA")
   endif()
 
   set(CUDA_STANDARD 11)
-  
+
   # Ensure dynamic cuda linking (Versions from 3.17)
   if (${CMAKE_VERSION} VERSION_GREATER "3.16")
     set(CMAKE_CUDA_RUNTIME_LIBRARY SHARED)
@@ -117,6 +118,9 @@ if(NO_GIT_REVISION)
 else()
   message("Including Git revision in the compiled executable, specify -DNO_GIT_REVISION=1 to disable")
   find_package(Git)
+  if(NOT GIT_FOUND)
+    set(GIT_EXECUTABLE ${GIT_EXECUTABLE} CACHE FILEPATH "Path to git executable")
+  endif()
   set(GIT_HEADER_FILE_TEMPLATE_BARE program/gitinfotemplate.h)
   set(GIT_HEADER_FILE_ALWAYS_UPDATED_BARE program/gitinfoupdated.h)
   set(GIT_HEADER_FILE_BARE program/gitinfo.h)
@@ -259,6 +263,9 @@ find_package(ZLIB REQUIRED)
 if(ZLIB_FOUND)
   include_directories(${ZLIB_INCLUDE_DIRS})
   target_link_libraries(katago ${ZLIB_LIBRARIES})
+else()
+  set(ZLIB_INCLUDE_DIR ${ZLIB_INCLUDE_DIR} CACHE PATH "Path to directory with zlib.h and other header files")
+  set(ZLIB_LIBRARY ${ZLIB_LIBRARY} CACHE FILEPATH "Path to libz.lib")
 endif(ZLIB_FOUND)
 
 find_library(LIBZIP_LIBRARY NAMES zip)
@@ -267,6 +274,9 @@ find_path(LIBZIP_INCLUDE_DIR_ZIPCONF NAMES zipconf.h)
 if((NOT LIBZIP_LIBRARY) OR (NOT LIBZIP_INCLUDE_DIR_ZIP) OR (NOT LIBZIP_INCLUDE_DIR_ZIPCONF))
   target_compile_definitions(katago PRIVATE NO_LIBZIP)
   message(WARNING "${ColorBoldRed}WARNING: libzip library was NOT found. KataGo should still work for GTP/matches/analysis if everything else is good, but selfplay for writing training data will not be possible.${ColorReset}")
+  set(LIBZIP_INCLUDE_DIR_ZIP ${LIBZIP_INCLUDE_DIR_ZIP} CACHE PATH "Path to directory with zip.h and other header files")
+  set(LIBZIP_INCLUDE_DIR_ZIPCONF ${LIBZIP_INCLUDE_DIR_ZIPCONF} CACHE PATH "Path to directory with zipconf.h and other header files")
+  set(LIBZIP_LIBRARY ${LIBZIP_LIBRARY} CACHE FILEPATH "Path to libzip.lib")
 else()
   include_directories(${LIBZIP_INCLUDE_DIR_ZIP})
   include_directories(${LIBZIP_INCLUDE_DIR_ZIPCONF})
@@ -279,6 +289,9 @@ endif()
 find_package(Boost COMPONENTS system filesystem REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 target_link_libraries(katago ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
+if(NOT BOOST_FOUND)
+  set(BOOST_ROOT ${BOOST_ROOT} CACHE PATH "Path to root directory containing boost")
+endif()
 
 if(USE_TCMALLOC)
   target_link_libraries(katago ${TCMALLOC_LIB})
@@ -305,12 +318,19 @@ if(MSVC)
   # core/rand.cpp uses winsock for a gethostname
   target_link_libraries(katago ws2_32)
 
+  if(USE_AVX2)
+    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} /arch:AVX2 -D__FMA__")
+  endif()
+
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCC)
   if(NOT (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm"))
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse")
+  endif()
+  if(USE_AVX2)
+    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mavx2 -mfma")
   endif()
 
   # On g++ it seems like we need to explicitly link threads as well.
