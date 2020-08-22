@@ -85,6 +85,9 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   logger.write("Analysis Engine starting...");
   logger.write(Version::getKataGoVersionForHelp());
 
+  const bool logAllRequests = cfg.getBool("logAllRequests");
+  const bool logSearchInfo = cfg.getBool("logSearchInfo");
+
   auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective, Player defaultPerspective) {
     params = Setup::loadSingleParams(config);
     perspective = Setup::parseReportAnalysisWinrates(config,defaultPerspective);
@@ -175,7 +178,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   };
 
   auto analysisLoop = [
-    &logger,&toAnalyzeQueue,&toWriteQueue,&preventEncore,&pushToWrite,&reportError
+    &logger,&toAnalyzeQueue,&toWriteQueue,&preventEncore,&pushToWrite,&reportError,&logSearchInfo,&nnEval
   ](AsyncBot* bot) {
     while(true) {
       std::pair<std::pair<int,int64_t>,AnalyzeRequest*> analysisItem;
@@ -190,6 +193,11 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
       Player pla = request->nextPla;
       bot->genMoveSynchronous(pla, TimeControls());
+      if(logSearchInfo) {
+        ostringstream sout;
+        PlayUtils::printGenmoveLog(sout,bot,nnEval,Board::NULL_LOC,NAN,request->perspective);
+        logger.write(sout.str());
+      }
 
       json ret;
       ret["id"] = request->id;
@@ -355,11 +363,14 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     if(line.length() == 0)
       continue;
 
+    if(logAllRequests)
+      logger.write("Request: " + line);
+    
     try {
       input = json::parse(line);
     }
     catch(nlohmann::detail::exception& e) {
-      reportError(e.what());
+      reportError(e.what() + string(" - could not parse input line as json request: ") + line);
       continue;
     }
 

@@ -2,6 +2,7 @@
 #define PROGRAM_PLAY_UTILS_H_
 
 #include "../program/play.h"
+#include "../search/asyncbot.h"
 
 //This is a grab-bag of various useful higher-level functions that select moves or evaluate the board in various ways.
 
@@ -141,6 +142,7 @@ namespace PlayUtils {
     bool printElo
   );
 
+  void printGenmoveLog(std::ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken, Player perspective);
 }
 
 

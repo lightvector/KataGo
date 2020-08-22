@@ -282,27 +282,6 @@ static bool shouldResign(
   return true;
 }
 
-static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken, Player perspective) {
-  const Search* search = bot->getSearch();
-  Board::printBoard(out, bot->getRootBoard(), moveLoc, &(bot->getRootHist().moveHistory));
-  out << bot->getRootHist().rules << "\n";
-  out << "Time taken: " << timeTaken << "\n";
-  out << "Root visits: " << search->getRootVisits() << "\n";
-  out << "New playouts: " << search->lastSearchNumPlayouts << "\n";
-  out << "NN rows: " << nnEval->numRowsProcessed() << endl;
-  out << "NN batches: " << nnEval->numBatchesProcessed() << endl;
-  out << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
-  if(search->searchParams.playoutDoublingAdvantage != 0)
-    out << "PlayoutDoublingAdvantage: " << (
-      search->getRootPla() == getOpp(search->getPlayoutDoublingAdvantagePla()) ?
-      -search->searchParams.playoutDoublingAdvantage : search->searchParams.playoutDoublingAdvantage) << endl;
-  out << "PV: ";
-  search->printPV(out, search->rootNode, 25);
-  out << "\n";
-  out << "Tree:\n";
-  search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
-}
-
 struct GTPEngine {
   GTPEngine(const GTPEngine&) = delete;
   GTPEngine& operator=(const GTPEngine&) = delete;
@@ -926,11 +905,11 @@ struct GTPEngine {
 
     if(logSearchInfo) {
       ostringstream sout;
-      printGenmoveLog(sout,bot,nnEval,moveLoc,timeTaken,perspective);
+      PlayUtils::printGenmoveLog(sout,bot,nnEval,moveLoc,timeTaken,perspective);
       logger.write(sout.str());
     }
     if(debug) {
-      printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken,perspective);
+      PlayUtils::printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken,perspective);
     }
 
     //Actual reporting of chosen move---------------------
@@ -1350,8 +1329,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(rand.nextUInt()) + ".log");
   }
 
-  bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
-  bool logSearchInfo = cfg.getBool("logSearchInfo");
+  const bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
+  const bool logSearchInfo = cfg.getBool("logSearchInfo");
   bool loggingToStderr = false;
 
   bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;

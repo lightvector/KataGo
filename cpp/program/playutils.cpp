@@ -817,3 +817,26 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
 
   return results;
 }
+
+
+void PlayUtils::printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken, Player perspective) {
+  const Search* search = bot->getSearch();
+  Board::printBoard(out, bot->getRootBoard(), moveLoc, &(bot->getRootHist().moveHistory));
+  out << bot->getRootHist().rules << "\n";
+  if(!std::isnan(timeTaken))
+    out << "Time taken: " << timeTaken << "\n";
+  out << "Root visits: " << search->getRootVisits() << "\n";
+  out << "New playouts: " << search->lastSearchNumPlayouts << "\n";
+  out << "NN rows: " << nnEval->numRowsProcessed() << endl;
+  out << "NN batches: " << nnEval->numBatchesProcessed() << endl;
+  out << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
+  if(search->searchParams.playoutDoublingAdvantage != 0)
+    out << "PlayoutDoublingAdvantage: " << (
+      search->getRootPla() == getOpp(search->getPlayoutDoublingAdvantagePla()) ?
+      -search->searchParams.playoutDoublingAdvantage : search->searchParams.playoutDoublingAdvantage) << endl;
+  out << "PV: ";
+  search->printPV(out, search->rootNode, 25);
+  out << "\n";
+  out << "Tree:\n";
+  search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
+}
