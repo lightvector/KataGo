@@ -4,6 +4,7 @@
 #include "core/timer.h"
 #include "core/makedir.h"
 #include "dataio/loadmodel.h"
+#include "dataio/homedata.h"
 #include "neuralnet/modelversion.h"
 #include "search/asyncbot.h"
 #include "program/play.h"
@@ -187,6 +188,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   int deleteUnusedModelsAfter;
   string userConfigFile;
   string overrideUserConfig;
+  string caCertsFile;
   try {
     KataGoCommandLine cmd("Run KataGo to generate training data for distributed training");
     TCLAP::ValueArg<string> baseDirArg(
@@ -207,12 +209,14 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     );
     TCLAP::ValueArg<string> userConfigFileArg("","config","Config file to use for server connection and/or GPU settings",false,string(),"FILE");
     TCLAP::ValueArg<string> overrideUserConfigArg("","override-config","Override config parameters. Format: \"key=value, key=value,...\"",false,string(),"KEYVALUEPAIRS");
+    TCLAP::ValueArg<string> caCertsFileArg("","cacerts","CA certificates file for SSL (cacerts.pem, ca-bundle.crt)",false,string(),"FILE");
     cmd.add(baseDirArg);
     cmd.add(maxSimultaneousGamesArg);
     cmd.add(unloadUnusedModelsAfterArg);
     cmd.add(deleteUnusedModelsAfterArg);
     cmd.add(userConfigFileArg);
     cmd.add(overrideUserConfigArg);
+    cmd.add(caCertsFileArg);
     cmd.parse(argc,argv);
     baseDir = baseDirArg.getValue();
     maxSimultaneousGames = maxSimultaneousGamesArg.getValue();
@@ -220,6 +224,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     deleteUnusedModelsAfter = deleteUnusedModelsAfterArg.getValue();
     userConfigFile = userConfigFileArg.getValue();
     overrideUserConfig = overrideUserConfigArg.getValue();
+    caCertsFile = caCertsFileArg.getValue();
 
     if(maxSimultaneousGames <= 0 || maxSimultaneousGames > 100000)
       throw StringError("-max-simultaneous-games: invalid value");
@@ -248,6 +253,34 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     userCfg->overrideKeys(newkvs,mutexKeySets);
   }
 
+  if(caCertsFile == "") {
+    vector<string> defaultFilesDirs = HomeData::getDefaultFilesDirs();
+    vector<string> possiblePaths;
+    for(const string& dir: defaultFilesDirs) {
+      possiblePaths.push_back(dir + "/" + "cacert.pem");
+      possiblePaths.push_back(dir + "/" + "cacert.crt");
+      possiblePaths.push_back(dir + "/" + "ca-bundle.pem");
+      possiblePaths.push_back(dir + "/" + "ca-bundle.crt");
+    }
+    bool foundCaCerts = false;
+    for(const string& path: possiblePaths) {
+      std::ifstream infile(path);
+      bool pathExists = infile.good();
+      if(pathExists) {
+        foundCaCerts = true;
+        caCertsFile = path;
+        break;
+      }
+    }
+    if(!foundCaCerts) {
+      throw StringError(
+        "Could not find CA certs (cacert.pem or ca-bundle.crt) at default location " +
+        HomeData::getDefaultFilesDirForHelpMessage() +
+        ", specify where this file is via '-cacerts' command line argument and/or download them from https://curl.haxx.se/docs/caextract.html"
+      );
+    }
+  }
+
   if(!std::atomic_is_lock_free(&shouldStop))
     throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
   std::signal(SIGINT, signalHandler);
@@ -265,7 +298,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   string password = userCfg->getString("password");
 
   //Connect to server and get global parameters for the run.
-  Client::Connection* connection = new Client::Connection(serverUrl,username,password,&logger);
+  Client::Connection* connection = new Client::Connection(serverUrl,username,password,caCertsFile,&logger);
   const Client::RunParameters runParams = connection->getRunParameters();
 
   MakeDir::make(baseDir);

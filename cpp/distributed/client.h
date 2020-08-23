@@ -44,7 +44,7 @@ namespace Client {
 
   class Connection {
   public:
-    Connection(const std::string& serverUrl, const std::string& username, const std::string& password, Logger* logger);
+    Connection(const std::string& serverUrl, const std::string& username, const std::string& password, const std::string& caCertsFile, Logger* logger);
     ~Connection();
 
     Connection(const Connection&) = delete;
@@ -93,6 +93,7 @@ namespace Client {
     httplib::SSLClient* httpsClient;
     bool isSSL;
     std::string baseResourcePath;
+    std::string caCertsFile;
 
     Logger* logger;
     Rand rand;

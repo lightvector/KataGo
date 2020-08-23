@@ -144,11 +144,12 @@ static std::shared_ptr<httplib::Response> oneShotDownload(Logger* logger, const 
   }
 }
 
-Connection::Connection(const string& serverUrl, const string& username, const string& password, Logger* lg)
+Connection::Connection(const string& serverUrl, const string& username, const string& password, const string& caCerts, Logger* lg)
   :httpClient(NULL),
    httpsClient(NULL),
    isSSL(false),
    baseResourcePath(),
+   caCertsFile(caCerts),
    logger(lg),
    rand(),
    mutex()
@@ -180,9 +181,8 @@ Connection::Connection(const string& serverUrl, const string& username, const st
   }
   else {
     httpsClient = new httplib::SSLClient(url.host, url.port);
-    //TODO
-    // httpsClient->set_ca_cert_path("./ca-bundle.crt");
-    // httpsClient->enable_server_certificate_verification(true);
+    httpsClient->set_ca_cert_path(caCertsFile.c_str());
+    httpsClient->enable_server_certificate_verification(true);
   }
 
   //Do an initial test query to make sure the server's there!

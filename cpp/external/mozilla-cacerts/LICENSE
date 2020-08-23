@@ -1,0 +1,5 @@
+This complication of CA certificates was obtained from:
+https://curl.haxx.se/docs/caextract.html
+
+It derives from Mozilla Firefox source code which is covered
+by the Mozilla Public License 2.0: https://mozilla.org/MPL/2.0/.
