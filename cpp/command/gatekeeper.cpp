@@ -225,7 +225,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",true,string(),"DIR");
     TCLAP::ValueArg<string> acceptedModelsDirArg("","accepted-models-dir","Dir to write good models to",true,string(),"DIR");
     TCLAP::ValueArg<string> rejectedModelsDirArg("","rejected-models-dir","Dir to write bad models to",true,string(),"DIR");
-    TCLAP::ValueArg<string> selfplayDirArg("","selfplay-dir","Dir for selfplay data",true,string(),"DIR");
+    TCLAP::ValueArg<string> selfplayDirArg("","selfplay-dir","Dir where selfplay data will be produced if a model passes",false,string(),"DIR");
     TCLAP::SwitchArg noAutoRejectOldModelsArg("","no-autoreject-old-models","Test older models than the latest accepted model");
     TCLAP::SwitchArg quitIfNoNetsToTestArg("","quit-if-no-nets-to-test","Terminate instead of waiting for a new net to test");
     cmd.add(testModelsDirArg);
@@ -254,7 +254,9 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     checkDirNonEmpty("sgf-output-dir",sgfOutputDir);
     checkDirNonEmpty("accepted-models-dir",acceptedModelsDir);
     checkDirNonEmpty("rejected-models-dir",rejectedModelsDir);
-    checkDirNonEmpty("selfplay-dir",selfplayDir);
+
+    //Tolerate this argument being optional
+    //checkDirNonEmpty("selfplay-dir",selfplayDir);
 
     cmd.getConfig(cfg);
   }
@@ -267,7 +269,8 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   MakeDir::make(acceptedModelsDir);
   MakeDir::make(rejectedModelsDir);
   MakeDir::make(sgfOutputDir);
-  MakeDir::make(selfplayDir);
+  if(selfplayDir != "")
+    MakeDir::make(selfplayDir);
 
   Logger logger;
   //Log to random file name to better support starting/stopping as well as multiple parallel runs
@@ -530,11 +533,13 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
       //Make a bunch of the directories that selfplay will need so that there isn't a race on the selfplay
       //machines to concurrently make it, since sometimes concurrent making of the same directory can corrupt
       //a filesystem
-      MakeDir::make(selfplayDir + "/" + netAndStuff->modelNameCandidate);
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-      MakeDir::make(selfplayDir + "/" + netAndStuff->modelNameCandidate + "/" + "sgfs");
-      MakeDir::make(selfplayDir + "/" + netAndStuff->modelNameCandidate + "/" + "tdata");
-      MakeDir::make(selfplayDir + "/" + netAndStuff->modelNameCandidate + "/" + "vadata");
+      if(selfplayDir != "") {
+        MakeDir::make(selfplayDir + "/" + netAndStuff->modelNameCandidate);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        MakeDir::make(selfplayDir + "/" + netAndStuff->modelNameCandidate + "/" + "sgfs");
+        MakeDir::make(selfplayDir + "/" + netAndStuff->modelNameCandidate + "/" + "tdata");
+        MakeDir::make(selfplayDir + "/" + netAndStuff->modelNameCandidate + "/" + "vadata");
+      }
       std::this_thread::sleep_for(std::chrono::seconds(2));
 
       string renameDest = acceptedModelsDir + "/" + netAndStuff->modelNameCandidate;

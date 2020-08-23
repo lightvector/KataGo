@@ -46,6 +46,7 @@ Example instructions to start up these things (assuming you have appropriate mac
      * This starts the gatekeeper. Some example configs for different numbers of GPUs are: configs/training/gatekeeper{1,2a,2b,2c}.cfg. Again, you may want to edit these. The number of simultaneous game threads here is also large for the same reasons as for selfplay. No need to start this if specifying `0` for `$USE_GATING`.
      * Take a look at the generated `log.txt` for any errors and/or for the game-by-game progress of each testing match that the gatekeeper runs.
      * The argument `-quit-if-no-nets-to-test` can make gatekeeper terminate after testing all nets queued for testing, instead of running forever and waiting for more. Run with -help to see other arguments as well.
+     * Gatekeeper takes `-selfplay-dir` as an argument so as to pre-create the directory so that if there are multiple self-play machines, they don't corrupt a shared filesystem in a race to create the dir.
 
 To manually pause a run, sending `SIGINT` or `SIGKILL` to all the relevant processes is the recommended method. The selfplay and gatekeeper processes will terminate gracefully when receiving such a signal and finish writing all pending data (this may take a minute or two), and any python or bash scripts will be terminated abruptly but are all implemented to write to disk in a way that is safe if killed at any point. To resume the run, just restart everything again with the same `$BASEDIR` and everything will continue where it left off.
 
