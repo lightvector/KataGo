@@ -3,6 +3,7 @@
 #include "../distributed/client.h"
 
 #include "../core/config_parser.h"
+#include "../core/sha2.h"
 #include "../game/board.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/desc.h"
@@ -572,9 +573,17 @@ bool Connection::downloadModelIfNotPresent(
         " bytes out of " + Global::int64ToString(modelInfo.bytes)
       );
 
-    //TODO maybe also verify sha256 matches the one gotten from the server
+    //Verify hash to see if the file is as expected
+    {
+      string contents = Global::readFileBinary(tmpPath);
+      char hashResultBuf[65];
+      SHA2::get256((const uint8_t*)contents.data(), contents.size(), hashResultBuf);
+      string hashResult(hashResultBuf);
+      if(Global::toLower(modelInfo.sha256) != Global::toLower(hashResult))
+        throw StringError("Downloaded file sha256 was " + hashResult + " which does not match the expected sha256 " + modelInfo.sha256);
+    }
 
-    //Attempt to load the model file to verify integrity
+    //Attempt to load the model file to verify gzip integrity and that we actually support this model format
     {
       ModelDesc* descBuf = new ModelDesc();
       ModelDesc::loadFromFileMaybeGZipped(tmpPath,*descBuf);

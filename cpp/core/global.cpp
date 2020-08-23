@@ -670,6 +670,20 @@ string Global::readFile(const string& filename)
   return readFile(filename.c_str());
 }
 
+string Global::readFileBinary(const char* filename)
+{
+  ifstream ifs(filename, ios::binary);
+  if(!ifs.good())
+    throw IOError(string("File not found: ") + filename);
+  string str((istreambuf_iterator<char>(ifs)), istreambuf_iterator<char>());
+  return str;
+}
+
+string Global::readFileBinary(const string& filename)
+{
+  return readFileBinary(filename.c_str());
+}
+
 //Read file into separate lines, using the specified delimiter character(s).
 //The delimiter characters are NOT included.
 vector<string> Global::readFileLines(const char* filename, char delimiter)

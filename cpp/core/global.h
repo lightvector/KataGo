@@ -151,6 +151,8 @@ namespace Global
   //Read entire file whole
   std::string readFile(const char* filename);
   std::string readFile(const std::string& filename);
+  std::string readFileBinary(const char* filename);
+  std::string readFileBinary(const std::string& filename);
 
   //Read file into separate lines, using the specified delimiter character(s).
   //The delimiter characters are NOT included.
