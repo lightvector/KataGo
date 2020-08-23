@@ -331,6 +331,7 @@ if(MSVC)
 
   if(USE_AVX2)
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} /arch:AVX2 -D__FMA__")
+    target_compile_definitions(katago PRIVATE USE_AVX2)
   endif()
 
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
@@ -342,6 +343,7 @@ if(CMAKE_COMPILER_IS_GNUCC)
   endif()
   if(USE_AVX2)
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mavx2 -mfma")
+    target_compile_definitions(katago PRIVATE USE_AVX2)
   endif()
 
   # On g++ it seems like we need to explicitly link threads as well.

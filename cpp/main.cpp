@@ -186,6 +186,11 @@ string Version::getKataGoVersionFullInfo() {
 #else
   out << "Using dummy backend" << endl;
 #endif
+
+#if defined(USE_AVX2)
+  out << "Compiled with AVX2 and FMA instructions" << endl;
+#endif
+
   return out.str();
 }
 
