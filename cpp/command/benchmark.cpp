@@ -230,8 +230,8 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     if(cfg.contains("nnMaxBatchSize"))
       cout << "WARNING: Your nnMaxBatchSize is hardcoded to " + cfg.getString("nnMaxBatchSize") + ", recommend deleting it and using the default (which this benchmark assumes)" << endl;
 #ifdef USE_EIGEN_BACKEND
-    if(cfg.contains("numNNServerThreadsPerModel")) {
-      cout << "WARNING: Your numNNServerThreadsPerModel is hardcoded to " + cfg.getString("numNNServerThreadsPerModel") + ", consider deleting it and using the default (which this benchmark assumes when computing its performance stats)" << endl;
+    if(cfg.contains("numEigenThreadsPerModel")) {
+      cout << "Note: Your numEigenThreadsPerModel is hardcoded to " + cfg.getString("numEigenThreadsPerModel") + ", consider deleting it and using the default (which this benchmark assumes when computing its performance stats)" << endl;
     }
 #endif
 
@@ -267,12 +267,13 @@ static void warmStartNNEval(const CompactSgf* sgf, Logger& logger, const SearchP
 
 static NNEvaluator* createNNEval(int maxNumThreads, CompactSgf* sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params) {
   int maxConcurrentEvals = maxNumThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+  int expectedConcurrentEvals = maxNumThreads;
   int defaultMaxBatchSize = std::max(8,((maxNumThreads+3)/4)*4);
 
   Rand seedRand;
 
   NNEvaluator* nnEval = Setup::initializeNNEvaluator(
-    modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,
+    modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
     sgf->xSize,sgf->ySize,defaultMaxBatchSize,
     Setup::SETUP_FOR_BENCHMARK
   );

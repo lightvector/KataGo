@@ -65,6 +65,7 @@ namespace {
     ConfigParser* cfg;
     Rand seedRand;
     int maxConcurrentEvals;
+    int expectedConcurrentEvals;
 
     map<string, NetAndStuff*> loadedNets;
 
@@ -73,11 +74,13 @@ namespace {
   public:
     NetManager(
       ConfigParser* c,
-      int maxConcurrentEvs
+      int maxConcurrentEvs,
+      int expectedConcurrentEvs
     )
       :cfg(c),
        seedRand(),
        maxConcurrentEvals(maxConcurrentEvs),
+       expectedConcurrentEvals(expectedConcurrentEvs),
        loadedNets()
     {
     }
@@ -97,7 +100,7 @@ namespace {
       if(iter == loadedNets.end()) {
         int defaultMaxBatchSize = -1;
         NNEvaluator* nnEval = Setup::initializeNNEvaluator(
-          nnModelFile,nnModelFile,*cfg,logger,seedRand,maxConcurrentEvals,
+          nnModelFile,nnModelFile,*cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
           NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
           Setup::SETUP_FOR_MATCH
         );
@@ -464,6 +467,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
 
   //Work out an upper bound on how many concurrent nneval requests we could end up making.
   int maxConcurrentEvals;
+  int expectedConcurrentEvals;
   {
     //Work out the max threads any one bot uses
     int maxBotThreads = 0;
@@ -471,15 +475,15 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
       if(paramss[i].numThreads > maxBotThreads)
         maxBotThreads = paramss[i].numThreads;
     //Mutiply by the number of concurrent games we could have
-    maxConcurrentEvals = maxBotThreads * numGameThreads;
+    expectedConcurrentEvals = maxBotThreads * numGameThreads;
     //Multiply by 2 and add some buffer, just so we have plenty of headroom.
-    maxConcurrentEvals = maxConcurrentEvals * 2 + 16;
+    maxConcurrentEvals = expectedConcurrentEvals * 2 + 16;
   }
 
   //Initialize neural net inference engine globals, and set up model manager
   Setup::initializeSession(cfg);
 
-  NetManager* manager = new NetManager(&cfg,maxConcurrentEvals);
+  NetManager* manager = new NetManager(&cfg,maxConcurrentEvals,expectedConcurrentEvals);
 
   //Initialize object for randomly pairing bots
   AutoMatchPairer * autoMatchPairer = new AutoMatchPairer(cfg,resultsDir,numBots,botNames,nnModelFilesByBot,paramss);

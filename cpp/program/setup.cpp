@@ -16,6 +16,7 @@ NNEvaluator* Setup::initializeNNEvaluator(
   Logger& logger,
   Rand& seedRand,
   int maxConcurrentEvals,
+  int expectedConcurrentEvals,
   int defaultNNXLen,
   int defaultNNYLen,
   int defaultMaxBatchSize,
@@ -23,7 +24,7 @@ NNEvaluator* Setup::initializeNNEvaluator(
 ) {
   vector<NNEvaluator*> nnEvals =
     initializeNNEvaluators(
-      {nnModelName},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,defaultNNXLen,defaultNNYLen,defaultMaxBatchSize,setupFor
+      {nnModelName},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,defaultNNXLen,defaultNNYLen,defaultMaxBatchSize,setupFor
     );
   assert(nnEvals.size() == 1);
   return nnEvals[0];
@@ -36,6 +37,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   Logger& logger,
   Rand& seedRand,
   int maxConcurrentEvals,
+  int expectedConcurrentEvals,
   int defaultNNXLen,
   int defaultNNYLen,
   int defaultMaxBatchSize,
@@ -133,21 +135,26 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     logger.write("nnRandSeed" + idxStr + " = " + nnRandSeed);
 
 #ifndef USE_EIGEN_BACKEND
+    (void)expectedConcurrentEvals;
     int numNNServerThreadsPerModel =
       cfg.contains("numNNServerThreadsPerModel") ? cfg.getInt("numNNServerThreadsPerModel",1,1024) : 1;
 #else
-    int numSearchThreads =
-      cfg.contains("numSearchThreads0") ? cfg.getInt("numSearchThreads0", 1, 4096) :
-      cfg.contains("numSearchThreads") ? cfg.getInt("numSearchThreads", 1, 4096) :
-      1;
+    auto getNumCores = [&logger]() {
+      int numCores = (int)std::thread::hardware_concurrency();
+      if(numCores <= 0) {
+        logger.write("Could not determine number of cores on this machine, choosing default parameters as if it were 8");
+        numCores = 8;
+      }
+      return numCores;
+    };
     int numNNServerThreadsPerModel =
-      cfg.contains("numNNServerThreadsPerModel") ? cfg.getInt("numNNServerThreadsPerModel",1,1024) :
-      setupFor == SETUP_FOR_DISTRIBUTED ? 16 :
-      setupFor == SETUP_FOR_MATCH ? std::max(numSearchThreads*2,16) :
-      setupFor == SETUP_FOR_ANALYSIS ? std::max(numSearchThreads*2,16) :
-      setupFor == SETUP_FOR_GTP ? numSearchThreads :
-      setupFor == SETUP_FOR_BENCHMARK ? numSearchThreads :
-      cfg.getInt("numNNServerThreadsPerModel",1,1024);
+      cfg.contains("numEigenThreadsPerModel") ? cfg.getInt("numEigenThreadsPerModel",1,1024) :
+      setupFor == SETUP_FOR_DISTRIBUTED ? std::min(expectedConcurrentEvals,getNumCores()) :
+      setupFor == SETUP_FOR_MATCH ? std::min(expectedConcurrentEvals,getNumCores()) :
+      setupFor == SETUP_FOR_ANALYSIS ? std::min(expectedConcurrentEvals,getNumCores()) :
+      setupFor == SETUP_FOR_GTP ? expectedConcurrentEvals :
+      setupFor == SETUP_FOR_BENCHMARK ? expectedConcurrentEvals :
+      cfg.getInt("numEigenThreadsPerModel",1,1024);
 #endif
 
     vector<int> gpuIdxByServerThread;

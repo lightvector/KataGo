@@ -125,6 +125,7 @@ int MainCmds::match(int argc, const char* const* argv) {
 
   //Work out an upper bound on how many concurrent nneval requests we could end up making.
   int maxConcurrentEvals;
+  int expectedConcurrentEvals;
   {
     //Work out the max threads any one bot uses
     int maxBotThreads = 0;
@@ -132,9 +133,9 @@ int MainCmds::match(int argc, const char* const* argv) {
       if(paramss[i].numThreads > maxBotThreads)
         maxBotThreads = paramss[i].numThreads;
     //Mutiply by the number of concurrent games we could have
-    maxConcurrentEvals = maxBotThreads * numGameThreads;
+    expectedConcurrentEvals = maxBotThreads * numGameThreads;
     //Multiply by 2 and add some buffer, just so we have plenty of headroom.
-    maxConcurrentEvals = maxConcurrentEvals * 2 + 16;
+    maxConcurrentEvals = expectedConcurrentEvals * 2 + 16;
   }
 
   //Initialize object for randomizing game settings and running games
@@ -162,7 +163,7 @@ int MainCmds::match(int argc, const char* const* argv) {
   const vector<string>& nnModelNames = nnModelFiles;
   int defaultMaxBatchSize = -1;
   vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
-    nnModelNames,nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,
+    nnModelNames,nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
     maxBoardSizeUsed,maxBoardSizeUsed,defaultMaxBatchSize,
     Setup::SETUP_FOR_MATCH
   );

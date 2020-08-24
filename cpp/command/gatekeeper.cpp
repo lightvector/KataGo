@@ -349,17 +349,18 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
 
     // * 2 + 16 just in case to have plenty of room
     int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
+    int expectedConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads;
     int defaultMaxBatchSize = -1;
 
     NNEvaluator* testNNEval = Setup::initializeNNEvaluator(
-      testModelName,testModelFile,cfg,logger,rand,maxConcurrentEvals,
+      testModelName,testModelFile,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
       Setup::SETUP_FOR_OTHER
     );
     logger.write("Loaded candidate neural net " + testModelName + " from: " + testModelFile);
 
     NNEvaluator* acceptedNNEval = Setup::initializeNNEvaluator(
-      acceptedModelName,acceptedModelFile,cfg,logger,rand,maxConcurrentEvals,
+      acceptedModelName,acceptedModelFile,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
       Setup::SETUP_FOR_OTHER
     );
