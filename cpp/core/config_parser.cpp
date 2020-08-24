@@ -106,6 +106,25 @@ string ConfigParser::getContents() const {
   return contents;
 }
 
+void ConfigParser::unsetUsedKey(const string& key) {
+  std::lock_guard<std::mutex> lock(usedKeysMutex);
+  usedKeys.erase(key);
+}
+
+void ConfigParser::applyAlias(const string& mapThisKey, const string& toThisKey) {
+  if(contains(mapThisKey) && contains(toThisKey))
+    throw IOError("Cannot specify both " + mapThisKey + " and " + toThisKey + " in the same config");
+  if(contains(mapThisKey)) {
+    keyValues[toThisKey] = keyValues[mapThisKey];
+    keyValues.erase(mapThisKey);
+    std::lock_guard<std::mutex> lock(usedKeysMutex);
+    if(usedKeys.find(mapThisKey) != usedKeys.end()) {
+      usedKeys.insert(toThisKey);
+      usedKeys.erase(mapThisKey);
+    }
+  }
+}
+
 void ConfigParser::overrideKeys(const map<string, string>& newkvs) {
   for(auto iter = newkvs.begin(); iter != newkvs.end(); ++iter) {
     //Assume zero-length values mean to delete a key

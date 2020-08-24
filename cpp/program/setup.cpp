@@ -262,9 +262,11 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 #else
     //Large batches don't really help CPUs the way they do GPUs because a single CPU on its own is single-threaded
     //and doesn't greatly benefit from having a bigger chunk of parallelizable work to do on the large scale.
-    //So we just fix a size here that isn't crazy and saves memory.
+    //So we just fix a size here that isn't crazy and saves memory, completely ignore what the user would have
+    //specified for GPUs.
     int nnMaxBatchSize = 4;
     cfg.markAllKeysUsedWithPrefix("nnMaxBatchSize");
+    (void)defaultMaxBatchSize;
 #endif
 
     int defaultSymmetry = forcedSymmetry >= 0 ? forcedSymmetry : 0;

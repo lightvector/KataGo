@@ -40,6 +40,8 @@ class ConfigParser {
 
   void warnUnusedKeys(std::ostream& out, Logger* logger) const;
   void markAllKeysUsedWithPrefix(const std::string& prefix);
+  void unsetUsedKey(const std::string& key);
+  void applyAlias(const std::string& mapThisKey, const std::string& toThisKey);
 
   std::vector<std::string> unusedKeys() const;
   std::string getFileName() const;

@@ -8,11 +8,10 @@ server or website.
 
 This engine can be run via:
 
-```./katago analysis -config CONFIG_FILE -model MODEL_FILE -analysis-threads NUM_ANALYSIS_THREADS```
+```./katago analysis -config CONFIG_FILE -model MODEL_FILE```
 
 An example config file is provided in `cpp/configs/analysis_example.cfg`. Adjusting this config is recommended, for example
-`nnCacheSizePowerOfTwo` based on how much RAM you have, and adjusting `numSearchThreads` (the number of MCTS threads operating simultaneously on the same position)
-and `NUM_ANALYSIS_THREADS` (the number of positions that will be analyzed at the same time, *each* of which will use `numSearchThreads` many search threads).
+`nnCacheSizePowerOfTwo` based on how much RAM you have, and adjusting `numSearchThreadsPerAnalysisThread` (the number of MCTS threads operating simultaneously on the same position) and `numAnalysisThreads` (the number of positions that will be analyzed at the same time, *each* of which will use `numSearchThreadsPerAnalysisThread` many search threads).
 
 See the [example analysis config](https://github.com/lightvector/KataGo/blob/master/cpp/configs/analysis_example.cfg#L60) for a fairly detailed discussion of how to tune these parameters.
 

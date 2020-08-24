@@ -42,7 +42,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
   ConfigParser cfg;
   string modelFile;
-  int numAnalysisThreads;
+  bool numAnalysisThreadsCmdlineSpecified;
+  int numAnalysisThreadsCmdline;
   bool quitWithoutWaiting;
 
   try {
@@ -52,18 +53,16 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     cmd.setShortUsageArgLimit();
     cmd.addOverrideConfigArg();
 
-    TCLAP::ValueArg<int> numAnalysisThreadsArg("","analysis-threads","Analysis up to this many positions in parallel",true,0,"THREADS");
+    TCLAP::ValueArg<int> numAnalysisThreadsArg("","analysis-threads","Analysis up to this many positions in parallel. Equivalent to numAnalysisThreads in the config.",false,0,"THREADS");
     TCLAP::SwitchArg quitWithoutWaitingArg("","quit-without-waiting","When stdin is closed, quit quickly without waiting for queued tasks");
     cmd.add(numAnalysisThreadsArg);
     cmd.add(quitWithoutWaitingArg);
     cmd.parse(argc,argv);
 
     modelFile = cmd.getModelFile();
-    numAnalysisThreads = numAnalysisThreadsArg.getValue();
+    numAnalysisThreadsCmdlineSpecified = numAnalysisThreadsArg.isSet();
+    numAnalysisThreadsCmdline = numAnalysisThreadsArg.getValue();
     quitWithoutWaiting = quitWithoutWaitingArg.getValue();
-
-    if(numAnalysisThreads <= 0 || numAnalysisThreads >= 16384)
-      throw StringError("Invalid value for numAnalysisThreads");
 
     cmd.getConfig(cfg);
   }
@@ -71,6 +70,14 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
     return 1;
   }
+  cfg.applyAlias("numSearchThreadsPerAnalysisThread", "numSearchThreads");
+
+  if(cfg.contains("numAnalysisThreads") && numAnalysisThreadsCmdlineSpecified)
+    throw StringError("When specifying numAnalysisThreads in the config (" + cfg.getFileName() + "), it is redundant and disallowed to also specify it via -analysis-threads");
+
+  const int numAnalysisThreads = numAnalysisThreadsCmdlineSpecified ? numAnalysisThreadsCmdline : cfg.getInt("numAnalysisThreads",1,16384);
+  if(numAnalysisThreads <= 0 || numAnalysisThreads > 16384)
+    throw StringError("Invalid value for numAnalysisThreads: " + Global::intToString(numAnalysisThreads));
 
   Logger logger;
   if(cfg.contains("logFile") && cfg.contains("logDir"))

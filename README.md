@@ -238,7 +238,7 @@ To automatically tune threads and other settings for you based on asking simple 
 
 Run a JSON-based [analysis engine](docs/Analysis_Engine.md) that can do efficient batched evaluations for a backend Go service:
 
-   * `./katago analysis -model <NEURALNET>.gz -config <ANALYSIS_CONFIG>.cfg -analysis-threads N`
+   * `./katago analysis -model <NEURALNET>.gz -config <ANALYSIS_CONFIG>.cfg`
 
 
 ### Tuning for Performance
