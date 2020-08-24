@@ -712,7 +712,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
     cout << endl;
     string prompt =
       "By default, KataGo will cache up to about 3GB of positions in memory (RAM), in addition to\n"
-      "whatever the current search is using. Specify a max in GB or leave blank for default:\n";
+      "whatever the current search is using. Specify a different max in GB or leave blank for default:\n";
     promptAndParseInput(prompt, [&](const string& line) {
         string s = Global::toLower(line);
         if(Global::isSuffix(s,"gb"))
