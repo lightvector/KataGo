@@ -22,7 +22,8 @@ Where:
      Override config parameters. Format: "key=value, key=value,..."
 
    -analysis-threads <THREADS>
-     (required)  Analysis up to this many positions in parallel
+     Analysis up to this many positions in parallel. Equivalent to
+     numAnalysisThreads in the config.
 
    -quit-without-waiting
      When stdin is closed, quit quickly without waiting for queued tasks
