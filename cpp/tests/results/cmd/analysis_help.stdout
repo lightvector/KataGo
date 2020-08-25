@@ -22,7 +22,7 @@ Where:
      Override config parameters. Format: "key=value, key=value,..."
 
    -analysis-threads <THREADS>
-     Analysis up to this many positions in parallel. Equivalent to
+     Analyze up to this many positions in parallel. Equivalent to
      numAnalysisThreads in the config.
 
    -quit-without-waiting
