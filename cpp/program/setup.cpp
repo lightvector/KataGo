@@ -136,6 +136,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
 #ifndef USE_EIGEN_BACKEND
     (void)expectedConcurrentEvals;
+    cfg.markAllKeysUsedWithPrefix("numEigenThreadsPerModel");
     int numNNServerThreadsPerModel =
       cfg.contains("numNNServerThreadsPerModel") ? cfg.getInt("numNNServerThreadsPerModel",1,1024) : 1;
 #else
