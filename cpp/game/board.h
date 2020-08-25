@@ -10,6 +10,10 @@
 #include "../core/global.h"
 #include "../core/hash.h"
 
+#ifndef COMPILE_MAX_BOARD_LEN
+#define COMPILE_MAX_BOARD_LEN 19
+#endif
+
 //TYPES AND CONSTANTS-----------------------------------------------------------------
 
 struct Board;
@@ -84,7 +88,7 @@ struct Board
 
   //Board parameters and Constants----------------------------------------
 
-  static const int MAX_LEN = 19;  //Maximum edge length allowed for the board
+  static const int MAX_LEN = COMPILE_MAX_BOARD_LEN;  //Maximum edge length allowed for the board
   static const int MAX_PLAY_SIZE = MAX_LEN * MAX_LEN;  //Maximum number of playable spaces
   static const int MAX_ARR_SIZE = (MAX_LEN+1)*(MAX_LEN+2)+1; //Maximum size of arrays needed
 

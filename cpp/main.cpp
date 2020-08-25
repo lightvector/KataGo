@@ -190,6 +190,9 @@ string Version::getKataGoVersionFullInfo() {
 #if defined(USE_AVX2)
   out << "Compiled with AVX2 and FMA instructions" << endl;
 #endif
+#if defined(COMPILE_MAX_BOARD_LEN)
+  out << "Compiled to allow boards of size up to " << COMPILE_MAX_BOARD_LEN << endl;
+#endif
 
   return out.str();
 }
