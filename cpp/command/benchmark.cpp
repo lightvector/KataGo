@@ -272,6 +272,13 @@ static NNEvaluator* createNNEval(int maxNumThreads, CompactSgf* sgf, const strin
 
   Rand seedRand;
 
+#ifdef USE_EIGEN_BACKEND
+  //For warm-starting eigen, we really don't need all that many backend threads, which are determined
+  //via expectedConcurrentEvals.
+  if(expectedConcurrentEvals > 2)
+    expectedConcurrentEvals = 2;
+#endif
+
   NNEvaluator* nnEval = Setup::initializeNNEvaluator(
     modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
     sgf->xSize,sgf->ySize,defaultMaxBatchSize,

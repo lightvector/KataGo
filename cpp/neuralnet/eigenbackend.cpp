@@ -101,49 +101,6 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
   return loadedModel->modelDesc.getSupportedRules(desiredRules, supported);
 }
 
-//------------------------------------------------------------------------------
-
-struct ComputeContext {
-  int nnXLen;
-  int nnYLen;
-};
-
-ComputeContext* NeuralNet::createComputeContext(
-  const std::vector<int>& gpuIdxs,
-  Logger* logger,
-  int nnXLen,
-  int nnYLen,
-  const string& openCLTunerFile,
-  const string& homeDataDirOverride,
-  bool openCLReTunePerBoardSize,
-  enabled_t useFP16Mode,
-  enabled_t useNHWCMode,
-  const LoadedModel* loadedModel
-) {
-  (void)gpuIdxs;
-  (void)logger;
-  (void)openCLTunerFile;
-  (void)homeDataDirOverride;
-  (void)openCLReTunePerBoardSize;
-  (void)loadedModel;
-
-  bool useFP16 = useFP16Mode == enabled_t::True ? true : false;
-  bool useNHWC = useNHWCMode == enabled_t::False ? false : true;
-
-  if(useFP16)
-    throw StringError("Eigen backend: useFP16 = true not supported");
-  if(!useNHWC)
-    throw StringError("Eigen backend: useNHWC = false not supported");
-
-  ComputeContext* context = new ComputeContext();
-  context->nnXLen = nnXLen;
-  context->nnYLen = nnYLen;
-  return context;
-}
-
-void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
-  delete computeContext;
-}
 
 // Helpers --------------------------------------------------------------------------------------------------------------
 
@@ -1184,7 +1141,6 @@ struct Model {
   int numValueChannels;
   int numScoreValueChannels;
   int numOwnershipChannels;
-  int maxBatchSize;
 
   Trunk trunk;
   PolicyHead policyHead;
@@ -1194,18 +1150,17 @@ struct Model {
   Model(const Model&) = delete;
   Model& operator=(const Model&) = delete;
 
-  Model(const ModelDesc& desc, int nnX, int nnY, int maxBatchSz)
+  Model(const ModelDesc& desc, int nnX, int nnY)
     : name(desc.name), version(desc.version), numInputChannels(desc.numInputChannels),
       numInputGlobalChannels(desc.numInputGlobalChannels),
       numValueChannels(desc.numValueChannels),
       numScoreValueChannels(desc.numScoreValueChannels),
       numOwnershipChannels(desc.numOwnershipChannels),
-      maxBatchSize(maxBatchSz),
       trunk(desc.trunk,nnX,nnY),
       policyHead(desc.policyHead,nnX,nnY),
       valueHead(desc.valueHead,nnX,nnY) {}
 
-  size_t requiredConvWorkspaceElts() const {
+  size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
     size_t maxElts = 0;
     maxElts = std::max(maxElts,trunk.requiredConvWorkspaceElts(maxBatchSize));
     maxElts = std::max(maxElts,policyHead.requiredConvWorkspaceElts(maxBatchSize));
@@ -1378,7 +1333,7 @@ struct Buffers {
 
     mask(nnXLen, nnYLen, maxBatchSize),
     maskSum(maxBatchSize),
-    convWorkspace(m.requiredConvWorkspaceElts())
+    convWorkspace(m.requiredConvWorkspaceElts(maxBatchSize))
   {}
 };
 
@@ -1447,11 +1402,67 @@ void NeuralNet::globalCleanup() {
   // no-op for cpu
 }
 
+
+//------------------------------------------------------------------------------
+
+struct ComputeContext {
+  const int nnXLen;
+  const int nnYLen;
+  const Model model;
+
+  ComputeContext() = delete;
+  ComputeContext(const ComputeContext&) = delete;
+  ComputeContext& operator=(const ComputeContext&) = delete;
+
+  ComputeContext(const LoadedModel& loadedModel, int nnX, int nnY)
+    : nnXLen(nnX),
+      nnYLen(nnY),
+      model(loadedModel.modelDesc,nnX,nnY)
+  {}
+  ~ComputeContext()
+  {}
+};
+
+ComputeContext* NeuralNet::createComputeContext(
+  const std::vector<int>& gpuIdxs,
+  Logger* logger,
+  int nnXLen,
+  int nnYLen,
+  const string& openCLTunerFile,
+  const string& homeDataDirOverride,
+  bool openCLReTunePerBoardSize,
+  enabled_t useFP16Mode,
+  enabled_t useNHWCMode,
+  const LoadedModel* loadedModel
+) {
+  (void)gpuIdxs;
+  (void)logger;
+  (void)openCLTunerFile;
+  (void)homeDataDirOverride;
+  (void)openCLReTunePerBoardSize;
+
+  bool useFP16 = useFP16Mode == enabled_t::True ? true : false;
+  bool useNHWC = useNHWCMode == enabled_t::False ? false : true;
+
+  if(useFP16)
+    throw StringError("Eigen backend: useFP16 = true not supported");
+  if(!useNHWC)
+    throw StringError("Eigen backend: useNHWC = false not supported");
+
+  ComputeContext* context = new ComputeContext(*loadedModel,nnXLen,nnYLen);
+  return context;
+}
+
+void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
+  delete computeContext;
+}
+
+//------------------------------------------------------------------------------
+
 struct ComputeHandle {
   const ComputeContext* context;
   int maxBatchSize;
   bool inputsUseNHWC;
-  Model model;
   Buffers* buffers;
   ComputeHandleInternal handleInternal;
 
@@ -1463,10 +1474,9 @@ struct ComputeHandle {
     : context(ctx),
       maxBatchSize(maxBSize),
       inputsUseNHWC(iNHWC),
-      model(loadedModel.modelDesc,context->nnXLen,context->nnYLen,maxBSize),
       handleInternal()
   {
-    buffers = new Buffers(loadedModel.modelDesc,model,maxBSize,ctx->nnXLen,ctx->nnYLen);
+    buffers = new Buffers(loadedModel.modelDesc,context->model,maxBSize,ctx->nnXLen,ctx->nnYLen);
   }
 
   ~ComputeHandle() {
@@ -1514,11 +1524,11 @@ void NeuralNet::getOutput(
   int batchSize = numBatchEltsFilled;
   int nnXLen = computeHandle->context->nnXLen;
   int nnYLen = computeHandle->context->nnYLen;
-  int version = computeHandle->model.version;
+  int version = computeHandle->context->model.version;
 
   int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
   int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
-  assert(numSpatialFeatures == computeHandle->model.numInputChannels);
+  assert(numSpatialFeatures == computeHandle->context->model.numInputChannels);
   assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
 
@@ -1572,7 +1582,7 @@ void NeuralNet::getOutput(
   computeMaskSum(&mask,maskSum.data());
   vector<float>& convWorkspace = buffers.convWorkspace;
 
-  computeHandle->model.apply(
+  computeHandle->context->model.apply(
     &computeHandle->handleInternal,
     &input,
     &inputGlobal,
@@ -1629,7 +1639,7 @@ void NeuralNet::getOutput(
     SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, symmetry);
     policyProbs[inputBuffers->singlePolicyResultElts] = policyPassData[row];
 
-    int numValueChannels = computeHandle->model.numValueChannels;
+    int numValueChannels = computeHandle->context->model.numValueChannels;
     assert(numValueChannels == 3);
     output->whiteWinProb = valueData[row * numValueChannels];
     output->whiteLossProb = valueData[row * numValueChannels + 1];
@@ -1639,12 +1649,12 @@ void NeuralNet::getOutput(
     //As usual the client does the postprocessing.
     if(output->whiteOwnerMap != NULL) {
       const float* ownershipSrcBuf = ownershipData + row * nnXLen * nnYLen;
-      assert(computeHandle->model.numOwnershipChannels == 1);
+      assert(computeHandle->context->model.numOwnershipChannels == 1);
       SymmetryHelpers::copyOutputsWithSymmetry(ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, symmetry);
     }
 
     if(version >= 8) {
-      int numScoreValueChannels = computeHandle->model.numScoreValueChannels;
+      int numScoreValueChannels = computeHandle->context->model.numScoreValueChannels;
       assert(numScoreValueChannels == 4);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
       output->whiteScoreMeanSq = scoreValueData[row * numScoreValueChannels + 1];
@@ -1652,7 +1662,7 @@ void NeuralNet::getOutput(
       output->varTimeLeft = scoreValueData[row * numScoreValueChannels + 3];
     }
     else if(version >= 4) {
-      int numScoreValueChannels = computeHandle->model.numScoreValueChannels;
+      int numScoreValueChannels = computeHandle->context->model.numScoreValueChannels;
       assert(numScoreValueChannels == 2);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
       output->whiteScoreMeanSq = scoreValueData[row * numScoreValueChannels + 1];
@@ -1660,7 +1670,7 @@ void NeuralNet::getOutput(
       output->varTimeLeft = 0;
     }
     else if(version >= 3) {
-      int numScoreValueChannels = computeHandle->model.numScoreValueChannels;
+      int numScoreValueChannels = computeHandle->context->model.numScoreValueChannels;
       assert(numScoreValueChannels == 1);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
       //Version 3 neural nets don't have any second moment output, implicitly already folding it in, so we just use the mean squared
