@@ -139,6 +139,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     int numNNServerThreadsPerModel =
       cfg.contains("numNNServerThreadsPerModel") ? cfg.getInt("numNNServerThreadsPerModel",1,1024) : 1;
 #else
+    cfg.markAllKeysUsedWithPrefix("numNNServerThreadsPerModel");
     auto getNumCores = [&logger]() {
       int numCores = (int)std::thread::hardware_concurrency();
       if(numCores <= 0) {
