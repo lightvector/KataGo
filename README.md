@@ -283,6 +283,9 @@ then you are using the Mesa drivers. You will need to change your drivers, see f
      * Use the `genconfig` command (`./katago genconfig -model <NEURALNET>.gz -output <PATH_TO_SAVE_GTP_CONFIG>.cfg`) to generate a config, and it will interactively help you, including asking you for what default rules you want.
      * If your GUI allows access directly to the GTP console (for example, press `E` in Lizzie), then you can run `kata-set-rules japanese` or similar for other rules directly in the GTP console, to change the rules dynamically in the middle of a game or an analysis session.
 
+* **How do I make KataGo show me a wider range of possible good moves and options during analysis?**
+   * Add `analysisWideRootNoise = X` to the config (`default_gtp.cfg` or `gtp_example.cfg` or `gtp.cfg`, or whatever you've named it). A value of 0.03 will mildly widen the range of moves that get searched and evaluated. A value of 0.10 will very noticeably widen the search. Much larger values will start pushing KataGo toward evaluating every move on the board, at the cost of evaluating the best moves less thoroughly. You can play with this parameter to see what you prefer. You can *also* change it at runtime by typing `kata-set-param analysisWideRootNoise X` into the GTP console, if your GUI program exposes the GTP console for you to provide direct commands.
+
 * **Which model/network should I use?**
    * For weaker or mid-range GPUs, try the final 20-block network from [here](https://github.com/lightvector/KataGo/releases/tag/v1.4.5), which is the best of its size.
    * For top-tier GPUs and/or for the highest-quality analysis if you're going to use many thousands and thousands of playouts and long thinking times, try the final 40-block network from [here](https://github.com/lightvector/KataGo/releases/tag/v1.4.5), which is more costly to run but should be the strongest and best overall.
