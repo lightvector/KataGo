@@ -45,17 +45,17 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
   assert(len(input_file_group) > 0)
 
   if len(input_file_group) == 1:
-    npz = np.load(input_file_group[0])
-    assert(set(npz.keys()) == set(keys))
-    ###
-    #WARNING - if adding anything here, also add it to joint_shuffle below!
-    ###
-    binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
-    globalInputNC = npz["globalInputNC"]
-    policyTargetsNCMove = npz["policyTargetsNCMove"]
-    globalTargetsNC = npz["globalTargetsNC"]
-    scoreDistrN = npz["scoreDistrN"]
-    valueTargetsNCHW = npz["valueTargetsNCHW"]
+    with np.load(input_file_group[0]) as npz:
+      assert(set(npz.keys()) == set(keys))
+      ###
+      #WARNING - if adding anything here, also add it to joint_shuffle below!
+      ###
+      binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
+      globalInputNC = npz["globalInputNC"]
+      policyTargetsNCMove = npz["policyTargetsNCMove"]
+      globalTargetsNC = npz["globalTargetsNC"]
+      scoreDistrN = npz["scoreDistrN"]
+      valueTargetsNCHW = npz["valueTargetsNCHW"]
   else:
     binaryInputNCHWPackedList = []
     globalInputNCList = []
@@ -126,22 +126,22 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
 
   for input_idx in range(num_shards_to_merge):
     shard_filename = os.path.join(out_tmp_dir, str(input_idx) + ".npz")
-    npz = np.load(shard_filename)
-    assert(set(npz.keys()) == set(keys))
+    with np.load(shard_filename) as npz:
+      assert(set(npz.keys()) == set(keys))
 
-    binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
-    globalInputNC = npz["globalInputNC"]
-    policyTargetsNCMove = npz["policyTargetsNCMove"].astype(np.float32)
-    globalTargetsNC = npz["globalTargetsNC"]
-    scoreDistrN = npz["scoreDistrN"].astype(np.float32)
-    valueTargetsNCHW = npz["valueTargetsNCHW"].astype(np.float32)
+      binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
+      globalInputNC = npz["globalInputNC"]
+      policyTargetsNCMove = npz["policyTargetsNCMove"].astype(np.float32)
+      globalTargetsNC = npz["globalTargetsNC"]
+      scoreDistrN = npz["scoreDistrN"].astype(np.float32)
+      valueTargetsNCHW = npz["valueTargetsNCHW"].astype(np.float32)
 
-    binaryInputNCHWPackeds.append(binaryInputNCHWPacked)
-    globalInputNCs.append(globalInputNC)
-    policyTargetsNCMoves.append(policyTargetsNCMove)
-    globalTargetsNCs.append(globalTargetsNC)
-    scoreDistrNs.append(scoreDistrN)
-    valueTargetsNCHWs.append(valueTargetsNCHW)
+      binaryInputNCHWPackeds.append(binaryInputNCHWPacked)
+      globalInputNCs.append(globalInputNC)
+      policyTargetsNCMoves.append(policyTargetsNCMove)
+      globalTargetsNCs.append(globalTargetsNC)
+      scoreDistrNs.append(scoreDistrN)
+      valueTargetsNCHWs.append(valueTargetsNCHW)
 
   ###
   #WARNING - if adding anything here, also add it to joint_shuffle below!
