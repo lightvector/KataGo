@@ -102,7 +102,9 @@ with open(model_file,"rb") as model_file_handle:
     "is_random": (None, "false"),
     "model_file": (model_name + model_file_extension, model_file_handle, "application/octet-stream"),
     "model_file_bytes": (None, model_file_bytes),
-    "model_file_sha256": (None, model_file_sha256)
+    "model_file_sha256": (None, model_file_sha256),
+    "training_games_enabled": (None, "true"),
+    "rating_games_enabled": (None, "true"),
     # "model_zip": (model_name + ".zip", model_zip_handle.read()),
   }
 
