@@ -57,18 +57,29 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
     scoreDistrN = npz["scoreDistrN"]
     valueTargetsNCHW = npz["valueTargetsNCHW"]
   else:
-    npzs = [np.load(input_file) for input_file in input_file_group]
-    for npz in npzs:
-      assert(set(npz.keys()) == set(keys))
-    ###
-    #WARNING - if adding anything here, also add it to joint_shuffle below!
-    ###
-    binaryInputNCHWPacked = np.concatenate([npz["binaryInputNCHWPacked"] for npz in npzs], axis=0)
-    globalInputNC = np.concatenate([npz["globalInputNC"] for npz in npzs], axis=0)
-    policyTargetsNCMove = np.concatenate([npz["policyTargetsNCMove"] for npz in npzs], axis=0)
-    globalTargetsNC = np.concatenate([npz["globalTargetsNC"] for npz in npzs], axis=0)
-    scoreDistrN = np.concatenate([npz["scoreDistrN"] for npz in npzs], axis=0)
-    valueTargetsNCHW = np.concatenate([npz["valueTargetsNCHW"] for npz in npzs], axis=0)
+    binaryInputNCHWPackedList = []
+    globalInputNCList = []
+    policyTargetsNCMoveList = []
+    globalTargetsNCList = []
+    scoreDistrNList = []
+    valueTargetsNCHWList = []
+
+    for input_file in input_file_group:
+      with np.load(input_file) as npz:
+        assert(set(npz.keys()) == set(keys))
+        binaryInputNCHWPackedList.append(npz["binaryInputNCHWPacked"])
+        globalInputNCList.append(npz["globalInputNC"])
+        policyTargetsNCMoveList.append(npz["policyTargetsNCMove"])
+        globalTargetsNCList.append(npz["globalTargetsNC"])
+        scoreDistrNList.append(npz["scoreDistrN"])
+        valueTargetsNCHWList.append(npz["valueTargetsNCHW"])
+
+    binaryInputNCHWPacked = np.concatenate(binaryInputNCHWPackedList,axis=0)
+    globalInputNC = np.concatenate(globalInputNCList,axis=0)
+    policyTargetsNCMove = np.concatenate(policyTargetsNCMoveList,axis=0)
+    globalTargetsNC = np.concatenate(globalTargetsNCList,axis=0)
+    scoreDistrN = np.concatenate(scoreDistrNList,axis=0)
+    valueTargetsNCHW = np.concatenate(valueTargetsNCHWList,axis=0)
 
   joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW))
 
@@ -179,6 +190,7 @@ if __name__ == '__main__':
   parser.add_argument('-keep-target-rows', type=int, required=False, help='Target number of rows to actually keep in the final data set, default 1.2M')
   parser.add_argument('-expand-window-per-row', type=float, required=True, help='Beyond min rows, initially expand the window by this much every post-random data row')
   parser.add_argument('-taper-window-exponent', type=float, required=True, help='Make the window size asymtotically grow as this power of the data rows')
+  parser.add_argument('-add-to-window', type=float, required=False, help='Compute as if the window size were this much larger/smaller')
   parser.add_argument('-out-dir', required=True, help='Dir to output training files')
   parser.add_argument('-out-tmp-dir', required=True, help='Dir to use as scratch space')
   parser.add_argument('-approx-rows-per-out-file', type=int, required=True, help='Number of rows per output tf records file')
@@ -194,6 +206,7 @@ if __name__ == '__main__':
   keep_target_rows = args.keep_target_rows
   expand_window_per_row = args.expand_window_per_row
   taper_window_exponent = args.taper_window_exponent
+  add_to_window = args.add_to_window
   out_dir = args.out_dir
   out_tmp_dir = args.out_tmp_dir
   approx_rows_per_out_file = args.approx_rows_per_out_file
@@ -214,6 +227,8 @@ if __name__ == '__main__':
     print("(slightly larger than default training epoch size of 1M, to give 1 epoch of data regardless of discreteness rows or batches per output file)")
     print("If you intended to shuffle the whole dataset instead, pass in -keep-target-rows <very large number>")
     keep_target_rows = 1200000
+  if add_to_window is None:
+    add_to_window = 0
 
   all_files = []
   for d in dirs:
@@ -259,7 +274,7 @@ if __name__ == '__main__':
     return num_random_rows_capped + num_postrandom_rows
   def num_desired_rows():
     #Every post-random row moves one row beyond window_taper_offset
-    power_law_x = num_usable_rows() - min_rows + window_taper_offset
+    power_law_x = num_usable_rows() - min_rows + window_taper_offset + add_to_window
     #Apply power law and correct for window_taper_offset so we're still anchored at 0
     unscaled_power_law = (power_law_x ** taper_window_exponent) - (window_taper_offset ** taper_window_exponent)
     #Scale so that we have an initial derivative of 1
