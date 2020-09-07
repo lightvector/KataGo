@@ -670,7 +670,7 @@ while True:
     time.sleep(sleep_seconds_per_epoch)
 
   now = datetime.datetime.now()
-  if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=6):
+  if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=12):
     last_longterm_checkpoint_save_time = now
     ckpt_path = estimator.latest_checkpoint()
     #Tensorflow checkpoints have multiple pieces
