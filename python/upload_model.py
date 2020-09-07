@@ -23,6 +23,7 @@ parser.add_argument('-model-zip', help='zipped model file with tf weights', requ
 parser.add_argument('-upload-log-file', help='log upload data to this file', required=True)
 parser.add_argument('-parents-dir', help='dir with uploaded models dirs for finding parent', required=False)
 parser.add_argument('-connection-config', help='config with serverUrl and username and password', required=True)
+parser.add_argument('-not-enabled', help='upload model where it is not enabled for train/rating to begin with', required=False, action='store_true')
 args = vars(parser.parse_args())
 
 run_name = args["run_name"]
@@ -32,6 +33,7 @@ model_zip = args["model_zip"]
 upload_log_file = args["upload_log_file"]
 parents_dir = args["parents_dir"]
 connection_config_file = args["connection_config"]
+not_enabled = args["not_enabled"]
 
 loglines = []
 def log(s):
@@ -103,8 +105,8 @@ with open(model_file,"rb") as model_file_handle:
     "model_file": (model_name + model_file_extension, model_file_handle, "application/octet-stream"),
     "model_file_bytes": (None, model_file_bytes),
     "model_file_sha256": (None, model_file_sha256),
-    "training_games_enabled": (None, "true"),
-    "rating_games_enabled": (None, "true"),
+    "training_games_enabled": (None, ("false" if not_enabled else "true")),
+    "rating_games_enabled": (None, ("false" if not_enabled else "true")),
     # "model_zip": (model_name + ".zip", model_zip_handle.read()),
   }
 
