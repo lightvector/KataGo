@@ -597,7 +597,7 @@ bool Connection::downloadModelIfNotPresent(
 }
 
 bool Connection::uploadTrainingGameAndData(
-  const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, const string& npzFilePath,
+  const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, const string& npzFilePath, const int64_t numDataRows,
   bool retryOnFailure, std::atomic<bool>& shouldStop
 ) {
   ifstream sgfIn(sgfFilePath);
@@ -635,6 +635,7 @@ bool Connection::uploadTrainingGameAndData(
     string winner = gameData->endHist.winner == P_WHITE ? "W" : gameData->endHist.winner == P_BLACK ? "B" : gameData->endHist.isNoResult ? "-" : "0";
     double score = gameData->endHist.finalWhiteMinusBlackScore;
     string hasResigned = gameData->endHist.isResignation ? "true" : "false";
+    int gameLength = gameData->endHist.moveHistory.size();
     string gameUid;
     {
       ostringstream o;
@@ -655,12 +656,14 @@ bool Connection::uploadTrainingGameAndData(
       { "winner", winner, "", "" },
       { "score", Global::doubleToString(score), "", "" },
       { "resigned", hasResigned, "", "" },
+      { "game_length", Global::intToString(gameLength), "", "" },
       { "kg_game_uid", gameUid, "", "" },
       { "run", run, "", ""},
       { "white_network", whiteNetwork, "", ""},
       { "black_network", blackNetwork, "", ""},
       { "sgf_file", sgfContents, gameUid + ".sgf", "text/plain" },
       { "training_data_file", npzContents, gameUid + ".npz", "application/octet-stream" },
+      { "num_training_rows", Global::int64ToString(numDataRows), "", "" },
     };
 
     std::shared_ptr<httplib::Response> response = postMulti("/api/games/training/",items);
@@ -699,6 +702,7 @@ bool Connection::uploadRatingGame(
     string winner = gameData->endHist.winner == P_WHITE ? "W" : gameData->endHist.winner == P_BLACK ? "B" : gameData->endHist.isNoResult ? "-" : "0";
     double score = gameData->endHist.finalWhiteMinusBlackScore;
     string hasResigned = gameData->endHist.isResignation ? "true" : "false";
+    int gameLength = gameData->endHist.moveHistory.size();
     string gameUid;
     {
       ostringstream o;
@@ -719,6 +723,7 @@ bool Connection::uploadRatingGame(
       { "winner", winner, "", "" },
       { "score", Global::doubleToString(score), "", "" },
       { "resigned", hasResigned, "", "" },
+      { "game_length", Global::intToString(gameLength), "", "" },
       { "kg_game_uid", gameUid, "", "" },
       { "run", run, "", ""},
       { "white_network", whiteNetwork, "", ""},

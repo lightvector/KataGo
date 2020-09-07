@@ -75,7 +75,7 @@ namespace Client {
     //Returns false if it was not, but not due to an error (e.g. shouldStop).
     //Raises an exception upon a repeated error that persists long enough.
     bool uploadTrainingGameAndData(
-      const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath, const std::string& npzFilePath,
+      const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath, const std::string& npzFilePath, const int64_t numDataRows,
       bool retryOnFailure, std::atomic<bool>& shouldStop
     );
     bool uploadRatingGame(

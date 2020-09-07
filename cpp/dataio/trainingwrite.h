@@ -232,6 +232,9 @@ class TrainingDataWriter {
   void flushIfNonempty();
   bool flushIfNonempty(std::string& resultingFilename);
 
+  bool isEmpty() const;
+  int64_t numRowsInBuffer() const;
+
  private:
   std::string outputDir;
   int inputsVersion;

@@ -808,6 +808,13 @@ TrainingDataWriter::~TrainingDataWriter()
   delete writeBuffers;
 }
 
+bool TrainingDataWriter::isEmpty() const {
+  return writeBuffers->curRows <= 0;
+}
+int64_t TrainingDataWriter::numRowsInBuffer() const {
+  return writeBuffers->curRows;
+}
+
 void TrainingDataWriter::writeAndClearIfFull() {
   if(writeBuffers->curRows >= writeBuffers->maxRows || (isFirstFile && writeBuffers->curRows >= firstFileMaxRows)) {
     flushIfNonempty();

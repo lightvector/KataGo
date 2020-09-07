@@ -147,15 +147,20 @@ static void runAndUploadSingleGame(
         [gameData,&gameTask,gameIdx,&sgfFile,&connection,&logger](TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut) {
           (void)vdataWriter;
           (void)sgfOut;
+          assert(tdataWriter->isEmpty());
           tdataWriter->writeGame(*gameData);
           string resultingFilename;
+          int64_t numDataRows = tdataWriter->numRowsInBuffer();
           bool producedFile = tdataWriter->flushIfNonempty(resultingFilename);
           //It's possible we'll have zero data if the game started in a nearly finished position and cheap search never
           //gave us a real turn of search, in which case just ignore that game.
           if(producedFile) {
-            bool suc = connection->uploadTrainingGameAndData(gameTask.task,gameData,sgfFile,resultingFilename,retryOnFailure,shouldStop);
+            bool suc = connection->uploadTrainingGameAndData(gameTask.task,gameData,sgfFile,resultingFilename,numDataRows,retryOnFailure,shouldStop);
             if(suc)
-              logger.write("Finished game " + Global::int64ToString(gameIdx)  + " (training), uploaded sgf " + sgfFile + " and training data " + resultingFilename);
+              logger.write(
+                "Finished game " + Global::int64ToString(gameIdx)  + " (training), uploaded sgf " + sgfFile + " and training data " + resultingFilename
+                + " (" + Global::int64ToString(numDataRows) + " rows)"
+              );
           }
           else {
             logger.write("Finished game " + Global::int64ToString(gameIdx) + " (training), skipping uploading sgf " + sgfFile + " since it's an empty game");
