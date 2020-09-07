@@ -362,6 +362,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     logger.write("Found new neural net " + modelName);
 
     int maxConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGames * 2 + 16;
+    int expectedConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGames;
     int defaultMaxBatchSize = maxSimultaneousGames;
 
     //Unlike local self-play, which waits to accumulate a fixed number of rows before writing, distributed selfplay writes
@@ -372,7 +373,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
     Rand rand;
     NNEvaluator* nnEval = Setup::initializeNNEvaluator(
-      modelName,modelFile,*userCfg,logger,rand,maxConcurrentEvals,
+      modelName,modelFile,*userCfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
       Setup::SETUP_FOR_DISTRIBUTED
     );

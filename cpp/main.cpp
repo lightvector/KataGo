@@ -197,6 +197,9 @@ string Version::getKataGoVersionFullInfo() {
 #if defined(COMPILE_MAX_BOARD_LEN)
   out << "Compiled to allow boards of size up to " << COMPILE_MAX_BOARD_LEN << endl;
 #endif
+#if defined(BUILD_DISTRIBUTED)
+  out << "Compiled to support contributing to online distributed selfplay" << endl;
+#endif
 
   return out.str();
 }
