@@ -97,25 +97,26 @@ with open(model_file,"rb") as f:
 url = base_server_url + "api/networks/"
 
 with open(model_file,"rb") as model_file_handle:
-  data = {
-    "run": (None, base_server_url + "api/runs/" + run_name + "/"),
-    "name": (None, model_name),
-    "network_size": (None, network_size),
-    "is_random": (None, "false"),
-    "model_file": (model_name + model_file_extension, model_file_handle, "application/octet-stream"),
-    "model_file_bytes": (None, model_file_bytes),
-    "model_file_sha256": (None, model_file_sha256),
-    "training_games_enabled": (None, ("false" if not_enabled else "true")),
-    "rating_games_enabled": (None, ("false" if not_enabled else "true")),
-    # "model_zip": (model_name + ".zip", model_zip_handle.read()),
-  }
+  with open(model_zip,"rb") as model_zip_handle:
+    data = {
+      "run": (None, base_server_url + "api/runs/" + run_name + "/"),
+      "name": (None, model_name),
+      "network_size": (None, network_size),
+      "is_random": (None, "false"),
+      "model_file": (model_name + model_file_extension, model_file_handle, "application/octet-stream"),
+      "model_file_bytes": (None, model_file_bytes),
+      "model_file_sha256": (None, model_file_sha256),
+      "training_games_enabled": (None, ("false" if not_enabled else "true")),
+      "rating_games_enabled": (None, ("false" if not_enabled else "true")),
+      "model_zip": (model_name + ".zip", model_zip_handle, "application/octet-stream"),
+    }
 
-  if parent_network_name_without_run is not None:
-    data["parent_network"] = (None, base_server_url + "api/networks/" + run_name + "-" + parent_network_name_without_run + "/")
+    if parent_network_name_without_run is not None:
+      data["parent_network"] = (None, base_server_url + "api/networks/" + run_name + "-" + parent_network_name_without_run + "/")
 
-  # print(requests.Request('POST', base_server_url, files=data).prepare().body)
+    # print(requests.Request('POST', base_server_url, files=data).prepare().body)
 
-  result = requests.post(url,files=data,auth=HTTPBasicAuth(username,password))
+    result = requests.post(url,files=data,auth=HTTPBasicAuth(username,password))
 
 log("Post status code: " + str(result.status_code))
 log("Post result: " + str(result.text))
