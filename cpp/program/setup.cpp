@@ -241,7 +241,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.contains("nnCacheSizePowerOfTwo") ? cfg.getInt("nnCacheSizePowerOfTwo", -1, 48) :
       setupFor == SETUP_FOR_GTP ? 20 :
       setupFor == SETUP_FOR_BENCHMARK ? 20 :
-      setupFor == SETUP_FOR_DISTRIBUTED ? 21 :
+      setupFor == SETUP_FOR_DISTRIBUTED ? 19 :
       setupFor == SETUP_FOR_MATCH ? 21 :
       setupFor == SETUP_FOR_ANALYSIS ? 23 :
       cfg.getInt("nnCacheSizePowerOfTwo", -1, 48);
@@ -250,7 +250,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.contains("nnMutexPoolSizePowerOfTwo") ? cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24) :
       setupFor == SETUP_FOR_GTP ? 16 :
       setupFor == SETUP_FOR_BENCHMARK ? 16 :
-      setupFor == SETUP_FOR_DISTRIBUTED ? 17 :
+      setupFor == SETUP_FOR_DISTRIBUTED ? 16 :
       setupFor == SETUP_FOR_MATCH ? 17 :
       setupFor == SETUP_FOR_ANALYSIS ? 17 :
       cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24);

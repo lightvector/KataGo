@@ -57,6 +57,8 @@ class SelfplayManager {
 
   //Clean up any currently-unused models if their last usage was older than this many seconds ago.
   void cleanupUnusedModelsOlderThan(double seconds);
+  //Clear the evaluation caches of any models that are currently unused.
+  void clearUnusedModelCaches();
 
   //====================================================================================
   //These should only be called by a thread that has currently acquired the model.

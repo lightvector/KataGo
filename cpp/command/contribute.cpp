@@ -47,7 +47,7 @@ static void signalHandler(int signal)
 
 static const string defaultBaseDir = "katago_contribute";
 static const int defaultMaxSimultaneousGames = 16;
-static const int defaultUnloadUnusedModelsAfter = 60 * 60;
+static const int defaultUnloadUnusedModelsAfter = 5 * 60;
 static const int defaultDeleteUnusedModelsAfter = 6 * 60 * 60;
 
 namespace {
@@ -135,7 +135,7 @@ static void runAndUploadSingleGame(
     else
       sgfOutputDir = sgfsDir + "/" + nnEvalBlack->getModelName();
     string sgfFile = sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgf";
-
+    
     ofstream out(sgfFile);
     WriteSgf::writeSgf(out,gameData->bName,gameData->wName,gameData->endHist,gameData,false);
     out.close();
@@ -353,6 +353,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       }
       gameTask.manager->release(gameTask.nnEvalBlack);
       gameTask.manager->release(gameTask.nnEvalWhite);
+      gameTask.manager->clearUnusedModelCaches();
     }
   };
 

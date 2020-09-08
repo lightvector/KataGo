@@ -99,6 +99,7 @@ void SelfplayManager::cleanupUnusedModelsOlderThan(double seconds) {
     ModelData* foundData = modelDatas[i];
     if(foundData->acquireCount <= 0 && now - foundData->lastReleaseTime > seconds) {
       assert(foundData->acquireCount == 0);
+      logger->write("Unloading network that hasn't been used in a while: " + foundData->modelName);
       //Trigger data writing loop to quit once it reaches end of its queue
       foundData->finishedGameQueue.setReadOnly();
       //Data write loop is responsible for deleting ModelData, if it exists
@@ -108,6 +109,16 @@ void SelfplayManager::cleanupUnusedModelsOlderThan(double seconds) {
       i--;
     }
   }
+}
+
+void SelfplayManager::clearUnusedModelCaches() {
+  std::lock_guard<std::mutex> lock(managerMutex);
+  for(size_t i = 0; i<modelDatas.size()-1; i++) {
+    ModelData* foundData = modelDatas[i];
+    if(foundData->acquireCount <= 0) {
+      foundData->nnEval->clearCache();
+    }
+  } 
 }
 
 
