@@ -84,7 +84,7 @@ Explanation of fields (including some optional fields not present in the above q
    * `includeOwnership (boolean)`: Optional. If true, report ownership prediction as a result. Will double memory usage and reduce performance slightly.
    * `includePolicy (boolean)`: Optional. If true, report neural network raw policy as a result. Will not signficiantly affect performance.
    * `includePVVisits (boolean)`: Optional. If true, report the number of visits for each move in any reported pv.
-   * `avoidMoves (list of dicts)`: Optional. If true, UNTILDEPTH` - Prohibit the search from exploring the specified moves for the specified player, until a certain number of ply deep in the search. Each dict must contain these fields:
+   * `avoidMoves (list of dicts)`: Optional. Prohibit the search from exploring the specified moves for the specified player, until a certain number of ply deep in the search. Each dict must contain these fields:
       * `player` - the player to prohibit, `"B"` or `"W"`.
       * `moves` - an array of move locations to prohibit, such as `["C3","Q4","pass"]`
       * `untilDepth` - a positive integer, indicating the ply such that moves are prohibited before that ply.
