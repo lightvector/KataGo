@@ -108,7 +108,7 @@ with open(model_file,"rb") as model_file_handle:
       "model_file_sha256": (None, model_file_sha256),
       "training_games_enabled": (None, ("false" if not_enabled else "true")),
       "rating_games_enabled": (None, ("false" if not_enabled else "true")),
-      "model_zip": (model_name + ".zip", model_zip_handle, "application/octet-stream"),
+      "model_zip_file": (model_name + ".zip", model_zip_handle, "application/octet-stream"),
     }
 
     if parent_network_name_without_run is not None:
