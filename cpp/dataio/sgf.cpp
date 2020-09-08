@@ -1256,7 +1256,7 @@ void WriteSgf::writeSgf(
   }
 
   size_t startTurnIdx = 0;
-  if(gameData != NULL && gameData->hasFullData) {
+  if(gameData != NULL) {
     startTurnIdx = gameData->startHist.moveHistory.size();
     out << "C[startTurnIdx=" << startTurnIdx;
     out << ",gameHash=" << gameData->gameHash;
@@ -1320,9 +1320,8 @@ void WriteSgf::writeSgf(
     }
 
     if(gameData != NULL && i >= startTurnIdx) {
-      if(gameData->hasFullData) {
-        size_t turnAfterStart = i-startTurnIdx;
-        assert(turnAfterStart < gameData->whiteValueTargetsByTurn.size());
+      size_t turnAfterStart = i-startTurnIdx;
+      if(turnAfterStart < gameData->whiteValueTargetsByTurn.size()) {
         const ValueTargets& targets = gameData->whiteValueTargetsByTurn[turnAfterStart];
         char winBuf[32];
         char lossBuf[32];

@@ -1506,6 +1506,10 @@ FinishedGameData* Play::runGame(
     if(logMoves)
       logger.write("Move " + Global::intToString(hist.moveHistory.size()) + " made: " + Location::toString(loc,board));
 
+    ValueTargets whiteValueTargets;
+    extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode);
+    gameData->whiteValueTargetsByTurn.push_back(whiteValueTargets);
+
     if(recordFullData) {
       vector<PolicyTargetMove>* policyTarget = new vector<PolicyTargetMove>();
       int64_t unreducedNumVisits = toMoveBot->getRootVisits();
@@ -1514,11 +1518,6 @@ FinishedGameData* Play::runGame(
       gameData->targetWeightByTurn.push_back(limits.targetWeight);
       policySurpriseByTurn.push_back(toMoveBot->getPolicySurprise());
       rawNNValues.push_back(toMoveBot->getRootRawNNValuesRequireSuccess());
-
-      ValueTargets whiteValueTargets;
-      extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode);
-      gameData->whiteValueTargetsByTurn.push_back(whiteValueTargets);
-
 
       //Occasionally fork off some positions to evaluate
       Loc sidePositionForkLoc = Board::NULL_LOC;

@@ -65,7 +65,7 @@ struct FinishedGameData {
   bool hasFullData;
   std::vector<float> targetWeightByTurn;
   std::vector<PolicyTarget> policyTargetsByTurn;
-  std::vector<ValueTargets> whiteValueTargetsByTurn;
+  std::vector<ValueTargets> whiteValueTargetsByTurn; //Except this one, we may have some of
   Color* finalFullArea;
   Color* finalOwnership;
   bool* finalSekiAreas;
