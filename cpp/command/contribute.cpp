@@ -123,6 +123,10 @@ static void runAndUploadSingleGame(
   //Check for unused config keys
   taskCfg.warnUnusedKeys(cerr,&logger);
 
+  //Make sure not to fork games in the middle for rating games!
+  if(gameTask.task.isRatingGame)
+    forkData = NULL;
+     
   FinishedGameData* gameData = gameRunner->runGame(
     seed, botSpecB, botSpecW, forkData, logger,
     stopConditions, NULL
