@@ -190,6 +190,7 @@ if __name__ == '__main__':
   parser.add_argument('-keep-target-rows', type=int, required=False, help='Target number of rows to actually keep in the final data set, default 1.2M')
   parser.add_argument('-expand-window-per-row', type=float, required=True, help='Beyond min rows, initially expand the window by this much every post-random data row')
   parser.add_argument('-taper-window-exponent', type=float, required=True, help='Make the window size asymtotically grow as this power of the data rows')
+  parser.add_argument('-taper-window-scale', type=float, required=False, help='The scale at which the power law applies')
   parser.add_argument('-add-to-window', type=float, required=False, help='Compute as if the window size were this much larger/smaller')
   parser.add_argument('-out-dir', required=True, help='Dir to output training files')
   parser.add_argument('-out-tmp-dir', required=True, help='Dir to use as scratch space')
@@ -206,6 +207,7 @@ if __name__ == '__main__':
   keep_target_rows = args.keep_target_rows
   expand_window_per_row = args.expand_window_per_row
   taper_window_exponent = args.taper_window_exponent
+  taper_window_scale = args.taper_window_scale
   add_to_window = args.add_to_window
   out_dir = args.out_dir
   out_tmp_dir = args.out_tmp_dir
@@ -266,7 +268,10 @@ if __name__ == '__main__':
 
   #How far offset do we start on the power-law window tail? E.g. what number of postrandom rows do we need before the window size grows by a factor
   #of 2^(taper_window_exponent)? For now, we set it equal to the min rows
-  window_taper_offset = min_rows
+  if taper_window_scale is not None:
+    window_taper_offset = taper_window_scale
+  else:
+    window_taper_offset = min_rows
 
   def num_usable_rows():
     global num_random_rows_capped
