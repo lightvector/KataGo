@@ -25,7 +25,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
 #else
 
-#include "distributed/client.h"
+#include "../distributed/client.h"
 
 #include <sstream>
 #include <chrono>
