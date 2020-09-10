@@ -835,7 +835,7 @@ struct GTPEngine {
 
     //Implement cleanupBeforePass hack - the bot wants to pass, so instead cleanup if there is something to clean
     //Make sure we only do it though when it makes sense to do so.
-    if(cleanupBeforePass && moveLoc == Board::PASS_LOC && bot->getRootHist().isFinalPhase()) {
+    if(cleanupBeforePass && moveLoc == Board::PASS_LOC && bot->getRootHist().isFinalPhase() && !bot->getRootHist().hasButton) {
       Board board = bot->getRootBoard();
       BoardHistory hist = bot->getRootHist();
       Color* safeArea = bot->getSearch()->rootSafeArea;
