@@ -1,17 +1,17 @@
-#include "core/global.h"
-#include "core/config_parser.h"
-#include "core/datetime.h"
-#include "core/timer.h"
-#include "core/makedir.h"
-#include "dataio/loadmodel.h"
-#include "dataio/homedata.h"
-#include "neuralnet/modelversion.h"
-#include "search/asyncbot.h"
-#include "program/play.h"
-#include "program/setup.h"
-#include "program/selfplaymanager.h"
-#include "commandline.h"
-#include "main.h"
+#include "../core/global.h"
+#include "../core/config_parser.h"
+#include "../core/datetime.h"
+#include "../core/timer.h"
+#include "../core/makedir.h"
+#include "../dataio/loadmodel.h"
+#include "../dataio/homedata.h"
+#include "../neuralnet/modelversion.h"
+#include "../search/asyncbot.h"
+#include "../program/play.h"
+#include "../program/setup.h"
+#include "../program/selfplaymanager.h"
+#include "../command/commandline.h"
+#include "../main.h"
 
 #ifndef BUILD_DISTRIBUTED
 
@@ -126,7 +126,7 @@ static void runAndUploadSingleGame(
   //Make sure not to fork games in the middle for rating games!
   if(gameTask.task.isRatingGame)
     forkData = NULL;
-     
+
   FinishedGameData* gameData = gameRunner->runGame(
     seed, botSpecB, botSpecW, forkData, logger,
     stopConditions, NULL
@@ -139,12 +139,12 @@ static void runAndUploadSingleGame(
     else
       sgfOutputDir = sgfsDir + "/" + nnEvalBlack->getModelName();
     string sgfFile = sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgf";
-    
+
     ofstream out(sgfFile);
     WriteSgf::writeSgf(out,gameData->bName,gameData->wName,gameData->endHist,gameData,false);
     out.close();
 
-    const bool retryOnFailure = true;
+    static constexpr bool retryOnFailure = true;
     if(gameTask.task.doWriteTrainingData) {
       gameTask.manager->withDataWriters(
         nnEvalBlack,
