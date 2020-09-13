@@ -32,7 +32,7 @@ oox.ox...
 )%%");
   BoardHistory hist9Late(board9Late,P_BLACK,Rules(),0);
 
-  
+
   Board board19Early = Board::parseBoard(19,19,R"%%(
 ...................
 ...................
@@ -103,7 +103,7 @@ oox.ox...
     TimeControls timeControls;
     tryTimeControlsOnBoards(timeControls,0.0);
   }
-  
+
   {
     cout << "===================================================================" << endl;
     cout << "Basic 1h absolute time controls, all time left" << endl;
@@ -148,7 +148,7 @@ oox.ox...
 
   {
     cout << "===================================================================" << endl;
-    cout << "Basic 1h fisher time controls, 10m left, 10s increment" << endl;
+    cout << "Basic 1h fischer time controls, 10m left, 10s increment" << endl;
     cout << "===================================================================" << endl;
 
     TimeControls timeControls;
@@ -169,7 +169,7 @@ oox.ox...
 
   {
     cout << "===================================================================" << endl;
-    cout << "Basic 1h fisher time controls, 10m left, 10s increment, larger lag buffer" << endl;
+    cout << "Basic 1h fischer time controls, 10m left, 10s increment, larger lag buffer" << endl;
     cout << "===================================================================" << endl;
 
     TimeControls timeControls;
@@ -185,6 +185,69 @@ oox.ox...
     timeControls.timeLeftInPeriod = 0.0;
 
     double lagBuffer = 5.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h fischer time controls, 15s left, 10s increment" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 10.0;
+    timeControls.originalNumPeriods = 0;
+    timeControls.numStonesPerPeriod = 0;
+    timeControls.perPeriodTime = 0.0;
+    timeControls.mainTimeLeft = 15.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 0;
+    timeControls.numStonesLeftInPeriod = 0;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h fischer time controls, 5s left, 10s increment" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 10.0;
+    timeControls.originalNumPeriods = 0;
+    timeControls.numStonesPerPeriod = 0;
+    timeControls.perPeriodTime = 0.0;
+    timeControls.mainTimeLeft = 5.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 0;
+    timeControls.numStonesLeftInPeriod = 0;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h fischer time controls, -1s left, 10s increment" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 10.0;
+    timeControls.originalNumPeriods = 0;
+    timeControls.numStonesPerPeriod = 0;
+    timeControls.perPeriodTime = 0.0;
+    timeControls.mainTimeLeft = -1.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 0;
+    timeControls.numStonesLeftInPeriod = 0;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
     tryTimeControlsOnBoards(timeControls,lagBuffer);
   }
 
@@ -271,7 +334,7 @@ oox.ox...
     double lagBuffer = 1.0;
     tryTimeControlsOnBoards(timeControls,lagBuffer);
   }
-  
+
   {
     cout << "===================================================================" << endl;
     cout << "Basic 1h byo yomi time controls, no time left, 5 periods of 30s" << endl;
@@ -305,6 +368,258 @@ oox.ox...
     timeControls.numStonesPerPeriod = 3;
     timeControls.perPeriodTime = 30.0;
     timeControls.mainTimeLeft = 0.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 1;
+    timeControls.numStonesLeftInPeriod = 3;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h byo yomi time controls, 15s left, 1 periods of 30s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 0.0;
+    timeControls.originalNumPeriods = 1;
+    timeControls.numStonesPerPeriod = 1;
+    timeControls.perPeriodTime = 30.0;
+    timeControls.mainTimeLeft = 15.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 1;
+    timeControls.numStonesLeftInPeriod = 1;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h byo yomi time controls, 15s left, 2 periods of 30s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 0.0;
+    timeControls.originalNumPeriods = 2;
+    timeControls.numStonesPerPeriod = 1;
+    timeControls.perPeriodTime = 30.0;
+    timeControls.mainTimeLeft = 15.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 2;
+    timeControls.numStonesLeftInPeriod = 1;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h byo yomi time controls, 15s left, 3 moves canadian in 30s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 0.0;
+    timeControls.originalNumPeriods = 1;
+    timeControls.numStonesPerPeriod = 3;
+    timeControls.perPeriodTime = 30.0;
+    timeControls.mainTimeLeft = 15.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 1;
+    timeControls.numStonesLeftInPeriod = 3;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h byo yomi time controls, 45s left, 1 periods of 30s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 0.0;
+    timeControls.originalNumPeriods = 1;
+    timeControls.numStonesPerPeriod = 1;
+    timeControls.perPeriodTime = 30.0;
+    timeControls.mainTimeLeft = 45.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 1;
+    timeControls.numStonesLeftInPeriod = 1;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h byo yomi time controls, 45s left, 2 periods of 30s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 0.0;
+    timeControls.originalNumPeriods = 2;
+    timeControls.numStonesPerPeriod = 1;
+    timeControls.perPeriodTime = 30.0;
+    timeControls.mainTimeLeft = 45.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 2;
+    timeControls.numStonesLeftInPeriod = 1;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h byo yomi time controls, 45s left, 3 moves canadian in 30s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 0.0;
+    timeControls.originalNumPeriods = 1;
+    timeControls.numStonesPerPeriod = 3;
+    timeControls.perPeriodTime = 30.0;
+    timeControls.mainTimeLeft = 45.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 1;
+    timeControls.numStonesLeftInPeriod = 3;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h byo yomi time controls, 61s left, 1 periods of 30s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 0.0;
+    timeControls.originalNumPeriods = 1;
+    timeControls.numStonesPerPeriod = 1;
+    timeControls.perPeriodTime = 30.0;
+    timeControls.mainTimeLeft = 61.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 1;
+    timeControls.numStonesLeftInPeriod = 1;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h byo yomi time controls, 61s left, 2 periods of 30s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 0.0;
+    timeControls.originalNumPeriods = 2;
+    timeControls.numStonesPerPeriod = 1;
+    timeControls.perPeriodTime = 30.0;
+    timeControls.mainTimeLeft = 61.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 2;
+    timeControls.numStonesLeftInPeriod = 1;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h byo yomi time controls, 61s left, 3 moves canadian in 30s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 0.0;
+    timeControls.originalNumPeriods = 1;
+    timeControls.numStonesPerPeriod = 3;
+    timeControls.perPeriodTime = 30.0;
+    timeControls.mainTimeLeft = 61.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 1;
+    timeControls.numStonesLeftInPeriod = 3;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h byo yomi time controls, 70s left, 1 periods of 30s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 0.0;
+    timeControls.originalNumPeriods = 1;
+    timeControls.numStonesPerPeriod = 1;
+    timeControls.perPeriodTime = 30.0;
+    timeControls.mainTimeLeft = 70.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 1;
+    timeControls.numStonesLeftInPeriod = 1;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h byo yomi time controls, 70s left, 2 periods of 30s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 0.0;
+    timeControls.originalNumPeriods = 2;
+    timeControls.numStonesPerPeriod = 1;
+    timeControls.perPeriodTime = 30.0;
+    timeControls.mainTimeLeft = 70.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 2;
+    timeControls.numStonesLeftInPeriod = 1;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h byo yomi time controls, 70s left, 3 moves canadian in 30s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 0.0;
+    timeControls.originalNumPeriods = 1;
+    timeControls.numStonesPerPeriod = 3;
+    timeControls.perPeriodTime = 30.0;
+    timeControls.mainTimeLeft = 70.0;
     timeControls.inOvertime = false;
     timeControls.numPeriodsLeftIncludingCurrent = 1;
     timeControls.numStonesLeftInPeriod = 3;
@@ -482,6 +797,6 @@ oox.ox...
     tryTimeControlsOnBoards(timeControls,lagBuffer);
   }
 
-  
-  
+
+
 }

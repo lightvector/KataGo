@@ -115,7 +115,7 @@ $$MAX_TIME
 $$PONDERING
 # Note: you can also set "maxVisitsPondering" or "maxPlayoutsPondering" too.
 
-# Number of seconds to buffer for lag for GTP time controls - will move a bit faster assuming there is this much lag per move.
+# Approx number of seconds to buffer for lag for GTP time controls - will move a bit faster assuming there is this much lag per move.
 lagBuffer = 1.0
 
 # Number of threads to use in search

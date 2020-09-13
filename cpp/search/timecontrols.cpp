@@ -1,6 +1,7 @@
 #include "../search/timecontrols.h"
 
 #include <sstream>
+#include <cmath>
 
 TimeControls::TimeControls()
   :originalMainTime(1.0e30),
@@ -107,7 +108,9 @@ std::string TimeControls::toDebugString() const {
 
 
 static double applyLagBuffer(double time, double lagBuffer) {
-  if(time < 2.0 * lagBuffer)
+  if(time < 0)
+    return time;
+  else if(time < 2.0 * lagBuffer)
     return time * 0.5;
   else
     return time - lagBuffer;
@@ -127,24 +130,79 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
   }
 
   //Very crude way to estimate game progress
-  double approxTurnsLeft;
+  double approxTurnsLeftAbsolute;
+  double approxTurnsLeftIncrement; //Turns left in which we plan to spend our main time
+  double approxTurnsLeftByoYomi;   //Turns left in which we plan to spend our main time
   {
-    double typicalGameLengthToAllowFor = 0.60 * boardArea + 30.0;
-    double minApproxTurnsLeft = 20.0 + 0.1 * boardArea;
-    approxTurnsLeft = typicalGameLengthToAllowFor - numStonesOnBoard;
-    if(approxTurnsLeft < minApproxTurnsLeft)
-      approxTurnsLeft = minApproxTurnsLeft;
+    double typicalGameLengthToAllowForAbsolute = 0.95 * boardArea + 20.0;
+    double typicalGameLengthToAllowForIncrement = 0.75 * boardArea + 15.0;
+    double typicalGameLengthToAllowForByoYomi = 0.50 * boardArea + 10.0;
+
+    double minApproxTurnsLeftAbsolute = 0.15 * boardArea + 30.0;
+    double minApproxTurnsLeftIncrement = 0.10 * boardArea + 20.0;
+    double minApproxTurnsLeftByoYomi = 0.02 * boardArea + 4.0;
+
+    approxTurnsLeftAbsolute = std::max(typicalGameLengthToAllowForAbsolute - numStonesOnBoard, minApproxTurnsLeftAbsolute);
+    approxTurnsLeftIncrement = std::max(typicalGameLengthToAllowForIncrement - numStonesOnBoard, minApproxTurnsLeftIncrement);
+    approxTurnsLeftByoYomi = std::max(typicalGameLengthToAllowForByoYomi - numStonesOnBoard, minApproxTurnsLeftByoYomi);
+
+    //Multiply by 0.5 since we only make half the moves
+    approxTurnsLeftAbsolute *= 0.5;
+    approxTurnsLeftIncrement *= 0.5;
+    approxTurnsLeftByoYomi *= 0.5;
   }
 
-  //We can be much more aggressive if we have overtime or an increment
-  auto divideTimeEvenlyForGame = [approxTurnsLeft,this](double time) {
-    double approxTurnsLeftForIncrement = approxTurnsLeft * 0.85;
-    double approxTurnsLeftForByoYomi = approxTurnsLeft * 0.70;
+  auto divideTimeEvenlyForGame = [approxTurnsLeftAbsolute,approxTurnsLeftIncrement,approxTurnsLeftByoYomi,this](double time, bool isIncrementOrAbs, bool isByoYomi) {
+    double mainTimeToUseIfAbsolute = time / approxTurnsLeftAbsolute;
 
-    double base = time / approxTurnsLeft;
-    double agginc = time / approxTurnsLeftForIncrement;
-    double aggbyo = time / approxTurnsLeftForByoYomi;
-    return base + std::max(std::min(agginc - base, 0.5 * increment),std::min(aggbyo - base, 0.5 * perPeriodTime));
+    if(isIncrementOrAbs) {
+      double mainTimeToUse;
+      if(time <= 0)
+        mainTimeToUse = time;
+      else {
+        mainTimeToUse = time / approxTurnsLeftIncrement;
+        //Make sure that if the increment is really very small, we don't choose a policy that is all that much more extreme than absolute time.
+        mainTimeToUse = std::min(mainTimeToUse, mainTimeToUseIfAbsolute + 2.0 * increment);
+      }
+      return mainTimeToUse;
+    }
+
+    else if(isByoYomi) {
+      double mainTimeToUse;
+      if(perPeriodTime <= 0 || numStonesPerPeriod <= 0)
+        mainTimeToUse = mainTimeToUseIfAbsolute;
+      else {
+        double byoYomiTimePerMove = perPeriodTime / numStonesPerPeriod;
+
+        //Under the assumption that we spend a fixed amount of time per move and then when we run out of main time, we use our byo yomi time, and
+        //strength is proportional to log(time spent), then the optimal policy is to use e * byoYomi time per move and running out in 1/e proportion
+        //of the turns that we would if we spent only the byo yomi time per move.
+        double theoreticalOptimalTurnsToSpendOurTime = (time / byoYomiTimePerMove) * exp(-1.0);
+        double approxTurnsLeftToUse = theoreticalOptimalTurnsToSpendOurTime;
+
+        //If our desired time is longer than optimal (because in reality saving time for deep enough in the midgame is more important)
+        //then attempt to stretch it out to some degree.
+        if(approxTurnsLeftByoYomi > theoreticalOptimalTurnsToSpendOurTime)
+          approxTurnsLeftToUse = std::min(approxTurnsLeftByoYomi, theoreticalOptimalTurnsToSpendOurTime * 1.75);
+
+        //If we'd be even slower than absolute time, then of course move as if absolute time.
+        if(approxTurnsLeftToUse > approxTurnsLeftAbsolute)
+          approxTurnsLeftToUse = approxTurnsLeftAbsolute;
+        //Make sure that at the very end of our main time, we don't do silly things
+        if(approxTurnsLeftToUse < 1)
+          approxTurnsLeftToUse = 1;
+
+        mainTimeToUse = time / approxTurnsLeftToUse;
+        //Make sure that if the byo yomi is really very small, we don't choose a policy that is all that much more extreme than absolute time.
+        mainTimeToUse = std::min(mainTimeToUse, mainTimeToUseIfAbsolute + 3.0 * byoYomiTimePerMove);
+        //If we would have less than half the per-stone byo yomi main time remaining, then just go ahead and use it all.
+        if(time - mainTimeToUse < byoYomiTimePerMove * 0.5)
+          mainTimeToUse = time + byoYomiTimePerMove;
+      }
+      return mainTimeToUse;
+    }
+
+    return mainTimeToUseIfAbsolute;
   };
 
   //Initialize
@@ -161,24 +219,27 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
     if(numPeriodsLeftIncludingCurrent != 0)
       throw StringError("TimeControls: numPeriodsLeftIncludingCurrent != 0 with Fischer or absolute time, inconsistent time control?");
 
-    //Note that some GTP controllers might give us a negative mainTimeLeft here. This is okay, we fix things up at the end of this function.
+    //Note that some GTP controllers might give us a negative mainTimeLeft in weird cases. We tolerate this and do the best we can.
     if(mainTimeLeft <= increment) {
       minTime = 0.0;
-      recommendedTime = mainTimeLeft;
+      //Apply lagbuffer an extra time to the mainTimeLeft, ensuring we get extra buffering
+      recommendedTime = applyLagBuffer(mainTimeLeft, lagBuffer);
       maxTime = mainTimeLeft;
     }
     else {
       //Apply lagbuffer an extra time to the excessMainTime, ensuring we get extra buffering
       double excessMainTime = applyLagBuffer(mainTimeLeft - increment, lagBuffer);
       minTime = 0.0;
-      recommendedTime = increment + divideTimeEvenlyForGame(excessMainTime);
-      maxTime = increment + excessMainTime / 5.0;
+      recommendedTime = increment + divideTimeEvenlyForGame(excessMainTime,true,false);
+      maxTime = std::min(mainTimeLeft, increment + excessMainTime / 5.0);
     }
   }
-  //Byo yomi time handling
+  //Byo yomi or canadian time handling
   else {
     if(numStonesPerPeriod <= 0)
       throw StringError("TimeControls: numStonesPerPeriod <= 0 with byo-yomiish periods, inconsistent time control?");
+    if(!inOvertime && numPeriodsLeftIncludingCurrent != originalNumPeriods)
+      throw StringError("TimeControls: not in overtime, but numPeriodsLeftIncludingCurrent != originalNumPeriods");
 
     //Crudely treat all but the last 3 periods as main time.
     double effectiveMainTimeLeft = mainTimeLeft;
@@ -194,9 +255,20 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
     }
 
     if(!effectivelyInOvertime) {
+      //The upper limit of what we'll tolerate for spending on a move in byo yomi
+      double largeByoYomiTimePerMove = perPeriodTime / (0.75 * numStonesPerPeriod + 0.25);
+
       minTime = 0.0;
-      recommendedTime = perPeriodTime / numStonesPerPeriod + divideTimeEvenlyForGame(effectiveMainTimeLeft);
-      maxTime = perPeriodTime / (0.75 * numStonesPerPeriod + 0.25) + effectiveMainTimeLeft / 5.0;
+      recommendedTime = divideTimeEvenlyForGame(effectiveMainTimeLeft,false,true);
+      maxTime = largeByoYomiTimePerMove + std::max(std::min(largeByoYomiTimePerMove * 1.75, effectiveMainTimeLeft), effectiveMainTimeLeft / 5.0);
+
+      //If we're going into byo yomi, we might as well allow using the whole period
+      if(maxTime > effectiveMainTimeLeft && maxTime < effectiveMainTimeLeft + largeByoYomiTimePerMove)
+        maxTime = effectiveMainTimeLeft + largeByoYomiTimePerMove;
+
+      //Increase the lagbuffer a little if upon entering byo yomi we're actually on the last byo yomi (i.e. running out actually kills us)
+      if(maxTime > effectiveMainTimeLeft && numPeriodsLeftIncludingCurrent <= 1 && numStonesPerPeriod <= 1)
+        lagBufferToUse *= 2.0;
     }
     else {
       if(numStonesLeftInPeriod < 1)
@@ -208,7 +280,7 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
 
       //Increase the lagbuffer a little if we're actually on the last stone of the last byo yomi (i.e. running out actually kills us)
       if(numPeriodsLeftIncludingCurrent <= 1 && numStonesLeftInPeriod <= 1)
-        lagBufferToUse *= 1.5;
+        lagBufferToUse *= 2.0;
     }
   }
 
