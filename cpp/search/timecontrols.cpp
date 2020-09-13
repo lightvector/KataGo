@@ -120,14 +120,7 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
   (void)hist;
 
   int boardArea = board.x_size * board.y_size;
-  int numStonesOnBoard = 0;
-  for(int y = 0; y < board.y_size; y++) {
-    for(int x = 0; x < board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      if(board.colors[loc] == C_BLACK || board.colors[loc] == C_WHITE)
-        numStonesOnBoard++;
-    }
-  }
+  int numStonesOnBoard = board.numStonesOnBoard();
 
   //Very crude way to estimate game progress
   double approxTurnsLeftAbsolute;

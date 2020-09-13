@@ -604,6 +604,18 @@ bool Board::isEmpty() const {
   return true;
 }
 
+int Board::numStonesOnBoard() const {
+  int num = 0;
+  for(int y = 0; y < y_size; y++) {
+    for(int x = 0; x < x_size; x++) {
+      Loc loc = Location::getLoc(x,y,x_size);
+      if(colors[loc] == C_BLACK || colors[loc] == C_WHITE)
+        num += 1;
+    }
+  }
+  return num;
+}
+
 bool Board::setStone(Loc loc, Color color)
 {
   if(loc < 0 || loc >= MAX_ARR_SIZE || colors[loc] == C_WALL)
