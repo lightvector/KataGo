@@ -240,17 +240,34 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
       throw StringError("TimeControls: numStonesPerPeriod <= 0 with byo-yomiish periods, inconsistent time control?");
     if(!inOvertime && numPeriodsLeftIncludingCurrent != originalNumPeriods)
       throw StringError("TimeControls: not in overtime, but numPeriodsLeftIncludingCurrent != originalNumPeriods");
+    if(inOvertime && numStonesLeftInPeriod < 1)
+      throw StringError("TimeControls: numStonesLeftInPeriod < 1 while in overtime, inconsistent time control?");
 
-    //Crudely treat all but the last 3 periods as main time.
     double effectiveMainTimeLeft = mainTimeLeft;
     bool effectivelyInOvertime = inOvertime;
-    if(numPeriodsLeftIncludingCurrent > 3) {
+    int effectiveNumPeriodsLeftIncludingCurrent = numPeriodsLeftIncludingCurrent;
+    double effectiveTimeLeftInPeriod = timeLeftInPeriod;
+    int effectiveNumStonesLeftInPeriod = numStonesLeftInPeriod;
+
+    //If somehow main time left is negative, then assume we've moved into byo yomi by the appropriate amount
+    if(effectiveMainTimeLeft < 0 && !effectivelyInOvertime) {
+      effectivelyInOvertime = true;
+      effectiveTimeLeftInPeriod = effectiveMainTimeLeft + perPeriodTime;
+      effectiveNumStonesLeftInPeriod = numStonesPerPeriod;
+      while(effectiveTimeLeftInPeriod < 0 && effectiveNumPeriodsLeftIncludingCurrent > 1) {
+        effectiveNumPeriodsLeftIncludingCurrent -= 1;
+        effectiveTimeLeftInPeriod += perPeriodTime;
+      }
+    }
+
+    //Crudely treat all but the last 3 periods as main time.
+    if(effectiveNumPeriodsLeftIncludingCurrent > 3) {
       effectivelyInOvertime = false;
       if(!inOvertime) {
-        effectiveMainTimeLeft += perPeriodTime * (numPeriodsLeftIncludingCurrent - 3);
+        effectiveMainTimeLeft += perPeriodTime * (effectiveNumPeriodsLeftIncludingCurrent - 3);
       }
       else {
-        effectiveMainTimeLeft += timeLeftInPeriod + perPeriodTime * (numPeriodsLeftIncludingCurrent - 4);
+        effectiveMainTimeLeft += effectiveTimeLeftInPeriod + perPeriodTime * (effectiveNumPeriodsLeftIncludingCurrent - 4);
       }
     }
 
@@ -267,19 +284,19 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
         maxTime = effectiveMainTimeLeft + largeByoYomiTimePerMove;
 
       //Increase the lagbuffer a little if upon entering byo yomi we're actually on the last byo yomi (i.e. running out actually kills us)
-      if(maxTime > effectiveMainTimeLeft && numPeriodsLeftIncludingCurrent <= 1 && numStonesPerPeriod <= 1)
+      if(maxTime > effectiveMainTimeLeft && effectiveNumPeriodsLeftIncludingCurrent <= 1 && numStonesPerPeriod <= 1)
         lagBufferToUse *= 2.0;
     }
     else {
-      if(numStonesLeftInPeriod < 1)
-        throw StringError("TimeControls: numStonesLeftInPeriod < 1 while in overtime, inconsistent time control?");
+      if(effectiveNumStonesLeftInPeriod < 1)
+        throw StringError("TimeControls: effectiveNumStonesLeftInPeriod < 1 while in overtime, inconsistent time control?");
 
-      minTime = (numStonesLeftInPeriod <= 1) ? timeLeftInPeriod : 0.0;
-      recommendedTime = timeLeftInPeriod / numStonesLeftInPeriod;
-      maxTime = timeLeftInPeriod / (0.75 * numStonesLeftInPeriod + 0.25);
+      minTime = (effectiveNumStonesLeftInPeriod <= 1) ? effectiveTimeLeftInPeriod : 0.0;
+      recommendedTime = effectiveTimeLeftInPeriod / effectiveNumStonesLeftInPeriod;
+      maxTime = effectiveTimeLeftInPeriod / (0.75 * effectiveNumStonesLeftInPeriod + 0.25);
 
       //Increase the lagbuffer a little if we're actually on the last stone of the last byo yomi (i.e. running out actually kills us)
-      if(numPeriodsLeftIncludingCurrent <= 1 && numStonesLeftInPeriod <= 1)
+      if(effectiveNumPeriodsLeftIncludingCurrent <= 1 && effectiveNumStonesLeftInPeriod <= 1)
         lagBufferToUse *= 2.0;
     }
   }

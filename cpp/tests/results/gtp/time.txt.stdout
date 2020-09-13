@@ -29,7 +29,7 @@ White originalMainTime 60 originalNumPeriods 1 numStonesPerPeriod 3 perPeriodTim
 
 = 
 
-= Black originalMainTime 60 originalNumPeriods 1 numStonesPerPeriod 3 perPeriodTime 10 mainTimeLeft -5 inOvertime 0 numPeriodsLeftIncludingCurrent 1 minRecMax 0 0 2
+= Black originalMainTime 60 originalNumPeriods 1 numStonesPerPeriod 3 perPeriodTime 10 mainTimeLeft -5 inOvertime 0 numPeriodsLeftIncludingCurrent 1 minRecMax 0 0.833333 1
 White originalMainTime 60 originalNumPeriods 1 numStonesPerPeriod 3 perPeriodTime 10 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 1 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 0 0 0
 
 = 
