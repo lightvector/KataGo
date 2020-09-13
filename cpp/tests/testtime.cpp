@@ -85,7 +85,8 @@ oox.ox...
     double recommendedTime;
     double maxTime;
     timeControls.getTime(board,hist,lagBuffer,minTime,recommendedTime,maxTime);
-    cout << s << " min rec max = " << minTime << " " << recommendedTime << " " << maxTime << endl;
+    cout << s << " min rec max = " << minTime << " " << recommendedTime << " " << maxTime
+    << " roundedrec " << timeControls.roundUpTimeLimitIfNeeded(lagBuffer,recommendedTime-0.000001,recommendedTime) << endl;
   };
 
   auto tryTimeControlsOnBoards = [&](const TimeControls& timeControls, double lagBuffer) {

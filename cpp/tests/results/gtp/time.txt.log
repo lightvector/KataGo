@@ -83,8 +83,8 @@ White originalMainTime 60 mainTimeLeft 50 inOvertime 0 minRecMax 0 0.135005 8.8
 : Controller: kgs-time_settings canadian 5 10 3
 : = 
 : Controller: kata-debug-print-tc
-: = Black originalMainTime 5 originalNumPeriods 1 numStonesPerPeriod 3 perPeriodTime 10 mainTimeLeft 5 inOvertime 0 numPeriodsLeftIncludingCurrent 1 minRecMax 0 7.33333 8
-White originalMainTime 5 originalNumPeriods 1 numStonesPerPeriod 3 perPeriodTime 10 mainTimeLeft 5 inOvertime 0 numPeriodsLeftIncludingCurrent 1 minRecMax 0 7.33333 8
+: = Black originalMainTime 5 originalNumPeriods 1 numStonesPerPeriod 3 perPeriodTime 10 mainTimeLeft 5 inOvertime 0 numPeriodsLeftIncludingCurrent 1 minRecMax 0 4 8
+White originalMainTime 5 originalNumPeriods 1 numStonesPerPeriod 3 perPeriodTime 10 mainTimeLeft 5 inOvertime 0 numPeriodsLeftIncludingCurrent 1 minRecMax 0 4 8
 : Controller: time_left black 2 1
 : = 
 : Controller: time_left white 4 2
@@ -171,7 +171,7 @@ White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTim
 : = 
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 10 inOvertime 0 numPeriodsLeftIncludingCurrent 7 minRecMax 0 9.87313 18.25
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 0 numPeriodsLeftIncludingCurrent 7 minRecMax 0 20 20
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 0 numPeriodsLeftIncludingCurrent 7 minRecMax 0 9.87313 20
 : Controller: kgs-time_settings byoyomi 20 5 5
 : = 
 : Controller: kata-debug-print-tc
@@ -311,6 +311,6 @@ White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTim
 : Controller: time_left white -5 0
 : = 
 : Controller: kata-debug-print-tc
-: = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft -1 inOvertime 0 numPeriodsLeftIncludingCurrent 7 minRecMax 0 19 19
+: = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft -1 inOvertime 0 numPeriodsLeftIncludingCurrent 7 minRecMax 0 9.87313 19
 White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft -5 inOvertime 0 numPeriodsLeftIncludingCurrent 7 minRecMax 0 15 15
 : All cleaned up, quitting

@@ -188,8 +188,12 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
         mainTimeToUse = time / approxTurnsLeftToUse;
         //Make sure that if the byo yomi is really very small, we don't choose a policy that is all that much more extreme than absolute time.
         mainTimeToUse = std::min(mainTimeToUse, mainTimeToUseIfAbsolute + 3.0 * byoYomiTimePerMove);
-        //If we would have less than half the per-stone byo yomi main time remaining, then just go ahead and use it all.
-        if(time - mainTimeToUse < byoYomiTimePerMove * 0.5)
+        //Make sure that we don't use less than the byo yomi time as our "basic" time. This can happen in the transition period
+        //when main time left is not large
+        if(mainTimeToUse < byoYomiTimePerMove)
+          mainTimeToUse = byoYomiTimePerMove;
+        //If we are using less than 1.5x the byoYomiTimePerMove and doing so would dip us into byo yomi, then go ahead and dip in.
+        if(mainTimeToUse < byoYomiTimePerMove * 1.5 && time < byoYomiTimePerMove * 1.5)
           mainTimeToUse = time + byoYomiTimePerMove;
       }
       return mainTimeToUse;
@@ -327,4 +331,88 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
     minTime = maxTime;
   if(recommendedTime > maxTime)
     recommendedTime = maxTime;
+}
+
+double TimeControls::roundUpTimeLimitIfNeeded(double lagBuffer, double timeUsed, double timeLimit) const {
+  if(increment > 0 || numPeriodsLeftIncludingCurrent <= 0)
+    return timeLimit;
+
+  double effectiveMainTimeLeft = mainTimeLeft;
+  bool effectivelyInOvertime = inOvertime;
+  int effectiveNumPeriodsLeftIncludingCurrent = numPeriodsLeftIncludingCurrent;
+  double effectiveTimeLeftInPeriod = timeLeftInPeriod;
+  double effectiveNumStonesLeftInPeriod = numStonesLeftInPeriod;
+
+  //Scroll up to where we are based on time used
+  if(!effectivelyInOvertime)
+    effectiveMainTimeLeft -= timeUsed;
+  else
+    effectiveTimeLeftInPeriod -= timeUsed;
+
+  //Roll from main time into overtime
+  if(effectiveMainTimeLeft < 0 && !effectivelyInOvertime) {
+    effectivelyInOvertime = true;
+    effectiveTimeLeftInPeriod = effectiveMainTimeLeft + perPeriodTime;
+    effectiveNumStonesLeftInPeriod = numStonesPerPeriod;
+  }
+
+  //Roll through any ends of periods
+  if(effectivelyInOvertime) {
+    while(effectiveTimeLeftInPeriod < 0 && effectiveNumPeriodsLeftIncludingCurrent > 1) {
+      effectiveNumPeriodsLeftIncludingCurrent -= 1;
+      effectiveTimeLeftInPeriod += perPeriodTime;
+    }
+  }
+
+  double roundedUpTimeUsage = timeUsed;
+  double byoYomiTimePerMove = perPeriodTime / numStonesPerPeriod;
+  double byoYomiTimePerMoveBuffered = applyLagBuffer(perPeriodTime / numStonesPerPeriod, lagBuffer);
+
+  //Basically like lagbuffer, but bounded away from zero and capped at byoYomiTimePerMoveBuffered
+  double bitOfTime = std::min(std::max(lagBuffer, byoYomiTimePerMoveBuffered * 0.01), byoYomiTimePerMoveBuffered);
+
+  //Still in main time
+  if(!effectivelyInOvertime) {
+    //If we have very little main time left, then we might as well use it all up
+    if(effectiveMainTimeLeft < byoYomiTimePerMove * 0.5) {
+      //Japanese - use it up, plus the whole period, so we don't waste it.
+      if(numStonesPerPeriod <= 1)
+        roundedUpTimeUsage = timeUsed + effectiveMainTimeLeft + byoYomiTimePerMoveBuffered;
+      //Canadian - use it up, plus at least make sure we get a bit into our overtime period
+      //We might reevaluate once we actually get in to overtime.
+      else
+        roundedUpTimeUsage = timeUsed + effectiveMainTimeLeft + bitOfTime;
+    }
+    else
+      return timeLimit;
+  }
+  //Overtime
+  else {
+    //We probably lost on time! Just keep the limit the same and do what we would have done without rounding
+    if(effectiveTimeLeftInPeriod <= 0)
+      return timeLimit;
+    //If we have multiple stones left, then make sure we use at least a little fraction of our per-move time of the period
+    //if we entered into main time this turn, so we don't lose time by accidentally submitting our move before finishing
+    //our main time! We want to make sure to count 1 stone played in the new period.
+    if(effectiveNumStonesLeftInPeriod > 1) {
+      //So, if we were not in overtime at the start of this move, but we used only a tiny bit of time in the overtime...
+      if(!inOvertime && (perPeriodTime - effectiveTimeLeftInPeriod) < bitOfTime)
+        roundedUpTimeUsage = timeUsed + bitOfTime - (perPeriodTime - effectiveTimeLeftInPeriod);
+      //If we have multiple stones left, there's no other situation where we want to artifically spend more time, we won't lose any.
+      else
+        return timeLimit;
+    }
+    //If we have one stone left, time would in fact be wasted, so then we do want to round up.
+    else {
+      roundedUpTimeUsage = applyLagBuffer(timeUsed + effectiveTimeLeftInPeriod, lagBuffer);
+    }
+  }
+
+  if(roundedUpTimeUsage < timeUsed)
+    return timeLimit;
+
+  if(timeLimit < roundedUpTimeUsage)
+    timeLimit = roundedUpTimeUsage;
+  return timeLimit;
+
 }

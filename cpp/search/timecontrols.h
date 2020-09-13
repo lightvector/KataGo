@@ -45,6 +45,10 @@ struct TimeControls {
   //maxTime - very bad to go over this time, possibly immediately losing
   void getTime(const Board& board, const BoardHistory& hist, double lagBuffer, double& minTime, double& recommendedTime, double& maxTime) const;
 
+  //If we'd think for a given time limit and actually it would lose time to stop at this limit, then bump the limit up
+  //This is used for not partial-wasting byo yomi periods.
+  double roundUpTimeLimitIfNeeded(double lagBuffer, double timeUsed, double timeLimit) const;
+
   std::string toDebugString() const;
   std::string toDebugString(const Board& board, const BoardHistory& hist, double lagBuffer) const;
 };
