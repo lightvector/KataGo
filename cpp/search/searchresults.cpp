@@ -22,12 +22,26 @@ bool Search::getPlaySelectionValues(
     return false;
   }
   bool allowDirectPolicyMoves = true;
-  return getPlaySelectionValues(*rootNode, locs, playSelectionValues, scaleMaxToAtLeast, allowDirectPolicyMoves);
+  return getPlaySelectionValues(*rootNode, locs, playSelectionValues, NULL, scaleMaxToAtLeast, allowDirectPolicyMoves);
+}
+
+bool Search::getPlaySelectionValues(
+  vector<Loc>& locs, vector<double>& playSelectionValues, vector<double>* retVisitCounts, double scaleMaxToAtLeast
+) const {
+  if(rootNode == NULL) {
+    locs.clear();
+    playSelectionValues.clear();
+    if(retVisitCounts != NULL)
+      retVisitCounts->clear();
+    return false;
+  }
+  bool allowDirectPolicyMoves = true;
+  return getPlaySelectionValues(*rootNode, locs, playSelectionValues, retVisitCounts, scaleMaxToAtLeast, allowDirectPolicyMoves);
 }
 
 bool Search::getPlaySelectionValues(
   const SearchNode& node,
-  vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
+  vector<Loc>& locs, vector<double>& playSelectionValues, vector<double>* retVisitCounts, double scaleMaxToAtLeast,
   bool allowDirectPolicyMoves
 ) const {
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
@@ -36,7 +50,7 @@ bool Search::getPlaySelectionValues(
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
   assert(node.numChildren <= NNPos::MAX_NN_POLICY_SIZE);
   bool result = getPlaySelectionValuesAlreadyLocked(
-    node,locs,playSelectionValues,scaleMaxToAtLeast,allowDirectPolicyMoves,
+    node,locs,playSelectionValues,retVisitCounts,scaleMaxToAtLeast,allowDirectPolicyMoves,
     false,lcbBuf,radiusBuf
   );
   return result;
@@ -44,13 +58,15 @@ bool Search::getPlaySelectionValues(
 
 bool Search::getPlaySelectionValuesAlreadyLocked(
   const SearchNode& node,
-  vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
+  vector<Loc>& locs, vector<double>& playSelectionValues, vector<double>* retVisitCounts, double scaleMaxToAtLeast,
   bool allowDirectPolicyMoves, bool alwaysComputeLcb,
   //Note: lcbBuf is signed from the player to move's perspective
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
 ) const {
   locs.clear();
   playSelectionValues.clear();
+  if(retVisitCounts != NULL)
+    retVisitCounts->clear();
 
   int numChildren = node.numChildren;
   int64_t totalChildVisits = 0;
@@ -72,6 +88,10 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
       playSelectionValues.push_back(0.0);
     else
       playSelectionValues.push_back((double)childVisits);
+  }
+
+  if(retVisitCounts != NULL) {
+    *retVisitCounts = playSelectionValues;
   }
 
   //Find the best child by visits
@@ -548,13 +568,24 @@ bool Search::getPolicy(float policyProbs[NNPos::MAX_NN_POLICY_SIZE]) const {
   return true;
 }
 
+//Safe to call concurrently with search
 double Search::getPolicySurprise() const {
+  double surprise = 0.0;
+  double searchEntropy = 0.0;
+  double policyEntropy = 0.0;
+  if(getPolicySurpriseAndEntropy(surprise,searchEntropy,policyEntropy))
+    return surprise;
+  return 0.0;
+}
+
+//Safe to call concurrently with search
+bool Search::getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntropyRet, double& policyEntropyRet) const {
   if(rootNode == NULL)
-    return 0.0;
+    return false;
   std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
-  lock_guard<std::mutex> lock(mutex);
+  unique_lock<std::mutex> lock(mutex);
   if(rootNode->nnOutput == nullptr)
-    return 0.0;
+    return false;
 
   NNOutput& nnOutput = *(rootNode->nnOutput);
 
@@ -565,28 +596,57 @@ double Search::getPolicySurprise() const {
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
   bool suc = getPlaySelectionValuesAlreadyLocked(
-    *rootNode,locs,playSelectionValues,1.0,allowDirectPolicyMoves,alwaysComputeLcb,lcbBuf,radiusBuf);
+    *rootNode,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,lcbBuf,radiusBuf);
   if(!suc)
-    return 0.0;
+    return false;
+
+  float policyProbsFromNNBuf[NNPos::MAX_NN_POLICY_SIZE];
+  {
+    float* policyProbsFromNN = nnOutput.getPolicyProbsMaybeNoised();
+    std::copy(policyProbsFromNN, policyProbsFromNN+NNPos::MAX_NN_POLICY_SIZE, policyProbsFromNNBuf);
+  }
+  //Okay we have all the data we need!
+  lock.unlock();
 
   double sumPlaySelectionValues = 0.0;
   for(int i = 0; i<playSelectionValues.size(); i++)
     sumPlaySelectionValues += playSelectionValues[i];
 
-  float* policyProbsFromNN = nnOutput.getPolicyProbsMaybeNoised();
-
   double surprise = 0.0;
+  double searchEntropy = 0.0;
   for(int i = 0; i<playSelectionValues.size(); i++) {
     int pos = getPos(locs[i]);
-    double policy = std::max((double)policyProbsFromNN[pos],1e-100);
+    double policy = std::max((double)policyProbsFromNNBuf[pos],1e-100);
     double target = playSelectionValues[i] / sumPlaySelectionValues;
-    if(target > 1e-100)
-      surprise += target * (log(target)-log(policy));
+    if(target > 1e-100) {
+      double logTarget = log(target);
+      double logPolicy = log(policy);
+      surprise += target * (logTarget - logPolicy);
+      searchEntropy += -target * logTarget;
+    }
   }
+
+  double policyEntropy = 0.0;
+  for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++) {
+    double policy = policyProbsFromNNBuf[pos];
+    if(policy > 1e-100) {
+      policyEntropy += -policy * log(policy);
+    }
+  }
+
   //Just in case, guard against float imprecision
   if(surprise < 0.0)
     surprise = 0.0;
-  return surprise;
+  if(searchEntropy < 0.0)
+    searchEntropy = 0.0;
+  if(policyEntropy < 0.0)
+    policyEntropy = 0.0;
+
+  surpriseRet = surprise;
+  searchEntropyRet = searchEntropy;
+  policyEntropyRet = policyEntropy;
+
+  return true;
 }
 
 void Search::printRootOwnershipMap(ostream& out, Player perspective) const {
@@ -680,7 +740,7 @@ void Search::appendPVForMove(vector<Loc>& buf, vector<int64_t>& visitsBuf, vecto
     return;
 
   for(int depth = 0; depth < maxDepth; depth++) {
-    bool success = getPlaySelectionValues(*n, scratchLocs, scratchValues, 1.0, false);
+    bool success = getPlaySelectionValues(*n, scratchLocs, scratchValues, NULL, 1.0, false);
     if(!success)
       return;
 
@@ -860,7 +920,7 @@ void Search::getAnalysisData(
 
     assert(node.numChildren <= NNPos::MAX_NN_POLICY_SIZE);
     bool alwaysComputeLcb = true;
-    bool success = getPlaySelectionValuesAlreadyLocked(node, scratchLocs, scratchValues, 1.0, false, alwaysComputeLcb, lcbBuf, radiusBuf);
+    bool success = getPlaySelectionValuesAlreadyLocked(node, scratchLocs, scratchValues, NULL, 1.0, false, alwaysComputeLcb, lcbBuf, radiusBuf);
     if(!success)
       return;
 

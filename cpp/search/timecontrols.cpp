@@ -20,6 +20,9 @@ TimeControls::TimeControls()
 TimeControls::~TimeControls()
 {}
 
+bool TimeControls::isEffectivelyUnlimitedTime() const {
+  return mainTimeLeft > 1.0e20 || (inOvertime && timeLeftInPeriod > 1.0e20);
+}
 
 TimeControls TimeControls::absoluteTime(double mainTime) {
   TimeControls tc;

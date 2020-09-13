@@ -40,6 +40,8 @@ struct TimeControls {
     int numStonesPerPeriod
   );
 
+  bool isEffectivelyUnlimitedTime() const;
+
   //minTime - if you use less than this, you are wasting time that will not be reclaimed
   //recommendedTime - recommended mean time to search
   //maxTime - very bad to go over this time, possibly immediately losing
