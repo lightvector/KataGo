@@ -438,15 +438,27 @@ static Client::ModelInfo parseModelInfo(const json& networkProperties) {
   return model;
 }
 
-bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFailure, std::atomic<bool>& shouldStop) {
+bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFailure, bool allowRatingTask, int taskRepFactor, std::atomic<bool>& shouldStop) {
   (void)baseDir;
 
   auto f = [&]() {
-    httplib::MultipartFormDataItems items = {
-      { "git_revision", Version::getGitRevision(), "", "" },
-    };
-    json response = parseJson(postMulti("/api/tasks/",items));
+    json response;
 
+    while(true) {
+      httplib::MultipartFormDataItems items = {
+        { "git_revision", Version::getGitRevision(), "", "" },
+        { "task_rep_factor", Global::intToString(taskRepFactor), "", ""}, 
+        { "allow_selfplay_task", "true", "", ""}, 
+        { "allow_rating_task", (allowRatingTask ? "true" : "false"), "", ""}, 
+      };
+      response = parseJson(postMulti("/api/tasks/",items));
+      string kind = parseString(response,"kind",32);
+      if(kind == "rating" && !allowRatingTask) {
+        std::this_thread::sleep_for(std::chrono::duration<double>(1.0));
+        continue;
+      }
+      break;
+    }
     string kind = parseString(response,"kind",32);
     if(kind == "selfplay") {
       json networkProperties = parse<json>(response,"network");

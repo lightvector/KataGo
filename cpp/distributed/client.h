@@ -58,7 +58,10 @@ namespace Client {
     bool getNextTask(
       Task& task,
       const std::string& baseDir,
-      bool retryOnFailure, std::atomic<bool>& shouldStop
+      bool retryOnFailure,
+      bool allowRatingTask,
+      int taskRepFactor,
+      std::atomic<bool>& shouldStop
     );
 
     static std::string getModelPath(const Client::ModelInfo& modelInfo, const std::string& modelDir);

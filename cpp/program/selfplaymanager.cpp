@@ -95,7 +95,7 @@ void SelfplayManager::maybeAutoCleanupAlreadyLocked() {
 void SelfplayManager::cleanupUnusedModelsOlderThan(double seconds) {
   std::lock_guard<std::mutex> lock(managerMutex);
   double now = timer.getSeconds();
-  for(size_t i = 0; i<modelDatas.size()-1; i++) {
+  for(size_t i = 0; i<modelDatas.size(); i++) {
     ModelData* foundData = modelDatas[i];
     if(foundData->acquireCount <= 0 && now - foundData->lastReleaseTime > seconds) {
       assert(foundData->acquireCount == 0);
@@ -113,7 +113,7 @@ void SelfplayManager::cleanupUnusedModelsOlderThan(double seconds) {
 
 void SelfplayManager::clearUnusedModelCaches() {
   std::lock_guard<std::mutex> lock(managerMutex);
-  for(size_t i = 0; i<modelDatas.size()-1; i++) {
+  for(size_t i = 0; i<modelDatas.size(); i++) {
     ModelData* foundData = modelDatas[i];
     if(foundData->acquireCount <= 0) {
       foundData->nnEval->clearCache();
@@ -166,6 +166,11 @@ void SelfplayManager::loadModelNoDataWritingLoop(
   ModelData* newModel = new ModelData(modelName,nnEval,maxDataQueueSize,tdataWriter,vdataWriter,sgfOut,initialTime,hasDataWriteLoop);
   modelDatas.push_back(newModel);
   maybeAutoCleanupAlreadyLocked();
+}
+
+size_t SelfplayManager::numModels() const {
+  std::lock_guard<std::mutex> lock(managerMutex);
+  return modelDatas.size();
 }
 
 vector<string> SelfplayManager::modelNames() const {

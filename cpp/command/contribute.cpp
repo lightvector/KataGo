@@ -49,10 +49,15 @@ static const string defaultBaseDir = "katago_contribute";
 static const int defaultMaxSimultaneousGames = 16;
 static const int defaultDeleteUnusedModelsAfter = 6 * 60 * 60;
 
+//Play selfplay games and rating games in chunks of this many at a time. Each server query
+//gets fanned out into this many games.
+static const int taskRepFactor = 4;
+
 namespace {
   struct GameTask {
     Client::Task task;
-    SelfplayManager* manager;
+    SelfplayManager* blackManager;
+    SelfplayManager* whiteManager;
     NNEvaluator* nnEvalBlack;
     NNEvaluator* nnEvalWhite;
   };
@@ -145,7 +150,7 @@ static void runAndUploadSingleGame(
 
     static constexpr bool retryOnFailure = true;
     if(gameTask.task.doWriteTrainingData) {
-      gameTask.manager->withDataWriters(
+      gameTask.blackManager->withDataWriters(
         nnEvalBlack,
         [gameData,&gameTask,gameIdx,&sgfFile,&connection,&logger](TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut) {
           (void)vdataWriter;
@@ -317,11 +322,15 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   //Log to random file name to better support starting/stopping as well as multiple parallel runs
   logger.addFile(logsDir + "/log" + DateTime::getCompactDateTimeString() + "-" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".log");
 
+  //We only ever allow one chunk of rating games at a time right now.
+  const int maxSimultaneousRatingGames = taskRepFactor;
+  
   //Don't write "validation" data for distributed self-play. If the server-side wants to split out some data as "validation" for training
   //then that can be done server-side.
   const double validationProp = 0.0;
   //If we ever get more than this many games behind on writing data, something is weird.
-  const int maxDataQueueSize = maxSimultaneousGames * 4;
+  const int maxSelfplayDataQueueSize = maxSimultaneousGames * 4;
+  const int maxRatingDataQueueSize = maxSimultaneousRatingGames * 4;
   const int logGamesEvery = 1;
 
   const string gameSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
@@ -332,8 +341,9 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   ThreadSafeQueue<GameTask> gameTaskQueue(1);
   ForkData* forkData = new ForkData();
   std::atomic<int64_t> numGamesStarted(0);
+  std::atomic<int64_t> numRatingGamesActive(0);
 
-  auto runGameLoop = [&logger,forkData,&gameSeedBase,&gameTaskQueue,&numGamesStarted,&sgfsDir,&connection]() {
+  auto runGameLoop = [&logger,forkData,&gameSeedBase,&gameTaskQueue,&numGamesStarted,&sgfsDir,&connection,&numRatingGamesActive]() {
     Rand thisLoopSeedRand;
     while(true) {
       GameTask gameTask;
@@ -345,25 +355,30 @@ int MainCmds::contribute(int argc, const char* const* argv) {
         int64_t gameIdx = numGamesStarted.fetch_add(1,std::memory_order_acq_rel);
         runAndUploadSingleGame(connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand);
       }
-      gameTask.manager->release(gameTask.nnEvalBlack);
-      gameTask.manager->release(gameTask.nnEvalWhite);
-      gameTask.manager->clearUnusedModelCaches();
+      gameTask.blackManager->release(gameTask.nnEvalBlack);
+      gameTask.whiteManager->release(gameTask.nnEvalWhite);
+      gameTask.blackManager->clearUnusedModelCaches();
+      if(gameTask.whiteManager != gameTask.blackManager)
+        gameTask.whiteManager->clearUnusedModelCaches();
+
+      if(gameTask.task.isRatingGame)
+        numRatingGamesActive.fetch_add(-1,std::memory_order_acq_rel);
     }
   };
 
   auto loadNeuralNetIntoManager =
-    [&runParams,&tdataDir,&sgfsDir,&logger,&userCfg,maxSimultaneousGames](
-      SelfplayManager* manager, const string& modelName, const string& modelFile
+    [&runParams,&tdataDir,&sgfsDir,&logger,&userCfg,maxSimultaneousGames,maxSimultaneousRatingGames](
+      SelfplayManager* manager, const string& modelName, const string& modelFile, bool isRatingManager
     ) {
-
     if(manager->hasModel(modelName))
       return;
 
     logger.write("Found new neural net " + modelName);
 
-    int maxConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGames * 2 + 16;
-    int expectedConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGames;
-    int defaultMaxBatchSize = maxSimultaneousGames;
+    int maxSimultaneousGamesThisNet = isRatingManager ? maxSimultaneousRatingGames : maxSimultaneousGames;
+    int maxConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGamesThisNet * 2 + 16;
+    int expectedConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGamesThisNet;
+    int defaultMaxBatchSize = maxSimultaneousGamesThisNet;
 
     //Unlike local self-play, which waits to accumulate a fixed number of rows before writing, distributed selfplay writes
     //training data game by game. So we set a buffer size here large enough to always hold all the rows of a game.
@@ -401,9 +416,11 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   //For distributed selfplay, we have a single thread primarily in charge of the manager, so we turn this off
   //to ensure there is no asynchronous removal of models.
   bool autoCleanupAllButLatestIfUnused = false;
-  SelfplayManager* manager = new SelfplayManager(validationProp, maxDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
+  SelfplayManager* selfplayManager = new SelfplayManager(validationProp, maxSelfplayDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
+  SelfplayManager* ratingManager = new SelfplayManager(validationProp, maxRatingDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
 
   //Start game loop threads! Yay!
+  //Just start based on selfplay games, rating games will poke in as needed
   vector<std::thread> gameThreads;
   for(int i = 0; i<maxSimultaneousGames; i++) {
     gameThreads.push_back(std::thread(runGameLoop));
@@ -416,8 +433,14 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     if(shouldStop.load())
       break;
     bool retryOnFailure = anyTaskSuccessfullyParsedYet;
+    //Only allow rating tasks when existing tasks are entirely done, and models are all unloaded
+    bool allowRatingTask = (
+      numRatingGamesActive.load(std::memory_order_acquire) <= 0 &&
+      ratingManager->numModels() <= 0
+    );
+    
     Client::Task task;
-    bool suc = connection->getNextTask(task,baseDir,retryOnFailure,shouldStop);
+    bool suc = connection->getNextTask(task,baseDir,retryOnFailure,taskRepFactor,allowRatingTask,shouldStop);
     if(!suc)
       continue;
 
@@ -451,31 +474,60 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       LoadModel::setLastModifiedTimeToNow(modelFileWhite,logger);
     }
 
-    const double unloadUnusedModelsAfter = 0;
-    manager->cleanupUnusedModelsOlderThan(unloadUnusedModelsAfter);
+    //For selfplay, unload after 20 seconds, so that if we're playing only one game at a time,
+    //we don't repeatedly load and unload - we leave time to get the next task which will probably use the same model.
+    //For rating, just always unload, we're often not going to be playing the same model the next time around, or not right away.
+    selfplayManager->cleanupUnusedModelsOlderThan(20);
+    ratingManager->cleanupUnusedModelsOlderThan(0);
 
-    loadNeuralNetIntoManager(manager,task.modelBlack.name,modelFileBlack);
-    loadNeuralNetIntoManager(manager,task.modelWhite.name,modelFileWhite);
+    SelfplayManager* blackManager;
+    SelfplayManager* whiteManager;
+
+    //If we happen to be rating the same net as for selfplay, then just load it from the selfplay manager
+    if(task.isRatingGame) {
+      if(selfplayManager->hasModel(task.modelBlack.name))
+        blackManager = selfplayManager;
+      else
+        blackManager = ratingManager;
+      if(selfplayManager->hasModel(task.modelWhite.name))
+        whiteManager = selfplayManager;
+      else
+        whiteManager = ratingManager;
+    }
+    else {
+      blackManager = selfplayManager;
+      whiteManager = selfplayManager;
+    }
+    
+    loadNeuralNetIntoManager(blackManager,task.modelBlack.name,modelFileBlack,task.isRatingGame);
+    loadNeuralNetIntoManager(whiteManager,task.modelWhite.name,modelFileWhite,task.isRatingGame);
     if(shouldStop.load())
       break;
 
-    //Game loop threads are responsible for releasing when done.
-    NNEvaluator* nnEvalBlack = manager->acquireModel(task.modelBlack.name);
-    NNEvaluator* nnEvalWhite = manager->acquireModel(task.modelWhite.name);
-
+    //Clean up old models, after we've definitely loaded what we needed
     time_t modelFileAgeLimit = time(NULL) - deleteUnusedModelsAfter;
     LoadModel::deleteModelsOlderThan(modelsDir,logger,modelFileAgeLimit);
 
-    GameTask gameTask;
-    gameTask.task = task;
-    gameTask.manager = manager;
-    gameTask.nnEvalBlack = nnEvalBlack;
-    gameTask.nnEvalWhite = nnEvalWhite;
+    for(int rep = 0; rep < taskRepFactor; rep++) {
+      //Game loop threads are responsible for releasing when done.
+      NNEvaluator* nnEvalBlack = blackManager->acquireModel(task.modelBlack.name);
+      NNEvaluator* nnEvalWhite = whiteManager->acquireModel(task.modelWhite.name);
+
+      GameTask gameTask;
+      gameTask.task = task;
+      gameTask.blackManager = blackManager;
+      gameTask.whiteManager = whiteManager;
+      gameTask.nnEvalBlack = nnEvalBlack;
+      gameTask.nnEvalWhite = nnEvalWhite;
+
+      if(task.isRatingGame)
+        numRatingGamesActive.fetch_add(1,std::memory_order_acq_rel);    
+      suc = gameTaskQueue.waitPush(gameTask);
+      (void)suc;
+      assert(suc);
+    }
 
     anyTaskSuccessfullyParsedYet = true;
-    suc = gameTaskQueue.waitPush(gameTask);
-    (void)suc;
-    assert(suc);
   }
   logger.write("Beginning shutdown");
 
@@ -487,7 +539,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     gameThreads[i].join();
 
   //At this point, nothing else except possibly data write loops are running, within the selfplay manager.
-  delete manager;
+  delete selfplayManager;
+  delete ratingManager;
 
   //Now we can close the connection since all data is written
   delete connection;
