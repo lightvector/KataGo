@@ -47,7 +47,6 @@ static void signalHandler(int signal)
 
 static const string defaultBaseDir = "katago_contribute";
 static const int defaultMaxSimultaneousGames = 16;
-static const int defaultUnloadUnusedModelsAfter = 5 * 60;
 static const int defaultDeleteUnusedModelsAfter = 6 * 60 * 60;
 
 namespace {
@@ -193,7 +192,6 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
   string baseDir;
   int maxSimultaneousGames;
-  int unloadUnusedModelsAfter;
   int deleteUnusedModelsAfter;
   string userConfigFile;
   string overrideUserConfig;
@@ -205,12 +203,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       false,defaultBaseDir,"DIR"
     );
     TCLAP::ValueArg<int> maxSimultaneousGamesArg(
-      "","max-simultaneous-games","Number of games to play simultaneously (default "+ Global::intToString(defaultMaxSimultaneousGames)+")",
+      "","max-simultaneous-games","Max number of games to play simultaneously (default "+ Global::intToString(defaultMaxSimultaneousGames)+")",
       false,defaultMaxSimultaneousGames,"NGAMES"
-    );
-    TCLAP::ValueArg<int> unloadUnusedModelsAfterArg(
-      "","unload-unused-models-after","After a model is unused in memory for this many seconds, unload it (default "+ Global::intToString(defaultUnloadUnusedModelsAfter)+")",
-      false,defaultUnloadUnusedModelsAfter,"SECONDS"
     );
     TCLAP::ValueArg<int> deleteUnusedModelsAfterArg(
       "","delete-unused-models-after","After a model is unused for this many seconds, delete it from disk (default "+ Global::intToString(defaultDeleteUnusedModelsAfter)+")",
@@ -221,7 +215,6 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> caCertsFileArg("","cacerts","CA certificates file for SSL (cacerts.pem, ca-bundle.crt)",false,string(),"FILE");
     cmd.add(baseDirArg);
     cmd.add(maxSimultaneousGamesArg);
-    cmd.add(unloadUnusedModelsAfterArg);
     cmd.add(deleteUnusedModelsAfterArg);
     cmd.add(userConfigFileArg);
     cmd.add(overrideUserConfigArg);
@@ -229,7 +222,6 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     cmd.parse(argc,argv);
     baseDir = baseDirArg.getValue();
     maxSimultaneousGames = maxSimultaneousGamesArg.getValue();
-    unloadUnusedModelsAfter = unloadUnusedModelsAfterArg.getValue();
     deleteUnusedModelsAfter = deleteUnusedModelsAfterArg.getValue();
     userConfigFile = userConfigFileArg.getValue();
     overrideUserConfig = overrideUserConfigArg.getValue();
@@ -237,8 +229,6 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
     if(maxSimultaneousGames <= 0 || maxSimultaneousGames > 100000)
       throw StringError("-max-simultaneous-games: invalid value");
-    if(unloadUnusedModelsAfter < 0 || unloadUnusedModelsAfter > 1000000000)
-      throw StringError("-unload-unused-models-after: invalid value");
     if(deleteUnusedModelsAfter < 0 || deleteUnusedModelsAfter > 1000000000)
       throw StringError("-delete-unused-models-after: invalid value");
   }
@@ -461,6 +451,9 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       LoadModel::setLastModifiedTimeToNow(modelFileWhite,logger);
     }
 
+    const double unloadUnusedModelsAfter = 0;
+    manager->cleanupUnusedModelsOlderThan(unloadUnusedModelsAfter);
+
     loadNeuralNetIntoManager(manager,task.modelBlack.name,modelFileBlack);
     loadNeuralNetIntoManager(manager,task.modelWhite.name,modelFileWhite);
     if(shouldStop.load())
@@ -470,7 +463,6 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     NNEvaluator* nnEvalBlack = manager->acquireModel(task.modelBlack.name);
     NNEvaluator* nnEvalWhite = manager->acquireModel(task.modelWhite.name);
 
-    manager->cleanupUnusedModelsOlderThan(unloadUnusedModelsAfter);
     time_t modelFileAgeLimit = time(NULL) - deleteUnusedModelsAfter;
     LoadModel::deleteModelsOlderThan(modelsDir,logger,modelFileAgeLimit);
 
