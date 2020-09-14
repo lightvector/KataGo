@@ -452,6 +452,11 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       );
     }
 
+    logger.write(
+      "Number of nets loaded: selfplay " + Global::uint64ToString(ratingManager->numModels())
+      + " rating " + Global::uint64ToString(ratingManager->numModels())
+    );
+
     if(task.isRatingGame) {
       string sgfOutputDir = sgfsDir + "/" + task.taskGroup;
       MakeDir::make(sgfOutputDir);
