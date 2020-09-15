@@ -453,7 +453,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     }
 
     logger.write(
-      "Number of nets loaded: selfplay " + Global::uint64ToString(ratingManager->numModels())
+      "Number of nets loaded: selfplay " + Global::uint64ToString(selfplayManager->numModels())
       + " rating " + Global::uint64ToString(ratingManager->numModels())
     );
 
