@@ -440,7 +440,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     );
     
     Client::Task task;
-    bool suc = connection->getNextTask(task,baseDir,retryOnFailure,taskRepFactor,allowRatingTask,shouldStop);
+    bool suc = connection->getNextTask(task,baseDir,retryOnFailure,allowRatingTask,taskRepFactor,shouldStop);
     if(!suc)
       continue;
 
