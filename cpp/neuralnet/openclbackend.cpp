@@ -1406,7 +1406,6 @@ struct ResidualBlock {
     cl_mem trunk,
     cl_mem trunkScratch,
     cl_mem mid,
-    cl_mem midScratch,
     cl_mem mask,
     cl_mem convWorkspace,
     cl_mem convWorkspace2
@@ -1420,8 +1419,8 @@ struct ResidualBlock {
     if((finalConv.convXSize == 3 && finalConv.convYSize == 3) || (finalConv.convXSize == 5 && finalConv.convYSize == 5))
       finalConv.applyWithBNRelu(handle,&midBN,batchSize,mid,trunkScratch,mask,convWorkspace,convWorkspace2);
     else {
-      midBN.apply(handle,batchSize,true,mid,midScratch,mask);
-      finalConv.apply(handle,batchSize,midScratch,trunkScratch,convWorkspace,convWorkspace2);
+      midBN.apply(handle,batchSize,true,mid,mid,mask);
+      finalConv.apply(handle,batchSize,mid,trunkScratch,convWorkspace,convWorkspace2);
     }
     addPointWise(handle, trunk, trunkScratch, batchSize * finalConv.outChannels * nnYLen * nnXLen);
   }
@@ -1487,9 +1486,7 @@ struct GlobalPoolingResidualBlock {
     cl_mem trunk,
     cl_mem trunkScratch,
     cl_mem mid,
-    cl_mem midScratch,
     cl_mem gpoolOut,
-    cl_mem gpoolOut2,
     cl_mem gpoolConcat,
     cl_mem gpoolBias,
     cl_mem mask,
@@ -1500,9 +1497,9 @@ struct GlobalPoolingResidualBlock {
     preBN.apply(handle,batchSize,true,trunk,trunkScratch,mask);
     regularConv.apply(handle,batchSize,trunkScratch,mid,convWorkspace,convWorkspace2);
     gpoolConv.apply(handle,batchSize,trunkScratch,gpoolOut,convWorkspace,convWorkspace2);
-    gpoolBN.apply(handle,batchSize,true,gpoolOut,gpoolOut2,mask);
+    gpoolBN.apply(handle,batchSize,true,gpoolOut,gpoolOut,mask);
 
-    performGPool(handle, batchSize, gpoolChannels, nnXYLen, gpoolOut2, gpoolConcat, maskSum);
+    performGPool(handle, batchSize, gpoolChannels, nnXYLen, gpoolOut, gpoolConcat, maskSum);
 
     gpoolToBiasMul.apply(handle,batchSize,gpoolConcat,gpoolBias);
     addChannelBiases(handle, mid, gpoolBias, batchSize * regularChannels, nnXYLen);
@@ -1516,8 +1513,8 @@ struct GlobalPoolingResidualBlock {
     if((finalConv.convXSize == 3 && finalConv.convYSize == 3) || (finalConv.convXSize == 5 && finalConv.convYSize == 5))
       finalConv.applyWithBNRelu(handle,&midBN,batchSize,mid,trunkScratch,mask,convWorkspace,convWorkspace2);
     else {
-      midBN.apply(handle,batchSize,true,mid,midScratch,mask);
-      finalConv.apply(handle,batchSize,midScratch,trunkScratch,convWorkspace,convWorkspace2);
+      midBN.apply(handle,batchSize,true,mid,mid,mask);
+      finalConv.apply(handle,batchSize,mid,trunkScratch,convWorkspace,convWorkspace2);
     }
     addPointWise(handle, trunk, trunkScratch, batchSize * finalConv.outChannels * nnYLen * nnXLen);
   }
@@ -1669,9 +1666,7 @@ struct Trunk {
     cl_mem trunk,
     cl_mem trunkScratch,
     cl_mem mid,
-    cl_mem midScratch,
     cl_mem gpoolOut,
-    cl_mem gpoolOut2,
     cl_mem gpoolConcat,
     cl_mem gpoolBias,
     cl_mem mask,
@@ -1680,19 +1675,18 @@ struct Trunk {
     cl_mem convWorkspace2
   ) const {
 
-    //Feed the conv into trunkScratch, not trunk
-    initialConv->apply(handle,batchSize,input,trunkScratch,convWorkspace,convWorkspace2);
+    initialConv->apply(handle,batchSize,input,trunk,convWorkspace,convWorkspace2);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
     bool usingNHWC = false;
     debugPrint4D(string("Initial bin features"), handle, input, batchSize, initialConv->inChannels, nnXLen, nnYLen, usingNHWC);
-    debugPrint4D(string("After initial conv"), handle, trunkScratch, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
+    debugPrint4D(string("After initial conv"), handle, trunk, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
     #endif
 
-    //Feed the matmul into trunk, which will certainly be a big enough buffer
-    initialMatMul->apply(handle,batchSize,inputGlobal,trunk);
-    //Then accumulate it into trunkScratch, broadcasting during the process
-    addChannelBiases(handle, trunkScratch, trunk, batchSize * trunkNumChannels, nnXLen*nnYLen);
+    //Feed the matmul into trunkScratch, which will certainly be a big enough buffer
+    initialMatMul->apply(handle,batchSize,inputGlobal,trunkScratch);
+    //Then accumulate it into trunk, broadcasting during the process
+    addChannelBiases(handle, trunk, trunkScratch, batchSize * trunkNumChannels, nnXLen*nnYLen);
 
     for(int i = 0; i<blocks.size(); i++) {
       #ifdef DEBUG_INTERMEDIATE_VALUES
@@ -1704,10 +1698,9 @@ struct Trunk {
         block->apply(
           handle,
           batchSize,
-          trunkScratch, //Flip trunk and trunkScratch so that the result gets accumulated in trunkScratch
           trunk,
+          trunkScratch,
           mid,
-          midScratch,
           mask,
           convWorkspace,
           convWorkspace2
@@ -1721,12 +1714,10 @@ struct Trunk {
         block->apply(
           handle,
           batchSize,
-          trunkScratch, //Flip trunk and trunkScratch so that the result gets accumulated in trunkScratch
           trunk,
+          trunkScratch,
           mid,
-          midScratch,
           gpoolOut,
-          gpoolOut2,
           gpoolConcat,
           gpoolBias,
           mask,
@@ -1741,9 +1732,8 @@ struct Trunk {
 
     }
 
-    //And now with the final BN port it from trunkScratch to trunk.
     bool applyBNRelu = true;
-    trunkTipBN->apply(handle,batchSize,applyBNRelu,trunkScratch,trunk,mask);
+    trunkTipBN->apply(handle,batchSize,applyBNRelu,trunk,trunk,mask);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
     debugPrint4D(string("Trunk tip"), handle, trunk, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
@@ -1825,9 +1815,7 @@ struct PolicyHead {
     cl_mem maskSum,
     cl_mem trunk,
     cl_mem p1Out,
-    cl_mem p1Out2,
     cl_mem gpoolOut,
-    cl_mem gpoolOut2,
     cl_mem gpoolConcat,
     cl_mem gpoolBias,
     cl_mem policyPass,
@@ -1839,9 +1827,9 @@ struct PolicyHead {
     bool applyBNRelu = true;
     p1Conv->apply(handle,batchSize,trunk,p1Out,convWorkspace,convWorkspace2);
     g1Conv->apply(handle,batchSize,trunk,gpoolOut,convWorkspace,convWorkspace2);
-    g1BN->apply(handle,batchSize,applyBNRelu,gpoolOut,gpoolOut2,mask);
+    g1BN->apply(handle,batchSize,applyBNRelu,gpoolOut,gpoolOut,mask);
 
-    performGPool(handle, batchSize, g1Channels, nnXLen*nnYLen, gpoolOut2, gpoolConcat, maskSum);
+    performGPool(handle, batchSize, g1Channels, nnXLen*nnYLen, gpoolOut, gpoolConcat, maskSum);
 
     gpoolToBiasMul->apply(handle,batchSize,gpoolConcat,gpoolBias);
 
@@ -1853,15 +1841,10 @@ struct PolicyHead {
     debugPrint2D(string("g1 biases"), handle, gpoolBias, batchSize, p1Channels);
     #endif
 
-    cl_mem p1OutA;
-    cl_mem p1OutB;
-    p1OutA = p1Out;
-    p1OutB = p1Out2;
+    addChannelBiases(handle, p1Out, gpoolBias, batchSize * p1Channels, nnXLen*nnYLen);
 
-    addChannelBiases(handle, p1OutA, gpoolBias, batchSize * p1Channels, nnXLen*nnYLen);
-
-    p1BN->apply(handle,batchSize,true,p1OutA,p1OutB,mask);
-    p2Conv->apply(handle,batchSize,p1OutB,policy,convWorkspace,convWorkspace2);
+    p1BN->apply(handle,batchSize,true,p1Out,p1Out,mask);
+    p2Conv->apply(handle,batchSize,p1Out,policy,convWorkspace,convWorkspace2);
     gpoolToPassMul->apply(handle,batchSize,gpoolConcat,policyPass);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
@@ -1955,7 +1938,6 @@ struct ValueHead {
     cl_mem maskSum,
     cl_mem trunk,
     cl_mem v1Out,
-    cl_mem v1Out2,
     cl_mem v1Mean,
     cl_mem v2Out,
     cl_mem value,
@@ -1967,9 +1949,9 @@ struct ValueHead {
 
     bool applyBNRelu = true;
     v1Conv->apply(handle,batchSize,trunk,v1Out,convWorkspace,convWorkspace2);
-    v1BN->apply(handle,batchSize,applyBNRelu,v1Out,v1Out2,mask);
+    v1BN->apply(handle,batchSize,applyBNRelu,v1Out,v1Out,mask);
 
-    performValueHeadPool(handle, batchSize, v1Channels, nnXLen*nnYLen, v1Out2, v1Mean, maskSum);
+    performValueHeadPool(handle, batchSize, v1Channels, nnXLen*nnYLen, v1Out, v1Mean, maskSum);
 
     v2Mul->apply(handle,batchSize,v1Mean,v2Out);
     v2Bias->apply(handle,batchSize,true,v2Out);
@@ -1986,7 +1968,7 @@ struct ValueHead {
     debugPrint2D(string("v2"), handle, v2Out, batchSize, v1Channels);
     #endif
 
-    vOwnershipConv->apply(handle,batchSize,v1Out2,ownership,convWorkspace,convWorkspace2);
+    vOwnershipConv->apply(handle,batchSize,v1Out,ownership,convWorkspace,convWorkspace2);
   }
 
 };
@@ -2121,19 +2103,15 @@ struct Model {
     cl_mem trunkBuf,
     cl_mem trunkScratch,
     cl_mem mid,
-    cl_mem midScratch,
     cl_mem gpoolOut,
-    cl_mem gpoolOut2,
     cl_mem gpoolConcat,
     cl_mem gpoolBias,
 
     cl_mem p1Out,
-    cl_mem p1Out2,
     cl_mem policyPass,
     cl_mem policy,
 
     cl_mem v1Out,
-    cl_mem v1Out2,
     cl_mem v1Mean,
     cl_mem v2Out,
     cl_mem value,
@@ -2176,9 +2154,7 @@ struct Model {
       trunkBuf,
       trunkScratch,
       mid,
-      midScratch,
       gpoolOut,
-      gpoolOut2,
       gpoolConcat,
       gpoolBias,
       mask,
@@ -2193,9 +2169,7 @@ struct Model {
       maskSum,
       trunkBuf,
       p1Out,
-      p1Out2,
       gpoolOut,
-      gpoolOut2,
       gpoolConcat,
       gpoolBias,
       policyPass,
@@ -2210,7 +2184,6 @@ struct Model {
       maskSum,
       trunkBuf,
       v1Out,
-      v1Out2,
       v1Mean,
       v2Out,
       value,
@@ -2237,21 +2210,17 @@ struct Buffers {
   cl_mem trunk;
   cl_mem trunkScratch;
   cl_mem mid;
-  cl_mem midScratch;
   cl_mem gpoolOut;
-  cl_mem gpoolOut2;
   cl_mem gpoolConcat;
   cl_mem gpoolBias;
 
   cl_mem p1Out;
-  cl_mem p1Out2;
   cl_mem policyPass;
   cl_mem policy;
   size_t policyPassElts;
   size_t policyElts;
 
   cl_mem v1Out;
-  cl_mem v1Out2;
   cl_mem v1Mean;
   cl_mem v2Out;
   cl_mem value;
@@ -2287,15 +2256,12 @@ struct Buffers {
     trunkScratch = createReadWriteBuffer(handle, m.trunk->trunkNumChannels * batchXYElts, useFP16);
     size_t maxMidChannels = std::max(m.trunk->regularNumChannels + m.trunk->dilatedNumChannels, m.trunk->midNumChannels);
     mid = createReadWriteBuffer(handle, maxMidChannels * batchXYElts, useFP16);
-    midScratch = createReadWriteBuffer(handle, maxMidChannels * batchXYElts, useFP16);
     size_t maxGPoolChannels = std::max(m.trunk->gpoolNumChannels, m.policyHead->g1Channels);
     gpoolOut = createReadWriteBuffer(handle, maxGPoolChannels * batchXYElts, false);
-    gpoolOut2 = createReadWriteBuffer(handle, maxGPoolChannels * batchXYElts, false);
     gpoolConcat = createReadWriteBuffer(handle, maxGPoolChannels * batchElts * 3, false);
     gpoolBias = createReadWriteBuffer(handle, maxMidChannels * batchElts, false);
 
     p1Out = createReadWriteBuffer(handle, m.policyHead->p1Channels * batchXYElts, useFP16);
-    p1Out2 = createReadWriteBuffer(handle, m.policyHead->p1Channels * batchXYElts, useFP16);
     policyPassElts = m.policyHead->p2Channels * batchElts;
     policyPass = createReadWriteBuffer(handle, policyPassElts, false);
     policyElts = m.policyHead->p2Channels * batchXYElts;
@@ -2303,7 +2269,6 @@ struct Buffers {
     assert(m.policyHead->p2Channels == 1);
 
     v1Out = createReadWriteBuffer(handle, m.valueHead->v1Channels * batchXYElts, useFP16);
-    v1Out2 = createReadWriteBuffer(handle, m.valueHead->v1Channels * batchXYElts, useFP16);
     v1Mean = createReadWriteBuffer(handle, m.valueHead->v1Channels * 3 * batchElts, false);
     v2Out = createReadWriteBuffer(handle, m.valueHead->v2Channels * batchElts, false);
 
@@ -2331,19 +2296,15 @@ struct Buffers {
     clReleaseMemObject(trunk);
     clReleaseMemObject(trunkScratch);
     clReleaseMemObject(mid);
-    clReleaseMemObject(midScratch);
     clReleaseMemObject(gpoolOut);
-    clReleaseMemObject(gpoolOut2);
     clReleaseMemObject(gpoolConcat);
     clReleaseMemObject(gpoolBias);
 
     clReleaseMemObject(p1Out);
-    clReleaseMemObject(p1Out2);
     clReleaseMemObject(policyPass);
     clReleaseMemObject(policy);
 
     clReleaseMemObject(v1Out);
-    clReleaseMemObject(v1Out2);
     clReleaseMemObject(v1Mean);
     clReleaseMemObject(v2Out);
     clReleaseMemObject(value);
@@ -2662,19 +2623,15 @@ void NeuralNet::getOutput(
     buffers->trunk,
     buffers->trunkScratch,
     buffers->mid,
-    buffers->midScratch,
     buffers->gpoolOut,
-    buffers->gpoolOut2,
     buffers->gpoolConcat,
     buffers->gpoolBias,
 
     buffers->p1Out,
-    buffers->p1Out2,
     buffers->policyPass,
     buffers->policy,
 
     buffers->v1Out,
-    buffers->v1Out2,
     buffers->v1Mean,
     buffers->v2Out,
     buffers->value,
@@ -2968,13 +2925,12 @@ bool NeuralNet::testEvaluateResidualBlock(
   cl_mem mask = createReadOnlyBuffer(handle,maskTmp,useFP16);
   cl_mem trunkScratch = createReadWriteBuffer(handle,numTrunkFloats,useFP16);
   cl_mem mid = createReadWriteBuffer(handle,numMidFloats,useFP16);
-  cl_mem midScratch = createReadWriteBuffer(handle,numMidFloats,useFP16);
 
   ConvWorkspaceEltsNeeded convWorkspaceElts = layer->requiredConvWorkspaceElts(handle,batchSize);
   cl_mem convWorkspace = createReadWriteBuffer(handle, convWorkspaceElts.size1, useFP16);
   cl_mem convWorkspace2 = createReadWriteBuffer(handle, convWorkspaceElts.size2, useFP16);
 
-  layer->apply(handle, batchSize, trunk, trunkScratch, mid, midScratch, mask, convWorkspace, convWorkspace2);
+  layer->apply(handle, batchSize, trunk, trunkScratch, mid, mask, convWorkspace, convWorkspace2);
 
   blockingReadBuffer(handle->commandQueue, trunk, numTrunkFloats, outputBuffer, useFP16);
 
@@ -2982,7 +2938,6 @@ bool NeuralNet::testEvaluateResidualBlock(
   clReleaseMemObject(mask);
   clReleaseMemObject(trunkScratch);
   clReleaseMemObject(mid);
-  clReleaseMemObject(midScratch);
   clReleaseMemObject(convWorkspace);
   clReleaseMemObject(convWorkspace2);
   delete layer;
@@ -3035,9 +2990,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   cl_mem maskSum = createReadWriteBuffer(handle,numMaskSumFloats,false);
   cl_mem trunkScratch = createReadWriteBuffer(handle,numTrunkFloats,useFP16);
   cl_mem mid = createReadWriteBuffer(handle,numMidFloats,useFP16);
-  cl_mem midScratch = createReadWriteBuffer(handle,numMidFloats,useFP16);
   cl_mem gpoolOut = createReadWriteBuffer(handle,numGPoolOutFloats,false);
-  cl_mem gpoolOut2 = createReadWriteBuffer(handle,numGPoolOutFloats,false);
   cl_mem gpoolConcat = createReadWriteBuffer(handle,numGPoolConcatFloats,false);
   cl_mem gpoolBias = createReadWriteBuffer(handle,numGPoolBiasFloats,false);
 
@@ -3053,9 +3006,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
     trunk,
     trunkScratch,
     mid,
-    midScratch,
     gpoolOut,
-    gpoolOut2,
     gpoolConcat,
     gpoolBias,
     mask,
@@ -3071,9 +3022,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   clReleaseMemObject(maskSum);
   clReleaseMemObject(trunkScratch);
   clReleaseMemObject(mid);
-  clReleaseMemObject(midScratch);
   clReleaseMemObject(gpoolOut);
-  clReleaseMemObject(gpoolOut2);
   clReleaseMemObject(gpoolConcat);
   clReleaseMemObject(gpoolBias);
   clReleaseMemObject(convWorkspace);
