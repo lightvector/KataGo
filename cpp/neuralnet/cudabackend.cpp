@@ -1,4 +1,3 @@
-// modified by Harald Han to make it compatible with CUDNN 8 but it no longer works with CUDNN 7
 #ifdef USE_CUDA_BACKEND
 #include "../neuralnet/cudaerrorcheck.h"
 #include "../neuralnet/cudaincludes.h"
@@ -184,7 +183,11 @@ struct ConvLayer {
   int outChannels;
   cudnnFilterDescriptor_t filterDescriptor;
   cudnnConvolutionDescriptor_t convolutionDescriptor;
+#if CUDNN_MAJOR >= 8
   cudnnConvolutionFwdAlgoPerf_t* convolutionAlgorithms; //array of one for each batch size
+#else
+  cudnnConvolutionFwdAlgo_t* convolutionAlgorithms; //array of one for each batch size
+#endif
   void* filterBuf;
 
   ConvLayer() = delete;
@@ -248,29 +251,52 @@ struct ConvLayer {
     if(useFP16 && tensorCoresSupported)
       CUDNN_ERR(name.c_str(),cudnnSetConvolutionMathType(convolutionDescriptor, CUDNN_TENSOR_OP_MATH));
 
+#if CUDNN_MAJOR >= 8
     convolutionAlgorithms = new cudnnConvolutionFwdAlgoPerf_t[maxBatchSize];
+#else
+    convolutionAlgorithms = new cudnnConvolutionFwdAlgo_t[maxBatchSize];
+#endif
+
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       if(useFP16 && dilationX <= 1 && dilationY <= 1) {
+#if CUDNN_MAJOR >= 8
         convolutionAlgorithms[batchSize-1].algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
+#else
+        convolutionAlgorithms[batchSize-1] = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
+#endif
       }
       else {
         const cudnnTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize-1];
         const cudnnTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize-1];
 
-	int requestedAlgoCount = CUDNN_CONVOLUTION_FWD_ALGO_COUNT;
-	int returnedAlgoCount = -1;
-	cudnnConvolutionFwdAlgoPerf_t results[2* CUDNN_CONVOLUTION_FWD_ALGO_COUNT];
+#if CUDNN_MAJOR >= 8
+        int requestedAlgoCount = CUDNN_CONVOLUTION_FWD_ALGO_COUNT;
+        int returnedAlgoCount = -1;
+        cudnnConvolutionFwdAlgoPerf_t results[2* CUDNN_CONVOLUTION_FWD_ALGO_COUNT];
         CUDNN_ERR(name.c_str(),cudnnGetConvolutionForwardAlgorithm_v7(
           cudaHandles->cudnn,
           inputDescriptor,
           filterDescriptor,
           convolutionDescriptor,
           outputDescriptor,
-	  requestedAlgoCount,
-	  &returnedAlgoCount,
-	  results
+          requestedAlgoCount,
+          &returnedAlgoCount,
+          results
         ));
-	convolutionAlgorithms[batchSize-1] = results[0];
+        convolutionAlgorithms[batchSize-1] = results[0];
+#else
+        size_t bytesMemoryLimit = 0;
+        CUDNN_ERR(name.c_str(),cudnnGetConvolutionForwardAlgorithm(
+           cudaHandles->cudnn,
+           inputDescriptor,
+           filterDescriptor,
+           convolutionDescriptor,
+           outputDescriptor,
+           CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
+           bytesMemoryLimit,
+           &(convolutionAlgorithms[batchSize-1])
+         ));
+#endif
       }
     }
 
@@ -309,6 +335,7 @@ struct ConvLayer {
     int batchSize
   ) const {
     size_t workspaceBytes = 0;
+#if CUDNN_MAJOR >= 8
     CUDNN_ERR(name.c_str(),cudnnGetConvolutionForwardWorkspaceSize(
       cudaHandles->cudnn,
       inputDescriptor,
@@ -318,7 +345,17 @@ struct ConvLayer {
       convolutionAlgorithms[batchSize-1].algo,
       &workspaceBytes
     ));
-
+#else
+    CUDNN_ERR(name.c_str(),cudnnGetConvolutionForwardWorkspaceSize(
+      cudaHandles->cudnn,
+      inputDescriptor,
+      filterDescriptor,
+      convolutionDescriptor,
+      outputDescriptor,
+      convolutionAlgorithms[batchSize-1],
+      &workspaceBytes
+    ));
+#endif
     return workspaceBytes;
   }
 
@@ -335,6 +372,7 @@ struct ConvLayer {
   ) const {
     const float alpha = 1.0f;
     const float beta = accumulate ? 1.0f : 0.0f;
+#if CUDNN_MAJOR >= 8
     CUDNN_ERR(name.c_str(),cudnnConvolutionForward(
       cudaHandles->cudnn,
       &alpha,
@@ -350,6 +388,23 @@ struct ConvLayer {
       outputDescriptor,
       outputBuf
     ));
+#else
+    CUDNN_ERR(name.c_str(),cudnnConvolutionForward(
+      cudaHandles->cudnn,
+      &alpha,
+      inputDescriptor,
+      inputBuf,
+      filterDescriptor,
+      filterBuf,
+      convolutionDescriptor,
+      convolutionAlgorithms[batchSize-1],
+      workspaceBuf,
+      workspaceBytes,
+      &beta,
+      outputDescriptor,
+      outputBuf
+    ));
+#endif
   }
 
 };
