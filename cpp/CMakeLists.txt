@@ -74,9 +74,66 @@ if(USE_BACKEND STREQUAL "CUDA")
   endif()
 
   set(NEURALNET_BACKEND_SOURCES neuralnet/cudabackend.cpp neuralnet/cudahelpers.cu)
-  set(CMAKE_CUDA_FLAGS
-    "-gencode arch=compute_30,code=sm_30 -gencode arch=compute_30,code=compute_30 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_53,code=sm_53 -gencode arch=compute_53,code=compute_53 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_70,code=compute_70"
-    )
+
+  if (CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER 11.0)
+    set(CMAKE_CUDA_FLAGS
+      " \
+      -gencode arch=compute_35,code=sm_35       \
+      -gencode arch=compute_35,code=compute_35  \
+      -gencode arch=compute_37,code=sm_37       \
+      -gencode arch=compute_37,code=compute_37  \
+      -gencode arch=compute_50,code=sm_50       \
+      -gencode arch=compute_50,code=compute_50  \
+      -gencode arch=compute_53,code=sm_53       \
+      -gencode arch=compute_53,code=compute_53  \
+      -gencode arch=compute_60,code=sm_60       \
+      -gencode arch=compute_60,code=compute_60  \
+      -gencode arch=compute_61,code=sm_61       \
+      -gencode arch=compute_61,code=compute_61  \
+      -gencode arch=compute_62,code=sm_62       \
+      -gencode arch=compute_62,code=compute_62  \
+      -gencode arch=compute_70,code=sm_70       \
+      -gencode arch=compute_70,code=compute_70  \
+      -gencode arch=compute_72,code=sm_72       \
+      -gencode arch=compute_72,code=compute_72  \
+      -gencode arch=compute_75,code=sm_75       \
+      -gencode arch=compute_75,code=compute_75  \
+      -gencode arch=compute_80,code=sm_80       \
+      -gencode arch=compute_80,code=compute_80  \
+      -Wno-deprecated-gpu-targets \
+      "
+      )
+  elseif (CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER 10.2)
+    set(CMAKE_CUDA_FLAGS
+      " \
+      -gencode arch=compute_30,code=sm_30       \
+      -gencode arch=compute_30,code=compute_30  \
+      -gencode arch=compute_35,code=sm_35       \
+      -gencode arch=compute_35,code=compute_35  \
+      -gencode arch=compute_37,code=sm_37       \
+      -gencode arch=compute_37,code=compute_37  \
+      -gencode arch=compute_50,code=sm_50       \
+      -gencode arch=compute_50,code=compute_50  \
+      -gencode arch=compute_53,code=sm_53       \
+      -gencode arch=compute_53,code=compute_53  \
+      -gencode arch=compute_60,code=sm_60       \
+      -gencode arch=compute_60,code=compute_60  \
+      -gencode arch=compute_61,code=sm_61       \
+      -gencode arch=compute_61,code=compute_61  \
+      -gencode arch=compute_62,code=sm_62       \
+      -gencode arch=compute_62,code=compute_62  \
+      -gencode arch=compute_70,code=sm_70       \
+      -gencode arch=compute_70,code=compute_70  \
+      -gencode arch=compute_72,code=sm_72       \
+      -gencode arch=compute_72,code=compute_72  \
+      -gencode arch=compute_75,code=sm_75       \
+      -gencode arch=compute_75,code=compute_75  \
+      -Wno-deprecated-gpu-targets \
+      "
+      )
+  else()
+      message(FATAL_ERROR "CUDA 10.2 or greater is required")
+  endif()
 elseif(USE_BACKEND STREQUAL "OPENCL")
   message(STATUS "-DUSE_BACKEND=OPENCL, using OpenCL backend.")
   set(NEURALNET_BACKEND_SOURCES
@@ -368,3 +425,4 @@ if(CMAKE_COMPILER_IS_GNUCC)
 endif()
 
 target_include_directories(katago PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+
