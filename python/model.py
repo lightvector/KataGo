@@ -1237,7 +1237,7 @@ class Target_vars:
     scoremean_prediction = miscvalues_output[:,0] * 20.0
     scorestdev_prediction = tf.math.softplus(miscvalues_output[:,1]) * 20.0
     lead_prediction = miscvalues_output[:,2] * 20.0
-    variance_time_prediction = tf.math.softplus(miscvalues_output[:,3]) * 150.0
+    variance_time_prediction = tf.math.softplus(miscvalues_output[:,3]) * 40.0
 
     #Loss function
     self.policy_target = (placeholders["policy_target"] if "policy_target" in placeholders else
@@ -1440,7 +1440,7 @@ class Target_vars:
     #for very large possible losses. This seems... okay - it might actually be what users want.
     self.scoremean_loss_unreduced = 0.0012 * self.ownership_target_weight * huber_loss(self.scoremean_target, scoremean_prediction, delta = 12.0)
     self.lead_loss_unreduced = 0.016 * self.lead_target_weight * huber_loss(self.lead_target, lead_prediction, delta = 8.0)
-    self.variance_time_loss_unreduced = 0.00000 * huber_loss(self.variance_time_target, variance_time_prediction, delta = 100.0)
+    self.variance_time_loss_unreduced = 0.00015 * huber_loss(self.variance_time_target, variance_time_prediction, delta = 50.0)
 
     stdev_of_belief = tf.sqrt(0.001 + tf.reduce_sum(
       scorebelief_probs * tf.square(
