@@ -568,22 +568,141 @@ int MainCmds::printclockinfo(int argc, const char* const* argv) {
 }
 
 
-static uint64_t parseHex64(const string& str) {
-  assert(str.length() == 16);
-  uint64_t x = 0;
-  for(int i = 0; i<16; i++) {
-    x *= 16;
-    if(str[i] >= '0' && str[i] <= '9')
-      x += str[i] - '0';
-    else if(str[i] >= 'a' && str[i] <= 'f')
-      x += str[i] - 'a' + 10;
-    else if(str[i] >= 'A' && str[i] <= 'F')
-      x += str[i] - 'A' + 10;
-    else
-      assert(false);
+int MainCmds::samplesgfs(int argc, const char* const* argv) {
+  Board::initHash();
+  ScoreValue::initTables();
+  Rand seedRand;
+
+  vector<string> sgfDirs;
+  string outDir;
+  vector<string> excludeHashesFiles;
+  double sampleProb;
+  double turnWeightLambda;
+  try {
+    KataGoCommandLine cmd("Search for suprising good moves in sgfs");
+
+    TCLAP::MultiArg<string> sgfDirArg("","sgfdir","Directory of sgf files",true,"DIR");
+    TCLAP::ValueArg<string> outDirArg("","outdir","Directory to write results",true,string(),"DIR");
+    TCLAP::MultiArg<string> excludeHashesArg("","exclude-hashes","Specify a list of hashes to filter out, one per line in a txt file",false,"FILEOF(HASH,HASH)");
+    TCLAP::ValueArg<double> sampleProbArg("","sample-prob","Probability to sample each position",true,0.0,"PROB");
+    TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Probability to sample each position",true,0.0,"PROB");
+    cmd.add(sgfDirArg);
+    cmd.add(outDirArg);
+    cmd.add(excludeHashesArg);
+    cmd.add(sampleProbArg);
+    cmd.add(turnWeightLambdaArg);
+    cmd.parse(argc,argv);
+    sgfDirs = sgfDirArg.getValue();
+    outDir = outDirArg.getValue();
+    excludeHashesFiles = excludeHashesArg.getValue();
+    sampleProb = sampleProbArg.getValue();
+    turnWeightLambda = turnWeightLambdaArg.getValue();
   }
-  return x;
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  Logger logger;
+  logger.setLogToStdout(true);
+
+  const string sgfSuffix = ".sgf";
+  auto sgfFilter = [&sgfSuffix](const string& name) {
+    return Global::isSuffix(name,sgfSuffix);
+  };
+  vector<string> sgfFiles;
+  for(int i = 0; i<sgfDirs.size(); i++)
+    Global::collectFiles(sgfDirs[i], sgfFilter, sgfFiles);
+  logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf files!");
+
+  set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
+  logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
+
+  MakeDir::make(outDir);
+
+  // ---------------------------------------------------------------------------------------------------
+  ThreadSafeQueue<string*> toWriteQueue;
+  auto writeLoop = [&toWriteQueue,&outDir]() {
+    int fileCounter = 0;
+    int numWrittenThisFile = 0;
+    ofstream* out = NULL;
+    while(true) {
+      string* message;
+      bool suc = toWriteQueue.waitPop(message);
+      if(!suc)
+        break;
+
+      if(out == NULL || numWrittenThisFile > 100000) {
+        if(out != NULL) {
+          out->close();
+          delete out;
+        }
+        out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + ".hintposes.txt");
+        fileCounter += 1;
+        numWrittenThisFile = 0;
+      }
+      (*out) << *message << endl;
+      numWrittenThisFile += 1;
+      delete message;
+    }
+
+    if(out != NULL) {
+      out->close();
+      delete out;
+    }
+  };
+
+  // ---------------------------------------------------------------------------------------------------
+
+  //Begin writing
+  std::thread writeLoopThread(writeLoop);
+
+  // ---------------------------------------------------------------------------------------------------
+
+  int64_t numKept = 0;
+  std::set<Hash128> uniqueHashes;
+  std::function<void(Sgf::PositionSample&, const BoardHistory&)> posHandler =
+    [sampleProb,&toWriteQueue,turnWeightLambda,&numKept,&seedRand](Sgf::PositionSample& posSample, const BoardHistory& hist) {
+    (void)hist;
+    if(seedRand.nextBool(sampleProb)) {
+      Sgf::PositionSample posSampleToWrite = posSample;
+      int64_t startTurn = posSampleToWrite.initialTurnNumber + (int64_t)posSampleToWrite.moves.size();
+      posSampleToWrite.weight = exp(-startTurn * turnWeightLambda) * posSampleToWrite.weight;
+      toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(posSampleToWrite)));
+      numKept += 1;
+    }
+  };
+  int64_t numExcluded = 0;
+  for(size_t i = 0; i<sgfFiles.size(); i++) {
+    Sgf* sgf = NULL;
+    try {
+      sgf = Sgf::loadFile(sgfFiles[i]);
+      if(contains(excludeHashes,sgf->hash))
+        numExcluded += 1;
+      else
+        sgf->iterAllUniquePositions(uniqueHashes, posHandler);
+    }
+    catch(const StringError& e) {
+      logger.write("Invalid SGF " + sgfFiles[i] + ": " + e.what());
+    }
+    if(sgf != NULL)
+      delete sgf;
+  }
+  logger.write("Kept " + Global::int64ToString(numKept) + " start positions");
+  logger.write("Excluded " + Global::int64ToString(numExcluded) + "/" + Global::uint64ToString(sgfFiles.size()) + " sgf files");
+
+
+  // ---------------------------------------------------------------------------------------------------
+
+  toWriteQueue.setReadOnly();
+  writeLoopThread.join();
+
+  logger.write("All done");
+
+  ScoreValue::freeTables();
+  return 0;
 }
+
 
 
 //We want surprising moves that turned out not poorly
@@ -716,22 +835,8 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     std::swap(permutation[i],permutation[r]);
   }
 
-  set<Hash128> excludeHashes;
-  for(int i = 0; i<excludeHashesFiles.size(); i++) {
-    const string& excludeHashesFile = excludeHashesFiles[i];
-    vector<string> hashes = Global::readFileLines(excludeHashesFile,'\n');
-    for(int64_t j = 0; j < hashes.size(); j++) {
-      const string& hash128 = Global::trim(Global::stripComments(hashes[j]));
-      if(hash128.length() <= 0)
-        continue;
-      if(hash128.length() != 32)
-        throw IOError("Could not parse hashpair in exclude hashes file: " + hash128);
-
-      uint64_t hash0 = parseHex64(hash128.substr(0,16));
-      uint64_t hash1 = parseHex64(hash128.substr(16,16));
-      excludeHashes.insert(Hash128(hash0,hash1));
-    }
-  }
+  set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
+  logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
 
   MakeDir::make(outDir);
 
