@@ -74,6 +74,8 @@ struct Sgf {
     int initialTurnNumber;
     //Hinted move that may be good at the end of position sample, or Board::NULL_LOC
     Loc hintLoc;
+    //The weight of this sample, for random selection
+    double weight;
 
     static std::string toJsonLine(const PositionSample& sample);
     static PositionSample ofJsonLine(const std::string& s);
