@@ -56,6 +56,7 @@ static const int taskRepFactor = 4;
 namespace {
   struct GameTask {
     Client::Task task;
+    int repIdx; //0 to taskRepFactor-1
     SelfplayManager* blackManager;
     SelfplayManager* whiteManager;
     NNEvaluator* nnEvalBlack;
@@ -131,8 +132,10 @@ static void runAndUploadSingleGame(
   if(gameTask.task.isRatingGame)
     forkData = NULL;
 
+  const Sgf::PositionSample* posSample = gameTask.repIdx < gameTask.task.startPoses.size() ? &(gameTask.task.startPoses[gameTask.repIdx]) : NULL;
   FinishedGameData* gameData = gameRunner->runGame(
-    seed, botSpecB, botSpecW, forkData, logger,
+    seed, botSpecB, botSpecW, forkData, posSample,
+    logger,
     stopConditions, NULL
   );
 
@@ -324,7 +327,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
   //We only ever allow one chunk of rating games at a time right now.
   const int maxSimultaneousRatingGames = taskRepFactor;
-  
+
   //Don't write "validation" data for distributed self-play. If the server-side wants to split out some data as "validation" for training
   //then that can be done server-side.
   const double validationProp = 0.0;
@@ -438,7 +441,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       numRatingGamesActive.load(std::memory_order_acquire) <= 0 &&
       ratingManager->numModels() <= 0
     );
-    
+
     Client::Task task;
     bool suc = connection->getNextTask(task,baseDir,retryOnFailure,allowRatingTask,taskRepFactor,shouldStop);
     if(!suc)
@@ -503,7 +506,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       blackManager = selfplayManager;
       whiteManager = selfplayManager;
     }
-    
+
     loadNeuralNetIntoManager(blackManager,task.modelBlack.name,modelFileBlack,task.isRatingGame);
     loadNeuralNetIntoManager(whiteManager,task.modelWhite.name,modelFileWhite,task.isRatingGame);
     if(shouldStop.load())
@@ -520,13 +523,14 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
       GameTask gameTask;
       gameTask.task = task;
+      gameTask.repIdx = rep;
       gameTask.blackManager = blackManager;
       gameTask.whiteManager = whiteManager;
       gameTask.nnEvalBlack = nnEvalBlack;
       gameTask.nnEvalWhite = nnEvalWhite;
 
       if(task.isRatingGame)
-        numRatingGamesActive.fetch_add(1,std::memory_order_acq_rel);    
+        numRatingGamesActive.fetch_add(1,std::memory_order_acq_rel);
       suc = gameTaskQueue.waitPush(gameTask);
       (void)suc;
       assert(suc);

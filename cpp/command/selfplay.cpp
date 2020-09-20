@@ -283,7 +283,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
-          seed, botSpecB, botSpecW, forkData, logger,
+          seed, botSpecB, botSpecW, forkData, NULL, logger,
           stopConditions,
           (switchNetsMidGame ? &checkForNewNNEval : NULL)
         );

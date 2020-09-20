@@ -7,6 +7,7 @@
 #include "../core/rand.h"
 #include "../distributed/httplib_wrapper.h"
 #include "../core/multithread.h"
+#include "../dataio/sgf.h"
 #include "../dataio/trainingwrite.h"
 
 namespace Client {
@@ -38,6 +39,7 @@ namespace Client {
     ModelInfo modelWhite;
 
     std::string config;
+    std::vector<Sgf::PositionSample> startPoses;
     bool doWriteTrainingData;
     bool isRatingGame;
   };

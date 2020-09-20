@@ -419,7 +419,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
       if(netAndStuff->matchPairer->getMatchup(botSpecB, botSpecW, logger)) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
-          seed, botSpecB, botSpecW, NULL, logger,
+          seed, botSpecB, botSpecW, NULL, NULL, logger,
           stopConditions, NULL
         );
       }

@@ -366,11 +366,12 @@ void GameInitializer::createGame(
   ExtraBlackAndKomi& extraBlackAndKomi,
   const InitialPosition* initialPosition,
   const PlaySettings& playSettings,
-  OtherGameProperties& otherGameProps
+  OtherGameProperties& otherGameProps,
+  const Sgf::PositionSample* startPosSample
 ) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample);
   if(noResultStdev != 0.0 || drawRandRadius != 0.0)
     throw StringError("GameInitializer::createGame called in a mode that doesn't support specifying noResultStdev or drawRandRadius");
 }
@@ -381,11 +382,12 @@ void GameInitializer::createGame(
   SearchParams& params,
   const InitialPosition* initialPosition,
   const PlaySettings& playSettings,
-  OtherGameProperties& otherGameProps
+  OtherGameProperties& otherGameProps,
+  const Sgf::PositionSample* startPosSample
 ) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample);
 
   if(noResultStdev > 1e-30) {
     double mean = params.noResultUtilityForWhite;
@@ -454,7 +456,8 @@ void GameInitializer::createGameSharedUnsynchronized(
   ExtraBlackAndKomi& extraBlackAndKomi,
   const InitialPosition* initialPosition,
   const PlaySettings& playSettings,
-  OtherGameProperties& otherGameProps
+  OtherGameProperties& otherGameProps,
+  const Sgf::PositionSample* startPosSample
 ) {
   if(initialPosition != NULL) {
     board = initialPosition->board;
@@ -491,17 +494,22 @@ void GameInitializer::createGameSharedUnsynchronized(
   Rules rules = createRulesUnsynchronized();
 
   const Sgf::PositionSample* posSample = NULL;
-  if(startPosesProb > 0 && rand.nextBool(startPosesProb)) {
-    assert(startPoses.size() > 0);
-    size_t r = rand.nextIndexCumulative(startPosCumProbs.data(),startPosCumProbs.size());
-    assert(r < startPosCumProbs.size());
-    posSample = &(startPoses[r]);
-  }
-  else if(hintPosesProb > 0 && rand.nextBool(hintPosesProb)) {
-    assert(hintPoses.size() > 0);
-    size_t r = rand.nextIndexCumulative(hintPosCumProbs.data(),hintPosCumProbs.size());
-    assert(r < hintPosCumProbs.size());
-    posSample = &(hintPoses[r]);
+  if(startPosSample != NULL)
+    posSample = startPosSample;
+
+  if(posSample != NULL) {
+    if(startPosesProb > 0 && rand.nextBool(startPosesProb)) {
+      assert(startPoses.size() > 0);
+      size_t r = rand.nextIndexCumulative(startPosCumProbs.data(),startPosCumProbs.size());
+      assert(r < startPosCumProbs.size());
+      posSample = &(startPoses[r]);
+    }
+    else if(hintPosesProb > 0 && rand.nextBool(hintPosesProb)) {
+      assert(hintPoses.size() > 0);
+      size_t r = rand.nextIndexCumulative(hintPosCumProbs.data(),hintPosCumProbs.size());
+      assert(r < hintPosCumProbs.size());
+      posSample = &(hintPoses[r]);
+    }
   }
 
   if(posSample != NULL) {
@@ -2181,6 +2189,7 @@ FinishedGameData* GameRunner::runGame(
   const MatchPairer::BotSpec& bSpecB,
   const MatchPairer::BotSpec& bSpecW,
   ForkData* forkData,
+  const Sgf::PositionSample* startPosSample,
   Logger& logger,
   vector<std::atomic<bool>*>& stopConditions,
   std::function<NNEvaluator*()>* checkForNewNNEval
@@ -2210,12 +2219,12 @@ FinishedGameData* GameRunner::runGame(
   if(playSettings.forSelfPlay) {
     assert(botSpecB.botIdx == botSpecW.botIdx);
     SearchParams params = botSpecB.baseParams;
-    gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition,playSettings,otherGameProps);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition,playSettings,otherGameProps,startPosSample);
     botSpecB.baseParams = params;
     botSpecW.baseParams = params;
   }
   else {
-    gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample);
 
     bool rulesWereSupported;
     if(botSpecB.nnEval != NULL) {

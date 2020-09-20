@@ -84,7 +84,8 @@ class GameInitializer {
     SearchParams& params,
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
-    OtherGameProperties& otherGameProps
+    OtherGameProperties& otherGameProps,
+    const Sgf::PositionSample* startPosSample
   );
 
   //A version that doesn't randomize params
@@ -93,7 +94,8 @@ class GameInitializer {
     ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
-    OtherGameProperties& otherGameProps
+    OtherGameProperties& otherGameProps,
+    const Sgf::PositionSample* startPosSample
   );
 
   Rules randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const;
@@ -111,7 +113,8 @@ class GameInitializer {
     ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
-    OtherGameProperties& otherGameProps
+    OtherGameProperties& otherGameProps,
+    const Sgf::PositionSample* startPosSample
   );
   Rules createRulesUnsynchronized();
 
@@ -304,6 +307,7 @@ public:
     const MatchPairer::BotSpec& botSpecB,
     const MatchPairer::BotSpec& botSpecW,
     ForkData* forkData,
+    const Sgf::PositionSample* startPosSample,
     Logger& logger,
     std::vector<std::atomic<bool>*>& stopConditions,
     std::function<NNEvaluator*()>* checkForNewNNEval

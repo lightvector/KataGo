@@ -447,9 +447,9 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
     while(true) {
       httplib::MultipartFormDataItems items = {
         { "git_revision", Version::getGitRevision(), "", "" },
-        { "task_rep_factor", Global::intToString(taskRepFactor), "", ""}, 
-        { "allow_selfplay_task", "true", "", ""}, 
-        { "allow_rating_task", (allowRatingTask ? "true" : "false"), "", ""}, 
+        { "task_rep_factor", Global::intToString(taskRepFactor), "", ""},
+        { "allow_selfplay_task", "true", "", ""},
+        { "allow_rating_task", (allowRatingTask ? "true" : "false"), "", ""},
       };
       response = parseJson(postMulti("/api/tasks/",items));
       string kind = parseString(response,"kind",32);
@@ -459,6 +459,17 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
       }
       break;
     }
+
+    std::vector<Sgf::PositionSample> startPosesList;
+    if(response.find("start_poses") != response.end()) {
+      json startPoses = parse<json>(response,"start_poses");
+      if(!startPoses.is_array())
+        throw StringError("start_poses was not array in response: " + response.dump());
+      for(auto& elt : startPoses) {
+        startPosesList.push_back(Sgf::PositionSample::ofJsonLine(elt.dump()));
+      }
+    }
+
     string kind = parseString(response,"kind",32);
     if(kind == "selfplay") {
       json networkProperties = parse<json>(response,"network");
@@ -471,6 +482,7 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
       task.config = parseString(response,"config",MAX_CONFIG_NAME_LEN);
       task.modelBlack = parseModelInfo(networkProperties);
       task.modelWhite = task.modelBlack;
+      task.startPoses = startPosesList;
       task.doWriteTrainingData = true;
       task.isRatingGame = false;
     }
@@ -497,6 +509,7 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
       task.config = parseString(response,"config",MAX_CONFIG_NAME_LEN);
       task.modelBlack = parseModelInfo(blackNetworkProperties);
       task.modelWhite = parseModelInfo(whiteNetworkProperties);
+      task.startPoses = startPosesList;
       task.doWriteTrainingData = false;
       task.isRatingGame = true;
     }
@@ -682,7 +695,7 @@ bool Connection::uploadTrainingGameAndData(
 
     if(response == nullptr)
       throw StringError("No response from server");
-    
+
     if(response->status == 400 && response->body.find("already exist") != string::npos) {
       logger->write("Server returned 400 with 'already exist', data is probably uploaded already or has a key conflict, so skipping, response was: " + response->body);
     }
