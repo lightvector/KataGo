@@ -132,7 +132,18 @@ if(USE_BACKEND STREQUAL "CUDA")
       "
       )
   else()
-      message(FATAL_ERROR "CUDA 10.2 or greater is required")
+      message(WARNING "CUDA 10.2 or greater is recommended, but attempting to build anyways")
+      set(CMAKE_CUDA_FLAGS
+        " \
+        -gencode arch=compute_30,code=sm_30 \
+        -gencode arch=compute_30,code=compute_30 \
+        -gencode arch=compute_37,code=sm_37 \
+        -gencode arch=compute_53,code=sm_53 \
+        -gencode arch=compute_53,code=compute_53 \
+        -gencode arch=compute_70,code=sm_70 \
+        -gencode arch=compute_70,code=compute_70 \
+        "
+        )
   endif()
 elseif(USE_BACKEND STREQUAL "OPENCL")
   message(STATUS "-DUSE_BACKEND=OPENCL, using OpenCL backend.")

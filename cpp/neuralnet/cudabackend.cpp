@@ -272,7 +272,7 @@ struct ConvLayer {
 #if CUDNN_MAJOR >= 8
         int requestedAlgoCount = CUDNN_CONVOLUTION_FWD_ALGO_COUNT;
         int returnedAlgoCount = -1;
-        cudnnConvolutionFwdAlgoPerf_t results[2* CUDNN_CONVOLUTION_FWD_ALGO_COUNT];
+        cudnnConvolutionFwdAlgoPerf_t results[2 * CUDNN_CONVOLUTION_FWD_ALGO_COUNT];
         CUDNN_ERR(name.c_str(),cudnnGetConvolutionForwardAlgorithm_v7(
           cudaHandles->cudnn,
           inputDescriptor,
@@ -283,6 +283,8 @@ struct ConvLayer {
           &returnedAlgoCount,
           results
         ));
+        if(returnedAlgoCount <= 0)
+          throw StringError("cudnnGetConvolutionForwardAlgorithm_v7 returned no algorithms?");
         convolutionAlgorithms[batchSize-1] = results[0];
 #else
         size_t bytesMemoryLimit = 0;
