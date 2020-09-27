@@ -249,6 +249,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
           lead = -lead;
           utilityLcb = -utilityLcb;
         }
+
         json moveInfo;
         moveInfo["move"] = Location::toString(data.move,request->board);
         moveInfo["visits"] = data.numVisits;
@@ -276,6 +277,27 @@ int MainCmds::analysis(int argc, const char* const* argv) {
             pvVisits.push_back(data.pvVisits[j]);
           moveInfo["pvVisits"] = pvVisits;
         }
+
+        if(request->includeOwnership) {
+          static constexpr int ownershipMinVisits = 3;
+          vector<double> ownership = search->getAverageTreeOwnership(ownershipMinVisits,data.node);
+          json ownerships = json::array();
+          const Board& board = request->board;
+          int nnXLen = bot->getSearch()->nnXLen;
+          for(int y = 0; y<board.y_size; y++) {
+            for(int x = 0; x<board.x_size; x++) {
+              int pos = NNPos::xyToPos(x,y,nnXLen);
+              double o;
+              if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
+                o = -ownership[pos];
+              else
+                o = ownership[pos];
+              ownerships.push_back(o);
+            }
+          }
+          moveInfo["ownership"] = ownerships;
+        }
+
         moveInfos.push_back(moveInfo);
       }
       ret["moveInfos"] = moveInfos;
