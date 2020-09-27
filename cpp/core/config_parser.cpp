@@ -128,8 +128,10 @@ void ConfigParser::applyAlias(const string& mapThisKey, const string& toThisKey)
 void ConfigParser::overrideKeys(const map<string, string>& newkvs) {
   for(auto iter = newkvs.begin(); iter != newkvs.end(); ++iter) {
     //Assume zero-length values mean to delete a key
-    if(iter->second.length() <= 0 && keyValues.find(iter->first) != keyValues.end())
-      keyValues.erase(iter->first);
+    if(iter->second.length() <= 0) {
+      if(keyValues.find(iter->first) != keyValues.end())
+        keyValues.erase(iter->first);
+    }
     else
       keyValues[iter->first] = iter->second;
   }
