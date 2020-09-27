@@ -1165,7 +1165,7 @@ vector<double> Search::getAverageTreeOwnership(int64_t minVisits,const SearchNod
   if(!alwaysIncludeOwnerMap)
     throw StringError("Called Search::getAverageTreeOwnership when alwaysIncludeOwnerMap is false");
   vector<double> vec(nnXLen*nnYLen,0.0);
-  getAverageTreeOwnershipHelper(vec,minVisits,1.0,rootNode);
+  getAverageTreeOwnershipHelper(vec,minVisits,1.0,node);
   return vec;
 }
 
