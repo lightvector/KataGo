@@ -615,6 +615,12 @@ Rules Setup::loadSingleRulesExceptForKomi(
     }
     else
       rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
+
+    //Drop default komi to 6.5 for territory rules, and to 7.0 for button
+    if(rules.scoringRule == Rules::SCORING_TERRITORY)
+      rules.komi = 6.5f;
+    else if(rules.hasButton)
+      rules.komi = 7.0f;
   }
 
   return rules;
