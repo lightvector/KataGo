@@ -1,0 +1,49 @@
+KataGo v1.6.1
+Using koPOSITIONALscoreTERRITORYtaxNONEsui0 rules initially, unless GTP/GUI overrides this
+Loaded config configs/gtp_example.cfg and/or command-line and query overrides
+Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+Model name: g170-b6c96-s175395328-d26788732
+GTP ready, beginning main protocol loop
+MoveNum: 0 HASH: 7BF12F3F24903F0C225CD6C55BA8BA1F
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . @ . . .
+16 . . . . . . . . . . . . . . . . . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
+Time taken: ###
+Root visits: 100
+New playouts: 100
+NN rows: 95
+NN batches: 95
+NN avg batch size: 1
+PV: Q3 Q17 C4
+Tree:
+: T  -0.04c W  -0.27c S   0.23c ( +0.0 L  +0.2) N     100  --  Q3 Q17 C4
+---Black(^)---
+Q3  : T   0.33c W   0.02c S   0.31c ( +0.1 L  +0.3) LCB  -11.96c P  8.95% WF  7.20% PSV      15 N      10  --  Q3 Q17 C4
+R4  : T  -0.40c W  -0.56c S   0.16c ( -0.1 L  +0.2) LCB  -15.60c P  9.08% WF  7.12% PSV      10 N      10  --  R4 D3 Q17
+Q17 : T   0.30c W  -0.02c S   0.31c ( +0.1 L  +0.3) LCB  -15.44c P  8.75% WF  7.20% PSV      10 N      10  --  Q17 D3 D17
+D3  : T   0.25c W  -0.05c S   0.30c ( +0.1 L  +0.3) LCB  -13.77c P  8.33% WF  7.19% PSV      10 N      10  --  D3 Q17 Q3
+C4  : T   0.57c W   0.33c S   0.24c ( +0.0 L  +0.2) LCB  -18.85c P  8.52% WF  7.23% PSV       9 N       9  --  C4 Q17 D17
+D17 : T  -0.30c W  -0.49c S   0.19c ( -0.1 L  +0.1) LCB  -24.50c P  7.53% WF  7.13% PSV       8 N       8  --  D17 D3 Q17
+C16 : T   0.56c W   0.26c S   0.30c ( +0.1 L  +0.3) LCB  -22.96c P  7.47% WF  7.23% PSV       8 N       8  --  C16 D3 Q17
+R16 : T   0.95c W   0.53c S   0.41c ( +0.3 L  +0.4) LCB  -22.12c P  7.10% WF  7.27% PSV       8 N       8  --  R16 D3 D17
+Q4  : T  -0.21c W  -0.42c S   0.21c ( -0.0 L  +0.2) LCB  -22.08c P  7.11% WF  7.14% PSV       7 N       7  --  Q4 D3 Q17
+D4  : T  -0.28c W  -0.49c S   0.21c ( -0.0 L  +0.3) LCB  -35.03c P  5.74% WF  7.14% PSV       6 N       6  --  D4 D17 Q17
