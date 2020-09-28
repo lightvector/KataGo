@@ -254,20 +254,23 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
       effectivelyInOvertime = true;
       effectiveTimeLeftInPeriod = effectiveMainTimeLeft + perPeriodTime;
       effectiveNumStonesLeftInPeriod = numStonesPerPeriod;
+    }
+    //Similarly handle it if byo yomi time left is negative, including if main time negative overflowed into byo yomi negative
+    if(effectivelyInOvertime) {
       while(effectiveTimeLeftInPeriod < 0 && effectiveNumPeriodsLeftIncludingCurrent > 1) {
         effectiveNumPeriodsLeftIncludingCurrent -= 1;
         effectiveTimeLeftInPeriod += perPeriodTime;
       }
     }
 
-    //Crudely treat all but the last 3 periods as main time.
-    if(effectiveNumPeriodsLeftIncludingCurrent > 3) {
+    //Crudely treat all but the last 5 periods as main time.
+    if(effectiveNumPeriodsLeftIncludingCurrent > 5) {
       effectivelyInOvertime = false;
       if(!inOvertime) {
-        effectiveMainTimeLeft += perPeriodTime * (effectiveNumPeriodsLeftIncludingCurrent - 3);
+        effectiveMainTimeLeft += perPeriodTime * (effectiveNumPeriodsLeftIncludingCurrent - 5);
       }
       else {
-        effectiveMainTimeLeft += effectiveTimeLeftInPeriod + perPeriodTime * (effectiveNumPeriodsLeftIncludingCurrent - 4);
+        effectiveMainTimeLeft += effectiveTimeLeftInPeriod + perPeriodTime * (effectiveNumPeriodsLeftIncludingCurrent - 6);
       }
     }
 

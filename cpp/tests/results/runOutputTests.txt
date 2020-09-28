@@ -14848,7 +14848,28 @@ board9Late min rec max = 0 134.977 749
 board19Early min rec max = 0 45.5991 749
 board19Late min rec max = 0 80.5485 749
 ===================================================================
+Basic 1h byo yomi time controls, all time left, 3 periods of 30s
+===================================================================
+board9Early min rec max = 0 80.5485 749
+board9Late min rec max = 0 134.977 749
+board19Early min rec max = 0 45.5991 749
+board19Late min rec max = 0 80.5485 749
+===================================================================
 Basic 1h byo yomi time controls, all time left, 5 periods of 30s
+===================================================================
+board9Early min rec max = 0 80.5485 749
+board9Late min rec max = 0 134.977 749
+board19Early min rec max = 0 45.5991 749
+board19Late min rec max = 0 80.5485 749
+===================================================================
+Basic 1h byo yomi time controls, all time left, 6 periods of 30s
+===================================================================
+board9Early min rec max = 0 80.5485 755
+board9Late min rec max = 0 136.11 755
+board19Early min rec max = 0 45.5991 755
+board19Late min rec max = 0 80.5485 755
+===================================================================
+Basic 1h byo yomi time controls, all time left, 7 periods of 30s
 ===================================================================
 board9Early min rec max = 0 80.5485 761
 board9Late min rec max = 0 137.244 761
@@ -14870,6 +14891,20 @@ board19Early min rec max = 0 28 28
 board19Late min rec max = 0 28 28
 ===================================================================
 Basic 1h byo yomi time controls, no time left, 5 periods of 30s
+===================================================================
+board9Early min rec max = 0 29 29
+board9Late min rec max = 0 29 29
+board19Early min rec max = 0 29 29
+board19Late min rec max = 0 29 29
+===================================================================
+Basic 1h byo yomi time controls, no time left, 6 periods of 30s
+===================================================================
+board9Early min rec max = 0 59 59
+board9Late min rec max = 0 59 59
+board19Early min rec max = 0 59 59
+board19Late min rec max = 0 59 59
+===================================================================
+Basic 1h byo yomi time controls, no time left, 7 periods of 30s
 ===================================================================
 board9Early min rec max = 0 89 89
 board9Late min rec max = 0 89 89
@@ -14974,7 +15009,28 @@ board9Late min rec max = 28 28 28
 board19Early min rec max = 28 28 28
 board19Late min rec max = 28 28 28
 ===================================================================
+Basic 1h byo yomi time controls, 3 periods of 30s, just entered overtime
+===================================================================
+board9Early min rec max = 29 29 29
+board9Late min rec max = 29 29 29
+board19Early min rec max = 29 29 29
+board19Late min rec max = 29 29 29
+===================================================================
 Basic 1h byo yomi time controls, 5 periods of 30s, just entered overtime
+===================================================================
+board9Early min rec max = 29 29 29
+board9Late min rec max = 29 29 29
+board19Early min rec max = 29 29 29
+board19Late min rec max = 29 29 29
+===================================================================
+Basic 1h byo yomi time controls, 6 periods of 30s, just entered overtime
+===================================================================
+board9Early min rec max = 0 59 59
+board9Late min rec max = 0 59 59
+board19Early min rec max = 0 59 59
+board19Late min rec max = 0 59 59
+===================================================================
+Basic 1h byo yomi time controls, 7 periods of 30s, just entered overtime
 ===================================================================
 board9Early min rec max = 0 89 89
 board9Late min rec max = 0 89 89
@@ -14996,6 +15052,20 @@ board19Early min rec max = 13 13 13
 board19Late min rec max = 13 13 13
 ===================================================================
 Basic 1h byo yomi time controls, 5 periods of 30s, entered overtime 15s used
+===================================================================
+board9Early min rec max = 14 14 14
+board9Late min rec max = 14 14 14
+board19Early min rec max = 14 14 14
+board19Late min rec max = 14 14 14
+===================================================================
+Basic 1h byo yomi time controls, 6 periods of 30s, entered overtime 15s used
+===================================================================
+board9Early min rec max = 0 44 44
+board9Late min rec max = 0 44 44
+board19Early min rec max = 0 44 44
+board19Late min rec max = 0 44 44
+===================================================================
+Basic 1h byo yomi time controls, 7 periods of 30s, entered overtime 15s used
 ===================================================================
 board9Early min rec max = 0 74 74
 board9Late min rec max = 0 74 74
