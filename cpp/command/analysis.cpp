@@ -28,12 +28,33 @@ struct AnalyzeRequest {
   Player perspective;
   int analysisPVLen;
   bool includeOwnership;
+  bool includeMovesOwnership;
   bool includePolicy;
   bool includePVVisits;
 
   vector<int> avoidMoveUntilByLocBlack;
   vector<int> avoidMoveUntilByLocWhite;
 };
+
+json getJsonOwnershipMap(AnalyzeRequest* request, const Search* search, const SearchNode* node, int ownershipMinVisits) {
+  const Player pla = request->nextPla, perspective = request->perspective;
+  int nnXLen = search->nnXLen;
+  vector<double> ownership = search->getAverageTreeOwnership(ownershipMinVisits, node);  
+  json ownerships = json::array();
+  const Board& board = request->board;
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      int pos = NNPos::xyToPos(x,y,nnXLen);
+      double o;
+      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
+        o = -ownership[pos];
+      else
+        o = ownership[pos];
+      ownerships.push_back(o);
+    }
+  }
+  return ownerships;        
+}
 
 int MainCmds::analysis(int argc, const char* const* argv) {
   Board::initHash();
@@ -196,6 +217,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     pushToWrite(new string(ret.dump()));
   };
 
+
   auto analysisLoop = [
     &logger,&toAnalyzeQueue,&toWriteQueue,&preventEncore,&pushToWrite,&reportError,&logSearchInfo,&nnEval
   ](AsyncBot* bot) {
@@ -223,6 +245,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       ret["id"] = request->id;
       ret["turnNumber"] = request->turnNumber;
 
+      static constexpr int ownershipMinVisits = 3;
       int minMoves = 0;
       vector<AnalysisData> buf;
 
@@ -278,26 +301,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
           moveInfo["pvVisits"] = pvVisits;
         }
 
-        if(request->includeOwnership) {
-          static constexpr int ownershipMinVisits = 3;
-          vector<double> ownership = search->getAverageTreeOwnership(ownershipMinVisits,data.node);
-          json ownerships = json::array();
-          const Board& board = request->board;
-          int nnXLen = bot->getSearch()->nnXLen;
-          for(int y = 0; y<board.y_size; y++) {
-            for(int x = 0; x<board.x_size; x++) {
-              int pos = NNPos::xyToPos(x,y,nnXLen);
-              double o;
-              if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
-                o = -ownership[pos];
-              else
-                o = ownership[pos];
-              ownerships.push_back(o);
-            }
-          }
-          moveInfo["ownership"] = ownerships;
-        }
-
+        if(request->includeMovesOwnership) 
+          moveInfo["ownership"] = getJsonOwnershipMap(request, search, data.node, ownershipMinVisits);
         moveInfos.push_back(moveInfo);
       }
       ret["moveInfos"] = moveInfos;
@@ -356,26 +361,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         ret["policy"] = policy;
       }
       // Average tree ownership
-      if(request->includeOwnership) {
-        static constexpr int ownershipMinVisits = 3;
-        vector<double> ownership = search->getAverageTreeOwnership(ownershipMinVisits);
-
-        json ownerships = json::array();
-        const Board& board = request->board;
-        int nnXLen = bot->getSearch()->nnXLen;
-        for(int y = 0; y<board.y_size; y++) {
-          for(int x = 0; x<board.x_size; x++) {
-            int pos = NNPos::xyToPos(x,y,nnXLen);
-            double o;
-            if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
-              o = -ownership[pos];
-            else
-              o = ownership[pos];
-            ownerships.push_back(o);
-          }
-        }
-        ret["ownership"] = ownerships;
-      }
+      if(request->includeOwnership) 
+        ret["ownership"] = getJsonOwnershipMap(request, search, search->rootNode, ownershipMinVisits);
       pushToWrite(new string(ret.dump()));
 
       //Free up bot resources in case it's a while before we do more search
@@ -435,6 +422,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     rbase.perspective = defaultPerspective;
     rbase.analysisPVLen = analysisPVLen;
     rbase.includeOwnership = false;
+    rbase.includeMovesOwnership = false;
     rbase.includePolicy = false;
     rbase.includePVVisits = false;
     rbase.priority = 0;
@@ -775,7 +763,13 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         continue;
       rbase.params.rootPolicyTemperatureEarly = rbase.params.rootPolicyTemperature;
     }
-    if(input.find("includeOwnership") != input.end()) {
+    if(input.find("includeMovesOwnership") != input.end()) {
+      bool suc = parseBoolean(input, "includeMovesOwnership", rbase.includeMovesOwnership, "Must be a boolean");
+      if(!suc)
+        continue;
+    }
+    if(rbase.includeMovesOwnership) rbase.includeOwnership = true;
+    else if(input.find("includeOwnership") != input.end()) {
       bool suc = parseBoolean(input, "includeOwnership", rbase.includeOwnership, "Must be a boolean");
       if(!suc)
         continue;
@@ -897,6 +891,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         newRequest->perspective = rbase.perspective;
         newRequest->analysisPVLen = rbase.analysisPVLen;
         newRequest->includeOwnership = rbase.includeOwnership;
+        newRequest->includeMovesOwnership = rbase.includeMovesOwnership;
         newRequest->includePolicy = rbase.includePolicy;
         newRequest->includePVVisits = rbase.includePVVisits;
         newRequest->priority = rbase.priority;
