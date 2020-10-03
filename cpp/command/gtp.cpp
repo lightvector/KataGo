@@ -1425,6 +1425,13 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   if(startupPrintMessageToStderr && !loggingToStderr) {
     cerr << "Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this" << endl;
   }
+  bool isForcingKomi = false;
+  float forcedKomi = 0;
+  if(cfg.contains("ignoreGTPAndForceKomi")) {
+    isForcingKomi = true;
+    forcedKomi = cfg.getFloat("ignoreGTPAndForceKomi", Rules::MIN_USER_KOMI, Rules::MAX_USER_KOMI);
+    initialRules.komi = forcedKomi;
+  }
 
   SearchParams initialParams = Setup::loadSingleParams(cfg);
   logger.write("Using " + Global::intToString(initialParams.numThreads) + " CPU thread(s) for search");
@@ -1697,6 +1704,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "komi must be an integer or half-integer";
       }
       else {
+        if(isForcingKomi)
+          newKomi = forcedKomi;
         engine->updateKomiIfNew(newKomi);
         //In case the controller tells us komi every move, restart pondering afterward.
         maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
@@ -2433,6 +2442,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
                 sgfRules = supportedRules;
               }
             }
+
+            if(isForcingKomi)
+              sgfRules.komi = forcedKomi;
 
             {
               //See if the rules differ, IGNORING komi differences
