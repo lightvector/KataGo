@@ -311,7 +311,8 @@ struct Search {
   //Must have ownership present on all neural net evals.
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
   //or changing parameters or clearing search.
-  std::vector<double> getAverageTreeOwnership(int64_t minVisit,const SearchNode* node=NULL) const;
+  //If node is not providied, defaults to using the root node.
+  std::vector<double> getAverageTreeOwnership(int64_t minVisit, const SearchNode* node = NULL) const;
 
   //Expert manual playout-by-playout interface------------------------------------------------
   void beginSearch(bool pondering);

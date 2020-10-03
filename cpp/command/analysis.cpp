@@ -36,10 +36,10 @@ struct AnalyzeRequest {
   vector<int> avoidMoveUntilByLocWhite;
 };
 
-json getJsonOwnershipMap(AnalyzeRequest* request, const Search* search, const SearchNode* node, int ownershipMinVisits) {
+static json getJsonOwnershipMap(AnalyzeRequest* request, const Search* search, const SearchNode* node, int ownershipMinVisits) {
   const Player pla = request->nextPla, perspective = request->perspective;
   int nnXLen = search->nnXLen;
-  vector<double> ownership = search->getAverageTreeOwnership(ownershipMinVisits, node);  
+  vector<double> ownership = search->getAverageTreeOwnership(ownershipMinVisits, node);
   json ownerships = json::array();
   const Board& board = request->board;
   for(int y = 0; y<board.y_size; y++) {
@@ -53,7 +53,7 @@ json getJsonOwnershipMap(AnalyzeRequest* request, const Search* search, const Se
       ownerships.push_back(o);
     }
   }
-  return ownerships;        
+  return ownerships;
 }
 
 int MainCmds::analysis(int argc, const char* const* argv) {
@@ -229,7 +229,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       AnalyzeRequest* request = analysisItem.second;
 
       bot->setPosition(request->nextPla,request->board,request->hist);
-      bot->setAlwaysIncludeOwnerMap(request->includeOwnership);
+      bot->setAlwaysIncludeOwnerMap(request->includeOwnership || request->includeMovesOwnership);
       bot->setParams(request->params);
       bot->setAvoidMoveUntilByLoc(request->avoidMoveUntilByLocBlack,request->avoidMoveUntilByLocWhite);
 
@@ -301,7 +301,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
           moveInfo["pvVisits"] = pvVisits;
         }
 
-        if(request->includeMovesOwnership) 
+        if(request->includeMovesOwnership)
           moveInfo["ownership"] = getJsonOwnershipMap(request, search, data.node, ownershipMinVisits);
         moveInfos.push_back(moveInfo);
       }
@@ -361,7 +361,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         ret["policy"] = policy;
       }
       // Average tree ownership
-      if(request->includeOwnership) 
+      if(request->includeOwnership)
         ret["ownership"] = getJsonOwnershipMap(request, search, search->rootNode, ownershipMinVisits);
       pushToWrite(new string(ret.dump()));
 
@@ -768,8 +768,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       if(!suc)
         continue;
     }
-    if(rbase.includeMovesOwnership) rbase.includeOwnership = true;
-    else if(input.find("includeOwnership") != input.end()) {
+    if(input.find("includeOwnership") != input.end()) {
       bool suc = parseBoolean(input, "includeOwnership", rbase.includeOwnership, "Must be a boolean");
       if(!suc)
         continue;
