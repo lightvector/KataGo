@@ -408,8 +408,12 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
 
   sort(possibleNumbersOfThreads.begin(), possibleNumbersOfThreads.end());
 
-  int ternarySearchMin = 1;
-  int ternarySearchMax = ternarySearchInitialMax;
+  //Adjusted for number of GPUs - it makes no sense to test low values if you have lots of GPUs
+  int ternarySearchMin = nnEval->getNumGpus();
+  int ternarySearchMax = (int)round(ternarySearchInitialMax * 0.5 * (1 + nnEval->getNumGpus()));
+  if(ternarySearchMax < ternarySearchMin * 4)
+    ternarySearchMax = ternarySearchMin * 4;
+
   while(true) {
     reallocateNNEvalWithEnoughBatchSize(ternarySearchMax);
     cout << endl;
@@ -462,11 +466,11 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
       }
     }
 
-    // If our optimal thread count is in the top 2/3 of the maximum search limit, triple the search limit and repeat.
+    //If our optimal thread count is in the top 2/3 of the maximum search limit, increase the search limit and repeat.
     if(3 * bestThreads > 2 * ternarySearchMax && ternarySearchMax < 5000) {
       ternarySearchMin = ternarySearchMax / 2;
-      ternarySearchMax *= 3;
-      cout << endl << endl << "Optimal number of threads is fairly high, tripling the search limit and trying again." << endl << endl;
+      ternarySearchMax = ternarySearchMax * 2 + 32;
+      cout << endl << endl << "Optimal number of threads is fairly high, increasing the search limit and trying again." << endl << endl;
       continue;
     }
     else {
