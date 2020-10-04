@@ -477,14 +477,14 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow) {
 }
 
 void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering) {
-  std::atomic<bool> searchBegun(false);
+  std::function<void()>* searchBegun = NULL;
   runWholeSearch(logger,shouldStopNow,searchBegun,pondering,TimeControls(),1.0);
 }
 
 void Search::runWholeSearch(
   Logger& logger,
   std::atomic<bool>& shouldStopNow,
-  std::atomic<bool>& searchBegun,
+  std::function<void()>* searchBegun,
   bool pondering,
   const TimeControls& tc,
   double searchFactor
@@ -531,7 +531,8 @@ void Search::runWholeSearch(
   }
 
   beginSearch(pondering);
-  searchBegun.store(true,std::memory_order_release);
+  if(searchBegun != NULL)
+    (*searchBegun)();
   int64_t numNonPlayoutVisits = getRootVisits();
 
   auto searchLoop = [this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&logger,&shouldStopNow,maxVisits,maxPlayouts,maxTime](int threadIdx) {

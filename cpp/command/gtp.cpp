@@ -811,7 +811,7 @@ struct GTPEngine {
         bot->setAlwaysIncludeOwnerMap(true);
       else
         bot->setAlwaysIncludeOwnerMap(false);
-      moveLoc = bot->genMoveSynchronousAnalyze(pla, tc, searchFactor, args.secondsPerReport, callback);
+      moveLoc = bot->genMoveSynchronousAnalyze(pla, tc, searchFactor, args.secondsPerReport, &callback);
       //Make sure callback happens at least once
       callback(bot->getSearch());
     }
@@ -1046,7 +1046,7 @@ struct GTPEngine {
       bot->setParams(params);
     }
 
-    std::function<void(Search* search)> callback = getAnalyzeCallback(pla,args);
+    std::function<void(const Search* search)> callback = getAnalyzeCallback(pla,args);
     bot->setAvoidMoveUntilByLoc(args.avoidMoveUntilByLocBlack,args.avoidMoveUntilByLocWhite);
     if(args.showOwnership)
       bot->setAlwaysIncludeOwnerMap(true);
@@ -1054,7 +1054,7 @@ struct GTPEngine {
       bot->setAlwaysIncludeOwnerMap(false);
 
     double searchFactor = 1e40; //go basically forever
-    bot->analyze(pla, searchFactor, args.secondsPerReport, callback);
+    bot->analyze(pla, searchFactor, args.secondsPerReport, &callback);
   }
 
   double computeLead(Logger& logger) {

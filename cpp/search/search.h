@@ -33,6 +33,7 @@ struct ReportedSearchValues {
   double lead;
   double winLossValue;
   double utility;
+  int64_t visits;
 
   ReportedSearchValues();
   ~ReportedSearchValues();
@@ -240,7 +241,7 @@ struct Search {
   void runWholeSearch(
     Logger& logger,
     std::atomic<bool>& shouldStopNow,
-    std::atomic<bool>& searchBegun, //will be set to true once search has begun and tree inspection is safe
+    std::function<void()>* searchBegun, //If not null, will be called once search has begun and tree inspection is safe
     bool pondering,
     const TimeControls& tc,
     double searchFactor
@@ -250,7 +251,7 @@ struct Search {
   //All of these functions are safe to call in multithreadedly WHILE the search is ongoing, to print out
   //intermediate states of the search, so long as the search has initialized itself and actually begun.
   //In particular, they are allowed to run concurrently with runWholeSearch, so long as searchBegun has
-  //been flagged true, continuing up until the next call to any other top-level control function above or
+  //been called-back, continuing up until the next call to any other top-level control function above or
   //the next runWholeSearch call.
   //They are NOT safe to call in parallel with any of the other top level-functions besides the search.
 
@@ -288,6 +289,8 @@ struct Search {
 
   //Get the number of visits recorded for the root node
   int64_t getRootVisits() const;
+  //Get the root node's policy prediction
+  bool getPolicy(float policyProbs[NNPos::MAX_NN_POLICY_SIZE]) const;
   //Get the surprisingness (kl-divergence) of the search result given the policy prior.
   double getPolicySurprise() const;
 

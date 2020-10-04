@@ -16,6 +16,7 @@ using namespace std;
 using json = nlohmann::json;
 
 struct AnalyzeRequest {
+  int64_t internalId;
   string id;
   int turnNumber;
   int priority;
@@ -32,11 +33,24 @@ struct AnalyzeRequest {
   bool includePolicy;
   bool includePVVisits;
 
+  bool reportDuringSearch;
+  double reportDuringSearchEvery;
+
   vector<int> avoidMoveUntilByLocBlack;
   vector<int> avoidMoveUntilByLocWhite;
+
+  //Starts with STATUS_IN_QUEUE.
+  //Thread that grabs it from queue it changes it to STATUS_POPPED
+  //Once search is fully started thread sticks in its own thread index
+  //At any point it may change to STATUS_TERMINATED.
+  //If it ever gets to STATUS_POPPED or later, then the analysis thread is reponsible for writing the result, else the api thread is
+  static constexpr int STATUS_IN_QUEUE = -1;
+  static constexpr int STATUS_POPPED = -2;
+  static constexpr int STATUS_TERMINATED = -3;
+  std::atomic<int> status;
 };
 
-static json getJsonOwnershipMap(AnalyzeRequest* request, const Search* search, const SearchNode* node, int ownershipMinVisits) {
+static json getJsonOwnershipMap(const AnalyzeRequest* request, const Search* search, const SearchNode* node, int ownershipMinVisits) {
   const Player pla = request->nextPla, perspective = request->perspective;
   int nnXLen = search->nnXLen;
   vector<double> ownership = search->getAverageTreeOwnership(ownershipMinVisits, node);
@@ -195,7 +209,12 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   };
 
   ThreadSafePriorityQueue<std::pair<int,int64_t>, AnalyzeRequest*> toAnalyzeQueue;
-  int64_t numRequestsSoFar = 0; // used as tie breaker for requests with same priority
+  int64_t numRequestsSoFar = 0; // Used as tie breaker for requests with same priority
+  int64_t internalIdCounter = 0; // Counter for internalId on requests.
+
+  //Open requests, keyed by internalId, mutexed by the mutex
+  std::mutex openRequestsMutex;
+  std::map<int64_t, AnalyzeRequest*> openRequests;
 
   auto reportError = [&pushToWrite](const string& s) {
     json ret;
@@ -217,156 +236,222 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     pushToWrite(new string(ret.dump()));
   };
 
+  //Report analysis for which we don't actually have results. This is used when something is user-terminated before being actually
+  //analyzed properly. Only used outside of search too
+  auto reportNoAnalysis = [&pushToWrite](const AnalyzeRequest* request) {
+    json ret;
+    ret["id"] = request->id;
+    ret["turnNumber"] = request->turnNumber;
+    ret["isDuringSearch"] = false;
+    ret["noResults"] = true;
+    pushToWrite(new string(ret.dump()));
+  };
+
+  //Returns false if no analysis was reportable due to there being no root node or search results.
+  auto reportAnalysis = [&preventEncore,&pushToWrite](const AnalyzeRequest* request, const Search* search, bool isDuringSearch) {
+    json ret;
+    ret["id"] = request->id;
+    ret["turnNumber"] = request->turnNumber;
+    ret["isDuringSearch"] = isDuringSearch;
+
+    static constexpr int ownershipMinVisits = 3;
+    int minMoves = 0;
+    vector<AnalysisData> buf;
+
+    search->getAnalysisData(buf,minMoves,false,request->analysisPVLen);
+
+    const Player pla = request->nextPla;
+    const Player perspective = request->perspective;
+
+    // Stats for all the individual moves
+    json moveInfos = json::array();
+    for(int i = 0; i<buf.size(); i++) {
+      const AnalysisData& data = buf[i];
+      double winrate = 0.5 * (1.0 + data.winLossValue);
+      double utility = data.utility;
+      double lcb = PlayUtils::getHackedLCBForWinrate(search,data,pla);
+      double utilityLcb = data.lcb;
+      double scoreMean = data.scoreMean;
+      double lead = data.lead;
+      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
+        winrate = 1.0-winrate;
+        lcb = 1.0 - lcb;
+        utility = -utility;
+        scoreMean = -scoreMean;
+        lead = -lead;
+        utilityLcb = -utilityLcb;
+      }
+
+      json moveInfo;
+      moveInfo["move"] = Location::toString(data.move,request->board);
+      moveInfo["visits"] = data.numVisits;
+      moveInfo["utility"] = utility;
+      moveInfo["winrate"] = winrate;
+      moveInfo["scoreMean"] = lead;
+      moveInfo["scoreSelfplay"] = scoreMean;
+      moveInfo["scoreLead"] = lead;
+      moveInfo["scoreStdev"] = data.scoreStdev;
+      moveInfo["prior"] = data.policyPrior;
+      moveInfo["lcb"] = lcb;
+      moveInfo["utilityLcb"] = utilityLcb;
+      moveInfo["order"] = data.order;
+
+      json pv = json::array();
+      int pvLen = (preventEncore && data.pvContainsPass()) ? data.getPVLenUpToPhaseEnd(request->board,request->hist,request->nextPla) : (int)data.pv.size();
+      for(int j = 0; j<pvLen; j++)
+        pv.push_back(Location::toString(data.pv[j],request->board));
+      moveInfo["pv"] = pv;
+
+      if(request->includePVVisits) {
+        assert(data.pvVisits.size() >= pvLen);
+        json pvVisits = json::array();
+        for(int j = 0; j<pvLen; j++)
+          pvVisits.push_back(data.pvVisits[j]);
+        moveInfo["pvVisits"] = pvVisits;
+      }
+
+      if(request->includeMovesOwnership)
+        moveInfo["ownership"] = getJsonOwnershipMap(request, search, data.node, ownershipMinVisits);
+      moveInfos.push_back(moveInfo);
+    }
+    ret["moveInfos"] = moveInfos;
+
+    // Stats for root position
+    {
+      ReportedSearchValues rootVals;
+      bool suc = search->getRootValues(rootVals);
+      if(!suc)
+        return false;
+      Player rootPla = getOpp(request->nextPla);
+
+      double winrate = 0.5 * (1.0 + rootVals.winLossValue);
+      double scoreMean = rootVals.expectedScore;
+      double lead = rootVals.lead;
+      double utility = rootVals.utility;
+
+      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK)) {
+        winrate = 1.0-winrate;
+        scoreMean = -scoreMean;
+        lead = -lead;
+        utility = -utility;
+      }
+
+      json rootInfo;
+      rootInfo["visits"] = rootVals.visits;
+      rootInfo["winrate"] = winrate;
+      rootInfo["scoreSelfplay"] = scoreMean;
+      rootInfo["scoreLead"] = lead;
+      rootInfo["scoreStdev"] = rootVals.expectedScoreStdev;
+      rootInfo["utility"] = utility;
+      ret["rootInfo"] = rootInfo;
+    }
+
+    // Raw policy prior
+    if(request->includePolicy) {
+      float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+      bool suc = search->getPolicy(policyProbs);
+      if(!suc)
+        return false;
+      json policy = json::array();
+      int nnXLen = search->nnXLen;
+      int nnYLen = search->nnYLen;
+      const Board& board = request->board;
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          int pos = NNPos::xyToPos(x,y,nnXLen);
+          policy.push_back(policyProbs[pos]);
+        }
+      }
+
+      int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
+      policy.push_back(policyProbs[passPos]);
+      ret["policy"] = policy;
+    }
+    // Average tree ownership
+    if(request->includeOwnership)
+      ret["ownership"] = getJsonOwnershipMap(request, search, search->rootNode, ownershipMinVisits);
+
+    pushToWrite(new string(ret.dump()));
+    return true;
+  };
 
   auto analysisLoop = [
-    &logger,&toAnalyzeQueue,&toWriteQueue,&preventEncore,&pushToWrite,&reportError,&logSearchInfo,&nnEval
-  ](AsyncBot* bot) {
+    &logger,&toAnalyzeQueue,&toWriteQueue,&preventEncore,&reportAnalysis,&reportNoAnalysis,&logSearchInfo,&nnEval,&openRequestsMutex,&openRequests
+  ](AsyncBot* bot, int threadIdx) {
     while(true) {
       std::pair<std::pair<int,int64_t>,AnalyzeRequest*> analysisItem;
       bool suc = toAnalyzeQueue.waitPop(analysisItem);
       if(!suc)
         break;
       AnalyzeRequest* request = analysisItem.second;
-
-      bot->setPosition(request->nextPla,request->board,request->hist);
-      bot->setAlwaysIncludeOwnerMap(request->includeOwnership || request->includeMovesOwnership);
-      bot->setParams(request->params);
-      bot->setAvoidMoveUntilByLoc(request->avoidMoveUntilByLocBlack,request->avoidMoveUntilByLocWhite);
-
-      Player pla = request->nextPla;
-      bot->genMoveSynchronous(pla, TimeControls());
-      if(logSearchInfo) {
-        ostringstream sout;
-        PlayUtils::printGenmoveLog(sout,bot,nnEval,Board::NULL_LOC,NAN,request->perspective);
-        logger.write(sout.str());
+      int expected = AnalyzeRequest::STATUS_IN_QUEUE;
+      //If it's already terminated, then there's nothing for us to do
+      if(!request->status.compare_exchange_strong(expected, AnalyzeRequest::STATUS_POPPED, std::memory_order_acq_rel)) {
+        assert(expected == AnalyzeRequest::STATUS_TERMINATED);
       }
+      //Else, the request is live and we marked it as popped
+      else {
+        bot->setPosition(request->nextPla,request->board,request->hist);
+        bot->setAlwaysIncludeOwnerMap(request->includeOwnership || request->includeMovesOwnership);
+        bot->setParams(request->params);
+        bot->setAvoidMoveUntilByLoc(request->avoidMoveUntilByLocBlack,request->avoidMoveUntilByLocWhite);
 
-      json ret;
-      ret["id"] = request->id;
-      ret["turnNumber"] = request->turnNumber;
+        Player pla = request->nextPla;
+        double searchFactor = 1.0;
 
-      static constexpr int ownershipMinVisits = 3;
-      int minMoves = 0;
-      vector<AnalysisData> buf;
+        //Handle termination between the time we pop and the search starts
+        std::function<void()> onSearchBegun = [&request,&bot,&threadIdx]() {
+          //Try to record that we're handling this request and indicate that the search is started by this thread
+          int expected2 = AnalyzeRequest::STATUS_POPPED;
+          //If it was terminated, then stop our search
+          if(!request->status.compare_exchange_strong(expected2, threadIdx, std::memory_order_acq_rel)) {
+            assert(expected2 == AnalyzeRequest::STATUS_TERMINATED);
+            bot->stopWithoutWait();
+          }
+        };
 
-      const Search* search = bot->getSearch();
-      search->getAnalysisData(buf,minMoves,false,request->analysisPVLen);
-
-      const Player perspective = request->perspective;
-
-      // Stats for all the individual moves
-      json moveInfos = json::array();
-      for(int i = 0; i<buf.size(); i++) {
-        const AnalysisData& data = buf[i];
-        double winrate = 0.5 * (1.0 + data.winLossValue);
-        double utility = data.utility;
-        double lcb = PlayUtils::getHackedLCBForWinrate(search,data,pla);
-        double utilityLcb = data.lcb;
-        double scoreMean = data.scoreMean;
-        double lead = data.lead;
-        if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
-          winrate = 1.0-winrate;
-          lcb = 1.0 - lcb;
-          utility = -utility;
-          scoreMean = -scoreMean;
-          lead = -lead;
-          utilityLcb = -utilityLcb;
+        if(request->reportDuringSearch) {
+          std::function<void(const Search* search)> callback = [&request,&reportAnalysis](const Search* search) {
+            const bool isDuringSearch = true;
+            reportAnalysis(request,search,isDuringSearch);
+          };
+          bot->genMoveSynchronousAnalyze(pla, TimeControls(), searchFactor, request->reportDuringSearchEvery, &callback, &onSearchBegun);
+        }
+        else {
+          bot->genMoveSynchronous(pla, TimeControls(), searchFactor, &onSearchBegun);
         }
 
-        json moveInfo;
-        moveInfo["move"] = Location::toString(data.move,request->board);
-        moveInfo["visits"] = data.numVisits;
-        moveInfo["utility"] = utility;
-        moveInfo["winrate"] = winrate;
-        moveInfo["scoreMean"] = lead;
-        moveInfo["scoreSelfplay"] = scoreMean;
-        moveInfo["scoreLead"] = lead;
-        moveInfo["scoreStdev"] = data.scoreStdev;
-        moveInfo["prior"] = data.policyPrior;
-        moveInfo["lcb"] = lcb;
-        moveInfo["utilityLcb"] = utilityLcb;
-        moveInfo["order"] = data.order;
-
-        json pv = json::array();
-        int pvLen = (preventEncore && data.pvContainsPass()) ? data.getPVLenUpToPhaseEnd(request->board,request->hist,request->nextPla) : (int)data.pv.size();
-        for(int j = 0; j<pvLen; j++)
-          pv.push_back(Location::toString(data.pv[j],request->board));
-        moveInfo["pv"] = pv;
-
-        if(request->includePVVisits) {
-          assert(data.pvVisits.size() >= pvLen);
-          json pvVisits = json::array();
-          for(int j = 0; j<pvLen; j++)
-            pvVisits.push_back(data.pvVisits[j]);
-          moveInfo["pvVisits"] = pvVisits;
+        if(logSearchInfo) {
+          ostringstream sout;
+          PlayUtils::printGenmoveLog(sout,bot,nnEval,Board::NULL_LOC,NAN,request->perspective);
+          logger.write(sout.str());
         }
 
-        if(request->includeMovesOwnership)
-          moveInfo["ownership"] = getJsonOwnershipMap(request, search, data.node, ownershipMinVisits);
-        moveInfos.push_back(moveInfo);
-      }
-      ret["moveInfos"] = moveInfos;
-
-      //If the search didn't have any root or root neural net output, it must have been interrupted and we must be quitting imminently
-      if(search->rootNode == NULL || search->rootNode->nnOutput == nullptr) {
-        logger.write("Note: Search quitting due to no visits - this is normal and possible when shutting down but a bug under any other situation.");
-        delete request;
-        continue;
-      }
-
-      // Stats for root position
-      {
-        ReportedSearchValues rootVals;
-        search->getRootValues(rootVals);
-        Player rootPla = getOpp(request->nextPla);
-
-        double winrate = 0.5 * (1.0 + rootVals.winLossValue);
-        double scoreMean = rootVals.expectedScore;
-        double lead = rootVals.lead;
-        double utility = rootVals.utility;
-
-        if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK)) {
-          winrate = 1.0-winrate;
-          scoreMean = -scoreMean;
-          lead = -lead;
-          utility = -utility;
-        }
-
-        json rootInfo;
-        rootInfo["visits"] = search->rootNode->stats.visits; // not in ReportedSearchValues
-        rootInfo["winrate"] = winrate;
-        rootInfo["scoreSelfplay"] = scoreMean;
-        rootInfo["scoreLead"] = lead;
-        rootInfo["scoreStdev"] = rootVals.expectedScoreStdev;
-        rootInfo["utility"] = utility;
-        ret["rootInfo"] = rootInfo;
-      }
-
-      // Raw policy prior
-      if(request->includePolicy) {
-        float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
-        std::copy(search->rootNode->nnOutput->policyProbs, search->rootNode->nnOutput->policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
-        json policy = json::array();
-        int nnXLen = bot->getSearch()->nnXLen, nnYLen = bot->getSearch()->nnYLen;
-        const Board& board = request->board;
-        for(int y = 0; y<board.y_size; y++) {
-          for(int x = 0; x<board.x_size; x++) {
-            int pos = NNPos::xyToPos(x,y,nnXLen);
-            policy.push_back(policyProbs[pos]);
+        {
+          const bool isDuringSearch = false;
+          const Search* search = bot->getSearch();
+          bool analysisWritten = reportAnalysis(request,search,isDuringSearch);
+          //If the search didn't have any root or root neural net output, it must have been interrupted and we must be quitting imminently
+          if(!analysisWritten) {
+            //If the reason we stopped was because we noticed a terminate, then we will write out a dummy response even if we didn't have
+            //enough info to generate a real one, to fulfill a promise in the API docs that we always write something.
+            if(request->status.load(std::memory_order_acquire) == AnalyzeRequest::STATUS_TERMINATED)
+              reportNoAnalysis(request);
+            //Otherwise, this case is only possible if we're just shutting down
+            else
+              logger.write("Note: Search quitting due to no visits - this is normal and possible when shutting down but a bug under any other situation.");
           }
         }
-
-        int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
-        policy.push_back(policyProbs[passPos]);
-        ret["policy"] = policy;
       }
-      // Average tree ownership
-      if(request->includeOwnership)
-        ret["ownership"] = getJsonOwnershipMap(request, search, search->rootNode, ownershipMinVisits);
-      pushToWrite(new string(ret.dump()));
 
       //Free up bot resources in case it's a while before we do more search
       bot->clearSearch();
+
+      //This request is no longer open
+      {
+        std::lock_guard<std::mutex> lock(openRequestsMutex);
+        openRequests.erase(request->internalId);
+      }
       delete request;
     }
   };
@@ -374,10 +459,10 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   vector<std::thread> threads;
   std::thread write_thread = std::thread(writeLoop);
   vector<AsyncBot*> bots;
-  for(int i = 0; i<numAnalysisThreads; i++) {
+  for(int threadIdx = 0; threadIdx<numAnalysisThreads; threadIdx++) {
     string searchRandSeed = Global::uint64ToHexString(seedRand.nextUInt64()) + Global::uint64ToHexString(seedRand.nextUInt64());
     AsyncBot* bot = new AsyncBot(defaultParams, nnEval, &logger, searchRandSeed);
-    threads.push_back(std::thread(analysisLoop,bot));
+    threads.push_back(std::thread(analysisLoop,bot,threadIdx));
     bots.push_back(bot);
   }
 
@@ -410,12 +495,83 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       continue;
     }
 
-    AnalyzeRequest rbase;
     if(input.find("id") == input.end() || !input["id"].is_string()) {
       reportError("Request must have a string \"id\" field");
       continue;
     }
+
+    AnalyzeRequest rbase;
     rbase.id = input["id"].get<string>();
+
+    //Special actions
+    if(input.find("action") != input.end() && input["action"].is_string()) {
+      string action = input["action"].get<string>();
+      if(action == "terminate") {
+
+        bool terminateIdFound = false;
+        string terminateId;
+        if(input.find("terminateId") != input.end() && input["terminateId"].is_string()) {
+          terminateId = input["terminateId"].get<string>();
+          terminateIdFound = true;
+        }
+        if(!terminateIdFound) {
+          reportErrorForId(rbase.id, "terminateId", "Requests for a terminate action must have a string \"terminateId\" field");
+          continue;
+        }
+
+        bool hasTurnNumbers = false;
+        vector<int> turnNumbers;
+        if(input.find("turnNumbers") != input.end()) {
+          try {
+            turnNumbers = input["turnNumbers"].get<vector<int> >();
+            hasTurnNumbers = true;
+          }
+          catch(nlohmann::detail::exception&) {
+            reportErrorForId(rbase.id, "turnNumbers", "If provided, must be an array of integers indicating turns to terminate");
+            continue;
+          }
+        }
+
+        auto terminateRequest = [&bots,&reportNoAnalysis](AnalyzeRequest* request) {
+          //Firstly, flag the request as terminated
+          int prevStatus = request->status.exchange(AnalyzeRequest::STATUS_TERMINATED,std::memory_order_acq_rel);
+          //Already terminated? Nothing to do.
+          if(prevStatus == AnalyzeRequest::STATUS_TERMINATED)
+          {}
+          //No thread claimed it, so it's up to us to write the result
+          else if(prevStatus == AnalyzeRequest::STATUS_IN_QUEUE) {
+            reportNoAnalysis(request);
+          }
+          //A thread popped it. That thread will notice that it's terminated once it tries to put its thread idx in, so we need not do anything.
+          else if(prevStatus == AnalyzeRequest::STATUS_POPPED)
+          {}
+          //A thread started searching it and put its thread idx in
+          else {
+            assert(prevStatus >= 0);
+            //We've already set the above status to terminated so when the thread terminates due to our killing it below, it will see this.
+            //Or else the thread has already done so, in which case it's already properly written a result, also fine.
+            int threadIdx = prevStatus;
+            //Terminate it by thread index
+            bots[threadIdx]->stopWithoutWait();
+          }
+        };
+
+        {
+          std::lock_guard<std::mutex> lock(openRequestsMutex);
+          std::set<int> turnNumbersSet(turnNumbers.begin(),turnNumbers.end());
+          for(auto it = openRequests.begin(); it != openRequests.end(); ++it) {
+            AnalyzeRequest* request = it->second;
+            if(request->id == terminateId && (!hasTurnNumbers || (turnNumbersSet.find(request->turnNumber) != turnNumbersSet.end())))
+              terminateRequest(request);
+          }
+        }
+        pushToWrite(new string(input.dump()));
+      }
+      else {
+        reportError("'action' field must be 'terminate', no other actions currently supported");
+      }
+      continue;
+    }
 
     //Defaults
     rbase.params = defaultParams;
@@ -425,6 +581,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     rbase.includeMovesOwnership = false;
     rbase.includePolicy = false;
     rbase.includePVVisits = false;
+    rbase.reportDuringSearch = false;
+    rbase.reportDuringSearchEvery = 1.0;
     rbase.priority = 0;
     rbase.avoidMoveUntilByLocBlack.clear();
     rbase.avoidMoveUntilByLocWhite.clear();
@@ -783,6 +941,12 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       if(!suc)
         continue;
     }
+    if(input.find("reportDuringSearchEvery") != input.end()) {
+      bool suc = parseDouble(input, "reportDuringSearchEvery", rbase.reportDuringSearchEvery, 0.001, 1000000.0, "Must be number of seconds from 0.001 to 1000000.0");
+      if(!suc)
+        continue;
+      rbase.reportDuringSearch = true;
+    }
     if(input.find("priority") != input.end()) {
       int64_t buf;
       bool suc = parseInteger(input, "priority", buf, -0x7FFFFFFF,0x7FFFFFFF, "Must be a number from -2,147,483,647 to 2,147,483,647");
@@ -881,6 +1045,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     for(int turnNumber = 0; turnNumber <= moveHistory.size(); turnNumber++) {
       if(shouldAnalyze[turnNumber]) {
         AnalyzeRequest* newRequest = new AnalyzeRequest();
+        newRequest->internalId = internalIdCounter++;
         newRequest->id = rbase.id;
         newRequest->turnNumber = turnNumber;
         newRequest->board = board;
@@ -893,9 +1058,12 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         newRequest->includeMovesOwnership = rbase.includeMovesOwnership;
         newRequest->includePolicy = rbase.includePolicy;
         newRequest->includePVVisits = rbase.includePVVisits;
+        newRequest->reportDuringSearch = rbase.reportDuringSearch;
+        newRequest->reportDuringSearchEvery = rbase.reportDuringSearchEvery;
         newRequest->priority = rbase.priority;
         newRequest->avoidMoveUntilByLocBlack = rbase.avoidMoveUntilByLocBlack;
         newRequest->avoidMoveUntilByLocWhite = rbase.avoidMoveUntilByLocWhite;
+        newRequest->status.store(AnalyzeRequest::STATUS_IN_QUEUE,std::memory_order_release);
         newRequests.push_back(newRequest);
       }
       if(turnNumber >= moveHistory.size())
@@ -925,6 +1093,14 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       continue;
     }
 
+    //Add all requests to open requests
+    {
+      std::lock_guard<std::mutex> lock(openRequestsMutex);
+      for(int i = 0; i<newRequests.size(); i++) {
+        openRequests[newRequests[i]->internalId] = newRequests[i];
+      }
+    }
+    //Push into queue for processing
     for(int i = 0; i<newRequests.size(); i++) {
       //Compare first by user-provided priority, and next breaks ties by preferring earlier requests.
       std::pair<int,int64_t> priorityKey = std::make_pair(newRequests[i]->priority, -numRequestsSoFar);
