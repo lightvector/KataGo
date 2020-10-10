@@ -126,13 +126,15 @@ struct Url {
   }
 };
 
-static std::shared_ptr<httplib::Response> oneShotDownload(Logger* logger, const Url& url, std::function<bool(const char *data, size_t data_length)> f) {
+static std::shared_ptr<httplib::Response> oneShotDownload(Logger* logger, const Url& url, const string& caCertsFile, std::function<bool(const char *data, size_t data_length)> f) {
   if(!url.isSSL) {
     std::unique_ptr<httplib::Client> httpClient = std::unique_ptr<httplib::Client>(new httplib::Client(url.host, url.port));
     return httpClient->Get(url.path.c_str(),f);
   }
   else {
     std::unique_ptr<httplib::SSLClient> httpsClient = std::unique_ptr<httplib::SSLClient>(new httplib::SSLClient(url.host, url.port));
+    httpsClient->set_ca_cert_path(caCertsFile.c_str());
+    httpsClient->enable_server_certificate_verification(true);
     std::shared_ptr<httplib::Response> response = httpsClient->Get(url.path.c_str(),f);
     if(response == nullptr) {
       auto result = httpsClient->get_openssl_verify_result();
@@ -576,7 +578,7 @@ bool Connection::downloadModelIfNotPresent(
     ofstream out(tmpPath,ios::binary);
 
     std::shared_ptr<httplib::Response> response = oneShotDownload(
-      logger, url, [&out,&totalDataSize,&shouldStop](const char* data, size_t data_length) {
+      logger, url, caCertsFile, [&out,&totalDataSize,&shouldStop](const char* data, size_t data_length) {
         out.write(data, data_length);
         totalDataSize += data_length;
         return !shouldStop.load();
