@@ -4,6 +4,7 @@
 
 #include "../core/config_parser.h"
 #include "../core/sha2.h"
+#include "../core/timer.h"
 #include "../game/board.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/desc.h"
@@ -577,10 +578,17 @@ bool Connection::downloadModelIfNotPresent(
     size_t totalDataSize = 0;
     ofstream out(tmpPath,ios::binary);
 
+    ClockTimer timer;
+    double lastTime = timer.getSeconds();
     std::shared_ptr<httplib::Response> response = oneShotDownload(
-      logger, url, caCertsFile, [&out,&totalDataSize,&shouldStop](const char* data, size_t data_length) {
+      logger, url, caCertsFile, [&out,&totalDataSize,&shouldStop,this,&timer,&lastTime,&url,&modelInfo](const char* data, size_t data_length) {
         out.write(data, data_length);
         totalDataSize += data_length;
+        double nowTime = timer.getSeconds();
+        if(nowTime > lastTime + 1.0) {
+          lastTime = nowTime;
+          logger->write(string("Downloaded ") + Global::uint64ToString(totalDataSize) + " / " + Global::uint64ToString(modelInfo.bytes) + " bytes for model: " + url.originalString);
+        }
         return !shouldStop.load();
       }
     );
@@ -619,6 +627,8 @@ bool Connection::downloadModelIfNotPresent(
 
     //Done! Rename the file into the right place
     std::rename(tmpPath.c_str(),path.c_str());
+
+    logger->write(string("Done downloading ") + Global::uint64ToString(totalDataSize) + " bytes for model: " + url.originalString);
   };
   return retryLoop("downloadModelIfNotPresent",retryOnFailure,logger,shouldStop,f);
 }
