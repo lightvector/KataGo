@@ -4,6 +4,9 @@
 //  Copyright (c) 2020 Yuji Hirose. All rights reserved.
 //  MIT License
 //
+//  MODIFIED by lightvector to allow users to specify the multipart form data boundary
+//  to be able to alter its length and to avoid repeatedly initializing an mt19937
+//
 //  Original version: b713a3a65100214a83692080cbb7e70af3a63cd7 of https://github.com/yhirose/cpp-httplib
 
 
@@ -772,6 +775,9 @@ public:
   Result Post(const char *path, const MultipartFormDataItems &items);
   Result Post(const char *path, const Headers &headers,
               const MultipartFormDataItems &items);
+  Result Post(const char *path, const Headers &headers,
+              const MultipartFormDataItems &items,
+              const std::string& boundary);
 
   Result Put(const char *path);
   Result Put(const char *path, const std::string &body,
@@ -1007,6 +1013,9 @@ public:
   Result Post(const char *path, const MultipartFormDataItems &items);
   Result Post(const char *path, const Headers &headers,
               const MultipartFormDataItems &items);
+  Result Post(const char *path, const Headers &headers,
+              const MultipartFormDataItems &items,
+              const std::string& boundary);
   Result Put(const char *path);
   Result Put(const char *path, const std::string &body,
              const char *content_type);
@@ -5267,8 +5276,11 @@ inline Result ClientImpl::Post(const char *path,
 
 inline Result ClientImpl::Post(const char *path, const Headers &headers,
                                const MultipartFormDataItems &items) {
-  auto boundary = detail::make_multipart_data_boundary();
-
+  return Post(path, headers, items, detail::make_multipart_data_boundary());
+}
+inline Result ClientImpl::Post(const char *path, const Headers &headers,
+                               const MultipartFormDataItems &items,
+                               const std::string& boundary) {
   std::string body;
 
   for (const auto &item : items) {
@@ -6299,6 +6311,11 @@ inline Result Client::Post(const char *path,
 inline Result Client::Post(const char *path, const Headers &headers,
                            const MultipartFormDataItems &items) {
   return cli_->Post(path, headers, items);
+}
+inline Result Client::Post(const char *path, const Headers &headers,
+                           const MultipartFormDataItems &items,
+                           const std::string& boundary) {
+  return cli_->Post(path, headers, items, boundary);
 }
 inline Result Client::Put(const char *path) { return cli_->Put(path); }
 inline Result Client::Put(const char *path, const std::string &body,

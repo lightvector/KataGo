@@ -36,7 +36,7 @@ static constexpr int MAX_URL_LEN = 4096;
 static constexpr int MAX_TIME_LEN = 128;
 static constexpr int MAX_CONFIG_NAME_LEN = 32768;
 
-static void debugPrintResponse(ostream& out, const std::shared_ptr<httplib::Response>& response) {
+static void debugPrintResponse(ostream& out, const httplib::Result& response) {
   out << "---RESPONSE---------------------" << endl;
   if(response == nullptr)
     out << "nullptr" << endl;
@@ -55,7 +55,7 @@ static void debugPrintResponse(ostream& out, const std::shared_ptr<httplib::Resp
   }
 }
 
-static json parseJson(const std::shared_ptr<httplib::Response>& response) {
+static json parseJson(const httplib::Result& response) {
   if(response == nullptr)
     throw StringError("No response from server");
   if(response->status != 200) {
@@ -127,7 +127,7 @@ struct Url {
   }
 };
 
-static std::shared_ptr<httplib::Response> oneShotDownload(Logger* logger, const Url& url, const string& caCertsFile, std::function<bool(const char *data, size_t data_length)> f) {
+static httplib::Result oneShotDownload(Logger* logger, const Url& url, const string& caCertsFile, std::function<bool(const char *data, size_t data_length)> f) {
   if(!url.isSSL) {
     std::unique_ptr<httplib::Client> httpClient = std::unique_ptr<httplib::Client>(new httplib::Client(url.host, url.port));
     return httpClient->Get(url.path.c_str(),f);
@@ -136,7 +136,7 @@ static std::shared_ptr<httplib::Response> oneShotDownload(Logger* logger, const 
     std::unique_ptr<httplib::SSLClient> httpsClient = std::unique_ptr<httplib::SSLClient>(new httplib::SSLClient(url.host, url.port));
     httpsClient->set_ca_cert_path(caCertsFile.c_str());
     httpsClient->enable_server_certificate_verification(true);
-    std::shared_ptr<httplib::Response> response = httpsClient->Get(url.path.c_str(),f);
+    httplib::Result response = httpsClient->Get(url.path.c_str(),f);
     if(response == nullptr) {
       auto result = httpsClient->get_openssl_verify_result();
       if(result) {
@@ -226,12 +226,12 @@ static string concatPaths(const string& baseResourcePath, const string& subPath)
   return queryPath;
 }
 
-std::shared_ptr<httplib::Response> Connection::get(const string& subPath) {
+httplib::Result Connection::get(const string& subPath) {
   string queryPath = concatPaths(baseResourcePath,subPath);
 
   std::lock_guard<std::mutex> lock(mutex);
   if(isSSL) {
-    std::shared_ptr<httplib::Response> response = httpsClient->Get(queryPath.c_str());
+    httplib::Result response = httpsClient->Get(queryPath.c_str());
     if(response == nullptr) {
       auto result = httpsClient->get_openssl_verify_result();
       if(result) {
@@ -246,12 +246,12 @@ std::shared_ptr<httplib::Response> Connection::get(const string& subPath) {
   }
 }
 
-std::shared_ptr<httplib::Response> Connection::post(const string& subPath, const string& data, const string& dtype) {
+httplib::Result Connection::post(const string& subPath, const string& data, const string& dtype) {
   string queryPath = concatPaths(baseResourcePath,subPath);
 
   std::lock_guard<std::mutex> lock(mutex);
   if(isSSL) {
-    std::shared_ptr<httplib::Response> response = httpsClient->Post(queryPath.c_str(),data.c_str(),dtype.c_str());
+    httplib::Result response = httpsClient->Post(queryPath.c_str(),data.c_str(),dtype.c_str());
     if(response == nullptr) {
       auto result = httpsClient->get_openssl_verify_result();
       if(result) {
@@ -266,13 +266,13 @@ std::shared_ptr<httplib::Response> Connection::post(const string& subPath, const
   }
 }
 
-std::shared_ptr<httplib::Response> Connection::postMulti(const string& subPath, const httplib::MultipartFormDataItems& data) {
+httplib::Result Connection::postMulti(const string& subPath, const httplib::MultipartFormDataItems& data) {
   string queryPath = concatPaths(baseResourcePath,subPath);
   string boundary = Global::uint64ToString(rand.nextUInt64()) + Global::uint64ToString(rand.nextUInt64());
 
   std::lock_guard<std::mutex> lock(mutex);
   if(isSSL) {
-    std::shared_ptr<httplib::Response> response = httpsClient->Post(queryPath.c_str(),httplib::Headers(),data,boundary);
+    httplib::Result response = httpsClient->Post(queryPath.c_str(),httplib::Headers(),data,boundary);
     if(response == nullptr) {
       auto result = httpsClient->get_openssl_verify_result();
       if(result) {
@@ -580,7 +580,7 @@ bool Connection::downloadModelIfNotPresent(
 
     ClockTimer timer;
     double lastTime = timer.getSeconds();
-    std::shared_ptr<httplib::Response> response = oneShotDownload(
+    httplib::Result response = oneShotDownload(
       logger, url, caCertsFile, [&out,&totalDataSize,&shouldStop,this,&timer,&lastTime,&url,&modelInfo](const char* data, size_t data_length) {
         out.write(data, data_length);
         totalDataSize += data_length;
@@ -703,7 +703,7 @@ bool Connection::uploadTrainingGameAndData(
       { "num_training_rows", Global::int64ToString(numDataRows), "", "" },
     };
 
-    std::shared_ptr<httplib::Response> response = postMulti("/api/games/training/",items);
+    httplib::Result response = postMulti("/api/games/training/",items);
 
     if(response == nullptr)
       throw StringError("No response from server");
@@ -772,7 +772,7 @@ bool Connection::uploadRatingGame(
       { "sgf_file", sgfContents, gameUid + ".sgf", "text/plain" },
     };
 
-    std::shared_ptr<httplib::Response> response = postMulti("/api/games/rating/",items);
+    httplib::Result response = postMulti("/api/games/rating/",items);
 
     if(response == nullptr)
       throw StringError("No response from server");
