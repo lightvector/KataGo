@@ -169,18 +169,22 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     );
   }
 
-  int nnMaxBatchSizeTotal = nnEval->getNumGpus() * nnEval->getMaxBatchSize();
-  int numThreadsTotal = defaultParams.numThreads * numAnalysisThreads;
-  if(nnMaxBatchSizeTotal * 1.5 <= numThreadsTotal) {
-    logger.write(
-      Global::strprintf(
-        "Note: nnMaxBatchSize * number of GPUs (%d) is smaller than numSearchThreads * numAnalysisThreads (%d)",
-        nnMaxBatchSizeTotal, numThreadsTotal
-      )
-    );
-    logger.write("The number of simultaneous threads that might query the GPU could be larger than the batch size that the GPU will handle at once.");
-    logger.write("It may improve performance to increase nnMaxBatchSize, unless you are constrained on GPU memory.");
+#ifndef USE_EIGEN_BACKEND
+  {
+    int nnMaxBatchSizeTotal = nnEval->getNumGpus() * nnEval->getMaxBatchSize();
+    int numThreadsTotal = defaultParams.numThreads * numAnalysisThreads;
+    if(nnMaxBatchSizeTotal * 1.5 <= numThreadsTotal) {
+      logger.write(
+        Global::strprintf(
+          "Note: nnMaxBatchSize * number of GPUs (%d) is smaller than numSearchThreads * numAnalysisThreads (%d)",
+          nnMaxBatchSizeTotal, numThreadsTotal
+        )
+      );
+      logger.write("The number of simultaneous threads that might query the GPU could be larger than the batch size that the GPU will handle at once.");
+      logger.write("It may improve performance to increase nnMaxBatchSize, unless you are constrained on GPU memory.");
+    }
   }
+#endif
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);

@@ -204,12 +204,20 @@ int NNEvaluator::getMaxBatchSize() const {
   return maxNumRows;
 }
 int NNEvaluator::getNumGpus() const {
+#ifdef USE_EIGEN_BACKEND
+  return 1;
+#else
   std::set<int> gpuIdxs;
   for(int i = 0; i<gpuIdxByServerThread.size(); i++) {
-    gpuIdxs.insert(i);
+    gpuIdxs.insert(gpuIdxByServerThread[i]);
   }
   return (int)gpuIdxs.size();
+#endif
 }
+int NNEvaluator::getNumServerThreads() const {
+  return (int)gpuIdxByServerThread.size();
+}
+
 int NNEvaluator::getNNXLen() const {
   return nnXLen;
 }

@@ -230,7 +230,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     cumProbs.resize(poses.size());
     for(size_t i = 0; i<poses.size(); i++) {
       int64_t startTurn = poses[i].initialTurnNumber + (int64_t)poses[i].moves.size() - minInitialTurnNumber;
-      cumProbs[i] = exp(-startTurn * lambda);
+      cumProbs[i] = exp(-startTurn * lambda) * poses[i].weight;
     }
     for(size_t i = 0; i<poses.size(); i++) {
       if(!(cumProbs[i] > -1e200 && cumProbs[i] < 1e200)) {
@@ -503,6 +503,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     assert(r < hintPosCumProbs.size());
     posSample = &(hintPoses[r]);
   }
+
   if(posSample != NULL) {
     const Sgf::PositionSample& startPos = *posSample;
     board = startPos.board;
@@ -736,7 +737,7 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 
     if(nextMatchupsBuf.size() <= 0)
       throw StringError("MatchPairer::getMatchupPairUnsynchronized: no matchups generated");
-    
+
     //Shuffle
     for(int i = nextMatchupsBuf.size()-1; i >= 1; i--) {
       int j = (int)rand.nextUInt(i+1);

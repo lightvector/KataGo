@@ -559,6 +559,7 @@ void Sgf::samplePositionIfUniqueHelper(
     sampleBuf.moves.push_back(hist.moveHistory[i]);
   sampleBuf.initialTurnNumber = initialTurnNumber + startTurn;
   sampleBuf.hintLoc = Board::NULL_LOC;
+  sampleBuf.weight = 1.0;
   f(sampleBuf,hist);
 }
 
@@ -618,6 +619,7 @@ string Sgf::PositionSample::toJsonLine(const Sgf::PositionSample& sample) {
   data["movePlas"] = movePlas;
   data["initialTurnNumber"] = sample.initialTurnNumber;
   data["hintLoc"] = Location::toString(sample.hintLoc,sample.board);
+  data["weight"] = sample.weight;
   return data.dump();
 }
 
@@ -640,6 +642,11 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
     }
     sample.initialTurnNumber = data["initialTurnNumber"].get<int>();
     sample.hintLoc = Location::ofString(data["hintLoc"].get<string>(),sample.board);
+
+    if(data.find("weight") != data.end())
+      sample.weight = data["weight"].get<double>();
+    else
+      sample.weight= 1.0;
   }
   catch(nlohmann::detail::exception& e) {
     throw StringError("Error parsing position sample json\n" + s + "\n" + e.what());

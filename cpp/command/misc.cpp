@@ -34,18 +34,6 @@ static void writeLine(
   int nnXLen = search->nnXLen;
   int nnYLen = search->nnYLen;
 
-  // cout << baseHist.rules << endl;
-  // cout << board << endl;
-  // if(winLossHistory.size() > 0)
-  //   cout << winLossHistory[winLossHistory.size()-1] << " ";
-  // assert(scoreStdevHistory.size() == scoreHistory.size());
-  // if(scoreHistory.size() > 0) {
-  //   cout << scoreHistory[scoreHistory.size()-1] << " ";
-  //   cout << scoreStdevHistory[scoreStdevHistory.size()-1] << " ";
-  // }
-  // cout << endl;
-
-
   cout << board.x_size << " ";
   cout << board.y_size << " ";
   cout << nnXLen << " ";
@@ -580,21 +568,158 @@ int MainCmds::printclockinfo(int argc, const char* const* argv) {
 }
 
 
-static uint64_t parseHex64(const string& str) {
-  assert(str.length() == 16);
-  uint64_t x = 0;
-  for(int i = 0; i<16; i++) {
-    x *= 16;
-    if(str[i] >= '0' && str[i] <= '9')
-      x += str[i] - '0';
-    else if(str[i] >= 'a' && str[i] <= 'f')
-      x += str[i] - 'a' + 10;
-    else if(str[i] >= 'A' && str[i] <= 'F')
-      x += str[i] - 'A' + 10;
-    else
-      assert(false);
+int MainCmds::samplesgfs(int argc, const char* const* argv) {
+  Board::initHash();
+  ScoreValue::initTables();
+  Rand seedRand;
+
+  vector<string> sgfDirs;
+  string outDir;
+  vector<string> excludeHashesFiles;
+  double sampleProb;
+  double turnWeightLambda;
+  try {
+    KataGoCommandLine cmd("Search for suprising good moves in sgfs");
+
+    TCLAP::MultiArg<string> sgfDirArg("","sgfdir","Directory of sgf files",true,"DIR");
+    TCLAP::ValueArg<string> outDirArg("","outdir","Directory to write results",true,string(),"DIR");
+    TCLAP::MultiArg<string> excludeHashesArg("","exclude-hashes","Specify a list of hashes to filter out, one per line in a txt file",false,"FILEOF(HASH,HASH)");
+    TCLAP::ValueArg<double> sampleProbArg("","sample-prob","Probability to sample each position",true,0.0,"PROB");
+    TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Probability to sample each position",true,0.0,"PROB");
+    cmd.add(sgfDirArg);
+    cmd.add(outDirArg);
+    cmd.add(excludeHashesArg);
+    cmd.add(sampleProbArg);
+    cmd.add(turnWeightLambdaArg);
+    cmd.parse(argc,argv);
+    sgfDirs = sgfDirArg.getValue();
+    outDir = outDirArg.getValue();
+    excludeHashesFiles = excludeHashesArg.getValue();
+    sampleProb = sampleProbArg.getValue();
+    turnWeightLambda = turnWeightLambdaArg.getValue();
   }
-  return x;
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  Logger logger;
+  logger.setLogToStdout(true);
+
+  const string sgfSuffix = ".sgf";
+  auto sgfFilter = [&sgfSuffix](const string& name) {
+    return Global::isSuffix(name,sgfSuffix);
+  };
+  vector<string> sgfFiles;
+  for(int i = 0; i<sgfDirs.size(); i++)
+    Global::collectFiles(sgfDirs[i], sgfFilter, sgfFiles);
+  logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf files!");
+
+  set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
+  logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
+
+  MakeDir::make(outDir);
+
+  // ---------------------------------------------------------------------------------------------------
+  ThreadSafeQueue<string*> toWriteQueue;
+  auto writeLoop = [&toWriteQueue,&outDir]() {
+    int fileCounter = 0;
+    int numWrittenThisFile = 0;
+    ofstream* out = NULL;
+    while(true) {
+      string* message;
+      bool suc = toWriteQueue.waitPop(message);
+      if(!suc)
+        break;
+
+      if(out == NULL || numWrittenThisFile > 100000) {
+        if(out != NULL) {
+          out->close();
+          delete out;
+        }
+        out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + ".hintposes.txt");
+        fileCounter += 1;
+        numWrittenThisFile = 0;
+      }
+      (*out) << *message << endl;
+      numWrittenThisFile += 1;
+      delete message;
+    }
+
+    if(out != NULL) {
+      out->close();
+      delete out;
+    }
+  };
+
+  // ---------------------------------------------------------------------------------------------------
+
+  //Begin writing
+  std::thread writeLoopThread(writeLoop);
+
+  // ---------------------------------------------------------------------------------------------------
+
+  int64_t numKept = 0;
+  std::set<Hash128> uniqueHashes;
+  std::function<void(Sgf::PositionSample&, const BoardHistory&)> posHandler =
+    [sampleProb,&toWriteQueue,turnWeightLambda,&numKept,&seedRand](Sgf::PositionSample& posSample, const BoardHistory& hist) {
+    (void)hist;
+    if(seedRand.nextBool(sampleProb)) {
+      Sgf::PositionSample posSampleToWrite = posSample;
+      int64_t startTurn = posSampleToWrite.initialTurnNumber + (int64_t)posSampleToWrite.moves.size();
+      posSampleToWrite.weight = exp(-startTurn * turnWeightLambda) * posSampleToWrite.weight;
+      toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(posSampleToWrite)));
+      numKept += 1;
+    }
+  };
+  int64_t numExcluded = 0;
+  for(size_t i = 0; i<sgfFiles.size(); i++) {
+    Sgf* sgf = NULL;
+    try {
+      sgf = Sgf::loadFile(sgfFiles[i]);
+      if(contains(excludeHashes,sgf->hash))
+        numExcluded += 1;
+      else
+        sgf->iterAllUniquePositions(uniqueHashes, posHandler);
+    }
+    catch(const StringError& e) {
+      logger.write("Invalid SGF " + sgfFiles[i] + ": " + e.what());
+    }
+    if(sgf != NULL)
+      delete sgf;
+  }
+  logger.write("Kept " + Global::int64ToString(numKept) + " start positions");
+  logger.write("Excluded " + Global::int64ToString(numExcluded) + "/" + Global::uint64ToString(sgfFiles.size()) + " sgf files");
+
+
+  // ---------------------------------------------------------------------------------------------------
+
+  toWriteQueue.setReadOnly();
+  writeLoopThread.join();
+
+  logger.write("All done");
+
+  ScoreValue::freeTables();
+  return 0;
+}
+
+
+
+//We want surprising moves that turned out not poorly
+//The more surprising, the more we will weight it
+static double surpriseWeight(double policyProb, Rand& rand) {
+  if(policyProb < 0)
+    return 0;
+  double weight = 0.15 / (policyProb + 0.03) - 0.5;
+
+  if(weight <= 0)
+    return 0;
+  if(weight < 0.5) {
+    if(rand.nextDouble() * 0.5 >= weight)
+      return 0;
+    return 0.5;
+  }
+  return weight;
 }
 
 int MainCmds::dataminesgfs(int argc, const char* const* argv) {
@@ -606,10 +731,11 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   string nnModelFile;
   vector<string> sgfDirs;
   string outDir;
-  int numSearchThreads;
+  int numProcessThreads;
   vector<string> excludeHashesFiles;
   bool gameMode;
   bool treeMode;
+  bool autoKomi;
   int sgfSplitCount;
   int sgfSplitIdx;
   try {
@@ -619,28 +745,31 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
     TCLAP::MultiArg<string> sgfDirArg("","sgfdir","Directory of sgf files",true,"DIR");
     TCLAP::ValueArg<string> outDirArg("","outdir","Directory to write results",true,string(),"DIR");
-    TCLAP::ValueArg<int> numSearchThreadsArg("","threads","Number of threads",true,1,"THREADS");
+    TCLAP::ValueArg<int> numProcessThreadsArg("","threads","Number of threads",true,1,"THREADS");
     TCLAP::MultiArg<string> excludeHashesArg("","exclude-hashes","Specify a list of hashes to filter out, one per line in a txt file",false,"FILEOF(HASH,HASH)");
     TCLAP::SwitchArg gameModeArg("","game-mode","Game mode");
     TCLAP::SwitchArg treeModeArg("","tree-mode","Tree mode");
+    TCLAP::SwitchArg autoKomiArg("","auto-komi","Auto komi");
     TCLAP::ValueArg<int> sgfSplitCountArg("","sgf-split-count","Number of splits",false,1,"N");
     TCLAP::ValueArg<int> sgfSplitIdxArg("","sgf-split-idx","Which split",false,0,"IDX");
     cmd.add(sgfDirArg);
     cmd.add(outDirArg);
-    cmd.add(numSearchThreadsArg);
+    cmd.add(numProcessThreadsArg);
     cmd.add(excludeHashesArg);
     cmd.add(gameModeArg);
     cmd.add(treeModeArg);
+    cmd.add(autoKomiArg);
     cmd.add(sgfSplitCountArg);
     cmd.add(sgfSplitIdxArg);
     cmd.parse(argc,argv);
     nnModelFile = cmd.getModelFile();
     sgfDirs = sgfDirArg.getValue();
     outDir = outDirArg.getValue();
-    numSearchThreads = numSearchThreadsArg.getValue();
+    numProcessThreads = numProcessThreadsArg.getValue();
     excludeHashesFiles = excludeHashesArg.getValue();
     gameMode = gameModeArg.getValue();
     treeMode = treeModeArg.getValue();
+    autoKomi = autoKomiArg.getValue();
     sgfSplitCount = sgfSplitCountArg.getValue();
     sgfSplitIdx = sgfSplitIdxArg.getValue();
 
@@ -706,22 +835,8 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     std::swap(permutation[i],permutation[r]);
   }
 
-  set<Hash128> excludeHashes;
-  for(int i = 0; i<excludeHashesFiles.size(); i++) {
-    const string& excludeHashesFile = excludeHashesFiles[i];
-    vector<string> hashes = Global::readFileLines(excludeHashesFile,'\n');
-    for(int64_t j = 0; j < hashes.size(); j++) {
-      const string& hash128 = Global::trim(Global::stripComments(hashes[j]));
-      if(hash128.length() <= 0)
-        continue;
-      if(hash128.length() != 32)
-        throw IOError("Could not parse hashpair in exclude hashes file: " + hash128);
-
-      uint64_t hash0 = parseHex64(hash128.substr(0,16));
-      uint64_t hash1 = parseHex64(hash128.substr(16,16));
-      excludeHashes.insert(Hash128(hash0,hash1));
-    }
-  }
+  set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
+  logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
 
   MakeDir::make(outDir);
 
@@ -730,6 +845,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
+  // ---------------------------------------------------------------------------------------------------
   ThreadSafeQueue<string*> toWriteQueue;
   auto writeLoop = [&toWriteQueue,&outDir,&sgfSplitCount,&sgfSplitIdx]() {
     int fileCounter = 0;
@@ -764,29 +880,12 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     }
   };
 
-  static const int minMoveIdx = 4;
-
-  //We want surprising moves that turned out not poorly
-  //The more surprising, the more times we will write it out.
-  auto numTimesToWriteOfPolicy = [](double policyProb, Rand& rand) {
-    if(policyProb < 0)
-      return 0;
-    double numTimesToWriteFloat = 0.15 / (policyProb + 0.03) - 0.5;
-    if(numTimesToWriteFloat <= 0)
-      return 0;
-    int numTimesToWrite = (int)floor(numTimesToWriteFloat);
-    if(rand.nextBool(numTimesToWriteFloat - numTimesToWrite))
-      numTimesToWrite += 1;
-    return numTimesToWrite;
-  };
-
+  // ---------------------------------------------------------------------------------------------------
 
   auto expensiveEvaluateMove = [&toWriteQueue,&logger,&gameMode](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
-    const Sgf::PositionSample& sample,
-    Rand& rand,
-    int numTimesToWrite
+    const Sgf::PositionSample& sample
   ) {
     //cout << "EXPENSIVE" << endl;
     //Do a more expensive search before and after
@@ -808,37 +907,36 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     //Bot DOES see the move?
     if(moveLoc == missedLoc) {
       //Still good to learn from given that policy was really low
-      if(gameMode)
-        numTimesToWrite = (numTimesToWrite + rand.nextUInt(4)) / 4;
-      //Still good to learn from given that policy was really low
-      else
-        numTimesToWrite = numTimesToWrite * 1;
-      for(int n = 0; n<numTimesToWrite; n++)
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sample)));
+      toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sample)));
     }
 
     //Bot doesn't see the move?
     else if(moveLoc != missedLoc) {
-      vector<Loc> locs;
-      vector<double> playSelectionValues;
-      search->getPlaySelectionValues(locs,playSelectionValues,1.0);
-      //Did the move not get much of the play selection value?
-      double psvSum = 0.0;
-      double psvForMove = 0.0;
-      for(int k = 0; k<playSelectionValues.size(); k++) {
-        psvSum += playSelectionValues[k];
-        if(locs[k] == missedLoc)
-          psvForMove = playSelectionValues[k];
+
+      ReportedSearchValues moveValues;
+      {
+        Board newBoard = board;
+        BoardHistory newHist = hist;
+        Player newNextPla = nextPla;
+        if(!hist.isLegal(newBoard,moveLoc,newNextPla))
+          return;
+        newHist.makeBoardMoveAssumeLegal(newBoard,moveLoc,newNextPla,NULL);
+        newNextPla = getOpp(newNextPla);
+
+        search->setPosition(newNextPla,newBoard,newHist);
+        search->runWholeSearch(newNextPla,logger,shouldStop);
+        if(shouldStop.load(std::memory_order_acquire))
+          return;
+        moveValues = search->getRootValuesRequireSuccess();
+
+        // ostringstream out0;
+        // out0 << "BOT MOVE " << Location::toString(moveLoc,board) << endl;
+        // search->printTree(out0, search->rootNode, PrintTreeOptions().maxDepth(0),perspective);
+        // cout << out0.str() << endl;
       }
-      if(psvForMove < psvSum * (0.10 + rand.nextDouble(0.90))) {
-        // cout << "SECOND EXPENSIVE" << endl;
 
-        ReportedSearchValues preValues = search->getRootValuesRequireSuccess();
-
-        // ostringstream preOut;
-        // Board::printBoard(preOut, search->getRootBoard(), moveLoc, &(search->getRootHist().moveHistory));
-        // search->printTree(preOut, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
-
+      ReportedSearchValues missedValues;
+      {
         Board newBoard = board;
         BoardHistory newHist = hist;
         Player newNextPla = nextPla;
@@ -851,43 +949,34 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
         search->runWholeSearch(newNextPla,logger,shouldStop);
         if(shouldStop.load(std::memory_order_acquire))
           return;
+        missedValues = search->getRootValuesRequireSuccess();
 
-        // {
-        //   ostringstream postOut;
-        //   Board::printBoard(postOut, search->getRootBoard(), Board::NULL_LOC, &(search->getRootHist().moveHistory));
-        //   search->printTree(postOut, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
-        //   cout << postOut.str() << endl;
-        // }
+        // ostringstream out0;
+        // out0 << "SGF MOVE " << Location::toString(missedLoc,board) << endl;
+        // search->printTree(out0, search->rootNode, PrintTreeOptions().maxDepth(0),perspective);
+        // cout << out0.str() << endl;
+      }
 
-        const double utilityThreshold = 0.005;
+      //If the move is this minimum amount better, then record this position as a hint
+      const double utilityThreshold = 0.005;
+      ReportedSearchValues postValues = search->getRootValuesRequireSuccess();
+      if((nextPla == P_WHITE && missedValues.utility > moveValues.utility + utilityThreshold) ||
+         (nextPla == P_BLACK && missedValues.utility < moveValues.utility - utilityThreshold)) {
 
-        ReportedSearchValues postValues = search->getRootValuesRequireSuccess();
-        if((nextPla == P_WHITE && postValues.utility > preValues.utility + utilityThreshold) ||
-           (nextPla == P_BLACK && postValues.utility < preValues.utility - utilityThreshold)) {
-          // ostringstream postOut;
-          // Board::printBoard(postOut, search->getRootBoard(), Board::NULL_LOC, &(search->getRootHist().moveHistory));
-          // search->printTree(postOut, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
+        // cout << "YAAAAAAY" << endl;
 
-          // cout << "YAAAAAAY" << endl;
-
-          //Moves that the bot didn't see get written out more
-          numTimesToWrite *= 2;
-
-          for(int n = 0; n<numTimesToWrite; n++)
-            toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sample)));
-
-          // string s;
-          // s += "=======================================================\n";
-          // s += preOut.str();
-          // s += "\nMOVE = " + Location::toString(missedLoc,board) + "\n";
-          // s += postOut.str();
-          // cout << s << endl;
-        }
+        //Moves that the bot didn't see get written out more
+        Sgf::PositionSample sampleToWrite = sample;
+        sampleToWrite.weight = sampleToWrite.weight * 2.0 + 1.0;
+        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
       }
     }
   };
 
-  auto processSgfGame = [&logger,&excludeHashes,&gameInit,&nnEval,&expensiveEvaluateMove,&numTimesToWriteOfPolicy](
+  // ---------------------------------------------------------------------------------------------------
+  //SGF MODE
+
+  auto processSgfGame = [&logger,&excludeHashes,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi](
     Search* search, Rand& rand, const string& fileName, CompactSgf* sgf
   ) {
     if(contains(excludeHashes,sgf->hash))
@@ -1001,7 +1090,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     const double sumThreshold = 0.005;
 
     //cout << fileName << endl;
-    for(int m = minMoveIdx; m<moves.size(); m++) {
+    for(int m = 0; m<moves.size(); m++) {
 
       if(shouldStop.load(std::memory_order_acquire))
         break;
@@ -1009,8 +1098,8 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       //cout << m << endl;
       //Look for surprising moves that turned out not poorly
       //The more surprising, the more times we will write it out.
-      int numTimesToWrite = numTimesToWriteOfPolicy(policyPriors[m],rand);
-      if(numTimesToWrite <= 0)
+      double weight = surpriseWeight(policyPriors[m],rand);
+      if(weight <= 0)
         continue;
 
       double pastSum = pastValue[m] + pastLead[m]*scoreLeadWeight;
@@ -1031,21 +1120,29 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
         sample.moves.push_back(moves[j]);
       sample.initialTurnNumber = startIdx;
       sample.hintLoc = moves[m].loc;
+      sample.weight = weight;
+
+      if(autoKomi) {
+        const int64_t numVisits = 10;
+        OtherGameProperties props;
+        PlayUtils::adjustKomiToEven(search,NULL,boards[m],hists[m],nextPlas[m],numVisits,logger,props,rand);
+      }
 
       expensiveEvaluateMove(
         search, moves[m].loc, nextPlas[m], boards[m], hists[m],
-        sample, rand, numTimesToWrite
+        sample
       );
     }
   };
 
-  auto treePosHandler = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,&numTimesToWriteOfPolicy](Search* search, Rand& rand, const BoardHistory& treeHist) {
+  // ---------------------------------------------------------------------------------------------------
+  //TREE MODE
+
+  auto treePosHandler = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi](Search* search, Rand& rand, const BoardHistory& treeHist) {
     if(shouldStop.load(std::memory_order_acquire))
       return;
     int moveHistorySize = treeHist.moveHistory.size();
     if(moveHistorySize <= 0)
-      return;
-    if(treeHist.initialTurnNumber + treeHist.moveHistory.size() < minMoveIdx)
       return;
 
     //Snap the position 7 turns ago so as to include 7 moves of history.
@@ -1082,6 +1179,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       sample.moves.push_back(treeHist.moveHistory[j]);
     sample.initialTurnNumber = startTurn;
     sample.hintLoc = treeHist.moveHistory[moveHistorySize-1].loc;
+    sample.weight = 0.0; //dummy, filled in below
 
     //Don't use the SGF rules - randomize them for a bit more entropy
     Rules rules = gameInit->createRules();
@@ -1106,6 +1204,12 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     assert(treeHist.moveHistory[hintIdx].pla == pla);
     assert(treeHist.moveHistory[hintIdx].loc == sample.hintLoc);
 
+    if(autoKomi) {
+      const int64_t numVisits = 10;
+      OtherGameProperties props;
+      PlayUtils::adjustKomiToEven(search,NULL,board,hist,pla,numVisits,logger,props,rand);
+    }
+
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
     bool skipCache = true; //Always ignore cache so that we get more entropy on repeated board positions due to symmetries
@@ -1117,18 +1221,24 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     int pos = NNPos::locToPos(sample.hintLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
     double policyProb = nnOutput->policyProbs[pos];
 
-    int numTimesToWrite = numTimesToWriteOfPolicy(policyProb,rand);
-    if(numTimesToWrite <= 0)
+    double weight = surpriseWeight(policyProb,rand);
+    if(weight <= 0)
       return;
+    sample.weight = weight;
 
     expensiveEvaluateMove(
       search, sample.hintLoc, pla, board, hist,
-      sample, rand, numTimesToWrite
+      sample
     );
   };
 
+
+  // ---------------------------------------------------------------------------------------------------
+
   //Begin writing
   std::thread writeLoopThread(writeLoop);
+
+  // ---------------------------------------------------------------------------------------------------
 
   //In game mode, iterate through sgf games, which are expected to be nonbranching, and see if there are unexpected good moves,
   //requiring the outcome in the game to have been good.
@@ -1184,7 +1294,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     };
 
     vector<std::thread> threads;
-    for(int i = 0; i<numSearchThreads; i++) {
+    for(int i = 0; i<numProcessThreads; i++) {
       threads.push_back(std::thread(processSgfLoop));
     }
 
@@ -1197,6 +1307,9 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       threads[i].join();
   }
 
+  // ---------------------------------------------------------------------------------------------------
+
+  //In tree mode, we just explore everything in the sgf
   else if(treeMode) {
     const int64_t maxPosQueueSize = 1024;
     ThreadSafeQueue<BoardHistory*> posQueue(maxPosQueueSize);
@@ -1233,7 +1346,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     };
 
     vector<std::thread> threads;
-    for(int i = 0; i<numSearchThreads; i++) {
+    for(int i = 0; i<numProcessThreads; i++) {
       threads.push_back(std::thread(processPosLoop));
     }
 
