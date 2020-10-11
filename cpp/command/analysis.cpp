@@ -506,7 +506,12 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     //Special actions
     if(input.find("action") != input.end() && input["action"].is_string()) {
       string action = input["action"].get<string>();
-      if(action == "terminate") {
+      if(action == "query_version") {
+        input["version"] = Version::getKataGoVersion();
+        input["git_hash"] = Version::getGitRevision();
+        pushToWrite(new string(input.dump()));
+      }
+      else if(action == "terminate") {
 
         bool terminateIdFound = false;
         string terminateId;
@@ -568,8 +573,9 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         pushToWrite(new string(input.dump()));
       }
       else {
-        reportError("'action' field must be 'terminate', no other actions currently supported");
+        reportError("'action' field must be 'query_version' or 'terminate'");
       }
+
       continue;
     }
 

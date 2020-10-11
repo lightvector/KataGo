@@ -92,7 +92,7 @@ Explanation of fields (including some optional fields not present in the above q
       * Multiple dicts can specify different `untilDepth` for different sets of moves. The behavior is unspecified if a move is specified more than once with different `untilDepth`.
    * `allowMoves (list of dicts)`: Optional. Same as `avoidMoves` except prohibits all moves EXCEPT the moves specified. Currently, the list of dicts must also be length 1.
    * `overrideSettings (object)`: Optional. Specify any number of `paramName:value` entries in this object to override those params from command line `CONFIG_FILE` for this query. Most search parameters can be overriden: `cpuctExploration`, `winLossUtilityFactor`, etc.
-   * `reportDuringSearchEvery`: Optional. Specify a number of seconds such that while this position is being searched, KataGo will report the partial analysis every that many seconds.
+   * `reportDuringSearchEvery (boolean)`: Optional. Specify a number of seconds such that while this position is being searched, KataGo will report the partial analysis every that many seconds.
    * `priority (int)`: Optional. Analysis threads will prefer handling queries with the highest priority unless already started on another task, breaking ties in favor of earlier queries. If not specified, defaults to 0.
 
 #### Responses
@@ -224,9 +224,35 @@ Current fields are:
 
 #### Special Action Queries
 
-Currently the only special action query supported is to "terminate" other queries without waiting for them to finish analyzing normally. When a query is terminated, the engine will make a best effort to halt their analysis as soon as possible, reporting the results of whatever number of visits were performed up to that point. Special action queries are json objects with the following fields:
+Currently two special action queries are supported, that direct the analysis engine to do something other than enqueue a new position or set of positions for analysis.
+A special action query is also sent as a JSON object, but with a different set of fields depending on the query.
 
-   * `id (string)`: Required. An arbitrary string identifier for this special action query.
+##### query_version
+Requests that KataGo report its current version. Required fields:
+
+   * `id (string)`: Required. An arbitrary string identifier for this query.
+   * `action (string)`: Required. Should be the string `query_version`.
+
+Example:
+```
+{"id":"foo","action":"query_verison"}
+```
+
+The response to this query is to echo back a json object with exactly the same data and fields of the query, but with two additional fields:
+
+   * `version (string)`: A string indicating the most recent KataGo release version that this version is a descendant of, such as `1.6.1`.
+   * `git_hash (string)`: The precise git hash this KataGo version was compiled from, or the string `<omitted>` if KataGo was compiled separately from its repo or without Git support.
+
+Example:
+```
+{"action":"query_verison","git_hash":"0b0c29750fd351a8364440a2c9c83dc50195c05b","id":"foo","version":"1.6.1"}
+```
+
+##### terminate
+
+Requests that KataGo terminate zero or more analysis queries without waiting for them to finish normally. When a query is terminated, the engine will make a best effort to halt their analysis as soon as possible, reporting the results of whatever number of visits were performed up to that point. Required fields:
+
+   * `id (string)`: Required. An arbitrary string identifier for this query.
    * `action (string)`: Required. Should be the string `terminate`.
    * `terminateId (string)`: Required. Terminate queries that were submitted with this `id` field without analyzing or finishing analyzing them.
    * `turnNumbers (array of ints)`: Optional. If provided, restrict only to terminating the queries with that id that were for these turn numbers.
@@ -241,7 +267,9 @@ Responses to terminated queries may be missing their data fields if no analysis 
 {"id":"foo","isDuringSearch":false,"noResults":true,"turnNumber":2}
 ```
 
-Special action queries themselves will result in a response as well, to acknowledge receipt and processing of the action. The response to the special action query consists of simply echoing a json object back with exactly the same fields and data of the query. The response will NOT generally wait for all of the effects of the action to take place - it may take a small amount of additional time for ongoing searches to actually terminate and report their partial results.
+The terminate query itself will result in a response as well, to acknowledge receipt and processing of the action. The response consists of echoing a json object back with exactly the same fields and data of the query.
+
+The response will NOT generally wait for all of the effects of the action to take place - it may take a small amount of additional time for ongoing searches to actually terminate and report their partial results. A client of this API that wants to wait for all terminated queries to finish should on its own track the set of queries that it has sent for analysis, and wait for all of them to have finished. This can be done by relying on the property that every analysis query, whether terminated or not, and regardless of `reportDuringSearchEvery`, will conclude with exactly one reply where `isDuringSearch` is `false` - such a reply can therefore be used as a marker that an analysis query has finished. (Except during shutdown of the engine if `-quit-without-waiting` was specified).
 
 
 
