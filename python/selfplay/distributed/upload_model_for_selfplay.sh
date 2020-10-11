@@ -29,7 +29,8 @@ function uploadStuff() {
     FROMDIR="$1"
     TODIR="$2"
 
-    for FILEPATH in $(find "$BASEDIR"/"$FROMDIR"/ -mindepth 1 -maxdepth 1)
+    #Sort by timestamp so that we process in order of oldest to newest if there are multiple
+    for FILEPATH in $(find "$BASEDIR"/"$FROMDIR"/ -mindepth 1 -maxdepth 1 -printf "%T@ %p\n" | sort -n | cut -d ' ' -f 2)
     do
         if [ ${FILEPATH: -10} == ".uploading" ]
         then
