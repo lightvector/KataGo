@@ -277,17 +277,33 @@ void Rand::init(const string& seed)
 {
   initSeed = seed;
 
-  string s = seed;
-  int x = 0;
+  string s;
+  {
+    uint32_t hash[4];
+    MD5::get(seed.c_str(), seed.size(), hash);
+    s += "|";
+    s += std::to_string(hash[0]);
+    s += "|";
+    s += seed;
+  }
 
-  auto getNonzero = [&s,&x]() -> uint64_t {
-    uint64_t hash[4];
+  int counter = 0;
+  int nextHashIdx = 4;
+  uint64_t hash[4];
+  auto getNonzero = [&s,&counter,&nextHashIdx,&hash]() -> uint64_t {
+    uint64_t nextValue;
     do {
-      string tmp = s + Global::intToString(x);
-      x += 1;
-      SHA2::get256(tmp.c_str(), hash);
-    } while(hash[0] == 0);
-    return hash[0];
+      if(nextHashIdx >= 4) {
+        string tmp = std::to_string(counter) + s;
+        //cout << tmp << endl;
+        counter += 37;
+        SHA2::get256(tmp.c_str(), hash);
+        nextHashIdx = 0;
+      }
+      nextValue = hash[nextHashIdx];
+      nextHashIdx += 1;
+    } while(nextValue == 0);
+    return nextValue;
   };
 
   uint64_t init_a[XorShift1024Mult::XORMULT_LEN];

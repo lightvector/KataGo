@@ -7,6 +7,10 @@
  * instances created simultaneously in different threads or on different machines should all be distinct.
  * Note: Signed integer functions might not be portable to other architectures.
  *
+ * On a single core basic cloud machine, roughly generates about 500 million uint32_t/second and
+ * can be initialized roughly 100k/second, and 250k/second for fixed seed.
+ *
+ *
  * Combines:
  * PCG32 (period 2^64)
  * XorShift1024Mult (period 2^1024-1)
