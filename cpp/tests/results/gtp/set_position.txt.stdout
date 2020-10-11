@@ -1,4 +1,4 @@
-= MoveNum: 0 HASH: 7BF12F3F24903F0C225CD6C55BA8BA1F
+= MoveNum: 0 HASH: CDCBC1F514D7E680FACD226074256633
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -26,7 +26,7 @@ W stones captured: 0
 
 = 
 
-= MoveNum: 0 HASH: 64F79883D6EAA28A6534BB033F58141A
+= MoveNum: 0 HASH: A927404D59D756B072DFBA7052A05BF5
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -54,7 +54,7 @@ W stones captured: 0
 
 = 
 
-= MoveNum: 0 HASH: 7BF12F3F24903F0C225CD6C55BA8BA1F
+= MoveNum: 0 HASH: CDCBC1F514D7E680FACD226074256633
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -82,7 +82,7 @@ W stones captured: 0
 
 = 
 
-= MoveNum: 0 HASH: 4F7DE229DFBDAEC911C843DF2BEECC78
+= MoveNum: 0 HASH: 6D7B9BD0653F4FE761D8EA5338E563E0
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -104,7 +104,7 @@ W stones captured: 0
 
 = 
 
-= MoveNum: 0 HASH: 3C8EB749301734D80CEC5D5009014A18
+= MoveNum: 0 HASH: 3BFA3DC657A6A5EFD2BEA7778146E5BE
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -126,7 +126,7 @@ W stones captured: 0
 
 = 
 
-= MoveNum: 0 HASH: B880016C2EE16E0948F1CD023BE20E88
+= MoveNum: 0 HASH: 5F4FCF10528E2A9D9AAD58BBDBB6C452
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -148,7 +148,7 @@ W stones captured: 0
 
 ? Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got 'b d3 b d10 b j10 b'
 
-= MoveNum: 0 HASH: B880016C2EE16E0948F1CD023BE20E88
+= MoveNum: 0 HASH: 5F4FCF10528E2A9D9AAD58BBDBB6C452
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -170,7 +170,7 @@ W stones captured: 0
 
 ? Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got 'w d3 w    d10  w  j10'
 
-= MoveNum: 0 HASH: B880016C2EE16E0948F1CD023BE20E88
+= MoveNum: 0 HASH: 5F4FCF10528E2A9D9AAD58BBDBB6C452
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -192,7 +192,7 @@ W stones captured: 0
 
 ? Illegal stone placements - overlapping stones or stones with no liberties?
 
-= MoveNum: 0 HASH: B880016C2EE16E0948F1CD023BE20E88
+= MoveNum: 0 HASH: 5F4FCF10528E2A9D9AAD58BBDBB6C452
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -214,7 +214,7 @@ W stones captured: 0
 
 ? Illegal stone placements - overlapping stones or stones with no liberties?
 
-= MoveNum: 0 HASH: B880016C2EE16E0948F1CD023BE20E88
+= MoveNum: 0 HASH: 5F4FCF10528E2A9D9AAD58BBDBB6C452
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -236,7 +236,7 @@ W stones captured: 0
 
 = 
 
-= MoveNum: 0 HASH: B4B18F221F0B2481CAAC9ABCD2A49E52
+= MoveNum: 0 HASH: 0060C2712F9F96DF15BC0200D6BF3DFD
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -258,7 +258,7 @@ W stones captured: 0
 
 ? Illegal stone placements - overlapping stones or stones with no liberties?
 
-= MoveNum: 0 HASH: B4B18F221F0B2481CAAC9ABCD2A49E52
+= MoveNum: 0 HASH: 0060C2712F9F96DF15BC0200D6BF3DFD
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -280,7 +280,7 @@ W stones captured: 0
 
 ? Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got 'b pass': Could not parse vertex: 'pass'
 
-= MoveNum: 0 HASH: B4B18F221F0B2481CAAC9ABCD2A49E52
+= MoveNum: 0 HASH: 0060C2712F9F96DF15BC0200D6BF3DFD
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -302,7 +302,7 @@ W stones captured: 0
 
 = 
 
-= MoveNum: 0 HASH: BDDCC66D6F61C0E7FF33E69F9BED444D
+= MoveNum: 0 HASH: 710F257116C1B48A7B9876BE820C87F2
    A B C
  3 . . .
  2 . . .
@@ -314,7 +314,7 @@ W stones captured: 0
 
 = 
 
-= MoveNum: 0 HASH: 09E0712752655FB90DEC05AD17919AC9
+= MoveNum: 0 HASH: 3EF6B2A37C09369B375BF765A930F411
    A B C
  3 X X .
  2 X X X
@@ -326,7 +326,7 @@ W stones captured: 0
 
 ? Illegal stone placements - overlapping stones or stones with no liberties?
 
-= MoveNum: 0 HASH: 09E0712752655FB90DEC05AD17919AC9
+= MoveNum: 0 HASH: 3EF6B2A37C09369B375BF765A930F411
    A B C
  3 X X .
  2 X X X

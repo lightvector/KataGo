@@ -317,7 +317,7 @@ BC50 BC50 x 52 y 20
     out << board2 << endl;
 
     string expected = R"%%(
-HASH: FF41A6A8C248603FA60347F93F085846
+HASH: 27902CF3F972B1855303DB453BF8DE63
    A B C D E F
  5 . . . . . .
  4 . . . . . .
@@ -326,7 +326,7 @@ HASH: FF41A6A8C248603FA60347F93F085846
  1 . . . . . .
 
 
-HASH: 6B93B11D3BA70C1DF1D07EE065566210
+HASH: BC864FD8F525EE9D6B590472C800841A
    A B C D E F
  5 . . . . . .
  4 . . . . . .
@@ -1601,10 +1601,10 @@ void Tests::runBoardUndoTest() {
 
   string expected = R"%%(
 
-regularMoveCount 2431
-passCount 482
-koCaptureCount 25
-suicideCount 87
+regularMoveCount 2446
+passCount 475
+koCaptureCount 24
+suicideCount 79
 
 )%%";
   expect("Board undo test move counts",out,expected);
@@ -1848,15 +1848,15 @@ void Tests::runBoardStressTest() {
     out << "Caps " << boards[i].numBlackCaptures << " " << boards[i].numWhiteCaptures << endl;
   string expected = R"%%(
 
-regularMoveCount 37740
-passCount 280
-koCaptureCount 188
-koBanCount 31
-suicideCount 451
-Caps 4839 4688
-Caps 4853 4672
-Caps 5002 4967
-Caps 4369 4382
+regularMoveCount 38017
+passCount 273
+koCaptureCount 212
+koBanCount 45
+suicideCount 440
+Caps 4753 5024
+Caps 4821 4733
+Caps 4995 5041
+Caps 4420 4335
 
 )%%";
   expect("Board stress test move counts",out,expected);

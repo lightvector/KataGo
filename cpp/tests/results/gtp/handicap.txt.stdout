@@ -1,6 +1,6 @@
 = D16 Q16 D10 K10 Q10 D4 Q4
 
-= MoveNum: 0 HASH: E153F25F78076E50698FEB13372D62DB
+= MoveNum: 0 HASH: 39275211CAB1A1C57EBA614CCCEA92D2
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -26,17 +26,17 @@ Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide
 B stones captured: 0
 W stones captured: 0
 
-= O17
+= D12
 
 = 
 
-= D16 R4 D3
+= Q17 D16 C4
 
-= MoveNum: 0 HASH: C8C4A026AA6DCCB6DC2ABC84580943C4
+= MoveNum: 0 HASH: 31C5C7E1B1B3BA804B970B13D0FAC7AF
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
-17 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . X . . .
 16 . . . X . . . . . . . . . . . . . . .
 15 . . . . . . . . . . . . . . . . . . .
 14 . . . . . . . . . . . . . . . . . . .
@@ -49,8 +49,8 @@ W stones captured: 0
  7 . . . . . . . . . . . . . . . . . . .
  6 . . . . . . . . . . . . . . . . . . .
  5 . . . . . . . . . . . . . . . . . . .
- 4 . . . . . . . . . . . . . . . . X . .
- 3 . . . X . . . . . . . . . . . . . . .
+ 4 . . X . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . . . . .
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 Next player: White
@@ -58,25 +58,25 @@ Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide
 B stones captured: 0
 W stones captured: 0
 
-= R16
+= Q3
 
 = 
 
-= P3
+= D4
 
 = 
 
-= Q5
+= Q16
 
 = 
 
-= R5
+= R17
 
 = 
 
 = 
 
-= MoveNum: 0 HASH: 1C9F2E24C3DC06011D53843B5691EEAA
+= MoveNum: 0 HASH: E45452C6B2520D3E36BE3CC730DE1FF8
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -110,7 +110,7 @@ W stones captured: 0
 
 = D10 K10 D4
 
-= MoveNum: 0 HASH: E8C8E15EA6063A39D74149361DCD5604
+= MoveNum: 0 HASH: 347454878B83E11B5AE6F50BDE128278
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -132,9 +132,9 @@ W stones captured: 0
 
 = 
 
+= K5
+
 = L4
 
-= L5
-
-= L3
+= J4
 

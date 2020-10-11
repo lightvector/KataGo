@@ -4,16 +4,16 @@ Loaded config configs/gtp_example.cfg and/or command-line and query overrides
 Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
 Model name: g170-b6c96-s175395328-d26788732
 GTP ready, beginning main protocol loop
-MoveNum: 0 HASH: E153F25F78076E50698FEB13372D62DB
+MoveNum: 0 HASH: 39275211CAB1A1C57EBA614CCCEA92D2
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
-17 . . . . . . . . . . . . . @ . . . . .
+17 . . . . . . . . . . . . . . . . . . .
 16 . . . X . . . . . . . . . . . X . . .
 15 . . . . . . . . . . . . . . . . . . .
 14 . . . . . . . . . . . . . . . . . . .
 13 . . . . . . . . . . . . . . . . . . .
-12 . . . . . . . . . . . . . . . . . . .
+12 . . . @ . . . . . . . . . . . . . . .
 11 . . . . . . . . . . . . . . . . . . .
 10 . . . X . . . . . X . . . . . X . . .
  9 . . . . . . . . . . . . . . . . . . .
@@ -48,12 +48,12 @@ D6  : T -92.10c W -83.96c S  -8.14c (-29.5 L -28.8) LCB -115.78c P  2.25% WF  4.
 C12 : T -93.18c W -84.68c S  -8.50c (-29.9 L -29.4) LCB -185.43c P  2.62% WF  4.69% PSV       5 N       5  --  C12 F17 R14
 D13 : T -91.83c W -83.90c S  -7.94c (-29.3 L -28.9) LCB -136.62c P  1.63% WF  4.77% PSV       5 N       5  --  D13 F17 D8 F3
 O16 : T -95.84c W -86.56c S  -9.28c (-30.9 L -30.0) LCB -313.60c P  2.71% WF  4.53% PSV       4 N       4  --  O16 Q13 C14
-MoveNum: 0 HASH: C8C4A026AA6DCCB6DC2ABC84580943C4
+MoveNum: 0 HASH: 31C5C7E1B1B3BA804B970B13D0FAC7AF
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
-17 . . . . . . . . . . . . . . . . . . .
-16 . . . X . . . . . . . . . . . . @ . .
+17 . . . . . . . . . . . . . . . X . . .
+16 . . . X . . . . . . . . . . . . . . .
 15 . . . . . . . . . . . . . . . . . . .
 14 . . . . . . . . . . . . . . . . . . .
 13 . . . . . . . . . . . . . . . . . . .
@@ -65,8 +65,8 @@ MoveNum: 0 HASH: C8C4A026AA6DCCB6DC2ABC84580943C4
  7 . . . . . . . . . . . . . . . . . . .
  6 . . . . . . . . . . . . . . . . . . .
  5 . . . . . . . . . . . . . . . . . . .
- 4 . . . . . . . . . . . . . . . . X . .
- 3 . . . X . . . . . . . . . . . . . . .
+ 4 . . X . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . @ . . .
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
@@ -74,27 +74,25 @@ koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
 New playouts: 100
-NN rows: 84
-NN batches: 84
+NN rows: 86
+NN batches: 86
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 1.125
-PV: Q17 Q16 R16 P17 R17 P4 C5 C4
+PV: Q3 Q4 R4 R5 R3 E4
 Tree:
-: T -50.01c W -46.27c S  -3.75c (-12.9 L -13.5) N     100  --  Q17 Q16 R16 P17 R17 P4 C5
+: T -49.79c W -45.56c S  -4.23c (-12.8 L -13.3) N     100  --  Q3 Q4 R4 R5 R3 E4
 ---White(^)---
-Q17 : T -49.33c W -45.70c S  -3.64c (-12.8 L -13.4) LCB  -53.95c P 30.07% WF 14.81% PSV      41 N      38  --  Q17 Q16 R16 P17 R17 P4 C5 C4
-R16 : T -49.39c W -45.77c S  -3.62c (-12.7 L -13.3) LCB  -54.15c P 30.68% WF 14.79% PSV      38 N      38  --  R16 Q16 Q17 P17 R17 P4 C5 C4
-Q16 : T -52.50c W -48.45c S  -4.05c (-13.4 L -13.8) LCB  -62.63c P 11.64% WF 14.00% PSV      10 N      10  --  Q16 P4 C5 C4 D5
-D4  : T -51.87c W -47.69c S  -4.17c (-13.6 L -14.2) LCB -152.32c P  5.56% WF 14.21% PSV       5 N       5  --  D4 C4 E3 C3
-Q4  : T -52.73c W -48.46c S  -4.27c (-13.7 L -14.5) LCB -236.37c P  4.97% WF 14.08% PSV       4 N       4  --  Q4 Q3 Q17 P3
-C4  : T -50.66c W -46.55c S  -4.12c (-13.5 L -14.3) LCB -280.00c P  2.04% WF 14.47% PSV       2 N       2  --  C4 C3
-C5  : T -56.09c W -51.03c S  -5.06c (-14.9 L -15.5) LCB -280.00c P  2.19% WF 13.63% PSV       1 N       2  --  C5 Q17
-MoveNum: 2 HASH: 1E9E1E18E3D2716A1BAFE3BC4B4B5E00
+Q3  : T -49.41c W -45.28c S  -4.13c (-12.6 L -13.2) LCB  -54.25c P 28.20% WF 20.47% PSV      41 N      35  --  Q3 Q4 R4 R5 R3 E4
+R4  : T -49.28c W -45.11c S  -4.17c (-12.7 L -13.2) LCB  -54.36c P 32.14% WF 20.54% PSV      40 N      40  --  R4 Q4 Q3 R5 R3 E4
+Q4  : T -51.60c W -47.14c S  -4.46c (-13.1 L -13.6) LCB  -60.19c P 13.17% WF 19.67% PSV      12 N      12  --  Q4 Q15 E3 D3 E4
+D4  : T -52.71c W -47.96c S  -4.75c (-13.6 L -14.2) LCB -140.07c P  7.08% WF 19.45% PSV       6 N       6  --  D4 D3 E3 C3
+Q16 : T -51.22c W -46.66c S  -4.56c (-13.3 L -13.9) LCB -121.91c P  6.97% WF 19.87% PSV       6 N       6  --  Q16 R16 P17 R17
+MoveNum: 2 HASH: 026B39E226E1EAC8E8EE88ACE7D25975
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
-17 . . . . . . . . . . . . . . . . . . .
-16 . . . X . . . . . . . . . . . . O . .
+17 . . . . . . . . . . . . . . . X . . .
+16 . . . X . . . . . . . . . . . . . . .
 15 . . . . . . . . . . . . . . . . . . .
 14 . . . . . . . . . . . . . . . . . . .
 13 . . . . . . . . . . . . . . . . . . .
@@ -106,10 +104,51 @@ MoveNum: 2 HASH: 1E9E1E18E3D2716A1BAFE3BC4B4B5E00
  7 . . . . . . . . . . . . . . . . . . .
  6 . . . . . . . . . . . . . . . . . . .
  5 . . . . . . . . . . . . . . . . . . .
- 4 . . . . . . . . . . . . . . . . X . .
- 3 . . . X . . . . . . . . . . @ . . . .
+ 4 . . X @ . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . O . . .
  2 . . . . . . . . . . . . . . . . . . .
  1 X . . . . . . . . . . . . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Time taken: ###
+Root visits: 100
+New playouts: 100
+NN rows: 98
+NN batches: 98
+NN avg batch size: 1
+PlayoutDoublingAdvantage: 1
+PV: R15 R16 Q15 O16 Q16 R17
+Tree:
+: T  -0.23c W   0.32c S  -0.55c ( -0.7 L  -0.8) N     100  --  R15 R16 Q15 O16 Q16 R17
+---White(^)---
+R15 : T   1.43c W   1.72c S  -0.30c ( -0.3 L  -0.4) LCB   -1.69c P 20.29% WF 14.91% PSV      32 N      32  --  R15 R16 Q15 O16 Q16 R17
+Q16 : T  -2.61c W  -1.81c S  -0.80c ( -1.0 L  -1.1) LCB  -10.10c P 18.14% WF 13.77% PSV      17 N      17  --  Q16 R16 P17 R17 D4 D3
+D4  : T  -1.81c W  -1.02c S  -0.79c ( -1.0 L  -1.3) LCB   -6.28c P 15.43% WF 13.99% PSV      16 N      16  --  D4 D3 C5 C3 R15 R5
+Q5  : T  -0.01c W   0.65c S  -0.66c ( -0.8 L  -0.8) LCB   -4.81c P 12.95% WF 14.45% PSV      16 N      16  --  Q5 Q15 E3 D3 E4 D6
+Q15 : T   0.90c W   1.29c S  -0.38c ( -0.4 L  -0.5) LCB   -7.21c P  7.82% WF 14.66% PSV      11 N      11  --  Q15 E4 R17 R18
+E3  : T  -1.11c W  -0.42c S  -0.69c ( -0.9 L  -0.9) LCB  -34.31c P  4.90% WF 14.22% PSV       5 N       5  --  E3 Q15 D5
+C17 : T  -2.70c W  -1.76c S  -0.95c ( -1.3 L  -1.3) LCB -280.00c P  2.85% WF 14.01% PSV       2 N       2  --  C17 C16
+MoveNum: 4 HASH: 4BD5CB9064D24D2BD198D4190B5BA693
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . X . . .
+16 . . . X . . . . . . . . . . . @ . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . X O2. . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . O . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 X1. X3. . . . . . . . . . . . . . . .
 
 koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
@@ -118,67 +157,26 @@ New playouts: 100
 NN rows: 97
 NN batches: 97
 NN avg batch size: 1
-PlayoutDoublingAdvantage: 1
-PV: P3 Q3 P4 Q6 R5
-Tree:
-: T  -0.20c W   0.29c S  -0.49c ( -0.6 L  -0.8) N     100  --  P3 Q3 P4 Q6 R5
----White(^)---
-P3  : T   2.10c W   2.22c S  -0.13c ( -0.1 L  -0.3) LCB   -0.68c P 14.91% WF 13.15% PSV      66 N      27  --  P3 Q3 P4 Q6 R5
-Q4  : T  -3.24c W  -2.40c S  -0.85c ( -1.1 L  -1.4) LCB   -9.92c P 21.64% WF 11.84% PSV      19 N      19  --  Q4 Q3 R5 R3 Q5 O3
-P16 : T   0.57c W   1.08c S  -0.51c ( -0.6 L  -0.7) LCB   -3.68c P 13.96% WF 12.74% PSV      19 N      19  --  P16 P4 C5 C4 D5 F4
-D4  : T  -3.06c W  -2.17c S  -0.89c ( -1.2 L  -1.4) LCB   -9.55c P 12.15% WF 11.97% PSV      11 N      11  --  D4 C4 C5 C3 Q4 Q3
-C5  : T  -0.12c W   0.41c S  -0.53c ( -0.7 L  -0.8) LCB   -8.13c P  8.20% WF 12.57% PSV      10 N      10  --  C5 P4 E4 E3 F4
-P4  : T   0.47c W   0.84c S  -0.37c ( -0.4 L  -0.5) LCB  -25.62c P  5.00% WF 12.67% PSV       6 N       6  --  P4 D5 R3 S3
-C17 : T   0.19c W   0.67c S  -0.48c ( -0.6 L  -0.7) LCB  -37.17c P  3.85% WF 12.62% PSV       5 N       5  --  C17 C16 D17 E16
-Q3  : T  -1.06c W  -0.52c S  -0.55c ( -0.7 L  -1.2) LCB -280.00c P  2.40% WF 12.43% PSV       2 N       2  --  Q3 R3
-MoveNum: 4 HASH: D27ED7A3ADEA93E6137E228672EDEDEC
-   A B C D E F G H J K L M N O P Q R S T
-19 . . . . . . . . . . . . . . . . . . .
-18 . . . . . . . . . . . . . . . . . . .
-17 . . . . . . . . . . . . . . . . . . .
-16 . . . X . . . . . . . . . . . . O . .
-15 . . . . . . . . . . . . . . . . . . .
-14 . . . . . . . . . . . . . . . . . . .
-13 . . . . . . . . . . . . . . . . . . .
-12 . . . . . . . . . . . . . . . . . . .
-11 . . . . . . . . . . . . . . . . . . .
-10 . . . . . . . . . . . . . . . . . . .
- 9 . . . . . . . . . . . . . . . . . . .
- 8 . . . . . . . . . . . . . . . . . . .
- 7 . . . . . . . . . . . . . . . . . . .
- 6 . . . . . . . . . . . . . . . . . . .
- 5 . . . . . . . . . . . . . . . @ . . .
- 4 . . . . . . . . . . . . . . . . X . .
- 3 . . . X . . . . . . . . . . O2. . . .
- 2 . . . . . . . . . . . . . . . . . . .
- 1 X1. X3. . . . . . . . . . . . . . . .
-
-koPOSITIONALscoreAREAtaxNONEsui1komi7.5
-Time taken: ###
-Root visits: 100
-New playouts: 100
-NN rows: 100
-NN batches: 100
-NN avg batch size: 1
 PlayoutDoublingAdvantage: 0.875
-PV: Q5 R5 Q6 R7 P16 Q7 C17 C16 D17
+PV: Q16 R16 P17 R17 C5 C3 D5
 Tree:
-: T  33.11c W  30.55c S   2.56c ( +7.5 L  +7.3) N     100  --  Q5 R5 Q6 R7 P16 Q7 C17
+: T  27.96c W  26.55c S   1.41c ( +6.7 L  +6.4) N     100  --  Q16 R16 P17 R17 C5 C3 D5
 ---White(^)---
-Q5  : T  34.54c W  31.78c S   2.75c ( +7.8 L  +7.6) LCB   26.45c P 29.46% WF 13.22% PSV      47 N      47  --  Q5 R5 Q6 R7 P16 Q7 C17 C16
-P16 : T  33.15c W  30.66c S   2.49c ( +7.4 L  +7.3) LCB   25.16c P 26.73% WF 12.80% PSV      33 N      33  --  P16 Q3 P4 R6 L4 O17 P17
-C17 : T  29.35c W  27.02c S   2.33c ( +7.2 L  +6.8) LCB  -13.64c P  8.14% WF 12.12% PSV       6 N       6  --  C17 C16 D17
-D4  : T  29.34c W  27.49c S   1.84c ( +6.5 L  +5.8) LCB -246.58c P  4.28% WF 12.19% PSV       3 N       4  --  D4 E4 D5
-C5  : T  32.72c W  30.10c S   2.62c ( +7.6 L  +6.7) LCB  -56.35c P  2.74% WF 12.74% PSV       3 N       3  --  C5 P17 E4
-R3  : T  29.09c W  26.87c S   2.21c ( +7.0 L  +6.7) LCB -280.00c P  2.84% WF 12.25% PSV       2 N       2  --  R3 S3
-R7  : T  31.15c W  28.61c S   2.54c ( +7.5 L  +7.0) LCB -280.00c P  2.70% WF 12.54% PSV       2 N       2  --  R7 Q5
-R6  : T  28.18c W  26.14c S   2.03c ( +6.8 L  +6.2) LCB -280.00c P  2.03% WF 12.13% PSV       1 N       2  --  R6 Q5
-MoveNum: 6 HASH: 5905DB49C2781D30069144878FEDCDBE
+Q16 : T  30.89c W  29.02c S   1.87c ( +7.4 L  +7.0) LCB   21.06c P 16.19% WF 11.87% PSV      53 N      28  --  Q16 R16 P17 R17 C5 C3 D5
+C5  : T  26.24c W  25.19c S   1.04c ( +6.2 L  +6.0) LCB   16.15c P 32.37% WF 10.80% PSV      29 N      29  --  C5 C3 D5 E3 R15 R5 P16
+C3  : T  26.62c W  25.15c S   1.47c ( +6.8 L  +6.3) LCB   10.46c P 19.65% WF 10.91% PSV      18 N      19  --  C3 B3 C5 B4 D6
+R15 : T  24.03c W  23.26c S   0.77c ( +5.8 L  +5.3) LCB  -28.77c P 10.45% WF 10.55% PSV       7 N       7  --  R15 D5 C3 D3
+R16 : T  32.34c W  30.29c S   2.05c ( +7.7 L  +7.2) LCB  -31.17c P  2.34% WF 11.88% PSV       5 N       6  --  R16 R17 C5
+C17 : T  27.43c W  26.21c S   1.22c ( +6.4 L  +6.0) LCB -248.69c P  4.40% WF 11.11% PSV       4 N       4  --  C17 D5 C16 D15
+Q5  : T  25.76c W  25.14c S   0.62c ( +5.5 L  +5.2) LCB -280.00c P  2.47% WF 10.92% PSV       2 N       2  --  Q5 D5
+D5  : T  28.98c W  27.54c S   1.44c ( +6.8 L  +6.2) LCB -280.00c P  2.18% WF 11.31% PSV       2 N       2  --  D5 C3
+Q15 : T  23.37c W  22.81c S   0.56c ( +5.5 L  +5.0) LCB -280.00c P  1.97% WF 10.64% PSV       1 N       2  --  Q15 D5
+MoveNum: 6 HASH: 03C4FC955CCD4BEF4114DBD3652C63E3
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
-17 . . . . . . . . . . . . . . . . . . .
-16 . . . X . . . . . . . . . . . . O . .
+17 . . . . . . . . . . . . . . . X @ . .
+16 . . . X . . . . . . . . . . . O2. . .
 15 . . . . . . . . . . . . . . . . . . .
 14 . . . . . . . . . . . . . . . . . . .
 13 . . . . . . . . . . . . . . . . . . .
@@ -189,9 +187,9 @@ MoveNum: 6 HASH: 5905DB49C2781D30069144878FEDCDBE
  8 . . . . . . . . . . . . . . . . . . .
  7 . . . . . . . . . . . . . . . . . . .
  6 . . . . . . . . . . . . . . . . . . .
- 5 . . . . . . . . . . . . . . . O2@ . .
- 4 . . . . . . . . . . . . . . . . X . .
- 3 . . . X . . . . . . . . . . O . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . X O . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . O . . .
  2 . . . . . . . . . . . . . . . . . . .
  1 X X3X1. . . . . . . . . . . . . . . .
 
@@ -203,13 +201,16 @@ NN rows: 97
 NN batches: 97
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 0.75
-PV: R5 P17 Q17 P16 Q15 P15 Q14 P14
+PV: R17 P17 R16 D5 M17 P16 Q14 P14
 Tree:
-: T  79.67c W  73.82c S   5.85c (+21.8 L +21.9) N     100  --  R5 P17 Q17 P16 Q15 P15 Q14
+: T  68.73c W  65.00c S   3.73c (+18.4 L +18.4) N     100  --  R17 P17 R16 D5 M17 P16 Q14
 ---White(^)---
-R5  : T  79.87c W  73.98c S   5.89c (+21.8 L +22.0) LCB   78.08c P 88.00% WF 52.59% PSV      98 N      98  --  R5 P17 Q17 P16 Q15 P15 Q14 P14
-C17 : T  69.07c W  66.18c S   2.89c (+17.3 L +16.1) LCB -280.00c P  2.02% WF 47.41% PSV       1 N       1  --  C17
-MoveNum: 1 HASH: E438EA007391E7E2375DB017412B67BA
+R17 : T  69.34c W  65.74c S   3.60c (+18.2 L +18.1) LCB   62.80c P 36.73% WF 20.56% PSV      43 N      43  --  R17 P17 R16 D5 M17 P16 Q14 P14
+P17 : T  69.10c W  65.17c S   3.93c (+18.7 L +18.7) LCB   62.06c P 22.91% WF 20.43% PSV      25 N      25  --  P17 R17 P16 R16 C5 D5
+C5  : T  67.41c W  63.59c S   3.82c (+18.5 L +18.8) LCB   55.20c P 21.84% WF 19.76% PSV      21 N      21  --  C5 D5 C3 B4 B3 B5 E3
+R16 : T  71.28c W  67.41c S   3.87c (+18.5 L +18.5) LCB   37.13c P  5.19% WF 21.03% PSV       7 N       7  --  R16 D5 P17 R5 R4
+C3  : T  60.13c W  57.50c S   2.63c (+16.7 L +17.2) LCB -746.25c P  6.71% WF 18.22% PSV       3 N       3  --  C3 C5 B3
+MoveNum: 1 HASH: 1AF8E45BE7BCD0CF2B21050C98540B8D
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -249,7 +250,7 @@ C15 : T  49.90c W  46.97c S   2.93c (+12.9 L +13.3) LCB   32.48c P 10.75% WF 16.
 E3  : T  51.81c W  48.68c S   3.13c (+13.2 L +13.5) LCB   38.92c P  5.95% WF 17.38% PSV      10 N      10  --  E3 C15 C16 D15 F17 R17
 R3  : T  46.06c W  43.24c S   2.82c (+12.8 L +13.1) LCB  -39.53c P  6.98% WF 15.94% PSV       6 N       6  --  R3 D4 D3 E3
 C14 : T  50.79c W  47.64c S   3.15c (+13.3 L +13.5) LCB   33.11c P  3.72% WF 17.03% PSV       5 N       5  --  C14 E3 D3 E4
-MoveNum: 1 HASH: A740AFE552ECED2B189F1F197F8D0FB0
+MoveNum: 1 HASH: 29B4CBD3782FFC0779C046875E5F2DAE
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -259,8 +260,8 @@ MoveNum: 1 HASH: A740AFE552ECED2B189F1F197F8D0FB0
  8 . . . . . . . . . . . . .
  7 . . . . . . . . . . . . .
  6 . . . . . . . . . . . . .
- 5 . . . . . . . . . . . . .
- 4 . . . X . . . . . O @ . .
+ 5 . . . . . . . . . @ . . .
+ 4 . . . X . . . . . O . . .
  3 . . . . . . . . . . . . .
  2 . . . . . . . . . . . . .
  1 . . . . . . . . . . . . .
@@ -287,7 +288,7 @@ K3  : T  66.52c W  63.99c S   2.53c ( +9.8 L +10.1) LCB  -36.73c P  4.02% WF  4.
 L6  : T  68.12c W  65.16c S   2.96c (+10.3 L +10.6) LCB  -11.83c P  2.85% WF  4.43% PSV       5 N       5  --  L6 F3 D7
 D7  : T  60.57c W  59.59c S   0.98c ( +8.4 L  +9.2) LCB  -51.43c P  5.69% WF  4.01% PSV       4 N       4  --  D7 D11 C11
 G10 : T  61.30c W  59.51c S   1.79c ( +9.1 L  +9.7) LCB -155.48c P  4.46% WF  4.05% PSV       3 N       4  --  G10 C6 F3
-MoveNum: 2 HASH: 882B03D22CFBA11DCBE488CA409ECCF2
+MoveNum: 2 HASH: 952E47D2E85DBDA87BA99675379189CA
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -297,8 +298,8 @@ MoveNum: 2 HASH: 882B03D22CFBA11DCBE488CA409ECCF2
  8 . . . . . . . . . . . . .
  7 . . . . . . . . . . . . .
  6 . . . . . . . . . . . . .
- 5 . . . . . . . . . . @ . .
- 4 . . . X . . . . . O X . .
+ 5 . . . . . . . . . X . . .
+ 4 . . . X . . . . . O @ . .
  3 . . . . . . . . . . . . .
  2 . . . . . . . . . . . . .
  1 . . . . . . . . . . . . .
@@ -307,19 +308,19 @@ koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
 New playouts: 100
-NN rows: 88
-NN batches: 88
+NN rows: 80
+NN batches: 80
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 2.125
-PV: L5 L3 K5 J2 H11 L8 H3 J3
+PV: L4 J4 J5 L5 H5 J3 M5
 Tree:
-: T -75.99c W -71.06c S  -4.93c (-11.7 L -11.7) N     100  --  L5 L3 K5 J2 H11 L8 H3
+: T -68.17c W -64.87c S  -3.31c ( -9.7 L -10.2) N     100  --  L4 J4 J5 L5 H5 J3 M5
 ---White(^)---
-L5  : T -74.85c W -69.95c S  -4.90c (-11.8 L -11.6) LCB  -81.52c P 41.26% WF 26.11% PSV      58 N      58  --  L5 L3 K5 J2 H11 L8 H3 J3
-L3  : T -78.92c W -73.77c S  -5.15c (-11.8 L -12.1) LCB  -89.28c P 32.11% WF 23.85% PSV      28 N      28  --  L3 L5 M3 K5 J4 J5 H4 H5
-K5  : T -75.00c W -70.44c S  -4.56c (-11.4 L -11.2) LCB -102.29c P 10.16% WF 25.78% PSV      11 N      11  --  K5 L5 L3 L6
-K3  : T -80.04c W -74.31c S  -5.73c (-12.4 L -12.7) LCB -280.00c P  3.71% WF 24.25% PSV       2 N       2  --  K3 L5
-MoveNum: 3 HASH: AB8038BF9DCC5B2733ACAB86E6E9FE6D
+L4  : T -66.22c W -63.23c S  -2.99c ( -9.4 L -10.0) LCB  -71.99c P 34.42% WF 27.77% PSV      74 N      49  --  L4 J4 J5 L5 H5 J3 M5
+L5  : T -68.26c W -65.00c S  -3.26c ( -9.7 L -10.1) LCB  -76.13c P 35.56% WF 26.48% PSV      39 N      39  --  L5 J4 K3 L6 K6 J5 L7 M6
+J4  : T -75.11c W -70.50c S  -4.60c (-10.9 L -11.2) LCB -122.82c P 12.52% WF 23.84% PSV       7 N       7  --  J4 L4 L3 L5 M3
+J5  : T -81.98c W -76.08c S  -5.91c (-12.3 L -12.4) LCB -257.88c P 10.26% WF 21.91% PSV       4 N       4  --  J5 L4 L3 L5
+MoveNum: 3 HASH: 631C64617B2072307DD8F2E6E41A3D6C
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -329,9 +330,9 @@ MoveNum: 3 HASH: AB8038BF9DCC5B2733ACAB86E6E9FE6D
  8 . . . . . . . . . . . . .
  7 . . . . . . . . . . . . .
  6 . . . . . . . . . . . . .
- 5 . . . . . . . . . . O3. .
- 4 . . . X . . . . . O1X2. .
- 3 . . . . . . . . . . @ . .
+ 5 . . . . . . . . . X2. . .
+ 4 . . . X . . . . @ O1O3. .
+ 3 . . . . . . . . . . . . .
  2 . . . . . . . . . . . . .
  1 . . . . . . . . . . . . .
 
@@ -339,15 +340,21 @@ koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
 New playouts: 100
-NN rows: 43
-NN batches: 43
+NN rows: 48
+NN batches: 48
 NN avg batch size: 1
 PlayoutDoublingAdvantage: -2.125
-PV: L3 K5 J2 H11 L8 H3 J3 H4 H2
+PV: J4 J5 J3 H5 L5 M5 M6 M4
 Tree:
-: T  74.82c W  69.48c S   5.34c (+11.7 L +11.5) N     100  --  L3 K5 J2 H11 L8 H3 J3
+: T  66.14c W  62.75c S   3.38c ( +9.5 L  +9.9) N     100  --  J4 J5 J3 H5 L5 M5 M6
 ---Black(^)---
-L3  : T  75.90c W  70.33c S   5.57c (+11.9 L +11.7) LCB   71.26c P 78.46% WF 28.53% PSV      92 N      92  --  L3 K5 J2 H11 L8 H3 J3 H4
-K3  : T  57.06c W  55.38c S   1.68c ( +8.0 L  +8.5) LCB  -61.59c P 13.65% WF 21.21% PSV       4 N       5  --  K3 L3 M4 M3
-K5  : T  61.89c W  59.27c S   2.62c ( +8.9 L  +8.7) LCB -280.00c P  3.66% WF 24.45% PSV       1 N       1  --  K5
-M5  : T  67.41c W  63.09c S   4.32c (+10.8 L +10.4) LCB -280.00c P  2.09% WF 25.81% PSV       1 N       1  --  M5
+J4  : T  68.47c W  64.39c S   4.08c (+10.2 L +10.3) LCB   61.23c P 22.88% WF  9.21% PSV      46 N      46  --  J4 J5 J3 H5 L5 M5 M6 M4
+J5  : T  64.97c W  62.06c S   2.91c ( +9.0 L  +9.9) LCB   53.62c P 21.56% WF  8.53% PSV      25 N      26  --  J5 H3 G4 H4 H5 D11 C11 E11
+H5  : T  66.02c W  62.96c S   3.06c ( +9.1 L +10.1) LCB   43.13c P  8.92% WF  8.71% PSV      12 N      12  --  H5 H3 L5 C6 J4
+F3  : T  62.09c W  59.53c S   2.56c ( +8.6 L  +9.4) LCB  -87.35c P  4.52% WF  8.31% PSV       3 N       3  --  F3 H11
+D7  : T  58.37c W  57.45c S   0.92c ( +7.2 L  +8.1) LCB -1032.14c P  4.58% WF  7.93% PSV       2 N       3  --  D7 J5
+L5  : T  62.74c W  59.92c S   2.82c ( +8.9 L  +9.1) LCB -469.41c P  2.94% WF  8.37% PSV       2 N       3  --  L5 J5 J6
+G10 : T  56.92c W  54.67c S   2.25c ( +8.4 L  +8.7) LCB -280.00c P  2.77% WF  8.00% PSV       1 N       1  --  G10
+E11 : T  59.43c W  57.28c S   2.15c ( +8.3 L  +8.8) LCB -280.00c P  2.38% WF  8.20% PSV       1 N       1  --  E11
+C11 : T  58.46c W  56.58c S   1.88c ( +8.0 L  +8.4) LCB -280.00c P  2.36% WF  8.12% PSV       1 N       1  --  C11
+C7  : T  59.20c W  56.71c S   2.49c ( +8.6 L  +8.8) LCB -280.00c P  1.99% WF  8.18% PSV       1 N       1  --  C7
