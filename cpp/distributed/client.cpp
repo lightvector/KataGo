@@ -268,7 +268,7 @@ httplib::Result Connection::post(const string& subPath, const string& data, cons
 
 httplib::Result Connection::postMulti(const string& subPath, const httplib::MultipartFormDataItems& data) {
   string queryPath = concatPaths(baseResourcePath,subPath);
-  string boundary = Global::uint64ToString(rand.nextUInt64()) + Global::uint64ToString(rand.nextUInt64());
+  string boundary = "___" + Global::uint64ToHexString(rand.nextUInt64()) + Global::uint64ToHexString(rand.nextUInt64()) + Global::uint64ToHexString(rand.nextUInt64());
 
   std::lock_guard<std::mutex> lock(mutex);
   if(isSSL) {
