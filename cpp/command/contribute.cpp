@@ -167,7 +167,14 @@ static void runAndUploadSingleGame(
           //It's possible we'll have zero data if the game started in a nearly finished position and cheap search never
           //gave us a real turn of search, in which case just ignore that game.
           if(producedFile) {
-            bool suc = connection->uploadTrainingGameAndData(gameTask.task,gameData,sgfFile,resultingFilename,numDataRows,retryOnFailure,shouldStop);
+            bool suc = false;
+            try {
+              suc = connection->uploadTrainingGameAndData(gameTask.task,gameData,sgfFile,resultingFilename,numDataRows,retryOnFailure,shouldStop);
+            }
+            catch(StringError& e) {
+              logger.write(string("Giving up uploading training game and data due to error:\n") + e.what());
+              suc = false;
+            }
             if(suc)
               logger.write(
                 "Finished game " + Global::int64ToString(gameIdx)  + " (training), uploaded sgf " + sgfFile + " and training data " + resultingFilename
@@ -180,7 +187,14 @@ static void runAndUploadSingleGame(
         });
     }
     else {
-      bool suc = connection->uploadRatingGame(gameTask.task,gameData,sgfFile,retryOnFailure,shouldStop);
+      bool suc = false;
+      try {
+        suc = connection->uploadRatingGame(gameTask.task,gameData,sgfFile,retryOnFailure,shouldStop);
+      }
+      catch(StringError& e) {
+        logger.write(string("Giving up uploading rating game due to error:\n") + e.what());
+        suc = false;
+      }
       if(suc)
         logger.write("Finished game " + Global::int64ToString(gameIdx) + " (rating), uploaded sgf " + sgfFile);
     }
@@ -487,12 +501,23 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       MakeDir::make(sgfOutputDir);
     }
 
-    bool suc1 = connection->downloadModelIfNotPresent(task.modelBlack,modelsDir,retryOnFailure,shouldStop);
-    bool suc2 = connection->downloadModelIfNotPresent(task.modelWhite,modelsDir,retryOnFailure,shouldStop);
-    if(shouldStop.load())
-      break;
-    if(!suc1 || !suc2)
-      continue;
+    {
+      bool suc1;
+      bool suc2;
+      try {
+        suc1 = connection->downloadModelIfNotPresent(task.modelBlack,modelsDir,shouldStop);
+        suc2 = connection->downloadModelIfNotPresent(task.modelWhite,modelsDir,shouldStop);
+      }
+      catch(StringError& e) {
+        logger.write(string("Giving up on task due to downloading model error:\n") + e.what());
+        suc1 = false;
+        suc2 = false;
+      }
+      if(shouldStop.load())
+        break;
+      if(!suc1 || !suc2)
+        continue;
+    }
 
     //Update model file modified times as a way to track which ones we've used recently or not
     string modelFileBlack = Client::Connection::getModelPath(task.modelBlack,modelsDir);

@@ -70,10 +70,11 @@ namespace Client {
 
     //Returns true if a model was downloaded or download was not necessary.
     //Returns false if a model count not be downloaded, but not due to an error (e.g. shouldStop).
-    //Raises an exception upon a repeated error that persists long enough.
+    //Raises an exception upon a repeated error that persists long enough, or if the connection to the
+    //server is working but somehow there is a mismatch on file length or hash or other model integrity
     bool downloadModelIfNotPresent(
       const Client::ModelInfo& modelInfo, const std::string& modelDir,
-      bool retryOnFailure, std::atomic<bool>& shouldStop
+      std::atomic<bool>& shouldStop
     );
 
     //Returns true if data was uploaded or upload was not needed.
@@ -94,7 +95,7 @@ namespace Client {
     httplib::Result postMulti(const std::string& subPath, const httplib::MultipartFormDataItems& data);
 
     std::string getTmpModelPath(const Client::ModelInfo& modelInfo, const std::string& modelDir);
-    bool retryLoop(const char* errorLabel, bool retryOnFailure, std::atomic<bool>& shouldStop, std::function<void(bool&)> f);
+    bool retryLoop(const char* errorLabel, int maxTries, std::atomic<bool>& shouldStop, std::function<void(bool&)> f);
 
     httplib::Client* httpClient;
     httplib::SSLClient* httpsClient;

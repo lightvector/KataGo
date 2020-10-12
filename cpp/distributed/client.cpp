@@ -128,16 +128,21 @@ struct Url {
   }
 };
 
-static httplib::Result oneShotDownload(Logger* logger, const Url& url, const string& caCertsFile, std::function<bool(const char *data, size_t data_length)> f) {
+static httplib::Result oneShotDownload(Logger* logger, const Url& url, const string& caCertsFile, size_t startByte, size_t endByte, std::function<bool(const char *data, size_t data_length)> f) {
+  httplib::Headers headers;
+  if(startByte > 0) {
+    headers.insert(std::make_pair("Range", Global::uint64ToString(startByte) + "-" + Global::uint64ToString(endByte)));
+  }
+
   if(!url.isSSL) {
     std::unique_ptr<httplib::Client> httpClient = std::unique_ptr<httplib::Client>(new httplib::Client(url.host, url.port));
-    return httpClient->Get(url.path.c_str(),f);
+    return httpClient->Get(url.path.c_str(),headers,f);
   }
   else {
     std::unique_ptr<httplib::SSLClient> httpsClient = std::unique_ptr<httplib::SSLClient>(new httplib::SSLClient(url.host, url.port));
     httpsClient->set_ca_cert_path(caCertsFile.c_str());
     httpsClient->enable_server_certificate_verification(true);
-    httplib::Result response = httpsClient->Get(url.path.c_str(),f);
+    httplib::Result response = httpsClient->Get(url.path.c_str(),headers,f);
     if(response == nullptr) {
       auto result = httpsClient->get_openssl_verify_result();
       if(result) {
@@ -396,12 +401,13 @@ RunParameters Connection::getRunParameters() {
   }
 }
 
-bool Connection::retryLoop(const char* errorLabel, bool retryOnFailure, std::atomic<bool>& shouldStop, std::function<void(bool&)> f) {
+static constexpr int DEFAULT_MAX_TRIES = 100;
+
+bool Connection::retryLoop(const char* errorLabel, int maxTries, std::atomic<bool>& shouldStop, std::function<void(bool&)> f) {
   if(shouldStop.load())
     return false;
   double stopPollFrequency = 2.0;
   const double initialFailureInterval = 5.0;
-  const int maxTries = retryOnFailure ? 100 : 1;
 
   double failureInterval = initialFailureInterval;
   for(int i = 0; i<maxTries; i++) {
@@ -553,7 +559,7 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
       throw StringError(string("Error parsing task config from server: ") + e.what() + "\nConfig was:\n" + task.config);
     }
   };
-  return retryLoop("getNextTask",retryOnFailure,shouldStop,f);
+  return retryLoop("getNextTask",(retryOnFailure ? DEFAULT_MAX_TRIES : 1),shouldStop,f);
 }
 
 //STATIC method
@@ -575,7 +581,7 @@ string Connection::getTmpModelPath(const Client::ModelInfo& modelInfo, const str
 
 bool Connection::downloadModelIfNotPresent(
   const Client::ModelInfo& modelInfo, const string& modelDir,
-  bool retryOnFailure, std::atomic<bool>& shouldStop
+  std::atomic<bool>& shouldStop
 ) {
   if(modelInfo.isRandom)
     return true;
@@ -594,10 +600,10 @@ bool Connection::downloadModelIfNotPresent(
     throw StringError(string("Could not parse URL to download model: ") + e.what());
   }
 
-  auto f = [&](bool& partialSuccessOuterLoop) {
+  auto fOuter = [&](bool& partialSuccessOuterLoop) {
     (void)partialSuccessOuterLoop;
 
-    string tmpPath = getTmpModelPath(modelInfo,modelDir);
+    const string tmpPath = getTmpModelPath(modelInfo,modelDir);
     ofstream out(tmpPath,ios::binary);
 
     ClockTimer timer;
@@ -605,30 +611,46 @@ bool Connection::downloadModelIfNotPresent(
 
     size_t totalDataSize = 0;
 
-    httplib::Result response = oneShotDownload(
-      logger, url, caCertsFile, [&out,&totalDataSize,&shouldStop,this,&timer,&lastTime,&url,&modelInfo](const char* data, size_t data_length) {
-        out.write(data, data_length);
-        totalDataSize += data_length;
-        double nowTime = timer.getSeconds();
-        if(nowTime > lastTime + 1.0) {
-          lastTime = nowTime;
-          logger->write(string("Downloaded ") + Global::uint64ToString(totalDataSize) + " / " + Global::uint64ToString(modelInfo.bytes) + " bytes for model: " + url.originalString);
+    auto fInner = [&](bool& partialSuccessInnerLoop) {
+      const size_t oldTotalDataSize = totalDataSize;
+      httplib::Result response = oneShotDownload(
+        logger, url, caCertsFile, oldTotalDataSize, modelInfo.bytes,
+        [&out,&totalDataSize,&shouldStop,this,&timer,&lastTime,&url,&modelInfo](const char* data, size_t data_length) {
+          out.write(data, data_length);
+          totalDataSize += data_length;
+          double nowTime = timer.getSeconds();
+          if(nowTime > lastTime + 1.0) {
+            lastTime = nowTime;
+            logger->write(string("Downloaded ") + Global::uint64ToString(totalDataSize) + " / " + Global::uint64ToString(modelInfo.bytes) + " bytes for model: " + url.originalString);
+          }
+          return !shouldStop.load();
         }
-        return !shouldStop.load();
+      );
+      if(shouldStop.load())
+        throw StringError("Stopping because shouldStop is true");
+
+      if(totalDataSize > oldTotalDataSize)
+        partialSuccessInnerLoop = true;
+
+      if(response == nullptr)
+        throw StringError("No response from server");
+      if(response->status != 200 && response->status != 206) {
+        ostringstream outs;
+        debugPrintResponse(outs,response);
+        throw StringError("Server gave response that was not status code 200 OK or 206 Partial Content\n" + outs.str());
       }
-    );
+
+      if(totalDataSize != modelInfo.bytes)
+        throw StringError(
+          "Model file was incompletely downloaded, only got " + Global::int64ToString(totalDataSize) +
+          " bytes out of " + Global::int64ToString(modelInfo.bytes)
+        );
+    };
+    retryLoop("downloadModel",DEFAULT_MAX_TRIES,shouldStop,fInner);
     out.close();
 
     if(shouldStop.load())
       throw StringError("Stopping because shouldStop is true");
-
-    if(response == nullptr)
-      throw StringError("No response from server");
-    if(response->status != 200) {
-      ostringstream outs;
-      debugPrintResponse(outs,response);
-      throw StringError("Server gave response that was not status code 200 OK\n" + outs.str());
-    }
 
     if(totalDataSize != modelInfo.bytes)
       throw StringError(
@@ -658,7 +680,8 @@ bool Connection::downloadModelIfNotPresent(
 
     logger->write(string("Done downloading ") + Global::uint64ToString(totalDataSize) + " bytes for model: " + url.originalString);
   };
-  return retryLoop("downloadModelIfNotPresent",retryOnFailure,shouldStop,f);
+  const int maxTries = 2;
+  return retryLoop("downloadModelIfNotPresent",maxTries,shouldStop,fOuter);
 }
 
 bool Connection::uploadTrainingGameAndData(
@@ -750,7 +773,7 @@ bool Connection::uploadTrainingGameAndData(
       throw StringError("Server gave response that was not status code 200 OK or 201 Created or 202 Accepted\n" + outs.str());
     }
   };
-  return retryLoop("uploadTrainingGameAndData",retryOnFailure,shouldStop,f);
+  return retryLoop("uploadTrainingGameAndData",(retryOnFailure ? DEFAULT_MAX_TRIES : 1),shouldStop,f);
 }
 
 bool Connection::uploadRatingGame(
@@ -817,7 +840,7 @@ bool Connection::uploadRatingGame(
       throw StringError("Server gave response that was not status code 200 OK or 201 Created or 202 Accepted\n" + outs.str());
     }
   };
-  return retryLoop("uploadRatingGame",retryOnFailure,shouldStop,f);
+  return retryLoop("uploadRatingGame",(retryOnFailure ? DEFAULT_MAX_TRIES : 1),shouldStop,f);
 }
 
 #endif //BUILD_DISTRIBUTED
