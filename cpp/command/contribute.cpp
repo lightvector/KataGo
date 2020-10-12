@@ -3,6 +3,7 @@
 #include "../core/datetime.h"
 #include "../core/timer.h"
 #include "../core/makedir.h"
+#include "../core/os.h"
 #include "../dataio/loadmodel.h"
 #include "../dataio/homedata.h"
 #include "../neuralnet/modelversion.h"
@@ -262,13 +263,33 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
   if(caCertsFile == "") {
     vector<string> defaultFilesDirs = HomeData::getDefaultFilesDirs();
+    vector<string> cacertSearchDirs = defaultFilesDirs;
+
+    //Also look for some system locations
+#ifdef OS_IS_UNIX_OR_APPLE
+    cacertSearchDirs.push_back("/etc/ssl");
+    cacertSearchDirs.push_back("/etc/ssl/certs");
+    cacertSearchDirs.push_back("/etc/pki/ca-trust/extracted/pem");
+    cacertSearchDirs.push_back("/etc/pki/tls");
+    cacertSearchDirs.push_back("/etc/pki/tls/certs");
+    cacertSearchDirs.push_back("/etc/certs");
+#endif
+
     vector<string> possiblePaths;
-    for(const string& dir: defaultFilesDirs) {
-      possiblePaths.push_back(dir + "/" + "cacert.pem");
-      possiblePaths.push_back(dir + "/" + "cacert.crt");
-      possiblePaths.push_back(dir + "/" + "ca-bundle.pem");
-      possiblePaths.push_back(dir + "/" + "ca-bundle.crt");
+    for(const string& dir: cacertSearchDirs) {
+      possiblePaths.push_back(dir + "/cacert.pem");
+      possiblePaths.push_back(dir + "/cacert.crt");
+      possiblePaths.push_back(dir + "/ca-bundle.pem");
+      possiblePaths.push_back(dir + "/ca-bundle.crt");
+      possiblePaths.push_back(dir + "/ca-certificates.crt");
+      possiblePaths.push_back(dir + "/cert.pem");
+      possiblePaths.push_back(dir + "/tls-ca-bundle.pem");
     }
+    //In case someone's trying to run katago right out of the compiled github repo
+    for(const string& dir: defaultFilesDirs) {
+      possiblePaths.push_back(dir + "/external/mozilla-cacerts/cacert.pem");
+    }
+
     bool foundCaCerts = false;
     for(const string& path: possiblePaths) {
       std::ifstream infile(path);
@@ -283,7 +304,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       throw StringError(
         "Could not find CA certs (cacert.pem or ca-bundle.crt) at default location " +
         HomeData::getDefaultFilesDirForHelpMessage() +
-        ", specify where this file is via '-cacerts' command line argument and/or download them from https://curl.haxx.se/docs/caextract.html"
+        " or other default locations, please specify where this file is via '-cacerts' command " +
+        " line argument and/or download them from https://curl.haxx.se/docs/caextract.html"
       );
     }
   }
