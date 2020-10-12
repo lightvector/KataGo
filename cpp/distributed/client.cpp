@@ -15,6 +15,7 @@
 #include "../external/nlohmann_json/json.hpp"
 #include "../main.h"
 
+#include <cstring>
 #include <cmath>
 #include <fstream>
 #include <sstream>
@@ -561,10 +562,15 @@ string Connection::getModelPath(const Client::ModelInfo& modelInfo, const string
     return "/dev/null";
   return modelDir + "/" + modelInfo.name + ".bin.gz";
 }
-static string getTmpModelPath(const Client::ModelInfo& modelInfo, const string& modelDir) {
+string Connection::getTmpModelPath(const Client::ModelInfo& modelInfo, const string& modelDir) {
   if(modelInfo.isRandom)
     return "/dev/null";
-  return modelDir + "/" + modelInfo.name + ".tmp.bin.gz";
+  static const char* chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  uint32_t len = std::strlen(chars);
+  string randStr;
+  for(int i = 0; i<10; i++)
+    randStr += chars[rand.nextUInt(len)];
+  return modelDir + "/" + modelInfo.name + ".tmp." + randStr + ".bin.gz";
 }
 
 bool Connection::downloadModelIfNotPresent(
@@ -574,8 +580,7 @@ bool Connection::downloadModelIfNotPresent(
   if(modelInfo.isRandom)
     return true;
 
-  string path = getModelPath(modelInfo,modelDir);
-  string tmpPath = getTmpModelPath(modelInfo,modelDir);
+  const string path = getModelPath(modelInfo,modelDir);
 
   //Model already exists
   if(bfs::exists(bfs::path(path)))
@@ -591,6 +596,8 @@ bool Connection::downloadModelIfNotPresent(
 
   auto f = [&](bool& partialSuccessOuterLoop) {
     (void)partialSuccessOuterLoop;
+
+    string tmpPath = getTmpModelPath(modelInfo,modelDir);
     ofstream out(tmpPath,ios::binary);
 
     ClockTimer timer;

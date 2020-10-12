@@ -93,6 +93,7 @@ namespace Client {
     httplib::Result post(const std::string& subPath, const std::string& data, const std::string& dtype);
     httplib::Result postMulti(const std::string& subPath, const httplib::MultipartFormDataItems& data);
 
+    std::string getTmpModelPath(const Client::ModelInfo& modelInfo, const std::string& modelDir);
     bool retryLoop(const char* errorLabel, bool retryOnFailure, std::atomic<bool>& shouldStop, std::function<void(bool&)> f);
 
     httplib::Client* httpClient;
