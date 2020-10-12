@@ -395,24 +395,35 @@ RunParameters Connection::getRunParameters() {
   }
 }
 
-static bool retryLoop(const char* errorLabel, bool retryOnFailure, Logger* logger, std::atomic<bool>& shouldStop, std::function<void()> f) {
+bool Connection::retryLoop(const char* errorLabel, bool retryOnFailure, std::atomic<bool>& shouldStop, std::function<void(bool&)> f) {
   if(shouldStop.load())
     return false;
   double stopPollFrequency = 2.0;
-  double failureInterval = 5.0;
-  int maxTries = retryOnFailure ? 40 : 1;
+  const double initialFailureInterval = 5.0;
+  const int maxTries = retryOnFailure ? 100 : 1;
+
+  double failureInterval = initialFailureInterval;
   for(int i = 0; i<maxTries; i++) {
+    bool partialSuccess = false;
     try {
-      f();
+      f(partialSuccess);
     }
     catch(const StringError& e) {
+      if(shouldStop.load())
+        return false;
+
+      //Reset everything on partial success
+      if(partialSuccess) {
+        i = 0;
+        failureInterval = initialFailureInterval;
+      }
+
       if(i >= maxTries-1)
         throw;
-      logger->write(string(errorLabel) + ": Error connecting to server, possibly an internet blip, or possibly the server is down or temporarily misconfigured, waiting " + Global::doubleToString(failureInterval) + " seconds and trying again.");
+      logger->write(string(errorLabel) + ": Error connecting to server, possibly an internet blip, or possibly the server is down or temporarily misconfigured, waiting about " + Global::doubleToString(failureInterval) + " seconds and trying again.");
       logger->write(string("Error was:\n") + e.what());
 
-
-      double intervalRemaining = failureInterval;
+      double intervalRemaining = failureInterval * (0.95 + rand.nextDouble(0.1));
       while(intervalRemaining > 0.0) {
         double sleepTime = std::min(intervalRemaining, stopPollFrequency);
         if(shouldStop.load())
@@ -421,6 +432,9 @@ static bool retryLoop(const char* errorLabel, bool retryOnFailure, Logger* logge
         std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
       }
       failureInterval = round(failureInterval * 1.3 + 1.0);
+      //Cap at three hours
+      if(failureInterval > 10800)
+        failureInterval = 10800;
       continue;
     }
     if(i > 0)
@@ -444,7 +458,8 @@ static Client::ModelInfo parseModelInfo(const json& networkProperties) {
 bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFailure, bool allowRatingTask, int taskRepFactor, std::atomic<bool>& shouldStop) {
   (void)baseDir;
 
-  auto f = [&]() {
+  auto f = [&](bool& partialSuccess) {
+    (void)partialSuccess;
     json response;
 
     while(true) {
@@ -537,7 +552,7 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
       throw StringError(string("Error parsing task config from server: ") + e.what() + "\nConfig was:\n" + task.config);
     }
   };
-  return retryLoop("getNextTask",retryOnFailure,logger,shouldStop,f);
+  return retryLoop("getNextTask",retryOnFailure,shouldStop,f);
 }
 
 //STATIC method
@@ -574,12 +589,15 @@ bool Connection::downloadModelIfNotPresent(
     throw StringError(string("Could not parse URL to download model: ") + e.what());
   }
 
-  auto f = [&]() {
-    size_t totalDataSize = 0;
+  auto f = [&](bool& partialSuccessOuterLoop) {
+    (void)partialSuccessOuterLoop;
     ofstream out(tmpPath,ios::binary);
 
     ClockTimer timer;
     double lastTime = timer.getSeconds();
+
+    size_t totalDataSize = 0;
+
     httplib::Result response = oneShotDownload(
       logger, url, caCertsFile, [&out,&totalDataSize,&shouldStop,this,&timer,&lastTime,&url,&modelInfo](const char* data, size_t data_length) {
         out.write(data, data_length);
@@ -593,6 +611,9 @@ bool Connection::downloadModelIfNotPresent(
       }
     );
     out.close();
+
+    if(shouldStop.load())
+      throw StringError("Stopping because shouldStop is true");
 
     if(response == nullptr)
       throw StringError("No response from server");
@@ -630,7 +651,7 @@ bool Connection::downloadModelIfNotPresent(
 
     logger->write(string("Done downloading ") + Global::uint64ToString(totalDataSize) + " bytes for model: " + url.originalString);
   };
-  return retryLoop("downloadModelIfNotPresent",retryOnFailure,logger,shouldStop,f);
+  return retryLoop("downloadModelIfNotPresent",retryOnFailure,shouldStop,f);
 }
 
 bool Connection::uploadTrainingGameAndData(
@@ -649,7 +670,9 @@ bool Connection::uploadTrainingGameAndData(
   string npzContents((istreambuf_iterator<char>(npzIn)), istreambuf_iterator<char>());
   npzIn.close();
 
-  auto f = [&]() {
+  auto f = [&](bool& partialSuccess) {
+    (void)partialSuccess;
+
     int boardSizeX = gameData->startBoard.x_size;
     int boardSizeY = gameData->startBoard.y_size;
     int handicap = (gameData->numExtraBlack > 0 ? (gameData->numExtraBlack + 1) : 0);
@@ -720,7 +743,7 @@ bool Connection::uploadTrainingGameAndData(
       throw StringError("Server gave response that was not status code 200 OK or 201 Created or 202 Accepted\n" + outs.str());
     }
   };
-  return retryLoop("uploadTrainingGameAndData",retryOnFailure,logger,shouldStop,f);
+  return retryLoop("uploadTrainingGameAndData",retryOnFailure,shouldStop,f);
 }
 
 bool Connection::uploadRatingGame(
@@ -733,7 +756,9 @@ bool Connection::uploadRatingGame(
   string sgfContents((istreambuf_iterator<char>(sgfIn)), istreambuf_iterator<char>());
   sgfIn.close();
 
-  auto f = [&]() {
+  auto f = [&](bool& partialSuccess) {
+    (void)partialSuccess;
+
     int boardSizeX = gameData->startBoard.x_size;
     int boardSizeY = gameData->startBoard.y_size;
     int handicap = (gameData->numExtraBlack > 0 ? (gameData->numExtraBlack + 1) : 0);
@@ -785,7 +810,7 @@ bool Connection::uploadRatingGame(
       throw StringError("Server gave response that was not status code 200 OK or 201 Created or 202 Accepted\n" + outs.str());
     }
   };
-  return retryLoop("uploadRatingGame",retryOnFailure,logger,shouldStop,f);
+  return retryLoop("uploadRatingGame",retryOnFailure,shouldStop,f);
 }
 
 #endif //BUILD_DISTRIBUTED
