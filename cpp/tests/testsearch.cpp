@@ -24,6 +24,7 @@ struct TestSearchOptions {
   bool noClearBot;
   bool noClearCache;
   bool printMore;
+  bool printMoreMoreMore;
   bool ignorePosition;
   TestSearchOptions()
     :numMovesInARow(1),
@@ -33,6 +34,7 @@ struct TestSearchOptions {
      noClearBot(false),
      noClearCache(false),
      printMore(false),
+     printMoreMoreMore(false),
      ignorePosition(false)
   {}
 };
@@ -65,7 +67,9 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
-    if(opts.printMore)
+    if(opts.printMoreMoreMore)
+      options = options.maxDepth(20);
+    else if(opts.printMore)
       options = options.minVisitsPropToExpand(0.1).maxDepth(2);
     search->printTree(cout, search->rootNode, options, P_WHITE);
 
@@ -1115,6 +1119,39 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
     }
 
   }
+
+  {
+    cout << "TEST VALUE BIAS ==========================================================================" << endl;
+
+    string sgfStr = "(;GM[1]FF[4]CA[UTF-8]RU[Japanese]SZ[9]KM[0];B[dc];W[ef];B[df];W[de];B[dg];W[eg];B[eh];W[fh];B[ee])";
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+    Board board;
+    Player nextPla;
+    BoardHistory hist;
+    Rules initialRules = sgf->getRulesOrFail();
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 8);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 20;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "valuebiasetest");
+    params.valueBiasFactor = 0.5;
+    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "valuebiasetest");
+
+    TestSearchOptions opts;
+    opts.printMoreMoreMore = true;
+    cout << "BASE" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "VALUE BIAS 0.5" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete sgf;
+  }
+
 }
 
 void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16) {
