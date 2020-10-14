@@ -419,10 +419,10 @@ int MainCmds::analysis(int argc, const char* const* argv) {
             const bool isDuringSearch = true;
             reportAnalysis(request,search,isDuringSearch);
           };
-          bot->genMoveSynchronousAnalyze(pla, TimeControls(), searchFactor, request->reportDuringSearchEvery, &callback, &onSearchBegun);
+          bot->genMoveSynchronousAnalyze(pla, TimeControls(), searchFactor, request->reportDuringSearchEvery, callback, onSearchBegun);
         }
         else {
-          bot->genMoveSynchronous(pla, TimeControls(), searchFactor, &onSearchBegun);
+          bot->genMoveSynchronous(pla, TimeControls(), searchFactor, onSearchBegun);
         }
 
         if(logSearchInfo) {

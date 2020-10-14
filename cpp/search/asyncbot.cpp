@@ -117,15 +117,15 @@ bool AsyncBot::isLegalStrict(Loc moveLoc, Player movePla) const {
   return search->isLegalStrict(moveLoc,movePla);
 }
 
-void AsyncBot::genMove(Player movePla, int searchId, const TimeControls& tc, std::function<void(Loc,int)>* onMove) {
-  genMove(movePla,searchId,tc,1.0,onMove,NULL);
+void AsyncBot::genMoveAsync(Player movePla, int searchId, const TimeControls& tc, const std::function<void(Loc,int)>& onMove) {
+  genMoveAsync(movePla,searchId,tc,1.0,onMove,nullptr);
 }
 
-void AsyncBot::genMove(Player movePla, int searchId, const TimeControls& tc, double sf, std::function<void(Loc,int)>* onMove) {
-  genMove(movePla,searchId,tc,sf,onMove,NULL);
+void AsyncBot::genMoveAsync(Player movePla, int searchId, const TimeControls& tc, double sf, const std::function<void(Loc,int)>& onMove) {
+  genMoveAsync(movePla,searchId,tc,sf,onMove,nullptr);
 }
 
-void AsyncBot::genMove(Player movePla, int searchId, const TimeControls& tc, double sf, std::function<void(Loc,int)>* onMove, std::function<void()>* onSearchBegun) {
+void AsyncBot::genMoveAsync(Player movePla, int searchId, const TimeControls& tc, double sf, const std::function<void(Loc,int)>& onMove, const std::function<void()>& onSearchBegun) {
   unique_lock<std::mutex> lock(controlMutex);
   stopAndWaitAlreadyLocked(lock);
   assert(!isRunning);
@@ -143,28 +143,28 @@ void AsyncBot::genMove(Player movePla, int searchId, const TimeControls& tc, dou
   timeControls = tc;
   searchFactor = sf;
   analyzeCallbackPeriod = -1;
-  analyzeCallback = NULL;
+  analyzeCallback = nullptr;
   searchBegunCallback = onSearchBegun;
   lock.unlock();
   threadWaitingToSearch.notify_all();
 }
 
 Loc AsyncBot::genMoveSynchronous(Player movePla, const TimeControls& tc) {
-  return genMoveSynchronous(movePla,tc,1.0,NULL);
+  return genMoveSynchronous(movePla,tc,1.0,nullptr);
 }
 
 Loc AsyncBot::genMoveSynchronous(Player movePla, const TimeControls& tc, double sf) {
-  return genMoveSynchronous(movePla,tc,sf,NULL);
+  return genMoveSynchronous(movePla,tc,sf,nullptr);
 }
 
-Loc AsyncBot::genMoveSynchronous(Player movePla, const TimeControls& tc, double sf, std::function<void()>* onSearchBegun) {
+Loc AsyncBot::genMoveSynchronous(Player movePla, const TimeControls& tc, double sf, const std::function<void()>& onSearchBegun) {
   Loc moveLoc = Board::NULL_LOC;
   std::function<void(Loc,int)> onMove = [&moveLoc](Loc loc, int searchId) {
     assert(searchId == 0);
     (void)searchId; //avoid warning when asserts disabled
     moveLoc = loc;
   };
-  genMove(movePla,0,tc,sf,&onMove,onSearchBegun);
+  genMoveAsync(movePla,0,tc,sf,onMove,onSearchBegun);
   waitForSearchToEnd();
   return moveLoc;
 }
@@ -181,19 +181,19 @@ void AsyncBot::ponder(double sf) {
     return;
 
   queuedSearchId = 0;
-  queuedOnMove = NULL;
+  queuedOnMove = nullptr;
   isRunning = true;
   isPondering = true; //True - we are searching on the opponent's turn "for" the opponent's opponent
   shouldStopNow = false;
   timeControls = TimeControls(); //Blank time controls since opponent's clock is running, not ours, so no cap other than searchFactor
   searchFactor = sf;
   analyzeCallbackPeriod = -1;
-  analyzeCallback = NULL;
-  searchBegunCallback = NULL;
+  analyzeCallback = nullptr;
+  searchBegunCallback = nullptr;
   lock.unlock();
   threadWaitingToSearch.notify_all();
 }
-void AsyncBot::analyze(Player movePla, double sf, double callbackPeriod, std::function<void(const Search* search)>* callback) {
+void AsyncBot::analyzeAsync(Player movePla, double sf, double callbackPeriod, const std::function<void(const Search* search)>& callback) {
   unique_lock<std::mutex> lock(controlMutex);
   stopAndWaitAlreadyLocked(lock);
   assert(!isRunning);
@@ -204,7 +204,7 @@ void AsyncBot::analyze(Player movePla, double sf, double callbackPeriod, std::fu
     search->setPlayerAndClearHistory(movePla);
 
   queuedSearchId = 0;
-  queuedOnMove = NULL;
+  queuedOnMove = nullptr;
   isRunning = true;
   isPondering = false; //This should indeed be false because we are searching for the current player, not the last player we did a regular search for.
   shouldStopNow = false;
@@ -212,22 +212,22 @@ void AsyncBot::analyze(Player movePla, double sf, double callbackPeriod, std::fu
   searchFactor = sf;
   analyzeCallbackPeriod = callbackPeriod;
   analyzeCallback = callback;
-  searchBegunCallback = NULL;
+  searchBegunCallback = nullptr;
   lock.unlock();
   threadWaitingToSearch.notify_all();
 }
 
-void AsyncBot::genMoveAnalyze(
-  Player movePla, int searchId, const TimeControls& tc, double sf, std::function<void(Loc,int)>* onMove,
-  double callbackPeriod, std::function<void(const Search* search)>* callback
+void AsyncBot::genMoveAsyncAnalyze(
+  Player movePla, int searchId, const TimeControls& tc, double sf, const std::function<void(Loc,int)>& onMove,
+  double callbackPeriod, const std::function<void(const Search* search)>& callback
 ) {
-  genMoveAnalyze(movePla, searchId, tc, sf, onMove, callbackPeriod, callback, NULL);
+  genMoveAsyncAnalyze(movePla, searchId, tc, sf, onMove, callbackPeriod, callback, nullptr);
 }
 
-void AsyncBot::genMoveAnalyze(
-  Player movePla, int searchId, const TimeControls& tc, double sf, std::function<void(Loc,int)>* onMove,
-  double callbackPeriod, std::function<void(const Search* search)>* callback,
-  std::function<void()>* onSearchBegun
+void AsyncBot::genMoveAsyncAnalyze(
+  Player movePla, int searchId, const TimeControls& tc, double sf, const std::function<void(Loc,int)>& onMove,
+  double callbackPeriod, const std::function<void(const Search* search)>& callback,
+  const std::function<void()>& onSearchBegun
 ) {
   unique_lock<std::mutex> lock(controlMutex);
   stopAndWaitAlreadyLocked(lock);
@@ -254,15 +254,15 @@ void AsyncBot::genMoveAnalyze(
 
 Loc AsyncBot::genMoveSynchronousAnalyze(
   Player movePla, const TimeControls& tc, double sf,
-  double callbackPeriod, std::function<void(const Search* search)>* callback
+  double callbackPeriod, const std::function<void(const Search* search)>& callback
 ) {
-  return genMoveSynchronousAnalyze(movePla, tc, sf, callbackPeriod, callback, NULL);
+  return genMoveSynchronousAnalyze(movePla, tc, sf, callbackPeriod, callback, nullptr);
 }
 
 Loc AsyncBot::genMoveSynchronousAnalyze(
   Player movePla, const TimeControls& tc, double sf,
-  double callbackPeriod, std::function<void(const Search* search)>* callback,
-  std::function<void()>* onSearchBegun
+  double callbackPeriod, const std::function<void(const Search* search)>& callback,
+  const std::function<void()>& onSearchBegun
 ) {
   Loc moveLoc = Board::NULL_LOC;
   std::function<void(Loc,int)> onMove = [&moveLoc](Loc loc, int searchId) {
@@ -270,7 +270,7 @@ Loc AsyncBot::genMoveSynchronousAnalyze(
     (void)searchId; //avoid warning when asserts disabled
     moveLoc = loc;
   };
-  genMoveAnalyze(movePla,0,tc,sf,&onMove,callbackPeriod,callback,onSearchBegun);
+  genMoveAsyncAnalyze(movePla,0,tc,sf,onMove,callbackPeriod,callback,onSearchBegun);
   waitForSearchToEnd();
   return moveLoc;
 }
@@ -323,8 +323,8 @@ void AsyncBot::internalSearchThreadLoop() {
     TimeControls tc = timeControls;
     double callbackPeriod = analyzeCallbackPeriod;
     //Make local copies just in case, to simplify thread reasoning for the member fields
-    std::function<void(const Search*)>* analyzeCallbackLocal = analyzeCallback;
-    std::function<void()>* searchBegunCallbackLocal = searchBegunCallback;
+    std::function<void(const Search*)> analyzeCallbackLocal = analyzeCallback;
+    std::function<void()> searchBegunCallbackLocal = searchBegunCallback;
     lock.unlock();
 
     //Make sure we don't feed in absurdly large numbers, this seems to cause wait_for to hang.
@@ -338,8 +338,8 @@ void AsyncBot::internalSearchThreadLoop() {
     atomic<bool> isSearchBegun(false);
     std::function<void()> searchBegun = [&isSearchBegun,&searchBegunCallbackLocal]() {
       isSearchBegun.store(true,std::memory_order_release);
-      if(searchBegunCallbackLocal != NULL)
-        (*searchBegunCallbackLocal)();
+      if(searchBegunCallbackLocal)
+        searchBegunCallbackLocal();
     };
     auto callbackLoop = [this,callbackPeriod,&analyzeCallbackLocal,&callbackLoopWaiting,&callbackLoopShouldStop,&isSearchBegun]() {
       unique_lock<std::mutex> callbackLock(controlMutex);
@@ -354,14 +354,14 @@ void AsyncBot::internalSearchThreadLoop() {
         if(!isSearchBegun.load(std::memory_order_acquire))
           continue;
         callbackLock.unlock();
-        (*analyzeCallbackLocal)(search);
+        analyzeCallbackLocal(search);
         callbackLock.lock();
       }
       callbackLock.unlock();
     };
 
     std::thread callbackLoopThread;
-    if(callbackPeriod >= 0 && analyzeCallbackLocal != NULL) {
+    if(callbackPeriod >= 0 && analyzeCallbackLocal) {
       callbackLoopThread = std::thread(callbackLoop);
     }
 
@@ -378,8 +378,8 @@ void AsyncBot::internalSearchThreadLoop() {
 
     lock.lock();
     //Call queuedOnMove under the lock just in case
-    if(queuedOnMove != NULL)
-      (*queuedOnMove)(moveLoc,queuedSearchId);
+    if(queuedOnMove)
+      queuedOnMove(moveLoc,queuedSearchId);
     isRunning = false;
     isPondering = false;
     userWaitingForStop.notify_all();

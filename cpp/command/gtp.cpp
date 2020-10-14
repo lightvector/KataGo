@@ -610,6 +610,8 @@ struct GTPEngine {
     std::function<void(const Search* search)> callback;
     //lz-analyze
     if(args.lz && !args.kata) {
+      //Avoid capturing anything by reference except [this], since this will potentially be used
+      //asynchronously and called after we return
       callback = [args,pla,this](const Search* search) {
         vector<AnalysisData> buf;
         search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
@@ -811,7 +813,7 @@ struct GTPEngine {
         bot->setAlwaysIncludeOwnerMap(true);
       else
         bot->setAlwaysIncludeOwnerMap(false);
-      moveLoc = bot->genMoveSynchronousAnalyze(pla, tc, searchFactor, args.secondsPerReport, &callback);
+      moveLoc = bot->genMoveSynchronousAnalyze(pla, tc, searchFactor, args.secondsPerReport, callback);
       //Make sure callback happens at least once
       callback(bot->getSearch());
     }
@@ -1054,7 +1056,7 @@ struct GTPEngine {
       bot->setAlwaysIncludeOwnerMap(false);
 
     double searchFactor = 1e40; //go basically forever
-    bot->analyze(pla, searchFactor, args.secondsPerReport, &callback);
+    bot->analyzeAsync(pla, searchFactor, args.secondsPerReport, callback);
   }
 
   double computeLead(Logger& logger) {
