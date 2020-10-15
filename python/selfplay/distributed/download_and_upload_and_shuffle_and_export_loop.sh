@@ -57,8 +57,17 @@ cp "$CONNECTION_CONFIG" "$basedir"/scripts/connection.cfg
     cd "$basedir"/scripts
     while true
     do
-        ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" "$BATCHSIZE" "$@"
-        sleep 20
+        time python3 ./summarize_old_selfplay_files.py "$basedir"/selfplay/ \
+             -old-summary-file-to-assume-correct "$basedir"/selfplay.summary.json \
+             -new-summary-file "$basedir"/selfplay.summary.json.tmp
+        mv "$basedir"/selfplay.summary.json.tmp "$basedir"/selfplay.summary.json
+        sleep 10
+
+        for i in {1..10}
+        do
+            ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" "$BATCHSIZE" -summary-file "$basedir"/selfplay.summary.json "$@"
+            sleep 180
+        done
     done
 ) >> "$basedir"/logs/outshuffle.txt 2>&1 & disown
 

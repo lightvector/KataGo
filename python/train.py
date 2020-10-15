@@ -451,7 +451,6 @@ def dump_and_flush_json(data,filename):
     os.fsync(f.fileno())
 
 trainhistory = {
-  "files":[],
   "history":[]
 }
 if os.path.isfile(os.path.join(traindir,"trainhistory.json")):
@@ -509,7 +508,10 @@ def maybe_reload_training_data():
       with open(trainjsonpath) as f:
         datainfo = json.load(f)
         last_datainfo_row = datainfo["range"][1]
-      trainhistory["files"] = datainfo["files"]
+
+      # Remove legacy value from this dictionary
+      if "files" in trainhistory:
+        del trainhistory["files"]
       trainhistory["history"].append(("newdata",datainfo["range"]))
 
       #Load training data files

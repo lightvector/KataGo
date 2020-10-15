@@ -181,6 +181,49 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
   record_writer.close()
   return num_batches * batch_size
 
+def get_numpy_npz_headers(filename):
+  with zipfile.ZipFile(filename) as z:
+    wasbad = False
+    numrows = 0
+    npzheaders = {}
+    for subfilename in z.namelist():
+      npyfile = z.open(subfilename)
+      try:
+        version = np.lib.format.read_magic(npyfile)
+      except ValueError:
+        wasbad = True
+        print("WARNING: bad file, skipping it: %s (bad array %s)" % (filename,subfilename))
+      else:
+        (shape, is_fortran, dtype) = np.lib.format._read_array_header(npyfile,version)
+        npzheaders[subfilename] = (shape, is_fortran, dtype)
+    if wasbad:
+      return None
+    return npzheaders
+
+
+def compute_num_rows(filename):
+  npheaders = get_numpy_npz_headers(filename)
+  if npheaders is None or len(npheaders) <= 0:
+    return (filename,0)
+  (shape, is_fortran, dtype) = npheaders["binaryInputNCHWPacked"]
+  num_rows = shape[0]
+  return (filename,num_rows)
+
+
+class TimeStuff(object):
+
+  def __init__(self,taskstr):
+    self.taskstr = taskstr
+
+  def __enter__(self):
+    print("Beginning: %s" % self.taskstr, flush=True)
+    self.t0 = time.time()
+
+  def __exit__(self, exception_type, exception_val, trace):
+    self.t1 = time.time()
+    print("Finished: %s in %s seconds" % (self.taskstr, str(self.t1 - self.t0)), flush=True)
+    return True
+
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Shuffle data files')
@@ -192,6 +235,7 @@ if __name__ == '__main__':
   parser.add_argument('-taper-window-exponent', type=float, required=True, help='Make the window size asymtotically grow as this power of the data rows')
   parser.add_argument('-taper-window-scale', type=float, required=False, help='The scale at which the power law applies')
   parser.add_argument('-add-to-window', type=float, required=False, help='Compute as if the window size were this much larger/smaller')
+  parser.add_argument('-summary-file', required=False, help='Summary json file for directory contents')
   parser.add_argument('-out-dir', required=True, help='Dir to output training files')
   parser.add_argument('-out-tmp-dir', required=True, help='Dir to use as scratch space')
   parser.add_argument('-approx-rows-per-out-file', type=int, required=True, help='Number of rows per output tf records file')
@@ -209,6 +253,7 @@ if __name__ == '__main__':
   taper_window_exponent = args.taper_window_exponent
   taper_window_scale = args.taper_window_scale
   add_to_window = args.add_to_window
+  summary_file = args.summary_file
   out_dir = args.out_dir
   out_tmp_dir = args.out_tmp_dir
   approx_rows_per_out_file = args.approx_rows_per_out_file
@@ -232,34 +277,59 @@ if __name__ == '__main__':
   if add_to_window is None:
     add_to_window = 0
 
-  all_files = []
-  for d in dirs:
-    for (path,dirnames,filenames) in os.walk(d):
-      filenames = [os.path.join(path,filename) for filename in filenames if filename.endswith('.npz')]
-      filenames = [(filename,os.path.getmtime(filename)) for filename in filenames]
-      all_files.extend(filenames)
 
-  all_files.sort(key=(lambda x: x[1]), reverse=False)
-
-  def get_numpy_npz_headers(filename):
-    with zipfile.ZipFile(filename) as z:
-      wasbad = False
-      numrows = 0
-      npzheaders = {}
-      for subfilename in z.namelist():
-        npyfile = z.open(subfilename)
+  summary_data_by_dirpath = {}
+  if summary_file is not None:
+    with TimeStuff("Loading " + summary_file):
+      # Try a bunch of times, just to be robust to if the file is being swapped out in nfs
+      for i in range(10):
+        success = False
         try:
-          version = np.lib.format.read_magic(npyfile)
+          with open(summary_file) as fp:
+            summary_data_by_dirpath = json.load(fp)
+            success = True
+        except OSError:
+          success = False
         except ValueError:
-          wasbad = True
-          print("WARNING: bad file, skipping it: %s (bad array %s)" % (filename,subfilename))
-        else:
-          (shape, is_fortran, dtype) = np.lib.format._read_array_header(npyfile,version)
-          npzheaders[subfilename] = (shape, is_fortran, dtype)
-      if wasbad:
-        return None
-      return npzheaders
+          success = False
+        if success:
+          break
 
+  all_files = []
+  files_with_unknown_num_rows = []
+  with TimeStuff("Finding files"):
+    for d in dirs:
+      for (path,dirnames,filenames) in os.walk(d):
+        i = 0
+        while i < len(dirnames):
+          dirname = dirnames[i]
+          filename_mtime_num_rowss = summary_data_by_dirpath.get(os.path.abspath(os.path.join(path, dirname)))
+          if filename_mtime_num_rowss is not None:
+            del dirnames[i]
+            i -= 1
+            for (filename,mtime,num_rows) in filename_mtime_num_rowss:
+              filename = os.path.join(path,dirname,filename)
+              all_files.append((filename,mtime,num_rows))
+          i += 1
+
+        filenames = [os.path.join(path,filename) for filename in filenames if filename.endswith('.npz')]
+        files_with_unknown_num_rows.extend(filenames)
+        filenames = [(filename,os.path.getmtime(filename)) for filename in filenames]
+        all_files.extend(filenames)
+  print("Total number of files: %d" % len(all_files), flush=True)
+  print("Total number of files with unknown row count: %d" % len(files_with_unknown_num_rows), flush=True)
+
+  with TimeStuff("Sorting"):
+    all_files.sort(key=(lambda x: x[1]), reverse=False)
+
+  with TimeStuff("Computing rows for unsummarized files"):
+    with multiprocessing.Pool(num_processes) as pool:
+      results = pool.map(compute_num_rows,files_with_unknown_num_rows)
+      results = dict(results)
+      for i in range(len(all_files)):
+        info = all_files[i]
+        if len(info) < 3:
+          all_files[i] = (info[0], info[1], results[info[0]])
 
   files_with_row_range = []
   num_rows_total = 0 #Number of data rows
@@ -287,12 +357,9 @@ if __name__ == '__main__':
     #Scale so that we have the desired initial slope, and add back the minimum random rows
     return int(scaled_power_law * expand_window_per_row + min_rows)
 
-  for (filename,mtime) in all_files:
-    npheaders = get_numpy_npz_headers(filename)
-    if npheaders is None or len(npheaders) <= 0:
+  for (filename,mtime,num_rows) in all_files:
+    if num_rows <= 0:
       continue
-    (shape, is_fortran, dtype) = npheaders["binaryInputNCHWPacked"]
-    num_rows = shape[0]
     row_range = (num_rows_total, num_rows_total + num_rows)
     num_rows_total += num_rows
     if "random" not in filename:
@@ -335,16 +402,22 @@ if __name__ == '__main__':
   num_rows_total = 0
   len_files_with_row_range = len(files_with_row_range)
   print_stride = 1 + len(files_with_row_range) // 40
-  for i in range(len(files_with_row_range)):
-    (filename,(start_row,end_row)) = files_with_row_range[i]
-    desired_input_files.append((filename,end_row-start_row))
-    desired_input_files_with_row_range.append((filename,(start_row,end_row)))
+  with TimeStuff("Computing desired rows"):
+    for i in range(len(files_with_row_range)):
+      (filename,(start_row,end_row)) = files_with_row_range[i]
 
-    num_rows_total += (end_row - start_row)
-    if i % print_stride == 0 or num_rows_total >= desired_num_rows or i == len_files_with_row_range - 1:
-      print("Using: %s (%d-%d) (%d/%d desired rows)" % (filename,start_row,end_row,num_rows_total,desired_num_rows))
-    if num_rows_total >= desired_num_rows:
-      break
+      # This could happen if the .summary.json file is inaccurate after file deletions
+      if not os.path.exists(filename):
+        continue
+
+      desired_input_files.append((filename,end_row-start_row))
+      desired_input_files_with_row_range.append((filename,(start_row,end_row)))
+
+      num_rows_total += (end_row - start_row)
+      if i % print_stride == 0 or num_rows_total >= desired_num_rows or i == len_files_with_row_range - 1:
+        print("Using: %s (%d-%d) (%d/%d desired rows)" % (filename,start_row,end_row,num_rows_total,desired_num_rows))
+      if num_rows_total >= desired_num_rows:
+        break
 
   np.random.seed()
   np.random.shuffle(desired_input_files)
@@ -390,32 +463,23 @@ if __name__ == '__main__':
   print("Grouping %d input files into %d sharding groups" % (len(desired_input_files),len(desired_input_file_groups)),flush=True)
 
   with multiprocessing.Pool(num_processes) as pool:
-    print("Beginning sharding",flush=True)
-    t0 = time.time()
-    shard_results = pool.starmap(shardify, [
-      (input_idx, desired_input_file_groups[input_idx], num_out_files, out_tmp_dirs, keep_prob) for input_idx in range(len(desired_input_file_groups))
-    ])
-    t1 = time.time()
-    print("Done sharding",flush=True)
-    print("Time taken: " + str(t1-t0),flush=True)
-    sys.stdout.flush()
+    with TimeStuff("Sharding"):
+      shard_results = pool.starmap(shardify, [
+        (input_idx, desired_input_file_groups[input_idx], num_out_files, out_tmp_dirs, keep_prob) for input_idx in range(len(desired_input_file_groups))
+      ])
 
-    print("Beginning merging",flush=True)
-    t0 = time.time()
-    num_shards_to_merge = len(desired_input_file_groups)
-    merge_results = pool.starmap(merge_shards, [
-      (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size,ensure_batch_multiple) for idx in range(len(out_files))
-    ])
-    t1 = time.time()
-    print("Done merging, number of rows by output file:",flush=True)
+    with TimeStuff("Merging"):
+      num_shards_to_merge = len(desired_input_file_groups)
+      merge_results = pool.starmap(merge_shards, [
+        (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size,ensure_batch_multiple) for idx in range(len(out_files))
+      ])
+    print("Mumber of rows by output file:",flush=True)
     print(list(zip(out_files,merge_results)),flush=True)
-    print("Time taken: " + str(t1-t0),flush=True)
     sys.stdout.flush()
 
   clean_tmp_dirs()
 
   dump_value = {
-    "files": files_with_row_range,
     "range": (min(start_row for (filename,(start_row,end_row)) in desired_input_files_with_row_range),
               max(end_row for (filename,(start_row,end_row)) in desired_input_files_with_row_range))
   }
