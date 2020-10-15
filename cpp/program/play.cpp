@@ -1450,7 +1450,7 @@ FinishedGameData* Play::runGame(
   }
 
   //Make sure there's some minimum tiny amount of data about how the encore phases work
-  if(playSettings.forSelfPlay && hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand.nextBool(0.04)) {
+  if(playSettings.forSelfPlay && !otherGameProps.isHintPos && hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand.nextBool(0.04)) {
     //Play out to go a quite a bit later in the game.
     double proportionOfBoardArea = 0.25;
     double temperature = 2.0/3.0;
@@ -1529,7 +1529,7 @@ FinishedGameData* Play::runGame(
 
       //Occasionally fork off some positions to evaluate
       Loc sidePositionForkLoc = Board::NULL_LOC;
-      if(playSettings.forkSidePositionProb > 0.0 && gameRand.nextBool(playSettings.forkSidePositionProb)) {
+      if(playSettings.sidePositionProb > 0.0 && gameRand.nextBool(playSettings.sidePositionProb)) {
         assert(toMoveBot->rootNode != NULL);
         assert(toMoveBot->rootNode->nnOutput != nullptr);
         Loc banMove = loc;
@@ -2076,7 +2076,7 @@ void Play::maybeSekiForkGame(
 ) {
   if(forkData == NULL)
     return;
-  if(!playSettings.sekiForkHack)
+  if(playSettings.sekiForkHackProb <= 0)
     return;
 
   //If there are any unowned spots, consider forking the last bit of the game, with random rules and even score
@@ -2204,7 +2204,7 @@ FinishedGameData* GameRunner::runGame(
   if(forkData != NULL) {
     initialPosition = forkData->get(gameRand);
 
-    if(initialPosition == NULL && playSettings.sekiForkHack && gameRand.nextBool(0.04)) {
+    if(initialPosition == NULL && playSettings.sekiForkHackProb > 0 && gameRand.nextBool(playSettings.sekiForkHackProb)) {
       initialPosition = forkData->getSeki(gameRand);
       if(initialPosition != NULL)
         usedSekiForkHackPosition = true;

@@ -10,7 +10,7 @@ struct PlaySettings {
   double startPosesPolicyInitAreaProp; //Avg number of moves when using a starting position from sgf
   double compensateAfterPolicyInitProb; //Chance to adjust komi to cancel the effect of imbalanced init
   //Occasionally try some alternative moves and search the responses to them.
-  double forkSidePositionProb;
+  double sidePositionProb;
 
   //Use this many visits in a short search to estimate the score, for adjusting komi
   int compensateKomiVisits;
@@ -27,7 +27,7 @@ struct PlaySettings {
   int forkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
 
   //Hack to make learning of seki easier - fork positions with different rules when we have sekis
-  bool sekiForkHack;
+  double sekiForkHackProb;
   //Hack to improve learning of very weird komi and very lopsided positions
   bool fancyKomiVarying;
 

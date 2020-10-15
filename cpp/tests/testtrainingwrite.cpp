@@ -107,7 +107,7 @@ void Tests::runTrainingWriteTests() {
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
-    playSettings.forkSidePositionProb = 0.10;
+    playSettings.sidePositionProb = 0.10;
     playSettings.forSelfPlay = true;
     Rand rand(seedBase+"play");
     OtherGameProperties otherGameProps;
@@ -231,7 +231,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
-    playSettings.forkSidePositionProb = 0.40;
+    playSettings.sidePositionProb = 0.40;
     playSettings.cheapSearchProb = 0.5;
     playSettings.cheapSearchVisits = 20;
     playSettings.cheapSearchTargetWeight = 0.123f;
@@ -417,7 +417,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
-    playSettings.forkSidePositionProb = 0.0;
+    playSettings.sidePositionProb = 0.0;
     playSettings.cheapSearchProb = 0.5;
     playSettings.cheapSearchVisits = 50;
     playSettings.cheapSearchTargetWeight = 0.456f;
@@ -739,12 +739,12 @@ xxxxxxxx.
     PlaySettings playSettings;
     //Not testing these - covered by other tests
     playSettings.initGamesWithPolicy = false;
-    playSettings.forkSidePositionProb = false;
+    playSettings.sidePositionProb = 0;
 
     playSettings.compensateKomiVisits = 20;
     playSettings.fancyKomiVarying = true;
 
-    playSettings.sekiForkHack = true;
+    playSettings.sekiForkHackProb = 0.04;
     playSettings.forSelfPlay = true;
 
     nnEval->clearCache();
@@ -861,7 +861,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     vector<std::atomic<bool>*> stopConditions;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = false;
-    playSettings.forkSidePositionProb = 0;
+    playSettings.sidePositionProb = 0;
     playSettings.cheapSearchProb = 0;
     playSettings.cheapSearchVisits = 0;
     playSettings.cheapSearchTargetWeight = 0;
