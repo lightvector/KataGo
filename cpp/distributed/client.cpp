@@ -40,7 +40,7 @@ static constexpr int MAX_CONFIG_NAME_LEN = 32768;
 static void debugPrintResponse(ostream& out, const httplib::Result& response) {
   out << "---RESPONSE---------------------" << endl;
   if(response == nullptr)
-    out << "nullptr" << endl;
+    out << "Response Error: " << response.error() << endl;
   else {
     out << "Status Code: " << response->status << endl;
     for(auto it = response->headers.begin(); it != response->headers.end(); ++it) {
@@ -136,12 +136,16 @@ static httplib::Result oneShotDownload(Logger* logger, const Url& url, const str
 
   if(!url.isSSL) {
     std::unique_ptr<httplib::Client> httpClient = std::unique_ptr<httplib::Client>(new httplib::Client(url.host, url.port));
+    //Avoid automatically decompressing .bin.gz files that get sent to us with "content-encoding: gzip"
+    httpClient->set_decompress(false);
     return httpClient->Get(url.path.c_str(),headers,f);
   }
   else {
     std::unique_ptr<httplib::SSLClient> httpsClient = std::unique_ptr<httplib::SSLClient>(new httplib::SSLClient(url.host, url.port));
     httpsClient->set_ca_cert_path(caCertsFile.c_str());
     httpsClient->enable_server_certificate_verification(true);
+    //Avoid automatically decompressing .bin.gz files that get sent to us with "content-encoding: gzip"
+    httpsClient->set_decompress(false);
     httplib::Result response = httpsClient->Get(url.path.c_str(),headers,f);
     if(response == nullptr) {
       auto result = httpsClient->get_openssl_verify_result();
@@ -403,7 +407,11 @@ RunParameters Connection::getRunParameters() {
 
 static constexpr int DEFAULT_MAX_TRIES = 100;
 
-bool Connection::retryLoop(const char* errorLabel, int maxTries, std::atomic<bool>& shouldStop, std::function<void(bool&)> f) {
+static constexpr int LOOP_FATAL_FAIL = 0;
+static constexpr int LOOP_RETRYABLE_FAIL = 1;
+static constexpr int LOOP_PARTIAL_SUCCESS = 2;
+
+bool Connection::retryLoop(const char* errorLabel, int maxTries, std::atomic<bool>& shouldStop, std::function<void(int&)> f) {
   if(shouldStop.load())
     return false;
   double stopPollFrequency = 2.0;
@@ -411,21 +419,21 @@ bool Connection::retryLoop(const char* errorLabel, int maxTries, std::atomic<boo
 
   double failureInterval = initialFailureInterval;
   for(int i = 0; i<maxTries; i++) {
-    bool partialSuccess = false;
+    int loopFailMode = LOOP_RETRYABLE_FAIL;
     try {
-      f(partialSuccess);
+      f(loopFailMode);
     }
     catch(const StringError& e) {
       if(shouldStop.load())
         return false;
 
       //Reset everything on partial success
-      if(partialSuccess) {
+      if(loopFailMode == LOOP_PARTIAL_SUCCESS) {
         i = 0;
         failureInterval = initialFailureInterval;
       }
 
-      if(i >= maxTries-1)
+      if(loopFailMode == LOOP_FATAL_FAIL || i >= maxTries-1)
         throw;
       logger->write(string(errorLabel) + ": Error connecting to server, possibly an internet blip, or possibly the server is down or temporarily misconfigured, waiting about " + Global::doubleToString(failureInterval) + " seconds and trying again.");
       logger->write(string("Error was:\n") + e.what());
@@ -465,8 +473,8 @@ static Client::ModelInfo parseModelInfo(const json& networkProperties) {
 bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFailure, bool allowRatingTask, int taskRepFactor, std::atomic<bool>& shouldStop) {
   (void)baseDir;
 
-  auto f = [&](bool& partialSuccess) {
-    (void)partialSuccess;
+  auto f = [&](int& loopFailMode) {
+    (void)loopFailMode;
     json response;
 
     while(true) {
@@ -600,8 +608,8 @@ bool Connection::downloadModelIfNotPresent(
     throw StringError(string("Could not parse URL to download model: ") + e.what());
   }
 
-  auto fOuter = [&](bool& partialSuccessOuterLoop) {
-    (void)partialSuccessOuterLoop;
+  auto fOuter = [&](int& outerLoopFailMode) {
+    (void)outerLoopFailMode;
 
     const string tmpPath = getTmpModelPath(modelInfo,modelDir);
     ofstream out(tmpPath,ios::binary);
@@ -611,7 +619,7 @@ bool Connection::downloadModelIfNotPresent(
 
     size_t totalDataSize = 0;
 
-    auto fInner = [&](bool& partialSuccessInnerLoop) {
+    auto fInner = [&](int& innerLoopFailMode) {
       const size_t oldTotalDataSize = totalDataSize;
       httplib::Result response = oneShotDownload(
         logger, url, caCertsFile, oldTotalDataSize, modelInfo.bytes,
@@ -630,7 +638,7 @@ bool Connection::downloadModelIfNotPresent(
         throw StringError("Stopping because shouldStop is true");
 
       if(totalDataSize > oldTotalDataSize)
-        partialSuccessInnerLoop = true;
+        innerLoopFailMode = LOOP_PARTIAL_SUCCESS;
 
       if(response == nullptr)
         throw StringError("No response from server");
@@ -640,11 +648,18 @@ bool Connection::downloadModelIfNotPresent(
         throw StringError("Server gave response that was not status code 200 OK or 206 Partial Content\n" + outs.str());
       }
 
-      if(totalDataSize != modelInfo.bytes)
+      if(totalDataSize < modelInfo.bytes)
         throw StringError(
           "Model file was incompletely downloaded, only got " + Global::int64ToString(totalDataSize) +
           " bytes out of " + Global::int64ToString(modelInfo.bytes)
         );
+      if(totalDataSize > modelInfo.bytes) {
+        innerLoopFailMode = LOOP_FATAL_FAIL;
+        throw StringError(
+          "Model file was larger than expected, got " + Global::int64ToString(totalDataSize) +
+          " bytes out of " + Global::int64ToString(modelInfo.bytes)
+        );
+      }
     };
     retryLoop("downloadModel",DEFAULT_MAX_TRIES,shouldStop,fInner);
     out.close();
@@ -700,8 +715,8 @@ bool Connection::uploadTrainingGameAndData(
   string npzContents((istreambuf_iterator<char>(npzIn)), istreambuf_iterator<char>());
   npzIn.close();
 
-  auto f = [&](bool& partialSuccess) {
-    (void)partialSuccess;
+  auto f = [&](int& loopFailMode) {
+    (void)loopFailMode;
 
     int boardSizeX = gameData->startBoard.x_size;
     int boardSizeY = gameData->startBoard.y_size;
@@ -786,8 +801,8 @@ bool Connection::uploadRatingGame(
   string sgfContents((istreambuf_iterator<char>(sgfIn)), istreambuf_iterator<char>());
   sgfIn.close();
 
-  auto f = [&](bool& partialSuccess) {
-    (void)partialSuccess;
+  auto f = [&](int& loopFailMode) {
+    (void)loopFailMode;
 
     int boardSizeX = gameData->startBoard.x_size;
     int boardSizeY = gameData->startBoard.y_size;
