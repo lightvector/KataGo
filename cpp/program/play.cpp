@@ -1403,6 +1403,7 @@ FinishedGameData* Play::runGame(
   gameData->playoutDoublingAdvantage = otherGameProps.playoutDoublingAdvantage;
 
   gameData->numExtraBlack = extraBlackAndKomi.extraBlack;
+  gameData->handicapForSgf = extraBlackAndKomi.extraBlack; //overwritten later
   gameData->mode = FinishedGameData::MODE_NORMAL;
   gameData->beganInEncorePhase = 0;
   gameData->usedInitialPosition = 0;
@@ -1615,6 +1616,13 @@ FinishedGameData* Play::runGame(
   else
     gameData->hitTurnLimit = true;
 
+  {
+    BoardHistory histCopy(hist);
+    //Always use true for computing the handicap value that goes into an sgf
+    histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+    gameData->handicapForSgf = histCopy.computeNumHandicapStones();
+  }
+  
   if(recordFullData) {
     if(hist.isResignation)
       throw StringError("Recording full data currently incompatible with resignation");

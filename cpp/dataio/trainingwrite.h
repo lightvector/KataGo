@@ -60,6 +60,11 @@ struct FinishedGameData {
   int mode;
   int beganInEncorePhase;
   int usedInitialPosition;
+  //This differs from numExtraBlack in that numExtraBlack counts number of extra black stones
+  //played following the start of startHist, whereas handicapForSgf counts from startBoard.
+  //So on things like forked handicap games this one will be larger. Also this one does the
+  //whole +1 thing, skipping 1H.
+  int handicapForSgf; 
 
   //If false, then we don't have these below vectors and ownership information
   bool hasFullData;

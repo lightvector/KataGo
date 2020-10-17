@@ -720,15 +720,15 @@ bool Connection::uploadTrainingGameAndData(
 
     int boardSizeX = gameData->startBoard.x_size;
     int boardSizeY = gameData->startBoard.y_size;
-    int handicap = (gameData->numExtraBlack > 0 ? (gameData->numExtraBlack + 1) : 0);
+    int handicap = gameData->handicapForSgf;
     double komi = gameData->startHist.rules.komi;
-    string rules = gameData->startHist.rules.toJsonStringNoKomi();
+    string rules = gameData->startHist.rules.toJsonStringNoKomiMaybeOmitStuff();
     json extraMetadata;
     extraMetadata["playout_doubling_advantage"] = gameData->playoutDoublingAdvantage;
     extraMetadata["playout_doubling_advantage_pla"] = PlayerIO::playerToString(gameData->playoutDoublingAdvantagePla);
     extraMetadata["draw_equivalent_wins_for_white"] = gameData->drawEquivalentWinsForWhite;
     static_assert(FinishedGameData::NUM_MODES == 6,"");
-    extraMetadata["mode"] = (
+    string gametype = (
       gameData->mode == FinishedGameData::MODE_NORMAL ? "normal" :
       gameData->mode == FinishedGameData::MODE_CLEANUP_TRAINING ? "cleanup_training" :
       gameData->mode == FinishedGameData::MODE_FORK ? "fork" :
@@ -756,6 +756,7 @@ bool Connection::uploadTrainingGameAndData(
       { "board_size_y", Global::intToString(boardSizeY), "", "" },
       { "handicap", Global::intToString(handicap), "", "" },
       { "komi", Global::doubleToString(komi), "", "" },
+      { "gametype", gametype, "", "" },
       { "rules", rules, "", "" },
       { "extra_metadata", extraMetadata.dump(), "", "" },
       { "winner", winner, "", "" },

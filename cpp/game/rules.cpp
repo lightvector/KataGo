@@ -208,6 +208,21 @@ string Rules::toJsonStringNoKomi() const {
   return ret.dump();
 }
 
+string Rules::toJsonStringNoKomiMaybeOmitStuff() const {
+  json ret;
+  ret["ko"] = writeKoRule(koRule);
+  ret["scoring"] = writeScoringRule(scoringRule);
+  ret["tax"] = writeTaxRule(taxRule);
+  ret["suicide"] = multiStoneSuicideLegal;
+  //Takes up a lot of string space to include stuff, so omit some less common things if matches tromp-taylor rules
+  //which is the default for parsing and if not otherwise specified
+  if(hasButton)
+    ret["hasButton"] = hasButton;
+  if(whiteHandicapBonusRule != WHB_ZERO)
+    ret["whiteHandicapBonus"] = writeWhiteHandicapBonusRule(whiteHandicapBonusRule);
+  return ret.dump();
+}
+
 Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
   Rules rules = oldRules;
   string key = Global::trim(k);

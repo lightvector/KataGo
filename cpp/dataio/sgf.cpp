@@ -1204,21 +1204,16 @@ void WriteSgf::writeSgf(
   out << "PB[" << bName << "]";
   out << "PW[" << wName << "]";
 
-  int handicap = 0;
-  bool hasWhite = false;
-  for(int y = 0; y<ySize; y++) {
-    for(int x = 0; x<xSize; x++) {
-      Loc loc = Location::getLoc(x,y,xSize);
-      if(initialBoard.colors[loc] == C_BLACK)
-        handicap += 1;
-      if(initialBoard.colors[loc] == C_WHITE)
-        hasWhite = true;
-    }
+  if(gameData != NULL) {
+    out << "HA[" << gameData->handicapForSgf << "]";
   }
-  if(hasWhite)
-    handicap = 0;
-
-  out << "HA[" << handicap << "]";
+  else {
+    BoardHistory histCopy(endHist);
+    //Always use true for computing the handicap value that goes into an sgf
+    histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+    out << "HA[" << histCopy.computeNumHandicapStones() << "]";
+  }
+  
   out << "KM[" << rules.komi << "]";
   out << "RU[" << (tryNicerRulesString ? rules.toStringNoKomiMaybeNice() : rules.toStringNoKomi()) << "]";
   printGameResult(out,endHist);
@@ -1263,19 +1258,19 @@ void WriteSgf::writeSgf(
 
     static_assert(FinishedGameData::NUM_MODES == 6, "");
     if(gameData->mode == FinishedGameData::MODE_NORMAL)
-      out << "," << "mode=normal";
+      out << "," << "gtype=normal";
     else if(gameData->mode == FinishedGameData::MODE_CLEANUP_TRAINING)
-      out << "," << "mode=cleanuptraining";
+      out << "," << "gtype=cleanuptraining";
     else if(gameData->mode == FinishedGameData::MODE_FORK)
-      out << "," << "mode=fork";
+      out << "," << "gtype=fork";
     else if(gameData->mode == FinishedGameData::MODE_HANDICAP)
-      out << "," << "mode=handicap";
+      out << "," << "gtype=handicap";
     else if(gameData->mode == FinishedGameData::MODE_SGFPOS)
-      out << "," << "mode=sgfpos";
+      out << "," << "gtype=sgfpos";
     else if(gameData->mode == FinishedGameData::MODE_HINTPOS)
-      out << "," << "mode=hintpos";
+      out << "," << "gtype=hintpos";
     else
-      out << "," << "mode=other";
+      out << "," << "gtype=other";
 
     if(gameData->beganInEncorePhase != 0)
       out << "," << "beganInEncorePhase=" << gameData->beganInEncorePhase;

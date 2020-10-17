@@ -75,6 +75,7 @@ struct Rules {
   std::string toStringNoKomiMaybeNice() const;
   std::string toJsonString() const;
   std::string toJsonStringNoKomi() const;
+  std::string toJsonStringNoKomiMaybeOmitStuff() const;
 
   static const Hash128 ZOBRIST_KO_RULE_HASH[4];
   static const Hash128 ZOBRIST_SCORING_RULE_HASH[2];

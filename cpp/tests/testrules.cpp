@@ -3751,6 +3751,11 @@ Illegal: (4,3) X
       suc = Rules::tryParseRulesWithoutKomi(rules[i].toJsonStringNoKomi(),parsed4,rules[i].komi);
       testAssert(suc);
       testAssert(rules[i] == parsed4);
+      
+      Rules parsed5;
+      suc = Rules::tryParseRulesWithoutKomi(rules[i].toJsonStringNoKomiMaybeOmitStuff(),parsed5,rules[i].komi);
+      testAssert(suc);
+      testAssert(rules[i] == parsed5);
     }
   }
 
