@@ -48,7 +48,7 @@ static void signalHandler(int signal)
 
 static const string defaultBaseDir = "katago_contribute";
 static const int defaultMaxSimultaneousGames = 16;
-static const int defaultDeleteUnusedModelsAfter = 6 * 60 * 60;
+static const double defaultDeleteUnusedModelsAfterDays = 30;
 
 //Play selfplay games and rating games in chunks of this many at a time. Each server query
 //gets fanned out into this many games.
@@ -215,7 +215,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
   string baseDir;
   int maxSimultaneousGames;
-  int deleteUnusedModelsAfter;
+  double deleteUnusedModelsAfterDays;
   string userConfigFile;
   string overrideUserConfig;
   string caCertsFile;
@@ -229,30 +229,30 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       "","max-simultaneous-games","Max number of games to play simultaneously (default "+ Global::intToString(defaultMaxSimultaneousGames)+")",
       false,defaultMaxSimultaneousGames,"NGAMES"
     );
-    TCLAP::ValueArg<int> deleteUnusedModelsAfterArg(
-      "","delete-unused-models-after","After a model is unused for this many seconds, delete it from disk (default "+ Global::intToString(defaultDeleteUnusedModelsAfter)+")",
-      false,defaultDeleteUnusedModelsAfter,"SECONDS"
+    TCLAP::ValueArg<double> deleteUnusedModelsAfterDaysArg(
+      "","delete-unused-models-after","After a model is unused for this many days, delete it from disk (default "+ Global::intToString(defaultDeleteUnusedModelsAfterDays)+")",
+      false,defaultDeleteUnusedModelsAfterDays,"DAYS"
     );
     TCLAP::ValueArg<string> userConfigFileArg("","config","Config file to use for server connection and/or GPU settings",false,string(),"FILE");
     TCLAP::ValueArg<string> overrideUserConfigArg("","override-config","Override config parameters. Format: \"key=value, key=value,...\"",false,string(),"KEYVALUEPAIRS");
     TCLAP::ValueArg<string> caCertsFileArg("","cacerts","CA certificates file for SSL (cacerts.pem, ca-bundle.crt)",false,string(),"FILE");
     cmd.add(baseDirArg);
     cmd.add(maxSimultaneousGamesArg);
-    cmd.add(deleteUnusedModelsAfterArg);
+    cmd.add(deleteUnusedModelsAfterDaysArg);
     cmd.add(userConfigFileArg);
     cmd.add(overrideUserConfigArg);
     cmd.add(caCertsFileArg);
     cmd.parse(argc,argv);
     baseDir = baseDirArg.getValue();
     maxSimultaneousGames = maxSimultaneousGamesArg.getValue();
-    deleteUnusedModelsAfter = deleteUnusedModelsAfterArg.getValue();
+    deleteUnusedModelsAfterDays = deleteUnusedModelsAfterDaysArg.getValue();
     userConfigFile = userConfigFileArg.getValue();
     overrideUserConfig = overrideUserConfigArg.getValue();
     caCertsFile = caCertsFileArg.getValue();
 
     if(maxSimultaneousGames <= 0 || maxSimultaneousGames > 100000)
       throw StringError("-max-simultaneous-games: invalid value");
-    if(deleteUnusedModelsAfter < 0 || deleteUnusedModelsAfter > 1000000000)
+    if(!std::isfinite(deleteUnusedModelsAfterDays) || deleteUnusedModelsAfterDays < 0 || deleteUnusedModelsAfterDays > 20000)
       throw StringError("-delete-unused-models-after: invalid value");
   }
   catch (TCLAP::ArgException &e) {
@@ -560,7 +560,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       break;
 
     //Clean up old models, after we've definitely loaded what we needed
-    time_t modelFileAgeLimit = time(NULL) - deleteUnusedModelsAfter;
+    time_t modelFileAgeLimit = time(NULL) - (time_t)(deleteUnusedModelsAfterDays * 86400);
     LoadModel::deleteModelsOlderThan(modelsDir,logger,modelFileAgeLimit);
 
     for(int rep = 0; rep < taskRepFactor; rep++) {
