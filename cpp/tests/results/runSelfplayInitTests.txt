@@ -8237,6 +8237,158 @@ whiteValueTargetsByTurn 15 1 0 0 4.5 4.5
  0.000 0.000 0.000 0.000 -1.000 -1.000 -1.000 1.000 1.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000
 
+====================================================================================================
+====================================================================================================
+====================================================================================================
+seedBase: test resign!
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla O
+start
+HASH: C78E9483A6F391146051BFA5E35365B1
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . O . . .
+ 8 . . . X . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . X . . . . . X . .
+ 3 . . X O . . . . . . .
+ 2 . . . . . . . . O . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 7
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C4 H9 D8 J2 J4 D3 C3 
+end
+HASH: B8A9D107E1BD3567D9C1727DD2330B8D
+   A B C D E F G H J K L
+11 . X . . . X O . . . .
+10 . O X . X O . . . . .
+ 9 . O O X X O . O . . .
+ 8 . O X X . O . . O O .
+ 7 . O X . . O X X X O .
+ 6 . O O X X X O O X X .
+ 5 . O X O . X O . X X X
+ 4 . X X O X X O O X . X
+ 3 . . X O X O O O O X X
+ 2 . . X X . X O . O X O
+ 1 . . . . X X X O O O O
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 84
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 1 Black 0 0 0 1
+Last moves C4 H9 D8 J2 J4 D3 C3 G3 J7 J8 H7 F9 E9 F8 D6 C9 E10 B7 C8 B8 C10 B10 D9 B9 B11 B5 C5 C6 C7 B6 B4 D5 E6 D4 D2 E2 C2 G6 G7 F7 F6 G5 F4 G4 E3 F3 E4 K7 K6 K8 K2 J3 K3 K1 J5 H6 J6 L2 L3 K4 L1 J1 K5 L4 L5 L2 F2 G2 E1 H4 H2 K4 L1 H3 G1 H1 F1 L2 L4 L1 F5 F10 F11 G11 
+gameHash F7A17051D50449D2028AEF337C814460
+hitTurnLimit 0
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 0
+whiteValueTargetsByTurn 0 0.474729 0.525271 0 -0.583689 - 
+whiteValueTargetsByTurn 1 0.490053 0.509947 0 -0.188659 - 
+whiteValueTargetsByTurn 2 0.501189 0.498811 0 0.217063 - 
+whiteValueTargetsByTurn 3 0.518351 0.481649 0 0.806453 - 
+whiteValueTargetsByTurn 4 0.52966 0.47034 0 1.23505 - 
+whiteValueTargetsByTurn 5 0.51339 0.48661 0 0.629555 - 
+whiteValueTargetsByTurn 6 0.526929 0.473071 0 1.29615 - 
+whiteValueTargetsByTurn 7 0.522593 0.477407 0 1.07749 - 
+whiteValueTargetsByTurn 8 0.538055 0.461945 0 1.64064 - 
+whiteValueTargetsByTurn 9 0.51603 0.48397 0 0.918183 - 
+whiteValueTargetsByTurn 10 0.512241 0.487759 0 0.837581 - 
+whiteValueTargetsByTurn 11 0.49627 0.50373 0 0.13103 - 
+whiteValueTargetsByTurn 12 0.511163 0.488837 0 0.684969 - 
+whiteValueTargetsByTurn 13 0.526365 0.473635 0 1.42639 - 
+whiteValueTargetsByTurn 14 0.489242 0.510758 0 -0.226111 - 
+whiteValueTargetsByTurn 15 0.448063 0.551937 0 -2.13971 - 
+whiteValueTargetsByTurn 16 0.446703 0.553297 0 -2.16907 - 
+whiteValueTargetsByTurn 17 0.423192 0.576808 0 -3.20633 - 
+whiteValueTargetsByTurn 18 0.383307 0.616693 0 -4.80862 - 
+whiteValueTargetsByTurn 19 0.383214 0.616786 0 -4.78331 - 
+whiteValueTargetsByTurn 20 0.395832 0.604168 0 -4.33016 - 
+whiteValueTargetsByTurn 21 0.423758 0.576242 0 -2.81944 - 
+whiteValueTargetsByTurn 22 0.448837 0.551163 0 -1.83453 - 
+whiteValueTargetsByTurn 23 0.4494 0.5506 0 -1.81528 - 
+whiteValueTargetsByTurn 24 0.408014 0.591986 0 -3.63393 - 
+whiteValueTargetsByTurn 25 0.427668 0.572332 0 -2.6702 - 
+whiteValueTargetsByTurn 26 0.414555 0.585445 0 -3.38085 - 
+whiteValueTargetsByTurn 27 0.406681 0.593319 0 -3.84726 - 
+whiteValueTargetsByTurn 28 0.379052 0.620948 0 -5.34074 - 
+whiteValueTargetsByTurn 29 0.349764 0.650236 0 -6.35861 - 
+whiteValueTargetsByTurn 30 0.325995 0.674005 0 -7.36077 - 
+whiteValueTargetsByTurn 31 0.409859 0.590141 0 -3.7212 - 
+whiteValueTargetsByTurn 32 0.412687 0.587313 0 -3.3405 - 
+whiteValueTargetsByTurn 33 0.413863 0.586137 0 -3.19534 - 
+whiteValueTargetsByTurn 34 0.434792 0.565208 0 -2.28323 - 
+whiteValueTargetsByTurn 35 0.441032 0.558968 0 -1.80699 - 
+whiteValueTargetsByTurn 36 0.414354 0.585646 0 -2.87169 - 
+whiteValueTargetsByTurn 37 0.357389 0.642611 0 -5.20383 - 
+whiteValueTargetsByTurn 38 0.362554 0.637446 0 -4.73551 - 
+whiteValueTargetsByTurn 39 0.33146 0.66854 0 -5.96512 - 
+whiteValueTargetsByTurn 40 0.319456 0.680544 0 -6.7538 - 
+whiteValueTargetsByTurn 41 0.310529 0.689471 0 -7.87148 - 
+whiteValueTargetsByTurn 42 0.30124 0.69876 0 -8.43764 - 
+whiteValueTargetsByTurn 43 0.272674 0.727326 0 -9.92978 - 
+whiteValueTargetsByTurn 44 0.257863 0.742137 0 -10.2808 - 
+whiteValueTargetsByTurn 45 0.259292 0.740708 0 -12.4003 - 
+whiteValueTargetsByTurn 46 0.26 0.74 0 -12.6372 - 
+whiteValueTargetsByTurn 47 0.315306 0.684694 0 -11.2773 - 
+whiteValueTargetsByTurn 48 0.29957 0.70043 0 -12.4482 - 
+whiteValueTargetsByTurn 49 0.326178 0.673822 0 -10.525 - 
+whiteValueTargetsByTurn 50 0.324984 0.675016 0 -11.539 - 
+whiteValueTargetsByTurn 51 0.32268 0.67732 0 -11.2437 - 
+whiteValueTargetsByTurn 52 0.376931 0.623069 0 -7.82333 - 
+whiteValueTargetsByTurn 53 0.38137 0.61863 0 -7.72947 - 
+whiteValueTargetsByTurn 54 0.435295 0.564705 0 -4.27444 - 
+whiteValueTargetsByTurn 55 0.440971 0.559029 0 -4.07118 - 
+whiteValueTargetsByTurn 56 0.348048 0.651952 0 -9.9777 - 
+whiteValueTargetsByTurn 57 0.34937 0.65063 0 -11.4673 - 
+whiteValueTargetsByTurn 58 0.310472 0.689528 0 -15.0925 - 
+whiteValueTargetsByTurn 59 0.20987 0.79013 0 -23.3587 - 
+whiteValueTargetsByTurn 60 0.171482 0.828518 0 -28.8374 - 
+whiteValueTargetsByTurn 61 0.181343 0.818657 0 -28.4232 - 
+whiteValueTargetsByTurn 62 0.154667 0.845333 0 -31.6099 - 
+whiteValueTargetsByTurn 63 0.17034 0.82966 0 -29.5687 - 
+whiteValueTargetsByTurn 64 0.193609 0.806391 0 -27.7385 - 
+whiteValueTargetsByTurn 65 0.208074 0.791926 0 -26.0448 - 
+whiteValueTargetsByTurn 66 0.217826 0.782174 0 -24.8431 - 
+whiteValueTargetsByTurn 67 0.203998 0.796002 0 -25.3197 - 
+whiteValueTargetsByTurn 68 0.228632 0.771368 0 -23.0713 - 
+whiteValueTargetsByTurn 69 0.117861 0.882139 0 -37.1129 - 
+whiteValueTargetsByTurn 70 0.0614863 0.938514 0 -42.9868 - 
+whiteValueTargetsByTurn 71 0.086 0.914 0 -40.3662 - 
+whiteValueTargetsByTurn 72 0.0662333 0.933767 0 -42.8496 - 
+whiteValueTargetsByTurn 73 0.0157587 0.984241 0 -51.086 - 
+whiteValueTargetsByTurn 74 0.00156895 0.998431 0 -53.7097 - 
+whiteValueTargetsByTurn 75 0.000817926 0.999182 0 -51.903 - 
+whiteValueTargetsByTurn 76 0.00089054 0.999109 0 -53.7618 - 
+(;FF[4]GM[1]SZ[11]PB[Black]PW[White]HA[0]KM[7.5]RU[koPOSITIONALscoreAREAtaxNONEsui1]RE[B+R]C[startTurnIdx=7,gameHash=F7A17051D50449D2028AEF337C814460,gtype=normal];B[ch];W[hc];B[dd];W[ij];B[ih];W[di];B[ci];W[gi]C[0.47 0.53 0.00 -0.6];B[ie]C[0.49 0.51 0.00 -0.2];W[id]C[0.50 0.50 0.00 0.2];B[he]C[0.52 0.48 0.00 0.8];W[fc]C[0.53 0.47 0.00 1.2];B[ec]C[0.51 0.49 0.00 0.6];W[fd]C[0.53 0.47 0.00 1.3];B[df]C[0.52 0.48 0.00 1.1];W[cc]C[0.54 0.46 0.00 1.6];B[eb]C[0.52 0.48 0.00 0.9];W[be]C[0.51 0.49 0.00 0.8];B[cd]C[0.50 0.50 0.00 0.1];W[bd]C[0.51 0.49 0.00 0.7];B[cb]C[0.53 0.47 0.00 1.4];W[bb]C[0.49 0.51 0.00 -0.2];B[dc]C[0.45 0.55 0.00 -2.1];W[bc]C[0.45 0.55 0.00 -2.2];B[ba]C[0.42 0.58 0.00 -3.2];W[bg]C[0.38 0.62 0.00 -4.8];B[cg]C[0.38 0.62 0.00 -4.8];W[cf]C[0.40 0.60 0.00 -4.3];B[ce]C[0.42 0.58 0.00 -2.8];W[bf]C[0.45 0.55 0.00 -1.8];B[bh]C[0.45 0.55 0.00 -1.8];W[dg]C[0.41 0.59 0.00 -3.6];B[ef]C[0.43 0.57 0.00 -2.7];W[dh]C[0.41 0.59 0.00 -3.4];B[dj]C[0.41 0.59 0.00 -3.8];W[ej]C[0.38 0.62 0.00 -5.3];B[cj]C[0.35 0.65 0.00 -6.4];W[gf]C[0.33 0.67 0.00 -7.4];B[ge]C[0.41 0.59 0.00 -3.7];W[fe]C[0.41 0.59 0.00 -3.3];B[ff]C[0.41 0.59 0.00 -3.2];W[gg]C[0.43 0.57 0.00 -2.3];B[fh]C[0.44 0.56 0.00 -1.8];W[gh]C[0.41 0.59 0.00 -2.9];B[ei]C[0.36 0.64 0.00 -5.2];W[fi]C[0.36 0.64 0.00 -4.7];B[eh]C[0.33 0.67 0.00 -6.0];W[je]C[0.32 0.68 0.00 -6.8];B[jf]C[0.31 0.69 0.00 -7.9];W[jd]C[0.30 0.70 0.00 -8.4];B[jj]C[0.27 0.73 0.00 -9.9];W[ii]C[0.26 0.74 0.00 -10.3];B[ji]C[0.26 0.74 0.00 -12.4];W[jk]C[0.26 0.74 0.00 -12.6];B[ig]C[0.32 0.68 0.00 -11.3];W[hf]C[0.30 0.70 0.00 -12.4];B[if]C[0.33 0.67 0.00 -10.5];W[kj]C[0.32 0.68 0.00 -11.5];B[ki]C[0.32 0.68 0.00 -11.2];W[jh]C[0.38 0.62 0.00 -7.8];B[kk]C[0.38 0.62 0.00 -7.7];W[ik]C[0.44 0.56 0.00 -4.3];B[jg]C[0.44 0.56 0.00 -4.1];W[kh]C[0.35 0.65 0.00 -10.0];B[kg]C[0.35 0.65 0.00 -11.5];W[kj]C[0.31 0.69 0.00 -15.1];B[fj]C[0.21 0.79 0.00 -23.4];W[gj]C[0.17 0.83 0.00 -28.8];B[ek]C[0.18 0.82 0.00 -28.4];W[hh]C[0.15 0.85 0.00 -31.6];B[hj]C[0.17 0.83 0.00 -29.6];W[jh]C[0.19 0.81 0.00 -27.7];B[kk]C[0.21 0.79 0.00 -26.0];W[hi]C[0.22 0.78 0.00 -24.8];B[gk]C[0.20 0.80 0.00 -25.3];W[hk]C[0.23 0.77 0.00 -23.1];B[fk]C[0.12 0.88 0.00 -37.1];W[kj]C[0.06 0.94 0.00 -43.0];B[kh]C[0.09 0.91 0.00 -40.4];W[kk]C[0.07 0.93 0.00 -42.8];B[fg]C[0.02 0.98 0.00 -51.1];W[fb]C[0.00 1.00 0.00 -53.7];B[fa]C[0.00 1.00 0.00 -51.9];W[ga]C[0.00 1.00 0.00 -53.8 result=B+R])
+(;FF[4]GM[1]SZ[11]PB[Black]PW[White]HA[0]KM[7.5]RU[koPOSITIONALscoreAREAtaxNONEsui1]RE[B+R]C[startTurnIdx=7,gameHash=F7A17051D50449D2028AEF337C814460,gtype=normal];B[ch];W[hc];B[dd];W[ij];B[ih];W[di];B[ci];W[gi]C[0.47 0.53 0.00 -0.6];B[ie]C[0.49 0.51 0.00 -0.2];W[id]C[0.50 0.50 0.00 0.2];B[he]C[0.52 0.48 0.00 0.8];W[fc]C[0.53 0.47 0.00 1.2];B[ec]C[0.51 0.49 0.00 0.6];W[fd]C[0.53 0.47 0.00 1.3];B[df]C[0.52 0.48 0.00 1.1];W[cc]C[0.54 0.46 0.00 1.6];B[eb]C[0.52 0.48 0.00 0.9];W[be]C[0.51 0.49 0.00 0.8];B[cd]C[0.50 0.50 0.00 0.1];W[bd]C[0.51 0.49 0.00 0.7];B[cb]C[0.53 0.47 0.00 1.4];W[bb]C[0.49 0.51 0.00 -0.2];B[dc]C[0.45 0.55 0.00 -2.1];W[bc]C[0.45 0.55 0.00 -2.2];B[ba]C[0.42 0.58 0.00 -3.2];W[bg]C[0.38 0.62 0.00 -4.8];B[cg]C[0.38 0.62 0.00 -4.8];W[cf]C[0.40 0.60 0.00 -4.3];B[ce]C[0.42 0.58 0.00 -2.8];W[bf]C[0.45 0.55 0.00 -1.8];B[bh]C[0.45 0.55 0.00 -1.8];W[dg]C[0.41 0.59 0.00 -3.6];B[ef]C[0.43 0.57 0.00 -2.7];W[dh]C[0.41 0.59 0.00 -3.4];B[dj]C[0.41 0.59 0.00 -3.8];W[ej]C[0.38 0.62 0.00 -5.3];B[cj]C[0.35 0.65 0.00 -6.4];W[gf]C[0.33 0.67 0.00 -7.4];B[ge]C[0.41 0.59 0.00 -3.7];W[fe]C[0.41 0.59 0.00 -3.3];B[ff]C[0.41 0.59 0.00 -3.2];W[gg]C[0.43 0.57 0.00 -2.3];B[fh]C[0.44 0.56 0.00 -1.8];W[gh]C[0.41 0.59 0.00 -2.9];B[ei]C[0.36 0.64 0.00 -5.2];W[fi]C[0.36 0.64 0.00 -4.7];B[eh]C[0.33 0.67 0.00 -6.0];W[je]C[0.32 0.68 0.00 -6.8];B[jf]C[0.31 0.69 0.00 -7.9];W[jd]C[0.30 0.70 0.00 -8.4];B[jj]C[0.27 0.73 0.00 -9.9];W[ii]C[0.26 0.74 0.00 -10.3];B[ji]C[0.26 0.74 0.00 -12.4];W[jk]C[0.26 0.74 0.00 -12.6];B[ig]C[0.32 0.68 0.00 -11.3];W[hf]C[0.30 0.70 0.00 -12.4];B[if]C[0.33 0.67 0.00 -10.5];W[kj]C[0.32 0.68 0.00 -11.5];B[ki]C[0.32 0.68 0.00 -11.2];W[jh]C[0.38 0.62 0.00 -7.8];B[kk]C[0.38 0.62 0.00 -7.7];W[ik]C[0.44 0.56 0.00 -4.3];B[jg]C[0.44 0.56 0.00 -4.1];W[kh]C[0.35 0.65 0.00 -10.0];B[kg]C[0.35 0.65 0.00 -11.5];W[kj]C[0.31 0.69 0.00 -15.1];B[fj]C[0.21 0.79 0.00 -23.4];W[gj]C[0.17 0.83 0.00 -28.8];B[ek]C[0.18 0.82 0.00 -28.4];W[hh]C[0.15 0.85 0.00 -31.6];B[hj]C[0.17 0.83 0.00 -29.6];W[jh]C[0.19 0.81 0.00 -27.7];B[kk]C[0.21 0.79 0.00 -26.0];W[hi]C[0.22 0.78 0.00 -24.8];B[gk]C[0.20 0.80 0.00 -25.3];W[hk]C[0.23 0.77 0.00 -23.1];B[fk]C[0.12 0.88 0.00 -37.1];W[kj]C[0.06 0.94 0.00 -43.0];B[kh]C[0.09 0.91 0.00 -40.4];W[kk]C[0.07 0.93 0.00 -42.8];B[fg]C[0.02 0.98 0.00 -51.1];W[fb]C[0.00 1.00 0.00 -53.7];B[fa]C[0.00 1.00 0.00 -51.9];C[0.00 1.00 0.00 -53.8 result=B+R])
+
 HASH: 54579E0A87F182BA544C02BE0164C001
    A B C D E F G H J
  9 . . . . . . . . .

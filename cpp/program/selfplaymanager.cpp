@@ -348,7 +348,7 @@ void SelfplayManager::runDataWriteLoop(ModelData* modelData) {
 
     if(modelData->sgfOut != NULL) {
       assert(gameData->startHist.moveHistory.size() <= gameData->endHist.moveHistory.size());
-      WriteSgf::writeSgf(*modelData->sgfOut,gameData->bName,gameData->wName,gameData->endHist,gameData,false);
+      WriteSgf::writeSgf(*modelData->sgfOut,gameData->bName,gameData->wName,gameData->endHist,gameData,false,true);
       (*modelData->sgfOut) << endl;
     }
     delete gameData;

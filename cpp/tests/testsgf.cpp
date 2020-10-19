@@ -52,7 +52,7 @@ void Tests::runSgfTests() {
       //Test SGF writing roundtrip.
       //This is not exactly holding if there is pass for ko, but should be good in all other cases
       ostringstream out2;
-      WriteSgf::writeSgf(out2,"foo","bar",hist,NULL,false);
+      WriteSgf::writeSgf(out2,"foo","bar",hist,NULL,false,false);
       CompactSgf* sgf2 = CompactSgf::parse(out2.str());
       Board board2;
       BoardHistory hist2;
@@ -619,6 +619,93 @@ Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves
+)%%";
+    expect(name,out,expected);
+  }
+  
+  //============================================================================
+  {
+    const char* name = "Sgf parsing with moveless and multimove nodes";
+    string sgfStr = "(;GM[1]FF[4]SZ[5]KM[24];B[cc]W[cb];;B[bb];C[test];C[test2];W[dc];B[db];W[cd];;;B[bc];C[test3])";
+    parseAndPrintSgf(sgfStr);
+    {
+      Sgf* sgf = Sgf::parse(sgfStr);
+      std::set<Hash128> uniqueHashes;
+      vector<Sgf::PositionSample> samples;
+      sgf->loadAllUniquePositions(uniqueHashes, samples);
+      for(int i = 0; i<samples.size(); i++) {
+        out << Sgf::PositionSample::toJsonLine(samples[i]) << endl;
+      }
+      delete sgf;
+    }
+    
+    string expected = R"%%(
+xSize 5
+ySize 5
+depth 13
+komi 24
+placements
+moves
+X C3
+O C4
+X B4
+O D3
+X D4
+O C2
+X B3
+Initial board hist
+pla Black
+HASH: FBE16917FFBF22C1CD6D3A1EEB1FC363
+   A B C D E
+ 5 . . . . .
+ 4 . . . . .
+ 3 . . . . .
+ 2 . . . . .
+ 1 . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi24
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves
+Final board hist
+pla White
+HASH: F319D79992F6E6C1ABF52DB6631D470B
+   A B C D E
+ 5 . . . . .
+ 4 . X O X .
+ 3 . X X O .
+ 2 . . O . .
+ 1 . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 7
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi24
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C3 C4 B4 D3 D4 C2 B3
+{"board":"...../...../...../...../...../","hintLoc":"null","initialTurnNumber":0,"moveLocs":["C3"],"movePlas":["B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../...../...../...../...../","hintLoc":"null","initialTurnNumber":0,"moveLocs":["C3","C4"],"movePlas":["B","W"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../...../...../...../...../","hintLoc":"null","initialTurnNumber":0,"moveLocs":["C3","C4","B4"],"movePlas":["B","W","B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../...../...../...../...../","hintLoc":"null","initialTurnNumber":0,"moveLocs":["C3","C4","B4","D3"],"movePlas":["B","W","B","W"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../...../...../...../...../","hintLoc":"null","initialTurnNumber":0,"moveLocs":["C3","C4","B4","D3","D4"],"movePlas":["B","W","B","W","B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../...../..X../...../...../","hintLoc":"null","initialTurnNumber":1,"moveLocs":["C4","B4","D3","D4","C2"],"movePlas":["W","B","W","B","W"],"nextPla":"W","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../..O../..X../...../...../","hintLoc":"null","initialTurnNumber":2,"moveLocs":["B4","D3","D4","C2","B3"],"movePlas":["B","W","B","W","B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
 )%%";
     expect(name,out,expected);
   }

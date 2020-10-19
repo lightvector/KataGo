@@ -2505,12 +2505,12 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
       else if(pieces.size() == 0 || pieces[0] == "-") {
         ostringstream out;
-        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true);
+        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
         response = out.str();
       }
       else {
         ofstream out(pieces[0]);
-        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true);
+        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
         out.close();
         response = "";
       }

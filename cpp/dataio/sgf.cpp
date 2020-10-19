@@ -1189,7 +1189,8 @@ void WriteSgf::writeSgf(
   ostream& out, const string& bName, const string& wName,
   const BoardHistory& endHist,
   const FinishedGameData* gameData,
-  bool tryNicerRulesString
+  bool tryNicerRulesString,
+  bool omitResignPlayerMove
 ) {
   const Board& initialBoard = endHist.initialBoard;
   const Rules& rules = endHist.rules;
@@ -1295,25 +1296,28 @@ void WriteSgf::writeSgf(
     Loc loc = endHist.moveHistory[i].loc;
     Player pla = endHist.moveHistory[i].pla;
 
-    if(pla == P_BLACK)
-      out << "B[";
-    else
-      out << "W[";
+    bool isResignMove = endHist.isGameFinished && endHist.isResignation && endHist.winner == getOpp(pla) && i+1 == endHist.moveHistory.size();
+    if(!(omitResignPlayerMove && isResignMove)) {
+      if(pla == P_BLACK)
+        out << "B[";
+      else
+        out << "W[";
 
-    bool isPassForKo = hist.isPassForKo(board,loc,pla);
-    if(isPassForKo)
-      writeSgfLoc(out,Board::PASS_LOC,xSize,ySize);
-    else
-      writeSgfLoc(out,loc,xSize,ySize);
-    out << "]";
-
-    if(isPassForKo) {
-      out << "TR[";
-      writeSgfLoc(out,loc,xSize,ySize);
+      bool isPassForKo = hist.isPassForKo(board,loc,pla);
+      if(isPassForKo)
+        writeSgfLoc(out,Board::PASS_LOC,xSize,ySize);
+      else
+        writeSgfLoc(out,loc,xSize,ySize);
       out << "]";
-      comment += "Pass for ko";
-    }
 
+      if(isPassForKo) {
+        out << "TR[";
+        writeSgfLoc(out,loc,xSize,ySize);
+        out << "]";
+        comment += "Pass for ko";
+      }
+    }
+    
     if(gameData != NULL && i >= startTurnIdx) {
       size_t turnAfterStart = i-startTurnIdx;
       if(turnAfterStart < gameData->whiteValueTargetsByTurn.size()) {
@@ -1336,6 +1340,12 @@ void WriteSgf::writeSgf(
         comment += " ";
         comment += scoreBuf;
       }
+    }
+
+    if(endHist.isGameFinished && i+1 == endHist.moveHistory.size()) {
+      if(comment.length() > 0)
+        comment += " ";
+      comment += "result=" + WriteSgf::gameResultNoSgfTag(endHist);
     }
 
     if(comment.length() > 0)

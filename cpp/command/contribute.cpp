@@ -149,7 +149,7 @@ static void runAndUploadSingleGame(
     string sgfFile = sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgf";
 
     ofstream out(sgfFile);
-    WriteSgf::writeSgf(out,gameData->bName,gameData->wName,gameData->endHist,gameData,false);
+    WriteSgf::writeSgf(out,gameData->bName,gameData->wName,gameData->endHist,gameData,false,true);
     out.close();
 
     static constexpr bool retryOnFailure = true;

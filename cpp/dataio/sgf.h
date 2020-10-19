@@ -157,7 +157,8 @@ namespace WriteSgf {
     std::ostream& out, const std::string& bName, const std::string& wName,
     const BoardHistory& endHist,
     const FinishedGameData* gameData,
-    bool tryNicerRulesString
+    bool tryNicerRulesString,
+    bool omitResignPlayerMove
   );
 
   //If hist is a finished game, print the result to out along with SGF tag, else do nothing

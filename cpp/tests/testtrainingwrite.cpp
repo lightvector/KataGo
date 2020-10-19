@@ -130,7 +130,7 @@ void Tests::runTrainingWriteTests() {
     cout << "Num captured white stones " << gameData->endHist.getRecentBoard(0).numWhiteCaptures << endl;
 
     if(cheapLongSgf) {
-      WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData,false);
+      WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData,false,false);
     }
     else {
       dataWriter.writeGame(*gameData);
@@ -360,13 +360,14 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     bool testLead,
     bool testPolicySurpriseWeight,
     bool testValueSurpriseWeight,
-    bool testHint
+    bool testHint,
+    bool testResign
   ) {
     nnEval->clearCache();
     nnEval->clearStats();
 
     SearchParams params;
-    params.maxVisits = 100;
+    params.maxVisits = testResign ? 10 : 100;
     params.drawEquivalentWinsForWhite = 0.5;
     if(testLead) {
       params.chosenMoveTemperature = 1.0;
@@ -412,14 +413,14 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
-    int maxMovesPerGame = (testLead || testPolicySurpriseWeight || testValueSurpriseWeight) ? 30 : 15;
+    int maxMovesPerGame = testResign ? 10000 : (testLead || testPolicySurpriseWeight || testValueSurpriseWeight) ? 30 : 15;
     vector<std::atomic<bool>*> stopConditions;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
     playSettings.sidePositionProb = 0.0;
     playSettings.cheapSearchProb = 0.5;
-    playSettings.cheapSearchVisits = 50;
+    playSettings.cheapSearchVisits = testResign ? 5 : 50;
     playSettings.cheapSearchTargetWeight = 0.456f;
     playSettings.compensateKomiVisits = 10;
     playSettings.minAsymmetricCompensateKomiProb = 0.5;
@@ -431,8 +432,13 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       playSettings.valueSurpriseDataWeight = 0.15;
       playSettings.noResolveTargetWeights = true;
     }
+    if(testResign) {
+      playSettings.allowResignation = true;
+      playSettings.resignThreshold = -0.9;
+      playSettings.resignConsecTurns = 3;
+    }
 
-    playSettings.forSelfPlay = true;
+    playSettings.forSelfPlay = !testResign;
 
     string searchRandSeed = seedBase+"search";
     Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
@@ -476,20 +482,28 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     }
 
     gameData->printDebug(cout);
+    if(testResign) {
+      WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData,false,false);
+      cout << endl;
+      WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData,false,true);
+      cout << endl;
+    }
+    
     delete gameData;
     delete bot;
     cout << endl;
   };
 
 
-  run("testasym!",Rules::getTrompTaylorish(),true,false,false,false,false);
-  run("test lead!",Rules::getTrompTaylorish(),false,true,false,false,false);
+  run("testasym!",Rules::getTrompTaylorish(),true,false,false,false,false,false);
+  run("test lead!",Rules::getTrompTaylorish(),false,true,false,false,false,false);
   Rules r = Rules::getTrompTaylorish();
   r.hasButton = true;
-  run("test lead int button!",r,false,true,false,false,false);
-  run("test surprise!",Rules::getTrompTaylorish(),false,false,true,false,false);
-  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true,false);
-  run("test hint!",Rules::getTrompTaylorish(),false,false,false,false,true);
+  run("test lead int button!",r,false,true,false,false,false,false);
+  run("test surprise!",Rules::getTrompTaylorish(),false,false,true,false,false,false);
+  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true,false,false);
+  run("test hint!",Rules::getTrompTaylorish(),false,false,false,false,true,false);
+  run("test resign!",Rules::getTrompTaylorish(),false,false,false,false,false,true);
 
 
   //Test lead specifically on a final position
