@@ -51,13 +51,23 @@ function uploadStuff() {
                 rm -rf "$TMPDST"
                 mkdir "$TMPDST"
 
+                TOBEZIPPED="$TMPDST"/"$RUNNAME"-"$NAME"
+                mkdir "$TOBEZIPPED"
+
+                # Build zip containing the saved_model
+                cp -r "$SRC"/saved_model "$TOBEZIPPED"/saved_model
+                cp "$SRC"/model.config.json "$TOBEZIPPED"/model.config.json
+                (cd "$TMPDST"; zip -r "$RUNNAME"-"$NAME".zip "$RUNNAME"-"$NAME"/)
+                rm -r "$TOBEZIPPED"/*
+
+                # Build zip containing the non_swa_saved_model
+                cp -r "$SRC"/non_swa_saved_model "$TOBEZIPPED"/non_swa_saved_model
+                cp "$SRC"/model.config.json "$TOBEZIPPED"/model.config.json
+                (cd "$TMPDST"; zip -r "$RUNNAME"-"$NAME"_non_swa.zip "$RUNNAME"-"$NAME"/)
+                rm -r "$TOBEZIPPED"/*
+                rmdir "$TOBEZIPPED"
+
                 cp "$SRC"/model.config.json "$TMPDST"/model.config.json
-                cp -r "$SRC"/saved_model "$TMPDST"/saved_model
-                zip -r "$TMPDST"/"$RUNNAME"-"$NAME".zip "$TMPDST"/model.config.json "$TMPDST"/saved_model
-                rm -r "$TMPDST"/model.config.json "$TMPDST"/saved_model
-                cp -r "$SRC"/non_swa_saved_model "$TMPDST"/non_swa_saved_model
-                zip -r "$TMPDST"/"$RUNNAME"-"$NAME"_non_swa.zip "$TMPDST"/non_swa_saved_model
-                rm -r "$TMPDST"/non_swa_saved_model
                 cp "$SRC"/model.bin.gz "$TMPDST"/"$RUNNAME"-"$NAME".bin.gz
                 cp -r "$SRC"/trainhistory.json "$TMPDST"/trainhistory.json
                 cp -r "$SRC"/log.txt "$TMPDST"/log.txt

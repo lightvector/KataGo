@@ -184,7 +184,7 @@ def save_swa(savedir):
       os.mkdir(savedir)
     os.mkdir(os.path.join(savedir,"saved_model"))
     os.mkdir(os.path.join(savedir,"saved_model","variables"))
-    swa_saver.save(sess,os.path.join(savedir,"saved_model","variables","variables"), write_meta_graph=False, write_state=False)
+    swa_saver.save(sess,os.path.join(savedir,"saved_model","variables","variables"), write_meta_graph=True, write_state=False)
 
 def model_fn(features,labels,mode,params):
   global printed_model_yet
