@@ -89,6 +89,8 @@ class NNEvaluator {
     int nnMutexPoolSizePowerofTwo,
     bool debugSkipNeuralNet,
     const std::string& openCLTunerFile,
+    const std::string& onnxOptModelFile,
+    const std::string& onnxRuntimeExecutionProvider,
     const std::string& homeDataDirOverride,
     bool openCLReTunePerBoardSize,
     enabled_t useFP16Mode,
@@ -113,6 +115,7 @@ class NNEvaluator {
   int getNumServerThreads() const;
   int getNNXLen() const;
   int getNNYLen() const;
+  std::string getOnnxRuntimeExecutionProvider() const;
   enabled_t getUsingFP16Mode() const;
   enabled_t getUsingNHWCMode() const;
 
@@ -172,6 +175,7 @@ class NNEvaluator {
   const bool requireExactNNLen;
   const int policySize;
   const bool inputsUseNHWC;
+  const std::string ortExecutionProvider;
   const enabled_t usingFP16Mode;
   const enabled_t usingNHWCMode;
   int numThreads;

@@ -132,6 +132,8 @@ static NNEvaluator* startNNEval(
   bool openCLReTunePerBoardSize = false;
   const string& modelName = modelFile;
   const string openCLTunerFile = "";
+  const string onnxOptModelFile = "";
+  const string onnxRuntimeExecutionProvider = "DirectML";
   const string homeDataDirOverride = "";
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
@@ -156,6 +158,8 @@ static NNEvaluator* startNNEval(
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
     openCLTunerFile,
+    onnxOptModelFile,
+    onnxRuntimeExecutionProvider,
     homeDataDirOverride,
     openCLReTunePerBoardSize,
     useFP16 ? enabled_t::True : enabled_t::False,

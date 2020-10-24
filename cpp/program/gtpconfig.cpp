@@ -4,7 +4,7 @@ using namespace std;
 
 static const string gtpBase = R"%%(
 
-# Logs and files--------------------------------------------------------------------------
+# Logs and files----------------------------------------------------------------
 
 # Where to output log?
 logDir = gtp_logs    # Each run of KataGo will log to a separate file in this dir
@@ -18,7 +18,7 @@ logToStderr = false
 # Optionally override where KataGo will attempt to save things like openCLTuner files and other cached data.
 # homeDataDir = DIRECTORY
 
-# Analysis------------------------------------------------------------------------------------
+# Analysis----------------------------------------------------------------------
 
 # Configure the maximum length of analysis printed out by lz-analyze and other places.
 # Controls the number of moves after the first move in a variation.
@@ -35,7 +35,7 @@ logToStderr = false
 # analysisWideRootNoise = 0.0
 
 
-# Default rules------------------------------------------------------------------------------------
+# Default rules-----------------------------------------------------------------
 # See https://lightvector.github.io/KataGo/rules.html for a description of the rules.
 # These rules are defaults and can be changed mid-run by several custom GTP commands.
 # See https://github.com/lightvector/KataGo/blob/master/docs/GTP_Extensions.md for those commands.
@@ -52,9 +52,9 @@ $$BUTTON
 
 $$WHITE_HANDICAP_BONUS
 
-# Bot behavior---------------------------------------------------------------------------------------
+# Bot behavior------------------------------------------------------------------
 
-# Resignation -------------
+# Resignation -------------------------
 
 # Resignation occurs if for at least resignConsecTurns in a row,
 # the winLossUtility (which is on a [-1,1] scale) is below resignThreshold.
@@ -64,7 +64,7 @@ resignConsecTurns = 3
 # Uncomment to make katago not resign close games, behind by fewer than this many points
 # resignMinScoreDifference = 10
 
-# Handicap -------------
+# Handicap ----------------------------
 
 # Assume that if black makes many moves in a row right at the start of the game, then the game is a handicap game.
 # This is necessary on some servers and for some GUIs and also when initializing from many SGF files, which may
@@ -93,13 +93,13 @@ resignConsecTurns = 3
 # playoutDoublingAdvantagePla = BLACK
 # playoutDoublingAdvantagePla = WHITE
 
-# Misc Behavior --------------------
+# Misc Behavior -----------------------
 
 # Uncomment and set to true to make KataGo avoid a particular joseki that some KataGo nets misevaluate,
 # and also to improve opening diversity versus some particular other bots that like to play it all the time.
 # avoidMYTDaggerHack = false
 
-# Search limits-----------------------------------------------------------------------------------
+# Search limits-----------------------------------------------------------------
 
 # For all of "maxVisits", "maxPlayouts", "maxTime", search will still try to follow GTP time controls and may make a move
 # faster than the specified max if GTP tells it that it is playing under a clock as well in the current game.
@@ -128,7 +128,7 @@ searchFactorAfterTwoPass = 0.25
 searchFactorWhenWinning = 0.40
 searchFactorWhenWinningThreshold = 0.95
 
-# GPU Settings-------------------------------------------------------------------------------
+# GPU Settings------------------------------------------------------------------
 
 # Maximum number of positions to send to a single GPU at once.
 # The default value here is roughly equal to numSearchThreads, but you can specify it manually
@@ -145,8 +145,14 @@ nnMutexPoolSizePowerOfTwo = $$NN_MUTEX_POOL_SIZE_POWER_OF_TWO
 
 $$MULTIPLE_GPUS
 
+# ONNXRuntime Backend Settings--------------------------------------------------
+# Execution provider for the ONNXRuntime backend.
+# Currently available options for this binary are:
+# $$ONNXRUNTIME_AVAILABLE_EXECUTION_PROVIDERS
+onnxOptModelFile = opt_model.onnx
+onnxRuntimeExecutionProvider = $$ONNXRUNTIME_EXECUTION_PROVIDER
 
-# Internal params------------------------------------------------------------------------------
+# Internal params---------------------------------------------------------------
 # Uncomment and edit any of the below values to change them from their default.
 
 # How big to make the mutex pool for search synchronization
@@ -161,6 +167,7 @@ string GTPConfig::makeConfig(
   int64_t maxPlayouts,
   double maxTime,
   double maxPonderTime,
+  string configOnnxRuntimeExecutionProvider,
   std::vector<int> deviceIdxs,
   int nnCacheSizePowerOfTwo,
   int nnMutexPoolSizePowerOfTwo,
@@ -214,6 +221,31 @@ string GTPConfig::makeConfig(
   replace("$$NN_CACHE_SIZE_POWER_OF_TWO", Global::intToString(nnCacheSizePowerOfTwo));
   replace("$$NN_MUTEX_POOL_SIZE_POWER_OF_TWO", Global::intToString(nnMutexPoolSizePowerOfTwo));
 
+#ifdef USE_ONNXRUNTIME_BACKEND
+  vector<string> availableExecutionProviders;
+  #ifdef USE_ORT_CUDA
+    availableExecutionProviders.push_back("CUDA");
+  #endif
+  #ifdef USE_ORT_TENSORRT
+    availableExecutionProviders.push_back("TensorRT");
+  #endif
+  #ifdef USE_ORT_DIRECTML
+    availableExecutionProviders.push_back("DirectML");
+  #endif
+  #ifdef USE_ORT_MIGRAPHX
+    availableExecutionProviders.push_back("MIGraphX");
+  #endif
+  string providers = "";
+  for(int i = 0; i < availableExecutionProviders.size(); i++) {
+    providers += availableExecutionProviders[i];
+    if(i < availableExecutionProviders.size() - 1){
+      providers += ", ";
+    }
+  }
+  replace("$$ONNXRUNTIME_AVAILABLE_EXECUTION_PROVIDERS", providers);
+  replace("$$ONNXRUNTIME_EXECUTION_PROVIDER", configOnnxRuntimeExecutionProvider);
+#endif
+
   if(deviceIdxs.size() <= 0) {
     replace("$$MULTIPLE_GPUS", "");
   }
@@ -227,6 +259,9 @@ string GTPConfig::makeConfig(
 #endif
 #ifdef USE_OPENCL_BACKEND
       replacement += "openclDeviceToUseThread" + Global::intToString(i) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
+#endif
+#ifdef USE_ONNXRUNTIME_BACKEND
+      replacement += "onnxruntimeDeviceToUseThread" + Global::intToString(i) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
 #endif
     }
     replace("$$MULTIPLE_GPUS", replacement);

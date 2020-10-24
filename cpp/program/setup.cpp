@@ -52,6 +52,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   string backendPrefix = "opencl";
   #elif defined(USE_EIGEN_BACKEND)
   string backendPrefix = "eigen";
+  #elif defined(USE_ONNXRUNTIME_BACKEND)
+  string backendPrefix = "onnxruntime";
   #else
   string backendPrefix = "dummybackend";
   #endif
@@ -64,6 +66,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     cfg.markAllKeysUsedWithPrefix("opencl");
   if(backendPrefix != "eigen")
     cfg.markAllKeysUsedWithPrefix("eigen");
+  if(backendPrefix != "onnxruntime")
+    cfg.markAllKeysUsedWithPrefix("onnxruntime");
   if(backendPrefix != "dummybackend")
     cfg.markAllKeysUsedWithPrefix("dummybackend");
 
@@ -108,7 +112,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         requireExactNNLen = cfg.getBool("requireMaxBoardSize");
     }
 
-    bool inputsUseNHWC = backendPrefix == "opencl" ? false : true;
+    bool inputsUseNHWC = (backendPrefix == "opencl" || backendPrefix == "onnxruntime") ? false : true;
     if(cfg.contains(backendPrefix+"InputsUseNHWC"+idxStr))
       inputsUseNHWC = cfg.getBool(backendPrefix+"InputsUseNHWC"+idxStr);
     else if(cfg.contains("inputsUseNHWC"+idxStr))
@@ -206,6 +210,14 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     bool openCLReTunePerBoardSize = false;
     if(cfg.contains("openclReTunePerBoardSize"))
       openCLReTunePerBoardSize = cfg.getBool("openclReTunePerBoardSize");
+    
+    string onnxOptModelFile;
+    if(cfg.contains("onnxOptModelFile"))
+      onnxOptModelFile = cfg.getString("onnxOptModelFile");
+
+    string onnxRuntimeExecutionProvider;
+    if(cfg.contains("onnxRuntimeExecutionProvider"))
+      onnxRuntimeExecutionProvider = cfg.getString("onnxRuntimeExecutionProvider");
 
     enabled_t useFP16Mode = enabled_t::Auto;
     if(cfg.contains(backendPrefix+"UseFP16-"+idxStr))
@@ -294,6 +306,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnMutexPoolSizePowerOfTwo,
       debugSkipNeuralNet,
       openCLTunerFile,
+      onnxOptModelFile,
+      onnxRuntimeExecutionProvider,
       homeDataDirOverride,
       openCLReTunePerBoardSize,
       useFP16Mode,
