@@ -36,6 +36,7 @@ using namespace std;
 
 static std::atomic<bool> sigReceived(false);
 static std::atomic<bool> shouldStop(false);
+static std::atomic<int> sigPipeReceivedCount(0);
 static void signalHandler(int signal)
 {
   if(signal == SIGINT || signal == SIGTERM) {
@@ -43,6 +44,19 @@ static void signalHandler(int signal)
     shouldStop.store(true);
   }
 }
+
+static void sigPipeHandler(int signal)
+{
+  if(signal == SIGPIPE) {
+    sigPipeReceivedCount.fetch_add(1);
+  }
+}
+
+static void sigPipeHandlerDoNothing(int signal)
+{
+  (void)signal;
+}
+
 
 //-----------------------------------------------------------------------------------------
 
@@ -324,17 +338,10 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     }
   }
 
-  if(!std::atomic_is_lock_free(&shouldStop))
-    throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
-  std::signal(SIGINT, signalHandler);
-  std::signal(SIGTERM, signalHandler);
-
   Logger logger;
   logger.setLogToStdout(true);
 
   logger.write("Distributed Self Play Engine starting...");
-  logger.write(Version::getKataGoVersionForHelp());
-  logger.write(string("Git revision: ") + Version::getGitRevision());
 
   string serverUrl = userCfg->getString("serverUrl");
   string username = userCfg->getString("username");
@@ -360,6 +367,26 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
   //Log to random file name to better support starting/stopping as well as multiple parallel runs
   logger.addFile(logsDir + "/log" + DateTime::getCompactDateTimeString() + "-" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".log");
+
+  //Write out versions now that the logger is all set up
+  logger.write(Version::getKataGoVersionForHelp());
+  logger.write(string("Git revision: ") + Version::getGitRevision());
+
+
+  //Set up signal handlers
+  if(!std::atomic_is_lock_free(&shouldStop))
+    throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
+  std::signal(SIGINT, signalHandler);
+  std::signal(SIGTERM, signalHandler);
+
+  //We want to make sure sigpipe doesn't kill us, since sigpipe is hard to avoid with network connections if internet is flickery
+  if(!std::atomic_is_lock_free(&sigPipeReceivedCount)) {
+    logger.write("sigPipeReceivedCount is not lock free, we will just ignore sigpipe outright");
+    std::signal(SIGPIPE, sigPipeHandlerDoNothing);
+  }
+  else {
+    std::signal(SIGPIPE, sigPipeHandler);
+  }
 
   //We only ever allow one chunk of rating games at a time right now.
   const int maxSimultaneousRatingGames = taskRepFactor;
@@ -471,6 +498,11 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     std::this_thread::sleep_for(std::chrono::duration<double>(1.0));
     if(shouldStop.load())
       break;
+    while(sigPipeReceivedCount.load() > 0) {
+      sigPipeReceivedCount.fetch_add(-1);
+      logger.write("Note: SIGPIPE received at some point, it's possible this is from bad internet rather than a broke shell pipe, so ignoring rather than killing the program.");
+    }
+
     bool retryOnFailure = anyTaskSuccessfullyParsedYet;
     //Only allow rating tasks when existing tasks are entirely done, and models are all unloaded
     bool allowRatingTask = (
