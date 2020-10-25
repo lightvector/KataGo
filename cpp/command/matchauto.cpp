@@ -10,8 +10,8 @@
 #include "../command/commandline.h"
 #include "../main.h"
 
-#include <boost/filesystem.hpp>
 #include <csignal>
+#include "../external/filesystem-1.3.6/include/ghc/filesystem.hpp"
 
 using namespace std;
 
@@ -248,11 +248,11 @@ namespace {
         }
       }
 
-      namespace bfs = boost::filesystem;
+      namespace gfs = ghc::filesystem;
 
-      for(bfs::directory_iterator iter(resultsDir); iter != bfs::directory_iterator(); ++iter) {
-        bfs::path dirPath = iter->path();
-        if(bfs::is_directory(dirPath))
+      for(gfs::directory_iterator iter(resultsDir); iter != gfs::directory_iterator(); ++iter) {
+        gfs::path dirPath = iter->path();
+        if(gfs::is_directory(dirPath))
           continue;
         string file = dirPath.string();
         if(Global::isSuffix(file,".results.csv")) {

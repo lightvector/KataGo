@@ -5,8 +5,8 @@
 #include "../program/setup.h"
 #include "../main.h"
 
-#include <boost/filesystem.hpp>
-namespace bfs = boost::filesystem;
+#include "../external/filesystem-1.3.6/include/ghc/filesystem.hpp"
+namespace gfs = ghc::filesystem;
 
 using namespace std;
 
@@ -14,10 +14,10 @@ using namespace std;
 
 static bool doesPathExist(const string& path) {
   try {
-    bfs::path bfsPath(path);
-    return bfs::exists(bfsPath);
+    gfs::path gfsPath(path);
+    return gfs::exists(gfsPath);
   }
-  catch(const bfs::filesystem_error&) {
+  catch(const gfs::filesystem_error&) {
     return false;
   }
 }
