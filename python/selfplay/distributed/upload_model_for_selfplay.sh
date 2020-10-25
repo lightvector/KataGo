@@ -86,6 +86,7 @@ function uploadStuff() {
                             -model-file "$TMPDST"/"$RUNNAME"-"$NAME".bin.gz \
                             -model-zip "$TMPDST"/"$RUNNAME"-"$NAME".zip \
                             -upload-log-file "$TMPDST"/upload_log.txt \
+                            -trainhistory-file "$TMPDST"/trainhistory.json \
                             -parents-dir "$TARGETDIR" \
                             -connection-config "$CONNECTION_CONFIG"
                     RESULT=$?

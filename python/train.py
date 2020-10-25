@@ -450,6 +450,16 @@ def dump_and_flush_json(data,filename):
     f.flush()
     os.fsync(f.fileno())
 
+
+# DATA RELOADING GENERATOR AND TRAINHISTORY ------------------------------------------------------------
+
+# Some globals
+last_curdatadir = None
+last_datainfo_row = 0
+trainfilegenerator = None
+num_train_files = 0
+vdatadir = None
+
 trainhistory = {
   "history":[]
 }
@@ -466,20 +476,15 @@ else:
 
 def save_history(global_step_value):
   trainhistory["history"].append(("nsamp",int(global_step_value * batch_size)))
+  trainhistory["train_step"] = int(global_step_value * batch_size)
+  trainhistory["total_num_data_rows"] = last_datainfo_row
+  trainhistory["extra_stats"] = {}
   savepath = os.path.join(traindir,"trainhistory.json")
   savepathtmp = os.path.join(traindir,"trainhistory.json.tmp")
   dump_and_flush_json(trainhistory,savepathtmp)
   os.replace(savepathtmp,savepath)
   trainlog("Wrote " + savepath)
 
-
-# DATA RELOADING GENERATOR ------------------------------------------------------------
-
-last_curdatadir = None
-last_datainfo_row = 0
-trainfilegenerator = None
-num_train_files = 0
-vdatadir = None
 def maybe_reload_training_data():
   global last_curdatadir
   global last_datainfo_row
