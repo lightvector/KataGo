@@ -6,6 +6,7 @@ import logging
 import requests
 import hashlib
 import configparser
+import datetime
 import json
 
 from requests.auth import HTTPBasicAuth
@@ -60,6 +61,7 @@ if not base_server_url.endswith("/"):
 username = config_parser["DEFAULT"]["username"]
 password = config_parser["DEFAULT"]["password"]
 
+log("now" + ": " + str(datetime.datetime.now()))
 log("run_name" + ": " + run_name)
 log("model_name" + ": " + model_name)
 log("model_file" + ": " + model_file)
@@ -129,7 +131,7 @@ with open(model_file,"rb") as model_file_handle:
       if "total_num_data_rows" in trainhistory:
         data["total_num_data_rows"] = (None, trainhistory["total_num_data_rows"])
       if "extra_stats" in trainhistory:
-        data["extra_stats"] = (None, trainhistory["extra_stats"])
+        data["extra_stats"] = (None, json.dumps(trainhistory["extra_stats"]))
 
     # print(requests.Request('POST', base_server_url, files=data).prepare().body)
 
