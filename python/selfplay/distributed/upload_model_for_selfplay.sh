@@ -79,6 +79,7 @@ function uploadStuff() {
                 BACKOFF=10
                 while [ $SUCCESSFUL -ne 1 ]
                 do
+                    set +e
                     set -x
                     python3 ./upload_model.py \
                             -run-name "$RUNNAME" \
@@ -91,6 +92,7 @@ function uploadStuff() {
                             -connection-config "$CONNECTION_CONFIG"
                     RESULT=$?
                     set +x
+                    set -e
                     if [ $RESULT -ne 0 ]
                     then
                         echo "Sleeping $BACKOFF seconds before trying again"
