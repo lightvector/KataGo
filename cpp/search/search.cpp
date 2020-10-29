@@ -62,8 +62,8 @@ SearchNode::SearchNode(Search& search, Player prevPla, Rand& rand, Loc prevLoc, 
    parent(p),
    children(NULL),numChildren(0),childrenCapacity(0),
    stats(),virtualLosses(0),
-   lastValueBiasDeltaSum(0.0),lastValueBiasWeight(0.0),
-   valueBiasTableEntry()
+   lastSubtreeValueBiasDeltaSum(0.0),lastSubtreeValueBiasWeight(0.0),
+   subtreeValueBiasTableEntry()
 {
   lockIdx = rand.nextUInt(search.mutexPool->getNumMutexes());
 }
@@ -158,7 +158,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    normToTApproxZ(0.0),
    nnEvaluator(nnEval),
    nonSearchRand(rSeed + string("$nonSearchRand")),
-   valueBiasTable(NULL)
+   subtreeValueBiasTable(NULL)
 {
   nnXLen = nnEval->getNNXLen();
   nnYLen = nnEval->getNNYLen();
@@ -190,7 +190,7 @@ Search::~Search() {
   delete valueWeightDistribution;
   delete rootNode;
   delete mutexPool;
-  delete valueBiasTable;
+  delete subtreeValueBiasTable;
 }
 
 const Board& Search::getRootBoard() const {
@@ -351,7 +351,7 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
       SearchNode* child = rootNode->children[foundChildIdx];
       child->parent = NULL;
       rootNode->children[foundChildIdx] = NULL;
-      recursivelyRemoveValueBiasBeforeDeleteSynchronous(rootNode);
+      recursivelyRemoveSubtreeValueBiasBeforeDeleteSynchronous(rootNode);
       delete rootNode;
       rootNode = child;
     }
@@ -632,8 +632,8 @@ void Search::beginSearch(bool pondering) {
   maybeRecomputeNormToTApproxTable();
 
   //Prepare value bias table if we need it
-  if(searchParams.valueBiasFactor != 0 && valueBiasTable == NULL)
-    valueBiasTable = new ValueBiasTable(searchParams.valueBiasTableNumShards);
+  if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable == NULL)
+    subtreeValueBiasTable = new SubtreeValueBiasTable(searchParams.subtreeValueBiasTableNumShards);
 
   SearchThread dummyThread(-1, *this, NULL);
 
@@ -656,7 +656,7 @@ void Search::beginSearch(bool pondering) {
         if(isAllowedRootMove(child->prevMoveLoc))
           node.children[numGoodChildren++] = child;
         else {
-          recursivelyRemoveValueBiasBeforeDeleteSynchronous(child);
+          recursivelyRemoveSubtreeValueBiasBeforeDeleteSynchronous(child);
           delete child;
         }
       }
@@ -689,29 +689,29 @@ void Search::beginSearch(bool pondering) {
 
     //Recursively update all stats in the tree if we have dynamic score values
     //And also to clear out lastResponseBiasDeltaSum and lastResponseBiasWeight
-    if(searchParams.dynamicScoreUtilityFactor != 0 || searchParams.valueBiasFactor != 0) {
+    if(searchParams.dynamicScoreUtilityFactor != 0 || searchParams.subtreeValueBiasFactor != 0) {
       recursivelyRecomputeStats(node,dummyThread,true);
     }
   }
 
   //Clear unused stuff in value bias table since we may have pruned rootNode stuff
-  if(searchParams.valueBiasFactor != 0 && valueBiasTable != NULL)
-    valueBiasTable->clearUnusedSynchronous();
+  if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL)
+    subtreeValueBiasTable->clearUnusedSynchronous();
 }
 
 //Recursively walk over part of the tree that we are about to delete and remove its contribution to the value bias in the table
 //Assumes we aren't doing any multithreadingy stuff, so doesn't bother with locks.
-void Search::recursivelyRemoveValueBiasBeforeDeleteSynchronous(SearchNode* node) {
-  if(node == NULL || searchParams.valueBiasFactor == 0)
+void Search::recursivelyRemoveSubtreeValueBiasBeforeDeleteSynchronous(SearchNode* node) {
+  if(node == NULL || searchParams.subtreeValueBiasFactor == 0)
     return;
   int numChildren = node->numChildren;
   for(int i = 0; i<numChildren; i++) {
-    recursivelyRemoveValueBiasBeforeDeleteSynchronous(node->children[i]);
+    recursivelyRemoveSubtreeValueBiasBeforeDeleteSynchronous(node->children[i]);
   }
 
-  if(node->valueBiasTableEntry != nullptr) {
-    node->valueBiasTableEntry->deltaUtilitySum -= node->lastValueBiasDeltaSum * searchParams.valueBiasFreeProp;
-    node->valueBiasTableEntry->weightSum -= node->lastValueBiasWeight * searchParams.valueBiasFreeProp;
+  if(node->subtreeValueBiasTableEntry != nullptr) {
+    node->subtreeValueBiasTableEntry->deltaUtilitySum -= node->lastSubtreeValueBiasDeltaSum * searchParams.subtreeValueBiasFreeProp;
+    node->subtreeValueBiasTableEntry->weightSum -= node->lastSubtreeValueBiasWeight * searchParams.subtreeValueBiasFreeProp;
   }
 }
 
@@ -1842,24 +1842,24 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
       getResultUtility(winProb, noResultProb)
       + getScoreUtility(scoreMean, scoreMeanSq, 1.0);
 
-    if(searchParams.valueBiasFactor != 0 && node.valueBiasTableEntry != nullptr) {
-      ValueBiasEntry& entry = *(node.valueBiasTableEntry);
+    if(searchParams.subtreeValueBiasFactor != 0 && node.subtreeValueBiasTableEntry != nullptr) {
+      SubtreeValueBiasEntry& entry = *(node.subtreeValueBiasTableEntry);
 
       double newEntryDeltaUtilitySum;
       double newEntryWeightSum;
 
       if(totalChildVisits >= 1 && weightSum > 1e-10) {
         double utilityChildren = utilitySum / weightSum;
-        double valueBiasWeight = sqrt(totalChildVisits);
-        double valueBiasDeltaSum = (utilityChildren - utility) * valueBiasWeight;
+        double subtreeValueBiasWeight = pow(totalChildVisits, searchParams.subtreeValueBiasWeightExponent);
+        double subtreeValueBiasDeltaSum = (utilityChildren - utility) * subtreeValueBiasWeight;
 
         while(entry.entryLock.test_and_set(std::memory_order_acquire));
-        entry.deltaUtilitySum += valueBiasDeltaSum - node.lastValueBiasDeltaSum;
-        entry.weightSum += valueBiasWeight - node.lastValueBiasWeight;
+        entry.deltaUtilitySum += subtreeValueBiasDeltaSum - node.lastSubtreeValueBiasDeltaSum;
+        entry.weightSum += subtreeValueBiasWeight - node.lastSubtreeValueBiasWeight;
         newEntryDeltaUtilitySum = entry.deltaUtilitySum;
         newEntryWeightSum = entry.weightSum;
-        node.lastValueBiasDeltaSum = valueBiasDeltaSum;
-        node.lastValueBiasWeight = valueBiasWeight;
+        node.lastSubtreeValueBiasDeltaSum = subtreeValueBiasDeltaSum;
+        node.lastSubtreeValueBiasWeight = subtreeValueBiasWeight;
         entry.entryLock.clear(std::memory_order_release);
       }
       else {
@@ -1870,7 +1870,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
       }
 
       //This is the amount of the direct evaluation of this node that we are going to bias towards the table entry
-      const double biasFactor = searchParams.valueBiasFactor;
+      const double biasFactor = searchParams.subtreeValueBiasFactor;
       if(newEntryWeightSum > 0.001)
         utility += biasFactor * newEntryDeltaUtilitySum / newEntryWeightSum;
       //This is the amount by which we need to scale desiredWeight such that if the table entry were actually equal to
@@ -1924,14 +1924,14 @@ void Search::addLeafValue(SearchNode& node, double winValue, double noResultValu
     getResultUtility(winValue, noResultValue)
     + getScoreUtility(scoreMean, scoreMeanSq, 1.0);
 
-  if(searchParams.valueBiasFactor != 0 && !isTerminal && node.valueBiasTableEntry != nullptr) {
-    ValueBiasEntry& entry = *(node.valueBiasTableEntry);
+  if(searchParams.subtreeValueBiasFactor != 0 && !isTerminal && node.subtreeValueBiasTableEntry != nullptr) {
+    SubtreeValueBiasEntry& entry = *(node.subtreeValueBiasTableEntry);
     while(entry.entryLock.test_and_set(std::memory_order_acquire));
     double newEntryDeltaUtilitySum = entry.deltaUtilitySum;
     double newEntryWeightSum = entry.weightSum;
     entry.entryLock.clear(std::memory_order_release);
     //This is the amount of the direct evaluation of this node that we are going to bias towards the table entry
-    const double biasFactor = searchParams.valueBiasFactor;
+    const double biasFactor = searchParams.subtreeValueBiasFactor;
     if(newEntryWeightSum > 0.001)
       utility += biasFactor * newEntryDeltaUtilitySum / newEntryWeightSum;
   }
@@ -2155,10 +2155,10 @@ void Search::playoutDescend(
   child->virtualLosses += searchParams.numVirtualLossesPerThread;
   child->statsLock.clear(std::memory_order_release);
 
-  if(searchParams.valueBiasFactor != 0) {
+  if(searchParams.subtreeValueBiasFactor != 0) {
     if(node.prevMoveLoc != Board::NULL_LOC) {
-      assert(valueBiasTable != NULL);
-      child->valueBiasTableEntry = std::move(valueBiasTable->get(thread.pla, node.prevMoveLoc, child->prevMoveLoc, thread.board));
+      assert(subtreeValueBiasTable != NULL);
+      child->subtreeValueBiasTableEntry = std::move(subtreeValueBiasTable->get(thread.pla, node.prevMoveLoc, child->prevMoveLoc, thread.board));
     }
   }
 

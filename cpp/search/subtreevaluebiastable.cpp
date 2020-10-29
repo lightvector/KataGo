@@ -1,6 +1,6 @@
 #include "../core/rand.h"
 #include "../game/board.h"
-#include "../search/valuebiastable.h"
+#include "../search/subtreevaluebiastable.h"
 
 static std::mutex initMutex;
 static std::atomic<bool> isInited(false);
@@ -47,18 +47,18 @@ static void initIfNeeded() {
   isInited = true;
 }
 
-ValueBiasTable::ValueBiasTable(int32_t numShards) {
+SubtreeValueBiasTable::SubtreeValueBiasTable(int32_t numShards) {
   initIfNeeded();
   mutexPool = new MutexPool(numShards);
   entries.resize(numShards);
 }
-ValueBiasTable::~ValueBiasTable() {
+SubtreeValueBiasTable::~SubtreeValueBiasTable() {
   delete mutexPool;
 }
 
-void ValueBiasTable::clearUnusedSynchronous() {
+void SubtreeValueBiasTable::clearUnusedSynchronous() {
   for(size_t i = 0; i<entries.size(); i++) {
-    std::map<Hash128,std::shared_ptr<ValueBiasEntry>>& submap = entries[i];
+    std::map<Hash128,std::shared_ptr<SubtreeValueBiasEntry>>& submap = entries[i];
     for(auto iter = submap.begin(); iter != submap.end(); /* no incr */) {
       // Anything in this map NOT used by anyone else - clear
       if(iter->second.use_count() <= 1) {
@@ -71,7 +71,7 @@ void ValueBiasTable::clearUnusedSynchronous() {
   }
 }
 
-std::shared_ptr<ValueBiasEntry> ValueBiasTable::get(Player pla, Loc parentPrevMoveLoc, Loc prevMoveLoc, const Board& board) {
+std::shared_ptr<SubtreeValueBiasEntry> SubtreeValueBiasTable::get(Player pla, Loc parentPrevMoveLoc, Loc prevMoveLoc, const Board& board) {
   Hash128 hash = ZOBRIST_MOVE_LOCS[parentPrevMoveLoc][0] ^ ZOBRIST_MOVE_LOCS[prevMoveLoc][1] ^ ZOBRIST_PLA[pla];
   if(prevMoveLoc != Board::PASS_LOC && prevMoveLoc != Board::NULL_LOC) {
     const int dxi = board.adj_offsets[2];
@@ -98,8 +98,8 @@ std::shared_ptr<ValueBiasEntry> ValueBiasTable::get(Player pla, Loc parentPrevMo
 
   std::mutex& mutex = mutexPool->getMutex(subMapIdx);
   std::lock_guard<std::mutex> lock(mutex);
-  std::shared_ptr<ValueBiasEntry>& slot = entries[subMapIdx][hash];
+  std::shared_ptr<SubtreeValueBiasEntry>& slot = entries[subMapIdx][hash];
   if(slot == nullptr)
-    slot = std::make_shared<ValueBiasEntry>();
+    slot = std::make_shared<SubtreeValueBiasEntry>();
   return slot;
 }

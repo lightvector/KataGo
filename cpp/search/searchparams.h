@@ -63,9 +63,10 @@ struct SearchParams {
   float nnPolicyTemperature; //Scale neural net policy probabilities by this temperature, applies everywhere in the tree
   bool antiMirror; //Enable anti-mirroring logic
 
-  double valueBiasFactor; //Dynamically adjust neural net utilties based on empirical stats about their errors in search
-  int32_t valueBiasTableNumShards; //Number of shards for valueBiasFactor for initial hash lookup and mutexing
-  double valueBiasFreeProp; //When a node is no longer part of the relevant search tree, only decay this proportion of the weight.
+  double subtreeValueBiasFactor; //Dynamically adjust neural net utilties based on empirical stats about their errors in search
+  int32_t subtreeValueBiasTableNumShards; //Number of shards for subtreeValueBiasFactor for initial hash lookup and mutexing
+  double subtreeValueBiasFreeProp; //When a node is no longer part of the relevant search tree, only decay this proportion of the weight.
+  double subtreeValueBiasWeightExponent; //When computing empiricial bias, weight subtree results by childvisits to this power.
 
   //Threading-related
   uint32_t mutexPoolSize; //Size of mutex pool for synchronizing access to all search nodes

@@ -1158,7 +1158,7 @@ static void runMoreV8Tests(NNEvaluator* nnEval, Logger& logger)
     params.maxVisits = 20;
     params.chosenMoveTemperature = 0;
     AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "valuebias test");
-    params.valueBiasFactor = 0.5;
+    params.subtreeValueBiasFactor = 0.5;
     AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "valuebias test");
     params.maxVisits = 300;
     AsyncBot* botC = new AsyncBot(params, nnEval, &logger, "valuebias test");
@@ -1834,7 +1834,7 @@ xxxxooo
     NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,7,0,true,false,false,true,false);
     SearchParams params;
     params.maxVisits = 500;
-    params.valueBiasFactor = 0.5;
+    params.subtreeValueBiasFactor = 0.5;
     params.chosenMoveTemperature = 0;
     Search* search = new Search(params, nnEval, "autoSearchRandSeed");
     Rules rules = Rules::getTrompTaylorish();
