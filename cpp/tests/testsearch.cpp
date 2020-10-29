@@ -25,6 +25,7 @@ struct TestSearchOptions {
   bool noClearCache;
   bool printMore;
   bool printMoreMoreMore;
+  bool printAfterBegun;
   bool ignorePosition;
   TestSearchOptions()
     :numMovesInARow(1),
@@ -35,6 +36,7 @@ struct TestSearchOptions {
      noClearCache(false),
      printMore(false),
      printMoreMoreMore(false),
+     printAfterBegun(false),
      ignorePosition(false)
   {}
 };
@@ -50,8 +52,27 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
   if(!opts.ignorePosition)
     bot->setPosition(nextPla,board,hist);
 
+  PrintTreeOptions options;
+  options = options.maxDepth(1);
+  if(opts.printMoreMoreMore)
+    options = options.maxDepth(20);
+  else if(opts.printMore)
+    options = options.minVisitsPropToExpand(0.1).maxDepth(2);
+
   for(int i = 0; i<opts.numMovesInARow; i++) {
-    Loc move = bot->genMoveSynchronous(nextPla,TimeControls());
+
+    Loc move;
+    if(opts.printAfterBegun) {
+      cout << "Just after begun" << endl;
+      std::function<void()> onSearchBegun = [&]() {
+        const Search* search = bot->getSearch();
+        search->printTree(cout, search->rootNode, options, P_WHITE);
+      };
+      move = bot->genMoveSynchronous(nextPla,TimeControls(),1.0,onSearchBegun);
+    }
+    else {
+      move = bot->genMoveSynchronous(nextPla,TimeControls());
+    }
     const Search* search = bot->getSearch();
 
     Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
@@ -65,12 +86,6 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
     cout << "\n";
     cout << "Tree:\n";
 
-    PrintTreeOptions options;
-    options = options.maxDepth(1);
-    if(opts.printMoreMoreMore)
-      options = options.maxDepth(20);
-    else if(opts.printMore)
-      options = options.minVisitsPropToExpand(0.1).maxDepth(2);
     search->printTree(cout, search->rootNode, options, P_WHITE);
 
     if(opts.printRootPolicy) {
@@ -95,6 +110,8 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
     if(i < opts.numMovesInARow-1) {
       bot->makeMove(move, nextPla);
       hist.makeBoardMoveAssumeLegal(board,move,nextPla,NULL);
+      cout << "Just after move" << endl;
+      search->printTree(cout, search->rootNode, options, P_WHITE);
       nextPla = getOpp(nextPla);
     }
   }
@@ -254,6 +271,7 @@ static void runBasicPositions(NNEvaluator* nnEval, Logger& logger)
       cout << endl;
       TestSearchOptions opts2 = opts;
       opts2.numMovesInARow = 3;
+      opts2.printAfterBegun = true;
       runBotOnSgf(bot, sgfStr, rules, 85, 7.5, opts2);
       cout << endl;
 
@@ -1120,6 +1138,10 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
 
   }
 
+}
+
+static void runMoreV8Tests(NNEvaluator* nnEval, Logger& logger)
+{
   {
     cout << "TEST VALUE BIAS ==========================================================================" << endl;
 
@@ -1134,25 +1156,34 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
 
     SearchParams params = SearchParams::forTestsV1();
     params.maxVisits = 20;
-    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "valuebiasetest");
+    params.chosenMoveTemperature = 0;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "valuebias test");
     params.valueBiasFactor = 0.5;
-    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "valuebiasetest");
+    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "valuebias test");
+    params.maxVisits = 300;
+    AsyncBot* botC = new AsyncBot(params, nnEval, &logger, "valuebias test");
 
     TestSearchOptions opts;
     opts.printMoreMoreMore = true;
+    opts.numMovesInARow = 3;
+    opts.printAfterBegun = true;
     cout << "BASE" << endl;
     runBotOnPosition(botA,board,nextPla,hist,opts);
     cout << "VALUE BIAS 0.5" << endl;
     runBotOnPosition(botB,board,nextPla,hist,opts);
 
+    opts.printMoreMoreMore = false;
+    runBotOnPosition(botC,board,nextPla,hist,opts);
+
     cout << endl << endl;
 
     delete botA;
     delete botB;
+    delete botC;
     delete sgf;
   }
-
 }
+
 
 void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16) {
   cout << "Running search tests" << endl;
@@ -1203,7 +1234,14 @@ void Tests::runSearchTestsV8(const string& modelFile, bool inputsNHWC, bool cuda
   runV8Tests(nnEval,nnEval19Exact,logger);
   delete nnEval;
   delete nnEval19Exact;
+  nnEval = NULL;
+  nnEval19Exact = NULL;
 
+  nnEval = startNNEval(
+    modelFile,logger,"v8seed",19,19,5,inputsNHWC,cudaNHWC,useFP16,false,false);
+  runMoreV8Tests(nnEval,logger);
+
+  delete nnEval;
   NeuralNet::globalCleanup();
 }
 
@@ -1784,6 +1822,70 @@ xxxxooo
     delete search;
     delete search2;
     delete search3;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Integrity of value bias, mem safety and updates" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,7,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 500;
+    params.valueBiasFactor = 0.5;
+    params.chosenMoveTemperature = 0;
+    Search* search = new Search(params, nnEval, "autoSearchRandSeed");
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(7,7,R"%%(
+x.xxxx.
+xxxooxx
+xxxxox.
+xxx.oxx
+ooxoooo
+o.oo.oo
+.oooooo
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla,logger);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla,logger);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla,logger);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+
+    delete search;
     delete nnEval;
     cout << endl;
   }

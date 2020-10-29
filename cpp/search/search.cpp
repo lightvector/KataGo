@@ -2158,7 +2158,7 @@ void Search::playoutDescend(
   if(searchParams.valueBiasFactor != 0) {
     if(node.prevMoveLoc != Board::NULL_LOC) {
       assert(valueBiasTable != NULL);
-      child->valueBiasTableEntry = std::move(valueBiasTable->get(node.prevMoveLoc, child->prevMoveLoc, thread.board));
+      child->valueBiasTableEntry = std::move(valueBiasTable->get(thread.pla, node.prevMoveLoc, child->prevMoveLoc, thread.board));
     }
   }
 
