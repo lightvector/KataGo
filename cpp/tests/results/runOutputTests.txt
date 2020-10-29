@@ -13791,14 +13791,14 @@ Search made move (carrying tree over) after gameover
 : T   9.42c W   8.35c S   1.07c ( +0.9 L  +0.9) N     200  --  A7 D7 A1 B4 A3 C2 A2
 ---Black(v)---
 A7  : T   9.44c W   8.38c S   1.06c ( +0.9 L  +0.9) LCB   22.68c P 56.11% WF 30.63% PSV     123 N     123  --  A7 D7 A1 B4 A3 C2 A2 C4
-B4  : T   8.15c W   6.97c S   1.18c ( +1.2 L  +1.2) LCB   21.00c P 18.89% WF 31.53% PSV      63 N      63  --  B4 F7 A7 D7 A1 A3 A4 C1
+B4  : T   8.15c W   6.97c S   1.18c ( +1.2 L  +1.2) LCB   21.00c P 18.89% WF 31.53% PSV      52 N      63  --  B4 F7 A7 D7 A1 A3 A4 C1
 A1  : T   8.59c W   8.90c S  -0.31c ( -0.6 L  -0.6) LCB   70.81c P  6.87% WF 30.81% PSV      11 N      11  --  A1 E4 D7 G5 pass pass
 pss : T 112.29c W 100.00c S  12.29c (+10.5 L +10.5) LCB  260.00c P 18.13% WF  7.03% PSV       2 N       2  --  pass
 Position was set after gameover
 : T   9.42c W   8.35c S   1.07c ( +0.9 L  +0.9) N     200  --  A7 D7 A1 B4 A3 C2 A2
 ---Black(v)---
 A7  : T   9.44c W   8.38c S   1.06c ( +0.9 L  +0.9) LCB   22.68c P 56.11% WF 30.63% PSV     123 N     123  --  A7 D7 A1 B4 A3 C2 A2 C4
-B4  : T   8.15c W   6.97c S   1.18c ( +1.2 L  +1.2) LCB   21.00c P 18.89% WF 31.53% PSV      63 N      63  --  B4 F7 A7 D7 A1 A3 A4 C1
+B4  : T   8.15c W   6.97c S   1.18c ( +1.2 L  +1.2) LCB   21.00c P 18.89% WF 31.53% PSV      52 N      63  --  B4 F7 A7 D7 A1 A3 A4 C1
 A1  : T   8.59c W   8.90c S  -0.31c ( -0.6 L  -0.6) LCB   70.81c P  6.87% WF 30.81% PSV      11 N      11  --  A1 E4 D7 G5 pass pass
 pss : T 112.29c W 100.00c S  12.29c (+10.5 L +10.5) LCB  260.00c P 18.13% WF  7.03% PSV       2 N       2  --  pass
 Recapturing ko after two passes and supposed game over (violates superko)
@@ -13837,14 +13837,14 @@ Search made move (carrying tree over)
 ---White(^)---
 G5  : T   5.04c W   4.17c S   0.87c ( +0.9 L  +0.9) LCB   -5.04c P 60.54% WF 22.85% PSV      99 N      99  --  G5 B4 C7 A7 D7 pass F7 E4
 F7  : T  17.84c W  15.96c S   1.88c ( +1.7 L  +1.7) LCB   -2.84c P 19.03% WF 31.86% PSV      76 N      76  --  F7 A1 pass C7 pass B4
-E4  : T   3.62c W   3.35c S   0.27c ( +0.2 L  +0.2) LCB  -23.28c P 14.11% WF 23.26% PSV      20 N      20  --  E4 C7 F7 pass G5 E6
+E4  : T   3.62c W   3.35c S   0.27c ( +0.2 L  +0.2) LCB  -23.28c P 14.11% WF 23.26% PSV      19 N      20  --  E4 C7 F7 pass G5 E6
 pss : T  -3.11c W   1.47c S  -4.58c ( -4.9 L  -4.9) LCB -138.91c P  6.32% WF 22.03% PSV       4 N       4  --  pass A1 G5
 Position was set
 : T  10.01c W   8.87c S   1.14c ( +1.0 L  +1.0) N     200  --  G5 B4 C7 A7 D7 pass F7
 ---White(^)---
 G5  : T   5.04c W   4.17c S   0.87c ( +0.9 L  +0.9) LCB   -5.04c P 60.54% WF 22.85% PSV      99 N      99  --  G5 B4 C7 A7 D7 pass F7 E4
 F7  : T  17.84c W  15.96c S   1.88c ( +1.7 L  +1.7) LCB   -2.84c P 19.03% WF 31.86% PSV      76 N      76  --  F7 A1 pass C7 pass B4
-E4  : T   3.62c W   3.35c S   0.27c ( +0.2 L  +0.2) LCB  -23.28c P 14.11% WF 23.26% PSV      20 N      20  --  E4 C7 F7 pass G5 E6
+E4  : T   3.62c W   3.35c S   0.27c ( +0.2 L  +0.2) LCB  -23.28c P 14.11% WF 23.26% PSV      19 N      20  --  E4 C7 F7 pass G5 E6
 pss : T  -3.11c W   1.47c S  -4.58c ( -4.9 L  -4.9) LCB -138.91c P  6.32% WF 22.03% PSV       4 N       4  --  pass A1 G5
 
 Running training write tests

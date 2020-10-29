@@ -1721,9 +1721,9 @@ xxxxooo
     cout << "Search made move after gameover" << endl;
     search->printTree(cout, search->rootNode, options, P_WHITE);
     cout << "Search made move (carrying tree over) after gameover" << endl;
-    search2->printTree(cout, search->rootNode, options, P_WHITE);
+    search2->printTree(cout, search2->rootNode, options, P_WHITE);
     cout << "Position was set after gameover" << endl;
-    search3->printTree(cout, search->rootNode, options, P_WHITE);
+    search3->printTree(cout, search3->rootNode, options, P_WHITE);
 
     cout << "Recapturing ko after two passes and supposed game over (violates superko)" << endl;
     search->makeMove(Location::ofString("D7",board),nextPla);
@@ -1740,9 +1740,9 @@ xxxxooo
     cout << "Search made move" << endl;
     search->printTree(cout, search->rootNode, options, P_WHITE);
     cout << "Search made move (carrying tree over)" << endl;
-    search2->printTree(cout, search->rootNode, options, P_WHITE);
+    search2->printTree(cout, search2->rootNode, options, P_WHITE);
     cout << "Position was set" << endl;
-    search3->printTree(cout, search->rootNode, options, P_WHITE);
+    search3->printTree(cout, search3->rootNode, options, P_WHITE);
 
     delete search;
     delete search2;
