@@ -248,7 +248,7 @@ void Rand::init()
     int* heapVal = new int[1];
     size_t stackAddr = (size_t)(&stackVal);
     size_t heapAddr = (size_t)(heapVal);
-    delete heapVal;
+    delete[] heapVal;
     s += "|";
     s += Global::uint64ToHexString((uint64_t)stackAddr);
     s += Global::uint64ToHexString((uint64_t)heapAddr);
