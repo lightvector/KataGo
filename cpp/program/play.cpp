@@ -221,13 +221,14 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   sgfCompensateKomiProb = cfg.contains("sgfCompensateKomiProb") ? cfg.getDouble("sgfCompensateKomiProb",0.0,1.0) : forkCompensateKomiProb;
   komiAllowIntegerProb = cfg.contains("komiAllowIntegerProb") ? cfg.getDouble("komiAllowIntegerProb",0.0,1.0) : 1.0;
 
-  auto generateCumProbs = [](const vector<Sgf::PositionSample> poses, double lambda) {
+  auto generateCumProbs = [](const vector<Sgf::PositionSample> poses, double lambda, double& effectiveSampleSize) {
     int minInitialTurnNumber = 0;
     for(size_t i = 0; i<poses.size(); i++)
       minInitialTurnNumber = std::min(minInitialTurnNumber, poses[i].initialTurnNumber);
 
     vector<double> cumProbs;
     cumProbs.resize(poses.size());
+    // Fill with uncumulative probs
     for(size_t i = 0; i<poses.size(); i++) {
       int64_t startTurn = poses[i].initialTurnNumber + (int64_t)poses[i].moves.size() - minInitialTurnNumber;
       cumProbs[i] = exp(-startTurn * lambda) * poses[i].weight;
@@ -237,6 +238,17 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
         throw StringError("startPos found bad unnormalized probability: " + Global::doubleToString(cumProbs[i]));
       }
     }
+
+    // Compute ESS
+    double sum = 0.0;
+    double sumSq = 0.0;
+    for(size_t i = 0; i<poses.size(); i++) {
+      sum += cumProbs[i];
+      sumSq += cumProbs[i]*cumProbs[i];
+    }
+    effectiveSampleSize = sum * sum / (sumSq + 1e-200);
+
+    // Make cumulative
     for(size_t i = 1; i<poses.size(); i++)
       cumProbs[i] += cumProbs[i-1];
 
@@ -291,7 +303,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     logger.write("Kept " + Global::uint64ToString(startPoses.size()) + " start positions");
     logger.write("Excluded " + Global::int64ToString(numExcluded) + "/" + Global::uint64ToString(files.size()) + " sgf files");
 
-    startPosCumProbs = generateCumProbs(startPoses, startPosesTurnWeightLambda);
+    double ess = 0.0;
+    startPosCumProbs = generateCumProbs(startPoses, startPosesTurnWeightLambda, ess);
 
     if(startPoses.size() <= 0) {
       logger.write("No start positions loaded, disabling start position logic");
@@ -299,6 +312,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     }
     else {
       logger.write("Cumulative unnormalized probability for start poses: " + Global::doubleToString(startPosCumProbs[startPoses.size()-1]));
+      logger.write("Effective sample size for start poses: " + Global::doubleToString(ess));
     }
   }
 
@@ -337,7 +351,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     }
     logger.write("Loaded " + Global::uint64ToString(hintPoses.size()) + " hint positions");
 
-    hintPosCumProbs = generateCumProbs(hintPoses, 0.0);
+    double ess = 0.0;
+    hintPosCumProbs = generateCumProbs(hintPoses, 0.0, ess);
 
     if(hintPoses.size() <= 0) {
       logger.write("No hint positions loaded, disabling hint position logic");
@@ -345,6 +360,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     }
     else {
       logger.write("Cumulative unnormalized probability for hint poses: " + Global::doubleToString(hintPosCumProbs[hintPoses.size()-1]));
+      logger.write("Effective sample size for hint poses: " + Global::doubleToString(ess));
     }
   }
 
@@ -1622,7 +1638,7 @@ FinishedGameData* Play::runGame(
     histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
     gameData->handicapForSgf = histCopy.computeNumHandicapStones();
   }
-  
+
   if(recordFullData) {
     if(hist.isResignation)
       throw StringError("Recording full data currently incompatible with resignation");

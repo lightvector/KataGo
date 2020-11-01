@@ -101,6 +101,7 @@ struct Sgf {
     PositionSample& sampleBuf,
     int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
+    std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
     std::function<void(PositionSample&,const BoardHistory&)> f
   ) const;
   void samplePositionIfUniqueHelper(

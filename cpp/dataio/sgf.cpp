@@ -436,7 +436,8 @@ void Sgf::iterAllUniquePositions(
   BoardHistory hist(board,nextPla,rules,0);
 
   PositionSample sampleBuf;
-  iterAllUniquePositionsHelper(board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,f);
+  std::vector<std::pair<int64_t,int64_t>> variationTraceNodesBranch;
+  iterAllUniquePositionsHelper(board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,variationTraceNodesBranch,f);
 }
 
 void Sgf::iterAllUniquePositionsHelper(
@@ -445,6 +446,7 @@ void Sgf::iterAllUniquePositionsHelper(
   PositionSample& sampleBuf,
   int initialTurnNumber,
   std::set<Hash128>& uniqueHashes,
+  std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
   std::function<void(PositionSample&,const BoardHistory&)> f
 ) const {
   vector<Move> buf;
@@ -484,8 +486,19 @@ void Sgf::iterAllUniquePositionsHelper(
 
     for(int j = 0; j<buf.size(); j++) {
       bool suc = hist.makeBoardMoveTolerant(board,buf[j].loc,buf[j].pla);
-      if(!suc)
-        throw StringError("Illegal move in " + fileName + " turn " + Global::intToString(j) + " move " + Location::toString(buf[j].loc, board.x_size, board.y_size));
+      if(!suc) {
+        ostringstream trace;
+        for(size_t s = 0; s < variationTraceNodesBranch.size(); s++) {
+          trace << "forward " << variationTraceNodesBranch[s].first << " ";
+          trace << "branch " << variationTraceNodesBranch[s].second << " ";
+        }
+        trace << "forward " << i;
+
+        throw StringError(
+          "Illegal move in " + fileName + " effective turn " + Global::intToString(j+initialTurnNumber) + " move " +
+          Location::toString(buf[j].loc, board.x_size, board.y_size) + " SGF trace (branches 0-indexed): " + trace.str()
+        );
+      }
       nextPla = getOpp(buf[j].pla);
       samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,f);
     }
@@ -499,7 +512,10 @@ void Sgf::iterAllUniquePositionsHelper(
     BoardHistory histCopy = hist;
     // if(children.size() > 1)
     //   cout << "BEGIN " << i << "/" << children.size() << endl;
-    children[i]->iterAllUniquePositionsHelper(copy,histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,f);
+    variationTraceNodesBranch.push_back(std::make_pair((int64_t)nodes.size(),(int64_t)i));
+    children[i]->iterAllUniquePositionsHelper(copy,histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,variationTraceNodesBranch,f);
+    assert(variationTraceNodesBranch.size() > 0);
+    variationTraceNodesBranch.erase(variationTraceNodesBranch.begin()+(variationTraceNodesBranch.size()-1));
   }
 
   // if(children.size() > 1) {
@@ -1214,7 +1230,7 @@ void WriteSgf::writeSgf(
     histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
     out << "HA[" << histCopy.computeNumHandicapStones() << "]";
   }
-  
+
   out << "KM[" << rules.komi << "]";
   out << "RU[" << (tryNicerRulesString ? rules.toStringNoKomiMaybeNice() : rules.toStringNoKomi()) << "]";
   printGameResult(out,endHist);
@@ -1317,7 +1333,7 @@ void WriteSgf::writeSgf(
         comment += "Pass for ko";
       }
     }
-    
+
     if(gameData != NULL && i >= startTurnIdx) {
       size_t turnAfterStart = i-startTurnIdx;
       if(turnAfterStart < gameData->whiteValueTargetsByTurn.size()) {
