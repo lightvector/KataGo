@@ -5961,6 +5961,10 @@ inline SSLClient::SSLClient(const std::string &host, int port,
                             const std::string &client_key_path)
     : ClientImpl(host, port, client_cert_path, client_key_path) {
   ctx_ = SSL_CTX_new(SSLv23_client_method());
+  //Hacky workaround for https://github.com/openssl/openssl/issues/7967, disable TLS1.3
+  #ifdef TLS1_2_VERSION
+  SSL_CTX_set_max_proto_version(ctx_, TLS1_2_VERSION);
+  #endif
 
   detail::split(&host_[0], &host_[host_.size()], '.',
                 [&](const char *b, const char *e) {
@@ -5981,6 +5985,10 @@ inline SSLClient::SSLClient(const std::string &host, int port,
                             X509 *client_cert, EVP_PKEY *client_key)
     : ClientImpl(host, port) {
   ctx_ = SSL_CTX_new(SSLv23_client_method());
+  //Hacky workaround for https://github.com/openssl/openssl/issues/7967, disable TLS1.3
+  #ifdef TLS1_2_VERSION
+  SSL_CTX_set_max_proto_version(ctx_, TLS1_2_VERSION);
+  #endif
 
   detail::split(&host_[0], &host_[host_.size()], '.',
                 [&](const char *b, const char *e) {
