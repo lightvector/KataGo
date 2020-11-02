@@ -155,6 +155,7 @@ static void runAndUploadSingleGame(
     if(outputEachMove != nullptr) {
       ostringstream out;
       Board::printBoard(out, board, loc, &(hist.moveHistory));
+      out << "Rules: " << hist.rules.toJsonString() << "\n";
       out << "Player: " << PlayerIO::playerToString(pla) << "\n";
       out << "Move: " << Location::toString(loc,board) << "\n";
       if(winLossHist.size() > 0)
