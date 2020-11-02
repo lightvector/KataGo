@@ -158,7 +158,7 @@ static void runAndUploadSingleGame(
       out << "Player: " << PlayerIO::playerToString(pla) << "\n";
       out << "Move: " << Location::toString(loc,board) << "\n";
       if(winLossHist.size() > 0)
-        out << "Black Winrate: " << -(0.5*(1.0 + winLossHist[winLossHist.size()-1])) << "\n";
+        out << "Black Winrate: " << 100.0*(0.5*(1.0 - winLossHist[winLossHist.size()-1])) << "%\n";
       if(leadHist.size() > 0)
         out << "Black Lead: " << -leadHist[leadHist.size()-1] << "\n";
       (void)scoreStdevHist;
