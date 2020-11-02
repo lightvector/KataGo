@@ -172,7 +172,7 @@ static void runAndUploadSingleGame(
   FinishedGameData* gameData = gameRunner->runGame(
     seed, botSpecB, botSpecW, forkData, posSample,
     logger,
-    stopConditions, nullptr, nullptr
+    stopConditions, nullptr, onEachMove
   );
 
   if(gameData != NULL) {
