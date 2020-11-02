@@ -19,7 +19,7 @@ struct AnalyzeRequest {
   int64_t internalId;
   string id;
   int turnNumber;
-  int priority;
+  int64_t priority;
 
   Board board;
   BoardHistory hist;
@@ -212,7 +212,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       delete s;
   };
 
-  ThreadSafePriorityQueue<std::pair<int,int64_t>, AnalyzeRequest*> toAnalyzeQueue;
+  ThreadSafePriorityQueue<std::pair<int64_t,int64_t>, AnalyzeRequest*> toAnalyzeQueue;
   int64_t numRequestsSoFar = 0; // Used as tie breaker for requests with same priority
   int64_t internalIdCounter = 0; // Counter for internalId on requests.
 
@@ -383,7 +383,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     &logger,&toAnalyzeQueue,&toWriteQueue,&preventEncore,&reportAnalysis,&reportNoAnalysis,&logSearchInfo,&nnEval,&openRequestsMutex,&openRequests
   ](AsyncBot* bot, int threadIdx) {
     while(true) {
-      std::pair<std::pair<int,int64_t>,AnalyzeRequest*> analysisItem;
+      std::pair<std::pair<int64_t,int64_t>,AnalyzeRequest*> analysisItem;
       bool suc = toAnalyzeQueue.waitPop(analysisItem);
       if(!suc)
         break;
@@ -814,6 +814,43 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     else {
       shouldAnalyze[shouldAnalyze.size()-1] = true;
     }
+    
+    std::map<int,int64_t> priorities;
+    if(input.find("priorities") != input.end()) {
+      vector<int64_t> prioritiesVec;
+      try {
+        prioritiesVec = input["priorities"].get<vector<int64_t> >();
+      }
+      catch(nlohmann::detail::exception&) {
+        reportErrorForId(rbase.id, "priorities", "Must specify an array of integers indicating priorities");
+        continue;
+      }
+      if(input.find("analyzeTurns") == input.end()) {
+        reportErrorForId(rbase.id, "priorities", "Can only specify when also specifying analyzeTurns");
+        continue;
+      }
+      vector<int> analyzeTurns = input["analyzeTurns"].get<vector<int> >();      
+      if(prioritiesVec.size() != analyzeTurns.size()) {
+        reportErrorForId(rbase.id, "priorities", "Must be of matching length to analyzeTurns");
+        continue;
+      }
+
+      bool failed = false;
+      for(int i = 0; i<prioritiesVec.size(); i++) {
+        int64_t priority = prioritiesVec[i];
+        if(priority < -0x3FFFffffFFFFffffLL || priority > 0x3FFFffffFFFFffffLL) {
+          reportErrorForId(rbase.id, "priorities", "Invalid priority: " + Global::int64ToString(priority));
+          failed = true;
+          break;
+        }
+        priorities[analyzeTurns[i]] = priority;
+      }
+      if(failed) {
+        priorities.clear();
+        continue;
+      }
+    }
+
 
     Rules rules;
     if(input.find("rules") != input.end()) {
@@ -958,11 +995,15 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       rbase.reportDuringSearch = true;
     }
     if(input.find("priority") != input.end()) {
+      if(input.find("priorities") != input.end()) {
+        reportErrorForId(rbase.id, "priority", "Cannot specify both priority and priorities");
+        continue;
+      }
       int64_t buf;
-      bool suc = parseInteger(input, "priority", buf, -0x7FFFFFFF,0x7FFFFFFF, "Must be a number from -2,147,483,647 to 2,147,483,647");
+      bool suc = parseInteger(input, "priority", buf, -0x3FFFffffFFFFffffLL,0x3FFFffffFFFFffffLL, "Must be a number between -2^62 and 2^62");
       if(!suc)
         continue;
-      rbase.priority = (int)buf;
+      rbase.priority = buf;
     }
 
     bool hasAllowMoves = input.find("allowMoves") != input.end();
@@ -1054,6 +1095,13 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     bool foundIllegalMove =  false;
     for(int turnNumber = 0; turnNumber <= moveHistory.size(); turnNumber++) {
       if(shouldAnalyze[turnNumber]) {
+        int64_t priority = rbase.priority;
+        if(priorities.size() > 0) {
+          assert(priorities.size() > newRequests.size());
+          assert(priorities.find(turnNumber) != priorities.end());
+          priority = priorities[turnNumber];
+        }
+        
         AnalyzeRequest* newRequest = new AnalyzeRequest();
         newRequest->internalId = internalIdCounter++;
         newRequest->id = rbase.id;
@@ -1070,7 +1118,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
         newRequest->includePVVisits = rbase.includePVVisits;
         newRequest->reportDuringSearch = rbase.reportDuringSearch;
         newRequest->reportDuringSearchEvery = rbase.reportDuringSearchEvery;
-        newRequest->priority = rbase.priority;
+        newRequest->priority = priority;
         newRequest->avoidMoveUntilByLocBlack = rbase.avoidMoveUntilByLocBlack;
         newRequest->avoidMoveUntilByLocWhite = rbase.avoidMoveUntilByLocWhite;
         newRequest->status.store(AnalyzeRequest::STATUS_IN_QUEUE,std::memory_order_release);
