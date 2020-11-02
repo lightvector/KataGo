@@ -48,7 +48,8 @@ SelfplayManager::SelfplayManager(
   managerMutex(),
   modelDatas(),
   numDataWriteLoopsActive(0),
-  dataWriteLoopsAreDone()
+  dataWriteLoopsAreDone(),
+  totalNumRowsProcessed(0)
 {
 }
 
@@ -59,6 +60,7 @@ SelfplayManager::~SelfplayManager() {
     assert(modelDatas[i]->acquireCount == 0);
     //Trigger data writing loop to quit once it reaches end of its queue
     modelDatas[i]->finishedGameQueue.setReadOnly();
+    totalNumRowsProcessed += modelDatas[i]->nnEval->numRowsProcessed();
     //Data write loop is responsible for deleting ModelData, if it exists
     if(!modelDatas[i]->hasDataWriteLoop)
       delete modelDatas[i];
@@ -68,6 +70,16 @@ SelfplayManager::~SelfplayManager() {
     dataWriteLoopsAreDone.wait(lock);
   }
 }
+
+uint64_t SelfplayManager::getTotalNumRowsProcessed() const {
+  std::lock_guard<std::mutex> lock(managerMutex);
+  uint64_t total = totalNumRowsProcessed;
+  for(size_t i = 0; i<modelDatas.size(); i++) {
+    total += modelDatas[i]->nnEval->numRowsProcessed();
+  }
+  return total;
+}
+
 
 static void dataWriteLoop(SelfplayManager* manager, SelfplayManager::ModelData* modelData) {
   manager->runDataWriteLoop(modelData);
@@ -81,6 +93,7 @@ void SelfplayManager::maybeAutoCleanupAlreadyLocked() {
         assert(foundData->acquireCount == 0);
         //Trigger data writing loop to quit once it reaches end of its queue
         foundData->finishedGameQueue.setReadOnly();
+        totalNumRowsProcessed += foundData->nnEval->numRowsProcessed();
         //Data write loop is responsible for deleting ModelData, if it exists
         if(!foundData->hasDataWriteLoop)
           delete foundData;
@@ -102,6 +115,7 @@ void SelfplayManager::cleanupUnusedModelsOlderThan(double seconds) {
       logger->write("Unloading network that hasn't been used in a while: " + foundData->modelName);
       //Trigger data writing loop to quit once it reaches end of its queue
       foundData->finishedGameQueue.setReadOnly();
+      totalNumRowsProcessed += foundData->nnEval->numRowsProcessed();
       //Data write loop is responsible for deleting ModelData, if it exists
       if(!foundData->hasDataWriteLoop)
         delete foundData;
@@ -367,6 +381,18 @@ void SelfplayManager::runDataWriteLoop(ModelData* modelData) {
 
   string name = modelData->modelName;
 
+  //Lock the manager and do nothing with the lock (except run an assert).
+  //The lock is technically necessary for thread-safety - we don't want to delete this modelData until we are
+  //absolutely sure that the manager is done removing it from its own tracking in modelDatas, so we lock
+  //the manager to make sure that we block until this is the case. While we're at it, we go ahead and assert it too.
+  {
+    std::lock_guard<std::mutex> lock(managerMutex);
+    for(size_t i = 0; i<modelDatas.size(); i++) {
+      (void)i;
+      assert(modelDatas[i] != modelData);
+    }
+  }
+  
   //Do logging and cleanup while unlocked, so that our freeing and stopping of this neural net doesn't
   //block anyone else
   if(logger != NULL) {

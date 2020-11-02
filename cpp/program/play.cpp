@@ -1309,7 +1309,8 @@ FinishedGameData* Play::runGame(
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
   const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
-  std::function<NNEvaluator*()>* checkForNewNNEval
+  std::function<NNEvaluator*()> checkForNewNNEval,
+  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove 
 ) {
   Search* botB;
   Search* botW;
@@ -1331,7 +1332,8 @@ FinishedGameData* Play::runGame(
     maxMovesPerGame, stopConditions,
     playSettings, otherGameProps,
     gameRand,
-    checkForNewNNEval
+    checkForNewNNEval,
+    onEachMove
   );
 
   if(botW != botB)
@@ -1350,7 +1352,8 @@ FinishedGameData* Play::runGame(
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
   const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
-  std::function<NNEvaluator*()>* checkForNewNNEval
+  std::function<NNEvaluator*()> checkForNewNNEval,
+  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
 ) {
   FinishedGameData* gameData = new FinishedGameData();
 
@@ -1442,8 +1445,8 @@ FinishedGameData* Play::runGame(
   auto maybeCheckForNewNNEval = [&botB,&botW,&botSpecB,&botSpecW,&checkForNewNNEval,&gameRand,&gameData](int nextTurnNumber) {
     //Check if we got a new nnEval, with some probability.
     //Randomized and low-probability so as to reduce contention in checking, while still probably happening in a timely manner.
-    if(checkForNewNNEval != NULL && gameRand.nextBool(0.1)) {
-      NNEvaluator* newNNEval = (*checkForNewNNEval)();
+    if(checkForNewNNEval != nullptr && gameRand.nextBool(0.1)) {
+      NNEvaluator* newNNEval = checkForNewNNEval();
       if(newNNEval != NULL) {
         botB->setNNEval(newNNEval);
         if(botW != botB)
@@ -1505,6 +1508,8 @@ FinishedGameData* Play::runGame(
   vector<SidePosition*> sidePositionsToSearch;
 
   vector<double> historicalMctsWinLossValues;
+  vector<double> historicalMctsLeads;
+  vector<double> historicalMctsScoreStdevs;
   vector<double> policySurpriseByTurn;
   vector<ReportedSearchValues> rawNNValues;
 
@@ -1580,7 +1585,12 @@ FinishedGameData* Play::runGame(
     if(playSettings.allowResignation || playSettings.reduceVisits) {
       ReportedSearchValues values = toMoveBot->getRootValuesRequireSuccess();
       historicalMctsWinLossValues.push_back(values.winLossValue);
+      historicalMctsLeads.push_back(values.lead);
+      historicalMctsScoreStdevs.push_back(values.expectedScoreStdev);
     }
+
+    if(onEachMove != nullptr)
+      onEachMove(board,hist,pla,loc,historicalMctsWinLossValues,historicalMctsLeads,historicalMctsScoreStdevs,toMoveBot);
 
     //Finally, make the move on the bots
     bool suc;
@@ -2216,7 +2226,8 @@ FinishedGameData* GameRunner::runGame(
   const Sgf::PositionSample* startPosSample,
   Logger& logger,
   vector<std::atomic<bool>*>& stopConditions,
-  std::function<NNEvaluator*()>* checkForNewNNEval
+  std::function<NNEvaluator*()> checkForNewNNEval,
+  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove 
 ) {
   MatchPairer::BotSpec botSpecB = bSpecB;
   MatchPairer::BotSpec botSpecW = bSpecW;
@@ -2295,7 +2306,8 @@ FinishedGameData* GameRunner::runGame(
     maxMovesPerGame,stopConditions,
     playSettings,otherGameProps,
     gameRand,
-    checkForNewNNEval //Note that if this triggers, botSpecB and botSpecW will get updated, for use in maybeForkGame
+    checkForNewNNEval, //Note that if this triggers, botSpecB and botSpecW will get updated, for use in maybeForkGame
+    onEachMove
   );
 
   if(initialPosition != NULL)

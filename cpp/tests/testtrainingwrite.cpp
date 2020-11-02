@@ -120,7 +120,8 @@ void Tests::runTrainingWriteTests() {
       maxMovesPerGame, stopConditions,
       playSettings, otherGameProps,
       rand,
-      NULL
+      nullptr,
+      nullptr
     );
 
     cout << "seedBase: " << seedBase << endl;
@@ -256,7 +257,8 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       maxMovesPerGame, stopConditions,
       playSettings, otherGameProps,
       rand,
-      NULL
+      nullptr,
+      nullptr
     );
 
     ForkData forkData;
@@ -471,7 +473,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       maxMovesPerGame, stopConditions,
       playSettings, otherGameProps,
       rand,
-      NULL
+      nullptr,
+      nullptr
     );
     if(testHint) {
       ForkData forkData;
@@ -801,7 +804,7 @@ xxxxxxxx.
     std::vector<std::atomic<bool>*> stopConditions;
     for(int i = 0; i<100; i++) {
       string seed = "game init test search seed:" + Global::int64ToString(i);
-      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, NULL, logger, stopConditions, NULL);
+      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, NULL, logger, stopConditions, nullptr, nullptr);
       cout << data->startHist.rules << endl;
       cout << "Start moves size " << data->startHist.moveHistory.size()
            << " Start pla " << PlayerIO::playerToString(data->startPla)
@@ -900,7 +903,8 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
       maxMovesPerGame, stopConditions,
       playSettings, otherGameProps,
       rand,
-      NULL
+      nullptr,
+      nullptr
     );
 
     cout << "seedBase: " << seedBase << endl;

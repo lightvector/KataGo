@@ -40,6 +40,9 @@ class SelfplayManager {
     std::ofstream* sgfOut
   );
 
+  //NN queries summed across all the models managed by this manager over all time.
+  uint64_t getTotalNumRowsProcessed() const;
+  
   //For all of the below, model names are simply from nnEval->getModelName().
 
   //Models that aren't cleaned up yet are in the order from earliest to latest
@@ -118,6 +121,8 @@ class SelfplayManager {
   int numDataWriteLoopsActive;
   std::condition_variable dataWriteLoopsAreDone;
 
+  uint64_t totalNumRowsProcessed;
+  
   NNEvaluator* acquireModelAlreadyLocked(SelfplayManager::ModelData* foundData);
   void releaseAlreadyLocked(SelfplayManager::ModelData* foundData);
   void maybeAutoCleanupAlreadyLocked();

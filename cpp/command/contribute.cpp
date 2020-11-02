@@ -61,7 +61,6 @@ static void sigPipeHandlerDoNothing(int signal)
 //-----------------------------------------------------------------------------------------
 
 static const string defaultBaseDir = "katago_contribute";
-static const int defaultMaxSimultaneousGames = 16;
 static const double defaultDeleteUnusedModelsAfterDays = 30;
 
 //Play selfplay games and rating games in chunks of this many at a time. Each server query
@@ -81,7 +80,8 @@ namespace {
 
 static void runAndUploadSingleGame(
   Client::Connection* connection, GameTask gameTask, int64_t gameIdx,
-  Logger& logger, const string& seed, ForkData* forkData, string sgfsDir, Rand& rand
+  Logger& logger, const string& seed, ForkData* forkData, string sgfsDir, Rand& rand,
+  std::atomic<int64_t>& numMovesPlayed, std::unique_ptr<ostream>& outputEachMove
 ) {
   if(gameTask.task.isRatingGame) {
     logger.write(
@@ -147,11 +147,32 @@ static void runAndUploadSingleGame(
   if(gameTask.task.isRatingGame)
     forkData = NULL;
 
+  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>
+    onEachMove = [&numMovesPlayed, &outputEachMove](
+      const Board& board, const BoardHistory& hist, Player pla, Loc loc,
+      const std::vector<double>& winLossHist, const std::vector<double>& leadHist, const std::vector<double>& scoreStdevHist, const Search* search) {
+    numMovesPlayed.fetch_add(1,std::memory_order_relaxed);
+    if(outputEachMove != nullptr) {
+      ostringstream out;
+      Board::printBoard(out, board, loc, &(hist.moveHistory));
+      out << "Player: " << PlayerIO::playerToString(pla) << "\n";
+      out << "Move: " << Location::toString(loc,board) << "\n";
+      if(winLossHist.size() > 0)
+        out << "Black Winrate: " << -(0.5*(1.0 + winLossHist[winLossHist.size()-1])) << "\n";
+      if(leadHist.size() > 0)
+        out << "Black Lead: " << -leadHist[leadHist.size()-1] << "\n";
+      (void)scoreStdevHist;
+      (void)search;
+      out << "\n";
+      (*outputEachMove) << out.str() << std::flush;
+    }
+  };
+  
   const Sgf::PositionSample* posSample = gameTask.repIdx < gameTask.task.startPoses.size() ? &(gameTask.task.startPoses[gameTask.repIdx]) : NULL;
   FinishedGameData* gameData = gameRunner->runGame(
     seed, botSpecB, botSpecW, forkData, posSample,
     logger,
-    stopConditions, NULL
+    stopConditions, nullptr, nullptr
   );
 
   if(gameData != NULL) {
@@ -228,7 +249,6 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   Rand seedRand;
 
   string baseDir;
-  int maxSimultaneousGames;
   double deleteUnusedModelsAfterDays;
   string userConfigFile;
   string overrideUserConfig;
@@ -239,10 +259,6 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       "","base-dir","Directory to download models, write game results, etc. (default ./katago_contribute)",
       false,defaultBaseDir,"DIR"
     );
-    TCLAP::ValueArg<int> maxSimultaneousGamesArg(
-      "","max-simultaneous-games","Max number of games to play simultaneously (default "+ Global::intToString(defaultMaxSimultaneousGames)+")",
-      false,defaultMaxSimultaneousGames,"NGAMES"
-    );
     TCLAP::ValueArg<double> deleteUnusedModelsAfterDaysArg(
       "","delete-unused-models-after","After a model is unused for this many days, delete it from disk (default "+ Global::intToString(defaultDeleteUnusedModelsAfterDays)+")",
       false,defaultDeleteUnusedModelsAfterDays,"DAYS"
@@ -251,21 +267,17 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> overrideUserConfigArg("","override-config","Override config parameters. Format: \"key=value, key=value,...\"",false,string(),"KEYVALUEPAIRS");
     TCLAP::ValueArg<string> caCertsFileArg("","cacerts","CA certificates file for SSL (cacerts.pem, ca-bundle.crt)",false,string(),"FILE");
     cmd.add(baseDirArg);
-    cmd.add(maxSimultaneousGamesArg);
     cmd.add(deleteUnusedModelsAfterDaysArg);
     cmd.add(userConfigFileArg);
     cmd.add(overrideUserConfigArg);
     cmd.add(caCertsFileArg);
     cmd.parse(argc,argv);
     baseDir = baseDirArg.getValue();
-    maxSimultaneousGames = maxSimultaneousGamesArg.getValue();
     deleteUnusedModelsAfterDays = deleteUnusedModelsAfterDaysArg.getValue();
     userConfigFile = userConfigFileArg.getValue();
     overrideUserConfig = overrideUserConfigArg.getValue();
     caCertsFile = caCertsFileArg.getValue();
 
-    if(maxSimultaneousGames <= 0 || maxSimultaneousGames > 100000)
-      throw StringError("-max-simultaneous-games: invalid value");
     if(!std::isfinite(deleteUnusedModelsAfterDays) || deleteUnusedModelsAfterDays < 0 || deleteUnusedModelsAfterDays > 20000)
       throw StringError("-delete-unused-models-after: invalid value");
   }
@@ -346,7 +358,22 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   string serverUrl = userCfg->getString("serverUrl");
   string username = userCfg->getString("username");
   string password = userCfg->getString("password");
+  
+  int maxSimultaneousGames;
+  if(!userCfg->contains("maxSimultaneousGames")) {
+    logger.write("maxSimultaneousGames was NOT specified in config, defaulting to 16");
+    maxSimultaneousGames = 16;
+  }
+  else {
+    maxSimultaneousGames = userCfg->getInt("maxSimultaneousGames", 1, 4000);
+  }
 
+  const double reportPerformanceEvery = userCfg->contains("reportPerformanceEvery") ? userCfg->getDouble("reportPerformanceEvery", 1, 21600) : 120;
+  const bool watchOngoingGameInFile = userCfg->contains("watchOngoingGameInFile") ? userCfg->getBool("watchOngoingGameInFile") : false;
+  string watchOngoingGameInFileName = userCfg->contains("watchOngoingGameInFileName") ? userCfg->getString("watchOngoingGameInFileName") : "";
+  if(watchOngoingGameInFileName == "")
+    watchOngoingGameInFileName = "watchgame.txt"; 
+  
   //Connect to server and get global parameters for the run.
   Client::Connection* connection = new Client::Connection(serverUrl,username,password,caCertsFile,&logger);
   const Client::RunParameters runParams = connection->getRunParameters();
@@ -408,8 +435,18 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   ForkData* forkData = new ForkData();
   std::atomic<int64_t> numGamesStarted(0);
   std::atomic<int64_t> numRatingGamesActive(0);
+  std::atomic<int64_t> numMovesPlayed(0);
 
-  auto runGameLoop = [&logger,forkData,&gameSeedBase,&gameTaskQueue,&numGamesStarted,&sgfsDir,&connection,&numRatingGamesActive]() {
+  auto runGameLoop = [
+    &logger,forkData,&gameSeedBase,&gameTaskQueue,&numGamesStarted,&sgfsDir,&connection,
+    &numRatingGamesActive,&numMovesPlayed,&watchOngoingGameInFile,&watchOngoingGameInFileName
+  ] (
+    int gameLoopThreadIdx
+  ) {
+    std::unique_ptr<std::ostream> outputEachMove = nullptr;
+    if(gameLoopThreadIdx == 0 && watchOngoingGameInFile)
+      outputEachMove = std::make_unique<std::ofstream>(watchOngoingGameInFileName.c_str(), ofstream::app);
+    
     Rand thisLoopSeedRand;
     while(true) {
       GameTask gameTask;
@@ -419,7 +456,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       if(!shouldStop.load()) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         int64_t gameIdx = numGamesStarted.fetch_add(1,std::memory_order_acq_rel);
-        runAndUploadSingleGame(connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand);
+        runAndUploadSingleGame(connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand,numMovesPlayed,outputEachMove);
       }
       gameTask.blackManager->release(gameTask.nnEvalBlack);
       gameTask.whiteManager->release(gameTask.nnEvalWhite);
@@ -489,12 +526,41 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   //Just start based on selfplay games, rating games will poke in as needed
   vector<std::thread> gameThreads;
   for(int i = 0; i<maxSimultaneousGames; i++) {
-    gameThreads.push_back(std::thread(runGameLoop));
+    gameThreads.push_back(std::thread(runGameLoop,i));
   }
 
+  ClockTimer timer;
+  double lastPerformanceTime = timer.getSeconds();
+  int64_t lastPerformanceNumMoves = numMovesPlayed.load(std::memory_order_relaxed);
+  int64_t lastPerformanceNumNNEvals = (int64_t)(selfplayManager->getTotalNumRowsProcessed() + ratingManager->getTotalNumRowsProcessed());
+  auto maybePrintPerformance = [&]() {
+    double now = timer.getSeconds();
+    //At most every minute, report performance
+    if(now >= lastPerformanceTime + reportPerformanceEvery) {
+      int64_t newNumMoves = numMovesPlayed.load(std::memory_order_relaxed);
+      int64_t newNumNNEvals = (int64_t)(selfplayManager->getTotalNumRowsProcessed() + ratingManager->getTotalNumRowsProcessed());
+
+      double timeDiff = now - lastPerformanceTime;
+      double movesDiff = (double)(newNumMoves - lastPerformanceNumMoves);
+      double numNNEvalsDiff = (double)(newNumNNEvals - lastPerformanceNumNNEvals);
+
+      logger.write(
+        Global::strprintf(
+          "Performance: in the last %.1f seconds, played %.0f moves (%.1f/sec) and %.0f nn evals (%f/sec)",
+          timeDiff, movesDiff, movesDiff/timeDiff, numNNEvalsDiff, numNNEvalsDiff/timeDiff
+        )
+      );
+      
+      lastPerformanceTime = now;
+      lastPerformanceNumMoves = newNumMoves;
+      lastPerformanceNumNNEvals = newNumNNEvals;
+    }
+  };
+  
   //Loop acquiring tasks and feeding them to game threads
   bool anyTaskSuccessfullyParsedYet = false;
   while(true) {
+    maybePrintPerformance();
     std::this_thread::sleep_for(std::chrono::duration<double>(1.0));
     if(shouldStop.load())
       break;

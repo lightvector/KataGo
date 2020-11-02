@@ -285,7 +285,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
         gameData = gameRunner->runGame(
           seed, botSpecB, botSpecW, forkData, NULL, logger,
           stopConditions,
-          (switchNetsMidGame ? &checkForNewNNEval : NULL)
+          (switchNetsMidGame ? checkForNewNNEval : nullptr),
+          nullptr
         );
       }
 

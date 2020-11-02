@@ -244,7 +244,8 @@ namespace Play {
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
     const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
-    std::function<NNEvaluator*()>* checkForNewNNEval
+    std::function<NNEvaluator*()> checkForNewNNEval,
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove 
   );
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
@@ -257,7 +258,8 @@ namespace Play {
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
     const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
-    std::function<NNEvaluator*()>* checkForNewNNEval
+    std::function<NNEvaluator*()> checkForNewNNEval,
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove 
   );
 
   void maybeForkGame(
@@ -310,7 +312,8 @@ public:
     const Sgf::PositionSample* startPosSample,
     Logger& logger,
     std::vector<std::atomic<bool>*>& stopConditions,
-    std::function<NNEvaluator*()>* checkForNewNNEval
+    std::function<NNEvaluator*()> checkForNewNNEval,
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove 
   );
 
   const GameInitializer* getGameInitializer() const;
