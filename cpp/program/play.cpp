@@ -513,7 +513,7 @@ void GameInitializer::createGameSharedUnsynchronized(
   if(startPosSample != NULL)
     posSample = startPosSample;
 
-  if(posSample != NULL) {
+  if(posSample == NULL) {
     if(startPosesProb > 0 && rand.nextBool(startPosesProb)) {
       assert(startPoses.size() > 0);
       size_t r = rand.nextIndexCumulative(startPosCumProbs.data(),startPosCumProbs.size());
