@@ -123,7 +123,7 @@ class SgfDataset(torch.utils.data.IterableDataset):
           for (pla,loc) in moves:
 
             if rand.random() < self.sample_prob:
-              inputs = torch.zeros((7,metadata.size,metadata.size),dtype=torch.float32,device=cpudevice)
+              inputs = torch.zeros((8,metadata.size,metadata.size),dtype=torch.float32,device=cpudevice)
               result = torch.zeros((3,),dtype=torch.float32,device=cpudevice)
               aux = torch.zeros((3,metadata.size,metadata.size),dtype=torch.float32,device=cpudevice)
 
@@ -292,6 +292,7 @@ if __name__ == '__main__':
   parser.add_argument('-datadirs', help='Directory with sgfs', required=True)
   parser.add_argument('-testprop', help='Proportion of data for test', type=float, required=True)
   parser.add_argument('-lr-scale', help='LR multiplier', type=float, required=False)
+  parser.add_argument('-grad-clip-scale', help='Gradient clip multiplier', type=float, required=False)
   parser.add_argument('-num-data-workers', help='Number of processes for data loading', type=int, required=False)
   args = vars(parser.parse_args())
 
@@ -299,8 +300,14 @@ if __name__ == '__main__':
   datadirs = args["datadirs"]
   testprop = args["testprop"]
   lr_scale = args["lr_scale"]
+  grad_clip_scale = args["grad_clip_scale"]
   num_data_workers = args["num_data_workers"]
   logfilemode = "a"
+
+  if lr_scale is None:
+    lr_scale = 1.0
+  if grad_clip_scale is None:
+    grad_clip_scale = 1.0
 
   if num_data_workers is None:
     num_data_workers = 0
@@ -344,7 +351,7 @@ if __name__ == '__main__':
   break_prob_per_turn = 0.01
 
   traindataset = ShuffledDataset(SgfDataset(trainfiles,max_turn,break_prob_per_turn,sample_prob=0.5,endless=True),shuffle_buffer_size)
-  testdataset = SgfDataset(testfiles,max_turn,break_prob_per_turn,sample_prob=0.2,endless=False)
+  testdataset = SgfDataset(testfiles,max_turn,break_prob_per_turn,sample_prob=0.2,endless=True)
 
   batch_size = 128
   trainloader = torch.utils.data.DataLoader(traindataset, batch_size=batch_size, shuffle=False, num_workers=num_data_workers, drop_last=True)
@@ -352,8 +359,8 @@ if __name__ == '__main__':
 
   trainlog("Made data loaders")
 
-  samples_per_epoch = 200000
-  samples_per_test = 12800
+  samples_per_epoch = 400000
+  samples_per_test = 25600
   batches_per_epoch = samples_per_epoch // batch_size
   batches_per_test = samples_per_test // batch_size
 
@@ -392,10 +399,18 @@ if __name__ == '__main__':
     torch.save(optimizer.state_dict(), optimpath)
     save_json(traindata,traindatapath)
 
+  grad_clip_max = 400 * grad_clip_scale
+  #Loosen gradient clipping as we shift to smaller learning rates
+  grad_clip_max = grad_clip_max / math.sqrt(lr_scale)
+
+  running_batch_count = 0
   running_main_loss = 0.0
   running_aux_loss = 0.0
+  running_gnorm = 0.0
+  running_ewms_exgnorm = 0.0
   print_every_batches = 100
   trainiter = iter(trainloader)
+  testiter = iter(testloader)
   while True:
     for i in range(batches_per_epoch):
       inputs, results, auxs = next(trainiter)
@@ -409,22 +424,31 @@ if __name__ == '__main__':
       main_loss,aux_loss = lossfunc(inputs, results, preds, auxs, auxpreds)
       loss = main_loss + aux_loss
       loss.backward()
+      gnorm = torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip_max)
       optimizer.step()
 
       traindata["samples_so_far"] += batch_size
       traindata["batches_so_far"] += 1
 
+      running_batch_count += 1
       running_main_loss += main_loss.item()
       running_aux_loss += aux_loss.item()
-      if traindata["batches_so_far"] % print_every_batches == 0:
-        trainlog("TRAIN samples: %d,  batches: %d,  main loss: %.5f,  aux loss: %.5f" % (
+      running_gnorm += gnorm
+      running_ewms_exgnorm += max(0.0, gnorm - grad_clip_max)
+      if running_batch_count >= print_every_batches:
+        trainlog("TRAIN samples: %d,  batches: %d,  main loss: %.5f,  aux loss: %.5f,  gnorm: %.2f,  ewms_exgnorm: %.3g" % (
           traindata["samples_so_far"],
           traindata["batches_so_far"],
-          running_main_loss / (print_every_batches * batch_size),
-          running_aux_loss / (print_every_batches * batch_size),
+          running_main_loss / (running_batch_count * batch_size),
+          running_aux_loss / (running_batch_count * batch_size),
+          running_gnorm / (running_batch_count),
+          running_ewms_exgnorm / (running_batch_count),
         ))
+        running_batch_count = 0
         running_main_loss = 0.0
         running_aux_loss = 0.0
+        running_gnorm = 0.0
+        running_ewms_exgnorm *= 0.5
 
     trainlog("Saving!")
     model.save_to_file(modelpath)
@@ -432,16 +456,12 @@ if __name__ == '__main__':
     save_json(traindata,traindatapath)
 
     trainlog("Testing!")
-    testiter = iter(testloader)
     test_samples = 0
     test_main_loss = 0.0
     test_aux_loss = 0.0
     with torch.no_grad():
       for i in range(batches_per_test):
-        try:
-          inputs, results, auxs = next(testiter)
-        except StopIteration:
-          break
+        inputs, results, auxs = next(testiter)
         inputs = inputs.to(gpudevice)
         results = results.to(gpudevice)
         auxs = auxs.to(gpudevice)
@@ -451,7 +471,6 @@ if __name__ == '__main__':
         test_samples += batch_size
         test_main_loss += main_loss.item()
         test_aux_loss += aux_loss.item()
-      testiter.close()
     trainlog("TEST samples %d,  main loss: %.5f,  aux loss %.5f" % (test_samples, test_main_loss / test_samples, test_aux_loss / test_samples))
 
 
