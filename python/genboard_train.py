@@ -112,9 +112,14 @@ class SgfDataset(torch.utils.data.IterableDataset):
       while True:
         rand.shuffle(files)
         file_count = 0
+        error_count = 0
         print("Iterator beginning reading of files %d / %d" % (file_count, len(files)), flush=True)
         for filename in files:
-          (metadata,setup,moves,rules) = data.load_sgf_moves_exn(filename)
+          try:
+            (metadata,setup,moves,rules) = data.load_sgf_moves_exn(filename)
+          except Exception as e:
+            error_count += 1
+            continue
           # Only even 19x19 games!
           if metadata.size != 19 or len(setup) != 0 or (metadata.handicap is not None and metadata.handicap != 0):
             continue
@@ -255,7 +260,7 @@ class SgfDataset(torch.utils.data.IterableDataset):
 
           file_count += 1
           if file_count % 200 == 0:
-            print("Read through file %d / %d" % (file_count, len(files)), flush=True)
+            print("Read through file %d / %d  (error count %d)" % (file_count, len(files), error_count), flush=True)
 
         if not self.endless:
           break
@@ -332,12 +337,16 @@ if __name__ == '__main__':
 
   shuffle_buffer_size = 100000
 
+  files_found = 0
   trainfiles = []
   testfiles = []
   for datadir in datadirs.split(","):
     for parent, subdirs, files in os.walk(datadir):
       for name in files:
         if name.endswith(".sgf"):
+          files_found += 1
+          if files_found % 10000 == 0:
+            trainlog("Found %d sgfs..." % files_found)
           r = float.fromhex("0."+hashlib.md5(os.path.join(parent,name).encode()).hexdigest()[:16])
           if r < testprop:
             testfiles.append(os.path.join(parent,name))
