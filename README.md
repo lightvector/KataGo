@@ -201,44 +201,52 @@ More in detail:
 For **any** implementation, it's recommended that you also tune the number of threads used if you care about optimal performance, as it can make a factor of 2-3 difference in the speed. See "Tuning for Performance" below. However, if you mostly just want to get it working, then the default untuned settings should also be still reasonable.
 
 ### How To Use
-Again, KataGo is just an engine and does not have its own graphical interface. So generally you will want to use KataGo along with a [GUI or analysis program](#guis).
+KataGo is just an engine and does not have its own graphical interface. So generally you will want to use KataGo along with a [GUI or analysis program](#guis).
 If you encounter any problems while setting this up, check out [Common Questions and Issues](#common-questions-and-issues).
 
-KataGo supports several commands.
+**First**: Run a command like this to make sure KataGo is working, with the neural net file you [downloaded](https://github.com/lightvector/KataGo/releases/tag/v1.4.5). On OpenCL, it will also tune for your GPU.
+```
+./katago.exe benchmark                                                   # if you have default_gtp.cfg and default_model.bin.gz
+./katago.exe benchmark -model <NEURALNET>.bin.gz                         # if you have default_gtp.cfg
+./katago.exe benchmark -model <NEURALNET>.bin.gz -config gtp_custom.cfg  # use this .bin.gz neural net and this .cfg file
+```
+It will tell you a good number of threads. Edit your .cfg file and set "numSearchThreads" to that many to get best performance.
 
-All of these commands require a "model" file that contains the neural net, which ends in a `.bin.gz` or a `.txt.gz` or occasionally just a `.gz` extension. **However, you can omit specifying the model if it is named `default_model.bin.gz` or `default_model.txt.gz` and located in the same directory as the katago executable.**
+**Or**: Run this command to have KataGo generate a custom gtp config for you based on answering some questions:
+```
+./katago.exe genconfig -model <NEURALNET>.bin.gz -output gtp_custom.cfg
+```
 
-Most of these commands also require a GTP "config" file that ends in `.cfg` that that specifies parameters for how KataGo behaves. **However, you can omit specifying the GTP config if it is named `default_gtp.cfg` and located in the same directory as the katago executable.**
+**Next**: A command like this will run KataGo's engine. This is the command to give to your [GUI or analysis program](#guis) so that it can run KataGo.
+```
+./katago.exe gtp                                                   # if you have default_gtp.cfg and default_model.bin.gz
+./katago.exe gtp -model <NEURALNET>.bin.gz                         # if you have default_gtp.cfg
+./katago.exe gtp -model <NEURALNET>.bin.gz -config gtp_custom.cfg  # use this .bin.gz neural net and this .cfg file
+```
 
-If you are running KataGo for the first time, you may want to run the benchmark OR the genconfig commands on the command line before anything else, to test if KataGo works and pick a number of threads. And on the OpenCL version, to give KataGo a chance to autotune OpenCL, which could take a while.
+You may need to specify different paths when entering KataGo's command for a GUI program, e.g.:
+```
+path/to/katago.exe gtp -model path/to/<NEURALNET>.bin.gz
+path/to/katago.exe gtp -model path/to/<NEURALNET>.bin.gz -config path/to/gtp_custom.cfg
+```
 
-To run a GTP engine using a downloaded KataGo neural net and GTP config:
-
-   * `./katago gtp -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg`
-   * Or from a different path: `whatever/path/to/katago gtp -model whatever/path/to/<NEURALNET>.gz -config /whatever/path/to/<GTP_CONFIG>.cfg`
-   * **This is the command to tell your GUI (Lizzie, q5Go, Sabaki, GoGui, etc) to use to run KataGo** (with the actual paths to everything substituted currectly, of course).
-
-Or as noted earlier, if you have a default config and model named correctly in the same directory as KataGo:
-
-   * `./katago gtp`
-   * Or from a different path: `whatever/path/to/katago gtp`
-   * **Alternatively, this is the command you want to tell your GUI (Lizzie, q5Go, Sabaki, GoGui, etc) to use to run KataGo** (if you have a default config and model).
-
-To run a benchmark to test performance and help you choose how many threads to use for best performance. You can then manually edit your GTP config to use this many threads:
-
-   * `./katago benchmark -model <NEURALNET>.gz -config <GTP_CONFIG>.cfg`
-
-Or as noted earlier, if you have a default config and model named correctly in the same directory as KataGo:
-
-   * `./katago benchmark`
-
-To automatically tune threads and other settings for you based on asking simple questions, and generate a GTP config for you:
-
-   * `./katago genconfig -model <NEURALNET>.gz -output <PATH_TO_SAVE_GTP_CONFIG>.cfg`
+#### Other Commands:
 
 Run a JSON-based [analysis engine](docs/Analysis_Engine.md) that can do efficient batched evaluations for a backend Go service:
 
    * `./katago analysis -model <NEURALNET>.gz -config <ANALYSIS_CONFIG>.cfg`
+
+Run a high-performance match engine that will play a pool of bots against each other sharing the same GPU batches and CPUs with each other:
+
+   * `./katago match -config <MATCH_CONFIG>.cfg -log-file match.log -sgf-output-dir <DIR TO WRITE THE SGFS>`
+   
+Force OpenCL tuner to re-tune:
+
+   * `./katago tuner -config <GTP_CONFIG>.cfg`
+
+Print version:
+
+   * `./katago version`
 
 
 ### Tuning for Performance
