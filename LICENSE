@@ -1,7 +1,7 @@
 The code in this repository currently relies on several other libraries, parts of libraries,
-or external files: clblast, half-2.1.0, httplib, mozilla-cacerts, nlohmann_json, sgfmill,
-tclap-1.2.2, and zstr. For the licenses for those libraries and/or files, see the individual
-readmes and/or license files for each one within their respective subdirectories within
+or external files: clblast, filesystem-1.3.6, half-2.1.0, httplib, mozilla-cacerts, nlohmann_json,
+sgfmill, tclap-1.2.2, and zstr. For the licenses for those libraries and/or files, see the
+individual readmes and/or license files for each one within their respective subdirectories within
 cpp/external. Additionally, cpp/core/sha2.cpp derives from another piece of external code
 and embeds its own license within that file.
 
