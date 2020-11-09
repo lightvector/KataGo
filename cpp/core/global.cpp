@@ -17,7 +17,7 @@
 #include <iomanip>
 #include <sstream>
 #include <sys/types.h>
-#include <boost/filesystem.hpp>
+#include "../external/filesystem-1.3.6/include/ghc/filesystem.hpp"
 
 using namespace std;
 
@@ -706,11 +706,11 @@ vector<string> Global::readFileLines(const string& filename, char delimiter)
 
 void Global::collectFiles(const string& dirname, std::function<bool(const string&)> fileFilter, vector<string>& collected)
 {
-  namespace bfs = boost::filesystem;
+  namespace gfs = ghc::filesystem;
   try {
-    for(const bfs::directory_entry& entry: bfs::recursive_directory_iterator(dirname)) {
-      if(!bfs::is_directory(entry.status())) {
-        const bfs::path& path = entry.path();
+    for(const gfs::directory_entry& entry: gfs::recursive_directory_iterator(dirname)) {
+      if(!gfs::is_directory(entry.status())) {
+        const gfs::path& path = entry.path();
         string fileName = path.filename().string();
         if(fileFilter(fileName)) {
           collected.push_back(path.string());
@@ -718,7 +718,7 @@ void Global::collectFiles(const string& dirname, std::function<bool(const string
       }
     }
   }
-  catch(const bfs::filesystem_error& e) {
+  catch(const gfs::filesystem_error& e) {
     cerr << "Error recursively collectng files: " << e.what() << endl;
     return;
   }
