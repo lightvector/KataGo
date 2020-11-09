@@ -76,7 +76,7 @@ if(USE_BACKEND STREQUAL "CUDA")
 
   set(NEURALNET_BACKEND_SOURCES neuralnet/cudabackend.cpp neuralnet/cudahelpers.cu)
 
-  if (CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER 11.0)
+  if (CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 11.0)
     set(CMAKE_CUDA_FLAGS
       " \
       -gencode arch=compute_35,code=sm_35       \
@@ -104,7 +104,7 @@ if(USE_BACKEND STREQUAL "CUDA")
       -Wno-deprecated-gpu-targets \
       "
       )
-  elseif (CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER 10.2)
+  elseif (CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
     set(CMAKE_CUDA_FLAGS
       " \
       -gencode arch=compute_30,code=sm_30       \
@@ -295,6 +295,7 @@ add_executable(katago
 
 if(USE_BACKEND STREQUAL "CUDA")
   target_compile_definitions(katago PRIVATE USE_CUDA_BACKEND)
+  target_compile_definitions(katago PRIVATE CUDA_TARGET_VERSION=${CMAKE_CUDA_COMPILER_VERSION})
   find_package(CUDA REQUIRED)
   find_path(CUDNN_INCLUDE_DIR cudnn.h HINTS ${CUDNN_ROOT_DIR} ${CUDA_TOOLKIT_ROOT_DIR} PATH_SUFFIXES cuda/include include)
   if((NOT CUDNN_INCLUDE_DIR))

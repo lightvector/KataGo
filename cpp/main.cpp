@@ -183,6 +183,11 @@ string Version::getKataGoVersionFullInfo() {
   out << "Compile Time: " << __DATE__ << " " << __TIME__ << endl;
 #if defined(USE_CUDA_BACKEND)
   out << "Using CUDA backend" << endl;
+#if defined(CUDA_TARGET_VERSION)
+#define STRINGIFY(x) #x
+#define STRINGIFY2(x) STRINGIFY(x)
+  out << "Compiled with CUDA version " << STRINGIFY2(CUDA_TARGET_VERSION) << endl;
+#endif
 #elif defined(USE_OPENCL_BACKEND)
   out << "Using OpenCL backend" << endl;
 #elif defined(USE_EIGEN_BACKEND)
