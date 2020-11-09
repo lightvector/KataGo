@@ -15,7 +15,7 @@
 #include <sstream>
 #include <fstream>
 
-#include "../external/filesystem-1.3.6/include/ghc/filesystem.hpp"
+#include <ghc/filesystem.hpp>
 namespace gfs = ghc::filesystem;
 
 using namespace std;

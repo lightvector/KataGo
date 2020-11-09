@@ -21,8 +21,8 @@
 #include <sstream>
 #include <chrono>
 
-#include <boost/filesystem.hpp>
-namespace bfs = boost::filesystem;
+#include <ghc/filesystem.hpp>
+namespace gfs = ghc::filesystem;
 
 using namespace std;
 using json = nlohmann::json;
@@ -597,7 +597,7 @@ bool Connection::downloadModelIfNotPresent(
   const string path = getModelPath(modelInfo,modelDir);
 
   //Model already exists
-  if(bfs::exists(bfs::path(path)))
+  if(gfs::exists(gfs::path(path)))
     return true;
 
   Url url;

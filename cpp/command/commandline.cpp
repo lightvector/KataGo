@@ -5,7 +5,7 @@
 #include "../program/setup.h"
 #include "../main.h"
 
-#include "../external/filesystem-1.3.6/include/ghc/filesystem.hpp"
+#include <ghc/filesystem.hpp>
 namespace gfs = ghc::filesystem;
 
 using namespace std;

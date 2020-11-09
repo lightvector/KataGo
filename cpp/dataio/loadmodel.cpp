@@ -1,7 +1,7 @@
 #include <ctime>
 #include "../dataio/loadmodel.h"
 
-#include "../external/filesystem-1.3.6/include/ghc/filesystem.hpp"
+#include <ghc/filesystem.hpp>
 
 using namespace std;
 

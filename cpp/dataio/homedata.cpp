@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
-#include "../external/filesystem-1.3.6/include/ghc/filesystem.hpp"
+#include <ghc/filesystem.hpp>
 #endif
 #ifdef OS_IS_WINDOWS
 #include <windows.h>

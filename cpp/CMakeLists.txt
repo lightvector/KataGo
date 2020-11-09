@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 14)
 
 include_directories(external)
 include_directories(external/tclap-1.2.2/include)
+include_directories(SYSTEM external/filesystem-1.3.6/include) #SYSTEM suppresses a few warnings
 
 #--------------------------- PLATFORM SPECIFIC -------------------------------------------------------------------------
 
