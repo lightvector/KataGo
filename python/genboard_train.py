@@ -297,6 +297,8 @@ if __name__ == '__main__':
   parser.add_argument('-datadirs', help='Directory with sgfs', required=True)
   parser.add_argument('-testprop', help='Proportion of data for test', type=float, required=True)
   parser.add_argument('-lr-scale', help='LR multiplier', type=float, required=False)
+  parser.add_argument('-channels', help='Channels', type=int, required=True)
+  parser.add_argument('-blocks',   help='Blocks', type=int, required=True)
   parser.add_argument('-grad-clip-scale', help='Gradient clip multiplier', type=float, required=False)
   parser.add_argument('-num-data-workers', help='Number of processes for data loading', type=int, required=False)
   args = vars(parser.parse_args())
@@ -305,6 +307,8 @@ if __name__ == '__main__':
   datadirs = args["datadirs"]
   testprop = args["testprop"]
   lr_scale = args["lr_scale"]
+  num_channels = args["channels"]
+  num_blocks = args["blocks"]
   grad_clip_scale = args["grad_clip_scale"]
   num_data_workers = args["num_data_workers"]
   logfilemode = "a"
@@ -393,12 +397,14 @@ if __name__ == '__main__':
   if os.path.exists(modelpath):
     trainlog("Loading preexisting model!")
     model = Model.load_from_file(modelpath).to(gpudevice)
+    if model.num_channels != num_channels:
+      raise Exception("Number of channels in model is %d but command line arg was %d" % (model.num_channels,num_channels))
+    if model.num_blocks != num_blocks:
+      raise Exception("Number of blocks in model is %d but command line arg was %d" % (model.num_blocks,num_blocks))
     optimizer = optim.SGD(model.parameters(), lr=0.00001*lr_scale, momentum=0.9)
     optimizer.load_state_dict(torch.load(optimpath))
     traindata = load_json(traindatapath)
   else:
-    num_channels = 96
-    num_blocks = 8
     model = Model(num_channels=num_channels, num_blocks=num_blocks).to(gpudevice)
     optimizer = optim.SGD(model.parameters(), lr=0.00001*lr_scale, momentum=0.9)
     traindata = {"samples_so_far":0, "batches_so_far":0}
