@@ -34,6 +34,12 @@ mkdir -p "$basedir"/scripts
 mkdir -p "$basedir"/logs
 cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.sh "$basedir"/scripts
 
+# For archival and logging purposes - you can look back and see exactly the python code on a particular date
+DATE_FOR_FILENAME=$(date "+%Y%m%d-%H%M%S")
+DATED_ARCHIVE="$basedir"/scripts/dated/"$DATE_FOR_FILENAME"
+mkdir -p "$DATED_ARCHIVE"
+cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.sh "$DATED_ARCHIVE"
+
 (
     cd "$basedir"/scripts
     while true

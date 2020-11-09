@@ -184,7 +184,7 @@ def save_swa(savedir):
       os.mkdir(savedir)
     os.mkdir(os.path.join(savedir,"saved_model"))
     os.mkdir(os.path.join(savedir,"saved_model","variables"))
-    swa_saver.save(sess,os.path.join(savedir,"saved_model","variables","variables"), write_meta_graph=False, write_state=False)
+    swa_saver.save(sess,os.path.join(savedir,"saved_model","variables","variables"), write_meta_graph=True, write_state=False)
 
 def model_fn(features,labels,mode,params):
   global printed_model_yet
@@ -450,8 +450,17 @@ def dump_and_flush_json(data,filename):
     f.flush()
     os.fsync(f.fileno())
 
+
+# DATA RELOADING GENERATOR AND TRAINHISTORY ------------------------------------------------------------
+
+# Some globals
+last_curdatadir = None
+last_datainfo_row = 0
+trainfilegenerator = None
+num_train_files = 0
+vdatadir = None
+
 trainhistory = {
-  "files":[],
   "history":[]
 }
 if os.path.isfile(os.path.join(traindir,"trainhistory.json")):
@@ -467,20 +476,15 @@ else:
 
 def save_history(global_step_value):
   trainhistory["history"].append(("nsamp",int(global_step_value * batch_size)))
+  trainhistory["train_step"] = int(global_step_value * batch_size)
+  trainhistory["total_num_data_rows"] = last_datainfo_row
+  trainhistory["extra_stats"] = {}
   savepath = os.path.join(traindir,"trainhistory.json")
   savepathtmp = os.path.join(traindir,"trainhistory.json.tmp")
   dump_and_flush_json(trainhistory,savepathtmp)
   os.replace(savepathtmp,savepath)
   trainlog("Wrote " + savepath)
 
-
-# DATA RELOADING GENERATOR ------------------------------------------------------------
-
-last_curdatadir = None
-last_datainfo_row = 0
-trainfilegenerator = None
-num_train_files = 0
-vdatadir = None
 def maybe_reload_training_data():
   global last_curdatadir
   global last_datainfo_row
@@ -509,7 +513,10 @@ def maybe_reload_training_data():
       with open(trainjsonpath) as f:
         datainfo = json.load(f)
         last_datainfo_row = datainfo["range"][1]
-      trainhistory["files"] = datainfo["files"]
+
+      # Remove legacy value from this dictionary
+      if "files" in trainhistory:
+        del trainhistory["files"]
       trainhistory["history"].append(("newdata",datainfo["range"]))
 
       #Load training data files
@@ -670,7 +677,7 @@ while True:
     time.sleep(sleep_seconds_per_epoch)
 
   now = datetime.datetime.now()
-  if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=6):
+  if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=12):
     last_longterm_checkpoint_save_time = now
     ckpt_path = estimator.latest_checkpoint()
     #Tensorflow checkpoints have multiple pieces

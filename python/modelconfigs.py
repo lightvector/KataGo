@@ -9,11 +9,6 @@ import json
 import datetime
 import math
 
-import tensorflow as tf
-import numpy as np
-
-from model import Model
-
 b6c96 = {
   "version":8,
   "support_japanese_rules":True,

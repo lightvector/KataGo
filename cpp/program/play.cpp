@@ -221,13 +221,14 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   sgfCompensateKomiProb = cfg.contains("sgfCompensateKomiProb") ? cfg.getDouble("sgfCompensateKomiProb",0.0,1.0) : forkCompensateKomiProb;
   komiAllowIntegerProb = cfg.contains("komiAllowIntegerProb") ? cfg.getDouble("komiAllowIntegerProb",0.0,1.0) : 1.0;
 
-  auto generateCumProbs = [](const vector<Sgf::PositionSample> poses, double lambda) {
+  auto generateCumProbs = [](const vector<Sgf::PositionSample> poses, double lambda, double& effectiveSampleSize) {
     int minInitialTurnNumber = 0;
     for(size_t i = 0; i<poses.size(); i++)
       minInitialTurnNumber = std::min(minInitialTurnNumber, poses[i].initialTurnNumber);
 
     vector<double> cumProbs;
     cumProbs.resize(poses.size());
+    // Fill with uncumulative probs
     for(size_t i = 0; i<poses.size(); i++) {
       int64_t startTurn = poses[i].initialTurnNumber + (int64_t)poses[i].moves.size() - minInitialTurnNumber;
       cumProbs[i] = exp(-startTurn * lambda) * poses[i].weight;
@@ -237,6 +238,17 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
         throw StringError("startPos found bad unnormalized probability: " + Global::doubleToString(cumProbs[i]));
       }
     }
+
+    // Compute ESS
+    double sum = 0.0;
+    double sumSq = 0.0;
+    for(size_t i = 0; i<poses.size(); i++) {
+      sum += cumProbs[i];
+      sumSq += cumProbs[i]*cumProbs[i];
+    }
+    effectiveSampleSize = sum * sum / (sumSq + 1e-200);
+
+    // Make cumulative
     for(size_t i = 1; i<poses.size(); i++)
       cumProbs[i] += cumProbs[i-1];
 
@@ -291,7 +303,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     logger.write("Kept " + Global::uint64ToString(startPoses.size()) + " start positions");
     logger.write("Excluded " + Global::int64ToString(numExcluded) + "/" + Global::uint64ToString(files.size()) + " sgf files");
 
-    startPosCumProbs = generateCumProbs(startPoses, startPosesTurnWeightLambda);
+    double ess = 0.0;
+    startPosCumProbs = generateCumProbs(startPoses, startPosesTurnWeightLambda, ess);
 
     if(startPoses.size() <= 0) {
       logger.write("No start positions loaded, disabling start position logic");
@@ -299,6 +312,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     }
     else {
       logger.write("Cumulative unnormalized probability for start poses: " + Global::doubleToString(startPosCumProbs[startPoses.size()-1]));
+      logger.write("Effective sample size for start poses: " + Global::doubleToString(ess));
     }
   }
 
@@ -337,7 +351,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     }
     logger.write("Loaded " + Global::uint64ToString(hintPoses.size()) + " hint positions");
 
-    hintPosCumProbs = generateCumProbs(hintPoses, 0.0);
+    double ess = 0.0;
+    hintPosCumProbs = generateCumProbs(hintPoses, 0.0, ess);
 
     if(hintPoses.size() <= 0) {
       logger.write("No hint positions loaded, disabling hint position logic");
@@ -345,6 +360,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     }
     else {
       logger.write("Cumulative unnormalized probability for hint poses: " + Global::doubleToString(hintPosCumProbs[hintPoses.size()-1]));
+      logger.write("Effective sample size for hint poses: " + Global::doubleToString(ess));
     }
   }
 
@@ -366,11 +382,12 @@ void GameInitializer::createGame(
   ExtraBlackAndKomi& extraBlackAndKomi,
   const InitialPosition* initialPosition,
   const PlaySettings& playSettings,
-  OtherGameProperties& otherGameProps
+  OtherGameProperties& otherGameProps,
+  const Sgf::PositionSample* startPosSample
 ) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample);
   if(noResultStdev != 0.0 || drawRandRadius != 0.0)
     throw StringError("GameInitializer::createGame called in a mode that doesn't support specifying noResultStdev or drawRandRadius");
 }
@@ -381,11 +398,12 @@ void GameInitializer::createGame(
   SearchParams& params,
   const InitialPosition* initialPosition,
   const PlaySettings& playSettings,
-  OtherGameProperties& otherGameProps
+  OtherGameProperties& otherGameProps,
+  const Sgf::PositionSample* startPosSample
 ) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample);
 
   if(noResultStdev > 1e-30) {
     double mean = params.noResultUtilityForWhite;
@@ -454,7 +472,8 @@ void GameInitializer::createGameSharedUnsynchronized(
   ExtraBlackAndKomi& extraBlackAndKomi,
   const InitialPosition* initialPosition,
   const PlaySettings& playSettings,
-  OtherGameProperties& otherGameProps
+  OtherGameProperties& otherGameProps,
+  const Sgf::PositionSample* startPosSample
 ) {
   if(initialPosition != NULL) {
     board = initialPosition->board;
@@ -491,17 +510,22 @@ void GameInitializer::createGameSharedUnsynchronized(
   Rules rules = createRulesUnsynchronized();
 
   const Sgf::PositionSample* posSample = NULL;
-  if(startPosesProb > 0 && rand.nextBool(startPosesProb)) {
-    assert(startPoses.size() > 0);
-    size_t r = rand.nextIndexCumulative(startPosCumProbs.data(),startPosCumProbs.size());
-    assert(r < startPosCumProbs.size());
-    posSample = &(startPoses[r]);
-  }
-  else if(hintPosesProb > 0 && rand.nextBool(hintPosesProb)) {
-    assert(hintPoses.size() > 0);
-    size_t r = rand.nextIndexCumulative(hintPosCumProbs.data(),hintPosCumProbs.size());
-    assert(r < hintPosCumProbs.size());
-    posSample = &(hintPoses[r]);
+  if(startPosSample != NULL)
+    posSample = startPosSample;
+
+  if(posSample == NULL) {
+    if(startPosesProb > 0 && rand.nextBool(startPosesProb)) {
+      assert(startPoses.size() > 0);
+      size_t r = rand.nextIndexCumulative(startPosCumProbs.data(),startPosCumProbs.size());
+      assert(r < startPosCumProbs.size());
+      posSample = &(startPoses[r]);
+    }
+    else if(hintPosesProb > 0 && rand.nextBool(hintPosesProb)) {
+      assert(hintPoses.size() > 0);
+      size_t r = rand.nextIndexCumulative(hintPosCumProbs.data(),hintPosCumProbs.size());
+      assert(r < hintPosCumProbs.size());
+      posSample = &(hintPoses[r]);
+    }
   }
 
   if(posSample != NULL) {
@@ -814,7 +838,7 @@ static void logSearch(Search* bot, Logger& logger, Loc loc) {
 
 static bool shouldStop(vector<std::atomic<bool>*>& stopConditions) {
   for(int j = 0; j<stopConditions.size(); j++) {
-    if(stopConditions[j]->load())
+    if(stopConditions[j]->load(std::memory_order_acquire))
       return true;
   }
   return false;
@@ -1285,7 +1309,8 @@ FinishedGameData* Play::runGame(
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
   const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
-  std::function<NNEvaluator*()>* checkForNewNNEval
+  std::function<NNEvaluator*()> checkForNewNNEval,
+  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove 
 ) {
   Search* botB;
   Search* botW;
@@ -1307,7 +1332,8 @@ FinishedGameData* Play::runGame(
     maxMovesPerGame, stopConditions,
     playSettings, otherGameProps,
     gameRand,
-    checkForNewNNEval
+    checkForNewNNEval,
+    onEachMove
   );
 
   if(botW != botB)
@@ -1326,7 +1352,8 @@ FinishedGameData* Play::runGame(
   int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
   const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
-  std::function<NNEvaluator*()>* checkForNewNNEval
+  std::function<NNEvaluator*()> checkForNewNNEval,
+  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
 ) {
   FinishedGameData* gameData = new FinishedGameData();
 
@@ -1395,6 +1422,7 @@ FinishedGameData* Play::runGame(
   gameData->playoutDoublingAdvantage = otherGameProps.playoutDoublingAdvantage;
 
   gameData->numExtraBlack = extraBlackAndKomi.extraBlack;
+  gameData->handicapForSgf = extraBlackAndKomi.extraBlack; //overwritten later
   gameData->mode = FinishedGameData::MODE_NORMAL;
   gameData->beganInEncorePhase = 0;
   gameData->usedInitialPosition = 0;
@@ -1417,8 +1445,8 @@ FinishedGameData* Play::runGame(
   auto maybeCheckForNewNNEval = [&botB,&botW,&botSpecB,&botSpecW,&checkForNewNNEval,&gameRand,&gameData](int nextTurnNumber) {
     //Check if we got a new nnEval, with some probability.
     //Randomized and low-probability so as to reduce contention in checking, while still probably happening in a timely manner.
-    if(checkForNewNNEval != NULL && gameRand.nextBool(0.1)) {
-      NNEvaluator* newNNEval = (*checkForNewNNEval)();
+    if(checkForNewNNEval != nullptr && gameRand.nextBool(0.1)) {
+      NNEvaluator* newNNEval = checkForNewNNEval();
       if(newNNEval != NULL) {
         botB->setNNEval(newNNEval);
         if(botW != botB)
@@ -1442,7 +1470,7 @@ FinishedGameData* Play::runGame(
   }
 
   //Make sure there's some minimum tiny amount of data about how the encore phases work
-  if(playSettings.forSelfPlay && hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand.nextBool(0.04)) {
+  if(playSettings.forSelfPlay && !otherGameProps.isHintPos && hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand.nextBool(0.04)) {
     //Play out to go a quite a bit later in the game.
     double proportionOfBoardArea = 0.25;
     double temperature = 2.0/3.0;
@@ -1480,6 +1508,8 @@ FinishedGameData* Play::runGame(
   vector<SidePosition*> sidePositionsToSearch;
 
   vector<double> historicalMctsWinLossValues;
+  vector<double> historicalMctsLeads;
+  vector<double> historicalMctsScoreStdevs;
   vector<double> policySurpriseByTurn;
   vector<ReportedSearchValues> rawNNValues;
 
@@ -1506,6 +1536,10 @@ FinishedGameData* Play::runGame(
     if(logMoves)
       logger.write("Move " + Global::intToString(hist.moveHistory.size()) + " made: " + Location::toString(loc,board));
 
+    ValueTargets whiteValueTargets;
+    extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode);
+    gameData->whiteValueTargetsByTurn.push_back(whiteValueTargets);
+
     if(recordFullData) {
       vector<PolicyTargetMove>* policyTarget = new vector<PolicyTargetMove>();
       int64_t unreducedNumVisits = toMoveBot->getRootVisits();
@@ -1515,14 +1549,9 @@ FinishedGameData* Play::runGame(
       policySurpriseByTurn.push_back(toMoveBot->getPolicySurprise());
       rawNNValues.push_back(toMoveBot->getRootRawNNValuesRequireSuccess());
 
-      ValueTargets whiteValueTargets;
-      extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode);
-      gameData->whiteValueTargetsByTurn.push_back(whiteValueTargets);
-
-
       //Occasionally fork off some positions to evaluate
       Loc sidePositionForkLoc = Board::NULL_LOC;
-      if(playSettings.forkSidePositionProb > 0.0 && gameRand.nextBool(playSettings.forkSidePositionProb)) {
+      if(playSettings.sidePositionProb > 0.0 && gameRand.nextBool(playSettings.sidePositionProb)) {
         assert(toMoveBot->rootNode != NULL);
         assert(toMoveBot->rootNode->nnOutput != nullptr);
         Loc banMove = loc;
@@ -1556,7 +1585,12 @@ FinishedGameData* Play::runGame(
     if(playSettings.allowResignation || playSettings.reduceVisits) {
       ReportedSearchValues values = toMoveBot->getRootValuesRequireSuccess();
       historicalMctsWinLossValues.push_back(values.winLossValue);
+      historicalMctsLeads.push_back(values.lead);
+      historicalMctsScoreStdevs.push_back(values.expectedScoreStdev);
     }
+
+    if(onEachMove != nullptr)
+      onEachMove(board,hist,pla,loc,historicalMctsWinLossValues,historicalMctsLeads,historicalMctsScoreStdevs,toMoveBot);
 
     //Finally, make the move on the bots
     bool suc;
@@ -1607,6 +1641,13 @@ FinishedGameData* Play::runGame(
     gameData->hitTurnLimit = false;
   else
     gameData->hitTurnLimit = true;
+
+  {
+    BoardHistory histCopy(hist);
+    //Always use true for computing the handicap value that goes into an sgf
+    histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+    gameData->handicapForSgf = histCopy.computeNumHandicapStones();
+  }
 
   if(recordFullData) {
     if(hist.isResignation)
@@ -2069,7 +2110,7 @@ void Play::maybeSekiForkGame(
 ) {
   if(forkData == NULL)
     return;
-  if(!playSettings.sekiForkHack)
+  if(playSettings.sekiForkHackProb <= 0)
     return;
 
   //If there are any unowned spots, consider forking the last bit of the game, with random rules and even score
@@ -2182,9 +2223,11 @@ FinishedGameData* GameRunner::runGame(
   const MatchPairer::BotSpec& bSpecB,
   const MatchPairer::BotSpec& bSpecW,
   ForkData* forkData,
+  const Sgf::PositionSample* startPosSample,
   Logger& logger,
   vector<std::atomic<bool>*>& stopConditions,
-  std::function<NNEvaluator*()>* checkForNewNNEval
+  std::function<NNEvaluator*()> checkForNewNNEval,
+  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove 
 ) {
   MatchPairer::BotSpec botSpecB = bSpecB;
   MatchPairer::BotSpec botSpecW = bSpecW;
@@ -2196,7 +2239,7 @@ FinishedGameData* GameRunner::runGame(
   if(forkData != NULL) {
     initialPosition = forkData->get(gameRand);
 
-    if(initialPosition == NULL && playSettings.sekiForkHack && gameRand.nextBool(0.04)) {
+    if(initialPosition == NULL && playSettings.sekiForkHackProb > 0 && gameRand.nextBool(playSettings.sekiForkHackProb)) {
       initialPosition = forkData->getSeki(gameRand);
       if(initialPosition != NULL)
         usedSekiForkHackPosition = true;
@@ -2211,12 +2254,12 @@ FinishedGameData* GameRunner::runGame(
   if(playSettings.forSelfPlay) {
     assert(botSpecB.botIdx == botSpecW.botIdx);
     SearchParams params = botSpecB.baseParams;
-    gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition,playSettings,otherGameProps);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition,playSettings,otherGameProps,startPosSample);
     botSpecB.baseParams = params;
     botSpecW.baseParams = params;
   }
   else {
-    gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample);
 
     bool rulesWereSupported;
     if(botSpecB.nnEval != NULL) {
@@ -2263,7 +2306,8 @@ FinishedGameData* GameRunner::runGame(
     maxMovesPerGame,stopConditions,
     playSettings,otherGameProps,
     gameRand,
-    checkForNewNNEval //Note that if this triggers, botSpecB and botSpecW will get updated, for use in maybeForkGame
+    checkForNewNNEval, //Note that if this triggers, botSpecB and botSpecW will get updated, for use in maybeForkGame
+    onEachMove
   );
 
   if(initialPosition != NULL)

@@ -436,7 +436,8 @@ void Sgf::iterAllUniquePositions(
   BoardHistory hist(board,nextPla,rules,0);
 
   PositionSample sampleBuf;
-  iterAllUniquePositionsHelper(board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,f);
+  std::vector<std::pair<int64_t,int64_t>> variationTraceNodesBranch;
+  iterAllUniquePositionsHelper(board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,variationTraceNodesBranch,f);
 }
 
 void Sgf::iterAllUniquePositionsHelper(
@@ -445,6 +446,7 @@ void Sgf::iterAllUniquePositionsHelper(
   PositionSample& sampleBuf,
   int initialTurnNumber,
   std::set<Hash128>& uniqueHashes,
+  std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
   std::function<void(PositionSample&,const BoardHistory&)> f
 ) const {
   vector<Move> buf;
@@ -484,8 +486,19 @@ void Sgf::iterAllUniquePositionsHelper(
 
     for(int j = 0; j<buf.size(); j++) {
       bool suc = hist.makeBoardMoveTolerant(board,buf[j].loc,buf[j].pla);
-      if(!suc)
-        throw StringError("Illegal move in " + fileName + " turn " + Global::intToString(j) + " move " + Location::toString(buf[j].loc, board.x_size, board.y_size));
+      if(!suc) {
+        ostringstream trace;
+        for(size_t s = 0; s < variationTraceNodesBranch.size(); s++) {
+          trace << "forward " << variationTraceNodesBranch[s].first << " ";
+          trace << "branch " << variationTraceNodesBranch[s].second << " ";
+        }
+        trace << "forward " << i;
+
+        throw StringError(
+          "Illegal move in " + fileName + " effective turn " + Global::intToString(j+initialTurnNumber) + " move " +
+          Location::toString(buf[j].loc, board.x_size, board.y_size) + " SGF trace (branches 0-indexed): " + trace.str()
+        );
+      }
       nextPla = getOpp(buf[j].pla);
       samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,f);
     }
@@ -499,7 +512,10 @@ void Sgf::iterAllUniquePositionsHelper(
     BoardHistory histCopy = hist;
     // if(children.size() > 1)
     //   cout << "BEGIN " << i << "/" << children.size() << endl;
-    children[i]->iterAllUniquePositionsHelper(copy,histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,f);
+    variationTraceNodesBranch.push_back(std::make_pair((int64_t)nodes.size(),(int64_t)i));
+    children[i]->iterAllUniquePositionsHelper(copy,histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,variationTraceNodesBranch,f);
+    assert(variationTraceNodesBranch.size() > 0);
+    variationTraceNodesBranch.erase(variationTraceNodesBranch.begin()+(variationTraceNodesBranch.size()-1));
   }
 
   // if(children.size() > 1) {
@@ -1165,11 +1181,32 @@ void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist) {
   }
 }
 
+string WriteSgf::gameResultNoSgfTag(const BoardHistory& hist) {
+  if(!hist.isGameFinished)
+    return "";
+  else if(hist.isNoResult)
+    return "Void";
+  else if(hist.isResignation && hist.winner == C_BLACK)
+    return "B+R";
+  else if(hist.isResignation && hist.winner == C_WHITE)
+    return "W+R";
+  else if(hist.winner == C_BLACK)
+    return "B+" + Global::doubleToString(-hist.finalWhiteMinusBlackScore);
+  else if(hist.winner == C_WHITE)
+    return "W+" + Global::doubleToString(hist.finalWhiteMinusBlackScore);
+  else if(hist.winner == C_EMPTY)
+    return "0";
+  else
+    ASSERT_UNREACHABLE;
+  return "";
+}
+
 void WriteSgf::writeSgf(
   ostream& out, const string& bName, const string& wName,
   const BoardHistory& endHist,
   const FinishedGameData* gameData,
-  bool tryNicerRulesString
+  bool tryNicerRulesString,
+  bool omitResignPlayerMove
 ) {
   const Board& initialBoard = endHist.initialBoard;
   const Rules& rules = endHist.rules;
@@ -1184,21 +1221,16 @@ void WriteSgf::writeSgf(
   out << "PB[" << bName << "]";
   out << "PW[" << wName << "]";
 
-  int handicap = 0;
-  bool hasWhite = false;
-  for(int y = 0; y<ySize; y++) {
-    for(int x = 0; x<xSize; x++) {
-      Loc loc = Location::getLoc(x,y,xSize);
-      if(initialBoard.colors[loc] == C_BLACK)
-        handicap += 1;
-      if(initialBoard.colors[loc] == C_WHITE)
-        hasWhite = true;
-    }
+  if(gameData != NULL) {
+    out << "HA[" << gameData->handicapForSgf << "]";
   }
-  if(hasWhite)
-    handicap = 0;
+  else {
+    BoardHistory histCopy(endHist);
+    //Always use true for computing the handicap value that goes into an sgf
+    histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+    out << "HA[" << histCopy.computeNumHandicapStones() << "]";
+  }
 
-  out << "HA[" << handicap << "]";
   out << "KM[" << rules.komi << "]";
   out << "RU[" << (tryNicerRulesString ? rules.toStringNoKomiMaybeNice() : rules.toStringNoKomi()) << "]";
   printGameResult(out,endHist);
@@ -1236,25 +1268,26 @@ void WriteSgf::writeSgf(
   }
 
   size_t startTurnIdx = 0;
-  if(gameData != NULL && gameData->hasFullData) {
+  if(gameData != NULL) {
     startTurnIdx = gameData->startHist.moveHistory.size();
     out << "C[startTurnIdx=" << startTurnIdx;
     out << ",gameHash=" << gameData->gameHash;
 
+    static_assert(FinishedGameData::NUM_MODES == 6, "");
     if(gameData->mode == FinishedGameData::MODE_NORMAL)
-      out << "," << "mode=normal";
+      out << "," << "gtype=normal";
     else if(gameData->mode == FinishedGameData::MODE_CLEANUP_TRAINING)
-      out << "," << "mode=cleanuptraining";
+      out << "," << "gtype=cleanuptraining";
     else if(gameData->mode == FinishedGameData::MODE_FORK)
-      out << "," << "mode=fork";
+      out << "," << "gtype=fork";
     else if(gameData->mode == FinishedGameData::MODE_HANDICAP)
-      out << "," << "mode=handicap";
+      out << "," << "gtype=handicap";
     else if(gameData->mode == FinishedGameData::MODE_SGFPOS)
-      out << "," << "mode=sgfpos";
+      out << "," << "gtype=sgfpos";
     else if(gameData->mode == FinishedGameData::MODE_HINTPOS)
-      out << "," << "mode=hintpos";
+      out << "," << "gtype=hintpos";
     else
-      out << "," << "mode=other";
+      out << "," << "gtype=other";
 
     if(gameData->beganInEncorePhase != 0)
       out << "," << "beganInEncorePhase=" << gameData->beganInEncorePhase;
@@ -1279,29 +1312,31 @@ void WriteSgf::writeSgf(
     Loc loc = endHist.moveHistory[i].loc;
     Player pla = endHist.moveHistory[i].pla;
 
-    if(pla == P_BLACK)
-      out << "B[";
-    else
-      out << "W[";
+    bool isResignMove = endHist.isGameFinished && endHist.isResignation && endHist.winner == getOpp(pla) && i+1 == endHist.moveHistory.size();
+    if(!(omitResignPlayerMove && isResignMove)) {
+      if(pla == P_BLACK)
+        out << "B[";
+      else
+        out << "W[";
 
-    bool isPassForKo = hist.isPassForKo(board,loc,pla);
-    if(isPassForKo)
-      writeSgfLoc(out,Board::PASS_LOC,xSize,ySize);
-    else
-      writeSgfLoc(out,loc,xSize,ySize);
-    out << "]";
-
-    if(isPassForKo) {
-      out << "TR[";
-      writeSgfLoc(out,loc,xSize,ySize);
+      bool isPassForKo = hist.isPassForKo(board,loc,pla);
+      if(isPassForKo)
+        writeSgfLoc(out,Board::PASS_LOC,xSize,ySize);
+      else
+        writeSgfLoc(out,loc,xSize,ySize);
       out << "]";
-      comment += "Pass for ko";
+
+      if(isPassForKo) {
+        out << "TR[";
+        writeSgfLoc(out,loc,xSize,ySize);
+        out << "]";
+        comment += "Pass for ko";
+      }
     }
 
     if(gameData != NULL && i >= startTurnIdx) {
-      if(gameData->hasFullData) {
-        size_t turnAfterStart = i-startTurnIdx;
-        assert(turnAfterStart < gameData->whiteValueTargetsByTurn.size());
+      size_t turnAfterStart = i-startTurnIdx;
+      if(turnAfterStart < gameData->whiteValueTargetsByTurn.size()) {
         const ValueTargets& targets = gameData->whiteValueTargetsByTurn[turnAfterStart];
         char winBuf[32];
         char lossBuf[32];
@@ -1321,6 +1356,12 @@ void WriteSgf::writeSgf(
         comment += " ";
         comment += scoreBuf;
       }
+    }
+
+    if(endHist.isGameFinished && i+1 == endHist.moveHistory.size()) {
+      if(comment.length() > 0)
+        comment += " ";
+      comment += "result=" + WriteSgf::gameResultNoSgfTag(endHist);
     }
 
     if(comment.length() > 0)

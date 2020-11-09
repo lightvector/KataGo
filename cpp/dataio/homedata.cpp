@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
-#include <boost/filesystem.hpp>
+#include <ghc/filesystem.hpp>
 #endif
 #ifdef OS_IS_WINDOWS
 #include <windows.h>
@@ -91,14 +91,14 @@ string HomeData::getHomeDataDir(bool makeDir, const string& homeDataDirOverride)
 //The directory containing the excutable.
 //A katago-specific subdirectory of the home directory, same as getHomeDataDir.
 vector<string> HomeData::getDefaultFilesDirs() {
-  namespace bfs = boost::filesystem;
+  namespace gfs = ghc::filesystem;
   constexpr int bufSize = 2048;
   char result[bufSize];
   ssize_t count = readlink("/proc/self/exe", result, bufSize);
   vector<string> ret;
   if(count >= 0 && count < bufSize-1) {
     string exePath(result,count);
-    const bfs::path path(exePath);
+    const gfs::path path(exePath);
     string exeDir = path.parent_path().string();
     ret.push_back(exeDir);
   }

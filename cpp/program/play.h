@@ -84,7 +84,8 @@ class GameInitializer {
     SearchParams& params,
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
-    OtherGameProperties& otherGameProps
+    OtherGameProperties& otherGameProps,
+    const Sgf::PositionSample* startPosSample
   );
 
   //A version that doesn't randomize params
@@ -93,7 +94,8 @@ class GameInitializer {
     ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
-    OtherGameProperties& otherGameProps
+    OtherGameProperties& otherGameProps,
+    const Sgf::PositionSample* startPosSample
   );
 
   Rules randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const;
@@ -111,7 +113,8 @@ class GameInitializer {
     ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
-    OtherGameProperties& otherGameProps
+    OtherGameProperties& otherGameProps,
+    const Sgf::PositionSample* startPosSample
   );
   Rules createRulesUnsynchronized();
 
@@ -241,7 +244,8 @@ namespace Play {
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
     const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
-    std::function<NNEvaluator*()>* checkForNewNNEval
+    std::function<NNEvaluator*()> checkForNewNNEval,
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove 
   );
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
@@ -254,7 +258,8 @@ namespace Play {
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
     const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
-    std::function<NNEvaluator*()>* checkForNewNNEval
+    std::function<NNEvaluator*()> checkForNewNNEval,
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove 
   );
 
   void maybeForkGame(
@@ -304,9 +309,11 @@ public:
     const MatchPairer::BotSpec& botSpecB,
     const MatchPairer::BotSpec& botSpecW,
     ForkData* forkData,
+    const Sgf::PositionSample* startPosSample,
     Logger& logger,
     std::vector<std::atomic<bool>*>& stopConditions,
-    std::function<NNEvaluator*()>* checkForNewNNEval
+    std::function<NNEvaluator*()> checkForNewNNEval,
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove 
   );
 
   const GameInitializer* getGameInitializer() const;

@@ -38,6 +38,16 @@ git show --no-patch --no-color > "$BASEDIR"/train/"$TRAININGNAME"/version.txt
 git diff --no-color > "$BASEDIR"/train/"$TRAININGNAME"/diff.txt
 git diff --staged --no-color > "$BASEDIR"/train/"$TRAININGNAME"/diffstaged.txt
 
+# For archival and logging purposes - you can look back and see exactly the python code on a particular date
+DATE_FOR_FILENAME=$(date "+%Y%m%d-%H%M%S")
+DATED_ARCHIVE="$BASEDIR"/scripts/train/dated/"$DATE_FOR_FILENAME"
+mkdir -p "$DATED_ARCHIVE"
+cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/train.sh "$DATED_ARCHIVE"
+git show --no-patch --no-color > "$DATED_ARCHIVE"/version.txt
+git diff --no-color > "$DATED_ARCHIVE"/diff.txt
+git diff --staged --no-color > "$DATED_ARCHIVE"/diffstaged.txt
+
+
 if [ "$EXPORTMODE" == "main" ]
 then
     EXPORT_SUBDIR=tfsavedmodels_toexport

@@ -948,7 +948,7 @@ G16 : T  -2.75c W  -2.83c S   0.08c ( -0.4 L  -0.4) LCB   40.30c P 23.06% WF 13.
 N7  : T  20.28c W  19.21c S   1.07c ( +0.4 L  +0.4) LCB  219.76c P 15.84% WF 10.01% PSV       4 N       5  --  N7 G2 H1 H2
 K6  : T  -9.41c W  -8.97c S  -0.44c ( -0.8 L  -0.8) LCB   50.94c P  3.21% WF 16.03% PSV       3 N      14  --  K6 K5 N7 L6 H17 G2 H1
 N12 : T  -4.94c W  -4.88c S  -0.06c ( -0.5 L  -0.5) LCB   83.20c P  4.54% WF 14.84% PSV       3 N      12  --  N12 G2 H1 H2
-H11 : T   2.39c W   2.21c S   0.17c ( -0.3 L  -0.3) LCB  215.56c P  6.55% WF 13.49% PSV       3 N       5  --  H11 G2 H1
+H11 : T   2.39c W   2.21c S   0.17c ( -0.3 L  -0.3) LCB  215.55c P  6.55% WF 13.49% PSV       3 N       5  --  H11 G2 H1
 G14 : T   2.30c W   2.05c S   0.25c ( -0.2 L  -0.2) LCB  227.16c P  3.88% WF 13.51% PSV       2 N       5  --  G14 G2 H1
 Beginning search again and then reprinting, now score utils should change a little
 : T  -9.37c W  -9.15c S  -0.22c ( -0.6 L  -0.6) N     149  --  H17 B13 A14 B14 A15 G2 H1

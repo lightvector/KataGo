@@ -95,6 +95,8 @@ namespace Global
   //Check prefix/suffix
   bool isPrefix(const std::string& s, const std::string& prefix);
   bool isSuffix(const std::string& s, const std::string& suffix);
+  std::string chopPrefix(const std::string& s, const std::string& prefix);
+  std::string chopSuffix(const std::string& s, const std::string& suffix);
 
   //Trim whitespace off both ends of string
   std::string trim(const std::string& s);
@@ -149,6 +151,8 @@ namespace Global
   //Read entire file whole
   std::string readFile(const char* filename);
   std::string readFile(const std::string& filename);
+  std::string readFileBinary(const char* filename);
+  std::string readFileBinary(const std::string& filename);
 
   //Read file into separate lines, using the specified delimiter character(s).
   //The delimiter characters are NOT included.

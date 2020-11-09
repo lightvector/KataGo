@@ -15,8 +15,8 @@
 #include <sstream>
 #include <fstream>
 
-#include <boost/filesystem.hpp>
-namespace bfs = boost::filesystem;
+#include <ghc/filesystem.hpp>
+namespace gfs = ghc::filesystem;
 
 using namespace std;
 
@@ -550,7 +550,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
       throw StringError("Please answer y or n");
   };
 
-  if(bfs::exists(bfs::path(outputFile))) {
+  if(gfs::exists(gfs::path(outputFile))) {
     bool b = false;
     promptAndParseInput("File " + outputFile + " already exists, okay to overwrite it with an entirely new config (y/n)?\n", [&](const string& line) { parseYN(line,b); });
     if(!b) {
@@ -802,7 +802,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
   cout << "PERFORMANCE TUNING" << endl;
 
   bool skipThreadTuning = false;
-  if(bfs::exists(bfs::path(outputFile))) {
+  if(gfs::exists(gfs::path(outputFile))) {
     int oldConfigNumSearchThreads = -1;
     try {
       ConfigParser oldCfg(outputFile);

@@ -38,7 +38,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
 #set -x
 (
     time python3 ./shuffle.py \
-         "$BASEDIR"/selfplay/*/tdata/ \
+         "$BASEDIR"/selfplay/ \
          -expand-window-per-row 0.4 \
          -taper-window-exponent 0.65 \
          -out-dir "$BASEDIR"/shuffleddata/$OUTDIRTRAIN \

@@ -139,35 +139,42 @@ void FinishedGameData::printDebug(ostream& out) const {
       out << "-" << " ";
     out << endl;
   }
-  for(int y = 0; y<startBoard.y_size; y++) {
-    for(int x = 0; x<startBoard.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,startBoard.x_size);
-      out << PlayerIO::colorToChar(finalFullArea[loc]);
+  if(finalFullArea != NULL) {
+    for(int y = 0; y<startBoard.y_size; y++) {
+      for(int x = 0; x<startBoard.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,startBoard.x_size);
+        out << PlayerIO::colorToChar(finalFullArea[loc]);
+      }
+      out << endl;
     }
-    out << endl;
   }
-  for(int y = 0; y<startBoard.y_size; y++) {
-    for(int x = 0; x<startBoard.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,startBoard.x_size);
-      out << PlayerIO::colorToChar(finalOwnership[loc]);
+  if(finalOwnership != NULL) {
+    for(int y = 0; y<startBoard.y_size; y++) {
+      for(int x = 0; x<startBoard.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,startBoard.x_size);
+        out << PlayerIO::colorToChar(finalOwnership[loc]);
+      }
+      out << endl;
     }
-    out << endl;
   }
-  for(int y = 0; y<startBoard.y_size; y++) {
-    for(int x = 0; x<startBoard.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,startBoard.x_size);
-      out << (int)finalSekiAreas[loc];
+  if(finalSekiAreas != NULL) {
+    for(int y = 0; y<startBoard.y_size; y++) {
+      for(int x = 0; x<startBoard.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,startBoard.x_size);
+        out << (int)finalSekiAreas[loc];
+      }
+      out << endl;
     }
-    out << endl;
   }
-  for(int y = 0; y<startBoard.y_size; y++) {
-    for(int x = 0; x<startBoard.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,startBoard.x_size);
-      out << Global::strprintf(" %.3f",finalWhiteScoring[loc]);
+  if(finalWhiteScoring != NULL) {
+    for(int y = 0; y<startBoard.y_size; y++) {
+      for(int x = 0; x<startBoard.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,startBoard.x_size);
+        out << Global::strprintf(" %.3f",finalWhiteScoring[loc]);
+      }
+      out << endl;
     }
-    out << endl;
   }
-
   for(int i = 0; i<sidePositions.size(); i++) {
     SidePosition* sp = sidePositions[i];
     out << "Side position " << i << endl;
@@ -806,6 +813,13 @@ TrainingDataWriter::TrainingDataWriter(const string& outDir, ostream* dbgOut, in
 TrainingDataWriter::~TrainingDataWriter()
 {
   delete writeBuffers;
+}
+
+bool TrainingDataWriter::isEmpty() const {
+  return writeBuffers->curRows <= 0;
+}
+int64_t TrainingDataWriter::numRowsInBuffer() const {
+  return writeBuffers->curRows;
 }
 
 void TrainingDataWriter::writeAndClearIfFull() {

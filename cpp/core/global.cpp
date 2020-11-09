@@ -17,7 +17,7 @@
 #include <iomanip>
 #include <sstream>
 #include <sys/types.h>
-#include <boost/filesystem.hpp>
+#include <ghc/filesystem.hpp>
 
 using namespace std;
 
@@ -270,6 +270,19 @@ bool Global::isSuffix(const string& s, const string& suffix)
     return false;
   int result = s.compare(s.length() - suffix.length(), suffix.length(), suffix);
   return result == 0;
+}
+
+string Global::chopPrefix(const string& s, const string& prefix)
+{
+  if(!isPrefix(s,prefix))
+    throw StringError("Global::chopPrefix: \n" + prefix + "\nis not a prefix of\n" + s);
+  return s.substr(prefix.size());
+}
+string Global::chopSuffix(const string& s, const string& suffix)
+{
+  if(!isSuffix(s,suffix))
+    throw StringError("Global::chopSuffix: \n" + suffix + "\nis not a suffix of\n" + s);
+  return s.substr(0,s.size()-suffix.size());
 }
 
 
@@ -657,6 +670,20 @@ string Global::readFile(const string& filename)
   return readFile(filename.c_str());
 }
 
+string Global::readFileBinary(const char* filename)
+{
+  ifstream ifs(filename, ios::binary);
+  if(!ifs.good())
+    throw IOError(string("File not found: ") + filename);
+  string str((istreambuf_iterator<char>(ifs)), istreambuf_iterator<char>());
+  return str;
+}
+
+string Global::readFileBinary(const string& filename)
+{
+  return readFileBinary(filename.c_str());
+}
+
 //Read file into separate lines, using the specified delimiter character(s).
 //The delimiter characters are NOT included.
 vector<string> Global::readFileLines(const char* filename, char delimiter)
@@ -679,11 +706,11 @@ vector<string> Global::readFileLines(const string& filename, char delimiter)
 
 void Global::collectFiles(const string& dirname, std::function<bool(const string&)> fileFilter, vector<string>& collected)
 {
-  namespace bfs = boost::filesystem;
+  namespace gfs = ghc::filesystem;
   try {
-    for(const bfs::directory_entry& entry: bfs::recursive_directory_iterator(dirname)) {
-      if(!bfs::is_directory(entry.status())) {
-        const bfs::path& path = entry.path();
+    for(const gfs::directory_entry& entry: gfs::recursive_directory_iterator(dirname)) {
+      if(!gfs::is_directory(entry.status())) {
+        const gfs::path& path = entry.path();
         string fileName = path.filename().string();
         if(fileFilter(fileName)) {
           collected.push_back(path.string());
@@ -691,7 +718,7 @@ void Global::collectFiles(const string& dirname, std::function<bool(const string
       }
     }
   }
-  catch(const bfs::filesystem_error& e) {
+  catch(const gfs::filesystem_error& e) {
     cerr << "Error recursively collectng files: " << e.what() << endl;
     return;
   }
