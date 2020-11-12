@@ -27,12 +27,13 @@ if __name__ == '__main__':
 
   parser = argparse.ArgumentParser(description=description)
   parser.add_argument('-model', help='Model file to load', required=True)
-  parser.add_argument('-board', help='Board using {.,*},X,O,? for empty, black, white, unknown', required=True)
+  parser.add_argument('-board', help='Board pattern using {.,*},X,O,? for empty, black, white, unknown', required=True)
   parser.add_argument('-turn', help='Approx turn number to tell the net to generate for, [0,300]', required=True, type=float)
   parser.add_argument('-turnstdev', help='Approx turn number randomness [0,100]', required=True, type=float)
   parser.add_argument('-source', help='Tell the net to mimic positions from source, {-1,0,1}', required=True, type=int)
   parser.add_argument('-verbose', help='Print various info and debug messages instead of only the board', required=False, action='store_true')
-  parser.add_argument('-n', help='How many positions to generate, default 1', required=False, type=int)
+  parser.add_argument('-n', help='How many batches to generate, default 1', required=False, type=int, default=1)
+  parser.add_argument('-batchsize', help='How many positions to generate, default 1', required=False, type=int, default=1)
   args = vars(parser.parse_args())
 
   modelfile = args["model"]
@@ -41,7 +42,8 @@ if __name__ == '__main__':
   turnstdev = args["turnstdev"]
   source = args["source"]
   verbose = args["verbose"]
-  numpositions = args["n"]
+  numbatches = args["n"]
+  batchsize = args["batchsize"]
 
   if turn < 0 or turn > 300:
     raise Exception("Turn must be in [0,300]")
@@ -49,8 +51,10 @@ if __name__ == '__main__':
     raise Exception("Turn must be in [0,100]")
   if source != -1 and source != 0 and source != 1:
     raise Exception("Source must be in {-1,0,1}")
-  if numpositions < 0:
-    raise Exception("Num positions must be nonnegative")
+  if numbatches < 0:
+    raise Exception("Num batches must be nonnegative")
+  if batchsize < 1:
+    raise Exception("Batchsize must be positive")
 
   cpudevice = torch.device("cpu")
   if torch.cuda.is_available():
@@ -121,7 +125,7 @@ if __name__ == '__main__':
 
   with torch.no_grad():
 
-    for i in range(numpositions):
+    for i in range(numbatches):
 
       flipx = rand.random() < 0.5
       flipy = rand.random() < 0.5
@@ -149,14 +153,17 @@ if __name__ == '__main__':
         preds, auxpreds = model(inputstransformed.to(gpudevice))
         preds = F.softmax(preds,dim=1)
         assert(len(preds.size()) == 2)
-        assert(preds.size()[0] == 1)
+        assert(preds.size()[0] == batchsize)
         assert(preds.size()[1] == 3)
-        weights = [preds[0,0],preds[0,1],preds[0,2]]
-        choice = rand.choices([0,1,2],weights=weights)[0]
-        return choice
+        choices = []
+        for b in range(batchsize):
+          weights = [preds[b,0],preds[b,1],preds[b,2]]
+          choice = rand.choices([0,1,2],weights=weights)[0]
+          choices.append(choice)
+        return choices
 
-      inputs = inputsbase.detach().clone()
-      board = deepcopy(boardbase)
+      inputs = inputsbase.expand([batchsize,-1,-1,-1]).detach().clone()
+      boards = [ deepcopy(boardbase) for b in range(batchsize) ]
 
       for y in range(size):
         for x in range(size):
@@ -172,21 +179,26 @@ if __name__ == '__main__':
             sy = tmp
 
           if inputs[0,unknown_channel,sy,sx] == 1.0:
-            inputs[0,unknown_channel,sy,sx] = 0.0
-            inputs[0,inference_point_channel,sy,sx] = 1.0
-            choice = query_model(inputs)
-            inputs[0,inference_point_channel,sy,sx] = 0.0
+            for b in range(batchsize):
+              inputs[b,unknown_channel,sy,sx] = 0.0
+              inputs[b,inference_point_channel,sy,sx] = 1.0
+            choices = query_model(inputs)
+            for b in range(batchsize):
+              inputs[b,inference_point_channel,sy,sx] = 0.0
 
-            if choice == 0:
-              pass
-            elif choice == 1:
-              inputs[0,black_channel,sy,sx] = 1.0
-              board[sy][sx] = "X"
-            elif choice == 2:
-              inputs[0,white_channel,sy,sx] = 1.0
-              board[sy][sx] = "O"
+              choice = choices[b]
+              if choice == 0:
+                pass
+              elif choice == 1:
+                inputs[b,black_channel,sy,sx] = 1.0
+                boards[b][sy][sx] = "X"
+              elif choice == 2:
+                inputs[b,white_channel,sy,sx] = 1.0
+                boards[b][sy][sx] = "O"
 
-      s = "\n".join([" ".join(row) for row in board])
-      s += "\n"
-      print(s,flush=True)
+      for b in range(batchsize):
+        s = "\n".join([" ".join(row) for row in boards[b]])
+        s += "\n"
+        print(s)
+      sys.stdout.flush()
 
