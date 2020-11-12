@@ -239,7 +239,7 @@ Run a JSON-based [analysis engine](docs/Analysis_Engine.md) that can do efficien
 Run a high-performance match engine that will play a pool of bots against each other sharing the same GPU batches and CPUs with each other:
 
    * `./katago match -config <MATCH_CONFIG>.cfg -log-file match.log -sgf-output-dir <DIR TO WRITE THE SGFS>`
-   
+
 Force OpenCL tuner to re-tune:
 
    * `./katago tuner -config <GTP_CONFIG>.cfg`
@@ -323,7 +323,7 @@ KataGo is written in C++. It should compile on Linux or OSX via g++ that support
       * CMake with a minimum version of 3.10.2 - for example `sudo apt install cmake` on Debian, or download from https://cmake.org/download/ if that doesn't give you a recent-enough version.
       * Some version of g++ that supports at least C++14.
       * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. But if using CPU, Eigen should be better.
-      * If using the CUDA backend, CUDA 10.2 and CUDNN 7.6.5 (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
+      * If using the CUDA backend, CUDA 10.2 with CUDNN 7.6.5, or CUDA 11.1 with CUDNN 8.0.4 (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
       * If using the Eigen backend, Eigen3. With Debian packages, (i.e. apt or apt-get), this should be `libeigen3-dev`.
       * zlib, libzip. With Debian packages (i.e. apt or apt-get), these should be `zlib1g-dev`, `libzip-dev`.
       * If you want to do self-play training and research, probably Google perftools `libgoogle-perftools-dev` for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc that will eventually run your machine out of memory, but better mallocs handle it fine.
@@ -346,7 +346,7 @@ KataGo is written in C++. It should compile on Linux or OSX via g++ that support
       * CMake with a minimum version of 3.10.2, GUI version strongly recommended (https://cmake.org/download/)
       * Microsoft Visual Studio for C++. Version 15 (2017) has been tested and should work, other versions might work as well.
       * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. But if using CPU, Eigen should be better.
-      * If using the CUDA backend, CUDA 10.2 and CUDNN 7.6.5 (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
+      * If using the CUDA backend, CUDA 10.2 with CUDNN 7.6.5, or CUDA 11.1 with CUDNN 8.0.4 (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
       * If using the Eigen backend, Eigen3, version 3.3.x. (http://eigen.tuxfamily.org/index.php?title=Main_Page#Download).
       * zlib. The following package might work, https://www.nuget.org/packages/zlib-vc140-static-64/, or alternatively you can build it yourself via something like: https://github.com/kiyolee/zlib-win-build
       * libzip (optional, needed only for self-play training) - for example https://github.com/kiyolee/libzip-win-build
