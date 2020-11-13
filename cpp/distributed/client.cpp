@@ -574,6 +574,8 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
 string Connection::getModelPath(const Client::ModelInfo& modelInfo, const string& modelDir) {
   if(modelInfo.isRandom)
     return "/dev/null";
+  if(Global::isSuffix(modelInfo.downloadUrl,".txt.gz"))
+    return modelDir + "/" + modelInfo.name + ".txt.gz";
   return modelDir + "/" + modelInfo.name + ".bin.gz";
 }
 string Connection::getTmpModelPath(const Client::ModelInfo& modelInfo, const string& modelDir) {
@@ -584,6 +586,8 @@ string Connection::getTmpModelPath(const Client::ModelInfo& modelInfo, const str
   string randStr;
   for(int i = 0; i<10; i++)
     randStr += chars[rand.nextUInt(len)];
+  if(Global::isSuffix(modelInfo.downloadUrl,".txt.gz"))
+    return modelDir + "/" + modelInfo.name + ".tmp." + randStr + ".txt.gz";
   return modelDir + "/" + modelInfo.name + ".tmp." + randStr + ".bin.gz";
 }
 
