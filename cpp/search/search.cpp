@@ -891,7 +891,7 @@ int64_t Search::getRootVisits() const {
   return n;
 }
 
-void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs) {
+void Search::computeDirichletAlphaDistribution(int policySize, const float* policyProbs, double* alphaDistr) {
   int legalCount = 0;
   for(int i = 0; i<policySize; i++) {
     if(policyProbs[i] >= 0)
@@ -899,40 +899,44 @@ void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int
   }
 
   if(legalCount <= 0)
-    throw StringError("addDirichletNoise: No move with nonnegative policy value - can't even pass?");
+    throw StringError("computeDirichletAlphaDistribution: No move with nonnegative policy value - can't even pass?");
 
   //We're going to generate a gamma draw on each move with alphas that sum up to searchParams.rootDirichletNoiseTotalConcentration.
   //Half of the alpha weight are uniform.
   //The other half are shaped based on the log of the existing policy.
-  double r[NNPos::MAX_NN_POLICY_SIZE];
   double logPolicySum = 0.0;
   for(int i = 0; i<policySize; i++) {
     if(policyProbs[i] >= 0) {
-      r[i] = log(std::min(0.01, (double)policyProbs[i]) + 1e-20);
-      logPolicySum += r[i];
+      alphaDistr[i] = log(std::min(0.01, (double)policyProbs[i]) + 1e-20);
+      logPolicySum += alphaDistr[i];
     }
   }
   double logPolicyMean = logPolicySum / legalCount;
   double alphaPropSum = 0.0;
   for(int i = 0; i<policySize; i++) {
     if(policyProbs[i] >= 0) {
-      r[i] = std::max(0.0, r[i] - logPolicyMean);
-      alphaPropSum += r[i];
+      alphaDistr[i] = std::max(0.0, alphaDistr[i] - logPolicyMean);
+      alphaPropSum += alphaDistr[i];
     }
   }
   double uniformProb = 1.0 / legalCount;
   if(alphaPropSum <= 0.0) {
     for(int i = 0; i<policySize; i++) {
       if(policyProbs[i] >= 0)
-        r[i] = uniformProb;
+        alphaDistr[i] = uniformProb;
     }
   }
   else {
     for(int i = 0; i<policySize; i++) {
       if(policyProbs[i] >= 0)
-        r[i] = 0.5 * (r[i] / alphaPropSum + uniformProb);
+        alphaDistr[i] = 0.5 * (alphaDistr[i] / alphaPropSum + uniformProb);
     }
   }
+}
+
+void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs) {
+  double r[NNPos::MAX_NN_POLICY_SIZE];
+  Search::computeDirichletAlphaDistribution(policySize, policyProbs, r);
 
   //r now contains the proportions with which we would like to split the alpha
   //The total of the alphas is searchParams.rootDirichletNoiseTotalConcentration

@@ -1356,6 +1356,22 @@ void WriteSgf::writeSgf(
         comment += " ";
         comment += scoreBuf;
       }
+      if(turnAfterStart < gameData->policyTargetsByTurn.size()) {
+        char visitsBuf[32];
+        sprintf(visitsBuf,"%d",(int)(gameData->policyTargetsByTurn[turnAfterStart].unreducedNumVisits));
+        if(comment.length() > 0)
+          comment += " ";
+        comment += "v=";
+        comment += visitsBuf;
+      }
+      if(turnAfterStart < gameData->targetWeightByTurnUnrounded.size()) {
+        char weightBuf[32];
+        sprintf(weightBuf,"%.2f",gameData->targetWeightByTurnUnrounded[turnAfterStart]);
+        if(comment.length() > 0)
+          comment += " ";
+        comment += "weight=";
+        comment += weightBuf;
+      }
     }
 
     if(endHist.isGameFinished && i+1 == endHist.moveHistory.size()) {

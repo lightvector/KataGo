@@ -74,7 +74,7 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0
+targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 H9 10 H8 7 J8 4 
 whiteValueTargetsByTurn 0 0.520929 0.479071 0 1.35187 - 
 whiteValueTargetsByTurn 1 1 0 0 7.5 7.5 
@@ -225,7 +225,7 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C8 22 D9 19 J4 9 J8 10 H9 8 H8 11 D8 7 H4 3 H3 1 
 whiteValueTargetsByTurn 0 0.522782 0.477218 0 1.30903 - 
 whiteValueTargetsByTurn 1 1 0 0 7.5 7.5 
@@ -346,7 +346,7 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 D3 15 H9 21 H3 10 J8 13 J4 9 H4 8 H8 13 D4 4 C4 3 
 whiteValueTargetsByTurn 0 0.511408 0.488592 0 0.922545 - 
 whiteValueTargetsByTurn 1 1 0 0 7.5 7.5 
@@ -467,7 +467,7 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0
+targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 G4 11 H5 7 H3 1 
 whiteValueTargetsByTurn 0 0.481823 0.518177 0 -0.0243639 - 
 whiteValueTargetsByTurn 1 1 0 0 6.5 6.5 
@@ -516,6 +516,7 @@ whiteValueTargetsByTurn 1 1 0 0 6.5 6.5
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
+targetWeight 1 unrounded 1
 HASH: 90D7F0EA2EC9373EEFC368FBEA53187E
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -616,7 +617,7 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C8 99 
 whiteValueTargetsByTurn 0 0.546581 0.453419 0 1.94818 - 
 whiteValueTargetsByTurn 1 1 0 0 7.5 7.5 
@@ -767,7 +768,7 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C4 14 C8 13 J8 10 H9 9 D3 12 D9 12 D4 6 H8 5 D8 16 
 whiteValueTargetsByTurn 0 0.51627 0.48373 0 1.08471 - 
 whiteValueTargetsByTurn 1 1 0 0 7.5 7.5 
@@ -888,7 +889,7 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 H9 24 H8 18 H4 12 J4 11 J8 24 H3 7 
 whiteValueTargetsByTurn 0 0.529171 0.470829 0 1.4779 - 
 whiteValueTargetsByTurn 1 1 0 0 6.5 6.5 
@@ -1009,7 +1010,7 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C8 13 D4 12 C4 7 D3 5 D9 6 D8 11 H8 9 H9 9 J8 7 H3 8 J4 5 H4 5 
 whiteValueTargetsByTurn 0 0.511855 0.488145 0 0.875535 - 
 whiteValueTargetsByTurn 1 0 1 0 -113.5 -113.5 
@@ -1058,6 +1059,7 @@ XXXXXXXXXXX
  -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
  -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
 Side position 0
+targetWeight 1 unrounded 1
 HASH: 282193ACFAA7797D79C3317CE8D59343
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -1086,6 +1088,7 @@ Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves B4 
 Side position 1
+targetWeight 1 unrounded 1
 HASH: 4786C19936C66D93FCAEABE687F644A5
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -1114,6 +1117,7 @@ Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves B4 H3 J8 
 Side position 2
+targetWeight 1 unrounded 1
 HASH: 8A58F2DB0012E744B257D952E512F14E
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -1244,7 +1248,7 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C8 13 D4 12 C4 7 D3 5 D9 6 D8 11 H8 9 H9 9 J8 7 H3 8 J4 5 H4 5 
 whiteValueTargetsByTurn 0 0.511855 0.488145 0 0.875535 - 
 whiteValueTargetsByTurn 1 0 1 0 -113.5 -113.5 
@@ -1293,6 +1297,7 @@ XXXXXXXXXXX
  -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
  -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
 Side position 0
+targetWeight 1 unrounded 1
 HASH: E0C17398429C9D721603F6F49B496C18
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -1423,7 +1428,7 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0
+targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 C8 10 D4 2 C4 2 D3 2 D9 2 D8 10 H8 2 H9 2 J8 2 
 whiteValueTargetsByTurn 0 0.523714 0.476286 0 1.28118 - 
 whiteValueTargetsByTurn 1 0 1 0 -113.5 -113.5 
@@ -1472,6 +1477,7 @@ XXXXXXXXXXX
  -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
  -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
 Side position 0
+targetWeight 1 unrounded 1
 HASH: 541BB9B53DD7EE619E5AC0C18552758B
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -1602,7 +1608,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 J7 31 C4 38 D9 16 J8 9 D3 1 D4 1 
 whiteValueTargetsByTurn 0 0.521171 0.478829 0 1.62268 - 
 whiteValueTargetsByTurn 1 1 0 0 19 19 
@@ -1723,7 +1729,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0
+targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 D3 10 H3 6 H4 4 J4 4 D4 1 C4 1 
 whiteValueTargetsByTurn 0 0.498072 0.501928 0 1.09751 - 
 whiteValueTargetsByTurn 1 1 0 0 21.5 21.5 
@@ -1844,7 +1850,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0
+targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 B9 18 E7 1 
 whiteValueTargetsByTurn 0 0.674099 0.325901 0 7.85754 - 
 whiteValueTargetsByTurn 1 1 0 0 19 19 
@@ -1965,7 +1971,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 J4 71 H4 24 F9 3 H3 1 
 whiteValueTargetsByTurn 0 0.489017 0.510983 0 0.541188 - 
 whiteValueTargetsByTurn 1 1 0 0 19 19 
@@ -2116,7 +2122,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 B7 77 D7 8 J4 14 
 whiteValueTargetsByTurn 0 0.321921 0.678079 0 -6.8218 - 
 whiteValueTargetsByTurn 1 1 0 0 18.5 18.5 
@@ -2237,7 +2243,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 J4 78 J6 7 J7 8 H7 1 J5 2 H6 1 
 whiteValueTargetsByTurn 0 0.496166 0.503834 0 0.685303 - 
 whiteValueTargetsByTurn 1 1 0 0 21.5 21.5 
@@ -2388,7 +2394,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 G3 29 C4 53 C3 7 H4 3 E4 1 E3 2 
 whiteValueTargetsByTurn 0 0.494753 0.505247 0 0.554856 - 
 whiteValueTargetsByTurn 1 1 0 0 20 20 
@@ -2437,6 +2443,7 @@ whiteValueTargetsByTurn 1 1 0 0 20 20
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
+targetWeight 1 unrounded 1
 HASH: 4927D70DFD32612E397AEBA87D2BC29D
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -2567,7 +2574,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0
+targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 D9 12 H3 3 H4 1 D8 1 C8 1 
 whiteValueTargetsByTurn 0 0.464103 0.535897 0 -0.273311 - 
 whiteValueTargetsByTurn 1 1 0 0 19 19 
@@ -2616,6 +2623,7 @@ whiteValueTargetsByTurn 1 1 0 0 19 19
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
+targetWeight 1 unrounded 1
 HASH: A24BACDFB5BE64C2317155B9CC0942B8
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -2644,6 +2652,7 @@ Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves J8 E3 
 Side position 1
+targetWeight 1 unrounded 1
 HASH: 22B199FC221F80301616626F3D261B46
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -2744,7 +2753,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0
+targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 E8 10 E4 2 C8 2 H8 3 D3 2 
 whiteValueTargetsByTurn 0 0.58074 0.41926 0 4.30594 - 
 whiteValueTargetsByTurn 1 1 0 0 22.5 22.5 
@@ -2793,6 +2802,7 @@ whiteValueTargetsByTurn 1 1 0 0 22.5 22.5
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
+targetWeight 1 unrounded 1
 HASH: 5754DCAE16DA69F74B7A31B793DE343A
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -2893,7 +2903,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 F9 39 J3 23 J6 15 C8 17 H2 1 C7 1 
 whiteValueTargetsByTurn 0 0.546607 0.453393 0 2.81314 - 
 whiteValueTargetsByTurn 1 1 0 0 19 19 
@@ -3014,7 +3024,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 H3 34 J4 33 H4 22 D9 4 J3 4 C9 1 
 whiteValueTargetsByTurn 0 0.494858 0.505142 0 0.692547 - 
 whiteValueTargetsByTurn 1 1 0 0 33 33 
@@ -3135,7 +3145,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0
+targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 G7 14 F8 4 G9 0 
 whiteValueTargetsByTurn 0 0.51314 0.48686 0 2.00753 - 
 whiteValueTargetsByTurn 1 1 0 0 34 34 
@@ -3184,6 +3194,7 @@ whiteValueTargetsByTurn 1 1 0 0 34 34
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
+targetWeight 1 unrounded 1
 HASH: BBEDA56A39BCE00F7BC6BBAA71D1950B
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -3314,7 +3325,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 D3 15 E3 1 F9 1 D5 0 B3 1 
 whiteValueTargetsByTurn 0 0.586562 0.413438 0 4.28278 - 
 whiteValueTargetsByTurn 1 1 0 0 31.5 31.5 
@@ -3465,7 +3476,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0
+targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 H6 18 C4 0 
 whiteValueTargetsByTurn 0 0.587073 0.412927 0 4.45139 - 
 whiteValueTargetsByTurn 1 1 0 0 38 38 
@@ -3586,7 +3597,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 F10 99 
 whiteValueTargetsByTurn 0 0.343617 0.656383 0 -6.44808 - 
 whiteValueTargetsByTurn 1 1 0 0 29.5 29.5 
@@ -3635,6 +3646,7 @@ whiteValueTargetsByTurn 1 1 0 0 29.5 29.5
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
+targetWeight 1 unrounded 1
 HASH: CA2C1F52C3C3B801A4940BD63BAFC362
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -3663,6 +3675,7 @@ Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C4 D9 G9 C7 H3 H9 G8 H8 H7 G10 J8 
 Side position 1
+targetWeight 1 unrounded 1
 HASH: 6CFD02AA2052DA4A3E076A808E84416B
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -3763,7 +3776,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 K5 84 J4 10 H9 1 J2 0 H2 0 
 whiteValueTargetsByTurn 0 0.428676 0.571324 0 -2.78915 - 
 whiteValueTargetsByTurn 1 1 0 0 35 35 
@@ -3812,6 +3825,7 @@ whiteValueTargetsByTurn 1 1 0 0 35 35
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
+targetWeight 1 unrounded 1
 HASH: 5AF7B75E5BFE9C8F35B354E3EF041766
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -3840,6 +3854,7 @@ Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves C8 C9 D9 H4 J6 J5 H6 J9 J3 H3 J4 
 Side position 1
+targetWeight 1 unrounded 1
 HASH: 855C178AAE87934D0DB481806BD4D9B9
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -3940,7 +3955,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 D9 52 D8 23 C8 19 C9 5 
 whiteValueTargetsByTurn 0 0.497667 0.502333 0 0.874215 - 
 whiteValueTargetsByTurn 1 1 0 0 35 35 
@@ -4061,7 +4076,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0
+targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 E8 16 E9 3 
 whiteValueTargetsByTurn 0 0.592466 0.407534 0 5.08744 - 
 whiteValueTargetsByTurn 1 1 0 0 35.5 35.5 
@@ -4182,7 +4197,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 J3 30 H3 17 J4 11 D8 5 D9 10 H4 2 C8 5 C9 7 
 whiteValueTargetsByTurn 0 0.494135 0.505865 0 0.556618 - 
 whiteValueTargetsByTurn 1 0 1 0 -84.5 -84.5 
@@ -4303,7 +4318,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0
+targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 F4 10 F2 8 D2 4 
 whiteValueTargetsByTurn 0 0.482498 0.517502 0 -0.351764 - 
 whiteValueTargetsByTurn 1 1 0 0 33.5 33.5 
@@ -4454,7 +4469,7 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C8 15 J8 13 C4 11 H8 16 H9 14 D9 12 D8 8 D4 4 D3 5 
 whiteValueTargetsByTurn 0 0.480175 0.519825 0 -0.209946 - 
 whiteValueTargetsByTurn 1 1 0 0 6.5 6.5 
@@ -4605,7 +4620,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C5 33 C7 17 D8 10 D5 9 F3 8 J8 6 C4 4 D7 4 D4 3 J6 2 
 whiteValueTargetsByTurn 0 0.166933 0.833067 0 -13.855 - 
 whiteValueTargetsByTurn 1 1 0 0 5 5 
@@ -4756,7 +4771,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 J8 15 J3 2 J9 1 J4 1 
 whiteValueTargetsByTurn 0 0.0820608 0.917939 0 -23.9129 - 
 whiteValueTargetsByTurn 1 0 1 0 -115 -115 
@@ -4805,6 +4820,7 @@ XXXXXXXXXXX
  -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
  -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
 Side position 0
+targetWeight 1 unrounded 1
 HASH: A75E8C371B3C011C2F39D722820D16F1
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -4905,7 +4921,7 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 G3 31 E9 33 F9 22 H3 10 G4 1 E8 1 
 whiteValueTargetsByTurn 0 0.529843 0.470157 0 1.67637 - 
 whiteValueTargetsByTurn 1 1 0 0 7 7 
@@ -5026,7 +5042,7 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0
+targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 J6 12 J7 6 H5 1 
 whiteValueTargetsByTurn 0 0.565301 0.434699 0 2.16179 - 
 whiteValueTargetsByTurn 1 1 0 0 7 7 
@@ -5177,7 +5193,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 H9 54 H8 24 C6 11 C7 8 G9 1 D7 1 
 whiteValueTargetsByTurn 0 0.533611 0.466389 0 2.32513 - 
 whiteValueTargetsByTurn 1 1 0 0 18.5 18.5 
@@ -5226,6 +5242,7 @@ whiteValueTargetsByTurn 1 1 0 0 18.5 18.5
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
+targetWeight 1 unrounded 1
 HASH: 95A980A13C370D2731AF623673203F75
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -5326,7 +5343,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0
+targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 D3 10 H3 6 H4 4 J4 4 D4 1 C4 1 
 whiteValueTargetsByTurn 0 0.498072 0.501928 0 1.09751 - 
 whiteValueTargetsByTurn 1 1 0 0 21 21 
@@ -5447,7 +5464,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
+targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 H3 43 J4 20 H4 28 D9 4 J3 1 G9 0 
 whiteValueTargetsByTurn 0 0.557688 0.442312 0 3.83901 - 
 whiteValueTargetsByTurn 1 1 0 0 34.5 34.5 
@@ -5496,6 +5513,7 @@ whiteValueTargetsByTurn 1 1 0 0 34.5 34.5
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Side position 0
+targetWeight 1 unrounded 1
 HASH: F90B1AAF7B00DB93403075BBC70FCB65
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -5524,6 +5542,7 @@ Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves B7 H4 
 Side position 1
+targetWeight 1 unrounded 1
 HASH: 974355FFE270D0D96B4F3303EB016F7F
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -5654,7 +5673,7 @@ mode 3
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0
+targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 C4 10 D3 4 C3 3 D4 1 J3 1 H3 1 
 whiteValueTargetsByTurn 0 0.537984 0.462016 0 2.59763 - 
 whiteValueTargetsByTurn 1 0 1 0 -79 -79 
@@ -5703,6 +5722,7 @@ XXXXXXXXXXX
  -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
  -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000
 Side position 0
+targetWeight 1 unrounded 1
 HASH: 9A4BCB99DAA4E9576AE4A8CE8C7C64C7
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -5731,6 +5751,7 @@ Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves E8 
 Side position 1
+targetWeight 1 unrounded 1
 HASH: 1C0FC7B6D6A58140B7691D680013A0F3
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -5759,6 +5780,7 @@ Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves E8 C4 B6 
 Side position 2
+targetWeight 1 unrounded 1
 HASH: EFCCA19727A1D9E7FFF9519885AA0118
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -5893,21 +5915,21 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
-targetWeightByTurn 1 0
-targetWeightByTurn 2 0
-targetWeightByTurn 3 1
-targetWeightByTurn 4 1
-targetWeightByTurn 5 0
-targetWeightByTurn 6 1
-targetWeightByTurn 7 0
-targetWeightByTurn 8 1
-targetWeightByTurn 9 0
-targetWeightByTurn 10 1
-targetWeightByTurn 11 1
-targetWeightByTurn 12 0
-targetWeightByTurn 13 1
-targetWeightByTurn 14 0
+targetWeightByTurn 0 1 unrounded 1
+targetWeightByTurn 1 0 unrounded 0.456
+targetWeightByTurn 2 0 unrounded 0.456
+targetWeightByTurn 3 1 unrounded 1
+targetWeightByTurn 4 1 unrounded 1
+targetWeightByTurn 5 0 unrounded 0.456
+targetWeightByTurn 6 1 unrounded 1
+targetWeightByTurn 7 0 unrounded 0.456
+targetWeightByTurn 8 1 unrounded 1
+targetWeightByTurn 9 0 unrounded 0.456
+targetWeightByTurn 10 1 unrounded 0.456
+targetWeightByTurn 11 1 unrounded 1
+targetWeightByTurn 12 0 unrounded 0.456
+targetWeightByTurn 13 1 unrounded 1
+targetWeightByTurn 14 0 unrounded 0.456
 policyTargetsByTurn 0 unreducedNumVisits 150 J8 71 H9 40 H8 21 C6 3 J9 7 C5 1 
 policyTargetsByTurn 1 unreducedNumVisits 25 G9 13 C5 10 H9 1 
 policyTargetsByTurn 2 unreducedNumVisits 75 H9 55 C6 8 C5 10 J6 1 
@@ -6056,36 +6078,36 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
-targetWeightByTurn 1 1
-targetWeightByTurn 2 0
-targetWeightByTurn 3 0
-targetWeightByTurn 4 1
-targetWeightByTurn 5 0
-targetWeightByTurn 6 1
-targetWeightByTurn 7 1
-targetWeightByTurn 8 1
-targetWeightByTurn 9 0
-targetWeightByTurn 10 1
-targetWeightByTurn 11 0
-targetWeightByTurn 12 1
-targetWeightByTurn 13 0
-targetWeightByTurn 14 1
-targetWeightByTurn 15 1
-targetWeightByTurn 16 1
-targetWeightByTurn 17 1
-targetWeightByTurn 18 1
-targetWeightByTurn 19 1
-targetWeightByTurn 20 1
-targetWeightByTurn 21 0
-targetWeightByTurn 22 0
-targetWeightByTurn 23 0
-targetWeightByTurn 24 1
-targetWeightByTurn 25 1
-targetWeightByTurn 26 1
-targetWeightByTurn 27 1
-targetWeightByTurn 28 1
-targetWeightByTurn 29 1
+targetWeightByTurn 0 1 unrounded 1
+targetWeightByTurn 1 1 unrounded 0.456
+targetWeightByTurn 2 0 unrounded 0.456
+targetWeightByTurn 3 0 unrounded 0.456
+targetWeightByTurn 4 1 unrounded 0.456
+targetWeightByTurn 5 0 unrounded 0.456
+targetWeightByTurn 6 1 unrounded 0.456
+targetWeightByTurn 7 1 unrounded 1
+targetWeightByTurn 8 1 unrounded 1
+targetWeightByTurn 9 0 unrounded 0.456
+targetWeightByTurn 10 1 unrounded 1
+targetWeightByTurn 11 0 unrounded 0.456
+targetWeightByTurn 12 1 unrounded 1
+targetWeightByTurn 13 0 unrounded 0.456
+targetWeightByTurn 14 1 unrounded 1
+targetWeightByTurn 15 1 unrounded 0.456
+targetWeightByTurn 16 1 unrounded 1
+targetWeightByTurn 17 1 unrounded 0.456
+targetWeightByTurn 18 1 unrounded 0.456
+targetWeightByTurn 19 1 unrounded 1
+targetWeightByTurn 20 1 unrounded 1
+targetWeightByTurn 21 0 unrounded 0.456
+targetWeightByTurn 22 0 unrounded 0.456
+targetWeightByTurn 23 0 unrounded 0.456
+targetWeightByTurn 24 1 unrounded 0.456
+targetWeightByTurn 25 1 unrounded 0.456
+targetWeightByTurn 26 1 unrounded 1
+targetWeightByTurn 27 1 unrounded 1
+targetWeightByTurn 28 1 unrounded 1
+targetWeightByTurn 29 1 unrounded 0.456
 policyTargetsByTurn 0 unreducedNumVisits 100 D9 23 H9 21 D8 23 C8 18 E3 7 H8 5 
 policyTargetsByTurn 1 unreducedNumVisits 50 J8 19 H9 18 G3 4 H8 6 F3 1 C7 1 
 policyTargetsByTurn 2 unreducedNumVisits 50 E3 21 J7 5 F3 7 C6 7 J8 4 C7 3 
@@ -6264,36 +6286,36 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0
-targetWeightByTurn 1 1
-targetWeightByTurn 2 1
-targetWeightByTurn 3 1
-targetWeightByTurn 4 0
-targetWeightByTurn 5 0
-targetWeightByTurn 6 1
-targetWeightByTurn 7 1
-targetWeightByTurn 8 1
-targetWeightByTurn 9 1
-targetWeightByTurn 10 1
-targetWeightByTurn 11 1
-targetWeightByTurn 12 1
-targetWeightByTurn 13 0
-targetWeightByTurn 14 1
-targetWeightByTurn 15 1
-targetWeightByTurn 16 0
-targetWeightByTurn 17 1
-targetWeightByTurn 18 1
-targetWeightByTurn 19 1
-targetWeightByTurn 20 1
-targetWeightByTurn 21 1
-targetWeightByTurn 22 1
-targetWeightByTurn 23 1
-targetWeightByTurn 24 0
-targetWeightByTurn 25 1
-targetWeightByTurn 26 0
-targetWeightByTurn 27 1
-targetWeightByTurn 28 1
-targetWeightByTurn 29 1
+targetWeightByTurn 0 0 unrounded 0.456
+targetWeightByTurn 1 1 unrounded 1
+targetWeightByTurn 2 1 unrounded 0.456
+targetWeightByTurn 3 1 unrounded 1
+targetWeightByTurn 4 0 unrounded 0.456
+targetWeightByTurn 5 0 unrounded 0.456
+targetWeightByTurn 6 1 unrounded 1
+targetWeightByTurn 7 1 unrounded 1
+targetWeightByTurn 8 1 unrounded 1
+targetWeightByTurn 9 1 unrounded 0.456
+targetWeightByTurn 10 1 unrounded 0.456
+targetWeightByTurn 11 1 unrounded 1
+targetWeightByTurn 12 1 unrounded 1
+targetWeightByTurn 13 0 unrounded 0.456
+targetWeightByTurn 14 1 unrounded 1
+targetWeightByTurn 15 1 unrounded 1
+targetWeightByTurn 16 0 unrounded 0.456
+targetWeightByTurn 17 1 unrounded 1
+targetWeightByTurn 18 1 unrounded 0.456
+targetWeightByTurn 19 1 unrounded 1
+targetWeightByTurn 20 1 unrounded 1
+targetWeightByTurn 21 1 unrounded 1
+targetWeightByTurn 22 1 unrounded 0.456
+targetWeightByTurn 23 1 unrounded 0.456
+targetWeightByTurn 24 0 unrounded 0.456
+targetWeightByTurn 25 1 unrounded 1
+targetWeightByTurn 26 0 unrounded 0.456
+targetWeightByTurn 27 1 unrounded 1
+targetWeightByTurn 28 1 unrounded 1
+targetWeightByTurn 29 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 50 D3 23 D4 14 C4 12 
 policyTargetsByTurn 1 unreducedNumVisits 100 C5 37 G4 12 C4 11 G3 7 H4 25 E8 6 J6 1 
 policyTargetsByTurn 2 unreducedNumVisits 50 J5 15 J3 16 H3 12 H5 5 
@@ -7315,36 +7337,36 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
-targetWeightByTurn 1 0
-targetWeightByTurn 2 1
-targetWeightByTurn 3 1
-targetWeightByTurn 4 1
-targetWeightByTurn 5 0
-targetWeightByTurn 6 0
-targetWeightByTurn 7 0
-targetWeightByTurn 8 1
-targetWeightByTurn 9 1
-targetWeightByTurn 10 0
-targetWeightByTurn 11 0
-targetWeightByTurn 12 1
-targetWeightByTurn 13 1
-targetWeightByTurn 14 1
-targetWeightByTurn 15 1
-targetWeightByTurn 16 0
-targetWeightByTurn 17 1
-targetWeightByTurn 18 0
-targetWeightByTurn 19 1
-targetWeightByTurn 20 2
-targetWeightByTurn 21 0
-targetWeightByTurn 22 0
-targetWeightByTurn 23 1
-targetWeightByTurn 24 2
-targetWeightByTurn 25 0
-targetWeightByTurn 26 0
-targetWeightByTurn 27 2
-targetWeightByTurn 28 0
-targetWeightByTurn 29 2
+targetWeightByTurn 0 1 unrounded 0.346861
+targetWeightByTurn 1 0 unrounded 0.306671
+targetWeightByTurn 2 1 unrounded 0.48232
+targetWeightByTurn 3 1 unrounded 0.590302
+targetWeightByTurn 4 1 unrounded 0.374189
+targetWeightByTurn 5 0 unrounded 0.504532
+targetWeightByTurn 6 0 unrounded 0.223099
+targetWeightByTurn 7 0 unrounded 0.539011
+targetWeightByTurn 8 1 unrounded 0.827451
+targetWeightByTurn 9 1 unrounded 0.843674
+targetWeightByTurn 10 0 unrounded 0.55187
+targetWeightByTurn 11 0 unrounded 0.288769
+targetWeightByTurn 12 1 unrounded 0.65176
+targetWeightByTurn 13 1 unrounded 1.07701
+targetWeightByTurn 14 1 unrounded 0.500128
+targetWeightByTurn 15 1 unrounded 0.336315
+targetWeightByTurn 16 0 unrounded 0.411838
+targetWeightByTurn 17 1 unrounded 1.34277
+targetWeightByTurn 18 0 unrounded 0.242197
+targetWeightByTurn 19 1 unrounded 0.441737
+targetWeightByTurn 20 2 unrounded 1.9709
+targetWeightByTurn 21 0 unrounded 0.479459
+targetWeightByTurn 22 0 unrounded 0.480106
+targetWeightByTurn 23 1 unrounded 0.218657
+targetWeightByTurn 24 2 unrounded 1.72009
+targetWeightByTurn 25 0 unrounded 0.277469
+targetWeightByTurn 26 0 unrounded 0.69085
+targetWeightByTurn 27 2 unrounded 1.52455
+targetWeightByTurn 28 0 unrounded 0.360214
+targetWeightByTurn 29 2 unrounded 1.6032
 policyTargetsByTurn 0 unreducedNumVisits 50 C8 10 D4 7 C4 7 D3 7 D9 7 D8 10 H8 8 H9 8 J8 8 H3 2 J4 7 H4 2 
 policyTargetsByTurn 1 unreducedNumVisits 50 D3 10 H9 7 H3 5 J8 7 J4 7 H4 5 H8 6 D4 1 
 policyTargetsByTurn 2 unreducedNumVisits 100 J8 29 J4 14 H9 17 H8 12 H4 13 H3 9 
@@ -7523,36 +7545,36 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 0.852813
-targetWeightByTurn 1 0.395512
-targetWeightByTurn 2 0.402087
-targetWeightByTurn 3 0.853285
-targetWeightByTurn 4 0.875632
-targetWeightByTurn 5 0.397431
-targetWeightByTurn 6 0.873063
-targetWeightByTurn 7 0.860406
-targetWeightByTurn 8 0.873394
-targetWeightByTurn 9 0.403473
-targetWeightByTurn 10 0.387976
-targetWeightByTurn 11 0.392652
-targetWeightByTurn 12 0.389023
-targetWeightByTurn 13 0.938053
-targetWeightByTurn 14 0.921993
-targetWeightByTurn 15 0.585726
-targetWeightByTurn 16 0.455658
-targetWeightByTurn 17 1.09995
-targetWeightByTurn 18 0.401099
-targetWeightByTurn 19 0.388262
-targetWeightByTurn 20 0.402588
-targetWeightByTurn 21 0.39087
-targetWeightByTurn 22 0.930395
-targetWeightByTurn 23 0.850568
-targetWeightByTurn 24 0.460178
-targetWeightByTurn 25 0.389695
-targetWeightByTurn 26 1.29515
-targetWeightByTurn 27 0.404629
-targetWeightByTurn 28 1.62459
-targetWeightByTurn 29 1.79985
+targetWeightByTurn 0 0.852813 unrounded 0.852813
+targetWeightByTurn 1 0.395512 unrounded 0.395512
+targetWeightByTurn 2 0.402087 unrounded 0.402087
+targetWeightByTurn 3 0.853285 unrounded 0.853285
+targetWeightByTurn 4 0.875632 unrounded 0.875632
+targetWeightByTurn 5 0.397431 unrounded 0.397431
+targetWeightByTurn 6 0.873063 unrounded 0.873063
+targetWeightByTurn 7 0.860406 unrounded 0.860406
+targetWeightByTurn 8 0.873394 unrounded 0.873394
+targetWeightByTurn 9 0.403473 unrounded 0.403473
+targetWeightByTurn 10 0.387976 unrounded 0.387976
+targetWeightByTurn 11 0.392652 unrounded 0.392652
+targetWeightByTurn 12 0.389023 unrounded 0.389023
+targetWeightByTurn 13 0.938053 unrounded 0.938053
+targetWeightByTurn 14 0.921993 unrounded 0.921993
+targetWeightByTurn 15 0.585726 unrounded 0.585726
+targetWeightByTurn 16 0.455658 unrounded 0.455658
+targetWeightByTurn 17 1.09995 unrounded 1.09995
+targetWeightByTurn 18 0.401099 unrounded 0.401099
+targetWeightByTurn 19 0.388262 unrounded 0.388262
+targetWeightByTurn 20 0.402588 unrounded 0.402588
+targetWeightByTurn 21 0.39087 unrounded 0.39087
+targetWeightByTurn 22 0.930395 unrounded 0.930395
+targetWeightByTurn 23 0.850568 unrounded 0.850568
+targetWeightByTurn 24 0.460178 unrounded 0.460178
+targetWeightByTurn 25 0.389695 unrounded 0.389695
+targetWeightByTurn 26 1.29515 unrounded 1.29515
+targetWeightByTurn 27 0.404629 unrounded 0.404629
+targetWeightByTurn 28 1.62459 unrounded 1.62459
+targetWeightByTurn 29 1.79985 unrounded 1.79985
 policyTargetsByTurn 0 unreducedNumVisits 100 C8 13 D4 12 C4 7 D3 5 D9 6 D8 11 H8 9 H9 9 J8 7 H3 8 J4 5 H4 5 
 policyTargetsByTurn 1 unreducedNumVisits 50 D3 10 H9 7 H3 5 J8 7 J4 7 H4 5 H8 6 D4 1 
 policyTargetsByTurn 2 unreducedNumVisits 50 J8 12 J4 9 H9 7 H8 7 H4 7 H3 6 
@@ -8146,21 +8168,21 @@ mode 5
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1
-targetWeightByTurn 1 1
-targetWeightByTurn 2 1
-targetWeightByTurn 3 1
-targetWeightByTurn 4 1
-targetWeightByTurn 5 1
-targetWeightByTurn 6 1
-targetWeightByTurn 7 0
-targetWeightByTurn 8 0
-targetWeightByTurn 9 1
-targetWeightByTurn 10 0
-targetWeightByTurn 11 1
-targetWeightByTurn 12 1
-targetWeightByTurn 13 1
-targetWeightByTurn 14 1
+targetWeightByTurn 0 1 unrounded 1
+targetWeightByTurn 1 1 unrounded 1
+targetWeightByTurn 2 1 unrounded 0.456
+targetWeightByTurn 3 1 unrounded 0.456
+targetWeightByTurn 4 1 unrounded 0.456
+targetWeightByTurn 5 1 unrounded 1
+targetWeightByTurn 6 1 unrounded 0.456
+targetWeightByTurn 7 0 unrounded 0.456
+targetWeightByTurn 8 0 unrounded 0.456
+targetWeightByTurn 9 1 unrounded 0.456
+targetWeightByTurn 10 0 unrounded 0.456
+targetWeightByTurn 11 1 unrounded 0.456
+targetWeightByTurn 12 1 unrounded 0.456
+targetWeightByTurn 13 1 unrounded 1
+targetWeightByTurn 14 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 400 F3 220 G4 3 K4 1 A1 0 
 policyTargetsByTurn 1 unreducedNumVisits 100 G4 99 
 policyTargetsByTurn 2 unreducedNumVisits 50 E2 49 
@@ -8427,18 +8449,18 @@ Past normal phase end 0
 Game result 0 Empty 0 0 0 0
 Last moves H8 J4 D8 C4 G3 E3 J6 G4 H4 H3 H5 J3 
 end
-HASH: 6416941FF79C53223903F8FF91D56D8F
+HASH: F99952753F3D88091555461012372E21
    A B C D E F G H J K L
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
- 9 . X O X . . . . . . .
- 8 . X O X . . . X . . .
- 7 . O X X . . . . . . .
- 6 O . O . . . . . X . .
- 5 . O . . . . X X . . .
- 4 . . O . . X . X O . .
- 3 . . . . O . X O O . .
- 2 . . . . . . O . . . .
+ 9 . . . . X . . . . . .
+ 8 . . . X . O . X . . .
+ 7 . . . X . . . . . . .
+ 6 . . X O . O . . X . .
+ 5 . . . . O X X X . . .
+ 4 . . O O X X . X O . .
+ 3 . . . . O X X O O . .
+ 2 . . . . . O O . . . .
  1 . . . . . . . . . . .
 
 
@@ -8453,7 +8475,7 @@ Has button 0
 Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
-Last moves H8 J4 D8 C4 G3 E3 J6 G4 H4 H3 H5 J3 F4 G2 G5 C9 D9 C8 C7 B7 B6 C6 D7 B5 B8 A6 B9 
+Last moves H8 J4 D8 C4 G3 E3 J6 G4 H4 H3 H5 J3 F4 G2 F3 F2 E4 D4 C6 D6 D7 E5 F5 F6 G5 F8 E9 
 gameHash E771A092B7DC53FC57B8216F19D34731
 hitTurnLimit 1
 numExtraBlack 0
@@ -8461,96 +8483,1472 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 4
-targetWeightByTurn 1 4
-targetWeightByTurn 2 4
-targetWeightByTurn 3 4
-targetWeightByTurn 4 2
-targetWeightByTurn 5 4
-targetWeightByTurn 6 2
-targetWeightByTurn 7 1
-targetWeightByTurn 8 2
-targetWeightByTurn 9 4
-targetWeightByTurn 10 2
-targetWeightByTurn 11 4
-targetWeightByTurn 12 4
-targetWeightByTurn 13 2
-targetWeightByTurn 14 2
+targetWeightByTurn 0 4 unrounded 4
+targetWeightByTurn 1 4 unrounded 4
+targetWeightByTurn 2 2 unrounded 1.824
+targetWeightByTurn 3 2 unrounded 1.824
+targetWeightByTurn 4 2 unrounded 1.824
+targetWeightByTurn 5 2 unrounded 1.824
+targetWeightByTurn 6 4 unrounded 4
+targetWeightByTurn 7 2 unrounded 1.824
+targetWeightByTurn 8 4 unrounded 4
+targetWeightByTurn 9 4 unrounded 4
+targetWeightByTurn 10 2 unrounded 1.824
+targetWeightByTurn 11 2 unrounded 1.824
+targetWeightByTurn 12 4 unrounded 4
+targetWeightByTurn 13 4 unrounded 4
+targetWeightByTurn 14 4 unrounded 4
 policyTargetsByTurn 0 unreducedNumVisits 100 F4 98 G2 1 
 policyTargetsByTurn 1 unreducedNumVisits 100 G2 96 F3 3 
-policyTargetsByTurn 2 unreducedNumVisits 100 F3 42 G5 51 C6 3 C5 1 D4 1 
-policyTargetsByTurn 3 unreducedNumVisits 100 C9 38 F3 8 C8 19 H9 12 C6 17 
-policyTargetsByTurn 4 unreducedNumVisits 50 D9 45 C8 2 F2 1 
-policyTargetsByTurn 5 unreducedNumVisits 100 C8 99 
-policyTargetsByTurn 6 unreducedNumVisits 50 C7 48 F2 1 
-policyTargetsByTurn 7 unreducedNumVisits 50 B7 31 D10 10 D7 3 
-policyTargetsByTurn 8 unreducedNumVisits 50 B6 46 C6 2 C10 0 
-policyTargetsByTurn 9 unreducedNumVisits 100 C6 68 D10 23 B8 1 
-policyTargetsByTurn 10 unreducedNumVisits 50 D7 49 
-policyTargetsByTurn 11 unreducedNumVisits 100 B8 24 B5 75 
-policyTargetsByTurn 12 unreducedNumVisits 100 B8 97 F2 0 D6 0 
-policyTargetsByTurn 13 unreducedNumVisits 50 A6 49 
-policyTargetsByTurn 14 unreducedNumVisits 50 B9 49 
+policyTargetsByTurn 2 unreducedNumVisits 50 F3 33 G5 13 C6 2 
+policyTargetsByTurn 3 unreducedNumVisits 50 F2 49 
+policyTargetsByTurn 4 unreducedNumVisits 50 E4 39 C6 8 C7 1 C5 1 
+policyTargetsByTurn 5 unreducedNumVisits 50 D4 37 D3 9 C9 2 
+policyTargetsByTurn 6 unreducedNumVisits 100 C6 50 C7 28 D6 12 D3 3 C8 1 C9 1 D5 0 
+policyTargetsByTurn 7 unreducedNumVisits 50 D6 10 C9 7 E5 8 D5 5 D9 6 G5 1 H9 8 
+policyTargetsByTurn 8 unreducedNumVisits 100 D7 68 C7 30 D3 1 
+policyTargetsByTurn 9 unreducedNumVisits 100 E5 63 E6 12 J9 5 G5 3 C9 3 H9 7 D5 1 F5 1 
+policyTargetsByTurn 10 unreducedNumVisits 50 F5 40 G5 9 
+policyTargetsByTurn 11 unreducedNumVisits 50 F6 48 C9 1 
+policyTargetsByTurn 12 unreducedNumVisits 100 G5 99 
+policyTargetsByTurn 13 unreducedNumVisits 100 F8 57 C5 7 H9 10 C9 6 B6 7 D10 3 E9 2 J9 3 
+policyTargetsByTurn 14 unreducedNumVisits 100 D3 12 E7 16 E9 42 F9 4 C5 4 F7 1 G9 1 
 whiteValueTargetsByTurn 0 0.524513 0.475487 0 1.39585 - 
 whiteValueTargetsByTurn 1 0.524778 0.475222 0 1.39607 - 
-whiteValueTargetsByTurn 2 0.523942 0.476058 0 1.34612 - 
-whiteValueTargetsByTurn 3 0.501546 0.498454 0 0.324474 - 
-whiteValueTargetsByTurn 4 0.484387 0.515613 0 -0.388392 - 
-whiteValueTargetsByTurn 5 0.463839 0.536161 0 -0.970223 - 
-whiteValueTargetsByTurn 6 0.467449 0.532551 0 -0.858713 - 
-whiteValueTargetsByTurn 7 0.461871 0.538129 0 -1.02665 - 
-whiteValueTargetsByTurn 8 0.440258 0.559742 0 -1.67385 - 
-whiteValueTargetsByTurn 9 0.412378 0.587622 0 -2.40847 - 
-whiteValueTargetsByTurn 10 0.405894 0.594106 0 -2.58037 - 
-whiteValueTargetsByTurn 11 0.391364 0.608636 0 -2.91362 - 
-whiteValueTargetsByTurn 12 0.402807 0.597193 0 -2.47925 - 
-whiteValueTargetsByTurn 13 0.407574 0.592426 0 -2.26922 - 
-whiteValueTargetsByTurn 14 0.409098 0.590902 0 -2.22823 - 
-whiteValueTargetsByTurn 15 1 0 0 6.5 6.5 
+whiteValueTargetsByTurn 2 0.541271 0.458729 0 2.1103 - 
+whiteValueTargetsByTurn 3 0.536347 0.463653 0 2.20526 - 
+whiteValueTargetsByTurn 4 0.534195 0.465805 0 2.16179 - 
+whiteValueTargetsByTurn 5 0.532136 0.467864 0 2.15858 - 
+whiteValueTargetsByTurn 6 0.553413 0.446587 0 2.775 - 
+whiteValueTargetsByTurn 7 0.545362 0.454638 0 2.50677 - 
+whiteValueTargetsByTurn 8 0.540631 0.459369 0 1.9862 - 
+whiteValueTargetsByTurn 9 0.532129 0.467871 0 1.54304 - 
+whiteValueTargetsByTurn 10 0.559351 0.440649 0 2.26825 - 
+whiteValueTargetsByTurn 11 0.546762 0.453238 0 1.59548 - 
+whiteValueTargetsByTurn 12 0.561127 0.438873 0 2.06807 - 
+whiteValueTargetsByTurn 13 0.561687 0.438313 0 2.08588 - 
+whiteValueTargetsByTurn 14 0.562754 0.437246 0 2.10926 - 
+whiteValueTargetsByTurn 15 1 0 0 4.5 4.5 
 ...........
 ...........
-.XOX.......
-.XOX...X...
-.OXX.......
-OOO.....X..
-.O....XX...
-..O..XXXO..
-....O.XOO..
+....X......
+...X.O.X...
+...X.......
+..XO.O..X..
+....OXXX...
+..OOXXXXO..
+....OXXOO..
+.....OO....
+...........
+...........
+...........
+....X......
+...X.O.X...
+...X.......
+..XO.O..X..
+....OXXX...
+..OOXXXXO..
+....OXXOO..
+.....OO....
+...........
+00000000000
+00000000000
+00001000000
+00010101000
+00010000000
+00110100100
+00001111000
+00111111100
+00001111100
+00000110000
+00000000000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 1.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 1.000 0.000 1.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 1.000 -1.000 -1.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 1.000 -1.000 -1.000 -1.000 -1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 1.000 -1.000 -1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 1.000 1.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+Side position 0
+targetWeight 4 unrounded 4
+HASH: E119575656AE13BB68F8797BAE0DAF72
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . X X . . . X . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . X . .
+ 5 . . . . . . . X . . .
+ 4 . . O O X X O X O . .
+ 3 . . . . O X X O O . .
+ 2 . . . . . O O . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 19
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves H8 J4 D8 C4 G3 E3 J6 G4 H4 H3 H5 J3 F4 G2 F3 F2 E4 D4 C8 
+Side position 1
+targetWeight 4 unrounded 4
+HASH: CE9FF494E292E7030ECE1571F00E2843
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . . X . . . X . . .
+ 7 . . . X . . . . . . .
+ 6 . . X O . . . . X . .
+ 5 . . . . . . . X . . .
+ 4 . . O O X X O X O . .
+ 3 . . . . O X X O O . .
+ 2 . . . . . O O . . . .
+ 1 O . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 22
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves H8 J4 D8 C4 G3 E3 J6 G4 H4 H3 H5 J3 F4 G2 F3 F2 E4 D4 C6 D6 D7 A1 
+Side position 2
+targetWeight 4 unrounded 4
+HASH: C9CE448CA9744CA361C7ECEA0825E2FB
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . X . . .
+ 9 . . . . . . . . O . .
+ 8 . . X X . . . X . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . X . .
+ 5 . . . . . . . X . . .
+ 4 . . O O X X O X O . .
+ 3 . . . . O X X O O . .
+ 2 . . . . . O O . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 21
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves H8 J4 D8 C4 G3 E3 J6 G4 H4 H3 H5 J3 F4 G2 F3 F2 E4 D4 C8 J9 H10 
+
+====================================================================================================
+====================================================================================================
+====================================================================================================
+seedBase: test policy surprise and scale together!
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: C672395E3EFB6E00CCF6A61CCAE874B5
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . . . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . . . .
+ 3 . . . . . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+end
+HASH: 03B96CB5B6BD90BE1B205B8CEA89510A
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . . . . . .
+ 8 . . X O . . X . X . .
+ 7 . . . . . X . . . . .
+ 6 . . . . O X . . O . .
+ 5 . . X X O O X X . . .
+ 4 . . O . . O . O O . .
+ 3 . . . O . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 20
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 D3 J8 J4 C5 C4 D5 F4 G8 J6 H5 H4 G5 F5 F6 E6 F7 D8 C9 E5 
+gameHash 277A17A7A1424DF4C100EEE928DCF092
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 0 unrounded 0
+targetWeightByTurn 1 0 unrounded 0
+targetWeightByTurn 2 1 unrounded 1.091
+targetWeightByTurn 3 1 unrounded 1.22143
+targetWeightByTurn 4 2 unrounded 1.52639
+targetWeightByTurn 5 2 unrounded 1.58597
+targetWeightByTurn 6 1 unrounded 1.09938
+targetWeightByTurn 7 2 unrounded 1.84801
+targetWeightByTurn 8 0 unrounded 0
+targetWeightByTurn 9 1 unrounded 1.52747
+targetWeightByTurn 10 0 unrounded 0.0509183
+targetWeightByTurn 11 1 unrounded 1.22259
+targetWeightByTurn 12 1 unrounded 1.29566
+targetWeightByTurn 13 0 unrounded 0
+targetWeightByTurn 14 1 unrounded 1.11251
+targetWeightByTurn 15 1 unrounded 1.48116
+targetWeightByTurn 16 0 unrounded 0
+targetWeightByTurn 17 2 unrounded 2.1303
+targetWeightByTurn 18 1 unrounded 1.22822
+targetWeightByTurn 19 3 unrounded 2.57899
+policyTargetsByTurn 0 unreducedNumVisits 50 C8 10 D4 7 C4 7 D3 7 D9 7 D8 10 H8 8 H9 8 J8 8 H3 2 J4 7 H4 2 
+policyTargetsByTurn 1 unreducedNumVisits 50 D3 10 H9 7 H3 5 J8 7 J4 7 H4 5 H8 6 D4 1 
+policyTargetsByTurn 2 unreducedNumVisits 100 J8 29 J4 14 H9 17 H8 12 H4 13 H3 9 
+policyTargetsByTurn 3 unreducedNumVisits 100 H4 36 J4 54 H3 7 
+policyTargetsByTurn 4 unreducedNumVisits 100 C5 41 F8 20 G8 8 E8 9 G3 4 G4 6 C4 6 F9 1 
+policyTargetsByTurn 5 unreducedNumVisits 100 C4 36 G9 17 G4 14 F4 13 D8 7 H9 4 E9 1 
+policyTargetsByTurn 6 unreducedNumVisits 100 D5 99 
+policyTargetsByTurn 7 unreducedNumVisits 100 F4 60 F3 14 G4 6 G9 9 H9 6 D9 1 E4 0 
+policyTargetsByTurn 8 unreducedNumVisits 60 G8 22 E3 7 G9 9 F9 6 D4 5 H4 7 J6 1 
+policyTargetsByTurn 9 unreducedNumVisits 100 J6 80 C9 5 E9 5 D9 4 D8 3 J7 1 
+policyTargetsByTurn 10 unreducedNumVisits 80 H5 32 E3 10 K7 4 D4 8 G5 10 F5 5 G6 9 J3 1 
+policyTargetsByTurn 11 unreducedNumVisits 100 H4 95 H6 3 
+policyTargetsByTurn 12 unreducedNumVisits 100 G5 39 F5 35 D4 10 J5 6 H6 3 E4 1 E3 1 
+policyTargetsByTurn 13 unreducedNumVisits 50 F5 31 G4 13 H7 3 J5 1 C9 1 
+policyTargetsByTurn 14 unreducedNumVisits 100 F6 53 G4 17 J5 21 D4 6 
+policyTargetsByTurn 15 unreducedNumVisits 100 E6 55 G4 35 H7 5 C9 3 
+policyTargetsByTurn 16 unreducedNumVisits 55 F7 28 G4 6 E5 15 J5 2 D4 1 
+policyTargetsByTurn 17 unreducedNumVisits 100 E5 11 D8 47 G4 27 C9 5 K8 4 C7 3 D7 1 
+policyTargetsByTurn 18 unreducedNumVisits 100 D7 18 C7 29 C9 31 G4 8 E5 3 D9 5 
+policyTargetsByTurn 19 unreducedNumVisits 100 E5 72 D7 12 E7 4 C7 8 K8 1 G4 1 
+whiteValueTargetsByTurn 0 0.512077 0.487923 0 0.879094 - 
+whiteValueTargetsByTurn 1 0.506984 0.493016 0 0.696574 - 
+whiteValueTargetsByTurn 2 0.515357 0.484643 0 1.20395 - 
+whiteValueTargetsByTurn 3 0.509428 0.490572 0 0.883665 - 
+whiteValueTargetsByTurn 4 0.519188 0.480812 0 1.14175 - 
+whiteValueTargetsByTurn 5 0.507826 0.492174 0 0.657045 - 
+whiteValueTargetsByTurn 6 0.516407 0.483593 0 0.900499 - 
+whiteValueTargetsByTurn 7 0.518052 0.481948 0 0.958893 - 
+whiteValueTargetsByTurn 8 0.53179 0.46821 0 1.41359 - 
+whiteValueTargetsByTurn 9 0.513726 0.486274 0 0.960693 - 
+whiteValueTargetsByTurn 10 0.519521 0.48048 0 1.15965 - 
+whiteValueTargetsByTurn 11 0.512018 0.487982 0 1.07356 - 
+whiteValueTargetsByTurn 12 0.518182 0.481818 0 1.28994 - 
+whiteValueTargetsByTurn 13 0.527019 0.472981 0 1.50205 - 
+whiteValueTargetsByTurn 14 0.541698 0.458302 0 1.92198 - 
+whiteValueTargetsByTurn 15 0.52882 0.47118 0 1.61266 - 
+whiteValueTargetsByTurn 16 0.532669 0.467331 0 1.75088 - 
+whiteValueTargetsByTurn 17 0.547574 0.452426 0 2.13514 - 
+whiteValueTargetsByTurn 18 0.569582 0.430418 0 2.76036 - 
+whiteValueTargetsByTurn 19 0.590057 0.409943 0 2.89941 - 
+whiteValueTargetsByTurn 20 1 0 0 7.5 7.5 
+...........
+...........
+..X........
+..XO..X.X..
+.....X.....
+....OX..O..
+..XXOOXX...
+..O..O.OO..
+...O.......
+...........
+...........
+...........
+...........
+..X........
+..XO..X.X..
+.....X.....
+....OX..O..
+..XXOOXX...
+..O..O.OO..
+...O.......
+...........
+...........
+00000000000
+00000000000
+00100000000
+00110010100
+00000100000
+00001100100
+00111111000
+00100101100
+00010000000
+00000000000
+00000000000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 1.000 0.000 0.000 -1.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 1.000 -1.000 0.000 0.000 1.000 0.000 0.000
+ 0.000 0.000 -1.000 -1.000 1.000 1.000 -1.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 1.000 0.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+Side position 0
+targetWeight 2 unrounded 1.5
+HASH: 5CD9FF6EAF575D7100EC5DE264846B33
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . O . . . .
+ 8 . . X . . . . . X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . . . .
+ 3 . . . O . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 4
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 D3 J8 G9 
+Side position 1
+targetWeight 1 unrounded 1.5
+HASH: 9F0445E2560F664EBD45ACCCBF529FE5
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . X . . . X . X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . O . .
+ 5 . . X X . . . . . . .
+ 4 . . O . . O X . O . .
+ 3 . . . O . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 11
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 D3 J8 J4 C5 C4 D5 F4 G8 J6 G4 
+Side position 2
+targetWeight 1 unrounded 1.5
+HASH: A00D9BF82721897496C1EF7A37C3105B
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . X . . . X . X . .
+ 7 . . . . . X . . . . .
+ 6 . . . . . . . . O . .
+ 5 . . X X . O X X . . .
+ 4 . . O . . O . O O . .
+ 3 . . . O . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 15
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 D3 J8 J4 C5 C4 D5 F4 G8 J6 H5 H4 G5 F5 F7 
+Side position 3
+targetWeight 2 unrounded 1.5
+HASH: 3FF8394D926FD4396CE67872FD488D57
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . X O . . X . X . .
+ 7 . . . . . X . . . . .
+ 6 . . . . O X . . O . .
+ 5 . . X X . O X X . . .
+ 4 . . O . . O X O O . .
+ 3 . . . O . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 19
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 D3 J8 J4 C5 C4 D5 F4 G8 J6 H5 H4 G5 F5 F6 E6 F7 D8 G4 
+Side position 4
+targetWeight 2 unrounded 1.5
+HASH: 472B3727345C3CC22D4E504289972216
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X . . . . . . . .
+ 8 . . X O . . X . X O .
+ 7 . . . . . X . . . . .
+ 6 . . . . O X . . O . .
+ 5 . . X X . O X X . . .
+ 4 . . O . . O . O O . .
+ 3 . . . O . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 20
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 D3 J8 J4 C5 C4 D5 F4 G8 J6 H5 H4 G5 F5 F6 E6 F7 D8 C9 K8 
+Side position 5
+targetWeight 2 unrounded 1.5
+HASH: 81ABC9E96586519114EF10F2D7D74B4C
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . X . . . X . X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . O . .
+ 5 . . X X . X O . . . .
+ 4 . . O . . O X . O . .
+ 3 . . . O . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 13
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 D3 J8 J4 C5 C4 D5 F4 G8 J6 G4 G5 F5 
+Side position 6
+targetWeight 1 unrounded 1.5
+HASH: 62BAC5134AEFBCAB2A83FFB3A4CC4A0B
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . X . . . X . X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . O . .
+ 5 . . X X . X O X . . .
+ 4 . . O . . O X . O . .
+ 3 . . . O . O . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 15
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 D3 J8 J4 C5 C4 D5 F4 G8 J6 G4 G5 F5 F3 H5 
+
+====================================================================================================
+====================================================================================================
+====================================================================================================
+seedBase: test value surprise and scale together!
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: C672395E3EFB6E00CCF6A61CCAE874B5
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . . . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . . . .
+ 3 . . . . . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+end
+HASH: 9CAF1DA013939D259C921F54EF813BF6
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . O . X . O O . .
+ 8 . . X . . . . . X O .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . O . .
+ 5 . X X X . . . . . . .
+ 4 X O O . . . . . X . .
+ 3 . X . O . O . X . . .
+ 2 . . . . . . O . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 20
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 H3 J6 B5 G2 B3 B4 A4 D9 
+gameHash D419FD5EEB630CCD1146E0D02A780B25
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 1 unrounded 1.36234
+targetWeightByTurn 1 1 unrounded 1.35795
+targetWeightByTurn 2 2 unrounded 1.39171
+targetWeightByTurn 3 2 unrounded 1.35055
+targetWeightByTurn 4 2 unrounded 1.52479
+targetWeightByTurn 5 2 unrounded 1.38344
+targetWeightByTurn 6 0 unrounded 0
+targetWeightByTurn 7 1 unrounded 1.44419
+targetWeightByTurn 8 1 unrounded 1.50042
+targetWeightByTurn 9 0 unrounded 0
+targetWeightByTurn 10 0 unrounded 0
+targetWeightByTurn 11 1 unrounded 1.39052
+targetWeightByTurn 12 2 unrounded 1.64876
+targetWeightByTurn 13 0 unrounded 0
+targetWeightByTurn 14 0 unrounded 0
+targetWeightByTurn 15 0 unrounded 0
+targetWeightByTurn 16 2 unrounded 1.6669
+targetWeightByTurn 17 0 unrounded 0
+targetWeightByTurn 18 0 unrounded 0
+targetWeightByTurn 19 2 unrounded 1.97843
+policyTargetsByTurn 0 unreducedNumVisits 100 C8 13 D4 12 C4 7 D3 5 D9 6 D8 11 H8 9 H9 9 J8 7 H3 8 J4 5 H4 5 
+policyTargetsByTurn 1 unreducedNumVisits 100 D3 15 H9 21 H3 10 J8 13 J4 9 H4 8 H8 13 D4 4 C4 3 
+policyTargetsByTurn 2 unreducedNumVisits 100 J4 28 D3 28 H4 19 H3 16 D4 5 
+policyTargetsByTurn 3 unreducedNumVisits 100 D3 66 C4 18 D4 13 C3 1 
+policyTargetsByTurn 4 unreducedNumVisits 100 F3 16 C5 23 G3 12 J7 7 E9 12 F9 9 C4 9 J8 11 
+policyTargetsByTurn 5 unreducedNumVisits 100 G3 32 C4 53 H3 10 J7 3 J6 1 
+policyTargetsByTurn 6 unreducedNumVisits 53 D5 42 F3 3 F9 1 J8 1 G3 1 D4 2 J7 1 
+policyTargetsByTurn 7 unreducedNumVisits 100 G3 38 F3 40 J7 11 E9 4 D9 4 J6 1 H3 1 
+policyTargetsByTurn 8 unreducedNumVisits 100 F9 26 J8 52 J7 11 E9 8 H3 1 
+policyTargetsByTurn 9 unreducedNumVisits 52 J9 44 H8 1 D9 4 E9 1 
+policyTargetsByTurn 10 unreducedNumVisits 50 F9 35 E9 14 
+policyTargetsByTurn 11 unreducedNumVisits 100 J6 13 J7 15 K8 62 H8 3 D9 4 
+policyTargetsByTurn 12 unreducedNumVisits 100 K7 25 H3 35 J7 11 G3 27 
+policyTargetsByTurn 13 unreducedNumVisits 50 J6 24 D9 15 K6 6 K5 1 G2 1 
+policyTargetsByTurn 14 unreducedNumVisits 50 G2 11 B5 21 G10 5 H8 2 B4 4 H6 3 
+policyTargetsByTurn 15 unreducedNumVisits 50 G2 23 B4 5 D9 21 
+policyTargetsByTurn 16 unreducedNumVisits 100 H2 45 B3 53 H6 1 
+policyTargetsByTurn 17 unreducedNumVisits 53 H2 12 J2 8 B4 15 G4 1 F5 3 G5 1 D9 12 
+policyTargetsByTurn 18 unreducedNumVisits 50 A4 46 C3 3 
+policyTargetsByTurn 19 unreducedNumVisits 100 H2 15 D9 61 F5 6 J2 10 G4 1 B2 1 G5 1 C3 0 E9 1 
+whiteValueTargetsByTurn 0 0.511855 0.488145 0 0.875535 - 
+whiteValueTargetsByTurn 1 0.511456 0.488544 0 0.927791 - 
+whiteValueTargetsByTurn 2 0.533659 0.466341 0 1.79214 - 
+whiteValueTargetsByTurn 3 0.532937 0.467063 0 1.74324 - 
+whiteValueTargetsByTurn 4 0.535898 0.464102 0 1.82384 - 
+whiteValueTargetsByTurn 5 0.548274 0.451726 0 2.11296 - 
+whiteValueTargetsByTurn 6 0.563597 0.436403 0 2.62796 - 
+whiteValueTargetsByTurn 7 0.566058 0.433942 0 2.55296 - 
+whiteValueTargetsByTurn 8 0.572743 0.427257 0 2.66398 - 
+whiteValueTargetsByTurn 9 0.556796 0.443204 0 2.15425 - 
+whiteValueTargetsByTurn 10 0.564775 0.435225 0 2.43076 - 
+whiteValueTargetsByTurn 11 0.593647 0.406353 0 3.27784 - 
+whiteValueTargetsByTurn 12 0.620987 0.379013 0 4.07803 - 
+whiteValueTargetsByTurn 13 0.609062 0.390938 0 3.89179 - 
+whiteValueTargetsByTurn 14 0.625616 0.374383 0 4.31974 - 
+whiteValueTargetsByTurn 15 0.618128 0.381872 0 3.94016 - 
+whiteValueTargetsByTurn 16 0.60124 0.39876 0 3.57395 - 
+whiteValueTargetsByTurn 17 0.574632 0.425368 0 2.95959 - 
+whiteValueTargetsByTurn 18 0.564779 0.435221 0 2.58771 - 
+whiteValueTargetsByTurn 19 0.581277 0.418723 0 3.23118 - 
+whiteValueTargetsByTurn 20 1 0 0 7.5 7.5 
+...........
+...........
+...O.X.OO..
+..X.....XO.
+...........
+........O..
+.XXX.......
+XOO.....X..
+.X.O.O.X...
 ......O....
 ...........
 ...........
 ...........
-.XOX.......
-.XOX...X...
-.OXX.......
-OOO.....X..
-.O....XX...
-..O..XXXO..
-....O.XOO..
+...O.X.OO..
+..X.....XO.
+...........
+........O..
+.XXX.......
+XOO.....X..
+.X.O.O.X...
 ......O....
 ...........
 00000000000
 00000000000
-01110000000
-01110001000
+00010101100
+00100000110
+00000000000
+00000000100
 01110000000
 11100000100
-01000011000
-00100111100
-00001011100
+01010101000
 00000010000
 00000000000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
- 0.000 -1.000 1.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
- 0.000 -1.000 1.000 -1.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
- 0.000 1.000 -1.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
- 1.000 1.000 1.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
- 0.000 1.000 0.000 0.000 0.000 0.000 -1.000 -1.000 0.000 0.000 0.000
- 0.000 0.000 1.000 0.000 0.000 -1.000 -1.000 -1.000 1.000 0.000 0.000
- 0.000 0.000 0.000 0.000 1.000 0.000 -1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 -1.000 0.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000
+ 0.000 -1.000 -1.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ -1.000 1.000 1.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 -1.000 0.000 1.000 0.000 1.000 0.000 -1.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+Side position 0
+targetWeight 2 unrounded 1.5
+HASH: 2F9BF0B79FB46E1AEA889485E09B5161
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . X O . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . . . .
+ 3 . . . . . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 2
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 D8 
+Side position 1
+targetWeight 1 unrounded 1.5
+HASH: 59206297F106453F27E23876D0738470
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . O . . .
+ 8 . . X . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . X . . .
+ 3 . . . . . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 3
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 H4 
+Side position 2
+targetWeight 1 unrounded 1.5
+HASH: 66A6F57B8A63885F4A24902267A564EA
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . O . . .
+ 8 . . X . . . . . X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . O . .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . X . .
+ 3 . . . O . O . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 10
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J6 
+Side position 3
+targetWeight 1 unrounded 1.5
+HASH: 725927CD7F27F4E2DBE8AE752728B204
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . X . . O O . .
+ 8 . . X . . . . . X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . X . .
+ 3 . . . O . O . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 11
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 E9 
+Side position 4
+targetWeight 1 unrounded 1.5
+HASH: BD7009E15AE72C4718DA252D82ED8116
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . O . . . . .
+ 9 . . . . . X . O O . .
+ 8 . . X . . . . . X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . X . .
+ 3 . . . O . O . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 12
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 F10 
+Side position 5
+targetWeight 2 unrounded 1.5
+HASH: A239018056C82D1B861F9B06487FAA1E
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . O . X . O O . .
+ 8 . . X . . . . . X O .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . O . .
+ 5 . X X X . . . . . . .
+ 4 . . O . . . . . X . .
+ 3 . . . O . O . X . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 16
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 H3 J6 B5 D9 
+Side position 6
+targetWeight 1 unrounded 1.5
+HASH: 4D75B98EB5208329932EC7F804E06807
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . X . O O . .
+ 8 . . X . . . . . X O .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . O . .
+ 5 . X X X X . . . . . .
+ 4 . O O . . . . . X . .
+ 3 . X . O . O . X . . .
+ 2 . . . . . . O . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 19
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 H3 J6 B5 G2 B3 B4 E5 
+Side position 7
+targetWeight 2 unrounded 1.5
+HASH: 54BFE2D6B929F490A77E51892C67F918
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . X . O O . .
+ 8 . . X . . . . . X O .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . O . .
+ 5 . X X X . . . . . . .
+ 4 X O O . . . . . X . .
+ 3 . X . O . O . X . . .
+ 2 . . . . . . O O . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 20
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 H3 J6 B5 G2 B3 B4 A4 H2 
+Side position 8
+targetWeight 1 unrounded 1.5
+HASH: B4CF885E5D4A8391CDDA197CC85A4D76
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . O . . .
+ 8 . . X . . . . X X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . O O . .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . X . .
+ 3 . . . O . O . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 12
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J6 H8 H6 
+Side position 9
+targetWeight 1 unrounded 1.5
+HASH: 08617CD990BE4865F8BB56CF10B40F09
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . X . . O O . .
+ 8 . . X . . . . . X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . O . .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . X . .
+ 3 . . . O . O . X . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 13
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 E9 J6 H3 
+
+====================================================================================================
+====================================================================================================
+====================================================================================================
+seedBase: test all three together!
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: C672395E3EFB6E00CCF6A61CCAE874B5
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . . . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . . . .
+ 3 . . . . . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+end
+HASH: 4FBF02D6DEB23304796625AEF4C9EF39
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . X O . X . O O . .
+ 8 . . X O . . . O . O .
+ 7 . . . . . . . . O X .
+ 6 . . . . . . . . . X .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . X . .
+ 3 . . . O . O . X . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 20
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 K7 J7 K6 H8 H3 D9 C9 D8 
+gameHash BAC8F02481E984322E16CC885D8A7525
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 1 unrounded 1.18009
+targetWeightByTurn 1 1 unrounded 1.04416
+targetWeightByTurn 2 1 unrounded 1.04863
+targetWeightByTurn 3 1 unrounded 1.15294
+targetWeightByTurn 4 2 unrounded 1.2272
+targetWeightByTurn 5 1 unrounded 1.48914
+targetWeightByTurn 6 2 unrounded 1.20577
+targetWeightByTurn 7 1 unrounded 0.943328
+targetWeightByTurn 8 0 unrounded 0.0553316
+targetWeightByTurn 9 0 unrounded 0
+targetWeightByTurn 10 0 unrounded 0
+targetWeightByTurn 11 2 unrounded 1.73546
+targetWeightByTurn 12 0 unrounded 0
+targetWeightByTurn 13 1 unrounded 1.3142
+targetWeightByTurn 14 0 unrounded 0
+targetWeightByTurn 15 1 unrounded 1.18406
+targetWeightByTurn 16 1 unrounded 1.56748
+targetWeightByTurn 17 0 unrounded 0.219665
+targetWeightByTurn 18 0 unrounded 0
+targetWeightByTurn 19 3 unrounded 2.63254
+policyTargetsByTurn 0 unreducedNumVisits 100 C8 13 D4 12 C4 7 D3 5 D9 6 D8 11 H8 9 H9 9 J8 7 H3 8 J4 5 H4 5 
+policyTargetsByTurn 1 unreducedNumVisits 100 D3 15 H9 21 H3 10 J8 13 J4 9 H4 8 H8 13 D4 4 C4 3 
+policyTargetsByTurn 2 unreducedNumVisits 100 J4 28 D3 28 H4 19 H3 16 D4 5 
+policyTargetsByTurn 3 unreducedNumVisits 100 D3 66 C4 18 D4 13 C3 1 
+policyTargetsByTurn 4 unreducedNumVisits 100 F3 16 C5 23 G3 12 J7 7 E9 12 F9 9 C4 9 J8 11 
+policyTargetsByTurn 5 unreducedNumVisits 100 G3 32 C4 53 H3 10 J7 3 J6 1 
+policyTargetsByTurn 6 unreducedNumVisits 100 D5 66 F3 6 F9 7 J8 4 G3 6 D4 3 J7 1 E9 1 
+policyTargetsByTurn 7 unreducedNumVisits 100 G3 38 F3 40 J7 11 E9 4 D9 4 J6 1 H3 1 
+policyTargetsByTurn 8 unreducedNumVisits 50 F9 14 J8 25 J7 4 E9 5 
+policyTargetsByTurn 9 unreducedNumVisits 50 J9 42 H8 1 D9 4 E9 1 
+policyTargetsByTurn 10 unreducedNumVisits 50 F9 35 E9 14 
+policyTargetsByTurn 11 unreducedNumVisits 50 J6 8 J7 9 K8 25 H8 1 
+policyTargetsByTurn 12 unreducedNumVisits 50 K7 19 H3 14 J7 8 G3 5 
+policyTargetsByTurn 13 unreducedNumVisits 100 J7 99 
+policyTargetsByTurn 14 unreducedNumVisits 99 K6 43 H8 38 J6 17 
+policyTargetsByTurn 15 unreducedNumVisits 100 H8 79 J6 17 D9 1 J3 0 
+policyTargetsByTurn 16 unreducedNumVisits 100 H3 76 H2 6 G3 7 G2 7 
+policyTargetsByTurn 17 unreducedNumVisits 76 D9 59 G2 13 B5 1 J6 1 B4 0 
+policyTargetsByTurn 18 unreducedNumVisits 59 C9 47 D8 11 
+policyTargetsByTurn 19 unreducedNumVisits 100 D8 76 E8 9 G2 8 B5 1 E9 2 C10 1 J6 0 B4 0 
+whiteValueTargetsByTurn 0 0.511855 0.488145 0 0.875535 - 
+whiteValueTargetsByTurn 1 0.511456 0.488544 0 0.927791 - 
+whiteValueTargetsByTurn 2 0.533659 0.466341 0 1.79214 - 
+whiteValueTargetsByTurn 3 0.532937 0.467063 0 1.74324 - 
+whiteValueTargetsByTurn 4 0.535898 0.464102 0 1.82384 - 
+whiteValueTargetsByTurn 5 0.548274 0.451726 0 2.11296 - 
+whiteValueTargetsByTurn 6 0.567555 0.432445 0 2.68377 - 
+whiteValueTargetsByTurn 7 0.566058 0.433942 0 2.55296 - 
+whiteValueTargetsByTurn 8 0.564005 0.435995 0 2.35358 - 
+whiteValueTargetsByTurn 9 0.554735 0.445265 0 2.09173 - 
+whiteValueTargetsByTurn 10 0.564775 0.435225 0 2.43076 - 
+whiteValueTargetsByTurn 11 0.587602 0.412398 0 3.14128 - 
+whiteValueTargetsByTurn 12 0.629356 0.370644 0 4.37996 - 
+whiteValueTargetsByTurn 13 0.703121 0.296879 0 6.77622 - 
+whiteValueTargetsByTurn 14 0.704553 0.295447 0 6.82027 - 
+whiteValueTargetsByTurn 15 0.700762 0.299238 0 6.68577 - 
+whiteValueTargetsByTurn 16 0.711347 0.288653 0 7.01391 - 
+whiteValueTargetsByTurn 17 0.705828 0.294172 0 6.77772 - 
+whiteValueTargetsByTurn 18 0.717 0.283 0 7.11031 - 
+whiteValueTargetsByTurn 19 0.712003 0.287997 0 7.13028 - 
+whiteValueTargetsByTurn 20 1 0 0 9.5 9.5 
+...........
+...........
+..XO.X.OO..
+..XO...OOO.
+........OX.
+.........X.
+..XX.......
+..O.....X..
+...O.O.X...
+...........
+...........
+...........
+...........
+..XO.X.OO..
+..XO...OOO.
+........OX.
+.........X.
+..XX.......
+..O.....X..
+...O.O.X...
+...........
+...........
+00000000000
+00000000000
+00110101100
+00110001110
+00000000110
+00000000010
+00110000000
+00100000100
+00010101000
+00000000000
+00000000000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 1.000 0.000 -1.000 0.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 -1.000 1.000 0.000 0.000 0.000 1.000 1.000 1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000
+ 0.000 0.000 -1.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 1.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+Side position 0
+targetWeight 2 unrounded 1.5
+HASH: A0FA10617EC2A35F4E529784B5C55F2B
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . . . . . . .
+ 8 . . X . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . . . . . . . . . .
+ 4 . . . . . . . . . . .
+ 3 . . . O . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 2
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 D3 
+Side position 1
+targetWeight 2 unrounded 1.5
+HASH: F82A27E67A4D81EF84F2DABCFEE41466
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . O . . O . . .
+ 8 . . X . . . . . . . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . . . .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . X . .
+ 3 . . . O . . . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 8
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 E9 
+Side position 2
+targetWeight 1 unrounded 1.5
+HASH: A762784B2103D8C1FE34056A119A44D1
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . X . O O . .
+ 8 . . X . . . . . X . .
+ 7 . . . . . . . . . . .
+ 6 . . . . . . . . O . .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . X . .
+ 3 . . . O . O . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 12
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 J6 
+Side position 3
+targetWeight 1 unrounded 1.5
+HASH: FA4382F1ABFE85B610F1FAA895B56607
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . X . O O O .
+ 8 . . X . . . . . X O .
+ 7 . . . . . . . . . X .
+ 6 . . . . . . . . . . .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . X . .
+ 3 . . . O . O . . . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 14
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 K7 K9 
+Side position 4
+targetWeight 2 unrounded 1.5
+HASH: 38026E61380FE696FA32649FC965A852
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . . . X . O O . .
+ 8 . . X . . . . O . O .
+ 7 . . . . . . . . O X .
+ 6 . . . . . . . . . X .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . X . .
+ 3 . . . O . O . X . . .
+ 2 . . . . . . O . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 18
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 K7 J7 K6 H8 H3 G2 
+Side position 5
+targetWeight 1 unrounded 1.5
+HASH: EDB726DEEE68966A40FDBEFC78731F8D
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . O . X . O O . .
+ 8 . . X X . . . O . O .
+ 7 . . . . . . . . O X .
+ 6 . . . . . . . . . X .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . X . .
+ 3 . . . O . O . X . . .
+ 2 . . . . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 19
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 K7 J7 K6 H8 H3 D9 D8 
+Side position 6
+targetWeight 2 unrounded 1.5
+HASH: 414154AE51569AD0CCE5E251DBDB5B77
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 . . . . . . . . . . .
+ 9 . . . O O X . O O . .
+ 8 . . X X . . . O . O .
+ 7 . . . . . . . . O X .
+ 6 . . . . . . . . . X .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . X . .
+ 3 . . . O . O . X . . .
+ 2 . . X . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 21
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 K7 J7 K6 H8 H3 D9 D8 E9 C2 
+Side position 7
+targetWeight 2 unrounded 1.5
+HASH: 2D27DEE4386FD4C22F429E6DFAE78CEB
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 X . . . . . . . . . .
+ 9 . . . O O X . O O . .
+ 8 . . X X . . . O . O .
+ 7 . . . . . . . . O X .
+ 6 . . . . . . . . . X .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . X . .
+ 3 . O . O . O . X . . .
+ 2 . . X . . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 23
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 K7 J7 K6 H8 H3 D9 D8 E9 C2 B3 A10 
+Side position 8
+targetWeight 1 unrounded 1.5
+HASH: 4F18564B21A73E2A4BD9DE6C0B75C712
+   A B C D E F G H J K L
+11 . . . . . . . . . . .
+10 X . . . . . . . . . .
+ 9 . . . O O X . O O . .
+ 8 . . X X O . . O . O .
+ 7 . . . . . . . . O X .
+ 6 . . . . . . . . . X .
+ 5 . . X X . . . . . . .
+ 4 . . O . . . . . X . .
+ 3 . O . O . O . X . . .
+ 2 . . X X . . . . . . .
+ 1 . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 25
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C8 H9 J4 D3 C5 C4 D5 F3 J8 J9 F9 K8 K7 J7 K6 H8 H3 D9 D8 E9 C2 B3 A10 E8 D2 
+(;FF[4]GM[1]SZ[11]PB[Black]PW[White]HA[0]KM[7.5]RU[koPOSITIONALscoreAREAtaxNONEsui1]C[startTurnIdx=0,gameHash=BAC8F02481E984322E16CC885D8A7525,gtype=normal];B[cd]C[0.51 0.49 0.00 0.9 v=100 weight=1.18];W[hc]C[0.51 0.49 0.00 0.9 v=100 weight=1.04];B[ih]C[0.53 0.47 0.00 1.8 v=100 weight=1.05];W[di]C[0.53 0.47 0.00 1.7 v=100 weight=1.15];B[cg]C[0.54 0.46 0.00 1.8 v=100 weight=1.23];W[ch]C[0.55 0.45 0.00 2.1 v=100 weight=1.49];B[dg]C[0.57 0.43 0.00 2.7 v=100 weight=1.21];W[fi]C[0.57 0.43 0.00 2.6 v=100 weight=0.94];B[id]C[0.56 0.44 0.00 2.4 v=50 weight=0.06];W[ic]C[0.55 0.45 0.00 2.1 v=50 weight=0.00];B[fc]C[0.56 0.44 0.00 2.4 v=50 weight=0.00];W[jd]C[0.59 0.41 0.00 3.1 v=50 weight=1.74];B[je]C[0.63 0.37 0.00 4.4 v=50 weight=0.00];W[ie]C[0.70 0.30 0.00 6.8 v=100 weight=1.31];B[jf]C[0.70 0.30 0.00 6.8 v=99 weight=0.00];W[hd]C[0.70 0.30 0.00 6.7 v=100 weight=1.18];B[hi]C[0.71 0.29 0.00 7.0 v=100 weight=1.57];W[dc]C[0.71 0.29 0.00 6.8 v=76 weight=0.22];B[cc]C[0.72 0.28 0.00 7.1 v=59 weight=0.00];W[dd]C[0.71 0.29 0.00 7.1 v=100 weight=2.63])
 
 HASH: 54579E0A87F182BA544C02BE0164C001
    A B C D E F G H J

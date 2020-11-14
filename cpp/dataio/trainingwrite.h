@@ -29,6 +29,7 @@ struct SidePosition {
   std::vector<PolicyTargetMove> policyTarget;
   ValueTargets whiteValueTargets;
   float targetWeight;
+  float targetWeightUnrounded;
   int numNeuralNetChangesSoFar; //Number of neural net changes this game before the creation of this side position
 
   SidePosition();
@@ -64,11 +65,12 @@ struct FinishedGameData {
   //played following the start of startHist, whereas handicapForSgf counts from startBoard.
   //So on things like forked handicap games this one will be larger. Also this one does the
   //whole +1 thing, skipping 1H.
-  int handicapForSgf; 
+  int handicapForSgf;
 
   //If false, then we don't have these below vectors and ownership information
   bool hasFullData;
   std::vector<float> targetWeightByTurn;
+  std::vector<float> targetWeightByTurnUnrounded;
   std::vector<PolicyTarget> policyTargetsByTurn;
   std::vector<ValueTargets> whiteValueTargetsByTurn; //Except this one, we may have some of
   Color* finalFullArea;

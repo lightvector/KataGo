@@ -24,6 +24,7 @@ SidePosition::SidePosition()
    policyTarget(),
    whiteValueTargets(),
    targetWeight(),
+   targetWeightUnrounded(),
    numNeuralNetChangesSoFar()
 {}
 
@@ -35,6 +36,7 @@ SidePosition::SidePosition(const Board& b, const BoardHistory& h, Player p, int 
    policyTarget(),
    whiteValueTargets(),
    targetWeight(1.0f),
+   targetWeightUnrounded(1.0f),
    numNeuralNetChangesSoFar(numNNChangesSoFar)
 {}
 
@@ -68,6 +70,7 @@ FinishedGameData::FinishedGameData()
 
    hasFullData(false),
    targetWeightByTurn(),
+   targetWeightByTurnUnrounded(),
    policyTargetsByTurn(),
    whiteValueTargetsByTurn(),
    finalFullArea(NULL),
@@ -118,7 +121,7 @@ void FinishedGameData::printDebug(ostream& out) const {
   out << "usedInitialPosition " << usedInitialPosition << endl;
   out << "hasFullData " << hasFullData << endl;
   for(int i = 0; i<targetWeightByTurn.size(); i++)
-    out << "targetWeightByTurn " << i << " " << targetWeightByTurn[i] << endl;
+    out << "targetWeightByTurn " << i << " " << targetWeightByTurn[i] << " " << "unrounded" << " " << targetWeightByTurnUnrounded[i] << endl;
   for(int i = 0; i<policyTargetsByTurn.size(); i++) {
     out << "policyTargetsByTurn " << i << " ";
     out << "unreducedNumVisits " << policyTargetsByTurn[i].unreducedNumVisits << " ";
@@ -178,6 +181,7 @@ void FinishedGameData::printDebug(ostream& out) const {
   for(int i = 0; i<sidePositions.size(); i++) {
     SidePosition* sp = sidePositions[i];
     out << "Side position " << i << endl;
+    out << "targetWeight " << sp->targetWeight << " " << "unrounded" << " " << sp->targetWeightUnrounded << endl;
     sp->hist.printDebugInfo(out,sp->board);
   }
 }
@@ -860,6 +864,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   int numMoves = data.endHist.moveHistory.size() - data.startHist.moveHistory.size();
   assert(numMoves >= 0);
   assert(data.targetWeightByTurn.size() == numMoves);
+  assert(data.targetWeightByTurnUnrounded.size() == numMoves);
   assert(data.policyTargetsByTurn.size() == numMoves);
   assert(data.whiteValueTargetsByTurn.size() == numMoves+1);
 

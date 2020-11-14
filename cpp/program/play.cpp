@@ -1361,6 +1361,7 @@ FinishedGameData* Play::runGame(
   BoardHistory hist(startHist);
   Player pla = startPla;
   assert(!(extraBlackAndKomi.makeGameFair && extraBlackAndKomi.makeGameFairForEmptyBoard));
+  assert(!(playSettings.forSelfPlay && !clearBotBeforeSearch));
 
   if(extraBlackAndKomi.makeGameFairForEmptyBoard) {
     Board b(startBoard.x_size,startBoard.y_size);
@@ -1821,13 +1822,6 @@ FinishedGameData* Play::runGame(
       }
     }
 
-    if(playSettings.scaleDataWeight != 1.0) {
-      int numWeights = gameData->targetWeightByTurn.size();
-      for(int i = 0; i<numWeights; i++) {
-        gameData->targetWeightByTurn[i] = (float)(playSettings.scaleDataWeight * gameData->targetWeightByTurn[i]);
-      }
-    }
-
     //Also evaluate all the side positions as well that we queued up to be searched
     NNResultBuf nnResultBuf;
     for(int i = 0; i<sidePositionsToSearch.size(); i++) {
@@ -1900,7 +1894,24 @@ FinishedGameData* Play::runGame(
       maybeCheckForNewNNEval(gameData->endHist.moveHistory.size());
     }
 
+    if(playSettings.scaleDataWeight != 1.0) {
+      for(int i = 0; i<gameData->targetWeightByTurn.size(); i++)
+        gameData->targetWeightByTurn[i] = (float)(playSettings.scaleDataWeight * gameData->targetWeightByTurn[i]);
+      for(int i = 0; i<gameData->sidePositions.size(); i++)
+        gameData->sidePositions[i]->targetWeight = (float)(playSettings.scaleDataWeight * gameData->sidePositions[i]->targetWeight);
+    }
+
+    //Record weights before we possibly probabilistically resolve them
+    {
+      gameData->targetWeightByTurnUnrounded.resize(gameData->targetWeightByTurn.size());
+      for(int i = 0; i<gameData->targetWeightByTurn.size(); i++)
+        gameData->targetWeightByTurnUnrounded[i] = gameData->targetWeightByTurn[i];
+      for(int i = 0; i<gameData->sidePositions.size(); i++)
+        gameData->sidePositions[i]->targetWeightUnrounded = gameData->sidePositions[i]->targetWeight;
+    }
+
     //Resolve probabilistic weights of things
+    //Do this right now so that if something isn't included at all, we can skip some work, like lead estmation.
     if(!playSettings.noResolveTargetWeights) {
       auto resolveWeight = [&gameRand](float weight){
         if(weight <= 0) weight = 0;
@@ -1915,6 +1926,7 @@ FinishedGameData* Play::runGame(
       for(int i = 0; i<gameData->sidePositions.size(); i++)
         gameData->sidePositions[i]->targetWeight = resolveWeight(gameData->sidePositions[i]->targetWeight);
     }
+
 
     //Fill in lead estimation on full-search positions
     if(playSettings.estimateLeadProb > 0.0) {

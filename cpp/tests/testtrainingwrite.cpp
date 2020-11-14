@@ -421,7 +421,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
-    playSettings.sidePositionProb = 0.0;
+    playSettings.sidePositionProb = testScaleDataWeight ? 0.2 : 0.0;
     playSettings.cheapSearchProb = 0.5;
     playSettings.cheapSearchVisits = testResign ? 5 : 50;
     playSettings.cheapSearchTargetWeight = 0.456f;
@@ -537,6 +537,100 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     cout << "LEAD: " << lead << endl;
     delete bot;
   };
+
+  //MORE TESTING ----------------------------------------------------------------
+
+  auto runMore = [&](
+    const string& seedBase,
+    const Rules& rules,
+    bool testPolicySurpriseWeight,
+    bool testValueSurpriseWeight,
+    bool testScaleDataWeight,
+    bool testSgf
+  ) {
+    nnEval->clearCache();
+    nnEval->clearStats();
+
+    SearchParams params;
+    params.maxVisits = 100;
+    params.drawEquivalentWinsForWhite = 0.5;
+
+    MatchPairer::BotSpec botSpec;
+    botSpec.botIdx = 0;
+    botSpec.botName = string("test");
+    botSpec.nnEval = nnEval;
+    botSpec.baseParams = params;
+
+    Board initialBoard(11,11);
+    Player initialPla = P_BLACK;
+    int initialEncorePhase = 0;
+    BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
+
+    ExtraBlackAndKomi extraBlackAndKomi;
+    extraBlackAndKomi.extraBlack = 0;
+    extraBlackAndKomi.komiBase = rules.komi;
+    extraBlackAndKomi.komi = rules.komi;
+    extraBlackAndKomi.makeGameFair = false;
+    extraBlackAndKomi.makeGameFairForEmptyBoard = false;
+
+    bool doEndGameIfAllPassAlive = true;
+    bool clearBotAfterSearch = true;
+    int maxMovesPerGame = 20;
+    vector<std::atomic<bool>*> stopConditions;
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0;
+    playSettings.sidePositionProb = 0.2;
+    playSettings.cheapSearchProb = 0.5;
+    playSettings.cheapSearchVisits = 50;
+    playSettings.cheapSearchTargetWeight = 0.0;
+    playSettings.compensateKomiVisits = 10;
+    playSettings.minAsymmetricCompensateKomiProb = 0.5;
+    if(testPolicySurpriseWeight)
+      playSettings.policySurpriseDataWeight = 0.5;
+    if(testValueSurpriseWeight)
+      playSettings.valueSurpriseDataWeight = 0.1;
+    if(testScaleDataWeight)
+      playSettings.scaleDataWeight = 1.5;
+
+    playSettings.forSelfPlay = true;
+
+    string searchRandSeed = seedBase+"search";
+    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
+
+    cout << "====================================================================================================" << endl;
+    cout << "====================================================================================================" << endl;
+    cout << "====================================================================================================" << endl;
+    cout << "seedBase: " << seedBase << endl;
+
+    bool logSearchInfo = false;
+    Rand rand(seedBase+"play");
+    OtherGameProperties otherGameProps;
+    FinishedGameData* gameData = Play::runGame(
+      initialBoard,initialPla,initialHist,extraBlackAndKomi,
+      botSpec,botSpec,
+      bot,bot,
+      doEndGameIfAllPassAlive, clearBotAfterSearch,
+      logger, logSearchInfo, false,
+      maxMovesPerGame, stopConditions,
+      playSettings, otherGameProps,
+      rand,
+      nullptr,
+      nullptr
+    );
+    gameData->printDebug(cout);
+    if(testSgf) {
+      WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData,false,false);
+      cout << endl;
+    }
+    delete gameData;
+    delete bot;
+    cout << endl;
+  };
+
+  runMore("test policy surprise and scale together!",Rules::getTrompTaylorish(),true,false,true,false);
+  runMore("test value surprise and scale together!",Rules::getTrompTaylorish(),false,true,true,false);
+  runMore("test all three together!",Rules::getTrompTaylorish(),true,true,true,true);
 
   Rules rules = Rules::getTrompTaylorish();
   {
