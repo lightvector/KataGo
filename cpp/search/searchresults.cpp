@@ -1014,7 +1014,7 @@ void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions op
     double parentLead = 0;
     data = getAnalysisDataOfSingleChild(
       node, scratchLocs, scratchValues,
-      node->prevMoveLoc, policyProb, fpuValue, parentUtility, parentWinLossValue,
+      (node == rootNode ? Board::NULL_LOC : node->prevMoveLoc), policyProb, fpuValue, parentUtility, parentWinLossValue,
       parentScoreMean, parentScoreStdev, parentLead, options.maxPVDepth_
     );
     data.weightFactor = NAN;

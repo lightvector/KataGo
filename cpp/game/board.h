@@ -20,15 +20,16 @@ struct Board;
 
 //Player
 typedef int8_t Player;
-static const Player P_BLACK = 1;
-static const Player P_WHITE = 2;
+static constexpr Player P_BLACK = 1;
+static constexpr Player P_WHITE = 2;
 
 //Color of a point on the board
 typedef int8_t Color;
-static const Color C_EMPTY = 0;
-static const Color C_BLACK = 1;
-static const Color C_WHITE = 2;
-static const Color C_WALL = 3;
+static constexpr Color C_EMPTY = 0;
+static constexpr Color C_BLACK = 1;
+static constexpr Color C_WHITE = 2;
+static constexpr Color C_WALL = 3;
+static constexpr int NUM_BOARD_COLORS = 4;
 
 static inline Color getOpp(Color c)
 {return c ^ 3;}
@@ -277,7 +278,7 @@ struct Board
   int numBlackCaptures; //Number of b stones captured, informational and used by board history when clearing pos
   int numWhiteCaptures; //Number of w stones captured, informational and used by board history when clearing pos
 
-  short adj_offsets[8]; //Indices 0-3: Offsets to add for adjacent points. Indices 4-7: Offsets for diagonal points.
+  short adj_offsets[8]; //Indices 0-3: Offsets to add for adjacent points. Indices 4-7: Offsets for diagonal points. 2 and 3 are +x and +y.
 
   private:
   void init(int xS, int yS);

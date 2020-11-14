@@ -654,6 +654,8 @@ pss : T 106.82c W 100.00c S   6.82c (+14.2 L +14.2) LCB  260.00c P  1.63% WF  3.
 Consecutive searches playouts and visits===================
 Doing three consecutive searches by visits
 
+Just after begun
+: N       0  --  
 MoveNum: 85 HASH: FF4B3B9515DBD0C58D986557C8F8C54C
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -694,6 +696,30 @@ M17 : T   0.55c W   0.55c S   0.00c ( +0.0 L  +0.0) LCB -243.01c P  2.29% WF 10.
 D18 : T  -6.29c W  -5.59c S  -0.70c ( -1.4 L  -1.4) LCB -260.00c P  3.00% WF  9.33% PSV       2 N       2  --  D18 M12
 G15 : T -10.09c W  -8.82c S  -1.28c ( -2.5 L  -2.5) LCB -260.00c P  1.63% WF  9.16% PSV       1 N       1  --  G15
 Q12 : T  -4.76c W  -4.09c S  -0.67c ( -1.3 L  -1.3) LCB -260.00c P  1.58% WF  9.66% PSV       1 N       1  --  Q12
+Just after move
+: T   4.44c W   3.84c S   0.60c ( +1.2 L  +1.2) N     120  --  D2 E2 K9 K8 L10 M10 M9
+---Black(v)---
+D2  : T  -0.80c W  -0.75c S  -0.06c ( -0.1 L  -0.1) LCB    9.59c P  4.42% WF 12.77% PSV      31 N      31  --  D2 E2 K9 K8 L10 M10 M9 L9
+E15 : T   8.34c W   7.20c S   1.15c ( +2.3 L  +2.3) LCB   15.11c P 29.11% WF 10.57% PSV      29 N      30  --  E15 D12 B11 B12 B14 M12 L13
+D18 : T   2.04c W   1.72c S   0.32c ( +0.7 L  +0.7) LCB   14.99c P  6.95% WF 12.01% PSV      17 N      18  --  D18 D19 M12 N11 N12 O11
+K9  : T   4.50c W   3.89c S   0.61c ( +1.2 L  +1.2) LCB   13.77c P  9.02% WF 11.49% PSV      14 N      16  --  K9 K8 L10 M10 M9 L9 N9 K10
+M12 : T   6.67c W   5.84c S   0.83c ( +1.7 L  +1.7) LCB   17.61c P 10.29% WF 11.07% PSV      12 N      12  --  M12 N11 N12 O11 O12 P11 R11
+E4  : T  11.50c W  10.24c S   1.26c ( +2.5 L  +2.5) LCB   36.06c P  7.75% WF 10.35% PSV       6 N       6  --  E4 E3 M12 N11 N12
+Q11 : T  13.03c W  11.35c S   1.68c ( +3.4 L  +3.4) LCB  198.71c P  4.45% WF 10.32% PSV       3 N       3  --  Q11 D12 E15
+R11 : T   8.30c W   7.06c S   1.24c ( +2.5 L  +2.5) LCB  260.00c P  2.46% WF 11.01% PSV       2 N       2  --  R11 D12
+D12 : T  14.78c W  13.03c S   1.75c ( +3.5 L  +3.5) LCB  260.00c P  2.88% WF 10.41% PSV       1 N       1  --  D12
+Just after begun
+: T   4.44c W   3.84c S   0.60c ( +1.2 L  +1.2) N     120  --  D2 E2 K9 K8 L10 M10 M9
+---Black(v)---
+D2  : T  -0.80c W  -0.75c S  -0.06c ( -0.1 L  -0.1) LCB    9.59c P  4.42% WF 12.77% PSV      31 N      31  --  D2 E2 K9 K8 L10 M10 M9 L9
+E15 : T   8.34c W   7.20c S   1.15c ( +2.3 L  +2.3) LCB   15.11c P 29.11% WF 10.57% PSV      29 N      30  --  E15 D12 B11 B12 B14 M12 L13
+D18 : T   2.04c W   1.72c S   0.32c ( +0.7 L  +0.7) LCB   14.99c P  6.95% WF 12.01% PSV      17 N      18  --  D18 D19 M12 N11 N12 O11
+K9  : T   4.50c W   3.89c S   0.61c ( +1.2 L  +1.2) LCB   13.77c P  9.02% WF 11.49% PSV      14 N      16  --  K9 K8 L10 M10 M9 L9 N9 K10
+M12 : T   6.67c W   5.84c S   0.83c ( +1.7 L  +1.7) LCB   17.61c P 10.29% WF 11.07% PSV      12 N      12  --  M12 N11 N12 O11 O12 P11 R11
+E4  : T  11.50c W  10.24c S   1.26c ( +2.5 L  +2.5) LCB   36.06c P  7.75% WF 10.35% PSV       6 N       6  --  E4 E3 M12 N11 N12
+Q11 : T  13.03c W  11.35c S   1.68c ( +3.4 L  +3.4) LCB  198.71c P  4.45% WF 10.32% PSV       3 N       3  --  Q11 D12 E15
+R11 : T   8.30c W   7.06c S   1.24c ( +2.5 L  +2.5) LCB  260.00c P  2.46% WF 11.01% PSV       2 N       2  --  R11 D12
+D12 : T  14.78c W  13.03c S   1.75c ( +3.5 L  +3.5) LCB  260.00c P  2.88% WF 10.41% PSV       1 N       1  --  D12
 MoveNum: 86 HASH: 89A2A6C27EE12B5FCEAAE6D6CAD171D1
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -734,6 +760,24 @@ Q11 : T  10.75c W   9.19c S   1.56c ( +3.1 L  +3.1) LCB   55.13c P  4.45% WF  9.
 D12 : T   8.58c W   7.71c S   0.87c ( +1.7 L  +1.7) LCB   61.14c P  2.88% WF  9.94% PSV       4 N       4  --  D12 Q11 M12
 R11 : T  14.90c W  13.02c S   1.88c ( +3.8 L  +3.8) LCB  203.56c P  2.46% WF  9.20% PSV       2 N       3  --  R11 D12 E15
 Q12 : T  14.66c W  12.78c S   1.87c ( +3.8 L  +3.8) LCB  196.09c P  2.03% WF  9.23% PSV       1 N       3  --  Q12 D12 E15
+Just after move
+: T   7.61c W   6.59c S   1.02c ( +2.0 L  +2.0) N      53  --  D12 B11 B12 B14 M12 L13
+---White(^)---
+D12 : T   9.51c W   8.15c S   1.36c ( +2.7 L  +2.7) LCB    2.16c P 13.58% WF 17.68% PSV      18 N      18  --  D12 B11 B12 B14 M12 L13
+D16 : T   8.17c W   7.10c S   1.06c ( +2.1 L  +2.1) LCB   -0.61c P 16.14% WF 17.25% PSV      17 N      17  --  D16 C15 D12 B11 B12 C17 D18 B18
+G15 : T   3.71c W   3.21c S   0.51c ( +1.0 L  +1.0) LCB  -22.26c P 15.37% WF 16.04% PSV       9 N       9  --  G15 F15 F14 E14 D12 B11
+M12 : T   3.73c W   3.18c S   0.55c ( +1.1 L  +1.1) LCB  -50.15c P  6.49% WF 16.22% PSV       4 N       4  --  M12 K9 K8
+Q11 : T   8.26c W   7.46c S   0.80c ( +1.6 L  +1.6) LCB  -69.39c P  3.60% WF 17.18% PSV       3 N       3  --  Q11 M12 N11
+E4  : T  -1.62c W  -1.28c S  -0.34c ( -0.7 L  -0.7) LCB -260.00c P  3.40% WF 15.63% PSV       1 N       1  --  E4
+Just after begun
+: T   7.61c W   6.59c S   1.02c ( +2.0 L  +2.0) N      53  --  D12 B11 B12 B14 M12 L13
+---White(^)---
+D12 : T   9.51c W   8.15c S   1.36c ( +2.7 L  +2.7) LCB    2.16c P 13.58% WF 17.68% PSV      18 N      18  --  D12 B11 B12 B14 M12 L13
+D16 : T   8.17c W   7.10c S   1.06c ( +2.1 L  +2.1) LCB   -0.61c P 16.14% WF 17.25% PSV      17 N      17  --  D16 C15 D12 B11 B12 C17 D18 B18
+G15 : T   3.71c W   3.21c S   0.51c ( +1.0 L  +1.0) LCB  -22.26c P 15.37% WF 16.04% PSV       9 N       9  --  G15 F15 F14 E14 D12 B11
+M12 : T   3.73c W   3.18c S   0.55c ( +1.1 L  +1.1) LCB  -50.15c P  6.49% WF 16.22% PSV       4 N       4  --  M12 K9 K8
+Q11 : T   8.26c W   7.46c S   0.80c ( +1.6 L  +1.6) LCB  -69.39c P  3.60% WF 17.18% PSV       3 N       3  --  Q11 M12 N11
+E4  : T  -1.62c W  -1.28c S  -0.34c ( -0.7 L  -0.7) LCB -260.00c P  3.40% WF 15.63% PSV       1 N       1  --  E4
 MoveNum: 87 HASH: AF11EC040286D82D145FB63E9B70697C
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -779,6 +823,8 @@ C15 : T  -2.87c W  -2.50c S  -0.36c ( -0.7 L  -0.7) LCB -260.00c P  1.74% WF  7.
 
 Doing three consecutive searches by playouts (limit 200)
 
+Just after begun
+: N       0  --  
 MoveNum: 85 HASH: FF4B3B9515DBD0C58D986557C8F8C54C
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -819,6 +865,30 @@ M17 : T   0.55c W   0.55c S   0.00c ( +0.0 L  +0.0) LCB -243.01c P  2.29% WF 10.
 D18 : T  -6.29c W  -5.59c S  -0.70c ( -1.4 L  -1.4) LCB -260.00c P  3.00% WF  9.33% PSV       2 N       2  --  D18 M12
 G15 : T -10.09c W  -8.82c S  -1.28c ( -2.5 L  -2.5) LCB -260.00c P  1.63% WF  9.16% PSV       1 N       1  --  G15
 Q12 : T  -4.76c W  -4.09c S  -0.67c ( -1.3 L  -1.3) LCB -260.00c P  1.58% WF  9.66% PSV       1 N       1  --  Q12
+Just after move
+: T   4.44c W   3.84c S   0.60c ( +1.2 L  +1.2) N     120  --  D2 E2 K9 K8 L10 M10 M9
+---Black(v)---
+D2  : T  -0.80c W  -0.75c S  -0.06c ( -0.1 L  -0.1) LCB    9.59c P  4.42% WF 12.77% PSV      31 N      31  --  D2 E2 K9 K8 L10 M10 M9 L9
+E15 : T   8.34c W   7.20c S   1.15c ( +2.3 L  +2.3) LCB   15.11c P 29.11% WF 10.57% PSV      29 N      30  --  E15 D12 B11 B12 B14 M12 L13
+D18 : T   2.04c W   1.72c S   0.32c ( +0.7 L  +0.7) LCB   14.99c P  6.95% WF 12.01% PSV      17 N      18  --  D18 D19 M12 N11 N12 O11
+K9  : T   4.50c W   3.89c S   0.61c ( +1.2 L  +1.2) LCB   13.77c P  9.02% WF 11.49% PSV      14 N      16  --  K9 K8 L10 M10 M9 L9 N9 K10
+M12 : T   6.67c W   5.84c S   0.83c ( +1.7 L  +1.7) LCB   17.61c P 10.29% WF 11.07% PSV      12 N      12  --  M12 N11 N12 O11 O12 P11 R11
+E4  : T  11.50c W  10.24c S   1.26c ( +2.5 L  +2.5) LCB   36.06c P  7.75% WF 10.35% PSV       6 N       6  --  E4 E3 M12 N11 N12
+Q11 : T  13.03c W  11.35c S   1.68c ( +3.4 L  +3.4) LCB  198.71c P  4.45% WF 10.32% PSV       3 N       3  --  Q11 D12 E15
+R11 : T   8.30c W   7.06c S   1.24c ( +2.5 L  +2.5) LCB  260.00c P  2.46% WF 11.01% PSV       2 N       2  --  R11 D12
+D12 : T  14.78c W  13.03c S   1.75c ( +3.5 L  +3.5) LCB  260.00c P  2.88% WF 10.41% PSV       1 N       1  --  D12
+Just after begun
+: T   4.44c W   3.84c S   0.60c ( +1.2 L  +1.2) N     120  --  D2 E2 K9 K8 L10 M10 M9
+---Black(v)---
+D2  : T  -0.80c W  -0.75c S  -0.06c ( -0.1 L  -0.1) LCB    9.59c P  4.42% WF 12.77% PSV      31 N      31  --  D2 E2 K9 K8 L10 M10 M9 L9
+E15 : T   8.34c W   7.20c S   1.15c ( +2.3 L  +2.3) LCB   15.11c P 29.11% WF 10.57% PSV      29 N      30  --  E15 D12 B11 B12 B14 M12 L13
+D18 : T   2.04c W   1.72c S   0.32c ( +0.7 L  +0.7) LCB   14.99c P  6.95% WF 12.01% PSV      17 N      18  --  D18 D19 M12 N11 N12 O11
+K9  : T   4.50c W   3.89c S   0.61c ( +1.2 L  +1.2) LCB   13.77c P  9.02% WF 11.49% PSV      14 N      16  --  K9 K8 L10 M10 M9 L9 N9 K10
+M12 : T   6.67c W   5.84c S   0.83c ( +1.7 L  +1.7) LCB   17.61c P 10.29% WF 11.07% PSV      12 N      12  --  M12 N11 N12 O11 O12 P11 R11
+E4  : T  11.50c W  10.24c S   1.26c ( +2.5 L  +2.5) LCB   36.06c P  7.75% WF 10.35% PSV       6 N       6  --  E4 E3 M12 N11 N12
+Q11 : T  13.03c W  11.35c S   1.68c ( +3.4 L  +3.4) LCB  198.71c P  4.45% WF 10.32% PSV       3 N       3  --  Q11 D12 E15
+R11 : T   8.30c W   7.06c S   1.24c ( +2.5 L  +2.5) LCB  260.00c P  2.46% WF 11.01% PSV       2 N       2  --  R11 D12
+D12 : T  14.78c W  13.03c S   1.75c ( +3.5 L  +3.5) LCB  260.00c P  2.88% WF 10.41% PSV       1 N       1  --  D12
 MoveNum: 86 HASH: 89A2A6C27EE12B5FCEAAE6D6CAD171D1
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -859,6 +929,22 @@ Q11 : T  13.05c W  11.30c S   1.76c ( +3.5 L  +3.5) LCB   49.23c P  4.45% WF  9.
 D12 : T   9.39c W   8.49c S   0.90c ( +1.8 L  +1.8) LCB   39.72c P  2.88% WF  9.83% PSV       5 N       5  --  D12 Q11 M12 N11
 R11 : T  14.90c W  13.02c S   1.88c ( +3.8 L  +3.8) LCB  203.56c P  2.46% WF  9.23% PSV       2 N       3  --  R11 D12 E15
 Q12 : T  14.66c W  12.78c S   1.87c ( +3.8 L  +3.8) LCB  196.09c P  2.03% WF  9.26% PSV       2 N       3  --  Q12 D12 E15
+Just after move
+: T   1.67c W   1.36c S   0.31c ( +0.6 L  +0.6) N     114  --  K8 L10 M10 M9 L9 N9 K10
+---White(^)---
+K8  : T   2.29c W   1.95c S   0.34c ( +0.7 L  +0.7) LCB   -2.19c P 42.42% WF 23.67% PSV      85 N      85  --  K8 L10 M10 M9 L9 N9 K10 M12
+D12 : T   3.24c W   2.65c S   0.59c ( +1.2 L  +1.2) LCB   -6.03c P 13.14% WF 23.98% PSV      24 N      24  --  D12 E15 G15 F15 F14 E14 C14 C15
+L10 : T -20.42c W -18.40c S  -2.02c ( -4.0 L  -4.0) LCB -260.00c P  7.29% WF 17.86% PSV       2 N       2  --  L10 K8
+F14 : T -30.79c W -27.74c S  -3.05c ( -6.1 L  -6.1) LCB -260.00c P  4.46% WF 16.67% PSV       1 N       1  --  F14
+C15 : T -24.81c W -22.38c S  -2.42c ( -4.9 L  -4.9) LCB -260.00c P  2.68% WF 17.82% PSV       0 N       1  --  C15
+Just after begun
+: T   1.67c W   1.36c S   0.31c ( +0.6 L  +0.6) N     114  --  K8 L10 M10 M9 L9 N9 K10
+---White(^)---
+K8  : T   2.29c W   1.95c S   0.34c ( +0.7 L  +0.7) LCB   -2.19c P 42.42% WF 23.67% PSV      85 N      85  --  K8 L10 M10 M9 L9 N9 K10 M12
+D12 : T   3.24c W   2.65c S   0.59c ( +1.2 L  +1.2) LCB   -6.03c P 13.14% WF 23.98% PSV      24 N      24  --  D12 E15 G15 F15 F14 E14 C14 C15
+L10 : T -20.42c W -18.40c S  -2.02c ( -4.0 L  -4.0) LCB -260.00c P  7.29% WF 17.86% PSV       2 N       2  --  L10 K8
+F14 : T -30.79c W -27.74c S  -3.05c ( -6.1 L  -6.1) LCB -260.00c P  4.46% WF 16.67% PSV       1 N       1  --  F14
+C15 : T -24.81c W -22.38c S  -2.42c ( -4.9 L  -4.9) LCB -260.00c P  2.68% WF 17.82% PSV       0 N       1  --  C15
 MoveNum: 87 HASH: 81DACF501D9C298028CFCF34664DB664
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .

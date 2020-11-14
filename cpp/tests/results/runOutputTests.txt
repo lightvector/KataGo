@@ -13791,14 +13791,14 @@ Search made move (carrying tree over) after gameover
 : T   9.42c W   8.35c S   1.07c ( +0.9 L  +0.9) N     200  --  A7 D7 A1 B4 A3 C2 A2
 ---Black(v)---
 A7  : T   9.44c W   8.38c S   1.06c ( +0.9 L  +0.9) LCB   22.68c P 56.11% WF 30.63% PSV     123 N     123  --  A7 D7 A1 B4 A3 C2 A2 C4
-B4  : T   8.15c W   6.97c S   1.18c ( +1.2 L  +1.2) LCB   21.00c P 18.89% WF 31.53% PSV      63 N      63  --  B4 F7 A7 D7 A1 A3 A4 C1
+B4  : T   8.15c W   6.97c S   1.18c ( +1.2 L  +1.2) LCB   21.00c P 18.89% WF 31.53% PSV      52 N      63  --  B4 F7 A7 D7 A1 A3 A4 C1
 A1  : T   8.59c W   8.90c S  -0.31c ( -0.6 L  -0.6) LCB   70.81c P  6.87% WF 30.81% PSV      11 N      11  --  A1 E4 D7 G5 pass pass
 pss : T 112.29c W 100.00c S  12.29c (+10.5 L +10.5) LCB  260.00c P 18.13% WF  7.03% PSV       2 N       2  --  pass
 Position was set after gameover
 : T   9.42c W   8.35c S   1.07c ( +0.9 L  +0.9) N     200  --  A7 D7 A1 B4 A3 C2 A2
 ---Black(v)---
 A7  : T   9.44c W   8.38c S   1.06c ( +0.9 L  +0.9) LCB   22.68c P 56.11% WF 30.63% PSV     123 N     123  --  A7 D7 A1 B4 A3 C2 A2 C4
-B4  : T   8.15c W   6.97c S   1.18c ( +1.2 L  +1.2) LCB   21.00c P 18.89% WF 31.53% PSV      63 N      63  --  B4 F7 A7 D7 A1 A3 A4 C1
+B4  : T   8.15c W   6.97c S   1.18c ( +1.2 L  +1.2) LCB   21.00c P 18.89% WF 31.53% PSV      52 N      63  --  B4 F7 A7 D7 A1 A3 A4 C1
 A1  : T   8.59c W   8.90c S  -0.31c ( -0.6 L  -0.6) LCB   70.81c P  6.87% WF 30.81% PSV      11 N      11  --  A1 E4 D7 G5 pass pass
 pss : T 112.29c W 100.00c S  12.29c (+10.5 L +10.5) LCB  260.00c P 18.13% WF  7.03% PSV       2 N       2  --  pass
 Recapturing ko after two passes and supposed game over (violates superko)
@@ -13837,15 +13837,129 @@ Search made move (carrying tree over)
 ---White(^)---
 G5  : T   5.04c W   4.17c S   0.87c ( +0.9 L  +0.9) LCB   -5.04c P 60.54% WF 22.85% PSV      99 N      99  --  G5 B4 C7 A7 D7 pass F7 E4
 F7  : T  17.84c W  15.96c S   1.88c ( +1.7 L  +1.7) LCB   -2.84c P 19.03% WF 31.86% PSV      76 N      76  --  F7 A1 pass C7 pass B4
-E4  : T   3.62c W   3.35c S   0.27c ( +0.2 L  +0.2) LCB  -23.28c P 14.11% WF 23.26% PSV      20 N      20  --  E4 C7 F7 pass G5 E6
+E4  : T   3.62c W   3.35c S   0.27c ( +0.2 L  +0.2) LCB  -23.28c P 14.11% WF 23.26% PSV      19 N      20  --  E4 C7 F7 pass G5 E6
 pss : T  -3.11c W   1.47c S  -4.58c ( -4.9 L  -4.9) LCB -138.91c P  6.32% WF 22.03% PSV       4 N       4  --  pass A1 G5
 Position was set
 : T  10.01c W   8.87c S   1.14c ( +1.0 L  +1.0) N     200  --  G5 B4 C7 A7 D7 pass F7
 ---White(^)---
 G5  : T   5.04c W   4.17c S   0.87c ( +0.9 L  +0.9) LCB   -5.04c P 60.54% WF 22.85% PSV      99 N      99  --  G5 B4 C7 A7 D7 pass F7 E4
 F7  : T  17.84c W  15.96c S   1.88c ( +1.7 L  +1.7) LCB   -2.84c P 19.03% WF 31.86% PSV      76 N      76  --  F7 A1 pass C7 pass B4
-E4  : T   3.62c W   3.35c S   0.27c ( +0.2 L  +0.2) LCB  -23.28c P 14.11% WF 23.26% PSV      20 N      20  --  E4 C7 F7 pass G5 E6
+E4  : T   3.62c W   3.35c S   0.27c ( +0.2 L  +0.2) LCB  -23.28c P 14.11% WF 23.26% PSV      19 N      20  --  E4 C7 F7 pass G5 E6
 pss : T  -3.11c W   1.47c S  -4.58c ( -4.9 L  -4.9) LCB -138.91c P  6.32% WF 22.03% PSV       4 N       4  --  pass A1 G5
+
+===================================================================
+Integrity of value bias, mem safety and updates
+===================================================================
+HASH: E2262B2CF009F23B5DC105C6F196A50B
+   A B C D E F G
+ 7 X . X X X X .
+ 6 X X X O O X X
+ 5 X X X X O X .
+ 4 X X X . O X X
+ 3 O O X O O O O
+ 2 O . O O . O O
+ 1 . O O O O O O
+
+
+: T  13.39c W   7.80c S   5.60c ( +0.3 L  +0.3) N     500  --  G5 A1 G7 D4 B7 C6 B4
+---Black(v)---
+G5  : T  14.37c W   8.94c S   5.43c ( +0.3 L  +0.3) LCB   24.19c P 48.28% WF 19.62% PSV     180 N     180  --  G5 A1 G7 D4 B7 C6 B4 G4
+G7  : T  14.95c W   9.43c S   5.53c ( +1.0 L  +1.0) LCB   27.47c P 33.80% WF 19.33% PSV     115 N     121  --  G7 B2 G5 E2 pass A1 B7 D4
+D4  : T  10.78c W   6.70c S   4.09c ( +0.3 L  +0.3) LCB   24.90c P  7.51% WF 21.73% PSV      70 N      91  --  D4 A1 G7 B2 G5 B7 G6 A6
+B7  : T  10.34c W   4.50c S   5.84c ( -0.7 L  -0.7) LCB   23.43c P  2.47% WF 21.95% PSV      28 N      84  --  B7 A1 pass B2 G7 pass G5 pass
+pss : T  20.71c W   7.42c S  13.29c ( +0.9 L  +0.9) LCB   48.86c P  7.93% WF 17.36% PSV      14 N      23  --  pass D4 B7 E2 G7 pass G5
+Making move
+HASH: 6DC051D31F92A1D1BB620DF0CAF357BA
+   A B C D E F G
+ 7 X . X X X X .
+ 6 X X X O O X X
+ 5 X X X X O X X
+ 4 X X X . O X X
+ 3 O O X O O O O
+ 2 O . O O . O O
+ 1 . O O O O O O
+
+
+: T  14.37c W   8.94c S   5.43c ( +0.3 L  +0.3) N     180  --  A1 G7 D4 B7 C6 B4 G4
+---White(^)---
+A1  : T  17.48c W  12.47c S   5.01c ( +0.1 L  +0.1) LCB    2.54c P 26.13% WF 22.72% PSV     103 N     103  --  A1 G7 D4 B7 C6 B4 G4
+pss : T   8.56c W   3.24c S   5.32c ( -0.3 L  -0.3) LCB   -9.33c P 49.05% WF 18.10% PSV      42 N      42  --  pass G7 A1 B7 pass D4
+B2  : T  11.96c W   5.85c S   6.11c ( +1.4 L  +1.4) LCB  -13.44c P 16.50% WF 19.86% PSV      23 N      23  --  B2 G7 E2 D4 A1 D3
+E2  : T  11.38c W  -0.53c S  11.90c ( +2.0 L  +2.0) LCB  -27.01c P  4.39% WF 19.92% PSV       6 N       7  --  E2 D4 pass G7 B7
+D4  : T   8.94c W   5.39c S   3.54c ( -1.4 L  -1.4) LCB -143.99c P  3.93% WF 19.39% PSV       4 N       4  --  D4 G7 B2
+Searching again
+HASH: 6DC051D31F92A1D1BB620DF0CAF357BA
+   A B C D E F G
+ 7 X . X X X X .
+ 6 X X X O O X X
+ 5 X X X X O X X
+ 4 X X X . O X X
+ 3 O O X O O O O
+ 2 O . O O . O O
+ 1 . O O O O O O
+
+
+: T   6.86c W   5.24c S   1.63c ( +0.4 L  +0.4) N     500  --  G7 B2 B7 A1 D4 D4 A4
+---Black(v)---
+G7  : T   7.48c W   5.76c S   1.72c ( +0.5 L  +0.5) LCB   15.79c P 38.26% WF 29.30% PSV     244 N     244  --  G7 B2 B7 A1 D4 D4 A4 E7
+D4  : T   3.40c W   2.27c S   1.14c ( +0.3 L  +0.3) LCB    9.44c P 20.91% WF 33.40% PSV     218 N     218  --  D4 B2 B7 pass G7 A4 C3 B5
+pss : T  35.05c W  33.51c S   1.55c ( +1.6 L  +1.6) LCB   89.17c P 33.13% WF 14.81% PSV      23 N      25  --  pass D4 B7 E2 G7
+B7  : T  21.70c W  11.23c S  10.47c ( -0.7 L  -0.7) LCB   87.95c P  7.69% WF 22.49% PSV       9 N      12  --  B7 B2 G7 A1 D4
+Making move
+HASH: B82C1BF7A769EAFA04F8F2BE5F80AC00
+   A B C D E F G
+ 7 X . X X X X X
+ 6 X X X O O X X
+ 5 X X X X O X X
+ 4 X X X . O X X
+ 3 O O X O O O O
+ 2 O . O O . O O
+ 1 . O O O O O O
+
+
+: T   7.48c W   5.76c S   1.72c ( +0.5 L  +0.5) N     244  --  B2 B7 A1 D4 D4 A4 E7
+---White(^)---
+B2  : T  13.77c W   9.81c S   3.96c ( +1.4 L  +1.4) LCB    0.09c P 10.57% WF 25.90% PSV     105 N     105  --  B2 B7 A1 D4 D4 A4 E7 C4
+A1  : T   5.15c W   4.85c S   0.30c ( -0.3 L  -0.3) LCB   -8.50c P 34.19% WF 20.65% PSV      52 N      79  --  A1 B7 pass D4 A7 C4 F7 E7
+D4  : T  -4.79c W  -1.78c S  -3.01c ( +0.4 L  +0.4) LCB  -27.16c P 40.99% WF 16.13% PSV      31 N      39  --  D4 B7 B2 G5 A6 A5 D7
+pss : T   8.10c W   2.23c S   5.87c ( -1.6 L  -1.6) LCB  -28.55c P  2.51% WF 22.13% PSV       5 N      14  --  pass D4 pass B7 C3 F6 C7
+E2  : T -15.18c W  -8.79c S  -6.38c ( -2.5 L  -2.5) LCB  -58.86c P 11.73% WF 15.19% PSV       5 N       6  --  E2 B7 A1 D4 F5
+Searching again
+HASH: B82C1BF7A769EAFA04F8F2BE5F80AC00
+   A B C D E F G
+ 7 X . X X X X X
+ 6 X X X O O X X
+ 5 X X X X O X X
+ 4 X X X . O X X
+ 3 O O X O O O O
+ 2 O . O O . O O
+ 1 . O O O O O O
+
+
+: T   1.86c W   1.88c S  -0.02c ( +0.1 L  +0.1) N     500  --  D4 pass B7 C3 F6 C7 A5
+---Black(v)---
+D4  : T   0.31c W   0.59c S  -0.28c ( +0.0 L  +0.0) LCB    3.42c P 38.06% WF 47.33% PSV     456 N     456  --  D4 pass B7 C3 F6 C7 A5 F7
+B7  : T  21.62c W  18.58c S   3.05c ( +1.5 L  +1.5) LCB   56.77c P 50.15% WF 26.91% PSV      31 N      31  --  B7 B2 D4 A4 C4 D5 A7 F4
+pss : T  28.75c W  23.01c S   5.74c ( +2.2 L  +2.2) LCB  111.18c P 11.79% WF 25.76% PSV       8 N      12  --  pass B2 pass A1 B7
+Making move
+HASH: B9E5043CBB8A2B2A2D9B60471550C27C
+   A B C D E F G
+ 7 X . X X X X X
+ 6 X X X O O X X
+ 5 X X X X O X X
+ 4 X X X X O X X
+ 3 O O X O O O O
+ 2 O . O O . O O
+ 1 . O O O O O O
+
+
+: T   0.31c W   0.59c S  -0.28c ( +0.0 L  +0.0) N     456  --  pass B7 C3 F6 C7 A5 F7
+---White(^)---
+pss : T   0.74c W   0.52c S   0.22c ( -0.0 L  -0.0) LCB   -3.28c P 38.49% WF 20.40% PSV     186 N     186  --  pass B7 C3 F6 C7 A5 F7 D4
+B2  : T   0.78c W   1.14c S  -0.36c ( +0.2 L  +0.2) LCB   -9.05c P 17.55% WF 20.38% PSV      85 N     100  --  B2 B7 A4 C3 B5 A5 F4
+B7  : T  -0.47c W  -0.54c S   0.07c ( +0.2 L  +0.2) LCB   -6.06c P 18.32% WF 19.71% PSV      68 N      68  --  B7 C3 A5 B5 F4 E7 E2
+A1  : T   0.88c W   1.86c S  -0.98c ( -0.6 L  -0.6) LCB   -8.13c P 13.41% WF 20.41% PSV      65 N      65  --  A1 B7 A7 B7 G4 B6
+E2  : T  -1.96c W   0.08c S  -2.04c ( +0.8 L  +0.8) LCB  -12.64c P 12.24% WF 19.11% PSV      36 N      36  --  E2 B7 G6 F4 D4 D7 E7 F5
 
 Running training write tests
 seedBase: testtrainingwrite-tt

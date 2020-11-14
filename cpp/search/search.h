@@ -13,6 +13,7 @@
 #include "../neuralnet/nneval.h"
 #include "../search/analysisdata.h"
 #include "../search/mutexpool.h"
+#include "../search/subtreevaluebiastable.h"
 #include "../search/searchparams.h"
 #include "../search/searchprint.h"
 #include "../search/timecontrols.h"
@@ -79,6 +80,7 @@ struct SearchNode {
   std::shared_ptr<NNOutput> nnOutput;
   uint32_t nnOutputAge;
 
+  SearchNode* parent;
   SearchNode** children;
   uint16_t numChildren;
   uint16_t childrenCapacity;
@@ -89,8 +91,16 @@ struct SearchNode {
   //Also protected under statsLock
   int32_t virtualLosses;
 
+  //Protected under the entryLock in subtreeValueBiasTableEntry
+  //Used only if subtreeValueBiasTableEntry is not nullptr.
+  //During search, subtreeValueBiasTableEntry itself is set upon creation of the node and remains constant
+  //thereafter, making it safe to access without synchronization.
+  double lastSubtreeValueBiasDeltaSum;
+  double lastSubtreeValueBiasWeight;
+  std::shared_ptr<SubtreeValueBiasEntry> subtreeValueBiasTableEntry;
+
   //--------------------------------------------------------------------------------
-  SearchNode(Search& search, Player prevPla, Rand& rand, Loc prevMoveLoc);
+  SearchNode(Search& search, Player prevPla, Rand& rand, Loc prevMoveLoc, SearchNode* parent);
   ~SearchNode();
 
   SearchNode(const SearchNode&) = delete;
@@ -187,6 +197,8 @@ struct Search {
   int nnYLen;
   int policySize;
   Rand nonSearchRand; //only for use not in search, since rand isn't threadsafe
+
+  SubtreeValueBiasTable* subtreeValueBiasTable;
 
   //Note - randSeed controls a few things in the search, but a lot of the randomness actually comes from
   //random symmetries of the neural net evaluations, see nneval.h
@@ -392,6 +404,7 @@ private:
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot);
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot);
   void recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, bool isRoot);
+  void recursivelyRemoveSubtreeValueBiasBeforeDeleteSynchronous(SearchNode* node);
 
   void maybeRecomputeNormToTApproxTable();
   double getNormToTApproxForLCB(int64_t numVisits) const;
@@ -402,7 +415,7 @@ private:
     bool isRoot
   ) const;
 
-  void addLeafValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, double lead, int32_t virtualLossesToSubtract);
+  void addLeafValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, double lead, int32_t virtualLossesToSubtract, bool isTerminal);
   void addCurentNNOutputAsLeafValue(SearchNode& node, int32_t virtualLossesToSubtract);
 
   void maybeRecomputeExistingNNOutput(

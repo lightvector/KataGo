@@ -20,7 +20,8 @@ struct SearchParams {
   double cpuctExplorationBase; //Scale of number of visits at which log behavior starts having an effect
   double fpuReductionMax;   //Max amount to reduce fpu value for unexplore children
   double fpuLossProp; //Scale fpu this proportion of the way towards assuming a move is a loss.
-  bool fpuUseParentAverage; //Use parent average value for fpu rather than parent nn value.
+  double fpuParentWeight; //For fpu, 0 = use parent average, 1 = use parent nn value, interpolates between.
+  double parentValueWeightFactor; //Scale the parent weight by this much relative to children in mcts
   double valueWeightExponent; //Amount to apply a downweighting of children with very bad values relative to good ones
 
   //Root parameters
@@ -61,6 +62,11 @@ struct SearchParams {
 
   float nnPolicyTemperature; //Scale neural net policy probabilities by this temperature, applies everywhere in the tree
   bool antiMirror; //Enable anti-mirroring logic
+
+  double subtreeValueBiasFactor; //Dynamically adjust neural net utilties based on empirical stats about their errors in search
+  int32_t subtreeValueBiasTableNumShards; //Number of shards for subtreeValueBiasFactor for initial hash lookup and mutexing
+  double subtreeValueBiasFreeProp; //When a node is no longer part of the relevant search tree, only decay this proportion of the weight.
+  double subtreeValueBiasWeightExponent; //When computing empiricial bias, weight subtree results by childvisits to this power.
 
   //Threading-related
   uint32_t mutexPoolSize; //Size of mutex pool for synchronizing access to all search nodes
