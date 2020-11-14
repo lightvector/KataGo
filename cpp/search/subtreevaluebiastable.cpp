@@ -8,6 +8,7 @@ static Hash128 ZOBRIST_LOCAL_PATTERN[NUM_BOARD_COLORS][5][5];
 static Hash128 ZOBRIST_ATARI[5][5];
 static Hash128 ZOBRIST_PLA[NUM_BOARD_COLORS];
 static Hash128 ZOBRIST_MOVE_LOCS[Board::MAX_ARR_SIZE][2];
+static Hash128 ZOBRIST_KO_BAN[Board::MAX_ARR_SIZE];
 
 static void initIfNeeded() {
   if(isInited)
@@ -43,6 +44,13 @@ static void initIfNeeded() {
       uint64_t h1 = rand.nextUInt64();
       ZOBRIST_MOVE_LOCS[i][j] = Hash128(h0,h1);
     }
+  }
+
+  rand.init("Reseed ValueBiasTable zobrist so that zobrists don't change when Board::MAX_ARR_SIZE changes");
+  for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
+    uint64_t h0 = rand.nextUInt64();
+    uint64_t h1 = rand.nextUInt64();
+    ZOBRIST_KO_BAN[i] = Hash128(h0,h1);
   }
   isInited = true;
 }
@@ -92,6 +100,9 @@ std::shared_ptr<SubtreeValueBiasEntry> SubtreeValueBiasTable::get(Player pla, Lo
           hash ^= ZOBRIST_ATARI[dy+2][dx+2];
       }
     }
+  }
+  if(board.ko_loc != Board::NULL_LOC) {
+    hash ^= ZOBRIST_KO_BAN[board.ko_loc];
   }
 
   auto subMapIdx = hash.hash0 % entries.size();
