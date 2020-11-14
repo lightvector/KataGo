@@ -363,7 +363,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     bool testPolicySurpriseWeight,
     bool testValueSurpriseWeight,
     bool testHint,
-    bool testResign
+    bool testResign,
+    bool testScaleDataWeight
   ) {
     nnEval->clearCache();
     nnEval->clearStats();
@@ -439,6 +440,9 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       playSettings.resignThreshold = -0.9;
       playSettings.resignConsecTurns = 3;
     }
+    if(testScaleDataWeight) {
+      playSettings.scaleDataWeight = 4.0;
+    }
 
     playSettings.forSelfPlay = !testResign;
 
@@ -491,23 +495,22 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData,false,true);
       cout << endl;
     }
-    
+
     delete gameData;
     delete bot;
     cout << endl;
   };
 
-
-  run("testasym!",Rules::getTrompTaylorish(),true,false,false,false,false,false);
-  run("test lead!",Rules::getTrompTaylorish(),false,true,false,false,false,false);
+  run("testasym!",Rules::getTrompTaylorish(),true,false,false,false,false,false,false);
+  run("test lead!",Rules::getTrompTaylorish(),false,true,false,false,false,false,false);
   Rules r = Rules::getTrompTaylorish();
   r.hasButton = true;
-  run("test lead int button!",r,false,true,false,false,false,false);
-  run("test surprise!",Rules::getTrompTaylorish(),false,false,true,false,false,false);
-  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true,false,false);
-  run("test hint!",Rules::getTrompTaylorish(),false,false,false,false,true,false);
-  run("test resign!",Rules::getTrompTaylorish(),false,false,false,false,false,true);
-
+  run("test lead int button!",r,false,true,false,false,false,false,false);
+  run("test surprise!",Rules::getTrompTaylorish(),false,false,true,false,false,false,false);
+  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true,false,false,false);
+  run("test hint!",Rules::getTrompTaylorish(),false,false,false,false,true,false,false);
+  run("test resign!",Rules::getTrompTaylorish(),false,false,false,false,false,true,false);
+  run("test scale data weight!",Rules::getTrompTaylorish(),false,false,false,false,false,false,true);
 
   //Test lead specifically on a final position
   auto testLeadOnBoard = [&](

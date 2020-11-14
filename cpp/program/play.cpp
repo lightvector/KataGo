@@ -1310,7 +1310,7 @@ FinishedGameData* Play::runGame(
   const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
   std::function<NNEvaluator*()> checkForNewNNEval,
-  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove 
+  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
 ) {
   Search* botB;
   Search* botW;
@@ -1821,6 +1821,13 @@ FinishedGameData* Play::runGame(
       }
     }
 
+    if(playSettings.scaleDataWeight != 1.0) {
+      int numWeights = gameData->targetWeightByTurn.size();
+      for(int i = 0; i<numWeights; i++) {
+        gameData->targetWeightByTurn[i] = (float)(playSettings.scaleDataWeight * gameData->targetWeightByTurn[i]);
+      }
+    }
+
     //Also evaluate all the side positions as well that we queued up to be searched
     NNResultBuf nnResultBuf;
     for(int i = 0; i<sidePositionsToSearch.size(); i++) {
@@ -2227,7 +2234,7 @@ FinishedGameData* GameRunner::runGame(
   Logger& logger,
   vector<std::atomic<bool>*>& stopConditions,
   std::function<NNEvaluator*()> checkForNewNNEval,
-  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove 
+  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
 ) {
   MatchPairer::BotSpec botSpecB = bSpecB;
   MatchPairer::BotSpec botSpecW = bSpecW;
