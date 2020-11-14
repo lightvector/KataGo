@@ -29,6 +29,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool printOwnership;
   bool printRootNNValues;
   bool printPolicy;
+  bool printDirichletShape;
   bool printScoreNow;
   bool printRootEndingBonus;
   bool printLead;
@@ -52,6 +53,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::SwitchArg printOwnershipArg("","print-ownership","Print ownership");
     TCLAP::SwitchArg printRootNNValuesArg("","print-root-nn-values","Print root nn values");
     TCLAP::SwitchArg printPolicyArg("","print-policy","Print policy");
+    TCLAP::SwitchArg printDirichletShapeArg("","print-dirichlet-shape","Print dirichlet shape");
     TCLAP::SwitchArg printScoreNowArg("","print-score-now","Print score now");
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
     TCLAP::SwitchArg printLeadArg("","print-lead","Compute and print lead");
@@ -74,6 +76,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printOwnershipArg);
     cmd.add(printRootNNValuesArg);
     cmd.add(printPolicyArg);
+    cmd.add(printDirichletShapeArg);
     cmd.add(printScoreNowArg);
     cmd.add(printRootEndingBonusArg);
     cmd.add(printLeadArg);
@@ -94,6 +97,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     printOwnership = printOwnershipArg.getValue();
     printRootNNValues = printRootNNValuesArg.getValue();
     printPolicy = printPolicyArg.getValue();
+    printDirichletShape = printDirichletShapeArg.getValue();
     printScoreNow = printScoreNowArg.getValue();
     printRootEndingBonus = printRootEndingBonusArg.getValue();
     printLead = printLeadArg.getValue();
@@ -324,6 +328,30 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
       }
       double prob = policyProbs[NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen)];
       cout << "Pass " << Global::strprintf("%5.2f",prob*100) << endl;
+    }
+  }
+
+  if(printDirichletShape) {
+    if(search->rootNode->nnOutput != nullptr) {
+      NNOutput* nnOutput = search->rootNode->nnOutput.get();
+      float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+      double alphaDistr[NNPos::MAX_NN_POLICY_SIZE];
+      int policySize = nnOutput->nnXLen * nnOutput->nnYLen;
+      Search::computeDirichletAlphaDistribution(policySize, policyProbs, alphaDistr);
+      cout << "Dirichlet alphas with 10.83 total concentration: " << endl;
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+          double alpha = alphaDistr[pos];
+          if(alpha < 0)
+            cout << "  -  " << " ";
+          else
+            cout << Global::strprintf("%5.4f",alpha * 10.83) << " ";
+        }
+        cout << endl;
+      }
+      double alpha = alphaDistr[NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen)];
+      cout << "Pass " << Global::strprintf("%5.2f",alpha * 10.83) << endl;
     }
   }
 
