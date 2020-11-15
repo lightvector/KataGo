@@ -74,19 +74,19 @@ Therefore, KataGo tries to *shape* the Dirichlet noise to increase the likelihoo
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/doubleladderbreakoldpolicy.png" height="350"/></td></tr>
-<tr><td><sub>Blind spot for an [older 40-block KataGo net](https://github.com/lightvector/KataGo/releases/tag/v1.4.0), policy prior. The correct move L13 has only an 0.008% policy prior on this evaluation, but is still higher than almost all arbitrary moves on the board. (Every unlabeled move is lower in policy prior than it).
+<tr><td><sub>Blind spot for an <a href="https://github.com/lightvector/KataGo/releases/tag/v1.4.0">older 40-block KataGo net</a>, policy prior. The correct move L13 has only an 0.008% policy prior on this evaluation, but is still higher than almost all arbitrary moves on the board. (Every unlabeled move is lower in policy prior than it).
 </sub></tr></td>
 </table>
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/flyingdaggerfirstlineoldpolicy.png" height="350"/></td></tr>
-<tr><td><sub>Blind spot for an [older 40-block KataGo net](https://github.com/lightvector/KataGo/releases/tag/v1.4.0), policy prior. The correct move M19 has only an 0.11% policy prior on this evaluation, but is still higher than almost all arbitrary moves on the board. (Every unlabeled move is lower in policy prior than it).
+<tr><td><sub>Blind spot for an <a href="https://github.com/lightvector/KataGo/releases/tag/v1.4.0">older 40-block KataGo net</a>, policy prior. The correct move M19 has only an 0.11% policy prior on this evaluation, but is still higher than almost all arbitrary moves on the board. (Every unlabeled move is lower in policy prior than it).
 </sub></tr></td>
 </table>
 
 <table class="image">
 <tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/distantprobeoldpolicy.png" height="350"/></td></tr>
-<tr><td><sub>Blind spot for an [older 40-block KataGo net](https://github.com/lightvector/KataGo/releases/tag/v1.4.0), policy prior. The correct move O5 has only an 0.03% policy prior on this evaluation, but is still higher than almost all arbitrary moves on the board. (Every unlabeled move is lower in policy prior than it).
+<tr><td><sub>Blind spot for an <a href="https://github.com/lightvector/KataGo/releases/tag/v1.4.0">older 40-block KataGo net</a>, policy prior. The correct move O5 has only an 0.03% policy prior on this evaluation, but is still higher than almost all arbitrary moves on the board. (Every unlabeled move is lower in policy prior than it).
 </sub></tr></td>
 </table>
 
