@@ -1,9 +1,9 @@
-## Other Methods Implemented in KataGo
+# Other Methods Implemented in KataGo
 
 This is a page to document some additional methods and techniques implemented in KataGo, such as some things not in (the latest version) of the [arXiv paper](https://arxiv.org/abs/1902.10565), or that were invented or implemented or discovered by KataGo later, or that were drawn from other research or literature but not documented elsewhere in KataGo's paper or materials.
 
 
-### Training on Multiple Board Sizes via Masking
+## Training on Multiple Board Sizes via Masking
 <sub>(This method has been used in KataGo through all of its runs. It was presented in an early draft of its paper but was cut later for length limitations).</sub>
 
 KataGo was possibly the first superhuman selfplay-learning Go bot capable of playing on a wide range of board sizes using the same neural net. It trains the same neural net on all board sizes from 9x9 to 19x19 and reaches superhuman levels on all of them together. Although actual ML applications are often more flexible, in a lot of deep learning literature tutorials and many real ML training pipelines, it's common to require or to preprocess all inputs to be the same size. However, with the right method, it's straightforward to train a neural net that can handle inputs of variable size, even within a single batch.
@@ -30,7 +30,7 @@ The result of the above is that that KataGo is able to train a single net on man
 Outside of Go and board games, the suitability of this method may of course greatly depend on the application. For example, downsampling to make input sizes match might be more suitable than directly mixing sizes via the above method for an image processing application where different-sized images have intrinsic different levels of detail resolution, since variable resolution means the low-level task differs. Whereas in Go, the local tactics always behave the same way per "pixel" of the board. Using the above method might also require some care in the construction of the final output head(s) depending on the task. But regardless, size-independent net architectures and mixing sizes via masking seem like useful tricks to have in one's toolbox.
 
 
-### Fixup Initialization
+## Fixup Initialization
 <sub>(This method was used starting in "g170", KataGo's January 2020 to June 2020 run).</sub>
 
 KataGo has been successfully training *without* batch normalization or any other normalization layers by using Fixup Initialization, a simple new technique published in ICLR 2019: https://arxiv.org/abs/1901.09321 (Zhang, Dauphin, and Ma, ICLR 2019).
@@ -61,7 +61,7 @@ Dropping batch normalization has resulted in some very nice advantages:
 
 
 
-### Shaped Dirichlet Noise
+## Shaped Dirichlet Noise
 <sub>(This method was used starting in "g170", KataGo's January 2020 to June 2020 run).</sub>
 
 Although this method is used in KataGo, due to heavy limits on testing resources, it has *not* been validated as a measurable improvement with controlled runs. The evidence for it should be considered merely suggestive, so this section is just here to describe the idea and intuition. However, to the extent that Dirichlet noise is useful, this method seems to have a much greater-than-baseline chance of noising true blind-spot moves the vast majority of the time, and therefore is included in KataGo's recent runs anyways.
@@ -92,7 +92,7 @@ Therefore, KataGo tries to *shape* the Dirichlet noise to increase the likelihoo
 
 Note that the ability of KataGo's to discriminate between moves even in such extreme realms of unlikelihood, is improved by policy target pruning as described in [KataGo's paper](https://arxiv.org/abs/1902.10565). Without policy target pruning, moves with policy prior like 0.008% might be obscured by the haze of probability mass assigned uniformly to all moves in the neural net's attempt to predict the background of noise playouts, which in turn would probably make this technique of shaped Dirichlet noise less effective.
 
-### Root Policy Softmax Temperature
+## Root Policy Softmax Temperature
 <sub>(This method was used starting in "g170", KataGo's January 2020 to June 2020 run).</sub>
 
 KataGo uses the same technique as [SAI used](https://github.com/sai-dev/sai/issues/8) needed to stabilize some of its early runs and improve exploration and counter the above dynamic - which is to use a softmax temperature slightly above 1 applied to the policy prior before adding Dirichlet noise or using the policy prior in the search. In KataGo's g170 run, this temperature was 1.25 for the early game, decaying exponentially to 1.1 for the rest of the game with a halflife in turns of the board dimensions (e.g. 9, or 19). The scaling is applied only at the root node.
@@ -102,7 +102,7 @@ Viewed in logit space, this is equivalent to scaling all logits towards 0 by a f
 The motivation for this is to observe that in the baseline AlphaZero algorithm, due to the dynamics of the PUCT formula, there is a slight tendency for the most-preferred move in a position to become yet more strongly preferred, even when that move is valued only equally to its alternatives. If one runs an MCTS search with a given policy prior but where the utility value of a move is equal and fixed to that of the best other moves, due to the +1 in the denominator of the formula and the discretization of the search, the MCTS visit distribution will generally be *sharper* than the prior, despite zero evidence have been obtained by the search that the move is better than its alternatives. Additionally, in early opening positions in games like Go, the policy sometimes becomes opinionated a little too quickly between nearly-equal moves to explore well. It may be that the search disfavors a given move due to consistently undervaluing a tactic, so the entire training window fills with data that reinforces that, so the policy for the move converges to nearly zero, preventing exploration of that move and the chance to learn otherwise, even if the difference is slight. (Dirichlet noise helps, but alone doesn't prevent this). Having a restoring force pushing the policy back towards uniform among moves that are extremely similarly-valued improves exploration, so here too policy softmax temperature is helpful.
 
 
-### Policy Surprise Weighting
+## Policy Surprise Weighting
 <sub>(This method was used starting in "g170", KataGo's January 2020 to June 2020 run).</sub>
 
 KataGo overweights the frequency of training samples where the policy training target was "highly surprising" relative to the policy prior. Conveniently, in the process of generating self-play training data we can know exactly how surprising one of the most recent neural nets would have found that data since we can just look at the policy prior on the root node. This method is one of the larger improvements in KataGo's training between its g170 run and earlier runs.
@@ -120,7 +120,7 @@ Some additional minor notes:
 * Additionally, in KataGo we also add a small weight for surprising *utility value* samples, rather than just surprising *policy* samples, but this is much more experimental and unproven.
 
 
-### Subtree Value Bias Correction
+## Subtree Value Bias Correction
 <sub>(This method was discovered a few months after the end of KataGo's "g170" run).</sub>
 
 As of late 2020, KataGo has tentatively found a heuristic method of improving MCTS search evaluation accuracy in Go. Fascinatingly, it is of the same flavor as older methods like RAVE in classic MCTS bots, or the history heuristic in alpha-beta bots, or pattern-based logic in Go bots between 2010 and 2015. Many of these methods have fallen out of use in post-AlphaZero MCTS due to being no longer helpful and often harmful, intuitively due to the fact that compared to a neural net that actually "understands" the board position, such blind heuristics are vastly inferior. Possibly the reason why this method could still have value is because rather than attempting to provide an absolute estimate of utility value, it instead focuses on online-learning of some correlated *errors*, or *bias* in the value from the neural net at nodes *relative* to values from deeper search in the node's subtree.
