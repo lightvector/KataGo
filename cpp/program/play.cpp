@@ -279,8 +279,11 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     logger.write("Found " + Global::uint64ToString(files.size()) + " sgf files");
     logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
     std::set<Hash128> uniqueHashes;
-    std::function<void(Sgf::PositionSample&, const BoardHistory&)> posHandler = [startPosesLoadProb,this](Sgf::PositionSample& posSample, const BoardHistory& hist) {
+    std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler = [startPosesLoadProb,this](
+      Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
+    ) {
       (void)hist;
+      (void)comments;
       if(rand.nextBool(startPosesLoadProb))
         startPoses.push_back(posSample);
     };

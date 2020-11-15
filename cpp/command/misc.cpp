@@ -661,9 +661,10 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
 
   int64_t numKept = 0;
   std::set<Hash128> uniqueHashes;
-  std::function<void(Sgf::PositionSample&, const BoardHistory&)> posHandler =
-    [sampleProb,&toWriteQueue,turnWeightLambda,&numKept,&seedRand](Sgf::PositionSample& posSample, const BoardHistory& hist) {
+  std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler =
+    [sampleProb,&toWriteQueue,turnWeightLambda,&numKept,&seedRand](Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments) {
     (void)hist;
+    (void)comments;
     if(seedRand.nextBool(sampleProb)) {
       Sgf::PositionSample posSampleToWrite = posSample;
       int64_t startTurn = posSampleToWrite.initialTurnNumber + (int64_t)posSampleToWrite.moves.size();
@@ -707,10 +708,12 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
 
 //We want surprising moves that turned out not poorly
 //The more surprising, the more we will weight it
-static double surpriseWeight(double policyProb, Rand& rand) {
+static double surpriseWeight(double policyProb, Rand& rand, bool markedAsHintPos) {
   if(policyProb < 0)
     return 0;
   double weight = 0.15 / (policyProb + 0.03) - 0.5;
+  if(markedAsHintPos && weight < 0.5)
+    weight = 0.5;
 
   if(weight <= 0)
     return 0;
@@ -882,14 +885,49 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
   // ---------------------------------------------------------------------------------------------------
 
-  auto expensiveEvaluateMove = [&toWriteQueue,&logger,&gameMode](
+  auto maybeGetValuesAfterMove = [&logger](
+    Search* search, Loc moveLoc,
+    Player nextPla, const Board& board, const BoardHistory& hist,
+    bool quickSearch,
+    ReportedSearchValues& values
+  ) {
+    Board newBoard = board;
+    BoardHistory newHist = hist;
+    Player newNextPla = nextPla;
+    if(!hist.isLegal(newBoard,moveLoc,newNextPla))
+      return false;
+    newHist.makeBoardMoveAssumeLegal(newBoard,moveLoc,newNextPla,NULL);
+    newNextPla = getOpp(newNextPla);
+
+    search->setPosition(newNextPla,newBoard,newHist);
+
+    if(quickSearch) {
+      SearchParams oldSearchParams = search->searchParams;
+      SearchParams newSearchParams = oldSearchParams;
+      newSearchParams.maxVisits = 1 + oldSearchParams.maxVisits / 10;
+      newSearchParams.maxPlayouts = 1 + oldSearchParams.maxPlayouts / 10;
+      search->setParamsNoClearing(newSearchParams);
+      search->runWholeSearch(newNextPla,logger,shouldStop);
+      search->setParamsNoClearing(oldSearchParams);
+    }
+    else {
+      search->runWholeSearch(newNextPla,logger,shouldStop);
+    }
+
+    if(shouldStop.load(std::memory_order_acquire))
+      return false;
+    values = search->getRootValuesRequireSuccess();
+    return true;
+  };
+
+  auto expensiveEvaluateMove = [&toWriteQueue,&logger,&maybeGetValuesAfterMove](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
-    const Sgf::PositionSample& sample
+    const Sgf::PositionSample& sample, bool markedAsHintPos
   ) {
     //cout << "EXPENSIVE" << endl;
-    //Do a more expensive search before and after
-    search->setPosition(nextPla,board,hist);
+
+    //Do a more expensive search
     search->runWholeSearch(nextPla,logger,shouldStop);
     if(shouldStop.load(std::memory_order_acquire))
       return;
@@ -913,58 +951,37 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     //Bot doesn't see the move?
     else if(moveLoc != missedLoc) {
 
-      ReportedSearchValues moveValues;
-      {
-        Board newBoard = board;
-        BoardHistory newHist = hist;
-        Player newNextPla = nextPla;
-        if(!hist.isLegal(newBoard,moveLoc,newNextPla))
-          return;
-        newHist.makeBoardMoveAssumeLegal(newBoard,moveLoc,newNextPla,NULL);
-        newNextPla = getOpp(newNextPla);
+      //If marked as a hint pos, always trust that it should be better and add it.
+      bool shouldWriteMove = markedAsHintPos;
 
-        search->setPosition(newNextPla,newBoard,newHist);
-        search->runWholeSearch(newNextPla,logger,shouldStop);
-        if(shouldStop.load(std::memory_order_acquire))
+      if(!shouldWriteMove) {
+        ReportedSearchValues moveValues;
+        if(!maybeGetValuesAfterMove(search,moveLoc,nextPla,board,hist,false,moveValues))
           return;
-        moveValues = search->getRootValuesRequireSuccess();
-
         // ostringstream out0;
         // out0 << "BOT MOVE " << Location::toString(moveLoc,board) << endl;
         // search->printTree(out0, search->rootNode, PrintTreeOptions().maxDepth(0),perspective);
         // cout << out0.str() << endl;
-      }
 
-      ReportedSearchValues missedValues;
-      {
-        Board newBoard = board;
-        BoardHistory newHist = hist;
-        Player newNextPla = nextPla;
-        if(!hist.isLegal(newBoard,missedLoc,newNextPla))
+        ReportedSearchValues missedValues;
+        if(!maybeGetValuesAfterMove(search,missedLoc,nextPla,board,hist,false,missedValues))
           return;
-        newHist.makeBoardMoveAssumeLegal(newBoard,missedLoc,newNextPla,NULL);
-        newNextPla = getOpp(newNextPla);
-
-        search->setPosition(newNextPla,newBoard,newHist);
-        search->runWholeSearch(newNextPla,logger,shouldStop);
-        if(shouldStop.load(std::memory_order_acquire))
-          return;
-        missedValues = search->getRootValuesRequireSuccess();
-
         // ostringstream out0;
         // out0 << "SGF MOVE " << Location::toString(missedLoc,board) << endl;
         // search->printTree(out0, search->rootNode, PrintTreeOptions().maxDepth(0),perspective);
         // cout << out0.str() << endl;
+
+        //If the move is this minimum amount better, then record this position as a hint
+        //Otherwise the bot actually thinks the move isn't better, so we reject it as an invalid hint.
+        const double utilityThreshold = 0.005;
+        ReportedSearchValues postValues = search->getRootValuesRequireSuccess();
+        if((nextPla == P_WHITE && missedValues.utility > moveValues.utility + utilityThreshold) ||
+           (nextPla == P_BLACK && missedValues.utility < moveValues.utility - utilityThreshold)) {
+          shouldWriteMove = true;
+        }
       }
 
-      //If the move is this minimum amount better, then record this position as a hint
-      const double utilityThreshold = 0.005;
-      ReportedSearchValues postValues = search->getRootValuesRequireSuccess();
-      if((nextPla == P_WHITE && missedValues.utility > moveValues.utility + utilityThreshold) ||
-         (nextPla == P_BLACK && missedValues.utility < moveValues.utility - utilityThreshold)) {
-
-        // cout << "YAAAAAAY" << endl;
-
+      if(shouldWriteMove) {
         //Moves that the bot didn't see get written out more
         Sgf::PositionSample sampleToWrite = sample;
         sampleToWrite.weight = sampleToWrite.weight * 2.0 + 1.0;
@@ -1098,7 +1115,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       //cout << m << endl;
       //Look for surprising moves that turned out not poorly
       //The more surprising, the more times we will write it out.
-      double weight = surpriseWeight(policyPriors[m],rand);
+      double weight = surpriseWeight(policyPriors[m],rand,false);
       if(weight <= 0)
         continue;
 
@@ -1130,7 +1147,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
       expensiveEvaluateMove(
         search, moves[m].loc, nextPlas[m], boards[m], hists[m],
-        sample
+        sample, false
       );
     }
   };
@@ -1138,7 +1155,9 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   // ---------------------------------------------------------------------------------------------------
   //TREE MODE
 
-  auto treePosHandler = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi](Search* search, Rand& rand, const BoardHistory& treeHist) {
+  auto treePosHandler = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi](
+    Search* search, Rand& rand, const BoardHistory& treeHist, bool markedAsHintPos
+  ) {
     if(shouldStop.load(std::memory_order_acquire))
       return;
     int moveHistorySize = treeHist.moveHistory.size();
@@ -1221,14 +1240,14 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     int pos = NNPos::locToPos(sample.hintLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
     double policyProb = nnOutput->policyProbs[pos];
 
-    double weight = surpriseWeight(policyProb,rand);
+    double weight = surpriseWeight(policyProb,rand,markedAsHintPos);
     if(weight <= 0)
       return;
     sample.weight = weight;
 
     expensiveEvaluateMove(
       search, sample.hintLoc, pla, board, hist,
-      sample
+      sample, markedAsHintPos
     );
   };
 
@@ -1312,7 +1331,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   //In tree mode, we just explore everything in the sgf
   else if(treeMode) {
     const int64_t maxPosQueueSize = 1024;
-    ThreadSafeQueue<BoardHistory*> posQueue(maxPosQueueSize);
+    ThreadSafeQueue<std::pair<BoardHistory*,bool>> posQueue(maxPosQueueSize);
     std::atomic<int64_t> numPosesBegun(0);
     std::atomic<int64_t> numPosesDone(0);
 
@@ -1325,15 +1344,18 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
         if(shouldStop.load(std::memory_order_acquire))
           break;
 
-        BoardHistory* hist;
-        bool success = posQueue.waitPop(hist);
+        std::pair<BoardHistory*,bool> p;
+        bool success = posQueue.waitPop(p);
         if(!success)
           break;
+        BoardHistory* hist = p.first;
+        bool markedAsHintPos = p.second;
+
         int64_t numBegun = 1+numPosesBegun.fetch_add(1);
         if(numBegun % 20 == 0)
           logger.write("Begun " + Global::int64ToString(numBegun) + " poses");
 
-        treePosHandler(search, rand, *hist);
+        treePosHandler(search, rand, *hist, markedAsHintPos);
 
         int64_t numDone = 1+numPosesDone.fetch_add(1);
         if(numDone % 20 == 0)
@@ -1370,10 +1392,10 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
       logger.write("Starting " + fileName);
       sgf->iterAllUniquePositions(
-        uniqueHashes, [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist) {
+        uniqueHashes, [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
           //Doesn't have enough history, doesn't have hintloc the way we want it
           (void)unusedSample;
-          posQueue.waitPush(new BoardHistory(hist));
+          posQueue.waitPush(std::make_pair(new BoardHistory(hist),comments.size() > 0 && (Global::trim(comments) == "%HINT%")));
         }
       );
       delete sgf;

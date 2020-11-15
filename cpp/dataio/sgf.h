@@ -87,7 +87,7 @@ struct Sgf {
   //May raise an exception on illegal moves or other SGF issues, only partially appending things on to the boards and hists.
   void loadAllUniquePositions(std::set<Hash128>& uniqueHashes, std::vector<PositionSample>& samples) const;
   //f is allowed to mutate and consume sample.
-  void iterAllUniquePositions(std::set<Hash128>& uniqueHashes, std::function<void(PositionSample&,const BoardHistory&)> f) const;
+  void iterAllUniquePositions(std::set<Hash128>& uniqueHashes, std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f) const;
 
   static std::set<Hash128> readExcludes(const std::vector<std::string>& files);
 
@@ -102,14 +102,15 @@ struct Sgf {
     int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
     std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
-    std::function<void(PositionSample&,const BoardHistory&)> f
+    std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;
   void samplePositionIfUniqueHelper(
     Board& board, BoardHistory& hist, Player nextPla,
     PositionSample& sampleBuf,
     int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
-    std::function<void(PositionSample&,const BoardHistory&)> f
+    const std::string& comments,
+    std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;
 };
 
