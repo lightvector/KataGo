@@ -1,6 +1,6 @@
 # Other Methods Implemented in KataGo
 
-This is a page to document some additional methods and techniques implemented in KataGo, such as some things not in (the latest version) of the [arXiv paper](https://arxiv.org/abs/1902.10565), or that were invented or implemented or discovered by KataGo later, or that were drawn from other research or literature but not documented elsewhere in KataGo's paper or materials.
+This is a page to document some additional methods and techniques implemented in KataGo, such as some things not in (the latest version of) the [arXiv paper](https://arxiv.org/abs/1902.10565), or that were invented or implemented or discovered by KataGo later, or that were drawn from other research or literature but not documented elsewhere in KataGo's paper or materials.
 
 
 ## Training on Multiple Board Sizes via Masking
