@@ -21,7 +21,7 @@ With the net non-hardcoded to any size, the second part is how to perform mixed-
 Whenever a convolution "peers over the edge" of its input, it will see only zeros, exactly the same as it would see with a zero-padding convolution if the tensor were properly sized to that entry. After operations like convolution, the padding space may no longer be all zero because the convolution will introduce nonzero values into the excess space. This can be solved simply by masking those entries back to 0, as illustrated below. Most nets add various kinds of scaling or normalization or bias layers between convolutional layers, and the masking can simply be included with that operation (fusing it into the same GPU kernel, if performance is desired) making it very, very cheap.
 
 <table class="image">
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/doc/maskconv.png" height="350"/></td></tr>
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/maskconv.png" height="350"/></td></tr>
 <tr><td><sub>Convolution produces values within oversized tensor area. Top: The next convolution corrupts the final blue square. Bottom: Masking ensures a final result independent of tensor size.</sub></tr></td>
 </table>
 
@@ -73,19 +73,19 @@ When examining positions by hand, one finds that the vast majority of the time, 
 Therefore, KataGo tries to *shape* the Dirichlet noise to increase the likelihood that such moves are noised and explored. Using an arbitrary formula based on the log of the policy prior (see [the code](https://github.com/lightvector/KataGo/search?q=Search%3A%3AaddDirichletNoise&type=code) for details), KataGo distributes only half of the total alpha uniformly, and concentrates the other half of the alpha on the smaller subset of moves that still have a policy much higher in logits than most other legal moves.
 
 <table class="image">
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/doc/doubleladderbreakoldpolicy.png" height="350"/></td></tr>
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/doubleladderbreakoldpolicy.png" height="350"/></td></tr>
 <tr><td><sub>Blind spot for an [older 40-block KataGo net](https://github.com/lightvector/KataGo/releases/tag/v1.4.0), policy prior. The correct move L13 has only an 0.008% policy prior on this evaluation, but is still higher than almost all arbitrary moves on the board. (Every unlabeled move is lower in policy prior than it).
 </sub></tr></td>
 </table>
 
 <table class="image">
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/doc/flyingdaggerfirstlineoldpolicy.png" height="350"/></td></tr>
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/flyingdaggerfirstlineoldpolicy.png" height="350"/></td></tr>
 <tr><td><sub>Blind spot for an [older 40-block KataGo net](https://github.com/lightvector/KataGo/releases/tag/v1.4.0), policy prior. The correct move M19 has only an 0.11% policy prior on this evaluation, but is still higher than almost all arbitrary moves on the board. (Every unlabeled move is lower in policy prior than it).
 </sub></tr></td>
 </table>
 
 <table class="image">
-<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/doc/distantprobeoldpolicy.png" height="350"/></td></tr>
+<tr><td><img src="https://raw.githubusercontent.com/lightvector/KataGo/master/images/docs/distantprobeoldpolicy.png" height="350"/></td></tr>
 <tr><td><sub>Blind spot for an [older 40-block KataGo net](https://github.com/lightvector/KataGo/releases/tag/v1.4.0), policy prior. The correct move O5 has only an 0.03% policy prior on this evaluation, but is still higher than almost all arbitrary moves on the board. (Every unlabeled move is lower in policy prior than it).
 </sub></tr></td>
 </table>
