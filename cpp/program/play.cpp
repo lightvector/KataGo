@@ -294,8 +294,10 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
         sgf = Sgf::loadFile(files[i]);
         if(contains(excludeHashes,sgf->hash))
           numExcluded += 1;
-        else
-          sgf->iterAllUniquePositions(uniqueHashes, posHandler);
+        else {
+          bool hashComments = false;
+          sgf->iterAllUniquePositions(uniqueHashes, hashComments, posHandler);
+        }
       }
       catch(const StringError& e) {
         logger.write("Invalid SGF " + files[i] + ": " + e.what());

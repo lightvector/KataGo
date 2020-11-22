@@ -143,6 +143,8 @@ namespace PlayUtils {
   );
 
   void printGenmoveLog(std::ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken, Player perspective);
+
+  Rules genRandomRules(Rand& rand);
 }
 
 

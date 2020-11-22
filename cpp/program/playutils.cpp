@@ -840,3 +840,22 @@ void PlayUtils::printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvalu
   out << "Tree:\n";
   search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
 }
+
+Rules PlayUtils::genRandomRules(Rand& rand) {
+  vector<int> allowedKoRules = { Rules::KO_SIMPLE, Rules::KO_POSITIONAL, Rules::KO_SITUATIONAL };
+  vector<int> allowedScoringRules = { Rules::SCORING_AREA, Rules::SCORING_TERRITORY };
+  vector<int> allowedTaxRules = { Rules::TAX_NONE, Rules::TAX_SEKI, Rules::TAX_ALL };
+
+  Rules rules;
+  rules.koRule = allowedKoRules[rand.nextUInt(allowedKoRules.size())];
+  rules.scoringRule = allowedScoringRules[rand.nextUInt(allowedScoringRules.size())];
+  rules.taxRule = allowedTaxRules[rand.nextUInt(allowedTaxRules.size())];
+  rules.multiStoneSuicideLegal = rand.nextBool(0.5);
+
+  if(rules.scoringRule == Rules::SCORING_AREA)
+    rules.hasButton = rand.nextBool(0.5);
+  else
+    rules.hasButton = false;
+  return rules;
+}
+

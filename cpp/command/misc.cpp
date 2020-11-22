@@ -680,8 +680,10 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
       sgf = Sgf::loadFile(sgfFiles[i]);
       if(contains(excludeHashes,sgf->hash))
         numExcluded += 1;
-      else
-        sgf->iterAllUniquePositions(uniqueHashes, posHandler);
+      else {
+        bool hashComments = false;
+        sgf->iterAllUniquePositions(uniqueHashes, hashComments, posHandler);
+      }
     }
     catch(const StringError& e) {
       logger.write("Invalid SGF " + sgfFiles[i] + ": " + e.what());
@@ -702,6 +704,44 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
 
   ScoreValue::freeTables();
   return 0;
+}
+
+static bool maybeGetValuesAfterMove(
+  Search* search, Logger& logger, Loc moveLoc,
+  Player nextPla, const Board& board, const BoardHistory& hist,
+  bool quickSearch,
+  ReportedSearchValues& values
+) {
+  Board newBoard = board;
+  BoardHistory newHist = hist;
+  Player newNextPla = nextPla;
+
+  if(moveLoc != Board::NULL_LOC) {
+    if(!hist.isLegal(newBoard,moveLoc,newNextPla))
+      return false;
+    newHist.makeBoardMoveAssumeLegal(newBoard,moveLoc,newNextPla,NULL);
+    newNextPla = getOpp(newNextPla);
+  }
+
+  search->setPosition(newNextPla,newBoard,newHist);
+
+  if(quickSearch) {
+    SearchParams oldSearchParams = search->searchParams;
+    SearchParams newSearchParams = oldSearchParams;
+    newSearchParams.maxVisits = 1 + oldSearchParams.maxVisits / 10;
+    newSearchParams.maxPlayouts = 1 + oldSearchParams.maxPlayouts / 10;
+    search->setParamsNoClearing(newSearchParams);
+    search->runWholeSearch(newNextPla,logger,shouldStop);
+    search->setParamsNoClearing(oldSearchParams);
+  }
+  else {
+    search->runWholeSearch(newNextPla,logger,shouldStop);
+  }
+
+  if(shouldStop.load(std::memory_order_acquire))
+    return false;
+  values = search->getRootValuesRequireSuccess();
+  return true;
 }
 
 
@@ -885,42 +925,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
   // ---------------------------------------------------------------------------------------------------
 
-  auto maybeGetValuesAfterMove = [&logger](
-    Search* search, Loc moveLoc,
-    Player nextPla, const Board& board, const BoardHistory& hist,
-    bool quickSearch,
-    ReportedSearchValues& values
-  ) {
-    Board newBoard = board;
-    BoardHistory newHist = hist;
-    Player newNextPla = nextPla;
-    if(!hist.isLegal(newBoard,moveLoc,newNextPla))
-      return false;
-    newHist.makeBoardMoveAssumeLegal(newBoard,moveLoc,newNextPla,NULL);
-    newNextPla = getOpp(newNextPla);
-
-    search->setPosition(newNextPla,newBoard,newHist);
-
-    if(quickSearch) {
-      SearchParams oldSearchParams = search->searchParams;
-      SearchParams newSearchParams = oldSearchParams;
-      newSearchParams.maxVisits = 1 + oldSearchParams.maxVisits / 10;
-      newSearchParams.maxPlayouts = 1 + oldSearchParams.maxPlayouts / 10;
-      search->setParamsNoClearing(newSearchParams);
-      search->runWholeSearch(newNextPla,logger,shouldStop);
-      search->setParamsNoClearing(oldSearchParams);
-    }
-    else {
-      search->runWholeSearch(newNextPla,logger,shouldStop);
-    }
-
-    if(shouldStop.load(std::memory_order_acquire))
-      return false;
-    values = search->getRootValuesRequireSuccess();
-    return true;
-  };
-
-  auto expensiveEvaluateMove = [&toWriteQueue,&logger,&maybeGetValuesAfterMove](
+  auto expensiveEvaluateMove = [&toWriteQueue,&logger](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample, bool markedAsHintPos
@@ -928,9 +933,12 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     //cout << "EXPENSIVE" << endl;
 
     //Do a more expensive search
-    search->runWholeSearch(nextPla,logger,shouldStop);
-    if(shouldStop.load(std::memory_order_acquire))
-      return;
+    {
+      ReportedSearchValues values;
+      bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,nextPla,board,hist,false,values);
+      if(!suc)
+        return;
+    }
     Loc moveLoc = search->getChosenMoveLoc();
 
     // const Player perspective = P_WHITE;
@@ -956,7 +964,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
       if(!shouldWriteMove) {
         ReportedSearchValues moveValues;
-        if(!maybeGetValuesAfterMove(search,moveLoc,nextPla,board,hist,false,moveValues))
+        if(!maybeGetValuesAfterMove(search,logger,moveLoc,nextPla,board,hist,false,moveValues))
           return;
         // ostringstream out0;
         // out0 << "BOT MOVE " << Location::toString(moveLoc,board) << endl;
@@ -964,7 +972,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
         // cout << out0.str() << endl;
 
         ReportedSearchValues missedValues;
-        if(!maybeGetValuesAfterMove(search,missedLoc,nextPla,board,hist,false,missedValues))
+        if(!maybeGetValuesAfterMove(search,logger,missedLoc,nextPla,board,hist,false,missedValues))
           return;
         // ostringstream out0;
         // out0 << "SGF MOVE " << Location::toString(missedLoc,board) << endl;
@@ -1391,8 +1399,9 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       }
 
       logger.write("Starting " + fileName);
+      bool hashComments = true; //Hash comments so that if we see a position without %HINT% and one with, we make sure to re-load it.
       sgf->iterAllUniquePositions(
-        uniqueHashes, [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
+        uniqueHashes, hashComments, [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
           //Doesn't have enough history, doesn't have hintloc the way we want it
           (void)unusedSample;
           posQueue.waitPush(std::make_pair(new BoardHistory(hist),comments.size() > 0 && (Global::trim(comments) == "%HINT%")));
@@ -1422,6 +1431,210 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   delete gameInit;
   delete nnEval;
   NeuralNet::globalCleanup();
+  ScoreValue::freeTables();
+  return 0;
+}
+
+
+
+
+int MainCmds::trystartposes(int argc, const char* const* argv) {
+  Board::initHash();
+  ScoreValue::initTables();
+  Rand seedRand;
+
+  ConfigParser cfg;
+  string nnModelFile;
+  vector<string> startPosesFiles;
+  try {
+    KataGoCommandLine cmd("Try running searches starting from startposes");
+    cmd.addConfigFileArg("","");
+    cmd.addModelFileArg();
+
+    TCLAP::MultiArg<string> startPosesFileArg("","startPosesFile","Startposes file",true,"DIR");
+    cmd.add(startPosesFileArg);
+    cmd.parse(argc,argv);
+    nnModelFile = cmd.getModelFile();
+    startPosesFiles = startPosesFileArg.getValue();
+    cmd.getConfig(cfg);
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  Logger logger;
+  logger.setLogToStdout(true);
+
+  SearchParams params = Setup::loadSingleParams(cfg);
+  //Ignore temperature, noise
+  params.chosenMoveTemperature = 0;
+  params.chosenMoveTemperatureEarly = 0;
+  params.rootNoiseEnabled = false;
+  params.rootDesiredPerChildVisitsCoeff = 0;
+  params.rootPolicyTemperature = 1.0;
+  params.rootPolicyTemperatureEarly = 1.0;
+  params.rootFpuReductionMax = params.fpuReductionMax * 0.5;
+  params.rootNumSymmetriesToSample = 1;
+
+  //Disable dynamic utility so that utilities are always comparable
+  params.staticScoreUtilityFactor += params.dynamicScoreUtilityFactor;
+  params.dynamicScoreUtilityFactor = 0;
+
+  NNEvaluator* nnEval;
+  {
+    Setup::initializeSession(cfg);
+    int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    int expectedConcurrentEvals = params.numThreads;
+    int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+    nnEval = Setup::initializeNNEvaluator(
+      nnModelFile,nnModelFile,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+      Setup::SETUP_FOR_ANALYSIS
+    );
+  }
+  logger.write("Loaded neural net");
+
+  vector<Sgf::PositionSample> startPoses;
+  for(size_t i = 0; i<startPosesFiles.size(); i++) {
+    const string& startPosesFile = startPosesFiles[i];
+    vector<string> lines = Global::readFileLines(startPosesFile,'\n');
+    for(size_t j = 0; j<lines.size(); j++) {
+      string line = Global::trim(lines[j]);
+      if(line.size() > 0) {
+        try {
+          Sgf::PositionSample posSample = Sgf::PositionSample::ofJsonLine(line);
+          startPoses.push_back(posSample);
+        }
+        catch(const StringError& err) {
+          logger.write(string("ERROR parsing startpos:") + err.what());
+        }
+      }
+    }
+  }
+  string searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
+  Search* search = new Search(params,nnEval,searchRandSeed);
+
+  // ---------------------------------------------------------------------------------------------------
+
+  for(size_t s = 0; s<startPoses.size(); s++) {
+    const Sgf::PositionSample& startPos = startPoses[s];
+
+    Rules rules = PlayUtils::genRandomRules(seedRand);
+    Board board = startPos.board;
+    Player pla = startPos.nextPla;
+    BoardHistory hist;
+    hist.clear(board,pla,rules,0);
+    hist.setInitialTurnNumber(startPos.initialTurnNumber);
+    bool allLegal = true;
+    for(size_t i = 0; i<startPos.moves.size(); i++) {
+      bool isLegal = hist.makeBoardMoveTolerant(board,startPos.moves[i].loc,startPos.moves[i].pla,false);
+      if(!isLegal) {
+        allLegal = false;
+        break;
+      }
+      pla = getOpp(startPos.moves[i].pla);
+    }
+    if(!allLegal) {
+      throw StringError("Illegal move in startpos: " + Sgf::PositionSample::toJsonLine(startPos));
+    }
+
+    Loc hintLoc = startPos.hintLoc;
+
+    {
+      ReportedSearchValues values;
+      bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,pla,board,hist,false,values);
+      (void)suc;
+      assert(suc);
+      cout << "Searching startpos: " << "\n";
+      Board::printBoard(cout, search->getRootBoard(), search->getChosenMoveLoc(), &(search->getRootHist().moveHistory));
+      search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1),P_BLACK);
+      cout << endl;
+    }
+
+    if(hintLoc != Board::NULL_LOC) {
+      ReportedSearchValues values;
+      bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,pla,board,hist,false,values);
+      (void)suc;
+      assert(suc);
+      cout << "There was a hintpos " << Location::toString(hintLoc,board) << ", researching after playing it: " << "\n";
+      Board::printBoard(cout, search->getRootBoard(), search->getChosenMoveLoc(), &(search->getRootHist().moveHistory));
+      search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1),P_BLACK);
+      cout << endl;
+    }
+  }
+
+  delete search;
+  delete nnEval;
+  NeuralNet::globalCleanup();
+  ScoreValue::freeTables();
+  return 0;
+}
+
+
+int MainCmds::viewstartposes(int argc, const char* const* argv) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  vector<string> startPosesFiles;
+  try {
+    KataGoCommandLine cmd("View startposes");
+
+    TCLAP::MultiArg<string> startPosesFileArg("","startPosesFile","Startposes file",true,"DIR");
+    cmd.add(startPosesFileArg);
+    cmd.parse(argc,argv);
+    startPosesFiles = startPosesFileArg.getValue();
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  vector<Sgf::PositionSample> startPoses;
+  for(size_t i = 0; i<startPosesFiles.size(); i++) {
+    const string& startPosesFile = startPosesFiles[i];
+    vector<string> lines = Global::readFileLines(startPosesFile,'\n');
+    for(size_t j = 0; j<lines.size(); j++) {
+      string line = Global::trim(lines[j]);
+      if(line.size() > 0) {
+        try {
+          Sgf::PositionSample posSample = Sgf::PositionSample::ofJsonLine(line);
+          startPoses.push_back(posSample);
+        }
+        catch(const StringError& err) {
+          cout << (string("ERROR parsing startpos:") + err.what()) << endl;
+        }
+      }
+    }
+  }
+
+  for(size_t s = 0; s<startPoses.size(); s++) {
+    const Sgf::PositionSample& startPos = startPoses[s];
+
+    Board board = startPos.board;
+    Player pla = startPos.nextPla;
+    BoardHistory hist;
+    hist.clear(board,pla,Rules(),0);
+    hist.setInitialTurnNumber(startPos.initialTurnNumber);
+
+    bool allLegal = true;
+    for(size_t i = 0; i<startPos.moves.size(); i++) {
+      bool isLegal = hist.makeBoardMoveTolerant(board,startPos.moves[i].loc,startPos.moves[i].pla,false);
+      if(!isLegal) {
+        allLegal = false;
+        break;
+      }
+      pla = getOpp(startPos.moves[i].pla);
+    }
+    if(!allLegal) {
+      throw StringError("Illegal move in startpos: " + Sgf::PositionSample::toJsonLine(startPos));
+    }
+
+    Loc hintLoc = startPos.hintLoc;
+    Board::printBoard(cout, board, hintLoc, &(hist.moveHistory));
+    cout << endl;
+  }
+
   ScoreValue::freeTables();
   return 0;
 }
