@@ -195,8 +195,9 @@ class CustomLoggingHook(tf.estimator.LoggingTensorHook):
     super().__init__(*args, **kwargs)
 
   def after_run(self, run_context, run_values):
+    if run_values.results is not None:
+      self.handle_logging_values(run_values.results)
     super().after_run(run_context, run_values)
-    self.handle_logging_values(run_values.results)
 
 global_latest_extra_stats = {}
 def update_global_latest_extra_stats(results):
