@@ -930,6 +930,8 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample, bool markedAsHintPos
   ) {
+    if(shouldStop.load(std::memory_order_acquire))
+      return;
     //cout << "EXPENSIVE" << endl;
 
     //Do a more expensive search
