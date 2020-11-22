@@ -16,6 +16,7 @@ import glob
 import tensorflow as tf
 import numpy as np
 import itertools
+import copy
 
 import data
 from board import Board
@@ -186,6 +187,23 @@ def save_swa(savedir):
     os.mkdir(os.path.join(savedir,"saved_model","variables"))
     swa_saver.save(sess,os.path.join(savedir,"saved_model","variables","variables"), write_meta_graph=True, write_state=False)
 
+
+class CustomLoggingHook(tf.estimator.LoggingTensorHook):
+
+  def __init__(self, *args, **kwargs):
+    self.handle_logging_values = kwargs.pop('handle_logging_values')
+    super().__init__(*args, **kwargs)
+
+  def after_run(self, run_context, run_values):
+    super().after_run(run_context, run_values)
+    self.handle_logging_values(run_values.results)
+
+global_latest_extra_stats = {}
+def update_global_latest_extra_stats(results):
+  global global_latest_extra_stats
+  for key in results:
+    global_latest_extra_stats[key] = results[key].item()
+
 def model_fn(features,labels,mode,params):
   global printed_model_yet
   global initial_weights_already_loaded
@@ -292,7 +310,7 @@ def model_fn(features,labels,mode,params):
 
     print_train_loss_every_batches = 100
 
-    logging_hook = tf.estimator.LoggingTensorHook({
+    logging_hook = CustomLoggingHook({
       "nsamp": global_step * tf.constant(batch_size,dtype=tf.int64),
       "wsum": global_step_float * wmean * tf.constant(float(num_gpus_used)),
       "p0loss": p0loss,
@@ -317,7 +335,7 @@ def model_fn(features,labels,mode,params):
       "pslr": per_sample_learning_rate,
       "gnorm": gnorm,
       "exgnorm": exgnorm
-    }, every_n_iter=print_train_loss_every_batches)
+    }, every_n_iter=print_train_loss_every_batches, handle_logging_values=update_global_latest_extra_stats)
 
     printed_model_yet = True
 
@@ -478,7 +496,7 @@ def save_history(global_step_value):
   trainhistory["history"].append(("nsamp",int(global_step_value * batch_size)))
   trainhistory["train_step"] = int(global_step_value * batch_size)
   trainhistory["total_num_data_rows"] = last_datainfo_row
-  trainhistory["extra_stats"] = {}
+  trainhistory["extra_stats"] = copy.deepcopy(global_latest_extra_stats)
   savepath = os.path.join(traindir,"trainhistory.json")
   savepathtmp = os.path.join(traindir,"trainhistory.json.tmp")
   dump_and_flush_json(trainhistory,savepathtmp)
