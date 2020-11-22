@@ -372,6 +372,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
     KataGoCommandLine cmd("Self-play demo dumping status to stdout");
     cmd.addConfigFileArg("","");
     cmd.addModelFileArg();
+    cmd.addOverrideConfigArg();
 
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",false,string(),"FILE");
     cmd.add(logFileArg);
@@ -709,7 +710,7 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
 static bool maybeGetValuesAfterMove(
   Search* search, Logger& logger, Loc moveLoc,
   Player nextPla, const Board& board, const BoardHistory& hist,
-  bool quickSearch,
+  double quickSearchFactor,
   ReportedSearchValues& values
 ) {
   Board newBoard = board;
@@ -725,11 +726,11 @@ static bool maybeGetValuesAfterMove(
 
   search->setPosition(newNextPla,newBoard,newHist);
 
-  if(quickSearch) {
+  if(quickSearchFactor != 1.0) {
     SearchParams oldSearchParams = search->searchParams;
     SearchParams newSearchParams = oldSearchParams;
-    newSearchParams.maxVisits = 1 + oldSearchParams.maxVisits / 10;
-    newSearchParams.maxPlayouts = 1 + oldSearchParams.maxPlayouts / 10;
+    newSearchParams.maxVisits = 1 + (int64_t)(oldSearchParams.maxVisits * quickSearchFactor);
+    newSearchParams.maxPlayouts = 1 + (int64_t)(oldSearchParams.maxPlayouts * quickSearchFactor);
     search->setParamsNoClearing(newSearchParams);
     search->runWholeSearch(newNextPla,logger,shouldStop);
     search->setParamsNoClearing(oldSearchParams);
@@ -751,16 +752,16 @@ static bool maybeGetValuesAfterMove(
 static double surpriseWeight(double policyProb, Rand& rand, bool markedAsHintPos) {
   if(policyProb < 0)
     return 0;
-  double weight = 0.15 / (policyProb + 0.03) - 0.5;
+  double weight = 0.12 / (policyProb + 0.02) - 0.5;
   if(markedAsHintPos && weight < 0.5)
     weight = 0.5;
 
   if(weight <= 0)
     return 0;
-  if(weight < 0.5) {
-    if(rand.nextDouble() * 0.5 >= weight)
+  if(weight < 0.2) {
+    if(rand.nextDouble() * 0.2 >= weight)
       return 0;
-    return 0.5;
+    return 0.2;
   }
   return weight;
 }
@@ -785,6 +786,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     KataGoCommandLine cmd("Search for suprising good moves in sgfs");
     cmd.addConfigFileArg("","");
     cmd.addModelFileArg();
+    cmd.addOverrideConfigArg();
 
     TCLAP::MultiArg<string> sgfDirArg("","sgfdir","Directory of sgf files",true,"DIR");
     TCLAP::ValueArg<string> outDirArg("","outdir","Directory to write results",true,string(),"DIR");
@@ -838,7 +840,6 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   params.rootPolicyTemperature = 1.0;
   params.rootPolicyTemperatureEarly = 1.0;
   params.rootFpuReductionMax = params.fpuReductionMax * 0.5;
-  params.rootNumSymmetriesToSample = 1;
 
   //Disable dynamic utility so that utilities are always comparable
   params.staticScoreUtilityFactor += params.dynamicScoreUtilityFactor;
@@ -932,12 +933,39 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   ) {
     if(shouldStop.load(std::memory_order_acquire))
       return;
-    //cout << "EXPENSIVE" << endl;
 
-    //Do a more expensive search
     {
-      ReportedSearchValues values;
-      bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,nextPla,board,hist,false,values);
+      int numStonesOnBoard = 0;
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          Loc loc = Location::getLoc(x,y,board.x_size);
+          if(board.colors[loc] != C_EMPTY)
+            numStonesOnBoard += 1;
+        }
+      }
+      if(numStonesOnBoard < 6)
+        return;
+    }
+
+    ReportedSearchValues veryQuickValues;
+    {
+      bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,nextPla,board,hist,1.0/25.0,veryQuickValues);
+      if(!suc)
+        return;
+    }
+    Loc veryQuickMoveLoc = search->getChosenMoveLoc();
+
+    ReportedSearchValues quickValues;
+    {
+      bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,nextPla,board,hist,1.0/5.0,quickValues);
+      if(!suc)
+        return;
+    }
+    Loc quickMoveLoc = search->getChosenMoveLoc();
+
+    ReportedSearchValues baseValues;
+    {
+      bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,nextPla,board,hist,1.0,baseValues);
       if(!suc)
         return;
     }
@@ -952,10 +980,20 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     //   cout << Location::toString(missedLoc,board) << endl;
     // }
 
+    Sgf::PositionSample sampleToWrite = sample;
+    sampleToWrite.weight += abs(baseValues.utility - quickValues.utility);
+    sampleToWrite.weight += abs(baseValues.utility - veryQuickValues.utility);
+
     //Bot DOES see the move?
     if(moveLoc == missedLoc) {
-      //Still good to learn from given that policy was really low
-      toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sample)));
+      if(quickMoveLoc == moveLoc)
+        sampleToWrite.weight = sampleToWrite.weight * 0.75 - 0.1;
+      if(veryQuickMoveLoc == moveLoc)
+        sampleToWrite.weight = sampleToWrite.weight * 0.75 - 0.1;
+      if(sampleToWrite.weight > 0.1) {
+        //Still good to learn from given that policy was really low
+        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
+      }
     }
 
     //Bot doesn't see the move?
@@ -966,7 +1004,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
       if(!shouldWriteMove) {
         ReportedSearchValues moveValues;
-        if(!maybeGetValuesAfterMove(search,logger,moveLoc,nextPla,board,hist,false,moveValues))
+        if(!maybeGetValuesAfterMove(search,logger,moveLoc,nextPla,board,hist,1.0,moveValues))
           return;
         // ostringstream out0;
         // out0 << "BOT MOVE " << Location::toString(moveLoc,board) << endl;
@@ -974,7 +1012,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
         // cout << out0.str() << endl;
 
         ReportedSearchValues missedValues;
-        if(!maybeGetValuesAfterMove(search,logger,missedLoc,nextPla,board,hist,false,missedValues))
+        if(!maybeGetValuesAfterMove(search,logger,missedLoc,nextPla,board,hist,1.0,missedValues))
           return;
         // ostringstream out0;
         // out0 << "SGF MOVE " << Location::toString(missedLoc,board) << endl;
@@ -983,7 +1021,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
         //If the move is this minimum amount better, then record this position as a hint
         //Otherwise the bot actually thinks the move isn't better, so we reject it as an invalid hint.
-        const double utilityThreshold = 0.005;
+        const double utilityThreshold = 0.01;
         ReportedSearchValues postValues = search->getRootValuesRequireSuccess();
         if((nextPla == P_WHITE && missedValues.utility > moveValues.utility + utilityThreshold) ||
            (nextPla == P_BLACK && missedValues.utility < moveValues.utility - utilityThreshold)) {
@@ -993,8 +1031,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
       if(shouldWriteMove) {
         //Moves that the bot didn't see get written out more
-        Sgf::PositionSample sampleToWrite = sample;
-        sampleToWrite.weight = sampleToWrite.weight * 2.0 + 1.0;
+        sampleToWrite.weight = sampleToWrite.weight * 1.5 + 1.0;
         toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
       }
     }
@@ -1272,7 +1309,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   //In game mode, iterate through sgf games, which are expected to be nonbranching, and see if there are unexpected good moves,
   //requiring the outcome in the game to have been good.
   if(gameMode) {
-    const int64_t maxSgfQueueSize = 1024;
+    const int64_t maxSgfQueueSize = 16384;
     ThreadSafeQueue<int64_t> sgfQueue(maxSgfQueueSize);
     std::atomic<int64_t> numSgfsBegun(0);
     std::atomic<int64_t> numSgfsDone(0);
@@ -1340,10 +1377,11 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
   //In tree mode, we just explore everything in the sgf
   else if(treeMode) {
-    const int64_t maxPosQueueSize = 1024;
+    const int64_t maxPosQueueSize = 16384;
     ThreadSafeQueue<std::pair<BoardHistory*,bool>> posQueue(maxPosQueueSize);
     std::atomic<int64_t> numPosesBegun(0);
     std::atomic<int64_t> numPosesDone(0);
+    std::atomic<int64_t> numPosesEnqueued(0);
 
     auto processPosLoop = [&logger,&posQueue,&params,&numPosesBegun,&numPosesDone,&nnEval,&treePosHandler]() {
       Rand rand;
@@ -1406,10 +1444,14 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
         uniqueHashes, hashComments, [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
           //Doesn't have enough history, doesn't have hintloc the way we want it
           (void)unusedSample;
+          int64_t numEnqueued = 1+numPosesEnqueued.fetch_add(1);
+          if(numEnqueued % 500 == 0)
+            logger.write("Enqueued " + Global::int64ToString(numEnqueued) + " poses");
           posQueue.waitPush(std::make_pair(new BoardHistory(hist),comments.size() > 0 && (Global::trim(comments) == "%HINT%")));
         }
       );
       delete sgf;
+      logger.write("Done enqueing " + Global::int64ToString(numPosesEnqueued.load()) + " poses");
     }
 
     posQueue.setReadOnly();
@@ -1452,6 +1494,7 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
     KataGoCommandLine cmd("Try running searches starting from startposes");
     cmd.addConfigFileArg("","");
     cmd.addModelFileArg();
+    cmd.addOverrideConfigArg();
 
     TCLAP::MultiArg<string> startPosesFileArg("","startPosesFile","Startposes file",true,"DIR");
     cmd.add(startPosesFileArg);
@@ -1477,7 +1520,6 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
   params.rootPolicyTemperature = 1.0;
   params.rootPolicyTemperatureEarly = 1.0;
   params.rootFpuReductionMax = params.fpuReductionMax * 0.5;
-  params.rootNumSymmetriesToSample = 1;
 
   //Disable dynamic utility so that utilities are always comparable
   params.staticScoreUtilityFactor += params.dynamicScoreUtilityFactor;
@@ -1541,28 +1583,42 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
       throw StringError("Illegal move in startpos: " + Sgf::PositionSample::toJsonLine(startPos));
     }
 
+    {
+      const int64_t numVisits = 10;
+      OtherGameProperties props;
+      PlayUtils::adjustKomiToEven(search,NULL,board,hist,pla,numVisits,logger,props,seedRand);
+    }
+
     Loc hintLoc = startPos.hintLoc;
 
     {
       ReportedSearchValues values;
-      bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,pla,board,hist,false,values);
+      bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,pla,board,hist,1.0,values);
       (void)suc;
       assert(suc);
       cout << "Searching startpos: " << "\n";
+      cout << "Weight: " << startPos.weight << "\n";
+      cout << search->getRootHist().rules.toString() << "\n";
       Board::printBoard(cout, search->getRootBoard(), search->getChosenMoveLoc(), &(search->getRootHist().moveHistory));
-      search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1),P_BLACK);
+      search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1),P_WHITE);
       cout << endl;
     }
 
     if(hintLoc != Board::NULL_LOC) {
-      ReportedSearchValues values;
-      bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,pla,board,hist,false,values);
-      (void)suc;
-      assert(suc);
-      cout << "There was a hintpos " << Location::toString(hintLoc,board) << ", researching after playing it: " << "\n";
-      Board::printBoard(cout, search->getRootBoard(), search->getChosenMoveLoc(), &(search->getRootHist().moveHistory));
-      search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1),P_BLACK);
-      cout << endl;
+      if(search->getChosenMoveLoc() == hintLoc) {
+        cout << "There was a hintpos " << Location::toString(hintLoc,board) << ", but it was the chosen move" << "\n";
+        cout << endl;
+      }
+      else {
+        ReportedSearchValues values;
+        bool suc = maybeGetValuesAfterMove(search,logger,hintLoc,pla,board,hist,1.0,values);
+        (void)suc;
+        assert(suc);
+        cout << "There was a hintpos " << Location::toString(hintLoc,board) << ", re-searching after playing it: " << "\n";
+        Board::printBoard(cout, search->getRootBoard(), search->getChosenMoveLoc(), &(search->getRootHist().moveHistory));
+        search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1),P_WHITE);
+        cout << endl;
+      }
     }
   }
 
@@ -1633,6 +1689,8 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
     }
 
     Loc hintLoc = startPos.hintLoc;
+    cout << "Weight: " << startPos.weight << "\n";
+    cout << "There was a hintpos " << Location::toString(hintLoc,board) << "\n";
     Board::printBoard(cout, board, hintLoc, &(hist.moveHistory));
     cout << endl;
   }
