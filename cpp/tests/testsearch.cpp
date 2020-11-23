@@ -1197,7 +1197,7 @@ oxxxooxoooo
 .x.o.oxo.x.
 )%%");
 
-    SearchParams params;
+    SearchParams params = SearchParams::forTestsV1();
     params.maxVisits = 300;
     params.fpuReductionMax = 0.0;
     params.rootFpuReductionMax = 0.0;
@@ -1374,7 +1374,7 @@ xxxx.xxoxxx
 .....xo.xo.
 )%%");
 
-    SearchParams params;
+    SearchParams params = SearchParams::forTestsV1();
     params.maxVisits = 300;
     params.fpuReductionMax = 0.0;
     params.rootFpuReductionMax = 0.0;
