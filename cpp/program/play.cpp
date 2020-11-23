@@ -829,7 +829,10 @@ static void logSearch(Search* bot, Logger& logger, Loc loc) {
   ostringstream sout;
   Board::printBoard(sout, bot->getRootBoard(), loc, &(bot->getRootHist().moveHistory));
   sout << "\n";
+  sout << "Rules: " << bot->getRootHist().rules << "\n";
   sout << "Root visits: " << bot->getRootVisits() << "\n";
+  if(bot->rootHintLoc != Board::NULL_LOC)
+    sout << "HintLoc " << Location::toString(bot->rootHintLoc,bot->getRootBoard()) << "\n";
   sout << "Policy surprise " << bot->getPolicySurprise() << "\n";
   sout << "Raw WL " << bot->getRootRawNNValuesRequireSuccess().winLossValue << "\n";
   sout << "PV: ";

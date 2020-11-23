@@ -6441,6 +6441,7 @@ seedBase: test surprise!
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.165563
 Raw WL -0.0119903
@@ -6474,6 +6475,7 @@ J4  : T   2.32c W   1.83c S   0.49c ( +0.9 L  +0.9) LCB   78.32c P  5.99% WF  8.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.139537
 Raw WL 0.113302
@@ -6505,6 +6507,7 @@ D4  : T  -8.11c W  -7.54c S  -0.57c ( -1.0 L  -1.0) LCB -260.00c P  6.29% WF 11.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.0833694
 Raw WL -0.0913654
@@ -6534,6 +6537,7 @@ H3  : T   6.08c W   5.11c S   0.97c ( +1.7 L  +1.7) LCB   39.73c P 10.92% WF 16.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.115256
 Raw WL 0.0659761
@@ -6560,6 +6564,7 @@ H3  : T   2.39c W   1.74c S   0.65c ( +1.1 L  +1.1) LCB  -29.31c P  7.13% WF 33.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.183261
 Raw WL -0.0772141
@@ -6590,6 +6595,7 @@ C4  : T  10.42c W   9.07c S   1.35c ( +2.3 L  +2.3) LCB  182.56c P  6.42% WF 13.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.26767
 Raw WL 0.127002
@@ -6618,6 +6624,7 @@ D8  : T   3.85c W   3.32c S   0.53c ( +0.9 L  +0.9) LCB  -76.68c P  6.75% WF 20.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.0854164
 Raw WL -0.0717291
@@ -6642,6 +6649,7 @@ D5  : T   4.12c W   3.58c S   0.54c ( +0.9 L  +0.9) LCB   12.65c P 91.81% WF 100
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.289998
 Raw WL 0.0995453
@@ -6670,6 +6678,7 @@ H9  : T   0.60c W   0.31c S   0.29c ( +0.5 L  +0.5) LCB -103.87c P  7.85% WF 20.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.185287
 Raw WL -0.0744963
@@ -6702,6 +6711,7 @@ F8  : T  12.25c W  11.14c S   1.10c ( +1.8 L  +1.8) LCB  260.00c P  3.00% WF 10.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.190078
 Raw WL 0.141939
@@ -6731,6 +6741,7 @@ J7  : T -11.00c W -10.33c S  -0.66c ( -1.1 L  -1.1) LCB -260.00c P  3.09% WF 15.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.298326
 Raw WL -0.0138755
@@ -6760,6 +6771,7 @@ F5  : T   5.85c W   5.08c S   0.77c ( +1.3 L  +1.3) LCB   45.88c P  6.08% WF 16.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.127944
 Raw WL 0.0565412
@@ -6785,6 +6797,7 @@ H6  : T -12.69c W -11.67c S  -1.01c ( -1.8 L  -1.8) LCB -260.00c P  7.34% WF 46.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.133405
 Raw WL 0.0043776
@@ -6815,6 +6828,7 @@ E3  : T  12.43c W  11.29c S   1.14c ( +1.9 L  +1.9) LCB  260.00c P  3.00% WF 13.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.258982
 Raw WL 0.140223
@@ -6843,6 +6857,7 @@ J5  : T -11.88c W -11.24c S  -0.65c ( -1.1 L  -1.1) LCB -260.00c P  7.25% WF 17.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.0886281
 Raw WL -0.0411514
@@ -6870,6 +6885,7 @@ D4  : T  11.49c W  10.16c S   1.33c ( +2.2 L  +2.2) LCB   35.11c P  7.60% WF 24.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.158734
 Raw WL 0.087633
@@ -6897,6 +6913,7 @@ C9  : T  -3.63c W  -3.80c S   0.16c ( +0.3 L  +0.3) LCB -260.00c P  8.69% WF 22.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.207642
 Raw WL 0.0863589
@@ -6924,6 +6941,7 @@ J5  : T  18.49c W  16.50c S   1.99c ( +3.3 L  +3.3) LCB  114.34c P  9.28% WF 22.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.337461
 Raw WL 0.153183
@@ -6954,6 +6972,7 @@ D7  : T   0.28c W  -0.18c S   0.46c ( +0.8 L  +0.8) LCB -260.00c P  3.12% WF 13.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.0977841
 Raw WL 0.0194558
@@ -6983,6 +7002,7 @@ D9  : T  29.69c W  26.71c S   2.98c ( +4.7 L  +4.7) LCB  260.00c P  7.39% WF 14.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.227004
 Raw WL 0.219144
@@ -7010,6 +7030,7 @@ E5  : T   1.99c W   1.42c S   0.58c ( +1.0 L  +1.0) LCB -260.00c P  5.25% WF 24.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.522949
 Raw WL -0.00107121
@@ -7039,6 +7060,7 @@ F9  : T  36.62c W  32.93c S   3.69c ( +6.1 L  +6.1) LCB  260.00c P  4.31% WF 14.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.0825244
 Raw WL 0.0380591
@@ -7065,6 +7087,7 @@ C9  : T -12.60c W -11.69c S  -0.92c ( -1.6 L  -1.6) LCB -260.00c P  4.46% WF 34.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.251852
 Raw WL -0.123627
@@ -7093,6 +7116,7 @@ H3  : T  35.61c W  31.81c S   3.81c ( +6.5 L  +6.5) LCB  260.00c P  4.50% WF 16.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.0825401
 Raw WL 0.201139
@@ -7119,6 +7143,7 @@ E4  : T -27.43c W -25.22c S  -2.21c ( -3.8 L  -3.8) LCB -260.00c P  6.82% WF 27.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.448886
 Raw WL 0.0470111
@@ -7148,6 +7173,7 @@ E7  : T  28.76c W  25.73c S   3.03c ( +4.9 L  +4.9) LCB  260.00c P  3.43% WF 15.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.120626
 Raw WL -0.0603084
@@ -7173,6 +7199,7 @@ E4  : T -24.55c W -22.20c S  -2.35c ( -4.0 L  -4.0) LCB -121.44c P 20.04% WF 42.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.362999
 Raw WL -0.0269779
@@ -7200,6 +7227,7 @@ F10 : T   7.99c W   6.33c S   1.65c ( +2.7 L  +2.7) LCB  271.21c P  6.81% WF 23.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.39114
 Raw WL -0.0552024
@@ -7229,6 +7257,7 @@ H7  : T -40.39c W -38.45c S  -1.94c ( -2.6 L  -2.6) LCB -201.57c P 12.99% WF 12.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.17421
 Raw WL 0.00642505
@@ -7255,6 +7284,7 @@ H8  : T  17.07c W  14.80c S   2.28c ( +3.6 L  +3.6) LCB  260.00c P 10.13% WF 29.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.632417
 Raw WL -0.304073
@@ -7700,6 +7730,7 @@ seedBase: test hint!
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 400
 Policy surprise 0.098215
 Raw WL 0.0726678
@@ -7727,6 +7758,7 @@ A1  : T  92.86c W  82.78c S  10.08c (+17.4 L +17.4) LCB   94.52c P  2.00% WF  2.
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.00809209
 Raw WL 0.0526078
@@ -7751,6 +7783,7 @@ G4  : T  -6.09c W  -5.88c S  -0.21c ( -0.3 L  -0.3) LCB  -10.84c P 99.19% WF 100
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.011541
 Raw WL -0.0810401
@@ -7775,6 +7808,7 @@ E2  : T  -6.08c W  -5.86c S  -0.22c ( -0.4 L  -0.4) LCB    1.19c P 98.85% WF 100
  1 . . . . . . . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.115936
 Raw WL 0.107647
@@ -7799,6 +7833,7 @@ H2  : T  -6.79c W  -6.50c S  -0.29c ( -0.5 L  -0.5) LCB  -14.02c P 89.05% WF 100
  1 . . . . . @ . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.0104535
 Raw WL -0.115523
@@ -7823,6 +7858,7 @@ F1  : T  -6.65c W  -6.36c S  -0.29c ( -0.5 L  -0.5) LCB    0.56c P 98.96% WF 100
  1 . . . . . X3. . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.0367691
 Raw WL 0.0740316
@@ -7847,6 +7883,7 @@ J2  : T  -6.10c W  -5.89c S  -0.21c ( -0.3 L  -0.3) LCB  -10.77c P 96.39% WF 100
  1 . . . . . X2. . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.335161
 Raw WL -0.0976076
@@ -7877,6 +7914,7 @@ H8  : T  15.13c W  13.25c S   1.88c ( +3.1 L  +3.1) LCB  260.00c P  4.74% WF 12.
  1 . . . . . X1. . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.203695
 Raw WL -0.00960252
@@ -7910,6 +7948,7 @@ C7  : T -20.80c W -19.52c S  -1.29c ( -2.2 L  -2.2) LCB -260.00c P  4.50% WF  8.
  1 . . . . . X . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.207396
 Raw WL -0.0769724
@@ -7938,6 +7977,7 @@ K3  : T  -1.20c W  -1.18c S  -0.02c ( -0.0 L  -0.0) LCB  260.00c P  5.96% WF 19.
  1 . . . . . X . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.322097
 Raw WL 0.0218919
@@ -7965,6 +8005,7 @@ D8  : T -16.11c W -14.85c S  -1.26c ( -2.1 L  -2.1) LCB  -75.91c P  4.65% WF 25.
  1 . . . . . X . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.0927718
 Raw WL -0.20839
@@ -7993,6 +8034,7 @@ K3  : T  -9.06c W  -8.23c S  -0.83c ( -1.4 L  -1.4) LCB   48.93c P  5.65% WF 21.
  1 . . . . . X . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.17264
 Raw WL -0.159563
@@ -8019,6 +8061,7 @@ C7  : T -10.54c W  -9.79c S  -0.74c ( -1.2 L  -1.2) LCB  -32.09c P 15.69% WF 34.
  1 . . . . . X . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.146886
 Raw WL -0.2207
@@ -8044,6 +8087,7 @@ B3  : T   0.21c W   0.02c S   0.19c ( +0.3 L  +0.3) LCB   45.93c P 15.94% WF 44.
  1 . . . . . X . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.219056
 Raw WL 0.00744224
@@ -8072,6 +8116,7 @@ B8  : T -43.76c W -39.94c S  -3.83c ( -6.2 L  -6.2) LCB -260.00c P  7.44% WF 15.
  1 . . . . . X . . . . .
 
 
+Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.169715
 Raw WL -0.255691

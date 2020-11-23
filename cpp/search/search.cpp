@@ -2019,6 +2019,7 @@ void Search::initNodeNNOutput(
     node.nnOutput = std::move(thread.nnResultBuf.result);
   }
 
+  assert(node.nnOutput->noisedPolicyProbs == NULL);
   maybeAddPolicyNoiseAndTempAlreadyLocked(thread,node,isRoot);
   node.nnOutputAge = searchNodeAge;
 
