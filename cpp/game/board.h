@@ -176,6 +176,8 @@ struct Board
   bool isOnBoard(Loc loc) const;
   //Check if this location contains a simple eye for the specified player.
   bool isSimpleEye(Loc loc, Player pla) const;
+  //Check if a move at this location would be a capture of an opponent group.
+  bool wouldBeCapture(Loc loc, Player pla) const;
   //Check if a move at this location would be a capture in a simple ko mouth.
   bool wouldBeKoCapture(Loc loc, Player pla) const;
   Loc getKoCaptureLoc(Loc loc, Player pla) const;

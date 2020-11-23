@@ -1252,9 +1252,6 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
     if(moveLoc != Board::PASS_LOC && rootBoard.ko_loc == Board::NULL_LOC) {
       int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
       double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
-      //if(rootSafeArea[moveLoc] == rootPla) plaOwnership = 1.0;
-      //if(rootSafeArea[moveLoc] == getOpp(rootPla)) plaOwnership = -1.0;
-
       if(plaOwnership <= -extreme)
         extraRootPoints -= searchParams.rootEndingBonusPoints * ((-extreme - plaOwnership) / tail);
       else if(plaOwnership >= extreme) {

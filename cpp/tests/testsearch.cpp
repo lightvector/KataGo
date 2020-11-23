@@ -1357,6 +1357,51 @@ oxxxooxoooo
       }
     }
   }
+
+
+  {
+    Board board = Board::parseBoard(11,11,R"%%(
+.x..ox.oxo.
+xxxooxxox.o
+oooox.xoxxx
+xxooo.ooooo
+x.xoooo..x.
+...oxxxox.x
+o.oox.xooxo
+ooox..xoooo
+xxxx.xxoxxx
+.....xoox.o
+.....xo.xo.
+)%%");
+
+    SearchParams params;
+    params.maxVisits = 300;
+    params.fpuReductionMax = 0.0;
+    params.rootFpuReductionMax = 0.0;
+    params.rootEndingBonusPoints = 0.0;
+    params.rootPolicyTemperature = 1.5;
+    params.rootPolicyTemperatureEarly = 1.5;
+    SearchParams params2 = params;
+    params2.rootEndingBonusPoints = 0.5;
+
+    TestSearchOptions opts;
+    opts.printEndingScoreValueBonus = true;
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Ending bonus points in area scoring with selfatari moves, one more fancy position, white first" << endl;
+      cout << "===================================================================" << endl;
+
+      Player nextPla = P_WHITE;
+      Rules rules = Rules::parseRules("Chinese");
+      BoardHistory hist(board,nextPla,rules,0);
+      {
+        AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+    }
+  }
 }
 
 

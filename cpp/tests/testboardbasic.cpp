@@ -899,6 +899,68 @@ Adj white
     expect(name,out,expected);
   }
 
+
+  //============================================================================
+  {
+    const char* name = "wouldBeCapture";
+    Board board = Board::parseBoard(9,9,R"%%(
+.....oxx.
+..o.o.oox
+.oxo.oxx.
+.o.o..x..
+.xox.x.xo
+..x..oxo.
+....o.oxx
+xo...oxox
+.xo..x.oo
+)%%");
+
+    out << endl;
+    out << "WouldBeCapture black" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        out << (int)board.wouldBeCapture(loc,P_BLACK);
+      }
+      out << endl;
+    }
+    out << endl;
+    out << "WouldBeCapture white" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        out << (int)board.wouldBeCapture(loc,P_WHITE);
+      }
+      out << endl;
+    }
+    out << endl;
+
+    string expected = R"%%(
+WouldBeCapture black
+000000000
+000001000
+000000000
+001000000
+000000000
+000000001
+000001000
+000000000
+000000100
+
+WouldBeCapture white
+000000001
+000000000
+000000000
+001000000
+000000100
+000000001
+000000000
+000000000
+100000100
+)%%";
+    expect(name,out,expected);
+  }
+
   //============================================================================
   {
     const char* name = "wouldBeKoCapture";
@@ -1799,7 +1861,13 @@ void Tests::runBoardStressTest() {
           testAssert(boardsSeemEqual(copy,board));
           testAssert(loc < 0 || loc >= Board::MAX_ARR_SIZE || board.colors[loc] != C_EMPTY || board.isIllegalSuicide(loc,pla,multiStoneSuicideLegal[i]) || board.isKoBanned(loc));
           if(board.isKoBanned(loc)) {
-            testAssert(board.colors[loc] == C_EMPTY && (board.wouldBeKoCapture(loc,C_BLACK) || board.wouldBeKoCapture(loc,C_WHITE)));
+            testAssert(board.colors[loc] == C_EMPTY);
+            testAssert(board.wouldBeKoCapture(loc,C_BLACK) || board.wouldBeKoCapture(loc,C_WHITE));
+            testAssert(board.wouldBeCapture(loc,C_BLACK) || board.wouldBeCapture(loc,C_WHITE));
+            if(board.isAdjacentToPla(loc,getOpp(pla))) {
+              testAssert(board.wouldBeKoCapture(loc,pla));
+              testAssert(board.wouldBeCapture(loc,pla));
+            }
             koBanCount++;
           }
         }
@@ -1814,6 +1882,7 @@ void Tests::runBoardStressTest() {
           testAssert(board.colors[loc] == C_EMPTY);
           testAssert(board.isLegal(loc,pla,multiStoneSuicideLegal[i]));
           testAssert(multiStoneSuicideLegal[i]);
+          testAssert(!copy.wouldBeCapture(loc,pla));
           suicideCount++;
         }
         else {
@@ -1824,9 +1893,14 @@ void Tests::runBoardStressTest() {
           if(board.ko_loc != Board::NULL_LOC) {
             koCaptureCount++;
             testAssert(copy.wouldBeKoCapture(loc,pla));
+            testAssert(copy.wouldBeCapture(loc,pla));
           }
           else
             testAssert(!copy.wouldBeKoCapture(loc,pla));
+          if(!board.isAdjacentToPla(loc,getOpp(pla)) && copy.isAdjacentToPla(loc,getOpp(pla)))
+            testAssert(copy.wouldBeCapture(loc,pla));
+          if(!copy.isAdjacentToPla(loc,getOpp(pla)))
+            testAssert(!copy.wouldBeCapture(loc,pla));
 
           regularMoveCount++;
         }

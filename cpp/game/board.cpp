@@ -466,6 +466,23 @@ bool Board::isSimpleEye(Loc loc, Player pla) const
   return true;
 }
 
+bool Board::wouldBeCapture(Loc loc, Player pla) const {
+  if(colors[loc] != C_EMPTY)
+    return false;
+  Player opp = getOpp(pla);
+  FOREACHADJ(
+    Loc adj = loc + ADJOFFSET;
+    if(colors[adj] == opp)
+    {
+      if(getNumLiberties(adj) == 1)
+        return true;
+    }
+  );
+
+  return false;
+}
+
+
 bool Board::wouldBeKoCapture(Loc loc, Player pla) const {
   if(colors[loc] != C_EMPTY)
     return false;
