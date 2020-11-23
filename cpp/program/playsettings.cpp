@@ -23,6 +23,7 @@ PlaySettings PlaySettings::loadForMatch(ConfigParser& cfg) {
   playSettings.allowResignation = cfg.getBool("allowResignation");
   playSettings.resignThreshold = cfg.getDouble("resignThreshold",-1.0,0.0); //Threshold on [-1,1], regardless of winLossUtilityFactor
   playSettings.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
+  playSettings.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 100;
   return playSettings;
 }
 
