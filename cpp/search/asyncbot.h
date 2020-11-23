@@ -34,6 +34,7 @@ class AsyncBot {
   void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
   void setAlwaysIncludeOwnerMap(bool b);
   void setParams(SearchParams params);
+  void setParamsNoClearing(SearchParams params);
   void setPlayerIfNew(Player movePla);
   void clearSearch();
 

@@ -376,6 +376,10 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       params.chosenMoveTemperature = 1.0;
       params.chosenMoveTemperatureEarly = 1.0;
     }
+    if(testHint) {
+      //Triggers an old buggy codepath that has since been fixed, but left here as part of test
+      params.rootPolicyTemperature = 1.000000000001;
+    }
 
     MatchPairer::BotSpec botSpec;
     botSpec.botIdx = 0;

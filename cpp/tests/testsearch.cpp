@@ -1137,6 +1137,65 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
 
   }
 
+
+  {
+    Board board = Board::parseBoard(19,19,R"%%(
+...................
+............o.oxx..
+...x..........ooxo.
+...........o..xxo..
+..x........oxxxoo.x
+..........xxo.oxxo.
+............o.o....
+..............oxx..
+...................
+...............x...
+..o................
+...................
+...................
+...................
+...................
+..o.o.........ooo..
+.........x...xoxx..
+............x.xoo..
+.............x.....
+)%%");
+
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("Chinese");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 400;
+    params.rootNoiseEnabled = true;
+    params.rootPolicyTemperature = 1.2;
+    params.rootPolicyTemperatureEarly = 1.2;
+    params.rootNumSymmetriesToSample = 2;
+
+    TestSearchOptions opts;
+    TestSearchOptions optsContinue;
+    optsContinue.ignorePosition = true;
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test real hintloc T16" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "hintloc");
+      bot->setRootHintLoc(Location::ofString("T16",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test bad hintloc O18" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "hintloc");
+      bot->setRootHintLoc(Location::ofString("O18",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+  }
+
 }
 
 static void runMoreV8Tests(NNEvaluator* nnEval, Logger& logger)
@@ -1402,6 +1461,117 @@ xxxx.xxoxxx
       }
     }
   }
+
+  {
+    Board board = Board::parseBoard(19,19,R"%%(
+...................
+...................
+................o..
+...x...........x...
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...o............x..
+...................
+.............oo.x..
+...o.........oxx...
+...................
+...................
+)%%");
+
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("Chinese");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams paramsFast = SearchParams::forTestsV1();
+    paramsFast.maxVisits = 5;
+    SearchParams paramsSlow = SearchParams::forTestsV1();
+    paramsSlow.maxVisits = 200;
+    SearchParams paramsFastNoised = paramsFast;
+    paramsFastNoised.rootNoiseEnabled = true;
+    SearchParams paramsSlowNoised = paramsSlow;
+    paramsSlowNoised.rootNoiseEnabled = true;
+    //Note - symmetry sampling here won't actually do anything since the symmetry in the nneval is fixed
+    //but it will still trigger the relevant search.cpp code pathways
+    SearchParams paramsFastSym = paramsFastNoised;
+    paramsFastSym.rootNumSymmetriesToSample = 4;
+    SearchParams paramsSlowSym = paramsSlowNoised;
+    paramsSlowSym.rootNumSymmetriesToSample = 4;
+
+    TestSearchOptions opts;
+    opts.noClearBot = true;
+    TestSearchOptions optsContinue;
+    optsContinue.noClearBot = true;
+    optsContinue.ignorePosition = true;
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsSlow, nnEval, &logger, "hintloc");
+      bot->setRootHintLoc(Location::ofString("C1",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 after attempting same-turn tree reuse" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsFast, nnEval, &logger, "hintloc");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      bot->setParamsNoClearing(paramsSlow);
+      bot->setRootHintLoc(Location::ofString("C1",board)); //This should actually clear the tree even though we didn't say to do so!
+      runBotOnPosition(bot, board, nextPla, hist, optsContinue);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 dirichlet noise" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsSlowNoised, nnEval, &logger, "hintloc");
+      bot->setRootHintLoc(Location::ofString("C1",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 dirichlet noise after attempting same-turn tree reuse" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsFastNoised, nnEval, &logger, "hintloc");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      bot->setParamsNoClearing(paramsSlowNoised);
+      bot->setRootHintLoc(Location::ofString("C1",board)); //This should actually clear the tree even though we didn't say to do so!
+      runBotOnPosition(bot, board, nextPla, hist, optsContinue);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 dirichlet noise and symmetry sampling" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsSlowSym, nnEval, &logger, "hintloc");
+      bot->setRootHintLoc(Location::ofString("C1",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 dirichlet noise and symmetry sampling after attempting same-turn tree reuse" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsFastSym, nnEval, &logger, "hintloc");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      bot->setParamsNoClearing(paramsSlowSym);
+      bot->setRootHintLoc(Location::ofString("C1",board)); //This should actually clear the tree even though we didn't say to do so!
+      runBotOnPosition(bot, board, nextPla, hist, optsContinue);
+      delete bot;
+    }
+  }
+
 }
 
 

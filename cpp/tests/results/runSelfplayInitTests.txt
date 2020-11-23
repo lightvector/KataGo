@@ -7732,7 +7732,7 @@ seedBase: test hint!
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 400
-Policy surprise 0.098215
+Policy surprise 0.0982151
 Raw WL 0.0726678
 PV: F3 G4 E2 H2 F1 J2 D5 D3 E4 C5 C6 C4
 Tree:
@@ -7760,7 +7760,7 @@ A1  : T  92.86c W  82.78c S  10.08c (+17.4 L +17.4) LCB   94.52c P  2.00% WF  2.
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
-Policy surprise 0.00809209
+Policy surprise 0.00809191
 Raw WL 0.0526078
 PV: G4 E2 H2 F1 J2 D5 D3 E4 C4 C5 B5
 Tree:
@@ -7785,7 +7785,7 @@ G4  : T  -6.09c W  -5.88c S  -0.21c ( -0.3 L  -0.3) LCB  -10.84c P 99.19% WF 100
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
-Policy surprise 0.011541
+Policy surprise 0.0115408
 Raw WL -0.0810401
 PV: E2 H2 F1 J2 D5 D3 E4 C5 C6
 Tree:
@@ -7810,7 +7810,7 @@ E2  : T  -6.08c W  -5.86c S  -0.22c ( -0.4 L  -0.4) LCB    1.19c P 98.85% WF 100
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
-Policy surprise 0.115936
+Policy surprise 0.115937
 Raw WL 0.107647
 PV: H2 F1 J2 D5 D3 E4 C5 C6
 Tree:
@@ -7835,7 +7835,7 @@ H2  : T  -6.79c W  -6.50c S  -0.29c ( -0.5 L  -0.5) LCB  -14.02c P 89.05% WF 100
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
-Policy surprise 0.0104535
+Policy surprise 0.0104536
 Raw WL -0.115523
 PV: F1 J2 D5 D3 E4 C5 C6
 Tree:
@@ -7860,7 +7860,7 @@ F1  : T  -6.65c W  -6.36c S  -0.29c ( -0.5 L  -0.5) LCB    0.56c P 98.96% WF 100
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
-Policy surprise 0.0367691
+Policy surprise 0.0367689
 Raw WL 0.0740316
 PV: J2 D5 D3 E4 C4 C5 B5
 Tree:
@@ -7916,7 +7916,7 @@ H8  : T  15.13c W  13.25c S   1.88c ( +3.1 L  +3.1) LCB  260.00c P  4.74% WF 12.
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
-Policy surprise 0.203695
+Policy surprise 0.203696
 Raw WL -0.00960252
 PV: D3 E4 C4 C5 B5
 Tree:

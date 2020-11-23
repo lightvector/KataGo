@@ -250,6 +250,10 @@ void Search::setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vec
 }
 
 void Search::setRootHintLoc(Loc loc) {
+  //When we positively change the hint loc, we clear the search to make absolutely sure
+  //that the hintloc takes effect, and that all nnevals (including the root noise that adds the hintloc) has a chance to happen
+  if(loc != Board::NULL_LOC && rootHintLoc != loc)
+    clearSearch();
   rootHintLoc = loc;
 }
 

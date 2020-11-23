@@ -1283,8 +1283,11 @@ static Loc runBotWithLimits(
       toMoveBot->searchParams.maxVisits = oldMaxVisits;
     }
 
-    if(limits.hintLoc != Board::NULL_LOC)
+    if(limits.hintLoc != Board::NULL_LOC) {
+      assert(limits.clearBotBeforeSearchThisMove);
+      //This will actually forcibly clear the search
       toMoveBot->setRootHintLoc(limits.hintLoc);
+    }
 
     loc = toMoveBot->runWholeSearchAndGetMove(pla,logger);
 
