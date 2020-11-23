@@ -767,7 +767,6 @@ xx.o.o.o.
 
     delete bot;
   }
-
 }
 
 static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& logger)
@@ -1181,6 +1180,182 @@ static void runMoreV8Tests(NNEvaluator* nnEval, Logger& logger)
     delete botB;
     delete botC;
     delete sgf;
+  }
+
+  {
+    Board board = Board::parseBoard(11,11,R"%%(
+.o.xox.x.o.
+xxxxoxxooox
+oo.ooxxxxxx
+.oo.ox.xooo
+oooooxxo.o.
+xxxoooxxooo
+.x.xoxxxxxx
+xxxooox.xx.
+oooo.oxx.xx
+oxxxooxoooo
+.x.o.oxo.x.
+)%%");
+
+    SearchParams params;
+    params.maxVisits = 300;
+    params.fpuReductionMax = 0.0;
+    params.rootFpuReductionMax = 0.0;
+    params.rootEndingBonusPoints = 0.0;
+    params.rootPolicyTemperature = 1.5;
+    params.rootPolicyTemperatureEarly = 1.5;
+    SearchParams params2 = params;
+    params2.rootEndingBonusPoints = 0.5;
+
+    TestSearchOptions opts;
+    opts.printEndingScoreValueBonus = true;
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Ending bonus points in area scoring with selfatari moves, white first" << endl;
+      cout << "===================================================================" << endl;
+
+      Player nextPla = P_WHITE;
+      Rules rules = Rules::parseRules("Chinese");
+      BoardHistory hist(board,nextPla,rules,0);
+      {
+        cout << "Without root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+      {
+        cout << "With root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+    }
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Ending bonus points in area scoring with selfatari moves, white first, button" << endl;
+      cout << "===================================================================" << endl;
+
+      Player nextPla = P_WHITE;
+      Rules rules = Rules::parseRules("Chinese");
+      rules.hasButton = true;
+      BoardHistory hist(board,nextPla,rules,0);
+      {
+        cout << "Without root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+      {
+        cout << "With root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+    }
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Ending bonus points in area scoring with selfatari moves, black first" << endl;
+      cout << "===================================================================" << endl;
+
+      Player nextPla = P_BLACK;
+      Rules rules = Rules::parseRules("Chinese");
+      BoardHistory hist(board,nextPla,rules,0);
+      {
+        cout << "Without root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+      {
+        cout << "With root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+    }
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Ending bonus points in area scoring with selfatari moves, black first, button" << endl;
+      cout << "===================================================================" << endl;
+
+      Player nextPla = P_BLACK;
+      Rules rules = Rules::parseRules("Chinese");
+      rules.hasButton = true;
+      BoardHistory hist(board,nextPla,rules,0);
+      {
+        cout << "Without root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+      {
+        cout << "With root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+    }
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Ending bonus points in territory scoring with selfatari moves, black first" << endl;
+      cout << "===================================================================" << endl;
+
+      Player nextPla = P_BLACK;
+      Rules rules = Rules::parseRules("Japanese");
+      BoardHistory hist(board,nextPla,rules,0);
+      {
+        cout << "Without root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+      {
+        cout << "With root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+    }
+
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Ending bonus points in territory scoring with selfatari moves, black first, encore 2" << endl;
+      cout << "===================================================================" << endl;
+
+      Player nextPla = P_BLACK;
+      Rules rules = Rules::parseRules("Japanese");
+      BoardHistory hist(board,nextPla,rules,2);
+      {
+        cout << "Without root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+      {
+        cout << "With root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+    }
   }
 }
 
