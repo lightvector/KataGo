@@ -638,7 +638,7 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
           out->close();
           delete out;
         }
-        out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + ".hintposes.txt");
+        out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + ".startposes.txt");
         fileCounter += 1;
         numWrittenThisFile = 0;
       }
