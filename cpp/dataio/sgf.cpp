@@ -274,14 +274,32 @@ Sgf::~Sgf() {
 }
 
 
-int Sgf::depth() const {
-  int maxChildDepth = 0;
+int64_t Sgf::depth() const {
+  int64_t maxChildDepth = 0;
   for(int i = 0; i<children.size(); i++) {
-    int childDepth = children[i]->depth();
+    int64_t childDepth = children[i]->depth();
     if(childDepth > maxChildDepth)
       maxChildDepth = childDepth;
   }
   return maxChildDepth + nodes.size();
+}
+
+int64_t Sgf::nodeCount() const {
+  int64_t count = 0;
+  for(int i = 0; i<children.size(); i++) {
+    count += children[i]->nodeCount();
+  }
+  return count + (int64_t)nodes.size();
+}
+
+int64_t Sgf::branchCount() const {
+  int64_t count = 0;
+  for(int i = 0; i<children.size(); i++) {
+    count += children[i]->branchCount();
+  }
+  if(children.size() > 1)
+    count += children.size()-1;
+  return count;
 }
 
 static void checkNonEmpty(const vector<SgfNode*>& nodes) {
@@ -392,10 +410,10 @@ void Sgf::getMovesHelper(vector<Move>& moves, int xSize, int ySize) const {
     nodes[i]->accumMoves(moves,xSize,ySize);
   }
 
-  int maxChildDepth = 0;
+  int64_t maxChildDepth = 0;
   Sgf* maxChild = NULL;
   for(int i = 0; i<children.size(); i++) {
-    int childDepth = children[i]->depth();
+    int64_t childDepth = children[i]->depth();
     if(childDepth > maxChildDepth) {
       maxChildDepth = childDepth;
       maxChild = children[i];
@@ -515,10 +533,10 @@ void Sgf::iterAllUniquePositionsHelper(
   }
 
   for(int i = 0; i<children.size(); i++) {
-    Board copy = board;
-    BoardHistory histCopy = hist;
+    std::unique_ptr<Board> copy = std::make_unique<Board>(board);
+    std::unique_ptr<BoardHistory> histCopy = std::make_unique<BoardHistory>(hist);
     variationTraceNodesBranch.push_back(std::make_pair((int64_t)nodes.size(),(int64_t)i));
-    children[i]->iterAllUniquePositionsHelper(copy,histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,variationTraceNodesBranch,f);
+    children[i]->iterAllUniquePositionsHelper(*copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,variationTraceNodesBranch,f);
     assert(variationTraceNodesBranch.size() > 0);
     variationTraceNodesBranch.erase(variationTraceNodesBranch.begin()+(variationTraceNodesBranch.size()-1));
   }

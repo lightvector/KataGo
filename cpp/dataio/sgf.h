@@ -62,7 +62,12 @@ struct Sgf {
   void getPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
   void getMoves(std::vector<Move>& moves, int xSize, int ySize) const;
 
-  int depth() const;
+  //Maximum depth of sgf tree in nodes
+  int64_t depth() const;
+  //Total number of sgf nodes
+  int64_t nodeCount() const;
+  //Total number of sgf branches (0 for a linear sgf, 1 if there is 1 fork, etc)
+  int64_t branchCount() const;
 
   struct PositionSample {
     Board board;
@@ -123,7 +128,7 @@ struct CompactSgf {
   std::vector<Move> moves;
   int xSize;
   int ySize;
-  int depth;
+  int64_t depth;
   float komi;
   Player sgfWinner;
   Hash128 hash;

@@ -579,6 +579,9 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
   vector<string> excludeHashesFiles;
   double sampleProb;
   double turnWeightLambda;
+  int64_t maxDepth;
+  int64_t maxNodeCount;
+  int64_t maxBranchCount;
   try {
     KataGoCommandLine cmd("Search for suprising good moves in sgfs");
 
@@ -587,17 +590,26 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
     TCLAP::MultiArg<string> excludeHashesArg("","exclude-hashes","Specify a list of hashes to filter out, one per line in a txt file",false,"FILEOF(HASH,HASH)");
     TCLAP::ValueArg<double> sampleProbArg("","sample-prob","Probability to sample each position",true,0.0,"PROB");
     TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Probability to sample each position",true,0.0,"PROB");
+    TCLAP::ValueArg<int64_t> maxDepthArg("","max-depth","Max depth allowed for sgf",false,100000000,"INT");
+    TCLAP::ValueArg<int64_t> maxNodeCountArg("","max-node-count","Max node count allowed for sgf",false,100000000,"INT");
+    TCLAP::ValueArg<int64_t> maxBranchCountArg("","max-branch-count","Max branch count allowed for sgf",false,100000000,"INT");
     cmd.add(sgfDirArg);
     cmd.add(outDirArg);
     cmd.add(excludeHashesArg);
     cmd.add(sampleProbArg);
     cmd.add(turnWeightLambdaArg);
+    cmd.add(maxDepthArg);
+    cmd.add(maxNodeCountArg);
+    cmd.add(maxBranchCountArg);
     cmd.parse(argc,argv);
     sgfDirs = sgfDirArg.getValue();
     outDir = outDirArg.getValue();
     excludeHashesFiles = excludeHashesArg.getValue();
     sampleProb = sampleProbArg.getValue();
     turnWeightLambda = turnWeightLambdaArg.getValue();
+    maxDepth = maxDepthArg.getValue();
+    maxNodeCount = maxNodeCountArg.getValue();
+    maxBranchCount = maxBranchCountArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -682,8 +694,21 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
       if(contains(excludeHashes,sgf->hash))
         numExcluded += 1;
       else {
-        bool hashComments = false;
-        sgf->iterAllUniquePositions(uniqueHashes, hashComments, posHandler);
+        int64_t depth = sgf->depth();
+        int64_t nodeCount = sgf->nodeCount();
+        int64_t branchCount = sgf->branchCount();
+        if(depth > maxDepth || nodeCount > maxNodeCount || branchCount > maxBranchCount) {
+          logger.write(
+            "Skipping due to violating limits depth " + Global::int64ToString(depth) +
+            " nodes " + Global::int64ToString(nodeCount) +
+            " branches " + Global::int64ToString(branchCount) +
+            " " + sgfFiles[i]
+          );
+        }
+        else {
+          bool hashComments = false;
+          sgf->iterAllUniquePositions(uniqueHashes, hashComments, posHandler);
+        }
       }
     }
     catch(const StringError& e) {
@@ -1496,7 +1521,7 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
     cmd.addModelFileArg();
     cmd.addOverrideConfigArg();
 
-    TCLAP::MultiArg<string> startPosesFileArg("","startPosesFile","Startposes file",true,"DIR");
+    TCLAP::MultiArg<string> startPosesFileArg("","startposes","Startposes file",true,"DIR");
     cmd.add(startPosesFileArg);
     cmd.parse(argc,argv);
     nnModelFile = cmd.getModelFile();
