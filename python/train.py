@@ -109,13 +109,19 @@ num_batches_per_epoch = int(round(samples_per_epoch / batch_size))
 if epochs_per_export is None:
   epochs_per_export = 1
 
-model_config = modelconfigs.config_of_name[model_kind]
-
-with open(os.path.join(traindir,"model.config.json"),"w") as f:
-  json.dump(model_config,f)
-
 trainlog(str(sys.argv))
 
+if os.path.exists(os.path.join(traindir,"model.config.json")):
+  trainlog("Loading existing model config at %s" % os.path.join(traindir,"model.config.json"))
+  with open(os.path.join(traindir,"model.config.json"),"r") as f:
+    model_config = json.load(f)
+else:
+  model_config = modelconfigs.config_of_name[model_kind]
+  trainlog("Initializing with new model config")
+  with open(os.path.join(traindir,"model.config.json"),"w") as f:
+    json.dump(model_config,f)
+
+trainlog(str(model_config))
 
 # FIGURE OUT MULTIGPU ------------------------------------------------------------
 num_gpus_used = 1
@@ -229,30 +235,35 @@ def model_fn(features,labels,mode,params):
       aggregation=tf.VariableAggregation.SUM
     )
     wsum_op = tf.assign_add(wsum,target_vars.weight_sum)
+    eval_metric_ops={
+      #"wsum": (wsum.read_value(),wsum_op),
+      "p0loss": tf.compat.v1.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used),
+      "p1loss": tf.compat.v1.metrics.mean(target_vars.policy1_loss_unreduced, weights=target_vars.target_weight_used),
+      "vloss": tf.compat.v1.metrics.mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used),
+      "tdvloss": tf.compat.v1.metrics.mean(target_vars.td_value_loss_unreduced, weights=target_vars.target_weight_used),
+      "smloss": tf.compat.v1.metrics.mean(target_vars.scoremean_loss_unreduced, weights=target_vars.target_weight_used),
+      "leadloss": tf.compat.v1.metrics.mean(target_vars.lead_loss_unreduced, weights=target_vars.target_weight_used),
+      "vtimeloss": tf.compat.v1.metrics.mean(target_vars.variance_time_loss_unreduced, weights=target_vars.target_weight_used),
+      "sbpdfloss": tf.compat.v1.metrics.mean(target_vars.scorebelief_pdf_loss_unreduced, weights=target_vars.target_weight_used),
+      "sbcdfloss": tf.compat.v1.metrics.mean(target_vars.scorebelief_cdf_loss_unreduced, weights=target_vars.target_weight_used),
+      "oloss": tf.compat.v1.metrics.mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used),
+      "sloss": tf.compat.v1.metrics.mean(target_vars.scoring_loss_unreduced, weights=target_vars.target_weight_used),
+      "fploss": tf.compat.v1.metrics.mean(target_vars.futurepos_loss_unreduced, weights=target_vars.target_weight_used),
+      "rsdloss": tf.compat.v1.metrics.mean(target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used),
+      "rloss": tf.compat.v1.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
+      "rscloss": tf.compat.v1.metrics.mean(target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used),
+      "pacc1": tf.compat.v1.metrics.mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used),
+      "ventr": tf.compat.v1.metrics.mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used),
+      "ptentr": tf.compat.v1.metrics.mean(metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
+    }
+    if model.version >= 9:
+      eval_metric_ops["evstloss"] = tf.compat.v1.metrics.mean(target_vars.shortterm_value_error_loss_unreduced, weights=target_vars.target_weight_used)
+      eval_metric_ops["esstloss"] = tf.compat.v1.metrics.mean(target_vars.shortterm_score_error_loss_unreduced, weights=target_vars.target_weight_used)
+
     return tf.estimator.EstimatorSpec(
       mode,
       loss=target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32),
-      eval_metric_ops={
-        #"wsum": (wsum.read_value(),wsum_op),
-        "p0loss": tf.compat.v1.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used),
-        "p1loss": tf.compat.v1.metrics.mean(target_vars.policy1_loss_unreduced, weights=target_vars.target_weight_used),
-        "vloss": tf.compat.v1.metrics.mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used),
-        "tdvloss": tf.compat.v1.metrics.mean(target_vars.td_value_loss_unreduced, weights=target_vars.target_weight_used),
-        "smloss": tf.compat.v1.metrics.mean(target_vars.scoremean_loss_unreduced, weights=target_vars.target_weight_used),
-        "leadloss": tf.compat.v1.metrics.mean(target_vars.lead_loss_unreduced, weights=target_vars.target_weight_used),
-        "vtimeloss": tf.compat.v1.metrics.mean(target_vars.variance_time_loss_unreduced, weights=target_vars.target_weight_used),
-        "sbpdfloss": tf.compat.v1.metrics.mean(target_vars.scorebelief_pdf_loss_unreduced, weights=target_vars.target_weight_used),
-        "sbcdfloss": tf.compat.v1.metrics.mean(target_vars.scorebelief_cdf_loss_unreduced, weights=target_vars.target_weight_used),
-        "oloss": tf.compat.v1.metrics.mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used),
-        "sloss": tf.compat.v1.metrics.mean(target_vars.scoring_loss_unreduced, weights=target_vars.target_weight_used),
-        "fploss": tf.compat.v1.metrics.mean(target_vars.futurepos_loss_unreduced, weights=target_vars.target_weight_used),
-        "rsdloss": tf.compat.v1.metrics.mean(target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used),
-        "rloss": tf.compat.v1.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
-        "rscloss": tf.compat.v1.metrics.mean(target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used),
-        "pacc1": tf.compat.v1.metrics.mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used),
-        "ventr": tf.compat.v1.metrics.mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used),
-        "ptentr": tf.compat.v1.metrics.mean(metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
-      }
+      eval_metric_ops=eval_metric_ops
     )
 
   if mode == tf.estimator.ModeKeys.TRAIN:
@@ -290,6 +301,13 @@ def model_fn(features,labels,mode,params):
     (rsdloss,rsdloss_op) = moving_mean("rsdloss",target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (rloss,rloss_op) = moving_mean("rloss",target_vars.reg_loss_per_weight, weights=target_vars.weight_sum)
     (rscloss,rscloss_op) = moving_mean("rscloss",target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used)
+    if model.version >= 9:
+      (evstloss,evstloss_op) = moving_mean("evstloss",target_vars.shortterm_value_error_loss_unreduced, weights=target_vars.target_weight_used)
+      (esstloss,esstloss_op) = moving_mean("esstloss",target_vars.shortterm_score_error_loss_unreduced, weights=target_vars.target_weight_used)
+      # (evstm,evstm_op) = moving_mean("evstm",metrics.shortterm_value_error_mean_unreduced, weights=target_vars.target_weight_used)
+      # (evstv,evstv_op) = moving_mean("evstv",metrics.shortterm_value_error_var_unreduced, weights=target_vars.target_weight_used)
+      # (esstm,esstm_op) = moving_mean("esstm",metrics.shortterm_score_error_mean_unreduced, weights=target_vars.target_weight_used)
+      # (esstv,esstv_op) = moving_mean("esstv",metrics.shortterm_score_error_var_unreduced, weights=target_vars.target_weight_used)
     (pacc1,pacc1_op) = moving_mean("pacc1",metrics.accuracy1_unreduced, weights=target_vars.target_weight_used)
     (ptentr,ptentr_op) = moving_mean("ptentr",metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
     #NOTE: These two are going to be smaller if using more GPUs since it's the gradient norm as measured on the instance batch
@@ -311,7 +329,7 @@ def model_fn(features,labels,mode,params):
 
     print_train_loss_every_batches = 100
 
-    logging_hook = CustomLoggingHook({
+    logvars = {
       "nsamp": global_step * tf.constant(batch_size,dtype=tf.int64),
       "wsum": global_step_float * wmean * tf.constant(float(num_gpus_used)),
       "p0loss": p0loss,
@@ -336,7 +354,16 @@ def model_fn(features,labels,mode,params):
       "pslr": per_sample_learning_rate,
       "gnorm": gnorm,
       "exgnorm": exgnorm
-    }, every_n_iter=print_train_loss_every_batches, handle_logging_values=update_global_latest_extra_stats)
+    }
+    if model.version >= 9:
+      logvars["evstloss"] = evstloss
+      logvars["esstloss"] = esstloss
+      # logvars["evstm"] = evstm
+      # logvars["evstv"] = evstv
+      # logvars["esstm"] = esstm
+      # logvars["esstv"] = esstv
+
+    logging_hook = CustomLoggingHook(logvars, every_n_iter=print_train_loss_every_batches, handle_logging_values=update_global_latest_extra_stats)
 
     printed_model_yet = True
 
@@ -348,29 +375,44 @@ def model_fn(features,labels,mode,params):
       print("Initial weights found at: " + initial_weights_dir)
       checkpoint_path = os.path.join(initial_weights_dir,"model")
       vars_in_checkpoint = tf.contrib.framework.list_variables(checkpoint_path)
+      varname_in_checkpoint = {}
       print("Checkpoint contains:")
-      for var in vars_in_checkpoint:
-        print(var)
+      for varandshape in vars_in_checkpoint:
+        print(varandshape)
+        varname_in_checkpoint[varandshape[0]] = True
 
       print("Modifying graph to load weights from checkpoint upon init...")
       sys.stdout.flush()
       sys.stderr.flush()
 
-      variables_to_restore = tf.trainable_variables()
-      assignment_mapping = { v.name.split(":")[0] : v for v in variables_to_restore }
-      tf.train.init_from_checkpoint(checkpoint_path, assignment_mapping)
+      variables_to_restore = tf.compat.v1.global_variables()
+      assignment_mapping = {}
+      for v in variables_to_restore:
+        name = v.name.split(":")[0] # drop the ":0" at the end of each var
+        if name in varname_in_checkpoint:
+          assignment_mapping[name] = v
+
+      tf.compat.v1.train.init_from_checkpoint(checkpoint_path, assignment_mapping)
       initial_weights_already_loaded = True
+
+    ops = [
+      train_step,
+      p0loss_op,p1loss_op,vloss_op,tdvloss_op,smloss_op,leadloss_op,vtimeloss_op,sbpdfloss_op,sbcdfloss_op,
+      oloss_op,sloss_op,fploss_op,skloss_op,rsdloss_op,rloss_op,rscloss_op,pacc1_op,ptentr_op,wmean_op,
+      gnorm_op,exgnorm_op
+    ]
+    if model.version >= 9:
+      ops.append(evstloss_op)
+      ops.append(esstloss_op)
+      # ops.append(evstm_op)
+      # ops.append(evstv_op)
+      # ops.append(esstm_op)
+      # ops.append(esstv_op)
 
     return tf.estimator.EstimatorSpec(
       mode,
       loss=(target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32)),
-      train_op=tf.group(
-        train_step,
-        p0loss_op,p1loss_op,vloss_op,tdvloss_op,smloss_op,leadloss_op,vtimeloss_op,sbpdfloss_op,sbcdfloss_op,
-        oloss_op,sloss_op,fploss_op,skloss_op,rsdloss_op,rloss_op,rscloss_op,pacc1_op,ptentr_op,wmean_op,
-        gnorm_op,exgnorm_op
-        #,print_op
-      ),
+      train_op=tf.group(*ops),
       training_hooks = [logging_hook]
     )
 

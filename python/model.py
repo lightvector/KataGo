@@ -35,6 +35,8 @@ class Model:
       return 22
     elif version == 8:
       return 22
+    elif version == 9:
+      return 22
     else:
       assert(False)
 
@@ -50,6 +52,8 @@ class Model:
     elif version == 7:
       return 16
     elif version == 8:
+      return 19
+    elif version == 9:
       return 19
     else:
       assert(False)
@@ -75,6 +79,9 @@ class Model:
     self.scorestdev_target_shape = [] #1
     self.lead_target_shape = [] #2
     self.variance_time_target_shape = [] #3
+    self.moremiscvalues_target_shape = [8] #0:shortterm value stdev, #1 shortterm score stdev, #2-#7 unused
+    self.shortterm_value_target_shape = [] #0
+    self.shortterm_score_target_shape = [] #1
     self.scorebelief_target_shape = [self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2]
     self.ownership_target_shape = [self.pos_len,self.pos_len]
     self.scoring_target_shape = [self.pos_len,self.pos_len]
@@ -203,7 +210,7 @@ class Model:
   #Returns the new idx, which could be the same as idx if this isn't a good training row
   def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, global_input_data, idx):
     #Currently only support v4 or v5 or v7 MODEL features (inputs version v3 and v4 and v6)
-    assert(self.version == 4 or self.version == 5 or self.version == 7 or self.version == 8)
+    assert(self.version == 4 or self.version == 5 or self.version == 7 or self.version == 8 or self.version == 9)
 
     bsize = board.size
     assert(self.pos_len >= bsize)
@@ -842,10 +849,11 @@ class Model:
     #self.version = 6 #V5 features, most higher-level go features removed
     #self.version = 7 #V6 features, more rules support
     #self.version = 8 #V7 features, asym, lead, variance time
+    #self.version = 9 #V7 features, shortterm value error prediction, inference actually uses variance time
 
     self.version = Model.get_version(config)
     #These are the only supported versions for training
-    assert(self.version == 8)
+    assert(self.version == 8 or self.version == 9)
 
     #Input layer---------------------------------------------------------------------------------
     bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
@@ -880,7 +888,7 @@ class Model:
     #We do this by building a matrix for each batch element, mapping input channels to possibly-turned off channels.
     #This matrix is a sum of hist_matrix_base which always turns off all the channels, and h0, h1, h2,... which perform
     #the modifications to hist_matrix_base to make it turn on channels based on whether we have move0, move1,...
-    if self.version == 8:
+    if self.version >= 8:
       hist_matrix_base = np.diag(np.array([
         1.0, #0
         1.0, #1
@@ -1112,12 +1120,24 @@ class Model:
     self.mv3_size = mv3_size
     self.other_internal_outputs.append(("mv3",mv3_layer))
 
+    mmv3_size = self.moremiscvalues_target_shape[0]
+    if self.version >= 9:
+      mmv3w = self.weight_variable("mmv3/w",[v2_size,mmv3_size],v2_size,mmv3_size)
+      mmv3b = self.weight_variable("mmv3/b",[mmv3_size],v2_size,mmv3_size,scale_initial_weights=0.2,reg="tiny")
+    else:
+      mmv3w = tf.zeros([v2_size,mmv3_size])
+      mmv3b = tf.zeros([mmv3_size])
+    mmv3_layer = tf.matmul(v2_layer, mmv3w, name='mmvmul') + mmv3b
+    self.mmv3_size = mmv3_size
+    self.other_internal_outputs.append(("mmv3",mmv3_layer))
+
     if not self.support_japanese_rules:
       # Force no-result prediction to 0 after softmax
       v3_layer = v3_layer + tf.constant([0,0,-5000.0],dtype=tf.float32)
     value_output = tf.reshape(v3_layer, [-1] + self.value_target_shape, name = "value_output")
 
     miscvalues_output = tf.reshape(mv3_layer, [-1] + self.miscvalues_target_shape, name = "miscvalues_output")
+    moremiscvalues_output = tf.reshape(mmv3_layer, [-1] + self.moremiscvalues_target_shape, name = "moremiscvalues_output")
 
     #Transform a real-valued output into a positive value suitable for multiplying to other inputs as a scaling factor
     def scaletransform(tensor):
@@ -1132,7 +1152,7 @@ class Model:
     scorebelief_mid = self.pos_len*self.pos_len+Model.EXTRA_SCORE_DISTR_RADIUS
     assert(scorebelief_len == self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2)
 
-    if self.version == 8:
+    if self.version >= 8:
       self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
       self.score_belief_parity_vector = np.array([0.5-float((i-scorebelief_mid) % 2) for i in range(scorebelief_len)],dtype=np.float32)
       sbv2_size = config["sbv2_num_channels"]
@@ -1208,6 +1228,7 @@ class Model:
 
     self.value_output = value_output
     self.miscvalues_output = miscvalues_output
+    self.moremiscvalues_output = moremiscvalues_output
     self.scorebelief_output = scorebelief_output
     self.ownership_output = ownership_output
     self.scoring_output = scoring_output
@@ -1225,6 +1246,7 @@ class Target_vars:
     policy_output = model.policy_output
     value_output = model.value_output
     miscvalues_output = model.miscvalues_output
+    moremiscvalues_output = model.moremiscvalues_output
     scorebelief_output = model.scorebelief_output
     ownership_output = model.ownership_output
     scoring_output = model.scoring_output
@@ -1238,6 +1260,8 @@ class Target_vars:
     scorestdev_prediction = tf.math.softplus(miscvalues_output[:,1]) * 20.0
     lead_prediction = miscvalues_output[:,2] * 20.0
     variance_time_prediction = tf.math.softplus(miscvalues_output[:,3]) * 40.0
+    shortterm_value_error_prediction = tf.math.softplus(moremiscvalues_output[:,0])
+    shortterm_score_error_prediction = tf.math.softplus(moremiscvalues_output[:,1]) * 10.0
 
     #Loss function
     self.policy_target = (placeholders["policy_target"] if "policy_target" in placeholders else
@@ -1257,6 +1281,12 @@ class Target_vars:
     #Arrival time of variance in game, unconditional
     self.variance_time_target = (placeholders["variance_time_target"] if "variance_time_target" in placeholders else
                               tf.compat.v1.placeholder(tf.float32, [None] + model.variance_time_target_shape))
+    #Predicted stdev between value prediction and shortterm td value
+    self.shortterm_value_target = (placeholders["shortterm_value_target"] if "shortterm_value_target" in placeholders else
+                              tf.compat.v1.placeholder(tf.float32, [None] + model.shortterm_value_target_shape))
+    #Predicted stdev between score prediction and shortterm td score
+    self.shortterm_score_target = (placeholders["shortterm_score_target"] if "shortterm_score_target" in placeholders else
+                              tf.compat.v1.placeholder(tf.float32, [None] + model.shortterm_score_target_shape))
     #Score belief distributions CONDITIONAL on result
     self.scorebelief_target = (placeholders["scorebelief_target"] if "scorebelief_target" in placeholders else
                               tf.compat.v1.placeholder(tf.float32, [None] + model.scorebelief_target_shape))
@@ -1299,6 +1329,8 @@ class Target_vars:
     model.assert_batched_shape("scoremean_target", self.scoremean_target, model.scoremean_target_shape)
     model.assert_batched_shape("lead_target", self.lead_target, model.lead_target_shape)
     model.assert_batched_shape("variance_time_target", self.variance_time_target, model.variance_time_target_shape)
+    model.assert_batched_shape("shortterm_value_target", self.shortterm_value_target, model.shortterm_value_target_shape)
+    model.assert_batched_shape("shortterm_score_target", self.shortterm_score_target, model.shortterm_score_target_shape)
     model.assert_batched_shape("scorebelief_target", self.scorebelief_target, model.scorebelief_target_shape)
     model.assert_batched_shape("ownership_target", self.ownership_target, model.ownership_target_shape)
     model.assert_batched_shape("scoring_target", self.scoring_target, model.scoring_target_shape)
@@ -1449,6 +1481,25 @@ class Target_vars:
     beliefstdevdiff = stdev_of_belief - scorestdev_prediction
     self.scorestdev_reg_loss_unreduced = 0.004 * huber_loss(stdev_of_belief, scorestdev_prediction, delta = 10.0)
 
+    selfvalue = tf.stop_gradient(value_probs[:,0] - value_probs[:,1])
+    selfscore = tf.stop_gradient(scoremean_prediction)
+    shorttermdiffvalue = tf.abs(selfvalue - self.shortterm_value_target)
+    shorttermdiffscore = tf.abs(selfscore - self.shortterm_score_target)
+    # Use self.ownership_target_weight to make sure that we only have this target when we genuinely played out the game
+    self.shortterm_value_error_loss_unreduced = 0.5 * self.ownership_target_weight * huber_loss(
+      shorttermdiffvalue * tf.sqrt(shorttermdiffvalue),
+      shortterm_value_error_prediction * tf.sqrt(shortterm_value_error_prediction),
+      delta = 0.5
+    )
+    # Use self.ownership_target_weight to make sure that we only have this target when we genuinely played out the game
+    self.shortterm_score_error_loss_unreduced = 0.0001 * self.ownership_target_weight * huber_loss(
+      shorttermdiffscore * tf.sqrt(shorttermdiffscore),
+      shortterm_score_error_prediction * tf.sqrt(shortterm_score_error_prediction),
+      delta = 40.0
+    )
+    # self.shortterm_diff_value = shorttermdiffvalue
+    # self.shortterm_diff_score = shorttermdiffscore
+
     # winlossprob_from_belief = tf.concat([
     #   tf.reduce_sum(scorebelief_probs[:,(model.scorebelief_target_shape[0]//2):],axis=1,keepdims=True),
     #   tf.reduce_sum(scorebelief_probs[:,0:(model.scorebelief_target_shape[0]//2)],axis=1,keepdims=True)
@@ -1473,6 +1524,8 @@ class Target_vars:
     self.futurepos_loss = tf.reduce_sum(self.target_weight_used * self.futurepos_loss_unreduced, name="losses/futurepos_loss")
     self.seki_loss = tf.reduce_sum(self.target_weight_used * self.seki_loss_unreduced, name="losses/seki_loss")
     self.scorestdev_reg_loss = tf.reduce_sum(self.target_weight_used * self.scorestdev_reg_loss_unreduced, name="losses/scorestdev_reg_loss")
+    self.shortterm_value_error_loss = tf.reduce_sum(self.target_weight_used * self.shortterm_value_error_loss_unreduced, name="losses/sloss")
+    self.shortterm_score_error_loss = tf.reduce_sum(self.target_weight_used * self.shortterm_score_error_loss_unreduced, name="losses/shortterm_score_error_loss")
     # self.winloss_reg_loss = tf.reduce_sum(self.target_weight_used * self.winloss_reg_loss_unreduced, name="losses/winloss_reg_loss")
     self.scale_reg_loss = tf.reduce_sum(self.target_weight_used * self.scale_reg_loss_unreduced, name="losses/scale_reg_loss")
 
@@ -1504,6 +1557,8 @@ class Target_vars:
         self.futurepos_loss +
         self.seki_loss +
         self.scorestdev_reg_loss +
+        self.shortterm_value_error_loss +
+        self.shortterm_score_error_loss +
         self.reg_loss +
         self.scale_reg_loss
       )
@@ -1537,6 +1592,11 @@ class Metrics:
     self.value_entropy = tf.reduce_sum(target_vars.target_weight_used * self.value_entropy_unreduced, name="metrics/value_entropy")
     self.value_conf = tf.reduce_sum(target_vars.target_weight_used * self.value_conf_unreduced, name="metrics/value_conf")
     self.policy_target_entropy = tf.reduce_sum(target_vars.target_weight_used * self.policy_target_entropy_unreduced, name="metrics/policy_target_entropy")
+
+    # self.shortterm_value_error_mean_unreduced = target_vars.shortterm_diff_value
+    # self.shortterm_score_error_mean_unreduced = target_vars.shortterm_diff_score
+    # self.shortterm_value_error_var_unreduced = target_vars.shortterm_diff_value * target_vars.shortterm_diff_value
+    # self.shortterm_score_error_var_unreduced = target_vars.shortterm_diff_score * target_vars.shortterm_diff_score
     self.gnorm = None
 
     #Debugging stats
@@ -1625,6 +1685,8 @@ class ModelUtils:
 
     placeholders["value_target"] = features["gtnc"][:,0:3]
     placeholders["td_value_target"] = tf.stack([features["gtnc"][:,4:7],features["gtnc"][:,8:11]],axis=1)
+    placeholders["shortterm_value_target"] = features["gtnc"][:,12] - features["gtnc"][:,13]
+    placeholders["shortterm_score_target"] = features["gtnc"][:,15]
     placeholders["scoremean_target"] = features["gtnc"][:,3]
     placeholders["lead_target"] = features["gtnc"][:,21]
     placeholders["variance_time_target"] = features["gtnc"][:,22]
@@ -1702,6 +1764,7 @@ class ModelUtils:
         train_step = optimizer.apply_gradients(adjusted_gradients_clipped, global_step=global_step)
 
       if print_model:
+        trainlog("Model version: %d" % model.version)
         ModelUtils.print_trainable_variables(trainlog)
         for update_op in tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS):
           trainlog("Additional update op on train step: %s" % update_op.name)
