@@ -589,7 +589,7 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> outDirArg("","outdir","Directory to write results",true,string(),"DIR");
     TCLAP::MultiArg<string> excludeHashesArg("","exclude-hashes","Specify a list of hashes to filter out, one per line in a txt file",false,"FILEOF(HASH,HASH)");
     TCLAP::ValueArg<double> sampleProbArg("","sample-prob","Probability to sample each position",true,0.0,"PROB");
-    TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Probability to sample each position",true,0.0,"PROB");
+    TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Adjust weight for writing down each position",true,0.0,"LAMBDA");
     TCLAP::ValueArg<int64_t> maxDepthArg("","max-depth","Max depth allowed for sgf",false,100000000,"INT");
     TCLAP::ValueArg<int64_t> maxNodeCountArg("","max-node-count","Max node count allowed for sgf",false,100000000,"INT");
     TCLAP::ValueArg<int64_t> maxBranchCountArg("","max-branch-count","Max branch count allowed for sgf",false,100000000,"INT");
@@ -813,6 +813,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   bool autoKomi;
   int sgfSplitCount;
   int sgfSplitIdx;
+  double turnWeightLambda;
   try {
     KataGoCommandLine cmd("Search for suprising good moves in sgfs");
     cmd.addConfigFileArg("","");
@@ -828,6 +829,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     TCLAP::SwitchArg autoKomiArg("","auto-komi","Auto komi");
     TCLAP::ValueArg<int> sgfSplitCountArg("","sgf-split-count","Number of splits",false,1,"N");
     TCLAP::ValueArg<int> sgfSplitIdxArg("","sgf-split-idx","Which split",false,0,"IDX");
+    TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Adjust weight for writing down each position",true,0.0,"LAMBDA");
     cmd.add(sgfDirArg);
     cmd.add(outDirArg);
     cmd.add(numProcessThreadsArg);
@@ -837,6 +839,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     cmd.add(autoKomiArg);
     cmd.add(sgfSplitCountArg);
     cmd.add(sgfSplitIdxArg);
+    cmd.add(turnWeightLambdaArg);
     cmd.parse(argc,argv);
     nnModelFile = cmd.getModelFile();
     sgfDirs = sgfDirArg.getValue();
@@ -848,6 +851,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     autoKomi = autoKomiArg.getValue();
     sgfSplitCount = sgfSplitCountArg.getValue();
     sgfSplitIdx = sgfSplitIdxArg.getValue();
+    turnWeightLambda = turnWeightLambdaArg.getValue();
 
     if(gameMode == treeMode)
       throw StringError("Must specify either -game-mode or -tree-mode");
@@ -957,7 +961,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
   // ---------------------------------------------------------------------------------------------------
 
-  auto expensiveEvaluateMove = [&toWriteQueue,&logger](
+  auto expensiveEvaluateMove = [&toWriteQueue,&logger,&turnWeightLambda](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample, bool markedAsHintPos
@@ -1021,6 +1025,8 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
         sampleToWrite.weight = sampleToWrite.weight * 0.75 - 0.1;
       if(veryQuickMoveLoc == moveLoc)
         sampleToWrite.weight = sampleToWrite.weight * 0.75 - 0.1;
+
+      sampleToWrite.weight *= exp(-sampleToWrite.initialTurnNumber * turnWeightLambda);
       if(sampleToWrite.weight > 0.1) {
         //Still good to learn from given that policy was really low
         toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
@@ -1063,7 +1069,10 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       if(shouldWriteMove) {
         //Moves that the bot didn't see get written out more
         sampleToWrite.weight = sampleToWrite.weight * 1.5 + 1.0;
-        toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
+        sampleToWrite.weight *= exp(-sampleToWrite.initialTurnNumber * turnWeightLambda);
+        if(sampleToWrite.weight > 0.1) {
+          toWriteQueue.waitPush(new string(Sgf::PositionSample::toJsonLine(sampleToWrite)));
+        }
       }
     }
   };
