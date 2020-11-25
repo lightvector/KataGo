@@ -791,6 +791,12 @@ static double surpriseWeight(double policyProb, Rand& rand, bool markedAsHintPos
   return weight;
 }
 
+struct PosQueueEntry {
+  BoardHistory* hist;
+  int initialTurnNumber;
+  bool markedAsHintPos;
+};
+
 int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   Board::initHash();
   ScoreValue::initTables();
@@ -1228,7 +1234,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   //TREE MODE
 
   auto treePosHandler = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi](
-    Search* search, Rand& rand, const BoardHistory& treeHist, bool markedAsHintPos
+    Search* search, Rand& rand, const BoardHistory& treeHist, int initialTurnNumber, bool markedAsHintPos
   ) {
     if(shouldStop.load(std::memory_order_acquire))
       return;
@@ -1268,7 +1274,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     sample.nextPla = treeHist.moveHistory[startTurn].pla;
     for(int j = startTurn; j<moveHistorySize-1; j++)
       sample.moves.push_back(treeHist.moveHistory[j]);
-    sample.initialTurnNumber = startTurn;
+    sample.initialTurnNumber = initialTurnNumber + startTurn;
     sample.hintLoc = treeHist.moveHistory[moveHistorySize-1].loc;
     sample.weight = 0.0; //dummy, filled in below
 
@@ -1403,7 +1409,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   //In tree mode, we just explore everything in the sgf
   else if(treeMode) {
     const int64_t maxPosQueueSize = 16384;
-    ThreadSafeQueue<std::pair<BoardHistory*,bool>> posQueue(maxPosQueueSize);
+    ThreadSafeQueue<PosQueueEntry> posQueue(maxPosQueueSize);
     std::atomic<int64_t> numPosesBegun(0);
     std::atomic<int64_t> numPosesDone(0);
     std::atomic<int64_t> numPosesEnqueued(0);
@@ -1417,18 +1423,19 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
         if(shouldStop.load(std::memory_order_acquire))
           break;
 
-        std::pair<BoardHistory*,bool> p;
+        PosQueueEntry p;
         bool success = posQueue.waitPop(p);
         if(!success)
           break;
-        BoardHistory* hist = p.first;
-        bool markedAsHintPos = p.second;
+        BoardHistory* hist = p.hist;
+        int initialTurnNumber = p.initialTurnNumber;
+        bool markedAsHintPos = p.markedAsHintPos;
 
         int64_t numBegun = 1+numPosesBegun.fetch_add(1);
         if(numBegun % 20 == 0)
           logger.write("Begun " + Global::int64ToString(numBegun) + " poses");
 
-        treePosHandler(search, rand, *hist, markedAsHintPos);
+        treePosHandler(search, rand, *hist, initialTurnNumber, markedAsHintPos);
 
         int64_t numDone = 1+numPosesDone.fetch_add(1);
         if(numDone % 20 == 0)
@@ -1467,12 +1474,15 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       bool hashComments = true; //Hash comments so that if we see a position without %HINT% and one with, we make sure to re-load it.
       sgf->iterAllUniquePositions(
         uniqueHashes, hashComments, [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
-          //Doesn't have enough history, doesn't have hintloc the way we want it
-          (void)unusedSample;
+          //unusedSample doesn't have enough history, doesn't have hintloc the way we want it
           int64_t numEnqueued = 1+numPosesEnqueued.fetch_add(1);
           if(numEnqueued % 500 == 0)
             logger.write("Enqueued " + Global::int64ToString(numEnqueued) + " poses");
-          posQueue.waitPush(std::make_pair(new BoardHistory(hist),comments.size() > 0 && (Global::trim(comments) == "%HINT%")));
+          PosQueueEntry entry;
+          entry.hist = new BoardHistory(hist);
+          entry.initialTurnNumber = unusedSample.initialTurnNumber; //this is the only thing we keep
+          entry.markedAsHintPos = (comments.size() > 0 && (Global::trim(comments) == "%HINT%"));
+          posQueue.waitPush(entry);
         }
       );
       delete sgf;
