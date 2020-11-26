@@ -907,7 +907,13 @@ ValueHeadDesc::ValueHeadDesc(istream& in, int vrsn, bool binaryFloats) {
       name +
       Global::strprintf(": sv3Mul.inChannels (%d) != v2Mul.outChannels (%d)", sv3Mul.inChannels, v2Mul.outChannels));
 
-  if(version >= 8) {
+  if(version >= 9) {
+    if(sv3Mul.outChannels != 6)
+      throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 6", sv3Mul.outChannels));
+    if(sv3Bias.numChannels != 6)
+      throw StringError(name + Global::strprintf(": sv3Bias.numChannels (%d) != 6", sv3Bias.numChannels));
+  }
+  else if(version >= 8) {
     if(sv3Mul.outChannels != 4)
       throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 4", sv3Mul.outChannels));
     if(sv3Bias.numChannels != 4)
@@ -1226,7 +1232,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
 
 
 Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) const {
-  static_assert(NNModelVersion::latestModelVersionImplemented == 8, "");
+  static_assert(NNModelVersion::latestModelVersionImplemented == 9, "");
   Rules rules = desiredRules;
   supported = true;
   if(version <= 6) {
@@ -1247,7 +1253,7 @@ Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) c
       supported = false;
     }
   }
-  else if(version <= 8) {
+  else if(version <= 9) {
     if(rules.koRule == Rules::KO_SPIGHT) {
       rules.koRule = Rules::KO_SITUATIONAL;
       supported = false;

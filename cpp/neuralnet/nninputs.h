@@ -108,8 +108,12 @@ struct NNOutput {
   float whiteScoreMeanSq;
   //Points to make game fair
   float whiteLead;
-  //Expected arrival time of remaining game variance, in turns, weighted by variance
+  //Expected arrival time of remaining game variance, in turns, weighted by variance, only when modelVersion >= 9
   float varTimeLeft;
+  //A metric indicating the "typical" error in the winloss value or the score that the net expects, relative to the
+  //short-term future MCTS value.
+  float shorttermWinlossError;
+  float shorttermScoreError;
 
   //Indexed by pos rather than loc
   //Values in here will be set to negative for illegal moves, including superko

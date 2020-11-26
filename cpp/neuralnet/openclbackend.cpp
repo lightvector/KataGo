@@ -2751,13 +2751,25 @@ void NeuralNet::getOutput(
       SymmetryHelpers::copyOutputsWithSymmetry(ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, symmetry);
     }
 
-    if(version >= 8) {
+    if(version >= 9) {
+      int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
+      assert(numScoreValueChannels == 6);
+      output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
+      output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
+      output->whiteLead = inputBuffers->scoreValueResults[row * numScoreValueChannels + 2];
+      output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
+      output->shorttermWinlossError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 4];
+      output->shorttermScoreError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 5];
+    }
+    else if(version >= 8) {
       int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
       assert(numScoreValueChannels == 4);
       output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
       output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
       output->whiteLead = inputBuffers->scoreValueResults[row * numScoreValueChannels + 2];
       output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
+      output->shorttermWinlossError = 0;
+      output->shorttermScoreError = 0;
     }
     else if(version >= 4) {
       int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
@@ -2766,6 +2778,8 @@ void NeuralNet::getOutput(
       output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
       output->whiteLead = output->whiteScoreMean;
       output->varTimeLeft = 0;
+      output->shorttermWinlossError = 0;
+      output->shorttermScoreError = 0;
     }
     else if(version >= 3) {
       int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
@@ -2775,6 +2789,8 @@ void NeuralNet::getOutput(
       output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
       output->whiteLead = output->whiteScoreMean;
       output->varTimeLeft = 0;
+      output->shorttermWinlossError = 0;
+      output->shorttermScoreError = 0;
     }
     else {
       ASSERT_UNREACHABLE;

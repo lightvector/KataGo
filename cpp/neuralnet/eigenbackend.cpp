@@ -1653,13 +1653,25 @@ void NeuralNet::getOutput(
       SymmetryHelpers::copyOutputsWithSymmetry(ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, symmetry);
     }
 
-    if(version >= 8) {
+    if(version >= 9) {
+      int numScoreValueChannels = computeHandle->context->model.numScoreValueChannels;
+      assert(numScoreValueChannels == 6);
+      output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
+      output->whiteScoreMeanSq = scoreValueData[row * numScoreValueChannels + 1];
+      output->whiteLead = scoreValueData[row * numScoreValueChannels + 2];
+      output->varTimeLeft = scoreValueData[row * numScoreValueChannels + 3];
+      output->shorttermWinlossError = scoreValueData[row * numScoreValueChannels + 4];
+      output->shorttermScoreError = scoreValueData[row * numScoreValueChannels + 5];
+    }
+    else if(version >= 8) {
       int numScoreValueChannels = computeHandle->context->model.numScoreValueChannels;
       assert(numScoreValueChannels == 4);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
       output->whiteScoreMeanSq = scoreValueData[row * numScoreValueChannels + 1];
       output->whiteLead = scoreValueData[row * numScoreValueChannels + 2];
       output->varTimeLeft = scoreValueData[row * numScoreValueChannels + 3];
+      output->shorttermWinlossError = 0;
+      output->shorttermScoreError = 0;
     }
     else if(version >= 4) {
       int numScoreValueChannels = computeHandle->context->model.numScoreValueChannels;
@@ -1668,6 +1680,8 @@ void NeuralNet::getOutput(
       output->whiteScoreMeanSq = scoreValueData[row * numScoreValueChannels + 1];
       output->whiteLead = output->whiteScoreMean;
       output->varTimeLeft = 0;
+      output->shorttermWinlossError = 0;
+      output->shorttermScoreError = 0;
     }
     else if(version >= 3) {
       int numScoreValueChannels = computeHandle->context->model.numScoreValueChannels;
@@ -1677,6 +1691,8 @@ void NeuralNet::getOutput(
       output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
       output->whiteLead = output->whiteScoreMean;
       output->varTimeLeft = 0;
+      output->shorttermWinlossError = 0;
+      output->shorttermScoreError = 0;
     }
     else {
       ASSERT_UNREACHABLE;

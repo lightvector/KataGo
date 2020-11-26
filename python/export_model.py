@@ -340,16 +340,21 @@ with tf.compat.v1.Session(config=tfconfig) as session:
         write_matbias("v3/b",model.v3_size,w)
 
       #For now, only output the scoremean and scorestdev and lead and vtime channels
+      w = get_weights("mv3/w")[:,0:4]
+      b = get_weights("mv3/b")[0:4]
       if model.use_scoremean_as_lead:
-        w = get_weights("mv3/w")[:,0:4]
-        b = get_weights("mv3/b")[0:4]
         w[:,2] = w[:,0]
         b[2] = b[0]
+
+      if model.version < 9:
         write_matmul("sv3/w",model.v2_size,4,w)
         write_matbias("sv3/b",4,b)
       else:
-        write_matmul("sv3/w",model.v2_size,4,get_weights("mv3/w")[:,0:4])
-        write_matbias("sv3/b",4,get_weights("mv3/b")[0:4])
+        #Grab the shortterm channels
+        w = np.concatenate(w, get_weights("mmv3/w")[:,0:2],axis=1)
+        b = np.concatenate(b, get_weights("mmv3/b")[0:2],axis=0)
+        write_matmul("sv3/w",model.v2_size,6,w)
+        write_matbias("sv3/b",6,b)
 
       write_model_conv(model.vownership_conv)
 
