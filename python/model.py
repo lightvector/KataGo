@@ -980,8 +980,12 @@ class Model:
     mask_sum_hw_sqrt = tf.sqrt(mask_sum_hw)
 
     #Initial convolutional layer-------------------------------------------------------------------------------------
-    trunk = self.conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=trunk_num_channels)
-    self.initial_conv = ("conv1",5,input_num_channels,trunk_num_channels)
+    if "use_initial_conv_3" in config and config["use_initial_conv_3"]:
+      trunk = self.conv_only_block("conv1",cur_layer,diam=3,in_channels=input_num_channels,out_channels=trunk_num_channels)
+      self.initial_conv = ("conv1",3,input_num_channels,trunk_num_channels)
+    else:
+      trunk = self.conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=trunk_num_channels)
+      self.initial_conv = ("conv1",5,input_num_channels,trunk_num_channels)
 
     #Matrix multiply global inputs and accumulate them
     ginputw = self.weight_variable("ginputw",[self.num_global_input_features,trunk_num_channels],self.num_global_input_features*2,trunk_num_channels)

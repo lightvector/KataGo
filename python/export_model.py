@@ -229,7 +229,6 @@ with tf.compat.v1.Session(config=tfconfig) as session:
 
     def write_initial_conv():
       (name,diam,in_channels,out_channels) = model.initial_conv
-      #Fold in the special wcenter weights
       w = get_weights(name+"/w")
       assert(len(w.shape) == 4)
       write_conv(name,diam,in_channels,out_channels,1,w)
