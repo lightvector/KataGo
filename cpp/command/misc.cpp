@@ -829,7 +829,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     TCLAP::SwitchArg autoKomiArg("","auto-komi","Auto komi");
     TCLAP::ValueArg<int> sgfSplitCountArg("","sgf-split-count","Number of splits",false,1,"N");
     TCLAP::ValueArg<int> sgfSplitIdxArg("","sgf-split-idx","Which split",false,0,"IDX");
-    TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Adjust weight for writing down each position",true,0.0,"LAMBDA");
+    TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Adjust weight for writing down each position",false,0.0,"LAMBDA");
     cmd.add(sgfDirArg);
     cmd.add(outDirArg);
     cmd.add(numProcessThreadsArg);
@@ -1283,7 +1283,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     sample.nextPla = treeHist.moveHistory[startTurn].pla;
     for(int j = startTurn; j<moveHistorySize-1; j++)
       sample.moves.push_back(treeHist.moveHistory[j]);
-    sample.initialTurnNumber = initialTurnNumber + startTurn;
+    sample.initialTurnNumber = initialTurnNumber;
     sample.hintLoc = treeHist.moveHistory[moveHistorySize-1].loc;
     sample.weight = 0.0; //dummy, filled in below
 
@@ -1499,12 +1499,13 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     }
 
     posQueue.setReadOnly();
+    logger.write("All sgfs processed, waiting for analysis");
 
     for(int i = 0; i<threads.size(); i++)
       threads[i].join();
   }
 
-  logger.write("All sgfs processed, waiting for writing");
+  logger.write("Waiting for final writing and cleanup");
 
   toWriteQueue.setReadOnly();
   writeLoopThread.join();
@@ -1534,6 +1535,7 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
   ConfigParser cfg;
   string nnModelFile;
   vector<string> startPosesFiles;
+  double minWeight;
   try {
     KataGoCommandLine cmd("Try running searches starting from startposes");
     cmd.addConfigFileArg("","");
@@ -1541,10 +1543,13 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
     cmd.addOverrideConfigArg();
 
     TCLAP::MultiArg<string> startPosesFileArg("","startposes","Startposes file",true,"DIR");
+    TCLAP::ValueArg<double> minWeightArg("","min-weight","Minimum weight of startpos to try",false,0.0,"WEIGHT");
     cmd.add(startPosesFileArg);
+    cmd.add(minWeightArg);
     cmd.parse(argc,argv);
     nnModelFile = cmd.getModelFile();
     startPosesFiles = startPosesFileArg.getValue();
+    minWeight = minWeightArg.getValue();
     cmd.getConfig(cfg);
   }
   catch (TCLAP::ArgException &e) {
@@ -1607,6 +1612,8 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
 
   for(size_t s = 0; s<startPoses.size(); s++) {
     const Sgf::PositionSample& startPos = startPoses[s];
+    if(startPos.weight < minWeight)
+      continue;
 
     Rules rules = PlayUtils::genRandomRules(seedRand);
     Board board = startPos.board;
@@ -1655,10 +1662,10 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
       }
       else {
         ReportedSearchValues values;
+        cout << "There was a hintpos " << Location::toString(hintLoc,board) << ", re-searching after playing it: " << "\n";
         bool suc = maybeGetValuesAfterMove(search,logger,hintLoc,pla,board,hist,1.0,values);
         (void)suc;
         assert(suc);
-        cout << "There was a hintpos " << Location::toString(hintLoc,board) << ", re-searching after playing it: " << "\n";
         Board::printBoard(cout, search->getRootBoard(), search->getChosenMoveLoc(), &(search->getRootHist().moveHistory));
         search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1),P_WHITE);
         cout << endl;
