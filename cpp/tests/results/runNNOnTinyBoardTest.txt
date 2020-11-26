@@ -17,7 +17,9 @@ NoResult 0.00c
 ScoreMean 9.4
 ScoreMeanSq 243.0
 Lead 7.9
-VarTimeLeft 128.7
+VarTimeLeft -1.0
+STWinlossError -1.0
+STScoreError -1.0
 Policy
    0    0    0    0    0 
    0    3  150    -    0 

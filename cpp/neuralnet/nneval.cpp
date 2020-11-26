@@ -451,6 +451,8 @@ void NNEvaluator::serve(
         resultBuf->result->whiteScoreMeanSq = (float)whiteScoreMeanSq;
         resultBuf->result->whiteLead = (float)whiteScoreMean;
         resultBuf->result->varTimeLeft = (float)varTimeLeft;
+        resultBuf->result->shorttermWinlossError = 0.0f;
+        resultBuf->result->shorttermScoreError = 0.0f;
         resultBuf->hasResult = true;
         resultBuf->clientWaitingForResult.notify_all();
         resultLock.unlock();
@@ -663,6 +665,8 @@ void NNEvaluator::evaluate(
     buf.result->whiteScoreMeanSq = resultWithoutOwnerMap->whiteScoreMeanSq;
     buf.result->whiteLead = resultWithoutOwnerMap->whiteLead;
     buf.result->varTimeLeft = resultWithoutOwnerMap->varTimeLeft;
+    buf.result->shorttermWinlossError = resultWithoutOwnerMap->shorttermWinlossError;
+    buf.result->shorttermScoreError = resultWithoutOwnerMap->shorttermScoreError;
     std::copy(resultWithoutOwnerMap->policyProbs, resultWithoutOwnerMap->policyProbs + NNPos::MAX_NN_POLICY_SIZE, buf.result->policyProbs);
     buf.result->nnXLen = resultWithoutOwnerMap->nnXLen;
     buf.result->nnYLen = resultWithoutOwnerMap->nnYLen;
@@ -786,6 +790,8 @@ void NNEvaluator::evaluate(
         buf.result->whiteScoreMeanSq = buf.result->whiteScoreMean * buf.result->whiteScoreMean;
         buf.result->whiteLead = buf.result->whiteScoreMean;
         buf.result->varTimeLeft = -1;
+        buf.result->shorttermWinlossError = -1;
+        buf.result->shorttermScoreError = -1;
       }
       else {
         buf.result->whiteWinProb = (float)lossProb;
@@ -795,6 +801,8 @@ void NNEvaluator::evaluate(
         buf.result->whiteScoreMeanSq = buf.result->whiteScoreMean * buf.result->whiteScoreMean;
         buf.result->whiteLead = buf.result->whiteScoreMean;
         buf.result->varTimeLeft = -1;
+        buf.result->shorttermWinlossError = -1;
+        buf.result->shorttermScoreError = -1;
       }
 
     }
@@ -897,7 +905,7 @@ void NNEvaluator::evaluate(
       else {
         buf.result->varTimeLeft = -1;
         buf.result->shorttermWinlossError = -1;
-        buf.result->shorttermWinlossError = -1;
+        buf.result->shorttermScoreError = -1;
       }
     }
     else {
