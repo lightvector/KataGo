@@ -1483,6 +1483,9 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       bool hashComments = true; //Hash comments so that if we see a position without %HINT% and one with, we make sure to re-load it.
       sgf->iterAllUniquePositions(
         uniqueHashes, hashComments, [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
+          if(comments.size() > 0 && Global::trim(comments) == "%NOHINT%") {
+            return;
+          }
           //unusedSample doesn't have enough history, doesn't have hintloc the way we want it
           int64_t numEnqueued = 1+numPosesEnqueued.fetch_add(1);
           if(numEnqueued % 500 == 0)
