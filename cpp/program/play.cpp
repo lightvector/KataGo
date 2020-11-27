@@ -1126,6 +1126,7 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
   double playoutDoublingAdvantage = 0.0;
   Player playoutDoublingAdvantagePla = C_EMPTY;
   Loc hintLoc = Board::NULL_LOC;
+  double cheapSearchProb = playSettings.cheapSearchProb;
 
   if(otherGameProps.hintLoc != Board::NULL_LOC) {
     const BoardHistory& hist = toMoveBot->getRootHist();
@@ -1137,9 +1138,13 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
       numAlterVisits = (int64_t)ceil(std::min(cap, numAlterVisits * 4.0));
       numAlterPlayouts = (int64_t)ceil(std::min(cap, numAlterPlayouts * 4.0));
     }
+    //For the first few turns after a hint move, reduce the probability of cheap search
+    else if(otherGameProps.hintTurn + 6 > hist.moveHistory.size()) {
+      cheapSearchProb *= 0.5;
+    }
   }
 
-  if(hintLoc == Board::NULL_LOC && playSettings.cheapSearchProb > 0.0 && gameRand.nextBool(playSettings.cheapSearchProb)) {
+  if(hintLoc == Board::NULL_LOC && cheapSearchProb > 0.0 && gameRand.nextBool(cheapSearchProb)) {
     if(playSettings.cheapSearchVisits <= 0)
       throw StringError("playSettings.cheapSearchVisits <= 0");
     if(playSettings.cheapSearchVisits > toMoveBot->searchParams.maxVisits ||
