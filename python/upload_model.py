@@ -27,6 +27,7 @@ parser.add_argument('-trainhistory-file', help='trainhistory.json file for recor
 parser.add_argument('-parents-dir', help='dir with uploaded models dirs for finding parent', required=False)
 parser.add_argument('-connection-config', help='config with serverUrl and username and password', required=True)
 parser.add_argument('-not-enabled', help='upload model where it is not enabled for train/rating to begin with', required=False, action='store_true')
+parser.add_argument('-notes', help='extra notes to record for model', required=False)
 args = vars(parser.parse_args())
 
 run_name = args["run_name"]
@@ -38,6 +39,7 @@ trainhistory_file = args["trainhistory_file"]
 parents_dir = args["parents_dir"]
 connection_config_file = args["connection_config"]
 not_enabled = args["not_enabled"]
+notes = args["notes"]
 
 loglines = []
 def log(s):
@@ -124,6 +126,9 @@ with open(model_file,"rb") as model_file_handle:
 
     if parent_network_name_without_run is not None:
       data["parent_network"] = (None, base_server_url + "api/networks/" + run_name + "-" + parent_network_name_without_run + "/")
+
+    if notes is not None:
+      data["notes"] = (None, notes)
 
     if trainhistory is not None:
       if "train_step" in trainhistory:
