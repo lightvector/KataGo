@@ -7834,14 +7834,14 @@ H2  : T  -6.79c W  -6.50c S  -0.29c ( -0.5 L  -0.5) LCB  -14.02c P 89.05% WF 100
 
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
-Root visits: 50
+Root visits: 100
 Policy surprise 0.0104536
 Raw WL -0.115523
-PV: F1 J2 D5 D3 E4 C5 C6
+PV: F1 J2 D5 D3 E4 C4 C5 B5
 Tree:
-: T  -6.76c W  -6.46c S  -0.30c ( -0.5 L  -0.5) N      50  --  F1 J2 D5 D3 E4 C5 C6
+: T  -6.07c W  -5.86c S  -0.21c ( -0.3 L  -0.3) N     100  --  F1 J2 D5 D3 E4 C4 C5
 ---Black(v)---
-F1  : T  -6.65c W  -6.36c S  -0.29c ( -0.5 L  -0.5) LCB    0.56c P 98.96% WF 100.00% PSV      49 N      49  --  F1 J2 D5 D3 E4 C5 C6
+F1  : T  -6.00c W  -5.80c S  -0.20c ( -0.3 L  -0.3) LCB   -1.30c P 98.96% WF 100.00% PSV      99 N      99  --  F1 J2 D5 D3 E4 C4 C5 B5
 
 : MoveNum: 5 HASH: 958A321DC3E7CE42A4CBDF226D7BBD21
    A B C D E F G H J K L
@@ -8217,7 +8217,7 @@ targetWeightByTurn 0 1 unrounded 1
 targetWeightByTurn 1 1 unrounded 1
 targetWeightByTurn 2 1 unrounded 0.456
 targetWeightByTurn 3 1 unrounded 0.456
-targetWeightByTurn 4 1 unrounded 0.456
+targetWeightByTurn 4 1 unrounded 1
 targetWeightByTurn 5 1 unrounded 1
 targetWeightByTurn 6 1 unrounded 0.456
 targetWeightByTurn 7 0 unrounded 0.456
@@ -8232,7 +8232,7 @@ policyTargetsByTurn 0 unreducedNumVisits 400 F3 220 G4 3 K4 1 A1 0
 policyTargetsByTurn 1 unreducedNumVisits 100 G4 99 
 policyTargetsByTurn 2 unreducedNumVisits 50 E2 49 
 policyTargetsByTurn 3 unreducedNumVisits 50 H2 49 
-policyTargetsByTurn 4 unreducedNumVisits 50 F1 49 
+policyTargetsByTurn 4 unreducedNumVisits 100 F1 99 
 policyTargetsByTurn 5 unreducedNumVisits 100 J2 99 
 policyTargetsByTurn 6 unreducedNumVisits 50 K3 17 D5 22 C4 6 C5 1 J9 1 E5 1 H8 1 
 policyTargetsByTurn 7 unreducedNumVisits 50 D3 12 D9 6 D8 6 H9 3 E9 5 E8 3 E4 2 C4 2 C3 5 C7 1 C8 1 
@@ -8247,7 +8247,7 @@ whiteValueTargetsByTurn 0 0.471167 0.528833 0 -0.330874 -
 whiteValueTargetsByTurn 1 0.471167 0.528833 0 -0.330874 - 
 whiteValueTargetsByTurn 2 0.470475 0.529525 0 -0.378891 - 
 whiteValueTargetsByTurn 3 0.469226 0.530774 0 -0.427878 - 
-whiteValueTargetsByTurn 4 0.46769 0.53231 0 -0.506514 - 
+whiteValueTargetsByTurn 4 0.470706 0.529294 0 -0.348349 - 
 whiteValueTargetsByTurn 5 0.4712 0.5288 0 -0.328353 - 
 whiteValueTargetsByTurn 6 0.46433 0.53567 0 -0.613732 - 
 whiteValueTargetsByTurn 7 0.451522 0.548478 0 -1.04336 - 
