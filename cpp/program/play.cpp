@@ -1625,26 +1625,30 @@ FinishedGameData* Play::runGame(
 
     //Check for resignation
     if(playSettings.allowResignation && historicalMctsWinLossValues.size() >= playSettings.resignConsecTurns) {
-      if(playSettings.resignThreshold > 0 || std::isnan(playSettings.resignThreshold))
-        throw StringError("playSettings.resignThreshold > 0 || std::isnan(playSettings.resignThreshold)");
+      //Play at least some moves no matter what
+      int minTurnForResignation = 1 + board.x_size * board.y_size / 5;
+      if(i >= minTurnForResignation) {
+        if(playSettings.resignThreshold > 0 || std::isnan(playSettings.resignThreshold))
+          throw StringError("playSettings.resignThreshold > 0 || std::isnan(playSettings.resignThreshold)");
 
-      bool shouldResign = true;
-      for(int j = 0; j<playSettings.resignConsecTurns; j++) {
-        double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size()-j-1];
-        Player resignPlayerThisTurn = C_EMPTY;
-        if(winLossValue < playSettings.resignThreshold)
-          resignPlayerThisTurn = P_WHITE;
-        else if(winLossValue > -playSettings.resignThreshold)
-          resignPlayerThisTurn = P_BLACK;
+        bool shouldResign = true;
+        for(int j = 0; j<playSettings.resignConsecTurns; j++) {
+          double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size()-j-1];
+          Player resignPlayerThisTurn = C_EMPTY;
+          if(winLossValue < playSettings.resignThreshold)
+            resignPlayerThisTurn = P_WHITE;
+          else if(winLossValue > -playSettings.resignThreshold)
+            resignPlayerThisTurn = P_BLACK;
 
-        if(resignPlayerThisTurn != pla) {
-          shouldResign = false;
-          break;
+          if(resignPlayerThisTurn != pla) {
+            shouldResign = false;
+            break;
+          }
         }
-      }
 
-      if(shouldResign)
-        hist.setWinnerByResignation(getOpp(pla));
+        if(shouldResign)
+          hist.setWinnerByResignation(getOpp(pla));
+      }
     }
 
     int nextTurnNumber = hist.moveHistory.size();
