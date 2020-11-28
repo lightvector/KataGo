@@ -256,7 +256,6 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   string userConfigFile;
   string overrideUserConfig;
   string caCertsFile;
-  int maxRatingMatches;
   try {
     KataGoCommandLine cmd("Run KataGo to generate training data for distributed training");
     TCLAP::ValueArg<string> baseDirArg(
@@ -270,25 +269,20 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> userConfigFileArg("","config","Config file to use for server connection and/or GPU settings",false,string(),"FILE");
     TCLAP::ValueArg<string> overrideUserConfigArg("","override-config","Override config parameters. Format: \"key=value, key=value,...\"",false,string(),"KEYVALUEPAIRS");
     TCLAP::ValueArg<string> caCertsFileArg("","cacerts","CA certificates file for SSL (cacerts.pem, ca-bundle.crt)",false,string(),"FILE");
-    TCLAP::ValueArg<int> maxRatingMatchesArg("","max-rating-matches","Max different rating matches (match = 6 games) at once",false,1,"MAX");
     cmd.add(baseDirArg);
     cmd.add(deleteUnusedModelsAfterDaysArg);
     cmd.add(userConfigFileArg);
     cmd.add(overrideUserConfigArg);
     cmd.add(caCertsFileArg);
-    cmd.add(maxRatingMatchesArg);
     cmd.parse(argc,argv);
     baseDir = baseDirArg.getValue();
     deleteUnusedModelsAfterDays = deleteUnusedModelsAfterDaysArg.getValue();
     userConfigFile = userConfigFileArg.getValue();
     overrideUserConfig = overrideUserConfigArg.getValue();
     caCertsFile = caCertsFileArg.getValue();
-    maxRatingMatches = maxRatingMatchesArg.getValue();
 
     if(!std::isfinite(deleteUnusedModelsAfterDays) || deleteUnusedModelsAfterDays < 0 || deleteUnusedModelsAfterDays > 20000)
       throw StringError("-delete-unused-models-after: invalid value");
-    if(maxRatingMatches < 0 || maxRatingMatches > 1000000)
-      throw StringError("-max-rating-matches: invalid value");
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -375,6 +369,13 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   }
   else {
     maxSimultaneousGames = userCfg->getInt("maxSimultaneousGames", 1, 4000);
+  }
+  int maxRatingMatches;
+  if(!userCfg->contains("maxRatingMatches")) {
+    maxRatingMatches = 1;
+  }
+  else {
+    maxRatingMatches = userCfg->getInt("maxRatingMatches", 1, 100000);
   }
 
   const double reportPerformanceEvery = userCfg->contains("reportPerformanceEvery") ? userCfg->getDouble("reportPerformanceEvery", 1, 21600) : 120;
