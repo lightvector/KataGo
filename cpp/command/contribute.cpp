@@ -65,10 +65,6 @@ static void sigPipeHandlerDoNothing(int signal)
 static const string defaultBaseDir = "katago_contribute";
 static const double defaultDeleteUnusedModelsAfterDays = 30;
 
-//Play selfplay games and rating games in chunks of this many at a time. Each server query
-//gets fanned out into this many games.
-static const int taskRepFactor = 6;
-
 namespace {
   struct GameTask {
     Client::Task task;
@@ -376,6 +372,19 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   }
   else {
     maxRatingMatches = userCfg->getInt("maxRatingMatches", 1, 100000);
+  }
+
+  //Play selfplay games and rating games in chunks of this many at a time. Each server query
+  //gets fanned out into this many games. Having this value be larger helps ensure batching for
+  //rating games (since we will have multiple games sharing the same network) while also reducing
+  //query load on the server. It shouldn't be too large though, so as to remain responsive to the
+  //changes in the next best network to selfplay or rate from the server.
+  int taskRepFactor;
+  if(!userCfg->contains("taskRepFactor")) {
+    taskRepFactor = 6;
+  }
+  else {
+    taskRepFactor = userCfg->getInt("taskRepFactor", 2, 16);
   }
 
   const double reportPerformanceEvery = userCfg->contains("reportPerformanceEvery") ? userCfg->getDouble("reportPerformanceEvery", 1, 21600) : 120;
