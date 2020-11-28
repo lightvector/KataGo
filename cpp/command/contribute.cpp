@@ -67,7 +67,7 @@ static const double defaultDeleteUnusedModelsAfterDays = 30;
 
 //Play selfplay games and rating games in chunks of this many at a time. Each server query
 //gets fanned out into this many games.
-static const int taskRepFactor = 4;
+static const int taskRepFactor = 6;
 
 namespace {
   struct GameTask {
@@ -256,6 +256,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   string userConfigFile;
   string overrideUserConfig;
   string caCertsFile;
+  int maxRatingMatches;
   try {
     KataGoCommandLine cmd("Run KataGo to generate training data for distributed training");
     TCLAP::ValueArg<string> baseDirArg(
@@ -269,20 +270,25 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> userConfigFileArg("","config","Config file to use for server connection and/or GPU settings",false,string(),"FILE");
     TCLAP::ValueArg<string> overrideUserConfigArg("","override-config","Override config parameters. Format: \"key=value, key=value,...\"",false,string(),"KEYVALUEPAIRS");
     TCLAP::ValueArg<string> caCertsFileArg("","cacerts","CA certificates file for SSL (cacerts.pem, ca-bundle.crt)",false,string(),"FILE");
+    TCLAP::ValueArg<int> maxRatingMatchesArg("","max-rating-matches","Max different rating matches (match = 6 games) at once",false,1,"MAX");
     cmd.add(baseDirArg);
     cmd.add(deleteUnusedModelsAfterDaysArg);
     cmd.add(userConfigFileArg);
     cmd.add(overrideUserConfigArg);
     cmd.add(caCertsFileArg);
+    cmd.add(maxRatingMatchesArg);
     cmd.parse(argc,argv);
     baseDir = baseDirArg.getValue();
     deleteUnusedModelsAfterDays = deleteUnusedModelsAfterDaysArg.getValue();
     userConfigFile = userConfigFileArg.getValue();
     overrideUserConfig = overrideUserConfigArg.getValue();
     caCertsFile = caCertsFileArg.getValue();
+    maxRatingMatches = maxRatingMatchesArg.getValue();
 
     if(!std::isfinite(deleteUnusedModelsAfterDays) || deleteUnusedModelsAfterDays < 0 || deleteUnusedModelsAfterDays > 20000)
       throw StringError("-delete-unused-models-after: invalid value");
+    if(maxRatingMatches < 0 || maxRatingMatches > 1000000)
+      throw StringError("-max-rating-matches: invalid value");
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -420,15 +426,14 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   }
 #endif
 
-  //We only ever allow one chunk of rating games at a time right now.
-  const int maxSimultaneousRatingGames = taskRepFactor;
+  const int maxSimultaneousRatingGamesPossible = std::min(taskRepFactor * maxRatingMatches, maxSimultaneousGames);
 
   //Don't write "validation" data for distributed self-play. If the server-side wants to split out some data as "validation" for training
   //then that can be done server-side.
   const double validationProp = 0.0;
   //If we ever get more than this many games behind on writing data, something is weird.
   const int maxSelfplayDataQueueSize = maxSimultaneousGames * 4;
-  const int maxRatingDataQueueSize = maxSimultaneousRatingGames * 4;
+  const int maxRatingDataQueueSize = maxSimultaneousRatingGamesPossible * 4;
   const int logGamesEvery = 1;
 
   const string gameSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
@@ -475,7 +480,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   };
 
   auto loadNeuralNetIntoManager =
-    [&runParams,&tdataDir,&sgfsDir,&logger,&userCfg,maxSimultaneousGames,maxSimultaneousRatingGames](
+    [&runParams,&tdataDir,&sgfsDir,&logger,&userCfg,maxSimultaneousGames,maxSimultaneousRatingGamesPossible](
       SelfplayManager* manager, const string& modelName, const string& modelFile, bool isRatingManager
     ) {
     if(manager->hasModel(modelName))
@@ -483,7 +488,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
     logger.write("Found new neural net " + modelName);
 
-    int maxSimultaneousGamesThisNet = isRatingManager ? maxSimultaneousRatingGames : maxSimultaneousGames;
+    int maxSimultaneousGamesThisNet = isRatingManager ? maxSimultaneousRatingGamesPossible : maxSimultaneousGames;
     int maxConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGamesThisNet * 2 + 16;
     int expectedConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGamesThisNet;
     int defaultMaxBatchSize = maxSimultaneousGamesThisNet;
@@ -576,12 +581,15 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       logger.write("Note: SIGPIPE received at some point, it's possible this is from bad internet rather than a broke shell pipe, so ignoring rather than killing the program.");
     }
 #endif
+    //Make sure we register if rating games are done so that we can know if we can accept more.
+    ratingManager->cleanupUnusedModelsOlderThan(0);
 
     bool retryOnFailure = anyTaskSuccessfullyParsedYet;
-    //Only allow rating tasks when existing tasks are entirely done, and models are all unloaded
+    //Only allow rating tasks when we can handle a whole new chunk of games
     bool allowRatingTask = (
-      numRatingGamesActive.load(std::memory_order_acquire) <= 0 &&
-      ratingManager->numModels() <= 0
+      maxRatingMatches > 0 &&
+      numRatingGamesActive.load(std::memory_order_acquire) <= (maxRatingMatches - 1) * taskRepFactor &&
+      (int64_t)ratingManager->numModels() <= maxRatingMatches * 2 - 2
     );
 
     Client::Task task;

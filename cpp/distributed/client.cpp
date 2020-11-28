@@ -484,7 +484,13 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
         { "allow_selfplay_task", "true", "", ""},
         { "allow_rating_task", (allowRatingTask ? "true" : "false"), "", ""},
       };
-      response = parseJson(postMulti("/api/tasks/",items));
+      httplib::Result postResult = postMulti("/api/tasks/",items);
+      if(!allowRatingTask && postResult->status == 400 && postResult->body.find("server is only serving rating games right now")) {
+        logger->write("Server is only serving rating games right now but we're full on how many we can accept, so we will sleep a while and then retry.");
+        std::this_thread::sleep_for(std::chrono::duration<double>(30.0));
+        return;
+      }
+      response = parseJson(postResult);
       string kind = parseString(response,"kind",32);
       if(kind == "rating" && !allowRatingTask) {
         std::this_thread::sleep_for(std::chrono::duration<double>(1.0));
