@@ -163,7 +163,7 @@ static void runAndUploadSingleGame(
       out << "Rules: " << hist.rules.toJsonString() << "\n";
       out << "Player: " << PlayerIO::playerToString(pla) << "\n";
       out << "Move: " << Location::toString(loc,board) << "\n";
-      out << "Num Visits: " << search->getRootVisits() << "%\n";
+      out << "Num Visits: " << search->getRootVisits() << "\n";
       if(winLossHist.size() > 0)
         out << "Black Winrate: " << 100.0*(0.5*(1.0 - winLossHist[winLossHist.size()-1])) << "%\n";
       if(leadHist.size() > 0)
