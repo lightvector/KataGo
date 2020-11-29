@@ -1557,7 +1557,12 @@ FinishedGameData* Play::runGame(
     extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode);
     gameData->whiteValueTargetsByTurn.push_back(whiteValueTargets);
 
-    if(recordFullData) {
+    if(!recordFullData) {
+      //Go ahead and record this anyways with just the visits, as a bit of a hack so that the sgf output can also write the number of visits.
+      int64_t unreducedNumVisits = toMoveBot->getRootVisits();
+      gameData->policyTargetsByTurn.push_back(PolicyTarget(NULL,unreducedNumVisits));
+    }
+    else {
       vector<PolicyTargetMove>* policyTarget = new vector<PolicyTargetMove>();
       int64_t unreducedNumVisits = toMoveBot->getRootVisits();
       extractPolicyTarget(*policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);

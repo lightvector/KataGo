@@ -146,16 +146,24 @@ static void runAndUploadSingleGame(
     forkData = NULL;
 
   std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>
-    onEachMove = [&numMovesPlayed, &outputEachMove](
+    onEachMove = [&numMovesPlayed, &outputEachMove, &botSpecB, &botSpecW](
       const Board& board, const BoardHistory& hist, Player pla, Loc loc,
       const std::vector<double>& winLossHist, const std::vector<double>& leadHist, const std::vector<double>& scoreStdevHist, const Search* search) {
     numMovesPlayed.fetch_add(1,std::memory_order_relaxed);
     if(outputEachMove != nullptr) {
       ostringstream out;
       Board::printBoard(out, board, loc, &(hist.moveHistory));
+      if(botSpecB.botName == botSpecW.botName) {
+        out << "Network: " << botSpecB.botName << "\n";
+      }
+      else {
+        out << "Match: " << botSpecB.botName << " (black) vs " << botSpecW.botName << " (white)" << "\n";
+      }
+      out << "Network: " << hist.rules.toJsonString() << "\n";
       out << "Rules: " << hist.rules.toJsonString() << "\n";
       out << "Player: " << PlayerIO::playerToString(pla) << "\n";
       out << "Move: " << Location::toString(loc,board) << "\n";
+      out << "Num Visits: " << search->getRootVisits() << "%\n";
       if(winLossHist.size() > 0)
         out << "Black Winrate: " << 100.0*(0.5*(1.0 - winLossHist[winLossHist.size()-1])) << "%\n";
       if(leadHist.size() > 0)
@@ -185,6 +193,9 @@ static void runAndUploadSingleGame(
     ofstream out(sgfFile);
     WriteSgf::writeSgf(out,gameData->bName,gameData->wName,gameData->endHist,gameData,false,true);
     out.close();
+    if(outputEachMove != nullptr) {
+      (*outputEachMove) << "Game finished, sgf is " << sgfFile << endl;
+    }
 
     static constexpr bool retryOnFailure = true;
     if(gameTask.task.doWriteTrainingData) {
