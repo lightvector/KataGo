@@ -381,7 +381,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   //changes in the next best network to selfplay or rate from the server.
   int taskRepFactor;
   if(!userCfg->contains("taskRepFactor")) {
-    taskRepFactor = 6;
+    taskRepFactor = 4;
   }
   else {
     taskRepFactor = userCfg->getInt("taskRepFactor", 2, 16);
