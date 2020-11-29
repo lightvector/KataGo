@@ -159,7 +159,6 @@ static void runAndUploadSingleGame(
       else {
         out << "Match: " << botSpecB.botName << " (black) vs " << botSpecW.botName << " (white)" << "\n";
       }
-      out << "Network: " << hist.rules.toJsonString() << "\n";
       out << "Rules: " << hist.rules.toJsonString() << "\n";
       out << "Player: " << PlayerIO::playerToString(pla) << "\n";
       out << "Move: " << Location::toString(loc,board) << "\n";
