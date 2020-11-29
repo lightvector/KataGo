@@ -712,10 +712,14 @@ int MainCmds::contribute(int argc, const char* const* argv) {
         gameTask.nnEvalWhite = nnEvalWhite;
       }
       else {
+        //Swap everything
         gameTask.blackManager = whiteManager;
         gameTask.whiteManager = blackManager;
         gameTask.nnEvalBlack = nnEvalWhite;
         gameTask.nnEvalWhite = nnEvalBlack;
+        //Also swap the model within the task, which is used for data writing
+        gameTask.task.modelBlack = task.modelWhite;
+        gameTask.task.modelWhite = task.modelBlack;
       }
 
       if(task.isRatingGame)
