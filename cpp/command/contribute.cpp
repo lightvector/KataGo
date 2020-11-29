@@ -578,6 +578,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   };
 
   //Loop acquiring tasks and feeding them to game threads
+  Rand taskRand;
   bool anyTaskSuccessfullyParsedYet = false;
   while(true) {
     maybePrintPerformance();
@@ -692,13 +693,23 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       NNEvaluator* nnEvalBlack = blackManager->acquireModel(task.modelBlack.name);
       NNEvaluator* nnEvalWhite = whiteManager->acquireModel(task.modelWhite.name);
 
+      //Randomly swap black and white per each game in the rep
       GameTask gameTask;
       gameTask.task = task;
       gameTask.repIdx = rep;
-      gameTask.blackManager = blackManager;
-      gameTask.whiteManager = whiteManager;
-      gameTask.nnEvalBlack = nnEvalBlack;
-      gameTask.nnEvalWhite = nnEvalWhite;
+
+      if(taskRand.nextBool(0.5)) {
+        gameTask.blackManager = blackManager;
+        gameTask.whiteManager = whiteManager;
+        gameTask.nnEvalBlack = nnEvalBlack;
+        gameTask.nnEvalWhite = nnEvalWhite;
+      }
+      else {
+        gameTask.blackManager = whiteManager;
+        gameTask.whiteManager = blackManager;
+        gameTask.nnEvalBlack = nnEvalWhite;
+        gameTask.nnEvalWhite = nnEvalBlack;
+      }
 
       if(task.isRatingGame)
         numRatingGamesActive.fetch_add(1,std::memory_order_acq_rel);
