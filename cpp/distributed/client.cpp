@@ -410,6 +410,7 @@ static constexpr int DEFAULT_MAX_TRIES = 100;
 static constexpr int LOOP_FATAL_FAIL = 0;
 static constexpr int LOOP_RETRYABLE_FAIL = 1;
 static constexpr int LOOP_PARTIAL_SUCCESS = 2;
+static constexpr int LOOP_PARTIAL_SUCCESS_NO_LOG = 3;
 
 bool Connection::retryLoop(const char* errorLabel, int maxTries, std::atomic<bool>& shouldStop, std::function<void(int&)> f) {
   if(shouldStop.load())
@@ -428,15 +429,18 @@ bool Connection::retryLoop(const char* errorLabel, int maxTries, std::atomic<boo
         return false;
 
       //Reset everything on partial success
-      if(loopFailMode == LOOP_PARTIAL_SUCCESS) {
+      if(loopFailMode == LOOP_PARTIAL_SUCCESS || loopFailMode == LOOP_PARTIAL_SUCCESS_NO_LOG) {
         i = 0;
         failureInterval = initialFailureInterval;
       }
 
       if(loopFailMode == LOOP_FATAL_FAIL || i >= maxTries-1)
         throw;
-      logger->write(string(errorLabel) + ": Error connecting to server, possibly an internet blip, or possibly the server is down or temporarily misconfigured, waiting about " + Global::doubleToString(failureInterval) + " seconds and trying again.");
-      logger->write(string("Error was:\n") + e.what());
+
+      if(loopFailMode != LOOP_PARTIAL_SUCCESS_NO_LOG) {
+        logger->write(string(errorLabel) + ": Error connecting to server, possibly an internet blip, or possibly the server is down or temporarily misconfigured, waiting about " + Global::doubleToString(failureInterval) + " seconds and trying again.");
+        logger->write(string("Error was:\n") + e.what());
+      }
 
       double intervalRemaining = failureInterval * (0.95 + rand.nextDouble(0.1));
       while(intervalRemaining > 0.0) {
@@ -447,9 +451,9 @@ bool Connection::retryLoop(const char* errorLabel, int maxTries, std::atomic<boo
         std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
       }
       failureInterval = round(failureInterval * 1.3 + 1.0);
-      //Cap at three hours
-      if(failureInterval > 10800)
-        failureInterval = 10800;
+      //Cap at two hours
+      if(failureInterval > 7200)
+        failureInterval = 7200;
       continue;
     }
     if(i > 0)
@@ -487,8 +491,9 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
       httplib::Result postResult = postMulti("/api/tasks/",items);
       if(!allowRatingTask && postResult->status == 400 && postResult->body.find("server is only serving rating games right now")) {
         logger->write("Server is only serving rating games right now but we're full on how many we can accept, so we will sleep a while and then retry.");
+        loopFailMode = LOOP_PARTIAL_SUCCESS_NO_LOG;
         std::this_thread::sleep_for(std::chrono::duration<double>(30.0));
-        return;
+        throw StringError("Contacted server but rating games were full");
       }
       response = parseJson(postResult);
       string kind = parseString(response,"kind",32);
