@@ -714,6 +714,19 @@ bool Connection::downloadModelIfNotPresent(
   return retryLoop("downloadModelIfNotPresent",maxTries,shouldStop,fOuter);
 }
 
+static string getGameTypeStr(const FinishedGameData* gameData) {
+  string gametype = (
+    gameData->mode == FinishedGameData::MODE_NORMAL ? "normal" :
+    gameData->mode == FinishedGameData::MODE_CLEANUP_TRAINING ? "cleanup_training" :
+    gameData->mode == FinishedGameData::MODE_FORK ? "fork" :
+    gameData->mode == FinishedGameData::MODE_HANDICAP ? "handicap" :
+    gameData->mode == FinishedGameData::MODE_SGFPOS ? "sgfpos" :
+    gameData->mode == FinishedGameData::MODE_HINTPOS ? "hintpos" :
+    "unknown"
+  );
+  return gametype;
+}
+
 bool Connection::uploadTrainingGameAndData(
   const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, const string& npzFilePath, const int64_t numDataRows,
   bool retryOnFailure, std::atomic<bool>& shouldStop
@@ -743,15 +756,7 @@ bool Connection::uploadTrainingGameAndData(
     extraMetadata["playout_doubling_advantage_pla"] = PlayerIO::playerToString(gameData->playoutDoublingAdvantagePla);
     extraMetadata["draw_equivalent_wins_for_white"] = gameData->drawEquivalentWinsForWhite;
     static_assert(FinishedGameData::NUM_MODES == 6,"");
-    string gametype = (
-      gameData->mode == FinishedGameData::MODE_NORMAL ? "normal" :
-      gameData->mode == FinishedGameData::MODE_CLEANUP_TRAINING ? "cleanup_training" :
-      gameData->mode == FinishedGameData::MODE_FORK ? "fork" :
-      gameData->mode == FinishedGameData::MODE_HANDICAP ? "handicap" :
-      gameData->mode == FinishedGameData::MODE_SGFPOS ? "sgfpos" :
-      gameData->mode == FinishedGameData::MODE_HINTPOS ? "hintpos" :
-      "unknown"
-    );
+    string gametype = getGameTypeStr(gameData);
     string winner = gameData->endHist.winner == P_WHITE ? "W" : gameData->endHist.winner == P_BLACK ? "B" : gameData->endHist.isNoResult ? "-" : "0";
     double score = gameData->endHist.finalWhiteMinusBlackScore;
     string hasResigned = gameData->endHist.isResignation ? "true" : "false";
@@ -826,6 +831,7 @@ bool Connection::uploadRatingGame(
     double komi = gameData->startHist.rules.komi;
     string rules = gameData->startHist.rules.toJsonStringNoKomi();
     json extraMetadata = json({});
+    string gametype = getGameTypeStr(gameData);
     string winner = gameData->endHist.winner == P_WHITE ? "W" : gameData->endHist.winner == P_BLACK ? "B" : gameData->endHist.isNoResult ? "-" : "0";
     double score = gameData->endHist.finalWhiteMinusBlackScore;
     string hasResigned = gameData->endHist.isResignation ? "true" : "false";
@@ -845,6 +851,7 @@ bool Connection::uploadRatingGame(
       { "board_size_y", Global::intToString(boardSizeY), "", "" },
       { "handicap", Global::intToString(handicap), "", "" },
       { "komi", Global::doubleToString(komi), "", "" },
+      { "gametype", gametype, "", "" },
       { "rules", rules, "", "" },
       { "extra_metadata", extraMetadata.dump(), "", "" },
       { "winner", winner, "", "" },
