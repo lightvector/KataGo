@@ -489,8 +489,10 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     }
   };
 
+  bool userCfgWarnedYet = false;
+
   auto loadNeuralNetIntoManager =
-    [&runParams,&tdataDir,&sgfsDir,&logger,&userCfg,maxSimultaneousGames,maxSimultaneousRatingGamesPossible](
+    [&runParams,&tdataDir,&sgfsDir,&logger,&userCfg,maxSimultaneousGames,maxSimultaneousRatingGamesPossible,&userCfgWarnedYet](
       SelfplayManager* manager, const string& modelName, const string& modelFile, bool isRatingManager
     ) {
     if(manager->hasModel(modelName))
@@ -517,6 +519,11 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     );
     assert(!nnEval->isNeuralNetLess() || modelFile == "/dev/null");
     logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
+
+    if(!userCfgWarnedYet) {
+      userCfgWarnedYet = true;
+      userCfg->warnUnusedKeys(cerr,&logger);
+    }
 
     string sgfOutputDir = sgfsDir + "/" + modelName;
     string tdataOutputDir = tdataDir + "/" + modelName;
