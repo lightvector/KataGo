@@ -22,6 +22,7 @@
 * [Compiling KataGo](#compiling-katago)
   * [Linux](#linux)
   * [Windows](#windows)
+* [Source Code Overview](#source-code-overview)
 * [Selfplay Training](#selfplay-training)
 * [Contributors](#contributors)
 * [License](#license)
@@ -280,9 +281,15 @@ then you are using the Mesa drivers. You will need to change your drivers, see f
    * KataGo probably does not have access permissions to write files in the directory where you placed it.
    * On Windows for example, the `Program Files` directory and its subdirectories are often restricted to only allow writes with admin-level permissions. Try placing KataGo somewhere else.
 
+* **I'm new to the command line and still having trouble knowing what to tell Lizzie/q5go/Sabaki/whatever to make it run KataGo**.
+   * Again, make sure you have your directory paths right.
+   * A common issue: AVOID having any spaces in any file or directory names anywhere, since depending on the GUI, this may require you to have to quote or character-escape the paths or arguments in various ways.
+   * If you don't understand command line arguments and flags, relative vs absolute file paths, etc, search online. Try pages like https://superuser.com/questions/1270591/how-to-use-relative-paths-on-windows-cmd or https://www.bleepingcomputer.com/tutorials/understanding-command-line-arguments-and-how-to-use-them/ or other pages you find, or get someone tech-savvy to help you in a chat or even in-person if you can.
+   * Consider using https://github.com/sanderland/katrain instead - this is an excellent GUI written by someone else for KataGo that usually automates all of the technical setup for you.
+
 * **I'm getting a different error or still want further help.**
    * Check out [the discord chat where Leela Zero, KataGo, and other bots hang out](https://discord.gg/bqkZAz3) and ask in the "#help" channel.
-   * If you think you've found a bug in KataGo itself, feel free also to [open an issue](https://github.com/lightvector/KataGo/issues).
+   * If you think you've found a bug in KataGo itself, feel free also to [open an issue](https://github.com/lightvector/KataGo/issues). Please provide as much detail as possible about the exact commands you ran, the full error message and output (if you're in a GUI, please make sure to check that GUI's raw GTP console or log), the things you've tried, your config file and network, your GPU and operating system, etc.
 
 #### Other Questions
 * **How do I make KataGo use Japanese rules or other rules?**
@@ -370,6 +377,9 @@ KataGo is written in C++. It should compile on Linux or OSX via g++ that support
    * Pre-trained neural nets are available on the [releases page](https://github.com/lightvector/KataGo/releases) or more from [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
+
+## Source Code Overview:
+See the [cpp readme](cpp/README.md) or the [python readme](python/README.md) for some high-level overviews of the source code in this repo, if you want to get a sense of what is where and how it fits together.
 
 ## Selfplay Training:
 If you'd also like to run the full self-play loop and train your own neural nets using the code here, see [Selfplay Training](SelfplayTraining.md).
