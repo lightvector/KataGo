@@ -362,22 +362,22 @@ b60c320 = {
     ["rconv37","regular"],
     ["rconv38","regular"],
     ["rconv39","regular"],
-    ["rconv40","regular"]
+    ["rconv40","regular"],
     ["rconv41","gpool"],
     ["rconv42","regular"],
     ["rconv43","regular"],
     ["rconv44","regular"],
-    ["rconv45","regular"]
+    ["rconv45","regular"],
     ["rconv46","gpool"],
     ["rconv47","regular"],
     ["rconv48","regular"],
     ["rconv49","regular"],
-    ["rconv50","regular"]
+    ["rconv50","regular"],
     ["rconv51","gpool"],
     ["rconv52","regular"],
     ["rconv53","regular"],
     ["rconv54","regular"],
-    ["rconv55","regular"]
+    ["rconv55","regular"],
     ["rconv56","gpool"],
     ["rconv57","regular"],
     ["rconv58","regular"],
@@ -399,5 +399,5 @@ config_of_name = {
   "b30c320": b30c320,
   "b40c256": b40c256,
   "b40c384": b40c384,
-  "b60c320": b60c320,
+  "b60c320": b60c320
 }
