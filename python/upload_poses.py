@@ -18,18 +18,20 @@ Upload neural net weights to server
 
 parser = argparse.ArgumentParser(description=description)
 parser.add_argument('-run-name', help='run name', required=True)
-parser.add_argument('-poses-file', help='startposes or hintposes file', required=True)
+parser.add_argument('-poses', help='startposes or hintposes file or dir', required=True, action='append')
 parser.add_argument('-upload-log-file', help='log upload data to this file', required=False)
 parser.add_argument('-connection-config', help='config with serverUrl and username and password', required=False)
 parser.add_argument('-set-total-weight', help='set total weight of poses to this', type=float, required=False)
+parser.add_argument('-weight-factor', help='multiply weight of poses by this', type=float, required=False)
 parser.add_argument('-notes', help='notes or description label for poses', required=False)
 args = vars(parser.parse_args())
 
 run_name = args["run_name"]
-poses_file = args["poses_file"]
+poses_files_or_dirs = args["poses"]
 upload_log_file = args["upload_log_file"]
 connection_config_file = args["connection_config"]
 set_total_weight = args["set_total_weight"]
+weight_factor = args["weight_factor"]
 notes = args["notes"]
 
 loglines = []
@@ -57,7 +59,7 @@ if connection_config_file is not None:
     base_server_url = base_server_url + "/"
 
 log("run_name" + ": " + run_name)
-log("poses_file" + ": " + poses_file)
+log("poses" + ": " + str(poses_files_or_dirs))
 log("notes" + ": " + notes)
 
 if connection_config_file is not None:
@@ -68,33 +70,46 @@ if connection_config_file is not None:
 
 log("Loading positions")
 poses_by_key = {}
-with open(poses_file,"r") as f:
-  for line in f:
-    line = line.strip()
-    if len(line) <= 0:
-      continue
-    pos = json.loads(line)
-    key = (
-      str(pos["initialTurnNumber"]) + "$" +
-      "@".join(pos["moveLocs"]) + "$" +
-      "@".join(pos["movePlas"]) + "$" +
-      str(pos["xSize"]) + "$" +
-      str(pos["ySize"]) + "$" +
-      pos["nextPla"] + "$" +
-      pos["board"] + "$" +
-      pos["hintLoc"]
-    )
 
-    if "weight" in pos:
-      weight = pos["weight"]
-    else
-      pos["weight"] = 1.0
-      weight = 1.0
+def handle_file(poses_file):
+  global poses_by_key
+  log("Loading" + ": " + poses_file)
+  with open(poses_file,"r") as f:
+    for line in f:
+      line = line.strip()
+      if len(line) <= 0:
+        continue
+      pos = json.loads(line)
+      key = (
+        str(pos["initialTurnNumber"]) + "$" +
+        "@".join(pos["moveLocs"]) + "$" +
+        "@".join(pos["movePlas"]) + "$" +
+        str(pos["xSize"]) + "$" +
+        str(pos["ySize"]) + "$" +
+        pos["nextPla"] + "$" +
+        pos["board"] + "$" +
+        pos["hintLoc"]
+      )
 
-    if key in poses_by_key:
-      poses_by_key[key]["weight"] += weight
-    else:
-      poses_by_key[key] = pos
+      if "weight" in pos:
+        weight = pos["weight"]
+      else:
+        pos["weight"] = 1.0
+        weight = 1.0
+
+      if key in poses_by_key:
+        poses_by_key[key]["weight"] += weight
+      else:
+        poses_by_key[key] = pos
+
+for poses_file_or_dir in poses_files_or_dirs:
+  if os.path.isdir(poses_file_or_dir):
+    for (path,dirnames,filenames) in os.walk(poses_file_or_dir):
+      for filename in filenames:
+        if filename.endswith(".startposes.txt") or filename.endswith(".hintposes.txt"):
+          handle_file(os.path.join(path,filename))
+  else:
+    handle_file(poses_file_or_dir)
 
 poses = poses_by_key.values()
 
@@ -114,11 +129,29 @@ if set_total_weight is not None:
   scale = set_total_weight / sumweight
   for pos in poses:
     pos["weight"] *= scale
+elif weight_factor is not None:
+  log("Scaling weight of data by " + str(weight_factor))
+  for pos in poses:
+    pos["weight"] *= weight_factor
+
+def postStuff(to_post):
+  url = base_server_url + "api/startposes/"
+  result = requests.post(url,json=to_post,auth=HTTPBasicAuth(username,password))
+  log("Post status code: " + str(result.status_code))
+  if result.status_code == 200 or result.status_code == 201 or result.status_code == 202:
+    log("Post success")
+  else:
+    log("Post failed")
+    write_log()
+    sys.exit(1)
+
 
 if connection_config_file is None:
   log("No connection config specified, quitting WITHOUT uploading anything")
 else:
-  log("Building postdata")
+  num_total = len(poses)
+  num_posted = 0
+
   to_post = []
   for pos in poses:
     weight = pos["weight"]
@@ -129,18 +162,16 @@ else:
       "notes": notes,
     }
     to_post.append(data)
-  log("Built postdata")
+    if len(to_post) >= 5000:
+      num_posted += len(to_post)
+      log("Posting " + str(num_posted) + "/" + str(num_total))
+      postStuff(to_post)
+      to_post = []
 
-  log("Posting")
-  url = base_server_url + "api/startposes/"
-  result = requests.post(url,json=to_post,auth=HTTPBasicAuth(username,password))
+  num_posted += len(to_post)
+  log("Posting " + str(num_posted) + "/" + str(num_total))
+  postStuff(to_post)
+  to_post = []
 
-  log("Post status code: " + str(result.status_code))
-  log("Post result: " + str(result.text))
-  if result.status_code == 200 or result.status_code == 201 or result.status_code == 202:
-    log("Post success")
-    write_log()
-  else:
-    log("Post failed")
-    write_log()
-    sys.exit(1)
+  log("Done")
+  write_log()
