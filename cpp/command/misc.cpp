@@ -590,9 +590,9 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
     TCLAP::MultiArg<string> excludeHashesArg("","exclude-hashes","Specify a list of hashes to filter out, one per line in a txt file",false,"FILEOF(HASH,HASH)");
     TCLAP::ValueArg<double> sampleProbArg("","sample-prob","Probability to sample each position",true,0.0,"PROB");
     TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Adjust weight for writing down each position",true,0.0,"LAMBDA");
-    TCLAP::ValueArg<int64_t> maxDepthArg("","max-depth","Max depth allowed for sgf",false,100000000,"INT");
-    TCLAP::ValueArg<int64_t> maxNodeCountArg("","max-node-count","Max node count allowed for sgf",false,100000000,"INT");
-    TCLAP::ValueArg<int64_t> maxBranchCountArg("","max-branch-count","Max branch count allowed for sgf",false,100000000,"INT");
+    TCLAP::ValueArg<string> maxDepthArg("","max-depth","Max depth allowed for sgf",false,"100000000","INT");
+    TCLAP::ValueArg<string> maxNodeCountArg("","max-node-count","Max node count allowed for sgf",false,"100000000","INT");
+    TCLAP::ValueArg<string> maxBranchCountArg("","max-branch-count","Max branch count allowed for sgf",false,"100000000","INT");
     cmd.add(sgfDirArg);
     cmd.add(outDirArg);
     cmd.add(excludeHashesArg);
@@ -607,9 +607,9 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
     excludeHashesFiles = excludeHashesArg.getValue();
     sampleProb = sampleProbArg.getValue();
     turnWeightLambda = turnWeightLambdaArg.getValue();
-    maxDepth = maxDepthArg.getValue();
-    maxNodeCount = maxNodeCountArg.getValue();
-    maxBranchCount = maxBranchCountArg.getValue();
+    maxDepth = Global::stringToInt64(maxDepthArg.getValue());
+    maxNodeCount = Global::stringToInt64(maxNodeCountArg.getValue());
+    maxBranchCount = Global::stringToInt64(maxBranchCountArg.getValue());
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
