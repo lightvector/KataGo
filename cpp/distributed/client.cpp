@@ -602,6 +602,17 @@ string Connection::getTmpModelPath(const Client::ModelInfo& modelInfo, const str
   return modelDir + "/" + modelInfo.name + ".tmp." + randStr + ".bin.gz";
 }
 
+void Client::ModelInfo::failIfSha256Mismatch(const string& modelPath) const {
+  string contents = Global::readFileBinary(modelPath);
+  char hashResultBuf[65];
+  SHA2::get256((const uint8_t*)contents.data(), contents.size(), hashResultBuf);
+  string hashResult(hashResultBuf);
+  bool matching = Global::toLower(this->sha256) == Global::toLower(hashResult);
+  if(!matching)
+    throw StringError("Downloaded " + string(modelPath) + " sha256 was " + hashResult + " which does not match the expected sha256 " + this->sha256);
+}
+
+
 bool Connection::downloadModelIfNotPresent(
   const Client::ModelInfo& modelInfo, const string& modelDir,
   std::atomic<bool>& shouldStop
@@ -689,14 +700,7 @@ bool Connection::downloadModelIfNotPresent(
       );
 
     //Verify hash to see if the file is as expected
-    {
-      string contents = Global::readFileBinary(tmpPath);
-      char hashResultBuf[65];
-      SHA2::get256((const uint8_t*)contents.data(), contents.size(), hashResultBuf);
-      string hashResult(hashResultBuf);
-      if(Global::toLower(modelInfo.sha256) != Global::toLower(hashResult))
-        throw StringError("Downloaded file sha256 was " + hashResult + " which does not match the expected sha256 " + modelInfo.sha256);
-    }
+    modelInfo.failIfSha256Mismatch(tmpPath);
 
     //Attempt to load the model file to verify gzip integrity and that we actually support this model format
     {

@@ -503,12 +503,16 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
   auto loadNeuralNetIntoManager =
     [&runParams,&tdataDir,&sgfsDir,&logger,&userCfg,maxSimultaneousGames,maxSimultaneousRatingGamesPossible,&userCfgWarnedYet](
-      SelfplayManager* manager, const string& modelName, const string& modelFile, bool isRatingManager
+      SelfplayManager* manager, const Client::ModelInfo modelInfo, const string& modelFile, bool isRatingManager
     ) {
+    const string& modelName = modelInfo.name;
     if(manager->hasModel(modelName))
       return;
 
     logger.write("Found new neural net " + modelName);
+
+    //At load time, check the sha256 again to make sure we have the right thing.
+    modelInfo.failIfSha256Mismatch(modelFile);
 
     int maxSimultaneousGamesThisNet = isRatingManager ? maxSimultaneousRatingGamesPossible : maxSimultaneousGames;
     int maxConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGamesThisNet * 2 + 16;
@@ -696,8 +700,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       whiteManager = selfplayManager;
     }
 
-    loadNeuralNetIntoManager(blackManager,task.modelBlack.name,modelFileBlack,task.isRatingGame);
-    loadNeuralNetIntoManager(whiteManager,task.modelWhite.name,modelFileWhite,task.isRatingGame);
+    loadNeuralNetIntoManager(blackManager,task.modelBlack,modelFileBlack,task.isRatingGame);
+    loadNeuralNetIntoManager(whiteManager,task.modelWhite,modelFileWhite,task.isRatingGame);
     if(shouldStop.load())
       break;
 

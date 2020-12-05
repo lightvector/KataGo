@@ -27,6 +27,8 @@ namespace Client {
     int64_t bytes;
     std::string sha256;
     bool isRandom;
+
+    void failIfSha256Mismatch(const std::string& modelPath) const;
   };
 
   struct Task {
