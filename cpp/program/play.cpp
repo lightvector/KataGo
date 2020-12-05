@@ -89,8 +89,8 @@ static ExtraBlackAndKomi chooseExtraBlackAndKomi(
 InitialPosition::InitialPosition()
   :board(),hist(),pla(C_EMPTY)
 {}
-InitialPosition::InitialPosition(const Board& b, const BoardHistory& h, Player p)
-  :board(b),hist(h),pla(p)
+InitialPosition::InitialPosition(const Board& b, const BoardHistory& h, Player p, bool plainFork, bool sekiFork, bool hintFork)
+  :board(b),hist(h),pla(p),isPlainFork(plainFork),isSekiFork(sekiFork),isHintFork(hintFork)
 {}
 InitialPosition::~InitialPosition()
 {}
@@ -498,8 +498,9 @@ void GameInitializer::createGameSharedUnsynchronized(
     otherGameProps.isHintPos = false;
     otherGameProps.allowPolicyInit = false; //On initial positions, don't play extra moves at start
     otherGameProps.isFork = true;
+    otherGameProps.isHintFork = initialPosition->isHintFork;
     otherGameProps.hintLoc = Board::NULL_LOC;
-    otherGameProps.hintTurn = -1;
+    otherGameProps.hintTurn = initialPosition->isHintFork ? (int)hist.moveHistory.size() : -1;
     extraBlackAndKomi.makeGameFair = rand.nextBool(forkCompensateKomiProb);
     extraBlackAndKomi.makeGameFairForEmptyBoard = false;
     return;
@@ -562,6 +563,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     otherGameProps.isHintPos = hintLoc != Board::NULL_LOC;
     otherGameProps.allowPolicyInit = hintLoc == Board::NULL_LOC; //On sgf positions, do allow extra moves at start
     otherGameProps.isFork = false;
+    otherGameProps.isHintFork = false;
     otherGameProps.hintLoc = hintLoc;
     otherGameProps.hintTurn = hist.moveHistory.size();
     otherGameProps.hintPosHash = board.pos_hash;
@@ -585,6 +587,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     otherGameProps.isHintPos = false;
     otherGameProps.allowPolicyInit = true; //Handicap and regular games do allow policy init
     otherGameProps.isFork = false;
+    otherGameProps.isHintFork = false;
     otherGameProps.hintLoc = Board::NULL_LOC;
     otherGameProps.hintTurn = -1;
     makeGameFairProb = extraBlackAndKomi.extraBlack > 0 ? handicapCompensateKomiProb : 0.0;
@@ -1128,8 +1131,8 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
   Loc hintLoc = Board::NULL_LOC;
   double cheapSearchProb = playSettings.cheapSearchProb;
 
+  const BoardHistory& hist = toMoveBot->getRootHist();
   if(otherGameProps.hintLoc != Board::NULL_LOC) {
-    const BoardHistory& hist = toMoveBot->getRootHist();
     if(otherGameProps.hintTurn == hist.moveHistory.size() &&
        otherGameProps.hintPosHash == toMoveBot->getRootBoard().pos_hash) {
       hintLoc = otherGameProps.hintLoc;
@@ -1138,11 +1141,12 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
       numAlterVisits = (int64_t)ceil(std::min(cap, numAlterVisits * 4.0));
       numAlterPlayouts = (int64_t)ceil(std::min(cap, numAlterPlayouts * 4.0));
     }
-    //For the first few turns after a hint move, reduce the probability of cheap search
-    else if(otherGameProps.hintTurn + 6 > hist.moveHistory.size()) {
-      cheapSearchProb *= 0.5;
-    }
   }
+  //For the first few turns after a hint move or fork, reduce the probability of cheap search
+  if((otherGameProps.hintLoc != Board::NULL_LOC || otherGameProps.isHintFork) && otherGameProps.hintTurn + 6 > hist.moveHistory.size()) {
+    cheapSearchProb *= 0.5;
+  }
+
 
   if(hintLoc == Board::NULL_LOC && cheapSearchProb > 0.0 && gameRand.nextBool(cheapSearchProb)) {
     if(playSettings.cheapSearchVisits <= 0)
@@ -2141,7 +2145,7 @@ void Play::maybeForkGame(
   //If the game is over now, don't actually do anything
   if(hist.isGameFinished)
     return;
-  forkData->add(new InitialPosition(board,hist,pla));
+  forkData->add(new InitialPosition(board,hist,pla,true,false,false));
 }
 
 
@@ -2181,7 +2185,7 @@ void Play::maybeSekiForkGame(
       //Just in case if somehow the game is over now, don't actually do anything
       if(hist.isGameFinished)
         continue;
-      forkData->addSeki(new InitialPosition(board,hist,pla),gameRand);
+      forkData->addSeki(new InitialPosition(board,hist,pla,false,true,false),gameRand);
     }
   }
 }
@@ -2223,7 +2227,7 @@ void Play::maybeHintForkGame(
   //If the game is over now, don't actually do anything
   if(hist.isGameFinished)
     return;
-  forkData->add(new InitialPosition(board,hist,pla));
+  forkData->add(new InitialPosition(board,hist,pla,false,false,true));
 }
 
 

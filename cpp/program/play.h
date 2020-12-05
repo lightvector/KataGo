@@ -18,9 +18,12 @@ struct InitialPosition {
   Board board;
   BoardHistory hist;
   Player pla;
+  bool isPlainFork;
+  bool isSekiFork;
+  bool isHintFork;
 
   InitialPosition();
-  InitialPosition(const Board& board, const BoardHistory& hist, Player pla);
+  InitialPosition(const Board& board, const BoardHistory& hist, Player pla, bool isPlainFork, bool isSekiFork, bool isHintFork);
   ~InitialPosition();
 };
 
@@ -52,6 +55,7 @@ struct OtherGameProperties {
   bool isHintPos = false;
   bool allowPolicyInit = true;
   bool isFork = false;
+  bool isHintFork = false;
 
   int hintTurn = -1;
   Hash128 hintPosHash;
@@ -245,7 +249,7 @@ namespace Play {
     const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
     std::function<NNEvaluator*()> checkForNewNNEval,
-    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove 
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
   );
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
@@ -259,7 +263,7 @@ namespace Play {
     const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
     std::function<NNEvaluator*()> checkForNewNNEval,
-    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove 
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
   );
 
   void maybeForkGame(
@@ -313,7 +317,7 @@ public:
     Logger& logger,
     std::vector<std::atomic<bool>*>& stopConditions,
     std::function<NNEvaluator*()> checkForNewNNEval,
-    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove 
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
   );
 
   const GameInitializer* getGameInitializer() const;
