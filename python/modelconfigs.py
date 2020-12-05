@@ -9,6 +9,28 @@ import json
 import datetime
 import math
 
+b2c16 = {
+  "version":9,
+  "support_japanese_rules":True,
+  "use_fixup":True,
+  "use_scoremean_as_lead":False,
+  "use_initial_conv_3":False,
+  "trunk_num_channels":16,
+  "mid_num_channels":16,
+  "regular_num_channels":8,
+  "dilated_num_channels":8,
+  "gpool_num_channels":8,
+  "block_kind": [
+    ["rconv1","regular"],
+    ["rconv2","gpool"],
+  ],
+  "p1_num_channels":8,
+  "g1_num_channels":8,
+  "v1_num_channels":8,
+  "sbv2_num_channels":12,
+  "v2_size":12
+}
+
 b6c96 = {
   "version":9,
   "support_japanese_rules":True,
@@ -392,6 +414,7 @@ b60c320 = {
 }
 
 config_of_name = {
+  "b2c16": b2c16,
   "b6c96": b6c96,
   "b10c128": b10c128,
   "b15c192": b15c192,
