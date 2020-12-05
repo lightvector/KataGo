@@ -125,9 +125,11 @@ void FinishedGameData::printDebug(ostream& out) const {
   for(int i = 0; i<policyTargetsByTurn.size(); i++) {
     out << "policyTargetsByTurn " << i << " ";
     out << "unreducedNumVisits " << policyTargetsByTurn[i].unreducedNumVisits << " ";
-    vector<PolicyTargetMove>& target = *(policyTargetsByTurn[i].policyTargets);
-    for(int j = 0; j<target.size(); j++)
-      out << Location::toString(target[j].loc,startBoard) << " " << target[j].policyTarget << " ";
+    if(policyTargetsByTurn[i].policyTargets != NULL) {
+      const vector<PolicyTargetMove>& target = *(policyTargetsByTurn[i].policyTargets);
+      for(int j = 0; j<target.size(); j++)
+        out << Location::toString(target[j].loc,startBoard) << " " << target[j].policyTarget << " ";
+    }
     out << endl;
   }
   for(int i = 0; i<whiteValueTargetsByTurn.size(); i++) {

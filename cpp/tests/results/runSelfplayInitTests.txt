@@ -8376,6 +8376,83 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 0
+policyTargetsByTurn 0 unreducedNumVisits 10 
+policyTargetsByTurn 1 unreducedNumVisits 10 
+policyTargetsByTurn 2 unreducedNumVisits 5 
+policyTargetsByTurn 3 unreducedNumVisits 10 
+policyTargetsByTurn 4 unreducedNumVisits 10 
+policyTargetsByTurn 5 unreducedNumVisits 5 
+policyTargetsByTurn 6 unreducedNumVisits 10 
+policyTargetsByTurn 7 unreducedNumVisits 10 
+policyTargetsByTurn 8 unreducedNumVisits 5 
+policyTargetsByTurn 9 unreducedNumVisits 5 
+policyTargetsByTurn 10 unreducedNumVisits 10 
+policyTargetsByTurn 11 unreducedNumVisits 10 
+policyTargetsByTurn 12 unreducedNumVisits 5 
+policyTargetsByTurn 13 unreducedNumVisits 5 
+policyTargetsByTurn 14 unreducedNumVisits 5 
+policyTargetsByTurn 15 unreducedNumVisits 10 
+policyTargetsByTurn 16 unreducedNumVisits 5 
+policyTargetsByTurn 17 unreducedNumVisits 5 
+policyTargetsByTurn 18 unreducedNumVisits 5 
+policyTargetsByTurn 19 unreducedNumVisits 10 
+policyTargetsByTurn 20 unreducedNumVisits 5 
+policyTargetsByTurn 21 unreducedNumVisits 10 
+policyTargetsByTurn 22 unreducedNumVisits 10 
+policyTargetsByTurn 23 unreducedNumVisits 10 
+policyTargetsByTurn 24 unreducedNumVisits 10 
+policyTargetsByTurn 25 unreducedNumVisits 5 
+policyTargetsByTurn 26 unreducedNumVisits 10 
+policyTargetsByTurn 27 unreducedNumVisits 10 
+policyTargetsByTurn 28 unreducedNumVisits 5 
+policyTargetsByTurn 29 unreducedNumVisits 10 
+policyTargetsByTurn 30 unreducedNumVisits 5 
+policyTargetsByTurn 31 unreducedNumVisits 10 
+policyTargetsByTurn 32 unreducedNumVisits 10 
+policyTargetsByTurn 33 unreducedNumVisits 10 
+policyTargetsByTurn 34 unreducedNumVisits 5 
+policyTargetsByTurn 35 unreducedNumVisits 10 
+policyTargetsByTurn 36 unreducedNumVisits 5 
+policyTargetsByTurn 37 unreducedNumVisits 10 
+policyTargetsByTurn 38 unreducedNumVisits 5 
+policyTargetsByTurn 39 unreducedNumVisits 5 
+policyTargetsByTurn 40 unreducedNumVisits 5 
+policyTargetsByTurn 41 unreducedNumVisits 5 
+policyTargetsByTurn 42 unreducedNumVisits 5 
+policyTargetsByTurn 43 unreducedNumVisits 5 
+policyTargetsByTurn 44 unreducedNumVisits 5 
+policyTargetsByTurn 45 unreducedNumVisits 10 
+policyTargetsByTurn 46 unreducedNumVisits 10 
+policyTargetsByTurn 47 unreducedNumVisits 10 
+policyTargetsByTurn 48 unreducedNumVisits 5 
+policyTargetsByTurn 49 unreducedNumVisits 5 
+policyTargetsByTurn 50 unreducedNumVisits 10 
+policyTargetsByTurn 51 unreducedNumVisits 5 
+policyTargetsByTurn 52 unreducedNumVisits 10 
+policyTargetsByTurn 53 unreducedNumVisits 10 
+policyTargetsByTurn 54 unreducedNumVisits 5 
+policyTargetsByTurn 55 unreducedNumVisits 5 
+policyTargetsByTurn 56 unreducedNumVisits 5 
+policyTargetsByTurn 57 unreducedNumVisits 10 
+policyTargetsByTurn 58 unreducedNumVisits 5 
+policyTargetsByTurn 59 unreducedNumVisits 5 
+policyTargetsByTurn 60 unreducedNumVisits 10 
+policyTargetsByTurn 61 unreducedNumVisits 10 
+policyTargetsByTurn 62 unreducedNumVisits 5 
+policyTargetsByTurn 63 unreducedNumVisits 5 
+policyTargetsByTurn 64 unreducedNumVisits 10 
+policyTargetsByTurn 65 unreducedNumVisits 5 
+policyTargetsByTurn 66 unreducedNumVisits 10 
+policyTargetsByTurn 67 unreducedNumVisits 10 
+policyTargetsByTurn 68 unreducedNumVisits 5 
+policyTargetsByTurn 69 unreducedNumVisits 10 
+policyTargetsByTurn 70 unreducedNumVisits 10 
+policyTargetsByTurn 71 unreducedNumVisits 5 
+policyTargetsByTurn 72 unreducedNumVisits 10 
+policyTargetsByTurn 73 unreducedNumVisits 5 
+policyTargetsByTurn 74 unreducedNumVisits 5 
+policyTargetsByTurn 75 unreducedNumVisits 5 
+policyTargetsByTurn 76 unreducedNumVisits 10 
 whiteValueTargetsByTurn 0 0.474729 0.525271 0 -0.583688 - 
 whiteValueTargetsByTurn 1 0.490053 0.509947 0 -0.188658 - 
 whiteValueTargetsByTurn 2 0.501189 0.498811 0 0.217063 - 
@@ -8453,8 +8530,8 @@ whiteValueTargetsByTurn 73 0.0157587 0.984241 0 -51.086 -
 whiteValueTargetsByTurn 74 0.00156895 0.998431 0 -53.7097 - 
 whiteValueTargetsByTurn 75 0.000817926 0.999182 0 -51.903 - 
 whiteValueTargetsByTurn 76 0.00089054 0.999109 0 -53.7618 - 
-(;FF[4]GM[1]SZ[11]PB[Black]PW[White]HA[0]KM[7.5]RU[koPOSITIONALscoreAREAtaxNONEsui1]RE[B+R]C[startTurnIdx=7,gameHash=F7A17051D50449D2028AEF337C814460,gtype=normal];B[ch];W[hc];B[dd];W[ij];B[ih];W[di];B[ci];W[gi]C[0.47 0.53 0.00 -0.6];B[ie]C[0.49 0.51 0.00 -0.2];W[id]C[0.50 0.50 0.00 0.2];B[he]C[0.52 0.48 0.00 0.8];W[fc]C[0.53 0.47 0.00 1.2];B[ec]C[0.51 0.49 0.00 0.6];W[fd]C[0.53 0.47 0.00 1.3];B[df]C[0.52 0.48 0.00 1.1];W[cc]C[0.54 0.46 0.00 1.6];B[eb]C[0.52 0.48 0.00 0.9];W[be]C[0.51 0.49 0.00 0.8];B[cd]C[0.50 0.50 0.00 0.1];W[bd]C[0.51 0.49 0.00 0.7];B[cb]C[0.53 0.47 0.00 1.4];W[bb]C[0.49 0.51 0.00 -0.2];B[dc]C[0.45 0.55 0.00 -2.1];W[bc]C[0.45 0.55 0.00 -2.2];B[ba]C[0.42 0.58 0.00 -3.2];W[bg]C[0.38 0.62 0.00 -4.8];B[cg]C[0.38 0.62 0.00 -4.8];W[cf]C[0.40 0.60 0.00 -4.3];B[ce]C[0.42 0.58 0.00 -2.8];W[bf]C[0.45 0.55 0.00 -1.8];B[bh]C[0.45 0.55 0.00 -1.8];W[dg]C[0.41 0.59 0.00 -3.6];B[ef]C[0.43 0.57 0.00 -2.7];W[dh]C[0.41 0.59 0.00 -3.4];B[dj]C[0.41 0.59 0.00 -3.8];W[ej]C[0.38 0.62 0.00 -5.3];B[cj]C[0.35 0.65 0.00 -6.4];W[gf]C[0.33 0.67 0.00 -7.4];B[ge]C[0.41 0.59 0.00 -3.7];W[fe]C[0.41 0.59 0.00 -3.3];B[ff]C[0.41 0.59 0.00 -3.2];W[gg]C[0.43 0.57 0.00 -2.3];B[fh]C[0.44 0.56 0.00 -1.8];W[gh]C[0.41 0.59 0.00 -2.9];B[ei]C[0.36 0.64 0.00 -5.2];W[fi]C[0.36 0.64 0.00 -4.7];B[eh]C[0.33 0.67 0.00 -6.0];W[je]C[0.32 0.68 0.00 -6.8];B[jf]C[0.31 0.69 0.00 -7.9];W[jd]C[0.30 0.70 0.00 -8.4];B[jj]C[0.27 0.73 0.00 -9.9];W[ii]C[0.26 0.74 0.00 -10.3];B[ji]C[0.26 0.74 0.00 -12.4];W[jk]C[0.26 0.74 0.00 -12.6];B[ig]C[0.32 0.68 0.00 -11.3];W[hf]C[0.30 0.70 0.00 -12.4];B[if]C[0.33 0.67 0.00 -10.5];W[kj]C[0.32 0.68 0.00 -11.5];B[ki]C[0.32 0.68 0.00 -11.2];W[jh]C[0.38 0.62 0.00 -7.8];B[kk]C[0.38 0.62 0.00 -7.7];W[ik]C[0.44 0.56 0.00 -4.3];B[jg]C[0.44 0.56 0.00 -4.1];W[kh]C[0.35 0.65 0.00 -10.0];B[kg]C[0.35 0.65 0.00 -11.5];W[kj]C[0.31 0.69 0.00 -15.1];B[fj]C[0.21 0.79 0.00 -23.4];W[gj]C[0.17 0.83 0.00 -28.8];B[ek]C[0.18 0.82 0.00 -28.4];W[hh]C[0.15 0.85 0.00 -31.6];B[hj]C[0.17 0.83 0.00 -29.6];W[jh]C[0.19 0.81 0.00 -27.7];B[kk]C[0.21 0.79 0.00 -26.0];W[hi]C[0.22 0.78 0.00 -24.8];B[gk]C[0.20 0.80 0.00 -25.3];W[hk]C[0.23 0.77 0.00 -23.1];B[fk]C[0.12 0.88 0.00 -37.1];W[kj]C[0.06 0.94 0.00 -43.0];B[kh]C[0.09 0.91 0.00 -40.4];W[kk]C[0.07 0.93 0.00 -42.8];B[fg]C[0.02 0.98 0.00 -51.1];W[fb]C[0.00 1.00 0.00 -53.7];B[fa]C[0.00 1.00 0.00 -51.9];W[ga]C[0.00 1.00 0.00 -53.8 result=B+R])
-(;FF[4]GM[1]SZ[11]PB[Black]PW[White]HA[0]KM[7.5]RU[koPOSITIONALscoreAREAtaxNONEsui1]RE[B+R]C[startTurnIdx=7,gameHash=F7A17051D50449D2028AEF337C814460,gtype=normal];B[ch];W[hc];B[dd];W[ij];B[ih];W[di];B[ci];W[gi]C[0.47 0.53 0.00 -0.6];B[ie]C[0.49 0.51 0.00 -0.2];W[id]C[0.50 0.50 0.00 0.2];B[he]C[0.52 0.48 0.00 0.8];W[fc]C[0.53 0.47 0.00 1.2];B[ec]C[0.51 0.49 0.00 0.6];W[fd]C[0.53 0.47 0.00 1.3];B[df]C[0.52 0.48 0.00 1.1];W[cc]C[0.54 0.46 0.00 1.6];B[eb]C[0.52 0.48 0.00 0.9];W[be]C[0.51 0.49 0.00 0.8];B[cd]C[0.50 0.50 0.00 0.1];W[bd]C[0.51 0.49 0.00 0.7];B[cb]C[0.53 0.47 0.00 1.4];W[bb]C[0.49 0.51 0.00 -0.2];B[dc]C[0.45 0.55 0.00 -2.1];W[bc]C[0.45 0.55 0.00 -2.2];B[ba]C[0.42 0.58 0.00 -3.2];W[bg]C[0.38 0.62 0.00 -4.8];B[cg]C[0.38 0.62 0.00 -4.8];W[cf]C[0.40 0.60 0.00 -4.3];B[ce]C[0.42 0.58 0.00 -2.8];W[bf]C[0.45 0.55 0.00 -1.8];B[bh]C[0.45 0.55 0.00 -1.8];W[dg]C[0.41 0.59 0.00 -3.6];B[ef]C[0.43 0.57 0.00 -2.7];W[dh]C[0.41 0.59 0.00 -3.4];B[dj]C[0.41 0.59 0.00 -3.8];W[ej]C[0.38 0.62 0.00 -5.3];B[cj]C[0.35 0.65 0.00 -6.4];W[gf]C[0.33 0.67 0.00 -7.4];B[ge]C[0.41 0.59 0.00 -3.7];W[fe]C[0.41 0.59 0.00 -3.3];B[ff]C[0.41 0.59 0.00 -3.2];W[gg]C[0.43 0.57 0.00 -2.3];B[fh]C[0.44 0.56 0.00 -1.8];W[gh]C[0.41 0.59 0.00 -2.9];B[ei]C[0.36 0.64 0.00 -5.2];W[fi]C[0.36 0.64 0.00 -4.7];B[eh]C[0.33 0.67 0.00 -6.0];W[je]C[0.32 0.68 0.00 -6.8];B[jf]C[0.31 0.69 0.00 -7.9];W[jd]C[0.30 0.70 0.00 -8.4];B[jj]C[0.27 0.73 0.00 -9.9];W[ii]C[0.26 0.74 0.00 -10.3];B[ji]C[0.26 0.74 0.00 -12.4];W[jk]C[0.26 0.74 0.00 -12.6];B[ig]C[0.32 0.68 0.00 -11.3];W[hf]C[0.30 0.70 0.00 -12.4];B[if]C[0.33 0.67 0.00 -10.5];W[kj]C[0.32 0.68 0.00 -11.5];B[ki]C[0.32 0.68 0.00 -11.2];W[jh]C[0.38 0.62 0.00 -7.8];B[kk]C[0.38 0.62 0.00 -7.7];W[ik]C[0.44 0.56 0.00 -4.3];B[jg]C[0.44 0.56 0.00 -4.1];W[kh]C[0.35 0.65 0.00 -10.0];B[kg]C[0.35 0.65 0.00 -11.5];W[kj]C[0.31 0.69 0.00 -15.1];B[fj]C[0.21 0.79 0.00 -23.4];W[gj]C[0.17 0.83 0.00 -28.8];B[ek]C[0.18 0.82 0.00 -28.4];W[hh]C[0.15 0.85 0.00 -31.6];B[hj]C[0.17 0.83 0.00 -29.6];W[jh]C[0.19 0.81 0.00 -27.7];B[kk]C[0.21 0.79 0.00 -26.0];W[hi]C[0.22 0.78 0.00 -24.8];B[gk]C[0.20 0.80 0.00 -25.3];W[hk]C[0.23 0.77 0.00 -23.1];B[fk]C[0.12 0.88 0.00 -37.1];W[kj]C[0.06 0.94 0.00 -43.0];B[kh]C[0.09 0.91 0.00 -40.4];W[kk]C[0.07 0.93 0.00 -42.8];B[fg]C[0.02 0.98 0.00 -51.1];W[fb]C[0.00 1.00 0.00 -53.7];B[fa]C[0.00 1.00 0.00 -51.9];C[0.00 1.00 0.00 -53.8 result=B+R])
+(;FF[4]GM[1]SZ[11]PB[Black]PW[White]HA[0]KM[7.5]RU[koPOSITIONALscoreAREAtaxNONEsui1]RE[B+R]C[startTurnIdx=7,gameHash=F7A17051D50449D2028AEF337C814460,gtype=normal];B[ch];W[hc];B[dd];W[ij];B[ih];W[di];B[ci];W[gi]C[0.47 0.53 0.00 -0.6 v=10];B[ie]C[0.49 0.51 0.00 -0.2 v=10];W[id]C[0.50 0.50 0.00 0.2 v=5];B[he]C[0.52 0.48 0.00 0.8 v=10];W[fc]C[0.53 0.47 0.00 1.2 v=10];B[ec]C[0.51 0.49 0.00 0.6 v=5];W[fd]C[0.53 0.47 0.00 1.3 v=10];B[df]C[0.52 0.48 0.00 1.1 v=10];W[cc]C[0.54 0.46 0.00 1.6 v=5];B[eb]C[0.52 0.48 0.00 0.9 v=5];W[be]C[0.51 0.49 0.00 0.8 v=10];B[cd]C[0.50 0.50 0.00 0.1 v=10];W[bd]C[0.51 0.49 0.00 0.7 v=5];B[cb]C[0.53 0.47 0.00 1.4 v=5];W[bb]C[0.49 0.51 0.00 -0.2 v=5];B[dc]C[0.45 0.55 0.00 -2.1 v=10];W[bc]C[0.45 0.55 0.00 -2.2 v=5];B[ba]C[0.42 0.58 0.00 -3.2 v=5];W[bg]C[0.38 0.62 0.00 -4.8 v=5];B[cg]C[0.38 0.62 0.00 -4.8 v=10];W[cf]C[0.40 0.60 0.00 -4.3 v=5];B[ce]C[0.42 0.58 0.00 -2.8 v=10];W[bf]C[0.45 0.55 0.00 -1.8 v=10];B[bh]C[0.45 0.55 0.00 -1.8 v=10];W[dg]C[0.41 0.59 0.00 -3.6 v=10];B[ef]C[0.43 0.57 0.00 -2.7 v=5];W[dh]C[0.41 0.59 0.00 -3.4 v=10];B[dj]C[0.41 0.59 0.00 -3.8 v=10];W[ej]C[0.38 0.62 0.00 -5.3 v=5];B[cj]C[0.35 0.65 0.00 -6.4 v=10];W[gf]C[0.33 0.67 0.00 -7.4 v=5];B[ge]C[0.41 0.59 0.00 -3.7 v=10];W[fe]C[0.41 0.59 0.00 -3.3 v=10];B[ff]C[0.41 0.59 0.00 -3.2 v=10];W[gg]C[0.43 0.57 0.00 -2.3 v=5];B[fh]C[0.44 0.56 0.00 -1.8 v=10];W[gh]C[0.41 0.59 0.00 -2.9 v=5];B[ei]C[0.36 0.64 0.00 -5.2 v=10];W[fi]C[0.36 0.64 0.00 -4.7 v=5];B[eh]C[0.33 0.67 0.00 -6.0 v=5];W[je]C[0.32 0.68 0.00 -6.8 v=5];B[jf]C[0.31 0.69 0.00 -7.9 v=5];W[jd]C[0.30 0.70 0.00 -8.4 v=5];B[jj]C[0.27 0.73 0.00 -9.9 v=5];W[ii]C[0.26 0.74 0.00 -10.3 v=5];B[ji]C[0.26 0.74 0.00 -12.4 v=10];W[jk]C[0.26 0.74 0.00 -12.6 v=10];B[ig]C[0.32 0.68 0.00 -11.3 v=10];W[hf]C[0.30 0.70 0.00 -12.4 v=5];B[if]C[0.33 0.67 0.00 -10.5 v=5];W[kj]C[0.32 0.68 0.00 -11.5 v=10];B[ki]C[0.32 0.68 0.00 -11.2 v=5];W[jh]C[0.38 0.62 0.00 -7.8 v=10];B[kk]C[0.38 0.62 0.00 -7.7 v=10];W[ik]C[0.44 0.56 0.00 -4.3 v=5];B[jg]C[0.44 0.56 0.00 -4.1 v=5];W[kh]C[0.35 0.65 0.00 -10.0 v=5];B[kg]C[0.35 0.65 0.00 -11.5 v=10];W[kj]C[0.31 0.69 0.00 -15.1 v=5];B[fj]C[0.21 0.79 0.00 -23.4 v=5];W[gj]C[0.17 0.83 0.00 -28.8 v=10];B[ek]C[0.18 0.82 0.00 -28.4 v=10];W[hh]C[0.15 0.85 0.00 -31.6 v=5];B[hj]C[0.17 0.83 0.00 -29.6 v=5];W[jh]C[0.19 0.81 0.00 -27.7 v=10];B[kk]C[0.21 0.79 0.00 -26.0 v=5];W[hi]C[0.22 0.78 0.00 -24.8 v=10];B[gk]C[0.20 0.80 0.00 -25.3 v=10];W[hk]C[0.23 0.77 0.00 -23.1 v=5];B[fk]C[0.12 0.88 0.00 -37.1 v=10];W[kj]C[0.06 0.94 0.00 -43.0 v=10];B[kh]C[0.09 0.91 0.00 -40.4 v=5];W[kk]C[0.07 0.93 0.00 -42.8 v=10];B[fg]C[0.02 0.98 0.00 -51.1 v=5];W[fb]C[0.00 1.00 0.00 -53.7 v=5];B[fa]C[0.00 1.00 0.00 -51.9 v=5];W[ga]C[0.00 1.00 0.00 -53.8 v=10 result=B+R])
+(;FF[4]GM[1]SZ[11]PB[Black]PW[White]HA[0]KM[7.5]RU[koPOSITIONALscoreAREAtaxNONEsui1]RE[B+R]C[startTurnIdx=7,gameHash=F7A17051D50449D2028AEF337C814460,gtype=normal];B[ch];W[hc];B[dd];W[ij];B[ih];W[di];B[ci];W[gi]C[0.47 0.53 0.00 -0.6 v=10];B[ie]C[0.49 0.51 0.00 -0.2 v=10];W[id]C[0.50 0.50 0.00 0.2 v=5];B[he]C[0.52 0.48 0.00 0.8 v=10];W[fc]C[0.53 0.47 0.00 1.2 v=10];B[ec]C[0.51 0.49 0.00 0.6 v=5];W[fd]C[0.53 0.47 0.00 1.3 v=10];B[df]C[0.52 0.48 0.00 1.1 v=10];W[cc]C[0.54 0.46 0.00 1.6 v=5];B[eb]C[0.52 0.48 0.00 0.9 v=5];W[be]C[0.51 0.49 0.00 0.8 v=10];B[cd]C[0.50 0.50 0.00 0.1 v=10];W[bd]C[0.51 0.49 0.00 0.7 v=5];B[cb]C[0.53 0.47 0.00 1.4 v=5];W[bb]C[0.49 0.51 0.00 -0.2 v=5];B[dc]C[0.45 0.55 0.00 -2.1 v=10];W[bc]C[0.45 0.55 0.00 -2.2 v=5];B[ba]C[0.42 0.58 0.00 -3.2 v=5];W[bg]C[0.38 0.62 0.00 -4.8 v=5];B[cg]C[0.38 0.62 0.00 -4.8 v=10];W[cf]C[0.40 0.60 0.00 -4.3 v=5];B[ce]C[0.42 0.58 0.00 -2.8 v=10];W[bf]C[0.45 0.55 0.00 -1.8 v=10];B[bh]C[0.45 0.55 0.00 -1.8 v=10];W[dg]C[0.41 0.59 0.00 -3.6 v=10];B[ef]C[0.43 0.57 0.00 -2.7 v=5];W[dh]C[0.41 0.59 0.00 -3.4 v=10];B[dj]C[0.41 0.59 0.00 -3.8 v=10];W[ej]C[0.38 0.62 0.00 -5.3 v=5];B[cj]C[0.35 0.65 0.00 -6.4 v=10];W[gf]C[0.33 0.67 0.00 -7.4 v=5];B[ge]C[0.41 0.59 0.00 -3.7 v=10];W[fe]C[0.41 0.59 0.00 -3.3 v=10];B[ff]C[0.41 0.59 0.00 -3.2 v=10];W[gg]C[0.43 0.57 0.00 -2.3 v=5];B[fh]C[0.44 0.56 0.00 -1.8 v=10];W[gh]C[0.41 0.59 0.00 -2.9 v=5];B[ei]C[0.36 0.64 0.00 -5.2 v=10];W[fi]C[0.36 0.64 0.00 -4.7 v=5];B[eh]C[0.33 0.67 0.00 -6.0 v=5];W[je]C[0.32 0.68 0.00 -6.8 v=5];B[jf]C[0.31 0.69 0.00 -7.9 v=5];W[jd]C[0.30 0.70 0.00 -8.4 v=5];B[jj]C[0.27 0.73 0.00 -9.9 v=5];W[ii]C[0.26 0.74 0.00 -10.3 v=5];B[ji]C[0.26 0.74 0.00 -12.4 v=10];W[jk]C[0.26 0.74 0.00 -12.6 v=10];B[ig]C[0.32 0.68 0.00 -11.3 v=10];W[hf]C[0.30 0.70 0.00 -12.4 v=5];B[if]C[0.33 0.67 0.00 -10.5 v=5];W[kj]C[0.32 0.68 0.00 -11.5 v=10];B[ki]C[0.32 0.68 0.00 -11.2 v=5];W[jh]C[0.38 0.62 0.00 -7.8 v=10];B[kk]C[0.38 0.62 0.00 -7.7 v=10];W[ik]C[0.44 0.56 0.00 -4.3 v=5];B[jg]C[0.44 0.56 0.00 -4.1 v=5];W[kh]C[0.35 0.65 0.00 -10.0 v=5];B[kg]C[0.35 0.65 0.00 -11.5 v=10];W[kj]C[0.31 0.69 0.00 -15.1 v=5];B[fj]C[0.21 0.79 0.00 -23.4 v=5];W[gj]C[0.17 0.83 0.00 -28.8 v=10];B[ek]C[0.18 0.82 0.00 -28.4 v=10];W[hh]C[0.15 0.85 0.00 -31.6 v=5];B[hj]C[0.17 0.83 0.00 -29.6 v=5];W[jh]C[0.19 0.81 0.00 -27.7 v=10];B[kk]C[0.21 0.79 0.00 -26.0 v=5];W[hi]C[0.22 0.78 0.00 -24.8 v=10];B[gk]C[0.20 0.80 0.00 -25.3 v=10];W[hk]C[0.23 0.77 0.00 -23.1 v=5];B[fk]C[0.12 0.88 0.00 -37.1 v=10];W[kj]C[0.06 0.94 0.00 -43.0 v=10];B[kh]C[0.09 0.91 0.00 -40.4 v=5];W[kk]C[0.07 0.93 0.00 -42.8 v=10];B[fg]C[0.02 0.98 0.00 -51.1 v=5];W[fb]C[0.00 1.00 0.00 -53.7 v=5];B[fa]C[0.00 1.00 0.00 -51.9 v=5];C[0.00 1.00 0.00 -53.8 v=10 result=B+R])
 
 ====================================================================================================
 ====================================================================================================
