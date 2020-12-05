@@ -810,7 +810,10 @@ bool Connection::uploadTrainingGameAndData(
     else if(response->status != 200 && response->status != 201 && response->status != 202) {
       ostringstream outs;
       debugPrintResponse(outs,response);
-      throw StringError("Server gave response that was not status code 200 OK or 201 Created or 202 Accepted\n" + outs.str());
+      throw StringError(
+        "When uploading " + sgfFilePath + " " + npzFilePath +
+        " server gave response that was not status code 200 OK or 201 Created or 202 Accepted\n" + outs.str()
+      );
     }
   };
   return retryLoop("uploadTrainingGameAndData",(retryOnFailure ? DEFAULT_MAX_TRIES : 1),shouldStop,f);
@@ -879,7 +882,7 @@ bool Connection::uploadRatingGame(
     if(response->status != 200 && response->status != 201 && response->status != 202) {
       ostringstream outs;
       debugPrintResponse(outs,response);
-      throw StringError("Server gave response that was not status code 200 OK or 201 Created or 202 Accepted\n" + outs.str());
+      throw StringError("When uploading " + sgfFilePath + " server gave response that was not status code 200 OK or 201 Created or 202 Accepted\n" + outs.str());
     }
   };
   return retryLoop("uploadRatingGame",(retryOnFailure ? DEFAULT_MAX_TRIES : 1),shouldStop,f);
