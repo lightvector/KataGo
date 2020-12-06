@@ -1,6 +1,6 @@
 #include "../tests/tinymodel.h"
 
-const char* TinyModelTest::tinyModelBase64 = R"%%(
+const char* TinyModelTest::tinyModelBase64Part0 = R"%%(
 H4sICAo3zF8AA21vZGVsLmJpbgAknXk4F9/7/+1r9pCtUJZQiYTXnHtoESpbWVK0a5XSvmffyZJs
 WQqhpIjCnHtIthQlUom0o31f39W3z+93nZm5Zq75Z86Z530/H88/5prtAWt2TreastpizfSZU3ZM
 t5xpbWs9Y8aUtbYzbGxmWltYyNjK/DtMt5XZuX1X0GaZf6cz/7fZ/L+xZmvQ7ukyVv+Gxf+/8W/Y
@@ -197,6 +197,8 @@ bzM+WynFOr2LQJEle1jhSZfpK9FM+nwOJb6el7jN2Z64xmUVeO4/TeWyfzO181g8NzQC2R/Pknv2
 +GjCbjLtqTME3IvktG/9pdbWS8Ez6BUO9MTBS/M03jnzGqb4WteOUb5MF144h7sPDODqf4zt59jO
 KPN/QZA6ky/gjfnjcnNZkTu1ICVUC8vWXid/lcdAZEgA+bJyM50YMZlkZwggdHEj+Ksy8PT4EMmy
 kcCuFxPRSzcE3C/OgMG8dkG1F0P38Z+YNSk1KPzrJGFULGFh3AuSNRJD30bcprtPBtDeDiPuyg8j
+)%%";
+const char* TinyModelTest::tinyModelBase64Part1 = R"%%(
 8Jn3kLOp2YMu8Zn0+sPVXI10DuQqNJPSm1Vc8M/jvJr/Y9ypFcU2XiGsq2IVuRViyB5XqGGfrc6E
 7+dU+YVJF4jwIU9yYqU0W3Q5D5IabXgJ50hct+kjt7npIqa/fVxXYhyDV+QHYaIrZYZbtEEhPhCG
 owHP3skC94AWTk2ijBi++QyWL/zZZdv76br4aHi3sgjyK3PRSP40qh24AyoO3wSrZcvgYOk5ohy9
@@ -396,6 +398,8 @@ rVorRRLUGwSzxufVfze1wTlV0dTpeQhDpKTohnZtuKSlgIezNamTSTVxuStEdj+9bPvTQZc5ldxA
 x3yQAo8LXSQh0J9L09eFjyH7GLpkIdZfqaA9/3ze7PMXojZ3FKI/f6XBghDUqJoN8cwO1DaIp1zs
 QShRDsLfpI0bGX8ag19o4VPOHnp2boPc+Rdo9blQRO375MzXYni26RZ98PMIbJSKoEO56rb3qtbR
 L8nR9BlRhUr5UPJy3Q+i+bsU1szT5if6qOJI0k7Wd30qeI6dACbrY9hd2/upr7ERq36njl3euI2N
+)%%";
+const char* TinyModelTest::tinyModelBase64Part2 = R"%%(
 GH4kUPliTn36Y1F4+VloGAriN2yYAvMLpsAyazH2rHAlKqwTYzWV7PH8hSJ+cX8lX6a6j42ecYe+
 /TuXHR+ryu/yvoQ71lHQOHACdbt38GV1juwMB1XyYbcQyluGsQNPhFixWGV+L43i/4vWtXusIsJv
 PirEfrKWY0/F7GK1JWNQuFeR/lIuwYJZF6DTXdouIb6F3eOeRBZYLuE2hn6jBqq7cEP8I/xVPMQu
@@ -595,6 +599,8 @@ bxHsqi3ueu4UpDhT4BBy2VFfXtnpuO4olJp5QOBmn+t0udO3btEZY8HyJbpOTyZKCT7PyKqTWrrd
 xgW/Z9Xn3MlpOcabr9rgQLM5liw8K9zt2cD6bxQy5dMNMF9NjZVO0GM/NO8xtfxsoUuWhZOdQhrL
 cXnDigQebFGcBk5fkgBPg8xg9Nkywf3hvkxW5pvQOVGLjZmjxUvnhZJ+8Se1bSOZcM07caIaOaiv
 om6ScwPybO3c5wLxhulszqFCeuVDitBMRJmqHTiNt77t5KebxKi10lSaOuUw84mVwusq75j5KXsC
+)%%";
+const char* TinyModelTest::tinyModelBase64Part3 = R"%%(
 5xIxMnEqVs0O4LY5Q7hSVhrmfMwC0hZCrq2TqdffYsueaRnSzjUX+MqOJdz54UeU/NkI66ZMxeCx
 5lhmnkhNYw5wra3OLPl7NUk87stnBZ/hfpK1OFxWgZbNUIekuJ1835sC2p9UznehEMJ2p+KSGg06
 5iIF0XUxNEDnJFu5ypc/35xe96LkGNwbJqSLCiOgZ7UeUx+lLFQev4u1zj5D+lSjeU7ngODYx1Nk
@@ -794,6 +800,8 @@ VOdl+BwKB5bjfu0rIFayHC0KdWEL5JE1iybi5KHnyK1zcTj5sQ0KJpk5GegTeJ50EroNnpPYnR5g
 8ruqLunrEvyne4EMPD0PL+eH4/uGo3V1OqNgQ/R3oUf4eLRKeigYWZcE4oPPXy7/NaTMSCBKVwNg
 SUsqqKyoFQZ6oHDUtgwY2z6J5+1sgZ57rUK/2F72ybIQHwSfQb1p9mzO8i/ksfdweG44j72YkA15
 D4sED+LD0HSua+2Jl/4kM/Mgrm27DgqbjsPjx4SJO++EdtcDaN2yWWgsHUVDr2iCG54TeL8dDSJv
+)%%";
+const char* TinyModelTest::tinyModelBase64Part4 = R"%%(
 B0hxoTfP7hoQillECMOr21BoOxQjb5eg7lJjruWuDJoW59lPy7+kLmUsVc/XYK3ueVi8QB4mrpTD
 BtkTwtXrGf6RmQN3recJx/q/wD2NTdg8dRRfPvkcES2rQ/nxxYI9RyKE1nqiaHNgKO9HD5jhewT2
 vAsGnYEY/PduEdqNkyYu+q+Fk0f8Id27nsKQlWP5hsxhNFLhI/huuM/sQldgTaUyNyiIxznkmtPk
@@ -993,6 +1001,8 @@ T97x3gQqjvWx8ass4cphd3g5SpO5DVPDLt1K/NAyH/WPN2L0kEes0f4Sfs9cDlsbFLHm2Cboj7qI
 oU6X8E55NF6+PJx+0TkAAd/l+NyviXVRhYFwMiwPL79kmD3pBvq7cICvZbDvuR/c3ZYFytu7IXnT
 MLBV98bmlHKc8eEi1Nmo81aJjaT0QC9amnfDltCHbNS7DWii5yecNlqGm5mo8s/KQZD+bzjPvT1K
 UP6rUJiwSA+mzvoCh77Mx4MLXoL6dwNI2ppLtl3/i/P7rkJd0l1q0LkDRy6PRbMlI/kKRVcuoSSH
+)%%";
+const char* TinyModelTest::tinyModelBase64Part5 = R"%%(
 mTE+dG5rDRsYY8CninZgS+k0vuLaUpZRKQ02JA7OSPXAR9kn2BfWJ1SsPIX3MzugbOIVon5vGEv8
 3cpiC0RRLtcYhiQWCWTc74O6szrFHDkMPmqD9n2jaeydZHyrU48/B1Qh0fIH2gUGCT7IbGYr5FXg
 7L9tgpQCdRpifRifvnTgOq2OvGrUR0jdwes2rM4lxSudqfSrHcJ0WovD5R/DyrwOwb/222xJ7GRc
@@ -1192,6 +1202,8 @@ pIyqv2KpXZ5BO73/YUq7/vv8l36KgHwfC4QGOghL9xYZyikl75TOENZEH2z+2ott34mTB+2T5Oqi
 XiKvpw6mE/uR65cycrRbDXxV0//wovvQe48iQdxOEj+kh3u11pPpgcugqceQnHM/CfsbbYnOOT3g
 OwWT2FZ7HLFoFpmxUItzQToUqZxqJm5xb0E07CosOiXCt5FU5k+KXEV9mfZQ8laPPE/VwWPbFPiv
 Px2DzdP+cLPko6TWnUtxtAw5FncmSVNqHMQrmRB17zEUUXuT0MdKIa84GXg38yDhdBlmq6znn5cL
+)%%";
+const char* TinyModelTest::tinyModelBase64Part6 = R"%%(
 xDbTZ7P3tGtjo+fb4NstFf6iHU78Nh1ngizOknsOBvBjOQb3DZ2kyTkJeFOm8UfvTMMv1pSjr2oe
 ZLWTJ7ndxgRfwXKC1aIgfK4dXM5gcGZOccPKJueAPZ4Ed04q8p+f2kNmz/mEu920SMlADzF89wj8
 U8UhP8yYiFeqgpFuOsmYziInaC/CppqgJToRrZ9pzclSbMEGjCaiFD6Mi1wacMTVIrJ+0o/IN4WD

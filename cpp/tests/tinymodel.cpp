@@ -56,8 +56,16 @@ void TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logger, Conf
   logger.write("Running tiny net to sanity-check that GPU is working");
 
   namespace gfs = ghc::filesystem;
+  string base64Data;
+  base64Data += TinyModelTest::tinyModelBase64Part0;
+  base64Data += TinyModelTest::tinyModelBase64Part1;
+  base64Data += TinyModelTest::tinyModelBase64Part2;
+  base64Data += TinyModelTest::tinyModelBase64Part3;
+  base64Data += TinyModelTest::tinyModelBase64Part4;
+  base64Data += TinyModelTest::tinyModelBase64Part5;
+  base64Data += TinyModelTest::tinyModelBase64Part6;
   string binaryData;
-  decodeBase64(tinyModelBase64, binaryData);
+  decodeBase64(base64Data, binaryData);
 
   const string tmpModelFile = baseDir + "/" + "tmpTinyModel.bin.gz";
   ofstream outModel(tmpModelFile.c_str(),ios::binary);
