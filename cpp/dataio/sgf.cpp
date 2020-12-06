@@ -681,7 +681,12 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
       sample.moves.push_back(Move(moveLoc,movePla));
     }
     sample.initialTurnNumber = data["initialTurnNumber"].get<int>();
-    sample.hintLoc = Location::ofString(data["hintLoc"].get<string>(),sample.board);
+    string hintLocStr = Global::toLower(Global::trim(data["hintLoc"].get<string>()));
+    if(hintLocStr == "" || hintLocStr == "''" || hintLocStr == "\"\"" ||
+       hintLocStr == "null" || hintLocStr == "'null'" || hintLocStr == "\"null\"")
+      sample.hintLoc = Board::NULL_LOC;
+    else
+      sample.hintLoc = Location::ofString(data["hintLoc"].get<string>(),sample.board);
 
     if(data.find("weight") != data.end())
       sample.weight = data["weight"].get<double>();
