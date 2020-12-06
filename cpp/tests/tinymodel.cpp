@@ -175,7 +175,7 @@ void TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logger, Conf
   };
   for(int pos = 0; pos<361; pos++) {
     double ownership = nnOutput.whiteOwnerMap[pos];
-    EQ(ownership*10000, expectedOwnership[pos], 100.0);
+    EQ(ownership*10000, expectedOwnership[pos], 200.0);
   }
 
   delete nnEval;
