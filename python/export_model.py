@@ -350,8 +350,8 @@ with tf.compat.v1.Session(config=tfconfig) as session:
         write_matbias("sv3/b",4,b)
       else:
         #Grab the shortterm channels
-        w = np.concatenate(w, get_weights("mmv3/w")[:,0:2],axis=1)
-        b = np.concatenate(b, get_weights("mmv3/b")[0:2],axis=0)
+        w = np.concatenate([w, get_weights("mmv3/w")[:,0:2]],axis=1)
+        b = np.concatenate([b, get_weights("mmv3/b")[0:2]],axis=0)
         write_matmul("sv3/w",model.v2_size,6,w)
         write_matbias("sv3/b",6,b)
 
