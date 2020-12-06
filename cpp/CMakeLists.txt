@@ -275,6 +275,8 @@ add_executable(katago
   tests/testtime.cpp
   tests/testtrainingwrite.cpp
   tests/testnn.cpp
+  tests/tinymodel.cpp
+  tests/tinymodeldata.cpp
   distributed/client.cpp
   command/commandline.cpp
   command/analysis.cpp

@@ -11,6 +11,7 @@
 #include "../program/play.h"
 #include "../program/setup.h"
 #include "../program/selfplaymanager.h"
+#include "../tests/tinymodel.h"
 #include "../command/commandline.h"
 #include "../main.h"
 
@@ -428,6 +429,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   logger.write(Version::getKataGoVersionForHelp());
   logger.write(string("Git revision: ") + Version::getGitRevision());
 
+  TinyModelTest::runTinyModelTest(baseDir, logger, *userCfg);
 
   //Set up signal handlers
   if(!std::atomic_is_lock_free(&shouldStop))
