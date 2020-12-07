@@ -587,17 +587,17 @@ void Sgf::samplePositionIfUniqueHelper(
       break;
     turnsAgoToSnap++;
   }
-  int startTurn = hist.moveHistory.size() - turnsAgoToSnap;
+  int startTurnIdx = hist.moveHistory.size() - turnsAgoToSnap;
 
   sampleBuf.board = hist.getRecentBoard(turnsAgoToSnap);
-  if(startTurn < hist.moveHistory.size())
-    sampleBuf.nextPla = hist.moveHistory[startTurn].pla;
+  if(startTurnIdx < hist.moveHistory.size())
+    sampleBuf.nextPla = hist.moveHistory[startTurnIdx].pla;
   else
     sampleBuf.nextPla = nextPla;
   sampleBuf.moves.clear();
-  for(int i = startTurn; i<hist.moveHistory.size(); i++)
+  for(int i = startTurnIdx; i<hist.moveHistory.size(); i++)
     sampleBuf.moves.push_back(hist.moveHistory[i]);
-  sampleBuf.initialTurnNumber = initialTurnNumber + startTurn;
+  sampleBuf.initialTurnNumber = initialTurnNumber + startTurnIdx;
   sampleBuf.hintLoc = Board::NULL_LOC;
   sampleBuf.weight = 1.0;
   f(sampleBuf,hist,comments);
@@ -1147,31 +1147,31 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
   hist = BoardHistory(board,nextPla,initialRules,0);
 }
 
-void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) const {
-  if(turnNumber < 0 || turnNumber > moves.size())
+void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int turnIdx) const {
+  if(turnIdx < 0 || turnIdx > moves.size())
     throw StringError(
       Global::strprintf(
-        "Attempting to set up position from SGF for invalid turn number %d, valid values are %d to %d",
-        (int)turnNumber, 0, (int)moves.size()
+        "Attempting to set up position from SGF for invalid turn idx %d, valid values are %d to %d",
+        (int)turnIdx, 0, (int)moves.size()
       )
     );
 
-  for(size_t i = 0; i<turnNumber; i++) {
+  for(size_t i = 0; i<turnIdx; i++) {
     hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
     nextPla = getOpp(moves[i].pla);
   }
 }
 
-void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int turnNumber, bool preventEncore) const {
-  if(turnNumber < 0 || turnNumber > moves.size())
+void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int turnIdx, bool preventEncore) const {
+  if(turnIdx < 0 || turnIdx > moves.size())
     throw StringError(
       Global::strprintf(
-        "Attempting to set up position from SGF for invalid turn number %d, valid values are %d to %d",
-        (int)turnNumber, 0, (int)moves.size()
+        "Attempting to set up position from SGF for invalid turn idx %d, valid values are %d to %d",
+        (int)turnIdx, 0, (int)moves.size()
       )
     );
 
-  for(size_t i = 0; i<turnNumber; i++) {
+  for(size_t i = 0; i<turnIdx; i++) {
     bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla,preventEncore);
     if(!suc)
       throw StringError("Illegal move in " + fileName + " turn " + Global::int64ToString(i) + " move " + Location::toString(moves[i].loc, board.x_size, board.y_size));
@@ -1179,14 +1179,14 @@ void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& 
   }
 }
 
-void CompactSgf::setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) const {
+void CompactSgf::setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnIdx) const {
   setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-  playMovesAssumeLegal(board, nextPla, hist, turnNumber);
+  playMovesAssumeLegal(board, nextPla, hist, turnIdx);
 }
 
-void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber, bool preventEncore) const {
+void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnIdx, bool preventEncore) const {
   setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-  playMovesTolerant(board, nextPla, hist, turnNumber, preventEncore);
+  playMovesTolerant(board, nextPla, hist, turnIdx, preventEncore);
 }
 
 void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist) {
@@ -1300,6 +1300,7 @@ void WriteSgf::writeSgf(
   if(gameData != NULL) {
     startTurnIdx = gameData->startHist.moveHistory.size();
     out << "C[startTurnIdx=" << startTurnIdx;
+    out << ",initTurnNum=" << gameData->startHist.initialTurnNumber;
     out << ",gameHash=" << gameData->gameHash;
 
     static_assert(FinishedGameData::NUM_MODES == 7, "");
@@ -1326,7 +1327,7 @@ void WriteSgf::writeSgf(
       out << "," << "usedInitialPosition=" << gameData->usedInitialPosition;
 
     for(int j = 0; j<gameData->changedNeuralNets.size(); j++) {
-      out << ",newNeuralNetTurn" << gameData->changedNeuralNets[j]->turnNumber
+      out << ",newNeuralNetTurn" << gameData->changedNeuralNets[j]->turnIdx
           << "=" << gameData->changedNeuralNets[j]->name;
     }
     out << "]";

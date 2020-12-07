@@ -37,7 +37,7 @@ struct SidePosition {
   ~SidePosition();
 };
 
-STRUCT_NAMED_PAIR(std::string,name,int,turnNumber,ChangedNeuralNet);
+STRUCT_NAMED_PAIR(std::string,name,int,turnIdx,ChangedNeuralNet);
 
 struct FinishedGameData {
   std::string bName;
@@ -158,7 +158,7 @@ struct TrainingWriteBuffers {
   //C49: 1 if an earlier neural net started this game, compared to the latest in this data file.
   //C50: If positive, an earlier neural net was playing this specific move, compared to the latest in this data file.
 
-  //C51: Turn number of the game, zero-indexed.
+  //C51: Turn idx of the game right now, zero-indexed. Starts at 0 even for sgfposes.
   //C52: Did this game end via hitting turn limit?
   //C53: First turn of this game that was selfplay for training rather than initialization (e.g. handicap stones, random init of the starting board pos)
   //C54: Number of extra moves black got at the start (i.e. handicap games)
@@ -170,6 +170,7 @@ struct TrainingWriteBuffers {
   //3 = handicap game
   //4 = sampled from an external SGF position (e.g. human data or other bots).
   //5 = sampled from a hint position (e.g. blindspot training).
+  //6 = forked from a hint position (e.g. blindspot training).
 
   //C57: Contains some data but is actually redundant with C55.
   //C58: Contains some data but is actually redundant with C55.
@@ -206,7 +207,7 @@ struct TrainingWriteBuffers {
 
   void addRow(
     const Board& board, const BoardHistory& hist, Player nextPlayer,
-    int turnNumberAfterStart,
+    int turnAfterStart,
     float targetWeight,
     int64_t unreducedNumVisits,
     const std::vector<PolicyTargetMove>* policyTarget0, //can be null

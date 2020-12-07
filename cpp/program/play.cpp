@@ -1466,7 +1466,7 @@ FinishedGameData* Play::runGame(
   //NOTE: that checkForNewNNEval might also cause the old nnEval to be invalidated and freed. This is okay since the only
   //references we both hold on to and use are the ones inside the bots here, and we replace the ones in the botSpecs.
   //We should NOT ever store an nnEval separately from these.
-  auto maybeCheckForNewNNEval = [&botB,&botW,&botSpecB,&botSpecW,&checkForNewNNEval,&gameRand,&gameData](int nextTurnNumber) {
+  auto maybeCheckForNewNNEval = [&botB,&botW,&botSpecB,&botSpecW,&checkForNewNNEval,&gameRand,&gameData](int nextTurnIdx) {
     //Check if we got a new nnEval, with some probability.
     //Randomized and low-probability so as to reduce contention in checking, while still probably happening in a timely manner.
     if(checkForNewNNEval != nullptr && gameRand.nextBool(0.1)) {
@@ -1477,7 +1477,7 @@ FinishedGameData* Play::runGame(
           botW->setNNEval(newNNEval);
         botSpecB.nnEval = newNNEval;
         botSpecW.nnEval = newNNEval;
-        gameData->changedNeuralNets.push_back(new ChangedNeuralNet(newNNEval->getModelName(),nextTurnNumber));
+        gameData->changedNeuralNets.push_back(new ChangedNeuralNet(newNNEval->getModelName(),nextTurnIdx));
       }
     }
   };
@@ -1663,8 +1663,8 @@ FinishedGameData* Play::runGame(
       }
     }
 
-    int nextTurnNumber = hist.moveHistory.size();
-    maybeCheckForNewNNEval(nextTurnNumber);
+    int nextTurnIdx = hist.moveHistory.size();
+    maybeCheckForNewNNEval(nextTurnIdx);
 
     pla = getOpp(pla);
   }
@@ -1967,21 +1967,21 @@ FinishedGameData* Play::runGame(
       hist = gameData->startHist;
       pla = gameData->startPla;
 
-      int startTurnNumber = gameData->startHist.moveHistory.size();
+      int startTurnIdx = gameData->startHist.moveHistory.size();
       int numMoves = gameData->endHist.moveHistory.size() - gameData->startHist.moveHistory.size();
-      for(int turnNumberAfterStart = 0; turnNumberAfterStart<numMoves; turnNumberAfterStart++) {
-        int absoluteTurnNumber = turnNumberAfterStart + startTurnNumber;
-        if(gameData->targetWeightByTurn[turnNumberAfterStart] > 0 &&
+      for(int turnAfterStart = 0; turnAfterStart<numMoves; turnAfterStart++) {
+        int turnIdx = turnAfterStart + startTurnIdx;
+        if(gameData->targetWeightByTurn[turnAfterStart] > 0 &&
            //Avoid computing lead when no result was considered to be very likely, since in such cases
            //the relationship between komi and the result can somewhat break.
-           gameData->whiteValueTargetsByTurn[turnNumberAfterStart].noResult < 0.3 &&
+           gameData->whiteValueTargetsByTurn[turnAfterStart].noResult < 0.3 &&
            gameRand.nextBool(playSettings.estimateLeadProb)
         ) {
-          gameData->whiteValueTargetsByTurn[turnNumberAfterStart].lead =
+          gameData->whiteValueTargetsByTurn[turnAfterStart].lead =
             PlayUtils::computeLead(botB,botW,board,hist,pla,playSettings.estimateLeadVisits,logger,otherGameProps);
-          gameData->whiteValueTargetsByTurn[turnNumberAfterStart].hasLead = true;
+          gameData->whiteValueTargetsByTurn[turnAfterStart].hasLead = true;
         }
-        Move move = gameData->endHist.moveHistory[absoluteTurnNumber];
+        Move move = gameData->endHist.moveHistory[turnIdx];
         assert(move.pla == pla);
         hist.makeBoardMoveAssumeLegal(board, move.loc, move.pla, NULL);
         pla = getOpp(pla);

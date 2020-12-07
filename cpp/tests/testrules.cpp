@@ -3362,10 +3362,10 @@ HASH: 5C26A060FA78FD93FFF559C72BD7C6A4
     Board board;
     BoardHistory hist;
     Player nextPla = P_BLACK;
-    int turnNumberToSetup = sgf->moves.size();
+    int turnIdxToSetup = sgf->moves.size();
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
 
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnNumberToSetup);
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdxToSetup);
     string expected = R"%%(
 HASH: EB867913318513FD9DE98EDE86AE8CE0
    A B C D E F G H J K L M
@@ -3751,7 +3751,7 @@ Illegal: (4,3) X
       suc = Rules::tryParseRulesWithoutKomi(rules[i].toJsonStringNoKomi(),parsed4,rules[i].komi);
       testAssert(suc);
       testAssert(rules[i] == parsed4);
-      
+
       Rules parsed5;
       suc = Rules::tryParseRulesWithoutKomi(rules[i].toJsonStringNoKomiMaybeOmitStuff(),parsed5,rules[i].komi);
       testAssert(suc);

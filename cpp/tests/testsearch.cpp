@@ -125,14 +125,14 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
     bot->clearSearch();
 }
 
-static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaultRules, int turnNumber, float overrideKomi, TestSearchOptions opts) {
+static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaultRules, int turnIdx, float overrideKomi, TestSearchOptions opts) {
   CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
   Board board;
   Player nextPla;
   BoardHistory hist;
   Rules initialRules = sgf->getRulesOrFailAllowUnspecified(defaultRules);
-  sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnNumber);
+  sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
   hist.setKomi(overrideKomi);
   runBotOnPosition(bot,board,nextPla,hist,opts);
   delete sgf;
@@ -2390,12 +2390,12 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool cuda
   vector<float> scoreMeans;
   vector<float> policyProbs;
 
-  for(int turnNumber = 0; turnNumber<sgf->moves.size(); turnNumber++) {
+  for(int turnIdx = 0; turnIdx<sgf->moves.size(); turnIdx++) {
     Board board;
     Player nextPla;
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnNumber);
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
     winProbs.push_back(buf.result->whiteWinProb);
