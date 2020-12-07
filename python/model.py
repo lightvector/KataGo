@@ -1375,13 +1375,13 @@ class Target_vars:
     )
     self.td_value_loss_unreduced = tf.reduce_sum(self.td_value_loss_unreduced, axis=1)
 
-    self.scorebelief_cdf_loss_unreduced = 0.015 * self.ownership_target_weight * (
+    self.scorebelief_cdf_loss_unreduced = 0.020 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.scorebelief_target,axis=1) - tf.cumsum(tf.nn.softmax(scorebelief_output,axis=1),axis=1)),
         axis=1
       )
     )
-    self.scorebelief_pdf_loss_unreduced = 0.015 * self.ownership_target_weight * (
+    self.scorebelief_pdf_loss_unreduced = 0.020 * self.ownership_target_weight * (
       tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.scorebelief_target,
         logits=scorebelief_output
@@ -1391,7 +1391,7 @@ class Target_vars:
     #This uses a formulation where each batch element cares about its average loss.
     #In particular this means that ownership loss predictions on small boards "count more" per spot.
     #Not unlike the way that policy and value loss are also equal-weighted by batch element.
-    self.ownership_loss_unreduced = 1.0 * self.ownership_target_weight * (
+    self.ownership_loss_unreduced = 1.5 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.nn.softmax_cross_entropy_with_logits_v2(
           labels=tf.stack([(1+self.ownership_target)/2,(1-self.ownership_target)/2],axis=3),
@@ -1401,7 +1401,7 @@ class Target_vars:
       ) / model.mask_sum_hw
     )
 
-    self.scoring_loss_unreduced = 0.6 * self.scoring_target_weight * (
+    self.scoring_loss_unreduced = 1.0 * self.scoring_target_weight * (
       tf.reduce_sum(
         tf.square(self.scoring_target - scoring_output) * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
         axis=[1,2]
@@ -1419,7 +1419,7 @@ class Target_vars:
     #causing some scaling with board size. So, I dunno, let's compromise and scale by sqrt(boardarea).
     #Also, the further out targets should be weighted a little less due to them being higher entropy
     #due to simply being farther in the future, so multiply by [1,0.25].
-    self.futurepos_loss_unreduced = 0.20 * self.futurepos_target_weight * (
+    self.futurepos_loss_unreduced = 0.25 * self.futurepos_target_weight * (
       tf.reduce_sum(
         tf.square(tf.tanh(futurepos_output) - self.futurepos_target)
         * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len,1])
@@ -1474,8 +1474,8 @@ class Target_vars:
 
     #Huber will incentivize this to not actually converge to the mean, but rather something meanlike locally and something medianlike
     #for very large possible losses. This seems... okay - it might actually be what users want.
-    self.scoremean_loss_unreduced = 0.0012 * self.ownership_target_weight * huber_loss(self.scoremean_target, scoremean_prediction, delta = 12.0)
-    self.lead_loss_unreduced = 0.016 * self.lead_target_weight * huber_loss(self.lead_target, lead_prediction, delta = 8.0)
+    self.scoremean_loss_unreduced = 0.0018 * self.ownership_target_weight * huber_loss(self.scoremean_target, scoremean_prediction, delta = 12.0)
+    self.lead_loss_unreduced = 0.0060 * self.lead_target_weight * huber_loss(self.lead_target, lead_prediction, delta = 8.0)
     self.variance_time_loss_unreduced = 0.00015 * huber_loss(self.variance_time_target, variance_time_prediction, delta = 50.0)
 
     stdev_of_belief = tf.sqrt(0.001 + tf.reduce_sum(
@@ -1511,7 +1511,7 @@ class Target_vars:
     # winlossprob_from_output = value_probs[:,0:2]
     # self.winloss_reg_loss_unreduced = 2.0 * tf.reduce_sum(tf.square(winlossprob_from_belief - winlossprob_from_output),axis=1)
 
-    self.scale_reg_loss_unreduced = tf.reshape(0.0005 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
+    self.scale_reg_loss_unreduced = tf.reshape(0.0004 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
     #self.scale_reg_loss_unreduced = tf.zeros_like(self.winloss_reg_loss_unreduced)
 
     self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced, name="losses/policy_loss")
