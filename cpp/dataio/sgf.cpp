@@ -1302,7 +1302,7 @@ void WriteSgf::writeSgf(
     out << "C[startTurnIdx=" << startTurnIdx;
     out << ",gameHash=" << gameData->gameHash;
 
-    static_assert(FinishedGameData::NUM_MODES == 6, "");
+    static_assert(FinishedGameData::NUM_MODES == 7, "");
     if(gameData->mode == FinishedGameData::MODE_NORMAL)
       out << "," << "gtype=normal";
     else if(gameData->mode == FinishedGameData::MODE_CLEANUP_TRAINING)
@@ -1315,6 +1315,8 @@ void WriteSgf::writeSgf(
       out << "," << "gtype=sgfpos";
     else if(gameData->mode == FinishedGameData::MODE_HINTPOS)
       out << "," << "gtype=hintpos";
+    else if(gameData->mode == FinishedGameData::MODE_HINTFORK)
+      out << "," << "gtype=hintfork";
     else
       out << "," << "gtype=other";
 

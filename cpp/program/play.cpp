@@ -1454,7 +1454,10 @@ FinishedGameData* Play::runGame(
     gameData->mode = FinishedGameData::MODE_SGFPOS;
   if(otherGameProps.isHintPos)
     gameData->mode = FinishedGameData::MODE_HINTPOS;
-  if(otherGameProps.isFork)
+
+  if(otherGameProps.isHintFork)
+    gameData->mode = FinishedGameData::MODE_HINTFORK;
+  else if(otherGameProps.isFork)
     gameData->mode = FinishedGameData::MODE_FORK;
 
   //In selfplay, record all the policy maps and evals and such as well for training data
