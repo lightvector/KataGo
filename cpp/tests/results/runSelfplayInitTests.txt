@@ -7906,6 +7906,7 @@ seedBase: test hint!
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 400
+HintLoc A1
 Policy surprise 0.0982151
 Raw WL 0.0726678
 PV: F3 G4 E2 H2 F1 J2 D5 D3 E4 C5 C6 C4
