@@ -1475,6 +1475,12 @@ FinishedGameData* Play::runGame(
 
   if(extraBlackAndKomi.extraBlack > 0)
     gameData->mode = FinishedGameData::MODE_HANDICAP;
+
+  //Might get overwritten next as we also play sgfposes and such with asym mode!
+  //So this is just a best efforts to make it more prominent for most of the asymmetric games.
+  if(gameData->playoutDoublingAdvantage != 0)
+    gameData->mode = FinishedGameData::MODE_ASYM;
+
   if(otherGameProps.isSgfPos)
     gameData->mode = FinishedGameData::MODE_SGFPOS;
   if(otherGameProps.isHintPos)

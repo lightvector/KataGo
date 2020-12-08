@@ -5950,7 +5950,7 @@ Last moves D8 D3 H4 J8 G9 H9 G8 J6 C5 C4 D5 F3 J5 H6 G2 C9 C8 D9
 gameHash 6D7B2D740B1160234CB6E665F6447ABF
 hitTurnLimit 1
 numExtraBlack 0
-mode 0
+mode 7
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1

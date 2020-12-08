@@ -719,7 +719,7 @@ bool Connection::downloadModelIfNotPresent(
 }
 
 static string getGameTypeStr(const FinishedGameData* gameData) {
-  static_assert(FinishedGameData::NUM_MODES == 7,"");
+  static_assert(FinishedGameData::NUM_MODES == 8,"");
   string gametype = (
     gameData->mode == FinishedGameData::MODE_NORMAL ? "normal" :
     gameData->mode == FinishedGameData::MODE_CLEANUP_TRAINING ? "cleanup_training" :
@@ -728,6 +728,7 @@ static string getGameTypeStr(const FinishedGameData* gameData) {
     gameData->mode == FinishedGameData::MODE_SGFPOS ? "sgfpos" :
     gameData->mode == FinishedGameData::MODE_HINTPOS ? "hintpos" :
     gameData->mode == FinishedGameData::MODE_HINTFORK ? "hintfork" :
+    gameData->mode == FinishedGameData::MODE_ASYM ? "asym" :
     "unknown"
   );
   return gametype;

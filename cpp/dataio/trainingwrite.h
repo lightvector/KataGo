@@ -92,7 +92,7 @@ struct FinishedGameData {
   std::vector<SidePosition*> sidePositions;
   std::vector<ChangedNeuralNet*> changedNeuralNets;
 
-  static constexpr int NUM_MODES = 7;
+  static constexpr int NUM_MODES = 8;
   static constexpr int MODE_NORMAL = 0;
   static constexpr int MODE_CLEANUP_TRAINING = 1;
   static constexpr int MODE_FORK = 2;
@@ -100,6 +100,7 @@ struct FinishedGameData {
   static constexpr int MODE_SGFPOS = 4;
   static constexpr int MODE_HINTPOS = 5;
   static constexpr int MODE_HINTFORK = 6;
+  static constexpr int MODE_ASYM = 7;
 
   FinishedGameData();
   ~FinishedGameData();
@@ -182,6 +183,7 @@ struct TrainingWriteBuffers {
   //4 = sampled from an external SGF position (e.g. human data or other bots).
   //5 = sampled from a hint position (e.g. blindspot training).
   //6 = forked from a hint position (e.g. blindspot training).
+  //7 = asymmetric playouts game (nonzero "PDA"). Note that this might actually get overwritten by modes 2,4,5,6.
 
   //C56: Initial turn number - the turn number that corresponds to turn idx 0, such as for sgfposes.
   //C57: Raw winloss from neural net

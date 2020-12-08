@@ -1303,7 +1303,7 @@ void WriteSgf::writeSgf(
     out << ",initTurnNum=" << gameData->startHist.initialTurnNumber;
     out << ",gameHash=" << gameData->gameHash;
 
-    static_assert(FinishedGameData::NUM_MODES == 7, "");
+    static_assert(FinishedGameData::NUM_MODES == 8, "");
     if(gameData->mode == FinishedGameData::MODE_NORMAL)
       out << "," << "gtype=normal";
     else if(gameData->mode == FinishedGameData::MODE_CLEANUP_TRAINING)
@@ -1318,6 +1318,8 @@ void WriteSgf::writeSgf(
       out << "," << "gtype=hintpos";
     else if(gameData->mode == FinishedGameData::MODE_HINTFORK)
       out << "," << "gtype=hintfork";
+    else if(gameData->mode == FinishedGameData::MODE_ASYM)
+      out << "," << "gtype=asym";
     else
       out << "," << "gtype=other";
 
@@ -1325,6 +1327,8 @@ void WriteSgf::writeSgf(
       out << "," << "beganInEncorePhase=" << gameData->beganInEncorePhase;
     if(gameData->usedInitialPosition != 0)
       out << "," << "usedInitialPosition=" << gameData->usedInitialPosition;
+    if(gameData->playoutDoublingAdvantage != 0)
+      out << "," << "pdaWhite=" << ((gameData->playoutDoublingAdvantagePla == P_WHITE ? 1 : -1) * gameData->playoutDoublingAdvantage);
 
     for(int j = 0; j<gameData->changedNeuralNets.size(); j++) {
       out << ",newNeuralNetTurn" << gameData->changedNeuralNets[j]->turnIdx
