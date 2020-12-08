@@ -919,6 +919,30 @@ static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, cons
   buf.score = (float)values.expectedScore;
 }
 
+static NNRawStats computeNNRawStats(const Search* bot, const Board& board, const BoardHistory& hist, Player pla) {
+  NNResultBuf buf;
+  MiscNNInputParams nnInputParams;
+  nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
+  Board b = board;
+  bot->nnEvaluator->evaluate(b,hist,pla,nnInputParams,buf,false,false);
+  NNOutput& nnOutput = *(buf.result);
+
+  NNRawStats nnRawStats;
+  nnRawStats.whiteWinLoss = nnOutput.whiteWinProb - nnOutput.whiteLossProb;
+  nnRawStats.whiteScoreMean = nnOutput.whiteScoreMean;
+  {
+    double entropy = 0.0;
+    int policySize = NNPos::getPolicySize(nnOutput.nnXLen,nnOutput.nnYLen);
+    for(int pos = 0; pos<policySize; pos++) {
+      double prob = nnOutput.policyProbs[pos];
+      if(prob >= 1e-30)
+        entropy += -prob * log(prob);
+    }
+    nnRawStats.policyEntropy = entropy;
+  }
+  return nnRawStats;
+}
+
 //Recursively walk non-root-node subtree under node recording positions that have enough visits
 //We also only record positions where the player to move made best moves along the tree so far.
 //Does NOT walk down branches of excludeLoc0 and excludeLoc1 - these are used to avoid writing
@@ -940,6 +964,7 @@ static void recordTreePositionsRec(
     SidePosition* sp = new SidePosition(board,hist,pla,numNeuralNetChangesSoFar);
     extractPolicyTarget(sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
     extractValueTargets(sp->whiteValueTargets, toMoveBot, node);
+    sp->nnRawStats = computeNNRawStats(toMoveBot, board, hist, pla);
     sp->targetWeight = recordTreeTargetWeight;
     sp->unreducedNumVisits = toMoveBot->getRootVisits();
     gameData->sidePositions.push_back(sp);
@@ -1574,6 +1599,8 @@ FinishedGameData* Play::runGame(
       int64_t unreducedNumVisits = toMoveBot->getRootVisits();
       extractPolicyTarget(*policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       gameData->policyTargetsByTurn.push_back(PolicyTarget(policyTarget,unreducedNumVisits));
+      gameData->nnRawStatsByTurn.push_back(computeNNRawStats(toMoveBot, board, hist, pla));
+
       gameData->targetWeightByTurn.push_back(limits.targetWeight);
       policySurpriseByTurn.push_back(toMoveBot->getPolicySurprise());
       rawNNValues.push_back(toMoveBot->getRootRawNNValuesRequireSuccess());
@@ -1872,6 +1899,7 @@ FinishedGameData* Play::runGame(
 
       extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode);
+      sp->nnRawStats = computeNNRawStats(toMoveBot, sp->board, sp->hist, sp->pla);
       sp->targetWeight = 1.0f;
       sp->unreducedNumVisits = toMoveBot->getRootVisits();
       sp->numNeuralNetChangesSoFar = gameData->changedNeuralNets.size();

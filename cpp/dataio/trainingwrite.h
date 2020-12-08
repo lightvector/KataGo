@@ -8,6 +8,7 @@
 STRUCT_NAMED_PAIR(Loc,loc,int16_t,policyTarget,PolicyTargetMove);
 STRUCT_NAMED_PAIR(std::vector<PolicyTargetMove>*,policyTargets,int64_t,unreducedNumVisits,PolicyTarget);
 
+//Summary of value-head-related training targets for outputted data.
 struct ValueTargets {
   //As usual, these are from the perspective of white.
   float win;
@@ -21,6 +22,14 @@ struct ValueTargets {
   ~ValueTargets();
 };
 
+//Some basic extra stats to record outputted data about the neural net's raw evaluation on the position.
+struct NNRawStats {
+  double whiteWinLoss;
+  double whiteScoreMean;
+  double policyEntropy;
+};
+
+//A side position that was searched off the main line of the game, to give some data about an alternative move.
 struct SidePosition {
   Board board;
   BoardHistory hist;
@@ -28,6 +37,7 @@ struct SidePosition {
   int64_t unreducedNumVisits;
   std::vector<PolicyTargetMove> policyTarget;
   ValueTargets whiteValueTargets;
+  NNRawStats nnRawStats;
   float targetWeight;
   float targetWeightUnrounded;
   int numNeuralNetChangesSoFar; //Number of neural net changes this game before the creation of this side position
@@ -73,6 +83,7 @@ struct FinishedGameData {
   std::vector<float> targetWeightByTurnUnrounded;
   std::vector<PolicyTarget> policyTargetsByTurn;
   std::vector<ValueTargets> whiteValueTargetsByTurn; //Except this one, we may have some of
+  std::vector<NNRawStats> nnRawStatsByTurn;
   Color* finalFullArea;
   Color* finalOwnership;
   bool* finalSekiAreas;
@@ -163,22 +174,23 @@ struct TrainingWriteBuffers {
   //C53: First turn of this game that was selfplay for training rather than initialization (e.g. handicap stones, random init of the starting board pos)
   //C54: Number of extra moves black got at the start (i.e. handicap games)
 
-  //C55-56: Game type, how the game was initialized
+  //C55: Game type, how the game was initialized
   //0 = normal self-play game.
-  //1 = cleanup-phase-training game. C56 is the starting encore phase
+  //1 = cleanup-phase-training game.
   //2 = fork from another self-play game.
   //3 = handicap game
   //4 = sampled from an external SGF position (e.g. human data or other bots).
   //5 = sampled from a hint position (e.g. blindspot training).
   //6 = forked from a hint position (e.g. blindspot training).
 
-  //C57: Contains some data but is actually redundant with C55.
-  //C58: Contains some data but is actually redundant with C55.
-  //C59: Unused
+  //C56: Initial turn number - the turn number that corresponds to turn idx 0, such as for sgfposes.
+  //C57: Raw winloss from neural net
+  //C58: Raw scoremean from neural net
+  //C59: Policy prior entropy
   //C60: Number of visits in the search generating this row, prior to any reduction.
   //C61: Number of bonus points the player to move will get onward from this point in the game
   //C62: Unused
-  //C63: Unused
+  //C63: Data format version, currently always equals 1.
 
   NumpyBuffer<float> globalTargetsNC;
 
@@ -214,6 +226,7 @@ struct TrainingWriteBuffers {
     const std::vector<PolicyTargetMove>* policyTarget1, //can be null
     const std::vector<ValueTargets>& whiteValueTargets,
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
+    const NNRawStats& nnRawStats,
     const Board* finalBoard,
     Color* finalFullArea,
     Color* finalOwnership,

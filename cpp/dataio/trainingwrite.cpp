@@ -73,6 +73,7 @@ FinishedGameData::FinishedGameData()
    targetWeightByTurnUnrounded(),
    policyTargetsByTurn(),
    whiteValueTargetsByTurn(),
+   nnRawStatsByTurn(),
    finalFullArea(NULL),
    finalOwnership(NULL),
    finalSekiAreas(NULL),
@@ -143,6 +144,9 @@ void FinishedGameData::printDebug(ostream& out) const {
     else
       out << "-" << " ";
     out << endl;
+  }
+  for(int i = 0; i<nnRawStatsByTurn.size(); i++) {
+    out << "Raw Stats " << nnRawStatsByTurn[i].whiteWinLoss << " " << nnRawStatsByTurn[i].whiteScoreMean << " " << nnRawStatsByTurn[i].policyEntropy << endl;
   }
   if(finalFullArea != NULL) {
     for(int y = 0; y<startBoard.y_size; y++) {
@@ -333,6 +337,7 @@ void TrainingWriteBuffers::addRow(
   const vector<PolicyTargetMove>* policyTarget1, //can be null
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
+  const NNRawStats& nnRawStats,
   const Board* finalBoard,
   Color* finalFullArea,
   Color* finalOwnership,
@@ -507,12 +512,12 @@ void TrainingWriteBuffers::addRow(
 
   //Metadata about how the game was initialized
   rowGlobal[55] = data.mode;
-  rowGlobal[56] = data.beganInEncorePhase;
-  rowGlobal[57] = data.usedInitialPosition;
-  rowGlobal[58] = isSidePosition ? 1.0f : 0.0f;
+  rowGlobal[56] = hist.initialTurnNumber;
 
-  //Unused
-  rowGlobal[59] = 0.0f;
+  //Some stats
+  rowGlobal[57] = (float)(nextPlayer == P_WHITE ? nnRawStats.whiteWinLoss : -nnRawStats.whiteWinLoss);
+  rowGlobal[58] = (float)(nextPlayer == P_WHITE ? nnRawStats.whiteScoreMean : -nnRawStats.whiteScoreMean);
+  rowGlobal[59] = (float)nnRawStats.policyEntropy;
 
   //Original number of visits
   rowGlobal[60] = (float)unreducedNumVisits;
@@ -528,7 +533,9 @@ void TrainingWriteBuffers::addRow(
 
   //Unused
   rowGlobal[62] = 0.0f;
-  rowGlobal[63] = 0.0f;
+
+  //Version
+  rowGlobal[63] = 1.0f;
 
   assert(64 == GLOBAL_TARGET_NUM_CHANNELS);
 
@@ -869,6 +876,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   assert(data.targetWeightByTurnUnrounded.size() == numMoves);
   assert(data.policyTargetsByTurn.size() == numMoves);
   assert(data.whiteValueTargetsByTurn.size() == numMoves+1);
+  assert(data.nnRawStatsByTurn.size() == numMoves);
 
   //Some sanity checks
   #ifndef NDEBUG
@@ -950,6 +958,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             policyTarget1,
             data.whiteValueTargetsByTurn,
             turnAfterStart,
+            data.nnRawStatsByTurn[turnAfterStart],
             &(data.endHist.getRecentBoard(0)),
             data.finalFullArea,
             data.finalOwnership,
@@ -1000,6 +1009,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             NULL,
             whiteValueTargetsBuf,
             0,
+            sp->nnRawStats,
             NULL,
             NULL,
             NULL,
