@@ -28,13 +28,15 @@ keys = [
   "valueTargetsNCHW"
 ]
 
-def joint_shuffle(arrs):
-  rand_state = np.random.get_state()
+def joint_shuffle_take_first_n(n,arrs):
   for arr in arrs:
     assert(len(arr) == len(arrs[0]))
+  perm = np.random.permutation(len(arrs[0]))
+  perm = perm[:n]
+  shuffled_arrs = []
   for arr in arrs:
-    np.random.set_state(rand_state)
-    np.random.shuffle(arr)
+    shuffled_arrs.append(arr[perm])
+  return shuffled_arrs
 
 def memusage_mb():
   return psutil.Process(os.getpid()).memory_info().rss // 1048576
@@ -81,8 +83,6 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
     scoreDistrN = np.concatenate(scoreDistrNList,axis=0)
     valueTargetsNCHW = np.concatenate(valueTargetsNCHWList,axis=0)
 
-  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW))
-
   num_rows_to_keep = binaryInputNCHWPacked.shape[0]
   assert(globalInputNC.shape[0] == num_rows_to_keep)
   assert(policyTargetsNCMove.shape[0] == num_rows_to_keep)
@@ -92,6 +92,17 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
 
   if keep_prob < 1.0:
     num_rows_to_keep = min(num_rows_to_keep,int(round(num_rows_to_keep * keep_prob)))
+
+  [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW] = (
+    joint_shuffle_take_first_n(num_rows_to_keep,[binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW])
+  )
+
+  assert(binaryInputNCHWPacked.shape[0] == num_rows_to_keep)
+  assert(globalInputNC.shape[0] == num_rows_to_keep)
+  assert(policyTargetsNCMove.shape[0] == num_rows_to_keep)
+  assert(globalTargetsNC.shape[0] == num_rows_to_keep)
+  assert(scoreDistrN.shape[0] == num_rows_to_keep)
+  assert(valueTargetsNCHW.shape[0] == num_rows_to_keep)
 
   rand_assts = np.random.randint(num_out_files,size=[num_rows_to_keep])
   counts = np.bincount(rand_assts,minlength=num_out_files)
@@ -114,6 +125,8 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
   return num_out_files
 
 def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_batch_multiple):
+  np.random.seed([int.from_bytes(os.urandom(4), byteorder='little') for i in range(5)])
+
   tfoptions = TFRecordOptions(TFRecordCompressionType.ZLIB)
   record_writer = TFRecordWriter(filename,tfoptions)
 
@@ -153,9 +166,24 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
   scoreDistrN = np.concatenate(scoreDistrNs)
   valueTargetsNCHW = np.concatenate(valueTargetsNCHWs)
 
-  joint_shuffle((binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW))
-
   num_rows = binaryInputNCHWPacked.shape[0]
+  assert(globalInputNC.shape[0] == num_rows)
+  assert(policyTargetsNCMove.shape[0] == num_rows)
+  assert(globalTargetsNC.shape[0] == num_rows)
+  assert(scoreDistrN.shape[0] == num_rows)
+  assert(valueTargetsNCHW.shape[0] == num_rows)
+
+  [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW] = (
+    joint_shuffle_take_first_n(num_rows,[binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW])
+  )
+
+  assert(binaryInputNCHWPacked.shape[0] == num_rows)
+  assert(globalInputNC.shape[0] == num_rows)
+  assert(policyTargetsNCMove.shape[0] == num_rows)
+  assert(globalTargetsNC.shape[0] == num_rows)
+  assert(scoreDistrN.shape[0] == num_rows)
+  assert(valueTargetsNCHW.shape[0] == num_rows)
+
   #Just truncate and lose the batch at the end, it's fine
   num_batches = (num_rows // (batch_size * ensure_batch_multiple)) * ensure_batch_multiple
   for i in range(num_batches):
@@ -270,10 +298,10 @@ if __name__ == '__main__':
     print("NOTE: -min-rows was not specified, defaulting to requiring 250K rows before shuffling.")
     min_rows = 250000
   if keep_target_rows is None:
-    print("NOTE: -keep-target-rows was not specified, defaulting to keeping the first 1.2M rows.")
+    print("NOTE: -keep-target-rows was not specified, defaulting to keeping the first 1.5M rows.")
     print("(slightly larger than default training epoch size of 1M, to give 1 epoch of data regardless of discreteness rows or batches per output file)")
     print("If you intended to shuffle the whole dataset instead, pass in -keep-target-rows <very large number>")
-    keep_target_rows = 1200000
+    keep_target_rows = 1500000
   if add_to_window is None:
     add_to_window = 0
 
