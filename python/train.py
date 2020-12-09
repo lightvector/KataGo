@@ -135,7 +135,9 @@ if multi_gpus is not None:
 
 # MODEL ----------------------------------------------------------------
 printed_model_yet = False
-initial_weights_already_loaded = False
+# Avoid loading initial weights, just ignore them, if we've already started training and we have weights.
+# We detect this by detecting the TF estimator "checkpoint" index file.
+initial_weights_already_loaded = os.path.exists(os.path.join(traindir,"checkpoint"))
 
 if swa_sub_epoch_scale is not None:
   with tf.device("/cpu:0"):
