@@ -1476,7 +1476,7 @@ class Target_vars:
     #for very large possible losses. This seems... okay - it might actually be what users want.
     self.scoremean_loss_unreduced = 0.0018 * self.ownership_target_weight * huber_loss(self.scoremean_target, scoremean_prediction, delta = 12.0)
     self.lead_loss_unreduced = 0.0060 * self.lead_target_weight * huber_loss(self.lead_target, lead_prediction, delta = 8.0)
-    self.variance_time_loss_unreduced = 0.00015 * huber_loss(self.variance_time_target, variance_time_prediction, delta = 50.0)
+    self.variance_time_loss_unreduced = 0.0003 * huber_loss(self.variance_time_target, variance_time_prediction, delta = 50.0)
 
     stdev_of_belief = tf.sqrt(0.001 + tf.reduce_sum(
       scorebelief_probs * tf.square(
@@ -1490,13 +1490,13 @@ class Target_vars:
     shorttermdiffvalue = tf.abs(selfvalue - self.shortterm_value_target)
     shorttermdiffscore = tf.abs(selfscore - self.shortterm_score_target)
     # Use self.ownership_target_weight to make sure that we only have this target when we genuinely played out the game
-    self.shortterm_value_error_loss_unreduced = 0.5 * self.ownership_target_weight * huber_loss(
+    self.shortterm_value_error_loss_unreduced = 1.0 * self.ownership_target_weight * huber_loss(
       shorttermdiffvalue * tf.sqrt(shorttermdiffvalue),
       shortterm_value_error_prediction * tf.sqrt(shortterm_value_error_prediction),
       delta = 0.5
     )
     # Use self.ownership_target_weight to make sure that we only have this target when we genuinely played out the game
-    self.shortterm_score_error_loss_unreduced = 0.0001 * self.ownership_target_weight * huber_loss(
+    self.shortterm_score_error_loss_unreduced = 0.0002 * self.ownership_target_weight * huber_loss(
       shorttermdiffscore * tf.sqrt(shorttermdiffscore),
       shortterm_score_error_prediction * tf.sqrt(shortterm_score_error_prediction),
       delta = 40.0
@@ -1653,7 +1653,7 @@ class ModelUtils:
 
     #L2 regularization coefficient
     if model_config["use_fixup"]:
-      l2_coeff_value = 0.000006
+      l2_coeff_value = 0.000003
     else:
       l2_coeff_value = 0.00003
 
