@@ -35,8 +35,6 @@ def get_numpy_npz_headers(filename):
 
 def summarize_dir(dirpath):
   filenames = [filename for filename in os.listdir(dirpath) if filename.endswith('.npz')]
-  if len(filenames) <= 0:
-    return None
 
   num_rows_this_dir = 0
   filename_mtime_num_rowss = []
@@ -97,7 +95,7 @@ if __name__ == '__main__':
   dirs_to_handle = []
   with TimeStuff("Finding files"):
     for d in dirs:
-      for (path,dirnames,filenames) in os.walk(d):
+      for (path,dirnames,filenames) in os.walk(d, followlinks=True):
         had_no_dirnames = len(dirnames) == 0
         i = 0
         while i < len(dirnames):
@@ -123,13 +121,16 @@ if __name__ == '__main__':
 
           i += 1
 
-  with TimeStuff("Parallel summarizing dirs"):
+  with TimeStuff("Parallel summarizing %d dirs" % len(dirs_to_handle)):
     with multiprocessing.Pool(num_processes) as pool:
       results = pool.map(summarize_dir,dirs_to_handle)
 
   num_total_rows = 0
-  with TimeStuff("Merging"):
-    for (dirpath, filename_mtime_num_rowss, num_rows_this_dir) in results:
+  with TimeStuff("Merging %d results" % len(results)):
+    for result in results:
+      if result is None:
+        continue
+      (dirpath, filename_mtime_num_rowss, num_rows_this_dir) = result
       num_total_rows += num_rows_this_dir
       summary_data_by_dirpath[os.path.abspath(dirpath)] = filename_mtime_num_rowss
 

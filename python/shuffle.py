@@ -299,7 +299,7 @@ if __name__ == '__main__':
   files_with_unknown_num_rows = []
   with TimeStuff("Finding files"):
     for d in dirs:
-      for (path,dirnames,filenames) in os.walk(d):
+      for (path,dirnames,filenames) in os.walk(d, followlinks=True):
         i = 0
         while i < len(dirnames):
           dirname = dirnames[i]
