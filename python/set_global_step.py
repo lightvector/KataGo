@@ -23,7 +23,7 @@ with tf.compat.v1.Session() as sess:
   for var_name, shape in tf.train.list_variables(checkpoint_path):
     var = tf.train.load_variable(checkpoint_path, var_name)
     if var_name == "global_step":
-      var = tf.Variable(new_value, trainable=False, name=var_name)
+      var = tf.Variable(new_value, trainable=False, name=var_name, dtype=tf.int64)
     else:
       var = tf.Variable(var,name=var_name)
 
