@@ -49,7 +49,15 @@ value_output = tf.nn.softmax(model.value_output)
 scoremean_output = 20.0 * model.miscvalues_output[:,0]
 scorestdev_output = 20.0 * tf.math.softplus(model.miscvalues_output[:,1])
 lead_output = 20.0 * model.miscvalues_output[:,2]
-vtime_output = 150.0 * tf.math.softplus(model.miscvalues_output[:,3])
+vtime_output = 40.0 * tf.math.softplus(model.miscvalues_output[:,3])
+estv_output = tf.sqrt(0.25 * tf.math.softplus(model.moremiscvalues_output[:,0]))
+ests_output = tf.sqrt(30.0 * tf.math.softplus(model.moremiscvalues_output[:,1]))
+td_value_output = tf.nn.softmax(model.miscvalues_output[:,4:7])
+td_value_output2 = tf.nn.softmax(model.miscvalues_output[:,7:10])
+td_value_output3 = tf.nn.softmax(model.moremiscvalues_output[:,2:5])
+td_score_output = model.moremiscvalues_output[:,5:8] * 20.0
+vtime_output = 40.0 * tf.math.softplus(model.miscvalues_output[:,3])
+vtime_output = 40.0 * tf.math.softplus(model.miscvalues_output[:,3])
 ownership_output = tf.tanh(model.ownership_output)
 scoring_output = model.scoring_output
 futurepos_output = tf.tanh(model.futurepos_output)
@@ -88,10 +96,16 @@ def get_outputs(session, gs, rules):
   [policy0,
    policy1,
    value,
+   td_value,
+   td_value2,
+   td_value3,
    scoremean,
+   td_score,
    scorestdev,
    lead,
    vtime,
+   estv,
+   ests,
    ownership,
    scoring,
    futurepos,
@@ -103,10 +117,16 @@ def get_outputs(session, gs, rules):
     policy0_output,
     policy1_output,
     value_output,
+    td_value_output,
+    td_value_output2,
+    td_value_output3,
     scoremean_output,
+    td_score_output,
     scorestdev_output,
     lead_output,
     vtime_output,
+    estv_output,
+    ests_output,
     ownership_output,
     scoring_output,
     futurepos_output,
@@ -225,10 +245,16 @@ def get_outputs(session, gs, rules):
     "moves_and_probs0": moves_and_probs0,
     "moves_and_probs1": moves_and_probs1,
     "value": value,
+    "td_value": td_value,
+    "td_value2": td_value2,
+    "td_value3": td_value3,
     "scoremean": scoremean,
+    "td_score": td_score,
     "scorestdev": scorestdev,
     "lead": lead,
     "vtime": vtime,
+    "estv": estv,
+    "ests": ests,
     "ownership": ownership,
     "ownership_by_loc": ownership_by_loc,
     "scoring": scoring,
@@ -501,6 +527,14 @@ def print_scorebelief(gs,outputs):
   ret += "TEXT BeliefScoreStdev: %.1f\n" % (beliefscorestdev)
   ret += "TEXT ScoreMean: %.1f\n" % (scoremean)
   ret += "TEXT ScoreStdev: %.1f\n" % (scorestdev)
+  ret += "TEXT Value: %s\n" % (str(outputs["value"]))
+  ret += "TEXT TDValue: %s\n" % (str(outputs["td_value"]))
+  ret += "TEXT TDValue2: %s\n" % (str(outputs["td_value2"]))
+  ret += "TEXT TDValue3: %s\n" % (str(outputs["td_value3"]
+  ))
+  ret += "TEXT TDScore: %s\n" % (str(outputs["td_score"]))
+  ret += "TEXT Estv: %s\n" % (str(outputs["estv"]))
+  ret += "TEXT Ests: %s\n" % (str(outputs["ests"]))
   return ret
 
 
@@ -581,7 +615,7 @@ def run_gtp(session):
 
   layerdict = dict(model.outputs_by_layer)
   weightdict = dict()
-  for v in tf.trainable_variables():
+  for v in tf.compat.v1.trainable_variables():
     weightdict[v.name] = v
 
   layer_command_lookup = dict()
@@ -812,11 +846,14 @@ def run_gtp(session):
       print('?%s ???\n\n' % (cmdid,), end='')
     sys.stdout.flush()
 
-saver = tf.train.Saver(
+saver = tf.compat.v1.train.Saver(
   max_to_keep = 10000,
   save_relative_paths = True,
 )
 
-with tf.Session() as session:
+
+# session_config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
+# session_config.gpu_options.per_process_gpu_memory_fraction = 0.3
+with tf.compat.v1.Session() as session:
   saver.restore(session, model_variables_prefix)
   run_gtp(session)

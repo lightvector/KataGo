@@ -10,7 +10,7 @@ import datetime
 import math
 
 b2c16 = {
-  "version":9,
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,
@@ -32,7 +32,7 @@ b2c16 = {
 }
 
 b6c96 = {
-  "version":9,
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,
@@ -58,7 +58,7 @@ b6c96 = {
 }
 
 b10c128 = {
-  "version":9,
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,
@@ -88,7 +88,7 @@ b10c128 = {
 }
 
 b15c192 = {
-  "version":9,
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,
@@ -123,7 +123,7 @@ b15c192 = {
 }
 
 b20c256 = {
-  "version":9,
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,
@@ -163,7 +163,7 @@ b20c256 = {
 }
 
 b30c320 = {
-  "version":9,
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,
@@ -213,7 +213,7 @@ b30c320 = {
 }
 
 b40c256 = {
-  "version":9,
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,
@@ -273,7 +273,7 @@ b40c256 = {
 }
 
 b40c384 = {
-  "version":9,
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,
@@ -334,7 +334,7 @@ b40c384 = {
 
 
 b60c320 = {
-  "version":9,
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,

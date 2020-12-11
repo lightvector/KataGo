@@ -261,6 +261,8 @@ def model_fn(features,labels,mode,params):
     if model.version >= 9:
       eval_metric_ops["evstloss"] = tf.compat.v1.metrics.mean(target_vars.shortterm_value_error_loss_unreduced, weights=target_vars.target_weight_used)
       eval_metric_ops["esstloss"] = tf.compat.v1.metrics.mean(target_vars.shortterm_score_error_loss_unreduced, weights=target_vars.target_weight_used)
+    if model.version >= 10:
+      eval_metric_ops["tdsloss"] = tf.compat.v1.metrics.mean(target_vars.td_score_loss_unreduced, weights=target_vars.target_weight_used)
 
     return tf.estimator.EstimatorSpec(
       mode,
@@ -310,6 +312,8 @@ def model_fn(features,labels,mode,params):
       # (evstv,evstv_op) = moving_mean("evstv",metrics.shortterm_value_error_var_unreduced, weights=target_vars.target_weight_used)
       # (esstm,esstm_op) = moving_mean("esstm",metrics.shortterm_score_error_mean_unreduced, weights=target_vars.target_weight_used)
       # (esstv,esstv_op) = moving_mean("esstv",metrics.shortterm_score_error_var_unreduced, weights=target_vars.target_weight_used)
+    if model.version >= 10:
+      (tdsloss,tdsloss_op) = moving_mean("tdsloss",target_vars.td_score_loss_unreduced, weights=target_vars.target_weight_used)
     (pacc1,pacc1_op) = moving_mean("pacc1",metrics.accuracy1_unreduced, weights=target_vars.target_weight_used)
     (ptentr,ptentr_op) = moving_mean("ptentr",metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
     #NOTE: These two are going to be smaller if using more GPUs since it's the gradient norm as measured on the instance batch
@@ -364,6 +368,8 @@ def model_fn(features,labels,mode,params):
       # logvars["evstv"] = evstv
       # logvars["esstm"] = esstm
       # logvars["esstv"] = esstv
+    if model.version >= 10:
+      logvars["tdsloss"] = tdsloss
 
     logging_hook = CustomLoggingHook(logvars, every_n_iter=print_train_loss_every_batches, handle_logging_values=update_global_latest_extra_stats)
 
@@ -410,6 +416,8 @@ def model_fn(features,labels,mode,params):
       # ops.append(evstv_op)
       # ops.append(esstm_op)
       # ops.append(esstv_op)
+    if model.version >= 10:
+      ops.append(tdsloss_op)
 
     return tf.estimator.EstimatorSpec(
       mode,

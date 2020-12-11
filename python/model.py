@@ -31,11 +31,7 @@ class Model:
       return 22
     elif version == 6:
       return 13
-    elif version == 7:
-      return 22
-    elif version == 8:
-      return 22
-    elif version == 9:
+    elif version <= 10:
       return 22
     else:
       assert(False)
@@ -51,9 +47,7 @@ class Model:
       return 12
     elif version == 7:
       return 16
-    elif version == 8:
-      return 19
-    elif version == 9:
+    elif version <= 10:
       return 19
     else:
       assert(False)
@@ -73,15 +67,14 @@ class Model:
     self.policy_target_shape = [self.pos_len*self.pos_len+1] #+1 for pass move
     self.policy_target_weight_shape = []
     self.value_target_shape = [3]
-    self.td_value_target_shape = [2,3]
+    self.td_value_target_shape = [3,3]
+    self.td_score_target_shape = [3]
     self.miscvalues_target_shape = [10] #0:scoremean, #1 scorestdev, #2 lead, #3 variance time #4-#9 td value targets
     self.scoremean_target_shape = [] #0
     self.scorestdev_target_shape = [] #1
     self.lead_target_shape = [] #2
     self.variance_time_target_shape = [] #3
-    self.moremiscvalues_target_shape = [8] #0:shortterm value stdev, #1 shortterm score stdev, #2-#7 unused
-    self.shortterm_value_target_shape = [] #0
-    self.shortterm_score_target_shape = [] #1
+    self.moremiscvalues_target_shape = [8] #0:shortterm value stdev, #1 shortterm score stdev, #2,3,4 td value, #5,#6-#7 td score
     self.scorebelief_target_shape = [self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2]
     self.ownership_target_shape = [self.pos_len,self.pos_len]
     self.scoring_target_shape = [self.pos_len,self.pos_len]
@@ -209,8 +202,8 @@ class Model:
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
   def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, global_input_data, idx):
-    #Currently only support v4 or v5 or v7 MODEL features (inputs version v3 and v4 and v6)
-    assert(self.version == 4 or self.version == 5 or self.version == 7 or self.version == 8 or self.version == 9)
+    #Currently only support v4 or v5 or v7-10 MODEL features (inputs version v3 and v4 and v6)
+    assert(self.version == 4 or self.version == 5 or self.version == 7 or self.version == 8 or self.version == 9 or self.version == 10)
 
     bsize = board.size
     assert(self.pos_len >= bsize)
@@ -850,10 +843,12 @@ class Model:
     #self.version = 7 #V6 features, more rules support
     #self.version = 8 #V7 features, asym, lead, variance time
     #self.version = 9 #V7 features, shortterm value error prediction, inference actually uses variance time
+    #self.version = 10 #V7 features, shortterm value error prediction done properly
 
     self.version = Model.get_version(config)
-    #These are the only supported versions for training
-    assert(self.version == 8 or self.version == 9)
+    # These are the only supported versions for training
+    # Version 9 is disabled because it's a total mess to support its partly broken versions of the value error predictions.
+    assert(self.version == 8 or self.version == 10)
 
     #Input layer---------------------------------------------------------------------------------
     bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
@@ -1245,6 +1240,12 @@ class Model:
     self.mask_sum_hw = mask_sum_hw
     self.mask_sum_hw_sqrt = mask_sum_hw_sqrt
 
+
+def huber_loss(x,y,delta):
+  absdiff = tf.abs(x - y)
+  return tf.where(absdiff > delta, (0.5 * delta*delta) + delta * (absdiff - delta), 0.5 * absdiff * absdiff)
+
+
 class Target_vars:
   def __init__(self,model,for_optimization,placeholders):
     policy_output = model.policy_output
@@ -1260,12 +1261,15 @@ class Target_vars:
     value_probs = tf.nn.softmax(value_output,axis=1)
     scorebelief_probs = tf.nn.softmax(scorebelief_output,axis=1)
 
+    td_value_prediction = tf.stack([miscvalues_output[:,4:7],miscvalues_output[:,7:10],moremiscvalues_output[:,2:5]],axis=1)
+    td_score_prediction = moremiscvalues_output[:,5:8] * 20.0
+
     scoremean_prediction = miscvalues_output[:,0] * 20.0
     scorestdev_prediction = tf.math.softplus(miscvalues_output[:,1]) * 20.0
     lead_prediction = miscvalues_output[:,2] * 20.0
     variance_time_prediction = tf.math.softplus(miscvalues_output[:,3]) * 40.0
-    shortterm_value_error_prediction = tf.math.softplus(moremiscvalues_output[:,0])
-    shortterm_score_error_prediction = tf.math.softplus(moremiscvalues_output[:,1]) * 10.0
+    shortterm_value_error_prediction = tf.math.softplus(moremiscvalues_output[:,0]) * 0.25
+    shortterm_score_error_prediction = tf.math.softplus(moremiscvalues_output[:,1]) * 30.0
 
     #Loss function
     self.policy_target = (placeholders["policy_target"] if "policy_target" in placeholders else
@@ -1280,17 +1284,13 @@ class Target_vars:
     #Expected score prediction CONDITIONAL on result
     self.scoremean_target = (placeholders["scoremean_target"] if "scoremean_target" in placeholders else
                               tf.compat.v1.placeholder(tf.float32, [None] + model.scoremean_target_shape))
+    self.td_score_target = (placeholders["td_score_target"] if "td_score_target" in placeholders else
+                            tf.compat.v1.placeholder(tf.float32, [None] + model.td_score_target_shape))
     self.lead_target = (placeholders["lead_target"] if "lead_target" in placeholders else
                               tf.compat.v1.placeholder(tf.float32, [None] + model.lead_target_shape))
     #Arrival time of variance in game, unconditional
     self.variance_time_target = (placeholders["variance_time_target"] if "variance_time_target" in placeholders else
                               tf.compat.v1.placeholder(tf.float32, [None] + model.variance_time_target_shape))
-    #Predicted stdev between value prediction and shortterm td value
-    self.shortterm_value_target = (placeholders["shortterm_value_target"] if "shortterm_value_target" in placeholders else
-                              tf.compat.v1.placeholder(tf.float32, [None] + model.shortterm_value_target_shape))
-    #Predicted stdev between score prediction and shortterm td score
-    self.shortterm_score_target = (placeholders["shortterm_score_target"] if "shortterm_score_target" in placeholders else
-                              tf.compat.v1.placeholder(tf.float32, [None] + model.shortterm_score_target_shape))
     #Score belief distributions CONDITIONAL on result
     self.scorebelief_target = (placeholders["scorebelief_target"] if "scorebelief_target" in placeholders else
                               tf.compat.v1.placeholder(tf.float32, [None] + model.scorebelief_target_shape))
@@ -1330,11 +1330,10 @@ class Target_vars:
     model.assert_batched_shape("policy_target_weight1", self.policy_target_weight1, model.policy_target_weight_shape)
     model.assert_batched_shape("value_target", self.value_target, model.value_target_shape)
     model.assert_batched_shape("td_value_target", self.td_value_target, model.td_value_target_shape)
+    model.assert_batched_shape("td_score_target", self.td_score_target, model.td_score_target_shape)
     model.assert_batched_shape("scoremean_target", self.scoremean_target, model.scoremean_target_shape)
     model.assert_batched_shape("lead_target", self.lead_target, model.lead_target_shape)
     model.assert_batched_shape("variance_time_target", self.variance_time_target, model.variance_time_target_shape)
-    model.assert_batched_shape("shortterm_value_target", self.shortterm_value_target, model.shortterm_value_target_shape)
-    model.assert_batched_shape("shortterm_score_target", self.shortterm_score_target, model.shortterm_score_target_shape)
     model.assert_batched_shape("scorebelief_target", self.scorebelief_target, model.scorebelief_target_shape)
     model.assert_batched_shape("ownership_target", self.ownership_target, model.ownership_target_shape)
     model.assert_batched_shape("scoring_target", self.scoring_target, model.scoring_target_shape)
@@ -1362,10 +1361,10 @@ class Target_vars:
       logits=value_output
     )
 
-    self.td_value_loss_unreduced = 0.60 * (
+    self.td_value_loss_unreduced = tf.constant([0.55,0.55,0.15],dtype=tf.float32) * (
       tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.td_value_target,
-        logits=tf.reshape(miscvalues_output[:,4:10],[-1] + model.td_value_target_shape)
+        logits=td_value_prediction
       ) -
       # Subtract out the entropy, so as to get loss 0 at perfect prediction
       tf.nn.softmax_cross_entropy_with_logits_v2(
@@ -1374,6 +1373,10 @@ class Target_vars:
       )
     )
     self.td_value_loss_unreduced = tf.reduce_sum(self.td_value_loss_unreduced, axis=1)
+
+    self.td_score_loss_unreduced = 0.0004 * self.ownership_target_weight * (
+      tf.reduce_sum(huber_loss(self.td_score_target, td_score_prediction, delta = 12.0), axis=1)
+    )
 
     self.scorebelief_cdf_loss_unreduced = 0.020 * self.ownership_target_weight * (
       tf.reduce_sum(
@@ -1465,16 +1468,12 @@ class Target_vars:
     self.seki_loss_unreduced = seki_weight_scale * self.ownership_target_weight * self.seki_loss_unreduced
     self.seki_weight_scale = seki_weight_scale
 
-    def huber_loss(x,y,delta):
-      absdiff = tf.abs(x - y)
-      return tf.where(absdiff > delta, (0.5 * delta*delta) + delta * (absdiff - delta), 0.5 * absdiff * absdiff)
-
     #This is conditional upon there being a result
     expected_score_from_belief = tf.reduce_sum(scorebelief_probs * model.score_belief_offset_vector,axis=1)
 
     #Huber will incentivize this to not actually converge to the mean, but rather something meanlike locally and something medianlike
     #for very large possible losses. This seems... okay - it might actually be what users want.
-    self.scoremean_loss_unreduced = 0.0018 * self.ownership_target_weight * huber_loss(self.scoremean_target, scoremean_prediction, delta = 12.0)
+    self.scoremean_loss_unreduced = 0.0015 * self.ownership_target_weight * huber_loss(self.scoremean_target, scoremean_prediction, delta = 12.0)
     self.lead_loss_unreduced = 0.0060 * self.lead_target_weight * huber_loss(self.lead_target, lead_prediction, delta = 8.0)
     self.variance_time_loss_unreduced = 0.0003 * huber_loss(self.variance_time_target, variance_time_prediction, delta = 50.0)
 
@@ -1485,21 +1484,26 @@ class Target_vars:
     beliefstdevdiff = stdev_of_belief - scorestdev_prediction
     self.scorestdev_reg_loss_unreduced = 0.004 * huber_loss(stdev_of_belief, scorestdev_prediction, delta = 10.0)
 
-    selfvalue = tf.stop_gradient(value_probs[:,0] - value_probs[:,1])
-    selfscore = tf.stop_gradient(scoremean_prediction)
-    shorttermdiffvalue = tf.abs(selfvalue - self.shortterm_value_target)
-    shorttermdiffscore = tf.abs(selfscore - self.shortterm_score_target)
+
+    td_value_probs = tf.nn.softmax(td_value_prediction[:,2,:],axis=1)
+
+    selfvalue = tf.stop_gradient(td_value_probs[:,0] - td_value_probs[:,1])
+    shortterm_value = self.td_value_target[:,2,0] - self.td_value_target[:,2,1]
+    selfscore = tf.stop_gradient(td_score_prediction[:,2])
+    shortterm_score = self.td_score_target[:,2]
+    shorttermdiffvaluesq = tf.square(selfvalue - shortterm_value)
+    shorttermdiffscoresq = tf.square(selfscore - shortterm_score)
     # Use self.ownership_target_weight to make sure that we only have this target when we genuinely played out the game
-    self.shortterm_value_error_loss_unreduced = 1.0 * self.ownership_target_weight * huber_loss(
-      shorttermdiffvalue * tf.sqrt(shorttermdiffvalue),
-      shortterm_value_error_prediction * tf.sqrt(shortterm_value_error_prediction),
-      delta = 0.5
+    self.shortterm_value_error_loss_unreduced = 3.0 * self.ownership_target_weight * huber_loss(
+      shorttermdiffvaluesq,
+      shortterm_value_error_prediction,
+      delta = 0.4
     )
     # Use self.ownership_target_weight to make sure that we only have this target when we genuinely played out the game
-    self.shortterm_score_error_loss_unreduced = 0.0002 * self.ownership_target_weight * huber_loss(
-      shorttermdiffscore * tf.sqrt(shorttermdiffscore),
-      shortterm_score_error_prediction * tf.sqrt(shortterm_score_error_prediction),
-      delta = 40.0
+    self.shortterm_score_error_loss_unreduced = 0.00004 * self.ownership_target_weight * huber_loss(
+      shorttermdiffscoresq,
+      shortterm_score_error_prediction,
+      delta = 100.0
     )
     # self.shortterm_diff_value = shorttermdiffvalue
     # self.shortterm_diff_score = shorttermdiffscore
@@ -1518,6 +1522,7 @@ class Target_vars:
     self.policy1_loss = tf.reduce_sum(self.target_weight_used * self.policy1_loss_unreduced, name="losses/policy1_loss")
     self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced, name="losses/value_loss")
     self.td_value_loss = tf.reduce_sum(self.target_weight_used * self.td_value_loss_unreduced, name="losses/td_value_loss")
+    self.td_score_loss = tf.reduce_sum(self.target_weight_used * self.td_score_loss_unreduced, name="losses/td_score_loss")
     self.scoremean_loss = tf.reduce_sum(self.target_weight_used * self.scoremean_loss_unreduced, name="losses/scoremean_loss")
     self.lead_loss = tf.reduce_sum(self.target_weight_used * self.lead_loss_unreduced, name="losses/lead_loss")
     self.variance_time_loss = tf.reduce_sum(self.target_weight_used * self.variance_time_loss_unreduced, name="losses/variance_time_loss")
@@ -1551,6 +1556,7 @@ class Target_vars:
         self.policy1_loss +
         self.value_loss +
         self.td_value_loss +
+        self.td_score_loss +
         self.scoremean_loss +
         self.lead_loss +
         self.variance_time_loss +
@@ -1688,9 +1694,8 @@ class ModelUtils:
     placeholders["policy_target_weight1"] = features["gtnc"][:,28]
 
     placeholders["value_target"] = features["gtnc"][:,0:3]
-    placeholders["td_value_target"] = tf.stack([features["gtnc"][:,4:7],features["gtnc"][:,8:11]],axis=1)
-    placeholders["shortterm_value_target"] = features["gtnc"][:,12] - features["gtnc"][:,13]
-    placeholders["shortterm_score_target"] = features["gtnc"][:,15]
+    placeholders["td_value_target"] = tf.stack([features["gtnc"][:,4:7],features["gtnc"][:,8:11],features["gtnc"][:,12:15]],axis=1)
+    placeholders["td_score_target"] = tf.stack([features["gtnc"][:,7],features["gtnc"][:,11],features["gtnc"][:,15]],axis=1)
     placeholders["scoremean_target"] = features["gtnc"][:,3]
     placeholders["lead_target"] = features["gtnc"][:,21]
     placeholders["variance_time_target"] = features["gtnc"][:,22]
