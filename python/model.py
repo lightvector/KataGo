@@ -842,12 +842,14 @@ class Model:
     #self.version = 6 #V5 features, most higher-level go features removed
     #self.version = 7 #V6 features, more rules support
     #self.version = 8 #V7 features, asym, lead, variance time
-    #self.version = 9 #V7 features, shortterm value error prediction, inference actually uses variance time
+    #self.version = 9 #V7 features, shortterm value error prediction, inference actually uses variance time, unsupported now
     #self.version = 10 #V7 features, shortterm value error prediction done properly
 
     self.version = Model.get_version(config)
     # These are the only supported versions for training
     # Version 9 is disabled because it's a total mess to support its partly broken versions of the value error predictions.
+    if self.version == 9:
+      raise ValueError("This is a version 9 model, which is a version that has some slightly buggy mathematical formulation of a training target and is no longer supported. Use an older version of KataGo python code to train it, such as git revision e20d7c29.")
     assert(self.version == 8 or self.version == 10)
 
     #Input layer---------------------------------------------------------------------------------

@@ -984,12 +984,14 @@ ModelDesc::ModelDesc(istream& in, bool binaryFloats) {
   in >> name;
   in >> version;
   if(in.fail())
-    throw StringError("Model failed to parse name or version. Is this a valid model file?");
+    throw StringError("Model failed to parse name or version. Is this a valid model file? You probably specified the wrong file.");
 
-  if(version < 0 || version > NNModelVersion::latestModelVersionImplemented)
-    throw StringError(name + ": model found unsupported version " + Global::intToString(version));
+  if(version < 0)
+    throw StringError("This neural net has an invalid version, you probably specified the wrong file. Supposed model version: " + Global::intToString(version));
   if(version < 3)
-    throw StringError("Version 0-2 neural nets no longer supported");
+    throw StringError("This neural net is from an extremely old version of KataGo and is no longer supported by the engine. Model version: " + Global::intToString(version));
+  if(version > NNModelVersion::latestModelVersionImplemented)
+    throw StringError("This neural net requires a newer KataGo version. Obtain a newer KataGo at https://github.com/lightvector/KataGo. Model version: " + Global::intToString(version));
 
   in >> numInputChannels;
   if(in.fail())
