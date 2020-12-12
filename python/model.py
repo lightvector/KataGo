@@ -1496,13 +1496,13 @@ class Target_vars:
     shorttermdiffvaluesq = tf.square(selfvalue - shortterm_value)
     shorttermdiffscoresq = tf.square(selfscore - shortterm_score)
     # Use self.ownership_target_weight to make sure that we only have this target when we genuinely played out the game
-    self.shortterm_value_error_loss_unreduced = 3.0 * self.ownership_target_weight * huber_loss(
+    self.shortterm_value_error_loss_unreduced = 2.0 * self.ownership_target_weight * huber_loss(
       shorttermdiffvaluesq,
       shortterm_value_error_prediction,
       delta = 0.4
     )
     # Use self.ownership_target_weight to make sure that we only have this target when we genuinely played out the game
-    self.shortterm_score_error_loss_unreduced = 0.00004 * self.ownership_target_weight * huber_loss(
+    self.shortterm_score_error_loss_unreduced = 0.00002 * self.ownership_target_weight * huber_loss(
       shorttermdiffscoresq,
       shortterm_score_error_prediction,
       delta = 100.0
