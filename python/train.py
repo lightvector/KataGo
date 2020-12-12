@@ -49,6 +49,8 @@ parser.add_argument('-export-prob', help='Export model with this probablity', ty
 parser.add_argument('-max-epochs-this-instance', help='Terminate training after this many more epochs', type=int, required=False)
 parser.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between epochs', type=int, required=False)
 parser.add_argument('-swa-sub-epoch-scale', help='Number of sub-epochs to average in expectation together for SWA', type=float, required=False)
+parser.add_argument('-max-train-per-data-a', help='Wait for more data if #train_steps > #data_rows * A + B', type=float, required=False)
+parser.add_argument('-max-train-per-data-b', help='Wait for more data if #train_steps > #data_rows * A + B', type=float, required=False)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
 parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
 args = vars(parser.parse_args())
@@ -71,12 +73,17 @@ export_prob = args["export_prob"]
 max_epochs_this_instance = args["max_epochs_this_instance"]
 sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
 swa_sub_epoch_scale = args["swa_sub_epoch_scale"]
+max_train_per_data_a = args["max_train_per_data_a"]
+max_train_per_data_b = args["max_train_per_data_b"]
 verbose = args["verbose"]
 no_export = args["no_export"]
 logfilemode = "a"
 
 if samples_per_epoch is None:
   samples_per_epoch = 1000000
+
+if max_train_per_data_b is None:
+  max_train_per_data_b = 0
 
 if not os.path.exists(traindir):
   os.makedirs(traindir)
@@ -614,7 +621,7 @@ def maybe_reload_training_data():
 last_longterm_checkpoint_save_time = datetime.datetime.now()
 
 num_epochs_this_instance = 0
-globalstep = None
+globalstep = int(estimator.get_variable_value("global_step:0"))
 while True:
   maybe_reload_training_data()
 
@@ -627,6 +634,15 @@ while True:
   trainlog("Current time: " + str(datetime.datetime.now()))
   if globalstep is not None:
     trainlog("Global step: %d (%d samples)" % (globalstep, globalstep*batch_size))
+    trainlog("Currently up to data row " + str(last_datainfo_row))
+
+    if max_train_per_data_a is not None and globalstep*batch_size > max_train_per_data_a * last_datainfo_row + max_train_per_data_b:
+      trainlog(
+        "Exceeding max train per data, waiting 5m and retrying (%d > %f * %d + %f)" %
+        (globalstep*batch_size, max_train_per_data_a, last_datainfo_row, max_train_per_data_b)
+      )
+      time.sleep(300)
+      continue
 
   #SUB EPOCH LOOP -----------
   num_batches_per_subepoch = num_batches_per_epoch / sub_epochs
