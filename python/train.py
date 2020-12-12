@@ -621,7 +621,12 @@ def maybe_reload_training_data():
 last_longterm_checkpoint_save_time = datetime.datetime.now()
 
 num_epochs_this_instance = 0
-globalstep = int(estimator.get_variable_value("global_step:0"))
+globalstep = None
+try:
+  globalstep = int(estimator.get_variable_value("global_step:0"))
+except ValueError:
+  pass # Will happen on the start of a new model, first iteration
+
 while True:
   maybe_reload_training_data()
 
