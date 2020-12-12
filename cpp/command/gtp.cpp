@@ -1154,6 +1154,9 @@ struct GTPEngine {
         out << "whiteLead " << Global::strprintf("%.3f",nnOutput->whiteLead) << endl;
         out << "whiteScoreSelfplay " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
         out << "whiteScoreSelfplaySq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
+        out << "varTimeLeft " << Global::strprintf("%.3f",nnOutput->varTimeLeft) << endl;
+        out << "shorttermWinlossError " << Global::strprintf("%.3f",nnOutput->shorttermWinlossError) << endl;
+        out << "shorttermScoreError " << Global::strprintf("%.3f",nnOutput->shorttermScoreError) << endl;
 
         out << "policy" << endl;
         for(int y = 0; y<board.y_size; y++) {
