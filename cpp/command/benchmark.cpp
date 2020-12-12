@@ -845,22 +845,28 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
 
     Setup::initializeSession(cfg);
 
+    int maxNumThreadsForCurrentNNEval = -1;
     NNEvaluator* nnEval = NULL;
     auto reallocateNNEvalWithEnoughBatchSize = [&](int maxNumThreads) {
+      if(nnEval != NULL && maxNumThreads <= maxNumThreadsForCurrentNNEval)
+        return;
       if(nnEval != NULL)
         delete nnEval;
       nnEval = createNNEval(maxNumThreads, sgf, modelFile, logger, cfg, params);
+      maxNumThreadsForCurrentNNEval = maxNumThreads;
     };
     cout << endl;
 
     int64_t maxVisits;
     if(maxVisitsFromUser > 0) {
       maxVisits = maxVisitsFromUser;
+      //Make sure we have an nneval that isn't null
+      reallocateNNEvalWithEnoughBatchSize(ternarySearchInitialMax);
     }
     else {
       cout << "Running quick initial benchmark at 16 threads!" << endl;
       vector<int> numThreads = {16};
-      reallocateNNEvalWithEnoughBatchSize(ternarySearchInitialMax);
+      reallocateNNEvalWithEnoughBatchSize(std::max(16,ternarySearchInitialMax));
       vector<PlayUtils::BenchmarkResults> results = doFixedTuneThreads(params,sgf,3,nnEval,logger,secondsPerGameMove,numThreads,false);
       double visitsPerSecond = results[0].totalVisits / (results[0].totalSeconds + 0.00001);
       //Make tests use about 2 seconds each

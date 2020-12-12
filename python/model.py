@@ -1507,8 +1507,10 @@ class Target_vars:
       shortterm_score_error_prediction,
       delta = 100.0
     )
-    # self.shortterm_diff_value = shorttermdiffvalue
-    # self.shortterm_diff_score = shorttermdiffscore
+    #self.shortterm_diff_valuesq = shorttermdiffvaluesq
+    #self.shortterm_diff_scoresq = shorttermdiffscoresq
+    #self.shortterm_diff_value_huber_used = 0.5 + 0.5 * tf.sign(tf.abs(shorttermdiffvaluesq - shortterm_value_error_prediction) - 0.4)
+    #self.shortterm_diff_score_huber_used = 0.5 + 0.5 * tf.sign(tf.abs(shorttermdiffscoresq - shortterm_score_error_prediction) - 100.0)
 
     # winlossprob_from_belief = tf.concat([
     #   tf.reduce_sum(scorebelief_probs[:,(model.scorebelief_target_shape[0]//2):],axis=1,keepdims=True),
