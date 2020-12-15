@@ -126,6 +126,9 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
 
 //---------------------------------------------------------------------------------------------------------
 
+// Wraps cl_program with a destructor that calls clReleaseProgram
+using CLProgram = WrappedWithDeleter<cl_program,int,clReleaseProgram>;
+
 struct CompiledPrograms {
   OpenCLTuneParams tuneParams;
 
@@ -133,26 +136,26 @@ struct CompiledPrograms {
   bool usingFP16Compute;
   bool usingFP16TensorCores;
 
-  cl_program conv2dNCHWProgram;
-  cl_program winogradConv3x3NCHWTransformProgram;
-  cl_program winogradConv3x3NCHWBNReluTransformProgram;
-  cl_program winogradConv3x3NCHWUntransformProgram;
-  cl_program winogradConv5x5NCHWTransformProgram;
-  cl_program winogradConv5x5NCHWBNReluTransformProgram;
-  cl_program winogradConv5x5NCHWUntransformProgram;
-  cl_program scaleBiasMaskNCHWProgram;
-  cl_program scaleBiasMaskReluNCHWProgram;
-  cl_program addPointWiseProgram;
-  cl_program sumChannelsNCHWProgram;
-  cl_program gPoolChannelsNCHWProgram;
-  cl_program valueHeadPoolChannelsNCHWProgram;
-  cl_program addChannelBiasesNCHWProgram;
-  cl_program addCBiasesNCProgram;
-  cl_program addCBiasesNCReluProgram;
-  cl_program extractChannel0NCHWProgram;
-  cl_program xgemmDirectProgram;
-  cl_program xgemmDirectProgramAlwaysFP32;
-  cl_program xgemmProgram;
+  CLProgram conv2dNCHWProgram;
+  CLProgram winogradConv3x3NCHWTransformProgram;
+  CLProgram winogradConv3x3NCHWBNReluTransformProgram;
+  CLProgram winogradConv3x3NCHWUntransformProgram;
+  CLProgram winogradConv5x5NCHWTransformProgram;
+  CLProgram winogradConv5x5NCHWBNReluTransformProgram;
+  CLProgram winogradConv5x5NCHWUntransformProgram;
+  CLProgram scaleBiasMaskNCHWProgram;
+  CLProgram scaleBiasMaskReluNCHWProgram;
+  CLProgram addPointWiseProgram;
+  CLProgram sumChannelsNCHWProgram;
+  CLProgram gPoolChannelsNCHWProgram;
+  CLProgram valueHeadPoolChannelsNCHWProgram;
+  CLProgram addChannelBiasesNCHWProgram;
+  CLProgram addCBiasesNCProgram;
+  CLProgram addCBiasesNCReluProgram;
+  CLProgram extractChannel0NCHWProgram;
+  CLProgram xgemmDirectProgram;
+  CLProgram xgemmDirectProgramAlwaysFP32;
+  CLProgram xgemmProgram;
 
   CompiledPrograms(
     const cl_context& context,
@@ -272,26 +275,6 @@ struct CompiledPrograms {
   }
 
   ~CompiledPrograms() {
-    clReleaseProgram(conv2dNCHWProgram);
-    clReleaseProgram(winogradConv3x3NCHWTransformProgram);
-    clReleaseProgram(winogradConv3x3NCHWBNReluTransformProgram);
-    clReleaseProgram(winogradConv3x3NCHWUntransformProgram);
-    clReleaseProgram(winogradConv5x5NCHWTransformProgram);
-    clReleaseProgram(winogradConv5x5NCHWBNReluTransformProgram);
-    clReleaseProgram(winogradConv5x5NCHWUntransformProgram);
-    clReleaseProgram(scaleBiasMaskNCHWProgram);
-    clReleaseProgram(scaleBiasMaskReluNCHWProgram);
-    clReleaseProgram(addPointWiseProgram);
-    clReleaseProgram(sumChannelsNCHWProgram);
-    clReleaseProgram(gPoolChannelsNCHWProgram);
-    clReleaseProgram(valueHeadPoolChannelsNCHWProgram);
-    clReleaseProgram(addChannelBiasesNCHWProgram);
-    clReleaseProgram(addCBiasesNCProgram);
-    clReleaseProgram(addCBiasesNCReluProgram);
-    clReleaseProgram(extractChannel0NCHWProgram);
-    clReleaseProgram(xgemmDirectProgram);
-    clReleaseProgram(xgemmDirectProgramAlwaysFP32);
-    clReleaseProgram(xgemmProgram);
   }
 
   CompiledPrograms() = delete;
@@ -427,6 +410,9 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 
 //--------------------------------------------------------------
 
+// Wraps cl_kernel with a destructor that calls clReleaseKernel
+using CLKernel = WrappedWithDeleter<cl_kernel,int,clReleaseKernel>;
+
 struct ComputeHandleInternal {
   ComputeContext* computeContext;
   cl_context clContext;
@@ -437,26 +423,26 @@ struct ComputeHandleInternal {
   bool usingFP16Compute;
   bool usingFP16TensorCores;
 
-  cl_kernel conv2dNCHWKernel;
-  cl_kernel winogradConv3x3NCHWTransformKernel;
-  cl_kernel winogradConv3x3NCHWBNReluTransformKernel;
-  cl_kernel winogradConv3x3NCHWUntransformKernel;
-  cl_kernel winogradConv5x5NCHWTransformKernel;
-  cl_kernel winogradConv5x5NCHWBNReluTransformKernel;
-  cl_kernel winogradConv5x5NCHWUntransformKernel;
-  cl_kernel scaleBiasMaskNCHWKernel;
-  cl_kernel scaleBiasMaskReluNCHWKernel;
-  cl_kernel addPointWiseKernel;
-  cl_kernel sumChannelsNCHWKernel;
-  cl_kernel gPoolChannelsNCHWKernel;
-  cl_kernel valueHeadPoolChannelsNCHWKernel;
-  cl_kernel addChannelBiasesNCHWKernel;
-  cl_kernel addCBiasesNCKernel;
-  cl_kernel addCBiasesNCReluKernel;
-  cl_kernel extractChannel0NCHWKernel;
-  cl_kernel xgemmDirectBatchedTTKernel;
-  cl_kernel xgemmDirectStridedBatchedNNKernel;
-  cl_kernel xgemmBatchedNNKernel;
+  CLKernel conv2dNCHWKernel;
+  CLKernel winogradConv3x3NCHWTransformKernel;
+  CLKernel winogradConv3x3NCHWBNReluTransformKernel;
+  CLKernel winogradConv3x3NCHWUntransformKernel;
+  CLKernel winogradConv5x5NCHWTransformKernel;
+  CLKernel winogradConv5x5NCHWBNReluTransformKernel;
+  CLKernel winogradConv5x5NCHWUntransformKernel;
+  CLKernel scaleBiasMaskNCHWKernel;
+  CLKernel scaleBiasMaskReluNCHWKernel;
+  CLKernel addPointWiseKernel;
+  CLKernel sumChannelsNCHWKernel;
+  CLKernel gPoolChannelsNCHWKernel;
+  CLKernel valueHeadPoolChannelsNCHWKernel;
+  CLKernel addChannelBiasesNCHWKernel;
+  CLKernel addCBiasesNCKernel;
+  CLKernel addCBiasesNCReluKernel;
+  CLKernel extractChannel0NCHWKernel;
+  CLKernel xgemmDirectBatchedTTKernel;
+  CLKernel xgemmDirectStridedBatchedNNKernel;
+  CLKernel xgemmBatchedNNKernel;
 
   vector<cl_event> profileEvents;
   vector<std::function<void()>> profileCallbacks;
@@ -535,27 +521,6 @@ struct ComputeHandleInternal {
       if(profileEvents[i] != NULL)
         clReleaseEvent(profileEvents[i]);
     }
-
-    clReleaseKernel(conv2dNCHWKernel);
-    clReleaseKernel(winogradConv3x3NCHWTransformKernel);
-    clReleaseKernel(winogradConv3x3NCHWBNReluTransformKernel);
-    clReleaseKernel(winogradConv3x3NCHWUntransformKernel);
-    clReleaseKernel(winogradConv5x5NCHWTransformKernel);
-    clReleaseKernel(winogradConv5x5NCHWBNReluTransformKernel);
-    clReleaseKernel(winogradConv5x5NCHWUntransformKernel);
-    clReleaseKernel(scaleBiasMaskNCHWKernel);
-    clReleaseKernel(scaleBiasMaskReluNCHWKernel);
-    clReleaseKernel(addPointWiseKernel);
-    clReleaseKernel(sumChannelsNCHWKernel);
-    clReleaseKernel(gPoolChannelsNCHWKernel);
-    clReleaseKernel(valueHeadPoolChannelsNCHWKernel);
-    clReleaseKernel(addChannelBiasesNCHWKernel);
-    clReleaseKernel(addCBiasesNCKernel);
-    clReleaseKernel(addCBiasesNCReluKernel);
-    clReleaseKernel(extractChannel0NCHWKernel);
-    clReleaseKernel(xgemmDirectBatchedTTKernel);
-    clReleaseKernel(xgemmDirectStridedBatchedNNKernel);
-    clReleaseKernel(xgemmBatchedNNKernel);
   }
 
   ComputeHandleInternal() = delete;
@@ -1541,10 +1506,10 @@ struct Trunk {
   int nnXLen;
   int nnYLen;
 
-  ConvLayer* initialConv;
-  MatMulLayer* initialMatMul;
-  vector<pair<int,void*>> blocks;
-  BatchNormLayer* trunkTipBN;
+  std::unique_ptr<ConvLayer> initialConv;
+  std::unique_ptr<MatMulLayer> initialMatMul;
+  vector<pair<int,unique_ptr_void>> blocks;
+  std::unique_ptr<BatchNormLayer> trunkTipBN;
 
   Trunk() = delete;
   Trunk(const Trunk&) = delete;
@@ -1577,37 +1542,41 @@ struct Trunk {
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,dilatedNumChannels);
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,gpoolNumChannels);
 
-    initialConv = new ConvLayer(handle,&desc->initialConv,nnXLen,nnYLen,useFP16);
-    initialMatMul = new MatMulLayer(handle,&desc->initialMatMul);
+    initialConv = std::make_unique<ConvLayer>(handle,&desc->initialConv,nnXLen,nnYLen,useFP16);
+    initialMatMul = std::make_unique<MatMulLayer>(handle,&desc->initialMatMul);
 
-    trunkTipBN = new BatchNormLayer(handle,&desc->trunkTipBN,nnXLen,nnYLen,useFP16);
+    trunkTipBN = std::make_unique<BatchNormLayer>(handle,&desc->trunkTipBN,nnXLen,nnYLen,useFP16);
 
     assert(desc->blocks.size() == numBlocks);
     for(int i = 0; i<numBlocks; i++) {
       if(desc->blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)desc->blocks[i].second;
-        ResidualBlock* block = new ResidualBlock(
-          handle,
-          blockDesc,
-          nnXLen,
-          nnYLen,
-          useFP16
+        ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)desc->blocks[i].second.get();
+        unique_ptr_void blockPtr = make_unique_void(
+          new ResidualBlock(
+            handle,
+            blockDesc,
+            nnXLen,
+            nnYLen,
+            useFP16
+          )
         );
-        blocks.push_back(make_pair(ORDINARY_BLOCK_KIND,(void*)block));
+        blocks.push_back(make_pair(ORDINARY_BLOCK_KIND,std::move(blockPtr)));
       }
       else if(desc->blocks[i].first == DILATED_BLOCK_KIND) {
         throw StringError("Neural net use dilated convolutions but OpenCL implementation dues not currently support them");
       }
       else if(desc->blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)desc->blocks[i].second;
-        GlobalPoolingResidualBlock* block = new GlobalPoolingResidualBlock(
-          handle,
-          blockDesc,
-          nnXLen,
-          nnYLen,
-          useFP16
+        GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)desc->blocks[i].second.get();
+        unique_ptr_void blockPtr = make_unique_void(
+          new GlobalPoolingResidualBlock(
+            handle,
+            blockDesc,
+            nnXLen,
+            nnYLen,
+            useFP16
+          )
         );
-        blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND,(void*)block));
+        blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND,std::move(blockPtr)));
       }
       else {
         ASSERT_UNREACHABLE;
@@ -1615,25 +1584,7 @@ struct Trunk {
     }
   }
 
-  ~Trunk()
-  {
-    for(int i = 0; i<blocks.size(); i++) {
-      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlock* block = (ResidualBlock*)blocks[i].second;
-        delete block;
-      }
-      else if(blocks[i].first == DILATED_BLOCK_KIND) {
-        //ASSERT_UNREACHABLE;
-      }
-      else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second;
-        delete block;
-      }
-    }
-
-    delete initialConv;
-    delete initialMatMul;
-    delete trunkTipBN;
+  ~Trunk() {
   }
 
   ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle) const {
@@ -1641,14 +1592,14 @@ struct Trunk {
 
     for(int i = 0; i<blocks.size(); i++) {
       if(blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlock* block = (ResidualBlock*)blocks[i].second;
+        ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
         maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,block->requiredConvWorkspaceElts(handle,maxBatchSize));
       }
       else if(blocks[i].first == DILATED_BLOCK_KIND) {
         ASSERT_UNREACHABLE;
       }
       else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second;
+        GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
         maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,block->requiredConvWorkspaceElts(handle,maxBatchSize));
       }
       else {
@@ -1694,7 +1645,7 @@ struct Trunk {
       #endif
 
       if(blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlock* block = (ResidualBlock*)blocks[i].second;
+        ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
         block->apply(
           handle,
           batchSize,
@@ -1710,7 +1661,7 @@ struct Trunk {
         ASSERT_UNREACHABLE;
       }
       else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second;
+        GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
         block->apply(
           handle,
           batchSize,
@@ -1753,13 +1704,13 @@ struct PolicyHead {
   int g1Channels;
   int p2Channels;
 
-  ConvLayer* p1Conv;
-  ConvLayer* g1Conv;
-  BatchNormLayer* g1BN;
-  MatMulLayer* gpoolToBiasMul;
-  BatchNormLayer* p1BN;
-  ConvLayer* p2Conv;
-  MatMulLayer* gpoolToPassMul;
+  std::unique_ptr<ConvLayer> p1Conv;
+  std::unique_ptr<ConvLayer> g1Conv;
+  std::unique_ptr<BatchNormLayer> g1BN;
+  std::unique_ptr<MatMulLayer> gpoolToBiasMul;
+  std::unique_ptr<BatchNormLayer> p1BN;
+  std::unique_ptr<ConvLayer> p2Conv;
+  std::unique_ptr<MatMulLayer> gpoolToPassMul;
 
   PolicyHead() = delete;
   PolicyHead(const PolicyHead&) = delete;
@@ -1780,24 +1731,16 @@ struct PolicyHead {
     g1Channels = desc->g1Conv.outChannels;
     p2Channels = desc->p2Conv.outChannels;
 
-    p1Conv = new ConvLayer(handle,&desc->p1Conv,nnXLen,nnYLen,useFP16);
-    g1Conv = new ConvLayer(handle,&desc->g1Conv,nnXLen,nnYLen,useFP16);
-    g1BN = new BatchNormLayer(handle,&desc->g1BN,nnXLen,nnYLen,useFP16);
-    gpoolToBiasMul = new MatMulLayer(handle,&desc->gpoolToBiasMul);
-    p1BN = new BatchNormLayer(handle,&desc->p1BN,nnXLen,nnYLen,useFP16);
-    p2Conv = new ConvLayer(handle,&desc->p2Conv,nnXLen,nnYLen,useFP16);
-    gpoolToPassMul = new MatMulLayer(handle,&desc->gpoolToPassMul);
+    p1Conv = std::make_unique<ConvLayer>(handle,&desc->p1Conv,nnXLen,nnYLen,useFP16);
+    g1Conv = std::make_unique<ConvLayer>(handle,&desc->g1Conv,nnXLen,nnYLen,useFP16);
+    g1BN = std::make_unique<BatchNormLayer>(handle,&desc->g1BN,nnXLen,nnYLen,useFP16);
+    gpoolToBiasMul = std::make_unique<MatMulLayer>(handle,&desc->gpoolToBiasMul);
+    p1BN = std::make_unique<BatchNormLayer>(handle,&desc->p1BN,nnXLen,nnYLen,useFP16);
+    p2Conv = std::make_unique<ConvLayer>(handle,&desc->p2Conv,nnXLen,nnYLen,useFP16);
+    gpoolToPassMul = std::make_unique<MatMulLayer>(handle,&desc->gpoolToPassMul);
   }
 
-  ~PolicyHead()
-  {
-    delete p1Conv;
-    delete g1Conv;
-    delete g1BN;
-    delete gpoolToBiasMul;
-    delete p1BN;
-    delete p2Conv;
-    delete gpoolToPassMul;
+  ~PolicyHead() {
   }
 
   ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
@@ -1869,15 +1812,15 @@ struct ValueHead {
   int scoreValueChannels;
   int ownershipChannels;
 
-  ConvLayer* v1Conv;
-  BatchNormLayer* v1BN;
-  MatMulLayer* v2Mul;
-  MatBiasLayer* v2Bias;
-  MatMulLayer* v3Mul;
-  MatBiasLayer* v3Bias;
-  MatMulLayer* sv3Mul;
-  MatBiasLayer* sv3Bias;
-  ConvLayer* vOwnershipConv;
+  std::unique_ptr<ConvLayer> v1Conv;
+  std::unique_ptr<BatchNormLayer> v1BN;
+  std::unique_ptr<MatMulLayer> v2Mul;
+  std::unique_ptr<MatBiasLayer> v2Bias;
+  std::unique_ptr<MatMulLayer> v3Mul;
+  std::unique_ptr<MatBiasLayer> v3Bias;
+  std::unique_ptr<MatMulLayer> sv3Mul;
+  std::unique_ptr<MatBiasLayer> sv3Bias;
+  std::unique_ptr<ConvLayer> vOwnershipConv;
 
   ValueHead() = delete;
   ValueHead(const ValueHead&) = delete;
@@ -1900,28 +1843,18 @@ struct ValueHead {
     scoreValueChannels = desc->sv3Mul.outChannels;
     ownershipChannels = desc->vOwnershipConv.outChannels;
 
-    v1Conv = new ConvLayer(handle,&desc->v1Conv,nnXLen,nnYLen,useFP16);
-    v1BN = new BatchNormLayer(handle,&desc->v1BN,nnXLen,nnYLen,useFP16);
-    v2Mul = new MatMulLayer(handle,&desc->v2Mul);
-    v2Bias = new MatBiasLayer(handle,&desc->v2Bias);
-    v3Mul = new MatMulLayer(handle,&desc->v3Mul);
-    v3Bias = new MatBiasLayer(handle,&desc->v3Bias);
-    sv3Mul = new MatMulLayer(handle,&desc->sv3Mul);
-    sv3Bias = new MatBiasLayer(handle,&desc->sv3Bias);
-    vOwnershipConv = new ConvLayer(handle,&desc->vOwnershipConv,nnXLen,nnYLen,useFP16);
+    v1Conv = std::make_unique<ConvLayer>(handle,&desc->v1Conv,nnXLen,nnYLen,useFP16);
+    v1BN = std::make_unique<BatchNormLayer>(handle,&desc->v1BN,nnXLen,nnYLen,useFP16);
+    v2Mul = std::make_unique<MatMulLayer>(handle,&desc->v2Mul);
+    v2Bias = std::make_unique<MatBiasLayer>(handle,&desc->v2Bias);
+    v3Mul = std::make_unique<MatMulLayer>(handle,&desc->v3Mul);
+    v3Bias = std::make_unique<MatBiasLayer>(handle,&desc->v3Bias);
+    sv3Mul = std::make_unique<MatMulLayer>(handle,&desc->sv3Mul);
+    sv3Bias = std::make_unique<MatBiasLayer>(handle,&desc->sv3Bias);
+    vOwnershipConv = std::make_unique<ConvLayer>(handle,&desc->vOwnershipConv,nnXLen,nnYLen,useFP16);
   }
 
-  ~ValueHead()
-  {
-    delete v1Conv;
-    delete v1BN;
-    delete v2Mul;
-    delete v2Bias;
-    delete v3Mul;
-    delete v3Bias;
-    delete sv3Mul;
-    delete sv3Bias;
-    delete vOwnershipConv;
+  ~ValueHead() {
   }
 
   ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
@@ -2016,9 +1949,9 @@ struct Model {
   int numScoreValueChannels;
   int numOwnershipChannels;
 
-  Trunk* trunk;
-  PolicyHead* policyHead;
-  ValueHead* valueHead;
+  std::unique_ptr<Trunk> trunk;
+  std::unique_ptr<PolicyHead> policyHead;
+  std::unique_ptr<ValueHead> valueHead;
 
   Model() = delete;
   Model(const Model&) = delete;
@@ -2070,16 +2003,12 @@ struct Model {
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,numScoreValueChannels);
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,numOwnershipChannels);
 
-    trunk = new Trunk(handle,&desc->trunk,maxBatchSize,nnXLen,nnYLen,useFP16);
-    policyHead = new PolicyHead(handle,&desc->policyHead,nnXLen,nnYLen,useFP16);
-    valueHead = new ValueHead(handle,&desc->valueHead,nnXLen,nnYLen,useFP16);
+    trunk = std::make_unique<Trunk>(handle,&desc->trunk,maxBatchSize,nnXLen,nnYLen,useFP16);
+    policyHead = std::make_unique<PolicyHead>(handle,&desc->policyHead,nnXLen,nnYLen,useFP16);
+    valueHead = std::make_unique<ValueHead>(handle,&desc->valueHead,nnXLen,nnYLen,useFP16);
   }
 
-  ~Model()
-  {
-    delete valueHead;
-    delete policyHead;
-    delete trunk;
+  ~Model() {
   }
 
 
@@ -2323,9 +2252,9 @@ struct Buffers {
 //--------------------------------------------------------------
 
 struct ComputeHandle {
-  ComputeHandleInternal* handle;
-  Model* model;
-  Buffers* buffers;
+  std::unique_ptr<ComputeHandleInternal> handle;
+  std::unique_ptr<Model> model;
+  std::unique_ptr<Buffers> buffers;
   int nnXLen;
   int nnYLen;
   int policySize;
@@ -2341,21 +2270,18 @@ struct ComputeHandle {
     nnYLen = context->nnYLen;
 
     bool useNHWC = context->usingNHWCMode == enabled_t::True ? true : false;
-    handle = new ComputeHandleInternal(context, gpuIdx, inputsNHWC, useNHWC);
+    handle = std::make_unique<ComputeHandleInternal>(context, gpuIdx, inputsNHWC, useNHWC);
     usingFP16Storage = handle->usingFP16Storage;
     usingFP16Compute = handle->usingFP16Compute;
     usingFP16TensorCores = handle->usingFP16TensorCores;
 
-    model = new Model(handle, &(loadedModel->modelDesc), maxBatchSize, nnXLen, nnYLen, usingFP16Storage);
-    buffers = new Buffers(handle, *model);
+    model = std::make_unique<Model>(handle.get(), &(loadedModel->modelDesc), maxBatchSize, nnXLen, nnYLen, usingFP16Storage);
+    buffers = std::make_unique<Buffers>(handle.get(), *model);
     policySize = NNPos::getPolicySize(nnXLen, nnYLen);
     inputsUseNHWC = inputsNHWC;
   }
 
   ~ComputeHandle() {
-    delete buffers;
-    delete model;
-    delete handle;
   }
 
   ComputeHandle() = delete;
@@ -2548,7 +2474,7 @@ void NeuralNet::getOutput(
     SymmetryHelpers::copyInputsWithSymmetry(rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, gpuHandle->inputsUseNHWC, symmetry);
   }
 
-  Buffers* buffers = gpuHandle->buffers;
+  Buffers* buffers = gpuHandle->buffers.get();
 
   assert(inputBuffers->userInputBufferElts == buffers->inputElts);
   assert(inputBuffers->userInputGlobalBufferElts == buffers->inputGlobalElts);
@@ -2559,7 +2485,7 @@ void NeuralNet::getOutput(
   assert(inputBuffers->ownershipResultBufferElts == buffers->ownershipElts);
   assert(inputBuffers->singleOwnershipResultElts == nnXLen*nnYLen);
 
-  ComputeHandleInternal* handle = gpuHandle->handle;
+  ComputeHandleInternal* handle = gpuHandle->handle.get();
   bool useFP16Storage = gpuHandle->usingFP16Storage;
 
   cl_int err;

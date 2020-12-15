@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <memory>
 
 //GLOBAL DEFINES AND FLAGS----------------------------------------------------
 #ifdef __GNUG__  //On g++ only
@@ -269,6 +270,35 @@ B map_get_defaulting(const std::map<A,B>& m, const A& key, const B& def)
     return def;
   return it->second;
 }
+
+using unique_ptr_void = std::unique_ptr<void, void(*)(const void*)>;
+template<typename T>
+unique_ptr_void make_unique_void(T* ptr)
+{
+  return unique_ptr_void(ptr, [](const void* data) {
+    const T* orig = static_cast<const T*>(data);
+    delete orig;
+  });
+}
+
+template<typename T, typename DeleterRet, DeleterRet (*deleter)(T)>
+struct WrappedWithDeleter {
+  bool assigned;
+  T val;
+  WrappedWithDeleter(): assigned(false) {}
+  WrappedWithDeleter(const T& v): assigned(true), val(v) {}
+  ~WrappedWithDeleter() {
+    if(assigned)
+      deleter(val);
+  }
+  operator T&() { return val; }
+  operator T() const { return val; }
+  WrappedWithDeleter& operator=(const T& v) {
+    assigned = true;
+    val = v;
+    return *this;
+  }
+};
 
 
 #endif  // CORE_GLOBAL_H_

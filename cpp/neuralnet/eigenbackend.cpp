@@ -888,7 +888,7 @@ struct Trunk {
 
   ConvLayer initialConv;
   MatMulLayer initialMatMul;
-  vector<pair<int, ResidualBlockIntf*>> blocks;
+  vector<pair<int, std::unique_ptr<ResidualBlockIntf>>> blocks;
   BatchNormLayer trunkTipBN;
   ActivationLayer trunkTipActivation;
 
@@ -907,17 +907,17 @@ struct Trunk {
   {
     for (int i = 0; i < numBlocks; ++i) {
       if (desc.blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)desc.blocks[i].second;
-        ResidualBlockIntf* block = new ResidualBlock(*blockDesc,nnX,nnY);
-        blocks.push_back(make_pair(ORDINARY_BLOCK_KIND, block));
+        ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)desc.blocks[i].second.get();
+        std::unique_ptr<ResidualBlockIntf> block = std::make_unique<ResidualBlock>(*blockDesc,nnX,nnY);
+        blocks.push_back(make_pair(ORDINARY_BLOCK_KIND, std::move(block)));
       }
       else if (desc.blocks[i].first == DILATED_BLOCK_KIND) {
         throw StringError("Eigen backend: Dilated residual blocks are not supported right now");
       }
       else if (desc.blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)desc.blocks[i].second;
-        GlobalPoolingResidualBlock* block = new GlobalPoolingResidualBlock(*blockDesc,nnX,nnY);
-        blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND, block));
+        GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)desc.blocks[i].second.get();
+        std::unique_ptr<GlobalPoolingResidualBlock> block = std::make_unique<GlobalPoolingResidualBlock>(*blockDesc,nnX,nnY);
+        blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND, std::move(block)));
       }
       else {
         ASSERT_UNREACHABLE;
@@ -925,10 +925,7 @@ struct Trunk {
     }
   }
 
-  virtual ~Trunk() {
-    for (auto p : blocks) {
-      delete p.second;
-    }
+  ~Trunk() {
   }
 
   size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
@@ -965,7 +962,7 @@ struct Trunk {
 
     // apply blocks
     // Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
-    for (auto block : blocks) {
+    for(auto& block : blocks) {
       block.second->apply(
         handle,
         trunkScratch,

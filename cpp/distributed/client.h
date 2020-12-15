@@ -99,8 +99,8 @@ namespace Client {
     std::string getTmpModelPath(const Client::ModelInfo& modelInfo, const std::string& modelDir);
     bool retryLoop(const char* errorLabel, int maxTries, std::atomic<bool>& shouldStop, std::function<void(int&)> f);
 
-    httplib::Client* httpClient;
-    httplib::SSLClient* httpsClient;
+    std::unique_ptr<httplib::Client> httpClient;
+    std::unique_ptr<httplib::SSLClient> httpsClient;
     bool isSSL;
     std::string baseResourcePath;
     std::string caCertsFile;

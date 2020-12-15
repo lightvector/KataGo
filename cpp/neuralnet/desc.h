@@ -180,7 +180,7 @@ struct TrunkDesc {
   int gpoolNumChannels;    // Currently every gpooling residual block must have the same number of gpooling conv channels
   ConvLayerDesc initialConv;
   MatMulLayerDesc initialMatMul;
-  std::vector<std::pair<int, void*>> blocks;
+  std::vector<std::pair<int, unique_ptr_void>> blocks;
   BatchNormLayerDesc trunkTipBN;
   ActivationLayerDesc trunkTipActivation;
 

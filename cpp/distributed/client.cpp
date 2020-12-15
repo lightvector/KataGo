@@ -135,13 +135,13 @@ static httplib::Result oneShotDownload(Logger* logger, const Url& url, const str
   }
 
   if(!url.isSSL) {
-    std::unique_ptr<httplib::Client> httpClient = std::unique_ptr<httplib::Client>(new httplib::Client(url.host, url.port));
+    std::unique_ptr<httplib::Client> httpClient = std::make_unique<httplib::Client>(url.host, url.port);
     //Avoid automatically decompressing .bin.gz files that get sent to us with "content-encoding: gzip"
     httpClient->set_decompress(false);
     return httpClient->Get(url.path.c_str(),headers,f);
   }
   else {
-    std::unique_ptr<httplib::SSLClient> httpsClient = std::unique_ptr<httplib::SSLClient>(new httplib::SSLClient(url.host, url.port));
+    std::unique_ptr<httplib::SSLClient> httpsClient = std::make_unique<httplib::SSLClient>(url.host, url.port);
     httpsClient->set_ca_cert_path(caCertsFile.c_str());
     httpsClient->enable_server_certificate_verification(true);
     //Avoid automatically decompressing .bin.gz files that get sent to us with "content-encoding: gzip"
@@ -159,8 +159,8 @@ static httplib::Result oneShotDownload(Logger* logger, const Url& url, const str
 }
 
 Connection::Connection(const string& serverUrl, const string& username, const string& password, const string& caCerts, Logger* lg)
-  :httpClient(NULL),
-   httpsClient(NULL),
+  :httpClient(),
+   httpsClient(),
    isSSL(false),
    baseResourcePath(),
    caCertsFile(caCerts),
@@ -191,10 +191,10 @@ Connection::Connection(const string& serverUrl, const string& username, const st
   logger->write("baseResourcePath: " + baseResourcePath);
 
   if(!isSSL) {
-    httpClient = new httplib::Client(url.host, url.port);
+    httpClient = std::make_unique<httplib::Client>(url.host, url.port);
   }
   else {
-    httpsClient = new httplib::SSLClient(url.host, url.port);
+    httpsClient = std::make_unique<httplib::SSLClient>(url.host, url.port);
     httpsClient->set_ca_cert_path(caCertsFile.c_str());
     httpsClient->enable_server_certificate_verification(true);
   }
@@ -221,8 +221,6 @@ Connection::Connection(const string& serverUrl, const string& username, const st
 }
 
 Connection::~Connection() {
-  delete httpClient;
-  delete httpsClient;
 }
 
 static string concatPaths(const string& baseResourcePath, const string& subPath) {
@@ -704,9 +702,8 @@ bool Connection::downloadModelIfNotPresent(
 
     //Attempt to load the model file to verify gzip integrity and that we actually support this model format
     {
-      ModelDesc* descBuf = new ModelDesc();
-      ModelDesc::loadFromFileMaybeGZipped(tmpPath,*descBuf);
-      delete descBuf;
+      ModelDesc descBuf;
+      ModelDesc::loadFromFileMaybeGZipped(tmpPath,descBuf);
     }
 
     //Done! Rename the file into the right place
