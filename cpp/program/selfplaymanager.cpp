@@ -132,7 +132,7 @@ void SelfplayManager::clearUnusedModelCaches() {
     if(foundData->acquireCount <= 0) {
       foundData->nnEval->clearCache();
     }
-  } 
+  }
 }
 
 
@@ -339,6 +339,10 @@ void SelfplayManager::enqueueDataToWrite(NNEvaluator* nnEval, FinishedGameData* 
 }
 
 void SelfplayManager::runDataWriteLoop(ModelData* modelData) {
+  Logger::logThreadUncaught("data write loop", logger, [&](){ runDataWriteLoopImpl(modelData); });
+}
+
+void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
   if(logger != NULL)
     logger->write("Data write loop starting for neural net: " + modelData->modelName);
 
@@ -392,7 +396,7 @@ void SelfplayManager::runDataWriteLoop(ModelData* modelData) {
       assert(modelDatas[i] != modelData);
     }
   }
-  
+
   //Do logging and cleanup while unlocked, so that our freeing and stopping of this neural net doesn't
   //block anyone else
   if(logger != NULL) {

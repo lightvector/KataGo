@@ -321,6 +321,9 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     lock.unlock();
     logger.write("Data write loop cleaned up and terminating for " + modelNameBaseline + " vs " + modelNameCandidate);
   };
+  auto dataWriteLoopProtected = [&logger,&dataWriteLoop]() {
+    Logger::logThreadUncaught("data write loop", &logger, dataWriteLoop);
+  };
 
   auto loadLatestNeuralNet =
     [&testModelsDir,&rejectedModelsDir,&acceptedModelsDir,&sgfOutputDir,&logger,&cfg,numGameThreads,noAutoRejectOldModels]() -> NetAndStuff* {
@@ -439,6 +442,9 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     lock.unlock();
     logger.write("Game loop thread " + Global::intToString(threadIdx) + " terminating");
   };
+  auto gameLoopProtected = [&logger,&gameLoop](int threadIdx) {
+    Logger::logThreadUncaught("game loop", &logger, [&](){ gameLoop(threadIdx); });
+  };
 
   //Looping polling for new neural nets and loading them in
   while(true) {
@@ -473,11 +479,11 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     netAndStuffDataIsWritten = false;
 
     //And spawn off all the threads
-    std::thread newThread(dataWriteLoop);
+    std::thread newThread(dataWriteLoopProtected);
     newThread.detach();
     vector<std::thread> threads;
     for(int i = 0; i<numGameThreads; i++) {
-      threads.push_back(std::thread(gameLoop,i));
+      threads.push_back(std::thread(gameLoopProtected,i));
     }
 
     //Wait for all game threads to stop

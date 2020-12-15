@@ -305,6 +305,9 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
     logger.write("Game loop thread " + Global::intToString(threadIdx) + " terminating");
   };
+  auto gameLoopProtected = [&logger,&gameLoop](int threadIdx) {
+    Logger::logThreadUncaught("game loop", &logger, [&](){ gameLoop(threadIdx); });
+  };
 
   //Looping thread for polling for new neural nets and loading them in
   std::mutex modelLoadMutex;
@@ -329,12 +332,15 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
     logger.write("Model loading loop thread terminating");
   };
+  auto modelLoadLoopProtected = [&logger,&modelLoadLoop]() {
+    Logger::logThreadUncaught("model load loop", &logger, modelLoadLoop);
+  };
 
   vector<std::thread> threads;
   for(int i = 0; i<numGameThreads; i++) {
-    threads.push_back(std::thread(gameLoop,i));
+    threads.push_back(std::thread(gameLoopProtected,i));
   }
-  std::thread modelLoadLoopThread(modelLoadLoop);
+  std::thread modelLoadLoopThread(modelLoadLoopProtected);
 
   //Wait for all game threads to stop
   for(int i = 0; i<threads.size(); i++)

@@ -33,6 +33,8 @@ class Logger {
   void writeNoEndline(const std::string& str);
   std::ostream* createOStream();
 
+  static void logThreadUncaught(const std::string& name, Logger* logger, std::function<void()> f);
+
  private:
   bool logToStdout;
   bool logToStderr;

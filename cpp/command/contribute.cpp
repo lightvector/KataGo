@@ -500,6 +500,9 @@ int MainCmds::contribute(int argc, const char* const* argv) {
         numRatingGamesActive.fetch_add(-1,std::memory_order_acq_rel);
     }
   };
+  auto runGameLoopProtected = [&logger,&runGameLoop](int gameLoopThreadIdx) {
+    Logger::logThreadUncaught("game loop", &logger, [&](){ runGameLoop(gameLoopThreadIdx); });
+  };
 
   bool userCfgWarnedYet = false;
 
@@ -569,7 +572,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   //Just start based on selfplay games, rating games will poke in as needed
   vector<std::thread> gameThreads;
   for(int i = 0; i<maxSimultaneousGames; i++) {
-    gameThreads.push_back(std::thread(runGameLoop,i));
+    gameThreads.push_back(std::thread(runGameLoopProtected,i));
   }
 
   ClockTimer timer;
@@ -600,153 +603,161 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     }
   };
 
-  //Loop acquiring tasks and feeding them to game threads
-  Rand taskRand;
-  bool anyTaskSuccessfullyParsedYet = false;
-  while(true) {
-    maybePrintPerformance();
-    std::this_thread::sleep_for(std::chrono::duration<double>(1.0));
-    if(shouldStop.load())
-      break;
-
-#ifdef SIGPIPE
-    while(sigPipeReceivedCount.load() > 0) {
-      sigPipeReceivedCount.fetch_add(-1);
-      logger.write("Note: SIGPIPE received at some point, it's possible this is from bad internet rather than a broke shell pipe, so ignoring rather than killing the program.");
-    }
-#endif
-    //Make sure we register if rating games are done so that we can know if we can accept more.
-    ratingManager->cleanupUnusedModelsOlderThan(0);
-
-    bool retryOnFailure = anyTaskSuccessfullyParsedYet;
-    //Only allow rating tasks when we can handle a whole new chunk of games
-    bool allowRatingTask = (
-      maxRatingMatches > 0 &&
-      numRatingGamesActive.load(std::memory_order_acquire) <= (maxRatingMatches - 1) * taskRepFactor &&
-      (int64_t)ratingManager->numModels() <= maxRatingMatches * 2 - 2
-    );
-
-    Client::Task task;
-    bool suc = connection->getNextTask(task,baseDir,retryOnFailure,allowRatingTask,taskRepFactor,shouldStop);
-    if(!suc)
-      continue;
-
-    if(task.runName != runParams.runName) {
-      throw StringError(
-        "This self-play client was started with the run \"" + task.runName +
-        "\" but the server now appears to be hosting a new run \"" + runParams.runName +
-        "\", you may need to re-start this client."
-      );
-    }
-
-    logger.write(
-      "Number of nets loaded: selfplay " + Global::uint64ToString(selfplayManager->numModels())
-      + " rating " + Global::uint64ToString(ratingManager->numModels())
-    );
-
-    if(task.isRatingGame) {
-      string sgfOutputDir = sgfsDir + "/" + task.taskGroup;
-      MakeDir::make(sgfOutputDir);
-    }
-
-    {
-      bool suc1;
-      bool suc2;
-      try {
-        suc1 = connection->downloadModelIfNotPresent(task.modelBlack,modelsDir,shouldStop);
-        suc2 = connection->downloadModelIfNotPresent(task.modelWhite,modelsDir,shouldStop);
-      }
-      catch(StringError& e) {
-        logger.write(string("Giving up on task due to downloading model error:\n") + e.what());
-        suc1 = false;
-        suc2 = false;
-      }
+  auto taskLoop = [&]() {
+    //Loop acquiring tasks and feeding them to game threads
+    Rand taskRand;
+    bool anyTaskSuccessfullyParsedYet = false;
+    while(true) {
+      maybePrintPerformance();
+      std::this_thread::sleep_for(std::chrono::duration<double>(1.0));
       if(shouldStop.load())
         break;
-      if(!suc1 || !suc2)
+
+#ifdef SIGPIPE
+      while(sigPipeReceivedCount.load() > 0) {
+        sigPipeReceivedCount.fetch_add(-1);
+        logger.write("Note: SIGPIPE received at some point, it's possible this is from bad internet rather than a broke shell pipe, so ignoring rather than killing the program.");
+      }
+#endif
+      //Make sure we register if rating games are done so that we can know if we can accept more.
+      ratingManager->cleanupUnusedModelsOlderThan(0);
+
+      bool retryOnFailure = anyTaskSuccessfullyParsedYet;
+      //Only allow rating tasks when we can handle a whole new chunk of games
+      bool allowRatingTask = (
+        maxRatingMatches > 0 &&
+        numRatingGamesActive.load(std::memory_order_acquire) <= (maxRatingMatches - 1) * taskRepFactor &&
+        (int64_t)ratingManager->numModels() <= maxRatingMatches * 2 - 2
+      );
+
+      Client::Task task;
+      bool suc = connection->getNextTask(task,baseDir,retryOnFailure,allowRatingTask,taskRepFactor,shouldStop);
+      if(!suc)
         continue;
-    }
 
-    //Update model file modified times as a way to track which ones we've used recently or not
-    string modelFileBlack = Client::Connection::getModelPath(task.modelBlack,modelsDir);
-    string modelFileWhite = Client::Connection::getModelPath(task.modelWhite,modelsDir);
-    if(!task.modelBlack.isRandom) {
-      LoadModel::setLastModifiedTimeToNow(modelFileBlack,logger);
-    }
-    if(!task.modelWhite.isRandom && task.modelWhite.name != task.modelBlack.name) {
-      LoadModel::setLastModifiedTimeToNow(modelFileWhite,logger);
-    }
+      if(task.runName != runParams.runName) {
+        throw StringError(
+          "This self-play client was started with the run \"" + task.runName +
+          "\" but the server now appears to be hosting a new run \"" + runParams.runName +
+          "\", you may need to re-start this client."
+        );
+      }
 
-    //For selfplay, unload after 20 seconds, so that if we're playing only one game at a time,
-    //we don't repeatedly load and unload - we leave time to get the next task which will probably use the same model.
-    //For rating, just always unload, we're often not going to be playing the same model the next time around, or not right away.
-    selfplayManager->cleanupUnusedModelsOlderThan(20);
-    ratingManager->cleanupUnusedModelsOlderThan(0);
+      logger.write(
+        "Number of nets loaded: selfplay " + Global::uint64ToString(selfplayManager->numModels())
+        + " rating " + Global::uint64ToString(ratingManager->numModels())
+      );
 
-    SelfplayManager* blackManager;
-    SelfplayManager* whiteManager;
+      if(task.isRatingGame) {
+        string sgfOutputDir = sgfsDir + "/" + task.taskGroup;
+        MakeDir::make(sgfOutputDir);
+      }
 
-    //If we happen to be rating the same net as for selfplay, then just load it from the selfplay manager
-    if(task.isRatingGame) {
-      if(selfplayManager->hasModel(task.modelBlack.name))
-        blackManager = selfplayManager;
-      else
-        blackManager = ratingManager;
-      if(selfplayManager->hasModel(task.modelWhite.name))
-        whiteManager = selfplayManager;
-      else
-        whiteManager = ratingManager;
-    }
-    else {
-      blackManager = selfplayManager;
-      whiteManager = selfplayManager;
-    }
+      {
+        bool suc1;
+        bool suc2;
+        try {
+          suc1 = connection->downloadModelIfNotPresent(task.modelBlack,modelsDir,shouldStop);
+          suc2 = connection->downloadModelIfNotPresent(task.modelWhite,modelsDir,shouldStop);
+        }
+        catch(StringError& e) {
+          logger.write(string("Giving up on task due to downloading model error:\n") + e.what());
+          suc1 = false;
+          suc2 = false;
+        }
+        if(shouldStop.load())
+          break;
+        if(!suc1 || !suc2)
+          continue;
+      }
 
-    loadNeuralNetIntoManager(blackManager,task.modelBlack,modelFileBlack,task.isRatingGame);
-    loadNeuralNetIntoManager(whiteManager,task.modelWhite,modelFileWhite,task.isRatingGame);
-    if(shouldStop.load())
-      break;
+      //Update model file modified times as a way to track which ones we've used recently or not
+      string modelFileBlack = Client::Connection::getModelPath(task.modelBlack,modelsDir);
+      string modelFileWhite = Client::Connection::getModelPath(task.modelWhite,modelsDir);
+      if(!task.modelBlack.isRandom) {
+        LoadModel::setLastModifiedTimeToNow(modelFileBlack,logger);
+      }
+      if(!task.modelWhite.isRandom && task.modelWhite.name != task.modelBlack.name) {
+        LoadModel::setLastModifiedTimeToNow(modelFileWhite,logger);
+      }
 
-    //Clean up old models, after we've definitely loaded what we needed
-    time_t modelFileAgeLimit = time(NULL) - (time_t)(deleteUnusedModelsAfterDays * 86400);
-    LoadModel::deleteModelsOlderThan(modelsDir,logger,modelFileAgeLimit);
+      //For selfplay, unload after 20 seconds, so that if we're playing only one game at a time,
+      //we don't repeatedly load and unload - we leave time to get the next task which will probably use the same model.
+      //For rating, just always unload, we're often not going to be playing the same model the next time around, or not right away.
+      selfplayManager->cleanupUnusedModelsOlderThan(20);
+      ratingManager->cleanupUnusedModelsOlderThan(0);
 
-    for(int rep = 0; rep < taskRepFactor; rep++) {
-      //Game loop threads are responsible for releasing when done.
-      NNEvaluator* nnEvalBlack = blackManager->acquireModel(task.modelBlack.name);
-      NNEvaluator* nnEvalWhite = whiteManager->acquireModel(task.modelWhite.name);
+      SelfplayManager* blackManager;
+      SelfplayManager* whiteManager;
 
-      //Randomly swap black and white per each game in the rep
-      GameTask gameTask;
-      gameTask.task = task;
-      gameTask.repIdx = rep;
-
-      if(taskRand.nextBool(0.5)) {
-        gameTask.blackManager = blackManager;
-        gameTask.whiteManager = whiteManager;
-        gameTask.nnEvalBlack = nnEvalBlack;
-        gameTask.nnEvalWhite = nnEvalWhite;
+      //If we happen to be rating the same net as for selfplay, then just load it from the selfplay manager
+      if(task.isRatingGame) {
+        if(selfplayManager->hasModel(task.modelBlack.name))
+          blackManager = selfplayManager;
+        else
+          blackManager = ratingManager;
+        if(selfplayManager->hasModel(task.modelWhite.name))
+          whiteManager = selfplayManager;
+        else
+          whiteManager = ratingManager;
       }
       else {
-        //Swap everything
-        gameTask.blackManager = whiteManager;
-        gameTask.whiteManager = blackManager;
-        gameTask.nnEvalBlack = nnEvalWhite;
-        gameTask.nnEvalWhite = nnEvalBlack;
-        //Also swap the model within the task, which is used for data writing
-        gameTask.task.modelBlack = task.modelWhite;
-        gameTask.task.modelWhite = task.modelBlack;
+        blackManager = selfplayManager;
+        whiteManager = selfplayManager;
       }
 
-      if(task.isRatingGame)
-        numRatingGamesActive.fetch_add(1,std::memory_order_acq_rel);
-      suc = gameTaskQueue.waitPush(gameTask);
-      (void)suc;
-      assert(suc);
-    }
+      loadNeuralNetIntoManager(blackManager,task.modelBlack,modelFileBlack,task.isRatingGame);
+      loadNeuralNetIntoManager(whiteManager,task.modelWhite,modelFileWhite,task.isRatingGame);
+      if(shouldStop.load())
+        break;
 
-    anyTaskSuccessfullyParsedYet = true;
-  }
+      //Clean up old models, after we've definitely loaded what we needed
+      time_t modelFileAgeLimit = time(NULL) - (time_t)(deleteUnusedModelsAfterDays * 86400);
+      LoadModel::deleteModelsOlderThan(modelsDir,logger,modelFileAgeLimit);
+
+      for(int rep = 0; rep < taskRepFactor; rep++) {
+        //Game loop threads are responsible for releasing when done.
+        NNEvaluator* nnEvalBlack = blackManager->acquireModel(task.modelBlack.name);
+        NNEvaluator* nnEvalWhite = whiteManager->acquireModel(task.modelWhite.name);
+
+        //Randomly swap black and white per each game in the rep
+        GameTask gameTask;
+        gameTask.task = task;
+        gameTask.repIdx = rep;
+
+        if(taskRand.nextBool(0.5)) {
+          gameTask.blackManager = blackManager;
+          gameTask.whiteManager = whiteManager;
+          gameTask.nnEvalBlack = nnEvalBlack;
+          gameTask.nnEvalWhite = nnEvalWhite;
+        }
+        else {
+          //Swap everything
+          gameTask.blackManager = whiteManager;
+          gameTask.whiteManager = blackManager;
+          gameTask.nnEvalBlack = nnEvalWhite;
+          gameTask.nnEvalWhite = nnEvalBlack;
+          //Also swap the model within the task, which is used for data writing
+          gameTask.task.modelBlack = task.modelWhite;
+          gameTask.task.modelWhite = task.modelBlack;
+        }
+
+        if(task.isRatingGame)
+          numRatingGamesActive.fetch_add(1,std::memory_order_acq_rel);
+        suc = gameTaskQueue.waitPush(gameTask);
+        (void)suc;
+        assert(suc);
+      }
+
+      anyTaskSuccessfullyParsedYet = true;
+    }
+  };
+
+  //If task loop raises an exception, we need to log here BEFORE destructing main context, because in some cases
+  //gameThreads[i].join() will abort without useful exception due to thread not being joinable,
+  //hiding the real exception.
+  Logger::logThreadUncaught("task loop", &logger, taskLoop);
+
   logger.write("Beginning shutdown");
 
   //This should trigger game threads to quit

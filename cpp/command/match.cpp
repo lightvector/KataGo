@@ -243,11 +243,15 @@ int MainCmds::match(int argc, const char* const* argv) {
     }
     logger.write("Match loop thread terminating");
   };
+  auto runMatchLoopProtected = [&logger,&runMatchLoop](uint64_t threadHash) {
+    Logger::logThreadUncaught("match loop", &logger, [&](){ runMatchLoop(threadHash); });
+  };
+
 
   Rand hashRand;
   vector<std::thread> threads;
   for(int i = 0; i<numGameThreads; i++) {
-    threads.push_back(std::thread(runMatchLoop, hashRand.nextUInt64()));
+    threads.push_back(std::thread(runMatchLoopProtected, hashRand.nextUInt64()));
   }
   for(int i = 0; i<threads.size(); i++)
     threads[i].join();
