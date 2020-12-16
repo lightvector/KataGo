@@ -49,8 +49,8 @@ parser.add_argument('-export-prob', help='Export model with this probablity', ty
 parser.add_argument('-max-epochs-this-instance', help='Terminate training after this many more epochs', type=int, required=False)
 parser.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between epochs', type=int, required=False)
 parser.add_argument('-swa-sub-epoch-scale', help='Number of sub-epochs to average in expectation together for SWA', type=float, required=False)
-parser.add_argument('-max-train-per-data-a', help='Wait for more data if #train_steps > #data_rows * A + B', type=float, required=False)
-parser.add_argument('-max-train-per-data-b', help='Wait for more data if #train_steps > #data_rows * A + B', type=float, required=False)
+parser.add_argument('-max-train-bucket-per-new-data', help='When data added, add this many train rows per data row to bucket', type=float, required=False)
+parser.add_argument('-max-train-bucket-size', help='Approx total number of train rows allowed if data stops', type=float, required=False)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
 parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
 args = vars(parser.parse_args())
@@ -73,8 +73,8 @@ export_prob = args["export_prob"]
 max_epochs_this_instance = args["max_epochs_this_instance"]
 sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
 swa_sub_epoch_scale = args["swa_sub_epoch_scale"]
-max_train_per_data_a = args["max_train_per_data_a"]
-max_train_per_data_b = args["max_train_per_data_b"]
+max_train_bucket_per_new_data = args["max_train_bucket_per_new_data"]
+max_train_bucket_size = args["max_train_bucket_size"]
 verbose = args["verbose"]
 no_export = args["no_export"]
 logfilemode = "a"
@@ -82,8 +82,8 @@ logfilemode = "a"
 if samples_per_epoch is None:
   samples_per_epoch = 1000000
 
-if max_train_per_data_b is None:
-  max_train_per_data_b = 0
+if max_train_bucket_size is None:
+  max_train_bucket_size = 1.0e30
 
 if not os.path.exists(traindir):
   os.makedirs(traindir)
@@ -552,9 +552,14 @@ elif os.path.isfile(os.path.join(traindir,"initial_weights","trainhistory.json")
 else:
   trainhistory["history"].append(("initialized",model_config))
 
+if max_train_bucket_per_new_data is not None and "train_bucket_level" not in trainhistory:
+  trainhistory["train_bucket_level"] = samples_per_epoch
+
 def save_history(global_step_value):
-  trainhistory["history"].append(("nsamp",int(global_step_value * batch_size)))
-  trainhistory["train_step"] = int(global_step_value * batch_size)
+  global trainhistory
+  if global_step_value is not None:
+    trainhistory["history"].append(("nsamp",int(global_step_value * batch_size)))
+    trainhistory["train_step"] = int(global_step_value * batch_size)
   trainhistory["total_num_data_rows"] = last_datainfo_row
   trainhistory["extra_stats"] = copy.deepcopy(global_latest_extra_stats)
   savepath = os.path.join(traindir,"trainhistory.json")
@@ -591,6 +596,23 @@ def maybe_reload_training_data():
       with open(trainjsonpath) as f:
         datainfo = json.load(f)
         last_datainfo_row = datainfo["range"][1]
+
+      if max_train_bucket_per_new_data is not None:
+        if "train_bucket_level_at_row" not in trainhistory:
+          trainhistory["train_bucket_level_at_row"] = last_datainfo_row
+        if last_datainfo_row > trainhistory["train_bucket_level_at_row"]:
+          new_row_count = last_datainfo_row - trainhistory["train_bucket_level_at_row"]
+          trainlog("Advancing trainbucket row %.0f to %.0f, %.0f new rows" % (
+            trainhistory["train_bucket_level_at_row"], last_datainfo_row, new_row_count
+          ))
+          trainhistory["train_bucket_level_at_row"] = last_datainfo_row
+          trainlog("Fill per data %.3f, Max bucket size %.0f" % (max_train_bucket_per_new_data, max_train_bucket_size))
+          trainlog("Old rows in bucket: %.0f" % trainhistory["train_bucket_level"])
+          trainhistory["train_bucket_level"] += new_row_count * max_train_bucket_per_new_data
+          cap = max(max_train_bucket_size, samples_per_epoch)
+          if trainhistory["train_bucket_level"] > cap:
+            trainhistory["train_bucket_level"] = cap
+          trainlog("New rows in bucket: %.0f" % trainhistory["train_bucket_level"])
 
       # Remove legacy value from this dictionary
       if "files" in trainhistory:
@@ -629,7 +651,7 @@ except ValueError:
 
 while True:
   maybe_reload_training_data()
-
+  save_history(globalstep)
   trainlog("GC collect")
   gc.collect()
 
@@ -641,19 +663,26 @@ while True:
     trainlog("Global step: %d (%d samples)" % (globalstep, globalstep*batch_size))
     trainlog("Currently up to data row " + str(last_datainfo_row))
 
-    if max_train_per_data_a is not None and globalstep*batch_size > max_train_per_data_a * last_datainfo_row + max_train_per_data_b:
-      trainlog(
-        "Exceeding max train per data, waiting 5m and retrying (%d > %f * %d + %f)" %
-        (globalstep*batch_size, max_train_per_data_a, last_datainfo_row, max_train_per_data_b)
-      )
-      time.sleep(300)
-      continue
+    if max_train_bucket_per_new_data is not None:
+      if trainhistory["train_bucket_level"] > 0.99 * samples_per_epoch:
+        trainlog("Consuming %.0f rows from train bucket (%.0f -> %.0f)" % (
+          samples_per_epoch, trainhistory["train_bucket_level"], trainhistory["train_bucket_level"]-samples_per_epoch
+        ))
+        trainhistory["train_bucket_level"] -= samples_per_epoch
+      else:
+        trainlog(
+          "Exceeding train bucket, not enough new data rows, waiting 5m and retrying (current level %f)" %
+          trainhistory["train_bucket_level"]
+        )
+        time.sleep(300)
+        continue
 
   #SUB EPOCH LOOP -----------
   num_batches_per_subepoch = num_batches_per_epoch / sub_epochs
   for i in range(sub_epochs):
     if i != 0:
       maybe_reload_training_data()
+      save_history(globalstep)
 
     #Pick enough files to get the number of batches we want
     train_files_to_use = []
