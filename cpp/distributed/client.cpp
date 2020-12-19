@@ -194,6 +194,13 @@ Connection::Connection(const string& serverUrl, const string& username, const st
     httpClient = std::make_unique<httplib::Client>(url.host, url.port);
   }
   else {
+    if(caCertsFile != "" && caCertsFile != "/dev/null") {
+      string contents = Global::readFile(caCertsFile);
+      if(contents.find("-----BEGIN CERTIFICATE-----") == string::npos) {
+        logger->write("WARNING: " + caCertsFile + " does not seem to contain pem-formatted certs. Are you sure this is the correct file?");
+      }
+    }
+
     httpsClient = std::make_unique<httplib::SSLClient>(url.host, url.port);
     httpsClient->set_ca_cert_path(caCertsFile.c_str());
     httpsClient->enable_server_certificate_verification(true);
@@ -202,7 +209,7 @@ Connection::Connection(const string& serverUrl, const string& username, const st
   //Do an initial test query to make sure the server's there!
   auto response = get("/");
   if(response == nullptr) {
-    throw StringError("Could not connect to server at " + serverUrl + ", invalid host or port or otherwise no response");
+    throw StringError("Could not connect to server at " + serverUrl + ", invalid host or port, or SSL error, or some other httplib error, or no response");
   }
   else if(response->status != 200) {
     ostringstream out;

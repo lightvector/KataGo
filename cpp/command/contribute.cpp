@@ -359,6 +359,15 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       );
     }
   }
+  else {
+    if(caCertsFile != "/dev/null") {
+      std::ifstream infile(caCertsFile);
+      bool pathExists = infile.good();
+      if(!pathExists) {
+        throw StringError("cacerts file was not found or could not be opened: " + caCertsFile);
+      }
+    }
+  }
 
   Logger logger;
   logger.setLogToStdout(true);
