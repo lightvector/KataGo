@@ -48,7 +48,15 @@ namespace Client {
 
   class Connection {
   public:
-    Connection(const std::string& serverUrl, const std::string& username, const std::string& password, const std::string& caCertsFile, Logger* logger);
+    Connection(
+      const std::string& serverUrl,
+      const std::string& username,
+      const std::string& password,
+      const std::string& caCertsFile,
+      const std::string& proxyHost,
+      int proxyPort,
+      Logger* logger
+    );
     ~Connection();
 
     Connection(const Connection&) = delete;
@@ -104,6 +112,8 @@ namespace Client {
     bool isSSL;
     std::string baseResourcePath;
     std::string caCertsFile;
+    std::string proxyHost;
+    int proxyPort;
 
     Logger* logger;
     Rand rand;

@@ -128,7 +128,16 @@ struct Url {
   }
 };
 
-static httplib::Result oneShotDownload(Logger* logger, const Url& url, const string& caCertsFile, size_t startByte, size_t endByte, std::function<bool(const char *data, size_t data_length)> f) {
+static httplib::Result oneShotDownload(
+  Logger* logger,
+  const Url& url,
+  const string& caCertsFile,
+  const string& proxyHost,
+  const int& proxyPort,
+  size_t startByte,
+  size_t endByte,
+  std::function<bool(const char *data, size_t data_length)> f
+) {
   httplib::Headers headers;
   if(startByte > 0) {
     headers.insert(std::make_pair("Range", Global::uint64ToString(startByte) + "-" + Global::uint64ToString(endByte)));
@@ -136,12 +145,16 @@ static httplib::Result oneShotDownload(Logger* logger, const Url& url, const str
 
   if(!url.isSSL) {
     std::unique_ptr<httplib::Client> httpClient = std::make_unique<httplib::Client>(url.host, url.port);
+    if(proxyHost != "")
+      httpClient->set_proxy(proxyHost.c_str(), proxyPort);
     //Avoid automatically decompressing .bin.gz files that get sent to us with "content-encoding: gzip"
     httpClient->set_decompress(false);
     return httpClient->Get(url.path.c_str(),headers,f);
   }
   else {
     std::unique_ptr<httplib::SSLClient> httpsClient = std::make_unique<httplib::SSLClient>(url.host, url.port);
+    if(proxyHost != "")
+      httpsClient->set_proxy(proxyHost.c_str(), proxyPort);
     httpsClient->set_ca_cert_path(caCertsFile.c_str());
     httpsClient->enable_server_certificate_verification(true);
     //Avoid automatically decompressing .bin.gz files that get sent to us with "content-encoding: gzip"
@@ -158,12 +171,22 @@ static httplib::Result oneShotDownload(Logger* logger, const Url& url, const str
   }
 }
 
-Connection::Connection(const string& serverUrl, const string& username, const string& password, const string& caCerts, Logger* lg)
+Connection::Connection(
+  const string& serverUrl,
+  const string& username,
+  const string& password,
+  const string& caCerts,
+  const string& pHost,
+  int pPort,
+  Logger* lg
+)
   :httpClient(),
    httpsClient(),
    isSSL(false),
    baseResourcePath(),
    caCertsFile(caCerts),
+   proxyHost(pHost),
+   proxyPort(pPort),
    logger(lg),
    rand(),
    mutex()
@@ -189,9 +212,15 @@ Connection::Connection(const string& serverUrl, const string& username, const st
   logger->write("host: " + url.host);
   logger->write("port: " + Global::intToString(url.port));
   logger->write("baseResourcePath: " + baseResourcePath);
+  if(proxyHost != "") {
+    logger->write("proxyHost: " + proxyHost);
+    logger->write("proxyPort: "+ std::to_string(proxyPort));
+  }
 
   if(!isSSL) {
     httpClient = std::make_unique<httplib::Client>(url.host, url.port);
+    if(proxyHost != "")
+      httpClient->set_proxy(proxyHost.c_str(),proxyPort);
   }
   else {
     if(caCertsFile != "" && caCertsFile != "/dev/null") {
@@ -202,6 +231,8 @@ Connection::Connection(const string& serverUrl, const string& username, const st
     }
 
     httpsClient = std::make_unique<httplib::SSLClient>(url.host, url.port);
+    if(proxyHost != "")
+      httpsClient->set_proxy(proxyHost.c_str(),proxyPort);
     httpsClient->set_ca_cert_path(caCertsFile.c_str());
     httpsClient->enable_server_certificate_verification(true);
   }
@@ -653,7 +684,7 @@ bool Connection::downloadModelIfNotPresent(
     auto fInner = [&](int& innerLoopFailMode) {
       const size_t oldTotalDataSize = totalDataSize;
       httplib::Result response = oneShotDownload(
-        logger, url, caCertsFile, oldTotalDataSize, modelInfo.bytes,
+        logger, url, caCertsFile, proxyHost, proxyPort, oldTotalDataSize, modelInfo.bytes,
         [&out,&totalDataSize,&shouldStop,this,&timer,&lastTime,&url,&modelInfo](const char* data, size_t data_length) {
           out.write(data, data_length);
           totalDataSize += data_length;

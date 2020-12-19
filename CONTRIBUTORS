@@ -23,6 +23,7 @@ Akita Noek ("anoek") - for some minor performance and api suggestions, minor cud
 Harald Han - for some work on CUDNN8 support
 "inbae" - for removing boost filesystem dependencies
 "rimathia" - for a minor bugfix
+"Jonathan_Go" - for help with client proxy support
 
 Separately from the authors of the content in this repo, additional special thanks to:
 Junyan Xu ("alreadydone") - for much testing and troubleshooting for Windows support

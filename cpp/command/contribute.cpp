@@ -377,6 +377,12 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   string serverUrl = userCfg->getString("serverUrl");
   string username = userCfg->getString("username");
   string password = userCfg->getString("password");
+  string proxyHost = "";
+  int proxyPort = 0;
+  if(userCfg->contains("proxyHost")) {
+    proxyHost = userCfg->getString("proxyHost");
+    proxyPort = userCfg->getInt("proxyPort");
+  }
 
   int maxSimultaneousGames;
   if(!userCfg->contains("maxSimultaneousGames")) {
@@ -414,7 +420,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     watchOngoingGameInFileName = "watchgame.txt";
 
   //Connect to server and get global parameters for the run.
-  Client::Connection* connection = new Client::Connection(serverUrl,username,password,caCertsFile,&logger);
+  Client::Connection* connection = new Client::Connection(serverUrl,username,password,caCertsFile,proxyHost,proxyPort,&logger);
   const Client::RunParameters runParams = connection->getRunParameters();
 
   MakeDir::make(baseDir);
