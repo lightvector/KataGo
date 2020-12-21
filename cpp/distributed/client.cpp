@@ -172,9 +172,9 @@ static httplib::Result oneShotDownload(
 }
 
 Connection::Connection(
-  const string& serverUrl,
-  const string& username,
-  const string& password,
+  const string& sUrl,
+  const string& usname,
+  const string& pswd,
   const string& caCerts,
   const string& pHost,
   int pPort,
@@ -183,6 +183,9 @@ Connection::Connection(
   :httpClient(),
    httpsClient(),
    isSSL(false),
+   serverUrl(sUrl),
+   username(usname),
+   password(pswd),
    baseResourcePath(),
    caCertsFile(caCerts),
    proxyHost(pHost),
@@ -257,8 +260,31 @@ Connection::Connection(
   else {
     httpsClient->set_basic_auth(username.c_str(), password.c_str());
   }
-
 }
+
+void Connection::recreateClients() {
+  std::lock_guard<std::mutex> lock(mutex);
+  httpClient = nullptr;
+  httpsClient = nullptr;
+
+  Url url = Url::parse(serverUrl);
+
+  if(!isSSL) {
+    httpClient = std::make_unique<httplib::Client>(url.host, url.port);
+    if(proxyHost != "")
+      httpClient->set_proxy(proxyHost.c_str(),proxyPort);
+    httpClient->set_basic_auth(username.c_str(), password.c_str());
+  }
+  else {
+    httpsClient = std::make_unique<httplib::SSLClient>(url.host, url.port);
+    if(proxyHost != "")
+      httpsClient->set_proxy(proxyHost.c_str(),proxyPort);
+    httpsClient->set_ca_cert_path(caCertsFile.c_str());
+    httpsClient->enable_server_certificate_verification(true);
+    httpsClient->set_basic_auth(username.c_str(), password.c_str());
+  }
+}
+
 
 Connection::~Connection() {
 }
@@ -470,6 +496,11 @@ bool Connection::retryLoop(const char* errorLabel, int maxTries, std::atomic<boo
       if(loopFailMode == LOOP_PARTIAL_SUCCESS || loopFailMode == LOOP_PARTIAL_SUCCESS_NO_LOG) {
         i = 0;
         failureInterval = initialFailureInterval;
+      }
+      else {
+        //If something failed in a harder way, let's recreate the http and https clients, since otherwise
+        //sometimes it seems like they can get stuck and unrecoverable
+        recreateClients();
       }
 
       if(loopFailMode == LOOP_FATAL_FAIL || i >= maxTries-1)

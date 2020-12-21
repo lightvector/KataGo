@@ -122,10 +122,16 @@ namespace Client {
     std::unique_ptr<httplib::Client> httpClient;
     std::unique_ptr<httplib::SSLClient> httpsClient;
     bool isSSL;
+
+    std::string serverUrl;
+    std::string username;
+    std::string password;
+
     std::string baseResourcePath;
     std::string caCertsFile;
     std::string proxyHost;
     int proxyPort;
+
 
     //Fixed string different on every startup but shared across all requests for this run of the client
     std::string clientInstanceId;
@@ -139,6 +145,7 @@ namespace Client {
     //TODO if httplib is thread-safe, then we can remove this
     std::mutex mutex;
 
+    void recreateClients();
 
     bool actuallyDownloadModel(
       const Client::ModelInfo& modelInfo, const std::string& modelDir,
