@@ -264,6 +264,7 @@ Connection::Connection(
 
 void Connection::recreateClients() {
   std::lock_guard<std::mutex> lock(mutex);
+  logger->write("DEBUG: Recreating httplib clients");
   httpClient = nullptr;
   httpsClient = nullptr;
 
@@ -724,11 +725,13 @@ bool Connection::downloadModelIfNotPresent(
     {
       auto iter = downloadStateByUrl.find(modelInfo.downloadUrl);
       if(iter != downloadStateByUrl.end()) {
+        logger->write("DEBUG: Other thread is downloading model already, sleeping");
         std::shared_ptr<DownloadState> downloadState = iter->second;
         //Wait until that thread is done
         while(downloadState->downloadingInProgress) {
           downloadState->downloadingInProgressVar.wait(lock);
         }
+        logger->write("DEBUG: Woke up, other thread finished downloading model");
         //Sleep a little while and then try again to see if we still need to download the model.
         std::this_thread::sleep_for(std::chrono::duration<double>(2.0));
         continue;
@@ -736,6 +739,7 @@ bool Connection::downloadModelIfNotPresent(
     }
 
     //No other thread is downloading it, so mark that we're downloading it.
+    logger->write("DEBUG: Claiming download lock of model " + modelInfo.name);
     std::shared_ptr<DownloadState> downloadState = std::make_shared<DownloadState>();
     downloadState->downloadingInProgress = true;
     downloadStateByUrl[modelInfo.downloadUrl] = downloadState;
@@ -747,6 +751,7 @@ bool Connection::downloadModelIfNotPresent(
       downloadState->downloadingInProgress = false;
       downloadState->downloadingInProgressVar.notify_all();
       downloadStateByUrl.erase(modelInfo.downloadUrl);
+      logger->write("DEBUG: Releasing download lock of model " + modelInfo.name);
       lock.unlock();
     };
     Global::CustomScopeGuard<std::function<void()>> guard(std::move(cleanup));
