@@ -187,6 +187,7 @@ Connection::Connection(
    caCertsFile(caCerts),
    proxyHost(pHost),
    proxyPort(pPort),
+   clientInstanceId(),
    logger(lg),
    rand(),
    mutex()
@@ -200,6 +201,7 @@ Connection::Connection(
   }
 
   isSSL = url.isSSL;
+  clientInstanceId = Global::uint64ToHexString(rand.nextUInt64());
 
   baseResourcePath = url.path;
   if(Global::isSuffix(baseResourcePath,"/"))
@@ -483,8 +485,8 @@ bool Connection::retryLoop(const char* errorLabel, int maxTries, std::atomic<boo
         double sleepTime = std::min(intervalRemaining, stopPollFrequency);
         if(shouldStop.load())
           return false;
-        intervalRemaining -= sleepTime;
         std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
+        intervalRemaining -= stopPollFrequency;
       }
       failureInterval = round(failureInterval * 1.3 + 1.0);
       //Cap at two hours
@@ -520,6 +522,7 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
     while(true) {
       httplib::MultipartFormDataItems items = {
         { "git_revision", Version::getGitRevision(), "", "" },
+        { "client_instance_id", clientInstanceId, "", "" },
         { "task_rep_factor", Global::intToString(taskRepFactor), "", ""},
         { "allow_selfplay_task", "true", "", ""},
         { "allow_rating_task", (allowRatingTask ? "true" : "false"), "", ""},
@@ -648,6 +651,26 @@ void Client::ModelInfo::failIfSha256Mismatch(const string& modelPath) const {
     throw StringError("Downloaded " + string(modelPath) + " sha256 was " + hashResult + " which does not match the expected sha256 " + this->sha256);
 }
 
+bool Connection::maybeDownloadNewestModel(
+  const string& modelDir, std::atomic<bool>& shouldStop
+) {
+  try {
+    json networkJson = parseJson(get("/api/networks/newest_training/"));
+    Client::ModelInfo modelInfo = parseModelInfo(networkJson);
+    return downloadModelIfNotPresent(modelInfo,modelDir,shouldStop);
+  }
+  catch(const StringError& e) {
+    logger->write(string("When downloading newest network got error parsing or connecting to server, will try again later: ") + e.what());
+  }
+  return false;
+}
+
+Client::DownloadState::DownloadState()
+  : downloadingInProgressVar(),
+    downloadingInProgress(false)
+{}
+Client::DownloadState::~DownloadState()
+{}
 
 bool Connection::downloadModelIfNotPresent(
   const Client::ModelInfo& modelInfo, const string& modelDir,
@@ -658,10 +681,53 @@ bool Connection::downloadModelIfNotPresent(
 
   const string path = getModelPath(modelInfo,modelDir);
 
-  //Model already exists
-  if(gfs::exists(gfs::path(path)))
-    return true;
+  std::unique_lock<std::mutex> lock(downloadStateMutex);
+  while(true) {
+    //Model already exists
+    if(gfs::exists(gfs::path(path)))
+      return true;
+    if(shouldStop.load())
+      return false;
 
+    //Check if some other thread is downloading it
+    {
+      auto iter = downloadStateByUrl.find(modelInfo.downloadUrl);
+      if(iter != downloadStateByUrl.end()) {
+        std::shared_ptr<DownloadState> downloadState = iter->second;
+        //Wait until that thread is done
+        while(downloadState->downloadingInProgress) {
+          downloadState->downloadingInProgressVar.wait(lock);
+        }
+        //Sleep a little while and then try again to see if we still need to download the model.
+        std::this_thread::sleep_for(std::chrono::duration<double>(2.0));
+        continue;
+      }
+    }
+
+    //No other thread is downloading it, so mark that we're downloading it.
+    std::shared_ptr<DownloadState> downloadState = std::make_shared<DownloadState>();
+    downloadState->downloadingInProgress = true;
+    downloadStateByUrl[modelInfo.downloadUrl] = downloadState;
+    lock.unlock();
+
+    //Make absolutely sure we don't deadlock - mark that we're done after we're done.
+    std::function<void()> cleanup = [&]() {
+      lock.lock();
+      downloadState->downloadingInProgress = false;
+      downloadState->downloadingInProgressVar.notify_all();
+      downloadStateByUrl.erase(modelInfo.downloadUrl);
+      lock.unlock();
+    };
+    Global::CustomScopeGuard<std::function<void()>> guard(std::move(cleanup));
+    actuallyDownloadModel(modelInfo, modelDir, shouldStop);
+  }
+}
+
+bool Connection::actuallyDownloadModel(
+  const Client::ModelInfo& modelInfo, const string& modelDir,
+  std::atomic<bool>& shouldStop
+) {
+  const string path = getModelPath(modelInfo,modelDir);
   Url url;
   try {
     url = Url::parse(modelInfo.downloadUrl);

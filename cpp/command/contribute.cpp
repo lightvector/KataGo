@@ -618,6 +618,31 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     }
   };
 
+  //Loop at a random wide interval downloading the latest net if we're going to need it.
+  //Randomize a bit so that the server sees download requests as being well-spaced out.
+  auto preDownloadLoop = [&]() {
+    Rand preDownloadLoopRand;
+    while(true) {
+      if(shouldStop.load())
+        return;
+      connection->maybeDownloadNewestModel(modelsDir,shouldStop);
+      //20 to 25 minutes
+      double sleepTimeTotal = preDownloadLoopRand.nextDouble(1200,1500);
+      constexpr double stopPollFrequency = 5.0;
+      while(sleepTimeTotal > 0.0) {
+        double sleepTime = std::min(sleepTimeTotal, stopPollFrequency);
+        if(shouldStop.load())
+          return;
+        std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
+        sleepTimeTotal -= stopPollFrequency;
+      }
+    }
+  };
+  auto preDownloadLoopProtected = [&logger,&preDownloadLoop]() {
+    Logger::logThreadUncaught("pre download loop", &logger, preDownloadLoop);
+  };
+  std::thread preDownloadThread(preDownloadLoopProtected);
+
   auto taskLoop = [&]() {
     //Loop acquiring tasks and feeding them to game threads
     Rand taskRand;
@@ -777,6 +802,12 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
   //This should trigger game threads to quit
   gameTaskQueue.setReadOnly();
+
+  //Make sure we have a true in here
+  shouldStop.store(true);
+
+  //Wait for download thread to stop
+  preDownloadThread.join();
 
   //Wait for all game threads to stop
   for(int i = 0; i<gameThreads.size(); i++)

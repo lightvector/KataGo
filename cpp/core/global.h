@@ -300,5 +300,25 @@ struct WrappedWithDeleter {
   }
 };
 
+namespace Global {
+  template <typename F>
+  struct CustomScopeGuard {
+    CustomScopeGuard(const CustomScopeGuard&) = delete;
+    CustomScopeGuard(CustomScopeGuard&&) = delete;
+    CustomScopeGuard& operator=(const CustomScopeGuard&) = delete;
+
+    CustomScopeGuard(F&& f): func(std::forward<F>(f))
+    {}
+
+    ~CustomScopeGuard() {
+      func();
+    }
+
+  private:
+    F func;
+  };
+
+}
+
 
 #endif  // CORE_GLOBAL_H_

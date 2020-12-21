@@ -31,6 +31,13 @@ namespace Client {
     void failIfSha256Mismatch(const std::string& modelPath) const;
   };
 
+  struct DownloadState {
+    std::condition_variable downloadingInProgressVar;
+    bool downloadingInProgress;
+    DownloadState();
+    ~DownloadState();
+  };
+
   struct Task {
     std::string taskId;
     std::string taskGroup;
@@ -87,6 +94,11 @@ namespace Client {
       std::atomic<bool>& shouldStop
     );
 
+    //Query server for newest model and maybe download it, even if it is not being used by tasks yet.
+    bool maybeDownloadNewestModel(
+      const std::string& modelDir, std::atomic<bool>& shouldStop
+    );
+
     //Returns true if data was uploaded or upload was not needed.
     //Returns false if it was not, but not due to an error (e.g. shouldStop).
     //Raises an exception upon a repeated error that persists long enough.
@@ -115,11 +127,23 @@ namespace Client {
     std::string proxyHost;
     int proxyPort;
 
+    //Fixed string different on every startup but shared across all requests for this run of the client
+    std::string clientInstanceId;
+
     Logger* logger;
     Rand rand;
 
+    std::mutex downloadStateMutex;
+    std::map<std::string,std::shared_ptr<DownloadState>> downloadStateByUrl;
+
     //TODO if httplib is thread-safe, then we can remove this
     std::mutex mutex;
+
+
+    bool actuallyDownloadModel(
+      const Client::ModelInfo& modelInfo, const std::string& modelDir,
+      std::atomic<bool>& shouldStop
+    );
   };
 
 }
