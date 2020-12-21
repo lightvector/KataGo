@@ -132,7 +132,6 @@ namespace Client {
     std::string proxyHost;
     int proxyPort;
 
-
     //Fixed string different on every startup but shared across all requests for this run of the client
     std::string clientInstanceId;
 

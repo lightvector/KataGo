@@ -397,7 +397,13 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     maxRatingMatches = 1;
   }
   else {
-    maxRatingMatches = userCfg->getInt("maxRatingMatches", 1, 100000);
+    maxRatingMatches = userCfg->getInt("maxRatingMatches", 0, 100000);
+    logger.write("Setting maxRatingMatches to " + Global::intToString(maxRatingMatches));
+  }
+  bool disablePredownloadLoop = false;
+  if(userCfg->contains("disablePredownloadLoop")) {
+    disablePredownloadLoop = userCfg->getBool("disablePredownloadLoop");
+    logger.write("Setting disablePredownloadLoop to " + Global::boolToString(disablePredownloadLoop));
   }
 
   //Play selfplay games and rating games in chunks of this many at a time. Each server query
@@ -420,7 +426,11 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     watchOngoingGameInFileName = "watchgame.txt";
 
   //Connect to server and get global parameters for the run.
-  Client::Connection* connection = new Client::Connection(serverUrl,username,password,caCertsFile,proxyHost,proxyPort,&logger);
+  Client::Connection* connection = new Client::Connection(
+    serverUrl,username,password,caCertsFile,
+    proxyHost,proxyPort,
+    &logger
+  );
   const Client::RunParameters runParams = connection->getRunParameters();
 
   MakeDir::make(baseDir);
@@ -621,6 +631,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   //Loop at a random wide interval downloading the latest net if we're going to need it.
   //Randomize a bit so that the server sees download requests as being well-spaced out.
   auto preDownloadLoop = [&]() {
+    if(disablePredownloadLoop)
+      return;
     Rand preDownloadLoopRand;
     while(true) {
       if(shouldStop.load())
