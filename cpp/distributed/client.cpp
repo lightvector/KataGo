@@ -560,7 +560,7 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
         { "allow_rating_task", (allowRatingTask ? "true" : "false"), "", ""},
       };
       httplib::Result postResult = postMulti("/api/tasks/",items);
-      if(!allowRatingTask && postResult->status == 400 && postResult->body.find("server is only serving rating games right now")) {
+      if(!allowRatingTask && postResult && postResult->status == 400 && postResult->body.find("server is only serving rating games right now") != string::npos) {
         logger->write("Server is only serving rating games right now but we're full on how many we can accept, so we will sleep a while and then retry.");
         loopFailMode = LOOP_PARTIAL_SUCCESS_NO_LOG;
         std::this_thread::sleep_for(std::chrono::duration<double>(30.0));
