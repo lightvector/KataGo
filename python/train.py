@@ -656,7 +656,7 @@ while True:
   gc.collect()
 
   trainlog("=========================================================================")
-  trainlog("BEGINNING NEXT EPOCH")
+  trainlog("BEGINNING NEXT EPOCH " + str(num_epochs_this_instance))
   trainlog("=========================================================================")
   trainlog("Current time: " + str(datetime.datetime.now()))
   if globalstep is not None:
