@@ -674,6 +674,8 @@ string Connection::getTmpModelPath(const Client::ModelInfo& modelInfo, const str
 }
 
 void Client::ModelInfo::failIfSha256Mismatch(const string& modelPath) const {
+  if(isRandom)
+    return;
   string contents = Global::readFileBinary(modelPath);
   char hashResultBuf[65];
   SHA2::get256((const uint8_t*)contents.data(), contents.size(), hashResultBuf);
@@ -763,6 +765,8 @@ bool Connection::actuallyDownloadModel(
   const Client::ModelInfo& modelInfo, const string& modelDir,
   std::atomic<bool>& shouldStop
 ) {
+  if(modelInfo.isRandom)
+    return true;
   const string path = getModelPath(modelInfo,modelDir);
   Url url;
   try {
