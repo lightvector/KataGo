@@ -460,7 +460,7 @@ if __name__ == '__main__':
 
   out_files = [os.path.join(out_dir, "data%d.tfrecord" % i) for i in range(num_out_files)]
   out_tmp_dirs = [os.path.join(out_tmp_dir, "tmp.shuf%d" % i) for i in range(num_out_files)]
-  print("Writing %d output files" % num_out_files)
+  print("Writing %d output files with %d kept / %d desired rows" % (num_out_files, approx_rows_to_keep, desired_num_rows))
 
   def clean_tmp_dirs():
     for tmp_dir in out_tmp_dirs:
