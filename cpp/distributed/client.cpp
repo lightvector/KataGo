@@ -77,9 +77,9 @@ static json parseJson(const httplib::Result& response) {
 //Hacky custom URL parsing, probably isn't fully general but should be good enough for now.
 struct Url {
   string originalString;
-  bool isSSL;
+  bool isSSL = true;
   string host;
-  int port;
+  int port = 0;
   string path;
 
   static Url parse(const string& s) {
@@ -125,6 +125,19 @@ struct Url {
       ret.path = url;
 
     return ret;
+  }
+
+  void replacePath(const string& newPath) {
+    originalString = "";
+    if(isSSL)
+      originalString += "https://";
+    else
+      originalString += "http://";
+    originalString += host;
+    if((isSSL && port != 443) || (!isSSL && port != 80))
+      originalString += ":" + Global::intToString(port);
+    originalString += newPath;
+    path = newPath;
   }
 };
 
@@ -178,6 +191,7 @@ Connection::Connection(
   const string& caCerts,
   const string& pHost,
   int pPort,
+  const string& mdmbu,
   Logger* lg
 )
   :httpClient(),
@@ -190,6 +204,7 @@ Connection::Connection(
    caCertsFile(caCerts),
    proxyHost(pHost),
    proxyPort(pPort),
+   modelDownloadMirrorBaseUrl(mdmbu),
    clientInstanceId(),
    logger(lg),
    rand(),
@@ -201,6 +216,15 @@ Connection::Connection(
   }
   catch(const StringError& e) {
     throw StringError(string("Could not parse serverUrl in config: ") + e.what());
+  }
+  if(modelDownloadMirrorBaseUrl != "") {
+    try {
+      Url mirrorUrl = Url::parse(modelDownloadMirrorBaseUrl);
+      (void)mirrorUrl;
+    }
+    catch(const StringError& e) {
+      throw StringError(string("Could not parse modelDownloadMirrorBaseUrl in config: ") + e.what());
+    }
   }
 
   isSSL = url.isSSL;
@@ -768,9 +792,17 @@ bool Connection::actuallyDownloadModel(
   if(modelInfo.isRandom)
     return true;
   const string path = getModelPath(modelInfo,modelDir);
-  Url url;
+  Url urlToActuallyUse;
   try {
-    url = Url::parse(modelInfo.downloadUrl);
+    if(modelDownloadMirrorBaseUrl != "") {
+      Url urlFromServer = Url::parse(modelInfo.downloadUrl);
+      urlToActuallyUse = Url::parse(modelDownloadMirrorBaseUrl);
+      urlToActuallyUse.replacePath(urlFromServer.path);
+      logger->write("Attempting to download from mirror server: " + urlToActuallyUse.originalString);
+    }
+    else {
+      urlToActuallyUse = Url::parse(modelInfo.downloadUrl);
+    }
   }
   catch(const StringError& e) {
     throw StringError(string("Could not parse URL to download model: ") + e.what());
@@ -790,14 +822,18 @@ bool Connection::actuallyDownloadModel(
     auto fInner = [&](int& innerLoopFailMode) {
       const size_t oldTotalDataSize = totalDataSize;
       httplib::Result response = oneShotDownload(
-        logger, url, caCertsFile, proxyHost, proxyPort, oldTotalDataSize, modelInfo.bytes,
-        [&out,&totalDataSize,&shouldStop,this,&timer,&lastTime,&url,&modelInfo](const char* data, size_t data_length) {
+        logger, urlToActuallyUse, caCertsFile, proxyHost, proxyPort, oldTotalDataSize, modelInfo.bytes,
+        [&out,&totalDataSize,&shouldStop,this,&timer,&lastTime,&urlToActuallyUse,&modelInfo](const char* data, size_t data_length) {
           out.write(data, data_length);
           totalDataSize += data_length;
           double nowTime = timer.getSeconds();
           if(nowTime > lastTime + 1.0) {
             lastTime = nowTime;
-            logger->write(string("Downloaded ") + Global::uint64ToString(totalDataSize) + " / " + Global::uint64ToString(modelInfo.bytes) + " bytes for model: " + url.originalString);
+            logger->write(
+              string("Downloaded ") +
+              Global::uint64ToString(totalDataSize) + " / " + Global::uint64ToString(modelInfo.bytes) +
+              " bytes for model: " + urlToActuallyUse.originalString
+            );
           }
           return !shouldStop.load();
         }
@@ -853,7 +889,7 @@ bool Connection::actuallyDownloadModel(
     //Done! Rename the file into the right place
     std::rename(tmpPath.c_str(),path.c_str());
 
-    logger->write(string("Done downloading ") + Global::uint64ToString(totalDataSize) + " bytes for model: " + url.originalString);
+    logger->write(string("Done downloading ") + Global::uint64ToString(totalDataSize) + " bytes for model: " + urlToActuallyUse.originalString);
   };
   const int maxTries = 2;
   return retryLoop("downloadModelIfNotPresent",maxTries,shouldStop,fOuter);

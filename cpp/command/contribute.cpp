@@ -405,6 +405,10 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     disablePredownloadLoop = userCfg->getBool("disablePredownloadLoop");
     logger.write("Setting disablePredownloadLoop to " + Global::boolToString(disablePredownloadLoop));
   }
+  string modelDownloadMirrorBaseUrl;
+  if(userCfg->contains("modelDownloadMirrorBaseUrl")) {
+    modelDownloadMirrorBaseUrl = userCfg->getString("modelDownloadMirrorBaseUrl");
+  }
 
   //Play selfplay games and rating games in chunks of this many at a time. Each server query
   //gets fanned out into this many games. Having this value be larger helps ensure batching for
@@ -429,6 +433,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   Client::Connection* connection = new Client::Connection(
     serverUrl,username,password,caCertsFile,
     proxyHost,proxyPort,
+    modelDownloadMirrorBaseUrl,
     &logger
   );
   const Client::RunParameters runParams = connection->getRunParameters();

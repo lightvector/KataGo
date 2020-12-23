@@ -62,6 +62,7 @@ namespace Client {
       const std::string& caCertsFile,
       const std::string& proxyHost,
       int proxyPort,
+      const std::string& modelDownloadProxyBaseUrl,
       Logger* logger
     );
     ~Connection();
@@ -131,6 +132,8 @@ namespace Client {
     std::string caCertsFile;
     std::string proxyHost;
     int proxyPort;
+
+    std::string modelDownloadMirrorBaseUrl;
 
     //Fixed string different on every startup but shared across all requests for this run of the client
     std::string clientInstanceId;
