@@ -192,6 +192,7 @@ Connection::Connection(
   const string& pHost,
   int pPort,
   const string& mdmbu,
+  const bool mup,
   Logger* lg
 )
   :httpClient(),
@@ -205,6 +206,7 @@ Connection::Connection(
    proxyHost(pHost),
    proxyPort(pPort),
    modelDownloadMirrorBaseUrl(mdmbu),
+   mirrorUseProxy(mup),
    clientInstanceId(),
    logger(lg),
    rand(),
@@ -825,8 +827,9 @@ bool Connection::actuallyDownloadModel(
       const size_t oldTotalDataSize = totalDataSize;
       const size_t startByte = oldTotalDataSize;
       const size_t endByte = modelInfo.bytes-1;
+      const string proxyHostToUse = mirrorUseProxy ? proxyHost : "";
       httplib::Result response = oneShotDownload(
-        logger, urlToActuallyUse, caCertsFile, proxyHost, proxyPort, startByte, endByte,
+        logger, urlToActuallyUse, caCertsFile, proxyHostToUse, proxyPort, startByte, endByte,
         [&out,&totalDataSize,&shouldStop,this,&timer,&lastTime,&urlToActuallyUse,&modelInfo](const char* data, size_t data_length) {
           out.write(data, data_length);
           totalDataSize += data_length;

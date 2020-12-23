@@ -406,8 +406,14 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     logger.write("Setting disablePredownloadLoop to " + Global::boolToString(disablePredownloadLoop));
   }
   string modelDownloadMirrorBaseUrl;
+  bool mirrorUseProxy = true;
   if(userCfg->contains("modelDownloadMirrorBaseUrl")) {
     modelDownloadMirrorBaseUrl = userCfg->getString("modelDownloadMirrorBaseUrl");
+    logger.write("Setting modelDownloadMirrorBaseUrl to " + modelDownloadMirrorBaseUrl);
+    if(userCfg->contains("mirrorUseProxy")) {
+      mirrorUseProxy = userCfg->getBool("mirrorUseProxy");
+      logger.write("Setting mirrorUseProxy to " + Global::boolToString(mirrorUseProxy));
+    }
   }
 
   //Play selfplay games and rating games in chunks of this many at a time. Each server query
@@ -434,6 +440,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     serverUrl,username,password,caCertsFile,
     proxyHost,proxyPort,
     modelDownloadMirrorBaseUrl,
+    mirrorUseProxy,
     &logger
   );
   const Client::RunParameters runParams = connection->getRunParameters();
