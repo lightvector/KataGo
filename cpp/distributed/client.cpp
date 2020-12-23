@@ -147,8 +147,8 @@ static httplib::Result oneShotDownload(
   const string& caCertsFile,
   const string& proxyHost,
   const int& proxyPort,
-  size_t startByte,
-  size_t endByte,
+  size_t startByte, //inclusive
+  size_t endByte, //inclusive
   std::function<bool(const char *data, size_t data_length)> f
 ) {
   httplib::Headers headers;
@@ -820,9 +820,13 @@ bool Connection::actuallyDownloadModel(
     size_t totalDataSize = 0;
 
     auto fInner = [&](int& innerLoopFailMode) {
+      if(totalDataSize >= modelInfo.bytes)
+        return;
       const size_t oldTotalDataSize = totalDataSize;
+      const size_t startByte = oldTotalDataSize;
+      const size_t endByte = modelInfo.bytes-1;
       httplib::Result response = oneShotDownload(
-        logger, urlToActuallyUse, caCertsFile, proxyHost, proxyPort, oldTotalDataSize, modelInfo.bytes,
+        logger, urlToActuallyUse, caCertsFile, proxyHost, proxyPort, startByte, endByte,
         [&out,&totalDataSize,&shouldStop,this,&timer,&lastTime,&urlToActuallyUse,&modelInfo](const char* data, size_t data_length) {
           out.write(data, data_length);
           totalDataSize += data_length;
