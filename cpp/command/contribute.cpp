@@ -669,9 +669,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     while(true) {
       if(shouldStop.load())
         return;
-      logger.write("DEBUG: Maybe predownloading model");
+      logger.write("Maybe predownloading model...");
       connection->maybeDownloadNewestModel(modelsDir,shouldStop);
-      logger.write("DEBUG: Done maybe predownloading model");
       //20 to 25 minutes
       double sleepTimeTotal = preDownloadLoopRand.nextDouble(1200,1500);
       constexpr double stopPollFrequency = 5.0;
