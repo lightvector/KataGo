@@ -850,6 +850,9 @@ bool Connection::actuallyDownloadModel(
               " bytes for model: " + urlToActuallyUse.originalString
             );
           }
+          //Something is wrong if we've downloaded more bytes than exist in the model. Halt the download at that point
+          if(totalDataSize > modelInfo.bytes)
+            return false;
           return !shouldStop.load();
         }
       );
@@ -906,7 +909,7 @@ bool Connection::actuallyDownloadModel(
 
     logger->write(string("Done downloading ") + Global::uint64ToString(totalDataSize) + " bytes for model: " + urlToActuallyUse.originalString);
   };
-  const int maxTries = 2;
+  const int maxTries = 4;
   return retryLoop("downloadModelIfNotPresent",maxTries,shouldStop,fOuter);
 }
 

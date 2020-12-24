@@ -563,7 +563,18 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     logger.write("Found new neural net " + modelName);
 
     //At load time, check the sha256 again to make sure we have the right thing.
-    modelInfo.failIfSha256Mismatch(modelFile);
+    try {
+      modelInfo.failIfSha256Mismatch(modelFile);
+    }
+    catch(const StringError& e) {
+      //If it's wrong, fail (it means someone modified the file on disk, or there was harddrive corruption, or something, since that file
+      //must have been valid at download time), but also rename the file out of the way so that if we restart the program, the next try
+      //will do a fresh download.
+      string newName = modelFile + ".invalid";
+      logger.write("Model file modified or corrupted on disk, sha256 no longer matches? Moving it to " + newName + " and failing.");
+      std::rename(modelFile.c_str(),newName.c_str());
+      throw;
+    }
 
     int maxSimultaneousGamesThisNet = isRatingManager ? maxSimultaneousRatingGamesPossible : maxSimultaneousGames;
     int maxConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGamesThisNet * 2 + 16;
