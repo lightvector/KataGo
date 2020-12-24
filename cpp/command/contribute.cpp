@@ -392,8 +392,17 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   else {
     maxSimultaneousGames = userCfg->getInt("maxSimultaneousGames", 1, 4000);
   }
+  bool onlyPlayRatingMatches = false;
+  if(userCfg->contains("onlyPlayRatingMatches")) {
+    onlyPlayRatingMatches = userCfg->getBool("onlyPlayRatingMatches");
+    logger.write("Setting onlyPlayRatingMatches to " + Global::boolToString(onlyPlayRatingMatches));
+  }
+
   int maxRatingMatches;
-  if(!userCfg->contains("maxRatingMatches")) {
+  if(onlyPlayRatingMatches) {
+    maxRatingMatches = 100000000;
+  }
+  else if(!userCfg->contains("maxRatingMatches")) {
     maxRatingMatches = 1;
   }
   else {
@@ -695,9 +704,10 @@ int MainCmds::contribute(int argc, const char* const* argv) {
         numRatingGamesActive.load(std::memory_order_acquire) <= (maxRatingMatches - 1) * taskRepFactor &&
         (int64_t)ratingManager->numModels() <= maxRatingMatches * 2 - 2
       );
+      bool allowSelfplayTask = !onlyPlayRatingMatches;
 
       Client::Task task;
-      bool suc = connection->getNextTask(task,baseDir,retryOnFailure,allowRatingTask,taskRepFactor,shouldStop);
+      bool suc = connection->getNextTask(task,baseDir,retryOnFailure,allowSelfplayTask,allowRatingTask,taskRepFactor,shouldStop);
       if(!suc)
         continue;
 

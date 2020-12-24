@@ -570,7 +570,15 @@ static Client::ModelInfo parseModelInfo(const json& networkProperties) {
   return model;
 }
 
-bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFailure, bool allowRatingTask, int taskRepFactor, std::atomic<bool>& shouldStop) {
+bool Connection::getNextTask(
+  Task& task,
+  const string& baseDir,
+  bool retryOnFailure,
+  bool allowSelfplayTask,
+  bool allowRatingTask,
+  int taskRepFactor,
+  std::atomic<bool>& shouldStop
+) {
   (void)baseDir;
 
   auto f = [&](int& loopFailMode) {
@@ -582,7 +590,7 @@ bool Connection::getNextTask(Task& task, const string& baseDir, bool retryOnFail
         { "git_revision", Version::getGitRevision(), "", "" },
         { "client_instance_id", clientInstanceId, "", "" },
         { "task_rep_factor", Global::intToString(taskRepFactor), "", ""},
-        { "allow_selfplay_task", "true", "", ""},
+        { "allow_selfplay_task", (allowSelfplayTask ? "true" : "false"), "", ""},
         { "allow_rating_task", (allowRatingTask ? "true" : "false"), "", ""},
       };
       httplib::Result postResult = postMulti("/api/tasks/",items);

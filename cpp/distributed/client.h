@@ -80,6 +80,7 @@ namespace Client {
       Task& task,
       const std::string& baseDir,
       bool retryOnFailure,
+      bool allowSelfplayTask,
       bool allowRatingTask,
       int taskRepFactor,
       std::atomic<bool>& shouldStop
