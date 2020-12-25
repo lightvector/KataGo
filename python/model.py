@@ -668,31 +668,19 @@ class Model:
     self.outputs_by_layer.append((name,trunk))
     return trunk
 
-  def conv_weight_variable(self, name, diam1, diam2, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None, reg=True):
+  def conv_weight_variable(self, name, diam1, diam2, in_channels, out_channels, scale_initial_weights=1.0, reg=True):
     radius1 = diam1 // 2
     radius2 = diam2 // 2
 
-    if emphasize_center_weight is None:
-      weights = self.weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights,reg=reg)
-    else:
-      extra_initial_weight = self.init_weights([1,1,in_channels,out_channels], in_channels, out_channels) * emphasize_center_weight
-      extra_initial_weight = tf.pad(extra_initial_weight, [(radius1,radius1),(radius2,radius2),(0,0),(0,0)])
-      weights = self.weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights,extra_initial_weight,reg=reg)
-
-    if emphasize_center_lr is not None:
-      factor = tf.constant([emphasize_center_lr],dtype=tf.float32)
-      factor = tf.reshape(factor,[1,1,1,1])
-      factor = tf.pad(factor, [(radius1,radius1),(radius2,radius2),(0,0),(0,0)], constant_values=1.0)
-      self.add_lr_factor(weights.name, factor)
-
+    weights = self.weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights,reg=reg)
     return weights
 
   #Convolutional layer with batch norm and nonlinear activation
   def conv_block(
       self, name, in_layer, mask, mask_sum, diam, in_channels, out_channels,
-      scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None
+      scale_initial_weights=1.0
   ):
-    weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+    weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights)
     convolved = self.conv2d(in_layer, weights)
     self.outputs_by_layer.append((name+"/prenorm",convolved))
     out_layer = self.relu(name+"/relu",self.batchnorm_and_mask(name+"/norm",convolved,mask,mask_sum))
@@ -702,9 +690,9 @@ class Model:
   #Convolution only, no batch norm or nonlinearity
   def conv_only_block(
       self, name, in_layer, diam, in_channels, out_channels,
-      scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None, reg=True
+      scale_initial_weights=1.0, reg=True
   ):
-    weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr, reg=reg)
+    weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, reg=reg)
     out_layer = self.conv2d(in_layer, weights)
     self.outputs_by_layer.append((name,out_layer))
     return out_layer
@@ -712,13 +700,13 @@ class Model:
   #Convolutional residual block with internal batch norm and nonlinear activation
   def res_conv_block(
       self, name, in_layer, mask, mask_sum, diam, main_channels, mid_channels,
-      scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None
+      scale_initial_weights=1.0
   ):
     trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask,mask_sum)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
     fixup_scale = 1.0 / math.sqrt(self.num_blocks) if self.use_fixup else 1.0
-    weights1 = self.conv_weight_variable(name+"/w1", diam, diam, main_channels, mid_channels, scale_initial_weights * fixup_scale, emphasize_center_weight, emphasize_center_lr)
+    weights1 = self.conv_weight_variable(name+"/w1", diam, diam, main_channels, mid_channels, scale_initial_weights * fixup_scale)
     conv1_layer = self.conv2d(trans1_layer, weights1)
     self.outputs_by_layer.append((name+"/conv1",conv1_layer))
 
@@ -726,7 +714,7 @@ class Model:
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
     fixup_scale_last_layer = 0.0 if self.use_fixup else 1.0
-    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights*fixup_scale_last_layer, emphasize_center_weight, emphasize_center_lr)
+    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights*fixup_scale_last_layer)
     conv2_layer = self.conv2d(trans2_layer, weights2)
     self.outputs_by_layer.append((name+"/conv2",conv2_layer))
 
@@ -736,15 +724,15 @@ class Model:
   def global_res_conv_block(
       self, name, in_layer, mask, mask_sum, mask_sum_hw, mask_sum_hw_sqrt,
       diam, main_channels, mid_channels, global_mid_channels,
-      scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None
+      scale_initial_weights=1.0
   ):
     trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask,mask_sum)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
     fixup_scale2 = 1.0 / math.sqrt(self.num_blocks) if self.use_fixup else 1.0
     fixup_scale4 = 1.0 / (self.num_blocks ** (1.0 / 4.0)) if self.use_fixup else 1.0
-    weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights * fixup_scale2, emphasize_center_weight, emphasize_center_lr)
-    weights1b = self.conv_weight_variable(name+"/w1b", diam, diam, main_channels, global_mid_channels, scale_initial_weights * fixup_scale4, emphasize_center_weight, emphasize_center_lr)
+    weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights * fixup_scale2)
+    weights1b = self.conv_weight_variable(name+"/w1b", diam, diam, main_channels, global_mid_channels, scale_initial_weights * fixup_scale4)
     conv1a_layer = self.conv2d(trans1_layer, weights1a)
     conv1b_layer = self.conv2d(trans1_layer, weights1b)
     self.outputs_by_layer.append((name+"/conv1a",conv1a_layer))
@@ -760,20 +748,20 @@ class Model:
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
     fixup_scale_last_layer = 0.0 if self.use_fixup else 1.0
-    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights * fixup_scale_last_layer, emphasize_center_weight, emphasize_center_lr)
+    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights * fixup_scale_last_layer)
     conv2_layer = self.conv2d(trans2_layer, weights2)
     self.outputs_by_layer.append((name+"/conv2",conv2_layer))
 
     return conv2_layer
 
   #Convolutional residual block with internal batch norm and nonlinear activation
-  def dilated_res_conv_block(self, name, in_layer, mask, mask_sum, diam, main_channels, mid_channels, dilated_mid_channels, dilation, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+  def dilated_res_conv_block(self, name, in_layer, mask, mask_sum, diam, main_channels, mid_channels, dilated_mid_channels, dilation, scale_initial_weights=1.0):
     trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask,mask_sum)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
     fixup_scale = 1.0 / math.sqrt(self.num_blocks) if self.use_fixup else 1.0
-    weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights*fixup_scale, emphasize_center_weight, emphasize_center_lr)
-    weights1b = self.conv_weight_variable(name+"/w1b", diam, diam, main_channels, dilated_mid_channels, scale_initial_weights*fixup_scale, emphasize_center_weight, emphasize_center_lr)
+    weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights*fixup_scale)
+    weights1b = self.conv_weight_variable(name+"/w1b", diam, diam, main_channels, dilated_mid_channels, scale_initial_weights*fixup_scale)
     conv1a_layer = self.conv2d(trans1_layer, weights1a)
     conv1b_layer = self.dilated_conv2d(trans1_layer, weights1b, dilation=dilation)
     self.outputs_by_layer.append((name+"/conv1a",conv1a_layer))
@@ -785,7 +773,7 @@ class Model:
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
     fixup_scale_last_layer = 0.0 if self.use_fixup else 1.0
-    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels+dilated_mid_channels, main_channels, scale_initial_weights * fixup_scale_last_layer, emphasize_center_weight, emphasize_center_lr)
+    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels+dilated_mid_channels, main_channels, scale_initial_weights * fixup_scale_last_layer)
     conv2_layer = self.conv2d(trans2_layer, weights2)
     self.outputs_by_layer.append((name+"/conv2",conv2_layer))
 
