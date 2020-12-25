@@ -499,6 +499,8 @@ class Model:
     raise Exception("Could not find variable " + name)
 
   def add_lr_factor(self,name,factor):
+    if not self.is_training:
+      return
     self.ensure_variable_exists(name)
     if name in self.lr_adjusted_variables:
       self.lr_adjusted_variables[name] = factor * self.lr_adjusted_variables[name]
