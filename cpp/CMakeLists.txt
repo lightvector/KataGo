@@ -7,7 +7,10 @@ include_directories(external)
 include_directories(external/tclap-1.2.2/include)
 include_directories(SYSTEM external/filesystem-1.3.6/include) #SYSTEM suppresses a few warnings
 
-cmake_policy(SET CMP0104 OLD)
+if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.18.0")
+  # Suppress a warning message for setting cuda flags that still works fine for now
+  cmake_policy(SET CMP0104 OLD)
+endif()
 
 #--------------------------- PLATFORM SPECIFIC -------------------------------------------------------------------------
 
