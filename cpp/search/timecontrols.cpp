@@ -264,13 +264,14 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
     }
 
     //Crudely treat all but the last 5 periods as main time.
-    if(effectiveNumPeriodsLeftIncludingCurrent > 5) {
+    constexpr int NUM_RESERVED_PERIODS = 5;
+    if(effectiveNumPeriodsLeftIncludingCurrent > NUM_RESERVED_PERIODS) {
       effectivelyInOvertime = false;
       if(!inOvertime) {
-        effectiveMainTimeLeft += perPeriodTime * (effectiveNumPeriodsLeftIncludingCurrent - 5);
+        effectiveMainTimeLeft += perPeriodTime * (effectiveNumPeriodsLeftIncludingCurrent - NUM_RESERVED_PERIODS);
       }
       else {
-        effectiveMainTimeLeft += effectiveTimeLeftInPeriod + perPeriodTime * (effectiveNumPeriodsLeftIncludingCurrent - 6);
+        effectiveMainTimeLeft += effectiveTimeLeftInPeriod + perPeriodTime * (effectiveNumPeriodsLeftIncludingCurrent - NUM_RESERVED_PERIODS - 1);
       }
     }
 
@@ -293,6 +294,19 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
     else {
       if(effectiveNumStonesLeftInPeriod < 1)
         throw StringError("TimeControls: effectiveNumStonesLeftInPeriod < 1 while in overtime, inconsistent time control?");
+
+      //If we're somehow lagging or reconnected so that we ended up very far in the period, and we have some periods left, then
+      //go ahead and use a period so that we get more thinking time.
+      if(
+        effectiveNumPeriodsLeftIncludingCurrent > 1 &&
+        //TODO this should take into account previous-turn thinking time, if we have enough we should be willing to insta-move to
+        //save a period
+          applyLagBuffer(effectiveTimeLeftInPeriod,lagBufferToUse) <
+          applyLagBuffer(0.5 * perPeriodTime,lagBufferToUse) * (effectiveNumPeriodsLeftIncludingCurrent-1) / (NUM_RESERVED_PERIODS-1)
+      ) {
+        effectiveNumPeriodsLeftIncludingCurrent -= 1;
+        effectiveTimeLeftInPeriod += perPeriodTime;
+      }
 
       minTime = (effectiveNumStonesLeftInPeriod <= 1) ? effectiveTimeLeftInPeriod : 0.0;
       recommendedTime = effectiveTimeLeftInPeriod / effectiveNumStonesLeftInPeriod;

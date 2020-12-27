@@ -103,14 +103,14 @@ White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTim
 : = 
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 9 9 9
-White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 minRecMax 0 0 0
+White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 minRecMax 4 4 4
 : Controller: time_left black 10 6
 : = 
 : Controller: time_left white 0 6
 : = 
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 9 9 9
-White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 minRecMax 0 0 0
+White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 minRecMax 4 4 4
 : Controller: kgs-time_settings byoyomi 20 7 7
 : = 
 : Controller: kata-debug-print-tc
@@ -136,28 +136,35 @@ White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTim
 : = 
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 9 9 9
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 minRecMax 0 0 0
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 minRecMax 6 6 6
 : Controller: time_left black 10 4
 : = 
 : Controller: time_left white 0 4
 : = 
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 9 9 9
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 minRecMax 0 0 0
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 minRecMax 6 6 6
 : Controller: time_left black 10 3
 : = 
 : Controller: time_left white 0 3
 : = 
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 3 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 9 9 9
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 3 numStonesLeftInPeriod 1 minRecMax 0 0 0
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 3 numStonesLeftInPeriod 1 minRecMax 6 6 6
 : Controller: time_left black 10 2
 : = 
 : Controller: time_left white 0 2
 : = 
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 2 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 9 9 9
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 2 numStonesLeftInPeriod 1 minRecMax 0 0 0
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 2 numStonesLeftInPeriod 1 minRecMax 5 5 5
+: Controller: time_left black 10 1
+: = 
+: Controller: time_left white 0 1
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 1 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 8 8 8
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 1 numStonesLeftInPeriod 1 minRecMax 0 0 0
 : Controller: time_left black 10 0
 : = 
 : Controller: time_left white 0 0
@@ -176,14 +183,14 @@ White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTim
 : = 
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 8 minRecMax 7 7 7
-White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 6 6 6
 : Controller: time_left black 8 6
 : = 
 : Controller: time_left white 2 6
 : = 
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 8 minRecMax 7 7 7
-White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 6 6 6
 : Controller: kgs-time_settings byoyomi 20 7 7
 : = 
 : Controller: kata-debug-print-tc
@@ -209,21 +216,21 @@ White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTim
 : = 
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 8 minRecMax 7 7 7
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 8 8 8
 : Controller: time_left black 8 4
 : = 
 : Controller: time_left white 2 4
 : = 
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 timeLeftInPeriod 8 minRecMax 7 7 7
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 8 8 8
 : Controller: time_left black 8 3
 : = 
 : Controller: time_left white 2 3
 : = 
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 3 numStonesLeftInPeriod 1 timeLeftInPeriod 8 minRecMax 7 7 7
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 3 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 3 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 8 8 8
 : Controller: time_left black 8 2
 : = 
 : Controller: time_left white 2 2
@@ -231,6 +238,13 @@ White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTim
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 2 numStonesLeftInPeriod 1 timeLeftInPeriod 8 minRecMax 7 7 7
 White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 2 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 1 1 1
+: Controller: time_left black 8 1
+: = 
+: Controller: time_left white 2 1
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 1 numStonesLeftInPeriod 1 timeLeftInPeriod 8 minRecMax 6 6 6
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 1 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 1 1 1
 : Controller: time_left black 8 0
 : = 
 : Controller: time_left white 2 0
@@ -256,21 +270,21 @@ White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTim
 : = 
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 6 numStonesLeftInPeriod 1 timeLeftInPeriod -1 minRecMax 5 5 5
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 6 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 6 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 8 8 8
 : Controller: time_left black -1 5
 : = 
 : Controller: time_left white -5 5
 : = 
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod -1 minRecMax 5 5 5
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 8 8 8
 : Controller: time_left black -1 4
 : = 
 : Controller: time_left white -5 4
 : = 
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 timeLeftInPeriod -1 minRecMax 5 5 5
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 8 8 8
 : Controller: time_left black -1 3
 : = 
 : Controller: time_left white -5 3
@@ -285,6 +299,13 @@ White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTim
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 2 numStonesLeftInPeriod 1 timeLeftInPeriod -1 minRecMax 4 4 4
 White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 2 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 1 1 1
+: Controller: time_left black -1 1
+: = 
+: Controller: time_left white -5 1
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 1 numStonesLeftInPeriod 1 timeLeftInPeriod -1 minRecMax 0 0 0
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 1 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 0 0 0
 : Controller: time_left black -1 0
 : = 
 : Controller: time_left white -5 0

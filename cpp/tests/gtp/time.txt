@@ -68,6 +68,9 @@ kata-debug-print-tc
 time_left black 10 2
 time_left white 0 2
 kata-debug-print-tc
+time_left black 10 1
+time_left white 0 1
+kata-debug-print-tc
 time_left black 10 0
 time_left white 0 0
 kata-debug-print-tc
@@ -101,6 +104,9 @@ kata-debug-print-tc
 time_left black 8 2
 time_left white 2 2
 kata-debug-print-tc
+time_left black 8 1
+time_left white 2 1
+kata-debug-print-tc
 time_left black 8 0
 time_left white 2 0
 kata-debug-print-tc
@@ -125,6 +131,9 @@ time_left white -5 3
 kata-debug-print-tc
 time_left black -1 2
 time_left white -5 2
+kata-debug-print-tc
+time_left black -1 1
+time_left white -5 1
 kata-debug-print-tc
 time_left black -1 0
 time_left white -5 0

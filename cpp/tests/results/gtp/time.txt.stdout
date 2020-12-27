@@ -88,14 +88,14 @@ White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTim
 = 
 
 = Black originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 9 9 9
-White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 minRecMax 0 0 0
+White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 minRecMax 4 4 4
 
 = 
 
 = 
 
 = Black originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 9 9 9
-White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 minRecMax 0 0 0
+White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 minRecMax 4 4 4
 
 = 
 
@@ -121,28 +121,35 @@ White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTim
 = 
 
 = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 9 9 9
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 minRecMax 0 0 0
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 minRecMax 6 6 6
 
 = 
 
 = 
 
 = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 9 9 9
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 minRecMax 0 0 0
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 minRecMax 6 6 6
 
 = 
 
 = 
 
 = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 3 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 9 9 9
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 3 numStonesLeftInPeriod 1 minRecMax 0 0 0
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 3 numStonesLeftInPeriod 1 minRecMax 6 6 6
 
 = 
 
 = 
 
 = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 2 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 9 9 9
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 2 numStonesLeftInPeriod 1 minRecMax 0 0 0
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 2 numStonesLeftInPeriod 1 minRecMax 5 5 5
+
+= 
+
+= 
+
+= Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 1 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 8 8 8
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 1 numStonesLeftInPeriod 1 minRecMax 0 0 0
 
 = 
 
@@ -161,14 +168,14 @@ White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTim
 = 
 
 = Black originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 8 minRecMax 7 7 7
-White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 6 6 6
 
 = 
 
 = 
 
 = Black originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 8 minRecMax 7 7 7
-White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 6 6 6
 
 = 
 
@@ -194,21 +201,21 @@ White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTim
 = 
 
 = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 8 minRecMax 7 7 7
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 8 8 8
 
 = 
 
 = 
 
 = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 timeLeftInPeriod 8 minRecMax 7 7 7
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 8 8 8
 
 = 
 
 = 
 
 = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 3 numStonesLeftInPeriod 1 timeLeftInPeriod 8 minRecMax 7 7 7
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 3 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 3 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 8 8 8
 
 = 
 
@@ -216,6 +223,13 @@ White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTim
 
 = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 2 numStonesLeftInPeriod 1 timeLeftInPeriod 8 minRecMax 7 7 7
 White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 2 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 1 1 1
+
+= 
+
+= 
+
+= Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 1 numStonesLeftInPeriod 1 timeLeftInPeriod 8 minRecMax 6 6 6
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 1 numStonesLeftInPeriod 1 timeLeftInPeriod 2 minRecMax 1 1 1
 
 = 
 
@@ -241,21 +255,21 @@ White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTim
 = 
 
 = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 6 numStonesLeftInPeriod 1 timeLeftInPeriod -1 minRecMax 5 5 5
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 6 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 6 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 8 8 8
 
 = 
 
 = 
 
 = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod -1 minRecMax 5 5 5
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 8 8 8
 
 = 
 
 = 
 
 = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 timeLeftInPeriod -1 minRecMax 5 5 5
-White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 1 1 1
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 4 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 8 8 8
 
 = 
 
@@ -270,6 +284,13 @@ White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTim
 
 = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 2 numStonesLeftInPeriod 1 timeLeftInPeriod -1 minRecMax 4 4 4
 White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 2 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 1 1 1
+
+= 
+
+= 
+
+= Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 1 numStonesLeftInPeriod 1 timeLeftInPeriod -1 minRecMax 0 0 0
+White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 1 numStonesLeftInPeriod 1 timeLeftInPeriod -5 minRecMax 0 0 0
 
 = 
 
