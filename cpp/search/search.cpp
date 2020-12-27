@@ -504,6 +504,18 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bo
   runWholeSearch(logger,shouldStopNow,searchBegun,pondering,TimeControls(),1.0);
 }
 
+double Search::numVisitsNeededToBeNonFutile(double maxVisitsMoveVisits) {
+  double requiredVisits = searchParams.futileVisitsTimeThreshold * maxVisitsMoveVisits;
+  //In the case where we're playing high temperature, also require that we can't get to more than a 1:100 odds of playing the move.
+  double chosenMoveTemperature = interpolateEarly(
+    searchParams.chosenMoveTemperatureHalflife, searchParams.chosenMoveTemperatureEarly, searchParams.chosenMoveTemperature
+  );
+  if(chosenMoveTemperature < 1e-3)
+    return requiredVisits;
+  double requiredVisitsDueToTemp = maxVisitsMoveVisits * pow(0.01, chosenMoveTemperature);
+  return std::min(requiredVisits, requiredVisitsDueToTemp);
+}
+
 double Search::recomputeSearchTimeLimit(const TimeControls& tc, double timeUsed, double searchFactor) {
   double tcMin;
   double tcRec;
@@ -584,11 +596,13 @@ double Search::recomputeSearchTimeLimit(const TimeControls& tc, double timeUsed,
               for(int i = 0; i<numMoves; i++)
                 sumVisits += visitCounts[i];
 
+              double maxVisitsLeft = proportionOfTimeThoughtLeft * sumVisits;
+              double requiredVisits = numVisitsNeededToBeNonFutile(visitCounts[maxVisitsIdx]);
               bool foundPossibleAlternativeMove = false;
               for(int i = 0; i<numMoves; i++) {
                 if(i == bestMoveIdx)
                   continue;
-                if(visitCounts[i] + proportionOfTimeThoughtLeft * sumVisits > searchParams.futileVisitsTimeThreshold * visitCounts[maxVisitsIdx]) {
+                if(visitCounts[i] + maxVisitsLeft >= requiredVisits) {
                   foundPossibleAlternativeMove = true;
                   break;
                 }

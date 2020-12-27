@@ -359,6 +359,7 @@ private:
 
   void computeRootValues();
 
+  double numVisitsNeededToBeNonFutile(double maxVisitsMoveVisits);
   double recomputeSearchTimeLimit(const TimeControls& tc, double timeUsed, double searchFactor);
 
   double getScoreUtility(double scoreMeanSum, double scoreMeanSqSum, double weightSum) const;
