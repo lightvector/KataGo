@@ -85,8 +85,18 @@ oox.ox...
     double recommendedTime;
     double maxTime;
     timeControls.getTime(board,hist,lagBuffer,minTime,recommendedTime,maxTime);
+    //Rounded time limit recommendation at the start of search
+    double rrec0 = timeControls.roundUpTimeLimitIfNeeded(lagBuffer,0,recommendedTime);
+    //Rounded time limit recommendation as we're just about to hit limit
+    double rreclimit = timeControls.roundUpTimeLimitIfNeeded(lagBuffer,recommendedTime-0.000001,recommendedTime);
+    //Rounded time limit recommendation as we're just about to hit rounded limit
+    double rreclimit2 = timeControls.roundUpTimeLimitIfNeeded(lagBuffer,rreclimit-0.000001,rreclimit);
+
     cout << s << " min rec max = " << minTime << " " << recommendedTime << " " << maxTime
-    << " roundedrec " << timeControls.roundUpTimeLimitIfNeeded(lagBuffer,recommendedTime-0.000001,recommendedTime) << endl;
+    << " roundedrec(used0) " << rrec0
+    << " roundedrec(usedlimit) " << rreclimit
+    << " roundedrec(usedlimit2) " << rreclimit2
+    << endl;
   };
 
   auto tryTimeControlsOnBoards = [&](const TimeControls& timeControls, double lagBuffer) {

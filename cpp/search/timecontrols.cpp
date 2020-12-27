@@ -81,6 +81,15 @@ std::string TimeControls::toDebugString(const Board& board, const BoardHistory& 
   double maxTime;
   getTime(board,hist,lagBuffer,minTime,recommendedTime,maxTime);
   out << " minRecMax " << minTime << " " << recommendedTime << " " << maxTime;
+
+  //Rounded time limit recommendation at the start of search
+  double rrec0 = roundUpTimeLimitIfNeeded(lagBuffer,0,recommendedTime);
+  //Rounded time limit recommendation as we're just about to hit limit
+  double rreclimit = roundUpTimeLimitIfNeeded(lagBuffer,recommendedTime-0.000001,recommendedTime);
+  //Rounded time limit recommendation as we're just about to hit rounded limit
+  double rreclimit2 = roundUpTimeLimitIfNeeded(lagBuffer,rreclimit-0.000001,rreclimit);
+  out << " rrec0 " << rrec0 << " rreclimit " << rreclimit << " rreclimit2 " << rreclimit2;
+
   return out.str();
 }
 
