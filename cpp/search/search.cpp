@@ -2001,9 +2001,14 @@ void Search::initNodeNNOutput(
       getOpp(thread.pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
     );
   }
+  std::array<int, NNInputs::NUM_SYMMETRY_COMBINATIONS> symmetryIndexes {0,1,2,3,4,5,6,7};
+  // Should this pass rand as third param? Wouldn't compile.
+  std::random_shuffle(symmetryIndexes.begin(), symmetryIndexes.end());
   if(isRoot && searchParams.rootNumSymmetriesToSample > 1) {
     vector<shared_ptr<NNOutput>> ptrs;
     for(int i = 0; i<searchParams.rootNumSymmetriesToSample; i++) {
+      nnInputParams.symmetry = symmetryIndexes[i];
+      // If we add symmetry to the nnHash calculation, no need to skip caches when i > 0?
       bool skipCacheThisIteration = skipCache || i > 0; //Skip cache on subsequent iterations to get new random draws for orientation
       nnEvaluator->evaluate(
         thread.board, thread.history, thread.pla,

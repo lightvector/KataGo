@@ -17,7 +17,8 @@ NNResultBuf::NNResultBuf()
     rowSpatial(NULL),
     rowGlobal(NULL),
     result(nullptr),
-    errorLogLockout(false)
+    errorLogLockout(false),
+    symmetry(-1)
 {}
 
 NNResultBuf::~NNResultBuf() {
@@ -473,11 +474,16 @@ void NNEvaluator::serve(
       outputBuf.push_back(emptyOutput);
     }
 
-    int symmetry = defaultSymmetry;
-    if(doRandomize)
-      symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
+    for(int row = 0; row<numRows; row++) {
+      if(buf.resultBufs[row]->symmetry == -1) {
+        if(doRandomize)
+          buf.resultBufs[row]->symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
+        else
+          buf.resultBufs[row]->symmetry = defaultSymmetry;
+      }
+    }
 
-    NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, buf.resultBufs, symmetry, outputBuf);
+    NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, buf.resultBufs, outputBuf);
     assert(outputBuf.size() == numRows);
 
     m_numRowsProcessed.fetch_add(numRows, std::memory_order_relaxed);
@@ -626,6 +632,8 @@ void NNEvaluator::evaluate(
     else
       ASSERT_UNREACHABLE;
   }
+
+  buf.symmetry = nnInputParams.symmetry;
 
   unique_lock<std::mutex> lock(bufferMutex);
 

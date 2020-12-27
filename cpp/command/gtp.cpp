@@ -1126,13 +1126,8 @@ struct GTPEngine {
       return "";
     ostringstream out;
 
-    bool oldDoRandomize = nnEval->getDoRandomize();
-    int oldDefaultSymmetry = nnEval->getDefaultSymmetry();
-
     for(int symmetry = 0; symmetry<8; symmetry++) {
       if(whichSymmetry == -1 || whichSymmetry == symmetry) {
-        nnEval->setDoRandomize(false);
-        nnEval->setDefaultSymmetry(symmetry);
         Board board = bot->getRootBoard();
         BoardHistory hist = bot->getRootHist();
         Player nextPla = bot->getRootPla();
@@ -1141,6 +1136,7 @@ struct GTPEngine {
         nnInputParams.playoutDoublingAdvantage =
           (params.playoutDoublingAdvantagePla == C_EMPTY || params.playoutDoublingAdvantagePla == nextPla) ?
           staticPlayoutDoublingAdvantage : -staticPlayoutDoublingAdvantage;
+        nnInputParams.symmetry = symmetry;
         NNResultBuf buf;
         bool skipCache = true;
         bool includeOwnerMap = true;
@@ -1184,8 +1180,6 @@ struct GTPEngine {
       }
     }
 
-    nnEval->setDoRandomize(oldDoRandomize);
-    nnEval->setDefaultSymmetry(oldDefaultSymmetry);
     return Global::trim(out.str());
   }
 

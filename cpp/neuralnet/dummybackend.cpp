@@ -116,14 +116,12 @@ void NeuralNet::getOutput(
   InputBuffers* inputBuffers,
   int numBatchEltsFilled,
   NNResultBuf** inputBufs,
-  int symmetry,
   vector<NNOutput*>& outputs
 ) {
   (void)gpuHandle;
   (void)inputBuffers;
   (void)numBatchEltsFilled;
   (void)inputBufs;
-  (void)symmetry;
   (void)outputs;
   throw StringError("Dummy neural net backend: NeuralNet::getOutput unimplemented");
 }
