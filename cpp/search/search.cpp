@@ -2005,7 +2005,7 @@ void Search::initNodeNNOutput(
     vector<shared_ptr<NNOutput>> ptrs;
     std::array<int, NNInputs::NUM_SYMMETRY_COMBINATIONS> symmetryIndexes {0,1,2,3,4,5,6,7};
     // Should this pass rand as third param? Wouldn't compile.
-    std::random_shuffle(symmetryIndexes.begin(), symmetryIndexes.end());
+    if (searchParams.rootNumSymmetriesToSample < 8) std::random_shuffle(symmetryIndexes.begin(), symmetryIndexes.end());
     for(int i = 0; i<searchParams.rootNumSymmetriesToSample; i++) {
       nnInputParams.symmetry = symmetryIndexes[i];
       // If we add symmetry to the nnHash calculation, no need to skip caches when i > 0?
