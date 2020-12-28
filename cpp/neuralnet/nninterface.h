@@ -36,6 +36,16 @@ namespace NeuralNet {
 
   //Print available backend devices
   void printDevices();
+  void printDevices(const std::string& ortExecutionProvider);
+  #if defined(USE_ORT_CUDA) || defined(USE_ORT_TENSORRT)
+    void printCUDADevices();
+  #endif
+  #ifdef USE_ORT_DIRECTML
+    void printDirectMLDevices();
+  #endif
+  #ifdef USE_ORT_MIGRAPHX
+    void printOpenCLDevices();
+  #endif
 
   // Model I/O -----------------------------------------------------------------
 
@@ -59,6 +69,8 @@ namespace NeuralNet {
     int nnXLen,
     int nnYLen,
     const std::string& openCLTunerFile,
+    const std::string& onnxOptModelFile,
+    const std::string& onnxRuntimeExecutionProvider,
     const std::string& homeDataDirOverride,
     bool openCLReTunePerBoardSize,
     enabled_t useFP16Mode,

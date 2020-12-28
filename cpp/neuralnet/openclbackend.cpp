@@ -377,12 +377,17 @@ ComputeContext* NeuralNet::createComputeContext(
   int nnXLen,
   int nnYLen,
   const string& openCLTunerFile,
+  const string& onnxOptModelFile,
+  const string& onnxRuntimeExecutionProvider,
   const string& homeDataDirOverride,
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
   enabled_t useNHWCMode,
   const LoadedModel* loadedModel
 ) {
+  (void)onnxOptModelFile;
+  (void)onnxRuntimeExecutionProvider;
+
   if(gpuIdxs.size() <= 0)
     throw StringError("NeuralNet::createComputeContext - specified no gpus to use");
 

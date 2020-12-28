@@ -66,6 +66,8 @@ NNEvaluator::NNEvaluator(
   int nnMutexPoolSizePowerofTwo,
   bool skipNeuralNet,
   const string& openCLTunerFile,
+  const string& onnxOptModelFile,
+  const string& onnxRuntimeExecutionProvider,
   const string& homeDataDirOverride,
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
@@ -83,6 +85,7 @@ NNEvaluator::NNEvaluator(
    requireExactNNLen(rExactNNLen),
    policySize(NNPos::getPolicySize(xLen,yLen)),
    inputsUseNHWC(iUseNHWC),
+   ortExecutionProvider(onnxRuntimeExecutionProvider),
    usingFP16Mode(useFP16Mode),
    usingNHWCMode(useNHWCMode),
    numThreads(numThr),
@@ -145,8 +148,8 @@ NNEvaluator::NNEvaluator(
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
     computeContext = NeuralNet::createComputeContext(
       gpuIdxs,logger,nnXLen,nnYLen,
-      openCLTunerFile,homeDataDirOverride,openCLReTunePerBoardSize,
-      usingFP16Mode,usingNHWCMode,loadedModel
+      openCLTunerFile,onnxOptModelFile,onnxRuntimeExecutionProvider,
+      homeDataDirOverride,openCLReTunePerBoardSize,usingFP16Mode,usingNHWCMode,loadedModel
     );
   }
   else {
@@ -223,6 +226,9 @@ int NNEvaluator::getNNXLen() const {
 }
 int NNEvaluator::getNNYLen() const {
   return nnYLen;
+}
+string NNEvaluator::getOnnxRuntimeExecutionProvider() const{
+   return ortExecutionProvider;
 }
 enabled_t NNEvaluator::getUsingFP16Mode() const {
   return usingFP16Mode;

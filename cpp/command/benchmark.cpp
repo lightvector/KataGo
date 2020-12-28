@@ -209,6 +209,10 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080), "
        << "using the Cuda version of KataGo instead may give a mild performance boost." << endl;
 #endif
+#ifdef USE_ONNXRUNTIME_BACKEND
+  cout << "You are currently using the ONNXRuntime version of KataGo with "
+       << nnEval->getOnnxRuntimeExecutionProvider() << " execution provider." << endl;
+#endif
 #ifdef USE_EIGEN_BACKEND
   cout << "You are currently using the Eigen (CPU) version of KataGo. Due to having no GPU, it may be slow." << endl;
 #endif
@@ -564,6 +568,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
   int64_t configMaxPlayouts = ((int64_t)1) << 50;
   double configMaxTime = 1e20;
   double configMaxPonderTime = -1.0;
+  string configOnnxRuntimeExecutionProvider;
   vector<int> configDeviceIdxs;
   int configNNCacheSizePowerOfTwo = 20;
   int configNNMutexPoolSizePowerOfTwo = 16;
@@ -693,6 +698,41 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
       });
   }
 
+#ifdef USE_ONNXRUNTIME_BACKEND
+  cout << endl;
+  cout << "=========================================================================" << endl;
+  cout << "ONNXRUNTIME EXECUTION PROVIDER" << endl;
+
+  {
+    vector<string> executionProviders;
+#ifdef USE_ORT_CUDA
+      executionProviders.push_back("CUDA");
+#endif
+#ifdef USE_ORT_TENSORRT
+      executionProviders.push_back("TensorRT");
+#endif
+#ifdef USE_ORT_DIRECTML
+      executionProviders.push_back("DirectML");
+#endif
+#ifdef USE_ORT_MIGRAPHX
+      executionProviders.push_back("MIGraphX");
+#endif
+
+    cout << endl;
+    cout << "Available ONNXRuntime execution providers:" << endl;
+    for(const auto provider: executionProviders) {
+      cout << provider << " ";
+    }
+    cout << endl << endl;
+
+    string prompt = "Specify an execution provider for ONNXRuntime. Leave blank to use the first available provider.\n";
+    promptAndParseInput(prompt, [&](const string& line) {
+      if(line == "") configOnnxRuntimeExecutionProvider = executionProviders[0];
+      else configOnnxRuntimeExecutionProvider = line;
+    });
+  }
+#endif
+
   cout << endl;
   cout << "=========================================================================" << endl;
   cout << "GPUS AND RAM" << endl;
@@ -701,7 +741,11 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
   {
     cout << endl;
     cout << "Finding available GPU-like devices..." << endl;
+    #ifndef USE_ONNXRUNTIME_BACKEND
     NeuralNet::printDevices();
+    #else
+    NeuralNet::printDevices(configOnnxRuntimeExecutionProvider);
+    #endif
     cout << endl;
 
     string prompt =
@@ -789,6 +833,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
       configMaxPlayouts,
       configMaxTime,
       configMaxPonderTime,
+      configOnnxRuntimeExecutionProvider,
       configDeviceIdxs,
       configNNCacheSizePowerOfTwo,
       configNNMutexPoolSizePowerOfTwo,

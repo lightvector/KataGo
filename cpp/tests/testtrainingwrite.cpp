@@ -24,6 +24,8 @@ static NNEvaluator* startNNEval(
   int nnMutexPoolSizePowerOfTwo = 12;
   bool debugSkipNeuralNet = modelFile == "/dev/null";
   const string openCLTunerFile = "";
+  const string onnxOptModelFile = "";
+  const string onnxRuntimeExecutionProvider = "";
   const string homeDataDirOverride = "";
   bool openCLReTunePerBoardSize = false;
   int numNNServerThreadsPerModel = 1;
@@ -43,6 +45,8 @@ static NNEvaluator* startNNEval(
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
     openCLTunerFile,
+    onnxOptModelFile,
+    onnxRuntimeExecutionProvider,
     homeDataDirOverride,
     openCLReTunePerBoardSize,
     useFP16 ? enabled_t::True : enabled_t::False,
