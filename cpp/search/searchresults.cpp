@@ -1177,7 +1177,6 @@ void Search::printTreeHelper(
   }
 }
 
-
 vector<double> Search::getAverageTreeOwnership(int64_t minVisits, const SearchNode* node) const {
   if(node == NULL)
     node = rootNode;
@@ -1245,4 +1244,23 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minV
     accum[pos] += selfWeight * ownerMap[pos];
 
   return desiredWeight;
+}
+
+
+json Search::getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, int ownershipMinVisits) const {
+  int nnXLen = nnXLen;
+  vector<double> ownership = getAverageTreeOwnership(ownershipMinVisits, node);
+  json ownerships = json::array();
+  for(int y = 0; y < board.y_size; y++) {
+    for(int x = 0; x < board.x_size; x++) {
+      int pos = NNPos::xyToPos(x, y, nnXLen);
+      double o;
+      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
+        o = -ownership[pos];
+      else
+        o = ownership[pos];
+      ownerships.push_back(o);
+    }
+  }
+  return ownerships;
 }

@@ -50,26 +50,6 @@ struct AnalyzeRequest {
   std::atomic<int> status;
 };
 
-static json getJsonOwnershipMap(const AnalyzeRequest* request, const Search* search, const SearchNode* node, int ownershipMinVisits) {
-  const Player pla = request->nextPla, perspective = request->perspective;
-  int nnXLen = search->nnXLen;
-  vector<double> ownership = search->getAverageTreeOwnership(ownershipMinVisits, node);
-  json ownerships = json::array();
-  const Board& board = request->board;
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      int pos = NNPos::xyToPos(x,y,nnXLen);
-      double o;
-      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
-        o = -ownership[pos];
-      else
-        o = ownership[pos];
-      ownerships.push_back(o);
-    }
-  }
-  return ownerships;
-}
-
 int MainCmds::analysis(int argc, const char* const* argv) {
   Board::initHash();
   ScoreValue::initTables();
@@ -315,7 +295,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       }
 
       if(request->includeMovesOwnership)
-        moveInfo["ownership"] = getJsonOwnershipMap(request, search, data.node, ownershipMinVisits);
+        moveInfo["ownership"] = search->getJsonOwnershipMap(request->nextPla, request->perspective, request->board, data.node, ownershipMinVisits);
       moveInfos.push_back(moveInfo);
     }
     ret["moveInfos"] = moveInfos;
@@ -373,7 +353,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     }
     // Average tree ownership
     if(request->includeOwnership)
-      ret["ownership"] = getJsonOwnershipMap(request, search, search->rootNode, ownershipMinVisits);
+      ret["ownership"] = search->getJsonOwnershipMap(request->nextPla, request->perspective, request->board, search->rootNode, ownershipMinVisits);
 
     pushToWrite(new string(ret.dump()));
     return true;

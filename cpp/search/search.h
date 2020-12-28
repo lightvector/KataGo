@@ -330,6 +330,9 @@ struct Search {
   //If node is not providied, defaults to using the root node.
   std::vector<double> getAverageTreeOwnership(int64_t minVisit, const SearchNode* node = NULL) const;
 
+  //Get ownershipmap as json
+  json Search::getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, int ownershipMinVisits) const;
+
   //Expert manual playout-by-playout interface------------------------------------------------
   void beginSearch(bool pondering);
   void runSinglePlayout(SearchThread& thread);
