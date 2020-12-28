@@ -1,11 +1,9 @@
 #include "../game/rules.h"
 
-#include "../external/nlohmann_json/json.hpp"
-
 #include <sstream>
 
 using namespace std;
-using json = nlohmann::json;
+
 
 Rules::Rules() {
   //Defaults if not set - closest match to TT rules
@@ -185,7 +183,7 @@ string Rules::toString() const {
   return out.str();
 }
 
-string Rules::toJsonString() const {
+json Rules::toJson() const {
   json ret;
   ret["ko"] = writeKoRule(koRule);
   ret["scoring"] = writeScoringRule(scoringRule);
@@ -194,7 +192,11 @@ string Rules::toJsonString() const {
   ret["hasButton"] = hasButton;
   ret["whiteHandicapBonus"] = writeWhiteHandicapBonusRule(whiteHandicapBonusRule);
   ret["komi"] = komi;
-  return ret.dump();
+  return ret;
+}
+
+string Rules::toJsonString() const {
+  return toJson().dump();
 }
 
 string Rules::toJsonStringNoKomi() const {
