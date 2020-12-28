@@ -573,9 +573,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("obviousMovesPolicySurpriseTolerance"+idxStr)) params.obviousMovesPolicySurpriseTolerance = cfg.getDouble("obviousMovesPolicySurpriseTolerance"+idxStr,0.001,2.0);
     else if(cfg.contains("obviousMovesPolicySurpriseTolerance"))   params.obviousMovesPolicySurpriseTolerance = cfg.getDouble("obviousMovesPolicySurpriseTolerance",0.001,2.0);
     else                                                           params.obviousMovesPolicySurpriseTolerance = 0.15;
-    if(cfg.contains("futileVisitsTimeThreshold"+idxStr)) params.futileVisitsTimeThreshold = cfg.getDouble("futileVisitsTimeThreshold"+idxStr,0.01,1.0);
-    else if(cfg.contains("futileVisitsTimeThreshold"))   params.futileVisitsTimeThreshold = cfg.getDouble("futileVisitsTimeThreshold",0.01,1.0);
-    else                                                 params.futileVisitsTimeThreshold = 0.0;
+    if(cfg.contains("futileVisitsThreshold"+idxStr)) params.futileVisitsThreshold = cfg.getDouble("futileVisitsThreshold"+idxStr,0.01,1.0);
+    else if(cfg.contains("futileVisitsThreshold"))   params.futileVisitsThreshold = cfg.getDouble("futileVisitsThreshold",0.01,1.0);
+    else                                             params.futileVisitsThreshold = 0.0;
 
 
     paramss.push_back(params);

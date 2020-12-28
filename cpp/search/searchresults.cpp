@@ -70,6 +70,7 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
 
   int numChildren = node.numChildren;
   int64_t totalChildVisits = 0;
+  int64_t maxChildVisits = 0;
 
   const bool suppressPass = shouldSuppressPassAlreadyLocked(&node);
 
@@ -84,6 +85,8 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
 
     locs.push_back(moveLoc);
     totalChildVisits += childVisits;
+    if(childVisits > maxChildVisits)
+      maxChildVisits = childVisits;
     if(suppressPass && moveLoc == Board::PASS_LOC)
       playSelectionValues.push_back(0.0);
     else
@@ -123,7 +126,9 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     bool isDuringSearch = false;
 
     float* policyProbs = node.nnOutput->getPolicyProbsMaybeNoised();
-    double bestChildExploreSelectionValue = getExploreSelectionValue(node,policyProbs,bestChild,totalChildVisits,fpuValue,parentUtility,isDuringSearch,NULL);
+    double bestChildExploreSelectionValue = getExploreSelectionValue(
+      node,policyProbs,bestChild,totalChildVisits,fpuValue,parentUtility,isDuringSearch,maxChildVisits,NULL
+    );
 
     for(int i = 0; i<numChildren; i++) {
       if(suppressPass && node.children[i]->prevMoveLoc == Board::PASS_LOC) {

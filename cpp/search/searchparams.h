@@ -99,7 +99,8 @@ struct SearchParams {
   double obviousMovesTimeFactor; //Think up to this factor longer on obvious moves, weighted by obviousness
   double obviousMovesPolicyEntropyTolerance; //What entropy does the policy need to be at most to be (1/e) obvious?
   double obviousMovesPolicySurpriseTolerance; //What logits of surprise does the search result need to be at most to be (1/e) obvious?
-  double futileVisitsTimeThreshold; //If a move would not be able to match this proportion of the max visits move in the time remaining, prune it.
+
+  double futileVisitsThreshold; //If a move would not be able to match this proportion of the max visits move in the time or visit or playout cap remaining, prune it.
 
 
   SearchParams();

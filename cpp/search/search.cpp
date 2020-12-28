@@ -110,7 +110,8 @@ SearchThread::SearchThread(int tIdx, const Search& search, Logger* lg)
    utilityBuf(),
    utilitySqBuf(),
    selfUtilityBuf(),
-   visitsBuf()
+   visitsBuf(),
+   upperBoundVisitsLeft(1e30)
 {
   if(logger != NULL)
     logStream = logger->createOStream();
@@ -505,7 +506,7 @@ void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bo
 }
 
 double Search::numVisitsNeededToBeNonFutile(double maxVisitsMoveVisits) {
-  double requiredVisits = searchParams.futileVisitsTimeThreshold * maxVisitsMoveVisits;
+  double requiredVisits = searchParams.futileVisitsThreshold * maxVisitsMoveVisits;
   //In the case where we're playing high temperature, also require that we can't get to more than a 1:100 odds of playing the move.
   double chosenMoveTemperature = interpolateEarly(
     searchParams.chosenMoveTemperatureHalflife, searchParams.chosenMoveTemperatureEarly, searchParams.chosenMoveTemperature
@@ -516,7 +517,24 @@ double Search::numVisitsNeededToBeNonFutile(double maxVisitsMoveVisits) {
   return std::min(requiredVisits, requiredVisitsDueToTemp);
 }
 
-double Search::recomputeSearchTimeLimit(const TimeControls& tc, double timeUsed, double searchFactor) {
+double Search::computeUpperBoundVisitsLeftDueToTime(
+  int64_t rootVisits, double timeUsed, double plannedTimeLimit
+) {
+  if(rootVisits <= 1)
+    return 1e30;
+  double timeThoughtSoFar = effectiveSearchTimeCarriedOver + timeUsed;
+  double timeLeftPlanned = plannedTimeLimit - timeUsed;
+  //Require at least a tenth of a second of search to begin to trust an estimate of visits/time.
+  if(timeThoughtSoFar < 0.1)
+    return 1e30;
+
+  double proportionOfTimeThoughtLeft = timeLeftPlanned / timeThoughtSoFar;
+  return ceil(proportionOfTimeThoughtLeft * rootVisits + searchParams.numThreads-1);
+}
+
+double Search::recomputeSearchTimeLimit(
+  const TimeControls& tc, double timeUsed, double searchFactor, int64_t rootVisits
+) {
   double tcMin;
   double tcRec;
   double tcMax;
@@ -569,49 +587,44 @@ double Search::recomputeSearchTimeLimit(const TimeControls& tc, double timeUsed,
     tcRec = tcRec * std::min(1.0, log(1.0+exp(remainingTimeNeededFactor * 6.0)) / 6.0);
   }
 
-  if(searchParams.futileVisitsTimeThreshold > 0) {
-    double timeThoughtSoFar = effectiveSearchTimeCarriedOver + timeUsed;
-    double timeLeftPlanned = tcRec - timeUsed;
-    if(timeThoughtSoFar > 0) {
-      double proportionOfTimeThoughtLeft = timeLeftPlanned / timeThoughtSoFar;
-      if(proportionOfTimeThoughtLeft < searchParams.futileVisitsTimeThreshold) {
-        vector<Loc> locs;
-        vector<double> playSelectionValues;
-        vector<double> visitCounts;
-        bool suc = getPlaySelectionValues(locs, playSelectionValues, &visitCounts, 1.0);
-        if(suc && playSelectionValues.size() > 0) {
-          //This may fail to hold if we have no actual visits and play selections are being pulled from stuff like raw policy
-          if(playSelectionValues.size() == visitCounts.size()) {
-            int numMoves = playSelectionValues.size();
-            int maxVisitsIdx = 0;
-            int bestMoveIdx = 0;
-            for(int i = 1; i<numMoves; i++) {
-              if(playSelectionValues[i] > playSelectionValues[bestMoveIdx])
-                bestMoveIdx = i;
-              if(visitCounts[i] > visitCounts[maxVisitsIdx])
-                maxVisitsIdx = i;
+  //Make sure we're not wasting time
+  tcRec = tc.roundUpTimeLimitIfNeeded(searchParams.lagBuffer,timeUsed,tcRec);
+  if(tcRec > tcMax) tcRec = tcMax;
+
+  //After rounding up time, check if with our planned rounded time, anything is futile to search
+  if(searchParams.futileVisitsThreshold > 0) {
+    double upperBoundVisitsLeftDueToTime = computeUpperBoundVisitsLeftDueToTime(rootVisits, timeUsed, tcRec);
+    if(upperBoundVisitsLeftDueToTime < searchParams.futileVisitsThreshold * rootVisits) {
+      vector<Loc> locs;
+      vector<double> playSelectionValues;
+      vector<double> visitCounts;
+      bool suc = getPlaySelectionValues(locs, playSelectionValues, &visitCounts, 1.0);
+      if(suc && playSelectionValues.size() > 0) {
+        //This may fail to hold if we have no actual visits and play selections are being pulled from stuff like raw policy
+        if(playSelectionValues.size() == visitCounts.size()) {
+          int numMoves = playSelectionValues.size();
+          int maxVisitsIdx = 0;
+          int bestMoveIdx = 0;
+          for(int i = 1; i<numMoves; i++) {
+            if(playSelectionValues[i] > playSelectionValues[bestMoveIdx])
+              bestMoveIdx = i;
+            if(visitCounts[i] > visitCounts[maxVisitsIdx])
+              maxVisitsIdx = i;
+          }
+          if(maxVisitsIdx == bestMoveIdx) {
+            double requiredVisits = numVisitsNeededToBeNonFutile(visitCounts[maxVisitsIdx]);
+            bool foundPossibleAlternativeMove = false;
+            for(int i = 0; i<numMoves; i++) {
+              if(i == bestMoveIdx)
+                continue;
+              if(visitCounts[i] + upperBoundVisitsLeftDueToTime >= requiredVisits) {
+                foundPossibleAlternativeMove = true;
+                break;
+              }
             }
-            if(maxVisitsIdx == bestMoveIdx) {
-              double sumVisits = 0;
-              for(int i = 0; i<numMoves; i++)
-                sumVisits += visitCounts[i];
-
-              double maxVisitsLeft = proportionOfTimeThoughtLeft * sumVisits;
-              double requiredVisits = numVisitsNeededToBeNonFutile(visitCounts[maxVisitsIdx]);
-              bool foundPossibleAlternativeMove = false;
-              for(int i = 0; i<numMoves; i++) {
-                if(i == bestMoveIdx)
-                  continue;
-                if(visitCounts[i] + maxVisitsLeft >= requiredVisits) {
-                  foundPossibleAlternativeMove = true;
-                  break;
-                }
-              }
-
-              if(!foundPossibleAlternativeMove) {
-                //We should stop search now - set our desired thinking to very slightly smaller than what we used.
-                tcRec = timeUsed * (1.0 - (1e-10));
-              }
+            if(!foundPossibleAlternativeMove) {
+              //We should stop search now - set our desired thinking to very slightly smaller than what we used.
+              tcRec = timeUsed * (1.0 - (1e-10));
             }
           }
         }
@@ -619,8 +632,9 @@ double Search::recomputeSearchTimeLimit(const TimeControls& tc, double timeUsed,
     }
   }
 
-  //Make sure we're not wasting time - tree reuse always means thinking longer is valuable
+  //Make sure we're not wasting time, even after considering that we might want to stop early
   tcRec = tc.roundUpTimeLimitIfNeeded(searchParams.lagBuffer,timeUsed,tcRec);
+  if(tcRec > tcMax) tcRec = tcMax;
 
   //Apply caps and search factor
   //Since searchFactor is mainly used for friendliness (like, play faster after many passes)
@@ -653,7 +667,7 @@ void Search::runWholeSearch(
   beginSearch(pondering);
   if(searchBegun != NULL)
     (*searchBegun)();
-  int64_t numNonPlayoutVisits = getRootVisits();
+  const int64_t numNonPlayoutVisits = getRootVisits();
 
   //Compute caps on search
   int64_t maxVisits = pondering ? searchParams.maxVisitsPondering : searchParams.maxVisits;
@@ -677,13 +691,20 @@ void Search::runWholeSearch(
     }
   }
 
-  //Apply time controls
+  //Apply time controls. These two don't particularly need to be synchronized with each other so its fine to have two separate atomics.
   std::atomic<double> tcMaxTime(1e30);
-  if(!pondering)
-    tcMaxTime.store(recomputeSearchTimeLimit(tc,timer.getSeconds(),searchFactor),std::memory_order_release);
+  std::atomic<double> upperBoundVisitsLeftDueToTime(1e30);
+  if(!pondering) {
+    int64_t rootVisits = numPlayoutsShared.load(std::memory_order_relaxed) + numNonPlayoutVisits;
+    double timeUsed = timer.getSeconds();
+    double tcLimit = recomputeSearchTimeLimit(tc, timeUsed, searchFactor, rootVisits);
+    double upperBoundVisits = computeUpperBoundVisitsLeftDueToTime(rootVisits, timeUsed, std::min(tcLimit,maxTime));
+    tcMaxTime.store(tcLimit, std::memory_order_release);
+    upperBoundVisitsLeftDueToTime.store(upperBoundVisits, std::memory_order_release);
+  }
 
   auto searchLoop = [
-    this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&tcMaxTime,&tc,
+    this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&tcMaxTime,&upperBoundVisitsLeftDueToTime,&tc,
     &logger,&shouldStopNow,maxVisits,maxPlayouts,maxTime,pondering,searchFactor
   ](int threadIdx) {
     SearchThread* stbuf = new SearchThread(threadIdx,*this,&logger);
@@ -719,12 +740,24 @@ void Search::runWholeSearch(
 
         //Thread 0 alone is responsible for recomputing time limits every once in a while
         //Cap of 10 times per second.
-        if(hasTc && threadIdx == 0 && timeUsed > lastTimeUsedRecomputingTcLimit + 0.1) {
-          tcMaxTime.store(recomputeSearchTimeLimit(tc,timeUsed,searchFactor),std::memory_order_release);
-          lastTimeUsedRecomputingTcLimit = timeUsed;
+        if(!pondering && (hasTc || hasMaxTime) && threadIdx == 0 && timeUsed >= lastTimeUsedRecomputingTcLimit + 0.1) {
+          int64_t rootVisits = numPlayouts + numNonPlayoutVisits;
+          double tcLimit = 1e30;
+          if(hasTc) {
+            tcLimit = recomputeSearchTimeLimit(tc, timeUsed, searchFactor, rootVisits);
+            tcMaxTime.store(tcLimit, std::memory_order_release);
+          }
+          double upperBoundVisits = computeUpperBoundVisitsLeftDueToTime(rootVisits, timeUsed, std::min(tcLimit,maxTime));
+          upperBoundVisitsLeftDueToTime.store(upperBoundVisits, std::memory_order_release);
         }
 
-        runSinglePlayout(*stbuf);
+        double upperBoundVisitsLeft = 1e30;
+        if(hasTc)
+          upperBoundVisitsLeft = upperBoundVisitsLeftDueToTime.load(std::memory_order_acquire);
+        upperBoundVisitsLeft = std::min(upperBoundVisitsLeft, (double)maxPlayouts - numPlayouts);
+        upperBoundVisitsLeft = std::min(upperBoundVisitsLeft, (double)maxVisits - numPlayouts - numNonPlayoutVisits);
+
+        runSinglePlayout(*stbuf, upperBoundVisitsLeft);
 
         numPlayouts = numPlayoutsShared.fetch_add((int64_t)1, std::memory_order_relaxed);
         numPlayouts += 1;
@@ -1616,7 +1649,7 @@ static void maybeApplyAntiMirrorForcedExplore(
 double Search::getExploreSelectionValue(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
   int64_t totalChildVisits, double fpuValue, double parentUtility,
-  bool isDuringSearch, SearchThread* thread
+  bool isDuringSearch, int64_t maxChildVisits, SearchThread* thread
 ) const {
   (void)parentUtility;
   Loc moveLoc = child->prevMoveLoc;
@@ -1662,6 +1695,12 @@ double Search::getExploreSelectionValue(
   }
 
   if(isDuringSearch && (&parent == rootNode)) {
+    //Futile visits pruning - skip this move if the amount of time we have left to search is too small
+    if(searchParams.futileVisitsThreshold > 0) {
+      double requiredVisits = searchParams.futileVisitsThreshold * maxChildVisits;
+      if(childVisits + thread->upperBoundVisitsLeft < requiredVisits)
+        return FUTILE_VISITS_PRUNE_VALUE;
+    }
     //Hack to get the root to funnel more visits down child branches
     if(searchParams.rootDesiredPerChildVisitsCoeff > 0.0) {
       if(childVisits < sqrt(nnPolicyProb * totalChildVisits * searchParams.rootDesiredPerChildVisitsCoeff)) {
@@ -1692,11 +1731,23 @@ double Search::getExploreSelectionValue(
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
 }
 
-double Search::getNewExploreSelectionValue(const SearchNode& parent, float nnPolicyProb, int64_t totalChildVisits, double fpuValue, SearchThread* thread) const {
+double Search::getNewExploreSelectionValue(
+  const SearchNode& parent, float nnPolicyProb,
+  int64_t totalChildVisits, double fpuValue,
+  int64_t maxChildVisits, SearchThread* thread
+) const {
   int64_t childVisits = 0;
   double childUtility = fpuValue;
-  if((&parent == rootNode) && searchParams.wideRootNoise > 0.0) {
-    maybeApplyWideRootNoise(childUtility, nnPolicyProb, searchParams, thread, parent);
+  if(&parent == rootNode) {
+    //Futile visits pruning - skip this move if the amount of time we have left to search is too small
+    if(searchParams.futileVisitsThreshold > 0) {
+      double requiredVisits = searchParams.futileVisitsThreshold * maxChildVisits;
+      if(thread->upperBoundVisitsLeft < requiredVisits)
+        return FUTILE_VISITS_PRUNE_VALUE;
+    }
+    if(searchParams.wideRootNoise > 0.0) {
+      maybeApplyWideRootNoise(childUtility, nnPolicyProb, searchParams, thread, parent);
+    }
   }
   return getExploreSelectionValue(nnPolicyProb,totalChildVisits,childVisits,childUtility,parent.nextPla);
 }
@@ -1786,6 +1837,7 @@ void Search::selectBestChildToDescend(
   int numChildren = node.numChildren;
 
   double policyProbMassVisited = 0.0;
+  int64_t maxChildVisits = 0;
   int64_t totalChildVisits = 0;
   float* policyProbs = node.nnOutput->getPolicyProbsMaybeNoised();
   for(int i = 0; i<numChildren; i++) {
@@ -1800,6 +1852,8 @@ void Search::selectBestChildToDescend(
     child->statsLock.clear(std::memory_order_release);
 
     totalChildVisits += childVisits;
+    if(childVisits > maxChildVisits)
+      maxChildVisits = childVisits;
   }
   //Probability mass should not sum to more than 1, giving a generous allowance
   //for floating point error.
@@ -1816,7 +1870,7 @@ void Search::selectBestChildToDescend(
     const SearchNode* child = node.children[i];
     Loc moveLoc = child->prevMoveLoc;
     bool isDuringSearch = true;
-    double selectionValue = getExploreSelectionValue(node,policyProbs,child,totalChildVisits,fpuValue,parentUtility,isDuringSearch,&thread);
+    double selectionValue = getExploreSelectionValue(node,policyProbs,child,totalChildVisits,fpuValue,parentUtility,isDuringSearch,maxChildVisits,&thread);
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
       bestChildIdx = i;
@@ -1865,7 +1919,7 @@ void Search::selectBestChildToDescend(
     }
   }
   if(bestNewMoveLoc != Board::NULL_LOC) {
-    double selectionValue = getNewExploreSelectionValue(node,bestNewNNPolicyProb,totalChildVisits,fpuValue,&thread);
+    double selectionValue = getNewExploreSelectionValue(node,bestNewNNPolicyProb,totalChildVisits,fpuValue,maxChildVisits,&thread);
     if(selectionValue > maxSelectionValue) {
       maxSelectionValue = selectionValue;
       bestChildIdx = numChildren;
@@ -2082,7 +2136,10 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   node.statsLock.clear(std::memory_order_release);
 }
 
-void Search::runSinglePlayout(SearchThread& thread) {
+void Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft) {
+  //Store this value, used for futile-visit pruning this thread's root children selections.
+  thread.upperBoundVisitsLeft = upperBoundVisitsLeft;
+
   bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE];
   playoutDescend(thread,*rootNode,posesWithChildBuf,true,0);
 
