@@ -186,6 +186,7 @@ static void runAndUploadSingleGame(
       int analysisPVLen = 15;
       const Player perspective = P_BLACK;
       bool preventEncore = true;
+      static constexpr int ownershipMinVisits = 3;
 
       json ret;
       ret["gameId"] = gameIdx; // unique to this output
@@ -289,6 +290,26 @@ static void runAndUploadSingleGame(
         rootInfo["utility"] = utility;
         ret["rootInfo"] = rootInfo;
       }
+      {
+        float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+        bool suc = search->getPolicy(policyProbs);
+        if(suc) {
+          json policy = json::array();
+          int nnXLen = search->nnXLen;
+          int nnYLen = search->nnYLen;
+          for(int y = 0; y < board.y_size; y++) {
+            for(int x = 0; x < board.x_size; x++) {
+              int pos = NNPos::xyToPos(x, y, nnXLen);
+              policy.push_back(policyProbs[pos]);
+            }
+          }
+          int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
+          policy.push_back(policyProbs[passPos]);
+          ret["policy"] = policy;
+        }
+      }
+      ret["ownership"] = search->getJsonOwnershipMap(pla, perspective, board, search->rootNode, ownershipMinVisits);
+
       std::cout << ret.dump() + "\n" << std::flush; // no endl due to race conditions
     }
 
