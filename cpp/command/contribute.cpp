@@ -150,7 +150,7 @@ static void runAndUploadSingleGame(
     forkData = NULL;
 
   std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>
-    onEachMove = [&numMovesPlayed, &outputEachMove, &watchOngoingGameInConsole, &logGamesAsJson, & gameIdx, &botSpecB, &botSpecW](
+    onEachMove = [&numMovesPlayed, &outputEachMove, &watchOngoingGameInConsole, &logGamesAsJson, &gameIdx, &botSpecB, &botSpecW](
       const Board& board, const BoardHistory& hist, Player pla, Loc loc,
       const std::vector<double>& winLossHist, const std::vector<double>& leadHist, const std::vector<double>& scoreStdevHist, const Search* search) {
     numMovesPlayed.fetch_add(1,std::memory_order_relaxed);
@@ -163,7 +163,6 @@ static void runAndUploadSingleGame(
       else {
         out << "Match: " << botSpecB.botName << " (black) vs " << botSpecW.botName << " (white)" << "\n";
       }
-      out << "Game ID: " << Global::int64ToString(gameIdx) << "\n";
       out << "Rules: " << hist.rules.toJsonString() << "\n";
       out << "Player: " << PlayerIO::playerToString(pla) << "\n";
       out << "Move: " << Location::toString(loc,board) << "\n";
