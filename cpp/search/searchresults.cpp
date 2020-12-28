@@ -1248,7 +1248,6 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minV
 
 
 json Search::getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, int ownershipMinVisits) const {
-  int nnXLen = nnXLen;
   vector<double> ownership = getAverageTreeOwnership(ownershipMinVisits, node);
   json ownerships = json::array();
   for(int y = 0; y < board.y_size; y++) {

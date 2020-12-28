@@ -307,7 +307,7 @@ static void runAndUploadSingleGame(
           ret["policy"] = policy;
         }
       }
-      ret["ownership"] = search->getJsonOwnershipMap(pla, perspective, board, search->rootNode, ownershipMinVisits);
+      // ret["ownership"] = search->getJsonOwnershipMap(pla, perspective, board, search->rootNode, ownershipMinVisits); // no setAlwaysIncludeOwnerMap. TODO: option?
 
       std::cout << ret.dump() + "\n" << std::flush; // no endl due to race conditions
     }
