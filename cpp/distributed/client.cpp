@@ -5,6 +5,7 @@
 #include "../core/config_parser.h"
 #include "../core/sha2.h"
 #include "../core/timer.h"
+#include "../core/os.h"
 #include "../game/board.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/desc.h"
@@ -141,6 +142,20 @@ struct Url {
   }
 };
 
+static void configureSocketOptions(socket_t sock) {
+  constexpr int timeoutSeconds = 20;
+#ifdef OS_IS_UNIX_OR_APPLE
+  struct timeval tv;
+  tv.tv_sec = timeoutSeconds;
+  tv.tv_usec = 0;
+  setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const void*)&tv, sizeof(tv));
+#endif
+#ifdef OS_IS_WINDOWS
+  DWORD timeout = timeoutSeconds * 1000;
+  setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
+#endif
+}
+
 static httplib::Result oneShotDownload(
   Logger* logger,
   const Url& url,
@@ -158,6 +173,7 @@ static httplib::Result oneShotDownload(
 
   if(!url.isSSL) {
     std::unique_ptr<httplib::Client> httpClient = std::make_unique<httplib::Client>(url.host, url.port);
+    httpClient->set_socket_options(configureSocketOptions);
     if(proxyHost != "")
       httpClient->set_proxy(proxyHost.c_str(), proxyPort);
     //Avoid automatically decompressing .bin.gz files that get sent to us with "content-encoding: gzip"
@@ -166,6 +182,7 @@ static httplib::Result oneShotDownload(
   }
   else {
     std::unique_ptr<httplib::SSLClient> httpsClient = std::make_unique<httplib::SSLClient>(url.host, url.port);
+    httpsClient->set_socket_options(configureSocketOptions);
     if(proxyHost != "")
       httpsClient->set_proxy(proxyHost.c_str(), proxyPort);
     httpsClient->set_ca_cert_path(caCertsFile.c_str());
@@ -250,6 +267,7 @@ Connection::Connection(
 
   if(!isSSL) {
     httpClient = std::make_unique<httplib::Client>(url.host, url.port);
+    httpClient->set_socket_options(configureSocketOptions);
     if(proxyHost != "")
       httpClient->set_proxy(proxyHost.c_str(),proxyPort);
   }
@@ -262,6 +280,7 @@ Connection::Connection(
     }
 
     httpsClient = std::make_unique<httplib::SSLClient>(url.host, url.port);
+    httpsClient->set_socket_options(configureSocketOptions);
     if(proxyHost != "")
       httpsClient->set_proxy(proxyHost.c_str(),proxyPort);
     httpsClient->set_ca_cert_path(caCertsFile.c_str());
@@ -297,12 +316,14 @@ void Connection::recreateClients() {
 
   if(!isSSL) {
     httpClient = std::make_unique<httplib::Client>(url.host, url.port);
+    httpClient->set_socket_options(configureSocketOptions);
     if(proxyHost != "")
       httpClient->set_proxy(proxyHost.c_str(),proxyPort);
     httpClient->set_basic_auth(username.c_str(), password.c_str());
   }
   else {
     httpsClient = std::make_unique<httplib::SSLClient>(url.host, url.port);
+    httpsClient->set_socket_options(configureSocketOptions);
     if(proxyHost != "")
       httpsClient->set_proxy(proxyHost.c_str(),proxyPort);
     httpsClient->set_ca_cert_path(caCertsFile.c_str());
