@@ -1306,6 +1306,7 @@ static Loc runBotWithLimits(
       toMoveBot->searchParams.rootFpuReductionMax = toMoveBot->searchParams.fpuReductionMax;
       toMoveBot->searchParams.rootDesiredPerChildVisitsCoeff = 0.0;
       toMoveBot->searchParams.rootNumSymmetriesToSample = 1;
+      toMoveBot->searchParams.nodeNumSymmetriesToSample = 1;
     }
     if(limits.playoutDoublingAdvantagePla != C_EMPTY) {
       toMoveBot->searchParams.playoutDoublingAdvantagePla = limits.playoutDoublingAdvantagePla;

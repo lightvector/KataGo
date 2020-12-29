@@ -189,6 +189,7 @@ ReportedSearchValues PlayUtils::getWhiteScoreValues(
   newParams.rootFpuLossProp = newParams.fpuLossProp;
   newParams.rootDesiredPerChildVisitsCoeff = 0.0;
   newParams.rootNumSymmetriesToSample = 1;
+  newParams.nodeNumSymmetriesToSample = 1;
 
   if(otherGameProps.playoutDoublingAdvantage != 0.0 && otherGameProps.playoutDoublingAdvantagePla != C_EMPTY) {
     //Don't actually adjust playouts, but DO tell the bot what it's up against, so that it gives estimates
@@ -510,6 +511,7 @@ vector<double> PlayUtils::computeOwnership(
   newParams.rootFpuLossProp = newParams.fpuLossProp;
   newParams.rootDesiredPerChildVisitsCoeff = 0.0;
   newParams.rootNumSymmetriesToSample = 1;
+  newParams.nodeNumSymmetriesToSample = 1;
   newParams.playoutDoublingAdvantagePla = C_EMPTY;
   newParams.playoutDoublingAdvantage = 0.0;
   if(newParams.numThreads > (numVisits+7)/8)
