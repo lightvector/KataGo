@@ -149,8 +149,10 @@ static void runAndUploadSingleGame(
   if(gameTask.task.isRatingGame)
     forkData = NULL;
 
+  string gameIdString = Global::uint64ToHexString(rand.nextUInt64());
+
   std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>
-    onEachMove = [&numMovesPlayed, &outputEachMove, &watchOngoingGameInConsole, &logGamesAsJson, &logOwnership, &gameIdx, &botSpecB, &botSpecW](
+    onEachMove = [&numMovesPlayed, &outputEachMove, &watchOngoingGameInConsole, &logGamesAsJson, &logOwnership, &gameIdString, &botSpecB, &botSpecW](
       const Board& board, const BoardHistory& hist, Player pla, Loc loc,
       const std::vector<double>& winLossHist, const std::vector<double>& leadHist, const std::vector<double>& scoreStdevHist, const Search* search) {
     numMovesPlayed.fetch_add(1,std::memory_order_relaxed);
@@ -189,8 +191,10 @@ static void runAndUploadSingleGame(
       // output format is a mix between an analysis query and response
       json ret;
       // unique to this output
-      ret["gameId"] = gameIdx; 
+      ret["gameId"] = gameIdString; 
       ret["move"] = json::array({PlayerIO::playerToStringShort(pla), Location::toString(loc, board)}); // unique, redundant with moves?
+      ret["blackPlayer"] = botSpecB.botName;
+      ret["whitePlayer"] = botSpecW.botName;
 
       // Usual query fields
       ret["rules"] = hist.rules.toJson();
@@ -328,7 +332,7 @@ static void runAndUploadSingleGame(
       sgfOutputDir = sgfsDir + "/" + gameTask.task.taskGroup;
     else
       sgfOutputDir = sgfsDir + "/" + nnEvalBlack->getModelName();
-    string sgfFile = sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgf";
+    string sgfFile = sgfOutputDir + "/" + gameIdString + ".sgf";
 
     ofstream out(sgfFile);
     WriteSgf::writeSgf(out,gameData->bName,gameData->wName,gameData->endHist,gameData,false,true);
