@@ -55,7 +55,7 @@ struct NNResultBuf {
   float* rowGlobal;
   std::shared_ptr<NNOutput> result;
   bool errorLogLockout; //error flag to restrict log to 1 error to prevent spam
-  int symmetry;
+  int symmetry; //The symmetry to use
 
   NNResultBuf();
   ~NNResultBuf();
