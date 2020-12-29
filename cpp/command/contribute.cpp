@@ -84,7 +84,7 @@ static void runAndUploadSingleGame(
   Client::Connection* connection, GameTask gameTask, int64_t gameIdx,
   Logger& logger, const string& seed, ForkData* forkData, string sgfsDir, Rand& rand,
   std::atomic<int64_t>& numMovesPlayed, std::unique_ptr<ostream>& outputEachMove, 
-  bool watchOngoingGameInConsole, bool logGamesAsJson) {
+  bool watchOngoingGameInConsole, bool logGamesAsJson, bool logOwnership) {
   if(gameTask.task.isRatingGame) {
     logger.write(
       "Starting game " + Global::int64ToString(gameIdx) + " (rating) (" + (
@@ -150,7 +150,7 @@ static void runAndUploadSingleGame(
     forkData = NULL;
 
   std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>
-    onEachMove = [&numMovesPlayed, &outputEachMove, &watchOngoingGameInConsole, &logGamesAsJson, &gameIdx, &botSpecB, &botSpecW](
+    onEachMove = [&numMovesPlayed, &outputEachMove, &watchOngoingGameInConsole, &logGamesAsJson, &logOwnership, &gameIdx, &botSpecB, &botSpecW](
       const Board& board, const BoardHistory& hist, Player pla, Loc loc,
       const std::vector<double>& winLossHist, const std::vector<double>& leadHist, const std::vector<double>& scoreStdevHist, const Search* search) {
     numMovesPlayed.fetch_add(1,std::memory_order_relaxed);
@@ -179,16 +179,17 @@ static void runAndUploadSingleGame(
       if(watchOngoingGameInConsole)
         std::cout << out.str() << std::flush; 
     }
-    if(logGamesAsJson) { // output format is a mix between an analysis query and response
-      // TODO: Maybe allow settings + policy + ownership
+    if(logGamesAsJson and hist.encorePhase == 0) { // If anyone wants to support encorePhase > 0 note passForKo is a thing
       int minMoves = 0;
       int analysisPVLen = 15;
       const Player perspective = P_BLACK;
       bool preventEncore = true;
       static constexpr int ownershipMinVisits = 3;
 
+      // output format is a mix between an analysis query and response
       json ret;
-      ret["gameId"] = gameIdx; // unique to this output
+      // unique to this output
+      ret["gameId"] = gameIdx; 
       ret["move"] = json::array({PlayerIO::playerToStringShort(pla), Location::toString(loc, board)}); // unique, redundant with moves?
 
       // Usual query fields
@@ -307,7 +308,8 @@ static void runAndUploadSingleGame(
           ret["policy"] = policy;
         }
       }
-      // ret["ownership"] = search->getJsonOwnershipMap(pla, perspective, board, search->rootNode, ownershipMinVisits); // no setAlwaysIncludeOwnerMap. TODO: option?
+      if(logOwnership)
+        ret["ownership"] = search->getJsonOwnershipMap(pla, perspective, board, search->rootNode, ownershipMinVisits); // no setAlwaysIncludeOwnerMap. TODO: option?
 
       std::cout << ret.dump() + "\n" << std::flush; // no endl due to race conditions
     }
@@ -317,8 +319,7 @@ static void runAndUploadSingleGame(
   const Sgf::PositionSample* posSample = gameTask.repIdx < gameTask.task.startPoses.size() ? &(gameTask.task.startPoses[gameTask.repIdx]) : NULL;
   FinishedGameData* gameData = gameRunner->runGame(
     seed, botSpecB, botSpecW, forkData, posSample,
-    logger,
-    stopConditions, nullptr, onEachMove
+    logger, stopConditions, nullptr, onEachMove, logOwnership
   );
 
   if(gameData != NULL) {
@@ -582,6 +583,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   string watchOngoingGameInFileName = userCfg->contains("watchOngoingGameInFileName") ? userCfg->getString("watchOngoingGameInFileName") : "";
   const bool watchOngoingGameInConsole = userCfg->contains("watchOngoingGameInConsole") ? userCfg->getBool("watchOngoingGameInConsole") : false;
   const bool logGamesAsJson = userCfg->contains("logGamesAsJson") ? userCfg->getBool("logGamesAsJson") : false;
+  const bool logOwnership = userCfg->contains("logOwnership") ? userCfg->getBool("logOwnership") : false;
   if(watchOngoingGameInFileName == "")
     watchOngoingGameInFileName = "watchgame.txt";
 
@@ -659,7 +661,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   auto runGameLoop = [
     &logger,forkData,&gameSeedBase,&gameTaskQueue,&numGamesStarted,&sgfsDir,&connection,
     &numRatingGamesActive,&numMovesPlayed,&watchOngoingGameInFile,&watchOngoingGameInFileName,
-    &watchOngoingGameInConsole, &logGamesAsJson
+    &watchOngoingGameInConsole, &logGamesAsJson, &logOwnership
   ] (
     int gameLoopThreadIdx
   ) {
@@ -676,7 +678,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       if(!shouldStop.load()) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         int64_t gameIdx = numGamesStarted.fetch_add(1,std::memory_order_acq_rel);
-        runAndUploadSingleGame(connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand,numMovesPlayed,outputEachMove,watchOngoingGameInConsole,logGamesAsJson);
+        runAndUploadSingleGame(connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand,numMovesPlayed,outputEachMove,watchOngoingGameInConsole,logGamesAsJson, logOwnership);
       }
       gameTask.blackManager->release(gameTask.nnEvalBlack);
       gameTask.whiteManager->release(gameTask.nnEvalWhite);
