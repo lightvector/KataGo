@@ -31,6 +31,8 @@ struct MiscNNInputParams {
   double playoutDoublingAdvantage = 0.0;
   float nnPolicyTemperature = 1.0f;
   bool avoidMYTDaggerHack = false;
+  // Used to pass the requested symmetry down into getOutput(). -1 means no specific symmetry requested,
+  // therefor use default or random based on config.
   int symmetry = -1;
 
   static const Hash128 ZOBRIST_CONSERVATIVE_PASS;
