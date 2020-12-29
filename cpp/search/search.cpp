@@ -2001,10 +2001,11 @@ void Search::initNodeNNOutput(
       getOpp(thread.pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
     );
   }
-  if(isRoot && searchParams.rootNumSymmetriesToSample > 1) {
+  if((isRoot && searchParams.rootNumSymmetriesToSample > 1) || (searchParams.nodeNumSymmetriesToSample > 1)) {
+    int numSymmetriesToSample = isRoot ? searchParams.rootNumSymmetriesToSample : searchParams.nodeNumSymmetriesToSample;
     vector<shared_ptr<NNOutput>> ptrs;
     std::array<int, NNInputs::NUM_SYMMETRY_COMBINATIONS> symmetryIndexes {0,1,2,3,4,5,6,7};
-    for(int i = 0; i<searchParams.rootNumSymmetriesToSample; i++) {
+    for(int i = 0; i<searchParams.numSymmetriesToSample; i++) {
       std::swap(symmetryIndexes[i], symmetryIndexes[thread.rand.nextInt(i,NNInputs::NUM_SYMMETRY_COMBINATIONS-1)]);
       nnInputParams.symmetry = symmetryIndexes[i];
       bool skipCacheThisIteration = skipCache || i > 0; //Skip cache on subsequent iterations to get new random draws for orientation
