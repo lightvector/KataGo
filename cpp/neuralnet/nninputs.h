@@ -10,6 +10,9 @@
 #include "../game/boardhistory.h"
 #include "../game/rules.h"
 
+#define SYMMETRY_NOTSPECIFIED -1
+#define SYMMETRY_ALL -2
+
 namespace NNPos {
   constexpr int MAX_BOARD_LEN = Board::MAX_LEN;
   constexpr int MAX_BOARD_AREA = MAX_BOARD_LEN * MAX_BOARD_LEN;
@@ -31,9 +34,8 @@ struct MiscNNInputParams {
   double playoutDoublingAdvantage = 0.0;
   float nnPolicyTemperature = 1.0f;
   bool avoidMYTDaggerHack = false;
-  // Used to pass the requested symmetry down into getOutput(). -1 means no specific symmetry requested,
-  // therefore use default or random based on config.
-  int symmetry = -1;
+  // If no symmetry is specified, it will use default or random based on config.
+  int symmetry = SYMMETRY_NOTSPECIFIED;
 
   static const Hash128 ZOBRIST_CONSERVATIVE_PASS;
   static const Hash128 ZOBRIST_PLAYOUT_DOUBLINGS;

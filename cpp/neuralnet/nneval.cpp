@@ -18,8 +18,8 @@ NNResultBuf::NNResultBuf()
     rowGlobal(NULL),
     result(nullptr),
     errorLogLockout(false),
-    // -1 means no specific symmetry requested, therefore use default or random based on config.
-    symmetry(-1)
+    // If no symmetry is specified, it will use default or random based on config.
+    symmetry(SYMMETRY_NOTSPECIFIED)
 {}
 
 NNResultBuf::~NNResultBuf() {
