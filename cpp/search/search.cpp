@@ -6,6 +6,7 @@
 #include "../search/search.h"
 
 #include <algorithm>
+#include <numeric>
 
 #include "../core/fancymath.h"
 #include "../core/timer.h"
@@ -2004,7 +2005,8 @@ void Search::initNodeNNOutput(
   if((isRoot && searchParams.rootNumSymmetriesToSample > 1) || (searchParams.nodeNumSymmetriesToSample > 1)) {
     int numSymmetriesToSample = isRoot ? searchParams.rootNumSymmetriesToSample : searchParams.nodeNumSymmetriesToSample;
     vector<shared_ptr<NNOutput>> ptrs;
-    std::array<int, NNInputs::NUM_SYMMETRY_COMBINATIONS> symmetryIndexes {0,1,2,3,4,5,6,7};
+    std::array<int, NNInputs::NUM_SYMMETRY_COMBINATIONS> symmetryIndexes;
+    std::iota(symmetryIndexes.begin(), symmetryIndexes.end(), 0);
     for(int i = 0; i<numSymmetriesToSample; i++) {
       std::swap(symmetryIndexes[i], symmetryIndexes[thread.rand.nextInt(i,NNInputs::NUM_SYMMETRY_COMBINATIONS-1)]);
       nnInputParams.symmetry = symmetryIndexes[i];
