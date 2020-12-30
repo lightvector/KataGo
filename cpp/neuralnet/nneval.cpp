@@ -476,7 +476,7 @@ void NNEvaluator::serve(
     }
 
     for(int row = 0; row<numRows; row++) {
-      if(buf.resultBufs[row]->symmetry == -1) {
+      if(buf.resultBufs[row]->symmetry == SYMMETRY_NOTSPECIFIED) {
         if(doRandomize)
           buf.resultBufs[row]->symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
         else
