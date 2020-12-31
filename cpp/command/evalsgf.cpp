@@ -156,7 +156,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     vector<Loc> extraMoveLocs = Location::parseSequence(extraMoves,board);
     for(size_t i = 0; i<extraMoveLocs.size(); i++) {
       Loc loc = extraMoveLocs[i];
-      if(!board.isLegal(loc,nextPla,hist.rules.multiStoneSuicideLegal)) {
+      if(!hist.isLegal(board,loc,nextPla)) {
         cerr << board << endl;
         cerr << "Extra illegal move for " << PlayerIO::colorToChar(nextPla) << ": " << Location::toString(loc,board) << endl;
         throw StringError("Illegal extra move");
@@ -270,7 +270,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     Player pla = nextPla;
     for(int i = 0; i<options.branch_.size(); i++) {
       Loc loc = options.branch_[i];
-      if(!copy.isLegal(loc,pla,copyHist.rules.multiStoneSuicideLegal)) {
+      if(!copyHist.isLegal(copy,loc,pla)) {
         cerr << board << endl;
         cerr << "Branch Illegal move for " << PlayerIO::colorToChar(pla) << ": " << Location::toString(loc,board) << endl;
         return 1;

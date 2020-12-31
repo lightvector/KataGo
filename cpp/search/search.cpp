@@ -299,15 +299,7 @@ bool Search::isLegalTolerant(Loc moveLoc, Player movePla) const {
     return copy.isLegal(moveLoc,movePla,multiStoneSuicideLegal);
   }
   else {
-    //Don't require that the move is legal for the history, merely the board, so that
-    //we're robust to GTP or an sgf file saying that a move was made that violates superko or things like that.
-    //In the encore, we also need to ignore the simple ko loc, since the board itself will report a move as illegal
-    //when actually it is a legal pass-for-ko.
-    if(!rootBoard.isLegalIgnoringKo(moveLoc,rootPla,multiStoneSuicideLegal))
-      return false;
-    if(rootHistory.encorePhase <= 0 && rootBoard.isKoBanned(moveLoc))
-      return false;
-    return true;
+    return rootHistory.isLegalTolerant(rootBoard,moveLoc,movePla);
   }
 }
 

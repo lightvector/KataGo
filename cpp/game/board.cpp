@@ -213,6 +213,11 @@ void Board::clearSimpleKoLoc() {
   ko_loc = NULL_LOC;
 }
 
+//Gets the number of stones of the chain at loc. Precondition: location must be black or white.
+int Board::getChainSize(Loc loc) const
+{
+  return chain_data[chain_head[loc]].num_locs;
+}
 
 //Gets the number of liberties of the chain at loc. Assertion: location must be black or white.
 int Board::getNumLiberties(Loc loc) const
