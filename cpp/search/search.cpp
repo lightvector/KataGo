@@ -2003,11 +2003,11 @@ void Search::initNodeNNOutput(
     );
   }
   int numSymmetriesToSample = isRoot ? searchParams.rootNumSymmetriesToSample : searchParams.nodeNumSymmetriesToSample;
-  nnInputParams.numSymmetriesToSample = numSymmetriesToSample;
-  if((isRoot && searchParams.rootNumSymmetriesToSample > 1) || (!isRoot && searchParams.nodeNumSymmetriesToSample > 1)) {
+  if(numSymmetriesToSample > 1) {
     vector<shared_ptr<NNOutput>> ptrs;
     std::array<int, NNInputs::NUM_SYMMETRY_COMBINATIONS> symmetryIndexes;
     std::iota(symmetryIndexes.begin(), symmetryIndexes.end(), 0);
+    nnInputParams.numSymmetriesToSample = numSymmetriesToSample;
     for(int i = 0; i<numSymmetriesToSample; i++) {
       std::swap(symmetryIndexes[i], symmetryIndexes[thread.rand.nextInt(i,NNInputs::NUM_SYMMETRY_COMBINATIONS-1)]);
       nnInputParams.symmetry = symmetryIndexes[i];
