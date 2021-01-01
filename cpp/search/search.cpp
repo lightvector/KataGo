@@ -694,17 +694,23 @@ void Search::runWholeSearch(
   //Apply time controls. These two don't particularly need to be synchronized with each other so its fine to have two separate atomics.
   std::atomic<double> tcMaxTime(1e30);
   std::atomic<double> upperBoundVisitsLeftDueToTime(1e30);
-  if(!pondering) {
+  const bool hasMaxTime = maxTime < 1.0e12;
+  const bool hasTc = !pondering && !tc.isEffectivelyUnlimitedTime();
+  if(!pondering && (hasTc || hasMaxTime)) {
     int64_t rootVisits = numPlayoutsShared.load(std::memory_order_relaxed) + numNonPlayoutVisits;
     double timeUsed = timer.getSeconds();
-    double tcLimit = recomputeSearchTimeLimit(tc, timeUsed, searchFactor, rootVisits);
+    double tcLimit = 1e30;
+    if(hasTc) {
+      tcLimit = recomputeSearchTimeLimit(tc, timeUsed, searchFactor, rootVisits);
+      tcMaxTime.store(tcLimit, std::memory_order_release);
+    }
     double upperBoundVisits = computeUpperBoundVisitsLeftDueToTime(rootVisits, timeUsed, std::min(tcLimit,maxTime));
-    tcMaxTime.store(tcLimit, std::memory_order_release);
     upperBoundVisitsLeftDueToTime.store(upperBoundVisits, std::memory_order_release);
   }
 
   auto searchLoop = [
     this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&tcMaxTime,&upperBoundVisitsLeftDueToTime,&tc,
+    &hasMaxTime,&hasTc,
     &logger,&shouldStopNow,maxVisits,maxPlayouts,maxTime,pondering,searchFactor
   ](int threadIdx) {
     SearchThread* stbuf = new SearchThread(threadIdx,*this,&logger);
@@ -713,9 +719,6 @@ void Search::runWholeSearch(
     try {
       double lastTimeUsedRecomputingTcLimit = 0.0;
       while(true) {
-        bool hasMaxTime = maxTime < 1.0e12;
-        bool hasTc = !pondering && !tc.isEffectivelyUnlimitedTime();
-
         double timeUsed = 0.0;
         if(hasTc || hasMaxTime)
           timeUsed = timer.getSeconds();
