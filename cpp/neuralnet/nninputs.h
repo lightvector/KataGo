@@ -10,9 +10,6 @@
 #include "../game/boardhistory.h"
 #include "../game/rules.h"
 
-#define SYMMETRY_NOTSPECIFIED -1
-#define SYMMETRY_ALL -2
-
 namespace NNPos {
   constexpr int MAX_BOARD_LEN = Board::MAX_LEN;
   constexpr int MAX_BOARD_AREA = MAX_BOARD_LEN * MAX_BOARD_LEN;
@@ -28,6 +25,14 @@ namespace NNPos {
   int getPolicySize(int nnXLen, int nnYLen);
 }
 
+namespace NNInputs {
+  constexpr int SYMMETRY_NOTSPECIFIED = -1;
+  constexpr int SYMMETRY_ALL = -2;
+
+  const int NUM_SYMMETRY_BOOLS = 3;
+  const int NUM_SYMMETRY_COMBINATIONS = 8;
+}
+
 struct MiscNNInputParams {
   double drawEquivalentWinsForWhite = 0.5;
   bool conservativePass = false;
@@ -35,7 +40,7 @@ struct MiscNNInputParams {
   float nnPolicyTemperature = 1.0f;
   bool avoidMYTDaggerHack = false;
   // If no symmetry is specified, it will use default or random based on config.
-  int symmetry = SYMMETRY_NOTSPECIFIED;
+  int symmetry = NNInputs::SYMMETRY_NOTSPECIFIED;
 
   static const Hash128 ZOBRIST_CONSERVATIVE_PASS;
   static const Hash128 ZOBRIST_PLAYOUT_DOUBLINGS;
@@ -44,9 +49,6 @@ struct MiscNNInputParams {
 };
 
 namespace NNInputs {
-  const int NUM_SYMMETRY_BOOLS = 3;
-  const int NUM_SYMMETRY_COMBINATIONS = 8;
-
   const int NUM_FEATURES_SPATIAL_V3 = 22;
   const int NUM_FEATURES_GLOBAL_V3 = 14;
 
