@@ -144,7 +144,8 @@ int MainCmds::tuner(int argc, const char* const* argv) {
 
   logger.write("Loading model...");
   ModelDesc modelDesc;
-  ModelDesc::loadFromFileMaybeGZipped(modelFile, modelDesc);
+  string expectedSha256 = "";
+  ModelDesc::loadFromFileMaybeGZipped(modelFile, modelDesc, expectedSha256);
 
   logger.write("Querying system devices...");
   vector<DeviceInfo> allDeviceInfos = DeviceInfo::getAllDeviceInfosOnSystem(&logger);
