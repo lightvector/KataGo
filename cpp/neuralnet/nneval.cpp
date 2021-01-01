@@ -55,6 +55,7 @@ NNServerBuf::~NNServerBuf() {
 NNEvaluator::NNEvaluator(
   const string& mName,
   const string& mFileName,
+  const string& expectedSha256,
   Logger* lg,
   int maxBatchSize,
   int maxConcurrentEvals,
@@ -140,7 +141,7 @@ NNEvaluator::NNEvaluator(
     vector<int> gpuIdxs = gpuIdxByServerThread;
     std::sort(gpuIdxs.begin(), gpuIdxs.end());
     std::unique(gpuIdxs.begin(), gpuIdxs.end());
-    loadedModel = NeuralNet::loadModelFile(modelFileName);
+    loadedModel = NeuralNet::loadModelFile(modelFileName,expectedSha256);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
     computeContext = NeuralNet::createComputeContext(

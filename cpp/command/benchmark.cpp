@@ -279,8 +279,9 @@ static NNEvaluator* createNNEval(int maxNumThreads, CompactSgf* sgf, const strin
     expectedConcurrentEvals = 2;
 #endif
 
+  string expectedSha256 = "";
   NNEvaluator* nnEval = Setup::initializeNNEvaluator(
-    modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+    modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
     sgf->xSize,sgf->ySize,defaultMaxBatchSize,
     Setup::SETUP_FOR_BENCHMARK
   );

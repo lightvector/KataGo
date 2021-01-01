@@ -163,9 +163,11 @@ static NNEvaluator* startNNEval(
     defaultSymmetry = 0;
   }
 
+  string expectedSha256 = "";
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
     modelFile,
+    expectedSha256,
     &logger,
     maxBatchSize,
     maxConcurrentEvals,

@@ -153,6 +153,8 @@ struct Board
 
   //Functions------------------------------------
 
+  //Gets the number of stones of the chain at loc. Precondition: location must be black or white.
+  int getChainSize(Loc loc) const;
   //Gets the number of liberties of the chain at loc. Precondition: location must be black or white.
   int getNumLiberties(Loc loc) const;
   //Returns the number of liberties a new stone placed here would have, or max if it would be >= max.
@@ -190,6 +192,8 @@ struct Board
   bool isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveArea) const;
   //Is this board empty?
   bool isEmpty() const;
+  //Count the number of stones on the board
+  int numStonesOnBoard() const;
 
   //Lift any simple ko ban recorded on thie board due to an immediate prior ko capture.
   void clearSimpleKoLoc();

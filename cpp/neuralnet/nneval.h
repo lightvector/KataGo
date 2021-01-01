@@ -78,6 +78,7 @@ class NNEvaluator {
   NNEvaluator(
     const std::string& modelName,
     const std::string& modelFileName,
+    const std::string& expectedSha256,
     Logger* logger,
     int maxBatchSize,
     int maxConcurrentEvals,

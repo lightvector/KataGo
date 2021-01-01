@@ -5,6 +5,7 @@
 #include <zlib.h>
 
 #include "../core/global.h"
+#include "../core/sha2.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/nninterface.h"
 
@@ -1063,7 +1064,7 @@ int ModelDesc::maxConvChannels(int convXSize, int convYSize) const {
   return c;
 }
 
-static void readEntireFileIntoString(const string& fileName, string& str) {
+static void readEntireFileIntoString(const string& fileName, string& str, const string& expectedSha256) {
   ifstream in(fileName.c_str(), ios::in | ios::binary | ios::ate);
   if(!in.good())
     throw StringError("Could not open file - does not exist or invalid permissions?");
@@ -1076,6 +1077,15 @@ static void readEntireFileIntoString(const string& fileName, string& str) {
   str.resize(fileSize);
   in.read(&str[0], fileSize);
   in.close();
+
+  if(expectedSha256 != "") {
+    char hashResultBuf[65];
+    SHA2::get256((const uint8_t*)str.data(), str.size(), hashResultBuf);
+    string hashResult(hashResultBuf);
+    bool matching = Global::toLower(expectedSha256) == Global::toLower(hashResult);
+    if(!matching)
+      throw StringError("Model file " + fileName + " sha256 was " + hashResult + " which does not match the expected sha256 " + expectedSha256);
+  }
 }
 
 struct NonCopyingStreamBuf : public std::streambuf
@@ -1087,27 +1097,29 @@ struct NonCopyingStreamBuf : public std::streambuf
   }
 };
 
-void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& descBuf) {
+void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& descBuf, const string& expectedSha256) {
   try {
     string lower = Global::toLower(fileName);
     //Read model file with no compression if it's directly named .txt or .bin
     if(Global::isSuffix(lower,".txt")) {
-      std::ifstream in(fileName);
-      if(!in.good())
-        throw StringError("Could not open file - does not exist or invalid permissions?");
       bool binaryFloats = false;
-      descBuf = std::move(ModelDesc(in,binaryFloats));
+      string uncompressed;
+      readEntireFileIntoString(fileName,uncompressed,expectedSha256);
+      NonCopyingStreamBuf uncompressedStreamBuf(uncompressed);
+      std::istream uncompressedIn(&uncompressedStreamBuf);
+      descBuf = std::move(ModelDesc(uncompressedIn,binaryFloats));
     }
     else if(Global::isSuffix(lower,".bin")) {
-      std::ifstream in(fileName, ios::in | ios::binary);
-      if(!in.good())
-        throw StringError("Could not open file - does not exist or invalid permissions?");
       bool binaryFloats = true;
-      descBuf = std::move(ModelDesc(in,binaryFloats));
+      string uncompressed;
+      readEntireFileIntoString(fileName,uncompressed,expectedSha256);
+      NonCopyingStreamBuf uncompressedStreamBuf(uncompressed);
+      std::istream uncompressedIn(&uncompressedStreamBuf);
+      descBuf = std::move(ModelDesc(uncompressedIn,binaryFloats));
     }
     else if(Global::isSuffix(lower,".txt.gz") || Global::isSuffix(lower,".bin.gz") || Global::isSuffix(lower,".gz")) {
       std::unique_ptr<string> compressed = std::make_unique<string>();
-      readEntireFileIntoString(fileName,*compressed);
+      readEntireFileIntoString(fileName,*compressed,expectedSha256);
 
       static constexpr size_t CHUNK_SIZE = 262144;
       string uncompressed;

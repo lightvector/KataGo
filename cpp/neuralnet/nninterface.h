@@ -39,7 +39,7 @@ namespace NeuralNet {
 
   // Model I/O -----------------------------------------------------------------
 
-  LoadedModel* loadModelFile(const std::string& file);
+  LoadedModel* loadModelFile(const std::string& file, const std::string& expectedSha256);
   void freeLoadedModel(LoadedModel* loadedModel);
 
   std::string getModelName(const LoadedModel* loadedModel);

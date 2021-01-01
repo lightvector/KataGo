@@ -645,7 +645,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
     Rand rand;
     NNEvaluator* nnEval = Setup::initializeNNEvaluator(
-      modelName,modelFile,*userCfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
+      modelName,modelFile,modelInfo.sha256,*userCfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
       Setup::SETUP_FOR_DISTRIBUTED
     );

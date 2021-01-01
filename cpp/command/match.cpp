@@ -162,8 +162,9 @@ int MainCmds::match(int argc, const char* const* argv) {
   Setup::initializeSession(cfg);
   const vector<string>& nnModelNames = nnModelFiles;
   int defaultMaxBatchSize = -1;
+  const vector<string> expectedSha256s;
   vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
-    nnModelNames,nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+    nnModelNames,nnModelFiles,expectedSha256s,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
     maxBoardSizeUsed,maxBoardSizeUsed,defaultMaxBatchSize,
     Setup::SETUP_FOR_MATCH
   );

@@ -718,6 +718,8 @@ bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) cons
   //Ko-moves in the encore that are recapture blocked are interpreted as pass-for-ko, so they are legal
   if(encorePhase > 0) {
     if(moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE && moveLoc != Board::PASS_LOC) {
+      if(board.colors[moveLoc] == getOpp(movePla) && koRecapBlocked[moveLoc] && board.getChainSize(moveLoc) == 1 && board.getNumLiberties(moveLoc) == 1)
+        return true;
       Loc koCaptureLoc = board.getKoCaptureLoc(moveLoc,movePla);
       if(koCaptureLoc != Board::NULL_LOC && koRecapBlocked[koCaptureLoc] && board.colors[koCaptureLoc] == getOpp(movePla))
         return true;
@@ -739,6 +741,9 @@ bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) cons
 
 bool BoardHistory::isPassForKo(const Board& board, Loc moveLoc, Player movePla) const {
   if(encorePhase > 0 && moveLoc >= 0 && moveLoc < Board::MAX_ARR_SIZE && moveLoc != Board::PASS_LOC) {
+    if(board.colors[moveLoc] == getOpp(movePla) && koRecapBlocked[moveLoc] && board.getChainSize(moveLoc) == 1 && board.getNumLiberties(moveLoc) == 1)
+      return true;
+
     Loc koCaptureLoc = board.getKoCaptureLoc(moveLoc,movePla);
     if(koCaptureLoc != Board::NULL_LOC && koRecapBlocked[koCaptureLoc] && board.colors[koCaptureLoc] == getOpp(movePla))
       return true;
@@ -811,11 +816,19 @@ bool BoardHistory::isFinalPhase() const {
     || (rules.scoringRule == Rules::SCORING_TERRITORY && encorePhase >= 2);
 }
 
+bool BoardHistory::isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const {
+  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
+  if(encorePhase <= 0 && board.isKoBanned(moveLoc))
+    return false;
+  if(!isPassForKo(board, moveLoc, movePla) && !board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
+    return false;
+  return true;
+}
 bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla) {
   bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
   if(encorePhase <= 0 && board.isKoBanned(moveLoc))
     return false;
-  if(!board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
+  if(!isPassForKo(board, moveLoc, movePla) && !board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
     return false;
   makeBoardMoveAssumeLegal(board,moveLoc,movePla,NULL);
   return true;
@@ -824,7 +837,7 @@ bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player moveP
   bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
   if(encorePhase <= 0 && board.isKoBanned(moveLoc))
     return false;
-  if(!board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
+  if(!isPassForKo(board, moveLoc, movePla) && !board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
     return false;
   makeBoardMoveAssumeLegal(board,moveLoc,movePla,NULL,preventEncore);
   return true;
@@ -892,13 +905,22 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   //Handle pass-for-ko moves in the encore. Pass for ko lifts a ko recapture block and does nothing else.
   bool wasPassForKo = false;
   if(encorePhase > 0 && moveLoc != Board::PASS_LOC) {
-    Loc koCaptureLoc = board.getKoCaptureLoc(moveLoc,movePla);
-    if(koCaptureLoc != Board::NULL_LOC && koRecapBlocked[koCaptureLoc] && board.colors[koCaptureLoc] == getOpp(movePla)) {
-      setKoRecapBlocked(koCaptureLoc,false);
+    if(board.colors[moveLoc] == getOpp(movePla) && koRecapBlocked[moveLoc]) {
+      setKoRecapBlocked(moveLoc,false);
       wasPassForKo = true;
       //Clear simple ko loc just in case
       //Since we aren't otherwise touching the board, from the board's perspective a player will be moving twice in a row.
       board.clearSimpleKoLoc();
+    }
+    else {
+      Loc koCaptureLoc = board.getKoCaptureLoc(moveLoc,movePla);
+      if(koCaptureLoc != Board::NULL_LOC && koRecapBlocked[koCaptureLoc] && board.colors[koCaptureLoc] == getOpp(movePla)) {
+        setKoRecapBlocked(koCaptureLoc,false);
+        wasPassForKo = true;
+        //Clear simple ko loc just in case
+        //Since we aren't otherwise touching the board, from the board's perspective a player will be moving twice in a row.
+        board.clearSimpleKoLoc();
+      }
     }
   }
   //Otherwise handle regular moves

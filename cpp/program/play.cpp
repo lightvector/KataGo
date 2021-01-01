@@ -883,7 +883,7 @@ static void extractPolicyTarget(
 
   assert(node != NULL);
   bool allowDirectPolicyMoves = false;
-  bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast,allowDirectPolicyMoves);
+  bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,NULL,scaleMaxToAtLeast,allowDirectPolicyMoves);
   assert(success);
   (void)success; //Avoid warning when asserts are disabled
 

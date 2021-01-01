@@ -216,8 +216,11 @@ window.onload = function() {
 </head>
 <body>
 
-<h1>KataGo's Supported Go Rules (Version 2) </h1>
-This page describes the full rigorous rules implemented by KataGo. Updated from <a href="./rulesv1.html">rules version 1</a> right around the start of 2021 to fix an issue where basic double ko death was a mismatch with Japanese rules. These rules are supported in KataGo version 1.8 and later. Additionally, neural nets trained with the old rules, before 2021 or in early 2021 may fail to evaluate such situations correctly even when used with KataGo version 1.8 or later - the version *and* the net both need to be up-to-date.
+<h1>KataGo's Supported Go Rules (Version 1) </h1>
+
+This is NOT the latest version of these rules. The latest rules can be found <a href="./rules.html">here</a>.
+
+This page describes the full rigorous rules implemented by KataGo. These rules are supported in KataGo version 1.3 and later.
 
 <p>
 A hope also is that this document can serve as a reference for anyone to implement any subset of such rules themselves - including a rigorous nearly-Japanese rules that bots can use for self-play or for competitive matches completely without need for outside adjudication or dispute resolution or any other protocol besides just the bots making ordinary plays.
@@ -520,7 +523,7 @@ Cleanup lasts for two phases<a href="#note6" id="ref6">[6]</a>. In each phase, s
   </ul>
   Then, followed by unmarking all ko-recapture-blocked points whose grid color is empty.
 </li>
-<li>An <span class="definition">unblock-ko-recapture</span> action consists of a player choosing a a single-point region of the opposing color that is in atari and marked as ko-recapture-blocked, and removing that mark.</li>
+<li>An <span class="definition">unblock-ko-recapture</span> action consists of a player choosing a ko-move for that player that would capture a region containing a point marked as ko-recapture-blocked, and removing that mark.</li>
 </ul>
 
 <h4> Cleanup Phase Ending and Scoring </h4>
