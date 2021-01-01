@@ -18,6 +18,8 @@
 #include "../search/searchprint.h"
 #include "../search/timecontrols.h"
 
+#include "../external/nlohmann_json/json.hpp"
+
 struct SearchNode;
 struct SearchThread;
 struct Search;
@@ -330,8 +332,12 @@ struct Search {
   //If node is not providied, defaults to using the root node.
   std::vector<double> getAverageTreeOwnership(int64_t minVisit, const SearchNode* node = NULL) const;
 
-  //Get ownershipmap as json
-  json Search::getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, int ownershipMinVisits) const;
+  //Get ownership map as json
+  nlohmann::json Search::getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, int ownershipMinVisits) const;
+  //Fill json with analysis engine format information about search results
+  bool Search::getAnalysisJson(const Player pla, const Player perspective, const Board& board, const BoardHistory& hist,
+                               int minMoves, int analysisPVLen, int ownershipMinVisits, bool preventEncore, bool includePolicy,
+                               bool includeOwnership, bool includeMovesOwnership, bool includePVVisits, nlohmann::json& ret) const;
 
   //Expert manual playout-by-playout interface------------------------------------------------
   void beginSearch(bool pondering);

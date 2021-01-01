@@ -4,12 +4,12 @@
 //-------------------------------------------------------------------------------------
 
 #include "../search/search.h"
+#include "../core/fancymath.h"
 
 #include <inttypes.h>
 
-#include "../core/fancymath.h"
-
 using namespace std;
+using nlohmann::json;
 
 static const int64_t MIN_VISITS_FOR_LCB = 3;
 
@@ -1246,7 +1246,6 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minV
   return desiredWeight;
 }
 
-
 json Search::getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, int ownershipMinVisits) const {
   vector<double> ownership = getAverageTreeOwnership(ownershipMinVisits, node);
   json ownerships = json::array();
@@ -1262,4 +1261,128 @@ json Search::getJsonOwnershipMap(const Player pla, const Player perspective, con
     }
   }
   return ownerships;
+}
+
+bool Search::getAnalysisJson(
+  const Player pla,
+  const Player perspective,
+  const Board& board,
+  const BoardHistory& hist,
+  int minMoves,
+  int analysisPVLen,
+  int ownershipMinVisits,
+  bool preventEncore,
+  bool includePolicy,
+  bool includeOwnership,
+  bool includeMovesOwnership,
+  bool includePVVisits,
+  json& ret) const {
+  vector<AnalysisData> buf;
+  getAnalysisData(buf, minMoves, false, analysisPVLen);
+
+  // Stats for all the individual moves
+  json moveInfos = json::array();
+  for(int i = 0; i < buf.size(); i++) {
+    const AnalysisData& data = buf[i];
+    double winrate = 0.5 * (1.0 + data.winLossValue);
+    double utility = data.utility;
+    double lcb = 0.0; //    PlayUtils::getHackedLCBForWinrate(this, data, pla);
+    double utilityLcb = data.lcb;
+    double scoreMean = data.scoreMean;
+    double lead = data.lead;
+    if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
+      winrate = 1.0 - winrate;
+      lcb = 1.0 - lcb;
+      utility = -utility;
+      scoreMean = -scoreMean;
+      lead = -lead;
+      utilityLcb = -utilityLcb;
+    }
+
+    json moveInfo;
+    moveInfo["move"] = Location::toString(data.move, board);
+    moveInfo["visits"] = data.numVisits;
+    moveInfo["utility"] = utility;
+    moveInfo["winrate"] = winrate;
+    moveInfo["scoreMean"] = lead;
+    moveInfo["scoreSelfplay"] = scoreMean;
+    moveInfo["scoreLead"] = lead;
+    moveInfo["scoreStdev"] = data.scoreStdev;
+    moveInfo["prior"] = data.policyPrior;
+    moveInfo["lcb"] = lcb;
+    moveInfo["utilityLcb"] = utilityLcb;
+    moveInfo["order"] = data.order;
+
+    json pv = json::array();
+    int pvLen =
+      (preventEncore && data.pvContainsPass()) ? data.getPVLenUpToPhaseEnd(board, hist, pla) : (int)data.pv.size();
+    for(int j = 0; j < pvLen; j++)
+      pv.push_back(Location::toString(data.pv[j], board));
+    moveInfo["pv"] = pv;
+
+    if(includePVVisits) {
+      assert(data.pvVisits.size() >= pvLen);
+      json pvVisits = json::array();
+      for(int j = 0; j < pvLen; j++)
+        pvVisits.push_back(data.pvVisits[j]);
+      moveInfo["pvVisits"] = pvVisits;
+    }
+
+    if(includeMovesOwnership)
+      moveInfo["ownership"] = getJsonOwnershipMap(pla, perspective, board, data.node, ownershipMinVisits);
+    moveInfos.push_back(moveInfo);
+  }
+  ret["moveInfos"] = moveInfos;
+
+  // Stats for root position
+  {
+    ReportedSearchValues rootVals;
+    bool suc = getRootValues(rootVals);
+    if(!suc)
+      return false;
+    Player rootPla = getOpp(pla);
+
+    double winrate = 0.5 * (1.0 + rootVals.winLossValue);
+    double scoreMean = rootVals.expectedScore;
+    double lead = rootVals.lead;
+    double utility = rootVals.utility;
+
+    if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK)) {
+      winrate = 1.0 - winrate;
+      scoreMean = -scoreMean;
+      lead = -lead;
+      utility = -utility;
+    }
+
+    json rootInfo;
+    rootInfo["visits"] = rootVals.visits;
+    rootInfo["winrate"] = winrate;
+    rootInfo["scoreSelfplay"] = scoreMean;
+    rootInfo["scoreLead"] = lead;
+    rootInfo["scoreStdev"] = rootVals.expectedScoreStdev;
+    rootInfo["utility"] = utility;
+    ret["rootInfo"] = rootInfo;
+  }
+  // Raw policy prior
+  if(includePolicy) {
+    float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+    bool suc = getPolicy(policyProbs);
+    if(!suc)
+      return false;
+    json policy = json::array();
+    for(int y = 0; y < board.y_size; y++) {
+      for(int x = 0; x < board.x_size; x++) {
+        int pos = NNPos::xyToPos(x, y, nnXLen);
+        policy.push_back(policyProbs[pos]);
+      }
+    }
+
+    int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
+    policy.push_back(policyProbs[passPos]);
+    ret["policy"] = policy;
+  }
+  // Average tree ownership
+  if(includeOwnership)
+    ret["ownership"] = getJsonOwnershipMap(pla, perspective, board, rootNode, ownershipMinVisits);
+  return true;
 }

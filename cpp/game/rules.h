@@ -4,9 +4,6 @@
 #include "../core/global.h"
 #include "../core/hash.h"
 
-#include "../external/nlohmann_json/json.hpp"
-using json = nlohmann::json;
-
 struct Rules {
 
   static const int KO_SIMPLE = 0;
@@ -76,7 +73,6 @@ struct Rules {
   std::string toString() const;
   std::string toStringNoKomi() const;
   std::string toStringNoKomiMaybeNice() const;
-  json toJson() const;
   std::string toJsonString() const;
   std::string toJsonStringNoKomi() const;
   std::string toJsonStringNoKomiMaybeOmitStuff() const;
