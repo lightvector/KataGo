@@ -12,6 +12,7 @@ void Setup::initializeSession(ConfigParser& cfg) {
 NNEvaluator* Setup::initializeNNEvaluator(
   const string& nnModelName,
   const string& nnModelFile,
+  const string& expectedSha256,
   ConfigParser& cfg,
   Logger& logger,
   Rand& seedRand,
@@ -24,7 +25,8 @@ NNEvaluator* Setup::initializeNNEvaluator(
 ) {
   vector<NNEvaluator*> nnEvals =
     initializeNNEvaluators(
-      {nnModelName},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,defaultNNXLen,defaultNNYLen,defaultMaxBatchSize,setupFor
+      {nnModelName},{nnModelFile},{expectedSha256},
+      cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,defaultNNXLen,defaultNNYLen,defaultMaxBatchSize,setupFor
     );
   assert(nnEvals.size() == 1);
   return nnEvals[0];
@@ -33,6 +35,7 @@ NNEvaluator* Setup::initializeNNEvaluator(
 vector<NNEvaluator*> Setup::initializeNNEvaluators(
   const vector<string>& nnModelNames,
   const vector<string>& nnModelFiles,
+  const vector<string>& expectedSha256s,
   ConfigParser& cfg,
   Logger& logger,
   Rand& seedRand,
@@ -45,6 +48,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 ) {
   vector<NNEvaluator*> nnEvals;
   assert(nnModelNames.size() == nnModelFiles.size());
+  assert(expectedSha256s.size() == 0 || expectedSha256s.size() == nnModelFiles.size());
 
   #if defined(USE_CUDA_BACKEND)
   string backendPrefix = "cuda";
@@ -71,6 +75,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     string idxStr = Global::intToString(i);
     const string& nnModelName = nnModelNames[i];
     const string& nnModelFile = nnModelFiles[i];
+    const string& expectedSha256 = expectedSha256s.size() > 0 ? expectedSha256s[i]: "";
 
     bool debugSkipNeuralNetDefault = (nnModelFile == "/dev/null");
     bool debugSkipNeuralNet =
@@ -283,6 +288,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
       nnModelFile,
+      expectedSha256,
       &logger,
       nnMaxBatchSize,
       maxConcurrentEvals,

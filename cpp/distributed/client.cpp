@@ -915,13 +915,10 @@ bool Connection::actuallyDownloadModel(
         " bytes out of " + Global::int64ToString(modelInfo.bytes)
       );
 
-    //Verify hash to see if the file is as expected
-    modelInfo.failIfSha256Mismatch(tmpPath);
-
     //Attempt to load the model file to verify gzip integrity and that we actually support this model format
     {
       ModelDesc descBuf;
-      ModelDesc::loadFromFileMaybeGZipped(tmpPath,descBuf);
+      ModelDesc::loadFromFileMaybeGZipped(tmpPath,descBuf,modelInfo.sha256);
     }
 
     //Done! Rename the file into the right place

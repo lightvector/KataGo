@@ -29,9 +29,11 @@ static NNEvaluator* startNNEval(
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
 
+  string expectedSha256 = "";
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
     modelFile,
+    expectedSha256,
     &logger,
     maxBatchSize,
     maxConcurrentEvals,

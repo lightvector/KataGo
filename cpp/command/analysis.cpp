@@ -162,8 +162,9 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     int maxConcurrentEvals = numAnalysisThreads * defaultParams.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     int expectedConcurrentEvals = numAnalysisThreads * defaultParams.numThreads;
     int defaultMaxBatchSize = -1;
+    string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
-      modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+      modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
       Setup::SETUP_FOR_ANALYSIS
     );
