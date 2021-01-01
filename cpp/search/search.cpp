@@ -2011,7 +2011,7 @@ void Search::initNodeNNOutput(
     for(int i = 0; i<numSymmetriesToSample; i++) {
       std::swap(symmetryIndexes[i], symmetryIndexes[thread.rand.nextInt(i,NNInputs::NUM_SYMMETRY_COMBINATIONS-1)]);
       nnInputParams.symmetry = symmetryIndexes[i];
-      bool skipCacheThisIteration = skipCache || i > 0; //Skip cache on subsequent iterations to get new random draws for orientation
+      bool skipCacheThisIteration = true; //Skip cache since there's no guarantee which symmetry is in the cache
       nnEvaluator->evaluate(
         thread.board, thread.history, thread.pla,
         nnInputParams,
