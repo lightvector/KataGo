@@ -492,6 +492,7 @@ struct GTPEngine {
     }
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,currentRules,0);
+    hist.setInitialTurnNumber(board.numStonesOnBoard()); //Heuristic to guess at what turn this is
     vector<Move> newMoveHistory;
     setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
     clearStatsForNewGame();
@@ -542,6 +543,7 @@ struct GTPEngine {
 
     Board undoneBoard = initialBoard;
     BoardHistory undoneHist(undoneBoard,initialPla,currentRules,0);
+    undoneHist.setInitialTurnNumber(bot->getRootHist().initialTurnNumber);
     vector<Move> emptyMoveHistory;
     setPositionAndRules(initialPla,undoneBoard,undoneHist,initialBoard,initialPla,emptyMoveHistory);
 
@@ -571,6 +573,7 @@ struct GTPEngine {
 
     Board board = initialBoard;
     BoardHistory hist(board,initialPla,newRules,0);
+    hist.setInitialTurnNumber(bot->getRootHist().initialTurnNumber);
     vector<Move> emptyMoveHistory;
     setPositionAndRules(initialPla,board,hist,initialBoard,initialPla,emptyMoveHistory);
 
@@ -967,6 +970,7 @@ struct GTPEngine {
     //Also switch the initial player, expecting white should be next.
     hist.clear(board,P_WHITE,currentRules,0);
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+    hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
     pla = P_WHITE;
 
     response = "";
@@ -1008,6 +1012,7 @@ struct GTPEngine {
     //Also switch the initial player, expecting white should be next.
     hist.clear(board,P_WHITE,currentRules,0);
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+    hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
     pla = P_WHITE;
 
     response = "";
@@ -2303,6 +2308,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
         Player pla = P_WHITE;
         BoardHistory hist(board,pla,engine->getCurrentRules(),0);
+        hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
         vector<Move> newMoveHistory;
         engine->setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
       }
@@ -2466,6 +2472,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             }
 
             sgf->setupInitialBoardAndHist(sgfRules, sgfInitialBoard, sgfInitialNextPla, sgfInitialHist);
+            sgfInitialHist.setInitialTurnNumber(sgfInitialBoard.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
             sgfBoard = sgfInitialBoard;
             sgfNextPla = sgfInitialNextPla;
             sgfHist = sgfInitialHist;

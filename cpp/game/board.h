@@ -192,6 +192,8 @@ struct Board
   bool isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveArea) const;
   //Is this board empty?
   bool isEmpty() const;
+  //Count the number of stones on the board
+  int numStonesOnBoard() const;
 
   //Lift any simple ko ban recorded on thie board due to an immediate prior ko capture.
   void clearSimpleKoLoc();

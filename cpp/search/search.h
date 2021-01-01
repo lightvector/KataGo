@@ -136,6 +136,8 @@ struct SearchThread {
   std::vector<double> selfUtilityBuf;
   std::vector<int64_t> visitsBuf;
 
+  double upperBoundVisitsLeft;
+
   SearchThread(int threadIdx, const Search& search, Logger* logger);
   ~SearchThread();
 
@@ -174,6 +176,7 @@ struct Search {
   Player plaThatSearchIsFor;
   Player plaThatSearchIsForLastSearch;
   int64_t lastSearchNumPlayouts;
+  double effectiveSearchTimeCarriedOver; //Effective search time carried over from previous moves due to ponder/tree reuse
 
   std::string randSeed;
 
@@ -278,10 +281,13 @@ struct Search {
   bool getPlaySelectionValues(
     std::vector<Loc>& locs, std::vector<double>& playSelectionValues, double scaleMaxToAtLeast
   ) const;
+  bool getPlaySelectionValues(
+    std::vector<Loc>& locs, std::vector<double>& playSelectionValues, std::vector<double>* retVisitCounts, double scaleMaxToAtLeast
+  ) const;
   //Same, but works on a node within the search, not just the root
   bool getPlaySelectionValues(
     const SearchNode& node,
-    std::vector<Loc>& locs, std::vector<double>& playSelectionValues, double scaleMaxToAtLeast,
+    std::vector<Loc>& locs, std::vector<double>& playSelectionValues, std::vector<double>* retVisitCounts, double scaleMaxToAtLeast,
     bool allowDirectPolicyMoves
   ) const;
 
@@ -306,7 +312,9 @@ struct Search {
   int64_t getRootVisits() const;
   //Get the root node's policy prediction
   bool getPolicy(float policyProbs[NNPos::MAX_NN_POLICY_SIZE]) const;
-  //Get the surprisingness (kl-divergence) of the search result given the policy prior.
+  //Get the surprisingness (kl-divergence) of the search result given the policy prior, as well as the entropy of each.
+  //Returns false if could not be computed.
+  bool getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntropyRet, double& policyEntropyRet) const;
   double getPolicySurprise() const;
 
   void printPV(std::ostream& out, const SearchNode* node, int maxDepth) const;
@@ -334,13 +342,14 @@ struct Search {
 
   //Expert manual playout-by-playout interface------------------------------------------------
   void beginSearch(bool pondering);
-  void runSinglePlayout(SearchThread& thread);
+  void runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft);
 
   //Helpers-----------------------------------------------------------------------
   int getPos(Loc moveLoc) const;
 
 private:
   static constexpr double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
+  static constexpr double FUTILE_VISITS_PRUNE_VALUE = -1e40;
 
   double getResultUtility(double winValue, double noResultValue) const;
   double getResultUtilityFromNN(const NNOutput& nnOutput) const;
@@ -351,7 +360,15 @@ private:
 
   bool isAllowedRootMove(Loc moveLoc) const;
 
+  void computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap);
+
   void computeRootValues();
+
+  double numVisitsNeededToBeNonFutile(double maxVisitsMoveVisits);
+  double computeUpperBoundVisitsLeftDueToTime(
+    int64_t rootVisits, double timeUsed, double plannedTimeLimit
+  );
+  double recomputeSearchTimeLimit(const TimeControls& tc, double timeUsed, double searchFactor, int64_t rootVisits);
 
   double getScoreUtility(double scoreMeanSum, double scoreMeanSqSum, double weightSum) const;
   double getScoreUtilityDiff(double scoreMeanSum, double scoreMeanSqSum, double weightSum, double delta) const;
@@ -382,7 +399,7 @@ private:
 
   bool getPlaySelectionValuesAlreadyLocked(
     const SearchNode& node,
-    std::vector<Loc>& locs, std::vector<double>& playSelectionValues, double scaleMaxToAtLeast,
+    std::vector<Loc>& locs, std::vector<double>& playSelectionValues, std::vector<double>* retVisitCounts, double scaleMaxToAtLeast,
     bool allowDirectPolicyMoves, bool alwaysComputeLcb,
     double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
   ) const;
@@ -391,9 +408,13 @@ private:
   double getExploreSelectionValue(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     int64_t totalChildVisits, double fpuValue, double parentUtility,
-    bool isDuringSearch, SearchThread* thread
+    bool isDuringSearch, int64_t maxChildVisits, SearchThread* thread
   ) const;
-  double getNewExploreSelectionValue(const SearchNode& parent, float nnPolicyProb, int64_t totalChildVisits, double fpuValue, SearchThread* thread) const;
+  double getNewExploreSelectionValue(
+    const SearchNode& parent, float nnPolicyProb,
+    int64_t totalChildVisits, double fpuValue,
+    int64_t maxChildVisits, SearchThread* thread
+  ) const;
 
   //Parent must be locked
   int64_t getReducedPlaySelectionVisits(
