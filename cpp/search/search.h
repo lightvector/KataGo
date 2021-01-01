@@ -237,6 +237,8 @@ struct Search {
   //In the case where the player was not the expected one moving next, also clears history.
   bool makeMove(Loc moveLoc, Player movePla);
   bool makeMove(Loc moveLoc, Player movePla, bool preventEncore);
+
+  //isLegalTolerant also specially handles players moving multiple times in a row.
   bool isLegalTolerant(Loc moveLoc, Player movePla) const;
   bool isLegalStrict(Loc moveLoc, Player movePla) const;
 

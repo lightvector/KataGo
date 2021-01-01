@@ -5397,7 +5397,7 @@ NN Inputs V3V4V6 Ko Prohib and pass hist and whitebonus and encorestart
 -----------------------------------------------------------------
 VERSION 3
 Move 24
-010100 001010 111000 001001 001110 010111 
+010100 001010 111000 001001 001110 110111 
 Pass Hist Channels: 0 0 1 0 0 
 Selfkomi channel times 15: -0.5
 EncorePhase channel 10,11: 1 0
@@ -5435,7 +5435,7 @@ Channel: 21
 0 0 0 0 0 0  X1. X . . .
 
 Move 25
-010101 001000 111010 001000 001110 010111 
+110101 001010 111010 001000 001110 010111 
 Pass Hist Channels: 0 0 0 1 0 
 Selfkomi channel times 15: 1.5
 EncorePhase channel 10,11: 1 0
@@ -5473,7 +5473,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 26
-010101 001000 111010 001001 001110 010111 
+010101 001000 111010 001001 001110 110111 
 Pass Hist Channels: 1 0 0 0 1 
 Selfkomi channel times 15: -1.5
 EncorePhase channel 10,11: 1 0
@@ -5511,7 +5511,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 30
-010100 001010 011000 001001 001110 000111 
+010100 001010 011010 001001 001110 000111 
 Pass Hist Channels: 0 0 0 1 1 
 Selfkomi channel times 15: -1.5
 EncorePhase channel 10,11: 1 1
@@ -5549,7 +5549,7 @@ Channel: 21
 1 0 1 0 0 0  . O4X . . .
 
 Move 31
-010101 001010 011000 001001 001110 100111 
+010101 001010 011000 001001 001110 110111 
 Pass Hist Channels: 0 0 0 0 1 
 Selfkomi channel times 15: 1.5
 EncorePhase channel 10,11: 1 1
@@ -5625,7 +5625,7 @@ Channel: 21
 1 0 1 0 0 0  X5.2X . . .
 
 Move 33
-010101 001000 011010 101000 101110 010111 
+010101 001010 011010 101000 101110 010111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: 1.5
 EncorePhase channel 10,11: 1 1
@@ -5665,7 +5665,7 @@ Channel: 21
 
 VERSION 4
 Move 24
-010100 001010 111000 001001 001110 010111 
+010100 001010 111000 001001 001110 110111 
 Pass Hist Channels: 0 0 1 0 0 
 Selfkomi channel times 15: -0.5
 EncorePhase channel 10,11: 1 0
@@ -5703,7 +5703,7 @@ Channel: 21
 0 0 0 0 0 0  X1. X . . .
 
 Move 25
-010101 001000 111010 001000 001110 010111 
+110101 001010 111010 001000 001110 010111 
 Pass Hist Channels: 0 0 0 1 0 
 Selfkomi channel times 15: 1.5
 EncorePhase channel 10,11: 1 0
@@ -5741,7 +5741,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 26
-010101 001000 111010 001001 001110 010111 
+010101 001000 111010 001001 001110 110111 
 Pass Hist Channels: 1 0 0 0 1 
 Selfkomi channel times 15: -1.5
 EncorePhase channel 10,11: 1 0
@@ -5779,7 +5779,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 30
-010100 001010 011000 001001 001110 000111 
+010100 001010 011010 001001 001110 000111 
 Pass Hist Channels: 0 0 0 1 1 
 Selfkomi channel times 15: -1.5
 EncorePhase channel 10,11: 1 1
@@ -5817,7 +5817,7 @@ Channel: 21
 1 0 1 0 0 0  . O4X . . .
 
 Move 31
-010101 001010 011000 001001 001110 100111 
+010101 001010 011000 001001 001110 110111 
 Pass Hist Channels: 0 0 0 0 1 
 Selfkomi channel times 15: 1.5
 EncorePhase channel 10,11: 1 1
@@ -5893,7 +5893,7 @@ Channel: 21
 1 0 1 0 0 0  X5.2X . . .
 
 Move 33
-010101 001000 011010 101000 101110 010111 
+010101 001010 011010 101000 101110 010111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: 1.5
 EncorePhase channel 10,11: 1 1
@@ -5933,7 +5933,7 @@ Channel: 21
 
 VERSION 6
 Move 24
-010100 001010 111000 001001 001110 010111 
+010100 001010 111000 001001 001110 110111 
 Pass Hist Channels: 0 0 1 0 0 
 Selfkomi channel times 15: -0.375
 EncorePhase channel 12,13: 1 0
@@ -5971,7 +5971,7 @@ Channel: 21
 0 0 0 0 0 0  X1. X . . .
 
 Move 25
-010101 001000 111010 001000 001110 010111 
+110101 001010 111010 001000 001110 010111 
 Pass Hist Channels: 0 0 0 1 0 
 Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 0
@@ -6009,7 +6009,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 26
-010101 001000 111010 001001 001110 010111 
+010101 001000 111010 001001 001110 110111 
 Pass Hist Channels: 1 0 0 0 1 
 Selfkomi channel times 15: -1.125
 EncorePhase channel 12,13: 1 0
@@ -6047,7 +6047,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 30
-010100 001010 011000 001001 001110 000111 
+010100 001010 011010 001001 001110 000111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: -1.125
 EncorePhase channel 12,13: 1 1
@@ -6085,7 +6085,7 @@ Channel: 21
 1 0 1 0 0 0  . O4X . . .
 
 Move 31
-010101 001010 011000 001001 001110 100111 
+010101 001010 011000 001001 001110 110111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 1
@@ -6161,7 +6161,7 @@ Channel: 21
 1 0 1 0 0 0  X5.2X . . .
 
 Move 33
-010101 001000 011010 101000 101110 010111 
+010101 001010 011010 101000 101110 010111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 1
@@ -6201,7 +6201,7 @@ Channel: 21
 
 VERSION 7
 Move 24
-010100 001010 111000 001001 001110 010111 
+010100 001010 111000 001001 001110 110111 
 Pass Hist Channels: 0 0 1 0 0 
 Selfkomi channel times 15: -0.375
 EncorePhase channel 12,13: 1 0
@@ -6239,7 +6239,7 @@ Channel: 21
 0 0 0 0 0 0  X1. X . . .
 
 Move 25
-010101 001000 111010 001000 001110 010111 
+110101 001010 111010 001000 001110 010111 
 Pass Hist Channels: 0 0 0 1 0 
 Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 0
@@ -6277,7 +6277,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 26
-010101 001000 111010 001001 001110 010111 
+010101 001000 111010 001001 001110 110111 
 Pass Hist Channels: 1 0 0 0 1 
 Selfkomi channel times 15: -1.125
 EncorePhase channel 12,13: 1 0
@@ -6315,7 +6315,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 30
-010100 001010 011000 001001 001110 000111 
+010100 001010 011010 001001 001110 000111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: -1.125
 EncorePhase channel 12,13: 1 1
@@ -6353,7 +6353,7 @@ Channel: 21
 1 0 1 0 0 0  . O4X . . .
 
 Move 31
-010101 001010 011000 001001 001110 100111 
+010101 001010 011000 001001 001110 110111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 1
@@ -6429,7 +6429,7 @@ Channel: 21
 1 0 1 0 0 0  X5.2X . . .
 
 Move 33
-010101 001000 011010 101000 101110 010111 
+010101 001010 011010 101000 101110 010111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 1
@@ -14780,10 +14780,10 @@ Has button 0
 Presumed next pla White
 Past normal phase end 0
 Game result 1 White 7.5 1 0 0
-Last moves B1 F1 E1 pass pass pass H1 C1 G1 pass J1 pass D1 pass C1 F1 pass H1 G1 F1 pass pass A1 pass pass 
+Last moves B1 F1 E1 pass pass pass H1 C1 G1 pass J1 pass D1 pass C1 F1 pass H1 G1 G1 pass pass A1 pass pass 
 Num captured black stones 3
 Num captured white stones 3
-(;FF[4]GM[1]SZ[9:1]PB[Black]PW[White]HA[0]KM[7.5]RU[koSIMPLEscoreTERRITORYtaxSEKIsui0]RE[W+7.5]C[startTurnIdx=1,initTurnNum=0,gameHash=4ABB4DB214CD9C8328941CCEF8590F0D,gtype=normal];B[ba];W[fa]C[0.44 0.26 0.30 1.4 v=2 weight=1.00];B[ea]C[0.45 0.28 0.28 -1.0 v=2 weight=1.00];W[]C[0.39 0.33 0.27 1.0 v=2 weight=1.00];B[]C[0.32 0.39 0.29 0.5 v=2 weight=1.00];W[]C[0.29 0.39 0.32 0.4 v=2 weight=1.00];B[ha]C[0.32 0.39 0.28 2.7 v=2 weight=1.00];W[ca]C[0.35 0.39 0.26 1.9 v=2 weight=1.00];B[ga]C[0.36 0.35 0.29 1.6 v=2 weight=1.00];W[]C[0.35 0.38 0.28 1.5 v=2 weight=1.00];B[ia]C[0.30 0.34 0.36 -0.2 v=2 weight=1.00];W[]C[0.32 0.32 0.36 -2.1 v=2 weight=1.00];B[da]C[0.32 0.32 0.36 -1.1 v=2 weight=1.00];W[]C[0.30 0.34 0.36 -0.4 v=2 weight=1.00];B[ca]C[0.32 0.34 0.34 -1.3 v=2 weight=1.00];W[fa]C[0.38 0.28 0.34 0.1 v=2 weight=1.00];B[]C[0.40 0.31 0.29 -0.5 v=2 weight=1.00];W[ha]C[0.41 0.34 0.25 -0.6 v=2 weight=1.00];B[ga]C[0.43 0.31 0.26 0.6 v=2 weight=1.00];W[]TR[fa]C[Pass for ko 0.37 0.29 0.34 0.8 v=2 weight=1.00];B[]C[0.32 0.30 0.38 -0.0 v=2 weight=1.00];W[]C[0.33 0.30 0.37 -1.9 v=2 weight=1.00];B[aa]C[0.31 0.33 0.35 -3.2 v=2 weight=1.00];W[]C[0.34 0.33 0.32 -0.8 v=2 weight=1.00];B[]C[0.70 0.16 0.14 4.4 v=2 weight=1.00 result=W+7.5])
+(;FF[4]GM[1]SZ[9:1]PB[Black]PW[White]HA[0]KM[7.5]RU[koSIMPLEscoreTERRITORYtaxSEKIsui0]RE[W+7.5]C[startTurnIdx=1,initTurnNum=0,gameHash=4ABB4DB214CD9C8328941CCEF8590F0D,gtype=normal];B[ba];W[fa]C[0.44 0.26 0.30 1.4 v=2 weight=1.00];B[ea]C[0.45 0.28 0.28 -1.0 v=2 weight=1.00];W[]C[0.39 0.33 0.27 1.0 v=2 weight=1.00];B[]C[0.32 0.39 0.29 0.5 v=2 weight=1.00];W[]C[0.29 0.39 0.32 0.4 v=2 weight=1.00];B[ha]C[0.32 0.39 0.28 2.7 v=2 weight=1.00];W[ca]C[0.35 0.39 0.26 1.9 v=2 weight=1.00];B[ga]C[0.36 0.35 0.29 1.6 v=2 weight=1.00];W[]C[0.35 0.38 0.28 1.5 v=2 weight=1.00];B[ia]C[0.30 0.34 0.36 -0.2 v=2 weight=1.00];W[]C[0.32 0.32 0.36 -2.1 v=2 weight=1.00];B[da]C[0.32 0.32 0.36 -1.1 v=2 weight=1.00];W[]C[0.30 0.34 0.36 -0.4 v=2 weight=1.00];B[ca]C[0.32 0.34 0.34 -1.3 v=2 weight=1.00];W[fa]C[0.38 0.28 0.34 0.1 v=2 weight=1.00];B[]C[0.40 0.31 0.29 -0.5 v=2 weight=1.00];W[ha]C[0.41 0.34 0.25 -0.6 v=2 weight=1.00];B[ga]C[0.43 0.31 0.26 0.6 v=2 weight=1.00];W[]TR[ga]C[Pass for ko 0.37 0.29 0.34 0.8 v=2 weight=1.00];B[]C[0.32 0.30 0.38 -0.0 v=2 weight=1.00];W[]C[0.33 0.30 0.37 -1.9 v=2 weight=1.00];B[aa]C[0.31 0.33 0.35 -3.2 v=2 weight=1.00];W[]C[0.34 0.33 0.32 -0.8 v=2 weight=1.00];B[]C[0.70 0.16 0.14 4.4 v=2 weight=1.00 result=W+7.5])
 ===================================================================
 Unlimited time controls
 ===================================================================
