@@ -39,7 +39,7 @@ struct MiscNNInputParams {
   double playoutDoublingAdvantage = 0.0;
   float nnPolicyTemperature = 1.0f;
   bool avoidMYTDaggerHack = false;
-  // If no symmetry is specified, it will use default or random based on config.
+  // If no symmetry is specified, it will use default or random based on config, unless node is already cached.
   int symmetry = NNInputs::SYMMETRY_NOTSPECIFIED;
 
   static const Hash128 ZOBRIST_CONSERVATIVE_PASS;
