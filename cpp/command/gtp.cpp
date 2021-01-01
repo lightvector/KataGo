@@ -1126,7 +1126,7 @@ struct GTPEngine {
     ostringstream out;
 
     for(int symmetry = 0; symmetry<8; symmetry++) {
-      if(whichSymmetry == SYMMETRY_ALL || whichSymmetry == symmetry) {
+      if(whichSymmetry == NNInputs::SYMMETRY_ALL || whichSymmetry == symmetry) {
         Board board = bot->getRootBoard();
         BoardHistory hist = bot->getRootHist();
         Player nextPla = bot->getRootPla();
@@ -2537,7 +2537,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     }
 
     else if(command == "kata-raw-nn") {
-      int whichSymmetry = SYMMETRY_ALL;
+      int whichSymmetry = NNInputs::SYMMETRY_ALL;
       bool parsed = false;
       if(pieces.size() == 1) {
         string s = Global::trim(Global::toLower(pieces[0]));

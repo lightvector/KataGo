@@ -19,7 +19,7 @@ NNResultBuf::NNResultBuf()
     result(nullptr),
     errorLogLockout(false),
     // If no symmetry is specified, it will use default or random based on config.
-    symmetry(SYMMETRY_NOTSPECIFIED)
+    symmetry(NNInputs::SYMMETRY_NOTSPECIFIED)
 {}
 
 NNResultBuf::~NNResultBuf() {
@@ -476,7 +476,7 @@ void NNEvaluator::serve(
     }
 
     for(int row = 0; row<numRows; row++) {
-      if(buf.resultBufs[row]->symmetry == SYMMETRY_NOTSPECIFIED) {
+      if(buf.resultBufs[row]->symmetry == NNInputs::SYMMETRY_NOTSPECIFIED) {
         if(doRandomize)
           buf.resultBufs[row]->symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
         else
