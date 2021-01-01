@@ -28,6 +28,9 @@ namespace NNPos {
 namespace NNInputs {
   constexpr int SYMMETRY_NOTSPECIFIED = -1;
   constexpr int SYMMETRY_ALL = -2;
+
+  const int NUM_SYMMETRY_BOOLS = 3;
+  const int NUM_SYMMETRY_COMBINATIONS = 8;
 }
 
 struct MiscNNInputParams {
@@ -46,9 +49,6 @@ struct MiscNNInputParams {
 };
 
 namespace NNInputs {
-  const int NUM_SYMMETRY_BOOLS = 3;
-  const int NUM_SYMMETRY_COMBINATIONS = 8;
-
   const int NUM_FEATURES_SPATIAL_V3 = 22;
   const int NUM_FEATURES_GLOBAL_V3 = 14;
 
