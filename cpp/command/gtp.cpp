@@ -1176,6 +1176,16 @@ struct GTPEngine {
           }
           out << endl;
         }
+        out << "policyPass ";
+        {
+          int pos = NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
+          float prob = nnOutput->policyProbs[pos];
+          if(prob < 0)
+            out << "    NAN "; // Probably shouldn't ever happen for pass unles the rules change, but we handle it anyways
+          else
+            out << Global::strprintf("%8.6f ", prob);
+          out << endl;
+        }
 
         out << "whiteOwnership" << endl;
         for(int y = 0; y<board.y_size; y++) {
