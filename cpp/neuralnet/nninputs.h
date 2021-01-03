@@ -48,6 +48,8 @@ struct MiscNNInputParams {
   static const Hash128 ZOBRIST_PLAYOUT_DOUBLINGS;
   static const Hash128 ZOBRIST_NN_POLICY_TEMP;
   static const Hash128 ZOBRIST_AVOID_MYTDAGGER_HACK;
+
+  static const Hash128 ZOBRIST_NUM_SYMMETRIES_TO_SAMPLE_HASH[NNInputs::NUM_SYMMETRY_COMBINATIONS];
 };
 
 namespace NNInputs {

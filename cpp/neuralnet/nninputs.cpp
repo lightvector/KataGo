@@ -42,6 +42,17 @@ const Hash128 MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP =
 const Hash128 MiscNNInputParams::ZOBRIST_AVOID_MYTDAGGER_HACK =
   Hash128(0x612d22ec402ce054ULL, 0x0db915c49de527aeULL);
 
+const Hash128 MiscNNInputParams::ZOBRIST_NUM_SYMMETRIES_TO_SAMPLE_HASH[NNInputs::NUM_SYMMETRY_COMBINATIONS] = {
+  Hash128(0xe965ae888902aa04ULL, 0x66041fa5e89710aeULL),  //Based on sha256 hash of MiscNNInputParams::ZOBRIST_NUM_SYMMETRIES_TO_SAMPLE_HASH=0
+  Hash128(0xcd7c98236f7734b0ULL, 0xeedb76937b40d0daULL),  //Based on sha256 hash of MiscNNInputParams::ZOBRIST_NUM_SYMMETRIES_TO_SAMPLE_HASH=1
+  Hash128(0x330cc8cd7a4d2b99ULL, 0x66aa846ea74a422bULL),  //Based on sha256 hash of MiscNNInputParams::ZOBRIST_NUM_SYMMETRIES_TO_SAMPLE_HASH=2
+  Hash128(0x60a91a4f39c07263ULL, 0xbeb5d00579ee47f5ULL),  //Based on sha256 hash of MiscNNInputParams::ZOBRIST_NUM_SYMMETRIES_TO_SAMPLE_HASH=3
+  Hash128(0xe22da1a2772dea73ULL, 0xe15afe4705db76f0ULL),  //Based on sha256 hash of MiscNNInputParams::ZOBRIST_NUM_SYMMETRIES_TO_SAMPLE_HASH=4
+  Hash128(0xc06ab8b3ed35edebULL, 0xe60c9cd398808fb8ULL),  //Based on sha256 hash of MiscNNInputParams::ZOBRIST_NUM_SYMMETRIES_TO_SAMPLE_HASH=5
+  Hash128(0x6ddba535ece83fc8ULL, 0x861f5f7cc1d0712cULL),  //Based on sha256 hash of MiscNNInputParams::ZOBRIST_NUM_SYMMETRIES_TO_SAMPLE_HASH=6
+  Hash128(0x4c9153b26848d715ULL, 0xc1dc7c20fce60760ULL),  //Based on sha256 hash of MiscNNInputParams::ZOBRIST_NUM_SYMMETRIES_TO_SAMPLE_HASH=7
+};
+
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
 
@@ -743,6 +754,9 @@ Hash128 NNInputs::getHash(
 
   if(nnInputParams.avoidMYTDaggerHack)
     hash ^= MiscNNInputParams::ZOBRIST_AVOID_MYTDAGGER_HACK;
+
+  if(nnInputParams.numSymmetriesToSample > 1)
+    hash ^= MiscNNInputParams::ZOBRIST_NUM_SYMMETRIES_TO_SAMPLE_HASH[nnInputParams.numSymmetriesToSample];
 
   return hash;
 }
