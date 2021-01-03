@@ -138,6 +138,18 @@ class NNEvaluator {
     bool includeOwnerMap
   );
 
+  //If nnInputParams.numSymmetriesToSample > 1 then do an evaluate() for each symmetry desired and average the results.
+  void evaluate_symmetry(
+    Board& board,
+    const BoardHistory& history,
+    Player nextPlayer,
+    MiscNNInputParams& nnInputParams,
+    NNResultBuf& buf,
+    bool skipCache,
+    bool includeOwnerMap,
+    Rand& rand
+  );
+
   //Actually spawn threads to handle evaluations.
   //If doRandomize, uses randSeed as a seed, further randomized per-thread
   //If not doRandomize, uses defaultSymmetry for all nn evaluations.

@@ -1,6 +1,8 @@
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/modelversion.h"
 
+#include <numeric>
+
 using namespace std;
 
 //-------------------------------------------------------------------------------------
@@ -955,6 +957,48 @@ void NNEvaluator::evaluate(
   if(nnCacheTable != NULL)
     nnCacheTable->set(buf.result);
 
+}
+
+void NNEvaluator::evaluate_symmetry(
+  Board& board,
+  const BoardHistory& history,
+  Player nextPlayer,
+  MiscNNInputParams& nnInputParams,
+  NNResultBuf& buf,
+  bool skipCache,
+  bool includeOwnerMap,
+  Rand& rand
+) {
+  assert(nnInputParams.numSymmetriesToSample > 1);
+  Hash128 nnHash = NNInputs::getHash(board, history, nextPlayer, nnInputParams);
+  if(skipCache || nnCacheTable == NULL || !nnCacheTable->get(nnHash,buf.result)) {
+    vector<shared_ptr<NNOutput>> ptrs;
+    std::array<int, NNInputs::NUM_SYMMETRY_COMBINATIONS> symmetryIndexes;
+    std::iota(symmetryIndexes.begin(), symmetryIndexes.end(), 0);
+    for(int i = 0; i<nnInputParams.numSymmetriesToSample; i++) {
+      std::swap(symmetryIndexes[i], symmetryIndexes[rand.nextInt(i,NNInputs::NUM_SYMMETRY_COMBINATIONS-1)]);
+      nnInputParams.symmetry = symmetryIndexes[i];
+      //Skip cache since there's no guarantee which symmetry is in the cache
+      evaluate(
+        board, history, nextPlayer,
+        nnInputParams,
+        buf, true, includeOwnerMap
+      );
+      ptrs.push_back(std::move(buf.result));
+    }
+    buf.result = std::shared_ptr<NNOutput>(new NNOutput(ptrs));
+    buf.result->nnHash = nnHash;
+    if(nnCacheTable != NULL)
+      nnCacheTable->set(buf.result);
+  }
+  else {
+    //Node is already in cache with matching numSymmetriesToSample so call evaluate() and it will use cache
+    evaluate(
+      board, history, nextPlayer,
+      nnInputParams,
+      buf, skipCache, includeOwnerMap
+    );
+  }
 }
 
 //Uncomment this to lower the effective hash size down to one where we get true collisions
