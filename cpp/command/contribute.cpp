@@ -10,7 +10,6 @@
 #include "../neuralnet/modelversion.h"
 #include "../search/asyncbot.h"
 #include "../program/play.h"
-#include "../program/playutils.h"
 #include "../program/setup.h"
 #include "../program/selfplaymanager.h"
 #include "../tests/tinymodel.h"
@@ -189,7 +188,7 @@ static void runAndUploadSingleGame(
       json ret;
       // unique to this output
       ret["gameId"] = gameIdString; 
-      ret["move"] = json::array({PlayerIO::playerToStringShort(pla), Location::toString(loc, board)}); // unique, redundant with moves?
+      ret["move"] = json::array({PlayerIO::playerToStringShort(pla), Location::toString(loc, board)});
       ret["blackPlayer"] = botSpecB.botName;
       ret["whitePlayer"] = botSpecW.botName;
 
