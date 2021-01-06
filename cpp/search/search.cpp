@@ -2001,7 +2001,7 @@ void Search::initNodeNNOutput(
       getOpp(thread.pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
     );
   }
-  // We will use numSymmetriesToSample when conputing the hash so that multiple searchers with different settings won't use a cached
+  // We will use numSymmetriesToSample when computing the hash so that multiple searchers with different settings won't use a cached
   // eval that had the wrong numSymmetriesToSample
   nnInputParams.numSymmetriesToSample = isRoot ? searchParams.rootNumSymmetriesToSample : searchParams.nodeNumSymmetriesToSample;
   if(nnInputParams.numSymmetriesToSample > 1 || skipCache) {
