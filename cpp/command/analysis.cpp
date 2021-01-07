@@ -242,7 +242,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     ret["turnNumber"] = request->turnNumber;
     ret["isDuringSearch"] = isDuringSearch;
 
-    bool success = search->getAnalysisJson(request->nextPla, request->perspective, request->board, request->hist, 
+    bool success = search->getAnalysisJson(request->perspective, request->board, request->hist, 
                                            minMoves, request->analysisPVLen, ownershipMinVisits, preventEncore, request->includePolicy,
                                            request->includeOwnership,request->includeMovesOwnership,request->includePVVisits, ret);
 

@@ -343,11 +343,11 @@ struct Search {
   std::vector<double> getAverageTreeOwnership(int64_t minVisit, const SearchNode* node = NULL) const;
 
   //Get ownership map as json
-  nlohmann::json Search::getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, int ownershipMinVisits) const;
+  nlohmann::json getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, int ownershipMinVisits) const;
   //Fill json with analysis engine format information about search results
-  bool Search::getAnalysisJson(const Player pla, const Player perspective, const Board& board, const BoardHistory& hist,
-                               int minMoves, int analysisPVLen, int ownershipMinVisits, bool preventEncore, bool includePolicy,
-                               bool includeOwnership, bool includeMovesOwnership, bool includePVVisits, nlohmann::json& ret) const;
+  bool getAnalysisJson(const Player perspective, const Board& board, const BoardHistory& hist,
+                       int minMoves, int analysisPVLen, int ownershipMinVisits, bool preventEncore, bool includePolicy,
+                       bool includeOwnership, bool includeMovesOwnership, bool includePVVisits, nlohmann::json& ret) const;
 
   //Expert manual playout-by-playout interface------------------------------------------------
   void beginSearch(bool pondering);

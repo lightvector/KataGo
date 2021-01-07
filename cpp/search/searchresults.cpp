@@ -5,6 +5,7 @@
 
 #include "../search/search.h"
 #include "../core/fancymath.h"
+#include "../program/playutils.h"
 
 #include <inttypes.h>
 
@@ -1329,7 +1330,6 @@ json Search::getJsonOwnershipMap(const Player pla, const Player perspective, con
 }
 
 bool Search::getAnalysisJson(
-  const Player pla,
   const Player perspective,
   const Board& board,
   const BoardHistory& hist,
@@ -1351,11 +1351,11 @@ bool Search::getAnalysisJson(
     const AnalysisData& data = buf[i];
     double winrate = 0.5 * (1.0 + data.winLossValue);
     double utility = data.utility;
-    double lcb = 0.0; //    PlayUtils::getHackedLCBForWinrate(this, data, pla);
+    double lcb = PlayUtils::getHackedLCBForWinrate(this, data, rootPla);
     double utilityLcb = data.lcb;
     double scoreMean = data.scoreMean;
     double lead = data.lead;
-    if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
+    if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK)) {
       winrate = 1.0 - winrate;
       lcb = 1.0 - lcb;
       utility = -utility;
@@ -1380,7 +1380,7 @@ bool Search::getAnalysisJson(
 
     json pv = json::array();
     int pvLen =
-      (preventEncore && data.pvContainsPass()) ? data.getPVLenUpToPhaseEnd(board, hist, pla) : (int)data.pv.size();
+      (preventEncore && data.pvContainsPass()) ? data.getPVLenUpToPhaseEnd(board, hist, rootPla) : (int)data.pv.size();
     for(int j = 0; j < pvLen; j++)
       pv.push_back(Location::toString(data.pv[j], board));
     moveInfo["pv"] = pv;
@@ -1394,7 +1394,7 @@ bool Search::getAnalysisJson(
     }
 
     if(includeMovesOwnership)
-      moveInfo["ownership"] = getJsonOwnershipMap(pla, perspective, board, data.node, ownershipMinVisits);
+      moveInfo["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, data.node, ownershipMinVisits);
     moveInfos.push_back(moveInfo);
   }
   ret["moveInfos"] = moveInfos;
@@ -1405,7 +1405,6 @@ bool Search::getAnalysisJson(
     bool suc = getRootValues(rootVals);
     if(!suc)
       return false;
-    Player rootPla = getOpp(pla);
 
     double winrate = 0.5 * (1.0 + rootVals.winLossValue);
     double scoreMean = rootVals.expectedScore;
@@ -1448,6 +1447,6 @@ bool Search::getAnalysisJson(
   }
   // Average tree ownership
   if(includeOwnership)
-    ret["ownership"] = getJsonOwnershipMap(pla, perspective, board, rootNode, ownershipMinVisits);
+    ret["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, rootNode, ownershipMinVisits);
   return true;
 }
