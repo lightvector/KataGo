@@ -178,7 +178,6 @@ static void runAndUploadSingleGame(
       (*outputEachMove) << out.str() << std::flush;
     }
     if(logGamesAsJson and hist.encorePhase == 0) { // If anyone wants to support encorePhase > 0 note passForKo is a thing
-      int minMoves = 0;
       int analysisPVLen = 15;
       const Player perspective = P_BLACK;
       bool preventEncore = true;
@@ -193,7 +192,7 @@ static void runAndUploadSingleGame(
       ret["whitePlayer"] = botSpecW.botName;
 
       // Usual query fields
-      ret["rules"] = hist.rules.toJsonString();
+      ret["rules"] = hist.rules.toJson(true, true);
       ret["boardXSize"] = board.x_size;
       ret["boardYSize"] = board.y_size;
 
@@ -218,7 +217,7 @@ static void runAndUploadSingleGame(
 
       // Usual analysis response fields
       ret["turnNumber"] = hist.moveHistory.size();
-      search->getAnalysisJson(perspective,board,hist,minMoves,analysisPVLen,ownershipMinVisits,preventEncore,true,alwaysIncludeOwnership,false,false,ret);
+      search->getAnalysisJson(perspective,board,hist,analysisPVLen,ownershipMinVisits,preventEncore,true,alwaysIncludeOwnership,false,false,ret);
       std::cout << ret.dump() + "\n" << std::flush; // no endl due to race conditions
     }
 
