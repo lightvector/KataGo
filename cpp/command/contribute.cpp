@@ -82,8 +82,9 @@ namespace {
 static void runAndUploadSingleGame(
   Client::Connection* connection, GameTask gameTask, int64_t gameIdx,
   Logger& logger, const string& seed, ForkData* forkData, string sgfsDir, Rand& rand,
-  std::atomic<int64_t>& numMovesPlayed, std::unique_ptr<ostream>& outputEachMove, 
-  bool logGamesAsJson, bool alwaysIncludeOwnership) {
+  std::atomic<int64_t>& numMovesPlayed, std::unique_ptr<ostream>& outputEachMove,
+  bool logGamesAsJson, bool alwaysIncludeOwnership
+) {
   if(gameTask.task.isRatingGame) {
     logger.write(
       "Starting game " + Global::int64ToString(gameIdx) + " (rating) (" + (
@@ -148,16 +149,16 @@ static void runAndUploadSingleGame(
   if(gameTask.task.isRatingGame)
     forkData = NULL;
 
-  string gameIdString = Global::uint64ToHexString(rand.nextUInt64());
+  const string gameIdString = Global::uint64ToHexString(rand.nextUInt64());
 
   std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>
     onEachMove = [&numMovesPlayed, &outputEachMove, &logGamesAsJson, &alwaysIncludeOwnership, &gameIdString, &botSpecB, &botSpecW](
-      const Board& board, const BoardHistory& hist, Player pla, Loc loc,
+      const Board& board, const BoardHistory& hist, Player pla, Loc moveLoc,
       const std::vector<double>& winLossHist, const std::vector<double>& leadHist, const std::vector<double>& scoreStdevHist, const Search* search) {
     numMovesPlayed.fetch_add(1,std::memory_order_relaxed);
     if(outputEachMove != nullptr) {
       ostringstream out;
-      Board::printBoard(out, board, loc, &(hist.moveHistory));
+      Board::printBoard(out, board, moveLoc, &(hist.moveHistory));
       if(botSpecB.botName == botSpecW.botName) {
         out << "Network: " << botSpecB.botName << "\n";
       }
@@ -166,7 +167,7 @@ static void runAndUploadSingleGame(
       }
       out << "Rules: " << hist.rules.toJsonString() << "\n";
       out << "Player: " << PlayerIO::playerToString(pla) << "\n";
-      out << "Move: " << Location::toString(loc,board) << "\n";
+      out << "Move: " << Location::toString(moveLoc,board) << "\n";
       out << "Num Visits: " << search->getRootVisits() << "\n";
       if(winLossHist.size() > 0)
         out << "Black Winrate: " << 100.0*(0.5*(1.0 - winLossHist[winLossHist.size()-1])) << "%\n";
@@ -177,6 +178,7 @@ static void runAndUploadSingleGame(
       out << "\n";
       (*outputEachMove) << out.str() << std::flush;
     }
+
     if(logGamesAsJson and hist.encorePhase == 0) { // If anyone wants to support encorePhase > 0 note passForKo is a thing
       int analysisPVLen = 15;
       const Player perspective = P_BLACK;
@@ -186,13 +188,13 @@ static void runAndUploadSingleGame(
       // output format is a mix between an analysis query and response
       json ret;
       // unique to this output
-      ret["gameId"] = gameIdString; 
-      ret["move"] = json::array({PlayerIO::playerToStringShort(pla), Location::toString(loc, board)});
+      ret["gameId"] = gameIdString;
+      ret["move"] = json::array({PlayerIO::playerToStringShort(pla), Location::toString(moveLoc, board)});
       ret["blackPlayer"] = botSpecB.botName;
       ret["whitePlayer"] = botSpecW.botName;
 
       // Usual query fields
-      ret["rules"] = hist.rules.toJson(true, true);
+      ret["rules"] = hist.rules.toJson();
       ret["boardXSize"] = board.x_size;
       ret["boardYSize"] = board.y_size;
 
@@ -202,18 +204,19 @@ static void runAndUploadSingleGame(
       }
       ret["moves"] = moves;
 
-      json initial_stones = json::array();
-      auto initial_board = hist.initialBoard;
-      for(int y = 0; y < initial_board.y_size; y++) {
-        for(int x = 0; x < initial_board.x_size; x++) {
-          Loc loc = Location::getLoc(x, y, initial_board.x_size);
-          Player col = initial_board.colors[loc];
-          if(col != C_EMPTY)
-            initial_stones.push_back(json::array({PlayerIO::playerToStringShort(col), Location::toString(loc, initial_board)}));
+      json initialStones = json::array();
+      const Board& initialBoard = hist.initialBoard;
+      for(int y = 0; y < initialBoard.y_size; y++) {
+        for(int x = 0; x < initialBoard.x_size; x++) {
+          Loc loc = Location::getLoc(x, y, initialBoard.x_size);
+          Player locOwner = initialBoard.colors[loc];
+          if(locOwner != C_EMPTY)
+            initialStones.push_back(json::array({PlayerIO::playerToStringShort(locOwner), Location::toString(loc, initialBoard)}));
         }
       }
-      ret["initialStones"] = initial_stones;
+      ret["initialStones"] = initialStones;
       ret["initialPlayer"] = PlayerIO::playerToStringShort(hist.initialPla);
+      ret["initialTurnNumber"] = hist.initialTurnNumber;
 
       // Usual analysis response fields
       ret["turnNumber"] = hist.moveHistory.size();
@@ -584,7 +587,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       if(!shouldStop.load()) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         int64_t gameIdx = numGamesStarted.fetch_add(1,std::memory_order_acq_rel);
-        runAndUploadSingleGame(connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand,numMovesPlayed,outputEachMove,logGamesAsJson, alwaysIncludeOwnership);
+        runAndUploadSingleGame(connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand,numMovesPlayed,outputEachMove,logGamesAsJson,alwaysIncludeOwnership);
       }
       gameTask.blackManager->release(gameTask.nnEvalBlack);
       gameTask.whiteManager->release(gameTask.nnEvalWhite);

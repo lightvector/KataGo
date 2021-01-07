@@ -2385,8 +2385,10 @@ FinishedGameData* GameRunner::runGame(
     botB = new Search(botSpecB.baseParams, botSpecB.nnEval, seed + "@B");
     botW = new Search(botSpecW.baseParams, botSpecW.nnEval, seed + "@W");
   }
-  botB->setAlwaysIncludeOwnerMap(alwaysIncludeOwnership);
-  botW->setAlwaysIncludeOwnerMap(alwaysIncludeOwnership);
+  if(alwaysIncludeOwnership) {
+    botB->setAlwaysIncludeOwnerMap(true);
+    botW->setAlwaysIncludeOwnerMap(true);
+  }
 
   FinishedGameData* finishedGameData = Play::runGame(
     board,pla,hist,extraBlackAndKomi,

@@ -4,10 +4,11 @@
 //-------------------------------------------------------------------------------------
 
 #include "../search/search.h"
-#include "../core/fancymath.h"
-#include "../program/playutils.h"
 
 #include <inttypes.h>
+
+#include "../core/fancymath.h"
+#include "../program/playutils.h"
 
 using namespace std;
 using nlohmann::json;
@@ -1243,6 +1244,7 @@ void Search::printTreeHelper(
   }
 }
 
+
 vector<double> Search::getAverageTreeOwnership(int64_t minVisits, const SearchNode* node) const {
   if(node == NULL)
     node = rootNode;
@@ -1340,7 +1342,8 @@ bool Search::getAnalysisJson(
   bool includeOwnership,
   bool includeMovesOwnership,
   bool includePVVisits,
-  json& ret) const {
+  json& ret
+) const {
   vector<AnalysisData> buf;
   static constexpr int minMoves = 0;
 

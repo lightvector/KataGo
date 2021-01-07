@@ -241,11 +241,15 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     ret["turnNumber"] = request->turnNumber;
     ret["isDuringSearch"] = isDuringSearch;
 
-    bool success = search->getAnalysisJson(request->perspective, request->board, request->hist, 
-                                           request->analysisPVLen, ownershipMinVisits, preventEncore, request->includePolicy,
-                                           request->includeOwnership,request->includeMovesOwnership,request->includePVVisits, ret);
+    bool success = search->getAnalysisJson(
+      request->perspective, request->board, request->hist,
+      request->analysisPVLen, ownershipMinVisits, preventEncore, request->includePolicy,
+      request->includeOwnership,request->includeMovesOwnership,request->includePVVisits,
+      ret
+    );
 
-    if(success) pushToWrite(new string(ret.dump()));
+    if(success)
+      pushToWrite(new string(ret.dump()));
     return success;
   };
 
