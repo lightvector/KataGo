@@ -25,3 +25,15 @@ rm -f tests/results/cmd/*
 ./katago gatekeeper -help > tests/results/cmd/gatekeeper_help.stdout
 ./katago match -help > tests/results/cmd/match_help.stdout
 ./katago selfplay -help > tests/results/cmd/selfplay_help.stdout
+
+
+mkdir -p tests/results/analysis
+rm -f tests/results/analysis/*
+for CMDFILE in tests/analysis/*
+do
+    echo $CMDFILE
+    BASENAME=$(basename "$CMDFILE")
+    ./katago analysis -config configs/analysis_example.cfg -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz -override-config "logFile=tests/results/analysis/$BASENAME.log, logDir=, logTimeStamp=false, logAllRequests=true, logAllResponses=true, logSearchInfo=true, maxVisits=100, maxPlayouts=10000, numAnalysisThreads=1, numSearchThreadsPerAnalysisThread=1, nnRandomize=false, nnRandSeed=analysisTest, forDeterministicTesting=true, cudaUseFP16 = false, cudaUseNHWC = false" < $CMDFILE 1> tests/results/analysis/$BASENAME.stdout 2> tests/results/analysis/$BASENAME.stderr
+done
+
+cat tests/analysis/basic.txt | ./katago analysis -config configs/analysis_example.cfg -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz -override-config "logFile=tests/results/analysis/$BASENAME.log, logDir=, logTimeStamp=false, logAllRequests=true, logAllResponses=true, logSearchInfo=true, maxVisits=100, maxPlayouts=10000, numAnalysisThreads=1, numSearchThreadsPerAnalysisThread=1, nnRandomize=false, nnRandSeed=analysisTest, forDeterministicTesting=true, cudaUseFP16 = false, cudaUseNHWC = false, reportAnalysisWinratesAs=SIDETOMOVE" 1> tests/results/analysis/basic_sidetomove.stdout 2> tests/results/analysis/basic_sidetomove.stderr

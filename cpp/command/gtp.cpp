@@ -1420,7 +1420,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
   bool loggingToStderr = false;
 
-  bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
+  const bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
   if(!logTimeStamp)
     logger.setLogTime(false);
 

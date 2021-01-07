@@ -95,6 +95,11 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   if(numAnalysisThreads <= 0 || numAnalysisThreads > 16384)
     throw StringError("Invalid value for numAnalysisThreads: " + Global::intToString(numAnalysisThreads));
 
+  const bool forDeterministicTesting =
+    cfg.contains("forDeterministicTesting") ? cfg.getBool("forDeterministicTesting") : false;
+  if(forDeterministicTesting)
+    seedRand.init("forDeterministicTesting");
+
   Logger logger;
   if(cfg.contains("logFile") && cfg.contains("logDir"))
     throw StringError("Cannot specify both logFile and logDir in config");
@@ -102,13 +107,15 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     logger.addFile(cfg.getString("logFile"));
   else if(cfg.contains("logDir")) {
     MakeDir::make(cfg.getString("logDir"));
-    Rand rand;
-    logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(rand.nextUInt()) + ".log");
+    logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(seedRand.nextUInt()) + ".log");
   }
 
   const bool logToStderr = cfg.contains("logToStderr") ? cfg.getBool("logToStderr") : true;
   if(logToStderr)
     logger.setLogToStderr(true);
+  const bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
+  if(!logTimeStamp)
+    logger.setLogTime(false);
 
   logger.write("Analysis Engine starting...");
   logger.write(Version::getKataGoVersionForHelp());
