@@ -1574,6 +1574,87 @@ xxxx.xxoxxx
     }
   }
 
+  {
+    cout << "TEST futileVisitsThreshold ==========================================================================" << endl;
+
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.ox..xo..
+.........
+..o...x..
+.........
+..ox..ox.
+.........
+.........
+)%%");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 400;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.15;
+    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.4;
+    AsyncBot* botC = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+
+    TestSearchOptions opts;
+    cout << "BASE" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.15" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.4" << endl;
+    runBotOnPosition(botC,board,nextPla,hist,opts);
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete botC;
+  }
+
+  {
+    cout << "TEST futileVisitsThreshold with playouts ==========================================================================" << endl;
+
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.ox..xo..
+.........
+..o...x..
+.........
+..ox..ox.
+.........
+.........
+)%%");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 10000;
+    params.maxPlayouts = 200;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.15;
+    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.4;
+    AsyncBot* botC = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+
+    TestSearchOptions opts;
+    cout << "BASE" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.15" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.4" << endl;
+    runBotOnPosition(botC,board,nextPla,hist,opts);
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete botC;
+  }
+
 }
 
 
