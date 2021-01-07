@@ -236,14 +236,13 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   //Returns false if no analysis was reportable due to there being no root node or search results.
   auto reportAnalysis = [&preventEncore,&pushToWrite](const AnalyzeRequest* request, const Search* search, bool isDuringSearch) {
     static constexpr int ownershipMinVisits = 3;
-    int minMoves = 0;
     json ret;
     ret["id"] = request->id;
     ret["turnNumber"] = request->turnNumber;
     ret["isDuringSearch"] = isDuringSearch;
 
     bool success = search->getAnalysisJson(request->perspective, request->board, request->hist, 
-                                           minMoves, request->analysisPVLen, ownershipMinVisits, preventEncore, request->includePolicy,
+                                           request->analysisPVLen, ownershipMinVisits, preventEncore, request->includePolicy,
                                            request->includeOwnership,request->includeMovesOwnership,request->includePVVisits, ret);
 
     if(success) pushToWrite(new string(ret.dump()));

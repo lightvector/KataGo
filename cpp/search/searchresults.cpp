@@ -1333,7 +1333,6 @@ bool Search::getAnalysisJson(
   const Player perspective,
   const Board& board,
   const BoardHistory& hist,
-  int minMoves,
   int analysisPVLen,
   int ownershipMinVisits,
   bool preventEncore,
@@ -1343,6 +1342,8 @@ bool Search::getAnalysisJson(
   bool includePVVisits,
   json& ret) const {
   vector<AnalysisData> buf;
+  static constexpr int minMoves = 0;
+
   getAnalysisData(buf, minMoves, false, analysisPVLen);
 
   // Stats for all the individual moves

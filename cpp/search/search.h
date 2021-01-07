@@ -346,7 +346,7 @@ struct Search {
   nlohmann::json getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, int ownershipMinVisits) const;
   //Fill json with analysis engine format information about search results
   bool getAnalysisJson(const Player perspective, const Board& board, const BoardHistory& hist,
-                       int minMoves, int analysisPVLen, int ownershipMinVisits, bool preventEncore, bool includePolicy,
+                       int analysisPVLen, int ownershipMinVisits, bool preventEncore, bool includePolicy,
                        bool includeOwnership, bool includeMovesOwnership, bool includePVVisits, nlohmann::json& ret) const;
 
   //Expert manual playout-by-playout interface------------------------------------------------
