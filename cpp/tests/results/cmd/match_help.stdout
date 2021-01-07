@@ -22,7 +22,7 @@ Where:
    -sgf-output-dir <DIR>
      Dir to output sgf files
 
-   -override-config <KEYVALUEPAIRS>
+   -override-config <KEYVALUEPAIRS>  (accepted multiple times)
      Override config parameters. Format: "key=value, key=value,..."
 
    --,  -ignore_rest

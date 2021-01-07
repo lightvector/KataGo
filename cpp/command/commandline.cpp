@@ -237,8 +237,8 @@ void KataGoCommandLine::addConfigFileArg(const string& defaultCfgFileName, const
 
 void KataGoCommandLine::addOverrideConfigArg() {
   assert(overrideConfigArg == NULL);
-  overrideConfigArg = new TCLAP::ValueArg<string>(
-    "","override-config","Override config parameters. Format: \"key=value, key=value,...\"",false,string(),"KEYVALUEPAIRS"
+  overrideConfigArg = new TCLAP::MultiArg<string>(
+    "","override-config","Override config parameters. Format: \"key=value, key=value,...\"",false,"KEYVALUEPAIRS"
   );
   this->add(*overrideConfigArg);
 }
@@ -296,12 +296,14 @@ string KataGoCommandLine::getConfigFile() const {
 
 void KataGoCommandLine::maybeApplyOverrideConfigArg(ConfigParser& cfg) const {
   if(overrideConfigArg != NULL) {
-    string overrideConfig = overrideConfigArg->getValue();
-    if(overrideConfig != "") {
-      map<string,string> newkvs = ConfigParser::parseCommaSeparated(overrideConfig);
-      //HACK to avoid a common possible conflict - if we specify some of the rules options on one side, the other side should be erased.
-      vector<pair<set<string>,set<string>>> mutexKeySets = Setup::getMutexKeySets();
-      cfg.overrideKeys(newkvs,mutexKeySets);
+    vector<string> overrideConfigs = overrideConfigArg->getValue();
+    for(const string& overrideConfig : overrideConfigs) {
+      if(overrideConfig != "") {
+        map<string,string> newkvs = ConfigParser::parseCommaSeparated(overrideConfig);
+        //HACK to avoid a common possible conflict - if we specify some of the rules options on one side, the other side should be erased.
+        vector<pair<set<string>,set<string>>> mutexKeySets = Setup::getMutexKeySets();
+        cfg.overrideKeys(newkvs,mutexKeySets);
+      }
     }
   }
 }
