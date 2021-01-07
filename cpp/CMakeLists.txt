@@ -190,9 +190,9 @@ endif()
 
 #--------------------------- GIT ---------------------------------------------------------------------------------------
 
-if(NO_GIT_REVISION)
+if(NO_GIT_REVISION AND (NOT BUILD_DISTRIBUTED))
   message(STATUS "-DNO_GIT_REVISION=1 is set, avoiding including the Git revision in compiled executable")
-  set(GIT_HEADER_FILE_ALWAYS_UPDATED program/gitinfo.h)
+  unset(GIT_HEADER_FILE_ALWAYS_UPDATED)
 else()
   if(NO_GIT_REVISION AND BUILD_DISTRIBUTED)
     message(STATUS "${ColorRed}NO_GIT_REVISION is set, but BUILD_DISTRIBUTED is also set and distributed requires git revision, so ignoring NO_GIT_REVISION.${ColorReset}")
