@@ -287,7 +287,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
           seed, botSpecB, botSpecW, forkData, NULL, logger,
           stopConditions,
           (switchNetsMidGame ? checkForNewNNEval : nullptr),
-          nullptr
+          nullptr, false
         );
       }
 

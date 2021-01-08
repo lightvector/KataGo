@@ -424,7 +424,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
           seed, botSpecB, botSpecW, NULL, NULL, logger,
-          stopConditions, nullptr, nullptr
+          stopConditions, nullptr, nullptr, false
         );
       }
 

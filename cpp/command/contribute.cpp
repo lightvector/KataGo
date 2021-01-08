@@ -6,6 +6,7 @@
 #include "../core/os.h"
 #include "../dataio/loadmodel.h"
 #include "../dataio/homedata.h"
+#include "../external/nlohmann_json/json.hpp"
 #include "../neuralnet/modelversion.h"
 #include "../search/asyncbot.h"
 #include "../program/play.h"
@@ -32,6 +33,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 #include <sstream>
 #include <chrono>
 #include <csignal>
+using json = nlohmann::json;
 
 using namespace std;
 
@@ -80,8 +82,8 @@ namespace {
 static void runAndUploadSingleGame(
   Client::Connection* connection, GameTask gameTask, int64_t gameIdx,
   Logger& logger, const string& seed, ForkData* forkData, string sgfsDir, Rand& rand,
-  std::atomic<int64_t>& numMovesPlayed, std::unique_ptr<ostream>& outputEachMove
-) {
+  std::atomic<int64_t>& numMovesPlayed, std::unique_ptr<ostream>& outputEachMove, 
+  bool logGamesAsJson, bool alwaysIncludeOwnership) {
   if(gameTask.task.isRatingGame) {
     logger.write(
       "Starting game " + Global::int64ToString(gameIdx) + " (rating) (" + (
@@ -146,8 +148,10 @@ static void runAndUploadSingleGame(
   if(gameTask.task.isRatingGame)
     forkData = NULL;
 
+  string gameIdString = Global::uint64ToHexString(rand.nextUInt64());
+
   std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>
-    onEachMove = [&numMovesPlayed, &outputEachMove, &botSpecB, &botSpecW](
+    onEachMove = [&numMovesPlayed, &outputEachMove, &logGamesAsJson, &alwaysIncludeOwnership, &gameIdString, &botSpecB, &botSpecW](
       const Board& board, const BoardHistory& hist, Player pla, Loc loc,
       const std::vector<double>& winLossHist, const std::vector<double>& leadHist, const std::vector<double>& scoreStdevHist, const Search* search) {
     numMovesPlayed.fetch_add(1,std::memory_order_relaxed);
@@ -173,13 +177,56 @@ static void runAndUploadSingleGame(
       out << "\n";
       (*outputEachMove) << out.str() << std::flush;
     }
+    if(logGamesAsJson and hist.encorePhase == 0) { // If anyone wants to support encorePhase > 0 note passForKo is a thing
+      int analysisPVLen = 15;
+      const Player perspective = P_BLACK;
+      bool preventEncore = true;
+      static constexpr int ownershipMinVisits = 3;
+
+      // output format is a mix between an analysis query and response
+      json ret;
+      // unique to this output
+      ret["gameId"] = gameIdString; 
+      ret["move"] = json::array({PlayerIO::playerToStringShort(pla), Location::toString(loc, board)});
+      ret["blackPlayer"] = botSpecB.botName;
+      ret["whitePlayer"] = botSpecW.botName;
+
+      // Usual query fields
+      ret["rules"] = hist.rules.toJson(true, true);
+      ret["boardXSize"] = board.x_size;
+      ret["boardYSize"] = board.y_size;
+
+      json moves = json::array();
+      for(auto move: hist.moveHistory) {
+        moves.push_back(json::array({PlayerIO::playerToStringShort(move.pla), Location::toString(move.loc, board)}));
+      }
+      ret["moves"] = moves;
+
+      json initial_stones = json::array();
+      auto initial_board = hist.initialBoard;
+      for(int y = 0; y < initial_board.y_size; y++) {
+        for(int x = 0; x < initial_board.x_size; x++) {
+          Loc loc = Location::getLoc(x, y, initial_board.x_size);
+          Player col = initial_board.colors[loc];
+          if(col != C_EMPTY)
+            initial_stones.push_back(json::array({PlayerIO::playerToStringShort(col), Location::toString(loc, initial_board)}));
+        }
+      }
+      ret["initialStones"] = initial_stones;
+      ret["initialPlayer"] = PlayerIO::playerToStringShort(hist.initialPla);
+
+      // Usual analysis response fields
+      ret["turnNumber"] = hist.moveHistory.size();
+      search->getAnalysisJson(perspective,board,hist,analysisPVLen,ownershipMinVisits,preventEncore,true,alwaysIncludeOwnership,false,false,ret);
+      std::cout << ret.dump() + "\n" << std::flush; // no endl due to race conditions
+    }
+
   };
 
   const Sgf::PositionSample* posSample = gameTask.repIdx < gameTask.task.startPoses.size() ? &(gameTask.task.startPoses[gameTask.repIdx]) : NULL;
   FinishedGameData* gameData = gameRunner->runGame(
     seed, botSpecB, botSpecW, forkData, posSample,
-    logger,
-    stopConditions, nullptr, onEachMove
+    logger, stopConditions, nullptr, onEachMove, alwaysIncludeOwnership
   );
 
   if(gameData != NULL) {
@@ -188,7 +235,7 @@ static void runAndUploadSingleGame(
       sgfOutputDir = sgfsDir + "/" + gameTask.task.taskGroup;
     else
       sgfOutputDir = sgfsDir + "/" + nnEvalBlack->getModelName();
-    string sgfFile = sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgf";
+    string sgfFile = sgfOutputDir + "/" + gameIdString + ".sgf";
 
     ofstream out(sgfFile);
     WriteSgf::writeSgf(out,gameData->bName,gameData->wName,gameData->endHist,gameData,false,true);
@@ -441,6 +488,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   const double reportPerformanceEvery = userCfg->contains("reportPerformanceEvery") ? userCfg->getDouble("reportPerformanceEvery", 1, 21600) : 120;
   const bool watchOngoingGameInFile = userCfg->contains("watchOngoingGameInFile") ? userCfg->getBool("watchOngoingGameInFile") : false;
   string watchOngoingGameInFileName = userCfg->contains("watchOngoingGameInFileName") ? userCfg->getString("watchOngoingGameInFileName") : "";
+  const bool logGamesAsJson = userCfg->contains("logGamesAsJson") ? userCfg->getBool("logGamesAsJson") : false;
+  const bool alwaysIncludeOwnership = userCfg->contains("includeOwnership") ? userCfg->getBool("includeOwnership") : false;
   if(watchOngoingGameInFileName == "")
     watchOngoingGameInFileName = "watchgame.txt";
 
@@ -517,7 +566,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
   auto runGameLoop = [
     &logger,forkData,&gameSeedBase,&gameTaskQueue,&numGamesStarted,&sgfsDir,&connection,
-    &numRatingGamesActive,&numMovesPlayed,&watchOngoingGameInFile,&watchOngoingGameInFileName
+    &numRatingGamesActive,&numMovesPlayed,&watchOngoingGameInFile,&watchOngoingGameInFileName,
+    &logGamesAsJson, &alwaysIncludeOwnership
   ] (
     int gameLoopThreadIdx
   ) {
@@ -534,7 +584,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       if(!shouldStop.load()) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         int64_t gameIdx = numGamesStarted.fetch_add(1,std::memory_order_acq_rel);
-        runAndUploadSingleGame(connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand,numMovesPlayed,outputEachMove);
+        runAndUploadSingleGame(connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand,numMovesPlayed,outputEachMove,logGamesAsJson, alwaysIncludeOwnership);
       }
       gameTask.blackManager->release(gameTask.nnEvalBlack);
       gameTask.whiteManager->release(gameTask.nnEvalWhite);

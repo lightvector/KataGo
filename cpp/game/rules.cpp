@@ -185,42 +185,31 @@ string Rules::toString() const {
   return out.str();
 }
 
-string Rules::toJsonString() const {
+json Rules::toJson(bool include_all, bool include_komi) const {
   json ret;
   ret["ko"] = writeKoRule(koRule);
   ret["scoring"] = writeScoringRule(scoringRule);
   ret["tax"] = writeTaxRule(taxRule);
   ret["suicide"] = multiStoneSuicideLegal;
-  ret["hasButton"] = hasButton;
-  ret["whiteHandicapBonus"] = writeWhiteHandicapBonusRule(whiteHandicapBonusRule);
-  ret["komi"] = komi;
-  return ret.dump();
+  if(include_all || hasButton) 
+      ret["hasButton"] = hasButton;
+  if(include_all || whiteHandicapBonusRule != WHB_ZERO)
+      ret["whiteHandicapBonus"] = writeWhiteHandicapBonusRule(whiteHandicapBonusRule);
+  if(include_komi)
+      ret["komi"] = komi;
+  return ret;
+}
+
+string Rules::toJsonString() const {
+  return toJson(true,true).dump();
 }
 
 string Rules::toJsonStringNoKomi() const {
-  json ret;
-  ret["ko"] = writeKoRule(koRule);
-  ret["scoring"] = writeScoringRule(scoringRule);
-  ret["tax"] = writeTaxRule(taxRule);
-  ret["suicide"] = multiStoneSuicideLegal;
-  ret["hasButton"] = hasButton;
-  ret["whiteHandicapBonus"] = writeWhiteHandicapBonusRule(whiteHandicapBonusRule);
-  return ret.dump();
+  return toJson(true,false).dump();
 }
 
 string Rules::toJsonStringNoKomiMaybeOmitStuff() const {
-  json ret;
-  ret["ko"] = writeKoRule(koRule);
-  ret["scoring"] = writeScoringRule(scoringRule);
-  ret["tax"] = writeTaxRule(taxRule);
-  ret["suicide"] = multiStoneSuicideLegal;
-  //Takes up a lot of string space to include stuff, so omit some less common things if matches tromp-taylor rules
-  //which is the default for parsing and if not otherwise specified
-  if(hasButton)
-    ret["hasButton"] = hasButton;
-  if(whiteHandicapBonusRule != WHB_ZERO)
-    ret["whiteHandicapBonus"] = writeWhiteHandicapBonusRule(whiteHandicapBonusRule);
-  return ret.dump();
+  return toJson(false,false).dump();
 }
 
 Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {

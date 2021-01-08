@@ -50,25 +50,6 @@ struct AnalyzeRequest {
   std::atomic<int> status;
 };
 
-static json getJsonOwnershipMap(const AnalyzeRequest* request, const Search* search, const SearchNode* node, int ownershipMinVisits) {
-  const Player pla = request->nextPla, perspective = request->perspective;
-  int nnXLen = search->nnXLen;
-  vector<double> ownership = search->getAverageTreeOwnership(ownershipMinVisits, node);
-  json ownerships = json::array();
-  const Board& board = request->board;
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      int pos = NNPos::xyToPos(x,y,nnXLen);
-      double o;
-      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
-        o = -ownership[pos];
-      else
-        o = ownership[pos];
-      ownerships.push_back(o);
-    }
-  }
-  return ownerships;
-}
 
 int MainCmds::analysis(int argc, const char* const* argv) {
   Board::initHash();
@@ -254,130 +235,18 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
   //Returns false if no analysis was reportable due to there being no root node or search results.
   auto reportAnalysis = [&preventEncore,&pushToWrite](const AnalyzeRequest* request, const Search* search, bool isDuringSearch) {
+    static constexpr int ownershipMinVisits = 3;
     json ret;
     ret["id"] = request->id;
     ret["turnNumber"] = request->turnNumber;
     ret["isDuringSearch"] = isDuringSearch;
 
-    static constexpr int ownershipMinVisits = 3;
-    int minMoves = 0;
-    vector<AnalysisData> buf;
+    bool success = search->getAnalysisJson(request->perspective, request->board, request->hist, 
+                                           request->analysisPVLen, ownershipMinVisits, preventEncore, request->includePolicy,
+                                           request->includeOwnership,request->includeMovesOwnership,request->includePVVisits, ret);
 
-    search->getAnalysisData(buf,minMoves,false,request->analysisPVLen);
-
-    const Player pla = request->nextPla;
-    const Player perspective = request->perspective;
-
-    // Stats for all the individual moves
-    json moveInfos = json::array();
-    for(int i = 0; i<buf.size(); i++) {
-      const AnalysisData& data = buf[i];
-      double winrate = 0.5 * (1.0 + data.winLossValue);
-      double utility = data.utility;
-      double lcb = PlayUtils::getHackedLCBForWinrate(search,data,pla);
-      double utilityLcb = data.lcb;
-      double scoreMean = data.scoreMean;
-      double lead = data.lead;
-      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
-        winrate = 1.0-winrate;
-        lcb = 1.0 - lcb;
-        utility = -utility;
-        scoreMean = -scoreMean;
-        lead = -lead;
-        utilityLcb = -utilityLcb;
-      }
-
-      json moveInfo;
-      moveInfo["move"] = Location::toString(data.move,request->board);
-      moveInfo["visits"] = data.numVisits;
-      moveInfo["utility"] = utility;
-      moveInfo["winrate"] = winrate;
-      moveInfo["scoreMean"] = lead;
-      moveInfo["scoreSelfplay"] = scoreMean;
-      moveInfo["scoreLead"] = lead;
-      moveInfo["scoreStdev"] = data.scoreStdev;
-      moveInfo["prior"] = data.policyPrior;
-      moveInfo["lcb"] = lcb;
-      moveInfo["utilityLcb"] = utilityLcb;
-      moveInfo["order"] = data.order;
-
-      json pv = json::array();
-      int pvLen = (preventEncore && data.pvContainsPass()) ? data.getPVLenUpToPhaseEnd(request->board,request->hist,request->nextPla) : (int)data.pv.size();
-      for(int j = 0; j<pvLen; j++)
-        pv.push_back(Location::toString(data.pv[j],request->board));
-      moveInfo["pv"] = pv;
-
-      if(request->includePVVisits) {
-        assert(data.pvVisits.size() >= pvLen);
-        json pvVisits = json::array();
-        for(int j = 0; j<pvLen; j++)
-          pvVisits.push_back(data.pvVisits[j]);
-        moveInfo["pvVisits"] = pvVisits;
-      }
-
-      if(request->includeMovesOwnership)
-        moveInfo["ownership"] = getJsonOwnershipMap(request, search, data.node, ownershipMinVisits);
-      moveInfos.push_back(moveInfo);
-    }
-    ret["moveInfos"] = moveInfos;
-
-    // Stats for root position
-    {
-      ReportedSearchValues rootVals;
-      bool suc = search->getRootValues(rootVals);
-      if(!suc)
-        return false;
-      Player rootPla = getOpp(request->nextPla);
-
-      double winrate = 0.5 * (1.0 + rootVals.winLossValue);
-      double scoreMean = rootVals.expectedScore;
-      double lead = rootVals.lead;
-      double utility = rootVals.utility;
-
-      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK)) {
-        winrate = 1.0-winrate;
-        scoreMean = -scoreMean;
-        lead = -lead;
-        utility = -utility;
-      }
-
-      json rootInfo;
-      rootInfo["visits"] = rootVals.visits;
-      rootInfo["winrate"] = winrate;
-      rootInfo["scoreSelfplay"] = scoreMean;
-      rootInfo["scoreLead"] = lead;
-      rootInfo["scoreStdev"] = rootVals.expectedScoreStdev;
-      rootInfo["utility"] = utility;
-      ret["rootInfo"] = rootInfo;
-    }
-
-    // Raw policy prior
-    if(request->includePolicy) {
-      float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
-      bool suc = search->getPolicy(policyProbs);
-      if(!suc)
-        return false;
-      json policy = json::array();
-      int nnXLen = search->nnXLen;
-      int nnYLen = search->nnYLen;
-      const Board& board = request->board;
-      for(int y = 0; y<board.y_size; y++) {
-        for(int x = 0; x<board.x_size; x++) {
-          int pos = NNPos::xyToPos(x,y,nnXLen);
-          policy.push_back(policyProbs[pos]);
-        }
-      }
-
-      int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
-      policy.push_back(policyProbs[passPos]);
-      ret["policy"] = policy;
-    }
-    // Average tree ownership
-    if(request->includeOwnership)
-      ret["ownership"] = getJsonOwnershipMap(request, search, search->rootNode, ownershipMinVisits);
-
-    pushToWrite(new string(ret.dump()));
-    return true;
+    if(success) pushToWrite(new string(ret.dump()));
+    return success;
   };
 
   auto analysisLoop = [
