@@ -18,6 +18,7 @@ struct ConvLayerDesc {
   int outChannels;
   int dilationY;
   int dilationX;
+  // outC x inC x H x W (col-major order - W has least stride, outC greatest)
   std::vector<float> weights;
 
   ConvLayerDesc();
@@ -179,7 +180,7 @@ struct TrunkDesc {
   int gpoolNumChannels;    // Currently every gpooling residual block must have the same number of gpooling conv channels
   ConvLayerDesc initialConv;
   MatMulLayerDesc initialMatMul;
-  std::vector<std::pair<int, void*>> blocks;
+  std::vector<std::pair<int, unique_ptr_void>> blocks;
   BatchNormLayerDesc trunkTipBN;
   ActivationLayerDesc trunkTipActivation;
 
@@ -277,7 +278,8 @@ struct ModelDesc {
   int maxConvChannels(int convXSize, int convYSize) const;
 
   //Loads a model from a file that may or may not be gzipped, storing it in descBuf
-  static void loadFromFileMaybeGZipped(const std::string& fileName, ModelDesc& descBuf);
+  //If expectedSha256 is nonempty, will also verify sha256 of the loaded data.
+  static void loadFromFileMaybeGZipped(const std::string& fileName, ModelDesc& descBuf, const std::string& expectedSha256);
 
   //Return the "nearest" supported ruleset to desiredRules by this model.
   //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.

@@ -29,9 +29,11 @@ static NNEvaluator* startNNEval(
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
 
+  string expectedSha256 = "";
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
     modelFile,
+    expectedSha256,
     &logger,
     maxBatchSize,
     maxConcurrentEvals,
@@ -107,7 +109,7 @@ void Tests::runTrainingWriteTests() {
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
-    playSettings.forkSidePositionProb = 0.10;
+    playSettings.sidePositionProb = 0.10;
     playSettings.forSelfPlay = true;
     Rand rand(seedBase+"play");
     OtherGameProperties otherGameProps;
@@ -120,7 +122,8 @@ void Tests::runTrainingWriteTests() {
       maxMovesPerGame, stopConditions,
       playSettings, otherGameProps,
       rand,
-      NULL
+      nullptr,
+      nullptr
     );
 
     cout << "seedBase: " << seedBase << endl;
@@ -130,7 +133,7 @@ void Tests::runTrainingWriteTests() {
     cout << "Num captured white stones " << gameData->endHist.getRecentBoard(0).numWhiteCaptures << endl;
 
     if(cheapLongSgf) {
-      WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData,false);
+      WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData,false,false);
     }
     else {
       dataWriter.writeGame(*gameData);
@@ -231,7 +234,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
-    playSettings.forkSidePositionProb = 0.40;
+    playSettings.sidePositionProb = 0.40;
     playSettings.cheapSearchProb = 0.5;
     playSettings.cheapSearchVisits = 20;
     playSettings.cheapSearchTargetWeight = 0.123f;
@@ -256,7 +259,8 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       maxMovesPerGame, stopConditions,
       playSettings, otherGameProps,
       rand,
-      NULL
+      nullptr,
+      nullptr
     );
 
     ForkData forkData;
@@ -360,17 +364,23 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     bool testLead,
     bool testPolicySurpriseWeight,
     bool testValueSurpriseWeight,
-    bool testHint
+    bool testHint,
+    bool testResign,
+    bool testScaleDataWeight
   ) {
     nnEval->clearCache();
     nnEval->clearStats();
 
     SearchParams params;
-    params.maxVisits = 100;
+    params.maxVisits = testResign ? 10 : 100;
     params.drawEquivalentWinsForWhite = 0.5;
     if(testLead) {
       params.chosenMoveTemperature = 1.0;
       params.chosenMoveTemperatureEarly = 1.0;
+    }
+    if(testHint) {
+      //Triggers an old buggy codepath that has since been fixed, but left here as part of test
+      params.rootPolicyTemperature = 1.000000000001;
     }
 
     MatchPairer::BotSpec botSpec;
@@ -412,14 +422,14 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
-    int maxMovesPerGame = (testLead || testPolicySurpriseWeight || testValueSurpriseWeight) ? 30 : 15;
+    int maxMovesPerGame = testResign ? 10000 : (testLead || testPolicySurpriseWeight || testValueSurpriseWeight) ? 30 : 15;
     vector<std::atomic<bool>*> stopConditions;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
-    playSettings.forkSidePositionProb = 0.0;
+    playSettings.sidePositionProb = testScaleDataWeight ? 0.2 : 0.0;
     playSettings.cheapSearchProb = 0.5;
-    playSettings.cheapSearchVisits = 50;
+    playSettings.cheapSearchVisits = testResign ? 5 : 50;
     playSettings.cheapSearchTargetWeight = 0.456f;
     playSettings.compensateKomiVisits = 10;
     playSettings.minAsymmetricCompensateKomiProb = 0.5;
@@ -431,8 +441,16 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       playSettings.valueSurpriseDataWeight = 0.15;
       playSettings.noResolveTargetWeights = true;
     }
+    if(testResign) {
+      playSettings.allowResignation = true;
+      playSettings.resignThreshold = -0.9;
+      playSettings.resignConsecTurns = 3;
+    }
+    if(testScaleDataWeight) {
+      playSettings.scaleDataWeight = 4.0;
+    }
 
-    playSettings.forSelfPlay = true;
+    playSettings.forSelfPlay = !testResign;
 
     string searchRandSeed = seedBase+"search";
     Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
@@ -465,7 +483,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       maxMovesPerGame, stopConditions,
       playSettings, otherGameProps,
       rand,
-      NULL
+      nullptr,
+      nullptr
     );
     if(testHint) {
       ForkData forkData;
@@ -476,21 +495,28 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     }
 
     gameData->printDebug(cout);
+    if(testResign) {
+      WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData,false,false);
+      cout << endl;
+      WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData,false,true);
+      cout << endl;
+    }
+
     delete gameData;
     delete bot;
     cout << endl;
   };
 
-
-  run("testasym!",Rules::getTrompTaylorish(),true,false,false,false,false);
-  run("test lead!",Rules::getTrompTaylorish(),false,true,false,false,false);
+  run("testasym!",Rules::getTrompTaylorish(),true,false,false,false,false,false,false);
+  run("test lead!",Rules::getTrompTaylorish(),false,true,false,false,false,false,false);
   Rules r = Rules::getTrompTaylorish();
   r.hasButton = true;
-  run("test lead int button!",r,false,true,false,false,false);
-  run("test surprise!",Rules::getTrompTaylorish(),false,false,true,false,false);
-  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true,false);
-  run("test hint!",Rules::getTrompTaylorish(),false,false,false,false,true);
-
+  run("test lead int button!",r,false,true,false,false,false,false,false);
+  run("test surprise!",Rules::getTrompTaylorish(),false,false,true,false,false,false,false);
+  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true,false,false,false);
+  run("test hint!",Rules::getTrompTaylorish(),false,false,false,false,true,false,false);
+  run("test resign!",Rules::getTrompTaylorish(),false,false,false,false,false,true,false);
+  run("test scale data weight!",Rules::getTrompTaylorish(),false,false,false,false,false,false,true);
 
   //Test lead specifically on a final position
   auto testLeadOnBoard = [&](
@@ -517,6 +543,100 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     cout << "LEAD: " << lead << endl;
     delete bot;
   };
+
+  //MORE TESTING ----------------------------------------------------------------
+
+  auto runMore = [&](
+    const string& seedBase,
+    const Rules& rules,
+    bool testPolicySurpriseWeight,
+    bool testValueSurpriseWeight,
+    bool testScaleDataWeight,
+    bool testSgf
+  ) {
+    nnEval->clearCache();
+    nnEval->clearStats();
+
+    SearchParams params;
+    params.maxVisits = 100;
+    params.drawEquivalentWinsForWhite = 0.5;
+
+    MatchPairer::BotSpec botSpec;
+    botSpec.botIdx = 0;
+    botSpec.botName = string("test");
+    botSpec.nnEval = nnEval;
+    botSpec.baseParams = params;
+
+    Board initialBoard(11,11);
+    Player initialPla = P_BLACK;
+    int initialEncorePhase = 0;
+    BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
+
+    ExtraBlackAndKomi extraBlackAndKomi;
+    extraBlackAndKomi.extraBlack = 0;
+    extraBlackAndKomi.komiBase = rules.komi;
+    extraBlackAndKomi.komi = rules.komi;
+    extraBlackAndKomi.makeGameFair = false;
+    extraBlackAndKomi.makeGameFairForEmptyBoard = false;
+
+    bool doEndGameIfAllPassAlive = true;
+    bool clearBotAfterSearch = true;
+    int maxMovesPerGame = 20;
+    vector<std::atomic<bool>*> stopConditions;
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0;
+    playSettings.sidePositionProb = 0.2;
+    playSettings.cheapSearchProb = 0.5;
+    playSettings.cheapSearchVisits = 50;
+    playSettings.cheapSearchTargetWeight = 0.0;
+    playSettings.compensateKomiVisits = 10;
+    playSettings.minAsymmetricCompensateKomiProb = 0.5;
+    if(testPolicySurpriseWeight)
+      playSettings.policySurpriseDataWeight = 0.5;
+    if(testValueSurpriseWeight)
+      playSettings.valueSurpriseDataWeight = 0.1;
+    if(testScaleDataWeight)
+      playSettings.scaleDataWeight = 1.5;
+
+    playSettings.forSelfPlay = true;
+
+    string searchRandSeed = seedBase+"search";
+    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
+
+    cout << "====================================================================================================" << endl;
+    cout << "====================================================================================================" << endl;
+    cout << "====================================================================================================" << endl;
+    cout << "seedBase: " << seedBase << endl;
+
+    bool logSearchInfo = false;
+    Rand rand(seedBase+"play");
+    OtherGameProperties otherGameProps;
+    FinishedGameData* gameData = Play::runGame(
+      initialBoard,initialPla,initialHist,extraBlackAndKomi,
+      botSpec,botSpec,
+      bot,bot,
+      doEndGameIfAllPassAlive, clearBotAfterSearch,
+      logger, logSearchInfo, false,
+      maxMovesPerGame, stopConditions,
+      playSettings, otherGameProps,
+      rand,
+      nullptr,
+      nullptr
+    );
+    gameData->printDebug(cout);
+    if(testSgf) {
+      WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData,false,false);
+      cout << endl;
+    }
+    delete gameData;
+    delete bot;
+    cout << endl;
+  };
+
+  runMore("test policy surprise and scale together!",Rules::getTrompTaylorish(),true,false,true,false);
+  runMore("test value surprise and scale together!",Rules::getTrompTaylorish(),false,true,true,false);
+  runMore("test all three together!",Rules::getTrompTaylorish(),true,true,true,true);
 
   Rules rules = Rules::getTrompTaylorish();
   {
@@ -739,12 +859,12 @@ xxxxxxxx.
     PlaySettings playSettings;
     //Not testing these - covered by other tests
     playSettings.initGamesWithPolicy = false;
-    playSettings.forkSidePositionProb = false;
+    playSettings.sidePositionProb = 0;
 
     playSettings.compensateKomiVisits = 20;
     playSettings.fancyKomiVarying = true;
 
-    playSettings.sekiForkHack = true;
+    playSettings.sekiForkHackProb = 0.04;
     playSettings.forSelfPlay = true;
 
     nnEval->clearCache();
@@ -787,7 +907,7 @@ xxxxxxxx.
     std::vector<std::atomic<bool>*> stopConditions;
     for(int i = 0; i<100; i++) {
       string seed = "game init test search seed:" + Global::int64ToString(i);
-      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, logger, stopConditions, NULL);
+      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, NULL, logger, stopConditions, nullptr, nullptr, false);
       cout << data->startHist.rules << endl;
       cout << "Start moves size " << data->startHist.moveHistory.size()
            << " Start pla " << PlayerIO::playerToString(data->startPla)
@@ -852,8 +972,8 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     extraBlackAndKomi.extraBlack = 0;
     extraBlackAndKomi.komiBase = rules.komi;
     extraBlackAndKomi.komi = rules.komi;
-    int turnNumber = sgf->moves.size();
-    sgf->setupBoardAndHistAssumeLegal(rules,initialBoard,initialPla,initialHist,turnNumber);
+    int turnIdx = sgf->moves.size();
+    sgf->setupBoardAndHistAssumeLegal(rules,initialBoard,initialPla,initialHist,turnIdx);
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
@@ -861,7 +981,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     vector<std::atomic<bool>*> stopConditions;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = false;
-    playSettings.forkSidePositionProb = 0;
+    playSettings.sidePositionProb = 0;
     playSettings.cheapSearchProb = 0;
     playSettings.cheapSearchVisits = 0;
     playSettings.cheapSearchTargetWeight = 0;
@@ -886,7 +1006,8 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
       maxMovesPerGame, stopConditions,
       playSettings, otherGameProps,
       rand,
-      NULL
+      nullptr,
+      nullptr
     );
 
     cout << "seedBase: " << seedBase << endl;

@@ -9,16 +9,58 @@ import json
 import datetime
 import math
 
-import tensorflow as tf
-import numpy as np
-
-from model import Model
-
-b6c96 = {
-  "version":8,
+b2c16 = {
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,
+  "use_initial_conv_3":False,
+  "trunk_num_channels":16,
+  "mid_num_channels":16,
+  "regular_num_channels":8,
+  "dilated_num_channels":8,
+  "gpool_num_channels":8,
+  "block_kind": [
+    ["rconv1","regular"],
+    ["rconv2","gpool"],
+  ],
+  "p1_num_channels":8,
+  "g1_num_channels":8,
+  "v1_num_channels":8,
+  "sbv2_num_channels":12,
+  "v2_size":12
+}
+
+b4c32 = {
+  "version":10,
+  "support_japanese_rules":True,
+  "use_fixup":True,
+  "use_scoremean_as_lead":False,
+  "use_initial_conv_3":False,
+  "trunk_num_channels":32,
+  "mid_num_channels":32,
+  "regular_num_channels":16,
+  "dilated_num_channels":16,
+  "gpool_num_channels":16,
+  "block_kind": [
+    ["rconv1","regular"],
+    ["rconv2","regular"],
+    ["rconv3","gpool"],
+    ["rconv4","regular"],
+  ],
+  "p1_num_channels":12,
+  "g1_num_channels":12,
+  "v1_num_channels":12,
+  "sbv2_num_channels":24,
+  "v2_size":24
+}
+
+b6c96 = {
+  "version":10,
+  "support_japanese_rules":True,
+  "use_fixup":True,
+  "use_scoremean_as_lead":False,
+  "use_initial_conv_3":True,
   "trunk_num_channels":96,
   "mid_num_channels":96,
   "regular_num_channels":64,
@@ -40,10 +82,11 @@ b6c96 = {
 }
 
 b10c128 = {
-  "version":8,
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,
+  "use_initial_conv_3":True,
   "trunk_num_channels":128,
   "mid_num_channels":128,
   "regular_num_channels":96,
@@ -69,10 +112,11 @@ b10c128 = {
 }
 
 b15c192 = {
-  "version":8,
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,
+  "use_initial_conv_3":True,
   "trunk_num_channels":192,
   "mid_num_channels":192,
   "regular_num_channels":128,
@@ -103,10 +147,11 @@ b15c192 = {
 }
 
 b20c256 = {
-  "version":8,
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,
+  "use_initial_conv_3":True,
   "trunk_num_channels":256,
   "mid_num_channels":256,
   "regular_num_channels":192,
@@ -142,10 +187,11 @@ b20c256 = {
 }
 
 b30c320 = {
-  "version":8,
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,
+  "use_initial_conv_3":True,
   "trunk_num_channels":320,
   "mid_num_channels":320,
   "regular_num_channels":224,
@@ -191,10 +237,11 @@ b30c320 = {
 }
 
 b40c256 = {
-  "version":8,
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,
+  "use_initial_conv_3":True,
   "trunk_num_channels":256,
   "mid_num_channels":256,
   "regular_num_channels":192,
@@ -250,10 +297,11 @@ b40c256 = {
 }
 
 b40c384 = {
-  "version":8,
+  "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
   "use_scoremean_as_lead":False,
+  "use_initial_conv_3":True,
   "trunk_num_channels":384,
   "mid_num_channels":384,
   "regular_num_channels":256,
@@ -308,12 +356,96 @@ b40c384 = {
   "v2_size":144
 }
 
+
+b60c320 = {
+  "version":10,
+  "support_japanese_rules":True,
+  "use_fixup":True,
+  "use_scoremean_as_lead":False,
+  "use_initial_conv_3":True,
+  "trunk_num_channels":320,
+  "mid_num_channels":320,
+  "regular_num_channels":224,
+  "dilated_num_channels":96,
+  "gpool_num_channels":96,
+  "block_kind": [
+    ["rconv1","regular"],
+    ["rconv2","regular"],
+    ["rconv3","regular"],
+    ["rconv4","regular"],
+    ["rconv5","regular"],
+    ["rconv6","gpool"],
+    ["rconv7","regular"],
+    ["rconv8","regular"],
+    ["rconv9","regular"],
+    ["rconv10","regular"],
+    ["rconv11","gpool"],
+    ["rconv12","regular"],
+    ["rconv13","regular"],
+    ["rconv14","regular"],
+    ["rconv15","regular"],
+    ["rconv16","gpool"],
+    ["rconv17","regular"],
+    ["rconv18","regular"],
+    ["rconv19","regular"],
+    ["rconv20","regular"],
+    ["rconv21","gpool"],
+    ["rconv22","regular"],
+    ["rconv23","regular"],
+    ["rconv24","regular"],
+    ["rconv25","regular"],
+    ["rconv26","gpool"],
+    ["rconv27","regular"],
+    ["rconv28","regular"],
+    ["rconv29","regular"],
+    ["rconv30","regular"],
+    ["rconv31","gpool"],
+    ["rconv32","regular"],
+    ["rconv33","regular"],
+    ["rconv34","regular"],
+    ["rconv35","regular"],
+    ["rconv36","gpool"],
+    ["rconv37","regular"],
+    ["rconv38","regular"],
+    ["rconv39","regular"],
+    ["rconv40","regular"],
+    ["rconv41","gpool"],
+    ["rconv42","regular"],
+    ["rconv43","regular"],
+    ["rconv44","regular"],
+    ["rconv45","regular"],
+    ["rconv46","gpool"],
+    ["rconv47","regular"],
+    ["rconv48","regular"],
+    ["rconv49","regular"],
+    ["rconv50","regular"],
+    ["rconv51","gpool"],
+    ["rconv52","regular"],
+    ["rconv53","regular"],
+    ["rconv54","regular"],
+    ["rconv55","regular"],
+    ["rconv56","gpool"],
+    ["rconv57","regular"],
+    ["rconv58","regular"],
+    ["rconv59","regular"],
+    ["rconv60","regular"],
+   ],
+  "p1_num_channels":64,
+  "g1_num_channels":64,
+  "v1_num_channels":64,
+  "sbv2_num_channels":128,
+  "v2_size":144
+}
+
 config_of_name = {
+  "b2c16": b2c16,
+  "b4c32": b4c32,
   "b6c96": b6c96,
   "b10c128": b10c128,
   "b15c192": b15c192,
   "b20c256": b20c256,
   "b30c320": b30c320,
   "b40c256": b40c256,
-  "b40c384": b40c384
+  "b40c384": b40c384,
+  "b60c320": b60c320,
 }

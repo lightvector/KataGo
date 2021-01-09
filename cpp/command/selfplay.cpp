@@ -148,11 +148,13 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
     // * 2 + 16 just in case to have plenty of room
     int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
+    int expectedConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads;
     int defaultMaxBatchSize = -1;
 
     Rand rand;
+    string expectedSha256 = "";
     NNEvaluator* nnEval = Setup::initializeNNEvaluator(
-      modelName,modelFile,cfg,logger,rand,maxConcurrentEvals,
+      modelName,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
       Setup::SETUP_FOR_OTHER
     );
@@ -282,9 +284,10 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
-          seed, botSpecB, botSpecW, forkData, logger,
+          seed, botSpecB, botSpecW, forkData, NULL, logger,
           stopConditions,
-          (switchNetsMidGame ? &checkForNewNNEval : NULL)
+          (switchNetsMidGame ? checkForNewNNEval : nullptr),
+          nullptr, false
         );
       }
 
@@ -302,6 +305,9 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     }
 
     logger.write("Game loop thread " + Global::intToString(threadIdx) + " terminating");
+  };
+  auto gameLoopProtected = [&logger,&gameLoop](int threadIdx) {
+    Logger::logThreadUncaught("game loop", &logger, [&](){ gameLoop(threadIdx); });
   };
 
   //Looping thread for polling for new neural nets and loading them in
@@ -327,12 +333,15 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
     logger.write("Model loading loop thread terminating");
   };
+  auto modelLoadLoopProtected = [&logger,&modelLoadLoop]() {
+    Logger::logThreadUncaught("model load loop", &logger, modelLoadLoop);
+  };
 
   vector<std::thread> threads;
   for(int i = 0; i<numGameThreads; i++) {
-    threads.push_back(std::thread(gameLoop,i));
+    threads.push_back(std::thread(gameLoopProtected,i));
   }
-  std::thread modelLoadLoopThread(modelLoadLoop);
+  std::thread modelLoadLoopThread(modelLoadLoopProtected);
 
   //Wait for all game threads to stop
   for(int i = 0; i<threads.size(); i++)

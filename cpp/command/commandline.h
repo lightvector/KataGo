@@ -12,7 +12,7 @@ class KataGoCommandLine : public TCLAP::CmdLine
 {
   TCLAP::ValueArg<std::string>* modelFileArg;
   TCLAP::ValueArg<std::string>* configFileArg;
-  TCLAP::ValueArg<std::string>* overrideConfigArg;
+  TCLAP::MultiArg<std::string>* overrideConfigArg;
   std::string defaultConfigFileName;
   int numBuiltInArgs;
   KataHelpOutput* helpOutput;

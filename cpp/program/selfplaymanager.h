@@ -40,12 +40,16 @@ class SelfplayManager {
     std::ofstream* sgfOut
   );
 
+  //NN queries summed across all the models managed by this manager over all time.
+  uint64_t getTotalNumRowsProcessed() const;
+
   //For all of the below, model names are simply from nnEval->getModelName().
 
   //Models that aren't cleaned up yet are in the order from earliest to latest
   std::vector<std::string> modelNames() const;
   std::string getLatestModelName() const;
   bool hasModel(const std::string& modelName) const;
+  size_t numModels() const;
 
   //Returns NULL if acquire failed (such as if that model was scheduled to be cleaned up or already cleaned up,).
   //Must call release when done, and cease using the NNEvaluator after that.
@@ -57,6 +61,8 @@ class SelfplayManager {
 
   //Clean up any currently-unused models if their last usage was older than this many seconds ago.
   void cleanupUnusedModelsOlderThan(double seconds);
+  //Clear the evaluation caches of any models that are currently unused.
+  void clearUnusedModelCaches();
 
   //====================================================================================
   //These should only be called by a thread that has currently acquired the model.
@@ -115,9 +121,12 @@ class SelfplayManager {
   int numDataWriteLoopsActive;
   std::condition_variable dataWriteLoopsAreDone;
 
+  uint64_t totalNumRowsProcessed;
+
   NNEvaluator* acquireModelAlreadyLocked(SelfplayManager::ModelData* foundData);
   void releaseAlreadyLocked(SelfplayManager::ModelData* foundData);
   void maybeAutoCleanupAlreadyLocked();
+  void runDataWriteLoopImpl(ModelData* modelData);
 
  public:
   //For internal use

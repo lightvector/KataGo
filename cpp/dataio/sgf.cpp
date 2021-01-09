@@ -274,14 +274,32 @@ Sgf::~Sgf() {
 }
 
 
-int Sgf::depth() const {
-  int maxChildDepth = 0;
+int64_t Sgf::depth() const {
+  int64_t maxChildDepth = 0;
   for(int i = 0; i<children.size(); i++) {
-    int childDepth = children[i]->depth();
+    int64_t childDepth = children[i]->depth();
     if(childDepth > maxChildDepth)
       maxChildDepth = childDepth;
   }
   return maxChildDepth + nodes.size();
+}
+
+int64_t Sgf::nodeCount() const {
+  int64_t count = 0;
+  for(int i = 0; i<children.size(); i++) {
+    count += children[i]->nodeCount();
+  }
+  return count + (int64_t)nodes.size();
+}
+
+int64_t Sgf::branchCount() const {
+  int64_t count = 0;
+  for(int i = 0; i<children.size(); i++) {
+    count += children[i]->branchCount();
+  }
+  if(children.size() > 1)
+    count += children.size()-1;
+  return count;
 }
 
 static void checkNonEmpty(const vector<SgfNode*>& nodes) {
@@ -392,10 +410,10 @@ void Sgf::getMovesHelper(vector<Move>& moves, int xSize, int ySize) const {
     nodes[i]->accumMoves(moves,xSize,ySize);
   }
 
-  int maxChildDepth = 0;
+  int64_t maxChildDepth = 0;
   Sgf* maxChild = NULL;
   for(int i = 0; i<children.size(); i++) {
-    int childDepth = children[i]->depth();
+    int64_t childDepth = children[i]->depth();
     if(childDepth > maxChildDepth) {
       maxChildDepth = childDepth;
       maxChild = children[i];
@@ -409,18 +427,23 @@ void Sgf::getMovesHelper(vector<Move>& moves, int xSize, int ySize) const {
 
 
 void Sgf::loadAllUniquePositions(
-  std::set<Hash128>& uniqueHashes, vector<PositionSample>& samples
+  std::set<Hash128>& uniqueHashes,
+  bool hashComments,
+  vector<PositionSample>& samples
 ) const {
-  std::function<void(PositionSample&, const BoardHistory&)> f = [&samples](PositionSample& sample, const BoardHistory& hist) {
+  std::function<void(PositionSample&, const BoardHistory&, const string&)> f = [&samples](PositionSample& sample, const BoardHistory& hist, const string& comments) {
     (void)hist;
+    (void)comments;
     samples.push_back(sample);
   };
 
-  iterAllUniquePositions(uniqueHashes,f);
+  iterAllUniquePositions(uniqueHashes,hashComments,f);
 }
 
 void Sgf::iterAllUniquePositions(
-  std::set<Hash128>& uniqueHashes, std::function<void(PositionSample&,const BoardHistory&)> f
+  std::set<Hash128>& uniqueHashes,
+  bool hashComments,
+  std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
 ) const {
   XYSize size = getXYSize();
   int xSize = size.x;
@@ -436,7 +459,8 @@ void Sgf::iterAllUniquePositions(
   BoardHistory hist(board,nextPla,rules,0);
 
   PositionSample sampleBuf;
-  iterAllUniquePositionsHelper(board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,f);
+  std::vector<std::pair<int64_t,int64_t>> variationTraceNodesBranch;
+  iterAllUniquePositionsHelper(board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,hashComments,variationTraceNodesBranch,f);
 }
 
 void Sgf::iterAllUniquePositionsHelper(
@@ -445,10 +469,16 @@ void Sgf::iterAllUniquePositionsHelper(
   PositionSample& sampleBuf,
   int initialTurnNumber,
   std::set<Hash128>& uniqueHashes,
-  std::function<void(PositionSample&,const BoardHistory&)> f
+  bool hashComments,
+  std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
+  std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
 ) const {
   vector<Move> buf;
   for(int i = 0; i<nodes.size(); i++) {
+
+    string comments;
+    if(nodes[i]->hasProperty("C"))
+      comments = nodes[i]->getSingleProperty("C");
 
     //Handle placements
     if(nodes[i]->hasPlacements()) {
@@ -475,7 +505,7 @@ void Sgf::iterAllUniquePositionsHelper(
 
         hist.clear(board,nextPla,rules,0);
       }
-      samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,f);
+      samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,comments,f);
     }
 
     //Handle actual moves
@@ -484,27 +514,32 @@ void Sgf::iterAllUniquePositionsHelper(
 
     for(int j = 0; j<buf.size(); j++) {
       bool suc = hist.makeBoardMoveTolerant(board,buf[j].loc,buf[j].pla);
-      if(!suc)
-        throw StringError("Illegal move in " + fileName + " turn " + Global::intToString(j) + " move " + Location::toString(buf[j].loc, board.x_size, board.y_size));
+      if(!suc) {
+        ostringstream trace;
+        for(size_t s = 0; s < variationTraceNodesBranch.size(); s++) {
+          trace << "forward " << variationTraceNodesBranch[s].first << " ";
+          trace << "branch " << variationTraceNodesBranch[s].second << " ";
+        }
+        trace << "forward " << i;
+
+        throw StringError(
+          "Illegal move in " + fileName + " effective turn " + Global::intToString(j+initialTurnNumber) + " move " +
+          Location::toString(buf[j].loc, board.x_size, board.y_size) + " SGF trace (branches 0-indexed): " + trace.str()
+        );
+      }
       nextPla = getOpp(buf[j].pla);
-      samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,f);
+      samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,comments,f);
     }
   }
-  // if(children.size() > 1) {
-  //   cout << "IN " << children.size() << endl;
-  // }
 
   for(int i = 0; i<children.size(); i++) {
-    Board copy = board;
-    BoardHistory histCopy = hist;
-    // if(children.size() > 1)
-    //   cout << "BEGIN " << i << "/" << children.size() << endl;
-    children[i]->iterAllUniquePositionsHelper(copy,histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,f);
+    std::unique_ptr<Board> copy = std::make_unique<Board>(board);
+    std::unique_ptr<BoardHistory> histCopy = std::make_unique<BoardHistory>(hist);
+    variationTraceNodesBranch.push_back(std::make_pair((int64_t)nodes.size(),(int64_t)i));
+    children[i]->iterAllUniquePositionsHelper(*copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,variationTraceNodesBranch,f);
+    assert(variationTraceNodesBranch.size() > 0);
+    variationTraceNodesBranch.erase(variationTraceNodesBranch.begin()+(variationTraceNodesBranch.size()-1));
   }
-
-  // if(children.size() > 1) {
-  //   cout << "OUT " << children.size() << endl;
-  // }
 }
 
 void Sgf::samplePositionIfUniqueHelper(
@@ -512,7 +547,9 @@ void Sgf::samplePositionIfUniqueHelper(
   PositionSample& sampleBuf,
   int initialTurnNumber,
   std::set<Hash128>& uniqueHashes,
-  std::function<void(PositionSample&,const BoardHistory&)> f
+  bool hashComments,
+  const std::string& comments,
+  std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
 ) const {
   //If the game is over or there were two consecutive passes, skip
   if(hist.isGameFinished || (
@@ -528,6 +565,9 @@ void Sgf::samplePositionIfUniqueHelper(
   assert(hist.encorePhase == 0);
   if(board.ko_loc != Board::NULL_LOC)
     situationHash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
+
+  if(hashComments)
+    situationHash.hash0 += Hash::simpleHash(comments.c_str());
 
   if(contains(uniqueHashes,situationHash))
     return;
@@ -547,19 +587,20 @@ void Sgf::samplePositionIfUniqueHelper(
       break;
     turnsAgoToSnap++;
   }
-  int startTurn = hist.moveHistory.size() - turnsAgoToSnap;
+  int startTurnIdx = hist.moveHistory.size() - turnsAgoToSnap;
 
   sampleBuf.board = hist.getRecentBoard(turnsAgoToSnap);
-  if(startTurn < hist.moveHistory.size())
-    sampleBuf.nextPla = hist.moveHistory[startTurn].pla;
+  if(startTurnIdx < hist.moveHistory.size())
+    sampleBuf.nextPla = hist.moveHistory[startTurnIdx].pla;
   else
     sampleBuf.nextPla = nextPla;
   sampleBuf.moves.clear();
-  for(int i = startTurn; i<hist.moveHistory.size(); i++)
+  for(int i = startTurnIdx; i<hist.moveHistory.size(); i++)
     sampleBuf.moves.push_back(hist.moveHistory[i]);
-  sampleBuf.initialTurnNumber = initialTurnNumber + startTurn;
+  sampleBuf.initialTurnNumber = initialTurnNumber + startTurnIdx;
   sampleBuf.hintLoc = Board::NULL_LOC;
-  f(sampleBuf,hist);
+  sampleBuf.weight = 1.0;
+  f(sampleBuf,hist,comments);
 }
 
 static uint64_t parseHex64(const string& str) {
@@ -618,6 +659,7 @@ string Sgf::PositionSample::toJsonLine(const Sgf::PositionSample& sample) {
   data["movePlas"] = movePlas;
   data["initialTurnNumber"] = sample.initialTurnNumber;
   data["hintLoc"] = Location::toString(sample.hintLoc,sample.board);
+  data["weight"] = sample.weight;
   return data.dump();
 }
 
@@ -639,7 +681,17 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
       sample.moves.push_back(Move(moveLoc,movePla));
     }
     sample.initialTurnNumber = data["initialTurnNumber"].get<int>();
-    sample.hintLoc = Location::ofString(data["hintLoc"].get<string>(),sample.board);
+    string hintLocStr = Global::toLower(Global::trim(data["hintLoc"].get<string>()));
+    if(hintLocStr == "" || hintLocStr == "''" || hintLocStr == "\"\"" ||
+       hintLocStr == "null" || hintLocStr == "'null'" || hintLocStr == "\"null\"")
+      sample.hintLoc = Board::NULL_LOC;
+    else
+      sample.hintLoc = Location::ofString(data["hintLoc"].get<string>(),sample.board);
+
+    if(data.find("weight") != data.end())
+      sample.weight = data["weight"].get<double>();
+    else
+      sample.weight= 1.0;
   }
   catch(nlohmann::detail::exception& e) {
     throw StringError("Error parsing position sample json\n" + s + "\n" + e.what());
@@ -1095,31 +1147,31 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
   hist = BoardHistory(board,nextPla,initialRules,0);
 }
 
-void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) const {
-  if(turnNumber < 0 || turnNumber > moves.size())
+void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int turnIdx) const {
+  if(turnIdx < 0 || turnIdx > moves.size())
     throw StringError(
       Global::strprintf(
-        "Attempting to set up position from SGF for invalid turn number %d, valid values are %d to %d",
-        (int)turnNumber, 0, (int)moves.size()
+        "Attempting to set up position from SGF for invalid turn idx %d, valid values are %d to %d",
+        (int)turnIdx, 0, (int)moves.size()
       )
     );
 
-  for(size_t i = 0; i<turnNumber; i++) {
+  for(size_t i = 0; i<turnIdx; i++) {
     hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
     nextPla = getOpp(moves[i].pla);
   }
 }
 
-void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int turnNumber, bool preventEncore) const {
-  if(turnNumber < 0 || turnNumber > moves.size())
+void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int turnIdx, bool preventEncore) const {
+  if(turnIdx < 0 || turnIdx > moves.size())
     throw StringError(
       Global::strprintf(
-        "Attempting to set up position from SGF for invalid turn number %d, valid values are %d to %d",
-        (int)turnNumber, 0, (int)moves.size()
+        "Attempting to set up position from SGF for invalid turn idx %d, valid values are %d to %d",
+        (int)turnIdx, 0, (int)moves.size()
       )
     );
 
-  for(size_t i = 0; i<turnNumber; i++) {
+  for(size_t i = 0; i<turnIdx; i++) {
     bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla,preventEncore);
     if(!suc)
       throw StringError("Illegal move in " + fileName + " turn " + Global::int64ToString(i) + " move " + Location::toString(moves[i].loc, board.x_size, board.y_size));
@@ -1127,14 +1179,14 @@ void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& 
   }
 }
 
-void CompactSgf::setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) const {
+void CompactSgf::setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnIdx) const {
   setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-  playMovesAssumeLegal(board, nextPla, hist, turnNumber);
+  playMovesAssumeLegal(board, nextPla, hist, turnIdx);
 }
 
-void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber, bool preventEncore) const {
+void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnIdx, bool preventEncore) const {
   setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-  playMovesTolerant(board, nextPla, hist, turnNumber, preventEncore);
+  playMovesTolerant(board, nextPla, hist, turnIdx, preventEncore);
 }
 
 void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist) {
@@ -1158,11 +1210,32 @@ void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist) {
   }
 }
 
+string WriteSgf::gameResultNoSgfTag(const BoardHistory& hist) {
+  if(!hist.isGameFinished)
+    return "";
+  else if(hist.isNoResult)
+    return "Void";
+  else if(hist.isResignation && hist.winner == C_BLACK)
+    return "B+R";
+  else if(hist.isResignation && hist.winner == C_WHITE)
+    return "W+R";
+  else if(hist.winner == C_BLACK)
+    return "B+" + Global::doubleToString(-hist.finalWhiteMinusBlackScore);
+  else if(hist.winner == C_WHITE)
+    return "W+" + Global::doubleToString(hist.finalWhiteMinusBlackScore);
+  else if(hist.winner == C_EMPTY)
+    return "0";
+  else
+    ASSERT_UNREACHABLE;
+  return "";
+}
+
 void WriteSgf::writeSgf(
   ostream& out, const string& bName, const string& wName,
   const BoardHistory& endHist,
   const FinishedGameData* gameData,
-  bool tryNicerRulesString
+  bool tryNicerRulesString,
+  bool omitResignPlayerMove
 ) {
   const Board& initialBoard = endHist.initialBoard;
   const Rules& rules = endHist.rules;
@@ -1177,21 +1250,16 @@ void WriteSgf::writeSgf(
   out << "PB[" << bName << "]";
   out << "PW[" << wName << "]";
 
-  int handicap = 0;
-  bool hasWhite = false;
-  for(int y = 0; y<ySize; y++) {
-    for(int x = 0; x<xSize; x++) {
-      Loc loc = Location::getLoc(x,y,xSize);
-      if(initialBoard.colors[loc] == C_BLACK)
-        handicap += 1;
-      if(initialBoard.colors[loc] == C_WHITE)
-        hasWhite = true;
-    }
+  if(gameData != NULL) {
+    out << "HA[" << gameData->handicapForSgf << "]";
   }
-  if(hasWhite)
-    handicap = 0;
+  else {
+    BoardHistory histCopy(endHist);
+    //Always use true for computing the handicap value that goes into an sgf
+    histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
+    out << "HA[" << histCopy.computeNumHandicapStones() << "]";
+  }
 
-  out << "HA[" << handicap << "]";
   out << "KM[" << rules.komi << "]";
   out << "RU[" << (tryNicerRulesString ? rules.toStringNoKomiMaybeNice() : rules.toStringNoKomi()) << "]";
   printGameResult(out,endHist);
@@ -1229,32 +1297,41 @@ void WriteSgf::writeSgf(
   }
 
   size_t startTurnIdx = 0;
-  if(gameData != NULL && gameData->hasFullData) {
+  if(gameData != NULL) {
     startTurnIdx = gameData->startHist.moveHistory.size();
     out << "C[startTurnIdx=" << startTurnIdx;
+    out << ",initTurnNum=" << gameData->startHist.initialTurnNumber;
+    out << ",gameHash=" << gameData->gameHash;
 
+    static_assert(FinishedGameData::NUM_MODES == 8, "");
     if(gameData->mode == FinishedGameData::MODE_NORMAL)
-      out << "," << "mode=normal";
+      out << "," << "gtype=normal";
     else if(gameData->mode == FinishedGameData::MODE_CLEANUP_TRAINING)
-      out << "," << "mode=cleanuptraining";
+      out << "," << "gtype=cleanuptraining";
     else if(gameData->mode == FinishedGameData::MODE_FORK)
-      out << "," << "mode=fork";
+      out << "," << "gtype=fork";
     else if(gameData->mode == FinishedGameData::MODE_HANDICAP)
-      out << "," << "mode=handicap";
+      out << "," << "gtype=handicap";
     else if(gameData->mode == FinishedGameData::MODE_SGFPOS)
-      out << "," << "mode=sgfpos";
+      out << "," << "gtype=sgfpos";
     else if(gameData->mode == FinishedGameData::MODE_HINTPOS)
-      out << "," << "mode=hintpos";
+      out << "," << "gtype=hintpos";
+    else if(gameData->mode == FinishedGameData::MODE_HINTFORK)
+      out << "," << "gtype=hintfork";
+    else if(gameData->mode == FinishedGameData::MODE_ASYM)
+      out << "," << "gtype=asym";
     else
-      out << "," << "mode=other";
+      out << "," << "gtype=other";
 
     if(gameData->beganInEncorePhase != 0)
       out << "," << "beganInEncorePhase=" << gameData->beganInEncorePhase;
     if(gameData->usedInitialPosition != 0)
       out << "," << "usedInitialPosition=" << gameData->usedInitialPosition;
+    if(gameData->playoutDoublingAdvantage != 0)
+      out << "," << "pdaWhite=" << ((gameData->playoutDoublingAdvantagePla == P_WHITE ? 1 : -1) * gameData->playoutDoublingAdvantage);
 
     for(int j = 0; j<gameData->changedNeuralNets.size(); j++) {
-      out << ",newNeuralNetTurn" << gameData->changedNeuralNets[j]->turnNumber
+      out << ",newNeuralNetTurn" << gameData->changedNeuralNets[j]->turnIdx
           << "=" << gameData->changedNeuralNets[j]->name;
     }
     out << "]";
@@ -1271,29 +1348,31 @@ void WriteSgf::writeSgf(
     Loc loc = endHist.moveHistory[i].loc;
     Player pla = endHist.moveHistory[i].pla;
 
-    if(pla == P_BLACK)
-      out << "B[";
-    else
-      out << "W[";
+    bool isResignMove = endHist.isGameFinished && endHist.isResignation && endHist.winner == getOpp(pla) && i+1 == endHist.moveHistory.size();
+    if(!(omitResignPlayerMove && isResignMove)) {
+      if(pla == P_BLACK)
+        out << "B[";
+      else
+        out << "W[";
 
-    bool isPassForKo = hist.isPassForKo(board,loc,pla);
-    if(isPassForKo)
-      writeSgfLoc(out,Board::PASS_LOC,xSize,ySize);
-    else
-      writeSgfLoc(out,loc,xSize,ySize);
-    out << "]";
-
-    if(isPassForKo) {
-      out << "TR[";
-      writeSgfLoc(out,loc,xSize,ySize);
+      bool isPassForKo = hist.isPassForKo(board,loc,pla);
+      if(isPassForKo)
+        writeSgfLoc(out,Board::PASS_LOC,xSize,ySize);
+      else
+        writeSgfLoc(out,loc,xSize,ySize);
       out << "]";
-      comment += "Pass for ko";
+
+      if(isPassForKo) {
+        out << "TR[";
+        writeSgfLoc(out,loc,xSize,ySize);
+        out << "]";
+        comment += "Pass for ko";
+      }
     }
 
     if(gameData != NULL && i >= startTurnIdx) {
-      if(gameData->hasFullData) {
-        size_t turnAfterStart = i-startTurnIdx;
-        assert(turnAfterStart < gameData->whiteValueTargetsByTurn.size());
+      size_t turnAfterStart = i-startTurnIdx;
+      if(turnAfterStart < gameData->whiteValueTargetsByTurn.size()) {
         const ValueTargets& targets = gameData->whiteValueTargetsByTurn[turnAfterStart];
         char winBuf[32];
         char lossBuf[32];
@@ -1313,6 +1392,28 @@ void WriteSgf::writeSgf(
         comment += " ";
         comment += scoreBuf;
       }
+      if(turnAfterStart < gameData->policyTargetsByTurn.size()) {
+        char visitsBuf[32];
+        sprintf(visitsBuf,"%d",(int)(gameData->policyTargetsByTurn[turnAfterStart].unreducedNumVisits));
+        if(comment.length() > 0)
+          comment += " ";
+        comment += "v=";
+        comment += visitsBuf;
+      }
+      if(turnAfterStart < gameData->targetWeightByTurnUnrounded.size()) {
+        char weightBuf[32];
+        sprintf(weightBuf,"%.2f",gameData->targetWeightByTurnUnrounded[turnAfterStart]);
+        if(comment.length() > 0)
+          comment += " ";
+        comment += "weight=";
+        comment += weightBuf;
+      }
+    }
+
+    if(endHist.isGameFinished && i+1 == endHist.moveHistory.size()) {
+      if(comment.length() > 0)
+        comment += " ";
+      comment += "result=" + WriteSgf::gameResultNoSgfTag(endHist);
     }
 
     if(comment.length() > 0)

@@ -18,11 +18,12 @@ Where:
      Neural net model file. Defaults to: (dir containing katago.exe, or
      else ~/.katago)/default_model.bin.gz
 
-   -override-config <KEYVALUEPAIRS>
+   -override-config <KEYVALUEPAIRS>  (accepted multiple times)
      Override config parameters. Format: "key=value, key=value,..."
 
    -analysis-threads <THREADS>
-     (required)  Analysis up to this many positions in parallel
+     Analyze up to this many positions in parallel. Equivalent to
+     numAnalysisThreads in the config.
 
    -quit-without-waiting
      When stdin is closed, quit quickly without waiting for queued tasks

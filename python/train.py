@@ -16,6 +16,7 @@ import glob
 import tensorflow as tf
 import numpy as np
 import itertools
+import copy
 
 import data
 from board import Board
@@ -48,6 +49,8 @@ parser.add_argument('-export-prob', help='Export model with this probablity', ty
 parser.add_argument('-max-epochs-this-instance', help='Terminate training after this many more epochs', type=int, required=False)
 parser.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between epochs', type=int, required=False)
 parser.add_argument('-swa-sub-epoch-scale', help='Number of sub-epochs to average in expectation together for SWA', type=float, required=False)
+parser.add_argument('-max-train-bucket-per-new-data', help='When data added, add this many train rows per data row to bucket', type=float, required=False)
+parser.add_argument('-max-train-bucket-size', help='Approx total number of train rows allowed if data stops', type=float, required=False)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
 parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
 args = vars(parser.parse_args())
@@ -70,12 +73,17 @@ export_prob = args["export_prob"]
 max_epochs_this_instance = args["max_epochs_this_instance"]
 sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
 swa_sub_epoch_scale = args["swa_sub_epoch_scale"]
+max_train_bucket_per_new_data = args["max_train_bucket_per_new_data"]
+max_train_bucket_size = args["max_train_bucket_size"]
 verbose = args["verbose"]
 no_export = args["no_export"]
 logfilemode = "a"
 
 if samples_per_epoch is None:
   samples_per_epoch = 1000000
+
+if max_train_bucket_size is None:
+  max_train_bucket_size = 1.0e30
 
 if not os.path.exists(traindir):
   os.makedirs(traindir)
@@ -108,13 +116,19 @@ num_batches_per_epoch = int(round(samples_per_epoch / batch_size))
 if epochs_per_export is None:
   epochs_per_export = 1
 
-model_config = modelconfigs.config_of_name[model_kind]
-
-with open(os.path.join(traindir,"model.config.json"),"w") as f:
-  json.dump(model_config,f)
-
 trainlog(str(sys.argv))
 
+if os.path.exists(os.path.join(traindir,"model.config.json")):
+  trainlog("Loading existing model config at %s" % os.path.join(traindir,"model.config.json"))
+  with open(os.path.join(traindir,"model.config.json"),"r") as f:
+    model_config = json.load(f)
+else:
+  model_config = modelconfigs.config_of_name[model_kind]
+  trainlog("Initializing with new model config")
+  with open(os.path.join(traindir,"model.config.json"),"w") as f:
+    json.dump(model_config,f)
+
+trainlog(str(model_config))
 
 # FIGURE OUT MULTIGPU ------------------------------------------------------------
 num_gpus_used = 1
@@ -128,7 +142,9 @@ if multi_gpus is not None:
 
 # MODEL ----------------------------------------------------------------
 printed_model_yet = False
-initial_weights_already_loaded = False
+# Avoid loading initial weights, just ignore them, if we've already started training and we have weights.
+# We detect this by detecting the TF estimator "checkpoint" index file.
+initial_weights_already_loaded = os.path.exists(os.path.join(traindir,"checkpoint"))
 
 if swa_sub_epoch_scale is not None:
   with tf.device("/cpu:0"):
@@ -184,7 +200,25 @@ def save_swa(savedir):
       os.mkdir(savedir)
     os.mkdir(os.path.join(savedir,"saved_model"))
     os.mkdir(os.path.join(savedir,"saved_model","variables"))
-    swa_saver.save(sess,os.path.join(savedir,"saved_model","variables","variables"), write_meta_graph=False, write_state=False)
+    swa_saver.save(sess,os.path.join(savedir,"saved_model","variables","variables"), write_meta_graph=True, write_state=False)
+
+
+class CustomLoggingHook(tf.estimator.LoggingTensorHook):
+
+  def __init__(self, *args, **kwargs):
+    self.handle_logging_values = kwargs.pop('handle_logging_values')
+    super().__init__(*args, **kwargs)
+
+  def after_run(self, run_context, run_values):
+    if run_values.results is not None:
+      self.handle_logging_values(run_values.results)
+    super().after_run(run_context, run_values)
+
+global_latest_extra_stats = {}
+def update_global_latest_extra_stats(results):
+  global global_latest_extra_stats
+  for key in results:
+    global_latest_extra_stats[key] = results[key].item()
 
 def model_fn(features,labels,mode,params):
   global printed_model_yet
@@ -210,30 +244,37 @@ def model_fn(features,labels,mode,params):
       aggregation=tf.VariableAggregation.SUM
     )
     wsum_op = tf.assign_add(wsum,target_vars.weight_sum)
+    eval_metric_ops={
+      #"wsum": (wsum.read_value(),wsum_op),
+      "p0loss": tf.compat.v1.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used),
+      "p1loss": tf.compat.v1.metrics.mean(target_vars.policy1_loss_unreduced, weights=target_vars.target_weight_used),
+      "vloss": tf.compat.v1.metrics.mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used),
+      "tdvloss": tf.compat.v1.metrics.mean(target_vars.td_value_loss_unreduced, weights=target_vars.target_weight_used),
+      "smloss": tf.compat.v1.metrics.mean(target_vars.scoremean_loss_unreduced, weights=target_vars.target_weight_used),
+      "leadloss": tf.compat.v1.metrics.mean(target_vars.lead_loss_unreduced, weights=target_vars.target_weight_used),
+      "vtimeloss": tf.compat.v1.metrics.mean(target_vars.variance_time_loss_unreduced, weights=target_vars.target_weight_used),
+      "sbpdfloss": tf.compat.v1.metrics.mean(target_vars.scorebelief_pdf_loss_unreduced, weights=target_vars.target_weight_used),
+      "sbcdfloss": tf.compat.v1.metrics.mean(target_vars.scorebelief_cdf_loss_unreduced, weights=target_vars.target_weight_used),
+      "oloss": tf.compat.v1.metrics.mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used),
+      "sloss": tf.compat.v1.metrics.mean(target_vars.scoring_loss_unreduced, weights=target_vars.target_weight_used),
+      "fploss": tf.compat.v1.metrics.mean(target_vars.futurepos_loss_unreduced, weights=target_vars.target_weight_used),
+      "rsdloss": tf.compat.v1.metrics.mean(target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used),
+      "rloss": tf.compat.v1.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
+      "rscloss": tf.compat.v1.metrics.mean(target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used),
+      "pacc1": tf.compat.v1.metrics.mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used),
+      "ventr": tf.compat.v1.metrics.mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used),
+      "ptentr": tf.compat.v1.metrics.mean(metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
+    }
+    if model.version >= 9:
+      eval_metric_ops["evstloss"] = tf.compat.v1.metrics.mean(target_vars.shortterm_value_error_loss_unreduced, weights=target_vars.target_weight_used)
+      eval_metric_ops["esstloss"] = tf.compat.v1.metrics.mean(target_vars.shortterm_score_error_loss_unreduced, weights=target_vars.target_weight_used)
+    if model.version >= 10:
+      eval_metric_ops["tdsloss"] = tf.compat.v1.metrics.mean(target_vars.td_score_loss_unreduced, weights=target_vars.target_weight_used)
+
     return tf.estimator.EstimatorSpec(
       mode,
       loss=target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32),
-      eval_metric_ops={
-        #"wsum": (wsum.read_value(),wsum_op),
-        "p0loss": tf.compat.v1.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used),
-        "p1loss": tf.compat.v1.metrics.mean(target_vars.policy1_loss_unreduced, weights=target_vars.target_weight_used),
-        "vloss": tf.compat.v1.metrics.mean(target_vars.value_loss_unreduced, weights=target_vars.target_weight_used),
-        "tdvloss": tf.compat.v1.metrics.mean(target_vars.td_value_loss_unreduced, weights=target_vars.target_weight_used),
-        "smloss": tf.compat.v1.metrics.mean(target_vars.scoremean_loss_unreduced, weights=target_vars.target_weight_used),
-        "leadloss": tf.compat.v1.metrics.mean(target_vars.lead_loss_unreduced, weights=target_vars.target_weight_used),
-        "vtimeloss": tf.compat.v1.metrics.mean(target_vars.variance_time_loss_unreduced, weights=target_vars.target_weight_used),
-        "sbpdfloss": tf.compat.v1.metrics.mean(target_vars.scorebelief_pdf_loss_unreduced, weights=target_vars.target_weight_used),
-        "sbcdfloss": tf.compat.v1.metrics.mean(target_vars.scorebelief_cdf_loss_unreduced, weights=target_vars.target_weight_used),
-        "oloss": tf.compat.v1.metrics.mean(target_vars.ownership_loss_unreduced, weights=target_vars.target_weight_used),
-        "sloss": tf.compat.v1.metrics.mean(target_vars.scoring_loss_unreduced, weights=target_vars.target_weight_used),
-        "fploss": tf.compat.v1.metrics.mean(target_vars.futurepos_loss_unreduced, weights=target_vars.target_weight_used),
-        "rsdloss": tf.compat.v1.metrics.mean(target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used),
-        "rloss": tf.compat.v1.metrics.mean(target_vars.reg_loss_per_weight, weights=target_vars.weight_sum),
-        "rscloss": tf.compat.v1.metrics.mean(target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used),
-        "pacc1": tf.compat.v1.metrics.mean(metrics.accuracy1_unreduced, weights=target_vars.target_weight_used),
-        "ventr": tf.compat.v1.metrics.mean(metrics.value_entropy_unreduced, weights=target_vars.target_weight_used),
-        "ptentr": tf.compat.v1.metrics.mean(metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
-      }
+      eval_metric_ops=eval_metric_ops
     )
 
   if mode == tf.estimator.ModeKeys.TRAIN:
@@ -271,6 +312,15 @@ def model_fn(features,labels,mode,params):
     (rsdloss,rsdloss_op) = moving_mean("rsdloss",target_vars.scorestdev_reg_loss_unreduced, weights=target_vars.target_weight_used)
     (rloss,rloss_op) = moving_mean("rloss",target_vars.reg_loss_per_weight, weights=target_vars.weight_sum)
     (rscloss,rscloss_op) = moving_mean("rscloss",target_vars.scale_reg_loss_unreduced, weights=target_vars.target_weight_used)
+    if model.version >= 9:
+      (evstloss,evstloss_op) = moving_mean("evstloss",target_vars.shortterm_value_error_loss_unreduced, weights=target_vars.target_weight_used)
+      (esstloss,esstloss_op) = moving_mean("esstloss",target_vars.shortterm_score_error_loss_unreduced, weights=target_vars.target_weight_used)
+      # (evstm,evstm_op) = moving_mean("evstm",metrics.shortterm_value_error_mean_unreduced, weights=target_vars.target_weight_used)
+      # (evstv,evstv_op) = moving_mean("evstv",metrics.shortterm_value_error_var_unreduced, weights=target_vars.target_weight_used)
+      # (esstm,esstm_op) = moving_mean("esstm",metrics.shortterm_score_error_mean_unreduced, weights=target_vars.target_weight_used)
+      # (esstv,esstv_op) = moving_mean("esstv",metrics.shortterm_score_error_var_unreduced, weights=target_vars.target_weight_used)
+    if model.version >= 10:
+      (tdsloss,tdsloss_op) = moving_mean("tdsloss",target_vars.td_score_loss_unreduced, weights=target_vars.target_weight_used)
     (pacc1,pacc1_op) = moving_mean("pacc1",metrics.accuracy1_unreduced, weights=target_vars.target_weight_used)
     (ptentr,ptentr_op) = moving_mean("ptentr",metrics.policy_target_entropy_unreduced, weights=target_vars.target_weight_used)
     #NOTE: These two are going to be smaller if using more GPUs since it's the gradient norm as measured on the instance batch
@@ -292,7 +342,7 @@ def model_fn(features,labels,mode,params):
 
     print_train_loss_every_batches = 100
 
-    logging_hook = tf.estimator.LoggingTensorHook({
+    logvars = {
       "nsamp": global_step * tf.constant(batch_size,dtype=tf.int64),
       "wsum": global_step_float * wmean * tf.constant(float(num_gpus_used)),
       "p0loss": p0loss,
@@ -317,7 +367,18 @@ def model_fn(features,labels,mode,params):
       "pslr": per_sample_learning_rate,
       "gnorm": gnorm,
       "exgnorm": exgnorm
-    }, every_n_iter=print_train_loss_every_batches)
+    }
+    if model.version >= 9:
+      logvars["evstloss"] = evstloss
+      logvars["esstloss"] = esstloss
+      # logvars["evstm"] = evstm
+      # logvars["evstv"] = evstv
+      # logvars["esstm"] = esstm
+      # logvars["esstv"] = esstv
+    if model.version >= 10:
+      logvars["tdsloss"] = tdsloss
+
+    logging_hook = CustomLoggingHook(logvars, every_n_iter=print_train_loss_every_batches, handle_logging_values=update_global_latest_extra_stats)
 
     printed_model_yet = True
 
@@ -326,32 +387,55 @@ def model_fn(features,labels,mode,params):
 
     initial_weights_dir = os.path.join(traindir,"initial_weights")
     if os.path.exists(initial_weights_dir) and not initial_weights_already_loaded:
-      print("Initial weights found at: " + initial_weights_dir)
-      checkpoint_path = os.path.join(initial_weights_dir,"model")
-      vars_in_checkpoint = tf.contrib.framework.list_variables(checkpoint_path)
-      print("Checkpoint contains:")
-      for var in vars_in_checkpoint:
-        print(var)
+      print("Initial weights dir found at: " + initial_weights_dir)
+      checkpoint_path = None
+      for initial_weights_file in os.listdir(initial_weights_dir):
+        if initial_weights_file.startswith("model") and initial_weights_file.endswith(".index"):
+          checkpoint_path = os.path.join(initial_weights_dir, initial_weights_file[0:len(initial_weights_file)-len(".index")])
+          break
+      if checkpoint_path is not None:
+        print("Initial weights checkpoint to use found at: " + checkpoint_path)
+        vars_in_checkpoint = tf.contrib.framework.list_variables(checkpoint_path)
+        varname_in_checkpoint = {}
+        print("Checkpoint contains:")
+        for varandshape in vars_in_checkpoint:
+          print(varandshape)
+          varname_in_checkpoint[varandshape[0]] = True
 
-      print("Modifying graph to load weights from checkpoint upon init...")
-      sys.stdout.flush()
-      sys.stderr.flush()
+        print("Modifying graph to load weights from checkpoint upon init...")
+        sys.stdout.flush()
+        sys.stderr.flush()
 
-      variables_to_restore = tf.trainable_variables()
-      assignment_mapping = { v.name.split(":")[0] : v for v in variables_to_restore }
-      tf.train.init_from_checkpoint(checkpoint_path, assignment_mapping)
-      initial_weights_already_loaded = True
+        variables_to_restore = tf.compat.v1.global_variables()
+        assignment_mapping = {}
+        for v in variables_to_restore:
+          name = v.name.split(":")[0] # drop the ":0" at the end of each var
+          if name in varname_in_checkpoint:
+            assignment_mapping[name] = v
+
+        tf.compat.v1.train.init_from_checkpoint(checkpoint_path, assignment_mapping)
+        initial_weights_already_loaded = True
+
+    ops = [
+      train_step,
+      p0loss_op,p1loss_op,vloss_op,tdvloss_op,smloss_op,leadloss_op,vtimeloss_op,sbpdfloss_op,sbcdfloss_op,
+      oloss_op,sloss_op,fploss_op,skloss_op,rsdloss_op,rloss_op,rscloss_op,pacc1_op,ptentr_op,wmean_op,
+      gnorm_op,exgnorm_op
+    ]
+    if model.version >= 9:
+      ops.append(evstloss_op)
+      ops.append(esstloss_op)
+      # ops.append(evstm_op)
+      # ops.append(evstv_op)
+      # ops.append(esstm_op)
+      # ops.append(esstv_op)
+    if model.version >= 10:
+      ops.append(tdsloss_op)
 
     return tf.estimator.EstimatorSpec(
       mode,
       loss=(target_vars.opt_loss / tf.constant(batch_size,dtype=tf.float32)),
-      train_op=tf.group(
-        train_step,
-        p0loss_op,p1loss_op,vloss_op,tdvloss_op,smloss_op,leadloss_op,vtimeloss_op,sbpdfloss_op,sbcdfloss_op,
-        oloss_op,sloss_op,fploss_op,skloss_op,rsdloss_op,rloss_op,rscloss_op,pacc1_op,ptentr_op,wmean_op,
-        gnorm_op,exgnorm_op
-        #,print_op
-      ),
+      train_op=tf.group(*ops),
       training_hooks = [logging_hook]
     )
 
@@ -450,8 +534,17 @@ def dump_and_flush_json(data,filename):
     f.flush()
     os.fsync(f.fileno())
 
+
+# DATA RELOADING GENERATOR AND TRAINHISTORY ------------------------------------------------------------
+
+# Some globals
+last_curdatadir = None
+last_datainfo_row = 0
+trainfilegenerator = None
+num_train_files = 0
+vdatadir = None
+
 trainhistory = {
-  "files":[],
   "history":[]
 }
 if os.path.isfile(os.path.join(traindir,"trainhistory.json")):
@@ -465,22 +558,22 @@ elif os.path.isfile(os.path.join(traindir,"initial_weights","trainhistory.json")
 else:
   trainhistory["history"].append(("initialized",model_config))
 
+if max_train_bucket_per_new_data is not None and "train_bucket_level" not in trainhistory:
+  trainhistory["train_bucket_level"] = samples_per_epoch
+
 def save_history(global_step_value):
-  trainhistory["history"].append(("nsamp",int(global_step_value * batch_size)))
+  global trainhistory
+  if global_step_value is not None:
+    trainhistory["history"].append(("nsamp",int(global_step_value * batch_size)))
+    trainhistory["train_step"] = int(global_step_value * batch_size)
+  trainhistory["total_num_data_rows"] = last_datainfo_row
+  trainhistory["extra_stats"] = copy.deepcopy(global_latest_extra_stats)
   savepath = os.path.join(traindir,"trainhistory.json")
   savepathtmp = os.path.join(traindir,"trainhistory.json.tmp")
   dump_and_flush_json(trainhistory,savepathtmp)
   os.replace(savepathtmp,savepath)
   trainlog("Wrote " + savepath)
 
-
-# DATA RELOADING GENERATOR ------------------------------------------------------------
-
-last_curdatadir = None
-last_datainfo_row = 0
-trainfilegenerator = None
-num_train_files = 0
-vdatadir = None
 def maybe_reload_training_data():
   global last_curdatadir
   global last_datainfo_row
@@ -509,7 +602,27 @@ def maybe_reload_training_data():
       with open(trainjsonpath) as f:
         datainfo = json.load(f)
         last_datainfo_row = datainfo["range"][1]
-      trainhistory["files"] = datainfo["files"]
+
+      if max_train_bucket_per_new_data is not None:
+        if "train_bucket_level_at_row" not in trainhistory:
+          trainhistory["train_bucket_level_at_row"] = last_datainfo_row
+        if last_datainfo_row > trainhistory["train_bucket_level_at_row"]:
+          new_row_count = last_datainfo_row - trainhistory["train_bucket_level_at_row"]
+          trainlog("Advancing trainbucket row %.0f to %.0f, %.0f new rows" % (
+            trainhistory["train_bucket_level_at_row"], last_datainfo_row, new_row_count
+          ))
+          trainhistory["train_bucket_level_at_row"] = last_datainfo_row
+          trainlog("Fill per data %.3f, Max bucket size %.0f" % (max_train_bucket_per_new_data, max_train_bucket_size))
+          trainlog("Old rows in bucket: %.0f" % trainhistory["train_bucket_level"])
+          trainhistory["train_bucket_level"] += new_row_count * max_train_bucket_per_new_data
+          cap = max(max_train_bucket_size, samples_per_epoch)
+          if trainhistory["train_bucket_level"] > cap:
+            trainhistory["train_bucket_level"] = cap
+          trainlog("New rows in bucket: %.0f" % trainhistory["train_bucket_level"])
+
+      # Remove legacy value from this dictionary
+      if "files" in trainhistory:
+        del trainhistory["files"]
       trainhistory["history"].append(("newdata",datainfo["range"]))
 
       #Load training data files
@@ -537,24 +650,45 @@ last_longterm_checkpoint_save_time = datetime.datetime.now()
 
 num_epochs_this_instance = 0
 globalstep = None
+try:
+  globalstep = int(estimator.get_variable_value("global_step:0"))
+except ValueError:
+  pass # Will happen on the start of a new model, first iteration
+
 while True:
   maybe_reload_training_data()
-
+  save_history(globalstep)
   trainlog("GC collect")
   gc.collect()
 
   trainlog("=========================================================================")
-  trainlog("BEGINNING NEXT EPOCH")
+  trainlog("BEGINNING NEXT EPOCH " + str(num_epochs_this_instance))
   trainlog("=========================================================================")
   trainlog("Current time: " + str(datetime.datetime.now()))
   if globalstep is not None:
     trainlog("Global step: %d (%d samples)" % (globalstep, globalstep*batch_size))
+    trainlog("Currently up to data row " + str(last_datainfo_row))
+
+    if max_train_bucket_per_new_data is not None:
+      if trainhistory["train_bucket_level"] > 0.99 * samples_per_epoch:
+        trainlog("Consuming %.0f rows from train bucket (%.0f -> %.0f)" % (
+          samples_per_epoch, trainhistory["train_bucket_level"], trainhistory["train_bucket_level"]-samples_per_epoch
+        ))
+        trainhistory["train_bucket_level"] -= samples_per_epoch
+      else:
+        trainlog(
+          "Exceeding train bucket, not enough new data rows, waiting 5m and retrying (current level %f)" %
+          trainhistory["train_bucket_level"]
+        )
+        time.sleep(300)
+        continue
 
   #SUB EPOCH LOOP -----------
   num_batches_per_subepoch = num_batches_per_epoch / sub_epochs
   for i in range(sub_epochs):
     if i != 0:
       maybe_reload_training_data()
+      save_history(globalstep)
 
     #Pick enough files to get the number of batches we want
     train_files_to_use = []
@@ -670,7 +804,7 @@ while True:
     time.sleep(sleep_seconds_per_epoch)
 
   now = datetime.datetime.now()
-  if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=6):
+  if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=12):
     last_longterm_checkpoint_save_time = now
     ckpt_path = estimator.latest_checkpoint()
     #Tensorflow checkpoints have multiple pieces

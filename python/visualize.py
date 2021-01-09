@@ -71,14 +71,14 @@ log("Built model, %d total parameters" % total_parameters)
 
 print("Testing", flush=True)
 
-saver = tf.train.Saver(
+saver = tf.compat.v1.train.Saver(
   max_to_keep = 10000,
   save_relative_paths = True,
 )
 
 tfconfig = tf.compat.v1.ConfigProto(log_device_placement=False)
 tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.1
-with tf.Session(config=tfconfig) as session:
+with tf.compat.v1.Session(config=tfconfig) as session:
   saver.restore(session, model_variables_prefix)
 
   sys.stdout.flush()
@@ -93,7 +93,7 @@ with tf.Session(config=tfconfig) as session:
     return session.run(fetches, feed_dict={})
 
   if dump is not None:
-    variables = dict((variable.name,variable) for variable in tf.trainable_variables())
+    variables = dict((variable.name,variable) for variable in tf.compat.v1.global_variables())
     for name in dump.split(","):
       variable = variables[name]
       variable = np.array(variable.eval())

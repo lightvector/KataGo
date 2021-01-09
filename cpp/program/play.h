@@ -18,9 +18,12 @@ struct InitialPosition {
   Board board;
   BoardHistory hist;
   Player pla;
+  bool isPlainFork;
+  bool isSekiFork;
+  bool isHintFork;
 
   InitialPosition();
-  InitialPosition(const Board& board, const BoardHistory& hist, Player pla);
+  InitialPosition(const Board& board, const BoardHistory& hist, Player pla, bool isPlainFork, bool isSekiFork, bool isHintFork);
   ~InitialPosition();
 };
 
@@ -52,6 +55,7 @@ struct OtherGameProperties {
   bool isHintPos = false;
   bool allowPolicyInit = true;
   bool isFork = false;
+  bool isHintFork = false;
 
   int hintTurn = -1;
   Hash128 hintPosHash;
@@ -84,7 +88,8 @@ class GameInitializer {
     SearchParams& params,
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
-    OtherGameProperties& otherGameProps
+    OtherGameProperties& otherGameProps,
+    const Sgf::PositionSample* startPosSample
   );
 
   //A version that doesn't randomize params
@@ -93,7 +98,8 @@ class GameInitializer {
     ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
-    OtherGameProperties& otherGameProps
+    OtherGameProperties& otherGameProps,
+    const Sgf::PositionSample* startPosSample
   );
 
   Rules randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const;
@@ -111,7 +117,8 @@ class GameInitializer {
     ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
-    OtherGameProperties& otherGameProps
+    OtherGameProperties& otherGameProps,
+    const Sgf::PositionSample* startPosSample
   );
   Rules createRulesUnsynchronized();
 
@@ -241,7 +248,8 @@ namespace Play {
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
     const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
-    std::function<NNEvaluator*()>* checkForNewNNEval
+    std::function<NNEvaluator*()> checkForNewNNEval,
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
   );
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
@@ -254,7 +262,8 @@ namespace Play {
     int maxMovesPerGame, std::vector<std::atomic<bool>*>& stopConditions,
     const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
-    std::function<NNEvaluator*()>* checkForNewNNEval
+    std::function<NNEvaluator*()> checkForNewNNEval,
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
   );
 
   void maybeForkGame(
@@ -304,9 +313,12 @@ public:
     const MatchPairer::BotSpec& botSpecB,
     const MatchPairer::BotSpec& botSpecW,
     ForkData* forkData,
+    const Sgf::PositionSample* startPosSample,
     Logger& logger,
     std::vector<std::atomic<bool>*>& stopConditions,
-    std::function<NNEvaluator*()>* checkForNewNNEval
+    std::function<NNEvaluator*()> checkForNewNNEval,
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove,
+    bool alwaysIncludeOwnership
   );
 
   const GameInitializer* getGameInitializer() const;

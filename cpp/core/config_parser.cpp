@@ -106,11 +106,32 @@ string ConfigParser::getContents() const {
   return contents;
 }
 
+void ConfigParser::unsetUsedKey(const string& key) {
+  std::lock_guard<std::mutex> lock(usedKeysMutex);
+  usedKeys.erase(key);
+}
+
+void ConfigParser::applyAlias(const string& mapThisKey, const string& toThisKey) {
+  if(contains(mapThisKey) && contains(toThisKey))
+    throw IOError("Cannot specify both " + mapThisKey + " and " + toThisKey + " in the same config");
+  if(contains(mapThisKey)) {
+    keyValues[toThisKey] = keyValues[mapThisKey];
+    keyValues.erase(mapThisKey);
+    std::lock_guard<std::mutex> lock(usedKeysMutex);
+    if(usedKeys.find(mapThisKey) != usedKeys.end()) {
+      usedKeys.insert(toThisKey);
+      usedKeys.erase(mapThisKey);
+    }
+  }
+}
+
 void ConfigParser::overrideKeys(const map<string, string>& newkvs) {
   for(auto iter = newkvs.begin(); iter != newkvs.end(); ++iter) {
     //Assume zero-length values mean to delete a key
-    if(iter->second.length() <= 0 && keyValues.find(iter->first) != keyValues.end())
-      keyValues.erase(iter->first);
+    if(iter->second.length() <= 0) {
+      if(keyValues.find(iter->first) != keyValues.end())
+        keyValues.erase(iter->first);
+    }
     else
       keyValues[iter->first] = iter->second;
   }
@@ -178,12 +199,24 @@ void ConfigParser::markAllKeysUsedWithPrefix(const string& prefix) {
 
 void ConfigParser::warnUnusedKeys(ostream& out, Logger* logger) const {
   vector<string> unused = unusedKeys();
-  for(size_t i = 0; i<unused.size(); i++) {
-    string msg = "WARNING: Unused key '" + unused[i] + "' in " + fileName;
-    if(logger != NULL)
-      logger->write(msg);
-    out << msg << endl;
+  vector<string> messages;
+  if(unused.size() > 0) {
+    messages.push_back("--------------");
+    messages.push_back("WARNING: Config had unused keys! You may have a typo, an option you specified is being unused from " + fileName);
   }
+  for(size_t i = 0; i<unused.size(); i++) {
+    messages.push_back("WARNING: Unused key '" + unused[i] + "' in " + fileName);
+  }
+  if(unused.size() > 0) {
+    messages.push_back("--------------");
+  }
+
+  if(logger != NULL) {
+    for(size_t i = 0; i<messages.size(); i++)
+      logger->write(messages[i]);
+  }
+  for(size_t i = 0; i<messages.size(); i++)
+    out << messages[i] << endl;
 }
 
 vector<string> ConfigParser::unusedKeys() const {

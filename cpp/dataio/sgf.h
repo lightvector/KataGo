@@ -62,7 +62,12 @@ struct Sgf {
   void getPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
   void getMoves(std::vector<Move>& moves, int xSize, int ySize) const;
 
-  int depth() const;
+  //Maximum depth of sgf tree in nodes
+  int64_t depth() const;
+  //Total number of sgf nodes
+  int64_t nodeCount() const;
+  //Total number of sgf branches (0 for a linear sgf, 1 if there is 1 fork, etc)
+  int64_t branchCount() const;
 
   struct PositionSample {
     Board board;
@@ -74,6 +79,8 @@ struct Sgf {
     int initialTurnNumber;
     //Hinted move that may be good at the end of position sample, or Board::NULL_LOC
     Loc hintLoc;
+    //The weight of this sample, for random selection
+    double weight;
 
     static std::string toJsonLine(const PositionSample& sample);
     static PositionSample ofJsonLine(const std::string& s);
@@ -83,9 +90,9 @@ struct Sgf {
   //Hashes are used to filter out "identical" positions when loading many files from different SGFs that may have overlapping openings, etc.
   //The hashes are not guaranteed to correspond to position hashes, or anything else external to this function itself.
   //May raise an exception on illegal moves or other SGF issues, only partially appending things on to the boards and hists.
-  void loadAllUniquePositions(std::set<Hash128>& uniqueHashes, std::vector<PositionSample>& samples) const;
+  void loadAllUniquePositions(std::set<Hash128>& uniqueHashes, bool hashComments, std::vector<PositionSample>& samples) const;
   //f is allowed to mutate and consume sample.
-  void iterAllUniquePositions(std::set<Hash128>& uniqueHashes, std::function<void(PositionSample&,const BoardHistory&)> f) const;
+  void iterAllUniquePositions(std::set<Hash128>& uniqueHashes, bool hashComments, std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f) const;
 
   static std::set<Hash128> readExcludes(const std::vector<std::string>& files);
 
@@ -99,14 +106,18 @@ struct Sgf {
     PositionSample& sampleBuf,
     int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
-    std::function<void(PositionSample&,const BoardHistory&)> f
+    bool hashComments,
+    std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
+    std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;
   void samplePositionIfUniqueHelper(
     Board& board, BoardHistory& hist, Player nextPla,
     PositionSample& sampleBuf,
     int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
-    std::function<void(PositionSample&,const BoardHistory&)> f
+    bool hashComments,
+    const std::string& comments,
+    std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;
 };
 
@@ -117,7 +128,7 @@ struct CompactSgf {
   std::vector<Move> moves;
   int xSize;
   int ySize;
-  int depth;
+  int64_t depth;
   float komi;
   Player sgfWinner;
   Hash128 hash;
@@ -139,11 +150,11 @@ struct CompactSgf {
   Rules getRulesOrWarn(const Rules& defaultRules, std::function<void(const std::string& msg)> f) const;
 
   void setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist) const;
-  void playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) const;
-  void setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber) const;
+  void playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int turnIdx) const;
+  void setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnIdx) const;
   //These throw a StringError upon illegal move.
-  void playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int turnNumber, bool preventEncore) const;
-  void setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnNumber, bool preventEncore) const;
+  void playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int turnIdx, bool preventEncore) const;
+  void setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnIdx, bool preventEncore) const;
 };
 
 namespace WriteSgf {
@@ -155,11 +166,14 @@ namespace WriteSgf {
     std::ostream& out, const std::string& bName, const std::string& wName,
     const BoardHistory& endHist,
     const FinishedGameData* gameData,
-    bool tryNicerRulesString
+    bool tryNicerRulesString,
+    bool omitResignPlayerMove
   );
 
-  //If hist is a finished game, print the result to out, else do nothing
+  //If hist is a finished game, print the result to out along with SGF tag, else do nothing
   void printGameResult(std::ostream& out, const BoardHistory& hist);
+  //Get the game result without a surrounding sgf tag
+  std::string gameResultNoSgfTag(const BoardHistory& hist);
 }
 
 #endif  // DATAIO_SGF_H_

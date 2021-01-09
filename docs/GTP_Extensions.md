@@ -62,15 +62,16 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `absolute` should be followed by a single float `MAINTIME` specifying the time in seconds.
          * `canadian` should be followed by `MAINTIME BYOYOMITIME BYOYOMISTONES` (float,float,int) specifying the main time, the length of the canadian overtime period, and the number of stones that must be played in that period.
          * `byoyomi` should be followed by `MAINTIME BYOYOMITIME BYOYOMIPERIODS` (float,float,int) specifying the main time, the length of each byo-yomi period, and the number of byo-yomi periods.
-      * NOTE: As a hack, KGS also expects that when using `byoyomi`, the controller should provide the number of periods left in place of the number of stones left for the GTP `time-settings` command.
+      * NOTE: As a hack, KGS also expects that when using `byoyomi`, the controller should provide the number of periods left in place of the number of stones left for the GTP `time_left` command.
    * `lz-analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR ...`
       * Begin searching and optionally outputting live analysis to stdout. Assumes the normal player to move next unless otherwise specified.
       * Possible key-value pairs:
          * `interval CENTISECONDS` - Output a line every this many centiseconds. Alternate way to specify interval besides as the second argument.
          * `minmoves N` - Output stats for at least N different legal moves if possible (will likely cause KataGo to output stats on 0-visit moves)
          * `maxmoves N` - Output stats for at most N different legal moves (NOTE: Leela Zero does NOT currently support this field)
-         * `allow ...` - Not currently implemented in KataGo.
-         * `avoid ...` - Not currently implemented in KataGo.
+         * `avoid PLAYER VERTEX,VERTEX,... UNTILDEPTH` - Prohibit the search from exploring the specified moves for the specified player, until `UNTILDEPTH` ply deep in the search.
+            * May be supplied multiple times with different `UNTILDEPTH` for different sets of moves. The behavior is unspecified if a move is specified more than once with different `UNTILDEPTH`.
+         * `allow PLAYER VERTEX,VERTEX,... UNTILDEPTH` - Equivalent to `avoid` on all vertices EXCEPT for the specified vertices. Can only be specified once, and cannot be specified at the same time as `avoid`.
       * Output format:
          * Outputted lines look like `info move E4 visits 1178 winrate 4802 prior 2211 lcb 4781 order 0 pv E4 E3 F3 D3 F4 P4 P3 O3 Q3 O4 K3 Q6 S6 E16 E17 info move P16 visits 1056 winrate 4796 prior 2206 lcb 4769 order 1 pv P16 P17 O17 Q17 O16 E16 E17 F17 D17 F16 K17 D14 B14 P3 info move E3 visits 264 winrate 4752 prior 944 lcb 4722 order 2 pv E3 D5 P16 P17 O17 Q17 O16 E17 H17 D15 C15 D14 info move E16 visits 262 winrate 4741 prior 1047 lcb 4709 order 3 pv E16 P4 P3 O3 Q3 O4 P16 P17 O17 Q17 O16 Q14`
          * `info` - Indicates the start of information for a new possible move
@@ -89,6 +90,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * Same as `lz-analyze` except a slightly different output format and some additional options and fields.
       * Additional possible key-value pairs:
          * `ownership true` - Output the predicted final ownership of every point on the board.
+         * `pvVisits true` - Output the number of visits spend on each move each prinicpal variation.
       * Output format:
          * Outputted lines look like `info move E4 visits 487 utility -0.0408357 winrate 0.480018 scoreMean -0.611848 scoreStdev 24.7058 scoreLead -0.611848 scoreSelfplay -0.515178 prior 0.221121 lcb 0.477221 utilityLcb -0.0486664 order 0 pv E4 E3 F3 D3 F4 P4 P3 O3 Q3 O4 K3 Q6 S6 E16 E17 info move P16 visits 470 utility -0.0414945 winrate 0.479712 scoreMean -0.63075 scoreStdev 24.7179 scoreLead -0.63075 scoreSelfplay -0.5221 prior 0.220566 lcb 0.47657 utilityLcb -0.0502929 order 1 pv P16 P17 O17 Q17 O16 E17 H17 D15 C15 D14 C13 D13 C12 D12 info move E16 visits 143 utility -0.0534071 winrate 0.474509 scoreMean -0.729858 scoreStdev 24.7991 scoreLead -0.729858 scoreSelfplay -0.735747 prior 0.104652 lcb 0.470674 utilityLcb -0.0641425 order 2 pv E16 P4 P3 O3 Q3 O4 E3 H3 D5 C5`
          * `info` - Indicates the start of information for a new possible move, followed by key-value pairs. Current key-value pairs:
@@ -106,6 +108,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
             * `utilityLcb` - The LCB of the move's utility.
             * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
             * `pv` - The principal variation following this move. May be of variable length or even empty.
+            * `pvVisits` - The number of visits for each move in `pv`. Exists only if `pvVisits true` was requested.
          * `ownership` - Alternatively to `info`, this indicates the start of information about predicted board ownership, which applies to every location on the board rather than only legal moves. Only present if `ownership true` was provided.
             * Following is BoardHeight*BoardWidth many consecutive floats in [-1,1] separated by spaces, predicting the final ownership of every board location from the perspective of the current player. Floats are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
   * `lz-genmove_analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR`
@@ -122,7 +125,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
   * `kata-raw-nn SYMMETRY`
      * `SYMMETRY` should be an integer from 0-7 or "all".
      * Reports the result of a raw neural net evaluation from KataGo, or multiple raw evaluations in the case of "all".
-     * Output format is of the form `SYMMETRY <integer 0-7> <key> <value(s)> <key> <value(s)> ...`, possibly with additional whitespace or newlines between any tokens. In the case of "all", multiple such outputs of this form are concatenated together.
+     * Output format is of the form `symmetry <integer 0-7> <key> <value(s)> <key> <value(s)> ...`, possibly with additional whitespace or newlines between any tokens. In the case of "all", multiple such outputs of this form are concatenated together.
      * Possible keys are currently
      ```
      whiteWin (1 float)  - believed probability that white wins
@@ -132,6 +135,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      whiteScoreSelfplay (1 float) - predicted mean score that would result from low-playout noisy selfplay (may be biased, Kata isn't fully score-maximizing).
      whiteScoreSelfplaySq (1 float) - predicted mean square of score that would result via low-playout noisy selfplay
      policy (boardXSize * boardYSize floats, including possibly NAN for illegal moves) - policy distribution for next move
+     policyPass (1 floats) - policy probability for the pass move
      whiteOwnership (boardXSize * boardYSize floats) - predicted ownership by white (from -1 to 1).
      ```
      Any consumers of this data should attempt to be robust to any pattern of whitespace within the output, as well as possibly the future addition of new keys and values. The ordering of the keys is also not guaranteed - consumers should be capable of handling any permutation of them.

@@ -317,7 +317,7 @@ BC50 BC50 x 52 y 20
     out << board2 << endl;
 
     string expected = R"%%(
-HASH: FF41A6A8C248603FA60347F93F085846
+HASH: 27902CF3F972B1855303DB453BF8DE63
    A B C D E F
  5 . . . . . .
  4 . . . . . .
@@ -326,7 +326,7 @@ HASH: FF41A6A8C248603FA60347F93F085846
  1 . . . . . .
 
 
-HASH: 6B93B11D3BA70C1DF1D07EE065566210
+HASH: BC864FD8F525EE9D6B590472C800841A
    A B C D E F
  5 . . . . . .
  4 . . . . . .
@@ -895,6 +895,68 @@ Adj white
 011110111
 001101111
 
+)%%";
+    expect(name,out,expected);
+  }
+
+
+  //============================================================================
+  {
+    const char* name = "wouldBeCapture";
+    Board board = Board::parseBoard(9,9,R"%%(
+.....oxx.
+..o.o.oox
+.oxo.oxx.
+.o.o..x..
+.xox.x.xo
+..x..oxo.
+....o.oxx
+xo...oxox
+.xo..x.oo
+)%%");
+
+    out << endl;
+    out << "WouldBeCapture black" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        out << (int)board.wouldBeCapture(loc,P_BLACK);
+      }
+      out << endl;
+    }
+    out << endl;
+    out << "WouldBeCapture white" << endl;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        out << (int)board.wouldBeCapture(loc,P_WHITE);
+      }
+      out << endl;
+    }
+    out << endl;
+
+    string expected = R"%%(
+WouldBeCapture black
+000000000
+000001000
+000000000
+001000000
+000000000
+000000001
+000001000
+000000000
+000000100
+
+WouldBeCapture white
+000000001
+000000000
+000000000
+001000000
+000000100
+000000001
+000000000
+000000000
+100000100
 )%%";
     expect(name,out,expected);
   }
@@ -1601,10 +1663,10 @@ void Tests::runBoardUndoTest() {
 
   string expected = R"%%(
 
-regularMoveCount 2431
-passCount 482
-koCaptureCount 25
-suicideCount 87
+regularMoveCount 2446
+passCount 475
+koCaptureCount 24
+suicideCount 79
 
 )%%";
   expect("Board undo test move counts",out,expected);
@@ -1799,7 +1861,13 @@ void Tests::runBoardStressTest() {
           testAssert(boardsSeemEqual(copy,board));
           testAssert(loc < 0 || loc >= Board::MAX_ARR_SIZE || board.colors[loc] != C_EMPTY || board.isIllegalSuicide(loc,pla,multiStoneSuicideLegal[i]) || board.isKoBanned(loc));
           if(board.isKoBanned(loc)) {
-            testAssert(board.colors[loc] == C_EMPTY && (board.wouldBeKoCapture(loc,C_BLACK) || board.wouldBeKoCapture(loc,C_WHITE)));
+            testAssert(board.colors[loc] == C_EMPTY);
+            testAssert(board.wouldBeKoCapture(loc,C_BLACK) || board.wouldBeKoCapture(loc,C_WHITE));
+            testAssert(board.wouldBeCapture(loc,C_BLACK) || board.wouldBeCapture(loc,C_WHITE));
+            if(board.isAdjacentToPla(loc,getOpp(pla))) {
+              testAssert(board.wouldBeKoCapture(loc,pla));
+              testAssert(board.wouldBeCapture(loc,pla));
+            }
             koBanCount++;
           }
         }
@@ -1814,6 +1882,7 @@ void Tests::runBoardStressTest() {
           testAssert(board.colors[loc] == C_EMPTY);
           testAssert(board.isLegal(loc,pla,multiStoneSuicideLegal[i]));
           testAssert(multiStoneSuicideLegal[i]);
+          testAssert(!copy.wouldBeCapture(loc,pla));
           suicideCount++;
         }
         else {
@@ -1824,9 +1893,14 @@ void Tests::runBoardStressTest() {
           if(board.ko_loc != Board::NULL_LOC) {
             koCaptureCount++;
             testAssert(copy.wouldBeKoCapture(loc,pla));
+            testAssert(copy.wouldBeCapture(loc,pla));
           }
           else
             testAssert(!copy.wouldBeKoCapture(loc,pla));
+          if(!board.isAdjacentToPla(loc,getOpp(pla)) && copy.isAdjacentToPla(loc,getOpp(pla)))
+            testAssert(copy.wouldBeCapture(loc,pla));
+          if(!copy.isAdjacentToPla(loc,getOpp(pla)))
+            testAssert(!copy.wouldBeCapture(loc,pla));
 
           regularMoveCount++;
         }
@@ -1848,15 +1922,15 @@ void Tests::runBoardStressTest() {
     out << "Caps " << boards[i].numBlackCaptures << " " << boards[i].numWhiteCaptures << endl;
   string expected = R"%%(
 
-regularMoveCount 37740
-passCount 280
-koCaptureCount 188
-koBanCount 31
-suicideCount 451
-Caps 4839 4688
-Caps 4853 4672
-Caps 5002 4967
-Caps 4369 4382
+regularMoveCount 38017
+passCount 273
+koCaptureCount 212
+koBanCount 45
+suicideCount 440
+Caps 4753 5024
+Caps 4821 4733
+Caps 4995 5041
+Caps 4420 4335
 
 )%%";
   expect("Board stress test move counts",out,expected);

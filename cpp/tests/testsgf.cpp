@@ -52,7 +52,7 @@ void Tests::runSgfTests() {
       //Test SGF writing roundtrip.
       //This is not exactly holding if there is pass for ko, but should be good in all other cases
       ostringstream out2;
-      WriteSgf::writeSgf(out2,"foo","bar",hist,NULL,false);
+      WriteSgf::writeSgf(out2,"foo","bar",hist,NULL,false,false);
       CompactSgf* sgf2 = CompactSgf::parse(out2.str());
       Board board2;
       BoardHistory hist2;
@@ -94,7 +94,7 @@ O pass
 X pass
 Initial board hist
 pla White
-HASH: B7F8C756D3C44C031B6A7CDF9164EDA7
+HASH: 0483785A1D3D994549631CC1DE3E1CCE
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -131,7 +131,7 @@ Game result 0 Empty 0 0 0 0
 Last moves
 Final board hist
 pla White
-HASH: DD088CF25D937776F4CC6E2CBC169CD4
+HASH: D2679AE98871290D03776F89C5C34607
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -195,7 +195,7 @@ O pass
 X pass
 Initial board hist
 pla White
-HASH: B7F8C756D3C44C031B6A7CDF9164EDA7
+HASH: 0483785A1D3D994549631CC1DE3E1CCE
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -232,7 +232,7 @@ Game result 0 Empty 0 0 0 0
 Last moves
 Final board hist
 pla White
-HASH: DD088CF25D937776F4CC6E2CBC169CD4
+HASH: D2679AE98871290D03776F89C5C34607
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -296,7 +296,7 @@ O pass
 X pass
 Initial board hist
 pla White
-HASH: B7F8C756D3C44C031B6A7CDF9164EDA7
+HASH: 0483785A1D3D994549631CC1DE3E1CCE
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -333,7 +333,7 @@ Game result 0 Empty 0 0 0 0
 Last moves
 Final board hist
 pla White
-HASH: DD088CF25D937776F4CC6E2CBC169CD4
+HASH: D2679AE98871290D03776F89C5C34607
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -397,7 +397,7 @@ O pass
 X pass
 Initial board hist
 pla White
-HASH: B7F8C756D3C44C031B6A7CDF9164EDA7
+HASH: 0483785A1D3D994549631CC1DE3E1CCE
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -434,7 +434,7 @@ Game result 0 Empty 0 0 0 0
 Last moves
 Final board hist
 pla White
-HASH: DD088CF25D937776F4CC6E2CBC169CD4
+HASH: D2679AE98871290D03776F89C5C34607
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -491,7 +491,7 @@ O C1
 X M3
 Initial board hist
 pla Black
-HASH: A8A8A5ADA4E1BFB3AEB041A4513D7405
+HASH: 07791CF7FCA8A7E67538A413A98483AB
    A B C D E F G H J K L M N O P Q R
  3 . . . . . . . . . . . . . . . . .
  2 . . . . . . . . . . . . . . . . .
@@ -512,7 +512,7 @@ Game result 0 Empty 0 0 0 0
 Last moves
 Final board hist
 pla White
-HASH: B39271113663636A4AF3B55AFB01F6AB
+HASH: 52376CECFC43AC1A05655FF3DAF26336
    A B C D E F G H J K L M N O P Q R
  3 . . . . . . . . . . . X . . . . .
  2 . . . . . . . . . . . . . . . . .
@@ -567,7 +567,7 @@ O E7
 moves
 Initial board hist
 pla White
-HASH: B9DEED0632FD395A12CA242D89060D3B
+HASH: AB9059CC6FB63D2E54306382320C0E8D
    A B C D E F G H J
  9 . . . . . . . . .
  8 . . . . . . . . .
@@ -594,7 +594,7 @@ Game result 0 Empty 0 0 0 0
 Last moves
 Final board hist
 pla White
-HASH: B9DEED0632FD395A12CA242D89060D3B
+HASH: AB9059CC6FB63D2E54306382320C0E8D
    A B C D E F G H J
  9 . . . . . . . . .
  8 . . . . . . . . .
@@ -624,6 +624,180 @@ Last moves
   }
 
   //============================================================================
+  {
+    const char* name = "Sgf parsing with moveless and multimove nodes";
+    string sgfStr = "(;GM[1]FF[4]SZ[5]KM[24];B[cc]W[cb];;B[bb];C[test];C[test2];W[dc];B[db];W[cd];;;B[bc];C[test3])";
+    parseAndPrintSgf(sgfStr);
+    {
+      Sgf* sgf = Sgf::parse(sgfStr);
+      std::set<Hash128> uniqueHashes;
+      vector<Sgf::PositionSample> samples;
+      sgf->loadAllUniquePositions(uniqueHashes, false, samples);
+      for(int i = 0; i<samples.size(); i++) {
+        out << Sgf::PositionSample::toJsonLine(samples[i]) << endl;
+      }
+      delete sgf;
+    }
+
+    string expected = R"%%(
+xSize 5
+ySize 5
+depth 13
+komi 24
+placements
+moves
+X C3
+O C4
+X B4
+O D3
+X D4
+O C2
+X B3
+Initial board hist
+pla Black
+HASH: FBE16917FFBF22C1CD6D3A1EEB1FC363
+   A B C D E
+ 5 . . . . .
+ 4 . . . . .
+ 3 . . . . .
+ 2 . . . . .
+ 1 . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi24
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves
+Final board hist
+pla White
+HASH: F319D79992F6E6C1ABF52DB6631D470B
+   A B C D E
+ 5 . . . . .
+ 4 . X O X .
+ 3 . X X O .
+ 2 . . O . .
+ 1 . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 7
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi24
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C3 C4 B4 D3 D4 C2 B3
+{"board":"...../...../...../...../...../","hintLoc":"null","initialTurnNumber":0,"moveLocs":["C3"],"movePlas":["B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../...../...../...../...../","hintLoc":"null","initialTurnNumber":0,"moveLocs":["C3","C4"],"movePlas":["B","W"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../...../...../...../...../","hintLoc":"null","initialTurnNumber":0,"moveLocs":["C3","C4","B4"],"movePlas":["B","W","B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../...../...../...../...../","hintLoc":"null","initialTurnNumber":0,"moveLocs":["C3","C4","B4","D3"],"movePlas":["B","W","B","W"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../...../...../...../...../","hintLoc":"null","initialTurnNumber":0,"moveLocs":["C3","C4","B4","D3","D4"],"movePlas":["B","W","B","W","B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../...../..X../...../...../","hintLoc":"null","initialTurnNumber":1,"moveLocs":["C4","B4","D3","D4","C2"],"movePlas":["W","B","W","B","W"],"nextPla":"W","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../..O../..X../...../...../","hintLoc":"null","initialTurnNumber":2,"moveLocs":["B4","D3","D4","C2","B3"],"movePlas":["B","W","B","W","B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
+    const char* name = "Sgf parsing with more multimove nodes, katago doesn't handle ordering but that's okay since this is not actually valid sgf";
+    string sgfStr = "(;GM[1]FF[4]SZ[5]KM[24];B[cc]W[cb]B[bb];W[dc]B[db];W[cd];;;B[bc])";
+    parseAndPrintSgf(sgfStr);
+    {
+      Sgf* sgf = Sgf::parse(sgfStr);
+      std::set<Hash128> uniqueHashes;
+      vector<Sgf::PositionSample> samples;
+      sgf->loadAllUniquePositions(uniqueHashes, false, samples);
+      for(int i = 0; i<samples.size(); i++) {
+        out << Sgf::PositionSample::toJsonLine(samples[i]) << endl;
+      }
+      delete sgf;
+    }
+
+    string expected = R"%%(
+xSize 5
+ySize 5
+depth 7
+komi 24
+placements
+moves
+X C3
+X B4
+O C4
+X D4
+O D3
+O C2
+X B3
+Initial board hist
+pla Black
+HASH: FBE16917FFBF22C1CD6D3A1EEB1FC363
+   A B C D E
+ 5 . . . . .
+ 4 . . . . .
+ 3 . . . . .
+ 2 . . . . .
+ 1 . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi24
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves
+Final board hist
+pla White
+HASH: F319D79992F6E6C1ABF52DB6631D470B
+   A B C D E
+ 5 . . . . .
+ 4 . X O X .
+ 3 . X X O .
+ 2 . . O . .
+ 1 . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 7
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi24
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves C3 B4 C4 D4 D3 C2 B3
+{"board":"...../...../...../...../...../","hintLoc":"null","initialTurnNumber":0,"moveLocs":["C3"],"movePlas":["B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../...../..X../...../...../","hintLoc":"null","initialTurnNumber":1,"moveLocs":["B4"],"movePlas":["B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../...../..X../...../...../","hintLoc":"null","initialTurnNumber":1,"moveLocs":["B4","C4"],"movePlas":["B","W"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../...../..X../...../...../","hintLoc":"null","initialTurnNumber":1,"moveLocs":["B4","C4","D4"],"movePlas":["B","W","B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../...../..X../...../...../","hintLoc":"null","initialTurnNumber":1,"moveLocs":["B4","C4","D4","D3"],"movePlas":["B","W","B","W"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../.XOX./..XO./...../...../","hintLoc":"null","initialTurnNumber":5,"moveLocs":["C2"],"movePlas":["W"],"nextPla":"W","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../.XOX./..XO./...../...../","hintLoc":"null","initialTurnNumber":5,"moveLocs":["C2","B3"],"movePlas":["W","B"],"nextPla":"W","weight":1.0,"xSize":5,"ySize":5})%%";
+    expect(name,out,expected);
+  }
+
+
+  //============================================================================
   if(Board::MAX_LEN >= 37)
   {
     const char* name = "Giant Sgf parse test";
@@ -637,65 +811,66 @@ depth 14
 komi 0
 placements
 moves
-X (3,3)
-O (33,3)
-X (33,33)
-O (3,33)
-X (3,32)
-O (4,32)
-X (4,31)
-O (32,3)
-X (32,4)
-O (33,4)
-X (4,4)
-O (32,32)
-X (18,18)
+X D34
+O AJ34
+X AJ4
+O D4
+X D5
+O E5
+X E6
+O AH34
+X AH33
+O AJ33
+X E33
+O AH5
+X T19
 Initial board hist
 pla Black
-HASH: B7D1534B9B7F9D0424902AFED43500FC
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+HASH: 09D2EA49BF2F78E5B210AEA0C9838C85
+   A B C D E F G H J K L M N O P Q R S T U V W X Y ZAAABACADAEAFAGAHAJAKALAM
+37 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+36 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+35 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+34 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+33 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+32 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+31 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+30 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+29 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+28 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+27 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+26 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+25 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+24 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+23 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+22 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+21 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+20 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+19 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+16 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+15 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 
 
 Initial pla Black
 Encore phase 0
 Turns this phase 0
-Rules koSIMPLEscoreAREAtaxNONEsui0komi0
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNkomi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 0
@@ -706,50 +881,51 @@ Game result 0 Empty 0 0 0 0
 Last moves
 Final board hist
 pla White
-HASH: 04E936BD3026457C27E5E849DED6AE6A
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . X . . . . . . . . . . . . . . . . . . . . . . . . . . . . O O . . .
-. . . . X . . . . . . . . . . . . . . . . . . . . . . . . . . . X O . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . X . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . X . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . X O . . . . . . . . . . . . . . . . . . . . . . . . . . . O . . . .
-. . . O . . . . . . . . . . . . . . . . . . . . . . . . . . . . . X . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+HASH: BEECF0ED5AC11C8DBA6C50AAF871843D
+   A B C D E F G H J K L M N O P Q R S T U V W X Y ZAAABACADAEAFAGAHAJAKALAM
+37 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+36 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+35 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+34 . . . X . . . . . . . . . . . . . . . . . . . . . . . . . . . . O O . . .
+33 . . . . X . . . . . . . . . . . . . . . . . . . . . . . . . . . X O . . .
+32 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+31 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+30 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+29 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+28 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+27 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+26 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+25 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+24 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+23 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+22 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+21 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+20 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+19 . . . . . . . . . . . . . . . . . . X . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+16 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+15 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 6 . . . . X . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 5 . . . X O . . . . . . . . . . . . . . . . . . . . . . . . . . . O . . . .
+ 4 . . . O . . . . . . . . . . . . . . . . . . . . . . . . . . . . . X . . .
+ 3 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 
 
 Initial pla Black
 Encore phase 0
 Turns this phase 13
-Rules koSIMPLEscoreAREAtaxNONEsui0komi0
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNkomi0
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 0
@@ -757,7 +933,8 @@ Has button 0
 Presumed next pla White
 Past normal phase end 0
 Game result 0 Empty 0 0 0 0
-Last moves (3,3) (33,3) (33,33) (3,33) (3,32) (4,32) (4,31) (32,3) (32,4) (33,4) (4,4) (32,32) (18,18)
+Last moves D34 AJ34 AJ4 D4 D5 E5 E6 AH34 AH33 AJ33 E33 AH5 T19
+
 )%%";
     expect(name,out,expected);
   }

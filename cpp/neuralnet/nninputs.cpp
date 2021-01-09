@@ -309,6 +309,8 @@ NNOutput::NNOutput(const NNOutput& other) {
   whiteScoreMeanSq = other.whiteScoreMeanSq;
   whiteLead = other.whiteLead;
   varTimeLeft = other.varTimeLeft;
+  shorttermWinlossError = other.shorttermWinlossError;
+  shorttermScoreError = other.shorttermScoreError;
 
   nnXLen = other.nnXLen;
   nnYLen = other.nnYLen;
@@ -345,6 +347,8 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
   whiteScoreMeanSq = 0.0f;
   whiteLead = 0.0f;
   varTimeLeft = 0.0f;
+  shorttermWinlossError = 0.0f;
+  shorttermScoreError = 0.0f;
   for(int i = 0; i<len; i++) {
     const NNOutput& other = *(others[i]);
     whiteWinProb += other.whiteWinProb;
@@ -354,6 +358,8 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
     whiteScoreMeanSq += other.whiteScoreMeanSq;
     whiteLead += other.whiteLead;
     varTimeLeft += other.varTimeLeft;
+    shorttermWinlossError += other.shorttermWinlossError;
+    shorttermScoreError += other.shorttermScoreError;
   }
   whiteWinProb /= floatLen;
   whiteLossProb /= floatLen;
@@ -362,6 +368,8 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
   whiteScoreMeanSq /= floatLen;
   whiteLead /= floatLen;
   varTimeLeft /= floatLen;
+  shorttermWinlossError /= floatLen;
+  shorttermScoreError /= floatLen;
 
   nnXLen = others[0]->nnXLen;
   nnYLen = others[0]->nnYLen;
@@ -428,6 +436,8 @@ NNOutput& NNOutput::operator=(const NNOutput& other) {
   whiteScoreMeanSq = other.whiteScoreMeanSq;
   whiteLead = other.whiteLead;
   varTimeLeft = other.varTimeLeft;
+  shorttermWinlossError = other.shorttermWinlossError;
+  shorttermScoreError = other.shorttermScoreError;
 
   nnXLen = other.nnXLen;
   nnYLen = other.nnYLen;
@@ -474,6 +484,8 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
   out << "ScoreMeanSq " << Global::strprintf("%.1f",whiteScoreMeanSq) << endl;
   out << "Lead " << Global::strprintf("%.1f",whiteLead) << endl;
   out << "VarTimeLeft " << Global::strprintf("%.1f",varTimeLeft) << endl;
+  out << "STWinlossError " << Global::strprintf("%.1f",shorttermWinlossError) << endl;
+  out << "STScoreError " << Global::strprintf("%.1f",shorttermScoreError) << endl;
 
   out << "Policy" << endl;
   for(int y = 0; y<board.y_size; y++) {
@@ -501,6 +513,77 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
   }
 }
 
+//-------------------------------------------------------------------------------------------------------------
+
+static void copyWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry, bool reverse) {
+  bool transpose = (symmetry & 0x4) != 0 && hSize == wSize;
+  bool swapX = (symmetry & 0x2) != 0;
+  bool swapY = (symmetry & 0x1) != 0;
+  if(transpose && !reverse)
+    std::swap(swapX,swapY);
+  if(useNHWC) {
+    int nStride = hSize * wSize * cSize;
+    int hStride = wSize * cSize;
+    int wStride = cSize;
+    int hBaseNew = 0; int hStrideNew = hStride;
+    int wBaseNew = 0; int wStrideNew = wStride;
+
+    if(swapY) { hBaseNew = (hSize-1) * hStrideNew; hStrideNew = -hStrideNew; }
+    if(swapX) { wBaseNew = (wSize-1) * wStrideNew; wStrideNew = -wStrideNew; }
+
+    if(transpose)
+      std::swap(hStrideNew,wStrideNew);
+
+    for(int n = 0; n<nSize; n++) {
+      for(int h = 0; h<hSize; h++) {
+        int nhOld = n * nStride + h*hStride;
+        int nhNew = n * nStride + hBaseNew + h*hStrideNew;
+        for(int w = 0; w<wSize; w++) {
+          int nhwOld = nhOld + w*wStride;
+          int nhwNew = nhNew + wBaseNew + w*wStrideNew;
+          for(int c = 0; c<cSize; c++) {
+            dst[nhwNew + c] = src[nhwOld + c];
+          }
+        }
+      }
+    }
+  }
+  else {
+    int ncSize = nSize * cSize;
+    int ncStride = hSize * wSize;
+    int hStride = wSize;
+    int wStride = 1;
+    int hBaseNew = 0; int hStrideNew = hStride;
+    int wBaseNew = 0; int wStrideNew = wStride;
+
+    if(swapY) { hBaseNew = (hSize-1) * hStrideNew; hStrideNew = -hStrideNew; }
+    if(swapX) { wBaseNew = (wSize-1) * wStrideNew; wStrideNew = -wStrideNew; }
+
+    if(transpose)
+      std::swap(hStrideNew,wStrideNew);
+
+    for(int nc = 0; nc<ncSize; nc++) {
+      for(int h = 0; h<hSize; h++) {
+        int nchOld = nc * ncStride + h*hStride;
+        int nchNew = nc * ncStride + hBaseNew + h*hStrideNew;
+        for(int w = 0; w<wSize; w++) {
+          int nchwOld = nchOld + w*wStride;
+          int nchwNew = nchNew + wBaseNew + w*wStrideNew;
+          dst[nchwNew] = src[nchwOld];
+        }
+      }
+    }
+  }
+}
+
+
+void SymmetryHelpers::copyInputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry) {
+  copyWithSymmetry(src, dst, nSize, hSize, wSize, cSize, useNHWC, symmetry, false);
+}
+
+void SymmetryHelpers::copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry) {
+  copyWithSymmetry(src, dst, nSize, hSize, wSize, 1, false, symmetry, true);
+}
 
 //-------------------------------------------------------------------------------------------------------------
 

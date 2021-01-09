@@ -2,13 +2,14 @@
 #define NEURALNET_OPENCL_TUNER_H_
 
 #include "../core/global.h"
+#include "../core/commontypes.h"
 #include "../core/logger.h"
 #include "../neuralnet/desc.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/openclincludes.h"
 #include "../neuralnet/openclhelpers.h"
 
-struct OpenCLTuneParams {
+namespace OpenCLParams {
   struct XGemmDirectParams {
     int WGD = 8;
     int MDIMCD = 1;
@@ -26,7 +27,6 @@ struct OpenCLTuneParams {
     void fillFromDesc(const std::string& fileName, const std::string& desc);
     bool isValid() const;
   };
-  XGemmDirectParams xGemmDirect = XGemmDirectParams();
 
   struct XGemmParams {
     int MWG = 8;
@@ -50,7 +50,26 @@ struct OpenCLTuneParams {
     bool isValid() const;
     bool isSimple() const;
   };
-  XGemmParams xGemm = XGemmParams();
+
+  struct HGemmWmmaParams {
+    int MWG = 16;
+    int NWG = 16;
+    int KWG = 16;
+    int MWAVE = 16;
+    int NWAVE = 16;
+    int MWARP = 16;
+    int NWARP = 16;
+    int VWM = 2;
+    int VWN = 2;
+    int SA = 0;
+    int SB = 0;
+
+    std::string desc() const;
+    std::string compileOptions() const;
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
+    bool isValid() const;
+    bool isSimple() const;
+  };
 
   struct Conv3x3Params {
     //Winograd input and output tile sizes
@@ -73,7 +92,6 @@ struct OpenCLTuneParams {
     void fillFromDesc(const std::string& fileName, const std::string& desc);
     bool isValid() const;
   };
-  Conv3x3Params conv3x3 = Conv3x3Params();
 
   struct Conv5x5Params {
     //Winograd input and output tile sizes
@@ -96,7 +114,6 @@ struct OpenCLTuneParams {
     void fillFromDesc(const std::string& fileName, const std::string& desc);
     bool isValid() const;
   };
-  Conv5x5Params conv5x5 = Conv5x5Params();
 
   struct GPoolParams {
     int XYSTRIDE = 1;
@@ -108,23 +125,28 @@ struct OpenCLTuneParams {
     void fillFromDesc(const std::string& fileName, const std::string& desc);
     bool isValid() const;
   };
-  GPoolParams gPool = GPoolParams();
+}
 
-  struct TransposeParams {
-    int TILEDIM = 1;
-    int TILESTRIDE = 1;
-    int NCSTRIDE = 1;
+struct OpenCLTuneParams {
+  OpenCLParams::XGemmDirectParams xGemmDirect = OpenCLParams::XGemmDirectParams();
+  OpenCLParams::XGemmParams xGemm = OpenCLParams::XGemmParams();
 
-    std::string desc() const;
-    std::string compileOptions() const;
-    void fillFromDesc(const std::string& fileName, const std::string& desc);
-    bool isValid() const;
-  };
-  TransposeParams transpose = TransposeParams();
+  bool shouldUseFP16Storage = false;
+  bool shouldUseFP16Compute = false;
+  OpenCLParams::XGemmParams xGemm16 = OpenCLParams::XGemmParams();
+  bool shouldUseFP16TensorCores = false;
+  OpenCLParams::HGemmWmmaParams hGemmWmma = OpenCLParams::HGemmWmmaParams();
 
+  OpenCLParams::Conv3x3Params conv3x3 = OpenCLParams::Conv3x3Params();
+  OpenCLParams::Conv5x5Params conv5x5 = OpenCLParams::Conv5x5Params();
+  OpenCLParams::GPoolParams gPool = OpenCLParams::GPoolParams();
 
   bool operator==(const OpenCLTuneParams& other) const;
   bool isValid() const;
+
+  int getXGemmMPaddingMult(bool usingFP16Compute, bool usingFP16TensorCores) const;
+  int getXGemmNPaddingMult(bool usingFP16Compute, bool usingFP16TensorCores) const;
+  int getXGemmKPaddingMult(bool usingFP16Compute, bool usingFP16TensorCores) const;
 
   static void save(const std::string& filename, const OpenCLTuneParams& config);
   static OpenCLTuneParams load(const std::string& filename);
@@ -143,11 +165,17 @@ namespace OpenCLTuner {
     int batchSize,
     int nnXLen,
     int nnYLen,
+    enabled_t testFP16Mode,
+    enabled_t testFP16StorageMode,
+    enabled_t testFP16ComputeMode,
+    enabled_t testFP16TensorCoresMode,
     const ModelDesc* model,
     bool full,
     int winograd3x3TileSize,
     std::ostream& out,
-    std::function<void(const OpenCLTuneParams&)> handleBestSoFar
+    bool verboseErrors,
+    bool verboseTuner,
+    OpenCLTuneParams& tunedConfig
   );
 
   std::string defaultDirectory(bool makeDir, const std::string& homeDataDirOverride);
@@ -162,6 +190,10 @@ namespace OpenCLTuner {
     bool openCLReTunePerBoardSize,
     int nnXLen,
     int nnYLen,
+    enabled_t testFP16Mode,
+    enabled_t testFP16StorageMode,
+    enabled_t testFP16ComputeMode,
+    enabled_t testFP16TensorCoresMode,
     const ModelDesc* model,
     bool full
   );

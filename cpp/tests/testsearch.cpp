@@ -24,6 +24,8 @@ struct TestSearchOptions {
   bool noClearBot;
   bool noClearCache;
   bool printMore;
+  bool printMoreMoreMore;
+  bool printAfterBegun;
   bool ignorePosition;
   TestSearchOptions()
     :numMovesInARow(1),
@@ -33,6 +35,8 @@ struct TestSearchOptions {
      noClearBot(false),
      noClearCache(false),
      printMore(false),
+     printMoreMoreMore(false),
+     printAfterBegun(false),
      ignorePosition(false)
   {}
 };
@@ -48,8 +52,27 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
   if(!opts.ignorePosition)
     bot->setPosition(nextPla,board,hist);
 
+  PrintTreeOptions options;
+  options = options.maxDepth(1);
+  if(opts.printMoreMoreMore)
+    options = options.maxDepth(20);
+  else if(opts.printMore)
+    options = options.minVisitsPropToExpand(0.1).maxDepth(2);
+
   for(int i = 0; i<opts.numMovesInARow; i++) {
-    Loc move = bot->genMoveSynchronous(nextPla,TimeControls());
+
+    Loc move;
+    if(opts.printAfterBegun) {
+      cout << "Just after begun" << endl;
+      std::function<void()> onSearchBegun = [&]() {
+        const Search* search = bot->getSearch();
+        search->printTree(cout, search->rootNode, options, P_WHITE);
+      };
+      move = bot->genMoveSynchronous(nextPla,TimeControls(),1.0,onSearchBegun);
+    }
+    else {
+      move = bot->genMoveSynchronous(nextPla,TimeControls());
+    }
     const Search* search = bot->getSearch();
 
     Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
@@ -63,10 +86,6 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
     cout << "\n";
     cout << "Tree:\n";
 
-    PrintTreeOptions options;
-    options = options.maxDepth(1);
-    if(opts.printMore)
-      options = options.minVisitsPropToExpand(0.1).maxDepth(2);
     search->printTree(cout, search->rootNode, options, P_WHITE);
 
     if(opts.printRootPolicy) {
@@ -91,6 +110,8 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
     if(i < opts.numMovesInARow-1) {
       bot->makeMove(move, nextPla);
       hist.makeBoardMoveAssumeLegal(board,move,nextPla,NULL);
+      cout << "Just after move" << endl;
+      search->printTree(cout, search->rootNode, options, P_WHITE);
       nextPla = getOpp(nextPla);
     }
   }
@@ -104,14 +125,14 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
     bot->clearSearch();
 }
 
-static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaultRules, int turnNumber, float overrideKomi, TestSearchOptions opts) {
+static void runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaultRules, int turnIdx, float overrideKomi, TestSearchOptions opts) {
   CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
   Board board;
   Player nextPla;
   BoardHistory hist;
   Rules initialRules = sgf->getRulesOrFailAllowUnspecified(defaultRules);
-  sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnNumber);
+  sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
   hist.setKomi(overrideKomi);
   runBotOnPosition(bot,board,nextPla,hist,opts);
   delete sgf;
@@ -142,9 +163,11 @@ static NNEvaluator* startNNEval(
     defaultSymmetry = 0;
   }
 
+  string expectedSha256 = "";
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
     modelFile,
+    expectedSha256,
     &logger,
     maxBatchSize,
     maxConcurrentEvals,
@@ -250,6 +273,7 @@ static void runBasicPositions(NNEvaluator* nnEval, Logger& logger)
       cout << endl;
       TestSearchOptions opts2 = opts;
       opts2.numMovesInARow = 3;
+      opts2.printAfterBegun = true;
       runBotOnSgf(bot, sgfStr, rules, 85, 7.5, opts2);
       cout << endl;
 
@@ -745,7 +769,6 @@ xx.o.o.o.
 
     delete bot;
   }
-
 }
 
 static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& logger)
@@ -1115,7 +1138,525 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
     }
 
   }
+
+
+  {
+    Board board = Board::parseBoard(19,19,R"%%(
+...................
+............o.oxx..
+...x..........ooxo.
+...........o..xxo..
+..x........oxxxoo.x
+..........xxo.oxxo.
+............o.o....
+..............oxx..
+...................
+...............x...
+..o................
+...................
+...................
+...................
+...................
+..o.o.........ooo..
+.........x...xoxx..
+............x.xoo..
+.............x.....
+)%%");
+
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("Chinese");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 400;
+    params.rootNoiseEnabled = true;
+    params.rootPolicyTemperature = 1.2;
+    params.rootPolicyTemperatureEarly = 1.2;
+    params.rootNumSymmetriesToSample = 2;
+
+    TestSearchOptions opts;
+    TestSearchOptions optsContinue;
+    optsContinue.ignorePosition = true;
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test real hintloc T16" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "hintloc");
+      bot->setRootHintLoc(Location::ofString("T16",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test bad hintloc O18" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "hintloc");
+      bot->setRootHintLoc(Location::ofString("O18",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+  }
+
 }
+
+static void runMoreV8Tests(NNEvaluator* nnEval, Logger& logger)
+{
+  {
+    cout << "TEST VALUE BIAS ==========================================================================" << endl;
+
+    string sgfStr = "(;GM[1]FF[4]CA[UTF-8]RU[Japanese]SZ[9]KM[0];B[dc];W[ef];B[df];W[de];B[dg];W[eg];B[eh];W[fh];B[ee])";
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+    Board board;
+    Player nextPla;
+    BoardHistory hist;
+    Rules initialRules = sgf->getRulesOrFail();
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 8);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 20;
+    params.chosenMoveTemperature = 0;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "valuebias test");
+    params.subtreeValueBiasFactor = 0.5;
+    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "valuebias test");
+    params.maxVisits = 300;
+    AsyncBot* botC = new AsyncBot(params, nnEval, &logger, "valuebias test");
+
+    TestSearchOptions opts;
+    opts.printMoreMoreMore = true;
+    opts.numMovesInARow = 3;
+    opts.printAfterBegun = true;
+    cout << "BASE" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "VALUE BIAS 0.5" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+
+    opts.printMoreMoreMore = false;
+    runBotOnPosition(botC,board,nextPla,hist,opts);
+
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete botC;
+    delete sgf;
+  }
+
+  {
+    Board board = Board::parseBoard(11,11,R"%%(
+.o.xox.x.o.
+xxxxoxxooox
+oo.ooxxxxxx
+.oo.ox.xooo
+oooooxxo.o.
+xxxoooxxooo
+.x.xoxxxxxx
+xxxooox.xx.
+oooo.oxx.xx
+oxxxooxoooo
+.x.o.oxo.x.
+)%%");
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 300;
+    params.fpuReductionMax = 0.0;
+    params.rootFpuReductionMax = 0.0;
+    params.rootEndingBonusPoints = 0.0;
+    params.rootPolicyTemperature = 1.5;
+    params.rootPolicyTemperatureEarly = 1.5;
+    SearchParams params2 = params;
+    params2.rootEndingBonusPoints = 0.5;
+
+    TestSearchOptions opts;
+    opts.printEndingScoreValueBonus = true;
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Ending bonus points in area scoring with selfatari moves, white first" << endl;
+      cout << "===================================================================" << endl;
+
+      Player nextPla = P_WHITE;
+      Rules rules = Rules::parseRules("Chinese");
+      BoardHistory hist(board,nextPla,rules,0);
+      {
+        cout << "Without root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+      {
+        cout << "With root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+    }
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Ending bonus points in area scoring with selfatari moves, white first, button" << endl;
+      cout << "===================================================================" << endl;
+
+      Player nextPla = P_WHITE;
+      Rules rules = Rules::parseRules("Chinese");
+      rules.hasButton = true;
+      BoardHistory hist(board,nextPla,rules,0);
+      {
+        cout << "Without root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+      {
+        cout << "With root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+    }
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Ending bonus points in area scoring with selfatari moves, black first" << endl;
+      cout << "===================================================================" << endl;
+
+      Player nextPla = P_BLACK;
+      Rules rules = Rules::parseRules("Chinese");
+      BoardHistory hist(board,nextPla,rules,0);
+      {
+        cout << "Without root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+      {
+        cout << "With root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+    }
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Ending bonus points in area scoring with selfatari moves, black first, button" << endl;
+      cout << "===================================================================" << endl;
+
+      Player nextPla = P_BLACK;
+      Rules rules = Rules::parseRules("Chinese");
+      rules.hasButton = true;
+      BoardHistory hist(board,nextPla,rules,0);
+      {
+        cout << "Without root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+      {
+        cout << "With root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+    }
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Ending bonus points in territory scoring with selfatari moves, black first" << endl;
+      cout << "===================================================================" << endl;
+
+      Player nextPla = P_BLACK;
+      Rules rules = Rules::parseRules("Japanese");
+      BoardHistory hist(board,nextPla,rules,0);
+      {
+        cout << "Without root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+      {
+        cout << "With root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+    }
+
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Ending bonus points in territory scoring with selfatari moves, black first, encore 2" << endl;
+      cout << "===================================================================" << endl;
+
+      Player nextPla = P_BLACK;
+      Rules rules = Rules::parseRules("Japanese");
+      BoardHistory hist(board,nextPla,rules,2);
+      {
+        cout << "Without root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+      {
+        cout << "With root ending bonus pts===================" << endl;
+        cout << endl;
+        AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+    }
+  }
+
+
+  {
+    Board board = Board::parseBoard(11,11,R"%%(
+.x..ox.oxo.
+xxxooxxox.o
+oooox.xoxxx
+xxooo.ooooo
+x.xoooo..x.
+...oxxxox.x
+o.oox.xooxo
+ooox..xoooo
+xxxx.xxoxxx
+.....xoox.o
+.....xo.xo.
+)%%");
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 300;
+    params.fpuReductionMax = 0.0;
+    params.rootFpuReductionMax = 0.0;
+    params.rootEndingBonusPoints = 0.0;
+    params.rootPolicyTemperature = 1.5;
+    params.rootPolicyTemperatureEarly = 1.5;
+    SearchParams params2 = params;
+    params2.rootEndingBonusPoints = 0.5;
+
+    TestSearchOptions opts;
+    opts.printEndingScoreValueBonus = true;
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Ending bonus points in area scoring with selfatari moves, one more fancy position, white first" << endl;
+      cout << "===================================================================" << endl;
+
+      Player nextPla = P_WHITE;
+      Rules rules = Rules::parseRules("Chinese");
+      BoardHistory hist(board,nextPla,rules,0);
+      {
+        AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "async bot ending bonus points seed");
+        runBotOnPosition(bot, board, nextPla, hist, opts);
+        delete bot;
+      }
+    }
+  }
+
+  {
+    Board board = Board::parseBoard(19,19,R"%%(
+...................
+...................
+................o..
+...x...........x...
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...o............x..
+...................
+.............oo.x..
+...o.........oxx...
+...................
+...................
+)%%");
+
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("Chinese");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams paramsFast = SearchParams::forTestsV1();
+    paramsFast.maxVisits = 5;
+    SearchParams paramsSlow = SearchParams::forTestsV1();
+    paramsSlow.maxVisits = 200;
+    SearchParams paramsFastNoised = paramsFast;
+    paramsFastNoised.rootNoiseEnabled = true;
+    SearchParams paramsSlowNoised = paramsSlow;
+    paramsSlowNoised.rootNoiseEnabled = true;
+    //Note - symmetry sampling here won't actually do anything since the symmetry in the nneval is fixed
+    //but it will still trigger the relevant search.cpp code pathways
+    SearchParams paramsFastSym = paramsFastNoised;
+    paramsFastSym.rootNumSymmetriesToSample = 4;
+    SearchParams paramsSlowSym = paramsSlowNoised;
+    paramsSlowSym.rootNumSymmetriesToSample = 4;
+
+    TestSearchOptions opts;
+    opts.noClearBot = true;
+    TestSearchOptions optsContinue;
+    optsContinue.noClearBot = true;
+    optsContinue.ignorePosition = true;
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsSlow, nnEval, &logger, "hintloc");
+      bot->setRootHintLoc(Location::ofString("C1",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 after attempting same-turn tree reuse" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsFast, nnEval, &logger, "hintloc");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      bot->setParamsNoClearing(paramsSlow);
+      bot->setRootHintLoc(Location::ofString("C1",board)); //This should actually clear the tree even though we didn't say to do so!
+      runBotOnPosition(bot, board, nextPla, hist, optsContinue);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 dirichlet noise" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsSlowNoised, nnEval, &logger, "hintloc");
+      bot->setRootHintLoc(Location::ofString("C1",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 dirichlet noise after attempting same-turn tree reuse" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsFastNoised, nnEval, &logger, "hintloc");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      bot->setParamsNoClearing(paramsSlowNoised);
+      bot->setRootHintLoc(Location::ofString("C1",board)); //This should actually clear the tree even though we didn't say to do so!
+      runBotOnPosition(bot, board, nextPla, hist, optsContinue);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 dirichlet noise and symmetry sampling" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsSlowSym, nnEval, &logger, "hintloc");
+      bot->setRootHintLoc(Location::ofString("C1",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 dirichlet noise and symmetry sampling after attempting same-turn tree reuse" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsFastSym, nnEval, &logger, "hintloc");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      bot->setParamsNoClearing(paramsSlowSym);
+      bot->setRootHintLoc(Location::ofString("C1",board)); //This should actually clear the tree even though we didn't say to do so!
+      runBotOnPosition(bot, board, nextPla, hist, optsContinue);
+      delete bot;
+    }
+  }
+
+  {
+    cout << "TEST futileVisitsThreshold ==========================================================================" << endl;
+
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.ox..xo..
+.........
+..o...x..
+.........
+..ox..ox.
+.........
+.........
+)%%");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 400;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.15;
+    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.4;
+    AsyncBot* botC = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+
+    TestSearchOptions opts;
+    cout << "BASE" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.15" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.4" << endl;
+    runBotOnPosition(botC,board,nextPla,hist,opts);
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete botC;
+  }
+
+  {
+    cout << "TEST futileVisitsThreshold with playouts ==========================================================================" << endl;
+
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.ox..xo..
+.........
+..o...x..
+.........
+..ox..ox.
+.........
+.........
+)%%");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 10000;
+    params.maxPlayouts = 200;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.15;
+    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.4;
+    AsyncBot* botC = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+
+    TestSearchOptions opts;
+    cout << "BASE" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.15" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.4" << endl;
+    runBotOnPosition(botC,board,nextPla,hist,opts);
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete botC;
+  }
+
+}
+
 
 void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16) {
   cout << "Running search tests" << endl;
@@ -1166,7 +1707,14 @@ void Tests::runSearchTestsV8(const string& modelFile, bool inputsNHWC, bool cuda
   runV8Tests(nnEval,nnEval19Exact,logger);
   delete nnEval;
   delete nnEval19Exact;
+  nnEval = NULL;
+  nnEval19Exact = NULL;
 
+  nnEval = startNNEval(
+    modelFile,logger,"v8seed",19,19,5,inputsNHWC,cudaNHWC,useFP16,false,false);
+  runMoreV8Tests(nnEval,logger);
+
+  delete nnEval;
   NeuralNet::globalCleanup();
 }
 
@@ -1721,9 +2269,9 @@ xxxxooo
     cout << "Search made move after gameover" << endl;
     search->printTree(cout, search->rootNode, options, P_WHITE);
     cout << "Search made move (carrying tree over) after gameover" << endl;
-    search2->printTree(cout, search->rootNode, options, P_WHITE);
+    search2->printTree(cout, search2->rootNode, options, P_WHITE);
     cout << "Position was set after gameover" << endl;
-    search3->printTree(cout, search->rootNode, options, P_WHITE);
+    search3->printTree(cout, search3->rootNode, options, P_WHITE);
 
     cout << "Recapturing ko after two passes and supposed game over (violates superko)" << endl;
     search->makeMove(Location::ofString("D7",board),nextPla);
@@ -1740,13 +2288,77 @@ xxxxooo
     cout << "Search made move" << endl;
     search->printTree(cout, search->rootNode, options, P_WHITE);
     cout << "Search made move (carrying tree over)" << endl;
-    search2->printTree(cout, search->rootNode, options, P_WHITE);
+    search2->printTree(cout, search2->rootNode, options, P_WHITE);
     cout << "Position was set" << endl;
-    search3->printTree(cout, search->rootNode, options, P_WHITE);
+    search3->printTree(cout, search3->rootNode, options, P_WHITE);
 
     delete search;
     delete search2;
     delete search3;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Integrity of value bias, mem safety and updates" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,7,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 500;
+    params.subtreeValueBiasFactor = 0.5;
+    params.chosenMoveTemperature = 0;
+    Search* search = new Search(params, nnEval, "autoSearchRandSeed");
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(7,7,R"%%(
+x.xxxx.
+xxxooxx
+xxxxox.
+xxx.oxx
+ooxoooo
+o.oo.oo
+.oooooo
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla,logger);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla,logger);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla,logger);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+
+    delete search;
     delete nnEval;
     cout << endl;
   }
@@ -1861,12 +2473,12 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool cuda
   vector<float> scoreMeans;
   vector<float> policyProbs;
 
-  for(int turnNumber = 0; turnNumber<sgf->moves.size(); turnNumber++) {
+  for(int turnIdx = 0; turnIdx<sgf->moves.size(); turnIdx++) {
     Board board;
     Player nextPla;
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnNumber);
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
     winProbs.push_back(buf.result->whiteWinProb);

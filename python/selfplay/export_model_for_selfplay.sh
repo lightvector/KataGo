@@ -33,7 +33,8 @@ function exportStuff() {
     FROMDIR="$1"
     TODIR="$2"
 
-    for FILEPATH in $(find "$BASEDIR"/"$FROMDIR"/ -mindepth 1 -maxdepth 1)
+    #Sort by timestamp so that we process in order of oldest to newest if there are multiple
+    for FILEPATH in $(find "$BASEDIR"/"$FROMDIR"/ -mindepth 1 -maxdepth 1 -printf "%T@ %p\n" | sort -n | cut -d ' ' -f 2)
     do
         #Make sure to skip tmp directories that are transiently there by the tensorflow training,
         #they are probably in the process of being written
@@ -51,7 +52,11 @@ function exportStuff() {
             TMPDST="$BASEDIR"/"$FROMDIR"/"$NAME".exported
             TARGET="$BASEDIR"/"$TODIR"/"$NAME"
 
-            if [ -d "$BASEDIR"/modelstobetested/"$NAME" ] || [ -d "$BASEDIR"/rejectedmodels/"$NAME" ] || [ -d "$BASEDIR"/models/"$NAME" ] || [ -d "$BASEDIR"/models_extra/"$NAME" ]
+            if [ -d "$BASEDIR"/modelstobetested/"$NAME" ] ||  \
+               [ -d "$BASEDIR"/rejectedmodels/"$NAME" ] || \
+               [ -d "$BASEDIR"/models/"$NAME" ] || \
+               [ -d "$BASEDIR"/models_extra/"$NAME" ] || \
+               [ -d "$BASEDIR"/modelsuploaded/"$NAME" ]
             then
                 echo "Model with same name aleady exists, so skipping:" "$SRC"
             else
@@ -78,12 +83,16 @@ function exportStuff() {
                 #Make a bunch of the directories that selfplay will need so that there isn't a race on the selfplay
                 #machines to concurrently make it, since sometimes concurrent making of the same directory can corrupt
                 #a filesystem
-                if [ "$TODIR" != "models_extra" ]
+                #Only when not gating. When gating, gatekeeper is responsible.
+                if [ "$USEGATING" -eq 0 ]
                 then
-                    mkdir -p "$BASEDIR"/selfplay/"$NAME"
-                    mkdir -p "$BASEDIR"/selfplay/"$NAME"/sgfs
-                    mkdir -p "$BASEDIR"/selfplay/"$NAME"/tdata
-                    mkdir -p "$BASEDIR"/selfplay/"$NAME"/vdata
+                    if [ "$TODIR" != "models_extra" ]
+                    then
+                        mkdir -p "$BASEDIR"/selfplay/"$NAME"
+                        mkdir -p "$BASEDIR"/selfplay/"$NAME"/sgfs
+                        mkdir -p "$BASEDIR"/selfplay/"$NAME"/tdata
+                        mkdir -p "$BASEDIR"/selfplay/"$NAME"/vdata
+                    fi
                 fi
 
                 #Sleep a little to allow some tolerance on the filesystem

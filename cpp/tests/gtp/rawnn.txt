@@ -1,0 +1,13 @@
+boardsize 9
+kata-set-rules chinese
+play b c3
+play w c6
+kata-raw-nn 1
+kata-raw-nn 4
+kata-raw-nn 6
+rectangular_boardsize 7:10
+kata-set-rules new-zealand
+play b c3
+play w c7
+play b f7
+kata-raw-nn all

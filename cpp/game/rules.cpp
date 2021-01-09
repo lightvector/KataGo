@@ -185,27 +185,45 @@ string Rules::toString() const {
   return out.str();
 }
 
-string Rules::toJsonString() const {
+//omitDefaults: Takes up a lot of string space to include stuff, so omit some less common things if matches tromp-taylor rules
+//which is the default for parsing and if not otherwise specified
+json Rules::toJsonHelper(bool omitKomi, bool omitDefaults) const {
   json ret;
   ret["ko"] = writeKoRule(koRule);
   ret["scoring"] = writeScoringRule(scoringRule);
   ret["tax"] = writeTaxRule(taxRule);
   ret["suicide"] = multiStoneSuicideLegal;
-  ret["hasButton"] = hasButton;
-  ret["whiteHandicapBonus"] = writeWhiteHandicapBonusRule(whiteHandicapBonusRule);
-  ret["komi"] = komi;
-  return ret.dump();
+  if(!omitDefaults || hasButton)
+    ret["hasButton"] = hasButton;
+  if(!omitDefaults || whiteHandicapBonusRule != WHB_ZERO)
+    ret["whiteHandicapBonus"] = writeWhiteHandicapBonusRule(whiteHandicapBonusRule);
+  if(!omitKomi)
+    ret["komi"] = komi;
+  return ret;
+}
+
+json Rules::toJson() const {
+  return toJsonHelper(false,false);
+}
+
+json Rules::toJsonNoKomi() const {
+  return toJsonHelper(true,false);
+}
+
+json Rules::toJsonNoKomiMaybeOmitStuff() const {
+  return toJsonHelper(true,true);
+}
+
+string Rules::toJsonString() const {
+  return toJsonHelper(false,false).dump();
 }
 
 string Rules::toJsonStringNoKomi() const {
-  json ret;
-  ret["ko"] = writeKoRule(koRule);
-  ret["scoring"] = writeScoringRule(scoringRule);
-  ret["tax"] = writeTaxRule(taxRule);
-  ret["suicide"] = multiStoneSuicideLegal;
-  ret["hasButton"] = hasButton;
-  ret["whiteHandicapBonus"] = writeWhiteHandicapBonusRule(whiteHandicapBonusRule);
-  return ret.dump();
+  return toJsonHelper(true,false).dump();
+}
+
+string Rules::toJsonStringNoKomiMaybeOmitStuff() const {
+  return toJsonHelper(true,true).dump();
 }
 
 Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {

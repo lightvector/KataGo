@@ -282,27 +282,6 @@ static bool shouldResign(
   return true;
 }
 
-static void printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken, Player perspective) {
-  const Search* search = bot->getSearch();
-  Board::printBoard(out, bot->getRootBoard(), moveLoc, &(bot->getRootHist().moveHistory));
-  out << bot->getRootHist().rules << "\n";
-  out << "Time taken: " << timeTaken << "\n";
-  out << "Root visits: " << search->getRootVisits() << "\n";
-  out << "New playouts: " << search->lastSearchNumPlayouts << "\n";
-  out << "NN rows: " << nnEval->numRowsProcessed() << endl;
-  out << "NN batches: " << nnEval->numBatchesProcessed() << endl;
-  out << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
-  if(search->searchParams.playoutDoublingAdvantage != 0)
-    out << "PlayoutDoublingAdvantage: " << (
-      search->getRootPla() == getOpp(search->getPlayoutDoublingAdvantagePla()) ?
-      -search->searchParams.playoutDoublingAdvantage : search->searchParams.playoutDoublingAdvantage) << endl;
-  out << "PV: ";
-  search->printPV(out, search->rootNode, 25);
-  out << "\n";
-  out << "Tree:\n";
-  search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
-}
-
 struct GTPEngine {
   GTPEngine(const GTPEngine&) = delete;
   GTPEngine& operator=(const GTPEngine&) = delete;
@@ -317,6 +296,8 @@ struct GTPEngine {
   bool staticPDATakesPrecedence;
   double genmoveWideRootNoise;
   double analysisWideRootNoise;
+  bool genmoveAntiMirror;
+  bool analysisAntiMirror;
 
   NNEvaluator* nnEval;
   AsyncBot* bot;
@@ -349,6 +330,7 @@ struct GTPEngine {
     double dynamicPDACapPerOppLead, double staticPDA, bool staticPDAPrecedence,
     bool avoidDagger,
     double genmoveWRN, double analysisWRN,
+    bool genmoveAntiMir, bool analysisAntiMir,
     Player persp, int pvLen
   )
     :nnModelFile(modelFile),
@@ -360,6 +342,8 @@ struct GTPEngine {
      staticPDATakesPrecedence(staticPDAPrecedence),
      genmoveWideRootNoise(genmoveWRN),
      analysisWideRootNoise(analysisWRN),
+     genmoveAntiMirror(genmoveAntiMir),
+     analysisAntiMirror(analysisAntiMir),
      nnEval(NULL),
      bot(NULL),
      currentRules(initialRules),
@@ -418,9 +402,11 @@ struct GTPEngine {
     }
 
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    int expectedConcurrentEvals = params.numThreads;
     int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+    string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
-      nnModelFile,nnModelFile,cfg,logger,seedRand,maxConcurrentEvals,
+      nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
       boardXSize,boardYSize,defaultMaxBatchSize,
       Setup::SETUP_FOR_GTP
     );
@@ -506,6 +492,7 @@ struct GTPEngine {
     }
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,currentRules,0);
+    hist.setInitialTurnNumber(board.numStonesOnBoard()); //Heuristic to guess at what turn this is
     vector<Move> newMoveHistory;
     setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
     clearStatsForNewGame();
@@ -556,6 +543,7 @@ struct GTPEngine {
 
     Board undoneBoard = initialBoard;
     BoardHistory undoneHist(undoneBoard,initialPla,currentRules,0);
+    undoneHist.setInitialTurnNumber(bot->getRootHist().initialTurnNumber);
     vector<Move> emptyMoveHistory;
     setPositionAndRules(initialPla,undoneBoard,undoneHist,initialBoard,initialPla,emptyMoveHistory);
 
@@ -585,6 +573,7 @@ struct GTPEngine {
 
     Board board = initialBoard;
     BoardHistory hist(board,initialPla,newRules,0);
+    hist.setInitialTurnNumber(bot->getRootHist().initialTurnNumber);
     vector<Move> emptyMoveHistory;
     setPositionAndRules(initialPla,board,hist,initialBoard,initialPla,emptyMoveHistory);
 
@@ -615,13 +604,18 @@ struct GTPEngine {
     int minMoves = 0;
     int maxMoves = 10000000;
     bool showOwnership = false;
+    bool showPVVisits = false;
     double secondsPerReport = 1e30;
+    vector<int> avoidMoveUntilByLocBlack;
+    vector<int> avoidMoveUntilByLocWhite;
   };
 
   std::function<void(const Search* search)> getAnalyzeCallback(Player pla, AnalyzeArgs args) {
     std::function<void(const Search* search)> callback;
     //lz-analyze
     if(args.lz && !args.kata) {
+      //Avoid capturing anything by reference except [this], since this will potentially be used
+      //asynchronously and called after we return
       callback = [args,pla,this](const Search* search) {
         vector<AnalysisData> buf;
         search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
@@ -653,6 +647,13 @@ struct GTPEngine {
             data.writePVUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
           else
             data.writePV(cout,board);
+          if(args.showPVVisits) {
+            cout << " pvVisits ";
+            if(preventEncore && data.pvContainsPass())
+              data.writePVVisitsUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
+            else
+              data.writePVVisits(cout);
+          }
         }
         cout << endl;
       };
@@ -719,6 +720,13 @@ struct GTPEngine {
             data.writePVUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
           else
             data.writePV(out,board);
+          if(args.showPVVisits) {
+            out << " pvVisits ";
+            if(preventEncore && data.pvContainsPass())
+              data.writePVVisitsUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
+            else
+              data.writePVVisits(out);
+          }
         }
 
         if(args.showOwnership) {
@@ -792,12 +800,17 @@ struct GTPEngine {
       params.wideRootNoise = genmoveWideRootNoise;
       bot->setParams(params);
     }
+    if(params.antiMirror != genmoveAntiMirror) {
+      params.antiMirror = genmoveAntiMirror;
+      bot->setParams(params);
+    }
 
     //Play faster when winning
     double searchFactor = PlayUtils::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,pla);
     lastSearchFactor = searchFactor;
 
     Loc moveLoc;
+    bot->setAvoidMoveUntilByLoc(args.avoidMoveUntilByLocBlack,args.avoidMoveUntilByLocWhite);
     if(args.analyzing) {
       std::function<void(const Search* search)> callback = getAnalyzeCallback(pla,args);
       if(args.showOwnership)
@@ -828,7 +841,7 @@ struct GTPEngine {
 
     //Implement cleanupBeforePass hack - the bot wants to pass, so instead cleanup if there is something to clean
     //Make sure we only do it though when it makes sense to do so.
-    if(cleanupBeforePass && moveLoc == Board::PASS_LOC && bot->getRootHist().isFinalPhase()) {
+    if(cleanupBeforePass && moveLoc == Board::PASS_LOC && bot->getRootHist().isFinalPhase() && !bot->getRootHist().hasButton) {
       Board board = bot->getRootBoard();
       BoardHistory hist = bot->getRootHist();
       Color* safeArea = bot->getSearch()->rootSafeArea;
@@ -902,11 +915,11 @@ struct GTPEngine {
 
     if(logSearchInfo) {
       ostringstream sout;
-      printGenmoveLog(sout,bot,nnEval,moveLoc,timeTaken,perspective);
+      PlayUtils::printGenmoveLog(sout,bot,nnEval,moveLoc,timeTaken,perspective);
       logger.write(sout.str());
     }
     if(debug) {
-      printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken,perspective);
+      PlayUtils::printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken,perspective);
     }
 
     //Actual reporting of chosen move---------------------
@@ -957,6 +970,7 @@ struct GTPEngine {
     //Also switch the initial player, expecting white should be next.
     hist.clear(board,P_WHITE,currentRules,0);
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+    hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
     pla = P_WHITE;
 
     response = "";
@@ -998,6 +1012,7 @@ struct GTPEngine {
     //Also switch the initial player, expecting white should be next.
     hist.clear(board,P_WHITE,currentRules,0);
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+    hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
     pla = P_WHITE;
 
     response = "";
@@ -1034,15 +1049,20 @@ struct GTPEngine {
       params.wideRootNoise = analysisWideRootNoise;
       bot->setParams(params);
     }
+    if(params.antiMirror != analysisAntiMirror) {
+      params.antiMirror = analysisAntiMirror;
+      bot->setParams(params);
+    }
 
-    std::function<void(Search* search)> callback = getAnalyzeCallback(pla,args);
+    std::function<void(const Search* search)> callback = getAnalyzeCallback(pla,args);
+    bot->setAvoidMoveUntilByLoc(args.avoidMoveUntilByLocBlack,args.avoidMoveUntilByLocWhite);
     if(args.showOwnership)
       bot->setAlwaysIncludeOwnerMap(true);
     else
       bot->setAlwaysIncludeOwnerMap(false);
 
     double searchFactor = 1e40; //go basically forever
-    bot->analyze(pla, searchFactor, args.secondsPerReport, callback);
+    bot->analyzeAsync(pla, searchFactor, args.secondsPerReport, callback);
   }
 
   double computeLead(Logger& logger) {
@@ -1140,6 +1160,9 @@ struct GTPEngine {
         out << "whiteLead " << Global::strprintf("%.3f",nnOutput->whiteLead) << endl;
         out << "whiteScoreSelfplay " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
         out << "whiteScoreSelfplaySq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
+        out << "varTimeLeft " << Global::strprintf("%.3f",nnOutput->varTimeLeft) << endl;
+        out << "shorttermWinlossError " << Global::strprintf("%.3f",nnOutput->shorttermWinlossError) << endl;
+        out << "shorttermScoreError " << Global::strprintf("%.3f",nnOutput->shorttermScoreError) << endl;
 
         out << "policy" << endl;
         for(int y = 0; y<board.y_size; y++) {
@@ -1151,6 +1174,16 @@ struct GTPEngine {
             else
               out << Global::strprintf("%8.6f ", prob);
           }
+          out << endl;
+        }
+        out << "policyPass ";
+        {
+          int pos = NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
+          float prob = nnOutput->policyProbs[pos];
+          if(prob < 0)
+            out << "    NAN "; // Probably shouldn't ever happen for pass unles the rules change, but we handle it anyways
+          else
+            out << Global::strprintf("%8.6f ", prob);
           out << endl;
         }
 
@@ -1184,7 +1217,13 @@ struct GTPEngine {
 
 
 //User should pre-fill pla with a default value, as it will not get filled in if the parsed command doesn't specify
-static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const vector<string>& pieces, Player& pla, bool& parseFailed) {
+static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
+  const string& command,
+  const vector<string>& pieces,
+  Player& pla,
+  bool& parseFailed,
+  GTPEngine* engine
+) {
   int numArgsParsed = 0;
 
   bool isLZ = (command == "lz-analyze" || command == "lz-genmove_analyze");
@@ -1193,6 +1232,13 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
   int minMoves = 0;
   int maxMoves = 10000000;
   bool showOwnership = false;
+  bool showPVVisits = false;
+  vector<int> avoidMoveUntilByLocBlack;
+  vector<int> avoidMoveUntilByLocWhite;
+  bool gotAvoidMovesBlack = false;
+  bool gotAllowMovesBlack = false;
+  bool gotAvoidMovesWhite = false;
+  bool gotAllowMovesWhite = false;
 
   parseFailed = false;
 
@@ -1205,6 +1251,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
   //minmoves <int min number of moves to show>
   //maxmoves <int max number of moves to show>
   //ownership <bool whether to show ownership or not>
+  //pvVisits <bool whether to show pvVisits or not>
 
   //Parse optional player
   if(pieces.size() > numArgsParsed && PlayerIO::tryParsePlayer(pieces[numArgsParsed],pla))
@@ -1233,19 +1280,66 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
        !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < 1e20) {
       continue;
     }
-    //Parse it but ignore it since we don't support excluding moves right now
     else if(key == "avoid" || key == "allow") {
-      //Parse two more arguments, and ignore them
-      if(pieces.size() <= numArgsParsed+1) {
+      //Parse two more arguments
+      if(pieces.size() < numArgsParsed+2) {
         parseFailed = true;
         break;
       }
-      const string& moves = pieces[numArgsParsed];
-      (void)moves;
+      const string& movesStr = pieces[numArgsParsed];
       numArgsParsed += 1;
-      const string& untilMove = pieces[numArgsParsed];
-      (void)untilMove;
+      const string& untilDepthStr = pieces[numArgsParsed];
       numArgsParsed += 1;
+
+      int untilDepth = -1;
+      if(!Global::tryStringToInt(untilDepthStr,untilDepth) || untilDepth < 1) {
+        parseFailed = true;
+        break;
+      }
+      Player avoidPla = C_EMPTY;
+      if(!PlayerIO::tryParsePlayer(value,avoidPla)) {
+        parseFailed = true;
+        break;
+      }
+      vector<Loc> parsedLocs;
+      vector<string> locPieces = Global::split(movesStr,',');
+      for(size_t i = 0; i<locPieces.size(); i++) {
+        string s = Global::trim(locPieces[i]);
+        if(s.size() <= 0)
+          continue;
+        Loc loc;
+        if(!tryParseLoc(s,engine->bot->getRootBoard(),loc)) {
+          parseFailed = true;
+          break;
+        }
+        parsedLocs.push_back(loc);
+      }
+      if(parseFailed)
+        break;
+
+      //Make sure the same analyze command can't specify both avoid and allow, and allow at most one allow.
+      vector<int>& avoidMoveUntilByLoc = avoidPla == P_BLACK ? avoidMoveUntilByLocBlack : avoidMoveUntilByLocWhite;
+      bool& gotAvoidMoves = avoidPla == P_BLACK ? gotAvoidMovesBlack : gotAvoidMovesWhite;
+      bool& gotAllowMoves = avoidPla == P_BLACK ? gotAllowMovesBlack : gotAllowMovesWhite;
+      if((key == "allow" && gotAvoidMoves) || (key == "allow" && gotAllowMoves) || (key == "avoid" && gotAllowMoves)) {
+        parseFailed = true;
+        break;
+      }
+      avoidMoveUntilByLoc.resize(Board::MAX_ARR_SIZE);
+      if(key == "allow") {
+        std::fill(avoidMoveUntilByLoc.begin(),avoidMoveUntilByLoc.end(),untilDepth);
+        for(Loc loc: parsedLocs) {
+          avoidMoveUntilByLoc[loc] = 0;
+        }
+      }
+      else {
+        for(Loc loc: parsedLocs) {
+          avoidMoveUntilByLoc[loc] = untilDepth;
+        }
+      }
+      gotAvoidMoves |= (key == "avoid");
+      gotAllowMoves |= (key == "allow");
+
       continue;
     }
     else if(key == "minmoves" && Global::tryStringToInt(value,minMoves) &&
@@ -1257,6 +1351,9 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
       continue;
     }
     else if(isKata && key == "ownership" && Global::tryStringToBool(value,showOwnership)) {
+      continue;
+    }
+    else if(isKata && key == "pvVisits" && Global::tryStringToBool(value,showPVVisits)) {
       continue;
     }
 
@@ -1273,6 +1370,9 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(const string& command, const v
   args.minMoves = minMoves;
   args.maxMoves = maxMoves;
   args.showOwnership = showOwnership;
+  args.showPVVisits = showPVVisits;
+  args.avoidMoveUntilByLocBlack = avoidMoveUntilByLocBlack;
+  args.avoidMoveUntilByLocWhite = avoidMoveUntilByLocWhite;
   return args;
 }
 
@@ -1316,11 +1416,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(rand.nextUInt()) + ".log");
   }
 
-  bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
-  bool logSearchInfo = cfg.getBool("logSearchInfo");
+  const bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
+  const bool logSearchInfo = cfg.getBool("logSearchInfo");
   bool loggingToStderr = false;
 
-  bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
+  const bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
   if(!logTimeStamp)
     logger.setLogTime(false);
 
@@ -1345,6 +1445,13 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   logger.write("Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this");
   if(startupPrintMessageToStderr && !loggingToStderr) {
     cerr << "Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this" << endl;
+  }
+  bool isForcingKomi = false;
+  float forcedKomi = 0;
+  if(cfg.contains("ignoreGTPAndForceKomi")) {
+    isForcingKomi = true;
+    forcedKomi = cfg.getFloat("ignoreGTPAndForceKomi", Rules::MIN_USER_KOMI, Rules::MAX_USER_KOMI);
+    initialRules.komi = forcedKomi;
   }
 
   SearchParams initialParams = Setup::loadSingleParams(cfg);
@@ -1394,6 +1501,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const double genmoveWideRootNoise = initialParams.wideRootNoise;
   const double analysisWideRootNoise =
     cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : genmoveWideRootNoise;
+  const double analysisAntiMirror = initialParams.antiMirror;
+  const double genmoveAntiMirror =
+    cfg.contains("genmoveAntiMirror") ? cfg.getBool("genmoveAntiMirror") : cfg.contains("antiMirror") ? cfg.getBool("antiMirror") : true;
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
@@ -1404,6 +1514,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     staticPlayoutDoublingAdvantage,staticPDATakesPrecedence,
     avoidMYTDaggerHack,
     genmoveWideRootNoise,analysisWideRootNoise,
+    genmoveAntiMirror,analysisAntiMirror,
     perspective,analysisPVLen
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize);
@@ -1614,6 +1725,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "komi must be an integer or half-integer";
       }
       else {
+        if(isForcingKomi)
+          newKomi = forcedKomi;
         engine->updateKomiIfNew(newKomi);
         //In case the controller tells us komi every move, restart pondering afterward.
         maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
@@ -2080,7 +2193,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     else if(command == "genmove_analyze" || command == "lz-genmove_analyze" || command == "kata-genmove_analyze") {
       Player pla = engine->bot->getRootPla();
       bool parseFailed = false;
-      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed);
+      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
       if(parseFailed) {
         responseIsError = true;
         response = "Could not parse genmove_analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
@@ -2094,6 +2207,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           cout << "=" << Global::intToString(id) << endl;
         else
           cout << "=" << endl;
+
         engine->genMove(
           pla,
           logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
@@ -2204,6 +2318,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
         Player pla = P_WHITE;
         BoardHistory hist(board,pla,engine->getCurrentRules(),0);
+        hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
         vector<Move> newMoveHistory;
         engine->setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
       }
@@ -2350,6 +2465,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
               }
             }
 
+            if(isForcingKomi)
+              sgfRules.komi = forcedKomi;
+
             {
               //See if the rules differ, IGNORING komi differences
               Rules currentRules = engine->getCurrentRules();
@@ -2364,6 +2482,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             }
 
             sgf->setupInitialBoardAndHist(sgfRules, sgfInitialBoard, sgfInitialNextPla, sgfInitialHist);
+            sgfInitialHist.setInitialTurnNumber(sgfInitialBoard.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
             sgfBoard = sgfInitialBoard;
             sgfNextPla = sgfInitialNextPla;
             sgfHist = sgfInitialHist;
@@ -2407,12 +2526,12 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
       else if(pieces.size() == 0 || pieces[0] == "-") {
         ostringstream out;
-        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true);
+        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
         response = out.str();
       }
       else {
         ofstream out(pieces[0]);
-        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true);
+        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
         out.close();
         response = "";
       }
@@ -2421,7 +2540,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     else if(command == "analyze" || command == "lz-analyze" || command == "kata-analyze") {
       Player pla = engine->bot->getRootPla();
       bool parseFailed = false;
-      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed);
+      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
 
       if(parseFailed) {
         responseIsError = true;

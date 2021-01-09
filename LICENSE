@@ -1,8 +1,9 @@
-The code in this repository currently relies on several other libraries or parts of libraries:
-clblast, half-2.1.0, nlohmann_json, sgfmill, tclap-1.2.2, and zstr. For the licenses for those
-libraries, see the readme and/or license files for those libraries separately within their
-respective subdirectories within cpp/external. Additionally, cpp/core/sha2.cpp derives from
-another piece of external code and contains its own license.
+The code in this repository currently relies on several other libraries, parts of libraries,
+or external files: clblast, filesystem-1.3.6, half-2.1.0, httplib, mozilla-cacerts, nlohmann_json,
+sgfmill, tclap-1.2.2, and zstr. For the licenses for those libraries and/or files, see the
+individual readmes and/or license files for each one within their respective subdirectories within
+cpp/external. Additionally, cpp/core/sha2.cpp derives from another piece of external code
+and embeds its own license within that file.
 
 Aside from the above, the license for all OTHER content in this repo is as follows:
 
@@ -27,3 +28,8 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ----------------------------------------
+
+Additional disclaimer from David J Wu ("lightvector") regarding the above license and KataGo's
+repository (https://github.com/lightvector/KataGo):
+I am providing code in the repository to you under an open source license. Because this is my
+personal repository, the license you receive to my code is from me, and not my employer (Facebook).

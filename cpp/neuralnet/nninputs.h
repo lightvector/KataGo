@@ -108,8 +108,12 @@ struct NNOutput {
   float whiteScoreMeanSq;
   //Points to make game fair
   float whiteLead;
-  //Expected arrival time of remaining game variance, in turns, weighted by variance
+  //Expected arrival time of remaining game variance, in turns, weighted by variance, only when modelVersion >= 9
   float varTimeLeft;
+  //A metric indicating the "typical" error in the winloss value or the score that the net expects, relative to the
+  //short-term future MCTS value.
+  float shorttermWinlossError;
+  float shorttermScoreError;
 
   //Indexed by pos rather than loc
   //Values in here will be set to negative for illegal moves, including superko
@@ -136,6 +140,11 @@ struct NNOutput {
   inline float* getPolicyProbsMaybeNoised() { return noisedPolicyProbs != NULL ? noisedPolicyProbs : policyProbs; }
   void debugPrint(std::ostream& out, const Board& board);
 };
+
+namespace SymmetryHelpers {
+  void copyInputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry);
+  void copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry);
+}
 
 //Utility functions for computing the "scoreValue", the unscaled utility of various numbers of points, prior to multiplication by
 //staticScoreUtilityFactor or dynamicScoreUtilityFactor (see searchparams.h)

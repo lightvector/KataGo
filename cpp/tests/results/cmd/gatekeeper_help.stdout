@@ -8,7 +8,7 @@ USAGE:
 
    gatekeeper  -config <FILE> -test-models-dir <DIR> -sgf-output-dir <DIR>
                -accepted-models-dir <DIR> -rejected-models-dir <DIR>
-               [...other flags...]
+               [-selfplay-dir <DIR>] [...other flags...]
 
 
 Where: 
@@ -27,6 +27,9 @@ Where:
 
    -rejected-models-dir <DIR>
      (required)  Dir to write bad models to
+
+   -selfplay-dir <DIR>
+     Dir where selfplay data will be produced if a model passes
 
    -no-autoreject-old-models
      Test older models than the latest accepted model

@@ -102,3 +102,25 @@ int LogBuf::sync() {
   this->str("");
   return 0;
 }
+
+void Logger::logThreadUncaught(const string& name, Logger* logger, std::function<void()> f) {
+  try {
+    f();
+  }
+  catch(const exception& e) {
+    if(logger != NULL)
+      logger->write(string("ERROR: " + name + " loop thread failed: ") + e.what());
+    else
+      cerr << (string("ERROR: " + name + " loop thread failed: " )+ e.what()) << endl;
+    std::this_thread::sleep_for(std::chrono::duration<double>(5.0));
+    throw;
+  }
+  catch(...) {
+    if(logger != NULL)
+      logger->write("ERROR: " + name + " loop thread failed with unexpected throw");
+    else
+      cerr << "ERROR: " + name + " loop thread failed with unexpected throw" << endl;
+    std::this_thread::sleep_for(std::chrono::duration<double>(5.0));
+    throw;
+  }
+}

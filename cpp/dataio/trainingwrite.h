@@ -8,6 +8,7 @@
 STRUCT_NAMED_PAIR(Loc,loc,int16_t,policyTarget,PolicyTargetMove);
 STRUCT_NAMED_PAIR(std::vector<PolicyTargetMove>*,policyTargets,int64_t,unreducedNumVisits,PolicyTarget);
 
+//Summary of value-head-related training targets for outputted data.
 struct ValueTargets {
   //As usual, these are from the perspective of white.
   float win;
@@ -21,6 +22,14 @@ struct ValueTargets {
   ~ValueTargets();
 };
 
+//Some basic extra stats to record outputted data about the neural net's raw evaluation on the position.
+struct NNRawStats {
+  double whiteWinLoss;
+  double whiteScoreMean;
+  double policyEntropy;
+};
+
+//A side position that was searched off the main line of the game, to give some data about an alternative move.
 struct SidePosition {
   Board board;
   BoardHistory hist;
@@ -28,7 +37,9 @@ struct SidePosition {
   int64_t unreducedNumVisits;
   std::vector<PolicyTargetMove> policyTarget;
   ValueTargets whiteValueTargets;
+  NNRawStats nnRawStats;
   float targetWeight;
+  float targetWeightUnrounded;
   int numNeuralNetChangesSoFar; //Number of neural net changes this game before the creation of this side position
 
   SidePosition();
@@ -36,7 +47,7 @@ struct SidePosition {
   ~SidePosition();
 };
 
-STRUCT_NAMED_PAIR(std::string,name,int,turnNumber,ChangedNeuralNet);
+STRUCT_NAMED_PAIR(std::string,name,int,turnIdx,ChangedNeuralNet);
 
 struct FinishedGameData {
   std::string bName;
@@ -60,12 +71,19 @@ struct FinishedGameData {
   int mode;
   int beganInEncorePhase;
   int usedInitialPosition;
+  //This differs from numExtraBlack in that numExtraBlack counts number of extra black stones
+  //played following the start of startHist, whereas handicapForSgf counts from startBoard.
+  //So on things like forked handicap games this one will be larger. Also this one does the
+  //whole +1 thing, skipping 1H.
+  int handicapForSgf;
 
   //If false, then we don't have these below vectors and ownership information
   bool hasFullData;
   std::vector<float> targetWeightByTurn;
+  std::vector<float> targetWeightByTurnUnrounded;
   std::vector<PolicyTarget> policyTargetsByTurn;
-  std::vector<ValueTargets> whiteValueTargetsByTurn;
+  std::vector<ValueTargets> whiteValueTargetsByTurn; //Except this one, we may have some of
+  std::vector<NNRawStats> nnRawStatsByTurn;
   Color* finalFullArea;
   Color* finalOwnership;
   bool* finalSekiAreas;
@@ -74,12 +92,15 @@ struct FinishedGameData {
   std::vector<SidePosition*> sidePositions;
   std::vector<ChangedNeuralNet*> changedNeuralNets;
 
-  static constexpr int MODE_HINTPOS = 5;
+  static constexpr int NUM_MODES = 8;
   static constexpr int MODE_NORMAL = 0;
   static constexpr int MODE_CLEANUP_TRAINING = 1;
   static constexpr int MODE_FORK = 2;
   static constexpr int MODE_HANDICAP = 3;
   static constexpr int MODE_SGFPOS = 4;
+  static constexpr int MODE_HINTPOS = 5;
+  static constexpr int MODE_HINTFORK = 6;
+  static constexpr int MODE_ASYM = 7;
 
   FinishedGameData();
   ~FinishedGameData();
@@ -140,7 +161,7 @@ struct TrainingWriteBuffers {
   //C36-40: Precomputed mask values indicating if we should use historical moves 1-5, if we desire random history masking.
   //1 means use, 0 means don't use.
 
-  //C41-46: 128-bit hash identifying the game which should also be output in the SGF data.
+  //C41-46: 128-bit hash identifying the game, different rows from the same game share the same value.
   //Split into chunks of 22, 22, 20, 22, 22, 20 bits, little-endian style (since floats have > 22 bits of precision).
 
   //C47: Komi, adjusted for draw utility and points costed or paid so far, from the perspective of the player to move.
@@ -149,26 +170,29 @@ struct TrainingWriteBuffers {
   //C49: 1 if an earlier neural net started this game, compared to the latest in this data file.
   //C50: If positive, an earlier neural net was playing this specific move, compared to the latest in this data file.
 
-  //C51: Turn number of the game, zero-indexed.
+  //C51: Turn idx of the game right now, zero-indexed. Starts at 0 even for sgfposes.
   //C52: Did this game end via hitting turn limit?
   //C53: First turn of this game that was selfplay for training rather than initialization (e.g. handicap stones, random init of the starting board pos)
   //C54: Number of extra moves black got at the start (i.e. handicap games)
 
-  //C55-56: Game type, how the game was initialized
+  //C55: Game type, how the game was initialized
   //0 = normal self-play game.
-  //1 = cleanup-phase-training game. C56 is the starting encore phase
+  //1 = cleanup-phase-training game.
   //2 = fork from another self-play game.
   //3 = handicap game
   //4 = sampled from an external SGF position (e.g. human data or other bots).
   //5 = sampled from a hint position (e.g. blindspot training).
+  //6 = forked from a hint position (e.g. blindspot training).
+  //7 = asymmetric playouts game (nonzero "PDA"). Note that this might actually get overwritten by modes 2,4,5,6.
 
-  //C57: Contains some data but is actually redundant with C55.
-  //C58: Contains some data but is actually redundant with C55.
-  //C59: Unused
+  //C56: Initial turn number - the turn number that corresponds to turn idx 0, such as for sgfposes.
+  //C57: Raw winloss from neural net
+  //C58: Raw scoremean from neural net
+  //C59: Policy prior entropy
   //C60: Number of visits in the search generating this row, prior to any reduction.
   //C61: Number of bonus points the player to move will get onward from this point in the game
   //C62: Unused
-  //C63: Unused
+  //C63: Data format version, currently always equals 1.
 
   NumpyBuffer<float> globalTargetsNC;
 
@@ -197,13 +221,14 @@ struct TrainingWriteBuffers {
 
   void addRow(
     const Board& board, const BoardHistory& hist, Player nextPlayer,
-    int turnNumberAfterStart,
+    int turnAfterStart,
     float targetWeight,
     int64_t unreducedNumVisits,
     const std::vector<PolicyTargetMove>* policyTarget0, //can be null
     const std::vector<PolicyTargetMove>* policyTarget1, //can be null
     const std::vector<ValueTargets>& whiteValueTargets,
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
+    const NNRawStats& nnRawStats,
     const Board* finalBoard,
     Color* finalFullArea,
     Color* finalOwnership,
@@ -230,6 +255,9 @@ class TrainingDataWriter {
   void writeGame(const FinishedGameData& data);
   void flushIfNonempty();
   bool flushIfNonempty(std::string& resultingFilename);
+
+  bool isEmpty() const;
+  int64_t numRowsInBuffer() const;
 
  private:
   std::string outputDir;

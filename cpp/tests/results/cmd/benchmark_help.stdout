@@ -30,7 +30,7 @@ Where:
    -n <NUM>,  -numpositions <NUM>
      How many positions to sample from a game (default 10)
 
-   -override-config <KEYVALUEPAIRS>
+   -override-config <KEYVALUEPAIRS>  (accepted multiple times)
      Override config parameters. Format: "key=value, key=value,..."
 
    -sgf <FILE>

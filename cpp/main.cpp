@@ -27,6 +27,8 @@ gtp : Runs GTP engine that can be plugged into any standard Go GUI for play/anal
 benchmark : Test speed with different numbers of search threads.
 genconfig : User-friendly interface to generate a config with rules and automatic performance tuning.
 
+contribute : Connect to online distributed KataGo training and run perpetually contributing selfplay games.
+
 match : Run self-play match games based on a config, more efficient than gtp due to batching.
 version : Print version and exit.
 
@@ -68,6 +70,8 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::analysis(argc-1,&argv[1]);
   if(subcommand == "benchmark")
     return MainCmds::benchmark(argc-1,&argv[1]);
+  if(subcommand == "contribute")
+    return MainCmds::contribute(argc-1,&argv[1]);
   if(subcommand == "evalsgf")
     return MainCmds::evalsgf(argc-1,&argv[1]);
   else if(subcommand == "gatekeeper")
@@ -108,8 +112,14 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::runsekitrainwritetests(argc-1,&argv[1]);
   else if(subcommand == "runnnonmanyposestest")
     return MainCmds::runnnonmanyposestest(argc-1,&argv[1]);
+  else if(subcommand == "samplesgfs")
+    return MainCmds::samplesgfs(argc-1,&argv[1]);
   else if(subcommand == "dataminesgfs")
     return MainCmds::dataminesgfs(argc-1,&argv[1]);
+  else if(subcommand == "trystartposes")
+    return MainCmds::trystartposes(argc-1,&argv[1]);
+  else if(subcommand == "viewstartposes")
+    return MainCmds::viewstartposes(argc-1,&argv[1]);
   else if(subcommand == "lzcost")
     return MainCmds::lzcost(argc-1,&argv[1]);
   else if(subcommand == "demoplay")
@@ -165,11 +175,11 @@ int main(int argc, const char* argv[]) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.4.5");
+  return string("1.7.0");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.4.5");
+  return string("KataGo v1.7.0");
 }
 
 string Version::getKataGoVersionFullInfo() {
@@ -179,11 +189,29 @@ string Version::getKataGoVersionFullInfo() {
   out << "Compile Time: " << __DATE__ << " " << __TIME__ << endl;
 #if defined(USE_CUDA_BACKEND)
   out << "Using CUDA backend" << endl;
+#if defined(CUDA_TARGET_VERSION)
+#define STRINGIFY(x) #x
+#define STRINGIFY2(x) STRINGIFY(x)
+  out << "Compiled with CUDA version " << STRINGIFY2(CUDA_TARGET_VERSION) << endl;
+#endif
 #elif defined(USE_OPENCL_BACKEND)
   out << "Using OpenCL backend" << endl;
+#elif defined(USE_EIGEN_BACKEND)
+  out << "Using Eigen(CPU) backend" << endl;
 #else
   out << "Using dummy backend" << endl;
 #endif
+
+#if defined(USE_AVX2)
+  out << "Compiled with AVX2 and FMA instructions" << endl;
+#endif
+#if defined(COMPILE_MAX_BOARD_LEN)
+  out << "Compiled to allow boards of size up to " << COMPILE_MAX_BOARD_LEN << endl;
+#endif
+#if defined(BUILD_DISTRIBUTED)
+  out << "Compiled to support contributing to online distributed selfplay" << endl;
+#endif
+
   return out.str();
 }
 

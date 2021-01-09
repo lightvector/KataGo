@@ -3,6 +3,7 @@
 namespace MainCmds {
   int analysis(int argc, const char* const* argv);
   int benchmark(int argc, const char* const* argv);
+  int contribute(int argc, const char* const* argv);
   int evalsgf(int argc, const char* const* argv);
   int gatekeeper(int argc, const char* const* argv);
   int genconfig(int argc, const char* const* argv, const char* firstCommand);
@@ -24,7 +25,12 @@ namespace MainCmds {
   int runnnonmanyposestest(int argc, const char* const* argv);
   int runownershiptests(int argc, const char* const* argv);
 
+  int samplesgfs(int argc, const char* const* argv);
   int dataminesgfs(int argc, const char* const* argv);
+
+  int trystartposes(int argc, const char* const* argv);
+  int viewstartposes(int argc, const char* const* argv);
+
   int lzcost(int argc, const char* const* argv);
   int demoplay(int argc, const char* const* argv);
   int printclockinfo(int argc, const char* const* argv);

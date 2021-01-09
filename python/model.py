@@ -31,9 +31,7 @@ class Model:
       return 22
     elif version == 6:
       return 13
-    elif version == 7:
-      return 22
-    elif version == 8:
+    elif version <= 10:
       return 22
     else:
       assert(False)
@@ -49,7 +47,7 @@ class Model:
       return 12
     elif version == 7:
       return 16
-    elif version == 8:
+    elif version <= 10:
       return 19
     else:
       assert(False)
@@ -69,12 +67,14 @@ class Model:
     self.policy_target_shape = [self.pos_len*self.pos_len+1] #+1 for pass move
     self.policy_target_weight_shape = []
     self.value_target_shape = [3]
-    self.td_value_target_shape = [2,3]
+    self.td_value_target_shape = [3,3]
+    self.td_score_target_shape = [3]
     self.miscvalues_target_shape = [10] #0:scoremean, #1 scorestdev, #2 lead, #3 variance time #4-#9 td value targets
     self.scoremean_target_shape = [] #0
     self.scorestdev_target_shape = [] #1
     self.lead_target_shape = [] #2
     self.variance_time_target_shape = [] #3
+    self.moremiscvalues_target_shape = [8] #0:shortterm value stdev, #1 shortterm score stdev, #2,3,4 td value, #5,#6-#7 td score
     self.scorebelief_target_shape = [self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2]
     self.ownership_target_shape = [self.pos_len,self.pos_len]
     self.scoring_target_shape = [self.pos_len,self.pos_len]
@@ -202,8 +202,8 @@ class Model:
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
   def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, global_input_data, idx):
-    #Currently only support v4 or v5 or v7 MODEL features (inputs version v3 and v4 and v6)
-    assert(self.version == 4 or self.version == 5 or self.version == 7 or self.version == 8)
+    #Currently only support v4 or v5 or v7-10 MODEL features (inputs version v3 and v4 and v6)
+    assert(self.version == 4 or self.version == 5 or self.version == 7 or self.version == 8 or self.version == 9 or self.version == 10)
 
     bsize = board.size
     assert(self.pos_len >= bsize)
@@ -499,6 +499,8 @@ class Model:
     raise Exception("Could not find variable " + name)
 
   def add_lr_factor(self,name,factor):
+    if not self.is_training:
+      return
     self.ensure_variable_exists(name)
     if name in self.lr_adjusted_variables:
       self.lr_adjusted_variables[name] = factor * self.lr_adjusted_variables[name]
@@ -668,31 +670,19 @@ class Model:
     self.outputs_by_layer.append((name,trunk))
     return trunk
 
-  def conv_weight_variable(self, name, diam1, diam2, in_channels, out_channels, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None, reg=True):
+  def conv_weight_variable(self, name, diam1, diam2, in_channels, out_channels, scale_initial_weights=1.0, reg=True):
     radius1 = diam1 // 2
     radius2 = diam2 // 2
 
-    if emphasize_center_weight is None:
-      weights = self.weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights,reg=reg)
-    else:
-      extra_initial_weight = self.init_weights([1,1,in_channels,out_channels], in_channels, out_channels) * emphasize_center_weight
-      extra_initial_weight = tf.pad(extra_initial_weight, [(radius1,radius1),(radius2,radius2),(0,0),(0,0)])
-      weights = self.weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights,extra_initial_weight,reg=reg)
-
-    if emphasize_center_lr is not None:
-      factor = tf.constant([emphasize_center_lr],dtype=tf.float32)
-      factor = tf.reshape(factor,[1,1,1,1])
-      factor = tf.pad(factor, [(radius1,radius1),(radius2,radius2),(0,0),(0,0)], constant_values=1.0)
-      self.add_lr_factor(weights.name, factor)
-
+    weights = self.weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights,reg=reg)
     return weights
 
   #Convolutional layer with batch norm and nonlinear activation
   def conv_block(
       self, name, in_layer, mask, mask_sum, diam, in_channels, out_channels,
-      scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None
+      scale_initial_weights=1.0
   ):
-    weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr)
+    weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights)
     convolved = self.conv2d(in_layer, weights)
     self.outputs_by_layer.append((name+"/prenorm",convolved))
     out_layer = self.relu(name+"/relu",self.batchnorm_and_mask(name+"/norm",convolved,mask,mask_sum))
@@ -702,9 +692,9 @@ class Model:
   #Convolution only, no batch norm or nonlinearity
   def conv_only_block(
       self, name, in_layer, diam, in_channels, out_channels,
-      scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None, reg=True
+      scale_initial_weights=1.0, reg=True
   ):
-    weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, emphasize_center_weight, emphasize_center_lr, reg=reg)
+    weights = self.conv_weight_variable(name+"/w", diam, diam, in_channels, out_channels, scale_initial_weights, reg=reg)
     out_layer = self.conv2d(in_layer, weights)
     self.outputs_by_layer.append((name,out_layer))
     return out_layer
@@ -712,13 +702,13 @@ class Model:
   #Convolutional residual block with internal batch norm and nonlinear activation
   def res_conv_block(
       self, name, in_layer, mask, mask_sum, diam, main_channels, mid_channels,
-      scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None
+      scale_initial_weights=1.0
   ):
     trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask,mask_sum)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
     fixup_scale = 1.0 / math.sqrt(self.num_blocks) if self.use_fixup else 1.0
-    weights1 = self.conv_weight_variable(name+"/w1", diam, diam, main_channels, mid_channels, scale_initial_weights * fixup_scale, emphasize_center_weight, emphasize_center_lr)
+    weights1 = self.conv_weight_variable(name+"/w1", diam, diam, main_channels, mid_channels, scale_initial_weights * fixup_scale)
     conv1_layer = self.conv2d(trans1_layer, weights1)
     self.outputs_by_layer.append((name+"/conv1",conv1_layer))
 
@@ -726,7 +716,7 @@ class Model:
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
     fixup_scale_last_layer = 0.0 if self.use_fixup else 1.0
-    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights*fixup_scale_last_layer, emphasize_center_weight, emphasize_center_lr)
+    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights*fixup_scale_last_layer)
     conv2_layer = self.conv2d(trans2_layer, weights2)
     self.outputs_by_layer.append((name+"/conv2",conv2_layer))
 
@@ -736,15 +726,15 @@ class Model:
   def global_res_conv_block(
       self, name, in_layer, mask, mask_sum, mask_sum_hw, mask_sum_hw_sqrt,
       diam, main_channels, mid_channels, global_mid_channels,
-      scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None
+      scale_initial_weights=1.0
   ):
     trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask,mask_sum)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
     fixup_scale2 = 1.0 / math.sqrt(self.num_blocks) if self.use_fixup else 1.0
     fixup_scale4 = 1.0 / (self.num_blocks ** (1.0 / 4.0)) if self.use_fixup else 1.0
-    weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights * fixup_scale2, emphasize_center_weight, emphasize_center_lr)
-    weights1b = self.conv_weight_variable(name+"/w1b", diam, diam, main_channels, global_mid_channels, scale_initial_weights * fixup_scale4, emphasize_center_weight, emphasize_center_lr)
+    weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights * fixup_scale2)
+    weights1b = self.conv_weight_variable(name+"/w1b", diam, diam, main_channels, global_mid_channels, scale_initial_weights * fixup_scale4)
     conv1a_layer = self.conv2d(trans1_layer, weights1a)
     conv1b_layer = self.conv2d(trans1_layer, weights1b)
     self.outputs_by_layer.append((name+"/conv1a",conv1a_layer))
@@ -760,20 +750,20 @@ class Model:
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
     fixup_scale_last_layer = 0.0 if self.use_fixup else 1.0
-    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights * fixup_scale_last_layer, emphasize_center_weight, emphasize_center_lr)
+    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels, main_channels, scale_initial_weights * fixup_scale_last_layer)
     conv2_layer = self.conv2d(trans2_layer, weights2)
     self.outputs_by_layer.append((name+"/conv2",conv2_layer))
 
     return conv2_layer
 
   #Convolutional residual block with internal batch norm and nonlinear activation
-  def dilated_res_conv_block(self, name, in_layer, mask, mask_sum, diam, main_channels, mid_channels, dilated_mid_channels, dilation, scale_initial_weights=1.0, emphasize_center_weight=None, emphasize_center_lr=None):
+  def dilated_res_conv_block(self, name, in_layer, mask, mask_sum, diam, main_channels, mid_channels, dilated_mid_channels, dilation, scale_initial_weights=1.0):
     trans1_layer = self.relu(name+"/relu1",(self.batchnorm_and_mask(name+"/norm1",in_layer,mask,mask_sum)))
     self.outputs_by_layer.append((name+"/trans1",trans1_layer))
 
     fixup_scale = 1.0 / math.sqrt(self.num_blocks) if self.use_fixup else 1.0
-    weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights*fixup_scale, emphasize_center_weight, emphasize_center_lr)
-    weights1b = self.conv_weight_variable(name+"/w1b", diam, diam, main_channels, dilated_mid_channels, scale_initial_weights*fixup_scale, emphasize_center_weight, emphasize_center_lr)
+    weights1a = self.conv_weight_variable(name+"/w1a", diam, diam, main_channels, mid_channels, scale_initial_weights*fixup_scale)
+    weights1b = self.conv_weight_variable(name+"/w1b", diam, diam, main_channels, dilated_mid_channels, scale_initial_weights*fixup_scale)
     conv1a_layer = self.conv2d(trans1_layer, weights1a)
     conv1b_layer = self.dilated_conv2d(trans1_layer, weights1b, dilation=dilation)
     self.outputs_by_layer.append((name+"/conv1a",conv1a_layer))
@@ -785,7 +775,7 @@ class Model:
     self.outputs_by_layer.append((name+"/trans2",trans2_layer))
 
     fixup_scale_last_layer = 0.0 if self.use_fixup else 1.0
-    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels+dilated_mid_channels, main_channels, scale_initial_weights * fixup_scale_last_layer, emphasize_center_weight, emphasize_center_lr)
+    weights2 = self.conv_weight_variable(name+"/w2", diam, diam, mid_channels+dilated_mid_channels, main_channels, scale_initial_weights * fixup_scale_last_layer)
     conv2_layer = self.conv2d(trans2_layer, weights2)
     self.outputs_by_layer.append((name+"/conv2",conv2_layer))
 
@@ -842,10 +832,15 @@ class Model:
     #self.version = 6 #V5 features, most higher-level go features removed
     #self.version = 7 #V6 features, more rules support
     #self.version = 8 #V7 features, asym, lead, variance time
+    #self.version = 9 #V7 features, shortterm value error prediction, inference actually uses variance time, unsupported now
+    #self.version = 10 #V7 features, shortterm value error prediction done properly
 
     self.version = Model.get_version(config)
-    #These are the only supported versions for training
-    assert(self.version == 8)
+    # These are the only supported versions for training
+    # Version 9 is disabled because it's a total mess to support its partly broken versions of the value error predictions.
+    if self.version == 9:
+      raise ValueError("This is a version 9 model, which is a version that has some slightly buggy mathematical formulation of a training target and is no longer supported. Use an older version of KataGo python code to train it, such as git revision e20d7c29.")
+    assert(self.version == 8 or self.version == 10)
 
     #Input layer---------------------------------------------------------------------------------
     bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
@@ -880,7 +875,7 @@ class Model:
     #We do this by building a matrix for each batch element, mapping input channels to possibly-turned off channels.
     #This matrix is a sum of hist_matrix_base which always turns off all the channels, and h0, h1, h2,... which perform
     #the modifications to hist_matrix_base to make it turn on channels based on whether we have move0, move1,...
-    if self.version == 8:
+    if self.version >= 8:
       hist_matrix_base = np.diag(np.array([
         1.0, #0
         1.0, #1
@@ -972,8 +967,12 @@ class Model:
     mask_sum_hw_sqrt = tf.sqrt(mask_sum_hw)
 
     #Initial convolutional layer-------------------------------------------------------------------------------------
-    trunk = self.conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=trunk_num_channels)
-    self.initial_conv = ("conv1",5,input_num_channels,trunk_num_channels)
+    if "use_initial_conv_3" in config and config["use_initial_conv_3"]:
+      trunk = self.conv_only_block("conv1",cur_layer,diam=3,in_channels=input_num_channels,out_channels=trunk_num_channels)
+      self.initial_conv = ("conv1",3,input_num_channels,trunk_num_channels)
+    else:
+      trunk = self.conv_only_block("conv1",cur_layer,diam=5,in_channels=input_num_channels,out_channels=trunk_num_channels)
+      self.initial_conv = ("conv1",5,input_num_channels,trunk_num_channels)
 
     #Matrix multiply global inputs and accumulate them
     ginputw = self.weight_variable("ginputw",[self.num_global_input_features,trunk_num_channels],self.num_global_input_features*2,trunk_num_channels)
@@ -1112,12 +1111,24 @@ class Model:
     self.mv3_size = mv3_size
     self.other_internal_outputs.append(("mv3",mv3_layer))
 
+    mmv3_size = self.moremiscvalues_target_shape[0]
+    if self.version >= 9:
+      mmv3w = self.weight_variable("mmv3/w",[v2_size,mmv3_size],v2_size,mmv3_size)
+      mmv3b = self.weight_variable("mmv3/b",[mmv3_size],v2_size,mmv3_size,scale_initial_weights=0.2,reg="tiny")
+    else:
+      mmv3w = tf.zeros([v2_size,mmv3_size])
+      mmv3b = tf.zeros([mmv3_size])
+    mmv3_layer = tf.matmul(v2_layer, mmv3w, name='mmvmul') + mmv3b
+    self.mmv3_size = mmv3_size
+    self.other_internal_outputs.append(("mmv3",mmv3_layer))
+
     if not self.support_japanese_rules:
       # Force no-result prediction to 0 after softmax
       v3_layer = v3_layer + tf.constant([0,0,-5000.0],dtype=tf.float32)
     value_output = tf.reshape(v3_layer, [-1] + self.value_target_shape, name = "value_output")
 
     miscvalues_output = tf.reshape(mv3_layer, [-1] + self.miscvalues_target_shape, name = "miscvalues_output")
+    moremiscvalues_output = tf.reshape(mmv3_layer, [-1] + self.moremiscvalues_target_shape, name = "moremiscvalues_output")
 
     #Transform a real-valued output into a positive value suitable for multiplying to other inputs as a scaling factor
     def scaletransform(tensor):
@@ -1132,7 +1143,7 @@ class Model:
     scorebelief_mid = self.pos_len*self.pos_len+Model.EXTRA_SCORE_DISTR_RADIUS
     assert(scorebelief_len == self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2)
 
-    if self.version == 8:
+    if self.version >= 8:
       self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
       self.score_belief_parity_vector = np.array([0.5-float((i-scorebelief_mid) % 2) for i in range(scorebelief_len)],dtype=np.float32)
       sbv2_size = config["sbv2_num_channels"]
@@ -1208,6 +1219,7 @@ class Model:
 
     self.value_output = value_output
     self.miscvalues_output = miscvalues_output
+    self.moremiscvalues_output = moremiscvalues_output
     self.scorebelief_output = scorebelief_output
     self.ownership_output = ownership_output
     self.scoring_output = scoring_output
@@ -1220,11 +1232,18 @@ class Model:
     self.mask_sum_hw = mask_sum_hw
     self.mask_sum_hw_sqrt = mask_sum_hw_sqrt
 
+
+def huber_loss(x,y,delta):
+  absdiff = tf.abs(x - y)
+  return tf.where(absdiff > delta, (0.5 * delta*delta) + delta * (absdiff - delta), 0.5 * absdiff * absdiff)
+
+
 class Target_vars:
   def __init__(self,model,for_optimization,placeholders):
     policy_output = model.policy_output
     value_output = model.value_output
     miscvalues_output = model.miscvalues_output
+    moremiscvalues_output = model.moremiscvalues_output
     scorebelief_output = model.scorebelief_output
     ownership_output = model.ownership_output
     scoring_output = model.scoring_output
@@ -1234,10 +1253,15 @@ class Target_vars:
     value_probs = tf.nn.softmax(value_output,axis=1)
     scorebelief_probs = tf.nn.softmax(scorebelief_output,axis=1)
 
+    td_value_prediction = tf.stack([miscvalues_output[:,4:7],miscvalues_output[:,7:10],moremiscvalues_output[:,2:5]],axis=1)
+    td_score_prediction = moremiscvalues_output[:,5:8] * 20.0
+
     scoremean_prediction = miscvalues_output[:,0] * 20.0
     scorestdev_prediction = tf.math.softplus(miscvalues_output[:,1]) * 20.0
     lead_prediction = miscvalues_output[:,2] * 20.0
-    variance_time_prediction = tf.math.softplus(miscvalues_output[:,3]) * 150.0
+    variance_time_prediction = tf.math.softplus(miscvalues_output[:,3]) * 40.0
+    shortterm_value_error_prediction = tf.math.softplus(moremiscvalues_output[:,0]) * 0.25
+    shortterm_score_error_prediction = tf.math.softplus(moremiscvalues_output[:,1]) * 30.0
 
     #Loss function
     self.policy_target = (placeholders["policy_target"] if "policy_target" in placeholders else
@@ -1252,6 +1276,8 @@ class Target_vars:
     #Expected score prediction CONDITIONAL on result
     self.scoremean_target = (placeholders["scoremean_target"] if "scoremean_target" in placeholders else
                               tf.compat.v1.placeholder(tf.float32, [None] + model.scoremean_target_shape))
+    self.td_score_target = (placeholders["td_score_target"] if "td_score_target" in placeholders else
+                            tf.compat.v1.placeholder(tf.float32, [None] + model.td_score_target_shape))
     self.lead_target = (placeholders["lead_target"] if "lead_target" in placeholders else
                               tf.compat.v1.placeholder(tf.float32, [None] + model.lead_target_shape))
     #Arrival time of variance in game, unconditional
@@ -1296,6 +1322,7 @@ class Target_vars:
     model.assert_batched_shape("policy_target_weight1", self.policy_target_weight1, model.policy_target_weight_shape)
     model.assert_batched_shape("value_target", self.value_target, model.value_target_shape)
     model.assert_batched_shape("td_value_target", self.td_value_target, model.td_value_target_shape)
+    model.assert_batched_shape("td_score_target", self.td_score_target, model.td_score_target_shape)
     model.assert_batched_shape("scoremean_target", self.scoremean_target, model.scoremean_target_shape)
     model.assert_batched_shape("lead_target", self.lead_target, model.lead_target_shape)
     model.assert_batched_shape("variance_time_target", self.variance_time_target, model.variance_time_target_shape)
@@ -1326,10 +1353,10 @@ class Target_vars:
       logits=value_output
     )
 
-    self.td_value_loss_unreduced = 0.60 * (
+    self.td_value_loss_unreduced = tf.constant([0.55,0.55,0.15],dtype=tf.float32) * (
       tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.td_value_target,
-        logits=tf.reshape(miscvalues_output[:,4:10],[-1] + model.td_value_target_shape)
+        logits=td_value_prediction
       ) -
       # Subtract out the entropy, so as to get loss 0 at perfect prediction
       tf.nn.softmax_cross_entropy_with_logits_v2(
@@ -1339,13 +1366,17 @@ class Target_vars:
     )
     self.td_value_loss_unreduced = tf.reduce_sum(self.td_value_loss_unreduced, axis=1)
 
-    self.scorebelief_cdf_loss_unreduced = 0.015 * self.ownership_target_weight * (
+    self.td_score_loss_unreduced = 0.0004 * self.ownership_target_weight * (
+      tf.reduce_sum(huber_loss(self.td_score_target, td_score_prediction, delta = 12.0), axis=1)
+    )
+
+    self.scorebelief_cdf_loss_unreduced = 0.020 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.square(tf.cumsum(self.scorebelief_target,axis=1) - tf.cumsum(tf.nn.softmax(scorebelief_output,axis=1),axis=1)),
         axis=1
       )
     )
-    self.scorebelief_pdf_loss_unreduced = 0.015 * self.ownership_target_weight * (
+    self.scorebelief_pdf_loss_unreduced = 0.020 * self.ownership_target_weight * (
       tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=self.scorebelief_target,
         logits=scorebelief_output
@@ -1355,7 +1386,7 @@ class Target_vars:
     #This uses a formulation where each batch element cares about its average loss.
     #In particular this means that ownership loss predictions on small boards "count more" per spot.
     #Not unlike the way that policy and value loss are also equal-weighted by batch element.
-    self.ownership_loss_unreduced = 1.0 * self.ownership_target_weight * (
+    self.ownership_loss_unreduced = 1.5 * self.ownership_target_weight * (
       tf.reduce_sum(
         tf.nn.softmax_cross_entropy_with_logits_v2(
           labels=tf.stack([(1+self.ownership_target)/2,(1-self.ownership_target)/2],axis=3),
@@ -1365,7 +1396,7 @@ class Target_vars:
       ) / model.mask_sum_hw
     )
 
-    self.scoring_loss_unreduced = 0.6 * self.scoring_target_weight * (
+    self.scoring_loss_unreduced = 1.0 * self.scoring_target_weight * (
       tf.reduce_sum(
         tf.square(self.scoring_target - scoring_output) * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
         axis=[1,2]
@@ -1383,7 +1414,7 @@ class Target_vars:
     #causing some scaling with board size. So, I dunno, let's compromise and scale by sqrt(boardarea).
     #Also, the further out targets should be weighted a little less due to them being higher entropy
     #due to simply being farther in the future, so multiply by [1,0.25].
-    self.futurepos_loss_unreduced = 0.20 * self.futurepos_target_weight * (
+    self.futurepos_loss_unreduced = 0.25 * self.futurepos_target_weight * (
       tf.reduce_sum(
         tf.square(tf.tanh(futurepos_output) - self.futurepos_target)
         * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len,1])
@@ -1429,18 +1460,14 @@ class Target_vars:
     self.seki_loss_unreduced = seki_weight_scale * self.ownership_target_weight * self.seki_loss_unreduced
     self.seki_weight_scale = seki_weight_scale
 
-    def huber_loss(x,y,delta):
-      absdiff = tf.abs(x - y)
-      return tf.where(absdiff > delta, (0.5 * delta*delta) + delta * (absdiff - delta), 0.5 * absdiff * absdiff)
-
     #This is conditional upon there being a result
     expected_score_from_belief = tf.reduce_sum(scorebelief_probs * model.score_belief_offset_vector,axis=1)
 
     #Huber will incentivize this to not actually converge to the mean, but rather something meanlike locally and something medianlike
     #for very large possible losses. This seems... okay - it might actually be what users want.
-    self.scoremean_loss_unreduced = 0.0012 * self.ownership_target_weight * huber_loss(self.scoremean_target, scoremean_prediction, delta = 12.0)
-    self.lead_loss_unreduced = 0.016 * self.lead_target_weight * huber_loss(self.lead_target, lead_prediction, delta = 8.0)
-    self.variance_time_loss_unreduced = 0.00000 * huber_loss(self.variance_time_target, variance_time_prediction, delta = 100.0)
+    self.scoremean_loss_unreduced = 0.0015 * self.ownership_target_weight * huber_loss(self.scoremean_target, scoremean_prediction, delta = 12.0)
+    self.lead_loss_unreduced = 0.0060 * self.lead_target_weight * huber_loss(self.lead_target, lead_prediction, delta = 8.0)
+    self.variance_time_loss_unreduced = 0.0003 * huber_loss(self.variance_time_target, variance_time_prediction, delta = 50.0)
 
     stdev_of_belief = tf.sqrt(0.001 + tf.reduce_sum(
       scorebelief_probs * tf.square(
@@ -1449,6 +1476,32 @@ class Target_vars:
     beliefstdevdiff = stdev_of_belief - scorestdev_prediction
     self.scorestdev_reg_loss_unreduced = 0.004 * huber_loss(stdev_of_belief, scorestdev_prediction, delta = 10.0)
 
+
+    td_value_probs = tf.nn.softmax(td_value_prediction[:,2,:],axis=1)
+
+    selfvalue = tf.stop_gradient(td_value_probs[:,0] - td_value_probs[:,1])
+    shortterm_value = self.td_value_target[:,2,0] - self.td_value_target[:,2,1]
+    selfscore = tf.stop_gradient(td_score_prediction[:,2])
+    shortterm_score = self.td_score_target[:,2]
+    shorttermdiffvaluesq = tf.square(selfvalue - shortterm_value)
+    shorttermdiffscoresq = tf.square(selfscore - shortterm_score)
+    # Use self.ownership_target_weight to make sure that we only have this target when we genuinely played out the game
+    self.shortterm_value_error_loss_unreduced = 2.0 * self.ownership_target_weight * huber_loss(
+      shorttermdiffvaluesq,
+      shortterm_value_error_prediction,
+      delta = 0.4
+    )
+    # Use self.ownership_target_weight to make sure that we only have this target when we genuinely played out the game
+    self.shortterm_score_error_loss_unreduced = 0.00002 * self.ownership_target_weight * huber_loss(
+      shorttermdiffscoresq,
+      shortterm_score_error_prediction,
+      delta = 100.0
+    )
+    #self.shortterm_diff_valuesq = shorttermdiffvaluesq
+    #self.shortterm_diff_scoresq = shorttermdiffscoresq
+    #self.shortterm_diff_value_huber_used = 0.5 + 0.5 * tf.sign(tf.abs(shorttermdiffvaluesq - shortterm_value_error_prediction) - 0.4)
+    #self.shortterm_diff_score_huber_used = 0.5 + 0.5 * tf.sign(tf.abs(shorttermdiffscoresq - shortterm_score_error_prediction) - 100.0)
+
     # winlossprob_from_belief = tf.concat([
     #   tf.reduce_sum(scorebelief_probs[:,(model.scorebelief_target_shape[0]//2):],axis=1,keepdims=True),
     #   tf.reduce_sum(scorebelief_probs[:,0:(model.scorebelief_target_shape[0]//2)],axis=1,keepdims=True)
@@ -1456,13 +1509,14 @@ class Target_vars:
     # winlossprob_from_output = value_probs[:,0:2]
     # self.winloss_reg_loss_unreduced = 2.0 * tf.reduce_sum(tf.square(winlossprob_from_belief - winlossprob_from_output),axis=1)
 
-    self.scale_reg_loss_unreduced = tf.reshape(0.0005 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
+    self.scale_reg_loss_unreduced = tf.reshape(0.0004 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
     #self.scale_reg_loss_unreduced = tf.zeros_like(self.winloss_reg_loss_unreduced)
 
     self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced, name="losses/policy_loss")
     self.policy1_loss = tf.reduce_sum(self.target_weight_used * self.policy1_loss_unreduced, name="losses/policy1_loss")
     self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced, name="losses/value_loss")
     self.td_value_loss = tf.reduce_sum(self.target_weight_used * self.td_value_loss_unreduced, name="losses/td_value_loss")
+    self.td_score_loss = tf.reduce_sum(self.target_weight_used * self.td_score_loss_unreduced, name="losses/td_score_loss")
     self.scoremean_loss = tf.reduce_sum(self.target_weight_used * self.scoremean_loss_unreduced, name="losses/scoremean_loss")
     self.lead_loss = tf.reduce_sum(self.target_weight_used * self.lead_loss_unreduced, name="losses/lead_loss")
     self.variance_time_loss = tf.reduce_sum(self.target_weight_used * self.variance_time_loss_unreduced, name="losses/variance_time_loss")
@@ -1473,6 +1527,8 @@ class Target_vars:
     self.futurepos_loss = tf.reduce_sum(self.target_weight_used * self.futurepos_loss_unreduced, name="losses/futurepos_loss")
     self.seki_loss = tf.reduce_sum(self.target_weight_used * self.seki_loss_unreduced, name="losses/seki_loss")
     self.scorestdev_reg_loss = tf.reduce_sum(self.target_weight_used * self.scorestdev_reg_loss_unreduced, name="losses/scorestdev_reg_loss")
+    self.shortterm_value_error_loss = tf.reduce_sum(self.target_weight_used * self.shortterm_value_error_loss_unreduced, name="losses/sloss")
+    self.shortterm_score_error_loss = tf.reduce_sum(self.target_weight_used * self.shortterm_score_error_loss_unreduced, name="losses/shortterm_score_error_loss")
     # self.winloss_reg_loss = tf.reduce_sum(self.target_weight_used * self.winloss_reg_loss_unreduced, name="losses/winloss_reg_loss")
     self.scale_reg_loss = tf.reduce_sum(self.target_weight_used * self.scale_reg_loss_unreduced, name="losses/scale_reg_loss")
 
@@ -1494,6 +1550,7 @@ class Target_vars:
         self.policy1_loss +
         self.value_loss +
         self.td_value_loss +
+        self.td_score_loss +
         self.scoremean_loss +
         self.lead_loss +
         self.variance_time_loss +
@@ -1504,6 +1561,8 @@ class Target_vars:
         self.futurepos_loss +
         self.seki_loss +
         self.scorestdev_reg_loss +
+        self.shortterm_value_error_loss +
+        self.shortterm_score_error_loss +
         self.reg_loss +
         self.scale_reg_loss
       )
@@ -1537,6 +1596,11 @@ class Metrics:
     self.value_entropy = tf.reduce_sum(target_vars.target_weight_used * self.value_entropy_unreduced, name="metrics/value_entropy")
     self.value_conf = tf.reduce_sum(target_vars.target_weight_used * self.value_conf_unreduced, name="metrics/value_conf")
     self.policy_target_entropy = tf.reduce_sum(target_vars.target_weight_used * self.policy_target_entropy_unreduced, name="metrics/policy_target_entropy")
+
+    # self.shortterm_value_error_mean_unreduced = target_vars.shortterm_diff_value
+    # self.shortterm_score_error_mean_unreduced = target_vars.shortterm_diff_score
+    # self.shortterm_value_error_var_unreduced = target_vars.shortterm_diff_value * target_vars.shortterm_diff_value
+    # self.shortterm_score_error_var_unreduced = target_vars.shortterm_diff_score * target_vars.shortterm_diff_score
     self.gnorm = None
 
     #Debugging stats
@@ -1589,7 +1653,7 @@ class ModelUtils:
 
     #L2 regularization coefficient
     if model_config["use_fixup"]:
-      l2_coeff_value = 0.000006
+      l2_coeff_value = 0.000003
     else:
       l2_coeff_value = 0.00003
 
@@ -1624,7 +1688,8 @@ class ModelUtils:
     placeholders["policy_target_weight1"] = features["gtnc"][:,28]
 
     placeholders["value_target"] = features["gtnc"][:,0:3]
-    placeholders["td_value_target"] = tf.stack([features["gtnc"][:,4:7],features["gtnc"][:,8:11]],axis=1)
+    placeholders["td_value_target"] = tf.stack([features["gtnc"][:,4:7],features["gtnc"][:,8:11],features["gtnc"][:,12:15]],axis=1)
+    placeholders["td_score_target"] = tf.stack([features["gtnc"][:,7],features["gtnc"][:,11],features["gtnc"][:,15]],axis=1)
     placeholders["scoremean_target"] = features["gtnc"][:,3]
     placeholders["lead_target"] = features["gtnc"][:,21]
     placeholders["variance_time_target"] = features["gtnc"][:,22]
@@ -1694,7 +1759,7 @@ class ModelUtils:
         #by this scaling to achieve a roughly comparable level of scaling.
         gnorm_cap = (2500.0 if model.use_fixup else 4000.0) / math.sqrt(num_gpus_used) * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
         #Loosen gradient clipping as we shift to smaller learning rates
-        gnorm_cap = gnorm_cap / math.sqrt(1.0 if lr_scale is None else lr_scale)
+        gnorm_cap = gnorm_cap / math.sqrt(1.0 if lr_scale is None else max(0.0000001,lr_scale))
         (adjusted_gradients_clipped,gnorm) = tf.clip_by_global_norm([x[0] for x in adjusted_gradients],gnorm_cap)
         adjusted_gradients_clipped = list(zip(adjusted_gradients_clipped,[x[1] for x in adjusted_gradients]))
         metrics.gnorm = gnorm
@@ -1702,6 +1767,7 @@ class ModelUtils:
         train_step = optimizer.apply_gradients(adjusted_gradients_clipped, global_step=global_step)
 
       if print_model:
+        trainlog("Model version: %d" % model.version)
         ModelUtils.print_trainable_variables(trainlog)
         for update_op in tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS):
           trainlog("Additional update op on train step: %s" % update_op.name)

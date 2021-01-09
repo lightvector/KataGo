@@ -150,7 +150,7 @@ namespace {
 
         if(sgfOut != NULL) {
           assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
-          WriteSgf::writeSgf(*sgfOut,data->bName,data->wName,data->endHist,data,false);
+          WriteSgf::writeSgf(*sgfOut,data->bName,data->wName,data->endHist,data,false,true);
           (*sgfOut) << endl;
         }
         delete data;
@@ -214,6 +214,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   string acceptedModelsDir;
   string rejectedModelsDir;
   string sgfOutputDir;
+  string selfplayDir;
   bool noAutoRejectOldModels;
   bool quitIfNoNetsToTest;
   try {
@@ -224,12 +225,14 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> sgfOutputDirArg("","sgf-output-dir","Dir to output sgf files",true,string(),"DIR");
     TCLAP::ValueArg<string> acceptedModelsDirArg("","accepted-models-dir","Dir to write good models to",true,string(),"DIR");
     TCLAP::ValueArg<string> rejectedModelsDirArg("","rejected-models-dir","Dir to write bad models to",true,string(),"DIR");
+    TCLAP::ValueArg<string> selfplayDirArg("","selfplay-dir","Dir where selfplay data will be produced if a model passes",false,string(),"DIR");
     TCLAP::SwitchArg noAutoRejectOldModelsArg("","no-autoreject-old-models","Test older models than the latest accepted model");
     TCLAP::SwitchArg quitIfNoNetsToTestArg("","quit-if-no-nets-to-test","Terminate instead of waiting for a new net to test");
     cmd.add(testModelsDirArg);
     cmd.add(sgfOutputDirArg);
     cmd.add(acceptedModelsDirArg);
     cmd.add(rejectedModelsDirArg);
+    cmd.add(selfplayDirArg);
     cmd.setShortUsageArgLimit();
     cmd.add(noAutoRejectOldModelsArg);
     cmd.add(quitIfNoNetsToTestArg);
@@ -239,6 +242,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     sgfOutputDir = sgfOutputDirArg.getValue();
     acceptedModelsDir = acceptedModelsDirArg.getValue();
     rejectedModelsDir = rejectedModelsDirArg.getValue();
+    selfplayDir = selfplayDirArg.getValue();
     noAutoRejectOldModels = noAutoRejectOldModelsArg.getValue();
     quitIfNoNetsToTest = quitIfNoNetsToTestArg.getValue();
 
@@ -251,6 +255,9 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     checkDirNonEmpty("accepted-models-dir",acceptedModelsDir);
     checkDirNonEmpty("rejected-models-dir",rejectedModelsDir);
 
+    //Tolerate this argument being optional
+    //checkDirNonEmpty("selfplay-dir",selfplayDir);
+
     cmd.getConfig(cfg);
   }
   catch (TCLAP::ArgException &e) {
@@ -262,6 +269,8 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
   MakeDir::make(acceptedModelsDir);
   MakeDir::make(rejectedModelsDir);
   MakeDir::make(sgfOutputDir);
+  if(selfplayDir != "")
+    MakeDir::make(selfplayDir);
 
   Logger logger;
   //Log to random file name to better support starting/stopping as well as multiple parallel runs
@@ -312,6 +321,9 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     lock.unlock();
     logger.write("Data write loop cleaned up and terminating for " + modelNameBaseline + " vs " + modelNameCandidate);
   };
+  auto dataWriteLoopProtected = [&logger,&dataWriteLoop]() {
+    Logger::logThreadUncaught("data write loop", &logger, dataWriteLoop);
+  };
 
   auto loadLatestNeuralNet =
     [&testModelsDir,&rejectedModelsDir,&acceptedModelsDir,&sgfOutputDir,&logger,&cfg,numGameThreads,noAutoRejectOldModels]() -> NetAndStuff* {
@@ -349,17 +361,19 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
 
     // * 2 + 16 just in case to have plenty of room
     int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
+    int expectedConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads;
     int defaultMaxBatchSize = -1;
+    string expectedSha256 = "";
 
     NNEvaluator* testNNEval = Setup::initializeNNEvaluator(
-      testModelName,testModelFile,cfg,logger,rand,maxConcurrentEvals,
+      testModelName,testModelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
       Setup::SETUP_FOR_OTHER
     );
     logger.write("Loaded candidate neural net " + testModelName + " from: " + testModelFile);
 
     NNEvaluator* acceptedNNEval = Setup::initializeNNEvaluator(
-      acceptedModelName,acceptedModelFile,cfg,logger,rand,maxConcurrentEvals,
+      acceptedModelName,acceptedModelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
       Setup::SETUP_FOR_OTHER
     );
@@ -409,8 +423,8 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
       if(netAndStuff->matchPairer->getMatchup(botSpecB, botSpecW, logger)) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
-          seed, botSpecB, botSpecW, NULL, logger,
-          stopConditions, NULL
+          seed, botSpecB, botSpecW, NULL, NULL, logger,
+          stopConditions, nullptr, nullptr, false
         );
       }
 
@@ -428,6 +442,9 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
 
     lock.unlock();
     logger.write("Game loop thread " + Global::intToString(threadIdx) + " terminating");
+  };
+  auto gameLoopProtected = [&logger,&gameLoop](int threadIdx) {
+    Logger::logThreadUncaught("game loop", &logger, [&](){ gameLoop(threadIdx); });
   };
 
   //Looping polling for new neural nets and loading them in
@@ -463,11 +480,11 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     netAndStuffDataIsWritten = false;
 
     //And spawn off all the threads
-    std::thread newThread(dataWriteLoop);
+    std::thread newThread(dataWriteLoopProtected);
     newThread.detach();
     vector<std::thread> threads;
     for(int i = 0; i<numGameThreads; i++) {
-      threads.push_back(std::thread(gameLoop,i));
+      threads.push_back(std::thread(gameLoopProtected,i));
     }
 
     //Wait for all game threads to stop
@@ -519,6 +536,18 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
           netAndStuff->modelNameCandidate.c_str()
         )
       );
+
+      //Make a bunch of the directories that selfplay will need so that there isn't a race on the selfplay
+      //machines to concurrently make it, since sometimes concurrent making of the same directory can corrupt
+      //a filesystem
+      if(selfplayDir != "") {
+        MakeDir::make(selfplayDir + "/" + netAndStuff->modelNameCandidate);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        MakeDir::make(selfplayDir + "/" + netAndStuff->modelNameCandidate + "/" + "sgfs");
+        MakeDir::make(selfplayDir + "/" + netAndStuff->modelNameCandidate + "/" + "tdata");
+        MakeDir::make(selfplayDir + "/" + netAndStuff->modelNameCandidate + "/" + "vadata");
+      }
+      std::this_thread::sleep_for(std::chrono::seconds(2));
 
       string renameDest = acceptedModelsDir + "/" + netAndStuff->modelNameCandidate;
       logger.write("Moving " + netAndStuff->testModelDir + " to " + renameDest);

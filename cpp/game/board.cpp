@@ -61,6 +61,25 @@ bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
   return loc0 == loc1 - (x_size+1) || loc0 == loc1 - 1 || loc0 == loc1 + 1 || loc0 == loc1 + (x_size+1);
 }
 
+Loc Location::getMirrorLoc(Loc loc, int x_size, int y_size) {
+  if(loc == Board::NULL_LOC || loc == Board::PASS_LOC)
+    return loc;
+  return getLoc(x_size-1-getX(loc,x_size),y_size-1-getY(loc,x_size),x_size);
+}
+
+Loc Location::getCenterLoc(int x_size, int y_size) {
+  if(x_size % 2 == 0 || y_size % 2 == 0)
+    return Board::NULL_LOC;
+  return getLoc(x_size / 2, y_size / 2, x_size);
+}
+
+bool Location::isCentral(Loc loc, int x_size, int y_size) {
+  int x = getX(loc,x_size);
+  int y = getY(loc,x_size);
+  return x >= (x_size-1)/2 && x <= x_size/2 && y >= (y_size-1)/2 && y <= y_size/2;
+}
+
+
 #define FOREACHADJ(BLOCK) {int ADJOFFSET = -(x_size+1); {BLOCK}; ADJOFFSET = -1; {BLOCK}; ADJOFFSET = 1; {BLOCK}; ADJOFFSET = x_size+1; {BLOCK}};
 #define ADJ0 (-(x_size+1))
 #define ADJ1 (-1)
@@ -194,6 +213,11 @@ void Board::clearSimpleKoLoc() {
   ko_loc = NULL_LOC;
 }
 
+//Gets the number of stones of the chain at loc. Precondition: location must be black or white.
+int Board::getChainSize(Loc loc) const
+{
+  return chain_data[chain_head[loc]].num_locs;
+}
 
 //Gets the number of liberties of the chain at loc. Assertion: location must be black or white.
 int Board::getNumLiberties(Loc loc) const
@@ -447,6 +471,23 @@ bool Board::isSimpleEye(Loc loc, Player pla) const
   return true;
 }
 
+bool Board::wouldBeCapture(Loc loc, Player pla) const {
+  if(colors[loc] != C_EMPTY)
+    return false;
+  Player opp = getOpp(pla);
+  FOREACHADJ(
+    Loc adj = loc + ADJOFFSET;
+    if(colors[adj] == opp)
+    {
+      if(getNumLiberties(adj) == 1)
+        return true;
+    }
+  );
+
+  return false;
+}
+
+
 bool Board::wouldBeKoCapture(Loc loc, Player pla) const {
   if(colors[loc] != C_EMPTY)
     return false;
@@ -508,6 +549,27 @@ bool Board::isAdjacentToPla(Loc loc, Player pla) const {
   return false;
 }
 
+bool Board::isAdjacentOrDiagonalToPla(Loc loc, Player pla) const {
+  for(int i = 0; i<8; i++) {
+    Loc adj = loc + adj_offsets[i];
+    if(colors[adj] == pla)
+      return true;
+  }
+  return false;
+}
+
+bool Board::isAdjacentToChain(Loc loc, Loc chain) const {
+  if(colors[chain] == C_EMPTY)
+    return false;
+  FOREACHADJ(
+    Loc adj = loc + ADJOFFSET;
+    if(colors[adj] == colors[chain] && chain_head[adj] == chain_head[chain])
+      return true;
+  );
+  return false;
+}
+
+
 //Does this connect two pla distinct groups that are not both pass-alive and not within opponent pass-alive area either?
 bool Board::isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveArea) const {
   if(colors[loc] != C_EMPTY || passAliveArea[loc] == pla)
@@ -545,6 +607,18 @@ bool Board::isEmpty() const {
     }
   }
   return true;
+}
+
+int Board::numStonesOnBoard() const {
+  int num = 0;
+  for(int y = 0; y < y_size; y++) {
+    for(int x = 0; x < x_size; x++) {
+      Loc loc = Location::getLoc(x,y,x_size);
+      if(colors[loc] == C_BLACK || colors[loc] == C_WHITE)
+        num += 1;
+    }
+  }
+  return num;
 }
 
 bool Board::setStone(Loc loc, Color color)
@@ -1709,6 +1783,8 @@ void Board::calculateAreaForPla(
 ) const {
   Color opp = getOpp(pla);
 
+  //https://senseis.xmp.net/?BensonsAlgorithm
+  //https://zhuanlan.zhihu.com/p/110998764
   //First compute all empty-or-opp regions
 
   //For each loc, if it's empty or opp, the index of the region
@@ -1887,36 +1963,11 @@ void Board::calculateAreaForPla(
   //Also accumulate all player heads
   int numPlaHeads = 0;
   Loc allPlaHeads[MAX_PLAY_SIZE];
-  {
-    //Accumulate with duplicates
-    {
-      Loc prevHead = NULL_LOC;
-      for(int y = 0; y < y_size; y++) {
-        for(int x = 0; x < x_size; x++) {
-          Loc loc = Location::getLoc(x,y,x_size);
-          if(colors[loc] == pla) {
-            //Eagerly dedup though when we can.
-            if(numPlaHeads > 0 && chain_head[loc] == prevHead)
-              continue;
-            prevHead = chain_head[loc];
-            allPlaHeads[numPlaHeads++] = chain_head[loc];
-          }
-        }
-      }
-    }
-    //Filter duplicates
-    std::sort(allPlaHeads,allPlaHeads+numPlaHeads);
-    int newNumPlaHeads = 0;
-    Loc prevHead = NULL_LOC;
-    for(int i = 0; i<numPlaHeads; i++) {
-      if(allPlaHeads[i] != prevHead) {
-        prevHead = allPlaHeads[i];
-        allPlaHeads[newNumPlaHeads] = allPlaHeads[i];
-        newNumPlaHeads++;
-      }
-    }
-    numPlaHeads = newNumPlaHeads;
+  for(Loc loc = 0; loc < MAX_ARR_SIZE; loc++) {
+    if(colors[loc] == pla && chain_head[loc] == loc)
+      allPlaHeads[numPlaHeads++] = loc;
   }
+
   bool plaHasBeenKilled[MAX_PLAY_SIZE];
   for(int i = 0; i<numPlaHeads; i++)
     plaHasBeenKilled[i] = false;

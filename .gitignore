@@ -59,3 +59,11 @@ cmake_install.cmake
 GPATH
 GRTAGS
 GTAGS
+
+cpp/external/httplib/cpp-httplib/
+gtp.cfg
+katago_contribute/
+tmpsgf/
+watchgame.txt
+models/
+python/startposesupload.txt

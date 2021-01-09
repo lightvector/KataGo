@@ -53,6 +53,7 @@ namespace Tests {
 
   //testnn.cpp
   void runNNLayerTests();
+  void runNNSymmetryTests();
 
   //testownership.cpp
   void runOwnershipTests(const std::string& configFile, const std::string& modelFile);

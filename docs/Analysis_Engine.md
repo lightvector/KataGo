@@ -8,11 +8,10 @@ server or website.
 
 This engine can be run via:
 
-```./katago analysis -config CONFIG_FILE -model MODEL_FILE -analysis-threads NUM_ANALYSIS_THREADS```
+```./katago analysis -config CONFIG_FILE -model MODEL_FILE```
 
 An example config file is provided in `cpp/configs/analysis_example.cfg`. Adjusting this config is recommended, for example
-`nnCacheSizePowerOfTwo` based on how much RAM you have, and adjusting `numSearchThreads` (the number of MCTS threads operating simultaneously on the same position)
-and `NUM_ANALYSIS_THREADS` (the number of positions that will be analyzed at the same time, *each* of which will use `numSearchThreads` many search threads).
+`nnCacheSizePowerOfTwo` based on how much RAM you have, and adjusting `numSearchThreadsPerAnalysisThread` (the number of MCTS threads operating simultaneously on the same position) and `numAnalysisThreads` (the number of positions that will be analyzed at the same time, *each* of which will use `numSearchThreadsPerAnalysisThread` many search threads).
 
 See the [example analysis config](https://github.com/lightvector/KataGo/blob/master/cpp/configs/analysis_example.cfg#L60) for a fairly detailed discussion of how to tune these parameters.
 
@@ -83,9 +82,19 @@ Explanation of fields (including some optional fields not present in the above q
    * `rootPolicyTemperature (float)`: Optional. Set this to a value > 1 to make KataGo do a wider search.
    * `rootFpuReductionMax (float)`: Optional. Set this to 0 to make KataGo more willing to try a variety of moves.
    * `includeOwnership (boolean)`: Optional. If true, report ownership prediction as a result. Will double memory usage and reduce performance slightly.
+   * `includeMovesOwnership (boolean)`: Optional. If true, report ownership prediction for every individual move too.
    * `includePolicy (boolean)`: Optional. If true, report neural network raw policy as a result. Will not signficiantly affect performance.
+   * `includePVVisits (boolean)`: Optional. If true, report the number of visits for each move in any reported pv.
+   * `avoidMoves (list of dicts)`: Optional. Prohibit the search from exploring the specified moves for the specified player, until a certain number of ply deep in the search. Each dict must contain these fields:
+      * `player` - the player to prohibit, `"B"` or `"W"`.
+      * `moves` - an array of move locations to prohibit, such as `["C3","Q4","pass"]`
+      * `untilDepth` - a positive integer, indicating the ply such that moves are prohibited before that ply.
+      * Multiple dicts can specify different `untilDepth` for different sets of moves. The behavior is unspecified if a move is specified more than once with different `untilDepth`.
+   * `allowMoves (list of dicts)`: Optional. Same as `avoidMoves` except prohibits all moves EXCEPT the moves specified. Currently, the list of dicts must also be length 1.
    * `overrideSettings (object)`: Optional. Specify any number of `paramName:value` entries in this object to override those params from command line `CONFIG_FILE` for this query. Most search parameters can be overriden: `cpuctExploration`, `winLossUtilityFactor`, etc.
+   * `reportDuringSearchEvery (float)`: Optional. Specify a number of seconds such that while this position is being searched, KataGo will report the partial analysis every that many seconds.
    * `priority (int)`: Optional. Analysis threads will prefer handling queries with the highest priority unless already started on another task, breaking ties in favor of earlier queries. If not specified, defaults to 0.
+   * `priorities (list of integers)`: Optional. When using analyzeTurns, you can use this instead of `priority` if you want a different priority per turn. Must be of same length as analyzeTurns.
 
 #### Responses
 
@@ -102,7 +111,7 @@ In the case of a warning, the query will still proceed to generate analysis resp
 
 An example successful analysis response might be:
 ```json
-{"id":"foo","moveInfos":[{"lcb":0.8740855166489953,"move":"Q5","order":0,"prior":0.8934692740440369,"pv":["Q5","R5","Q6","P4","O5","O4","R6","S5","N4","N5","N3"],"scoreLead":8.18535151076558,"scoreMean":8.18535151076558,"scoreSelfplay":10.414442461570038,"scoreStdev":23.987067985850913,"utility":0.7509536097709347,"utilityLcb":0.7717092488727239,"visits":495,"winrate":0.8666727883983563},{"lcb":1.936558574438095,"move":"D4","order":1,"prior":0.021620146930217743,"pv":["D4","Q5"],"scoreLead":12.300520420074463,"scoreMean":12.300520420074463,"scoreSelfplay":15.386500358581543,"scoreStdev":24.661467510313432,"utility":0.9287495791972984,"utilityLcb":2.8000000000000003,"visits":2,"winrate":0.9365585744380951},{"lcb":1.9393062554299831,"move":"Q16","order":2,"prior":0.006689758971333504,"pv":["Q16"],"scoreLead":12.97426986694336,"scoreMean":12.97426986694336,"scoreSelfplay":16.423904418945313,"scoreStdev":25.34494674587838,"utility":0.9410896213959669,"utilityLcb":2.8000000000000003,"visits":1,"winrate":0.9393062554299831},{"lcb":1.9348860532045364,"move":"D16","order":3,"prior":0.0064553022384643555,"pv":["D16"],"scoreLead":12.066888809204102,"scoreMean":12.066888809204102,"scoreSelfplay":15.591397285461426,"scoreStdev":25.65390196745236,"utility":0.9256971928661066,"utilityLcb":2.8000000000000003,"visits":1,"winrate":0.9348860532045364}],"rootInfo":{"lcb":0.8672585456293346,"scoreLead":8.219540952281882,"scoreSelfplay":10.456476293719811,"scoreStdev":23.99829921716391,"utility":0.7524437705003542,"visits":500,"winrate":0.8672585456293346},"turnNumber":2}
+{"id":"foo","isDuringSearch":false,"moveInfos":[{"lcb":0.8740855166489953,"move":"Q5","order":0,"prior":0.8934692740440369,"pv":["Q5","R5","Q6","P4","O5","O4","R6","S5","N4","N5","N3"],"scoreLead":8.18535151076558,"scoreMean":8.18535151076558,"scoreSelfplay":10.414442461570038,"scoreStdev":23.987067985850913,"utility":0.7509536097709347,"utilityLcb":0.7717092488727239,"visits":495,"winrate":0.8666727883983563},{"lcb":1.936558574438095,"move":"D4","order":1,"prior":0.021620146930217743,"pv":["D4","Q5"],"scoreLead":12.300520420074463,"scoreMean":12.300520420074463,"scoreSelfplay":15.386500358581543,"scoreStdev":24.661467510313432,"utility":0.9287495791972984,"utilityLcb":2.8000000000000003,"visits":2,"winrate":0.9365585744380951},{"lcb":1.9393062554299831,"move":"Q16","order":2,"prior":0.006689758971333504,"pv":["Q16"],"scoreLead":12.97426986694336,"scoreMean":12.97426986694336,"scoreSelfplay":16.423904418945313,"scoreStdev":25.34494674587838,"utility":0.9410896213959669,"utilityLcb":2.8000000000000003,"visits":1,"winrate":0.9393062554299831},{"lcb":1.9348860532045364,"move":"D16","order":3,"prior":0.0064553022384643555,"pv":["D16"],"scoreLead":12.066888809204102,"scoreMean":12.066888809204102,"scoreSelfplay":15.591397285461426,"scoreStdev":25.65390196745236,"utility":0.9256971928661066,"utilityLcb":2.8000000000000003,"visits":1,"winrate":0.9348860532045364}],"rootInfo":{"lcb":0.8672585456293346,"scoreLead":8.219540952281882,"scoreSelfplay":10.456476293719811,"scoreStdev":23.99829921716391,"utility":0.7524437705003542,"visits":500,"winrate":0.8672585456293346},"turnNumber":2}
 ```
 <details>
 <summary>
@@ -112,6 +121,7 @@ See formatted response.
 ```json
 {
     "id": "foo",
+    "isDuringSearch": false,
     "moveInfos": [{
         "lcb": 0.8740855166489953,
         "move": "Q5",
@@ -191,6 +201,7 @@ Consumers of this data should attempt to be robust to possible addition of both 
 Current fields are:
 
    * `id`: The same id string that was provided on the query.
+   * `isDuringSearch`: Normally false. If `reportDuringSearchEvery` is provided, then will be true on the reports during the middle of the search before the search is complete. Every position searched will still always conclude with exactly one final response when the search is completed where this field is false.
    * `turnNumber`: The turn number being analyzed.
    * `moveInfos`: A list of JSON dictionaries, one per move that KataGo considered, with fields indicating the results of analysis. Current fields are:
       * `move` - The move being analyzed.
@@ -206,6 +217,60 @@ Current fields are:
       * `utilityLcb` - The LCB of the move's utility.
       * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
       * `pv` - The principal variation following this move. May be of variable length or even empty.
+      * `pvVisits` - The number of visits for each move in `pv`. Exists only if `includePVVisits` is true.
+      * `ownership` - If `includeMovesOwnership` was true, then this field will be included. It is a JSON array of length `boardYSize * boardXSize` with values from -1 to 1 indicating the predicted ownership after this move. Values are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
    * `rootInfo`: A JSON dictionary with fields containing overall statistics for the requested turn itself calculated in the same way as they would be for the next moves. Current fields are: `winrate`, `scoreLead`, `scoreSelfplay`, `utility`, `visits`.
    * `ownership` - If `includeOwnership` was true, then this field will be included. It is a JSON array of length `boardYSize * boardXSize` with values from -1 to 1 indicating the predicted ownership. Values are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
    * `policy` - If `includePolicy` was true, then this field will be included. It is a JSON array of length `boardYSize * boardXSize + 1` with positive values summing to 1 indicating the neural network's prediction of the best move before any search, and `-1` indicating illegal moves. Values are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1). The last value in the array is the policy value for passing.
+
+#### Special Action Queries
+
+Currently two special action queries are supported, that direct the analysis engine to do something other than enqueue a new position or set of positions for analysis.
+A special action query is also sent as a JSON object, but with a different set of fields depending on the query.
+
+##### query_version
+Requests that KataGo report its current version. Required fields:
+
+   * `id (string)`: Required. An arbitrary string identifier for this query.
+   * `action (string)`: Required. Should be the string `query_version`.
+
+Example:
+```
+{"id":"foo","action":"query_verison"}
+```
+
+The response to this query is to echo back a json object with exactly the same data and fields of the query, but with two additional fields:
+
+   * `version (string)`: A string indicating the most recent KataGo release version that this version is a descendant of, such as `1.6.1`.
+   * `git_hash (string)`: The precise git hash this KataGo version was compiled from, or the string `<omitted>` if KataGo was compiled separately from its repo or without Git support.
+
+Example:
+```
+{"action":"query_verison","git_hash":"0b0c29750fd351a8364440a2c9c83dc50195c05b","id":"foo","version":"1.6.1"}
+```
+
+##### terminate
+
+Requests that KataGo terminate zero or more analysis queries without waiting for them to finish normally. When a query is terminated, the engine will make a best effort to halt their analysis as soon as possible, reporting the results of whatever number of visits were performed up to that point. Required fields:
+
+   * `id (string)`: Required. An arbitrary string identifier for this query.
+   * `action (string)`: Required. Should be the string `terminate`.
+   * `terminateId (string)`: Required. Terminate queries that were submitted with this `id` field without analyzing or finishing analyzing them.
+   * `turnNumbers (array of ints)`: Optional. If provided, restrict only to terminating the queries with that id that were for these turn numbers.
+
+Example:
+```
+{"id":"bar","action":"terminate","terminateId":"foo","turnNumbers":[1,2]}
+```
+
+Responses to terminated queries may be missing their data fields if no analysis at all was performed before termination. In such a case, the only fields guaranteed to be on the response are `id` and `turnNumber`, and `isDuringSearch` (which will always be false), as well as one additional boolean field unique to terminated queries that did not analyze at all, `noResults` (which will always be true). Example:
+```
+{"id":"foo","isDuringSearch":false,"noResults":true,"turnNumber":2}
+```
+
+The terminate query itself will result in a response as well, to acknowledge receipt and processing of the action. The response consists of echoing a json object back with exactly the same fields and data of the query.
+
+The response will NOT generally wait for all of the effects of the action to take place - it may take a small amount of additional time for ongoing searches to actually terminate and report their partial results. A client of this API that wants to wait for all terminated queries to finish should on its own track the set of queries that it has sent for analysis, and wait for all of them to have finished. This can be done by relying on the property that every analysis query, whether terminated or not, and regardless of `reportDuringSearchEvery`, will conclude with exactly one reply where `isDuringSearch` is `false` - such a reply can therefore be used as a marker that an analysis query has finished. (Except during shutdown of the engine if `-quit-without-waiting` was specified).
+
+
+

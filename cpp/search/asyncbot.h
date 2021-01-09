@@ -30,10 +30,11 @@ class AsyncBot {
   //Calling any of these will stop any ongoing search, waiting for a full stop.
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
   void setKomiIfNew(float newKomi);
-  void setRootPassLegal(bool b);
   void setRootHintLoc(Loc loc);
+  void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
   void setAlwaysIncludeOwnerMap(bool b);
   void setParams(SearchParams params);
+  void setParamsNoClearing(SearchParams params);
   void setPlayerIfNew(Player movePla);
   void clearSearch();
 
@@ -49,12 +50,15 @@ class AsyncBot {
   //Will stop any ongoing search, waiting for a full stop.
   //Asynchronously calls the provided function upon success, passing back the move and provided searchId.
   //The provided callback is expected to terminate quickly and should NOT call back into this API.
-  void genMove(Player movePla, int searchId, const TimeControls& tc, std::function<void(Loc,int)> onMove);
-  void genMove(Player movePla, int searchId, const TimeControls& tc, double searchFactor, std::function<void(Loc,int)> onMove);
+  //onSearchBegun is called when the search has initialized its tree, after which many asynchronous search query functions become safe
+  void genMoveAsync(Player movePla, int searchId, const TimeControls& tc, const std::function<void(Loc,int)>& onMove);
+  void genMoveAsync(Player movePla, int searchId, const TimeControls& tc, double searchFactor, const std::function<void(Loc,int)>& onMove);
+  void genMoveAsync(Player movePla, int searchId, const TimeControls& tc, double searchFactor, const std::function<void(Loc,int)>& onMove, const std::function<void()>& onSearchBegun);
 
   //Same as genMove, but waits directly for the move and returns it here.
   Loc genMoveSynchronous(Player movePla, const TimeControls& tc);
   Loc genMoveSynchronous(Player movePla, const TimeControls& tc, double searchFactor);
+  Loc genMoveSynchronous(Player movePla, const TimeControls& tc, double searchFactor, const std::function<void()>& onSearchBegun);
 
   //Begin pondering, returning immediately. Future genMoves may be faster if this is called.
   //Will not stop any ongoing searches.
@@ -62,21 +66,32 @@ class AsyncBot {
   void ponder(double searchFactor);
 
   //Terminate any existing searches, and then begin pondering while periodically calling the specified callback
-  void analyze(Player movePla, double searchFactor, double callbackPeriod, std::function<void(Search* search)> callback);
+  void analyzeAsync(Player movePla, double searchFactor, double callbackPeriod, const std::function<void(const Search* search)>& callback);
   //Same as genMove but with periodic analyze callbacks
-  void genMoveAnalyze(
-    Player movePla, int searchId, const TimeControls& tc, double searchFactor, std::function<void(Loc,int)> onMove,
-    double callbackPeriod, std::function<void(Search* search)> callback
+  void genMoveAsyncAnalyze(
+    Player movePla, int searchId, const TimeControls& tc, double searchFactor, const std::function<void(Loc,int)>& onMove,
+    double callbackPeriod, const std::function<void(const Search* search)>& callback
+  );
+  void genMoveAsyncAnalyze(
+    Player movePla, int searchId, const TimeControls& tc, double searchFactor, const std::function<void(Loc,int)>& onMove,
+    double callbackPeriod, const std::function<void(const Search* search)>& callback,
+    const std::function<void()>& onSearchBegun
   );
   Loc genMoveSynchronousAnalyze(
     Player movePla, const TimeControls& tc, double searchFactor,
-    double callbackPeriod, std::function<void(Search* search)> callback
+    double callbackPeriod, const std::function<void(const Search* search)>& callback
+  );
+  Loc genMoveSynchronousAnalyze(
+    Player movePla, const TimeControls& tc, double searchFactor,
+    double callbackPeriod, const std::function<void(const Search* search)>& callback,
+    const std::function<void()>& onSearchBegun
   );
 
   //Signal an ongoing genMove or ponder to stop as soon as possible, and wait for the stop to happen.
   //Safe to call even if nothing is running.
   void stopAndWait();
   //Same, but does NOT wait for the stop. Also safe to call even if nothing is running.
+  //Does not lock anything, so even safe to call from inside callbacks from this API.
   void stopWithoutWait();
   //Call this to permanently kill this bot and prevent future search.
   void setKilled();
@@ -100,7 +115,8 @@ class AsyncBot {
   TimeControls timeControls;
   double searchFactor;
   double analyzeCallbackPeriod;
-  std::function<void(Search* search)> analyzeCallback;
+  std::function<void(const Search* search)> analyzeCallback;
+  std::function<void()> searchBegunCallback;
 
   void stopAndWaitAlreadyLocked(std::unique_lock<std::mutex>& lock);
   void waitForSearchToEnd();

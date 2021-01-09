@@ -7,6 +7,8 @@
 // Author(s):
 //   Cedric Nugteren <www.cedricnugteren.nl>
 //
+// MODIFIED from the original by David Wu ("lightvector") to add FP16 storage with FP32 compute as an option.
+//
 // This is part 2 of 3 of the GEMM kernel. See part 1 for more information.
 //
 // =================================================================================================
@@ -19,7 +21,7 @@ R"(
 
 // Caches global off-chip memory into local (shared) memory on-chip. This function is specific for
 // caching the A input matrix.
-INLINE_FUNC void GlobalToLocalDirectA(const __global realMD* restrict agm, LOCAL_PTR real* alm,
+INLINE_FUNC void GlobalToLocalDirectA(const __global realstoreMD* restrict agm, LOCAL_PTR real* alm,
                                       const int a_ld, const int a_offset, const int kwg,
                                       const int a_transpose, const int a_conjugate) {
   #if MDIMCD == MDIMAD
@@ -42,7 +44,7 @@ INLINE_FUNC void GlobalToLocalDirectA(const __global realMD* restrict agm, LOCAL
       int idk = (a_transpose) ? kg + GetGroupID0()*WGD : kg + kwg;
 
       // Loads the data from global memory into the local memory
-      const realMD avec = agm[idk*(a_ld/VWMD) + idm + (a_offset/VWMD)];
+      const realMD avec = LOADGLOBALM(agm,idk*(a_ld/VWMD) + idm + (a_offset/VWMD));
       #if VWMD == 1
          alm[kg*(WGD + PADA) + mg] = avec;
       #elif VWMD == 2
@@ -90,7 +92,7 @@ INLINE_FUNC void GlobalToLocalDirectA(const __global realMD* restrict agm, LOCAL
 }
 
 // Same as above, but now for the B input matrix
-INLINE_FUNC void GlobalToLocalDirectB(const __global realND* restrict bgm, LOCAL_PTR real* blm,
+INLINE_FUNC void GlobalToLocalDirectB(const __global realstoreND* restrict bgm, LOCAL_PTR real* blm,
                                       const int b_ld, const int b_offset, const int kwg,
                                       const int b_transpose, const int b_conjugate) {
   #if MDIMCD == NDIMBD
@@ -113,7 +115,7 @@ INLINE_FUNC void GlobalToLocalDirectB(const __global realND* restrict bgm, LOCAL
       int idk = (b_transpose) ? kg + GetGroupID1()*WGD : kg + kwg;
 
       // Loads the data from global memory into the local memory
-      const realND bvec = bgm[idk*(b_ld/VWND) + idn + (b_offset/VWND)];
+      const realND bvec = LOADGLOBALN(bgm,idk*(b_ld/VWND) + idn + (b_offset/VWND));
       #if VWND == 1
          blm[kg*(WGD + PADB) + ng] = bvec;
       #elif VWND == 2
@@ -166,7 +168,7 @@ INLINE_FUNC void GlobalToLocalDirectB(const __global realND* restrict bgm, LOCAL
 // Caches global off-chip memory into local (shared) memory on-chip. This function is specific for
 // caching the A input matrix. In contrast to the functions above, this function performs doesn't
 // use the vector data-types.
-INLINE_FUNC void GlobalToLocalScalarA(const __global real* restrict agms, LOCAL_PTR real* alm,
+INLINE_FUNC void GlobalToLocalScalarA(const __global realstore* restrict agms, LOCAL_PTR real* alm,
                                       const int a_ld, const int a_offset, const int kwg,
                                       const int a_transpose, const int a_conjugate) {
   #if MDIMCD == MDIMAD
@@ -189,7 +191,7 @@ INLINE_FUNC void GlobalToLocalScalarA(const __global real* restrict agms, LOCAL_
       int idk = (a_transpose) ? kg + GetGroupID0()*WGD : kg + kwg;
 
       // Loads the data from global memory into the local memory
-      real result = agms[idk*a_ld + idm + a_offset];
+      real result = LOADGLOBAL(agms,idk*a_ld + idm + a_offset);
       if (a_conjugate) { COMPLEX_CONJUGATE(result); }
       alm[kg*(WGD + PADA) + mg] = result;
     }
@@ -197,7 +199,7 @@ INLINE_FUNC void GlobalToLocalScalarA(const __global real* restrict agms, LOCAL_
 }
 
 // Same as above, but now for the B input matrix
-INLINE_FUNC void GlobalToLocalScalarB(const __global real* restrict bgms, LOCAL_PTR real* blm,
+INLINE_FUNC void GlobalToLocalScalarB(const __global realstore* restrict bgms, LOCAL_PTR real* blm,
                                       const int b_ld, const int b_offset, const int kwg,
                                       const int b_transpose, const int b_conjugate) {
   #if MDIMCD == NDIMBD
@@ -220,7 +222,7 @@ INLINE_FUNC void GlobalToLocalScalarB(const __global real* restrict bgms, LOCAL_
       int idk = (b_transpose) ? kg + GetGroupID1()*WGD : kg + kwg;
 
       // Loads the data from global memory into the local memory
-      real result = bgms[idk*b_ld + idn + b_offset];
+      real result = LOADGLOBAL(bgms,idk*b_ld + idn + b_offset);
       if (b_conjugate) { COMPLEX_CONJUGATE(result); }
       blm[kg*(WGD + PADB) + ng] = result;
     }
@@ -232,7 +234,7 @@ INLINE_FUNC void GlobalToLocalScalarB(const __global real* restrict bgms, LOCAL_
 // Caches global off-chip memory into local (shared) memory on-chip. This function is specific for
 // caching the A input matrix. In contrast to the functions above, this function performs bounds
 // checks and doesn't use the vector data-types.
-INLINE_FUNC void GlobalToLocalCheckedA(const __global real* restrict agms, LOCAL_PTR real* alm,
+INLINE_FUNC void GlobalToLocalCheckedA(const __global realstore* restrict agms, LOCAL_PTR real* alm,
                                        const int a_ld, const int a_offset, const int kwg,
                                        const int a_transpose, const int a_conjugate,
                                        const int kSizeM, const int kSizeK) {
@@ -259,7 +261,7 @@ INLINE_FUNC void GlobalToLocalCheckedA(const __global real* restrict agms, LOCAL
       int condition = (a_transpose) ? (idm < kSizeK) && (idk < kSizeM) :
                                       (idm < kSizeM) && (idk < kSizeK);
       if (condition) {
-        real result = agms[idk*a_ld + idm + a_offset];
+        real result = LOADGLOBAL(agms,idk*a_ld + idm + a_offset);
         if (a_conjugate) { COMPLEX_CONJUGATE(result); }
         alm[kg*(WGD + PADA) + mg] = result;
       }
@@ -271,7 +273,7 @@ INLINE_FUNC void GlobalToLocalCheckedA(const __global real* restrict agms, LOCAL
 }
 
 // Same as above, but now for the B input matrix
-INLINE_FUNC void GlobalToLocalCheckedB(const __global real* restrict bgms, LOCAL_PTR real* blm,
+INLINE_FUNC void GlobalToLocalCheckedB(const __global realstore* restrict bgms, LOCAL_PTR real* blm,
                                        const int b_ld, const int b_offset, const int kwg,
                                        const int b_transpose, const int b_conjugate,
                                        const int kSizeN, const int kSizeK) {
@@ -298,7 +300,7 @@ INLINE_FUNC void GlobalToLocalCheckedB(const __global real* restrict bgms, LOCAL
       int condition = (b_transpose) ? (idn < kSizeK) && (idk < kSizeN) :
                                       (idn < kSizeN) && (idk < kSizeK);
       if (condition) {
-        real result = bgms[idk*b_ld + idn + b_offset];
+        real result = LOADGLOBAL(bgms,idk*b_ld + idn + b_offset);
         if (b_conjugate) { COMPLEX_CONJUGATE(result); }
         blm[kg*(WGD + PADB) + ng] = result;
       }

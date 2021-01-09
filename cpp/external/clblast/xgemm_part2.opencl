@@ -9,6 +9,7 @@
 //
 // MODIFIED by David Wu ("lightvector") to remove some unnecessary parts of the interfaces
 // for this project's use, such as alpha and beta scaling.
+// MODIFIED from the original by David Wu ("lightvector") to add FP16 storage with FP32 compute as an option.
 //
 // This is part 2 of 4 of the GEMM kernel. See part 1 for more information.
 //
@@ -68,7 +69,7 @@ INLINE_FUNC realM MultiplyAddVector(realM cvec, const realM avec, const real bva
 
 // Writes the results in Cpm to the global array in Cgm.
 // Cgm := A*B = Cpm
-INLINE_FUNC void StoreResults(__global realM* cgm, realM c_value, const int _mi, const int _ni,
+INLINE_FUNC void StoreResults(__global realstoreM* cgm, realM c_value, const int _mi, const int _ni,
                               const int kSizeM) {
   #if STRM == 0
     int mg = _mi + get_local_id(0)*(MWI/VWM);
@@ -86,7 +87,7 @@ INLINE_FUNC void StoreResults(__global realM* cgm, realM c_value, const int _mi,
 
   realM xval = c_value;
 
-  cgm[index] = xval;
+  STOREGLOBALM(cgm,index,xval);
 }
 
 )"

@@ -7,6 +7,8 @@
 // Author(s):
 //   Cedric Nugteren <www.cedricnugteren.nl>
 //
+// MODIFIED from the original by David Wu ("lightvector") to add FP16 storage with FP32 compute as an option.
+//
 // This is part 3 of 3 of the GEMM kernel. See part 1 for more information.
 //
 // =================================================================================================
@@ -21,9 +23,9 @@ R"(
 INLINE_FUNC void XgemmDirect(const int kSizeM, const int kSizeN, const int kSizeK,
                              const real_arg arg_alpha,
                              const real_arg arg_beta,
-                             const __global realMD* restrict agm, const int a_offset, const int a_ld,
-                             const __global realND* restrict bgm, const int b_offset, const int b_ld,
-                             __global real* cgm, const int c_offset, const int c_ld,
+                             const __global realstoreMD* restrict agm, const int a_offset, const int a_ld,
+                             const __global realstoreND* restrict bgm, const int b_offset, const int b_ld,
+                             __global realstore* cgm, const int c_offset, const int c_ld,
                              LOCAL_PTR real* alm, LOCAL_PTR real* blm,
                              const int a_transpose, const int b_transpose, const int c_transpose,
                              const int a_conjugate, const int b_conjugate) {
@@ -31,8 +33,8 @@ INLINE_FUNC void XgemmDirect(const int kSizeM, const int kSizeN, const int kSize
   const real beta = GetRealArg(arg_beta);
 
   // Extra pointers to scalar versions of global memory
-  const __global real* restrict agms = (const __global real* restrict) agm;
-  const __global real* restrict bgms = (const __global real* restrict) bgm;
+  const __global realstore* restrict agms = (const __global realstore* restrict) agm;
+  const __global realstore* restrict bgms = (const __global realstore* restrict) bgm;
 
   // Allocates workitem-private memory (registers)
   #pragma promote_to_registers
@@ -213,68 +215,6 @@ INLINE_FUNC void XgemmDirect(const int kSizeM, const int kSizeN, const int kSize
       }
     }
   }
-}
-
-// =================================================================================================
-
-// Direct version of the GEMM kernel with [A, B] = [non-transposed, non-transposed]
-__kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
-void XgemmDirectNN(const int kSizeM, const int kSizeN, const int kSizeK,
-                            const real_arg arg_alpha, const real_arg arg_beta,
-                            const __global realMD* restrict agm, const int a_offset, const int a_ld,
-                            const __global realND* restrict bgm, const int b_offset, const int b_ld,
-                            __global real* cgm, const int c_offset, const int c_ld,
-                            const int c_transpose, const int a_conjugate, const int b_conjugate) {
-  __local real alm[WGD * (WGD + PADA)];
-  __local real blm[WGD * (WGD + PADB)];
-  XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
-              agm, a_offset, a_ld, bgm, b_offset, b_ld, cgm, c_offset, c_ld,
-              alm, blm, 0, 0, c_transpose, a_conjugate, b_conjugate);
-}
-
-// Direct version of the GEMM kernel with [A, B] = [non-transposed, transposed]
-__kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
-void XgemmDirectNT(const int kSizeM, const int kSizeN, const int kSizeK,
-                            const real_arg arg_alpha, const real_arg arg_beta,
-                            const __global realMD* restrict agm, const int a_offset, const int a_ld,
-                            const __global realND* restrict bgm, const int b_offset, const int b_ld,
-                            __global real* cgm, const int c_offset, const int c_ld,
-                            const int c_transpose, const int a_conjugate, const int b_conjugate) {
-  __local real alm[WGD * (WGD + PADA)];
-  __local real blm[WGD * (WGD + PADB)];
-  XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
-              agm, a_offset, a_ld, bgm, b_offset, b_ld, cgm, c_offset, c_ld,
-              alm, blm, 0, 1, c_transpose, a_conjugate, b_conjugate);
-}
-
-// Direct version of the GEMM kernel with [A, B] = [transposed, non-transposed]
-__kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
-void XgemmDirectTN(const int kSizeM, const int kSizeN, const int kSizeK,
-                            const real_arg arg_alpha, const real_arg arg_beta,
-                            const __global realMD* restrict agm, const int a_offset, const int a_ld,
-                            const __global realND* restrict bgm, const int b_offset, const int b_ld,
-                            __global real* cgm, const int c_offset, const int c_ld,
-                            const int c_transpose, const int a_conjugate, const int b_conjugate) {
-  __local real alm[WGD * (WGD + PADA)];
-  __local real blm[WGD * (WGD + PADB)];
-  XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
-              agm, a_offset, a_ld, bgm, b_offset, b_ld, cgm, c_offset, c_ld,
-              alm, blm, 1, 0, c_transpose, a_conjugate, b_conjugate);
-}
-
-// Direct version of the GEMM kernel with [A, B] = [transposed, transposed]
-__kernel __attribute__((reqd_work_group_size(MDIMCD, NDIMCD, 1)))
-void XgemmDirectTT(const int kSizeM, const int kSizeN, const int kSizeK,
-                            const real_arg arg_alpha, const real_arg arg_beta,
-                            const __global realMD* restrict agm, const int a_offset, const int a_ld,
-                            const __global realND* restrict bgm, const int b_offset, const int b_ld,
-                            __global real* cgm, const int c_offset, const int c_ld,
-                            const int c_transpose, const int a_conjugate, const int b_conjugate) {
-  __local real alm[WGD * (WGD + PADA)];
-  __local real blm[WGD * (WGD + PADB)];
-  XgemmDirect(kSizeM, kSizeN, kSizeK, arg_alpha, arg_beta,
-              agm, a_offset, a_ld, bgm, b_offset, b_ld, cgm, c_offset, c_ld,
-              alm, blm, 1, 1, c_transpose, a_conjugate, b_conjugate);
 }
 
 // =================================================================================================

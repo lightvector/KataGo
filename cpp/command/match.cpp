@@ -125,6 +125,7 @@ int MainCmds::match(int argc, const char* const* argv) {
 
   //Work out an upper bound on how many concurrent nneval requests we could end up making.
   int maxConcurrentEvals;
+  int expectedConcurrentEvals;
   {
     //Work out the max threads any one bot uses
     int maxBotThreads = 0;
@@ -132,9 +133,9 @@ int MainCmds::match(int argc, const char* const* argv) {
       if(paramss[i].numThreads > maxBotThreads)
         maxBotThreads = paramss[i].numThreads;
     //Mutiply by the number of concurrent games we could have
-    maxConcurrentEvals = maxBotThreads * numGameThreads;
+    expectedConcurrentEvals = maxBotThreads * numGameThreads;
     //Multiply by 2 and add some buffer, just so we have plenty of headroom.
-    maxConcurrentEvals = maxConcurrentEvals * 2 + 16;
+    maxConcurrentEvals = expectedConcurrentEvals * 2 + 16;
   }
 
   //Initialize object for randomizing game settings and running games
@@ -161,8 +162,9 @@ int MainCmds::match(int argc, const char* const* argv) {
   Setup::initializeSession(cfg);
   const vector<string>& nnModelNames = nnModelFiles;
   int defaultMaxBatchSize = -1;
+  const vector<string> expectedSha256s;
   vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
-    nnModelNames,nnModelFiles,cfg,logger,seedRand,maxConcurrentEvals,
+    nnModelNames,nnModelFiles,expectedSha256s,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
     maxBoardSizeUsed,maxBoardSizeUsed,defaultMaxBatchSize,
     Setup::SETUP_FOR_MATCH
   );
@@ -217,15 +219,15 @@ int MainCmds::match(int argc, const char* const* argv) {
       if(matchPairer->getMatchup(botSpecB, botSpecW, logger)) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
-          seed, botSpecB, botSpecW, NULL, logger,
-          stopConditions, NULL
+          seed, botSpecB, botSpecW, NULL, NULL, logger,
+          stopConditions, nullptr, nullptr, false
         );
       }
 
       bool shouldContinue = gameData != NULL;
       if(gameData != NULL) {
         if(sgfOut != NULL) {
-          WriteSgf::writeSgf(*sgfOut,gameData->bName,gameData->wName,gameData->endHist,gameData,false);
+          WriteSgf::writeSgf(*sgfOut,gameData->bName,gameData->wName,gameData->endHist,gameData,false,true);
           (*sgfOut) << endl;
         }
         delete gameData;
@@ -242,11 +244,15 @@ int MainCmds::match(int argc, const char* const* argv) {
     }
     logger.write("Match loop thread terminating");
   };
+  auto runMatchLoopProtected = [&logger,&runMatchLoop](uint64_t threadHash) {
+    Logger::logThreadUncaught("match loop", &logger, [&](){ runMatchLoop(threadHash); });
+  };
+
 
   Rand hashRand;
   vector<std::thread> threads;
   for(int i = 0; i<numGameThreads; i++) {
-    threads.push_back(std::thread(runMatchLoop, hashRand.nextUInt64()));
+    threads.push_back(std::thread(runMatchLoopProtected, hashRand.nextUInt64()));
   }
   for(int i = 0; i<threads.size(); i++)
     threads[i].join();
