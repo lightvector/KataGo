@@ -477,12 +477,13 @@ void NNEvaluator::serve(
     }
 
     for(int row = 0; row<numRows; row++) {
-      if(buf.resultBufs[row]->symmetry == NNInputs::SYMMETRY_NOTSPECIFIED) {
-        if(doRandomize)
+      if(doRandomize) {
+        if(buf.resultBufs[row]->symmetry == NNInputs::SYMMETRY_NOTSPECIFIED) {
           buf.resultBufs[row]->symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
-        else
-          buf.resultBufs[row]->symmetry = defaultSymmetry;
+        }
       }
+      else
+        buf.resultBufs[row]->symmetry = defaultSymmetry;
     }
 
     NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, buf.resultBufs, outputBuf);

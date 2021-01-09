@@ -1195,7 +1195,7 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
 
     {
       cout << "===================================================================" << endl;
-      cout << "Test real hintloc T16" << endl;
+      cout << "Test real hintloc T16 (with symmetry sampling)" << endl;
       cout << "===================================================================" << endl;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "hintloc");
       bot->setRootHintLoc(Location::ofString("T16",board));
@@ -1204,7 +1204,7 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
     }
     {
       cout << "===================================================================" << endl;
-      cout << "Test bad hintloc O18" << endl;
+      cout << "Test bad hintloc O18 (with symmetry sampling)" << endl;
       cout << "===================================================================" << endl;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "hintloc");
       bot->setRootHintLoc(Location::ofString("O18",board));
@@ -1690,26 +1690,24 @@ xxxx.xxoxxx
 
 static void runMoreV8TestsRandomizedNNEvals(NNEvaluator* nnEval, Logger& logger)
 {
-  return;
-  //TODO
   {
     cout << "TEST sampled symmetries ==========================================================================" << endl;
     Board board = Board::parseBoard(15,15,R"%%(
-...................
-...................
-...x.........x.....
-................o..
-...o...............
-................x..
-...................
-...x............o..
-...................
-....o..............
-...................
-...o............x..
-.....x..o..x..o....
-...................
-...................
+...............
+...............
+...x.....x.....
+............o..
+...o...........
+............x..
+...............
+...x........o..
+...............
+....o..........
+...............
+...o........x..
+.....x....o....
+...............
+...............
 )%%");
 
     Player nextPla = P_BLACK;
@@ -1721,9 +1719,10 @@ static void runMoreV8TestsRandomizedNNEvals(NNEvaluator* nnEval, Logger& logger)
     params.maxVisits = 1;
 
     TestSearchOptions opts;
+    opts.printRootPolicy = true;
     {
       cout << "===================================================================" << endl;
-      cout << "Repeatedly run bot with 8 root symmetries sampled, should be deterministic" << endl;
+      cout << "Repeatedly run bot with 8 root symmetries sampled, should be deterministic (except for scoreUtility due to dynamic score centering)" << endl;
       cout << "===================================================================" << endl;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "sample");
       runBotOnPosition(bot, board, nextPla, hist, opts);
@@ -1731,7 +1730,7 @@ static void runMoreV8TestsRandomizedNNEvals(NNEvaluator* nnEval, Logger& logger)
     }
     {
       cout << "===================================================================" << endl;
-      cout << "Repeatedly run bot with 8 root symmetries sampled, should be deterministic" << endl;
+      cout << "Repeatedly run bot with 8 root symmetries sampled, should be deterministic (except for scoreUtility due to dynamic score centering)" << endl;
       cout << "===================================================================" << endl;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "sample2");
       runBotOnPosition(bot, board, nextPla, hist, opts);
@@ -1739,17 +1738,9 @@ static void runMoreV8TestsRandomizedNNEvals(NNEvaluator* nnEval, Logger& logger)
     }
     {
       cout << "===================================================================" << endl;
-      cout << "Repeatedly run bot with 8 root symmetries sampled, should be deterministic" << endl;
+      cout << "Repeatedly run bot with 8 root symmetries sampled, should be deterministic (except for scoreUtility due to dynamic score centering)" << endl;
       cout << "===================================================================" << endl;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "sample3");
-      runBotOnPosition(bot, board, nextPla, hist, opts);
-      delete bot;
-    }
-    {
-      cout << "===================================================================" << endl;
-      cout << "Repeatedly run bot with 8 root symmetries sampled, should be deterministic" << endl;
-      cout << "===================================================================" << endl;
-      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "sample4");
       runBotOnPosition(bot, board, nextPla, hist, opts);
       delete bot;
     }
