@@ -805,6 +805,11 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
 
   {
     cout << "TEST SYMMETRY AVGING ==========================================================================" << endl;
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
+    nnEval19Exact->killServerThreads();
+    nnEval19Exact->spawnServerThreads();
 
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]RU[Japanese]SZ[19]KM[6.5];B[dd];W[qd];B[od];W[pq];B[dq];W[do];B[eo];W[oe])";
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
@@ -832,6 +837,12 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
     delete botA;
     delete botB;
     delete sgf;
+
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
+    nnEval19Exact->killServerThreads();
+    nnEval19Exact->spawnServerThreads();
   }
 
   {
@@ -1141,6 +1152,10 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
 
 
   {
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
+
     Board board = Board::parseBoard(19,19,R"%%(
 ...................
 ............o.oxx..
@@ -1196,6 +1211,10 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
       runBotOnPosition(bot, board, nextPla, hist, opts);
       delete bot;
     }
+
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
   }
 
 }
@@ -1421,6 +1440,8 @@ oxxxooxoooo
 
 
   {
+    cout << "TEST Ending bonus points ==========================================================================" << endl;
+
     Board board = Board::parseBoard(11,11,R"%%(
 .x..ox.oxo.
 xxxooxxox.o
@@ -1465,6 +1486,93 @@ xxxx.xxoxxx
   }
 
   {
+    cout << "TEST futileVisitsThreshold ==========================================================================" << endl;
+
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.ox..xo..
+.........
+..o...x..
+.........
+..ox..ox.
+.........
+.........
+)%%");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 400;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.15;
+    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.4;
+    AsyncBot* botC = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+
+    TestSearchOptions opts;
+    cout << "BASE" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.15" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.4" << endl;
+    runBotOnPosition(botC,board,nextPla,hist,opts);
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete botC;
+  }
+
+  {
+    cout << "TEST futileVisitsThreshold with playouts ==========================================================================" << endl;
+
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.ox..xo..
+.........
+..o...x..
+.........
+..ox..ox.
+.........
+.........
+)%%");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 10000;
+    params.maxPlayouts = 200;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.15;
+    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.4;
+    AsyncBot* botC = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+
+    TestSearchOptions opts;
+    cout << "BASE" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.15" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.4" << endl;
+    runBotOnPosition(botC,board,nextPla,hist,opts);
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete botC;
+  }
+
+  {
+    cout << "TEST Hintlocs ==========================================================================" << endl;
+
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
+
     Board board = Board::parseBoard(19,19,R"%%(
 ...................
 ...................
@@ -1572,87 +1680,79 @@ xxxx.xxoxxx
       runBotOnPosition(bot, board, nextPla, hist, optsContinue);
       delete bot;
     }
+
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
   }
 
+}
+
+static void runMoreV8TestsRandomizedNNEvals(NNEvaluator* nnEval, Logger& logger)
+{
+  return;
+  //TODO
   {
-    cout << "TEST futileVisitsThreshold ==========================================================================" << endl;
+    cout << "TEST sampled symmetries ==========================================================================" << endl;
+    Board board = Board::parseBoard(15,15,R"%%(
+...................
+...................
+...x.........x.....
+................o..
+...o...............
+................x..
+...................
+...x............o..
+...................
+....o..............
+...................
+...o............x..
+.....x..o..x..o....
+...................
+...................
+)%%");
 
     Player nextPla = P_BLACK;
-    Rules rules = Rules::getTrompTaylorish();
-    Board board = Board::parseBoard(9,9,R"%%(
-.........
-.........
-.ox..xo..
-.........
-..o...x..
-.........
-..ox..ox.
-.........
-.........
-)%%");
+    Rules rules = Rules::parseRules("AGA");
     BoardHistory hist(board,nextPla,rules,0);
 
     SearchParams params = SearchParams::forTestsV1();
-    params.maxVisits = 400;
-    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
-    params.futileVisitsThreshold = 0.15;
-    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
-    params.futileVisitsThreshold = 0.4;
-    AsyncBot* botC = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.rootNumSymmetriesToSample = 8;
+    params.maxVisits = 1;
 
     TestSearchOptions opts;
-    cout << "BASE" << endl;
-    runBotOnPosition(botA,board,nextPla,hist,opts);
-    cout << "futileVisitsThreshold 0.15" << endl;
-    runBotOnPosition(botB,board,nextPla,hist,opts);
-    cout << "futileVisitsThreshold 0.4" << endl;
-    runBotOnPosition(botC,board,nextPla,hist,opts);
-    cout << endl << endl;
-
-    delete botA;
-    delete botB;
-    delete botC;
-  }
-
-  {
-    cout << "TEST futileVisitsThreshold with playouts ==========================================================================" << endl;
-
-    Player nextPla = P_BLACK;
-    Rules rules = Rules::getTrompTaylorish();
-    Board board = Board::parseBoard(9,9,R"%%(
-.........
-.........
-.ox..xo..
-.........
-..o...x..
-.........
-..ox..ox.
-.........
-.........
-)%%");
-    BoardHistory hist(board,nextPla,rules,0);
-
-    SearchParams params = SearchParams::forTestsV1();
-    params.maxVisits = 10000;
-    params.maxPlayouts = 200;
-    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
-    params.futileVisitsThreshold = 0.15;
-    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
-    params.futileVisitsThreshold = 0.4;
-    AsyncBot* botC = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
-
-    TestSearchOptions opts;
-    cout << "BASE" << endl;
-    runBotOnPosition(botA,board,nextPla,hist,opts);
-    cout << "futileVisitsThreshold 0.15" << endl;
-    runBotOnPosition(botB,board,nextPla,hist,opts);
-    cout << "futileVisitsThreshold 0.4" << endl;
-    runBotOnPosition(botC,board,nextPla,hist,opts);
-    cout << endl << endl;
-
-    delete botA;
-    delete botB;
-    delete botC;
+    {
+      cout << "===================================================================" << endl;
+      cout << "Repeatedly run bot with 8 root symmetries sampled, should be deterministic" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "sample");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Repeatedly run bot with 8 root symmetries sampled, should be deterministic" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "sample2");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Repeatedly run bot with 8 root symmetries sampled, should be deterministic" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "sample3");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Repeatedly run bot with 8 root symmetries sampled, should be deterministic" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "sample4");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
   }
 
 }
@@ -1713,6 +1813,11 @@ void Tests::runSearchTestsV8(const string& modelFile, bool inputsNHWC, bool cuda
   nnEval = startNNEval(
     modelFile,logger,"v8seed",19,19,5,inputsNHWC,cudaNHWC,useFP16,false,false);
   runMoreV8Tests(nnEval,logger);
+  delete nnEval;
+
+  nnEval = startNNEval(
+    modelFile,logger,"v8seed",19,19,-1,inputsNHWC,cudaNHWC,useFP16,false,false);
+  runMoreV8TestsRandomizedNNEvals(nnEval,logger);
 
   delete nnEval;
   NeuralNet::globalCleanup();
