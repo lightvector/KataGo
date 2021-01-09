@@ -227,6 +227,9 @@ Connection::Connection(
    clientInstanceId(),
    logger(lg),
    rand(),
+   downloadStateMutex(),
+   downloadStateByUrl(),
+   downloadThrottle(Connection::MAX_SIMUL_DOWNLOADS),
    mutex()
 {
   Url url;
@@ -760,6 +763,19 @@ Client::DownloadState::DownloadState()
 Client::DownloadState::~DownloadState()
 {}
 
+bool Connection::isModelPresent(
+  const Client::ModelInfo& modelInfo, const string& modelDir
+) const {
+  if(modelInfo.isRandom)
+    return true;
+
+  const string path = getModelPath(modelInfo,modelDir);
+  //Model already exists
+  if(gfs::exists(gfs::path(path)))
+    return true;
+  return false;
+}
+
 bool Connection::downloadModelIfNotPresent(
   const Client::ModelInfo& modelInfo, const string& modelDir,
   std::atomic<bool>& shouldStop
@@ -802,6 +818,7 @@ bool Connection::downloadModelIfNotPresent(
     lock.unlock();
 
     //Make absolutely sure we don't deadlock - mark that we're done after we're done.
+    //And make sure mutexes, unlocks, etc. happen
     std::function<void()> cleanup = [&]() {
       lock.lock();
       downloadState->downloadingInProgress = false;
@@ -811,6 +828,8 @@ bool Connection::downloadModelIfNotPresent(
       lock.unlock();
     };
     Global::CustomScopeGuard<std::function<void()>> guard(std::move(cleanup));
+
+    ThrottleLockGuard throttleLock(downloadThrottle);
     actuallyDownloadModel(modelInfo, modelDir, shouldStop);
   }
 }

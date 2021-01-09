@@ -4,6 +4,7 @@
 #include "../core/timer.h"
 #include "../core/makedir.h"
 #include "../core/os.h"
+#include "../core/prioritymutex.h"
 #include "../dataio/loadmodel.h"
 #include "../dataio/homedata.h"
 #include "../external/nlohmann_json/json.hpp"
@@ -560,6 +561,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
   Setup::initializeSession(*userCfg);
 
+  //-----------------------------------------------------------------------------------------------------------------
+
   //Shared across all game threads
   ThreadSafeQueue<GameTask> gameTaskQueue(1);
   ForkData* forkData = new ForkData();
@@ -602,6 +605,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   auto runGameLoopProtected = [&logger,&runGameLoop](int gameLoopThreadIdx) {
     Logger::logThreadUncaught("game loop", &logger, [&](){ runGameLoop(gameLoopThreadIdx); });
   };
+
+  //-----------------------------------------------------------------------------------------------------------------
 
   bool userCfgWarnedYet = false;
 
@@ -672,6 +677,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     manager->loadModelNoDataWritingLoop(nnEval, tdataWriter, vdataWriter, sgfOut);
   };
 
+  //-----------------------------------------------------------------------------------------------------------------
+
   //For distributed selfplay, we have a single thread primarily in charge of the manager, so we turn this off
   //to ensure there is no asynchronous removal of models.
   bool autoCleanupAllButLatestIfUnused = false;
@@ -685,11 +692,13 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     gameThreads.push_back(std::thread(runGameLoopProtected,i));
   }
 
+  //-----------------------------------------------------------------------------------------------------------------
+
   ClockTimer timer;
   double lastPerformanceTime = timer.getSeconds();
   int64_t lastPerformanceNumMoves = numMovesPlayed.load(std::memory_order_relaxed);
   int64_t lastPerformanceNumNNEvals = (int64_t)(selfplayManager->getTotalNumRowsProcessed() + ratingManager->getTotalNumRowsProcessed());
-  auto maybePrintPerformance = [&]() {
+  auto maybePrintPerformanceUnsynchronized = [&]() {
     double now = timer.getSeconds();
     //At most every minute, report performance
     if(now >= lastPerformanceTime + reportPerformanceEvery) {
@@ -712,6 +721,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       lastPerformanceNumNNEvals = newNumNNEvals;
     }
   };
+
+  //-----------------------------------------------------------------------------------------------------------------
 
   //Loop at a random wide interval downloading the latest net if we're going to need it.
   //Randomize a bit so that the server sees download requests as being well-spaced out.
@@ -741,15 +752,34 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   };
   std::thread preDownloadThread(preDownloadLoopProtected);
 
+  //-----------------------------------------------------------------------------------------------------------------
+
+  PriorityMutex taskLoopMutex;
+  double lastTaskQueryTime = timer.getSeconds();
+  bool anyTaskSuccessfullyParsedYet = false;
+  constexpr double taskLoopSleepTime = 1.0;
+
+  //Multiple of these may be running!
+  //Loop acquiring tasks and feeding them to game threads
   auto taskLoop = [&]() {
-    //Loop acquiring tasks and feeding them to game threads
     Rand taskRand;
-    bool anyTaskSuccessfullyParsedYet = false;
     while(true) {
-      maybePrintPerformance();
-      std::this_thread::sleep_for(std::chrono::duration<double>(1.0));
       if(shouldStop.load())
         break;
+      std::this_thread::sleep_for(std::chrono::duration<double>(taskRand.nextDouble(taskLoopSleepTime,taskLoopSleepTime*2)));
+      PriorityLock taskLock(taskLoopMutex);
+      taskLock.lockLowPriority();
+
+      maybePrintPerformanceUnsynchronized();
+      if(shouldStop.load())
+        break;
+
+      //Make sure that among multiple task loops, that we can't loop or query too fast.
+      {
+        double now = timer.getSeconds();
+        if(now < lastTaskQueryTime + taskLoopSleepTime)
+          continue;
+      }
 
 #ifdef SIGPIPE
       while(sigPipeReceivedCount.load() > 0) {
@@ -757,6 +787,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
         logger.write("Note: SIGPIPE received at some point, it's possible this is from bad internet rather than a broke shell pipe, so ignoring rather than killing the program.");
       }
 #endif
+
       //Make sure we register if rating games are done so that we can know if we can accept more.
       ratingManager->cleanupUnusedModelsOlderThan(0);
 
@@ -773,6 +804,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       bool suc = connection->getNextTask(task,baseDir,retryOnFailure,allowSelfplayTask,allowRatingTask,taskRepFactor,shouldStop);
       if(!suc)
         continue;
+      lastTaskQueryTime = timer.getSeconds();
 
       if(task.runName != runParams.runName) {
         throw StringError(
@@ -792,21 +824,45 @@ int MainCmds::contribute(int argc, const char* const* argv) {
         MakeDir::make(sgfOutputDir);
       }
 
+      //Attempt model file download!
       {
-        bool suc1;
-        bool suc2;
-        try {
-          suc1 = connection->downloadModelIfNotPresent(task.modelBlack,modelsDir,shouldStop);
-          suc2 = connection->downloadModelIfNotPresent(task.modelWhite,modelsDir,shouldStop);
-        }
-        catch(StringError& e) {
-          logger.write(string("Giving up on task due to downloading model error:\n") + e.what());
-          suc1 = false;
-          suc2 = false;
+        bool givingUpOnTask = false;
+        //This loop is so that if somehow a model gets removed in between our download and re-picking up the lock,
+        //we'll download it again, so long as the download itself didn't seem to have any errors.
+        while(
+          !connection->isModelPresent(task.modelBlack,modelsDir) ||
+          !connection->isModelPresent(task.modelWhite,modelsDir)
+        ) {
+          //Drop the lock while we download, so that other task loops can proceed
+          taskLock.unlock();
+          bool suc1;
+          bool suc2;
+          try {
+            suc1 = connection->downloadModelIfNotPresent(task.modelBlack,modelsDir,shouldStop);
+            suc2 = connection->downloadModelIfNotPresent(task.modelWhite,modelsDir,shouldStop);
+          }
+          catch(StringError& e) {
+            logger.write(string("Giving up on task due to downloading model error:\n") + e.what());
+            suc1 = false;
+            suc2 = false;
+          }
+          //Pick up the lock again after download
+          taskLock.lockHighPriority();
+
+          if(shouldStop.load())
+            break;
+          //If the download itself had errors, we give up
+          if(!suc1 || !suc2) {
+            givingUpOnTask = true;
+            break;
+          }
+
+          //No apparent errors, hit the while loop condition again to make sure we have the models
+          continue;
         }
         if(shouldStop.load())
           break;
-        if(!suc1 || !suc2)
+        if(givingUpOnTask)
           continue;
       }
 
@@ -891,11 +947,18 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       anyTaskSuccessfullyParsedYet = true;
     }
   };
+  auto taskLoopProtected = [&logger,&taskLoop]() {
+    Logger::logThreadUncaught("task loop", &logger, taskLoop);
+  };
 
-  //If task loop raises an exception, we need to log here BEFORE destructing main context, because in some cases
-  //gameThreads[i].join() will abort without useful exception due to thread not being joinable,
-  //hiding the real exception.
-  Logger::logThreadUncaught("task loop", &logger, taskLoop);
+  int numTaskLoopThreads = 4;
+  vector<std::thread> taskLoopThreads;
+  for(int i = 0; i<numTaskLoopThreads; i++) {
+    taskLoopThreads.push_back(std::thread(taskLoopProtected));
+  }
+  //Wait for all task loop threads to stop
+  for(int i = 0; i<taskLoopThreads.size(); i++)
+    taskLoopThreads[i].join();
 
   logger.write("Beginning shutdown");
 
