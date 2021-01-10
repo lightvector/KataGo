@@ -2293,8 +2293,8 @@ struct Model {
 struct LoadedModel {
   ModelDesc modelDesc;
 
-  LoadedModel(const string& fileName) {
-    ModelDesc::loadFromFileMaybeGZipped(fileName,modelDesc);
+  LoadedModel(const string& fileName, const string& expectedSha256) {
+    ModelDesc::loadFromFileMaybeGZipped(fileName,modelDesc,expectedSha256);
   }
 
   LoadedModel() = delete;
@@ -2302,8 +2302,8 @@ struct LoadedModel {
   LoadedModel& operator=(const LoadedModel&) = delete;
 };
 
-LoadedModel* NeuralNet::loadModelFile(const string& file) {
-  LoadedModel* loadedModel = new LoadedModel(file);
+LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expectedSha256) {
+  LoadedModel* loadedModel = new LoadedModel(file,expectedSha256);
   return loadedModel;
 }
 

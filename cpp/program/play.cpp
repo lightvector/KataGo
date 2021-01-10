@@ -883,7 +883,7 @@ static void extractPolicyTarget(
 
   assert(node != NULL);
   bool allowDirectPolicyMoves = false;
-  bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,scaleMaxToAtLeast,allowDirectPolicyMoves);
+  bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,NULL,scaleMaxToAtLeast,allowDirectPolicyMoves);
   assert(success);
   (void)success; //Avoid warning when asserts are disabled
 
@@ -2316,7 +2316,8 @@ FinishedGameData* GameRunner::runGame(
   Logger& logger,
   vector<std::atomic<bool>*>& stopConditions,
   std::function<NNEvaluator*()> checkForNewNNEval,
-  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
+  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove,
+  bool alwaysIncludeOwnership
 ) {
   MatchPairer::BotSpec botSpecB = bSpecB;
   MatchPairer::BotSpec botSpecW = bSpecW;
@@ -2384,6 +2385,10 @@ FinishedGameData* GameRunner::runGame(
   else {
     botB = new Search(botSpecB.baseParams, botSpecB.nnEval, seed + "@B");
     botW = new Search(botSpecW.baseParams, botSpecW.nnEval, seed + "@W");
+  }
+  if(alwaysIncludeOwnership) {
+    botB->setAlwaysIncludeOwnerMap(true);
+    botW->setAlwaysIncludeOwnerMap(true);
   }
 
   FinishedGameData* finishedGameData = Play::runGame(

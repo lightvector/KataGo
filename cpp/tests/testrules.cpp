@@ -29,6 +29,8 @@ static void makeMoveAssertLegal(BoardHistory& hist, Board& board, Loc loc, Playe
 
   if(!hist.isLegal(board, loc, pla))
     throw StringError("Illegal move on line " + Global::intToString(line));
+  if(!hist.isLegalTolerant(board, loc, pla))
+    throw StringError("Tolerant illegal move on line " + Global::intToString(line));
   hist.makeBoardMoveAssumeLegal(board, loc, pla, table, preventEncore);
   checkKoHashConsistency(hist,board,getOpp(pla));
 
@@ -2837,13 +2839,13 @@ isResignation: 0
 4 .X..OX. NPO PS0 E1  0000000 0000000
 3 .X.OOX. NPX PS0 E1  0000000 0000000
 3 XX.OOX. NPO PS0 E1  0000000 0000000
-2 XX.OO.O NPX PS0 E1  0000001 0000000
+3 XX.OO.O NPX PS0 E1  0000001 0000000
 3 XX.OO.O NPO PS0 E1  0000000 0000000
 4 ..OOO.O NPX PS0 E1  0000000 0000000
 2 .XOOO.O NPO PS0 E1  0000000 0000000
-3 O.OOO.O NPX PS0 E1  1000000 0000000
-3 O.OOO.O NPO PS0 E1  0000000 0000000
-2 OOOOO.O NPX PS0 E1  0000000 0000000
+4 O.OOO.O NPX PS0 E1  1000000 0000000
+3 O.OOO.O NPO PS1 E1  1000000 0000000
+2 OOOOO.O NPX PS0 E1  1000000 0000000
 6 .....X. NPO PS0 E1  0000000 0000000
 5 ....OX. NPX PS0 E1  0000000 0000000
 5 X...OX. NPO PS0 E1  0000000 0000000
@@ -2862,62 +2864,106 @@ isResignation: 0
 3 .O..OX. NPX PS0 E1  0000000 0000000
 3 .OX.OX. NPO PS0 E1  0000000 0000000
 3 .OX.OX. NPX PS1 E1  0000000 0000000
-3 X.X.OX. NPO PS0 E1  1000000 0000000
-4 X.X.O.O NPX PS0 E1  1000001 0000000
-2 X.XXO.O NPO PS0 E1  1000001 0000000
-4 .O..O.O NPX PS0 E1  0000001 0000000
-3 .O.XO.O NPO PS0 E1  0000001 0000000
-2 .OO.O.O NPX PS0 E1  0000001 0000000
-4 .OO.O.O NPO PS0 E1  0000000 0000000
-2 .OOOO.O NPX PS0 E1  0000000 0000000
-2 .OOOOX. NPO PS0 E1  0000010 0000000
+4 X.X.OX. NPO PS0 E1  1000000 0000000
+3 X.X.OX. NPX PS0 E1  0000000 0000000
+3 XXX.OX. NPO PS0 E1  0000000 0000000
+4 ...OOX. NPX PS0 E1  0000000 0000000
+4 X..OOX. NPO PS0 E1  0000000 0000000
+2 X.OOOX. NPX PS0 E1  0000000 0000000
+4 XX...X. NPO PS0 E1  0000000 0000000
+3 XX.O.X. NPX PS0 E1  0000000 0000000
+3 XX.OXX. NPO PS0 E1  0000000 0000000
+3 ..OOXX. NPX PS0 E1  0000000 0000000
+3 X.OOXX. NPO PS0 E1  0000000 0000000
+2 .OOOXX. NPX PS0 E1  0000000 0000000
+2 .OOOXX. NPO PS1 E1  0000000 0000000
+3 .OOO..O NPX PS0 E1  0000000 0000000
+3 .OOO.X. NPO PS0 E1  0000000 0000000
 2 .OOOOX. NPX PS0 E1  0000000 0000000
 5 X....X. NPO PS0 E1  0000000 0000000
-5 X..O.X. NPX PS0 E1  0000000 0000000
-3 XX.O.X. NPO PS0 E1  0000000 0000000
-5 ..OO.X. NPX PS0 E1  0000000 0000000
-2 .XOO.X. NPO PS0 E1  0000000 0000000
-3 .XOO.X. NPX PS1 E1  0000000 0000000
-3 .X..XX. NPO PS0 E1  0000000 0000000
-3 .X.OXX. NPX PS0 E1  0000000 0000000
-1 .XX.XX. NPO PS0 E1  0000000 0000000
-4 .XX.XX. NPX PS1 E1  0000000 0000000
+4 X...OX. NPX PS0 E1  0000000 0000000
+5 X...OX. NPO PS1 E1  0000000 0000000
+3 .O..OX. NPX PS0 E1  0000000 0000000
+5 .O..OX. NPO PS1 E1  0000000 0000000
+3 OO..OX. NPX PS0 E1  0000000 0000000
+4 ..X.OX. NPO PS0 E1  0000000 0000000
+6 ..X.O.O NPX PS0 E1  0000001 0000000
+5 ..X.O.O NPO PS0 E1  0000000 0000000
+4 ..X.OOO NPX PS0 E1  0000000 0000000
+6 ..XX... NPO PS0 E1  0000000 0000000
+5 O.XX... NPX PS0 E1  0000000 0000000
+4 .XXX... NPO PS0 E1  0000000 0000000
+3 .XXXO.. NPX PS0 E1  0000000 0000000
+1 .XXX.X. NPO PS0 E1  0000000 0000000
+4 .XXX.X. NPX PS1 E1  0000000 0000000
 1 .XXXXX. NPO PS0 E1  0000000 0000000
 3 .XXXXX. NPX PS1 E1  0000000 0000000
-2 XXXXXX. NPO PS0 E1  0000000 0000000
-7 ......O NPX PS0 E1  0000000 0000000
-6 ...X..O NPO PS0 E1  0000000 0000000
-5 O..X..O NPX PS0 E1  0000000 0000000
-3 .X.X..O NPO PS0 E1  0000000 0000000
-4 .X.XO.O NPX PS0 E1  0000000 0000000
-1 .X.X.X. NPO PS0 E1  0000000 0000000
-5 .X.X.X. NPX PS1 E1  0000000 0000000
-2 XX.X.X. NPO PS0 E1  0000000 0000000
-5 ..OX.X. NPX PS0 E1  0000000 0000000
-3 X.OX.X. NPO PS0 E1  0000000 0000000
-4 .OOX.X. NPX PS0 E1  0000000 0000000
-2 .OOXXX. NPO PS0 E1  0000000 0000000
-2 .OOXXX. NPX PS1 E1  0000000 0000000
-3 X..XXX. NPO PS0 E1  0000000 0000000
-3 .O.XXX. NPX PS0 E1  0000000 0000000
-3 .O.XXXX NPO PS0 E1  0000000 0000000
-2 OO.XXXX NPX PS0 E1  0000000 0000000
-3 ..XXXXX NPO PS0 E1  0000000 0000000
-2 O.XXXXX NPX PS0 E1  0000000 0000000
 2 .XXXXXX NPO PS0 E1  0000000 0000000
 1 .XXXXXX NPX PS1 E1  0000000 0000000
 2 .XXXXXX NPO PS0 E2  0000000 0111111
 7 O...... NPX PS0 E2  0000000 0111111
-6 O...X.. NPO PS0 E2  0000000 0111111
-5 O.O.X.. NPX PS0 E2  0000000 0111111
-4 O.O.X.X NPO PS0 E2  0000000 0111111
-3 OOO.X.X NPX PS0 E2  0000000 0111111
-2 OOO.XXX NPO PS0 E2  0000000 0111111
-2 OOO.XXX NPX PS1 E2  0000000 0111111
-2 OOO.XXX NPO PS2 E2  0000000 0111111
-White bonus score 3
-Winner: White
-W-B Score: 0.5
+6 O.....X NPO PS0 E2  0000000 0111111
+4 O...O.X NPX PS0 E2  0000000 0111111
+3 O.X.O.X NPO PS0 E2  0000000 0111111
+3 O.XOO.X NPX PS0 E2  0000000 0111111
+3 O.X..XX NPO PS0 E2  0000000 0111111
+5 O.X.O.. NPX PS0 E2  0000000 0111111
+3 O.X.O.X NPO PS0 E2  0000000 0111111
+3 O.X.OO. NPX PS0 E2  0000000 0111111
+3 .XX.OO. NPO PS0 E2  0000000 0111111
+3 .XX.OOO NPX PS0 E2  0000000 0111111
+4 .XXX... NPO PS0 E2  0000000 0111111
+3 .XXX.O. NPX PS0 E2  0000000 0111111
+3 .XXX.O. NPO PS1 E2  0000000 0111111
+2 .XXXOO. NPX PS0 E2  0000000 0111111
+2 .XXXOO. NPO PS1 E2  0000000 0111111
+4 O...OO. NPX PS0 E2  0000000 0111111
+4 .X..OO. NPO PS0 E2  0000000 0111111
+4 .X..OOO NPX PS0 E2  0000000 0111111
+3 XX..OOO NPO PS0 E2  0000000 0111111
+3 XX..OOO NPX PS1 E2  0000000 0111111
+5 XX.X... NPO PS0 E2  0000000 0111111
+3 XX.XO.. NPX PS0 E2  0000000 0111111
+2 XX.X.X. NPO PS0 E2  0000000 0111111
+5 ..OX.X. NPX PS0 E2  0000000 0111111
+1 .X.X.X. NPO PS0 E2  0000000 0111111
+5 .X.X.X. NPX PS1 E2  0000000 0111111
+1 .X.XXX. NPO PS0 E2  0000000 0111111
+4 .X.XXX. NPX PS1 E2  0000000 0111111
+2 XX.XXX. NPO PS0 E2  0000000 0111111
+3 ..OXXX. NPX PS0 E2  0000000 0111111
+4 ..OXXX. NPO PS1 E2  0000000 0111111
+6 ..O...O NPX PS0 E2  0000000 0111111
+5 X.O...O NPO PS0 E2  0000000 0111111
+2 X.O.O.O NPX PS0 E2  0000000 0111111
+5 X.O.OX. NPO PS0 E2  0000010 0111111
+2 X.O.OX. NPX PS0 E2  0000000 0111111
+4 X.OX.X. NPO PS0 E2  0001000 0111111
+4 X.OX.X. NPX PS0 E2  0000000 0111111
+2 XX.X.X. NPO PS0 E2  0000000 0111111
+4 XX.X.X. NPX PS1 E2  0000000 0111111
+3 XX.X.XX NPO PS0 E2  0000000 0111111
+3 XX.XO.. NPX PS0 E2  0000000 0111111
+3 XX.XO.X NPO PS0 E2  0000000 0111111
+2 XX.XOO. NPX PS0 E2  0000000 0111111
+2 XX.XOO. NPO PS1 E2  0000000 0111111
+3 ..O.OO. NPX PS0 E2  0000000 0111111
+5 ..O.OO. NPO PS1 E2  0000000 0111111
+3 ..OOOO. NPX PS0 E2  0000000 0111111
+2 .XOOOO. NPO PS0 E2  0000000 0111111
+3 O.OOOO. NPX PS0 E2  1000000 0111111
+3 O.OOOO. NPO PS1 E2  1000000 0111111
+2 OOOOOO. NPX PS0 E2  1000000 0111111
+7 ......X NPO PS0 E2  0000000 0111111
+5 .O....X NPX PS0 E2  0000000 0111111
+5 .O..X.X NPO PS0 E2  0000000 0111111
+3 .OO.X.X NPX PS0 E2  0000000 0111111
+2 .OOXX.X NPO PS0 E2  0000000 0111111
+2 .OOXX.X NPX PS1 E2  0000000 0111111
+2 .OOXX.X NPO PS2 E2  0000000 0111111
+White bonus score -3
+Winner: Black
+W-B Score: -5.5
 isNoResult: 0
 isResignation: 0
 
@@ -2950,23 +2996,26 @@ isResignation: 0
 4 ...X NPO PS0 E1  0000 0000
 3 O..X NPX PS0 E1  0000 0000
 2 .X.X NPO PS0 E1  0000 0000
-2 .XO. NPX PS0 E1  0010 0000
+3 .XO. NPX PS0 E1  0010 0000
 2 .XO. NPO PS0 E1  0000 0000
 2 .XO. NPX PS1 E1  0000 0000
 2 .XO. NPO PS0 E2  0000 0120
-2 O.O. NPX PS0 E2  1000 0120
-3 O.O. NPO PS1 E2  1000 0120
-2 O.OO NPX PS0 E2  1000 0120
-3 .X.. NPO PS0 E2  0000 0120
-2 .XO. NPX PS0 E2  0000 0120
-2 .X.X NPO PS0 E2  0001 0120
-3 .X.X NPX PS1 E2  0001 0120
-2 XX.X NPO PS0 E2  0001 0120
-1 XX.X NPX PS1 E2  0001 0120
-2 XX.X NPO PS2 E2  0001 0120
+3 O.O. NPX PS0 E2  1000 0120
+3 O.O. NPO PS0 E2  0000 0120
+2 OOO. NPX PS0 E2  0000 0120
+4 ...X NPO PS0 E2  0000 0120
+3 ..O. NPX PS0 E2  0000 0120
+3 X.O. NPO PS0 E2  0000 0120
+2 X.OO NPX PS0 E2  0000 0120
+3 XX.. NPO PS0 E2  0000 0120
+3 ..O. NPX PS0 E2  0000 0120
+3 X.O. NPO PS0 E2  0000 0120
+1 .OO. NPX PS0 E2  0000 0120
+3 .OO. NPO PS1 E2  0000 0120
+1 .OO. NPX PS2 E2  0000 0120
 White bonus score 0
-Winner: Black
-W-B Score: -0.5
+Winner: White
+W-B Score: 4.5
 isNoResult: 0
 isResignation: 0
 
@@ -2996,7 +3045,7 @@ isResignation: 0
 3 .O.. NPX PS0 E1  0000 0000
 2 .OX. NPO PS0 E1  0000 0000
 2 .OX. NPX PS1 E1  0000 0000
-2 X.X. NPO PS0 E1  1000 0000
+3 X.X. NPO PS0 E1  1000 0000
 3 X.X. NPX PS0 E1  0000 0000
 2 X.XX NPO PS0 E1  0000 0000
 1 X.XX NPX PS1 E1  0000 0000
@@ -3148,18 +3197,21 @@ isResignation: 0
 4 XX..X.X NPO PS0 E0  0000000 0000000
 4 XX..X.X NPX PS1 E0  0000000 0000000
 4 XX..X.X NPO PS0 E1  0000000 0000000
-4 XX..XO. NPX PS0 E1  0000010 0000000
+5 XX..XO. NPX PS0 E1  0000010 0000000
 2 XXX.XO. NPO PS0 E1  0000010 0000000
-2 XXX.XO. NPX PS1 E1  0000010 0000000
-2 XXX.XO. NPO PS0 E2  0000000 1110120
-4 ...O.O. NPX PS0 E2  0000000 1110120
-5 ..XO.O. NPO PS0 E2  0000000 1110120
-4 ..XO.OO NPX PS0 E2  0000000 1110120
-3 ..XO.OO NPO PS1 E2  0000000 1110120
-4 ..XO.OO NPX PS2 E2  0000000 1110120
-White bonus score 1
+3 XXX.XO. NPX PS1 E1  0000010 0000000
+2 XXX.XO. NPO PS0 E1  0000000 0000000
+4 ...O.O. NPX PS0 E1  0000000 0000000
+5 ..XO.O. NPO PS0 E1  0000000 0000000
+4 ..XO.OO NPX PS0 E1  0000000 0000000
+3 ..XO.OO NPO PS1 E1  0000000 0000000
+4 ..XO.OO NPX PS0 E2  0000000 0012022
+2 .XXO.OO NPO PS0 E2  0000000 0012022
+2 .XXO.OO NPX PS1 E2  0000000 0012022
+2 .XXO.OO NPO PS2 E2  0000000 0012022
+White bonus score 0
 Winner: White
-W-B Score: 1.5
+W-B Score: 2.5
 isNoResult: 0
 isResignation: 0
 
@@ -3613,6 +3665,1520 @@ xoxx.
     out << endl;
     string expected = R"%%(
 Illegal: (4,3) X
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Double ko death 1a";
+
+    Board board = Board::parseBoard(9,9,R"%%(
+   A B C D E F G H J
+ 9 . . . . X O X . X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X O
+ 6 . . . . O X O O .
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SITUATIONAL;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.taxRule = Rules::TAX_NONE;
+    rules.multiStoneSuicideLegal = false;
+    rules.komi = 6.5f;
+    rules.hasButton = false;
+    BoardHistory hist(board,P_WHITE,rules,0);
+
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,3,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,0,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,0,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,3,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    testAssert(!hist.isGameFinished);
+    hist.printDebugInfo(out,board);
+    out << endl;
+    string expected = R"%%(
+HASH: 6CC6F6B94B2F52DED5CA2B28C2D58357
+   A B C D E F G H J
+ 9 . . . . X O . O X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X .
+ 6 . . . . O X O O X
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+
+
+Ko recap blocked at H9
+Ko recap blocked at J6
+HASH: 6CC6F6B94B2F52DED5CA2B28C2D58357
+   A B C D E F G H J
+ 9 . . . . X O . O X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X .
+ 6 . . . . O X O O X
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+
+
+Ko recap blocked at J6
+HASH: 6CC6F6B94B2F52DED5CA2B28C2D58357
+   A B C D E F G H J
+ 9 . . . . X O . O X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X .
+ 6 . . . . O X O O X
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+
+
+HASH: 6CC6F6B94B2F52DED5CA2B28C2D58357
+   A B C D E F G H J
+ 9 . . . . X O . O X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X .
+ 6 . . . . O X O O X
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+
+
+Initial pla White
+Encore phase 1
+Turns this phase 5
+Rules koSITUATIONALscoreTERRITORYtaxNONEsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -1
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves pass pass pass J6 H9 H9 J6
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Double ko death 1b";
+
+    Board board = Board::parseBoard(9,9,R"%%(
+   A B C D E F G H J
+ 9 . . . . X O X . X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X O
+ 6 . . . . O X O O .
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SITUATIONAL;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.taxRule = Rules::TAX_NONE;
+    rules.multiStoneSuicideLegal = false;
+    rules.komi = 6.5f;
+    rules.hasButton = false;
+    BoardHistory hist(board,P_WHITE,rules,0);
+
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,3,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,0,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,0,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,2,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    testAssert(!hist.isGameFinished);
+    hist.printDebugInfo(out,board);
+    out << endl;
+    string expected = R"%%(
+HASH: 6CC6F6B94B2F52DED5CA2B28C2D58357
+   A B C D E F G H J
+ 9 . . . . X O . O X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X .
+ 6 . . . . O X O O X
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+
+
+Ko recap blocked at H9
+Ko recap blocked at J6
+HASH: 6CC6F6B94B2F52DED5CA2B28C2D58357
+   A B C D E F G H J
+ 9 . . . . X O . O X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X .
+ 6 . . . . O X O O X
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+
+
+Ko recap blocked at J6
+HASH: FDD9D2ACBB4B3A6466BD37C59487F4F7
+   A B C D E F G H J
+ 9 . . . . X O . O .
+ 8 . . . . X O O . .
+ 7 . . X . X X O . O
+ 6 . . . . O X O O .
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+
+
+HASH: FDD9D2ACBB4B3A6466BD37C59487F4F7
+   A B C D E F G H J
+ 9 . . . . X O . O .
+ 8 . . . . X O O . .
+ 7 . . X . X X O . O
+ 6 . . . . O X O O .
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+
+
+Initial pla White
+Encore phase 1
+Turns this phase 5
+Rules koSITUATIONALscoreTERRITORYtaxNONEsui0komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score -2
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves pass pass pass J6 H9 H9 J7
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Double ko death 1c";
+
+    Board board = Board::parseBoard(9,9,R"%%(
+   A B C D E F G H J
+ 9 . . . . X O X . X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X O
+ 6 . . . . O X O O .
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SITUATIONAL;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.taxRule = Rules::TAX_NONE;
+    rules.multiStoneSuicideLegal = false;
+    rules.komi = 6.5f;
+    rules.hasButton = false;
+    BoardHistory hist(board,P_WHITE,rules,0);
+
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,3,board.x_size), P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,0,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,0,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,3,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(6,0,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,2,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,3,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    printIllegalMoves(out,board,hist,P_BLACK);
+
+    out << endl;
+    string expected = R"%%(
+HASH: 6CC6F6B94B2F52DED5CA2B28C2D58357
+   A B C D E F G H J
+ 9 . . . . X O . O X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X .
+ 6 . . . . O X O O X
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+
+
+Ko recap blocked at H9
+Ko recap blocked at J6
+HASH: 6CC6F6B94B2F52DED5CA2B28C2D58357
+   A B C D E F G H J
+ 9 . . . . X O . O X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X .
+ 6 . . . . O X O O X
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+
+
+Ko recap blocked at J6
+HASH: 6CC6F6B94B2F52DED5CA2B28C2D58357
+   A B C D E F G H J
+ 9 . . . . X O . O X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X .
+ 6 . . . . O X O O X
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+
+
+HASH: 7D91609C1321DCFF8FF70F3B78BDC9DB
+   A B C D E F G H J
+ 9 . . . . X O X . X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X .
+ 6 . . . . O X O O X
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+
+
+Ko recap blocked at G9
+HASH: 7966CC88C79E3DD83CAD6E7CD3DDD890
+   A B C D E F G H J
+ 9 . . . . X O X . X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X O
+ 6 . . . . O X O O .
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+
+
+Ko recap blocked at G9
+Ko recap blocked at J7
+HASH: 7966CC88C79E3DD83CAD6E7CD3DDD890
+   A B C D E F G H J
+ 9 . . . . X O X . X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X O
+ 6 . . . . O X O O .
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+
+
+Ko recap blocked at G9
+HASH: 7966CC88C79E3DD83CAD6E7CD3DDD890
+   A B C D E F G H J
+ 9 . . . . X O X . X
+ 8 . . . . X O O X X
+ 7 . . X . X X O X O
+ 6 . . . . O X O O .
+ 5 . . . O O X X O O
+ 4 . X X X X . X O .
+ 3 X X O O O X X O O
+ 2 O O O X O O X X X
+ 1 . . . . . O O O O
+
+
+Ko recap blocked at G9
+Ko-recap-blocked: (6,0)
+Illegal: (8,3) X
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Double ko death 2a";
+
+    Board board = Board::parseBoard(9,9,R"%%(
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X O X
+ 7 . . . X X O O . O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.taxRule = Rules::TAX_ALL;
+    rules.multiStoneSuicideLegal = true;
+    rules.komi = 6.5f;
+    rules.hasButton = false;
+    BoardHistory hist(board,P_BLACK,rules,0);
+
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,2,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(6,0,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,3,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,1,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(6,1,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    assert(hist.isLegal(board, Location::getLoc(7,2,board.x_size), P_WHITE));
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,2,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    hist.printDebugInfo(out,board);
+
+    out << endl;
+    string expected = R"%%(
+HASH: 38C8C7F27510D958FD31111920914550
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at H7
+HASH: C5436F2F449C44F2032BE90BF82BCFC6
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H7
+HASH: C1B4C33B9023A5D5B071884C534BDE8D
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H7
+Ko recap blocked at J6
+HASH: 7E612069F9D69EAEEEAADC4E30CF728B
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O . O X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H8
+Ko recap blocked at H7
+Ko recap blocked at J6
+HASH: 7E612069F9D69EAEEEAADC4E30CF728B
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O . O X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H7
+Ko recap blocked at J6
+HASH: 5082A5AA1512BAD190D4C8951B76C472
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O . O X
+ 7 . . . X X O O . O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+HASH: 5082A5AA1512BAD190D4C8951B76C472
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O . O X
+ 7 . . . X X O O . O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 1
+Turns this phase 6
+Rules koSIMPLEscoreTERRITORYtaxALLsui1komi6.5
+Ko recap block hash 6785AE217D0AAA7AD4FA074F6C3B370B
+White bonus score 3
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves pass pass H7 G9 J6 H8 G8 J7
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Double ko death 2b";
+
+    Board board = Board::parseBoard(9,9,R"%%(
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X O X
+ 7 . . . X X O O . O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.taxRule = Rules::TAX_ALL;
+    rules.multiStoneSuicideLegal = true;
+    rules.komi = 6.5f;
+    rules.hasButton = false;
+    BoardHistory hist(board,P_BLACK,rules,0);
+
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,2,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(6,0,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,3,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,1,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,1,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    assert(hist.isLegal(board, Location::getLoc(7,2,board.x_size), P_WHITE));
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,3,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(6,1,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,2,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(5,0,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,2,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(5,0,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,1,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    printIllegalMoves(out,board,hist,P_BLACK);
+    assert(hist.isLegal(board, Location::getLoc(7,1,board.x_size), P_BLACK));
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,2,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    printIllegalMoves(out,board,hist,P_BLACK);
+
+    hist.printDebugInfo(out,board);
+
+    out << endl;
+    string expected = R"%%(
+HASH: 38C8C7F27510D958FD31111920914550
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at H7
+HASH: C5436F2F449C44F2032BE90BF82BCFC6
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H7
+HASH: C1B4C33B9023A5D5B071884C534BDE8D
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H7
+Ko recap blocked at J6
+HASH: 7E612069F9D69EAEEEAADC4E30CF728B
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O . O X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H8
+Ko recap blocked at H7
+Ko recap blocked at J6
+HASH: 7E612069F9D69EAEEEAADC4E30CF728B
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O . O X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H7
+Ko recap blocked at J6
+HASH: 7E612069F9D69EAEEEAADC4E30CF728B
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O . O X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H7
+HASH: C1B4C33B9023A5D5B071884C534BDE8D
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at G8
+Ko recap blocked at H7
+HASH: C5436F2F449C44F2032BE90BF82BCFC6
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at G8
+Ko recap blocked at H7
+Ko recap blocked at J7
+HASH: C5436F2F449C44F2032BE90BF82BCFC6
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G8
+Ko recap blocked at H7
+Ko recap blocked at J7
+HASH: C5436F2F449C44F2032BE90BF82BCFC6
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G8
+Ko recap blocked at J7
+HASH: 38C8C7F27510D958FD31111920914550
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at F9
+Ko recap blocked at G8
+Ko recap blocked at J7
+HASH: F0D2D61BE0FABC60F06563748284EA95
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X O X
+ 7 . . . X X O O . O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at F9
+Ko recap blocked at G8
+Ko recap blocked at H8
+Ko recap blocked at J7
+Ko-recap-blocked: (5,0)
+Ko-recap-blocked: (6,1)
+Ko-recap-blocked: (7,1)
+Ko-recap-blocked: (8,2)
+HASH: F0D2D61BE0FABC60F06563748284EA95
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X O X
+ 7 . . . X X O O . O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at F9
+Ko recap blocked at G8
+Ko recap blocked at J7
+HASH: F0D2D61BE0FABC60F06563748284EA95
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X O X
+ 7 . . . X X O O . O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at F9
+Ko recap blocked at G8
+Ko recap blocked at J7
+Ko-recap-blocked: (5,0)
+Ko-recap-blocked: (6,1)
+Illegal: (7,2) X
+Ko-recap-blocked: (8,2)
+HASH: F0D2D61BE0FABC60F06563748284EA95
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X O X
+ 7 . . . X X O O . O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 1
+Turns this phase 14
+Rules koSIMPLEscoreTERRITORYtaxALLsui1komi6.5
+Ko recap block hash B442956CD0B349EA467256E307990942
+White bonus score 4
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves pass pass H7 G9 J6 H8 H8 J6 G8 J7 F9 H7 F9 H8 H7 pass
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Double ko death 2c";
+
+    Board board = Board::parseBoard(9,9,R"%%(
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X O X
+ 7 . . . X X O O . O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.taxRule = Rules::TAX_ALL;
+    rules.multiStoneSuicideLegal = true;
+    rules.komi = 6.5f;
+    rules.hasButton = false;
+    BoardHistory hist(board,P_BLACK,rules,0);
+
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,2,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(6,0,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,3,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,1,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    assert(!hist.isLegal(board, Location::getLoc(6,0,board.x_size), P_BLACK));
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,1,board.x_size), P_BLACK, __LINE__);
+    hist.printDebugInfo(out,board);
+    out << endl;
+    string expected = R"%%(
+HASH: 38C8C7F27510D958FD31111920914550
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at H7
+HASH: C5436F2F449C44F2032BE90BF82BCFC6
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H7
+HASH: C1B4C33B9023A5D5B071884C534BDE8D
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H7
+Ko recap blocked at J6
+HASH: 7E612069F9D69EAEEEAADC4E30CF728B
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O . O X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H8
+Ko recap blocked at H7
+Ko recap blocked at J6
+HASH: 7E612069F9D69EAEEEAADC4E30CF728B
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O . O X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 2
+Turns this phase 5
+Rules koSIMPLEscoreTERRITORYtaxALLsui1komi6.5
+Ko recap block hash B8D94C36535B1329F3E635C5794FEEA9
+White bonus score 4
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves pass pass pass pass H7 G9 J6 H8 H8
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Double ko death 2d";
+
+    Board board = Board::parseBoard(9,9,R"%%(
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X O X
+ 7 . . . X X O O . O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.taxRule = Rules::TAX_ALL;
+    rules.multiStoneSuicideLegal = true;
+    rules.komi = 6.5f;
+    rules.hasButton = false;
+    BoardHistory hist(board,P_BLACK,rules,0);
+
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,2,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(6,0,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,3,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,1,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(6,1,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,2,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(6,1,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(8,2,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(5,0,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    hist.printDebugInfo(out,board);
+
+    out << endl;
+    string expected = R"%%(
+HASH: 38C8C7F27510D958FD31111920914550
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at H7
+HASH: C5436F2F449C44F2032BE90BF82BCFC6
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H7
+HASH: C1B4C33B9023A5D5B071884C534BDE8D
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H7
+Ko recap blocked at J6
+HASH: 7E612069F9D69EAEEEAADC4E30CF728B
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O . O X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H8
+Ko recap blocked at H7
+Ko recap blocked at J6
+HASH: 7E612069F9D69EAEEEAADC4E30CF728B
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O . O X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H7
+Ko recap blocked at J6
+HASH: 7E612069F9D69EAEEEAADC4E30CF728B
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O . O X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at J6
+HASH: C1B4C33B9023A5D5B071884C534BDE8D
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at G8
+Ko recap blocked at J6
+HASH: C1B4C33B9023A5D5B071884C534BDE8D
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X .
+ 6 . . . . X X O O X
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at G8
+HASH: 677629FFD07EEF1B0E2EA53AD5DC28BC
+   A B C D E F G H J
+ 9 . . . X . X . X .
+ 8 . . . X . . X . X
+ 7 . . . X X . . X .
+ 6 . . . . X X . . X
+ 5 . . . . . X X . .
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G8
+HASH: 677629FFD07EEF1B0E2EA53AD5DC28BC
+   A B C D E F G H J
+ 9 . . . X . X . X .
+ 8 . . . X . . X . X
+ 7 . . . X X . . X .
+ 6 . . . . X X . . X
+ 5 . . . . . X X . .
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 1
+Turns this phase 9
+Rules koSIMPLEscoreTERRITORYtaxALLsui1komi6.5
+Ko recap block hash 6DF578E5C17193F2108E72E5D4BA22A5
+White bonus score 6
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves pass pass H7 G9 J6 H8 G8 H7 G8 J7 F9
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Double ko death 2e";
+
+    Board board = Board::parseBoard(9,9,R"%%(
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X O X
+ 7 . . . X X O O . O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.taxRule = Rules::TAX_ALL;
+    rules.multiStoneSuicideLegal = true;
+    rules.komi = 6.5f;
+    rules.hasButton = false;
+    BoardHistory hist(board,P_BLACK,rules,0);
+
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,2,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(6,0,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(5,0,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,1,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    hist.printDebugInfo(out,board);
+
+    out << endl;
+    string expected = R"%%(
+HASH: 38C8C7F27510D958FD31111920914550
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at H7
+HASH: C5436F2F449C44F2032BE90BF82BCFC6
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H7
+HASH: C5436F2F449C44F2032BE90BF82BCFC6
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at H7
+HASH: 5082A5AA1512BAD190D4C8951B76C472
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O . O X
+ 7 . . . X X O O . O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+HASH: 5082A5AA1512BAD190D4C8951B76C472
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O . O X
+ 7 . . . X X O O . O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 2
+Turns this phase 4
+Rules koSIMPLEscoreTERRITORYtaxALLsui1komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 4
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves pass pass pass pass H7 G9 F9 H8
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Double ko death 2f";
+
+    Board board = Board::parseBoard(9,9,R"%%(
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X O X
+ 7 . . . X X O O . O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.taxRule = Rules::TAX_ALL;
+    rules.multiStoneSuicideLegal = true;
+    rules.komi = 6.5f;
+    rules.hasButton = false;
+    BoardHistory hist(board,P_BLACK,rules,0);
+
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,2,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(6,0,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(5,0,board.x_size), P_BLACK, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    makeMoveAssertLegal(hist, board, Location::getLoc(7,2,board.x_size), P_WHITE, __LINE__);
+    out << board << endl;
+    printEncoreKoBlock(out,board,hist);
+    hist.printDebugInfo(out,board);
+
+    out << endl;
+    string expected = R"%%(
+HASH: 38C8C7F27510D958FD31111920914550
+   A B C D E F G H J
+ 9 . . . X O X . X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at H7
+HASH: C5436F2F449C44F2032BE90BF82BCFC6
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at G9
+Ko recap blocked at H7
+HASH: C5436F2F449C44F2032BE90BF82BCFC6
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Ko recap blocked at H7
+HASH: C5436F2F449C44F2032BE90BF82BCFC6
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+HASH: C5436F2F449C44F2032BE90BF82BCFC6
+   A B C D E F G H J
+ 9 . . . X O . O X .
+ 8 . . . X O O X . X
+ 7 . . . X X O O X O
+ 6 . . . . X X O O .
+ 5 . . . . . X X O O
+ 4 . . . . . . X X X
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 2
+Turns this phase 4
+Rules koSIMPLEscoreTERRITORYtaxALLsui1komi6.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 4
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves pass pass pass pass H7 G9 F9 H7
+
 )%%";
     expect(name,out,expected);
   }

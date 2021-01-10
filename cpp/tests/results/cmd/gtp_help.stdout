@@ -19,7 +19,7 @@ Where:
      Neural net model file. Defaults to: (dir containing katago.exe, or
      else ~/.katago)/default_model.bin.gz
 
-   -override-config <KEYVALUEPAIRS>
+   -override-config <KEYVALUEPAIRS>  (accepted multiple times)
      Override config parameters. Format: "key=value, key=value,..."
 
    -override-version <VERSION>

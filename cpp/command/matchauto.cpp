@@ -99,8 +99,9 @@ namespace {
       NetAndStuff* netAndStuff;
       if(iter == loadedNets.end()) {
         int defaultMaxBatchSize = -1;
+        string expectedSha256 = "";
         NNEvaluator* nnEval = Setup::initializeNNEvaluator(
-          nnModelFile,nnModelFile,*cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+          nnModelFile,nnModelFile,expectedSha256,*cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
           NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
           Setup::SETUP_FOR_MATCH
         );
@@ -533,7 +534,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
           seed, botSpecB, botSpecW, NULL, NULL, logger,
-          stopConditions, nullptr, nullptr
+          stopConditions, nullptr, nullptr, false
         );
       }
 

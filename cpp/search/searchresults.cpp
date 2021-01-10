@@ -8,8 +8,10 @@
 #include <inttypes.h>
 
 #include "../core/fancymath.h"
+#include "../program/playutils.h"
 
 using namespace std;
+using nlohmann::json;
 
 static const int64_t MIN_VISITS_FOR_LCB = 3;
 
@@ -22,12 +24,26 @@ bool Search::getPlaySelectionValues(
     return false;
   }
   bool allowDirectPolicyMoves = true;
-  return getPlaySelectionValues(*rootNode, locs, playSelectionValues, scaleMaxToAtLeast, allowDirectPolicyMoves);
+  return getPlaySelectionValues(*rootNode, locs, playSelectionValues, NULL, scaleMaxToAtLeast, allowDirectPolicyMoves);
+}
+
+bool Search::getPlaySelectionValues(
+  vector<Loc>& locs, vector<double>& playSelectionValues, vector<double>* retVisitCounts, double scaleMaxToAtLeast
+) const {
+  if(rootNode == NULL) {
+    locs.clear();
+    playSelectionValues.clear();
+    if(retVisitCounts != NULL)
+      retVisitCounts->clear();
+    return false;
+  }
+  bool allowDirectPolicyMoves = true;
+  return getPlaySelectionValues(*rootNode, locs, playSelectionValues, retVisitCounts, scaleMaxToAtLeast, allowDirectPolicyMoves);
 }
 
 bool Search::getPlaySelectionValues(
   const SearchNode& node,
-  vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
+  vector<Loc>& locs, vector<double>& playSelectionValues, vector<double>* retVisitCounts, double scaleMaxToAtLeast,
   bool allowDirectPolicyMoves
 ) const {
   std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
@@ -36,7 +52,7 @@ bool Search::getPlaySelectionValues(
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
   assert(node.numChildren <= NNPos::MAX_NN_POLICY_SIZE);
   bool result = getPlaySelectionValuesAlreadyLocked(
-    node,locs,playSelectionValues,scaleMaxToAtLeast,allowDirectPolicyMoves,
+    node,locs,playSelectionValues,retVisitCounts,scaleMaxToAtLeast,allowDirectPolicyMoves,
     false,lcbBuf,radiusBuf
   );
   return result;
@@ -44,16 +60,19 @@ bool Search::getPlaySelectionValues(
 
 bool Search::getPlaySelectionValuesAlreadyLocked(
   const SearchNode& node,
-  vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast,
+  vector<Loc>& locs, vector<double>& playSelectionValues, vector<double>* retVisitCounts, double scaleMaxToAtLeast,
   bool allowDirectPolicyMoves, bool alwaysComputeLcb,
   //Note: lcbBuf is signed from the player to move's perspective
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
 ) const {
   locs.clear();
   playSelectionValues.clear();
+  if(retVisitCounts != NULL)
+    retVisitCounts->clear();
 
   int numChildren = node.numChildren;
   int64_t totalChildVisits = 0;
+  int64_t maxChildVisits = 0;
 
   const bool suppressPass = shouldSuppressPassAlreadyLocked(&node);
 
@@ -68,10 +87,16 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
 
     locs.push_back(moveLoc);
     totalChildVisits += childVisits;
+    if(childVisits > maxChildVisits)
+      maxChildVisits = childVisits;
     if(suppressPass && moveLoc == Board::PASS_LOC)
       playSelectionValues.push_back(0.0);
     else
       playSelectionValues.push_back((double)childVisits);
+  }
+
+  if(retVisitCounts != NULL) {
+    *retVisitCounts = playSelectionValues;
   }
 
   //Find the best child by visits
@@ -103,7 +128,9 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     bool isDuringSearch = false;
 
     float* policyProbs = node.nnOutput->getPolicyProbsMaybeNoised();
-    double bestChildExploreSelectionValue = getExploreSelectionValue(node,policyProbs,bestChild,totalChildVisits,fpuValue,parentUtility,isDuringSearch,NULL);
+    double bestChildExploreSelectionValue = getExploreSelectionValue(
+      node,policyProbs,bestChild,totalChildVisits,fpuValue,parentUtility,isDuringSearch,maxChildVisits,NULL
+    );
 
     for(int i = 0; i<numChildren; i++) {
       if(suppressPass && node.children[i]->prevMoveLoc == Board::PASS_LOC) {
@@ -548,13 +575,24 @@ bool Search::getPolicy(float policyProbs[NNPos::MAX_NN_POLICY_SIZE]) const {
   return true;
 }
 
+//Safe to call concurrently with search
 double Search::getPolicySurprise() const {
+  double surprise = 0.0;
+  double searchEntropy = 0.0;
+  double policyEntropy = 0.0;
+  if(getPolicySurpriseAndEntropy(surprise,searchEntropy,policyEntropy))
+    return surprise;
+  return 0.0;
+}
+
+//Safe to call concurrently with search
+bool Search::getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntropyRet, double& policyEntropyRet) const {
   if(rootNode == NULL)
-    return 0.0;
+    return false;
   std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
-  lock_guard<std::mutex> lock(mutex);
+  unique_lock<std::mutex> lock(mutex);
   if(rootNode->nnOutput == nullptr)
-    return 0.0;
+    return false;
 
   NNOutput& nnOutput = *(rootNode->nnOutput);
 
@@ -565,28 +603,57 @@ double Search::getPolicySurprise() const {
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
   bool suc = getPlaySelectionValuesAlreadyLocked(
-    *rootNode,locs,playSelectionValues,1.0,allowDirectPolicyMoves,alwaysComputeLcb,lcbBuf,radiusBuf);
+    *rootNode,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,lcbBuf,radiusBuf);
   if(!suc)
-    return 0.0;
+    return false;
+
+  float policyProbsFromNNBuf[NNPos::MAX_NN_POLICY_SIZE];
+  {
+    float* policyProbsFromNN = nnOutput.getPolicyProbsMaybeNoised();
+    std::copy(policyProbsFromNN, policyProbsFromNN+NNPos::MAX_NN_POLICY_SIZE, policyProbsFromNNBuf);
+  }
+  //Okay we have all the data we need!
+  lock.unlock();
 
   double sumPlaySelectionValues = 0.0;
   for(int i = 0; i<playSelectionValues.size(); i++)
     sumPlaySelectionValues += playSelectionValues[i];
 
-  float* policyProbsFromNN = nnOutput.getPolicyProbsMaybeNoised();
-
   double surprise = 0.0;
+  double searchEntropy = 0.0;
   for(int i = 0; i<playSelectionValues.size(); i++) {
     int pos = getPos(locs[i]);
-    double policy = std::max((double)policyProbsFromNN[pos],1e-100);
+    double policy = std::max((double)policyProbsFromNNBuf[pos],1e-100);
     double target = playSelectionValues[i] / sumPlaySelectionValues;
-    if(target > 1e-100)
-      surprise += target * (log(target)-log(policy));
+    if(target > 1e-100) {
+      double logTarget = log(target);
+      double logPolicy = log(policy);
+      surprise += target * (logTarget - logPolicy);
+      searchEntropy += -target * logTarget;
+    }
   }
+
+  double policyEntropy = 0.0;
+  for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++) {
+    double policy = policyProbsFromNNBuf[pos];
+    if(policy > 1e-100) {
+      policyEntropy += -policy * log(policy);
+    }
+  }
+
   //Just in case, guard against float imprecision
   if(surprise < 0.0)
     surprise = 0.0;
-  return surprise;
+  if(searchEntropy < 0.0)
+    searchEntropy = 0.0;
+  if(policyEntropy < 0.0)
+    policyEntropy = 0.0;
+
+  surpriseRet = surprise;
+  searchEntropyRet = searchEntropy;
+  policyEntropyRet = policyEntropy;
+
+  return true;
 }
 
 void Search::printRootOwnershipMap(ostream& out, Player perspective) const {
@@ -680,7 +747,7 @@ void Search::appendPVForMove(vector<Loc>& buf, vector<int64_t>& visitsBuf, vecto
     return;
 
   for(int depth = 0; depth < maxDepth; depth++) {
-    bool success = getPlaySelectionValues(*n, scratchLocs, scratchValues, 1.0, false);
+    bool success = getPlaySelectionValues(*n, scratchLocs, scratchValues, NULL, 1.0, false);
     if(!success)
       return;
 
@@ -860,7 +927,7 @@ void Search::getAnalysisData(
 
     assert(node.numChildren <= NNPos::MAX_NN_POLICY_SIZE);
     bool alwaysComputeLcb = true;
-    bool success = getPlaySelectionValuesAlreadyLocked(node, scratchLocs, scratchValues, 1.0, false, alwaysComputeLcb, lcbBuf, radiusBuf);
+    bool success = getPlaySelectionValuesAlreadyLocked(node, scratchLocs, scratchValues, NULL, 1.0, false, alwaysComputeLcb, lcbBuf, radiusBuf);
     if(!success)
       return;
 
@@ -1245,4 +1312,145 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minV
     accum[pos] += selfWeight * ownerMap[pos];
 
   return desiredWeight;
+}
+
+json Search::getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, int ownershipMinVisits) const {
+  vector<double> ownership = getAverageTreeOwnership(ownershipMinVisits, node);
+  json ownerships = json::array();
+  for(int y = 0; y < board.y_size; y++) {
+    for(int x = 0; x < board.x_size; x++) {
+      int pos = NNPos::xyToPos(x, y, nnXLen);
+      double o;
+      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
+        o = -ownership[pos];
+      else
+        o = ownership[pos];
+      ownerships.push_back(o);
+    }
+  }
+  return ownerships;
+}
+
+bool Search::getAnalysisJson(
+  const Player perspective,
+  const Board& board,
+  const BoardHistory& hist,
+  int analysisPVLen,
+  int ownershipMinVisits,
+  bool preventEncore,
+  bool includePolicy,
+  bool includeOwnership,
+  bool includeMovesOwnership,
+  bool includePVVisits,
+  json& ret
+) const {
+  vector<AnalysisData> buf;
+  static constexpr int minMoves = 0;
+
+  getAnalysisData(buf, minMoves, false, analysisPVLen);
+
+  // Stats for all the individual moves
+  json moveInfos = json::array();
+  for(int i = 0; i < buf.size(); i++) {
+    const AnalysisData& data = buf[i];
+    double winrate = 0.5 * (1.0 + data.winLossValue);
+    double utility = data.utility;
+    double lcb = PlayUtils::getHackedLCBForWinrate(this, data, rootPla);
+    double utilityLcb = data.lcb;
+    double scoreMean = data.scoreMean;
+    double lead = data.lead;
+    if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK)) {
+      winrate = 1.0 - winrate;
+      lcb = 1.0 - lcb;
+      utility = -utility;
+      scoreMean = -scoreMean;
+      lead = -lead;
+      utilityLcb = -utilityLcb;
+    }
+
+    json moveInfo;
+    moveInfo["move"] = Location::toString(data.move, board);
+    moveInfo["visits"] = data.numVisits;
+    moveInfo["utility"] = utility;
+    moveInfo["winrate"] = winrate;
+    moveInfo["scoreMean"] = lead;
+    moveInfo["scoreSelfplay"] = scoreMean;
+    moveInfo["scoreLead"] = lead;
+    moveInfo["scoreStdev"] = data.scoreStdev;
+    moveInfo["prior"] = data.policyPrior;
+    moveInfo["lcb"] = lcb;
+    moveInfo["utilityLcb"] = utilityLcb;
+    moveInfo["order"] = data.order;
+
+    json pv = json::array();
+    int pvLen =
+      (preventEncore && data.pvContainsPass()) ? data.getPVLenUpToPhaseEnd(board, hist, rootPla) : (int)data.pv.size();
+    for(int j = 0; j < pvLen; j++)
+      pv.push_back(Location::toString(data.pv[j], board));
+    moveInfo["pv"] = pv;
+
+    if(includePVVisits) {
+      assert(data.pvVisits.size() >= pvLen);
+      json pvVisits = json::array();
+      for(int j = 0; j < pvLen; j++)
+        pvVisits.push_back(data.pvVisits[j]);
+      moveInfo["pvVisits"] = pvVisits;
+    }
+
+    if(includeMovesOwnership)
+      moveInfo["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, data.node, ownershipMinVisits);
+    moveInfos.push_back(moveInfo);
+  }
+  ret["moveInfos"] = moveInfos;
+
+  // Stats for root position
+  {
+    ReportedSearchValues rootVals;
+    bool suc = getRootValues(rootVals);
+    if(!suc)
+      return false;
+
+    double winrate = 0.5 * (1.0 + rootVals.winLossValue);
+    double scoreMean = rootVals.expectedScore;
+    double lead = rootVals.lead;
+    double utility = rootVals.utility;
+
+    if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK)) {
+      winrate = 1.0 - winrate;
+      scoreMean = -scoreMean;
+      lead = -lead;
+      utility = -utility;
+    }
+
+    json rootInfo;
+    rootInfo["visits"] = rootVals.visits;
+    rootInfo["winrate"] = winrate;
+    rootInfo["scoreSelfplay"] = scoreMean;
+    rootInfo["scoreLead"] = lead;
+    rootInfo["scoreStdev"] = rootVals.expectedScoreStdev;
+    rootInfo["utility"] = utility;
+    ret["rootInfo"] = rootInfo;
+  }
+  // Raw policy prior
+  if(includePolicy) {
+    float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+    bool suc = getPolicy(policyProbs);
+    if(!suc)
+      return false;
+    json policy = json::array();
+    for(int y = 0; y < board.y_size; y++) {
+      for(int x = 0; x < board.x_size; x++) {
+        int pos = NNPos::xyToPos(x, y, nnXLen);
+        policy.push_back(policyProbs[pos]);
+      }
+    }
+
+    int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
+    policy.push_back(policyProbs[passPos]);
+    ret["policy"] = policy;
+  }
+  // Average tree ownership
+  if(includeOwnership)
+    ret["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, rootNode, ownershipMinVisits);
+  return true;
 }

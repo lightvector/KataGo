@@ -5397,7 +5397,7 @@ NN Inputs V3V4V6 Ko Prohib and pass hist and whitebonus and encorestart
 -----------------------------------------------------------------
 VERSION 3
 Move 24
-010100 001010 111000 001001 001110 010111 
+010100 001010 111000 001001 001110 110111 
 Pass Hist Channels: 0 0 1 0 0 
 Selfkomi channel times 15: -0.5
 EncorePhase channel 10,11: 1 0
@@ -5435,7 +5435,7 @@ Channel: 21
 0 0 0 0 0 0  X1. X . . .
 
 Move 25
-010101 001000 111010 001000 001110 010111 
+110101 001010 111010 001000 001110 010111 
 Pass Hist Channels: 0 0 0 1 0 
 Selfkomi channel times 15: 1.5
 EncorePhase channel 10,11: 1 0
@@ -5473,7 +5473,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 26
-010101 001000 111010 001001 001110 010111 
+010101 001000 111010 001001 001110 110111 
 Pass Hist Channels: 1 0 0 0 1 
 Selfkomi channel times 15: -1.5
 EncorePhase channel 10,11: 1 0
@@ -5511,7 +5511,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 30
-010100 001010 011000 001001 001110 000111 
+010100 001010 011010 001001 001110 000111 
 Pass Hist Channels: 0 0 0 1 1 
 Selfkomi channel times 15: -1.5
 EncorePhase channel 10,11: 1 1
@@ -5549,7 +5549,7 @@ Channel: 21
 1 0 1 0 0 0  . O4X . . .
 
 Move 31
-010101 001010 011000 001001 001110 100111 
+010101 001010 011000 001001 001110 110111 
 Pass Hist Channels: 0 0 0 0 1 
 Selfkomi channel times 15: 1.5
 EncorePhase channel 10,11: 1 1
@@ -5625,7 +5625,7 @@ Channel: 21
 1 0 1 0 0 0  X5.2X . . .
 
 Move 33
-010101 001000 011010 101000 101110 010111 
+010101 001010 011010 101000 101110 010111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: 1.5
 EncorePhase channel 10,11: 1 1
@@ -5665,7 +5665,7 @@ Channel: 21
 
 VERSION 4
 Move 24
-010100 001010 111000 001001 001110 010111 
+010100 001010 111000 001001 001110 110111 
 Pass Hist Channels: 0 0 1 0 0 
 Selfkomi channel times 15: -0.5
 EncorePhase channel 10,11: 1 0
@@ -5703,7 +5703,7 @@ Channel: 21
 0 0 0 0 0 0  X1. X . . .
 
 Move 25
-010101 001000 111010 001000 001110 010111 
+110101 001010 111010 001000 001110 010111 
 Pass Hist Channels: 0 0 0 1 0 
 Selfkomi channel times 15: 1.5
 EncorePhase channel 10,11: 1 0
@@ -5741,7 +5741,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 26
-010101 001000 111010 001001 001110 010111 
+010101 001000 111010 001001 001110 110111 
 Pass Hist Channels: 1 0 0 0 1 
 Selfkomi channel times 15: -1.5
 EncorePhase channel 10,11: 1 0
@@ -5779,7 +5779,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 30
-010100 001010 011000 001001 001110 000111 
+010100 001010 011010 001001 001110 000111 
 Pass Hist Channels: 0 0 0 1 1 
 Selfkomi channel times 15: -1.5
 EncorePhase channel 10,11: 1 1
@@ -5817,7 +5817,7 @@ Channel: 21
 1 0 1 0 0 0  . O4X . . .
 
 Move 31
-010101 001010 011000 001001 001110 100111 
+010101 001010 011000 001001 001110 110111 
 Pass Hist Channels: 0 0 0 0 1 
 Selfkomi channel times 15: 1.5
 EncorePhase channel 10,11: 1 1
@@ -5893,7 +5893,7 @@ Channel: 21
 1 0 1 0 0 0  X5.2X . . .
 
 Move 33
-010101 001000 011010 101000 101110 010111 
+010101 001010 011010 101000 101110 010111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: 1.5
 EncorePhase channel 10,11: 1 1
@@ -5933,7 +5933,7 @@ Channel: 21
 
 VERSION 6
 Move 24
-010100 001010 111000 001001 001110 010111 
+010100 001010 111000 001001 001110 110111 
 Pass Hist Channels: 0 0 1 0 0 
 Selfkomi channel times 15: -0.375
 EncorePhase channel 12,13: 1 0
@@ -5971,7 +5971,7 @@ Channel: 21
 0 0 0 0 0 0  X1. X . . .
 
 Move 25
-010101 001000 111010 001000 001110 010111 
+110101 001010 111010 001000 001110 010111 
 Pass Hist Channels: 0 0 0 1 0 
 Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 0
@@ -6009,7 +6009,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 26
-010101 001000 111010 001001 001110 010111 
+010101 001000 111010 001001 001110 110111 
 Pass Hist Channels: 1 0 0 0 1 
 Selfkomi channel times 15: -1.125
 EncorePhase channel 12,13: 1 0
@@ -6047,7 +6047,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 30
-010100 001010 011000 001001 001110 000111 
+010100 001010 011010 001001 001110 000111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: -1.125
 EncorePhase channel 12,13: 1 1
@@ -6085,7 +6085,7 @@ Channel: 21
 1 0 1 0 0 0  . O4X . . .
 
 Move 31
-010101 001010 011000 001001 001110 100111 
+010101 001010 011000 001001 001110 110111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 1
@@ -6161,7 +6161,7 @@ Channel: 21
 1 0 1 0 0 0  X5.2X . . .
 
 Move 33
-010101 001000 011010 101000 101110 010111 
+010101 001010 011010 101000 101110 010111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 1
@@ -6201,7 +6201,7 @@ Channel: 21
 
 VERSION 7
 Move 24
-010100 001010 111000 001001 001110 010111 
+010100 001010 111000 001001 001110 110111 
 Pass Hist Channels: 0 0 1 0 0 
 Selfkomi channel times 15: -0.375
 EncorePhase channel 12,13: 1 0
@@ -6239,7 +6239,7 @@ Channel: 21
 0 0 0 0 0 0  X1. X . . .
 
 Move 25
-010101 001000 111010 001000 001110 010111 
+110101 001010 111010 001000 001110 010111 
 Pass Hist Channels: 0 0 0 1 0 
 Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 0
@@ -6277,7 +6277,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 26
-010101 001000 111010 001001 001110 010111 
+010101 001000 111010 001001 001110 110111 
 Pass Hist Channels: 1 0 0 0 1 
 Selfkomi channel times 15: -1.125
 EncorePhase channel 12,13: 1 0
@@ -6315,7 +6315,7 @@ Channel: 21
 0 0 0 0 0 0  X . X . . .
 
 Move 30
-010100 001010 011000 001001 001110 000111 
+010100 001010 011010 001001 001110 000111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: -1.125
 EncorePhase channel 12,13: 1 1
@@ -6353,7 +6353,7 @@ Channel: 21
 1 0 1 0 0 0  . O4X . . .
 
 Move 31
-010101 001010 011000 001001 001110 100111 
+010101 001010 011000 001001 001110 110111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 1
@@ -6429,7 +6429,7 @@ Channel: 21
 1 0 1 0 0 0  X5.2X . . .
 
 Move 33
-010101 001000 011010 101000 101110 010111 
+010101 001010 011010 101000 101110 010111 
 Pass Hist Channels: 0 0 0 0 0 
 Selfkomi channel times 15: 1.125
 EncorePhase channel 12,13: 1 1
@@ -14780,143 +14780,318 @@ Has button 0
 Presumed next pla White
 Past normal phase end 0
 Game result 1 White 7.5 1 0 0
-Last moves B1 F1 E1 pass pass pass H1 C1 G1 pass J1 pass D1 pass C1 F1 pass H1 G1 F1 pass pass A1 pass pass 
+Last moves B1 F1 E1 pass pass pass H1 C1 G1 pass J1 pass D1 pass C1 F1 pass H1 G1 G1 pass pass A1 pass pass 
 Num captured black stones 3
 Num captured white stones 3
-(;FF[4]GM[1]SZ[9:1]PB[Black]PW[White]HA[0]KM[7.5]RU[koSIMPLEscoreTERRITORYtaxSEKIsui0]RE[W+7.5]C[startTurnIdx=1,initTurnNum=0,gameHash=4ABB4DB214CD9C8328941CCEF8590F0D,gtype=normal];B[ba];W[fa]C[0.44 0.26 0.30 1.4 v=2 weight=1.00];B[ea]C[0.45 0.28 0.28 -1.0 v=2 weight=1.00];W[]C[0.39 0.33 0.27 1.0 v=2 weight=1.00];B[]C[0.32 0.39 0.29 0.5 v=2 weight=1.00];W[]C[0.29 0.39 0.32 0.4 v=2 weight=1.00];B[ha]C[0.32 0.39 0.28 2.7 v=2 weight=1.00];W[ca]C[0.35 0.39 0.26 1.9 v=2 weight=1.00];B[ga]C[0.36 0.35 0.29 1.6 v=2 weight=1.00];W[]C[0.35 0.38 0.28 1.5 v=2 weight=1.00];B[ia]C[0.30 0.34 0.36 -0.2 v=2 weight=1.00];W[]C[0.32 0.32 0.36 -2.1 v=2 weight=1.00];B[da]C[0.32 0.32 0.36 -1.1 v=2 weight=1.00];W[]C[0.30 0.34 0.36 -0.4 v=2 weight=1.00];B[ca]C[0.32 0.34 0.34 -1.3 v=2 weight=1.00];W[fa]C[0.38 0.28 0.34 0.1 v=2 weight=1.00];B[]C[0.40 0.31 0.29 -0.5 v=2 weight=1.00];W[ha]C[0.41 0.34 0.25 -0.6 v=2 weight=1.00];B[ga]C[0.43 0.31 0.26 0.6 v=2 weight=1.00];W[]TR[fa]C[Pass for ko 0.37 0.29 0.34 0.8 v=2 weight=1.00];B[]C[0.32 0.30 0.38 -0.0 v=2 weight=1.00];W[]C[0.33 0.30 0.37 -1.9 v=2 weight=1.00];B[aa]C[0.31 0.33 0.35 -3.2 v=2 weight=1.00];W[]C[0.34 0.33 0.32 -0.8 v=2 weight=1.00];B[]C[0.70 0.16 0.14 4.4 v=2 weight=1.00 result=W+7.5])
+(;FF[4]GM[1]SZ[9:1]PB[Black]PW[White]HA[0]KM[7.5]RU[koSIMPLEscoreTERRITORYtaxSEKIsui0]RE[W+7.5]C[startTurnIdx=1,initTurnNum=0,gameHash=4ABB4DB214CD9C8328941CCEF8590F0D,gtype=normal];B[ba];W[fa]C[0.44 0.26 0.30 1.4 v=2 weight=1.00];B[ea]C[0.45 0.28 0.28 -1.0 v=2 weight=1.00];W[]C[0.39 0.33 0.27 1.0 v=2 weight=1.00];B[]C[0.32 0.39 0.29 0.5 v=2 weight=1.00];W[]C[0.29 0.39 0.32 0.4 v=2 weight=1.00];B[ha]C[0.32 0.39 0.28 2.7 v=2 weight=1.00];W[ca]C[0.35 0.39 0.26 1.9 v=2 weight=1.00];B[ga]C[0.36 0.35 0.29 1.6 v=2 weight=1.00];W[]C[0.35 0.38 0.28 1.5 v=2 weight=1.00];B[ia]C[0.30 0.34 0.36 -0.2 v=2 weight=1.00];W[]C[0.32 0.32 0.36 -2.1 v=2 weight=1.00];B[da]C[0.32 0.32 0.36 -1.1 v=2 weight=1.00];W[]C[0.30 0.34 0.36 -0.4 v=2 weight=1.00];B[ca]C[0.32 0.34 0.34 -1.3 v=2 weight=1.00];W[fa]C[0.38 0.28 0.34 0.1 v=2 weight=1.00];B[]C[0.40 0.31 0.29 -0.5 v=2 weight=1.00];W[ha]C[0.41 0.34 0.25 -0.6 v=2 weight=1.00];B[ga]C[0.43 0.31 0.26 0.6 v=2 weight=1.00];W[]TR[ga]C[Pass for ko 0.37 0.29 0.34 0.8 v=2 weight=1.00];B[]C[0.32 0.30 0.38 -0.0 v=2 weight=1.00];W[]C[0.33 0.30 0.37 -1.9 v=2 weight=1.00];B[aa]C[0.31 0.33 0.35 -3.2 v=2 weight=1.00];W[]C[0.34 0.33 0.32 -0.8 v=2 weight=1.00];B[]C[0.70 0.16 0.14 4.4 v=2 weight=1.00 result=W+7.5])
 ===================================================================
 Unlimited time controls
 ===================================================================
-board9Early min rec max = 0 1.27226e+28 2e+29
-board9Late min rec max = 0 2.89017e+28 2e+29
-board19Early min rec max = 0 4.05515e+27 2e+29
-board19Late min rec max = 0 1.47929e+28 2e+29
+board9Early min rec max = 0 2.06292e+28 2e+29 roundedrec(used0) 2.06292e+28 roundedrec(usedlimit) 2.06292e+28 roundedrec(usedlimit2) 2.06292e+28
+board9Late min rec max = 0 3.77715e+28 2e+29 roundedrec(used0) 3.77715e+28 roundedrec(usedlimit) 3.77715e+28 roundedrec(usedlimit2) 3.77715e+28
+board19Early min rec max = 0 5.5104e+27 2e+29 roundedrec(used0) 5.5104e+27 roundedrec(usedlimit) 5.5104e+27 roundedrec(usedlimit2) 5.5104e+27
+board19Late min rec max = 0 1.08725e+28 2e+29 roundedrec(used0) 1.08725e+28 roundedrec(usedlimit) 1.08725e+28 roundedrec(usedlimit2) 1.08725e+28
 ===================================================================
 Basic 1h absolute time controls, all time left
 ===================================================================
-board9Early min rec max = 0 44.7888 718.8
-board9Late min rec max = 0 103.017 718.8
-board19Early min rec max = 0 13.5945 718.8
-board19Late min rec max = 0 52.2396 718.8
+board9Early min rec max = 0 73.2445 718.8 roundedrec(used0) 73.2445 roundedrec(usedlimit) 73.2445 roundedrec(usedlimit2) 73.2445
+board9Late min rec max = 0 134.94 718.8 roundedrec(used0) 134.94 roundedrec(usedlimit) 134.94 roundedrec(usedlimit2) 134.94
+board19Early min rec max = 0 18.8319 718.8 roundedrec(used0) 18.8319 roundedrec(usedlimit) 18.8319 roundedrec(usedlimit2) 18.8319
+board19Late min rec max = 0 38.1302 718.8 roundedrec(used0) 38.1302 roundedrec(usedlimit) 38.1302 roundedrec(usedlimit2) 38.1302
 ===================================================================
 Basic 1h absolute time controls, 10m left
 ===================================================================
-board9Early min rec max = 0 6.62087 118.8
-board9Late min rec max = 0 16.3121 118.8
-board19Early min rec max = 0 1.42903 118.8
-board19Late min rec max = 0 7.86095 118.8
+board9Early min rec max = 0 11.3569 118.8 roundedrec(used0) 11.3569 roundedrec(usedlimit) 11.3569 roundedrec(usedlimit2) 11.3569
+board9Late min rec max = 0 21.6251 118.8 roundedrec(used0) 21.6251 roundedrec(usedlimit) 21.6251 roundedrec(usedlimit2) 21.6251
+board19Early min rec max = 0 2.30073 118.8 roundedrec(used0) 2.30073 roundedrec(usedlimit) 2.30073 roundedrec(usedlimit2) 2.30073
+board19Late min rec max = 0 5.51264 118.8 roundedrec(used0) 5.51264 roundedrec(usedlimit) 5.51264 roundedrec(usedlimit2) 5.51264
 ===================================================================
-Basic 1h fisher time controls, 10m left, 10s increment
+Basic 1h fischer time controls, 10m left, 10s increment
 ===================================================================
-board9Early min rec max = 0 17.816 126.8
-board9Late min rec max = 0 29.0272 126.8
-board19Early min rec max = 0 11.81 126.8
-board19Late min rec max = 0 19.2506 126.8
+board9Early min rec max = 0 24.5512 126.8 roundedrec(used0) 24.5512 roundedrec(usedlimit) 24.5512 roundedrec(usedlimit2) 24.5512
+board9Late min rec max = 0 46.1024 126.8 roundedrec(used0) 46.1024 roundedrec(usedlimit) 46.1024 roundedrec(usedlimit2) 46.1024
+board19Early min rec max = 0 13.1225 126.8 roundedrec(used0) 13.1225 roundedrec(usedlimit) 13.1225 roundedrec(usedlimit2) 13.1225
+board19Late min rec max = 0 20.0351 126.8 roundedrec(used0) 20.0351 roundedrec(usedlimit) 20.0351 roundedrec(usedlimit2) 20.0351
 ===================================================================
-Basic 1h fisher time controls, 10m left, 10s increment, larger lag buffer
+Basic 1h fischer time controls, 10m left, 10s increment, larger lag buffer
 ===================================================================
-board9Early min rec max = 0 13.7562 122
-board9Late min rec max = 0 24.8912 122
-board19Early min rec max = 0 7.7909 122
-board19Late min rec max = 0 15.181 122
+board9Early min rec max = 0 20.4455 122 roundedrec(used0) 20.4455 roundedrec(usedlimit) 20.4455 roundedrec(usedlimit2) 20.4455
+board9Late min rec max = 0 41.8504 122 roundedrec(used0) 41.8504 roundedrec(usedlimit) 41.8504 roundedrec(usedlimit2) 41.8504
+board19Early min rec max = 0 9.09449 122 roundedrec(used0) 9.09449 roundedrec(usedlimit) 9.09449 roundedrec(usedlimit2) 9.09449
+board19Late min rec max = 0 15.9602 122 roundedrec(used0) 15.9602 roundedrec(usedlimit) 15.9602 roundedrec(usedlimit2) 15.9602
+===================================================================
+Basic 1h fischer time controls, 15s left, 10s increment
+===================================================================
+board9Early min rec max = 0 9.10561 9.8 roundedrec(used0) 9.10561 roundedrec(usedlimit) 9.10561 roundedrec(usedlimit2) 9.10561
+board9Late min rec max = 0 9.25197 9.8 roundedrec(used0) 9.25197 roundedrec(usedlimit) 9.25197 roundedrec(usedlimit2) 9.25197
+board19Early min rec max = 0 9.028 9.8 roundedrec(used0) 9.028 roundedrec(usedlimit) 9.028 roundedrec(usedlimit2) 9.028
+board19Late min rec max = 0 9.07494 9.8 roundedrec(used0) 9.07494 roundedrec(usedlimit) 9.07494 roundedrec(usedlimit2) 9.07494
+===================================================================
+Basic 1h fischer time controls, 5s left, 10s increment
+===================================================================
+board9Early min rec max = 0 3 4 roundedrec(used0) 3 roundedrec(usedlimit) 3 roundedrec(usedlimit2) 3
+board9Late min rec max = 0 3 4 roundedrec(used0) 3 roundedrec(usedlimit) 3 roundedrec(usedlimit2) 3
+board19Early min rec max = 0 3 4 roundedrec(used0) 3 roundedrec(usedlimit) 3 roundedrec(usedlimit2) 3
+board19Late min rec max = 0 3 4 roundedrec(used0) 3 roundedrec(usedlimit) 3 roundedrec(usedlimit2) 3
+===================================================================
+Basic 1h fischer time controls, -1s left, 10s increment
+===================================================================
+board9Early min rec max = 0 0 0 roundedrec(used0) 0 roundedrec(usedlimit) 0 roundedrec(usedlimit2) 0
+board9Late min rec max = 0 0 0 roundedrec(used0) 0 roundedrec(usedlimit) 0 roundedrec(usedlimit2) 0
+board19Early min rec max = 0 0 0 roundedrec(used0) 0 roundedrec(usedlimit) 0 roundedrec(usedlimit2) 0
+board19Late min rec max = 0 0 0 roundedrec(used0) 0 roundedrec(usedlimit) 0 roundedrec(usedlimit2) 0
 ===================================================================
 Basic 1h byo yomi time controls, all time left, 1 period of 30s
 ===================================================================
-board9Early min rec max = 0 89.8015 749
-board9Late min rec max = 0 148.046 749
-board19Early min rec max = 0 49.8551 749
-board19Late min rec max = 0 97.2544 749
+board9Early min rec max = 0 80.5485 749 roundedrec(used0) 80.5485 roundedrec(usedlimit) 80.5485 roundedrec(usedlimit2) 80.5485
+board9Late min rec max = 0 134.977 749 roundedrec(used0) 134.977 roundedrec(usedlimit) 134.977 roundedrec(usedlimit2) 134.977
+board19Early min rec max = 0 45.5991 749 roundedrec(used0) 45.5991 roundedrec(usedlimit) 45.5991 roundedrec(usedlimit2) 45.5991
+board19Late min rec max = 0 80.5485 749 roundedrec(used0) 80.5485 roundedrec(usedlimit) 80.5485 roundedrec(usedlimit2) 80.5485
+===================================================================
+Basic 1h byo yomi time controls, all time left, 3 periods of 30s
+===================================================================
+board9Early min rec max = 0 80.5485 749 roundedrec(used0) 80.5485 roundedrec(usedlimit) 80.5485 roundedrec(usedlimit2) 80.5485
+board9Late min rec max = 0 134.977 749 roundedrec(used0) 134.977 roundedrec(usedlimit) 134.977 roundedrec(usedlimit2) 134.977
+board19Early min rec max = 0 45.5991 749 roundedrec(used0) 45.5991 roundedrec(usedlimit) 45.5991 roundedrec(usedlimit2) 45.5991
+board19Late min rec max = 0 80.5485 749 roundedrec(used0) 80.5485 roundedrec(usedlimit) 80.5485 roundedrec(usedlimit2) 80.5485
 ===================================================================
 Basic 1h byo yomi time controls, all time left, 5 periods of 30s
 ===================================================================
-board9Early min rec max = 0 90.5649 761
-board9Late min rec max = 0 149.78 761
-board19Early min rec max = 0 50.2026 761
-board19Late min rec max = 0 98.142 761
+board9Early min rec max = 0 80.5485 749 roundedrec(used0) 80.5485 roundedrec(usedlimit) 80.5485 roundedrec(usedlimit2) 80.5485
+board9Late min rec max = 0 134.977 749 roundedrec(used0) 134.977 roundedrec(usedlimit) 134.977 roundedrec(usedlimit2) 134.977
+board19Early min rec max = 0 45.5991 749 roundedrec(used0) 45.5991 roundedrec(usedlimit) 45.5991 roundedrec(usedlimit2) 45.5991
+board19Late min rec max = 0 80.5485 749 roundedrec(used0) 80.5485 roundedrec(usedlimit) 80.5485 roundedrec(usedlimit2) 80.5485
+===================================================================
+Basic 1h byo yomi time controls, all time left, 6 periods of 30s
+===================================================================
+board9Early min rec max = 0 80.5485 755 roundedrec(used0) 80.5485 roundedrec(usedlimit) 80.5485 roundedrec(usedlimit2) 80.5485
+board9Late min rec max = 0 136.11 755 roundedrec(used0) 136.11 roundedrec(usedlimit) 136.11 roundedrec(usedlimit2) 136.11
+board19Early min rec max = 0 45.5991 755 roundedrec(used0) 45.5991 roundedrec(usedlimit) 45.5991 roundedrec(usedlimit2) 45.5991
+board19Late min rec max = 0 80.5485 755 roundedrec(used0) 80.5485 roundedrec(usedlimit) 80.5485 roundedrec(usedlimit2) 80.5485
+===================================================================
+Basic 1h byo yomi time controls, all time left, 7 periods of 30s
+===================================================================
+board9Early min rec max = 0 80.5485 761 roundedrec(used0) 80.5485 roundedrec(usedlimit) 80.5485 roundedrec(usedlimit2) 80.5485
+board9Late min rec max = 0 137.244 761 roundedrec(used0) 137.244 roundedrec(usedlimit) 137.244 roundedrec(usedlimit2) 137.244
+board19Early min rec max = 0 45.5991 761 roundedrec(used0) 45.5991 roundedrec(usedlimit) 45.5991 roundedrec(usedlimit2) 45.5991
+board19Late min rec max = 0 80.5485 761 roundedrec(used0) 80.5485 roundedrec(usedlimit) 80.5485 roundedrec(usedlimit2) 80.5485
 ===================================================================
 Basic 1h byo yomi time controls, all time left, 3 moves canadian in 30s
 ===================================================================
-board9Early min rec max = 0 69.8015 731
-board9Late min rec max = 0 128.046 731
-board19Early min rec max = 0 29.8551 731
-board19Late min rec max = 0 77.2544 731
+board9Early min rec max = 0 73.2651 731 roundedrec(used0) 73.2651 roundedrec(usedlimit) 73.2651 roundedrec(usedlimit2) 73.2651
+board9Late min rec max = 0 134.977 731 roundedrec(used0) 134.977 roundedrec(usedlimit) 134.977 roundedrec(usedlimit2) 134.977
+board19Early min rec max = 0 26.1828 731 roundedrec(used0) 26.1828 roundedrec(usedlimit) 26.1828 roundedrec(usedlimit2) 26.1828
+board19Late min rec max = 0 38.1411 731 roundedrec(used0) 38.1411 roundedrec(usedlimit) 38.1411 roundedrec(usedlimit2) 38.1411
 ===================================================================
 Basic 1h byo yomi time controls, no time left, 1 periods of 30s
 ===================================================================
-board9Early min rec max = 0 29 29
-board9Late min rec max = 0 29 29
-board19Early min rec max = 0 29 29
-board19Late min rec max = 0 29 29
+board9Early min rec max = 0 28 28 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board9Late min rec max = 0 28 28 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board19Early min rec max = 0 28 28 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board19Late min rec max = 0 28 28 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
 ===================================================================
 Basic 1h byo yomi time controls, no time left, 5 periods of 30s
 ===================================================================
-board9Early min rec max = 0 30.0905 41
-board9Late min rec max = 0 31.4773 41
-board19Early min rec max = 0 29.3476 41
-board19Late min rec max = 0 30.268 41
+board9Early min rec max = 0 29 29 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board9Late min rec max = 0 29 29 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board19Early min rec max = 0 29 29 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board19Late min rec max = 0 29 29 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+===================================================================
+Basic 1h byo yomi time controls, no time left, 6 periods of 30s
+===================================================================
+board9Early min rec max = 0 59 59 roundedrec(used0) 59 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
+board9Late min rec max = 0 59 59 roundedrec(used0) 59 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
+board19Early min rec max = 0 59 59 roundedrec(used0) 59 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
+board19Late min rec max = 0 59 59 roundedrec(used0) 59 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
+===================================================================
+Basic 1h byo yomi time controls, no time left, 7 periods of 30s
+===================================================================
+board9Early min rec max = 0 45.5991 89 roundedrec(used0) 45.5991 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
+board9Late min rec max = 0 45.5991 89 roundedrec(used0) 45.5991 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
+board19Early min rec max = 0 45.5991 89 roundedrec(used0) 45.5991 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
+board19Late min rec max = 0 45.5991 89 roundedrec(used0) 45.5991 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
 ===================================================================
 Basic 1h byo yomi time controls, no time left, 3 moves canadian in 30s
 ===================================================================
-board9Early min rec max = 0 9 11
-board9Late min rec max = 0 9 11
-board19Early min rec max = 0 9 11
-board19Late min rec max = 0 9 11
+board9Early min rec max = 0 9 11 roundedrec(used0) 9 roundedrec(usedlimit) 9 roundedrec(usedlimit2) 9
+board9Late min rec max = 0 9 11 roundedrec(used0) 9 roundedrec(usedlimit) 9 roundedrec(usedlimit2) 9
+board19Early min rec max = 0 9 11 roundedrec(used0) 9 roundedrec(usedlimit) 9 roundedrec(usedlimit2) 9
+board19Late min rec max = 0 9 11 roundedrec(used0) 9 roundedrec(usedlimit) 9 roundedrec(usedlimit2) 9
+===================================================================
+Basic 1h byo yomi time controls, 15s left, 1 periods of 30s
+===================================================================
+board9Early min rec max = 0 43 43 roundedrec(used0) 43 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
+board9Late min rec max = 0 43 43 roundedrec(used0) 43 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
+board19Early min rec max = 0 43 43 roundedrec(used0) 43 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
+board19Late min rec max = 0 43 43 roundedrec(used0) 43 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
+===================================================================
+Basic 1h byo yomi time controls, 15s left, 2 periods of 30s
+===================================================================
+board9Early min rec max = 0 44 44 roundedrec(used0) 44 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
+board9Late min rec max = 0 44 44 roundedrec(used0) 44 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
+board19Early min rec max = 0 44 44 roundedrec(used0) 44 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
+board19Late min rec max = 0 44 44 roundedrec(used0) 44 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
+===================================================================
+Basic 1h byo yomi time controls, 15s left, 3 moves canadian in 30s
+===================================================================
+board9Early min rec max = 0 14 26 roundedrec(used0) 14 roundedrec(usedlimit) 16 roundedrec(usedlimit2) 16
+board9Late min rec max = 0 14 26 roundedrec(used0) 14 roundedrec(usedlimit) 16 roundedrec(usedlimit2) 16
+board19Early min rec max = 0 14 26 roundedrec(used0) 14 roundedrec(usedlimit) 16 roundedrec(usedlimit2) 16
+board19Late min rec max = 0 14 26 roundedrec(used0) 14 roundedrec(usedlimit) 16 roundedrec(usedlimit2) 16
+===================================================================
+Basic 1h byo yomi time controls, 45s left, 1 periods of 30s
+===================================================================
+board9Early min rec max = 0 43 73 roundedrec(used0) 43 roundedrec(usedlimit) 74 roundedrec(usedlimit2) 74
+board9Late min rec max = 0 43 73 roundedrec(used0) 43 roundedrec(usedlimit) 74 roundedrec(usedlimit2) 74
+board19Early min rec max = 0 43 73 roundedrec(used0) 43 roundedrec(usedlimit) 74 roundedrec(usedlimit2) 74
+board19Late min rec max = 0 43 73 roundedrec(used0) 43 roundedrec(usedlimit) 74 roundedrec(usedlimit2) 74
+===================================================================
+Basic 1h byo yomi time controls, 45s left, 2 periods of 30s
+===================================================================
+board9Early min rec max = 0 44 74 roundedrec(used0) 44 roundedrec(usedlimit) 74 roundedrec(usedlimit2) 74
+board9Late min rec max = 0 44 74 roundedrec(used0) 44 roundedrec(usedlimit) 74 roundedrec(usedlimit2) 74
+board19Early min rec max = 0 44 74 roundedrec(used0) 44 roundedrec(usedlimit) 74 roundedrec(usedlimit2) 74
+board19Late min rec max = 0 44 74 roundedrec(used0) 44 roundedrec(usedlimit) 74 roundedrec(usedlimit2) 74
+===================================================================
+Basic 1h byo yomi time controls, 45s left, 3 moves canadian in 30s
+===================================================================
+board9Early min rec max = 0 14.533 32 roundedrec(used0) 14.533 roundedrec(usedlimit) 14.533 roundedrec(usedlimit2) 14.533
+board9Late min rec max = 0 14.533 32 roundedrec(used0) 14.533 roundedrec(usedlimit) 14.533 roundedrec(usedlimit2) 14.533
+board19Early min rec max = 0 14.533 32 roundedrec(used0) 14.533 roundedrec(usedlimit) 14.533 roundedrec(usedlimit2) 14.533
+board19Late min rec max = 0 14.533 32 roundedrec(used0) 14.533 roundedrec(usedlimit) 14.533 roundedrec(usedlimit2) 14.533
+===================================================================
+Basic 1h byo yomi time controls, 61s left, 1 periods of 30s
+===================================================================
+board9Early min rec max = 0 44.5991 89 roundedrec(used0) 44.5991 roundedrec(usedlimit) 44.5991 roundedrec(usedlimit2) 44.5991
+board9Late min rec max = 0 44.5991 89 roundedrec(used0) 44.5991 roundedrec(usedlimit) 44.5991 roundedrec(usedlimit2) 44.5991
+board19Early min rec max = 0 44.5991 89 roundedrec(used0) 44.5991 roundedrec(usedlimit) 44.5991 roundedrec(usedlimit2) 44.5991
+board19Late min rec max = 0 44.5991 89 roundedrec(used0) 44.5991 roundedrec(usedlimit) 44.5991 roundedrec(usedlimit2) 44.5991
+===================================================================
+Basic 1h byo yomi time controls, 61s left, 2 periods of 30s
+===================================================================
+board9Early min rec max = 0 45.5991 90 roundedrec(used0) 45.5991 roundedrec(usedlimit) 45.5991 roundedrec(usedlimit2) 45.5991
+board9Late min rec max = 0 45.5991 90 roundedrec(used0) 45.5991 roundedrec(usedlimit) 45.5991 roundedrec(usedlimit2) 45.5991
+board19Early min rec max = 0 45.5991 90 roundedrec(used0) 45.5991 roundedrec(usedlimit) 45.5991 roundedrec(usedlimit2) 45.5991
+board19Late min rec max = 0 45.5991 90 roundedrec(used0) 45.5991 roundedrec(usedlimit) 45.5991 roundedrec(usedlimit2) 45.5991
+===================================================================
+Basic 1h byo yomi time controls, 61s left, 3 moves canadian in 30s
+===================================================================
+board9Early min rec max = 0 14.533 32 roundedrec(used0) 14.533 roundedrec(usedlimit) 14.533 roundedrec(usedlimit2) 14.533
+board9Late min rec max = 0 17.7692 32 roundedrec(used0) 17.7692 roundedrec(usedlimit) 17.7692 roundedrec(usedlimit2) 17.7692
+board19Early min rec max = 0 14.533 32 roundedrec(used0) 14.533 roundedrec(usedlimit) 14.533 roundedrec(usedlimit2) 14.533
+board19Late min rec max = 0 14.533 32 roundedrec(used0) 14.533 roundedrec(usedlimit) 14.533 roundedrec(usedlimit2) 14.533
+===================================================================
+Basic 1h byo yomi time controls, 70s left, 1 periods of 30s
+===================================================================
+board9Early min rec max = 0 44.5991 98 roundedrec(used0) 44.5991 roundedrec(usedlimit) 44.5991 roundedrec(usedlimit2) 44.5991
+board9Late min rec max = 0 44.5991 98 roundedrec(used0) 44.5991 roundedrec(usedlimit) 44.5991 roundedrec(usedlimit2) 44.5991
+board19Early min rec max = 0 44.5991 98 roundedrec(used0) 44.5991 roundedrec(usedlimit) 44.5991 roundedrec(usedlimit2) 44.5991
+board19Late min rec max = 0 44.5991 98 roundedrec(used0) 44.5991 roundedrec(usedlimit) 44.5991 roundedrec(usedlimit2) 44.5991
+===================================================================
+Basic 1h byo yomi time controls, 70s left, 2 periods of 30s
+===================================================================
+board9Early min rec max = 0 45.5991 99 roundedrec(used0) 45.5991 roundedrec(usedlimit) 45.5991 roundedrec(usedlimit2) 45.5991
+board9Late min rec max = 0 45.5991 99 roundedrec(used0) 45.5991 roundedrec(usedlimit) 45.5991 roundedrec(usedlimit2) 45.5991
+board19Early min rec max = 0 45.5991 99 roundedrec(used0) 45.5991 roundedrec(usedlimit) 45.5991 roundedrec(usedlimit2) 45.5991
+board19Late min rec max = 0 45.5991 99 roundedrec(used0) 45.5991 roundedrec(usedlimit) 45.5991 roundedrec(usedlimit2) 45.5991
+===================================================================
+Basic 1h byo yomi time controls, 70s left, 3 moves canadian in 30s
+===================================================================
+board9Early min rec max = 0 14.533 32 roundedrec(used0) 14.533 roundedrec(usedlimit) 14.533 roundedrec(usedlimit2) 14.533
+board9Late min rec max = 0 20.5385 32 roundedrec(used0) 20.5385 roundedrec(usedlimit) 20.5385 roundedrec(usedlimit2) 20.5385
+board19Early min rec max = 0 14.533 32 roundedrec(used0) 14.533 roundedrec(usedlimit) 14.533 roundedrec(usedlimit2) 14.533
+board19Late min rec max = 0 14.533 32 roundedrec(used0) 14.533 roundedrec(usedlimit) 14.533 roundedrec(usedlimit2) 14.533
 ===================================================================
 Basic 1h byo yomi time controls, 1 periods of 30s, just entered overtime
 ===================================================================
-board9Early min rec max = 28.5 28.5 28.5
-board9Late min rec max = 28.5 28.5 28.5
-board19Early min rec max = 28.5 28.5 28.5
-board19Late min rec max = 28.5 28.5 28.5
+board9Early min rec max = 28 28 28 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board9Late min rec max = 28 28 28 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board19Early min rec max = 28 28 28 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board19Late min rec max = 28 28 28 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+===================================================================
+Basic 1h byo yomi time controls, 3 periods of 30s, just entered overtime
+===================================================================
+board9Early min rec max = 29 29 29 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board9Late min rec max = 29 29 29 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board19Early min rec max = 29 29 29 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board19Late min rec max = 29 29 29 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
 ===================================================================
 Basic 1h byo yomi time controls, 5 periods of 30s, just entered overtime
 ===================================================================
-board9Early min rec max = 0 30.0905 41
-board9Late min rec max = 0 31.4773 41
-board19Early min rec max = 0 29.3476 41
-board19Late min rec max = 0 30.268 41
+board9Early min rec max = 29 29 29 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board9Late min rec max = 29 29 29 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board19Early min rec max = 29 29 29 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board19Late min rec max = 29 29 29 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+===================================================================
+Basic 1h byo yomi time controls, 6 periods of 30s, just entered overtime
+===================================================================
+board9Early min rec max = 0 59 59 roundedrec(used0) 59 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
+board9Late min rec max = 0 59 59 roundedrec(used0) 59 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
+board19Early min rec max = 0 59 59 roundedrec(used0) 59 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
+board19Late min rec max = 0 59 59 roundedrec(used0) 59 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
+===================================================================
+Basic 1h byo yomi time controls, 7 periods of 30s, just entered overtime
+===================================================================
+board9Early min rec max = 0 45.5991 89 roundedrec(used0) 45.5991 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
+board9Late min rec max = 0 45.5991 89 roundedrec(used0) 45.5991 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
+board19Early min rec max = 0 45.5991 89 roundedrec(used0) 45.5991 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
+board19Late min rec max = 0 45.5991 89 roundedrec(used0) 45.5991 roundedrec(usedlimit) 59 roundedrec(usedlimit2) 59
 ===================================================================
 Basic 1h byo yomi time controls, 3 moves canadian in 30s, just entered overtime
 ===================================================================
-board9Early min rec max = 0 9 11
-board9Late min rec max = 0 9 11
-board19Early min rec max = 0 9 11
-board19Late min rec max = 0 9 11
+board9Early min rec max = 0 9 11 roundedrec(used0) 9 roundedrec(usedlimit) 9 roundedrec(usedlimit2) 9
+board9Late min rec max = 0 9 11 roundedrec(used0) 9 roundedrec(usedlimit) 9 roundedrec(usedlimit2) 9
+board19Early min rec max = 0 9 11 roundedrec(used0) 9 roundedrec(usedlimit) 9 roundedrec(usedlimit2) 9
+board19Late min rec max = 0 9 11 roundedrec(used0) 9 roundedrec(usedlimit) 9 roundedrec(usedlimit2) 9
 ===================================================================
 Basic 1h byo yomi time controls, 1 periods of 30s, entered overtime 15s used
 ===================================================================
-board9Early min rec max = 13.5 13.5 13.5
-board9Late min rec max = 13.5 13.5 13.5
-board19Early min rec max = 13.5 13.5 13.5
-board19Late min rec max = 13.5 13.5 13.5
+board9Early min rec max = 13 13 13 roundedrec(used0) 14 roundedrec(usedlimit) 14 roundedrec(usedlimit2) 14
+board9Late min rec max = 13 13 13 roundedrec(used0) 14 roundedrec(usedlimit) 14 roundedrec(usedlimit2) 14
+board19Early min rec max = 13 13 13 roundedrec(used0) 14 roundedrec(usedlimit) 14 roundedrec(usedlimit2) 14
+board19Late min rec max = 13 13 13 roundedrec(used0) 14 roundedrec(usedlimit) 14 roundedrec(usedlimit2) 14
 ===================================================================
 Basic 1h byo yomi time controls, 5 periods of 30s, entered overtime 15s used
 ===================================================================
-board9Early min rec max = 0 29.8179 38
-board9Late min rec max = 0 30.858 38
-board19Early min rec max = 0 29.2607 38
-board19Late min rec max = 0 29.951 38
+board9Early min rec max = 14 14 14 roundedrec(used0) 14 roundedrec(usedlimit) 14 roundedrec(usedlimit2) 14
+board9Late min rec max = 14 14 14 roundedrec(used0) 14 roundedrec(usedlimit) 14 roundedrec(usedlimit2) 14
+board19Early min rec max = 14 14 14 roundedrec(used0) 14 roundedrec(usedlimit) 14 roundedrec(usedlimit2) 14
+board19Late min rec max = 14 14 14 roundedrec(used0) 14 roundedrec(usedlimit) 14 roundedrec(usedlimit2) 14
+===================================================================
+Basic 1h byo yomi time controls, 6 periods of 30s, entered overtime 15s used
+===================================================================
+board9Early min rec max = 0 44 44 roundedrec(used0) 44 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
+board9Late min rec max = 0 44 44 roundedrec(used0) 44 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
+board19Early min rec max = 0 44 44 roundedrec(used0) 44 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
+board19Late min rec max = 0 44 44 roundedrec(used0) 44 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
+===================================================================
+Basic 1h byo yomi time controls, 7 periods of 30s, entered overtime 15s used
+===================================================================
+board9Early min rec max = 0 44 74 roundedrec(used0) 44 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
+board9Late min rec max = 0 44 74 roundedrec(used0) 44 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
+board19Early min rec max = 0 44 74 roundedrec(used0) 44 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
+board19Late min rec max = 0 44 74 roundedrec(used0) 44 roundedrec(usedlimit) 44 roundedrec(usedlimit2) 44
 ===================================================================
 Basic 1h byo yomi time controls, 3 moves canadian in 30s, entered overtime 15s used
 ===================================================================
-board9Early min rec max = 0 4 5
-board9Late min rec max = 0 4 5
-board19Early min rec max = 0 4 5
-board19Late min rec max = 0 4 5
+board9Early min rec max = 0 4 5 roundedrec(used0) 4 roundedrec(usedlimit) 4 roundedrec(usedlimit2) 4
+board9Late min rec max = 0 4 5 roundedrec(used0) 4 roundedrec(usedlimit) 4 roundedrec(usedlimit2) 4
+board19Early min rec max = 0 4 5 roundedrec(used0) 4 roundedrec(usedlimit) 4 roundedrec(usedlimit2) 4
+board19Late min rec max = 0 4 5 roundedrec(used0) 4 roundedrec(usedlimit) 4 roundedrec(usedlimit2) 4
 ===================================================================
 Basic 1h byo yomi time controls, 3 moves canadian in 30s, entered overtime 15s used, 2 moves left
 ===================================================================
-board9Early min rec max = 0 6.5 7.57143
-board9Late min rec max = 0 6.5 7.57143
-board19Early min rec max = 0 6.5 7.57143
-board19Late min rec max = 0 6.5 7.57143
+board9Early min rec max = 0 6.5 7.57143 roundedrec(used0) 6.5 roundedrec(usedlimit) 6.5 roundedrec(usedlimit2) 6.5
+board9Late min rec max = 0 6.5 7.57143 roundedrec(used0) 6.5 roundedrec(usedlimit) 6.5 roundedrec(usedlimit2) 6.5
+board19Early min rec max = 0 6.5 7.57143 roundedrec(used0) 6.5 roundedrec(usedlimit) 6.5 roundedrec(usedlimit2) 6.5
+board19Late min rec max = 0 6.5 7.57143 roundedrec(used0) 6.5 roundedrec(usedlimit) 6.5 roundedrec(usedlimit2) 6.5
 ===================================================================
 Basic 1h byo yomi time controls, 3 moves canadian in 30s, entered overtime 15s used, 1 moves left
 ===================================================================
-board9Early min rec max = 13.5 13.5 13.5
-board9Late min rec max = 13.5 13.5 13.5
-board19Early min rec max = 13.5 13.5 13.5
-board19Late min rec max = 13.5 13.5 13.5
+board9Early min rec max = 13 13 13 roundedrec(used0) 14 roundedrec(usedlimit) 14 roundedrec(usedlimit2) 14
+board9Late min rec max = 13 13 13 roundedrec(used0) 14 roundedrec(usedlimit) 14 roundedrec(usedlimit2) 14
+board19Early min rec max = 13 13 13 roundedrec(used0) 14 roundedrec(usedlimit) 14 roundedrec(usedlimit2) 14
+board19Late min rec max = 13 13 13 roundedrec(used0) 14 roundedrec(usedlimit) 14 roundedrec(usedlimit2) 14
 Running score and utility tests
 On-board even 9x9, komi 7.5
 Black self komi wins/draw=0.5: -7.5

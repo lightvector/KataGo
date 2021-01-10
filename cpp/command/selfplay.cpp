@@ -152,8 +152,9 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     int defaultMaxBatchSize = -1;
 
     Rand rand;
+    string expectedSha256 = "";
     NNEvaluator* nnEval = Setup::initializeNNEvaluator(
-      modelName,modelFile,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
+      modelName,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
       Setup::SETUP_FOR_OTHER
     );
@@ -286,7 +287,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
           seed, botSpecB, botSpecW, forkData, NULL, logger,
           stopConditions,
           (switchNetsMidGame ? checkForNewNNEval : nullptr),
-          nullptr
+          nullptr, false
         );
       }
 

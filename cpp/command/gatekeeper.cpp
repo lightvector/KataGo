@@ -363,16 +363,17 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
     int expectedConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads;
     int defaultMaxBatchSize = -1;
+    string expectedSha256 = "";
 
     NNEvaluator* testNNEval = Setup::initializeNNEvaluator(
-      testModelName,testModelFile,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
+      testModelName,testModelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
       Setup::SETUP_FOR_OTHER
     );
     logger.write("Loaded candidate neural net " + testModelName + " from: " + testModelFile);
 
     NNEvaluator* acceptedNNEval = Setup::initializeNNEvaluator(
-      acceptedModelName,acceptedModelFile,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
+      acceptedModelName,acceptedModelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
       Setup::SETUP_FOR_OTHER
     );
@@ -423,7 +424,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
           seed, botSpecB, botSpecW, NULL, NULL, logger,
-          stopConditions, nullptr, nullptr
+          stopConditions, nullptr, nullptr, false
         );
       }
 

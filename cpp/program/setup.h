@@ -22,6 +22,7 @@ namespace Setup {
   NNEvaluator* initializeNNEvaluator(
     const std::string& nnModelNames,
     const std::string& nnModelFiles,
+    const std::string& expectedSha256,
     ConfigParser& cfg,
     Logger& logger,
     Rand& seedRand,
@@ -36,6 +37,7 @@ namespace Setup {
   std::vector<NNEvaluator*> initializeNNEvaluators(
     const std::vector<std::string>& nnModelNames,
     const std::vector<std::string>& nnModelFiles,
+    const std::vector<std::string>& expectedSha256s,
     ConfigParser& cfg,
     Logger& logger,
     Rand& seedRand,

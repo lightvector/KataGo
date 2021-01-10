@@ -317,7 +317,8 @@ public:
     Logger& logger,
     std::vector<std::atomic<bool>*>& stopConditions,
     std::function<NNEvaluator*()> checkForNewNNEval,
-    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove,
+    bool alwaysIncludeOwnership
   );
 
   const GameInitializer* getGameInitializer() const;

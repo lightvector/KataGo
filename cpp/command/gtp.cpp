@@ -404,8 +404,9 @@ struct GTPEngine {
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     int expectedConcurrentEvals = params.numThreads;
     int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+    string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
-      nnModelFile,nnModelFile,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+      nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
       boardXSize,boardYSize,defaultMaxBatchSize,
       Setup::SETUP_FOR_GTP
     );
@@ -491,6 +492,7 @@ struct GTPEngine {
     }
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,currentRules,0);
+    hist.setInitialTurnNumber(board.numStonesOnBoard()); //Heuristic to guess at what turn this is
     vector<Move> newMoveHistory;
     setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
     clearStatsForNewGame();
@@ -541,6 +543,7 @@ struct GTPEngine {
 
     Board undoneBoard = initialBoard;
     BoardHistory undoneHist(undoneBoard,initialPla,currentRules,0);
+    undoneHist.setInitialTurnNumber(bot->getRootHist().initialTurnNumber);
     vector<Move> emptyMoveHistory;
     setPositionAndRules(initialPla,undoneBoard,undoneHist,initialBoard,initialPla,emptyMoveHistory);
 
@@ -570,6 +573,7 @@ struct GTPEngine {
 
     Board board = initialBoard;
     BoardHistory hist(board,initialPla,newRules,0);
+    hist.setInitialTurnNumber(bot->getRootHist().initialTurnNumber);
     vector<Move> emptyMoveHistory;
     setPositionAndRules(initialPla,board,hist,initialBoard,initialPla,emptyMoveHistory);
 
@@ -966,6 +970,7 @@ struct GTPEngine {
     //Also switch the initial player, expecting white should be next.
     hist.clear(board,P_WHITE,currentRules,0);
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+    hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
     pla = P_WHITE;
 
     response = "";
@@ -1007,6 +1012,7 @@ struct GTPEngine {
     //Also switch the initial player, expecting white should be next.
     hist.clear(board,P_WHITE,currentRules,0);
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+    hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
     pla = P_WHITE;
 
     response = "";
@@ -1125,7 +1131,7 @@ struct GTPEngine {
       return "";
     ostringstream out;
 
-    for(int symmetry = 0; symmetry<8; symmetry++) {
+    for(int symmetry = 0; symmetry < NNInputs::NUM_SYMMETRY_COMBINATIONS; symmetry++) {
       if(whichSymmetry == NNInputs::SYMMETRY_ALL || whichSymmetry == symmetry) {
         Board board = bot->getRootBoard();
         BoardHistory hist = bot->getRootHist();
@@ -1163,6 +1169,16 @@ struct GTPEngine {
             else
               out << Global::strprintf("%8.6f ", prob);
           }
+          out << endl;
+        }
+        out << "policyPass ";
+        {
+          int pos = NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
+          float prob = nnOutput->policyProbs[pos];
+          if(prob < 0)
+            out << "    NAN "; // Probably shouldn't ever happen for pass unles the rules change, but we handle it anyways
+          else
+            out << Global::strprintf("%8.6f ", prob);
           out << endl;
         }
 
@@ -1397,7 +1413,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
   bool loggingToStderr = false;
 
-  bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
+  const bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
   if(!logTimeStamp)
     logger.setLogTime(false);
 
@@ -2295,6 +2311,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
         Player pla = P_WHITE;
         BoardHistory hist(board,pla,engine->getCurrentRules(),0);
+        hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
         vector<Move> newMoveHistory;
         engine->setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
       }
@@ -2458,6 +2475,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             }
 
             sgf->setupInitialBoardAndHist(sgfRules, sgfInitialBoard, sgfInitialNextPla, sgfInitialHist);
+            sgfInitialHist.setInitialTurnNumber(sgfInitialBoard.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
             sgfBoard = sgfInitialBoard;
             sgfNextPla = sgfInitialNextPla;
             sgfHist = sgfInitialHist;
@@ -2543,7 +2561,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         string s = Global::trim(Global::toLower(pieces[0]));
         if(s == "all")
           parsed = true;
-        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= 7)
+        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= NNInputs::NUM_SYMMETRY_COMBINATIONS-1)
           parsed = true;
       }
 

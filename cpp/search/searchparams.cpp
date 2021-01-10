@@ -64,7 +64,16 @@ SearchParams::SearchParams()
    maxTimePondering(1.0e20),
    lagBuffer(0.0),
    searchFactorAfterOnePass(1.0),
-   searchFactorAfterTwoPass(1.0)
+   searchFactorAfterTwoPass(1.0),
+   treeReuseCarryOverTimeFactor(0.0),
+   overallocateTimeFactor(1.0),
+   midgameTimeFactor(1.0),
+   midgameTurnPeakTime(130.0),
+   endgameTurnTimeDecay(100.0),
+   obviousMovesTimeFactor(1.0),
+   obviousMovesPolicyEntropyTolerance(0.30),
+   obviousMovesPolicySurpriseTolerance(0.15),
+   futileVisitsThreshold(0.0)
 {}
 
 SearchParams::~SearchParams()

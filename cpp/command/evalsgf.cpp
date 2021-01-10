@@ -29,6 +29,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool printOwnership;
   bool printRootNNValues;
   bool printPolicy;
+  bool printLogPolicy;
   bool printDirichletShape;
   bool printScoreNow;
   bool printRootEndingBonus;
@@ -53,6 +54,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::SwitchArg printOwnershipArg("","print-ownership","Print ownership");
     TCLAP::SwitchArg printRootNNValuesArg("","print-root-nn-values","Print root nn values");
     TCLAP::SwitchArg printPolicyArg("","print-policy","Print policy");
+    TCLAP::SwitchArg printLogPolicyArg("","print-log-policy","Print log policy");
     TCLAP::SwitchArg printDirichletShapeArg("","print-dirichlet-shape","Print dirichlet shape");
     TCLAP::SwitchArg printScoreNowArg("","print-score-now","Print score now");
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
@@ -76,6 +78,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printOwnershipArg);
     cmd.add(printRootNNValuesArg);
     cmd.add(printPolicyArg);
+    cmd.add(printLogPolicyArg);
     cmd.add(printDirichletShapeArg);
     cmd.add(printScoreNowArg);
     cmd.add(printRootEndingBonusArg);
@@ -97,6 +100,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     printOwnership = printOwnershipArg.getValue();
     printRootNNValues = printRootNNValuesArg.getValue();
     printPolicy = printPolicyArg.getValue();
+    printLogPolicy = printLogPolicyArg.getValue();
     printDirichletShape = printDirichletShapeArg.getValue();
     printScoreNow = printScoreNowArg.getValue();
     printRootEndingBonus = printRootEndingBonusArg.getValue();
@@ -156,7 +160,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     vector<Loc> extraMoveLocs = Location::parseSequence(extraMoves,board);
     for(size_t i = 0; i<extraMoveLocs.size(); i++) {
       Loc loc = extraMoveLocs[i];
-      if(!board.isLegal(loc,nextPla,hist.rules.multiStoneSuicideLegal)) {
+      if(!hist.isLegal(board,loc,nextPla)) {
         cerr << board << endl;
         cerr << "Extra illegal move for " << PlayerIO::colorToChar(nextPla) << ": " << Location::toString(loc,board) << endl;
         throw StringError("Illegal extra move");
@@ -214,8 +218,9 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     int expectedConcurrentEvals = params.numThreads;
     int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+    string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
-      modelFile,modelFile,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+      modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
       board.x_size,board.y_size,defaultMaxBatchSize,
       Setup::SETUP_FOR_GTP
     );
@@ -270,7 +275,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     Player pla = nextPla;
     for(int i = 0; i<options.branch_.size(); i++) {
       Loc loc = options.branch_[i];
-      if(!copy.isLegal(loc,pla,copyHist.rules.multiStoneSuicideLegal)) {
+      if(!copyHist.isLegal(copy,loc,pla)) {
         cerr << board << endl;
         cerr << "Branch Illegal move for " << PlayerIO::colorToChar(pla) << ": " << Location::toString(loc,board) << endl;
         return 1;
@@ -328,6 +333,26 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
       }
       double prob = policyProbs[NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen)];
       cout << "Pass " << Global::strprintf("%5.2f",prob*100) << endl;
+    }
+  }
+  if(printLogPolicy) {
+    if(search->rootNode->nnOutput != nullptr) {
+      NNOutput* nnOutput = search->rootNode->nnOutput.get();
+      float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+      cout << "Root policy: " << endl;
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+          double prob = policyProbs[pos];
+          if(prob < 0)
+            cout << "  _  " << " ";
+          else
+            cout << Global::strprintf("%+5.2f",log(prob)) << " ";
+        }
+        cout << endl;
+      }
+      double prob = policyProbs[NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen)];
+      cout << "Pass " << Global::strprintf("%+5.2f",log(prob)) << endl;
     }
   }
 

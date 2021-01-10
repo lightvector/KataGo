@@ -91,6 +91,19 @@ struct SearchParams {
   double searchFactorAfterOnePass; //Multiply playouts and visits and time by this much after a pass by the opponent
   double searchFactorAfterTwoPass; //Multiply playouts and visits and time by this after two passes by the opponent
 
+  //Time control
+  double treeReuseCarryOverTimeFactor; //Assume we gain this much "time" on the next move purely from % tree preserved * time spend on that tree.
+  double overallocateTimeFactor; //Prefer to think this factor longer than recommended by base level time control
+  double midgameTimeFactor; //Think this factor longer in the midgame, proportional to midgame weight
+  double midgameTurnPeakTime; //The turn considered to have midgame weight 1.0, rising up from 0.0 in the opening, for 19x19
+  double endgameTurnTimeDecay; //The scale of exponential decay of midgame weight back to 1.0, for 19x19
+  double obviousMovesTimeFactor; //Think up to this factor longer on obvious moves, weighted by obviousness
+  double obviousMovesPolicyEntropyTolerance; //What entropy does the policy need to be at most to be (1/e) obvious?
+  double obviousMovesPolicySurpriseTolerance; //What logits of surprise does the search result need to be at most to be (1/e) obvious?
+
+  double futileVisitsThreshold; //If a move would not be able to match this proportion of the max visits move in the time or visit or playout cap remaining, prune it.
+
+
   SearchParams();
   ~SearchParams();
 

@@ -12,6 +12,7 @@ void Setup::initializeSession(ConfigParser& cfg) {
 NNEvaluator* Setup::initializeNNEvaluator(
   const string& nnModelName,
   const string& nnModelFile,
+  const string& expectedSha256,
   ConfigParser& cfg,
   Logger& logger,
   Rand& seedRand,
@@ -24,7 +25,8 @@ NNEvaluator* Setup::initializeNNEvaluator(
 ) {
   vector<NNEvaluator*> nnEvals =
     initializeNNEvaluators(
-      {nnModelName},{nnModelFile},cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,defaultNNXLen,defaultNNYLen,defaultMaxBatchSize,setupFor
+      {nnModelName},{nnModelFile},{expectedSha256},
+      cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,defaultNNXLen,defaultNNYLen,defaultMaxBatchSize,setupFor
     );
   assert(nnEvals.size() == 1);
   return nnEvals[0];
@@ -33,6 +35,7 @@ NNEvaluator* Setup::initializeNNEvaluator(
 vector<NNEvaluator*> Setup::initializeNNEvaluators(
   const vector<string>& nnModelNames,
   const vector<string>& nnModelFiles,
+  const vector<string>& expectedSha256s,
   ConfigParser& cfg,
   Logger& logger,
   Rand& seedRand,
@@ -45,6 +48,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 ) {
   vector<NNEvaluator*> nnEvals;
   assert(nnModelNames.size() == nnModelFiles.size());
+  assert(expectedSha256s.size() == 0 || expectedSha256s.size() == nnModelFiles.size());
 
   #if defined(USE_CUDA_BACKEND)
   string backendPrefix = "cuda";
@@ -71,6 +75,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     string idxStr = Global::intToString(i);
     const string& nnModelName = nnModelNames[i];
     const string& nnModelFile = nnModelFiles[i];
+    const string& expectedSha256 = expectedSha256s.size() > 0 ? expectedSha256s[i]: "";
 
     bool debugSkipNeuralNetDefault = (nnModelFile == "/dev/null");
     bool debugSkipNeuralNet =
@@ -229,7 +234,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     int forcedSymmetry = -1;
     if(setupFor != SETUP_FOR_DISTRIBUTED && cfg.contains("nnForcedSymmetry"))
-      forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,7);
+      forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
 
     logger.write(
       "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
@@ -283,6 +288,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
       nnModelFile,
+      expectedSha256,
       &logger,
       nnMaxBatchSize,
       maxConcurrentEvals,
@@ -553,6 +559,35 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("numVirtualLossesPerThread"+idxStr)) params.numVirtualLossesPerThread = (int32_t)cfg.getInt("numVirtualLossesPerThread"+idxStr, 1, 1000);
     else if(cfg.contains("numVirtualLossesPerThread"))   params.numVirtualLossesPerThread = (int32_t)cfg.getInt("numVirtualLossesPerThread",        1, 1000);
     else                                                 params.numVirtualLossesPerThread = 1;
+
+    if(cfg.contains("treeReuseCarryOverTimeFactor"+idxStr)) params.treeReuseCarryOverTimeFactor = cfg.getDouble("treeReuseCarryOverTimeFactor"+idxStr,0.0,1.0);
+    else if(cfg.contains("treeReuseCarryOverTimeFactor"))   params.treeReuseCarryOverTimeFactor = cfg.getDouble("treeReuseCarryOverTimeFactor",0.0,1.0);
+    else                                                    params.treeReuseCarryOverTimeFactor = 0.0;
+    if(cfg.contains("overallocateTimeFactor"+idxStr)) params.overallocateTimeFactor = cfg.getDouble("overallocateTimeFactor"+idxStr,0.01,100.0);
+    else if(cfg.contains("overallocateTimeFactor"))   params.overallocateTimeFactor = cfg.getDouble("overallocateTimeFactor",0.01,100.0);
+    else                                              params.overallocateTimeFactor = 1.0;
+    if(cfg.contains("midgameTimeFactor"+idxStr)) params.midgameTimeFactor = cfg.getDouble("midgameTimeFactor"+idxStr,0.01,100.0);
+    else if(cfg.contains("midgameTimeFactor"))   params.midgameTimeFactor = cfg.getDouble("midgameTimeFactor",0.01,100.0);
+    else                                         params.midgameTimeFactor = 1.0;
+    if(cfg.contains("midgameTurnPeakTime"+idxStr)) params.midgameTurnPeakTime = cfg.getDouble("midgameTurnPeakTime"+idxStr,0.0,1000.0);
+    else if(cfg.contains("midgameTurnPeakTime"))   params.midgameTurnPeakTime = cfg.getDouble("midgameTurnPeakTime",0.0,1000.0);
+    else                                           params.midgameTurnPeakTime = 130.0;
+    if(cfg.contains("endgameTurnTimeDecay"+idxStr)) params.endgameTurnTimeDecay = cfg.getDouble("endgameTurnTimeDecay"+idxStr,0.0,1000.0);
+    else if(cfg.contains("endgameTurnTimeDecay"))   params.endgameTurnTimeDecay = cfg.getDouble("endgameTurnTimeDecay",0.0,1000.0);
+    else                                            params.endgameTurnTimeDecay = 100.0;
+    if(cfg.contains("obviousMovesTimeFactor"+idxStr)) params.obviousMovesTimeFactor = cfg.getDouble("obviousMovesTimeFactor"+idxStr,0.01,1.0);
+    else if(cfg.contains("obviousMovesTimeFactor"))   params.obviousMovesTimeFactor = cfg.getDouble("obviousMovesTimeFactor",0.01,1.0);
+    else                                              params.obviousMovesTimeFactor = 1.0;
+    if(cfg.contains("obviousMovesPolicyEntropyTolerance"+idxStr)) params.obviousMovesPolicyEntropyTolerance = cfg.getDouble("obviousMovesPolicyEntropyTolerance"+idxStr,0.001,2.0);
+    else if(cfg.contains("obviousMovesPolicyEntropyTolerance"))   params.obviousMovesPolicyEntropyTolerance = cfg.getDouble("obviousMovesPolicyEntropyTolerance",0.001,2.0);
+    else                                                          params.obviousMovesPolicyEntropyTolerance = 0.30;
+    if(cfg.contains("obviousMovesPolicySurpriseTolerance"+idxStr)) params.obviousMovesPolicySurpriseTolerance = cfg.getDouble("obviousMovesPolicySurpriseTolerance"+idxStr,0.001,2.0);
+    else if(cfg.contains("obviousMovesPolicySurpriseTolerance"))   params.obviousMovesPolicySurpriseTolerance = cfg.getDouble("obviousMovesPolicySurpriseTolerance",0.001,2.0);
+    else                                                           params.obviousMovesPolicySurpriseTolerance = 0.15;
+    if(cfg.contains("futileVisitsThreshold"+idxStr)) params.futileVisitsThreshold = cfg.getDouble("futileVisitsThreshold"+idxStr,0.01,1.0);
+    else if(cfg.contains("futileVisitsThreshold"))   params.futileVisitsThreshold = cfg.getDouble("futileVisitsThreshold",0.01,1.0);
+    else                                             params.futileVisitsThreshold = 0.0;
+
 
     paramss.push_back(params);
   }

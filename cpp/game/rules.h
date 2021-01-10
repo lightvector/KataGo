@@ -4,6 +4,8 @@
 #include "../core/global.h"
 #include "../core/hash.h"
 
+#include "../external/nlohmann_json/json.hpp"
+
 struct Rules {
 
   static const int KO_SIMPLE = 0;
@@ -76,12 +78,18 @@ struct Rules {
   std::string toJsonString() const;
   std::string toJsonStringNoKomi() const;
   std::string toJsonStringNoKomiMaybeOmitStuff() const;
+  nlohmann::json toJson() const;
+  nlohmann::json toJsonNoKomi() const;
+  nlohmann::json toJsonNoKomiMaybeOmitStuff() const;
 
   static const Hash128 ZOBRIST_KO_RULE_HASH[4];
   static const Hash128 ZOBRIST_SCORING_RULE_HASH[2];
   static const Hash128 ZOBRIST_TAX_RULE_HASH[3];
   static const Hash128 ZOBRIST_MULTI_STONE_SUICIDE_HASH;
   static const Hash128 ZOBRIST_BUTTON_HASH;
+
+private:
+  nlohmann::json toJsonHelper(bool omitKomi, bool omitDefaults) const;
 };
 
 #endif  // GAME_RULES_H_

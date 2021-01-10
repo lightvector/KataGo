@@ -163,9 +163,11 @@ static NNEvaluator* startNNEval(
     defaultSymmetry = 0;
   }
 
+  string expectedSha256 = "";
   NNEvaluator* nnEval = new NNEvaluator(
     modelName,
     modelFile,
+    expectedSha256,
     &logger,
     maxBatchSize,
     maxConcurrentEvals,
@@ -803,6 +805,11 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
 
   {
     cout << "TEST SYMMETRY AVGING ==========================================================================" << endl;
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
+    nnEval19Exact->killServerThreads();
+    nnEval19Exact->spawnServerThreads();
 
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]RU[Japanese]SZ[19]KM[6.5];B[dd];W[qd];B[od];W[pq];B[dq];W[do];B[eo];W[oe])";
     CompactSgf* sgf = CompactSgf::parse(sgfStr);
@@ -830,6 +837,12 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
     delete botA;
     delete botB;
     delete sgf;
+
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
+    nnEval19Exact->killServerThreads();
+    nnEval19Exact->spawnServerThreads();
   }
 
   {
@@ -1139,6 +1152,10 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
 
 
   {
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
+
     Board board = Board::parseBoard(19,19,R"%%(
 ...................
 ............o.oxx..
@@ -1178,7 +1195,7 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
 
     {
       cout << "===================================================================" << endl;
-      cout << "Test real hintloc T16" << endl;
+      cout << "Test real hintloc T16 (with symmetry sampling)" << endl;
       cout << "===================================================================" << endl;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "hintloc");
       bot->setRootHintLoc(Location::ofString("T16",board));
@@ -1187,13 +1204,17 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
     }
     {
       cout << "===================================================================" << endl;
-      cout << "Test bad hintloc O18" << endl;
+      cout << "Test bad hintloc O18 (with symmetry sampling)" << endl;
       cout << "===================================================================" << endl;
       AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "hintloc");
       bot->setRootHintLoc(Location::ofString("O18",board));
       runBotOnPosition(bot, board, nextPla, hist, opts);
       delete bot;
     }
+
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
   }
 
 }
@@ -1419,6 +1440,8 @@ oxxxooxoooo
 
 
   {
+    cout << "TEST Ending bonus points ==========================================================================" << endl;
+
     Board board = Board::parseBoard(11,11,R"%%(
 .x..ox.oxo.
 xxxooxxox.o
@@ -1463,6 +1486,93 @@ xxxx.xxoxxx
   }
 
   {
+    cout << "TEST futileVisitsThreshold ==========================================================================" << endl;
+
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.ox..xo..
+.........
+..o...x..
+.........
+..ox..ox.
+.........
+.........
+)%%");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 400;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.15;
+    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.4;
+    AsyncBot* botC = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+
+    TestSearchOptions opts;
+    cout << "BASE" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.15" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.4" << endl;
+    runBotOnPosition(botC,board,nextPla,hist,opts);
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete botC;
+  }
+
+  {
+    cout << "TEST futileVisitsThreshold with playouts ==========================================================================" << endl;
+
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.ox..xo..
+.........
+..o...x..
+.........
+..ox..ox.
+.........
+.........
+)%%");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 10000;
+    params.maxPlayouts = 200;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.15;
+    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+    params.futileVisitsThreshold = 0.4;
+    AsyncBot* botC = new AsyncBot(params, nnEval, &logger, "futileVisitsThreshold test");
+
+    TestSearchOptions opts;
+    cout << "BASE" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.15" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+    cout << "futileVisitsThreshold 0.4" << endl;
+    runBotOnPosition(botC,board,nextPla,hist,opts);
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete botC;
+  }
+
+  {
+    cout << "TEST Hintlocs ==========================================================================" << endl;
+
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
+
     Board board = Board::parseBoard(19,19,R"%%(
 ...................
 ...................
@@ -1497,12 +1607,16 @@ xxxx.xxoxxx
     paramsFastNoised.rootNoiseEnabled = true;
     SearchParams paramsSlowNoised = paramsSlow;
     paramsSlowNoised.rootNoiseEnabled = true;
-    //Note - symmetry sampling here won't actually do anything since the symmetry in the nneval is fixed
-    //but it will still trigger the relevant search.cpp code pathways
+    //Note - symmetry sampling here will randomize the root even though the nnEval is set to not randomize
+    //because the root symmetry sampling is done in the search
+    testAssert(nnEval->getDoRandomize() == false);
     SearchParams paramsFastSym = paramsFastNoised;
     paramsFastSym.rootNumSymmetriesToSample = 4;
     SearchParams paramsSlowSym = paramsSlowNoised;
     paramsSlowSym.rootNumSymmetriesToSample = 4;
+
+    SearchParams paramsSlowSymNoNoise = paramsSlowSym;
+    paramsSlowSymNoNoise.rootNoiseEnabled = false;
 
     TestSearchOptions opts;
     opts.noClearBot = true;
@@ -1513,6 +1627,15 @@ xxxx.xxoxxx
     {
       cout << "===================================================================" << endl;
       cout << "Test hintloc C1" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsSlow, nnEval, &logger, "hintloc");
+      bot->setRootHintLoc(Location::ofString("C1",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1, again" << endl;
       cout << "===================================================================" << endl;
       AsyncBot* bot = new AsyncBot(paramsSlow, nnEval, &logger, "hintloc");
       bot->setRootHintLoc(Location::ofString("C1",board));
@@ -1561,6 +1684,15 @@ xxxx.xxoxxx
     }
     {
       cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 dirichlet noise and symmetry sampling, again (same due to matching search seed)" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsSlowSym, nnEval, &logger, "hintloc");
+      bot->setRootHintLoc(Location::ofString("C1",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
       cout << "Test hintloc C1 dirichlet noise and symmetry sampling after attempting same-turn tree reuse" << endl;
       cout << "===================================================================" << endl;
       AsyncBot* bot = new AsyncBot(paramsFastSym, nnEval, &logger, "hintloc");
@@ -1570,6 +1702,120 @@ xxxx.xxoxxx
       runBotOnPosition(bot, board, nextPla, hist, optsContinue);
       delete bot;
     }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 symmetry sampling alone, new seed" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsSlowSymNoNoise, nnEval, &logger, "abc");
+      bot->setRootHintLoc(Location::ofString("C1",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 symmetry sampling alone, new seed 2" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsSlowSymNoNoise, nnEval, &logger, "abc2");
+      bot->setRootHintLoc(Location::ofString("C1",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
+  }
+
+}
+
+static void runMoreV8TestsRandomizedNNEvals(NNEvaluator* nnEval, Logger& logger)
+{
+  {
+    cout << "TEST sampled symmetries ==========================================================================" << endl;
+    Board board = Board::parseBoard(15,15,R"%%(
+...............
+...............
+...x.....x.....
+............o..
+...o...........
+............x..
+...............
+...x........o..
+...............
+....o..........
+...............
+...o........x..
+.....x....o....
+...............
+...............
+)%%");
+
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("AGA");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.rootNumSymmetriesToSample = 8;
+    params.maxVisits = 1;
+
+    TestSearchOptions opts;
+    opts.printRootPolicy = true;
+    {
+      cout << "===================================================================" << endl;
+      cout << "Repeatedly run bot with 8 root symmetries sampled, should be deterministic (except for scoreUtility due to dynamic score centering)" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "sample");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Repeatedly run bot with 8 root symmetries sampled, should be deterministic (except for scoreUtility due to dynamic score centering)" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "sample2");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Repeatedly run bot with 8 root symmetries sampled, should be deterministic (except for scoreUtility due to dynamic score centering)" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "sample3");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Repeatedly run bot with 2 root symmetries sampled" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params2 = params;
+      params2.rootNumSymmetriesToSample = 2;
+      AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "two root syms");
+      bot->setPosition(nextPla, board, hist);
+      set<double> policySamples;
+      set<double> wlSamples;
+
+      float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+      for(int i = 0; i<500; i++) {
+        bot->genMoveSynchronous(nextPla,TimeControls());
+        bot->getSearch()->getPolicy(policyProbs);
+        policySamples.insert(policyProbs[NNPos::xyToPos(2,4,bot->getSearch()->nnXLen)]);
+        wlSamples.insert(bot->getSearch()->getRootValuesRequireSuccess().winLossValue);
+        bot->clearSearch();
+      }
+      delete bot;
+      int i;
+      i = 0;
+      cout << "Policy samples" << endl;
+      for(double x: policySamples)
+        cout << (i++) << " " << x << endl;
+      i = 0;
+      cout << "WL samples" << endl;
+      for(double x: wlSamples)
+        cout << (i++) << " " << x << endl;
+    }
+
   }
 
 }
@@ -1630,6 +1876,11 @@ void Tests::runSearchTestsV8(const string& modelFile, bool inputsNHWC, bool cuda
   nnEval = startNNEval(
     modelFile,logger,"v8seed",19,19,5,inputsNHWC,cudaNHWC,useFP16,false,false);
   runMoreV8Tests(nnEval,logger);
+  delete nnEval;
+
+  nnEval = startNNEval(
+    modelFile,logger,"v8seed",19,19,-1,inputsNHWC,cudaNHWC,useFP16,false,false);
+  runMoreV8TestsRandomizedNNEvals(nnEval,logger);
 
   delete nnEval;
   NeuralNet::globalCleanup();

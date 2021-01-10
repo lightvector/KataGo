@@ -59,6 +59,7 @@ NNServerBuf::~NNServerBuf() {
 NNEvaluator::NNEvaluator(
   const string& mName,
   const string& mFileName,
+  const string& expectedSha256,
   Logger* lg,
   int maxBatchSize,
   int maxConcurrentEvals,
@@ -144,7 +145,7 @@ NNEvaluator::NNEvaluator(
     vector<int> gpuIdxs = gpuIdxByServerThread;
     std::sort(gpuIdxs.begin(), gpuIdxs.end());
     std::unique(gpuIdxs.begin(), gpuIdxs.end());
-    loadedModel = NeuralNet::loadModelFile(modelFileName);
+    loadedModel = NeuralNet::loadModelFile(modelFileName,expectedSha256);
     modelVersion = NeuralNet::getModelVersion(loadedModel);
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
     computeContext = NeuralNet::createComputeContext(
@@ -481,8 +482,10 @@ void NNEvaluator::serve(
       if(buf.resultBufs[row]->symmetry == NNInputs::SYMMETRY_NOTSPECIFIED) {
         if(doRandomize)
           buf.resultBufs[row]->symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
-        else
+        else {
+          assert(defaultSymmetry >= 0 && defaultSymmetry <= NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
           buf.resultBufs[row]->symmetry = defaultSymmetry;
+        }
       }
     }
 
