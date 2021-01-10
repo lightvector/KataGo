@@ -115,7 +115,6 @@ namespace NeuralNet {
     InputBuffers* buffers,
     int numBatchEltsFilled,
     NNResultBuf** inputBufs,
-    int symmetry,
     std::vector<NNOutput*>& outputs
   );
 
