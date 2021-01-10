@@ -1607,8 +1607,9 @@ xxxx.xxoxxx
     paramsFastNoised.rootNoiseEnabled = true;
     SearchParams paramsSlowNoised = paramsSlow;
     paramsSlowNoised.rootNoiseEnabled = true;
-    //Note - symmetry sampling here won't actually do anything since the symmetry in the nneval is fixed
-    //but it will still trigger the relevant search.cpp code pathways
+    //Note - symmetry sampling here will randomize the root even though the nnEval is set to not randomize
+    //because the root symmetry sampling is done in the search
+    testAssert(nnEval->getDoRandomize() == false);
     SearchParams paramsFastSym = paramsFastNoised;
     paramsFastSym.rootNumSymmetriesToSample = 4;
     SearchParams paramsSlowSym = paramsSlowNoised;
@@ -1623,6 +1624,15 @@ xxxx.xxoxxx
     {
       cout << "===================================================================" << endl;
       cout << "Test hintloc C1" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsSlow, nnEval, &logger, "hintloc");
+      bot->setRootHintLoc(Location::ofString("C1",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1, again" << endl;
       cout << "===================================================================" << endl;
       AsyncBot* bot = new AsyncBot(paramsSlow, nnEval, &logger, "hintloc");
       bot->setRootHintLoc(Location::ofString("C1",board));
@@ -1663,6 +1673,15 @@ xxxx.xxoxxx
     {
       cout << "===================================================================" << endl;
       cout << "Test hintloc C1 dirichlet noise and symmetry sampling" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsSlowSym, nnEval, &logger, "hintloc");
+      bot->setRootHintLoc(Location::ofString("C1",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 dirichlet noise and symmetry sampling, again (same due to matching search seed)" << endl;
       cout << "===================================================================" << endl;
       AsyncBot* bot = new AsyncBot(paramsSlowSym, nnEval, &logger, "hintloc");
       bot->setRootHintLoc(Location::ofString("C1",board));

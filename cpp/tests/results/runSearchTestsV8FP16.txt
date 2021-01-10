@@ -3272,6 +3272,48 @@ C4  : T  -2.14c W  -3.16c S   1.02c ( -0.3 L  +0.1) LCB  255.62c P  1.74% WF 11.
 L3  : T   1.31c W   0.06c S   1.25c ( +0.1 L  +0.4) LCB  280.00c P  2.17% WF 11.22% PSV       2 N       2  --  L3 R16
 C1  : T  43.81c W  36.44c S   7.38c ( +9.2 L  +9.6) LCB   50.35c P  2.01% WF  3.51% PSV       0 N      55  --  C1 Q17 P16 R16 Q14 O17 L4 C17
 ===================================================================
+Test hintloc C1, again
+===================================================================
+MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . O . .
+16 . . . X . . . . . . . . . . . X . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . O . . . . . . . . . . . . X . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . O O . X . .
+ 3 . . . O . . . . . . . . . O X X . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 197
+NN batches: 197
+NN avg batch size: 1
+PV: R16 Q17 P16 O18 K4 C17 C16
+Tree:
+: T   4.65c W   2.96c S   1.69c ( +0.7 L  +1.0) N     200  --  R16 Q17 P16 O18 K4 C17 C16
+---Black(v)---
+R16 : T  -3.93c W  -4.38c S   0.45c ( -1.1 L  -0.9) LCB   -1.53c P 33.44% WF 13.81% PSV      70 N      70  --  R16 Q17 P16 O18 K4 C17 C16
+Q17 : T  -2.59c W  -3.20c S   0.62c ( -0.9 L  -0.6) LCB   -0.30c P 28.19% WF 13.24% PSV      49 N      49  --  Q17 R16 Q15 R14 K4 Q14
+D4  : T  -2.22c W  -2.94c S   0.72c ( -0.7 L  -0.4) LCB   16.68c P  6.04% WF 12.25% PSV      10 N      10  --  D4 E4 C3 E3 R16
+L4  : T   0.99c W  -0.13c S   1.12c ( -0.1 L  +0.0) LCB   50.09c P  3.30% WF 11.44% PSV       4 N       4  --  L4 R16 Q15
+K4  : T   1.03c W  -0.17c S   1.20c ( -0.0 L  +0.1) LCB  207.47c P  3.18% WF 11.36% PSV       3 N       3  --  K4 Q17
+K3  : T   0.26c W  -0.88c S   1.14c ( -0.1 L  +0.1) LCB  279.61c P  2.53% WF 11.45% PSV       3 N       3  --  K3 Q17
+C4  : T  -2.14c W  -3.16c S   1.02c ( -0.3 L  +0.1) LCB  255.62c P  1.74% WF 11.73% PSV       2 N       3  --  C4 D4 C5
+L3  : T   1.31c W   0.06c S   1.25c ( +0.1 L  +0.4) LCB  280.00c P  2.17% WF 11.22% PSV       2 N       2  --  L3 R16
+C1  : T  43.81c W  36.44c S   7.38c ( +9.2 L  +9.6) LCB   50.35c P  2.01% WF  3.51% PSV       0 N      55  --  C1 Q17 P16 R16 Q14 O17 L4 C17
+===================================================================
 Test hintloc C1 after attempting same-turn tree reuse
 ===================================================================
 MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
@@ -3496,26 +3538,74 @@ MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 201
-NN batches: 201
+NN rows: 202
+NN batches: 202
 NN avg batch size: 1
 PV: R16 Q17 P16 O18 K4 C17 C16
 Tree:
-: T   5.13c W   3.38c S   1.76c ( +0.8 L  +1.1) N     200  --  R16 Q17 P16 O18 K4 C17 C16
+: T   4.68c W   2.98c S   1.70c ( +0.7 L  +1.0) N     200  --  R16 Q17 P16 O18 K4 C17 C16
 ---Black(v)---
-R16 : T  -4.00c W  -4.44c S   0.44c ( -1.1 L  -0.9) LCB   -1.56c P 25.58% WF 10.03% PSV      68 N      68  --  R16 Q17 P16 O18 K4 C17 C16
-Q17 : T  -2.54c W  -3.15c S   0.61c ( -0.9 L  -0.6) LCB   -0.09c P 21.15% WF  9.57% PSV      44 N      44  --  Q17 R16 Q15 R14 K4 Q14
-D4  : T  -2.19c W  -2.92c S   0.73c ( -0.7 L  -0.5) LCB   21.35c P  4.53% WF  8.85% PSV       9 N       9  --  D4 E4 C3 E3 R16
-K4  : T   1.35c W   0.22c S   1.13c ( -0.1 L  +0.0) LCB   12.61c P  5.60% WF  8.43% PSV       7 N       8  --  K4 Q17 P16 R16 Q14
-L4  : T   0.94c W  -0.23c S   1.17c ( -0.1 L  +0.1) LCB  191.96c P  2.62% WF  8.25% PSV       3 N       3  --  L4 R16
-D2  : T  -0.01c W  -0.97c S   0.96c ( -0.4 L  -0.5) LCB  124.95c P  2.54% WF  8.33% PSV       3 N       3  --  D2 E3
-C4  : T  -2.14c W  -3.16c S   1.02c ( -0.3 L  +0.1) LCB  255.62c P  1.87% WF  8.51% PSV       3 N       3  --  C4 D4 C5
-J2  : T  12.02c W   9.26c S   2.76c ( +2.2 L  +2.7) LCB  280.00c P  3.48% WF  7.29% PSV       2 N       2  --  J2 Q17
-K3  : T   0.85c W  -0.38c S   1.23c ( +0.0 L  +0.3) LCB  280.00c P  1.90% WF  8.18% PSV       2 N       2  --  K3 Q17
-C14 : T   7.10c W   5.28c S   1.83c ( +0.9 L  +1.6) LCB  280.00c P  1.78% WF  7.64% PSV       1 N       1  --  C14
-L3  : T   3.13c W   1.61c S   1.52c ( +0.4 L  +1.0) LCB  280.00c P  1.72% WF  7.91% PSV       1 N       1  --  L3
-C1  : T  43.79c W  36.42c S   7.37c ( +9.2 L  +9.6) LCB   50.47c P  2.01% WF  2.59% PSV       0 N      54  --  C1 Q17 P16 R16 Q14 O17 L4 C17
-T6  : T  58.67c W  48.82c S   9.86c (+13.0 L +13.7) LCB  280.00c P  1.61% WF  4.42% PSV       0 N       1  --  T6
+R16 : T  -4.01c W  -4.44c S   0.43c ( -1.1 L  -0.9) LCB   -1.49c P 24.30% WF  9.15% PSV      64 N      64  --  R16 Q17 P16 O18 K4 C17 C16
+Q17 : T  -2.50c W  -3.12c S   0.62c ( -0.9 L  -0.6) LCB   -0.11c P 22.29% WF  8.77% PSV      46 N      46  --  Q17 R16 Q15 R14 K4 Q14
+D4  : T  -2.19c W  -2.92c S   0.73c ( -0.7 L  -0.5) LCB   21.35c P  4.62% WF  8.12% PSV       9 N       9  --  D4 E4 C3 E3 R16
+K4  : T   1.35c W   0.22c S   1.13c ( -0.1 L  +0.0) LCB   12.61c P  5.64% WF  7.73% PSV       7 N       8  --  K4 Q17 P16 R16 Q14
+C5  : T  -4.69c W  -5.24c S   0.55c ( -1.0 L  -0.7) LCB   36.78c P  1.75% WF  8.18% PSV       5 N       5  --  C5 D5 C4 C3 C7
+D2  : T  -0.01c W  -0.97c S   0.96c ( -0.4 L  -0.5) LCB  124.95c P  2.51% WF  7.66% PSV       3 N       3  --  D2 E3
+L4  : T   0.94c W  -0.23c S   1.17c ( -0.1 L  +0.1) LCB  191.96c P  2.47% WF  7.58% PSV       3 N       3  --  L4 R16
+C4  : T  -2.14c W  -3.16c S   1.02c ( -0.3 L  +0.1) LCB  255.62c P  1.83% WF  7.83% PSV       3 N       3  --  C4 D4 C5
+J2  : T  12.02c W   9.26c S   2.76c ( +2.2 L  +2.7) LCB  280.00c P  3.55% WF  6.70% PSV       2 N       2  --  J2 Q17
+L3  : T   1.31c W   0.06c S   1.25c ( +0.1 L  +0.4) LCB  280.00c P  1.99% WF  7.48% PSV       2 N       2  --  L3 R16
+M3  : T   5.40c W   3.66c S   1.73c ( +0.8 L  +1.3) LCB  280.00c P  1.98% WF  7.14% PSV       1 N       1  --  M3
+K3  : T   3.83c W   2.22c S   1.62c ( +0.6 L  +1.1) LCB  280.00c P  1.73% WF  7.23% PSV       1 N       1  --  K3
+C1  : T  43.88c W  36.49c S   7.39c ( +9.2 L  +9.6) LCB   50.98c P  2.01% WF  2.37% PSV       0 N      51  --  C1 Q17 P16 R16 Q14 O17 L4 C17
+T6  : T  58.67c W  48.82c S   9.86c (+13.0 L +13.7) LCB  280.00c P  1.64% WF  4.06% PSV       0 N       1  --  T6
+===================================================================
+Test hintloc C1 dirichlet noise and symmetry sampling, again (same due to matching search seed)
+===================================================================
+MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . O . .
+16 . . . X . . . . . . . . . . . X . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . O . . . . . . . . . . . . X . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . O O . X . .
+ 3 . . . O . . . . . . . . . O X X . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+Root visits: 200
+NN rows: 202
+NN batches: 202
+NN avg batch size: 1
+PV: R16 Q17 P16 O18 K4 C17 C16
+Tree:
+: T   4.68c W   2.98c S   1.70c ( +0.7 L  +1.0) N     200  --  R16 Q17 P16 O18 K4 C17 C16
+---Black(v)---
+R16 : T  -4.01c W  -4.44c S   0.43c ( -1.1 L  -0.9) LCB   -1.49c P 24.30% WF  9.15% PSV      64 N      64  --  R16 Q17 P16 O18 K4 C17 C16
+Q17 : T  -2.50c W  -3.12c S   0.62c ( -0.9 L  -0.6) LCB   -0.11c P 22.29% WF  8.77% PSV      46 N      46  --  Q17 R16 Q15 R14 K4 Q14
+D4  : T  -2.19c W  -2.92c S   0.73c ( -0.7 L  -0.5) LCB   21.35c P  4.62% WF  8.12% PSV       9 N       9  --  D4 E4 C3 E3 R16
+K4  : T   1.35c W   0.22c S   1.13c ( -0.1 L  +0.0) LCB   12.61c P  5.64% WF  7.73% PSV       7 N       8  --  K4 Q17 P16 R16 Q14
+C5  : T  -4.69c W  -5.24c S   0.55c ( -1.0 L  -0.7) LCB   36.78c P  1.75% WF  8.18% PSV       5 N       5  --  C5 D5 C4 C3 C7
+D2  : T  -0.01c W  -0.97c S   0.96c ( -0.4 L  -0.5) LCB  124.95c P  2.51% WF  7.66% PSV       3 N       3  --  D2 E3
+L4  : T   0.94c W  -0.23c S   1.17c ( -0.1 L  +0.1) LCB  191.96c P  2.47% WF  7.58% PSV       3 N       3  --  L4 R16
+C4  : T  -2.14c W  -3.16c S   1.02c ( -0.3 L  +0.1) LCB  255.62c P  1.83% WF  7.83% PSV       3 N       3  --  C4 D4 C5
+J2  : T  12.02c W   9.26c S   2.76c ( +2.2 L  +2.7) LCB  280.00c P  3.55% WF  6.70% PSV       2 N       2  --  J2 Q17
+L3  : T   1.31c W   0.06c S   1.25c ( +0.1 L  +0.4) LCB  280.00c P  1.99% WF  7.48% PSV       2 N       2  --  L3 R16
+M3  : T   5.40c W   3.66c S   1.73c ( +0.8 L  +1.3) LCB  280.00c P  1.98% WF  7.14% PSV       1 N       1  --  M3
+K3  : T   3.83c W   2.22c S   1.62c ( +0.6 L  +1.1) LCB  280.00c P  1.73% WF  7.23% PSV       1 N       1  --  K3
+C1  : T  43.88c W  36.49c S   7.39c ( +9.2 L  +9.6) LCB   50.98c P  2.01% WF  2.37% PSV       0 N      51  --  C1 Q17 P16 R16 Q14 O17 L4 C17
+T6  : T  58.67c W  48.82c S   9.86c (+13.0 L +13.7) LCB  280.00c P  1.64% WF  4.06% PSV       0 N       1  --  T6
 ===================================================================
 Test hintloc C1 dirichlet noise and symmetry sampling after attempting same-turn tree reuse
 ===================================================================
@@ -3547,10 +3637,10 @@ NN batches: 9
 NN avg batch size: 1
 PV: R16 Q17
 Tree:
-: T  -6.79c W  -6.80c S   0.01c ( -1.8 L  -1.7) N       5  --  R16 Q17
+: T  -6.26c W  -6.37c S   0.11c ( -1.6 L  -1.5) N       5  --  R16 Q17
 ---Black(v)---
-R16 : T  -7.42c W  -7.37c S  -0.05c ( -1.9 L  -1.7) LCB  280.00c P 26.10% WF 50.85% PSV       2 N       2  --  R16 Q17
-Q17 : T  -4.25c W  -4.65c S   0.39c ( -1.2 L  -1.0) LCB  280.00c P 21.58% WF 49.15% PSV       2 N       2  --  Q17 R16
+R16 : T  -7.42c W  -7.37c S  -0.05c ( -1.9 L  -1.7) LCB  280.00c P 24.79% WF 50.85% PSV       2 N       2  --  R16 Q17
+Q17 : T  -4.25c W  -4.65c S   0.39c ( -1.2 L  -1.0) LCB  280.00c P 22.75% WF 49.15% PSV       2 N       2  --  Q17 R16
 MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -3574,27 +3664,27 @@ MoveNum: 0 HASH: 5430CBE343145C5831EBE7C1F1FA4A90
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
-NN rows: 201
-NN batches: 201
+NN rows: 202
+NN batches: 202
 NN avg batch size: 1
 PV: R16 Q17 P16 O18 K4 C17 C16
 Tree:
-: T   4.93c W   3.19c S   1.73c ( +0.8 L  +1.1) N     200  --  R16 Q17 P16 O18 K4 C17 C16
+: T   4.80c W   3.09c S   1.71c ( +0.8 L  +1.0) N     200  --  R16 Q17 P16 O18 K4 C17 C16
 ---Black(v)---
-R16 : T  -4.00c W  -4.44c S   0.44c ( -1.1 L  -0.9) LCB   -1.56c P 26.35% WF  9.12% PSV      68 N      68  --  R16 Q17 P16 O18 K4 C17 C16
-Q17 : T  -2.54c W  -3.15c S   0.61c ( -0.9 L  -0.6) LCB   -0.09c P 21.15% WF  8.69% PSV      43 N      44  --  Q17 R16 Q15 R14 K4 Q14
-D4  : T  -2.19c W  -2.92c S   0.73c ( -0.7 L  -0.5) LCB   21.35c P  4.53% WF  8.05% PSV       8 N       9  --  D4 E4 C3 E3 R16
-C5  : T  -3.73c W  -4.38c S   0.66c ( -0.8 L  -0.6) LCB   26.89c P  2.47% WF  8.07% PSV       6 N       6  --  C5 D5 C4 C3 C7
-M2  : T   4.77c W   3.10c S   1.68c ( +0.7 L  +1.0) LCB  397.37c P  3.42% WF  7.20% PSV       3 N       3  --  M2 Q17
-M3  : T   2.42c W   1.08c S   1.34c ( +0.2 L  +0.4) LCB  241.34c P  2.89% WF  7.39% PSV       3 N       3  --  M3 Q17
-L4  : T   0.94c W  -0.23c S   1.17c ( -0.1 L  +0.1) LCB  191.96c P  2.48% WF  7.51% PSV       3 N       3  --  L4 R16
-K4  : T   1.03c W  -0.17c S   1.20c ( -0.0 L  +0.1) LCB  207.47c P  2.40% WF  7.50% PSV       3 N       3  --  K4 Q17
-K3  : T   0.85c W  -0.38c S   1.23c ( +0.0 L  +0.3) LCB  280.00c P  1.90% WF  7.44% PSV       2 N       2  --  K3 Q17
-G15 : T  11.32c W   8.58c S   2.73c ( +2.2 L  +3.0) LCB  280.00c P  2.30% WF  6.70% PSV       1 N       1  --  G15
-M10 : T  14.29c W  11.02c S   3.27c ( +3.0 L  +3.8) LCB  280.00c P  1.70% WF  6.52% PSV       1 N       1  --  M10
-L3  : T   3.13c W   1.61c S   1.52c ( +0.4 L  +1.0) LCB  280.00c P  1.63% WF  7.20% PSV       1 N       1  --  L3
-C1  : T  43.79c W  36.42c S   7.37c ( +9.2 L  +9.6) LCB   50.47c P  2.30% WF  2.34% PSV       0 N      54  --  C1 Q17 P16 R16 Q14 O17 L4 C17
-H8  : T  18.23c W  14.41c S   3.82c ( +3.8 L  +4.4) LCB  280.00c P  1.77% WF  6.28% PSV       0 N       1  --  H8
+R16 : T  -3.98c W  -4.42c S   0.44c ( -1.1 L  -0.9) LCB   -1.51c P 25.84% WF  9.11% PSV      67 N      67  --  R16 Q17 P16 O18 K4 C17 C16
+Q17 : T  -2.49c W  -3.11c S   0.62c ( -0.9 L  -0.6) LCB   -0.16c P 22.67% WF  8.72% PSV      46 N      47  --  Q17 R16 Q15 R14 K4 Q14
+D4  : T  -2.19c W  -2.92c S   0.73c ( -0.7 L  -0.5) LCB   21.35c P  4.58% WF  8.06% PSV       9 N       9  --  D4 E4 C3 E3 R16
+C5  : T  -3.73c W  -4.38c S   0.66c ( -0.8 L  -0.6) LCB   26.89c P  2.49% WF  8.08% PSV       6 N       6  --  C5 D5 C4 C3 C7
+M2  : T   4.77c W   3.10c S   1.68c ( +0.7 L  +1.0) LCB  397.37c P  3.27% WF  7.21% PSV       3 N       3  --  M2 Q17
+M3  : T   2.42c W   1.08c S   1.34c ( +0.2 L  +0.4) LCB  241.34c P  2.94% WF  7.40% PSV       3 N       3  --  M3 Q17
+K4  : T   1.03c W  -0.17c S   1.20c ( -0.0 L  +0.1) LCB  207.47c P  2.52% WF  7.51% PSV       3 N       3  --  K4 Q17
+L4  : T   1.84c W   0.56c S   1.29c ( +0.1 L  +0.3) LCB  280.00c P  2.22% WF  7.38% PSV       2 N       2  --  L4 R16
+K3  : T   0.85c W  -0.38c S   1.23c ( +0.0 L  +0.3) LCB  280.00c P  1.88% WF  7.45% PSV       2 N       2  --  K3 Q17
+G15 : T  11.32c W   8.58c S   2.73c ( +2.2 L  +3.0) LCB  280.00c P  2.30% WF  6.71% PSV       1 N       1  --  G15
+H8  : T  18.23c W  14.41c S   3.82c ( +3.8 L  +4.4) LCB  280.00c P  2.14% WF  6.29% PSV       1 N       1  --  H8
+M10 : T  14.29c W  11.02c S   3.27c ( +3.0 L  +3.8) LCB  280.00c P  1.70% WF  6.53% PSV       1 N       1  --  M10
+L3  : T   3.13c W   1.61c S   1.52c ( +0.4 L  +1.0) LCB  280.00c P  1.63% WF  7.21% PSV       1 N       1  --  L3
+C1  : T  43.78c W  36.41c S   7.37c ( +9.2 L  +9.6) LCB   50.59c P  2.30% WF  2.34% PSV       0 N      53  --  C1 Q17 P16 R16 Q14 O17 L4 C17
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732

@@ -141,7 +141,7 @@ class NNEvaluator {
 
   //Actually spawn threads to handle evaluations.
   //If doRandomize, uses randSeed as a seed, further randomized per-thread
-  //If not doRandomize, uses defaultSymmetry for all nn evaluations.
+  //If not doRandomize, uses defaultSymmetry for all nn evaluations, unless a symmetry is requested in MiscNNInputParams.
   //This function itself is not threadsafe.
   void spawnServerThreads();
 
