@@ -1131,7 +1131,7 @@ struct GTPEngine {
       return "";
     ostringstream out;
 
-    for(int symmetry = 0; symmetry<8; symmetry++) {
+    for(int symmetry = 0; symmetry < NNInputs::NUM_SYMMETRY_COMBINATIONS; symmetry++) {
       if(whichSymmetry == NNInputs::SYMMETRY_ALL || whichSymmetry == symmetry) {
         Board board = bot->getRootBoard();
         BoardHistory hist = bot->getRootHist();
@@ -2561,7 +2561,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         string s = Global::trim(Global::toLower(pieces[0]));
         if(s == "all")
           parsed = true;
-        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= 7)
+        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= NNInputs::NUM_SYMMETRY_COMBINATIONS-1)
           parsed = true;
       }
 

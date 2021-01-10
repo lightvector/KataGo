@@ -1615,6 +1615,9 @@ xxxx.xxoxxx
     SearchParams paramsSlowSym = paramsSlowNoised;
     paramsSlowSym.rootNumSymmetriesToSample = 4;
 
+    SearchParams paramsSlowSymNoNoise = paramsSlowSym;
+    paramsSlowSymNoNoise.rootNoiseEnabled = false;
+
     TestSearchOptions opts;
     opts.noClearBot = true;
     TestSearchOptions optsContinue;
@@ -1699,6 +1702,24 @@ xxxx.xxoxxx
       runBotOnPosition(bot, board, nextPla, hist, optsContinue);
       delete bot;
     }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 symmetry sampling alone, new seed" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsSlowSymNoNoise, nnEval, &logger, "abc");
+      bot->setRootHintLoc(Location::ofString("C1",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Test hintloc C1 symmetry sampling alone, new seed 2" << endl;
+      cout << "===================================================================" << endl;
+      AsyncBot* bot = new AsyncBot(paramsSlowSymNoNoise, nnEval, &logger, "abc2");
+      bot->setRootHintLoc(Location::ofString("C1",board));
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
 
     //Reset random seeds for nnEval
     nnEval->killServerThreads();
@@ -1763,6 +1784,38 @@ static void runMoreV8TestsRandomizedNNEvals(NNEvaluator* nnEval, Logger& logger)
       runBotOnPosition(bot, board, nextPla, hist, opts);
       delete bot;
     }
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Repeatedly run bot with 2 root symmetries sampled" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params2 = params;
+      params2.rootNumSymmetriesToSample = 2;
+      AsyncBot* bot = new AsyncBot(params2, nnEval, &logger, "two root syms");
+      bot->setPosition(nextPla, board, hist);
+      set<double> policySamples;
+      set<double> wlSamples;
+
+      float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+      for(int i = 0; i<500; i++) {
+        bot->genMoveSynchronous(nextPla,TimeControls());
+        bot->getSearch()->getPolicy(policyProbs);
+        policySamples.insert(policyProbs[NNPos::xyToPos(2,4,bot->getSearch()->nnXLen)]);
+        wlSamples.insert(bot->getSearch()->getRootValuesRequireSuccess().winLossValue);
+        bot->clearSearch();
+      }
+      delete bot;
+      int i;
+      i = 0;
+      cout << "Policy samples" << endl;
+      for(double x: policySamples)
+        cout << (i++) << " " << x << endl;
+      i = 0;
+      cout << "WL samples" << endl;
+      for(double x: wlSamples)
+        cout << (i++) << " " << x << endl;
+    }
+
   }
 
 }

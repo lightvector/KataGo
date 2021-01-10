@@ -480,8 +480,10 @@ void NNEvaluator::serve(
       if(buf.resultBufs[row]->symmetry == NNInputs::SYMMETRY_NOTSPECIFIED) {
         if(doRandomize)
           buf.resultBufs[row]->symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
-        else
+        else {
+          assert(defaultSymmetry >= 0 && defaultSymmetry <= NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
           buf.resultBufs[row]->symmetry = defaultSymmetry;
+        }
       }
     }
 

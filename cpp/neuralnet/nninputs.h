@@ -29,8 +29,8 @@ namespace NNInputs {
   constexpr int SYMMETRY_NOTSPECIFIED = -1;
   constexpr int SYMMETRY_ALL = -2;
 
-  const int NUM_SYMMETRY_BOOLS = 3;
-  const int NUM_SYMMETRY_COMBINATIONS = 8;
+  constexpr int NUM_SYMMETRY_BOOLS = 3;
+  constexpr int NUM_SYMMETRY_COMBINATIONS = 8;
 }
 
 struct MiscNNInputParams {

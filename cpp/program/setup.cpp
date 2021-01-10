@@ -234,7 +234,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     int forcedSymmetry = -1;
     if(setupFor != SETUP_FOR_DISTRIBUTED && cfg.contains("nnForcedSymmetry"))
-      forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,7);
+      forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
 
     logger.write(
       "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
