@@ -82,7 +82,7 @@ namespace {
        sgfOut(sOut),
        terminated(false)
     {
-      SearchParams baseParams = Setup::loadSingleParams(cfg);
+      SearchParams baseParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_OTHER);
 
       drawEquivalentWinsForWhite = baseParams.drawEquivalentWinsForWhite;
       noResultUtilityForWhite = baseParams.noResultUtilityForWhite;

@@ -439,7 +439,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
   logger.write(string("Git revision: ") + Version::getGitRevision());
 
   //Load per-bot search config, first, which also tells us how many bots we're running
-  vector<SearchParams> paramss = Setup::loadParams(cfg);
+  vector<SearchParams> paramss = Setup::loadParams(cfg,Setup::SETUP_FOR_MATCH);
   assert(paramss.size() > 0);
   int numBots = paramss.size();
 

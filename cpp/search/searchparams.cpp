@@ -38,6 +38,7 @@ SearchParams::SearchParams()
    useLcbForSelection(false),
    lcbStdevs(4.0),
    minVisitPropForLCB(0.05),
+   useNonBuggyLcb(false),
    rootEndingBonusPoints(0.0),
    rootPruneUselessMoves(false),
    conservativePass(false),
@@ -95,6 +96,7 @@ SearchParams SearchParams::forTestsV1() {
   params.rootEndingBonusPoints = 0.5;
   params.rootPruneUselessMoves = true;
   params.conservativePass = true;
+  params.useNonBuggyLcb = true;
   return params;
 }
 

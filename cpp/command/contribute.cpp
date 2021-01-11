@@ -114,7 +114,7 @@ static void runAndUploadSingleGame(
   SearchParams baseParams;
   PlaySettings playSettings;
   try {
-    baseParams = Setup::loadSingleParams(taskCfg);
+    baseParams = Setup::loadSingleParams(taskCfg,Setup::SETUP_FOR_DISTRIBUTED);
     if(gameTask.task.isRatingGame)
       playSettings = PlaySettings::loadForGatekeeper(taskCfg);
     else

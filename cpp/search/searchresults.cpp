@@ -158,7 +158,7 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
       }
     }
 
-    if(searchParams.useLcbForSelection && numChildren > 0 && bestLcbIndex > 0) {
+    if(searchParams.useLcbForSelection && numChildren > 0 && (searchParams.useNonBuggyLcb ? (bestLcbIndex >= 0) : (bestLcbIndex > 0))) {
       //Best LCB move gets a bonus that ensures it is large enough relative to every other child
       double adjustedVisits = playSelectionValues[bestLcbIndex];
       for(int i = 0; i<numChildren; i++) {

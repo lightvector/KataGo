@@ -395,7 +395,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 
   string searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
-  SearchParams params = Setup::loadSingleParams(cfg);
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_OTHER);
 
   NNEvaluator* nnEval;
   {
@@ -867,7 +867,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   Logger logger;
   logger.setLogToStdout(true);
 
-  SearchParams params = Setup::loadSingleParams(cfg);
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_ANALYSIS);
   //Ignore temperature, noise
   params.chosenMoveTemperature = 0;
   params.chosenMoveTemperatureEarly = 0;
@@ -1565,7 +1565,7 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
   Logger logger;
   logger.setLogToStdout(true);
 
-  SearchParams params = Setup::loadSingleParams(cfg);
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_ANALYSIS);
   //Ignore temperature, noise
   params.chosenMoveTemperature = 0;
   params.chosenMoveTemperatureEarly = 0;

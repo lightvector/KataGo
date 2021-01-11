@@ -128,7 +128,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   const bool logSearchInfo = cfg.contains("logSearchInfo") ? cfg.getBool("logSearchInfo") : false;
 
   auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective, Player defaultPerspective) {
-    params = Setup::loadSingleParams(config);
+    params = Setup::loadSingleParams(config,Setup::SETUP_FOR_ANALYSIS);
     perspective = Setup::parseReportAnalysisWinrates(config,defaultPerspective);
     //Set a default for conservativePass that differs from matches or selfplay
     if(!config.contains("conservativePass") && !config.contains("conservativePass0"))

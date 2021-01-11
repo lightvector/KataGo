@@ -52,10 +52,12 @@ namespace Setup {
   //Loads search parameters for bot from config, by bot idx.
   //Fails if no parameters are found.
   std::vector<SearchParams> loadParams(
-    ConfigParser& cfg
+    ConfigParser& cfg,
+    setup_for_t setupFor
   );
   SearchParams loadSingleParams(
-    ConfigParser& cfg
+    ConfigParser& cfg,
+    setup_for_t setupFor
   );
 
   Player parseReportAnalysisWinrates(

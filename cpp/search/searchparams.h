@@ -48,6 +48,7 @@ struct SearchParams {
   bool useLcbForSelection; //Using LCB for move selection?
   double lcbStdevs; //How many stdevs a move needs to be better than another for LCB selection
   double minVisitPropForLCB; //Only use LCB override when a move has this proportion of visits as the top move
+  bool useNonBuggyLcb; //LCB was very minorly buggy as of pre-v1.8. Set to true to fix.
 
   //Mild behavior hackery
   double rootEndingBonusPoints; //Extra bonus (or penalty) to encourage good passing behavior at the end of the game.

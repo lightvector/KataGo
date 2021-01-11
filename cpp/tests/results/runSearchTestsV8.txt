@@ -243,7 +243,7 @@ PV: P17 P16 O18 N17 N18 M17 R3 R4 Q3 P4 O2 Q9 R11
 Tree:
 : T  -2.53c W  -2.56c S   0.03c ( -0.7 L  -0.7) N     200  --  P17 P16 O18 N17 N18 M17 R3
 ---Black(v)---
-P17 : T  -4.35c W  -4.13c S  -0.22c ( -1.0 L  -1.2) LCB   -1.57c P 36.73% WF 37.49% PSV     117 N     117  --  P17 P16 O18 N17 N18 M17 R3 R4
+P17 : T  -4.35c W  -4.13c S  -0.22c ( -1.0 L  -1.2) LCB   -1.57c P 36.73% WF 37.49% PSV     179 N     117  --  P17 P16 O18 N17 N18 M17 R3 R4
 P17 P16 : T  -3.90c W  -3.76c S  -0.14c ( -0.9 L  -1.1) LCB   -6.72c P 85.54% WF 52.57% PSV     108 N     108  --  P16 O18 N17 N18 M17 R3 R4 Q3
 P17 O16 : T -10.07c W  -8.85c S  -1.22c ( -2.5 L  -2.8) LCB  -36.29c P 11.76% WF 47.43% PSV       8 N       8  --  O16 P16 P15 O15 P14 N15
 O18 : T  -1.80c W  -1.91c S   0.11c ( -0.5 L  -0.6) LCB    2.30c P 33.20% WF 34.90% PSV      67 N      67  --  O18 N18 P17 O16 P16 P15 Q15 S15
@@ -283,7 +283,7 @@ PV: P17 P16 O18 N17 N18 M17 R3 Q3 R4 R5 S5 S6
 Tree:
 : T  -3.61c W  -3.19c S  -0.42c ( -0.9 L  -1.0) N     200  --  P17 P16 O18 N17 N18 M17 R3
 ---Black(v)---
-P17 : T  -4.97c W  -4.35c S  -0.62c ( -1.2 L  -1.3) LCB   -2.43c P 22.07% WF 15.99% PSV     125 N     125  --  P17 P16 O18 N17 N18 M17 R3 Q3
+P17 : T  -4.97c W  -4.35c S  -0.62c ( -1.2 L  -1.3) LCB   -2.43c P 22.07% WF 15.99% PSV     156 N     125  --  P17 P16 O18 N17 N18 M17 R3 Q3
 P17 P16 : T  -4.24c W  -3.75c S  -0.50c ( -1.0 L  -1.1) LCB   -6.83c P 55.36% WF 53.34% PSV     110 N     110  --  P16 O18 N17 N18 M17 R3 Q3 R4
 P17 O16 : T -11.11c W  -9.46c S  -1.65c ( -2.7 L  -2.9) LCB  -19.48c P 16.66% WF 46.66% PSV      14 N      14  --  O16 P16 P15 O15 P14 S16 S15
 O18 : T  -2.84c W  -2.54c S  -0.30c ( -0.7 L  -0.8) LCB    1.29c P 19.54% WF 15.07% PSV      60 N      60  --  O18 N18 P17 O16 P16 P15 O15 P14
@@ -328,7 +328,7 @@ PV: P17 P16 O18 N17 N18 M17 R3 R4 Q3 P4 O2 Q9 R11 C3 D3
 Tree:
 : T  -4.49c W  -3.99c S  -0.50c ( -1.0 L  -1.0) N     200  --  P17 P16 O18 N17 N18 M17 R3
 ---Black(v)---
-P17 : T  -5.05c W  -4.49c S  -0.56c ( -1.1 L  -1.2) LCB   -2.14c P 58.24% WF 51.04% PSV     126 N     126  --  P17 P16 O18 N17 N18 M17 R3 R4
+P17 : T  -5.05c W  -4.49c S  -0.56c ( -1.1 L  -1.2) LCB   -2.14c P 58.24% WF 51.04% PSV     163 N     126  --  P17 P16 O18 N17 N18 M17 R3 R4
 P17 P16 : T  -5.01c W  -4.45c S  -0.55c ( -1.1 L  -1.2) LCB   -7.96c P 97.34% WF 51.56% PSV     124 N     124  --  P16 O18 N17 N18 M17 R3 R4 Q3
 P17 O16 : T -11.62c W  -9.72c S  -1.90c ( -3.1 L  -3.6) LCB -280.00c P  2.65% WF 48.44% PSV       1 N       1  --  O16
 O18 : T  -3.56c W  -3.16c S  -0.41c ( -0.8 L  -0.7) LCB    1.55c P 40.43% WF 48.96% PSV      72 N      73  --  O18 N18 P17 O16 P16 P15 O15 P18
@@ -565,7 +565,7 @@ NN rows: 586
 NN batches: 586
 NN avg batch size: 1
 PlayoutDoublingAdvantage: -1.5
-PV: D3 E3 C3 E4 D6 C8 D8 D9 C9 E9 C10 D7 E8
+PV: D3 E3 C3 E4 D6 C8 D8 D9 E9 C9 C10 E10
 Tree:
 : T -63.26c W -60.04c S  -3.21c ( -8.7 L  -9.0) N     400  --  D3 E3 C3 E4 D6 C8 D8
 ---White(^)---
@@ -711,11 +711,11 @@ NN rows: 394
 NN batches: 394
 NN avg batch size: 1
 PlayoutDoublingAdvantage: -1.5
-PV: D4 D3 E3 C3 E4 D6 C11 D11 C10 C8 C9
+PV: D4 D3 E3 C3 E4 D6 H4 L11 L10 K11 J10
 Tree:
-: T  68.35c W  65.28c S   3.06c ( +8.9 L  +9.2) N     320  --  D4 D3 E3 C3 E4 D6 C11
+: T  68.35c W  65.28c S   3.06c ( +8.9 L  +9.2) N     320  --  D4 D3 E3 C3 E4 D6 H4
 ---Black(v)---
-D4  : T  65.92c W  63.34c S   2.58c ( +8.5 L  +8.7) LCB   69.42c P 26.88% WF  8.25% PSV     185 N     185  --  D4 D3 E3 C3 E4 D6 C11 D11
+D4  : T  65.92c W  63.34c S   2.58c ( +8.5 L  +8.7) LCB   69.42c P 26.88% WF  8.25% PSV     185 N     185  --  D4 D3 E3 C3 E4 D6 H4 L11
 E3  : T  71.35c W  67.68c S   3.67c ( +9.5 L  +9.7) LCB   76.54c P 21.07% WF  7.09% PSV      49 N      49  --  E3 L3 K3 L4 L5 M5 M6 L6
 E4  : T  74.08c W  69.58c S   4.50c (+10.4 L +10.5) LCB   85.83c P 12.91% WF  6.77% PSV      23 N      23  --  E4 L3 L4 K3 J4 J3
 C11 : T  69.87c W  66.60c S   3.27c ( +9.1 L  +9.6) LCB   81.72c P  7.93% WF  7.40% PSV      22 N      24  --  C11 C10 D11 E10 E11 F10 G11
@@ -912,7 +912,7 @@ Tree:
 : T  66.80c W  64.56c S   2.24c ( +8.7 L  +8.8) N     200  --  D10 D4 D3 E3 C3 E4 D6
 ---White(^)---
 D10 : T  67.51c W  65.11c S   2.40c ( +8.8 L  +9.1) LCB   63.25c P 39.52% WF  8.80% PSV     104 N     104  --  D10 D4 D3 E3 C3 E4 D6 H4
-D11 : T  66.12c W  64.04c S   2.08c ( +8.5 L  +8.6) LCB   58.93c P 20.40% WF  8.49% PSV      43 N      44  --  D11 D10 C10 E11 C11 D4 D3
+D11 : T  66.12c W  64.04c S   2.08c ( +8.5 L  +8.6) LCB   58.93c P 20.40% WF  8.49% PSV      43 N      44  --  D11 D4 D3 E3 C3 D10 C10
 C10 : T  63.43c W  61.72c S   1.71c ( +8.1 L  +8.3) LCB   40.00c P  5.91% WF  8.18% PSV       8 N       8  --  C10 D10 D11 E11 C11
 L11 : T  66.97c W  64.95c S   2.02c ( +8.5 L  +8.1) LCB   45.14c P  3.61% WF  8.64% PSV       8 N       8  --  L11 D10 K11 J10
 L3  : T  66.12c W  64.04c S   2.08c ( +8.5 L  +8.4) LCB   40.06c P  3.64% WF  8.53% PSV       7 N       9  --  L3 D10 L4
@@ -1150,7 +1150,7 @@ PV: E3 C3 E4 D6 C8 D8 D9 C9 E9 C10 D7
 Tree:
 : T -61.78c W -58.86c S  -2.92c ( -8.5 L  -8.7) N     200  --  E3 C3 E4 D6 C8 D8 D9
 ---Black(v)---
-E3  : T -64.42c W -61.03c S  -3.39c ( -8.9 L  -9.2) LCB  -59.99c P 34.92% WF 10.78% PSV     127 N     127  --  E3 C3 E4 D6 C8 D8 D9 C9
+E3  : T -64.42c W -61.03c S  -3.39c ( -8.9 L  -9.2) LCB  -59.99c P 34.92% WF 10.78% PSV     136 N     127  --  E3 C3 E4 D6 C8 D8 D9 C9
 C5  : T -58.29c W -55.96c S  -2.33c ( -7.9 L  -8.2) LCB  -51.57c P 29.14% WF  9.18% PSV      42 N      44  --  C5 C3 F11 E4 D5 E5
 C3  : T -58.76c W -56.23c S  -2.53c ( -8.1 L  -8.3) LCB   40.83c P  4.34% WF  9.54% PSV       6 N       6  --  C3 C5 E3 D2
 D11 : T -58.41c W -56.26c S  -2.15c ( -7.7 L  -8.0) LCB    4.23c P  3.81% WF  9.47% PSV       5 N       7  --  D11 C11 E11 E10 F11
@@ -1419,11 +1419,11 @@ NN rows: 680
 NN batches: 680
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 1.5
-PV: D3 E3 C3 C11 C10 D11 E10 F12 E4 F4 D5
+PV: D3 E3 C3 C11 C10 D11 E10 F11 E11 E12 D12 C12
 Tree:
 : T  65.35c W  62.41c S   2.94c ( +8.3 L  +8.6) N     260  --  D3 E3 C3 C11 C10 D11 E10
 ---White(^)---
-D3  : T  67.07c W  63.86c S   3.22c ( +8.6 L  +8.9) LCB   63.31c P 48.79% WF 29.16% PSV     202 N     202  --  D3 E3 C3 C11 C10 D11 E10 F12
+D3  : T  67.07c W  63.86c S   3.22c ( +8.6 L  +8.9) LCB   63.31c P 48.79% WF 29.16% PSV     202 N     202  --  D3 E3 C3 C11 C10 D11 E10 F11
 C3  : T  61.57c W  59.37c S   2.20c ( +7.6 L  +7.5) LCB   52.46c P 15.91% WF 25.35% PSV      28 N      29  --  C3 D5 D3 F4 L3 L4 K3 J4
 C5  : T  57.18c W  55.57c S   1.62c ( +7.1 L  +7.3) LCB   41.56c P 11.64% WF 23.56% PSV      14 N      15  --  C5 D3 D5 F4 L3 K3 L4 L5
 D5  : T  53.28c W  52.03c S   1.25c ( +6.7 L  +7.2) LCB   34.35c P 13.85% WF 21.93% PSV      13 N      13  --  D5 C3 C5 D3 F4 E5 E4
@@ -1488,11 +1488,11 @@ NN rows: 477
 NN batches: 477
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 1.5
-PV: D4 D3 E3 C3 E4 D6 C8 C7 D8 F6 H4 F10 H11 G11
+PV: D4 D3 E3 C3 E4 D6 C8 D8 D9 E9 C9 C10
 Tree:
 : T -61.02c W -58.11c S  -2.90c ( -8.3 L  -8.6) N     400  --  D4 D3 E3 C3 E4 D6 C8
 ---Black(v)---
-D4  : T -62.91c W -59.70c S  -3.20c ( -8.6 L  -8.9) LCB  -60.17c P 35.71% WF  7.58% PSV     250 N     250  --  D4 D3 E3 C3 E4 D6 C8 C7
+D4  : T -62.91c W -59.70c S  -3.20c ( -8.6 L  -8.9) LCB  -60.17c P 35.71% WF  7.58% PSV     250 N     250  --  D4 D3 E3 C3 E4 D6 C8 D8
 E4  : T -57.36c W -55.02c S  -2.34c ( -7.8 L  -8.2) LCB  -49.87c P 20.77% WF  6.46% PSV      53 N      55  --  E4 L3 C10 C11 C9 D11 C6
 E3  : T -61.10c W -58.18c S  -2.92c ( -8.3 L  -8.7) LCB  -53.87c P 11.59% WF  7.11% PSV      52 N      54  --  E3 D5 C11 C10 D11 E10 E11 F10
 D3  : T -52.75c W -51.14c S  -1.61c ( -7.1 L  -7.4) LCB  -20.00c P  6.41% WF  6.16% PSV      10 N      10  --  D3 D4 E3 E4 F4 F3
@@ -1649,7 +1649,7 @@ Tree:
 : T -33.94c W -32.04c S  -1.89c ( -3.2 L  -2.6) N      20  --  E5 C5 D2 E6 F5
 ---Black(v)---
 E5  : T -42.79c W -39.44c S  -3.35c ( -4.3 L  -3.7) LCB   51.72c P 35.66% WF 31.84% PSV      10 N      10  --  E5 C5 D2 E6 F5
-E5  C5  : T -31.00c W -29.01c S  -1.99c ( -3.4 L  -3.2) LCB -316.22c P 35.50% WF 44.42% PSV       5 N       5  --  C5 D2 E6 F5
+E5  C5  : T -31.00c W -29.01c S  -1.99c ( -3.4 L  -3.2) LCB -316.22c P 35.50% WF 44.42% PSV       8 N       5  --  C5 D2 E6 F5
 E5  C5  D2  : T -31.76c W -29.33c S  -2.43c ( -3.8 L  -3.8) LCB 1905.05c P 50.71% WF 55.63% PSV       3 N       3  --  D2 E6 F5
 E5  C5  D2  E6  : T -37.28c W -34.24c S  -3.04c ( -4.4 L  -4.3) LCB -280.00c P 42.10% WF 100.00% PSV       2 N       2  --  E6 F5
 E5  C5  D2  E6  F5  : T -56.92c W -50.90c S  -6.03c ( -6.9 L  -6.6) LCB  280.00c P 98.68% WF 100.00% PSV       1 N       1  --  F5
@@ -1711,7 +1711,7 @@ PV: C5 D2 E6 F5 G4 G5 H4
 Tree:
 : T -44.45c W -41.93c S  -2.52c ( -4.8 L  -3.9) N      20  --  C5 D2 E6 F5 G4 G5 H4
 ---White(^)---
-C5  : T -44.96c W -41.73c S  -3.23c ( -5.5 L  -4.6) LCB -141.76c P 33.25% WF 28.11% PSV       9 N       9  --  C5 D2 E6 F5 G4 G5 H4
+C5  : T -44.96c W -41.73c S  -3.23c ( -5.5 L  -4.6) LCB -141.76c P 33.25% WF 28.11% PSV      11 N       9  --  C5 D2 E6 F5 G4 G5 H4
 C5  D2  : T -48.88c W -44.85c S  -4.03c ( -6.2 L  -5.2) LCB   98.54c P 50.71% WF 60.87% PSV       7 N       7  --  D2 E6 F5 G4 G5 H4
 C5  D2  E6  : T -53.30c W -48.39c S  -4.91c ( -7.0 L  -5.9) LCB -389.48c P 42.10% WF 50.72% PSV       5 N       5  --  E6 F5 G4 G5 H4
 C5  D2  E6  F5  : T -62.51c W -56.10c S  -6.41c ( -8.3 L  -6.9) LCB  361.77c P 98.68% WF 100.00% PSV       4 N       4  --  F5 G4 G5 H4
@@ -1815,7 +1815,7 @@ Tree:
 : T -39.93c W -33.02c S  -6.91c ( -3.4 L  -2.8) N      20  --  E5 C5 D2 E6 F5
 ---Black(v)---
 E5  : T -50.56c W -39.54c S -11.02c ( -4.3 L  -3.8) LCB   32.63c P 35.66% WF 41.42% PSV      10 N      10  --  E5 C5 D2 E6 F5
-E5  C5  : T -36.71c W -29.16c S  -7.54c ( -3.5 L  -3.2) LCB -266.88c P 35.50% WF 45.39% PSV       5 N       5  --  C5 D2 E6 F5
+E5  C5  : T -36.71c W -29.16c S  -7.54c ( -3.5 L  -3.2) LCB -266.88c P 35.50% WF 45.39% PSV       8 N       5  --  C5 D2 E6 F5
 E5  C5  D2  : T -42.70c W -29.33c S -13.37c ( -3.8 L  -3.8) LCB 1059.14c P 50.71% WF 58.49% PSV       3 N       3  --  D2 E6 F5
 E5  C5  D2  E6  : T -47.10c W -34.24c S -12.86c ( -4.4 L  -4.3) LCB -280.00c P 42.10% WF 100.00% PSV       2 N       2  --  E6 F5
 E5  C5  D2  E6  F5  : T -56.92c W -50.90c S  -6.03c ( -6.9 L  -6.6) LCB  280.00c P 98.68% WF 100.00% PSV       1 N       1  --  F5
@@ -2378,7 +2378,7 @@ PV: J7 C5 L7 A5
 Tree:
 : T 103.16c W  99.34c S   3.83c ( +5.9 L  +5.8) N     300  --  J7 C5 L7 A5
 ---Black(v)---
-J7  : T 102.80c W  99.20c S   3.60c ( +5.8 L  +5.7) LCB  104.92c P 15.26% WF  5.62% PSV      49 N      49  --  J7 C5 L7 A5
+J7  : T 102.80c W  99.20c S   3.60c ( +5.8 L  +5.7) LCB  104.92c P 15.26% WF  5.62% PSV      53 N      49  --  J7 C5 L7 A5
 J1  : T 102.94c W  99.29c S   3.65c ( +5.8 L  +5.7) LCB  105.76c P  9.60% WF  5.60% PSV      30 N      30  --  J1 C9 J3 C5
 J3  : T 103.45c W  99.43c S   4.01c ( +6.0 L  +5.8) LCB  106.55c P  9.83% WF  5.54% PSV      28 N      28  --  J3 C9 J7 C5 L7
 L11 : T 102.38c W  99.18c S   3.21c ( +5.6 L  +5.5) LCB  105.81c P  6.10% WF  5.65% PSV      21 N      22  --  L11 C9 J7 C5
@@ -2450,7 +2450,7 @@ PV: J7 C5 L7 A5
 Tree:
 : T 103.22c W  99.34c S   3.88c ( +6.0 L  +5.8) N     300  --  J7 C5 L7 A5
 ---Black(v)---
-J7  : T 102.85c W  99.21c S   3.64c ( +5.9 L  +5.7) LCB  104.93c P 15.26% WF  5.62% PSV      51 N      51  --  J7 C5 L7 A5
+J7  : T 102.85c W  99.21c S   3.64c ( +5.9 L  +5.7) LCB  104.93c P 15.26% WF  5.62% PSV      55 N      51  --  J7 C5 L7 A5
 J1  : T 103.03c W  99.30c S   3.72c ( +5.9 L  +5.7) LCB  105.78c P  9.60% WF  5.59% PSV      31 N      31  --  J1 C9 J3 C5
 J3  : T 103.43c W  99.42c S   4.01c ( +6.0 L  +5.8) LCB  106.33c P  9.83% WF  5.54% PSV      30 N      30  --  J3 C9 J7 C5 L7
 L11 : T 102.38c W  99.18c S   3.21c ( +5.6 L  +5.5) LCB  105.81c P  6.10% WF  5.66% PSV      22 N      22  --  L11 C9 J7 C5
@@ -3221,11 +3221,11 @@ Root visits: 200
 NN rows: 199
 NN batches: 199
 NN avg batch size: 1
-PV: D4 C4 G6 D7 E7 D8 D6 D5 E5
+PV: D4 C4 G6 D7 D8 E7 E8 F8 F6
 Tree:
-: T -26.57c W -26.99c S   0.41c ( -2.3 L  -2.4) N     200  --  D4 C4 G6 D7 E7 D8 D6
+: T -26.57c W -26.99c S   0.41c ( -2.3 L  -2.4) N     200  --  D4 C4 G6 D7 D8 E7 E8
 ---Black(v)---
-D4  : T -29.07c W -29.24c S   0.18c ( -2.5 L  -2.6) LCB  -19.07c P 25.54% WF 14.49% PSV     154 N     154  --  D4 C4 G6 D7 E7 D8 D6 D5
+D4  : T -29.07c W -29.24c S   0.18c ( -2.5 L  -2.6) LCB  -19.07c P 25.54% WF 14.49% PSV     154 N     154  --  D4 C4 G6 D7 D8 E7 E8 F8
 F6  : T -17.40c W -18.96c S   1.56c ( -1.5 L  -1.5) LCB    9.10c P 26.54% WF 11.03% PSV      22 N      22  --  F6 D7 C2 D4
 E4  : T -29.46c W -29.29c S  -0.17c ( -2.6 L  -2.4) LCB   34.15c P  3.15% WF 13.92% PSV       8 N       8  --  E4 F6 G6 E7
 G6  : T   0.40c W  -2.84c S   3.24c ( -0.4 L  -0.6) LCB  271.06c P 13.36% WF  8.98% PSV       4 N       4  --  G6 D4 E3 F4
@@ -3273,7 +3273,7 @@ PV: R16 Q17 P16 O18 K4 C17 C16
 Tree:
 : T   4.66c W   2.97c S   1.70c ( +0.7 L  +1.0) N     200  --  R16 Q17 P16 O18 K4 C17 C16
 ---Black(v)---
-R16 : T  -3.91c W  -4.36c S   0.45c ( -1.1 L  -0.9) LCB   -1.50c P 33.30% WF 13.80% PSV      70 N      70  --  R16 Q17 P16 O18 K4 C17 C16
+R16 : T  -3.91c W  -4.36c S   0.45c ( -1.1 L  -0.9) LCB   -1.50c P 33.30% WF 13.80% PSV      93 N      70  --  R16 Q17 P16 O18 K4 C17 C16
 Q17 : T  -2.58c W  -3.20c S   0.62c ( -0.9 L  -0.6) LCB   -0.29c P 28.27% WF 13.24% PSV      49 N      49  --  Q17 R16 Q15 R14 K4 Q14
 D4  : T  -2.21c W  -2.94c S   0.73c ( -0.7 L  -0.4) LCB   16.75c P  6.05% WF 12.25% PSV      10 N      10  --  D4 E4 C3 E3 R16
 L4  : T   0.99c W  -0.13c S   1.12c ( -0.1 L  +0.0) LCB   50.92c P  3.32% WF 11.44% PSV       4 N       4  --  L4 R16 Q15
@@ -3315,7 +3315,7 @@ PV: R16 Q17 P16 O18 K4 C17 C16
 Tree:
 : T   4.66c W   2.97c S   1.70c ( +0.7 L  +1.0) N     200  --  R16 Q17 P16 O18 K4 C17 C16
 ---Black(v)---
-R16 : T  -3.91c W  -4.36c S   0.45c ( -1.1 L  -0.9) LCB   -1.50c P 33.30% WF 13.80% PSV      70 N      70  --  R16 Q17 P16 O18 K4 C17 C16
+R16 : T  -3.91c W  -4.36c S   0.45c ( -1.1 L  -0.9) LCB   -1.50c P 33.30% WF 13.80% PSV      93 N      70  --  R16 Q17 P16 O18 K4 C17 C16
 Q17 : T  -2.58c W  -3.20c S   0.62c ( -0.9 L  -0.6) LCB   -0.29c P 28.27% WF 13.24% PSV      49 N      49  --  Q17 R16 Q15 R14 K4 Q14
 D4  : T  -2.21c W  -2.94c S   0.73c ( -0.7 L  -0.4) LCB   16.75c P  6.05% WF 12.25% PSV      10 N      10  --  D4 E4 C3 E3 R16
 L4  : T   0.99c W  -0.13c S   1.12c ( -0.1 L  +0.0) LCB   50.92c P  3.32% WF 11.44% PSV       4 N       4  --  L4 R16 Q15
@@ -3389,7 +3389,7 @@ PV: R16 Q17 P16 O18 K4 C17 C16
 Tree:
 : T   4.66c W   2.97c S   1.70c ( +0.7 L  +1.0) N     200  --  R16 Q17 P16 O18 K4 C17 C16
 ---Black(v)---
-R16 : T  -3.91c W  -4.36c S   0.45c ( -1.1 L  -0.9) LCB   -1.50c P 33.30% WF 13.80% PSV      70 N      70  --  R16 Q17 P16 O18 K4 C17 C16
+R16 : T  -3.91c W  -4.36c S   0.45c ( -1.1 L  -0.9) LCB   -1.50c P 33.30% WF 13.80% PSV      93 N      70  --  R16 Q17 P16 O18 K4 C17 C16
 Q17 : T  -2.58c W  -3.20c S   0.62c ( -0.9 L  -0.6) LCB   -0.29c P 28.27% WF 13.24% PSV      49 N      49  --  Q17 R16 Q15 R14 K4 Q14
 D4  : T  -2.21c W  -2.94c S   0.73c ( -0.7 L  -0.4) LCB   16.75c P  6.05% WF 12.25% PSV      10 N      10  --  D4 E4 C3 E3 R16
 L4  : T   0.99c W  -0.13c S   1.12c ( -0.1 L  +0.0) LCB   50.92c P  3.32% WF 11.44% PSV       4 N       4  --  L4 R16 Q15
@@ -3431,7 +3431,7 @@ PV: R16 Q17 P16 O18 K4 C17 C16
 Tree:
 : T   5.15c W   3.38c S   1.76c ( +0.8 L  +1.1) N     200  --  R16 Q17 P16 O18 K4 C17 C16
 ---Black(v)---
-R16 : T  -3.98c W  -4.43c S   0.45c ( -1.1 L  -0.9) LCB   -1.53c P 25.47% WF 10.03% PSV      68 N      68  --  R16 Q17 P16 O18 K4 C17 C16
+R16 : T  -3.98c W  -4.43c S   0.45c ( -1.1 L  -0.9) LCB   -1.53c P 25.47% WF 10.03% PSV      89 N      68  --  R16 Q17 P16 O18 K4 C17 C16
 Q17 : T  -2.54c W  -3.15c S   0.61c ( -0.9 L  -0.6) LCB   -0.08c P 21.20% WF  9.57% PSV      44 N      44  --  Q17 R16 Q15 R14 K4 Q14
 D4  : T  -2.18c W  -2.92c S   0.74c ( -0.7 L  -0.5) LCB   21.43c P  4.54% WF  8.85% PSV       9 N       9  --  D4 E4 C3 E3 R16
 K4  : T   1.36c W   0.22c S   1.13c ( -0.1 L  +0.0) LCB   12.70c P  5.60% WF  8.43% PSV       7 N       8  --  K4 Q17 P16 R16 Q14
@@ -3509,7 +3509,7 @@ PV: R16 Q17 P16 O18 K4 C17 C16
 Tree:
 : T   4.94c W   3.20c S   1.74c ( +0.8 L  +1.1) N     200  --  R16 Q17 P16 O18 K4 C17 C16
 ---Black(v)---
-R16 : T  -3.98c W  -4.43c S   0.45c ( -1.1 L  -0.9) LCB   -1.53c P 26.24% WF  9.12% PSV      68 N      68  --  R16 Q17 P16 O18 K4 C17 C16
+R16 : T  -3.98c W  -4.43c S   0.45c ( -1.1 L  -0.9) LCB   -1.53c P 26.24% WF  9.12% PSV      89 N      68  --  R16 Q17 P16 O18 K4 C17 C16
 Q17 : T  -2.54c W  -3.15c S   0.61c ( -0.9 L  -0.6) LCB   -0.08c P 21.21% WF  8.69% PSV      44 N      44  --  Q17 R16 Q15 R14 K4 Q14
 D4  : T  -2.18c W  -2.92c S   0.74c ( -0.7 L  -0.5) LCB   21.43c P  4.54% WF  8.05% PSV       9 N       9  --  D4 E4 C3 E3 R16
 C5  : T  -3.73c W  -4.39c S   0.66c ( -0.8 L  -0.6) LCB   27.02c P  2.46% WF  8.07% PSV       6 N       6  --  C5 D5 C4 C3 C7
@@ -3556,7 +3556,7 @@ PV: R16 Q17 P16 O18 K4 C17 C16
 Tree:
 : T   4.69c W   2.99c S   1.70c ( +0.7 L  +1.0) N     200  --  R16 Q17 P16 O18 K4 C17 C16
 ---Black(v)---
-R16 : T  -3.99c W  -4.43c S   0.44c ( -1.1 L  -0.9) LCB   -1.46c P 24.29% WF  9.15% PSV      64 N      64  --  R16 Q17 P16 O18 K4 C17 C16
+R16 : T  -3.99c W  -4.43c S   0.44c ( -1.1 L  -0.9) LCB   -1.46c P 24.29% WF  9.15% PSV      91 N      64  --  R16 Q17 P16 O18 K4 C17 C16
 Q17 : T  -2.50c W  -3.12c S   0.62c ( -0.9 L  -0.6) LCB   -0.10c P 22.32% WF  8.77% PSV      46 N      46  --  Q17 R16 Q15 R14 K4 Q14
 D4  : T  -2.18c W  -2.92c S   0.74c ( -0.7 L  -0.5) LCB   21.43c P  4.60% WF  8.12% PSV       9 N       9  --  D4 E4 C3 E3 R16
 K4  : T   1.36c W   0.22c S   1.13c ( -0.1 L  +0.0) LCB   12.70c P  5.63% WF  7.73% PSV       7 N       8  --  K4 Q17 P16 R16 Q14
@@ -3603,7 +3603,7 @@ PV: R16 Q17 P16 O18 K4 C17 C16
 Tree:
 : T   4.69c W   2.99c S   1.70c ( +0.7 L  +1.0) N     200  --  R16 Q17 P16 O18 K4 C17 C16
 ---Black(v)---
-R16 : T  -3.99c W  -4.43c S   0.44c ( -1.1 L  -0.9) LCB   -1.46c P 24.29% WF  9.15% PSV      64 N      64  --  R16 Q17 P16 O18 K4 C17 C16
+R16 : T  -3.99c W  -4.43c S   0.44c ( -1.1 L  -0.9) LCB   -1.46c P 24.29% WF  9.15% PSV      91 N      64  --  R16 Q17 P16 O18 K4 C17 C16
 Q17 : T  -2.50c W  -3.12c S   0.62c ( -0.9 L  -0.6) LCB   -0.10c P 22.32% WF  8.77% PSV      46 N      46  --  Q17 R16 Q15 R14 K4 Q14
 D4  : T  -2.18c W  -2.92c S   0.74c ( -0.7 L  -0.5) LCB   21.43c P  4.60% WF  8.12% PSV       9 N       9  --  D4 E4 C3 E3 R16
 K4  : T   1.36c W   0.22c S   1.13c ( -0.1 L  +0.0) LCB   12.70c P  5.63% WF  7.73% PSV       7 N       8  --  K4 Q17 P16 R16 Q14
@@ -3682,7 +3682,7 @@ PV: R16 Q17 P16 O18 K4 C17 C16
 Tree:
 : T   4.82c W   3.09c S   1.72c ( +0.8 L  +1.0) N     200  --  R16 Q17 P16 O18 K4 C17 C16
 ---Black(v)---
-R16 : T  -3.97c W  -4.42c S   0.45c ( -1.1 L  -0.9) LCB   -1.48c P 25.88% WF  9.11% PSV      67 N      67  --  R16 Q17 P16 O18 K4 C17 C16
+R16 : T  -3.97c W  -4.42c S   0.45c ( -1.1 L  -0.9) LCB   -1.48c P 25.88% WF  9.11% PSV      93 N      67  --  R16 Q17 P16 O18 K4 C17 C16
 Q17 : T  -2.49c W  -3.11c S   0.62c ( -0.9 L  -0.6) LCB   -0.15c P 22.68% WF  8.72% PSV      47 N      47  --  Q17 R16 Q15 R14 K4 Q14
 D4  : T  -2.18c W  -2.92c S   0.74c ( -0.7 L  -0.5) LCB   21.43c P  4.57% WF  8.06% PSV       9 N       9  --  D4 E4 C3 E3 R16
 C5  : T  -3.73c W  -4.39c S   0.66c ( -0.8 L  -0.6) LCB   27.02c P  2.49% WF  8.08% PSV       6 N       6  --  C5 D5 C4 C3 C7
@@ -3729,7 +3729,7 @@ PV: R16 Q17 P16 O18 K4 C17 C16
 Tree:
 : T   5.18c W   3.41c S   1.77c ( +0.8 L  +1.1) N     200  --  R16 Q17 P16 O18 K4 C17 C16
 ---Black(v)---
-R16 : T  -3.91c W  -4.37c S   0.46c ( -1.1 L  -0.9) LCB   -1.64c P 37.75% WF 12.48% PSV      75 N      75  --  R16 Q17 P16 O18 K4 C17 C16
+R16 : T  -3.91c W  -4.37c S   0.46c ( -1.1 L  -0.9) LCB   -1.64c P 37.75% WF 12.48% PSV      89 N      75  --  R16 Q17 P16 O18 K4 C17 C16
 Q17 : T  -2.52c W  -3.13c S   0.60c ( -0.9 L  -0.6) LCB    0.10c P 25.11% WF 11.80% PSV      41 N      41  --  Q17 R16 Q15 R14 K4 Q14
 D4  : T  -2.18c W  -2.92c S   0.74c ( -0.7 L  -0.5) LCB   21.43c P  5.94% WF 10.95% PSV       9 N       9  --  D4 E4 C3 E3 R16
 L4  : T   0.94c W  -0.23c S   1.17c ( -0.1 L  +0.1) LCB  195.16c P  2.92% WF 10.20% PSV       3 N       3  --  L4 R16
@@ -3772,7 +3772,7 @@ PV: R16 Q17 P16 O18 K4 C17 C16
 Tree:
 : T   4.63c W   2.94c S   1.69c ( +0.7 L  +1.0) N     200  --  R16 Q17 P16 O18 K4 C17 C16
 ---Black(v)---
-R16 : T  -3.93c W  -4.38c S   0.45c ( -1.1 L  -0.9) LCB   -1.55c P 34.11% WF 15.62% PSV      71 N      71  --  R16 Q17 P16 O18 K4 C17 C16
+R16 : T  -3.93c W  -4.38c S   0.45c ( -1.1 L  -0.9) LCB   -1.55c P 34.11% WF 15.62% PSV      99 N      71  --  R16 Q17 P16 O18 K4 C17 C16
 Q17 : T  -2.55c W  -3.18c S   0.62c ( -0.9 L  -0.6) LCB   -0.35c P 29.72% WF 14.99% PSV      51 N      51  --  Q17 R16 Q15 R14 K4 Q14
 D4  : T  -2.21c W  -2.94c S   0.73c ( -0.7 L  -0.4) LCB   16.75c P  6.09% WF 13.85% PSV      10 N      10  --  D4 E4 C3 E3 R16
 L4  : T   0.94c W  -0.23c S   1.17c ( -0.1 L  +0.1) LCB  195.16c P  3.16% WF 12.85% PSV       3 N       3  --  L4 R16

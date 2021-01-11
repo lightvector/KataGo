@@ -329,9 +329,10 @@ string Setup::loadHomeDataDirOverride(
 }
 
 SearchParams Setup::loadSingleParams(
-  ConfigParser& cfg
+  ConfigParser& cfg,
+  setup_for_t setupFor
 ) {
-  vector<SearchParams> paramss = loadParams(cfg);
+  vector<SearchParams> paramss = loadParams(cfg, setupFor);
   if(paramss.size() != 1)
     throw StringError("Config contains parameters for multiple bot configurations, but this KataGo command only supports a single configuration");
   return paramss[0];
@@ -346,7 +347,8 @@ static Player parsePlayer(const char* field, const string& s) {
 }
 
 vector<SearchParams> Setup::loadParams(
-  ConfigParser& cfg
+  ConfigParser& cfg,
+  setup_for_t setupFor
 ) {
 
   vector<SearchParams> paramss;
@@ -501,6 +503,11 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("minVisitPropForLCB"+idxStr)) params.minVisitPropForLCB = cfg.getDouble("minVisitPropForLCB"+idxStr, 0.0, 1.0);
     else if(cfg.contains("minVisitPropForLCB"))   params.minVisitPropForLCB = cfg.getDouble("minVisitPropForLCB",        0.0, 1.0);
     else                                          params.minVisitPropForLCB = 0.15;
+    //For distributed and selfplay, we default to buggy LCB for the moment since it has effects on the policy training target.
+    if(cfg.contains("useNonBuggyLcb"+idxStr)) params.useNonBuggyLcb = cfg.getBool("useNonBuggyLcb"+idxStr);
+    else if(cfg.contains("useNonBuggyLcb"))   params.useNonBuggyLcb = cfg.getBool("useNonBuggyLcb");
+    else                                      params.useNonBuggyLcb = (setupFor != SETUP_FOR_DISTRIBUTED && setupFor != SETUP_FOR_OTHER);
+
 
     if(cfg.contains("rootEndingBonusPoints"+idxStr)) params.rootEndingBonusPoints = cfg.getDouble("rootEndingBonusPoints"+idxStr, -1.0, 1.0);
     else if(cfg.contains("rootEndingBonusPoints"))   params.rootEndingBonusPoints = cfg.getDouble("rootEndingBonusPoints",        -1.0, 1.0);

@@ -693,7 +693,7 @@ bool Connection::getNextTask(
     try {
       istringstream taskCfgIn(task.config);
       ConfigParser taskCfg(taskCfgIn);
-      SearchParams baseParams = Setup::loadSingleParams(taskCfg);
+      SearchParams baseParams = Setup::loadSingleParams(taskCfg,Setup::SETUP_FOR_DISTRIBUTED);
       PlaySettings playSettings;
       if(task.isRatingGame)
         playSettings = PlaySettings::loadForGatekeeper(taskCfg);

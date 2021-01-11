@@ -157,7 +157,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   logger.setLogToStdout(true);
   logger.write("Loading model and initializing benchmark...");
 
-  SearchParams params = Setup::loadSingleParams(cfg);
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_BENCHMARK);
   params.maxVisits = maxVisits;
   params.maxPlayouts = maxVisits;
   params.maxTime = 1e20;
@@ -837,7 +837,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
     logger.setLogToStdout(true);
     logger.write("Loading model and initializing benchmark...");
 
-    SearchParams params = Setup::loadSingleParams(cfg);
+    SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_BENCHMARK);
     params.maxVisits = defaultMaxVisits;
     params.maxPlayouts = defaultMaxVisits;
     params.maxTime = 1e20;

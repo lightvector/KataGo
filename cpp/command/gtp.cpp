@@ -1447,7 +1447,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     initialRules.komi = forcedKomi;
   }
 
-  SearchParams initialParams = Setup::loadSingleParams(cfg);
+  SearchParams initialParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
   logger.write("Using " + Global::intToString(initialParams.numThreads) + " CPU thread(s) for search");
   //Set a default for conservativePass that differs from matches or selfplay
   if(!cfg.contains("conservativePass") && !cfg.contains("conservativePass0"))
