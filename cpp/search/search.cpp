@@ -1309,11 +1309,13 @@ void Search::getValueChildWeights(
   const vector<int64_t>& childVisitsBuf,
   vector<double>& resultBuf
 ) const {
-  resultBuf.clear();
-  if(numChildren <= 0)
+  if(numChildren <= 0) {
+    resultBuf.clear();
     return;
+  }
+  resultBuf.resize(numChildren);
   if(numChildren == 1) {
-    resultBuf.push_back(1.0);
+    resultBuf[0] = 1.0;
     return;
   }
 
@@ -1361,7 +1363,7 @@ void Search::getValueChildWeights(
   for(int i = 0; i<numChildren; i++) {
     double p = weight[i];
     totalWeight += p;
-    resultBuf.push_back(p);
+    resultBuf[i] = p;
   }
 
   assert(totalWeight >= 0.0);
