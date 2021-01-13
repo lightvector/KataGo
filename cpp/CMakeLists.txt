@@ -255,7 +255,6 @@ add_executable(katago
   dataio/numpywrite.cpp
   dataio/trainingwrite.cpp
   dataio/loadmodel.cpp
-  dataio/lzparse.cpp
   dataio/homedata.cpp
   neuralnet/nninputs.cpp
   neuralnet/modelversion.cpp
@@ -300,7 +299,6 @@ add_executable(katago
   command/evalsgf.cpp
   command/gatekeeper.cpp
   command/gtp.cpp
-  command/lzcost.cpp
   command/match.cpp
   command/matchauto.cpp
   command/misc.cpp

@@ -12,7 +12,6 @@
 
 #include <Eigen/Dense>
 #include <unsupported/Eigen/CXX11/Tensor>
-#include <zstr/src/zstr.hpp>
 
 #include "../neuralnet/desc.h"
 #include "../neuralnet/modelversion.h"
