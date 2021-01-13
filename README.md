@@ -334,6 +334,7 @@ KataGo is written in C++. It should compile on Linux or OSX via g++ that support
       * If using the Eigen backend, Eigen3. With Debian packages, (i.e. apt or apt-get), this should be `libeigen3-dev`.
       * zlib, libzip. With Debian packages (i.e. apt or apt-get), these should be `zlib1g-dev`, `libzip-dev`.
       * If you want to do self-play training and research, probably Google perftools `libgoogle-perftools-dev` for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc that will eventually run your machine out of memory, but better mallocs handle it fine.
+      * If compiling to contribute to public distributed training runs, OpenSSL is required (`libssl-dev`).
    * Clone this repo:
       * `git clone https://github.com/lightvector/KataGo.git`
    * Compile using CMake and make in the cpp directory:
@@ -342,6 +343,7 @@ KataGo is written in C++. It should compile on Linux or OSX via g++ that support
          * Specify also `-DUSE_TCMALLOC=1` if using TCMalloc.
          * Compiling will also call git commands to embed the git hash into the compiled executable, specify also `-DNO_GIT_REVISION=1` to disable it if this is causing issues for you.
          * Specify `-DUSE_AVX2=1` to also compile Eigen with AVX2 and FMA support, which will make it incompatible with old CPUs but much faster. (If you want to go further, you can also add `-DCMAKE_CXX_FLAGS='-march=native'` which will specialize to precisely your machine's CPU, but the exe might not run on other machines at all).
+         * Specify `-DBUILD_DISTRIBUTED=1` to compile with support for contributing data to public distributed training runs. (Note that for official runs, also only specific tagged versions or branches can contribute, please don't attempt to contribute with custom changes).
       * `make`
    * Done! You should now have a compiled `katago` executable in your working directory.
    * Pre-trained neural nets are available on the [releases page](https://github.com/lightvector/KataGo/releases) or more from [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html).
@@ -357,6 +359,7 @@ KataGo is written in C++. It should compile on Linux or OSX via g++ that support
       * If using the Eigen backend, Eigen3, version 3.3.x. (http://eigen.tuxfamily.org/index.php?title=Main_Page#Download).
       * zlib. The following package might work, https://www.nuget.org/packages/zlib-vc140-static-64/, or alternatively you can build it yourself via something like: https://github.com/kiyolee/zlib-win-build
       * libzip (optional, needed only for self-play training) - for example https://github.com/kiyolee/libzip-win-build
+      * If compiling to contribute to public distributed training runs, OpenSSL is required (https://www.openssl.org/, https://wiki.openssl.org/index.php/Compilation_and_Installation).
    * Download/clone this repo to some folder `KataGo`.
    * Configure using CMake GUI and compile in MSVC:
       * Select `KataGo/cpp` as the source code directory in [CMake GUI](https://cmake.org/runningcmake/).
@@ -370,6 +373,7 @@ KataGo is written in C++. It should compile on Linux or OSX via g++ that support
          * `NO_GIT_REVISION` if you don't have Git or if cmake is not finding it.
          * `NO_LIBZIP` if you don't care about running self-play training and you don't have libzip.
          * `USE_AVX2` if you want to compile with AVX2 and FMA instructions, which will fail on some CPUs but speed up Eigen greatly on CPUs that support them.
+         * `BUILD_DISTRIBUTED` to compile with support for contributing data to public distributed training runs. (Note that for official runs, also only specific tagged versions or branches can contribute, please don't attempt to contribute with custom changes).
       * Once running "Configure" looks good, run "Generate" and then open MSVC and build as normal in MSVC.
    * Done! You should now have a compiled `katago.exe` executable in your working directory.
    * Note: You may need to copy the ".dll" files corresponding to the various ".lib" files you compiled with into the directory containing katago.exe.
