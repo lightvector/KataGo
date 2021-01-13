@@ -138,7 +138,7 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
         continue;
       }
       if(i != mostVisitedIdx)
-        playSelectionValues[i] = getReducedPlaySelectionVisits(node, policyProbs, node.children[i], totalChildVisits, bestChildExploreSelectionValue);
+        playSelectionValues[i] = (double)getReducedPlaySelectionVisits(node, policyProbs, node.children[i], totalChildVisits, bestChildExploreSelectionValue);
     }
   }
 
@@ -262,7 +262,7 @@ void Search::maybeRecomputeNormToTApproxTable() {
     normToTApproxZ = searchParams.lcbStdevs;
     normToTApproxTable.clear();
     for(int i = 0; i < 512; i++)
-      normToTApproxTable.push_back(FancyMath::normToTApprox(normToTApproxZ,i+MIN_VISITS_FOR_LCB));
+      normToTApproxTable.push_back(FancyMath::normToTApprox(normToTApproxZ,(double)(i+MIN_VISITS_FOR_LCB)));
   }
 }
 

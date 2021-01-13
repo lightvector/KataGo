@@ -65,12 +65,12 @@ int MainCmds::match(int argc, const char* const* argv) {
   //Load per-bot search config, first, which also tells us how many bots we're running
   vector<SearchParams> paramss = Setup::loadParams(cfg,Setup::SETUP_FOR_MATCH);
   assert(paramss.size() > 0);
-  int numBots = paramss.size();
+  int numBots = (int)paramss.size();
 
   //Load a filter on what bots we actually want to run
   vector<bool> excludeBot(numBots);
   if(cfg.contains("includeBots")) {
-    vector<int> includeBots = cfg.getInts("includeBots",0,4096);
+    vector<int> includeBots = cfg.getInts("includeBots",0,Setup::MAX_BOT_PARAMS_FROM_CFG);
     for(int i = 0; i<numBots; i++) {
       if(!contains(includeBots,i))
         excludeBot[i] = true;
@@ -114,7 +114,7 @@ int MainCmds::match(int argc, const char* const* argv) {
     if(alreadyFoundIdx != -1)
       whichNNModel[i] = alreadyFoundIdx;
     else {
-      whichNNModel[i] = nnModelFiles.size();
+      whichNNModel[i] = (int)nnModelFiles.size();
       nnModelFiles.push_back(desiredFile);
     }
   }

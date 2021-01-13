@@ -1046,7 +1046,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       //Push into queue for processing
       for(int i = 0; i<newRequests.size(); i++) {
         //Compare first by user-provided priority, and next breaks ties by preferring earlier requests.
-        std::pair<int,int64_t> priorityKey = std::make_pair(newRequests[i]->priority, -numRequestsSoFar);
+        std::pair<int64_t,int64_t> priorityKey = std::make_pair(newRequests[i]->priority, -numRequestsSoFar);
         bool suc = toAnalyzeQueue.forcePush( std::make_pair(priorityKey, newRequests[i]) );
         assert(suc);
         (void)suc;

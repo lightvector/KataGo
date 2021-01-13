@@ -72,7 +72,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     cfg.markAllKeysUsedWithPrefix("dummybackend");
 
   for(size_t i = 0; i<nnModelFiles.size(); i++) {
-    string idxStr = Global::intToString(i);
+    string idxStr = Global::uint64ToString(i);
     const string& nnModelName = nnModelNames[i];
     const string& nnModelFile = nnModelFiles[i];
     const string& expectedSha256 = expectedSha256s.size() > 0 ? expectedSha256s[i]: "";
@@ -354,7 +354,7 @@ vector<SearchParams> Setup::loadParams(
   vector<SearchParams> paramss;
   int numBots = 1;
   if(cfg.contains("numBots"))
-    numBots = cfg.getInt("numBots",1,1024);
+    numBots = cfg.getInt("numBots",1,MAX_BOT_PARAMS_FROM_CFG);
 
   for(int i = 0; i<numBots; i++) {
     SearchParams params;

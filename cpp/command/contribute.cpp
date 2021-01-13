@@ -331,7 +331,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       false,defaultBaseDir,"DIR"
     );
     TCLAP::ValueArg<double> deleteUnusedModelsAfterDaysArg(
-      "","delete-unused-models-after","After a model is unused for this many days, delete it from disk (default "+ Global::intToString(defaultDeleteUnusedModelsAfterDays)+")",
+      "","delete-unused-models-after","After a model is unused for this many days, delete it from disk (default "+ Global::doubleToString(defaultDeleteUnusedModelsAfterDays)+")",
       false,defaultDeleteUnusedModelsAfterDays,"DAYS"
     );
     TCLAP::ValueArg<string> userConfigFileArg("","config","Config file to use for server connection and/or GPU settings",false,string(),"FILE");
@@ -591,7 +591,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     std::function<void()> flushOutputEachMove = nullptr;
     if(gameLoopThreadIdx == 0 && watchOngoingGameInFile) {
 #ifdef OS_IS_WINDOWS
-      auto file = fopen(watchOngoingGameInFileName.c_str(), "a");
+      FILE* file = NULL;
+      fopen_s(&file, watchOngoingGameInFileName.c_str(), "a");
       if(file == NULL)
         throw StringError("Could not open file: " + watchOngoingGameInFileName);
       outputEachMove = std::make_unique<std::ofstream>(file);
@@ -600,7 +601,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       };
 #else
       outputEachMove = std::make_unique<std::ofstream>(watchOngoingGameInFileName.c_str(), ofstream::app);
-#endif 
+#endif
     }
 
     Rand thisLoopSeedRand;
@@ -647,6 +648,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       modelInfo.failIfSha256Mismatch(modelFile);
     }
     catch(const StringError& e) {
+      (void)e;
       //If it's wrong, fail (it means someone modified the file on disk, or there was harddrive corruption, or something, since that file
       //must have been valid at download time), but also rename the file out of the way so that if we restart the program, the next try
       //will do a fresh download.

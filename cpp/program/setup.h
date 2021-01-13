@@ -49,6 +49,8 @@ namespace Setup {
     setup_for_t setupFor
   );
 
+  constexpr int MAX_BOT_PARAMS_FROM_CFG = 4096;
+
   //Loads search parameters for bot from config, by bot idx.
   //Fails if no parameters are found.
   std::vector<SearchParams> loadParams(

@@ -219,7 +219,7 @@ string GTPConfig::makeConfig(
   }
   else {
     string replacement = "";
-    replacement += "numNNServerThreadsPerModel = " + Global::intToString(deviceIdxs.size()) + "\n";
+    replacement += "numNNServerThreadsPerModel = " + Global::uint64ToString(deviceIdxs.size()) + "\n";
 
     for(int i = 0; i<deviceIdxs.size(); i++) {
 #ifdef USE_CUDA_BACKEND

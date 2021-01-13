@@ -420,7 +420,7 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
     cout << endl;
 
     int start = 0;
-    int end = possibleNumbersOfThreads.size()-1;
+    int end = (int)possibleNumbersOfThreads.size()-1;
     for(int i = 0; i < possibleNumbersOfThreads.size(); i++) {
       if(possibleNumbersOfThreads[i] < ternarySearchMin) {
         start = i + 1;

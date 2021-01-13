@@ -677,7 +677,7 @@ MatchPairer::MatchPairer(
   }
   else {
     if(cfg.contains("secondaryBots"))
-      secondaryBots = cfg.getInts("secondaryBots",0,4096);
+      secondaryBots = cfg.getInts("secondaryBots",0,Setup::MAX_BOT_PARAMS_FROM_CFG);
     for(int i = 0; i<secondaryBots.size(); i++)
       assert(secondaryBots[i] >= 0 && secondaryBots[i] < numBots);
     for(int i = 0; i<numBots; i++) {
@@ -1592,7 +1592,7 @@ FinishedGameData* Play::runGame(
     if(logSearchInfo)
       logSearch(toMoveBot,logger,loc,otherGameProps);
     if(logMoves)
-      logger.write("Move " + Global::intToString(hist.moveHistory.size()) + " made: " + Location::toString(loc,board));
+      logger.write("Move " + Global::uint64ToString(hist.moveHistory.size()) + " made: " + Location::toString(loc,board));
 
     ValueTargets whiteValueTargets;
     extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode);

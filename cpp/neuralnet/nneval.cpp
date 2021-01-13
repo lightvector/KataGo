@@ -298,7 +298,7 @@ static void serveEvals(
 void NNEvaluator::setNumThreads(const vector<int>& gpuIdxByServerThr) {
   if(serverThreads.size() != 0)
     throw StringError("NNEvaluator::setNumThreads called when threads were already running!");
-  numThreads = gpuIdxByServerThr.size();
+  numThreads = (int)gpuIdxByServerThr.size();
   gpuIdxByServerThread = gpuIdxByServerThr;
 }
 

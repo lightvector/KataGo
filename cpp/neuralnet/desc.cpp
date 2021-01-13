@@ -1138,6 +1138,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
         throw StringError("Error while ungzipping file. Invalid model file?");
       }
 
+      //TODO zs.avail_in is 32 bit, may fail with files larger than 4GB.
       zs.avail_in = compressed->size();
       zs.next_in = (Bytef*)(&(*compressed)[0]);
       while(true) {

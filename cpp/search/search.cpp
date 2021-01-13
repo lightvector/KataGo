@@ -537,7 +537,7 @@ double Search::recomputeSearchTimeLimit(
 
   if(searchParams.midgameTimeFactor != 1.0) {
     double boardAreaScale = rootBoard.x_size * rootBoard.y_size / 361.0;
-    int presumedTurnNumber = rootHistory.initialTurnNumber + rootHistory.moveHistory.size();
+    int64_t presumedTurnNumber = rootHistory.initialTurnNumber + rootHistory.moveHistory.size();
     if(presumedTurnNumber < 0) presumedTurnNumber = 0;
 
     double midGameWeight;
@@ -595,7 +595,7 @@ double Search::recomputeSearchTimeLimit(
       if(suc && playSelectionValues.size() > 0) {
         //This may fail to hold if we have no actual visits and play selections are being pulled from stuff like raw policy
         if(playSelectionValues.size() == visitCounts.size()) {
-          int numMoves = playSelectionValues.size();
+          int numMoves = (int)playSelectionValues.size();
           int maxVisitsIdx = 0;
           int bestMoveIdx = 0;
           for(int i = 1; i<numMoves; i++) {
@@ -1285,7 +1285,7 @@ bool Search::isAllowedRootMove(Loc moveLoc) const {
      rootHistory.moveHistory.size() > 0 &&
      moveLoc != Board::PASS_LOC
   ) {
-    int lastIdx = rootHistory.moveHistory.size()-1;
+    size_t lastIdx = rootHistory.moveHistory.size()-1;
     Player opp = getOpp(rootPla);
     if(lastIdx >= 6 &&
        rootHistory.moveHistory[lastIdx-0].loc == Board::PASS_LOC &&

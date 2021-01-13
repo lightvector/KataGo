@@ -332,7 +332,8 @@ NNOutput::NNOutput(const NNOutput& other) {
 }
 
 NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
-  int len = others.size();
+  assert(others.size() < 1000000);
+  int len = (int)others.size();
   float floatLen = (float)len;
   assert(len > 0);
   for(int i = 1; i<len; i++) {

@@ -2437,8 +2437,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           try {
             sgf = CompactSgf::loadFile(filename);
 
+            if(sgf->moves.size() > 0x3FFFFFFF)
+              throw StringError("Sgf has too many moves");
             if(!moveNumberSpecified || moveNumber > sgf->moves.size())
-              moveNumber = sgf->moves.size();
+              moveNumber = (int)sgf->moves.size();
 
             sgfRules = sgf->getRulesOrWarn(
               engine->getCurrentRules(), //Use current rules as default
