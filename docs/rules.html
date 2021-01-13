@@ -217,7 +217,7 @@ window.onload = function() {
 <body>
 
 <h1>KataGo's Supported Go Rules (Version 2) </h1>
-This page describes the full rigorous rules implemented by KataGo. Updated from <a href="./rulesv1.html">rules version 1</a> right around the start of 2021 to fix an issue where basic double ko death was a mismatch with Japanese rules. These rules are supported in KataGo version 1.8 and later. Additionally, neural nets trained with the old rules, before 2021 or in early 2021 may fail to evaluate such situations correctly even when used with KataGo version 1.8 or later - the version *and* the net both need to be up-to-date.
+This page describes the full rigorous rules implemented by KataGo. Updated from <a href="./rulesv1.html">rules version 1</a> right around the start of 2021 to fix an issue where basic double ko death was a mismatch with Japanese rules. These rules are supported in KataGo version 1.8 and later. Additionally, neural nets trained with the old rules, before 2021 or in early 2021 may fail to evaluate such situations correctly even when used with KataGo version 1.8 or later - the version *and* the net both need to be up-to-date. Also updated from version 1 are some minor wording typos.
 
 <p>
 A hope also is that this document can serve as a reference for anyone to implement any subset of such rules themselves - including a rigorous nearly-Japanese rules that bots can use for self-play or for competitive matches completely without need for outside adjudication or dispute resolution or any other protocol besides just the bots making ordinary plays.
@@ -232,7 +232,6 @@ I believe the nearly-Japanese rules should correctly handle a wide variety of de
 </ul>
 A known difference is with <a href="https://senseis.xmp.net/?TorazuSanmoku">three-points-without-capturing</a>, and a few other exotic rules beasts are also known that will cause a difference, but these should be very very rare.
 <p>
-Updated from <a href="./rulesv0.html">Version 0</a> are some details of the cleanup phase ko rules and some of the endnotes and commentary. The changes were to get slightly more consistency with Japanese rules in some very rare cases, probably less than 1 in 1000 games. Unless a major flaw is discovered, these rules should be considered reasonably stable and KataGo will be doing a full training run with them.
 
 <hr>
 <h2>Parameters</h2>
@@ -407,7 +406,7 @@ The main phase ends after:
 <ol>
 <li class="hasButton buttonNotUsed"><span class="condition">(if Button is NotUsed)</span>: There are 2 consecutive passes.</li>
 <li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: There are 2 consecutive passes, ignoring the first pass of the game.</li>
-<li class="koRule koSimple"><span class="condition">(if KoRule is Simple)</span>: Additionally the game also ends if:
+<li class="koRule koSimple"><span class="condition">(if KoRule is Simple)</span>: Additionally the phase also ends if:
 <ol>
 <li>A player passes from a state that the player has already passed from once before.<a href="#note4" id="ref4">[4]</a></li>
 <li>OR at the start of a player's turn, the current state has already occurred twice before since the most recent pass by either player. In this case the not only the main phase ends but the entire game immediately ends as well, with a result of "no result".<a href="#note5" id="ref5">[5]</a></li>
