@@ -980,7 +980,7 @@ void NNInputs::fillRowV3(
 
   //Komi and any score adjustments
   float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
-  float bArea = xSize * ySize;
+  float bArea = (float)(xSize * ySize);
   //Bound komi just in case
   if(selfKomi > bArea+1.0f)
     selfKomi = bArea+1.0f;
@@ -1310,7 +1310,7 @@ void NNInputs::fillRowV4(
 
   //Komi and any score adjustments
   float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
-  float bArea = xSize * ySize;
+  float bArea = (float)(xSize * ySize);
   //Bound komi just in case
   if(selfKomi > bArea+1.0f)
     selfKomi = bArea+1.0f;
@@ -1578,7 +1578,7 @@ void NNInputs::fillRowV5(
 
   //Komi and any score adjustments
   float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
-  float bArea = xSize * ySize;
+  float bArea = (float)(xSize * ySize);
   //Bound komi just in case
   if(selfKomi > bArea+1.0f)
     selfKomi = bArea+1.0f;
@@ -1895,7 +1895,7 @@ void NNInputs::fillRowV6(
 
   //Komi and any score adjustments
   float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
-  float bArea = xSize * ySize;
+  float bArea = (float)(xSize * ySize);
   //Bound komi just in case
   if(selfKomi > bArea+1.0f)
     selfKomi = bArea+1.0f;
@@ -2290,7 +2290,7 @@ void NNInputs::fillRowV7(
 
   //Komi and any score adjustments
   float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
-  float bArea = xSize * ySize;
+  float bArea = (float)(xSize * ySize);
   //Bound komi just in case
   if(selfKomi > bArea+1.0f)
     selfKomi = bArea+1.0f;

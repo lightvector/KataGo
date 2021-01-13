@@ -429,6 +429,7 @@ static T parse(const json& response, const char* field) {
     return x;
   }
   catch(nlohmann::detail::exception& e) {
+    (void)e;
     throwInvalidValue(response,field);
   }
   throw StringError("BUG, should not reach here");

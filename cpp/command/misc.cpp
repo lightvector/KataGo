@@ -908,11 +908,11 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     Global::collectFiles(sgfDirs[i], sgfFilter, sgfFiles);
   logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf files!");
 
-  vector<int64_t> permutation(sgfFiles.size());
-  for(int64_t i = 0; i<sgfFiles.size(); i++)
+  vector<size_t> permutation(sgfFiles.size());
+  for(size_t i = 0; i<sgfFiles.size(); i++)
     permutation[i] = i;
-  for(int64_t i = 1; i<sgfFiles.size(); i++) {
-    int64_t r = (int64_t)seedRand.nextUInt64(i+1);
+  for(size_t i = 1; i<sgfFiles.size(); i++) {
+    size_t r = (size_t)seedRand.nextUInt64(i+1);
     std::swap(permutation[i],permutation[r]);
   }
 
@@ -1298,7 +1298,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     int encorePhase = 0;
     Player pla = sample.nextPla;
     BoardHistory hist(board,pla,rules,encorePhase);
-    int numSampleMoves = sample.moves.size();
+    int numSampleMoves = (int)sample.moves.size();
     for(int i = 0; i<numSampleMoves; i++) {
       if(!hist.isLegal(board,sample.moves[i].loc,sample.moves[i].pla))
         return;

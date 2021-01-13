@@ -57,11 +57,6 @@ runsearchtestsv8 : Run a bunch more things using a neural net and dump details t
 runselfplayinittests : Run some tests involving selfplay training init using a neural net and dump details to stdout
 runsekitrainwritetests : Run some tests involving seki train output
 
----Dev/experimental subcommands-------------
-demoplay
-lzcost
-matchauto
-sandbox
 )%%" << endl;
 }
 
