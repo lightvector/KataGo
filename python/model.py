@@ -1653,7 +1653,7 @@ class ModelUtils:
 
     #L2 regularization coefficient
     if model_config["use_fixup"]:
-      l2_coeff_value = 0.000003
+      l2_coeff_value = 0.000001
     else:
       l2_coeff_value = 0.00003
 
