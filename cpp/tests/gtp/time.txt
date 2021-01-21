@@ -139,3 +139,22 @@ time_left black -1 0
 time_left white -5 0
 kata-debug-print-tc
 
+kata-list_time_settings
+
+kata-time_settings fischer 60 0
+kata-debug-print-tc
+time_left black 40 0
+time_left white 50 0
+kata-debug-print-tc
+
+kata-time_settings fischer 60 1
+kata-debug-print-tc
+time_left black 40 0
+time_left white 50 0
+kata-debug-print-tc
+
+kata-time_settings fischer 60 5
+kata-debug-print-tc
+time_left black 40 0
+time_left white 50 0
+kata-debug-print-tc

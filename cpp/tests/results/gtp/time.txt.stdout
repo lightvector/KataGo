@@ -299,3 +299,41 @@ White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTim
 = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft -1 inOvertime 0 numPeriodsLeftIncludingCurrent 7 minRecMax 0 9.87313 19 rrec0 9.87313 rreclimit 12 rreclimit2 12
 White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft -5 inOvertime 0 numPeriodsLeftIncludingCurrent 7 minRecMax 0 15 15 rrec0 15 rreclimit 15 rreclimit2 15
 
+= none absolute byoyomi canadian fischer
+
+= 
+
+= Black originalMainTime 60 mainTimeLeft 60 inOvertime 0 minRecMax 0 0.162557 10.8 rrec0 0.162557 rreclimit 0.162557 rreclimit2 0.162557
+White originalMainTime 60 mainTimeLeft 60 inOvertime 0 minRecMax 0 0.162557 10.8 rrec0 0.162557 rreclimit 0.162557 rreclimit2 0.162557
+
+= 
+
+= 
+
+= Black originalMainTime 60 mainTimeLeft 40 inOvertime 0 minRecMax 0 0.107453 6.8 rrec0 0.107453 rreclimit 0.107453 rreclimit2 0.107453
+White originalMainTime 60 mainTimeLeft 50 inOvertime 0 minRecMax 0 0.135005 8.8 rrec0 0.135005 rreclimit 0.135005 rreclimit2 0.135005
+
+= 
+
+= Black originalMainTime 60 increment 1 mainTimeLeft 60 inOvertime 0 minRecMax 0 0.702975 11.6 rrec0 0.702975 rreclimit 0.702975 rreclimit2 0.702975
+White originalMainTime 60 increment 1 mainTimeLeft 60 inOvertime 0 minRecMax 0 0.702975 11.6 rrec0 0.702975 rreclimit 0.702975 rreclimit2 0.702975
+
+= 
+
+= 
+
+= Black originalMainTime 60 increment 1 mainTimeLeft 40 inOvertime 0 minRecMax 0 0.632983 7.6 rrec0 0.632983 rreclimit 0.632983 rreclimit2 0.632983
+White originalMainTime 60 increment 1 mainTimeLeft 50 inOvertime 0 minRecMax 0 0.667979 9.6 rrec0 0.667979 rreclimit 0.667979 rreclimit2 0.667979
+
+= 
+
+= Black originalMainTime 60 increment 5 mainTimeLeft 60 inOvertime 0 minRecMax 0 4.37795 14.8 rrec0 4.37795 rreclimit 4.37795 rreclimit2 4.37795
+White originalMainTime 60 increment 5 mainTimeLeft 60 inOvertime 0 minRecMax 0 4.37795 14.8 rrec0 4.37795 rreclimit 4.37795 rreclimit2 4.37795
+
+= 
+
+= 
+
+= Black originalMainTime 60 increment 5 mainTimeLeft 40 inOvertime 0 minRecMax 0 4.23797 10.8 rrec0 4.23797 rreclimit 4.23797 rreclimit2 4.23797
+White originalMainTime 60 increment 5 mainTimeLeft 50 inOvertime 0 minRecMax 0 4.30796 12.8 rrec0 4.30796 rreclimit 4.30796 rreclimit2 4.30796
+

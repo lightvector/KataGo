@@ -17,6 +17,8 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * Clears the search tree and the NN cache. Can be used to force KataGo to re-search a position freshly, re-randomizing the search on that position, or to free up memory.
    * `stop`
       * Halts any ongoing pondering, if pondering was enabled in the gtp config.
+   * `get_komi`
+      * Report what komi KataGo is currently set to use.
    * `kata-get-rules`
       * Returns a JSON dictionary indicating the current rules KataGo is using.
       * For example: `{"hasButton":false,"ko":"POSITIONAL","scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"N-1"}`
@@ -63,6 +65,13 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `canadian` should be followed by `MAINTIME BYOYOMITIME BYOYOMISTONES` (float,float,int) specifying the main time, the length of the canadian overtime period, and the number of stones that must be played in that period.
          * `byoyomi` should be followed by `MAINTIME BYOYOMITIME BYOYOMIPERIODS` (float,float,int) specifying the main time, the length of each byo-yomi period, and the number of byo-yomi periods.
       * NOTE: As a hack, KGS also expects that when using `byoyomi`, the controller should provide the number of periods left in place of the number of stones left for the GTP `time_left` command.
+   * `kata-time_settings KIND ...`
+      * Supports all of the same settings as `kgs-time_settings` except includes an additional time setting `fischer`.
+        * `fischer` should be followed by two floats `MAINTIME INCREMENT` specifying the original main time in seconds and the number of seconds that is added to a player's clock at the end of making each move. And just as with `absolute`, when using this time setting the controller must always report `0` for the number of stones in the `time_left` command.
+      * More time settings might be added in the future.
+   * `kata-list_time_settings`
+      * Reports all time settings supported by `kata-time_settings`, separated by whitespace. Currently the list is `none absolute byo-yomi canadian fischer`.
+      * GTP controllers that use `kata-time_settings` are advised to use this command to check if their time setting is supported.
    * `lz-analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR ...`
       * Begin searching and optionally outputting live analysis to stdout. Assumes the normal player to move next unless otherwise specified.
       * Possible key-value pairs:
@@ -141,7 +150,11 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      Any consumers of this data should attempt to be robust to any pattern of whitespace within the output, as well as possibly the future addition of new keys and values. The ordering of the keys is also not guaranteed - consumers should be capable of handling any permutation of them.
   * `kata-get-param PARAM`, `kata-set-param PARAM VALUE`
      * Get a parameter or set a parameter to a given value.
-     * Currently, the only supported PARAM is `playoutDoublingAdvantage (float)`. Setting this affects the value used for analysis, and affects play only if the config is not already set to use dynamicPlayoutDoublingAdvantageCapPerOppLead. More params may be added later.
+     * Current supported PARAMs are:
+        * `playoutDoublingAdvantage (float)`. See documentation for this parameter in [the example config](..cpp/configs/gtp_example.cfg). Setting this via this command affects the value used for analysis, and affects play only if the config is not already set to use `dynamicPlayoutDoublingAdvantageCapPerOppLead`.
+        * `analysisWideRootNoise (float)`. See documentation for this parameter in [the example config](..cpp/configs/gtp_example.cfg)
+  * `kata-list-params`
+     * Report all PARAMs supported by `kata-get-param`, separated by whitespace.
   * `cputime`, `gomill-cpu_time`
      * Returns the approximate total wall-clock-time spent during the handling of `genmove` or the various flavors of `genmove_analyze` commands described above so far during the entire current instance of the engine, as a floating point number of seconds. Does NOT currently count time spent during pondering or during the various `lz-analyze`, `kata-analyze`, etc.
      * Note: Gomill specifies that its variant of the command should return the total time summed across CPUs. For KataGo, this time is both unuseful and hard to measure because much of the time is spent waiting on the GPU, not on the CPU, and with different threads sometimes blocking each other through the multitheading and often exceeding the number of cores on a user's system, time spent on CPUs is hard to make sense of. So instead we report wall-clock-time, which is far more useful to record and should correspond more closely to what users may want to know for actual practical benchmarking and performance.

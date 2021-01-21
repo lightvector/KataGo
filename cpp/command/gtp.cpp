@@ -30,6 +30,8 @@ static const vector<string> knownCommands = {
   "clear_board",
   "set_position",
   "komi",
+  //GTP extension - get KataGo's current komi setting
+  "get_komi",
   "play",
   "undo",
 
@@ -41,6 +43,7 @@ static const vector<string> knownCommands = {
   //Get or change a few limited params dynamically
   "kata-get-param",
   "kata-set-param",
+  "kata-list-params",
   "kgs-rules",
 
   "genmove",
@@ -54,9 +57,14 @@ static const vector<string> knownCommands = {
   "fixed_handicap",
   "place_free_handicap",
   "set_free_handicap",
+
   "time_settings",
   "kgs-time_settings",
   "time_left",
+  //KataGo extensions for time settings
+  "kata-list_time_settings",
+  "kata-time_settings",
+
   "final_score",
   "final_status_list",
 
@@ -102,6 +110,14 @@ static double parseMainTime(const vector<string>& args, int argIdx) {
   if(!timeIsValid(mainTime))
     throw StringError("Main time is an invalid value: " + args[argIdx]);
   return mainTime;
+}
+static double parseIncrementTime(const vector<string>& args, int argIdx) {
+  double incrementTime = 0.0;
+  if(args.size() <= argIdx || !Global::tryStringToDouble(args[argIdx],incrementTime))
+    throw StringError("Expected float for increment time as argument " + Global::intToString(argIdx));
+  if(!timeIsValid(incrementTime))
+    throw StringError("increment time is an invalid value: " + args[argIdx]);
+  return incrementTime;
 }
 static double parsePerPeriodTime(const vector<string>& args, int argIdx) {
   double perPeriodTime = 0.0;
@@ -1726,6 +1742,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
+    else if(command == "get_komi") {
+      response = Global::doubleToString(engine->getCurrentRules().komi);
+    }
+
     else if(command == "kata-get-rules") {
       if(pieces.size() != 0) {
         response = "Expected no arguments for kata-get-rules but got '" + Global::concat(pieces," ") + "'";
@@ -1834,6 +1854,11 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
+    else if(command == "kata-list-params") {
+      //For now, rootPolicyTemperature is hidden since it's not clear we want to support it
+      response = "playoutDoublingAdvantage analysisWideRootNoise";
+    }
+
     else if(command == "kata-get-param") {
       if(pieces.size() != 1) {
         responseIsError = true;
@@ -1924,10 +1949,25 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
-    else if(command == "kgs-time_settings") {
+    else if(command == "kata-list_time_settings") {
+      response = "none";
+      response += " ";
+      response += "absolute";
+      response += " ";
+      response += "byoyomi";
+      response += " ";
+      response += "canadian";
+      response += " ";
+      response += "fischer";
+    }
+
+    else if(command == "kgs-time_settings" || command == "kata-time_settings") {
       if(pieces.size() < 1) {
         responseIsError = true;
-        response = "Expected 'none', 'absolute', 'byoyomi', or 'canadian' as first argument for kgs-time_settings";
+        if(command == "kata-time_settings")
+          response = "Expected 'none', 'absolute', 'byoyomi', 'canadian', or 'fischer' as first argument for kata-time_settings";
+        else
+          response = "Expected 'none', 'absolute', 'byoyomi', or 'canadian' as first argument for kgs-time_settings";
       }
       else {
         string what = Global::toLower(Global::trim(pieces[0]));
@@ -2005,9 +2045,34 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             engine->wTimeControls = tc;
           }
         }
+        else if(what == "fischer" && command == "kata-time_settings") {
+          double mainTime;
+          double increment;
+          bool success = false;
+          try {
+            mainTime = parseMainTime(pieces,1);
+            increment = parseIncrementTime(pieces,2);
+            success = true;
+          }
+          catch(const StringError& e) {
+            responseIsError = true;
+            response = e.what();
+          }
+          if(success) {
+            if(increment == 0)
+              tc = TimeControls::absoluteTime(mainTime);
+            else
+              tc = TimeControls::fischerTime(mainTime,increment);
+            engine->bTimeControls = tc;
+            engine->wTimeControls = tc;
+          }
+        }
         else {
           responseIsError = true;
-          response = "Expected 'none', 'absolute', 'byoyomi', or 'canadian' as first argument for kgs-time_settings";
+          if(command == "kata-time_settings")
+            response = "Expected 'none', 'absolute', 'byoyomi', 'canadian', or 'fischer' as first argument for kata-time_settings";
+          else
+            response = "Expected 'none', 'absolute', 'byoyomi', or 'canadian' as first argument for kgs-time_settings";
         }
       }
     }

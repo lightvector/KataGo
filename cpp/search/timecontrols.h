@@ -33,6 +33,7 @@ struct TimeControls {
   ~TimeControls();
 
   static TimeControls absoluteTime(double mainTime);
+  static TimeControls fischerTime(double mainTime, double increment);
   static TimeControls canadianOrByoYomiTime(
     double mainTime,
     double perPeriodTime,

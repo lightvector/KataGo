@@ -1,0 +1,96 @@
+: GTP Engine starting...
+: KataGo v1.8.0
+: Using TrompTaylor rules initially, unless GTP/GUI overrides this
+: Using 1 CPU thread(s) for search
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Loaded neural net with nnXLen 19 nnYLen 19
+: Loaded config configs/gtp_example.cfg and/or command-line and query overrides
+: Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: Model name: g170-b6c96-s175395328-d26788732
+: GTP ready, beginning main protocol loop
+: Controller: printsgf
+: = (;FF[4]GM[1]SZ[19]PB[]PW[]HA[0]KM[7.5]RU[TrompTaylor])
+: Controller: boardsize 9
+: Cleaned up old neural net and bot
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Loaded neural net with nnXLen 9 nnYLen 9
+: = 
+: Controller: kata-set-rules japanese
+: Changed rules to Japanese
+: = 
+: Controller: play b c3
+: = 
+: Controller: play w c6
+: = 
+: Controller: play b c9
+: = 
+: Controller: printsgf -
+: = (;FF[4]GM[1]SZ[9]PB[]PW[]HA[0]KM[7.5]RU[Japanese];B[cg];W[cd];B[ca])
+: Controller: clear_board
+: = 
+: Controller: rectangular_boardsize 9:13
+: Cleaned up old neural net and bot
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Loaded neural net with nnXLen 9 nnYLen 13
+: = 
+: Controller: kata-set-rules chinese
+: Changed rules to Chinese
+: = 
+: Controller: place_free_handicap 3
+: = C10 E10 D4
+: Controller: genmove w
+: MoveNum: 0 HASH: EFAE14B9FBCD6883AF04D1B9FDE22369
+   A B C D E F G H J
+13 . . . . . . . . .
+12 . . . . . . . . .
+11 . . . . . . . . .
+10 . . X . X . . . .
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . . . . . .
+ 4 . . . X . @ . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+koSIMPLEscoreAREAtaxNONEsui0whbNkomi7.5
+Time taken: ###
+Root visits: 100
+New playouts: 100
+NN rows: 100
+NN batches: 100
+NN avg batch size: 1
+PlayoutDoublingAdvantage: 2.625
+PV: F4 F3 F10 F11 G11 E11
+Tree:
+: T -81.59c W -76.79c S  -4.80c (-10.1 L -10.2) N     100  --  F4 F3 F10 F11 G11 E11
+---White(^)---
+F4  : T -81.59c W -76.23c S  -5.35c (-10.1 L -10.2) LCB  -88.37c P 55.51% WF 20.06% PSV      61 N      61  --  F4 F3 F10 F11 G11 E11
+F10 : T -80.61c W -77.50c S  -3.10c ( -9.9 L -10.1) LCB  -95.19c P 14.68% WF 20.41% PSV      18 N      18  --  F10 F11 G11 E11 F4 F9 G10
+E4  : T -84.41c W -79.08c S  -5.33c (-10.5 L -10.7) LCB -103.17c P 14.40% WF 19.10% PSV      12 N      12  --  E4 D3 E3 E5
+F3  : T -79.86c W -76.09c S  -3.77c ( -9.6 L -10.0) LCB -165.70c P  4.74% WF 20.53% PSV       6 N       6  --  F3 F4 G4 F5
+G10 : T -82.24c W -78.72c S  -3.52c (-10.1 L -10.6) LCB -280.00c P  2.53% WF 19.90% PSV       2 N       2  --  G10 F4
+
+: = F4
+: Controller: printsgf
+: = (;FF[4]GM[1]SZ[9:13]PB[]PW[]HA[3]KM[7.5]RU[Chinese]AB[cd][ed][dj];W[fj])
+: Controller: kata-set-rule tax seki
+: Changed rules to koSIMPLEscoreAREAtaxSEKIsui0whbN
+: = 
+: Controller: printsgf
+: = (;FF[4]GM[1]SZ[9:13]PB[]PW[]HA[3]KM[7.5]RU[koSIMPLEscoreAREAtaxSEKIsui0whbN]AB[cd][ed][dj];W[fj])
+: All cleaned up, quitting

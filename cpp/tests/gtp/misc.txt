@@ -1,0 +1,6 @@
+kata-list-params
+
+komi 50.5
+get_komi
+komi -23
+get_komi

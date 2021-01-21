@@ -39,6 +39,21 @@ TimeControls TimeControls::absoluteTime(double mainTime) {
   return tc;
 }
 
+TimeControls TimeControls::fischerTime(double mainTime, double increment) {
+  TimeControls tc;
+  tc.originalMainTime = mainTime;
+  tc.increment = increment;
+  tc.originalNumPeriods = 0;
+  tc.numStonesPerPeriod = 0;
+  tc.perPeriodTime = 0.0;
+  tc.mainTimeLeft = mainTime;
+  tc.inOvertime = false;
+  tc.numPeriodsLeftIncludingCurrent = 0;
+  tc.numStonesLeftInPeriod = 0;
+  tc.timeLeftInPeriod = 0;
+  return tc;
+}
+
 TimeControls TimeControls::canadianOrByoYomiTime(
   double mainTime,
   double perPeriodTime,
@@ -63,7 +78,7 @@ std::string TimeControls::toDebugString(const Board& board, const BoardHistory& 
   std::ostringstream out;
   out << "originalMainTime " << originalMainTime;
   if(increment != 0)
-    out << "increment " << increment;
+    out << " increment " << increment;
   if(originalNumPeriods != 0)
     out << " originalNumPeriods " << originalNumPeriods;
   if(numStonesPerPeriod != 0)
