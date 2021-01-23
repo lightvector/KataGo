@@ -2,16 +2,18 @@
 
 * [Current Status](#current-status)
 * [History](#history)
-  * [g170](#g170)
+  * [Third Major Run](#third-major-run)
     * [Comparisons to Other Bots](#comparisons-to-other-bots)
-  * [Older Runs](#older-runs)
+  * [First and Second Major Runs](#first-and-second-major-runs)
   * [GoNN](#gonn)
 
 ## Current Status
 
-KataGo's is currently on its first public distributed run! The website, where you can download the latest networks and find instructions to contribute if you wish, is here: https://katagotraining.org/. This run, continuing from the peak of KataGo's g170 run, has already improved in strength a bit, with hopefully much further room to improve.
+As of 2021, KataGo's is currently on its first public distributed run, "kata1"! The website, where you can download the latest networks and find instructions to contribute if you wish, is here:
 
-As of mid-January, KataGo appears able to win variously more than 80% or 90% of games against various classic and benchmark opponents even with a large handicap in computation power allowed, as well as performing favorably against the the peak of its older 170 run! See [here](https://lifein19x19.com/viewtopic.php?p=262982#p262982) for some results.
+https://katagotraining.org/
+
+This run, continuing from the peak of KataGo's g170 run, has already improved in strength a bit, with hopefully much further room to improve. As of mid-January, KataGo appears able to win variously more than 80% or 90% of games against various classic and benchmark opponents even with a large handicap in computation power allowed, as well as performing favorably against the peak of its older 170 run! See [here](https://lifein19x19.com/viewtopic.php?p=262982#p262982) for some results.
 
 ## History
 
@@ -19,9 +21,9 @@ Prior to opening up its first public distributed run, KataGo ran three major run
 
 In reverse-chronological order:
 
-### g170
+### Third Major Run
 
-KataGo's third major offical run "g170" lasted from December 2019 to June 2020 for about 5 months (KataGo did not run entirely continuously during those 7 months) and reached significantly stronger than its competitors, including Leela Zero's using its strongest official 40-block nets. KataGo also took only 12-14 days to surpass its earlier 19-day "g104" run from June 2019. This is due to various training improvements which were not present in prior runs. By the end of the 5 months, it reached more than 700 Elo stronger than it. In addition to reaching stronger faster and running longer, this third run added major new features: support for Japanese rules, stronger handicap play, and more accurate score estimation.
+KataGo's third major official run "g170" lasted from December 2019 to June 2020 for about 5 months (KataGo did not run entirely continuously during those 7 months) and reached significantly stronger than its competitors, including Leela Zero's using its strongest official 40-block nets. KataGo also took only 12-14 days to surpass its earlier 19-day "g104" run from June 2019. This is due to various training improvements which were not present in prior runs. By the end of the 5 months, it reached more than 700 Elo stronger than it. In addition to reaching stronger faster and running longer, this third run added major new features: support for Japanese rules, stronger handicap play, and more accurate score estimation.
 
 Networks for g170 were released concurrently with major releases and development on the engine and analysis side, which can be seen in the history of the [releases page](https://github.com/lightvector/KataGo/releases). The training for g170 also included a variety of alternative and extendedly-trained neural nets which can be found [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html), including some smaller nets that are *very* strong given their size. These include a fast 10-block network that nearly matches the strength of many earlier 15 block nets, including KataGo best 15-block net from last year and Leela Zero's LZ150. And a very strong 15-block network that almost matches the strength of ELFv2, a 20-block network.
 
@@ -113,7 +115,7 @@ Based on some of these tests, although most of these used all different paramete
 
 On 9x9 (KataGo's same networks can handle all common board sizes), KataGo topped the CGOS ladder in May 2020 using one V100 GPU, [playing more than 100 games](http://www.yss-aya.com/cgos/9x9/cross/katab40s37-awsp3.html) against other top bots including many specially-trained 9x9 bots, as well as many games against moderately weaker 9x9 bots. Against the strongest several opponents, it won close to half of these games, while losing only one game ever (the rest of the games were draws). An [alternate version](http://www.yss-aya.com/cgos/9x9/cross/katab40s37-pda1.html) configured to be more aggressive and/or even to deliberately overplay won more than half of its games against the strongest opponents, drawing slightly less often at the cost of losing a few additional games.
 
-### Older Runs
+### First and Second Major Runs
 
 The first serious run of KataGo, "g65", ran for 7 days in February 2019 on up to 35 V100 GPUs. This is the run featured the [early versions](https://arxiv.org/abs/1902.10565v2) of KataGo's research paper. It achieved close to LZ130 strength before it was halted, or up to just barely superhuman.
 
