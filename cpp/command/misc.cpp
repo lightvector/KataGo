@@ -622,6 +622,8 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
   Logger logger;
   logger.setLogToStdout(true);
   logger.addFile(outDir + "/" + "log.log");
+  for(int i = 0; i < argc; i++)
+    logger.write(string("Command: ") + argv[i]);
 
   const string sgfSuffix = ".sgf";
   auto sgfFilter = [&sgfSuffix](const string& name) {
