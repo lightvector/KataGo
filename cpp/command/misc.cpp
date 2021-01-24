@@ -617,8 +617,11 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
     return 1;
   }
 
+  MakeDir::make(outDir);
+
   Logger logger;
   logger.setLogToStdout(true);
+  logger.addFile(outDir + "/" + "log.log");
 
   const string sgfSuffix = ".sgf";
   auto sgfFilter = [&sgfSuffix](const string& name) {
@@ -631,8 +634,6 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
 
   set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
   logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
-
-  MakeDir::make(outDir);
 
   // ---------------------------------------------------------------------------------------------------
   ThreadSafeQueue<string*> toWriteQueue;
