@@ -57,13 +57,27 @@ static void debugPrintResponse(ostream& out, const httplib::Result& response) {
   }
 }
 
+static string getErrorMessage(const httplib::Result& response) {
+  string errorMessage;
+  try {
+    json body = json::parse(response->body);
+    errorMessage = body[body.contains("detail") ? "detail" : "error"]; // if neither, default in exception
+  }
+  catch(nlohmann::detail::exception& e) {
+    errorMessage = "(details not available)";
+  }
+  return errorMessage;
+}
+
 static json parseJson(const httplib::Result& response) {
   if(response == nullptr)
     throw StringError("No response from server");
   if(response->status != 200) {
-    ostringstream out;
-    debugPrintResponse(out,response);
-    throw StringError("Server gave response that was not status code 200 OK\n" + out.str());
+    ostringstream outSummary, outDetails;
+    debugPrintResponse(outDetails,response);
+    outSummary << "Server returned error " << response->status << ": " << getErrorMessage(response);
+    cerr << outSummary.str() << endl;
+    throw StringError(outSummary.str() + "\n" + outDetails.str());
   }
   try {
     return json::parse(response->body);
