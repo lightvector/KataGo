@@ -57,7 +57,7 @@ static void debugPrintResponse(ostream& out, const httplib::Result& response) {
   }
 }
 
-static string getErrorMessage(const httplib::Result& response) {
+static string getServerErrorMessage(const httplib::Result& response) {
   string errorMessage;
   try {
     json body = json::parse(response->body);
@@ -75,8 +75,7 @@ static json parseJson(const httplib::Result& response) {
   if(response->status != 200) {
     ostringstream outSummary, outDetails;
     debugPrintResponse(outDetails,response);
-    outSummary << "Server returned error " << response->status << ": " << getErrorMessage(response);
-    cerr << outSummary.str() << endl;
+    outSummary << "Server returned error " << response->status << ": " << getServerErrorMessage(response);
     throw StringError(outSummary.str() + "\n" + outDetails.str());
   }
   try {
