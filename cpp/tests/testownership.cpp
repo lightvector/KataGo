@@ -18,7 +18,7 @@ void Tests::runOwnershipTests(const string& configFile, const string& modelFile)
 
   int nnXLen = 19;
   int nnYLen = 19;
-  SearchParams params = Setup::loadSingleParams(cfg);
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);

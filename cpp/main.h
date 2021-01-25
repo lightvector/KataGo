@@ -31,7 +31,6 @@ namespace MainCmds {
   int trystartposes(int argc, const char* const* argv);
   int viewstartposes(int argc, const char* const* argv);
 
-  int lzcost(int argc, const char* const* argv);
   int demoplay(int argc, const char* const* argv);
   int printclockinfo(int argc, const char* const* argv);
 

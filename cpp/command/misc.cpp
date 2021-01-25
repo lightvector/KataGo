@@ -220,7 +220,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
         { Move(g(9,8), b), nw, Move(g(9,10), b) },
       };
 
-      vector<Move> chosenOpening = specialOpenings[rand.nextUInt(specialOpenings.size())];
+      vector<Move> chosenOpening = specialOpenings[rand.nextUInt((int)specialOpenings.size())];
       vector<vector<Move>> chosenOpenings;
 
       for(int j = 0; j<8; j++) {
@@ -241,7 +241,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
         }
         chosenOpenings.push_back(symmetric);
       }
-      for(int j = chosenOpenings.size()-1; j>=1; j--) {
+      for(int j = (int)chosenOpenings.size()-1; j>=1; j--) {
         int r = rand.nextUInt(j+1);
         vector<Move> tmp = chosenOpenings[j];
         chosenOpenings[j] = chosenOpenings[r];
@@ -395,7 +395,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 
   string searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
-  SearchParams params = Setup::loadSingleParams(cfg);
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_OTHER);
 
   NNEvaluator* nnEval;
   {
@@ -867,7 +867,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   Logger logger;
   logger.setLogToStdout(true);
 
-  SearchParams params = Setup::loadSingleParams(cfg);
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_ANALYSIS);
   //Ignore temperature, noise
   params.chosenMoveTemperature = 0;
   params.chosenMoveTemperatureEarly = 0;
@@ -908,11 +908,11 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     Global::collectFiles(sgfDirs[i], sgfFilter, sgfFiles);
   logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf files!");
 
-  vector<int64_t> permutation(sgfFiles.size());
-  for(int64_t i = 0; i<sgfFiles.size(); i++)
+  vector<size_t> permutation(sgfFiles.size());
+  for(size_t i = 0; i<sgfFiles.size(); i++)
     permutation[i] = i;
-  for(int64_t i = 1; i<sgfFiles.size(); i++) {
-    int64_t r = (int64_t)seedRand.nextUInt64(i+1);
+  for(size_t i = 1; i<sgfFiles.size(); i++) {
+    size_t r = (size_t)seedRand.nextUInt64(i+1);
     std::swap(permutation[i],permutation[r]);
   }
 
@@ -1181,13 +1181,13 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       winLossValues[winLossValues.size()-1]
     );
     futureLead[winLossValues.size()] = scoreLeads[winLossValues.size()];
-    for(int i = winLossValues.size()-1; i >= 0; i--) {
+    for(int i = (int)winLossValues.size()-1; i >= 0; i--) {
       futureValue[i] = 0.05 * winLossValues[i] + 0.95 * futureValue[i+1];
       futureLead[i] = 0.05 * scoreLeads[i] + 0.95 * futureLead[i+1];
     }
     pastValue[0] = winLossValues[0];
     pastLead[0] = scoreLeads[0];
-    for(int i = 1; i<winLossValues.size(); i++) {
+    for(int i = 1; i<(int)winLossValues.size(); i++) {
       pastValue[i] = 0.5 * winLossValues[i] + 0.5 * pastValue[i+1];
       pastLead[i] = 0.5 * scoreLeads[i] + 0.5 * pastLead[i+1];
     }
@@ -1249,7 +1249,9 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   ) {
     if(shouldStop.load(std::memory_order_acquire))
       return;
-    int moveHistorySize = treeHist.moveHistory.size();
+    if(treeHist.moveHistory.size() > 0x3FFFFFFF)
+      throw StringError("Too many moves in history");
+    int moveHistorySize = (int)treeHist.moveHistory.size();
     if(moveHistorySize <= 0)
       return;
 
@@ -1296,7 +1298,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     int encorePhase = 0;
     Player pla = sample.nextPla;
     BoardHistory hist(board,pla,rules,encorePhase);
-    int numSampleMoves = sample.moves.size();
+    int numSampleMoves = (int)sample.moves.size();
     for(int i = 0; i<numSampleMoves; i++) {
       if(!hist.isLegal(board,sample.moves[i].loc,sample.moves[i].pla))
         return;
@@ -1306,7 +1308,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     }
 
     //Make sure the hinted move is legal too
-    int hintIdx = treeHist.moveHistory.size()-1;
+    int hintIdx = (int)treeHist.moveHistory.size()-1;
     if(!treeHist.isLegal(board,treeHist.moveHistory[hintIdx].loc,treeHist.moveHistory[hintIdx].pla))
       return;
     assert(treeHist.moveHistory[hintIdx].pla == pla);
@@ -1352,7 +1354,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   //requiring the outcome in the game to have been good.
   if(gameMode) {
     const int64_t maxSgfQueueSize = 16384;
-    ThreadSafeQueue<int64_t> sgfQueue(maxSgfQueueSize);
+    ThreadSafeQueue<size_t> sgfQueue(maxSgfQueueSize);
     std::atomic<int64_t> numSgfsBegun(0);
     std::atomic<int64_t> numSgfsDone(0);
     std::atomic<int64_t> numSgfsSkipped(0);
@@ -1366,7 +1368,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
         if(shouldStop.load(std::memory_order_acquire))
           break;
 
-        int64_t idx;
+        size_t idx;
         bool success = sgfQueue.waitPop(idx);
         if(!success)
           break;
@@ -1406,12 +1408,12 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       threads.push_back(std::thread(processSgfLoop));
     }
 
-    for(int64_t i = 0; i<sgfFiles.size(); i++) {
+    for(size_t i = 0; i<sgfFiles.size(); i++) {
       sgfQueue.forcePush(i);
     }
     sgfQueue.setReadOnly();
 
-    for(int i = 0; i<threads.size(); i++)
+    for(size_t i = 0; i<threads.size(); i++)
       threads[i].join();
   }
 
@@ -1565,7 +1567,7 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
   Logger logger;
   logger.setLogToStdout(true);
 
-  SearchParams params = Setup::loadSingleParams(cfg);
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_ANALYSIS);
   //Ignore temperature, noise
   params.chosenMoveTemperature = 0;
   params.chosenMoveTemperatureEarly = 0;

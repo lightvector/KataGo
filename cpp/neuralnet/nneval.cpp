@@ -17,7 +17,9 @@ NNResultBuf::NNResultBuf()
     rowSpatial(NULL),
     rowGlobal(NULL),
     result(nullptr),
-    errorLogLockout(false)
+    errorLogLockout(false),
+    // If no symmetry is specified, it will use default or random based on config.
+    symmetry(NNInputs::SYMMETRY_NOTSPECIFIED)
 {}
 
 NNResultBuf::~NNResultBuf() {
@@ -296,7 +298,7 @@ static void serveEvals(
 void NNEvaluator::setNumThreads(const vector<int>& gpuIdxByServerThr) {
   if(serverThreads.size() != 0)
     throw StringError("NNEvaluator::setNumThreads called when threads were already running!");
-  numThreads = gpuIdxByServerThr.size();
+  numThreads = (int)gpuIdxByServerThr.size();
   gpuIdxByServerThread = gpuIdxByServerThr;
 }
 
@@ -474,11 +476,18 @@ void NNEvaluator::serve(
       outputBuf.push_back(emptyOutput);
     }
 
-    int symmetry = defaultSymmetry;
-    if(doRandomize)
-      symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
+    for(int row = 0; row<numRows; row++) {
+      if(buf.resultBufs[row]->symmetry == NNInputs::SYMMETRY_NOTSPECIFIED) {
+        if(doRandomize)
+          buf.resultBufs[row]->symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
+        else {
+          assert(defaultSymmetry >= 0 && defaultSymmetry <= NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
+          buf.resultBufs[row]->symmetry = defaultSymmetry;
+        }
+      }
+    }
 
-    NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, buf.resultBufs, symmetry, outputBuf);
+    NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, buf.resultBufs, outputBuf);
     assert(outputBuf.size() == numRows);
 
     m_numRowsProcessed.fetch_add(numRows, std::memory_order_relaxed);
@@ -627,6 +636,8 @@ void NNEvaluator::evaluate(
     else
       ASSERT_UNREACHABLE;
   }
+
+  buf.symmetry = nnInputParams.symmetry;
 
   unique_lock<std::mutex> lock(bufferMutex);
 

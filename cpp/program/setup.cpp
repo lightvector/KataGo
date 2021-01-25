@@ -72,7 +72,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     cfg.markAllKeysUsedWithPrefix("dummybackend");
 
   for(size_t i = 0; i<nnModelFiles.size(); i++) {
-    string idxStr = Global::intToString(i);
+    string idxStr = Global::uint64ToString(i);
     const string& nnModelName = nnModelNames[i];
     const string& nnModelFile = nnModelFiles[i];
     const string& expectedSha256 = expectedSha256s.size() > 0 ? expectedSha256s[i]: "";
@@ -234,7 +234,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     int forcedSymmetry = -1;
     if(setupFor != SETUP_FOR_DISTRIBUTED && cfg.contains("nnForcedSymmetry"))
-      forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,7);
+      forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
 
     logger.write(
       "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
@@ -329,9 +329,10 @@ string Setup::loadHomeDataDirOverride(
 }
 
 SearchParams Setup::loadSingleParams(
-  ConfigParser& cfg
+  ConfigParser& cfg,
+  setup_for_t setupFor
 ) {
-  vector<SearchParams> paramss = loadParams(cfg);
+  vector<SearchParams> paramss = loadParams(cfg, setupFor);
   if(paramss.size() != 1)
     throw StringError("Config contains parameters for multiple bot configurations, but this KataGo command only supports a single configuration");
   return paramss[0];
@@ -346,13 +347,14 @@ static Player parsePlayer(const char* field, const string& s) {
 }
 
 vector<SearchParams> Setup::loadParams(
-  ConfigParser& cfg
+  ConfigParser& cfg,
+  setup_for_t setupFor
 ) {
 
   vector<SearchParams> paramss;
   int numBots = 1;
   if(cfg.contains("numBots"))
-    numBots = cfg.getInt("numBots",1,1024);
+    numBots = cfg.getInt("numBots",1,MAX_BOT_PARAMS_FROM_CFG);
 
   for(int i = 0; i<numBots; i++) {
     SearchParams params;
@@ -462,8 +464,8 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("rootFpuLossProp"+idxStr)) params.rootFpuLossProp = cfg.getDouble("rootFpuLossProp"+idxStr, 0.0, 1.0);
     else if(cfg.contains("rootFpuLossProp"))   params.rootFpuLossProp = cfg.getDouble("rootFpuLossProp",        0.0, 1.0);
     else                                       params.rootFpuLossProp = params.fpuLossProp;
-    if(cfg.contains("rootNumSymmetriesToSample"+idxStr)) params.rootNumSymmetriesToSample = cfg.getInt("rootNumSymmetriesToSample"+idxStr, 1, 16);
-    else if(cfg.contains("rootNumSymmetriesToSample"))   params.rootNumSymmetriesToSample = cfg.getInt("rootNumSymmetriesToSample",        1, 16);
+    if(cfg.contains("rootNumSymmetriesToSample"+idxStr)) params.rootNumSymmetriesToSample = cfg.getInt("rootNumSymmetriesToSample"+idxStr, 1, NNInputs::NUM_SYMMETRY_COMBINATIONS);
+    else if(cfg.contains("rootNumSymmetriesToSample"))   params.rootNumSymmetriesToSample = cfg.getInt("rootNumSymmetriesToSample",        1, NNInputs::NUM_SYMMETRY_COMBINATIONS);
     else                                                 params.rootNumSymmetriesToSample = 1;
 
     if(cfg.contains("rootDesiredPerChildVisitsCoeff"+idxStr)) params.rootDesiredPerChildVisitsCoeff = cfg.getDouble("rootDesiredPerChildVisitsCoeff"+idxStr, 0.0, 100.0);
@@ -501,6 +503,11 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("minVisitPropForLCB"+idxStr)) params.minVisitPropForLCB = cfg.getDouble("minVisitPropForLCB"+idxStr, 0.0, 1.0);
     else if(cfg.contains("minVisitPropForLCB"))   params.minVisitPropForLCB = cfg.getDouble("minVisitPropForLCB",        0.0, 1.0);
     else                                          params.minVisitPropForLCB = 0.15;
+    //For distributed and selfplay, we default to buggy LCB for the moment since it has effects on the policy training target.
+    if(cfg.contains("useNonBuggyLcb"+idxStr)) params.useNonBuggyLcb = cfg.getBool("useNonBuggyLcb"+idxStr);
+    else if(cfg.contains("useNonBuggyLcb"))   params.useNonBuggyLcb = cfg.getBool("useNonBuggyLcb");
+    else                                      params.useNonBuggyLcb = (setupFor != SETUP_FOR_DISTRIBUTED && setupFor != SETUP_FOR_OTHER);
+
 
     if(cfg.contains("rootEndingBonusPoints"+idxStr)) params.rootEndingBonusPoints = cfg.getDouble("rootEndingBonusPoints"+idxStr, -1.0, 1.0);
     else if(cfg.contains("rootEndingBonusPoints"))   params.rootEndingBonusPoints = cfg.getDouble("rootEndingBonusPoints",        -1.0, 1.0);

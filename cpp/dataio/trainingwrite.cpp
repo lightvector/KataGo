@@ -505,14 +505,14 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[50] = (float)numNeuralNetsBehindLatest;
 
   //Some misc metadata
-  rowGlobal[51] = turnIdx;
+  rowGlobal[51] = (float)turnIdx;
   rowGlobal[52] = data.hitTurnLimit ? 1.0f : 0.0f;
-  rowGlobal[53] = data.startHist.moveHistory.size();
-  rowGlobal[54] = data.numExtraBlack;
+  rowGlobal[53] = (float)data.startHist.moveHistory.size();
+  rowGlobal[54] = (float)data.numExtraBlack;
 
   //Metadata about how the game was initialized
-  rowGlobal[55] = data.mode;
-  rowGlobal[56] = hist.initialTurnNumber;
+  rowGlobal[55] = (float)data.mode;
+  rowGlobal[56] = (float)hist.initialTurnNumber;
 
   //Some stats
   rowGlobal[57] = (float)(nextPlayer == P_WHITE ? nnRawStats.whiteWinLoss : -nnRawStats.whiteWinLoss);
@@ -614,7 +614,7 @@ void TrainingWriteBuffers::addRow(
     assert(boards.size() > 0);
 
     rowGlobal[33] = 1.0f;
-    int endIdx = boards.size()-1;
+    int endIdx = (int)boards.size()-1;
     const Board& board2 = boards[std::min(whiteValueTargetsIdx+8,endIdx)];
     const Board& board3 = boards[std::min(whiteValueTargetsIdx+32,endIdx)];
     assert(board2.y_size == board.y_size && board2.x_size == board.x_size);
@@ -870,8 +870,10 @@ bool TrainingDataWriter::flushIfNonempty(string& resultingFilename) {
 }
 
 void TrainingDataWriter::writeGame(const FinishedGameData& data) {
-  int numMoves = data.endHist.moveHistory.size() - data.startHist.moveHistory.size();
+  int numMoves = (int)(data.endHist.moveHistory.size() - data.startHist.moveHistory.size());
   assert(numMoves >= 0);
+  assert(data.startHist.moveHistory.size() <= data.endHist.moveHistory.size());
+  assert(data.endHist.moveHistory.size() <= 100000000);
   assert(data.targetWeightByTurn.size() == numMoves);
   assert(data.targetWeightByTurnUnrounded.size() == numMoves);
   assert(data.policyTargetsByTurn.size() == numMoves);
@@ -909,7 +911,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     Player nextPlayer = data.startPla;
     posHistForFutureBoards.push_back(board);
 
-    int startTurnIdx = data.startHist.moveHistory.size();
+    int startTurnIdx = (int)data.startHist.moveHistory.size();
     for(int turnAfterStart = 0; turnAfterStart<numMoves; turnAfterStart++) {
       int turnIdx = turnAfterStart + startTurnIdx;
 
@@ -928,7 +930,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   Player nextPlayer = data.startPla;
 
   //Write main game rows
-  int startTurnIdx = data.startHist.moveHistory.size();
+  int startTurnIdx = (int)data.startHist.moveHistory.size();
   for(int turnAfterStart = 0; turnAfterStart<numMoves; turnAfterStart++) {
     double targetWeight = data.targetWeightByTurn[turnAfterStart];
     int turnIdx = turnAfterStart + startTurnIdx;
@@ -941,7 +943,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     int numNeuralNetsBehindLatest = 0;
     for(int i = 0; i<data.changedNeuralNets.size(); i++) {
       if(data.changedNeuralNets[i]->turnIdx > turnIdx) {
-        numNeuralNetsBehindLatest = data.changedNeuralNets.size()-i;
+        numNeuralNetsBehindLatest = (int)data.changedNeuralNets.size()-i;
         break;
       }
     }
@@ -994,7 +996,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       if(targetWeight >= 1.0 || rand.nextBool(targetWeight)) {
         if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
 
-          int turnIdx = sp->hist.moveHistory.size();
+          int turnIdx = (int)sp->hist.moveHistory.size();
           assert(turnIdx >= data.startHist.moveHistory.size());
           whiteValueTargetsBuf[0] = sp->whiteValueTargets;
           bool isSidePosition = true;

@@ -1126,19 +1126,13 @@ struct GTPEngine {
     return isAlive;
   }
 
-  //-1 means all
   string rawNN(int whichSymmetry) {
     if(nnEval == NULL)
       return "";
     ostringstream out;
 
-    bool oldDoRandomize = nnEval->getDoRandomize();
-    int oldDefaultSymmetry = nnEval->getDefaultSymmetry();
-
-    for(int symmetry = 0; symmetry<8; symmetry++) {
-      if(whichSymmetry == -1 || whichSymmetry == symmetry) {
-        nnEval->setDoRandomize(false);
-        nnEval->setDefaultSymmetry(symmetry);
+    for(int symmetry = 0; symmetry < NNInputs::NUM_SYMMETRY_COMBINATIONS; symmetry++) {
+      if(whichSymmetry == NNInputs::SYMMETRY_ALL || whichSymmetry == symmetry) {
         Board board = bot->getRootBoard();
         BoardHistory hist = bot->getRootHist();
         Player nextPla = bot->getRootPla();
@@ -1147,6 +1141,7 @@ struct GTPEngine {
         nnInputParams.playoutDoublingAdvantage =
           (params.playoutDoublingAdvantagePla == C_EMPTY || params.playoutDoublingAdvantagePla == nextPla) ?
           staticPlayoutDoublingAdvantage : -staticPlayoutDoublingAdvantage;
+        nnInputParams.symmetry = symmetry;
         NNResultBuf buf;
         bool skipCache = true;
         bool includeOwnerMap = true;
@@ -1200,8 +1195,6 @@ struct GTPEngine {
       }
     }
 
-    nnEval->setDoRandomize(oldDoRandomize);
-    nnEval->setDefaultSymmetry(oldDefaultSymmetry);
     return Global::trim(out.str());
   }
 
@@ -1454,7 +1447,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     initialRules.komi = forcedKomi;
   }
 
-  SearchParams initialParams = Setup::loadSingleParams(cfg);
+  SearchParams initialParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
   logger.write("Using " + Global::intToString(initialParams.numThreads) + " CPU thread(s) for search");
   //Set a default for conservativePass that differs from matches or selfplay
   if(!cfg.contains("conservativePass") && !cfg.contains("conservativePass0"))
@@ -2444,8 +2437,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           try {
             sgf = CompactSgf::loadFile(filename);
 
+            if(sgf->moves.size() > 0x3FFFFFFF)
+              throw StringError("Sgf has too many moves");
             if(!moveNumberSpecified || moveNumber > sgf->moves.size())
-              moveNumber = sgf->moves.size();
+              moveNumber = (int)sgf->moves.size();
 
             sgfRules = sgf->getRulesOrWarn(
               engine->getCurrentRules(), //Use current rules as default
@@ -2562,13 +2557,13 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     }
 
     else if(command == "kata-raw-nn") {
-      int whichSymmetry = -1;
+      int whichSymmetry = NNInputs::SYMMETRY_ALL;
       bool parsed = false;
       if(pieces.size() == 1) {
         string s = Global::trim(Global::toLower(pieces[0]));
         if(s == "all")
           parsed = true;
-        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= 7)
+        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= NNInputs::NUM_SYMMETRY_COMBINATIONS-1)
           parsed = true;
       }
 

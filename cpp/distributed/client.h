@@ -25,7 +25,7 @@ namespace Client {
     std::string name;
     std::string infoUrl;
     std::string downloadUrl;
-    int64_t bytes;
+    size_t bytes;
     std::string sha256;
     bool isRandom;
 

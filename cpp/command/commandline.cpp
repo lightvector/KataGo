@@ -106,7 +106,7 @@ class KataHelpOutput : public TCLAP::StdOutput
     // TCLAP adds arguments in reverse order for some reason. So we iterate in reverse for help output.
     // Also we limit based on shortUsageArgLimit.
     int lowerLimit = shortUsageArgLimit < 0 ? 0 : std::max(0, (int)argVec.size() - numBuiltInArgs - 1 - shortUsageArgLimit + 1);
-    for(int i = argVec.size() - numBuiltInArgs - 1; i >= lowerLimit; i--) {
+    for(int i = (int)argVec.size() - numBuiltInArgs - 1; i >= lowerLimit; i--) {
       if(!xorHandler.contains(argVec[i]))
         s += " " + argVec[i]->shortID();
     }
@@ -146,7 +146,7 @@ class KataHelpOutput : public TCLAP::StdOutput
 
     // TCLAP adds arguments in reverse order for some reason. So we iterate in reverse for help output.
     // Also we limit based on shortUsageArgLimit.
-    for(int i = argVec.size() - numBuiltInArgs - 1; i >= 0; i--) {
+    for(int i = (int)argVec.size() - numBuiltInArgs - 1; i >= 0; i--) {
       if(!xorHandler.contains(argVec[i])) {
         spacePrint(os, argVec[i]->longID(), 75, 3, 3);
         spacePrint(os, argVec[i]->getDescription(), 75, 5, 0);
@@ -155,7 +155,7 @@ class KataHelpOutput : public TCLAP::StdOutput
     }
 
     //Now also show the default args.
-    for(int i = argVec.size() - numBuiltInArgs; i < argVec.size(); i++) {
+    for(int i = (int)argVec.size() - numBuiltInArgs; i < argVec.size(); i++) {
       if(!xorHandler.contains(argVec[i])) {
         spacePrint(os, argVec[i]->longID(), 75, 3, 3);
         spacePrint(os, argVec[i]->getDescription(), 75, 5, 0);
@@ -179,7 +179,7 @@ KataGoCommandLine::KataGoCommandLine(const string& message)
   configFileArg(NULL),
   overrideConfigArg(NULL),
   defaultConfigFileName(),
-  numBuiltInArgs(_argList.size()),
+  numBuiltInArgs((int)_argList.size()),
   helpOutput(NULL)
 {
   helpOutput = new KataHelpOutput(numBuiltInArgs, -1);
@@ -199,7 +199,7 @@ string KataGoCommandLine::defaultGtpConfigFileName() {
 }
 
 void KataGoCommandLine::setShortUsageArgLimit() {
-  helpOutput->setShortUsageArgLimit(_argList.size() - numBuiltInArgs);
+  helpOutput->setShortUsageArgLimit((int)_argList.size() - numBuiltInArgs);
 }
 
 void KataGoCommandLine::addModelFileArg() {

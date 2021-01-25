@@ -55,6 +55,7 @@ struct NNResultBuf {
   float* rowGlobal;
   std::shared_ptr<NNOutput> result;
   bool errorLogLockout; //error flag to restrict log to 1 error to prevent spam
+  int symmetry; //The symmetry to use for this eval
 
   NNResultBuf();
   ~NNResultBuf();
@@ -140,7 +141,7 @@ class NNEvaluator {
 
   //Actually spawn threads to handle evaluations.
   //If doRandomize, uses randSeed as a seed, further randomized per-thread
-  //If not doRandomize, uses defaultSymmetry for all nn evaluations.
+  //If not doRandomize, uses defaultSymmetry for all nn evaluations, unless a symmetry is requested in MiscNNInputParams.
   //This function itself is not threadsafe.
   void spawnServerThreads();
 

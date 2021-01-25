@@ -255,7 +255,6 @@ add_executable(katago
   dataio/numpywrite.cpp
   dataio/trainingwrite.cpp
   dataio/loadmodel.cpp
-  dataio/lzparse.cpp
   dataio/homedata.cpp
   neuralnet/nninputs.cpp
   neuralnet/modelversion.cpp
@@ -300,7 +299,6 @@ add_executable(katago
   command/evalsgf.cpp
   command/gatekeeper.cpp
   command/gtp.cpp
-  command/lzcost.cpp
   command/match.cpp
   command/matchauto.cpp
   command/misc.cpp
@@ -398,6 +396,7 @@ if(BUILD_DISTRIBUTED)
   target_compile_definitions(katago PRIVATE BUILD_DISTRIBUTED)
   find_package(OpenSSL REQUIRED)
   target_link_libraries(katago ${OPENSSL_SSL_LIBRARIES} ${OPENSSL_CRYPTO_LIBRARIES})
+  include_directories(${OPENSSL_INCLUDE_DIR})
   include_directories(external/httplib)
 endif()
 

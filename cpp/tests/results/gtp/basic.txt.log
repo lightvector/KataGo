@@ -1,5 +1,5 @@
 : GTP Engine starting...
-: KataGo v1.7.0
+: KataGo v1.8.0
 : Using TrompTaylor rules initially, unless GTP/GUI overrides this
 : Using 1 CPU thread(s) for search
 : nnRandSeed0 = forTesting
@@ -63,7 +63,7 @@ D4  : T  -0.63c W  -1.33c S   0.70c ( -0.2 L  -0.0) LCB -106.30c P  4.67% WF  6.
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
-17 . . . @ . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . @ . . .
 16 . . . . . . . . . . . . . . . . . . .
 15 . . . . . . . . . . . . . . . . . . .
 14 . . . . . . . . . . . . . . . . . . .
@@ -92,7 +92,7 @@ PV: R16 D3 D17 D5
 Tree:
 : T   0.36c W   0.41c S  -0.05c ( -0.1 L  -0.1) N     100  --  R16 D3 D17 D5
 ---White(^)---
-R16 : T   1.12c W   1.20c S  -0.08c ( +0.0 L  -0.0) LCB   -1.84c P 13.96% WF 10.17% PSV      17 N      17  --  R16 D3 D17 D5
+R16 : T   1.12c W   1.20c S  -0.08c ( +0.0 L  -0.0) LCB   -1.84c P 13.96% WF 10.17% PSV      24 N      17  --  R16 D3 D17 D5
 D3  : T   0.81c W   0.79c S   0.02c ( -0.1 L  -0.1) LCB   -2.41c P 13.89% WF 10.11% PSV      16 N      16  --  D3 Q17 D17 Q15
 Q17 : T   0.54c W   0.52c S   0.01c ( -0.0 L  -0.1) LCB   -2.79c P 10.65% WF 10.06% PSV      12 N      12  --  Q17 D3 D17 D5
 D17 : T   0.12c W  -0.03c S   0.15c ( -0.1 L  -0.1) LCB   -5.56c P 10.29% WF  9.99% PSV      11 N      11  --  D17 D3 Q17 D5
@@ -103,7 +103,7 @@ D4  : T  -0.59c W  -0.40c S  -0.19c ( -0.3 L  -0.4) LCB  -28.22c P  5.74% WF  9.
 Q16 : T  -0.82c W  -0.25c S  -0.56c ( -0.2 L  -0.3) LCB  -22.08c P  5.72% WF  9.88% PSV       5 N       5  --  Q16 D3 D17
 D16 : T  -1.17c W  -0.73c S  -0.44c ( -0.3 L  -0.4) LCB  -26.89c P  5.61% WF  9.83% PSV       5 N       5  --  D16 D3 Q17
 
-: = D17
+: = Q17
 : Controller: clear_board
 : = 
 : Controller: genmove_debug b
@@ -186,7 +186,7 @@ PV: D3 Q3 Q17 Q5
 Tree:
 : T  -0.81c W  -0.61c S  -0.20c ( -0.4 L  -0.3) N     100  --  D3 Q3 Q17 Q5
 ---White(^)---
-D3  : T  -0.21c W  -0.21c S   0.00c ( -0.4 L  -0.3) LCB   -3.11c P 13.58% WF 10.14% PSV      17 N      17  --  D3 Q3 Q17 Q5
+D3  : T  -0.21c W  -0.21c S   0.00c ( -0.4 L  -0.3) LCB   -3.11c P 13.58% WF 10.14% PSV      23 N      17  --  D3 Q3 Q17 Q5
 R16 : T  -0.24c W  -0.12c S  -0.12c ( -0.3 L  -0.3) LCB   -3.42c P 13.06% WF 10.14% PSV      16 N      16  --  R16 D3 Q3 E16
 Q3  : T  -0.22c W  -0.26c S   0.04c ( -0.4 L  -0.4) LCB   -3.80c P 11.98% WF 10.14% PSV      14 N      14  --  Q3 C4 Q17 E4
 R4  : T  -0.87c W  -0.87c S   0.00c ( -0.5 L  -0.4) LCB   -5.44c P 11.35% WF 10.02% PSV      12 N      12  --  R4 Q17 D3

@@ -107,7 +107,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   const int64_t logGamesEvery = cfg.getInt64("logGamesEvery",1,1000000);
 
   const bool switchNetsMidGame = cfg.getBool("switchNetsMidGame");
-  const SearchParams baseParams = Setup::loadSingleParams(cfg);
+  const SearchParams baseParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_OTHER);
 
   //Initialize object for randomizing game settings and running games
   PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg);

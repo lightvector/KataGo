@@ -474,7 +474,7 @@ void Sgf::iterAllUniquePositionsHelper(
   std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
 ) const {
   vector<Move> buf;
-  for(int i = 0; i<nodes.size(); i++) {
+  for(size_t i = 0; i<nodes.size(); i++) {
 
     string comments;
     if(nodes[i]->hasProperty("C"))
@@ -486,7 +486,7 @@ void Sgf::iterAllUniquePositionsHelper(
       nodes[i]->accumPlacements(buf,xSize,ySize);
       if(buf.size() > 0) {
         int netStonesAdded = 0;
-        for(int j = 0; j<buf.size(); j++) {
+        for(size_t j = 0; j<buf.size(); j++) {
           if(board.colors[buf[j].loc] != C_EMPTY && buf[j].pla == C_EMPTY)
             netStonesAdded--;
           if(board.colors[buf[j].loc] == C_EMPTY && buf[j].pla != C_EMPTY)
@@ -495,7 +495,7 @@ void Sgf::iterAllUniquePositionsHelper(
         }
         board.clearSimpleKoLoc();
         //Clear history any time placements happen, but make sure we track the initial turn number.
-        initialTurnNumber += hist.moveHistory.size();
+        initialTurnNumber += (int)hist.moveHistory.size();
 
         //If stones were net added, count each such stone as half of an initial turn.
         //Sort of hacky, but improves the correlation between initial turn and how full the board is compared
@@ -512,7 +512,7 @@ void Sgf::iterAllUniquePositionsHelper(
     buf.clear();
     nodes[i]->accumMoves(buf,xSize,ySize);
 
-    for(int j = 0; j<buf.size(); j++) {
+    for(size_t j = 0; j<buf.size(); j++) {
       bool suc = hist.makeBoardMoveTolerant(board,buf[j].loc,buf[j].pla);
       if(!suc) {
         ostringstream trace;
@@ -523,16 +523,18 @@ void Sgf::iterAllUniquePositionsHelper(
         trace << "forward " << i;
 
         throw StringError(
-          "Illegal move in " + fileName + " effective turn " + Global::intToString(j+initialTurnNumber) + " move " +
+          "Illegal move in " + fileName + " effective turn " + Global::int64ToString(j+initialTurnNumber) + " move " +
           Location::toString(buf[j].loc, board.x_size, board.y_size) + " SGF trace (branches 0-indexed): " + trace.str()
         );
       }
+      if(hist.moveHistory.size() > 0x3FFFFFFF)
+        throw StringError("too many moves in sgf");
       nextPla = getOpp(buf[j].pla);
       samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,comments,f);
     }
   }
 
-  for(int i = 0; i<children.size(); i++) {
+  for(size_t i = 0; i<children.size(); i++) {
     std::unique_ptr<Board> copy = std::make_unique<Board>(board);
     std::unique_ptr<BoardHistory> histCopy = std::make_unique<BoardHistory>(hist);
     variationTraceNodesBranch.push_back(std::make_pair((int64_t)nodes.size(),(int64_t)i));
@@ -587,7 +589,9 @@ void Sgf::samplePositionIfUniqueHelper(
       break;
     turnsAgoToSnap++;
   }
-  int startTurnIdx = hist.moveHistory.size() - turnsAgoToSnap;
+  if(hist.moveHistory.size() > 0x3FFFFFFF)
+    throw StringError("hist has too many moves");
+  int startTurnIdx = (int)hist.moveHistory.size() - turnsAgoToSnap;
 
   sampleBuf.board = hist.getRecentBoard(turnsAgoToSnap);
   if(startTurnIdx < hist.moveHistory.size())
@@ -595,7 +599,7 @@ void Sgf::samplePositionIfUniqueHelper(
   else
     sampleBuf.nextPla = nextPla;
   sampleBuf.moves.clear();
-  for(int i = startTurnIdx; i<hist.moveHistory.size(); i++)
+  for(int i = startTurnIdx; i<(int)hist.moveHistory.size(); i++)
     sampleBuf.moves.push_back(hist.moveHistory[i]);
   sampleBuf.initialTurnNumber = initialTurnNumber + startTurnIdx;
   sampleBuf.hintLoc = Board::NULL_LOC;
@@ -1147,31 +1151,31 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
   hist = BoardHistory(board,nextPla,initialRules,0);
 }
 
-void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int turnIdx) const {
+void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const {
   if(turnIdx < 0 || turnIdx > moves.size())
     throw StringError(
       Global::strprintf(
-        "Attempting to set up position from SGF for invalid turn idx %d, valid values are %d to %d",
-        (int)turnIdx, 0, (int)moves.size()
+        "Attempting to set up position from SGF for invalid turn idx %lld, valid values are %lld to %lld",
+        (long long)turnIdx, (long long)0, (long long)moves.size()
       )
     );
 
-  for(size_t i = 0; i<turnIdx; i++) {
+  for(int64_t i = 0; i<turnIdx; i++) {
     hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
     nextPla = getOpp(moves[i].pla);
   }
 }
 
-void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int turnIdx, bool preventEncore) const {
+void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool preventEncore) const {
   if(turnIdx < 0 || turnIdx > moves.size())
     throw StringError(
       Global::strprintf(
-        "Attempting to set up position from SGF for invalid turn idx %d, valid values are %d to %d",
-        (int)turnIdx, 0, (int)moves.size()
+        "Attempting to set up position from SGF for invalid turn idx %lld, valid values are %lld to %lld",
+        (long long)turnIdx, (long long)0, (long long)moves.size()
       )
     );
 
-  for(size_t i = 0; i<turnIdx; i++) {
+  for(int64_t i = 0; i<turnIdx; i++) {
     bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla,preventEncore);
     if(!suc)
       throw StringError("Illegal move in " + fileName + " turn " + Global::int64ToString(i) + " move " + Location::toString(moves[i].loc, board.x_size, board.y_size));
@@ -1179,12 +1183,12 @@ void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& 
   }
 }
 
-void CompactSgf::setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnIdx) const {
+void CompactSgf::setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const {
   setupInitialBoardAndHist(initialRules, board, nextPla, hist);
   playMovesAssumeLegal(board, nextPla, hist, turnIdx);
 }
 
-void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int turnIdx, bool preventEncore) const {
+void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool preventEncore) const {
   setupInitialBoardAndHist(initialRules, board, nextPla, hist);
   playMovesTolerant(board, nextPla, hist, turnIdx, preventEncore);
 }

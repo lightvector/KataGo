@@ -153,7 +153,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     if(moveNum < 0)
       throw StringError("Move num " + Global::intToString(moveNum) + " requested but must be non-negative");
     if(moveNum > moves.size())
-      throw StringError("Move num " + Global::intToString(moveNum) + " requested but sgf has only " + Global::intToString(moves.size()));
+      throw StringError("Move num " + Global::intToString(moveNum) + " requested but sgf has only " + Global::int64ToString(moves.size()));
 
     sgf->playMovesTolerant(board,nextPla,hist,moveNum,false);
 
@@ -189,7 +189,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   logger.setLogToStdout(true);
   logger.write("Engine starting...");
 
-  SearchParams params = Setup::loadSingleParams(cfg);
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
   if(maxVisits < -1 || maxVisits == 0)
     throw StringError("maxVisits: invalid value");
   else if(maxVisits == -1)

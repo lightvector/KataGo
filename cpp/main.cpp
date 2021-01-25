@@ -57,11 +57,6 @@ runsearchtestsv8 : Run a bunch more things using a neural net and dump details t
 runselfplayinittests : Run some tests involving selfplay training init using a neural net and dump details to stdout
 runsekitrainwritetests : Run some tests involving seki train output
 
----Dev/experimental subcommands-------------
-demoplay
-lzcost
-matchauto
-sandbox
 )%%" << endl;
 }
 
@@ -120,8 +115,6 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::trystartposes(argc-1,&argv[1]);
   else if(subcommand == "viewstartposes")
     return MainCmds::viewstartposes(argc-1,&argv[1]);
-  else if(subcommand == "lzcost")
-    return MainCmds::lzcost(argc-1,&argv[1]);
   else if(subcommand == "demoplay")
     return MainCmds::demoplay(argc-1,&argv[1]);
   else if(subcommand == "printclockinfo")
@@ -175,11 +168,11 @@ int main(int argc, const char* argv[]) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.7.0");
+  return string("1.8.0");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.7.0");
+  return string("KataGo v1.8.0");
 }
 
 string Version::getKataGoVersionFullInfo() {

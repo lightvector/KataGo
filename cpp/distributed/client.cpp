@@ -69,6 +69,7 @@ static json parseJson(const httplib::Result& response) {
     return json::parse(response->body);
   }
   catch(nlohmann::detail::exception& e) {
+    (void)e;
     ostringstream out;
     debugPrintResponse(out,response);
     throw StringError("Server gave response with body that did not parse as json\n" + out.str());
@@ -428,6 +429,7 @@ static T parse(const json& response, const char* field) {
     return x;
   }
   catch(nlohmann::detail::exception& e) {
+    (void)e;
     throwInvalidValue(response,field);
   }
   throw StringError("BUG, should not reach here");
@@ -443,6 +445,7 @@ static string parseString(const json& response, const char* field, size_t maxLen
     return x;
   }
   catch(nlohmann::detail::exception& e) {
+    (void)e;
     throwInvalidValue(response,field);
   }
   throw StringError("BUG, should not reach here");
@@ -461,6 +464,7 @@ static string parseStringOrNull(const json& response, const char* field, size_t 
     return x;
   }
   catch(nlohmann::detail::exception& e) {
+    (void)e;
     throwInvalidValue(response,field);
   }
   throw StringError("BUG, should not reach here");
@@ -480,6 +484,7 @@ static T parseInteger(const json& response, const char* field, T min, T max) {
     return x;
   }
   catch(nlohmann::detail::exception& e) {
+    (void)e;
     throwInvalidValue(response,field);
   }
   throw StringError("BUG, should not reach here");
@@ -498,6 +503,7 @@ static T parseReal(const json& response, const char* field, T min, T max) {
     return x;
   }
   catch(nlohmann::detail::exception& e) {
+    (void)e;
     throwInvalidValue(response,field);
   }
   throw StringError("BUG, should not reach here");
@@ -587,7 +593,7 @@ static Client::ModelInfo parseModelInfo(const json& networkProperties) {
   model.name = parseString(networkProperties,"name",MAX_NETWORK_NAME_LEN);
   model.infoUrl = parseStringOrNull(networkProperties,"url",MAX_URL_LEN);
   model.downloadUrl = parseStringOrNull(networkProperties,"model_file",MAX_URL_LEN);
-  model.bytes = parse<int64_t>(networkProperties,"model_file_bytes");
+  model.bytes = parse<size_t>(networkProperties,"model_file_bytes");
   model.sha256 = parseString(networkProperties,"model_file_sha256",64);
   model.isRandom = parse<bool>(networkProperties,"is_random");
   return model;
@@ -693,7 +699,7 @@ bool Connection::getNextTask(
     try {
       istringstream taskCfgIn(task.config);
       ConfigParser taskCfg(taskCfgIn);
-      SearchParams baseParams = Setup::loadSingleParams(taskCfg);
+      SearchParams baseParams = Setup::loadSingleParams(taskCfg,Setup::SETUP_FOR_DISTRIBUTED);
       PlaySettings playSettings;
       if(task.isRatingGame)
         playSettings = PlaySettings::loadForGatekeeper(taskCfg);
@@ -721,7 +727,7 @@ string Connection::getTmpModelPath(const Client::ModelInfo& modelInfo, const str
   if(modelInfo.isRandom)
     return "/dev/null";
   static const char* chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  uint32_t len = std::strlen(chars);
+  uint32_t len = (uint32_t)std::strlen(chars);
   string randStr;
   for(int i = 0; i<10; i++)
     randStr += chars[rand.nextUInt(len)];
@@ -912,13 +918,13 @@ bool Connection::actuallyDownloadModel(
       if(totalDataSize < modelInfo.bytes)
         throw StringError(
           "Model file was incompletely downloaded, only got " + Global::int64ToString(totalDataSize) +
-          " bytes out of " + Global::int64ToString(modelInfo.bytes)
+          " bytes out of " + Global::uint64ToString(modelInfo.bytes)
         );
       if(totalDataSize > modelInfo.bytes) {
         innerLoopFailMode = LOOP_FATAL_FAIL;
         throw StringError(
           "Model file was larger than expected, got " + Global::int64ToString(totalDataSize) +
-          " bytes out of " + Global::int64ToString(modelInfo.bytes)
+          " bytes out of " + Global::uint64ToString(modelInfo.bytes)
         );
       }
     };
@@ -931,7 +937,7 @@ bool Connection::actuallyDownloadModel(
     if(totalDataSize != modelInfo.bytes)
       throw StringError(
         "Model file was incompletely downloaded, only got " + Global::int64ToString(totalDataSize) +
-        " bytes out of " + Global::int64ToString(modelInfo.bytes)
+        " bytes out of " + Global::uint64ToString(modelInfo.bytes)
       );
 
     //Attempt to load the model file to verify gzip integrity and that we actually support this model format
@@ -997,7 +1003,7 @@ bool Connection::uploadTrainingGameAndData(
     string winner = gameData->endHist.winner == P_WHITE ? "W" : gameData->endHist.winner == P_BLACK ? "B" : gameData->endHist.isNoResult ? "-" : "0";
     double score = gameData->endHist.finalWhiteMinusBlackScore;
     string hasResigned = gameData->endHist.isResignation ? "true" : "false";
-    int gameLength = gameData->endHist.moveHistory.size();
+    size_t gameLength = gameData->endHist.moveHistory.size();
     string gameUid;
     {
       ostringstream o;
@@ -1019,7 +1025,7 @@ bool Connection::uploadTrainingGameAndData(
       { "winner", winner, "", "" },
       { "score", Global::doubleToString(score), "", "" },
       { "resigned", hasResigned, "", "" },
-      { "game_length", Global::intToString(gameLength), "", "" },
+      { "game_length", Global::uint64ToString(gameLength), "", "" },
       { "kg_game_uid", gameUid, "", "" },
       { "run", run, "", ""},
       { "white_network", whiteNetwork, "", ""},
@@ -1075,7 +1081,7 @@ bool Connection::uploadRatingGame(
     string winner = gameData->endHist.winner == P_WHITE ? "W" : gameData->endHist.winner == P_BLACK ? "B" : gameData->endHist.isNoResult ? "-" : "0";
     double score = gameData->endHist.finalWhiteMinusBlackScore;
     string hasResigned = gameData->endHist.isResignation ? "true" : "false";
-    int gameLength = gameData->endHist.moveHistory.size();
+    size_t gameLength = gameData->endHist.moveHistory.size();
     string gameUid;
     {
       ostringstream o;
@@ -1097,7 +1103,7 @@ bool Connection::uploadRatingGame(
       { "winner", winner, "", "" },
       { "score", Global::doubleToString(score), "", "" },
       { "resigned", hasResigned, "", "" },
-      { "game_length", Global::intToString(gameLength), "", "" },
+      { "game_length", Global::uint64ToString(gameLength), "", "" },
       { "kg_game_uid", gameUid, "", "" },
       { "run", run, "", ""},
       { "white_network", whiteNetwork, "", ""},

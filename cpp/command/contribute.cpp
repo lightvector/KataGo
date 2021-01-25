@@ -31,6 +31,11 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
 #include "../distributed/client.h"
 
+#ifdef OS_IS_WINDOWS
+#include <stdio.h>
+#include <fileapi.h>
+#endif
+
 #include <sstream>
 #include <chrono>
 #include <csignal>
@@ -83,7 +88,8 @@ namespace {
 static void runAndUploadSingleGame(
   Client::Connection* connection, GameTask gameTask, int64_t gameIdx,
   Logger& logger, const string& seed, ForkData* forkData, string sgfsDir, Rand& rand,
-  std::atomic<int64_t>& numMovesPlayed, std::unique_ptr<ostream>& outputEachMove,
+  std::atomic<int64_t>& numMovesPlayed,
+  std::unique_ptr<ostream>& outputEachMove, std::function<void()> flushOutputEachMove,
   bool logGamesAsJson, bool alwaysIncludeOwnership
 ) {
   if(gameTask.task.isRatingGame) {
@@ -114,7 +120,7 @@ static void runAndUploadSingleGame(
   SearchParams baseParams;
   PlaySettings playSettings;
   try {
-    baseParams = Setup::loadSingleParams(taskCfg);
+    baseParams = Setup::loadSingleParams(taskCfg,Setup::SETUP_FOR_DISTRIBUTED);
     if(gameTask.task.isRatingGame)
       playSettings = PlaySettings::loadForGatekeeper(taskCfg);
     else
@@ -153,7 +159,7 @@ static void runAndUploadSingleGame(
   const string gameIdString = Global::uint64ToHexString(rand.nextUInt64());
 
   std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>
-    onEachMove = [&numMovesPlayed, &outputEachMove, &logGamesAsJson, &alwaysIncludeOwnership, &gameIdString, &botSpecB, &botSpecW](
+    onEachMove = [&numMovesPlayed, &outputEachMove, &flushOutputEachMove, &logGamesAsJson, &alwaysIncludeOwnership, &gameIdString, &botSpecB, &botSpecW](
       const Board& board, const BoardHistory& hist, Player pla, Loc moveLoc,
       const std::vector<double>& winLossHist, const std::vector<double>& leadHist, const std::vector<double>& scoreStdevHist, const Search* search) {
     numMovesPlayed.fetch_add(1,std::memory_order_relaxed);
@@ -178,6 +184,8 @@ static void runAndUploadSingleGame(
       (void)search;
       out << "\n";
       (*outputEachMove) << out.str() << std::flush;
+      if(flushOutputEachMove)
+        flushOutputEachMove();
     }
 
     if(logGamesAsJson and hist.encorePhase == 0) { // If anyone wants to support encorePhase > 0 note passForKo is a thing
@@ -246,6 +254,8 @@ static void runAndUploadSingleGame(
     out.close();
     if(outputEachMove != nullptr) {
       (*outputEachMove) << "Game finished, sgf is " << sgfFile << endl;
+      if(flushOutputEachMove)
+        flushOutputEachMove();
     }
 
     static constexpr bool retryOnFailure = true;
@@ -321,7 +331,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       false,defaultBaseDir,"DIR"
     );
     TCLAP::ValueArg<double> deleteUnusedModelsAfterDaysArg(
-      "","delete-unused-models-after","After a model is unused for this many days, delete it from disk (default "+ Global::intToString(defaultDeleteUnusedModelsAfterDays)+")",
+      "","delete-unused-models-after","After a model is unused for this many days, delete it from disk (default "+ Global::doubleToString(defaultDeleteUnusedModelsAfterDays)+")",
       false,defaultDeleteUnusedModelsAfterDays,"DAYS"
     );
     TCLAP::ValueArg<string> userConfigFileArg("","config","Config file to use for server connection and/or GPU settings",false,string(),"FILE");
@@ -578,8 +588,21 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     int gameLoopThreadIdx
   ) {
     std::unique_ptr<std::ostream> outputEachMove = nullptr;
-    if(gameLoopThreadIdx == 0 && watchOngoingGameInFile)
+    std::function<void()> flushOutputEachMove = nullptr;
+    if(gameLoopThreadIdx == 0 && watchOngoingGameInFile) {
+#ifdef OS_IS_WINDOWS
+      FILE* file = NULL;
+      fopen_s(&file, watchOngoingGameInFileName.c_str(), "a");
+      if(file == NULL)
+        throw StringError("Could not open file: " + watchOngoingGameInFileName);
+      outputEachMove = std::make_unique<std::ofstream>(file);
+      flushOutputEachMove = [file]() {
+        FlushFileBuffers((HANDLE) _get_osfhandle(_fileno(file)));
+      };
+#else
       outputEachMove = std::make_unique<std::ofstream>(watchOngoingGameInFileName.c_str(), ofstream::app);
+#endif
+    }
 
     Rand thisLoopSeedRand;
     while(true) {
@@ -590,7 +613,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       if(!shouldStop.load()) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         int64_t gameIdx = numGamesStarted.fetch_add(1,std::memory_order_acq_rel);
-        runAndUploadSingleGame(connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand,numMovesPlayed,outputEachMove,logGamesAsJson,alwaysIncludeOwnership);
+        runAndUploadSingleGame(connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand,numMovesPlayed,outputEachMove,flushOutputEachMove,logGamesAsJson,alwaysIncludeOwnership);
       }
       gameTask.blackManager->release(gameTask.nnEvalBlack);
       gameTask.whiteManager->release(gameTask.nnEvalWhite);
@@ -625,6 +648,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       modelInfo.failIfSha256Mismatch(modelFile);
     }
     catch(const StringError& e) {
+      (void)e;
       //If it's wrong, fail (it means someone modified the file on disk, or there was harddrive corruption, or something, since that file
       //must have been valid at download time), but also rename the file out of the way so that if we restart the program, the next try
       //will do a fresh download.

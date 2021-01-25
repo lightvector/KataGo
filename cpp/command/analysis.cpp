@@ -128,7 +128,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   const bool logSearchInfo = cfg.contains("logSearchInfo") ? cfg.getBool("logSearchInfo") : false;
 
   auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective, Player defaultPerspective) {
-    params = Setup::loadSingleParams(config);
+    params = Setup::loadSingleParams(config,Setup::SETUP_FOR_ANALYSIS);
     perspective = Setup::parseReportAnalysisWinrates(config,defaultPerspective);
     //Set a default for conservativePass that differs from matches or selfplay
     if(!config.contains("conservativePass") && !config.contains("conservativePass0"))
@@ -1046,7 +1046,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       //Push into queue for processing
       for(int i = 0; i<newRequests.size(); i++) {
         //Compare first by user-provided priority, and next breaks ties by preferring earlier requests.
-        std::pair<int,int64_t> priorityKey = std::make_pair(newRequests[i]->priority, -numRequestsSoFar);
+        std::pair<int64_t,int64_t> priorityKey = std::make_pair(newRequests[i]->priority, -numRequestsSoFar);
         bool suc = toAnalyzeQueue.forcePush( std::make_pair(priorityKey, newRequests[i]) );
         assert(suc);
         (void)suc;

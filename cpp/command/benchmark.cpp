@@ -157,7 +157,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   logger.setLogToStdout(true);
   logger.write("Loading model and initializing benchmark...");
 
-  SearchParams params = Setup::loadSingleParams(cfg);
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_BENCHMARK);
   params.maxVisits = maxVisits;
   params.maxPlayouts = maxVisits;
   params.maxTime = 1e20;
@@ -420,7 +420,7 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
     cout << endl;
 
     int start = 0;
-    int end = possibleNumbersOfThreads.size()-1;
+    int end = (int)possibleNumbersOfThreads.size()-1;
     for(int i = 0; i < possibleNumbersOfThreads.size(); i++) {
       if(possibleNumbersOfThreads[i] < ternarySearchMin) {
         start = i + 1;
@@ -837,7 +837,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
     logger.setLogToStdout(true);
     logger.write("Loading model and initializing benchmark...");
 
-    SearchParams params = Setup::loadSingleParams(cfg);
+    SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_BENCHMARK);
     params.maxVisits = defaultMaxVisits;
     params.maxPlayouts = defaultMaxVisits;
     params.maxTime = 1e20;

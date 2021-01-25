@@ -138,7 +138,7 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
         continue;
       }
       if(i != mostVisitedIdx)
-        playSelectionValues[i] = getReducedPlaySelectionVisits(node, policyProbs, node.children[i], totalChildVisits, bestChildExploreSelectionValue);
+        playSelectionValues[i] = (double)getReducedPlaySelectionVisits(node, policyProbs, node.children[i], totalChildVisits, bestChildExploreSelectionValue);
     }
   }
 
@@ -158,7 +158,7 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
       }
     }
 
-    if(searchParams.useLcbForSelection && numChildren > 0 && bestLcbIndex > 0) {
+    if(searchParams.useLcbForSelection && numChildren > 0 && (searchParams.useNonBuggyLcb ? (bestLcbIndex >= 0) : (bestLcbIndex > 0))) {
       //Best LCB move gets a bonus that ensures it is large enough relative to every other child
       double adjustedVisits = playSelectionValues[bestLcbIndex];
       for(int i = 0; i<numChildren; i++) {
@@ -262,7 +262,7 @@ void Search::maybeRecomputeNormToTApproxTable() {
     normToTApproxZ = searchParams.lcbStdevs;
     normToTApproxTable.clear();
     for(int i = 0; i < 512; i++)
-      normToTApproxTable.push_back(FancyMath::normToTApprox(normToTApproxZ,i+MIN_VISITS_FOR_LCB));
+      normToTApproxTable.push_back(FancyMath::normToTApprox(normToTApproxZ,(double)(i+MIN_VISITS_FOR_LCB)));
   }
 }
 

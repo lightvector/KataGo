@@ -54,6 +54,7 @@ class Model:
 
 
   def __init__(self,config,pos_len,placeholders,is_training=False):
+    self.config = config
     self.pos_len = pos_len
     self.num_bin_input_features = Model.get_num_bin_input_features(config)
     self.num_global_input_features = Model.get_num_global_input_features(config)
@@ -1173,7 +1174,11 @@ class Model:
     sb3_layer = tf.tensordot(sb2_layer,sb3w,axes=[[2],[0]])
 
     sbscale3w = self.weight_variable("sbscale3/w",[sbv2_size,1],sbv2_size,1,scale_initial_weights=0.5)
-    sbscale3_layer = scaletransform(tf.matmul(sbscale2_layer,sb3w))
+    if "use_fixed_sbscaling" in config and config["use_fixed_sbscaling"]:
+      sbscale3_layer = scaletransform(tf.matmul(sbscale2_layer,sbscale3w))
+    else:
+      # Old buggy behavior, preserved for backward compatibility
+      sbscale3_layer = scaletransform(tf.matmul(sbscale2_layer,sb3w))
     self.sbscale3_layer = sbscale3_layer
 
     sb3_layer = sb3_layer * tf.reshape(sbscale3_layer,[-1,1,1])
@@ -1509,7 +1514,11 @@ class Target_vars:
     # winlossprob_from_output = value_probs[:,0:2]
     # self.winloss_reg_loss_unreduced = 2.0 * tf.reduce_sum(tf.square(winlossprob_from_belief - winlossprob_from_output),axis=1)
 
-    self.scale_reg_loss_unreduced = tf.reshape(0.0004 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
+
+    if "use_fixed_sbscaling" in model.config and model.config["use_fixed_sbscaling"]:
+      self.scale_reg_loss_unreduced = tf.reshape(0.0002 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
+    else:
+      self.scale_reg_loss_unreduced = tf.reshape(0.0004 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
     #self.scale_reg_loss_unreduced = tf.zeros_like(self.winloss_reg_loss_unreduced)
 
     self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced, name="losses/policy_loss")
@@ -1653,7 +1662,7 @@ class ModelUtils:
 
     #L2 regularization coefficient
     if model_config["use_fixup"]:
-      l2_coeff_value = 0.000003
+      l2_coeff_value = 0.000001
     else:
       l2_coeff_value = 0.00003
 

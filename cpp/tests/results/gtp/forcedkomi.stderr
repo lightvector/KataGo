@@ -1,4 +1,4 @@
-KataGo v1.7.0
+KataGo v1.8.0
 Using koPOSITIONALscoreAREAtaxNONEsui0button1 rules initially, unless GTP/GUI overrides this
 Loaded config configs/gtp_example.cfg and/or command-line and query overrides
 Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
@@ -80,7 +80,7 @@ PV: R16 D3 D17 D5
 Tree:
 : T  -4.90c W  -4.57c S  -0.33c ( -1.3 L  -1.4) N     100  --  R16 D3 D17 D5
 ---White(^)---
-R16 : T  -4.17c W  -3.94c S  -0.23c ( -1.1 L  -1.2) LCB   -7.50c P 15.06% WF  9.26% PSV      18 N      18  --  R16 D3 D17 D5
+R16 : T  -4.17c W  -3.94c S  -0.23c ( -1.1 L  -1.2) LCB   -7.50c P 15.06% WF  9.26% PSV      23 N      18  --  R16 D3 D17 D5
 D3  : T  -4.34c W  -4.14c S  -0.20c ( -1.2 L  -1.3) LCB   -7.62c P 14.85% WF  9.23% PSV      18 N      18  --  D3 Q17 D17 Q15
 Q17 : T  -4.50c W  -4.47c S  -0.03c ( -1.1 L  -1.1) LCB   -8.56c P 10.42% WF  9.20% PSV      12 N      12  --  Q17 C4 D17 E4
 D17 : T  -5.05c W  -5.03c S  -0.03c ( -1.4 L  -1.4) LCB  -11.59c P  9.93% WF  9.11% PSV      11 N      11  --  D17 Q17 D3 Q15
@@ -139,7 +139,7 @@ MoveNum: 1 HASH: 5CAAD553F3A4AF0F47459C51E40D103A
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
 17 . . . . . . . . . . . . . . . . . . .
-16 . . X . . . . . . . . . . . . . . . .
+16 . . X . . . . . . . . . . . . . @ . .
 15 . . . . . . . . . . . . . . . . . . .
 14 . . . . . . . . . . . . . . . . . . .
 13 . . . . . . . . . . . . . . . . . . .
@@ -151,7 +151,7 @@ MoveNum: 1 HASH: 5CAAD553F3A4AF0F47459C51E40D103A
  7 . . . . . . . . . . . . . . . . . . .
  6 . . . . . . . . . . . . . . . . . . .
  5 . . . . . . . . . . . . . . . . . . .
- 4 . . . . . . . . . . . . . . . . @ . .
+ 4 . . . . . . . . . . . . . . . . . . .
  3 . . . . . . . . . . . . . . . . . . .
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
@@ -167,7 +167,7 @@ PV: D3 Q17 Q3 Q15
 Tree:
 : T  -5.03c W  -5.15c S   0.12c ( -1.5 L  -1.5) N     100  --  D3 Q17 Q3 Q15
 ---White(^)---
-D3  : T  -4.64c W  -4.96c S   0.32c ( -1.4 L  -1.4) LCB   -7.69c P 13.72% WF 10.10% PSV      16 N      16  --  D3 Q17 Q3 Q15
+D3  : T  -4.64c W  -4.96c S   0.32c ( -1.4 L  -1.4) LCB   -7.69c P 13.72% WF 10.10% PSV      21 N      16  --  D3 Q17 Q3 Q15
 R16 : T  -4.33c W  -4.63c S   0.29c ( -1.3 L  -1.4) LCB   -7.77c P 13.35% WF 10.15% PSV      16 N      16  --  R16 Q3 C4 Q5
 Q3  : T  -4.44c W  -4.85c S   0.41c ( -1.4 L  -1.5) LCB   -8.23c P 11.77% WF 10.13% PSV      14 N      14  --  Q3 C4 Q17 E4
 R4  : T  -5.20c W  -5.47c S   0.27c ( -1.6 L  -1.6) LCB   -9.22c P 12.09% WF 10.00% PSV      13 N      13  --  R4 Q17 D3
