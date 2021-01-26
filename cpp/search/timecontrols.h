@@ -18,6 +18,8 @@ struct TimeControls {
   */
   double originalMainTime;
   double increment;
+  double mainTimeLimit;
+  double maxTimePerMove;
   int originalNumPeriods;
   int numStonesPerPeriod;
   double perPeriodTime;
@@ -32,8 +34,18 @@ struct TimeControls {
   TimeControls();
   ~TimeControls();
 
+  //The threshold at which we consider time allowed to be unlimited
+  static constexpr double UNLIMITED_TIME_THRESHOLD = 1e20;
+  //The max time we tolerate a user inputting
+  static constexpr double MAX_USER_INPUT_TIME = 1e25;
+  //The value that fields default to when unset and need to be unlimited by default
+  static constexpr double UNLIMITED_TIME_DEFAULT = 1e30;
+  //The value that fields default to when unset and need to be unlimited by default and larger than other things
+  static constexpr double UNLIMITED_TIME_DEFAULT_LARGE = 1e40;
+
   static TimeControls absoluteTime(double mainTime);
   static TimeControls fischerTime(double mainTime, double increment);
+  static TimeControls fischerCappedTime(double mainTime, double increment, double mainTimeLimit, double maxTimePerMove);
   static TimeControls canadianOrByoYomiTime(
     double mainTime,
     double perPeriodTime,

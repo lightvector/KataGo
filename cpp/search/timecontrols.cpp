@@ -4,13 +4,15 @@
 #include <cmath>
 
 TimeControls::TimeControls()
-  :originalMainTime(1.0e30),
+  :originalMainTime(TimeControls::UNLIMITED_TIME_DEFAULT),
    increment(0.0),
+   mainTimeLimit(TimeControls::UNLIMITED_TIME_DEFAULT_LARGE),
+   maxTimePerMove(TimeControls::UNLIMITED_TIME_DEFAULT_LARGE),
    originalNumPeriods(0),
    numStonesPerPeriod(0),
    perPeriodTime(0.0),
 
-   mainTimeLeft(1.0e30),
+   mainTimeLeft(TimeControls::UNLIMITED_TIME_DEFAULT),
    inOvertime(false),
    numPeriodsLeftIncludingCurrent(0),
    numStonesLeftInPeriod(0),
@@ -21,13 +23,17 @@ TimeControls::~TimeControls()
 {}
 
 bool TimeControls::isEffectivelyUnlimitedTime() const {
-  return mainTimeLeft > 1.0e20 || (inOvertime && timeLeftInPeriod > 1.0e20);
+  return
+    (mainTimeLeft > TimeControls::UNLIMITED_TIME_THRESHOLD || (inOvertime && timeLeftInPeriod > TimeControls::UNLIMITED_TIME_THRESHOLD))
+    && maxTimePerMove > TimeControls::UNLIMITED_TIME_THRESHOLD;
 }
 
 TimeControls TimeControls::absoluteTime(double mainTime) {
   TimeControls tc;
   tc.originalMainTime = mainTime;
   tc.increment = 0.0;
+  tc.mainTimeLimit = TimeControls::UNLIMITED_TIME_DEFAULT_LARGE;
+  tc.maxTimePerMove = TimeControls::UNLIMITED_TIME_DEFAULT_LARGE;
   tc.originalNumPeriods = 0;
   tc.numStonesPerPeriod = 0;
   tc.perPeriodTime = 0.0;
@@ -43,6 +49,27 @@ TimeControls TimeControls::fischerTime(double mainTime, double increment) {
   TimeControls tc;
   tc.originalMainTime = mainTime;
   tc.increment = increment;
+  tc.mainTimeLimit = TimeControls::UNLIMITED_TIME_DEFAULT_LARGE;
+  tc.maxTimePerMove = TimeControls::UNLIMITED_TIME_DEFAULT_LARGE;
+  tc.originalNumPeriods = 0;
+  tc.numStonesPerPeriod = 0;
+  tc.perPeriodTime = 0.0;
+  tc.mainTimeLeft = mainTime;
+  tc.inOvertime = false;
+  tc.numPeriodsLeftIncludingCurrent = 0;
+  tc.numStonesLeftInPeriod = 0;
+  tc.timeLeftInPeriod = 0;
+  return tc;
+}
+
+TimeControls TimeControls::fischerCappedTime(double mainTime, double increment, double mainTimeLimit, double maxTimePerMove) {
+  if(mainTimeLimit < mainTime)
+    throw StringError("TimeControls: mainTimeLimit is smaller than mainTime");
+  TimeControls tc;
+  tc.originalMainTime = mainTime;
+  tc.increment = increment;
+  tc.mainTimeLimit = mainTimeLimit;
+  tc.maxTimePerMove = maxTimePerMove;
   tc.originalNumPeriods = 0;
   tc.numStonesPerPeriod = 0;
   tc.perPeriodTime = 0.0;
@@ -63,6 +90,8 @@ TimeControls TimeControls::canadianOrByoYomiTime(
   TimeControls tc;
   tc.originalMainTime = mainTime;
   tc.increment = 0.0;
+  tc.mainTimeLimit = TimeControls::UNLIMITED_TIME_DEFAULT_LARGE;
+  tc.maxTimePerMove = TimeControls::UNLIMITED_TIME_DEFAULT_LARGE;
   tc.originalNumPeriods = numPeriods;
   tc.numStonesPerPeriod = numStonesPerPeriod;
   tc.perPeriodTime = perPeriodTime;
@@ -79,6 +108,11 @@ std::string TimeControls::toDebugString(const Board& board, const BoardHistory& 
   out << "originalMainTime " << originalMainTime;
   if(increment != 0)
     out << " increment " << increment;
+  if(mainTimeLimit < TimeControls::UNLIMITED_TIME_THRESHOLD)
+    out << " mainTimeLimit " << mainTimeLimit;
+  if(maxTimePerMove < TimeControls::UNLIMITED_TIME_THRESHOLD)
+    out << " maxTimePerMove " << maxTimePerMove;
+
   if(originalNumPeriods != 0)
     out << " originalNumPeriods " << originalNumPeriods;
   if(numStonesPerPeriod != 0)
@@ -116,6 +150,10 @@ std::string TimeControls::toDebugString() const {
   out << "originalMainTime " << originalMainTime;
   if(increment != 0)
     out << "increment " << increment;
+  if(mainTimeLimit < TimeControls::UNLIMITED_TIME_THRESHOLD)
+    out << " mainTimeLimit " << mainTimeLimit;
+  if(maxTimePerMove < TimeControls::UNLIMITED_TIME_THRESHOLD)
+    out << " maxTimePerMove " << maxTimePerMove;
   if(originalNumPeriods != 0)
     out << "originalNumPeriods " << originalNumPeriods;
   if(numStonesPerPeriod != 0)
@@ -242,24 +280,28 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
       throw StringError("TimeControls: inOvertime with Fischer or absolute time, inconsistent time control?");
     if(numPeriodsLeftIncludingCurrent != 0)
       throw StringError("TimeControls: numPeriodsLeftIncludingCurrent != 0 with Fischer or absolute time, inconsistent time control?");
+    if(mainTimeLimit < originalMainTime)
+      throw StringError("TimeControls: mainTimeLimit is smaller than original mainTime");
 
     //Note that some GTP controllers might give us a negative mainTimeLeft in weird cases. We tolerate this and do the best we can.
     if(mainTimeLeft <= increment) {
-      minTime = 0.0;
+      minTime = std::min(std::max(0.0, mainTimeLeft * 0.5), std::max(0.0, mainTimeLeft + increment - mainTimeLimit));
       //Apply lagbuffer an extra time to the mainTimeLeft, ensuring we get extra buffering
-      recommendedTime = applyLagBuffer(mainTimeLeft, lagBuffer);
+      recommendedTime = applyLagBuffer(mainTimeLeft, lagBufferToUse);
       maxTime = mainTimeLeft;
     }
     else {
       //Apply lagbuffer an extra time to the excessMainTime, ensuring we get extra buffering
-      double excessMainTime = applyLagBuffer(mainTimeLeft - increment, lagBuffer);
-      minTime = 0.0;
+      double excessMainTime = applyLagBuffer(mainTimeLeft - increment, lagBufferToUse);
+      minTime = std::min(std::max(0.0, mainTimeLeft * 0.5), std::max(0.0, mainTimeLeft + increment - mainTimeLimit));
       recommendedTime = increment + divideTimeEvenlyForGame(excessMainTime,true,false);
       maxTime = std::min(mainTimeLeft, increment + excessMainTime / 5.0);
     }
   }
   //Byo yomi or canadian time handling
   else {
+    if(mainTimeLimit < TimeControls::UNLIMITED_TIME_THRESHOLD)
+      throw StringError("TimeControls: mainTimeLimit is used with byo-yomiish periods, inconsistent time control?");
     if(numStonesPerPeriod <= 0)
       throw StringError("TimeControls: numStonesPerPeriod <= 0 with byo-yomiish periods, inconsistent time control?");
     if(!inOvertime && numPeriodsLeftIncludingCurrent != originalNumPeriods)
@@ -341,6 +383,8 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
         lagBufferToUse *= 2.0;
     }
   }
+
+  maxTime = std::min(maxTime, maxTimePerMove);
 
   //Lag buffer
   minTime = applyLagBuffer(minTime,lagBufferToUse);

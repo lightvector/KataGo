@@ -313,8 +313,34 @@ White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTim
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft -1 inOvertime 0 numPeriodsLeftIncludingCurrent 7 minRecMax 0 9.87313 19 rrec0 9.87313 rreclimit 12 rreclimit2 12
 White originalMainTime 20 originalNumPeriods 7 numStonesPerPeriod 1 perPeriodTime 7 mainTimeLeft -5 inOvertime 0 numPeriodsLeftIncludingCurrent 7 minRecMax 0 15 15 rrec0 15 rreclimit 15 rreclimit2 15
+: Controller: kgs-time_settings byoyomi 20.5 5.8 5
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 20.5 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5.8 mainTimeLeft 20.5 inOvertime 0 numPeriodsLeftIncludingCurrent 5 minRecMax 0 8.00916 14.95 rrec0 8.00916 rreclimit 8.00916 rreclimit2 8.00916
+White originalMainTime 20.5 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5.8 mainTimeLeft 20.5 inOvertime 0 numPeriodsLeftIncludingCurrent 5 minRecMax 0 8.00916 14.95 rrec0 8.00916 rreclimit 8.00916 rreclimit2 8.00916
+: Controller: time_left black 10 7
+: = 
+: Controller: time_left white 0 7
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 20.5 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5.8 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 9 9 9 rrec0 9 rreclimit 9 rreclimit2 9
+White originalMainTime 20.5 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5.8 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 minRecMax 4.8 4.8 4.8 rrec0 4.8 rreclimit 4.8 rreclimit2 4.8
+: Controller: time_left black 10 6
+: = 
+: Controller: time_left white 0 6
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 20.5 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5.8 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 9 9 9 rrec0 9 rreclimit 9 rreclimit2 9
+White originalMainTime 20.5 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5.8 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 5 numStonesLeftInPeriod 1 minRecMax 4.8 4.8 4.8 rrec0 4.8 rreclimit 4.8 rreclimit2 4.8
+: Controller: time_left black 10 3
+: = 
+: Controller: time_left white 0 3
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 20.5 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5.8 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 3 numStonesLeftInPeriod 1 timeLeftInPeriod 10 minRecMax 9 9 9 rrec0 9 rreclimit 9 rreclimit2 9
+White originalMainTime 20.5 originalNumPeriods 5 numStonesPerPeriod 1 perPeriodTime 5.8 mainTimeLeft 0 inOvertime 1 numPeriodsLeftIncludingCurrent 3 numStonesLeftInPeriod 1 minRecMax 4.8 4.8 4.8 rrec0 4.8 rreclimit 4.8 rreclimit2 4.8
 : Controller: kata-list_time_settings
-: = none absolute byoyomi canadian fischer
+: = none absolute byoyomi canadian fischer fischer-capped
 : Controller: kata-time_settings fischer 60 0
 : = 
 : Controller: kata-debug-print-tc
@@ -351,4 +377,88 @@ White originalMainTime 60 increment 5 mainTimeLeft 60 inOvertime 0 minRecMax 0 4
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 60 increment 5 mainTimeLeft 40 inOvertime 0 minRecMax 0 4.23797 10.8 rrec0 4.23797 rreclimit 4.23797 rreclimit2 4.23797
 White originalMainTime 60 increment 5 mainTimeLeft 50 inOvertime 0 minRecMax 0 4.30796 12.8 rrec0 4.30796 rreclimit 4.30796 rreclimit2 4.30796
+: Controller: kata-time_settings fischer 62.5 2.5
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 62.5 increment 2.5 mainTimeLeft 62.5 inOvertime 0 minRecMax 0 1.91295 13.3 rrec0 1.91295 rreclimit 1.91295 rreclimit2 1.91295
+White originalMainTime 62.5 increment 2.5 mainTimeLeft 62.5 inOvertime 0 minRecMax 0 1.91295 13.3 rrec0 1.91295 rreclimit 1.91295 rreclimit2 1.91295
+: Controller: time_left black 7.3 0
+: = 
+: Controller: time_left white 10.1 0
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 62.5 increment 2.5 mainTimeLeft 7.3 inOvertime 0 minRecMax 0 1.5266 2.26 rrec0 1.5266 rreclimit 1.5266 rreclimit2 1.5266
+White originalMainTime 62.5 increment 2.5 mainTimeLeft 10.1 inOvertime 0 minRecMax 0 1.54619 2.82 rrec0 1.54619 rreclimit 1.54619 rreclimit2 1.54619
+: Controller: kata-time_settings fischer-capped 60 10 60 1e15
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 60 increment 10 mainTimeLimit 60 maxTimePerMove 1e+15 mainTimeLeft 60 inOvertime 0 minRecMax 9 9.34296 18.8 rrec0 9.34296 rreclimit 9.34296 rreclimit2 9.34296
+White originalMainTime 60 increment 10 mainTimeLimit 60 maxTimePerMove 1e+15 mainTimeLeft 60 inOvertime 0 minRecMax 9 9.34296 18.8 rrec0 9.34296 rreclimit 9.34296 rreclimit2 9.34296
+: Controller: time_left black 60 0
+: = 
+: Controller: time_left white 30 0
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 60 increment 10 mainTimeLimit 60 maxTimePerMove 1e+15 mainTimeLeft 60 inOvertime 0 minRecMax 9 9.34296 18.8 rrec0 9.34296 rreclimit 9.34296 rreclimit2 9.34296
+White originalMainTime 60 increment 10 mainTimeLimit 60 maxTimePerMove 1e+15 mainTimeLeft 30 inOvertime 0 minRecMax 0 9.13298 12.8 rrec0 9.13298 rreclimit 9.13298 rreclimit2 9.13298
+: Controller: kata-time_settings fischer-capped 60 10 60 -1
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 60 increment 10 mainTimeLimit 60 mainTimeLeft 60 inOvertime 0 minRecMax 9 9.34296 18.8 rrec0 9.34296 rreclimit 9.34296 rreclimit2 9.34296
+White originalMainTime 60 increment 10 mainTimeLimit 60 mainTimeLeft 60 inOvertime 0 minRecMax 9 9.34296 18.8 rrec0 9.34296 rreclimit 9.34296 rreclimit2 9.34296
+: Controller: time_left black 60 0
+: = 
+: Controller: time_left white 30 0
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 60 increment 10 mainTimeLimit 60 mainTimeLeft 60 inOvertime 0 minRecMax 9 9.34296 18.8 rrec0 9.34296 rreclimit 9.34296 rreclimit2 9.34296
+White originalMainTime 60 increment 10 mainTimeLimit 60 mainTimeLeft 30 inOvertime 0 minRecMax 0 9.13298 12.8 rrec0 9.13298 rreclimit 9.13298 rreclimit2 9.13298
+: Controller: kata-time_settings fischer-capped 60 10 -1 12
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 60 increment 10 maxTimePerMove 12 mainTimeLeft 60 inOvertime 0 minRecMax 0 9.34296 11 rrec0 9.34296 rreclimit 9.34296 rreclimit2 9.34296
+White originalMainTime 60 increment 10 maxTimePerMove 12 mainTimeLeft 60 inOvertime 0 minRecMax 0 9.34296 11 rrec0 9.34296 rreclimit 9.34296 rreclimit2 9.34296
+: Controller: time_left black 60 0
+: = 
+: Controller: time_left white 30 0
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 60 increment 10 maxTimePerMove 12 mainTimeLeft 60 inOvertime 0 minRecMax 0 9.34296 11 rrec0 9.34296 rreclimit 9.34296 rreclimit2 9.34296
+White originalMainTime 60 increment 10 maxTimePerMove 12 mainTimeLeft 30 inOvertime 0 minRecMax 0 9.13298 11 rrec0 9.13298 rreclimit 9.13298 rreclimit2 9.13298
+: Controller: kata-time_settings fischer-capped 60 10 1.2e15 12
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 60 increment 10 mainTimeLimit 1.2e+15 maxTimePerMove 12 mainTimeLeft 60 inOvertime 0 minRecMax 0 9.34296 11 rrec0 9.34296 rreclimit 9.34296 rreclimit2 9.34296
+White originalMainTime 60 increment 10 mainTimeLimit 1.2e+15 maxTimePerMove 12 mainTimeLeft 60 inOvertime 0 minRecMax 0 9.34296 11 rrec0 9.34296 rreclimit 9.34296 rreclimit2 9.34296
+: Controller: time_left black 60 0
+: = 
+: Controller: time_left white 30 0
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 60 increment 10 mainTimeLimit 1.2e+15 maxTimePerMove 12 mainTimeLeft 60 inOvertime 0 minRecMax 0 9.34296 11 rrec0 9.34296 rreclimit 9.34296 rreclimit2 9.34296
+White originalMainTime 60 increment 10 mainTimeLimit 1.2e+15 maxTimePerMove 12 mainTimeLeft 30 inOvertime 0 minRecMax 0 9.13298 11 rrec0 9.13298 rreclimit 9.13298 rreclimit2 9.13298
+: Controller: kata-time_settings fischer-capped 60 10 -1 -1
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 60 increment 10 mainTimeLeft 60 inOvertime 0 minRecMax 0 9.34296 18.8 rrec0 9.34296 rreclimit 9.34296 rreclimit2 9.34296
+White originalMainTime 60 increment 10 mainTimeLeft 60 inOvertime 0 minRecMax 0 9.34296 18.8 rrec0 9.34296 rreclimit 9.34296 rreclimit2 9.34296
+: Controller: time_left black 60 0
+: = 
+: Controller: time_left white 30 0
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 60 increment 10 mainTimeLeft 60 inOvertime 0 minRecMax 0 9.34296 18.8 rrec0 9.34296 rreclimit 9.34296 rreclimit2 9.34296
+White originalMainTime 60 increment 10 mainTimeLeft 30 inOvertime 0 minRecMax 0 9.13298 12.8 rrec0 9.13298 rreclimit 9.13298 rreclimit2 9.13298
+: Controller: kata-time_settings fischer-capped 60 10 60 7
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 60 increment 10 mainTimeLimit 60 maxTimePerMove 7 mainTimeLeft 60 inOvertime 0 minRecMax 6 6 6 rrec0 6 rreclimit 6 rreclimit2 6
+White originalMainTime 60 increment 10 mainTimeLimit 60 maxTimePerMove 7 mainTimeLeft 60 inOvertime 0 minRecMax 6 6 6 rrec0 6 rreclimit 6 rreclimit2 6
+: Controller: time_left black 60 0
+: = 
+: Controller: time_left white 30 0
+: = 
+: Controller: kata-debug-print-tc
+: = Black originalMainTime 60 increment 10 mainTimeLimit 60 maxTimePerMove 7 mainTimeLeft 60 inOvertime 0 minRecMax 6 6 6 rrec0 6 rreclimit 6 rreclimit2 6
+White originalMainTime 60 increment 10 mainTimeLimit 60 maxTimePerMove 7 mainTimeLeft 30 inOvertime 0 minRecMax 0 6 6 rrec0 6 rreclimit 6 rreclimit2 6
 : All cleaned up, quitting

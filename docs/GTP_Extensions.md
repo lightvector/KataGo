@@ -59,6 +59,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * Has the same behavior as `kata-set-rules` except that `chinese` maps to `chinese-kgs` above.
    * `kgs-time_settings KIND ...`
       * This is an extension for playing on KGS, via kgsGtp.
+      * It is not clear if other implementations will support floating-point values for times, however, KataGo does support them. Values must still be non-negative and finite, and values up to at least 2^31-1 are supported.
       * As specified by kgsGtp docs, `KIND` should be one of `none | absolute | canadian | byoyomi`.
          * `none` indicates no time control
          * `absolute` should be followed by a single float `MAINTIME` specifying the time in seconds.
@@ -66,8 +67,15 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `byoyomi` should be followed by `MAINTIME BYOYOMITIME BYOYOMIPERIODS` (float,float,int) specifying the main time, the length of each byo-yomi period, and the number of byo-yomi periods.
       * NOTE: As a hack, KGS also expects that when using `byoyomi`, the controller should provide the number of periods left in place of the number of stones left for the GTP `time_left` command.
    * `kata-time_settings KIND ...`
-      * Supports all of the same settings as `kgs-time_settings` except includes an additional time setting `fischer`.
+      * This is an extension for exposing KataGo's handling of more time controls besides those on KGS.
+      * KataGo and any bots that also choose to implement this same extension must support floating-point values for times, as well as for the normal `time_left` command. Values must still be non-negative and finite, and values up to at least 2^31-1 must be supported.
+      * Supports all of the same settings as `kgs-time_settings` except includes additional time settings:
         * `fischer` should be followed by two floats `MAINTIME INCREMENT` specifying the original main time in seconds and the number of seconds that is added to a player's clock at the end of making each move. And just as with `absolute`, when using this time setting the controller must always report `0` for the number of stones in the `time_left` command.
+        * `fischer-capped` should be followed by four floats `MAINTIME INCREMENT MAINTIMELIMIT MAXTIMEPERMOVE`. Same as `fischer` except:
+          * `MAINTIMELIMIT` is a cap such that after adding the increment, if the main time is now larger than the limit, it is reduced to the limit. If this limit is used it must be `>= MAINTIME`.
+          * `MAXTIMEPERMOVE` is a limit on the maximum time that may be spent on any individual move.
+          * Setting either of these two floats to a negative value such as `-1` indicates that the value is unused and there is no such limit.
+      * Additionally, unlike `time_settings` or `kgs-time_settings` which demand integer values, for `kata-time_settings`, floating point values are explicitly allowed for all times, periods, or increments. Values must be finite and non-negative. An implementation should continue to support values at least up to 2^31-1.
       * More time settings might be added in the future.
    * `kata-list_time_settings`
       * Reports all time settings supported by `kata-time_settings`, separated by whitespace. Currently the list is `none absolute byo-yomi canadian fischer`.

@@ -98,34 +98,31 @@ static bool tryParseLoc(const string& s, const Board& b, Loc& loc) {
 }
 
 static bool timeIsValid(const double& time) {
-  if(isnan(time) || time < 0.0 || time > 1e50)
+  if(isnan(time) || time < 0.0 || time > TimeControls::MAX_USER_INPUT_TIME)
+    return false;
+  return true;
+}
+static bool timeIsValidAllowNegative(const double& time) {
+  if(isnan(time) || time < -TimeControls::MAX_USER_INPUT_TIME || time > TimeControls::MAX_USER_INPUT_TIME)
     return false;
   return true;
 }
 
-static double parseMainTime(const vector<string>& args, int argIdx) {
-  double mainTime = 0.0;
-  if(args.size() <= argIdx || !Global::tryStringToDouble(args[argIdx],mainTime))
-    throw StringError("Expected float for main time as argument " + Global::intToString(argIdx));
-  if(!timeIsValid(mainTime))
-    throw StringError("Main time is an invalid value: " + args[argIdx]);
-  return mainTime;
+static double parseTime(const vector<string>& args, int argIdx, const string& description) {
+  double time = 0.0;
+  if(args.size() <= argIdx || !Global::tryStringToDouble(args[argIdx],time))
+    throw StringError("Expected float for " + description + " as argument " + Global::intToString(argIdx));
+  if(!timeIsValid(time))
+    throw StringError(description + " is an invalid value: " + args[argIdx]);
+  return time;
 }
-static double parseIncrementTime(const vector<string>& args, int argIdx) {
-  double incrementTime = 0.0;
-  if(args.size() <= argIdx || !Global::tryStringToDouble(args[argIdx],incrementTime))
-    throw StringError("Expected float for increment time as argument " + Global::intToString(argIdx));
-  if(!timeIsValid(incrementTime))
-    throw StringError("increment time is an invalid value: " + args[argIdx]);
-  return incrementTime;
-}
-static double parsePerPeriodTime(const vector<string>& args, int argIdx) {
-  double perPeriodTime = 0.0;
-  if(args.size() <= argIdx || !Global::tryStringToDouble(args[argIdx],perPeriodTime))
-    throw StringError("Expected float for byo-yomi per-period time as argument " + Global::intToString(argIdx));
-  if(!timeIsValid(perPeriodTime))
-    throw StringError("byo-yomi per-period time is an invalid value: " + args[argIdx]);
-  return perPeriodTime;
+static double parseTimeAllowNegative(const vector<string>& args, int argIdx, const string& description) {
+  double time = 0.0;
+  if(args.size() <= argIdx || !Global::tryStringToDouble(args[argIdx],time))
+    throw StringError("Expected float for " + description + " as argument " + Global::intToString(argIdx));
+  if(!timeIsValidAllowNegative(time))
+    throw StringError(description + " is an invalid value: " + args[argIdx]);
+  return time;
 }
 static int parseByoYomiStones(const vector<string>& args, int argIdx) {
   int byoYomiStones = 0;
@@ -621,7 +618,7 @@ struct GTPEngine {
     int maxMoves = 10000000;
     bool showOwnership = false;
     bool showPVVisits = false;
-    double secondsPerReport = 1e30;
+    double secondsPerReport = TimeControls::UNLIMITED_TIME_DEFAULT;
     vector<int> avoidMoveUntilByLocBlack;
     vector<int> avoidMoveUntilByLocWhite;
   };
@@ -1237,7 +1234,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
 
   bool isLZ = (command == "lz-analyze" || command == "lz-genmove_analyze");
   bool isKata = (command == "kata-analyze" || command == "kata-genmove_analyze");
-  double lzAnalyzeInterval = 1e30;
+  double lzAnalyzeInterval = TimeControls::UNLIMITED_TIME_DEFAULT;
   int minMoves = 0;
   int maxMoves = 10000000;
   bool showOwnership = false;
@@ -1269,7 +1266,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   //Parse optional interval float
   if(pieces.size() > numArgsParsed &&
      Global::tryStringToDouble(pieces[numArgsParsed],lzAnalyzeInterval) &&
-     !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < 1e20)
+     !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < TimeControls::MAX_USER_INPUT_TIME)
     numArgsParsed += 1;
 
   //Now loop and handle all key value pairs
@@ -1286,7 +1283,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
     numArgsParsed += 1;
 
     if(key == "interval" && Global::tryStringToDouble(value,lzAnalyzeInterval) &&
-       !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < 1e20) {
+       !isnan(lzAnalyzeInterval) && lzAnalyzeInterval >= 0 && lzAnalyzeInterval < TimeControls::MAX_USER_INPUT_TIME) {
       continue;
     }
     else if(key == "avoid" || key == "allow") {
@@ -1926,8 +1923,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       int byoYomiStones;
       bool success = false;
       try {
-        mainTime = parseMainTime(pieces,0);
-        byoYomiTime = parsePerPeriodTime(pieces,1);
+        mainTime = parseTime(pieces,0,"main time");
+        byoYomiTime = parseTime(pieces,1,"byo-yomi per-period time");
         byoYomiStones = parseByoYomiStones(pieces,2);
         success = true;
       }
@@ -1959,29 +1956,32 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       response += "canadian";
       response += " ";
       response += "fischer";
+      response += " ";
+      response += "fischer-capped";
     }
 
     else if(command == "kgs-time_settings" || command == "kata-time_settings") {
       if(pieces.size() < 1) {
         responseIsError = true;
         if(command == "kata-time_settings")
-          response = "Expected 'none', 'absolute', 'byoyomi', 'canadian', or 'fischer' as first argument for kata-time_settings";
+          response = "Expected 'none', 'absolute', 'byoyomi', 'canadian', 'fischer', or 'fischer-capped' as first argument for kata-time_settings";
         else
           response = "Expected 'none', 'absolute', 'byoyomi', or 'canadian' as first argument for kgs-time_settings";
       }
       else {
         string what = Global::toLower(Global::trim(pieces[0]));
-        TimeControls tc;
         if(what == "none") {
-          tc = TimeControls();
+          TimeControls tc = TimeControls();
           engine->bTimeControls = tc;
           engine->wTimeControls = tc;
         }
         else if(what == "absolute") {
           double mainTime;
+          TimeControls tc;
           bool success = false;
           try {
-            mainTime = parseMainTime(pieces,1);
+            mainTime = parseTime(pieces,1,"main time");
+            tc = TimeControls::absoluteTime(mainTime);
             success = true;
           }
           catch(const StringError& e) {
@@ -1989,7 +1989,6 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             response = e.what();
           }
           if(success) {
-            tc = TimeControls::absoluteTime(mainTime);
             engine->bTimeControls = tc;
             engine->wTimeControls = tc;
           }
@@ -1998,18 +1997,12 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           double mainTime;
           double byoYomiTime;
           int byoYomiStones;
+          TimeControls tc;
           bool success = false;
           try {
-            mainTime = parseMainTime(pieces,1);
-            byoYomiTime = parsePerPeriodTime(pieces,2);
+            mainTime = parseTime(pieces,1,"main time");
+            byoYomiTime = parseTime(pieces,2,"byo-yomi period time");
             byoYomiStones = parseByoYomiStones(pieces,3);
-            success = true;
-          }
-          catch(const StringError& e) {
-            responseIsError = true;
-            response = e.what();
-          }
-          if(success) {
             //Use the same hack in time-settings - if somehow someone specifies positive overtime but 0 stones for it, intepret as no time control
             if(byoYomiStones == 0 && byoYomiTime > 0.0)
               tc = TimeControls();
@@ -2017,6 +2010,13 @@ int MainCmds::gtp(int argc, const char* const* argv) {
               tc = TimeControls::absoluteTime(mainTime);
             else
               tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,1,byoYomiStones);
+            success = true;
+          }
+          catch(const StringError& e) {
+            responseIsError = true;
+            response = e.what();
+          }
+          if(success) {
             engine->bTimeControls = tc;
             engine->wTimeControls = tc;
           }
@@ -2025,11 +2025,16 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           double mainTime;
           double byoYomiTime;
           int byoYomiPeriods;
+          TimeControls tc;
           bool success = false;
           try {
-            mainTime = parseMainTime(pieces,1);
-            byoYomiTime = parsePerPeriodTime(pieces,2);
+            mainTime = parseTime(pieces,1,"main time");
+            byoYomiTime = parseTime(pieces,2,"byo-yomi per-period time");
             byoYomiPeriods = parseByoYomiPeriods(pieces,3);
+            if(byoYomiPeriods == 0)
+              tc = TimeControls::absoluteTime(mainTime);
+            else
+              tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,byoYomiPeriods,1);
             success = true;
           }
           catch(const StringError& e) {
@@ -2037,10 +2042,6 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             response = e.what();
           }
           if(success) {
-            if(byoYomiPeriods == 0)
-              tc = TimeControls::absoluteTime(mainTime);
-            else
-              tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,byoYomiPeriods,1);
             engine->bTimeControls = tc;
             engine->wTimeControls = tc;
           }
@@ -2048,10 +2049,12 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         else if(what == "fischer" && command == "kata-time_settings") {
           double mainTime;
           double increment;
+          TimeControls tc;
           bool success = false;
           try {
-            mainTime = parseMainTime(pieces,1);
-            increment = parseIncrementTime(pieces,2);
+            mainTime = parseTime(pieces,1,"main time");
+            increment = parseTime(pieces,2,"increment time");
+            tc = TimeControls::fischerTime(mainTime,increment);
             success = true;
           }
           catch(const StringError& e) {
@@ -2059,10 +2062,34 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             response = e.what();
           }
           if(success) {
-            if(increment == 0)
-              tc = TimeControls::absoluteTime(mainTime);
-            else
-              tc = TimeControls::fischerTime(mainTime,increment);
+            engine->bTimeControls = tc;
+            engine->wTimeControls = tc;
+          }
+        }
+        else if(what == "fischer-capped" && command == "kata-time_settings") {
+          double mainTime;
+          double increment;
+          double mainTimeLimit;
+          double maxTimePerMove;
+          TimeControls tc;
+          bool success = false;
+          try {
+            mainTime = parseTime(pieces,1,"main time");
+            increment = parseTime(pieces,2,"increment time");
+            mainTimeLimit = parseTimeAllowNegative(pieces,3,"main time limit");
+            maxTimePerMove = parseTimeAllowNegative(pieces,4,"max time per move");
+            if(mainTimeLimit < 0)
+              mainTimeLimit = TimeControls::MAX_USER_INPUT_TIME;
+            if(maxTimePerMove < 0)
+              maxTimePerMove = TimeControls::MAX_USER_INPUT_TIME;
+            tc = TimeControls::fischerCappedTime(mainTime,increment,mainTimeLimit,maxTimePerMove);
+            success = true;
+          }
+          catch(const StringError& e) {
+            responseIsError = true;
+            response = e.what();
+          }
+          if(success) {
             engine->bTimeControls = tc;
             engine->wTimeControls = tc;
           }
@@ -2070,7 +2097,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         else {
           responseIsError = true;
           if(command == "kata-time_settings")
-            response = "Expected 'none', 'absolute', 'byoyomi', 'canadian', or 'fischer' as first argument for kata-time_settings";
+            response = "Expected 'none', 'absolute', 'byoyomi', 'canadian', 'fischer', or 'fischer-capped' as first argument for kata-time_settings";
           else
             response = "Expected 'none', 'absolute', 'byoyomi', or 'canadian' as first argument for kgs-time_settings";
         }
@@ -2090,7 +2117,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "Expected player and float time and int stones for time_left but got '" + Global::concat(pieces," ") + "'";
       }
       //Be slightly tolerant of negative time left
-      else if(isnan(time) || time < -10.0 || time > 1e50) {
+      else if(isnan(time) || time < -10.0 || time > TimeControls::MAX_USER_INPUT_TIME) {
         responseIsError = true;
         response = "invalid time";
       }

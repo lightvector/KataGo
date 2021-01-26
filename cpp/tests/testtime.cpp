@@ -201,6 +201,94 @@ oox.ox...
 
   {
     cout << "===================================================================" << endl;
+    cout << "Basic 10m fischer time controls, 10m left, 10s increment, main time limit 10m" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 600.0;
+    timeControls.increment = 10.0;
+    timeControls.mainTimeLimit = 600.0;
+    timeControls.originalNumPeriods = 0;
+    timeControls.numStonesPerPeriod = 0;
+    timeControls.perPeriodTime = 0.0;
+    timeControls.mainTimeLeft = 600.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 0;
+    timeControls.numStonesLeftInPeriod = 0;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 10m fischer time controls, 10m left, 10s increment, main time limit 10m+5s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 600.0;
+    timeControls.increment = 10.0;
+    timeControls.mainTimeLimit = 605.0;
+    timeControls.originalNumPeriods = 0;
+    timeControls.numStonesPerPeriod = 0;
+    timeControls.perPeriodTime = 0.0;
+    timeControls.mainTimeLeft = 600.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 0;
+    timeControls.numStonesLeftInPeriod = 0;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h fischer time controls, 10m left, 10s increment, max time per move 20s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 10.0;
+    timeControls.maxTimePerMove = 20.0;
+    timeControls.originalNumPeriods = 0;
+    timeControls.numStonesPerPeriod = 0;
+    timeControls.perPeriodTime = 0.0;
+    timeControls.mainTimeLeft = 600.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 0;
+    timeControls.numStonesLeftInPeriod = 0;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h fischer time controls, 10m left, 10s increment, max time per move 30s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 10.0;
+    timeControls.maxTimePerMove = 30.0;
+    timeControls.originalNumPeriods = 0;
+    timeControls.numStonesPerPeriod = 0;
+    timeControls.perPeriodTime = 0.0;
+    timeControls.mainTimeLeft = 600.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 0;
+    timeControls.numStonesLeftInPeriod = 0;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
     cout << "Basic 1h fischer time controls, 15s left, 10s increment" << endl;
     cout << "===================================================================" << endl;
 
@@ -219,6 +307,51 @@ oox.ox...
     double lagBuffer = 1.0;
     tryTimeControlsOnBoards(timeControls,lagBuffer);
   }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h fischer time controls, 15s left, 10s increment, max time per move 11s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 10.0;
+    timeControls.maxTimePerMove = 11.0;
+    timeControls.originalNumPeriods = 0;
+    timeControls.numStonesPerPeriod = 0;
+    timeControls.perPeriodTime = 0.0;
+    timeControls.mainTimeLeft = 15.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 0;
+    timeControls.numStonesLeftInPeriod = 0;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h fischer time controls, 15s left, 10s increment, max time per move 7s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 10.0;
+    timeControls.maxTimePerMove = 7.0;
+    timeControls.originalNumPeriods = 0;
+    timeControls.numStonesPerPeriod = 0;
+    timeControls.perPeriodTime = 0.0;
+    timeControls.mainTimeLeft = 15.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 0;
+    timeControls.numStonesLeftInPeriod = 0;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
 
   {
     cout << "===================================================================" << endl;
@@ -243,12 +376,56 @@ oox.ox...
 
   {
     cout << "===================================================================" << endl;
+    cout << "Basic 5s fischer time controls, 5s left, 10s increment, 6s main time limit" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 5.0;
+    timeControls.increment = 10.0;
+    timeControls.mainTimeLimit = 6.0;
+    timeControls.originalNumPeriods = 0;
+    timeControls.numStonesPerPeriod = 0;
+    timeControls.perPeriodTime = 0.0;
+    timeControls.mainTimeLeft = 5.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 0;
+    timeControls.numStonesLeftInPeriod = 0;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
     cout << "Basic 1h fischer time controls, -1s left, 10s increment" << endl;
     cout << "===================================================================" << endl;
 
     TimeControls timeControls;
     timeControls.originalMainTime = 3600.0;
     timeControls.increment = 10.0;
+    timeControls.originalNumPeriods = 0;
+    timeControls.numStonesPerPeriod = 0;
+    timeControls.perPeriodTime = 0.0;
+    timeControls.mainTimeLeft = -1.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 0;
+    timeControls.numStonesLeftInPeriod = 0;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 10s fischer time controls, -1s left, 10s increment, 10s main time limit" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 10.0;
+    timeControls.increment = 10.0;
+    timeControls.mainTimeLimit = 10.0;
     timeControls.originalNumPeriods = 0;
     timeControls.numStonesPerPeriod = 0;
     timeControls.perPeriodTime = 0.0;
@@ -585,6 +762,28 @@ oox.ox...
     TimeControls timeControls;
     timeControls.originalMainTime = 3600.0;
     timeControls.increment = 0.0;
+    timeControls.originalNumPeriods = 2;
+    timeControls.numStonesPerPeriod = 1;
+    timeControls.perPeriodTime = 30.0;
+    timeControls.mainTimeLeft = 45.0;
+    timeControls.inOvertime = false;
+    timeControls.numPeriodsLeftIncludingCurrent = 2;
+    timeControls.numStonesLeftInPeriod = 1;
+    timeControls.timeLeftInPeriod = 0.0;
+
+    double lagBuffer = 1.0;
+    tryTimeControlsOnBoards(timeControls,lagBuffer);
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Basic 1h byo yomi time controls, 45s left, 2 periods of 30s, max time per move 57s" << endl;
+    cout << "===================================================================" << endl;
+
+    TimeControls timeControls;
+    timeControls.originalMainTime = 3600.0;
+    timeControls.increment = 0.0;
+    timeControls.maxTimePerMove = 57.0;
     timeControls.originalNumPeriods = 2;
     timeControls.numStonesPerPeriod = 1;
     timeControls.perPeriodTime = 30.0;

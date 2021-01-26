@@ -14820,12 +14820,54 @@ board9Late min rec max = 0 41.8504 122 roundedrec(used0) 41.8504 roundedrec(used
 board19Early min rec max = 0 9.09449 122 roundedrec(used0) 9.09449 roundedrec(usedlimit) 9.09449 roundedrec(usedlimit2) 9.09449
 board19Late min rec max = 0 15.9602 122 roundedrec(used0) 15.9602 roundedrec(usedlimit) 15.9602 roundedrec(usedlimit2) 15.9602
 ===================================================================
+Basic 10m fischer time controls, 10m left, 10s increment, main time limit 10m
+===================================================================
+board9Early min rec max = 9 24.5512 126.8 roundedrec(used0) 24.5512 roundedrec(usedlimit) 24.5512 roundedrec(usedlimit2) 24.5512
+board9Late min rec max = 9 46.1024 126.8 roundedrec(used0) 46.1024 roundedrec(usedlimit) 46.1024 roundedrec(usedlimit2) 46.1024
+board19Early min rec max = 9 13.1225 126.8 roundedrec(used0) 13.1225 roundedrec(usedlimit) 13.1225 roundedrec(usedlimit2) 13.1225
+board19Late min rec max = 9 20.0351 126.8 roundedrec(used0) 20.0351 roundedrec(usedlimit) 20.0351 roundedrec(usedlimit2) 20.0351
+===================================================================
+Basic 10m fischer time controls, 10m left, 10s increment, main time limit 10m+5s
+===================================================================
+board9Early min rec max = 4 24.5512 126.8 roundedrec(used0) 24.5512 roundedrec(usedlimit) 24.5512 roundedrec(usedlimit2) 24.5512
+board9Late min rec max = 4 46.1024 126.8 roundedrec(used0) 46.1024 roundedrec(usedlimit) 46.1024 roundedrec(usedlimit2) 46.1024
+board19Early min rec max = 4 13.1225 126.8 roundedrec(used0) 13.1225 roundedrec(usedlimit) 13.1225 roundedrec(usedlimit2) 13.1225
+board19Late min rec max = 4 20.0351 126.8 roundedrec(used0) 20.0351 roundedrec(usedlimit) 20.0351 roundedrec(usedlimit2) 20.0351
+===================================================================
+Basic 1h fischer time controls, 10m left, 10s increment, max time per move 20s
+===================================================================
+board9Early min rec max = 0 19 19 roundedrec(used0) 19 roundedrec(usedlimit) 19 roundedrec(usedlimit2) 19
+board9Late min rec max = 0 19 19 roundedrec(used0) 19 roundedrec(usedlimit) 19 roundedrec(usedlimit2) 19
+board19Early min rec max = 0 13.1225 19 roundedrec(used0) 13.1225 roundedrec(usedlimit) 13.1225 roundedrec(usedlimit2) 13.1225
+board19Late min rec max = 0 19 19 roundedrec(used0) 19 roundedrec(usedlimit) 19 roundedrec(usedlimit2) 19
+===================================================================
+Basic 1h fischer time controls, 10m left, 10s increment, max time per move 30s
+===================================================================
+board9Early min rec max = 0 24.5512 29 roundedrec(used0) 24.5512 roundedrec(usedlimit) 24.5512 roundedrec(usedlimit2) 24.5512
+board9Late min rec max = 0 29 29 roundedrec(used0) 29 roundedrec(usedlimit) 29 roundedrec(usedlimit2) 29
+board19Early min rec max = 0 13.1225 29 roundedrec(used0) 13.1225 roundedrec(usedlimit) 13.1225 roundedrec(usedlimit2) 13.1225
+board19Late min rec max = 0 20.0351 29 roundedrec(used0) 20.0351 roundedrec(usedlimit) 20.0351 roundedrec(usedlimit2) 20.0351
+===================================================================
 Basic 1h fischer time controls, 15s left, 10s increment
 ===================================================================
 board9Early min rec max = 0 9.10561 9.8 roundedrec(used0) 9.10561 roundedrec(usedlimit) 9.10561 roundedrec(usedlimit2) 9.10561
 board9Late min rec max = 0 9.25197 9.8 roundedrec(used0) 9.25197 roundedrec(usedlimit) 9.25197 roundedrec(usedlimit2) 9.25197
 board19Early min rec max = 0 9.028 9.8 roundedrec(used0) 9.028 roundedrec(usedlimit) 9.028 roundedrec(usedlimit2) 9.028
 board19Late min rec max = 0 9.07494 9.8 roundedrec(used0) 9.07494 roundedrec(usedlimit) 9.07494 roundedrec(usedlimit2) 9.07494
+===================================================================
+Basic 1h fischer time controls, 15s left, 10s increment, max time per move 11s
+===================================================================
+board9Early min rec max = 0 9.10561 9.8 roundedrec(used0) 9.10561 roundedrec(usedlimit) 9.10561 roundedrec(usedlimit2) 9.10561
+board9Late min rec max = 0 9.25197 9.8 roundedrec(used0) 9.25197 roundedrec(usedlimit) 9.25197 roundedrec(usedlimit2) 9.25197
+board19Early min rec max = 0 9.028 9.8 roundedrec(used0) 9.028 roundedrec(usedlimit) 9.028 roundedrec(usedlimit2) 9.028
+board19Late min rec max = 0 9.07494 9.8 roundedrec(used0) 9.07494 roundedrec(usedlimit) 9.07494 roundedrec(usedlimit2) 9.07494
+===================================================================
+Basic 1h fischer time controls, 15s left, 10s increment, max time per move 7s
+===================================================================
+board9Early min rec max = 0 6 6 roundedrec(used0) 6 roundedrec(usedlimit) 6 roundedrec(usedlimit2) 6
+board9Late min rec max = 0 6 6 roundedrec(used0) 6 roundedrec(usedlimit) 6 roundedrec(usedlimit2) 6
+board19Early min rec max = 0 6 6 roundedrec(used0) 6 roundedrec(usedlimit) 6 roundedrec(usedlimit2) 6
+board19Late min rec max = 0 6 6 roundedrec(used0) 6 roundedrec(usedlimit) 6 roundedrec(usedlimit2) 6
 ===================================================================
 Basic 1h fischer time controls, 5s left, 10s increment
 ===================================================================
@@ -14834,7 +14876,21 @@ board9Late min rec max = 0 3 4 roundedrec(used0) 3 roundedrec(usedlimit) 3 round
 board19Early min rec max = 0 3 4 roundedrec(used0) 3 roundedrec(usedlimit) 3 roundedrec(usedlimit2) 3
 board19Late min rec max = 0 3 4 roundedrec(used0) 3 roundedrec(usedlimit) 3 roundedrec(usedlimit2) 3
 ===================================================================
+Basic 5s fischer time controls, 5s left, 10s increment, 6s main time limit
+===================================================================
+board9Early min rec max = 1.5 3 4 roundedrec(used0) 3 roundedrec(usedlimit) 3 roundedrec(usedlimit2) 3
+board9Late min rec max = 1.5 3 4 roundedrec(used0) 3 roundedrec(usedlimit) 3 roundedrec(usedlimit2) 3
+board19Early min rec max = 1.5 3 4 roundedrec(used0) 3 roundedrec(usedlimit) 3 roundedrec(usedlimit2) 3
+board19Late min rec max = 1.5 3 4 roundedrec(used0) 3 roundedrec(usedlimit) 3 roundedrec(usedlimit2) 3
+===================================================================
 Basic 1h fischer time controls, -1s left, 10s increment
+===================================================================
+board9Early min rec max = 0 0 0 roundedrec(used0) 0 roundedrec(usedlimit) 0 roundedrec(usedlimit2) 0
+board9Late min rec max = 0 0 0 roundedrec(used0) 0 roundedrec(usedlimit) 0 roundedrec(usedlimit2) 0
+board19Early min rec max = 0 0 0 roundedrec(used0) 0 roundedrec(usedlimit) 0 roundedrec(usedlimit2) 0
+board19Late min rec max = 0 0 0 roundedrec(used0) 0 roundedrec(usedlimit) 0 roundedrec(usedlimit2) 0
+===================================================================
+Basic 10s fischer time controls, -1s left, 10s increment, 10s main time limit
 ===================================================================
 board9Early min rec max = 0 0 0 roundedrec(used0) 0 roundedrec(usedlimit) 0 roundedrec(usedlimit2) 0
 board9Late min rec max = 0 0 0 roundedrec(used0) 0 roundedrec(usedlimit) 0 roundedrec(usedlimit2) 0
@@ -14952,6 +15008,13 @@ board9Early min rec max = 0 44 74 roundedrec(used0) 44 roundedrec(usedlimit) 74 
 board9Late min rec max = 0 44 74 roundedrec(used0) 44 roundedrec(usedlimit) 74 roundedrec(usedlimit2) 74
 board19Early min rec max = 0 44 74 roundedrec(used0) 44 roundedrec(usedlimit) 74 roundedrec(usedlimit2) 74
 board19Late min rec max = 0 44 74 roundedrec(used0) 44 roundedrec(usedlimit) 74 roundedrec(usedlimit2) 74
+===================================================================
+Basic 1h byo yomi time controls, 45s left, 2 periods of 30s, max time per move 57s
+===================================================================
+board9Early min rec max = 0 44 56 roundedrec(used0) 44 roundedrec(usedlimit) 74 roundedrec(usedlimit2) 74
+board9Late min rec max = 0 44 56 roundedrec(used0) 44 roundedrec(usedlimit) 74 roundedrec(usedlimit2) 74
+board19Early min rec max = 0 44 56 roundedrec(used0) 44 roundedrec(usedlimit) 74 roundedrec(usedlimit2) 74
+board19Late min rec max = 0 44 56 roundedrec(used0) 44 roundedrec(usedlimit) 74 roundedrec(usedlimit2) 74
 ===================================================================
 Basic 1h byo yomi time controls, 45s left, 3 moves canadian in 30s
 ===================================================================
