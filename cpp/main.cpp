@@ -153,11 +153,11 @@ int main(int argc, const char* argv[]) {
     result = handleSubcommand(cmdArg, argc, argv);
   }
   catch(std::exception& e) {
-    cout << "Uncaught exception: " << e.what() << endl;
+    cerr << "Uncaught exception: " << e.what() << endl;
     return 1;
   }
   catch(...) {
-    cout << "Uncaught exception that is not a std::exception... exiting due to unknown error" << endl;
+    cerr << "Uncaught exception that is not a std::exception... exiting due to unknown error" << endl;
     return 1;
   }
   return result;
