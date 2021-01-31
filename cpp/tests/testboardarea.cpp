@@ -1588,7 +1588,7 @@ o.oxo.o...x.x
     bool unsafeBigTerritories = true;
     board.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,multiStoneSuicideLegal);
 
-    float scoring[NNPos::MAX_BOARD_AREA];
+    float scoring[Board::MAX_ARR_SIZE];
 
     out << endl;
     out << "No group tax" << endl;
@@ -1674,7 +1674,7 @@ ox.oxo.o.x.o.
     bool unsafeBigTerritories = false;
     board.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,multiStoneSuicideLegal);
 
-    float scoring[NNPos::MAX_BOARD_AREA];
+    float scoring[Board::MAX_ARR_SIZE];
 
     out << endl;
     out << "No group tax" << endl;
@@ -1760,7 +1760,7 @@ ox.oxo.o.x.o.
     bool unsafeBigTerritories = true;
     board.calculateArea(result,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,multiStoneSuicideLegal);
 
-    float scoring[NNPos::MAX_BOARD_AREA];
+    float scoring[Board::MAX_ARR_SIZE];
 
     out << endl;
     out << "No group tax" << endl;
