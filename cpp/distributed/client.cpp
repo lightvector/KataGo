@@ -1128,10 +1128,14 @@ bool Connection::uploadRatingGame(
 
     if(response == nullptr)
       throw StringError("No response from server");
+
     if(response->status == 400 && response->body.find("already exist") != string::npos) {
       logger->write("Server returned 400 with 'already exist', data is uploaded already or has a key conflict, so skipping, response was: " + response->body);
     }
-    if(response->status != 200 && response->status != 201 && response->status != 202) {
+    else if(response->status == 400 && response->body.find("no longer enabled for") != string::npos) {
+      logger->write("Server returned 400 with 'no longer enabled for', probably we've moved on from this network, so skipping: " + response->body);
+    }
+    else if(response->status != 200 && response->status != 201 && response->status != 202) {
       ostringstream outs;
       debugPrintResponse(outs,response);
       throw StringError("When uploading " + sgfFilePath + " server gave response that was not status code 200 OK or 201 Created or 202 Accepted\n" + outs.str());
