@@ -529,6 +529,11 @@ struct GTPEngine {
     bot->setParams(params);
     bot->clearSearch();
   }
+  void setNumSearchThreads(int numThreads) {
+    params.numThreads = numThreads;
+    bot->setParams(params);
+    bot->clearSearch();
+  }
 
   void updateDynamicPDA() {
     updateDynamicPDAHelper(
@@ -1885,6 +1890,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "Expected two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
       }
       else {
+        int i;
         double d;
         if(pieces[0] == "playoutDoublingAdvantage") {
           if(Global::tryStringToDouble(pieces[1],d) && d >= -3.0 && d <= 3.0)
@@ -1905,6 +1911,14 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         else if(pieces[0] == "analysisWideRootNoise") {
           if(Global::tryStringToDouble(pieces[1],d) && d >= 0.0 && d <= 5.0)
             engine->setAnalysisWideRootNoise(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be float from 0.0 to 2.0";
+          }
+        }
+        else if(pieces[0] == "numSearchThreads") {
+          if(Global::tryStringToInt(pieces[1],i) && i >= 1 && i <= 1024)
+            engine->setNumSearchThreads(i);
           else {
             responseIsError = true;
             response = "Invalid value for " + pieces[0] + ", must be float from 0.0 to 2.0";
