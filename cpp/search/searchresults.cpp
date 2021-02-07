@@ -998,16 +998,24 @@ void Search::getAnalysisData(
   if(includeWeightFactors) {
     vector<double> selfUtilityBuf;
     vector<int64_t> visitsBuf;
+    int64_t visitsSum = 0;
     for(int i = 0; i<numChildren; i++) {
       double childUtility = buf[i].utility;
       selfUtilityBuf.push_back(node.nextPla == P_WHITE ? childUtility : -childUtility);
       visitsBuf.push_back(buf[i].numVisits);
+      visitsSum += buf[i].numVisits;
     }
 
     getValueChildWeights(numChildren,selfUtilityBuf,visitsBuf,scratchValues);
 
     for(int i = 0; i<numChildren; i++)
-      buf[i].weightFactor = scratchValues[i];
+      buf[i].weightFactor = visitsBuf[i] * pow(scratchValues[i], searchParams.valueWeightExponent);
+    double unnormWeightFactorSum = 0.0;
+    for(int i = 0; i<numChildren; i++)
+      unnormWeightFactorSum += buf[i].weightFactor;
+    if(unnormWeightFactorSum > 0)
+      for(int i = 0; i<numChildren; i++)
+        buf[i].weightFactor *= (visitsSum / unnormWeightFactorSum);
   }
 
   //Fill the rest of the moves directly from policy
@@ -1155,7 +1163,7 @@ void Search::printTreeHelper(
       out << buf;
     }
     if(!isnan(data.weightFactor)) {
-      sprintf(buf,"WF %5.2f%% ", data.weightFactor * 100.0);
+      sprintf(buf,"WF %5.1f ", data.weightFactor);
       out << buf;
     }
     if(data.playSelectionValue >= 0 && depth > 0) {
