@@ -1840,6 +1840,32 @@ xxxx.xxoxxx
       runBotOnPosition(bot, board, nextPla, hist, opts);
       delete bot;
     }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Dirichlet noise Value weight exponent 0.0 more visits" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      params.maxVisits = 2500;
+      params.rootNoiseEnabled = true;
+      params.valueWeightExponent = 0.0;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "mix");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Dirichlet noise Value weight exponent 0.0 prune 7 sub 3 more visits" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      params.maxVisits = 2500;
+      params.rootNoiseEnabled = true;
+      params.chosenMovePrune = 12;
+      params.chosenMoveSubtract = 5;
+      params.valueWeightExponent = 0.0;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "mix");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
   }
 }
 
