@@ -1726,6 +1726,121 @@ xxxx.xxoxxx
     nnEval->spawnServerThreads();
   }
 
+  {
+    cout << "Mix pruning, subtracting, dirichlet noise, value weight exponent =========================================" << endl;
+
+    Board board = Board::parseBoard(19,19,R"%%(
+...................
+...................
+.....x.............
+...x............x..
+...................
+..o................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+................x..
+...................
+..o.........o.o.x..
+.....o.......oxx...
+...................
+...................
+)%%");
+
+    Player nextPla = P_WHITE;
+    Rules rules = Rules::parseRules("Chinese");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams paramsBase = SearchParams::forTestsV1();
+    paramsBase.maxVisits = 500;
+    TestSearchOptions opts;
+
+    {
+      cout << "===================================================================" << endl;
+      cout << "Base" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "mix");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Dirichlet noise" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      params.rootNoiseEnabled = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "mix");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Dirichlet noise Prune 10 sub 7" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      params.rootNoiseEnabled = true;
+      params.chosenMovePrune = 10;
+      params.chosenMoveSubtract = 7;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "mix");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Dirichlet noise Value weight exponent 0.8" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      params.rootNoiseEnabled = true;
+      params.valueWeightExponent = 0.8;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "mix");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Dirichlet noise Value weight exponent 0.8 prune 12 sub 5" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      params.rootNoiseEnabled = true;
+      params.chosenMovePrune = 12;
+      params.chosenMoveSubtract = 5;
+      params.valueWeightExponent = 0.8;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "mix");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Dirichlet noise Value weight exponent 0.8 more visits" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      params.maxVisits = 2500;
+      params.rootNoiseEnabled = true;
+      params.valueWeightExponent = 0.8;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "mix");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+    {
+      cout << "===================================================================" << endl;
+      cout << "Dirichlet noise Value weight exponent 0.8 prune 12 sub 5 more visits" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      params.maxVisits = 2500;
+      params.rootNoiseEnabled = true;
+      params.chosenMovePrune = 12;
+      params.chosenMoveSubtract = 5;
+      params.valueWeightExponent = 0.8;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "mix");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+  }
 }
 
 static void runMoreV8TestsRandomizedNNEvals(NNEvaluator* nnEval, Logger& logger)
