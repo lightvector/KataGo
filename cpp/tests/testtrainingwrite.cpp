@@ -491,7 +491,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       Play::maybeHintForkGame(gameData, &forkData, otherGameProps);
       cout << " Forkstuff " << forkData.forks.size() << " " << forkData.sekiForks.size() << endl;
       for(int i = 0; i<forkData.forks.size(); i++)
-        cout << forkData.forks[0]->board << endl;
+        cout << forkData.forks[i]->board << endl;
     }
 
     gameData->printDebug(cout);
