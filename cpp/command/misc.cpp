@@ -1137,7 +1137,6 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     vector<Move> moves;
     vector<double> policyPriors;
 
-    bool quitEarly = false;
     for(int m = 0; m<sgfMoves.size()+1; m++) {
       MiscNNInputParams nnInputParams;
       NNResultBuf buf;
@@ -1145,14 +1144,22 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       bool includeOwnerMap = false;
       nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
+      ReportedSearchValues superQuickValues;
+      {
+        bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,nextPla,board,hist,1.0/80.0,superQuickValues);
+        if(!suc)
+          break;
+      }
+
       boards.push_back(board);
       hists.push_back(hist);
       nextPlas.push_back(nextPla);
       nnOutputs.push_back(std::move(buf.result));
 
       shared_ptr<NNOutput>& nnOutput = nnOutputs[nnOutputs.size()-1];
-      winLossValues.push_back(nnOutput->whiteWinProb - nnOutput->whiteLossProb);
-      scoreLeads.push_back(nnOutput->whiteLead);
+
+      winLossValues.push_back(superQuickValues.winLossValue);
+      scoreLeads.push_back(superQuickValues.lead);
 
       if(m < sgfMoves.size()) {
         moves.push_back(sgfMoves[m]);
@@ -1170,7 +1177,6 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       //Quit out if consecutive moves by the same player, to keep the history clean and "normal"
       if(sgfMoves[m].pla != nextPla && m > 0) {
         logger.write("Ending SGF " + fileName + " early due to non-alternating players on turn " + Global::intToString(m));
-        quitEarly = true;
         break;
       }
 
@@ -1180,7 +1186,6 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
         suc = hist.makeBoardMoveTolerant(board,sgfMoves[m].loc,sgfMoves[m].pla,preventEncore);
         if(!suc)
           logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(sgfMoves[m].loc, board.x_size, board.y_size));
-        quitEarly = true;
         break;
       }
       hist.makeBoardMoveAssumeLegal(board,sgfMoves[m].loc,sgfMoves[m].pla,NULL,preventEncore);
@@ -1199,15 +1204,11 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     vector<double> futureLead(winLossValues.size()+1);
     vector<double> pastValue(winLossValues.size());
     vector<double> pastLead(winLossValues.size());
-    futureValue[winLossValues.size()] = (
-      (!quitEarly && sgf->sgfWinner == P_WHITE) ? 1.0 :
-      (!quitEarly && sgf->sgfWinner == P_BLACK) ? -1.0 :
-      winLossValues[winLossValues.size()-1]
-    );
+    futureValue[winLossValues.size()] = winLossValues[winLossValues.size()-1];
     futureLead[winLossValues.size()] = scoreLeads[winLossValues.size()];
     for(int i = (int)winLossValues.size()-1; i >= 0; i--) {
-      futureValue[i] = 0.05 * winLossValues[i] + 0.95 * futureValue[i+1];
-      futureLead[i] = 0.05 * scoreLeads[i] + 0.95 * futureLead[i+1];
+      futureValue[i] = 0.10 * winLossValues[i] + 0.90 * futureValue[i+1];
+      futureLead[i] = 0.10 * scoreLeads[i] + 0.90 * futureLead[i+1];
     }
     pastValue[0] = winLossValues[0];
     pastLead[0] = scoreLeads[0];
