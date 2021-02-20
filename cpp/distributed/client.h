@@ -11,6 +11,20 @@
 #include "../dataio/sgf.h"
 #include "../dataio/trainingwrite.h"
 
+struct Url {
+  std::string originalString;
+  bool isSSL = true;
+  std::string host;
+  int port = 0;
+  std::string path;
+
+  std::string username;
+  std::string password;
+
+  static Url parse(const std::string& s, bool checkForUserPass);
+  void replacePath(const std::string& newPath);
+};
+
 namespace Client {
 
   struct RunParameters {
@@ -61,8 +75,7 @@ namespace Client {
       const std::string& username,
       const std::string& password,
       const std::string& caCertsFile,
-      const std::string& proxyHost,
-      int proxyPort,
+      const Url& proxyUrl,
       const std::string& modelDownloadMirrorBaseUrl,
       bool mirrorUseProxy,
       Logger* logger
@@ -136,8 +149,7 @@ namespace Client {
 
     std::string baseResourcePath;
     std::string caCertsFile;
-    std::string proxyHost;
-    int proxyPort;
+    Url proxyUrl;
 
     std::string modelDownloadMirrorBaseUrl;
     bool mirrorUseProxy;

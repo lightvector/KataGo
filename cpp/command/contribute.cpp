@@ -446,11 +446,31 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   string serverUrl = userCfg->getString("serverUrl");
   string username = userCfg->getString("username");
   string password = userCfg->getString("password");
-  string proxyHost = "";
-  int proxyPort = 0;
+  Url proxyUrl;
   if(userCfg->contains("proxyHost")) {
-    proxyHost = userCfg->getString("proxyHost");
-    proxyPort = userCfg->getInt("proxyPort");
+    proxyUrl.host = userCfg->getString("proxyHost");
+    proxyUrl.port = userCfg->getInt("proxyPort",0,1000000);
+    if(userCfg->contains("proxyBasicAuthUsername")) {
+      proxyUrl.username = userCfg->getString("proxyBasicAuthUsername");
+      if(userCfg->contains("proxyBasicAuthPassword"))
+        proxyUrl.password = userCfg->getString("proxyBasicAuthPassword");
+    }
+  }
+  else {
+    const char* proxy = NULL;
+    if(proxy == NULL) {
+      proxy = std::getenv("https_proxy");
+      if(proxy != NULL)
+        logger.write(string("Using proxy from environment variable https_proxy: ") + proxy);
+    }
+    if(proxy == NULL) {
+      proxy = std::getenv("http_proxy");
+      if(proxy != NULL)
+        logger.write(string("Using proxy from environment variable http_proxy: ") + proxy);
+    }
+    if(proxy != NULL) {
+      proxyUrl = Url::parse(proxy,true);
+    }
   }
 
   int maxSimultaneousGames;
@@ -518,7 +538,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   //Connect to server and get global parameters for the run.
   Client::Connection* connection = new Client::Connection(
     serverUrl,username,password,caCertsFile,
-    proxyHost,proxyPort,
+    proxyUrl,
     modelDownloadMirrorBaseUrl,
     mirrorUseProxy,
     &logger

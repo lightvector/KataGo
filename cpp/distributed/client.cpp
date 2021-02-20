@@ -90,71 +90,93 @@ static json parseJson(const httplib::Result& response) {
 }
 
 //Hacky custom URL parsing, probably isn't fully general but should be good enough for now.
-struct Url {
-  string originalString;
-  bool isSSL = true;
-  string host;
-  int port = 0;
-  string path;
+//If checkForUserPass is true, also tries to parse username and password in URL if present like curl does
+Url Url::parse(const string& s, bool checkForUserPass) {
+  if(s.size() > MAX_URL_LEN)
+    throw StringError("Invalid URL, too long: " + s);
+  Url ret;
+  ret.originalString = s;
 
-  static Url parse(const string& s) {
-    if(s.size() > MAX_URL_LEN)
-      throw StringError("Invalid URL, too long: " + s);
-    Url ret;
-    ret.originalString = s;
+  string url = s;
+  if(Global::isPrefix(url,"http://")) {
+    url = Global::chopPrefix(url,"http://");
+    ret.isSSL = false;
+    ret.port = 80;
+  }
+  else if(Global::isPrefix(url,"https://")) {
+    url = Global::chopPrefix(url,"https://");
+    ret.isSSL = true;
+    ret.port = 443;
+  }
+  else {
+    throw StringError("Url must start with 'http://' or 'https://', got: " + s);
+  }
 
-    string url = s;
-    if(Global::isPrefix(url,"http://")) {
-      url = Global::chopPrefix(url,"http://");
-      ret.isSSL = false;
-      ret.port = 80;
+  string hostAndPort = url.find_first_of("/") == string::npos ? url : url.substr(0, url.find_first_of("/"));
+  url = Global::chopPrefix(url,hostAndPort);
+
+  //Check for basic auth
+  if(checkForUserPass) {
+    size_t atIdx = hostAndPort.find_last_of("@");
+    if(atIdx != string::npos) {
+      string userPass = hostAndPort.substr(0,atIdx);
+      hostAndPort = hostAndPort.substr(atIdx+1);
+
+      size_t colonIdx = userPass.find_first_of(":");
+      if(colonIdx == string::npos)
+        ret.username = userPass;
+      else {
+        ret.username = userPass.substr(0,colonIdx);
+        ret.password = userPass.substr(colonIdx+1);
+      }
     }
-    else if(Global::isPrefix(url,"https://")) {
-      url = Global::chopPrefix(url,"https://");
-      ret.isSSL = true;
-      ret.port = 443;
-    }
-    else {
-      throw StringError("Url must start with 'http://' or 'https://', got: " + s);
-    }
+  }
 
-    string hostAndPort = url.find_first_of("/") == string::npos ? url : url.substr(0, url.find_first_of("/"));
-    url = Global::chopPrefix(url,hostAndPort);
-
-    string host;
-    if(hostAndPort.find_first_of(":") == string::npos) {
+  //Split up host and port
+  {
+    size_t colonIdx = hostAndPort.find_last_of(":");
+    if(colonIdx == string::npos) {
       ret.host = hostAndPort;
     }
     else {
-      ret.host = hostAndPort.substr(0,hostAndPort.find_first_of(":"));
-      bool suc = Global::tryStringToInt(hostAndPort.substr(hostAndPort.find_first_of(":")+1),ret.port);
+      ret.host = hostAndPort.substr(0,colonIdx);
+      bool suc = Global::tryStringToInt(hostAndPort.substr(colonIdx+1),ret.port);
       if(!suc)
-        throw StringError("Could not parse port in url as int: " + hostAndPort.substr(hostAndPort.find_first_of(":")+1));
+        throw StringError("Could not parse port in url as int: " + hostAndPort.substr(colonIdx+1));
       if(ret.port < 0)
-        throw StringError("Url port was negative: " + hostAndPort.substr(hostAndPort.find_first_of(":")+1));
+        throw StringError("Url port was negative: " + hostAndPort.substr(colonIdx+1));
     }
-
-    if(url.size() <= 0)
-      ret.path = "/";
-    else
-      ret.path = url;
-
-    return ret;
   }
 
-  void replacePath(const string& newPath) {
-    originalString = "";
-    if(isSSL)
-      originalString += "https://";
-    else
-      originalString += "http://";
-    originalString += host;
-    if((isSSL && port != 443) || (!isSSL && port != 80))
-      originalString += ":" + Global::intToString(port);
-    originalString += newPath;
-    path = newPath;
+  if(url.size() <= 0)
+    ret.path = "/";
+  else
+    ret.path = url;
+
+  return ret;
+}
+
+void Url::replacePath(const string& newPath) {
+  originalString = "";
+  if(isSSL)
+    originalString += "https://";
+  else
+    originalString += "http://";
+  if(username != "") {
+    originalString += username;
+    if(password != "") {
+      originalString += ":";
+      originalString += password;
+    }
+    originalString += "@";
   }
-};
+  originalString += host;
+  if((isSSL && port != 443) || (!isSSL && port != 80))
+    originalString += ":" + Global::intToString(port);
+  originalString += newPath;
+  path = newPath;
+}
+
 
 static void configureSocketOptions(socket_t sock) {
   constexpr int timeoutSeconds = 20;
@@ -174,8 +196,7 @@ static httplib::Result oneShotDownload(
   Logger* logger,
   const Url& url,
   const string& caCertsFile,
-  const string& proxyHost,
-  const int& proxyPort,
+  const Url& proxyUrl,
   size_t startByte, //inclusive
   size_t endByte, //inclusive
   std::function<bool(const char *data, size_t data_length)> f
@@ -188,8 +209,11 @@ static httplib::Result oneShotDownload(
   if(!url.isSSL) {
     std::unique_ptr<httplib::Client> httpClient = std::make_unique<httplib::Client>(url.host, url.port);
     httpClient->set_socket_options(configureSocketOptions);
-    if(proxyHost != "")
-      httpClient->set_proxy(proxyHost.c_str(), proxyPort);
+    if(proxyUrl.host != "") {
+      httpClient->set_proxy(proxyUrl.host.c_str(), proxyUrl.port);
+      if(proxyUrl.username != "")
+        httpClient->set_proxy_basic_auth(proxyUrl.username.c_str(), proxyUrl.password.c_str());
+    }
     //Avoid automatically decompressing .bin.gz files that get sent to us with "content-encoding: gzip"
     httpClient->set_decompress(false);
     return httpClient->Get(url.path.c_str(),headers,f);
@@ -197,8 +221,11 @@ static httplib::Result oneShotDownload(
   else {
     std::unique_ptr<httplib::SSLClient> httpsClient = std::make_unique<httplib::SSLClient>(url.host, url.port);
     httpsClient->set_socket_options(configureSocketOptions);
-    if(proxyHost != "")
-      httpsClient->set_proxy(proxyHost.c_str(), proxyPort);
+    if(proxyUrl.host != "") {
+      httpsClient->set_proxy(proxyUrl.host.c_str(), proxyUrl.port);
+      if(proxyUrl.username != "")
+        httpsClient->set_proxy_basic_auth(proxyUrl.username.c_str(), proxyUrl.password.c_str());
+    }
     httpsClient->set_ca_cert_path(caCertsFile.c_str());
     httpsClient->enable_server_certificate_verification(true);
     //Avoid automatically decompressing .bin.gz files that get sent to us with "content-encoding: gzip"
@@ -220,8 +247,7 @@ Connection::Connection(
   const string& usname,
   const string& pswd,
   const string& caCerts,
-  const string& pHost,
-  int pPort,
+  const Url& pUrl,
   const string& mdmbu,
   const bool mup,
   Logger* lg
@@ -234,8 +260,7 @@ Connection::Connection(
    password(pswd),
    baseResourcePath(),
    caCertsFile(caCerts),
-   proxyHost(pHost),
-   proxyPort(pPort),
+   proxyUrl(pUrl),
    modelDownloadMirrorBaseUrl(mdmbu),
    mirrorUseProxy(mup),
    clientInstanceId(),
@@ -248,14 +273,14 @@ Connection::Connection(
 {
   Url url;
   try {
-    url = Url::parse(serverUrl);
+    url = Url::parse(serverUrl,false);
   }
   catch(const StringError& e) {
     throw StringError(string("Could not parse serverUrl in config: ") + e.what());
   }
   if(modelDownloadMirrorBaseUrl != "") {
     try {
-      Url mirrorUrl = Url::parse(modelDownloadMirrorBaseUrl);
+      Url mirrorUrl = Url::parse(modelDownloadMirrorBaseUrl,false);
       (void)mirrorUrl;
     }
     catch(const StringError& e) {
@@ -277,16 +302,21 @@ Connection::Connection(
   logger->write("host: " + url.host);
   logger->write("port: " + Global::intToString(url.port));
   logger->write("baseResourcePath: " + baseResourcePath);
-  if(proxyHost != "") {
-    logger->write("proxyHost: " + proxyHost);
-    logger->write("proxyPort: "+ std::to_string(proxyPort));
+  if(proxyUrl.host != "") {
+    logger->write("proxyHost: " + proxyUrl.host);
+    logger->write("proxyPort: "+ std::to_string(proxyUrl.port));
+    if(proxyUrl.username != "")
+      logger->write("proxyUsername: "+ proxyUrl.username);
   }
 
   if(!isSSL) {
     httpClient = std::make_unique<httplib::Client>(url.host, url.port);
     httpClient->set_socket_options(configureSocketOptions);
-    if(proxyHost != "")
-      httpClient->set_proxy(proxyHost.c_str(),proxyPort);
+    if(proxyUrl.host != "") {
+      httpClient->set_proxy(proxyUrl.host.c_str(), proxyUrl.port);
+      if(proxyUrl.username != "")
+        httpClient->set_proxy_basic_auth(proxyUrl.username.c_str(), proxyUrl.password.c_str());
+    }
   }
   else {
     if(caCertsFile != "" && caCertsFile != "/dev/null") {
@@ -298,8 +328,11 @@ Connection::Connection(
 
     httpsClient = std::make_unique<httplib::SSLClient>(url.host, url.port);
     httpsClient->set_socket_options(configureSocketOptions);
-    if(proxyHost != "")
-      httpsClient->set_proxy(proxyHost.c_str(),proxyPort);
+    if(proxyUrl.host != "") {
+      httpsClient->set_proxy(proxyUrl.host.c_str(), proxyUrl.port);
+      if(proxyUrl.username != "")
+        httpsClient->set_proxy_basic_auth(proxyUrl.username.c_str(), proxyUrl.password.c_str());
+    }
     httpsClient->set_ca_cert_path(caCertsFile.c_str());
     httpsClient->enable_server_certificate_verification(true);
   }
@@ -329,20 +362,26 @@ void Connection::recreateClients() {
   httpClient = nullptr;
   httpsClient = nullptr;
 
-  Url url = Url::parse(serverUrl);
+  Url url = Url::parse(serverUrl,false);
 
   if(!isSSL) {
     httpClient = std::make_unique<httplib::Client>(url.host, url.port);
     httpClient->set_socket_options(configureSocketOptions);
-    if(proxyHost != "")
-      httpClient->set_proxy(proxyHost.c_str(),proxyPort);
+    if(proxyUrl.host != "") {
+      httpClient->set_proxy(proxyUrl.host.c_str(), proxyUrl.port);
+      if(proxyUrl.username != "")
+        httpClient->set_proxy_basic_auth(proxyUrl.username.c_str(), proxyUrl.password.c_str());
+    }
     httpClient->set_basic_auth(username.c_str(), password.c_str());
   }
   else {
     httpsClient = std::make_unique<httplib::SSLClient>(url.host, url.port);
     httpsClient->set_socket_options(configureSocketOptions);
-    if(proxyHost != "")
-      httpsClient->set_proxy(proxyHost.c_str(),proxyPort);
+    if(proxyUrl.host != "") {
+      httpsClient->set_proxy(proxyUrl.host.c_str(), proxyUrl.port);
+      if(proxyUrl.username != "")
+        httpsClient->set_proxy_basic_auth(proxyUrl.username.c_str(), proxyUrl.password.c_str());
+    }
     httpsClient->set_ca_cert_path(caCertsFile.c_str());
     httpsClient->enable_server_certificate_verification(true);
     httpsClient->set_basic_auth(username.c_str(), password.c_str());
@@ -863,13 +902,13 @@ bool Connection::actuallyDownloadModel(
   Url urlToActuallyUse;
   try {
     if(modelDownloadMirrorBaseUrl != "") {
-      Url urlFromServer = Url::parse(modelInfo.downloadUrl);
-      urlToActuallyUse = Url::parse(modelDownloadMirrorBaseUrl);
+      Url urlFromServer = Url::parse(modelInfo.downloadUrl,false);
+      urlToActuallyUse = Url::parse(modelDownloadMirrorBaseUrl,false);
       urlToActuallyUse.replacePath(urlFromServer.path);
       logger->write("Attempting to download from mirror server: " + urlToActuallyUse.originalString);
     }
     else {
-      urlToActuallyUse = Url::parse(modelInfo.downloadUrl);
+      urlToActuallyUse = Url::parse(modelInfo.downloadUrl,false);
     }
   }
   catch(const StringError& e) {
@@ -893,9 +932,9 @@ bool Connection::actuallyDownloadModel(
       const size_t oldTotalDataSize = totalDataSize;
       const size_t startByte = oldTotalDataSize;
       const size_t endByte = modelInfo.bytes-1;
-      const string proxyHostToUse = mirrorUseProxy ? proxyHost : "";
+      const Url proxyToUse = mirrorUseProxy ? proxyUrl : Url();
       httplib::Result response = oneShotDownload(
-        logger, urlToActuallyUse, caCertsFile, proxyHostToUse, proxyPort, startByte, endByte,
+        logger, urlToActuallyUse, caCertsFile, proxyToUse, startByte, endByte,
         [&out,&totalDataSize,&shouldStop,this,&timer,&lastTime,&urlToActuallyUse,&modelInfo](const char* data, size_t data_length) {
           out.write(data, data_length);
           totalDataSize += data_length;
