@@ -997,6 +997,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
         suc = gameTaskQueue.waitPush(gameTask);
         (void)suc;
         assert(suc);
+        maybePrintPerformanceUnsynchronized();
       }
 
       anyTaskSuccessfullyParsedYet = true;
