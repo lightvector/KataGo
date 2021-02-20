@@ -14,8 +14,8 @@ const string OpenCLHelpers::getErrorMessage(cl_int error)
   case -1: return "CL_DEVICE_NOT_FOUND";
   case -2: return "CL_DEVICE_NOT_AVAILABLE";
   case -3: return "CL_COMPILER_NOT_AVAILABLE";
-  case -4: return "CL_MEM_OBJECT_ALLOCATION_FAILURE";
-  case -5: return "CL_OUT_OF_RESOURCES";
+  case -4: return "CL_MEM_OBJECT_ALLOCATION_FAILURE (possibly ran out of GPU memory?)";
+  case -5: return "CL_OUT_OF_RESOURCES (possibly ran out of GPU memory?)";
   case -6: return "CL_OUT_OF_HOST_MEMORY";
   case -7: return "CL_PROFILING_INFO_NOT_AVAILABLE";
   case -8: return "CL_MEM_COPY_OVERLAP";
