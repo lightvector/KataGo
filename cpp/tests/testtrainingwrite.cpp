@@ -105,7 +105,7 @@ void Tests::runTrainingWriteTests() {
     bool doEndGameIfAllPassAlive = cheapLongSgf ? false : true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = cheapLongSgf ? 200 : 40;
-    vector<std::atomic<bool>*> stopConditions;
+    auto shouldStop = []() { return false; };
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
@@ -119,7 +119,7 @@ void Tests::runTrainingWriteTests() {
       seedBase+"search",
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
-      maxMovesPerGame, stopConditions,
+      maxMovesPerGame, shouldStop,
       playSettings, otherGameProps,
       rand,
       nullptr,
@@ -230,7 +230,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 1;
-    vector<std::atomic<bool>*> stopConditions;
+    auto shouldStop = []() { return false; };
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
@@ -256,7 +256,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       bot,bot,
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
-      maxMovesPerGame, stopConditions,
+      maxMovesPerGame, shouldStop,
       playSettings, otherGameProps,
       rand,
       nullptr,
@@ -423,7 +423,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = testResign ? 10000 : (testLead || testPolicySurpriseWeight || testValueSurpriseWeight) ? 30 : 15;
-    vector<std::atomic<bool>*> stopConditions;
+    auto shouldStop = []() { return false; };
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
@@ -480,7 +480,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       bot,bot,
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, logSearchInfo, false,
-      maxMovesPerGame, stopConditions,
+      maxMovesPerGame, shouldStop,
       playSettings, otherGameProps,
       rand,
       nullptr,
@@ -582,7 +582,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 20;
-    vector<std::atomic<bool>*> stopConditions;
+    auto shouldStop = []() { return false; };
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0;
@@ -618,7 +618,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       bot,bot,
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, logSearchInfo, false,
-      maxMovesPerGame, stopConditions,
+      maxMovesPerGame, shouldStop,
       playSettings, otherGameProps,
       rand,
       nullptr,
@@ -904,10 +904,10 @@ xxxxxxxx.
     ForkData* forkData = new ForkData();
 
     GameRunner* gameRunner = new GameRunner(cfg, "game init test game seed", playSettings, logger);
-    std::vector<std::atomic<bool>*> stopConditions;
+    auto shouldStop = []() { return false; };
     for(int i = 0; i<100; i++) {
       string seed = "game init test search seed:" + Global::int64ToString(i);
-      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, NULL, logger, stopConditions, nullptr, nullptr, false);
+      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, NULL, logger, shouldStop, nullptr, nullptr, false);
       cout << data->startHist.rules << endl;
       cout << "Start moves size " << data->startHist.moveHistory.size()
            << " Start pla " << PlayerIO::playerToString(data->startPla)
@@ -978,7 +978,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 1;
-    vector<std::atomic<bool>*> stopConditions;
+    auto shouldStop = []() { return false; };
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = false;
     playSettings.sidePositionProb = 0;
@@ -1003,7 +1003,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
       bot,bot,
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
-      maxMovesPerGame, stopConditions,
+      maxMovesPerGame, shouldStop,
       playSettings, otherGameProps,
       rand,
       nullptr,

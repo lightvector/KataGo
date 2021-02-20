@@ -545,8 +545,8 @@ static constexpr int LOOP_RETRYABLE_FAIL = 1;
 static constexpr int LOOP_PARTIAL_SUCCESS = 2;
 static constexpr int LOOP_PARTIAL_SUCCESS_NO_LOG = 3;
 
-bool Connection::retryLoop(const char* errorLabel, int maxTries, std::atomic<bool>& shouldStop, std::function<void(int&)> f) {
-  if(shouldStop.load())
+bool Connection::retryLoop(const char* errorLabel, int maxTries, std::function<bool()> shouldStop, std::function<void(int&)> f) {
+  if(shouldStop())
     return false;
   double stopPollFrequency = 2.0;
   const double initialFailureInterval = 5.0;
@@ -558,7 +558,7 @@ bool Connection::retryLoop(const char* errorLabel, int maxTries, std::atomic<boo
       f(loopFailMode);
     }
     catch(const StringError& e) {
-      if(shouldStop.load())
+      if(shouldStop())
         return false;
 
       //Reset everything on partial success
@@ -583,7 +583,7 @@ bool Connection::retryLoop(const char* errorLabel, int maxTries, std::atomic<boo
       double intervalRemaining = failureInterval * (0.95 + rand.nextDouble(0.1));
       while(intervalRemaining > 0.0) {
         double sleepTime = std::min(intervalRemaining, stopPollFrequency);
-        if(shouldStop.load())
+        if(shouldStop())
           return false;
         std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
         intervalRemaining -= stopPollFrequency;
@@ -619,7 +619,7 @@ bool Connection::getNextTask(
   bool allowSelfplayTask,
   bool allowRatingTask,
   int taskRepFactor,
-  std::atomic<bool>& shouldStop
+  std::function<bool()> shouldStop
 ) {
   (void)baseDir;
 
@@ -762,7 +762,7 @@ void Client::ModelInfo::failIfSha256Mismatch(const string& modelPath) const {
 }
 
 bool Connection::maybeDownloadNewestModel(
-  const string& modelDir, std::atomic<bool>& shouldStop
+  const string& modelDir, std::function<bool()> shouldStop
 ) {
   try {
     json networkJson = parseJson(get("/api/networks/newest_training/"));
@@ -797,7 +797,7 @@ bool Connection::isModelPresent(
 
 bool Connection::downloadModelIfNotPresent(
   const Client::ModelInfo& modelInfo, const string& modelDir,
-  std::atomic<bool>& shouldStop
+  std::function<bool()> shouldStop
 ) {
   if(modelInfo.isRandom)
     return true;
@@ -809,7 +809,7 @@ bool Connection::downloadModelIfNotPresent(
     //Model already exists
     if(gfs::exists(gfs::path(path)))
       return true;
-    if(shouldStop.load())
+    if(shouldStop())
       return false;
 
     //Check if some other thread is downloading it
@@ -855,7 +855,7 @@ bool Connection::downloadModelIfNotPresent(
 
 bool Connection::actuallyDownloadModel(
   const Client::ModelInfo& modelInfo, const string& modelDir,
-  std::atomic<bool>& shouldStop
+  std::function<bool()> shouldStop
 ) {
   if(modelInfo.isRandom)
     return true;
@@ -911,10 +911,10 @@ bool Connection::actuallyDownloadModel(
           //Something is wrong if we've downloaded more bytes than exist in the model. Halt the download at that point
           if(totalDataSize > modelInfo.bytes)
             return false;
-          return !shouldStop.load();
+          return !shouldStop();
         }
       );
-      if(shouldStop.load())
+      if(shouldStop())
         throw StringError("Stopping because shouldStop is true");
 
       if(totalDataSize > oldTotalDataSize)
@@ -944,7 +944,7 @@ bool Connection::actuallyDownloadModel(
     retryLoop("downloadModel",DEFAULT_MAX_TRIES,shouldStop,fInner);
     out.close();
 
-    if(shouldStop.load())
+    if(shouldStop())
       throw StringError("Stopping because shouldStop is true");
 
     if(totalDataSize != modelInfo.bytes)
@@ -986,7 +986,7 @@ static string getGameTypeStr(const FinishedGameData* gameData) {
 
 bool Connection::uploadTrainingGameAndData(
   const Task& task, const FinishedGameData* gameData, const string& sgfFilePath, const string& npzFilePath, const int64_t numDataRows,
-  bool retryOnFailure, std::atomic<bool>& shouldStop
+  bool retryOnFailure, std::function<bool()> shouldStop
 ) {
   ifstream sgfIn(sgfFilePath);
   if(!sgfIn.good())
@@ -1073,7 +1073,7 @@ bool Connection::uploadTrainingGameAndData(
 
 bool Connection::uploadRatingGame(
   const Task& task, const FinishedGameData* gameData, const string& sgfFilePath,
-  bool retryOnFailure, std::atomic<bool>& shouldStop
+  bool retryOnFailure, std::function<bool()> shouldStop
 ) {
   ifstream sgfIn(sgfFilePath);
   if(!sgfIn.good())

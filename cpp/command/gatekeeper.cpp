@@ -407,11 +407,13 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     netAndStuff->registerGameThread();
     logger.write("Game loop thread " + Global::intToString(threadIdx) + " starting game testing candidate: " + netAndStuff->modelNameCandidate);
 
-    vector<std::atomic<bool>*> stopConditions = {&shouldStop,&(netAndStuff->terminated)};
+    auto shouldStopFunc = [&netAndStuff]() {
+      return shouldStop.load() || netAndStuff->terminated.load();
+    };
 
     Rand thisLoopSeedRand;
     while(true) {
-      if(shouldStop.load() || netAndStuff->terminated.load())
+      if(shouldStopFunc())
         break;
 
       lock.unlock();
@@ -424,7 +426,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
           seed, botSpecB, botSpecW, NULL, NULL, logger,
-          stopConditions, nullptr, nullptr, false
+          shouldStopFunc, nullptr, nullptr, false
         );
       }
 

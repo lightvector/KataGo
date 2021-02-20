@@ -850,14 +850,6 @@ static void logSearch(Search* bot, Logger& logger, Loc loc, OtherGameProperties 
   logger.write(sout.str());
 }
 
-static bool shouldStop(vector<std::atomic<bool>*>& stopConditions) {
-  for(int j = 0; j<stopConditions.size(); j++) {
-    if(stopConditions[j]->load(std::memory_order_acquire))
-      return true;
-  }
-  return false;
-}
-
 static Loc chooseRandomForkingMove(const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, Loc banMove) {
   double r = gameRand.nextDouble();
   bool allowPass = true;
@@ -1354,7 +1346,7 @@ FinishedGameData* Play::runGame(
   const string& searchRandSeed,
   bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
-  int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
+  int maxMovesPerGame, const std::function<bool()>& shouldStop,
   const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
   std::function<NNEvaluator*()> checkForNewNNEval,
@@ -1377,7 +1369,7 @@ FinishedGameData* Play::runGame(
     botB, botW,
     doEndGameIfAllPassAlive, clearBotBeforeSearch,
     logger, logSearchInfo, logMoves,
-    maxMovesPerGame, stopConditions,
+    maxMovesPerGame, shouldStop,
     playSettings, otherGameProps,
     gameRand,
     checkForNewNNEval,
@@ -1397,7 +1389,7 @@ FinishedGameData* Play::runGame(
   Search* botB, Search* botW,
   bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
-  int maxMovesPerGame, vector<std::atomic<bool>*>& stopConditions,
+  int maxMovesPerGame, const std::function<bool()>& shouldStop,
   const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
   std::function<NNEvaluator*()> checkForNewNNEval,
@@ -1577,7 +1569,7 @@ FinishedGameData* Play::runGame(
       hist.endGameIfAllPassAlive(board);
     if(hist.isGameFinished)
       break;
-    if(shouldStop(stopConditions))
+    if(shouldStop())
       break;
 
     Search* toMoveBot = pla == P_BLACK ? botB : botW;
@@ -1895,7 +1887,7 @@ FinishedGameData* Play::runGame(
     for(int i = 0; i<sidePositionsToSearch.size(); i++) {
       SidePosition* sp = sidePositionsToSearch[i];
 
-      if(shouldStop(stopConditions)) {
+      if(shouldStop()) {
         delete sp;
         continue;
       }
@@ -2313,7 +2305,7 @@ FinishedGameData* GameRunner::runGame(
   ForkData* forkData,
   const Sgf::PositionSample* startPosSample,
   Logger& logger,
-  vector<std::atomic<bool>*>& stopConditions,
+  const std::function<bool()>& shouldStop,
   std::function<NNEvaluator*()> checkForNewNNEval,
   std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove,
   bool alwaysIncludeOwnership
@@ -2396,7 +2388,7 @@ FinishedGameData* GameRunner::runGame(
     botB,botW,
     doEndGameIfAllPassAlive,clearBotBeforeSearchThisGame,
     logger,logSearchInfo,logMoves,
-    maxMovesPerGame,stopConditions,
+    maxMovesPerGame,shouldStop,
     playSettings,otherGameProps,
     gameRand,
     checkForNewNNEval, //Note that if this triggers, botSpecB and botSpecW will get updated, for use in maybeForkGame
@@ -2407,7 +2399,7 @@ FinishedGameData* GameRunner::runGame(
     finishedGameData->usedInitialPosition = 1;
 
   //Make sure not to write the game if we terminated in the middle of this game!
-  if(shouldStop(stopConditions)) {
+  if(shouldStop()) {
     if(botW != botB)
       delete botW;
     delete botB;

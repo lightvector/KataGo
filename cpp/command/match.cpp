@@ -15,10 +15,13 @@ using namespace std;
 
 
 static std::atomic<bool> sigReceived(false);
+static std::atomic<bool> shouldStop(false);
 static void signalHandler(int signal)
 {
-  if(signal == SIGINT || signal == SIGTERM)
+  if(signal == SIGINT || signal == SIGTERM) {
     sigReceived.store(true);
+    shouldStop.store(true);
+  }
 }
 
 int MainCmds::match(int argc, const char* const* argv) {
@@ -194,8 +197,8 @@ int MainCmds::match(int argc, const char* const* argv) {
   if(sgfOutputDir != string())
     MakeDir::make(sgfOutputDir);
 
-  if(!std::atomic_is_lock_free(&sigReceived))
-    throw StringError("sigReceived is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
+  if(!std::atomic_is_lock_free(&shouldStop))
+    throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
@@ -205,11 +208,13 @@ int MainCmds::match(int argc, const char* const* argv) {
     uint64_t threadHash
   ) {
     ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(threadHash) + ".sgfs")) : NULL;
-    vector<std::atomic<bool>*> stopConditions = {&sigReceived};
+    auto shouldStopFunc = []() {
+      return shouldStop.load();
+    };
 
     Rand thisLoopSeedRand;
     while(true) {
-      if(sigReceived.load())
+      if(shouldStop.load())
         break;
 
       FinishedGameData* gameData = NULL;
@@ -220,7 +225,7 @@ int MainCmds::match(int argc, const char* const* argv) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
           seed, botSpecB, botSpecW, NULL, NULL, logger,
-          stopConditions, nullptr, nullptr, false
+          shouldStopFunc, nullptr, nullptr, false
         );
       }
 
@@ -233,7 +238,7 @@ int MainCmds::match(int argc, const char* const* argv) {
         delete gameData;
       }
 
-      if(sigReceived.load())
+      if(shouldStop.load())
         break;
       if(!shouldContinue)
         break;
