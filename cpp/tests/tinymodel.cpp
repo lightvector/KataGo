@@ -52,7 +52,7 @@ static void requireApproxEqual(double x, double expected, double scale, const NN
   }
 }
 
-void TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logger, ConfigParser& cfg) {
+NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logger, ConfigParser& cfg) {
   logger.write("Running tiny net to sanity-check that GPU is working");
 
   namespace gfs = ghc::filesystem;
@@ -187,7 +187,6 @@ void TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logger, Conf
     EQ(ownership*10000, expectedOwnership[pos], 200.0);
   }
 
-  delete nnEval;
   try {
     gfs::remove(tmpModelFile);
   }
@@ -195,5 +194,7 @@ void TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logger, Conf
     logger.write("Warning: could not delete " + tmpModelFile + ": " + e.what());
   }
   logger.write("Tiny net sanity check complete");
+
+  return nnEval;
 }
 

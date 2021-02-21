@@ -220,6 +220,17 @@ int NNEvaluator::getNumGpus() const {
 int NNEvaluator::getNumServerThreads() const {
   return (int)gpuIdxByServerThread.size();
 }
+std::set<int> NNEvaluator::getGpuIdxs() const {
+  std::set<int> gpuIdxs;
+#ifdef USE_EIGEN_BACKEND
+  gpuIdxs.insert(0);
+#else
+  for(int i = 0; i<gpuIdxByServerThread.size(); i++) {
+    gpuIdxs.insert(gpuIdxByServerThread[i]);
+  }
+#endif
+  return gpuIdxs;
+}
 
 int NNEvaluator::getNNXLen() const {
   return nnXLen;

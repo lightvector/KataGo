@@ -398,7 +398,9 @@ ComputeContext* NeuralNet::createComputeContext(
       openCLTunerFile,homeDataDirOverride,name,gpuIdxForTuning,logger,openCLReTunePerBoardSize,
       nnXLen,nnYLen,
       testFP16Mode,testFP16StorageMode,testFP16ComputeMode,testFP16TensorCoresMode,
-      &(loadedModel->modelDesc),full);
+      OpenCLTuner::ModelInfoForTuning::ofDesc(&(loadedModel->modelDesc)),
+      full
+    );
   };
   return new ComputeContext(gpuIdxs,logger,nnXLen,nnYLen,useFP16Mode,useNHWCMode,getParamsForDeviceName);
 }

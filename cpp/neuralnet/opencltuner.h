@@ -158,6 +158,18 @@ namespace OpenCLTuner {
   constexpr int DEFAULT_BATCH_SIZE = 2;
   constexpr int DEFAULT_WINOGRAD_3X3_TILE_SIZE = 4;
 
+  struct ModelInfoForTuning {
+    int maxConvChannels1x1;
+    int maxConvChannels3x3;
+    int trunkNumChannels;
+    int midNumChannels;
+    int regularNumChannels;
+    int gpoolNumChannels;
+    int version;
+
+    static ModelInfoForTuning ofDesc(const ModelDesc* desc);
+  };
+
   void tune(
     const OpenCLTuneParams& initialConfig,
     DevicesContext& devicesContext,
@@ -169,7 +181,7 @@ namespace OpenCLTuner {
     enabled_t testFP16StorageMode,
     enabled_t testFP16ComputeMode,
     enabled_t testFP16TensorCoresMode,
-    const ModelDesc* model,
+    ModelInfoForTuning modelInfo,
     bool full,
     int winograd3x3TileSize,
     std::ostream& out,
@@ -179,7 +191,8 @@ namespace OpenCLTuner {
   );
 
   std::string defaultDirectory(bool makeDir, const std::string& homeDataDirOverride);
-  std::string defaultFileName(const std::string& gpuName, int nnXLen, int nnYLen, const ModelDesc* model);
+  std::string defaultFileName(const std::string& gpuName, int nnXLen, int nnYLen, int trunkNumChannels, int modelVersion);
+  std::string defaultFileName(const std::string& gpuName, int nnXLen, int nnYLen, ModelInfoForTuning modelInfo);
 
   OpenCLTuneParams loadOrAutoTune(
     std::string openCLTunerFile,
@@ -194,7 +207,15 @@ namespace OpenCLTuner {
     enabled_t testFP16StorageMode,
     enabled_t testFP16ComputeMode,
     enabled_t testFP16TensorCoresMode,
-    const ModelDesc* model,
+    ModelInfoForTuning modelInfo,
+    bool full
+  );
+
+  void autoTuneEverything(
+    const std::string& homeDataDirOverride,
+    int gpuIdxForTuning,
+    Logger* logger,
+    enabled_t useFP16Mode,
     bool full
   );
 

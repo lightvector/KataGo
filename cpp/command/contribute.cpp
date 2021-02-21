@@ -39,8 +39,12 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 #include <sstream>
 #include <chrono>
 #include <csignal>
-using json = nlohmann::json;
 
+#ifdef USE_OPENCL_BACKEND
+#include "../neuralnet/opencltuner.h"
+#endif
+
+using json = nlohmann::json;
 using namespace std;
 
 static std::atomic<bool> sigReceived(false);
@@ -566,7 +570,29 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   logger.write(Version::getKataGoVersionForHelp());
   logger.write(string("Git revision: ") + Version::getGitRevision());
 
-  TinyModelTest::runTinyModelTest(baseDir, logger, *userCfg);
+  {
+    NNEvaluator* tinyNNEval = TinyModelTest::runTinyModelTest(baseDir, logger, *userCfg);
+    //Before we delete the tinyNNEval, it conveniently has all the info about what gpuidxs the user wants from the config, so
+    //use it to tune everything.
+#ifdef USE_OPENCL_BACKEND
+    std::set<int> gpuIdxs = tinyNNEval->getGpuIdxs();
+    enabled_t usingFP16Mode = tinyNNEval->getUsingFP16Mode();
+    delete tinyNNEval;
+
+    bool full = false;
+    for(int gpuIdx: gpuIdxs) {
+      OpenCLTuner::autoTuneEverything(
+        Setup::loadHomeDataDirOverride(*userCfg),
+        gpuIdx,
+        &logger,
+        usingFP16Mode,
+        full
+      );
+    }
+#else
+    delete tinyNNEval;
+#endif
+  }
 
   //Set up signal handlers
   if(!std::atomic_is_lock_free(&shouldStop))

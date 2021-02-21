@@ -5,6 +5,8 @@
 #include "../core/config_parser.h"
 #include "../core/logger.h"
 
+class NNEvaluator;
+
 namespace TinyModelTest {
   extern const char* tinyModelBase64Part0;
   extern const char* tinyModelBase64Part1;
@@ -14,7 +16,7 @@ namespace TinyModelTest {
   extern const char* tinyModelBase64Part5;
   extern const char* tinyModelBase64Part6;
 
-  void runTinyModelTest(const std::string& baseDir, Logger& logger, ConfigParser& cfg);
+  NNEvaluator* runTinyModelTest(const std::string& baseDir, Logger& logger, ConfigParser& cfg);
 }
 
 
