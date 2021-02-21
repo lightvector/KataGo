@@ -76,6 +76,11 @@ static json parseJson(const httplib::Result& response) {
     ostringstream outSummary, outDetails;
     debugPrintResponse(outDetails,response);
     outSummary << "Server returned error " << response->status << ": " << getServerErrorMessage(response);
+
+    if((response->status == 400 || response->status == 403) && response->body.find("permission to perform") != string::npos) {
+      outDetails << "Did you verify your email address by following the link that was emailed to you during registration?" << endl;
+      outSummary << "Did you verify your email address by following the link that was emailed to you during registration?" << endl;
+    }
     throw StringError(outSummary.str() + "\n" + outDetails.str());
   }
   try {
