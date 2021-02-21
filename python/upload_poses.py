@@ -23,6 +23,7 @@ parser.add_argument('-upload-log-file', help='log upload data to this file', req
 parser.add_argument('-connection-config', help='config with serverUrl and username and password', required=False)
 parser.add_argument('-set-total-weight', help='set total weight of poses to this', type=float, required=False)
 parser.add_argument('-weight-factor', help='multiply weight of poses by this', type=float, required=False)
+parser.add_argument('-separate-summaries', help='summarize dirs separately', action="store_true", required=False)
 parser.add_argument('-notes', help='notes or description label for poses', required=False)
 args = vars(parser.parse_args())
 
@@ -32,6 +33,7 @@ upload_log_file = args["upload_log_file"]
 connection_config_file = args["connection_config"]
 set_total_weight = args["set_total_weight"]
 weight_factor = args["weight_factor"]
+separate_summaries = args["separate_summaries"]
 notes = args["notes"]
 
 loglines = []
@@ -68,12 +70,20 @@ if connection_config_file is not None:
   log("username" + ": " + username)
   log("base_server_url" + ": " + base_server_url)
 
+def compute_sum_sumsq(poses):
+  sumweight = 0.0
+  sumweightsq = 0.0
+  for pos in poses:
+    sumweight += pos["weight"]
+    sumweightsq += pos["weight"] * pos["weight"]
+  return (sumweight, sumweightsq)
+
 log("Loading positions")
 poses_by_key = {}
 
-def handle_file(poses_file):
-  global poses_by_key
+def handle_file(poses_by_key, poses_file):
   log("Loading" + ": " + poses_file)
+  poses_by_key_this_file = {}
   with open(poses_file,"r") as f:
     for line in f:
       line = line.strip()
@@ -101,25 +111,31 @@ def handle_file(poses_file):
         poses_by_key[key]["weight"] += weight
       else:
         poses_by_key[key] = pos
+      if key in poses_by_key_this_file:
+        poses_by_key_this_file[key]["weight"] += weight
+      else:
+        poses_by_key_this_file[key] = pos
+  if separate_summaries:
+    sumweight,sumweightsq = compute_sum_sumsq(poses_by_key_this_file.values())
+    if sumweight > 0 and sumweightsq > 0:
+      log("Found %d unique positions" % len(poses_by_key_this_file.values()))
+      log("Found %f total weight" % sumweight)
+      log("Found %f ess" % (sumweight * sumweight / sumweightsq))
 
+poses_files_or_dirs = sorted(poses_files_or_dirs)
 for poses_file_or_dir in poses_files_or_dirs:
   if os.path.isdir(poses_file_or_dir):
     for (path,dirnames,filenames) in os.walk(poses_file_or_dir):
+      dirnames.sort()
+      filenames = sorted(filenames)
       for filename in filenames:
         if filename.endswith(".startposes.txt") or filename.endswith(".hintposes.txt"):
-          handle_file(os.path.join(path,filename))
+          handle_file(poses_by_key, os.path.join(path,filename))
   else:
-    handle_file(poses_file_or_dir)
+    handle_file(poses_by_key, poses_file_or_dir)
 
 poses = poses_by_key.values()
-
-sumweight = 0.0
-sumweightsq = 0.0
-
-for pos in poses:
-  sumweight += pos["weight"]
-  sumweightsq += pos["weight"] * pos["weight"]
-
+sumweight,sumweightsq = compute_sum_sumsq(poses)
 log("Found %d unique positions" % len(poses))
 log("Found %f total weight" % sumweight)
 log("Found %f ess" % (sumweight * sumweight / sumweightsq))
