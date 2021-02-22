@@ -817,7 +817,10 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   bool autoKomi;
   int sgfSplitCount;
   int sgfSplitIdx;
+  int64_t maxDepth;
   double turnWeightLambda;
+  int maxPosesPerOutFile;
+  double gameModeFastThreshold;
   try {
     KataGoCommandLine cmd("Search for suprising good moves in sgfs");
     cmd.addConfigFileArg("","");
@@ -833,7 +836,10 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     TCLAP::SwitchArg autoKomiArg("","auto-komi","Auto komi");
     TCLAP::ValueArg<int> sgfSplitCountArg("","sgf-split-count","Number of splits",false,1,"N");
     TCLAP::ValueArg<int> sgfSplitIdxArg("","sgf-split-idx","Which split",false,0,"IDX");
+    TCLAP::ValueArg<int> maxDepthArg("","max-depth","Max depth allowed for sgf",false,1000000,"INT");
     TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Adjust weight for writing down each position",false,0.0,"LAMBDA");
+    TCLAP::ValueArg<int> maxPosesPerOutFileArg("","max-poses-per-out-file","Number of hintposes per output file",false,100000,"INT");
+    TCLAP::ValueArg<double> gameModeFastThresholdArg("","game-mode-fast-threshold","Utility threshold for game mode fast pass",false,0.005,"UTILS");
     cmd.add(sgfDirArg);
     cmd.add(outDirArg);
     cmd.add(numProcessThreadsArg);
@@ -843,7 +849,10 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     cmd.add(autoKomiArg);
     cmd.add(sgfSplitCountArg);
     cmd.add(sgfSplitIdxArg);
+    cmd.add(maxDepthArg);
     cmd.add(turnWeightLambdaArg);
+    cmd.add(maxPosesPerOutFileArg);
+    cmd.add(gameModeFastThresholdArg);
     cmd.parse(argc,argv);
     nnModelFile = cmd.getModelFile();
     sgfDirs = sgfDirArg.getValue();
@@ -855,10 +864,15 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     autoKomi = autoKomiArg.getValue();
     sgfSplitCount = sgfSplitCountArg.getValue();
     sgfSplitIdx = sgfSplitIdxArg.getValue();
+    maxDepth = maxDepthArg.getValue();
     turnWeightLambda = turnWeightLambdaArg.getValue();
+    maxPosesPerOutFile = maxPosesPerOutFileArg.getValue();
+    gameModeFastThreshold = gameModeFastThresholdArg.getValue();
 
     if(gameMode == treeMode)
       throw StringError("Must specify either -game-mode or -tree-mode");
+    if(maxDepthArg.isSet() && !gameMode)
+      throw StringError("Max depth curretly only implemented for game mode");
 
     cmd.getConfig(cfg);
   }
@@ -935,7 +949,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
   // ---------------------------------------------------------------------------------------------------
   ThreadSafeQueue<string*> toWriteQueue;
-  auto writeLoop = [&toWriteQueue,&outDir,&sgfSplitCount,&sgfSplitIdx]() {
+  auto writeLoop = [&toWriteQueue,&outDir,&sgfSplitCount,&sgfSplitIdx,&maxPosesPerOutFile]() {
     int fileCounter = 0;
     int numWrittenThisFile = 0;
     ofstream* out = NULL;
@@ -945,7 +959,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       if(!suc)
         break;
 
-      if(out == NULL || numWrittenThisFile > 100000) {
+      if(out == NULL || numWrittenThisFile > maxPosesPerOutFile) {
         if(out != NULL) {
           out->close();
           delete out;
@@ -1089,7 +1103,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   // ---------------------------------------------------------------------------------------------------
   //SGF MODE
 
-  auto processSgfGame = [&logger,&excludeHashes,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi](
+  auto processSgfGame = [&logger,&excludeHashes,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth](
     Search* search, Rand& rand, const string& fileName, CompactSgf* sgf
   ) {
     if(contains(excludeHashes,sgf->hash))
@@ -1109,6 +1123,9 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
     const bool preventEncore = true;
     const vector<Move>& sgfMoves = sgf->moves;
+
+    if(sgfMoves.size() > maxDepth)
+      return;
 
     vector<Board> boards;
     vector<BoardHistory> hists;
@@ -1200,7 +1217,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     }
 
     const double scoreLeadWeight = 0.01;
-    const double sumThreshold = 0.005;
+    const double sumThreshold = gameModeFastThreshold;
 
     //cout << fileName << endl;
     for(int m = 0; m<moves.size(); m++) {
