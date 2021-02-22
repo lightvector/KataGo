@@ -1061,6 +1061,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   //Wait for all task loop threads to stop
   for(int i = 0; i<taskLoopThreads.size(); i++)
     taskLoopThreads[i].join();
+  maybePrintPerformanceUnsynchronized();
 
   logger.write("Beginning shutdown");
 
