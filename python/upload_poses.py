@@ -43,7 +43,7 @@ def log(s):
 
 def write_log():
   if upload_log_file is not None:
-    with open(upload_log_file,"w+") as f:
+    with open(upload_log_file,"a+") as f:
       for line in loglines:
         f.write(line + "\n")
 
