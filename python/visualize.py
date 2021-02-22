@@ -46,7 +46,7 @@ with open(model_config_json) as f:
 
 pos_len = 19 # shouldn't matter, all we're doing is exporting weights that don't depend on this
 if name_scope is not None:
-  with tf.name_scope(name_scope):
+  with tf.compat.v1.name_scope(name_scope):
     model = Model(model_config,pos_len,{})
 else:
   model = Model(model_config,pos_len,{})
@@ -59,7 +59,7 @@ def volume(variable):
   return variable_parameters
 
 total_parameters = 0
-for variable in tf.global_variables():
+for variable in tf.compat.v1.global_variables():
   variable_parameters = volume(variable)
   total_parameters += variable_parameters
   log("Model variable %s, %d parameters" % (variable.name,variable_parameters))
@@ -120,7 +120,7 @@ with tf.compat.v1.Session(config=tfconfig) as session:
 
   if show_all_weight_magnitudes:
     print("name,sumsq,l2regstrength,meansq,rms")
-    for variable in tf.trainable_variables():
+    for variable in tf.compat.v1.trainable_variables():
       values = np.array(variable.eval())
       sq = np.square(values)
       reg = np.sum(sq) if any(v.name == variable.name for v in model.reg_variables) else 0

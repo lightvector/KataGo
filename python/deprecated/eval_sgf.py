@@ -118,12 +118,12 @@ for i in range(movenum):
 
 print(board.to_string())
 
-saver = tf.train.Saver(
+saver = tf.compat.v1.train.Saver(
   max_to_keep = 10000,
   save_relative_paths = True,
 )
 
-with tf.Session() as session:
+with tf.compat.v1.Session() as session:
 
   if not debug:
     saver.restore(session, modelpath)

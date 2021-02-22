@@ -45,7 +45,7 @@ def volume(variable):
 
 variables = {}
 total_parameters = 0
-for variable in tf.global_variables():
+for variable in tf.compat.v1.global_variables():
   variable_parameters = volume(variable)
   total_parameters += variable_parameters
   variables[variable.name] = variable
@@ -59,7 +59,7 @@ log("Built model, %d total parameters" % total_parameters)
 
 print("Testing", flush=True)
 
-saver = tf.train.Saver(
+saver = tf.compat.v1.train.Saver(
   max_to_keep = 10000,
   save_relative_paths = True,
 )
@@ -67,8 +67,8 @@ saver = tf.train.Saver(
 count = 0
 accum_weights = {}
 
-tfconfig = tf.ConfigProto(log_device_placement=False)
-with tf.Session(config=tfconfig) as session:
+tfconfig = tf.compat.v1.ConfigProto(log_device_placement=False)
+with tf.compat.v1.Session(config=tfconfig) as session:
 
   for model_file in model_files:
     saver.restore(session, model_file)
@@ -91,7 +91,7 @@ for name in accum_weights:
 
 assign_ops = dict([(name,variables[name].assign(accum_weights[name])) for name in accum_weights])
 
-with tf.Session(config=tfconfig) as session:
+with tf.compat.v1.Session(config=tfconfig) as session:
   session.run(assign_ops)
   print("Saving to " + output_file)
   saver.save(session, output_file)

@@ -24,6 +24,8 @@ from model import Model, Target_vars, Metrics, ModelUtils
 import modelconfigs
 import tfrecordio
 
+
+tf.compat.v1.disable_eager_execution()
 #Command and args-------------------------------------------------------------------
 
 description = """
@@ -163,7 +165,7 @@ if swa_sub_epoch_scale is not None:
         placeholder = tf.compat.v1.placeholder(variable.dtype,variable.shape)
         assign_ops.append(tf.compat.v1.assign(variable,placeholder))
         swa_assign_placeholders[variable.name] = placeholder
-        swa_wvalues[variable.name] = np.zeros([elt.value for elt in variable.shape])
+        swa_wvalues[variable.name] = np.zeros([elt for elt in variable.shape])
     swa_assign_op = tf.group(*assign_ops)
   trainlog("Build SWA graph for SWA update and saving, %d variables" % len(swa_assign_placeholders))
 
@@ -243,7 +245,7 @@ def model_fn(features,labels,mode,params):
       synchronization=tf.VariableSynchronization.ON_READ,
       aggregation=tf.VariableAggregation.SUM
     )
-    wsum_op = tf.assign_add(wsum,target_vars.weight_sum)
+    wsum_op = tf.compat.v1.assign_add(wsum,target_vars.weight_sum)
     eval_metric_ops={
       #"wsum": (wsum.read_value(),wsum_op),
       "p0loss": tf.compat.v1.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used),
@@ -282,8 +284,8 @@ def model_fn(features,labels,mode,params):
     printed_model_yet = True
 
     def moving_mean(name,x,weights):
-      sumwx = tf.reduce_sum(x*weights,name="printstats/wx/"+name)
-      sumw = tf.reduce_sum(weights,name="printstats/w/"+name)
+      sumwx = tf.reduce_sum(input_tensor=x*weights,name="printstats/wx/"+name)
+      sumw = tf.reduce_sum(input_tensor=weights,name="printstats/w/"+name)
       moving_wx = tf.compat.v1.get_variable(initializer=tf.zeros([]),name=(name+"/moving_wx"),trainable=False)
       moving_w = tf.compat.v1.get_variable(initializer=tf.zeros([]),name=(name+"/moving_w"),trainable=False)
 

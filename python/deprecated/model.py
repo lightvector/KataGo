@@ -26,7 +26,7 @@ class Model:
 
     self.reg_variables = []
     self.lr_adjusted_variables = {}
-    self.is_training = tf.placeholder(tf.bool,name="is_training")
+    self.is_training = tf.compat.v1.placeholder(tf.bool,name="is_training")
 
     #Accumulates outputs for printing stats about their activations
     self.outputs_by_layer = []
@@ -210,7 +210,7 @@ class Model:
   # Build model -------------------------------------------------------------
 
   def ensure_variable_exists(self,name):
-    for v in tf.trainable_variables():
+    for v in tf.compat.v1.trainable_variables():
       if v.name == name:
         return name
     raise Exception("Could not find variable " + name)
@@ -227,7 +227,7 @@ class Model:
     has_bias = True
     has_scale = False
     self.batch_norms[name] = (tensor.shape[-1].value,epsilon,has_bias,has_scale)
-    return tf.layers.batch_normalization(
+    return tf.compat.v1.layers.batch_normalization(
       tensor,
       axis=-1, #Because channels are our last axis, -1 refers to that via wacky python indexing
       momentum=0.99,
@@ -246,7 +246,7 @@ class Model:
 
   def init_weights(self, shape, num_inputs, num_outputs):
     stdev = self.init_stdev(num_inputs,num_outputs) / 1.0
-    return tf.truncated_normal(shape=shape, stddev=stdev)
+    return tf.random.truncated_normal(shape=shape, stddev=stdev)
 
   def weight_variable_init_constant(self, name, shape, constant):
     init = tf.zeros(shape)
@@ -268,7 +268,7 @@ class Model:
     return variable
 
   def conv2d(self, x, w):
-    return tf.nn.conv2d(x, w, strides=[1,1,1,1], padding='SAME')
+    return tf.nn.conv2d(input=x, filters=w, strides=[1,1,1,1], padding='SAME')
 
   def dilated_conv2d(self, x, w, dilation):
     return tf.nn.atrous_conv2d(x, w, rate = dilation, padding='SAME')
@@ -279,8 +279,8 @@ class Model:
     transp = symmetries[2]
 
     rev_axes = tf.concat([
-      tf.cond(ud, lambda: tf.constant([1]), lambda: tf.constant([],dtype='int32')),
-      tf.cond(lr, lambda: tf.constant([2]), lambda: tf.constant([],dtype='int32')),
+      tf.cond(pred=ud, true_fn=lambda: tf.constant([1]), false_fn=lambda: tf.constant([],dtype='int32')),
+      tf.cond(pred=lr, true_fn=lambda: tf.constant([2]), false_fn=lambda: tf.constant([],dtype='int32')),
     ], axis=0)
 
     if not inverse:
@@ -289,14 +289,14 @@ class Model:
     assert(len(tensor.shape) == 4 or len(tensor.shape) == 3)
     if len(tensor.shape) == 3:
       tensor = tf.cond(
-        transp,
-        lambda: tf.transpose(tensor, [0,2,1]),
-        lambda: tensor)
+        pred=transp,
+        true_fn=lambda: tf.transpose(a=tensor, perm=[0,2,1]),
+        false_fn=lambda: tensor)
     else:
       tensor = tf.cond(
-        transp,
-        lambda: tf.transpose(tensor, [0,2,1,3]),
-        lambda: tensor)
+        pred=transp,
+        true_fn=lambda: tf.transpose(a=tensor, perm=[0,2,1,3]),
+        false_fn=lambda: tensor)
 
     if inverse:
       tensor = tf.reverse(tensor, rev_axes)
@@ -321,14 +321,14 @@ class Model:
     #Each one needs max_chain_idxs different buckets.
     num_segments_by_batch_and_channel = tf.fill([1,num_channels],1) * tf.expand_dims(num_chain_segments,axis=1)
     shift = tf.cumsum(tf.reshape(num_segments_by_batch_and_channel,[-1]),exclusive=True)
-    num_segments = tf.reduce_sum(num_chain_segments) * num_channels
+    num_segments = tf.reduce_sum(input_tensor=num_chain_segments) * num_channels
     shift = tf.reshape(shift,[-1,1,1,num_channels])
 
     segments = tf.expand_dims(chains,3) + shift
     if mode == "sum":
-      pools = tf.unsorted_segment_sum(tensor,segments,num_segments=num_segments)
+      pools = tf.math.unsorted_segment_sum(tensor,segments,num_segments=num_segments)
     elif mode == "max":
-      pools = tf.unsorted_segment_max(tensor,segments,num_segments=num_segments)
+      pools = tf.math.unsorted_segment_max(tensor,segments,num_segments=num_segments)
     else:
       assert False
 
@@ -367,13 +367,13 @@ class Model:
       weights = self.weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights,reg=reg)
     else:
       extra_initial_weight = self.init_weights([1,1,in_channels,out_channels], in_channels, out_channels) * emphasize_center_weight
-      extra_initial_weight = tf.pad(extra_initial_weight, [(radius1,radius1),(radius2,radius2),(0,0),(0,0)])
+      extra_initial_weight = tf.pad(tensor=extra_initial_weight, paddings=[(radius1,radius1),(radius2,radius2),(0,0),(0,0)])
       weights = self.weight_variable(name,[diam1,diam2,in_channels,out_channels],in_channels*diam1*diam2,out_channels,scale_initial_weights,extra_initial_weight,reg=reg)
 
     if emphasize_center_lr is not None:
       factor = tf.constant([emphasize_center_lr],dtype=tf.float32)
       factor = tf.reshape(factor,[1,1,1,1])
-      factor = tf.pad(factor, [(radius1,radius1),(radius2,radius2),(0,0),(0,0)], constant_values=1.0)
+      factor = tf.pad(tensor=factor, paddings=[(radius1,radius1),(radius2,radius2),(0,0),(0,0)], constant_values=1.0)
       self.add_lr_factor(weights.name, factor)
 
     return weights
@@ -399,7 +399,7 @@ class Model:
     radius = diam // 2
     center_weights = self.weight_variable(name+"/wcenter",[1,1,in_channels,out_channels],in_channels,out_channels,scale_initial_weights=0.3*scale_initial_weights)
     weights = self.weight_variable(name+"/w",[diam,diam,in_channels,out_channels],in_channels*diam*diam,out_channels,scale_initial_weights)
-    weights = weights + tf.pad(center_weights,[(radius,radius),(radius,radius),(0,0),(0,0)])
+    weights = weights + tf.pad(tensor=center_weights,paddings=[(radius,radius),(radius,radius),(0,0),(0,0)])
     out_layer = self.conv2d(in_layer, weights)
     self.outputs_by_layer.append((name,out_layer))
     return out_layer
@@ -435,8 +435,8 @@ class Model:
     self.outputs_by_layer.append((name+"/conv1b",conv1b_layer))
 
     trans1b_layer = self.parametric_relu(name+"/trans1b",(self.batchnorm(name+"/norm1b",conv1b_layer)))
-    trans1b_mean = tf.reduce_mean(trans1b_layer,axis=[1,2],keepdims=True)
-    trans1b_max = tf.reduce_max(trans1b_layer,axis=[1,2],keepdims=True)
+    trans1b_mean = tf.reduce_mean(input_tensor=trans1b_layer,axis=[1,2],keepdims=True)
+    trans1b_max = tf.reduce_max(input_tensor=trans1b_layer,axis=[1,2],keepdims=True)
     trans1b_pooled = tf.concat([trans1b_mean,trans1b_max],axis=3)
 
     remix_weights = self.weight_variable(name+"/w1r",[global_mid_channels*2,mid_channels],global_mid_channels*2,mid_channels, scale_initial_weights = 0.5)
@@ -552,7 +552,7 @@ class Model:
       assert(tensor.shape[1].value == n)
       assert(tensor.shape[2].value == n)
       c = tensor.shape[3].value
-      tensor = tf.pad(tensor,[[0,0],[0,0],[0,n],[0,0]]) #Pad 19x19 -> 19x38
+      tensor = tf.pad(tensor=tensor,paddings=[[0,0],[0,0],[0,n],[0,0]]) #Pad 19x19 -> 19x38
       tensor = tf.reshape(tensor,[-1,2*n*n,c]) #Linearize
       tensor = tensor[:,:((2*n-1)*n),:] #Chop off the 19 zeroes on the end
       tensor = tf.reshape(tensor,[-1,n,2*n-1,c]) #Now we are skewed 19x37 as desired
@@ -564,7 +564,7 @@ class Model:
       assert(tensor.shape[2].value == 2*n-1)
       c = tensor.shape[3].value
       tensor = tf.reshape(tensor,[-1,n*(2*n-1),c]) #Linearize
-      tensor = tf.pad(tensor,[[0,0],[0,n],[0,0]]) #Pad 19*37 -> 19*38
+      tensor = tf.pad(tensor=tensor,paddings=[[0,0],[0,n],[0,0]]) #Pad 19*37 -> 19*38
       tensor = tf.reshape(tensor,[-1,n,2*n,c]) #Convert back to 19x38
       tensor = tensor[:,:,:n,:] #Chop off the extra, now we are 19x19
       return tensor
@@ -575,7 +575,7 @@ class Model:
       assert(tensor.shape[1].value == n)
       assert(tensor.shape[2].value == n)
       c = tensor.shape[3].value
-      tensor = tf.pad(tensor,[[0,0],[1,1],[n-2,0],[0,0]]) #Pad 19x19 -> 21x36
+      tensor = tf.pad(tensor=tensor,paddings=[[0,0],[1,1],[n-2,0],[0,0]]) #Pad 19x19 -> 21x36
       tensor = tf.reshape(tensor,[-1,(n+2)*(2*n-2),c]) #Linearize
       tensor = tensor[:,(2*n-3):(-n+1),:] #Chop off the 35 extra zeroes on the start and the 18 at the end.
       tensor = tf.reshape(tensor,[-1,n,2*n-1,c]) #Now we are skewed 19x37 as desired
@@ -588,7 +588,7 @@ class Model:
       assert(tensor.shape[2].value == 2*n-1)
       c = tensor.shape[3].value
       tensor = tf.reshape(tensor,[-1,n*(2*n-1),c]) #Linearize
-      tensor = tf.pad(tensor,[[0,0],[2*n-3,n-1],[0,0]]) #Pad 19*37 -> 21*36
+      tensor = tf.pad(tensor=tensor,paddings=[[0,0],[2*n-3,n-1],[0,0]]) #Pad 19*37 -> 21*36
       tensor = tf.reshape(tensor,[-1,n+2,2*n-2,c]) #Convert back to 21x36
       tensor = tensor[:,1:(n+1),(n-2):,:] #Chop off the extra, now we are 19x19
       return tensor
@@ -683,10 +683,10 @@ class Model:
     self.version = 2 #V2 features, no internal architecture change.
 
     #Input layer---------------------------------------------------------------------------------
-    inputs = tf.placeholder(tf.float32, [None] + self.input_shape, name="inputs")
-    ranks = tf.placeholder(tf.float32, [None] + self.rank_shape, name="ranks")
-    symmetries = tf.placeholder(tf.bool, [3], name="symmetries")
-    include_history = tf.placeholder(tf.float32, [None] + [5], name="include_history")
+    inputs = tf.compat.v1.placeholder(tf.float32, [None] + self.input_shape, name="inputs")
+    ranks = tf.compat.v1.placeholder(tf.float32, [None] + self.rank_shape, name="ranks")
+    symmetries = tf.compat.v1.placeholder(tf.bool, [3], name="symmetries")
+    include_history = tf.compat.v1.placeholder(tf.float32, [None] + [5], name="include_history")
     self.inputs = inputs
     self.ranks = ranks
     self.symmetries = symmetries
@@ -879,8 +879,8 @@ class Model:
 
       #Fold g1 down to single values for the board.
       #For stdev, add a tiny constant to ensure numeric stability
-      g1_mean = tf.reduce_mean(g1_layer,axis=[1,2],keepdims=True)
-      g1_max = tf.reduce_max(g1_layer,axis=[1,2],keepdims=True)
+      g1_mean = tf.reduce_mean(input_tensor=g1_layer,axis=[1,2],keepdims=True)
+      g1_max = tf.reduce_max(input_tensor=g1_layer,axis=[1,2],keepdims=True)
       g2_layer = tf.concat([g1_mean,g1_max],axis=3) #shape [b,1,1,2*convg1num_channels]
       g2_num_channels = 2*g1_num_channels
       self.outputs_by_layer.append(("g2",g2_layer))
@@ -921,7 +921,7 @@ class Model:
       if not predict_pass:
         #Simply add the pass output on with a large negative constant that's probably way more negative than anything
         #else the neural net would output.
-        policy_output = tf.pad(policy_output,[(0,0),(0,1)], constant_values = -10000., name="policy_output")
+        policy_output = tf.pad(tensor=policy_output,paddings=[(0,0),(0,1)], constant_values = -10000., name="policy_output")
       else:
         #Add pass move based on the global g values
         matmulpass = self.weight_variable("matmulpass",[g2_num_channels,1],g2_num_channels*8,1)
@@ -935,7 +935,7 @@ class Model:
     else:
       #Don't include policy? Just set the policy output to all zeros.
       policy_output = tf.zeros_like(inputs[:,:,0])
-      policy_output = tf.pad(policy_output,[(0,0),(0,1)])
+      policy_output = tf.pad(tensor=policy_output,paddings=[(0,0),(0,1)])
       self.policy_output = policy_output
 
     if include_value:
@@ -947,7 +947,7 @@ class Model:
       self.v1_conv = ("v1",3,trunk_num_channels,v1_num_channels)
       self.v1_num_channels = v1_num_channels
 
-      v1_layer_pooled = tf.reduce_mean(v1_layer,axis=[1,2],keepdims=False)
+      v1_layer_pooled = tf.reduce_mean(input_tensor=v1_layer,axis=[1,2],keepdims=False)
       v1_size = v1_num_channels
 
       v2_size = 12
@@ -983,43 +983,43 @@ class Target_vars:
     value_output = model.value_output
 
     #Loss function
-    self.policy_targets = tf.placeholder(tf.float32, [None] + model.policy_target_shape)
-    self.value_target = tf.placeholder(tf.float32, [None] + model.value_target_shape)
-    self.target_weights_from_data = tf.placeholder(tf.float32, [None] + model.target_weights_shape)
+    self.policy_targets = tf.compat.v1.placeholder(tf.float32, [None] + model.policy_target_shape)
+    self.value_target = tf.compat.v1.placeholder(tf.float32, [None] + model.value_target_shape)
+    self.target_weights_from_data = tf.compat.v1.placeholder(tf.float32, [None] + model.target_weights_shape)
 
     if require_last_move == "all":
-      self.target_weights_used = self.target_weights_from_data * tf.reduce_sum(model.inputs[:,:,14],axis=[1])
+      self.target_weights_used = self.target_weights_from_data * tf.reduce_sum(input_tensor=model.inputs[:,:,14],axis=[1])
     elif require_last_move is True:
-      self.target_weights_used = self.target_weights_from_data * tf.reduce_sum(model.inputs[:,:,10],axis=[1])
+      self.target_weights_used = self.target_weights_from_data * tf.reduce_sum(input_tensor=model.inputs[:,:,10],axis=[1])
     else:
       self.target_weights_used = self.target_weights_from_data
 
     self.policy_loss = tf.reduce_sum(
-      self.target_weights_used *
-      tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_targets, logits=policy_output)
+      input_tensor=self.target_weights_used *
+      tf.nn.softmax_cross_entropy_with_logits(labels=self.policy_targets, logits=policy_output)
     )
 
     cross_entropy_value_loss = 1.4*tf.reduce_sum(
-      self.target_weights_used *
+      input_tensor=self.target_weights_used *
       tf.nn.softmax_cross_entropy_with_logits(
-        labels=tf.stack([(1+self.value_target)/2,(1-self.value_target)/2],axis=1),
+        labels=tf.stop_gradient(tf.stack([(1+self.value_target)/2,(1-self.value_target)/2],axis=1)),
         logits=tf.stack([value_output,tf.zeros_like(value_output)],axis=1)
       )
     )
 
     l2_value_loss = tf.reduce_sum(
-      self.target_weights_used *
+      input_tensor=self.target_weights_used *
       tf.square(self.value_target - tf.tanh(value_output))
     )
 
     self.value_loss = 0.5 * (cross_entropy_value_loss + l2_value_loss)
     # self.value_loss = l2_value_loss
 
-    self.weight_sum = tf.reduce_sum(self.target_weights_used)
+    self.weight_sum = tf.reduce_sum(input_tensor=self.target_weights_used)
 
     if for_optimization:
       #Prior/Regularization
-      self.l2_reg_coeff = tf.placeholder(tf.float32)
+      self.l2_reg_coeff = tf.compat.v1.placeholder(tf.float32)
       self.reg_loss = self.l2_reg_coeff * tf.add_n([tf.nn.l2_loss(variable) for variable in model.reg_variables]) * self.weight_sum
 
       #The loss to optimize
@@ -1028,36 +1028,36 @@ class Target_vars:
 class Metrics:
   def __init__(self,model,target_vars,include_debug_stats):
     #Training results
-    policy_target_idxs = tf.argmax(target_vars.policy_targets, 1)
-    self.top1_prediction = tf.equal(tf.argmax(model.policy_output, 1), policy_target_idxs)
-    self.top4_prediction = tf.nn.in_top_k(model.policy_output,policy_target_idxs,4)
-    self.accuracy1 = tf.reduce_sum(target_vars.target_weights_used * tf.cast(self.top1_prediction, tf.float32))
-    self.accuracy4 = tf.reduce_sum(target_vars.target_weights_used * tf.cast(self.top4_prediction, tf.float32))
-    self.valueconf = tf.reduce_sum(tf.square(model.value_output))
+    policy_target_idxs = tf.argmax(input=target_vars.policy_targets, axis=1)
+    self.top1_prediction = tf.equal(tf.argmax(input=model.policy_output, axis=1), policy_target_idxs)
+    self.top4_prediction = tf.nn.in_top_k(predictions=model.policy_output,targets=policy_target_idxs,k=4)
+    self.accuracy1 = tf.reduce_sum(input_tensor=target_vars.target_weights_used * tf.cast(self.top1_prediction, tf.float32))
+    self.accuracy4 = tf.reduce_sum(input_tensor=target_vars.target_weights_used * tf.cast(self.top4_prediction, tf.float32))
+    self.valueconf = tf.reduce_sum(input_tensor=tf.square(model.value_output))
 
     #Debugging stats
     if include_debug_stats:
 
       def reduce_norm(x, axis=None, keepdims=False):
-        return tf.sqrt(tf.reduce_mean(tf.square(x), axis=axis, keepdims=keepdims))
+        return tf.sqrt(tf.reduce_mean(input_tensor=tf.square(x), axis=axis, keepdims=keepdims))
 
       def reduce_stdev(x, axis=None, keepdims=False):
-        m = tf.reduce_mean(x, axis=axis, keepdims=True)
+        m = tf.reduce_mean(input_tensor=x, axis=axis, keepdims=True)
         devs_squared = tf.square(x - m)
-        return tf.sqrt(tf.reduce_mean(devs_squared, axis=axis, keepdims=keepdims))
+        return tf.sqrt(tf.reduce_mean(input_tensor=devs_squared, axis=axis, keepdims=keepdims))
 
       self.activated_prop_by_layer = dict([
-        (name,tf.reduce_mean(tf.count_nonzero(layer,axis=[1,2])/layer.shape[1].value/layer.shape[2].value, axis=0)) for (name,layer) in model.outputs_by_layer
+        (name,tf.reduce_mean(input_tensor=tf.math.count_nonzero(layer,axis=[1,2])/layer.shape[1].value/layer.shape[2].value, axis=0)) for (name,layer) in model.outputs_by_layer
       ])
       self.mean_output_by_layer = dict([
-        (name,tf.reduce_mean(layer,axis=[0,1,2])) for (name,layer) in model.outputs_by_layer
+        (name,tf.reduce_mean(input_tensor=layer,axis=[0,1,2])) for (name,layer) in model.outputs_by_layer
       ])
       self.stdev_output_by_layer = dict([
         (name,reduce_stdev(layer,axis=[0,1,2])**2) for (name,layer) in model.outputs_by_layer
       ])
       self.mean_weights_by_var = dict([
-        (v.name,tf.reduce_mean(v)) for v in tf.trainable_variables()
+        (v.name,tf.reduce_mean(input_tensor=v)) for v in tf.compat.v1.trainable_variables()
       ])
       self.norm_weights_by_var = dict([
-        (v.name,reduce_norm(v)) for v in tf.trainable_variables()
+        (v.name,reduce_norm(v)) for v in tf.compat.v1.trainable_variables()
       ])
