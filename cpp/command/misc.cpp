@@ -1718,18 +1718,60 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
   Board::initHash();
   ScoreValue::initTables();
 
+  ConfigParser cfg;
+  string modelFile;
   vector<string> startPosesFiles;
   try {
     KataGoCommandLine cmd("View startposes");
+    cmd.addConfigFileArg("","");
+    cmd.addModelFileArg();
+    cmd.addOverrideConfigArg();
 
-    TCLAP::MultiArg<string> startPosesFileArg("","startPosesFile","Startposes file",true,"DIR");
+    TCLAP::MultiArg<string> startPosesFileArg("","start-poses-file","Startposes file",true,"DIR");
     cmd.add(startPosesFileArg);
     cmd.parse(argc,argv);
     startPosesFiles = startPosesFileArg.getValue();
+
+    cmd.getConfigAllowEmpty(cfg);
+    if(cfg.getFileName() != "")
+      modelFile = cmd.getModelFile();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
     return 1;
+  }
+
+  Rand seedRand;
+  Logger logger;
+  logger.setLogToStdout(true);
+
+  Rules rules;
+  AsyncBot* bot = NULL;
+  NNEvaluator* nnEval = NULL;
+  if(cfg.getFileName() != "") {
+    rules = Setup::loadSingleRulesExceptForKomi(cfg);
+    SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+    {
+      Setup::initializeSession(cfg);
+      int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+      int expectedConcurrentEvals = params.numThreads;
+      int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+      string expectedSha256 = "";
+      nnEval = Setup::initializeNNEvaluator(
+        modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+        Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,
+        Setup::SETUP_FOR_GTP
+      );
+    }
+    logger.write("Loaded neural net");
+
+    string searchRandSeed;
+    if(cfg.contains("searchRandSeed"))
+      searchRandSeed = cfg.getString("searchRandSeed");
+    else
+      searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
+
+    bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
   }
 
   vector<Sgf::PositionSample> startPoses;
@@ -1756,7 +1798,7 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
     Board board = startPos.board;
     Player pla = startPos.nextPla;
     BoardHistory hist;
-    hist.clear(board,pla,Rules(),0);
+    hist.clear(board,pla,rules,0);
     hist.setInitialTurnNumber(startPos.initialTurnNumber);
 
     bool allLegal = true;
@@ -1773,11 +1815,30 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
     }
 
     Loc hintLoc = startPos.hintLoc;
+    cout << "Next pla: " << PlayerIO::playerToString(pla) << "\n";
     cout << "Weight: " << startPos.weight << "\n";
-    cout << "There was a hintpos " << Location::toString(hintLoc,board) << "\n";
+    cout << "HintLoc: " << Location::toString(hintLoc,board) << "\n";
     Board::printBoard(cout, board, hintLoc, &(hist.moveHistory));
     cout << endl;
+
+    if(bot != NULL) {
+      bot->setPosition(pla,board,hist);
+      if(hintLoc != Board::NULL_LOC)
+        bot->setRootHintLoc(hintLoc);
+      else
+        bot->setRootHintLoc(Board::NULL_LOC);
+      bot->genMoveSynchronous(bot->getSearch()->rootPla,TimeControls());
+      const Search* search = bot->getSearchStopAndWait();
+      PrintTreeOptions options;
+      Player perspective = P_WHITE;
+      search->printTree(cout, search->rootNode, options, perspective);
+    }
   }
+
+  if(bot != NULL)
+    delete bot;
+  if(nnEval != NULL)
+    delete nnEval;
 
   ScoreValue::freeTables();
   return 0;
