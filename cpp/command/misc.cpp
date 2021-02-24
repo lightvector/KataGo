@@ -1721,6 +1721,7 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
   ConfigParser cfg;
   string modelFile;
   vector<string> startPosesFiles;
+  double minWeight;
   try {
     KataGoCommandLine cmd("View startposes");
     cmd.addConfigFileArg("","");
@@ -1728,9 +1729,12 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
     cmd.addOverrideConfigArg();
 
     TCLAP::MultiArg<string> startPosesFileArg("","start-poses-file","Startposes file",true,"DIR");
+    TCLAP::ValueArg<double> minWeightArg("","min-weight","Min weight of startpos to view",false,0.0,"WEIGHT");
     cmd.add(startPosesFileArg);
+    cmd.add(minWeightArg);
     cmd.parse(argc,argv);
     startPosesFiles = startPosesFileArg.getValue();
+    minWeight = minWeightArg.getValue();
 
     cmd.getConfigAllowEmpty(cfg);
     if(cfg.getFileName() != "")
@@ -1741,7 +1745,7 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
     return 1;
   }
 
-  Rand seedRand;
+  Rand rand;
   Logger logger;
   logger.setLogToStdout(true);
 
@@ -1758,7 +1762,7 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
       int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
       string expectedSha256 = "";
       nnEval = Setup::initializeNNEvaluator(
-        modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+        modelFile,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
         Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,
         Setup::SETUP_FOR_GTP
       );
@@ -1769,7 +1773,7 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
     if(cfg.contains("searchRandSeed"))
       searchRandSeed = cfg.getString("searchRandSeed");
     else
-      searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
+      searchRandSeed = Global::uint64ToString(rand.nextUInt64());
 
     bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
   }
@@ -1794,6 +1798,8 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
 
   for(size_t s = 0; s<startPoses.size(); s++) {
     const Sgf::PositionSample& startPos = startPoses[s];
+    if(startPos.weight < minWeight)
+      continue;
 
     Board board = startPos.board;
     Player pla = startPos.nextPla;
@@ -1815,11 +1821,19 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
     }
 
     Loc hintLoc = startPos.hintLoc;
+    cout << "StartPos: " << s << "/" << startPoses.size() << "\n";
     cout << "Next pla: " << PlayerIO::playerToString(pla) << "\n";
     cout << "Weight: " << startPos.weight << "\n";
     cout << "HintLoc: " << Location::toString(hintLoc,board) << "\n";
     Board::printBoard(cout, board, hintLoc, &(hist.moveHistory));
     cout << endl;
+
+    bool autoKomi = true;
+    if(autoKomi) {
+      const int64_t numVisits = 10;
+      OtherGameProperties props;
+      PlayUtils::adjustKomiToEven(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,logger,props,rand);
+    }
 
     if(bot != NULL) {
       bot->setPosition(pla,board,hist);
