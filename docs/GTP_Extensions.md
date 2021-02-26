@@ -98,6 +98,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `prior` - 10000 times the policy prior of the move, rounded to an integer in [0,10000].
          * `lcb` - 10000 times the [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move, rounded to an integer in [0,10000].
          * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
+         * `psv` - The play selection value of the move, used to determine the `order`
          * `pv` - The principal variation following this move. May be of variable length or even empty.
       * All output values are from the perspective of the current player, unless otherwise configured in KataGo's gtp config.
       * This command is a bit unusual for GTP in that it will run forever on its own, but asynchronously if any new GTP command or a raw newline is received, then it will terminate.
