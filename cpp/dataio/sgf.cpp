@@ -156,6 +156,14 @@ string SgfNode::getSingleProperty(const char* key) const {
   return prop[0];
 }
 
+const vector<string> SgfNode::getProperties(const char* key) const {
+  if(props == NULL)
+    propertyFail("SGF does not contain property: " + string(key));
+  if(!contains(*props,key))
+    propertyFail("SGF does not contain property: " + string(key));
+  return map_get(*props,key);
+}
+
 bool SgfNode::hasPlacements() const {
   return props != NULL && (contains(*props,"AB") || contains(*props,"AW") || contains(*props,"AE"));
 }
@@ -361,6 +369,21 @@ float Sgf::getKomi() const {
     else
       propertyFail("Komi in sgf is not integer or half-integer");
   }
+
+  //Hack - check for foxwq sgfs with weird komis
+  if(nodes[0]->hasProperty("AP") && contains(nodes[0]->getProperties("AP"),"foxwq")) {
+    if(komi == 325 || komi == 650)
+      komi = 6.5f;
+    else if(komi == 375 || komi == 750)
+      komi = 7.5f;
+    else if(komi == 350 || komi == 700)
+      komi = 7.0f;
+    else if(komi == 0)
+      komi = 0.0f;
+    else
+      propertyFail("Currently no case implemented for foxwq komi: " + Global::floatToString(komi));
+  }
+
   return komi;
 }
 
@@ -388,6 +411,116 @@ Rules Sgf::getRulesOrFail() const {
   //In SGF files the komi comes from the KM tag.
   rules.komi = getKomi();
   return rules;
+}
+
+int Sgf::getRank(Player pla) const {
+  string rankStr;
+  if(pla == P_BLACK) {
+    if(!nodes[0]->hasProperty("BR"))
+      return Sgf::RANK_UNKNOWN;
+    rankStr = nodes[0]->getSingleProperty("BR");
+  }
+  else if(pla == P_WHITE) {
+    if(!nodes[0]->hasProperty("WR"))
+      return Sgf::RANK_UNKNOWN;
+    rankStr = nodes[0]->getSingleProperty("WR");
+  }
+  else {
+    assert(false);
+    return Sgf::RANK_UNKNOWN;
+  }
+  int rank;
+  static constexpr int TOP_DAN = 13;
+  static constexpr int BOTTOM_KYU = 50;
+  string rankStrLower = Global::toLower(rankStr);
+
+  if(Global::isSuffix(rankStrLower,"d")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower,"d"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return rank-1;
+  }
+  if(Global::isSuffix(rankStrLower," d")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower," d"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return rank-1;
+  }
+  if(Global::isSuffix(rankStrLower,"dan")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower,"dan"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return rank-1;
+  }
+  if(Global::isSuffix(rankStrLower," dan")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower," dan"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return rank-1;
+  }
+  if(Global::isSuffix(rankStr,"段")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStr,"段"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return rank-1;
+  }
+  if(Global::isSuffix(rankStrLower,"p")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower,"p"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return std::max(rank,9)-1;
+  }
+  if(Global::isSuffix(rankStrLower," p")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower," p"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return std::max(rank,9)-1;
+  }
+  if(Global::isSuffix(rankStrLower,"pro")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower,"pro"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return std::max(rank,9)-1;
+  }
+  if(Global::isSuffix(rankStrLower," pro")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower," pro"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return std::max(rank,9)-1;
+  }
+  if(Global::isPrefix(rankStr,"P") && Global::isSuffix(rankStr,"段")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(Global::chopPrefix(rankStr,"P"),"段"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return std::max(rank,9)-1;
+  }
+  if(Global::isSuffix(rankStrLower,"k")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower,"k"),rank);
+    if(suc && rank >= 1 && rank <= BOTTOM_KYU)
+      return -rank;
+  }
+  if(Global::isSuffix(rankStrLower," k")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower," k"),rank);
+    if(suc && rank >= 1 && rank <= BOTTOM_KYU)
+      return -rank;
+  }
+  if(Global::isSuffix(rankStrLower,"kyu")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower,"kyu"),rank);
+    if(suc && rank >= 1 && rank <= BOTTOM_KYU)
+      return -rank;
+  }
+  if(Global::isSuffix(rankStrLower," kyu")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower," kyu"),rank);
+    if(suc && rank >= 1 && rank <= BOTTOM_KYU)
+      return -rank;
+  }
+  propertyFail("Could not parse rank in sgf: " + rankStr);
+  return Sgf::RANK_UNKNOWN;
+}
+
+string Sgf::getPlayerName(Player pla) const {
+  if(pla == P_BLACK) {
+    if(!nodes[0]->hasProperty("PB"))
+      return "";
+    return nodes[0]->getSingleProperty("PB");
+  }
+  else if(pla == P_WHITE) {
+    if(!nodes[0]->hasProperty("PW"))
+      return "";
+    return nodes[0]->getSingleProperty("PW");
+  }
+  assert(false);
+  return "";
 }
 
 void Sgf::getPlacements(vector<Move>& moves, int xSize, int ySize) const {
