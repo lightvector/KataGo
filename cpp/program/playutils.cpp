@@ -512,6 +512,8 @@ vector<double> PlayUtils::computeOwnership(
   newParams.rootNumSymmetriesToSample = 1;
   newParams.playoutDoublingAdvantagePla = C_EMPTY;
   newParams.playoutDoublingAdvantage = 0.0;
+  //Make sure the search is always from a state where the game isn't believed to end with another pass
+  newParams.conservativePass = true;
   if(newParams.numThreads > (numVisits+7)/8)
     newParams.numThreads = (numVisits+7)/8;
 
@@ -529,6 +531,7 @@ vector<double> PlayUtils::computeOwnership(
   return ownerships;
 }
 
+//Tromp-taylor-like scoring, except recognizes pass-dead stones.
 vector<bool> PlayUtils::computeAnticipatedStatusesSimple(
   const Board& board,
   const BoardHistory& hist
@@ -562,6 +565,7 @@ vector<bool> PlayUtils::computeAnticipatedStatusesSimple(
   return isAlive;
 }
 
+//Always non-tromp-taylorlike in the main phase of the game, this is the ownership that users would want.
 vector<bool> PlayUtils::computeAnticipatedStatusesWithOwnership(
   Search* bot,
   const Board& board,
@@ -570,9 +574,6 @@ vector<bool> PlayUtils::computeAnticipatedStatusesWithOwnership(
   int64_t numVisits,
   Logger& logger
 ) {
-  if(hist.isGameFinished)
-    return computeAnticipatedStatusesSimple(board,hist);
-
   vector<bool> isAlive(Board::MAX_ARR_SIZE,false);
   bool solved[Board::MAX_ARR_SIZE];
   for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {

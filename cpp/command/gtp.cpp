@@ -1083,13 +1083,16 @@ struct GTPEngine {
     bot->analyzeAsync(pla, searchFactor, args.secondsPerReport, callback);
   }
 
-  double computeLead(Logger& logger) {
+  void computeAnticipatedWinnerAndScore(Logger& logger, Player& winner, double& finalWhiteMinusBlackScore) {
     stopAndWait();
 
-    //ALWAYS use 0 to prevent bias
-    if(params.playoutDoublingAdvantage != 0.0) {
-      params.playoutDoublingAdvantage = 0.0;
-      bot->setParams(params);
+    //No playoutDoublingAdvantage to avoid bias
+    //Also never assume the game will end abruptly due to pass
+    {
+      SearchParams tmpParams = params;
+      tmpParams.playoutDoublingAdvantage = 0.0;
+      tmpParams.conservativePass = true;
+      bot->setParams(tmpParams);
     }
 
     //Make absolutely sure we can restore the bot's old state
@@ -1101,23 +1104,38 @@ struct GTPEngine {
     BoardHistory hist = bot->getRootHist();
     Player pla = bot->getRootPla();
 
-    int64_t numVisits = std::max(50, params.numThreads * 10);
-    //Try computing the lead for white
-    double lead = PlayUtils::computeLead(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,logger,OtherGameProperties());
+    //Tromp-taylorish scoring, or finished territory game scoring (including noresult)
+    if(hist.isGameFinished && (
+         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.passOkWithoutCleanup) ||
+         (hist.rules.scoringRule == Rules::SCORING_TERRITORY)
+       )
+    ) {
+      //For GTP purposes, we treat noResult as a draw since there is no provision for anything else.
+      winner = hist.winner;
+      finalWhiteMinusBlackScore = hist.finalWhiteMinusBlackScore;
+    }
+    //Human-friendly score or incomplete game score estimation
+    else {
+      int64_t numVisits = std::max(50, params.numThreads * 10);
+      //Try computing the lead for white
+      double lead = PlayUtils::computeLead(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,logger,OtherGameProperties());
+
+      //Round lead to nearest integer or half-integer
+      if(hist.rules.gameResultWillBeInteger())
+        lead = round(lead);
+      else
+        lead = round(lead+0.5)-0.5;
+
+      finalWhiteMinusBlackScore = lead;
+      winner = lead > 0 ? P_WHITE : lead < 0 ? P_BLACK : C_EMPTY;
+    }
 
     //Restore
     bot->setPosition(oldPla,oldBoard,oldHist);
-
-    //Round lead to nearest integer or half-integer
-    if(hist.rules.gameResultWillBeInteger())
-      lead = round(lead);
-    else
-      lead = round(lead+0.5)-0.5;
-
-    return lead;
+    bot->setParams(params);
   }
 
-  vector<bool> computeAnticipatedStatusesWithOwnership(Logger& logger) {
+  vector<bool> computeAnticipatedStatuses(Logger& logger) {
     stopAndWait();
 
     //Make absolutely sure we can restore the bot's old state
@@ -1130,7 +1148,17 @@ struct GTPEngine {
     Player pla = bot->getRootPla();
 
     int64_t numVisits = std::max(100, params.numThreads * 20);
-    vector<bool> isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot->getSearchStopAndWait(),board,hist,pla,numVisits,logger);
+    vector<bool> isAlive;
+    //Tromp-taylorish statuses, or finished territory game statuses (including noresult)
+    if(hist.isGameFinished && (
+         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.passOkWithoutCleanup) ||
+         (hist.rules.scoringRule == Rules::SCORING_TERRITORY)
+       )
+    )
+      isAlive = PlayUtils::computeAnticipatedStatusesSimple(board,hist);
+    //Human-friendly statuses or incomplete game status estimation
+    else
+      isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot->getSearchStopAndWait(),board,hist,pla,numVisits,logger);
 
     //Restore
     bot->setPosition(oldPla,oldBoard,oldHist);
@@ -2420,22 +2448,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     else if(command == "final_score") {
       engine->stopAndWait();
 
-      BoardHistory hist = engine->bot->getRootHist();
-
-      //If the game is finished, then we score the game as-is.
-      //If it's not finished, then we try to get a bit clever.
       Player winner = C_EMPTY;
       double finalWhiteMinusBlackScore = 0.0;
-      if(hist.isGameFinished) {
-        //For GTP purposes, we treat noResult as a draw since there is no provision for anything else.
-        winner = hist.winner;
-        finalWhiteMinusBlackScore = hist.finalWhiteMinusBlackScore;
-      }
-      else {
-        double lead = engine->computeLead(logger);
-        finalWhiteMinusBlackScore = lead;
-        winner = lead > 0 ? P_WHITE : lead < 0 ? P_BLACK : C_EMPTY;
-      }
+      engine->computeAnticipatedWinnerAndScore(logger,winner,finalWhiteMinusBlackScore);
 
       if(winner == C_EMPTY)
         response = "0";
@@ -2467,7 +2482,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         }
 
         if(statusMode < 3) {
-          vector<bool> isAlive = engine->computeAnticipatedStatusesWithOwnership(logger);
+          vector<bool> isAlive = engine->computeAnticipatedStatuses(logger);
           Board board = engine->bot->getRootBoard();
           vector<Loc> locsToReport;
 
