@@ -860,3 +860,37 @@ Rules PlayUtils::genRandomRules(Rand& rand) {
   return rules;
 }
 
+Loc PlayUtils::maybeCleanupBeforePass(
+  enabled_t cleanupBeforePass,
+  Player pla,
+  Loc moveLoc,
+  const AsyncBot* bot
+) {
+  const BoardHistory& hist = bot->getRootHist();
+  const Rules& rules = hist.rules;
+  const bool doCleanupBeforePass =
+    cleanupBeforePass == enabled_t::True ? true :
+    cleanupBeforePass == enabled_t::False ? false :
+    (rules.passOkWithoutCleanup == false && rules.scoringRule == Rules::SCORING_AREA);
+  if(doCleanupBeforePass && moveLoc == Board::PASS_LOC && hist.isFinalPhase() && !hist.hasButton) {
+    const Board& board = bot->getRootBoard();
+    const Color* safeArea = bot->getSearch()->rootSafeArea;
+    assert(safeArea != NULL);
+    //Scan the board for any spot that is adjacent to an opponent group that is part of our pass-alive territory.
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc otherLoc = Location::getLoc(x,y,board.x_size);
+        if(moveLoc == Board::PASS_LOC &&
+           board.colors[otherLoc] == C_EMPTY &&
+           safeArea[otherLoc] == pla &&
+           board.isAdjacentToPla(otherLoc,getOpp(pla)) &&
+           hist.isLegal(board,otherLoc,pla)
+        ) {
+          moveLoc = otherLoc;
+        }
+      }
+    }
+  }
+  return moveLoc;
+}
+

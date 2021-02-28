@@ -1,6 +1,7 @@
 #ifndef PROGRAM_PLAY_UTILS_H_
 #define PROGRAM_PLAY_UTILS_H_
 
+#include "../core/config_parser.h"
 #include "../program/play.h"
 #include "../search/asyncbot.h"
 
@@ -145,6 +146,14 @@ namespace PlayUtils {
   void printGenmoveLog(std::ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken, Player perspective);
 
   Rules genRandomRules(Rand& rand);
+
+  Loc maybeCleanupBeforePass(
+    enabled_t cleanupBeforePass,
+    Player pla,
+    Loc moveLoc,
+    const AsyncBot* bot
+  );
+
 }
 
 

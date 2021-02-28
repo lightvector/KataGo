@@ -772,7 +772,7 @@ struct GTPEngine {
   void genMove(
     Player pla,
     Logger& logger, double searchFactorWhenWinningThreshold, double searchFactorWhenWinning,
-    bool cleanupBeforePass, bool ogsChatToStderr,
+    enabled_t cleanupBeforePass, bool ogsChatToStderr,
     bool allowResignation, double resignThreshold, int resignConsecTurns, double resignMinScoreDifference,
     bool logSearchInfo, bool debug, bool playChosenMove,
     string& response, bool& responseIsError, bool& maybeStartPondering,
@@ -857,29 +857,6 @@ struct GTPEngine {
       return;
     }
 
-    //Implement cleanupBeforePass hack - the bot wants to pass, so instead cleanup if there is something to clean
-    //Make sure we only do it though when it makes sense to do so.
-    if(cleanupBeforePass && moveLoc == Board::PASS_LOC && bot->getRootHist().isFinalPhase() && !bot->getRootHist().hasButton) {
-      Board board = bot->getRootBoard();
-      BoardHistory hist = bot->getRootHist();
-      Color* safeArea = bot->getSearch()->rootSafeArea;
-      assert(safeArea != NULL);
-      //Scan the board for any spot that is adjacent to an opponent group that is part of our pass-alive territory.
-      for(int y = 0; y<board.y_size; y++) {
-        for(int x = 0; x<board.x_size; x++) {
-          Loc otherLoc = Location::getLoc(x,y,board.x_size);
-          if(moveLoc == Board::PASS_LOC &&
-             board.colors[otherLoc] == C_EMPTY &&
-             safeArea[otherLoc] == pla &&
-             board.isAdjacentToPla(otherLoc,getOpp(pla)) &&
-             hist.isLegal(board,otherLoc,pla)
-          ) {
-            moveLoc = otherLoc;
-          }
-        }
-      }
-    }
-
     ReportedSearchValues values;
     double winLossValue;
     double lead;
@@ -939,6 +916,14 @@ struct GTPEngine {
     if(debug) {
       PlayUtils::printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken,perspective);
     }
+
+    //Hacks--------------------------------------------------
+    //At least one of these hacks will use the bot to search stuff and clears its tree, so we apply them AFTER
+    //all relevant logging and stuff.
+
+    //Implement cleanupBeforePass hack - if the bot wants to pass, instead cleanup if there is something to clean
+    //and we are in a ruleset where this is necessary or the user has configured it.
+    moveLoc = PlayUtils::maybeCleanupBeforePass(cleanupBeforePass, pla, moveLoc, bot);
 
     //Actual reporting of chosen move---------------------
     if(resigned)
@@ -1496,7 +1481,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     initialParams.fillDameBeforePass = true;
 
   const bool ponderingEnabled = cfg.getBool("ponderingEnabled");
-  const bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : true;
+  const enabled_t cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getEnabled("cleanupBeforePass") : enabled_t::Auto;
   const bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
   const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
   const int resignConsecTurns = cfg.contains("resignConsecTurns") ? cfg.getInt("resignConsecTurns",1,100) : 3;
