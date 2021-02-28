@@ -688,7 +688,7 @@ Rules Setup::loadSingleRulesExceptForKomi(
 vector<pair<set<string>,set<string>>> Setup::getMutexKeySets() {
   vector<pair<set<string>,set<string>>> mutexKeySets = {
     std::make_pair<set<string>,set<string>>(
-    {"rules"},{"koRule","scoringRule","multiStoneSuicideLegal","taxRule","hasButton","whiteBonusPerHandicapStone","whiteHandicapBonus"}
+    {"rules"},{"koRule","scoringRule","multiStoneSuicideLegal","taxRule","hasButton","whiteBonusPerHandicapStone","friendlyPassOk","whiteHandicapBonus"}
     ),
   };
   return mutexKeySets;
