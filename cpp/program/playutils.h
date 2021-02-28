@@ -108,7 +108,8 @@ namespace PlayUtils {
     const BoardHistory& hist,
     Player pla,
     int64_t numVisits,
-    Logger& logger
+    Logger& logger,
+    std::vector<double>& ownershipsBuf
   );
 
 
@@ -149,9 +150,20 @@ namespace PlayUtils {
 
   Loc maybeCleanupBeforePass(
     enabled_t cleanupBeforePass,
-    Player pla,
+    enabled_t friendlyPass,
+    const Player pla,
     Loc moveLoc,
     const AsyncBot* bot
+  );
+
+  Loc maybeFriendlyPass(
+    enabled_t cleanupBeforePass,
+    enabled_t friendlyPass,
+    const Player pla,
+    Loc moveLoc,
+    Search* bot,
+    int64_t numVisits,
+    Logger& logger
   );
 
 }

@@ -1051,7 +1051,8 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     auto testStatuses = [&nnEval,&bot,&logger](const Board& board, const BoardHistory& hist, Player pla) {
       int numVisits = 50;
       vector<double> ownership = PlayUtils::computeOwnership(bot,board,hist,pla,numVisits,logger);
-      vector<bool> isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot,board,hist,pla,numVisits,logger);
+      vector<double> buf;
+      vector<bool> isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot,board,hist,pla,numVisits,logger,buf);
       testAssert(bot->alwaysIncludeOwnerMap == false);
       cout << "Search assumes " << PlayerIO::playerToString(pla) << " first" << endl;
       cout << "Rules " << hist.rules << endl;

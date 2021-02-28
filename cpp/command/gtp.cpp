@@ -772,7 +772,7 @@ struct GTPEngine {
   void genMove(
     Player pla,
     Logger& logger, double searchFactorWhenWinningThreshold, double searchFactorWhenWinning,
-    enabled_t cleanupBeforePass, bool ogsChatToStderr,
+    enabled_t cleanupBeforePass, enabled_t friendlyPass, bool ogsChatToStderr,
     bool allowResignation, double resignThreshold, int resignConsecTurns, double resignMinScoreDifference,
     bool logSearchInfo, bool debug, bool playChosenMove,
     string& response, bool& responseIsError, bool& maybeStartPondering,
@@ -921,9 +921,14 @@ struct GTPEngine {
     //At least one of these hacks will use the bot to search stuff and clears its tree, so we apply them AFTER
     //all relevant logging and stuff.
 
+    //Implement friendly pass - in area scoring rules other than tromp-taylor, maybe pass once there are no points
+    //left to gain.
+    int64_t numVisitsForFriendlyPass = 5 + std::min((int64_t)1000, std::min(params.maxVisits, params.maxPlayouts) / 10);
+    moveLoc = PlayUtils::maybeFriendlyPass(cleanupBeforePass, friendlyPass, pla, moveLoc, bot->getSearchStopAndWait(), numVisitsForFriendlyPass, logger);
+
     //Implement cleanupBeforePass hack - if the bot wants to pass, instead cleanup if there is something to clean
     //and we are in a ruleset where this is necessary or the user has configured it.
-    moveLoc = PlayUtils::maybeCleanupBeforePass(cleanupBeforePass, pla, moveLoc, bot);
+    moveLoc = PlayUtils::maybeCleanupBeforePass(cleanupBeforePass, friendlyPass, pla, moveLoc, bot);
 
     //Actual reporting of chosen move---------------------
     if(resigned)
@@ -1142,8 +1147,10 @@ struct GTPEngine {
     )
       isAlive = PlayUtils::computeAnticipatedStatusesSimple(board,hist);
     //Human-friendly statuses or incomplete game status estimation
-    else
-      isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot->getSearchStopAndWait(),board,hist,pla,numVisits,logger);
+    else {
+      vector<double> ownershipsBuf;
+      isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot->getSearchStopAndWait(),board,hist,pla,numVisits,logger,ownershipsBuf);
+    }
 
     //Restore
     bot->setPosition(oldPla,oldBoard,oldHist);
@@ -1481,7 +1488,12 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     initialParams.fillDameBeforePass = true;
 
   const bool ponderingEnabled = cfg.getBool("ponderingEnabled");
+
   const enabled_t cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getEnabled("cleanupBeforePass") : enabled_t::Auto;
+  const enabled_t friendlyPass = cfg.contains("friendlyPass") ? cfg.getEnabled("friendlyPass") : enabled_t::Auto;
+  if(cleanupBeforePass == enabled_t::True && friendlyPass == enabled_t::True)
+    throw StringError("Cannot specify both cleanupBeforePass = true and friendlyPass = true at the same time");
+
   const bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
   const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
   const int resignConsecTurns = cfg.contains("resignConsecTurns") ? cfg.getInt("resignConsecTurns",1,100) : 3;
@@ -2287,7 +2299,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         engine->genMove(
           pla,
           logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
-          cleanupBeforePass,ogsChatToStderr,
+          cleanupBeforePass,friendlyPass,ogsChatToStderr,
           allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
           logSearchInfo,debug,playChosenMove,
           response,responseIsError,maybeStartPondering,
@@ -2317,7 +2329,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         engine->genMove(
           pla,
           logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
-          cleanupBeforePass,ogsChatToStderr,
+          cleanupBeforePass,friendlyPass,ogsChatToStderr,
           allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
           logSearchInfo,debug,playChosenMove,
           response,responseIsError,maybeStartPondering,
