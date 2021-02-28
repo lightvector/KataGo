@@ -1120,12 +1120,6 @@ struct GTPEngine {
   vector<bool> computeAnticipatedStatusesWithOwnership(Logger& logger) {
     stopAndWait();
 
-    //ALWAYS use 0 to prevent bias
-    if(params.playoutDoublingAdvantage != 0.0) {
-      params.playoutDoublingAdvantage = 0.0;
-      bot->setParams(params);
-    }
-
     //Make absolutely sure we can restore the bot's old state
     const Player oldPla = bot->getRootPla();
     const Board oldBoard = bot->getRootBoard();
