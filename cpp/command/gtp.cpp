@@ -1096,7 +1096,7 @@ struct GTPEngine {
 
     //Tromp-taylorish scoring, or finished territory game scoring (including noresult)
     if(hist.isGameFinished && (
-         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.passOkWithoutCleanup) ||
+         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.friendlyPassOk) ||
          (hist.rules.scoringRule == Rules::SCORING_TERRITORY)
        )
     ) {
@@ -1141,7 +1141,7 @@ struct GTPEngine {
     vector<bool> isAlive;
     //Tromp-taylorish statuses, or finished territory game statuses (including noresult)
     if(hist.isGameFinished && (
-         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.passOkWithoutCleanup) ||
+         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.friendlyPassOk) ||
          (hist.rules.scoringRule == Rules::SCORING_TERRITORY)
        )
     )

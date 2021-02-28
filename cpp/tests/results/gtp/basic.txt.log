@@ -255,7 +255,7 @@ D6  : T -12.06c W  -8.91c S  -3.15c ( -0.7 L  -0.7) LCB -164.43c P  5.21% WF 10.
  2 . . . . . . . . .
  1 . . . . . . . . .
 Next player: White
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : All cleaned up, quitting

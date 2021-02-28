@@ -872,7 +872,7 @@ Loc PlayUtils::maybeCleanupBeforePass(
   const bool doCleanupBeforePass =
     cleanupBeforePass == enabled_t::True ? true :
     cleanupBeforePass == enabled_t::False ? false :
-    (rules.passOkWithoutCleanup == false && rules.scoringRule == Rules::SCORING_AREA);
+    (rules.friendlyPassOk == false && rules.scoringRule == Rules::SCORING_AREA);
   if(doCleanupBeforePass && moveLoc == Board::PASS_LOC && hist.isFinalPhase() && !hist.hasButton) {
     const Board& board = bot->getRootBoard();
     const Color* safeArea = bot->getSearch()->rootSafeArea;
@@ -915,7 +915,7 @@ Loc PlayUtils::maybeFriendlyPass(
     const bool doFriendlyPass =
       friendlyPass == enabled_t::True ? true :
       friendlyPass == enabled_t::False ? false :
-      (rules.passOkWithoutCleanup == true && rules.scoringRule == Rules::SCORING_AREA);
+      (rules.friendlyPassOk == true && rules.scoringRule == Rules::SCORING_AREA);
     shouldProceed = (
       doFriendlyPass &&
       moveLoc != Board::PASS_LOC &&

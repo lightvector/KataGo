@@ -35,7 +35,7 @@
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : Controller: set_position b c3 W q16 black q17 BLACK k10 black c5 WHITE q13
@@ -63,7 +63,7 @@ W stones captured: 0
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : Controller: set_position
@@ -91,7 +91,7 @@ W stones captured: 0
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : Controller: boardsize 13
@@ -120,7 +120,7 @@ W stones captured: 0
  2 . . . . . . . . . . . . .
  1 . . . . . . . . . . . . .
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : Controller: set_position w d3 w d10 w j10
@@ -142,7 +142,7 @@ W stones captured: 0
  2 . . . . . . . . . . . . .
  1 . . . . . . . . . . . . .
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : Controller: set_position b d3 b d10 b j10
@@ -164,7 +164,7 @@ W stones captured: 0
  2 . . . . . . . . . . . . .
  1 . . . . . . . . . . . . .
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : Controller: set_position b d3 b d10 b j10 b
@@ -186,7 +186,7 @@ W stones captured: 0
  2 . . . . . . . . . . . . .
  1 . . . . . . . . . . . . .
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : Controller: set_position w d3 w    d10  w  j10
@@ -208,7 +208,7 @@ W stones captured: 0
  2 . . . . . . . . . . . . .
  1 . . . . . . . . . . . . .
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : Controller: set_position b d3 b d3
@@ -230,7 +230,7 @@ W stones captured: 0
  2 . . . . . . . . . . . . .
  1 . . . . . . . . . . . . .
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : Controller: set_position b d3 w d3
@@ -252,7 +252,7 @@ W stones captured: 0
  2 . . . . . . . . . . . . .
  1 . . . . . . . . . . . . .
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : Controller: set_position b d4 w d3 w e4 w d5
@@ -274,7 +274,7 @@ W stones captured: 0
  2 . . . . . . . . . . . . .
  1 . . . . . . . . . . . . .
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : Controller: set_position b d4 w d3 w e4 w d5 w c4
@@ -296,7 +296,7 @@ W stones captured: 0
  2 . . . . . . . . . . . . .
  1 . . . . . . . . . . . . .
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : Controller: set_position b pass
@@ -318,7 +318,7 @@ W stones captured: 0
  2 . . . . . . . . . . . . .
  1 . . . . . . . . . . . . .
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : Controller: boardsize 3
@@ -337,7 +337,7 @@ W stones captured: 0
  2 . . .
  1 . . .
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : Controller: set_position b a1 b a2 b a3 b b1 b b2 b b3 b c1 b c2
@@ -349,7 +349,7 @@ W stones captured: 0
  2 X X X
  1 X X X
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : Controller: set_position b a1 b a2 b a3 b b1 b b2 b b3 b c1 b c2 b c3
@@ -361,7 +361,7 @@ W stones captured: 0
  2 X X X
  1 X X X
 Next player: Black
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 : All cleaned up, quitting
