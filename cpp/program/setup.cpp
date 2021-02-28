@@ -627,6 +627,7 @@ Rules Setup::loadSingleRulesExceptForKomi(
     if(cfg.contains("hasButton")) throw StringError("Cannot both specify 'rules' and individual rules like hasButton");
     if(cfg.contains("taxRule")) throw StringError("Cannot both specify 'rules' and individual rules like taxRule");
     if(cfg.contains("whiteHandicapBonus")) throw StringError("Cannot both specify 'rules' and individual rules like whiteHandicapBonus");
+    if(cfg.contains("friendlyPassOk")) throw StringError("Cannot both specify 'rules' and individual rules like friendlyPassOk");
     if(cfg.contains("whiteBonusPerHandicapStone")) throw StringError("Cannot both specify 'rules' and individual rules like whiteBonusPerHandicapStone");
 
     rules = Rules::parseRules(cfg.getString("rules"));
@@ -669,6 +670,10 @@ Rules Setup::loadSingleRulesExceptForKomi(
     }
     else
       rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
+
+    if(cfg.contains("friendlyPassOk")) {
+      rules.friendlyPassOk = cfg.getBool("friendlyPassOk");
+    }
 
     //Drop default komi to 6.5 for territory rules, and to 7.0 for button
     if(rules.scoringRule == Rules::SCORING_TERRITORY)
