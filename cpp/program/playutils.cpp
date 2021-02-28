@@ -189,6 +189,8 @@ ReportedSearchValues PlayUtils::getWhiteScoreValues(
   newParams.rootFpuLossProp = newParams.fpuLossProp;
   newParams.rootDesiredPerChildVisitsCoeff = 0.0;
   newParams.rootNumSymmetriesToSample = 1;
+  if(newParams.numThreads > (numVisits+7)/8)
+    newParams.numThreads = (numVisits+7)/8;
 
   if(otherGameProps.playoutDoublingAdvantage != 0.0 && otherGameProps.playoutDoublingAdvantagePla != C_EMPTY) {
     //Don't actually adjust playouts, but DO tell the bot what it's up against, so that it gives estimates
