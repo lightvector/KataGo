@@ -923,7 +923,7 @@ struct GTPEngine {
 
     //Implement friendly pass - in area scoring rules other than tromp-taylor, maybe pass once there are no points
     //left to gain.
-    int64_t numVisitsForFriendlyPass = 5 + std::min((int64_t)1000, std::min(params.maxVisits, params.maxPlayouts) / 10);
+    int64_t numVisitsForFriendlyPass = 8 + std::min((int64_t)1000, std::min(params.maxVisits, params.maxPlayouts) / 10);
     moveLoc = PlayUtils::maybeFriendlyPass(cleanupBeforePass, friendlyPass, pla, moveLoc, bot->getSearchStopAndWait(), numVisitsForFriendlyPass, logger);
 
     //Implement cleanupBeforePass hack - if the bot wants to pass, instead cleanup if there is something to clean

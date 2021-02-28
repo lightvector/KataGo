@@ -179,6 +179,8 @@ static SearchParams getNoiselessParams(SearchParams oldParams, int64_t numVisits
   newParams.rootFpuLossProp = newParams.fpuLossProp;
   newParams.rootDesiredPerChildVisitsCoeff = 0.0;
   newParams.rootNumSymmetriesToSample = 1;
+  newParams.searchFactorAfterOnePass = 1.0;
+  newParams.searchFactorAfterTwoPass = 1.0;
   if(newParams.numThreads > (numVisits+7)/8)
     newParams.numThreads = (numVisits+7)/8;
   return newParams;

@@ -1,0 +1,45 @@
+boardsize 7
+kata-set-rules chinese
+set_position w d7 b e7 b f7 w b6 w d6 w e6 b f6 b b5 w c5 w d5 b e5 w b4 w c4 b e4 b b3 w c3 b d3 b e3 w f3 b g3 w a2 w b2 b c2 b d2 b f2 b b1
+komi 5
+genmove_debug b
+genmove_debug w
+genmove_debug b
+genmove_debug w
+play b pass
+genmove_debug w
+showboard
+final_status_list alive
+final_status_list dead
+final_score
+genmove_debug b
+undo
+play b pass
+showboard
+final_status_list alive
+final_status_list dead
+final_score
+
+kata-set-rules tromp-taylor
+set_position w d7 b e7 b f7 w b6 w d6 w e6 b f6 b b5 w c5 w d5 b e5 w b4 w c4 b e4 b b3 w c3 b d3 b e3 w f3 b g3 w a2 w b2 b c2 b d2 b f2 b b1
+komi 5
+genmove_debug b
+genmove_debug w
+genmove_debug b
+genmove_debug w
+play b pass
+genmove_debug w
+undo
+play w pass
+showboard
+final_status_list alive
+final_status_list dead
+final_score
+genmove_debug b
+undo
+play b pass
+showboard
+final_status_list alive
+final_status_list dead
+final_score
+
