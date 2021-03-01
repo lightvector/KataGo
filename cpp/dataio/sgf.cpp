@@ -372,7 +372,9 @@ float Sgf::getKomi() const {
 
   //Hack - check for foxwq sgfs with weird komis
   if(nodes[0]->hasProperty("AP") && contains(nodes[0]->getProperties("AP"),"foxwq")) {
-    if(komi == 325 || komi == 650)
+    if(komi == 550)
+      komi = 5.5f;
+    else if(komi == 325 || komi == 650)
       komi = 6.5f;
     else if(komi == 375 || komi == 750)
       komi = 7.5f;
