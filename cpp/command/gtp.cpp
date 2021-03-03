@@ -1940,7 +1940,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
             engine->setNumSearchThreads(i);
           else {
             responseIsError = true;
-            response = "Invalid value for " + pieces[0] + ", must be float from 0.0 to 2.0";
+            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 1024";
           }
         }
         else {
