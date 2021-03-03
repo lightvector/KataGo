@@ -660,7 +660,6 @@ struct GTPEngine {
           cout << " prior " << round(data.policyPrior * 10000.0);
           cout << " lcb " << round(lcb * 10000.0);
           cout << " order " << data.order;
-          cout << " psv " << data.playSelectionValue; 
           cout << " pv ";
           if(preventEncore && data.pvContainsPass())
             data.writePVUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());

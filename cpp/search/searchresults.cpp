@@ -1389,7 +1389,6 @@ bool Search::getAnalysisJson(
     moveInfo["lcb"] = lcb;
     moveInfo["utilityLcb"] = utilityLcb;
     moveInfo["order"] = data.order;
-    moveInfo["psv"] = data.playSelectionValue;
 
     json pv = json::array();
     int pvLen =
