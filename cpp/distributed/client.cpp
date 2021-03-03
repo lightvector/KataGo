@@ -1132,7 +1132,7 @@ bool Connection::uploadRatingGame(
     int boardSizeY = gameData->startBoard.y_size;
     int handicap = (gameData->numExtraBlack > 0 ? (gameData->numExtraBlack + 1) : 0);
     double komi = gameData->startHist.rules.komi;
-    string rules = gameData->startHist.rules.toJsonStringNoKomi();
+    string rules = gameData->startHist.rules.toJsonStringNoKomiMaybeOmitStuff();
     json extraMetadata = json({});
     string gametype = getGameTypeStr(gameData);
     string winner = gameData->endHist.winner == P_WHITE ? "W" : gameData->endHist.winner == P_BLACK ? "B" : gameData->endHist.isNoResult ? "-" : "0";

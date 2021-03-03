@@ -322,7 +322,7 @@ HASH: 0483785A1D3D994549631CC1DE3E1CCE
 Initial pla White
 Encore phase 0
 Turns this phase 0
-Rules koSIMPLEscoreAREAtaxNONEsui0whbNkomi5
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 4
@@ -359,7 +359,7 @@ HASH: D2679AE98871290D03776F89C5C34607
 Initial pla White
 Encore phase 0
 Turns this phase 7
-Rules koSIMPLEscoreAREAtaxNONEsui0whbNkomi5
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 4
@@ -423,7 +423,7 @@ HASH: 0483785A1D3D994549631CC1DE3E1CCE
 Initial pla White
 Encore phase 0
 Turns this phase 0
-Rules koSITUATIONALscoreAREAtaxNONEsui0whbN-1komi5
+Rules koSITUATIONALscoreAREAtaxNONEsui0whbN-1fpok1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 3
@@ -460,7 +460,7 @@ HASH: D2679AE98871290D03776F89C5C34607
 Initial pla White
 Encore phase 0
 Turns this phase 7
-Rules koSITUATIONALscoreAREAtaxNONEsui0whbN-1komi5
+Rules koSITUATIONALscoreAREAtaxNONEsui0whbN-1fpok1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 3

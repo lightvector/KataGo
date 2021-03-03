@@ -31,13 +31,27 @@ struct Rules {
   static const int WHB_N_MINUS_ONE = 2;
   int whiteHandicapBonusRule;
 
+  //Mostly an informational value - doesn't affect the actual implemented rules, but GTP or Analysis may, at a
+  //high level, use this info to adjust passing behavior - whether it's okay to pass without capturing dead stones.
+  //Only relevant for area scoring.
+  bool friendlyPassOk;
+
   float komi;
   //Min and max acceptable komi in various places involving user input validation
   static constexpr float MIN_USER_KOMI = -150.0f;
   static constexpr float MAX_USER_KOMI = 150.0f;
 
   Rules();
-  Rules(int koRule, int scoringRule, int taxRule, bool multiStoneSuicideLegal, bool hasButton, int whiteHandicapBonusRule, float komi);
+  Rules(
+    int koRule,
+    int scoringRule,
+    int taxRule,
+    bool multiStoneSuicideLegal,
+    bool hasButton,
+    int whiteHandicapBonusRule,
+    bool friendlyPassOk,
+    float komi
+  );
   ~Rules();
 
   bool operator==(const Rules& other) const;

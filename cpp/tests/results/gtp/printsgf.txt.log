@@ -67,7 +67,7 @@
  2 . . . . . . . . .
  1 . . . . . . . . .
 
-koSIMPLEscoreAREAtaxNONEsui0whbNkomi7.5
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
 Time taken: ###
 Root visits: 100
 New playouts: 100
@@ -89,8 +89,8 @@ G10 : T -82.24c W -78.72c S  -3.52c (-10.1 L -10.6) LCB -280.00c P  2.53% WF 19.
 : Controller: printsgf
 : = (;FF[4]GM[1]SZ[9:13]PB[]PW[]HA[3]KM[7.5]RU[Chinese]AB[cd][ed][dj];W[fj])
 : Controller: kata-set-rule tax seki
-: Changed rules to koSIMPLEscoreAREAtaxSEKIsui0whbN
+: Changed rules to koSIMPLEscoreAREAtaxSEKIsui0whbNfpok1
 : = 
 : Controller: printsgf
-: = (;FF[4]GM[1]SZ[9:13]PB[]PW[]HA[3]KM[7.5]RU[koSIMPLEscoreAREAtaxSEKIsui0whbN]AB[cd][ed][dj];W[fj])
+: = (;FF[4]GM[1]SZ[9:13]PB[]PW[]HA[3]KM[7.5]RU[koSIMPLEscoreAREAtaxSEKIsui0whbNfpok1]AB[cd][ed][dj];W[fj])
 : All cleaned up, quitting

@@ -772,7 +772,7 @@ struct GTPEngine {
   void genMove(
     Player pla,
     Logger& logger, double searchFactorWhenWinningThreshold, double searchFactorWhenWinning,
-    bool cleanupBeforePass, bool ogsChatToStderr,
+    enabled_t cleanupBeforePass, enabled_t friendlyPass, bool ogsChatToStderr,
     bool allowResignation, double resignThreshold, int resignConsecTurns, double resignMinScoreDifference,
     bool logSearchInfo, bool debug, bool playChosenMove,
     string& response, bool& responseIsError, bool& maybeStartPondering,
@@ -857,29 +857,6 @@ struct GTPEngine {
       return;
     }
 
-    //Implement cleanupBeforePass hack - the bot wants to pass, so instead cleanup if there is something to clean
-    //Make sure we only do it though when it makes sense to do so.
-    if(cleanupBeforePass && moveLoc == Board::PASS_LOC && bot->getRootHist().isFinalPhase() && !bot->getRootHist().hasButton) {
-      Board board = bot->getRootBoard();
-      BoardHistory hist = bot->getRootHist();
-      Color* safeArea = bot->getSearch()->rootSafeArea;
-      assert(safeArea != NULL);
-      //Scan the board for any spot that is adjacent to an opponent group that is part of our pass-alive territory.
-      for(int y = 0; y<board.y_size; y++) {
-        for(int x = 0; x<board.x_size; x++) {
-          Loc otherLoc = Location::getLoc(x,y,board.x_size);
-          if(moveLoc == Board::PASS_LOC &&
-             board.colors[otherLoc] == C_EMPTY &&
-             safeArea[otherLoc] == pla &&
-             board.isAdjacentToPla(otherLoc,getOpp(pla)) &&
-             hist.isLegal(board,otherLoc,pla)
-          ) {
-            moveLoc = otherLoc;
-          }
-        }
-      }
-    }
-
     ReportedSearchValues values;
     double winLossValue;
     double lead;
@@ -939,6 +916,19 @@ struct GTPEngine {
     if(debug) {
       PlayUtils::printGenmoveLog(cerr,bot,nnEval,moveLoc,timeTaken,perspective);
     }
+
+    //Hacks--------------------------------------------------
+    //At least one of these hacks will use the bot to search stuff and clears its tree, so we apply them AFTER
+    //all relevant logging and stuff.
+
+    //Implement friendly pass - in area scoring rules other than tromp-taylor, maybe pass once there are no points
+    //left to gain.
+    int64_t numVisitsForFriendlyPass = 8 + std::min((int64_t)1000, std::min(params.maxVisits, params.maxPlayouts) / 10);
+    moveLoc = PlayUtils::maybeFriendlyPass(cleanupBeforePass, friendlyPass, pla, moveLoc, bot->getSearchStopAndWait(), numVisitsForFriendlyPass, logger);
+
+    //Implement cleanupBeforePass hack - if the bot wants to pass, instead cleanup if there is something to clean
+    //and we are in a ruleset where this is necessary or the user has configured it.
+    moveLoc = PlayUtils::maybeCleanupBeforePass(cleanupBeforePass, friendlyPass, pla, moveLoc, bot);
 
     //Actual reporting of chosen move---------------------
     if(resigned)
@@ -1083,13 +1073,16 @@ struct GTPEngine {
     bot->analyzeAsync(pla, searchFactor, args.secondsPerReport, callback);
   }
 
-  double computeLead(Logger& logger) {
+  void computeAnticipatedWinnerAndScore(Logger& logger, Player& winner, double& finalWhiteMinusBlackScore) {
     stopAndWait();
 
-    //ALWAYS use 0 to prevent bias
-    if(params.playoutDoublingAdvantage != 0.0) {
-      params.playoutDoublingAdvantage = 0.0;
-      bot->setParams(params);
+    //No playoutDoublingAdvantage to avoid bias
+    //Also never assume the game will end abruptly due to pass
+    {
+      SearchParams tmpParams = params;
+      tmpParams.playoutDoublingAdvantage = 0.0;
+      tmpParams.conservativePass = true;
+      bot->setParams(tmpParams);
     }
 
     //Make absolutely sure we can restore the bot's old state
@@ -1101,30 +1094,39 @@ struct GTPEngine {
     BoardHistory hist = bot->getRootHist();
     Player pla = bot->getRootPla();
 
-    int64_t numVisits = std::max(50, params.numThreads * 10);
-    //Try computing the lead for white
-    double lead = PlayUtils::computeLead(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,logger,OtherGameProperties());
+    //Tromp-taylorish scoring, or finished territory game scoring (including noresult)
+    if(hist.isGameFinished && (
+         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.friendlyPassOk) ||
+         (hist.rules.scoringRule == Rules::SCORING_TERRITORY)
+       )
+    ) {
+      //For GTP purposes, we treat noResult as a draw since there is no provision for anything else.
+      winner = hist.winner;
+      finalWhiteMinusBlackScore = hist.finalWhiteMinusBlackScore;
+    }
+    //Human-friendly score or incomplete game score estimation
+    else {
+      int64_t numVisits = std::max(50, params.numThreads * 10);
+      //Try computing the lead for white
+      double lead = PlayUtils::computeLead(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,logger,OtherGameProperties());
+
+      //Round lead to nearest integer or half-integer
+      if(hist.rules.gameResultWillBeInteger())
+        lead = round(lead);
+      else
+        lead = round(lead+0.5)-0.5;
+
+      finalWhiteMinusBlackScore = lead;
+      winner = lead > 0 ? P_WHITE : lead < 0 ? P_BLACK : C_EMPTY;
+    }
 
     //Restore
     bot->setPosition(oldPla,oldBoard,oldHist);
-
-    //Round lead to nearest integer or half-integer
-    if(hist.rules.gameResultWillBeInteger())
-      lead = round(lead);
-    else
-      lead = round(lead+0.5)-0.5;
-
-    return lead;
+    bot->setParams(params);
   }
 
-  vector<bool> computeAnticipatedStatusesWithOwnership(Logger& logger) {
+  vector<bool> computeAnticipatedStatuses(Logger& logger) {
     stopAndWait();
-
-    //ALWAYS use 0 to prevent bias
-    if(params.playoutDoublingAdvantage != 0.0) {
-      params.playoutDoublingAdvantage = 0.0;
-      bot->setParams(params);
-    }
 
     //Make absolutely sure we can restore the bot's old state
     const Player oldPla = bot->getRootPla();
@@ -1136,7 +1138,19 @@ struct GTPEngine {
     Player pla = bot->getRootPla();
 
     int64_t numVisits = std::max(100, params.numThreads * 20);
-    vector<bool> isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot->getSearchStopAndWait(),board,hist,pla,numVisits,logger);
+    vector<bool> isAlive;
+    //Tromp-taylorish statuses, or finished territory game statuses (including noresult)
+    if(hist.isGameFinished && (
+         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.friendlyPassOk) ||
+         (hist.rules.scoringRule == Rules::SCORING_TERRITORY)
+       )
+    )
+      isAlive = PlayUtils::computeAnticipatedStatusesSimple(board,hist);
+    //Human-friendly statuses or incomplete game status estimation
+    else {
+      vector<double> ownershipsBuf;
+      isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot->getSearchStopAndWait(),board,hist,pla,numVisits,logger,ownershipsBuf);
+    }
 
     //Restore
     bot->setPosition(oldPla,oldBoard,oldHist);
@@ -1474,7 +1488,12 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     initialParams.fillDameBeforePass = true;
 
   const bool ponderingEnabled = cfg.getBool("ponderingEnabled");
-  const bool cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : true;
+
+  const enabled_t cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getEnabled("cleanupBeforePass") : enabled_t::Auto;
+  const enabled_t friendlyPass = cfg.contains("friendlyPass") ? cfg.getEnabled("friendlyPass") : enabled_t::Auto;
+  if(cleanupBeforePass == enabled_t::True && friendlyPass == enabled_t::True)
+    throw StringError("Cannot specify both cleanupBeforePass = true and friendlyPass = true at the same time");
+
   const bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
   const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
   const int resignConsecTurns = cfg.contains("resignConsecTurns") ? cfg.getInt("resignConsecTurns",1,100) : 3;
@@ -2280,7 +2299,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         engine->genMove(
           pla,
           logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
-          cleanupBeforePass,ogsChatToStderr,
+          cleanupBeforePass,friendlyPass,ogsChatToStderr,
           allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
           logSearchInfo,debug,playChosenMove,
           response,responseIsError,maybeStartPondering,
@@ -2310,7 +2329,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         engine->genMove(
           pla,
           logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
-          cleanupBeforePass,ogsChatToStderr,
+          cleanupBeforePass,friendlyPass,ogsChatToStderr,
           allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
           logSearchInfo,debug,playChosenMove,
           response,responseIsError,maybeStartPondering,
@@ -2426,22 +2445,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     else if(command == "final_score") {
       engine->stopAndWait();
 
-      BoardHistory hist = engine->bot->getRootHist();
-
-      //If the game is finished, then we score the game as-is.
-      //If it's not finished, then we try to get a bit clever.
       Player winner = C_EMPTY;
       double finalWhiteMinusBlackScore = 0.0;
-      if(hist.isGameFinished) {
-        //For GTP purposes, we treat noResult as a draw since there is no provision for anything else.
-        winner = hist.winner;
-        finalWhiteMinusBlackScore = hist.finalWhiteMinusBlackScore;
-      }
-      else {
-        double lead = engine->computeLead(logger);
-        finalWhiteMinusBlackScore = lead;
-        winner = lead > 0 ? P_WHITE : lead < 0 ? P_BLACK : C_EMPTY;
-      }
+      engine->computeAnticipatedWinnerAndScore(logger,winner,finalWhiteMinusBlackScore);
 
       if(winner == C_EMPTY)
         response = "0";
@@ -2473,7 +2479,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         }
 
         if(statusMode < 3) {
-          vector<bool> isAlive = engine->computeAnticipatedStatusesWithOwnership(logger);
+          vector<bool> isAlive = engine->computeAnticipatedStatuses(logger);
           Board board = engine->bot->getRootBoard();
           vector<Loc> locsToReport;
 
