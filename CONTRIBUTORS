@@ -26,6 +26,8 @@ Harald Han - for some work on CUDNN8 support
 "Jonathan_Go" - for help with client proxy support
 Jonathan Roy ("roy7") - for various search refactors
 Kensuke Matsuzaki ("zakki") - catching a buffer overrun bug
+Kuang-che Wu ("kcwu") - minor improvement to distributed logging
+"yzyray" - minor bugfix
 
 Separately from the authors of the content in this repo, additional special thanks to:
 Junyan Xu ("alreadydone") - for much testing and troubleshooting for Windows support
