@@ -178,7 +178,7 @@ static void runAndUploadSingleGame(
     if(outputEachMove != nullptr) {
       ostringstream out;
       out << "Thread: " << Global::intToString(gameIdx) << "\n";
-      out << "GameID: " << gameIDString << "\n";
+      out << "GameID: " << gameIdString << "\n";
       Board::printBoard(out, board, moveLoc, &(hist.moveHistory));
       if(botSpecB.botName == botSpecW.botName) {
         out << "Network: " << botSpecB.botName << "\n";
