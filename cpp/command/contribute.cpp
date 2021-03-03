@@ -171,12 +171,14 @@ static void runAndUploadSingleGame(
   const string gameIdString = Global::uint64ToHexString(rand.nextUInt64());
 
   std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>
-    onEachMove = [&numMovesPlayed, &outputEachMove, &flushOutputEachMove, &logGamesAsJson, &alwaysIncludeOwnership, &gameIdString, &botSpecB, &botSpecW](
+    onEachMove = [&numMovesPlayed, &outputEachMove, &flushOutputEachMove, &logGamesAsJson, &alwaysIncludeOwnership, &gameIdx, &gameIdString, &botSpecB, &botSpecW](
       const Board& board, const BoardHistory& hist, Player pla, Loc moveLoc,
       const std::vector<double>& winLossHist, const std::vector<double>& leadHist, const std::vector<double>& scoreStdevHist, const Search* search) {
     numMovesPlayed.fetch_add(1,std::memory_order_relaxed);
     if(outputEachMove != nullptr) {
       ostringstream out;
+      out << "Thread: " << Global::intToString(gameIdx) << "\n";
+      out << "GameID: " << gameIDString << "\n";
       Board::printBoard(out, board, moveLoc, &(hist.moveHistory));
       if(botSpecB.botName == botSpecW.botName) {
         out << "Network: " << botSpecB.botName << "\n";
