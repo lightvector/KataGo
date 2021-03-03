@@ -533,6 +533,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
   const double reportPerformanceEvery = userCfg->contains("reportPerformanceEvery") ? userCfg->getDouble("reportPerformanceEvery", 1, 21600) : 120;
   const bool watchOngoingGameInFile = userCfg->contains("watchOngoingGameInFile") ? userCfg->getBool("watchOngoingGameInFile") : false;
+  const int watchOngoingGameMaxCount = userCfg->contains("watchOngoingGameMaxCount") ? userCfg->getInt("watchOngoingGameMaxCount", 0, maxSimultaneousGames) : false;
   string watchOngoingGameInFileName = userCfg->contains("watchOngoingGameInFileName") ? userCfg->getString("watchOngoingGameInFileName") : "";
   const bool logGamesAsJson = userCfg->contains("logGamesAsJson") ? userCfg->getBool("logGamesAsJson") : false;
   const bool alwaysIncludeOwnership = userCfg->contains("includeOwnership") ? userCfg->getBool("includeOwnership") : false;
@@ -655,7 +656,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
   auto runGameLoop = [
     &logger,forkData,&gameSeedBase,&gameTaskQueue,&numGamesStarted,&sgfsDir,&connection,
-    &numRatingGamesActive,&numMovesPlayed,&watchOngoingGameInFile,&watchOngoingGameInFileName,
+    &numRatingGamesActive,&numMovesPlayed,&watchOngoingGameInFile,&watchOngoingGameMaxCount,&watchOngoingGameInFileName,
     &shouldStopFunc,&shouldStopGracefullyFunc,
     &logGamesAsJson, &alwaysIncludeOwnership
   ] (
@@ -663,7 +664,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   ) {
     std::unique_ptr<std::ostream> outputEachMove = nullptr;
     std::function<void()> flushOutputEachMove = nullptr;
-    if(gameLoopThreadIdx == 0 && watchOngoingGameInFile) {
+    if(gameLoopThreadIdx < watchOngoingGameMaxCount && watchOngoingGameInFile) {
 #ifdef OS_IS_WINDOWS
       FILE* file = NULL;
       fopen_s(&file, watchOngoingGameInFileName.c_str(), "a");
