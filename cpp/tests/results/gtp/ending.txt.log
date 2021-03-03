@@ -50,9 +50,9 @@ PV: C1 A3 A1 D4 F4 A5 pass pass
 Tree:
 : T  15.01c W  21.53c S  -6.52c ( +0.2 L  +0.1) N     100  --  C1 A3 A1 D4 F4 A5 pass
 ---Black(^)---
-C1  : T  13.45c W  19.19c S  -5.73c ( +0.2 L  +0.1) LCB   -9.83c P 59.48% WF 33.29% PSV      57 N      57  --  C1 A3 A1 D4 F4 A5 pass pass
-D4  : T  16.60c W  23.69c S  -7.09c ( +0.1 L  +0.1) LCB  -16.87c P 28.54% WF 35.74% PSV      37 N      37  --  D4 A3 C1 A1 F4 A5 pass pass
-F4  : T   7.65c W  20.60c S -12.95c ( +0.4 L  +0.1) LCB -492.51c P  7.31% WF 30.98% PSV       4 N       5  --  F4 D4 C1 A3
+C1  : T  13.45c W  19.19c S  -5.73c ( +0.2 L  +0.1) LCB   -9.83c P 59.48% WF  56.3 PSV      57 N      57  --  C1 A3 A1 D4 F4 A5 pass pass
+D4  : T  16.60c W  23.69c S  -7.09c ( +0.1 L  +0.1) LCB  -16.87c P 28.54% WF  37.9 PSV      37 N      37  --  D4 A3 C1 A1 F4 A5 pass pass
+F4  : T   7.65c W  20.60c S -12.95c ( +0.4 L  +0.1) LCB -492.51c P  7.31% WF   4.8 PSV       4 N       5  --  F4 D4 C1 A3
 
 : = C1
 : Controller: genmove_debug w
@@ -77,10 +77,10 @@ PV: A3 A1 D4 F4 A5 pass pass
 Tree:
 : T -13.06c W -15.80c S   2.74c ( -0.2 L  -0.1) N     100  --  A3 A1 D4 F4 A5 pass pass
 ---White(^)---
-A3  : T -10.64c W -13.65c S   3.01c ( -0.1 L  -0.1) LCB  -27.51c P 61.75% WF 45.99% PSV      95 N      95  --  A3 A1 D4 F4 A5 pass pass
-D4  : T -78.25c W -72.71c S  -5.53c ( -1.0 L  -0.8) LCB -280.00c P 21.85% WF 17.67% PSV       2 N       2  --  D4 A1
-F5  : T -80.16c W -75.05c S  -5.11c ( -1.6 L  -1.6) LCB -280.00c P  2.29% WF 20.17% PSV       0 N       1  --  F5
-A5  : T -97.34c W -92.22c S  -5.12c ( -1.5 L  -1.4) LCB -280.00c P  1.99% WF 16.17% PSV       0 N       1  --  A5
+A3  : T -10.64c W -13.65c S   3.01c ( -0.1 L  -0.1) LCB  -27.51c P 61.75% WF  96.5 PSV      95 N      95  --  A3 A1 D4 F4 A5 pass pass
+D4  : T -78.25c W -72.71c S  -5.53c ( -1.0 L  -0.8) LCB -280.00c P 21.85% WF   1.3 PSV       2 N       2  --  D4 A1
+F5  : T -80.16c W -75.05c S  -5.11c ( -1.6 L  -1.6) LCB -280.00c P  2.29% WF   0.7 PSV       0 N       1  --  F5
+A5  : T -97.34c W -92.22c S  -5.12c ( -1.5 L  -1.4) LCB -280.00c P  1.99% WF   0.6 PSV       0 N       1  --  A5
 
 : = A3
 : Controller: genmove_debug b
@@ -105,9 +105,9 @@ PV: A1 D4 F4 A5 pass pass
 Tree:
 : T  10.42c W  13.10c S  -2.68c ( +0.1 L  +0.1) N     100  --  A1 D4 F4 A5 pass pass
 ---Black(^)---
-A1  : T   9.22c W  11.90c S  -2.67c ( +0.1 L  +0.1) LCB  -11.79c P 63.16% WF 39.49% PSV      59 N      59  --  A1 D4 F4 A5 pass pass
-D4  : T  12.28c W  14.53c S  -2.25c ( +0.0 L  +0.0) LCB  -16.39c P 29.09% WF 42.29% PSV      39 N      39  --  D4 A1 F4 A5 pass pass
-F4  : T -60.08c W -56.96c S  -3.12c ( -0.8 L  -0.7) LCB -280.00c P  5.22% WF 18.22% PSV       0 N       1  --  F4
+A1  : T   9.22c W  11.90c S  -2.67c ( +0.1 L  +0.1) LCB  -11.79c P 63.16% WF  58.4 PSV      59 N      59  --  A1 D4 F4 A5 pass pass
+D4  : T  12.28c W  14.53c S  -2.25c ( +0.0 L  +0.0) LCB  -16.39c P 29.09% WF  39.9 PSV      39 N      39  --  D4 A1 F4 A5 pass pass
+F4  : T -60.08c W -56.96c S  -3.12c ( -0.8 L  -0.7) LCB -280.00c P  5.22% WF   0.7 PSV       0 N       1  --  F4
 
 : = A1
 : Controller: genmove_debug w
@@ -132,14 +132,14 @@ PV: D4 F4 A5 pass pass
 Tree:
 : T  -9.03c W -11.05c S   2.01c ( -0.2 L  -0.1) N     100  --  D4 F4 A5 pass pass
 ---White(^)---
-D4  : T  -5.01c W  -7.13c S   2.12c ( -0.1 L  -0.1) LCB  -18.12c P 66.25% WF 29.59% PSV      92 N      92  --  D4 F4 A5 pass pass
-A5  : T -89.67c W -86.41c S  -3.26c ( -1.0 L  -0.8) LCB -280.00c P  7.78% WF 10.31% PSV       0 N       1  --  A5
-F5  : T -70.92c W -67.40c S  -3.53c ( -1.1 L  -1.2) LCB -280.00c P  2.64% WF 13.09% PSV       0 N       1  --  F5
-pss : T -101.51c W -95.19c S  -6.32c ( -1.8 L  -1.5) LCB -280.00c P  2.37% WF  8.84% PSV       0 N       1  --  pass
-B3  : T -92.45c W -88.96c S  -3.49c ( -1.0 L  -0.9) LCB -280.00c P  2.34% WF  9.94% PSV       0 N       1  --  B3
-A4  : T -98.42c W -93.40c S  -5.03c ( -1.5 L  -1.3) LCB -280.00c P  2.31% WF  9.20% PSV       0 N       1  --  A4
-A7  : T -102.49c W -96.62c S  -5.87c ( -1.7 L  -1.4) LCB -280.00c P  2.08% WF  8.73% PSV       0 N       1  --  A7
-C6  : T -89.75c W -86.13c S  -3.62c ( -1.1 L  -0.9) LCB -280.00c P  2.07% WF 10.30% PSV       0 N       1  --  C6
+D4  : T  -5.01c W  -7.13c S   2.12c ( -0.1 L  -0.1) LCB  -18.12c P 66.25% WF  94.8 PSV      92 N      92  --  D4 F4 A5 pass pass
+A5  : T -89.67c W -86.41c S  -3.26c ( -1.0 L  -0.8) LCB -280.00c P  7.78% WF   0.6 PSV       0 N       1  --  A5
+F5  : T -70.92c W -67.40c S  -3.53c ( -1.1 L  -1.2) LCB -280.00c P  2.64% WF   0.7 PSV       0 N       1  --  F5
+pss : T -101.51c W -95.19c S  -6.32c ( -1.8 L  -1.5) LCB -280.00c P  2.37% WF   0.6 PSV       0 N       1  --  pass
+B3  : T -92.45c W -88.96c S  -3.49c ( -1.0 L  -0.9) LCB -280.00c P  2.34% WF   0.6 PSV       0 N       1  --  B3
+A4  : T -98.42c W -93.40c S  -5.03c ( -1.5 L  -1.3) LCB -280.00c P  2.31% WF   0.6 PSV       0 N       1  --  A4
+A7  : T -102.49c W -96.62c S  -5.87c ( -1.7 L  -1.4) LCB -280.00c P  2.08% WF   0.6 PSV       0 N       1  --  A7
+C6  : T -89.75c W -86.13c S  -3.62c ( -1.1 L  -0.9) LCB -280.00c P  2.07% WF   0.6 PSV       0 N       1  --  C6
 
 : = D4
 : Controller: play b pass
@@ -166,14 +166,14 @@ PV: A5 F4 pass pass
 Tree:
 : T -11.68c W  -8.04c S  -3.64c ( -0.0 L  -0.1) N      50  --  A5 F4 pass pass
 ---White(^)---
-A5  : T  -3.06c W  -0.89c S  -2.18c ( +0.0 L  -0.0) LCB  -17.15c P 29.34% WF 22.04% PSV      37 N      37  --  A5 F4 pass pass
-C6  : T -52.41c W -38.20c S -14.21c ( -0.2 L  -0.4) LCB -280.00c P  9.41% WF 10.94% PSV       1 N       2  --  C6 F4
-B7  : T -54.81c W -44.08c S -10.74c ( -0.2 L  -0.4) LCB -280.00c P  8.95% WF 10.57% PSV       1 N       2  --  B7 F4
-B3  : T -34.46c W -28.41c S  -6.05c ( +0.1 L  -0.2) LCB -280.00c P  8.76% WF 13.94% PSV       1 N       2  --  B3 F4
-A4  : T -61.03c W -48.50c S -12.53c ( -0.2 L  -0.4) LCB -280.00c P  8.16% WF  9.65% PSV       0 N       2  --  A4 F4
-A6  : T -40.68c W -25.87c S -14.81c ( -0.1 L  -0.3) LCB -280.00c P  5.22% WF 12.85% PSV       0 N       2  --  A6 F4
-A7  : T -74.77c W -70.63c S  -4.13c ( -0.6 L  -0.6) LCB -280.00c P  8.65% WF  9.07% PSV       0 N       1  --  A7
-C7  : T -59.39c W -55.39c S  -4.00c ( -0.6 L  -0.6) LCB -280.00c P  7.65% WF 10.95% PSV       0 N       1  --  C7
+A5  : T  -3.06c W  -0.89c S  -2.18c ( +0.0 L  -0.0) LCB  -17.15c P 29.34% WF  39.8 PSV      37 N      37  --  A5 F4 pass pass
+C6  : T -52.41c W -38.20c S -14.21c ( -0.2 L  -0.4) LCB -280.00c P  9.41% WF   1.5 PSV       1 N       2  --  C6 F4
+B7  : T -54.81c W -44.08c S -10.74c ( -0.2 L  -0.4) LCB -280.00c P  8.95% WF   1.5 PSV       1 N       2  --  B7 F4
+B3  : T -34.46c W -28.41c S  -6.05c ( +0.1 L  -0.2) LCB -280.00c P  8.76% WF   1.7 PSV       1 N       2  --  B3 F4
+A4  : T -61.03c W -48.50c S -12.53c ( -0.2 L  -0.4) LCB -280.00c P  8.16% WF   1.4 PSV       0 N       2  --  A4 F4
+A6  : T -40.68c W -25.87c S -14.81c ( -0.1 L  -0.3) LCB -280.00c P  5.22% WF   1.6 PSV       0 N       2  --  A6 F4
+A7  : T -74.77c W -70.63c S  -4.13c ( -0.6 L  -0.6) LCB -280.00c P  8.65% WF   0.7 PSV       0 N       1  --  A7
+C7  : T -59.39c W -55.39c S  -4.00c ( -0.6 L  -0.6) LCB -280.00c P  7.65% WF   0.8 PSV       0 N       1  --  C7
 
 : = pass
 : Controller: showboard
@@ -218,12 +218,12 @@ PV: F4 A5 pass pass
 Tree:
 : T   5.98c W  10.81c S  -4.83c ( +0.2 L  +0.1) N      50  --  F4 A5 pass pass
 ---Black(^)---
-F4  : T  10.71c W  13.53c S  -2.82c ( +0.2 L  +0.1) LCB  -13.63c P 55.85% WF 25.10% PSV      40 N      40  --  F4 A5 pass pass
-F5  : T -26.11c W  -5.87c S -20.24c ( +0.1 L  -0.0) LCB -280.00c P  7.21% WF 15.05% PSV       1 N       2  --  F5 A5
-G5  : T -43.27c W -18.80c S -24.47c ( -0.2 L  -0.2) LCB -280.00c P  5.56% WF 11.79% PSV       0 N       2  --  G5 A5
-G4  : T -14.25c W   1.57c S -15.82c ( +0.2 L  +0.1) LCB -280.00c P  4.55% WF 17.59% PSV       0 N       2  --  G4 A5
-G2  : T -19.97c W  -4.18c S -15.79c ( +0.1 L  +0.0) LCB -280.00c P  3.59% WF 16.34% PSV       0 N       2  --  G2 A5
-G1  : T -37.27c W -33.74c S  -3.53c ( -0.4 L  -0.2) LCB -280.00c P  3.44% WF 14.12% PSV       0 N       1  --  G1
+F4  : T  10.71c W  13.53c S  -2.82c ( +0.2 L  +0.1) LCB  -13.63c P 55.85% WF  41.7 PSV      40 N      40  --  F4 A5 pass pass
+F5  : T -26.11c W  -5.87c S -20.24c ( +0.1 L  -0.0) LCB -280.00c P  7.21% WF   1.6 PSV       1 N       2  --  F5 A5
+G5  : T -43.27c W -18.80c S -24.47c ( -0.2 L  -0.2) LCB -280.00c P  5.56% WF   1.4 PSV       0 N       2  --  G5 A5
+G4  : T -14.25c W   1.57c S -15.82c ( +0.2 L  +0.1) LCB -280.00c P  4.55% WF   1.7 PSV       0 N       2  --  G4 A5
+G2  : T -19.97c W  -4.18c S -15.79c ( +0.1 L  +0.0) LCB -280.00c P  3.59% WF   1.7 PSV       0 N       2  --  G2 A5
+G1  : T -37.27c W -33.74c S  -3.53c ( -0.4 L  -0.2) LCB -280.00c P  3.44% WF   0.8 PSV       0 N       1  --  G1
 
 : = pass
 : Controller: undo
@@ -279,9 +279,9 @@ PV: C1 A3 A1 D4 F4 A5 pass pass
 Tree:
 : T  14.67c W  21.07c S  -6.40c ( +0.2 L  +0.1) N     100  --  C1 A3 A1 D4 F4 A5 pass
 ---Black(^)---
-C1  : T  12.93c W  18.46c S  -5.52c ( +0.2 L  +0.1) LCB  -10.20c P 60.02% WF 33.21% PSV      57 N      57  --  C1 A3 A1 D4 F4 A5 pass pass
-D4  : T  16.58c W  23.63c S  -7.04c ( +0.1 L  +0.1) LCB  -16.37c P 28.26% WF 36.06% PSV      37 N      37  --  D4 A3 C1 A1 F4 A5 pass pass
-F4  : T   6.64c W  19.88c S -13.24c ( +0.4 L  +0.1) LCB -499.30c P  7.07% WF 30.74% PSV       4 N       5  --  F4 D4 C1 A3
+C1  : T  12.93c W  18.46c S  -5.52c ( +0.2 L  +0.1) LCB  -10.20c P 60.02% WF  56.2 PSV      57 N      57  --  C1 A3 A1 D4 F4 A5 pass pass
+D4  : T  16.58c W  23.63c S  -7.04c ( +0.1 L  +0.1) LCB  -16.37c P 28.26% WF  38.0 PSV      37 N      37  --  D4 A3 C1 A1 F4 A5 pass pass
+F4  : T   6.64c W  19.88c S -13.24c ( +0.4 L  +0.1) LCB -499.30c P  7.07% WF   4.7 PSV       4 N       5  --  F4 D4 C1 A3
 
 : = C1
 : Controller: genmove_debug w
@@ -306,10 +306,10 @@ PV: A3 A1 D4 F4 A5 pass pass
 Tree:
 : T -13.72c W -16.34c S   2.62c ( -0.2 L  -0.1) N     100  --  A3 A1 D4 F4 A5 pass pass
 ---White(^)---
-A3  : T -11.34c W -14.22c S   2.89c ( -0.1 L  -0.1) LCB  -28.19c P 62.72% WF 45.59% PSV      95 N      95  --  A3 A1 D4 F4 A5 pass pass
-D4  : T -77.58c W -71.84c S  -5.74c ( -1.0 L  -0.8) LCB -280.00c P 21.57% WF 17.90% PSV       2 N       2  --  D4 A1
-F5  : T -79.55c W -74.52c S  -5.03c ( -1.6 L  -1.6) LCB -280.00c P  2.24% WF 20.35% PSV       0 N       1  --  F5
-A5  : T -97.43c W -92.26c S  -5.16c ( -1.5 L  -1.4) LCB -280.00c P  1.87% WF 16.17% PSV       0 N       1  --  A5
+A3  : T -11.34c W -14.22c S   2.89c ( -0.1 L  -0.1) LCB  -28.19c P 62.72% WF  96.4 PSV      95 N      95  --  A3 A1 D4 F4 A5 pass pass
+D4  : T -77.58c W -71.84c S  -5.74c ( -1.0 L  -0.8) LCB -280.00c P 21.57% WF   1.3 PSV       2 N       2  --  D4 A1
+F5  : T -79.55c W -74.52c S  -5.03c ( -1.6 L  -1.6) LCB -280.00c P  2.24% WF   0.7 PSV       0 N       1  --  F5
+A5  : T -97.43c W -92.26c S  -5.16c ( -1.5 L  -1.4) LCB -280.00c P  1.87% WF   0.6 PSV       0 N       1  --  A5
 
 : = A3
 : Controller: genmove_debug b
@@ -334,9 +334,9 @@ PV: A1 D4 F4 A5 pass pass
 Tree:
 : T  11.03c W  13.64c S  -2.61c ( +0.1 L  +0.1) N     100  --  A1 D4 F4 A5 pass pass
 ---Black(^)---
-A1  : T   9.59c W  12.16c S  -2.57c ( +0.1 L  +0.1) LCB  -11.78c P 63.18% WF 39.45% PSV      58 N      58  --  A1 D4 F4 A5 pass pass
-D4  : T  13.18c W  15.42c S  -2.24c ( +0.0 L  +0.0) LCB  -14.26c P 29.12% WF 42.78% PSV      40 N      40  --  D4 A1 F4 A5 pass pass
-F4  : T -61.80c W -58.67c S  -3.13c ( -0.8 L  -0.7) LCB -280.00c P  5.19% WF 17.77% PSV       0 N       1  --  F4
+A1  : T   9.59c W  12.16c S  -2.57c ( +0.1 L  +0.1) LCB  -11.78c P 63.18% WF  57.2 PSV      58 N      58  --  A1 D4 F4 A5 pass pass
+D4  : T  13.18c W  15.42c S  -2.24c ( +0.0 L  +0.0) LCB  -14.26c P 29.12% WF  41.1 PSV      40 N      40  --  D4 A1 F4 A5 pass pass
+F4  : T -61.80c W -58.67c S  -3.13c ( -0.8 L  -0.7) LCB -280.00c P  5.19% WF   0.7 PSV       0 N       1  --  F4
 
 : = A1
 : Controller: genmove_debug w
@@ -361,13 +361,13 @@ PV: D4 F4 A5 pass pass
 Tree:
 : T  -8.51c W -10.55c S   2.05c ( -0.1 L  -0.1) N     100  --  D4 F4 A5 pass pass
 ---White(^)---
-D4  : T  -5.01c W  -7.14c S   2.12c ( -0.1 L  -0.1) LCB  -17.93c P 66.48% WF 32.67% PSV      93 N      93  --  D4 F4 A5 pass pass
-A5  : T -89.72c W -86.43c S  -3.29c ( -1.0 L  -0.8) LCB -280.00c P  7.83% WF 11.47% PSV       0 N       1  --  A5
-F5  : T -69.33c W -65.96c S  -3.37c ( -1.1 L  -1.2) LCB -280.00c P  2.60% WF 14.88% PSV       0 N       1  --  F5
-pss : T -101.39c W -95.08c S  -6.31c ( -1.8 L  -1.5) LCB -280.00c P  2.49% WF  9.86% PSV       0 N       1  --  pass
-B3  : T -91.97c W -88.54c S  -3.42c ( -1.0 L  -0.9) LCB -280.00c P  2.31% WF 11.15% PSV       0 N       1  --  B3
-A4  : T -98.43c W -93.40c S  -5.03c ( -1.5 L  -1.3) LCB -280.00c P  2.26% WF 10.25% PSV       0 N       1  --  A4
-A7  : T -102.49c W -96.59c S  -5.90c ( -1.7 L  -1.5) LCB -280.00c P  2.07% WF  9.72% PSV       0 N       1  --  A7
+D4  : T  -5.01c W  -7.14c S   2.12c ( -0.1 L  -0.1) LCB  -17.93c P 66.48% WF  95.4 PSV      93 N      93  --  D4 F4 A5 pass pass
+A5  : T -89.72c W -86.43c S  -3.29c ( -1.0 L  -0.8) LCB -280.00c P  7.83% WF   0.6 PSV       0 N       1  --  A5
+F5  : T -69.33c W -65.96c S  -3.37c ( -1.1 L  -1.2) LCB -280.00c P  2.60% WF   0.7 PSV       0 N       1  --  F5
+pss : T -101.39c W -95.08c S  -6.31c ( -1.8 L  -1.5) LCB -280.00c P  2.49% WF   0.6 PSV       0 N       1  --  pass
+B3  : T -91.97c W -88.54c S  -3.42c ( -1.0 L  -0.9) LCB -280.00c P  2.31% WF   0.6 PSV       0 N       1  --  B3
+A4  : T -98.43c W -93.40c S  -5.03c ( -1.5 L  -1.3) LCB -280.00c P  2.26% WF   0.6 PSV       0 N       1  --  A4
+A7  : T -102.49c W -96.59c S  -5.90c ( -1.7 L  -1.5) LCB -280.00c P  2.07% WF   0.6 PSV       0 N       1  --  A7
 
 : = D4
 : Controller: play b pass
@@ -394,14 +394,14 @@ PV: A5 F4 pass pass
 Tree:
 : T -10.24c W  -6.75c S  -3.49c ( -0.0 L  -0.1) N      50  --  A5 F4 pass pass
 ---White(^)---
-A5  : T  -3.20c W  -0.90c S  -2.30c ( +0.0 L  -0.0) LCB  -16.94c P 30.85% WF 20.35% PSV      38 N      38  --  A5 F4 pass pass
-C6  : T -50.62c W -35.79c S -14.84c ( -0.1 L  -0.4) LCB -280.00c P  9.21% WF 10.42% PSV       1 N       2  --  C6 F4
-B7  : T -53.87c W -42.98c S -10.89c ( -0.2 L  -0.4) LCB -280.00c P  8.78% WF  9.95% PSV       1 N       2  --  B7 F4
-B3  : T -32.71c W -26.18c S  -6.53c ( +0.1 L  -0.2) LCB -280.00c P  8.44% WF 13.29% PSV       1 N       2  --  B3 F4
-A4  : T -24.16c W -21.07c S  -3.09c ( -0.3 L  -0.3) LCB -280.00c P  7.96% WF 15.09% PSV       1 N       1  --  A4
-A6  : T -40.13c W -25.35c S -14.78c ( -0.1 L  -0.3) LCB -280.00c P  5.01% WF 12.05% PSV       0 N       2  --  A6 F4
-A7  : T -74.74c W -70.61c S  -4.13c ( -0.6 L  -0.6) LCB -280.00c P  8.63% WF  8.46% PSV       0 N       1  --  A7
-C7  : T -58.06c W -54.05c S  -4.01c ( -0.6 L  -0.6) LCB -280.00c P  7.43% WF 10.39% PSV       0 N       1  --  C7
+A5  : T  -3.20c W  -0.90c S  -2.30c ( +0.0 L  -0.0) LCB  -16.94c P 30.85% WF  40.3 PSV      38 N      38  --  A5 F4 pass pass
+C6  : T -50.62c W -35.79c S -14.84c ( -0.1 L  -0.4) LCB -280.00c P  9.21% WF   1.5 PSV       1 N       2  --  C6 F4
+B7  : T -53.87c W -42.98c S -10.89c ( -0.2 L  -0.4) LCB -280.00c P  8.78% WF   1.5 PSV       1 N       2  --  B7 F4
+B3  : T -32.71c W -26.18c S  -6.53c ( +0.1 L  -0.2) LCB -280.00c P  8.44% WF   1.7 PSV       1 N       2  --  B3 F4
+A4  : T -24.16c W -21.07c S  -3.09c ( -0.3 L  -0.3) LCB -280.00c P  7.96% WF   0.9 PSV       1 N       1  --  A4
+A6  : T -40.13c W -25.35c S -14.78c ( -0.1 L  -0.3) LCB -280.00c P  5.01% WF   1.6 PSV       0 N       2  --  A6 F4
+A7  : T -74.74c W -70.61c S  -4.13c ( -0.6 L  -0.6) LCB -280.00c P  8.63% WF   0.7 PSV       0 N       1  --  A7
+C7  : T -58.06c W -54.05c S  -4.01c ( -0.6 L  -0.6) LCB -280.00c P  7.43% WF   0.8 PSV       0 N       1  --  C7
 
 : = A5
 : Controller: undo
@@ -450,12 +450,12 @@ PV: F4 A5 pass pass
 Tree:
 : T   5.39c W  10.25c S  -4.87c ( +0.2 L  +0.1) N      50  --  F4 A5 pass pass
 ---Black(^)---
-F4  : T  10.18c W  13.05c S  -2.87c ( +0.2 L  +0.1) LCB  -13.85c P 55.56% WF 25.35% PSV      40 N      40  --  F4 A5 pass pass
-F5  : T -26.31c W  -5.83c S -20.49c ( +0.1 L  -0.0) LCB -280.00c P  7.24% WF 15.26% PSV       1 N       2  --  F5 A5
-G5  : T -43.82c W -19.39c S -24.44c ( -0.2 L  -0.2) LCB -280.00c P  5.49% WF 11.90% PSV       0 N       2  --  G5 A5
-G4  : T -14.55c W   1.12c S -15.67c ( +0.2 L  +0.1) LCB -280.00c P  4.50% WF 17.81% PSV       0 N       2  --  G4 A5
-G2  : T -20.65c W  -5.20c S -15.44c ( +0.1 L  +0.0) LCB -280.00c P  3.59% WF 16.47% PSV       0 N       2  --  G2 A5
-G1  : T -44.12c W -40.47c S  -3.65c ( -0.5 L  -0.3) LCB -280.00c P  3.50% WF 13.21% PSV       0 N       1  --  G1
+F4  : T  10.18c W  13.05c S  -2.87c ( +0.2 L  +0.1) LCB  -13.85c P 55.56% WF  41.8 PSV      40 N      40  --  F4 A5 pass pass
+F5  : T -26.31c W  -5.83c S -20.49c ( +0.1 L  -0.0) LCB -280.00c P  7.24% WF   1.6 PSV       1 N       2  --  F5 A5
+G5  : T -43.82c W -19.39c S -24.44c ( -0.2 L  -0.2) LCB -280.00c P  5.49% WF   1.4 PSV       0 N       2  --  G5 A5
+G4  : T -14.55c W   1.12c S -15.67c ( +0.2 L  +0.1) LCB -280.00c P  4.50% WF   1.8 PSV       0 N       2  --  G4 A5
+G2  : T -20.65c W  -5.20c S -15.44c ( +0.1 L  +0.0) LCB -280.00c P  3.59% WF   1.7 PSV       0 N       2  --  G2 A5
+G1  : T -44.12c W -40.47c S  -3.65c ( -0.5 L  -0.3) LCB -280.00c P  3.50% WF   0.8 PSV       0 N       1  --  G1
 
 : = F4
 : Controller: undo
