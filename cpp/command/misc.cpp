@@ -918,6 +918,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   logger.addFile(outDir + "/" + "log.log");
   for(int i = 0; i < argc; i++)
     logger.write(string("Command: ") + argv[i]);
+  logger.write("Git revision " + Version::getGitRevision());
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_ANALYSIS);
   //Ignore temperature, noise
