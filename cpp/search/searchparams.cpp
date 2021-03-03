@@ -29,6 +29,7 @@ SearchParams::SearchParams()
    rootFpuReductionMax(0.2),
    rootFpuLossProp(0.0),
    rootNumSymmetriesToSample(1),
+   nodeNumSymmetriesToSample(1),
    rootDesiredPerChildVisitsCoeff(0.0),
    chosenMoveTemperature(0.0),
    chosenMoveTemperatureEarly(0.0),

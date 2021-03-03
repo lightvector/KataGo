@@ -41,11 +41,15 @@ struct MiscNNInputParams {
   bool avoidMYTDaggerHack = false;
   // If no symmetry is specified, it will use default or random based on config, unless node is already cached.
   int symmetry = NNInputs::SYMMETRY_NOTSPECIFIED;
+  // This will get set in initNodeNNOutput if needed, otherwise default to 1 to keep existing behavior within getHash()
+  int numSymmetriesToSample = 1;
 
   static const Hash128 ZOBRIST_CONSERVATIVE_PASS;
   static const Hash128 ZOBRIST_PLAYOUT_DOUBLINGS;
   static const Hash128 ZOBRIST_NN_POLICY_TEMP;
   static const Hash128 ZOBRIST_AVOID_MYTDAGGER_HACK;
+
+  static const Hash128 ZOBRIST_NUM_SYMMETRIES_TO_SAMPLE_HASH[NNInputs::NUM_SYMMETRY_COMBINATIONS];
 };
 
 namespace NNInputs {

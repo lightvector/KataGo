@@ -2222,22 +2222,16 @@ void Search::initNodeNNOutput(
       getOpp(thread.pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
     );
   }
-  if(isRoot && searchParams.rootNumSymmetriesToSample > 1) {
-    vector<shared_ptr<NNOutput>> ptrs;
-    std::array<int, NNInputs::NUM_SYMMETRY_COMBINATIONS> symmetryIndexes;
-    std::iota(symmetryIndexes.begin(), symmetryIndexes.end(), 0);
-    for(int i = 0; i<searchParams.rootNumSymmetriesToSample; i++) {
-      std::swap(symmetryIndexes[i], symmetryIndexes[thread.rand.nextInt(i,NNInputs::NUM_SYMMETRY_COMBINATIONS-1)]);
-      nnInputParams.symmetry = symmetryIndexes[i];
-      bool skipCacheThisIteration = true; //Skip cache since there's no guarantee which symmetry is in the cache
-      nnEvaluator->evaluate(
-        thread.board, thread.history, thread.pla,
-        nnInputParams,
-        thread.nnResultBuf, skipCacheThisIteration, includeOwnerMap
-      );
-      ptrs.push_back(std::move(thread.nnResultBuf.result));
-    }
-    node.nnOutput = std::shared_ptr<NNOutput>(new NNOutput(ptrs));
+  // We will use numSymmetriesToSample when computing the hash so that multiple searchers with different settings won't use a cached
+  // eval that had the wrong numSymmetriesToSample
+  nnInputParams.numSymmetriesToSample = isRoot ? searchParams.rootNumSymmetriesToSample : searchParams.nodeNumSymmetriesToSample;
+  if(nnInputParams.numSymmetriesToSample > 1) {
+    nnEvaluator->evaluate_symmetry(
+      thread.board, thread.history, thread.pla,
+      nnInputParams,
+      thread.nnResultBuf, skipCache, includeOwnerMap,
+      thread.rand
+    );
   }
   else {
     nnEvaluator->evaluate(
@@ -2245,9 +2239,9 @@ void Search::initNodeNNOutput(
       nnInputParams,
       thread.nnResultBuf, skipCache, includeOwnerMap
     );
-    node.nnOutput = std::move(thread.nnResultBuf.result);
   }
 
+  node.nnOutput = std::move(thread.nnResultBuf.result);
   assert(node.nnOutput->noisedPolicyProbs == NULL);
   maybeAddPolicyNoiseAndTempAlreadyLocked(thread,node,isRoot);
   node.nnOutputAge = searchNodeAge;
