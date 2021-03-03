@@ -1312,7 +1312,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       //cout << m << endl;
       //Look for surprising moves that turned out not poorly
       //The more surprising, the more times we will write it out.
-      if(policyPriors[m] < maxPolicy)
+      if(policyPriors[m] > maxPolicy)
         continue;
       double weight = surpriseWeight(policyPriors[m],rand,false);
       if(weight <= 0)
@@ -1471,7 +1471,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
     int pos = NNPos::locToPos(sample.hintLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
     double policyProb = nnOutput->policyProbs[pos];
-    if(policyProb < maxPolicy)
+    if(policyProb > maxPolicy)
       return;
     double weight = surpriseWeight(policyProb,rand,markedAsHintPos);
     if(weight <= 0)
