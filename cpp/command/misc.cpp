@@ -583,6 +583,12 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
   int64_t maxDepth;
   int64_t maxNodeCount;
   int64_t maxBranchCount;
+
+  int minMinRank;
+  string requiredPlayerName;
+  int maxHandicap;
+  double maxKomi;
+
   try {
     KataGoCommandLine cmd("Search for suprising good moves in sgfs");
 
@@ -594,6 +600,10 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> maxDepthArg("","max-depth","Max depth allowed for sgf",false,"100000000","INT");
     TCLAP::ValueArg<string> maxNodeCountArg("","max-node-count","Max node count allowed for sgf",false,"100000000","INT");
     TCLAP::ValueArg<string> maxBranchCountArg("","max-branch-count","Max branch count allowed for sgf",false,"100000000","INT");
+    TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
+    TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
+    TCLAP::ValueArg<int> maxHandicapArg("","max-handicap","Require no more than this big handicap in stones",false,100,"INT");
+    TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require abs(game komi) to be at most this",false,1000,"KOMI");
     cmd.add(sgfDirArg);
     cmd.add(outDirArg);
     cmd.add(excludeHashesArg);
@@ -602,6 +612,10 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
     cmd.add(maxDepthArg);
     cmd.add(maxNodeCountArg);
     cmd.add(maxBranchCountArg);
+    cmd.add(minMinRankArg);
+    cmd.add(requiredPlayerNameArg);
+    cmd.add(maxHandicapArg);
+    cmd.add(maxKomiArg);
     cmd.parse(argc,argv);
     sgfDirs = sgfDirArg.getValue();
     outDir = outDirArg.getValue();
@@ -611,6 +625,10 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
     maxDepth = Global::stringToInt64(maxDepthArg.getValue());
     maxNodeCount = Global::stringToInt64(maxNodeCountArg.getValue());
     maxBranchCount = Global::stringToInt64(maxBranchCountArg.getValue());
+    minMinRank = minMinRankArg.getValue();
+    requiredPlayerName = requiredPlayerNameArg.getValue();
+    maxHandicap = maxHandicapArg.getValue();
+    maxKomi = maxKomiArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -637,6 +655,32 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
 
   set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
   logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
+
+  // ---------------------------------------------------------------------------------------------------
+
+  auto isPlayerOkay = [&](const Sgf* sgf, Player pla) {
+    if(requiredPlayerName != "") {
+      if(sgf->getPlayerName(pla) != requiredPlayerName)
+        return false;
+    }
+    return true;
+  };
+
+  auto isSgfOkay = [&](const Sgf* sgf) {
+    if(maxHandicap < 100 && sgf->getHandicapValue() > maxHandicap)
+      return false;
+    if(sgf->depth() > maxDepth)
+      return false;
+    if(abs(sgf->getKomi()) > maxKomi)
+      return false;
+    if(minMinRank != Sgf::RANK_UNKNOWN) {
+      if(sgf->getRank(P_BLACK) < minMinRank && sgf->getRank(P_WHITE) < minMinRank)
+        return false;
+    }
+    if(!isPlayerOkay(sgf,P_BLACK) && !isPlayerOkay(sgf,P_WHITE))
+      return false;
+    return true;
+  };
 
   // ---------------------------------------------------------------------------------------------------
   ThreadSafeQueue<string*> toWriteQueue;
@@ -692,38 +736,60 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
     }
   };
   int64_t numExcluded = 0;
+  int64_t numSgfsFilteredTopLevel = 0;
+  auto trySgf = [&](Sgf* sgf) {
+    if(contains(excludeHashes,sgf->hash)) {
+      numExcluded += 1;
+      return;
+    }
+
+    int64_t depth = sgf->depth();
+    int64_t nodeCount = sgf->nodeCount();
+    int64_t branchCount = sgf->branchCount();
+    if(depth > maxDepth || nodeCount > maxNodeCount || branchCount > maxBranchCount) {
+      logger.write(
+        "Skipping due to violating limits depth " + Global::int64ToString(depth) +
+        " nodes " + Global::int64ToString(nodeCount) +
+        " branches " + Global::int64ToString(branchCount) +
+        " " + sgf->fileName
+      );
+      numSgfsFilteredTopLevel += 1;
+      return;
+    }
+
+    try {
+      if(!isSgfOkay(sgf)) {
+        logger.write("Filtering due to not okay: " + sgf->fileName);
+        numSgfsFilteredTopLevel += 1;
+        return;
+      }
+    }
+    catch(const StringError& e) {
+      logger.write("Filtering due to error checking okay: " + sgf->fileName + ": " + e.what());
+      numSgfsFilteredTopLevel += 1;
+      return;
+    }
+
+    bool hashComments = false;
+    sgf->iterAllUniquePositions(uniqueHashes, hashComments, posHandler);
+  };
+
   for(size_t i = 0; i<sgfFiles.size(); i++) {
     Sgf* sgf = NULL;
     try {
       sgf = Sgf::loadFile(sgfFiles[i]);
-      if(contains(excludeHashes,sgf->hash))
-        numExcluded += 1;
-      else {
-        int64_t depth = sgf->depth();
-        int64_t nodeCount = sgf->nodeCount();
-        int64_t branchCount = sgf->branchCount();
-        if(depth > maxDepth || nodeCount > maxNodeCount || branchCount > maxBranchCount) {
-          logger.write(
-            "Skipping due to violating limits depth " + Global::int64ToString(depth) +
-            " nodes " + Global::int64ToString(nodeCount) +
-            " branches " + Global::int64ToString(branchCount) +
-            " " + sgfFiles[i]
-          );
-        }
-        else {
-          bool hashComments = false;
-          sgf->iterAllUniquePositions(uniqueHashes, hashComments, posHandler);
-        }
-      }
+      trySgf(sgf);
     }
     catch(const StringError& e) {
       logger.write("Invalid SGF " + sgfFiles[i] + ": " + e.what());
     }
-    if(sgf != NULL)
+    if(sgf != NULL) {
       delete sgf;
+    }
   }
   logger.write("Kept " + Global::int64ToString(numKept) + " start positions");
   logger.write("Excluded " + Global::int64ToString(numExcluded) + "/" + Global::uint64ToString(sgfFiles.size()) + " sgf files");
+  logger.write("Filtered " + Global::int64ToString(numSgfsFilteredTopLevel) + "/" + Global::uint64ToString(sgfFiles.size()) + " sgf files");
 
 
   // ---------------------------------------------------------------------------------------------------
@@ -1576,22 +1642,26 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     if(contains(excludeHashes,sgf->hash)) {
       logger.write("Filtering due to exclude: " + fileName);
       numSgfsFilteredTopLevel += 1;
+      delete sgf;
       continue;
     }
     try {
       if(!isSgfOkay(sgf)) {
         logger.write("Filtering due to not okay: " + fileName);
         numSgfsFilteredTopLevel += 1;
+        delete sgf;
         continue;
       }
     }
     catch(const StringError& e) {
       logger.write("Filtering due to error checking okay: " + fileName + ": " + e.what());
       numSgfsFilteredTopLevel += 1;
+      delete sgf;
       continue;
     }
     if(sgfSplitCount > 1 && ((int)(sgf->hash.hash0 & 0x7FFFFFFF) % sgfSplitCount) != sgfSplitIdx) {
       numSgfsSkipped += 1;
+      delete sgf;
       continue;
     }
 
