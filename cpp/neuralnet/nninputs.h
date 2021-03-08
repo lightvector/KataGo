@@ -151,6 +151,9 @@ struct NNOutput {
 namespace SymmetryHelpers {
   void copyInputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry);
   void copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry);
+
+  Loc getSymLoc(int x, int y, const Board& board, int symmetry);
+  Board getSymBoard(const Board& board, int symmetry);
 }
 
 //Utility functions for computing the "scoreValue", the unscaled utility of various numbers of points, prior to multiplication by

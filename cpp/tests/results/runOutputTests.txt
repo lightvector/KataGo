@@ -15528,6 +15528,304 @@ Score Util Gridded wins/draw=1.0: 0.409563
 Score Util GridInv wins/draw=1.0: 7.49749
 
 
+------------------------------------
+Testing basic symmetries!
+SYMMETRY 0
+HASH: 10536BA4F5B60C6BAEF367A2D60E8EDA
+   A B C D E F G
+ 7 . . . . . . .
+ 6 . . . . . . .
+ 5 . X X X . . .
+ 4 . . . . O . .
+ 3 . . . . O . .
+ 2 . . . . O . .
+ 1 . . . . . . .
+
+
+true
+0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 
+0 1 1 1 0 0 0 
+0 0 0 0 2 0 0 
+0 0 0 0 2 0 0 
+0 0 0 0 2 0 0 
+0 0 0 0 0 0 0 
+SYMMETRY 1
+HASH: 4A73C1FBB96574A1EBBB05C4FBC6128B
+   A B C D E F G
+ 7 . . . . . . .
+ 6 . . . . O . .
+ 5 . . . . O . .
+ 4 . . . . O . .
+ 3 . X X X . . .
+ 2 . . . . . . .
+ 1 . . . . . . .
+
+
+true
+0 0 0 0 0 0 0 
+0 0 0 0 2 0 0 
+0 0 0 0 2 0 0 
+0 0 0 0 2 0 0 
+0 1 1 1 0 0 0 
+0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 
+SYMMETRY 2
+HASH: B595E477F1130F9C23C544E9362BBB81
+   A B C D E F G
+ 7 . . . . . . .
+ 6 . . . . . . .
+ 5 . . . X X X .
+ 4 . . O . . . .
+ 3 . . O . . . .
+ 2 . . O . . . .
+ 1 . . . . . . .
+
+
+true
+0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 
+0 0 0 1 1 1 0 
+0 0 2 0 0 0 0 
+0 0 2 0 0 0 0 
+0 0 2 0 0 0 0 
+0 0 0 0 0 0 0 
+SYMMETRY 3
+HASH: E837B93887D00B87590FE32DF7EACF34
+   A B C D E F G
+ 7 . . . . . . .
+ 6 . . O . . . .
+ 5 . . O . . . .
+ 4 . . O . . . .
+ 3 . . . X X X .
+ 2 . . . . . . .
+ 1 . . . . . . .
+
+
+true
+0 0 0 0 0 0 0 
+0 0 2 0 0 0 0 
+0 0 2 0 0 0 0 
+0 0 2 0 0 0 0 
+0 0 0 1 1 1 0 
+0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 
+SYMMETRY 4
+HASH: 2C091C7336C956E4190AEB8C971593BE
+   A B C D E F G
+ 7 . . . . . . .
+ 6 . . X . . . .
+ 5 . . X . . . .
+ 4 . . X . . . .
+ 3 . . . O O O .
+ 2 . . . . . . .
+ 1 . . . . . . .
+
+
+true
+0 0 0 0 0 0 0 
+0 0 1 0 0 0 0 
+0 0 1 0 0 0 0 
+0 0 1 0 0 0 0 
+0 0 0 2 2 2 0 
+0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 
+SYMMETRY 5
+HASH: 34A1589420527491B8CEA75DC1B6F48E
+   A B C D E F G
+ 7 . . . . . . .
+ 6 . . . . X . .
+ 5 . . . . X . .
+ 4 . . . . X . .
+ 3 . O O O . . .
+ 2 . . . . . . .
+ 1 . . . . . . .
+
+
+true
+0 0 0 0 0 0 0 
+0 0 0 0 1 0 0 
+0 0 0 0 1 0 0 
+0 0 0 0 1 0 0 
+0 2 2 2 0 0 0 
+0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 
+SYMMETRY 6
+HASH: 075AEB9CF818D878D220B3FB43D8BCBE
+   A B C D E F G
+ 7 . . . . . . .
+ 6 . . . . . . .
+ 5 . . . O O O .
+ 4 . . X . . . .
+ 3 . . X . . . .
+ 2 . . X . . . .
+ 1 . . . . . . .
+
+
+true
+0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 
+0 0 0 2 2 2 0 
+0 0 1 0 0 0 0 
+0 0 1 0 0 0 0 
+0 0 1 0 0 0 0 
+0 0 0 0 0 0 0 
+SYMMETRY 7
+HASH: 2398D7EE75668E65C5AAA3C650096162
+   A B C D E F G
+ 7 . . . . . . .
+ 6 . . . . . . .
+ 5 . O O O . . .
+ 4 . . . . X . .
+ 3 . . . . X . .
+ 2 . . . . X . .
+ 1 . . . . . . .
+
+
+true
+0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 
+0 2 2 2 0 0 0 
+0 0 0 0 1 0 0 
+0 0 0 0 1 0 0 
+0 0 0 0 1 0 0 
+0 0 0 0 0 0 0 
+SYMMETRY 0
+HASH: A5352E294DBE4F6B2B4599F80D25B366
+   A B C D E F G
+ 5 . . . . . . .
+ 4 . X . . . . .
+ 3 . X . . . . .
+ 2 . O O . . . .
+ 1 . . . . . . .
+
+
+A45A5C8D2DE8346394278209E73A926D
+true
+true
+true
+true
+true
+SYMMETRY 1
+HASH: A8FACF75A64B6A8DD514DF4D7712A63A
+   A B C D E F G
+ 5 . . . . . . .
+ 4 . O O . . . .
+ 3 . X . . . . .
+ 2 . X . . . . .
+ 1 . . . . . . .
+
+
+BFCD2A6D21BF86A61F34AE48DCB8AEC6
+true
+true
+true
+true
+true
+SYMMETRY 2
+HASH: AD610645C81C5509EAF0A92125D6C782
+   A B C D E F G
+ 5 . . . . . . .
+ 4 . . . . . X .
+ 3 . . . . . X .
+ 2 . . . . O O .
+ 1 . . . . . . .
+
+
+973F598CDF7EC20C5F33A53CD7924EAA
+true
+true
+true
+true
+true
+SYMMETRY 3
+HASH: EEE84256E41FD211A4B352EEF5C7CC7B
+   A B C D E F G
+ 5 . . . . . . .
+ 4 . . . . O O .
+ 3 . . . . . X .
+ 2 . . . . . X .
+ 1 . . . . . . .
+
+
+625DFB8C14A84F5F6E6FA9A59DD301DA
+true
+true
+true
+true
+true
+SYMMETRY 4
+HASH: 1EA67062B2A515A834C9974D7E15A768
+   A B C D E
+ 7 . . . . .
+ 6 . X X O .
+ 5 . . . O .
+ 4 . . . . .
+ 3 . . . . .
+ 2 . . . . .
+ 1 . . . . .
+
+
+5DDD312C75F3DD542351ED3B73563B91
+true
+true
+true
+true
+true
+SYMMETRY 5
+HASH: F007BED32BD9CF351C98DA163AA05887
+   A B C D E
+ 7 . . . . .
+ 6 . O X X .
+ 5 . O . . .
+ 4 . . . . .
+ 3 . . . . .
+ 2 . . . . .
+ 1 . . . . .
+
+
+E640978A901DA2740E21EA68A4905384
+true
+true
+true
+true
+true
+SYMMETRY 6
+HASH: ED57525FF5D510A172D3B280505FDF53
+   A B C D E
+ 7 . . . . .
+ 6 . . . . .
+ 5 . . . . .
+ 4 . . . . .
+ 3 . . . O .
+ 2 . X X O .
+ 1 . . . . .
+
+
+3FBCDFE3BC7356387800B6F220F9C2F9
+true
+true
+true
+true
+true
+SYMMETRY 7
+HASH: 0FBBCE35DF09E50C13EB9BF65F27A7C3
+   A B C D E
+ 7 . . . . .
+ 6 . . . . .
+ 5 . . . . .
+ 4 . . . . .
+ 3 . O . . .
+ 2 . O X X .
+ 1 . . . . .
+
+
+3D4B8867677FB2EBC1C1608C14BD9D5F
+true
+true
+true
+true
+true
 Symmetry 3-1-3-3 useNHWC 0 0
 0 1 2 3 4 5 6 7 8 3 0 4 0 5 0 0 6 0 1 0 0 1 1 1 1 0 1 
 Symmetry 3-1-3-3 useNHWC 0 1

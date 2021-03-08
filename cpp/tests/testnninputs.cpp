@@ -1049,3 +1049,72 @@ o.xoo.x
   }
 
 }
+
+
+void Tests::runBasicSymmetryTests() {
+  cout << "------------------------------------" << endl;
+  cout << "Testing basic symmetries!" << endl;
+  {
+    Board board = Board::parseBoard(7,7,R"%%(
+.......
+.......
+.xxx...
+....o..
+....o..
+....o..
+.......
+)%%");
+    float buf[49] = {
+      0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,
+      0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,
+      0.0f,1.0f,1.0f,1.0f,0.0f,0.0f,0.0f,
+      0.0f,0.0f,0.0f,0.0f,2.0f,0.0f,0.0f,
+      0.0f,0.0f,0.0f,0.0f,2.0f,0.0f,0.0f,
+      0.0f,0.0f,0.0f,0.0f,2.0f,0.0f,0.0f,
+      0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,
+    };
+
+    for(int symmetry = 0; symmetry<8; symmetry++) {
+      float dst[49];
+      SymmetryHelpers::copyInputsWithSymmetry(buf,dst,1,7,7,1,true,symmetry);
+      Board symBoard = SymmetryHelpers::getSymBoard(board,symmetry);
+      Loc symLocWithX = SymmetryHelpers::getSymLoc(1,2,board,symmetry);
+      cout << "SYMMETRY " << symmetry << endl;
+      cout << symBoard << endl;
+      cout << Global::boolToString(symBoard.colors[symLocWithX] == P_BLACK) << endl;
+      for(int y = 0; y<7; y++) {
+        for(int x = 0; x<7; x++)
+          cout << dst[x+y*7] << " ";
+        cout << endl;
+      }
+    }
+  }
+
+  {
+    Board board = Board::parseBoard(7,5,R"%%(
+.......
+.x.....
+.x.....
+.oo....
+.......
+)%%");
+    board.setSimpleKoLoc(Location::getLoc(5,0,board.x_size));
+
+    for(int symmetry = 0; symmetry<8; symmetry++) {
+      Board symBoard = SymmetryHelpers::getSymBoard(board,symmetry);
+      cout << "SYMMETRY " << symmetry << endl;
+      cout << symBoard << endl;
+      cout << symBoard.getSitHashWithSimpleKo(P_BLACK) << endl;
+      Loc symLocWithX = SymmetryHelpers::getSymLoc(1,1,board,symmetry);
+      Loc symLocWithX2 = SymmetryHelpers::getSymLoc(1,2,board,symmetry);
+      Loc symLocWithO = SymmetryHelpers::getSymLoc(1,3,board,symmetry);
+      Loc symLocWithO2 = SymmetryHelpers::getSymLoc(2,3,board,symmetry);
+      cout << Global::boolToString(symBoard.colors[symLocWithX] == P_BLACK) << endl;
+      cout << Global::boolToString(symBoard.colors[symLocWithX2] == P_BLACK) << endl;
+      cout << Global::boolToString(symBoard.colors[symLocWithO] == P_WHITE) << endl;
+      cout << Global::boolToString(symBoard.colors[symLocWithO2] == P_WHITE) << endl;
+      cout << Global::boolToString(symBoard.ko_loc == SymmetryHelpers::getSymLoc(5,0,board,symmetry)) << endl;
+    }
+  }
+
+}

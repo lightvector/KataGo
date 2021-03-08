@@ -70,6 +70,8 @@ namespace Location
   Loc ofString(const std::string& str, int x_size, int y_size);
   Loc ofString(const std::string& str, const Board& b);
 
+  Loc getSymLoc(Loc loc, int x_size, int y_size, bool swapXY, bool flipX, bool flip);
+
   std::vector<Loc> parseSequence(const std::string& str, const Board& b);
 }
 
@@ -195,8 +197,14 @@ struct Board
   //Count the number of stones on the board
   int numStonesOnBoard() const;
 
+  //Get a hash that combines the position of the board with simple ko prohibition and a player to move.
+  Hash128 getSitHashWithSimpleKo(Player pla) const;
+
   //Lift any simple ko ban recorded on thie board due to an immediate prior ko capture.
   void clearSimpleKoLoc();
+  //Directly set that there is a simple ko prohibition on this location. Note that this is not necessarily safe
+  //when also using a BoardHistory, since the BoardHistory may not know about this change, or the game could be in cleanup phase, etc.
+  void setSimpleKoLoc(Loc loc);
 
   //Sets the specified stone if possible. Returns true usually, returns false location or color were out of range.
   bool setStone(Loc loc, Color color);

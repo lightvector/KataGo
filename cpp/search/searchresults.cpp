@@ -1437,6 +1437,24 @@ bool Search::getAnalysisJson(
     rootInfo["scoreLead"] = lead;
     rootInfo["scoreStdev"] = rootVals.expectedScoreStdev;
     rootInfo["utility"] = utility;
+
+    Hash128 thisHash;
+    Hash128 symHash;
+    for(int symmetry = 0; symmetry < 8; symmetry++) {
+      Board symBoard = SymmetryHelpers::getSymBoard(board,symmetry);
+      Hash128 hash = symBoard.getSitHashWithSimpleKo(rootPla);
+      if(symmetry == 0) {
+        thisHash = hash;
+        symHash = hash;
+      }
+      else {
+        if(hash < symHash)
+          symHash = hash;
+      }
+    }
+    rootInfo["thisHash"] = Global::uint64ToHexString(thisHash.hash1) + Global::uint64ToHexString(thisHash.hash0);
+    rootInfo["symHash"] = Global::uint64ToHexString(symHash.hash1) + Global::uint64ToHexString(symHash.hash0);
+
     ret["rootInfo"] = rootInfo;
   }
   // Raw policy prior

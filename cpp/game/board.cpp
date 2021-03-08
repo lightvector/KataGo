@@ -209,9 +209,21 @@ void Board::initHash()
   IS_ZOBRIST_INITALIZED = true;
 }
 
+Hash128 Board::getSitHashWithSimpleKo(Player pla) const {
+  Hash128 h = pos_hash;
+  if(ko_loc != Board::NULL_LOC)
+    h = h ^ Board::ZOBRIST_KO_LOC_HASH[ko_loc];
+  h ^= Board::ZOBRIST_PLAYER_HASH[pla];
+  return h;
+}
+
 void Board::clearSimpleKoLoc() {
   ko_loc = NULL_LOC;
 }
+void Board::setSimpleKoLoc(Loc loc) {
+  ko_loc = loc;
+}
+
 
 //Gets the number of stones of the chain at loc. Precondition: location must be black or white.
 int Board::getChainSize(Loc loc) const
