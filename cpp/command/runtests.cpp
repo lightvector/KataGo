@@ -248,6 +248,27 @@ int MainCmds::runnnonmanyposestest(int argc, const char* const* argv) {
   return 0;
 }
 
+int MainCmds::runnnbatchingtest(int argc, const char* const* argv) {
+  if(argc != 5) {
+    cerr << "Must supply exactly four arguments: MODEL_FILE INPUTSNHWC CUDANHWC FP16" << endl;
+    return 1;
+  }
+  Board::initHash();
+  ScoreValue::initTables();
+
+  Tests::runNNBatchingTest(
+    string(argv[1]),
+    Global::stringToBool(argv[2]),
+    Global::stringToBool(argv[3]),
+    Global::stringToBool(argv[4])
+  );
+
+  ScoreValue::freeTables();
+
+  return 0;
+}
+
+
 int MainCmds::runownershiptests(int argc, const char* const* argv) {
   if(argc != 3) {
     cerr << "Must supply exactly two arguments: GTP_CONFIG MODEL_FILE" << endl;

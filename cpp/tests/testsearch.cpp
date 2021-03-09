@@ -2929,3 +2929,126 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool cuda
   NeuralNet::globalCleanup();
 
 }
+
+STRUCT_NAMED_TRIPLE(Board,board,BoardHistory,hist,Player,nextPla,NNBatchingTestItem);
+
+void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool cudaNHWC, bool useFP16) {
+  Logger logger;
+  logger.setLogToStdout(false);
+  logger.setLogToStderr(true);
+  logger.setLogTime(false);
+
+  const int nnXLen = 19;
+  const int nnYLen = 19;
+  int symmetry = -1;
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",nnXLen,nnYLen,symmetry,inputsNHWC,cudaNHWC,useFP16,false,false);
+  nnEval->setDoRandomize(false);
+
+  string sgf19x19 = "(;FF[4]GM[1]SZ[19]HA[0]KM[7]RU[koPOSITIONALscoreAREAtaxALLsui0button1]RE[W+R];B[pd];W[dp];B[pp];W[dd];B[fc];W[id];B[fq];W[nc];B[cn];W[dn];B[dm];W[en];B[em];W[co];B[bo];W[bn];B[cm];W[bp];B[fn];W[ec];B[fd];W[df];B[kd];W[ne];B[pf];W[if];B[kf];W[le];B[ke];W[gg];B[oc];W[mb];B[jc];W[ic];B[eb];W[db];B[ib];W[hb];B[jb];W[gb];B[ng];W[mg];B[mf];W[og];B[md];W[nd];B[nf];W[of];B[oe];W[od];B[pe];W[pc];B[qc];W[pb];B[oh];W[qj];B[he];W[ie];B[fb];W[ge];B[de];W[ee];B[qb];W[ob];B[ce];W[ed];B[cc];W[cd];B[bd];W[bc];B[ef];W[eg];B[bb];W[cb];B[hd];W[hc];B[cf];W[dg];B[hf];W[hg];B[ac];W[pg];)";
+  string sgf19x10 = "(;FF[4]GM[1]SZ[19:10]HA[0]KM[6]RU[koPOSITIONALscoreAREAtaxNONEsui0]RE[W+2];B[dg];W[cd];B[pg];W[pd];B[ec];W[bg];B[cg];W[bh];B[nc];W[de];B[cf];W[di];B[bf];W[eh];B[eg];W[fd];B[dc];W[cc];B[gb];W[he];B[ee];W[ed];B[ci];W[dd];B[dh];W[hc];B[hh];W[jc];B[kc];W[kb];B[jd];W[lc];B[kd];W[ic];B[oe];W[ld];B[re];W[pe];B[pf];W[od];B[nd];W[ob];B[le];W[rd];B[kf];W[oi];B[ph];W[kh];B[ji];W[mh];B[ki];W[kg];B[jf];W[qf];B[rf];W[qe];B[qg];W[pi];B[qc];W[qb];B[qi];W[mf];B[me];W[nf];B[ng];W[mg];B[li];W[rh];B[rg];W[ri];B[nh];W[ne];B[of];W[ig];B[lh];W[qh];B[ni];W[hg];B[sh];W[ih];B[lg];W[fh];B[rb];W[nb];B[rc];W[qj];B[si];W[oj];B[hi];W[fg];B[rj];W[sj];B[ff];W[gf];B[rj];W[mc];B[md];W[sj];B[cb];W[bb];B[rj];W[ei];B[bi];W[sj];B[eb];W[ca];B[rj];W[be];B[af];W[sj];B[da];W[ba];B[rj];W[ai];B[cj];W[sj];B[hb];W[ib];B[rj];W[pb];B[qi];W[qd];B[sd];W[ii];B[ij];W[ra];B[id];W[gi];B[gj];W[gh];B[fj];W[hj];B[hi];W[hd];B[ce];W[bd];B[if];W[ie];B[je];W[ae];B[ef];W[hf];B[fe];W[ge];B[hj];W[df];B[ah];W[hh];B[sa];W[qa];B[sc];W[sb];B[bc];W[ac];B[sa];W[ag];B[ch];W[sb];B[lb];W[mb];B[sa];W[se];B[sf];W[sb];B[jb];W[ja];B[sa];W[pc];B[se];W[sb];B[fa];W[fc];B[sa];W[dj];B[ah];W[sb];B[fb];W[ha];B[sa];W[ag];B[bg];W[sb];B[jg];W[jh];B[sa];W[lf];B[mi];W[sb];B[jj];W[sa];B[ej];W[fi];B[oc];W[ia];B[lf];W[la];B[nj];W[bc];B[sg];W[db];B[pj];W[ea];B[qj];W[da];B[aj];W[gc];B[oh];W[ga];B[];W[])";
+
+  constexpr int numThreads = 10;
+  vector<NNBatchingTestItem> items;
+
+  auto appendSgfPoses = [&](string sgfStr) {
+    Rand rand("runNNBatchingTest");
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    for(int turnIdx = 0; turnIdx<sgf->moves.size(); turnIdx++) {
+      Board board;
+      Player nextPla;
+      BoardHistory hist;
+      Rules initialRules;
+      initialRules.koRule = rand.nextBool(0.5) ? Rules::KO_SIMPLE : rand.nextBool(0.5) ? Rules::KO_POSITIONAL : Rules::KO_SITUATIONAL;
+      initialRules.scoringRule = rand.nextBool(0.5) ? Rules::SCORING_AREA : Rules::SCORING_TERRITORY;
+      initialRules.taxRule = rand.nextBool(0.5) ? Rules::TAX_NONE : rand.nextBool(0.5) ? Rules::TAX_SEKI : Rules::TAX_ALL;
+      initialRules.multiStoneSuicideLegal = rand.nextBool(0.5);
+      initialRules.hasButton = initialRules.scoringRule == Rules::SCORING_AREA && rand.nextBool(0.5);
+      initialRules.whiteHandicapBonusRule = rand.nextBool(0.5) ? Rules::WHB_ZERO : rand.nextBool(0.5) ? Rules::WHB_N : Rules::WHB_N_MINUS_ONE;
+      initialRules.komi = 7.5f + rand.nextInt(-10,10) * 0.5f;
+      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+      items.push_back(NNBatchingTestItem(board,hist,nextPla));
+    }
+    delete sgf;
+  };
+  appendSgfPoses(sgf19x19);
+  appendSgfPoses(sgf19x10);
+
+  vector<double> policyResults(items.size());
+  vector<double> valueResults(items.size());
+  vector<double> scoreResults(items.size());
+  vector<double> ownershipResults(items.size());
+
+  auto runEvals = [&](int threadIdx) {
+    Rand rand("runNNBatchingTest" + Global::intToString(threadIdx));
+    for(size_t i = threadIdx; i < items.size(); i += numThreads) {
+      //Get some more thread interleaving
+      if(rand.nextBool(0.2))
+        std::this_thread::yield();
+      if(rand.nextBool(0.2))
+        std::this_thread::sleep_for(std::chrono::duration<double>(0.001));
+      const NNBatchingTestItem& item = items[i];
+      MiscNNInputParams nnInputParams;
+      nnInputParams.drawEquivalentWinsForWhite = rand.nextDouble();
+      nnInputParams.conservativePass = rand.nextBool(0.5);
+      nnInputParams.playoutDoublingAdvantage = rand.nextDouble(-1.0,1.0);
+      nnInputParams.symmetry = rand.nextInt(0,7);
+
+      NNResultBuf buf;
+      bool skipCache = true;
+      bool includeOwnerMap = true;
+      Board board = item.board;
+      nnEval->evaluate(board,item.hist,item.nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+      NNOutput& nnOutput = *(buf.result);
+      // nnOutput.debugPrint(cout,board);
+      valueResults[i] = nnOutput.whiteWinProb - nnOutput.whiteLossProb;
+      scoreResults[i] = nnOutput.whiteScoreMean + nnOutput.whiteLead;
+
+      double maxPolicy = 0.0;
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          int pos = NNPos::xyToPos(x,y,nnXLen);
+          double ownership = nnOutput.whiteOwnerMap[pos];
+          double policy = nnOutput.policyProbs[pos];
+          ownershipResults[i] += abs(ownership);
+          if(policy >= 0 && policy > maxPolicy)
+            maxPolicy = policy;
+        }
+      }
+      policyResults[i] += maxPolicy;
+
+    }
+  };
+
+  for(int threadIdx = 0; threadIdx<numThreads; threadIdx++)
+    runEvals(threadIdx);
+  vector<double> policyResultsSingleThreaded = policyResults;
+  vector<double> valueResultsSingleThreaded = valueResults;
+  vector<double> scoreResultsSingleThreaded = scoreResults;
+  vector<double> ownershipResultsSingleThreaded = ownershipResults;
+  std::fill(policyResults.begin(), policyResults.end(), 0.0);
+  std::fill(valueResults.begin(), valueResults.end(), 0.0);
+  std::fill(scoreResults.begin(), scoreResults.end(), 0.0);
+  std::fill(ownershipResults.begin(), ownershipResults.end(), 0.0);
+
+  vector<std::thread> testThreads;
+  for(int threadIdx = 0; threadIdx<numThreads; threadIdx++)
+    testThreads.push_back(std::thread(runEvals,threadIdx));
+  for(int threadIdx = 0; threadIdx<numThreads; threadIdx++)
+    testThreads[threadIdx].join();
+
+  for(size_t i = 0; i<items.size(); i++) {
+    // cout << "P " << policyResults[i]-policyResultsSingleThreaded[i] << endl;
+    // cout << "V " << valueResults[i]-valueResultsSingleThreaded[i] << endl;
+    // cout << "S " << scoreResults[i]-scoreResultsSingleThreaded[i] << endl;
+    // cout << "O " << ownershipResults[i]-ownershipResultsSingleThreaded[i] << endl;
+    testAssert(abs(policyResults[i]-policyResultsSingleThreaded[i]) < 0.008);
+    testAssert(abs(valueResults[i]-valueResultsSingleThreaded[i]) < 0.015);
+    testAssert(abs(scoreResults[i]-scoreResultsSingleThreaded[i]) < 0.15);
+    testAssert(abs(ownershipResults[i]-ownershipResultsSingleThreaded[i]) < 0.1);
+  }
+
+  delete nnEval;
+  cout << "Done" << endl;
+}
+
