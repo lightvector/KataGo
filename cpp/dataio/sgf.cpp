@@ -415,6 +415,11 @@ Rules Sgf::getRulesOrFail() const {
   return rules;
 }
 
+Player Sgf::getSgfWinner() const {
+  checkNonEmpty(nodes);
+  return nodes[0]->getSgfWinner();
+}
+
 int Sgf::getRank(Player pla) const {
   string rankStr;
   if(pla == P_BLACK) {
@@ -456,8 +461,9 @@ int Sgf::getRank(Player pla) const {
     if(suc && rank >= 1 && rank <= TOP_DAN)
       return rank-1;
   }
-  if(Global::isSuffix(rankStr,"段")) {
-    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStr,"段"),rank);
+  // \346\256\265 is UTF8 for the chinese "duan" character.
+  if(Global::isSuffix(rankStr,"\346\256\265")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStr,"\346\256\265"),rank);
     if(suc && rank >= 1 && rank <= TOP_DAN)
       return rank-1;
   }
@@ -481,8 +487,8 @@ int Sgf::getRank(Player pla) const {
     if(suc && rank >= 1 && rank <= TOP_DAN)
       return std::max(rank,9)-1;
   }
-  if(Global::isPrefix(rankStr,"P") && Global::isSuffix(rankStr,"段")) {
-    bool suc = Global::tryStringToInt(Global::chopSuffix(Global::chopPrefix(rankStr,"P"),"段"),rank);
+  if(Global::isPrefix(rankStr,"P") && Global::isSuffix(rankStr,"\346\256\265")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(Global::chopPrefix(rankStr,"P"),"\346\256\265"),rank);
     if(suc && rank >= 1 && rank <= TOP_DAN)
       return std::max(rank,9)-1;
   }

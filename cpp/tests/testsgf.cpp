@@ -940,3 +940,22 @@ Last moves D34 AJ34 AJ4 D4 D5 E5 E6 AH34 AH33 AJ33 E33 AH5 T19
   }
 
 }
+
+
+// Some tests that depend on files on disk in the repo.
+void Tests::runSgfFileTests() {
+  Sgf* sgf = Sgf::loadFile("tests/data/foxlike.sgf");
+  testAssert(sgf->getXYSize().x == 19);
+  testAssert(sgf->getXYSize().y == 19);
+  testAssert(sgf->getKomi() == 6.5f);
+  testAssert(sgf->hasRules() == true);
+  testAssert(sgf->getRulesOrFail().equalsIgnoringKomi(Rules::parseRules("chinese")));
+  testAssert(sgf->getHandicapValue() == 2);
+  testAssert(sgf->getSgfWinner() == C_EMPTY);
+  testAssert(sgf->getPlayerName(P_BLACK) == "testname1");
+  testAssert(sgf->getPlayerName(P_WHITE) == "testname2");
+  testAssert(sgf->getRank(P_BLACK) == 2);
+  testAssert(sgf->getRank(P_WHITE) == 4);
+  cout << "SgfFileTests ok" << endl;
+  delete sgf;
+}

@@ -29,6 +29,7 @@ namespace Tests {
 
   //testsgf.cpp
   void runSgfTests();
+  void runSgfFileTests();
 
   //testnninputs.cpp
   void runNNInputsV3V4Tests();
