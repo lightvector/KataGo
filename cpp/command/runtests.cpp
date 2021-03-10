@@ -57,6 +57,7 @@ int MainCmds::runoutputtests(int argc, const char* const* argv) {
   Tests::runTimeControlsTests();
   Tests::runScoreTests();
   Tests::runNNSymmetryTests();
+  Tests::runSgfFileTests();
 
   ScoreValue::freeTables();
 
