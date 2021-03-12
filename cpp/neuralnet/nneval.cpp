@@ -245,6 +245,10 @@ enabled_t NNEvaluator::getUsingNHWCMode() const {
   return usingNHWCMode;
 }
 
+bool NNEvaluator::supportsShorttermError() const {
+  return modelVersion >= 9;
+}
+
 bool NNEvaluator::getDoRandomize() const {
   lock_guard<std::mutex> lock(bufferMutex);
   return currentDoRandomize;

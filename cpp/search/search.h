@@ -57,13 +57,29 @@ struct NodeStats {
   NodeStats();
   ~NodeStats();
 
-  NodeStats(const NodeStats&) = delete;
-  NodeStats& operator=(const NodeStats&) = delete;
-  NodeStats(NodeStats&& other) = delete;
-  NodeStats& operator=(NodeStats&& other) = delete;
+  NodeStats(const NodeStats&) = default;
+  NodeStats& operator=(const NodeStats&) = default;
+  NodeStats(NodeStats&& other) = default;
+  NodeStats& operator=(NodeStats&& other) = default;
 
   double getResultUtilitySum(const SearchParams& searchParams) const;
 };
+
+struct MoreNodeStats {
+  NodeStats stats;
+  double selfUtility;
+  double weightAdjusted;
+  Loc prevMoveLoc;
+
+  MoreNodeStats();
+  ~MoreNodeStats();
+
+  MoreNodeStats(const MoreNodeStats&) = default;
+  MoreNodeStats& operator=(const MoreNodeStats&) = default;
+  MoreNodeStats(MoreNodeStats&& other) = default;
+  MoreNodeStats& operator=(MoreNodeStats&& other) = default;
+};
+
 
 struct SearchNode {
   //Locks------------------------------------------------------------------------------
@@ -125,18 +141,7 @@ struct SearchThread {
   std::ostream* logStream;
   Logger* logger;
 
-  std::vector<double> weightFactorBuf;
-  std::vector<double> weightBuf;
-  std::vector<double> weightSqBuf;
-  std::vector<double> winValuesBuf;
-  std::vector<double> noResultValuesBuf;
-  std::vector<double> scoreMeansBuf;
-  std::vector<double> scoreMeanSqsBuf;
-  std::vector<double> leadsBuf;
-  std::vector<double> utilityBuf;
-  std::vector<double> utilitySqBuf;
-  std::vector<double> selfUtilityBuf;
-  std::vector<int64_t> visitsBuf;
+  std::vector<MoreNodeStats> statsBuf;
 
   double upperBoundVisitsLeft;
 
@@ -340,14 +345,14 @@ struct Search {
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
   //or changing parameters or clearing search.
   //If node is not providied, defaults to using the root node.
-  std::vector<double> getAverageTreeOwnership(int64_t minVisit, const SearchNode* node = NULL) const;
+  std::vector<double> getAverageTreeOwnership(double minWeight, const SearchNode* node = NULL) const;
 
   //Get ownership map as json
-  nlohmann::json getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, int ownershipMinVisits) const;
+  nlohmann::json getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight) const;
   //Fill json with analysis engine format information about search results
   bool getAnalysisJson(
     const Player perspective, const Board& board, const BoardHistory& hist,
-    int analysisPVLen, int ownershipMinVisits, bool preventEncore, bool includePolicy,
+    int analysisPVLen, double ownershipMinWeight, bool preventEncore, bool includePolicy,
     bool includeOwnership, bool includeMovesOwnership, bool includePVVisits,
     nlohmann::json& ret
   ) const;
@@ -384,28 +389,32 @@ private:
 
   double getScoreUtility(double scoreMeanSum, double scoreMeanSqSum, double weightSum) const;
   double getScoreUtilityDiff(double scoreMeanSum, double scoreMeanSqSum, double weightSum, double delta) const;
+  double getApproxScoreUtilityDerivative(double scoreMean) const;
   double getUtilityFromNN(const NNOutput& nnOutput) const;
+  double computeWeightFromNNOutput(const SearchNode& node) const;
 
   //Parent must be locked
   double getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNode* child) const;
 
-  void getValueChildWeights(
+  void downweightBadChildrenAndNormalizeWeight(
     int numChildren,
-    const std::vector<double>& childSelfValuesBuf,
-    const std::vector<int64_t>& childVisitsBuf,
-    std::vector<double>& resultBuf
+    double currentTotalWeight,
+    double desiredTotalWeight,
+    double amountToSubtract,
+    double amountToPrune,
+    std::vector<MoreNodeStats>& statsBuf
   ) const;
 
   //Parent must be locked
   void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, double& lcbBuf, double& radiusBuf) const;
 
   double getExploreSelectionValue(
-    double nnPolicyProb, int64_t totalChildVisits, int64_t childVisits,
-    double childUtility, Player pla
+    double nnPolicyProb, double totalChildWeight, double childWeight,
+    double childUtility, double parentUtilityStdevFactor, Player pla
   ) const;
   double getExploreSelectionValueInverse(
-    double exploreSelectionValue, double nnPolicyProb, int64_t totalChildVisits,
-    double childUtility, Player pla
+    double exploreSelectionValue, double nnPolicyProb, double totalChildWeight,
+    double childUtility, double parentUtilityStdevFactor, Player pla
   ) const;
   double getPassingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const;
 
@@ -419,22 +428,29 @@ private:
   //Parent must be locked
   double getExploreSelectionValue(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
-    int64_t totalChildVisits, double fpuValue, double parentUtility,
-    bool isDuringSearch, int64_t maxChildVisits, SearchThread* thread
+    double totalChildWeight, double fpuValue,
+    double parentUtility, double parentWeightPerVisit, double parentUtilityStdevFactor,
+    bool isDuringSearch, double maxChildWeight, SearchThread* thread
   ) const;
   double getNewExploreSelectionValue(
     const SearchNode& parent, float nnPolicyProb,
-    int64_t totalChildVisits, double fpuValue,
-    int64_t maxChildVisits, SearchThread* thread
+    double totalChildWeight, double fpuValue,
+    double parentWeightPerVisit, double parentUtilityStdevFactor,
+    double maxChildWeight, SearchThread* thread
   ) const;
 
   //Parent must be locked
-  int64_t getReducedPlaySelectionVisits(
+  double getReducedPlaySelectionWeight(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
-    int64_t totalChildVisits, double bestChildExploreSelectionValue
+    double totalChildWeight, double parentUtilityStdevFactor, double bestChildExploreSelectionValue
   ) const;
 
-  double getFpuValueForChildrenAssumeVisited(const SearchNode& node, Player pla, bool isRoot, double policyProbMassVisited, double& parentUtility) const;
+  double getFpuValueForChildrenAssumeVisited(
+    const SearchNode& node, Player pla, bool isRoot, double policyProbMassVisited,
+    double& parentUtility, double& parentWeightPerVisit, double& parentUtilityStdevFactor
+  ) const;
+
+  double pruneNoiseWeight(std::vector<MoreNodeStats>& statsBuf, int numChildren, double totalChildWeight, const double* policyProbsBuf) const;
 
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot);
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot);
@@ -450,7 +466,17 @@ private:
     bool isRoot
   ) const;
 
-  void addLeafValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, double lead, int32_t virtualLossesToSubtract, bool isTerminal);
+  void addLeafValue(
+    SearchNode& node,
+    double winValue,
+    double noResultValue,
+    double scoreMean,
+    double scoreMeanSq,
+    double lead,
+    double weight,
+    int32_t virtualLossesToSubtract,
+    bool isTerminal
+  );
   void addCurentNNOutputAsLeafValue(SearchNode& node, int32_t virtualLossesToSubtract);
 
   void maybeRecomputeExistingNNOutput(
@@ -482,7 +508,7 @@ private:
     std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
   ) const;
 
-  double getAverageTreeOwnershipHelper(std::vector<double>& accum, int64_t minVisits, double desiredWeight, const SearchNode* node) const;
+  double getAverageTreeOwnershipHelper(std::vector<double>& accum, double minWeight, double desiredWeight, const SearchNode* node) const;
 
 };
 
