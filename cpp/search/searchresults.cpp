@@ -71,8 +71,8 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     retVisitCounts->clear();
 
   int numChildren = node.numChildren;
-  int64_t totalChildVisits = 0;
-  int64_t maxChildVisits = 0;
+  double totalChildWeight = 0.0;
+  double maxChildWeight = 0.0;
 
   const bool suppressPass = shouldSuppressPassAlreadyLocked(&node);
 
@@ -83,53 +83,57 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
 
     while(child->statsLock.test_and_set(std::memory_order_acquire));
     int64_t childVisits = child->stats.visits;
+    double childWeight = child->stats.weightSum;
     child->statsLock.clear(std::memory_order_release);
 
     locs.push_back(moveLoc);
-    totalChildVisits += childVisits;
-    if(childVisits > maxChildVisits)
-      maxChildVisits = childVisits;
-    if(suppressPass && moveLoc == Board::PASS_LOC)
+    totalChildWeight += childWeight;
+    if(childWeight > maxChildWeight)
+      maxChildWeight = childWeight;
+    if(suppressPass && moveLoc == Board::PASS_LOC) {
       playSelectionValues.push_back(0.0);
-    else
-      playSelectionValues.push_back((double)childVisits);
+      if(retVisitCounts != NULL)
+        (*retVisitCounts).push_back(0.0);
+    }
+    else {
+      playSelectionValues.push_back((double)childWeight);
+      if(retVisitCounts != NULL)
+        (*retVisitCounts).push_back((double)childVisits);
+    }
   }
 
-  if(retVisitCounts != NULL) {
-    *retVisitCounts = playSelectionValues;
-  }
-
-  //Find the best child by visits
-  int mostVisitedIdx = 0;
-  double mostVisitedChildVisits = -1e30;
+  //Find the best child by weight
+  int mostWeightedIdx = 0;
+  double mostWeightedChildWeight = -1e30;
   for(int i = 0; i<numChildren; i++) {
     double value = playSelectionValues[i];
-    if(value > mostVisitedChildVisits) {
-      mostVisitedChildVisits = value;
-      mostVisitedIdx = i;
+    if(value > mostWeightedChildWeight) {
+      mostWeightedChildWeight = value;
+      mostWeightedIdx = i;
     }
   }
 
-  //Possibly reduce visits on children that we spend too many visits on in retrospect
+  //Possibly reduce weight on children that we spend too many visits on in retrospect
   if(&node == rootNode && numChildren > 0) {
 
-    const SearchNode* bestChild = node.children[mostVisitedIdx];
-    double fpuValue = -10.0; //dummy, not actually used since these childs all should actually have visits
+    const SearchNode* bestChild = node.children[mostWeightedIdx];
+    const bool isRoot = true;
+    const double policyProbMassVisited = 1.0; //doesn't matter, since fpu value computed from it isn't used here
     double parentUtility;
-    {
-      while(node.statsLock.test_and_set(std::memory_order_acquire));
-      double utilitySum = node.stats.utilitySum;
-      double weightSum = node.stats.weightSum;
-      node.statsLock.clear(std::memory_order_release);
-      assert(weightSum > 0.0);
-      parentUtility = utilitySum / weightSum;
-    }
+    double parentWeightPerVisit;
+    double parentUtilityStdevFactor;
+    double fpuValue = getFpuValueForChildrenAssumeVisited(
+      node, rootPla, isRoot, policyProbMassVisited,
+      parentUtility, parentWeightPerVisit, parentUtilityStdevFactor
+    );
 
     bool isDuringSearch = false;
 
     float* policyProbs = node.nnOutput->getPolicyProbsMaybeNoised();
     double bestChildExploreSelectionValue = getExploreSelectionValue(
-      node,policyProbs,bestChild,totalChildVisits,fpuValue,parentUtility,isDuringSearch,maxChildVisits,NULL
+      node,policyProbs,bestChild,totalChildWeight,fpuValue,
+      parentUtility,parentWeightPerVisit,parentUtilityStdevFactor,
+      isDuringSearch,maxChildWeight,NULL
     );
 
     for(int i = 0; i<numChildren; i++) {
@@ -137,8 +141,13 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
         playSelectionValues[i] = 0;
         continue;
       }
-      if(i != mostVisitedIdx)
-        playSelectionValues[i] = (double)getReducedPlaySelectionVisits(node, policyProbs, node.children[i], totalChildVisits, bestChildExploreSelectionValue);
+      if(i != mostWeightedIdx) {
+        double reduced = getReducedPlaySelectionWeight(
+          node, policyProbs, node.children[i],
+          totalChildWeight, parentUtilityStdevFactor, bestChildExploreSelectionValue
+        );
+        playSelectionValues[i] = (int64_t)ceil(reduced);
+      }
     }
   }
 
@@ -149,8 +158,8 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     for(int i = 0; i<numChildren; i++) {
       getSelfUtilityLCBAndRadius(node,node.children[i],lcbBuf[i],radiusBuf[i]);
       //Check if this node is eligible to be considered for best LCB
-      double visits = playSelectionValues[i];
-      if(visits >= MIN_VISITS_FOR_LCB && visits >= searchParams.minVisitPropForLCB * mostVisitedChildVisits) {
+      double weight = playSelectionValues[i];
+      if(weight >= MIN_VISITS_FOR_LCB && weight >= searchParams.minVisitPropForLCB * mostWeightedChildWeight) {
         if(lcbBuf[i] > bestLcb) {
           bestLcb = lcbBuf[i];
           bestLcbIndex = i;
@@ -160,12 +169,12 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
 
     if(searchParams.useLcbForSelection && numChildren > 0 && (searchParams.useNonBuggyLcb ? (bestLcbIndex >= 0) : (bestLcbIndex > 0))) {
       //Best LCB move gets a bonus that ensures it is large enough relative to every other child
-      double adjustedVisits = playSelectionValues[bestLcbIndex];
+      double adjustedWeight = playSelectionValues[bestLcbIndex];
       for(int i = 0; i<numChildren; i++) {
         if(i != bestLcbIndex) {
           double excessValue = bestLcb - lcbBuf[i];
           //This move is actually worse lcb than some other move, it's just that the other
-          //move failed its checks for having enough minimum visits. So don't actually
+          //move failed its checks for having enough minimum weight. So don't actually
           //try to compute how much better this one is than that one, because it's not better.
           if(excessValue < 0)
             continue;
@@ -175,14 +184,14 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
           //Add adjust the denom so that we cannot possibly gain more than a factor of 5, just as a guard
           double radiusFactor = (radius + excessValue) / (radius + 0.20 * excessValue);
 
-          //That factor, squared, is the number of "visits" more that we should pretend we have, for
-          //the purpose of selection, since normally stdev is proportional to 1/visits^2.
+          //That factor, squared, is the number of "weight" more that we should pretend we have, for
+          //the purpose of selection, since normally stdev is proportional to 1/weight^2.
           double lbound = radiusFactor * radiusFactor * playSelectionValues[i];
-          if(lbound > adjustedVisits)
-            adjustedVisits = lbound;
+          if(lbound > adjustedWeight)
+            adjustedWeight = lbound;
         }
       }
-      playSelectionValues[bestLcbIndex] = adjustedVisits;
+      playSelectionValues[bestLcbIndex] = adjustedWeight;
     }
   }
 
@@ -486,7 +495,7 @@ bool Search::shouldSuppressPassAlreadyLocked(const SearchNode* n) const {
   if(passNode == NULL)
     return false;
 
-  int64_t passNumVisits;
+  double passWeight;
   double passUtility;
   double passScoreMean;
   double passLead;
@@ -501,7 +510,7 @@ bool Search::shouldSuppressPassAlreadyLocked(const SearchNode* n) const {
 
     if(numVisits <= 0 || weightSum <= 1e-10)
       return false;
-    passNumVisits = numVisits;
+    passWeight = weightSum;
     passUtility = utilitySum / weightSum;
     passScoreMean = scoreMeanSum / weightSum;
     passLead = leadSum / weightSum;
@@ -541,7 +550,7 @@ bool Search::shouldSuppressPassAlreadyLocked(const SearchNode* n) const {
     child->statsLock.clear(std::memory_order_release);
 
     //Too few visits - reject move
-    if((numVisits <= 500 && numVisits <= 2 * sqrt(passNumVisits)) || weightSum <= 1e-10)
+    if((numVisits <= 500 && weightSum <= 2 * sqrt(passWeight)) || weightSum <= 1e-10)
       continue;
 
     double utility = utilitySum / weightSum;
@@ -903,7 +912,7 @@ void Search::getAnalysisData(
 }
 
 void Search::getAnalysisData(
-  const SearchNode& node, vector<AnalysisData>& buf,int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth
+  const SearchNode& node, vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth
 ) const {
   buf.clear();
   vector<SearchNode*> children;
@@ -977,8 +986,14 @@ void Search::getAnalysisData(
   }
 
   double parentUtility;
-  double fpuValue = getFpuValueForChildrenAssumeVisited(node, node.nextPla, true, policyProbMassVisited, parentUtility);
+  double parentWeightPerVisit;
+  double parentUtilityStdevFactor;
+  double fpuValue = getFpuValueForChildrenAssumeVisited(
+    node, node.nextPla, true, policyProbMassVisited,
+    parentUtility, parentWeightPerVisit, parentUtilityStdevFactor
+  );
 
+  vector<MoreNodeStats> statsBuf(numChildren);
   for(int i = 0; i<numChildren; i++) {
     SearchNode* child = children[i];
     double policyProb = policyProbs[getPos(child->prevMoveLoc)];
@@ -992,30 +1007,36 @@ void Search::getAnalysisData(
     data.lcb = node.nextPla == P_BLACK ? -lcbBuf[i] : lcbBuf[i];
     data.radius = radiusBuf[i];
     buf.push_back(data);
+
+    MoreNodeStats& stats = statsBuf[i];
+    while(child->statsLock.test_and_set(std::memory_order_acquire));
+    stats.stats = child->stats;
+    child->statsLock.clear(std::memory_order_release);
+    stats.selfUtility = node.nextPla == P_WHITE ? data.utility : -data.utility;
+    stats.weightAdjusted = stats.stats.weightSum;
+    stats.prevMoveLoc = child->prevMoveLoc;
   }
 
   //Find all children and compute weighting of the children based on their values
   if(includeWeightFactors) {
-    vector<double> selfUtilityBuf;
-    vector<int64_t> visitsBuf;
-    int64_t visitsSum = 0;
+    double totalChildWeight = 0.0;
     for(int i = 0; i<numChildren; i++) {
-      double childUtility = buf[i].utility;
-      selfUtilityBuf.push_back(node.nextPla == P_WHITE ? childUtility : -childUtility);
-      visitsBuf.push_back(buf[i].numVisits);
-      visitsSum += buf[i].numVisits;
+      totalChildWeight += statsBuf[i].weightAdjusted;
     }
-
-    getValueChildWeights(numChildren,selfUtilityBuf,visitsBuf,scratchValues);
-
-    for(int i = 0; i<numChildren; i++)
-      buf[i].weightFactor = visitsBuf[i] * pow(scratchValues[i], searchParams.valueWeightExponent);
-    double unnormWeightFactorSum = 0.0;
-    for(int i = 0; i<numChildren; i++)
-      unnormWeightFactorSum += buf[i].weightFactor;
-    if(unnormWeightFactorSum > 0)
+    if(searchParams.useNoisePruning) {
+      double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
       for(int i = 0; i<numChildren; i++)
-        buf[i].weightFactor *= (visitsSum / unnormWeightFactorSum);
+        policyProbsBuf[i] = std::max(1e-30, (double)policyProbs[getPos(statsBuf[i].prevMoveLoc)]);
+      totalChildWeight = pruneNoiseWeight(statsBuf, numChildren, totalChildWeight, policyProbsBuf);
+    }
+    double amountToSubtract = 0.0;
+    double amountToPrune = 0.0;
+    downweightBadChildrenAndNormalizeWeight(
+      numChildren, totalChildWeight, totalChildWeight,
+      amountToSubtract, amountToPrune, statsBuf
+    );
+    for(int i = 0; i<numChildren; i++)
+      buf[i].weightFactor = statsBuf[i].weightAdjusted;
   }
 
   //Fill the rest of the moves directly from policy
@@ -1253,17 +1274,17 @@ void Search::printTreeHelper(
 }
 
 
-vector<double> Search::getAverageTreeOwnership(int64_t minVisits, const SearchNode* node) const {
+vector<double> Search::getAverageTreeOwnership(double minWeight, const SearchNode* node) const {
   if(node == NULL)
     node = rootNode;
   if(!alwaysIncludeOwnerMap)
     throw StringError("Called Search::getAverageTreeOwnership when alwaysIncludeOwnerMap is false");
   vector<double> vec(nnXLen*nnYLen,0.0);
-  getAverageTreeOwnershipHelper(vec,minVisits,1.0,node);
+  getAverageTreeOwnershipHelper(vec,minWeight,1.0,node);
   return vec;
 }
 
-double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minVisits, double desiredWeight, const SearchNode* node) const {
+double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWeight, double desiredWeight, const SearchNode* node) const {
   if(node == NULL)
     return 0;
 
@@ -1279,38 +1300,39 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minV
   for(int i = 0; i<numChildren; i++)
     children[i] = node->children[i];
 
+  double thisNodeWeight = computeWeightFromNNOutput(*node);
   //We can unlock now - during a search, children are never deallocated
   lock.unlock();
 
-  vector<int64_t> visitsBuf(numChildren);
+  vector<double> childWeightBuf(numChildren);
   for(int i = 0; i<numChildren; i++) {
     const SearchNode* child = children[i];
     while(child->statsLock.test_and_set(std::memory_order_acquire));
-    int64_t childVisits = child->stats.visits;
+    double childWeight = child->stats.weightSum;
     child->statsLock.clear(std::memory_order_release);
-    visitsBuf[i] = childVisits;
+    childWeightBuf[i] = childWeight;
   }
 
   double relativeChildrenWeightSum = 0.0;
-  int64_t usedChildrenVisitSum = 0;
+  double usedChildrenWeightSum = 0;
   for(int i = 0; i<numChildren; i++) {
-    int64_t visits = visitsBuf[i];
-    if(visits < minVisits)
+    double childWeight = childWeightBuf[i];
+    if(childWeight < minWeight)
       continue;
-    relativeChildrenWeightSum += (double)visits * visits;
-    usedChildrenVisitSum += visits;
+    relativeChildrenWeightSum += (double)childWeight * childWeight;
+    usedChildrenWeightSum += childWeight;
   }
 
-  double desiredWeightFromChildren = desiredWeight * usedChildrenVisitSum / (usedChildrenVisitSum + 1);
+  double desiredWeightFromChildren = desiredWeight * usedChildrenWeightSum / (usedChildrenWeightSum + thisNodeWeight);
 
   //Recurse
   double actualWeightFromChildren = 0.0;
   for(int i = 0; i<numChildren; i++) {
-    int64_t visits = visitsBuf[i];
-    if(visits < minVisits)
+    double childWeight = childWeightBuf[i];
+    if(childWeight < minWeight)
       continue;
-    double desiredWeightFromChild = (double)visits * visits / relativeChildrenWeightSum * desiredWeightFromChildren;
-    actualWeightFromChildren += getAverageTreeOwnershipHelper(accum,minVisits,desiredWeightFromChild,children[i]);
+    double desiredWeightFromChild = (double)childWeight * childWeight / relativeChildrenWeightSum * desiredWeightFromChildren;
+    actualWeightFromChildren += getAverageTreeOwnershipHelper(accum,minWeight,desiredWeightFromChild,children[i]);
   }
 
   double selfWeight = desiredWeight - actualWeightFromChildren;
@@ -1322,8 +1344,8 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minV
   return desiredWeight;
 }
 
-json Search::getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, int ownershipMinVisits) const {
-  vector<double> ownership = getAverageTreeOwnership(ownershipMinVisits, node);
+json Search::getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight) const {
+  vector<double> ownership = getAverageTreeOwnership(ownershipMinWeight, node);
   json ownerships = json::array();
   for(int y = 0; y < board.y_size; y++) {
     for(int x = 0; x < board.x_size; x++) {
@@ -1344,7 +1366,7 @@ bool Search::getAnalysisJson(
   const Board& board,
   const BoardHistory& hist,
   int analysisPVLen,
-  int ownershipMinVisits,
+  double ownershipMinWeight,
   bool preventEncore,
   bool includePolicy,
   bool includeOwnership,
@@ -1406,7 +1428,7 @@ bool Search::getAnalysisJson(
     }
 
     if(includeMovesOwnership)
-      moveInfo["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, data.node, ownershipMinVisits);
+      moveInfo["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, data.node, ownershipMinWeight);
     moveInfos.push_back(moveInfo);
   }
   ret["moveInfos"] = moveInfos;
@@ -1477,6 +1499,6 @@ bool Search::getAnalysisJson(
   }
   // Average tree ownership
   if(includeOwnership)
-    ret["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, rootNode, ownershipMinVisits);
+    ret["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, rootNode, ownershipMinWeight);
   return true;
 }

@@ -18,11 +18,25 @@ struct SearchParams {
   double cpuctExploration;  //Constant factor on exploration, should also scale up linearly with magnitude of utility
   double cpuctExplorationLog; //Constant factor on log-scaling exploration, should also scale up linearly with magnitude of utility
   double cpuctExplorationBase; //Scale of number of visits at which log behavior starts having an effect
+
+  double cpuctUtilityStdevPrior;
+  double cpuctUtilityStdevPriorWeight;
+  double cpuctUtilityStdevScale;
+
   double fpuReductionMax;   //Max amount to reduce fpu value for unexplore children
   double fpuLossProp; //Scale fpu this proportion of the way towards assuming a move is a loss.
   double fpuParentWeight; //For fpu, 0 = use parent average, 1 = use parent nn value, interpolates between.
-  double parentValueWeightFactor; //Scale the parent weight by this much relative to children in mcts
+
+  //Tree value aggregation parameters
   double valueWeightExponent; //Amount to apply a downweighting of children with very bad values relative to good ones
+  bool useNoisePruning; //For computation of value, prune out weight that greatly exceeds what is justified by policy prior
+  double noisePruneUtilityScale; //The scale of the utility difference at which useNoisePruning has effect
+
+  //Uncertainty weighting
+  bool useUncertainty; //Weight visits by uncertainty
+  double uncertaintyCoeff; //The amount of visits weight that an uncertainty of 1 utility is.
+  double uncertaintyExponent; //Visits weight scales inversely with this power of the uncertainty
+  double uncertaintyMaxWeight; //Add minimum uncertainty so that the most weight a node can have is this
 
   //Root parameters
   bool rootNoiseEnabled;
@@ -71,7 +85,7 @@ struct SearchParams {
 
   //Threading-related
   uint32_t mutexPoolSize; //Size of mutex pool for synchronizing access to all search nodes
-  int32_t numVirtualLossesPerThread; //Number of virtual losses for one thread to add
+  double numVirtualLossesPerThread; //Number of virtual losses for one thread to add
 
   //Asyncbot
   int numThreads; //Number of threads
