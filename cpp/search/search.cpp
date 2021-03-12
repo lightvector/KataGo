@@ -2026,6 +2026,8 @@ double Search::pruneNoiseWeight(vector<MoreNodeStats>& statsBuf, int numChildren
         if(oldWeight > lenientWeightShareFromRawPolicy) {
           double excessWeight = oldWeight - lenientWeightShareFromRawPolicy;
           double weightToSubtract = excessWeight * (1.0 - exp(-utilityGap / searchParams.noisePruneUtilityScale));
+          if(weightToSubtract > searchParams.noisePruningCap)
+            weightToSubtract = searchParams.noisePruningCap;
 
           newWeight = oldWeight - weightToSubtract;
           statsBuf[i].weightAdjusted = newWeight;

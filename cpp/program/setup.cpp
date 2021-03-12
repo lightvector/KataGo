@@ -454,6 +454,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("noisePruneUtilityScale"+idxStr)) params.noisePruneUtilityScale = cfg.getDouble("noisePruneUtilityScale"+idxStr, 0.001, 10.0);
     else if(cfg.contains("noisePruneUtilityScale"))   params.noisePruneUtilityScale = cfg.getDouble("noisePruneUtilityScale", 0.001, 10.0);
     else                                              params.noisePruneUtilityScale = 0.15;
+    if(cfg.contains("noisePruningCap"+idxStr)) params.noisePruningCap = cfg.getDouble("noisePruningCap"+idxStr, 0.0, 1e50);
+    else if(cfg.contains("noisePruningCap"))   params.noisePruningCap = cfg.getDouble("noisePruningCap", 0.0, 1e50);
+    else                                       params.noisePruningCap = 1e50;
 
 
     if(cfg.contains("useUncertainty"+idxStr)) params.useUncertainty = cfg.getBool("useUncertainty"+idxStr);

@@ -25,6 +25,7 @@ SearchParams::SearchParams()
    valueWeightExponent(0.5),
    useNoisePruning(false),
    noisePruneUtilityScale(0.15),
+   noisePruningCap(1e50),
    useUncertainty(false),
    uncertaintyCoeff(0.2),
    uncertaintyExponent(1.0),
