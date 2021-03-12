@@ -61,9 +61,13 @@ static string getServerErrorMessage(const httplib::Result& response) {
   string errorMessage;
   try {
     json body = json::parse(response->body);
-    errorMessage = body[body.contains("detail") ? "detail" : "error"]; // if neither, default in exception
+    if(body.contains("detail"))
+      errorMessage = body["detail"].get<string>();
+    else
+      errorMessage = body["error"].get<string>();
   }
   catch(nlohmann::detail::exception& e) {
+    (void)e;
     errorMessage = "(details not available)";
   }
   return errorMessage;
