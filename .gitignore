@@ -61,6 +61,7 @@ GRTAGS
 GTAGS
 
 cpp/external/httplib/cpp-httplib/
+cpp/external/nlohmann_json/nlohmann_json
 gtp.cfg
 katago_contribute/
 tmpsgf/
