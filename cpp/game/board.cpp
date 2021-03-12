@@ -2266,6 +2266,32 @@ void Board::checkConsistency() const {
       throw StringError(errLabel + "Corrupted adj_offsets array");
 }
 
+bool Board::isEqualForTesting(const Board& other, bool checkNumCaptures, bool checkSimpleKo) const {
+  checkConsistency();
+  other.checkConsistency();
+  if(x_size != other.x_size)
+    return false;
+  if(y_size != other.y_size)
+    return false;
+  if(checkSimpleKo && ko_loc != other.ko_loc)
+    return false;
+  if(checkNumCaptures && numBlackCaptures != other.numBlackCaptures)
+    return false;
+  if(checkNumCaptures && numWhiteCaptures != other.numWhiteCaptures)
+    return false;
+  if(pos_hash != other.pos_hash)
+    return false;
+  for(int i = 0; i<MAX_ARR_SIZE; i++) {
+    if(colors[i] != other.colors[i])
+      return false;
+  }
+  //We don't require that the chain linked lists are in the same order.
+  //Consistency check ensures that all the linked lists are consistent with colors array, which we checked.
+  return true;
+}
+
+
+
 //IO FUNCS------------------------------------------------------------------------------------------
 
 char PlayerIO::colorToChar(Color c)

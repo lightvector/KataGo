@@ -258,6 +258,9 @@ struct Board
 
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;
+  //For the moment, only used in testing since it does extra consistency checks.
+  //If we need a version to be used in "prod", we could make an efficient version maybe as operator==.
+  bool isEqualForTesting(const Board& other, bool checkNumCaptures, bool checkSimpleKo) const;
 
   static Board parseBoard(int xSize, int ySize, const std::string& s);
   static Board parseBoard(int xSize, int ySize, const std::string& s, char lineDelimiter);

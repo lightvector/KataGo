@@ -2531,6 +2531,103 @@ o.oo.oo
     cout << endl;
   }
 
+  {
+    cout << "===================================================================" << endl;
+    cout << "Analysis json" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,9,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 10;
+    params.subtreeValueBiasFactor = 0.5;
+    params.chosenMoveTemperature = 0;
+    Search* search = new Search(params, nnEval, "autoSearchRandSeed");
+    search->setAlwaysIncludeOwnerMap(true);
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(7,7,R"%%(
+.......
+.......
+.......
+.......
+.......
+.......
+.......
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla,logger);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    nlohmann::json json;
+    Player perspective = P_WHITE;
+    int analysisPVLen = 2;
+    int ownershipMinVisits = 1;
+    bool preventEncore = true;
+    bool includePolicy = true;
+    bool includeOwnership = true;
+    bool includeMovesOwnership = false;
+    bool includePVVisits = true;
+    bool suc = search->getAnalysisJson(
+      perspective, board, hist, analysisPVLen, ownershipMinVisits, preventEncore,
+      includePolicy, includeOwnership, includeMovesOwnership, includePVVisits,
+      json
+    );
+    testAssert(suc);
+    cout << json << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Analysis json 2" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,9,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 10;
+    params.subtreeValueBiasFactor = 0.5;
+    params.chosenMoveTemperature = 0;
+    Search* search = new Search(params, nnEval, "autoSearchRandSeed");
+    search->setAlwaysIncludeOwnerMap(false);
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(9,6,R"%%(
+.........
+ooooooooo
+oooxxxooo
+..xxxxx..
+xxx...xxx
+xxxxxxxxx
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla,logger);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    nlohmann::json json;
+    Player perspective = P_WHITE;
+    int analysisPVLen = 2;
+    int ownershipMinVisits = 1;
+    bool preventEncore = true;
+    bool includePolicy = true;
+    bool includeOwnership = false;
+    bool includeMovesOwnership = false;
+    bool includePVVisits = false;
+    bool suc = search->getAnalysisJson(
+      perspective, board, hist, analysisPVLen, ownershipMinVisits, preventEncore,
+      includePolicy, includeOwnership, includeMovesOwnership, includePVVisits,
+      json
+    );
+    testAssert(suc);
+    cout << json << endl;
+  }
+
   NeuralNet::globalCleanup();
 }
 

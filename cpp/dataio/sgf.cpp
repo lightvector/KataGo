@@ -844,6 +844,29 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
   return sample;
 }
 
+bool Sgf::PositionSample::isEqualForTesting(const Sgf::PositionSample& other, bool checkNumCaptures, bool checkSimpleKo) const {
+  if(!board.isEqualForTesting(other.board,checkNumCaptures,checkSimpleKo))
+    return false;
+  if(nextPla != other.nextPla)
+    return false;
+  if(moves.size() != other.moves.size())
+    return false;
+  for(size_t i = 0; i<moves.size(); i++) {
+    if(moves[i].pla != other.moves[i].pla)
+      return false;
+    if(moves[i].loc != other.moves[i].loc)
+      return false;
+  }
+  if(initialTurnNumber != other.initialTurnNumber)
+    return false;
+  if(hintLoc != other.hintLoc)
+    return false;
+  if(weight != other.weight)
+    return false;
+  return true;
+}
+
+
 //PARSING---------------------------------------------------------------------
 
 static void sgfFail(const string& msg, const string& str, int pos) {
