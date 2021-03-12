@@ -5,11 +5,14 @@
 #include "../core/rand.h"
 #include "../core/elo.h"
 #include "../core/fancymath.h"
+#include "../core/config_parser.h"
 #include "../game/board.h"
 #include "../game/rules.h"
 #include "../game/boardhistory.h"
 #include "../neuralnet/nninputs.h"
+#include "../program/gtpconfig.h"
 #include "../tests/tests.h"
+#include "../tests/tinymodel.h"
 #include "../main.h"
 
 using namespace std;
@@ -280,6 +283,54 @@ int MainCmds::runownershiptests(int argc, const char* const* argv) {
   Tests::runOwnershipTests(
     string(argv[1]),
     string(argv[2])
+  );
+
+  ScoreValue::freeTables();
+  return 0;
+}
+
+
+int MainCmds::runtinynntests(int argc, const char* const* argv) {
+  if(argc != 2) {
+    cerr << "Must supply exactly one arguments: TMPDIR" << endl;
+    return 1;
+  }
+  Board::initHash();
+  ScoreValue::initTables();
+
+  Logger logger;
+  logger.setLogToStdout(true);
+  logger.setLogTime(false);
+
+  ConfigParser cfg;
+  {
+    //Dummy parameters
+    int maxVisits = 500;
+    int maxPlayouts = 500;
+    double maxTime = 1.0;
+    double maxPonderTime = 1.0;
+    int nnCacheSizePowerOfTwo = 12;
+    int nnMutexPoolSizePowerOfTwo = 10;
+    int numSearchThreads = 3;
+    string cfgStr = GTPConfig::makeConfig(
+      Rules(),
+      maxVisits,
+      maxPlayouts,
+      maxTime,
+      maxPonderTime,
+      std::vector<int>(),
+      nnCacheSizePowerOfTwo,
+      nnMutexPoolSizePowerOfTwo,
+      numSearchThreads
+    );
+    istringstream in(cfgStr);
+    cfg.initialize(in);
+  }
+
+  TinyModelTest::runTinyModelTest(
+    string(argv[1]),
+    logger,
+    cfg
   );
 
   ScoreValue::freeTables();

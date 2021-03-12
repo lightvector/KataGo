@@ -34,6 +34,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool printScoreNow;
   bool printRootEndingBonus;
   bool printLead;
+  int printMaxDepth;
   bool rawNN;
   try {
     KataGoCommandLine cmd("Run a search on a position from an sgf file, for debugging.");
@@ -59,6 +60,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::SwitchArg printScoreNowArg("","print-score-now","Print score now");
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
     TCLAP::SwitchArg printLeadArg("","print-lead","Compute and print lead");
+    TCLAP::ValueArg<int> printMaxDepthArg("","print-max-depth","How deep to print",false,1,"DEPTH");
     TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
     cmd.add(sgfFileArg);
     cmd.add(moveNumArg);
@@ -83,6 +85,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printScoreNowArg);
     cmd.add(printRootEndingBonusArg);
     cmd.add(printLeadArg);
+    cmd.add(printMaxDepthArg);
     cmd.add(rawNNArg);
     cmd.parse(argc,argv);
 
@@ -105,6 +108,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     printScoreNow = printScoreNowArg.getValue();
     printRootEndingBonus = printRootEndingBonusArg.getValue();
     printLead = printLeadArg.getValue();
+    printMaxDepth = printMaxDepthArg.getValue();
     rawNN = rawNNArg.getValue();
 
     if(printBranch.length() > 0 && print.length() > 0) {
@@ -179,9 +183,10 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   //Parse move sequence arguments------------------------------------------
 
   PrintTreeOptions options;
-  options = options.maxDepth(1);
+  options = options.maxDepth(printMaxDepth);
   if(printBranch.length() > 0)
     options = options.onlyBranch(board,printBranch);
+
 
   //Load neural net and start bot------------------------------------------
 
