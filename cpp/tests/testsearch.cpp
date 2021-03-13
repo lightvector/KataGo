@@ -7,6 +7,7 @@
 #include "../dataio/sgf.h"
 #include "../neuralnet/nninputs.h"
 #include "../search/asyncbot.h"
+#include "../program/playutils.h"
 
 using namespace std;
 using namespace TestCommon;
@@ -1865,6 +1866,228 @@ xxxx.xxoxxx
       delete bot;
     }
   }
+
+  {
+    cout << "Fill dame before pass =========================================" << endl;
+
+    Board board = Board::parseBoard(9,10,R"%%(
+.....xoo.
+.o...xo.o
+.xx..xoox
+x....xxxx
+oxx...x..
+oooxxox..
+...ooxxxx
+..o.xoox.
+...ooo.ox
+.......o.
+)%%");
+
+    SearchParams paramsBase = SearchParams::forTestsV1();
+    paramsBase.maxVisits = 600;
+    TestSearchOptions opts;
+
+    {
+      Player nextPla = P_WHITE;
+      Rules rules = Rules::parseRules("Japanese");
+      BoardHistory hist(board,nextPla,rules,0);
+
+      cout << "===================================================================" << endl;
+      cout << "Base, white to play" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "fill dame before pass");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+    {
+      Player nextPla = P_WHITE;
+      Rules rules = Rules::parseRules("Japanese");
+      BoardHistory hist(board,nextPla,rules,0);
+
+      cout << "===================================================================" << endl;
+      cout << "Fill dame before pass, white to play" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      params.fillDameBeforePass = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "fill dame before pass");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+    {
+      Player nextPla = P_BLACK;
+      Rules rules = Rules::parseRules("Japanese");
+      BoardHistory hist(board,nextPla,rules,0);
+
+      cout << "===================================================================" << endl;
+      cout << "Base, black to play" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "fill dame before pass");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+
+    {
+      Player nextPla = P_BLACK;
+      Rules rules = Rules::parseRules("Japanese");
+      BoardHistory hist(board,nextPla,rules,0);
+
+      cout << "===================================================================" << endl;
+      cout << "Fill dame before pass, black to play" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      params.fillDameBeforePass = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "fill dame before pass");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+  }
+
+
+  {
+    cout << "Conservative pass =========================================" << endl;
+
+    Board board = Board::parseBoard(9,9,R"%%(
+ox.x.xx..
+.x.x.x.xx
+xxxx.xxx.
+.x..x..xx
+xxxxxxxxo
+xoooxoooo
+xo..o.ox.
+oooo.o.oo
+...ooooo.
+)%%");
+
+    SearchParams paramsBase = SearchParams::forTestsV1();
+    paramsBase.maxVisits = 600;
+    TestSearchOptions opts;
+    opts.noClearBot = true;
+
+    {
+      Player nextPla = P_WHITE;
+      Rules rules = Rules::parseRules("Chinese");
+      rules.komi = 14;
+      BoardHistory hist(board,nextPla,rules,0);
+
+      cout << "===================================================================" << endl;
+      cout << "White to play" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "conservative pass");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+
+      Loc moveLoc = bot->getSearchStopAndWait()->getChosenMoveLoc();
+      Loc moveLoc2 = PlayUtils::maybeCleanupBeforePass(enabled_t::True, enabled_t::False, nextPla, moveLoc, bot);
+      cout << "Move loc: " << Location::toString(moveLoc,board) << endl;
+      cout << "Conservative pass: " << Location::toString(moveLoc2,board) << endl;
+      delete bot;
+    }
+
+    {
+      Player nextPla = P_BLACK;
+      Rules rules = Rules::parseRules("Chinese");
+      BoardHistory hist(board,nextPla,rules,0);
+
+      cout << "===================================================================" << endl;
+      cout << "White to play" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "conservative pass");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+
+      Loc moveLoc = bot->getSearchStopAndWait()->getChosenMoveLoc();
+      Loc moveLoc2 = PlayUtils::maybeCleanupBeforePass(enabled_t::True, enabled_t::False, nextPla, moveLoc, bot);
+      cout << "Move loc: " << Location::toString(moveLoc,board) << endl;
+      cout << "Conservative pass: " << Location::toString(moveLoc2,board) << endl;
+      delete bot;
+    }
+
+  }
+
+  {
+    cout << "Friendly pass =========================================" << endl;
+
+    SearchParams paramsBase = SearchParams::forTestsV1();
+    paramsBase.maxVisits = 600;
+    TestSearchOptions opts;
+    opts.noClearBot = true;
+
+    {
+      Board board = Board::parseBoard(9,9,R"%%(
+.........
+....x.x..
+.x.xox...
+...x..xxx
+xxxxxxooo
+xooooo...
+o....xo..
+.o...o.o.
+.........
+)%%");
+
+
+      Player nextPla = P_BLACK;
+      Rules rules = Rules::parseRules("Chinese");
+      rules.komi = 4;
+      BoardHistory hist(board,nextPla,rules,0);
+      hist.makeBoardMoveAssumeLegal(board,Board::PASS_LOC,nextPla,NULL);
+      nextPla = P_WHITE;
+
+      cout << "===================================================================" << endl;
+      cout << "White to play" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "friendly pass");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+
+      Loc moveLoc = bot->getSearchStopAndWait()->getChosenMoveLoc();
+      Loc moveLoc2 = PlayUtils::maybeFriendlyPass(enabled_t::False, enabled_t::True, nextPla, moveLoc, bot->getSearchStopAndWait(),50, logger);
+      cout << "Move loc: " << Location::toString(moveLoc,board) << endl;
+      cout << "Friendly pass: " << Location::toString(moveLoc2,board) << endl;
+      delete bot;
+    }
+
+    {
+      Board board = Board::parseBoard(9,9,R"%%(
+.........
+....x.x..
+.x.xox...
+......xxx
+xxxxxxooo
+xooooo...
+o....xo..
+.o..oo.o.
+.........
+)%%");
+
+      Player nextPla = P_WHITE;
+      Rules rules = Rules::parseRules("Chinese");
+      rules.komi = 7;
+      BoardHistory hist(board,nextPla,rules,0);
+      hist.makeBoardMoveAssumeLegal(board,Board::PASS_LOC,nextPla,NULL);
+      nextPla = P_BLACK;
+
+      cout << "===================================================================" << endl;
+      cout << "Black to play" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "friendly pass");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+
+      Loc moveLoc = bot->getSearchStopAndWait()->getChosenMoveLoc();
+      Loc moveLoc2 = PlayUtils::maybeFriendlyPass(enabled_t::False, enabled_t::True, nextPla, moveLoc, bot->getSearchStopAndWait(),50, logger);
+      cout << "Move loc: " << Location::toString(moveLoc,board) << endl;
+      cout << "Friendly pass: " << Location::toString(moveLoc2,board) << endl;
+      delete bot;
+    }
+
+  }
+
+
 }
 
 static void runMoreV8TestsRandomizedNNEvals(NNEvaluator* nnEval, Logger& logger)

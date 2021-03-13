@@ -4383,6 +4383,347 @@ L16 : T  -7.16c W  -6.37c S  -0.80c ( -1.1 L  -0.7) LCB -280.00c P  0.17% WF   1
 O6  : T  -9.45c W  -8.37c S  -1.08c ( -1.6 L  -1.4) LCB -280.00c P  0.17% WF   1.0 PSV       0 N       1  --  O6
 B9  : T -13.02c W -11.24c S  -1.78c ( -2.6 L  -2.7) LCB -280.00c P  0.16% WF   1.0 PSV       0 N       1  --  B9
 N17 : T  -8.42c W  -7.44c S  -0.98c ( -1.4 L  -1.0) LCB -280.00c P  0.16% WF   1.0 PSV       0 N       1  --  N17
+Fill dame before pass =========================================
+===================================================================
+Base, white to play
+===================================================================
+MoveNum: 0 HASH: BD1462547D9800FEAC5BE4AEE35F3CA1
+   A B C D E F G H J
+10 . . . . . X O O .
+ 9 . O . . . X O . O
+ 8 . X X . . X O O X
+ 7 X . . . . X X X X
+ 6 O X X . . . X . .
+ 5 O O O X X O X . .
+ 4 . . . O O X X X X
+ 3 . . O . X O O X .
+ 2 . . . O O O . O X
+ 1 . . . . . . . O .
+
+Root visits: 600
+NN rows: 381
+NN batches: 381
+NN avg batch size: 1
+PV: J1 J3 pass pass pass pass D3 F6 pass A9 pass C7 pass B10 pass C9
+Tree:
+: T  32.51c W  32.15c S   0.37c ( +0.1 L  +0.0) N     600  --  J1 J3 pass pass pass pass D3
+---White(^)---
+J1  : T  34.45c W  34.00c S   0.45c ( +0.1 L  +0.1) LCB   27.26c P 41.54% WF 588.5 PSV     577 N     577  --  J1 J3 pass pass pass pass D3 F6
+pss : T -39.95c W -38.21c S  -1.74c ( -0.7 L  -0.6) LCB -234.57c P 17.98% WF   2.9 PSV       6 N       6  --  pass J3 J1 pass pass
+D6  : T -58.70c W -55.98c S  -2.72c ( -1.1 L  -1.0) LCB -280.00c P  7.89% WF   1.0 PSV       2 N       2  --  D6 E6
+B7  : T -68.44c W -65.86c S  -2.58c ( -1.0 L  -1.1) LCB -280.00c P  6.69% WF   0.9 PSV       1 N       2  --  B7 C7
+A8  : T -44.34c W -41.36c S  -2.98c ( -1.2 L  -1.1) LCB -280.00c P  3.90% WF   0.6 PSV       1 N       1  --  A8
+E6  : T -79.50c W -73.71c S  -5.79c ( -2.3 L  -2.1) LCB -280.00c P  3.64% WF   0.5 PSV       0 N       1  --  E6
+C7  : T -92.45c W -85.39c S  -7.06c ( -2.8 L  -2.8) LCB -280.00c P  2.11% WF   0.5 PSV       0 N       1  --  C7
+C4  : T -95.67c W -89.42c S  -6.25c ( -2.3 L  -1.9) LCB -280.00c P  1.89% WF   0.4 PSV       0 N       1  --  C4
+C9  : T -86.49c W -80.64c S  -5.85c ( -2.3 L  -2.2) LCB -280.00c P  1.79% WF   0.5 PSV       0 N       1  --  C9
+F6  : T -89.49c W -84.07c S  -5.42c ( -2.0 L  -1.8) LCB -280.00c P  1.60% WF   0.5 PSV       0 N       1  --  F6
+D3  : T -89.77c W -84.13c S  -5.64c ( -2.1 L  -1.8) LCB -280.00c P  1.45% WF   0.5 PSV       0 N       1  --  D3
+D7  : T -93.04c W -86.15c S  -6.90c ( -2.7 L  -2.8) LCB -280.00c P  0.97% WF   0.5 PSV       0 N       1  --  D7
+G2  : T -93.40c W -87.54c S  -5.86c ( -2.2 L  -1.9) LCB -280.00c P  0.93% WF   0.4 PSV       0 N       1  --  G2
+G1  : T -92.59c W -86.70c S  -5.88c ( -2.2 L  -1.9) LCB -280.00c P  0.82% WF   0.5 PSV       0 N       1  --  G1
+A9  : T -92.59c W -86.38c S  -6.20c ( -2.4 L  -2.6) LCB -280.00c P  0.79% WF   0.5 PSV       0 N       1  --  A9
+D9  : T -86.59c W -80.68c S  -5.91c ( -2.3 L  -2.2) LCB -280.00c P  0.60% WF   0.5 PSV       0 N       1  --  D9
+===================================================================
+Fill dame before pass, white to play
+===================================================================
+MoveNum: 0 HASH: BD1462547D9800FEAC5BE4AEE35F3CA1
+   A B C D E F G H J
+10 . . . . . X O O .
+ 9 . O . . . X O . O
+ 8 . X X . . X O O X
+ 7 X . . . . X X X X
+ 6 O X X . . . X . .
+ 5 O O O X X O X . .
+ 4 . . . O O X X X X
+ 3 . . O . X O O X .
+ 2 . . . O O O . O X
+ 1 . . . . . . . O .
+
+Root visits: 600
+NN rows: 381
+NN batches: 381
+NN avg batch size: 1
+PV: J1 J3 pass pass pass pass D3 F6 pass A9 pass C7 pass B10 pass C9
+Tree:
+: T  32.51c W  32.15c S   0.37c ( +0.1 L  +0.0) N     600  --  J1 J3 pass pass pass pass D3
+---White(^)---
+J1  : T  34.45c W  34.00c S   0.45c ( +0.1 L  +0.1) LCB   27.26c P 41.54% WF 588.5 PSV     577 N     577  --  J1 J3 pass pass pass pass D3 F6
+D6  : T -58.70c W -55.98c S  -2.72c ( -1.1 L  -1.0) LCB -280.00c P  7.89% WF   1.0 PSV       2 N       2  --  D6 E6
+B7  : T -68.44c W -65.86c S  -2.58c ( -1.0 L  -1.1) LCB -280.00c P  6.69% WF   0.9 PSV       1 N       2  --  B7 C7
+A8  : T -44.34c W -41.36c S  -2.98c ( -1.2 L  -1.1) LCB -280.00c P  3.90% WF   0.6 PSV       1 N       1  --  A8
+pss : T -39.95c W -38.21c S  -1.74c ( -0.7 L  -0.6) LCB -234.57c P 17.98% WF   2.9 PSV       0 N       6  --  pass J3 J1 pass pass
+E6  : T -79.50c W -73.71c S  -5.79c ( -2.3 L  -2.1) LCB -280.00c P  3.64% WF   0.5 PSV       0 N       1  --  E6
+C7  : T -92.45c W -85.39c S  -7.06c ( -2.8 L  -2.8) LCB -280.00c P  2.11% WF   0.5 PSV       0 N       1  --  C7
+C4  : T -95.67c W -89.42c S  -6.25c ( -2.3 L  -1.9) LCB -280.00c P  1.89% WF   0.4 PSV       0 N       1  --  C4
+C9  : T -86.49c W -80.64c S  -5.85c ( -2.3 L  -2.2) LCB -280.00c P  1.79% WF   0.5 PSV       0 N       1  --  C9
+F6  : T -89.49c W -84.07c S  -5.42c ( -2.0 L  -1.8) LCB -280.00c P  1.60% WF   0.5 PSV       0 N       1  --  F6
+D3  : T -89.77c W -84.13c S  -5.64c ( -2.1 L  -1.8) LCB -280.00c P  1.45% WF   0.5 PSV       0 N       1  --  D3
+D7  : T -93.04c W -86.15c S  -6.90c ( -2.7 L  -2.8) LCB -280.00c P  0.97% WF   0.5 PSV       0 N       1  --  D7
+G2  : T -93.40c W -87.54c S  -5.86c ( -2.2 L  -1.9) LCB -280.00c P  0.93% WF   0.4 PSV       0 N       1  --  G2
+G1  : T -92.59c W -86.70c S  -5.88c ( -2.2 L  -1.9) LCB -280.00c P  0.82% WF   0.5 PSV       0 N       1  --  G1
+A9  : T -92.59c W -86.38c S  -6.20c ( -2.4 L  -2.6) LCB -280.00c P  0.79% WF   0.5 PSV       0 N       1  --  A9
+D9  : T -86.59c W -80.68c S  -5.91c ( -2.3 L  -2.2) LCB -280.00c P  0.60% WF   0.5 PSV       0 N       1  --  D9
+===================================================================
+Base, black to play
+===================================================================
+MoveNum: 0 HASH: BD1462547D9800FEAC5BE4AEE35F3CA1
+   A B C D E F G H J
+10 . . . . . X O O .
+ 9 . O . . . X O . O
+ 8 . X X . . X O O X
+ 7 X . . . . X X X X
+ 6 O X X . . . X . .
+ 5 O O O X X O X . .
+ 4 . . . O O X X X X
+ 3 . . O . X O O X .
+ 2 . . . O O O . O X
+ 1 . . . . . . . O .
+
+Root visits: 600
+NN rows: 291
+NN batches: 291
+NN avg batch size: 1
+PV: J3 J1 pass pass pass pass F6 D3 A9 pass C7 pass B10 pass C9 pass pass
+Tree:
+: T  32.00c W  28.84c S   3.16c ( +0.1 L  -0.0) N     600  --  J3 J1 pass pass pass pass F6
+---Black(v)---
+J3  : T  33.05c W  30.03c S   3.01c ( -0.0 L  -0.0) LCB   43.48c P 54.87% WF 311.2 PSV     317 N     317  --  J3 J1 pass pass pass pass F6 D3
+pss : T  30.49c W  27.21c S   3.28c ( +0.1 L  +0.0) LCB   43.97c P 26.88% WF 238.3 PSV     230 N     232  --  pass J1 J3 pass pass pass pass D3
+C4  : T  31.08c W  27.69c S   3.40c ( +0.1 L  -0.1) LCB   65.46c P  5.69% WF  43.4 PSV      40 N      43  --  C4 B4 J3 J1 pass pass pass pass
+B4  : T  73.68c W  66.04c S   7.64c ( +2.0 L  +1.7) LCB  280.00c P  2.42% WF   0.8 PSV       1 N       1  --  B4
+F6  : T  52.28c W  47.37c S   4.92c ( +0.7 L  +0.3) LCB  280.00c P  1.54% WF   0.9 PSV       1 N       1  --  F6
+A9  : T  56.26c W  50.92c S   5.34c ( +0.9 L  +0.4) LCB  280.00c P  1.46% WF   0.9 PSV       1 N       1  --  A9
+B7  : T  58.71c W  53.61c S   5.10c ( +0.8 L  +0.4) LCB  280.00c P  0.76% WF   0.9 PSV       0 N       1  --  B7
+G2  : T  51.00c W  45.66c S   5.34c ( +0.9 L  +0.5) LCB  280.00c P  0.70% WF   0.9 PSV       0 N       1  --  G2
+D6  : T  60.49c W  55.33c S   5.16c ( +0.8 L  +0.4) LCB  280.00c P  0.64% WF   0.9 PSV       0 N       1  --  D6
+C7  : T  63.66c W  58.45c S   5.21c ( +0.8 L  +0.4) LCB  280.00c P  0.47% WF   0.8 PSV       0 N       1  --  C7
+===================================================================
+Fill dame before pass, black to play
+===================================================================
+MoveNum: 0 HASH: BD1462547D9800FEAC5BE4AEE35F3CA1
+   A B C D E F G H J
+10 . . . . . X O O .
+ 9 . O . . . X O . O
+ 8 . X X . . X O O X
+ 7 X . . . . X X X X
+ 6 O X X . . . X . .
+ 5 O O O X X O X . .
+ 4 . . . O O X X X X
+ 3 . . O . X O O X .
+ 2 . . . O O O . O X
+ 1 . . . . . . . O .
+
+Root visits: 600
+NN rows: 291
+NN batches: 291
+NN avg batch size: 1
+PV: J3 J1 pass pass pass pass F6 D3 A9 pass C7 pass B10 pass C9 pass pass
+Tree:
+: T  32.00c W  28.84c S   3.16c ( +0.1 L  -0.0) N     600  --  J3 J1 pass pass pass pass F6
+---Black(v)---
+J3  : T  33.05c W  30.03c S   3.01c ( -0.0 L  -0.0) LCB   43.48c P 54.87% WF 311.2 PSV     317 N     317  --  J3 J1 pass pass pass pass F6 D3
+C4  : T  31.08c W  27.69c S   3.40c ( +0.1 L  -0.1) LCB   65.46c P  5.69% WF  43.4 PSV      40 N      43  --  C4 B4 J3 J1 pass pass pass pass
+B4  : T  73.68c W  66.04c S   7.64c ( +2.0 L  +1.7) LCB  280.00c P  2.42% WF   0.8 PSV       1 N       1  --  B4
+F6  : T  52.28c W  47.37c S   4.92c ( +0.7 L  +0.3) LCB  280.00c P  1.54% WF   0.9 PSV       1 N       1  --  F6
+A9  : T  56.26c W  50.92c S   5.34c ( +0.9 L  +0.4) LCB  280.00c P  1.46% WF   0.9 PSV       1 N       1  --  A9
+pss : T  30.49c W  27.21c S   3.28c ( +0.1 L  +0.0) LCB   43.97c P 26.88% WF 238.3 PSV       0 N     232  --  pass J1 J3 pass pass pass pass D3
+B7  : T  58.71c W  53.61c S   5.10c ( +0.8 L  +0.4) LCB  280.00c P  0.76% WF   0.9 PSV       0 N       1  --  B7
+G2  : T  51.00c W  45.66c S   5.34c ( +0.9 L  +0.5) LCB  280.00c P  0.70% WF   0.9 PSV       0 N       1  --  G2
+D6  : T  60.49c W  55.33c S   5.16c ( +0.8 L  +0.4) LCB  280.00c P  0.64% WF   0.9 PSV       0 N       1  --  D6
+C7  : T  63.66c W  58.45c S   5.21c ( +0.8 L  +0.4) LCB  280.00c P  0.47% WF   0.8 PSV       0 N       1  --  C7
+Conservative pass =========================================
+===================================================================
+White to play
+===================================================================
+MoveNum: 0 HASH: 086C2CEF1E05F58D28EE1499F236BEF6
+   A B C D E F G H J
+ 9 O X . X . X X . .
+ 8 . X . X . X . X X
+ 7 X X X X . X X X .
+ 6 . X . . X . . X X
+ 5 X X X X X X X X O
+ 4 X O O O X O O O O
+ 3 X O . . O . O X .
+ 2 O O O O . O . O O
+ 1 . . . O O O O O .
+
+Root visits: 600
+NN rows: 100
+NN batches: 100
+NN avg batch size: 1
+PV: pass pass
+Tree:
+: T 100.34c W  96.13c S   4.21c ( +0.9 L  +0.9) N     600  --  pass pass
+---White(^)---
+pss : T 101.61c W  97.35c S   4.26c ( +0.9 L  +1.0) LCB   99.38c P 57.57% WF 501.2 PSV     495 N     495  --  pass pass
+J3  : T  99.60c W  95.33c S   4.27c ( +0.9 L  +0.9) LCB   87.69c P 11.24% WF  62.4 PSV      61 N      64  --  J3 pass pass
+C3  : T  97.95c W  93.90c S   4.05c ( +0.8 L  +0.9) LCB   66.65c P  3.75% WF  12.5 PSV      13 N      13  --  C3 pass pass
+B1  : T  96.26c W  92.31c S   3.95c ( +0.8 L  +0.9) LCB   54.82c P  3.80% WF  10.5 PSV      11 N      11  --  B1 pass pass
+D3  : T  63.61c W  61.73c S   1.88c ( +0.2 L  +0.2) LCB -280.00c P  4.15% WF   1.6 PSV       2 N       2  --  D3 pass
+C1  : T  63.32c W  61.06c S   2.27c ( +0.3 L  +0.4) LCB -280.00c P  2.77% WF   1.6 PSV       1 N       2  --  C1 pass
+A1  : T  62.87c W  60.34c S   2.53c ( +0.4 L  +0.5) LCB -280.00c P  2.57% WF   1.6 PSV       1 N       2  --  A1 pass
+J1  : T  48.50c W  46.42c S   2.08c ( +0.3 L  +0.4) LCB -280.00c P  2.44% WF   1.4 PSV       1 N       2  --  J1 pass
+F3  : T  65.02c W  62.81c S   2.21c ( +0.3 L  +0.3) LCB -280.00c P  2.40% WF   1.6 PSV       1 N       2  --  F3 pass
+E2  : T  65.72c W  63.48c S   2.25c ( +0.3 L  +0.4) LCB -280.00c P  2.18% WF   1.6 PSV       1 N       2  --  E2 pass
+G2  : T  59.43c W  57.19c S   2.24c ( +0.3 L  +0.4) LCB -280.00c P  1.99% WF   1.5 PSV       1 N       2  --  G2 pass
+E7  : T  68.36c W  64.82c S   3.54c ( +0.7 L  +1.3) LCB -280.00c P  0.82% WF   0.8 PSV       0 N       1  --  E7
+E8  : T  65.07c W  62.16c S   2.91c ( +0.5 L  +1.1) LCB -280.00c P  0.73% WF   0.8 PSV       0 N       1  --  E8
+Move loc: pass
+Conservative pass: J3
+===================================================================
+White to play
+===================================================================
+MoveNum: 0 HASH: 086C2CEF1E05F58D28EE1499F236BEF6
+   A B C D E F G H J
+ 9 O X . X . X X . .
+ 8 . X . X . X . X X
+ 7 X X X X . X X X .
+ 6 . X . . X . . X X
+ 5 X X X X X X X X O
+ 4 X O O O X O O O O
+ 3 X O . . O . O X .
+ 2 O O O O . O . O O
+ 1 . . . O O O O O .
+
+Root visits: 600
+NN rows: 189
+NN batches: 189
+NN avg batch size: 1
+PV: pass pass
+Tree:
+: T -106.25c W -99.98c S  -6.28c ( -5.1 L  -5.1) N     600  --  pass pass
+---Black(v)---
+pss : T -106.36c W -99.98c S  -6.38c ( -5.2 L  -5.1) LCB -105.89c P 49.96% WF 342.4 PSV     342 N     342  --  pass pass
+A8  : T -106.52c W -99.98c S  -6.54c ( -5.2 L  -5.2) LCB -105.56c P 11.90% WF  84.2 PSV      84 N      84  --  A8 pass pass
+E8  : T -105.98c W -99.97c S  -6.00c ( -5.0 L  -5.0) LCB -101.58c P  4.19% WF  19.9 PSV      20 N      20  --  E8 pass pass
+E9  : T -106.03c W -99.97c S  -6.06c ( -5.1 L  -5.0) LCB -101.47c P  4.04% WF  18.9 PSV      19 N      19  --  E9 pass pass
+C9  : T -105.92c W -99.97c S  -5.95c ( -5.0 L  -4.9) LCB -101.06c P  3.66% WF  16.9 PSV      17 N      17  --  C9 pass pass
+H9  : T -105.99c W -99.97c S  -6.02c ( -5.1 L  -5.0) LCB -100.64c P  3.25% WF  15.0 PSV      15 N      15  --  H9 pass pass
+J9  : T -106.08c W -99.97c S  -6.11c ( -5.1 L  -5.0) LCB -101.17c P  2.94% WF  15.0 PSV      14 N      15  --  J9 pass pass
+E7  : T -105.48c W -99.97c S  -5.52c ( -4.9 L  -4.8) LCB  -99.69c P  3.17% WF  13.9 PSV      14 N      14  --  E7 pass pass
+C8  : T -105.50c W -99.96c S  -5.53c ( -4.9 L  -4.8) LCB  -98.12c P  2.68% WF  11.9 PSV      12 N      12  --  C8 pass pass
+D6  : T -105.86c W -99.97c S  -5.88c ( -5.0 L  -4.9) LCB  -98.49c P  2.35% WF  11.0 PSV      11 N      11  --  D6 pass pass
+F6  : T -106.22c W -99.98c S  -6.24c ( -5.1 L  -5.0) LCB  -98.94c P  2.03% WF  10.0 PSV      10 N      10  --  F6 pass pass
+J7  : T -106.42c W -99.98c S  -6.45c ( -5.2 L  -5.1) LCB  -99.77c P  1.97% WF  10.0 PSV      10 N      10  --  J7 pass pass
+G6  : T -106.00c W -99.97c S  -6.03c ( -5.1 L  -5.0) LCB  -96.13c P  1.63% WF   8.0 PSV       7 N       8  --  G6 pass pass
+C6  : T -105.65c W -99.96c S  -5.68c ( -5.0 L  -4.8) LCB  -92.24c P  1.58% WF   7.0 PSV       7 N       7  --  C6 pass pass
+G8  : T -105.89c W -99.97c S  -5.92c ( -5.0 L  -4.9) LCB  -91.03c P  1.45% WF   7.0 PSV       6 N       7  --  G8 pass pass
+A6  : T -106.49c W -99.98c S  -6.51c ( -5.2 L  -5.1) LCB  -80.95c P  1.11% WF   5.0 PSV       5 N       5  --  A6 pass pass
+D3  : T -104.13c W -99.94c S  -4.20c ( -4.5 L  -4.3) LCB  -51.40c P  0.87% WF   3.0 PSV       3 N       3  --  D3 C3
+Move loc: pass
+Conservative pass: A8
+Friendly pass =========================================
+===================================================================
+White to play
+===================================================================
+MoveNum: 1 HASH: 1CF008B150161F7CBED6D737AB5AE3B6
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . X . X . .
+ 7 . X . X O X . . .
+ 6 . . . X . . X X X
+ 5 X X X X X X O O O
+ 4 X O O O O O . . .
+ 3 O . . . . X O . .
+ 2 . O . . . O . O .
+ 1 . . . . . . . . .
+
+Root visits: 600
+NN rows: 276
+NN batches: 276
+NN avg batch size: 1
+PV: G4 E6 E3 pass pass
+Tree:
+: T -95.00c W -91.47c S  -3.53c ( -1.0 L  -0.9) N     600  --  G4 E6 E3 pass pass
+---White(^)---
+G4  : T -93.27c W -90.09c S  -3.18c ( -0.8 L  -0.8) LCB  -98.61c P  8.72% WF 119.8 PSV     131 N     117  --  G4 E6 E3 pass pass
+E3  : T -95.16c W -91.90c S  -3.26c ( -0.9 L  -0.8) LCB -102.64c P 10.22% WF  67.8 PSV      68 N      68  --  E3 E6 pass pass
+B3  : T -94.65c W -90.99c S  -3.66c ( -1.0 L  -0.9) LCB -103.89c P  4.54% WF  37.1 PSV      37 N      37  --  B3 E6 G4 pass E3 pass pass
+H3  : T -95.27c W -91.68c S  -3.59c ( -1.0 L  -0.9) LCB -105.54c P  4.65% WF  33.9 PSV      32 N      34  --  H3 E6 G4 pass E3 pass pass
+H4  : T -93.81c W -90.52c S  -3.29c ( -0.9 L  -0.8) LCB -107.38c P  4.06% WF  31.3 PSV      29 N      31  --  H4 E6 G4 pass E3 pass pass
+G2  : T -98.12c W -94.10c S  -4.02c ( -1.1 L  -1.0) LCB -112.84c P  4.92% WF  20.3 PSV      20 N      21  --  G2 E6 G4 pass E3 pass pass
+J1  : T -94.17c W -90.55c S  -3.62c ( -1.0 L  -0.9) LCB -117.86c P  2.99% WF  20.1 PSV      20 N      20  --  J1 E6 E3 pass G4 pass pass
+A1  : T -97.15c W -93.09c S  -4.05c ( -1.1 L  -1.0) LCB -114.52c P  4.81% WF  18.6 PSV      19 N      19  --  A1 E6 G4 pass E3 pass pass
+G1  : T -95.54c W -91.75c S  -3.79c ( -1.0 L  -0.9) LCB -115.33c P  3.77% WF  18.9 PSV      19 N      19  --  G1 E6 G4 pass E3 pass pass
+J4  : T -95.13c W -91.68c S  -3.44c ( -0.9 L  -0.8) LCB -111.80c P  3.47% WF  18.9 PSV      19 N      19  --  J4 E6 E3 pass G4 pass pass
+C3  : T -95.39c W -91.58c S  -3.81c ( -1.0 L  -0.9) LCB -114.95c P  3.48% WF  18.9 PSV      18 N      19  --  C3 E6 G4 pass E3 pass pass
+J3  : T -94.43c W -90.67c S  -3.77c ( -1.0 L  -0.9) LCB -116.87c P  2.88% WF  18.1 PSV      18 N      18  --  J3 E6 G4 pass E3 pass pass
+J2  : T -93.54c W -89.86c S  -3.69c ( -1.0 L  -0.9) LCB -115.39c P  2.44% WF  18.2 PSV      18 N      18  --  J2 E6 E3 pass G4 pass pass
+D3  : T -96.85c W -93.26c S  -3.59c ( -1.0 L  -0.9) LCB -116.13c P  3.74% WF  14.7 PSV      15 N      15  --  D3 E6 G4 pass E3 pass pass
+A2  : T -98.05c W -94.20c S  -3.85c ( -1.1 L  -1.0) LCB -112.81c P  3.62% WF  14.6 PSV      15 N      15  --  A2 E6 G4 pass E3 pass pass
+D2  : T -97.15c W -93.28c S  -3.86c ( -1.1 L  -0.9) LCB -115.90c P  3.61% WF  13.7 PSV      14 N      14  --  D2 E6 G4 pass E3 pass pass
+C2  : T -96.68c W -92.84c S  -3.84c ( -1.1 L  -0.9) LCB -115.77c P  3.43% WF  13.8 PSV      14 N      14  --  C2 E6 G4 pass E3 pass pass
+H1  : T -94.44c W -90.86c S  -3.57c ( -1.0 L  -0.9) LCB -121.06c P  2.33% WF  14.0 PSV      14 N      14  --  H1 E6 G4 pass E3 pass pass
+E1  : T -95.78c W -92.32c S  -3.46c ( -0.9 L  -0.9) LCB -119.20c P  2.66% WF  13.9 PSV      13 N      14  --  E1 E6 G4 pass E3 pass pass
+C1  : T -94.40c W -90.86c S  -3.54c ( -1.0 L  -0.9) LCB -118.78c P  2.15% WF  14.1 PSV      13 N      14  --  C1 E6 G4 pass E3 pass pass
+F1  : T -95.29c W -91.66c S  -3.62c ( -1.0 L  -0.9) LCB -120.80c P  2.39% WF  13.9 PSV      12 N      14  --  F1 E6 G4 pass E3 pass pass
+E2  : T -97.37c W -93.86c S  -3.51c ( -0.9 L  -0.9) LCB -116.65c P  3.27% WF  12.7 PSV      12 N      13  --  E2 E6 G4 pass E3 pass pass
+pss : T -95.49c W -91.72c S  -3.77c ( -1.0 L  -0.9) LCB -117.46c P  1.79% WF  12.9 PSV      12 N      13  --  pass E6 G4 pass E3 pass pass
+B1  : T -96.40c W -92.91c S  -3.49c ( -0.9 L  -0.9) LCB -118.92c P  2.27% WF   9.9 PSV      10 N      10  --  B1 E6 G4 pass E3 pass pass
+D1  : T -96.00c W -92.13c S  -3.87c ( -1.1 L  -0.9) LCB -149.92c P  1.60% WF   6.9 PSV       7 N       7  --  D1 E6 E3 pass pass
+C8  : T -101.46c W -94.97c S  -6.49c ( -2.0 L  -1.4) LCB -280.00c P  0.63% WF   1.0 PSV       1 N       1  --  C8
+F6  : T -101.61c W -95.40c S  -6.21c ( -1.9 L  -1.4) LCB -280.00c P  0.53% WF   1.0 PSV       1 N       1  --  F6
+Move loc: G4
+Friendly pass: pass
+===================================================================
+Black to play
+===================================================================
+MoveNum: 1 HASH: 8600F6F7B23C22826BF26963B4E71E97
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . X . X . .
+ 7 . X . X O X . . .
+ 6 . . . . . . X X X
+ 5 X X X X X X O O O
+ 4 X O O O O O . . .
+ 3 O . . . . X O . .
+ 2 . O . . O O . O .
+ 1 . . . . . . . . .
+
+Root visits: 600
+NN rows: 457
+NN batches: 457
+NN avg batch size: 1
+PV: F6 E3 E6 pass pass
+Tree:
+: T 103.26c W  98.50c S   4.76c ( +1.6 L  +1.6) N     600  --  F6 E3 E6 pass pass
+---Black(v)---
+F6  : T 102.66c W  98.24c S   4.42c ( +1.5 L  +1.4) LCB  105.36c P  6.10% WF  52.4 PSV     109 N      52  --  F6 E3 E6 pass pass
+E6  : T 103.64c W  98.74c S   4.89c ( +1.6 L  +1.6) LCB  105.87c P 11.83% WF  78.6 PSV      79 N      79  --  E6 E3 pass pass
+C7  : T 103.64c W  98.81c S   4.83c ( +1.6 L  +1.6) LCB  107.30c P  4.91% WF  32.9 PSV      33 N      33  --  C7 E3 E6 pass pass
+B6  : T 102.76c W  98.31c S   4.45c ( +1.5 L  +1.5) LCB  106.67c P  3.88% WF  33.2 PSV      32 N      33  --  B6 E3 E6 pass pass
+G7  : T 103.61c W  98.71c S   4.90c ( +1.6 L  +1.6) LCB  107.30c P  4.90% WF  31.9 PSV      32 N      32  --  G7 E3 E6 pass pass
+D6  : T 103.68c W  98.87c S   4.81c ( +1.6 L  +1.6) LCB  107.80c P  4.33% WF  27.9 PSV      28 N      28  --  D6 E3 E6 pass pass
+D8  : T 103.79c W  98.79c S   4.99c ( +1.7 L  +1.6) LCB  108.11c P  3.90% WF  24.9 PSV      25 N      25  --  D8 E3 E6 pass pass
+C6  : T 103.30c W  98.62c S   4.68c ( +1.6 L  +1.5) LCB  109.46c P  3.97% WF  22.0 PSV      22 N      22  --  C6 E3 E6 pass pass
+F8  : T 104.01c W  98.82c S   5.19c ( +1.7 L  +1.7) LCB  109.62c P  3.48% WF  20.9 PSV      21 N      21  --  F8 E3 E6 pass pass
+H7  : T 102.75c W  98.29c S   4.45c ( +1.5 L  +1.5) LCB  109.65c P  3.24% WF  20.1 PSV      20 N      20  --  H7 E3 F6 pass E6 pass pass
+F9  : T 102.44c W  97.95c S   4.49c ( +1.5 L  +1.4) LCB  109.48c P  2.94% WF  19.2 PSV      19 N      19  --  F9 E3 E6 pass pass
+C8  : T 103.77c W  98.68c S   5.09c ( +1.7 L  +1.6) LCB  110.63c P  3.60% WF  17.9 PSV      18 N      18  --  C8 E3 F6 pass E6 pass pass
+A6  : T 102.70c W  98.25c S   4.46c ( +1.5 L  +1.4) LCB  110.16c P  2.72% WF  17.1 PSV      17 N      17  --  A6 E3 F6 pass E6 pass pass
+H8  : T 103.54c W  98.60c S   4.94c ( +1.7 L  +1.6) LCB  111.79c P  3.21% WF  17.0 PSV      16 N      17  --  H8 E3 F6 pass E6 pass pass
+J8  : T 102.85c W  98.29c S   4.56c ( +1.5 L  +1.5) LCB  110.51c P  2.69% WF  15.1 PSV      15 N      15  --  J8 E3 F6 pass E6 pass pass
+H9  : T 102.88c W  98.26c S   4.62c ( +1.6 L  +1.5) LCB  110.72c P  2.61% WF  15.1 PSV      15 N      15  --  H9 E3 F6 pass E6 pass pass
+J7  : T 103.12c W  98.51c S   4.61c ( +1.6 L  +1.5) LCB  110.92c P  2.64% WF  15.0 PSV      14 N      15  --  J7 E3 F6 pass E6 pass pass
+A7  : T 103.22c W  98.45c S   4.77c ( +1.6 L  +1.5) LCB  111.94c P  2.49% WF  14.0 PSV      13 N      14  --  A7 E3 E6 pass pass
+D9  : T 103.50c W  98.59c S   4.91c ( +1.7 L  +1.6) LCB  112.09c P  2.59% WF  13.0 PSV      13 N      13  --  D9 E3 F6 pass E6 pass pass
+G9  : T 103.43c W  98.69c S   4.74c ( +1.6 L  +1.6) LCB  112.74c P  2.43% WF  12.0 PSV      12 N      12  --  G9 E3 F6 pass E6 pass pass
+A8  : T 103.26c W  98.55c S   4.72c ( +1.6 L  +1.5) LCB  112.62c P  2.33% WF  12.0 PSV      12 N      12  --  A8 E3 F6 pass E6 pass pass
+E9  : T 103.39c W  98.68c S   4.71c ( +1.6 L  +1.5) LCB  112.65c P  2.21% WF  12.0 PSV      11 N      12  --  E9 E3 F6 pass E6 pass pass
+B8  : T 104.44c W  98.99c S   5.46c ( +1.8 L  +1.7) LCB  114.95c P  2.50% WF  10.9 PSV      11 N      11  --  B8 E3 E6 pass pass
+H4  : T 101.92c W  97.38c S   4.54c ( +1.5 L  +1.5) LCB  114.83c P  1.34% WF  10.1 PSV       9 N      10  --  H4 G4 E6 H3 pass E3
+B9  : T 103.31c W  98.52c S   4.79c ( +1.6 L  +1.5) LCB  117.15c P  1.72% WF   9.0 PSV       9 N       9  --  B9 E3 E6 pass pass
+G4  : T 103.36c W  97.72c S   5.64c ( +1.9 L  +1.7) LCB  124.60c P  1.66% WF   9.0 PSV       9 N       9  --  G4 H4 E6 E3 pass
+B3  : T 104.31c W  98.25c S   6.05c ( +2.1 L  +1.8) LCB  129.03c P  1.52% WF   6.9 PSV       7 N       7  --  B3 C3 E6 E3 pass
+C9  : T 103.31c W  98.50c S   4.81c ( +1.6 L  +1.5) LCB  126.65c P  1.11% WF   6.0 PSV       6 N       6  --  C9 E3 E6 pass pass
+A2  : T 101.38c W  97.27c S   4.10c ( +1.4 L  +1.4) LCB  131.69c P  0.75% WF   6.1 PSV       6 N       6  --  A2 B3 E6 A1
+A9  : T 103.32c W  98.63c S   4.70c ( +1.6 L  +1.5) LCB  153.84c P  1.00% WF   5.0 PSV       5 N       5  --  A9 E3 E6 pass pass
+J9  : T 102.62c W  98.22c S   4.40c ( +1.5 L  +1.4) LCB  152.13c P  0.95% WF   5.0 PSV       5 N       5  --  J9 E3 E6 pass pass
+pss : T 103.05c W  98.22c S   4.82c ( +1.6 L  +1.4) LCB  143.18c P  0.76% WF   5.0 PSV       5 N       5  --  pass E3 E6 pass
+C3  : T 103.99c W  98.76c S   5.23c ( +1.8 L  +1.8) LCB  280.00c P  0.61% WF   2.0 PSV       2 N       2  --  C3 B3
+Move loc: F6
+Friendly pass: pass
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732
