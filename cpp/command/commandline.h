@@ -7,6 +7,7 @@
 #include <tclap/CmdLine.h>
 
 class KataHelpOutput;
+class Logger;
 
 class KataGoCommandLine : public TCLAP::CmdLine
 {
@@ -31,6 +32,8 @@ class KataGoCommandLine : public TCLAP::CmdLine
   void addConfigFileArg(const std::string& defaultConfigFileName, const std::string& exampleConfigFile);
   void addOverrideConfigArg();
 
+  void logOverrides(Logger& logger) const;
+  
   std::string getModelFile() const;
   bool modelFileIsDefault() const;
   //cfg must be uninitialized, this will initialize it based on user-provided arguments

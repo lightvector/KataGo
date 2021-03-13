@@ -1410,8 +1410,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   ConfigParser cfg;
   string nnModelFile;
   string overrideVersion;
+  KataGoCommandLine cmd("Run KataGo main GTP engine for playing games or casual analysis.");
   try {
-    KataGoCommandLine cmd("Run KataGo main GTP engine for playing games or casual analysis.");
     cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
     cmd.addModelFileArg();
     cmd.setShortUsageArgLimit();
@@ -1564,6 +1564,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   logger.write("Loaded config " + cfg.getFileName());
   logger.write("Loaded model "+ nnModelFile);
+  cmd.logOverrides(logger);
   logger.write("Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()));
   logger.write("GTP ready, beginning main protocol loop");
   //Also check loggingToStderr so that we don't duplicate the message from the log file

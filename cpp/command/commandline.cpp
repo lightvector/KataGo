@@ -1,6 +1,7 @@
 #include "../command/commandline.h"
 
 #include "../core/os.h"
+#include "../core/logger.h"
 #include "../dataio/homedata.h"
 #include "../program/setup.h"
 #include "../main.h"
@@ -303,6 +304,20 @@ void KataGoCommandLine::maybeApplyOverrideConfigArg(ConfigParser& cfg) const {
         //HACK to avoid a common possible conflict - if we specify some of the rules options on one side, the other side should be erased.
         vector<pair<set<string>,set<string>>> mutexKeySets = Setup::getMutexKeySets();
         cfg.overrideKeys(newkvs,mutexKeySets);
+      }
+    }
+  }
+}
+
+void KataGoCommandLine::logOverrides(Logger& logger) const {
+  if(overrideConfigArg != NULL) {
+    vector<string> overrideConfigs = overrideConfigArg->getValue();
+    for(const string& overrideConfig : overrideConfigs) {
+      if(overrideConfig != "") {
+        map<string,string> newkvs = ConfigParser::parseCommaSeparated(overrideConfig);
+        for(const auto& x: newkvs) {
+          logger.write("Config override: " + x.first + " = " + x.second);
+        }
       }
     }
   }
