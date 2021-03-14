@@ -65,6 +65,8 @@ namespace Tests {
 namespace TestCommon {
   bool boardsSeemEqual(const Board& b1, const Board& b2);
   std::string getBenchmarkSGFData(int boardSize);
+
+  void overrideForOpenCL(bool& inputsNHWC, bool& useNHWC);
 }
 
 #endif

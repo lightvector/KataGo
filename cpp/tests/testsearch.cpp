@@ -145,7 +145,6 @@ static NNEvaluator* startNNEval(
 ) {
   vector<int> gpuIdxByServerThread = {0};
   int maxBatchSize = 16;
-  //bool inputsUseNHWC = true;
   int nnCacheSizePowerOfTwo = 16;
   int nnMutexPoolSizePowerOfTwo = 12;
   int maxConcurrentEvals = 1024;
@@ -189,7 +188,6 @@ static NNEvaluator* startNNEval(
     nnRandomize,
     defaultSymmetry
   );
-  (void)inputsUseNHWC;
 
   nnEval->spawnServerThreads();
 
@@ -1961,8 +1959,8 @@ static void runMoreV8TestsRandomizedNNEvals(NNEvaluator* nnEval, Logger& logger)
 
 }
 
-
-void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16) {
+void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool useNHWC, int symmetry, bool useFP16) {
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
   cout << "Running search tests" << endl;
   NeuralNet::globalInitialize();
 
@@ -1970,14 +1968,15 @@ void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool cudaNH
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,false);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
   runBasicPositions(nnEval, logger);
   delete nnEval;
 
   NeuralNet::globalCleanup();
 }
 
-void Tests::runSearchTestsV3(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16) {
+void Tests::runSearchTestsV3(const string& modelFile, bool inputsNHWC, bool useNHWC, int symmetry, bool useFP16) {
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
   cout << "Running search tests specifically for v3 or later nets" << endl;
   NeuralNet::globalInitialize();
 
@@ -1985,9 +1984,9 @@ void Tests::runSearchTestsV3(const string& modelFile, bool inputsNHWC, bool cuda
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,false);
-  NNEvaluator* nnEval11 = startNNEval(modelFile,logger,"",11,11,symmetry,inputsNHWC,cudaNHWC,useFP16,false,false);
-  NNEvaluator* nnEvalPTemp = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,cudaNHWC,useFP16,false,false);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
+  NNEvaluator* nnEval11 = startNNEval(modelFile,logger,"",11,11,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
+  NNEvaluator* nnEvalPTemp = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
   runOwnershipAndMisc(nnEval,nnEval11,nnEvalPTemp,logger);
   delete nnEval;
   delete nnEval11;
@@ -1996,7 +1995,8 @@ void Tests::runSearchTestsV3(const string& modelFile, bool inputsNHWC, bool cuda
   NeuralNet::globalCleanup();
 }
 
-void Tests::runSearchTestsV8(const string& modelFile, bool inputsNHWC, bool cudaNHWC, bool useFP16) {
+void Tests::runSearchTestsV8(const string& modelFile, bool inputsNHWC, bool useNHWC, bool useFP16) {
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
   cout << "Running search tests introduced after v8 nets" << endl;
   NeuralNet::globalInitialize();
 
@@ -2005,9 +2005,9 @@ void Tests::runSearchTestsV8(const string& modelFile, bool inputsNHWC, bool cuda
   logger.setLogTime(false);
 
   NNEvaluator* nnEval = startNNEval(
-    modelFile,logger,"v8seed",19,19,-1,inputsNHWC,cudaNHWC,useFP16,false,false);
+    modelFile,logger,"v8seed",19,19,-1,inputsNHWC,useNHWC,useFP16,false,false);
   NNEvaluator* nnEval19Exact = startNNEval(
-    modelFile,logger,"v8seed",19,19,-1,inputsNHWC,cudaNHWC,useFP16,false,true);
+    modelFile,logger,"v8seed",19,19,-1,inputsNHWC,useNHWC,useFP16,false,true);
   runV8Tests(nnEval,nnEval19Exact,logger);
   delete nnEval;
   delete nnEval19Exact;
@@ -2015,12 +2015,12 @@ void Tests::runSearchTestsV8(const string& modelFile, bool inputsNHWC, bool cuda
   nnEval19Exact = NULL;
 
   nnEval = startNNEval(
-    modelFile,logger,"v8seed",19,19,5,inputsNHWC,cudaNHWC,useFP16,false,false);
+    modelFile,logger,"v8seed",19,19,5,inputsNHWC,useNHWC,useFP16,false,false);
   runMoreV8Tests(nnEval,logger);
   delete nnEval;
 
   nnEval = startNNEval(
-    modelFile,logger,"v8seed",19,19,-1,inputsNHWC,cudaNHWC,useFP16,false,false);
+    modelFile,logger,"v8seed",19,19,-1,inputsNHWC,useNHWC,useFP16,false,false);
   runMoreV8TestsRandomizedNNEvals(nnEval,logger);
 
   delete nnEval;
@@ -2772,7 +2772,8 @@ xxxxxxxxx
   NeuralNet::globalCleanup();
 }
 
-void Tests::runNNOnTinyBoard(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16) {
+void Tests::runNNOnTinyBoard(const string& modelFile, bool inputsNHWC, bool useNHWC, int symmetry, bool useFP16) {
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
   NeuralNet::globalInitialize();
 
   Board board = Board::parseBoard(5,5,R"%%(
@@ -2791,7 +2792,7 @@ void Tests::runNNOnTinyBoard(const string& modelFile, bool inputsNHWC, bool cuda
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",6,6,symmetry,inputsNHWC,cudaNHWC,useFP16,false,false);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",6,6,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
 
   MiscNNInputParams nnInputParams;
   NNResultBuf buf;
@@ -2806,7 +2807,8 @@ void Tests::runNNOnTinyBoard(const string& modelFile, bool inputsNHWC, bool cuda
   NeuralNet::globalCleanup();
 }
 
-void Tests::runNNSymmetries(const string& modelFile, bool inputsNHWC, bool cudaNHWC, bool useFP16) {
+void Tests::runNNSymmetries(const string& modelFile, bool inputsNHWC, bool useNHWC, bool useFP16) {
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
   NeuralNet::globalInitialize();
 
   Board board = Board::parseBoard(9,13,R"%%(
@@ -2833,7 +2835,7 @@ void Tests::runNNSymmetries(const string& modelFile, bool inputsNHWC, bool cudaN
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",13,13,0,inputsNHWC,cudaNHWC,useFP16,false,false);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",13,13,0,inputsNHWC,useNHWC,useFP16,false,false);
   for(int symmetry = 0; symmetry<8; symmetry++) {
     nnEval->setDoRandomize(false);
     nnEval->setDefaultSymmetry(symmetry);
@@ -2855,7 +2857,8 @@ void Tests::runNNSymmetries(const string& modelFile, bool inputsNHWC, bool cudaN
 }
 
 
-void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16, const string& comparisonFile) {
+void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool useNHWC, int symmetry, bool useFP16, const string& comparisonFile) {
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
   NeuralNet::globalInitialize();
 
   string sgfStr = "(;SZ[19]FF[3]PW[Go Seigen]WR[9d]PB[Takagawa Shukaku]BR[8d]DT[1957-09-26]KM[0]RE[W+R];B[qd];W[dc];B[pp];W[cp];B[eq];W[oc];B[ce];W[dh];B[fe];W[gc];B[do];W[co];B[dn];W[cm];B[jq];W[qn];B[pn];W[pm];B[on];W[qq];B[qo];W[or];B[mr];W[mq];B[nr];W[oq];B[lq];W[qm];B[rp];W[rq];B[qg];W[mp];B[lp];W[mo];B[om];W[pk];B[kn];W[mm];B[ok];W[pj];B[mk];W[op];B[dm];W[cl];B[dl];W[dk];B[ek];W[ll];B[cn];W[bn];B[bo];W[bm];B[cq];W[bp];B[oj];W[ph];B[qh];W[oi];B[qi];W[pi];B[mi];W[of];B[ki];W[qc];B[rc];W[qe];B[re];W[pd];B[rd];W[de];B[df];W[cd];B[ee];W[dd];B[fg];W[hd];B[jl];W[dj];B[bf];W[fj];B[hg];W[dp];B[ep];W[jk];B[il];W[fk];B[ie];W[he];B[hf];W[gm];B[ke];W[fo];B[eo];W[in];B[ho];W[hn];B[fn];W[gn];B[go];W[io];B[ip];W[jp];B[hq];W[qf];B[rf];W[qb];B[ik];W[lr];B[id];W[kr];B[jr];W[bq];B[ib];W[hb];B[cr];W[rj];B[rb];W[kk];B[ij];W[ic];B[jc];W[jb];B[hc];W[iq];B[ir];W[ic];B[kq];W[kc];B[hc];W[nj];B[nk];W[ic];B[oe];W[jd];B[pe];W[pf];B[od];W[pc];B[md];W[mc];B[me];W[ld];B[ng];W[ri];B[rh];W[pg];B[fl];W[je];B[kg];W[be];B[cf];W[bh];B[bd];W[bc];B[ae];W[kl];B[rn];W[mj];B[lj];W[ni];B[lk];W[mh];B[li];W[mg];B[mf];W[nh];B[jf];W[qj];B[sh];W[rm];B[km];W[if];B[ig];W[dq];B[dr];W[br];B[ci];W[gi];B[ei];W[ej];B[di];W[gl];B[bi];W[cj];B[sq];W[sr];B[so];W[sp];B[fc];W[fb];B[sq];W[lo];B[rr];W[sp];B[ec];W[eb];B[sq];W[ko];B[jn];W[sp];B[nc];W[nb];B[sq];W[nd];B[jo];W[sp];B[qr];W[pq];B[sq];W[ns];B[ks];W[sp];B[bk];W[bj];B[sq];W[ol];B[nl];W[sp];B[aj];W[ck];B[sq];W[nq];B[ls];W[sp];B[gk];W[qp];B[po];W[ro];B[gj];W[eh];B[rp];W[fi];B[sq];W[pl];B[nm];W[sp];B[ch];W[ro];B[dg];W[sn];B[ne];W[er];B[fr];W[cs];B[es];W[fh];B[bb];W[cb];B[ac];W[ba];B[cc];W[el];B[fm];W[bc])";
@@ -2869,7 +2872,7 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool cuda
 
   int nnXLen = 19;
   int nnYLen = 19;
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",nnXLen,nnYLen,symmetry,inputsNHWC,cudaNHWC,useFP16,false,false);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",nnXLen,nnYLen,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
   MiscNNInputParams nnInputParams;
   NNResultBuf buf;
   bool skipCache = true;
@@ -2932,7 +2935,8 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool cuda
 
 STRUCT_NAMED_TRIPLE(Board,board,BoardHistory,hist,Player,nextPla,NNBatchingTestItem);
 
-void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool cudaNHWC, bool useFP16) {
+void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool useNHWC, bool useFP16) {
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
   Logger logger;
   logger.setLogToStdout(false);
   logger.setLogToStderr(true);
@@ -2941,7 +2945,7 @@ void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool cud
   const int nnXLen = 19;
   const int nnYLen = 19;
   int symmetry = -1;
-  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",nnXLen,nnYLen,symmetry,inputsNHWC,cudaNHWC,useFP16,false,false);
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"",nnXLen,nnYLen,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
   nnEval->setDoRandomize(false);
 
   string sgf19x19 = "(;FF[4]GM[1]SZ[19]HA[0]KM[7]RU[koPOSITIONALscoreAREAtaxALLsui0button1]RE[W+R];B[pd];W[dp];B[pp];W[dd];B[fc];W[id];B[fq];W[nc];B[cn];W[dn];B[dm];W[en];B[em];W[co];B[bo];W[bn];B[cm];W[bp];B[fn];W[ec];B[fd];W[df];B[kd];W[ne];B[pf];W[if];B[kf];W[le];B[ke];W[gg];B[oc];W[mb];B[jc];W[ic];B[eb];W[db];B[ib];W[hb];B[jb];W[gb];B[ng];W[mg];B[mf];W[og];B[md];W[nd];B[nf];W[of];B[oe];W[od];B[pe];W[pc];B[qc];W[pb];B[oh];W[qj];B[he];W[ie];B[fb];W[ge];B[de];W[ee];B[qb];W[ob];B[ce];W[ed];B[cc];W[cd];B[bd];W[bc];B[ef];W[eg];B[bb];W[cb];B[hd];W[hc];B[cf];W[dg];B[hf];W[hg];B[ac];W[pg];)";

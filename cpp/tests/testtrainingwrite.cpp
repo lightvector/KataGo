@@ -61,6 +61,10 @@ static NNEvaluator* startNNEval(
 }
 
 void Tests::runTrainingWriteTests() {
+  bool inputsNHWC = true;
+  bool useNHWC = false;
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
+
   cout << "Running training write tests" << endl;
   NeuralNet::globalInitialize();
 
@@ -81,7 +85,7 @@ void Tests::runTrainingWriteTests() {
   ) {
     TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, nnXLen, nnYLen, debugOnlyWriteEvery, seedBase+"dwriter");
 
-    NNEvaluator* nnEval = startNNEval("/dev/null",seedBase+"nneval",logger,0,true,false,false);
+    NNEvaluator* nnEval = startNNEval("/dev/null",seedBase+"nneval",logger,0,inputsNHWC,useNHWC,false);
 
     SearchParams params;
     params.maxVisits = cheapLongSgf ? 2 : 100;
@@ -186,6 +190,10 @@ void Tests::runTrainingWriteTests() {
 
 
 void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
+  bool inputsNHWC = true;
+  bool useNHWC = false;
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
+
   cout << "Running test for selfplay initialization with NN" << endl;
   NeuralNet::globalInitialize();
 
@@ -193,7 +201,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,true,false,false);
+  NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,inputsNHWC,useNHWC,false);
 
   auto run = [&](
     const string& seedBase,
@@ -348,6 +356,10 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
 }
 
 void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
+  bool inputsNHWC = true;
+  bool useNHWC = false;
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
+
   cout << "Running more tests for selfplay" << endl;
   NeuralNet::globalInitialize();
 
@@ -355,7 +367,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,true,false,false);
+  NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,inputsNHWC,useNHWC,false);
 
   auto run = [&](
     const string& seedBase,
@@ -931,6 +943,10 @@ xxxxxxxx.
 
 
 void Tests::runSekiTrainWriteTests(const string& modelFile) {
+  bool inputsNHWC = true;
+  bool useNHWC = false;
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
+
   cout << "Running test for how a seki gets recorded" << endl;
   NeuralNet::globalInitialize();
 
@@ -941,7 +957,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,true,false,false);
+  NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,inputsNHWC,useNHWC,false);
 
   auto run = [&](const string& sgfStr, const string& seedBase, const Rules& rules) {
     int inputsVersion = 6;

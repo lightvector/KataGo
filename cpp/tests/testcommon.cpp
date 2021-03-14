@@ -53,3 +53,20 @@ string TestCommon::getBenchmarkSGFData(int boardSize) {
   }
   return sgfData;
 }
+
+
+void TestCommon::overrideForOpenCL(bool& inputsNHWC, bool& useNHWC) {
+#ifdef USE_OPENCL_BACKEND
+  if(inputsNHWC != false) {
+    cout << "Backend is opencl, ignoring args and forcing inputsNHWC=false" << endl;
+    inputsNHWC = false;
+  }
+  if(useNHWC != false) {
+    cout << "Backend is opencl, ignoring args and forcing useNHWC=false" << endl;
+    useNHWC = false;
+  }
+#else
+  (void)inputsNHWC;
+  (void)useNHWC;
+#endif
+}
