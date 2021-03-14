@@ -70,8 +70,6 @@ namespace Location
   Loc ofString(const std::string& str, int x_size, int y_size);
   Loc ofString(const std::string& str, const Board& b);
 
-  Loc getSymLoc(Loc loc, int x_size, int y_size, bool swapXY, bool flipX, bool flip);
-
   std::vector<Loc> parseSequence(const std::string& str, const Board& b);
 }
 
