@@ -7,6 +7,23 @@
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
 : Loaded config configs/analysis_example.cfg and/or command-line and query overrides
 : Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: Config override: cudaUseFP16 = false
+: Config override: cudaUseNHWC = false
+: Config override: forDeterministicTesting = true
+: Config override: logAllRequests = true
+: Config override: logAllResponses = true
+: Config override: logDir = 
+: Config override: logFile = tests/results/analysis/basic.txt.log
+: Config override: logSearchInfo = true
+: Config override: logTimeStamp = false
+: Config override: maxPlayouts = 10000
+: Config override: maxVisits = 100
+: Config override: nnRandSeed = analysisTest
+: Config override: nnRandomize = false
+: Config override: numAnalysisThreads = 1
+: Config override: numSearchThreadsPerAnalysisThread = 1
+: Config override: openclUseFP16 = false
+: Config override: reportAnalysisWinratesAs = SIDETOMOVE
 : Analyzing up to 1 positions at at time in parallel
 : Started, ready to begin handling requests
 : Request: {"id":"foo","initialStones":[["B","Q4"],["B","C4"]],"moves":[["W","P5"],["B","P6"]],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"analyzeTurns":[2],"overrideSettings":{"maxVisits":10}}

@@ -10,6 +10,25 @@
 : Loaded neural net with nnXLen 19 nnYLen 19
 : Loaded config configs/gtp_example.cfg and/or command-line and query overrides
 : Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: Config override: cudaUseFP16 = false
+: Config override: cudaUseNHWC = false
+: Config override: forDeterministicTesting = true
+: Config override: hasButton = false
+: Config override: koRule = POSITIONAL
+: Config override: logDir = 
+: Config override: logFile = tests/results/gtp/defaultkomitt.log
+: Config override: logTimeStamp = false
+: Config override: maxPlayouts = 10000
+: Config override: maxVisits = 100
+: Config override: multiStoneSuicideLegal = false
+: Config override: nnRandSeed = forTesting
+: Config override: nnRandomize = false
+: Config override: numSearchThreads = 1
+: Config override: openclUseFP16 = false
+: Config override: rules = 
+: Config override: scoringRule = AREA
+: Config override: searchRandSeed = forTesting
+: Config override: taxRule = NONE
 : Model name: g170-b6c96-s175395328-d26788732
 : GTP ready, beginning main protocol loop
 : Controller: genmove_debug b

@@ -29,7 +29,7 @@
 ./katago runnnbatchingtest tests/models/g170-b6c96-s175395328-d26788732.bin.gz true true false | tee tests/results/runNNBatchingTestNHWC.txt
 
 mkdir -p tests/scratch
-./katago runtinynntests tests/scratch | tee tests/results/runTinyNNTests.txt
+./katago runtinynntests tests/scratch | grep -v ': nnRandSeed0 = ' | tee tests/results/runTinyNNTests.txt
 
 exit 0
 }
