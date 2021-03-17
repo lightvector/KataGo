@@ -46,19 +46,16 @@ bool Search::getPlaySelectionValues(
   vector<Loc>& locs, vector<double>& playSelectionValues, vector<double>* retVisitCounts, double scaleMaxToAtLeast,
   bool allowDirectPolicyMoves
 ) const {
-  std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
-  lock_guard<std::mutex> lock(mutex);
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
-  assert(node.numChildren <= NNPos::MAX_NN_POLICY_SIZE);
-  bool result = getPlaySelectionValuesAlreadyLocked(
+  bool result = getPlaySelectionValues(
     node,locs,playSelectionValues,retVisitCounts,scaleMaxToAtLeast,allowDirectPolicyMoves,
     false,lcbBuf,radiusBuf
   );
   return result;
 }
 
-bool Search::getPlaySelectionValuesAlreadyLocked(
+bool Search::getPlaySelectionValues(
   const SearchNode& node,
   vector<Loc>& locs, vector<double>& playSelectionValues, vector<double>* retVisitCounts, double scaleMaxToAtLeast,
   bool allowDirectPolicyMoves, bool alwaysComputeLcb,
@@ -70,15 +67,17 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
   if(retVisitCounts != NULL)
     retVisitCounts->clear();
 
-  int numChildren = node.numChildren;
   double totalChildWeight = 0.0;
   double maxChildWeight = 0.0;
+  const bool suppressPass = shouldSuppressPass(&node);
 
-  const bool suppressPass = shouldSuppressPassAlreadyLocked(&node);
-
-  //Store up basic visit counts
-  for(int i = 0; i<numChildren; i++) {
-    SearchNode* child = node.children[i];
+  //Store up basic weights
+  int childrenCapacity;
+  const SearchChildPointer* children = node.getChildren(childrenCapacity);
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
     Loc moveLoc = child->prevMoveLoc;
 
     while(child->statsLock.test_and_set(std::memory_order_acquire));
@@ -102,6 +101,8 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     }
   }
 
+  int numChildren = playSelectionValues.size();
+
   //Find the best child by weight
   int mostWeightedIdx = 0;
   double mostWeightedChildWeight = -1e30;
@@ -116,7 +117,8 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
   //Possibly reduce weight on children that we spend too many visits on in retrospect
   if(&node == rootNode && numChildren > 0) {
 
-    const SearchNode* bestChild = node.children[mostWeightedIdx];
+    const SearchNode* bestChild = children[mostWeightedIdx].getIfAllocated();
+    assert(bestChild != NULL);
     const bool isRoot = true;
     const double policyProbMassVisited = 1.0; //doesn't matter, since fpu value computed from it isn't used here
     double parentUtility;
@@ -129,7 +131,9 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
 
     bool isDuringSearch = false;
 
-    float* policyProbs = node.nnOutput->getPolicyProbsMaybeNoised();
+    const NNOutput* nnOutput = node.getNNOutput();
+    assert(nnOutput != NULL);
+    const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
     double bestChildExploreSelectionValue = getExploreSelectionValue(
       node,policyProbs,bestChild,totalChildWeight,fpuValue,
       parentUtility,parentWeightPerVisit,parentUtilityStdevFactor,
@@ -137,13 +141,14 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     );
 
     for(int i = 0; i<numChildren; i++) {
-      if(suppressPass && node.children[i]->prevMoveLoc == Board::PASS_LOC) {
+      const SearchNode* child = children[i].getIfAllocated();
+      if(suppressPass && child->prevMoveLoc == Board::PASS_LOC) {
         playSelectionValues[i] = 0;
         continue;
       }
       if(i != mostWeightedIdx) {
         double reduced = getReducedPlaySelectionWeight(
-          node, policyProbs, node.children[i],
+          node, policyProbs, child,
           totalChildWeight, parentUtilityStdevFactor, bestChildExploreSelectionValue
         );
         playSelectionValues[i] = (int64_t)ceil(reduced);
@@ -156,7 +161,8 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     double bestLcb = -1e10;
     int bestLcbIndex = -1;
     for(int i = 0; i<numChildren; i++) {
-      getSelfUtilityLCBAndRadius(node,node.children[i],lcbBuf[i],radiusBuf[i]);
+      const SearchNode* child = children[i].getIfAllocated();
+      getSelfUtilityLCBAndRadius(node,child,lcbBuf[i],radiusBuf[i]);
       //Check if this node is eligible to be considered for best LCB
       double weight = playSelectionValues[i];
       if(weight >= MIN_VISITS_FOR_LCB && weight >= searchParams.minVisitPropForLCB * mostWeightedChildWeight) {
@@ -195,20 +201,20 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     }
   }
 
-  shared_ptr<NNOutput> nnOutput = node.nnOutput;
+  const NNOutput* nnOutput = node.getNNOutput();
 
   //If we have no children, then use the policy net directly. Only for the root, though, if calling this on any subtree
   //then just require that we have children, for implementation simplicity (since it requires that we have a board and a boardhistory too)
   //(and we also use isAllowedRootMove)
   if(numChildren == 0) {
-    if(nnOutput == nullptr || &node != rootNode || !allowDirectPolicyMoves)
+    if(nnOutput == NULL || &node != rootNode || !allowDirectPolicyMoves)
       return false;
 
     bool obeyAllowedRootMove = true;
     while(true) {
       for(int movePos = 0; movePos<policySize; movePos++) {
         Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
-        float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+        const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
         double policyProb = policyProbs[movePos];
         if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb < 0 || (obeyAllowedRootMove && !isAllowedRootMove(moveLoc)))
           continue;
@@ -352,11 +358,8 @@ ReportedSearchValues Search::getRootRawNNValuesRequireSuccess() const {
 }
 
 bool Search::getNodeRawNNValues(const SearchNode& node, ReportedSearchValues& values) const {
-  std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
-  unique_lock<std::mutex> lock(mutex);
-  shared_ptr<NNOutput> nnOutput = node.nnOutput;
-  lock.unlock();
-  if(nnOutput == nullptr)
+  const NNOutput* nnOutput = node.getNNOutput();
+  if(nnOutput == NULL)
     return false;
 
   values.winValue = nnOutput->whiteWinProb;
@@ -390,11 +393,8 @@ bool Search::getNodeRawNNValues(const SearchNode& node, ReportedSearchValues& va
 
 
 bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values) const {
-  std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
-  unique_lock<std::mutex> lock(mutex);
-  shared_ptr<NNOutput> nnOutput = node.nnOutput;
-  lock.unlock();
-  if(nnOutput == nullptr)
+  const NNOutput* nnOutput = node.getNNOutput();
+  if(nnOutput == NULL)
     return false;
 
   while(node.statsLock.test_and_set(std::memory_order_acquire));
@@ -467,25 +467,31 @@ Loc Search::getChosenMoveLoc() {
 }
 
 //Hack to encourage well-behaved dame filling behavior under territory scoring
-bool Search::shouldSuppressPassAlreadyLocked(const SearchNode* n) const {
+bool Search::shouldSuppressPass(const SearchNode* n) const {
   if(!searchParams.fillDameBeforePass || n == NULL || n != rootNode)
     return false;
   if(rootHistory.rules.scoringRule != Rules::SCORING_TERRITORY || rootHistory.encorePhase > 0)
     return false;
 
   const SearchNode& node = *n;
-
-  if(node.nnOutput == nullptr || node.nnOutput->whiteOwnerMap == NULL)
+  const NNOutput* nnOutput = node.getNNOutput();
+  if(nnOutput == NULL)
     return false;
-  assert(node.nnOutput->nnXLen == nnXLen);
-  assert(node.nnOutput->nnYLen == nnYLen);
-  const float* whiteOwnerMap = node.nnOutput->whiteOwnerMap;
+  if(nnOutput->whiteOwnerMap == NULL)
+    return false;
+  assert(nnOutput->nnXLen == nnXLen);
+  assert(nnOutput->nnYLen == nnYLen);
+  const float* whiteOwnerMap = nnOutput->whiteOwnerMap;
 
   //Find the pass move
-  int numChildren = node.numChildren;
-  SearchNode* passNode = NULL;
-  for(int i = 0; i<numChildren; i++) {
-    SearchNode* child = node.children[i];
+  const SearchNode* passNode = NULL;
+
+  int childrenCapacity;
+  const SearchChildPointer* children = node.getChildren(childrenCapacity);
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
     Loc moveLoc = child->prevMoveLoc;
     if(moveLoc == Board::PASS_LOC) {
       passNode = child;
@@ -520,8 +526,10 @@ bool Search::shouldSuppressPassAlreadyLocked(const SearchNode* n) const {
 
   //Suppress pass if we find a move that is not a spot that the opponent almost certainly owns
   //or that is adjacent to a pla owned spot, and is not greatly worse than pass.
-  for(int i = 0; i<numChildren; i++) {
-    SearchNode* child = node.children[i];
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
     Loc moveLoc = child->prevMoveLoc;
     if(moveLoc == Board::PASS_LOC)
       continue;
@@ -574,13 +582,11 @@ bool Search::shouldSuppressPassAlreadyLocked(const SearchNode* n) const {
 bool Search::getPolicy(float policyProbs[NNPos::MAX_NN_POLICY_SIZE]) const {
   if(rootNode == NULL)
     return false;
-  std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
-  lock_guard<std::mutex> lock(mutex);
-  if(rootNode->nnOutput == nullptr)
+  const NNOutput* nnOutput = rootNode->getNNOutput();
+  if(nnOutput == NULL)
     return false;
 
-  NNOutput& nnOutput = *(rootNode->nnOutput);
-  std::copy(nnOutput.policyProbs, nnOutput.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
+  std::copy(nnOutput->policyProbs, nnOutput->policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
   return true;
 }
 
@@ -598,12 +604,9 @@ double Search::getPolicySurprise() const {
 bool Search::getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntropyRet, double& policyEntropyRet) const {
   if(rootNode == NULL)
     return false;
-  std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
-  unique_lock<std::mutex> lock(mutex);
-  if(rootNode->nnOutput == nullptr)
+  const NNOutput* nnOutput = rootNode->getNNOutput();
+  if(nnOutput == NULL)
     return false;
-
-  NNOutput& nnOutput = *(rootNode->nnOutput);
 
   vector<Loc> locs;
   vector<double> playSelectionValues;
@@ -611,18 +614,17 @@ bool Search::getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntr
   bool alwaysComputeLcb = false;
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
-  bool suc = getPlaySelectionValuesAlreadyLocked(
-    *rootNode,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,lcbBuf,radiusBuf);
+  bool suc = getPlaySelectionValues(
+    *rootNode,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,lcbBuf,radiusBuf
+  );
   if(!suc)
     return false;
 
   float policyProbsFromNNBuf[NNPos::MAX_NN_POLICY_SIZE];
   {
-    float* policyProbsFromNN = nnOutput.getPolicyProbsMaybeNoised();
+    const float* policyProbsFromNN = nnOutput->getPolicyProbsMaybeNoised();
     std::copy(policyProbsFromNN, policyProbsFromNN+NNPos::MAX_NN_POLICY_SIZE, policyProbsFromNNBuf);
   }
-  //Okay we have all the data we need!
-  lock.unlock();
 
   double sumPlaySelectionValues = 0.0;
   for(int i = 0; i<playSelectionValues.size(); i++)
@@ -668,13 +670,10 @@ bool Search::getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntr
 void Search::printRootOwnershipMap(ostream& out, Player perspective) const {
   if(rootNode == NULL)
     return;
-  std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
-  lock_guard<std::mutex> lock(mutex);
-  if(rootNode->nnOutput == nullptr)
+  const NNOutput* nnOutput = rootNode->getNNOutput();
+  if(nnOutput == NULL)
     return;
-
-  NNOutput& nnOutput = *(rootNode->nnOutput);
-  if(nnOutput.whiteOwnerMap == NULL)
+  if(nnOutput->whiteOwnerMap == NULL)
     return;
 
   Player perspectiveToUse = (perspective != P_BLACK && perspective != P_WHITE) ? rootPla : perspective;
@@ -682,8 +681,8 @@ void Search::printRootOwnershipMap(ostream& out, Player perspective) const {
 
   for(int y = 0; y<rootBoard.y_size; y++) {
     for(int x = 0; x<rootBoard.x_size; x++) {
-      int pos = NNPos::xyToPos(x,y,nnOutput.nnXLen);
-      out << Global::strprintf("%6.1f ", perspectiveFactor * nnOutput.whiteOwnerMap[pos]*100);
+      int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+      out << Global::strprintf("%6.1f ", perspectiveFactor * nnOutput->whiteOwnerMap[pos]*100);
     }
     out << endl;
   }
@@ -693,17 +692,14 @@ void Search::printRootOwnershipMap(ostream& out, Player perspective) const {
 void Search::printRootPolicyMap(ostream& out) const {
   if(rootNode == NULL)
     return;
-  std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
-  lock_guard<std::mutex> lock(mutex);
-  if(rootNode->nnOutput == nullptr)
+  const NNOutput* nnOutput = rootNode->getNNOutput();
+  if(nnOutput == NULL)
     return;
 
-  NNOutput& nnOutput = *(rootNode->nnOutput);
-
-  float* policyProbs = nnOutput.getPolicyProbsMaybeNoised();
+  const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
   for(int y = 0; y<rootBoard.y_size; y++) {
     for(int x = 0; x<rootBoard.x_size; x++) {
-      int pos = NNPos::xyToPos(x,y,nnOutput.nnXLen);
+      int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
       out << Global::strprintf("%6.1f ", policyProbs[pos]*100);
     }
     out << endl;
@@ -714,17 +710,18 @@ void Search::printRootPolicyMap(ostream& out) const {
 void Search::printRootEndingScoreValueBonus(ostream& out) const {
   if(rootNode == NULL)
     return;
-  std::mutex& mutex = mutexPool->getMutex(rootNode->lockIdx);
-  unique_lock<std::mutex> lock(mutex);
-  if(rootNode->nnOutput == nullptr)
+  const NNOutput* nnOutput = rootNode->getNNOutput();
+  if(nnOutput == NULL)
+    return;
+  if(nnOutput->whiteOwnerMap == NULL)
     return;
 
-  NNOutput& nnOutput = *(rootNode->nnOutput);
-  if(nnOutput.whiteOwnerMap == NULL)
-    return;
-
-  for(int i = 0; i<rootNode->numChildren; i++) {
-    const SearchNode* child = rootNode->children[i];
+  int childrenCapacity;
+  const SearchChildPointer* children = rootNode->getChildren(childrenCapacity);
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
 
     while(child->statsLock.test_and_set(std::memory_order_acquire));
     int64_t childVisits = child->stats.visits;
@@ -747,16 +744,16 @@ void Search::printRootEndingScoreValueBonus(ostream& out) const {
   }
 }
 
-void Search::appendPV(vector<Loc>& buf, vector<int64_t>& visitsBuf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, int maxDepth) const {
-  appendPVForMove(buf,visitsBuf,scratchLocs,scratchValues,n,Board::NULL_LOC,maxDepth);
+void Search::appendPV(vector<Loc>& buf, vector<int64_t>& visitsBuf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* node, int maxDepth) const {
+  appendPVForMove(buf,visitsBuf,scratchLocs,scratchValues,node,Board::NULL_LOC,maxDepth);
 }
 
-void Search::appendPVForMove(vector<Loc>& buf, vector<int64_t>& visitsBuf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* n, Loc move, int maxDepth) const {
-  if(n == NULL)
+void Search::appendPVForMove(vector<Loc>& buf, vector<int64_t>& visitsBuf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* node, Loc move, int maxDepth) const {
+  if(node == NULL)
     return;
 
   for(int depth = 0; depth < maxDepth; depth++) {
-    bool success = getPlaySelectionValues(*n, scratchLocs, scratchValues, NULL, 1.0, false);
+    bool success = getPlaySelectionValues(*node, scratchLocs, scratchValues, NULL, 1.0, false);
     if(!success)
       return;
 
@@ -787,18 +784,18 @@ void Search::appendPVForMove(vector<Loc>& buf, vector<int64_t>& visitsBuf, vecto
     if(depth == 0 && move != Board::NULL_LOC && bestChildMoveLoc != move)
       return;
 
-    const SearchNode& node = *n;
-    std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
-    unique_lock<std::mutex> lock(mutex);
-    assert(node.numChildren >= scratchValues.size());
-    //We rely on the fact that children are never reordered - we can access this safely
-    //despite dropping the lock in between computing play selection values and now
-    n = node.children[bestChildIdx];
-    lock.unlock();
+    int childrenCapacity;
+    const SearchChildPointer* children = node->getChildren(childrenCapacity);
+    assert(bestChildIdx <= childrenCapacity);
+    assert(scratchValues.size() <= childrenCapacity);
 
-    while(n->statsLock.test_and_set(std::memory_order_acquire));
-    int64_t visits = n->stats.visits;
-    n->statsLock.clear(std::memory_order_release);
+    const SearchNode* child = children[bestChildIdx].getIfAllocated();
+    assert(child != NULL);
+    node = child;
+
+    while(node->statsLock.test_and_set(std::memory_order_acquire));
+    int64_t visits = node->stats.visits;
+    node->statsLock.clear(std::memory_order_release);
 
     buf.push_back(bestChildMoveLoc);
     visitsBuf.push_back(visits);
@@ -915,7 +912,7 @@ void Search::getAnalysisData(
   const SearchNode& node, vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth
 ) const {
   buf.clear();
-  vector<SearchNode*> children;
+  vector<const SearchNode*> children;
   children.reserve(rootBoard.x_size * rootBoard.y_size + 1);
 
   int numChildren;
@@ -925,23 +922,27 @@ void Search::getAnalysisData(
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
   float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
   {
-    std::mutex& mutex = mutexPool->getMutex(node.lockIdx);
-    lock_guard<std::mutex> lock(mutex);
-    numChildren = node.numChildren;
-    for(int i = 0; i<numChildren; i++)
-      children.push_back(node.children[i]);
+    int childrenCapacity;
+    const SearchChildPointer* childrenArr = node.getChildren(childrenCapacity);
+    for(int i = 0; i<childrenCapacity; i++) {
+      const SearchNode* child = childrenArr[i].getIfAllocated();
+      if(child == NULL)
+        break;
+      children.push_back(child);
+    }
+    numChildren = children.size();
 
     if(numChildren <= 0)
       return;
+    assert(numChildren <= NNPos::MAX_NN_POLICY_SIZE);
 
-    assert(node.numChildren <= NNPos::MAX_NN_POLICY_SIZE);
     bool alwaysComputeLcb = true;
-    bool success = getPlaySelectionValuesAlreadyLocked(node, scratchLocs, scratchValues, NULL, 1.0, false, alwaysComputeLcb, lcbBuf, radiusBuf);
+    bool success = getPlaySelectionValues(node, scratchLocs, scratchValues, NULL, 1.0, false, alwaysComputeLcb, lcbBuf, radiusBuf);
     if(!success)
       return;
 
-    NNOutput& nnOutput = *(node.nnOutput);
-    float* policyProbsFromNN = nnOutput.getPolicyProbsMaybeNoised();
+    const NNOutput* nnOutput = node.getNNOutput();
+    const float* policyProbsFromNN = nnOutput->getPolicyProbsMaybeNoised();
     for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++)
       policyProbs[i] = policyProbsFromNN[i];
   }
@@ -995,7 +996,7 @@ void Search::getAnalysisData(
 
   vector<MoreNodeStats> statsBuf(numChildren);
   for(int i = 0; i<numChildren; i++) {
-    SearchNode* child = children[i];
+    const SearchNode* child = children[i];
     double policyProb = policyProbs[getPos(child->prevMoveLoc)];
     AnalysisData data = getAnalysisDataOfSingleChild(
       child, scratchLocs, scratchValues, child->prevMoveLoc, policyProb, fpuValue, parentUtility, parentWinLossValue,
@@ -1288,29 +1289,25 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWe
   if(node == NULL)
     return 0;
 
-  std::mutex& mutex = mutexPool->getMutex(node->lockIdx);
-  unique_lock<std::mutex> lock(mutex);
-  if(node->nnOutput == nullptr)
+  const NNOutput* nnOutput = node->getNNOutput();
+  if(nnOutput == NULL)
     return 0;
 
-  shared_ptr<NNOutput> nnOutput = node->nnOutput;
+  int childrenCapacity;
+  const SearchChildPointer* children = node->getChildren(childrenCapacity);
 
-  int numChildren = node->numChildren;
-  vector<const SearchNode*> children(numChildren);
-  for(int i = 0; i<numChildren; i++)
-    children[i] = node->children[i];
-
-  double thisNodeWeight = computeWeightFromNNOutput(*node);
-  //We can unlock now - during a search, children are never deallocated
-  lock.unlock();
-
-  vector<double> childWeightBuf(numChildren);
-  for(int i = 0; i<numChildren; i++) {
-    const SearchNode* child = children[i];
+  vector<double> childWeightBuf(childrenCapacity);
+  double thisNodeWeight = computeWeightFromNNOutput(nnOutput);
+  int numChildren = 0;
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
     while(child->statsLock.test_and_set(std::memory_order_acquire));
     double childWeight = child->stats.weightSum;
     child->statsLock.clear(std::memory_order_release);
     childWeightBuf[i] = childWeight;
+    numChildren += 1;
   }
 
   double relativeChildrenWeightSum = 0.0;
@@ -1331,8 +1328,10 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWe
     double childWeight = childWeightBuf[i];
     if(childWeight < minWeight)
       continue;
+    const SearchNode* child = children[i].getIfAllocated();
+    assert(child != NULL);
     double desiredWeightFromChild = (double)childWeight * childWeight / relativeChildrenWeightSum * desiredWeightFromChildren;
-    actualWeightFromChildren += getAverageTreeOwnershipHelper(accum,minWeight,desiredWeightFromChild,children[i]);
+    actualWeightFromChildren += getAverageTreeOwnershipHelper(accum,minWeight,desiredWeightFromChild,child);
   }
 
   double selfWeight = desiredWeight - actualWeightFromChildren;
