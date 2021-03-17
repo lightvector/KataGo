@@ -2942,6 +2942,9 @@ o.oo.oo
     );
     testAssert(suc);
     cout << json << endl;
+
+    delete search;
+    delete nnEval;
   }
 
   {
@@ -2990,6 +2993,9 @@ xxxxxxxxx
     );
     testAssert(suc);
     cout << json << endl;
+
+    delete search;
+    delete nnEval;
   }
 
   NeuralNet::globalCleanup();
