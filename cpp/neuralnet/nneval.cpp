@@ -358,6 +358,8 @@ void NNEvaluator::serve(
   int gpuIdxForThisThread,
   int serverThreadIdx
 ) {
+  int64_t numBatchesHandledThisThread = 0;
+  int64_t numRowsHandledThisThread = 0;
 
   ComputeHandle* gpuHandle = NULL;
   if(loadedModel != NULL)
@@ -507,6 +509,8 @@ void NNEvaluator::serve(
 
     m_numRowsProcessed.fetch_add(numRows, std::memory_order_relaxed);
     m_numBatchesProcessed.fetch_add(1, std::memory_order_relaxed);
+    numRowsHandledThisThread += numRows;
+    numBatchesHandledThisThread += 1;
 
     for(int row = 0; row < numRows; row++) {
       assert(buf.resultBufs[row] != NULL);
@@ -525,6 +529,13 @@ void NNEvaluator::serve(
   }
 
   NeuralNet::freeComputeHandle(gpuHandle);
+  if(logger != NULL) {
+    logger->write(
+      "GPU " + Global::intToString(gpuIdxForThisThread) + " finishing, processed " +
+      Global::int64ToString(numRowsHandledThisThread) + " rows " +
+      Global::int64ToString(numBatchesHandledThisThread) + " batches"
+    );
+  }
 }
 
 static double softPlus(double x) {
