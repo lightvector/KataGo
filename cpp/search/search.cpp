@@ -300,14 +300,18 @@ const NNOutput* SearchNode::getNNOutput() const {
   return nn->get();
 }
 
-void SearchNode::storeNNOutput(std::shared_ptr<NNOutput>* newNNOutput, SearchThread& thread) {
+bool SearchNode::storeNNOutput(std::shared_ptr<NNOutput>* newNNOutput, SearchThread& thread) {
   std::shared_ptr<NNOutput>* toCleanUp = nnOutput.exchange(newNNOutput, std::memory_order_acq_rel);
-  if(toCleanUp != NULL)
+  if(toCleanUp != NULL) {
     thread.oldNNOutputsToCleanUp.push_back(toCleanUp);
+    return false;
+  }
+  return true;
 }
 
-void SearchNode::storeNNOutputForNewLeaf(std::shared_ptr<NNOutput>* newNNOutput) {
-  nnOutput.store(newNNOutput, std::memory_order_release);
+bool SearchNode::storeNNOutputIfNull(std::shared_ptr<NNOutput>* newNNOutput) {
+  std::shared_ptr<NNOutput>* expected = NULL;
+  return nnOutput.compare_exchange_strong(expected, newNNOutput, std::memory_order_acq_rel);
 }
 
 SearchNode::~SearchNode() {
@@ -2316,9 +2320,12 @@ void Search::selectBestChildToDescend(
       isDuringSearch,maxChildWeight,&thread
     );
     if(selectionValue > maxSelectionValue) {
-      if(child->state.load(std::memory_order_acquire) == SearchNode::STATE_EVALUATING) {
-        selectionValue -= EVALUATING_SELECTION_VALUE_PENALTY;
-      }
+      // if(child->state.load(std::memory_order_seq_cst) == SearchNode::STATE_EVALUATING) {
+      //   selectionValue -= EVALUATING_SELECTION_VALUE_PENALTY;
+      //   if(isRoot && child->prevMoveLoc == Location::ofString("K4",thread.board)) {
+      //     out << "ouch" << "\n";
+      //   }
+      // }
       if(selectionValue > maxSelectionValue) {
         maxSelectionValue = selectionValue;
         bestChildIdx = i;
@@ -2714,8 +2721,10 @@ void Search::maybeRecomputeExistingNNOutput(
   }
 }
 
-//If isReInit is false, assumes that this thread is the ONLY thread going to compute an nneval for this node!
-void Search::initNodeNNOutput(
+//If isReInit is false, among any threads trying to store, the first one wins
+//If isReInit is true, we always replace, even for threads that come later.
+//Returns true if a nnOutput was set where there was none before.
+bool Search::initNodeNNOutput(
   SearchThread& thread, SearchNode& node,
   bool isRoot, bool skipCache, bool isReInit
 ) {
@@ -2768,20 +2777,24 @@ void Search::initNodeNNOutput(
   }
 
   node.nnOutputAge.store(searchNodeAge,std::memory_order_release);
-  if(isReInit)
-    node.storeNNOutput(result,thread);
-  else
-    node.storeNNOutputForNewLeaf(result);
-
   //If this is a re-initialization of the nnOutput, we don't want to add any visits or anything.
   //Also don't bother updating any of the stats. Technically we should do so because winLossValueSum
   //and such will have changed potentially due to a new orientation of the neural net eval
   //slightly affecting the evals, but this is annoying to recompute from scratch, and on the next
   //visit updateStatsAfterPlayout should fix it all up anyways.
-  if(isReInit)
-    return;
-
-  addCurentNNOutputAsLeafValue(node);
+  if(isReInit) {
+    bool wasNullBefore = node.storeNNOutput(result,thread);
+    return wasNullBefore;
+  }
+  else {
+    bool suc = node.storeNNOutputIfNull(result);
+    if(!suc) {
+      delete result;
+      return false;
+    }
+    addCurentNNOutputAsLeafValue(node);
+    return true;
+  }
 }
 
 void Search::addCurentNNOutputAsLeafValue(SearchNode& node) {
@@ -2864,26 +2877,27 @@ bool Search::playoutDescend(
 
   int nodeState = node.state.load(std::memory_order_acquire);
   if(nodeState == SearchNode::STATE_UNEVALUATED) {
-    bool suc = node.state.compare_exchange_strong(nodeState, SearchNode::STATE_EVALUATING, std::memory_order_acq_rel);
+    //Always attempt to set a new nnOutput. That way, if some GPU is slow and malfunctioning, we don't get blocked by it.
+    initNodeNNOutput(thread,node,isRoot,false,false);
+    
+    bool suc = node.state.compare_exchange_strong(nodeState, SearchNode::STATE_EVALUATING, std::memory_order_seq_cst);
     if(!suc) {
-      //Presumably someone else got there first. Neural net evaluations take quite a long time, so there's no point waiting or retrying.
+      //Presumably someone else got there first.
       //Just give up on this playout and try again from the start.
       return false;
     }
     else {
       //Perform the nn evaluation and finish!
-      initNodeNNOutput(thread,node,isRoot,false,false);
       node.initializeChildren();
-      node.state.store(SearchNode::STATE_EXPANDED0, std::memory_order_release);
+      node.state.store(SearchNode::STATE_EXPANDED0, std::memory_order_seq_cst);
       return true;
     }
   }
   else if(nodeState == SearchNode::STATE_EVALUATING) {
-    //Neural net evaluations take quite a long time, so there's no point waiting or retrying.
     //Just give up on this playout and try again from the start.
     return false;
   }
-
+  
   assert(nodeState >= SearchNode::STATE_EXPANDED0);
   maybeRecomputeExistingNNOutput(thread,node,isRoot);
 

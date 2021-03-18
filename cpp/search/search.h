@@ -189,9 +189,12 @@ struct SearchNode {
   //any time up until a new operation is peformed (such as starting a new search, or making a move, or setting params).
   NNOutput* getNNOutput();
   const NNOutput* getNNOutput() const;
-  void storeNNOutput(std::shared_ptr<NNOutput>* newNNOutput, SearchThread& thread);
-  //This one ASSUMES that for sure the previous NNOutput is NULL and nobody else is racing to store an NNOutput either.
-  void storeNNOutputForNewLeaf(std::shared_ptr<NNOutput>* newNNOutput);
+  
+  //Always replaces the current nnoutput, and stores the existing one in the thread for later deletion.
+  //Returns true if there was NOT already an nnOutput
+  bool storeNNOutput(std::shared_ptr<NNOutput>* newNNOutput, SearchThread& thread);
+  //Only stores if there isn't an nnOutput already. Returns true if it was stored.
+  bool storeNNOutputIfNull(std::shared_ptr<NNOutput>* newNNOutput);
 
   //Used within search to update state and allocate children arrays
   void initializeChildren();
@@ -575,7 +578,7 @@ private:
   void maybeRecomputeExistingNNOutput(
     SearchThread& thread, SearchNode& node, bool isRoot
   );
-  void initNodeNNOutput(
+  bool initNodeNNOutput(
     SearchThread& thread, SearchNode& node,
     bool isRoot, bool skipCache, bool isReInit
   );
