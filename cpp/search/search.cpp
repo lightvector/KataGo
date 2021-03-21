@@ -2878,7 +2878,13 @@ bool Search::playoutDescend(
   int nodeState = node.state.load(std::memory_order_acquire);
   if(nodeState == SearchNode::STATE_UNEVALUATED) {
     //Always attempt to set a new nnOutput. That way, if some GPU is slow and malfunctioning, we don't get blocked by it.
-    initNodeNNOutput(thread,node,isRoot,false,false);
+    {
+      bool suc = initNodeNNOutput(thread,node,isRoot,false,false);
+      //Leave the node as unevaluated - only the thread that first actually set the nnOutput into the node
+      //gets to update the state, to avoid races where we update the state while the node stats aren't updated yet.
+      if(!suc)
+        return false;
+    }
     
     bool suc = node.state.compare_exchange_strong(nodeState, SearchNode::STATE_EVALUATING, std::memory_order_seq_cst);
     if(!suc) {
