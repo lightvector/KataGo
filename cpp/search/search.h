@@ -189,7 +189,7 @@ struct SearchNode {
   //any time up until a new operation is peformed (such as starting a new search, or making a move, or setting params).
   NNOutput* getNNOutput();
   const NNOutput* getNNOutput() const;
-  
+
   //Always replaces the current nnoutput, and stores the existing one in the thread for later deletion.
   //Returns true if there was NOT already an nnOutput
   bool storeNNOutput(std::shared_ptr<NNOutput>* newNNOutput, SearchThread& thread);
@@ -573,7 +573,7 @@ private:
     double weight,
     bool isTerminal
   );
-  void addCurentNNOutputAsLeafValue(SearchNode& node);
+  void addCurrentNNOutputAsLeafValue(SearchNode& node);
 
   void maybeRecomputeExistingNNOutput(
     SearchThread& thread, SearchNode& node, bool isRoot

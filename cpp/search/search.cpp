@@ -2792,12 +2792,12 @@ bool Search::initNodeNNOutput(
       delete result;
       return false;
     }
-    addCurentNNOutputAsLeafValue(node);
+    addCurrentNNOutputAsLeafValue(node);
     return true;
   }
 }
 
-void Search::addCurentNNOutputAsLeafValue(SearchNode& node) {
+void Search::addCurrentNNOutputAsLeafValue(SearchNode& node) {
   const NNOutput* nnOutput = node.getNNOutput();
   assert(nnOutput != NULL);
   //Values in the search are from the perspective of white positive always
@@ -2885,7 +2885,7 @@ bool Search::playoutDescend(
       if(!suc)
         return false;
     }
-    
+
     bool suc = node.state.compare_exchange_strong(nodeState, SearchNode::STATE_EVALUATING, std::memory_order_seq_cst);
     if(!suc) {
       //Presumably someone else got there first.
@@ -2903,7 +2903,7 @@ bool Search::playoutDescend(
     //Just give up on this playout and try again from the start.
     return false;
   }
-  
+
   assert(nodeState >= SearchNode::STATE_EXPANDED0);
   maybeRecomputeExistingNNOutput(thread,node,isRoot);
 
@@ -2946,7 +2946,7 @@ bool Search::playoutDescend(
       //TODO add test case
       //This might happen if all moves have been forbidden. The node will just get stuck at 1 visit forever then
       //and we won't do any search.
-      addCurentNNOutputAsLeafValue(node);
+      addCurrentNNOutputAsLeafValue(node);
       return true;
     }
 
