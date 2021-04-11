@@ -883,6 +883,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   bool gameMode;
   bool treeMode;
   bool autoKomi;
+  bool tolerateIllegalMoves;
   int sgfSplitCount;
   int sgfSplitIdx;
   int64_t maxDepth;
@@ -911,6 +912,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     TCLAP::SwitchArg gameModeArg("","game-mode","Game mode");
     TCLAP::SwitchArg treeModeArg("","tree-mode","Tree mode");
     TCLAP::SwitchArg autoKomiArg("","auto-komi","Auto komi");
+    TCLAP::SwitchArg tolerateIllegalMovesArg("","tolerate-illegal-moves","Tolerate illegal moves");
     TCLAP::ValueArg<int> sgfSplitCountArg("","sgf-split-count","Number of splits",false,1,"N");
     TCLAP::ValueArg<int> sgfSplitIdxArg("","sgf-split-idx","Which split",false,0,"IDX");
     TCLAP::ValueArg<int> maxDepthArg("","max-depth","Max depth allowed for sgf",false,1000000,"INT");
@@ -931,6 +933,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     cmd.add(gameModeArg);
     cmd.add(treeModeArg);
     cmd.add(autoKomiArg);
+    cmd.add(tolerateIllegalMovesArg);
     cmd.add(sgfSplitCountArg);
     cmd.add(sgfSplitIdxArg);
     cmd.add(maxDepthArg);
@@ -954,6 +957,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     gameMode = gameModeArg.getValue();
     treeMode = treeModeArg.getValue();
     autoKomi = autoKomiArg.getValue();
+    tolerateIllegalMoves = tolerateIllegalMovesArg.getValue();
     sgfSplitCount = sgfSplitCountArg.getValue();
     sgfSplitIdx = sgfSplitIdxArg.getValue();
     maxDepth = maxDepthArg.getValue();
@@ -1419,7 +1423,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
   const int maxSgfQueueSize = 1024;
   ThreadSafeQueue<Sgf*> sgfQueue(maxSgfQueueSize);
-  auto processSgfLoop = [&logger,&processSgfGame,&sgfQueue,&params,&nnEval,&numSgfsDone,&isPlayerOkay]() {
+  auto processSgfLoop = [&logger,&processSgfGame,&sgfQueue,&params,&nnEval,&numSgfsDone,&isPlayerOkay,&tolerateIllegalMoves]() {
     Rand rand;
     string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
     Search* search = new Search(params,nnEval,searchRandSeed);
@@ -1436,8 +1440,19 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       bool blackOkay = isPlayerOkay(sgfRaw,P_BLACK);
       bool whiteOkay = isPlayerOkay(sgfRaw,P_WHITE);
 
-      CompactSgf* sgf = new CompactSgf(sgfRaw);
-      processSgfGame(search,rand,sgf->fileName,sgf,blackOkay,whiteOkay);
+      CompactSgf* sgf = NULL;
+      try {
+        sgf = new CompactSgf(sgfRaw);
+      }
+      catch(const StringError& e) {
+        if(!tolerateIllegalMoves)
+          throw;
+        else {
+          logger.write(e.what());
+        }
+      }
+      if(sgf != NULL)
+        processSgfGame(search,rand,sgf->fileName,sgf,blackOkay,whiteOkay);
 
       numSgfsDone.fetch_add(1);
       delete sgf;
@@ -1673,28 +1688,36 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       bool hashComments = true; //Hash comments so that if we see a position without %HINT% and one with, we make sure to re-load it.
       bool blackOkay = isPlayerOkay(sgf,P_BLACK);
       bool whiteOkay = isPlayerOkay(sgf,P_WHITE);
-      bool hashParent = true; //Hash parent so that we distinguish hint moves that reach the same position but were different moves from different starting states.
-      sgf->iterAllUniquePositions(
-        uniqueHashes, hashComments, hashParent, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
-          if(comments.size() > 0 && comments.find("%NOHINT%") != string::npos)
-            return;
-          if(hist.moveHistory.size() <= 0)
-            return;
-          int hintIdx = (int)hist.moveHistory.size()-1;
-          if((hist.moveHistory[hintIdx].pla == P_BLACK && !blackOkay) || (hist.moveHistory[hintIdx].pla == P_WHITE && !whiteOkay))
-            return;
+      try {
+        bool hashParent = true; //Hash parent so that we distinguish hint moves that reach the same position but were different moves from different starting states.
+        sgf->iterAllUniquePositions(
+          uniqueHashes, hashComments, hashParent, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
+            if(comments.size() > 0 && comments.find("%NOHINT%") != string::npos)
+              return;
+            if(hist.moveHistory.size() <= 0)
+              return;
+            int hintIdx = (int)hist.moveHistory.size()-1;
+            if((hist.moveHistory[hintIdx].pla == P_BLACK && !blackOkay) || (hist.moveHistory[hintIdx].pla == P_WHITE && !whiteOkay))
+              return;
 
-          //unusedSample doesn't have enough history, doesn't have hintloc the way we want it
-          int64_t numEnqueued = 1+numPosesEnqueued.fetch_add(1);
-          if(numEnqueued % 500 == 0)
-            logger.write("Enqueued " + Global::int64ToString(numEnqueued) + " poses");
-          PosQueueEntry entry;
-          entry.hist = new BoardHistory(hist);
-          entry.initialTurnNumber = unusedSample.initialTurnNumber; //this is the only thing we keep
-          entry.markedAsHintPos = (comments.size() > 0 && comments.find("%HINT%") != string::npos);
-          posQueue.waitPush(entry);
-        }
-      );
+            //unusedSample doesn't have enough history, doesn't have hintloc the way we want it
+            int64_t numEnqueued = 1+numPosesEnqueued.fetch_add(1);
+            if(numEnqueued % 500 == 0)
+              logger.write("Enqueued " + Global::int64ToString(numEnqueued) + " poses");
+            PosQueueEntry entry;
+            entry.hist = new BoardHistory(hist);
+            entry.initialTurnNumber = unusedSample.initialTurnNumber; //this is the only thing we keep
+            entry.markedAsHintPos = (comments.size() > 0 && comments.find("%HINT%") != string::npos);
+            posQueue.waitPush(entry);
+          }
+        );
+      }
+      catch(const StringError& e) {
+        if(!tolerateIllegalMoves)
+          throw;
+        else
+          logger.write(e.what());
+      }
       numSgfsDone.fetch_add(1);
       delete sgf;
     }
