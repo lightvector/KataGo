@@ -3,6 +3,7 @@
 
 #include "../core/global.h"
 #include "../core/hash.h"
+#include "../core/rand.h"
 #include "../dataio/trainingwrite.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
@@ -101,9 +102,23 @@ struct Sgf {
   //Hashes are used to filter out "identical" positions when loading many files from different SGFs that may have overlapping openings, etc.
   //The hashes are not guaranteed to correspond to position hashes, or anything else external to this function itself.
   //May raise an exception on illegal moves or other SGF issues, only partially appending things on to the boards and hists.
-  void loadAllUniquePositions(std::set<Hash128>& uniqueHashes, bool hashComments, std::vector<PositionSample>& samples) const;
+  //If rand is provided, will randomize order of iteration through the SGF.
+  //If hashParent is true, will determine uniqueness by the combination of parent hash and own hash.
+  void loadAllUniquePositions(
+    std::set<Hash128>& uniqueHashes,
+    bool hashComments,
+    bool hashParent,
+    Rand* rand,
+    std::vector<PositionSample>& samples
+  ) const;
   //f is allowed to mutate and consume sample.
-  void iterAllUniquePositions(std::set<Hash128>& uniqueHashes, bool hashComments, std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f) const;
+  void iterAllUniquePositions(
+    std::set<Hash128>& uniqueHashes,
+    bool hashComments,
+    bool hashParent,
+    Rand* rand,
+    std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
+  ) const;
 
   static std::set<Hash128> readExcludes(const std::vector<std::string>& files);
 
@@ -118,6 +133,8 @@ struct Sgf {
     int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
     bool hashComments,
+    bool hashParent,
+    Rand* rand,
     std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;
@@ -127,6 +144,7 @@ struct Sgf {
     int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
     bool hashComments,
+    bool hashParent,
     const std::string& comments,
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;

@@ -570,6 +570,8 @@ void Sgf::getMovesHelper(vector<Move>& moves, int xSize, int ySize) const {
 void Sgf::loadAllUniquePositions(
   std::set<Hash128>& uniqueHashes,
   bool hashComments,
+  bool hashParent,
+  Rand* rand,
   vector<PositionSample>& samples
 ) const {
   std::function<void(PositionSample&, const BoardHistory&, const string&)> f = [&samples](PositionSample& sample, const BoardHistory& hist, const string& comments) {
@@ -578,12 +580,14 @@ void Sgf::loadAllUniquePositions(
     samples.push_back(sample);
   };
 
-  iterAllUniquePositions(uniqueHashes,hashComments,f);
+  iterAllUniquePositions(uniqueHashes,hashComments,hashParent,rand,f);
 }
 
 void Sgf::iterAllUniquePositions(
   std::set<Hash128>& uniqueHashes,
   bool hashComments,
+  bool hashParent,
+  Rand* rand,
   std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
 ) const {
   XYSize size = getXYSize();
@@ -601,7 +605,7 @@ void Sgf::iterAllUniquePositions(
 
   PositionSample sampleBuf;
   std::vector<std::pair<int64_t,int64_t>> variationTraceNodesBranch;
-  iterAllUniquePositionsHelper(board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,hashComments,variationTraceNodesBranch,f);
+  iterAllUniquePositionsHelper(board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,hashComments,hashParent,rand,variationTraceNodesBranch,f);
 }
 
 void Sgf::iterAllUniquePositionsHelper(
@@ -611,6 +615,8 @@ void Sgf::iterAllUniquePositionsHelper(
   int initialTurnNumber,
   std::set<Hash128>& uniqueHashes,
   bool hashComments,
+  bool hashParent,
+  Rand* rand,
   std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
   std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
 ) const {
@@ -646,7 +652,7 @@ void Sgf::iterAllUniquePositionsHelper(
 
         hist.clear(board,nextPla,rules,0);
       }
-      samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,comments,f);
+      samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,hashParent,comments,f);
     }
 
     //Handle actual moves
@@ -671,15 +677,29 @@ void Sgf::iterAllUniquePositionsHelper(
       if(hist.moveHistory.size() > 0x3FFFFFFF)
         throw StringError("too many moves in sgf");
       nextPla = getOpp(buf[j].pla);
-      samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,comments,f);
+      samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,hashParent,comments,f);
     }
   }
 
-  for(size_t i = 0; i<children.size(); i++) {
+
+  std::vector<size_t> permutation(children.size());
+  for(size_t i = 0; i<children.size(); i++)
+    permutation[i] = i;
+  if(rand != NULL) {
+    for(size_t i = 1; i<permutation.size(); i++) {
+      size_t r = (size_t)rand->nextUInt64(i+1);
+      std::swap(permutation[i],permutation[r]);
+    }
+  }
+
+  for(size_t c = 0; c<children.size(); c++) {
+    size_t i = permutation[c];
     std::unique_ptr<Board> copy = std::make_unique<Board>(board);
     std::unique_ptr<BoardHistory> histCopy = std::make_unique<BoardHistory>(hist);
     variationTraceNodesBranch.push_back(std::make_pair((int64_t)nodes.size(),(int64_t)i));
-    children[i]->iterAllUniquePositionsHelper(*copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,variationTraceNodesBranch,f);
+    children[i]->iterAllUniquePositionsHelper(
+      *copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,hashParent,rand,variationTraceNodesBranch,f
+    );
     assert(variationTraceNodesBranch.size() > 0);
     variationTraceNodesBranch.erase(variationTraceNodesBranch.begin()+(variationTraceNodesBranch.size()-1));
   }
@@ -691,6 +711,7 @@ void Sgf::samplePositionIfUniqueHelper(
   int initialTurnNumber,
   std::set<Hash128>& uniqueHashes,
   bool hashComments,
+  bool hashParent,
   const std::string& comments,
   std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
 ) const {
@@ -711,6 +732,19 @@ void Sgf::samplePositionIfUniqueHelper(
 
   if(hashComments)
     situationHash.hash0 += Hash::simpleHash(comments.c_str());
+
+  if(hashParent) {
+    Hash128 parentHash = Hash128();
+    if(hist.moveHistory.size() > 0) {
+      const Board& prevBoard = hist.getRecentBoard(1);
+      parentHash = prevBoard.pos_hash;
+      if(prevBoard.ko_loc != Board::NULL_LOC)
+        parentHash ^= Board::ZOBRIST_KO_LOC_HASH[prevBoard.ko_loc];
+    }
+    //Mix in a blended up hash of the previous board state to avoid zobrist cancellation, also swapping halves
+    Hash128 mixed = Hash128(Hash::murmurMix(parentHash.hash1),Hash::splitMix64(parentHash.hash0));
+    situationHash ^= mixed;
+  }
 
   if(contains(uniqueHashes,situationHash))
     return;

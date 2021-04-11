@@ -296,7 +296,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
           numExcluded += 1;
         else {
           bool hashComments = false;
-          sgf->iterAllUniquePositions(uniqueHashes, hashComments, posHandler);
+          bool hashParent = false;
+          sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, NULL, posHandler);
         }
       }
       catch(const StringError& e) {

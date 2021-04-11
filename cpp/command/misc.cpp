@@ -771,7 +771,8 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
     }
 
     bool hashComments = false;
-    sgf->iterAllUniquePositions(uniqueHashes, hashComments, posHandler);
+    bool hashParent = false;
+    sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, NULL, posHandler);
   };
 
   for(size_t i = 0; i<sgfFiles.size(); i++) {
@@ -1031,11 +1032,9 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   vector<size_t> permutation(sgfFiles.size());
   for(size_t i = 0; i<sgfFiles.size(); i++)
     permutation[i] = i;
-  if(gameMode) {
-    for(size_t i = 1; i<sgfFiles.size(); i++) {
-      size_t r = (size_t)seedRand.nextUInt64(i+1);
-      std::swap(permutation[i],permutation[r]);
-    }
+  for(size_t i = 1; i<sgfFiles.size(); i++) {
+    size_t r = (size_t)seedRand.nextUInt64(i+1);
+    std::swap(permutation[i],permutation[r]);
   }
 
   set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
@@ -1674,9 +1673,10 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       bool hashComments = true; //Hash comments so that if we see a position without %HINT% and one with, we make sure to re-load it.
       bool blackOkay = isPlayerOkay(sgf,P_BLACK);
       bool whiteOkay = isPlayerOkay(sgf,P_WHITE);
+      bool hashParent = true; //Hash parent so that we distinguish hint moves that reach the same position but were different moves from different starting states.
       sgf->iterAllUniquePositions(
-        uniqueHashes, hashComments, [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
-          if(comments.size() > 0 && Global::trim(comments) == "%NOHINT%")
+        uniqueHashes, hashComments, hashParent, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
+          if(comments.size() > 0 && comments.find("%NOHINT%") != string::npos)
             return;
           if(hist.moveHistory.size() <= 0)
             return;
@@ -1691,7 +1691,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
           PosQueueEntry entry;
           entry.hist = new BoardHistory(hist);
           entry.initialTurnNumber = unusedSample.initialTurnNumber; //this is the only thing we keep
-          entry.markedAsHintPos = (comments.size() > 0 && (Global::trim(comments) == "%HINT%"));
+          entry.markedAsHintPos = (comments.size() > 0 && comments.find("%HINT%") != string::npos);
           posQueue.waitPush(entry);
         }
       );
