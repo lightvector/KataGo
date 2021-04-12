@@ -2053,3 +2053,127 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
   ScoreValue::freeTables();
   return 0;
 }
+
+
+int MainCmds::sampleinitializations(int argc, const char* const* argv) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  ConfigParser cfg;
+  string modelFile;
+  int numToGen;
+  int boardSizeX;
+  int boardSizeY;
+  double temperature;
+  double proportionOfBoardArea;
+  try {
+    KataGoCommandLine cmd("View startposes");
+    cmd.addConfigFileArg("","");
+    cmd.addModelFileArg();
+    cmd.addOverrideConfigArg();
+
+    TCLAP::ValueArg<int> numToGenArg("","num","Num to gen",false,1,"N");
+    TCLAP::ValueArg<int> boardSizeXArg("","board-size-x","Board size x",false,19,"X");
+    TCLAP::ValueArg<int> boardSizeYArg("","board-size-y","Board size y",false,19,"Y");
+    TCLAP::ValueArg<double> temperatureArg("","temperature","Temperature",false,1.0,"T");
+    TCLAP::ValueArg<double> proportionOfBoardAreaArg("","prop-area","Prop of board area",false,0.04,"prop");
+    cmd.add(numToGenArg);
+    cmd.add(boardSizeXArg);
+    cmd.add(boardSizeYArg);
+    cmd.add(temperatureArg);
+    cmd.add(proportionOfBoardAreaArg);
+    cmd.parse(argc,argv);
+    numToGen = numToGenArg.getValue();
+    boardSizeX = boardSizeXArg.getValue();
+    boardSizeY = boardSizeYArg.getValue();
+    temperature = temperatureArg.getValue();
+    proportionOfBoardArea = proportionOfBoardAreaArg.getValue();
+
+    cmd.getConfigAllowEmpty(cfg);
+    if(cfg.getFileName() != "")
+      modelFile = cmd.getModelFile();
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  Rand rand;
+  Logger logger;
+  logger.setLogToStdout(true);
+
+  Rules rules;
+  AsyncBot* bot = NULL;
+  NNEvaluator* nnEval = NULL;
+  if(cfg.getFileName() != "") {
+    rules = Setup::loadSingleRulesExceptForKomi(cfg);
+    SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+    {
+      Setup::initializeSession(cfg);
+      int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+      int expectedConcurrentEvals = params.numThreads;
+      int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+      string expectedSha256 = "";
+      nnEval = Setup::initializeNNEvaluator(
+        modelFile,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
+        Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,
+        Setup::SETUP_FOR_GTP
+      );
+    }
+    logger.write("Loaded neural net");
+
+    string searchRandSeed;
+    if(cfg.contains("searchRandSeed"))
+      searchRandSeed = cfg.getString("searchRandSeed");
+    else
+      searchRandSeed = Global::uint64ToString(rand.nextUInt64());
+
+    bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+  }
+
+  {
+    Search* search = bot->getSearchStopAndWait();
+    for(int i = 0; i<numToGen; i++) {
+      Board board(boardSizeX,boardSizeY);
+      Player pla = P_BLACK;
+      BoardHistory hist(board,pla,rules,0);
+
+      bool doEndGameIfAllPassAlive = true;
+      int compensateKomiVisits = 20;
+      OtherGameProperties otherGameProperties;
+      PlayUtils::adjustKomiToEven(search,search,board,hist,pla,compensateKomiVisits,logger,otherGameProperties,rand);
+      double sqrtBoardArea = sqrt(boardSizeX*boardSizeY);
+
+      ExtraBlackAndKomi extraBlackAndKomi;
+      {
+        float komiBase = hist.rules.komi;
+        float komiStdev = 1.0f;
+        double allowIntegerProb = 1.0;
+        double handicapProb = 0.0;
+        int numExtraBlackFixed = 0;
+        double bigStdevProb = 0.0;
+        float bigStdev = komiStdev;
+        extraBlackAndKomi = PlayUtils::chooseExtraBlackAndKomi(
+          komiBase, komiStdev, allowIntegerProb, handicapProb, numExtraBlackFixed,
+          bigStdevProb, bigStdev, sqrtBoardArea, rand
+        );
+        hist.setKomi(PlayUtils::roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board, false));
+      }
+
+      PlayUtils::initializeGameUsingPolicy(
+        search, search, board, hist, pla, rand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature
+      );
+      cout << hist.rules.toString() << endl;
+      Board::printBoard(cout, board, Board::NULL_LOC, &hist.moveHistory);
+      cout << endl;
+    }
+  }
+
+  if(bot != NULL)
+    delete bot;
+  if(nnEval != NULL)
+    delete nnEval;
+
+  ScoreValue::freeTables();
+  return 0;
+}

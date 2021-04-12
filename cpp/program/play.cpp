@@ -7,83 +7,6 @@
 
 using namespace std;
 
-static double nextGaussianTruncated(Rand& rand, double bound) {
-  double d = rand.nextGaussian();
-  //Truncated refers to the probability distribution, not the sample
-  //So on falling outside the range, we redraw, rather than capping.
-  while(d < -bound || d > bound)
-    d = rand.nextGaussian();
-  return d;
-}
-
-static int getDefaultMaxExtraBlack(double sqrtBoardArea) {
-  if(sqrtBoardArea <= 10.00001)
-    return 0;
-  if(sqrtBoardArea <= 14.00001)
-    return 1;
-  if(sqrtBoardArea <= 16.00001)
-    return 2;
-  if(sqrtBoardArea <= 17.00001)
-    return 3;
-  if(sqrtBoardArea <= 18.00001)
-    return 4;
-  return 5;
-}
-
-static ExtraBlackAndKomi chooseExtraBlackAndKomi(
-  float base, float stdev, double allowIntegerProb,
-  double handicapProb, int numExtraBlackFixed,
-  double bigStdevProb, float bigStdev, double sqrtBoardArea, Rand& rand
-) {
-  int extraBlack = 0;
-  float komi = base;
-
-  if(stdev > 0.0f)
-    komi += stdev * (float)nextGaussianTruncated(rand,3.0);
-  if(bigStdev > 0.0f && rand.nextBool(bigStdevProb))
-    komi += bigStdev * (float)nextGaussianTruncated(rand,3.0);
-
-  //Adjust for board size, so that we don't give the same massive komis on smaller boards
-  komi = base + (komi - base) * (float)(sqrtBoardArea / 19.0);
-
-  //Add handicap stones
-  int defaultMaxExtraBlack = getDefaultMaxExtraBlack(sqrtBoardArea);
-  if((numExtraBlackFixed > 0 || defaultMaxExtraBlack > 0) && rand.nextBool(handicapProb)) {
-    if(numExtraBlackFixed > 0)
-      extraBlack = numExtraBlackFixed;
-    else
-      extraBlack += 1+rand.nextUInt(defaultMaxExtraBlack);
-  }
-
-  bool allowInteger = rand.nextBool(allowIntegerProb);
-
-  //Discretize komi
-  float lower = floor(komi*2.0f) / 2.0f;
-  float upper = ceil(komi*2.0f) / 2.0f;
-
-  if(lower == upper)
-    komi = lower;
-  else {
-    assert(upper > lower);
-    if(rand.nextDouble() < (komi - lower) / (upper - lower))
-      komi = upper;
-    else
-      komi = lower;
-  }
-
-  assert(Rules::komiIsIntOrHalfInt(komi));
-  ExtraBlackAndKomi ret;
-  ret.extraBlack = extraBlack;
-  ret.komi = komi;
-  ret.komiBase = base;
-  //These two are set later
-  ret.makeGameFair = false;
-  ret.makeGameFairForEmptyBoard = false;
-  //This is recorded for application later, since other things may adjust the komi in between.
-  ret.allowInteger = allowInteger;
-  return ret;
-}
-
 //----------------------------------------------------------------------------------------------------------
 
 InitialPosition::InitialPosition()
@@ -413,9 +336,9 @@ void GameInitializer::createGame(
 
   if(noResultStdev > 1e-30) {
     double mean = params.noResultUtilityForWhite;
-    params.noResultUtilityForWhite = mean + noResultStdev * nextGaussianTruncated(rand, 3.0);
+    params.noResultUtilityForWhite = mean + noResultStdev * rand.nextGaussianTruncated(3.0);
     while(params.noResultUtilityForWhite < -1.0 || params.noResultUtilityForWhite > 1.0)
-      params.noResultUtilityForWhite = mean + noResultStdev * nextGaussianTruncated(rand, 3.0);
+      params.noResultUtilityForWhite = mean + noResultStdev * rand.nextGaussianTruncated(3.0);
   }
   if(drawRandRadius > 1e-30) {
     double mean = params.drawEquivalentWinsForWhite;
@@ -488,7 +411,7 @@ void GameInitializer::createGameSharedUnsynchronized(
 
     //No handicap when starting from an initial position.
     double thisHandicapProb = 0.0;
-    extraBlackAndKomi = chooseExtraBlackAndKomi(
+    extraBlackAndKomi = PlayUtils::chooseExtraBlackAndKomi(
       hist.rules.komi, komiStdev, komiAllowIntegerProb,
       thisHandicapProb, numExtraBlackFixed,
       komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
@@ -555,7 +478,7 @@ void GameInitializer::createGameSharedUnsynchronized(
 
     //No handicap when starting from a sampled position.
     double thisHandicapProb = 0.0;
-    extraBlackAndKomi = chooseExtraBlackAndKomi(
+    extraBlackAndKomi = PlayUtils::chooseExtraBlackAndKomi(
       komiMean, komiStdev, komiAllowIntegerProb,
       thisHandicapProb, numExtraBlackFixed,
       komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
@@ -575,7 +498,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     int ySize = allowedBSizes[ySizeIdx];
     board = Board(xSize,ySize);
 
-    extraBlackAndKomi = chooseExtraBlackAndKomi(
+    extraBlackAndKomi = PlayUtils::chooseExtraBlackAndKomi(
       komiMean, komiStdev, komiAllowIntegerProb,
       handicapProb, numExtraBlackFixed,
       komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
@@ -1047,78 +970,6 @@ static void recordTreePositions(
 }
 
 
-static Loc getGameInitializationMove(
-  Search* botB, Search* botW, Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf,
-  Rand& gameRand, double temperature
-) {
-  NNEvaluator* nnEval = (pla == P_BLACK ? botB : botW)->nnEvaluator;
-  MiscNNInputParams nnInputParams;
-  nnInputParams.drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
-  nnEval->evaluate(board,hist,pla,nnInputParams,buf,false,false);
-  std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
-
-  vector<Loc> locs;
-  vector<double> playSelectionValues;
-  int nnXLen = nnOutput->nnXLen;
-  int nnYLen = nnOutput->nnYLen;
-  assert(nnXLen >= board.x_size);
-  assert(nnYLen >= board.y_size);
-  assert(nnXLen > 0 && nnXLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
-  assert(nnYLen > 0 && nnYLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
-  int policySize = NNPos::getPolicySize(nnXLen,nnYLen);
-  for(int movePos = 0; movePos<policySize; movePos++) {
-    Loc moveLoc = NNPos::posToLoc(movePos,board.x_size,board.y_size,nnXLen,nnYLen);
-    double policyProb = nnOutput->policyProbs[movePos];
-    if(!hist.isLegal(board,moveLoc,pla) || policyProb <= 0)
-      continue;
-    locs.push_back(moveLoc);
-    playSelectionValues.push_back(pow(policyProb,1.0/temperature));
-  }
-
-  //In practice, this should never happen, but in theory, a very badly-behaved net that rounds
-  //all legal moves to zero could result in this. We still go ahead and fail, since this more likely some sort of bug.
-  if(playSelectionValues.size() <= 0)
-    throw StringError("getGameInitializationMove: playSelectionValues.size() <= 0");
-
-  //With a tiny probability, choose a uniformly random move instead of a policy move, to also
-  //add a bit more outlierish variety
-  uint32_t idxChosen;
-  if(gameRand.nextBool(0.0002))
-    idxChosen = gameRand.nextUInt(playSelectionValues.size());
-  else
-    idxChosen = gameRand.nextUInt(playSelectionValues.data(),playSelectionValues.size());
-  Loc loc = locs[idxChosen];
-  return loc;
-}
-
-//Try playing a bunch of pure policy moves instead of playing from the start to initialize the board
-//and add entropy
-static void initializeGameUsingPolicy(
-  Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
-  Rand& gameRand, bool doEndGameIfAllPassAlive,
-  double proportionOfBoardArea, double temperature
-) {
-  NNResultBuf buf;
-
-  //This gives us about 15 moves on average for 19x19.
-  int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size * proportionOfBoardArea));
-  assert(numInitialMovesToPlay >= 0);
-  for(int i = 0; i<numInitialMovesToPlay; i++) {
-    Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand, temperature);
-
-    //Make the move!
-    assert(hist.isLegal(board,loc,pla));
-    hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
-    pla = getOpp(pla);
-
-    //Rarely, playing the random moves out this way will end the game
-    if(doEndGameIfAllPassAlive)
-      hist.endGameIfAllPassAlive(board);
-    if(hist.isGameFinished)
-      break;
-  }
-}
-
 struct SearchLimitsThisMove {
   bool doAlterVisitsPlayouts;
   int64_t numAlterVisits;
@@ -1437,14 +1288,14 @@ FinishedGameData* Play::runGame(
     double newKomi = hist.rules.komi;
     //Now, randomize between the old and new komi, with extra noise
     double randKomi = gameRand.nextDouble(min(origKomi,newKomi),max(origKomi,newKomi));
-    randKomi += 0.75 * sqrt(board.x_size * board.y_size) * nextGaussianTruncated(gameRand,2.5);
+    randKomi += 0.75 * sqrt(board.x_size * board.y_size) * gameRand.nextGaussianTruncated(2.5);
     hist.setKomi(PlayUtils::roundAndClipKomi(randKomi, board, false));
   }
   //Vary komi more when things are completely random to set a better prior for how komi affects evals
   if(playSettings.fancyKomiVarying &&
      botB->nnEvaluator->isNeuralNetLess() &&
      (botW == NULL || botW->nnEvaluator->isNeuralNetLess())) {
-    hist.setKomi(PlayUtils::roundAndClipKomi(hist.rules.komi + 1.5 * sqrt(board.x_size * board.y_size) * nextGaussianTruncated(gameRand,2.5), board, false));
+    hist.setKomi(PlayUtils::roundAndClipKomi(hist.rules.komi + 1.5 * sqrt(board.x_size * board.y_size) * gameRand.nextGaussianTruncated(2.5), board, false));
   }
   //Apply allowInteger
   if(!extraBlackAndKomi.allowInteger && hist.rules.komi == (int)hist.rules.komi) {
@@ -1513,7 +1364,7 @@ FinishedGameData* Play::runGame(
     double proportionOfBoardArea = otherGameProps.isSgfPos ? playSettings.startPosesPolicyInitAreaProp : playSettings.policyInitAreaProp;
     if(proportionOfBoardArea > 0) {
       double temperature = 1.0;
-      initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
+      PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
       if(playSettings.compensateAfterPolicyInitProb > 0.0 && gameRand.nextBool(playSettings.compensateAfterPolicyInitProb)) {
         PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,logger,otherGameProps,gameRand);
       }
@@ -1525,7 +1376,7 @@ FinishedGameData* Play::runGame(
     //Play out to go a quite a bit later in the game.
     double proportionOfBoardArea = 0.25;
     double temperature = 2.0/3.0;
-    initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
+    PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
 
     if(!hist.isGameFinished) {
       //Even out the game

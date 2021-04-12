@@ -22,6 +22,12 @@ namespace PlayUtils {
   //Set board to empty and place fixed handicap stones, raising an exception if invalid
   void placeFixedHandicap(Board& board, int n);
 
+  ExtraBlackAndKomi chooseExtraBlackAndKomi(
+    float base, float stdev, double allowIntegerProb,
+    double handicapProb, int numExtraBlackFixed,
+    double bigStdevProb, float bigStdev, double sqrtBoardArea, Rand& rand
+  );
+
   ReportedSearchValues getWhiteScoreValues(
     Search* bot,
     const Board& board,
@@ -44,6 +50,16 @@ namespace PlayUtils {
     double temperature,
     bool allowPass,
     Loc banMove
+  );
+
+  Loc getGameInitializationMove(
+    Search* botB, Search* botW, Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf,
+    Rand& gameRand, double temperature
+  );
+  void initializeGameUsingPolicy(
+    Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
+    Rand& gameRand, bool doEndGameIfAllPassAlive,
+    double proportionOfBoardArea, double temperature
   );
 
   float roundAndClipKomi(double unrounded, const Board& board, bool looseClipping);

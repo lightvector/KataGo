@@ -108,6 +108,9 @@ class Rand
 
   //Returns a normally distributed double with mean 0 stdev 1
   double nextGaussian();
+  //Truncated refers to the probability distribution, not the sample
+  //So on falling outside the range, we redraw, rather than capping.
+  double nextGaussianTruncated(double bound);
   //Returns an exponentially distributed double with mean 1.
   double nextExponential();
   //Returns a logistically distributed double with mean 0 and scale 1 (cdf = 1/(1+exp(-x)))
@@ -278,6 +281,15 @@ inline double Rand::nextGaussian()
     hasGaussian = true;
     return v1 * multiplier;
   }
+}
+
+inline double Rand::nextGaussianTruncated(double bound)
+{
+  assert(bound >= 0.1);
+  double d = nextGaussian();
+  while(d < -bound || d > bound)
+    d = nextGaussian();
+  return d;
 }
 
 inline double Rand::nextExponential()

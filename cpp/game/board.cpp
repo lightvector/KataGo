@@ -2530,9 +2530,10 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
 
       bool histMarked = false;
       if(hist != NULL) {
-        for(int i = (int)hist->size()-3; i<hist->size(); i++) {
-          if(i >= 0 && (*hist)[i].loc == loc) {
-            out << i - (hist->size()-3) + 1;
+        size_t start = hist->size() >= 3 ? hist->size()-3 : 0;
+        for(size_t i = 0; start+i < hist->size(); i++) {
+          if((*hist)[start+i].loc == loc) {
+            out << (1+i);
             histMarked = true;
             break;
           }

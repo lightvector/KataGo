@@ -121,6 +121,8 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::viewstartposes(argc-1,&argv[1]);
   else if(subcommand == "demoplay")
     return MainCmds::demoplay(argc-1,&argv[1]);
+  else if(subcommand == "sampleinitializations")
+    return MainCmds::sampleinitializations(argc-1,&argv[1]);
   else if(subcommand == "printclockinfo")
     return MainCmds::printclockinfo(argc-1,&argv[1]);
   else if(subcommand == "sandbox")
