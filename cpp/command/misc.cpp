@@ -772,7 +772,8 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
 
     bool hashComments = false;
     bool hashParent = false;
-    sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, NULL, posHandler);
+    Rand iterRand;
+    sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, &iterRand, posHandler);
   };
 
   for(size_t i = 0; i<sgfFiles.size(); i++) {
