@@ -786,24 +786,24 @@ HASH: 0CD0013CEBC248C9F8780CDD1335CF50
 
 Root visits: 568
 Last search playouts: 300
-NN rows: 881
-NN batches: 881
+NN rows: 879
+NN batches: 879
 NN avg batch size: 1
 PlayoutDoublingAdvantage: -1.5
-PV: E3 C3 C11 C10 D11 E10 F11 E4 F10 E11 E12 F12
+PV: E3 C3 C11 L10 L11 L9 K11 L6 C10 D9
 Tree:
-: T  67.85c W  64.74c S   3.12c ( +8.7 L  +8.9) N     568  --  E3 C3 C11 C10 D11 E10 F11
+: T  67.85c W  64.73c S   3.12c ( +8.8 L  +8.9) N     568  --  E3 C3 C11 L10 L11 L9 K11
 ---Black(v)---
-E3  : T  66.48c W  63.59c S   2.89c ( +8.5 L  +8.7) LCB   68.68c P 52.09% WF 479.5 PSV     471 N     471  --  E3 C3 C11 C10 D11 E10 F11 E4
-C5  : T  75.63c W  71.39c S   4.25c ( +9.8 L  +9.9) LCB   81.28c P 23.72% WF  49.0 PSV      55 N      55  --  C5 C3 C10 C9 C11 D9 D11 F10
-C11 : T  73.11c W  69.11c S   4.00c ( +9.6 L +10.0) LCB   80.06c P  6.89% WF  18.8 PSV      20 N      20  --  C11 C10 D11 E10 E3 C3 F11
-C3  : T  72.89c W  68.31c S   4.58c (+10.2 L +10.4) LCB  143.00c P  2.42% WF   6.7 PSV       7 N       7  --  C3 E3 C5 B4 E4
+E3  : T  66.44c W  63.55c S   2.89c ( +8.5 L  +8.7) LCB   68.66c P 52.09% WF 478.7 PSV     470 N     470  --  E3 C3 C11 L10 L11 L9 K11 L6
+C5  : T  75.78c W  71.50c S   4.27c ( +9.9 L  +9.9) LCB   81.67c P 23.72% WF  48.9 PSV      54 N      55  --  C5 C3 C10 C9 C11 D9 D11 F10
+C11 : T  73.35c W  69.26c S   4.09c ( +9.7 L +10.1) LCB   80.60c P  6.89% WF  18.7 PSV      19 N      20  --  C11 C10 D11 E10 E3 C3 F11
+C3  : T  73.27c W  68.64c S   4.63c (+10.3 L +10.4) LCB  131.89c P  2.42% WF   7.6 PSV       6 N       8  --  C3 E3 C5 B4 E4 C2
 D11 : T  77.46c W  72.75c S   4.71c (+10.2 L +10.7) LCB  245.30c P  2.38% WF   3.7 PSV       4 N       4  --  D11 C11 E11 E10
-E4  : T  77.63c W  73.08c S   4.56c (+10.1 L +10.4) LCB  560.32c P  1.41% WF   2.8 PSV       2 N       3  --  E4 E3 C5
+E4  : T  76.77c W  72.25c S   4.53c (+10.0 L +10.4) LCB  492.38c P  1.41% WF   2.8 PSV       2 N       3  --  E4 E3 C5
 C10 : T  80.14c W  74.74c S   5.40c (+11.0 L +11.0) LCB  280.00c P  1.50% WF   1.8 PSV       2 N       2  --  C10 C11
 G10 : T  72.16c W  68.31c S   3.85c ( +9.3 L +10.0) LCB  280.00c P  0.60% WF   1.9 PSV       1 N       2  --  G10 D5
 D5  : T  87.17c W  80.76c S   6.41c (+11.8 L +12.2) LCB  280.00c P  1.38% WF   0.9 PSV       1 N       1  --  D5
-G11 : T  73.95c W  69.40c S   4.56c (+10.0 L +10.7) LCB  280.00c P  0.55% WF   1.0 PSV       1 N       1  --  G11
+G11 : T  77.78c W  72.88c S   4.91c (+10.4 L +11.4) LCB  280.00c P  0.55% WF   0.9 PSV       1 N       1  --  G11
 E10 : T  82.81c W  77.08c S   5.74c (+11.2 L +12.1) LCB  280.00c P  0.59% WF   0.9 PSV       0 N       1  --  E10
 Search next player PONDERING - an extra time, should preserve tree
 HASH: CC93EDCCBD025BE0EBA582FE4336E2FE
@@ -824,23 +824,23 @@ HASH: CC93EDCCBD025BE0EBA582FE4336E2FE
 
 
 Root visits: 600
-Last search playouts: 129
-NN rows: 1007
-NN batches: 1007
+Last search playouts: 130
+NN rows: 1008
+NN batches: 1008
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 1.5
-PV: C3 C11 C10 D11 E10 F11 E4 F10 E11 E12 F12 G12
+PV: C3 C11 L10 L11 L9 K11 C10 D11 E10
 Tree:
-: T  66.30c W  63.26c S   3.04c ( +8.5 L  +8.7) N     600  --  C3 C11 C10 D11 E10 F11 E4
+: T  66.54c W  63.49c S   3.05c ( +8.5 L  +8.7) N     600  --  C3 C11 L10 L11 L9 K11 C10
 ---White(^)---
-C3  : T  67.53c W  64.41c S   3.12c ( +8.6 L  +8.8) LCB   65.48c P 52.44% WF 472.8 PSV     465 N     465  --  C3 C11 C10 D11 E10 F11 E4 F10
-E4  : T  62.29c W  58.79c S   3.49c ( +9.1 L  +9.7) LCB   50.79c P 17.78% WF  59.2 PSV      61 N      63  --  E4 D5 F3 E2 C3 F2 G3 G2
-D5  : T  63.34c W  61.01c S   2.33c ( +7.8 L  +7.9) LCB   55.50c P 13.10% WF  48.7 PSV      51 N      51  --  D5 E4 C3 C11 C10 D11 E10 F11
-D2  : T  53.43c W  52.47c S   0.96c ( +6.6 L  +6.8) LCB   -0.54c P  4.57% WF   6.3 PSV       7 N       7  --  D2 C5 E4 D5 F3
-C5  : T  56.77c W  55.30c S   1.47c ( +7.0 L  +7.1) LCB    7.68c P  3.76% WF   6.4 PSV       7 N       7  --  C5 D2 C3 C11 D11 C10
-C2  : T  59.67c W  57.84c S   1.82c ( +7.4 L  +7.8) LCB -240.58c P  1.43% WF   3.8 PSV       3 N       4  --  C2 E4 C5
-L4  : T  61.01c W  59.64c S   1.37c ( +6.9 L  +6.8) LCB -280.00c P  0.50% WF   1.0 PSV       1 N       1  --  L4
-E2  : T  37.99c W  39.05c S  -1.06c ( +4.6 L  +5.0) LCB -280.00c P  0.91% WF   0.9 PSV       0 N       1  --  E2
+C3  : T  67.83c W  64.66c S   3.16c ( +8.6 L  +8.8) LCB   65.78c P 52.44% WF 485.3 PSV     477 N     477  --  C3 C11 L10 L11 L9 K11 C10 D11
+E4  : T  61.79c W  58.43c S   3.36c ( +9.0 L  +9.5) LCB   49.32c P 17.78% WF  53.1 PSV      56 N      57  --  E4 D5 F3 E2 C3 F2 G3 G2
+D5  : T  61.81c W  59.74c S   2.07c ( +7.6 L  +7.7) LCB   53.75c P 13.10% WF  38.4 PSV      41 N      41  --  D5 E4 C3 C11 C10 D11 E10 F11
+C5  : T  60.17c W  58.26c S   1.91c ( +7.4 L  +7.3) LCB   34.21c P  3.76% WF   9.4 PSV      10 N      10  --  C5 D2 C3 H4 L11
+D2  : T  57.21c W  55.73c S   1.48c ( +7.0 L  +7.2) LCB   26.33c P  4.57% WF   9.1 PSV       9 N      10  --  D2 C5 E4 D5 F3 E5
+E2  : T  60.78c W  58.55c S   2.23c ( +7.8 L  +8.1) LCB -280.00c P  0.91% WF   1.9 PSV       2 N       2  --  E2 E4
+C2  : T  41.97c W  42.64c S  -0.67c ( +5.1 L  +5.3) LCB -280.00c P  1.43% WF   0.9 PSV       1 N       1  --  C2
+L4  : T  61.02c W  59.64c S   1.38c ( +6.9 L  +6.8) LCB -280.00c P  0.50% WF   1.0 PSV       1 N       1  --  L4
 Search next player - should preserve tree
 HASH: 8A42E7A7CCEA1427957E25F726AE2715
    A B C D E F G H J K L M N
@@ -859,30 +859,146 @@ HASH: 8A42E7A7CCEA1427957E25F726AE2715
  1 . . . . . . . . . . . . .
 
 
-Root visits: 465
+Root visits: 477
 Last search playouts: 0
-NN rows: 1007
-NN batches: 1007
+NN rows: 1008
+NN batches: 1008
 NN avg batch size: 1
 PlayoutDoublingAdvantage: -1.5
-PV: C11 C10 D11 E10 F11 E4 F10 E11 E12 F12 G12
+PV: C11 L10 L11 L9 K11 C10 D11 E10
 Tree:
-: T  67.48c W  64.41c S   3.07c ( +8.6 L  +8.8) N     465  --  C11 C10 D11 E10 F11 E4 F10
+: T  67.75c W  64.66c S   3.09c ( +8.6 L  +8.8) N     477  --  C11 L10 L11 L9 K11 C10 D11
 ---Black(v)---
-C11 : T  65.35c W  62.59c S   2.76c ( +8.3 L  +8.4) LCB   68.40c P 23.25% WF 239.7 PSV     386 N     233  --  C11 C10 D11 E10 F11 E4 F10 E11
-E4  : T  67.80c W  64.59c S   3.21c ( +8.7 L  +9.0) LCB   70.83c P 32.29% WF 158.0 PSV     160 N     160  --  E4 D6 H4 L11 L10 K11 J10 J11
-D5  : T  75.31c W  71.41c S   3.89c ( +9.3 L  +9.2) LCB   85.52c P 13.96% WF  24.6 PSV      27 N      27  --  D5 E2 F3 F2 G3 L10 L11 L9
-F4  : T  73.43c W  69.96c S   3.47c ( +8.9 L  +8.9) LCB   87.21c P  3.49% WF   7.6 PSV       8 N       8  --  F4 D5 C11 C10 D11 E10
-G11 : T  70.53c W  67.08c S   3.45c ( +8.9 L  +9.1) LCB  116.04c P  1.90% WF   5.8 PSV       6 N       6  --  G11 L3 L4 K3
-H4  : T  74.57c W  70.75c S   3.82c ( +9.2 L  +9.3) LCB  139.31c P  2.53% WF   5.6 PSV       5 N       6  --  H4 E4 C11 C10
-F11 : T  73.69c W  69.61c S   4.08c ( +9.6 L  +9.5) LCB  152.51c P  2.26% WF   4.7 PSV       5 N       5  --  F11 L11 L10 K11
-G10 : T  72.76c W  68.91c S   3.86c ( +9.3 L  +9.5) LCB  143.84c P  2.19% WF   4.8 PSV       5 N       5  --  G10 E4 C11
-D11 : T  75.54c W  71.34c S   4.20c ( +9.7 L  +9.7) LCB  160.60c P  2.48% WF   3.8 PSV       4 N       4  --  D11 C11 E11
-C10 : T  78.06c W  73.48c S   4.58c (+10.0 L +10.3) LCB  793.70c P  1.96% WF   2.8 PSV       3 N       3  --  C10 C11 C9
-E5  : T  77.16c W  72.70c S   4.46c ( +9.9 L  +9.6) LCB  280.00c P  1.62% WF   1.9 PSV       2 N       2  --  E5 E2
-H11 : T  76.30c W  71.58c S   4.72c (+10.1 L +10.0) LCB  280.00c P  1.14% WF   1.9 PSV       2 N       2  --  H11 L3
-H3  : T  72.20c W  68.47c S   3.73c ( +9.1 L  +9.6) LCB  280.00c P  1.11% WF   1.9 PSV       2 N       2  --  H3 G11
-G3  : T  79.06c W  73.92c S   5.14c (+10.5 L +10.3) LCB  280.00c P  1.02% WF   0.9 PSV       1 N       1  --  G3
+C11 : T  65.52c W  62.76c S   2.76c ( +8.4 L  +8.4) LCB   68.61c P 23.25% WF 255.8 PSV     415 N     248  --  C11 L10 L11 L9 K11 C10 D11 E10
+E4  : T  68.68c W  65.35c S   3.32c ( +8.8 L  +9.1) LCB   71.61c P 32.29% WF 143.8 PSV     147 N     147  --  E4 D6 H4 L11 L10 K11 J10 J11
+D5  : T  75.15c W  71.29c S   3.85c ( +9.3 L  +9.2) LCB   84.39c P 13.96% WF  26.5 PSV      29 N      29  --  D5 E2 F3 F2 G3 L10 L11 L9
+D11 : T  69.48c W  66.21c S   3.27c ( +8.8 L  +9.0) LCB  100.40c P  2.48% WF   9.8 PSV       9 N      10  --  D11 C11 E11 E10 C12
+F4  : T  72.01c W  68.71c S   3.30c ( +8.8 L  +8.8) LCB   85.78c P  3.49% WF   8.6 PSV       9 N       9  --  F4 D5 C11 C10 D11 E10
+H4  : T  73.52c W  69.90c S   3.62c ( +9.0 L  +9.2) LCB  123.40c P  2.53% WF   5.7 PSV       6 N       6  --  H4 E4 C11 C10
+G10 : T  71.92c W  68.30c S   3.62c ( +9.1 L  +9.3) LCB  113.57c P  2.19% WF   5.8 PSV       6 N       6  --  G10 L3 L4 K3
+G11 : T  71.21c W  67.56c S   3.65c ( +9.2 L  +9.3) LCB  104.47c P  1.90% WF   4.8 PSV       5 N       5  --  G11 L3 L4 K3
+F11 : T  75.07c W  70.76c S   4.31c ( +9.8 L  +9.7) LCB  241.99c P  2.26% WF   3.8 PSV       4 N       4  --  F11 L11 L10
+H3  : T  71.43c W  68.13c S   3.31c ( +8.7 L  +9.0) LCB  235.44c P  1.11% WF   3.9 PSV       3 N       4  --  H3 E4 C11
+C10 : T  78.04c W  73.48c S   4.56c (+10.0 L +10.3) LCB  793.68c P  1.96% WF   2.8 PSV       3 N       3  --  C10 C11 C9
+E5  : T  77.14c W  72.70c S   4.43c ( +9.9 L  +9.6) LCB  280.00c P  1.62% WF   1.9 PSV       2 N       2  --  E5 E2
+H11 : T  74.52c W  70.31c S   4.21c ( +9.6 L  +9.6) LCB  280.00c P  1.14% WF   1.9 PSV       2 N       2  --  H11 L3
+G3  : T  85.64c W  79.37c S   6.27c (+11.6 L +11.7) LCB  280.00c P  1.02% WF   0.9 PSV       1 N       1  --  G3
+Basic search with PDA 1.5, no player
+HASH: 7483FCA004B18DAF3E71A20DFF4C1578
+   A B C D E F G H J K L M N
+13 . . . . . . . . . . . . .
+12 . . . . . . . . . . . . .
+11 . . . . . . . . . . . . .
+10 . . . . . . . . . X . . .
+ 9 . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . .
+ 4 . . O . . . . . . X . . .
+ 3 . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+
+Root visits: 200
+Last search playouts: 200
+NN rows: 193
+NN batches: 193
+NN avg batch size: 1
+PlayoutDoublingAdvantage: 1.5
+PV: D10 D4 D3 E3 C3 C11 C10 D11 E10 F11 E11
+Tree:
+: T  67.23c W  64.90c S   2.33c ( +8.8 L  +8.9) N     200  --  D10 D4 D3 E3 C3 C11 C10
+---White(^)---
+D10 : T  67.56c W  65.14c S   2.42c ( +8.8 L  +9.1) LCB   63.74c P 47.59% WF 118.5 PSV     118 N     118  --  D10 D4 D3 E3 C3 C11 C10 D11
+D11 : T  65.73c W  63.63c S   2.11c ( +8.5 L  +8.6) LCB   57.38c P 17.79% WF  32.4 PSV      33 N      33  --  D11 D4 D3 E3 C3 E4 D6
+K11 : T  71.19c W  68.40c S   2.79c ( +9.2 L  +9.1) LCB   62.79c P  2.51% WF  16.5 PSV      16 N      16  --  K11 L11 J11 J10 G11
+C10 : T  63.86c W  62.06c S   1.80c ( +8.2 L  +8.3) LCB   32.62c P  7.08% WF   9.7 PSV      10 N      10  --  C10 D10 D11 E11 C11 D4 D3
+L10 : T  67.95c W  65.63c S   2.32c ( +8.8 L  +8.7) LCB   40.41c P  3.28% WF   8.0 PSV       8 N       8  --  L10 L11 L9 M11 D10
+K3  : T  68.40c W  65.87c S   2.53c ( +8.9 L  +9.0) LCB   28.02c P  1.91% WF   5.0 PSV       5 N       5  --  K3 L3 J3 J4
+L3  : T  59.08c W  58.01c S   1.07c ( +7.6 L  +7.2) LCB -689.15c P  2.95% WF   2.8 PSV       3 N       3  --  L3 D10 L4
+L11 : T  62.19c W  60.99c S   1.19c ( +7.7 L  +7.4) LCB -575.02c P  1.60% WF   2.9 PSV       2 N       3  --  L11 D10 L10
+L4  : T  65.52c W  63.68c S   1.84c ( +8.3 L  +8.2) LCB -355.90c P  1.57% WF   3.0 PSV       2 N       3  --  L4 L3 L5
+Search next player PONDERING - should keep prior tree and PDA
+HASH: 2E53497E7A09903059733F4752E11E5E
+   A B C D E F G H J K L M N
+13 . . . . . . . . . . . . .
+12 . . . . . . . . . . . . .
+11 . . . . . . . . . . . . .
+10 . . . O . . . . . X . . .
+ 9 . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . .
+ 4 . . O . . . . . . X . . .
+ 3 . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+
+Root visits: 418
+Last search playouts: 300
+NN rows: 485
+NN batches: 485
+NN avg batch size: 1
+PlayoutDoublingAdvantage: -1.5
+PV: D4 D3 E3 C3 C11 C10 D11 E10 F12 F11 G12 E12
+Tree:
+: T  68.15c W  64.96c S   3.19c ( +8.9 L  +9.1) N     418  --  D4 D3 E3 C3 C11 C10 D11
+---Black(v)---
+D4  : T  66.05c W  63.26c S   2.79c ( +8.5 L  +8.7) LCB   69.11c P 32.64% WF 281.5 PSV     274 N     274  --  D4 D3 E3 C3 C11 C10 D11 E10
+E3  : T  71.48c W  67.68c S   3.80c ( +9.5 L  +9.7) LCB   77.40c P 19.04% WF  52.2 PSV      54 N      55  --  E3 L3 K3 L4 L5 M5 M6 L6
+E4  : T  73.02c W  68.64c S   4.37c (+10.1 L +10.3) LCB   82.67c P 11.25% WF  26.3 PSV      26 N      28  --  E4 L3 L4 K3 J4 H2
+C11 : T  71.75c W  67.96c S   3.79c ( +9.5 L  +9.8) LCB   82.33c P  8.33% WF  21.9 PSV      22 N      23  --  C11 C10 D11 E10 F11 E11 E12 D12
+D3  : T  72.06c W  68.19c S   3.87c ( +9.5 L  +9.8) LCB   81.22c P  6.83% WF  17.2 PSV      18 N      18  --  D3 D4 E3 C3 E4 L3 K3
+D11 : T  74.88c W  70.94c S   3.93c ( +9.5 L +10.1) LCB  305.16c P  1.98% WF   2.8 PSV       3 N       3  --  D11 C11 E11
+C10 : T  75.69c W  71.38c S   4.31c ( +9.9 L +10.3) LCB  686.58c P  1.81% WF   2.8 PSV       3 N       3  --  C10 C11 C9
+F3  : T  76.30c W  71.59c S   4.71c (+10.3 L +10.2) LCB  280.00c P  1.51% WF   1.9 PSV       2 N       2  --  F3 L3
+G4  : T  77.01c W  72.48c S   4.53c (+10.0 L +10.8) LCB  280.00c P  1.49% WF   1.9 PSV       2 N       2  --  G4 E4
+F4  : T  76.95c W  72.32c S   4.63c (+10.2 L +10.0) LCB  280.00c P  1.20% WF   1.9 PSV       2 N       2  --  F4 L3
+F11 : T  72.79c W  68.69c S   4.11c ( +9.7 L +10.2) LCB  280.00c P  0.76% WF   1.9 PSV       1 N       2  --  F11 E4
+G10 : T  76.39c W  71.62c S   4.77c (+10.3 L +11.1) LCB  280.00c P  1.04% WF   1.0 PSV       1 N       1  --  G10
+H4  : T  76.46c W  71.26c S   5.20c (+10.7 L +11.2) LCB  280.00c P  0.81% WF   1.0 PSV       1 N       1  --  H4
+E10 : T  78.72c W  73.84c S   4.89c (+10.4 L +10.7) LCB  280.00c P  0.74% WF   0.9 PSV       1 N       1  --  E10
+G11 : T  80.13c W  74.81c S   5.32c (+10.8 L +11.7) LCB  280.00c P  0.74% WF   0.9 PSV       1 N       1  --  G11
+H3  : T  75.81c W  70.79c S   5.02c (+10.5 L +11.3) LCB  280.00c P  0.62% WF   1.0 PSV       1 N       1  --  H3
+Search next player - should keep tree from ponder
+HASH: DCBD39921E5497E7CAAE01D5EB47D673
+   A B C D E F G H J K L M N
+13 . . . . . . . . . . . . .
+12 . . . . . . . . . . . . .
+11 . . . . . . . . . . . . .
+10 . . . O . . . . . X . . .
+ 9 . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . .
+ 4 . . O X . . . . . X . . .
+ 3 . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+
+Root visits: 400
+Last search playouts: 126
+NN rows: 610
+NN batches: 610
+NN avg batch size: 1
+PlayoutDoublingAdvantage: 1.5
+PV: D3 E3 C3 C11 C10 D11 E10 F12 H3 D5 E2
+Tree:
+: T  66.30c W  63.24c S   3.06c ( +8.5 L  +8.7) N     400  --  D3 E3 C3 C11 C10 D11 E10
+---White(^)---
+D3  : T  66.93c W  63.74c S   3.19c ( +8.7 L  +8.9) LCB   63.54c P 50.58% WF 255.7 PSV     254 N     254  --  D3 E3 C3 C11 C10 D11 E10 F12
+C3  : T  67.55c W  64.35c S   3.19c ( +8.7 L  +8.7) LCB   63.24c P 18.41% WF 112.4 PSV     107 N     111  --  C3 D5 D3 F4 L4 L3 L5 M3
+D5  : T  54.39c W  53.08c S   1.31c ( +6.8 L  +7.2) LCB   37.20c P 13.50% WF  15.0 PSV      17 N      17  --  D5 C3 C5 D3 F5 G4 L3
+C5  : T  58.20c W  56.50c S   1.70c ( +7.2 L  +7.4) LCB   40.16c P  7.29% WF  11.1 PSV      12 N      12  --  C5 D3 D5 F4 L3 L4 K3
+L10 : T  61.51c W  59.50c S   2.01c ( +7.5 L  +7.5) LCB -367.71c P  1.08% WF   2.9 PSV       2 N       3  --  L10 L11 L9
+K11 : T  55.44c W  54.67c S   0.77c ( +6.4 L  +5.9) LCB -280.00c P  1.14% WF   0.9 PSV       1 N       1  --  K11
+L4  : T  54.37c W  53.74c S   0.63c ( +6.2 L  +5.1) LCB -280.00c P  0.71% WF   0.9 PSV       0 N       1  --  L4
 Basic search with PDA 1.5, no player
 HASH: 7483FCA004B18DAF3E71A20DFF4C1578
    A B C D E F G H J K L M N
@@ -907,22 +1023,21 @@ NN rows: 196
 NN batches: 196
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 1.5
-PV: D10 D4 D3 E3 C3 E4 D6 H4 G11 C8
+PV: D10 D4 D3 E3 C3 E4 D6 C11 C10 D11 E11 E12
 Tree:
-: T  66.80c W  64.56c S   2.24c ( +8.7 L  +8.8) N     200  --  D10 D4 D3 E3 C3 E4 D6
+: T  68.09c W  65.75c S   2.34c ( +8.9 L  +9.1) N     200  --  D10 D4 D3 E3 C3 E4 D6
 ---White(^)---
-D10 : T  67.51c W  65.11c S   2.40c ( +8.8 L  +9.1) LCB   63.25c P 39.52% WF 104.9 PSV     104 N     104  --  D10 D4 D3 E3 C3 E4 D6 H4
-D11 : T  66.12c W  64.04c S   2.08c ( +8.5 L  +8.6) LCB   58.93c P 20.40% WF  43.6 PSV      43 N      44  --  D11 D4 D3 E3 C3 D10 C10
-C10 : T  63.43c W  61.72c S   1.71c ( +8.1 L  +8.3) LCB   40.00c P  5.91% WF   7.8 PSV       8 N       8  --  C10 D10 D11 E11 C11
-L11 : T  66.97c W  64.95c S   2.02c ( +8.5 L  +8.1) LCB   45.14c P  3.61% WF   8.0 PSV       8 N       8  --  L11 D10 K11 J10
-L3  : T  66.12c W  64.04c S   2.08c ( +8.5 L  +8.4) LCB   40.06c P  3.64% WF   8.9 PSV       7 N       9  --  L3 D10 L4
-K11 : T  68.80c W  66.30c S   2.50c ( +8.9 L  +9.0) LCB   40.52c P  2.26% WF   7.1 PSV       7 N       7  --  K11 L11 J11 L10 D10
-L10 : T  66.87c W  64.50c S   2.36c ( +8.8 L  +8.9) LCB   30.27c P  2.89% WF   7.0 PSV       6 N       7  --  L10 L11 L9 M11 D10 D4
-L4  : T  67.95c W  65.47c S   2.47c ( +8.9 L  +8.9) LCB   46.07c P  2.17% WF   6.0 PSV       6 N       6  --  L4 L3 L5 K3
-K3  : T  64.31c W  62.68c S   1.63c ( +8.1 L  +8.1) LCB -184.18c P  2.29% WF   2.9 PSV       3 N       3  --  K3 L3 J3
-E4  : T  51.77c W  52.21c S  -0.44c ( +6.2 L  +6.2) LCB -280.00c P  2.10% WF   0.9 PSV       1 N       1  --  E4
-C11 : T  52.10c W  52.56c S  -0.46c ( +6.1 L  +6.5) LCB -280.00c P  1.17% WF   0.9 PSV       0 N       1  --  C11
-E10 : T  56.23c W  56.03c S   0.19c ( +6.7 L  +7.1) LCB -280.00c P  1.07% WF   0.9 PSV       0 N       1  --  E10
+D10 : T  68.99c W  66.48c S   2.51c ( +9.1 L  +9.3) LCB   65.34c P 44.22% WF 122.2 PSV     121 N     121  --  D10 D4 D3 E3 C3 E4 D6 C11
+D11 : T  65.74c W  63.82c S   1.92c ( +8.5 L  +8.6) LCB   52.89c P 12.97% WF  20.5 PSV      21 N      21  --  D11 D4 D3 E3 C3 D10
+K3  : T  69.09c W  66.53c S   2.56c ( +9.1 L  +9.1) LCB   56.08c P  4.45% WF  13.1 PSV      12 N      13  --  K3 L3 J3 J4 H3 D4
+C10 : T  64.79c W  63.03c S   1.76c ( +8.4 L  +8.5) LCB   44.42c P  8.17% WF  11.6 PSV      12 N      12  --  C10 D10 D11 E11 C11 D4
+L4  : T  67.69c W  65.27c S   2.42c ( +9.0 L  +9.1) LCB   47.89c P  4.57% WF   8.9 PSV       9 N       9  --  L4 L3 L5 M3 D10 D4
+L11 : T  67.47c W  65.52c S   1.95c ( +8.6 L  +8.2) LCB   38.72c P  3.13% WF   6.9 PSV       6 N       7  --  L11 D4 D3
+L10 : T  68.60c W  66.03c S   2.57c ( +9.2 L  +9.1) LCB   22.00c P  2.58% WF   6.0 PSV       6 N       6  --  L10 L11 L9 K11 D10
+L3  : T  66.42c W  64.67c S   1.75c ( +8.4 L  +8.2) LCB  -11.78c P  2.15% WF   4.9 PSV       3 N       5  --  L3 D10 L4
+K11 : T  63.70c W  62.29c S   1.42c ( +8.0 L  +8.0) LCB  -79.18c P  2.44% WF   2.9 PSV       3 N       3  --  K11 L11 J11
+J10 : T  63.96c W  62.71c S   1.25c ( +7.9 L  +7.4) LCB -280.00c P  1.13% WF   1.0 PSV       1 N       1  --  J10
+C11 : T  52.41c W  52.98c S  -0.57c ( +6.2 L  +6.4) LCB -280.00c P  1.26% WF   0.9 PSV       0 N       1  --  C11
 Search next player PONDERING - should keep prior tree and PDA
 HASH: 2E53497E7A09903059733F4752E11E5E
    A B C D E F G H J K L M N
@@ -941,32 +1056,35 @@ HASH: 2E53497E7A09903059733F4752E11E5E
  1 . . . . . . . . . . . . .
 
 
-Root visits: 404
+Root visits: 421
 Last search playouts: 300
-NN rows: 490
-NN batches: 490
+NN rows: 489
+NN batches: 489
 NN avg batch size: 1
 PlayoutDoublingAdvantage: -1.5
-PV: D4 D3 E3 C3 C11 C10 D11 E10 E11 F10 F11 G10 E4
+PV: D4 D3 E3 C3 C11 C10 D11 E10 F11 E11 E12 D12 C12 F12 D13
 Tree:
-: T  68.65c W  65.37c S   3.28c ( +8.9 L  +9.2) N     404  --  D4 D3 E3 C3 C11 C10 D11
+: T  68.74c W  65.64c S   3.10c ( +8.9 L  +9.1) N     421  --  D4 D3 E3 C3 C11 C10 D11
 ---Black(v)---
-D4  : T  66.77c W  63.90c S   2.87c ( +8.6 L  +8.8) LCB   69.89c P 30.01% WF 225.3 PSV     220 N     220  --  D4 D3 E3 C3 C11 C10 D11 E10
-E3  : T  68.76c W  65.34c S   3.42c ( +9.1 L  +9.3) LCB   73.33c P 19.25% WF  87.2 PSV      86 N      88  --  E3 L3 D5 C5 D6 K3 C6 D3
-D3  : T  70.69c W  67.13c S   3.56c ( +9.2 L  +9.5) LCB   76.17c P 10.60% WF  34.9 PSV      34 N      36  --  D3 D4 E3 C3 H4 F4 F3 G4
-E4  : T  73.12c W  68.73c S   4.39c (+10.0 L +10.3) LCB   82.62c P 11.44% WF  26.5 PSV      27 N      28  --  E4 L3 K3 L4 K5 L5
-C11 : T  77.91c W  72.92c S   4.99c (+10.5 L +10.9) LCB   94.68c P  6.11% WF   8.3 PSV       9 N       9  --  C11 C10 D11 E10 F11 E11 E12
-D11 : T  73.42c W  69.63c S   3.78c ( +9.4 L  +9.8) LCB  108.18c P  2.84% WF   6.7 PSV       6 N       7  --  D11 C11 E11 C12
-G10 : T  76.11c W  71.67c S   4.44c ( +9.9 L +10.6) LCB  215.19c P  1.85% WF   2.8 PSV       3 N       3  --  G10 E4 C11
-G11 : T  76.18c W  71.47c S   4.71c (+10.2 L +10.8) LCB  334.54c P  1.48% WF   2.8 PSV       2 N       3  --  G11 E4 C11
-C10 : T  77.33c W  72.63c S   4.70c (+10.3 L +10.6) LCB  280.00c P  1.41% WF   1.9 PSV       2 N       2  --  C10 C11
-F11 : T  80.08c W  75.01c S   5.08c (+10.7 L +10.4) LCB  280.00c P  1.13% WF   1.9 PSV       1 N       2  --  F11 L11
-G4  : T  78.85c W  73.55c S   5.30c (+10.8 L +11.5) LCB  280.00c P  1.11% WF   0.9 PSV       1 N       1  --  G4
-F3  : T  76.44c W  70.91c S   5.53c (+11.0 L +11.5) LCB  280.00c P  0.92% WF   1.0 PSV       1 N       1  --  F3
-F4  : T  73.30c W  68.56c S   4.74c (+10.3 L +10.6) LCB  280.00c P  0.82% WF   1.0 PSV       1 N       1  --  F4
-E10 : T  78.75c W  73.84c S   4.91c (+10.4 L +10.7) LCB  280.00c P  0.78% WF   0.9 PSV       1 N       1  --  E10
-H4  : T  77.92c W  72.07c S   5.85c (+11.2 L +11.8) LCB  280.00c P  0.69% WF   0.9 PSV       1 N       1  --  H4
-Search next player - should keep tree from ponder
+D4  : T  66.37c W  63.77c S   2.60c ( +8.5 L  +8.6) LCB   69.71c P 26.15% WF 252.6 PSV     245 N     245  --  D4 D3 E3 C3 C11 C10 D11 E10
+E3  : T  70.53c W  66.90c S   3.63c ( +9.5 L  +9.6) LCB   76.97c P 16.46% WF  56.1 PSV      58 N      58  --  E3 L3 D5 C5 D6 K3 C6
+D3  : T  71.13c W  67.64c S   3.49c ( +9.3 L  +9.6) LCB   75.86c P  9.93% WF  30.8 PSV      32 N      32  --  D3 D4 E3 C3 E4 L3 K3
+C11 : T  72.18c W  68.46c S   3.71c ( +9.5 L +10.0) LCB   79.49c P 10.58% WF  28.6 PSV      29 N      30  --  C11 C10 D11 E10 F11 E11 E12 F12
+E4  : T  73.70c W  69.36c S   4.34c (+10.2 L +10.3) LCB   84.00c P 11.27% WF  25.3 PSV      26 N      27  --  E4 L3 L4 K3 J4 J3
+D11 : T  74.71c W  70.71c S   4.00c ( +9.7 L +10.3) LCB  139.81c P  2.74% WF   4.7 PSV       5 N       5  --  D11 C11 E11 E10 G11
+G10 : T  76.09c W  71.57c S   4.52c (+10.2 L +10.6) LCB  194.15c P  1.95% WF   3.8 PSV       3 N       4  --  G10 E4 H3 L11
+G11 : T  74.81c W  70.55c S   4.26c ( +9.9 L +10.6) LCB  682.15c P  1.63% WF   2.9 PSV       3 N       3  --  G11 E4 C11
+G4  : T  73.02c W  69.24c S   3.78c ( +9.5 L +10.3) LCB  224.21c P  1.53% WF   2.9 PSV       3 N       3  --  G4 E4 C11
+C10 : T  76.61c W  72.53c S   4.08c ( +9.9 L +10.1) LCB  280.00c P  1.45% WF   1.9 PSV       2 N       2  --  C10 C11
+F11 : T  79.90c W  75.01c S   4.89c (+10.7 L +10.4) LCB  280.00c P  1.32% WF   1.9 PSV       1 N       2  --  F11 L11
+F3  : T  78.40c W  73.42c S   4.98c (+10.7 L +10.6) LCB  280.00c P  1.10% WF   1.9 PSV       1 N       2  --  F3 L3
+F4  : T  77.59c W  72.84c S   4.75c (+10.5 L +10.2) LCB  280.00c P  0.99% WF   1.9 PSV       1 N       2  --  F4 L3
+H4  : T  76.29c W  71.26c S   5.03c (+10.7 L +11.2) LCB  280.00c P  1.04% WF   1.0 PSV       1 N       1  --  H4
+H3  : T  77.02c W  71.44c S   5.58c (+11.1 L +11.9) LCB  280.00c P  0.90% WF   1.0 PSV       1 N       1  --  H3
+E10 : T  83.31c W  77.98c S   5.33c (+11.0 L +11.8) LCB  280.00c P  0.86% WF   0.9 PSV       1 N       1  --  E10
+H10 : T  76.92c W  71.96c S   4.96c (+10.6 L +11.6) LCB  280.00c P  0.66% WF   1.0 PSV       1 N       1  --  H10
+H11 : T  76.95c W  71.57c S   5.38c (+11.0 L +11.6) LCB  280.00c P  0.64% WF   1.0 PSV       1 N       1  --  H11
+Search next player PONDERING an extra time - should keep prior tree and PDA
 HASH: DCBD39921E5497E7CAAE01D5EB47D673
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
@@ -984,23 +1102,65 @@ HASH: DCBD39921E5497E7CAAE01D5EB47D673
  1 . . . . . . . . . . . . .
 
 
-Root visits: 400
-Last search playouts: 180
-NN rows: 666
-NN batches: 666
+Root visits: 545
+Last search playouts: 300
+NN rows: 784
+NN batches: 784
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 1.5
-PV: D3 E3 C3 C11 C10 D11 E10 F12 F11 G12 H3
+PV: D3 E3 C3 C11 C10 D11 E10 F11 E11 E12 D12 C12 F12 D13 J4 J3
 Tree:
-: T  66.48c W  63.44c S   3.04c ( +8.5 L  +8.7) N     400  --  D3 E3 C3 C11 C10 D11 E10
+: T  66.26c W  63.24c S   3.02c ( +8.5 L  +8.6) N     545  --  D3 E3 C3 C11 C10 D11 E10
 ---White(^)---
-D3  : T  67.52c W  64.28c S   3.24c ( +8.7 L  +9.0) LCB   64.26c P 50.08% WF 283.7 PSV     280 N     280  --  D3 E3 C3 C11 C10 D11 E10 F12
-C3  : T  65.82c W  62.97c S   2.85c ( +8.4 L  +8.4) LCB   61.33c P 23.52% WF  88.6 PSV      90 N      90  --  C3 D5 D3 F4 L10 L11 L9 M11
-D5  : T  56.33c W  54.82c S   1.51c ( +7.1 L  +7.4) LCB   33.46c P  8.99% WF  11.8 PSV      13 N      13  --  D5 C3 C5 D3 F5 G4 L3
-C5  : T  57.62c W  55.94c S   1.68c ( +7.2 L  +7.5) LCB   37.21c P  7.31% WF  10.1 PSV      11 N      11  --  C5 D3 D5 F4 L3 K3 L4
-L4  : T  63.09c W  61.02c S   2.08c ( +7.6 L  +7.7) LCB -280.00c P  0.80% WF   2.0 PSV       2 N       2  --  L4 L3
-K3  : T  57.22c W  56.06c S   1.16c ( +6.8 L  +6.5) LCB -280.00c P  1.23% WF   1.9 PSV       1 N       2  --  K3 L3
-L10 : T  57.06c W  56.24c S   0.83c ( +6.4 L  +5.7) LCB -280.00c P  0.77% WF   1.0 PSV       1 N       1  --  L10
+D3  : T  66.95c W  63.81c S   3.14c ( +8.6 L  +8.8) LCB   64.26c P 59.84% WF 416.3 PSV     413 N     413  --  D3 E3 C3 C11 C10 D11 E10 F11
+C3  : T  67.01c W  63.95c S   3.07c ( +8.5 L  +8.5) LCB   62.68c P 12.31% WF  87.3 PSV      86 N      87  --  C3 D5 D3 F4 L4 L3 L5 M3
+D5  : T  55.40c W  53.82c S   1.59c ( +7.1 L  +7.4) LCB   41.00c P 11.62% WF  17.7 PSV      20 N      20  --  D5 C3 C5 D3 F5 G4 F4 F3
+C5  : T  58.83c W  57.06c S   1.77c ( +7.2 L  +7.4) LCB   31.77c P  4.49% WF  10.2 PSV      10 N      11  --  C5 D3 D5 F4 L3 K3 L4 L5
+K3  : T  59.50c W  57.79c S   1.71c ( +7.2 L  +7.0) LCB -839.06c P  0.96% WF   2.9 PSV       2 N       3  --  K3 L3 J3
+L10 : T  59.83c W  57.91c S   1.92c ( +7.4 L  +7.2) LCB -361.33c P  0.96% WF   2.9 PSV       2 N       3  --  L10 L11 L9
+L4  : T  54.56c W  53.41c S   1.15c ( +6.7 L  +6.2) LCB -280.00c P  1.49% WF   1.9 PSV       2 N       2  --  L4 L3
+K11 : T  63.16c W  60.72c S   2.45c ( +7.9 L  +7.8) LCB -280.00c P  0.78% WF   2.0 PSV       2 N       2  --  K11 L11
+L11 : T  55.17c W  53.95c S   1.23c ( +6.8 L  +6.5) LCB -280.00c P  0.78% WF   1.9 PSV       1 N       2  --  L11 C3
+L3  : T  59.44c W  57.91c S   1.52c ( +7.0 L  +5.7) LCB -280.00c P  0.69% WF   1.0 PSV       1 N       1  --  L3
+Search next player - now should lose the tree and PDA, because the player it is for is different
+HASH: 0CD0013CEBC248C9F8780CDD1335CF50
+   A B C D E F G H J K L M N
+13 . . . . . . . . . . . . .
+12 . . . . . . . . . . . . .
+11 . . . . . . . . . . . . .
+10 . . . O . . . . . X . . .
+ 9 . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . .
+ 4 . . O X . . . . . X . . .
+ 3 . . . O . . . . . . . . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+
+Root visits: 200
+Last search playouts: 200
+NN rows: 977
+NN batches: 977
+NN avg batch size: 1
+PlayoutDoublingAdvantage: 1.5
+PV: E3 C3 E4 D6 C8 D8 D9 C9 E9
+Tree:
+: T -61.61c W -58.71c S  -2.90c ( -8.4 L  -8.7) N     200  --  E3 C3 E4 D6 C8 D8 D9
+---Black(v)---
+E3  : T -64.10c W -60.78c S  -3.32c ( -8.8 L  -9.1) LCB  -59.97c P 34.92% WF 127.5 PSV     141 N     124  --  E3 C3 E4 D6 C8 D8 D9 C9
+C5  : T -58.53c W -56.14c S  -2.39c ( -7.9 L  -8.3) LCB  -52.18c P 29.14% WF  42.0 PSV      44 N      44  --  C5 C3 E4 F3 F11 F4
+C3  : T -60.22c W -57.27c S  -2.95c ( -8.5 L  -8.7) LCB  -21.81c P  4.34% WF  12.7 PSV       7 N      13  --  C3 E3 C5 B4 D11
+C11 : T -57.74c W -55.86c S  -1.88c ( -7.4 L  -7.5) LCB  -15.48c P  3.65% WF   4.8 PSV       5 N       5  --  C11 C10 D11 E10 E3
+D5  : T -44.31c W -44.06c S  -0.25c ( -5.9 L  -6.3) LCB  711.37c P  6.28% WF   2.7 PSV       3 N       3  --  D5 E3 C5
+D11 : T -53.20c W -52.26c S  -0.94c ( -6.6 L  -6.6) LCB  196.68c P  3.81% WF   2.8 PSV       3 N       3  --  D11 C11 E11
+C10 : T -51.86c W -50.66c S  -1.19c ( -6.8 L  -6.8) LCB 1707.42c P  3.46% WF   2.8 PSV       3 N       3  --  C10 C11 C9
+E4  : T -44.39c W -44.65c S   0.26c ( -5.4 L  -5.8) LCB  280.00c P  1.74% WF   0.9 PSV       1 N       1  --  E4
+E10 : T -56.50c W -55.46c S  -1.03c ( -6.6 L  -6.6) LCB  280.00c P  1.29% WF   1.0 PSV       1 N       1  --  E10
+F11 : T -40.69c W -41.24c S   0.55c ( -5.2 L  -5.7) LCB  280.00c P  1.59% WF   0.9 PSV       0 N       1  --  F11
+D9  : T -45.34c W -45.53c S   0.18c ( -5.5 L  -5.4) LCB  280.00c P  1.33% WF   0.9 PSV       0 N       1  --  D9
 Basic search with PDA 1.5, no player
 HASH: 7483FCA004B18DAF3E71A20DFF4C1578
    A B C D E F G H J K L M N
@@ -1025,22 +1185,22 @@ NN rows: 198
 NN batches: 198
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 1.5
-PV: D10 D4 D3 E3 C3 E4 D6 C11 C10 D11 E10
+PV: D10 D4 D3 E3 C3 E4 D6 H4 L11 L10 K11
 Tree:
-: T  67.41c W  64.99c S   2.42c ( +8.8 L  +9.0) N     200  --  D10 D4 D3 E3 C3 E4 D6
+: T  68.29c W  65.75c S   2.54c ( +8.9 L  +9.1) N     200  --  D10 D4 D3 E3 C3 E4 D6
 ---White(^)---
-D10 : T  68.17c W  65.59c S   2.59c ( +9.0 L  +9.2) LCB   64.11c P 39.52% WF 106.9 PSV     106 N     106  --  D10 D4 D3 E3 C3 E4 D6 C11
-D11 : T  66.37c W  64.15c S   2.22c ( +8.6 L  +8.7) LCB   60.34c P 20.40% WF  41.4 PSV      41 N      42  --  D11 D4 D3 E3 C3 D10 C10
-L11 : T  68.17c W  65.82c S   2.35c ( +8.8 L  +8.4) LCB   54.41c P  3.61% WF  10.0 PSV       9 N      10  --  L11 D4 D3 C5
-K11 : T  70.04c W  67.10c S   2.95c ( +9.3 L  +9.4) LCB   57.45c P  2.26% WF  10.2 PSV       9 N      10  --  K11 L11 J11 J10 H11 L12
-C10 : T  63.99c W  62.10c S   1.89c ( +8.3 L  +8.6) LCB   43.07c P  5.91% WF   7.8 PSV       8 N       8  --  C10 D4 D3 E3
-L10 : T  68.58c W  66.07c S   2.51c ( +8.9 L  +8.8) LCB   45.43c P  2.89% WF   8.0 PSV       8 N       8  --  L10 L11 L9 M11 D10
-L4  : T  68.11c W  65.48c S   2.63c ( +9.1 L  +9.1) LCB   -1.82c P  2.17% WF   5.0 PSV       5 N       5  --  L4 L3 L5 M3
-K3  : T  66.16c W  64.09c S   2.08c ( +8.5 L  +8.5) LCB -117.88c P  2.29% WF   4.0 PSV       4 N       4  --  K3 L3 J3 J4
-L3  : T  60.31c W  59.08c S   1.22c ( +7.7 L  +7.4) LCB -724.57c P  3.64% WF   2.9 PSV       3 N       3  --  L3 D10 L4
-E4  : T  45.74c W  46.79c S  -1.05c ( +5.6 L  +5.4) LCB -280.00c P  2.10% WF   0.9 PSV       1 N       1  --  E4
-C11 : T  56.91c W  56.59c S   0.33c ( +6.9 L  +7.0) LCB -280.00c P  1.17% WF   0.9 PSV       1 N       1  --  C11
-E10 : T  53.80c W  53.88c S  -0.09c ( +6.5 L  +6.9) LCB -280.00c P  1.07% WF   0.9 PSV       0 N       1  --  E10
+D10 : T  69.67c W  66.83c S   2.84c ( +9.2 L  +9.5) LCB   65.90c P 39.52% WF 122.9 PSV     121 N     121  --  D10 D4 D3 E3 C3 E4 D6 H4
+D11 : T  65.37c W  63.40c S   1.98c ( +8.4 L  +8.5) LCB   57.68c P 20.40% WF  30.8 PSV      32 N      32  --  D11 D4 D3 E3 C3 D10 C10
+C10 : T  66.50c W  64.43c S   2.07c ( +8.5 L  +8.6) LCB   47.50c P  5.91% WF   9.8 PSV      10 N      10  --  C10 D10 D11 E11
+L4  : T  70.19c W  67.29c S   2.91c ( +9.3 L  +9.2) LCB   44.86c P  2.17% WF   8.1 PSV       7 N       8  --  L4 L3 L5 K3
+L10 : T  69.14c W  66.45c S   2.69c ( +9.1 L  +9.1) LCB   30.93c P  2.89% WF   7.0 PSV       7 N       7  --  L10 L11 L9 M11 D10
+L11 : T  65.37c W  63.57c S   1.80c ( +8.3 L  +7.9) LCB   19.09c P  3.61% WF   5.8 PSV       5 N       6  --  L11 D10 K11 D4
+L3  : T  64.56c W  62.76c S   1.80c ( +8.3 L  +8.0) LCB    4.40c P  3.64% WF   4.8 PSV       5 N       5  --  L3 D10 L4
+K3  : T  67.27c W  64.99c S   2.29c ( +8.7 L  +8.5) LCB  -76.61c P  2.29% WF   4.0 PSV       4 N       4  --  K3 L3 J3 J4
+K11 : T  65.78c W  64.00c S   1.78c ( +8.2 L  +8.2) LCB -297.99c P  2.26% WF   2.9 PSV       3 N       3  --  K11 L11 J11
+E4  : T  48.35c W  49.45c S  -1.10c ( +5.6 L  +5.5) LCB -280.00c P  2.10% WF   0.9 PSV       1 N       1  --  E4
+C11 : T  55.55c W  55.54c S   0.02c ( +6.6 L  +6.9) LCB -280.00c P  1.17% WF   0.9 PSV       0 N       1  --  C11
+E10 : T  53.60c W  53.49c S   0.11c ( +6.6 L  +6.9) LCB -280.00c P  1.07% WF   0.9 PSV       0 N       1  --  E10
 Search next player PONDERING - should keep prior tree and PDA
 HASH: 2E53497E7A09903059733F4752E11E5E
    A B C D E F G H J K L M N
@@ -1059,32 +1219,35 @@ HASH: 2E53497E7A09903059733F4752E11E5E
  1 . . . . . . . . . . . . .
 
 
-Root visits: 406
+Root visits: 421
 Last search playouts: 300
-NN rows: 496
-NN batches: 496
+NN rows: 493
+NN batches: 493
 NN avg batch size: 1
 PlayoutDoublingAdvantage: -1.5
-PV: D4 D3 E3 C3 E4 D6 C11 C10 D11 E10 E11 F10
+PV: D4 D3 E3 C3 C11 C10 D11 E10 F11 E11 E12 D12 C12 F12
 Tree:
-: T  70.04c W  66.65c S   3.39c ( +9.2 L  +9.4) N     406  --  D4 D3 E3 C3 E4 D6 C11
+: T  68.99c W  65.86c S   3.12c ( +9.1 L  +9.3) N     421  --  D4 D3 E3 C3 C11 C10 D11
 ---Black(v)---
-D4  : T  68.34c W  65.32c S   3.03c ( +8.8 L  +9.0) LCB   71.38c P 30.01% WF 216.7 PSV     212 N     212  --  D4 D3 E3 C3 E4 D6 C11 C10
-E3  : T  70.30c W  66.68c S   3.62c ( +9.4 L  +9.6) LCB   75.20c P 19.25% WF  84.1 PSV      85 N      85  --  E3 L3 D5 K3 C5 J4 C11 D11
-D3  : T  71.97c W  68.40c S   3.58c ( +9.3 L  +9.5) LCB   78.29c P 10.60% WF  35.0 PSV      35 N      36  --  D3 D4 E3 C3 E4 E5 F5 F6
-E4  : T  72.56c W  68.55c S   4.01c ( +9.8 L  +9.9) LCB   81.16c P 11.44% WF  32.8 PSV      34 N      34  --  E4 L3 K3 L4 K5 M6 C3
-C11 : T  74.56c W  70.40c S   4.17c ( +9.9 L +10.3) LCB   86.33c P  6.11% WF  13.3 PSV      14 N      14  --  C11 C10 D11 E10 F11 E11 E12
-D11 : T  74.89c W  70.89c S   4.01c ( +9.7 L +10.1) LCB  106.39c P  2.84% WF   5.8 PSV       6 N       6  --  D11 C11 E11 E10 F11
-G10 : T  73.64c W  69.39c S   4.26c ( +9.9 L +10.6) LCB  200.33c P  1.85% WF   3.9 PSV       4 N       4  --  G10 E4 H3
-G11 : T  75.61c W  71.04c S   4.58c (+10.2 L +11.1) LCB  703.62c P  1.48% WF   2.9 PSV       3 N       3  --  G11 E4 G3
-C10 : T  79.15c W  74.60c S   4.55c (+10.3 L +10.4) LCB  280.00c P  1.41% WF   1.9 PSV       2 N       2  --  C10 C11
-G4  : T  74.38c W  70.33c S   4.05c ( +9.7 L +10.5) LCB  280.00c P  1.11% WF   1.9 PSV       2 N       2  --  G4 E4
-F3  : T  79.91c W  74.70c S   5.21c (+10.9 L +10.7) LCB  280.00c P  0.92% WF   1.9 PSV       1 N       2  --  F3 L3
-F4  : T  76.91c W  72.39c S   4.51c (+10.2 L +10.1) LCB  280.00c P  0.82% WF   1.9 PSV       1 N       2  --  F4 L3
-F11 : T  78.56c W  73.57c S   4.99c (+10.6 L +11.5) LCB  280.00c P  1.13% WF   1.0 PSV       1 N       1  --  F11
-H4  : T  76.44c W  71.14c S   5.30c (+10.8 L +11.5) LCB  280.00c P  0.69% WF   1.0 PSV       1 N       1  --  H4
-E10 : T  83.63c W  78.21c S   5.41c (+11.0 L +11.5) LCB  280.00c P  0.78% WF   0.9 PSV       0 N       1  --  E10
-Search next player PONDERING an extra time - should keep prior tree and PDA
+D4  : T  67.00c W  64.30c S   2.70c ( +8.7 L  +8.9) LCB   70.35c P 29.10% WF 235.0 PSV     229 N     229  --  D4 D3 E3 C3 C11 C10 D11 E10
+E3  : T  69.60c W  66.25c S   3.36c ( +9.3 L  +9.5) LCB   74.15c P 19.37% WF  81.6 PSV      81 N      83  --  E3 L3 D5 K3 C5 J4 C11
+E4  : T  73.83c W  69.55c S   4.28c (+10.2 L +10.4) LCB   82.88c P 12.92% WF  30.1 PSV      30 N      32  --  E4 L3 K3 L4 L5 M5 M6
+C11 : T  72.03c W  68.36c S   3.67c ( +9.6 L +10.1) LCB   83.31c P  8.25% WF  23.1 PSV      24 N      24  --  C11 C10 D11 E10 F11 E11 E12 D12
+D3  : T  69.60c W  66.53c S   3.07c ( +9.0 L  +9.3) LCB   78.91c P  5.52% WF  22.7 PSV      23 N      23  --  D3 D4 E3 C3 G4 L3 L4
+D11 : T  75.39c W  71.53c S   3.86c ( +9.7 L +10.1) LCB  107.04c P  3.15% WF   5.7 PSV       6 N       6  --  D11 C11 E11 E10
+G4  : T  74.13c W  70.36c S   3.76c ( +9.6 L +10.1) LCB  127.50c P  1.96% WF   3.8 PSV       4 N       4  --  G4 E3 C11
+F11 : T  73.87c W  69.64c S   4.23c (+10.1 L +10.6) LCB  275.75c P  1.39% WF   2.9 PSV       3 N       3  --  F11 E4 G3
+G11 : T  75.72c W  71.15c S   4.57c (+10.4 L +11.1) LCB  531.13c P  1.48% WF   2.9 PSV       2 N       3  --  G11 E4 G3
+F4  : T  77.60c W  73.05c S   4.54c (+10.4 L +10.3) LCB  280.00c P  1.45% WF   1.9 PSV       2 N       2  --  F4 L3
+F3  : T  79.23c W  74.27c S   4.97c (+10.8 L +10.6) LCB  280.00c P  1.41% WF   1.9 PSV       2 N       2  --  F3 L3
+C10 : T  78.75c W  74.10c S   4.64c (+10.5 L +10.6) LCB  280.00c P  1.29% WF   1.9 PSV       2 N       2  --  C10 C11
+G10 : T  73.94c W  69.79c S   4.15c ( +9.9 L +10.3) LCB  280.00c P  1.13% WF   1.9 PSV       2 N       2  --  G10 E4
+H4  : T  76.18c W  71.26c S   4.92c (+10.7 L +11.2) LCB  280.00c P  0.93% WF   1.0 PSV       1 N       1  --  H4
+G3  : T  78.14c W  72.51c S   5.63c (+11.4 L +12.0) LCB  280.00c P  0.76% WF   0.9 PSV       1 N       1  --  G3
+H11 : T  76.85c W  71.57c S   5.27c (+11.0 L +11.6) LCB  280.00c P  0.69% WF   1.0 PSV       1 N       1  --  H11
+H3  : T  76.53c W  71.51c S   5.03c (+10.7 L +11.7) LCB  280.00c P  0.67% WF   1.0 PSV       1 N       1  --  H3
+H10 : T  75.81c W  70.83c S   4.98c (+10.8 L +11.4) LCB  280.00c P  0.63% WF   1.0 PSV       1 N       1  --  H10
+Search next player PONDERING - should still keep prior tree and PDA
 HASH: DCBD39921E5497E7CAAE01D5EB47D673
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
@@ -1102,28 +1265,28 @@ HASH: DCBD39921E5497E7CAAE01D5EB47D673
  1 . . . . . . . . . . . . .
 
 
-Root visits: 512
+Root visits: 529
 Last search playouts: 300
-NN rows: 788
-NN batches: 788
+NN rows: 787
+NN batches: 787
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 1.5
-PV: D3 E3 C3 E4 D6 C11 L3 K3 L4 L5 M5 M6 L6 K5
+PV: D3 E3 C3 C11 C10 D11 E10 F11 H3 D5 E2 F10
 Tree:
-: T  67.26c W  64.27c S   3.00c ( +8.7 L  +8.9) N     512  --  D3 E3 C3 E4 D6 C11 L3
+: T  67.25c W  64.17c S   3.08c ( +8.7 L  +8.8) N     529  --  D3 E3 C3 C11 C10 D11 E10
 ---White(^)---
-D3  : T  68.44c W  65.23c S   3.20c ( +8.9 L  +9.1) LCB   65.85c P 53.78% WF 402.1 PSV     396 N     396  --  D3 E3 C3 E4 D6 C11 L3 K3
-C3  : T  65.50c W  62.92c S   2.58c ( +8.3 L  +8.2) LCB   60.87c P 18.93% WF  73.6 PSV      76 N      76  --  C3 D5 D3 F4 H11 E3 C6 C11
-D5  : T  57.33c W  55.63c S   1.69c ( +7.4 L  +7.8) LCB   44.60c P 13.49% WF  22.2 PSV      24 N      25  --  D5 C3 C5 D3 F5 G4 L3 L4
-C5  : T  56.31c W  55.20c S   1.11c ( +6.9 L  +7.0) LCB   -1.97c P  3.17% WF   4.6 PSV       5 N       5  --  C5 D3 D5 F4 L3
-L10 : T  59.51c W  57.90c S   1.61c ( +7.3 L  +7.0) LCB -280.00c P  1.01% WF   1.9 PSV       2 N       2  --  L10 L11
-L4  : T  59.54c W  58.12c S   1.42c ( +7.2 L  +7.0) LCB -280.00c P  0.77% WF   1.9 PSV       1 N       2  --  L4 L3
-K3  : T  60.29c W  58.77c S   1.52c ( +7.3 L  +7.2) LCB -280.00c P  0.70% WF   1.9 PSV       1 N       2  --  K3 L3
-K11 : T  55.23c W  54.67c S   0.55c ( +6.4 L  +5.9) LCB -280.00c P  0.84% WF   0.9 PSV       1 N       1  --  K11
-L3  : T  56.04c W  55.33c S   0.71c ( +6.5 L  +6.0) LCB -280.00c P  0.82% WF   0.9 PSV       1 N       1  --  L3
-L11 : T  53.33c W  52.68c S   0.65c ( +6.4 L  +5.8) LCB -280.00c P  0.72% WF   0.9 PSV       1 N       1  --  L11
-Search next player - now should lose the tree and PDA, because the player it is for is different
-HASH: 0CD0013CEBC248C9F8780CDD1335CF50
+D3  : T  68.48c W  65.21c S   3.27c ( +8.8 L  +9.1) LCB   65.94c P 53.78% WF 423.9 PSV     417 N     417  --  D3 E3 C3 C11 C10 D11 E10 F11
+C3  : T  64.08c W  61.53c S   2.55c ( +8.1 L  +8.2) LCB   58.11c P 18.93% WF  62.7 PSV      65 N      66  --  C3 D5 D3 F4 L10 L11 L9 M11
+D5  : T  59.48c W  57.41c S   2.07c ( +7.7 L  +8.0) LCB   49.83c P 13.49% WF  27.2 PSV      29 N      30  --  D5 C3 C5 D3 F4 E5 E4 F2
+C5  : T  53.87c W  52.95c S   0.91c ( +6.6 L  +6.8) LCB  -52.02c P  3.17% WF   3.6 PSV       4 N       4  --  C5 D3 D5 F4
+L10 : T  59.16c W  57.44c S   1.71c ( +7.3 L  +7.1) LCB -753.68c P  1.01% WF   2.8 PSV       2 N       3  --  L10 L11 L9
+L4  : T  64.17c W  61.94c S   2.23c ( +7.8 L  +7.4) LCB -280.00c P  0.77% WF   1.9 PSV       2 N       2  --  L4 L3
+L3  : T  60.46c W  58.60c S   1.85c ( +7.5 L  +7.0) LCB -280.00c P  0.82% WF   1.9 PSV       1 N       2  --  L3 C3
+K3  : T  60.58c W  58.89c S   1.70c ( +7.3 L  +7.0) LCB -280.00c P  0.70% WF   1.9 PSV       1 N       2  --  K3 L3
+K11 : T  55.33c W  54.67c S   0.65c ( +6.4 L  +5.9) LCB -280.00c P  0.84% WF   0.9 PSV       1 N       1  --  K11
+L11 : T  61.41c W  59.78c S   1.63c ( +7.3 L  +6.2) LCB -280.00c P  0.72% WF   1.0 PSV       1 N       1  --  L11
+Without making a move - convert ponder to regular search, should still keep tree and PDA
+HASH: DCBD39921E5497E7CAAE01D5EB47D673
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -1135,33 +1298,70 @@ HASH: 0CD0013CEBC248C9F8780CDD1335CF50
  6 . . . . . . . . . . . . .
  5 . . . . . . . . . . . . .
  4 . . O X . . . . . X . . .
- 3 . . . O . . . . . . . . .
+ 3 . . . . . . . . . . . . .
  2 . . . . . . . . . . . . .
  1 . . . . . . . . . . . . .
 
 
-Root visits: 200
-Last search playouts: 200
-NN rows: 988
-NN batches: 988
+Root visits: 529
+Last search playouts: 0
+NN rows: 787
+NN batches: 787
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 1.5
-PV: E3 C3 E4 D6 C8 D8 D9 C9 E9 C10 D7
+PV: D3 E3 C3 C11 C10 D11 E10 F11 H3 D5 E2 F10
 Tree:
-: T -61.78c W -58.86c S  -2.92c ( -8.5 L  -8.7) N     200  --  E3 C3 E4 D6 C8 D8 D9
----Black(v)---
-E3  : T -64.42c W -61.03c S  -3.39c ( -8.9 L  -9.2) LCB  -59.99c P 34.92% WF 130.8 PSV     136 N     127  --  E3 C3 E4 D6 C8 D8 D9 C9
-C5  : T -58.29c W -55.96c S  -2.33c ( -7.9 L  -8.2) LCB  -51.57c P 29.14% WF  41.8 PSV      42 N      44  --  C5 C3 F11 E4 D5 E5
-C3  : T -58.76c W -56.23c S  -2.53c ( -8.1 L  -8.3) LCB   40.83c P  4.34% WF   5.8 PSV       6 N       6  --  C3 C5 E3 D2
-D11 : T -58.41c W -56.26c S  -2.15c ( -7.7 L  -8.0) LCB    4.23c P  3.81% WF   6.8 PSV       5 N       7  --  D11 C11 E11 E10 F11
-C11 : T -53.43c W -52.09c S  -1.34c ( -6.9 L  -7.0) LCB  103.50c P  3.65% WF   4.7 PSV       3 N       5  --  C11 C10 D11 E10 E11
-D5  : T -39.92c W -40.33c S   0.42c ( -5.3 L  -5.5) LCB 1093.81c P  6.28% WF   2.6 PSV       3 N       3  --  D5 E3 C5
-C10 : T -54.54c W -53.21c S  -1.33c ( -6.9 L  -7.0) LCB 1123.71c P  3.46% WF   2.8 PSV       3 N       3  --  C10 C11 C9
-E4  : T -44.39c W -44.65c S   0.26c ( -5.4 L  -5.8) LCB  280.00c P  1.74% WF   0.9 PSV       1 N       1  --  E4
-F11 : T -56.01c W -54.51c S  -1.50c ( -7.1 L  -7.3) LCB  280.00c P  1.59% WF   1.0 PSV       1 N       1  --  F11
-D9  : T -51.81c W -51.42c S  -0.39c ( -6.0 L  -5.8) LCB  280.00c P  1.33% WF   0.9 PSV       1 N       1  --  D9
-E10 : T -47.71c W -47.75c S   0.04c ( -5.7 L  -5.5) LCB  280.00c P  1.29% WF   0.9 PSV       0 N       1  --  E10
-Basic search with PDA 1.5, no player
+: T  67.25c W  64.17c S   3.08c ( +8.7 L  +8.8) N     529  --  D3 E3 C3 C11 C10 D11 E10
+---White(^)---
+D3  : T  68.49c W  65.21c S   3.27c ( +8.8 L  +9.1) LCB   65.95c P 53.78% WF 423.9 PSV     417 N     417  --  D3 E3 C3 C11 C10 D11 E10 F11
+C3  : T  64.09c W  61.53c S   2.55c ( +8.1 L  +8.2) LCB   58.12c P 18.93% WF  62.7 PSV      65 N      66  --  C3 D5 D3 F4 L10 L11 L9 M11
+D5  : T  59.48c W  57.41c S   2.07c ( +7.7 L  +8.0) LCB   49.84c P 13.49% WF  27.2 PSV      29 N      30  --  D5 C3 C5 D3 F4 E5 E4 F2
+C5  : T  53.88c W  52.95c S   0.92c ( +6.6 L  +6.8) LCB  -52.01c P  3.17% WF   3.6 PSV       4 N       4  --  C5 D3 D5 F4
+L10 : T  59.16c W  57.44c S   1.72c ( +7.3 L  +7.1) LCB -753.68c P  1.01% WF   2.8 PSV       2 N       3  --  L10 L11 L9
+L4  : T  64.18c W  61.94c S   2.23c ( +7.8 L  +7.4) LCB -280.00c P  0.77% WF   1.9 PSV       2 N       2  --  L4 L3
+L3  : T  60.46c W  58.60c S   1.86c ( +7.5 L  +7.0) LCB -280.00c P  0.82% WF   1.9 PSV       1 N       2  --  L3 C3
+K3  : T  60.59c W  58.89c S   1.70c ( +7.3 L  +7.0) LCB -280.00c P  0.70% WF   1.9 PSV       1 N       2  --  K3 L3
+K11 : T  55.33c W  54.67c S   0.66c ( +6.4 L  +5.9) LCB -280.00c P  0.84% WF   0.9 PSV       1 N       1  --  K11
+L11 : T  61.42c W  59.78c S   1.64c ( +7.3 L  +6.2) LCB -280.00c P  0.72% WF   1.0 PSV       1 N       1  --  L11
+Set position to original, search PONDERING
+HASH: 7483FCA004B18DAF3E71A20DFF4C1578
+   A B C D E F G H J K L M N
+13 . . . . . . . . . . . . .
+12 . . . . . . . . . . . . .
+11 . . . . . . . . . . . . .
+10 . . . . . . . . . X . . .
+ 9 . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . .
+ 4 . . O . . . . . . X . . .
+ 3 . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+
+Root visits: 300
+Last search playouts: 300
+NN rows: 290
+NN batches: 290
+NN avg batch size: 1
+PlayoutDoublingAdvantage: -1.5
+PV: D10 D4 D3 E3 C3 E4 D6 C8 C7 D8 F6 H4
+Tree:
+: T -63.10c W -58.74c S  -4.36c ( -8.4 L  -8.7) N     300  --  D10 D4 D3 E3 C3 E4 D6
+---White(^)---
+D10 : T -62.10c W -57.89c S  -4.21c ( -8.2 L  -8.6) LCB  -64.98c P 53.36% WF 224.5 PSV     222 N     222  --  D10 D4 D3 E3 C3 E4 D6 C8
+D11 : T -64.07c W -59.62c S  -4.44c ( -8.4 L  -8.8) LCB  -70.01c P 12.85% WF  36.4 PSV      37 N      37  --  D11 D10 C10 E11 C11 D4 D3
+C10 : T -65.88c W -61.18c S  -4.70c ( -8.6 L  -9.0) LCB  -73.44c P 13.71% WF  28.9 PSV      30 N      30  --  C10 D10 D11 E11 C11 D4 D3
+L11 : T -77.20c W -70.55c S  -6.65c (-10.7 L -10.9) LCB -305.82c P  3.79% WF   2.7 PSV       3 N       3  --  L11 D4 D3
+L3  : T -78.75c W -71.79c S  -6.96c (-11.1 L -11.0) LCB -280.00c P  2.41% WF   1.8 PSV       2 N       2  --  L3 D4
+C11 : T -70.10c W -64.34c S  -5.76c ( -9.7 L  -9.9) LCB -280.00c P  1.59% WF   1.9 PSV       2 N       2  --  C11 D4
+E4  : T -76.94c W -69.51c S  -7.43c (-11.1 L -12.1) LCB -280.00c P  1.47% WF   0.9 PSV       1 N       1  --  E4
+E3  : T -78.42c W -70.47c S  -7.95c (-11.5 L -12.3) LCB -280.00c P  0.86% WF   0.9 PSV       0 N       1  --  E3
+K3  : T -76.44c W -69.45c S  -6.98c (-11.0 L -11.8) LCB -280.00c P  0.86% WF   0.9 PSV       0 N       1  --  K3
+Without making a move, convert to regular search, should not keep tree
+and should not benefit from cache, since search would guess the opponent as 'our' side
 HASH: 7483FCA004B18DAF3E71A20DFF4C1578
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
@@ -1181,71 +1381,25 @@ HASH: 7483FCA004B18DAF3E71A20DFF4C1578
 
 Root visits: 200
 Last search playouts: 200
-NN rows: 195
-NN batches: 195
-NN avg batch size: 1
-PlayoutDoublingAdvantage: 1.5
-PV: D10 D4 D3 E3 C3 E4 D6 H4 L11 L10 K11
-Tree:
-: T  68.24c W  65.70c S   2.55c ( +8.9 L  +9.1) N     200  --  D10 D4 D3 E3 C3 E4 D6
----White(^)---
-D10 : T  69.19c W  66.48c S   2.71c ( +9.1 L  +9.3) LCB   65.21c P 45.87% WF 125.4 PSV     124 N     124  --  D10 D4 D3 E3 C3 E4 D6 H4
-D11 : T  66.31c W  64.06c S   2.25c ( +8.7 L  +8.7) LCB   55.74c P 16.61% WF  28.3 PSV      29 N      29  --  D11 D10 C10 E11 C11 D4
-C10 : T  64.84c W  62.78c S   2.05c ( +8.5 L  +8.6) LCB   39.59c P  7.75% WF  11.6 PSV      11 N      12  --  C10 D10 D11 E11 C11 D4
-L4  : T  68.85c W  66.08c S   2.77c ( +9.2 L  +9.2) LCB   51.10c P  4.43% WF  11.0 PSV      11 N      11  --  L4 L3 L5 M3
-K3  : T  68.30c W  65.79c S   2.51c ( +8.9 L  +8.9) LCB   44.17c P  3.51% WF   9.0 PSV       8 N       9  --  K3 L3 J3 J4 H3
-L11 : T  63.68c W  62.30c S   1.38c ( +7.8 L  +7.6) LCB -161.02c P  3.50% WF   3.9 PSV       4 N       4  --  L11 D10 K11
-L10 : T  68.48c W  65.98c S   2.50c ( +8.9 L  +8.9) LCB -138.82c P  1.67% WF   4.0 PSV       4 N       4  --  L10 L11 L9 M11
-L3  : T  66.51c W  64.44c S   2.07c ( +8.5 L  +8.3) LCB -547.48c P  1.85% WF   3.0 PSV       3 N       3  --  L3 L4 K3
-K11 : T  63.99c W  62.39c S   1.61c ( +8.1 L  +8.1) LCB -280.00c P  1.82% WF   1.9 PSV       2 N       2  --  K11 L11
-C11 : T  57.86c W  57.38c S   0.48c ( +7.0 L  +7.1) LCB -280.00c P  1.50% WF   0.9 PSV       1 N       1  --  C11
-Search next player PONDERING - should keep prior tree and PDA
-HASH: 2E53497E7A09903059733F4752E11E5E
-   A B C D E F G H J K L M N
-13 . . . . . . . . . . . . .
-12 . . . . . . . . . . . . .
-11 . . . . . . . . . . . . .
-10 . . . O . . . . . X . . .
- 9 . . . . . . . . . . . . .
- 8 . . . . . . . . . . . . .
- 7 . . . . . . . . . . . . .
- 6 . . . . . . . . . . . . .
- 5 . . . . . . . . . . . . .
- 4 . . O . . . . . . X . . .
- 3 . . . . . . . . . . . . .
- 2 . . . . . . . . . . . . .
- 1 . . . . . . . . . . . . .
-
-
-Root visits: 424
-Last search playouts: 300
 NN rows: 487
 NN batches: 487
 NN avg batch size: 1
-PlayoutDoublingAdvantage: -1.5
-PV: D4 D3 E3 C3 C11 C10 D11 E10 F12 H3 D5 E2
+PlayoutDoublingAdvantage: 1.5
+PV: D10 D4 D3 E3 C3 E4 D6 H4 L10 L11
 Tree:
-: T  68.81c W  65.65c S   3.16c ( +9.0 L  +9.2) N     424  --  D4 D3 E3 C3 C11 C10 D11
----Black(v)---
-D4  : T  66.59c W  63.88c S   2.71c ( +8.6 L  +8.8) LCB   69.84c P 26.15% WF 239.8 PSV     233 N     233  --  D4 D3 E3 C3 C11 C10 D11 E10
-E3  : T  69.34c W  66.00c S   3.34c ( +9.2 L  +9.4) LCB   74.63c P 16.46% WF  69.9 PSV      71 N      71  --  E3 L3 D5 C5 D6 K3 C6
-C11 : T  71.69c W  68.05c S   3.63c ( +9.5 L  +9.8) LCB   79.90c P 10.58% WF  30.7 PSV      32 N      32  --  C11 C10 D11 E10 F11 E11 E12 F12
-D3  : T  72.11c W  68.45c S   3.65c ( +9.4 L  +9.7) LCB   80.11c P  9.93% WF  28.7 PSV      28 N      30  --  D3 D4 E3 C3 E4 L3 K3
-E4  : T  73.87c W  69.38c S   4.49c (+10.4 L +10.5) LCB   84.79c P 11.27% WF  25.3 PSV      26 N      27  --  E4 L3 K3 L4 L5 M5 M6 L6
-D11 : T  74.69c W  70.79c S   3.90c ( +9.7 L +10.0) LCB  112.06c P  2.74% WF   4.8 PSV       5 N       5  --  D11 C11 E11 E10
-G10 : T  73.61c W  69.64c S   3.97c ( +9.7 L +10.2) LCB  105.86c P  1.95% WF   3.8 PSV       4 N       4  --  G10 E4 C11 C10
-G11 : T  76.16c W  71.46c S   4.69c (+10.4 L +11.2) LCB  456.83c P  1.63% WF   2.8 PSV       3 N       3  --  G11 E4 G3
-G4  : T  73.30c W  69.36c S   3.94c ( +9.7 L +10.3) LCB  190.30c P  1.53% WF   2.9 PSV       3 N       3  --  G4 E4 C11
-C10 : T  76.60c W  72.53c S   4.07c ( +9.9 L +10.1) LCB  280.00c P  1.45% WF   1.9 PSV       2 N       2  --  C10 C11
-F11 : T  76.71c W  72.35c S   4.37c (+10.1 L +10.8) LCB  280.00c P  1.32% WF   1.9 PSV       2 N       2  --  F11 E4
-H3  : T  72.24c W  68.40c S   3.84c ( +9.5 L +10.4) LCB  280.00c P  0.90% WF   1.9 PSV       2 N       2  --  H3 E4
-E10 : T  72.81c W  69.16c S   3.65c ( +9.4 L  +9.8) LCB  280.00c P  0.86% WF   1.9 PSV       2 N       2  --  E10 D11
-F3  : T  79.24c W  74.21c S   5.03c (+10.8 L +10.6) LCB  280.00c P  1.10% WF   1.9 PSV       1 N       2  --  F3 L3
-F4  : T  78.09c W  73.25c S   4.85c (+10.6 L +10.3) LCB  280.00c P  0.99% WF   1.9 PSV       1 N       2  --  F4 L3
-H4  : T  76.36c W  71.14c S   5.23c (+10.8 L +11.5) LCB  280.00c P  1.04% WF   1.0 PSV       1 N       1  --  H4
-H10 : T  74.21c W  69.45c S   4.76c (+10.5 L +11.0) LCB  280.00c P  0.66% WF   1.0 PSV       1 N       1  --  H10
-H11 : T  76.94c W  71.57c S   5.37c (+11.0 L +11.6) LCB  280.00c P  0.64% WF   1.0 PSV       1 N       1  --  H11
-Search next player PONDERING - should still keep prior tree and PDA
+: T  67.67c W  65.44c S   2.24c ( +8.8 L  +9.0) N     200  --  D10 D4 D3 E3 C3 E4 D6
+---White(^)---
+D10 : T  68.07c W  65.72c S   2.36c ( +8.9 L  +9.2) LCB   63.73c P 43.51% WF 108.6 PSV     108 N     108  --  D10 D4 D3 E3 C3 E4 D6 H4
+D11 : T  65.22c W  63.38c S   1.84c ( +8.4 L  +8.5) LCB   55.21c P 15.72% WF  25.3 PSV      26 N      26  --  D11 D4 D3 E3 C3 D10
+C10 : T  64.44c W  62.69c S   1.75c ( +8.4 L  +8.5) LCB   46.66c P 10.31% WF  15.5 PSV      15 N      16  --  C10 D4 D3 E3 C3 D10
+K11 : T  71.33c W  68.59c S   2.73c ( +9.3 L  +9.2) LCB   61.33c P  2.73% WF  16.5 PSV      15 N      16  --  K11 L11 J11 J10 G11
+L11 : T  69.65c W  67.33c S   2.32c ( +8.9 L  +8.5) LCB   54.23c P  3.13% WF  11.2 PSV      10 N      11  --  L11 D10 K11 J10
+K3  : T  69.00c W  66.69c S   2.31c ( +8.9 L  +8.9) LCB   57.11c P  3.57% WF  10.1 PSV      10 N      10  --  K3 L3 J3 J4 H3
+L4  : T  66.97c W  64.80c S   2.17c ( +8.8 L  +8.7) LCB   35.11c P  2.31% WF   5.0 PSV       4 N       5  --  L4 L3 L5 M3 D10
+L3  : T  64.65c W  63.02c S   1.63c ( +8.3 L  +8.1) LCB  -84.78c P  3.18% WF   3.9 PSV       4 N       4  --  L3 D10 L4
+L10 : T  62.87c W  61.66c S   1.20c ( +7.8 L  +7.8) LCB -280.00c P  1.67% WF   1.9 PSV       2 N       2  --  L10 L11
+C11 : T  57.66c W  57.38c S   0.28c ( +7.0 L  +7.1) LCB -280.00c P  1.07% WF   1.0 PSV       0 N       1  --  C11
+But should be fine thereafter. Make two moves and continue
 HASH: DCBD39921E5497E7CAAE01D5EB47D673
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
@@ -1263,64 +1417,26 @@ HASH: DCBD39921E5497E7CAAE01D5EB47D673
  1 . . . . . . . . . . . . .
 
 
-Root visits: 533
-Last search playouts: 300
-NN rows: 779
-NN batches: 779
+Root visits: 262
+Last search playouts: 200
+NN rows: 681
+NN batches: 681
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 1.5
-PV: D3 E3 C3 C11 C10 D11 E10 F12 H3 D5 E2 F3 F2
+PV: D3 E3 C3 E4 D6 H4 L4 L3 L5 M3
 Tree:
-: T  66.31c W  63.29c S   3.02c ( +8.6 L  +8.8) N     533  --  D3 E3 C3 C11 C10 D11 E10
+: T  66.90c W  63.81c S   3.09c ( +8.5 L  +8.7) N     262  --  D3 E3 C3 E4 D6 H4 L4
 ---White(^)---
-D3  : T  67.71c W  64.45c S   3.26c ( +8.8 L  +9.0) LCB   65.11c P 48.79% WF 419.9 PSV     412 N     412  --  D3 E3 C3 C11 C10 D11 E10 F12
-C3  : T  63.83c W  61.29c S   2.54c ( +8.1 L  +8.0) LCB   57.14c P 15.91% WF  60.4 PSV      61 N      63  --  C3 D5 D3 F4 G11 E3 C6 C11
-C5  : T  59.05c W  57.22c S   1.83c ( +7.4 L  +7.6) LCB   49.49c P 11.64% WF  23.8 PSV      26 N      26  --  C5 D3 D5 F4 L3 K3 L4 L5
-D5  : T  55.05c W  53.73c S   1.32c ( +6.9 L  +7.3) LCB   40.53c P 13.85% WF  20.2 PSV      23 N      23  --  D5 C3 C5 D3 F5 G4 L3 L4
-L10 : T  64.11c W  61.77c S   2.33c ( +7.9 L  +7.8) LCB -280.00c P  0.75% WF   2.0 PSV       2 N       2  --  L10 L11
-L4  : T  61.56c W  59.75c S   1.80c ( +7.4 L  +7.1) LCB -280.00c P  0.74% WF   1.9 PSV       2 N       2  --  L4 L3
-L3  : T  59.35c W  57.91c S   1.44c ( +7.0 L  +5.7) LCB -280.00c P  0.66% WF   1.0 PSV       1 N       1  --  L3
-K3  : T  60.58c W  59.07c S   1.50c ( +7.1 L  +6.7) LCB -280.00c P  0.62% WF   1.0 PSV       1 N       1  --  K3
-K11 : T  57.86c W  56.88c S   0.98c ( +6.6 L  +5.7) LCB -280.00c P  0.58% WF   1.0 PSV       1 N       1  --  K11
-L11 : T  58.17c W  56.61c S   1.56c ( +7.2 L  +6.5) LCB -280.00c P  0.53% WF   1.0 PSV       1 N       1  --  L11
-Without making a move - convert ponder to regular search, should still keep tree and PDA
-HASH: DCBD39921E5497E7CAAE01D5EB47D673
-   A B C D E F G H J K L M N
-13 . . . . . . . . . . . . .
-12 . . . . . . . . . . . . .
-11 . . . . . . . . . . . . .
-10 . . . O . . . . . X . . .
- 9 . . . . . . . . . . . . .
- 8 . . . . . . . . . . . . .
- 7 . . . . . . . . . . . . .
- 6 . . . . . . . . . . . . .
- 5 . . . . . . . . . . . . .
- 4 . . O X . . . . . X . . .
- 3 . . . . . . . . . . . . .
- 2 . . . . . . . . . . . . .
- 1 . . . . . . . . . . . . .
-
-
-Root visits: 533
-Last search playouts: 0
-NN rows: 779
-NN batches: 779
-NN avg batch size: 1
-PlayoutDoublingAdvantage: 1.5
-PV: D3 E3 C3 C11 C10 D11 E10 F12 H3 D5 E2 F3 F2
-Tree:
-: T  66.32c W  63.29c S   3.04c ( +8.6 L  +8.8) N     533  --  D3 E3 C3 C11 C10 D11 E10
----White(^)---
-D3  : T  67.73c W  64.45c S   3.28c ( +8.8 L  +9.0) LCB   65.13c P 48.79% WF 419.9 PSV     412 N     412  --  D3 E3 C3 C11 C10 D11 E10 F12
-C3  : T  63.85c W  61.29c S   2.56c ( +8.1 L  +8.0) LCB   57.16c P 15.91% WF  60.4 PSV      61 N      63  --  C3 D5 D3 F4 G11 E3 C6 C11
-C5  : T  59.07c W  57.22c S   1.85c ( +7.4 L  +7.6) LCB   49.51c P 11.64% WF  23.8 PSV      26 N      26  --  C5 D3 D5 F4 L3 K3 L4 L5
-D5  : T  55.07c W  53.73c S   1.33c ( +6.9 L  +7.3) LCB   40.55c P 13.85% WF  20.2 PSV      23 N      23  --  D5 C3 C5 D3 F5 G4 L3 L4
-L10 : T  64.13c W  61.77c S   2.35c ( +7.9 L  +7.8) LCB -280.00c P  0.75% WF   2.0 PSV       2 N       2  --  L10 L11
-L4  : T  61.57c W  59.75c S   1.82c ( +7.4 L  +7.1) LCB -280.00c P  0.74% WF   1.9 PSV       2 N       2  --  L4 L3
-L3  : T  59.37c W  57.91c S   1.46c ( +7.0 L  +5.7) LCB -280.00c P  0.66% WF   1.0 PSV       1 N       1  --  L3
-K3  : T  60.60c W  59.07c S   1.52c ( +7.1 L  +6.7) LCB -280.00c P  0.62% WF   1.0 PSV       1 N       1  --  K3
-K11 : T  57.88c W  56.88c S   1.00c ( +6.6 L  +5.7) LCB -280.00c P  0.58% WF   1.0 PSV       1 N       1  --  K11
-L11 : T  58.19c W  56.61c S   1.58c ( +7.2 L  +6.5) LCB -280.00c P  0.53% WF   1.0 PSV       1 N       1  --  L11
+D3  : T  68.29c W  64.98c S   3.31c ( +8.7 L  +9.0) LCB   64.91c P 54.98% WF 212.0 PSV     209 N     209  --  D3 E3 C3 E4 D6 H4 L4 L3
+C3  : T  64.21c W  61.56c S   2.65c ( +8.1 L  +8.1) LCB   55.02c P 14.16% WF  27.0 PSV      28 N      28  --  C3 D5 D3 F4 G10 E3 C6
+D5  : T  56.36c W  54.71c S   1.64c ( +7.1 L  +7.5) LCB   28.87c P 11.29% WF   9.9 PSV      11 N      11  --  D5 C3 C5 D3 F5 G4 F4
+C5  : T  53.60c W  52.45c S   1.15c ( +6.7 L  +6.8) LCB  -25.45c P  5.54% WF   4.5 PSV       4 N       5  --  C5 D3 D5 F4
+K3  : T  64.44c W  62.00c S   2.45c ( +7.9 L  +7.6) LCB -280.00c P  0.98% WF   2.0 PSV       2 N       2  --  K3 L3
+L3  : T  58.78c W  57.15c S   1.62c ( +7.1 L  +6.8) LCB -280.00c P  1.06% WF   1.9 PSV       1 N       2  --  L3 C3
+L10 : T  56.13c W  55.29c S   0.84c ( +6.4 L  +5.6) LCB -280.00c P  1.58% WF   0.9 PSV       1 N       1  --  L10
+K11 : T  59.95c W  58.64c S   1.31c ( +6.8 L  +5.9) LCB -280.00c P  1.13% WF   1.0 PSV       1 N       1  --  K11
+L11 : T  61.56c W  59.78c S   1.78c ( +7.3 L  +6.2) LCB -280.00c P  0.98% WF   1.0 PSV       1 N       1  --  L11
+L4  : T  54.40c W  53.74c S   0.66c ( +6.2 L  +5.1) LCB -280.00c P  0.94% WF   0.9 PSV       0 N       1  --  L4
 Set position to original, search PONDERING
 HASH: 7483FCA004B18DAF3E71A20DFF4C1578
    A B C D E F G H J K L M N
@@ -1345,125 +1461,18 @@ NN rows: 287
 NN batches: 287
 NN avg batch size: 1
 PlayoutDoublingAdvantage: -1.5
-PV: D10 D4 D3 E3 C3 E4 C6 D11 C11 E11 E10 F11 F10
+PV: D10 E3 L3 D5 C5 D6 C7 L4
 Tree:
-: T -63.35c W -59.19c S  -4.16c ( -8.5 L  -8.9) N     300  --  D10 D4 D3 E3 C3 E4 C6
+: T -63.17c W -59.01c S  -4.17c ( -8.4 L  -8.8) N     300  --  D10 E3 L3 D5 C5 D6 C7
 ---White(^)---
-D10 : T -62.21c W -58.22c S  -3.99c ( -8.3 L  -8.7) LCB  -65.39c P 49.58% WF 213.8 PSV     211 N     211  --  D10 D4 D3 E3 C3 E4 C6 D11
-D11 : T -64.71c W -60.40c S  -4.32c ( -8.6 L  -9.0) LCB  -70.02c P 15.80% WF  42.1 PSV      43 N      43  --  D11 D10 C10 E11 C11 D4 D3 E3
-C10 : T -65.71c W -61.22c S  -4.48c ( -8.7 L  -9.2) LCB  -72.75c P 13.79% WF  31.9 PSV      32 N      33  --  C10 D10 D11 E11 C11 D4 D3
-L11 : T -74.33c W -68.54c S  -5.80c (-10.2 L -10.4) LCB -219.58c P  4.22% WF   3.7 PSV       4 N       4  --  L11 D4 D3
-C11 : T -68.70c W -63.48c S  -5.22c ( -9.4 L -10.0) LCB -456.54c P  1.95% WF   2.9 PSV       3 N       3  --  C11 D4 D3
-L3  : T -77.38c W -71.06c S  -6.32c (-10.7 L -10.7) LCB -280.00c P  2.24% WF   1.8 PSV       2 N       2  --  L3 D4
-E4  : T -75.69c W -69.13c S  -6.56c (-10.7 L -11.2) LCB -280.00c P  2.04% WF   1.9 PSV       2 N       2  --  E4 D10
-K11 : T -79.88c W -72.77c S  -7.10c (-11.5 L -11.8) LCB -280.00c P  0.93% WF   0.9 PSV       0 N       1  --  K11
-Without making a move, convert to regular search, should not keep tree
-and should not benefit from cache, since search would guess the opponent as 'our' side
-HASH: 7483FCA004B18DAF3E71A20DFF4C1578
-   A B C D E F G H J K L M N
-13 . . . . . . . . . . . . .
-12 . . . . . . . . . . . . .
-11 . . . . . . . . . . . . .
-10 . . . . . . . . . X . . .
- 9 . . . . . . . . . . . . .
- 8 . . . . . . . . . . . . .
- 7 . . . . . . . . . . . . .
- 6 . . . . . . . . . . . . .
- 5 . . . . . . . . . . . . .
- 4 . . O . . . . . . X . . .
- 3 . . . . . . . . . . . . .
- 2 . . . . . . . . . . . . .
- 1 . . . . . . . . . . . . .
-
-
-Root visits: 200
-Last search playouts: 200
-NN rows: 485
-NN batches: 485
-NN avg batch size: 1
-PlayoutDoublingAdvantage: 1.5
-PV: D10 D4 D3 E3 C3 E4 D6 H4 L11 L10
-Tree:
-: T  67.15c W  65.01c S   2.15c ( +8.7 L  +8.9) N     200  --  D10 D4 D3 E3 C3 E4 D6
----White(^)---
-D10 : T  66.88c W  64.69c S   2.19c ( +8.8 L  +9.0) LCB   62.50c P 44.48% WF  99.7 PSV     100 N     100  --  D10 D4 D3 E3 C3 E4 D6 H4
-D11 : T  67.76c W  65.56c S   2.20c ( +8.8 L  +8.9) LCB   60.73c P 17.00% WF  45.3 PSV      44 N      45  --  D11 D10 C10 E11 C11 D4 D3
-L11 : T  69.18c W  67.05c S   2.12c ( +8.7 L  +8.4) LCB   58.51c P  3.59% WF  13.2 PSV      12 N      13  --  L11 D10 K11 D4 D3
-K11 : T  69.29c W  66.76c S   2.53c ( +9.1 L  +9.1) LCB   49.12c P  3.12% WF  11.2 PSV      11 N      11  --  K11 L11 J11 J10 H11
-C10 : T  63.13c W  61.68c S   1.45c ( +8.1 L  +8.3) LCB   41.18c P  6.61% WF   8.7 PSV       9 N       9  --  C10 D4 D3 E3 C3
-L4  : T  69.47c W  67.08c S   2.40c ( +9.0 L  +9.1) LCB   58.16c P  2.23% WF  10.2 PSV       8 N      10  --  L4 L3 L5 M3
-K3  : T  64.10c W  62.45c S   1.65c ( +8.3 L  +8.3) LCB   12.54c P  3.55% WF   4.9 PSV       5 N       5  --  K3 L3 J3 J4 H3
-L3  : T  58.52c W  57.65c S   0.88c ( +7.5 L  +7.2) LCB -641.30c P  3.68% WF   2.8 PSV       3 N       3  --  L3 D10 L4
-L10 : T  64.56c W  63.08c S   1.47c ( +8.1 L  +8.0) LCB   38.88c P  1.88% WF   3.0 PSV       3 N       3  --  L10 L11 L9
-But should be fine thereafter. Make two moves and continue
-HASH: DCBD39921E5497E7CAAE01D5EB47D673
-   A B C D E F G H J K L M N
-13 . . . . . . . . . . . . .
-12 . . . . . . . . . . . . .
-11 . . . . . . . . . . . . .
-10 . . . O . . . . . X . . .
- 9 . . . . . . . . . . . . .
- 8 . . . . . . . . . . . . .
- 7 . . . . . . . . . . . . .
- 6 . . . . . . . . . . . . .
- 5 . . . . . . . . . . . . .
- 4 . . O X . . . . . X . . .
- 3 . . . . . . . . . . . . .
- 2 . . . . . . . . . . . . .
- 1 . . . . . . . . . . . . .
-
-
-Root visits: 260
-Last search playouts: 200
-NN rows: 680
-NN batches: 680
-NN avg batch size: 1
-PlayoutDoublingAdvantage: 1.5
-PV: D3 E3 C3 C11 C10 D11 E10 F11 E11 E12 D12 C12
-Tree:
-: T  65.35c W  62.41c S   2.94c ( +8.3 L  +8.6) N     260  --  D3 E3 C3 C11 C10 D11 E10
----White(^)---
-D3  : T  67.07c W  63.86c S   3.22c ( +8.6 L  +8.9) LCB   63.31c P 48.79% WF 206.1 PSV     202 N     202  --  D3 E3 C3 C11 C10 D11 E10 F11
-C3  : T  61.57c W  59.37c S   2.20c ( +7.6 L  +7.5) LCB   52.46c P 15.91% WF  27.6 PSV      28 N      29  --  C3 D5 D3 F4 L3 L4 K3 J4
-C5  : T  57.18c W  55.57c S   1.62c ( +7.1 L  +7.3) LCB   41.56c P 11.64% WF  13.8 PSV      14 N      15  --  C5 D3 D5 F4 L3 K3 L4 L5
-D5  : T  53.28c W  52.03c S   1.25c ( +6.7 L  +7.2) LCB   34.35c P 13.85% WF  11.5 PSV      13 N      13  --  D5 C3 C5 D3 F4 E5 E4
-Set position to original, search PONDERING
-HASH: 7483FCA004B18DAF3E71A20DFF4C1578
-   A B C D E F G H J K L M N
-13 . . . . . . . . . . . . .
-12 . . . . . . . . . . . . .
-11 . . . . . . . . . . . . .
-10 . . . . . . . . . X . . .
- 9 . . . . . . . . . . . . .
- 8 . . . . . . . . . . . . .
- 7 . . . . . . . . . . . . .
- 6 . . . . . . . . . . . . .
- 5 . . . . . . . . . . . . .
- 4 . . O . . . . . . X . . .
- 3 . . . . . . . . . . . . .
- 2 . . . . . . . . . . . . .
- 1 . . . . . . . . . . . . .
-
-
-Root visits: 300
-Last search playouts: 300
-NN rows: 286
-NN batches: 286
-NN avg batch size: 1
-PlayoutDoublingAdvantage: -1.5
-PV: D10 D4 D3 E3 C3 E4 D6 C8 D8 D9 E9 C9 C10
-Tree:
-: T -63.69c W -59.49c S  -4.20c ( -8.5 L  -8.9) N     300  --  D10 D4 D3 E3 C3 E4 D6
----White(^)---
-D10 : T -62.72c W -58.65c S  -4.07c ( -8.4 L  -8.7) LCB  -65.92c P 50.69% WF 211.3 PSV     209 N     209  --  D10 D4 D3 E3 C3 E4 D6 C8
-D11 : T -64.15c W -59.98c S  -4.17c ( -8.4 L  -8.8) LCB  -69.79c P 15.37% WF  47.5 PSV      48 N      48  --  D11 D10 C10 E11 C11 D4 D3 E3
-C10 : T -65.99c W -61.52c S  -4.47c ( -8.7 L  -9.1) LCB  -72.43c P 12.04% WF  28.1 PSV      28 N      29  --  C10 D10 D11 E11 C11 D4 D3
-L11 : T -75.32c W -69.26c S  -6.06c (-10.4 L -10.6) LCB -213.75c P  2.78% WF   2.8 PSV       3 N       3  --  L11 D4 D3
-C11 : T -70.97c W -65.25c S  -5.73c ( -9.9 L -10.5) LCB -286.75c P  2.39% WF   2.8 PSV       3 N       3  --  C11 D4 D3
-E4  : T -77.01c W -70.03c S  -6.99c (-11.1 L -11.5) LCB -280.00c P  2.88% WF   1.8 PSV       2 N       2  --  E4 D10
-L3  : T -78.57c W -71.99c S  -6.58c (-11.0 L -10.8) LCB -280.00c P  2.11% WF   1.8 PSV       1 N       2  --  L3 D4
-K3  : T -69.70c W -64.26c S  -5.43c ( -9.8 L -10.1) LCB -280.00c P  1.21% WF   1.9 PSV       1 N       2  --  K3 L3
-K11 : T -77.90c W -71.41c S  -6.49c (-10.8 L -11.1) LCB -280.00c P  0.91% WF   0.9 PSV       0 N       1  --  K11
+D10 : T -62.36c W -58.30c S  -4.06c ( -8.3 L  -8.7) LCB  -65.39c P 53.82% WF 218.1 PSV     216 N     216  --  D10 E3 L3 D5 C5 D6 C7 L4
+D11 : T -64.42c W -60.14c S  -4.28c ( -8.5 L  -8.8) LCB  -69.39c P 17.50% WF  48.0 PSV      48 N      49  --  D11 D10 C10 E11 C11 D4 D3
+C10 : T -65.39c W -60.98c S  -4.40c ( -8.6 L  -9.0) LCB  -72.90c P 11.11% WF  26.3 PSV      27 N      27  --  C10 D10 D11 E11 C11 D4 D3
+C11 : T -68.09c W -62.87c S  -5.23c ( -9.4 L -10.0) LCB -228.81c P  1.85% WF   2.9 PSV       3 N       3  --  C11 D4 D3
+L11 : T -79.83c W -72.92c S  -6.92c (-11.2 L -11.6) LCB -280.00c P  1.99% WF   0.9 PSV       1 N       1  --  L11
+L3  : T -76.40c W -70.11c S  -6.29c (-10.6 L -11.3) LCB -280.00c P  1.92% WF   0.9 PSV       1 N       1  --  L3
+K11 : T -79.95c W -72.77c S  -7.17c (-11.5 L -11.8) LCB -280.00c P  1.44% WF   0.9 PSV       1 N       1  --  K11
+E4  : T -76.48c W -69.33c S  -7.15c (-11.1 L -12.1) LCB -280.00c P  1.19% WF   0.9 PSV       1 N       1  --  E4
 Play that move and real search on the next position, should keep tree because correct guess of side
 HASH: 2E53497E7A09903059733F4752E11E5E
    A B C D E F G H J K L M N
@@ -1483,31 +1492,30 @@ HASH: 2E53497E7A09903059733F4752E11E5E
 
 
 Root visits: 400
-Last search playouts: 191
-NN rows: 477
-NN batches: 477
+Last search playouts: 184
+NN rows: 470
+NN batches: 470
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 1.5
-PV: D4 D3 E3 C3 E4 D6 C8 D8 D9 E9 C9 C10
+PV: D4 D3 E3 C3 E4 D6 C8 D8 D9 C9 E9
 Tree:
-: T -61.02c W -58.11c S  -2.90c ( -8.3 L  -8.6) N     400  --  D4 D3 E3 C3 E4 D6 C8
+: T -60.50c W -57.66c S  -2.84c ( -8.2 L  -8.6) N     400  --  D4 D3 E3 C3 E4 D6 C8
 ---Black(v)---
-D4  : T -62.91c W -59.70c S  -3.20c ( -8.6 L  -8.9) LCB  -60.17c P 35.71% WF 255.9 PSV     250 N     250  --  D4 D3 E3 C3 E4 D6 C8 D8
-E4  : T -57.36c W -55.02c S  -2.34c ( -7.8 L  -8.2) LCB  -49.87c P 20.77% WF  52.0 PSV      53 N      55  --  E4 L3 C10 C11 C9 D11 C6
-E3  : T -61.10c W -58.18c S  -2.92c ( -8.3 L  -8.7) LCB  -53.87c P 11.59% WF  53.5 PSV      52 N      54  --  E3 D5 C11 C10 D11 E10 E11 F10
-D3  : T -52.75c W -51.14c S  -1.61c ( -7.1 L  -7.4) LCB  -20.00c P  6.41% WF   9.2 PSV      10 N      10  --  D3 D4 E3 E4 F4 F3
-C11 : T -59.23c W -56.79c S  -2.44c ( -7.9 L  -7.8) LCB  -35.31c P  2.43% WF   7.8 PSV       7 N       8  --  C11 C10 D11 E10 D4 D3 E3
-C10 : T -58.00c W -55.57c S  -2.44c ( -7.9 L  -8.2) LCB    9.79c P  2.41% WF   5.8 PSV       6 N       6  --  C10 C11 C9 D11
-D11 : T -58.68c W -56.39c S  -2.29c ( -7.7 L  -7.7) LCB    3.97c P  2.14% WF   5.8 PSV       6 N       6  --  D11 C11 E11 C10 D4
-E10 : T -50.24c W -49.22c S  -1.02c ( -6.5 L  -6.8) LCB  280.00c P  1.30% WF   1.9 PSV       1 N       2  --  E10 D11
-F10 : T -43.46c W -42.77c S  -0.69c ( -6.2 L  -6.7) LCB  280.00c P  1.01% WF   0.9 PSV       1 N       1  --  F10
-F11 : T -51.18c W -49.79c S  -1.39c ( -6.9 L  -7.3) LCB  280.00c P  0.81% WF   0.9 PSV       1 N       1  --  F11
-D9  : T -32.19c W -33.89c S   1.70c ( -4.0 L  -4.1) LCB  280.00c P  1.21% WF   0.9 PSV       0 N       1  --  D9
-G11 : T -30.59c W -31.73c S   1.14c ( -4.5 L  -5.3) LCB  280.00c P  1.10% WF   0.8 PSV       0 N       1  --  G11
-G10 : T -42.36c W -41.92c S  -0.44c ( -6.0 L  -6.7) LCB  280.00c P  0.91% WF   0.9 PSV       0 N       1  --  G10
-C8  : T -37.61c W -38.14c S   0.53c ( -5.0 L  -5.3) LCB  280.00c P  0.83% WF   0.9 PSV       0 N       1  --  C8
-H10 : T -39.20c W -39.44c S   0.23c ( -5.3 L  -6.5) LCB  280.00c P  0.83% WF   0.9 PSV       0 N       1  --  H10
-F3  : T -39.76c W -39.74c S  -0.02c ( -5.6 L  -6.1) LCB  280.00c P  0.72% WF   0.9 PSV       0 N       1  --  F3
+D4  : T -61.29c W -58.31c S  -2.98c ( -8.3 L  -8.7) LCB  -58.19c P 43.62% WF 226.8 PSV     225 N     225  --  D4 D3 E3 C3 E4 D6 C8 D8
+E3  : T -62.30c W -59.23c S  -3.07c ( -8.4 L  -8.8) LCB  -57.01c P 11.42% WF  79.4 PSV      76 N      78  --  E3 L3 D5 C5 D6 C7 L4 K3
+E4  : T -59.10c W -56.47c S  -2.63c ( -8.0 L  -8.4) LCB  -53.46c P 17.73% WF  60.5 PSV      61 N      62  --  E4 L3 D11 C11 E11 E10
+D3  : T -54.75c W -52.90c S  -1.84c ( -7.2 L  -7.4) LCB  -16.84c P  3.53% WF   6.7 PSV       7 N       7  --  D3 D4 E3 E4 F4
+C10 : T -56.49c W -54.37c S  -2.12c ( -7.5 L  -7.7) LCB    4.61c P  3.04% WF   6.7 PSV       7 N       7  --  C10 C11 C9 D11 C6
+C11 : T -57.93c W -55.66c S  -2.27c ( -7.7 L  -7.8) LCB   -2.62c P  2.25% WF   5.9 PSV       6 N       6  --  C11 C10 D11 E10 D4
+D11 : T -54.82c W -53.00c S  -1.82c ( -7.2 L  -7.4) LCB   72.80c P  2.04% WF   4.8 PSV       4 N       5  --  D11 C11 E11 E10 F11
+E10 : T -53.62c W -51.99c S  -1.63c ( -7.0 L  -7.6) LCB  280.00c P  1.16% WF   1.9 PSV       2 N       2  --  E10 D11
+F11 : T -48.28c W -47.12c S  -1.16c ( -6.6 L  -6.9) LCB  280.00c P  0.90% WF   0.9 PSV       1 N       1  --  F11
+D9  : T -50.58c W -49.73c S  -0.85c ( -6.3 L  -6.2) LCB  280.00c P  0.90% WF   0.9 PSV       1 N       1  --  D9
+F10 : T -34.00c W -34.91c S   0.90c ( -4.7 L  -5.2) LCB  280.00c P  0.85% WF   0.9 PSV       0 N       1  --  F10
+C8  : T -46.58c W -45.82c S  -0.76c ( -6.2 L  -6.5) LCB  280.00c P  0.78% WF   0.9 PSV       0 N       1  --  C8
+F3  : T -40.59c W -41.14c S   0.55c ( -5.0 L  -5.6) LCB  280.00c P  0.76% WF   0.9 PSV       0 N       1  --  F3
+D8  : T -31.24c W -32.17c S   0.93c ( -4.6 L  -5.2) LCB  280.00c P  0.72% WF   0.9 PSV       0 N       1  --  D8
+F4  : T -45.02c W -44.35c S  -0.67c ( -6.1 L  -6.7) LCB  280.00c P  0.72% WF   0.9 PSV       0 N       1  --  F4
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732
@@ -1660,7 +1668,7 @@ E5  E6  F5  D2  : T -84.47c W -75.93c S  -8.55c ( -7.9 L  -6.0) LCB -280.00c P 6
 E5  D2  : T -98.48c W -87.71c S -10.77c ( -9.0 L  -7.2) LCB -280.00c P 18.77% WF   0.7 PSV       1 N       1  --  D2
 D2  : T -21.62c W -21.29c S  -0.33c ( -2.0 L  -1.4) LCB  433.58c P 33.82% WF   3.7 PSV       3 N       4  --  D2 E6 C5
 D2  E6  : T -29.38c W -28.52c S  -0.87c ( -2.3 L  -1.6) LCB -280.00c P 30.99% WF   2.0 PSV       2 N       2  --  E6 C5
-D2  E6  C5  : T -45.35c W -43.26c S  -2.09c ( -3.1 L  -2.7) LCB  280.00c P 64.54% WF   1.0 PSV       1 N       1  --  C5
+D2  E6  C5  : T -45.35c W -43.26c S  -2.09c ( -3.1 L  -2.7) LCB  280.00c P 64.55% WF   1.0 PSV       1 N       1  --  C5
 D2  C5  : T -19.64c W -18.78c S  -0.86c ( -2.5 L  -1.5) LCB -280.00c P 23.89% WF   1.0 PSV       1 N       1  --  C5
 C5  : T -29.01c W -28.43c S  -0.58c ( -2.2 L  -1.6) LCB  272.83c P 20.57% WF   3.9 PSV       3 N       4  --  C5 E5 C6 F7
 C5  E5  : T -32.34c W -31.38c S  -0.96c ( -2.4 L  -1.6) LCB -958.42c P 47.53% WF   3.0 PSV       3 N       3  --  E5 C6 F7
@@ -1826,7 +1834,7 @@ E5  E6  F5  D2  : T -84.47c W -75.93c S  -8.55c ( -7.9 L  -6.0) LCB -280.00c P 6
 E5  D2  : T -98.48c W -87.71c S -10.77c ( -9.0 L  -7.2) LCB -280.00c P 18.77% WF   0.8 PSV       1 N       1  --  D2
 D2  : T -26.51c W -20.83c S  -5.68c ( -2.2 L  -1.7) LCB  125.50c P 33.82% WF   4.5 PSV       3 N       5  --  D2 E6 C5
 D2  E6  : T -37.36c W -28.52c S  -8.85c ( -2.3 L  -1.6) LCB -280.00c P 30.99% WF   1.9 PSV       2 N       2  --  E6 C5
-D2  E6  C5  : T -45.35c W -43.26c S  -2.09c ( -3.1 L  -2.7) LCB  280.00c P 64.54% WF   1.0 PSV       1 N       1  --  C5
+D2  E6  C5  : T -45.35c W -43.26c S  -2.09c ( -3.1 L  -2.7) LCB  280.00c P 64.55% WF   1.0 PSV       1 N       1  --  C5
 D2  C5  : T -20.45c W -19.15c S  -1.30c ( -2.6 L  -2.1) LCB -280.00c P 23.89% WF   2.1 PSV       2 N       2  --  C5 E5
 D2  C5  E5  : T -20.72c W -19.52c S  -1.19c ( -2.8 L  -2.8) LCB  280.00c P 50.71% WF   1.0 PSV       1 N       1  --  E5
 C5  : T -26.18c W -28.43c S   2.25c ( -2.2 L  -1.6) LCB  122.02c P 20.57% WF   3.6 PSV       2 N       4  --  C5 E5 C6 F7
@@ -1946,7 +1954,7 @@ F5  D2  D6  C5  F3  E1  F4  : T -64.95c W -68.58c S   3.62c ( -5.8 L  -5.6) LCB 
 F5  D2  D6  C5  F3  E1  F4  E2  : T -62.41c W -65.69c S   3.28c ( -5.4 L  -5.4) LCB -318.83c P 88.65% WF   4.0 PSV       4 N       4  --  E2 C6 B5 B6
 F5  D2  D6  C5  F3  E1  F4  E2  C6  : T -59.25c W -62.28c S   3.03c ( -4.6 L  -5.0) LCB  666.02c P 26.15% WF   3.0 PSV       3 N       3  --  C6 B5 B6
 F5  D2  D6  C5  F3  E1  F4  E2  C6  B5  : T -57.52c W -61.27c S   3.75c ( -4.7 L  -5.1) LCB -280.00c P 79.77% WF   2.0 PSV       2 N       2  --  B5 B6
-F5  D2  D6  C5  F3  E1  F4  E2  C6  B5  B6  : T -49.91c W -48.17c S  -1.73c ( -3.5 L  -4.4) LCB  280.00c P 45.70% WF   1.0 PSV       1 N       1  --  B6
+F5  D2  D6  C5  F3  E1  F4  E2  C6  B5  B6  : T -49.91c W -48.17c S  -1.73c ( -3.5 L  -4.4) LCB  280.00c P 45.71% WF   1.0 PSV       1 N       1  --  B6
 F5  D2  D6  C5  B4  : T  -4.92c W  -7.42c S   2.49c ( -0.4 L  -0.9) LCB  280.00c P 17.86% WF   0.8 PSV       1 N       1  --  B4
 F5  D2  D6  C5  C2  : T -22.28c W -22.05c S  -0.23c ( -2.5 L  -2.5) LCB  280.00c P 15.90% WF   0.9 PSV       1 N       1  --  C2
 F5  D2  D6  C5  C6  : T -10.04c W -13.11c S   3.07c ( -0.5 L  -1.3) LCB  280.00c P 13.00% WF   0.8 PSV       1 N       1  --  C6
@@ -2980,7 +2988,7 @@ B6  : T 121.05c W  99.98c S  21.08c (+71.4 L +69.8) LCB  113.61c P  4.51% WF  14
 D11 : T 120.03c W  99.98c S  20.05c (+70.5 L +69.3) LCB  110.52c P  4.53% WF  12.0 PSV      12 N      12  --  D11 pass K10 pass
 B5  : T 120.21c W  99.97c S  20.24c (+70.7 L +69.0) LCB  103.87c P  2.88% WF   7.0 PSV       7 N       7  --  B5 pass K10 pass
 F8  : T 120.74c W  99.97c S  20.77c (+71.2 L +69.5) LCB  100.88c P  2.38% WF   7.0 PSV       6 N       7  --  F8 pass K6 pass
-L1  : T 119.79c W  99.96c S  19.83c (+70.1 L +68.3) LCB  -81.37c P  1.27% WF   3.0 PSV       3 N       3  --  L1 pass K10
+L1  : T 119.79c W  99.96c S  19.83c (+70.1 L +68.3) LCB  -81.38c P  1.27% WF   3.0 PSV       3 N       3  --  L1 pass K10
 L11 : T 119.59c W  99.93c S  19.66c (+70.8 L +70.1) LCB -280.00c P  0.92% WF   2.0 PSV       2 N       2  --  L11 pass
 E4  : T 118.63c W  99.94c S  18.68c (+69.6 L +65.3) LCB -280.00c P  0.80% WF   1.0 PSV       1 N       1  --  E4
 F5  : T 120.33c W  99.96c S  20.37c (+70.9 L +66.4) LCB -280.00c P  0.71% WF   1.0 PSV       1 N       1  --  F5
@@ -3988,7 +3996,7 @@ D11 : T  -3.46c W  -3.00c S  -0.46c ( -0.7 L  -0.2) LCB   -9.28c P  3.10% WF  15
 C10 : T  -4.48c W  -3.89c S  -0.60c ( -0.9 L  -0.5) LCB  -13.90c P  2.60% WF  11.6 PSV      11 N      12  --  C10 P16 N17 L17 Q17
 C16 : T  -6.63c W  -5.74c S  -0.89c ( -1.3 L  -0.8) LCB  -22.45c P  3.45% WF  10.3 PSV      11 N      11  --  C16 C17 B17 D17 B15
 H9  : T  -6.60c W  -5.88c S  -0.72c ( -1.0 L  -0.8) LCB  -16.78c P  2.68% WF   7.6 PSV       8 N       8  --  H9 P16 C11 D4 D3
-D5  : T  -8.54c W  -7.45c S  -1.09c ( -1.6 L  -1.9) LCB  -21.68c P  3.02% WF   7.4 PSV       7 N       8  --  D5 P16 C11 L4 J4
+D5  : T  -8.54c W  -7.45c S  -1.09c ( -1.6 L  -1.9) LCB  -21.69c P  3.02% WF   7.4 PSV       7 N       8  --  D5 P16 C11 L4 J4
 D10 : T  -3.47c W  -3.02c S  -0.45c ( -0.7 L  -0.3) LCB  -19.47c P  1.53% WF   6.9 PSV       7 N       7  --  D10 P16 N17 L17
 Q5  : T  -8.85c W  -7.69c S  -1.16c ( -1.7 L  -1.6) LCB  -67.86c P  2.28% WF   4.6 PSV       5 N       5  --  Q5 P16 R5 S5
 K8  : T  -6.41c W  -5.72c S  -0.69c ( -1.0 L  -0.7) LCB  -20.45c P  1.77% WF   4.8 PSV       5 N       5  --  K8 P16 C11
@@ -4045,7 +4053,7 @@ D11 : T  -3.46c W  -3.00c S  -0.46c ( -0.7 L  -0.2) LCB   -9.28c P  3.10% WF  15
 C10 : T  -4.48c W  -3.89c S  -0.60c ( -0.9 L  -0.5) LCB  -13.90c P  2.60% WF  11.6 PSV       7 N      12  --  C10 P16 N17 L17 Q17
 C16 : T  -6.63c W  -5.74c S  -0.89c ( -1.3 L  -0.8) LCB  -22.45c P  3.45% WF  10.3 PSV       7 N      11  --  C16 C17 B17 D17 B15
 H9  : T  -6.60c W  -5.88c S  -0.72c ( -1.0 L  -0.8) LCB  -16.78c P  2.68% WF   7.6 PSV       4 N       8  --  H9 P16 C11 D4 D3
-D5  : T  -8.54c W  -7.45c S  -1.09c ( -1.6 L  -1.9) LCB  -21.68c P  3.02% WF   7.4 PSV       3 N       8  --  D5 P16 C11 L4 J4
+D5  : T  -8.54c W  -7.45c S  -1.09c ( -1.6 L  -1.9) LCB  -21.69c P  3.02% WF   7.4 PSV       3 N       8  --  D5 P16 C11 L4 J4
 D10 : T  -3.47c W  -3.02c S  -0.45c ( -0.7 L  -0.3) LCB  -19.47c P  1.53% WF   6.9 PSV       3 N       7  --  D10 P16 N17 L17
 Q5  : T  -8.85c W  -7.69c S  -1.16c ( -1.7 L  -1.6) LCB  -67.86c P  2.28% WF   4.6 PSV       1 N       5  --  Q5 P16 R5 S5
 K8  : T  -6.41c W  -5.72c S  -0.69c ( -1.0 L  -0.7) LCB  -20.45c P  1.77% WF   4.8 PSV       1 N       5  --  K8 P16 C11
@@ -4870,7 +4878,7 @@ Policy samples
 0 0.00103518
 1 0.00108092
 2 0.00110274
-3 0.00116287
+3 0.00116288
 4 0.00123321
 5 0.00123714
 6 0.00125503
@@ -4884,9 +4892,9 @@ Policy samples
 14 0.00151713
 15 0.00152585
 16 0.00167814
-17 0.00172387
+17 0.00172388
 18 0.0017457
-19 0.00180583
+19 0.00180584
 20 0.0018801
 21 0.00195773
 22 0.00211003
@@ -4897,30 +4905,30 @@ Policy samples
 27 0.00260069
 WL samples
 0 -0.0432157
-1 -0.0408703
-2 -0.0405848
-3 -0.0392305
+1 -0.0408704
+2 -0.040585
+3 -0.0392303
 4 -0.038945
 5 -0.0365996
 6 -0.033839
-7 -0.0335535
-8 -0.0312081
+7 -0.0335537
+8 -0.0312083
 9 -0.0295683
-10 -0.0275655
+10 -0.0275654
 11 -0.02728
-12 -0.026105
+12 -0.0261049
 13 -0.0258195
-14 -0.0249346
+14 -0.0249347
 15 -0.0234742
 16 -0.0232947
-17 -0.0218344
+17 -0.0218343
 18 -0.0212793
-19 -0.0209938
-20 -0.0186485
-21 -0.0179033
-22 -0.0170087
+19 -0.0209939
+20 -0.0186486
+21 -0.0179034
+22 -0.0170085
 23 -0.0164429
-24 -0.0116172
-25 -0.0101694
+24 -0.0116173
+25 -0.0101693
 26 -0.00534368
-27 -0.00388324
+27 -0.00388318

@@ -78,7 +78,7 @@ targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 H9 10 H8 7 J8 4 
 whiteValueTargetsByTurn 0 0.520929 0.479071 0 1.35187 - 
 whiteValueTargetsByTurn 1 1 0 0 7.5 7.5 
-Raw Stats 0.0911754 1.74329 1.64663
+Raw Stats 0.0911756 1.7433 1.64663
 ...........
 ...........
 ...X...O...
@@ -230,7 +230,7 @@ targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C8 22 D9 19 J4 9 J8 10 H9 8 H8 11 D8 7 H4 3 H3 1 
 whiteValueTargetsByTurn 0 0.522782 0.477218 0 1.30903 - 
 whiteValueTargetsByTurn 1 1 0 0 7.5 7.5 
-Raw Stats 0.124192 2.4364 2.45479
+Raw Stats 0.124192 2.43639 2.45479
 ...........
 ...........
 ...........
@@ -472,9 +472,9 @@ usedInitialPosition 0
 hasFullData 1
 targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 G4 11 H5 7 H3 1 
-whiteValueTargetsByTurn 0 0.481823 0.518177 0 -0.0243639 - 
+whiteValueTargetsByTurn 0 0.481823 0.518177 0 -0.0243641 - 
 whiteValueTargetsByTurn 1 1 0 0 6.5 6.5 
-Raw Stats -0.176581 -2.281 1.3156
+Raw Stats -0.17658 -2.281 1.3156
 ...........
 ...........
 .....O.....
@@ -625,7 +625,7 @@ targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C8 99 
 whiteValueTargetsByTurn 0 0.546581 0.453419 0 1.94818 - 
 whiteValueTargetsByTurn 1 1 0 0 7.5 7.5 
-Raw Stats 0.0990965 2.24505 0.237036
+Raw Stats 0.0990965 2.24505 0.237037
 ...........
 ...........
 ...........
@@ -672,7 +672,7 @@ Raw Stats 0.0990965 2.24505 0.237036
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position X
 Pre-fair komi 7.5
-Lead: -0.550942
+Lead: -0.550943
 HASH: 36E54B920A51C1C15436197C8963D487
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -899,7 +899,7 @@ targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 H9 24 H8 18 H4 12 J4 11 J8 24 H3 7 
 whiteValueTargetsByTurn 0 0.529171 0.470829 0 1.4779 - 
 whiteValueTargetsByTurn 1 1 0 0 6.5 6.5 
-Raw Stats -0.0239686 -0.0126126 2.10889
+Raw Stats -0.0239686 -0.0126153 2.10889
 ...........
 ...........
 .......X...
@@ -1021,7 +1021,7 @@ targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C8 13 D4 12 C4 7 D3 5 D9 6 D8 11 H8 9 H9 9 J8 7 H3 8 J4 5 H4 5 
 whiteValueTargetsByTurn 0 0.511855 0.488145 0 0.875535 - 
 whiteValueTargetsByTurn 1 0 1 0 -113.5 -113.5 
-Raw Stats -0.0119903 0.457925 2.91822
+Raw Stats -0.0119904 0.457927 2.91822
 XXXXXXXXXXX
 XXXXXXXXXXX
 XXXXXXXXXXX
@@ -1260,7 +1260,7 @@ targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 C8 13 D4 12 C4 7 D3 5 D9 6 D8 11 H8 9 H9 9 J8 7 H3 8 J4 5 H4 5 
 whiteValueTargetsByTurn 0 0.511855 0.488145 0 0.875535 - 
 whiteValueTargetsByTurn 1 0 1 0 -113.5 -113.5 
-Raw Stats -0.0119903 0.457925 2.91822
+Raw Stats -0.0119904 0.457927 2.91822
 XXXXXXXXXXX
 XXXXXXXXXXX
 XXXXXXXXXXX
@@ -1441,7 +1441,7 @@ targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 C8 10 D4 2 C4 2 D3 2 D9 2 D8 10 H8 2 H9 2 J8 2 
 whiteValueTargetsByTurn 0 0.523714 0.476286 0 1.28118 - 
 whiteValueTargetsByTurn 1 0 1 0 -113.5 -113.5 
-Raw Stats -0.0119903 0.457925 2.91822
+Raw Stats -0.0119904 0.457927 2.91822
 XXXXXXXXXXX
 XXXXXXXXXXX
 XXXXXXXXXXX
@@ -1622,7 +1622,7 @@ targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 J7 31 C4 38 D9 16 J8 9 D3 1 D4 1 
 whiteValueTargetsByTurn 0 0.521171 0.478829 0 1.62268 - 
 whiteValueTargetsByTurn 1 1 0 0 19 19 
-Raw Stats -0.0620618 0.206834 2.08828
+Raw Stats -0.0620617 0.206838 2.08828
 ...........
 ...........
 .......O...
@@ -1744,7 +1744,7 @@ targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 D3 10 H3 6 H4 4 J4 4 D4 1 C4 1 
 whiteValueTargetsByTurn 0 0.498072 0.501928 0 1.09751 - 
 whiteValueTargetsByTurn 1 1 0 0 21.5 21.5 
-Raw Stats 0.17623 4.40511 2.13299
+Raw Stats 0.176229 4.4051 2.13299
 ...........
 ...........
 ...........
@@ -1988,7 +1988,7 @@ targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 J4 71 H4 24 F9 3 H3 1 
 whiteValueTargetsByTurn 0 0.489017 0.510983 0 0.541188 - 
 whiteValueTargetsByTurn 1 1 0 0 19 19 
-Raw Stats -0.125306 -0.687262 1.70235
+Raw Stats -0.125306 -0.68726 1.70235
 ...........
 ...........
 ...........
@@ -2035,7 +2035,7 @@ Raw Stats -0.125306 -0.687262 1.70235
  0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
 Forking to initial position O
 Pre-fair komi 21
-Lead: 0.123151
+Lead: 0.123152
 HASH: 07B30EBC55DFCF04CC658F4AD81BCA50
    A B C D E F G H J K L
 11 . . . . . . . . . . .
@@ -2140,7 +2140,7 @@ targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 B7 77 D7 8 J4 14 
 whiteValueTargetsByTurn 0 0.321921 0.678079 0 -6.8218 - 
 whiteValueTargetsByTurn 1 1 0 0 18.5 18.5 
-Raw Stats -0.316902 -5.53336 1.79144
+Raw Stats -0.316903 -5.53336 1.79144
 .....O.....
 ...........
 ...O...X...
@@ -2262,7 +2262,7 @@ targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 J4 78 J6 7 J7 8 H7 1 J5 2 H6 1 
 whiteValueTargetsByTurn 0 0.496166 0.503834 0 0.685303 - 
 whiteValueTargetsByTurn 1 1 0 0 21.5 21.5 
-Raw Stats 0.111958 2.38066 1.83435
+Raw Stats 0.111958 2.38065 1.83435
 ...........
 ...........
 .......X...
@@ -2412,7 +2412,7 @@ usedInitialPosition 0
 hasFullData 1
 targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 G3 29 C4 53 C3 7 H4 3 E4 1 E3 2 
-whiteValueTargetsByTurn 0 0.494753 0.505247 0 0.554856 - 
+whiteValueTargetsByTurn 0 0.494753 0.505247 0 0.554857 - 
 whiteValueTargetsByTurn 1 1 0 0 20 20 
 Raw Stats -0.17753 -1.54844 1.4721
 ...........
@@ -2926,7 +2926,7 @@ targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 F9 39 J3 23 J6 15 C8 17 H2 1 C7 1 
 whiteValueTargetsByTurn 0 0.546607 0.453393 0 2.81314 - 
 whiteValueTargetsByTurn 1 1 0 0 19 19 
-Raw Stats -0.0632572 -0.166638 2.17833
+Raw Stats -0.0632572 -0.166636 2.17833
 ...........
 ...........
 ...O.X.....
@@ -3048,7 +3048,7 @@ targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 H3 34 J4 33 H4 22 D9 4 J3 4 C9 1 
 whiteValueTargetsByTurn 0 0.494858 0.505142 0 0.692547 - 
 whiteValueTargetsByTurn 1 1 0 0 33 33 
-Raw Stats 0.0600406 1.35086 1.93923
+Raw Stats 0.0600404 1.35086 1.93923
 ...........
 ...........
 ...........
@@ -3503,7 +3503,7 @@ targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 H6 18 C4 0 
 whiteValueTargetsByTurn 0 0.587073 0.412927 0 4.45139 - 
 whiteValueTargetsByTurn 1 1 0 0 38 38 
-Raw Stats 0.16769 3.51863 1.80852
+Raw Stats 0.16769 3.51864 1.80852
 ...........
 ...........
 ......X....
@@ -3625,7 +3625,7 @@ targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 F10 99 
 whiteValueTargetsByTurn 0 0.343617 0.656383 0 -6.44808 - 
 whiteValueTargetsByTurn 1 1 0 0 29.5 29.5 
-Raw Stats -0.324577 -5.93004 0.290596
+Raw Stats -0.324577 -5.93004 0.290595
 ...........
 .....XO....
 ...O..XO...
@@ -3805,7 +3805,7 @@ targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 K5 84 J4 10 H9 1 J2 0 H2 0 
 whiteValueTargetsByTurn 0 0.428676 0.571324 0 -2.78915 - 
 whiteValueTargetsByTurn 1 1 0 0 35 35 
-Raw Stats -0.22619 -4.31076 1.40972
+Raw Stats -0.226189 -4.31076 1.40972
 ...........
 ...........
 ..OX....O..
@@ -3983,7 +3983,7 @@ usedInitialPosition 0
 hasFullData 1
 targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 D9 52 D8 23 C8 19 C9 5 
-whiteValueTargetsByTurn 0 0.497667 0.502333 0 0.874215 - 
+whiteValueTargetsByTurn 0 0.497667 0.502333 0 0.874214 - 
 whiteValueTargetsByTurn 1 1 0 0 35 35 
 Raw Stats 0.149549 3.15137 1.60223
 ...........
@@ -4107,7 +4107,7 @@ targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 E8 16 E9 3 
 whiteValueTargetsByTurn 0 0.592466 0.407534 0 5.08744 - 
 whiteValueTargetsByTurn 1 1 0 0 35.5 35.5 
-Raw Stats 0.00671899 1.3119 1.51034
+Raw Stats 0.00671923 1.3119 1.51034
 ...........
 ...........
 ...........
@@ -4229,7 +4229,7 @@ targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 J3 30 H3 17 J4 11 D8 5 D9 10 H4 2 C8 5 C9 7 
 whiteValueTargetsByTurn 0 0.494135 0.505865 0 0.556618 - 
 whiteValueTargetsByTurn 1 0 1 0 -84.5 -84.5 
-Raw Stats -0.356526 -9.5055 3.1222
+Raw Stats -0.356526 -9.50549 3.1222
 XXXXXXXXXXX
 XXXXXXXXXXX
 XXXXXXXXXXX
@@ -4956,9 +4956,9 @@ usedInitialPosition 0
 hasFullData 1
 targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 G3 31 E9 33 F9 22 H3 10 G4 1 E8 1 
-whiteValueTargetsByTurn 0 0.529843 0.470157 0 1.67637 - 
+whiteValueTargetsByTurn 0 0.529843 0.470157 0 1.67638 - 
 whiteValueTargetsByTurn 1 1 0 0 7 7 
-Raw Stats -0.0809797 -1.47391 1.99479
+Raw Stats -0.0809796 -1.47391 1.99479
 ...........
 ...........
 ....X..O...
@@ -5080,7 +5080,7 @@ targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 J6 12 J7 6 H5 1 
 whiteValueTargetsByTurn 0 0.565301 0.434699 0 2.16179 - 
 whiteValueTargetsByTurn 1 1 0 0 7 7 
-Raw Stats 0.0594352 1.37615 1.97509
+Raw Stats 0.0594351 1.37615 1.97509
 ...........
 ...........
 ....X.O....
@@ -5383,7 +5383,7 @@ targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 D3 10 H3 6 H4 4 J4 4 D4 1 C4 1 
 whiteValueTargetsByTurn 0 0.498072 0.501928 0 1.09751 - 
 whiteValueTargetsByTurn 1 1 0 0 21 21 
-Raw Stats 0.17623 4.40511 2.13299
+Raw Stats 0.176229 4.4051 2.13299
 ...........
 ...........
 ...........
@@ -5505,7 +5505,7 @@ targetWeightByTurn 0 1 unrounded 1
 policyTargetsByTurn 0 unreducedNumVisits 100 H3 43 J4 20 H4 28 D9 4 J3 1 G9 0 
 whiteValueTargetsByTurn 0 0.557688 0.442312 0 3.83901 - 
 whiteValueTargetsByTurn 1 1 0 0 34.5 34.5 
-Raw Stats 0.232806 5.85881 2.06372
+Raw Stats 0.232807 5.85882 2.06372
 ...........
 ...........
 ...........
@@ -5715,7 +5715,7 @@ targetWeightByTurn 0 0 unrounded 0.123
 policyTargetsByTurn 0 unreducedNumVisits 20 C4 10 D3 4 C3 3 D4 1 J3 1 H3 1 
 whiteValueTargetsByTurn 0 0.537984 0.462016 0 2.59763 - 
 whiteValueTargetsByTurn 1 0 1 0 -79 -79 
-Raw Stats -0.381515 -8.25396 2.79482
+Raw Stats -0.381514 -8.25396 2.79482
 XXXXXXXXXXX
 XXXXXXXXXXX
 XXXXXXXXXXX
@@ -5994,27 +5994,27 @@ whiteValueTargetsByTurn 6 0.547129 0.452871 0 1.97077 -
 whiteValueTargetsByTurn 7 0.541702 0.458298 0 1.72754 - 
 whiteValueTargetsByTurn 8 0.554075 0.445925 0 2.24517 - 
 whiteValueTargetsByTurn 9 0.543009 0.456991 0 1.82243 - 
-whiteValueTargetsByTurn 10 0.541185 0.458815 0 1.78281 - 
+whiteValueTargetsByTurn 10 0.541185 0.458815 0 1.7828 - 
 whiteValueTargetsByTurn 11 0.541255 0.458745 0 1.80378 - 
 whiteValueTargetsByTurn 12 0.531443 0.468557 0 1.5466 - 
 whiteValueTargetsByTurn 13 0.548947 0.451053 0 2.13183 - 
 whiteValueTargetsByTurn 14 0.518205 0.481795 0 0.9401 - 
 whiteValueTargetsByTurn 15 1 0 0 7.5 7.5 
-Raw Stats 0.0966728 2.15319 1.66028
-Raw Stats -0.0574884 -0.599072 1.56923
+Raw Stats 0.0966729 2.15319 1.66028
+Raw Stats -0.0574884 -0.59907 1.56923
 Raw Stats 0.149231 3.38322 1.5944
 Raw Stats -0.031484 -0.546449 1.2066
 Raw Stats 0.1972 4.0263 1.63425
-Raw Stats -0.0293837 -0.549662 1.62292
-Raw Stats 0.088924 1.78281 1.13524
-Raw Stats -0.0284474 -0.400935 1.08108
-Raw Stats 0.123226 1.82895 0.54286
-Raw Stats -0.0872986 -0.781027 1.98179
-Raw Stats 0.176708 2.58426 0.913723
-Raw Stats -0.100572 -0.937776 1.5295
-Raw Stats 0.0743404 1.36252 2.17912
+Raw Stats -0.0293838 -0.549663 1.62292
+Raw Stats 0.0889237 1.78281 1.13524
+Raw Stats -0.0284476 -0.400935 1.08108
+Raw Stats 0.123226 1.82896 0.54286
+Raw Stats -0.0872988 -0.781027 1.98179
+Raw Stats 0.176708 2.58426 0.913722
+Raw Stats -0.100573 -0.937777 1.5295
+Raw Stats 0.0743403 1.36252 2.17912
 Raw Stats 0.0342797 0.864086 0.860028
-Raw Stats 0.0879562 1.71193 1.19744
+Raw Stats 0.0879563 1.71193 1.19744
 ...........
 ...........
 ..OO..XO...
@@ -6192,11 +6192,11 @@ policyTargetsByTurn 26 unreducedNumVisits 100 B9 17 B8 20 B10 16 B7 35 C9 8
 policyTargetsByTurn 27 unreducedNumVisits 100 B6 88 B9 6 C9 4 
 policyTargetsByTurn 28 unreducedNumVisits 100 B9 63 B8 36 
 policyTargetsByTurn 29 unreducedNumVisits 50 A7 41 B10 5 F10 3 
-whiteValueTargetsByTurn 0 0.52166 0.47834 0 1.37687 -0.0640311 
-whiteValueTargetsByTurn 1 0.51706 0.48294 0 1.11079 - 
+whiteValueTargetsByTurn 0 0.52166 0.47834 0 1.37687 -0.0640305 
+whiteValueTargetsByTurn 1 0.51706 0.48294 0 1.1108 - 
 whiteValueTargetsByTurn 2 0.521104 0.478896 0 1.10327 - 
 whiteValueTargetsByTurn 3 0.513806 0.486194 0 0.851763 - 
-whiteValueTargetsByTurn 4 0.525088 0.474912 0 1.17523 0.351784 
+whiteValueTargetsByTurn 4 0.525088 0.474912 0 1.17523 0.351783 
 whiteValueTargetsByTurn 5 0.558615 0.441385 0 2.29737 - 
 whiteValueTargetsByTurn 6 0.566349 0.433651 0 2.47334 - 
 whiteValueTargetsByTurn 7 0.574803 0.425197 0 2.77264 2.38248 
@@ -6204,9 +6204,9 @@ whiteValueTargetsByTurn 8 0.576475 0.423525 0 2.837 2.42423
 whiteValueTargetsByTurn 9 0.570799 0.429201 0 2.62909 - 
 whiteValueTargetsByTurn 10 0.583748 0.416252 0 3.10685 2.36189 
 whiteValueTargetsByTurn 11 0.617169 0.382831 0 4.45788 - 
-whiteValueTargetsByTurn 12 0.621873 0.378127 0 4.49209 3.46191 
+whiteValueTargetsByTurn 12 0.621873 0.378127 0 4.49209 3.4619 
 whiteValueTargetsByTurn 13 0.610512 0.389488 0 4.37843 - 
-whiteValueTargetsByTurn 14 0.616582 0.383418 0 4.56524 - 
+whiteValueTargetsByTurn 14 0.616582 0.383418 0 4.56523 - 
 whiteValueTargetsByTurn 15 0.629529 0.370471 0 5.05662 - 
 whiteValueTargetsByTurn 16 0.639875 0.360125 0 5.45477 - 
 whiteValueTargetsByTurn 17 0.636494 0.363506 0 5.14724 4.20336 
@@ -6223,30 +6223,30 @@ whiteValueTargetsByTurn 27 0.640121 0.359879 0 5.05372 4.52646
 whiteValueTargetsByTurn 28 0.650925 0.349075 0 5.38713 2.94314 
 whiteValueTargetsByTurn 29 0.663353 0.336647 0 5.56441 2.68511 
 whiteValueTargetsByTurn 30 1 0 0 9.5 9.5 
-Raw Stats -0.0598912 -0.54185 2.13991
+Raw Stats -0.0598915 -0.541853 2.13991
 Raw Stats 0.114049 2.51177 2.0547
-Raw Stats -0.0932655 -1.45583 1.99458
+Raw Stats -0.0932659 -1.45583 1.99459
 Raw Stats 0.155718 3.73724 1.51938
-Raw Stats -0.0587357 -1.13889 1.27932
-Raw Stats 0.223017 5.42889 1.73214
-Raw Stats 0.0135794 -0.0252771 1.06261
+Raw Stats -0.058736 -1.13889 1.27932
+Raw Stats 0.223016 5.42888 1.73214
+Raw Stats 0.0135794 -0.0252745 1.06261
 Raw Stats 0.186744 3.72711 0.85102
-Raw Stats 0.0362183 0.408653 1.29168
+Raw Stats 0.0362182 0.408649 1.29168
 Raw Stats 0.138581 2.3728 0.669943
-Raw Stats 0.00758255 0.0852495 1.65359
-Raw Stats 0.190723 3.57639 1.04367
+Raw Stats 0.00758231 0.0852439 1.65359
+Raw Stats 0.190723 3.57638 1.04367
 Raw Stats 0.132144 2.47174 2.18013
-Raw Stats 0.267282 5.37863 0.995217
-Raw Stats 0.0803077 1.4371 1.76138
+Raw Stats 0.267282 5.37863 0.995219
+Raw Stats 0.0803075 1.4371 1.76138
 Raw Stats 0.280305 5.42696 2.12992
-Raw Stats 0.178987 3.71086 1.30466
+Raw Stats 0.178986 3.71086 1.30466
 Raw Stats 0.373458 7.45947 1.56549
-Raw Stats 0.111539 2.13921 1.09075
-Raw Stats 0.322141 5.81976 0.670117
+Raw Stats 0.111538 2.1392 1.09075
+Raw Stats 0.322141 5.81977 0.670117
 Raw Stats 0.243402 4.95954 1.29826
 Raw Stats 0.453629 7.05747 0.954518
-Raw Stats 0.485706 8.63025 0.840094
-Raw Stats 0.53041 7.24311 1.16379
+Raw Stats 0.485706 8.63025 0.840093
+Raw Stats 0.530409 7.24311 1.16379
 Raw Stats 0.290866 4.88378 2.24292
 Raw Stats 0.418476 6.03693 2.38193
 Raw Stats 0.332982 6.28634 1.79616
@@ -6432,63 +6432,63 @@ policyTargetsByTurn 28 unreducedNumVisits 100 K3 90 D10 4 K2 2 C10 2
 policyTargetsByTurn 29 unreducedNumVisits 100 L5 95 L4 2 D6 0 C4 1 
 whiteValueTargetsByTurn 0 0.518908 0.481092 0 1.12105 - 
 whiteValueTargetsByTurn 1 0.52527 0.47473 0 1.36529 0.991894 
-whiteValueTargetsByTurn 2 0.504658 0.495342 0 0.74012 -0.0239324 
+whiteValueTargetsByTurn 2 0.504658 0.495342 0 0.74012 -0.0239327 
 whiteValueTargetsByTurn 3 0.508676 0.491324 0 0.911394 - 
-whiteValueTargetsByTurn 4 0.505666 0.494334 0 0.862385 - 
-whiteValueTargetsByTurn 5 0.477179 0.522821 0 -0.331436 - 
+whiteValueTargetsByTurn 4 0.505666 0.494334 0 0.862384 - 
+whiteValueTargetsByTurn 5 0.477179 0.522821 0 -0.331437 - 
 whiteValueTargetsByTurn 6 0.482685 0.517315 0 -0.257703 -1.13112 
 whiteValueTargetsByTurn 7 0.404496 0.595504 0 -3.13198 - 
 whiteValueTargetsByTurn 8 0.393537 0.606463 0 -3.54339 - 
 whiteValueTargetsByTurn 9 0.390085 0.609915 0 -3.72316 - 
 whiteValueTargetsByTurn 10 0.458542 0.541458 0 -0.955456 -1.50855 
 whiteValueTargetsByTurn 11 0.458358 0.541642 0 -1.05353 - 
-whiteValueTargetsByTurn 12 0.46434 0.53566 0 -0.68794 -1.24431 
+whiteValueTargetsByTurn 12 0.46434 0.53566 0 -0.687941 -1.24431 
 whiteValueTargetsByTurn 13 0.454563 0.545437 0 -1.40587 - 
 whiteValueTargetsByTurn 14 0.426774 0.573226 0 -2.31692 -1.27993 
 whiteValueTargetsByTurn 15 0.422672 0.577328 0 -2.48263 -1.32073 
 whiteValueTargetsByTurn 16 0.412774 0.587226 0 -2.8077 - 
 whiteValueTargetsByTurn 17 0.402181 0.597819 0 -3.07149 -1.42286 
 whiteValueTargetsByTurn 18 0.404864 0.595136 0 -2.97428 -1.88904 
-whiteValueTargetsByTurn 19 0.399162 0.600838 0 -3.13596 - 
+whiteValueTargetsByTurn 19 0.399162 0.600838 0 -3.13595 - 
 whiteValueTargetsByTurn 20 0.397618 0.602382 0 -3.21852 -3.64357 
 whiteValueTargetsByTurn 21 0.391491 0.608509 0 -3.67175 -4.3688 
-whiteValueTargetsByTurn 22 0.377751 0.622248 0 -4.26955 -3.89771 
+whiteValueTargetsByTurn 22 0.377752 0.622248 0 -4.26954 -3.89771 
 whiteValueTargetsByTurn 23 0.384937 0.615063 0 -4.01752 -5.08804 
 whiteValueTargetsByTurn 24 0.363517 0.636483 0 -4.77866 - 
-whiteValueTargetsByTurn 25 0.306403 0.693597 0 -6.89656 -7.4092 
+whiteValueTargetsByTurn 25 0.306402 0.693597 0 -6.89656 -7.4092 
 whiteValueTargetsByTurn 26 0.285074 0.714926 0 -7.41038 - 
-whiteValueTargetsByTurn 27 0.289185 0.710815 0 -7.72776 -8.14267 
+whiteValueTargetsByTurn 27 0.289185 0.710815 0 -7.72776 -8.14268 
 whiteValueTargetsByTurn 28 0.273874 0.726126 0 -8.32544 - 
 whiteValueTargetsByTurn 29 0.285087 0.714913 0 -7.91955 -7.39944 
 whiteValueTargetsByTurn 30 1 0 0 5 5 
 Raw Stats 0.0388184 1.0301 1.47474
-Raw Stats -0.0554249 -0.216115 2.17469
+Raw Stats -0.0554249 -0.216118 2.17469
 Raw Stats 0.108402 2.34948 1.62939
-Raw Stats -0.0407771 -0.293053 1.35055
-Raw Stats 0.127613 2.82966 1.50471
-Raw Stats -0.0327656 -0.0895125 0.0759549
-Raw Stats 0.0304816 0.56821 1.41994
-Raw Stats -0.116842 -0.736047 1.20995
-Raw Stats 0.0481393 1.31551 0.485968
-Raw Stats -0.146176 -1.15086 0.541073
-Raw Stats -0.0185976 -0.126485 2.26238
+Raw Stats -0.0407773 -0.293055 1.35055
+Raw Stats 0.127613 2.82967 1.50471
+Raw Stats -0.0327654 -0.0895113 0.0759549
+Raw Stats 0.0304817 0.568211 1.41994
+Raw Stats -0.116842 -0.736048 1.20995
+Raw Stats 0.0481392 1.31551 0.485967
+Raw Stats -0.146176 -1.15086 0.541074
+Raw Stats -0.0185975 -0.126481 2.26238
 Raw Stats -0.114262 -1.36826 1.87854
-Raw Stats 0.0183547 0.251422 1.71307
-Raw Stats -0.0820077 -0.910114 1.02789
-Raw Stats 0.066308 1.10099 1.36316
+Raw Stats 0.0183546 0.251422 1.71307
+Raw Stats -0.0820079 -0.910116 1.02789
+Raw Stats 0.0663081 1.10099 1.36316
 Raw Stats -0.154804 -2.18076 1.38136
-Raw Stats -0.0163469 -0.237754 0.893943
+Raw Stats -0.0163469 -0.237753 0.893943
 Raw Stats -0.10812 -1.3629 0.683118
-Raw Stats 0.117319 2.36591 0.949045
-Raw Stats -0.153016 -2.06768 0.444954
-Raw Stats 0.0265854 1.33857 1.91638
-Raw Stats -0.178681 -2.5004 1.3113
-Raw Stats -0.0788029 -1.11924 1.81435
+Raw Stats 0.117319 2.36591 0.949046
+Raw Stats -0.153017 -2.06769 0.444954
+Raw Stats 0.0265851 1.33857 1.91638
+Raw Stats -0.17868 -2.50039 1.3113
+Raw Stats -0.0788029 -1.11923 1.81435
 Raw Stats -0.408187 -7.37277 1.64857
 Raw Stats -0.219348 -4.50851 2.31924
 Raw Stats -0.332078 -5.35993 1.88654
 Raw Stats -0.364641 -5.79566 2.25076
-Raw Stats -0.361301 -6.38542 1.72904
+Raw Stats -0.361301 -6.38541 1.72904
 Raw Stats -0.493478 -8.28977 0.922557
 Raw Stats -0.291867 -5.16897 0.998474
 ...........
@@ -6558,7 +6558,7 @@ seedBase: test surprise!
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.165563
-Raw WL -0.0119903
+Raw WL -0.0119904
 PV: C8 H9 J4
 Tree:
 : T   2.92c W   2.42c S   0.50c ( +0.9 L  +0.9) N      50  --  C8 H9 J4
@@ -6579,7 +6579,7 @@ J4  : T   2.32c W   1.83c S   0.49c ( +0.9 L  +0.9) LCB   78.32c P  5.99% WF   4
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
  9 . . . . . . . . . . .
- 8 . . X . . . . . . . .
+ 8 . . X1. . . . . . . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
@@ -6611,20 +6611,20 @@ D4  : T  -8.11c W  -7.54c S  -0.57c ( -1.0 L  -1.0) LCB -260.00c P  6.29% WF   1
 11 . . . . . . . . . . .
 10 . . . . . . . . . . .
  9 . . . . . . . . . . .
- 8 . . X . . . . . @ . .
+ 8 . . X1. . . . . @ . .
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
  4 . . . . . . . . . . .
- 3 . . . O . . . . . . .
+ 3 . . . O2. . . . . . .
  2 . . . . . . . . . . .
  1 . . . . . . . . . . .
 
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
-Policy surprise 0.0833694
-Raw WL -0.0913654
+Policy surprise 0.0833696
+Raw WL -0.0913658
 PV: J8 J4 C5 C4 D5 F4
 Tree:
 : T   3.78c W   3.07c S   0.71c ( +1.2 L  +1.2) N     100  --  J8 J4 C5 C4 D5 F4
@@ -6680,7 +6680,7 @@ H3  : T   2.39c W   1.74c S   0.65c ( +1.1 L  +1.1) LCB  -29.31c P  7.13% WF   8
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
-Policy surprise 0.183261
+Policy surprise 0.18326
 Raw WL -0.0772141
 PV: C5 C4 D5 F4 G8
 Tree:
@@ -6711,7 +6711,7 @@ C4  : T  10.42c W   9.07c S   1.35c ( +2.3 L  +2.3) LCB  182.56c P  6.42% WF   2
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
-Policy surprise 0.26767
+Policy surprise 0.267669
 Raw WL 0.127002
 PV: C4 D5 F4 G8 J6 E3 E4
 Tree:
@@ -6741,7 +6741,7 @@ D8  : T   3.85c W   3.32c S   0.53c ( +0.9 L  +0.9) LCB  -76.68c P  6.75% WF   4
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.0854164
-Raw WL -0.0717291
+Raw WL -0.0717289
 PV: D5 F4 G8 J6 H5 H4 G5
 Tree:
 : T   3.89c W   3.36c S   0.52c ( +0.8 L  +0.8) N      50  --  D5 F4 G8 J6 H5 H4 G5
@@ -6827,7 +6827,7 @@ F8  : T  12.25c W  11.14c S   1.10c ( +1.8 L  +1.8) LCB  260.00c P  3.00% WF   1
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
-Policy surprise 0.190078
+Policy surprise 0.190077
 Raw WL 0.141939
 PV: J6 H5 H4 G5 F5 F6 E6 F7
 Tree:
@@ -6858,7 +6858,7 @@ J7  : T -11.00c W -10.33c S  -0.66c ( -1.1 L  -1.1) LCB -260.00c P  3.09% WF   0
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.298326
-Raw WL -0.0138755
+Raw WL -0.0138756
 PV: H5 H4 G5 F5 F6 E6
 Tree:
 : T   5.31c W   4.53c S   0.78c ( +1.3 L  +1.3) N      50  --  H5 H4 G5 F5 F6 E6
@@ -6888,7 +6888,7 @@ F5  : T   5.85c W   5.08c S   0.77c ( +1.3 L  +1.3) LCB   45.88c P  6.08% WF   4
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.127944
-Raw WL 0.0565412
+Raw WL 0.0565415
 PV: H4 F5 G5 G6 G4 H6 C9 D9 D10 C10
 Tree:
 : T   2.81c W   2.16c S   0.65c ( +1.1 L  +1.1) N      50  --  H4 F5 G5 G6 G4 H6 C9
@@ -6914,7 +6914,7 @@ H6  : T -12.69c W -11.67c S  -1.01c ( -1.8 L  -1.8) LCB -260.00c P  7.34% WF   0
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.133405
-Raw WL 0.0043776
+Raw WL 0.00437784
 PV: G5 F5 F6 E6 F7 D8 D7
 Tree:
 : T   4.43c W   3.64c S   0.79c ( +1.3 L  +1.3) N     100  --  G5 F5 F6 E6 F7 D8 D7
@@ -6973,8 +6973,8 @@ J5  : T -11.88c W -11.24c S  -0.65c ( -1.1 L  -1.1) LCB -260.00c P  7.25% WF   1
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
-Policy surprise 0.0886281
-Raw WL -0.0411514
+Policy surprise 0.0886279
+Raw WL -0.0411512
 PV: F6 E6 F7 D8 D7 C9 D9
 Tree:
 : T   9.54c W   8.35c S   1.19c ( +1.9 L  +1.9) N     100  --  F6 E6 F7 D8 D7 C9 D9
@@ -7002,7 +7002,7 @@ D4  : T  11.49c W  10.16c S   1.33c ( +2.2 L  +2.2) LCB   35.11c P  7.60% WF   7
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.158734
-Raw WL 0.087633
+Raw WL 0.0876332
 PV: E6 F7 D8 D7 C9 D9
 Tree:
 : T   7.83c W   6.73c S   1.10c ( +1.8 L  +1.8) N      50  --  E6 F7 D8 D7 C9 D9
@@ -7029,8 +7029,8 @@ C9  : T  -3.63c W  -3.80c S   0.16c ( +0.3 L  +0.3) LCB -260.00c P  8.69% WF   1
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
-Policy surprise 0.207642
-Raw WL 0.0863589
+Policy surprise 0.207641
+Raw WL 0.0863588
 PV: F7 D8 D7 C9 D9 E8
 Tree:
 : T   7.64c W   6.57c S   1.07c ( +1.7 L  +1.7) N      50  --  F7 D8 D7 C9 D9 E8
@@ -7058,7 +7058,7 @@ J5  : T  18.49c W  16.50c S   1.99c ( +3.3 L  +3.3) LCB  114.34c P  9.28% WF   2
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.337461
-Raw WL 0.153183
+Raw WL 0.153184
 PV: D8 C7 D9 C9 G10 F9
 Tree:
 : T  10.84c W   9.51c S   1.32c ( +2.1 L  +2.1) N     100  --  D8 C7 D9 C9 G10 F9
@@ -7088,8 +7088,8 @@ D7  : T   0.28c W  -0.18c S   0.46c ( +0.8 L  +0.8) LCB -260.00c P  3.12% WF   0
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
-Policy surprise 0.0977841
-Raw WL 0.0194558
+Policy surprise 0.0977838
+Raw WL 0.0194559
 PV: C7 D9 C9 G10 F9
 Tree:
 : T  14.84c W  13.20c S   1.65c ( +2.7 L  +2.7) N      50  --  C7 D9 C9 G10 F9
@@ -7147,7 +7147,7 @@ E5  : T   1.99c W   1.42c S   0.58c ( +1.0 L  +1.0) LCB -260.00c P  5.25% WF   0
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.522949
-Raw WL -0.00107121
+Raw WL -0.0010711
 PV: G4 G3 F3 E3 E5 F2 F9 C9 B9
 Tree:
 : T   8.15c W   7.07c S   1.08c ( +1.8 L  +1.8) N     100  --  G4 G3 F3 E3 E5 F2 F9
@@ -7176,8 +7176,8 @@ F9  : T  36.62c W  32.93c S   3.69c ( +6.1 L  +6.1) LCB  260.00c P  4.31% WF   0
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
-Policy surprise 0.0825244
-Raw WL 0.0380591
+Policy surprise 0.0825248
+Raw WL 0.038059
 PV: G3 F3 E3 E5 F2 C9 H9 J9 G9 H8 J10
 Tree:
 : T  -0.34c W  -0.70c S   0.36c ( +0.6 L  +0.6) N     100  --  G3 F3 E3 E5 F2 C9 H9
@@ -7232,7 +7232,7 @@ H3  : T  35.61c W  31.81c S   3.81c ( +6.5 L  +6.5) LCB  260.00c P  4.50% WF   0
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
-Policy surprise 0.0825401
+Policy surprise 0.0825402
 Raw WL 0.201139
 PV: E3 E5 F2 C9 H9 J9 G9 H8 J10
 Tree:
@@ -7259,8 +7259,8 @@ E4  : T -27.43c W -25.22c S  -2.21c ( -3.8 L  -3.8) LCB -260.00c P  6.82% WF   0
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
-Policy surprise 0.448886
-Raw WL 0.0470111
+Policy surprise 0.448887
+Raw WL 0.0470113
 PV: E5 F2 F9 C9 B9 B10 B8 E10 A10 G10 F10
 Tree:
 : T  -4.38c W  -4.45c S   0.07c ( +0.2 L  +0.2) N     100  --  E5 F2 F9 C9 B9 B10 B8
@@ -7289,8 +7289,8 @@ E7  : T  28.76c W  25.73c S   3.03c ( +4.9 L  +4.9) LCB  260.00c P  3.43% WF   0
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
-Policy surprise 0.120626
-Raw WL -0.0603084
+Policy surprise 0.120627
+Raw WL -0.0603082
 PV: F2 C9 H9 J9 G9 H8 J10 K10
 Tree:
 : T  -5.87c W  -5.84c S  -0.03c ( -0.0 L  -0.0) N      50  --  F2 C9 H9 J9 G9 H8 J10
@@ -7316,7 +7316,7 @@ E4  : T -24.55c W -22.20c S  -2.35c ( -4.0 L  -4.0) LCB -121.44c P 20.04% WF   3
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.362999
-Raw WL -0.0269779
+Raw WL -0.0269784
 PV: C9 H9 J9 G9 H8 J10 K10
 Tree:
 : T  -4.39c W  -4.57c S   0.18c ( +0.3 L  +0.3) N      50  --  C9 H9 J9 G9 H8 J10 K10
@@ -7373,8 +7373,8 @@ H7  : T -40.39c W -38.45c S  -1.94c ( -2.6 L  -2.6) LCB -201.57c P 12.99% WF   3
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
-Policy surprise 0.17421
-Raw WL 0.00642505
+Policy surprise 0.174211
+Raw WL 0.00642553
 PV: J9 G9 H8 F9 H10 G10 J10 C10 B10
 Tree:
 : T -10.77c W -10.15c S  -0.62c ( -0.9 L  -0.9) N      50  --  J9 G9 H8 F9 H10 G10 J10
@@ -7400,7 +7400,7 @@ H8  : T  17.07c W  14.80c S   2.28c ( +3.6 L  +3.6) LCB  260.00c P 10.13% WF   0
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
-Policy surprise 0.632417
+Policy surprise 0.632418
 Raw WL -0.304073
 PV: G9 H8 F9 H10 G10 J10 C10 B10 E10
 Tree:
@@ -7481,32 +7481,32 @@ mode 0
 beganInEncorePhase 0
 usedInitialPosition 0
 hasFullData 1
-targetWeightByTurn 0 1 unrounded 0.346861
+targetWeightByTurn 0 1 unrounded 0.34686
 targetWeightByTurn 1 0 unrounded 0.306671
-targetWeightByTurn 2 1 unrounded 0.48232
-targetWeightByTurn 3 1 unrounded 0.590302
-targetWeightByTurn 4 1 unrounded 0.374189
+targetWeightByTurn 2 1 unrounded 0.482321
+targetWeightByTurn 3 1 unrounded 0.590301
+targetWeightByTurn 4 1 unrounded 0.374188
 targetWeightByTurn 5 0 unrounded 0.504532
 targetWeightByTurn 6 0 unrounded 0.223099
-targetWeightByTurn 7 0 unrounded 0.539011
+targetWeightByTurn 7 0 unrounded 0.53901
 targetWeightByTurn 8 1 unrounded 0.827451
-targetWeightByTurn 9 1 unrounded 0.843674
+targetWeightByTurn 9 1 unrounded 0.843671
 targetWeightByTurn 10 0 unrounded 0.55187
 targetWeightByTurn 11 0 unrounded 0.288769
-targetWeightByTurn 12 1 unrounded 0.65176
+targetWeightByTurn 12 1 unrounded 0.651758
 targetWeightByTurn 13 1 unrounded 1.07701
-targetWeightByTurn 14 1 unrounded 0.500128
-targetWeightByTurn 15 1 unrounded 0.336315
-targetWeightByTurn 16 0 unrounded 0.411838
+targetWeightByTurn 14 1 unrounded 0.500127
+targetWeightByTurn 15 1 unrounded 0.336314
+targetWeightByTurn 16 0 unrounded 0.411837
 targetWeightByTurn 17 1 unrounded 1.34277
-targetWeightByTurn 18 0 unrounded 0.242197
+targetWeightByTurn 18 0 unrounded 0.242196
 targetWeightByTurn 19 1 unrounded 0.441737
 targetWeightByTurn 20 2 unrounded 1.9709
-targetWeightByTurn 21 0 unrounded 0.479459
+targetWeightByTurn 21 0 unrounded 0.47946
 targetWeightByTurn 22 0 unrounded 0.480106
 targetWeightByTurn 23 1 unrounded 0.218657
-targetWeightByTurn 24 2 unrounded 1.72009
-targetWeightByTurn 25 0 unrounded 0.277469
+targetWeightByTurn 24 2 unrounded 1.7201
+targetWeightByTurn 25 0 unrounded 0.27747
 targetWeightByTurn 26 0 unrounded 0.69085
 targetWeightByTurn 27 2 unrounded 1.52455
 targetWeightByTurn 28 0 unrounded 0.360214
@@ -7541,16 +7541,16 @@ policyTargetsByTurn 26 unreducedNumVisits 50 F9 15 C9 28 J5 3 F10 2
 policyTargetsByTurn 27 unreducedNumVisits 100 H9 54 G10 10 H7 3 K8 12 C10 8 H10 9 
 policyTargetsByTurn 28 unreducedNumVisits 50 J9 40 G9 6 H8 1 
 policyTargetsByTurn 29 unreducedNumVisits 50 G9 32 H8 4 J10 5 F9 1 G10 1 C10 1 
-whiteValueTargetsByTurn 0 0.512077 0.487923 0 0.879094 - 
+whiteValueTargetsByTurn 0 0.512077 0.487923 0 0.879093 - 
 whiteValueTargetsByTurn 1 0.506984 0.493016 0 0.696574 - 
 whiteValueTargetsByTurn 2 0.515357 0.484643 0 1.20395 - 
 whiteValueTargetsByTurn 3 0.509428 0.490572 0 0.883665 - 
-whiteValueTargetsByTurn 4 0.517011 0.482989 0 1.11668 - 
+whiteValueTargetsByTurn 4 0.517011 0.482989 0 1.11667 - 
 whiteValueTargetsByTurn 5 0.510462 0.489538 0 0.760499 - 
-whiteValueTargetsByTurn 6 0.516806 0.483194 0 0.844363 - 
-whiteValueTargetsByTurn 7 0.517863 0.482137 0 0.880195 - 
+whiteValueTargetsByTurn 6 0.516806 0.483194 0 0.844364 - 
+whiteValueTargetsByTurn 7 0.517863 0.482137 0 0.880196 - 
 whiteValueTargetsByTurn 8 0.527519 0.472481 0 1.27544 - 
-whiteValueTargetsByTurn 9 0.513726 0.486274 0 0.960693 - 
+whiteValueTargetsByTurn 9 0.513726 0.486274 0 0.960694 - 
 whiteValueTargetsByTurn 10 0.522659 0.477341 0 1.29221 - 
 whiteValueTargetsByTurn 11 0.510799 0.489201 0 1.05191 - 
 whiteValueTargetsByTurn 12 0.518182 0.481818 0 1.28994 - 
@@ -7566,41 +7566,41 @@ whiteValueTargetsByTurn 21 0.49652 0.50348 0 0.635606 -
 whiteValueTargetsByTurn 22 0.508755 0.491245 0 0.895409 - 
 whiteValueTargetsByTurn 23 0.491035 0.508965 0 0.488109 - 
 whiteValueTargetsByTurn 24 0.477747 0.522253 0 0.175384 - 
-whiteValueTargetsByTurn 25 0.470806 0.529194 0 -0.0189674 - 
+whiteValueTargetsByTurn 25 0.470806 0.529194 0 -0.0189678 - 
 whiteValueTargetsByTurn 26 0.477169 0.522831 0 0.346079 - 
 whiteValueTargetsByTurn 27 0.429451 0.570549 0 -1.15666 - 
 whiteValueTargetsByTurn 28 0.449233 0.550767 0 -0.900092 - 
 whiteValueTargetsByTurn 29 0.440714 0.559286 0 -1.17332 - 
 whiteValueTargetsByTurn 30 1 0 0 9.5 9.5 
-Raw Stats -0.0119903 0.457925 2.91822
+Raw Stats -0.0119904 0.457927 2.91822
 Raw Stats 0.113302 2.56656 2.44758
-Raw Stats -0.0913654 -0.941975 2.07665
-Raw Stats 0.0659761 1.72082 1.44339
-Raw Stats -0.0772141 -0.676451 2.37672
-Raw Stats 0.127002 3.08823 2.37507
-Raw Stats -0.0717291 -0.58437 0.505508
+Raw Stats -0.0913658 -0.941978 2.07665
+Raw Stats 0.0659761 1.72082 1.44338
+Raw Stats -0.0772141 -0.67645 2.37672
+Raw Stats 0.127002 3.08822 2.37507
+Raw Stats -0.0717289 -0.584369 0.505508
 Raw Stats 0.0995453 2.09103 2.14511
 Raw Stats -0.0744963 -1.30344 2.25829
 Raw Stats 0.141939 3.18471 1.73509
-Raw Stats -0.0138755 0.179433 2.4205
-Raw Stats 0.0565412 1.24864 0.77988
-Raw Stats 0.0043776 0.929043 1.93362
+Raw Stats -0.0138756 0.179433 2.4205
+Raw Stats 0.0565415 1.24864 0.779879
+Raw Stats 0.00437784 0.929046 1.93362
 Raw Stats 0.140223 2.56503 1.81426
-Raw Stats -0.0411514 0.369372 1.49442
-Raw Stats 0.087633 1.61781 1.68389
-Raw Stats 0.0863589 1.92368 1.63214
-Raw Stats 0.153183 2.61745 2.11715
-Raw Stats 0.0194558 1.22761 1.80309
-Raw Stats 0.219144 4.06493 1.59329
-Raw Stats -0.00107121 1.08457 1.85511
-Raw Stats 0.0380591 0.62812 0.618096
+Raw Stats -0.0411512 0.369372 1.49442
+Raw Stats 0.0876332 1.61782 1.68389
+Raw Stats 0.0863588 1.92369 1.63214
+Raw Stats 0.153184 2.61745 2.11715
+Raw Stats 0.0194559 1.22761 1.80309
+Raw Stats 0.219144 4.06492 1.59329
+Raw Stats -0.0010711 1.08457 1.85511
+Raw Stats 0.038059 0.628119 0.618098
 Raw Stats -0.123627 -1.33551 1.64497
 Raw Stats 0.201139 3.44776 1.09044
-Raw Stats 0.0470111 0.895281 1.68372
-Raw Stats -0.0603084 -0.710949 0.813268
-Raw Stats -0.0269779 0.662239 1.85549
-Raw Stats -0.0552024 -0.0900811 2.1412
-Raw Stats 0.00642505 0.928721 0.992422
+Raw Stats 0.0470113 0.895284 1.68372
+Raw Stats -0.0603082 -0.710948 0.81327
+Raw Stats -0.0269784 0.662234 1.85549
+Raw Stats -0.0552024 -0.0900871 2.1412
+Raw Stats 0.00642553 0.928729 0.992423
 Raw Stats -0.304073 -3.26704 2.37846
 ...........
 ...........
@@ -7730,17 +7730,17 @@ targetWeightByTurn 7 0.860406 unrounded 0.860406
 targetWeightByTurn 8 0.873394 unrounded 0.873394
 targetWeightByTurn 9 0.403473 unrounded 0.403473
 targetWeightByTurn 10 0.387976 unrounded 0.387976
-targetWeightByTurn 11 0.392652 unrounded 0.392652
+targetWeightByTurn 11 0.392653 unrounded 0.392653
 targetWeightByTurn 12 0.389023 unrounded 0.389023
 targetWeightByTurn 13 0.938053 unrounded 0.938053
-targetWeightByTurn 14 0.921993 unrounded 0.921993
+targetWeightByTurn 14 0.921994 unrounded 0.921994
 targetWeightByTurn 15 0.585726 unrounded 0.585726
 targetWeightByTurn 16 0.455658 unrounded 0.455658
 targetWeightByTurn 17 1.09995 unrounded 1.09995
 targetWeightByTurn 18 0.401099 unrounded 0.401099
 targetWeightByTurn 19 0.388262 unrounded 0.388262
 targetWeightByTurn 20 0.402588 unrounded 0.402588
-targetWeightByTurn 21 0.39087 unrounded 0.39087
+targetWeightByTurn 21 0.390871 unrounded 0.390871
 targetWeightByTurn 22 0.930395 unrounded 0.930395
 targetWeightByTurn 23 0.850568 unrounded 0.850568
 targetWeightByTurn 24 0.460178 unrounded 0.460178
@@ -7792,7 +7792,7 @@ whiteValueTargetsByTurn 9 0.517958 0.482042 0 1.10811 -
 whiteValueTargetsByTurn 10 0.522659 0.477341 0 1.29221 - 
 whiteValueTargetsByTurn 11 0.510627 0.489373 0 1.04463 - 
 whiteValueTargetsByTurn 12 0.511221 0.488779 0 1.08346 - 
-whiteValueTargetsByTurn 13 0.514307 0.485693 0 1.16204 - 
+whiteValueTargetsByTurn 13 0.514306 0.485693 0 1.16204 - 
 whiteValueTargetsByTurn 14 0.472816 0.527184 0 -0.329709 - 
 whiteValueTargetsByTurn 15 0.441839 0.558161 0 -1.35027 - 
 whiteValueTargetsByTurn 16 0.423952 0.576048 0 -1.84698 - 
@@ -7810,36 +7810,36 @@ whiteValueTargetsByTurn 27 0.420904 0.579096 0 -1.55027 -
 whiteValueTargetsByTurn 28 0.431866 0.568134 0 -1.14419 - 
 whiteValueTargetsByTurn 29 0.43599 0.56401 0 -1.11093 - 
 whiteValueTargetsByTurn 30 1 0 0 11.5 11.5 
-Raw Stats -0.0119903 0.457925 2.91822
+Raw Stats -0.0119904 0.457927 2.91822
 Raw Stats 0.113302 2.56656 2.44758
-Raw Stats -0.0913654 -0.941975 2.07665
-Raw Stats 0.0659761 1.72082 1.44339
-Raw Stats -0.0772141 -0.676451 2.37672
-Raw Stats 0.127002 3.08823 2.37507
-Raw Stats -0.0717291 -0.58437 0.505508
+Raw Stats -0.0913658 -0.941978 2.07665
+Raw Stats 0.0659761 1.72082 1.44338
+Raw Stats -0.0772141 -0.67645 2.37672
+Raw Stats 0.127002 3.08822 2.37507
+Raw Stats -0.0717289 -0.584369 0.505508
 Raw Stats 0.0995453 2.09103 2.14511
 Raw Stats -0.0744963 -1.30344 2.25829
 Raw Stats 0.141939 3.18471 1.73509
-Raw Stats -0.0138755 0.179433 2.4205
-Raw Stats 0.0565412 1.24864 0.77988
-Raw Stats 0.0043776 0.929043 1.93362
+Raw Stats -0.0138756 0.179433 2.4205
+Raw Stats 0.0565415 1.24864 0.779879
+Raw Stats 0.00437784 0.929046 1.93362
 Raw Stats 0.138276 2.28873 1.85598
 Raw Stats 0.0724826 1.68012 1.40648
-Raw Stats 0.301533 5.28139 0.813107
-Raw Stats 0.112498 2.01526 0.918287
+Raw Stats 0.301533 5.28139 0.813108
+Raw Stats 0.112498 2.01525 0.918287
 Raw Stats 0.189593 3.06085 1.26514
-Raw Stats -0.0222448 0.666842 0.342262
-Raw Stats -0.106336 -1.97938 1.65618
-Raw Stats 0.00257802 -0.135041 0.113251
-Raw Stats -0.143999 -2.196 1.37075
+Raw Stats -0.0222448 0.666844 0.342262
+Raw Stats -0.106336 -1.97937 1.65618
+Raw Stats 0.00257778 -0.13504 0.113251
+Raw Stats -0.143999 -2.196 1.37076
 Raw Stats -0.228545 -3.51374 2.30172
-Raw Stats -0.0467279 -1.11063 1.47638
-Raw Stats -0.263674 -4.14931 0.992212
-Raw Stats 0.059306 1.28371 1.73266
+Raw Stats -0.046728 -1.11063 1.47638
+Raw Stats -0.263674 -4.1493 0.992213
+Raw Stats 0.0593058 1.28371 1.73266
 Raw Stats -0.359138 -6.07162 1.28065
-Raw Stats 0.0527154 1.43473 0.893885
+Raw Stats 0.0527155 1.43473 0.893884
 Raw Stats -0.23169 -1.9896 1.99589
-Raw Stats -0.0240736 0.25746 2.13399
+Raw Stats -0.0240734 0.25746 2.13398
 ...........
 .....XOO...
 .....OOOO..
@@ -7907,8 +7907,8 @@ seedBase: test hint!
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 400
 HintLoc A1
-Policy surprise 0.0982151
-Raw WL 0.0726678
+Policy surprise 0.0982152
+Raw WL 0.0726679
 PV: F3 G4 E2 H2 F1 J2 D5 D3 E4 C5 C6 C4
 Tree:
 : T   9.15c W   7.78c S   1.36c ( +2.4 L  +2.4) N     400  --  F3 G4 E2 H2 F1 J2 D5
@@ -7928,14 +7928,14 @@ A1  : T  92.86c W  82.78c S  10.08c (+17.4 L +17.4) LCB   94.52c P  2.00% WF  59
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
  4 . . . . . . @ O O . .
- 3 . . . . . X O X X . .
+ 3 . . . . . X1O X X . .
  2 . . . . . O X . . . .
  1 . . . . . . . . . . .
 
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
-Policy surprise 0.00809191
+Policy surprise 0.00809185
 Raw WL 0.0526078
 PV: G4 E2 H2 F1 J2 D5 D3 E4 C4 C5 B5
 Tree:
@@ -7952,8 +7952,8 @@ G4  : T  -6.09c W  -5.88c S  -0.21c ( -0.3 L  -0.3) LCB  -10.84c P 99.19% WF  99
  7 . . . . . . . . . . .
  6 . . . . . . . . . . .
  5 . . . . . . . . . . .
- 4 . . . . . . O O O . .
- 3 . . . . . X O X X . .
+ 4 . . . . . . O2O O . .
+ 3 . . . . . X1O X X . .
  2 . . . . @ O X . . . .
  1 . . . . . . . . . . .
 
@@ -7964,7 +7964,7 @@ Policy surprise 0.0115408
 Raw WL -0.0810401
 PV: E2 H2 F1 J2 D5 D3 E4 C5 C6
 Tree:
-: T  -6.13c W  -5.91c S  -0.23c ( -0.4 L  -0.4) N      50  --  E2 H2 F1 J2 D5 D3 E4
+: T  -6.13c W  -5.90c S  -0.23c ( -0.4 L  -0.4) N      50  --  E2 H2 F1 J2 D5 D3 E4
 ---Black(v)---
 E2  : T  -6.08c W  -5.86c S  -0.22c ( -0.4 L  -0.4) LCB    1.19c P 98.85% WF  49.0 PSV      49 N      49  --  E2 H2 F1 J2 D5 D3 E4 C5
 
@@ -8061,7 +8061,7 @@ J2  : T  -6.10c W  -5.89c S  -0.21c ( -0.3 L  -0.3) LCB  -10.77c P 96.39% WF  99
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.335161
-Raw WL -0.0976076
+Raw WL -0.0976073
 PV: D5 D3 E4 C5 C6
 Tree:
 : T  -7.50c W  -7.13c S  -0.36c ( -0.6 L  -0.6) N      50  --  D5 D3 E4 C5 C6
@@ -8125,7 +8125,7 @@ C7  : T -20.80c W -19.52c S  -1.29c ( -2.2 L  -2.2) LCB -260.00c P  4.50% WF   1
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
-Policy surprise 0.207396
+Policy surprise 0.207395
 Raw WL -0.0769724
 PV: E4 C5 C4 C6 B4 D9
 Tree:
@@ -8155,7 +8155,7 @@ K3  : T  -1.20c W  -1.18c S  -0.02c ( -0.0 L  -0.0) LCB  260.00c P  5.96% WF   0
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
 Policy surprise 0.322097
-Raw WL 0.0218919
+Raw WL 0.021892
 PV: B5 C4 C8 D9 B4 C3
 Tree:
 : T -15.41c W -14.23c S  -1.18c ( -2.0 L  -2.0) N      50  --  B5 C4 C8 D9 B4 C3
@@ -8182,7 +8182,7 @@ D8  : T -16.11c W -14.85c S  -1.26c ( -2.1 L  -2.1) LCB  -75.91c P  4.65% WF   4
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
-Policy surprise 0.0927718
+Policy surprise 0.0927717
 Raw WL -0.20839
 PV: C4 B4 C3 C8 D8 C7 B9
 Tree:
@@ -8211,7 +8211,7 @@ K3  : T  -9.06c W  -8.23c S  -0.83c ( -1.4 L  -1.4) LCB   48.93c P  5.65% WF   3
 
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 50
-Policy surprise 0.17264
+Policy surprise 0.172639
 Raw WL -0.159563
 PV: B4 C3 C8 D9 B3
 Tree:
@@ -8265,7 +8265,7 @@ B3  : T   0.21c W   0.02c S   0.19c ( +0.3 L  +0.3) LCB   45.93c P 15.94% WF   3
 Rules: koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Root visits: 100
 Policy surprise 0.219056
-Raw WL 0.00744224
+Raw WL 0.00744212
 PV: C8 D8 C7 B9 D7 E8 B3
 Tree:
 : T -12.92c W -11.75c S  -1.17c ( -1.9 L  -1.9) N     100  --  C8 D8 C7 B9 D7 E8 B3
@@ -8418,36 +8418,36 @@ policyTargetsByTurn 11 unreducedNumVisits 50 C8 18 B4 19 C7 11
 policyTargetsByTurn 12 unreducedNumVisits 50 C3 45 B3 4 
 policyTargetsByTurn 13 unreducedNumVisits 100 C8 46 C7 17 B7 7 B3 25 B8 1 
 policyTargetsByTurn 14 unreducedNumVisits 100 D9 20 D8 58 B8 19 K3 1 
-whiteValueTargetsByTurn 0 0.471167 0.528833 0 -0.330874 - 
-whiteValueTargetsByTurn 1 0.471167 0.528833 0 -0.330874 - 
-whiteValueTargetsByTurn 2 0.470475 0.529525 0 -0.378891 - 
+whiteValueTargetsByTurn 0 0.471167 0.528833 0 -0.330873 - 
+whiteValueTargetsByTurn 1 0.471167 0.528833 0 -0.330873 - 
+whiteValueTargetsByTurn 2 0.470475 0.529525 0 -0.37889 - 
 whiteValueTargetsByTurn 3 0.469226 0.530774 0 -0.427878 - 
-whiteValueTargetsByTurn 4 0.470706 0.529294 0 -0.348349 - 
-whiteValueTargetsByTurn 5 0.4712 0.5288 0 -0.328353 - 
+whiteValueTargetsByTurn 4 0.470706 0.529294 0 -0.348348 - 
+whiteValueTargetsByTurn 5 0.4712 0.5288 0 -0.328352 - 
 whiteValueTargetsByTurn 6 0.46433 0.53567 0 -0.613732 - 
 whiteValueTargetsByTurn 7 0.451522 0.548478 0 -1.04336 - 
 whiteValueTargetsByTurn 8 0.445348 0.554652 0 -1.40245 - 
 whiteValueTargetsByTurn 9 0.428828 0.571172 0 -1.97152 - 
-whiteValueTargetsByTurn 10 0.461795 0.538205 0 -0.887763 - 
+whiteValueTargetsByTurn 10 0.461795 0.538205 0 -0.887762 - 
 whiteValueTargetsByTurn 11 0.441124 0.558876 0 -1.64236 - 
 whiteValueTargetsByTurn 12 0.438571 0.561429 0 -1.88283 - 
 whiteValueTargetsByTurn 13 0.441252 0.558748 0 -1.9395 - 
 whiteValueTargetsByTurn 14 0.446618 0.553382 0 -1.70591 - 
 whiteValueTargetsByTurn 15 1 0 0 4.5 4.5 
-Raw Stats 0.0726678 1.62564 0.582305
-Raw Stats 0.0526078 1.20948 0.0809356
-Raw Stats -0.0810401 -1.22052 0.0982754
+Raw Stats 0.0726679 1.62565 0.582306
+Raw Stats 0.0526078 1.20948 0.0809354
+Raw Stats -0.0810401 -1.22052 0.0982755
 Raw Stats 0.107647 2.81023 0.637758
 Raw Stats -0.115523 -1.47054 0.0971703
 Raw Stats 0.0740316 1.58853 0.26128
-Raw Stats -0.0976076 -0.652698 2.31669
-Raw Stats -0.00960252 -0.251433 2.68021
-Raw Stats -0.0769724 0.206575 1.60679
-Raw Stats 0.0218919 0.212028 2.15284
+Raw Stats -0.0976073 -0.652695 2.31669
+Raw Stats -0.00960252 -0.251434 2.68021
+Raw Stats -0.0769724 0.206574 1.60679
+Raw Stats 0.021892 0.212031 2.15284
 Raw Stats -0.20839 -1.85033 1.59834
 Raw Stats -0.159563 -3.31532 1.7454
-Raw Stats -0.2207 -2.37232 0.955907
-Raw Stats 0.00744224 0.355108 1.65454
+Raw Stats -0.2207 -2.37231 0.955907
+Raw Stats 0.00744212 0.355107 1.65454
 Raw Stats -0.255691 -3.3078 1.29291
 ...........
 ...........
@@ -8643,8 +8643,8 @@ policyTargetsByTurn 73 unreducedNumVisits 5
 policyTargetsByTurn 74 unreducedNumVisits 5 
 policyTargetsByTurn 75 unreducedNumVisits 5 
 policyTargetsByTurn 76 unreducedNumVisits 10 
-whiteValueTargetsByTurn 0 0.474729 0.525271 0 -0.583688 - 
-whiteValueTargetsByTurn 1 0.490053 0.509947 0 -0.188658 - 
+whiteValueTargetsByTurn 0 0.474729 0.525271 0 -0.583689 - 
+whiteValueTargetsByTurn 1 0.490053 0.509947 0 -0.188659 - 
 whiteValueTargetsByTurn 2 0.501189 0.498811 0 0.217063 - 
 whiteValueTargetsByTurn 3 0.518351 0.481649 0 0.806453 - 
 whiteValueTargetsByTurn 4 0.52966 0.47034 0 1.23505 - 
@@ -8652,12 +8652,12 @@ whiteValueTargetsByTurn 5 0.51339 0.48661 0 0.629555 -
 whiteValueTargetsByTurn 6 0.526929 0.473071 0 1.29615 - 
 whiteValueTargetsByTurn 7 0.522593 0.477407 0 1.07749 - 
 whiteValueTargetsByTurn 8 0.538055 0.461945 0 1.64064 - 
-whiteValueTargetsByTurn 9 0.51603 0.48397 0 0.918185 - 
-whiteValueTargetsByTurn 10 0.512241 0.487759 0 0.837582 - 
-whiteValueTargetsByTurn 11 0.49627 0.50373 0 0.131032 - 
+whiteValueTargetsByTurn 9 0.51603 0.48397 0 0.918183 - 
+whiteValueTargetsByTurn 10 0.512241 0.487759 0 0.837581 - 
+whiteValueTargetsByTurn 11 0.49627 0.50373 0 0.13103 - 
 whiteValueTargetsByTurn 12 0.511163 0.488837 0 0.684969 - 
 whiteValueTargetsByTurn 13 0.526365 0.473635 0 1.42639 - 
-whiteValueTargetsByTurn 14 0.489242 0.510758 0 -0.22611 - 
+whiteValueTargetsByTurn 14 0.489242 0.510758 0 -0.226111 - 
 whiteValueTargetsByTurn 15 0.448063 0.551937 0 -2.13971 - 
 whiteValueTargetsByTurn 16 0.446703 0.553297 0 -2.16907 - 
 whiteValueTargetsByTurn 17 0.423192 0.576808 0 -3.20633 - 
@@ -8670,17 +8670,17 @@ whiteValueTargetsByTurn 23 0.4494 0.5506 0 -1.81528 -
 whiteValueTargetsByTurn 24 0.408014 0.591986 0 -3.63393 - 
 whiteValueTargetsByTurn 25 0.427668 0.572332 0 -2.6702 - 
 whiteValueTargetsByTurn 26 0.414555 0.585445 0 -3.38085 - 
-whiteValueTargetsByTurn 27 0.406681 0.593319 0 -3.84727 - 
-whiteValueTargetsByTurn 28 0.379052 0.620948 0 -5.34075 - 
+whiteValueTargetsByTurn 27 0.406681 0.593319 0 -3.84726 - 
+whiteValueTargetsByTurn 28 0.379052 0.620948 0 -5.34074 - 
 whiteValueTargetsByTurn 29 0.349764 0.650236 0 -6.35861 - 
-whiteValueTargetsByTurn 30 0.325995 0.674005 0 -7.36078 - 
+whiteValueTargetsByTurn 30 0.325995 0.674005 0 -7.36077 - 
 whiteValueTargetsByTurn 31 0.409859 0.590141 0 -3.7212 - 
 whiteValueTargetsByTurn 32 0.412687 0.587313 0 -3.3405 - 
 whiteValueTargetsByTurn 33 0.413863 0.586137 0 -3.19534 - 
-whiteValueTargetsByTurn 34 0.434792 0.565208 0 -2.28324 - 
+whiteValueTargetsByTurn 34 0.434792 0.565208 0 -2.28323 - 
 whiteValueTargetsByTurn 35 0.441032 0.558968 0 -1.80699 - 
 whiteValueTargetsByTurn 36 0.414354 0.585646 0 -2.87169 - 
-whiteValueTargetsByTurn 37 0.357389 0.642611 0 -5.20382 - 
+whiteValueTargetsByTurn 37 0.357389 0.642611 0 -5.20383 - 
 whiteValueTargetsByTurn 38 0.362554 0.637446 0 -4.73551 - 
 whiteValueTargetsByTurn 39 0.33146 0.66854 0 -5.96512 - 
 whiteValueTargetsByTurn 40 0.319456 0.680544 0 -6.7538 - 
@@ -8697,7 +8697,7 @@ whiteValueTargetsByTurn 50 0.324984 0.675016 0 -11.539 -
 whiteValueTargetsByTurn 51 0.32268 0.67732 0 -11.2437 - 
 whiteValueTargetsByTurn 52 0.376931 0.623069 0 -7.82333 - 
 whiteValueTargetsByTurn 53 0.38137 0.61863 0 -7.72947 - 
-whiteValueTargetsByTurn 54 0.435295 0.564705 0 -4.27445 - 
+whiteValueTargetsByTurn 54 0.435295 0.564705 0 -4.27444 - 
 whiteValueTargetsByTurn 55 0.440971 0.559029 0 -4.07118 - 
 whiteValueTargetsByTurn 56 0.348048 0.651952 0 -9.9777 - 
 whiteValueTargetsByTurn 57 0.34937 0.65063 0 -11.4673 - 
@@ -8828,7 +8828,7 @@ policyTargetsByTurn 14 unreducedNumVisits 100 D3 12 E7 16 E9 42 F9 4 C5 4 F7 1 G
 whiteValueTargetsByTurn 0 0.524513 0.475487 0 1.39585 - 
 whiteValueTargetsByTurn 1 0.524778 0.475222 0 1.39607 - 
 whiteValueTargetsByTurn 2 0.541271 0.458729 0 2.1103 - 
-whiteValueTargetsByTurn 3 0.536347 0.463653 0 2.20526 - 
+whiteValueTargetsByTurn 3 0.536347 0.463653 0 2.20525 - 
 whiteValueTargetsByTurn 4 0.534195 0.465805 0 2.16179 - 
 whiteValueTargetsByTurn 5 0.532136 0.467864 0 2.15858 - 
 whiteValueTargetsByTurn 6 0.553413 0.446587 0 2.775 - 
@@ -8841,21 +8841,21 @@ whiteValueTargetsByTurn 12 0.561127 0.438873 0 2.06807 -
 whiteValueTargetsByTurn 13 0.561687 0.438313 0 2.08588 - 
 whiteValueTargetsByTurn 14 0.562754 0.437246 0 2.10926 - 
 whiteValueTargetsByTurn 15 1 0 0 4.5 4.5 
-Raw Stats -0.105096 -0.762849 0.710256
-Raw Stats 0.216524 3.95696 0.454986
-Raw Stats -0.019594 0.247086 1.36242
-Raw Stats 0.107764 2.13632 0.175347
-Raw Stats 0.0809338 2.15879 1.53547
-Raw Stats 0.0512992 1.28556 1.28459
-Raw Stats 0.0666162 1.45362 1.99521
-Raw Stats 0.340591 7.71967 2.24127
-Raw Stats 0.0507318 1.43206 1.15175
+Raw Stats -0.105096 -0.762848 0.710257
+Raw Stats 0.216523 3.95695 0.454986
+Raw Stats -0.0195941 0.247084 1.36242
+Raw Stats 0.107763 2.13631 0.175347
+Raw Stats 0.0809339 2.15879 1.53547
+Raw Stats 0.0512991 1.28556 1.28458
+Raw Stats 0.0666165 1.45362 1.99521
+Raw Stats 0.340591 7.71966 2.24127
+Raw Stats 0.0507317 1.43206 1.15175
 Raw Stats 0.184052 4.01326 2.3336
-Raw Stats -0.0910954 0.322165 0.980129
-Raw Stats 0.0960724 2.63213 1.03588
-Raw Stats 0.0536878 1.52623 0.0418792
+Raw Stats -0.0910953 0.322169 0.98013
+Raw Stats 0.0960723 2.63212 1.03588
+Raw Stats 0.0536883 1.52623 0.0418792
 Raw Stats 0.172626 2.92603 2.38969
-Raw Stats 0.0158471 0.150006 2.1544
+Raw Stats 0.015847 0.150005 2.1544
 ...........
 ...........
 ....X......
@@ -9069,15 +9069,15 @@ targetWeightByTurn 5 2 unrounded 1.58597
 targetWeightByTurn 6 1 unrounded 1.09938
 targetWeightByTurn 7 2 unrounded 1.84801
 targetWeightByTurn 8 0 unrounded 0
-targetWeightByTurn 9 1 unrounded 1.52747
-targetWeightByTurn 10 0 unrounded 0.0509183
+targetWeightByTurn 9 1 unrounded 1.52746
+targetWeightByTurn 10 0 unrounded 0.0509192
 targetWeightByTurn 11 1 unrounded 1.22259
 targetWeightByTurn 12 1 unrounded 1.29566
 targetWeightByTurn 13 0 unrounded 0
 targetWeightByTurn 14 1 unrounded 1.11251
 targetWeightByTurn 15 1 unrounded 1.48116
 targetWeightByTurn 16 0 unrounded 0
-targetWeightByTurn 17 2 unrounded 2.1303
+targetWeightByTurn 17 2 unrounded 2.13031
 targetWeightByTurn 18 1 unrounded 1.22822
 targetWeightByTurn 19 3 unrounded 2.57899
 policyTargetsByTurn 0 unreducedNumVisits 50 C8 10 D4 7 C4 7 D3 7 D9 7 D8 10 H8 8 H9 8 J8 8 H3 2 J4 7 H4 2 
@@ -9100,7 +9100,7 @@ policyTargetsByTurn 16 unreducedNumVisits 55 F7 28 G4 6 E5 15 J5 2 D4 1
 policyTargetsByTurn 17 unreducedNumVisits 100 E5 11 D8 47 G4 27 C9 5 K8 4 C7 3 D7 1 
 policyTargetsByTurn 18 unreducedNumVisits 100 D7 18 C7 29 C9 31 G4 8 E5 3 D9 5 
 policyTargetsByTurn 19 unreducedNumVisits 100 E5 72 D7 12 E7 4 C7 8 K8 1 G4 1 
-whiteValueTargetsByTurn 0 0.512077 0.487923 0 0.879094 - 
+whiteValueTargetsByTurn 0 0.512077 0.487923 0 0.879093 - 
 whiteValueTargetsByTurn 1 0.506984 0.493016 0 0.696574 - 
 whiteValueTargetsByTurn 2 0.515357 0.484643 0 1.20395 - 
 whiteValueTargetsByTurn 3 0.509428 0.490572 0 0.883665 - 
@@ -9109,8 +9109,8 @@ whiteValueTargetsByTurn 5 0.507826 0.492174 0 0.657045 -
 whiteValueTargetsByTurn 6 0.516407 0.483593 0 0.900499 - 
 whiteValueTargetsByTurn 7 0.518052 0.481948 0 0.958893 - 
 whiteValueTargetsByTurn 8 0.53179 0.46821 0 1.41359 - 
-whiteValueTargetsByTurn 9 0.513726 0.486274 0 0.960693 - 
-whiteValueTargetsByTurn 10 0.519521 0.48048 0 1.15965 - 
+whiteValueTargetsByTurn 9 0.513726 0.486274 0 0.960694 - 
+whiteValueTargetsByTurn 10 0.519521 0.480479 0 1.15965 - 
 whiteValueTargetsByTurn 11 0.512018 0.487982 0 1.07356 - 
 whiteValueTargetsByTurn 12 0.518182 0.481818 0 1.28994 - 
 whiteValueTargetsByTurn 13 0.527019 0.472981 0 1.50205 - 
@@ -9121,25 +9121,25 @@ whiteValueTargetsByTurn 17 0.547574 0.452426 0 2.13514 -
 whiteValueTargetsByTurn 18 0.569582 0.430418 0 2.76036 - 
 whiteValueTargetsByTurn 19 0.590057 0.409943 0 2.89941 - 
 whiteValueTargetsByTurn 20 1 0 0 7.5 7.5 
-Raw Stats -0.0119903 0.457925 2.91822
+Raw Stats -0.0119904 0.457927 2.91822
 Raw Stats 0.113302 2.56656 2.44758
-Raw Stats -0.0913654 -0.941975 2.07665
-Raw Stats 0.0659761 1.72082 1.44339
-Raw Stats -0.0772141 -0.676451 2.37672
-Raw Stats 0.127002 3.08823 2.37507
-Raw Stats -0.0717291 -0.58437 0.505508
+Raw Stats -0.0913658 -0.941978 2.07665
+Raw Stats 0.0659761 1.72082 1.44338
+Raw Stats -0.0772141 -0.67645 2.37672
+Raw Stats 0.127002 3.08822 2.37507
+Raw Stats -0.0717289 -0.584369 0.505508
 Raw Stats 0.0995453 2.09103 2.14511
 Raw Stats -0.0744963 -1.30344 2.25829
 Raw Stats 0.141939 3.18471 1.73509
-Raw Stats -0.0138755 0.179433 2.4205
-Raw Stats 0.0565412 1.24864 0.77988
-Raw Stats 0.0043776 0.929043 1.93362
+Raw Stats -0.0138756 0.179433 2.4205
+Raw Stats 0.0565415 1.24864 0.779879
+Raw Stats 0.00437784 0.929046 1.93362
 Raw Stats 0.140223 2.56503 1.81426
-Raw Stats -0.0411514 0.369372 1.49442
-Raw Stats 0.087633 1.61781 1.68389
-Raw Stats 0.0863589 1.92368 1.63214
-Raw Stats 0.153183 2.61745 2.11715
-Raw Stats 0.0194558 1.22761 1.80309
+Raw Stats -0.0411512 0.369372 1.49442
+Raw Stats 0.0876332 1.61782 1.68389
+Raw Stats 0.0863588 1.92369 1.63214
+Raw Stats 0.153184 2.61745 2.11715
+Raw Stats 0.0194559 1.22761 1.80309
 Raw Stats 0.266053 4.49048 1.95831
 ...........
 ...........
@@ -9505,7 +9505,7 @@ whiteValueTargetsByTurn 0 0.511855 0.488145 0 0.875535 -
 whiteValueTargetsByTurn 1 0.511456 0.488544 0 0.927791 - 
 whiteValueTargetsByTurn 2 0.533659 0.466341 0 1.79214 - 
 whiteValueTargetsByTurn 3 0.532937 0.467063 0 1.74324 - 
-whiteValueTargetsByTurn 4 0.535898 0.464102 0 1.82384 - 
+whiteValueTargetsByTurn 4 0.535898 0.464102 0 1.82385 - 
 whiteValueTargetsByTurn 5 0.548274 0.451726 0 2.11296 - 
 whiteValueTargetsByTurn 6 0.563597 0.436403 0 2.62796 - 
 whiteValueTargetsByTurn 7 0.566058 0.433942 0 2.55296 - 
@@ -9522,25 +9522,25 @@ whiteValueTargetsByTurn 17 0.574632 0.425368 0 2.95959 -
 whiteValueTargetsByTurn 18 0.564779 0.435221 0 2.58771 - 
 whiteValueTargetsByTurn 19 0.581277 0.418723 0 3.23118 - 
 whiteValueTargetsByTurn 20 1 0 0 7.5 7.5 
-Raw Stats -0.0119903 0.457925 2.91822
+Raw Stats -0.0119904 0.457927 2.91822
 Raw Stats 0.113302 2.56656 2.44758
-Raw Stats -0.0293294 -0.28693 1.92487
+Raw Stats -0.0293293 -0.286927 1.92488
 Raw Stats 0.106876 2.62578 1.54089
 Raw Stats -0.124836 -1.77309 2.15771
-Raw Stats 0.227257 5.4676 1.65133
-Raw Stats -0.0824281 -1.33107 1.63124
+Raw Stats 0.227256 5.4676 1.65133
+Raw Stats -0.0824282 -1.33107 1.63124
 Raw Stats 0.31621 6.73369 1.69341
-Raw Stats -0.0560008 -0.97604 1.75891
-Raw Stats 0.229584 4.78413 0.827685
-Raw Stats 0.0299442 0.254786 1.30631
+Raw Stats -0.0560007 -0.976038 1.75891
+Raw Stats 0.229584 4.78413 0.827684
+Raw Stats 0.0299442 0.254785 1.30631
 Raw Stats 0.119842 2.17026 1.72578
-Raw Stats -0.0508572 -0.659069 1.41442
+Raw Stats -0.0508574 -0.659074 1.41442
 Raw Stats 0.224622 4.16485 1.83947
 Raw Stats 0.133468 2.46781 2.73008
 Raw Stats 0.25842 4.1134 1.38672
-Raw Stats 0.015147 0.203737 1.00073
+Raw Stats 0.0151472 0.20374 1.00073
 Raw Stats 0.31496 5.48983 2.15175
-Raw Stats 0.01676 0.412409 0.805479
+Raw Stats 0.01676 0.412411 0.80548
 Raw Stats 0.325196 5.80971 2.39055
 ...........
 ...........
@@ -9957,7 +9957,7 @@ targetWeightByTurn 4 2 unrounded 1.2272
 targetWeightByTurn 5 1 unrounded 1.48914
 targetWeightByTurn 6 2 unrounded 1.20577
 targetWeightByTurn 7 1 unrounded 0.943328
-targetWeightByTurn 8 0 unrounded 0.0553316
+targetWeightByTurn 8 0 unrounded 0.0553314
 targetWeightByTurn 9 0 unrounded 0
 targetWeightByTurn 10 0 unrounded 0
 targetWeightByTurn 11 2 unrounded 1.73546
@@ -9966,7 +9966,7 @@ targetWeightByTurn 13 1 unrounded 1.3142
 targetWeightByTurn 14 0 unrounded 0
 targetWeightByTurn 15 1 unrounded 1.18406
 targetWeightByTurn 16 1 unrounded 1.56748
-targetWeightByTurn 17 0 unrounded 0.219665
+targetWeightByTurn 17 0 unrounded 0.219663
 targetWeightByTurn 18 0 unrounded 0
 targetWeightByTurn 19 3 unrounded 2.63254
 policyTargetsByTurn 0 unreducedNumVisits 100 C8 13 D4 12 C4 7 D3 5 D9 6 D8 11 H8 9 H9 9 J8 7 H3 8 J4 5 H4 5 
@@ -9993,12 +9993,12 @@ whiteValueTargetsByTurn 0 0.511855 0.488145 0 0.875535 -
 whiteValueTargetsByTurn 1 0.511456 0.488544 0 0.927791 - 
 whiteValueTargetsByTurn 2 0.533659 0.466341 0 1.79214 - 
 whiteValueTargetsByTurn 3 0.532937 0.467063 0 1.74324 - 
-whiteValueTargetsByTurn 4 0.535898 0.464102 0 1.82384 - 
+whiteValueTargetsByTurn 4 0.535898 0.464102 0 1.82385 - 
 whiteValueTargetsByTurn 5 0.548274 0.451726 0 2.11296 - 
 whiteValueTargetsByTurn 6 0.567555 0.432445 0 2.68377 - 
 whiteValueTargetsByTurn 7 0.566058 0.433942 0 2.55296 - 
 whiteValueTargetsByTurn 8 0.564005 0.435995 0 2.35358 - 
-whiteValueTargetsByTurn 9 0.554735 0.445265 0 2.09173 - 
+whiteValueTargetsByTurn 9 0.554735 0.445266 0 2.09173 - 
 whiteValueTargetsByTurn 10 0.564775 0.435225 0 2.43076 - 
 whiteValueTargetsByTurn 11 0.587602 0.412398 0 3.14128 - 
 whiteValueTargetsByTurn 12 0.629356 0.370644 0 4.37996 - 
@@ -10010,25 +10010,25 @@ whiteValueTargetsByTurn 17 0.705828 0.294172 0 6.77772 -
 whiteValueTargetsByTurn 18 0.717 0.283 0 7.11031 - 
 whiteValueTargetsByTurn 19 0.712003 0.287997 0 7.13028 - 
 whiteValueTargetsByTurn 20 1 0 0 9.5 9.5 
-Raw Stats -0.0119903 0.457925 2.91822
+Raw Stats -0.0119904 0.457927 2.91822
 Raw Stats 0.113302 2.56656 2.44758
-Raw Stats -0.0293294 -0.28693 1.92487
+Raw Stats -0.0293293 -0.286927 1.92488
 Raw Stats 0.106876 2.62578 1.54089
 Raw Stats -0.124836 -1.77309 2.15771
-Raw Stats 0.227257 5.4676 1.65133
-Raw Stats -0.0824281 -1.33107 1.63124
+Raw Stats 0.227256 5.4676 1.65133
+Raw Stats -0.0824282 -1.33107 1.63124
 Raw Stats 0.31621 6.73369 1.69341
-Raw Stats -0.0560008 -0.97604 1.75891
-Raw Stats 0.229584 4.78413 0.827685
-Raw Stats 0.0299442 0.254786 1.30631
+Raw Stats -0.0560007 -0.976038 1.75891
+Raw Stats 0.229584 4.78413 0.827684
+Raw Stats 0.0299442 0.254785 1.30631
 Raw Stats 0.119842 2.17026 1.72578
-Raw Stats -0.0508572 -0.659069 1.41442
+Raw Stats -0.0508574 -0.659074 1.41442
 Raw Stats 0.122785 2.41509 0.430458
-Raw Stats 0.0884621 1.19318 1.29411
+Raw Stats 0.0884621 1.19319 1.29411
 Raw Stats 0.428105 8.02036 1.1793
 Raw Stats 0.183092 3.23466 1.34154
-Raw Stats 0.425595 6.9681 1.57547
-Raw Stats 0.362066 6.00616 0.941773
+Raw Stats 0.425595 6.9681 1.57546
+Raw Stats 0.362066 6.00616 0.941774
 Raw Stats 0.610018 9.67633 2.00943
 ...........
 ...........

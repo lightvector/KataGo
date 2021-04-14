@@ -229,8 +229,8 @@ HASH: 1B6D4264AC8E8615F558CCD7E94EE4A5
 
 
 
-Win 71.13c
-Loss 28.86c
+Win 71.14c
+Loss 28.84c
 NoResult 0.02c
 ScoreMean 3.4
 ScoreMeanSq 11.2
@@ -251,14 +251,14 @@ Policy
    1    2    2    -    -  477    -    -    -    -    0 
    0    1    1    1    0    0    1    0    -    0    0 
   227  -764  -747  -866  -919  -907  -927  -635   405   329   662 
-  870   885  -899  -866  -951  -908  -980  -942  -950   866   772 
+  870   886  -899  -866  -951  -908  -980  -942  -950   866   772 
   824   870   968  -913  -847  -856  -769  -967   933   851   880 
   810   866   978   969  -957  -928  -349     2   922   931   844 
   784   809   820   795   843  -189   -69    30   445   903   716 
   651   700   821   825   642   127    39     4    29   163   244 
   293   461   970   886   834   950    89  -147  -363   -59   -67 
   -30   204   972   828   966   477   157  -905  -970  -586  -387 
- -522  -799  -791   974   945   441   267  -156  -971  -900  -831 
+ -522  -799  -791   974   945   441   267  -155  -971  -900  -831 
  -787  -801  -780  -659  -666   241   452  -861  -901  -985  -939 
  -803  -815  -770  -587  -248   -89  -209  -549  -970  -942  -949 
 
@@ -956,7 +956,7 @@ G16 : T  -2.75c W  -2.83c S   0.08c ( -0.4 L  -0.4) LCB   40.30c P 23.06% WF  25
 N7  : T  20.28c W  19.21c S   1.07c ( +0.4 L  +0.4) LCB  219.76c P 15.84% WF   3.9 PSV       4 N       5  --  N7 G2 H1 H2
 K6  : T  -9.41c W  -8.97c S  -0.44c ( -0.8 L  -0.8) LCB   50.94c P  3.21% WF  13.9 PSV       3 N      14  --  K6 K5 N7 L6 H17 G2 H1
 N12 : T  -4.94c W  -4.88c S  -0.06c ( -0.5 L  -0.5) LCB   83.20c P  4.54% WF  11.5 PSV       3 N      12  --  N12 G2 H1 H2
-H11 : T   2.39c W   2.21c S   0.17c ( -0.3 L  -0.3) LCB  215.55c P  6.55% WF   4.6 PSV       3 N       5  --  H11 G2 H1
+H11 : T   2.39c W   2.21c S   0.17c ( -0.3 L  -0.3) LCB  215.56c P  6.55% WF   4.6 PSV       3 N       5  --  H11 G2 H1
 G14 : T   2.30c W   2.05c S   0.25c ( -0.2 L  -0.2) LCB  227.16c P  3.88% WF   4.6 PSV       2 N       5  --  G14 G2 H1
 Beginning search again and then reprinting, now score utils should change a little
 : T  -9.37c W  -9.15c S  -0.22c ( -0.6 L  -0.6) N     149  --  H17 B13 A14 B14 A15 G2 H1
@@ -1051,14 +1051,14 @@ PV: F2 D7 C7 E4 F3 D5 C6 C5 B4
 Tree:
 : T  11.47c W   7.13c S   4.34c ( +0.6 L  +0.6) N     200  --  F2 D7 C7 E4 F3 D5 C6
 ---Black(v)---
-F2  : T   8.96c W   4.98c S   3.97c ( +0.5 L  +0.5) LCB   25.01c P 15.86% WF  63.0 PSV      61 N      61  --  F2 D7 C7 E4 F3 D5 C6 C5
+F2  : T   8.96c W   4.98c S   3.97c ( +0.5 L  +0.5) LCB   25.02c P 15.86% WF  63.0 PSV      61 N      61  --  F2 D7 C7 E4 F3 D5 C6 C5
 E7  : T  14.29c W   9.24c S   5.05c ( +0.9 L  +0.9) LCB   30.70c P 29.02% WF  51.3 PSV      45 N      53  --  E7 D8 F2 D7 E5 F3 E4 F1
-B3  : T   6.92c W   3.46c S   3.46c ( +0.3 L  +0.3) LCB   21.79c P  2.82% WF  29.3 PSV      25 N      28  --  B3 B2 E7 D8 D7 C8
-E5  : T   6.29c W   3.28c S   3.01c ( +0.1 L  +0.1) LCB   26.76c P  3.59% WF  25.2 PSV      24 N      24  --  E5 F3 E7 C10 D10 D9 B10 C8
-E4  : T  28.91c W  20.92c S   7.99c ( +2.0 L  +2.0) LCB   74.18c P 21.10% WF  10.2 PSV      12 N      12  --  E4 D7 C7 C6 D5 C8 B7 B8
+B3  : T   6.92c W   3.46c S   3.46c ( +0.3 L  +0.3) LCB   21.78c P  2.82% WF  29.3 PSV      25 N      28  --  B3 B2 E7 D8 D7 C8
+E5  : T   6.29c W   3.28c S   3.01c ( +0.1 L  +0.1) LCB   26.76c P  3.58% WF  25.2 PSV      24 N      24  --  E5 F3 E7 C10 D10 D9 B10 C8
+E4  : T  28.91c W  20.92c S   7.99c ( +2.0 L  +2.0) LCB   74.19c P 21.10% WF  10.2 PSV      12 N      12  --  E4 D7 C7 C6 D5 C8 B7 B8
 D7  : T  17.53c W  12.82c S   4.71c ( +0.7 L  +0.7) LCB   44.55c P 10.57% WF  10.5 PSV      11 N      11  --  D7 E7 E4 F2 E10
-F3  : T  17.00c W  11.54c S   5.46c ( +1.0 L  +1.0) LCB   53.53c P  7.53% WF   7.7 PSV       8 N       8  --  F3 D7 C7 C6 D5 C8
-D8  : T  23.86c W  18.06c S   5.79c ( +1.1 L  +1.1) LCB  310.00c P  3.49% WF   1.9 PSV       2 N       2  --  D8 E8
+F3  : T  17.00c W  11.54c S   5.46c ( +1.0 L  +1.0) LCB   53.54c P  7.54% WF   7.7 PSV       8 N       8  --  F3 D7 C7 C6 D5 C8
+D8  : T  23.85c W  18.06c S   5.79c ( +1.1 L  +1.1) LCB  310.00c P  3.49% WF   1.9 PSV       2 N       2  --  D8 E8
 MoveNum: 0 HASH: 3D7444680E62DFF9BC252AF4DC21718D
    A B C D E F G H J K L
  7 . . . . . . . . . . .
@@ -1077,13 +1077,13 @@ PV: H6 C4 B4 C3 B3 B2 D5 E4 D4 D3 E3 F3 E2
 Tree:
 : T   5.35c W   2.12c S   3.23c ( +0.3 L  +0.3) N     200  --  H6 C4 B4 C3 B3 B2 D5
 ---Black(v)---
-H6  : T   1.59c W  -0.95c S   2.54c ( +0.1 L  +0.1) LCB    9.27c P 17.34% WF 173.8 PSV     166 N     166  --  H6 C4 B4 C3 B3 B2 D5 E4
+H6  : T   1.59c W  -0.96c S   2.54c ( +0.1 L  +0.1) LCB    9.27c P 17.34% WF 173.8 PSV     166 N     166  --  H6 C4 B4 C3 B3 B2 D5 E4
 D3  : T  31.38c W  23.00c S   8.38c ( +2.2 L  +2.2) LCB   66.52c P 32.25% WF  11.2 PSV      14 N      15  --  D3 J5 K5 H6 J6 H5 K6 C4
 C3  : T  32.29c W  24.57c S   7.72c ( +1.9 L  +1.9) LCB   62.67c P 21.25% WF   7.6 PSV       9 N      10  --  C3 J5 K5 H6 J6 H5 K6 J2
 D4  : T  38.92c W  29.52c S   9.40c ( +2.6 L  +2.6) LCB  130.09c P 15.45% WF   3.7 PSV       5 N       5  --  D4 J5 K5 H6 J6
 G6  : T  24.16c W  17.24c S   6.92c ( +1.6 L  +1.6) LCB  310.00c P  3.34% WF   0.9 PSV       1 N       1  --  G6
 J5  : T  29.98c W  22.79c S   7.19c ( +1.7 L  +1.7) LCB  310.00c P  3.32% WF   0.9 PSV       1 N       1  --  J5
-G4  : T  27.75c W  20.45c S   7.29c ( +1.7 L  +1.7) LCB  310.00c P  1.98% WF   0.9 PSV       1 N       1  --  G4
+G4  : T  27.74c W  20.45c S   7.29c ( +1.7 L  +1.7) LCB  310.00c P  1.98% WF   0.9 PSV       1 N       1  --  G4
 GAME 12 ==========================================================================
 (MultiStoneSuicide rules)
 
@@ -1091,7 +1091,7 @@ koPOSITIONALscoreAREAtaxNONEsui1komi0.5
 MoveNum: 1 HASH: 137A716817733B150F2764B02A934A3A
    A B C D E F G H J
  9 . . O X . . X X .
- 8 . O O X X X X O X
+ 8 . O O X X X X O1X
  7 O . . O . . O . O
  6 . O O O O O O O O
  5 . X X X X X X X X
@@ -1124,7 +1124,7 @@ koPOSITIONALscoreAREAtaxNONEsui0komi0.5
 MoveNum: 1 HASH: 137A716817733B150F2764B02A934A3A
    A B C D E F G H J
  9 . . O X . . X X .
- 8 . O O X X X X O X
+ 8 . O O X X X X O1X
  7 O . . O . . O . O
  6 . O O O O O O O O
  5 . X X X X X X X X
@@ -1271,7 +1271,7 @@ MoveNum: 1 HASH: BA79A89D6669BD2AB5B90AA86F991133
  8 . . . . . . . . .
  7 . . . . O . . . .
  6 . . X . . . . . .
- 5 . . . O X . X . .
+ 5 . . . O1X . X . .
  4 . . X O . . . . .
  3 . . . . . O . . .
  2 . . . . . . . . .

@@ -1091,7 +1091,7 @@ koPOSITIONALscoreAREAtaxNONEsui1komi0.5
 MoveNum: 1 HASH: 137A716817733B150F2764B02A934A3A
    A B C D E F G H J
  9 . . O X . . X X .
- 8 . O O X X X X O X
+ 8 . O O X X X X O1X
  7 O . . O . . O . O
  6 . O O O O O O O O
  5 . X X X X X X X X
@@ -1124,7 +1124,7 @@ koPOSITIONALscoreAREAtaxNONEsui0komi0.5
 MoveNum: 1 HASH: 137A716817733B150F2764B02A934A3A
    A B C D E F G H J
  9 . . O X . . X X .
- 8 . O O X X X X O X
+ 8 . O O X X X X O1X
  7 O . . O . . O . O
  6 . O O O O O O O O
  5 . X X X X X X X X
@@ -1271,7 +1271,7 @@ MoveNum: 1 HASH: BA79A89D6669BD2AB5B90AA86F991133
  8 . . . . . . . . .
  7 . . . . O . . . .
  6 . . X . . . . . .
- 5 . . . O X . X . .
+ 5 . . . O1X . X . .
  4 . . X O . . . . .
  3 . . . . . O . . .
  2 . . . . . . . . .
