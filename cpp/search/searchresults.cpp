@@ -289,10 +289,10 @@ double Search::getNormToTApproxForLCB(int64_t numVisits) const {
 
 //Parent must be locked
 void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, double& lcbBuf, double& radiusBuf) const {
-  double scoreMeanSum = child->stats.scoreMeanSum.load(std::memory_order_acquire);
-  double scoreMeanSqSum = child->stats.scoreMeanSqSum.load(std::memory_order_acquire);
-  double utilitySum = child->stats.utilitySum.load(std::memory_order_acquire);
-  double utilitySqSum = child->stats.utilitySqSum.load(std::memory_order_acquire);
+  double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
+  double scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
+  double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
+  double utilitySqAvg = child->stats.utilitySqAvg.load(std::memory_order_acquire);
   double weightSum = child->stats.weightSum.load(std::memory_order_acquire);
   double weightSqSum = child->stats.weightSqSum.load(std::memory_order_acquire);
 
@@ -306,13 +306,13 @@ void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNo
   if(essInt < MIN_VISITS_FOR_LCB)
     return;
 
-  double utilityNoBonus = utilitySum / weightSum;
+  double utilityNoBonus = utilityAvg;
   double endingScoreBonus = getEndingWhiteScoreBonus(parent,child);
-  double utilityDiff = getScoreUtilityDiff(scoreMeanSum, scoreMeanSqSum, weightSum, endingScoreBonus);
+  double utilityDiff = getScoreUtilityDiff(scoreMeanAvg, scoreMeanSqAvg, endingScoreBonus);
   double utilityWithBonus = utilityNoBonus + utilityDiff;
   double selfUtility = parent.nextPla == P_WHITE ? utilityWithBonus : -utilityWithBonus;
 
-  double utilityVariance = std::max(1e-8, utilitySqSum/weightSum - utilityNoBonus * utilityNoBonus);
+  double utilityVariance = std::max(1e-8, utilitySqAvg - utilityNoBonus * utilityNoBonus);
   double estimateStdev = sqrt(utilityVariance / ess);
   double radius = estimateStdev * getNormToTApproxForLCB(essInt);
 
@@ -392,29 +392,29 @@ bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values)
   if(nnOutput == NULL)
     return false;
 
-  double winLossValueSum = node.stats.winLossValueSum.load(std::memory_order_acquire);
-  double noResultValueSum = node.stats.noResultValueSum.load(std::memory_order_acquire);
-  double scoreMeanSum = node.stats.scoreMeanSum.load(std::memory_order_acquire);
-  double scoreMeanSqSum = node.stats.scoreMeanSqSum.load(std::memory_order_acquire);
-  double leadSum = node.stats.leadSum.load(std::memory_order_acquire);
+  double winLossValueAvg = node.stats.winLossValueAvg.load(std::memory_order_acquire);
+  double noResultValueAvg = node.stats.noResultValueAvg.load(std::memory_order_acquire);
+  double scoreMeanAvg = node.stats.scoreMeanAvg.load(std::memory_order_acquire);
+  double scoreMeanSqAvg = node.stats.scoreMeanSqAvg.load(std::memory_order_acquire);
+  double leadAvg = node.stats.leadAvg.load(std::memory_order_acquire);
   double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
-  double utilitySum = node.stats.utilitySum.load(std::memory_order_acquire);
+  double utilityAvg = node.stats.utilityAvg.load(std::memory_order_acquire);
   int64_t visits = node.stats.visits.load(std::memory_order_acquire);
 
   if(weightSum <= 0.0)
     return false;
 
-  values.winLossValue = winLossValueSum / weightSum;
-  values.noResultValue = noResultValueSum / weightSum;
-  double scoreMean = scoreMeanSum / weightSum;
-  double scoreMeanSq = scoreMeanSqSum / weightSum;
+  values.winLossValue = winLossValueAvg;
+  values.noResultValue = noResultValueAvg;
+  double scoreMean = scoreMeanAvg;
+  double scoreMeanSq = scoreMeanSqAvg;
   double scoreStdev = getScoreStdev(scoreMean,scoreMeanSq);
   values.staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
   values.dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
   values.expectedScore = scoreMean;
   values.expectedScoreStdev = scoreStdev;
-  values.lead = leadSum / weightSum;
-  values.utility = utilitySum / weightSum;
+  values.lead = leadAvg;
+  values.utility = utilityAvg;
 
   //Clamp. Due to tiny floating point errors, these could be outside range.
   if(values.winLossValue < -1.0) values.winLossValue = -1.0;
@@ -496,17 +496,17 @@ bool Search::shouldSuppressPass(const SearchNode* n) const {
   double passLead;
   {
     int64_t numVisits = node.stats.visits.load(std::memory_order_acquire);
-    double scoreMeanSum = node.stats.scoreMeanSum.load(std::memory_order_acquire);
-    double leadSum = node.stats.leadSum.load(std::memory_order_acquire);
-    double utilitySum = node.stats.utilitySum.load(std::memory_order_acquire);
+    double scoreMeanAvg = node.stats.scoreMeanAvg.load(std::memory_order_acquire);
+    double leadAvg = node.stats.leadAvg.load(std::memory_order_acquire);
+    double utilityAvg = node.stats.utilityAvg.load(std::memory_order_acquire);
     double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
 
     if(numVisits <= 0 || weightSum <= 1e-10)
       return false;
     passWeight = weightSum;
-    passUtility = utilitySum / weightSum;
-    passScoreMean = scoreMeanSum / weightSum;
-    passLead = leadSum / weightSum;
+    passUtility = utilityAvg;
+    passScoreMean = scoreMeanAvg;
+    passLead = leadAvg;
   }
 
   const double extreme = 0.95;
@@ -537,18 +537,18 @@ bool Search::shouldSuppressPass(const SearchNode* n) const {
       continue;
 
     int64_t numVisits = child->stats.visits.load(std::memory_order_acquire);
-    double scoreMeanSum = child->stats.scoreMeanSum.load(std::memory_order_acquire);
-    double leadSum = child->stats.leadSum.load(std::memory_order_acquire);
-    double utilitySum = child->stats.utilitySum.load(std::memory_order_acquire);
+    double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
+    double leadAvg = child->stats.leadAvg.load(std::memory_order_acquire);
+    double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
     double weightSum = child->stats.weightSum.load(std::memory_order_acquire);
 
     //Too few visits - reject move
     if((numVisits <= 500 && weightSum <= 2 * sqrt(passWeight)) || weightSum <= 1e-10)
       continue;
 
-    double utility = utilitySum / weightSum;
-    double scoreMean = scoreMeanSum / weightSum;
-    double lead = leadSum / weightSum;
+    double utility = utilityAvg;
+    double scoreMean = scoreMeanAvg;
+    double lead = leadAvg;
 
     if(rootPla == P_WHITE
        && utility > passUtility - 0.1
@@ -709,14 +709,13 @@ void Search::printRootEndingScoreValueBonus(ostream& out) const {
       break;
 
     int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-    double scoreMeanSum = child->stats.scoreMeanSum.load(std::memory_order_acquire);
-    double scoreMeanSqSum = child->stats.scoreMeanSqSum.load(std::memory_order_acquire);
-    double utilitySum = child->stats.utilitySum.load(std::memory_order_acquire);
-    double weightSum = child->stats.weightSum.load(std::memory_order_acquire);
+    double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
+    double scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
+    double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
 
-    double utilityNoBonus = utilitySum / weightSum;
+    double utilityNoBonus = utilityAvg;
     double endingScoreBonus = getEndingWhiteScoreBonus(*rootNode,child);
-    double utilityDiff = getScoreUtilityDiff(scoreMeanSum, scoreMeanSqSum, weightSum, endingScoreBonus);
+    double utilityDiff = getScoreUtilityDiff(scoreMeanAvg, scoreMeanSqAvg, endingScoreBonus);
     double utilityWithBonus = utilityNoBonus + utilityDiff;
 
     out << Location::toString(child->prevMoveLoc,rootBoard) << " " << Global::strprintf(
@@ -814,23 +813,23 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
   double parentScoreMean, double parentScoreStdev, double parentLead, int maxPVDepth
 ) const {
   int64_t numVisits = 0;
-  double winLossValueSum = 0.0;
-  double noResultValueSum = 0.0;
-  double scoreMeanSum = 0.0;
-  double scoreMeanSqSum = 0.0;
-  double leadSum = 0.0;
+  double winLossValueAvg = 0.0;
+  double noResultValueAvg = 0.0;
+  double scoreMeanAvg = 0.0;
+  double scoreMeanSqAvg = 0.0;
+  double leadAvg = 0.0;
+  double utilityAvg = 0.0;
   double weightSum = 0.0;
   double weightSqSum = 0.0;
-  double utilitySum = 0.0;
 
   if(child != NULL) {
     numVisits = child->stats.visits.load(std::memory_order_acquire);
-    winLossValueSum = child->stats.winLossValueSum.load(std::memory_order_acquire);
-    noResultValueSum = child->stats.noResultValueSum.load(std::memory_order_acquire);
-    scoreMeanSum = child->stats.scoreMeanSum.load(std::memory_order_acquire);
-    scoreMeanSqSum = child->stats.scoreMeanSqSum.load(std::memory_order_acquire);
-    leadSum = child->stats.leadSum.load(std::memory_order_acquire);
-    utilitySum = child->stats.utilitySum.load(std::memory_order_acquire);
+    winLossValueAvg = child->stats.winLossValueAvg.load(std::memory_order_acquire);
+    noResultValueAvg = child->stats.noResultValueAvg.load(std::memory_order_acquire);
+    scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
+    scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
+    leadAvg = child->stats.leadAvg.load(std::memory_order_acquire);
+    utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
     weightSum = child->stats.weightSum.load(std::memory_order_acquire);
     weightSqSum = child->stats.weightSqSum.load(std::memory_order_acquire);
   }
@@ -840,7 +839,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
   data.numVisits = numVisits;
   if(numVisits <= 0 || weightSum <= 1e-30 || weightSqSum <= 1e-60) {
     data.utility = fpuValue;
-    data.scoreUtility = getScoreUtility(parentScoreMean,parentScoreMean*parentScoreMean+parentScoreStdev*parentScoreStdev,1.0);
+    data.scoreUtility = getScoreUtility(parentScoreMean,parentScoreMean*parentScoreMean+parentScoreStdev*parentScoreStdev);
     data.resultUtility = fpuValue - data.scoreUtility;
     data.winLossValue = searchParams.winLossUtilityFactor == 1.0 ? parentWinLossValue + (fpuValue - parentUtility) : 0.0;
     data.scoreMean = parentScoreMean;
@@ -849,19 +848,13 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     data.ess = 0.0;
   }
   else {
-    double winLossValue = winLossValueSum / weightSum;
-    double noResultValue = noResultValueSum / weightSum;
-    double scoreMean = scoreMeanSum / weightSum;
-    double scoreMeanSq = scoreMeanSqSum / weightSum;
-    double lead = leadSum / weightSum;
-
-    data.utility = utilitySum / weightSum;
-    data.resultUtility = getResultUtility(winLossValue, noResultValue);
+    data.utility = utilityAvg;
+    data.resultUtility = getResultUtility(winLossValueAvg, noResultValueAvg);
     data.scoreUtility = data.utility - data.resultUtility;
-    data.winLossValue = winLossValue;
-    data.scoreMean = scoreMean;
-    data.scoreStdev = getScoreStdev(scoreMean,scoreMeanSq);
-    data.lead = lead;
+    data.winLossValue = winLossValueAvg;
+    data.scoreMean = scoreMeanAvg;
+    data.scoreStdev = getScoreStdev(scoreMeanAvg,scoreMeanSqAvg);
+    data.lead = leadAvg;
     data.ess = weightSum * weightSum / weightSqSum;
   }
 
@@ -946,18 +939,17 @@ void Search::getAnalysisData(
   double parentScoreStdev;
   double parentLead;
   {
-    double winLossValueSum = node.stats.winLossValueSum.load(std::memory_order_acquire);
-    double scoreMeanSum = node.stats.scoreMeanSum.load(std::memory_order_acquire);
-    double scoreMeanSqSum = node.stats.scoreMeanSqSum.load(std::memory_order_acquire);
-    double leadSum = node.stats.leadSum.load(std::memory_order_acquire);
+    double winLossValueAvg = node.stats.winLossValueAvg.load(std::memory_order_acquire);
+    double scoreMeanAvg = node.stats.scoreMeanAvg.load(std::memory_order_acquire);
+    double scoreMeanSqAvg = node.stats.scoreMeanSqAvg.load(std::memory_order_acquire);
+    double leadAvg = node.stats.leadAvg.load(std::memory_order_acquire);
     double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
     assert(weightSum > 0.0);
 
-    parentWinLossValue = winLossValueSum / weightSum;
-    parentScoreMean = scoreMeanSum / weightSum;
-    double scoreMeanSq = scoreMeanSqSum / weightSum;
-    parentScoreStdev = getScoreStdev(parentScoreMean,scoreMeanSq);
-    parentLead = leadSum / weightSum;
+    parentWinLossValue = winLossValueAvg;
+    parentScoreMean = scoreMeanAvg;
+    parentScoreStdev = getScoreStdev(parentScoreMean,scoreMeanSqAvg);
+    parentLead = leadAvg;
   }
 
   double parentUtility;
@@ -1168,11 +1160,11 @@ void Search::printTreeHelper(
     }
 
     if(options.printSqs_) {
-      double scoreMeanSqSum = node.stats.scoreMeanSqSum.load(std::memory_order_acquire);
-      double utilitySqSum = node.stats.utilitySqSum.load(std::memory_order_acquire);
+      double scoreMeanSqAvg = node.stats.scoreMeanSqAvg.load(std::memory_order_acquire);
+      double utilitySqAvg = node.stats.utilitySqAvg.load(std::memory_order_acquire);
       double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
       double weightSqSum = node.stats.weightSqSum.load(std::memory_order_acquire);
-      sprintf(buf,"SMSQ %5.1f USQ %7.5f W %6.2f WSQ %8.2f ", scoreMeanSqSum/weightSum, utilitySqSum/weightSum, weightSum, weightSqSum);
+      sprintf(buf,"SMSQ %5.1f USQ %7.5f W %6.2f WSQ %8.2f ", scoreMeanSqAvg, utilitySqAvg, weightSum, weightSqSum);
       out << buf;
     }
 

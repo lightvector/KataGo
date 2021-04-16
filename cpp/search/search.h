@@ -45,13 +45,13 @@ struct ReportedSearchValues {
 
 struct NodeStatsAtomic {
   std::atomic<int64_t> visits;
-  std::atomic<double> winLossValueSum;
-  std::atomic<double> noResultValueSum;
-  std::atomic<double> scoreMeanSum;
-  std::atomic<double> scoreMeanSqSum;
-  std::atomic<double> leadSum;
-  std::atomic<double> utilitySum;
-  std::atomic<double> utilitySqSum;
+  std::atomic<double> winLossValueAvg;
+  std::atomic<double> noResultValueAvg;
+  std::atomic<double> scoreMeanAvg;
+  std::atomic<double> scoreMeanSqAvg;
+  std::atomic<double> leadAvg;
+  std::atomic<double> utilityAvg;
+  std::atomic<double> utilitySqAvg;
   std::atomic<double> weightSum;
   std::atomic<double> weightSqSum;
 
@@ -66,13 +66,13 @@ struct NodeStatsAtomic {
 
 struct NodeStats {
   int64_t visits;
-  double winLossValueSum;
-  double noResultValueSum;
-  double scoreMeanSum;
-  double scoreMeanSqSum;
-  double leadSum;
-  double utilitySum;
-  double utilitySqSum;
+  double winLossValueAvg;
+  double noResultValueAvg;
+  double scoreMeanAvg;
+  double scoreMeanSqAvg;
+  double leadAvg;
+  double utilityAvg;
+  double utilitySqAvg;
   double weightSum;
   double weightSqSum;
 
@@ -462,7 +462,7 @@ private:
 
   double getResultUtility(double winlossValue, double noResultValue) const;
   double getResultUtilityFromNN(const NNOutput& nnOutput) const;
-  static double getScoreStdev(double scoreMean, double scoreMeanSq);
+  static double getScoreStdev(double scoreMeanAvg, double scoreMeanSqAvg);
   double interpolateEarly(double halflife, double earlyValue, double value) const;
 
   void clearOldNNOutputs();
@@ -483,8 +483,8 @@ private:
   );
   double recomputeSearchTimeLimit(const TimeControls& tc, double timeUsed, double searchFactor, int64_t rootVisits);
 
-  double getScoreUtility(double scoreMeanSum, double scoreMeanSqSum, double weightSum) const;
-  double getScoreUtilityDiff(double scoreMeanSum, double scoreMeanSqSum, double weightSum, double delta) const;
+  double getScoreUtility(double scoreMeanAvg, double scoreMeanSqAvg) const;
+  double getScoreUtilityDiff(double scoreMeanAvg, double scoreMeanSqAvg, double delta) const;
   double getApproxScoreUtilityDerivative(double scoreMean) const;
   double getUtilityFromNN(const NNOutput& nnOutput) const;
   double computeWeightFromNNOutput(const NNOutput* nnOutput) const;
@@ -571,9 +571,10 @@ private:
     double scoreMeanSq,
     double lead,
     double weight,
-    bool isTerminal
+    bool isTerminal,
+    bool assumeNoExistingWeight
   );
-  void addCurrentNNOutputAsLeafValue(SearchNode& node);
+  void addCurrentNNOutputAsLeafValue(SearchNode& node, bool assumeNoExistingWeight);
 
   void maybeRecomputeExistingNNOutput(
     SearchThread& thread, SearchNode& node, bool isRoot
