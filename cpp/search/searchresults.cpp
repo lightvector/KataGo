@@ -289,12 +289,12 @@ double Search::getNormToTApproxForLCB(int64_t numVisits) const {
 
 //Parent must be locked
 void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, double& lcbBuf, double& radiusBuf) const {
+  double weightSum = child->stats.weightSum.load(std::memory_order_acquire);
+  double weightSqSum = child->stats.weightSqSum.load(std::memory_order_acquire);
   double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
   double scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
   double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
   double utilitySqAvg = child->stats.utilitySqAvg.load(std::memory_order_acquire);
-  double weightSum = child->stats.weightSum.load(std::memory_order_acquire);
-  double weightSqSum = child->stats.weightSqSum.load(std::memory_order_acquire);
 
   radiusBuf = 2.0 * (searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor);
   lcbBuf = -radiusBuf;
@@ -392,14 +392,14 @@ bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values)
   if(nnOutput == NULL)
     return false;
 
+  int64_t visits = node.stats.visits.load(std::memory_order_acquire);
+  double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
   double winLossValueAvg = node.stats.winLossValueAvg.load(std::memory_order_acquire);
   double noResultValueAvg = node.stats.noResultValueAvg.load(std::memory_order_acquire);
   double scoreMeanAvg = node.stats.scoreMeanAvg.load(std::memory_order_acquire);
   double scoreMeanSqAvg = node.stats.scoreMeanSqAvg.load(std::memory_order_acquire);
   double leadAvg = node.stats.leadAvg.load(std::memory_order_acquire);
-  double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
   double utilityAvg = node.stats.utilityAvg.load(std::memory_order_acquire);
-  int64_t visits = node.stats.visits.load(std::memory_order_acquire);
 
   if(weightSum <= 0.0)
     return false;
@@ -496,10 +496,10 @@ bool Search::shouldSuppressPass(const SearchNode* n) const {
   double passLead;
   {
     int64_t numVisits = node.stats.visits.load(std::memory_order_acquire);
+    double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
     double scoreMeanAvg = node.stats.scoreMeanAvg.load(std::memory_order_acquire);
     double leadAvg = node.stats.leadAvg.load(std::memory_order_acquire);
     double utilityAvg = node.stats.utilityAvg.load(std::memory_order_acquire);
-    double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
 
     if(numVisits <= 0 || weightSum <= 1e-10)
       return false;
@@ -537,10 +537,10 @@ bool Search::shouldSuppressPass(const SearchNode* n) const {
       continue;
 
     int64_t numVisits = child->stats.visits.load(std::memory_order_acquire);
+    double weightSum = child->stats.weightSum.load(std::memory_order_acquire);
     double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
     double leadAvg = child->stats.leadAvg.load(std::memory_order_acquire);
     double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
-    double weightSum = child->stats.weightSum.load(std::memory_order_acquire);
 
     //Too few visits - reject move
     if((numVisits <= 500 && weightSum <= 2 * sqrt(passWeight)) || weightSum <= 1e-10)
@@ -824,14 +824,14 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
 
   if(child != NULL) {
     numVisits = child->stats.visits.load(std::memory_order_acquire);
+    weightSum = child->stats.weightSum.load(std::memory_order_acquire);
+    weightSqSum = child->stats.weightSqSum.load(std::memory_order_acquire);
     winLossValueAvg = child->stats.winLossValueAvg.load(std::memory_order_acquire);
     noResultValueAvg = child->stats.noResultValueAvg.load(std::memory_order_acquire);
     scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
     scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
     leadAvg = child->stats.leadAvg.load(std::memory_order_acquire);
     utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
-    weightSum = child->stats.weightSum.load(std::memory_order_acquire);
-    weightSqSum = child->stats.weightSqSum.load(std::memory_order_acquire);
   }
 
   AnalysisData data;
@@ -939,11 +939,11 @@ void Search::getAnalysisData(
   double parentScoreStdev;
   double parentLead;
   {
+    double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
     double winLossValueAvg = node.stats.winLossValueAvg.load(std::memory_order_acquire);
     double scoreMeanAvg = node.stats.scoreMeanAvg.load(std::memory_order_acquire);
     double scoreMeanSqAvg = node.stats.scoreMeanSqAvg.load(std::memory_order_acquire);
     double leadAvg = node.stats.leadAvg.load(std::memory_order_acquire);
-    double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
     assert(weightSum > 0.0);
 
     parentWinLossValue = winLossValueAvg;
@@ -1160,10 +1160,10 @@ void Search::printTreeHelper(
     }
 
     if(options.printSqs_) {
-      double scoreMeanSqAvg = node.stats.scoreMeanSqAvg.load(std::memory_order_acquire);
-      double utilitySqAvg = node.stats.utilitySqAvg.load(std::memory_order_acquire);
       double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
       double weightSqSum = node.stats.weightSqSum.load(std::memory_order_acquire);
+      double scoreMeanSqAvg = node.stats.scoreMeanSqAvg.load(std::memory_order_acquire);
+      double utilitySqAvg = node.stats.utilitySqAvg.load(std::memory_order_acquire);
       sprintf(buf,"SMSQ %5.1f USQ %7.5f W %6.2f WSQ %8.2f ", scoreMeanSqAvg, utilitySqAvg, weightSum, weightSqSum);
       out << buf;
     }
