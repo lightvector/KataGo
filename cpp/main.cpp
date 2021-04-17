@@ -103,6 +103,8 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::runsearchtestsv8(argc-1,&argv[1]);
   else if(subcommand == "runselfplayinittests")
     return MainCmds::runselfplayinittests(argc-1,&argv[1]);
+  else if(subcommand == "runselfplayinitstattests")
+    return MainCmds::runselfplayinitstattests(argc-1,&argv[1]);
   else if(subcommand == "runsekitrainwritetests")
     return MainCmds::runsekitrainwritetests(argc-1,&argv[1]);
   else if(subcommand == "runnnonmanyposestest")

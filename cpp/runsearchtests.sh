@@ -20,6 +20,7 @@
 ./katago runselfplayinittests tests/models/grun50-b6c96-s156348160-d118286860.txt.gz | tee tests/results/runSelfplayInitTests.txt
 ./katago runsekitrainwritetests tests/models/g103-b6c96-s103408384-d26419149.txt.gz | tee tests/results/runSekiTrainWriteTests.txt
 ./katago runnnsymmetriestest tests/models/g103-b6c96-s103408384-d26419149.txt.gz false false false | tee tests/results/runNNSymmetriesTest.txt
+./katago runselfplayinitstattests tests/models/g170-b6c96-s175395328-d26788732.bin.gz | tee tests/results/runSelfplayInitStatTests.txt
 
 ./katago runsearchtestsv8 tests/models/g170-b6c96-s175395328-d26788732.txt.gz false false false | tee tests/results/runSearchTestsV8.txt
 ./katago runsearchtestsv8 tests/models/g170-b6c96-s175395328-d26788732.bin.gz false false false | tee tests/results/runSearchTestsV8Bin.txt

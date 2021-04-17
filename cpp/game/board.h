@@ -194,6 +194,7 @@ struct Board
   bool isEmpty() const;
   //Count the number of stones on the board
   int numStonesOnBoard() const;
+  int numPlaStonesOnBoard(Player pla) const;
 
   //Get a hash that combines the position of the board with simple ko prohibition and a player to move.
   Hash128 getSitHashWithSimpleKo(Player pla) const;

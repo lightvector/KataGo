@@ -1263,7 +1263,8 @@ FinishedGameData* Play::runGame(
     hist.setKomi(PlayUtils::roundAndClipKomi(h.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board, false));
   }
   if(extraBlackAndKomi.extraBlack > 0) {
-    double extraBlackTemperature = 1.0;
+    double extraBlackTemperature = playSettings.handicapTemperature;
+    assert(extraBlackTemperature > 0.0 && extraBlackTemperature < 10.0);
     PlayUtils::playExtraBlack(botB,extraBlackAndKomi.extraBlack,board,hist,extraBlackTemperature,gameRand);
     assert(hist.moveHistory.size() == 0);
   }
@@ -1363,7 +1364,8 @@ FinishedGameData* Play::runGame(
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
     double proportionOfBoardArea = otherGameProps.isSgfPos ? playSettings.startPosesPolicyInitAreaProp : playSettings.policyInitAreaProp;
     if(proportionOfBoardArea > 0) {
-      double temperature = 1.0;
+      double temperature = playSettings.policyInitAreaTemperature;
+      assert(temperature > 0.0 && temperature < 10.0);
       PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
       if(playSettings.compensateAfterPolicyInitProb > 0.0 && gameRand.nextBool(playSettings.compensateAfterPolicyInitProb)) {
         PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,logger,otherGameProps,gameRand);
@@ -1421,7 +1423,7 @@ FinishedGameData* Play::runGame(
       hist.endGameIfAllPassAlive(board);
     if(hist.isGameFinished)
       break;
-    if(shouldStop())
+    if(shouldStop != nullptr && shouldStop())
       break;
 
     Search* toMoveBot = pla == P_BLACK ? botB : botW;
@@ -1739,7 +1741,7 @@ FinishedGameData* Play::runGame(
     for(int i = 0; i<sidePositionsToSearch.size(); i++) {
       SidePosition* sp = sidePositionsToSearch[i];
 
-      if(shouldStop()) {
+      if(shouldStop != nullptr && shouldStop()) {
         delete sp;
         continue;
       }
@@ -2122,7 +2124,7 @@ GameRunner::GameRunner(ConfigParser& cfg, PlaySettings pSettings, Logger& logger
 {
   logSearchInfo = cfg.getBool("logSearchInfo");
   logMoves = cfg.getBool("logMoves");
-  maxMovesPerGame = cfg.getInt("maxMovesPerGame",1,1 << 30);
+  maxMovesPerGame = cfg.getInt("maxMovesPerGame",0,1 << 30);
   clearBotBeforeSearch = cfg.contains("clearBotBeforeSearch") ? cfg.getBool("clearBotBeforeSearch") : false;
 
   //Initialize object for randomizing game settings
@@ -2135,7 +2137,7 @@ GameRunner::GameRunner(ConfigParser& cfg, const string& gameInitRandSeed, PlaySe
 {
   logSearchInfo = cfg.getBool("logSearchInfo");
   logMoves = cfg.getBool("logMoves");
-  maxMovesPerGame = cfg.getInt("maxMovesPerGame",1,1 << 30);
+  maxMovesPerGame = cfg.getInt("maxMovesPerGame",0,1 << 30);
   clearBotBeforeSearch = cfg.contains("clearBotBeforeSearch") ? cfg.getBool("clearBotBeforeSearch") : false;
 
   //Initialize object for randomizing game settings
@@ -2251,7 +2253,7 @@ FinishedGameData* GameRunner::runGame(
     finishedGameData->usedInitialPosition = 1;
 
   //Make sure not to write the game if we terminated in the middle of this game!
-  if(shouldStop()) {
+  if(shouldStop != nullptr && shouldStop()) {
     if(botW != botB)
       delete botW;
     delete botB;

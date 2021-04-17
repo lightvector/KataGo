@@ -2063,10 +2063,7 @@ int MainCmds::sampleinitializations(int argc, const char* const* argv) {
   ConfigParser cfg;
   string modelFile;
   int numToGen;
-  int boardSizeX;
-  int boardSizeY;
-  double temperature;
-  double proportionOfBoardArea;
+  bool evaluate;
   try {
     KataGoCommandLine cmd("View startposes");
     cmd.addConfigFileArg("","");
@@ -2074,21 +2071,12 @@ int MainCmds::sampleinitializations(int argc, const char* const* argv) {
     cmd.addOverrideConfigArg();
 
     TCLAP::ValueArg<int> numToGenArg("","num","Num to gen",false,1,"N");
-    TCLAP::ValueArg<int> boardSizeXArg("","board-size-x","Board size x",false,19,"X");
-    TCLAP::ValueArg<int> boardSizeYArg("","board-size-y","Board size y",false,19,"Y");
-    TCLAP::ValueArg<double> temperatureArg("","temperature","Temperature",false,1.0,"T");
-    TCLAP::ValueArg<double> proportionOfBoardAreaArg("","prop-area","Prop of board area",false,0.04,"prop");
+    TCLAP::SwitchArg evaluateArg("","evaluate","Print out values and scores on the inited poses");
     cmd.add(numToGenArg);
-    cmd.add(boardSizeXArg);
-    cmd.add(boardSizeYArg);
-    cmd.add(temperatureArg);
-    cmd.add(proportionOfBoardAreaArg);
+    cmd.add(evaluateArg);
     cmd.parse(argc,argv);
     numToGen = numToGenArg.getValue();
-    boardSizeX = boardSizeXArg.getValue();
-    boardSizeY = boardSizeYArg.getValue();
-    temperature = temperatureArg.getValue();
-    proportionOfBoardArea = proportionOfBoardAreaArg.getValue();
+    evaluate = evaluateArg.getValue();
 
     cmd.getConfigAllowEmpty(cfg);
     if(cfg.getFileName() != "")
@@ -2103,11 +2091,8 @@ int MainCmds::sampleinitializations(int argc, const char* const* argv) {
   Logger logger;
   logger.setLogToStdout(true);
 
-  Rules rules;
-  AsyncBot* bot = NULL;
   NNEvaluator* nnEval = NULL;
   if(cfg.getFileName() != "") {
-    rules = Setup::loadSingleRulesExceptForKomi(cfg);
     SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
     {
       Setup::initializeSession(cfg);
@@ -2122,56 +2107,60 @@ int MainCmds::sampleinitializations(int argc, const char* const* argv) {
       );
     }
     logger.write("Loaded neural net");
-
-    string searchRandSeed;
-    if(cfg.contains("searchRandSeed"))
-      searchRandSeed = cfg.getString("searchRandSeed");
-    else
-      searchRandSeed = Global::uint64ToString(rand.nextUInt64());
-
-    bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
   }
 
+  AsyncBot* evalBot;
   {
-    Search* search = bot->getSearchStopAndWait();
-    for(int i = 0; i<numToGen; i++) {
-      Board board(boardSizeX,boardSizeY);
-      Player pla = P_BLACK;
-      BoardHistory hist(board,pla,rules,0);
-
-      bool doEndGameIfAllPassAlive = true;
-      int compensateKomiVisits = 20;
-      OtherGameProperties otherGameProperties;
-      PlayUtils::adjustKomiToEven(search,search,board,hist,pla,compensateKomiVisits,logger,otherGameProperties,rand);
-      double sqrtBoardArea = sqrt(boardSizeX*boardSizeY);
-
-      ExtraBlackAndKomi extraBlackAndKomi;
-      {
-        float komiBase = hist.rules.komi;
-        float komiStdev = 1.0f;
-        double allowIntegerProb = 1.0;
-        double handicapProb = 0.0;
-        int numExtraBlackFixed = 0;
-        double bigStdevProb = 0.0;
-        float bigStdev = komiStdev;
-        extraBlackAndKomi = PlayUtils::chooseExtraBlackAndKomi(
-          komiBase, komiStdev, allowIntegerProb, handicapProb, numExtraBlackFixed,
-          bigStdevProb, bigStdev, sqrtBoardArea, rand
-        );
-        hist.setKomi(PlayUtils::roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board, false));
-      }
-
-      PlayUtils::initializeGameUsingPolicy(
-        search, search, board, hist, pla, rand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature
-      );
-      cout << hist.rules.toString() << endl;
-      Board::printBoard(cout, board, Board::NULL_LOC, &hist.moveHistory);
-      cout << endl;
-    }
+    SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_DISTRIBUTED);
+    params.maxVisits = 20;
+    params.numThreads = 1;
+    string seed = Global::uint64ToString(rand.nextUInt64());
+    evalBot = new AsyncBot(params, nnEval, &logger, seed);
   }
 
-  if(bot != NULL)
-    delete bot;
+  //Play no moves in game, since we're sampling initializations
+  cfg.overrideKey("maxMovesPerGame","0");
+
+  PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg);
+  GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
+
+  for(int i = 0; i<numToGen; i++) {
+    string seed = Global::uint64ToString(rand.nextUInt64());
+    MatchPairer::BotSpec botSpec;
+    botSpec.botIdx = 0;
+    botSpec.botName = "";
+    botSpec.nnEval = nnEval;
+    botSpec.baseParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_DISTRIBUTED);
+
+    FinishedGameData* data = gameRunner->runGame(
+      seed,
+      botSpec,
+      botSpec,
+      NULL,
+      NULL,
+      logger,
+      nullptr,
+      nullptr,
+      nullptr,
+      false
+    );
+
+    cout << data->startHist.rules.toString() << endl;
+    Board::printBoard(cout, data->startBoard, Board::NULL_LOC, &(data->startHist.moveHistory));
+    cout << endl;
+    if(evaluate) {
+      evalBot->setPosition(data->startPla, data->startBoard, data->startHist);
+      evalBot->genMoveSynchronous(data->startPla,TimeControls());
+      ReportedSearchValues values = evalBot->getSearchStopAndWait()->getRootValuesRequireSuccess();
+      cout << "Winloss: " << values.winLossValue << endl;
+      cout << "Lead: " << values.lead << endl;
+    }
+
+    delete data;
+  }
+
+  delete gameRunner;
+  delete evalBot;
   if(nnEval != NULL)
     delete nnEval;
 

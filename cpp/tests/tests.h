@@ -53,6 +53,7 @@ namespace Tests {
   void runSelfplayInitTestsWithNN(const std::string& modelFile);
   void runSekiTrainWriteTests(const std::string& modelFile);
   void runMoreSelfplayTestsWithNN(const std::string& modelFile);
+  void runSelfplayStatTestsWithNN(const std::string& modelFile);
 
   //testnn.cpp
   void runNNLayerTests();

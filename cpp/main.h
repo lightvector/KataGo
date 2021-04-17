@@ -21,6 +21,7 @@ namespace MainCmds {
   int runsearchtestsv3(int argc, const char* const* argv);
   int runsearchtestsv8(int argc, const char* const* argv);
   int runselfplayinittests(int argc, const char* const* argv);
+  int runselfplayinitstattests(int argc, const char* const* argv);
   int runsekitrainwritetests(int argc, const char* const* argv);
   int runnnonmanyposestest(int argc, const char* const* argv);
   int runnnbatchingtest(int argc, const char* const* argv);

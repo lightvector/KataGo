@@ -125,6 +125,16 @@ void ConfigParser::applyAlias(const string& mapThisKey, const string& toThisKey)
   }
 }
 
+void ConfigParser::overrideKey(const std::string& key, const std::string& value) {
+  //Assume zero-length values mean to delete a key
+  if(value.length() <= 0) {
+    if(keyValues.find(key) != keyValues.end())
+      keyValues.erase(key);
+  }
+  else
+    keyValues[key] = value;
+}
+
 void ConfigParser::overrideKeys(const map<string, string>& newkvs) {
   for(auto iter = newkvs.begin(); iter != newkvs.end(); ++iter) {
     //Assume zero-length values mean to delete a key
