@@ -417,7 +417,7 @@ void GameInitializer::createGameSharedUnsynchronized(
       komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
     );
     assert(extraBlackAndKomi.extraBlack == 0);
-    hist.setKomi(extraBlackAndKomi.komi);
+    PlayUtils::setKomiWithNoise(extraBlackAndKomi, hist, rand);
     otherGameProps.isSgfPos = false;
     otherGameProps.isHintPos = false;
     otherGameProps.allowPolicyInit = false; //On initial positions, don't play extra moves at start
@@ -483,6 +483,8 @@ void GameInitializer::createGameSharedUnsynchronized(
       thisHandicapProb, numExtraBlackFixed,
       komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
     );
+    PlayUtils::setKomiWithNoise(extraBlackAndKomi, hist, rand);
+
     otherGameProps.isSgfPos = hintLoc == Board::NULL_LOC;
     otherGameProps.isHintPos = hintLoc != Board::NULL_LOC;
     otherGameProps.allowPolicyInit = hintLoc == Board::NULL_LOC; //On sgf positions, do allow extra moves at start
@@ -497,16 +499,16 @@ void GameInitializer::createGameSharedUnsynchronized(
     int xSize = allowedBSizes[xSizeIdx];
     int ySize = allowedBSizes[ySizeIdx];
     board = Board(xSize,ySize);
+    pla = P_BLACK;
+    hist.clear(board,pla,rules,0);
 
     extraBlackAndKomi = PlayUtils::chooseExtraBlackAndKomi(
       komiMean, komiStdev, komiAllowIntegerProb,
       handicapProb, numExtraBlackFixed,
       komiBigStdevProb, komiBigStdev, sqrt(board.x_size*board.y_size), rand
     );
-    rules.komi = extraBlackAndKomi.komi;
+    PlayUtils::setKomiWithNoise(extraBlackAndKomi, hist, rand);
 
-    pla = P_BLACK;
-    hist.clear(board,pla,rules,0);
     otherGameProps.isSgfPos = false;
     otherGameProps.isHintPos = false;
     otherGameProps.allowPolicyInit = true; //Handicap and regular games do allow policy init
@@ -1258,9 +1260,11 @@ FinishedGameData* Play::runGame(
   if(extraBlackAndKomi.makeGameFairForEmptyBoard) {
     Board b(startBoard.x_size,startBoard.y_size);
     BoardHistory h(b,pla,startHist.rules,startHist.encorePhase);
-    h.setKomi(PlayUtils::roundAndClipKomi(extraBlackAndKomi.komiBase,board,false));
+    //Restore baseline on empty hist, adjust empty hist to fair, then apply to real history.
+    PlayUtils::setKomiWithoutNoise(extraBlackAndKomi,h);
     PlayUtils::adjustKomiToEven(botB,botW,b,h,pla,playSettings.compensateKomiVisits,logger,otherGameProps,gameRand);
-    hist.setKomi(PlayUtils::roundAndClipKomi(h.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board, false));
+    extraBlackAndKomi.komiMean = h.rules.komi;
+    PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
   }
   if(extraBlackAndKomi.extraBlack > 0) {
     double extraBlackTemperature = playSettings.handicapTemperature;
@@ -1269,38 +1273,34 @@ FinishedGameData* Play::runGame(
     assert(hist.moveHistory.size() == 0);
   }
   if(extraBlackAndKomi.makeGameFair) {
-    //First, restore back to baseline komi
-    hist.setKomi(PlayUtils::roundAndClipKomi(extraBlackAndKomi.komiBase,board,false));
-    //Adjust komi to be fair for the handicap according to what the bot thinks.
+    //Restore baseline on hist, adjust hist to fair, then apply it with noise.
+    PlayUtils::setKomiWithoutNoise(extraBlackAndKomi,hist);
     PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,logger,otherGameProps,gameRand);
-    //Then, reapply the komi offset from base that we should have had
-    hist.setKomi(PlayUtils::roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board, false));
+    extraBlackAndKomi.komiMean = hist.rules.komi;
+    PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
   }
   else if((extraBlackAndKomi.extraBlack > 0 || otherGameProps.isFork) &&
           playSettings.fancyKomiVarying &&
           gameRand.nextBool(extraBlackAndKomi.extraBlack > 0 ? 0.5 : 0.25)) {
     double origKomi = hist.rules.komi;
-    //First, restore back to baseline komi
-    hist.setKomi(PlayUtils::roundAndClipKomi(extraBlackAndKomi.komiBase,board,false));
-    //Adjust komi to be fair for the handicap according to what the bot thinks.
+    //Restore baseline on hist, adjust hist to fair, then apply it with noise.
+    PlayUtils::setKomiWithoutNoise(extraBlackAndKomi,hist);
     PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,logger,otherGameProps,gameRand);
-    //Then, reapply the komi offset from base that we should have had
-    hist.setKomi(PlayUtils::roundAndClipKomi(hist.rules.komi + extraBlackAndKomi.komi - extraBlackAndKomi.komiBase, board, false));
     double newKomi = hist.rules.komi;
+
     //Now, randomize between the old and new komi, with extra noise
     double randKomi = gameRand.nextDouble(min(origKomi,newKomi),max(origKomi,newKomi));
     randKomi += 0.75 * sqrt(board.x_size * board.y_size) * gameRand.nextGaussianTruncated(2.5);
-    hist.setKomi(PlayUtils::roundAndClipKomi(randKomi, board, false));
+    extraBlackAndKomi.komiMean = (float)randKomi;
+    PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
   }
   //Vary komi more when things are completely random to set a better prior for how komi affects evals
   if(playSettings.fancyKomiVarying &&
      botB->nnEvaluator->isNeuralNetLess() &&
      (botW == NULL || botW->nnEvaluator->isNeuralNetLess())) {
-    hist.setKomi(PlayUtils::roundAndClipKomi(hist.rules.komi + 1.5 * sqrt(board.x_size * board.y_size) * gameRand.nextGaussianTruncated(2.5), board, false));
-  }
-  //Apply allowInteger
-  if(!extraBlackAndKomi.allowInteger && hist.rules.komi == (int)hist.rules.komi) {
-    hist.setKomi(hist.rules.komi + (gameRand.nextBool(0.5) ? (-0.5f) : (0.5f)));
+    double randKomi = hist.rules.komi + 1.5 * sqrt(board.x_size * board.y_size) * gameRand.nextGaussianTruncated(2.5);
+    extraBlackAndKomi.komiMean = (float)randKomi;
+    PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
   }
 
   gameData->bName = botSpecB.botName;
@@ -1364,11 +1364,23 @@ FinishedGameData* Play::runGame(
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
     double proportionOfBoardArea = otherGameProps.isSgfPos ? playSettings.startPosesPolicyInitAreaProp : playSettings.policyInitAreaProp;
     if(proportionOfBoardArea > 0) {
-      double temperature = playSettings.policyInitAreaTemperature;
-      assert(temperature > 0.0 && temperature < 10.0);
-      PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
-      if(playSettings.compensateAfterPolicyInitProb > 0.0 && gameRand.nextBool(playSettings.compensateAfterPolicyInitProb)) {
+      //Perform the initialization using a different noised komi, to get a bit of opening policy mixing across komi
+      {
+        float oldKomi = hist.rules.komi;
+        PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
+        double temperature = playSettings.policyInitAreaTemperature;
+        assert(temperature > 0.0 && temperature < 10.0);
+        PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
+        hist.setKomi(oldKomi);
+      }
+      bool shouldCompensate =
+        playSettings.compensateAfterPolicyInitProb > 0.0 && gameRand.nextBool(playSettings.compensateAfterPolicyInitProb);
+      if(gameData->mode != FinishedGameData::MODE_NORMAL)
+        shouldCompensate = extraBlackAndKomi.makeGameFair;
+      if(shouldCompensate) {
         PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,logger,otherGameProps,gameRand);
+        extraBlackAndKomi.komiMean = hist.rules.komi;
+        PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
       }
     }
   }
@@ -1383,6 +1395,8 @@ FinishedGameData* Play::runGame(
     if(!hist.isGameFinished) {
       //Even out the game
       PlayUtils::adjustKomiToEven(botB, botW, board, hist, pla, playSettings.compensateKomiVisits, logger, otherGameProps, gameRand);
+      extraBlackAndKomi.komiMean = hist.rules.komi;
+      PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
 
       //Randomly set to one of the encore phases
       //Since we played out the game a bunch we should get a good mix of stones that were present or not present at the start

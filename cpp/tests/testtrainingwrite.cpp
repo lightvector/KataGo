@@ -104,8 +104,8 @@ void Tests::runTrainingWriteTests() {
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = 0;
-    extraBlackAndKomi.komiBase = rules.komi;
-    extraBlackAndKomi.komi = rules.komi;
+    extraBlackAndKomi.komiMean = rules.komi;
+    extraBlackAndKomi.komiStdev = 0;
     bool doEndGameIfAllPassAlive = cheapLongSgf ? false : true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = cheapLongSgf ? 200 : 40;
@@ -230,8 +230,8 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = numExtraBlack;
-    extraBlackAndKomi.komiBase = rules.komi;
-    extraBlackAndKomi.komi = rules.komi;
+    extraBlackAndKomi.komiMean = rules.komi;
+    extraBlackAndKomi.komiStdev = 0;
     extraBlackAndKomi.makeGameFair = numExtraBlack > 0 && !makeGameFairForEmptyBoard;
     extraBlackAndKomi.makeGameFairForEmptyBoard = makeGameFairForEmptyBoard;
 
@@ -427,8 +427,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = 0;
-    extraBlackAndKomi.komiBase = rules.komi;
-    extraBlackAndKomi.komi = rules.komi;
+    extraBlackAndKomi.komiMean = rules.komi;
+    extraBlackAndKomi.komiStdev = 0;
     extraBlackAndKomi.makeGameFair = false;
     extraBlackAndKomi.makeGameFairForEmptyBoard = false;
 
@@ -586,8 +586,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = 0;
-    extraBlackAndKomi.komiBase = rules.komi;
-    extraBlackAndKomi.komi = rules.komi;
+    extraBlackAndKomi.komiMean = rules.komi;
+    extraBlackAndKomi.komiStdev = 0;
     extraBlackAndKomi.makeGameFair = false;
     extraBlackAndKomi.makeGameFairForEmptyBoard = false;
 
@@ -1811,8 +1811,8 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = 0;
-    extraBlackAndKomi.komiBase = rules.komi;
-    extraBlackAndKomi.komi = rules.komi;
+    extraBlackAndKomi.komiMean = rules.komi;
+    extraBlackAndKomi.komiStdev = 0;
     int turnIdx = sgf->moves.size();
     sgf->setupBoardAndHistAssumeLegal(rules,initialBoard,initialPla,initialHist,turnIdx);
 

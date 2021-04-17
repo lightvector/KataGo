@@ -27,13 +27,13 @@ ExtraBlackAndKomi PlayUtils::chooseExtraBlackAndKomi(
   int extraBlack = 0;
   float komi = base;
 
+  float stdevToUse = 0.0f;
   if(stdev > 0.0f)
-    komi += stdev * (float)rand.nextGaussianTruncated(3.0);
+    stdevToUse = stdev;
   if(bigStdev > 0.0f && rand.nextBool(bigStdevProb))
-    komi += bigStdev * (float)rand.nextGaussianTruncated(3.0);
-
+    stdevToUse = bigStdev;
   //Adjust for board size, so that we don't give the same massive komis on smaller boards
-  komi = base + (komi - base) * (float)(sqrtBoardArea / 19.0);
+  stdevToUse = stdevToUse * (float)(sqrtBoardArea / 19.0);
 
   //Add handicap stones
   int defaultMaxExtraBlack = getDefaultMaxExtraBlack(sqrtBoardArea);
@@ -46,6 +46,20 @@ ExtraBlackAndKomi PlayUtils::chooseExtraBlackAndKomi(
 
   bool allowInteger = rand.nextBool(allowIntegerProb);
 
+  ExtraBlackAndKomi ret;
+  ret.extraBlack = extraBlack;
+  ret.komiMean = komi;
+  ret.komiStdev = stdevToUse;
+  //These two are set later
+  ret.makeGameFair = false;
+  ret.makeGameFairForEmptyBoard = false;
+  //This is recorded for application later, since other things may adjust the komi in between.
+  ret.allowInteger = allowInteger;
+  return ret;
+}
+
+
+static float roundKomiWithLinearProb(float komi, Rand& rand) {
   //Discretize komi
   float lower = floor(komi*2.0f) / 2.0f;
   float upper = ceil(komi*2.0f) / 2.0f;
@@ -59,18 +73,27 @@ ExtraBlackAndKomi PlayUtils::chooseExtraBlackAndKomi(
     else
       komi = lower;
   }
+  return komi;
+}
 
+//Also ignores allowInteger
+void PlayUtils::setKomiWithoutNoise(const ExtraBlackAndKomi& extraBlackAndKomi, BoardHistory& hist) {
+  float komi = extraBlackAndKomi.komiMean;
+  komi = roundAndClipKomi(komi, hist.getRecentBoard(0), false);
   assert(Rules::komiIsIntOrHalfInt(komi));
-  ExtraBlackAndKomi ret;
-  ret.extraBlack = extraBlack;
-  ret.komi = komi;
-  ret.komiBase = base;
-  //These two are set later
-  ret.makeGameFair = false;
-  ret.makeGameFairForEmptyBoard = false;
-  //This is recorded for application later, since other things may adjust the komi in between.
-  ret.allowInteger = allowInteger;
-  return ret;
+  hist.setKomi(komi);
+}
+
+void PlayUtils::setKomiWithNoise(const ExtraBlackAndKomi& extraBlackAndKomi, BoardHistory& hist, Rand& rand) {
+  float komi = extraBlackAndKomi.komiMean;
+  if(extraBlackAndKomi.komiStdev > 0)
+    komi += extraBlackAndKomi.komiStdev * (float)rand.nextGaussianTruncated(3.0);
+  komi = roundKomiWithLinearProb(komi,rand);
+  komi = roundAndClipKomi(komi, hist.getRecentBoard(0), false);
+  assert(Rules::komiIsIntOrHalfInt(komi));
+  if(!extraBlackAndKomi.allowInteger && komi == (int)komi)
+    komi += rand.nextBool(0.5) ? (-0.5f) : (0.5f);
+  hist.setKomi(komi);
 }
 
 

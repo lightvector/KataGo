@@ -43,8 +43,8 @@ struct ForkData {
 
 struct ExtraBlackAndKomi {
   int extraBlack = 0;
-  float komi = 7.5;
-  float komiBase = 7.5;
+  float komiMean = 7.5f;
+  float komiStdev = 7.5f;
   bool makeGameFair = false;
   bool makeGameFairForEmptyBoard = false;
   bool allowInteger = true;
