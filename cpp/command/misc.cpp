@@ -851,8 +851,8 @@ static double surpriseWeight(double policyProb, Rand& rand, bool markedAsHintPos
   if(policyProb < 0)
     return 0;
   double weight = 0.12 / (policyProb + 0.02) - 0.5;
-  if(markedAsHintPos && weight < 0.5)
-    weight = 0.5;
+  if(markedAsHintPos && weight < 1.0)
+    weight = 1.0;
 
   if(weight <= 0)
     return 0;
