@@ -1921,7 +1921,7 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
   double minWeight;
   try {
     KataGoCommandLine cmd("View startposes");
-    cmd.addConfigFileArg("","");
+    cmd.addConfigFileArg("","",false);
     cmd.addModelFileArg();
     cmd.addOverrideConfigArg();
 
@@ -2026,7 +2026,7 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
     cout << endl;
 
     bool autoKomi = true;
-    if(autoKomi) {
+    if(autoKomi && bot != NULL) {
       const int64_t numVisits = 10;
       OtherGameProperties props;
       PlayUtils::adjustKomiToEven(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,logger,props,rand);

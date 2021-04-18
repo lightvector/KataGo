@@ -217,17 +217,23 @@ void KataGoCommandLine::addModelFileArg() {
 
 //Empty string indicates no default
 void KataGoCommandLine::addConfigFileArg(const string& defaultCfgFileName, const string& exampleConfigFile) {
+  bool required = true;
+  if(!defaultCfgFileName.empty()) {
+    required = false;
+  }
+  addConfigFileArg(defaultCfgFileName, exampleConfigFile, required);
+}
+
+void KataGoCommandLine::addConfigFileArg(const string& defaultCfgFileName, const string& exampleConfigFile, bool required) {
   assert(configFileArg == NULL);
   defaultConfigFileName = defaultCfgFileName;
 
   string helpDesc = "Config file to use";
-  bool required = true;
   if(!exampleConfigFile.empty())
     helpDesc += " (see " + exampleConfigFile + " or configs/" + exampleConfigFile + ")";
   helpDesc += ".";
   if(!defaultConfigFileName.empty()) {
     helpDesc += " Defaults to: " + getDefaultConfigPathForHelp(defaultConfigFileName);
-    required = false;
   }
   //We don't apply the default directly here, but rather in getConfig(). It's more robust if we don't attempt any
   //filesystem access (which could fail) before we've even constructed the command arguments and help.
