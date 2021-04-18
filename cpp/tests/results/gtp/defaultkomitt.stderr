@@ -1,4 +1,4 @@
-KataGo v1.8.1
+KataGo v1.8.2
 Using koPOSITIONALscoreAREAtaxNONEsui0 rules initially, unless GTP/GUI overrides this
 Loaded config configs/gtp_example.cfg and/or command-line and query overrides
 Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
