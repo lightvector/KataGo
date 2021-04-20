@@ -131,7 +131,7 @@ SearchNode::SearchNode(Player prevPla, Loc prevLoc, SearchNode* p)
    parent(p),
    state(SearchNode::STATE_UNEVALUATED),
    nnOutput(),
-   nnOutputAge(0),
+   nodeAge(0),
    children0(NULL),
    children1(NULL),
    children2(NULL),
@@ -2618,7 +2618,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   double leadAvg = leadSum / weightSum;
   double utilityAvg = utilitySum / weightSum;
   double utilitySqAvg = utilitySqSum / weightSum;
-  
+
   //TODO statslock may be unnecessary now with the dirtyCounter mechanism?
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.winLossValueAvg.store(winLossValueAvg,std::memory_order_release);
@@ -2717,13 +2717,13 @@ void Search::maybeRecomputeExistingNNOutput(
   SearchThread& thread, SearchNode& node, bool isRoot
 ) {
   //Right now only the root node currently ever needs to recompute, and only if it's old
-  if(isRoot && node.nnOutputAge.load(std::memory_order_acquire) != searchNodeAge) {
+  if(isRoot && node.nodeAge.load(std::memory_order_acquire) != searchNodeAge) {
     //See if we're the lucky thread that gets to do the update!
     //Threads that pass by here later will NOT wait for us to be done before proceeding with search.
     //We accept this and tolerate that for a few iterations potentially we will be using the OLD policy - without noise,
     //or without root temperature, etc.
     //Or if we have none of those things, then we'll not end up updating anything except the age, which is okay too.
-    int oldAge = node.nnOutputAge.exchange(searchNodeAge,std::memory_order_acq_rel);
+    int oldAge = node.nodeAge.exchange(searchNodeAge,std::memory_order_acq_rel);
     if(oldAge < searchNodeAge) {
       NNOutput* nnOutput = node.getNNOutput();
       assert(nnOutput != NULL);
@@ -2804,7 +2804,7 @@ bool Search::initNodeNNOutput(
     delete tmp;
   }
 
-  node.nnOutputAge.store(searchNodeAge,std::memory_order_release);
+  node.nodeAge.store(searchNodeAge,std::memory_order_release);
   //If this is a re-initialization of the nnOutput, we don't want to add any visits or anything.
   //Also don't bother updating any of the stats. Technically we should do so because winLossValueSum
   //and such will have changed potentially due to a new orientation of the neural net eval

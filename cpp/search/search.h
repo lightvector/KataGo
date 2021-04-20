@@ -140,7 +140,11 @@ struct SearchNode {
   //After this is non-NULL, might rarely change mid-search, but it is guaranteed that old values remain
   //valid to access for the duration of the search and will not be deallocated.
   std::atomic<std::shared_ptr<NNOutput>*> nnOutput;
-  std::atomic<uint32_t> nnOutputAge;
+
+  //Used to coordinate various multithreaded updates.
+  //During search, for updating nnOutput when it needs recomputation at the root if it wasn't updated yet.
+  //During various other events - for coordinating recursive updates of the tree or subtree value bias cleanup
+  std::atomic<uint32_t> nodeAge;
 
   //During search, each will only ever transition from NULL -> non-NULL.
   //We get progressive resizing of children array simply by moving on to a later array.
