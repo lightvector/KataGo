@@ -459,7 +459,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     BoardHistory hist2(hist);
     double lead = PlayUtils::computeLead(
       bot->getSearchStopAndWait(), NULL, board, hist2, nextPla,
-      20, logger, OtherGameProperties()
+      20, OtherGameProperties()
     );
     cout << "LEAD: " << lead << endl;
   }

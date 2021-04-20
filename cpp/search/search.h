@@ -7,6 +7,8 @@
 #include "../core/hash.h"
 #include "../core/logger.h"
 #include "../core/multithread.h"
+#include "../core/threadsafequeue.h"
+#include "../core/threadsafecounter.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
 #include "../game/rules.h"
@@ -220,8 +222,6 @@ struct SearchThread {
   Rand rand;
 
   NNResultBuf nnResultBuf;
-  std::ostream* logStream;
-  Logger* logger;
 
   std::vector<MoreNodeStats> statsBuf;
 
@@ -232,7 +232,7 @@ struct SearchThread {
   //it here instead of deleting it, so that pointers and accesses to it remain valid.
   std::vector<std::shared_ptr<NNOutput>*> oldNNOutputsToCleanUp;
 
-  SearchThread(int threadIdx, const Search& search, Logger* logger);
+  SearchThread(int threadIdx, const Search& search);
   ~SearchThread();
 
   SearchThread(const SearchThread&) = delete;
@@ -297,6 +297,14 @@ struct Search {
 
   SubtreeValueBiasTable* subtreeValueBiasTable;
 
+  Logger* logger;
+
+  //Thread pool
+  int numThreadsSpawned;
+  std::thread* threads;
+  ThreadSafeQueue<std::function<void(int)>*>* threadTasks;
+  ThreadSafeCounter* threadTasksRemaining;
+
   //Occasionally we may need to swap out an NNOutput from a node mid-search.
   //However, to prevent access-after-delete races, this vector collects them after a thread exits, and is cleaned up
   //very lazily only when a new search begins or the search is cleared.
@@ -305,7 +313,7 @@ struct Search {
 
   //Note - randSeed controls a few things in the search, but a lot of the randomness actually comes from
   //random symmetries of the neural net evaluations, see nneval.h
-  Search(SearchParams params, NNEvaluator* nnEval, const std::string& randSeed);
+  Search(SearchParams params, NNEvaluator* nnEval, Logger* logger, const std::string& randSeed);
   ~Search();
 
   Search(const Search&) = delete;
@@ -334,6 +342,10 @@ struct Search {
   void setParamsNoClearing(SearchParams params); //Does not clear search
   void setNNEval(NNEvaluator* nnEval);
 
+  //If the number of threads is reduced, this can free up some excess threads in the thread pool.
+  //Calling this is never necessary, it may just reduce some resource use.
+  void respawnThreads();
+
   //Just directly clear search without changing anything
   void clearSearch();
 
@@ -348,17 +360,16 @@ struct Search {
   bool isLegalStrict(Loc moveLoc, Player movePla) const;
 
   //Run an entire search from start to finish
-  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger);
-  void runWholeSearch(Player movePla, Logger& logger);
-  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow);
+  Loc runWholeSearchAndGetMove(Player movePla);
+  void runWholeSearch(Player movePla);
+  void runWholeSearch(std::atomic<bool>& shouldStopNow);
 
   //Pondering indicates that we are searching "for" the last player that we did a non-ponder search for, and should use ponder search limits.
-  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, bool pondering);
-  void runWholeSearch(Player movePla, Logger& logger, bool pondering);
-  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering);
+  Loc runWholeSearchAndGetMove(Player movePla, bool pondering);
+  void runWholeSearch(Player movePla, bool pondering);
+  void runWholeSearch(std::atomic<bool>& shouldStopNow, bool pondering);
 
   void runWholeSearch(
-    Logger& logger,
     std::atomic<bool>& shouldStopNow,
     std::function<void()>* searchBegun, //If not null, will be called once search has begun and tree inspection is safe
     bool pondering,
@@ -468,6 +479,10 @@ private:
   double getResultUtilityFromNN(const NNOutput& nnOutput) const;
   static double getScoreStdev(double scoreMeanAvg, double scoreMeanSqAvg);
   double interpolateEarly(double halflife, double earlyValue, double value) const;
+
+  void spawnThreadsIfNeeded();
+  void killThreads();
+  void performTaskWithThreads(std::function<void(int)>* task);
 
   void clearOldNNOutputs();
   void transferOldNNOutputs(SearchThread& thread);

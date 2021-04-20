@@ -26,7 +26,7 @@ AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l, const st
    queuedSearchId(0),queuedOnMove(),timeControls(),searchFactor(1.0),
    analyzeCallbackPeriod(-1),analyzeCallback(),searchBegunCallback()
 {
-  search = new Search(params,nnEval,randSeed);
+  search = new Search(params,nnEval,l,randSeed);
   searchThread = std::thread(searchThreadLoop,this,l);
 }
 
@@ -369,7 +369,7 @@ void AsyncBot::internalSearchThreadLoop() {
       callbackLoopThread = std::thread(callbackLoop);
     }
 
-    search->runWholeSearch(*logger,shouldStopNow,&searchBegun,pondering,tc,searchFactor);
+    search->runWholeSearch(shouldStopNow,&searchBegun,pondering,tc,searchFactor);
     Loc moveLoc = search->getChosenMoveLoc();
 
     if(callbackPeriod >= 0) {

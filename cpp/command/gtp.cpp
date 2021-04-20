@@ -924,7 +924,7 @@ struct GTPEngine {
     //Implement friendly pass - in area scoring rules other than tromp-taylor, maybe pass once there are no points
     //left to gain.
     int64_t numVisitsForFriendlyPass = 8 + std::min((int64_t)1000, std::min(params.maxVisits, params.maxPlayouts) / 10);
-    moveLoc = PlayUtils::maybeFriendlyPass(cleanupBeforePass, friendlyPass, pla, moveLoc, bot->getSearchStopAndWait(), numVisitsForFriendlyPass, logger);
+    moveLoc = PlayUtils::maybeFriendlyPass(cleanupBeforePass, friendlyPass, pla, moveLoc, bot->getSearchStopAndWait(), numVisitsForFriendlyPass);
 
     //Implement cleanupBeforePass hack - if the bot wants to pass, instead cleanup if there is something to clean
     //and we are in a ruleset where this is necessary or the user has configured it.
@@ -1073,7 +1073,7 @@ struct GTPEngine {
     bot->analyzeAsync(pla, searchFactor, args.secondsPerReport, callback);
   }
 
-  void computeAnticipatedWinnerAndScore(Logger& logger, Player& winner, double& finalWhiteMinusBlackScore) {
+  void computeAnticipatedWinnerAndScore(Player& winner, double& finalWhiteMinusBlackScore) {
     stopAndWait();
 
     //No playoutDoublingAdvantage to avoid bias
@@ -1108,7 +1108,7 @@ struct GTPEngine {
     else {
       int64_t numVisits = std::max(50, params.numThreads * 10);
       //Try computing the lead for white
-      double lead = PlayUtils::computeLead(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,logger,OtherGameProperties());
+      double lead = PlayUtils::computeLead(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,OtherGameProperties());
 
       //Round lead to nearest integer or half-integer
       if(hist.rules.gameResultWillBeInteger())
@@ -1125,7 +1125,7 @@ struct GTPEngine {
     bot->setParams(params);
   }
 
-  vector<bool> computeAnticipatedStatuses(Logger& logger) {
+  vector<bool> computeAnticipatedStatuses() {
     stopAndWait();
 
     //Make absolutely sure we can restore the bot's old state
@@ -1149,7 +1149,7 @@ struct GTPEngine {
     //Human-friendly statuses or incomplete game status estimation
     else {
       vector<double> ownershipsBuf;
-      isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot->getSearchStopAndWait(),board,hist,pla,numVisits,logger,ownershipsBuf);
+      isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot->getSearchStopAndWait(),board,hist,pla,numVisits,ownershipsBuf);
     }
 
     //Restore
@@ -2448,7 +2448,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
       Player winner = C_EMPTY;
       double finalWhiteMinusBlackScore = 0.0;
-      engine->computeAnticipatedWinnerAndScore(logger,winner,finalWhiteMinusBlackScore);
+      engine->computeAnticipatedWinnerAndScore(winner,finalWhiteMinusBlackScore);
 
       if(winner == C_EMPTY)
         response = "0";
@@ -2480,7 +2480,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         }
 
         if(statusMode < 3) {
-          vector<bool> isAlive = engine->computeAnticipatedStatuses(logger);
+          vector<bool> isAlive = engine->computeAnticipatedStatuses();
           Board board = engine->bot->getRootBoard();
           vector<Loc> locsToReport;
 

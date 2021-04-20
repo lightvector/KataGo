@@ -109,7 +109,7 @@ static void writeLine(
   cout << endl;
 }
 
-static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Rand& rand, AsyncBot* bot, Logger& logger) {
+static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Rand& rand, AsyncBot* bot) {
   static const int numSizes = 9;
   int sizes[numSizes] = {19,13,9,15,11,10,12,14,16};
   int sizeFreqs[numSizes] = {240,18,12,6,2,1,1,1,1};
@@ -345,7 +345,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
       } //Close while(true)
 
       int numVisits = 20;
-      PlayUtils::adjustKomiToEven(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,logger,OtherGameProperties(),rand);
+      PlayUtils::adjustKomiToEven(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,OtherGameProperties(),rand);
       double komi = hist.rules.komi + 0.3 * rand.nextGaussian();
       komi = 0.5 * round(2.0 * komi);
       hist.setKomi((float)komi);
@@ -438,7 +438,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
     BoardHistory baseHist(baseBoard,pla,Rules::getTrompTaylorish(),0);
     TimeControls tc;
 
-    initializeDemoGame(baseBoard, baseHist, pla, gameRand, bot, logger);
+    initializeDemoGame(baseBoard, baseHist, pla, gameRand, bot);
 
     bot->setPosition(pla,baseBoard,baseHist);
 
@@ -806,7 +806,7 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
 }
 
 static bool maybeGetValuesAfterMove(
-  Search* search, Logger& logger, Loc moveLoc,
+  Search* search, Loc moveLoc,
   Player nextPla, const Board& board, const BoardHistory& hist,
   double quickSearchFactor,
   ReportedSearchValues& values
@@ -830,11 +830,11 @@ static bool maybeGetValuesAfterMove(
     newSearchParams.maxVisits = 1 + (int64_t)(oldSearchParams.maxVisits * quickSearchFactor);
     newSearchParams.maxPlayouts = 1 + (int64_t)(oldSearchParams.maxPlayouts * quickSearchFactor);
     search->setParamsNoClearing(newSearchParams);
-    search->runWholeSearch(newNextPla,logger,shouldStop);
+    search->runWholeSearch(newNextPla,shouldStop);
     search->setParamsNoClearing(oldSearchParams);
   }
   else {
-    search->runWholeSearch(newNextPla,logger,shouldStop);
+    search->runWholeSearch(newNextPla,shouldStop);
   }
 
   if(shouldStop.load(std::memory_order_acquire))
@@ -1119,7 +1119,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     return true;
   };
 
-  auto expensiveEvaluateMove = [&toWriteQueue,&logger,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses](
+  auto expensiveEvaluateMove = [&toWriteQueue,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample, bool markedAsHintPos
@@ -1151,7 +1151,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
     ReportedSearchValues veryQuickValues;
     {
-      bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,nextPla,board,hist,1.0/25.0,veryQuickValues);
+      bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/25.0,veryQuickValues);
       if(!suc)
         return;
     }
@@ -1159,7 +1159,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
     ReportedSearchValues quickValues;
     {
-      bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,nextPla,board,hist,1.0/5.0,quickValues);
+      bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/5.0,quickValues);
       if(!suc)
         return;
     }
@@ -1167,7 +1167,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
     ReportedSearchValues baseValues;
     {
-      bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,nextPla,board,hist,1.0,baseValues);
+      bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0,baseValues);
       if(!suc)
         return;
     }
@@ -1208,7 +1208,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
       if(!shouldWriteMove) {
         ReportedSearchValues moveValues;
-        if(!maybeGetValuesAfterMove(search,logger,moveLoc,nextPla,board,hist,1.0,moveValues))
+        if(!maybeGetValuesAfterMove(search,moveLoc,nextPla,board,hist,1.0,moveValues))
           return;
         // ostringstream out0;
         // out0 << "BOT MOVE " << Location::toString(moveLoc,board) << endl;
@@ -1216,7 +1216,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
         // cout << out0.str() << endl;
 
         ReportedSearchValues missedValues;
-        if(!maybeGetValuesAfterMove(search,logger,missedLoc,nextPla,board,hist,1.0,missedValues))
+        if(!maybeGetValuesAfterMove(search,missedLoc,nextPla,board,hist,1.0,missedValues))
           return;
         // ostringstream out0;
         // out0 << "SGF MOVE " << Location::toString(missedLoc,board) << endl;
@@ -1297,7 +1297,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
       ReportedSearchValues superQuickValues;
       {
-        bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,nextPla,board,hist,1.0/80.0,superQuickValues);
+        bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/80.0,superQuickValues);
         if(!suc)
           break;
       }
@@ -1412,7 +1412,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
       if(autoKomi) {
         const int64_t numVisits = 10;
         OtherGameProperties props;
-        PlayUtils::adjustKomiToEven(search,NULL,boards[m],hists[m],nextPlas[m],numVisits,logger,props,rand);
+        PlayUtils::adjustKomiToEven(search,NULL,boards[m],hists[m],nextPlas[m],numVisits,props,rand);
       }
 
       expensiveEvaluateMove(
@@ -1427,7 +1427,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   auto processSgfLoop = [&logger,&processSgfGame,&sgfQueue,&params,&nnEval,&numSgfsDone,&isPlayerOkay,&tolerateIllegalMoves]() {
     Rand rand;
     string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
-    Search* search = new Search(params,nnEval,searchRandSeed);
+    Search* search = new Search(params,nnEval,&logger,searchRandSeed);
 
     while(true) {
       if(shouldStop.load(std::memory_order_acquire))
@@ -1467,7 +1467,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   // ---------------------------------------------------------------------------------------------------
   //TREE MODE
 
-  auto treePosHandler = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy](
+  auto treePosHandler = [&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy](
     Search* search, Rand& rand, const BoardHistory& treeHist, int initialTurnNumber, bool markedAsHintPos
   ) {
     if(shouldStop.load(std::memory_order_acquire))
@@ -1540,7 +1540,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     if(autoKomi) {
       const int64_t numVisits = 10;
       OtherGameProperties props;
-      PlayUtils::adjustKomiToEven(search,NULL,board,hist,pla,numVisits,logger,props,rand);
+      PlayUtils::adjustKomiToEven(search,NULL,board,hist,pla,numVisits,props,rand);
     }
 
     MiscNNInputParams nnInputParams;
@@ -1576,7 +1576,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   auto processPosLoop = [&logger,&posQueue,&params,&numPosesBegun,&numPosesDone,&numPosesEnqueued,&nnEval,&treePosHandler]() {
     Rand rand;
     string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
-    Search* search = new Search(params,nnEval,searchRandSeed);
+    Search* search = new Search(params,nnEval,&logger,searchRandSeed);
 
     while(true) {
       if(shouldStop.load(std::memory_order_acquire))
@@ -1836,7 +1836,7 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
     }
   }
   string searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
-  Search* search = new Search(params,nnEval,searchRandSeed);
+  Search* search = new Search(params,nnEval,&logger,searchRandSeed);
 
   // ---------------------------------------------------------------------------------------------------
 
@@ -1867,14 +1867,14 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
     {
       const int64_t numVisits = 10;
       OtherGameProperties props;
-      PlayUtils::adjustKomiToEven(search,NULL,board,hist,pla,numVisits,logger,props,seedRand);
+      PlayUtils::adjustKomiToEven(search,NULL,board,hist,pla,numVisits,props,seedRand);
     }
 
     Loc hintLoc = startPos.hintLoc;
 
     {
       ReportedSearchValues values;
-      bool suc = maybeGetValuesAfterMove(search,logger,Board::NULL_LOC,pla,board,hist,1.0,values);
+      bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,pla,board,hist,1.0,values);
       (void)suc;
       assert(suc);
       cout << "Searching startpos: " << "\n";
@@ -1893,7 +1893,7 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
       else {
         ReportedSearchValues values;
         cout << "There was a hintpos " << Location::toString(hintLoc,board) << ", re-searching after playing it: " << "\n";
-        bool suc = maybeGetValuesAfterMove(search,logger,hintLoc,pla,board,hist,1.0,values);
+        bool suc = maybeGetValuesAfterMove(search,hintLoc,pla,board,hist,1.0,values);
         (void)suc;
         assert(suc);
         Board::printBoard(cout, search->getRootBoard(), search->getChosenMoveLoc(), &(search->getRootHist().moveHistory));
@@ -2029,7 +2029,7 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
     if(autoKomi && bot != NULL) {
       const int64_t numVisits = 10;
       OtherGameProperties props;
-      PlayUtils::adjustKomiToEven(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,logger,props,rand);
+      PlayUtils::adjustKomiToEven(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,props,rand);
     }
 
     if(bot != NULL) {

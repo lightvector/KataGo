@@ -344,7 +344,6 @@ static vector<PlayUtils::BenchmarkResults> doFixedTuneThreads(
       sgf,
       numPositionsPerGame,
       nnEval,
-      logger,
       baseline,
       secondsPerGameMove,
       printElo
@@ -382,7 +381,6 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
         sgf,
         numPositionsPerGame,
         nnEval,
-        logger,
         baseline,
         secondsPerGameMove,
         printElo

@@ -36,7 +36,6 @@ namespace PlayUtils {
     const BoardHistory& hist,
     Player pla,
     int64_t numVisits,
-    Logger& logger,
     const OtherGameProperties& otherGameProps
   );
 
@@ -73,7 +72,6 @@ namespace PlayUtils {
     BoardHistory& hist,
     Player pla,
     int64_t numVisits,
-    Logger& logger,
     const OtherGameProperties& otherGameProps,
     Rand& rand
   );
@@ -86,7 +84,6 @@ namespace PlayUtils {
     BoardHistory& hist,
     Player pla,
     int64_t numVisits,
-    Logger& logger,
     const OtherGameProperties& otherGameProps
   );
 
@@ -105,8 +102,7 @@ namespace PlayUtils {
     const Board& board,
     const BoardHistory& hist,
     Player pla,
-    int64_t numVisits,
-    Logger& logger
+    int64_t numVisits
   );
 
   //Determine all living and dead stones, if the game were terminated right now and
@@ -126,7 +122,6 @@ namespace PlayUtils {
     const BoardHistory& hist,
     Player pla,
     int64_t numVisits,
-    Logger& logger,
     std::vector<double>& ownershipsBuf
   );
 
@@ -156,7 +151,6 @@ namespace PlayUtils {
     const CompactSgf* sgf,
     int numPositionsToUse,
     NNEvaluator* nnEval,
-    Logger& logger,
     const BenchmarkResults* baseline,
     double secondsPerGameMove,
     bool printElo
@@ -180,8 +174,7 @@ namespace PlayUtils {
     const Player pla,
     Loc moveLoc,
     Search* bot,
-    int64_t numVisits,
-    Logger& logger
+    int64_t numVisits
   );
 
 }

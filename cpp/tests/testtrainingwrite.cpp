@@ -254,7 +254,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     playSettings.forSelfPlay = true;
 
     string searchRandSeed = seedBase+"search";
-    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
+    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, &logger, searchRandSeed);
 
     Rand rand(seedBase+"play");
     OtherGameProperties otherGameProps;
@@ -287,13 +287,13 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       Player pla = forkData.forks[0]->pla;
       PlayUtils::adjustKomiToEven(
         bot, bot, board, hist, pla,
-        playSettings.cheapSearchVisits, logger, OtherGameProperties(), rand
+        playSettings.cheapSearchVisits, OtherGameProperties(), rand
       );
       BoardHistory hist2 = forkData.forks[0]->hist;
       float oldKomi = hist2.rules.komi;
       double lead = PlayUtils::computeLead(
         bot, bot, board, hist2, pla,
-        playSettings.cheapSearchVisits, logger, OtherGameProperties()
+        playSettings.cheapSearchVisits, OtherGameProperties()
       );
       cout << "Lead: " << lead << endl;
       hist.printDebugInfo(cout,board);
@@ -465,7 +465,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     playSettings.forSelfPlay = !testResign;
 
     string searchRandSeed = seedBase+"search";
-    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
+    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, &logger, searchRandSeed);
 
     cout << "====================================================================================================" << endl;
     cout << "====================================================================================================" << endl;
@@ -542,14 +542,14 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
 
     SearchParams params;
     string searchRandSeed = seedBase+"search";
-    Search* bot = new Search(params, nnEval, searchRandSeed);
+    Search* bot = new Search(params, nnEval, &logger, searchRandSeed);
 
     rules.komi = komi;
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,rules,0);
     int compensateKomiVisits = 50;
     OtherGameProperties otherGameProps;
-    double lead = PlayUtils::computeLead(bot,bot,board,hist,pla,compensateKomiVisits,logger,otherGameProps);
+    double lead = PlayUtils::computeLead(bot,bot,board,hist,pla,compensateKomiVisits,otherGameProps);
     testAssert(hist.rules.komi == komi);
     cout << board << endl;
     cout << "LEAD: " << lead << endl;
@@ -614,7 +614,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     playSettings.forSelfPlay = true;
 
     string searchRandSeed = seedBase+"search";
-    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
+    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, &logger, searchRandSeed);
 
     cout << "====================================================================================================" << endl;
     cout << "====================================================================================================" << endl;
@@ -1834,7 +1834,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     playSettings.forSelfPlay = true;
 
     string searchRandSeed = seedBase+"search";
-    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
+    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, &logger, searchRandSeed);
 
     Rand rand(seedBase+"play");
     OtherGameProperties otherGameProps;
@@ -1887,13 +1887,13 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     cout << "Also testing status logic inference!" << endl;
     SearchParams params;
     string searchRandSeed = "test statuses";
-    Search* bot = new Search(params, nnEval, searchRandSeed);
+    Search* bot = new Search(params, nnEval, &logger, searchRandSeed);
 
-    auto testStatuses = [&nnEval,&bot,&logger](const Board& board, const BoardHistory& hist, Player pla) {
+    auto testStatuses = [&nnEval,&bot](const Board& board, const BoardHistory& hist, Player pla) {
       int numVisits = 50;
-      vector<double> ownership = PlayUtils::computeOwnership(bot,board,hist,pla,numVisits,logger);
+      vector<double> ownership = PlayUtils::computeOwnership(bot,board,hist,pla,numVisits);
       vector<double> buf;
-      vector<bool> isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot,board,hist,pla,numVisits,logger,buf);
+      vector<bool> isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot,board,hist,pla,numVisits,buf);
       testAssert(bot->alwaysIncludeOwnerMap == false);
       cout << "Search assumes " << PlayerIO::playerToString(pla) << " first" << endl;
       cout << "Rules " << hist.rules << endl;

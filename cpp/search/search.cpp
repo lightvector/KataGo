@@ -358,21 +358,16 @@ static string makeSeed(const Search& search, int threadIdx) {
   return ss.str();
 }
 
-SearchThread::SearchThread(int tIdx, const Search& search, Logger* lg)
+SearchThread::SearchThread(int tIdx, const Search& search)
   :threadIdx(tIdx),
    pla(search.rootPla),board(search.rootBoard),
    history(search.rootHistory),
    rand(makeSeed(search,tIdx)),
    nnResultBuf(),
-   logStream(NULL),
-   logger(lg),
    statsBuf(),
    upperBoundVisitsLeft(1e30),
    oldNNOutputsToCleanUp()
 {
-  if(logger != NULL)
-    logStream = logger->createOStream();
-
   statsBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
 
   //Reserving even this many is almost certainly overkill but should guarantee that we never have hit allocation here.
@@ -382,17 +377,13 @@ SearchThread::~SearchThread() {
   for(size_t i = 0; i<oldNNOutputsToCleanUp.size(); i++)
     delete oldNNOutputsToCleanUp[i];
   oldNNOutputsToCleanUp.resize(0);
-  if(logStream != NULL)
-    delete logStream;
-  logStream = NULL;
-  logger = NULL;
 }
 
 //-----------------------------------------------------------------------------------------
 
 static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
-Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
+Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const string& rSeed)
   :rootPla(P_BLACK),
    rootBoard(),rootHistory(),rootHintLoc(Board::NULL_LOC),
    avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),
@@ -419,9 +410,15 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
    policySize(),
    nonSearchRand(rSeed + string("$nonSearchRand")),
    subtreeValueBiasTable(NULL),
+   logger(lg),
+   numThreadsSpawned(0),
+   threads(NULL),
+   threadTasks(NULL),
+   threadTasksRemaining(NULL),
    oldNNOutputsToCleanUpMutex(),
    oldNNOutputsToCleanUp()
 {
+  assert(logger != NULL);
   nnXLen = nnEval->getNNXLen();
   nnYLen = nnEval->getNNYLen();
   assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
@@ -454,6 +451,87 @@ Search::~Search() {
   delete rootNode;
   delete mutexPool;
   delete subtreeValueBiasTable;
+  killThreads();
+}
+
+static void threadTaskLoop(Search* search, int threadIdx) {
+  while(true) {
+    std::function<void(int)>* task;
+    bool suc = search->threadTasks[threadIdx-1].waitPop(task);
+    if(!suc)
+      return;
+
+    try {
+      (*task)(threadIdx);
+      //Don't delete task, the convention is tasks are owned by the joining thread
+    }
+    catch(const exception& e) {
+      search->logger->write(string("ERROR: Search thread failed: ") + e.what());
+      search->threadTasksRemaining->add(-1);
+      throw;
+    }
+    catch(const string& e) {
+      search->logger->write("ERROR: Search thread failed: " + e);
+      search->threadTasksRemaining->add(-1);
+      throw;
+    }
+    catch(...) {
+      search->logger->write("ERROR: Search thread failed with unexpected throw");
+      search->threadTasksRemaining->add(-1);
+      throw;
+    }
+    search->threadTasksRemaining->add(-1);
+  }
+}
+
+void Search::spawnThreadsIfNeeded() {
+  int desiredNumThreads = searchParams.numThreads-1;
+  if(numThreadsSpawned >= desiredNumThreads)
+    return;
+  killThreads();
+  threadTasks = new ThreadSafeQueue<std::function<void(int)>*>[desiredNumThreads];
+  threadTasksRemaining = new ThreadSafeCounter();
+  threads = new std::thread[desiredNumThreads];
+  for(int i = 0; i<desiredNumThreads; i++)
+    threads[i] = std::thread(threadTaskLoop,this,i+1);
+  numThreadsSpawned = desiredNumThreads;
+}
+
+void Search::killThreads() {
+  if(numThreadsSpawned <= 0)
+    return;
+  for(int i = 0; i<numThreadsSpawned; i++)
+    threadTasks[i].close();
+  for(int i = 0; i<numThreadsSpawned; i++)
+    threads[i].join();
+  delete[] threadTasks;
+  delete threadTasksRemaining;
+  delete[] threads;
+  threadTasks = NULL;
+  threadTasksRemaining = NULL;
+  threads = NULL;
+  numThreadsSpawned = 0;
+}
+
+void Search::respawnThreads() {
+  killThreads();
+  spawnThreadsIfNeeded();
+}
+
+void Search::performTaskWithThreads(std::function<void(int)>* task) {
+  spawnThreadsIfNeeded();
+  int numAdditionalThreadsToUse = searchParams.numThreads-1;
+  if(numAdditionalThreadsToUse == 0) {
+    (*task)(0);
+  }
+  else {
+    assert(numAdditionalThreadsToUse <= numThreadsSpawned);
+    threadTasksRemaining->add(numAdditionalThreadsToUse);
+    for(int i = 0; i<numAdditionalThreadsToUse; i++)
+      threadTasks[i].forcePush(task);
+    (*task)(0);
+    threadTasksRemaining->waitUntilZero();
+  }
 }
 
 void Search::clearOldNNOutputs() {
@@ -563,6 +641,7 @@ void Search::clearSearch() {
   delete rootNode;
   rootNode = NULL;
   clearOldNNOutputs();
+  searchNodeAge = 0;
 }
 
 bool Search::isLegalTolerant(Loc moveLoc, Player movePla) const {
@@ -759,33 +838,33 @@ double Search::interpolateEarly(double halflife, double earlyValue, double value
   return value + (earlyValue - value) * pow(0.5, halflives);
 }
 
-Loc Search::runWholeSearchAndGetMove(Player movePla, Logger& logger) {
-  return runWholeSearchAndGetMove(movePla,logger,false);
+Loc Search::runWholeSearchAndGetMove(Player movePla) {
+  return runWholeSearchAndGetMove(movePla,false);
 }
 
-Loc Search::runWholeSearchAndGetMove(Player movePla, Logger& logger, bool pondering) {
-  runWholeSearch(movePla,logger,pondering);
+Loc Search::runWholeSearchAndGetMove(Player movePla, bool pondering) {
+  runWholeSearch(movePla,pondering);
   return getChosenMoveLoc();
 }
 
-void Search::runWholeSearch(Player movePla, Logger& logger) {
-  runWholeSearch(movePla,logger,false);
+void Search::runWholeSearch(Player movePla) {
+  runWholeSearch(movePla,false);
 }
 
-void Search::runWholeSearch(Player movePla, Logger& logger, bool pondering) {
+void Search::runWholeSearch(Player movePla, bool pondering) {
   if(movePla != rootPla)
     setPlayerAndClearHistory(movePla);
   std::atomic<bool> shouldStopNow(false);
-  runWholeSearch(logger,shouldStopNow,pondering);
+  runWholeSearch(shouldStopNow,pondering);
 }
 
-void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow) {
-  runWholeSearch(logger,shouldStopNow, false);
+void Search::runWholeSearch(std::atomic<bool>& shouldStopNow) {
+  runWholeSearch(shouldStopNow, false);
 }
 
-void Search::runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering) {
+void Search::runWholeSearch(std::atomic<bool>& shouldStopNow, bool pondering) {
   std::function<void()>* searchBegun = NULL;
-  runWholeSearch(logger,shouldStopNow,searchBegun,pondering,TimeControls(),1.0);
+  runWholeSearch(shouldStopNow,searchBegun,pondering,TimeControls(),1.0);
 }
 
 double Search::numVisitsNeededToBeNonFutile(double maxVisitsMoveVisits) {
@@ -930,7 +1009,6 @@ double Search::recomputeSearchTimeLimit(
 }
 
 void Search::runWholeSearch(
-  Logger& logger,
   std::atomic<bool>& shouldStopNow,
   std::function<void()>* searchBegun,
   bool pondering,
@@ -942,9 +1020,9 @@ void Search::runWholeSearch(
   atomic<int64_t> numPlayoutsShared(0);
 
   if(!std::atomic_is_lock_free(&numPlayoutsShared))
-    logger.write("Warning: int64_t atomic numPlayoutsShared is not lock free");
+    logger->write("Warning: int64_t atomic numPlayoutsShared is not lock free");
   if(!std::atomic_is_lock_free(&shouldStopNow))
-    logger.write("Warning: bool atomic shouldStopNow is not lock free");
+    logger->write("Warning: bool atomic shouldStopNow is not lock free");
 
   //Do this first, just in case this causes us to clear things and have 0 effective time carried over
   beginSearch(pondering);
@@ -991,12 +1069,12 @@ void Search::runWholeSearch(
     upperBoundVisitsLeftDueToTime.store(upperBoundVisits, std::memory_order_release);
   }
 
-  auto searchLoop = [
+  std::function<void(int)> searchLoop = [
     this,&timer,&numPlayoutsShared,numNonPlayoutVisits,&tcMaxTime,&upperBoundVisitsLeftDueToTime,&tc,
     &hasMaxTime,&hasTc,
-    &logger,&shouldStopNow,maxVisits,maxPlayouts,maxTime,pondering,searchFactor
+    &shouldStopNow,maxVisits,maxPlayouts,maxTime,pondering,searchFactor
   ](int threadIdx) {
-    SearchThread* stbuf = new SearchThread(threadIdx,*this,&logger);
+    SearchThread* stbuf = new SearchThread(threadIdx,*this);
 
     int64_t numPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
     try {
@@ -1055,20 +1133,7 @@ void Search::runWholeSearch(
         }
       }
     }
-    catch(const exception& e) {
-      logger.write(string("ERROR: Search thread failed: ") + e.what());
-      transferOldNNOutputs(*stbuf);
-      delete stbuf;
-      throw;
-    }
-    catch(const string& e) {
-      logger.write("ERROR: Search thread failed: " + e);
-      transferOldNNOutputs(*stbuf);
-      delete stbuf;
-      throw;
-    }
     catch(...) {
-      logger.write("ERROR: Search thread failed with unexpected throw");
       transferOldNNOutputs(*stbuf);
       delete stbuf;
       throw;
@@ -1079,17 +1144,7 @@ void Search::runWholeSearch(
   };
 
   double actualSearchStartTime = timer.getSeconds();
-  if(searchParams.numThreads <= 1)
-    searchLoop(0);
-  else {
-    std::thread* threads = new std::thread[searchParams.numThreads-1];
-    for(int i = 0; i<searchParams.numThreads-1; i++)
-      threads[i] = std::thread(searchLoop,i+1);
-    searchLoop(0);
-    for(int i = 0; i<searchParams.numThreads-1; i++)
-      threads[i].join();
-    delete[] threads;
-  }
+  performTaskWithThreads(&searchLoop);
 
   //Relaxed load is fine since numPlayoutsShared should be synchronized already due to the joins
   lastSearchNumPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
@@ -1107,8 +1162,9 @@ void Search::beginSearch(bool pondering) {
   rootBoard.checkConsistency();
 
   numSearchesBegun++;
-  searchNodeAge++;
-  if(searchNodeAge == 0) //Just in case, as we roll over
+
+  //Avoid any issues in principle from rolling over
+  if(searchNodeAge > 0x3FFFFFFF)
     clearSearch();
 
   if(!pondering)
@@ -1134,7 +1190,7 @@ void Search::beginSearch(bool pondering) {
   if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable == NULL)
     subtreeValueBiasTable = new SubtreeValueBiasTable(searchParams.subtreeValueBiasTableNumShards);
 
-  SearchThread dummyThread(-1, *this, NULL);
+  SearchThread dummyThread(-1, *this);
 
   if(rootNode == NULL) {
     Loc prevMoveLoc = rootHistory.moveHistory.size() <= 0 ? Board::NULL_LOC : rootHistory.moveHistory[rootHistory.moveHistory.size()-1].loc;
@@ -1230,6 +1286,9 @@ void Search::beginSearch(bool pondering) {
   //Clear unused stuff in value bias table since we may have pruned rootNode stuff
   if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL)
     subtreeValueBiasTable->clearUnusedSynchronous();
+
+  //Mark all nodes old for the purposes of updating old nnoutputs
+  searchNodeAge++;
 }
 
 //Recursively walk over part of the tree that we are about to delete and remove its contribution to the value bias in the table
@@ -2951,10 +3010,10 @@ bool Search::playoutDescend(
       bool isReInit = true;
       initNodeNNOutput(thread,node,isRoot,true,isReInit);
 
-      if(thread.logStream != NULL) {
+      {
         NNOutput* nnOutput = node.getNNOutput();
         assert(nnOutput != NULL);
-        (*thread.logStream) << "WARNING: Chosen move not legal so regenerated nn output, nnhash=" << nnOutput->nnHash << endl;
+        logger->write("WARNING: Chosen move not legal so regenerated nn output, nnhash=" + nnOutput->nnHash.toString());
       }
 
       //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats

@@ -200,6 +200,9 @@ string NNEvaluator::getInternalModelName() const {
   else
     return NeuralNet::getModelName(loadedModel);
 }
+Logger* NNEvaluator::getLogger() {
+  return logger;
+}
 bool NNEvaluator::isNeuralNetLess() const {
   return debugSkipNeuralNet;
 }
