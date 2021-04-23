@@ -474,4 +474,5 @@ White originalMainTime 60 increment 10 mainTimeLimit 60 maxTimePerMove 7 mainTim
 : Controller: kata-debug-print-tc
 : = Black originalMainTime 60 increment 10 mainTimeLimit 60 maxTimePerMove 7 mainTimeLeft 60 inOvertime 0 minRecMax 6 6 6 rrec0 6 rreclimit 6 rreclimit2 6
 White originalMainTime 60 increment 10 mainTimeLimit 60 maxTimePerMove 7 mainTimeLeft 30 inOvertime 0 minRecMax 0 6 6 rrec0 6 rreclimit 6 rreclimit2 6
+: GPU -1 finishing, processed 0 rows 0 batches
 : All cleaned up, quitting

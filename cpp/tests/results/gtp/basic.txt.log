@@ -212,6 +212,7 @@ Q4  : T  -2.00c W  -1.23c S  -0.76c ( -0.4 L  -0.4) LCB  -68.54c P  4.90% WF   4
 
 : = R16
 : Controller: boardsize 9
+: GPU -1 finishing, processed 235 rows 235 batches
 : Cleaned up old neural net and bot
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
@@ -271,4 +272,5 @@ Next player: White
 Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
+: GPU -1 finishing, processed 100 rows 100 batches
 : All cleaned up, quitting

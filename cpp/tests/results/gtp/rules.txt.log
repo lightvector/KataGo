@@ -47,4 +47,5 @@
 : = 
 : Controller: kata-get-rules
 : = {"friendlyPassOk":true,"hasButton":false,"ko":"SITUATIONAL","scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+: GPU -1 finishing, processed 0 rows 0 batches
 : All cleaned up, quitting

@@ -91,4 +91,5 @@ D4  : T  89.65c W  98.80c S  -9.15c (+19.3 L +10.1) LCB -590.01c P 21.25% WF   3
 : NN rows: 20
 : NN batches: 20
 : NN avg batch size: 1
+: GPU -1 finishing, processed 20 rows 20 batches
 : All cleaned up, quitting

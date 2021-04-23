@@ -1331,3 +1331,4 @@ C8 7
 P13 1
 
 
+: GPU 0 finishing, processed 4954 rows 4954 batches

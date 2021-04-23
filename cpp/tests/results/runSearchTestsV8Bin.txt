@@ -111,9 +111,11 @@ M16 : T  -6.27c W  -4.89c S  -1.38c ( -1.2 L  -0.5) LCB -280.00c P  1.12% WF   1
 
 
 TEST SYMMETRY AVGING ==========================================================================
+: GPU 0 finishing, processed 198 rows 198 batches
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: GPU 0 finishing, processed 198 rows 198 batches
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
@@ -205,9 +207,11 @@ R4  : T   2.57c W   1.72c S   0.85c ( +0.7 L  +1.1) LCB  280.00c P  1.27% WF   1
 Q15 : T   4.22c W   3.19c S   1.03c ( +1.0 L  +1.7) LCB  280.00c P  1.23% WF   1.0 PSV       1 N       1  --  Q15
 
 
+: GPU 0 finishing, processed 202 rows 202 batches
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: GPU 0 finishing, processed 202 rows 202 batches
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
@@ -1516,6 +1520,7 @@ C8  : T -46.58c W -45.82c S  -0.76c ( -6.2 L  -6.5) LCB  280.00c P  0.78% WF   0
 F3  : T -40.59c W -41.14c S   0.55c ( -5.0 L  -5.6) LCB  280.00c P  0.76% WF   0.9 PSV       0 N       1  --  F3
 D8  : T -31.24c W -32.17c S   0.93c ( -4.6 L  -5.2) LCB  280.00c P  0.72% WF   0.9 PSV       0 N       1  --  D8
 F4  : T -45.02c W -44.35c S  -0.67c ( -6.1 L  -6.7) LCB  280.00c P  0.72% WF   0.9 PSV       0 N       1  --  F4
+: GPU 0 finishing, processed 6526 rows 6526 batches
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
@@ -1626,9 +1631,12 @@ C5  : T 110.83c W  95.77c S  15.06c (+38.8 L +40.4) LCB  280.00c P  1.15% WF   1
 D5  : T 112.62c W  96.40c S  16.22c (+40.9 L +42.4) LCB  280.00c P  1.14% WF   1.0 PSV       1 N       1  --  D5
 L15 : T 112.53c W  96.01c S  16.52c (+41.8 L +43.2) LCB  280.00c P  0.73% WF   1.0 PSV       1 N       1  --  L15
 Q11 : T 118.29c W  97.67c S  20.62c (+49.3 L +51.9) LCB  280.00c P  0.95% WF   0.9 PSV       0 N       1  --  Q11
+: GPU 0 finishing, processed 616 rows 616 batches
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: GPU 0 finishing, processed 0 rows 0 batches
+: GPU 0 finishing, processed 0 rows 0 batches
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
@@ -3245,6 +3253,7 @@ G4  : T   1.21c W  -2.48c S   3.69c ( -0.1 L  -0.5) LCB  280.00c P  1.58% WF   0
 
 
 TEST Hintlocs ==========================================================================
+: GPU 0 finishing, processed 5807 rows 5807 batches
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
@@ -3788,6 +3797,7 @@ K4  : T   1.04c W  -0.17c S   1.21c ( -0.0 L  +0.1) LCB  210.36c P  2.84% WF   3
 L3  : T   0.31c W  -0.82c S   1.13c ( -0.1 L  +0.1) LCB  223.71c P  2.62% WF   3.2 PSV       3 N       3  --  L3 R16
 K3  : T   0.28c W  -0.86c S   1.14c ( -0.1 L  +0.1) LCB  281.02c P  2.57% WF   3.2 PSV       3 N       3  --  K3 Q17
 C1  : T  43.81c W  36.43c S   7.38c ( +9.2 L  +9.6) LCB   50.35c P  2.01% WF  32.6 PSV       0 N      55  --  C1 Q17 P16 R16 Q14 O17 L4 C17
+: GPU 0 finishing, processed 2011 rows 2011 batches
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
@@ -4732,6 +4742,7 @@ pss : T 103.05c W  98.22c S   4.82c ( +1.6 L  +1.4) LCB  143.18c P  0.76% WF   5
 C3  : T 103.99c W  98.76c S   5.23c ( +1.8 L  +1.8) LCB  280.00c P  0.61% WF   2.0 PSV       2 N       2  --  C3 B3
 Move loc: F6
 Friendly pass: pass
+: GPU 0 finishing, processed 14429 rows 14429 batches
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
@@ -4932,3 +4943,4 @@ WL samples
 25 -0.0101693
 26 -0.00534368
 27 -0.00388315
+: GPU 0 finishing, processed 1028 rows 1028 batches
