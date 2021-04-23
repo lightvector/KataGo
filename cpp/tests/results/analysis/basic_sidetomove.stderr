@@ -62,7 +62,7 @@ Tree:
 ---White(^)---
 Q5  : T -25.74c W -23.35c S  -2.39c ( -7.5 L  -7.2) LCB  -55.07c P 80.79% WF   9.0 PSV       9 N       9  --  Q5 R5 Q6 R6 Q7 P4
 
-: Response: {"id":"foo","isDuringSearch":false,"moveInfos":[{"lcb":0.27848672550983034,"move":"Q5","order":0,"prior":0.8078576326370239,"pv":["Q5","R5","Q6","R6","Q7","P4"],"scoreLead":-7.238056165132481,"scoreMean":-7.238056165132481,"scoreSelfplay":-7.536280786214546,"scoreStdev":30.950407136641903,"utility":-0.2573574852310608,"utilityLcb":-0.5507021499752407,"visits":9,"winrate":0.3832526772041803}],"rootInfo":{"scoreLead":-7.228588326710664,"scoreSelfplay":-7.535291619794019,"scoreStdev":31.017192759639336,"symHash":"215BAF8265F4950EC41771439410160F","thisHash":"FA2C1B0E252C40AF31EB9DEC2CCCCD34","utility":-0.25829488949739543,"visits":10,"winrate":0.3824489640134292},"turnNumber":2}
+: Response: {"id":"foo","isDuringSearch":false,"moveInfos":[{"lcb":0.27848672550983034,"move":"Q5","order":0,"prior":0.8078576326370239,"pv":["Q5","R5","Q6","R6","Q7","P4"],"scoreLead":-7.23805616513248,"scoreMean":-7.23805616513248,"scoreSelfplay":-7.536280786214547,"scoreStdev":30.950407136641903,"utility":-0.2573574852310608,"utilityLcb":-0.5507021499752407,"visits":9,"winrate":0.3832526772041803}],"rootInfo":{"scoreLead":-7.228588326710662,"scoreSelfplay":-7.5352916197940205,"scoreStdev":31.017192759639336,"symHash":"215BAF8265F4950EC41771439410160F","thisHash":"FA2C1B0E252C40AF31EB9DEC2CCCCD34","utility":-0.25829488949739543,"visits":10,"winrate":0.3824489640134292},"turnNumber":2}
 : MoveNum: 2 HASH: FACB00E9D9004B23F7292DCF3F13D71D
    A B C D E F G
  7 . . . . . . .
