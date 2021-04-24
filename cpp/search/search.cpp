@@ -132,6 +132,7 @@ SearchNode::SearchNode(Player prevPla, Loc prevLoc, SearchNode* p)
    state(SearchNode::STATE_UNEVALUATED),
    nnOutput(),
    nodeAge(0),
+   nodeAge2(0),
    children0(NULL),
    children1(NULL),
    children2(NULL),
@@ -484,17 +485,21 @@ static void threadTaskLoop(Search* search, int threadIdx) {
   }
 }
 
+int Search::numAdditionalThreadsToUseForTasks() const {
+  return searchParams.numThreads-1;
+}
+
 void Search::spawnThreadsIfNeeded() {
-  int desiredNumThreads = searchParams.numThreads-1;
-  if(numThreadsSpawned >= desiredNumThreads)
+  int desiredNumAdditionalThreads = numAdditionalThreadsToUseForTasks();
+  if(numThreadsSpawned >= desiredNumAdditionalThreads)
     return;
   killThreads();
-  threadTasks = new ThreadSafeQueue<std::function<void(int)>*>[desiredNumThreads];
+  threadTasks = new ThreadSafeQueue<std::function<void(int)>*>[desiredNumAdditionalThreads];
   threadTasksRemaining = new ThreadSafeCounter();
-  threads = new std::thread[desiredNumThreads];
-  for(int i = 0; i<desiredNumThreads; i++)
+  threads = new std::thread[desiredNumAdditionalThreads];
+  for(int i = 0; i<desiredNumAdditionalThreads; i++)
     threads[i] = std::thread(threadTaskLoop,this,i+1);
-  numThreadsSpawned = desiredNumThreads;
+  numThreadsSpawned = desiredNumAdditionalThreads;
 }
 
 void Search::killThreads() {
@@ -520,8 +525,8 @@ void Search::respawnThreads() {
 
 void Search::performTaskWithThreads(std::function<void(int)>* task) {
   spawnThreadsIfNeeded();
-  int numAdditionalThreadsToUse = searchParams.numThreads-1;
-  if(numAdditionalThreadsToUse == 0) {
+  int numAdditionalThreadsToUse = numAdditionalThreadsToUseForTasks();
+  if(numAdditionalThreadsToUse <= 0) {
     (*task)(0);
   }
   else {
@@ -723,8 +728,7 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
       children[foundChildIdx].store(children[numChildren-1].getIfAllocated());
       children[numChildren-1].store(NULL);
       //Delete the root and replace it with the child
-      recursivelyRemoveSubtreeValueBiasBeforeDeleteSynchronous(rootNode);
-      delete rootNode;
+      recursivelyRemoveSubtreeValueBiasAndDelete({rootNode});
       rootNode = child;
     }
     else {
@@ -1207,6 +1211,7 @@ void Search::beginSearch(bool pondering) {
       //However nothing else should be running at this time and the search hasn't actually started yet, so this is okay.
       int numGoodChildren = 0;
       bool anyFiltered = false;
+      vector<SearchNode*> filteredNodes;
       {
         int i = 0;
         for(; i<childrenCapacity; i++) {
@@ -1222,8 +1227,7 @@ void Search::beginSearch(bool pondering) {
           }
           else {
             anyFiltered = true;
-            recursivelyRemoveSubtreeValueBiasBeforeDeleteSynchronous(child);
-            delete child;
+            filteredNodes.push_back(child);
           }
         }
         for(; i<childrenCapacity; i++) {
@@ -1234,6 +1238,8 @@ void Search::beginSearch(bool pondering) {
       }
 
       if(anyFiltered) {
+        recursivelyRemoveSubtreeValueBiasAndDelete(filteredNodes);
+
         //Fix up the number of visits of the root node after doing this filtering
         int64_t newNumVisits = 0;
         for(int i = 0; i<childrenCapacity; i++) {
@@ -1279,7 +1285,7 @@ void Search::beginSearch(bool pondering) {
     //Recursively update all stats in the tree if we have dynamic score values
     //And also to clear out lastResponseBiasDeltaSum and lastResponseBiasWeight
     if(searchParams.dynamicScoreUtilityFactor != 0 || searchParams.subtreeValueBiasFactor != 0) {
-      recursivelyRecomputeStats(node,dummyThread,true);
+      recursivelyRecomputeStats(node);
     }
   }
 
@@ -1291,97 +1297,267 @@ void Search::beginSearch(bool pondering) {
   searchNodeAge++;
 }
 
-//Recursively walk over part of the tree that we are about to delete and remove its contribution to the value bias in the table
-//Assumes we aren't doing any multithreadingy stuff, so doesn't bother with locks.
-void Search::recursivelyRemoveSubtreeValueBiasBeforeDeleteSynchronous(SearchNode* node) {
-  if(node == NULL || searchParams.subtreeValueBiasFactor == 0)
-    return;
+//Walk over all nodes and their children recursively and call f, children first.
+//Assumes that only other instances of this function are running - in particular, the tree
+//is not being mutated by something else. It's okay if f mutates nodes, so long as it only mutates
+//nodes that will no longer be iterated over (namely, only stuff at the node or within its subtree).
+//Also, we use visits of a node to heuristically determine when to stop parallelization and limit threading overhead,
+//so f is NOT allowed to modify visits.
+void Search::applyRecursivelyPostOrderMulithreaded(const vector<SearchNode*>& nodes, std::function<void(SearchNode*,int)>* f) {
+  //We invalidate all node ages so we can use them as a marker for what's done.
+  searchNodeAge += 1;
 
+  //Simple cheap RNGs so that we can get the different threads into different parts of the tree and not clash.
+  int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
+  std::vector<PCG32*> rands(numAdditionalThreads+1, NULL);
+  for(int threadIdx = 1; threadIdx<numAdditionalThreads+1; threadIdx++)
+    rands[threadIdx] = new PCG32(nonSearchRand.nextUInt64());
+
+  int numChildren = (int)nodes.size();
+  std::function<void(int)> g = [&](int threadIdx) {
+    assert(threadIdx >= 0 && threadIdx < rands.size());
+    PCG32* rand = rands[threadIdx];
+    if(threadIdx == 0) {
+      for(int i = 0; i<numChildren; i++)
+        applyRecursivelyPostOrderMulithreadedHelper(nodes[i],threadIdx,rand,f);
+    }
+    else {
+      int offset = ((int)rand->nextUInt() + threadIdx) % numChildren;
+      for(int i = offset; i<numChildren; i++)
+        applyRecursivelyPostOrderMulithreadedHelper(nodes[i],threadIdx,rand,f);
+      for(int i = 0; i<offset; i++)
+        applyRecursivelyPostOrderMulithreadedHelper(nodes[i],threadIdx,rand,f);
+    }
+  };
+  performTaskWithThreads(&g);
+  for(int threadIdx = 1; threadIdx<numAdditionalThreads+1; threadIdx++)
+    delete rands[threadIdx];
+}
+
+void Search::applyRecursivelyPostOrderSinglethreadedHelper(SearchNode* node, int threadIdx, std::function<void(SearchNode*,int)>* f) {
   int childrenCapacity;
   SearchChildPointer* children = node->getChildren(childrenCapacity);
   for(int i = 0; i<childrenCapacity; i++) {
     SearchNode* child = children[i].getIfAllocated();
     if(child == NULL)
       break;
-    recursivelyRemoveSubtreeValueBiasBeforeDeleteSynchronous(child);
+    applyRecursivelyPostOrderSinglethreadedHelper(child, threadIdx, f);
   }
-
-  if(node->subtreeValueBiasTableEntry != nullptr) {
-    node->subtreeValueBiasTableEntry->deltaUtilitySum -= node->lastSubtreeValueBiasDeltaSum * searchParams.subtreeValueBiasFreeProp;
-    node->subtreeValueBiasTableEntry->weightSum -= node->lastSubtreeValueBiasWeight * searchParams.subtreeValueBiasFreeProp;
-  }
+  (*f)(node,threadIdx);
 }
 
+//Does NOT handle graphs, only trees.
+int Search::applyRecursivelyPostOrderMulithreadedHelper(SearchNode* node, int threadIdx, PCG32* rand, std::function<void(SearchNode*,int)>* f) {
+  //This node and everything beneath it are done, and we were the one who finished it
+  static constexpr int DONE_BY_US = 2;
+  //This node is done, but someone else did it
+  static constexpr int DONE_BY_OTHER = 1;
+  //There is nothing further to do in subtree but node itself is not done.
+  static constexpr int NOT_DONE_BUT_NO_WORK = 0;
+
+  //nodeAge2 == searchNodeAge means that the node is fully done.
+  //nodeAge == searchNodeAge means that the node is not fully done, but there is no work for new threads entering this node to do.
+  //Sequentially consistent load makes sure that there is a last child whose nodeAge2 is set. The thread that sets it is guaranteed
+  //to then see all other nodeAge2s of the children are set. So at least one thread will see all children done, and proceed to handle the parent.
+  //We will never thread 1 sees node A done but not B and thread 2 sees B done but not A, and both leave and the parent is dropped on the floor.
+  if(node->nodeAge2.load(std::memory_order_seq_cst) == searchNodeAge)
+    return DONE_BY_OTHER;
+  if(node->nodeAge.load(std::memory_order_acquire) == searchNodeAge)
+    return NOT_DONE_BUT_NO_WORK;
+
+  //Relaxed load is okay since we're assuming this value is constant through the recursion.
+  int64_t visits = node->stats.visits.load(std::memory_order_relaxed);
+
+  //Fall down to singlethreaded at low enough visits to minimize overall threading and sync overhead.
+  static constexpr int64_t NO_MULTIHREAD_VISITS_THRESHOLD = 1024;
+  if(visits <= NO_MULTIHREAD_VISITS_THRESHOLD) {
+    //The thread that is first to update it wins and does the action.
+    uint32_t oldAge = node->nodeAge.exchange(searchNodeAge,std::memory_order_acq_rel);
+    if(oldAge == searchNodeAge)
+      return NOT_DONE_BUT_NO_WORK;
+    applyRecursivelyPostOrderSinglethreadedHelper(node,threadIdx,f);
+    node->nodeAge2.store(searchNodeAge,std::memory_order_seq_cst);
+    return DONE_BY_US;
+  }
+
+  //Recurse on all children
+  int childrenCapacity;
+  SearchChildPointer* children = node->getChildren(childrenCapacity);
+
+  int numChildren = 0;
+  for(int i = 0; i<childrenCapacity; i++) {
+    SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
+    numChildren++;
+  }
+
+  if(numChildren > 0) {
+    int offset = threadIdx == 0 ? 0 : (int)((rand->nextUInt() + (uint32_t)threadIdx) % numChildren);
+    bool anyNotDone = false;
+    bool anyNotDoneAfterUs = false;
+    int lastDeltaDoneByUs = -1;
+    for(int delta = 0; delta<numChildren; delta++) {
+      int i = (delta + offset) % numChildren;
+      int result = applyRecursivelyPostOrderMulithreadedHelper(children[i].getIfAllocated(), threadIdx, rand, f);
+      if(result == DONE_BY_US) {
+        lastDeltaDoneByUs = delta;
+        anyNotDoneAfterUs = false;
+      }
+      else if(result == DONE_BY_OTHER) {
+      }
+      else {
+        anyNotDone = true;
+        anyNotDoneAfterUs = true;
+      }
+    }
+
+    //If we didn't even do any of the work, it was all other threads, then it's the responsibility of one of those threads
+    //to finish up this node.
+    if(lastDeltaDoneByUs <= -1)
+      return NOT_DONE_BUT_NO_WORK;
+    //If after the latest node we finished, we found nodes that weren't finished that other threads were still working on,
+    //then there is nothing for us to do, we leave it up to one of those threads to finish this node too.
+    if(anyNotDoneAfterUs)
+      return NOT_DONE_BUT_NO_WORK;
+    //If *before* the latest node we finished, we found nodes that weren't finished, go check if they're done now.
+    if(anyNotDone) {
+      anyNotDone = false;
+      for(int delta = 0; delta<numChildren; delta++) {
+        int i = (delta + offset) % numChildren;
+        SearchNode* child = children[i].getIfAllocated();
+        if(child->nodeAge2.load(std::memory_order_seq_cst) != searchNodeAge) {
+          anyNotDone = true;
+          break;
+        }
+      }
+      //Still not done? Then it's on those threads to finish up here when they're done.
+      if(anyNotDone)
+        return NOT_DONE_BUT_NO_WORK;
+    }
+
+    //If we reach here, then we finished at least one child, and every other child is done too.
+    //At least one thread must reach here, since due to sequential consistency, all threads will agree on the setting order of
+    //child->nodeAge2, and there must be a last child whose nodeAge2 was set. The thread that sets the last one will see all
+    //other things done at that point, and will reach here.
+  }
+
+  //The thread that is first to update it wins and does the action.
+  uint32_t oldAge = node->nodeAge.exchange(searchNodeAge,std::memory_order_acq_rel);
+  if(oldAge == searchNodeAge)
+    return NOT_DONE_BUT_NO_WORK;
+  (*f)(node,threadIdx);
+  node->nodeAge2.store(searchNodeAge,std::memory_order_seq_cst);
+  return DONE_BY_US;
+}
+
+//Recursively walk over part of the tree that we are about to delete and remove its contribution to the value bias in the table
+//Assumes that this is the only function running concurrently on the search tree
+void Search::recursivelyRemoveSubtreeValueBiasAndDelete(const vector<SearchNode*>& nodes) {
+  std::function<void(SearchNode*,int)> f = [&](SearchNode* node, int threadIdx) {
+    (void)threadIdx;
+    if(node->subtreeValueBiasTableEntry != nullptr) {
+      double deltaUtilitySumToSubtract = node->lastSubtreeValueBiasDeltaSum * searchParams.subtreeValueBiasFreeProp;
+      double weightSumToSubtract = node->lastSubtreeValueBiasWeight * searchParams.subtreeValueBiasFreeProp;
+
+      SubtreeValueBiasEntry& entry = *(node->subtreeValueBiasTableEntry);
+      while(entry.entryLock.test_and_set(std::memory_order_acquire));
+      entry.deltaUtilitySum -= deltaUtilitySumToSubtract;
+      entry.weightSum -= weightSumToSubtract;
+      entry.entryLock.clear(std::memory_order_release);
+    }
+  };
+
+  applyRecursivelyPostOrderMulithreaded(nodes,&f);
+  for(size_t i = 0; i<nodes.size(); i++)
+    delete nodes[i];
+}
 
 //This function should NOT ever be called concurrently with any other threads modifying the search tree.
 //However, it does thread-safely modify things itself, so can safely in theory run concurrently with things
 //like ownership computation or analysis that simply read the tree.
-void Search::recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, bool isRoot) {
-  //First, recompute all children. This function never runs concurrently with anything else
-  //but if it did, it might of course only recompute some subset of the children if more were added concurrently.
-  bool foundAnyChildren = false;
-  int childrenCapacity;
-  SearchChildPointer* children = node.getChildren(childrenCapacity);
-  int i = 0;
-  for(; i<childrenCapacity; i++) {
-    SearchNode* child = children[i].getIfAllocated();
-    if(child == NULL)
-      break;
-    recursivelyRecomputeStats(*child,thread,false);
-    foundAnyChildren = true;
-  }
-  for(; i<childrenCapacity; i++) {
-    SearchNode* child = children[i].getIfAllocated();
-    (void)child;
-    assert(child == NULL);
-  }
+void Search::recursivelyRecomputeStats(SearchNode& n) {
+  int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
+  std::vector<SearchThread*> dummyThreads(numAdditionalThreads+1, NULL);
+  for(int threadIdx = 0; threadIdx<numAdditionalThreads+1; threadIdx++)
+    dummyThreads[threadIdx] = new SearchThread(threadIdx, *this);
 
-  //If this node has children, it MUST also have an nnOutput.
-  if(foundAnyChildren) {
-    NNOutput* nnOutput = node.getNNOutput();
-    (void)nnOutput; //avoid warning when we have no asserts
-    assert(nnOutput != NULL);
-  }
+  std::function<void(SearchNode*,int)> f = [&](SearchNode* node, int threadIdx) {
+    assert(threadIdx >= 0 && threadIdx < dummyThreads.size());
+    SearchThread& thread = *(dummyThreads[threadIdx]);
 
-  //Also, something is wrong if we have virtual losses at this point
-  int32_t numVirtualLosses = node.virtualLosses.load(std::memory_order_acquire);
-  (void)numVirtualLosses;
-  assert(numVirtualLosses == 0);
+    bool foundAnyChildren = false;
+    int childrenCapacity;
+    SearchChildPointer* children = node->getChildren(childrenCapacity);
+    int i = 0;
+    for(; i<childrenCapacity; i++) {
+      SearchNode* child = children[i].getIfAllocated();
+      if(child == NULL)
+        break;
+      foundAnyChildren = true;
+    }
+    for(; i<childrenCapacity; i++) {
+      SearchNode* child = children[i].getIfAllocated();
+      (void)child;
+      assert(child == NULL);
+    }
 
-  //If the node has no children, then just update its utility directly
-  //Again, this would be a little wrong if this function were running concurrently with anything else in the
-  //case that new children were added in the meantime. Although maybe it would be okay.
-  if(!foundAnyChildren) {
-    int64_t numVisits = node.stats.visits.load(std::memory_order_acquire);
-    double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
-    double winLossValueAvg = node.stats.winLossValueAvg.load(std::memory_order_acquire);
-    double noResultValueAvg = node.stats.noResultValueAvg.load(std::memory_order_acquire);
-    double scoreMeanAvg = node.stats.scoreMeanAvg.load(std::memory_order_acquire);
-    double scoreMeanSqAvg = node.stats.scoreMeanSqAvg.load(std::memory_order_acquire);
+    //If this node has children, it MUST also have an nnOutput.
+    if(foundAnyChildren) {
+      NNOutput* nnOutput = node->getNNOutput();
+      (void)nnOutput; //avoid warning when we have no asserts
+      assert(nnOutput != NULL);
+    }
 
-    //It's possible that this node has 0 weight in the case where it's the root node
-    //and has 0 visits because we began a search and then stopped it before any playouts happened.
-    //In that case, there's not much to recompute.
-    if(weightSum <= 0.0) {
-      assert(numVisits == 0);
-      assert(isRoot);
+    //Also, something is wrong if we have virtual losses at this point
+    int32_t numVirtualLosses = node->virtualLosses.load(std::memory_order_acquire);
+    (void)numVirtualLosses;
+    assert(numVirtualLosses == 0);
+
+    bool isRoot = (node == rootNode);
+
+    //If the node has no children, then just update its utility directly
+    //Again, this would be a little wrong if this function were running concurrently with anything else in the
+    //case that new children were added in the meantime. Although maybe it would be okay.
+    if(!foundAnyChildren) {
+      int64_t numVisits = node->stats.visits.load(std::memory_order_acquire);
+      double weightSum = node->stats.weightSum.load(std::memory_order_acquire);
+      double winLossValueAvg = node->stats.winLossValueAvg.load(std::memory_order_acquire);
+      double noResultValueAvg = node->stats.noResultValueAvg.load(std::memory_order_acquire);
+      double scoreMeanAvg = node->stats.scoreMeanAvg.load(std::memory_order_acquire);
+      double scoreMeanSqAvg = node->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
+
+      //It's possible that this node has 0 weight in the case where it's the root node
+      //and has 0 visits because we began a search and then stopped it before any playouts happened.
+      //In that case, there's not much to recompute.
+      if(weightSum <= 0.0) {
+        assert(numVisits == 0);
+        assert(isRoot);
+      }
+      else {
+        double resultUtility = getResultUtility(winLossValueAvg, noResultValueAvg);
+        double scoreUtility = getScoreUtility(scoreMeanAvg, scoreMeanSqAvg);
+        double newUtilityAvg = resultUtility + scoreUtility;
+        double newUtilitySqAvg = newUtilityAvg * newUtilityAvg;
+
+        while(node->statsLock.test_and_set(std::memory_order_acquire));
+        node->stats.utilityAvg.store(newUtilityAvg,std::memory_order_release);
+        node->stats.utilitySqAvg.store(newUtilitySqAvg,std::memory_order_release);
+        node->statsLock.clear(std::memory_order_release);
+      }
     }
     else {
-      double resultUtility = getResultUtility(winLossValueAvg, noResultValueAvg);
-      double scoreUtility = getScoreUtility(scoreMeanAvg, scoreMeanSqAvg);
-      double newUtilityAvg = resultUtility + scoreUtility;
-      double newUtilitySqAvg = newUtilityAvg * newUtilityAvg;
-
-      while(node.statsLock.test_and_set(std::memory_order_acquire));
-      node.stats.utilityAvg.store(newUtilityAvg,std::memory_order_release);
-      node.stats.utilitySqAvg.store(newUtilitySqAvg,std::memory_order_release);
-      node.statsLock.clear(std::memory_order_release);
+      //Otherwise recompute it using the usual method
+      recomputeNodeStats(*node, thread, 0, isRoot);
     }
-  }
-  else {
-    //Otherwise recompute it using the usual method
-    recomputeNodeStats(node, thread, 0, isRoot);
-  }
+  };
+
+  vector<SearchNode*> nodes;
+  nodes.push_back(&n);
+  applyRecursivelyPostOrderMulithreaded(nodes,&f);
+
+  for(int threadIdx = 0; threadIdx<numAdditionalThreads+1; threadIdx++)
+    delete dummyThreads[threadIdx];
 }
 
 void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap) {

@@ -147,6 +147,7 @@ struct SearchNode {
   //During search, for updating nnOutput when it needs recomputation at the root if it wasn't updated yet.
   //During various other events - for coordinating recursive updates of the tree or subtree value bias cleanup
   std::atomic<uint32_t> nodeAge;
+  std::atomic<uint32_t> nodeAge2;
 
   //During search, each will only ever transition from NULL -> non-NULL.
   //We get progressive resizing of children array simply by moving on to a later array.
@@ -482,6 +483,7 @@ private:
 
   void spawnThreadsIfNeeded();
   void killThreads();
+  int numAdditionalThreadsToUseForTasks() const;
   void performTaskWithThreads(std::function<void(int)>* task);
 
   void clearOldNNOutputs();
@@ -569,8 +571,12 @@ private:
 
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot);
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot);
-  void recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, bool isRoot);
-  void recursivelyRemoveSubtreeValueBiasBeforeDeleteSynchronous(SearchNode* node);
+  void recursivelyRecomputeStats(SearchNode& node);
+
+  void recursivelyRemoveSubtreeValueBiasAndDelete(const std::vector<SearchNode*>& nodes);
+  void applyRecursivelyPostOrderMulithreaded(const std::vector<SearchNode*>& nodes, std::function<void(SearchNode*,int)>* f);
+  void applyRecursivelyPostOrderSinglethreadedHelper(SearchNode* node, int threadIdx, std::function<void(SearchNode*,int)>* f);
+  int applyRecursivelyPostOrderMulithreadedHelper(SearchNode* node, int threadIdx, PCG32* rand, std::function<void(SearchNode*,int)>* f);
 
   void maybeRecomputeNormToTApproxTable();
   double getNormToTApproxForLCB(int64_t numVisits) const;
