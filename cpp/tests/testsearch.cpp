@@ -2158,7 +2158,10 @@ o....xo..
       bool pondering = false;
       search->beginSearch(pondering);
       cout << "Just after begin search" << endl;
-      search->printTree(cout, search->rootNode, options, P_WHITE);
+      if(subtreeValueBias)
+        cout << "Skipping since exact values are nondeterministic due to subtree value bias float update order" << endl;
+      else
+        search->printTree(cout, search->rootNode, options, P_WHITE);
 
       delete search;
       nnEval->clearCache(); nnEval->clearStats();

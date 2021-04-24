@@ -4942,17 +4942,7 @@ B7  : T  -7.97c W  -6.56c S  -1.41c ( -1.7 L  -1.2) LCB -108.91c P  1.11% WF   4
 F5  : T  -5.69c W  -3.75c S  -1.94c ( -0.6 L  -0.5) LCB  -45.64c P  0.66% WF   7.9 PSV       4 N       8  --  F5 B2 A2 C2 E8 D7
 H4  : T  -9.04c W  -7.00c S  -2.04c ( -1.6 L  -2.1) LCB -110.43c P  0.92% WF   3.9 PSV       3 N       4  --  H4 B2 A2 C2
 Just after begin search
-: T  -3.96c W  -3.32c S  -0.64c ( -0.4 L  -0.6) N     884  --  E8 D7 F8 B2 C9 B6 H3
----White(^)---
-E8  : T  -2.56c W  -2.34c S  -0.23c ( -0.2 L  -0.3) LCB   -6.82c P 24.80% WF 332.3 PSV     398 N     325  --  E8 D7 F8 B2 C9 B6 H3 R3
-H3  : T  -3.72c W  -3.38c S  -0.34c ( -0.3 L  -0.9) LCB   -6.88c P 37.24% WF 386.5 PSV     386 N     386  --  H3 B2 A2 C2 B7 B8 B6 C9
-C2  : T  -6.38c W  -4.10c S  -2.28c ( -1.0 L  -0.3) LCB  -15.92c P 22.80% WF 120.9 PSV     126 N     126  --  C2 G3 F5 H2 E8 D7 H3 G1
-B2  : T -16.78c W -13.08c S  -3.71c ( -3.1 L  -2.9) LCB  -71.62c P  5.05% WF   9.8 PSV      11 N      11  --  B2 G3 E8 D7 F5 H3
-G3  : T -11.56c W  -9.61c S  -1.95c ( -2.1 L  -2.9) LCB  -34.63c P  3.41% WF   9.3 PSV      10 N      10  --  G3 B2 A2 C2 E8 D7
-G5  : T -10.25c W  -8.63c S  -1.61c ( -1.9 L  -2.2) LCB  -46.34c P  2.29% WF   7.6 PSV       8 N       8  --  G5 B2 A2 C2 E8 D7
-F5  : T  -4.77c W  -3.75c S  -1.02c ( -0.6 L  -0.5) LCB  -42.88c P  0.66% WF   7.9 PSV       5 N       8  --  F5 B2 A2 C2 E8 D7
-B7  : T  -7.87c W  -6.56c S  -1.31c ( -1.7 L  -1.2) LCB -104.78c P  1.11% WF   4.8 PSV       5 N       5  --  B7 G3 E8 D7
-H4  : T  -8.51c W  -7.00c S  -1.51c ( -1.6 L  -2.1) LCB -107.22c P  0.92% WF   3.9 PSV       4 N       4  --  H4 B2 A2 C2
+Skipping since exact values are nondeterministic due to subtree value bias float update order
 ===================================================================
 Baseline 8k visits
 ===================================================================
@@ -5252,19 +5242,7 @@ H4  : T -12.53c W  -9.90c S  -2.63c ( -2.1 L  -2.7) LCB  -24.23c P  0.92% WF  15
 G6  : T -13.64c W -10.67c S  -2.97c ( -2.5 L  -2.9) LCB  -29.93c P  0.59% WF   8.3 PSV       9 N       9  --  G6 B2 A2 C2 E8
 F6  : T -12.29c W -10.13c S  -2.16c ( -2.3 L  -2.5) LCB  -52.11c P  0.36% WF   5.6 PSV       6 N       6  --  F6 B2 A2 C2 E8
 Just after begin search
-: T  -4.99c W  -4.53c S  -0.47c ( -0.7 L  -1.2) N    7587  --  E8 D7 F8 C5 B4 B2 C9
----White(^)---
-E8  : T  -3.94c W  -3.70c S  -0.25c ( -0.6 L  -0.9) LCB   -5.06c P 24.80% WF 4188.8 PSV    8005 N    4067  --  E8 D7 F8 C5 B4 B2 C9 B6
-H3  : T  -5.13c W  -4.74c S  -0.39c ( -0.7 L  -1.3) LCB   -6.28c P 37.24% WF 2734.6 PSV    2766 N    2766  --  H3 B2 E8 D7 A2 C2 F8 C9
-C2  : T -11.17c W  -8.65c S  -2.52c ( -2.3 L  -1.9) LCB  -16.04c P 22.80% WF 403.5 PSV     470 N     470  --  C2 G3 E8 D7 G5 H2 F8 C10
-G3  : T -11.71c W -10.14c S  -1.58c ( -2.1 L  -3.0) LCB  -18.53c P  3.41% WF  62.2 PSV      67 N      69  --  G3 B2 A2 C2 E8 D7 F8 C10
-F5  : T  -4.61c W  -4.36c S  -0.26c ( -0.7 L  -0.8) LCB  -12.08c P  0.66% WF  62.7 PSV      63 N      63  --  F5 B2 A2 C2 E8 D7 C9 B6
-G5  : T -10.74c W  -9.12c S  -1.63c ( -1.9 L  -2.5) LCB  -19.15c P  2.29% WF  47.0 PSV      50 N      51  --  G5 B2 A2 C2 E8 D7 F8 C10
-B2  : T -21.20c W -16.95c S  -4.25c ( -4.5 L  -4.6) LCB  -34.90c P  5.05% WF  35.8 PSV      45 N      45  --  B2 G3 E8 D7 G5 H3 F8
-B7  : T  -9.71c W  -8.75c S  -0.96c ( -2.2 L  -1.8) LCB  -28.65c P  1.11% WF  21.7 PSV      23 N      23  --  B7 G3 E8 D7 B8 F6 F5
-H4  : T -11.75c W  -9.91c S  -1.84c ( -2.1 L  -2.7) LCB  -23.65c P  0.92% WF  15.8 PSV      17 N      17  --  H4 B2 A2 C2 E8 D7 F8 C10
-G6  : T -12.97c W -10.68c S  -2.29c ( -2.5 L  -2.9) LCB  -31.46c P  0.59% WF   8.3 PSV       9 N       9  --  G6 B2 A2 C2 E8
-F6  : T -11.94c W -10.13c S  -1.81c ( -2.3 L  -2.5) LCB  -51.48c P  0.36% WF   5.6 PSV       6 N       6  --  F6 B2 A2 C2 E8
+Skipping since exact values are nondeterministic due to subtree value bias float update order
 : GPU 0 finishing, processed 35669 rows 35669 batches
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
