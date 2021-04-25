@@ -468,6 +468,8 @@ struct Search {
   void beginSearch(bool pondering);
   bool runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft);
 
+  std::vector<SearchNode*> enumerateTreePostOrder();
+
   //Helpers-----------------------------------------------------------------------
   int getPos(Loc moveLoc) const;
 

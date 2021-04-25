@@ -1560,6 +1560,23 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
     delete dummyThreads[threadIdx];
 }
 
+//Mainly for testing
+std::vector<SearchNode*> Search::enumerateTreePostOrder() {
+  int64_t numVisits = rootNode->stats.visits.load();
+  std::vector<SearchNode*> nodes(numVisits,NULL);
+  std::atomic<int64_t> indexCounter(0);
+  std::function<void(SearchNode*,int)> f = [&](SearchNode* node, int threadIdx) {
+    (void)threadIdx;
+    int64_t index = indexCounter.fetch_add(1,std::memory_order_relaxed);
+    assert(index >= 0 && index < numVisits);
+    nodes[index] = node;
+  };
+  applyRecursivelyPostOrderMulithreaded({rootNode},&f);
+  nodes.resize(indexCounter.load());
+  return nodes;
+}
+
+
 void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap) {
   Board board = rootBoard;
   const BoardHistory& hist = rootHistory;
