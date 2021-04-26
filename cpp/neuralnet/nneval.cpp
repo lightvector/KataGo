@@ -567,7 +567,50 @@ static bool daggerMatch(const Board& board, Player nextPla, Loc& banned, int sym
   }
   return true;
 }
+// 1 own stone
+// 2 opp stone
+// 0 empty
+// 3 banned
+// 4 any
+// 5 opp or empty
 
+static const int bombPattern[8][8] = {
+  {0,0,0,0,0,0,0,4},
+  {0,0,0,0,0,0,0,5},
+  {0,0,2,3,0,0,5,2},
+  {0,1,1,2,0,0,5,5},
+  {0,1,2,2,0,0,0,5},
+  {0,0,1,2,2,0,0,4},
+  {0,1,0,1,2,0,0,4},
+  {0,0,0,1,4,4,4,4},
+};
+static bool bombMatch(const Board& board, Player nextPla, Loc& banned, int symmetry) {
+    for (int yi = 0; yi < 9; yi++) {
+        for (int xi = 0; xi < 8; xi++) {
+            int y = yi;
+            int x = xi;
+            if ((symmetry & 0x1) != 0)
+                std::swap(x, y);
+            if ((symmetry & 0x2) != 0)
+                x = board.x_size - 1 - x;
+            if ((symmetry & 0x4) != 0)
+                y = board.y_size - 1 - y;
+            Loc loc = Location::getLoc(x, y, board.x_size);
+            int m = bombPattern[yi][xi];
+            if (m == 0 && board.colors[loc] != C_EMPTY)
+                return false;
+            if (m == 1 && board.colors[loc] != nextPla)
+                return false;
+            if (m == 2 && board.colors[loc] != getOpp(nextPla))
+                return false;
+            if (m == 3)
+                banned = loc;
+            if (m == 5 && board.colors[loc] != getOpp(nextPla) && board.colors[loc] != C_EMPTY)
+                return false;
+        }
+    }
+    return true;
+}
 
 void NNEvaluator::evaluate(
   Board& board,
@@ -718,6 +761,14 @@ void NNEvaluator::evaluate(
           if(banned != Board::NULL_LOC) {
             isLegal[NNPos::locToPos(banned,xSize,nnXLen,nnYLen)] = false;
           }
+        }
+      }
+      for (int symmetry = 0; symmetry < 8; symmetry++) {
+        Loc banned = Board::NULL_LOC;
+        if (bombMatch(board, nextPlayer, banned, symmetry)) {
+            if (banned != Board::NULL_LOC) {
+                isLegal[NNPos::locToPos(banned, xSize, nnXLen, nnYLen)] = false;
+            }
         }
       }
     }
