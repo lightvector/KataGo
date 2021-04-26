@@ -12,6 +12,7 @@ namespace MainCmds {
   int match(int argc, const char* const* argv);
   int matchauto(int argc, const char* const* argv);
   int selfplay(int argc, const char* const* argv);
+
   int runtests(int argc, const char* const* argv);
   int runnnlayertests(int argc, const char* const* argv);
   int runnnontinyboardtest(int argc, const char* const* argv);
@@ -27,6 +28,7 @@ namespace MainCmds {
   int runnnbatchingtest(int argc, const char* const* argv);
   int runownershiptests(int argc, const char* const* argv);
   int runtinynntests(int argc, const char* const* argv);
+  int runbeginsearchspeedtest(int argc, const char* const* argv);
 
   int samplesgfs(int argc, const char* const* argv);
   int dataminesgfs(int argc, const char* const* argv);
