@@ -585,7 +585,7 @@ static const int bombPattern[8][8] = {
   {0,0,0,1,4,4,4,4},
 };
 static bool bombMatch(const Board& board, Player nextPla, Loc& banned, int symmetry) {
-    for (int yi = 0; yi < 9; yi++) {
+    for (int yi = 0; yi < 8; yi++) {
         for (int xi = 0; xi < 8; xi++) {
             int y = yi;
             int x = xi;
