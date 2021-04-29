@@ -269,6 +269,7 @@ add_executable(katago
   search/searchresults.cpp
   search/asyncbot.cpp
   search/distributiontable.cpp
+  search/localpattern.cpp
   search/subtreevaluebiastable.cpp
   search/analysisdata.cpp
   program/gtpconfig.cpp
