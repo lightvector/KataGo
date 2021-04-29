@@ -2158,7 +2158,10 @@ o....xo..
       bool pondering = false;
       search->beginSearch(pondering);
       cout << "Just after begin search" << endl;
-      search->printTree(cout, search->rootNode, options, P_WHITE);
+      if(subtreeValueBias)
+        cout << "Skipping since exact values are nondeterministic due to subtree value bias float update order" << endl;
+      else
+        search->printTree(cout, search->rootNode, options, P_WHITE);
 
       delete search;
       nnEval->clearCache(); nnEval->clearStats();
@@ -2374,6 +2377,26 @@ static void runV8SearchMultithreadTest(NNEvaluator* nnEval, Logger& logger)
   // PrintTreeOptions options;
   // options = options.maxDepth(1);
   // printBasicStuffAfterSearch(board,hist,search,options);
+
+  //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
+  std::vector<SearchNode*> nodes = search-> enumerateTreePostOrder();
+  std::map<const SearchNode*,size_t> idxOfNode;
+  for(size_t i = 0; i<nodes.size(); i++) {
+    SearchNode* node = nodes[i];
+    testAssert(node != NULL);
+    idxOfNode[node] = i;
+  }
+  for(size_t i = 0; i<nodes.size(); i++) {
+    int childrenCapacity;
+    const SearchChildPointer* children = nodes[i]->getChildren(childrenCapacity);
+    for(int j = 0; j<childrenCapacity; j++) {
+      const SearchNode* child = children[j].getIfAllocated();
+      if(child == NULL)
+        break;
+      testAssert(contains(idxOfNode,child));
+      testAssert(idxOfNode[child] < i);
+    }
+  }
 
   //With 16000 visits per move and three searches, we very likely have about that many nn evals (this shouldn't be a heavily transposing position)
   //and despite doing 3x such searches, we should have caching and tree reuse keep it not much more than that.
