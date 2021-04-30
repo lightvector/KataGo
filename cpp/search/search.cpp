@@ -326,11 +326,6 @@ SearchNode::~SearchNode() {
     else
       break;
   }
-  for(; i<childrenCapacity; i++) {
-    SearchNode* child = children[i].getIfAllocated();
-    (void)child;
-    assert(child == NULL);
-  }
 
   if(children2 != NULL)
     delete[] children2;
@@ -643,7 +638,7 @@ void Search::setNNEval(NNEvaluator* nnEval) {
 
 void Search::clearSearch() {
   effectiveSearchTimeCarriedOver = 0.0;
-  delete rootNode;
+  recursivelyDelete(rootNode);
   rootNode = NULL;
   clearOldNNOutputs();
   searchNodeAge = 0;
@@ -1303,7 +1298,7 @@ void Search::beginSearch(bool pondering) {
 //nodes that will no longer be iterated over (namely, only stuff at the node or within its subtree).
 //Also, we use visits of a node to heuristically determine when to stop parallelization and limit threading overhead,
 //so f is NOT allowed to modify visits.
-void Search::applyRecursivelyPostOrderMulithreaded(const vector<SearchNode*>& nodes, std::function<void(SearchNode*,int)>* f) {
+void Search::applyRecursivelyPostOrderMulithreaded(const vector<SearchNode*>& nodes, std::function<void(SearchNode*,int,bool)>* f) {
   //We invalidate all node ages so we can use them as a marker for what's done.
   searchNodeAge += 1;
 
@@ -1334,7 +1329,7 @@ void Search::applyRecursivelyPostOrderMulithreaded(const vector<SearchNode*>& no
     delete rands[threadIdx];
 }
 
-void Search::applyRecursivelyPostOrderSinglethreadedHelper(SearchNode* node, int threadIdx, std::function<void(SearchNode*,int)>* f) {
+void Search::applyRecursivelyPostOrderSinglethreadedHelper(SearchNode* node, int threadIdx, std::function<void(SearchNode*,int,bool)>* f) {
   int childrenCapacity;
   SearchChildPointer* children = node->getChildren(childrenCapacity);
   for(int i = 0; i<childrenCapacity; i++) {
@@ -1343,11 +1338,11 @@ void Search::applyRecursivelyPostOrderSinglethreadedHelper(SearchNode* node, int
       break;
     applyRecursivelyPostOrderSinglethreadedHelper(child, threadIdx, f);
   }
-  (*f)(node,threadIdx);
+  (*f)(node,threadIdx,true);
 }
 
 //Does NOT handle graphs, only trees.
-int Search::applyRecursivelyPostOrderMulithreadedHelper(SearchNode* node, int threadIdx, PCG32* rand, std::function<void(SearchNode*,int)>* f) {
+int Search::applyRecursivelyPostOrderMulithreadedHelper(SearchNode* node, int threadIdx, PCG32* rand, std::function<void(SearchNode*,int,bool)>* f) {
   //This node and everything beneath it are done, and we were the one who finished it
   static constexpr int DONE_BY_US = 2;
   //This node is done, but someone else did it
@@ -1446,15 +1441,42 @@ int Search::applyRecursivelyPostOrderMulithreadedHelper(SearchNode* node, int th
   uint32_t oldAge = node->nodeAge.exchange(searchNodeAge,std::memory_order_acq_rel);
   if(oldAge == searchNodeAge)
     return NOT_DONE_BUT_NO_WORK;
-  (*f)(node,threadIdx);
+  (*f)(node,threadIdx,false);
   node->nodeAge2.store(searchNodeAge,std::memory_order_seq_cst);
   return DONE_BY_US;
+}
+
+//For huge search trees, this should be faster than just calling "delete", although maybe it could vary with the
+//malloc implementation.
+void Search::recursivelyDelete(SearchNode* n) {
+  if(n == NULL)
+    return;
+  std::function<void(SearchNode*,int,bool)> f = [&](SearchNode* node, int threadIdx, bool isSingleThreadedSubtree) {
+    (void)threadIdx;
+    if(isSingleThreadedSubtree) {
+      int childrenCapacity;
+      SearchChildPointer* children = node->getChildren(node->state.load(std::memory_order_acquire),childrenCapacity);
+      int i = 0;
+      for(; i<childrenCapacity; i++) {
+        SearchNode* child = children[i].getIfAllocated();
+        if(child != NULL) {
+          children[i].store(NULL);
+          delete child;
+        }
+        else
+          break;
+      }
+    }
+  };
+
+  applyRecursivelyPostOrderMulithreaded({n},&f);
+  delete n;
 }
 
 //Recursively walk over part of the tree that we are about to delete and remove its contribution to the value bias in the table
 //Assumes that this is the only function running concurrently on the search tree
 void Search::recursivelyRemoveSubtreeValueBiasAndDelete(const vector<SearchNode*>& nodes) {
-  std::function<void(SearchNode*,int)> f = [&](SearchNode* node, int threadIdx) {
+  std::function<void(SearchNode*,int,bool)> f = [&](SearchNode* node, int threadIdx, bool isSingleThreadedSubtree) {
     (void)threadIdx;
     if(node->subtreeValueBiasTableEntry != nullptr) {
       double deltaUtilitySumToSubtract = node->lastSubtreeValueBiasDeltaSum * searchParams.subtreeValueBiasFreeProp;
@@ -1465,6 +1487,22 @@ void Search::recursivelyRemoveSubtreeValueBiasAndDelete(const vector<SearchNode*
       entry.deltaUtilitySum -= deltaUtilitySumToSubtract;
       entry.weightSum -= weightSumToSubtract;
       entry.entryLock.clear(std::memory_order_release);
+    }
+
+    //If we're in a subtree that only one thread is ever visiting, then it becomes safe for us to delete stuff below.
+    if(isSingleThreadedSubtree) {
+      int childrenCapacity;
+      SearchChildPointer* children = node->getChildren(node->state.load(std::memory_order_acquire),childrenCapacity);
+      int i = 0;
+      for(; i<childrenCapacity; i++) {
+        SearchNode* child = children[i].getIfAllocated();
+        if(child != NULL) {
+          children[i].store(NULL);
+          delete child;
+        }
+        else
+          break;
+      }
     }
   };
 
@@ -1482,7 +1520,8 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
   for(int threadIdx = 0; threadIdx<numAdditionalThreads+1; threadIdx++)
     dummyThreads[threadIdx] = new SearchThread(threadIdx, *this);
 
-  std::function<void(SearchNode*,int)> f = [&](SearchNode* node, int threadIdx) {
+  std::function<void(SearchNode*,int,bool)> f = [&](SearchNode* node, int threadIdx, bool isSingleThreadedSubtree) {
+    (void)isSingleThreadedSubtree;
     assert(threadIdx >= 0 && threadIdx < dummyThreads.size());
     SearchThread& thread = *(dummyThreads[threadIdx]);
 
@@ -1565,8 +1604,9 @@ std::vector<SearchNode*> Search::enumerateTreePostOrder() {
   int64_t numVisits = rootNode->stats.visits.load();
   std::vector<SearchNode*> nodes(numVisits,NULL);
   std::atomic<int64_t> indexCounter(0);
-  std::function<void(SearchNode*,int)> f = [&](SearchNode* node, int threadIdx) {
+  std::function<void(SearchNode*,int,bool)> f = [&](SearchNode* node, int threadIdx, bool isSingleThreadedSubtree) {
     (void)threadIdx;
+    (void)isSingleThreadedSubtree;
     int64_t index = indexCounter.fetch_add(1,std::memory_order_relaxed);
     assert(index >= 0 && index < numVisits);
     nodes[index] = node;

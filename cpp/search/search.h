@@ -575,10 +575,11 @@ private:
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot);
   void recursivelyRecomputeStats(SearchNode& node);
 
+  void recursivelyDelete(SearchNode* node);
   void recursivelyRemoveSubtreeValueBiasAndDelete(const std::vector<SearchNode*>& nodes);
-  void applyRecursivelyPostOrderMulithreaded(const std::vector<SearchNode*>& nodes, std::function<void(SearchNode*,int)>* f);
-  void applyRecursivelyPostOrderSinglethreadedHelper(SearchNode* node, int threadIdx, std::function<void(SearchNode*,int)>* f);
-  int applyRecursivelyPostOrderMulithreadedHelper(SearchNode* node, int threadIdx, PCG32* rand, std::function<void(SearchNode*,int)>* f);
+  void applyRecursivelyPostOrderMulithreaded(const std::vector<SearchNode*>& nodes, std::function<void(SearchNode*,int,bool)>* f);
+  void applyRecursivelyPostOrderSinglethreadedHelper(SearchNode* node, int threadIdx, std::function<void(SearchNode*,int,bool)>* f);
+  int applyRecursivelyPostOrderMulithreadedHelper(SearchNode* node, int threadIdx, PCG32* rand, std::function<void(SearchNode*,int,bool)>* f);
 
   void maybeRecomputeNormToTApproxTable();
   double getNormToTApproxForLCB(int64_t numVisits) const;

@@ -457,15 +457,20 @@ int MainCmds::runbeginsearchspeedtest(int argc, const char* const* argv) {
   search->beginSearch(pondering);
   time = timer.getSeconds();
   cout << "Time taken for beginSearch: " << time << endl;
-  timer.reset();
 
   timer.reset();
-  moveLoc = Location::ofString("S16",board);
+  // moveLoc = Location::ofString("S16",board);
+  moveLoc = Location::ofString("A1",board);
   bot->makeMove(moveLoc,nextPla);
   time = timer.getSeconds();
   cout << "Time taken for makeMove that empties the tree: " << time << endl;
   cout << "Visits left: " << search->getRootVisits() << endl;
+
   timer.reset();
+  pondering = false;
+  search->beginSearch(pondering);
+  time = timer.getSeconds();
+  cout << "Time taken for beginSearch: " << time << endl;
 
   delete bot;
   delete nnEval;
