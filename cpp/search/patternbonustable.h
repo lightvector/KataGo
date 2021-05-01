@@ -18,12 +18,12 @@ struct PatternBonusTable {
   PatternBonusTable(const PatternBonusTable& other);
   ~PatternBonusTable();
 
-  PatternBonusEntry get(Player pla, Loc prevMoveLoc, const Board& board) const;
+  PatternBonusEntry get(Player pla, Loc moveLoc, const Board& board) const;
   PatternBonusEntry get(Hash128 hash) const;
-  Hash128 getHash(Player pla, Loc prevMoveLoc, const Board& board) const;
+  Hash128 getHash(Player pla, Loc moveLoc, const Board& board) const;
 
   //All bonuses are bonuses to white's utility for the pattern occuring on the board.
-  void addBonus(Player pla, Loc prevMoveLoc, const Board& board, double bonus, int symmetry, std::set<Hash128>& hashesThisGame);
+  void addBonus(Player pla, Loc moveLoc, const Board& board, double bonus, int symmetry, bool flipColors, std::set<Hash128>& hashesThisGame);
   void addBonusForGameMoves(const BoardHistory& game, double bonus);
   void addBonusForGameMoves(const BoardHistory& game, double bonus, Player onlyPla);
 };

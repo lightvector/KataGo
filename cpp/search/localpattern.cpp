@@ -51,6 +51,7 @@ LocalPatternHasher::~LocalPatternHasher() {
 
 Hash128 LocalPatternHasher::getHash(const Board& board, Loc loc, Player pla) const {
   Hash128 hash = zobristPla[pla];
+
   if(loc != Board::PASS_LOC && loc != Board::NULL_LOC) {
     const int dxi = board.adj_offsets[2];
     const int dyi = board.adj_offsets[3];
@@ -83,8 +84,10 @@ Hash128 LocalPatternHasher::getHash(const Board& board, Loc loc, Player pla) con
   return hash;
 }
 
-Hash128 LocalPatternHasher::getHashWithSym(const Board& board, Loc loc, Player pla, int symmetry) const {
-  Hash128 hash = zobristPla[pla];
+Hash128 LocalPatternHasher::getHashWithSym(const Board& board, Loc loc, Player pla, int symmetry, bool flipColors) const {
+  Player symPla = flipColors ? getOpp(pla) : pla;
+  Hash128 hash = zobristPla[symPla];
+
   if(loc != Board::PASS_LOC && loc != Board::NULL_LOC) {
     const int dxi = board.adj_offsets[2];
     const int dyi = board.adj_offsets[3];
@@ -112,8 +115,8 @@ Hash128 LocalPatternHasher::getHashWithSym(const Board& board, Loc loc, Player p
         int x2 = dx + xCenter;
 
         int symXY2;
-        int symX2 = flipX ? board.x_size - x2 - 1 : x2;
-        int symY2 = flipY ? board.y_size - y2 - 1 : y2;
+        int symX2 = flipX ? xSize - x2 - 1 : x2;
+        int symY2 = flipY ? ySize - y2 - 1 : y2;
         if(transpose) {
           std::swap(symX2,symY2);
           symXY2 = symY2 * ySize + symX2;
@@ -122,7 +125,13 @@ Hash128 LocalPatternHasher::getHashWithSym(const Board& board, Loc loc, Player p
           symXY2 = symY2 * xSize + symX2;
         }
 
-        hash ^= zobristLocalPattern[(int)board.colors[loc2] * xSize * ySize + symXY2];
+        int symColor;
+        if(board.colors[loc2] == P_BLACK || board.colors[loc2] == P_WHITE)
+          symColor = (int)(flipColors ? getOpp(board.colors[loc2]) : board.colors[loc2]);
+        else
+          symColor = (int)board.colors[loc2];
+
+        hash ^= zobristLocalPattern[symColor * xSize * ySize + symXY2];
         if((board.colors[loc2] == P_BLACK || board.colors[loc2] == P_WHITE) && board.getNumLiberties(loc2) == 1)
           hash ^= zobristAtari[symXY2];
       }

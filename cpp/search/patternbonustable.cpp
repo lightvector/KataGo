@@ -43,15 +43,15 @@ PatternBonusTable::PatternBonusTable(const PatternBonusTable& other) {
 PatternBonusTable::~PatternBonusTable() {
 }
 
-Hash128 PatternBonusTable::getHash(Player pla, Loc prevMoveLoc, const Board& board) const {
+Hash128 PatternBonusTable::getHash(Player pla, Loc moveLoc, const Board& board) const {
   //We don't want to over-trigger this on a ko that repeats the same pattern over and over
   //So we just disallow this on ko fight
   //Also no bonuses for passing.
-  if(board.ko_loc != Board::NULL_LOC || prevMoveLoc == Board::NULL_LOC || prevMoveLoc == Board::PASS_LOC)
+  if(moveLoc == Board::NULL_LOC || moveLoc == Board::PASS_LOC || board.wouldBeKoCapture(moveLoc,pla))
     return Hash128();
 
-  Hash128 hash = patternHasher.getHash(board,prevMoveLoc,pla);
-  hash ^= ZOBRIST_MOVE_LOCS[prevMoveLoc];
+  Hash128 hash = patternHasher.getHash(board,moveLoc,pla);
+  hash ^= ZOBRIST_MOVE_LOCS[moveLoc];
   hash ^= Board::ZOBRIST_SIZE_X_HASH[board.x_size];
   hash ^= Board::ZOBRIST_SIZE_Y_HASH[board.y_size];
 
@@ -73,20 +73,20 @@ PatternBonusEntry PatternBonusTable::get(Hash128 hash) const {
   return iter->second;
 }
 
-PatternBonusEntry PatternBonusTable::get(Player pla, Loc prevMoveLoc, const Board& board) const {
-  Hash128 hash = getHash(pla, prevMoveLoc, board);
+PatternBonusEntry PatternBonusTable::get(Player pla, Loc moveLoc, const Board& board) const {
+  Hash128 hash = getHash(pla, moveLoc, board);
   return get(hash);
 }
 
-void PatternBonusTable::addBonus(Player pla, Loc prevMoveLoc, const Board& board, double bonus, int symmetry, std::set<Hash128>& hashesThisGame) {
+void PatternBonusTable::addBonus(Player pla, Loc moveLoc, const Board& board, double bonus, int symmetry, bool flipColors, std::set<Hash128>& hashesThisGame) {
   //We don't want to over-trigger this on a ko that repeats the same pattern over and over
   //So we just disallow this on ko fight
   //Also no bonuses for passing.
-  if(board.ko_loc != Board::NULL_LOC || prevMoveLoc == Board::NULL_LOC || prevMoveLoc == Board::PASS_LOC)
+  if(moveLoc == Board::NULL_LOC || moveLoc == Board::PASS_LOC || board.wouldBeKoCapture(moveLoc,pla))
     return;
 
-  Hash128 hash = patternHasher.getHashWithSym(board,prevMoveLoc,pla,symmetry);
-  hash ^= ZOBRIST_MOVE_LOCS[SymmetryHelpers::getSymLoc(prevMoveLoc,board,symmetry)];
+  Hash128 hash = patternHasher.getHashWithSym(board,moveLoc,pla,symmetry,flipColors);
+  hash ^= ZOBRIST_MOVE_LOCS[SymmetryHelpers::getSymLoc(moveLoc,board,symmetry)];
   if(SymmetryHelpers::isTranspose(symmetry)) {
     hash ^= Board::ZOBRIST_SIZE_X_HASH[board.y_size];
     hash ^= Board::ZOBRIST_SIZE_Y_HASH[board.x_size];
@@ -114,15 +114,17 @@ void PatternBonusTable::addBonusForGameMoves(const BoardHistory& game, double bo
   std::set<Hash128> hashesThisGame;
   Board board = game.initialBoard;
   BoardHistory hist(board, game.initialPla, game.rules, game.initialEncorePhase);
-  for(size_t i = 0; i<hist.moveHistory.size(); i++) {
-    Player pla = hist.moveHistory[i].pla;
-    Loc loc = hist.moveHistory[i].loc;
+  for(size_t i = 0; i<game.moveHistory.size(); i++) {
+    Player pla = game.moveHistory[i].pla;
+    Loc loc = game.moveHistory[i].loc;
     bool suc = hist.makeBoardMoveTolerant(board, loc, pla);
     if(!suc)
       break;
     if(onlyPla == C_EMPTY || onlyPla == pla) {
-      for(int symmetry = 0; symmetry < 8; symmetry++)
-        addBonus(pla, loc, board, bonus, symmetry, hashesThisGame);
+      for(int flipColors = 0; flipColors < 2; flipColors++) {
+        for(int symmetry = 0; symmetry < 8; symmetry++)
+          addBonus(pla, loc, hist.getRecentBoard(1), bonus, symmetry, (bool)flipColors, hashesThisGame);
+      }
     }
   }
 }

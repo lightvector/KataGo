@@ -568,6 +568,10 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("playoutDoublingAdvantagePla"))   params.playoutDoublingAdvantagePla = parsePlayer("playoutDoublingAdvantagePla",cfg.getString("playoutDoublingAdvantagePla"));
     else                                                   params.playoutDoublingAdvantagePla = C_EMPTY;
 
+    if(cfg.contains("avoidRepeatedPatternUtility"+idxStr)) params.avoidRepeatedPatternUtility = cfg.getDouble("avoidRepeatedPatternUtility"+idxStr, -3.0, 3.0);
+    else if(cfg.contains("avoidRepeatedPatternUtility"))   params.avoidRepeatedPatternUtility = cfg.getDouble("avoidRepeatedPatternUtility", -3.0, 3.0);
+    else                                                   params.avoidRepeatedPatternUtility = 0.0;
+
     if(cfg.contains("nnPolicyTemperature"+idxStr))
       params.nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature"+idxStr,0.01f,5.0f);
     else if(cfg.contains("nnPolicyTemperature"))
