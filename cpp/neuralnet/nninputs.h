@@ -154,7 +154,12 @@ namespace SymmetryHelpers {
   void copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry);
 
   Loc getSymLoc(int x, int y, const Board& board, int symmetry);
+  Loc getSymLoc(Loc loc, const Board& board, int symmetry);
   Board getSymBoard(const Board& board, int symmetry);
+
+  inline bool isTranspose(int symmetry) { return (symmetry & 0x4) != 0; }
+  inline bool isFlipX(int symmetry) { return (symmetry & 0x2) != 0; }
+  inline bool isFlipY(int symmetry) { return (symmetry & 0x1) != 0; }
 }
 
 //Utility functions for computing the "scoreValue", the unscaled utility of various numbers of points, prior to multiplication by

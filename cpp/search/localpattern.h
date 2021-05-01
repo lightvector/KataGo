@@ -19,6 +19,10 @@ struct LocalPatternHasher {
   void init(int xSize, int ySize, Rand& rand);
 
   Hash128 getHash(const Board& board, Loc loc, Player pla) const;
+
+  //Returns the hash that would occur if symmetry were applied to both board and loc.
+  //So basically, the only thing that changes is the zobrist indexing.
+  Hash128 getHashWithSym(const Board& board, Loc loc, Player pla, int symmetry) const;
 };
 
 #endif //SEARCH_LOCALPATTERN_H

@@ -2,6 +2,7 @@
 
 #include "../core/rand.h"
 #include "../core/multithread.h"
+#include "../neuralnet/nninputs.h"
 #include "../search/localpattern.h"
 
 static std::mutex initMutex;
@@ -16,7 +17,7 @@ static void initIfNeeded() {
   if(isInited)
     return;
   Rand rand("PatternBonusTable ZOBRIST STUFF");
-  patternHasher.init(5,5,rand);
+  patternHasher.init(7,7,rand);
 
   rand.init("Reseed PatternBonusTable zobrist so that zobrists don't change when Board::MAX_ARR_SIZE changes");
   for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
@@ -27,6 +28,10 @@ static void initIfNeeded() {
   isInited = true;
 }
 
+PatternBonusTable::PatternBonusTable() {
+  initIfNeeded();
+  entries.resize(1024);
+}
 PatternBonusTable::PatternBonusTable(int32_t numShards) {
   initIfNeeded();
   entries.resize(numShards);
@@ -38,14 +43,27 @@ PatternBonusTable::PatternBonusTable(const PatternBonusTable& other) {
 PatternBonusTable::~PatternBonusTable() {
 }
 
-PatternBonusEntry PatternBonusTable::get(Player pla, Loc prevMoveLoc, const Board& board) const {
+Hash128 PatternBonusTable::getHash(Player pla, Loc prevMoveLoc, const Board& board) const {
   //We don't want to over-trigger this on a ko that repeats the same pattern over and over
   //So we just disallow this on ko fight
-  if(board.ko_loc != Board::NULL_LOC)
+  //Also no bonuses for passing.
+  if(board.ko_loc != Board::NULL_LOC || prevMoveLoc == Board::NULL_LOC || prevMoveLoc == Board::PASS_LOC)
+    return Hash128();
+
+  Hash128 hash = patternHasher.getHash(board,prevMoveLoc,pla);
+  hash ^= ZOBRIST_MOVE_LOCS[prevMoveLoc];
+  hash ^= Board::ZOBRIST_SIZE_X_HASH[board.x_size];
+  hash ^= Board::ZOBRIST_SIZE_Y_HASH[board.y_size];
+
+  return hash;
+}
+
+PatternBonusEntry PatternBonusTable::get(Hash128 hash) const {
+  //Hash 0 indicates to not do anything. If anything legit collides with it, then it will do nothing
+  //but this should be very rare.
+  if(hash == Hash128())
     return PatternBonusEntry();
 
-  Hash128 hash = ZOBRIST_MOVE_LOCS[prevMoveLoc];
-  hash ^= patternHasher.getHash(board,prevMoveLoc,pla);
   auto subMapIdx = hash.hash0 % entries.size();
 
   const std::map<Hash128,PatternBonusEntry>& subMap = entries[subMapIdx];
@@ -55,14 +73,29 @@ PatternBonusEntry PatternBonusTable::get(Player pla, Loc prevMoveLoc, const Boar
   return iter->second;
 }
 
-void PatternBonusTable::addBonus(Player pla, Loc prevMoveLoc, const Board& board, double bonus, std::set<Hash128>& hashesThisGame) {
+PatternBonusEntry PatternBonusTable::get(Player pla, Loc prevMoveLoc, const Board& board) const {
+  Hash128 hash = getHash(pla, prevMoveLoc, board);
+  return get(hash);
+}
+
+void PatternBonusTable::addBonus(Player pla, Loc prevMoveLoc, const Board& board, double bonus, int symmetry, std::set<Hash128>& hashesThisGame) {
   //We don't want to over-trigger this on a ko that repeats the same pattern over and over
   //So we just disallow this on ko fight
-  if(board.ko_loc != Board::NULL_LOC)
+  //Also no bonuses for passing.
+  if(board.ko_loc != Board::NULL_LOC || prevMoveLoc == Board::NULL_LOC || prevMoveLoc == Board::PASS_LOC)
     return;
 
-  Hash128 hash = ZOBRIST_MOVE_LOCS[prevMoveLoc];
-  hash ^= patternHasher.getHash(board,prevMoveLoc,pla);
+  Hash128 hash = patternHasher.getHashWithSym(board,prevMoveLoc,pla,symmetry);
+  hash ^= ZOBRIST_MOVE_LOCS[SymmetryHelpers::getSymLoc(prevMoveLoc,board,symmetry)];
+  if(SymmetryHelpers::isTranspose(symmetry)) {
+    hash ^= Board::ZOBRIST_SIZE_X_HASH[board.y_size];
+    hash ^= Board::ZOBRIST_SIZE_Y_HASH[board.x_size];
+  }
+  else {
+    hash ^= Board::ZOBRIST_SIZE_X_HASH[board.x_size];
+    hash ^= Board::ZOBRIST_SIZE_Y_HASH[board.y_size];
+  }
+
   if(contains(hashesThisGame,hash))
     return;
   hashesThisGame.insert(hash);
@@ -87,8 +120,10 @@ void PatternBonusTable::addBonusForGameMoves(const BoardHistory& game, double bo
     bool suc = hist.makeBoardMoveTolerant(board, loc, pla);
     if(!suc)
       break;
-    if(onlyPla == C_EMPTY || onlyPla == pla)
-      addBonus(pla, loc, board, bonus, hashesThisGame);
+    if(onlyPla == C_EMPTY || onlyPla == pla) {
+      for(int symmetry = 0; symmetry < 8; symmetry++)
+        addBonus(pla, loc, board, bonus, symmetry, hashesThisGame);
+    }
   }
 }
 
