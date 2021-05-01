@@ -1,6 +1,6 @@
-#include "../core/rand.h"
-#include "../game/board.h"
 #include "../search/subtreevaluebiastable.h"
+
+#include "../core/rand.h"
 #include "../search/localpattern.h"
 
 static std::mutex initMutex;

@@ -272,6 +272,7 @@ add_executable(katago
   search/distributiontable.cpp
   search/localpattern.cpp
   search/subtreevaluebiastable.cpp
+  search/patternbonustable.cpp
   search/analysisdata.cpp
   program/gtpconfig.cpp
   program/setup.cpp
