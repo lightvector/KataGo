@@ -21,7 +21,7 @@ static void initIfNeeded() {
   if(isInited)
     return;
   Rand rand("PatternBonusTable ZOBRIST STUFF");
-  patternHasher.init(7,7,rand);
+  patternHasher.init(9,9,rand);
 
   rand.init("Reseed PatternBonusTable zobrist so that zobrists don't change when Board::MAX_ARR_SIZE changes");
   for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
