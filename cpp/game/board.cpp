@@ -2600,20 +2600,17 @@ Board Board::parseBoard(int xSize, int ySize, const string& s, char lineDelimite
     while(firstNonDigitIdx < line.length() && Global::isDigit(line[firstNonDigitIdx]))
       firstNonDigitIdx++;
     line.erase(0,firstNonDigitIdx);
-    line = Global::trim(line);
+    line.erase(std::remove_if(line.begin(), line.end(), [](char c){
+      return std::isspace(static_cast<unsigned char>(c));
+    }),line.end());
 
-    if(line.length() != xSize && line.length() != 2*xSize-1)
+    if(line.length() != xSize)
       throw StringError("Board::parseBoard - line length not compatible with xSize");
 
     for(int x = 0; x<xSize; x++) {
-      char c;
-      if(line.length() == xSize)
-        c = line[x];
-      else
-        c = line[x*2];
-
+      char c = line[x];
       Loc loc = Location::getLoc(x,y,board.x_size);
-      if(c == '.' || c == ' ' || c == '*' || c == ',' || c == '`')
+      if(c == '.' || c == '*' || c == ',' || c == '`')
         continue;
       else if(c == 'o' || c == 'O')
         board.setStone(loc,P_WHITE);
@@ -2623,5 +2620,5 @@ Board Board::parseBoard(int xSize, int ySize, const string& s, char lineDelimite
         throw StringError(string("Board::parseBoard - could not parse board character: ") + c);
     }
   }
-  return board;
+  return board; //may need to consider to add a move constructor 
 }
