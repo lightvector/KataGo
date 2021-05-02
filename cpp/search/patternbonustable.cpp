@@ -4,6 +4,10 @@
 #include "../core/multithread.h"
 #include "../neuralnet/nninputs.h"
 #include "../search/localpattern.h"
+#include "../dataio/sgf.h"
+#include "../dataio/files.h"
+
+using namespace std;
 
 static std::mutex initMutex;
 static std::atomic<bool> isInited(false);
@@ -117,15 +121,87 @@ void PatternBonusTable::addBonusForGameMoves(const BoardHistory& game, double bo
   for(size_t i = 0; i<game.moveHistory.size(); i++) {
     Player pla = game.moveHistory[i].pla;
     Loc loc = game.moveHistory[i].loc;
+    //We first play the move to see if it's a move we can accept
     bool suc = hist.makeBoardMoveTolerant(board, loc, pla);
     if(!suc)
       break;
     if(onlyPla == C_EMPTY || onlyPla == pla) {
       for(int flipColors = 0; flipColors < 2; flipColors++) {
-        for(int symmetry = 0; symmetry < 8; symmetry++)
+        for(int symmetry = 0; symmetry < 8; symmetry++) {
+          //getRecentBoard(1) - the convention is to pattern match on the board BEFORE the move is played.
+          //This is also more pricipled than convening on the board after since with different captures, moves
+          //may have different effects even while leading to the same position.
           addBonus(pla, loc, hist.getRecentBoard(1), bonus, symmetry, (bool)flipColors, hashesThisGame);
+        }
       }
     }
   }
 }
 
+void PatternBonusTable::avoidRepeatedSgfMoves(
+  const vector<string>& sgfsDirsOrFiles,
+  double penalty,
+  double decayOlderFilesLambda,
+  int minTurnNumber,
+  size_t maxFiles,
+  const vector<string>& allowedPlayerNames,
+  Logger& logger
+) {
+  vector<string> sgfFiles;
+  FileHelpers::collectSgfsFromDirsOrFiles(sgfsDirsOrFiles,sgfFiles);
+  FileHelpers::sortNewestToOldest(sgfFiles);
+
+  double factor = 1.0;
+  for(size_t i = 0; i<sgfFiles.size() && i < maxFiles; i++) {
+    const string& fileName = sgfFiles[i];
+    Sgf* sgf = NULL;
+    try {
+      sgf = Sgf::loadFile(fileName);
+    }
+    catch(const StringError& e) {
+      logger.write("Invalid SGF " + fileName + ": " + e.what());
+      continue;
+    }
+
+    bool blackOkay = allowedPlayerNames.size() <= 0 || contains(allowedPlayerNames, sgf->getPlayerName(P_BLACK));
+    bool whiteOkay = allowedPlayerNames.size() <= 0 || contains(allowedPlayerNames, sgf->getPlayerName(P_WHITE));
+
+    std::set<Hash128> hashesThisGame;
+
+    std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler = [&](
+      Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
+    ) {
+      (void)posSample;
+      if(comments.size() > 0 && comments.find("%SKIP%") != string::npos)
+        return;
+      if(hist.moveHistory.size() <= 0)
+        return;
+      if(hist.moveHistory.size() < minTurnNumber)
+        return;
+      Loc moveLoc = hist.moveHistory[hist.moveHistory.size()-1].loc;
+      Player movePla = hist.moveHistory[hist.moveHistory.size()-1].pla;
+      if(movePla == P_BLACK && !blackOkay)
+        return;
+      if(movePla == P_WHITE && !whiteOkay)
+        return;
+
+      for(int flipColors = 0; flipColors < 2; flipColors++) {
+        for(int symmetry = 0; symmetry < 8; symmetry++) {
+          //getRecentBoard(1) - the convention is to pattern match on the board BEFORE the move is played.
+          //This is also more pricipled than convening on the board after since with different captures, moves
+          //may have different effects even while leading to the same position.
+          addBonus(movePla, moveLoc, hist.getRecentBoard(1), -penalty*factor, symmetry, (bool)flipColors, hashesThisGame);
+        }
+      }
+    };
+
+    bool hashComments = true;
+    bool hashParent = true;
+    std::set<Hash128> uniqueHashes;
+    sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, NULL, posHandler);
+    logger.write("Added " + Global::uint64ToString(hashesThisGame.size()) + " shapes to penalize repeats by from " + fileName);
+
+    delete sgf;
+    factor *= decayOlderFilesLambda;
+  }
+}

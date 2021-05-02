@@ -67,6 +67,7 @@ class ConfigParser {
   double getDouble(const std::string& key, double min, double max);
 
   std::vector<std::string> getStrings(const std::string& key);
+  std::vector<std::string> getStringsNonEmptyTrim(const std::string& key);
   std::vector<bool> getBools(const std::string& key);
   std::vector<int> getInts(const std::string& key);
   std::vector<int64_t> getInt64s(const std::string& key);

@@ -268,6 +268,18 @@ vector<string> ConfigParser::getStrings(const string& key) {
   return Global::split(getString(key),',');
 }
 
+vector<string> ConfigParser::getStringsNonEmptyTrim(const string& key) {
+  vector<string> raw = Global::split(getString(key),',');
+  vector<string> trimmed;
+  for(size_t i = 0; i<raw.size(); i++) {
+    string s = Global::trim(raw[i]);
+    if(s.length() <= 0)
+      continue;
+    trimmed.push_back(s);
+  }
+  return trimmed;
+}
+
 vector<string> ConfigParser::getStrings(const string& key, const set<string>& possibles) {
   vector<string> values = getStrings(key);
   for(size_t i = 0; i<values.size(); i++) {
