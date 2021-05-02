@@ -51,6 +51,7 @@ static void printPolicyValueOwnership(const Board& board, const NNResultBuf& buf
 static void printBasicStuffAfterSearch(const Board& board, const BoardHistory& hist, const Search* search, PrintTreeOptions options) {
   Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
   cout << "Root visits: " << search->getRootVisits() << "\n";
+  cout << "New playouts: " << search->lastSearchNumPlayouts << "\n";
   cout << "NN rows: " << search->nnEvaluator->numRowsProcessed() << endl;
   cout << "NN batches: " << search->nnEvaluator->numBatchesProcessed() << endl;
   cout << "NN avg batch size: " << search->nnEvaluator->averageProcessedBatchSize() << endl;
