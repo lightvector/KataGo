@@ -35,15 +35,15 @@ NN batches: 95
 NN avg batch size: 1
 PV: D3 R16 D17 Q3
 Tree:
-: T   0.69c W   0.05c S   0.64c ( +0.2 L  +0.2) N     100  --  D3 R16 D17 Q3
+: T   0.69c W   0.05c S   0.11c ( +0.2 L  +0.2) N     100  --  D3 R16 D17 Q3
 ---Black(^)---
-D3  : T   1.86c W   0.92c S   0.94c ( +0.4 L  +0.5) LCB   -7.05c P  8.50% WF  10.1 PSV      16 N      10  --  D3 R16 D17 Q3
-Q3  : T   1.29c W   0.59c S   0.71c ( +0.4 L  +0.6) LCB   -7.87c P  9.03% WF  10.0 PSV      10 N      10  --  Q3 R16 D3 D17
-Q17 : T   1.41c W   0.66c S   0.75c ( +0.3 L  +0.3) LCB   -8.32c P  8.96% WF  10.0 PSV      10 N      10  --  Q17 D3 D17 Q3
-C16 : T   2.33c W   1.03c S   1.30c ( +0.3 L  +0.3) LCB   -7.51c P  7.98% WF  10.1 PSV      10 N      10  --  C16 D3 Q17 Q3
-R4  : T   0.40c W  -0.31c S   0.71c ( +0.1 L  +0.2) LCB  -11.24c P  9.07% WF   9.0 PSV       9 N       9  --  R4 R16 D3 D17
-C4  : T   0.43c W  -0.26c S   0.69c ( +0.1 L  +0.2) LCB  -12.74c P  8.66% WF   9.0 PSV       9 N       9  --  C4 R16 D17 Q3
-R16 : T   1.28c W   0.46c S   0.83c ( +0.3 L  +0.4) LCB  -10.00c P  7.52% WF   9.0 PSV       9 N       9  --  R16 D3 D17 Q3
-D17 : T   0.48c W  -0.35c S   0.83c ( +0.1 L  +0.2) LCB  -12.62c P  8.03% WF   9.0 PSV       8 N       9  --  D17 D3 Q17 Q3
-Q4  : T  -0.31c W  -0.36c S   0.05c ( +0.0 L  +0.1) LCB  -25.70c P  5.57% WF   5.0 PSV       5 N       5  --  Q4 D3 D17
-D16 : T  -1.26c W  -1.35c S   0.09c ( -0.3 L  -0.2) LCB -104.87c P  4.57% WF   3.9 PSV       4 N       4  --  D16 D3 Q17
+D3  : T   1.86c W   0.92c S   0.25c ( +0.4 L  +0.5) LCB   -7.05c P  8.50% WF  10.1 PSV      16 N      10  --  D3 R16 D17 Q3
+Q3  : T   1.29c W   0.59c S   0.30c ( +0.4 L  +0.6) LCB   -7.87c P  9.03% WF  10.0 PSV      10 N      10  --  Q3 R16 D3 D17
+Q17 : T   1.41c W   0.66c S   0.20c ( +0.3 L  +0.3) LCB   -8.32c P  8.96% WF  10.0 PSV      10 N      10  --  Q17 D3 D17 Q3
+C16 : T   2.33c W   1.03c S   0.21c ( +0.3 L  +0.3) LCB   -7.51c P  7.98% WF  10.1 PSV      10 N      10  --  C16 D3 Q17 Q3
+R4  : T   0.40c W  -0.31c S   0.05c ( +0.1 L  +0.2) LCB  -11.24c P  9.07% WF   9.0 PSV       9 N       9  --  R4 R16 D3 D17
+C4  : T   0.43c W  -0.26c S   0.05c ( +0.1 L  +0.2) LCB  -12.74c P  8.66% WF   9.0 PSV       9 N       9  --  C4 R16 D17 Q3
+R16 : T   1.28c W   0.46c S   0.24c ( +0.3 L  +0.4) LCB  -10.00c P  7.52% WF   9.0 PSV       9 N       9  --  R16 D3 D17 Q3
+D17 : T   0.48c W  -0.35c S   0.07c ( +0.1 L  +0.2) LCB  -12.62c P  8.03% WF   9.0 PSV       8 N       9  --  D17 D3 Q17 Q3
+Q4  : T  -0.31c W  -0.36c S   0.01c ( +0.0 L  +0.1) LCB  -25.70c P  5.57% WF   5.0 PSV       5 N       5  --  Q4 D3 D17
+D16 : T  -1.26c W  -1.35c S  -0.19c ( -0.3 L  -0.2) LCB -104.87c P  4.57% WF   3.9 PSV       4 N       4  --  D16 D3 Q17

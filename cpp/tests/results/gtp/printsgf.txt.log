@@ -92,13 +92,13 @@ NN avg batch size: 1
 PlayoutDoublingAdvantage: 2.625
 PV: F4 F3 F10 F11 G11 E11
 Tree:
-: T -81.59c W -76.79c S  -4.80c (-10.1 L -10.2) N     100  --  F4 F3 F10 F11 G11 E11
+: T -81.59c W -76.79c S  -3.79c (-10.1 L -10.2) N     100  --  F4 F3 F10 F11 G11 E11
 ---White(^)---
-F4  : T -81.59c W -76.23c S  -5.35c (-10.1 L -10.2) LCB  -88.37c P 55.51% WF  61.0 PSV      61 N      61  --  F4 F3 F10 F11 G11 E11
-F10 : T -80.60c W -77.50c S  -3.10c ( -9.9 L -10.1) LCB  -95.18c P 14.68% WF  18.2 PSV      18 N      18  --  F10 F11 G11 E11 F4 F9 G10
-E4  : T -84.41c W -79.08c S  -5.33c (-10.5 L -10.7) LCB -103.18c P 14.40% WF  11.7 PSV      12 N      12  --  E4 D3 E3 E5
-F3  : T -79.86c W -76.09c S  -3.77c ( -9.6 L -10.0) LCB -165.71c P  4.74% WF   6.1 PSV       6 N       6  --  F3 F4 G4 F5
-G10 : T -82.24c W -78.72c S  -3.52c (-10.1 L -10.6) LCB -280.00c P  2.53% WF   2.0 PSV       2 N       2  --  G10 F4
+F4  : T -81.59c W -76.23c S  -3.81c (-10.1 L -10.2) LCB  -88.37c P 55.51% WF  61.0 PSV      61 N      61  --  F4 F3 F10 F11 G11 E11
+F10 : T -80.60c W -77.50c S  -3.58c ( -9.9 L -10.1) LCB  -95.18c P 14.68% WF  18.2 PSV      18 N      18  --  F10 F11 G11 E11 F4 F9 G10
+E4  : T -84.41c W -79.08c S  -4.35c (-10.5 L -10.7) LCB -103.18c P 14.40% WF  11.7 PSV      12 N      12  --  E4 D3 E3 E5
+F3  : T -79.86c W -76.09c S  -3.12c ( -9.6 L -10.0) LCB -165.71c P  4.74% WF   6.1 PSV       6 N       6  --  F3 F4 G4 F5
+G10 : T -82.24c W -78.72c S  -3.74c (-10.1 L -10.6) LCB -280.00c P  2.53% WF   2.0 PSV       2 N       2  --  G10 F4
 
 : = F4
 : Controller: printsgf
