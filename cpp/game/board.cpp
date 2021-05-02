@@ -2620,5 +2620,5 @@ Board Board::parseBoard(int xSize, int ySize, const string& s, char lineDelimite
         throw StringError(string("Board::parseBoard - could not parse board character: ") + c);
     }
   }
-  return board; //may need to consider to add a move constructor 
+  return board; //may need to consider to add a move constructor and move assignment operator for board class
 }
