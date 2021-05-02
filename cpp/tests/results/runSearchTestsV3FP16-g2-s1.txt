@@ -283,6 +283,7 @@ MoveNum: 88 HASH: E5DACB812E1F32182FE3B2783337B6CD
  1 . O X . O . O X X . .
 
 Root visits: 500
+New playouts: 500
 NN rows: 375
 NN batches: 375
 NN avg batch size: 1
@@ -377,6 +378,7 @@ MoveNum: 89 HASH: 71B1ED3423278391F2FE2613AF81D7E4
  1 X3. X . O . O X X . .
 
 Root visits: 500
+New playouts: 500
 NN rows: 316
 NN batches: 316
 NN avg batch size: 1
@@ -459,6 +461,7 @@ MoveNum: 96 HASH: 434B1665B6BB8864F5AD865AA86C39C3
  1 X . X X O O O X X . .
 
 Root visits: 500
+New playouts: 500
 NN rows: 395
 NN batches: 395
 NN avg batch size: 1
@@ -545,6 +548,7 @@ MoveNum: 96 HASH: 434B1665B6BB8864F5AD865AA86C39C3
  1 X . X X O O O X X . .
 
 Root visits: 500
+New playouts: 500
 NN rows: 395
 NN batches: 395
 NN avg batch size: 1
@@ -633,6 +637,7 @@ MoveNum: 91 HASH: CDAEE17AEAD61B0F693D5C82B6B276FD
  1 X1. X . O . O X X . .
 
 Root visits: 500
+New playouts: 500
 NN rows: 411
 NN batches: 411
 NN avg batch size: 1
@@ -713,6 +718,7 @@ MoveNum: 91 HASH: CDAEE17AEAD61B0F693D5C82B6B276FD
  1 X1. X . O . O X X . .
 
 Root visits: 500
+New playouts: 500
 NN rows: 411
 NN batches: 411
 NN avg batch size: 1
@@ -800,6 +806,7 @@ MoveNum: 114 HASH: A79664B8B4D0FE3E9654291FC1DEB14A
  1 . . . . . . . . . . . . . . .
 
 Root visits: 1
+New playouts: 1
 NN rows: 1
 NN batches: 1
 NN avg batch size: 1
@@ -845,6 +852,7 @@ MoveNum: 114 HASH: A79664B8B4D0FE3E9654291FC1DEB14A
  1 . . . . . . . . . . . . . . .
 
 Root visits: 1
+New playouts: 1
 NN rows: 1
 NN batches: 1
 NN avg batch size: 1
@@ -896,6 +904,7 @@ MoveNum: 234 HASH: A363032D5B5D6FEA53ADD68434463D3B
  1 . . . . O O X . . X X O . . . O O O X1
 
 Root visits: 280
+New playouts: 280
 NN rows: 242
 NN batches: 242
 NN avg batch size: 1
@@ -962,6 +971,7 @@ MoveNum: 0 HASH: EA6AC3E0FDCCB410CE7CC6B5C83BC0DF
  1 . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 195
 NN batches: 195
 NN avg batch size: 1
@@ -988,6 +998,7 @@ MoveNum: 0 HASH: 3D7444680E62DFF9BC252AF4DC21718D
  1 . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 185
 NN batches: 185
 NN avg batch size: 1
@@ -1020,6 +1031,7 @@ MoveNum: 0 HASH: EA6AC3E0FDCCB410CE7CC6B5C83BC0DF
  1 . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 195
 NN batches: 195
 NN avg batch size: 1
@@ -1046,6 +1058,7 @@ MoveNum: 0 HASH: 3D7444680E62DFF9BC252AF4DC21718D
  1 . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 185
 NN batches: 185
 NN avg batch size: 1
@@ -1077,6 +1090,7 @@ MoveNum: 1 HASH: 137A716817733B150F2764B02A934A3A
  1 . . . . . . O X .
 
 Root visits: 200
+New playouts: 200
 NN rows: 185
 NN batches: 185
 NN avg batch size: 1
@@ -1109,6 +1123,7 @@ MoveNum: 1 HASH: 137A716817733B150F2764B02A934A3A
  1 . . . . . . O X .
 
 Root visits: 200
+New playouts: 200
 NN rows: 152
 NN batches: 152
 NN avg batch size: 1
@@ -1143,6 +1158,7 @@ MoveNum: 1 HASH: 2E520EDF63AB8417F68D3089FA83838C
  1 . . X O . O . O .
 
 Root visits: 80
+New playouts: 80
 NN rows: 37
 NN batches: 37
 NN avg batch size: 1
@@ -1176,6 +1192,7 @@ MoveNum: 1 HASH: 2E520EDF63AB8417F68D3089FA83838C
  1 . . X O . O . O .
 
 Root visits: 80
+New playouts: 80
 NN rows: 69
 NN batches: 69
 NN avg batch size: 1
@@ -1209,6 +1226,7 @@ MoveNum: 0 HASH: 8054041CF7525FF54F3AC9CEC0991E19
  1 . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 189
 NN batches: 189
 NN avg batch size: 1
@@ -1250,6 +1268,7 @@ MoveNum: 1 HASH: BA79A89D6669BD2AB5B90AA86F991133
  1 . . . . . . . . .
 
 Root visits: 200
+New playouts: 18
 NN rows: 18
 NN batches: 18
 NN avg batch size: 1

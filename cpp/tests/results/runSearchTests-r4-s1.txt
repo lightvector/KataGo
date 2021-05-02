@@ -28,6 +28,7 @@ MoveNum: 20 HASH: 05F9432B3C27CFBE22A0664707FA5C6F
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 173
 NN batches: 173
 NN avg batch size: 1
@@ -68,6 +69,7 @@ MoveNum: 40 HASH: 9945216072DFA0AA3EC266BA46365777
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 191
 NN batches: 191
 NN avg batch size: 1
@@ -110,6 +112,7 @@ MoveNum: 61 HASH: 808F53C1CE55A05FFFB9546B32D7D98B
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 192
 NN batches: 192
 NN avg batch size: 1
@@ -148,6 +151,7 @@ MoveNum: 82 HASH: C95B8F130DC8B4C07C1862A41AC27FD7
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 189
 NN batches: 189
 NN avg batch size: 1
@@ -184,6 +188,7 @@ MoveNum: 103 HASH: 3429D137FCCD32D5C5B76D34EF43E41C
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 189
 NN batches: 189
 NN avg batch size: 1
@@ -225,6 +230,7 @@ MoveNum: 23 HASH: 4BA9084A30BA259CB1C7AA38EA351806
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 198
 NN batches: 198
 NN avg batch size: 1
@@ -268,6 +274,7 @@ MoveNum: 38 HASH: 3751F252A07F183C7AB458448DE13355
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 198
 NN batches: 198
 NN avg batch size: 1
@@ -306,6 +313,7 @@ MoveNum: 65 HASH: A1347428633EF86BD16D378987E34A3D
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 196
 NN batches: 196
 NN avg batch size: 1
@@ -344,6 +352,7 @@ MoveNum: 80 HASH: E4BAE156BAEE1BB382DED3CF0217FD87
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 197
 NN batches: 197
 NN avg batch size: 1
@@ -383,6 +392,7 @@ MoveNum: 115 HASH: 8FDAF16F0E0D8C9B638D96FC5D9CED03
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 168
 NN batches: 168
 NN avg batch size: 1
@@ -427,6 +437,7 @@ MoveNum: 191 HASH: C939725577632230169E90A812FE508F
  1 . . O . . X .2X3. O . . . . . . . X .
 
 Root visits: 200
+New playouts: 200
 NN rows: 144
 NN batches: 144
 NN avg batch size: 1
@@ -460,6 +471,7 @@ MoveNum: 197 HASH: C909137C34FEA1A517D78D36C3D3F5DD
  1 . . O X . X . X . O . . . . . . . X .
 
 Root visits: 200
+New playouts: 200
 NN rows: 175
 NN batches: 175
 NN avg batch size: 1
@@ -493,6 +505,7 @@ MoveNum: 330 HASH: 886E78F3B47AFE13DE89635C9F47D00A
  1 . . O . O . O . O O X . . . . . X X X
 
 Root visits: 200
+New playouts: 200
 NN rows: 135
 NN batches: 135
 NN avg batch size: 1
@@ -535,6 +548,7 @@ MoveNum: 330 HASH: 886E78F3B47AFE13DE89635C9F47D00A
  1 . . O . O . O . O O X . . . . . X X X
 
 Root visits: 200
+New playouts: 200
 NN rows: 52
 NN batches: 52
 NN avg batch size: 1
@@ -584,6 +598,7 @@ MoveNum: 330 HASH: 886E78F3B47AFE13DE89635C9F47D00A
  1 . . O . O . O . O O X . . . . . X X X
 
 Root visits: 200
+New playouts: 200
 NN rows: 135
 NN batches: 135
 NN avg batch size: 1
@@ -628,6 +643,7 @@ MoveNum: 330 HASH: 886E78F3B47AFE13DE89635C9F47D00A
  1 . . O . O . O . O O X . . . . . X X X
 
 Root visits: 200
+New playouts: 200
 NN rows: 134
 NN batches: 134
 NN avg batch size: 1
@@ -677,6 +693,7 @@ MoveNum: 85 HASH: FF4B3B9515DBD0C58D986557C8F8C54C
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 195
 NN batches: 195
 NN avg batch size: 1
@@ -741,6 +758,7 @@ MoveNum: 86 HASH: 89A2A6C27EE12B5FCEAAE6D6CAD171D1
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 80
 NN rows: 271
 NN batches: 271
 NN avg batch size: 1
@@ -799,6 +817,7 @@ MoveNum: 87 HASH: AF11EC040286D82D145FB63E9B70697C
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 147
 NN rows: 411
 NN batches: 411
 NN avg batch size: 1
@@ -846,6 +865,7 @@ MoveNum: 85 HASH: FF4B3B9515DBD0C58D986557C8F8C54C
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 195
 NN batches: 195
 NN avg batch size: 1
@@ -910,6 +930,7 @@ MoveNum: 86 HASH: 89A2A6C27EE12B5FCEAAE6D6CAD171D1
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 320
+New playouts: 200
 NN rows: 374
 NN batches: 374
 NN avg batch size: 1
@@ -966,6 +987,7 @@ MoveNum: 87 HASH: 81DACF501D9C298028CFCF34664DB664
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 314
+New playouts: 200
 NN rows: 567
 NN batches: 567
 NN avg batch size: 1
@@ -1010,6 +1032,7 @@ MoveNum: 44 HASH: 03700DBBB7589CC1BAB46A4537747B7F
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 185
 NN batches: 185
 NN avg batch size: 1
@@ -1051,6 +1074,7 @@ MoveNum: 44 HASH: 03700DBBB7589CC1BAB46A4537747B7F
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 193
 NN batches: 193
 NN avg batch size: 1
@@ -1110,6 +1134,7 @@ MoveNum: 44 HASH: 03700DBBB7589CC1BAB46A4537747B7F
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 200
+New playouts: 200
 NN rows: 193
 NN batches: 193
 NN avg batch size: 1
@@ -1156,6 +1181,7 @@ MoveNum: 44 HASH: 03700DBBB7589CC1BAB46A4537747B7F
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 400
+New playouts: 400
 NN rows: 378
 NN batches: 378
 NN avg batch size: 1
@@ -1262,6 +1288,7 @@ MoveNum: 44 HASH: 03700DBBB7589CC1BAB46A4537747B7F
  1 . . . . . . . . . . . . . . . . . . .
 
 Root visits: 400
+New playouts: 400
 NN rows: 382
 NN batches: 382
 NN avg batch size: 1
