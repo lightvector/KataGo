@@ -850,7 +850,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
   else {
     data.utility = utilityAvg;
     data.resultUtility = getResultUtility(winLossValueAvg, noResultValueAvg);
-    data.scoreUtility = data.utility - data.resultUtility;
+    data.scoreUtility = getScoreUtility(scoreMeanAvg, scoreMeanSqAvg);
     data.winLossValue = winLossValueAvg;
     data.scoreMean = scoreMeanAvg;
     data.scoreStdev = getScoreStdev(scoreMeanAvg,scoreMeanSqAvg);
