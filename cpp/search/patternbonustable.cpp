@@ -185,12 +185,15 @@ void PatternBonusTable::avoidRepeatedSgfMoves(
       if(movePla == P_WHITE && !whiteOkay)
         return;
 
-      for(int flipColors = 0; flipColors < 2; flipColors++) {
+      for(int flipColorsInt = 0; flipColorsInt < 2; flipColorsInt++) {
         for(int symmetry = 0; symmetry < 8; symmetry++) {
           //getRecentBoard(1) - the convention is to pattern match on the board BEFORE the move is played.
           //This is also more pricipled than convening on the board after since with different captures, moves
           //may have different effects even while leading to the same position.
-          addBonus(movePla, moveLoc, hist.getRecentBoard(1), -penalty*factor, symmetry, (bool)flipColors, hashesThisGame);
+          bool flipColors = (bool)flipColorsInt;
+          Player symPla = flipColors ? getOpp(movePla) : movePla;
+          double bonus = symPla == P_WHITE ? -penalty*factor : penalty*factor;
+          addBonus(movePla, moveLoc, hist.getRecentBoard(1), bonus, symmetry, flipColors, hashesThisGame);
         }
       }
     };

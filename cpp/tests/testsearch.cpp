@@ -2204,6 +2204,223 @@ o....xo..
     runTest(8000, 4, true);
   }
 
+  {
+    cout << "Pattern bonus =========================================" << endl;
+
+    Board board = Board::parseBoard(19,19,R"%%(
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . X . . . . . . . . . . . X . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . O . . . . . . . . . . . O . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+)%%");
+
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("Japanese");
+    rules.komi = 6.5;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params0 = SearchParams::forTestsV1();
+    params0.maxVisits = 1000;
+    SearchParams params1 = params0;
+    params1.avoidRepeatedPatternUtility = 0.2;
+
+    TestSearchOptions opts;
+    opts.noClearBot = true;
+
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("R3",board),nextPla,NULL); nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("Q3",board),nextPla,NULL); nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("R4",board),nextPla,NULL); nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("Q5",board),nextPla,NULL); nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("S6",board),nextPla,NULL); nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("F17",board),nextPla,NULL); nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("C14",board),nextPla,NULL); nextPla = getOpp(nextPla);
+
+    AsyncBot* bot0 = new AsyncBot(params0, nnEval, &logger, "pattern bonus");
+    AsyncBot* bot1 = new AsyncBot(params1, nnEval, &logger, "pattern bonus");
+    AsyncBot* bot2 = new AsyncBot(params1, nnEval, &logger, "pattern bonus");
+    cout << "Bot0: baseline" << endl;
+    runBotOnPosition(bot0, board, nextPla, hist, opts);
+    cout << "Bot1: avoid repeat 0.2" << endl;
+    runBotOnPosition(bot1, board, nextPla, hist, opts);
+    cout << "Bot2: avoid repeat 0.2 but will only play one side" << endl;
+    runBotOnPosition(bot2, board, nextPla, hist, opts);
+
+    //We manually make the bots play through the next moves
+    opts.ignorePosition = true;
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("D18",board),nextPla,NULL);
+    bot0->makeMove(Location::ofString("D18",board),nextPla);
+    bot1->makeMove(Location::ofString("D18",board),nextPla);
+    bot2->makeMove(Location::ofString("D18",board),nextPla);
+    nextPla = getOpp(nextPla);
+
+    cout << "Bot0: baseline" << endl;
+    runBotOnPosition(bot0, board, nextPla, hist, opts);
+    cout << "Bot1: avoid repeat 0.2" << endl;
+    runBotOnPosition(bot1, board, nextPla, hist, opts);
+    cout << "Bot2: avoid repeat 0.2 but will only play one side, skipping" << endl;
+    //runBotOnPosition(bot2, board, nextPla, hist, opts);
+
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("M4",board),nextPla,NULL);
+    bot0->makeMove(Location::ofString("M4",board),nextPla);
+    bot1->makeMove(Location::ofString("M4",board),nextPla);
+    bot2->makeMove(Location::ofString("M4",board),nextPla);
+    nextPla = getOpp(nextPla);
+
+    cout << "Bot0: baseline" << endl;
+    runBotOnPosition(bot0, board, nextPla, hist, opts);
+    cout << "Bot1: avoid repeat 0.2" << endl;
+    runBotOnPosition(bot1, board, nextPla, hist, opts);
+    cout << "Bot2: avoid repeat 0.2 but will only played one side" << endl;
+    runBotOnPosition(bot2, board, nextPla, hist, opts);
+
+    delete bot0;
+    delete bot1;
+    delete bot2;
+  }
+
+  {
+    cout << "Pattern bonus does not care about ko =========================================" << endl;
+
+    Board board = Board::parseBoard(19,19,R"%%(
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . O X O . .
+17 . . . . . . . . . . . . . . X O . O .
+16 . . . X . . . . . . . . . . . X O X .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . X . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . O . . . . . . . . . . . . . . . . .
+ 6 . . O . . . . . . . . . . . . . . . .
+ 5 . . . X . . . . . . . . . . . . . . .
+ 4 . . O X . . . . . . . . . . . O . . .
+ 3 . . O X . . X . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+)%%");
+
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("Japanese");
+    rules.komi = 6.5;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params0 = SearchParams::forTestsV1();
+    params0.maxVisits = 1000;
+    SearchParams params1 = params0;
+    params1.avoidRepeatedPatternUtility = 0.2;
+
+    TestSearchOptions opts;
+    opts.noClearBot = true;
+
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("R17",board),nextPla,NULL); nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("D15",board),nextPla,NULL); nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("C15",board),nextPla,NULL); nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("Q17",board),nextPla,NULL); nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("C5",board),nextPla,NULL); nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("B5",board),nextPla,NULL); nextPla = getOpp(nextPla);
+
+    AsyncBot* bot0 = new AsyncBot(params0, nnEval, &logger, "pattern bonus");
+    AsyncBot* bot1 = new AsyncBot(params1, nnEval, &logger, "pattern bonus");
+    cout << "Bot0: baseline" << endl;
+    runBotOnPosition(bot0, board, nextPla, hist, opts);
+    cout << "Bot1: avoid repeat 0.2" << endl;
+    runBotOnPosition(bot1, board, nextPla, hist, opts);
+
+    delete bot0;
+    delete bot1;
+  }
+
+  {
+    cout << "Pattern bonus does not multi-count shapes =========================================" << endl;
+
+    Board board = Board::parseBoard(19,19,R"%%(
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . X . . . . . . . . . . . X . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . X . . . . . . . . . . . X . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+)%%");
+
+    Player nextPla = P_WHITE;
+    Rules rules = Rules::parseRules("Japanese");
+    rules.komi = 25.5;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params0 = SearchParams::forTestsV1();
+    params0.maxVisits = 1000;
+    params0.avoidRepeatedPatternUtility = 0.2;
+
+    TestSearchOptions opts;
+    opts.noClearBot = false;
+    AsyncBot* bot0 = new AsyncBot(params0, nnEval, &logger, "pattern bonus");
+    runBotOnPosition(bot0, board, nextPla, hist, opts);
+
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("R14",board),nextPla,NULL);
+    bot0->makeMove(Location::ofString("R14",board),nextPla);
+    nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("O17",board),nextPla,NULL);
+    bot0->makeMove(Location::ofString("O17",board),nextPla);
+    nextPla = getOpp(nextPla);
+
+    runBotOnPosition(bot0, board, nextPla, hist, opts);
+
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("F17",board),nextPla,NULL);
+    bot0->makeMove(Location::ofString("F17",board),nextPla);
+    nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("C14",board),nextPla,NULL);
+    bot0->makeMove(Location::ofString("C14",board),nextPla);
+    nextPla = getOpp(nextPla);
+
+    runBotOnPosition(bot0, board, nextPla, hist, opts);
+
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("C6",board),nextPla,NULL);
+    bot0->makeMove(Location::ofString("C6",board),nextPla);
+    nextPla = getOpp(nextPla);
+    hist.makeBoardMoveAssumeLegal(board,Location::ofString("F3",board),nextPla,NULL);
+    bot0->makeMove(Location::ofString("F3",board),nextPla);
+    nextPla = getOpp(nextPla);
+
+    runBotOnPosition(bot0, board, nextPla, hist, opts);
+
+    delete bot0;
+  }
+
 }
 
 static void runMoreV8TestsRandomizedNNEvals(NNEvaluator* nnEval, Logger& logger)
