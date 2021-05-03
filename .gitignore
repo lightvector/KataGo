@@ -31,7 +31,7 @@ cpp/tests/scratch
 
 cpp/program/gitinfo.h
 
-data/
+cpp/data/
 versions/
 cpp/build
 
