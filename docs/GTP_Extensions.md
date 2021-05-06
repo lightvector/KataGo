@@ -97,7 +97,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `visits` - The number of visits invested into the move so far.
          * `winrate` - 10000 times the winrate of the move so far, rounded to an integer in [0,10000].
          * `prior` - 10000 times the policy prior of the move, rounded to an integer in [0,10000].
-         * `lcb` - 10000 times the [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move, rounded to an integer in [0,10000].
+         * `lcb` - 10000 times the [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move, rounded to an integer in [0,10000], or possibly a value outside that interval, since the current implementation doesn't strictly account for the 0-1 bounds.
          * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
          * `pv` - The principal variation following this move. May be of variable length or even empty.
       * All output values are from the perspective of the current player, unless otherwise configured in KataGo's gtp config.
