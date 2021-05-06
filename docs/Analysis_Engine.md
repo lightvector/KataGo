@@ -242,7 +242,7 @@ Requests that KataGo report its current version. Required fields:
 
 Example:
 ```
-{"id":"foo","action":"query_verison"}
+{"id":"foo","action":"query_version"}
 ```
 
 The response to this query is to echo back a json object with exactly the same data and fields of the query, but with two additional fields:
@@ -252,7 +252,7 @@ The response to this query is to echo back a json object with exactly the same d
 
 Example:
 ```
-{"action":"query_verison","git_hash":"0b0c29750fd351a8364440a2c9c83dc50195c05b","id":"foo","version":"1.6.1"}
+{"action":"query_version","git_hash":"0b0c29750fd351a8364440a2c9c83dc50195c05b","id":"foo","version":"1.6.1"}
 ```
 
 ##### terminate
