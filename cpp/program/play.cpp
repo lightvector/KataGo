@@ -220,7 +220,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
         else {
           bool hashComments = false;
           bool hashParent = false;
-          sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, NULL, posHandler);
+          bool flipIfPassOrWFirst = true;
+          sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, NULL, posHandler);
         }
       }
       catch(const StringError& e) {
