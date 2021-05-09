@@ -231,7 +231,7 @@ Current fields are:
 
 #### Special Action Queries
 
-Currently two special action queries are supported, that direct the analysis engine to do something other than enqueue a new position or set of positions for analysis.
+Currently a few special action queries are supported that direct the analysis engine to do something other than enqueue a new position or set of positions for analysis.
 A special action query is also sent as a JSON object, but with a different set of fields depending on the query.
 
 ##### query_version
@@ -254,6 +254,25 @@ Example:
 ```
 {"action":"query_version","git_hash":"0b0c29750fd351a8364440a2c9c83dc50195c05b","id":"foo","version":"1.6.1"}
 ```
+
+##### clear_cache
+Requests that KataGo empty its neural net cache. Required fields:
+
+   * `id (string)`: Required. An arbitrary string identifier for this query.
+   * `action (string)`: Required. Should be the string `clear_cache`.
+
+Example:
+```
+{"id":"foo","action":"clear_cache"}
+```
+The response to this query is to simply echo back a json object with exactly the same data and fields of the query. This response is sent after the cache is successfully cleared. If there are also any ongoing analysis queries at the time, those queries will of course be concurrently refilling the the cache even as the response is being sent.
+
+Explanation: KataGo uses a cache of neural net query results to skip querying the neural net when it encounters within its search tree a position whose stone configuration, player to move, ko status, komi, rules, and other relevant options are all identical a position it has seen before. For example, this may happen if the search trees for some queries overlap due to being on nearby moves of the same game, or it may happen even within a single analysis query if the search explores differing orders of moves that lead to the same positions (often, about 20% of search tree nodes hit the cache due transposing to order of moves, although it may be vastly higher or lower depending on the position and search depth). Reasons for wanting to clear the cache may include:
+
+* Freeing up RAM usage - emptying the cache should release the memory used for the results in the cache, which is typically the largest memory usage in KataGo. Memory usage will of course rise again as the cache refills.
+
+* Testing or studying the variability of KataGo's search results for a given number of visits. Analyzing a position again after a cache clear will give a "fresh" look on that position that better matches the variety of possible results KataGo may return, simliar to if the analysis engine were entirely restarted. Each query will re-randomize the symmetry of the neural net used for that query instead of using the cached result, giving a new and more varied opinion.
+
 
 ##### terminate
 

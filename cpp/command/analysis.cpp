@@ -401,6 +401,11 @@ int MainCmds::analysis(int argc, const char* const* argv) {
           input["git_hash"] = Version::getGitRevision();
           pushToWrite(new string(input.dump()));
         }
+        else if(action == "clear_cache") {
+          //This should be thread-safe.
+          nnEval->clearCache();
+          pushToWrite(new string(input.dump()));
+        }
         else if(action == "terminate") {
 
           bool terminateIdFound = false;
