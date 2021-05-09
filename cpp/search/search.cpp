@@ -2425,12 +2425,12 @@ double Search::getExploreSelectionValue(
   //Virtual losses to direct threads down different paths
   if(childVirtualLosses > 0) {
     double virtualLossWeight = childVirtualLosses * searchParams.numVirtualLossesPerThread;
-    childWeight += virtualLossWeight;
 
     double utilityRadius = searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor;
     double virtualLossUtility = (parent.nextPla == P_WHITE ? -utilityRadius : utilityRadius);
-    double virtualLossWeightFrac = (double)virtualLossWeight / childWeight;
+    double virtualLossWeightFrac = (double)virtualLossWeight / (virtualLossWeight + std::max(0.25,childWeight));
     childUtility = childUtility + (virtualLossUtility - childUtility) * virtualLossWeightFrac;
+    childWeight += virtualLossWeight;
   }
 
   if(isDuringSearch && (&parent == rootNode)) {
@@ -3227,6 +3227,9 @@ bool Search::playoutDescend(
        thread.history.moveHistory.size() == rootHistory.moveHistory.size() + 1 &&
        node.prevMoveLoc == Board::PASS_LOC)
   ) {
+    //Avoid running "too fast", by making sure that a leaf evaluation takes roughly the same time as a genuine nn eval
+    //This stops a thread from building a silly number of visits to distort MCTS statistics other threads are stuck on the GPU.
+    nnEvaluator->waitForNextNNEvalIfAny();
     if(thread.history.isNoResult) {
       double winLossValue = 0.0;
       double noResultValue = 1.0;

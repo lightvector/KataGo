@@ -144,6 +144,10 @@ class NNEvaluator {
     bool includeOwnerMap
   );
 
+  //If there is at least one evaluate ongoing, wait until at least one finishes.
+  //Returns immediately if there isn't one ongoing right now.
+  void waitForNextNNEvalIfAny();
+
   //Actually spawn threads to handle evaluations.
   //If doRandomize, uses randSeed as a seed, further randomized per-thread
   //If not doRandomize, uses defaultSymmetry for all nn evaluations, unless a symmetry is requested in MiscNNInputParams.
@@ -214,6 +218,11 @@ class NNEvaluator {
   bool isKilled; //Flag used for killing server threads
   int numServerThreadsStartingUp; //Counter for waiting until server threads are spawned
   std::condition_variable mainThreadWaitingForSpawn; //Condvar for waiting until server threads are spawned
+
+  int numOngoingEvals; //Current number of ongoing evals.
+  int numWaitingEvals; //Current number of things waiting for finish.
+  int numEvalsToAwaken; //Current number of things waitingForFinish that should be woken up. Used to avoid spurious wakeups.
+  std::condition_variable waitingForFinish; //Condvar for waiting for at least one ongoing eval to finish.
 
   //Randomization settings for symmetries
   bool currentDoRandomize;
