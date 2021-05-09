@@ -1475,7 +1475,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   // ---------------------------------------------------------------------------------------------------
   //TREE MODE
 
-  auto treePosHandler = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy](
+  auto treePosHandler = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy,&flipIfPassOrWFirst](
     Search* search, Rand& rand, const BoardHistory& treeHist, int initialTurnNumber, bool markedAsHintPos
   ) {
     if(shouldStop.load(std::memory_order_acquire))
@@ -1567,6 +1567,11 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     if(weight <= 0)
       return;
     sample.weight = weight;
+
+    if(flipIfPassOrWFirst) {
+      if(treeHist.hasBlackPassOrWhiteFirst())
+        sample = sample.getColorFlipped();
+    }
 
     expensiveEvaluateMove(
       search, sample.hintLoc, pla, board, hist,

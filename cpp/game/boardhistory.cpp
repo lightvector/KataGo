@@ -1057,6 +1057,36 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
 }
 
+
+bool BoardHistory::hasBlackPassOrWhiteFirst() const {
+  //First move was made by white this game, on an empty board.
+  if(initialBoard.isEmpty() && moveHistory.size() > 0 && moveHistory[0].pla == P_WHITE)
+    return true;
+  //Black passed exactly once or white doublemoved
+  int numBlackPasses = 0;
+  int numWhitePasses = 0;
+  int numBlackDoubleMoves = 0;
+  int numWhiteDoubleMoves = 0;
+  for(int i = 0; i<moveHistory.size(); i++) {
+    if(moveHistory[i].loc == Board::PASS_LOC && moveHistory[i].pla == P_BLACK)
+      numBlackPasses++;
+    if(moveHistory[i].loc == Board::PASS_LOC && moveHistory[i].pla == P_WHITE)
+      numWhitePasses++;
+    if(i > 0 && moveHistory[i].pla == P_BLACK && moveHistory[i-1].pla == P_BLACK)
+      numBlackDoubleMoves++;
+    if(i > 0 && moveHistory[i].pla == P_WHITE && moveHistory[i-1].pla == P_WHITE)
+      numWhiteDoubleMoves++;
+  }
+  if(numBlackPasses == 1 && numWhitePasses == 0 && numBlackDoubleMoves == 0 && numWhiteDoubleMoves == 0)
+    return true;
+  if(numBlackPasses == 0 && numWhitePasses == 0 && numBlackDoubleMoves == 0 && numWhiteDoubleMoves == 1)
+    return true;
+
+  return false;
+}
+
+
+
 KoHashTable::KoHashTable()
   :koHashHistorySortedByLowBits(),
    firstTurnIdxWithKoHistory(0)

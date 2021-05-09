@@ -785,47 +785,8 @@ void Sgf::samplePositionIfUniqueHelper(
   sampleBuf.weight = 1.0;
 
   if(flipIfPassOrWFirst) {
-    bool shouldFlip = false;
-    //Flip if first move was made by white this game, on an empty board.
-    if(!shouldFlip && hist.initialBoard.isEmpty() && hist.moveHistory.size() > 0 && hist.moveHistory[0].pla == P_WHITE)
-      shouldFlip = true;
-    //Flip if black passed exactly once or white doublemoved
-    if(!shouldFlip) {
-      int numBlackPasses = 0;
-      int numWhitePasses = 0;
-      int numBlackDoubleMoves = 0;
-      int numWhiteDoubleMoves = 0;
-      for(int i = 0; i<hist.moveHistory.size(); i++) {
-        if(hist.moveHistory[i].loc == Board::PASS_LOC && hist.moveHistory[i].pla == P_BLACK)
-          numBlackPasses++;
-        if(hist.moveHistory[i].loc == Board::PASS_LOC && hist.moveHistory[i].pla == P_WHITE)
-          numWhitePasses++;
-        if(i > 0 && hist.moveHistory[i].pla == P_BLACK && hist.moveHistory[i-1].pla == P_BLACK)
-          numBlackDoubleMoves++;
-        if(i > 0 && hist.moveHistory[i].pla == P_WHITE && hist.moveHistory[i-1].pla == P_WHITE)
-          numWhiteDoubleMoves++;
-      }
-      if(numBlackPasses == 1 && numWhitePasses == 0 && numBlackDoubleMoves == 0 && numWhiteDoubleMoves == 0)
-        shouldFlip = true;
-      if(numBlackPasses == 0 && numWhitePasses == 0 && numBlackDoubleMoves == 0 && numWhiteDoubleMoves == 1)
-        shouldFlip = true;
-    }
-
-    if(shouldFlip) {
-      Board newBoard(sampleBuf.board.x_size,sampleBuf.board.y_size);
-      for(int y = 0; y < sampleBuf.board.y_size; y++) {
-        for(int x = 0; x < sampleBuf.board.x_size; x++) {
-          Loc loc = Location::getLoc(x,y,sampleBuf.board.x_size);
-          if(sampleBuf.board.colors[loc] == C_BLACK || sampleBuf.board.colors[loc] == C_WHITE)
-            newBoard.setStone(loc, getOpp(sampleBuf.board.colors[loc]));
-        }
-      }
-      sampleBuf.board = newBoard;
-      sampleBuf.nextPla = getOpp(sampleBuf.nextPla);
-      for(int i = 0; i<sampleBuf.moves.size(); i++)
-        sampleBuf.moves[i].pla = getOpp(sampleBuf.moves[i].pla);
-    }
-
+    if(hist.hasBlackPassOrWhiteFirst())
+      sampleBuf = sampleBuf.getColorFlipped();
   }
 
   f(sampleBuf,hist,comments);
@@ -925,6 +886,24 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
     throw StringError("Error parsing position sample json\n" + s + "\n" + e.what());
   }
   return sample;
+}
+
+Sgf::PositionSample Sgf::PositionSample::getColorFlipped() const {
+  Sgf::PositionSample other = *this;
+  Board newBoard(other.board.x_size,other.board.y_size);
+  for(int y = 0; y < other.board.y_size; y++) {
+    for(int x = 0; x < other.board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,other.board.x_size);
+      if(other.board.colors[loc] == C_BLACK || other.board.colors[loc] == C_WHITE)
+        newBoard.setStone(loc, getOpp(other.board.colors[loc]));
+    }
+  }
+  other.board = newBoard;
+  other.nextPla = getOpp(other.nextPla);
+  for(int i = 0; i<other.moves.size(); i++)
+    other.moves[i].pla = getOpp(other.moves[i].pla);
+
+  return other;
 }
 
 bool Sgf::PositionSample::isEqualForTesting(const Sgf::PositionSample& other, bool checkNumCaptures, bool checkSimpleKo) const {

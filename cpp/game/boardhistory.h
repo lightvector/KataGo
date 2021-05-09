@@ -161,6 +161,10 @@ struct BoardHistory {
   int computeNumHandicapStones() const;
   int computeWhiteHandicapBonus() const;
 
+  //Heuristically check if this history looks like an sgf variation where black passed to effectively
+  //turn into white, or similar.
+  bool hasBlackPassOrWhiteFirst() const;
+
 private:
   bool koHashOccursInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
   void setKoRecapBlocked(Loc loc, bool b);
