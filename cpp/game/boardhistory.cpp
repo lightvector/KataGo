@@ -1092,6 +1092,7 @@ KoHashTable::KoHashTable()
    firstTurnIdxWithKoHistory(0)
 {
   idxTable = new uint32_t[TABLE_SIZE];
+  std::fill(idxTable,idxTable+TABLE_SIZE,(uint32_t)(0));
 }
 KoHashTable::~KoHashTable() {
   delete[] idxTable;
