@@ -232,6 +232,7 @@ endif()
 
 add_executable(katago
   core/global.cpp
+  core/base64.cpp
   core/bsearch.cpp
   core/config_parser.cpp
   core/datetime.cpp
