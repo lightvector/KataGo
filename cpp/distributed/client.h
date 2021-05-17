@@ -158,6 +158,7 @@ namespace Client {
     std::string clientInstanceId;
 
     Logger* logger;
+    std::mutex randMutex;
     Rand rand;
 
     //Mutex to guard downloadStateByUrl, which manages what threads are downloading or waiting on downloads

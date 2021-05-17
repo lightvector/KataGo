@@ -454,7 +454,11 @@ httplib::Result Connection::post(const string& subPath, const string& data, cons
 
 httplib::Result Connection::postMulti(const string& subPath, const httplib::MultipartFormDataItems& data) {
   string queryPath = concatPaths(baseResourcePath,subPath);
-  string boundary = "___" + Global::uint64ToHexString(rand.nextUInt64()) + Global::uint64ToHexString(rand.nextUInt64()) + Global::uint64ToHexString(rand.nextUInt64());
+  string boundary;
+  {
+    std::lock_guard<std::mutex> lock(randMutex);
+    boundary = "___" + Global::uint64ToHexString(rand.nextUInt64()) + Global::uint64ToHexString(rand.nextUInt64()) + Global::uint64ToHexString(rand.nextUInt64());
+  }
 
   std::lock_guard<std::mutex> lock(mutex);
   if(isSSL) {
@@ -628,7 +632,11 @@ bool Connection::retryLoop(const char* errorLabel, int maxTries, std::function<b
         logger->write(string("Error was:\n") + e.what());
       }
 
-      double intervalRemaining = failureInterval * (0.95 + rand.nextDouble(0.1));
+      double intervalRemaining;
+      {
+        std::lock_guard<std::mutex> lock(randMutex);
+        intervalRemaining = failureInterval * (0.95 + rand.nextDouble(0.1));
+      }
       while(intervalRemaining > 0.0) {
         double sleepTime = std::min(intervalRemaining, stopPollFrequency);
         if(shouldStop())
@@ -790,8 +798,11 @@ string Connection::getTmpModelPath(const Client::ModelInfo& modelInfo, const str
   static const char* chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   uint32_t len = (uint32_t)std::strlen(chars);
   string randStr;
-  for(int i = 0; i<10; i++)
-    randStr += chars[rand.nextUInt(len)];
+  {
+    std::lock_guard<std::mutex> lock(randMutex);
+    for(int i = 0; i<10; i++)
+      randStr += chars[rand.nextUInt(len)];
+  }
   if(Global::isSuffix(modelInfo.downloadUrl,".txt.gz"))
     return modelDir + "/" + modelInfo.name + ".tmp." + randStr + ".txt.gz";
   return modelDir + "/" + modelInfo.name + ".tmp." + randStr + ".bin.gz";
