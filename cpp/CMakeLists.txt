@@ -238,6 +238,7 @@ add_executable(katago
   core/datetime.cpp
   core/elo.cpp
   core/fancymath.cpp
+  core/fileutils.cpp
   core/hash.cpp
   core/logger.cpp
   core/makedir.cpp
