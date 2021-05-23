@@ -42,6 +42,8 @@ parser.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated devi
 parser.add_argument('-gpu-memory-frac', help='Fraction of gpu memory to use', type=float, required=True)
 parser.add_argument('-model-kind', help='String name for what model to use', required=True)
 parser.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
+parser.add_argument('-lr-scale-before-export', help='LR multiplier on the hardcoded schedule just before export', type=float, required=False)
+parser.add_argument('-lr-scale-before-export-epochs', help='Number of epochs for -lr-scale-before-export', type=int, required=False)
 parser.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
 parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, required=True)
 parser.add_argument('-epochs-per-export', help='Export model once every this many epochs', type=int, required=False)
@@ -66,6 +68,8 @@ multi_gpus = args["multi_gpus"]
 gpu_memory_frac = args["gpu_memory_frac"]
 model_kind = args["model_kind"]
 lr_scale = args["lr_scale"]
+lr_scale_before_export = args["lr_scale_before_export"]
+lr_scale_before_export_epochs = args["lr_scale_before_export_epochs"]
 gnorm_clip_scale = args["gnorm_clip_scale"]
 sub_epochs = args["sub_epochs"]
 epochs_per_export = args["epochs_per_export"]
@@ -84,6 +88,12 @@ if samples_per_epoch is None:
 
 if max_train_bucket_size is None:
   max_train_bucket_size = 1.0e30
+
+if lr_scale_before_export is None:
+  lr_scale_before_export = lr_scale
+
+if lr_scale_before_export_epochs is None:
+  lr_scale_before_export_epochs = 1
 
 if not os.path.exists(traindir):
   os.makedirs(traindir)
@@ -214,6 +224,7 @@ class CustomLoggingHook(tf.estimator.LoggingTensorHook):
       self.handle_logging_values(run_values.results)
     super().after_run(run_context, run_values)
 
+num_epochs_this_instance = 0
 global_latest_extra_stats = {}
 def update_global_latest_extra_stats(results):
   global global_latest_extra_stats
@@ -221,12 +232,17 @@ def update_global_latest_extra_stats(results):
     global_latest_extra_stats[key] = results[key].item()
 
 def model_fn(features,labels,mode,params):
+  global num_epochs_this_instance
   global printed_model_yet
   global initial_weights_already_loaded
 
   print_model = not printed_model_yet
 
-  built = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,batch_size,lr_scale,gnorm_clip_scale,num_gpus_used)
+  lr_scale_to_use = lr_scale
+  if (num_epochs_this_instance + lr_scale_before_export_epochs) % epochs_per_export <= num_epochs_this_instance % epochs_per_export:
+    lr_scale_to_use = lr_scale_before_export
+
+  built = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,batch_size,lr_scale_to_use,gnorm_clip_scale,num_gpus_used)
 
   if mode == tf.estimator.ModeKeys.PREDICT:
     model = built
@@ -648,7 +664,6 @@ def maybe_reload_training_data():
 #Tensorflow doesn't offer a good way to save checkpoints more sparsely, so we have to manually do it.
 last_longterm_checkpoint_save_time = datetime.datetime.now()
 
-num_epochs_this_instance = 0
 globalstep = None
 try:
   globalstep = int(estimator.get_variable_value("global_step:0"))
