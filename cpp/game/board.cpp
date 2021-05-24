@@ -1984,27 +1984,23 @@ void Board::calculateAreaForPla(
   bool plaHasBeenKilled[MAX_PLAY_SIZE];
   memset(plaHasBeenKilled, false, sizeof(plaHasBeenKilled[0])*numPlaHeads);
 
+  //Zero out vital liberties by head
+  uint16_t vitalCountByPlaHead[MAX_ARR_SIZE];
+  for(int i = 0; i<numPlaHeads; ++i)
+    vitalCountByPlaHead[allPlaHeads[i]] = 0;
+
+  //Walk all regions that are still bordered only by pass-alive stuff and accumulate a vital liberty to each pla it is vital for.
+  for(int i = 0; i<numRegions; ++i) {
+    int vStart = vitalStart[i];
+    int vLen = vitalLen[i];
+    for(int j = 0; j<vLen; ++j) {
+      Loc plaHead = vitalForPlaHeadsLists[vStart+j];
+      vitalCountByPlaHead[plaHead] += 1;
+    }
+  }
 
   //Now, we can begin the benson iteration
-  uint16_t vitalCountByPlaHead[MAX_ARR_SIZE];
   while(true) {
-    //Zero out vital liberties by head
-    for(int i = 0; i<numPlaHeads; ++i)
-      vitalCountByPlaHead[allPlaHeads[i]] = 0;
-
-    //Walk all regions that are still bordered only by pass-alive stuff and accumulate a vital liberty to each pla it is vital for.
-    for(int i = 0; i<numRegions; ++i) {
-      if(bordersNonPassAlivePlaByHead[regionHeads[i]])
-        continue;
-
-      int vStart = vitalStart[i];
-      int vLen = vitalLen[i];
-      for(int j = 0; j<vLen; ++j) {
-        Loc plaHead = vitalForPlaHeadsLists[vStart+j];
-        vitalCountByPlaHead[plaHead] += 1;
-      }
-    }
-
     //Walk all player heads and kill them if they haven't accumulated at least 2 vital liberties
     bool killedAnything = false;
     for(int i = 0; i<numPlaHeads; ++i) {
@@ -2019,11 +2015,19 @@ void Board::calculateAreaForPla(
         //Walk the pla chain to update bordering regions
         Loc cur = plaHead;
         do {
-          FOREACHADJ(
-              Loc adj = cur + ADJOFFSET;
-              if(colors[adj] == C_EMPTY || colors[adj] == opp)
-                bordersNonPassAlivePlaByHead[regionHeads[regionIdxByLoc[adj]]] = true;
-          );
+          for(int j = 0; j<4; ++j) {
+            Loc adj = cur + adj_offsets[j];
+            Loc regionIdx = regionIdxByLoc[adj];
+            if(!bordersNonPassAlivePlaByHead[regionHeads[regionIdx]] && (colors[adj] == C_EMPTY || colors[adj] == opp)){
+              bordersNonPassAlivePlaByHead[regionHeads[regionIdx]] = true;
+              int vStart = vitalStart[regionIdx];
+              int vLen = vitalLen[regionIdx];
+              for(int k = 0; k<vLen; ++k) {
+                Loc plaH = vitalForPlaHeadsLists[vStart+k];
+                vitalCountByPlaHead[plaH] -= 1;
+              }
+            }
+          }
           cur = next_in_chain[cur];
         } while (cur != plaHead);
       }
