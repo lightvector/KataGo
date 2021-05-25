@@ -1,5 +1,6 @@
 #include "../core/base64.h"
 
+#include <cctype>
 #include "../core/test.h"
 
 using namespace std;
