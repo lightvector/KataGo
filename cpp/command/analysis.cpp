@@ -136,6 +136,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   };
 
   SearchParams defaultParams;
+  defaultParams.rootPlaySelectionPruning = true;
   Player defaultPerspective;
   loadParams(cfg, defaultParams, defaultPerspective, C_EMPTY);
 

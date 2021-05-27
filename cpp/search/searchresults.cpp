@@ -50,7 +50,7 @@ bool Search::getPlaySelectionValues(
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
   bool result = getPlaySelectionValues(
     node,locs,playSelectionValues,retVisitCounts,scaleMaxToAtLeast,allowDirectPolicyMoves,
-    false,lcbBuf,radiusBuf
+    false,false,lcbBuf,radiusBuf
   );
   return result;
 }
@@ -58,7 +58,7 @@ bool Search::getPlaySelectionValues(
 bool Search::getPlaySelectionValues(
   const SearchNode& node,
   vector<Loc>& locs, vector<double>& playSelectionValues, vector<double>* retVisitCounts, double scaleMaxToAtLeast,
-  bool allowDirectPolicyMoves, bool alwaysComputeLcb,
+  bool allowDirectPolicyMoves, bool alwaysComputeLcb, bool neverUseLcb,
   //Note: lcbBuf is signed from the player to move's perspective
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
 ) const {
@@ -155,7 +155,7 @@ bool Search::getPlaySelectionValues(
   }
 
   //Now compute play selection values taking into account LCB
-  if(alwaysComputeLcb || (searchParams.useLcbForSelection && numChildren > 0)) {
+  if(!neverUseLcb && (alwaysComputeLcb || (searchParams.useLcbForSelection && numChildren > 0))) {
     double bestLcb = -1e10;
     int bestLcbIndex = -1;
     for(int i = 0; i<numChildren; i++) {
@@ -1396,7 +1396,7 @@ bool Search::getAnalysisJson(
 
   // Stats for root position
   {
-    ReportedSearchValues rootVals;
+    ReportedSearchValues rootVals; // recompute without visits added due to noise
     bool suc = getRootValues(rootVals);
     if(!suc)
       return false;
