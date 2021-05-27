@@ -232,13 +232,11 @@ endif()
 
 add_executable(katago
   core/global.cpp
-  core/base64.cpp
   core/bsearch.cpp
   core/config_parser.cpp
   core/datetime.cpp
   core/elo.cpp
   core/fancymath.cpp
-  core/fileutils.cpp
   core/hash.cpp
   core/logger.cpp
   core/makedir.cpp
@@ -248,6 +246,7 @@ add_executable(katago
   core/rand_helpers.cpp
   core/sha2.cpp
   core/test.cpp
+  core/threadsafecounter.cpp
   core/threadsafequeue.cpp
   core/timer.cpp
   game/board.cpp
