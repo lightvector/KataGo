@@ -52,6 +52,8 @@ $$BUTTON
 
 $$WHITE_HANDICAP_BONUS
 
+$$FRIENDLY_PASS_OK
+
 # Bot behavior---------------------------------------------------------------------------------------
 
 # Resignation -------------
@@ -193,6 +195,9 @@ string GTPConfig::makeConfig(
 
   if(rules.hasButton) replace("$$BUTTON", "hasButton = true");
   else                replace("$$BUTTON", "hasButton = false");
+
+  if(rules.friendlyPassOk) replace("$$FRIENDLY_PASS_OK", "friendlyPassOk = true");
+  else                     replace("$$FRIENDLY_PASS_OK", "friendlyPassOk = false");
 
   if(rules.whiteHandicapBonusRule == Rules::WHB_ZERO)              replace("$$WHITE_HANDICAP_BONUS", "whiteHandicapBonus = 0  # options: 0, N, N-1");
   else if(rules.whiteHandicapBonusRule == Rules::WHB_N)            replace("$$WHITE_HANDICAP_BONUS", "whiteHandicapBonus = N  # options: 0, N, N-1");

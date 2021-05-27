@@ -239,7 +239,9 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     &baseParams,
     &gameSeedBase
   ](int threadIdx) {
-    vector<std::atomic<bool>*> stopConditions = {&shouldStop};
+    auto shouldStopFunc = []() {
+      return shouldStop.load();
+    };
 
     string prevModelName;
     Rand thisLoopSeedRand;
@@ -285,13 +287,13 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
           seed, botSpecB, botSpecW, forkData, NULL, logger,
-          stopConditions,
+          shouldStopFunc,
           (switchNetsMidGame ? checkForNewNNEval : nullptr),
           nullptr, false
         );
       }
 
-      //NULL gamedata will happen when the game is interrupted by stopConditions, which means we should also stop.
+      //NULL gamedata will happen when the game is interrupted by shouldStop, which means we should also stop.
       //Or when we run out of total games.
       bool shouldContinue = gameData != NULL;
       //Note that if we've gotten a newNNEval, we're actually pushing the game as data for the new one, rather than the old one!

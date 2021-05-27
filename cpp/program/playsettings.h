@@ -12,6 +12,10 @@ struct PlaySettings {
   //Occasionally try some alternative moves and search the responses to them.
   double sidePositionProb;
 
+  //Temperature to use for placing handicap stones and for initializing the board position
+  double policyInitAreaTemperature;
+  double handicapTemperature;
+
   //Use this many visits in a short search to estimate the score, for adjusting komi
   int compensateKomiVisits;
   int estimateLeadVisits;

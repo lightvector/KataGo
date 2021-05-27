@@ -156,6 +156,14 @@ string SgfNode::getSingleProperty(const char* key) const {
   return prop[0];
 }
 
+const vector<string> SgfNode::getProperties(const char* key) const {
+  if(props == NULL)
+    propertyFail("SGF does not contain property: " + string(key));
+  if(!contains(*props,key))
+    propertyFail("SGF does not contain property: " + string(key));
+  return map_get(*props,key);
+}
+
 bool SgfNode::hasPlacements() const {
   return props != NULL && (contains(*props,"AB") || contains(*props,"AW") || contains(*props,"AE"));
 }
@@ -353,7 +361,7 @@ float Sgf::getKomi() const {
     propertyFail("Could not parse komi in sgf");
 
   if(!Rules::komiIsIntOrHalfInt(komi)) {
-    //Hack - if the komi is a quarter integer and it looks like a Chines GoGoD file, then double komi and accept
+    //Hack - if the komi is a quarter integer and it looks like a Chinese GoGoD file, then double komi and accept
     if(Rules::komiIsIntOrHalfInt(komi*2.0f) && nodes[0]->hasProperty("US") && nodes[0]->hasProperty("RU") &&
        Global::isPrefix(nodes[0]->getSingleProperty("US"),"GoGoD") &&
        Global::toLower(nodes[0]->getSingleProperty("RU")) == "chinese")
@@ -361,6 +369,23 @@ float Sgf::getKomi() const {
     else
       propertyFail("Komi in sgf is not integer or half-integer");
   }
+
+  //Hack - check for foxwq sgfs with weird komis
+  if(nodes[0]->hasProperty("AP") && contains(nodes[0]->getProperties("AP"),"foxwq")) {
+    if(komi == 550)
+      komi = 5.5f;
+    else if(komi == 325 || komi == 650)
+      komi = 6.5f;
+    else if(komi == 375 || komi == 750)
+      komi = 7.5f;
+    else if(komi == 350 || komi == 700)
+      komi = 7.0f;
+    else if(komi == 0)
+      komi = 0.0f;
+    else
+      propertyFail("Currently no case implemented for foxwq komi: " + Global::floatToString(komi));
+  }
+
   return komi;
 }
 
@@ -388,6 +413,122 @@ Rules Sgf::getRulesOrFail() const {
   //In SGF files the komi comes from the KM tag.
   rules.komi = getKomi();
   return rules;
+}
+
+Player Sgf::getSgfWinner() const {
+  checkNonEmpty(nodes);
+  return nodes[0]->getSgfWinner();
+}
+
+int Sgf::getRank(Player pla) const {
+  string rankStr;
+  if(pla == P_BLACK) {
+    if(!nodes[0]->hasProperty("BR"))
+      return Sgf::RANK_UNKNOWN;
+    rankStr = nodes[0]->getSingleProperty("BR");
+  }
+  else if(pla == P_WHITE) {
+    if(!nodes[0]->hasProperty("WR"))
+      return Sgf::RANK_UNKNOWN;
+    rankStr = nodes[0]->getSingleProperty("WR");
+  }
+  else {
+    assert(false);
+    return Sgf::RANK_UNKNOWN;
+  }
+  int rank;
+  static constexpr int TOP_DAN = 13;
+  static constexpr int BOTTOM_KYU = 50;
+  string rankStrLower = Global::toLower(rankStr);
+
+  if(Global::isSuffix(rankStrLower,"d")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower,"d"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return rank-1;
+  }
+  if(Global::isSuffix(rankStrLower," d")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower," d"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return rank-1;
+  }
+  if(Global::isSuffix(rankStrLower,"dan")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower,"dan"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return rank-1;
+  }
+  if(Global::isSuffix(rankStrLower," dan")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower," dan"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return rank-1;
+  }
+  // \346\256\265 is UTF8 for the chinese "duan" character.
+  if(Global::isSuffix(rankStr,"\346\256\265")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStr,"\346\256\265"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return rank-1;
+  }
+  if(Global::isSuffix(rankStrLower,"p")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower,"p"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return std::max(rank,9)-1;
+  }
+  if(Global::isSuffix(rankStrLower," p")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower," p"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return std::max(rank,9)-1;
+  }
+  if(Global::isSuffix(rankStrLower,"pro")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower,"pro"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return std::max(rank,9)-1;
+  }
+  if(Global::isSuffix(rankStrLower," pro")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower," pro"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return std::max(rank,9)-1;
+  }
+  if(Global::isPrefix(rankStr,"P") && Global::isSuffix(rankStr,"\346\256\265")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(Global::chopPrefix(rankStr,"P"),"\346\256\265"),rank);
+    if(suc && rank >= 1 && rank <= TOP_DAN)
+      return std::max(rank,9)-1;
+  }
+  if(Global::isSuffix(rankStrLower,"k")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower,"k"),rank);
+    if(suc && rank >= 1 && rank <= BOTTOM_KYU)
+      return -rank;
+  }
+  if(Global::isSuffix(rankStrLower," k")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower," k"),rank);
+    if(suc && rank >= 1 && rank <= BOTTOM_KYU)
+      return -rank;
+  }
+  if(Global::isSuffix(rankStrLower,"kyu")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower,"kyu"),rank);
+    if(suc && rank >= 1 && rank <= BOTTOM_KYU)
+      return -rank;
+  }
+  if(Global::isSuffix(rankStrLower," kyu")) {
+    bool suc = Global::tryStringToInt(Global::chopSuffix(rankStrLower," kyu"),rank);
+    if(suc && rank >= 1 && rank <= BOTTOM_KYU)
+      return -rank;
+  }
+  propertyFail("Could not parse rank in sgf: " + rankStr);
+  return Sgf::RANK_UNKNOWN;
+}
+
+string Sgf::getPlayerName(Player pla) const {
+  if(pla == P_BLACK) {
+    if(!nodes[0]->hasProperty("PB"))
+      return "";
+    return nodes[0]->getSingleProperty("PB");
+  }
+  else if(pla == P_WHITE) {
+    if(!nodes[0]->hasProperty("PW"))
+      return "";
+    return nodes[0]->getSingleProperty("PW");
+  }
+  assert(false);
+  return "";
 }
 
 void Sgf::getPlacements(vector<Move>& moves, int xSize, int ySize) const {
@@ -429,6 +570,8 @@ void Sgf::getMovesHelper(vector<Move>& moves, int xSize, int ySize) const {
 void Sgf::loadAllUniquePositions(
   std::set<Hash128>& uniqueHashes,
   bool hashComments,
+  bool hashParent,
+  Rand* rand,
   vector<PositionSample>& samples
 ) const {
   std::function<void(PositionSample&, const BoardHistory&, const string&)> f = [&samples](PositionSample& sample, const BoardHistory& hist, const string& comments) {
@@ -437,12 +580,14 @@ void Sgf::loadAllUniquePositions(
     samples.push_back(sample);
   };
 
-  iterAllUniquePositions(uniqueHashes,hashComments,f);
+  iterAllUniquePositions(uniqueHashes,hashComments,hashParent,rand,f);
 }
 
 void Sgf::iterAllUniquePositions(
   std::set<Hash128>& uniqueHashes,
   bool hashComments,
+  bool hashParent,
+  Rand* rand,
   std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
 ) const {
   XYSize size = getXYSize();
@@ -460,7 +605,7 @@ void Sgf::iterAllUniquePositions(
 
   PositionSample sampleBuf;
   std::vector<std::pair<int64_t,int64_t>> variationTraceNodesBranch;
-  iterAllUniquePositionsHelper(board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,hashComments,variationTraceNodesBranch,f);
+  iterAllUniquePositionsHelper(board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,hashComments,hashParent,rand,variationTraceNodesBranch,f);
 }
 
 void Sgf::iterAllUniquePositionsHelper(
@@ -470,6 +615,8 @@ void Sgf::iterAllUniquePositionsHelper(
   int initialTurnNumber,
   std::set<Hash128>& uniqueHashes,
   bool hashComments,
+  bool hashParent,
+  Rand* rand,
   std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
   std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
 ) const {
@@ -505,7 +652,7 @@ void Sgf::iterAllUniquePositionsHelper(
 
         hist.clear(board,nextPla,rules,0);
       }
-      samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,comments,f);
+      samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,hashParent,comments,f);
     }
 
     //Handle actual moves
@@ -530,15 +677,29 @@ void Sgf::iterAllUniquePositionsHelper(
       if(hist.moveHistory.size() > 0x3FFFFFFF)
         throw StringError("too many moves in sgf");
       nextPla = getOpp(buf[j].pla);
-      samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,comments,f);
+      samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,hashParent,comments,f);
     }
   }
 
-  for(size_t i = 0; i<children.size(); i++) {
+
+  std::vector<size_t> permutation(children.size());
+  for(size_t i = 0; i<children.size(); i++)
+    permutation[i] = i;
+  if(rand != NULL) {
+    for(size_t i = 1; i<permutation.size(); i++) {
+      size_t r = (size_t)rand->nextUInt64(i+1);
+      std::swap(permutation[i],permutation[r]);
+    }
+  }
+
+  for(size_t c = 0; c<children.size(); c++) {
+    size_t i = permutation[c];
     std::unique_ptr<Board> copy = std::make_unique<Board>(board);
     std::unique_ptr<BoardHistory> histCopy = std::make_unique<BoardHistory>(hist);
     variationTraceNodesBranch.push_back(std::make_pair((int64_t)nodes.size(),(int64_t)i));
-    children[i]->iterAllUniquePositionsHelper(*copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,variationTraceNodesBranch,f);
+    children[i]->iterAllUniquePositionsHelper(
+      *copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,hashParent,rand,variationTraceNodesBranch,f
+    );
     assert(variationTraceNodesBranch.size() > 0);
     variationTraceNodesBranch.erase(variationTraceNodesBranch.begin()+(variationTraceNodesBranch.size()-1));
   }
@@ -550,6 +711,7 @@ void Sgf::samplePositionIfUniqueHelper(
   int initialTurnNumber,
   std::set<Hash128>& uniqueHashes,
   bool hashComments,
+  bool hashParent,
   const std::string& comments,
   std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
 ) const {
@@ -570,6 +732,19 @@ void Sgf::samplePositionIfUniqueHelper(
 
   if(hashComments)
     situationHash.hash0 += Hash::simpleHash(comments.c_str());
+
+  if(hashParent) {
+    Hash128 parentHash = Hash128();
+    if(hist.moveHistory.size() > 0) {
+      const Board& prevBoard = hist.getRecentBoard(1);
+      parentHash = prevBoard.pos_hash;
+      if(prevBoard.ko_loc != Board::NULL_LOC)
+        parentHash ^= Board::ZOBRIST_KO_LOC_HASH[prevBoard.ko_loc];
+    }
+    //Mix in a blended up hash of the previous board state to avoid zobrist cancellation, also swapping halves
+    Hash128 mixed = Hash128(Hash::murmurMix(parentHash.hash1),Hash::splitMix64(parentHash.hash0));
+    situationHash ^= mixed;
+  }
 
   if(contains(uniqueHashes,situationHash))
     return;
@@ -702,6 +877,29 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
   }
   return sample;
 }
+
+bool Sgf::PositionSample::isEqualForTesting(const Sgf::PositionSample& other, bool checkNumCaptures, bool checkSimpleKo) const {
+  if(!board.isEqualForTesting(other.board,checkNumCaptures,checkSimpleKo))
+    return false;
+  if(nextPla != other.nextPla)
+    return false;
+  if(moves.size() != other.moves.size())
+    return false;
+  for(size_t i = 0; i<moves.size(); i++) {
+    if(moves[i].pla != other.moves[i].pla)
+      return false;
+    if(moves[i].loc != other.moves[i].loc)
+      return false;
+  }
+  if(initialTurnNumber != other.initialTurnNumber)
+    return false;
+  if(hintLoc != other.hintLoc)
+    return false;
+  if(weight != other.weight)
+    return false;
+  return true;
+}
+
 
 //PARSING---------------------------------------------------------------------
 

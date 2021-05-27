@@ -62,8 +62,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   int numAnalysisThreadsCmdline;
   bool quitWithoutWaiting;
 
+  KataGoCommandLine cmd("Run KataGo parallel JSON-based analysis engine.");
   try {
-    KataGoCommandLine cmd("Run KataGo parallel JSON-based analysis engine.");
     cmd.addConfigFileArg("","analysis_example.cfg");
     cmd.addModelFileArg();
     cmd.setShortUsageArgLimit();
@@ -180,6 +180,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
 
   logger.write("Loaded config "+ cfg.getFileName());
   logger.write("Loaded model "+ modelFile);
+  cmd.logOverrides(logger);
 
   ThreadSafeQueue<string*> toWriteQueue;
   auto writeLoop = [&toWriteQueue,&logAllResponses,&logger]() {

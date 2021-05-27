@@ -5,6 +5,98 @@
 
 using namespace std;
 
+static int getDefaultMaxExtraBlack(double sqrtBoardArea) {
+  if(sqrtBoardArea <= 10.00001)
+    return 0;
+  if(sqrtBoardArea <= 14.00001)
+    return 1;
+  if(sqrtBoardArea <= 16.00001)
+    return 2;
+  if(sqrtBoardArea <= 17.00001)
+    return 3;
+  if(sqrtBoardArea <= 18.00001)
+    return 4;
+  return 5;
+}
+
+ExtraBlackAndKomi PlayUtils::chooseExtraBlackAndKomi(
+  float base, float stdev, double allowIntegerProb,
+  double handicapProb, int numExtraBlackFixed,
+  double bigStdevProb, float bigStdev, double sqrtBoardArea, Rand& rand
+) {
+  int extraBlack = 0;
+  float komi = base;
+
+  float stdevToUse = 0.0f;
+  if(stdev > 0.0f)
+    stdevToUse = stdev;
+  if(bigStdev > 0.0f && rand.nextBool(bigStdevProb))
+    stdevToUse = bigStdev;
+  //Adjust for board size, so that we don't give the same massive komis on smaller boards
+  stdevToUse = stdevToUse * (float)(sqrtBoardArea / 19.0);
+
+  //Add handicap stones
+  int defaultMaxExtraBlack = getDefaultMaxExtraBlack(sqrtBoardArea);
+  if((numExtraBlackFixed > 0 || defaultMaxExtraBlack > 0) && rand.nextBool(handicapProb)) {
+    if(numExtraBlackFixed > 0)
+      extraBlack = numExtraBlackFixed;
+    else
+      extraBlack += 1+rand.nextUInt(defaultMaxExtraBlack);
+  }
+
+  bool allowInteger = rand.nextBool(allowIntegerProb);
+
+  ExtraBlackAndKomi ret;
+  ret.extraBlack = extraBlack;
+  ret.komiMean = komi;
+  ret.komiStdev = stdevToUse;
+  //These two are set later
+  ret.makeGameFair = false;
+  ret.makeGameFairForEmptyBoard = false;
+  //This is recorded for application later, since other things may adjust the komi in between.
+  ret.allowInteger = allowInteger;
+  return ret;
+}
+
+
+static float roundKomiWithLinearProb(float komi, Rand& rand) {
+  //Discretize komi
+  float lower = floor(komi*2.0f) / 2.0f;
+  float upper = ceil(komi*2.0f) / 2.0f;
+
+  if(lower == upper)
+    komi = lower;
+  else {
+    assert(upper > lower);
+    if(rand.nextDouble() < (komi - lower) / (upper - lower))
+      komi = upper;
+    else
+      komi = lower;
+  }
+  return komi;
+}
+
+//Also ignores allowInteger
+void PlayUtils::setKomiWithoutNoise(const ExtraBlackAndKomi& extraBlackAndKomi, BoardHistory& hist) {
+  float komi = extraBlackAndKomi.komiMean;
+  komi = roundAndClipKomi(komi, hist.getRecentBoard(0), false);
+  assert(Rules::komiIsIntOrHalfInt(komi));
+  hist.setKomi(komi);
+}
+
+void PlayUtils::setKomiWithNoise(const ExtraBlackAndKomi& extraBlackAndKomi, BoardHistory& hist, Rand& rand) {
+  float komi = extraBlackAndKomi.komiMean;
+  if(extraBlackAndKomi.komiStdev > 0)
+    komi += extraBlackAndKomi.komiStdev * (float)rand.nextGaussianTruncated(3.0);
+  komi = roundKomiWithLinearProb(komi,rand);
+  komi = roundAndClipKomi(komi, hist.getRecentBoard(0), false);
+  assert(Rules::komiIsIntOrHalfInt(komi));
+  if(!extraBlackAndKomi.allowInteger && komi == (int)komi)
+    komi += rand.nextBool(0.5) ? (-0.5f) : (0.5f);
+  hist.setKomi(komi);
+}
+
+
 Loc PlayUtils::chooseRandomLegalMove(const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, Loc banMove) {
   int numLegalMoves = 0;
   Loc locs[Board::MAX_ARR_SIZE];
@@ -69,6 +161,81 @@ Loc PlayUtils::chooseRandomPolicyMove(
   }
   return Board::NULL_LOC;
 }
+
+
+Loc PlayUtils::getGameInitializationMove(
+  Search* botB, Search* botW, Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf,
+  Rand& gameRand, double temperature
+) {
+  NNEvaluator* nnEval = (pla == P_BLACK ? botB : botW)->nnEvaluator;
+  MiscNNInputParams nnInputParams;
+  nnInputParams.drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
+  nnEval->evaluate(board,hist,pla,nnInputParams,buf,false,false);
+  std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
+
+  vector<Loc> locs;
+  vector<double> playSelectionValues;
+  int nnXLen = nnOutput->nnXLen;
+  int nnYLen = nnOutput->nnYLen;
+  assert(nnXLen >= board.x_size);
+  assert(nnYLen >= board.y_size);
+  assert(nnXLen > 0 && nnXLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
+  assert(nnYLen > 0 && nnYLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
+  int policySize = NNPos::getPolicySize(nnXLen,nnYLen);
+  for(int movePos = 0; movePos<policySize; movePos++) {
+    Loc moveLoc = NNPos::posToLoc(movePos,board.x_size,board.y_size,nnXLen,nnYLen);
+    double policyProb = nnOutput->policyProbs[movePos];
+    if(!hist.isLegal(board,moveLoc,pla) || policyProb <= 0)
+      continue;
+    locs.push_back(moveLoc);
+    playSelectionValues.push_back(pow(policyProb,1.0/temperature));
+  }
+
+  //In practice, this should never happen, but in theory, a very badly-behaved net that rounds
+  //all legal moves to zero could result in this. We still go ahead and fail, since this more likely some sort of bug.
+  if(playSelectionValues.size() <= 0)
+    throw StringError("getGameInitializationMove: playSelectionValues.size() <= 0");
+
+  //With a tiny probability, choose a uniformly random move instead of a policy move, to also
+  //add a bit more outlierish variety
+  uint32_t idxChosen;
+  if(gameRand.nextBool(0.0002))
+    idxChosen = gameRand.nextUInt(playSelectionValues.size());
+  else
+    idxChosen = gameRand.nextUInt(playSelectionValues.data(),playSelectionValues.size());
+  Loc loc = locs[idxChosen];
+  return loc;
+}
+
+
+//Try playing a bunch of pure policy moves instead of playing from the start to initialize the board
+//and add entropy
+void PlayUtils::initializeGameUsingPolicy(
+  Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
+  Rand& gameRand, bool doEndGameIfAllPassAlive,
+  double proportionOfBoardArea, double temperature
+) {
+  NNResultBuf buf;
+
+  //This gives us about 15 moves on average for 19x19.
+  int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size * proportionOfBoardArea));
+  assert(numInitialMovesToPlay >= 0);
+  for(int i = 0; i<numInitialMovesToPlay; i++) {
+    Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand, temperature);
+
+    //Make the move!
+    assert(hist.isLegal(board,loc,pla));
+    hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+    pla = getOpp(pla);
+
+    //Rarely, playing the random moves out this way will end the game
+    if(doEndGameIfAllPassAlive)
+      hist.endGameIfAllPassAlive(board);
+    if(hist.isGameFinished)
+      break;
+  }
+}
+
 
 //Place black handicap stones, free placement
 //Does NOT switch the initial player of the board history to white
@@ -168,17 +335,7 @@ float PlayUtils::roundAndClipKomi(double unrounded, const Board& board, bool loo
   return (float)(0.5 * round(2.0 * unrounded));
 }
 
-ReportedSearchValues PlayUtils::getWhiteScoreValues(
-  Search* bot,
-  const Board& board,
-  const BoardHistory& hist,
-  Player pla,
-  int64_t numVisits,
-  Logger& logger,
-  const OtherGameProperties& otherGameProps
-) {
-  assert(numVisits > 0);
-  SearchParams oldParams = bot->searchParams;
+static SearchParams getNoiselessParams(SearchParams oldParams, int64_t numVisits) {
   SearchParams newParams = oldParams;
   newParams.maxVisits = numVisits;
   newParams.maxPlayouts = numVisits;
@@ -189,6 +346,24 @@ ReportedSearchValues PlayUtils::getWhiteScoreValues(
   newParams.rootFpuLossProp = newParams.fpuLossProp;
   newParams.rootDesiredPerChildVisitsCoeff = 0.0;
   newParams.rootNumSymmetriesToSample = 1;
+  newParams.searchFactorAfterOnePass = 1.0;
+  newParams.searchFactorAfterTwoPass = 1.0;
+  if(newParams.numThreads > (numVisits+7)/8)
+    newParams.numThreads = (numVisits+7)/8;
+  return newParams;
+}
+
+ReportedSearchValues PlayUtils::getWhiteScoreValues(
+  Search* bot,
+  const Board& board,
+  const BoardHistory& hist,
+  Player pla,
+  int64_t numVisits,
+  const OtherGameProperties& otherGameProps
+) {
+  assert(numVisits > 0);
+  SearchParams oldParams = bot->searchParams;
+  SearchParams newParams = getNoiselessParams(oldParams,numVisits);
 
   if(otherGameProps.playoutDoublingAdvantage != 0.0 && otherGameProps.playoutDoublingAdvantagePla != C_EMPTY) {
     //Don't actually adjust playouts, but DO tell the bot what it's up against, so that it gives estimates
@@ -199,7 +374,7 @@ ReportedSearchValues PlayUtils::getWhiteScoreValues(
 
   bot->setParams(newParams);
   bot->setPosition(pla,board,hist);
-  bot->runWholeSearch(pla,logger);
+  bot->runWholeSearch(pla);
 
   ReportedSearchValues values = bot->getRootValuesRequireSuccess();
   bot->setParams(oldParams);
@@ -214,7 +389,6 @@ static std::pair<double,double> evalKomi(
   BoardHistory& hist,
   Player pla,
   int64_t numVisits,
-  Logger& logger,
   const OtherGameProperties& otherGameProps,
   float roundedClippedKomi
 ) {
@@ -225,13 +399,13 @@ static std::pair<double,double> evalKomi(
   float oldKomi = hist.rules.komi;
   hist.setKomi(roundedClippedKomi);
 
-  ReportedSearchValues values0 = PlayUtils::getWhiteScoreValues(botB, board, hist, pla, numVisits, logger, otherGameProps);
+  ReportedSearchValues values0 = PlayUtils::getWhiteScoreValues(botB, board, hist, pla, numVisits, otherGameProps);
   double lead = values0.lead;
   double winLoss = values0.winLossValue;
 
   //If we have a second bot, average the two
   if(botW != NULL && botW != botB) {
-    ReportedSearchValues values1 = PlayUtils::getWhiteScoreValues(botW, board, hist, pla, numVisits, logger, otherGameProps);
+    ReportedSearchValues values1 = PlayUtils::getWhiteScoreValues(botW, board, hist, pla, numVisits, otherGameProps);
     lead = 0.5 * (values0.lead + values1.lead);
     winLoss = 0.5 * (values0.winLossValue + values1.winLossValue);
   }
@@ -250,7 +424,6 @@ static double getNaiveEvenKomiHelper(
   BoardHistory& hist,
   Player pla,
   int64_t numVisits,
-  Logger& logger,
   const OtherGameProperties& otherGameProps,
   bool looseClipping
 ) {
@@ -261,7 +434,7 @@ static double getNaiveEvenKomiHelper(
   double lastWinLoss = 0.0;
   double lastLead = 0.0;
   for(int i = 0; i<3; i++) {
-    std::pair<double,double> result = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,hist.rules.komi);
+    std::pair<double,double> result = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps,hist.rules.komi);
     double lead = result.first;
     double winLoss = result.second;
 
@@ -309,7 +482,7 @@ static double getNaiveEvenKomiHelper(
   //Try a small window and do a binary search
   auto evalWinLoss = [&](double delta) {
     double newKomi = hist.rules.komi + delta;
-    double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,PlayUtils::roundAndClipKomi(newKomi,board,looseClipping)).second;
+    double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps,PlayUtils::roundAndClipKomi(newKomi,board,looseClipping)).second;
     // cout << "Delta " << delta << " wr " << winLoss << endl;
     return winLoss;
   };
@@ -388,13 +561,12 @@ void PlayUtils::adjustKomiToEven(
   BoardHistory& hist,
   Player pla,
   int64_t numVisits,
-  Logger& logger,
   const OtherGameProperties& otherGameProps,
   Rand& rand
 ) {
   map<float,std::pair<double,double>> scoreWLCache;
   bool looseClipping = false;
-  double newKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,looseClipping);
+  double newKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps,looseClipping);
   double lower = floor(newKomi * 2.0) * 0.5;
   double upper = lower + 0.5;
   if(rand.nextBool((newKomi - lower) / (upper - lower)))
@@ -411,13 +583,12 @@ float PlayUtils::computeLead(
   BoardHistory& hist,
   Player pla,
   int64_t numVisits,
-  Logger& logger,
   const OtherGameProperties& otherGameProps
 ) {
   map<float,std::pair<double,double>> scoreWLCache;
   bool looseClipping = true;
   float oldKomi = hist.rules.komi;
-  double naiveKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,looseClipping);
+  double naiveKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps,looseClipping);
 
   bool granularityIsCoarse = hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.hasButton;
   if(!granularityIsCoarse) {
@@ -426,7 +597,7 @@ float PlayUtils::computeLead(
   }
 
   auto evalWinLoss = [&](double newKomi) {
-    double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,logger,otherGameProps,PlayUtils::roundAndClipKomi(newKomi,board,looseClipping)).second;
+    double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps,PlayUtils::roundAndClipKomi(newKomi,board,looseClipping)).second;
     // cout << "Delta " << delta << " wr " << winLoss << endl;
     return winLoss;
   };
@@ -492,32 +663,22 @@ vector<double> PlayUtils::computeOwnership(
   const Board& board,
   const BoardHistory& hist,
   Player pla,
-  int64_t numVisits,
-  Logger& logger
+  int64_t numVisits
 ) {
   assert(numVisits > 0);
   bool oldAlwaysIncludeOwnerMap = bot->alwaysIncludeOwnerMap;
   bot->setAlwaysIncludeOwnerMap(true);
 
   SearchParams oldParams = bot->searchParams;
-  SearchParams newParams = oldParams;
-  newParams.maxVisits = numVisits;
-  newParams.maxPlayouts = numVisits;
-  newParams.rootNoiseEnabled = false;
-  newParams.rootPolicyTemperature = 1.0;
-  newParams.rootPolicyTemperatureEarly = 1.0;
-  newParams.rootFpuReductionMax = newParams.fpuReductionMax;
-  newParams.rootFpuLossProp = newParams.fpuLossProp;
-  newParams.rootDesiredPerChildVisitsCoeff = 0.0;
-  newParams.rootNumSymmetriesToSample = 1;
+  SearchParams newParams = getNoiselessParams(oldParams,numVisits);
   newParams.playoutDoublingAdvantagePla = C_EMPTY;
   newParams.playoutDoublingAdvantage = 0.0;
-  if(newParams.numThreads > (numVisits+7)/8)
-    newParams.numThreads = (numVisits+7)/8;
+  //Make sure the search is always from a state where the game isn't believed to end with another pass
+  newParams.conservativePass = true;
 
   bot->setParams(newParams);
   bot->setPosition(pla,board,hist);
-  bot->runWholeSearch(pla,logger);
+  bot->runWholeSearch(pla);
 
   int64_t minVisitsForOwnership = 2;
   vector<double> ownerships = bot->getAverageTreeOwnership(minVisitsForOwnership);
@@ -529,6 +690,7 @@ vector<double> PlayUtils::computeOwnership(
   return ownerships;
 }
 
+//Tromp-taylor-like scoring, except recognizes pass-dead stones.
 vector<bool> PlayUtils::computeAnticipatedStatusesSimple(
   const Board& board,
   const BoardHistory& hist
@@ -562,17 +724,15 @@ vector<bool> PlayUtils::computeAnticipatedStatusesSimple(
   return isAlive;
 }
 
+//Always non-tromp-taylorlike in the main phase of the game, this is the ownership that users would want.
 vector<bool> PlayUtils::computeAnticipatedStatusesWithOwnership(
   Search* bot,
   const Board& board,
   const BoardHistory& hist,
   Player pla,
   int64_t numVisits,
-  Logger& logger
+  vector<double>& ownershipsBuf
 ) {
-  if(hist.isGameFinished)
-    return computeAnticipatedStatusesSimple(board,hist);
-
   vector<bool> isAlive(Board::MAX_ARR_SIZE,false);
   bool solved[Board::MAX_ARR_SIZE];
   for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
@@ -580,15 +740,16 @@ vector<bool> PlayUtils::computeAnticipatedStatusesWithOwnership(
     solved[i] = false;
   }
 
-  vector<double> ownerships = computeOwnership(bot,board,hist,pla,numVisits,logger);
+  ownershipsBuf = computeOwnership(bot,board,hist,pla,numVisits);
+  const vector<double>& ownerships = ownershipsBuf;
   int nnXLen = bot->nnXLen;
   int nnYLen = bot->nnYLen;
 
   //Heuristic:
   //Stones are considered dead if their average ownership is less than 0.2 equity in their own color,
   //or if the worst equity in the chain is less than -0.6 equity in their color.
-  double avgThresholdForLife = 0.2;
-  double worstThresholdForLife = -0.6;
+  const double avgThresholdForLife = 0.2;
+  const double worstThresholdForLife = -0.6;
 
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
@@ -720,7 +881,6 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
   const CompactSgf* sgf,
   int numPositionsToUse,
   NNEvaluator* nnEval,
-  Logger& logger,
   const BenchmarkResults* baseline,
   double secondsPerGameMove,
   bool printElo
@@ -761,7 +921,7 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
   nnEval->clearStats();
 
   Rand seedRand;
-  Search* bot = new Search(params,nnEval,Global::uint64ToString(seedRand.nextUInt64()));
+  Search* bot = new Search(params,nnEval,nnEval->getLogger(),Global::uint64ToString(seedRand.nextUInt64()));
 
   //Ignore the SGF rules, except for komi. Just use Tromp-taylor.
   Rules initialRules = Rules::getTrompTaylorish();
@@ -796,7 +956,7 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
     nnEval->clearCache();
 
     ClockTimer timer;
-    bot->runWholeSearch(nextPla,logger);
+    bot->runWholeSearch(nextPla);
     double seconds = timer.getSeconds();
 
     results.totalPositionsSearched += 1;
@@ -857,5 +1017,185 @@ Rules PlayUtils::genRandomRules(Rand& rand) {
   else
     rules.hasButton = false;
   return rules;
+}
+
+Loc PlayUtils::maybeCleanupBeforePass(
+  enabled_t cleanupBeforePass,
+  enabled_t friendlyPass,
+  const Player pla,
+  Loc moveLoc,
+  const AsyncBot* bot
+) {
+  if(friendlyPass == enabled_t::True)
+    return moveLoc;
+  const BoardHistory& hist = bot->getRootHist();
+  const Rules& rules = hist.rules;
+  const bool doCleanupBeforePass =
+    cleanupBeforePass == enabled_t::True ? true :
+    cleanupBeforePass == enabled_t::False ? false :
+    (rules.friendlyPassOk == false && rules.scoringRule == Rules::SCORING_AREA);
+  if(doCleanupBeforePass && moveLoc == Board::PASS_LOC && hist.isFinalPhase() && !hist.hasButton) {
+    const Board& board = bot->getRootBoard();
+    const Color* safeArea = bot->getSearch()->rootSafeArea;
+    assert(safeArea != NULL);
+    //Scan the board for any spot that is adjacent to an opponent group that is part of our pass-alive territory.
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc otherLoc = Location::getLoc(x,y,board.x_size);
+        if(moveLoc == Board::PASS_LOC &&
+           board.colors[otherLoc] == C_EMPTY &&
+           safeArea[otherLoc] == pla &&
+           board.isAdjacentToPla(otherLoc,getOpp(pla)) &&
+           hist.isLegal(board,otherLoc,pla)
+        ) {
+          moveLoc = otherLoc;
+        }
+      }
+    }
+  }
+  return moveLoc;
+}
+
+
+Loc PlayUtils::maybeFriendlyPass(
+  enabled_t cleanupBeforePass,
+  enabled_t friendlyPass,
+  const Player pla,
+  Loc moveLoc,
+  Search* bot,
+  int64_t numVisits
+) {
+  if(cleanupBeforePass == enabled_t::True)
+    return moveLoc;
+  bool shouldProceed;
+  {
+    const Board& board = bot->getRootBoard();
+    const BoardHistory& hist = bot->getRootHist();
+    const Rules& rules = hist.rules;
+    const bool doFriendlyPass =
+      friendlyPass == enabled_t::True ? true :
+      friendlyPass == enabled_t::False ? false :
+      (rules.friendlyPassOk == true && rules.scoringRule == Rules::SCORING_AREA);
+    shouldProceed = (
+      doFriendlyPass &&
+      moveLoc != Board::PASS_LOC &&
+      rules.scoringRule == Rules::SCORING_AREA &&
+      hist.isFinalPhase() &&
+      !hist.hasButton &&
+      hist.passWouldEndPhase(board,pla) &&
+      hist.moveHistory.size() > 0 &&
+      hist.moveHistory[hist.moveHistory.size()-1].pla == getOpp(pla) &&
+      hist.moveHistory[hist.moveHistory.size()-1].loc == Board::PASS_LOC
+    );
+  }
+  if(!shouldProceed)
+    return moveLoc;
+
+  //Make absolutely sure we can restore the bot's old state
+  const Player oldPla = bot->getRootPla();
+  const Board oldBoard = bot->getRootBoard();
+  const BoardHistory oldHist = bot->getRootHist();
+
+  const Board board = bot->getRootBoard();
+  const BoardHistory hist = bot->getRootHist();
+  assert(oldPla == pla);
+
+  vector<double> ownerships;
+  vector<bool> isAlive = computeAnticipatedStatusesWithOwnership(bot, board, hist, pla, numVisits, ownerships);
+
+  //Delete all dead groups from board
+  Board cleanBoard = board;
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      if(board.colors[loc] != C_EMPTY && !isAlive[loc])
+        cleanBoard.setStone(loc, C_EMPTY);
+    }
+  }
+
+  //Now, check if naive floodfilling agrees that all highly-owned spots are surrounded (finished borders)
+  Color area[Board::MAX_ARR_SIZE];
+  {
+    bool nonPassAliveStones = true;
+    bool safeBigTerritories = true;
+    bool unsafeBigTerritories = true;
+    bool isMultiStoneSuicideLegal = hist.rules.multiStoneSuicideLegal;
+    cleanBoard.calculateArea(area, nonPassAliveStones, safeBigTerritories, unsafeBigTerritories, isMultiStoneSuicideLegal);
+  }
+  const double highOwnershipThreshold = 0.75;
+  int nnXLen = bot->nnXLen;
+  int nnYLen = bot->nnYLen;
+  bool foundUnsurroundedSpot = false;
+  for(int y = 0; y<board.y_size && !foundUnsurroundedSpot; y++) {
+    for(int x = 0; x<board.x_size && !foundUnsurroundedSpot; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      int pos = NNPos::locToPos(loc,board.x_size,nnXLen,nnYLen);
+      if(ownerships[pos] > highOwnershipThreshold && area[loc] != C_WHITE)
+        foundUnsurroundedSpot = true;
+      if(ownerships[pos] < -highOwnershipThreshold && area[loc] != C_BLACK)
+        foundUnsurroundedSpot = true;
+    }
+  }
+
+  //Also, the location that the bot currently wants to move must not be adjacent to an opponent's living stone or a self stone in atari by living stones.
+  //This means it's a safe dame or protective fill the bot is trying. It's not a very exhaustive check (since there are also prep connect moves)
+  //and maybe has some false positives but it's a free extra check.
+  if(!foundUnsurroundedSpot && !cleanBoard.isAdjacentToPla(moveLoc,getOpp(pla)) && !cleanBoard.wouldBeCapture(moveLoc,getOpp(pla))) {
+
+    //And also, the bot must rate passing as not significantly worse than playing its move
+    SearchParams oldParams = bot->searchParams;
+    SearchParams newParams = getNoiselessParams(oldParams,numVisits);
+    newParams.playoutDoublingAdvantagePla = C_EMPTY;
+    newParams.playoutDoublingAdvantage = 0.0;
+    //Conservative pass makes sure we evaluate the opponent's turn as one in which the game is neither finished nor the opponent
+    //will be able to end the game via passing.
+    newParams.conservativePass = true;
+    bot->setParams(newParams);
+
+    ReportedSearchValues valuesAfterPass;
+    ReportedSearchValues valuesAfterMove;
+
+    {
+      Board boardAfterPass = board;
+      BoardHistory histAfterPass = hist;
+      histAfterPass.makeBoardMoveAssumeLegal(boardAfterPass,Board::PASS_LOC,pla,NULL);
+      Player plaAfterPass = getOpp(pla);
+      bot->setPosition(plaAfterPass,boardAfterPass,histAfterPass);
+      bot->runWholeSearch(plaAfterPass);
+      valuesAfterPass = bot->getRootValuesRequireSuccess();
+    }
+    {
+      Board boardAfterMove = board;
+      BoardHistory histAfterMove = hist;
+      histAfterMove.makeBoardMoveAssumeLegal(boardAfterMove,moveLoc,pla,NULL);
+      Player plaAfterMove = getOpp(pla);
+      bot->setPosition(plaAfterMove,boardAfterMove,histAfterMove);
+      bot->runWholeSearch(plaAfterMove);
+      valuesAfterMove = bot->getRootValuesRequireSuccess();
+    }
+
+    bot->setParams(oldParams);
+    bot->clearSearch();
+
+    if(
+      pla == P_WHITE
+      && valuesAfterPass.utility > valuesAfterMove.utility - 0.1
+      && valuesAfterPass.expectedScore > valuesAfterMove.expectedScore - 0.25
+      && valuesAfterPass.lead > valuesAfterMove.lead - 0.25) {
+      moveLoc = Board::PASS_LOC;
+    }
+    else if(
+      pla == P_BLACK
+      && valuesAfterPass.utility < valuesAfterMove.utility + 0.1
+      && valuesAfterPass.expectedScore < valuesAfterMove.expectedScore + 0.25
+      && valuesAfterPass.lead < valuesAfterMove.lead + 0.25) {
+      moveLoc = Board::PASS_LOC;
+    }
+
+  }
+  //Restore
+  bot->setPosition(oldPla,oldBoard,oldHist);
+
+  return moveLoc;
 }
 

@@ -27,6 +27,7 @@ cpp/runmatch.sh
 cpp/runmatchauto.sh
 cpp/runstuff.sh
 cpp/runwrite.sh
+cpp/tests/scratch
 
 cpp/program/gitinfo.h
 
@@ -39,6 +40,9 @@ mixmodels.sh
 runfindposes.sh
 runtraining.sh
 runlztest*.sh
+
+python/upload_all*.sh
+python/count_all*.sh
 
 tmp
 tmp.txt
@@ -61,6 +65,7 @@ GRTAGS
 GTAGS
 
 cpp/external/httplib/cpp-httplib/
+cpp/external/nlohmann_json/nlohmann_json
 gtp.cfg
 katago_contribute/
 tmpsgf/

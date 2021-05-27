@@ -39,19 +39,32 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 #include <sstream>
 #include <chrono>
 #include <csignal>
-using json = nlohmann::json;
 
+#ifdef USE_OPENCL_BACKEND
+#include "../neuralnet/opencltuner.h"
+#endif
+
+using json = nlohmann::json;
 using namespace std;
 
 static std::atomic<bool> sigReceived(false);
+static std::atomic<bool> shouldStopGracefully(false);
 static std::atomic<bool> shouldStop(false);
 static void signalHandler(int signal)
 {
   if(signal == SIGINT || signal == SIGTERM) {
     sigReceived.store(true);
-    shouldStop.store(true);
+    //First signal, stop gracefully
+    if(!shouldStopGracefully.load())
+      shouldStopGracefully.store(true);
+    //Second signal, stop more quickly
+    else
+      shouldStop.store(true);
   }
 }
+static std::atomic<bool> shouldStopGracefullyPrinted(false);
+static std::atomic<bool> shouldStopPrinted(false);
+
 
 // Some OSes, like windows, don't have SIGPIPE
 #ifdef SIGPIPE
@@ -90,6 +103,7 @@ static void runAndUploadSingleGame(
   Logger& logger, const string& seed, ForkData* forkData, string sgfsDir, Rand& rand,
   std::atomic<int64_t>& numMovesPlayed,
   std::unique_ptr<ostream>& outputEachMove, std::function<void()> flushOutputEachMove,
+  const std::function<bool()>& shouldStopFunc,
   bool logGamesAsJson, bool alwaysIncludeOwnership
 ) {
   if(gameTask.task.isRatingGame) {
@@ -108,8 +122,6 @@ static void runAndUploadSingleGame(
       ) + ")"
     );
   }
-
-  vector<std::atomic<bool>*> stopConditions = {&shouldStop};
 
   istringstream taskCfgIn(gameTask.task.config);
   ConfigParser taskCfg(taskCfgIn);
@@ -238,7 +250,7 @@ static void runAndUploadSingleGame(
   const Sgf::PositionSample* posSample = gameTask.repIdx < gameTask.task.startPoses.size() ? &(gameTask.task.startPoses[gameTask.repIdx]) : NULL;
   FinishedGameData* gameData = gameRunner->runGame(
     seed, botSpecB, botSpecW, forkData, posSample,
-    logger, stopConditions, nullptr, onEachMove, alwaysIncludeOwnership
+    logger, shouldStopFunc, nullptr, onEachMove, alwaysIncludeOwnership
   );
 
   if(gameData != NULL) {
@@ -262,7 +274,7 @@ static void runAndUploadSingleGame(
     if(gameTask.task.doWriteTrainingData) {
       gameTask.blackManager->withDataWriters(
         nnEvalBlack,
-        [gameData,&gameTask,gameIdx,&sgfFile,&connection,&logger](TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut) {
+        [gameData,&gameTask,gameIdx,&sgfFile,&connection,&logger,&shouldStopFunc](TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut) {
           (void)vdataWriter;
           (void)sgfOut;
           assert(tdataWriter->isEmpty());
@@ -275,7 +287,7 @@ static void runAndUploadSingleGame(
           if(producedFile) {
             bool suc = false;
             try {
-              suc = connection->uploadTrainingGameAndData(gameTask.task,gameData,sgfFile,resultingFilename,numDataRows,retryOnFailure,shouldStop);
+              suc = connection->uploadTrainingGameAndData(gameTask.task,gameData,sgfFile,resultingFilename,numDataRows,retryOnFailure,shouldStopFunc);
             }
             catch(StringError& e) {
               logger.write(string("Giving up uploading training game and data due to error:\n") + e.what());
@@ -295,7 +307,7 @@ static void runAndUploadSingleGame(
     else {
       bool suc = false;
       try {
-        suc = connection->uploadRatingGame(gameTask.task,gameData,sgfFile,retryOnFailure,shouldStop);
+        suc = connection->uploadRatingGame(gameTask.task,gameData,sgfFile,retryOnFailure,shouldStopFunc);
       }
       catch(StringError& e) {
         logger.write(string("Giving up uploading rating game due to error:\n") + e.what());
@@ -438,11 +450,31 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   string serverUrl = userCfg->getString("serverUrl");
   string username = userCfg->getString("username");
   string password = userCfg->getString("password");
-  string proxyHost = "";
-  int proxyPort = 0;
+  Url proxyUrl;
   if(userCfg->contains("proxyHost")) {
-    proxyHost = userCfg->getString("proxyHost");
-    proxyPort = userCfg->getInt("proxyPort");
+    proxyUrl.host = userCfg->getString("proxyHost");
+    proxyUrl.port = userCfg->getInt("proxyPort",0,1000000);
+    if(userCfg->contains("proxyBasicAuthUsername")) {
+      proxyUrl.username = userCfg->getString("proxyBasicAuthUsername");
+      if(userCfg->contains("proxyBasicAuthPassword"))
+        proxyUrl.password = userCfg->getString("proxyBasicAuthPassword");
+    }
+  }
+  else {
+    const char* proxy = NULL;
+    if(proxy == NULL) {
+      proxy = std::getenv("https_proxy");
+      if(proxy != NULL)
+        logger.write(string("Using proxy from environment variable https_proxy: ") + proxy);
+    }
+    if(proxy == NULL) {
+      proxy = std::getenv("http_proxy");
+      if(proxy != NULL)
+        logger.write(string("Using proxy from environment variable http_proxy: ") + proxy);
+    }
+    if(proxy != NULL) {
+      proxyUrl = Url::parse(proxy,true);
+    }
   }
 
   int maxSimultaneousGames;
@@ -510,7 +542,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   //Connect to server and get global parameters for the run.
   Client::Connection* connection = new Client::Connection(
     serverUrl,username,password,caCertsFile,
-    proxyHost,proxyPort,
+    proxyUrl,
     modelDownloadMirrorBaseUrl,
     mirrorUseProxy,
     &logger
@@ -538,13 +570,54 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   logger.write(Version::getKataGoVersionForHelp());
   logger.write(string("Git revision: ") + Version::getGitRevision());
 
-  TinyModelTest::runTinyModelTest(baseDir, logger, *userCfg);
+  {
+    NNEvaluator* tinyNNEval = TinyModelTest::runTinyModelTest(baseDir, logger, *userCfg);
+    //Before we delete the tinyNNEval, it conveniently has all the info about what gpuidxs the user wants from the config, so
+    //use it to tune everything.
+#ifdef USE_OPENCL_BACKEND
+    std::set<int> gpuIdxs = tinyNNEval->getGpuIdxs();
+    enabled_t usingFP16Mode = tinyNNEval->getUsingFP16Mode();
+    delete tinyNNEval;
+
+    bool full = false;
+    for(int gpuIdx: gpuIdxs) {
+      OpenCLTuner::autoTuneEverything(
+        Setup::loadHomeDataDirOverride(*userCfg),
+        gpuIdx,
+        &logger,
+        usingFP16Mode,
+        full
+      );
+    }
+#else
+    delete tinyNNEval;
+#endif
+  }
 
   //Set up signal handlers
   if(!std::atomic_is_lock_free(&shouldStop))
     throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
+
+  auto shouldStopFunc = [&logger]() {
+    if(shouldStop.load()) {
+      if(!shouldStopPrinted.exchange(true))
+        logger.write("Signal to stop (e.g. ctrl-c) detected, interrupting current games.");
+      return true;
+    }
+    return false;
+  };
+  auto shouldStopGracefullyFunc = [&logger,&shouldStopFunc]() {
+    if(shouldStopFunc())
+      return true;
+    if(shouldStopGracefully.load()) {
+      if(!shouldStopGracefullyPrinted.exchange(true))
+        logger.write("Signal to stop (e.g. ctrl-c) detected, KataGo will shut down once all current games are finished. This may take quite a long time. Repeat a second time to stop without finishing current games.");
+      return true;
+    }
+    return false;
+  };
 
 #ifdef SIGPIPE
   //We want to make sure sigpipe doesn't kill us, since sigpipe is hard to avoid with network connections if internet is flickery
@@ -583,6 +656,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   auto runGameLoop = [
     &logger,forkData,&gameSeedBase,&gameTaskQueue,&numGamesStarted,&sgfsDir,&connection,
     &numRatingGamesActive,&numMovesPlayed,&watchOngoingGameInFile,&watchOngoingGameInFileName,
+    &shouldStopFunc,&shouldStopGracefullyFunc,
     &logGamesAsJson, &alwaysIncludeOwnership
   ] (
     int gameLoopThreadIdx
@@ -610,10 +684,13 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       bool success = gameTaskQueue.waitPop(gameTask);
       if(!success)
         break;
-      if(!shouldStop.load()) {
+      if(!shouldStopGracefullyFunc()) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         int64_t gameIdx = numGamesStarted.fetch_add(1,std::memory_order_acq_rel);
-        runAndUploadSingleGame(connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand,numMovesPlayed,outputEachMove,flushOutputEachMove,logGamesAsJson,alwaysIncludeOwnership);
+        runAndUploadSingleGame(
+          connection,gameTask,gameIdx,logger,seed,forkData,sgfsDir,thisLoopSeedRand,numMovesPlayed,outputEachMove,flushOutputEachMove,
+          shouldStopFunc,logGamesAsJson,alwaysIncludeOwnership
+        );
       }
       gameTask.blackManager->release(gameTask.nnEvalBlack);
       gameTask.whiteManager->release(gameTask.nnEvalWhite);
@@ -755,16 +832,16 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       return;
     Rand preDownloadLoopRand;
     while(true) {
-      if(shouldStop.load())
+      if(shouldStopGracefullyFunc())
         return;
       logger.write("Maybe predownloading model...");
-      connection->maybeDownloadNewestModel(modelsDir,shouldStop);
+      connection->maybeDownloadNewestModel(modelsDir,shouldStopGracefullyFunc);
       //20 to 25 minutes
       double sleepTimeTotal = preDownloadLoopRand.nextDouble(1200,1500);
       constexpr double stopPollFrequency = 5.0;
       while(sleepTimeTotal > 0.0) {
         double sleepTime = std::min(sleepTimeTotal, stopPollFrequency);
-        if(shouldStop.load())
+        if(shouldStopGracefullyFunc())
           return;
         std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
         sleepTimeTotal -= stopPollFrequency;
@@ -788,14 +865,14 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   auto taskLoop = [&]() {
     Rand taskRand;
     while(true) {
-      if(shouldStop.load())
+      if(shouldStopGracefullyFunc())
         break;
       std::this_thread::sleep_for(std::chrono::duration<double>(taskRand.nextDouble(taskLoopSleepTime,taskLoopSleepTime*2)));
       PriorityLock taskLock(taskLoopMutex);
       taskLock.lockLowPriority();
 
       maybePrintPerformanceUnsynchronized();
-      if(shouldStop.load())
+      if(shouldStopGracefullyFunc())
         break;
 
       //Make sure that among multiple task loops, that we can't loop or query too fast.
@@ -808,7 +885,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 #ifdef SIGPIPE
       while(sigPipeReceivedCount.load() > 0) {
         sigPipeReceivedCount.fetch_add(-1);
-        logger.write("Note: SIGPIPE received at some point, it's possible this is from bad internet rather than a broke shell pipe, so ignoring rather than killing the program.");
+        logger.write("Note: SIGPIPE received at some point, it's possible this is from bad internet rather than a broken shell pipe, so ignoring rather than killing the program.");
       }
 #endif
 
@@ -825,7 +902,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       bool allowSelfplayTask = !onlyPlayRatingMatches;
 
       Client::Task task;
-      bool suc = connection->getNextTask(task,baseDir,retryOnFailure,allowSelfplayTask,allowRatingTask,taskRepFactor,shouldStop);
+      bool suc = connection->getNextTask(task,baseDir,retryOnFailure,allowSelfplayTask,allowRatingTask,taskRepFactor,shouldStopGracefullyFunc);
       if(!suc)
         continue;
       lastTaskQueryTime = timer.getSeconds();
@@ -862,8 +939,8 @@ int MainCmds::contribute(int argc, const char* const* argv) {
           bool suc1;
           bool suc2;
           try {
-            suc1 = connection->downloadModelIfNotPresent(task.modelBlack,modelsDir,shouldStop);
-            suc2 = connection->downloadModelIfNotPresent(task.modelWhite,modelsDir,shouldStop);
+            suc1 = connection->downloadModelIfNotPresent(task.modelBlack,modelsDir,shouldStopGracefullyFunc);
+            suc2 = connection->downloadModelIfNotPresent(task.modelWhite,modelsDir,shouldStopGracefullyFunc);
           }
           catch(StringError& e) {
             logger.write(string("Giving up on task due to downloading model error:\n") + e.what());
@@ -873,7 +950,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
           //Pick up the lock again after download
           taskLock.lockHighPriority();
 
-          if(shouldStop.load())
+          if(shouldStopGracefullyFunc())
             break;
           //If the download itself had errors, we give up
           if(!suc1 || !suc2) {
@@ -884,7 +961,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
           //No apparent errors, hit the while loop condition again to make sure we have the models
           continue;
         }
-        if(shouldStop.load())
+        if(shouldStopGracefullyFunc())
           break;
         if(givingUpOnTask)
           continue;
@@ -927,7 +1004,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
       loadNeuralNetIntoManager(blackManager,task.modelBlack,modelFileBlack,task.isRatingGame);
       loadNeuralNetIntoManager(whiteManager,task.modelWhite,modelFileWhite,task.isRatingGame);
-      if(shouldStop.load())
+      if(shouldStopGracefullyFunc())
         break;
 
       //Clean up old models, after we've definitely loaded what we needed
@@ -966,6 +1043,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
         suc = gameTaskQueue.waitPush(gameTask);
         (void)suc;
         assert(suc);
+        maybePrintPerformanceUnsynchronized();
       }
 
       anyTaskSuccessfullyParsedYet = true;
@@ -983,6 +1061,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   //Wait for all task loop threads to stop
   for(int i = 0; i<taskLoopThreads.size(); i++)
     taskLoopThreads[i].join();
+  maybePrintPerformanceUnsynchronized();
 
   logger.write("Beginning shutdown");
 
@@ -990,7 +1069,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   gameTaskQueue.setReadOnly();
 
   //Make sure we have a true in here
-  shouldStop.store(true);
+  shouldStopGracefully.store(true);
 
   //Wait for download thread to stop
   preDownloadThread.join();
@@ -998,6 +1077,9 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   //Wait for all game threads to stop
   for(int i = 0; i<gameThreads.size(); i++)
     gameThreads[i].join();
+
+  //Make sure we have a true in here
+  shouldStop.store(true);
 
   //At this point, nothing else except possibly data write loops are running, within the selfplay manager.
   delete selfplayManager;

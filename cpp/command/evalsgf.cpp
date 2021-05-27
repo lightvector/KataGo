@@ -34,6 +34,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool printScoreNow;
   bool printRootEndingBonus;
   bool printLead;
+  int printMaxDepth;
   bool rawNN;
   try {
     KataGoCommandLine cmd("Run a search on a position from an sgf file, for debugging.");
@@ -59,6 +60,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::SwitchArg printScoreNowArg("","print-score-now","Print score now");
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
     TCLAP::SwitchArg printLeadArg("","print-lead","Compute and print lead");
+    TCLAP::ValueArg<int> printMaxDepthArg("","print-max-depth","How deep to print",false,1,"DEPTH");
     TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
     cmd.add(sgfFileArg);
     cmd.add(moveNumArg);
@@ -83,6 +85,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printScoreNowArg);
     cmd.add(printRootEndingBonusArg);
     cmd.add(printLeadArg);
+    cmd.add(printMaxDepthArg);
     cmd.add(rawNNArg);
     cmd.parse(argc,argv);
 
@@ -105,6 +108,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     printScoreNow = printScoreNowArg.getValue();
     printRootEndingBonus = printRootEndingBonusArg.getValue();
     printLead = printLeadArg.getValue();
+    printMaxDepth = printMaxDepthArg.getValue();
     rawNN = rawNNArg.getValue();
 
     if(printBranch.length() > 0 && print.length() > 0) {
@@ -179,9 +183,10 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   //Parse move sequence arguments------------------------------------------
 
   PrintTreeOptions options;
-  options = options.maxDepth(1);
+  options = options.maxDepth(printMaxDepth);
   if(printBranch.length() > 0)
     options = options.onlyBranch(board,printBranch);
+
 
   //Load neural net and start bot------------------------------------------
 
@@ -236,6 +241,38 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
       setUpBoardUsingRules(supportedRules);
     }
   }
+
+  // {
+  //   sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+  //   vector<Move>& moves = sgf->moves;
+
+  //   for(size_t i = 0; i<moves.size(); i++) {
+  //     bool preventEncore = false;
+  //     bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla,preventEncore);
+  //     assert(suc);
+  //     nextPla = getOpp(moves[i].pla);
+
+  //     MiscNNInputParams nnInputParams;
+  //     nnInputParams.nnPolicyTemperature = 1.2f;
+  //     NNResultBuf buf;
+  //     bool skipCache = true;
+  //     bool includeOwnerMap = false;
+  //     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+  //     NNOutput* nnOutput = buf.result.get();
+  //     vector<double> probs;
+  //     for(int y = 0; y<board.y_size; y++) {
+  //       for(int x = 0; x<board.x_size; x++) {
+  //         int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+  //         float prob = nnOutput->policyProbs[pos];
+  //         probs.push_back(prob);
+  //       }
+  //     }
+  //     std::sort(probs.begin(),probs.end());
+  //     cout << probs[probs.size()-1] << " " << probs[probs.size()-2] << " " << probs[probs.size()-3] << endl;
+  //   }
+  //   return 0;
+  // }
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
@@ -305,8 +342,8 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   }
 
   if(printRootNNValues) {
-    if(search->rootNode->nnOutput != nullptr) {
-      NNOutput* nnOutput = search->rootNode->nnOutput.get();
+    const NNOutput* nnOutput = search->rootNode->getNNOutput();
+    if(nnOutput != NULL) {
       cout << "White win: " << nnOutput->whiteWinProb << endl;
       cout << "White loss: " << nnOutput->whiteLossProb << endl;
       cout << "White noresult: " << nnOutput->whiteNoResultProb << endl;
@@ -316,9 +353,9 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   }
 
   if(printPolicy) {
-    if(search->rootNode->nnOutput != nullptr) {
-      NNOutput* nnOutput = search->rootNode->nnOutput.get();
-      float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+    const NNOutput* nnOutput = search->rootNode->getNNOutput();
+    if(nnOutput != NULL) {
+      const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
       cout << "Root policy: " << endl;
       for(int y = 0; y<board.y_size; y++) {
         for(int x = 0; x<board.x_size; x++) {
@@ -336,9 +373,9 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     }
   }
   if(printLogPolicy) {
-    if(search->rootNode->nnOutput != nullptr) {
-      NNOutput* nnOutput = search->rootNode->nnOutput.get();
-      float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+    const NNOutput* nnOutput = search->rootNode->getNNOutput();
+    if(nnOutput != NULL) {
+      const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
       cout << "Root policy: " << endl;
       for(int y = 0; y<board.y_size; y++) {
         for(int x = 0; x<board.x_size; x++) {
@@ -357,9 +394,9 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   }
 
   if(printDirichletShape) {
-    if(search->rootNode->nnOutput != nullptr) {
-      NNOutput* nnOutput = search->rootNode->nnOutput.get();
-      float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+    const NNOutput* nnOutput = search->rootNode->getNNOutput();
+    if(nnOutput != NULL) {
+      const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
       double alphaDistr[NNPos::MAX_NN_POLICY_SIZE];
       int policySize = nnOutput->nnXLen * nnOutput->nnYLen;
       Search::computeDirichletAlphaDistribution(policySize, policyProbs, alphaDistr);
@@ -422,7 +459,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     BoardHistory hist2(hist);
     double lead = PlayUtils::computeLead(
       bot->getSearchStopAndWait(), NULL, board, hist2, nextPla,
-      20, logger, OtherGameProperties()
+      20, OtherGameProperties()
     );
     cout << "LEAD: " << lead << endl;
   }

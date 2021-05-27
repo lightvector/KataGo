@@ -7,6 +7,8 @@
 #include "../core/hash.h"
 #include "../core/logger.h"
 #include "../core/multithread.h"
+#include "../core/threadsafequeue.h"
+#include "../core/threadsafecounter.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
 #include "../game/rules.h"
@@ -24,6 +26,7 @@ struct SearchNode;
 struct SearchThread;
 struct Search;
 struct DistributionTable;
+struct PolicySortEntry;
 
 struct ReportedSearchValues {
   double winValue;
@@ -42,56 +45,124 @@ struct ReportedSearchValues {
   ~ReportedSearchValues();
 };
 
+struct NodeStatsAtomic {
+  std::atomic<int64_t> visits;
+  std::atomic<double> winLossValueAvg;
+  std::atomic<double> noResultValueAvg;
+  std::atomic<double> scoreMeanAvg;
+  std::atomic<double> scoreMeanSqAvg;
+  std::atomic<double> leadAvg;
+  std::atomic<double> utilityAvg;
+  std::atomic<double> utilitySqAvg;
+  std::atomic<double> weightSum;
+  std::atomic<double> weightSqSum;
+
+  NodeStatsAtomic();
+  ~NodeStatsAtomic();
+
+  NodeStatsAtomic(const NodeStatsAtomic&) = delete;
+  NodeStatsAtomic& operator=(const NodeStatsAtomic&) = delete;
+  NodeStatsAtomic(NodeStatsAtomic&& other) = delete;
+  NodeStatsAtomic& operator=(NodeStatsAtomic&& other) = delete;
+};
+
 struct NodeStats {
   int64_t visits;
-  double winValueSum;
-  double noResultValueSum;
-  double scoreMeanSum;
-  double scoreMeanSqSum;
-  double leadSum;
-  double utilitySum;
-  double utilitySqSum;
+  double winLossValueAvg;
+  double noResultValueAvg;
+  double scoreMeanAvg;
+  double scoreMeanSqAvg;
+  double leadAvg;
+  double utilityAvg;
+  double utilitySqAvg;
   double weightSum;
   double weightSqSum;
 
   NodeStats();
+  NodeStats(const NodeStatsAtomic& other);
   ~NodeStats();
 
-  NodeStats(const NodeStats&) = delete;
-  NodeStats& operator=(const NodeStats&) = delete;
-  NodeStats(NodeStats&& other) = delete;
-  NodeStats& operator=(NodeStats&& other) = delete;
+  NodeStats(const NodeStats&) = default;
+  NodeStats& operator=(const NodeStats&) = default;
+  NodeStats(NodeStats&& other) = default;
+  NodeStats& operator=(NodeStats&& other) = default;
+};
 
-  double getResultUtilitySum(const SearchParams& searchParams) const;
+struct MoreNodeStats {
+  NodeStats stats;
+  double selfUtility;
+  double weightAdjusted;
+  Loc prevMoveLoc;
+
+  MoreNodeStats();
+  ~MoreNodeStats();
+
+  MoreNodeStats(const MoreNodeStats&) = default;
+  MoreNodeStats& operator=(const MoreNodeStats&) = default;
+  MoreNodeStats(MoreNodeStats&& other) = default;
+  MoreNodeStats& operator=(MoreNodeStats&& other) = default;
+};
+
+
+struct SearchChildPointer {
+private:
+  std::atomic<SearchNode*> data;
+public:
+  SearchChildPointer();
+  SearchNode* getIfAllocated();
+  const SearchNode* getIfAllocated() const;
+  SearchNode* getIfAllocatedRelaxed();
+  void store(SearchNode* node);
+  void storeRelaxed(SearchNode* node);
+  bool storeIfNull(SearchNode* node);
 };
 
 struct SearchNode {
   //Locks------------------------------------------------------------------------------
-  uint32_t lockIdx;
   mutable std::atomic_flag statsLock = ATOMIC_FLAG_INIT;
 
   //Constant during search--------------------------------------------------------------
   Player nextPla;
   Loc prevMoveLoc;
+  SearchNode* parent;
 
   //Mutable---------------------------------------------------------------------------
-  //All of these values are protected under the mutex indicated by lockIdx
-  //nnOutput at a given node MAY be mutated during search, but of course will always be done under the lock.
-  //The actual NNOutput object itself will NOT be mutated once set here, so having obtained a shared_ptr to
-  //it while locked, it's safe to read it while unlocked.
-  std::shared_ptr<NNOutput> nnOutput;
-  uint32_t nnOutputAge;
+  //During search, only ever transitions forward.
+  std::atomic<int> state;
+  static constexpr int STATE_UNEVALUATED = 0;
+  static constexpr int STATE_EVALUATING = 1;
+  static constexpr int STATE_EXPANDED0 = 2;
+  static constexpr int STATE_GROWING1 = 3;
+  static constexpr int STATE_EXPANDED1 = 4;
+  static constexpr int STATE_GROWING2 = 5;
+  static constexpr int STATE_EXPANDED2 = 6;
 
-  SearchNode* parent;
-  SearchNode** children;
-  uint16_t numChildren;
-  uint16_t childrenCapacity;
+  //During search, will only ever transition from NULL -> non-NULL.
+  //Guaranteed to be non-NULL once state >= STATE_EXPANDED0.
+  //After this is non-NULL, might rarely change mid-search, but it is guaranteed that old values remain
+  //valid to access for the duration of the search and will not be deallocated.
+  std::atomic<std::shared_ptr<NNOutput>*> nnOutput;
+
+  //Used to coordinate various multithreaded updates.
+  //During search, for updating nnOutput when it needs recomputation at the root if it wasn't updated yet.
+  //During various other events - for coordinating recursive updates of the tree or subtree value bias cleanup
+  std::atomic<uint32_t> nodeAge;
+  std::atomic<uint32_t> nodeAge2;
+
+  //During search, each will only ever transition from NULL -> non-NULL.
+  //We get progressive resizing of children array simply by moving on to a later array.
+  SearchChildPointer* children0; //Guaranteed to be non-NULL once state >= STATE_EXPANDED0
+  SearchChildPointer* children1; //Guaranteed to be non-NULL once state >= STATE_EXPANDED1
+  SearchChildPointer* children2; //Guaranteed to be non-NULL once state >= STATE_EXPANDED2
+
+  static constexpr int CHILDREN0SIZE = 8;
+  static constexpr int CHILDREN1SIZE = 64;
+  static constexpr int CHILDREN2SIZE = NNPos::MAX_NN_POLICY_SIZE;
 
   //Lightweight mutable---------------------------------------------------------------
-  //Protected under statsLock
-  NodeStats stats;
-  //Also protected under statsLock
-  int32_t virtualLosses;
+  //Protected under statsLock for writing
+  NodeStatsAtomic stats;
+  std::atomic<int32_t> virtualLosses;
 
   //Protected under the entryLock in subtreeValueBiasTableEntry
   //Used only if subtreeValueBiasTableEntry is not nullptr.
@@ -101,14 +172,44 @@ struct SearchNode {
   double lastSubtreeValueBiasWeight;
   std::shared_ptr<SubtreeValueBiasEntry> subtreeValueBiasTableEntry;
 
+  std::atomic<int32_t> dirtyCounter;
+
   //--------------------------------------------------------------------------------
-  SearchNode(Search& search, Player prevPla, Rand& rand, Loc prevMoveLoc, SearchNode* parent);
+  SearchNode(Player prevPla, Loc prevMoveLoc, SearchNode* parent);
   ~SearchNode();
 
   SearchNode(const SearchNode&) = delete;
   SearchNode& operator=(const SearchNode&) = delete;
   SearchNode(SearchNode&& other) = delete;
   SearchNode& operator=(SearchNode&& other) = delete;
+
+  //The array returned by these is guaranteed not to be deallocated during the lifetime of a search or even
+  //any time up until a new operation is peformed (such as starting a new search, or making a move, or setting params).
+  SearchChildPointer* getChildren(int& childrenCapacity);
+  const SearchChildPointer* getChildren(int& childrenCapacity) const;
+  SearchChildPointer* getChildren(int state, int& childrenCapacity);
+  const SearchChildPointer* getChildren(int state, int& childrenCapacity) const;
+
+  int iterateAndCountChildren() const;
+
+  //The NNOutput returned by these is guaranteed not to be deallocated during the lifetime of a search or even
+  //any time up until a new operation is peformed (such as starting a new search, or making a move, or setting params).
+  NNOutput* getNNOutput();
+  const NNOutput* getNNOutput() const;
+
+  //Always replaces the current nnoutput, and stores the existing one in the thread for later deletion.
+  //Returns true if there was NOT already an nnOutput
+  bool storeNNOutput(std::shared_ptr<NNOutput>* newNNOutput, SearchThread& thread);
+  //Only stores if there isn't an nnOutput already. Returns true if it was stored.
+  bool storeNNOutputIfNull(std::shared_ptr<NNOutput>* newNNOutput);
+
+  //Used within search to update state and allocate children arrays
+  void initializeChildren();
+  bool maybeExpandChildrenCapacityForNewChild(int& stateValue, int numChildrenFullPlusOne);
+
+private:
+  int getChildrenCapacity(int stateValue) const;
+  bool tryExpandingChildrenCapacityAssumeFull(int& stateValue);
 };
 
 //Per-thread state
@@ -122,25 +223,17 @@ struct SearchThread {
   Rand rand;
 
   NNResultBuf nnResultBuf;
-  std::ostream* logStream;
-  Logger* logger;
 
-  std::vector<double> weightFactorBuf;
-  std::vector<double> weightBuf;
-  std::vector<double> weightSqBuf;
-  std::vector<double> winValuesBuf;
-  std::vector<double> noResultValuesBuf;
-  std::vector<double> scoreMeansBuf;
-  std::vector<double> scoreMeanSqsBuf;
-  std::vector<double> leadsBuf;
-  std::vector<double> utilityBuf;
-  std::vector<double> utilitySqBuf;
-  std::vector<double> selfUtilityBuf;
-  std::vector<int64_t> visitsBuf;
+  std::vector<MoreNodeStats> statsBuf;
 
   double upperBoundVisitsLeft;
 
-  SearchThread(int threadIdx, const Search& search, Logger* logger);
+  //Occasionally we may need to swap out an NNOutput from a node mid-search.
+  //However, to prevent access-after-delete races, the thread that swaps one out stores
+  //it here instead of deleting it, so that pointers and accesses to it remain valid.
+  std::vector<std::shared_ptr<NNOutput>*> oldNNOutputsToCleanUp;
+
+  SearchThread(int threadIdx, const Search& search);
   ~SearchThread();
 
   SearchThread(const SearchThread&) = delete;
@@ -205,13 +298,29 @@ struct Search {
 
   SubtreeValueBiasTable* subtreeValueBiasTable;
 
+  Logger* logger;
+
+  //Thread pool
+  int numThreadsSpawned;
+  std::thread* threads;
+  ThreadSafeQueue<std::function<void(int)>*>* threadTasks;
+  ThreadSafeCounter* threadTasksRemaining;
+
+  //Occasionally we may need to swap out an NNOutput from a node mid-search.
+  //However, to prevent access-after-delete races, this vector collects them after a thread exits, and is cleaned up
+  //very lazily only when a new search begins or the search is cleared.
+  std::mutex oldNNOutputsToCleanUpMutex;
+  std::vector<std::shared_ptr<NNOutput>*> oldNNOutputsToCleanUp;
+
   //Note - randSeed controls a few things in the search, but a lot of the randomness actually comes from
   //random symmetries of the neural net evaluations, see nneval.h
-  Search(SearchParams params, NNEvaluator* nnEval, const std::string& randSeed);
+  Search(SearchParams params, NNEvaluator* nnEval, Logger* logger, const std::string& randSeed);
   ~Search();
 
   Search(const Search&) = delete;
   Search& operator=(const Search&) = delete;
+  Search(Search&&) = delete;
+  Search& operator=(Search&&) = delete;
 
   //TOP-LEVEL OUTSIDE-OF-SEARCH CONTROL -----------------------------------------------------------
   //Functions for setting the board position or other parameters, clearing, and running search.
@@ -234,6 +343,10 @@ struct Search {
   void setParamsNoClearing(SearchParams params); //Does not clear search
   void setNNEval(NNEvaluator* nnEval);
 
+  //If the number of threads is reduced, this can free up some excess threads in the thread pool.
+  //Calling this is never necessary, it may just reduce some resource use.
+  void respawnThreads();
+
   //Just directly clear search without changing anything
   void clearSearch();
 
@@ -248,17 +361,16 @@ struct Search {
   bool isLegalStrict(Loc moveLoc, Player movePla) const;
 
   //Run an entire search from start to finish
-  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger);
-  void runWholeSearch(Player movePla, Logger& logger);
-  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow);
+  Loc runWholeSearchAndGetMove(Player movePla);
+  void runWholeSearch(Player movePla);
+  void runWholeSearch(std::atomic<bool>& shouldStopNow);
 
   //Pondering indicates that we are searching "for" the last player that we did a non-ponder search for, and should use ponder search limits.
-  Loc runWholeSearchAndGetMove(Player movePla, Logger& logger, bool pondering);
-  void runWholeSearch(Player movePla, Logger& logger, bool pondering);
-  void runWholeSearch(Logger& logger, std::atomic<bool>& shouldStopNow, bool pondering);
+  Loc runWholeSearchAndGetMove(Player movePla, bool pondering);
+  void runWholeSearch(Player movePla, bool pondering);
+  void runWholeSearch(std::atomic<bool>& shouldStopNow, bool pondering);
 
   void runWholeSearch(
-    Logger& logger,
     std::atomic<bool>& shouldStopNow,
     std::function<void()>* searchBegun, //If not null, will be called once search has begun and tree inspection is safe
     bool pondering,
@@ -340,21 +452,23 @@ struct Search {
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
   //or changing parameters or clearing search.
   //If node is not providied, defaults to using the root node.
-  std::vector<double> getAverageTreeOwnership(int64_t minVisit, const SearchNode* node = NULL) const;
+  std::vector<double> getAverageTreeOwnership(double minWeight, const SearchNode* node = NULL) const;
 
   //Get ownership map as json
-  nlohmann::json getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, int ownershipMinVisits) const;
+  nlohmann::json getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight) const;
   //Fill json with analysis engine format information about search results
   bool getAnalysisJson(
     const Player perspective, const Board& board, const BoardHistory& hist,
-    int analysisPVLen, int ownershipMinVisits, bool preventEncore, bool includePolicy,
+    int analysisPVLen, double ownershipMinWeight, bool preventEncore, bool includePolicy,
     bool includeOwnership, bool includeMovesOwnership, bool includePVVisits,
     nlohmann::json& ret
   ) const;
 
   //Expert manual playout-by-playout interface------------------------------------------------
   void beginSearch(bool pondering);
-  void runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft);
+  bool runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft);
+
+  std::vector<SearchNode*> enumerateTreePostOrder();
 
   //Helpers-----------------------------------------------------------------------
   int getPos(Loc moveLoc) const;
@@ -362,13 +476,23 @@ struct Search {
 private:
   static constexpr double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
   static constexpr double FUTILE_VISITS_PRUNE_VALUE = -1e40;
+  static constexpr double EVALUATING_SELECTION_VALUE_PENALTY = 1e20;
 
-  double getResultUtility(double winValue, double noResultValue) const;
+  double getResultUtility(double winlossValue, double noResultValue) const;
   double getResultUtilityFromNN(const NNOutput& nnOutput) const;
-  static double getScoreStdev(double scoreMean, double scoreMeanSq);
+  static double getScoreStdev(double scoreMeanAvg, double scoreMeanSqAvg);
   double interpolateEarly(double halflife, double earlyValue, double value) const;
 
-  void maybeAddPolicyNoiseAndTempAlreadyLocked(SearchThread& thread, SearchNode& node, bool isRoot) const;
+  void spawnThreadsIfNeeded();
+  void killThreads();
+  int numAdditionalThreadsToUseForTasks() const;
+  void performTaskWithThreads(std::function<void(int)>* task);
+
+  void clearOldNNOutputs();
+  void transferOldNNOutputs(SearchThread& thread);
+  int findTopNPolicy(const SearchNode* node, int n, PolicySortEntry* sortedPolicyBuf) const;
+
+  std::shared_ptr<NNOutput>* maybeAddPolicyNoiseAndTemp(SearchThread& thread, bool isRoot, NNOutput* oldNNOutput) const;
 
   bool isAllowedRootMove(Loc moveLoc) const;
 
@@ -382,34 +506,38 @@ private:
   );
   double recomputeSearchTimeLimit(const TimeControls& tc, double timeUsed, double searchFactor, int64_t rootVisits);
 
-  double getScoreUtility(double scoreMeanSum, double scoreMeanSqSum, double weightSum) const;
-  double getScoreUtilityDiff(double scoreMeanSum, double scoreMeanSqSum, double weightSum, double delta) const;
+  double getScoreUtility(double scoreMeanAvg, double scoreMeanSqAvg) const;
+  double getScoreUtilityDiff(double scoreMeanAvg, double scoreMeanSqAvg, double delta) const;
+  double getApproxScoreUtilityDerivative(double scoreMean) const;
   double getUtilityFromNN(const NNOutput& nnOutput) const;
+  double computeWeightFromNNOutput(const NNOutput* nnOutput) const;
 
   //Parent must be locked
   double getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNode* child) const;
 
-  void getValueChildWeights(
+  void downweightBadChildrenAndNormalizeWeight(
     int numChildren,
-    const std::vector<double>& childSelfValuesBuf,
-    const std::vector<int64_t>& childVisitsBuf,
-    std::vector<double>& resultBuf
+    double currentTotalWeight,
+    double desiredTotalWeight,
+    double amountToSubtract,
+    double amountToPrune,
+    std::vector<MoreNodeStats>& statsBuf
   ) const;
 
   //Parent must be locked
   void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, double& lcbBuf, double& radiusBuf) const;
 
   double getExploreSelectionValue(
-    double nnPolicyProb, int64_t totalChildVisits, int64_t childVisits,
-    double childUtility, Player pla
+    double nnPolicyProb, double totalChildWeight, double childWeight,
+    double childUtility, double parentUtilityStdevFactor, Player pla
   ) const;
   double getExploreSelectionValueInverse(
-    double exploreSelectionValue, double nnPolicyProb, int64_t totalChildVisits,
-    double childUtility, Player pla
+    double exploreSelectionValue, double nnPolicyProb, double totalChildWeight,
+    double childUtility, double parentUtilityStdevFactor, Player pla
   ) const;
   double getPassingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const;
 
-  bool getPlaySelectionValuesAlreadyLocked(
+  bool getPlaySelectionValues(
     const SearchNode& node,
     std::vector<Loc>& locs, std::vector<double>& playSelectionValues, std::vector<double>* retVisitCounts, double scaleMaxToAtLeast,
     bool allowDirectPolicyMoves, bool alwaysComputeLcb,
@@ -419,55 +547,78 @@ private:
   //Parent must be locked
   double getExploreSelectionValue(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
-    int64_t totalChildVisits, double fpuValue, double parentUtility,
-    bool isDuringSearch, int64_t maxChildVisits, SearchThread* thread
+    double totalChildWeight, double fpuValue,
+    double parentUtility, double parentWeightPerVisit, double parentUtilityStdevFactor,
+    bool isDuringSearch, double maxChildWeight, SearchThread* thread
   ) const;
   double getNewExploreSelectionValue(
     const SearchNode& parent, float nnPolicyProb,
-    int64_t totalChildVisits, double fpuValue,
-    int64_t maxChildVisits, SearchThread* thread
+    double totalChildWeight, double fpuValue,
+    double parentWeightPerVisit, double parentUtilityStdevFactor,
+    double maxChildWeight, SearchThread* thread
   ) const;
 
   //Parent must be locked
-  int64_t getReducedPlaySelectionVisits(
+  double getReducedPlaySelectionWeight(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
-    int64_t totalChildVisits, double bestChildExploreSelectionValue
+    double totalChildWeight, double parentUtilityStdevFactor, double bestChildExploreSelectionValue
   ) const;
 
-  double getFpuValueForChildrenAssumeVisited(const SearchNode& node, Player pla, bool isRoot, double policyProbMassVisited, double& parentUtility) const;
+  double getFpuValueForChildrenAssumeVisited(
+    const SearchNode& node, Player pla, bool isRoot, double policyProbMassVisited,
+    double& parentUtility, double& parentWeightPerVisit, double& parentUtilityStdevFactor
+  ) const;
 
-  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, int32_t virtualLossesToSubtract, bool isRoot);
-  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int numVisitsToAdd, int32_t virtualLossesToSubtract, bool isRoot);
-  void recursivelyRecomputeStats(SearchNode& node, SearchThread& thread, bool isRoot);
-  void recursivelyRemoveSubtreeValueBiasBeforeDeleteSynchronous(SearchNode* node);
+  double pruneNoiseWeight(std::vector<MoreNodeStats>& statsBuf, int numChildren, double totalChildWeight, const double* policyProbsBuf) const;
+
+  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot);
+  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot);
+  void recursivelyRecomputeStats(SearchNode& node);
+
+  void recursivelyDelete(SearchNode* node);
+  void recursivelyRemoveSubtreeValueBiasAndDelete(const std::vector<SearchNode*>& nodes);
+  void applyRecursivelyPostOrderMulithreaded(const std::vector<SearchNode*>& nodes, std::function<void(SearchNode*,int,bool)>* f);
+  void applyRecursivelyPostOrderSinglethreadedHelper(SearchNode* node, int threadIdx, std::function<void(SearchNode*,int,bool)>* f);
+  int applyRecursivelyPostOrderMulithreadedHelper(SearchNode* node, int threadIdx, PCG32* rand, std::function<void(SearchNode*,int,bool)>* f);
 
   void maybeRecomputeNormToTApproxTable();
   double getNormToTApproxForLCB(int64_t numVisits) const;
 
   void selectBestChildToDescend(
-    SearchThread& thread, const SearchNode& node, int& bestChildIdx, Loc& bestChildMoveLoc,
+    SearchThread& thread, const SearchNode& node, int nodeState,
+    int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc,
     bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
     bool isRoot
   ) const;
 
-  void addLeafValue(SearchNode& node, double winValue, double noResultValue, double scoreMean, double scoreMeanSq, double lead, int32_t virtualLossesToSubtract, bool isTerminal);
-  void addCurentNNOutputAsLeafValue(SearchNode& node, int32_t virtualLossesToSubtract);
+  void addLeafValue(
+    SearchNode& node,
+    double winLossValue,
+    double noResultValue,
+    double scoreMean,
+    double scoreMeanSq,
+    double lead,
+    double weight,
+    bool isTerminal,
+    bool assumeNoExistingWeight
+  );
+  void addCurrentNNOutputAsLeafValue(SearchNode& node, bool assumeNoExistingWeight);
 
   void maybeRecomputeExistingNNOutput(
     SearchThread& thread, SearchNode& node, bool isRoot
   );
-  void initNodeNNOutput(
+  bool initNodeNNOutput(
     SearchThread& thread, SearchNode& node,
-    bool isRoot, bool skipCache, int32_t virtualLossesToSubtract, bool isReInit
+    bool isRoot, bool skipCache, bool isReInit
   );
 
-  void playoutDescend(
+  bool playoutDescend(
     SearchThread& thread, SearchNode& node,
     bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
-    bool isRoot, int32_t virtualLossesToSubtract
+    bool isRoot
   );
 
-  bool shouldSuppressPassAlreadyLocked(const SearchNode* n) const;
+  bool shouldSuppressPass(const SearchNode* n) const;
 
   AnalysisData getAnalysisDataOfSingleChild(
     const SearchNode* child, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues,
@@ -482,7 +633,7 @@ private:
     std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
   ) const;
 
-  double getAverageTreeOwnershipHelper(std::vector<double>& accum, int64_t minVisits, double desiredWeight, const SearchNode* node) const;
+  double getAverageTreeOwnershipHelper(std::vector<double>& accum, double minWeight, double desiredWeight, const SearchNode* node) const;
 
 };
 

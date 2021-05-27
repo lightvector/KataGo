@@ -133,3 +133,7 @@ ostream& operator<<(ostream& out, const Hash128 other)
       << Global::uint64ToHexString(other.hash0);
   return out;
 }
+
+string Hash128::toString() const {
+  return Global::uint64ToHexString(hash1) + Global::uint64ToHexString(hash0);
+}

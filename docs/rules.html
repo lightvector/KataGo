@@ -144,6 +144,16 @@ function checkChineseLike() {
   ]);
 };
 
+function checkChineseOGS() {
+  checkNames([
+    "koPositional",
+    "scoringArea",
+    "taxNone",
+    "multiStoneSuicideDisallowed",
+    "buttonNotUsed",
+    "whiteHandicapBonusN"
+  ]);
+};
 
 function checkAGALike() {
   checkNames([
@@ -247,6 +257,7 @@ NOTE: Some online servers that claim to implement certain rules might actually d
 <button onclick="checkChineseLike()">Chinese-like Rules</button>
 <button onclick="checkJapaneseLike()">Japanese-like Rules</button>
 <button onclick="checkTrompTaylor()">Tromp-Taylor Rules</button>
+<button onclick="checkChineseOGS()">OGS/KGS "Chinese"-like Rules</button>
 <button onclick="checkAGALike()">AGA-like Rules</button>
 <button onclick="checkNZLike()">New Zealand-like Rules</button>
 <button onclick="checkStoneScoring()">Stone-Scoring Rules</button>

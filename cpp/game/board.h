@@ -194,9 +194,16 @@ struct Board
   bool isEmpty() const;
   //Count the number of stones on the board
   int numStonesOnBoard() const;
+  int numPlaStonesOnBoard(Player pla) const;
+
+  //Get a hash that combines the position of the board with simple ko prohibition and a player to move.
+  Hash128 getSitHashWithSimpleKo(Player pla) const;
 
   //Lift any simple ko ban recorded on thie board due to an immediate prior ko capture.
   void clearSimpleKoLoc();
+  //Directly set that there is a simple ko prohibition on this location. Note that this is not necessarily safe
+  //when also using a BoardHistory, since the BoardHistory may not know about this change, or the game could be in cleanup phase, etc.
+  void setSimpleKoLoc(Loc loc);
 
   //Sets the specified stone if possible. Returns true usually, returns false location or color were out of range.
   bool setStone(Loc loc, Color color);
@@ -258,6 +265,9 @@ struct Board
 
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;
+  //For the moment, only used in testing since it does extra consistency checks.
+  //If we need a version to be used in "prod", we could make an efficient version maybe as operator==.
+  bool isEqualForTesting(const Board& other, bool checkNumCaptures, bool checkSimpleKo) const;
 
   static Board parseBoard(int xSize, int ySize, const std::string& s);
   static Board parseBoard(int xSize, int ySize, const std::string& s, char lineDelimiter);

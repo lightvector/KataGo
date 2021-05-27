@@ -423,6 +423,17 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("cpuctExplorationBase"))   params.cpuctExplorationBase = cfg.getDouble("cpuctExplorationBase",        10.0, 100000.0);
     else                                            params.cpuctExplorationBase = 500.0;
 
+    if(cfg.contains("cpuctUtilityStdevPrior"+idxStr)) params.cpuctUtilityStdevPrior = cfg.getDouble("cpuctUtilityStdevPrior"+idxStr, 0.0, 10.0);
+    else if(cfg.contains("cpuctUtilityStdevPrior"))   params.cpuctUtilityStdevPrior = cfg.getDouble("cpuctUtilityStdevPrior",        0.0, 10.0);
+    else                                              params.cpuctUtilityStdevPrior = 0.25;
+    if(cfg.contains("cpuctUtilityStdevPriorWeight"+idxStr)) params.cpuctUtilityStdevPriorWeight = cfg.getDouble("cpuctUtilityStdevPriorWeight"+idxStr, 0.0, 100.0);
+    else if(cfg.contains("cpuctUtilityStdevPriorWeight"))   params.cpuctUtilityStdevPriorWeight = cfg.getDouble("cpuctUtilityStdevPriorWeight",        0.0, 100.0);
+    else                                                    params.cpuctUtilityStdevPriorWeight = 1.0;
+    if(cfg.contains("cpuctUtilityStdevScale"+idxStr)) params.cpuctUtilityStdevScale = cfg.getDouble("cpuctUtilityStdevScale"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("cpuctUtilityStdevScale"))   params.cpuctUtilityStdevScale = cfg.getDouble("cpuctUtilityStdevScale",        0.0, 1.0);
+    else                                              params.cpuctUtilityStdevScale = 0.0;
+
+
     if(cfg.contains("fpuReductionMax"+idxStr)) params.fpuReductionMax = cfg.getDouble("fpuReductionMax"+idxStr, 0.0, 2.0);
     else if(cfg.contains("fpuReductionMax"))   params.fpuReductionMax = cfg.getDouble("fpuReductionMax",        0.0, 2.0);
     else params.fpuReductionMax = 0.2;
@@ -432,12 +443,35 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("fpuParentWeight"+idxStr)) params.fpuParentWeight = cfg.getDouble("fpuParentWeight"+idxStr,        0.0, 1.0);
     else if(cfg.contains("fpuParentWeight"))   params.fpuParentWeight = cfg.getDouble("fpuParentWeight",        0.0, 1.0);
     else                                       params.fpuParentWeight = 0.0;
-    if(cfg.contains("parentValueWeightFactor"+idxStr)) params.parentValueWeightFactor = cfg.getDouble("parentValueWeightFactor"+idxStr, 0.00001, 1.0);
-    else if(cfg.contains("parentValueWeightFactor")) params.parentValueWeightFactor = cfg.getDouble("parentValueWeightFactor", 0.00001, 1.0);
-    else params.parentValueWeightFactor = 1.0;
+
+
     if(cfg.contains("valueWeightExponent"+idxStr)) params.valueWeightExponent = cfg.getDouble("valueWeightExponent"+idxStr, 0.0, 1.0);
     else if(cfg.contains("valueWeightExponent")) params.valueWeightExponent = cfg.getDouble("valueWeightExponent", 0.0, 1.0);
     else params.valueWeightExponent = 0.5;
+    if(cfg.contains("useNoisePruning"+idxStr)) params.useNoisePruning = cfg.getBool("useNoisePruning"+idxStr);
+    else if(cfg.contains("useNoisePruning"))   params.useNoisePruning = cfg.getBool("useNoisePruning");
+    else                                       params.useNoisePruning = false;
+    if(cfg.contains("noisePruneUtilityScale"+idxStr)) params.noisePruneUtilityScale = cfg.getDouble("noisePruneUtilityScale"+idxStr, 0.001, 10.0);
+    else if(cfg.contains("noisePruneUtilityScale"))   params.noisePruneUtilityScale = cfg.getDouble("noisePruneUtilityScale", 0.001, 10.0);
+    else                                              params.noisePruneUtilityScale = 0.15;
+    if(cfg.contains("noisePruningCap"+idxStr)) params.noisePruningCap = cfg.getDouble("noisePruningCap"+idxStr, 0.0, 1e50);
+    else if(cfg.contains("noisePruningCap"))   params.noisePruningCap = cfg.getDouble("noisePruningCap", 0.0, 1e50);
+    else                                       params.noisePruningCap = 1e50;
+
+
+    if(cfg.contains("useUncertainty"+idxStr)) params.useUncertainty = cfg.getBool("useUncertainty"+idxStr);
+    else if(cfg.contains("useUncertainty"))   params.useUncertainty = cfg.getBool("useUncertainty");
+    else                                      params.useUncertainty = false;
+    if(cfg.contains("uncertaintyCoeff"+idxStr)) params.uncertaintyCoeff = cfg.getDouble("uncertaintyCoeff"+idxStr, 0.0001, 1.0);
+    else if(cfg.contains("uncertaintyCoeff"))   params.uncertaintyCoeff = cfg.getDouble("uncertaintyCoeff", 0.0001, 1.0);
+    else                                        params.uncertaintyCoeff = 0.4;
+    if(cfg.contains("uncertaintyExponent"+idxStr)) params.uncertaintyExponent = cfg.getDouble("uncertaintyExponent"+idxStr, 0.0, 2.0);
+    else if(cfg.contains("uncertaintyExponent"))   params.uncertaintyExponent = cfg.getDouble("uncertaintyExponent", 0.0, 2.0);
+    else                                           params.uncertaintyExponent = 0.5;
+    if(cfg.contains("uncertaintyMaxWeight"+idxStr)) params.uncertaintyMaxWeight = cfg.getDouble("uncertaintyMaxWeight"+idxStr, 1.0, 100.0);
+    else if(cfg.contains("uncertaintyMaxWeight"))   params.uncertaintyMaxWeight = cfg.getDouble("uncertaintyMaxWeight", 1.0, 100.0);
+    else                                            params.uncertaintyMaxWeight = 8.0;
+
 
     if(cfg.contains("rootNoiseEnabled"+idxStr)) params.rootNoiseEnabled = cfg.getBool("rootNoiseEnabled"+idxStr);
     else if(cfg.contains("rootNoiseEnabled"))   params.rootNoiseEnabled = cfg.getBool("rootNoiseEnabled");
@@ -558,9 +592,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("mutexPoolSize"+idxStr)) params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize"+idxStr, 1, 1 << 24);
     else if(cfg.contains("mutexPoolSize"))   params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize",        1, 1 << 24);
     else                                     params.mutexPoolSize = 16384;
-    if(cfg.contains("numVirtualLossesPerThread"+idxStr)) params.numVirtualLossesPerThread = (int32_t)cfg.getInt("numVirtualLossesPerThread"+idxStr, 1, 1000);
-    else if(cfg.contains("numVirtualLossesPerThread"))   params.numVirtualLossesPerThread = (int32_t)cfg.getInt("numVirtualLossesPerThread",        1, 1000);
-    else                                                 params.numVirtualLossesPerThread = 1;
+    if(cfg.contains("numVirtualLossesPerThread"+idxStr)) params.numVirtualLossesPerThread = cfg.getDouble("numVirtualLossesPerThread"+idxStr, 0.01, 1000.0);
+    else if(cfg.contains("numVirtualLossesPerThread"))   params.numVirtualLossesPerThread = cfg.getDouble("numVirtualLossesPerThread",        0.01, 1000.0);
+    else                                                 params.numVirtualLossesPerThread = 1.0;
 
     if(cfg.contains("treeReuseCarryOverTimeFactor"+idxStr)) params.treeReuseCarryOverTimeFactor = cfg.getDouble("treeReuseCarryOverTimeFactor"+idxStr,0.0,1.0);
     else if(cfg.contains("treeReuseCarryOverTimeFactor"))   params.treeReuseCarryOverTimeFactor = cfg.getDouble("treeReuseCarryOverTimeFactor",0.0,1.0);
@@ -627,6 +661,7 @@ Rules Setup::loadSingleRulesExceptForKomi(
     if(cfg.contains("hasButton")) throw StringError("Cannot both specify 'rules' and individual rules like hasButton");
     if(cfg.contains("taxRule")) throw StringError("Cannot both specify 'rules' and individual rules like taxRule");
     if(cfg.contains("whiteHandicapBonus")) throw StringError("Cannot both specify 'rules' and individual rules like whiteHandicapBonus");
+    if(cfg.contains("friendlyPassOk")) throw StringError("Cannot both specify 'rules' and individual rules like friendlyPassOk");
     if(cfg.contains("whiteBonusPerHandicapStone")) throw StringError("Cannot both specify 'rules' and individual rules like whiteBonusPerHandicapStone");
 
     rules = Rules::parseRules(cfg.getString("rules"));
@@ -670,6 +705,10 @@ Rules Setup::loadSingleRulesExceptForKomi(
     else
       rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
 
+    if(cfg.contains("friendlyPassOk")) {
+      rules.friendlyPassOk = cfg.getBool("friendlyPassOk");
+    }
+
     //Drop default komi to 6.5 for territory rules, and to 7.0 for button
     if(rules.scoringRule == Rules::SCORING_TERRITORY)
       rules.komi = 6.5f;
@@ -683,7 +722,7 @@ Rules Setup::loadSingleRulesExceptForKomi(
 vector<pair<set<string>,set<string>>> Setup::getMutexKeySets() {
   vector<pair<set<string>,set<string>>> mutexKeySets = {
     std::make_pair<set<string>,set<string>>(
-    {"rules"},{"koRule","scoringRule","multiStoneSuicideLegal","taxRule","hasButton","whiteBonusPerHandicapStone","whiteHandicapBonus"}
+    {"rules"},{"koRule","scoringRule","multiStoneSuicideLegal","taxRule","hasButton","whiteBonusPerHandicapStone","friendlyPassOk","whiteHandicapBonus"}
     ),
   };
   return mutexKeySets;

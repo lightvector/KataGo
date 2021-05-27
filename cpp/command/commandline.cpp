@@ -1,6 +1,7 @@
 #include "../command/commandline.h"
 
 #include "../core/os.h"
+#include "../core/logger.h"
 #include "../dataio/homedata.h"
 #include "../program/setup.h"
 #include "../main.h"
@@ -216,17 +217,23 @@ void KataGoCommandLine::addModelFileArg() {
 
 //Empty string indicates no default
 void KataGoCommandLine::addConfigFileArg(const string& defaultCfgFileName, const string& exampleConfigFile) {
+  bool required = true;
+  if(!defaultCfgFileName.empty()) {
+    required = false;
+  }
+  addConfigFileArg(defaultCfgFileName, exampleConfigFile, required);
+}
+
+void KataGoCommandLine::addConfigFileArg(const string& defaultCfgFileName, const string& exampleConfigFile, bool required) {
   assert(configFileArg == NULL);
   defaultConfigFileName = defaultCfgFileName;
 
   string helpDesc = "Config file to use";
-  bool required = true;
   if(!exampleConfigFile.empty())
     helpDesc += " (see " + exampleConfigFile + " or configs/" + exampleConfigFile + ")";
   helpDesc += ".";
   if(!defaultConfigFileName.empty()) {
     helpDesc += " Defaults to: " + getDefaultConfigPathForHelp(defaultConfigFileName);
-    required = false;
   }
   //We don't apply the default directly here, but rather in getConfig(). It's more robust if we don't attempt any
   //filesystem access (which could fail) before we've even constructed the command arguments and help.
@@ -303,6 +310,20 @@ void KataGoCommandLine::maybeApplyOverrideConfigArg(ConfigParser& cfg) const {
         //HACK to avoid a common possible conflict - if we specify some of the rules options on one side, the other side should be erased.
         vector<pair<set<string>,set<string>>> mutexKeySets = Setup::getMutexKeySets();
         cfg.overrideKeys(newkvs,mutexKeySets);
+      }
+    }
+  }
+}
+
+void KataGoCommandLine::logOverrides(Logger& logger) const {
+  if(overrideConfigArg != NULL) {
+    vector<string> overrideConfigs = overrideConfigArg->getValue();
+    for(const string& overrideConfig : overrideConfigs) {
+      if(overrideConfig != "") {
+        map<string,string> newkvs = ConfigParser::parseCommaSeparated(overrideConfig);
+        for(const auto& x: newkvs) {
+          logger.write("Config override: " + x.first + " = " + x.second);
+        }
       }
     }
   }

@@ -11,6 +11,20 @@
 #include "../dataio/sgf.h"
 #include "../dataio/trainingwrite.h"
 
+struct Url {
+  std::string originalString;
+  bool isSSL = true;
+  std::string host;
+  int port = 0;
+  std::string path;
+
+  std::string username;
+  std::string password;
+
+  static Url parse(const std::string& s, bool checkForUserPass);
+  void replacePath(const std::string& newPath);
+};
+
 namespace Client {
 
   struct RunParameters {
@@ -61,8 +75,7 @@ namespace Client {
       const std::string& username,
       const std::string& password,
       const std::string& caCertsFile,
-      const std::string& proxyHost,
-      int proxyPort,
+      const Url& proxyUrl,
       const std::string& modelDownloadMirrorBaseUrl,
       bool mirrorUseProxy,
       Logger* logger
@@ -84,7 +97,7 @@ namespace Client {
       bool allowSelfplayTask,
       bool allowRatingTask,
       int taskRepFactor,
-      std::atomic<bool>& shouldStop
+      std::function<bool()> shouldStop
     );
 
     static std::string getModelPath(const Client::ModelInfo& modelInfo, const std::string& modelDir);
@@ -95,7 +108,7 @@ namespace Client {
     //server is working but somehow there is a mismatch on file length or hash or other model integrity
     bool downloadModelIfNotPresent(
       const Client::ModelInfo& modelInfo, const std::string& modelDir,
-      std::atomic<bool>& shouldStop
+      std::function<bool()> shouldStop
     );
     bool isModelPresent(
       const Client::ModelInfo& modelInfo, const std::string& modelDir
@@ -103,7 +116,7 @@ namespace Client {
 
     //Query server for newest model and maybe download it, even if it is not being used by tasks yet.
     bool maybeDownloadNewestModel(
-      const std::string& modelDir, std::atomic<bool>& shouldStop
+      const std::string& modelDir, std::function<bool()> shouldStop
     );
 
     //Returns true if data was uploaded or upload was not needed.
@@ -111,11 +124,11 @@ namespace Client {
     //Raises an exception upon a repeated error that persists long enough.
     bool uploadTrainingGameAndData(
       const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath, const std::string& npzFilePath, const int64_t numDataRows,
-      bool retryOnFailure, std::atomic<bool>& shouldStop
+      bool retryOnFailure, std::function<bool()> shouldStop
     );
     bool uploadRatingGame(
       const Task& task, const FinishedGameData* gameData, const std::string& sgfFilePath,
-      bool retryOnFailure, std::atomic<bool>& shouldStop
+      bool retryOnFailure, std::function<bool()> shouldStop
     );
 
   private:
@@ -124,7 +137,7 @@ namespace Client {
     httplib::Result postMulti(const std::string& subPath, const httplib::MultipartFormDataItems& data);
 
     std::string getTmpModelPath(const Client::ModelInfo& modelInfo, const std::string& modelDir);
-    bool retryLoop(const char* errorLabel, int maxTries, std::atomic<bool>& shouldStop, std::function<void(int&)> f);
+    bool retryLoop(const char* errorLabel, int maxTries, std::function<bool()> shouldStop, std::function<void(int&)> f);
 
     std::unique_ptr<httplib::Client> httpClient;
     std::unique_ptr<httplib::SSLClient> httpsClient;
@@ -136,8 +149,7 @@ namespace Client {
 
     std::string baseResourcePath;
     std::string caCertsFile;
-    std::string proxyHost;
-    int proxyPort;
+    Url proxyUrl;
 
     std::string modelDownloadMirrorBaseUrl;
     bool mirrorUseProxy;
@@ -163,7 +175,7 @@ namespace Client {
 
     bool actuallyDownloadModel(
       const Client::ModelInfo& modelInfo, const std::string& modelDir,
-      std::atomic<bool>& shouldStop
+      std::function<bool()> shouldStop
     );
   };
 

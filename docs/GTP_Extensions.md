@@ -17,9 +17,11 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * Clears the search tree and the NN cache. Can be used to force KataGo to re-search a position freshly, re-randomizing the search on that position, or to free up memory.
    * `stop`
       * Halts any ongoing pondering, if pondering was enabled in the gtp config.
+   * `get_komi`
+      * Report what komi KataGo is currently set to use.
    * `kata-get-rules`
       * Returns a JSON dictionary indicating the current rules KataGo is using.
-      * For example: `{"hasButton":false,"ko":"POSITIONAL","scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"N-1"}`
+      * For example: `{"hasButton":false,"ko":"POSITIONAL","scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"N-1","friendlyPassOk":true}`
       * See https://lightvector.github.io/KataGo/rules.html for a detailed description of the rules implemented.
       * Explanation of individual fields:
          * `ko: ("SIMPLE" | "POSITIONAL" | "SITUATIONAL")` - The rule used for preventing cycles.
@@ -28,21 +30,22 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `suicide: (true | false)` - Whether multi-stone suicide is legal.
          * `hasButton: (true | false)` - Whether [button Go](https://senseis.xmp.net/?ButtonGo) is being used.
          * `whiteHandicapBonus ("0" | "N-1" | "N")` - In handicap games, whether white gets 0, N-1, or N bonus points, where N is the number of black handicap stones.
+         * `friendlyPassOk: (true | false)` - When false, indicates that in this ruleset a player should capture all dead stones before passing.
       * **NOTE: It is possible that more fields and more options for these fields will be added in the future.**
    * `kata-set-rules RULES`
       * Sets the current rules KataGo should be using. Does NOT otherwise affect the board position.
       * `RULES` should either be a JSON dictionary in the same format of `kata-get-rules`, or be a shorthand string like `tromp-taylor`. Some possible shorthand strings are:
-         * `tromp-taylor  : Equivalent to {"hasButton":false,"ko":"POSITIONAL", "scoring":"AREA",     "suicide":true, "tax":"NONE","whiteHandicapBonus":"0"}`
-         * `chinese       : Equivalent to {"hasButton":false,"ko":"SIMPLE",     "scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}`
-         * `chinese-ogs   : Equivalent to {"hasButton":false,"ko":"POSITIONAL", "scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}`
-         * `chinese-kgs   : Equivalent to {"hasButton":false,"ko":"POSITIONAL", "scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}`
-         * `japanese      : Equivalent to {"hasButton":false,"ko":"SIMPLE",     "scoring":"TERRITORY","suicide":false,"tax":"SEKI","whiteHandicapBonus":"0"}`
-         * `korean        : Equivalent to {"hasButton":false,"ko":"SIMPLE",     "scoring":"TERRITORY","suicide":false,"tax":"SEKI","whiteHandicapBonus":"0"}`
-         * `stone-scoring : Equivalent to {"hasButton":false,"ko":"SIMPLE",     "scoring":"AREA",     "suicide":false,"tax":"ALL", "whiteHandicapBonus":"0"}`
-         * `aga           : Equivalent to {"hasButton":false,"ko":"SITUATIONAL","scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N-1"}`
-         * `bga           : Equivalent to {"hasButton":false,"ko":"SITUATIONAL","scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N-1"}`
-         * `new-zealand   : Equivalent to {"hasButton":false,"ko":"SITUATIONAL","scoring":"AREA",     "suicide":true, "tax":"NONE","whiteHandicapBonus":"0"}`
-         * `aga-button    : Equivalent to {"hasButton":true, "ko":"SITUATIONAL","scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N-1"}`
+         * `tromp-taylor  : Equivalent to {"hasButton":false,"ko":"POSITIONAL", "scoring":"AREA",     "suicide":true, "tax":"NONE","whiteHandicapBonus":"0","friendlyPassOk":false}`
+         * `chinese       : Equivalent to {"hasButton":false,"ko":"SIMPLE",     "scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N","friendlyPassOk":true}`
+         * `chinese-ogs   : Equivalent to {"hasButton":false,"ko":"POSITIONAL", "scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N","friendlyPassOk":true}`
+         * `chinese-kgs   : Equivalent to {"hasButton":false,"ko":"POSITIONAL", "scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N","friendlyPassOk":true}`
+         * `japanese      : Equivalent to {"hasButton":false,"ko":"SIMPLE",     "scoring":"TERRITORY","suicide":false,"tax":"SEKI","whiteHandicapBonus":"0","friendlyPassOk":true}`
+         * `korean        : Equivalent to {"hasButton":false,"ko":"SIMPLE",     "scoring":"TERRITORY","suicide":false,"tax":"SEKI","whiteHandicapBonus":"0","friendlyPassOk":true}`
+         * `stone-scoring : Equivalent to {"hasButton":false,"ko":"SIMPLE",     "scoring":"AREA",     "suicide":false,"tax":"ALL", "whiteHandicapBonus":"0","friendlyPassOk":true}`
+         * `aga           : Equivalent to {"hasButton":false,"ko":"SITUATIONAL","scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N-1","friendlyPassOk":true}`
+         * `bga           : Equivalent to {"hasButton":false,"ko":"SITUATIONAL","scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N-1","friendlyPassOk":true}`
+         * `new-zealand   : Equivalent to {"hasButton":false,"ko":"SITUATIONAL","scoring":"AREA",     "suicide":true, "tax":"NONE","whiteHandicapBonus":"0","friendlyPassOk":true}`
+         * `aga-button    : Equivalent to {"hasButton":true, "ko":"SITUATIONAL","scoring":"AREA",     "suicide":false,"tax":"NONE","whiteHandicapBonus":"N-1","friendlyPassOk":true}`
       * KataGo does NOT claim that the above rules are _exactly_ a match. These are merely the _closest_ settings that KataGo has to those countries' rulesets.
       * A small number of combinations are currently not supported by even the latest neural nets, for example `scoring TERRITORY` and `hasButton true`.
       * Older neural nets for KataGo (nets released before v1.3) will also not support many of the options, and setting these rules will fail if these neural nets are being used.
@@ -57,12 +60,27 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * Has the same behavior as `kata-set-rules` except that `chinese` maps to `chinese-kgs` above.
    * `kgs-time_settings KIND ...`
       * This is an extension for playing on KGS, via kgsGtp.
+      * It is not clear if other implementations will support floating-point values for times, however, KataGo does support them. Values must still be non-negative and finite, and values up to at least 2^31-1 are supported.
       * As specified by kgsGtp docs, `KIND` should be one of `none | absolute | canadian | byoyomi`.
          * `none` indicates no time control
          * `absolute` should be followed by a single float `MAINTIME` specifying the time in seconds.
          * `canadian` should be followed by `MAINTIME BYOYOMITIME BYOYOMISTONES` (float,float,int) specifying the main time, the length of the canadian overtime period, and the number of stones that must be played in that period.
          * `byoyomi` should be followed by `MAINTIME BYOYOMITIME BYOYOMIPERIODS` (float,float,int) specifying the main time, the length of each byo-yomi period, and the number of byo-yomi periods.
       * NOTE: As a hack, KGS also expects that when using `byoyomi`, the controller should provide the number of periods left in place of the number of stones left for the GTP `time_left` command.
+   * `kata-time_settings KIND ...`
+      * This is an extension for exposing KataGo's handling of more time controls besides those on KGS.
+      * KataGo and any bots that also choose to implement this same extension must support floating-point values for times, as well as for the normal `time_left` command. Values must still be non-negative and finite, and values up to at least 2^31-1 must be supported.
+      * Supports all of the same settings as `kgs-time_settings` except includes additional time settings:
+        * `fischer` should be followed by two floats `MAINTIME INCREMENT` specifying the original main time in seconds and the number of seconds that is added to a player's clock at the end of making each move. And just as with `absolute`, when using this time setting the controller must always report `0` for the number of stones in the `time_left` command.
+        * `fischer-capped` should be followed by four floats `MAINTIME INCREMENT MAINTIMELIMIT MAXTIMEPERMOVE`. Same as `fischer` except:
+          * `MAINTIMELIMIT` is a cap such that after adding the increment, if the main time is now larger than the limit, it is reduced to the limit. If this limit is used it must be `>= MAINTIME`.
+          * `MAXTIMEPERMOVE` is a limit on the maximum time that may be spent on any individual move.
+          * Setting either of these two floats to a negative value such as `-1` indicates that the value is unused and there is no such limit.
+      * Additionally, unlike `time_settings` or `kgs-time_settings` which demand integer values, for `kata-time_settings`, floating point values are explicitly allowed for all times, periods, or increments. Values must be finite and non-negative. An implementation should continue to support values at least up to 2^31-1.
+      * More time settings might be added in the future.
+   * `kata-list_time_settings`
+      * Reports all time settings supported by `kata-time_settings`, separated by whitespace. Currently the list is `none absolute byo-yomi canadian fischer`.
+      * GTP controllers that use `kata-time_settings` are advised to use this command to check if their time setting is supported.
    * `lz-analyze [player (optional)] [interval (optional)] KEYVALUEPAIR KEYVALUEPAIR ...`
       * Begin searching and optionally outputting live analysis to stdout. Assumes the normal player to move next unless otherwise specified.
       * Possible key-value pairs:
@@ -141,7 +159,12 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      Any consumers of this data should attempt to be robust to any pattern of whitespace within the output, as well as possibly the future addition of new keys and values. The ordering of the keys is also not guaranteed - consumers should be capable of handling any permutation of them.
   * `kata-get-param PARAM`, `kata-set-param PARAM VALUE`
      * Get a parameter or set a parameter to a given value.
-     * Currently, the only supported PARAM is `playoutDoublingAdvantage (float)`. Setting this affects the value used for analysis, and affects play only if the config is not already set to use dynamicPlayoutDoublingAdvantageCapPerOppLead. More params may be added later.
+     * Current supported PARAMs are:
+        * `playoutDoublingAdvantage (float)`. See documentation for this parameter in [the example config](..cpp/configs/gtp_example.cfg). Setting this via this command affects the value used for analysis, and affects play only if the config is not already set to use `dynamicPlayoutDoublingAdvantageCapPerOppLead`.
+        * `analysisWideRootNoise (float)`. See documentation for this parameter in [the example config](..cpp/configs/gtp_example.cfg)
+        * `numSearchThreads (int)`. The number of CPU threads to use in parallel, see documentation for this parameter in [the example config](..cpp/configs/gtp_example.cfg).
+  * `kata-list-params`
+     * Report all PARAMs supported by `kata-get-param`, separated by whitespace.
   * `cputime`, `gomill-cpu_time`
      * Returns the approximate total wall-clock-time spent during the handling of `genmove` or the various flavors of `genmove_analyze` commands described above so far during the entire current instance of the engine, as a floating point number of seconds. Does NOT currently count time spent during pondering or during the various `lz-analyze`, `kata-analyze`, etc.
      * Note: Gomill specifies that its variant of the command should return the total time summed across CPUs. For KataGo, this time is both unuseful and hard to measure because much of the time is spent waiting on the GPU, not on the CPU, and with different threads sometimes blocking each other through the multitheading and often exceeding the number of cores on a user's system, time spent on CPUs is hard to make sense of. So instead we report wall-clock-time, which is far more useful to record and should correspond more closely to what users may want to know for actual practical benchmarking and performance.

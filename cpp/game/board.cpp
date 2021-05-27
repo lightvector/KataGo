@@ -209,9 +209,21 @@ void Board::initHash()
   IS_ZOBRIST_INITALIZED = true;
 }
 
+Hash128 Board::getSitHashWithSimpleKo(Player pla) const {
+  Hash128 h = pos_hash;
+  if(ko_loc != Board::NULL_LOC)
+    h = h ^ Board::ZOBRIST_KO_LOC_HASH[ko_loc];
+  h ^= Board::ZOBRIST_PLAYER_HASH[pla];
+  return h;
+}
+
 void Board::clearSimpleKoLoc() {
   ko_loc = NULL_LOC;
 }
+void Board::setSimpleKoLoc(Loc loc) {
+  ko_loc = loc;
+}
+
 
 //Gets the number of stones of the chain at loc. Precondition: location must be black or white.
 int Board::getChainSize(Loc loc) const
@@ -615,6 +627,18 @@ int Board::numStonesOnBoard() const {
     for(int x = 0; x < x_size; x++) {
       Loc loc = Location::getLoc(x,y,x_size);
       if(colors[loc] == C_BLACK || colors[loc] == C_WHITE)
+        num += 1;
+    }
+  }
+  return num;
+}
+
+int Board::numPlaStonesOnBoard(Player pla) const {
+  int num = 0;
+  for(int y = 0; y < y_size; y++) {
+    for(int x = 0; x < x_size; x++) {
+      Loc loc = Location::getLoc(x,y,x_size);
+      if(colors[loc] == pla)
         num += 1;
     }
   }
@@ -2266,6 +2290,32 @@ void Board::checkConsistency() const {
       throw StringError(errLabel + "Corrupted adj_offsets array");
 }
 
+bool Board::isEqualForTesting(const Board& other, bool checkNumCaptures, bool checkSimpleKo) const {
+  checkConsistency();
+  other.checkConsistency();
+  if(x_size != other.x_size)
+    return false;
+  if(y_size != other.y_size)
+    return false;
+  if(checkSimpleKo && ko_loc != other.ko_loc)
+    return false;
+  if(checkNumCaptures && numBlackCaptures != other.numBlackCaptures)
+    return false;
+  if(checkNumCaptures && numWhiteCaptures != other.numWhiteCaptures)
+    return false;
+  if(pos_hash != other.pos_hash)
+    return false;
+  for(int i = 0; i<MAX_ARR_SIZE; i++) {
+    if(colors[i] != other.colors[i])
+      return false;
+  }
+  //We don't require that the chain linked lists are in the same order.
+  //Consistency check ensures that all the linked lists are consistent with colors array, which we checked.
+  return true;
+}
+
+
+
 //IO FUNCS------------------------------------------------------------------------------------------
 
 char PlayerIO::colorToChar(Color c)
@@ -2492,9 +2542,10 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
 
       bool histMarked = false;
       if(hist != NULL) {
-        for(int i = (int)hist->size()-3; i<hist->size(); i++) {
-          if(i >= 0 && (*hist)[i].loc == loc) {
-            out << i - (hist->size()-3) + 1;
+        size_t start = hist->size() >= 3 ? hist->size()-3 : 0;
+        for(size_t i = 0; start+i < hist->size(); i++) {
+          if((*hist)[start+i].loc == loc) {
+            out << (1+i);
             histMarked = true;
             break;
           }

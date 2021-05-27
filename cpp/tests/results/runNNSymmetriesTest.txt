@@ -457,3 +457,4 @@ Policy
 
 
 
+: GPU 0 finishing, processed 8 rows 8 batches

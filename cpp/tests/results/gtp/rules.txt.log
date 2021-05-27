@@ -1,5 +1,5 @@
 : GTP Engine starting...
-: KataGo v1.8.0
+: KataGo v1.8.2
 : Using TrompTaylor rules initially, unless GTP/GUI overrides this
 : Using 1 CPU thread(s) for search
 : nnRandSeed0 = forTesting
@@ -10,28 +10,42 @@
 : Loaded neural net with nnXLen 19 nnYLen 19
 : Loaded config configs/gtp_example.cfg and/or command-line and query overrides
 : Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: Config override: cudaUseFP16 = false
+: Config override: cudaUseNHWC = false
+: Config override: forDeterministicTesting = true
+: Config override: logDir = 
+: Config override: logFile = tests/results/gtp/rules.txt.log
+: Config override: logTimeStamp = false
+: Config override: maxPlayouts = 10000
+: Config override: maxVisits = 100
+: Config override: nnRandSeed = forTesting
+: Config override: nnRandomize = false
+: Config override: numSearchThreads = 1
+: Config override: openclUseFP16 = false
+: Config override: searchRandSeed = forTesting
 : Model name: g170-b6c96-s175395328-d26788732
 : GTP ready, beginning main protocol loop
 : Controller: kata-get-rules
-: = {"hasButton":false,"ko":"POSITIONAL","scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+: = {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 : Controller: kata-set-rules japanese
 : Changed rules to Japanese
 : = 
 : Controller: kata-get-rules
-: = {"hasButton":false,"ko":"SIMPLE","scoring":"TERRITORY","suicide":false,"tax":"SEKI","whiteHandicapBonus":"0"}
+: = {"friendlyPassOk":false,"hasButton":false,"ko":"SIMPLE","scoring":"TERRITORY","suicide":false,"tax":"SEKI","whiteHandicapBonus":"0"}
 : Controller: kata-set-rules chinese
 : Changed rules to Chinese
 : = 
 : Controller: kata-get-rules
-: = {"hasButton":false,"ko":"SIMPLE","scoring":"AREA","suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}
+: = {"friendlyPassOk":true,"hasButton":false,"ko":"SIMPLE","scoring":"AREA","suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}
 : Controller: kgs-rules chinese
 : Changed rules to Chinese-OGS
 : = 
 : Controller: kata-get-rules
-: = {"hasButton":false,"ko":"POSITIONAL","scoring":"AREA","suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}
+: = {"friendlyPassOk":true,"hasButton":false,"ko":"POSITIONAL","scoring":"AREA","suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}
 : Controller: kgs-rules new_zealand
 : Changed rules to NewZealand
 : = 
 : Controller: kata-get-rules
-: = {"hasButton":false,"ko":"SITUATIONAL","scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+: = {"friendlyPassOk":true,"hasButton":false,"ko":"SITUATIONAL","scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+: GPU -1 finishing, processed 0 rows 0 batches
 : All cleaned up, quitting

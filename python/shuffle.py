@@ -271,6 +271,8 @@ if __name__ == '__main__':
   parser.add_argument('-batch-size', type=int, required=True, help='Batch size to write training examples in')
   parser.add_argument('-ensure-batch-multiple', type=int, required=False, help='Ensure each file is a multiple of this many batches')
   parser.add_argument('-worker-group-size', type=int, required=False, help='Internally, target having many rows per parallel sharding worker')
+  parser.add_argument('-exclude', required=False, help='Text file with npzs to ignore, one per line')
+  parser.add_argument('-exclude-prefix', required=False, help='Prefix to concat to lines in exclude to produce the full file path')
 
   args = parser.parse_args()
   dirs = args.dirs
@@ -293,6 +295,10 @@ if __name__ == '__main__':
   worker_group_size = args.worker_group_size
   if worker_group_size is None:
     worker_group_size = 80000
+  exclude = args.exclude
+  exclude_prefix = args.exclude_prefix
+  if exclude_prefix is None:
+    exclude_prefix = ""
 
   if min_rows is None:
     print("NOTE: -min-rows was not specified, defaulting to requiring 250K rows before shuffling.")
@@ -304,7 +310,6 @@ if __name__ == '__main__':
     keep_target_rows = 1500000
   if add_to_window is None:
     add_to_window = 0
-
 
   summary_data_by_dirpath = {}
   if summary_file is not None:
@@ -322,9 +327,38 @@ if __name__ == '__main__':
           success = False
         if success:
           break
+        time.sleep(1)
+      if not success:
+        raise RuntimeError("Could not load summary file")
+
+  exclude_set = set()
+  if exclude is not None:
+    with TimeStuff("Loading " + exclude):
+      # Try a bunch of times, just to be robust to if the file is being swapped out in nfs
+      for i in range(10):
+        success = False
+        try:
+          with open(exclude,"r") as exclude_in:
+            excludes = exclude_in.readlines()
+            excludes = [x.strip() for x in excludes]
+            excludes = [x for x in excludes if len(x) > 0]
+            excludes = [exclude_prefix + x for x in excludes]
+            exclude_set = set(excludes)
+            success = True
+        except OSError:
+          success = False
+        except ValueError:
+          success = False
+        if success:
+          break
+        time.sleep(1)
+      if not success:
+        raise RuntimeError("Could not load summary file")
+
 
   all_files = []
   files_with_unknown_num_rows = []
+  excluded_count = 0
   with TimeStuff("Finding files"):
     for d in dirs:
       for (path,dirnames,filenames) in os.walk(d, followlinks=True):
@@ -337,15 +371,27 @@ if __name__ == '__main__':
             i -= 1
             for (filename,mtime,num_rows) in filename_mtime_num_rowss:
               filename = os.path.join(path,dirname,filename)
+              if filename in exclude_set:
+                excluded_count += 1
+                continue
               all_files.append((filename,mtime,num_rows))
           i += 1
 
         filenames = [os.path.join(path,filename) for filename in filenames if filename.endswith('.npz')]
+        filtered_filenames = []
+        for filename in filenames:
+          if filename in exclude_set:
+            excluded_count += 1
+            continue
+          filtered_filenames.append(filename)
+        filenames = filtered_filenames
+
         files_with_unknown_num_rows.extend(filenames)
         filenames = [(filename,os.path.getmtime(filename)) for filename in filenames]
         all_files.extend(filenames)
   print("Total number of files: %d" % len(all_files), flush=True)
   print("Total number of files with unknown row count: %d" % len(files_with_unknown_num_rows), flush=True)
+  print("Excluded count: %d" % excluded_count, flush=True)
 
   with TimeStuff("Sorting"):
     all_files.sort(key=(lambda x: x[1]), reverse=False)

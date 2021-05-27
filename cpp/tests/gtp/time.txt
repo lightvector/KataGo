@@ -139,3 +139,78 @@ time_left black -1 0
 time_left white -5 0
 kata-debug-print-tc
 
+
+kgs-time_settings byoyomi 20.5 5.8 5
+kata-debug-print-tc
+time_left black 10 7
+time_left white 0 7
+kata-debug-print-tc
+time_left black 10 6
+time_left white 0 6
+kata-debug-print-tc
+time_left black 10 3
+time_left white 0 3
+kata-debug-print-tc
+
+
+kata-list_time_settings
+
+kata-time_settings fischer 60 0
+kata-debug-print-tc
+time_left black 40 0
+time_left white 50 0
+kata-debug-print-tc
+
+kata-time_settings fischer 60 1
+kata-debug-print-tc
+time_left black 40 0
+time_left white 50 0
+kata-debug-print-tc
+
+kata-time_settings fischer 60 5
+kata-debug-print-tc
+time_left black 40 0
+time_left white 50 0
+kata-debug-print-tc
+
+kata-time_settings fischer 62.5 2.5
+kata-debug-print-tc
+time_left black 7.3 0
+time_left white 10.1 0
+kata-debug-print-tc
+
+kata-time_settings fischer-capped 60 10 60 1e15
+kata-debug-print-tc
+time_left black 60 0
+time_left white 30 0
+kata-debug-print-tc
+
+kata-time_settings fischer-capped 60 10 60 -1
+kata-debug-print-tc
+time_left black 60 0
+time_left white 30 0
+kata-debug-print-tc
+
+kata-time_settings fischer-capped 60 10 -1 12
+kata-debug-print-tc
+time_left black 60 0
+time_left white 30 0
+kata-debug-print-tc
+
+kata-time_settings fischer-capped 60 10 1.2e15 12
+kata-debug-print-tc
+time_left black 60 0
+time_left white 30 0
+kata-debug-print-tc
+
+kata-time_settings fischer-capped 60 10 -1 -1
+kata-debug-print-tc
+time_left black 60 0
+time_left white 30 0
+kata-debug-print-tc
+
+kata-time_settings fischer-capped 60 10 60 7
+kata-debug-print-tc
+time_left black 60 0
+time_left white 30 0
+kata-debug-print-tc

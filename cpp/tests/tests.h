@@ -29,9 +29,11 @@ namespace Tests {
 
   //testsgf.cpp
   void runSgfTests();
+  void runSgfFileTests();
 
   //testnninputs.cpp
   void runNNInputsV3V4Tests();
+  void runBasicSymmetryTests();
 
   //testsearch.cpp
   void runNNLessSearchTests();
@@ -41,6 +43,7 @@ namespace Tests {
   void runNNOnTinyBoard(const std::string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16);
   void runNNSymmetries(const std::string& modelFile, bool inputsNHWC, bool cudaNHWC, bool useFP16);
   void runNNOnManyPoses(const std::string& modelFile, bool inputsNHWC, bool cudaNHWC, int symmetry, bool useFP16, const std::string& comparisonFile);
+  void runNNBatchingTest(const std::string& modelFile, bool inputsNHWC, bool cudaNHWC, bool useFP16);
 
   //testtime.cpp
   void runTimeControlsTests();
@@ -50,6 +53,7 @@ namespace Tests {
   void runSelfplayInitTestsWithNN(const std::string& modelFile);
   void runSekiTrainWriteTests(const std::string& modelFile);
   void runMoreSelfplayTestsWithNN(const std::string& modelFile);
+  void runSelfplayStatTestsWithNN(const std::string& modelFile);
 
   //testnn.cpp
   void runNNLayerTests();
@@ -62,6 +66,8 @@ namespace Tests {
 namespace TestCommon {
   bool boardsSeemEqual(const Board& b1, const Board& b2);
   std::string getBenchmarkSGFData(int boardSize);
+
+  void overrideForOpenCL(bool& inputsNHWC, bool& useNHWC);
 }
 
 #endif

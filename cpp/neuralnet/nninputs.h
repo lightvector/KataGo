@@ -145,12 +145,16 @@ struct NNOutput {
   NNOutput& operator=(const NNOutput&);
 
   inline float* getPolicyProbsMaybeNoised() { return noisedPolicyProbs != NULL ? noisedPolicyProbs : policyProbs; }
+  inline const float* getPolicyProbsMaybeNoised() const { return noisedPolicyProbs != NULL ? noisedPolicyProbs : policyProbs; }
   void debugPrint(std::ostream& out, const Board& board);
 };
 
 namespace SymmetryHelpers {
   void copyInputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry);
   void copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry);
+
+  Loc getSymLoc(int x, int y, const Board& board, int symmetry);
+  Board getSymBoard(const Board& board, int symmetry);
 }
 
 //Utility functions for computing the "scoreValue", the unscaled utility of various numbers of points, prior to multiplication by
@@ -170,6 +174,8 @@ namespace ScoreValue {
   double whiteScoreValueOfScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, double center, double scale, const Board& b);
   //Approximately invert whiteScoreValueOfScoreSmooth
   double approxWhiteScoreOfScoreValueSmooth(double scoreValue, double center, double scale, const Board& b);
+  //The derviative of whiteScoreValueOfScoreSmoothNoDrawAdjust with respect to finalWhiteMinusBlackScore.
+  double whiteDScoreValueDScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, double center, double scale, const Board& b);
 
   //Compute what the scoreMeanSq should be for a final game result
   //It is NOT simply the same as finalWhiteMinusBlackScore^2 because for integer komi we model it as a distribution where with the appropriate probability

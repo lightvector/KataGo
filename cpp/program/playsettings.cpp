@@ -3,6 +3,7 @@
 PlaySettings::PlaySettings()
   :initGamesWithPolicy(false),policyInitAreaProp(0.0),startPosesPolicyInitAreaProp(0.0),
    compensateAfterPolicyInitProb(0.0),sidePositionProb(0.0),
+   policyInitAreaTemperature(1.0),handicapTemperature(1.0),
    compensateKomiVisits(20),estimateLeadVisits(10),estimateLeadProb(0.0),
    earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),forkGameProb(0.0),forkGameMinChoices(1),earlyForkGameMaxChoices(1),forkGameMaxChoices(1),
    sekiForkHackProb(0.0),fancyKomiVarying(false),
@@ -46,6 +47,9 @@ PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
     //forkSidePositionProb is the legacy name, included for backward compatibility
     (cfg.contains("forkSidePositionProb") && !cfg.contains("sidePositionProb")) ?
     cfg.getDouble("forkSidePositionProb",0.0,1.0) : cfg.getDouble("sidePositionProb",0.0,1.0);
+
+  playSettings.policyInitAreaTemperature = cfg.contains("policyInitAreaTemperature") ? cfg.getDouble("policyInitAreaTemperature",0.1,5.0) : 1.0;
+  playSettings.handicapTemperature = cfg.contains("handicapTemperature") ? cfg.getDouble("handicapTemperature",0.1,5.0) : 1.0;
 
   playSettings.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 20;
   playSettings.estimateLeadVisits = cfg.contains("estimateLeadVisits") ? cfg.getInt("estimateLeadVisits",1,10000) : 6;

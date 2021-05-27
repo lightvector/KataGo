@@ -322,7 +322,7 @@ HASH: 0483785A1D3D994549631CC1DE3E1CCE
 Initial pla White
 Encore phase 0
 Turns this phase 0
-Rules koSIMPLEscoreAREAtaxNONEsui0whbNkomi5
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 4
@@ -359,7 +359,7 @@ HASH: D2679AE98871290D03776F89C5C34607
 Initial pla White
 Encore phase 0
 Turns this phase 7
-Rules koSIMPLEscoreAREAtaxNONEsui0whbNkomi5
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 4
@@ -423,7 +423,7 @@ HASH: 0483785A1D3D994549631CC1DE3E1CCE
 Initial pla White
 Encore phase 0
 Turns this phase 0
-Rules koSITUATIONALscoreAREAtaxNONEsui0whbN-1komi5
+Rules koSITUATIONALscoreAREAtaxNONEsui0whbN-1fpok1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 3
@@ -460,7 +460,7 @@ HASH: D2679AE98871290D03776F89C5C34607
 Initial pla White
 Encore phase 0
 Turns this phase 7
-Rules koSITUATIONALscoreAREAtaxNONEsui0whbN-1komi5
+Rules koSITUATIONALscoreAREAtaxNONEsui0whbN-1fpok1komi5
 Ko recap block hash 00000000000000000000000000000000
 White bonus score 0
 White handicap bonus score 3
@@ -632,9 +632,13 @@ Last moves
       Sgf* sgf = Sgf::parse(sgfStr);
       std::set<Hash128> uniqueHashes;
       vector<Sgf::PositionSample> samples;
-      sgf->loadAllUniquePositions(uniqueHashes, false, samples);
+      sgf->loadAllUniquePositions(uniqueHashes, false, false, NULL, samples);
       for(int i = 0; i<samples.size(); i++) {
         out << Sgf::PositionSample::toJsonLine(samples[i]) << endl;
+        Sgf::PositionSample reloaded = Sgf::PositionSample::ofJsonLine(Sgf::PositionSample::toJsonLine(samples[i]));
+        bool checkNumCaptures = false;
+        bool checkSimpleKo = false;
+        testAssert(samples[i].isEqualForTesting(reloaded,checkNumCaptures,checkSimpleKo));
       }
       delete sgf;
     }
@@ -719,9 +723,13 @@ Last moves C3 C4 B4 D3 D4 C2 B3
       Sgf* sgf = Sgf::parse(sgfStr);
       std::set<Hash128> uniqueHashes;
       vector<Sgf::PositionSample> samples;
-      sgf->loadAllUniquePositions(uniqueHashes, false, samples);
+      sgf->loadAllUniquePositions(uniqueHashes, false, false, NULL, samples);
       for(int i = 0; i<samples.size(); i++) {
         out << Sgf::PositionSample::toJsonLine(samples[i]) << endl;
+        Sgf::PositionSample reloaded = Sgf::PositionSample::ofJsonLine(Sgf::PositionSample::toJsonLine(samples[i]));
+        bool checkNumCaptures = false;
+        bool checkSimpleKo = false;
+        testAssert(samples[i].isEqualForTesting(reloaded,checkNumCaptures,checkSimpleKo));
       }
       delete sgf;
     }
@@ -939,4 +947,44 @@ Last moves D34 AJ34 AJ4 D4 D5 E5 E6 AH34 AH33 AJ33 E33 AH5 T19
     expect(name,out,expected);
   }
 
+  {
+    const char* name = "More rigorous test of positionsample parsing";
+    (void)name;
+    string sgfStr = "(;FF[4]GM[1]SZ[9:17]HA[0]KM[7.5]RU[koSIMPLEscoreAREAtaxSEKIsui0]RE[W+32.5];B[fo];W[dd];B[fc];W[fd];B[ec];W[ed];B[dc];W[cd];B[gd];W[ge];B[hd];W[dn];B[fm];W[eo];B[fp];W[el];B[ck];W[di];B[bn];W[fl];B[gm];W[gl];B[ci];W[ch];B[dh];W[ei];B[em];W[dm];B[dl];W[bm];B[ek];W[hm];B[hn];W[cj];B[bk];W[hl];B[cm];W[cn];B[bo];W[cl];B[dk];W[ep];B[hp];W[cp];B[fj];W[gi];B[am];W[al];B[fi];W[gh];B[bl];W[an];B[cm];W[in];B[ho];W[cl];B[gj];W[hj];B[cm];W[gc];B[fh];W[gg];B[gb];W[cl];B[hk];W[gk];B[cm];W[fn];B[gn];W[cl];B[ik];W[ij];B[cm];W[hc];B[hb];W[cl];B[hi];W[il];B[cm];W[bp];B[bi];W[eh];B[am];W[bh];B[dg];W[bm];B[fg];W[he];B[am];W[ap];B[cf];W[bj];B[eg];W[id];B[cc];W[bm];B[bc];W[bd];B[bf];W[cl];B[ak];W[cm];B[ff];W[gf];B[ac];W[ae];B[af];W[ai];B[ib];W[df];B[ef];W[cg];B[de];W[ee];B[df];W[be];B[aj];W[fe];B[ej];W[ci];B[ah];W[ag];B[bg];W[ce];B[am];W[fk];B[ah];W[fq];B[bi];W[gp];B[go];W[ai];B[en];W[ag];B[co];W[al];B[ah];W[am];B[bi];W[hq];B[gq];W[ai];B[do];W[ao];B[bi];W[gp];B[ii];W[gq];B[ic];W[ad];B[dj];W[hh];B[bh];W[dp];B[fb];W[ih];B[];W[hd];B[];W[ip];B[];W[io];B[];W[fn];B[];W[])";
+    {
+      Sgf* sgf = Sgf::parse(sgfStr);
+      std::set<Hash128> uniqueHashes;
+      vector<Sgf::PositionSample> samples;
+      sgf->loadAllUniquePositions(uniqueHashes, false, false, NULL, samples);
+      for(int i = 0; i<samples.size(); i++) {
+        samples[i].weight = i * 0.5;
+        Sgf::PositionSample reloaded = Sgf::PositionSample::ofJsonLine(Sgf::PositionSample::toJsonLine(samples[i]));
+        bool checkNumCaptures = false;
+        bool checkSimpleKo = false;
+        testAssert(samples[i].isEqualForTesting(reloaded,checkNumCaptures,checkSimpleKo));
+      }
+      delete sgf;
+    }
+  }
+
 }
+
+
+// Some tests that depend on files on disk in the repo.
+void Tests::runSgfFileTests() {
+  Sgf* sgf = Sgf::loadFile("tests/data/foxlike.sgf");
+  testAssert(sgf->getXYSize().x == 19);
+  testAssert(sgf->getXYSize().y == 19);
+  testAssert(sgf->getKomi() == 6.5f);
+  testAssert(sgf->hasRules() == true);
+  testAssert(sgf->getRulesOrFail().equalsIgnoringKomi(Rules::parseRules("chinese")));
+  testAssert(sgf->getHandicapValue() == 2);
+  testAssert(sgf->getSgfWinner() == C_EMPTY);
+  testAssert(sgf->getPlayerName(P_BLACK) == "testname1");
+  testAssert(sgf->getPlayerName(P_WHITE) == "testname2");
+  testAssert(sgf->getRank(P_BLACK) == 2);
+  testAssert(sgf->getRank(P_WHITE) == 4);
+  cout << "SgfFileTests ok" << endl;
+  delete sgf;
+}
+

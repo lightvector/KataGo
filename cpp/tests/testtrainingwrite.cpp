@@ -61,6 +61,10 @@ static NNEvaluator* startNNEval(
 }
 
 void Tests::runTrainingWriteTests() {
+  bool inputsNHWC = true;
+  bool useNHWC = false;
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
+
   cout << "Running training write tests" << endl;
   NeuralNet::globalInitialize();
 
@@ -81,7 +85,7 @@ void Tests::runTrainingWriteTests() {
   ) {
     TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, nnXLen, nnYLen, debugOnlyWriteEvery, seedBase+"dwriter");
 
-    NNEvaluator* nnEval = startNNEval("/dev/null",seedBase+"nneval",logger,0,true,false,false);
+    NNEvaluator* nnEval = startNNEval("/dev/null",seedBase+"nneval",logger,0,inputsNHWC,useNHWC,false);
 
     SearchParams params;
     params.maxVisits = cheapLongSgf ? 2 : 100;
@@ -100,12 +104,12 @@ void Tests::runTrainingWriteTests() {
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = 0;
-    extraBlackAndKomi.komiBase = rules.komi;
-    extraBlackAndKomi.komi = rules.komi;
+    extraBlackAndKomi.komiMean = rules.komi;
+    extraBlackAndKomi.komiStdev = 0;
     bool doEndGameIfAllPassAlive = cheapLongSgf ? false : true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = cheapLongSgf ? 200 : 40;
-    vector<std::atomic<bool>*> stopConditions;
+    auto shouldStop = []() { return false; };
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
@@ -119,7 +123,7 @@ void Tests::runTrainingWriteTests() {
       seedBase+"search",
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
-      maxMovesPerGame, stopConditions,
+      maxMovesPerGame, shouldStop,
       playSettings, otherGameProps,
       rand,
       nullptr,
@@ -186,6 +190,10 @@ void Tests::runTrainingWriteTests() {
 
 
 void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
+  bool inputsNHWC = true;
+  bool useNHWC = false;
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
+
   cout << "Running test for selfplay initialization with NN" << endl;
   NeuralNet::globalInitialize();
 
@@ -193,7 +201,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,true,false,false);
+  NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,inputsNHWC,useNHWC,false);
 
   auto run = [&](
     const string& seedBase,
@@ -222,15 +230,15 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = numExtraBlack;
-    extraBlackAndKomi.komiBase = rules.komi;
-    extraBlackAndKomi.komi = rules.komi;
+    extraBlackAndKomi.komiMean = rules.komi;
+    extraBlackAndKomi.komiStdev = 0;
     extraBlackAndKomi.makeGameFair = numExtraBlack > 0 && !makeGameFairForEmptyBoard;
     extraBlackAndKomi.makeGameFairForEmptyBoard = makeGameFairForEmptyBoard;
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 1;
-    vector<std::atomic<bool>*> stopConditions;
+    auto shouldStop = []() { return false; };
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
@@ -246,7 +254,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     playSettings.forSelfPlay = true;
 
     string searchRandSeed = seedBase+"search";
-    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
+    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, &logger, searchRandSeed);
 
     Rand rand(seedBase+"play");
     OtherGameProperties otherGameProps;
@@ -256,7 +264,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       bot,bot,
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
-      maxMovesPerGame, stopConditions,
+      maxMovesPerGame, shouldStop,
       playSettings, otherGameProps,
       rand,
       nullptr,
@@ -279,13 +287,13 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       Player pla = forkData.forks[0]->pla;
       PlayUtils::adjustKomiToEven(
         bot, bot, board, hist, pla,
-        playSettings.cheapSearchVisits, logger, OtherGameProperties(), rand
+        playSettings.cheapSearchVisits, OtherGameProperties(), rand
       );
       BoardHistory hist2 = forkData.forks[0]->hist;
       float oldKomi = hist2.rules.komi;
       double lead = PlayUtils::computeLead(
         bot, bot, board, hist2, pla,
-        playSettings.cheapSearchVisits, logger, OtherGameProperties()
+        playSettings.cheapSearchVisits, OtherGameProperties()
       );
       cout << "Lead: " << lead << endl;
       hist.printDebugInfo(cout,board);
@@ -348,6 +356,10 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
 }
 
 void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
+  bool inputsNHWC = true;
+  bool useNHWC = false;
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
+
   cout << "Running more tests for selfplay" << endl;
   NeuralNet::globalInitialize();
 
@@ -355,7 +367,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,true,false,false);
+  NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,inputsNHWC,useNHWC,false);
 
   auto run = [&](
     const string& seedBase,
@@ -415,15 +427,15 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = 0;
-    extraBlackAndKomi.komiBase = rules.komi;
-    extraBlackAndKomi.komi = rules.komi;
+    extraBlackAndKomi.komiMean = rules.komi;
+    extraBlackAndKomi.komiStdev = 0;
     extraBlackAndKomi.makeGameFair = false;
     extraBlackAndKomi.makeGameFairForEmptyBoard = false;
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = testResign ? 10000 : (testLead || testPolicySurpriseWeight || testValueSurpriseWeight) ? 30 : 15;
-    vector<std::atomic<bool>*> stopConditions;
+    auto shouldStop = []() { return false; };
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
@@ -453,7 +465,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     playSettings.forSelfPlay = !testResign;
 
     string searchRandSeed = seedBase+"search";
-    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
+    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, &logger, searchRandSeed);
 
     cout << "====================================================================================================" << endl;
     cout << "====================================================================================================" << endl;
@@ -480,7 +492,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       bot,bot,
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, logSearchInfo, false,
-      maxMovesPerGame, stopConditions,
+      maxMovesPerGame, shouldStop,
       playSettings, otherGameProps,
       rand,
       nullptr,
@@ -491,7 +503,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       Play::maybeHintForkGame(gameData, &forkData, otherGameProps);
       cout << " Forkstuff " << forkData.forks.size() << " " << forkData.sekiForks.size() << endl;
       for(int i = 0; i<forkData.forks.size(); i++)
-        cout << forkData.forks[0]->board << endl;
+        cout << forkData.forks[i]->board << endl;
     }
 
     gameData->printDebug(cout);
@@ -530,14 +542,14 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
 
     SearchParams params;
     string searchRandSeed = seedBase+"search";
-    Search* bot = new Search(params, nnEval, searchRandSeed);
+    Search* bot = new Search(params, nnEval, &logger, searchRandSeed);
 
     rules.komi = komi;
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,rules,0);
     int compensateKomiVisits = 50;
     OtherGameProperties otherGameProps;
-    double lead = PlayUtils::computeLead(bot,bot,board,hist,pla,compensateKomiVisits,logger,otherGameProps);
+    double lead = PlayUtils::computeLead(bot,bot,board,hist,pla,compensateKomiVisits,otherGameProps);
     testAssert(hist.rules.komi == komi);
     cout << board << endl;
     cout << "LEAD: " << lead << endl;
@@ -574,15 +586,15 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = 0;
-    extraBlackAndKomi.komiBase = rules.komi;
-    extraBlackAndKomi.komi = rules.komi;
+    extraBlackAndKomi.komiMean = rules.komi;
+    extraBlackAndKomi.komiStdev = 0;
     extraBlackAndKomi.makeGameFair = false;
     extraBlackAndKomi.makeGameFairForEmptyBoard = false;
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 20;
-    vector<std::atomic<bool>*> stopConditions;
+    auto shouldStop = []() { return false; };
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0;
@@ -602,7 +614,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     playSettings.forSelfPlay = true;
 
     string searchRandSeed = seedBase+"search";
-    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
+    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, &logger, searchRandSeed);
 
     cout << "====================================================================================================" << endl;
     cout << "====================================================================================================" << endl;
@@ -618,7 +630,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       bot,bot,
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, logSearchInfo, false,
-      maxMovesPerGame, stopConditions,
+      maxMovesPerGame, shouldStop,
       playSettings, otherGameProps,
       rand,
       nullptr,
@@ -904,10 +916,10 @@ xxxxxxxx.
     ForkData* forkData = new ForkData();
 
     GameRunner* gameRunner = new GameRunner(cfg, "game init test game seed", playSettings, logger);
-    std::vector<std::atomic<bool>*> stopConditions;
+    auto shouldStop = []() { return false; };
     for(int i = 0; i<100; i++) {
       string seed = "game init test search seed:" + Global::int64ToString(i);
-      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, NULL, logger, stopConditions, nullptr, nullptr, false);
+      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, NULL, logger, shouldStop, nullptr, nullptr, false);
       cout << data->startHist.rules << endl;
       cout << "Start moves size " << data->startHist.moveHistory.size()
            << " Start pla " << PlayerIO::playerToString(data->startPla)
@@ -930,7 +942,836 @@ xxxxxxxx.
 }
 
 
+void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
+  bool inputsNHWC = true;
+  bool useNHWC = false;
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
+
+  cout << "Running 10b tests for selfplay" << endl;
+  NeuralNet::globalInitialize();
+
+  Logger logger;
+  logger.setLogToStdout(true);
+  logger.setLogTime(false);
+
+  NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,inputsNHWC,useNHWC,false);
+
+  auto runStatTest = [&](const std::map<string,string>& cfgParams, PlaySettings playSettings, const Sgf::PositionSample* startPosSample, string name) {
+    cout << "--------------------------------------------------------------------------------------" << endl;
+    cout << name << endl;
+    nnEval->clearCache();
+    nnEval->clearStats();
+
+    MatchPairer::BotSpec botSpec;
+    botSpec.botIdx = 0;
+    botSpec.botName = modelFile;
+    botSpec.nnEval = nnEval;
+    botSpec.baseParams = SearchParams();
+    botSpec.baseParams.maxVisits = 10;
+
+    ConfigParser cfg(cfgParams);
+    ForkData* forkData = new ForkData();
+    GameRunner* gameRunner = new GameRunner(cfg, "game init stattest1", playSettings, logger);
+    auto shouldStop = []() { return false; };
+
+    std::map<float,int> komiDistribution;
+    std::map<int,int> bStoneDistribution;
+    std::map<int,int> wStoneDistribution;
+    std::map<string,int> bSizeDistribution;
+    for(int i = 0; i<1000; i++) {
+      string seed = name + Global::int64ToString(i);
+      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, startPosSample, logger, shouldStop, nullptr, nullptr, false);
+      komiDistribution[data->startHist.rules.komi] += 1;
+      bStoneDistribution[data->startBoard.numPlaStonesOnBoard(P_BLACK)] += 1;
+      wStoneDistribution[data->startBoard.numPlaStonesOnBoard(P_WHITE)] += 1;
+      bSizeDistribution[Global::intToString(data->startBoard.x_size) + "x" + Global::intToString(data->startBoard.y_size)] += 1;
+      delete data;
+    }
+    cout << "komiDistribution" << endl;
+    for(auto iter = komiDistribution.begin(); iter != komiDistribution.end(); ++iter) {
+      cout << Global::strprintf("%+5.1f",iter->first) << " " << iter->second << endl;
+    }
+    cout << "bStoneDistribution" << endl;
+    for(auto iter = bStoneDistribution.begin(); iter != bStoneDistribution.end(); ++iter) {
+      cout << Global::strprintf("%3d",iter->first) << " " << iter->second << endl;
+    }
+    cout << "wStoneDistribution" << endl;
+    for(auto iter = wStoneDistribution.begin(); iter != wStoneDistribution.end(); ++iter) {
+      cout << Global::strprintf("%3d",iter->first) << " " << iter->second << endl;
+    }
+    cout << "bSizeDistribution" << endl;
+    for(auto iter = bSizeDistribution.begin(); iter != bSizeDistribution.end(); ++iter) {
+      cout << iter->first << " " << iter->second << endl;
+    }
+    delete gameRunner;
+    delete forkData;
+  };
+
+  {
+    string name = "Game init test 19x19 mostly vanilla";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.0;
+    playSettings.compensateAfterPolicyInitProb = 1.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name);
+  }
+
+  {
+    string name = "Game init test 19x19 mostly with territory rules";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.0;
+    playSettings.compensateAfterPolicyInitProb = 1.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA,TERRITORY"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name);
+  }
+
+  {
+    string name = "Game init test 19x19 komiBigStdev";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.0;
+    playSettings.compensateAfterPolicyInitProb = 1.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.3"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name);
+  }
+
+  {
+    string name = "Game init test 9x9 komiBigStdev";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.0;
+    playSettings.compensateAfterPolicyInitProb = 1.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.3"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","9"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name);
+  }
+
+  {
+    string name = "Game init test 19x19 policy init and make fair low temp";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.05;
+    playSettings.policyInitAreaTemperature = 0.3;
+    playSettings.compensateAfterPolicyInitProb = 1.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name);
+  }
+
+  {
+    string name = "Game init test 19x19 policy init and make fair";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.05;
+    playSettings.compensateAfterPolicyInitProb = 1.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name);
+  }
+
+  {
+    string name = "Game init test 19x19 policy init and half make fair";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.05;
+    playSettings.compensateAfterPolicyInitProb = 0.5;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name);
+  }
+
+
+  {
+    string name = "Game init test 19x19 policy init and not make fair, low komi stdev";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.05;
+    playSettings.compensateAfterPolicyInitProb = 0.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = false;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","0.5"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name);
+  }
+
+  {
+    string name = "Game init test 19x19 fork and half make fair, policy init not make fair, low komi stdev";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.05;
+    playSettings.compensateAfterPolicyInitProb = 0.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = false;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.75;
+    playSettings.earlyForkGameExpectedMoveProp = 0.01;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","0.5"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","0.5"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name);
+  }
+
+  {
+    string name = "Game init test 19x19 fork many choices and half make fair, policy init not make fair, low komi stdev";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.05;
+    playSettings.compensateAfterPolicyInitProb = 0.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = false;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.75;
+    playSettings.earlyForkGameExpectedMoveProp = 0.01;
+    playSettings.forkGameMinChoices = 16;
+    playSettings.earlyForkGameMaxChoices = 20;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","0.5"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","0.5"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name);
+  }
+
+  {
+    string name = "Game init test 19x19 fork many choices and half make fair, policy init not make fair, low komi stdev, fancy";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.05;
+    playSettings.compensateAfterPolicyInitProb = 0.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.75;
+    playSettings.earlyForkGameExpectedMoveProp = 0.01;
+    playSettings.forkGameMinChoices = 16;
+    playSettings.earlyForkGameMaxChoices = 20;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","0.5"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","0.5"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name);
+  }
+
+  {
+    string name = "Game init test 19x19 handicap";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.0;
+    playSettings.compensateAfterPolicyInitProb = 0.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = false;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","0.5"),
+        std::make_pair("handicapProb","1.0"),
+        std::make_pair("handicapCompensateKomiProb","0.5"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name);
+  }
+
+  {
+    string name = "Game init test 19x19 handicap low temp";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.0;
+    playSettings.handicapTemperature = 0.5;
+    playSettings.compensateAfterPolicyInitProb = 0.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = false;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","0.5"),
+        std::make_pair("handicapProb","1.0"),
+        std::make_pair("handicapCompensateKomiProb","0.5"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name);
+  }
+
+  {
+    string name = "Game init test 19x19 handicap low temp fancy";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.0;
+    playSettings.handicapTemperature = 0.5;
+    playSettings.compensateAfterPolicyInitProb = 0.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","0.5"),
+        std::make_pair("handicapProb","1.0"),
+        std::make_pair("handicapCompensateKomiProb","0.5"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name);
+  }
+
+  {
+    string name = "Game init test sgfpos empty board";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.05;
+    playSettings.compensateAfterPolicyInitProb = 0.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    Sgf::PositionSample startPosSample;
+    startPosSample.board = Board(19,19);
+    startPosSample.nextPla = P_BLACK;
+    startPosSample.moves = std::vector<Move>();
+    startPosSample.initialTurnNumber = 0;
+    startPosSample.hintLoc = Board::NULL_LOC;
+    startPosSample.weight = 1.0;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,&startPosSample,name);
+  }
+
+  {
+    string name = "Game init test sgfpos empty board with init";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.0;
+    playSettings.startPosesPolicyInitAreaProp = 0.05;
+    playSettings.compensateAfterPolicyInitProb = 0.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    Sgf::PositionSample startPosSample;
+    startPosSample.board = Board(19,19);
+    startPosSample.nextPla = P_BLACK;
+    startPosSample.moves = std::vector<Move>();
+    startPosSample.initialTurnNumber = 0;
+    startPosSample.hintLoc = Board::NULL_LOC;
+    startPosSample.weight = 1.0;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","19"),
+        std::make_pair("bSizeRelProbs","1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.0"),
+    });
+    runStatTest(cfgParams,playSettings,&startPosSample,name);
+  }
+
+  {
+    string name = "Game init test rectangles";
+    //Statistical test of game initialization
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.0;
+    playSettings.compensateAfterPolicyInitProb = 0.0;
+    playSettings.sidePositionProb = 0;
+    playSettings.compensateKomiVisits = 4;
+    playSettings.estimateLeadProb = 0.0;
+    playSettings.fancyKomiVarying = true;
+    playSettings.sekiForkHackProb = 0.0;
+    playSettings.earlyForkGameProb = 0.0;
+    playSettings.forkGameMinChoices = 2;
+    playSettings.earlyForkGameMaxChoices = 3;
+    playSettings.forSelfPlay = true;
+
+    std::map<string,string> cfgParams({
+        std::make_pair("maxMovesPerGame","0"),
+        std::make_pair("logSearchInfo","false"),
+        std::make_pair("logMoves","false"),
+        std::make_pair("komiAuto","true"),
+        std::make_pair("komiStdev","2.0"),
+        std::make_pair("handicapProb","0.0"),
+        std::make_pair("handicapCompensateKomiProb","1.0"),
+        std::make_pair("forkCompensateKomiProb","1.0"),
+        std::make_pair("komiBigStdevProb","0.0"),
+        std::make_pair("komiBigStdev","20.0"),
+        std::make_pair("drawRandRadius","0.5"),
+        std::make_pair("noResultStdev","0.16"),
+
+        std::make_pair("bSizes","9,13,19"),
+        std::make_pair("bSizeRelProbs","1,1,1"),
+        std::make_pair("koRules","SIMPLE,POSITIONAL,SITUATIONAL"),
+        std::make_pair("scoringRules","AREA"),
+        std::make_pair("taxRules","NONE,NONE,SEKI,SEKI,ALL"),
+        std::make_pair("multiStoneSuicideLegals","false,true"),
+        std::make_pair("hasButtons","false,false,true"),
+        std::make_pair("allowRectangleProb","0.1"),
+    });
+    runStatTest(cfgParams,playSettings,NULL,name);
+  }
+
+  delete nnEval;
+  NeuralNet::globalCleanup();
+}
+
+
 void Tests::runSekiTrainWriteTests(const string& modelFile) {
+  bool inputsNHWC = true;
+  bool useNHWC = false;
+  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
+
   cout << "Running test for how a seki gets recorded" << endl;
   NeuralNet::globalInitialize();
 
@@ -941,7 +1782,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
   logger.setLogToStdout(true);
   logger.setLogTime(false);
 
-  NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,true,false,false);
+  NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,inputsNHWC,useNHWC,false);
 
   auto run = [&](const string& sgfStr, const string& seedBase, const Rules& rules) {
     int inputsVersion = 6;
@@ -970,15 +1811,15 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = 0;
-    extraBlackAndKomi.komiBase = rules.komi;
-    extraBlackAndKomi.komi = rules.komi;
+    extraBlackAndKomi.komiMean = rules.komi;
+    extraBlackAndKomi.komiStdev = 0;
     int turnIdx = sgf->moves.size();
     sgf->setupBoardAndHistAssumeLegal(rules,initialBoard,initialPla,initialHist,turnIdx);
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 1;
-    vector<std::atomic<bool>*> stopConditions;
+    auto shouldStop = []() { return false; };
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = false;
     playSettings.sidePositionProb = 0;
@@ -993,7 +1834,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     playSettings.forSelfPlay = true;
 
     string searchRandSeed = seedBase+"search";
-    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, searchRandSeed);
+    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, &logger, searchRandSeed);
 
     Rand rand(seedBase+"play");
     OtherGameProperties otherGameProps;
@@ -1003,7 +1844,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
       bot,bot,
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
-      maxMovesPerGame, stopConditions,
+      maxMovesPerGame, shouldStop,
       playSettings, otherGameProps,
       rand,
       nullptr,
@@ -1021,12 +1862,12 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
   };
 
   vector<Rules> ruless = {
-    Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, false, false, Rules::WHB_ZERO, 0.0f),
-    Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, false, Rules::WHB_ZERO, 0.0f),
-    Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, false, false, Rules::WHB_ZERO, 0.0f),
-    Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, Rules::WHB_ZERO, 0.0f),
-    Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, false, false, Rules::WHB_ZERO, 0.0f),
-    Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, false, Rules::WHB_ZERO, 0.0f),
+    Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_NONE, false, false, Rules::WHB_ZERO, false, 0.0f),
+    Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_NONE, false, false, Rules::WHB_ZERO, false, 0.0f),
+    Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_SEKI, false, false, Rules::WHB_ZERO, false, 0.0f),
+    Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, Rules::WHB_ZERO, false, 0.0f),
+    Rules(Rules::KO_SIMPLE, Rules::SCORING_AREA, Rules::TAX_ALL, false, false, Rules::WHB_ZERO, false, 0.0f),
+    Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_ALL, false, false, Rules::WHB_ZERO, false, 0.0f),
   };
 
   string sgfStr = "(;KM[0.0]PB[]SZ[13]PW[]AP[Sabaki:0.43.3]CA[UTF-8];B[aj];W[bi];B[bk];W[cj];B[cl];W[dk];B[dm];W[el];B[dl];W[ek];B[ck];W[dj];B[bj];W[ci];B[al];W[bm];B[fm];W[em];B[fl];W[ai];B[fk];W[dh];B[fj];W[bl];B[gi];W[eg];B[hh];W[ff];B[ig];W[ge];B[jf];W[hd];B[fi];W[di];B[gh];W[dg];B[hg];W[fe];B[ke];W[ic];B[ld];W[jb];B[fh];W[he];B[je];W[jc];B[kd];W[ja];B[md];W[la];B[mb];W[ka];B[mc];W[gc];B[jh];W[cc];B[kk];W[cf];B[jk];W[dc];B[ej];W[ei];B[eh];W[fg];B[gg];W[gf];B[hf];W[ie];B[if];W[id];B[jd];W[kc];B[lb];W[kb];B[lc])";
@@ -1046,12 +1887,13 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     cout << "Also testing status logic inference!" << endl;
     SearchParams params;
     string searchRandSeed = "test statuses";
-    Search* bot = new Search(params, nnEval, searchRandSeed);
+    Search* bot = new Search(params, nnEval, &logger, searchRandSeed);
 
-    auto testStatuses = [&nnEval,&bot,&logger](const Board& board, const BoardHistory& hist, Player pla) {
+    auto testStatuses = [&nnEval,&bot](const Board& board, const BoardHistory& hist, Player pla) {
       int numVisits = 50;
-      vector<double> ownership = PlayUtils::computeOwnership(bot,board,hist,pla,numVisits,logger);
-      vector<bool> isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot,board,hist,pla,numVisits,logger);
+      vector<double> ownership = PlayUtils::computeOwnership(bot,board,hist,pla,numVisits);
+      vector<double> buf;
+      vector<bool> isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot,board,hist,pla,numVisits,buf);
       testAssert(bot->alwaysIncludeOwnerMap == false);
       cout << "Search assumes " << PlayerIO::playerToString(pla) << " first" << endl;
       cout << "Rules " << hist.rules << endl;

@@ -18,13 +18,13 @@
  8 . . . . . . . . .
  7 . . . . . . . . .
  6 . . . . . . . . .
- 5 . . . . X . . . .
+ 5 . . . . X1. . . .
  4 . . . . . . . . .
  3 . . . . . . . . .
  2 . . . . . . . . .
  1 . . . . . . . . .
 Next player: White
-Rules: {"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
 

@@ -7,6 +7,7 @@
 #include <tclap/CmdLine.h>
 
 class KataHelpOutput;
+class Logger;
 
 class KataGoCommandLine : public TCLAP::CmdLine
 {
@@ -29,7 +30,10 @@ class KataGoCommandLine : public TCLAP::CmdLine
   void addModelFileArg();
   //Empty string indicates no default or no example
   void addConfigFileArg(const std::string& defaultConfigFileName, const std::string& exampleConfigFile);
+  void addConfigFileArg(const std::string& defaultConfigFileName, const std::string& exampleConfigFile, bool required);
   void addOverrideConfigArg();
+
+  void logOverrides(Logger& logger) const;
 
   std::string getModelFile() const;
   bool modelFileIsDefault() const;

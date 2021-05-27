@@ -9,6 +9,7 @@ import configparser
 import datetime
 import json
 
+from requests_toolbelt.adapters import host_header_ssl
 from requests.auth import HTTPBasicAuth
 
 #Command and args-------------------------------------------------------------------
@@ -62,6 +63,9 @@ if not base_server_url.endswith("/"):
 
 username = config_parser["DEFAULT"]["username"]
 password = config_parser["DEFAULT"]["password"]
+sslVerificationHost = None
+if "sslVerificationHost" in config_parser["DEFAULT"]:
+  sslVerificationHost = config_parser["DEFAULT"]["sslVerificationHost"]
 
 log("now" + ": " + str(datetime.datetime.now()))
 log("run_name" + ": " + run_name)
@@ -140,7 +144,12 @@ with open(model_file,"rb") as model_file_handle:
 
     # print(requests.Request('POST', base_server_url, files=data).prepare().body)
 
-    result = requests.post(url,files=data,auth=HTTPBasicAuth(username,password))
+    if sslVerificationHost is not None:
+      sess = requests.Session()
+      sess.mount('https://', host_header_ssl.HostHeaderSSLAdapter())
+      result = sess.post(url, files=data, auth=HTTPBasicAuth(username,password), headers={"Host": sslVerificationHost})
+    else:
+      result = requests.post(url,files=data,auth=HTTPBasicAuth(username,password))
 
 log("Post status code: " + str(result.status_code))
 log("Post result: " + str(result.text))

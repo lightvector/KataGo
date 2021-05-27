@@ -3,6 +3,7 @@
 #include "../neuralnet/openclhelpers.h"
 #include "../neuralnet/opencltuner.h"
 #include "../neuralnet/openclkernels.h"
+#include "../neuralnet/modelversion.h"
 #include "../core/rand.h"
 #include "../core/makedir.h"
 #include "../dataio/homedata.h"
@@ -803,6 +804,17 @@ static bool testAllConfigs(
 #define ISVALID(field) std::function<bool(const OpenCLTuneParams&)>([](const OpenCLTuneParams& p){ return p.field.isValid(); })
 #define ISSIMPLE(field) std::function<bool(const OpenCLTuneParams&)>([](const OpenCLTuneParams& p){ return p.field.isSimple(); })
 
+OpenCLTuner::ModelInfoForTuning OpenCLTuner::ModelInfoForTuning::ofDesc(const ModelDesc* desc) {
+  OpenCLTuner::ModelInfoForTuning modelInfo;
+  modelInfo.maxConvChannels1x1 = desc->maxConvChannels(1,1);
+  modelInfo.maxConvChannels3x3 = desc->maxConvChannels(3,3);
+  modelInfo.trunkNumChannels = desc->trunk.trunkNumChannels;
+  modelInfo.midNumChannels = desc->trunk.midNumChannels;
+  modelInfo.regularNumChannels = desc->trunk.regularNumChannels;
+  modelInfo.gpoolNumChannels = desc->trunk.gpoolNumChannels;
+  modelInfo.version = desc->version;
+  return modelInfo;
+}
 
 static void tuneXGemmDirect(
   OpenCLTuneParams currentConfig,
@@ -813,7 +825,7 @@ static void tuneXGemmDirect(
   int batchSize,
   int nnXLen,
   int nnYLen,
-  const ModelDesc* model,
+  OpenCLTuner::ModelInfoForTuning modelInfo,
   bool full,
   ostream& out,
   bool verboseErrors,
@@ -893,11 +905,11 @@ static void tuneXGemmDirect(
     cl_kernel kernel = clCreateKernel(program, "XgemmDirectStridedBatchedNN", &err);
     if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
-    int maxChannels = model->maxConvChannels(1,1);
-    maxChannels = std::max(model->trunk.trunkNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.midNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.regularNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.gpoolNumChannels,maxChannels);
+    int maxChannels = modelInfo.maxConvChannels1x1;
+    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
 
     int ioNumFloats = batchSize*nnXLen*nnYLen*maxChannels;
     int filterNumFloats = maxChannels * maxChannels;
@@ -912,11 +924,11 @@ static void tuneXGemmDirect(
       double weight;
       switch(i) {
         //Weight 0 on first kernel call to warm up
-      case 0: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.midNumChannels; weight = 0; break;
-      case 1: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.midNumChannels; weight = 1; break;
-      case 2: inChannels = model->trunk.midNumChannels; outChannels = model->trunk.trunkNumChannels; weight = 1; break;
-      case 3: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.regularNumChannels; weight = 0.2; break;
-      case 4: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.gpoolNumChannels; weight = 0.2; break;
+      case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
+      case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
+      case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
+      case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
+      case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
       case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
       default: ASSERT_UNREACHABLE; break;
       }
@@ -985,7 +997,7 @@ static bool tuneXGemm(
   int batchSize,
   int nnXLen,
   int nnYLen,
-  const ModelDesc* model,
+  OpenCLTuner::ModelInfoForTuning modelInfo,
   bool full,
   ostream& out,
   bool useFP16Storage,
@@ -1095,11 +1107,11 @@ static bool tuneXGemm(
     int inTileYSize = cfg.conv3x3.INTILE_YSIZE;
     int inTileXYSize = inTileXSize * inTileYSize;
 
-    int maxChannels = model->maxConvChannels(3,3);
-    maxChannels = std::max(model->trunk.trunkNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.midNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.regularNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.gpoolNumChannels,maxChannels);
+    int maxChannels = modelInfo.maxConvChannels3x3;
+    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
 
     int numTilesTotalPadded = roundUpToMultiple(numTilesTotal,cfg.xGemm.MWG);
     int maxOutChannelsPadded = roundUpToMultiple(maxChannels,cfg.xGemm.NWG);
@@ -1131,11 +1143,11 @@ static bool tuneXGemm(
       double weight;
       switch(i) {
         //Weight 0 on first kernel call to warm up
-      case 0: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.midNumChannels; weight = 0; break;
-      case 1: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.midNumChannels; weight = 1; break;
-      case 2: inChannels = model->trunk.midNumChannels; outChannels = model->trunk.trunkNumChannels; weight = 1; break;
-      case 3: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.regularNumChannels; weight = 0.2; break;
-      case 4: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.gpoolNumChannels; weight = 0.2; break;
+      case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
+      case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
+      case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
+      case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
+      case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
       case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
       default: ASSERT_UNREACHABLE; break;
       }
@@ -1218,7 +1230,7 @@ static bool tuneXGemm16(
   int batchSize,
   int nnXLen,
   int nnYLen,
-  const ModelDesc* model,
+  OpenCLTuner::ModelInfoForTuning modelInfo,
   bool full,
   ostream& out,
   bool verboseErrors,
@@ -1324,11 +1336,11 @@ static bool tuneXGemm16(
     int inTileYSize = cfg.conv3x3.INTILE_YSIZE;
     int inTileXYSize = inTileXSize * inTileYSize;
 
-    int maxChannels = model->maxConvChannels(3,3);
-    maxChannels = std::max(model->trunk.trunkNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.midNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.regularNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.gpoolNumChannels,maxChannels);
+    int maxChannels = modelInfo.maxConvChannels3x3;
+    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
 
     int numTilesTotalPadded = roundUpToMultiple(numTilesTotal,cfg.xGemm16.MWG);
     int maxOutChannelsPadded = roundUpToMultiple(maxChannels,cfg.xGemm16.NWG);
@@ -1348,11 +1360,11 @@ static bool tuneXGemm16(
       double weight;
       switch(i) {
         //Weight 0 on first kernel call to warm up
-      case 0: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.midNumChannels; weight = 0; break;
-      case 1: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.midNumChannels; weight = 1; break;
-      case 2: inChannels = model->trunk.midNumChannels; outChannels = model->trunk.trunkNumChannels; weight = 1; break;
-      case 3: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.regularNumChannels; weight = 0.2; break;
-      case 4: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.gpoolNumChannels; weight = 0.2; break;
+      case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
+      case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
+      case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
+      case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
+      case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
       case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
       default: ASSERT_UNREACHABLE; break;
       }
@@ -1436,7 +1448,7 @@ static bool tuneHGemmWmma(
   int batchSize,
   int nnXLen,
   int nnYLen,
-  const ModelDesc* model,
+  OpenCLTuner::ModelInfoForTuning modelInfo,
   bool full,
   ostream& out,
   bool verboseErrors,
@@ -1521,11 +1533,11 @@ static bool tuneHGemmWmma(
     int inTileYSize = cfg.conv3x3.INTILE_YSIZE;
     int inTileXYSize = inTileXSize * inTileYSize;
 
-    int maxChannels = model->maxConvChannels(3,3);
-    maxChannels = std::max(model->trunk.trunkNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.midNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.regularNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.gpoolNumChannels,maxChannels);
+    int maxChannels = modelInfo.maxConvChannels3x3;
+    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
 
     int numTilesTotalPadded = roundUpToMultiple(numTilesTotal,cfg.hGemmWmma.MWG);
     int maxOutChannelsPadded = roundUpToMultiple(maxChannels,cfg.hGemmWmma.NWG);
@@ -1545,11 +1557,11 @@ static bool tuneHGemmWmma(
       double weight;
       switch(i) {
         //Weight 0 on first kernel call to warm up
-      case 0: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.midNumChannels; weight = 0; break;
-      case 1: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.midNumChannels; weight = 1; break;
-      case 2: inChannels = model->trunk.midNumChannels; outChannels = model->trunk.trunkNumChannels; weight = 1; break;
-      case 3: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.regularNumChannels; weight = 0.2; break;
-      case 4: inChannels = model->trunk.trunkNumChannels; outChannels = model->trunk.gpoolNumChannels; weight = 0.2; break;
+      case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
+      case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
+      case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
+      case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
+      case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
       case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
       default: ASSERT_UNREACHABLE; break;
       }
@@ -1632,7 +1644,7 @@ static void tuneTransform(
   int batchSize,
   int nnXLen,
   int nnYLen,
-  const ModelDesc* model,
+  OpenCLTuner::ModelInfoForTuning modelInfo,
   bool full,
   ostream& out,
   const string& maybeFP16CompileOptions,
@@ -1687,11 +1699,11 @@ static void tuneTransform(
     int inTileXSize = cfg.conv3x3.INTILE_XSIZE;
     int inTileYSize = cfg.conv3x3.INTILE_YSIZE;
 
-    int maxChannels = model->maxConvChannels(3,3);
-    maxChannels = std::max(model->trunk.trunkNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.midNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.regularNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.gpoolNumChannels,maxChannels);
+    int maxChannels = modelInfo.maxConvChannels3x3;
+    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
 
     int mPaddingMult = cfg.getXGemmMPaddingMult(cfg.shouldUseFP16Compute, cfg.shouldUseFP16TensorCores);
     //int nPaddingMult = cfg.getXGemmNPaddingMult(cfg.shouldUseFP16Compute, cfg.shouldUseFP16TensorCores);
@@ -1717,15 +1729,15 @@ static void tuneTransform(
       double weight;
       switch(i) {
         //Weight 0 on first kernel call to warm up
-      case 0: inChannels = model->trunk.trunkNumChannels; weight = 0; break;
-      case 1: inChannels = model->trunk.trunkNumChannels; weight = 1; break;
-      case 2: inChannels = model->trunk.midNumChannels; weight = 1; break;
+      case 0: inChannels = modelInfo.trunkNumChannels; weight = 0; break;
+      case 1: inChannels = modelInfo.trunkNumChannels; weight = 1; break;
+      case 2: inChannels = modelInfo.midNumChannels; weight = 1; break;
       case 3: inChannels = maxChannels; weight = 1; break;
-      case 4: inChannels = model->trunk.trunkNumChannels; weight = 1; break;
-      case 5: inChannels = model->trunk.midNumChannels; weight = 1; break;
+      case 4: inChannels = modelInfo.trunkNumChannels; weight = 1; break;
+      case 5: inChannels = modelInfo.midNumChannels; weight = 1; break;
       case 6: inChannels = maxChannels; weight = 1; break;
-      case 7: inChannels = model->trunk.trunkNumChannels; weight = 1; break;
-      case 8: inChannels = model->trunk.midNumChannels; weight = 1; break;
+      case 7: inChannels = modelInfo.trunkNumChannels; weight = 1; break;
+      case 8: inChannels = modelInfo.midNumChannels; weight = 1; break;
       case 9: inChannels = maxChannels; weight = 1; break;
       default: ASSERT_UNREACHABLE; break;
       }
@@ -1793,7 +1805,7 @@ static void tuneUntransform(
   int batchSize,
   int nnXLen,
   int nnYLen,
-  const ModelDesc* model,
+  OpenCLTuner::ModelInfoForTuning modelInfo,
   bool full,
   ostream& out,
   const string& maybeFP16CompileOptions,
@@ -1851,11 +1863,11 @@ static void tuneUntransform(
     int inTileXSize = cfg.conv3x3.INTILE_XSIZE;
     int inTileYSize = cfg.conv3x3.INTILE_YSIZE;
 
-    int maxChannels = model->maxConvChannels(3,3);
-    maxChannels = std::max(model->trunk.trunkNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.midNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.regularNumChannels,maxChannels);
-    maxChannels = std::max(model->trunk.gpoolNumChannels,maxChannels);
+    int maxChannels = modelInfo.maxConvChannels3x3;
+    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
 
     int mPaddingMult = cfg.getXGemmMPaddingMult(cfg.shouldUseFP16Compute, cfg.shouldUseFP16TensorCores);
     int nPaddingMult = cfg.getXGemmNPaddingMult(cfg.shouldUseFP16Compute, cfg.shouldUseFP16TensorCores);
@@ -1881,15 +1893,15 @@ static void tuneUntransform(
       double weight;
       switch(i) {
         //Weight 0 on first kernel call to warm up
-      case 0: outChannels = model->trunk.trunkNumChannels; weight = 0; break;
-      case 1: outChannels = model->trunk.trunkNumChannels; weight = 1; break;
-      case 2: outChannels = model->trunk.midNumChannels; weight = 1; break;
+      case 0: outChannels = modelInfo.trunkNumChannels; weight = 0; break;
+      case 1: outChannels = modelInfo.trunkNumChannels; weight = 1; break;
+      case 2: outChannels = modelInfo.midNumChannels; weight = 1; break;
       case 3: outChannels = maxChannels; weight = 1; break;
-      case 4: outChannels = model->trunk.trunkNumChannels; weight = 1; break;
-      case 5: outChannels = model->trunk.midNumChannels; weight = 1; break;
+      case 4: outChannels = modelInfo.trunkNumChannels; weight = 1; break;
+      case 5: outChannels = modelInfo.midNumChannels; weight = 1; break;
       case 6: outChannels = maxChannels; weight = 1; break;
-      case 7: outChannels = model->trunk.trunkNumChannels; weight = 1; break;
-      case 8: outChannels = model->trunk.midNumChannels; weight = 1; break;
+      case 7: outChannels = modelInfo.trunkNumChannels; weight = 1; break;
+      case 8: outChannels = modelInfo.midNumChannels; weight = 1; break;
       case 9: outChannels = maxChannels; weight = 1; break;
       default: ASSERT_UNREACHABLE; break;
       }
@@ -1957,7 +1969,7 @@ static void tuneGPool(
   int batchSize,
   int nnXLen,
   int nnYLen,
-  const ModelDesc* model,
+  OpenCLTuner::ModelInfoForTuning modelInfo,
   bool full,
   ostream& out,
   const string& maybeFP16CompileOptions,
@@ -1978,7 +1990,7 @@ static void tuneGPool(
     return vec;
   };
 
-  int numChannels = model->trunk.gpoolNumChannels;
+  int numChannels = modelInfo.gpoolNumChannels;
   if(full) {
     addConfigs(configs,SETTER(gPool.XYSTRIDE),{1,2,4,8,16,32,64});
     addConfigs(configs,SETTER(gPool.CHANNELSTRIDE),powersOfTwoUpTo(std::min(64,numChannels)));
@@ -2098,7 +2110,7 @@ void OpenCLTuner::tune(
   enabled_t testFP16StorageMode,
   enabled_t testFP16ComputeMode,
   enabled_t testFP16TensorCoresMode,
-  const ModelDesc* model,
+  OpenCLTuner::ModelInfoForTuning modelInfo,
   bool full,
   int winograd3x3TileSize,
   ostream& out,
@@ -2110,6 +2122,8 @@ void OpenCLTuner::tune(
   const cl_context& context = device->context;
   cl_command_queue commandQueue = device->commandQueue;
   const vector<cl_device_id>& deviceIdsToUse = { device->info.deviceId };
+
+  out << "Beginning GPU tuning for " << device->info.name << " modelVersion " << modelInfo.version << " channels " << modelInfo.trunkNumChannels << endl;
 
   OpenCLTuneParams untunedConfig = OpenCLTuneParams();
   OpenCLTuneParams currentConfig = initialConfig;
@@ -2153,7 +2167,7 @@ void OpenCLTuner::tune(
       batchSize,
       nnXLen,
       nnYLen,
-      model,
+      modelInfo,
       full,
       out,
       verboseErrors,
@@ -2176,7 +2190,7 @@ void OpenCLTuner::tune(
       batchSize,
       nnXLen,
       nnYLen,
-      model,
+      modelInfo,
       full,
       out,
       useFP16Storage,
@@ -2219,7 +2233,7 @@ void OpenCLTuner::tune(
           batchSize,
           nnXLen,
           nnYLen,
-          model,
+          modelInfo,
           full,
           out,
           verboseErrors,
@@ -2257,7 +2271,7 @@ void OpenCLTuner::tune(
           batchSize,
           nnXLen,
           nnYLen,
-          model,
+          modelInfo,
           full,
           out,
           verboseErrors,
@@ -2304,7 +2318,7 @@ void OpenCLTuner::tune(
           batchSize,
           nnXLen,
           nnYLen,
-          model,
+          modelInfo,
           full,
           out,
           useFP16Storage16,
@@ -2365,7 +2379,7 @@ void OpenCLTuner::tune(
       batchSize,
       nnXLen,
       nnYLen,
-      model,
+      modelInfo,
       full,
       out,
       maybeFP16CompileOptions,
@@ -2387,7 +2401,7 @@ void OpenCLTuner::tune(
       batchSize,
       nnXLen,
       nnYLen,
-      model,
+      modelInfo,
       full,
       out,
       maybeFP16CompileOptions,
@@ -2409,7 +2423,7 @@ void OpenCLTuner::tune(
       batchSize,
       nnXLen,
       nnYLen,
-      model,
+      modelInfo,
       full,
       out,
       maybeFP16CompileOptions,
@@ -2442,14 +2456,18 @@ string OpenCLTuner::defaultDirectory(bool makeDir, const string& homeDataDirOver
   return dir;
 }
 
-string OpenCLTuner::defaultFileName(const string& gpuName, int nnXLen, int nnYLen, const ModelDesc* model) {
+string OpenCLTuner::defaultFileName(const string& gpuName, int nnXLen, int nnYLen, int trunkNumChannels, int modelVersion) {
   string gpuNameForFile;
   for(int i = 0; i<gpuName.length(); i++) {
     char c = gpuName[i];
     if(contains("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", c))
       gpuNameForFile += c;
   }
-  return Global::strprintf("tune%d_gpu%s_x%d_y%d_c%d_mv%d.txt", TUNER_VERSION, gpuNameForFile.c_str(), nnXLen, nnYLen, model->trunk.trunkNumChannels,model->version);
+  return Global::strprintf("tune%d_gpu%s_x%d_y%d_c%d_mv%d.txt", TUNER_VERSION, gpuNameForFile.c_str(), nnXLen, nnYLen, trunkNumChannels, modelVersion);
+}
+
+string OpenCLTuner::defaultFileName(const string& gpuName, int nnXLen, int nnYLen, OpenCLTuner::ModelInfoForTuning modelInfo) {
+  return defaultFileName(gpuName, nnXLen, nnYLen, modelInfo.trunkNumChannels, modelInfo.version);
 }
 
 static OpenCLTuneParams loadFromTunerFile(const string& fileName, Logger* logger) {
@@ -2478,7 +2496,7 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
   enabled_t testFP16StorageMode,
   enabled_t testFP16ComputeMode,
   enabled_t testFP16TensorCoresMode,
-  const ModelDesc* model,
+  OpenCLTuner::ModelInfoForTuning modelInfo,
   bool full
 ) {
   if(openCLTunerFile != "") {
@@ -2486,7 +2504,7 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
   }
 
   string dir = OpenCLTuner::defaultDirectory(true,homeDataDirOverride);
-  openCLTunerFile = dir + "/" + OpenCLTuner::defaultFileName(gpuName, nnXLen, nnYLen, model);
+  openCLTunerFile = dir + "/" + OpenCLTuner::defaultFileName(gpuName, nnXLen, nnYLen, modelInfo);
 
   //Try loading the config for the proper size
   try {
@@ -2502,7 +2520,7 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
   if(!openCLReTunePerBoardSize) {
     nnXLen = NNPos::MAX_BOARD_LEN;
     nnYLen = NNPos::MAX_BOARD_LEN;
-    openCLTunerFile = dir + "/" + OpenCLTuner::defaultFileName(gpuName, nnXLen, nnYLen, model);
+    openCLTunerFile = dir + "/" + OpenCLTuner::defaultFileName(gpuName, nnXLen, nnYLen, modelInfo);
     try {
       OpenCLTuneParams loadedParams = loadFromTunerFile(openCLTunerFile,logger);
       return loadedParams;
@@ -2552,7 +2570,7 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
     testFP16StorageMode,
     testFP16ComputeMode,
     testFP16TensorCoresMode,
-    model,
+    modelInfo,
     full,
     DEFAULT_WINOGRAD_3X3_TILE_SIZE,
     cerr,
@@ -2570,5 +2588,159 @@ OpenCLTuneParams OpenCLTuner::loadOrAutoTune(
   return results;
 
 }
+
+void OpenCLTuner::autoTuneEverything(
+  const string& homeDataDirOverride,
+  int gpuIdxForTuning,
+  Logger* logger,
+  enabled_t useFP16Mode,
+  bool full
+) {
+  const enabled_t testFP16Mode = useFP16Mode;
+  const enabled_t testFP16StorageMode = useFP16Mode;
+  const enabled_t testFP16ComputeMode = enabled_t::Auto;
+  const enabled_t testFP16TensorCoresMode = enabled_t::Auto;
+
+  if(logger != NULL) {
+    logger->write("Performing autotuning for ALL neural net configurations needed for the run!");
+    logger->write("*** If this has not already been done, it may take some time, please be patient ***");
+  }
+  if(logger == NULL || (!logger->isLoggingToStdout() && !logger->isLoggingToStderr())) {
+    cerr << "Performing autotuning for ALL neural net configurations needed for the run!" << endl;
+    cerr << "*** If this has not already been done, it may take some time, please be patient ***" << endl;
+  }
+
+  vector<DeviceInfo> allDeviceInfos = DeviceInfo::getAllDeviceInfosOnSystem(logger);
+  bool enableProfiling = true;
+  DevicesContext devicesContext(allDeviceInfos, {gpuIdxForTuning}, logger, enableProfiling);
+  //Relookup the gpuIdx to handle the case where it was -1 and the user requested a default
+  //DevicesContext will have found the default for us.
+  gpuIdxForTuning = devicesContext.findGpuExn(gpuIdxForTuning)->info.gpuIdx;
+  if(gpuIdxForTuning < 0 || gpuIdxForTuning >= allDeviceInfos.size())
+    throw StringError("Requested gpuIdxForTuning for autotuning was not a valid device: " + Global::intToString(gpuIdxForTuning));
+
+  string gpuName = allDeviceInfos[gpuIdxForTuning].name;
+
+  //Just hardcodedly tune all the models that KataGo's main run uses.
+  static_assert(NNModelVersion::latestModelVersionImplemented == 10, "");
+  vector<ModelInfoForTuning> modelInfos;
+  {
+    ModelInfoForTuning modelInfo;
+    modelInfo.maxConvChannels1x1 = 96;
+    modelInfo.maxConvChannels3x3 = 96;
+    modelInfo.trunkNumChannels = 96;
+    modelInfo.midNumChannels = 96;
+    modelInfo.regularNumChannels = 64;
+    modelInfo.gpoolNumChannels = 32;
+    modelInfo.version = 8;
+    modelInfos.push_back(modelInfo);
+  }
+  {
+    ModelInfoForTuning modelInfo;
+    modelInfo.maxConvChannels1x1 = 128;
+    modelInfo.maxConvChannels3x3 = 128;
+    modelInfo.trunkNumChannels = 128;
+    modelInfo.midNumChannels = 128;
+    modelInfo.regularNumChannels = 96;
+    modelInfo.gpoolNumChannels = 32;
+    modelInfo.version = 8;
+    modelInfos.push_back(modelInfo);
+  }
+  {
+    ModelInfoForTuning modelInfo;
+    modelInfo.maxConvChannels1x1 = 192;
+    modelInfo.maxConvChannels3x3 = 192;
+    modelInfo.trunkNumChannels = 192;
+    modelInfo.midNumChannels = 192;
+    modelInfo.regularNumChannels = 128;
+    modelInfo.gpoolNumChannels = 64;
+    modelInfo.version = 8;
+    modelInfos.push_back(modelInfo);
+  }
+  {
+    ModelInfoForTuning modelInfo;
+    modelInfo.maxConvChannels1x1 = 256;
+    modelInfo.maxConvChannels3x3 = 256;
+    modelInfo.trunkNumChannels = 256;
+    modelInfo.midNumChannels = 256;
+    modelInfo.regularNumChannels = 192;
+    modelInfo.gpoolNumChannels = 64;
+    modelInfo.version = 8;
+    modelInfos.push_back(modelInfo);
+  }
+  {
+    ModelInfoForTuning modelInfo;
+    modelInfo.maxConvChannels1x1 = 256;
+    modelInfo.maxConvChannels3x3 = 256;
+    modelInfo.trunkNumChannels = 256;
+    modelInfo.midNumChannels = 256;
+    modelInfo.regularNumChannels = 192;
+    modelInfo.gpoolNumChannels = 64;
+    modelInfo.version = 10;
+    modelInfos.push_back(modelInfo);
+  }
+  {
+    ModelInfoForTuning modelInfo;
+    modelInfo.maxConvChannels1x1 = 320;
+    modelInfo.maxConvChannels3x3 = 320;
+    modelInfo.trunkNumChannels = 320;
+    modelInfo.midNumChannels = 320;
+    modelInfo.regularNumChannels = 224;
+    modelInfo.gpoolNumChannels = 96;
+    modelInfo.version = 10;
+    modelInfos.push_back(modelInfo);
+  }
+
+  for(ModelInfoForTuning modelInfo : modelInfos) {
+    int nnXLen = NNPos::MAX_BOARD_LEN;
+    int nnYLen = NNPos::MAX_BOARD_LEN;
+    string dir = OpenCLTuner::defaultDirectory(true,homeDataDirOverride);
+    string openCLTunerFile = dir + "/" + OpenCLTuner::defaultFileName(gpuName, nnXLen, nnYLen, modelInfo);
+    try {
+      OpenCLTuneParams loadedParams = loadFromTunerFile(openCLTunerFile,logger);
+      (void)loadedParams;
+      continue;
+    }
+    catch(const StringError& e) {
+      (void)e;
+    };
+
+    OpenCLTuneParams initialParams;
+    int batchSize = OpenCLTuner::DEFAULT_BATCH_SIZE;
+    bool verboseErrors = false;
+    bool verboseTuner = false;
+    OpenCLTuneParams results;
+    OpenCLTuner::tune(
+      initialParams,
+      devicesContext,
+      gpuIdxForTuning,
+      batchSize,
+      nnXLen,
+      nnYLen,
+      testFP16Mode,
+      testFP16StorageMode,
+      testFP16ComputeMode,
+      testFP16TensorCoresMode,
+      modelInfo,
+      full,
+      DEFAULT_WINOGRAD_3X3_TILE_SIZE,
+      cerr,
+      verboseErrors,
+      verboseTuner,
+      results
+    );
+    OpenCLTuneParams::save(openCLTunerFile, results);
+    if(logger != NULL)
+      logger->write("Saved tuning results to " + openCLTunerFile);
+    if(logger == NULL || (!logger->isLoggingToStdout() && !logger->isLoggingToStderr()))
+      cerr << "Saved tuning results to " << openCLTunerFile << endl;
+  }
+
+  if(logger != NULL)
+    logger->write("All neural net configs autotuned");
+  if(logger == NULL || (!logger->isLoggingToStdout() && !logger->isLoggingToStderr()))
+    cerr << "All neural net configs autotuned" << endl;
+}
+
 
 #endif

@@ -3,6 +3,7 @@
 
 #include "../core/global.h"
 #include "../core/hash.h"
+#include "../core/rand.h"
 #include "../dataio/trainingwrite.h"
 #include "../game/board.h"
 #include "../game/boardhistory.h"
@@ -25,6 +26,7 @@ struct SgfNode {
 
   bool hasProperty(const char* key) const;
   std::string getSingleProperty(const char* key) const;
+  const std::vector<std::string> getProperties(const char* key) const;
 
   bool hasPlacements() const;
   void accumPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
@@ -36,6 +38,8 @@ struct SgfNode {
 };
 
 struct Sgf {
+  static constexpr int RANK_UNKNOWN = -100000;
+
   std::string fileName;
   std::vector<SgfNode*> nodes;
   std::vector<Sgf*> children;
@@ -58,6 +62,10 @@ struct Sgf {
   bool hasRules() const;
   Rules getRulesOrFail() const;
   int getHandicapValue() const;
+  Player getSgfWinner() const;
+
+  int getRank(Player pla) const; //dan ranks are 1d=0, 2d=1,... 9d=8. Kyu ranks are negative.
+  std::string getPlayerName(Player pla) const;
 
   void getPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
   void getMoves(std::vector<Move>& moves, int xSize, int ySize) const;
@@ -84,15 +92,33 @@ struct Sgf {
 
     static std::string toJsonLine(const PositionSample& sample);
     static PositionSample ofJsonLine(const std::string& s);
+
+    //For the moment, only used in testing since it does extra consistency checks.
+    //If we need a version to be used in "prod", we could make an efficient version maybe as operator==.
+    bool isEqualForTesting(const PositionSample& other, bool checkNumCaptures, bool checkSimpleKo) const;
   };
 
   //Loads SGF all unique positions in ALL branches of that SGF.
   //Hashes are used to filter out "identical" positions when loading many files from different SGFs that may have overlapping openings, etc.
   //The hashes are not guaranteed to correspond to position hashes, or anything else external to this function itself.
   //May raise an exception on illegal moves or other SGF issues, only partially appending things on to the boards and hists.
-  void loadAllUniquePositions(std::set<Hash128>& uniqueHashes, bool hashComments, std::vector<PositionSample>& samples) const;
+  //If rand is provided, will randomize order of iteration through the SGF.
+  //If hashParent is true, will determine uniqueness by the combination of parent hash and own hash.
+  void loadAllUniquePositions(
+    std::set<Hash128>& uniqueHashes,
+    bool hashComments,
+    bool hashParent,
+    Rand* rand,
+    std::vector<PositionSample>& samples
+  ) const;
   //f is allowed to mutate and consume sample.
-  void iterAllUniquePositions(std::set<Hash128>& uniqueHashes, bool hashComments, std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f) const;
+  void iterAllUniquePositions(
+    std::set<Hash128>& uniqueHashes,
+    bool hashComments,
+    bool hashParent,
+    Rand* rand,
+    std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
+  ) const;
 
   static std::set<Hash128> readExcludes(const std::vector<std::string>& files);
 
@@ -107,6 +133,8 @@ struct Sgf {
     int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
     bool hashComments,
+    bool hashParent,
+    Rand* rand,
     std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;
@@ -116,6 +144,7 @@ struct Sgf {
     int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
     bool hashComments,
+    bool hashParent,
     const std::string& comments,
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;

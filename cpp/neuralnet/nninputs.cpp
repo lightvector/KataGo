@@ -78,6 +78,17 @@ double ScoreValue::whiteScoreValueOfScoreSmoothNoDrawAdjust(double finalWhiteMin
     return atan(adjustedScore / (scale*sqrt(b.x_size*b.y_size))) * twoOverPi;
 }
 
+double ScoreValue::whiteDScoreValueDScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, double center, double scale, const Board& b) {
+  double adjustedScore = finalWhiteMinusBlackScore - center;
+  double scaleFactor;
+  if(b.x_size == b.y_size)
+    scaleFactor = scale*b.x_size;
+  else
+    scaleFactor = scale*sqrt(b.x_size*b.y_size);
+
+  return scaleFactor / (scaleFactor * scaleFactor + adjustedScore * adjustedScore) * twoOverPi;
+}
+
 static double inverse_atan(double x) {
   if(x >= piOverTwo - 1e-6) return 1e6;
   if(x <= -piOverTwo + 1e-6) return -1e6;
@@ -518,10 +529,10 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
 
 static void copyWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry, bool reverse) {
   bool transpose = (symmetry & 0x4) != 0 && hSize == wSize;
-  bool swapX = (symmetry & 0x2) != 0;
-  bool swapY = (symmetry & 0x1) != 0;
+  bool flipX = (symmetry & 0x2) != 0;
+  bool flipY = (symmetry & 0x1) != 0;
   if(transpose && !reverse)
-    std::swap(swapX,swapY);
+    std::swap(flipX,flipY);
   if(useNHWC) {
     int nStride = hSize * wSize * cSize;
     int hStride = wSize * cSize;
@@ -529,8 +540,8 @@ static void copyWithSymmetry(const float* src, float* dst, int nSize, int hSize,
     int hBaseNew = 0; int hStrideNew = hStride;
     int wBaseNew = 0; int wStrideNew = wStride;
 
-    if(swapY) { hBaseNew = (hSize-1) * hStrideNew; hStrideNew = -hStrideNew; }
-    if(swapX) { wBaseNew = (wSize-1) * wStrideNew; wStrideNew = -wStrideNew; }
+    if(flipY) { hBaseNew = (hSize-1) * hStrideNew; hStrideNew = -hStrideNew; }
+    if(flipX) { wBaseNew = (wSize-1) * wStrideNew; wStrideNew = -wStrideNew; }
 
     if(transpose)
       std::swap(hStrideNew,wStrideNew);
@@ -557,8 +568,8 @@ static void copyWithSymmetry(const float* src, float* dst, int nSize, int hSize,
     int hBaseNew = 0; int hStrideNew = hStride;
     int wBaseNew = 0; int wStrideNew = wStride;
 
-    if(swapY) { hBaseNew = (hSize-1) * hStrideNew; hStrideNew = -hStrideNew; }
-    if(swapX) { wBaseNew = (wSize-1) * wStrideNew; wStrideNew = -wStrideNew; }
+    if(flipY) { hBaseNew = (hSize-1) * hStrideNew; hStrideNew = -hStrideNew; }
+    if(flipX) { wBaseNew = (wSize-1) * wStrideNew; wStrideNew = -wStrideNew; }
 
     if(transpose)
       std::swap(hStrideNew,wStrideNew);
@@ -584,6 +595,46 @@ void SymmetryHelpers::copyInputsWithSymmetry(const float* src, float* dst, int n
 
 void SymmetryHelpers::copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry) {
   copyWithSymmetry(src, dst, nSize, hSize, wSize, 1, false, symmetry, true);
+}
+
+Loc SymmetryHelpers::getSymLoc(int x, int y, const Board& board, int symmetry) {
+  bool transpose = (symmetry & 0x4) != 0;
+  bool flipX = (symmetry & 0x2) != 0;
+  bool flipY = (symmetry & 0x1) != 0;
+  if(flipX) { x = board.x_size - x - 1; }
+  if(flipY) { y = board.y_size - y - 1; }
+
+  if(transpose)
+    std::swap(x,y);
+  return Location::getLoc(x,y,transpose ? board.y_size : board.x_size);
+}
+
+Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
+  bool transpose = (symmetry & 0x4) != 0;
+  bool flipX = (symmetry & 0x2) != 0;
+  bool flipY = (symmetry & 0x1) != 0;
+  Board symBoard(
+    transpose ? board.y_size : board.x_size,
+    transpose ? board.x_size : board.y_size
+  );
+  Loc symKoLoc = Board::NULL_LOC;
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      int symX = flipX ? board.x_size - x - 1 : x;
+      int symY = flipY ? board.y_size - y - 1 : y;
+      if(transpose)
+        std::swap(symX,symY);
+      Loc symLoc = Location::getLoc(symX,symY,symBoard.x_size);
+      symBoard.setStone(symLoc,board.colors[loc]);
+      if(loc == board.ko_loc)
+        symKoLoc = symLoc;
+    }
+  }
+  //Set only at the end because otherwise setStone clears it.
+  if(symKoLoc != Board::NULL_LOC)
+    symBoard.setSimpleKoLoc(symKoLoc);
+  return symBoard;
 }
 
 //-------------------------------------------------------------------------------------------------------------
