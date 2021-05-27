@@ -232,11 +232,13 @@ endif()
 
 add_executable(katago
   core/global.cpp
+  core/base64.cpp
   core/bsearch.cpp
   core/config_parser.cpp
   core/datetime.cpp
   core/elo.cpp
   core/fancymath.cpp
+  core/fileutils.cpp
   core/hash.cpp
   core/logger.cpp
   core/makedir.cpp
@@ -246,7 +248,6 @@ add_executable(katago
   core/rand_helpers.cpp
   core/sha2.cpp
   core/test.cpp
-  core/threadsafecounter.cpp
   core/threadsafequeue.cpp
   core/timer.cpp
   game/board.cpp
@@ -425,9 +426,7 @@ endif()
 
 if(CMAKE_COMPILER_IS_GNUCC)
   if(NOT (${CMAKE_SYSTEM_PROCESSOR} MATCHES "(arm|aarch32|aarch64)"))
-#    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse")
-    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse -ffunction-sections  -fdata-sections -flto -Os")
-    set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections -flto")
+    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse")
   endif()
   if(USE_AVX2)
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mavx2 -mfma")
