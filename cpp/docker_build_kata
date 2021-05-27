@@ -1,5 +1,0 @@
-docker build . -t katago --no-cache
-id=$(docker create katago)
-docker cp $id:/KataGo/katago ../katago-docker-$id
-echo "New katago copied to ../katago-docker-$id"
-docker rm -v $id
