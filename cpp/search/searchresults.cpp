@@ -1396,7 +1396,7 @@ bool Search::getAnalysisJson(
 
   // Stats for root position
   {
-    ReportedSearchValues rootVals; // recompute without visits added due to noise
+    ReportedSearchValues rootVals;
     bool suc = getRootValues(rootVals);
     if(!suc)
       return false;
