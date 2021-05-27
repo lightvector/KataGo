@@ -600,7 +600,7 @@ bool Search::getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntr
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
   bool suc = getPlaySelectionValues(
-    *rootNode,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,lcbBuf,radiusBuf
+    *rootNode,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,false,lcbBuf,radiusBuf
   );
   if(!suc)
     return false;
@@ -910,7 +910,7 @@ void Search::getAnalysisData(
     assert(numChildren <= NNPos::MAX_NN_POLICY_SIZE);
 
     bool alwaysComputeLcb = true;
-    bool success = getPlaySelectionValues(node, scratchLocs, scratchValues, NULL, 1.0, false, alwaysComputeLcb, lcbBuf, radiusBuf);
+    bool success = getPlaySelectionValues(node, scratchLocs, scratchValues, NULL, 1.0, false, alwaysComputeLcb, false, lcbBuf, radiusBuf);
     if(!success)
       return;
 

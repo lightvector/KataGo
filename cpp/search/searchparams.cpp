@@ -26,7 +26,7 @@ SearchParams::SearchParams()
    useNoisePruning(false),
    noisePruneUtilityScale(0.15),
    noisePruningCap(1e50),
-   rootPlaySelectionPruning(false),
+   rootPlaySelectionValuePruning(false),
    useUncertainty(false),
    uncertaintyCoeff(0.2),
    uncertaintyExponent(1.0),

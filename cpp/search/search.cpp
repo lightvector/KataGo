@@ -2790,10 +2790,9 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     numGoodChildren++;
   }
 
-
+  double currentTotalChildWeight = origTotalChildWeight;
+  double desiredTotalChildWeight = origTotalChildWeight;
   if(!usingPlaySelectionValuesWeights) {
-    double currentTotalChildWeight = origTotalChildWeight;
-    double desiredTotalChildWeight = origTotalChildWeight;
 
     if(searchParams.useNoisePruning && numGoodChildren > 0) {
       double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
