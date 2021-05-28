@@ -2762,7 +2762,6 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   int childrenCapacity;
   const SearchChildPointer* children = node.getChildren(childrenCapacity);
   double origTotalChildWeight = 0.0;
-
   for(int i = 0; i<childrenCapacity; i++) {
     const SearchNode* child = children[i].getIfAllocated();
     if(child == NULL)
@@ -2815,7 +2814,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     numGoodChildren, currentTotalChildWeight, desiredTotalChildWeight,
     amountToSubtract, amountToPrune, statsBuf
   );
-  
+
   double winLossValueSum = 0.0;
   double noResultValueSum = 0.0;
   double scoreMeanSum = 0.0;
