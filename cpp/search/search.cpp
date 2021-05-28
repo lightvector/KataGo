@@ -2763,13 +2763,6 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   const SearchChildPointer* children = node.getChildren(childrenCapacity);
   double origTotalChildWeight = 0.0;
 
-  vector<double> playSelectionValues;
-  vector<Loc> locs; // not used
-  bool usingPlaySelectionValuesWeights = (isRoot && searchParams.rootPlaySelectionValuePruning);
-  if(usingPlaySelectionValuesWeights) {
-    getPlaySelectionValues(node,locs,playSelectionValues,NULL,false,1.0,false,true,NULL,NULL);
-  }
-
   for(int i = 0; i<childrenCapacity; i++) {
     const SearchNode* child = children[i].getIfAllocated();
     if(child == NULL)
@@ -2783,7 +2776,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
 
     double childUtility = stats.stats.utilityAvg;
     stats.selfUtility = node.nextPla == P_WHITE ? childUtility : -childUtility;
-    stats.weightAdjusted = usingPlaySelectionValuesWeights ? playSelectionValues[i] : stats.stats.weightSum;
+    stats.weightAdjusted = stats.stats.weightSum;
     stats.prevMoveLoc = child->prevMoveLoc;
 
     origTotalChildWeight += stats.weightAdjusted;
@@ -2792,38 +2785,37 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
 
   double currentTotalChildWeight = origTotalChildWeight;
   double desiredTotalChildWeight = origTotalChildWeight;
-  if(!usingPlaySelectionValuesWeights) {
 
-    if(searchParams.useNoisePruning && numGoodChildren > 0) {
-      double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
-      {
-        const NNOutput* nnOutput = node.getNNOutput();
-        assert(nnOutput != NULL);
-        const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
-        for(int i = 0; i<numGoodChildren; i++)
-          policyProbsBuf[i] = std::max(1e-30, (double)policyProbs[getPos(statsBuf[i].prevMoveLoc)]);
-      }
-      currentTotalChildWeight = pruneNoiseWeight(statsBuf, numGoodChildren, currentTotalChildWeight, policyProbsBuf);
-      desiredTotalChildWeight = currentTotalChildWeight;
+  if(searchParams.useNoisePruning && numGoodChildren > 0) {
+    double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
+    {
+      const NNOutput* nnOutput = node.getNNOutput();
+      assert(nnOutput != NULL);
+      const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+      for(int i = 0; i<numGoodChildren; i++)
+        policyProbsBuf[i] = std::max(1e-30, (double)policyProbs[getPos(statsBuf[i].prevMoveLoc)]);
     }
-
-    double amountToSubtract = 0.0;
-    double amountToPrune = 0.0;
-    if(isRoot && searchParams.rootNoiseEnabled && !searchParams.useNoisePruning) {
-      double maxChildWeight = 0.0;
-      for(int i = 0; i<numGoodChildren; i++) {
-        if(statsBuf[i].weightAdjusted > maxChildWeight)
-          maxChildWeight = statsBuf[i].weightAdjusted;
-      }
-      amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxChildWeight/64.0);
-      amountToPrune = std::min(searchParams.chosenMovePrune, maxChildWeight/64.0);
-    }
-
-    downweightBadChildrenAndNormalizeWeight(
-      numGoodChildren, currentTotalChildWeight, desiredTotalChildWeight,
-      amountToSubtract, amountToPrune, statsBuf
-    );
+    currentTotalChildWeight = pruneNoiseWeight(statsBuf, numGoodChildren, currentTotalChildWeight, policyProbsBuf);
+    desiredTotalChildWeight = currentTotalChildWeight;
   }
+
+  double amountToSubtract = 0.0;
+  double amountToPrune = 0.0;
+  if(isRoot && searchParams.rootNoiseEnabled && !searchParams.useNoisePruning) {
+    double maxChildWeight = 0.0;
+    for(int i = 0; i<numGoodChildren; i++) {
+      if(statsBuf[i].weightAdjusted > maxChildWeight)
+        maxChildWeight = statsBuf[i].weightAdjusted;
+    }
+    amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxChildWeight/64.0);
+    amountToPrune = std::min(searchParams.chosenMovePrune, maxChildWeight/64.0);
+  }
+
+  downweightBadChildrenAndNormalizeWeight(
+    numGoodChildren, currentTotalChildWeight, desiredTotalChildWeight,
+    amountToSubtract, amountToPrune, statsBuf
+  );
+  
   double winLossValueSum = 0.0;
   double noResultValueSum = 0.0;
   double scoreMeanSum = 0.0;

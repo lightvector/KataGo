@@ -815,7 +815,6 @@ int MainCmds::analysis(int argc, const char* const* argv) {
             localCfg.overrideKeys(overrideSettings);
             loadParams(localCfg, rbase.params, rbase.perspective, defaultPerspective);
             SearchParams::failIfParamsDifferOnUnchangeableParameter(defaultParams,rbase.params);
-            rbase.params.rootPlaySelectionValuePruning = true;
             //Hard failure on unused override keys newly present in the config
             vector<string> unusedKeys = localCfg.unusedKeys();
             if(unusedKeys.size() > 0) {

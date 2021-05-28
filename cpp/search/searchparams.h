@@ -32,7 +32,6 @@ struct SearchParams {
   bool useNoisePruning; //For computation of value, prune out weight that greatly exceeds what is justified by policy prior
   double noisePruneUtilityScale; //The scale of the utility difference at which useNoisePruning has effect
   double noisePruningCap; //Maximum amount of weight that noisePruning can remove
-  bool rootPlaySelectionValuePruning; // Prune weights of child nodes at the root by using play selection weights without lcb
 
   //Uncertainty weighting
   bool useUncertainty; //Weight visits by uncertainty

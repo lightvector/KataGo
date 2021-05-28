@@ -1463,3 +1463,80 @@ bool Search::getAnalysisJson(
     ret["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, rootNode, ownershipMinWeight);
   return true;
 }
+
+//Compute all the stats of the root based on its children, pruning weights such that they are as expected
+//based on policy and utility. This is used to give accurate rootInfo even with a lot of wide root noise
+bool Search::getPrunedRootValues(ReportedSearchValues& values) const {
+  if(rootNode == NULL) return false;
+  const SearchNode& node = *rootNode;
+  int childrenCapacity;
+  const SearchChildPointer* children = node.getChildren(childrenCapacity);
+
+  vector<double> playSelectionValues;
+  vector<Loc> locs; // not used
+  getPlaySelectionValues(node,locs,playSelectionValues,NULL,false,1.0,false,true,NULL,NULL);
+
+  double winLossValueSum = 0.0;
+  double noResultValueSum = 0.0;
+  double scoreMeanSum = 0.0;
+  double scoreMeanSqSum = 0.0;
+  double leadSum = 0.0;
+  double utilitySum = 0.0;
+  double utilitySqSum = 0.0;
+  double weightSum = 0.0;
+  double weightSqSum = 0.0;
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
+    NodeStats stats = NodeStats(child->stats);
+
+    if(stats.visits <= 0 || stats.weightSum <= 0.0)
+      continue;
+    double weight = playSelectionValues[i];
+    winLossValueSum += weight * stats.winLossValueAvg;
+    noResultValueSum += weight * stats.noResultValueAvg;
+    scoreMeanSum += weight * stats.scoreMeanAvg;
+    scoreMeanSqSum += weight * stats.scoreMeanSqAvg;
+    leadSum += weight * stats.leadAvg;
+    utilitySum += weight * stats.utilityAvg;
+    utilitySqSum += weight * stats.utilitySqAvg;
+    weightSqSum += weight * weight;
+    weightSum += weight;
+  }
+  
+  //Also add in the direct evaluation of this node.
+  {
+    const NNOutput* nnOutput = node.getNNOutput();
+    assert(nnOutput != NULL);
+    double winProb = (double)nnOutput->whiteWinProb;
+    double lossProb = (double)nnOutput->whiteLossProb;
+    double noResultProb = (double)nnOutput->whiteNoResultProb;
+    double scoreMean = (double)nnOutput->whiteScoreMean;
+    double scoreMeanSq = (double)nnOutput->whiteScoreMeanSq;
+    double lead = (double)nnOutput->whiteLead;
+    double utility =
+      getResultUtility(winProb-lossProb, noResultProb)
+      + getScoreUtility(scoreMean, scoreMeanSq);
+
+    double weight = 1.0;
+    winLossValueSum += (winProb - lossProb) * weight;
+    noResultValueSum += noResultProb * weight;
+    scoreMeanSum += scoreMean * weight;
+    scoreMeanSqSum += scoreMeanSq * weight;
+    leadSum += lead * weight;
+    utilitySum += utility * weight;
+    utilitySqSum += utility * utility * weight;
+    weightSqSum += weight * weight;
+    weightSum += weight;
+  }
+
+  values.visits = rootNode->stats.visits;
+  values.winLossValue = winLossValueSum / weightSum;
+  values.noResultValue = noResultValueSum / weightSum;
+  values.expectedScore = scoreMeanSum / weightSum;
+  values.expectedScoreStdev = getScoreStdev(values.expectedScore,scoreMeanSqSum / weightSum);
+  values.lead = leadSum / weightSum;
+  values.utility = utilitySum / weightSum;
+  return true;
+}

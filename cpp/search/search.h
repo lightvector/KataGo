@@ -416,6 +416,7 @@ struct Search {
   ReportedSearchValues getRootValuesRequireSuccess() const;
   //Same, but works on a node within the search, not just the root
   bool getNodeValues(const SearchNode& node, ReportedSearchValues& values) const;
+  bool getPrunedRootValues(ReportedSearchValues& values) const;
 
   //Same, but based only on the single raw neural net evaluation.
   bool getRootRawNNValues(ReportedSearchValues& values) const;
