@@ -53,6 +53,9 @@ out.txt
 # For clion IDE
 .idea
 
+# For vscode
+.vscode
+
 # For cmake
 CMakeCache.txt
 CMakeFiles/
