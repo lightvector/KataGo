@@ -541,7 +541,7 @@ private:
   bool getPlaySelectionValues(
     const SearchNode& node,
     std::vector<Loc>& locs, std::vector<double>& playSelectionValues, std::vector<double>* retVisitCounts, double scaleMaxToAtLeast,
-    bool allowDirectPolicyMoves, bool alwaysComputeLcb, bool neverUseLcb,
+    bool allowDirectPolicyMoves, bool alwaysComputeLcb,
     double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
   ) const;
 
