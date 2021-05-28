@@ -58,7 +58,7 @@ bool Search::getPlaySelectionValues(
 bool Search::getPlaySelectionValues(
   const SearchNode& node,
   vector<Loc>& locs, vector<double>& playSelectionValues, vector<double>* retVisitCounts, double scaleMaxToAtLeast,
-  bool allowDirectPolicyMoves, bool alwaysComputeLcb, 
+  bool allowDirectPolicyMoves, bool alwaysComputeLcb,
   //Note: lcbBuf is signed from the player to move's perspective
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
 ) const {
