@@ -94,9 +94,9 @@ struct Board
   static const int MAX_ARR_SIZE = (MAX_LEN+1)*(MAX_LEN+2)+1; //Maximum size of arrays needed
 
   //Location used to indicate an invalid spot on the board.
-  static const Loc NULL_LOC = 0;
+  static constexpr Loc NULL_LOC = 0;
   //Location used to indicate a pass move is desired.
-  static const Loc PASS_LOC = 1;
+  static constexpr Loc PASS_LOC = 1;
 
   //Zobrist Hashing------------------------------
   static bool IS_ZOBRIST_INITALIZED;

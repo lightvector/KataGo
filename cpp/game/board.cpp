@@ -1799,11 +1799,11 @@ void Board::calculateIndependentLifeArea(
 //it as white's unsafeBigTerritory because it's already marked as black's pass alive territory.
 
 void Board::calculateAreaForPla(
-    Player pla,
-    bool safeBigTerritories,
-    bool unsafeBigTerritories,
-    bool isMultiStoneSuicideLegal,
-    Color* result
+  Player pla,
+  bool safeBigTerritories,
+  bool unsafeBigTerritories,
+  bool isMultiStoneSuicideLegal,
+  Color* result
 ) const {
   Color opp = getOpp(pla);
 
@@ -1818,11 +1818,15 @@ void Board::calculateAreaForPla(
   //Does this border a pla group that has been marked as not pass alive?
   bool bordersNonPassAlivePlaByHead[MAX_ARR_SIZE];
 
-  //set to initial values. Faster than std::fill in O2 optimization by compiler, might be similar when use O3.
+  //Set to initial values. Faster than std::fill in O2 optimization by compiler, might be similar when use O3.
+  //This code assumes twos complement. Memset only sets bytes, so we are relying on the concatenation of two -1 bytes
+  //being the same as (int16_t)(-1). Technically C++ doesn't mandate twos-complement, but everything in practice uses it.
   memset(regionIdxByLoc, -1, sizeof(regionIdxByLoc[0])*MAX_ARR_SIZE);
+  //This memset is only safe because Board::NULL_LOC is 0. If it were a nonzero value, setting adjacent bytes to that
+  //value is NOT equivalent to setting each Loc (2 bytes) to that value.
+  static_assert(Board::NULL_LOC == 0, "Memset in Board::calculateAreaForPla relies on Board::NULL_LOC == 0");
   memset(nextEmptyOrOpp, NULL_LOC, sizeof(nextEmptyOrOpp[0])*MAX_ARR_SIZE);
   memset(bordersNonPassAlivePlaByHead, false, sizeof(bordersNonPassAlivePlaByHead[0])*MAX_ARR_SIZE);
-
 
   //A list for each region head, indicating which pla group heads the region is vital for.
   //A region is vital for a pla group if all its spaces are adjacent to that pla group.
@@ -1852,18 +1856,22 @@ void Board::calculateAreaForPla(
   Loc buildRegionQueue[MAX_ARR_SIZE];
 
   auto buildRegion = [
-      pla,opp,isMultiStoneSuicideLegal,
-      &regionIdxByLoc,
-      &vitalForPlaHeadsLists,
-      &vitalStart,&vitalLen,&numInternalSpacesMax2,&containsOpp,
-      &buildRegionQueue,
-      this,
-      &nextEmptyOrOpp](Loc initialLoc, int regionIdx) -> Loc {
-    //this code use a queue to build region. Starting from a new position which means (assume the input)
-    //  already checked that regionIdxByLoc[initialLoc] == -1 before calling this function
-    //  therefore,  the tailTarget start from initialLoc
+    pla,opp,isMultiStoneSuicideLegal,
+    &regionIdxByLoc,
+    &vitalForPlaHeadsLists,
+    &vitalStart,&vitalLen,&numInternalSpacesMax2,&containsOpp,
+    &buildRegionQueue,
+    this,
+    &nextEmptyOrOpp](Loc initialLoc, int regionIdx) -> Loc {
+
+    //Commented out - we don't check if this region is already built or not, but carefully rely on the caller to ensure it is not.
+    //if(regionIdxByLoc[initialLoc] != -1)
+    //  return tailTarget;
+
+    //This code use a queue to build regions. We use the initial provided location as the beginning of the tail of the linkedlist
     Loc tailTarget = initialLoc;
-    bool isVlenNonZero = vitalLen[regionIdx]>0;
+
+    bool isVlenNonZero = vitalLen[regionIdx] > 0;
     int buildRegionQueueHead = 0;
     int buildRegionQueueTail = 1;
     buildRegionQueue[0] = initialLoc;
@@ -1882,13 +1890,13 @@ void Board::calculateAreaForPla(
           uint16_t oldVLen = vitalLen[regionIdx];
           uint16_t newVLen = 0;
           for(uint16_t i = 0; i<oldVLen; i++) {
-            if(isAdjacentToPlaHead(pla, loc,vitalForPlaHeadsLists[vStart+i])) {
+            if(isAdjacentToPlaHead(pla, loc, vitalForPlaHeadsLists[vStart+i])) {
               vitalForPlaHeadsLists[vStart+newVLen] = vitalForPlaHeadsLists[vStart+i];
               newVLen += 1;
             }
           }
           vitalLen[regionIdx] = newVLen;
-          isVlenNonZero = (newVLen>0);
+          isVlenNonZero = (newVLen > 0);
         }
       }
 
@@ -1905,12 +1913,12 @@ void Board::calculateAreaForPla(
 
       //Push adjacent locations on to queue.
       FOREACHADJ(
-          Loc adj = loc + ADJOFFSET;
-          if((colors[adj] == C_EMPTY || colors[adj] == opp) && regionIdxByLoc[adj] == -1) {
-            buildRegionQueue[buildRegionQueueTail] = adj;
-            buildRegionQueueTail += 1;
-            regionIdxByLoc[adj] = regionIdx;
-          }
+        Loc adj = loc + ADJOFFSET;
+        if((colors[adj] == C_EMPTY || colors[adj] == opp) && regionIdxByLoc[adj] == -1) {
+          buildRegionQueue[buildRegionQueueTail] = adj;
+          buildRegionQueueTail += 1;
+          regionIdxByLoc[adj] = regionIdx;
+        }
       );
     }
 
@@ -1929,11 +1937,11 @@ void Board::calculateAreaForPla(
         continue;
       }
       int16_t regionIdx = numRegions;
-      ++numRegions;
+      numRegions++;
       assert(numRegions <= maxRegions);
 
       //Initialize region metadata
-      regionHeads[regionIdx] = loc;
+      regionHeads[regionIdx] = loc; //Use loc itself as the head
       vitalStart[regionIdx] = vitalForPlaHeadsListsTotal;
       vitalLen[regionIdx] = 0;
       numInternalSpacesMax2[regionIdx] = 0;
@@ -1963,8 +1971,8 @@ void Board::calculateAreaForPla(
         }
         vitalLen[regionIdx] = initialVLen;
       }
-      Loc tailTarget = buildRegion(loc,regionIdx);
-      nextEmptyOrOpp[loc] = tailTarget;
+      Loc tailTarget = buildRegion(loc,regionIdx); //buildRegion uses loc itself as the head
+      nextEmptyOrOpp[loc] = tailTarget; //Close the circular linked list - loc points to buildRegion's tailTarget
 
       vitalForPlaHeadsListsTotal += vitalLen[regionIdx];
 
@@ -2018,8 +2026,10 @@ void Board::calculateAreaForPla(
           for(int j = 0; j<4; j++) {
             Loc adj = cur + adj_offsets[j];
             Loc regionIdx = regionIdxByLoc[adj];
-            if(!bordersNonPassAlivePlaByHead[regionHeads[regionIdx]] && (colors[adj] == C_EMPTY || colors[adj] == opp)){
+            //Mark regions as no longer vital
+            if(!bordersNonPassAlivePlaByHead[regionHeads[regionIdx]] && (colors[adj] == C_EMPTY || colors[adj] == opp)) {
               bordersNonPassAlivePlaByHead[regionHeads[regionIdx]] = true;
+              //Decrement vitality for all pla chains that it was vital for.
               int vStart = vitalStart[regionIdx];
               int vLen = vitalLen[regionIdx];
               for(int k = 0; k<vLen; k++) {
@@ -2036,6 +2046,9 @@ void Board::calculateAreaForPla(
       break;
   }
 
+  //Debug - Make sure nothing overflowed
+  // for(int i = 0; i<numPlaHeads; i++)
+  //  assert(vitalCountByPlaHead[allPlaHeads[i]] >= 0 && vitalCountByPlaHead[allPlaHeads[i]] < 1000);
 
   //Mark result with pass-alive groups
   for(int i = 0; i<numPlaHeads; i++) {
