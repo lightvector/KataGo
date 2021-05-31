@@ -324,6 +324,8 @@ struct Board
     Color* result
   ) const;
 
+  bool isAdjacentToPlaHead(Player pla, Loc loc, Loc plaHead) const;
+
   void calculateIndependentLifeAreaHelper(
     const Color* basicArea,
     Color* result,
