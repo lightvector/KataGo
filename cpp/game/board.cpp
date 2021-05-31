@@ -2025,9 +2025,9 @@ void Board::calculateAreaForPla(
         do {
           for(int j = 0; j<4; j++) {
             Loc adj = cur + adj_offsets[j];
-            Loc regionIdx = regionIdxByLoc[adj];
+            int16_t regionIdx = regionIdxByLoc[adj];
             //Mark regions as no longer vital
-            if(!bordersNonPassAlivePlaByHead[regionHeads[regionIdx]] && (colors[adj] == C_EMPTY || colors[adj] == opp)) {
+            if(regionIdx >= 0 && !bordersNonPassAlivePlaByHead[regionHeads[regionIdx]] && (colors[adj] == C_EMPTY || colors[adj] == opp)) {
               bordersNonPassAlivePlaByHead[regionHeads[regionIdx]] = true;
               //Decrement vitality for all pla chains that it was vital for.
               int vStart = vitalStart[regionIdx];
