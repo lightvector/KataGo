@@ -2024,3 +2024,4 @@ bSizeDistribution
 9x13 10
 9x19 19
 9x9 323
+: GPU 0 finishing, processed 334315 rows 334315 batches

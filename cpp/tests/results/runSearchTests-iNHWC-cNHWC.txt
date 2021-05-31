@@ -1371,3 +1371,4 @@ D7 3
 R7 11
 
 
+: GPU 0 finishing, processed 5094 rows 5094 batches

@@ -388,6 +388,7 @@ C14 : T  50.50c W  47.64c S   2.86c (+13.3 L +13.5) LCB   40.74c P  3.72% WF   5
 
 : = D15
 : Controller: boardsize 13
+: GPU -1 finishing, processed 583 rows 583 batches
 : Cleaned up old neural net and bot
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
@@ -537,4 +538,5 @@ C11 : T  58.46c W  56.58c S   1.88c ( +8.0 L  +8.4) LCB -280.00c P  2.36% WF   1
 C7  : T  59.21c W  56.71c S   2.49c ( +8.6 L  +8.8) LCB -280.00c P  1.99% WF   1.0 PSV       1 N       1  --  C7
 
 : = J4
+: GPU -1 finishing, processed 226 rows 226 batches
 : All cleaned up, quitting

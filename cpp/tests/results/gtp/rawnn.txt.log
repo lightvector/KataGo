@@ -26,6 +26,7 @@
 : Model name: g170-b6c96-s175395328-d26788732
 : GTP ready, beginning main protocol loop
 : Controller: boardsize 9
+: GPU -1 finishing, processed 0 rows 0 batches
 : Cleaned up old neural net and bot
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
@@ -138,6 +139,7 @@ whiteOwnership
 -0.5281147 -0.5214956 -0.5444438 -0.3898581 -0.2682453 -0.1784586 -0.1328182 -0.1824017 -0.1453917 
 -0.5679899 -0.5821240 -0.4598017 -0.4012394 -0.2941267 -0.1720878 -0.1513034 -0.1491808 -0.1223834
 : Controller: rectangular_boardsize 7:10
+: GPU -1 finishing, processed 3 rows 3 batches
 : Cleaned up old neural net and bot
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
@@ -427,4 +429,5 @@ whiteOwnership
 -0.3536930 -0.3847872 -0.4342698 -0.4329519 -0.0600334 -0.0795010 -0.0896653 
 -0.5169805 -0.5686889 -0.4878464 -0.3629405 -0.1693244 -0.1808072 -0.1741194 
 -0.4413939 -0.5641019 -0.4730242 -0.4359904 -0.2829173 -0.2612915 -0.1245557
+: GPU -1 finishing, processed 8 rows 8 batches
 : All cleaned up, quitting

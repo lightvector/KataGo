@@ -879,7 +879,17 @@ static void recordTreePositionsRec(
   vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf,
   Loc excludeLoc0, Loc excludeLoc1
 ) {
-  if(node->numChildren <= 0)
+  int numChildren = 0;
+  int childrenCapacity;
+  const SearchChildPointer* children = node->getChildren(childrenCapacity);
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
+    numChildren++;
+  }
+
+  if(numChildren <= 0)
     return;
 
   if(plaAlwaysBest && node != toMoveBot->rootNode) {
@@ -898,8 +908,8 @@ static void recordTreePositionsRec(
   //Best child is the one with the largest number of visits, find it
   int bestChildIdx = 0;
   int64_t bestChildVisits = 0;
-  for(int i = 1; i<node->numChildren; i++) {
-    const SearchNode* child = node->children[i];
+  for(int i = 1; i<numChildren; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
     while(child->statsLock.test_and_set(std::memory_order_acquire));
     int64_t numVisits = child->stats.visits;
     child->statsLock.clear(std::memory_order_release);
@@ -909,14 +919,14 @@ static void recordTreePositionsRec(
     }
   }
 
-  for(int i = 0; i<node->numChildren; i++) {
+  for(int i = 0; i<numChildren; i++) {
     bool newPlaAlwaysBest = oppAlwaysBest;
     bool newOppAlwaysBest = plaAlwaysBest && i == bestChildIdx;
 
     if(!newPlaAlwaysBest && !newOppAlwaysBest)
       continue;
 
-    const SearchNode* child = node->children[i];
+    const SearchNode* child = children[i].getIfAllocated();
     if(child->prevMoveLoc == excludeLoc0 || child->prevMoveLoc == excludeLoc1)
       continue;
 
@@ -1120,8 +1130,7 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
 //Returns the move chosen
 static Loc runBotWithLimits(
   Search* toMoveBot, Player pla, const PlaySettings& playSettings,
-  const SearchLimitsThisMove& limits,
-  Logger& logger
+  const SearchLimitsThisMove& limits
 ) {
   if(limits.clearBotBeforeSearchThisMove)
     toMoveBot->clearSearch();
@@ -1163,7 +1172,7 @@ static Loc runBotWithLimits(
     if(limits.clearBotBeforeSearchThisMove && toMoveBot->searchParams.maxVisits > 10 && toMoveBot->searchParams.maxPlayouts > 10) {
       int64_t oldMaxVisits = toMoveBot->searchParams.maxVisits;
       toMoveBot->searchParams.maxVisits = 10;
-      toMoveBot->runWholeSearchAndGetMove(pla,logger);
+      toMoveBot->runWholeSearchAndGetMove(pla);
       toMoveBot->searchParams.maxVisits = oldMaxVisits;
     }
 
@@ -1173,7 +1182,7 @@ static Loc runBotWithLimits(
       toMoveBot->setRootHintLoc(limits.hintLoc);
     }
 
-    loc = toMoveBot->runWholeSearchAndGetMove(pla,logger);
+    loc = toMoveBot->runWholeSearchAndGetMove(pla);
 
     if(limits.hintLoc != Board::NULL_LOC)
       toMoveBot->setRootHintLoc(Board::NULL_LOC);
@@ -1182,7 +1191,7 @@ static Loc runBotWithLimits(
   }
   else {
     assert(!limits.removeRootNoise);
-    loc = toMoveBot->runWholeSearchAndGetMove(pla,logger);
+    loc = toMoveBot->runWholeSearchAndGetMove(pla);
   }
 
   //HACK - restore LCB so that it affects policy target gen
@@ -1210,12 +1219,12 @@ FinishedGameData* Play::runGame(
   Search* botB;
   Search* botW;
   if(botSpecB.botIdx == botSpecW.botIdx) {
-    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, searchRandSeed);
+    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, &logger, searchRandSeed);
     botW = botB;
   }
   else {
-    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, searchRandSeed + "@B");
-    botW = new Search(botSpecW.baseParams, botSpecW.nnEval, searchRandSeed + "@W");
+    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, &logger, searchRandSeed + "@B");
+    botW = new Search(botSpecW.baseParams, botSpecW.nnEval, &logger, searchRandSeed + "@W");
   }
 
   FinishedGameData* gameData = runGame(
@@ -1263,7 +1272,7 @@ FinishedGameData* Play::runGame(
     BoardHistory h(b,pla,startHist.rules,startHist.encorePhase);
     //Restore baseline on empty hist, adjust empty hist to fair, then apply to real history.
     PlayUtils::setKomiWithoutNoise(extraBlackAndKomi,h);
-    PlayUtils::adjustKomiToEven(botB,botW,b,h,pla,playSettings.compensateKomiVisits,logger,otherGameProps,gameRand);
+    PlayUtils::adjustKomiToEven(botB,botW,b,h,pla,playSettings.compensateKomiVisits,otherGameProps,gameRand);
     extraBlackAndKomi.komiMean = h.rules.komi;
     PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
   }
@@ -1276,7 +1285,7 @@ FinishedGameData* Play::runGame(
   if(extraBlackAndKomi.makeGameFair) {
     //Restore baseline on hist, adjust hist to fair, then apply it with noise.
     PlayUtils::setKomiWithoutNoise(extraBlackAndKomi,hist);
-    PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,logger,otherGameProps,gameRand);
+    PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,otherGameProps,gameRand);
     extraBlackAndKomi.komiMean = hist.rules.komi;
     PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
   }
@@ -1286,7 +1295,7 @@ FinishedGameData* Play::runGame(
     double origKomi = hist.rules.komi;
     //Restore baseline on hist, adjust hist to fair, then apply it with noise.
     PlayUtils::setKomiWithoutNoise(extraBlackAndKomi,hist);
-    PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,logger,otherGameProps,gameRand);
+    PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,otherGameProps,gameRand);
     double newKomi = hist.rules.komi;
 
     //Now, randomize between the old and new komi, with extra noise
@@ -1379,7 +1388,7 @@ FinishedGameData* Play::runGame(
       if(gameData->mode != FinishedGameData::MODE_NORMAL)
         shouldCompensate = extraBlackAndKomi.makeGameFair;
       if(shouldCompensate) {
-        PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,logger,otherGameProps,gameRand);
+        PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,otherGameProps,gameRand);
         extraBlackAndKomi.komiMean = hist.rules.komi;
         PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
       }
@@ -1395,7 +1404,7 @@ FinishedGameData* Play::runGame(
 
     if(!hist.isGameFinished) {
       //Even out the game
-      PlayUtils::adjustKomiToEven(botB, botW, board, hist, pla, playSettings.compensateKomiVisits, logger, otherGameProps, gameRand);
+      PlayUtils::adjustKomiToEven(botB, botW, board, hist, pla, playSettings.compensateKomiVisits, otherGameProps, gameRand);
       extraBlackAndKomi.komiMean = hist.rules.komi;
       PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
 
@@ -1446,7 +1455,7 @@ FinishedGameData* Play::runGame(
     SearchLimitsThisMove limits = getSearchLimitsThisMove(
       toMoveBot, pla, playSettings, gameRand, historicalMctsWinLossValues, clearBotBeforeSearch, otherGameProps
     );
-    Loc loc = runBotWithLimits(toMoveBot, pla, playSettings, limits, logger);
+    Loc loc = runBotWithLimits(toMoveBot, pla, playSettings, limits);
 
     if(loc == Board::NULL_LOC || !toMoveBot->isLegalStrict(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
@@ -1479,9 +1488,10 @@ FinishedGameData* Play::runGame(
       Loc sidePositionForkLoc = Board::NULL_LOC;
       if(playSettings.sidePositionProb > 0.0 && gameRand.nextBool(playSettings.sidePositionProb)) {
         assert(toMoveBot->rootNode != NULL);
-        assert(toMoveBot->rootNode->nnOutput != nullptr);
+        const NNOutput* nnOutput = toMoveBot->rootNode->getNNOutput();
+        assert(nnOutput != NULL);
         Loc banMove = loc;
-        sidePositionForkLoc = chooseRandomForkingMove(toMoveBot->rootNode->nnOutput.get(), board, hist, pla, gameRand, banMove);
+        sidePositionForkLoc = chooseRandomForkingMove(nnOutput, board, hist, pla, gameRand, banMove);
         if(sidePositionForkLoc != Board::NULL_LOC) {
           SidePosition* sp = new SidePosition(board,hist,pla,gameData->changedNeuralNets.size());
           sp->hist.makeBoardMoveAssumeLegal(sp->board,sidePositionForkLoc,sp->pla,NULL);
@@ -1765,7 +1775,7 @@ FinishedGameData* Play::runGame(
       toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
       //We do NOT apply playoutDoublingAdvantage here. If changing this, note that it is coordinated with train data writing
       //not using playoutDoublingAdvantage for these rows too.
-      Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla,logger);
+      Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla);
 
       extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode);
@@ -1876,7 +1886,7 @@ FinishedGameData* Play::runGame(
            gameRand.nextBool(playSettings.estimateLeadProb)
         ) {
           gameData->whiteValueTargetsByTurn[turnAfterStart].lead =
-            PlayUtils::computeLead(botB,botW,board,hist,pla,playSettings.estimateLeadVisits,logger,otherGameProps);
+            PlayUtils::computeLead(botB,botW,board,hist,pla,playSettings.estimateLeadVisits,otherGameProps);
           gameData->whiteValueTargetsByTurn[turnAfterStart].hasLead = true;
         }
         Move move = gameData->endHist.moveHistory[turnIdx];
@@ -1892,7 +1902,7 @@ FinishedGameData* Play::runGame(
            gameRand.nextBool(playSettings.estimateLeadProb)
         ) {
           sp->whiteValueTargets.lead =
-            PlayUtils::computeLead(botB,botW,sp->board,sp->hist,sp->pla,playSettings.estimateLeadVisits,logger,otherGameProps);
+            PlayUtils::computeLead(botB,botW,sp->board,sp->hist,sp->pla,playSettings.estimateLeadVisits,otherGameProps);
           sp->whiteValueTargets.hasLead = true;
         }
       }
@@ -2239,12 +2249,12 @@ FinishedGameData* GameRunner::runGame(
   Search* botB;
   Search* botW;
   if(botSpecB.botIdx == botSpecW.botIdx) {
-    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, seed);
+    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, &logger, seed);
     botW = botB;
   }
   else {
-    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, seed + "@B");
-    botW = new Search(botSpecW.baseParams, botSpecW.nnEval, seed + "@W");
+    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, &logger, seed + "@B");
+    botW = new Search(botSpecW.baseParams, botSpecW.nnEval, &logger, seed + "@W");
   }
   if(alwaysIncludeOwnership) {
     botB->setAlwaysIncludeOwnerMap(true);

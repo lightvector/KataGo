@@ -77,4 +77,5 @@ Q4  : T  -0.31c W  -0.36c S   0.05c ( +0.0 L  +0.1) LCB  -25.70c P  5.57% WF   5
 D16 : T  -1.26c W  -1.35c S   0.09c ( -0.3 L  -0.2) LCB -104.87c P  4.57% WF   3.9 PSV       4 N       4  --  D16 D3 Q17
 
 : = Q3
+: GPU -1 finishing, processed 95 rows 95 batches
 : All cleaned up, quitting

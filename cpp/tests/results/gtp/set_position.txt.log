@@ -108,6 +108,7 @@ Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"s
 B stones captured: 0
 W stones captured: 0
 : Controller: boardsize 13
+: GPU -1 finishing, processed 0 rows 0 batches
 : Cleaned up old neural net and bot
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
@@ -335,6 +336,7 @@ Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"s
 B stones captured: 0
 W stones captured: 0
 : Controller: boardsize 3
+: GPU -1 finishing, processed 0 rows 0 batches
 : Cleaned up old neural net and bot
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
@@ -377,4 +379,5 @@ Next player: Black
 Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"POSITIONAL","komi":7.5,"scoring":"AREA","suicide":true,"tax":"NONE","whiteHandicapBonus":"0"}
 B stones captured: 0
 W stones captured: 0
+: GPU -1 finishing, processed 0 rows 0 batches
 : All cleaned up, quitting

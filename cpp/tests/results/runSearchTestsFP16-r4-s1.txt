@@ -1334,3 +1334,4 @@ F15 2
 E15 1
 
 
+: GPU 0 finishing, processed 4983 rows 4983 batches

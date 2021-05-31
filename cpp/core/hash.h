@@ -55,6 +55,7 @@ struct Hash128
   Hash128& operator&=(const Hash128 other);
 
   friend std::ostream& operator<<(std::ostream& out, const Hash128 other);
+  std::string toString() const;
 };
 
 inline Hash128::Hash128()

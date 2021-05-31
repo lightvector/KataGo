@@ -33,13 +33,13 @@ void Tests::runOwnershipTests(const string& configFile, const string& modelFile)
     );
   }
 
-  Search* bot = new Search(params, nnEval, Global::uint64ToString(seedRand.nextUInt64()));
+  Search* bot = new Search(params, nnEval, &logger, Global::uint64ToString(seedRand.nextUInt64()));
 
   auto runOnBoard = [&](const Board& board, Rules rules) {
     Player nextPla = P_BLACK;
     BoardHistory hist(board,nextPla,rules,0);
     int64_t numVisits = 100;
-    vector<double> ownership = PlayUtils::computeOwnership(bot,board,hist,nextPla,numVisits,logger);
+    vector<double> ownership = PlayUtils::computeOwnership(bot,board,hist,nextPla,numVisits);
     cout << "=================================================================================" << endl;
     cout << rules << endl;
     cout << board << endl;

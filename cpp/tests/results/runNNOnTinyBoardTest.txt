@@ -34,3 +34,4 @@ Policy
 
 
 
+: GPU 0 finishing, processed 1 rows 1 batches

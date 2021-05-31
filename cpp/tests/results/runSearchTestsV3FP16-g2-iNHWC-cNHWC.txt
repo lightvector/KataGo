@@ -1301,3 +1301,6 @@ G6  : T  62.08c W  56.40c S   5.68c ( +5.5 L  +5.5) LCB  260.00c P  2.04% WF   0
 H8  : T  69.49c W  63.19c S   6.30c ( +6.2 L  +6.2) LCB  260.00c P  1.76% WF   0.8 PSV       0 N       1  --  H8
 E4  : T  52.63c W  48.10c S   4.53c ( +4.4 L  +4.4) LCB  260.00c P  1.73% WF   0.9 PSV       0 N       1  --  E4
 H7  : T  63.31c W  57.67c S   5.64c ( +5.5 L  +5.5) LCB  260.00c P  1.59% WF   0.8 PSV       0 N       1  --  H7
+: GPU 0 finishing, processed 3624 rows 3624 batches
+: GPU 0 finishing, processed 377 rows 377 batches
+: GPU 0 finishing, processed 1 rows 1 batches

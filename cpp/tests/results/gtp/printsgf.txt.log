@@ -28,6 +28,7 @@
 : Controller: printsgf
 : = (;FF[4]GM[1]SZ[19]PB[]PW[]HA[0]KM[7.5]RU[TrompTaylor])
 : Controller: boardsize 9
+: GPU -1 finishing, processed 0 rows 0 batches
 : Cleaned up old neural net and bot
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
@@ -50,6 +51,7 @@
 : Controller: clear_board
 : = 
 : Controller: rectangular_boardsize 9:13
+: GPU -1 finishing, processed 0 rows 0 batches
 : Cleaned up old neural net and bot
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
@@ -106,4 +108,5 @@ G10 : T -82.24c W -78.72c S  -3.52c (-10.1 L -10.6) LCB -280.00c P  2.53% WF   2
 : = 
 : Controller: printsgf
 : = (;FF[4]GM[1]SZ[9:13]PB[]PW[]HA[3]KM[7.5]RU[koSIMPLEscoreAREAtaxSEKIsui0whbNfpok1]AB[cd][ed][dj];W[fj])
+: GPU -1 finishing, processed 103 rows 103 batches
 : All cleaned up, quitting

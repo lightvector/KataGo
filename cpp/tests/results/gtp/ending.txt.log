@@ -26,6 +26,7 @@
 : Model name: g170-b6c96-s175395328-d26788732
 : GTP ready, beginning main protocol loop
 : Controller: boardsize 7
+: GPU -1 finishing, processed 0 rows 0 batches
 : Cleaned up old neural net and bot
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
@@ -495,4 +496,5 @@ W stones captured: 0
 : = 
 : Controller: final_score
 : = B+1.0
+: GPU -1 finishing, processed 446 rows 446 batches
 : All cleaned up, quitting
