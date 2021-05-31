@@ -42,6 +42,8 @@ struct ReportedSearchValues {
   int64_t visits;
 
   ReportedSearchValues();
+  ReportedSearchValues(const Search& search, double winLossValueAvg, double noResultValueAvg, double scoreMeanAvg,
+                       double scoreMeanSqAvg, double leadAvg, double utilityAvg, int64_t totalVisits);
   ~ReportedSearchValues();
 };
 
@@ -473,6 +475,7 @@ struct Search {
 
   //Helpers-----------------------------------------------------------------------
   int getPos(Loc moveLoc) const;
+  static double getScoreStdev(double scoreMeanAvg, double scoreMeanSqAvg);
 
 private:
   static constexpr double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
@@ -481,7 +484,6 @@ private:
 
   double getResultUtility(double winlossValue, double noResultValue) const;
   double getResultUtilityFromNN(const NNOutput& nnOutput) const;
-  static double getScoreStdev(double scoreMeanAvg, double scoreMeanSqAvg);
   double interpolateEarly(double halflife, double earlyValue, double value) const;
 
   void spawnThreadsIfNeeded();

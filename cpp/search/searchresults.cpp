@@ -403,35 +403,7 @@ bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values)
 
   if(weightSum <= 0.0)
     return false;
-
-  values.winLossValue = winLossValueAvg;
-  values.noResultValue = noResultValueAvg;
-  double scoreMean = scoreMeanAvg;
-  double scoreMeanSq = scoreMeanSqAvg;
-  double scoreStdev = getScoreStdev(scoreMean,scoreMeanSq);
-  values.staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
-  values.dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
-  values.expectedScore = scoreMean;
-  values.expectedScoreStdev = scoreStdev;
-  values.lead = leadAvg;
-  values.utility = utilityAvg;
-
-  //Clamp. Due to tiny floating point errors, these could be outside range.
-  if(values.winLossValue < -1.0) values.winLossValue = -1.0;
-  if(values.winLossValue > 1.0) values.winLossValue = 1.0;
-  if(values.noResultValue < 0.0) values.noResultValue = 0.0;
-  if(values.noResultValue > 1.0-abs(values.winLossValue)) values.noResultValue = 1.0-abs(values.winLossValue);
-
-  values.winValue = 0.5 * (values.winLossValue + (1.0 - values.noResultValue));
-  values.lossValue = 0.5 * (-values.winLossValue + (1.0 - values.noResultValue));
-
-  //Handle float imprecision
-  if(values.winValue < 0.0) values.winValue = 0.0;
-  if(values.winValue > 1.0) values.winValue = 1.0;
-  if(values.lossValue < 0.0) values.lossValue = 0.0;
-  if(values.lossValue > 1.0) values.lossValue = 1.0;
-  values.visits = visits;
-
+  values = ReportedSearchValues(*this,winLossValueAvg, noResultValueAvg, scoreMeanAvg, scoreMeanSqAvg, leadAvg, utilityAvg, visits);
   return true;
 }
 
@@ -1530,13 +1502,7 @@ bool Search::getPrunedRootValues(ReportedSearchValues& values) const {
     weightSqSum += weight * weight;
     weightSum += weight;
   }
-
-  values.visits = rootNode->stats.visits;
-  values.winLossValue = winLossValueSum / weightSum;
-  values.noResultValue = noResultValueSum / weightSum;
-  values.expectedScore = scoreMeanSum / weightSum;
-  values.expectedScoreStdev = getScoreStdev(values.expectedScore,scoreMeanSqSum / weightSum);
-  values.lead = leadSum / weightSum;
-  values.utility = utilitySum / weightSum;
+  values = ReportedSearchValues(*this, winLossValueSum / weightSum, noResultValueSum / weightSum, scoreMeanSum / weightSum,
+                                scoreMeanSqSum / weightSum, leadSum / weightSum, utilitySum / weightSum, rootNode->stats.visits);
   return true;
 }
