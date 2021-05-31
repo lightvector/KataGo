@@ -3284,6 +3284,13 @@ bool Search::playoutDescend(
       child = new SearchNode(thread.pla,bestChildMoveLoc,&node);
       child->virtualLosses.fetch_add(1,std::memory_order_release);
 
+      if(searchParams.subtreeValueBiasFactor != 0) {
+        if(node.prevMoveLoc != Board::NULL_LOC) {
+          assert(subtreeValueBiasTable != NULL);
+          child->subtreeValueBiasTableEntry = std::move(subtreeValueBiasTable->get(thread.pla, node.prevMoveLoc, child->prevMoveLoc, thread.board));
+        }
+      }
+
       suc = children[bestChildIdx].storeIfNull(child);
       if(!suc) {
         //Someone got there ahead of us. Delete and loop again trying to select the best child to explore.
@@ -3305,13 +3312,6 @@ bool Search::playoutDescend(
     }
 
     break;
-  }
-
-  if(searchParams.subtreeValueBiasFactor != 0) {
-    if(node.prevMoveLoc != Board::NULL_LOC) {
-      assert(subtreeValueBiasTable != NULL);
-      child->subtreeValueBiasTableEntry = std::move(subtreeValueBiasTable->get(thread.pla, node.prevMoveLoc, child->prevMoveLoc, thread.board));
-    }
   }
 
   //Make the move!
