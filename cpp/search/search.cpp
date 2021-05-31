@@ -151,11 +151,8 @@ const SearchChildPointer* SearchNode::getChildren(int& childrenCapacity) const {
   return getChildren(state.load(std::memory_order_acquire),childrenCapacity);
 }
 
-int SearchNode::iterateAndCountChildren() const {
+int SearchNode::iterateAndCountChildrenInArray(const SearchChildPointer* children, int childrenCapacity) {
   int numChildren = 0;
-
-  int childrenCapacity;
-  const SearchChildPointer* children = getChildren(childrenCapacity);
   for(int i = 0; i<childrenCapacity; i++) {
     if(children[i].getIfAllocated() == NULL)
       break;
@@ -164,8 +161,14 @@ int SearchNode::iterateAndCountChildren() const {
   return numChildren;
 }
 
+int SearchNode::iterateAndCountChildren() const {
+  int childrenCapacity;
+  const SearchChildPointer* children = getChildren(childrenCapacity);
+  return iterateAndCountChildrenInArray(children,childrenCapacity);
+}
+
 //Precondition: Assumes that we have actually checked the children array that stateValue suggests that
-//we should use, and every slot, and that every slot in it is full up to numChildrenFullPlusOne-1, and
+//we should use, and that every slot in it is full up to numChildrenFullPlusOne-1, and
 //that we have found a new legal child to add.
 //Postcondition:
 //Returns true: node state, stateValue, children arrays are all updated if needed so that they are large enough.
@@ -1378,14 +1381,7 @@ int Search::applyRecursivelyPostOrderMulithreadedHelper(SearchNode* node, int th
   //Recurse on all children
   int childrenCapacity;
   SearchChildPointer* children = node->getChildren(childrenCapacity);
-
-  int numChildren = 0;
-  for(int i = 0; i<childrenCapacity; i++) {
-    SearchNode* child = children[i].getIfAllocated();
-    if(child == NULL)
-      break;
-    numChildren++;
-  }
+  int numChildren = SearchNode::iterateAndCountChildrenInArray(children,childrenCapacity);
 
   if(numChildren > 0) {
     int offset = threadIdx == 0 ? 0 : (int)((rand->nextUInt() + (uint32_t)threadIdx) % numChildren);
@@ -2068,7 +2064,7 @@ static double cpuctExploration(double totalChildWeight, const SearchParams& sear
 }
 
 //Tiny constant to add to numerator of puct formula to make it positive
-//even when visis = 0.
+//even when visits = 0.
 static constexpr double TOTALCHILDWEIGHT_PUCT_OFFSET = 0.01;
 
 double Search::getExploreSelectionValue(

@@ -191,6 +191,7 @@ struct SearchNode {
   const SearchChildPointer* getChildren(int state, int& childrenCapacity) const;
 
   int iterateAndCountChildren() const;
+  static int iterateAndCountChildrenInArray(const SearchChildPointer* children, int childrenCapacity);
 
   //The NNOutput returned by these is guaranteed not to be deallocated during the lifetime of a search or even
   //any time up until a new operation is peformed (such as starting a new search, or making a move, or setting params).
