@@ -1,6 +1,7 @@
 from sgfmill import sgf
 import elo
 import os
+import argparse
 
 class SummarizeSGFs:
   """Summarize Go games in sgfs file format. Each row of sgfs game is a single game in a sgf string."""
@@ -105,6 +106,15 @@ class SummarizeSGFs:
       self.expand_result_table()
 
 
-# Example of use class
-#SummarizeSGFs("/Users/haodafu/Documents/Files/Temp/katagomatch/sgfs_mult_players")
+if __name__ == "__main__":
+  description = """
+  Summarize SGFs files and estimate Bayes Elo score for each of the player.
+  """
+  parser = argparse.ArgumentParser(description=description)
+  parser.add_argument('-sgfs-input-dir', help='sgfs files input directory', required=True)
+  args = vars(parser.parse_args())
+
+  file_path = args["sgfs_input_dir"]
+  SummarizeSGFs(file_path)
+
 
