@@ -90,7 +90,7 @@ bool Location::isCentral(Loc loc, int x_size, int y_size) {
 
 Board::Board()
 {
-  init(19,19);
+  init(Board::MAX_LEN,Board::MAX_LEN);
 }
 
 Board::Board(int x, int y)
