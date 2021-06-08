@@ -1774,7 +1774,7 @@ struct PolicySortEntry {
 //Finds the top n moves, or fewer if there are fewer than that many total legal moves.
 //Returns the number of legal moves found
 int Search::findTopNPolicy(const SearchNode* node, int n, PolicySortEntry* sortedPolicyBuf) const {
-  const std::shared_ptr<NNOutput>* nnOutput = node->nnOutput.load(std::memory_order_release);
+  const std::shared_ptr<NNOutput>* nnOutput = node->nnOutput.load(std::memory_order_acquire);
   if(nnOutput == NULL)
     return 0;
   const float* policyProbs = (*nnOutput)->policyProbs;
