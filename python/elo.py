@@ -261,7 +261,7 @@ def make_sequential_prior(
   This can be used, for example, if there were a sequence of changes between different versions, such that each version on average
   is expected to be more similar to its neighbors.
 
-  The strength of the prior between each sequential pair of players if they were observed to have played
+  The strength of the prior between each sequential pair of players is as if they were observed to have played
   num_games many games against each other and won half and lost half.
 
   Returns:
