@@ -30,10 +30,11 @@ class GameResultSummary:
   self.clear(): clear all the results
   self.print_elos(): print the estimated Bayes Elo scores
   self.print_game_results(): print the game results
+  self.get_game_results(self) -> Dict
 
   Example:
     call it from terminal:
-      :$python summarize_sgfs.py -input-dir [files input directory] -elo-prior 3400
+      :$python summarize_sgfs.py -input-dirs [input_directory1 input directory2] -elo-prior 3400
 
     call it by other function:
     import summarize_sgfs
@@ -60,17 +61,18 @@ class GameResultSummary:
   """ Public functions """
 
   def add_games(self, input_file_dir, search_subdir=False):
+    """add files under input_file_dir into the results and duplicate files will not be added."""
     self._add_game_file_names(input_file_dir, search_subdir)
     self._add_new_games_to_result_dict()
 
   def add_a_game_file(self, input_file_name):
+    """add a new game file (sgfs or sgf) into the results and duplicate file will not be added."""
     self._add_a_game_file_name(input_file_name)
     self._add_new_games_to_result_dict()
 
   def clear(self):
     """Clear all the records and reset to empty sets and empty dictionaries"""
     self.results = {}  # a dictionary as {(black_player_name, white_player_name):Record}
-
     self._all_sgfs_files = set()
     self._all_sgf_files = set()
     self._new_sgfs_files = set()
@@ -78,6 +80,7 @@ class GameResultSummary:
     self._warning = False
 
   def print_elos(self) -> elo.EloInfo:
+    """Print estimated Bayes Elo scores centered as Elo prior"""
     elo_info = self._estimate_elo()
     print(elo_info)
     print(f"The prior is set as {self._elo_prior}, and the estimated Bayes Elo:")
@@ -86,6 +89,8 @@ class GameResultSummary:
     return elo_info
 
   def print_game_results(self):
+    """Print game results in a matrix with item in row i and column j as the numbers of games player i beaten player
+    j. We split draw game as 0.5 to each player."""
     print("Player information:")
     self._print_player_info()
     print("Game Results by Player ID:")
@@ -93,6 +98,12 @@ class GameResultSummary:
     return
 
   def get_game_results(self) -> Dict:
+    """Return a dictionary of game results as {(black_player_name, white_player_name):Record}
+      We can retrieve results by player's name as
+      results[(black_player_name, white_player_name)].win
+      results[(black_player_name, white_player_name)].lost
+      results[(black_player_name, white_player_name)].draw
+    """
     return self.results
 
   """ Private functions starts here, and no more public functions below """
