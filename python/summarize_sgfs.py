@@ -66,10 +66,10 @@ class GameResultSummary:
   def print_elos(self):
     """Print game results and maximum likelihood posterior Elos."""
     elo_info = self._compute_elos_if_needed()
-    self._print_result_matrix(elo_info.players)
+    self._print_result_matrix([player for player in elo_info.players if player != elo.P1_ADVANTAGE_NAME])
     print("Elos (+/- one approx standard error):")
     print(elo_info)
-    print(f"Used a prior of {self._elo_prior_games} that each player is near Elo 0.")
+    print(f"Used a prior of {self._elo_prior_games} games worth that each player is near Elo 0.")
     if self._should_warn_handicap_komi:
       warnings.warn("There are handicap games or games with komi < 5.5 or komi > 7.5, these games may not be fair?")
 
@@ -207,7 +207,7 @@ class GameResultSummary:
       data.extend(elo.make_single_player_prior(pla, self._elo_prior_games,0))
     data.extend(elo.make_center_elos_prior(list(pla_names),0)) # Add this in case user put elo_prior_games = 0
     if self._estimate_first_player_advantage:
-      data.extend(elo.make_single_player_prior(elo.P1_ADVANTAGE_NAME, (1.0 + self._elo_prior_games) * 2.0))
+      data.extend(elo.make_single_player_prior(elo.P1_ADVANTAGE_NAME, (1.0 + self._elo_prior_games) * 2.0, 0))
 
     info = elo.compute_elos(data, verbose=True)
     return info
