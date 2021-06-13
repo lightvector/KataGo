@@ -15,6 +15,7 @@
 #include "../neuralnet/nneval.h"
 #include "../search/analysisdata.h"
 #include "../search/mutexpool.h"
+#include "../search/patternbonustable.h"
 #include "../search/subtreevaluebiastable.h"
 #include "../search/searchparams.h"
 #include "../search/searchprint.h"
@@ -125,6 +126,7 @@ struct SearchNode {
   Player nextPla;
   Loc prevMoveLoc;
   SearchNode* parent;
+  Hash128 patternBonusHash;
 
   //Mutable---------------------------------------------------------------------------
   //During search, only ever transitions forward.
@@ -299,6 +301,11 @@ struct Search {
 
   SubtreeValueBiasTable* subtreeValueBiasTable;
 
+  //Pattern bonuses are currently only looked up for shapes completed by the player who the search is for.
+  //Implicitly these utility adjustments "assume" the opponent likes the negative of our adjustments.
+  PatternBonusTable* patternBonusTable;
+  std::unique_ptr<PatternBonusTable> externalPatternBonusTable;
+
   Logger* logger;
 
   //Thread pool
@@ -336,12 +343,14 @@ struct Search {
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
 
   void setPlayerAndClearHistory(Player pla);
+  void setPlayerIfNew(Player pla);
   void setKomiIfNew(float newKomi); //Does not clear history, does clear search unless komi is equal.
   void setRootHintLoc(Loc hintLoc);
   void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
   void setAlwaysIncludeOwnerMap(bool b);
   void setParams(SearchParams params);
   void setParamsNoClearing(SearchParams params); //Does not clear search
+  void setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table);
   void setNNEval(NNEvaluator* nnEval);
 
   //If the number of threads is reduced, this can free up some excess threads in the thread pool.
@@ -512,6 +521,8 @@ private:
   double getApproxScoreUtilityDerivative(double scoreMean) const;
   double getUtilityFromNN(const NNOutput& nnOutput) const;
   double computeWeightFromNNOutput(const NNOutput* nnOutput) const;
+
+  double getPatternBonus(Hash128 patternBonusHash, Player prevMovePla) const;
 
   //Parent must be locked
   double getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNode* child) const;

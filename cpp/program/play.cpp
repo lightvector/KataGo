@@ -4,6 +4,7 @@
 #include "../program/playutils.h"
 #include "../program/setup.h"
 #include "../search/asyncbot.h"
+#include "../dataio/files.h"
 
 using namespace std;
 
@@ -190,14 +191,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     double startPosesTurnWeightLambda = cfg.getDouble("startPosesTurnWeightLambda",-10,10);
 
     vector<string> files;
-    std::function<bool(const string&)> fileFilter = [](const string& fileName) {
-      return Global::isSuffix(fileName,".sgf");
-    };
-    for(int i = 0; i<dirs.size(); i++) {
-      string dir = Global::trim(dirs[i]);
-      if(dir.size() > 0)
-        Global::collectFiles(dir, fileFilter, files);
-    }
+    FileHelpers::collectSgfsFromDirs(dirs,files);
     std::set<Hash128> excludeHashes = Sgf::readExcludes(excludes);
     logger.write("Found " + Global::uint64ToString(files.size()) + " sgf files");
     logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");

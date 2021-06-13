@@ -259,6 +259,7 @@ add_executable(katago
   dataio/trainingwrite.cpp
   dataio/loadmodel.cpp
   dataio/homedata.cpp
+  dataio/files.cpp
   neuralnet/nninputs.cpp
   neuralnet/modelversion.cpp
   neuralnet/nneval.cpp
@@ -271,7 +272,9 @@ add_executable(katago
   search/searchresults.cpp
   search/asyncbot.cpp
   search/distributiontable.cpp
+  search/localpattern.cpp
   search/subtreevaluebiastable.cpp
+  search/patternbonustable.cpp
   search/analysisdata.cpp
   program/gtpconfig.cpp
   program/setup.cpp

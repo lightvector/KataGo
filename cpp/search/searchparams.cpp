@@ -56,6 +56,7 @@ SearchParams::SearchParams()
    wideRootNoise(0.0),
    playoutDoublingAdvantage(0.0),
    playoutDoublingAdvantagePla(C_EMPTY),
+   avoidRepeatedPatternUtility(0.0),
    nnPolicyTemperature(1.0f),
    antiMirror(false),
    subtreeValueBiasFactor(0.0),

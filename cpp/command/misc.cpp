@@ -4,6 +4,7 @@
 #include "../core/timer.h"
 #include "../core/test.h"
 #include "../dataio/sgf.h"
+#include "../dataio/files.h"
 #include "../search/asyncbot.h"
 #include "../program/setup.h"
 #include "../program/playutils.h"
@@ -647,14 +648,8 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
   for(int i = 0; i < argc; i++)
     logger.write(string("Command: ") + argv[i]);
 
-  const string sgfSuffix = ".sgf";
-  const string sgfSuffix2 = ".SGF";
-  auto sgfFilter = [&sgfSuffix,&sgfSuffix2](const string& name) {
-    return Global::isSuffix(name,sgfSuffix) || Global::isSuffix(name,sgfSuffix2);
-  };
   vector<string> sgfFiles;
-  for(int i = 0; i<sgfDirs.size(); i++)
-    Global::collectFiles(sgfDirs[i], sgfFilter, sgfFiles);
+  FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
   logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf files!");
 
   set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
@@ -1032,14 +1027,8 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   GameInitializer* gameInit = new GameInitializer(cfg,logger);
   cfg.warnUnusedKeys(cerr,&logger);
 
-  const string sgfSuffix = ".sgf";
-  const string sgfSuffix2 = ".SGF";
-  auto sgfFilter = [&sgfSuffix,&sgfSuffix2](const string& name) {
-    return Global::isSuffix(name,sgfSuffix) || Global::isSuffix(name,sgfSuffix2);
-  };
   vector<string> sgfFiles;
-  for(int i = 0; i<sgfDirs.size(); i++)
-    Global::collectFiles(sgfDirs[i], sgfFilter, sgfFiles);
+  FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
   logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf files!");
 
   vector<size_t> permutation(sgfFiles.size());

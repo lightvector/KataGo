@@ -129,6 +129,7 @@ SearchNode::SearchNode(Player prevPla, Loc prevLoc, SearchNode* p)
   :nextPla(getOpp(prevPla)),
    prevMoveLoc(prevLoc),
    parent(p),
+   patternBonusHash(),
    state(SearchNode::STATE_UNEVALUATED),
    nnOutput(),
    nodeAge(0),
@@ -409,6 +410,8 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    policySize(),
    nonSearchRand(rSeed + string("$nonSearchRand")),
    subtreeValueBiasTable(NULL),
+   patternBonusTable(NULL),
+   externalPatternBonusTable(nullptr),
    logger(lg),
    numThreadsSpawned(0),
    threads(NULL),
@@ -450,6 +453,7 @@ Search::~Search() {
   delete rootNode;
   delete mutexPool;
   delete subtreeValueBiasTable;
+  delete patternBonusTable;
   killThreads();
 }
 
@@ -591,6 +595,11 @@ void Search::setPlayerAndClearHistory(Player pla) {
   avoidMoveUntilByLocWhite.clear();
 }
 
+void Search::setPlayerIfNew(Player pla) {
+  if(pla != rootPla)
+    setPlayerAndClearHistory(pla);
+}
+
 void Search::setKomiIfNew(float newKomi) {
   if(rootHistory.rules.komi != newKomi) {
     clearSearch();
@@ -627,6 +636,13 @@ void Search::setParams(SearchParams params) {
 
 void Search::setParamsNoClearing(SearchParams params) {
   searchParams = params;
+}
+
+void Search::setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table) {
+  //Probably not actually needed so long as we do a fresh search to refresh and use the new table
+  //but this makes behavior consistent with all the other setters.
+  clearSearch();
+  externalPatternBonusTable = std::move(table);
 }
 
 void Search::setNNEval(NNEvaluator* nnEval) {
@@ -793,6 +809,12 @@ double Search::getApproxScoreUtilityDerivative(double scoreMean) const {
 double Search::getUtilityFromNN(const NNOutput& nnOutput) const {
   double resultUtility = getResultUtilityFromNN(nnOutput);
   return resultUtility + getScoreUtility(nnOutput.whiteScoreMean, nnOutput.whiteScoreMeanSq);
+}
+
+double Search::getPatternBonus(Hash128 patternBonusHash, Player prevMovePla) const {
+  if(patternBonusTable == NULL || prevMovePla != plaThatSearchIsFor)
+    return 0;
+  return patternBonusTable->get(patternBonusHash).utilityBonus;
 }
 
 uint32_t Search::chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature) {
@@ -1175,12 +1197,17 @@ void Search::beginSearch(bool pondering) {
   if(plaThatSearchIsFor == C_EMPTY)
     plaThatSearchIsFor = getOpp(rootPla);
 
-  //In the case we are doing playoutDoublingAdvantage without a specific player (so, doing the root player)
-  //and the player that the search is for changes, we need to clear the tree since we need new evals for the new way around
-  if(plaThatSearchIsForLastSearch != plaThatSearchIsFor &&
-     searchParams.playoutDoublingAdvantage != 0 &&
-     searchParams.playoutDoublingAdvantagePla == C_EMPTY)
-    clearSearch();
+  if(plaThatSearchIsForLastSearch != plaThatSearchIsFor) {
+    //In the case we are doing playoutDoublingAdvantage without a specific player (so, doing the root player)
+    //and the player that the search is for changes, we need to clear the tree since we need new evals for the new way around
+    if(searchParams.playoutDoublingAdvantage != 0 && searchParams.playoutDoublingAdvantagePla == C_EMPTY)
+      clearSearch();
+    //If we are doing pattern bonus and the player the search is for changes, clear the search. Recomputing the search tree
+    //recursively *would* fix all our utilities, but the problem is the playout distribution will still be matching the
+    //old probabilities without a lot of new search, so clearing ensures a better distribution.
+    if(searchParams.avoidRepeatedPatternUtility != 0 || externalPatternBonusTable != nullptr)
+      clearSearch();
+  }
   plaThatSearchIsForLastSearch = plaThatSearchIsFor;
   //cout << "BEGINSEARCH " << PlayerIO::playerToString(rootPla) << " " << PlayerIO::playerToString(plaThatSearchIsFor) << endl;
 
@@ -1191,6 +1218,25 @@ void Search::beginSearch(bool pondering) {
   //Prepare value bias table if we need it
   if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable == NULL)
     subtreeValueBiasTable = new SubtreeValueBiasTable(searchParams.subtreeValueBiasTableNumShards);
+
+  //Refresh pattern bonuses if needed
+  if(patternBonusTable != NULL) {
+    delete patternBonusTable;
+    patternBonusTable = NULL;
+  }
+  if(searchParams.avoidRepeatedPatternUtility != 0 || externalPatternBonusTable != nullptr) {
+    if(externalPatternBonusTable != nullptr)
+      patternBonusTable = new PatternBonusTable(*externalPatternBonusTable);
+    else
+      patternBonusTable = new PatternBonusTable();
+    if(searchParams.avoidRepeatedPatternUtility != 0) {
+      double bonus = plaThatSearchIsFor == P_WHITE ? -searchParams.avoidRepeatedPatternUtility : searchParams.avoidRepeatedPatternUtility;
+      patternBonusTable->addBonusForGameMoves(rootHistory,bonus,plaThatSearchIsFor);
+    }
+    //Clear any pattern bonus on the root node itself
+    if(rootNode != NULL)
+      rootNode->patternBonusHash = Hash128();
+  }
 
   SearchThread dummyThread(-1, *this);
 
@@ -1282,7 +1328,7 @@ void Search::beginSearch(bool pondering) {
 
     //Recursively update all stats in the tree if we have dynamic score values
     //And also to clear out lastResponseBiasDeltaSum and lastResponseBiasWeight
-    if(searchParams.dynamicScoreUtilityFactor != 0 || searchParams.subtreeValueBiasFactor != 0) {
+    if(searchParams.dynamicScoreUtilityFactor != 0 || searchParams.subtreeValueBiasFactor != 0 || patternBonusTable != NULL) {
       recursivelyRecomputeStats(node);
     }
   }
@@ -1573,6 +1619,7 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
         double resultUtility = getResultUtility(winLossValueAvg, noResultValueAvg);
         double scoreUtility = getScoreUtility(scoreMeanAvg, scoreMeanSqAvg);
         double newUtilityAvg = resultUtility + scoreUtility;
+        newUtilityAvg += getPatternBonus(node->patternBonusHash,getOpp(node->nextPla));
         double newUtilitySqAvg = newUtilityAvg * newUtilityAvg;
 
         while(node->statsLock.test_and_set(std::memory_order_acquire));
@@ -2374,12 +2421,12 @@ double Search::getExploreSelectionValue(
   //Virtual losses to direct threads down different paths
   if(childVirtualLosses > 0) {
     double virtualLossWeight = childVirtualLosses * searchParams.numVirtualLossesPerThread;
-    childWeight += virtualLossWeight;
 
     double utilityRadius = searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor;
     double virtualLossUtility = (parent.nextPla == P_WHITE ? -utilityRadius : utilityRadius);
-    double virtualLossWeightFrac = (double)virtualLossWeight / childWeight;
+    double virtualLossWeightFrac = (double)virtualLossWeight / (virtualLossWeight + std::max(0.25,childWeight));
     childUtility = childUtility + (virtualLossUtility - childUtility) * virtualLossWeightFrac;
+    childWeight += virtualLossWeight;
   }
 
   if(isDuringSearch && (&parent == rootNode)) {
@@ -2907,6 +2954,10 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   double utilityAvg = utilitySum / weightSum;
   double utilitySqAvg = utilitySqSum / weightSum;
 
+  double oldUtilityAvg = utilityAvg;
+  utilityAvg += getPatternBonus(node.patternBonusHash,getOpp(node.nextPla));
+  utilitySqAvg = utilitySqAvg + (utilityAvg * utilityAvg - oldUtilityAvg * oldUtilityAvg);
+
   //TODO statslock may be unnecessary now with the dirtyCounter mechanism?
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.winLossValueAvg.store(winLossValueAvg,std::memory_order_release);
@@ -2963,6 +3014,9 @@ void Search::addLeafValue(
     if(newEntryWeightSum > 0.001)
       utility += biasFactor * newEntryDeltaUtilitySum / newEntryWeightSum;
   }
+
+  utility += getPatternBonus(node.patternBonusHash,getOpp(node.nextPla));
+
   double utilitySq = utility * utility;
   double weightSq = weight * weight;
 
@@ -3169,6 +3223,9 @@ bool Search::playoutDescend(
        thread.history.moveHistory.size() == rootHistory.moveHistory.size() + 1 &&
        node.prevMoveLoc == Board::PASS_LOC)
   ) {
+    //Avoid running "too fast", by making sure that a leaf evaluation takes roughly the same time as a genuine nn eval
+    //This stops a thread from building a silly number of visits to distort MCTS statistics other threads are stuck on the GPU.
+    nnEvaluator->waitForNextNNEvalIfAny();
     if(thread.history.isNoResult) {
       double winLossValue = 0.0;
       double noResultValue = 1.0;
@@ -3290,6 +3347,9 @@ bool Search::playoutDescend(
           child->subtreeValueBiasTableEntry = std::move(subtreeValueBiasTable->get(thread.pla, node.prevMoveLoc, child->prevMoveLoc, thread.board));
         }
       }
+
+      if(patternBonusTable != NULL)
+        child->patternBonusHash = patternBonusTable->getHash(thread.pla, bestChildMoveLoc, thread.board);
 
       suc = children[bestChildIdx].storeIfNull(child);
       if(!suc) {

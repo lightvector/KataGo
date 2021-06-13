@@ -71,6 +71,14 @@ void AsyncBot::setPosition(Player pla, const Board& board, const BoardHistory& h
   stopAndWait();
   search->setPosition(pla,board,history);
 }
+void AsyncBot::setPlayerAndClearHistory(Player pla) {
+  stopAndWait();
+  search->setPlayerAndClearHistory(pla);
+}
+void AsyncBot::setPlayerIfNew(Player pla) {
+  stopAndWait();
+  search->setPlayerIfNew(pla);
+}
 void AsyncBot::setKomiIfNew(float newKomi) {
   stopAndWait();
   search->setKomiIfNew(newKomi);
@@ -95,10 +103,9 @@ void AsyncBot::setParamsNoClearing(SearchParams params) {
   stopAndWait();
   search->setParamsNoClearing(params);
 }
-void AsyncBot::setPlayerIfNew(Player movePla) {
+void AsyncBot::setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table) {
   stopAndWait();
-  if(movePla != search->rootPla)
-    search->setPlayerAndClearHistory(movePla);
+  search->setExternalPatternBonusTable(std::move(table));
 }
 void AsyncBot::clearSearch() {
   stopAndWait();

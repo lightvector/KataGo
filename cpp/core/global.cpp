@@ -719,8 +719,8 @@ void Global::collectFiles(const string& dirname, std::function<bool(const string
     }
   }
   catch(const gfs::filesystem_error& e) {
-    cerr << "Error recursively collectng files: " << e.what() << endl;
-    return;
+    cerr << "Error recursively collecting files: " << e.what() << endl;
+    throw StringError(string("Error recursively collecting files: ") + e.what());
   }
 }
 

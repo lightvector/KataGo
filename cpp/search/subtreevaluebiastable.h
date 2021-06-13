@@ -24,7 +24,8 @@ struct SubtreeValueBiasTable {
   // and that all past mutations on this table or any of its entries are now visible to this thread.
   void clearUnusedSynchronous();
 
-  std::shared_ptr<SubtreeValueBiasEntry> get(Player pla, Loc parentPrevMoveLoc, Loc prevMoveLoc, const Board& board);
+  // The board specified here is expected to be the board BEFORE the move is played.
+  std::shared_ptr<SubtreeValueBiasEntry> get(Player pla, Loc parentPrevMoveLoc, Loc prevMoveLoc, const Board& prevBoard);
 };
 
 #endif

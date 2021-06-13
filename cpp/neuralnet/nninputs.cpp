@@ -609,6 +609,10 @@ Loc SymmetryHelpers::getSymLoc(int x, int y, const Board& board, int symmetry) {
   return Location::getLoc(x,y,transpose ? board.y_size : board.x_size);
 }
 
+Loc SymmetryHelpers::getSymLoc(Loc loc, const Board& board, int symmetry) {
+  return getSymLoc(Location::getX(loc,board.x_size), Location::getY(loc,board.x_size), board, symmetry);
+}
+
 Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
   bool transpose = (symmetry & 0x4) != 0;
   bool flipX = (symmetry & 0x2) != 0;
