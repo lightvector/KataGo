@@ -27,6 +27,8 @@ class EloInfo:
     self.elo_covariance = elo_covariance
     self.effective_game_count = effective_game_count
 
+    self.players = sorted(self.players, key=(lambda player: -elo[player] if player != P1_ADVANTAGE_NAME else 1e50))
+
   def get_players(self) -> List[Player]:
     return self.players
 
@@ -62,7 +64,7 @@ class EloInfo:
   def __str__(self) -> str:
     lines = []
     for player in self.players:
-      lines.append(f"{player:20s}: {self.elo[player]:6.3f} +/- {self.elo_stderr[player]:5.3f}  (effective game count {self.effective_game_count[player]:.2f})")
+      lines.append(f"{player:20s}: {self.elo[player]:8.3f} +/- {self.elo_stderr[player]:5.3f}")
     return "\n".join(lines)
 
 
@@ -411,7 +413,7 @@ def compute_elos(
 
     (new_strengths, new_loglikelihood) = line_search_ascend(strengths, loglikelihood)
     elodiff = (new_strengths - strengths) * ELO_PER_STRENGTH
-    last_elo_change = np.max(np.abs(elodiff))
+    last_elo_change = 0 if len(elodiff) <= 0 else np.max(np.abs(elodiff))
 
     strengths = new_strengths
     loglikelihood = new_loglikelihood
@@ -461,7 +463,6 @@ if __name__ == "__main__":
   data.extend(likelihood_of_games("Dan","Eve", 48, 40/48, False))
   data.extend(make_center_elos_prior(["Alice","Bob","Carol","Dan","Eve"],0))
   info = compute_elos(data,verbose=True)
-  print(info)
 
   for player in info.players:
     for player2 in info.players:
