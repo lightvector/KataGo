@@ -180,6 +180,9 @@ int MainCmds::match(int argc, const char* const* argv) {
     nnEvalsByBot[i] = nnEvals[whichNNModel[i]];
   }
 
+  std::vector<std::unique_ptr<PatternBonusTable>> patternBonusTables = Setup::loadAvoidSgfPatternBonusTables(cfg,logger);
+  assert(patternBonusTables.size() == numBots);
+
   //Initialize object for randomly pairing bots
   bool forSelfPlay = false;
   bool forGateKeeper = false;
@@ -203,7 +206,7 @@ int MainCmds::match(int argc, const char* const* argv) {
   std::signal(SIGTERM, signalHandler);
 
   auto runMatchLoop = [
-    &gameRunner,&matchPairer,&sgfOutputDir,&logger,&gameSeedBase
+    &gameRunner,&matchPairer,&sgfOutputDir,&logger,&gameSeedBase,&patternBonusTables
   ](
     uint64_t threadHash
   ) {
@@ -223,9 +226,13 @@ int MainCmds::match(int argc, const char* const* argv) {
       MatchPairer::BotSpec botSpecW;
       if(matchPairer->getMatchup(botSpecB, botSpecW, logger)) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
+        std::function<void(const MatchPairer::BotSpec&, Search*)> afterInitialization = [&patternBonusTables](const MatchPairer::BotSpec& spec, Search* search) {
+          assert(spec.botIdx < patternBonusTables.size());
+          search->setCopyOfExternalPatternBonusTable(patternBonusTables[spec.botIdx]);
+        };
         gameData = gameRunner->runGame(
           seed, botSpecB, botSpecW, NULL, NULL, logger,
-          shouldStopFunc, nullptr, nullptr, false
+          shouldStopFunc, nullptr, afterInitialization, nullptr
         );
       }
 

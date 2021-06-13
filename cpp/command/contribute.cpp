@@ -248,9 +248,14 @@ static void runAndUploadSingleGame(
   };
 
   const Sgf::PositionSample* posSample = gameTask.repIdx < gameTask.task.startPoses.size() ? &(gameTask.task.startPoses[gameTask.repIdx]) : NULL;
+  std::function<void(const MatchPairer::BotSpec&, Search*)> afterInitialization = [alwaysIncludeOwnership](const MatchPairer::BotSpec& spec, Search* search) {
+    (void)spec;
+    if(alwaysIncludeOwnership)
+      search->setAlwaysIncludeOwnerMap(true);
+  };
   FinishedGameData* gameData = gameRunner->runGame(
     seed, botSpecB, botSpecW, forkData, posSample,
-    logger, shouldStopFunc, nullptr, onEachMove, alwaysIncludeOwnership
+    logger, shouldStopFunc, nullptr, afterInitialization, onEachMove
   );
 
   if(gameData != NULL) {

@@ -2174,8 +2174,8 @@ FinishedGameData* GameRunner::runGame(
   Logger& logger,
   const std::function<bool()>& shouldStop,
   std::function<NNEvaluator*()> checkForNewNNEval,
-  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove,
-  bool alwaysIncludeOwnership
+  std::function<void(const MatchPairer::BotSpec&, Search*)> afterInitialization,
+  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
 ) {
   MatchPairer::BotSpec botSpecB = bSpecB;
   MatchPairer::BotSpec botSpecW = bSpecW;
@@ -2244,9 +2244,14 @@ FinishedGameData* GameRunner::runGame(
     botB = new Search(botSpecB.baseParams, botSpecB.nnEval, &logger, seed + "@B");
     botW = new Search(botSpecW.baseParams, botSpecW.nnEval, &logger, seed + "@W");
   }
-  if(alwaysIncludeOwnership) {
-    botB->setAlwaysIncludeOwnerMap(true);
-    botW->setAlwaysIncludeOwnerMap(true);
+  if(afterInitialization != nullptr) {
+    if(botSpecB.botIdx == botSpecW.botIdx) {
+      afterInitialization(botSpecB,botB);
+    }
+    else {
+      afterInitialization(botSpecB,botB);
+      afterInitialization(botSpecW,botW);
+    }
   }
 
   FinishedGameData* finishedGameData = Play::runGame(

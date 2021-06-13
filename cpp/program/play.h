@@ -308,6 +308,7 @@ public:
 
   //Will return NULL if stopped before the game completes. The caller is responsible for freeing the data
   //if it isn't NULL.
+  //afterInitialization can be used to run any post-initialization configuration on the search
   FinishedGameData* runGame(
     const std::string& seed,
     const MatchPairer::BotSpec& botSpecB,
@@ -317,8 +318,8 @@ public:
     Logger& logger,
     const std::function<bool()>& shouldStop,
     std::function<NNEvaluator*()> checkForNewNNEval,
-    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove,
-    bool alwaysIncludeOwnership
+    std::function<void(const MatchPairer::BotSpec&, Search*)> afterInitialization,
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
   );
 
   const GameInitializer* getGameInitializer() const;

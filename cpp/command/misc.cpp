@@ -2144,7 +2144,7 @@ int MainCmds::sampleinitializations(int argc, const char* const* argv) {
       nullptr,
       nullptr,
       nullptr,
-      false
+      nullptr
     );
 
     cout << data->startHist.rules.toString() << endl;

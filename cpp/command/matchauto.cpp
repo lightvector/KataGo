@@ -490,7 +490,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
   NetManager* manager = new NetManager(&cfg,maxConcurrentEvals,expectedConcurrentEvals);
 
   //Initialize object for randomly pairing bots
-  AutoMatchPairer * autoMatchPairer = new AutoMatchPairer(cfg,resultsDir,numBots,botNames,nnModelFilesByBot,paramss);
+  AutoMatchPairer* autoMatchPairer = new AutoMatchPairer(cfg,resultsDir,numBots,botNames,nnModelFilesByBot,paramss);
 
   //Initialize object for randomizing game settings and running games
   PlaySettings playSettings = PlaySettings::loadForMatch(cfg);
@@ -539,7 +539,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
           seed, botSpecB, botSpecW, NULL, NULL, logger,
-          shouldStopFunc, nullptr, nullptr, false
+          shouldStopFunc, nullptr, nullptr, nullptr
         );
       }
 
