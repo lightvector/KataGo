@@ -248,12 +248,12 @@ double Global::stringToDouble(const string& str)
 
 bool Global::isWhitespace(char c)
 {
-  return contains(" \t\r\n",c);
+  return contains(" \t\r\n\v\f",c);
 }
 
 bool Global::isWhitespace(const string& s)
 {
-  size_t p = s.find_first_not_of(" \t\r\n");
+  size_t p = s.find_first_not_of(" \t\r\n\v\f");
   return p == string::npos;
 }
 
@@ -288,10 +288,10 @@ string Global::chopSuffix(const string& s, const string& suffix)
 
 string Global::trim(const string& s)
 {
-  size_t p2 = s.find_last_not_of(" \t\r\n");
+  size_t p2 = s.find_last_not_of(" \t\r\n\v\f");
   if (p2 == string::npos)
     return string();
-  size_t p1 = s.find_first_not_of(" \t\r\n");
+  size_t p1 = s.find_first_not_of(" \t\r\n\v\f");
   if (p1 == string::npos)
     p1 = 0;
 
