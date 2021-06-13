@@ -107,6 +107,10 @@ void AsyncBot::setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&&
   stopAndWait();
   search->setExternalPatternBonusTable(std::move(table));
 }
+void AsyncBot::setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table) {
+  stopAndWait();
+  search->setCopyOfExternalPatternBonusTable(table);
+}
 void AsyncBot::clearSearch() {
   stopAndWait();
   search->clearSearch();

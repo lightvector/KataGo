@@ -450,7 +450,7 @@ struct GTPEngine {
       searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
     bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
-    bot->setExternalPatternBonusTable(patternBonusTable == nullptr ? nullptr : std::make_unique<PatternBonusTable>(*patternBonusTable));
+    bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
 
     Board board(boardXSize,boardYSize);
     Player pla = P_BLACK;
@@ -1540,15 +1540,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     cfg.contains("genmoveAntiMirror") ? cfg.getBool("genmoveAntiMirror") : cfg.contains("antiMirror") ? cfg.getBool("antiMirror") : true;
 
   std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;
-  if(cfg.contains("avoidSgfPatternUtility")) {
-    double penalty = cfg.getDouble("avoidSgfPatternUtility",-3.0,3.0);
-    double lambda = cfg.contains("avoidSgfPatternLambda") ? cfg.getDouble("avoidSgfPatternLambda",0.0,1.0) : 1.0;
-    int minTurnNumber = cfg.contains("avoidSgfPatternMinTurnNumber") ? cfg.getInt("avoidSgfPatternMinTurnNumber",0,1000000) : 0;
-    size_t maxFiles = cfg.contains("avoidSgfPatternMaxFiles") ? (size_t)cfg.getInt("avoidSgfPatternMaxFiles",1,1000000) : 1000000;
-    vector<string> allowedPlayerNames = cfg.contains("avoidSgfPatternAllowedNames") ? cfg.getStringsNonEmptyTrim("avoidSgfPatternAllowedNames") : vector<string>();
-    vector<string> sgfDirs = cfg.getStrings("avoidSgfPatternDirs");
-    patternBonusTable = std::make_unique<PatternBonusTable>();
-    patternBonusTable->avoidRepeatedSgfMoves(sgfDirs,penalty,lambda,minTurnNumber,maxFiles,allowedPlayerNames,logger);
+  {
+    std::vector<std::unique_ptr<PatternBonusTable>> tables = Setup::loadAvoidSgfPatternBonusTables(cfg,logger);
+    assert(tables.size() == 1);
+    patternBonusTable = std::move(tables[0]);
   }
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);

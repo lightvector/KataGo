@@ -77,6 +77,9 @@ namespace Setup {
 
   //Get sets of options that are mutually exclusive. Intended for use in configParser
   std::vector<std::pair<std::set<std::string>,std::set<std::string>>> getMutexKeySets();
+
+  //Load pattern bonus tables that avoid repeating moves that the user supplied in external sgfs
+  std::vector<std::unique_ptr<PatternBonusTable>> loadAvoidSgfPatternBonusTables(ConfigParser& cfg, Logger& logger);
 }
 
 #endif  // PROGRAM_SETUP_H_

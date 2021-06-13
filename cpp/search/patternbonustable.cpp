@@ -145,7 +145,8 @@ void PatternBonusTable::avoidRepeatedSgfMoves(
   int minTurnNumber,
   size_t maxFiles,
   const vector<string>& allowedPlayerNames,
-  Logger& logger
+  Logger& logger,
+  const string& logSource
 ) {
   vector<string> sgfFiles;
   FileHelpers::collectSgfsFromDirsOrFiles(sgfsDirsOrFiles,sgfFiles);
@@ -202,7 +203,7 @@ void PatternBonusTable::avoidRepeatedSgfMoves(
     bool hashParent = true;
     std::set<Hash128> uniqueHashes;
     sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, false, NULL, posHandler);
-    logger.write("Added " + Global::uint64ToString(hashesThisGame.size()) + " shapes to penalize repeats by from " + fileName);
+    logger.write("Added " + Global::uint64ToString(hashesThisGame.size()) + " shapes to penalize repeats for " + logSource + " from " + fileName);
 
     delete sgf;
     factor *= decayOlderFilesLambda;

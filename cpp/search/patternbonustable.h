@@ -39,7 +39,8 @@ struct PatternBonusTable {
     int minTurnNumber,
     size_t maxFiles,
     const std::vector<std::string>& allowedPlayerNames,
-    Logger& logger
+    Logger& logger,
+    const std::string& logSource
   );
 };
 

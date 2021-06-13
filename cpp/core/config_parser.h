@@ -49,6 +49,9 @@ class ConfigParser {
   std::string getContents() const;
 
   bool contains(const std::string& key) const;
+  bool containsAny(const std::vector<std::string>& possibleKeys) const;
+  std::string firstFoundOrFail(const std::vector<std::string>& possibleKeys) const;
+  std::string firstFoundOrEmpty(const std::vector<std::string>& possibleKeys) const;
 
   std::string getString(const std::string& key);
   bool getBool(const std::string& key);

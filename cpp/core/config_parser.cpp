@@ -244,6 +244,35 @@ bool ConfigParser::contains(const string& key) const {
   return keyValues.find(key) != keyValues.end();
 }
 
+bool ConfigParser::containsAny(const std::vector<std::string>& possibleKeys) const {
+  for(const string& key : possibleKeys) {
+    if(contains(key))
+      return true;
+  }
+  return false;
+}
+
+std::string ConfigParser::firstFoundOrFail(const std::vector<std::string>& possibleKeys) const {
+  for(const string& key : possibleKeys) {
+    if(contains(key))
+      return key;
+  }
+  string message = "Could not find key";
+  for(const string& key : possibleKeys) {
+    message += " '" + key + "'";
+  }
+  throw IOError(message + " in config file " + fileName);
+}
+
+std::string ConfigParser::firstFoundOrEmpty(const std::vector<std::string>& possibleKeys) const {
+  for(const string& key : possibleKeys) {
+    if(contains(key))
+      return key;
+  }
+  return string();
+}
+
+
 string ConfigParser::getString(const string& key) {
   auto iter = keyValues.find(key);
   if(iter == keyValues.end())

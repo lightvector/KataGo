@@ -639,10 +639,16 @@ void Search::setParamsNoClearing(SearchParams params) {
 }
 
 void Search::setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table) {
+  if(table == externalPatternBonusTable)
+    return;
   //Probably not actually needed so long as we do a fresh search to refresh and use the new table
   //but this makes behavior consistent with all the other setters.
   clearSearch();
   externalPatternBonusTable = std::move(table);
+}
+
+void Search::setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table) {
+  setExternalPatternBonusTable(table == nullptr ? nullptr : std::make_unique<PatternBonusTable>(*table));
 }
 
 void Search::setNNEval(NNEvaluator* nnEval) {

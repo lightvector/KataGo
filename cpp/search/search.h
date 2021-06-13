@@ -351,6 +351,7 @@ struct Search {
   void setParams(SearchParams params);
   void setParamsNoClearing(SearchParams params); //Does not clear search
   void setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table);
+  void setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table);
   void setNNEval(NNEvaluator* nnEval);
 
   //If the number of threads is reduced, this can free up some excess threads in the thread pool.
