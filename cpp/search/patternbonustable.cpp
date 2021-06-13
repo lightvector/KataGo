@@ -201,7 +201,7 @@ void PatternBonusTable::avoidRepeatedSgfMoves(
     bool hashComments = true;
     bool hashParent = true;
     std::set<Hash128> uniqueHashes;
-    sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, NULL, posHandler);
+    sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, false, NULL, posHandler);
     logger.write("Added " + Global::uint64ToString(hashesThisGame.size()) + " shapes to penalize repeats by from " + fileName);
 
     delete sgf;
