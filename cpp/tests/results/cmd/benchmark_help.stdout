@@ -38,7 +38,7 @@ Where:
      of positions)
 
    -boardsize <SIZE>
-     Size of board to benchmark on (9-19), default 19
+     Size of board to benchmark on (7-19), default 19
 
    -s,  -tune
      Automatically search for the optimal number of threads (default if not
