@@ -43,6 +43,8 @@ struct ReportedSearchValues {
   int64_t visits;
 
   ReportedSearchValues();
+  ReportedSearchValues(const Search& search, double winLossValueAvg, double noResultValueAvg, double scoreMeanAvg,
+                       double scoreMeanSqAvg, double leadAvg, double utilityAvg, int64_t totalVisits);
   ~ReportedSearchValues();
 };
 
@@ -427,6 +429,7 @@ struct Search {
   ReportedSearchValues getRootValuesRequireSuccess() const;
   //Same, but works on a node within the search, not just the root
   bool getNodeValues(const SearchNode& node, ReportedSearchValues& values) const;
+  bool getPrunedRootValues(ReportedSearchValues& values) const;
 
   //Same, but based only on the single raw neural net evaluation.
   bool getRootRawNNValues(ReportedSearchValues& values) const;
@@ -483,6 +486,7 @@ struct Search {
 
   //Helpers-----------------------------------------------------------------------
   int getPos(Loc moveLoc) const;
+  static double getScoreStdev(double scoreMeanAvg, double scoreMeanSqAvg);
 
 private:
   static constexpr double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
@@ -491,7 +495,6 @@ private:
 
   double getResultUtility(double winlossValue, double noResultValue) const;
   double getResultUtilityFromNN(const NNOutput& nnOutput) const;
-  static double getScoreStdev(double scoreMeanAvg, double scoreMeanSqAvg);
   double interpolateEarly(double halflife, double earlyValue, double value) const;
 
   void spawnThreadsIfNeeded();
@@ -553,7 +556,7 @@ private:
   bool getPlaySelectionValues(
     const SearchNode& node,
     std::vector<Loc>& locs, std::vector<double>& playSelectionValues, std::vector<double>* retVisitCounts, double scaleMaxToAtLeast,
-    bool allowDirectPolicyMoves, bool alwaysComputeLcb,
+    bool allowDirectPolicyMoves, bool alwaysComputeLcb, bool neverUseLcb,
     double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
   ) const;
 

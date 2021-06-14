@@ -50,7 +50,7 @@ bool Search::getPlaySelectionValues(
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
   bool result = getPlaySelectionValues(
     node,locs,playSelectionValues,retVisitCounts,scaleMaxToAtLeast,allowDirectPolicyMoves,
-    false,lcbBuf,radiusBuf
+    false,false,lcbBuf,radiusBuf
   );
   return result;
 }
@@ -58,7 +58,7 @@ bool Search::getPlaySelectionValues(
 bool Search::getPlaySelectionValues(
   const SearchNode& node,
   vector<Loc>& locs, vector<double>& playSelectionValues, vector<double>* retVisitCounts, double scaleMaxToAtLeast,
-  bool allowDirectPolicyMoves, bool alwaysComputeLcb,
+  bool allowDirectPolicyMoves, bool alwaysComputeLcb, bool neverUseLcb,
   //Note: lcbBuf is signed from the player to move's perspective
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
 ) const {
@@ -155,7 +155,7 @@ bool Search::getPlaySelectionValues(
   }
 
   //Now compute play selection values taking into account LCB
-  if(alwaysComputeLcb || (searchParams.useLcbForSelection && numChildren > 0)) {
+  if(!neverUseLcb && (alwaysComputeLcb || (searchParams.useLcbForSelection && numChildren > 0))) {
     double bestLcb = -1e10;
     int bestLcbIndex = -1;
     for(int i = 0; i<numChildren; i++) {
@@ -403,35 +403,7 @@ bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values)
 
   if(weightSum <= 0.0)
     return false;
-
-  values.winLossValue = winLossValueAvg;
-  values.noResultValue = noResultValueAvg;
-  double scoreMean = scoreMeanAvg;
-  double scoreMeanSq = scoreMeanSqAvg;
-  double scoreStdev = getScoreStdev(scoreMean,scoreMeanSq);
-  values.staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
-  values.dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
-  values.expectedScore = scoreMean;
-  values.expectedScoreStdev = scoreStdev;
-  values.lead = leadAvg;
-  values.utility = utilityAvg;
-
-  //Clamp. Due to tiny floating point errors, these could be outside range.
-  if(values.winLossValue < -1.0) values.winLossValue = -1.0;
-  if(values.winLossValue > 1.0) values.winLossValue = 1.0;
-  if(values.noResultValue < 0.0) values.noResultValue = 0.0;
-  if(values.noResultValue > 1.0-abs(values.winLossValue)) values.noResultValue = 1.0-abs(values.winLossValue);
-
-  values.winValue = 0.5 * (values.winLossValue + (1.0 - values.noResultValue));
-  values.lossValue = 0.5 * (-values.winLossValue + (1.0 - values.noResultValue));
-
-  //Handle float imprecision
-  if(values.winValue < 0.0) values.winValue = 0.0;
-  if(values.winValue > 1.0) values.winValue = 1.0;
-  if(values.lossValue < 0.0) values.lossValue = 0.0;
-  if(values.lossValue > 1.0) values.lossValue = 1.0;
-  values.visits = visits;
-
+  values = ReportedSearchValues(*this,winLossValueAvg, noResultValueAvg, scoreMeanAvg, scoreMeanSqAvg, leadAvg, utilityAvg, visits);
   return true;
 }
 
@@ -600,7 +572,7 @@ bool Search::getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntr
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
   bool suc = getPlaySelectionValues(
-    *rootNode,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,lcbBuf,radiusBuf
+    *rootNode,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,false,lcbBuf,radiusBuf
   );
   if(!suc)
     return false;
@@ -910,7 +882,7 @@ void Search::getAnalysisData(
     assert(numChildren <= NNPos::MAX_NN_POLICY_SIZE);
 
     bool alwaysComputeLcb = true;
-    bool success = getPlaySelectionValues(node, scratchLocs, scratchValues, NULL, 1.0, false, alwaysComputeLcb, lcbBuf, radiusBuf);
+    bool success = getPlaySelectionValues(node, scratchLocs, scratchValues, NULL, 1.0, false, alwaysComputeLcb, false, lcbBuf, radiusBuf);
     if(!success)
       return;
 
@@ -1397,7 +1369,7 @@ bool Search::getAnalysisJson(
   // Stats for root position
   {
     ReportedSearchValues rootVals;
-    bool suc = getRootValues(rootVals);
+    bool suc = getPrunedRootValues(rootVals);
     if(!suc)
       return false;
 
@@ -1461,5 +1433,76 @@ bool Search::getAnalysisJson(
   // Average tree ownership
   if(includeOwnership)
     ret["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, rootNode, ownershipMinWeight);
+  return true;
+}
+
+//Compute all the stats of the root based on its children, pruning weights such that they are as expected
+//based on policy and utility. This is used to give accurate rootInfo even with a lot of wide root noise
+bool Search::getPrunedRootValues(ReportedSearchValues& values) const {
+  if(rootNode == NULL) return false;
+  const SearchNode& node = *rootNode;
+  int childrenCapacity;
+  const SearchChildPointer* children = node.getChildren(childrenCapacity);
+
+  vector<double> playSelectionValues;
+  vector<Loc> locs; // not used
+  getPlaySelectionValues(node,locs,playSelectionValues,NULL,false,1.0,false,true,NULL,NULL);
+
+  double winLossValueSum = 0.0;
+  double noResultValueSum = 0.0;
+  double scoreMeanSum = 0.0;
+  double scoreMeanSqSum = 0.0;
+  double leadSum = 0.0;
+  double utilitySum = 0.0;
+  double utilitySqSum = 0.0;
+  double weightSum = 0.0;
+  double weightSqSum = 0.0;
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
+    NodeStats stats = NodeStats(child->stats);
+
+    if(stats.visits <= 0 || stats.weightSum <= 0.0)
+      continue;
+    double weight = playSelectionValues[i];
+    winLossValueSum += weight * stats.winLossValueAvg;
+    noResultValueSum += weight * stats.noResultValueAvg;
+    scoreMeanSum += weight * stats.scoreMeanAvg;
+    scoreMeanSqSum += weight * stats.scoreMeanSqAvg;
+    leadSum += weight * stats.leadAvg;
+    utilitySum += weight * stats.utilityAvg;
+    utilitySqSum += weight * stats.utilitySqAvg;
+    weightSqSum += weight * weight;
+    weightSum += weight;
+  }
+  
+  //Also add in the direct evaluation of this node.
+  {
+    const NNOutput* nnOutput = node.getNNOutput();
+    assert(nnOutput != NULL);
+    double winProb = (double)nnOutput->whiteWinProb;
+    double lossProb = (double)nnOutput->whiteLossProb;
+    double noResultProb = (double)nnOutput->whiteNoResultProb;
+    double scoreMean = (double)nnOutput->whiteScoreMean;
+    double scoreMeanSq = (double)nnOutput->whiteScoreMeanSq;
+    double lead = (double)nnOutput->whiteLead;
+    double utility =
+      getResultUtility(winProb-lossProb, noResultProb)
+      + getScoreUtility(scoreMean, scoreMeanSq);
+
+    double weight = 1.0;
+    winLossValueSum += (winProb - lossProb) * weight;
+    noResultValueSum += noResultProb * weight;
+    scoreMeanSum += scoreMean * weight;
+    scoreMeanSqSum += scoreMeanSq * weight;
+    leadSum += lead * weight;
+    utilitySum += utility * weight;
+    utilitySqSum += utility * utility * weight;
+    weightSqSum += weight * weight;
+    weightSum += weight;
+  }
+  values = ReportedSearchValues(*this, winLossValueSum / weightSum, noResultValueSum / weightSum, scoreMeanSum / weightSum,
+                                scoreMeanSqSum / weightSum, leadSum / weightSum, utilitySum / weightSum, rootNode->stats.visits);
   return true;
 }
