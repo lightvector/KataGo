@@ -90,7 +90,7 @@ bool Location::isCentral(Loc loc, int x_size, int y_size) {
 
 Board::Board()
 {
-  init(19,19);
+  init(DEFAULT_LEN,DEFAULT_LEN);
 }
 
 Board::Board(int x, int y)
@@ -1694,7 +1694,7 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
     Loc move = buf[moveListStarts[stackIdx] + moveListCur[stackIdx]];
     Player p = (isDefender ? pla : opp);
 
-    // if(print) cout << "play " << Location::getX(move,19) << " " << Location::getY(move,19) << " " << p << endl;
+    // if(print) cout << "play " << Location::getX(move,x_size) << " " << Location::getY(move,x_size) << " " << p << endl;
 
     //Illegal move - treat it the same as a failed move, but don't return up a level so that we
     //loop again and just try the next move.

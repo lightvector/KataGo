@@ -89,9 +89,10 @@ struct Board
 
   //Board parameters and Constants----------------------------------------
 
-  static const int MAX_LEN = COMPILE_MAX_BOARD_LEN;  //Maximum edge length allowed for the board
-  static const int MAX_PLAY_SIZE = MAX_LEN * MAX_LEN;  //Maximum number of playable spaces
-  static const int MAX_ARR_SIZE = (MAX_LEN+1)*(MAX_LEN+2)+1; //Maximum size of arrays needed
+  static constexpr int MAX_LEN = COMPILE_MAX_BOARD_LEN;  //Maximum edge length allowed for the board
+  static constexpr int DEFAULT_LEN = std::min(MAX_LEN,19); //Default edge length for board if unspecified
+  static constexpr int MAX_PLAY_SIZE = MAX_LEN * MAX_LEN;  //Maximum number of playable spaces
+  static constexpr int MAX_ARR_SIZE = (MAX_LEN+1)*(MAX_LEN+2)+1; //Maximum size of arrays needed
 
   //Location used to indicate an invalid spot on the board.
   static constexpr Loc NULL_LOC = 0;
@@ -145,7 +146,7 @@ struct Board
   };
 
   //Constructors---------------------------------
-  Board();  //Create Board of size (19,19)
+  Board();  //Create Board of size (DEFAULT_LEN,DEFAULT_LEN)
   Board(int x, int y); //Create Board of size (x,y)
   Board(const Board& other);
 

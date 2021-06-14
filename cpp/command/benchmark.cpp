@@ -72,10 +72,21 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> threadsArg("t","threads","Test these many threads, comma-separated, e.g. '4,8,12,16' ",false,"","THREADS");
     TCLAP::ValueArg<int> numPositionsPerGameArg("n","numpositions","How many positions to sample from a game (default 10)",false,10,"NUM");
     TCLAP::ValueArg<string> sgfFileArg("","sgf", "Optional game to sample positions from (default: uses a built-in-set of positions)",false,string(),"FILE");
-    TCLAP::ValueArg<int> boardSizeArg("","boardsize", "Size of board to benchmark on (9-19), default 19",false,-1,"SIZE");
+    TCLAP::ValueArg<int> boardSizeArg(
+      "","boardsize",
+      "Size of board to benchmark on (" +
+      Global::intToString(TestCommon::MIN_BENCHMARK_SGF_DATA_SIZE) + "-" +
+      Global::intToString(TestCommon::MAX_BENCHMARK_SGF_DATA_SIZE) + "), default " +
+      Global::intToString(TestCommon::DEFAULT_BENCHMARK_SGF_DATA_SIZE),
+      false,-1,"SIZE"
+    );
     TCLAP::SwitchArg autoTuneThreadsArg("s","tune","Automatically search for the optimal number of threads (default if not specifying specific numbers of threads)");
-    TCLAP::ValueArg<double> secondsPerGameMoveArg("i","time","Typical amount of time per move spent while playing, in seconds (default " +
-                                               Global::doubleToString(defaultSecondsPerGameMove) + ")",false,defaultSecondsPerGameMove,"SECONDS");
+    TCLAP::ValueArg<double> secondsPerGameMoveArg(
+      "i","time",
+      "Typical amount of time per move spent while playing, in seconds (default " +
+      Global::doubleToString(defaultSecondsPerGameMove) + ")",
+      false,defaultSecondsPerGameMove,"SECONDS"
+    );
     cmd.add(visitsArg);
     cmd.add(threadsArg);
     cmd.add(numPositionsPerGameArg);
@@ -101,7 +112,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
 
     if(boardSize != -1 && sgfFile != "")
       throw StringError("Cannot specify both -sgf and -boardsize at the same time");
-    if(boardSize != -1 && (boardSize < 9 || boardSize > 19))
+    if(boardSize != -1 && (boardSize < TestCommon::MIN_BENCHMARK_SGF_DATA_SIZE || boardSize > TestCommon::MAX_BENCHMARK_SGF_DATA_SIZE))
       throw StringError("Board size to test: invalid value " + Global::intToString(boardSize));
     if(maxVisits <= 1 || maxVisits >= 1000000000)
       throw StringError("Number of visits to use: invalid value " + Global::int64ToString(maxVisits));
@@ -147,7 +158,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   }
   else {
     if(boardSize == -1)
-      boardSize = 19;
+      boardSize = TestCommon::DEFAULT_BENCHMARK_SGF_DATA_SIZE;
 
     string sgfData = TestCommon::getBenchmarkSGFData(boardSize);
     sgf = CompactSgf::parse(sgfData);
@@ -333,7 +344,9 @@ static vector<PlayUtils::BenchmarkResults> doFixedTuneThreads(
   vector<PlayUtils::BenchmarkResults> results;
 
   if(numThreadsToTest.size() > 1)
-    cout << "Testing different numbers of threads: " << endl;
+    cout << "Testing different numbers of threads (board size " << sgf->xSize << "x" << sgf->ySize << "): " << endl;
+  else
+    cout << "Testing (board size " << sgf->xSize << "x" << sgf->ySize << "): " << endl;
 
   for(int i = 0; i<numThreadsToTest.size(); i++) {
     const PlayUtils::BenchmarkResults* baseline = (i == 0) ? NULL : &results[0];
@@ -365,7 +378,7 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
 ) {
   vector<PlayUtils::BenchmarkResults> results;
 
-  cout << "Automatically trying different numbers of threads to home in on the best: " << endl;
+  cout << "Automatically trying different numbers of threads to home in on the best (board size " << sgf->xSize << "x" << sgf->ySize << "): " << endl;
   cout << endl;
 
   map<int, PlayUtils::BenchmarkResults> resultCache; // key is threads
@@ -554,7 +567,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
     }
   }
 
-  int boardSize = 19;
+  int boardSize = TestCommon::DEFAULT_BENCHMARK_SGF_DATA_SIZE;
   string sgfData = TestCommon::getBenchmarkSGFData(boardSize);
   CompactSgf* sgf = CompactSgf::parse(sgfData);
 

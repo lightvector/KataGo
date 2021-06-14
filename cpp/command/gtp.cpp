@@ -412,8 +412,8 @@ struct GTPEngine {
 
     bool wasDefault = false;
     if(boardXSize == -1 || boardYSize == -1) {
-      boardXSize = 19;
-      boardYSize = 19;
+      boardXSize = Board::DEFAULT_LEN;
+      boardYSize = Board::DEFAULT_LEN;
       wasDefault = true;
     }
 
