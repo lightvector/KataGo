@@ -1235,8 +1235,8 @@ vector<double> Search::getStandardDeviationTreeOwnership(double minWeight, const
   return vec;
 }
 
-template <typename F>
-double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWeight, double desiredWeight, F&& func, const SearchNode* node) const {
+template <typename Func>
+double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWeight, double desiredWeight, Func&& preprocess, const SearchNode* node) const {
   if(node == NULL)
     return 0;
 
@@ -1280,14 +1280,14 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWe
     const SearchNode* child = children[i].getIfAllocated();
     assert(child != NULL);
     double desiredWeightFromChild = (double)childWeight * childWeight / relativeChildrenWeightSum * desiredWeightFromChildren;
-    actualWeightFromChildren += getAverageTreeOwnershipHelper(accum,minWeight,desiredWeightFromChild,func,child);
+    actualWeightFromChildren += getAverageTreeOwnershipHelper(accum,minWeight,desiredWeightFromChild,preprocess,child);
   }
 
   double selfWeight = desiredWeight - actualWeightFromChildren;
   float* ownerMap = nnOutput->whiteOwnerMap;
   assert(ownerMap != NULL);
   for(int pos = 0; pos<nnXLen*nnYLen; pos++)
-    accum[pos] += selfWeight * func(ownerMap[pos]);
+    accum[pos] += selfWeight * preprocess(ownerMap[pos]);
 
   return desiredWeight;
 }

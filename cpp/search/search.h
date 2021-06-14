@@ -650,8 +650,8 @@ private:
     std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
   ) const;
 
-  template <typename F>
-  double getAverageTreeOwnershipHelper(std::vector<double>& accum, double minWeight, double desiredWeight, F&& func, const SearchNode* node) const;
+  template <typename Func>
+  double getAverageTreeOwnershipHelper(std::vector<double>& accum, double minWeight, double desiredWeight, Func&& preprocess, const SearchNode* node) const;
 
 };
 
