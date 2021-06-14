@@ -3,7 +3,6 @@ import elo
 import itertools
 import math
 import os
-import warnings
 
 from dataclasses import dataclass
 from sgfmill import sgf
@@ -66,12 +65,24 @@ class GameResultSummary:
   def print_elos(self):
     """Print game results and maximum likelihood posterior Elos."""
     elo_info = self._compute_elos_if_needed()
-    self._print_result_matrix([player for player in elo_info.players if player != elo.P1_ADVANTAGE_NAME])
+    real_players = [player for player in elo_info.players if player != elo.P1_ADVANTAGE_NAME]
+    self._print_result_matrix(real_players)
     print("Elos (+/- one approx standard error):")
     print(elo_info)
+
+    print("Pairwise approx % likelihood of superiority of row over column:")
+    los_matrix = []
+    for player in real_players:
+      los_row = []
+      for player2 in real_players:
+        los = elo_info.get_approx_likelihood_of_superiority(player,player2)
+        los_row.append(f"{los*100:.1f}")
+      los_matrix.append(los_row)
+    self._print_matrix(real_players,los_matrix)
+
     print(f"Used a prior of {self._elo_prior_games} games worth that each player is near Elo 0.")
     if self._should_warn_handicap_komi:
-      warnings.warn("There are handicap games or games with komi < 5.5 or komi > 7.5, these games may not be fair?")
+      print("WARNING: There are handicap games or games with komi < 5.5 or komi > 7.5, these games may not be fair?")
 
   def get_elos(self) -> elo.EloInfo:
     return self._compute_elos_if_needed()
@@ -187,6 +198,8 @@ class GameResultSummary:
         if (pla_black == pla_white):
           continue
         else:
+          if (pla_black, pla_white) not in self.results:
+            continue
           record = self.results[(pla_black, pla_white)]
           total = record.win + record.lost + record.draw
           assert total >= 0
@@ -212,29 +225,25 @@ class GameResultSummary:
     info = elo.compute_elos(data, verbose=True)
     return info
 
+  def _print_matrix(self,pla_names,results_matrix):
+    per_elt_space = 2
+    for sublist in results_matrix:
+      for elt in sublist:
+        per_elt_space = max(per_elt_space, len(str(elt)))
+    per_elt_space += 2
+
+    per_name_space = 1 if len(pla_names) == 0 else max(len(name) for name in pla_names)
+    per_name_space += 1
+    if per_name_space > per_elt_space:
+      per_elt_space += 1
+
+    row_format = f"{{:>{per_name_space}}}" +   f"{{:>{per_elt_space}}}" * len(results_matrix)
+    print(row_format.format("", *[name[:per_elt_space-2] for name in pla_names]))
+    for name, row in zip(pla_names, results_matrix):
+      print(row_format.format(name, *row))
+
   def _print_result_matrix(self, pla_names):
-    print("Player information:")
-    max_len = 0 if len(pla_names) == 0 else len(max(pla_names, key=len))
-    title = 'Player Name'
-    title_space = max(len(title), max_len) + 1
-    print(f"{title:<{title_space}}: Player ID")
-    idx = 0
-    for pla in pla_names:
-      print(f"{pla:<{title_space}}: {idx}")
-      idx += 1
-
-    def print_matrix(results_matrix):
-      max_game_played_space = 2
-      for sublist in results_matrix:
-        for elt in sublist:
-          max_game_played_space = max(max_game_played_space, len(str(elt)))
-      max_game_played_space += 2
-      row_format = f"{{:>{max_game_played_space}}}" * (len(results_matrix) + 1)
-      print(row_format.format("", *range(len(results_matrix))))
-      for playerID, row in zip(range(len(results_matrix)), results_matrix):
-        print(row_format.format(playerID, *row))
-
-    print("Wins by row ID against column ID:")
+    print("Wins by row player against column player:")
     result_matrix = []
     for pla1 in pla_names:
       row = []
@@ -243,15 +252,15 @@ class GameResultSummary:
           row.append("-")
           continue
         else:
-          pla1_pla2 = self.results[(pla1, pla2)]
-          pla2_pla1 = self.results[(pla2, pla1)]
+          pla1_pla2 = self.results[(pla1, pla2)] if (pla1, pla2) in self.results else Record()
+          pla2_pla1 = self.results[(pla2, pla1)] if (pla2, pla1) in self.results else Record()
           win = pla1_pla2.win + pla2_pla1.lost + 0.5 * (pla1_pla2.draw + pla2_pla1.draw)
           total = pla1_pla2.win + pla2_pla1.win + pla1_pla2.lost + pla2_pla1.lost + pla1_pla2.draw + pla2_pla1.draw
           row.append(f"{win:.1f}/{total:.1f}")
       result_matrix.append(row)
-    print_matrix(result_matrix)
+    self._print_matrix(pla_names,result_matrix)
 
-    print("Win% by row ID against column ID:")
+    print("Win% by row player against column player:")
     result_matrix = []
     for pla1 in pla_names:
       row = []
@@ -260,8 +269,8 @@ class GameResultSummary:
           row.append("-")
           continue
         else:
-          pla1_pla2 = self.results[(pla1, pla2)]
-          pla2_pla1 = self.results[(pla2, pla1)]
+          pla1_pla2 = self.results[(pla1, pla2)] if (pla1, pla2) in self.results else Record()
+          pla2_pla1 = self.results[(pla2, pla1)] if (pla2, pla1) in self.results else Record()
           win = pla1_pla2.win + pla2_pla1.lost + 0.5 * (pla1_pla2.draw + pla2_pla1.draw)
           total = pla1_pla2.win + pla2_pla1.win + pla1_pla2.lost + pla2_pla1.lost + pla1_pla2.draw + pla2_pla1.draw
           if total <= 0:
@@ -270,7 +279,7 @@ class GameResultSummary:
             row.append(f"{win/total*100.0:.1f}%")
       result_matrix.append(row)
 
-    print_matrix(result_matrix)
+    self._print_matrix(pla_names,result_matrix)
 
 if __name__ == "__main__":
   description = """
