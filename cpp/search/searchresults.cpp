@@ -1217,11 +1217,26 @@ vector<double> Search::getAverageTreeOwnership(double minWeight, const SearchNod
   if(!alwaysIncludeOwnerMap)
     throw StringError("Called Search::getAverageTreeOwnership when alwaysIncludeOwnerMap is false");
   vector<double> vec(nnXLen*nnYLen,0.0);
-  getAverageTreeOwnershipHelper(vec,minWeight,1.0,node);
+  getAverageTreeOwnershipHelper(vec,minWeight,1.0,[](double x) { return x; },node);
   return vec;
 }
 
-double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWeight, double desiredWeight, const SearchNode* node) const {
+vector<double> Search::getStandardDeviationTreeOwnership(double minWeight, const std::vector<double> ownership, const SearchNode* node) const {
+  if(node == NULL)
+    node = rootNode;
+  if(!alwaysIncludeOwnerMap)
+    throw StringError("Called Search::getAverageTreeOwnership when alwaysIncludeOwnerMap is false");
+  vector<double> vec(nnXLen*nnYLen,0.0);
+  getAverageTreeOwnershipHelper(vec,minWeight,1.0,[](double x) { return x * x; },node);
+  for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
+    const double average = ownership[pos];
+    vec[pos] = sqrt(vec[pos] - average * average);
+  }
+  return vec;
+}
+
+template <typename F>
+double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWeight, double desiredWeight, F&& func, const SearchNode* node) const {
   if(node == NULL)
     return 0;
 
@@ -1265,14 +1280,14 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWe
     const SearchNode* child = children[i].getIfAllocated();
     assert(child != NULL);
     double desiredWeightFromChild = (double)childWeight * childWeight / relativeChildrenWeightSum * desiredWeightFromChildren;
-    actualWeightFromChildren += getAverageTreeOwnershipHelper(accum,minWeight,desiredWeightFromChild,child);
+    actualWeightFromChildren += getAverageTreeOwnershipHelper(accum,minWeight,desiredWeightFromChild,func,child);
   }
 
   double selfWeight = desiredWeight - actualWeightFromChildren;
   float* ownerMap = nnOutput->whiteOwnerMap;
   assert(ownerMap != NULL);
   for(int pos = 0; pos<nnXLen*nnYLen; pos++)
-    accum[pos] += selfWeight * ownerMap[pos];
+    accum[pos] += selfWeight * func(ownerMap[pos]);
 
   return desiredWeight;
 }
