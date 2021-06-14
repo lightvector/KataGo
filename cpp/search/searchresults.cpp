@@ -1224,8 +1224,6 @@ vector<double> Search::getAverageTreeOwnership(double minWeight, const SearchNod
 vector<double> Search::getStandardDeviationTreeOwnership(double minWeight, const std::vector<double> ownership, const SearchNode* node) const {
   if(node == NULL)
     node = rootNode;
-  if(!alwaysIncludeOwnerMap)
-    throw StringError("Called Search::getAverageTreeOwnership when alwaysIncludeOwnerMap is false");
   vector<double> vec(nnXLen*nnYLen,0.0);
   getAverageTreeOwnershipHelper(vec,minWeight,1.0,[](double x) { return x * x; },node);
   for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
