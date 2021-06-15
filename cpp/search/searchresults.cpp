@@ -1217,7 +1217,7 @@ vector<double> Search::getAverageTreeOwnership(double minWeight, const SearchNod
   if(!alwaysIncludeOwnerMap)
     throw StringError("Called Search::getAverageTreeOwnership when alwaysIncludeOwnerMap is false");
   vector<double> vec(nnXLen*nnYLen,0.0);
-  getAverageTreeOwnershipHelper(vec,minWeight,1.0,[](double x) { return x; },node);
+  getAverageTreeOwnershipHelper(vec,minWeight,1.0,[](double x, int pos) { return x; },node);
   return vec;
 }
 
@@ -1225,10 +1225,10 @@ vector<double> Search::getStandardDeviationTreeOwnership(double minWeight, const
   if(node == NULL)
     node = rootNode;
   vector<double> vec(nnXLen*nnYLen,0.0);
-  getAverageTreeOwnershipHelper(vec,minWeight,1.0,[](double x) { return x * x; },node);
+  getAverageTreeOwnershipHelper(vec,minWeight,1.0,[&ownership](double x, int pos) { const double d = x - ownership[pos]; return d * d; },node);
   for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
-    const double average = ownership[pos];
-    vec[pos] = sqrt(vec[pos] - average * average);
+    assert(vec[pos] >= 0.0);
+    vec[pos] = sqrt(vec[pos]);
   }
   return vec;
 }
@@ -1285,7 +1285,7 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWe
   float* ownerMap = nnOutput->whiteOwnerMap;
   assert(ownerMap != NULL);
   for(int pos = 0; pos<nnXLen*nnYLen; pos++)
-    accum[pos] += selfWeight * preprocess(ownerMap[pos]);
+    accum[pos] += selfWeight * preprocess(ownerMap[pos], pos);
 
   return desiredWeight;
 }
