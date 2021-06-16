@@ -1217,24 +1217,11 @@ vector<double> Search::getAverageTreeOwnership(double minWeight, const SearchNod
   if(!alwaysIncludeOwnerMap)
     throw StringError("Called Search::getAverageTreeOwnership when alwaysIncludeOwnerMap is false");
   vector<double> vec(nnXLen*nnYLen,0.0);
-  getAverageTreeOwnershipHelper(vec,minWeight,1.0,[](double x, int pos) { return x; },node);
+  getAverageTreeOwnershipHelper(vec,minWeight,1.0,node);
   return vec;
 }
 
-vector<double> Search::getStandardDeviationTreeOwnership(double minWeight, const std::vector<double> ownership, const SearchNode* node) const {
-  if(node == NULL)
-    node = rootNode;
-  vector<double> vec(nnXLen*nnYLen,0.0);
-  getAverageTreeOwnershipHelper(vec,minWeight,1.0,[&ownership](double x, int pos) { const double d = x - ownership[pos]; return d * d; },node);
-  for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
-    assert(vec[pos] >= 0.0);
-    vec[pos] = sqrt(vec[pos]);
-  }
-  return vec;
-}
-
-template <typename Func>
-double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWeight, double desiredWeight, Func&& preprocess, const SearchNode* node) const {
+double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWeight, double desiredWeight, const SearchNode* node) const {
   if(node == NULL)
     return 0;
 
@@ -1278,14 +1265,86 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWe
     const SearchNode* child = children[i].getIfAllocated();
     assert(child != NULL);
     double desiredWeightFromChild = (double)childWeight * childWeight / relativeChildrenWeightSum * desiredWeightFromChildren;
-    actualWeightFromChildren += getAverageTreeOwnershipHelper(accum,minWeight,desiredWeightFromChild,preprocess,child);
+    actualWeightFromChildren += getAverageTreeOwnershipHelper(accum,minWeight,desiredWeightFromChild,child);
   }
 
   double selfWeight = desiredWeight - actualWeightFromChildren;
   float* ownerMap = nnOutput->whiteOwnerMap;
   assert(ownerMap != NULL);
   for(int pos = 0; pos<nnXLen*nnYLen; pos++)
-    accum[pos] += selfWeight * preprocess(ownerMap[pos], pos);
+    accum[pos] += selfWeight * ownerMap[pos];
+
+  return desiredWeight;
+}
+
+tuple<vector<double>,vector<double>> Search::getAverageAndStandardDeviationTreeOwnership(double minWeight, const SearchNode* node) const {
+  if(node == NULL)
+    node = rootNode;
+  vector<double> average(nnXLen*nnYLen,0.0);
+  vector<double> stdev(nnXLen*nnYLen,0.0);
+  getAverageAndStandardDeviationTreeOwnershipHelper(average,stdev,minWeight,1.0,node);
+  for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
+    const double avg = average[pos];
+    stdev[pos] = sqrt(max(stdev[pos] - avg * avg, 0.0));
+  }
+  return make_tuple(average, stdev);
+}
+
+double Search::getAverageAndStandardDeviationTreeOwnershipHelper(vector<double>& average, vector<double>& squaredAverage, double minWeight, double desiredWeight, const SearchNode* node) const {
+  if(node == NULL)
+    return 0;
+
+  const NNOutput* nnOutput = node->getNNOutput();
+  if(nnOutput == NULL)
+    return 0;
+
+  int childrenCapacity;
+  const SearchChildPointer* children = node->getChildren(childrenCapacity);
+
+  vector<double> childWeightBuf(childrenCapacity);
+  double thisNodeWeight = computeWeightFromNNOutput(nnOutput);
+  int numChildren = 0;
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
+    double childWeight = child->stats.weightSum.load(std::memory_order_acquire);
+    childWeightBuf[i] = childWeight;
+    numChildren += 1;
+  }
+
+  double relativeChildrenWeightSum = 0.0;
+  double usedChildrenWeightSum = 0;
+  for(int i = 0; i<numChildren; i++) {
+    double childWeight = childWeightBuf[i];
+    if(childWeight < minWeight)
+      continue;
+    relativeChildrenWeightSum += (double)childWeight * childWeight;
+    usedChildrenWeightSum += childWeight;
+  }
+
+  double desiredWeightFromChildren = desiredWeight * usedChildrenWeightSum / (usedChildrenWeightSum + thisNodeWeight);
+
+  //Recurse
+  double actualWeightFromChildren = 0.0;
+  for(int i = 0; i<numChildren; i++) {
+    double childWeight = childWeightBuf[i];
+    if(childWeight < minWeight)
+      continue;
+    const SearchNode* child = children[i].getIfAllocated();
+    assert(child != NULL);
+    double desiredWeightFromChild = (double)childWeight * childWeight / relativeChildrenWeightSum * desiredWeightFromChildren;
+    actualWeightFromChildren += getAverageAndStandardDeviationTreeOwnershipHelper(average,squaredAverage,minWeight,desiredWeightFromChild,child);
+  }
+
+  double selfWeight = desiredWeight - actualWeightFromChildren;
+  float* ownerMap = nnOutput->whiteOwnerMap;
+  assert(ownerMap != NULL);
+  for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
+    const double value = ownerMap[pos];
+    average[pos] += selfWeight * value;
+    squaredAverage[pos] += selfWeight * value * value;
+  }
 
   return desiredWeight;
 }
