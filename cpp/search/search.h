@@ -650,8 +650,8 @@ private:
     std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
   ) const;
 
-  double getAverageTreeOwnershipHelper(std::vector<double>& accum, double minWeight, double desiredWeight, const SearchNode* node) const;
-  double getAverageAndStandardDeviationTreeOwnershipHelper(std::vector<double>& average, std::vector<double>& squaredAverage, double minWeight, double desiredWeight, const SearchNode* node) const;
+  template<typename Func>
+  double traverseTreeWithOwnershipAndSelfWeight(Func&& averaging, double minWeight, double desiredWeight, const SearchNode* node) const;
 
 };
 
