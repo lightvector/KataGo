@@ -17,6 +17,7 @@ namespace Tests {
   void runBoardUndoTest();
   void runBoardHandicapTest();
   void runBoardStressTest();
+  void runBoardSymmetricTest();
 
   //testboardarea.cpp
   void runBoardAreaTests();
