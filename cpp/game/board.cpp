@@ -2639,3 +2639,57 @@ bool Board::isAdjacentToPlaHead(Player pla, Loc loc, Loc plaHead) const {
   );
   return false;
 }
+
+vector<bool> Board::markSymmetricDuplicativeLoc() {
+  vector<bool> isLocSymDuplicative(MAX_ARR_SIZE, false);
+  //this function is the same as in the nninputs.cpp getSymLoc function
+  auto getSymLoc = [this](int x, int y, int symmetry)->Loc{
+    bool transpose = (symmetry & 0x4) != 0;
+    bool flipX = (symmetry & 0x2) != 0;
+    bool flipY = (symmetry & 0x1) != 0;
+    if(flipX) { x = x_size - x - 1; }
+    if(flipY) { y = y_size - y - 1; }
+
+    if(transpose)
+      std::swap(x,y);
+    return Location::getLoc(x,y,transpose ? y_size : x_size);
+  };
+
+  vector<int> symTypes;
+  symTypes.reserve(7);
+
+  for(int symmetry = 1; symmetry <=7; symmetry++){
+    bool isBoardSym = true;
+
+    for(int y = 0; y < y_size; y++) {
+      for (int x = 0; x < x_size; x++) {
+        auto loc = getSymLoc(x,y,symmetry);
+        if (colors[loc] != colors[Location::getLoc(x, y, x_size)]){
+          isBoardSym = false;
+          break;
+        };
+      }
+      if(!isBoardSym) break;
+    }
+
+    if (isBoardSym){
+      isLocSymDuplicative[0] = true; //use the first location to indicate if the board has at least one symmetric type.
+      symTypes.push_back(symmetry);
+    }
+  }
+
+  if(isLocSymDuplicative[0]){
+    for (const auto symType: symTypes) {
+      for (int y = 0; y < y_size; y++) {
+        for (int x = 0; x < x_size; x++) {
+          auto loc = Location::getLoc(x, y, x_size);
+          auto symLoc = getSymLoc(x, y, symType);
+          if (isLocSymDuplicative[loc] || loc == symLoc) continue;
+          isLocSymDuplicative[symLoc] = true;
+        }
+      }
+    }
+  }
+  return isLocSymDuplicative;
+}
+
