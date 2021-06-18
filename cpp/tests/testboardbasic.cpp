@@ -1940,7 +1940,7 @@ void Tests::runBoardSymmetricTest() {
   cout << "Running board Symmetric tests" << endl;
   ostringstream out;
 //============================================================================
-  auto printMarkedSymDupArea = [&out](const Board& board, const vector<bool> isSymDupLoc){
+  auto printMarkedSymDupArea = [&out](const Board& board, const bool * isSymDupLoc){
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
@@ -1955,7 +1955,7 @@ void Tests::runBoardSymmetricTest() {
     out << endl;
   };
   const char* name = "Symmetric Board Test";
-
+  bool isSymDupLoc[Board::MAX_ARR_SIZE];
   {
     Board board = Board::parseBoard(9,9,R"%%(
 .........
@@ -1968,7 +1968,7 @@ void Tests::runBoardSymmetricTest() {
 .........
 .........
 )%%");
-    auto isSymDupLoc = board.markSymmetricDuplicativeLoc();
+    board.markSymmetricDuplicativeLoc(isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -1985,7 +1985,7 @@ void Tests::runBoardSymmetricTest() {
 .........
 .........
 )%%");
-    auto isSymDupLoc = board.markSymmetricDuplicativeLoc();
+    board.markSymmetricDuplicativeLoc(isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -2002,7 +2002,7 @@ void Tests::runBoardSymmetricTest() {
 .........
 .........
 )%%");
-    auto isSymDupLoc = board.markSymmetricDuplicativeLoc();
+    board.markSymmetricDuplicativeLoc(isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -2019,7 +2019,7 @@ void Tests::runBoardSymmetricTest() {
 .........
 .........
 )%%");
-    auto isSymDupLoc = board.markSymmetricDuplicativeLoc();
+    board.markSymmetricDuplicativeLoc(isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -2037,7 +2037,7 @@ void Tests::runBoardSymmetricTest() {
 .........
 .........
 )%%");
-    auto isSymDupLoc = board.markSymmetricDuplicativeLoc();
+    board.markSymmetricDuplicativeLoc(isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -2054,7 +2054,7 @@ void Tests::runBoardSymmetricTest() {
 .........
 .........
 )%%");
-    auto isSymDupLoc = board.markSymmetricDuplicativeLoc();
+    board.markSymmetricDuplicativeLoc(isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
   string expected = R"%%(

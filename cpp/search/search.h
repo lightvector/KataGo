@@ -507,7 +507,7 @@ private:
   int findTopNPolicy(const SearchNode* node, int n, PolicySortEntry* sortedPolicyBuf) const;
 
   std::shared_ptr<NNOutput>* maybeAddPolicyNoiseAndTemp(SearchThread& thread, bool isRoot, NNOutput* oldNNOutput) const;
-
+  bool isSymDupLoc[Board::MAX_ARR_SIZE];
   bool isAllowedRootMove(Loc moveLoc) const;
 
   void computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap);
