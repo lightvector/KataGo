@@ -53,6 +53,7 @@ parser.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between ep
 parser.add_argument('-swa-sub-epoch-scale', help='Number of sub-epochs to average in expectation together for SWA', type=float, required=False)
 parser.add_argument('-max-train-bucket-per-new-data', help='When data added, add this many train rows per data row to bucket', type=float, required=False)
 parser.add_argument('-max-train-bucket-size', help='Approx total number of train rows allowed if data stops', type=float, required=False)
+parser.add_argument('-max-train-steps-since-last-reload', help='Approx total of training allowed if shuffling stops', type=float, required=False)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
 parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
 args = vars(parser.parse_args())
@@ -79,6 +80,7 @@ sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
 swa_sub_epoch_scale = args["swa_sub_epoch_scale"]
 max_train_bucket_per_new_data = args["max_train_bucket_per_new_data"]
 max_train_bucket_size = args["max_train_bucket_size"]
+max_train_steps_since_last_reload = args["max_train_steps_since_last_reload"]
 verbose = args["verbose"]
 no_export = args["no_export"]
 logfilemode = "a"
@@ -576,6 +578,8 @@ else:
 
 if max_train_bucket_per_new_data is not None and "train_bucket_level" not in trainhistory:
   trainhistory["train_bucket_level"] = samples_per_epoch
+if "train_steps_since_last_reload" not in trainhistory:
+  trainhistory["train_steps_since_last_reload"] = 0
 
 def save_history(global_step_value):
   global trainhistory
@@ -600,6 +604,8 @@ def maybe_reload_training_data():
 
   while True:
     curdatadir = os.path.realpath(datadir)
+
+    # Different directory - new shuffle
     if curdatadir != last_curdatadir:
       if not os.path.exists(curdatadir):
         trainlog("Shuffled data path does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % curdatadir)
@@ -636,6 +642,9 @@ def maybe_reload_training_data():
             trainhistory["train_bucket_level"] = cap
           trainlog("New rows in bucket: %.0f" % trainhistory["train_bucket_level"])
 
+      trainlog("Train steps since last reload: %.0f -> 0" % trainhistory["train_steps_since_last_reload"])
+      trainhistory["train_steps_since_last_reload"] = 0
+
       # Remove legacy value from this dictionary
       if "files" in trainhistory:
         del trainhistory["files"]
@@ -657,6 +666,18 @@ def maybe_reload_training_data():
       trainfilegenerator = train_files_gen()
 
       vdatadir = os.path.join(curdatadir,"val")
+
+    # Same directory as before, no new shuffle
+    else:
+      if max_train_steps_since_last_reload is not None:
+        if trainhistory["train_steps_since_last_reload"] + 0.99 * samples_per_epoch/sub_epochs > max_train_steps_since_last_reload:
+          trainlog(
+            "Too many train steps since last reload, waiting 5m and retrying (current %f)" %
+            trainhistory["train_steps_since_last_reload"]
+          )
+          time.sleep(300)
+          continue
+
     break
 
 # TRAIN! -----------------------------------------------------------------------------------
@@ -740,6 +761,7 @@ while True:
       ]
     )
     trainlog("Finished training subepoch!")
+    trainhistory["train_steps_since_last_reload"] += num_batches_per_subepoch * batch_size
 
     if swa_sub_epoch_scale is not None:
       accumulate_swa(estimator)
