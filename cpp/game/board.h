@@ -275,8 +275,6 @@ struct Board
   static void printBoard(std::ostream& out, const Board& board, Loc markLoc, const std::vector<Move>* hist);
   static std::string toStringSimple(const Board& board, char lineDelimiter);
 
-  void markSymmetricDuplicativeLoc(bool* const isSymDupLoc);
-
   //Data--------------------------------------------
 
   int x_size;                  //Horizontal size of board

@@ -641,6 +641,42 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
   return symBoard;
 }
 
+void SymmetryHelpers::markSymmetricDuplicativeLoc(const Board &board, bool *const isSymDupLoc) {
+  fill(isSymDupLoc, isSymDupLoc + Board::MAX_ARR_SIZE, false);
+  vector<int> symTypes;
+  symTypes.reserve(NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
+
+  for (int symmetry = 1; symmetry <= NNInputs::NUM_SYMMETRY_COMBINATIONS-1; symmetry++) {
+    bool isBoardSym = true;
+
+    for (int y = 0; y < board.y_size; y++) {
+      for (int x = 0; x < board.x_size; x++) {
+        auto loc = getSymLoc(x, y, board,symmetry);
+        if (board.colors[loc] != board.colors[Location::getLoc(x, y, board.x_size)]) {
+          isBoardSym = false;
+          break;
+        };
+      }
+      if (!isBoardSym) break;
+    }
+
+    if (isBoardSym) {
+      symTypes.push_back(symmetry);
+    }
+  }
+
+  for (int symType: symTypes) {
+    for (int y = 0; y < board.y_size; y++) {
+      for (int x = 0; x < board.x_size; x++) {
+        auto loc = Location::getLoc(x, y, board.x_size);
+        auto symLoc = getSymLoc(x, y, board,symType);
+        if (isSymDupLoc[loc] || loc == symLoc) continue;
+        isSymDupLoc[symLoc] = true;
+      }
+    }
+  }
+}
+
 //-------------------------------------------------------------------------------------------------------------
 
 static void setRowBin(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {
