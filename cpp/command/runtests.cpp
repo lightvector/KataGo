@@ -36,7 +36,6 @@ int MainCmds::runtests(int argc, const char* const* argv) {
 
   Tests::runBoardIOTests();
   Tests::runBoardBasicTests();
-  Tests::runBoardSymmetricTest();
 
   Tests::runBoardAreaTests();
 
@@ -66,6 +65,7 @@ int MainCmds::runoutputtests(int argc, const char* const* argv) {
   Tests::runTimeControlsTests();
   Tests::runScoreTests();
   Tests::runBasicSymmetryTests();
+  Tests::runBoardSymmetricTests();
   Tests::runNNSymmetryTests();
   Tests::runSgfFileTests();
 

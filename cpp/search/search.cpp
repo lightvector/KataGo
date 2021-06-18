@@ -1245,7 +1245,7 @@ void Search::beginSearch(bool pondering) {
   }
 
   if (searchParams.rootSearchSymmetryReduce){
-    rootBoard.markSymmetricDuplicativeLoc(isSymDupLoc);
+    SymmetryHelpers::markSymmetricDuplicativeLoc(rootBoard,isSymDupLoc);
   }
 
   SearchThread dummyThread(-1, *this);
