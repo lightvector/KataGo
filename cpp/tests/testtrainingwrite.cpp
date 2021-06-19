@@ -1889,7 +1889,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     string searchRandSeed = "test statuses";
     Search* bot = new Search(params, nnEval, &logger, searchRandSeed);
 
-    auto testStatuses = [&nnEval,&bot](const Board& board, const BoardHistory& hist, Player pla) {
+    auto testStatuses = [&bot](const Board& board, const BoardHistory& hist, Player pla) {
       int numVisits = 50;
       vector<double> ownership = PlayUtils::computeOwnership(bot,board,hist,pla,numVisits);
       vector<double> buf;

@@ -3382,7 +3382,7 @@ bool Search::playoutDescend(
       if(searchParams.subtreeValueBiasFactor != 0) {
         if(node.prevMoveLoc != Board::NULL_LOC) {
           assert(subtreeValueBiasTable != NULL);
-          child->subtreeValueBiasTableEntry = std::move(subtreeValueBiasTable->get(thread.pla, node.prevMoveLoc, child->prevMoveLoc, thread.board));
+          child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(thread.pla, node.prevMoveLoc, child->prevMoveLoc, thread.board);
         }
       }
 
