@@ -20,7 +20,7 @@ static void searchThreadLoop(AsyncBot* asyncBot, Logger* logger) {
 }
 
 AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l, const string& randSeed)
-  :search(NULL),logger(l),
+  :search(NULL),
    controlMutex(),threadWaitingToSearch(),userWaitingForStop(),searchThread(),
    isRunning(false),isPondering(false),isKilled(false),shouldStopNow(false),
    queuedSearchId(0),queuedOnMove(),timeControls(),searchFactor(1.0),

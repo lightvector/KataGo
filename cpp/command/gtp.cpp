@@ -1535,8 +1535,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const double genmoveWideRootNoise = initialParams.wideRootNoise;
   const double analysisWideRootNoise =
     cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : genmoveWideRootNoise;
-  const double analysisAntiMirror = initialParams.antiMirror;
-  const double genmoveAntiMirror =
+  const bool analysisAntiMirror = initialParams.antiMirror;
+  const bool genmoveAntiMirror =
     cfg.contains("genmoveAntiMirror") ? cfg.getBool("genmoveAntiMirror") : cfg.contains("antiMirror") ? cfg.getBool("antiMirror") : true;
 
   std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;

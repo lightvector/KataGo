@@ -1446,7 +1446,10 @@ bool Search::getPrunedRootValues(ReportedSearchValues& values) const {
 
   vector<double> playSelectionValues;
   vector<Loc> locs; // not used
-  getPlaySelectionValues(node,locs,playSelectionValues,NULL,false,1.0,false,true,NULL,NULL);
+  bool allowDirectPolicyMoves = false;
+  bool alwaysComputeLcb = false;
+  bool neverUseLcb = true;
+  getPlaySelectionValues(node,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,neverUseLcb,NULL,NULL);
 
   double winLossValueSum = 0.0;
   double noResultValueSum = 0.0;
@@ -1476,7 +1479,7 @@ bool Search::getPrunedRootValues(ReportedSearchValues& values) const {
     weightSqSum += weight * weight;
     weightSum += weight;
   }
-  
+
   //Also add in the direct evaluation of this node.
   {
     const NNOutput* nnOutput = node.getNNOutput();
