@@ -16,7 +16,7 @@ class Record:
 
 class GameResultSummary:
   """
-  Summrize Go games results in sgf file format under a directory (optionally recursively in subdirs).
+  Summrize Go games results in sgf file format under a list of directories (optionally recursively in subdirs).
   Also supports katago "sgfs" file, which is simply a bunch of sgf files (with no newlines) concatenated one per line.
 
   Example:
@@ -26,8 +26,10 @@ class GameResultSummary:
     call it by other function:
     import summarize_sgfs
     elo_prior_games = 4
-    game_result_summary = summarize_sgfs.GameResultSummary(elo_prior_games)
-    game_result_summary.add_game_files(input_file_or_dir)
+    estimate_first_player_advantage = False
+    game_result_summary = summarize_sgfs.GameResultSummary(elo_prior_games, estimate_first_player_advantage)
+    game_result_summary.add_games(input_file_or_dir)
+    game_result_summary.print_game_results()
     game_result_summary.print_elos()
   """
 
