@@ -411,6 +411,7 @@ endif()
 # add_compile_definitions(NDEBUG)
 
 if(MSVC)
+  message(STATUS "Setting up build for MSVC.")
   # Suppress min and max macros on windows
   # Also define a few other things for windows
   target_compile_definitions(katago PRIVATE NOMINMAX)
@@ -429,6 +430,7 @@ if(MSVC)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  message(STATUS "Setting up build for GNU or Clang.")
   if(NOT (${CMAKE_SYSTEM_PROCESSOR} MATCHES "(arm|aarch32|aarch64)"))
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse")
   endif()
@@ -448,11 +450,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O2 -pedantic -Wall -Wextra -Wno-sign-compare -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Wmissing-declarations -Wmissing-include-dirs -Woverloaded-virtual -Wredundant-decls -Wshadow -Wstrict-overflow=1 -Wswitch-default -Wfloat-conversion -Wunused")
 
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    message(STATUS "Enabling GNU-specific build options.")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wlogical-op -Wnoexcept -Wstrict-null-sentinel")
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 6.1)
       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnull-dereference -Walloc-zero -Wduplicated-branches -Wduplicated-cond -Wdangling-else -Wrestrict")
     endif()
   else()
+    message(STATUS "Enabling Clang-specific build options.")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnull-dereference -Wdangling-else")
     target_link_libraries(katago "atomic")
   endif()
