@@ -415,23 +415,23 @@ vector<SearchParams> Setup::loadParams(
 
     if(cfg.contains("cpuctExploration"+idxStr)) params.cpuctExploration = cfg.getDouble("cpuctExploration"+idxStr, 0.0, 10.0);
     else if(cfg.contains("cpuctExploration"))   params.cpuctExploration = cfg.getDouble("cpuctExploration",        0.0, 10.0);
-    else                                        params.cpuctExploration = 0.9;
+    else                                        params.cpuctExploration = 1.0;
     if(cfg.contains("cpuctExplorationLog"+idxStr)) params.cpuctExplorationLog = cfg.getDouble("cpuctExplorationLog"+idxStr, 0.0, 10.0);
     else if(cfg.contains("cpuctExplorationLog"))   params.cpuctExplorationLog = cfg.getDouble("cpuctExplorationLog",        0.0, 10.0);
-    else                                           params.cpuctExplorationLog = 0.4;
+    else                                           params.cpuctExplorationLog = 0.45;
     if(cfg.contains("cpuctExplorationBase"+idxStr)) params.cpuctExplorationBase = cfg.getDouble("cpuctExplorationBase"+idxStr, 10.0, 100000.0);
     else if(cfg.contains("cpuctExplorationBase"))   params.cpuctExplorationBase = cfg.getDouble("cpuctExplorationBase",        10.0, 100000.0);
     else                                            params.cpuctExplorationBase = 500.0;
 
     if(cfg.contains("cpuctUtilityStdevPrior"+idxStr)) params.cpuctUtilityStdevPrior = cfg.getDouble("cpuctUtilityStdevPrior"+idxStr, 0.0, 10.0);
     else if(cfg.contains("cpuctUtilityStdevPrior"))   params.cpuctUtilityStdevPrior = cfg.getDouble("cpuctUtilityStdevPrior",        0.0, 10.0);
-    else                                              params.cpuctUtilityStdevPrior = 0.25;
+    else                                              params.cpuctUtilityStdevPrior = 0.40;
     if(cfg.contains("cpuctUtilityStdevPriorWeight"+idxStr)) params.cpuctUtilityStdevPriorWeight = cfg.getDouble("cpuctUtilityStdevPriorWeight"+idxStr, 0.0, 100.0);
     else if(cfg.contains("cpuctUtilityStdevPriorWeight"))   params.cpuctUtilityStdevPriorWeight = cfg.getDouble("cpuctUtilityStdevPriorWeight",        0.0, 100.0);
-    else                                                    params.cpuctUtilityStdevPriorWeight = 1.0;
+    else                                                    params.cpuctUtilityStdevPriorWeight = 2.0;
     if(cfg.contains("cpuctUtilityStdevScale"+idxStr)) params.cpuctUtilityStdevScale = cfg.getDouble("cpuctUtilityStdevScale"+idxStr, 0.0, 1.0);
     else if(cfg.contains("cpuctUtilityStdevScale"))   params.cpuctUtilityStdevScale = cfg.getDouble("cpuctUtilityStdevScale",        0.0, 1.0);
-    else                                              params.cpuctUtilityStdevScale = 0.0;
+    else                                              params.cpuctUtilityStdevScale = (setupFor != SETUP_FOR_DISTRIBUTED ? 0.85 : 0.0);
 
 
     if(cfg.contains("fpuReductionMax"+idxStr)) params.fpuReductionMax = cfg.getDouble("fpuReductionMax"+idxStr, 0.0, 2.0);
@@ -450,7 +450,7 @@ vector<SearchParams> Setup::loadParams(
     else params.valueWeightExponent = 0.5;
     if(cfg.contains("useNoisePruning"+idxStr)) params.useNoisePruning = cfg.getBool("useNoisePruning"+idxStr);
     else if(cfg.contains("useNoisePruning"))   params.useNoisePruning = cfg.getBool("useNoisePruning");
-    else                                       params.useNoisePruning = false;
+    else                                       params.useNoisePruning = (setupFor != SETUP_FOR_DISTRIBUTED);
     if(cfg.contains("noisePruneUtilityScale"+idxStr)) params.noisePruneUtilityScale = cfg.getDouble("noisePruneUtilityScale"+idxStr, 0.001, 10.0);
     else if(cfg.contains("noisePruneUtilityScale"))   params.noisePruneUtilityScale = cfg.getDouble("noisePruneUtilityScale", 0.001, 10.0);
     else                                              params.noisePruneUtilityScale = 0.15;
@@ -461,13 +461,13 @@ vector<SearchParams> Setup::loadParams(
 
     if(cfg.contains("useUncertainty"+idxStr)) params.useUncertainty = cfg.getBool("useUncertainty"+idxStr);
     else if(cfg.contains("useUncertainty"))   params.useUncertainty = cfg.getBool("useUncertainty");
-    else                                      params.useUncertainty = false;
+    else                                      params.useUncertainty = (setupFor != SETUP_FOR_DISTRIBUTED);
     if(cfg.contains("uncertaintyCoeff"+idxStr)) params.uncertaintyCoeff = cfg.getDouble("uncertaintyCoeff"+idxStr, 0.0001, 1.0);
     else if(cfg.contains("uncertaintyCoeff"))   params.uncertaintyCoeff = cfg.getDouble("uncertaintyCoeff", 0.0001, 1.0);
-    else                                        params.uncertaintyCoeff = 0.4;
+    else                                        params.uncertaintyCoeff = 0.25;
     if(cfg.contains("uncertaintyExponent"+idxStr)) params.uncertaintyExponent = cfg.getDouble("uncertaintyExponent"+idxStr, 0.0, 2.0);
     else if(cfg.contains("uncertaintyExponent"))   params.uncertaintyExponent = cfg.getDouble("uncertaintyExponent", 0.0, 2.0);
-    else                                           params.uncertaintyExponent = 0.5;
+    else                                           params.uncertaintyExponent = 1.0;
     if(cfg.contains("uncertaintyMaxWeight"+idxStr)) params.uncertaintyMaxWeight = cfg.getDouble("uncertaintyMaxWeight"+idxStr, 1.0, 100.0);
     else if(cfg.contains("uncertaintyMaxWeight"))   params.uncertaintyMaxWeight = cfg.getDouble("uncertaintyMaxWeight", 1.0, 100.0);
     else                                            params.uncertaintyMaxWeight = 8.0;
