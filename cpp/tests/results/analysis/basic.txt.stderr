@@ -55,14 +55,13 @@ New playouts: 10
 NN rows: 10
 NN batches: 10
 NN avg batch size: 1
-PV: Q5 R5 Q6 R6 Q7
+PV: Q5 R4 P4 P3
 Tree:
-: T  24.93c W  23.19c S   1.81c ( +7.6 L  +7.4) N      10  --  Q5 R5 Q6 R6 Q7
+: T  23.70c W  22.13c S   1.65c ( +7.4 L  +7.1) N      10  --  Q5 R4 P4 P3
 ---White(v)---
-Q5  : T  23.93c W  22.35c S   1.67c ( +7.4 L  +7.2) LCB   56.28c P 80.79% WF   8.0 PSV       8 N       8  --  Q5 R5 Q6 R6 Q7
-D4  : T  31.44c W  28.34c S   3.10c ( +9.5 L  +9.6) LCB  280.00c P  9.76% WF   1.0 PSV       0 N       1  --  D4
+Q5  : T  23.37c W  21.82c S   1.65c ( +7.4 L  +7.1) LCB   49.39c P 80.79% WF   9.0 PSV       9 N       9  --  Q5 R4 P4 P3
 
-: Response: {"id":"foo","isDuringSearch":false,"moveInfos":[{"lcb":0.7272873041095258,"move":"Q5","order":0,"prior":0.8078576326370239,"pv":["Q5","R5","Q6","R6","Q7"],"scoreLead":7.1585956212942605,"scoreMean":7.1585956212942605,"scoreSelfplay":7.434485655835449,"scoreStdev":30.985148926420354,"utility":0.2392735244533733,"utilityLcb":0.5628303006617374,"visits":8,"winrate":0.6117313126065386},{"lcb":1.6416927725076675,"move":"D4","order":1,"prior":0.09757529944181442,"pv":["D4"],"scoreLead":9.592257499694824,"scoreMean":9.592257499694824,"scoreSelfplay":9.467290878295898,"scoreStdev":29.99034745605843,"utility":0.3143516807946307,"utilityLcb":2.8000000000000003,"visits":1,"winrate":0.6416927725076675}],"rootInfo":{"scoreLead":7.156904750140932,"scoreSelfplay":7.444697152076985,"scoreStdev":31.055427511369707,"symHash":"215BAF8265F4950EC41771439410160F","thisHash":"FA2C1B0E252C40AF31EB9DEC2CCCCD34","utility":0.2423244137245993,"visits":10,"winrate":0.6131816617284044},"turnNumber":2}
+: Response: {"id":"foo","isDuringSearch":false,"moveInfos":[{"lcb":0.7019949080971926,"move":"Q5","order":0,"prior":0.8078576326370239,"pv":["Q5","R4","P4","P3"],"scoreLead":7.099580706718267,"scoreMean":7.099580706718267,"scoreSelfplay":7.393238961633563,"scoreStdev":30.967709414670473,"utility":0.23374321154979297,"utilityLcb":0.493854724569466,"visits":9,"winrate":0.609097939161595}],"rootInfo":{"scoreLead":7.1039604141378705,"scoreSelfplay":7.406553977671135,"scoreStdev":31.032757297898268,"symHash":"215BAF8265F4950EC41771439410160F","thisHash":"FA2C1B0E252C40AF31EB9DEC2CCCCD34","utility":0.23704204318425443,"visits":10,"winrate":0.6106665907157687},"turnNumber":2}
 : MoveNum: 2 HASH: FACB00E9D9004B23F7292DCF3F13D71D
    A B C D E F G
  7 . . . . . . .

@@ -84,20 +84,20 @@ NN rows: 100
 NN batches: 100
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 2.75
-PV: D12 D7 F17 F16 G16
+PV: D6 F3 D12 F17
 Tree:
-: T -94.92c W -85.39c S  -8.68c (-30.3 L -29.7) N     100  --  D12 D7 F17 F16 G16
+: T -94.45c W -85.19c S  -8.56c (-30.2 L -29.6) N     100  --  D6 F3 D12 F17
 ---White(^)---
-D12 : T -94.07c W -84.96c S  -8.21c (-29.6 L -29.0) LCB -104.65c P  6.09% WF  12.1 PSV      20 N      12  --  D12 D7 F17 F16 G16
-O17 : T -94.12c W -84.77c S  -8.55c (-30.1 L -29.5) LCB -118.70c P  5.49% WF  10.1 PSV      10 N      10  --  O17 Q13 C14 F17 D8
-Q12 : T -94.93c W -85.24c S  -8.58c (-30.3 L -29.7) LCB -121.85c P  5.45% WF   9.0 PSV       9 N       9  --  Q12 Q7 O16 Q14 O12
-F16 : T -96.04c W -86.30c S  -9.23c (-31.1 L -30.5) LCB -119.45c P  5.43% WF   7.9 PSV       8 N       8  --  F16 C13 R14 O17
-R12 : T -94.07c W -84.57c S  -8.38c (-29.9 L -29.6) LCB -133.99c P  3.29% WF   7.0 PSV       7 N       7  --  R12 Q7 O16 R14
-F17 : T -96.71c W -85.63c S  -9.17c (-31.0 L -30.4) LCB -139.60c P  4.99% WF   5.9 PSV       6 N       6  --  F17 C13 R14
-C12 : T -93.94c W -84.69c S  -8.42c (-29.9 L -29.4) LCB -176.61c P  2.62% WF   5.0 PSV       5 N       5  --  C12 F17 R14
-D6  : T -92.71c W -84.11c S  -8.30c (-29.8 L -29.0) LCB -128.31c P  2.25% WF   5.1 PSV       5 N       5  --  D6 F4 D12
-D13 : T -92.44c W -83.90c S  -7.90c (-29.3 L -28.9) LCB -132.59c P  1.63% WF   5.1 PSV       5 N       5  --  D13 F17 D8 F3
-D8  : T -93.81c W -85.36c S  -8.34c (-29.9 L -29.3) LCB -137.43c P  2.39% WF   4.0 PSV       4 N       4  --  D8 D13 F3 F4
+D6  : T -93.50c W -84.50c S  -8.27c (-29.9 L -29.3) LCB  -98.61c P  2.25% WF  18.2 PSV      33 N      18  --  D6 F3 D12 F17
+D12 : T -94.10c W -85.34c S  -8.34c (-29.9 L -29.3) LCB -100.12c P  6.09% WF  23.1 PSV      23 N      23  --  D12 D7 F17 F16 G16 E17
+O17 : T -94.75c W -85.21c S  -8.79c (-30.5 L -29.8) LCB -116.03c P  5.49% WF  11.0 PSV      11 N      11  --  O17 Q13 C14 F17 D8
+O16 : T -93.77c W -84.73c S  -8.32c (-29.8 L -29.2) LCB -119.96c P  2.71% WF   9.0 PSV       9 N       9  --  O16 Q13 C14 F17 D8
+Q12 : T -94.13c W -84.77c S  -8.25c (-29.8 L -29.3) LCB -127.29c P  5.45% WF   8.0 PSV       8 N       8  --  Q12 Q7 O16 Q14 O12
+R12 : T -94.21c W -85.00c S  -8.64c (-30.3 L -29.9) LCB -123.98c P  3.29% WF   8.0 PSV       8 N       8  --  R12 Q7 O16 R14
+F16 : T -96.04c W -86.30c S  -9.23c (-31.1 L -30.5) LCB -119.45c P  5.43% WF   7.9 PSV       7 N       8  --  F16 C13 R14 O17
+F17 : T -96.71c W -85.63c S  -9.17c (-31.0 L -30.4) LCB -139.60c P  4.99% WF   5.9 PSV       5 N       6  --  F17 C13 R14
+D8  : T -95.12c W -85.81c S  -8.76c (-30.4 L -29.7) LCB -139.50c P  2.39% WF   5.0 PSV       4 N       5  --  D8 D13 F3
+R17 : T -99.89c W -89.02c S -10.87c (-33.1 L -31.8) LCB -280.00c P  2.69% WF   1.0 PSV       1 N       1  --  R17
 
 : = D12
 : Controller: clear_board
@@ -157,19 +157,19 @@ koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
 New playouts: 100
-NN rows: 87
-NN batches: 87
+NN rows: 82
+NN batches: 82
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 1.125
-PV: Q3 Q4 R4 R5 R3 E4
+PV: R4 Q4 Q3 P3 R3 E4 R15
 Tree:
-: T -49.41c W -45.47c S  -4.23c (-12.8 L -13.3) N     100  --  Q3 Q4 R4 R5 R3 E4
+: T -49.72c W -45.37c S  -4.21c (-12.8 L -13.3) N     100  --  R4 Q4 Q3 P3 R3 E4 R15
 ---White(^)---
-Q3  : T -48.71c W -45.09c S  -4.11c (-12.6 L -13.2) LCB  -52.91c P 28.20% WF  35.2 PSV      44 N      35  --  Q3 Q4 R4 R5 R3 E4
-R4  : T -48.68c W -45.12c S  -4.19c (-12.7 L -13.3) LCB  -53.21c P 32.14% WF  40.3 PSV      40 N      40  --  R4 Q4 Q3 R5 R3 E4
-Q4  : T -51.43c W -46.95c S  -4.43c (-13.1 L -13.5) LCB  -57.13c P 13.17% WF  11.8 PSV      12 N      12  --  Q4 Q15 E3 D3 E4
-Q16 : T -52.29c W -46.66c S  -4.57c (-13.3 L -13.9) LCB -109.31c P  6.97% WF   5.9 PSV       6 N       6  --  Q16 R16 P17 R17
-D4  : T -53.89c W -47.97c S  -4.75c (-13.6 L -14.2) LCB -127.47c P  7.08% WF   5.8 PSV       5 N       6  --  D4 D3 E3 C3
+R4  : T -49.34c W -45.16c S  -4.15c (-12.7 L -13.3) LCB  -53.42c P 32.14% WF  45.2 PSV      45 N      45  --  R4 Q4 Q3 P3 R3 E4 R15
+Q3  : T -49.54c W -45.14c S  -4.16c (-12.7 L -13.3) LCB  -53.46c P 28.20% WF  36.1 PSV      36 N      36  --  Q3 Q4 R4 R5 R3 E4 R15
+Q4  : T -51.53c W -47.61c S  -4.54c (-13.3 L -13.7) LCB  -61.06c P 13.17% WF   8.9 PSV       9 N       9  --  Q4 Q15 E3 D3 E4
+Q16 : T -51.22c W -45.88c S  -4.53c (-13.2 L -13.8) LCB -149.50c P  6.97% WF   4.9 PSV       5 N       5  --  Q16 R16 P17 R17
+D4  : T -53.26c W -47.08c S  -4.77c (-13.6 L -14.3) LCB -358.00c P  7.08% WF   3.9 PSV       3 N       4  --  D4 D3 E3 C3
 
 : = Q3
 : Controller: play b A1
@@ -201,22 +201,20 @@ koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
 New playouts: 100
-NN rows: 97
-NN batches: 97
+NN rows: 95
+NN batches: 95
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 1
-PV: R15 R16 Q15 O16 Q16 R17
+PV: R15 R5 P16 P17 O16 N17 D4 D3 C5
 Tree:
-: T  -0.50c W   0.30c S  -0.58c ( -0.7 L  -0.9) N     100  --  R15 R16 Q15 O16 Q16 R17
+: T   0.49c W   1.04c S  -0.43c ( -0.5 L  -0.6) N     100  --  R15 R5 P16 P17 O16 N17 D4
 ---White(^)---
-R15 : T   0.87c W   1.67c S  -0.32c ( -0.3 L  -0.5) LCB   -2.14c P 20.29% WF  29.4 PSV      51 N      29  --  R15 R16 Q15 O16 Q16 R17
-Q5  : T   0.34c W   0.84c S  -0.62c ( -0.8 L  -0.9) LCB   -3.63c P 12.95% WF  18.1 PSV      17 N      18  --  Q5 Q15 E3 D3 E4 D6
-Q16 : T  -2.96c W  -1.43c S  -0.76c ( -1.0 L  -1.1) LCB   -9.06c P 18.14% WF  16.6 PSV      17 N      17  --  Q16 R16 P17 R17 D4 D3
-D4  : T  -1.71c W  -1.02c S  -0.79c ( -1.0 L  -1.3) LCB   -5.20c P 15.43% WF  15.8 PSV      16 N      16  --  D4 D3 C5 C3 R15 R5
-Q15 : T   1.01c W   1.28c S  -0.38c ( -0.4 L  -0.5) LCB   -6.32c P  7.82% WF  11.1 PSV      11 N      11  --  Q15 E4 R17 R18
-E3  : T  -1.06c W  -0.42c S  -0.69c ( -0.9 L  -0.9) LCB  -32.71c P  4.90% WF   5.0 PSV       5 N       5  --  E3 Q15 D5
-C17 : T  -2.98c W  -1.76c S  -0.95c ( -1.3 L  -1.3) LCB -280.00c P  2.85% WF   2.0 PSV       2 N       2  --  C17 C16
-D3  : T  -9.03c W  -6.65c S  -2.37c ( -3.3 L  -3.9) LCB -280.00c P  1.68% WF   1.0 PSV       1 N       1  --  D3
+R15 : T   1.76c W   2.00c S  -0.25c ( -0.2 L  -0.4) LCB   -0.82c P 20.29% WF  51.7 PSV      51 N      51  --  R15 R5 P16 P17 O16 N17 D4 D3
+Q5  : T   0.05c W   0.73c S  -0.63c ( -0.8 L  -0.8) LCB   -5.66c P 12.95% WF  14.9 PSV      13 N      15  --  Q5 Q15 E3 D3 E4 D6
+Q16 : T  -2.08c W  -0.81c S  -0.65c ( -0.8 L  -1.0) LCB  -13.86c P 18.14% WF  10.7 PSV      11 N      11  --  Q16 R16 R15 R17 Q15 O17
+Q15 : T   0.51c W   1.21c S  -0.43c ( -0.5 L  -0.7) LCB   -5.95c P  7.82% WF  11.0 PSV       9 N      11  --  Q15 Q4 R4 R5 R3
+D4  : T  -2.64c W  -1.59c S  -0.81c ( -1.0 L  -1.2) LCB  -12.43c P 15.43% WF   7.8 PSV       8 N       8  --  D4 D3 C5 C3
+E3  : T  -2.92c W  -1.77c S  -0.99c ( -1.3 L  -1.6) LCB  -58.39c P  4.90% WF   2.9 PSV       2 N       3  --  E3 Q15 D5
 
 : = R15
 : Controller: play b C1
@@ -252,18 +250,13 @@ NN rows: 99
 NN batches: 99
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 0.875
-PV: Q5 R16 Q15 O16 R11 K4 M17
+PV: Q5 R16 Q15 O17 R11 K4 C17 C16 D17
 Tree:
-: T  30.89c W  29.00c S   2.36c ( +7.2 L  +7.3) N     100  --  Q5 R16 Q15 O16 R11 K4 M17
+: T  31.41c W  29.36c S   2.36c ( +7.2 L  +7.3) N     100  --  Q5 R16 Q15 O17 R11 K4 C17
 ---White(^)---
-Q5  : T  32.10c W  30.04c S   2.45c ( +7.4 L  +7.5) LCB   26.56c P 33.18% WF  48.5 PSV      62 N      48  --  Q5 R16 Q15 O16 R11 K4 M17
-P16 : T  30.82c W  28.93c S   2.39c ( +7.3 L  +7.4) LCB   22.16c P 27.00% WF  32.9 PSV      33 N      33  --  P16 P17 O16 N17 Q5 N16 R12 K3
-C17 : T  30.06c W  27.04c S   2.33c ( +7.2 L  +7.1) LCB   14.86c P  7.64% WF   8.9 PSV       8 N       9  --  C17 C16 D17 E16
-N17 : T  28.52c W  27.25c S   2.24c ( +7.1 L  +6.9) LCB -280.00c P  2.19% WF   2.0 PSV       2 N       2  --  N17 Q15
-O17 : T  25.82c W  25.57c S   1.92c ( +6.6 L  +6.2) LCB -280.00c P  2.34% WF   1.9 PSV       1 N       2  --  O17 Q15
-R5  : T  25.87c W  27.19c S   1.71c ( +6.3 L  +6.2) LCB -280.00c P  1.77% WF   1.9 PSV       1 N       2  --  R5 R16
-D4  : T  22.35c W  23.86c S   1.31c ( +5.7 L  +5.3) LCB -280.00c P  1.62% WF   1.9 PSV       1 N       2  --  D4 C5
-R17 : T  30.67c W  28.22c S   2.45c ( +7.3 L  +6.2) LCB -280.00c P  1.63% WF   1.0 PSV       1 N       1  --  R17
+Q5  : T  32.39c W  30.09c S   2.43c ( +7.3 L  +7.4) LCB   27.97c P 33.18% WF  70.7 PSV      70 N      70  --  Q5 R16 Q15 O17 R11 K4 C17 C16
+P16 : T  29.07c W  28.07c S   2.20c ( +7.0 L  +7.1) LCB   17.97c P 27.00% WF  21.4 PSV      20 N      22  --  P16 P17 O16 N17 Q5 N16 R12 K3
+C17 : T  29.85c W  27.04c S   2.29c ( +7.2 L  +7.1) LCB   -0.84c P  7.64% WF   6.9 PSV       6 N       7  --  C17 C16 D17 E16
 
 : = Q5
 : Controller: play b B1
@@ -299,20 +292,18 @@ NN rows: 100
 NN batches: 100
 NN avg batch size: 1
 PlayoutDoublingAdvantage: 0.75
-PV: J4 R16 Q15 O16 R11 L3
+PV: J4 R16 Q15 O17 Q11 L3 C17
 Tree:
-: T  59.11c W  56.07c S   3.35c (+14.5 L +14.4) N     100  --  J4 R16 Q15 O16 R11 L3
+: T  60.79c W  57.45c S   3.57c (+14.8 L +14.7) N     100  --  J4 R16 Q15 O17 Q11 L3 C17
 ---White(^)---
-J4  : T  63.03c W  59.13c S   3.86c (+15.2 L +15.1) LCB   60.05c P  8.71% WF  20.7 PSV     115 N      20  --  J4 R16 Q15 O16 R11 L3
-P16 : T  58.96c W  56.11c S   3.30c (+14.4 L +14.4) LCB   55.09c P 28.76% WF  34.9 PSV      35 N      35  --  P16 P17 O16 N17 J4 N16 N15 M15
-C17 : T  55.40c W  52.72c S   3.31c (+14.5 L +14.6) LCB   42.39c P 11.48% WF  10.6 PSV      10 N      11  --  C17 C16 D17 E17 E18 F18
-J3  : T  61.45c W  57.72c S   3.62c (+14.9 L +14.5) LCB   54.41c P  5.89% WF  10.2 PSV      10 N      10  --  J3 R16 Q15 O16 R11
-D5  : T  58.32c W  55.23c S   3.06c (+14.0 L +13.8) LCB   36.16c P  6.05% WF   6.0 PSV       6 N       6  --  D5 C5 P16 P17
-K4  : T  60.44c W  57.00c S   3.33c (+14.4 L +14.3) LCB   20.55c P  3.08% WF   4.0 PSV       4 N       4  --  K4 R16 Q15
-N17 : T  56.37c W  53.61c S   2.89c (+13.8 L +13.4) LCB   30.70c P  3.41% WF   2.9 PSV       3 N       3  --  N17 Q15 Q14
-O17 : T  54.37c W  52.28c S   2.81c (+13.7 L +13.5) LCB -280.00c P  3.15% WF   1.9 PSV       2 N       2  --  O17 Q15
-K3  : T  56.78c W  55.00c S   2.85c (+13.7 L +13.4) LCB -280.00c P  2.84% WF   2.0 PSV       2 N       2  --  K3 R16
-R17 : T  54.39c W  52.16c S   2.86c (+13.8 L +13.7) LCB -280.00c P  2.49% WF   1.9 PSV       2 N       2  --  R17 R18
+J4  : T  62.31c W  58.85c S   3.81c (+15.2 L +15.0) LCB   59.02c P  8.71% WF  42.6 PSV      71 N      42  --  J4 R16 Q15 O17 Q11 L3 C17
+P16 : T  59.36c W  56.30c S   3.30c (+14.4 L +14.3) LCB   55.35c P 28.76% WF  26.5 PSV      27 N      27  --  P16 P17 O16 N17 J4 N16 N15 M15
+J3  : T  62.18c W  58.33c S   3.79c (+15.1 L +14.8) LCB   57.49c P  5.89% WF  17.2 PSV      17 N      17  --  J3 R16 Q15 O16 R11 K4
+C17 : T  56.89c W  53.52c S   3.24c (+14.4 L +14.3) LCB   40.26c P 11.48% WF   5.8 PSV       6 N       6  --  C17 C16 D17 E17
+D5  : T  56.96c W  54.51c S   3.03c (+14.0 L +14.0) LCB -113.09c P  6.05% WF   2.9 PSV       3 N       3  --  D5 D4
+K4  : T  58.30c W  56.14c S   2.99c (+13.9 L +13.8) LCB -280.00c P  3.08% WF   2.0 PSV       2 N       2  --  K4 R16
+N17 : T  56.89c W  54.17c S   2.72c (+13.6 L +12.7) LCB -280.00c P  3.41% WF   1.0 PSV       1 N       1  --  N17
+O17 : T  57.17c W  54.31c S   2.86c (+13.8 L +12.8) LCB -280.00c P  3.15% WF   1.0 PSV       1 N       1  --  O17
 
 : = J4
 : Controller: clear_board
@@ -374,25 +365,24 @@ koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
 New playouts: 100
-NN rows: 97
-NN batches: 97
+NN rows: 98
+NN batches: 98
 NN avg batch size: 1
 PlayoutDoublingAdvantage: -1.125
-PV: D15 E3 D3 E4 C6 D5 C5
+PV: D15 E3 D3 E4 C6 J4 R3 Q3 R4
 Tree:
-: T  48.90c W  46.19c S   2.86c (+12.8 L +13.2) N     100  --  D15 E3 D3 E4 C6 D5 C5
+: T  47.48c W  45.44c S   2.72c (+12.6 L +13.0) N     100  --  D15 E3 D3 E4 C6 J4 R3
 ---Black(^)---
-D15 : T  49.52c W  46.66c S   2.94c (+13.0 L +13.4) LCB   44.30c P 30.12% WF  36.3 PSV      54 N      36  --  D15 E3 D3 E4 C6 D5 C5
-E4  : T  47.15c W  44.80c S   2.59c (+12.4 L +12.9) LCB   40.26c P 28.63% WF  27.5 PSV      27 N      28  --  E4 C15 C16 D15 F17 E16 E17
-C15 : T  49.28c W  46.97c S   2.89c (+12.9 L +13.1) LCB   37.99c P 10.75% WF  13.1 PSV      12 N      13  --  C15 E3 D3 E4 C6 J4 R3
-E3  : T  51.65c W  48.80c S   3.16c (+13.3 L +13.5) LCB   37.97c P  5.95% WF   9.2 PSV       9 N       9  --  E3 C15 C16 D15 F17 R17
-R3  : T  47.23c W  42.96c S   2.79c (+12.8 L +13.0) LCB  -13.93c P  6.98% WF   5.9 PSV       6 N       6  --  R3 D4 D3
-C14 : T  50.52c W  47.64c S   3.15c (+13.3 L +13.5) LCB   40.66c P  3.72% WF   5.1 PSV       5 N       5  --  C14 E3 D3 E4
-F3  : T  47.92c W  46.12c S   2.88c (+12.9 L +13.1) LCB -280.00c P  1.84% WF   2.0 PSV       1 N       2  --  F3 C15
+D15 : T  47.62c W  45.14c S   2.67c (+12.6 L +13.1) LCB   40.43c P 30.12% WF  34.1 PSV      37 N      34  --  D15 E3 D3 E4 C6 J4 R3 Q3
+E4  : T  46.00c W  44.03c S   2.45c (+12.2 L +12.7) LCB   36.80c P 28.63% WF  22.7 PSV      22 N      23  --  E4 C15 E16 C12 C16 D15
+C15 : T  47.74c W  45.76c S   2.76c (+12.7 L +13.0) LCB   33.18c P 10.75% WF  14.0 PSV      12 N      14  --  C15 E3 D3 E4 C6 J4 R3
+E3  : T  48.90c W  47.10c S   2.95c (+13.0 L +13.3) LCB   40.32c P  5.95% WF  15.2 PSV      11 N      15  --  E3 C15 C16 D15 F17 R17 Q17
+C14 : T  48.73c W  47.08c S   3.07c (+13.2 L +13.3) LCB   35.74c P  3.72% WF  11.1 PSV       6 N      11  --  C14 E3 D3 E4 C6 J4 R3
+R3  : T  41.98c W  42.58c S   2.72c (+12.6 L +12.8) LCB -280.00c P  6.98% WF   1.9 PSV       2 N       2  --  R3 D4
 
 : = D15
 : Controller: boardsize 13
-: GPU -1 finishing, processed 583 rows 583 batches
+: GPU -1 finishing, processed 577 rows 577 batches
 : Cleaned up old neural net and bot
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
@@ -436,48 +426,7 @@ W stones captured: 0
  8 . . . . . . . . . . . . .
  7 . . . . . . . . . . . . .
  6 . . . . . . . . . . . . .
- 5 . . . . . . . . . @ . . .
- 4 . . . X . . . . . O1. . .
- 3 . . . . . . . . . . . . .
- 2 . . . . . . . . . . . . .
- 1 . . . . . . . . . . . . .
-
-koPOSITIONALscoreAREAtaxNONEsui1komi7.5
-Time taken: ###
-Root visits: 100
-New playouts: 100
-NN rows: 100
-NN batches: 100
-NN avg batch size: 1
-PlayoutDoublingAdvantage: -2.125
-PV: J4 K3 K5 J5 J3
-Tree:
-: T  65.81c W  63.83c S   2.53c ( +9.9 L +10.3) N     100  --  J4 K3 K5 J5 J3
----Black(^)---
-J4  : T  70.72c W  68.70c S   3.04c (+10.3 L +10.7) LCB   59.64c P  3.13% WF  10.4 PSV      20 N      10  --  J4 K3 K5 J5 J3
-K5  : T  69.24c W  67.20c S   2.77c (+10.1 L +10.6) LCB   59.60c P  7.77% WF  20.6 PSV      20 N      20  --  K5 L5 L6 L4 K6 H4
-L3  : T  68.87c W  65.44c S   3.32c (+10.7 L +10.8) LCB   58.72c P  4.61% WF   9.2 PSV       9 N       9  --  L3 L4 K3 J3 J2
-L7  : T  68.20c W  65.01c S   3.00c (+10.3 L +10.7) LCB   44.27c P  4.42% WF   8.1 PSV       8 N       8  --  L7 C6 G3 F11
-K7  : T  65.11c W  63.39c S   2.51c ( +9.8 L +10.2) LCB   42.87c P  6.63% WF   6.9 PSV       7 N       7  --  K7 C6 F3 F11
-K3  : T  65.39c W  63.98c S   2.50c ( +9.8 L +10.1) LCB  -31.43c P  4.02% WF   5.0 PSV       5 N       5  --  K3 J3 L4
-L6  : T  67.43c W  65.17c S   2.96c (+10.3 L +10.6) LCB    0.70c P  2.85% WF   5.0 PSV       5 N       5  --  L6 F3 D7
-D7  : T  58.56c W  58.73c S   0.90c ( +8.3 L  +9.0) LCB  -26.45c P  5.69% WF   3.8 PSV       4 N       4  --  D7 H11 J11
-G3  : T  66.60c W  63.92c S   2.75c (+10.1 L +10.5) LCB  -45.64c P  2.48% WF   4.0 PSV       4 N       4  --  G3 H11 L7
-G10 : T  60.75c W  59.49c S   1.76c ( +9.1 L  +9.7) LCB -126.89c P  4.46% WF   3.9 PSV       3 N       4  --  G10 C6 F3
-
-: = K5
-: Controller: genmove_debug w
-: MoveNum: 2 HASH: 952E47D2E85DBDA87BA99675379189CA
-   A B C D E F G H J K L M N
-13 . . . . . . . . . . . . .
-12 . . . . . . . . . . . . .
-11 . . . . . . . . . . . . .
-10 . . . X . . . . . X . . .
- 9 . . . . . . . . . . . . .
- 8 . . . . . . . . . . . . .
- 7 . . . . . . . . . . . . .
- 6 . . . . . . . . . . . . .
- 5 . . . . . . . . . X2. . .
+ 5 . . . . . . . . . . . . .
  4 . . . X . . . . . O1@ . .
  3 . . . . . . . . . . . . .
  2 . . . . . . . . . . . . .
@@ -487,22 +436,28 @@ koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
 New playouts: 100
-NN rows: 80
-NN batches: 80
+NN rows: 99
+NN batches: 99
 NN avg batch size: 1
-PlayoutDoublingAdvantage: 2.125
-PV: L4 J4 J5 L5 H5 J3 M5 M6
+PlayoutDoublingAdvantage: -2.125
+PV: L4 L5 L3 K5 J2 H11 J11 H10
 Tree:
-: T -66.95c W -64.28c S  -3.21c ( -9.6 L -10.1) N     100  --  L4 J4 J5 L5 H5 J3 M5
----White(^)---
-L4  : T -64.19c W -62.23c S  -2.82c ( -9.3 L  -9.9) LCB  -69.60c P 34.41% WF  53.5 PSV      83 N      52  --  L4 J4 J5 L5 H5 J3 M5 M6
-L5  : T -67.94c W -65.09c S  -3.29c ( -9.7 L -10.1) LCB  -75.30c P 35.56% WF  36.4 PSV      35 N      37  --  L5 J4 K3 L6 K6 J5 L7 M6
-J4  : T -77.59c W -71.36c S  -4.66c (-11.0 L -11.3) LCB -135.29c P 12.52% WF   5.5 PSV       6 N       6  --  J4 L4 L3 L5 M3
-J5  : T -81.93c W -76.08c S  -5.90c (-12.3 L -12.4) LCB -186.13c P 10.26% WF   3.6 PSV       4 N       4  --  J5 L4 L3 L5
+: T  70.70c W  67.02c S   3.42c (+10.8 L +10.9) N     100  --  L4 L5 L3 K5 J2 H11 J11
+---Black(^)---
+L4  : T  74.63c W  69.49c S   4.10c (+11.5 L +11.4) LCB   68.04c P  4.50% WF  50.9 PSV      49 N      49  --  L4 L5 L3 K5 J2 H11 J11 H10
+K5  : T  67.94c W  66.11c S   2.62c ( +9.9 L +10.4) LCB   57.18c P  7.77% WF  17.4 PSV       4 N      18  --  K5 L4 J4 J5 L5
+K7  : T  65.89c W  63.78c S   2.68c (+10.0 L +10.4) LCB   47.10c P  6.63% WF   6.7 PSV       3 N       7  --  K7 C6 G3 F11
+L7  : T  67.51c W  64.56c S   3.03c (+10.4 L +10.6) LCB   52.77c P  4.42% WF   9.7 PSV       2 N      10  --  L7 C6 G3 F11 C8
+K3  : T  66.68c W  65.33c S   2.74c (+10.0 L +10.4) LCB -142.38c P  4.02% WF   3.9 PSV       2 N       4  --  K3 J3 L4
+L6  : T  70.38c W  67.65c S   3.46c (+10.8 L +11.0) LCB -168.39c P  2.85% WF   3.0 PSV       2 N       3  --  L6 F3 D7
+D7  : T  58.82c W  56.77c S   2.06c ( +9.4 L  +9.7) LCB -280.00c P  5.69% WF   0.9 PSV       1 N       1  --  D7
+L3  : T  61.95c W  59.73c S   2.23c ( +9.6 L  +9.5) LCB -280.00c P  4.61% WF   1.0 PSV       1 N       1  --  L3
+G10 : T  55.51c W  53.97c S   1.55c ( +8.9 L  +9.2) LCB -280.00c P  4.46% WF   0.9 PSV       1 N       1  --  G10
+C11 : T  58.14c W  56.77c S   1.37c ( +8.7 L  +9.0) LCB -280.00c P  4.09% WF   0.9 PSV       1 N       1  --  C11
 
 : = L4
-: Controller: genmove_debug b
-: MoveNum: 3 HASH: 631C64617B2072307DD8F2E6E41A3D6C
+: Controller: genmove_debug w
+: MoveNum: 2 HASH: 64FF1BDB1E7A3DD8A22AEB525D98DCE8
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
 12 . . . . . . . . . . . . .
@@ -512,8 +467,8 @@ J5  : T -81.93c W -76.08c S  -5.90c (-12.3 L -12.4) LCB -186.13c P 10.26% WF   3
  8 . . . . . . . . . . . . .
  7 . . . . . . . . . . . . .
  6 . . . . . . . . . . . . .
- 5 . . . . . . . . @ X2. . .
- 4 . . . X . . . . . O1O3. .
+ 5 . . . . . . . . . . @ . .
+ 4 . . . X . . . . . O1X2. .
  3 . . . . . . . . . . . . .
  2 . . . . . . . . . . . . .
  1 . . . . . . . . . . . . .
@@ -522,25 +477,53 @@ koPOSITIONALscoreAREAtaxNONEsui1komi7.5
 Time taken: ###
 Root visits: 100
 New playouts: 100
-NN rows: 47
-NN batches: 47
+NN rows: 52
+NN batches: 52
+NN avg batch size: 1
+PlayoutDoublingAdvantage: 2.125
+PV: L5 L3 K5 J2 H11 L8 H3 J3 H4 H2
+Tree:
+: T -73.65c W -68.53c S  -4.65c (-11.5 L -11.4) N     100  --  L5 L3 K5 J2 H11 L8 H3
+---White(^)---
+L5  : T -72.16c W -67.17c S  -4.57c (-11.5 L -11.3) LCB  -77.51c P 41.26% WF  78.2 PSV      77 N      77  --  L5 L3 K5 J2 H11 L8 H3 J3
+L3  : T -79.39c W -73.75c S  -5.17c (-11.9 L -12.0) LCB  -94.63c P 32.11% WF  15.1 PSV      15 N      16  --  L3 L5 M3 K5 J4 J5 H4 H5
+K5  : T -78.78c W -73.31c S  -4.45c (-11.2 L -11.2) LCB -158.58c P 10.16% WF   4.8 PSV       5 N       5  --  K5 L5 L3
+K3  : T -85.47c W -79.21c S  -6.26c (-12.7 L -13.4) LCB -280.00c P  3.71% WF   0.9 PSV       1 N       1  --  K3
+
+: = L5
+: Controller: genmove_debug b
+: MoveNum: 3 HASH: 3106D17ACB1BB8A056D370E335F8502F
+   A B C D E F G H J K L M N
+13 . . . . . . . . . . . . .
+12 . . . . . . . . . . . . .
+11 . . . . . . . . . . . . .
+10 . . . X . . . . . X . . .
+ 9 . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . .
+ 5 . . . . . . . . . . O3. .
+ 4 . . . X . . . . . O1X2. .
+ 3 . . . . . . . . . . @ . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Time taken: ###
+Root visits: 100
+New playouts: 100
+NN rows: 24
+NN batches: 24
 NN avg batch size: 1
 PlayoutDoublingAdvantage: -2.125
-PV: J4 J5 L5 H5 J3 M5 M6
+PV: L3 K5 J2 H11 L8 G3 K3 H4
 Tree:
-: T  64.36c W  61.85c S   3.11c ( +9.2 L  +9.7) N     100  --  J4 J5 L5 H5 J3 M5 M6
+: T  72.54c W  67.25c S   5.12c (+11.5 L +11.2) N     100  --  L3 K5 J2 H11 L8 G3 K3
 ---Black(^)---
-J4  : T  65.77c W  62.90c S   3.69c ( +9.8 L  +9.9) LCB   57.68c P 22.89% WF  38.5 PSV      45 N      38  --  J4 J5 L5 H5 J3 M5 M6
-J5  : T  64.35c W  62.05c S   2.88c ( +8.9 L  +9.9) LCB   54.54c P 21.56% WF  28.9 PSV      29 N      29  --  J5 H3 G4 H4 H5 D11 C11 E11
-H5  : T  65.69c W  62.84c S   2.95c ( +9.0 L +10.0) LCB   47.83c P  8.92% WF  15.1 PSV      15 N      15  --  H5 H3 L5 C6 J4
-F3  : T  59.94c W  58.11c S   2.45c ( +8.6 L  +9.1) LCB  -23.71c P  4.52% WF   3.9 PSV       4 N       4  --  F3 H11 F11
-D7  : T  58.12c W  57.45c S   1.02c ( +7.2 L  +8.1) LCB -1029.09c P  4.58% WF   2.9 PSV       3 N       3  --  D7 J5
-L5  : T  60.79c W  59.92c S   2.81c ( +8.9 L  +9.1) LCB -312.30c P  2.94% WF   2.9 PSV       2 N       3  --  L5 J5 J6
-G10 : T  56.92c W  54.67c S   2.25c ( +8.4 L  +8.7) LCB -280.00c P  2.77% WF   1.0 PSV       1 N       1  --  G10
-E11 : T  59.43c W  57.28c S   2.16c ( +8.3 L  +8.8) LCB -280.00c P  2.38% WF   1.0 PSV       1 N       1  --  E11
-C11 : T  58.46c W  56.58c S   1.88c ( +8.0 L  +8.4) LCB -280.00c P  2.36% WF   1.0 PSV       1 N       1  --  C11
-C7  : T  59.21c W  56.71c S   2.49c ( +8.6 L  +8.8) LCB -280.00c P  1.99% WF   1.0 PSV       1 N       1  --  C7
+L3  : T  73.16c W  67.66c S   5.25c (+11.7 L +11.3) LCB   68.92c P 78.47% WF  95.4 PSV      95 N      95  --  L3 K5 J2 H11 L8 G3 K3 H4
+K3  : T  54.55c W  55.34c S   1.93c ( +8.2 L  +8.6) LCB -456.54c P 13.65% WF   2.7 PSV       2 N       3  --  K3 L3 M4
+K5  : T  61.89c W  59.27c S   2.62c ( +8.9 L  +8.7) LCB -280.00c P  3.66% WF   0.9 PSV       1 N       1  --  K5
 
-: = J5
-: GPU -1 finishing, processed 227 rows 227 batches
+: = L3
+: GPU -1 finishing, processed 175 rows 175 batches
 : All cleaned up, quitting
