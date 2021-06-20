@@ -10812,4 +10812,2183 @@ koSITUATIONALscoreTERRITORYtaxSEKIsui1komi7.5
 Start moves size 0 Start pla Black XY 12 12 Extra black 0 Draw equiv 0.758239 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
 koSITUATIONALscoreTERRITORYtaxSEKIsui1komi9
 Start moves size 0 Start pla Black XY 10 10 Extra black 0 Draw equiv 0.211812 Mode 0 BeganInEncorePhase 0 UsedInitialPosition 0 Forkstuff 0 0
-: GPU 0 finishing, processed 27210 rows 27210 batches
+====================================================================================================
+====================================================================================================
+====================================================================================================
+Running a 13x13 game in 5-move bursts with realistic visits and parameters to see training targets
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 6D7B9BD0653F4FE761D8EA5338E563E0
+   A B C D E F G H J K L M N
+13 . . . . . . . . . . . . .
+12 . . . . . . . . . . . . .
+11 . . . . . . . . . . . . .
+10 . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves 
+end
+HASH: A3BE3A147A7CB2197B9CA35F7586E776
+   A B C D E F G H J K L M N
+13 . . . . . . . . . . . . .
+12 . . . . . . . . . . . . .
+11 . . . O . . . . . . . . .
+10 . . . . . . . . . . X . .
+ 9 . . X . . . . . . . . . .
+ 8 . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . .
+ 4 . . . . . . . . . . O . .
+ 3 . . . X . . . . . . . . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 5
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves L10 D11 D3 L4 C9 
+gameHash 7544754805BD2B4601F90F772DE2A925
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 1 unrounded 1
+targetWeightByTurn 1 0 unrounded 0
+targetWeightByTurn 2 0 unrounded 0
+targetWeightByTurn 3 0 unrounded 0
+targetWeightByTurn 4 0 unrounded 0
+policyTargetsByTurn 0 unreducedNumVisits 800 C10 76 K10 66 C4 52 L10 149 D10 62 D11 82 D4 33 K11 59 K3 43 D3 31 C8 13 L4 31 K4 25 N4 3 N13 0 C3 7 C11 13 K13 1 L3 7 G1 0 L11 11 H10 2 N6 0 E6 1 C9 3 H5 1 L12 1 K12 1 L5 3 F13 0 A12 0 J8 1 L6 2 
+policyTargetsByTurn 1 unreducedNumVisits 200 C4 25 L4 20 D11 54 C10 19 D3 16 D10 16 D4 9 K3 13 K4 12 
+policyTargetsByTurn 2 unreducedNumVisits 200 K3 41 C4 46 D3 70 D4 25 K4 17 L4 19 
+policyTargetsByTurn 3 unreducedNumVisits 200 L4 95 K3 61 K4 53 C5 4 L3 3 
+policyTargetsByTurn 4 unreducedNumVisits 200 C9 125 J3 76 K3 8 H11 4 J4 1 C6 4 D9 4 C10 4 
+whiteValueTargetsByTurn 0 0.511648 0.488279 7.28958e-05 0.758844 0.769083 
+whiteValueTargetsByTurn 1 0.50397 0.495958 7.20204e-05 0.450145 - 
+whiteValueTargetsByTurn 2 0.519131 0.480798 7.15466e-05 1.31414 - 
+whiteValueTargetsByTurn 3 0.522105 0.477824 7.10794e-05 1.35271 - 
+whiteValueTargetsByTurn 4 0.523092 0.476837 7.13635e-05 1.439 - 
+whiteValueTargetsByTurn 5 1 0 0 6.5 6.5 
+Raw Stats -0.025013 0.42486 2.98853
+Raw Stats 0.0682279 1.39949 2.558
+Raw Stats -0.0246781 -0.0302532 2.10907
+Raw Stats 0.0377418 0.753522 1.68821
+Raw Stats -0.0238465 -0.165128 2.10172
+.............
+.............
+...O.........
+..........X..
+..X..........
+.............
+.............
+.............
+.............
+..........O..
+...X.........
+.............
+.............
+.............
+.............
+...O.........
+..........X..
+..X..........
+.............
+.............
+.............
+.............
+..........O..
+...X.........
+.............
+.............
+0000000000000
+0000000000000
+0001000000000
+0000000000100
+0010000000000
+0000000000000
+0000000000000
+0000000000000
+0000000000000
+0000000000100
+0001000000000
+0000000000000
+0000000000000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 1ED20080E25DC28EE5D7FF62CDEA3935
+   A B C D E F G H J K L M N
+13 . . . . . . . . . . . . .
+12 . . . . . . . . . . . . .
+11 . . X O O . . . . X . . .
+10 . . . X . . . . . O . . .
+ 9 . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . .
+ 4 . . . O . . . . . O X . .
+ 3 . . . . . . . . . . X . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 10
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 
+end
+HASH: 898697990F0655127C712199FDF92F98
+   A B C D E F G H J K L M N
+13 . . . . . . . . . . . . .
+12 . . . . . . . . . . . . .
+11 . . X O O . . . O X X . .
+10 . . X X . . . . O O X . .
+ 9 . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . .
+ 4 . . . O . . . . . O X . .
+ 3 . . . . . . . . . . X . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 15
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 C10 J11 L11 J10 L10 
+gameHash 809883F2EBF035E276CBC4B0E6812C22
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 0.68109 unrounded 0.68109
+targetWeightByTurn 1 0 unrounded 0
+targetWeightByTurn 2 0 unrounded 0
+targetWeightByTurn 3 1.31891 unrounded 1.31891
+targetWeightByTurn 4 0 unrounded 0
+policyTargetsByTurn 0 unreducedNumVisits 800 C10 414 L10 41 J11 23 J10 26 E10 145 L11 16 C9 41 B9 9 G7 5 A12 1 E4 6 B1 1 J4 2 C12 5 C6 4 A7 0 C3 6 H11 2 J1 0 D7 2 D2 1 B13 0 B6 0 
+policyTargetsByTurn 1 unreducedNumVisits 414 J11 371 L11 42 
+policyTargetsByTurn 2 unreducedNumVisits 371 L11 358 L10 12 
+policyTargetsByTurn 3 unreducedNumVisits 800 L10 157 J10 249 J12 123 H6 4 H10 856 K12 3 K7 4 J9 2 A9 0 K3 5 M6 1 N9 0 A7 0 K5 1 G11 1 D8 1 A3 0 L5 1 E5 0 C5 0 
+policyTargetsByTurn 4 unreducedNumVisits 249 L10 195 M9 35 L9 15 E10 2 
+whiteValueTargetsByTurn 0 0.503794 0.496134 7.20165e-05 0.23566 -0.581315 
+whiteValueTargetsByTurn 1 0.489888 0.51004 7.13999e-05 -0.444801 - 
+whiteValueTargetsByTurn 2 0.49307 0.506859 7.13902e-05 -0.287399 - 
+whiteValueTargetsByTurn 3 0.48993 0.509999 7.11098e-05 -0.446712 -0.633119 
+whiteValueTargetsByTurn 4 0.495593 0.504336 7.07712e-05 -0.183615 - 
+whiteValueTargetsByTurn 5 1 0 0 6.5 6.5 
+Raw Stats -0.0357612 -0.835729 2.10118
+Raw Stats -0.0313819 -1.0082 0.882928
+Raw Stats -0.017496 -0.403971 0.572867
+Raw Stats -0.0502575 -1.32777 1.30604
+Raw Stats -0.00837392 0.091951 1.39204
+.............
+.............
+..XOO...OXX..
+..XX....OOX..
+.............
+.............
+.............
+.............
+.............
+...O.....OX..
+..........X..
+.............
+.............
+.............
+.............
+..XOO...OXX..
+..XX....OOX..
+.............
+.............
+.............
+.............
+.............
+...O.....OX..
+..........X..
+.............
+.............
+0000000000000
+0000000000000
+0011100011100
+0011000011100
+0000000000000
+0000000000000
+0000000000000
+0000000000000
+0000000000000
+0001000001100
+0000000000100
+0000000000000
+0000000000000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 -1.000 1.000 1.000 0.000 0.000 0.000 1.000 -1.000 -1.000 0.000 0.000
+ 0.000 0.000 -1.000 -1.000 0.000 0.000 0.000 0.000 1.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 7C63721EF246DC3BEDDECD834AEE5615
+   A B C D E F G H J K L M N
+13 . . . . . . . . . . . . .
+12 . . . . . . . . O X . . .
+11 . . X O O O X X O X O . .
+10 . . . X X X . . . O . . .
+ 9 . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . O . . . . . . . . . .
+ 5 . . . . . . . . . . . . .
+ 4 . . . O . . . . . O X . .
+ 3 . . . . . . . . . . X . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 20
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 
+end
+HASH: 68488570B1FF75F928E4C2AE4AC0B0F0
+   A B C D E F G H J K L M N
+13 . . . . . . . . . . . . .
+12 . . . . . . . . O X O . .
+11 . . X O O O X X O X O . .
+10 . . . X X X . X X O . . .
+ 9 . . . . . . . . O X . . .
+ 8 . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . O . . . . . . . . . .
+ 5 . . . . . . . . . . . . .
+ 4 . . . O . . . . . O X . .
+ 3 . . . . . . . . . . X . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 25
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 
+gameHash CAAFA2D3ED893C195860F529D3223162
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 0.680231 unrounded 0.680231
+targetWeightByTurn 1 0.555854 unrounded 0.555854
+targetWeightByTurn 2 0 unrounded 0
+targetWeightByTurn 3 0.763915 unrounded 0.763915
+targetWeightByTurn 4 0 unrounded 0
+policyTargetsByTurn 0 unreducedNumVisits 800 J10 613 L12 27 L10 13 D3 36 A1 2 G3 9 F3 6 D6 4 H12 8 J9 2 B5 2 E3 3 C3 3 L9 6 F2 1 N1 0 A4 0 H3 1 J8 0 D2 1 C9 1 B6 1 C7 1 K8 0 
+policyTargetsByTurn 1 unreducedNumVisits 613 L12 163 K13 17 J9 1168 H10 1 C12 0 
+policyTargetsByTurn 2 unreducedNumVisits 428 H10 427 
+policyTargetsByTurn 3 unreducedNumVisits 800 L12 696 K9 3 K3 4 K13 15 G5 2 C12 2 C10 1 L6 0 pass 0 A7 0 N4 0 L9 0 J5 0 F13 0 G1 0 B11 0 L10 0 K2 0 
+policyTargetsByTurn 4 unreducedNumVisits 696 K9 635 H12 27 D3 30 F3 1 
+whiteValueTargetsByTurn 0 0.527561 0.472371 6.79408e-05 1.29704 -0.776635 
+whiteValueTargetsByTurn 1 0.513102 0.48683 6.77346e-05 0.603213 -1.38843 
+whiteValueTargetsByTurn 2 0.529062 0.47087 6.75548e-05 1.19998 - 
+whiteValueTargetsByTurn 3 0.511412 0.488521 6.74381e-05 0.461119 0.644211 
+whiteValueTargetsByTurn 4 0.527562 0.47237 6.75667e-05 1.18399 - 
+whiteValueTargetsByTurn 5 1 0 0 6.5 6.5 
+Raw Stats -0.00565115 -0.161923 1.80125
+Raw Stats 0.0249285 0.74816 0.690317
+Raw Stats -0.0691589 -1.46271 0.31015
+Raw Stats -0.0416787 -0.834305 0.60158
+Raw Stats 0.00962582 -0.0941968 0.899665
+.............
+........OXO..
+..XOOOXXOXO..
+...XXX.XXO...
+........OX...
+.............
+.............
+..O..........
+.............
+...O.....OX..
+..........X..
+.............
+.............
+.............
+........OXO..
+..XOOOXXOXO..
+...XXX.XXO...
+........OX...
+.............
+.............
+..O..........
+.............
+...O.....OX..
+..........X..
+.............
+.............
+0000000000000
+0000000011100
+0011111111100
+0001110111000
+0000000011000
+0000000000000
+0000000000000
+0010000000000
+0000000000000
+0001000001100
+0000000000100
+0000000000000
+0000000000000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 1.000 0.000 0.000
+ 0.000 0.000 -1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 -1.000 -1.000 0.000 -1.000 -1.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: E2393A492BAB0D19A102524A629D0BD2
+   A B C D E F G H J K L M N
+13 . . . . . . . . . O . . .
+12 . . . . . . . . O . O . .
+11 . . X O O O X X O O O . .
+10 . . . X X X . X X O X . .
+ 9 . . . . . . . . O X . . .
+ 8 . . . . . . . . . X . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . O . . . . . . . . . .
+ 5 . . . . . . . . . . . . .
+ 4 . . . O . . . . . O X . .
+ 3 . . . . . . . . . O X . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 30
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 
+end
+HASH: E0723CD88070271E65FD746BE76D6BBC
+   A B C D E F G H J K L M N
+13 . . . . . . . . . O . . .
+12 . . . . . . . . O . O . .
+11 . . X O O O X X O O O . .
+10 . . . X X X . X X O X . .
+ 9 . . . . . . . . O X . . .
+ 8 . . . . . . . . . X . . .
+ 7 . . . . . . . . . . . . .
+ 6 . . O . . . . . . O . . .
+ 5 . . . . . . . . O X X . .
+ 4 . . . O . X . . . O X . .
+ 3 . . . . . . . . . O X . .
+ 2 . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 35
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F4 K6 L5 
+gameHash 45F48D93CAC3878D405DB91D7EEB631D
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 0 unrounded 0
+targetWeightByTurn 1 0 unrounded 0
+targetWeightByTurn 2 1 unrounded 1
+targetWeightByTurn 3 0 unrounded 0
+targetWeightByTurn 4 0 unrounded 0
+policyTargetsByTurn 0 unreducedNumVisits 200 K5 178 D3 19 
+policyTargetsByTurn 1 unreducedNumVisits 200 J5 141 G3 23 L2 11 G4 12 H4 6 L5 1 
+policyTargetsByTurn 2 unreducedNumVisits 800 K6 220 J4 70 D3 107 H3 36 J6 13 D2 8 E3 5 K2 4 D6 6 N9 0 F3 6 D12 1 N11 0 F4 861 C3 2 C10 1 E4 1 G5 1 L5 1 G3 1 H5 0 
+policyTargetsByTurn 3 unreducedNumVisits 267 K6 142 L2 44 L5 8 E3 8 F3 11 C12 14 J6 27 C10 3 D3 2 
+policyTargetsByTurn 4 unreducedNumVisits 200 L5 199 
+whiteValueTargetsByTurn 0 0.524675 0.475257 6.78991e-05 1.10034 - 
+whiteValueTargetsByTurn 1 0.526996 0.472937 6.75174e-05 1.13869 - 
+whiteValueTargetsByTurn 2 0.526612 0.473319 6.87638e-05 1.26074 0.817557 
+whiteValueTargetsByTurn 3 0.505902 0.494028 6.99049e-05 0.487313 - 
+whiteValueTargetsByTurn 4 0.505197 0.494733 7.02305e-05 0.430276 - 
+whiteValueTargetsByTurn 5 1 0 0 9.5 9.5 
+Raw Stats 0.0516663 1.45981 0.863491
+Raw Stats 0.109179 2.34887 1.56566
+Raw Stats 0.0689894 1.76655 1.52636
+Raw Stats 0.111496 2.78269 2.12582
+Raw Stats -0.00267485 0.147517 0.0449651
+.........O...
+........OOO..
+..XOOOXXOOO..
+...XXX.XXOX..
+........OX...
+.........X...
+.............
+..O......O...
+........OXX..
+...O.X...OX..
+.........OX..
+.............
+.............
+.........O...
+........OOO..
+..XOOOXXOOO..
+...XXX.XXOX..
+........OX...
+.........X...
+.............
+..O......O...
+........OXX..
+...O.X...OX..
+.........OX..
+.............
+.............
+0000000001000
+0000000011100
+0011111111100
+0001110111100
+0000000011000
+0000000001000
+0000000000000
+0010000001000
+0000000011100
+0001010001100
+0000000001100
+0000000000000
+0000000000000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 -1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 -1.000 -1.000 0.000 -1.000 -1.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 -1.000 0.000 0.000 0.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 7664CC3D7AA85118C27CC30DA362236B
+   A B C D E F G H J K L M N
+13 . . . . . . . . . O . . .
+12 . . . . . . . . O . O . .
+11 . . X O O O X X O O O . .
+10 . . . X X X . X X O X . .
+ 9 . . . . . . . . O X . . .
+ 8 . . . . . . . . . X . . .
+ 7 . . . . . . . . . O . . .
+ 6 . . O . . . . . . . . . .
+ 5 . . . . . . . . O X . . .
+ 4 . . . O . . . . . O X . .
+ 3 . . . O . X . X . O X . .
+ 2 . . . . . . . . O . O X .
+ 1 . . . . . . . . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 40
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 
+end
+HASH: 6E05242469A9D8467B13F43F8ECFDE80
+   A B C D E F G H J K L M N
+13 . . . . . . . . . O . . .
+12 . . . . . . . . O . O . .
+11 . . X O O O X X O O O . .
+10 . . . X X X . X X O X . .
+ 9 . . . . . . . . O X . . .
+ 8 . . . . . . . . X X . . .
+ 7 . . . . . . . . . O . . .
+ 6 . . O . . . . . . . . . .
+ 5 . . . . . . . . O X . . .
+ 4 . . . O . . O . X O X . .
+ 3 . . . O . X O X . O X . .
+ 2 . . . . . . . X O . O X .
+ 1 . . . . . . . . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 45
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 J8 G4 J4 G3 H2 
+gameHash E78C64EB1C0818876BFB263BC9C5F15C
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 0 unrounded 0
+targetWeightByTurn 1 0.975933 unrounded 0.975933
+targetWeightByTurn 2 0 unrounded 0
+targetWeightByTurn 3 0.981646 unrounded 0.981646
+targetWeightByTurn 4 1.04242 unrounded 1.04242
+policyTargetsByTurn 0 unreducedNumVisits 200 J4 28 K6 42 J8 79 J6 31 L7 12 J7 7 L5 6 
+policyTargetsByTurn 1 unreducedNumVisits 800 L5 137 K2 33 G4 340 G5 49 J6 28 J4 4 J7 26 H6 53 H4 22 H2 9 E7 7 N8 2 K6 3 C12 6 K1 1 B3 1 C10 2 G2 1 G12 1 G7 0 G6 1 B9 0 
+policyTargetsByTurn 2 unreducedNumVisits 274 J4 125 H4 55 F4 50 H2 14 G3 5 
+policyTargetsByTurn 3 unreducedNumVisits 800 G3 595 L5 74 H5 8 H4 4 C4 2 J6 5 C12 7 B12 2 K2 5 C10 3 D7 1 H2 1 A5 0 F5 1 L6 1 M4 0 D1 0 J3 0 G12 1 E2 0 G5 0 N12 0 F4 0 K6 1 
+policyTargetsByTurn 4 unreducedNumVisits 800 H2 624 H5 80 H4 3 J6 8 K2 6 J3 17 L6 0 B8 0 B3 0 B9 0 A2 0 C7 0 D5 0 A3 0 
+whiteValueTargetsByTurn 0 0.578135 0.421796 6.83564e-05 3.90766 - 
+whiteValueTargetsByTurn 1 0.568636 0.431297 6.72948e-05 3.17179 3.22811 
+whiteValueTargetsByTurn 2 0.589942 0.409992 6.61853e-05 3.94386 - 
+whiteValueTargetsByTurn 3 0.568201 0.431735 6.41373e-05 2.14323 4.68184 
+whiteValueTargetsByTurn 4 0.585744 0.414193 6.33452e-05 2.67565 2.88736 
+whiteValueTargetsByTurn 5 1 0 0 9.5 9.5 
+Raw Stats 0.151233 4.69312 1.95412
+Raw Stats 0.201564 4.82682 2.19475
+Raw Stats 0.126366 3.42897 1.71931
+Raw Stats 0.191722 3.45026 1.72153
+Raw Stats 0.175098 4.087 1.22359
+.........O...
+........OOO..
+..XOOOXXOOO..
+...XXX.XXOX..
+........OX...
+........XX...
+.........O...
+..O..........
+........OX...
+...O..O.XOX..
+...O.XOX.OX..
+.......XO.OX.
+..........X..
+.........O...
+........OOO..
+..XOOOXXOOO..
+...XXX.XXOX..
+........OX...
+........XX...
+.........O...
+..O..........
+........OX...
+...O..O.XOX..
+...O.XOX.OX..
+.......XO.OX.
+..........X..
+0000000001000
+0000000011100
+0011111111100
+0001110111100
+0000000011000
+0000000011000
+0000000001000
+0010000000000
+0000000011000
+0001001011100
+0001011101100
+0000000110110
+0000000000100
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 -1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 -1.000 -1.000 0.000 -1.000 -1.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 1.000 0.000 -1.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 -1.000 1.000 -1.000 0.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 1.000 -1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: DDEF5096036F73F1F1E5B2D3FCABDC94
+   A B C D E F G H J K L M N
+13 . . . . . . . . . O . . .
+12 . . . . . . . . O . O . .
+11 . . X O O O X X O O O . .
+10 . . . X X X . X X O X . .
+ 9 . . . . . . . . O X . . .
+ 8 . . . . . . . . X X . . .
+ 7 . . . . . . . . . O X O .
+ 6 . . O . . . . . . O O . .
+ 5 . . . . . . . . O X X . .
+ 4 . . . O . . O X . O X . .
+ 3 . . . O . X O X . O X . .
+ 2 . . . . . . . X O . O X .
+ 1 . . . . . . . . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 50
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 
+end
+HASH: EACD4B0A28BB90A0A81EDFDF47B0DCC5
+   A B C D E F G H J K L M N
+13 . . . . . . . . . O . . .
+12 . . . . . . O X O . O . .
+11 . . X O O O X X O O O . .
+10 . . . X X X . X X O X . .
+ 9 . . . . . . . . O X . . .
+ 8 . . . . . . . . X X . . .
+ 7 . . . . . . . . . O X O .
+ 6 . . O . . . . O . O O . .
+ 5 . . . . . . . X O X X . .
+ 4 . . . O . . O X X O X . .
+ 3 . . . O . X O X . O X . .
+ 2 . . . . . . . X O . O X .
+ 1 . . . . . . . . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 55
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 H5 H6 J4 G12 H12 
+gameHash E8A074D5A3D6EC8D3FAE5197E93F3254
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 0 unrounded 0
+targetWeightByTurn 1 0 unrounded 0
+targetWeightByTurn 2 0.722002 unrounded 0.722002
+targetWeightByTurn 3 1.082 unrounded 1.082
+targetWeightByTurn 4 1.19599 unrounded 1.19599
+policyTargetsByTurn 0 unreducedNumVisits 200 H5 113 J6 7 L8 3 G5 30 J4 1 G2 1 
+policyTargetsByTurn 1 unreducedNumVisits 200 H6 78 L8 10 L9 4 M5 111 G2 17 J6 8 J7 5 C12 1 M9 0 
+policyTargetsByTurn 2 unreducedNumVisits 800 J4 610 G6 36 G5 50 E5 2 L8 2 N3 1 C5 3 H7 2 B11 1 G2 3 G13 1 H12 0 A7 0 D8 0 K2 1 N10 0 C10 0 N4 0 C9 0 A12 0 
+policyTargetsByTurn 3 unreducedNumVisits 800 L8 23 C12 39 G12 390 G2 15 L9 6 J6 5 G7 10 G6 9 C10 13 J7 5 H7 13 E6 4 A6 1 G5 7 H9 4 K2 0 F8 1 M9 15 H8 1 D8 2 D6 1 K1 1 G13 2 M5 1 D2 0 C8 2 
+policyTargetsByTurn 4 unreducedNumVisits 800 H12 377 D9 5 L8 16 J6 574 F12 7 D12 7 H7 6 N13 1 N6 1 C12 2 C7 4 G5 3 G6 4 M8 2 H13 0 M9 2 G10 0 J7 0 D5 1 B6 0 
+whiteValueTargetsByTurn 0 0.463369 0.536564 6.67654e-05 -1.20549 - 
+whiteValueTargetsByTurn 1 0.462124 0.537809 6.64587e-05 -1.2323 - 
+whiteValueTargetsByTurn 2 0.478887 0.521046 6.65906e-05 -0.810831 -0.811528 
+whiteValueTargetsByTurn 3 0.452268 0.547666 6.63324e-05 -1.86018 -1.96966 
+whiteValueTargetsByTurn 4 0.483373 0.51656 6.63737e-05 -0.707857 -2.03257 
+whiteValueTargetsByTurn 5 1 0 0 9.5 9.5 
+Raw Stats 0.0096325 0.721318 1.67498
+Raw Stats 0.172874 3.87342 2.06651
+Raw Stats -0.00600314 -0.0821428 1.3071
+Raw Stats 0.0533084 1.22422 2.56724
+Raw Stats -0.109735 -1.99258 1.3333
+.........O...
+......OXOOO..
+..XOOOXXOOO..
+...XXX.XXOX..
+........OX...
+........XX...
+.........OXO.
+..O....O.OO..
+.......XOXX..
+...O..OXXOX..
+...O.XOX.OX..
+.......XO.OX.
+..........X..
+.........O...
+......OXOOO..
+..XOOOXXOOO..
+...XXX.XXOX..
+........OX...
+........XX...
+.........OXO.
+..O....O.OO..
+.......XOXX..
+...O..OXXOX..
+...O.XOX.OX..
+.......XO.OX.
+..........X..
+0000000001000
+0000001111100
+0011111111100
+0001110111100
+0000000011000
+0000000011000
+0000000001110
+0010000101100
+0000000111100
+0001001111100
+0001011101100
+0000000110110
+0000000000100
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 -1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 -1.000 -1.000 0.000 -1.000 -1.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 -1.000 0.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 1.000 0.000
+ 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 -1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 0.000 1.000 -1.000 -1.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 -1.000 1.000 -1.000 0.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 1.000 -1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 1F336BE619269F7FE91B97BD22475E2C
+   A B C D E F G H J K L M N
+13 . . . . . . . . . O . . .
+12 . . . . . . O . O . O . .
+11 . . X O O O X X O O O . .
+10 . . . X X X . X X O X . .
+ 9 . . . . . . . . O X . O .
+ 8 . . . X . . . . X X . . .
+ 7 . X X O . . . . . O X O .
+ 6 . O O . . . . . . O O . .
+ 5 . . . . . . X . O X X O .
+ 4 . . . O . . O X . O X . .
+ 3 . . . O . X O X . O X . .
+ 2 . . . . . . . X O X . X .
+ 1 . . . . . . . . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 60
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 
+end
+HASH: BB16D44182A28AE67850A651D5CED57F
+   A B C D E F G H J K L M N
+13 . . . . . . . . . O . . .
+12 . X O . . . O . O . O . .
+11 . . X O O O X X O O O . .
+10 . . . X X X . X X O X . .
+ 9 . . . . . . . . O X . O .
+ 8 . . . X . . . . X X . . .
+ 7 . X X O . . . . . O X O .
+ 6 . O O X . . . . . O O . .
+ 5 . . . . . . X . O X X O .
+ 4 . . . O . O O X . O X . .
+ 3 . . . O . X O X . O X . .
+ 2 . . . . . . X X O X . X .
+ 1 . . . . . . . . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 65
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 C12 B12 F4 G2 
+gameHash 5932A3DAA739178FE805AC2CB87BEB3A
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 0.868122 unrounded 0.868122
+targetWeightByTurn 1 0 unrounded 0
+targetWeightByTurn 2 0 unrounded 0
+targetWeightByTurn 3 1.13188 unrounded 1.13188
+targetWeightByTurn 4 0 unrounded 0
+policyTargetsByTurn 0 unreducedNumVisits 800 H12 131 D6 459 D12 34 C12 7 L8 11 N12 1 F12 4 D2 9 E2 5 A6 5 M10 1 F4 2 H13 0 B4 2 C4 1 L9 2 F13 0 C5 0 M1 0 K1 0 B5 0 
+policyTargetsByTurn 1 unreducedNumVisits 459 E7 30 C12 386 F4 21 D5 14 G2 1 A7 0 
+policyTargetsByTurn 2 unreducedNumVisits 386 B4 35 C5 13 B12 172 H12 32 D5 3 B11 1 E2 1 F12 1 
+policyTargetsByTurn 3 unreducedNumVisits 800 B11 64 D12 18 D5 31 F4 549 A6 9 E7 6 F5 4 E12 3 G2 2 A7 2 E2 1 H12 1 J6 0 D13 1 H7 1 C5 1 C10 0 H5 0 H6 0 B13 0 E5 0 J7 0 F2 1 
+policyTargetsByTurn 4 unreducedNumVisits 549 C5 53 F5 168 D12 29 G2 282 H12 20 D5 6 B4 4 F2 8 
+whiteValueTargetsByTurn 0 0.509477 0.490459 6.35122e-05 -0.261103 -2.49976 
+whiteValueTargetsByTurn 1 0.486734 0.513202 6.4127e-05 -1.04023 - 
+whiteValueTargetsByTurn 2 0.497778 0.502158 6.41277e-05 -0.704625 - 
+whiteValueTargetsByTurn 3 0.478844 0.521093 6.32967e-05 -1.13102 -1.67109 
+whiteValueTargetsByTurn 4 0.50256 0.497377 6.32453e-05 -0.342667 - 
+whiteValueTargetsByTurn 5 1 0 0 7.5 7.5 
+Raw Stats -0.206612 -3.6807 1.77822
+Raw Stats 0.109891 1.82946 1.69178
+Raw Stats -0.374253 -6.95024 1.87996
+Raw Stats 0.0964558 1.40848 2.1155
+Raw Stats -0.261771 -4.41771 2.03318
+.........O...
+.XO...O.OOO..
+..XOOOXXOOO..
+...XXX.XXOX..
+........OX.O.
+...X....XX...
+.XXO.....OXO.
+.OOX.....OO..
+......X.OXXO.
+...O.OOX.OX..
+...O.XOX.OX..
+......XXOXXX.
+..........X..
+.........O...
+.XO...O.OOO..
+..XOOOXXOOO..
+...XXX.XXOX..
+........OX.O.
+...X....XX...
+.XXO.....OXO.
+.OOX.....OO..
+......X.OXXO.
+...O.OOX.OX..
+...O.XOX.OX..
+......XXOXXX.
+..........X..
+0000000001000
+0110001011100
+0011111111100
+0001110111100
+0000000011010
+0001000011000
+0111000001110
+0111000001100
+0000001011110
+0001011101100
+0001011101100
+0000001111110
+0000000000100
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 -1.000 1.000 0.000 0.000 0.000 1.000 0.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 -1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 -1.000 -1.000 0.000 -1.000 -1.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 0.000 1.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 -1.000 0.000 0.000 0.000
+ 0.000 -1.000 -1.000 1.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 1.000 0.000
+ 0.000 1.000 1.000 -1.000 0.000 0.000 0.000 0.000 0.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 1.000 -1.000 -1.000 1.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 1.000 1.000 -1.000 0.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 1.000 0.000 -1.000 1.000 -1.000 0.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 -1.000 1.000 -1.000 -1.000 -1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 978E329C94DC9CD9DFE89939F1E9EFAB
+   A B C D E F G H J K L M N
+13 . . . . . . . . . O . . .
+12 . X O O . . O . O . O . .
+11 . . X O O O X X O O O . .
+10 . . . X X X . X X O X . .
+ 9 . . . . . . . . O X . O .
+ 8 . . . X . . . . X X . . .
+ 7 . X X . X . . . . O X O .
+ 6 . O O X . . . . . O O . .
+ 5 O O . O . . X . O X X O .
+ 4 X X . O . . O X . O X . .
+ 3 . . . O . X O X . O X . .
+ 2 . . . . . . . X O X . X .
+ 1 . . . . . . . . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 70
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 
+end
+HASH: 06AF435893A23F200D49F6DCEE474993
+   A B C D E F G H J K L M N
+13 . . . . . . . . . O . . .
+12 . X O O . . O . O . O . .
+11 . . X O O O X X O O O . .
+10 . . . X X X . X X O X . .
+ 9 . . . . . . . . O X . O .
+ 8 . . . X . . . . X X . . .
+ 7 . X X . X . . . . O X O .
+ 6 . O O X . . . . . O O . .
+ 5 O O . O . . X . O X X O .
+ 4 X X . O . . O X . O X . .
+ 3 . O . O X X O X . O X . .
+ 2 . O X X . . . X O X . X .
+ 1 . . . . . . . . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 75
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 B2 E3 
+gameHash FA6412945B7B23E6CBCC9A17E6115600
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 0 unrounded 0
+targetWeightByTurn 1 0 unrounded 0
+targetWeightByTurn 2 0.968179 unrounded 0.968179
+targetWeightByTurn 3 1.03182 unrounded 1.03182
+targetWeightByTurn 4 0 unrounded 0
+policyTargetsByTurn 0 unreducedNumVisits 200 C2 161 B2 16 H12 10 E5 0 C4 2 E2 0 B3 1 L8 1 M10 0 
+policyTargetsByTurn 1 unreducedNumVisits 200 B3 180 D2 16 C3 1 B2 1 F4 0 
+policyTargetsByTurn 2 unreducedNumVisits 800 D2 512 B2 111 C3 7 H12 34 C4 3 E2 11 F4 4 L8 14 N8 1 N4 0 E12 0 F2 1 M10 1 L9 8 G2 0 A7 0 J7 0 J6 0 F12 0 E5 0 A3 0 
+policyTargetsByTurn 3 unreducedNumVisits 800 B2 329 F4 24 C4 65 E2 20 C3 8 E3 9 G10 1 E13 1 N12 0 F2 2 A3 0 E8 0 H7 1 F9 0 B11 0 D13 0 G2 0 E6 0 F5 0 D9 0 
+policyTargetsByTurn 4 unreducedNumVisits 329 E3 177 E2 18 H12 15 F4 6 E5 1 C3 2 F2 2 L8 3 L9 7 
+whiteValueTargetsByTurn 0 0.307023 0.692918 5.91749e-05 -6.92131 - 
+whiteValueTargetsByTurn 1 0.299873 0.700069 5.85347e-05 -6.97529 - 
+whiteValueTargetsByTurn 2 0.375781 0.624159 6.01305e-05 -4.20527 -6.84658 
+whiteValueTargetsByTurn 3 0.328268 0.671674 5.8503e-05 -5.6084 -8 
+whiteValueTargetsByTurn 4 0.357964 0.641976 5.94124e-05 -4.74072 - 
+whiteValueTargetsByTurn 5 1 0 0 5.5 5.5 
+Raw Stats -0.581978 -10.1897 2.04544
+Raw Stats -0.394496 -8.36907 1.2559
+Raw Stats -0.539424 -9.02536 1.7659
+Raw Stats -0.213701 -3.81235 1.85935
+Raw Stats -0.680286 -12.0343 1.91155
+.........O...
+.XOO..O.OOO..
+..XOOOXXOOO..
+...XXX.XXOX..
+........OX.O.
+...X....XX...
+.XXXX....OXO.
+.OOX.....OO..
+OO.O..X.OXXO.
+XX.O..OX.OX..
+.O.OXXOX.OX..
+.OXX...XOXXX.
+..........X..
+.........O...
+.XOO..O.OOO..
+..XOOOXXOOO..
+...XXX.XXOX..
+........OX.O.
+...X....XX...
+.XXXX....OXO.
+.OOX.....OO..
+OO.O..X.OXXO.
+XX.O..OX.OX..
+.O.OXXOX.OX..
+.OXX...XOXXX.
+..........X..
+0000000001000
+0111001011100
+0011111111100
+0001110111100
+0000000011010
+0001000011000
+0111100001110
+0111000001100
+1101001011110
+1101001101100
+0101111101100
+0111000111110
+0000000000100
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 -1.000 1.000 1.000 0.000 0.000 1.000 0.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 -1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 -1.000 -1.000 0.000 -1.000 -1.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 0.000 1.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 -1.000 0.000 0.000 0.000
+ 0.000 -1.000 -1.000 -1.000 -1.000 0.000 0.000 0.000 0.000 1.000 -1.000 1.000 0.000
+ 0.000 1.000 1.000 -1.000 0.000 0.000 0.000 0.000 0.000 1.000 1.000 0.000 0.000
+ 1.000 1.000 0.000 1.000 0.000 0.000 -1.000 0.000 1.000 -1.000 -1.000 1.000 0.000
+ -1.000 -1.000 0.000 1.000 0.000 0.000 1.000 -1.000 0.000 1.000 -1.000 0.000 0.000
+ 0.000 1.000 0.000 1.000 -1.000 -1.000 1.000 -1.000 0.000 1.000 -1.000 0.000 0.000
+ 0.000 1.000 -1.000 -1.000 0.000 0.000 0.000 -1.000 1.000 -1.000 -1.000 -1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: D4D04EBE071ED16E46E4139D3EEE9C01
+   A B C D E F G H J K L M N
+13 . . . . . . . . . O . . .
+12 . X O O . . O . O . O . .
+11 . . X O O O X X O O O . .
+10 . . . X X X . X X O X . .
+ 9 . . . . . . . . O X . O .
+ 8 . . . X . . . . X X . . .
+ 7 . X X . X . . . . O X O .
+ 6 . O O X . . O . . O O . .
+ 5 O O . O . O X . O X X O .
+ 4 X X X O . O O X . O X . .
+ 3 . O O O . X O X . O X . .
+ 2 . X X X . X . X O X . X .
+ 1 . . . . . . . . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 80
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 
+end
+HASH: 8CF0BD481D0E1F48DF8CB589D4DDD474
+   A B C D E F G H J K L M N
+13 . . . . . . . . . O . . .
+12 . X O O . . O . O . O . .
+11 . . X O O O X X O O O . .
+10 . . . X X X . X X O X . .
+ 9 . . . . . . . . O X . O .
+ 8 . . . X . . . . X X . . .
+ 7 . X X . X . . . . O X O .
+ 6 . O O X . . O . . O O . .
+ 5 O O . O . O X X O X X O .
+ 4 X X X O . O O X . O X . .
+ 3 X O O O . X O X . O X . .
+ 2 . X X X . X O X O X . X .
+ 1 . . . . . X O . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 85
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 G2 A3 G1 F1 
+gameHash D3A6E3E1A0BF2FB63C09A639891AC490
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 0.733196 unrounded 0.733196
+targetWeightByTurn 1 0.830239 unrounded 0.830239
+targetWeightByTurn 2 0 unrounded 0
+targetWeightByTurn 3 1.43656 unrounded 1.43656
+targetWeightByTurn 4 0 unrounded 0
+policyTargetsByTurn 0 unreducedNumVisits 800 H5 685 A3 10 H12 9 C10 2 A2 4 L9 5 G7 2 F12 1 L8 2 K1 0 M10 0 A7 0 H1 0 F6 0 C5 0 H8 0 J3 0 
+policyTargetsByTurn 1 unreducedNumVisits 800 E6 38 H6 62 J6 11 E3 36 G2 414 A2 3 F6 7 J7 1 A3 2 F7 2 A10 1 B11 2 N12 0 H9 0 H7 0 E5 0 B10 0 
+policyTargetsByTurn 2 unreducedNumVisits 414 G1 88 A2 5 A3 306 F1 1 H6 0 H12 0 
+policyTargetsByTurn 3 unreducedNumVisits 800 C5 22 F1 24 A2 41 E2 6 E6 3 H1 6 H6 5 E3 2 F12 1 D9 1 G1 471 A13 0 F7 0 E1 0 N9 0 F8 0 
+policyTargetsByTurn 4 unreducedNumVisits 471 F1 310 E3 31 E2 15 H6 4 A2 15 F6 1 J6 1 E1 1 H12 1 
+whiteValueTargetsByTurn 0 0.369729 0.630211 6.03262e-05 -6.84722 -10.4757 
+whiteValueTargetsByTurn 1 0.345217 0.654722 6.13532e-05 -8.4891 -9.46448 
+whiteValueTargetsByTurn 2 0.374943 0.624992 6.46312e-05 -7.96274 - 
+whiteValueTargetsByTurn 3 0.389279 0.610656 6.53396e-05 -7.35398 -15.25 
+whiteValueTargetsByTurn 4 0.422081 0.577853 6.60481e-05 -5.24841 - 
+whiteValueTargetsByTurn 5 1 0 0 5.5 5.5 
+Raw Stats -0.388674 -5.93095 1.2871
+Raw Stats -0.107357 -2.74244 2.01324
+Raw Stats -0.387373 -11.0724 1.0951
+Raw Stats -0.0161527 -0.276061 2.01574
+Raw Stats -0.488503 -21.0736 1.98216
+.........O...
+.XOO..O.OOO..
+..XOOOXXOOO..
+...XXX.XXOX..
+........OX.O.
+...X....XX...
+.XXXX....OXO.
+.OOX..O..OO..
+OO.O.OXXOXXO.
+XXXO.OOX.OX..
+XOOO.XOX.OX..
+.XXX.XOXOXXX.
+.....XO...X..
+.........O...
+.XOO..O.OOO..
+..XOOOXXOOO..
+...XXX.XXOX..
+........OX.O.
+...X....XX...
+.XXXX....OXO.
+.OOX..O..OO..
+OO.O.OXXOXXO.
+XXXO.OOX.OX..
+XOOO.XOX.OX..
+.XXX.XOXOXXX.
+.....XO...X..
+0000000001000
+0111001011100
+0011111111100
+0001110111100
+0000000011010
+0001000011000
+0111100001110
+0111001001100
+1101011111110
+1111011101100
+1111011101100
+0111011111110
+0000011000100
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 -1.000 1.000 1.000 0.000 0.000 1.000 0.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 -1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 -1.000 -1.000 0.000 -1.000 -1.000 1.000 -1.000 0.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 0.000 1.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 -1.000 0.000 0.000 0.000
+ 0.000 -1.000 -1.000 -1.000 -1.000 0.000 0.000 0.000 0.000 1.000 -1.000 1.000 0.000
+ 0.000 1.000 1.000 -1.000 0.000 0.000 1.000 0.000 0.000 1.000 1.000 0.000 0.000
+ 1.000 1.000 0.000 1.000 0.000 1.000 -1.000 -1.000 1.000 -1.000 -1.000 1.000 0.000
+ -1.000 -1.000 -1.000 1.000 0.000 1.000 1.000 -1.000 0.000 1.000 -1.000 0.000 0.000
+ -1.000 1.000 1.000 1.000 0.000 -1.000 1.000 -1.000 0.000 1.000 -1.000 0.000 0.000
+ 0.000 -1.000 -1.000 -1.000 0.000 -1.000 1.000 -1.000 1.000 -1.000 -1.000 -1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 -1.000 1.000 0.000 0.000 0.000 -1.000 0.000 0.000
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: CF8701264BFCFE900CB9B821907DDDDC
+   A B C D E F G H J K L M N
+13 . . . . . . . . . O . . .
+12 . X O O . . O . O . O . .
+11 . . X O O O X X O O O . .
+10 . . . X X X . X X O X . .
+ 9 . . . . . . . . O X . O .
+ 8 . . . X . . . . X X O . .
+ 7 . X X . X X . . X O . O .
+ 6 . O O X O O O . X O O . .
+ 5 O O . O . O X X O X X O .
+ 4 X X X O O O O X . O X . .
+ 3 . O O O X X O X . O X . .
+ 2 O X X X . X . X O X . X .
+ 1 . . . . . . . . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 90
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 E6 J7 A2 E3 E4 F7 F6 J6 L8 
+end
+HASH: 98CB45210AA7082E437BB1D6CB2C9F82
+   A B C D E F G H J K L M N
+13 . X . . . . . . . O . . .
+12 . X O O . . O O O . O . .
+11 . . X O O O X X O O O . .
+10 . . . X X X . X X O X O .
+ 9 . . . . . . . . O X X O .
+ 8 . . . X . . . . X X O . .
+ 7 . X X . X X X . X O . O .
+ 6 . O O X O O O . X O O . .
+ 5 O O . O . O X X O X X O .
+ 4 X X X O O O O X . O X . .
+ 3 . O O O X X O X . O X . .
+ 2 O X X X . X . X O X . X .
+ 1 . . . . . . . . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 95
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 E6 J7 A2 E3 E4 F7 F6 J6 L8 B13 H12 L9 M10 G7 
+gameHash C37345D83B0891672DF801E16681ACA2
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 1.12868 unrounded 1.12868
+targetWeightByTurn 1 0.538411 unrounded 0.538411
+targetWeightByTurn 2 0 unrounded 0
+targetWeightByTurn 3 0 unrounded 0
+targetWeightByTurn 4 1.3329 unrounded 1.3329
+policyTargetsByTurn 0 unreducedNumVisits 800 L9 25 H12 17 B11 38 C13 1 B13 466 D7 1 M4 1 B10 10 M10 1 F12 0 A7 0 G8 0 E9 0 F1 0 C10 0 F9 0 G2 0 G7 0 A6 0 A11 0 M3 0 
+policyTargetsByTurn 1 unreducedNumVisits 800 G2 138 B11 65 M4 66 H12 223 D7 35 L9 33 A7 16 G7 78 G9 38 C10 6 C9 3 A8 4 M6 1 H6 1 N11 1 L7 0 H9 80 E1 0 A3 0 C5 0 C13 0 H13 0 E8 1 
+policyTargetsByTurn 2 unreducedNumVisits 200 L9 176 M4 17 G7 2 D7 1 A7 1 G2 0 C13 0 
+policyTargetsByTurn 3 unreducedNumVisits 200 M10 148 H9 17 G2 12 B11 7 
+policyTargetsByTurn 4 unreducedNumVisits 800 M4 32 G7 629 A7 4 D7 4 G2 6 C13 2 N1 1 B10 3 M6 4 H8 2 H9 1 N10 0 M8 1 G13 0 N5 0 B1 0 N9 0 C10 0 B11 0 A3 0 A6 0 C5 0 A1 0 
+whiteValueTargetsByTurn 0 0.231153 0.768795 5.22076e-05 -4.55538 -2.86257 
+whiteValueTargetsByTurn 1 0.184574 0.815376 5.01305e-05 -5.44185 -3.15704 
+whiteValueTargetsByTurn 2 0.196019 0.80393 5.08188e-05 -4.01704 - 
+whiteValueTargetsByTurn 3 0.188069 0.811881 5.003e-05 -3.96927 - 
+whiteValueTargetsByTurn 4 0.195029 0.804921 4.92918e-05 -3.62559 -3.20262 
+whiteValueTargetsByTurn 5 1 0 0 8.5 8.5 
+Raw Stats -0.73375 -6.49777 2.04688
+Raw Stats -0.278337 -1.6505 2.21931
+Raw Stats -0.762431 -5.11819 2.02122
+Raw Stats -0.157018 -1.47773 0.852584
+Raw Stats -0.737048 -4.29083 1.9651
+.X.......O...
+.XOO..OOOOO..
+..XOOOXXOOO..
+...XXX.XXOXO.
+........OXXO.
+...X....XXO..
+.XXXXXX.XOOO.
+.OOXOOO.XOO..
+OO.OOOXXOXXO.
+XXXOOOOX.OX..
+.OOOXXOX.OX..
+OXXX.X.XOXXX.
+..........X..
+.X.......O...
+.XOO..OOOOO..
+..XOOOXXOOO..
+...XXX.XXOXO.
+........OXXO.
+...X....XXO..
+.XXXXXX.XOOO.
+.OOXOOO.XOO..
+OO.OOOXXOXXO.
+XXXOOOOX.OX..
+.OOOXXOX.OX..
+OXXX.X.XOXXX.
+..........X..
+0100000001000
+0111001111100
+0011111111100
+0001110111110
+0000000011110
+0001000011100
+0111111011110
+0111111011100
+1101111111110
+1111111101100
+0111111101100
+1111010111110
+0000000000100
+ 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 -1.000 1.000 1.000 0.000 0.000 1.000 1.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 -1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 0.000 -1.000 -1.000 -1.000 0.000 -1.000 -1.000 1.000 -1.000 1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 -1.000 1.000 0.000
+ 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 -1.000 1.000 0.000 0.000
+ 0.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.000 -1.000 1.000 1.000 1.000 0.000
+ 0.000 1.000 1.000 -1.000 1.000 1.000 1.000 0.000 -1.000 1.000 1.000 0.000 0.000
+ 1.000 1.000 0.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 -1.000 1.000 0.000
+ -1.000 -1.000 -1.000 1.000 1.000 1.000 1.000 -1.000 0.000 1.000 -1.000 0.000 0.000
+ 0.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 0.000 1.000 -1.000 0.000 0.000
+ 1.000 -1.000 -1.000 -1.000 0.000 -1.000 0.000 -1.000 1.000 -1.000 -1.000 -1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 6449B52B7D02356D0A237FD249895B10
+   A B C D E F G H J K L M N
+13 . X . . . . . . . O . . .
+12 . X O O . . O O O . O . .
+11 . O X O O O X X O O O . .
+10 . . . X X X . X X O X O .
+ 9 . . . . . . . . O X X O .
+ 8 . X . X . . . . X X O . .
+ 7 O X X . X X X . X O . O .
+ 6 . O O X O O O . X O O . .
+ 5 O O . O . O X X O X X O .
+ 4 X X X O O O O X . O X . .
+ 3 . O O O X X O X . O X . .
+ 2 O X X X . X O X O X . X .
+ 1 . . . . . . X . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 100
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 E6 J7 A2 E3 E4 F7 F6 J6 L8 B13 G2 G1 H12 L9 M10 G7 A7 B8 B11 
+end
+HASH: 16157A431016D17129AC17E34E744E66
+   A B C D E F G H J K L M N
+13 . X . . . . . . . O . . .
+12 . X O O . . O O O . O . .
+11 . O X O O O X X O O O . .
+10 . . X X X X . X X O X O .
+ 9 . . . . . . . . O X X O .
+ 8 . X . X . . . . X X O . .
+ 7 O X X . X X X X X O . O .
+ 6 . O O X O O O O X O O . .
+ 5 O O . O . O X X O X X O .
+ 4 X X X O O O O X . O X O .
+ 3 . O O O X X O X . O X X .
+ 2 O X X X . X O X O X . X .
+ 1 . . . . . . X . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 105
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 E6 J7 A2 E3 E4 F7 F6 J6 L8 B13 G2 G1 H12 L9 M10 G7 A7 B8 B11 C10 M4 M3 H6 H7 
+gameHash 62E46FAB953EB2802AE5783C324A3B86
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 0.635982 unrounded 0.635982
+targetWeightByTurn 1 0.973688 unrounded 0.973688
+targetWeightByTurn 2 1.11876 unrounded 1.11876
+targetWeightByTurn 3 0.962756 unrounded 0.962756
+targetWeightByTurn 4 1.30881 unrounded 1.30881
+policyTargetsByTurn 0 unreducedNumVisits 800 C10 722 A11 1 F8 0 C5 0 B10 0 M6 0 D7 0 M4 0 B1 0 J1 0 E9 0 N5 0 M13 0 A1 0 
+policyTargetsByTurn 1 unreducedNumVisits 800 M4 556 B10 34 A12 41 A10 14 H6 14 H9 9 C13 19 A11 17 D7 18 F1 8 B1 5 N12 3 A3 3 H1 6 E1 4 A8 2 M3 1 C9 1 N2 0 M6 0 G10 0 E2 0 B9 0 
+policyTargetsByTurn 2 unreducedNumVisits 800 M3 689 C13 9 D7 6 A8 7 N7 1 A3 2 D13 1 C9 0 N3 2 B1 0 G10 0 B10 0 H6 0 N2 0 M6 2 M8 1 
+policyTargetsByTurn 3 unreducedNumVisits 800 C13 135 H6 299 D7 72 J1 12 A3 103 B1 69 A8 8 B10 7 H9 7 H1 7 N3 7 A12 10 L7 3 E2 2 E1 5 C5 3 F1 4 N4 2 A11 6 G10 1 A10 0 B9 0 A6 0 A9 0 
+policyTargetsByTurn 4 unreducedNumVisits 800 H7 576 N4 42 C13 37 A8 11 D7 23 H8 23 M1 2 J1 2 N9 1 F1 2 B1 6 N3 2 B10 1 N6 1 H9 2 A1 0 D13 0 J4 1 
+whiteValueTargetsByTurn 0 0.138705 0.86125 4.54937e-05 -3.85265 -4.30998 
+whiteValueTargetsByTurn 1 0.118534 0.881421 4.46942e-05 -4.26202 -4.45789 
+whiteValueTargetsByTurn 2 0.14367 0.856283 4.74399e-05 -3.74843 -4.21693 
+whiteValueTargetsByTurn 3 0.122562 0.877392 4.55186e-05 -4.00443 -4.08223 
+whiteValueTargetsByTurn 4 0.137923 0.86203 4.69673e-05 -3.51257 -3.83293 
+whiteValueTargetsByTurn 5 1 0 0 9.5 9.5 
+Raw Stats -0.484907 -3.42609 0.24693
+Raw Stats -0.709861 -3.92718 2.42136
+Raw Stats -0.878026 -5.45013 1.40852
+Raw Stats -0.808526 -4.56621 2.73682
+Raw Stats -0.875416 -5.23932 1.92964
+.X.......O...
+.XOO..OOOOO..
+.OXOOOXXOOO..
+..XXXX.XXOXO.
+........OXXO.
+.X.X....XXO..
+OXXXXXXXXOOO.
+OOOXOOOOXOO..
+OO.OOOXXOXXO.
+XXXOOOOX.OXO.
+.OOOXXOX.OXX.
+OXXX.XOXOXXX.
+......X...X..
+.X.......O...
+.XOO..OOOOO..
+.OXOOOXXOOO..
+..XXXX.XXOXO.
+........OXXO.
+.X.X....XXO..
+OXXXXXXXXOOO.
+OOOXOOOOXOO..
+OO.OOOXXOXXO.
+XXXOOOOX.OXO.
+.OOOXXOX.OXX.
+OXXX.XOXOXXX.
+......X...X..
+0100000001000
+0111001111100
+0111111111100
+0011110111110
+0000000011110
+0101000011100
+1111111111110
+1111111111100
+1101111111110
+1111111101110
+0111111101110
+1111011111110
+0000001000100
+ 0.000 -1.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000
+ 0.000 -1.000 1.000 1.000 0.000 0.000 1.000 1.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 1.000 -1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 1.000 1.000 0.000 0.000
+ 0.000 0.000 -1.000 -1.000 -1.000 -1.000 0.000 -1.000 -1.000 1.000 -1.000 1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 -1.000 1.000 0.000
+ 0.000 -1.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 -1.000 1.000 0.000 0.000
+ 1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 1.000 1.000 1.000 0.000
+ 1.000 1.000 1.000 -1.000 1.000 1.000 1.000 1.000 -1.000 1.000 1.000 0.000 0.000
+ 1.000 1.000 0.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 -1.000 1.000 0.000
+ -1.000 -1.000 -1.000 1.000 1.000 1.000 1.000 -1.000 0.000 1.000 -1.000 1.000 0.000
+ 0.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 0.000 1.000 -1.000 -1.000 0.000
+ 1.000 -1.000 -1.000 -1.000 0.000 -1.000 1.000 -1.000 1.000 -1.000 -1.000 -1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 -1.000 0.000 0.000 0.000 -1.000 0.000 0.000
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 232A49B9B7EA3BA512778FE656790BEE
+   A B C D E F G H J K L M N
+13 . X O . . . . . . O . . .
+12 . X O O . . O O O . O . .
+11 . O X O O O X X O O O . .
+10 . X X X X X . X X O X O .
+ 9 . . . . . . . . O X X O .
+ 8 . X . X . . . . X X O . .
+ 7 O X X . X X X X X O . O .
+ 6 . O O X O O O O X O O . .
+ 5 O O . O . O X X O X X O .
+ 4 X X X O O O O X . O X O O
+ 3 . O O O X X O X . O X X O
+ 2 O X X X . X O X O X . X X
+ 1 . . . . . . X . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 110
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 E6 J7 A2 E3 E4 F7 F6 J6 L8 B13 G2 G1 H12 L9 M10 G7 A7 B8 B11 C10 C13 B10 M4 M3 H6 H7 N3 N2 N4 
+end
+HASH: 792E32F57D44B7C8B2A799B1C2522730
+   A B C D E F G H J K L M N
+13 . X O . . . . . . O . . .
+12 . X O O . . O O O . O . .
+11 . O X O O O X X O O O . .
+10 . X X X X X . X X O X O .
+ 9 . . . . . . . . O X X O .
+ 8 . X . X . . . . X X O . .
+ 7 O X X X X X X X X O . O .
+ 6 . O O X O O O O X O O . .
+ 5 O O . O . O X X O X X O .
+ 4 X X X O O O O X . O X O O
+ 3 O O O O X X O X . O X X O
+ 2 O X X X . X O X O X . X X
+ 1 X . X . . . X . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 115
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 E6 J7 A2 E3 E4 F7 F6 J6 L8 B13 G2 G1 H12 L9 M10 G7 A7 B8 B11 C10 C13 B10 M4 M3 H6 H7 N3 N2 N4 D7 B1 C1 A3 A1 
+gameHash F660434C9AA7E403FD43C5B95DEEEAE2
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 0 unrounded 0
+targetWeightByTurn 1 0 unrounded 0
+targetWeightByTurn 2 1.07633 unrounded 1.07633
+targetWeightByTurn 3 0.923665 unrounded 0.923665
+targetWeightByTurn 4 0 unrounded 0
+policyTargetsByTurn 0 unreducedNumVisits 200 D7 170 A8 16 B1 10 
+policyTargetsByTurn 1 unreducedNumVisits 200 A3 26 B1 109 C5 41 A8 5 H1 4 H9 1 F1 2 
+policyTargetsByTurn 2 unreducedNumVisits 800 C1 616 A8 68 F1 7 M8 7 E1 5 H1 2 N5 7 E2 2 F12 1 M6 5 L13 0 K1 0 A10 0 N6 1 N9 0 A11 0 E13 0 E9 0 F13 0 A12 0 A3 0 J13 0 
+policyTargetsByTurn 3 unreducedNumVisits 800 A3 551 E1 55 C5 58 H1 22 K1 19 A8 8 F1 7 E2 9 F9 4 A13 4 H9 6 E12 2 A11 4 G10 2 A12 3 F12 1 J4 1 F13 1 pass 0 D1 1 H13 0 
+policyTargetsByTurn 4 unreducedNumVisits 551 A1 445 A8 100 E1 0 F1 0 M8 0 M6 1 N5 0 
+whiteValueTargetsByTurn 0 0.131787 0.868169 4.45618e-05 -2.89153 - 
+whiteValueTargetsByTurn 1 0.122757 0.8772 4.32961e-05 -2.99493 - 
+whiteValueTargetsByTurn 2 0.14503 0.854925 4.51412e-05 -2.69806 -2.88719 
+whiteValueTargetsByTurn 3 0.118898 0.881059 4.2218e-05 -3.08787 -2.94138 
+whiteValueTargetsByTurn 4 0.127865 0.872092 4.29807e-05 -2.68061 - 
+whiteValueTargetsByTurn 5 1 0 0 25.5 25.5 
+Raw Stats -0.861882 -3.37511 1.45891
+Raw Stats -0.708055 -2.63272 2.18741
+Raw Stats -0.763207 -3.99687 1.64074
+Raw Stats -0.77193 -4.55599 1.87608
+Raw Stats -0.866461 -3.62502 1.3125
+.XOOOOOOOOOOO
+.XOOOOOOOOOOO
+.OXOOOXXOOOOO
+.XXXXX.XXOXOO
+........OXXOO
+.X.X....XXOOO
+OXXXXXXXXOOOO
+OOOXOOOOXOOOO
+OO.OOOXXOXXOO
+XXXOOOOX.OXOO
+OOOOXXOX.OXXO
+OXXXXXOXOXXXX
+XXXXXXX...XXX
+.XOOOOOOOOOOO
+.XOOOOOOOOOOO
+.OXOOOXXOOOOO
+.XXXXX.XXOXOO
+........OXXOO
+.X.X....XXOOO
+OXXXXXXXXOOOO
+OOOXOOOOXOOOO
+OO.OOOXXOXXOO
+XXXOOOOX.OXOO
+OOOOXXOX.OXXO
+OXXXXXOXOXXXX
+XXXXXXX...XXX
+0100000000000
+0100000000000
+0110001100000
+0111110110100
+0000000011100
+0101000011000
+1111111110000
+1111111110000
+1101111111100
+1111111101100
+1111111101110
+1111111111111
+1111111000111
+ 0.000 -1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000
+ 0.000 -1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000
+ 0.000 1.000 -1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 1.000 1.000 1.000 1.000
+ 0.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.000 -1.000 -1.000 1.000 -1.000 1.000 1.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 -1.000 1.000 1.000
+ 0.000 -1.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 -1.000 1.000 1.000 1.000
+ 1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 1.000 1.000 1.000 1.000
+ 1.000 1.000 1.000 -1.000 1.000 1.000 1.000 1.000 -1.000 1.000 1.000 1.000 1.000
+ 1.000 1.000 0.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 -1.000 1.000 1.000
+ -1.000 -1.000 -1.000 1.000 1.000 1.000 1.000 -1.000 0.000 1.000 -1.000 1.000 1.000
+ 1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 0.000 1.000 -1.000 -1.000 1.000
+ 1.000 -1.000 -1.000 -1.000 -1.000 -1.000 1.000 -1.000 1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.000 0.000 0.000 -1.000 -1.000 -1.000
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 9C02FCAB416D0625BA8D77C3F9BA36F7
+   A B C D E F G H J K L M N
+13 . X O . . . . . . O . . .
+12 . X O O . . O O O . O . .
+11 O O X O O O X X O O O . .
+10 X X X X X X . X X O X O .
+ 9 . . . . . . . . O X X O .
+ 8 X X . X . . . . X X O . .
+ 7 O X X X X X X X X O . O .
+ 6 O O O X O O O O X O O . .
+ 5 O O O O . O X X O X X O .
+ 4 X X X O O O O X . O X O O
+ 3 . O O O X X O X . O X X O
+ 2 O X X X . X O X O X . X X
+ 1 . O X . . . X . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 120
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 E6 J7 A2 E3 E4 F7 F6 J6 L8 B13 G2 G1 H12 L9 M10 G7 A7 B8 B11 C10 C13 B10 M4 M3 H6 H7 N3 N2 N4 D7 B1 C1 C5 A1 A11 A10 B1 A8 A6 
+end
+HASH: 3CB319BC8BD33265B7EDBB3F5C294B19
+   A B C D E F G H J K L M N
+13 . X O . . . . . . O . . .
+12 . X O O . . O O O . O . .
+11 O O X O O O X X O O O . .
+10 X X X X X X . X X O X O .
+ 9 . . . . . . . . O X X O .
+ 8 X X . X . . . . X X O X .
+ 7 O X X X X X X X X O . O .
+ 6 O O O X O O O O X O O . .
+ 5 O O O O . O X X O X X O .
+ 4 X X X O O O O X . O X O O
+ 3 . O O O X X O X . O X X O
+ 2 O X X X . X O X O X . X X
+ 1 . O X . O X X . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 125
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 E6 J7 A2 E3 E4 F7 F6 J6 L8 B13 G2 G1 H12 L9 M10 G7 A7 B8 B11 C10 C13 B10 M4 M3 H6 H7 N3 N2 N4 D7 B1 C1 C5 A1 A11 A10 B1 A8 A6 A1 E1 F1 B1 M8 
+gameHash 5ED85CB3A35E27232A1D51377A864183
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 0.859224 unrounded 0.859224
+targetWeightByTurn 1 1.35625 unrounded 1.35625
+targetWeightByTurn 2 0.925044 unrounded 0.925044
+targetWeightByTurn 3 0.85948 unrounded 0.85948
+targetWeightByTurn 4 0 unrounded 0
+policyTargetsByTurn 0 unreducedNumVisits 800 A1 642 F12 10 F1 18 N7 2 H1 6 E13 2 J1 2 M8 7 E1 4 B9 1 J4 2 E2 1 J3 1 M6 5 N5 5 N6 4 H9 1 A12 1 F9 0 G9 1 C8 0 G10 0 A9 0 E8 0 L2 0 N8 0 
+policyTargetsByTurn 1 unreducedNumVisits 800 A3 184 H1 173 N1 9 H9 45 E1 550 F1 24 L13 4 J4 4 G10 61 D1 4 M6 2 J3 2 D9 1 E2 11 A12 5 K12 1 N8 1 A13 7 K1 2 
+policyTargetsByTurn 2 unreducedNumVisits 800 F1 716 E2 9 A3 5 N5 1 A9 0 H1 3 N1 0 D1 0 M8 0 B1 0 M6 0 
+policyTargetsByTurn 3 unreducedNumVisits 800 B1 539 A3 54 G8 12 H1 57 K1 8 H9 14 G10 13 E13 2 K12 2 E2 22 J3 2 pass 2 C8 1 A12 6 A13 8 M8 1 B9 1 N8 0 E8 0 H13 0 N10 0 J4 0 J1 0 
+policyTargetsByTurn 4 unreducedNumVisits 539 E2 26 H1 16 M8 219 F12 46 J4 7 M6 41 N5 52 N6 32 E13 4 J1 8 J3 2 N7 2 A12 2 H9 2 N8 3 G10 1 G9 1 
+whiteValueTargetsByTurn 0 0.088195 0.911769 3.5901e-05 -3.32359 -3.50962 
+whiteValueTargetsByTurn 1 0.0717281 0.928239 3.32693e-05 -4.17115 -3.63588 
+whiteValueTargetsByTurn 2 0.0896812 0.910283 3.59939e-05 -3.34505 -3.39071 
+whiteValueTargetsByTurn 3 0.0695064 0.930459 3.44638e-05 -4.48298 -3.19117 
+whiteValueTargetsByTurn 4 0.077227 0.922737 3.58934e-05 -3.36886 - 
+whiteValueTargetsByTurn 5 1 0 0 16.5 16.5 
+Raw Stats -0.905899 -4.47944 1.89014
+Raw Stats -0.687306 -1.67685 1.17804
+Raw Stats -0.601121 -3.51768 1.09384
+Raw Stats -0.623574 -2.16404 1.62124
+Raw Stats -0.786838 -3.93835 3.05086
+.XOOOOOOOO...
+.XOOOOOOOOO..
+OOXOOOXXOOO..
+XXXXXX.XXOXO.
+........OXXO.
+XX.X....XXOX.
+OXXXXXXXXOOO.
+OOOXOOOOXOO..
+OOOOOOXXOXXO.
+XXXOOOOX.OXOO
+.OOOXXOX.OXXO
+OXXX.XOXOXXXX
+OOX.OXX...XXX
+.XOOOOOOOO...
+.XOOOOOOOOO..
+OOXOOOXXOOO..
+XXXXXX.XXOXO.
+........OXXO.
+XX.X....XXOX.
+OXXXXXXXXOOO.
+OOOXOOOOXOO..
+OOOOOOXXOXXO.
+XXXOOOOX.OXOO
+.OOOXXOX.OXXO
+OXXX.XOXOXXXX
+OOX.OXX...XXX
+0111111111000
+0111111111100
+1111111111100
+1111110111110
+0000000011110
+1101000011110
+1111111111110
+1111111111100
+1111111111110
+1111111101111
+0111111101111
+1111011111111
+1110111000111
+ 0.000 -1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 0.000 0.000 0.000
+ 0.000 -1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 0.000 0.000
+ 1.000 1.000 -1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 1.000 1.000 0.000 0.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.000 -1.000 -1.000 1.000 -1.000 1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 -1.000 1.000 0.000
+ -1.000 -1.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 -1.000 1.000 -1.000 0.000
+ 1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 1.000 1.000 1.000 0.000
+ 1.000 1.000 1.000 -1.000 1.000 1.000 1.000 1.000 -1.000 1.000 1.000 0.000 0.000
+ 1.000 1.000 1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 -1.000 1.000 0.000
+ -1.000 -1.000 -1.000 1.000 1.000 1.000 1.000 -1.000 0.000 1.000 -1.000 1.000 1.000
+ 0.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 0.000 1.000 -1.000 -1.000 1.000
+ 1.000 -1.000 -1.000 -1.000 0.000 -1.000 1.000 -1.000 1.000 -1.000 -1.000 -1.000 -1.000
+ 1.000 1.000 -1.000 0.000 1.000 -1.000 -1.000 0.000 0.000 0.000 -1.000 -1.000 -1.000
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 7815803071F1D061FC832E2239B0D096
+   A B C D E F G H J K L M N
+13 . X O . . . . . . O . . .
+12 O X O O . . O O O . O . .
+11 O O X O O O X X O O O . .
+10 X X X X X X . X X O X O .
+ 9 . . . . . . . . O X X O .
+ 8 X X . X . . . . X X O . .
+ 7 O X X X X X X X X O . O .
+ 6 O O O X O O O O X O O . .
+ 5 O O O O . O X X O X X O .
+ 4 O . . O O O O X . O X O O
+ 3 . O O O X X O X . O X X O
+ 2 O X X X . X O X O X . X X
+ 1 X . X . O X X . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 130
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 E6 J7 A2 E3 E4 F7 F6 J6 L8 B13 G2 G1 H12 L9 M10 G7 A7 B8 B11 C10 C13 B10 M4 M3 H6 H7 N3 N2 N4 D7 B1 C1 C5 A1 A11 A10 B1 A8 A6 A1 E1 A3 A2 F1 B1 A3 A4 A1 A12 
+end
+HASH: 410E06622EBA756E865026A2ECD16985
+   A B C D E F G H J K L M N
+13 X X O . . O . . . O . . .
+12 . X O O . X O O O . O . .
+11 . . X O O O X X O O O . .
+10 X X X X X X . X X O X O .
+ 9 . . . . . . . . O X X O .
+ 8 X X . X . . . . X X O . .
+ 7 O X X X X X X X X O . O .
+ 6 O O O X O O O O X O O . .
+ 5 O O O O . O X X O X X O .
+ 4 O . . O O O O X . O X O O
+ 3 . O O O X X O X . O X X O
+ 2 O X X X . X O X O X . X X
+ 1 X . X . O X X . . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 135
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 E6 J7 A2 E3 E4 F7 F6 J6 L8 B13 G2 G1 H12 L9 M10 G7 A7 B8 B11 C10 C13 B10 M4 M3 H6 H7 N3 N2 N4 D7 B1 C1 C5 A1 A11 A10 B1 A8 A6 A1 E1 A3 A2 F1 B1 A3 A4 A1 A12 A13 B1 F12 F13 A1 
+gameHash B370A6F0E76A8EB25F890E72CB712589
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 0 unrounded 0
+targetWeightByTurn 1 0 unrounded 0
+targetWeightByTurn 2 1.3339 unrounded 1.3339
+targetWeightByTurn 3 0.666099 unrounded 0.666099
+targetWeightByTurn 4 0 unrounded 0
+policyTargetsByTurn 0 unreducedNumVisits 200 A13 196 A3 2 M6 0 
+policyTargetsByTurn 1 unreducedNumVisits 200 B1 167 A3 12 H1 12 H9 3 B11 1 A12 1 G10 1 
+policyTargetsByTurn 2 unreducedNumVisits 800 E2 13 H1 11 J4 10 N6 60 M8 71 E13 10 H9 4 A9 3 F12 273 J1 7 M6 51 N5 10 G9 4 C8 3 D1 0 J3 3 B4 1 G10 3 D9 2 L2 2 N7 2 N13 1 K1 2 A11 2 N8 2 E9 1 M11 1 B11 1 H8 2 B9 1 F13 3 E12 2 F8 1 pass 1 F9 1 C9 1 E8 1 G8 1 M13 0 N9 0 M1 1 
+policyTargetsByTurn 3 unreducedNumVisits 800 F13 363 E12 238 E13 114 B4 8 K12 3 H1 10 F9 1 H9 5 B11 2 E2 9 A3 0 K1 0 M1 0 H8 0 D1 0 G10 1 
+policyTargetsByTurn 4 unreducedNumVisits 363 A1 341 E13 5 E2 3 H9 3 H1 3 J4 1 M8 2 
+whiteValueTargetsByTurn 0 0.0827521 0.917212 3.58096e-05 -3.0407 - 
+whiteValueTargetsByTurn 1 0.0803501 0.919614 3.58839e-05 -3.06629 - 
+whiteValueTargetsByTurn 2 0.0944578 0.905504 3.79744e-05 -2.87528 -2.84635 
+whiteValueTargetsByTurn 3 0.0731952 0.926771 3.35409e-05 -3.78879 -3.19229 
+whiteValueTargetsByTurn 4 0.0761985 0.923767 3.44501e-05 -3.02263 - 
+whiteValueTargetsByTurn 5 1 0 0 24.5 24.5 
+Raw Stats -0.908152 -4.91192 1.03472
+Raw Stats -0.718564 -1.75142 1.46025
+Raw Stats -0.854762 -2.994 2.9794
+Raw Stats -0.799808 -2.52077 1.32645
+Raw Stats -0.87015 -3.09462 1.48179
+XXO..OOOOOOOO
+XXOO.XOOOOOOO
+XXXOOOXXOOOOO
+XXXXXX.XXOXOO
+........OXXOO
+XX.X....XXOOO
+OXXXXXXXXOOOO
+OOOXOOOOXOOOO
+OOOOOOXXOXXOO
+OOOOOOOX.OXOO
+OOOOXXOX.OXXO
+OXXX.XOXOXXXX
+XXX.OXX...XXX
+XXO..OOOOOOOO
+XXOO.XOOOOOOO
+XXXOOOXXOOOOO
+XXXXXX.XXOXOO
+........OXXOO
+XX.X....XXOOO
+OXXXXXXXXOOOO
+OOOXOOOOXOOOO
+OOOOOOXXOXXOO
+OOOOOOOX.OXOO
+OOOOXXOX.OXXO
+OXXX.XOXOXXXX
+XXX.OXX...XXX
+1110011111111
+1111011111111
+1111111111111
+1111110111111
+0000000011111
+1101000011111
+1111111111111
+1111111111111
+1111111111111
+1111111101111
+1111111101111
+1111011111111
+1110111000111
+ -1.000 -1.000 1.000 0.000 0.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000
+ -1.000 -1.000 1.000 1.000 0.000 -1.000 1.000 1.000 1.000 1.000 1.000 1.000 1.000
+ -1.000 -1.000 -1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 1.000 1.000 1.000 1.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.000 -1.000 -1.000 1.000 -1.000 1.000 1.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 -1.000 1.000 1.000
+ -1.000 -1.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 -1.000 1.000 1.000 1.000
+ 1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 1.000 1.000 1.000 1.000
+ 1.000 1.000 1.000 -1.000 1.000 1.000 1.000 1.000 -1.000 1.000 1.000 1.000 1.000
+ 1.000 1.000 1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 -1.000 1.000 1.000
+ 1.000 1.000 1.000 1.000 1.000 1.000 1.000 -1.000 0.000 1.000 -1.000 1.000 1.000
+ 1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 0.000 1.000 -1.000 -1.000 1.000
+ 1.000 -1.000 -1.000 -1.000 0.000 -1.000 1.000 -1.000 1.000 -1.000 -1.000 -1.000 -1.000
+ -1.000 -1.000 -1.000 0.000 1.000 -1.000 -1.000 0.000 0.000 0.000 -1.000 -1.000 -1.000
+bName test
+wName test
+bIdx 0
+wIdx 0
+startPla X
+start
+HASH: 7E01ED607499C46829152518C563B135
+   A B C D E F G H J K L M N
+13 X X O . . O . . . O . . .
+12 . X O O . X O O O . O . .
+11 . . X O O O X X O O O . .
+10 X X X X X X . X X O X O .
+ 9 . . . . . . . . O X X O .
+ 8 X X . X . . . . X X O . .
+ 7 O X X X X X X X X O . O .
+ 6 O O O X O O O O X O O . .
+ 5 O O O O . O X X O X X O .
+ 4 O . . O O O O X . O X O O
+ 3 O O O O X X O X . O X X O
+ 2 O X X X . X O X O X . X X
+ 1 . O X X . X X X . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 140
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 E6 J7 A2 E3 E4 F7 F6 J6 L8 B13 G2 G1 H12 L9 M10 G7 A7 B8 B11 C10 C13 B10 M4 M3 H6 H7 N3 N2 N4 D7 B1 C1 C5 A1 A11 A10 B1 A8 A6 A1 E1 A3 A2 F1 B1 A3 A4 A1 A12 A13 B1 F12 F13 A1 E2 D1 B1 H1 A3 
+end
+HASH: D7300FADFE0E61031F033507895E3E5B
+   A B C D E F G H J K L M N
+13 X X O . . O . . . O . . .
+12 . X O O . X O O O . O . .
+11 . . X O O O X X O O O . .
+10 X X X X X X . X X O X O .
+ 9 . . . . . . . . O X X O .
+ 8 X X . X . . . . X X O X .
+ 7 O X X X X X X X X O . O .
+ 6 O O O X O O O O X O O . .
+ 5 O O O O . O X X O X X O .
+ 4 O . . O O O O X . O X O O
+ 3 O O O O X X O X . O X X O
+ 2 O X X X . X O X O X . X X
+ 1 . O X X X X X X . . X . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 145
+Rules koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla White
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves D10 K4 L3 K10 L4 D4 K11 D11 C11 E11 E10 F11 F10 J11 H11 L11 G11 C6 K12 J12 J10 J9 H10 L12 K9 K13 L10 K11 K8 K3 K5 J5 F3 L2 M2 J2 L1 D3 H3 K7 L7 K6 L5 G4 H4 G3 H2 L6 J8 M7 G5 M5 K2 M9 B7 B6 C7 D7 D8 G12 D6 D5 E7 C12 B12 D12 B4 B5 A4 A5 C2 B3 D2 F4 F2 F5 C4 C3 B2 G6 H5 E6 J7 A2 E3 E4 F7 F6 J6 L8 B13 G2 G1 H12 L9 M10 G7 A7 B8 B11 C10 C13 B10 M4 M3 H6 H7 N3 N2 N4 D7 B1 C1 C5 A1 A11 A10 B1 A8 A6 A1 E1 A3 A2 F1 B1 A3 A4 A1 A12 A13 B1 F12 F13 A1 E2 D1 B1 H1 A3 A1 E2 E1 B1 M8 
+gameHash 19C02BF96B4A1A35341B392DA3221B3B
+hitTurnLimit 1
+numExtraBlack 0
+mode 0
+beganInEncorePhase 0
+usedInitialPosition 0
+hasFullData 1
+targetWeightByTurn 0 0.720831 unrounded 0.720831
+targetWeightByTurn 1 1.27634 unrounded 1.27634
+targetWeightByTurn 2 1.14341 unrounded 1.14341
+targetWeightByTurn 3 0.665483 unrounded 0.665483
+targetWeightByTurn 4 0.193933 unrounded 0.193933
+policyTargetsByTurn 0 unreducedNumVisits 800 A1 701 J4 3 E2 0 E13 8 N7 0 M8 6 F8 0 M6 6 J3 0 H13 0 G9 0 H9 0 N5 1 D13 1 N6 1 L2 0 A12 0 G10 0 
+policyTargetsByTurn 1 unreducedNumVisits 800 E2 434 pass 9 H9 19 M6 6 E12 5 G10 19 B11 22 E13 4 N9 3 B4 4 A12 18 C8 3 N6 2 E1 17 K1 4 E8 2 M8 2 K12 2 J3 2 N7 2 G8 1 A11 1 J1 1 M11 1 M12 1 A9 1 G9 4 G13 1 L7 1 L13 1 N10 1 H8 1 J13 1 H13 1 N11 1 J4 1 N8 1 M13 1 N12 1 F9 0 D13 0 N13 0 N1 0 F8 0 N5 0 M1 0 C9 0 B9 0 
+policyTargetsByTurn 2 unreducedNumVisits 800 E1 636 H9 3 F8 2 J4 1 J1 1 D13 3 G10 1 M8 2 J13 0 E13 1 N5 2 B1 0 M6 2 J3 0 B11 0 G13 4 B4 0 N6 1 C4 0 G9 0 L2 0 E12 0 E8 0 M1 0 N7 0 A11 0 K1 0 C8 0 
+policyTargetsByTurn 3 unreducedNumVisits 800 B1 657 G8 6 G10 17 B11 20 A11 2 H9 8 M12 2 E12 2 J13 2 N10 1 pass 1 M6 1 A12 6 E13 0 G9 1 N12 0 H13 0 H8 0 
+policyTargetsByTurn 4 unreducedNumVisits 657 J4 4 H9 2 M8 366 E13 58 N5 71 G10 2 M6 36 N6 10 D13 1 J1 1 J3 0 N7 0 E12 3 G9 1 G13 1 N8 0 B11 0 K1 0 E2 0 H8 0 L2 0 C8 0 A11 0 B4 0 M11 0 C4 0 F8 0 B9 0 C9 0 
+whiteValueTargetsByTurn 0 0.15511 0.844847 4.22512e-05 -2.35059 -3.44049 
+whiteValueTargetsByTurn 1 0.117007 0.882955 3.78923e-05 -2.75029 -3.21195 
+whiteValueTargetsByTurn 2 0.166516 0.833441 4.22603e-05 -2.29334 -2.5 
+whiteValueTargetsByTurn 3 0.129687 0.870273 3.93045e-05 -2.61929 -2.5 
+whiteValueTargetsByTurn 4 0.138529 0.861431 4.04824e-05 -2.51556 -2.5 
+whiteValueTargetsByTurn 5 1 0 0 7.5 7.5 
+Raw Stats -0.901406 -3.34333 0.737954
+Raw Stats -0.766629 -1.96539 3.49618
+Raw Stats -0.843194 -2.9107 2.27822
+Raw Stats -0.63563 -1.24376 0.755635
+Raw Stats -0.837941 -2.74008 3.28696
+XXO..OOOOO...
+XXOO.XOOOOO..
+XXXOOOXXOOO..
+XXXXXX.XXOXO.
+........OXXO.
+XX.X....XXOX.
+OXXXXXXXXOOO.
+OOOXOOOOXOO..
+OOOOOOXXOXXO.
+OOOOOOOX.OXOO
+OOOOXXOX.OXXO
+OXXXXXOXOXXXX
+OOXXXXXX..XXX
+XXO..OOOOO...
+XXOO.XOOOOO..
+XXXOOOXXOOO..
+XXXXXX.XXOXO.
+........OXXO.
+XX.X....XXOX.
+OXXXXXXXXOOO.
+OOOXOOOOXOO..
+OOOOOOXXOXXO.
+OOOOOOOX.OXOO
+OOOOXXOX.OXXO
+OXXXXXOXOXXXX
+OOXXXXXX..XXX
+1110011111000
+1111011111100
+1111111111100
+1111110111110
+0000000011110
+1101000011110
+1111111111110
+1111111111100
+1111111111110
+1111111101111
+1111111101111
+1111111111111
+1111111100111
+ -1.000 -1.000 1.000 0.000 0.000 1.000 1.000 1.000 1.000 1.000 0.000 0.000 0.000
+ -1.000 -1.000 1.000 1.000 0.000 -1.000 1.000 1.000 1.000 1.000 1.000 0.000 0.000
+ -1.000 -1.000 -1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 1.000 1.000 0.000 0.000
+ -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.000 -1.000 -1.000 1.000 -1.000 1.000 0.000
+ 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.000 -1.000 -1.000 1.000 0.000
+ -1.000 -1.000 0.000 -1.000 0.000 0.000 0.000 0.000 -1.000 -1.000 1.000 -1.000 0.000
+ 1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 1.000 1.000 1.000 0.000
+ 1.000 1.000 1.000 -1.000 1.000 1.000 1.000 1.000 -1.000 1.000 1.000 0.000 0.000
+ 1.000 1.000 1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 -1.000 1.000 0.000
+ 1.000 1.000 1.000 1.000 1.000 1.000 1.000 -1.000 0.000 1.000 -1.000 1.000 1.000
+ 1.000 1.000 1.000 1.000 -1.000 -1.000 1.000 -1.000 0.000 1.000 -1.000 -1.000 1.000
+ 1.000 -1.000 -1.000 -1.000 -1.000 -1.000 1.000 -1.000 1.000 -1.000 -1.000 -1.000 -1.000
+ 1.000 1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.000 0.000 -1.000 -1.000 -1.000
+: GPU 0 finishing, processed 47772 rows 47772 batches
