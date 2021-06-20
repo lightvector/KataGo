@@ -1563,7 +1563,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   const double genmoveWideRootNoise = initialParams.wideRootNoise;
   const double analysisWideRootNoise =
-    cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : 0.05;
+    cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE;
   const bool analysisAntiMirror = initialParams.antiMirror;
   const bool genmoveAntiMirror =
     cfg.contains("genmoveAntiMirror") ? cfg.getBool("genmoveAntiMirror") : cfg.contains("antiMirror") ? cfg.getBool("antiMirror") : true;
