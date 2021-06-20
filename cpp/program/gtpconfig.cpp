@@ -28,12 +28,11 @@ logToStderr = false
 # Default is SIDETOMOVE, which is what tools that use LZ probably also expect
 # reportAnalysisWinratesAs = SIDETOMOVE
 
-# Uncomment and and set to a positive value to make KataGo explore the top move(s) less deeply and accurately,
+# Larger values will make KataGo explore the top move(s) less deeply and accurately,
 # but explore and give evaluations to a greater variety of moves, for analysis (does NOT affect play).
-# A value like 0.03 or 0.06 will give various mildly but still noticeably wider searches.
+# Defaults to 0.05.
 # An extreme value like 1 will distribute many playouts across every move on the board, even very bad moves.
-# analysisWideRootNoise = 0.0
-
+# analysisWideRootNoise = 0.05
 
 # Default rules------------------------------------------------------------------------------------
 # See https://lightvector.github.io/KataGo/rules.html for a description of the rules.
@@ -101,6 +100,12 @@ resignConsecTurns = 3
 # and also to improve opening diversity versus some particular other bots that like to play it all the time.
 # avoidMYTDaggerHack = false
 
+# Have KataGo mildly prefer to avoid playing the same joseki in every corner of the board.
+# Uncomment to set to a specific value. Otherwise, defaults to 0 in even games, and to 0.005 in handicap games.
+# See also the Avoid SGF mechanism at the bottom of this config.
+# avoidRepeatedPatternUtility = 0.0
+
+
 # Search limits-----------------------------------------------------------------------------------
 
 # For all of "maxVisits", "maxPlayouts", "maxTime", search will still try to follow GTP time controls and may make a move
@@ -153,6 +158,43 @@ $$MULTIPLE_GPUS
 
 # How big to make the mutex pool for search synchronization
 # mutexPoolSize = 16384
+
+
+# Avoid SGF Patterns ------------------------------------------------------------------------------
+# The parameters in this section provide a powerful way to customize KataGo to avoid moves that follow specific patterns
+# based on a set of provided SGF files loaded upon startup. Uncomment them to use this feature.
+# Additionally, if the SGF file contains the string %SKIP% in a comment on a move, that move will be ignored for this purpose.
+
+# Load sgf files from this directory when the engine is started (ONLY on startup, will not reload unless engine is restarted)
+# avoidSgfPatternDirs = path/to/directory/with/sgfs/
+
+# Penalize this much utility per matching move.
+# Set this negative if you instead want to make KataGo favor the SGF patterns instead of penalizing it!
+# This number does not need to be large, even 0.001 will make a difference. Too-large values may lead to bad play.
+# avoidSgfPatternUtility = 0.001
+
+# Optional - load only the newest this many files
+# avoidSgfPatternMaxFiles = 20
+
+# Optional - Penalty is multiplied by this per each older SGF file, so that old sgf files matter less than newer ones.
+# avoidSgfPatternLambda = 0.90
+
+# Optional - pay attention only to moves that were made by players with this name.
+# For example you can set it to the name that your bot's past games will show up as in the SGF, so that the bot will only avoid repeating
+# moves that itself made in past games, not the moves that its opponents made.
+# avoidSgfPatternAllowedNames = my-ogs-bot-name1,my-ogs-bot-name2
+
+# Optional - Ignore any moves in SGF files that occurred before this turn number.
+# avoidSgfPatternMinTurnNumber = 0
+
+# For more avoid patterns:
+# You can also specify a second set of parameters, and a third, fourth, etc by numbering 2,3,4,...
+# avoidSgf2PatternDirs = ...
+# avoidSgf2PatternUtility = ...
+# avoidSgf2PatternMaxFiles = ...
+# avoidSgf2PatternLambda = ...
+# avoidSgf2PatternAllowedNames = ...
+# avoidSgf2PatternMinTurnNumber = ...
 
 )%%";
 

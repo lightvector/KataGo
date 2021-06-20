@@ -161,6 +161,13 @@ static double initialBlackAdvantage(const BoardHistory& hist) {
   return stoneValue * extraBlackStones + (7.0 - hist.rules.komi - whiteHandicapBonus);
 }
 
+static double getBoardSizeScaling(const Board& board) {
+  return pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.75);
+}
+static double getPointsThresholdForHandicapGame(double boardSizeScaling) {
+  return std::max(4.0 / boardSizeScaling, 2.0);
+}
+
 static bool noWhiteStonesOnBoard(const Board& board) {
   for(int y = 0; y < board.y_size; y++) {
     for(int x = 0; x < board.x_size; x++) {
@@ -183,8 +190,8 @@ static void updateDynamicPDAHelper(
     desiredDynamicPDAForWhite = 0.0;
   }
   else {
-    double boardSizeScaling = pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.75);
-    double pdaScalingStartPoints = std::max(4.0 / boardSizeScaling, 2.0);
+    double boardSizeScaling = getBoardSizeScaling(board);
+    double pdaScalingStartPoints = getPointsThresholdForHandicapGame(boardSizeScaling);
     double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
     Player disadvantagedPla = initialBlackAdvantageInPoints >= 0 ? P_WHITE : P_BLACK;
     double initialAdvantageInPoints = abs(initialBlackAdvantageInPoints);
@@ -307,6 +314,9 @@ struct GTPEngine {
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead;
   double staticPlayoutDoublingAdvantage;
   bool staticPDATakesPrecedence;
+  double normalAvoidRepeatedPatternUtility;
+  double handicapAvoidRepeatedPatternUtility;
+
   double genmoveWideRootNoise;
   double analysisWideRootNoise;
   bool genmoveAntiMirror;
@@ -342,6 +352,7 @@ struct GTPEngine {
     const string& modelFile, SearchParams initialParams, Rules initialRules,
     bool assumeMultiBlackHandicap, bool prevtEncore,
     double dynamicPDACapPerOppLead, double staticPDA, bool staticPDAPrecedence,
+    double normAvoidRepeatedPatternUtility, double hcapAvoidRepeatedPatternUtility,
     bool avoidDagger,
     double genmoveWRN, double analysisWRN,
     bool genmoveAntiMir, bool analysisAntiMir,
@@ -355,6 +366,8 @@ struct GTPEngine {
      dynamicPlayoutDoublingAdvantageCapPerOppLead(dynamicPDACapPerOppLead),
      staticPlayoutDoublingAdvantage(staticPDA),
      staticPDATakesPrecedence(staticPDAPrecedence),
+     normalAvoidRepeatedPatternUtility(normAvoidRepeatedPatternUtility),
+     handicapAvoidRepeatedPatternUtility(hcapAvoidRepeatedPatternUtility),
      genmoveWideRootNoise(genmoveWRN),
      analysisWideRootNoise(analysisWRN),
      genmoveAntiMirror(genmoveAntiMir),
@@ -825,6 +838,19 @@ struct GTPEngine {
     if(params.antiMirror != genmoveAntiMirror) {
       params.antiMirror = genmoveAntiMirror;
       bot->setParams(params);
+    }
+
+    {
+      double avoidRepeatedPatternUtility = normalAvoidRepeatedPatternUtility;
+      if(!args.analyzing) {
+        double initialOppAdvantage = initialBlackAdvantage(bot->getRootHist()) * (pla == P_WHITE ? 1 : -1);
+        if(initialOppAdvantage > getPointsThresholdForHandicapGame(getBoardSizeScaling(bot->getRootBoard())))
+          avoidRepeatedPatternUtility = handicapAvoidRepeatedPatternUtility;
+      }
+      if(params.avoidRepeatedPatternUtility != avoidRepeatedPatternUtility) {
+        params.avoidRepeatedPatternUtility = avoidRepeatedPatternUtility;
+        bot->setParams(params);
+      }
     }
 
     //Play faster when winning
@@ -1517,6 +1543,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   double staticPlayoutDoublingAdvantage = initialParams.playoutDoublingAdvantage;
   const bool staticPDATakesPrecedence = cfg.contains("playoutDoublingAdvantage") && !cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead");
   const bool avoidMYTDaggerHack = cfg.contains("avoidMYTDaggerHack") ? cfg.getBool("avoidMYTDaggerHack") : false;
+  const double normalAvoidRepeatedPatternUtility = initialParams.avoidRepeatedPatternUtility;
+  const double handicapAvoidRepeatedPatternUtility = (cfg.contains("avoidRepeatedPatternUtility") || cfg.contains("avoidRepeatedPatternUtility0")) ?
+    initialParams.avoidRepeatedPatternUtility : 0.005;
 
   const int defaultBoardXSize =
     cfg.contains("defaultBoardXSize") ? cfg.getInt("defaultBoardXSize",2,Board::MAX_LEN) :
@@ -1534,7 +1563,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   const double genmoveWideRootNoise = initialParams.wideRootNoise;
   const double analysisWideRootNoise =
-    cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : genmoveWideRootNoise;
+    cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : 0.05;
   const bool analysisAntiMirror = initialParams.antiMirror;
   const bool genmoveAntiMirror =
     cfg.contains("genmoveAntiMirror") ? cfg.getBool("genmoveAntiMirror") : cfg.contains("antiMirror") ? cfg.getBool("antiMirror") : true;
@@ -1553,6 +1582,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     assumeMultipleStartingBlackMovesAreHandicap,preventEncore,
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
     staticPlayoutDoublingAdvantage,staticPDATakesPrecedence,
+    normalAvoidRepeatedPatternUtility, handicapAvoidRepeatedPatternUtility,
     avoidMYTDaggerHack,
     genmoveWideRootNoise,analysisWideRootNoise,
     genmoveAntiMirror,analysisAntiMirror,

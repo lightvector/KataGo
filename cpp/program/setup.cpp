@@ -559,7 +559,7 @@ vector<SearchParams> Setup::loadParams(
     params.avoidMYTDaggerHackPla = C_EMPTY;
     if(cfg.contains("wideRootNoise"+idxStr)) params.wideRootNoise = cfg.getDouble("wideRootNoise"+idxStr, 0.0, 5.0);
     else if(cfg.contains("wideRootNoise"))   params.wideRootNoise = cfg.getDouble("wideRootNoise", 0.0, 5.0);
-    else                                     params.wideRootNoise = 0.0;
+    else                                     params.wideRootNoise = (setupFor == SETUP_FOR_ANALYSIS ? 0.05 : 0.00);
 
     if(cfg.contains("playoutDoublingAdvantage"+idxStr)) params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage"+idxStr,-3.0,3.0);
     else if(cfg.contains("playoutDoublingAdvantage"))   params.playoutDoublingAdvantage = cfg.getDouble("playoutDoublingAdvantage",-3.0,3.0);
