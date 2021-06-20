@@ -1079,7 +1079,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
     std::map<int,int> bStoneDistribution;
     std::map<int,int> wStoneDistribution;
     std::map<string,int> bSizeDistribution;
-    for(int i = 0; i<1000; i++) {
+    for(int i = 0; i<400; i++) {
       string seed = name + Global::int64ToString(i);
       FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, startPosSample, logger, shouldStop, nullptr, nullptr, nullptr);
       komiDistribution[data->startHist.rules.komi] += 1;
