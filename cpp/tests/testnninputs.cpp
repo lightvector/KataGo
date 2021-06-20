@@ -1303,5 +1303,6 @@ xxxxxxxxx
 
 
 )%%";
+  cout << out.str() << endl;
   expect(name,out,expected);
 }
