@@ -16,51 +16,51 @@
 
 = 
 
-= pass
+= A5
 
-= MoveNum: 6 HASH: FA804294DA0212079F6C04393DD0BE70
+= MoveNum: 6 HASH: A34FA45499EDB4C42712B44C7C684295
    A B C D E F G
  7 . . . O X X .
  6 . O . O O X .
- 5 . X O O X . .
+ 5 O3. O O X . .
  4 . O O O1X . .
  3 O . O X X O X
  2 O O X X . X .
  1 X X X . . . .
 Next player: Black
 Rules: {"friendlyPassOk":true,"hasButton":false,"ko":"SIMPLE","komi":5.0,"scoring":"AREA","suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}
-B stones captured: 1
+B stones captured: 2
 W stones captured: 0
 
-= D7 E7 F7 B6 D6 E6 F6 C5 D5 E5 B4 C4 D4 E4 A3 C3 D3 E3 G3 A2 B2 C2 D2 F2 A1 B1 C1
+= D7 E7 F7 B6 D6 E6 F6 A5 C5 D5 E5 B4 C4 D4 E4 A3 C3 D3 E3 G3 A2 B2 C2 D2 F2 A1 B1 C1
 
-= B5 F3
+= F3
 
 = 0
 
-= pass
+= F4
 
 = 
 
 = 
 
-= MoveNum: 7 HASH: FA804294DA0212079F6C04393DD0BE70
+= MoveNum: 7 HASH: A34FA45499EDB4C42712B44C7C684295
    A B C D E F G
  7 . . . O X X .
  6 . O . O O X .
- 5 . X O O X . .
+ 5 O2. O O X . .
  4 . O O O X . .
  3 O . O X X O X
  2 O O X X . X .
  1 X X X . . . .
 Next player: White
 Rules: {"friendlyPassOk":true,"hasButton":false,"ko":"SIMPLE","komi":5.0,"scoring":"AREA","suicide":false,"tax":"NONE","whiteHandicapBonus":"N"}
-B stones captured: 1
+B stones captured: 2
 W stones captured: 0
 
-= D7 E7 F7 B6 D6 E6 F6 C5 D5 E5 B4 C4 D4 E4 A3 C3 D3 E3 G3 A2 B2 C2 D2 F2 A1 B1 C1
+= D7 E7 F7 B6 D6 E6 F6 A5 C5 D5 E5 B4 C4 D4 E4 A3 C3 D3 E3 G3 A2 B2 C2 D2 F2 A1 B1 C1
 
-= B5 F3
+= F3
 
 = 0
 

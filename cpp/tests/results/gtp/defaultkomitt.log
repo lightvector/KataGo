@@ -49,8 +49,8 @@
  7 . . . . . . . . . . . . . . . . . . .
  6 . . . . . . . . . . . . . . . . . . .
  5 . . . . . . . . . . . . . . . . . . .
- 4 . . . . . . . . . . . . . . . . @ . .
- 3 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . @ . . .
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
@@ -61,21 +61,21 @@ New playouts: 100
 NN rows: 96
 NN batches: 96
 NN avg batch size: 1
-PV: Q17 R4 D3 D17
+PV: Q3 R16 D3 D17
 Tree:
-: T   0.01c W  -0.90c S   0.15c ( -0.0 L  +0.0) N     100  --  Q17 R4 D3 D17
+: T   0.08c W  -0.92c S   0.15c ( -0.1 L  +0.0) N     100  --  Q3 R16 D3 D17
 ---Black(^)---
-Q17 : T   0.96c W  -0.04c S   0.33c ( +0.2 L  +0.3) LCB   -4.97c P  8.89% WF  11.1 PSV      20 N      11  --  Q17 R4 D3 D17
-Q3  : T   0.54c W  -0.36c S   0.26c ( +0.1 L  +0.2) LCB   -6.69c P  9.01% WF  10.0 PSV      10 N      10  --  Q3 R16 D3 D17
+Q3  : T   0.54c W  -0.36c S   0.26c ( +0.1 L  +0.2) LCB   -6.69c P  9.01% WF  10.0 PSV      17 N      10  --  Q3 R16 D3 D17
+Q17 : T   0.80c W  -0.55c S   0.26c ( +0.1 L  +0.2) LCB   -7.68c P  8.89% WF  11.1 PSV      11 N      11  --  Q17 D3 C16 Q3
 C4  : T   0.69c W  -0.65c S   0.14c ( -0.1 L  -0.0) LCB  -11.97c P  8.74% WF  10.0 PSV      10 N      10  --  C4 R16 C16
 D3  : T   1.14c W  -0.12c S   0.32c ( +0.2 L  +0.3) LCB   -9.58c P  8.47% WF  10.1 PSV      10 N      10  --  D3 R16 C16
 C16 : T   0.85c W  -0.50c S   0.19c ( +0.0 L  +0.1) LCB  -10.30c P  8.31% WF  10.1 PSV      10 N      10  --  C16 D3 R16
-R4  : T  -0.92c W  -1.54c S   0.06c ( -0.2 L  +0.0) LCB  -11.37c P  8.99% WF   8.9 PSV       9 N       9  --  R4 R16 D3 D17
-D17 : T  -0.01c W  -1.20c S   0.11c ( -0.1 L  -0.1) LCB  -16.11c P  8.04% WF   8.0 PSV       8 N       8  --  D17 D3 R16
+R4  : T  -0.08c W  -1.13c S   0.06c ( -0.2 L  -0.1) LCB   -9.21c P  8.99% WF   9.0 PSV       9 N       9  --  R4 R16 D3
+D17 : T   0.04c W  -1.20c S   0.11c ( -0.1 L  -0.1) LCB  -16.16c P  8.04% WF   8.0 PSV       8 N       8  --  D17 D3 R16
 R16 : T   0.37c W  -0.64c S   0.22c ( +0.1 L  +0.1) LCB  -13.42c P  7.48% WF   8.0 PSV       8 N       8  --  R16 D3 C16
-Q4  : T  -1.00c W  -1.53c S   0.04c ( -0.2 L  -0.1) LCB  -26.45c P  5.64% WF   5.0 PSV       5 N       5  --  Q4 D3 D17
+Q4  : T  -0.87c W  -1.53c S   0.04c ( -0.2 L  -0.1) LCB  -26.16c P  5.64% WF   5.0 PSV       5 N       5  --  Q4 D3 D17
 D4  : T  -1.12c W  -1.62c S   0.05c ( -0.2 L  -0.0) LCB  -92.12c P  4.46% WF   4.0 PSV       4 N       4  --  D4 R4 D17
 
-: = R4
+: = Q3
 : GPU -1 finishing, processed 96 rows 96 batches
 : All cleaned up, quitting
