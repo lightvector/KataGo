@@ -1409,9 +1409,11 @@ bool Search::getAnalysisJson(
     }
     rootInfo["thisHash"] = Global::uint64ToHexString(thisHash.hash1) + Global::uint64ToHexString(thisHash.hash0);
     rootInfo["symHash"] = Global::uint64ToHexString(symHash.hash1) + Global::uint64ToHexString(symHash.hash0);
+    rootInfo["currentPlayer"] = PlayerIO::playerToStringShort(rootPla);
 
     ret["rootInfo"] = rootInfo;
   }
+
   // Raw policy prior
   if(includePolicy) {
     float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
@@ -1430,6 +1432,7 @@ bool Search::getAnalysisJson(
     policy.push_back(policyProbs[passPos]);
     ret["policy"] = policy;
   }
+
   // Average tree ownership
   if(includeOwnership)
     ret["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, rootNode, ownershipMinWeight);
