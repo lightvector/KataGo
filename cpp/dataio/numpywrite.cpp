@@ -245,6 +245,7 @@ static void throwZipError() {
 ZipFile::ZipFile(const string& fName)
   :fileName(fName),file(NULL)
 {
+  (void)file;
   throwZipError();
 }
 
