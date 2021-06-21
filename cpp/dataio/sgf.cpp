@@ -382,6 +382,8 @@ float Sgf::getKomi() const {
       komi = 7.0f;
     else if(komi == 0)
       komi = 0.0f;
+    else if(komi == 6.5 || komi == 7.5 || komi == 7)
+    {}
     else
       propertyFail("Currently no case implemented for foxwq komi: " + Global::floatToString(komi));
   }
