@@ -666,25 +666,15 @@ void SymmetryHelpers::maskSymmetricDuplicativeLoc(const Board &board, bool *cons
   }
 
   //The way we iterate is to achieve https://senseis.xmp.net/?PlayingTheFirstMoveInTheUpperRightCorner%2FDiscussion
-  //The codes work because of the two facts
-  //A. Under a smyType, mask either one of the two symmetric locations will work
-  //B. The order in symTypes does not matter.
-  //Where A implies that how to traverse the board does not matter.
-  //Mask the off diag transpose first if it is off-diagonal-transpose symmetric.
-  if (symTypes.size() >= 2 && symTypes[0]== SYMMETRY_OFF_DIAG_TRANSPOSE){
-    std::sort(symTypes.begin()+1, symTypes.end());
-  }
-
-  for (int symType: symTypes) {
-    int y = symType == SYMMETRY_OFF_DIAG_TRANSPOSE ? (board.y_size - 1) : 0;
-    while (true) {
-      for(int x = board.x_size-1; x >= 0; x--){
+  
+  for(int x = board.x_size-1; x >= 0; x--)
+  {
+    for(int y = 0; y < board.y_size; y++){
+      for (int symType: symTypes){
         Loc loc = Location::getLoc(x, y, board.x_size);
         Loc symLoc = getSymLoc(x, y, board, symType);
         if (!isSymDupLoc[loc] && loc != symLoc) isSymDupLoc[symLoc] = true;
       }
-      symType == SYMMETRY_OFF_DIAG_TRANSPOSE ?  (y--): (y++);
-      if (symType == SYMMETRY_OFF_DIAG_TRANSPOSE ? (y < 0) : (y >= board.y_size)) break;
     }
   }
 }
