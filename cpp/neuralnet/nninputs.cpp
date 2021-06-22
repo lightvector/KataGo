@@ -641,17 +641,17 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
   return symBoard;
 }
 
-void SymmetryHelpers::markSymmetricDuplicativeLoc(const Board &board, bool *const isSymDupLoc) {
+void SymmetryHelpers::maskSymmetricDuplicativeLoc(const Board &board, bool *const isSymDupLoc) {
   fill(isSymDupLoc, isSymDupLoc + Board::MAX_ARR_SIZE, false);
   vector<int> symTypes;
   symTypes.reserve(NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
 
-  for (int symmetry = 1; symmetry <= NNInputs::NUM_SYMMETRY_COMBINATIONS-1; symmetry++) {
+  for (int symmetry = NNInputs::NUM_SYMMETRY_COMBINATIONS-1; symmetry >=1; symmetry--) {
     bool isBoardSym = true;
 
     for (int y = 0; y < board.y_size; y++) {
       for (int x = 0; x < board.x_size; x++) {
-        auto loc = getSymLoc(x, y, board,symmetry);
+        Loc loc = getSymLoc(x, y, board,symmetry);
         if (board.colors[loc] != board.colors[Location::getLoc(x, y, board.x_size)]) {
           isBoardSym = false;
           break;
@@ -665,14 +665,26 @@ void SymmetryHelpers::markSymmetricDuplicativeLoc(const Board &board, bool *cons
     }
   }
 
+  //The way we iterate is to achieve https://senseis.xmp.net/?PlayingTheFirstMoveInTheUpperRightCorner%2FDiscussion
+  //The codes work because of the two facts
+  //A. Under a smyType, mask either one of the two symmetric locations will work
+  //B. The order in symTypes does not matter.
+  //Where A implies that how to traverse the board does not matter.
+  //Mask the off diag transpose first if it is off-diagonal-transpose symmetric.
+  if (symTypes.size() >= 2 && symTypes[0]== SYMMETRY_OFF_DIAG_TRANSPOSE){
+    std::sort(symTypes.begin()+1, symTypes.end());
+  }
+
   for (int symType: symTypes) {
-    for (int y = 0; y < board.y_size; y++) {
-      for (int x = 0; x < board.x_size; x++) {
-        auto loc = Location::getLoc(x, y, board.x_size);
-        auto symLoc = getSymLoc(x, y, board,symType);
-        if (isSymDupLoc[loc] || loc == symLoc) continue;
-        isSymDupLoc[symLoc] = true;
+    int y = symType == SYMMETRY_OFF_DIAG_TRANSPOSE ? (board.y_size - 1) : 0;
+    while (true) {
+      for(int x = board.x_size-1; x >= 0; x--){
+        Loc loc = Location::getLoc(x, y, board.x_size);
+        Loc symLoc = getSymLoc(x, y, board, symType);
+        if (!isSymDupLoc[loc] && loc != symLoc) isSymDupLoc[symLoc] = true;
       }
+      symType == SYMMETRY_OFF_DIAG_TRANSPOSE ?  (y--): (y++);
+      if (symType == SYMMETRY_OFF_DIAG_TRANSPOSE ? (y < 0) : (y >= board.y_size)) break;
     }
   }
 }
