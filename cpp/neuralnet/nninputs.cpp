@@ -646,9 +646,8 @@ void SymmetryHelpers::maskSymmetricDuplicativeLoc(const Board &board, bool *cons
   vector<int> symTypes;
   symTypes.reserve(NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
 
-  for (int symmetry = NNInputs::NUM_SYMMETRY_COMBINATIONS-1; symmetry >=1; symmetry--) {
+  for (int symmetry = 1; symmetry < NNInputs::NUM_SYMMETRY_COMBINATIONS; symmetry++) {
     bool isBoardSym = true;
-
     for (int y = 0; y < board.y_size; y++) {
       for (int x = 0; x < board.x_size; x++) {
         Loc loc = getSymLoc(x, y, board,symmetry);
@@ -659,14 +658,11 @@ void SymmetryHelpers::maskSymmetricDuplicativeLoc(const Board &board, bool *cons
       }
       if (!isBoardSym) break;
     }
-
-    if (isBoardSym) {
-      symTypes.push_back(symmetry);
-    }
+    if (isBoardSym) symTypes.push_back(symmetry);
   }
 
   //The way we iterate is to achieve https://senseis.xmp.net/?PlayingTheFirstMoveInTheUpperRightCorner%2FDiscussion
-  
+
   for(int x = board.x_size-1; x >= 0; x--)
   {
     for(int y = 0; y < board.y_size; y++){
