@@ -150,7 +150,6 @@ struct NNOutput {
 };
 
 namespace SymmetryHelpers {
-  static constexpr int SYMMETRY_OFF_DIAG_TRANSPOSE = 0x7;
   void copyInputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry);
   void copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry);
 
