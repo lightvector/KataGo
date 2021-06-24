@@ -259,6 +259,8 @@ struct Search {
   std::vector<int> avoidMoveUntilByLocWhite;
 
   //Precomputed values at the root
+  //If the board is symmetric, mask all the equivalent copies at root but leave one.
+  bool isSymDupLoc[Board::MAX_ARR_SIZE];
   Color* rootSafeArea;
   //Used to center for dynamic scorevalue
   double recentScoreCenter;
@@ -507,7 +509,6 @@ private:
   int findTopNPolicy(const SearchNode* node, int n, PolicySortEntry* sortedPolicyBuf) const;
 
   std::shared_ptr<NNOutput>* maybeAddPolicyNoiseAndTemp(SearchThread& thread, bool isRoot, NNOutput* oldNNOutput) const;
-  bool isSymDupLoc[Board::MAX_ARR_SIZE];
   bool isAllowedRootMove(Loc moveLoc) const;
 
   void computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap);

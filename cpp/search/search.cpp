@@ -1276,7 +1276,7 @@ void Search::beginSearch(bool pondering) {
       rootNode->patternBonusHash = Hash128();
   }
 
-  if (searchParams.rootSearchSymmetriesReduce){
+  if (searchParams.rootSymmetryPruning){
     SymmetryHelpers::maskSymmetricDuplicativeLoc(rootBoard,isSymDupLoc);
   }
 
@@ -2054,7 +2054,7 @@ bool Search::isAllowedRootMove(Loc moveLoc) const {
       return false;
   }
 
-  if(searchParams.rootSearchSymmetriesReduce && isSymDupLoc[moveLoc]){
+  if(searchParams.rootSymmetryPruning && moveLoc != Board::PASS_LOC && isSymDupLoc[moveLoc]) {
     return false;
   }
 

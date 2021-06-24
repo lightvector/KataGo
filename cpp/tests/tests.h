@@ -35,7 +35,7 @@ namespace Tests {
   //testnninputs.cpp
   void runNNInputsV3V4Tests();
   void runBasicSymmetryTests();
-  void runBoardSymmetricTests();
+  void runBoardSymmetryTests();
 
   //testsearch.cpp
   void runNNLessSearchTests();

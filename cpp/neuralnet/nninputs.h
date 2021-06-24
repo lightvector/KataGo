@@ -150,6 +150,8 @@ struct NNOutput {
 };
 
 namespace SymmetryHelpers {
+  static constexpr int SYMMETRY_TRONSPOSE = 0x4;
+
   void copyInputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry);
   void copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry);
 
@@ -161,7 +163,7 @@ namespace SymmetryHelpers {
   inline bool isFlipX(int symmetry) { return (symmetry & 0x2) != 0; }
   inline bool isFlipY(int symmetry) { return (symmetry & 0x1) != 0; }
 
-  void maskSymmetricDuplicativeLoc(const Board & board, bool* const isSymDupLoc);
+  void maskSymmetricDuplicativeLoc(const Board& board, bool* const isSymDupLoc);
 }
 
 //Utility functions for computing the "scoreValue", the unscaled utility of various numbers of points, prior to multiplication by

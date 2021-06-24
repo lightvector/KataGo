@@ -65,7 +65,7 @@ int MainCmds::runoutputtests(int argc, const char* const* argv) {
   Tests::runTimeControlsTests();
   Tests::runScoreTests();
   Tests::runBasicSymmetryTests();
-  Tests::runBoardSymmetricTests();
+  Tests::runBoardSymmetryTests();
   Tests::runNNSymmetryTests();
   Tests::runSgfFileTests();
 
