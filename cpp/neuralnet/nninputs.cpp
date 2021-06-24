@@ -647,7 +647,7 @@ void SymmetryHelpers::maskSymmetricDuplicativeLoc(const Board& board, bool* cons
   symTypes.reserve(NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
 
   //If board has different sizes of x and y, we will not search symmetries involved with transpose.
-  int symmetrySearchUpperBound = board.x_size == board.y_size ? NNInputs::NUM_SYMMETRY_COMBINATIONS : (SYMMETRY_TRONSPOSE+1);
+  int symmetrySearchUpperBound = board.x_size == board.y_size ? NNInputs::NUM_SYMMETRY_COMBINATIONS : SYMMETRY_TRONSPOSE;
 
   for (int symmetry = 1; symmetry < symmetrySearchUpperBound; symmetry++) {
     bool isBoardSym = true;
