@@ -1164,6 +1164,12 @@ void Search::printTreeHelper(
       out << buf;
     }
 
+    if(options.printAvgShorttermError_) {
+      std::pair<double,double> wlAndScoreError = getAverageShorttermWLAndScoreError(&node);
+      sprintf(buf,"STWL %6.2fc STS %5.1f ", wlAndScoreError.first, wlAndScoreError.second);
+      out << buf;
+    }
+
     sprintf(buf,"N %7" PRIu64 "  --  ", data.numVisits);
     out << buf;
 
@@ -1233,6 +1239,53 @@ void Search::printTreeHelper(
       prefix.erase(oldLen);
     }
   }
+}
+
+std::pair<double,double> Search::getAverageShorttermWLAndScoreError(const SearchNode* node) const {
+  if(node == NULL)
+    node = rootNode;
+  if(node == NULL)
+    return std::make_pair(0.0,0.0);
+  return getAverageShorttermWLAndScoreErrorHelper(node);
+}
+
+std::pair<double,double> Search::getAverageShorttermWLAndScoreErrorHelper(const SearchNode* node) const {
+  const NNOutput* nnOutput = node->getNNOutput();
+  if(nnOutput == NULL)
+    return std::make_pair(0.0,0.0);
+
+  int childrenCapacity;
+  const SearchChildPointer* children = node->getChildren(childrenCapacity);
+
+  int numChildren = 0;
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
+    numChildren += 1;
+  }
+
+  double wlErrorSum = 0.0;
+  double scoreErrorSum = 0.0;
+  double weightSum = 0.0;
+  {
+    double thisNodeWeight = computeWeightFromNNOutput(nnOutput);
+    wlErrorSum += nnOutput->shorttermWinlossError * thisNodeWeight;
+    scoreErrorSum += nnOutput->shorttermScoreError * thisNodeWeight;
+    weightSum += thisNodeWeight;
+  }
+
+  for(int i = numChildren-1; i>=0; i--) {
+    const SearchNode* child = children[i].getIfAllocated();
+    assert(child != NULL);
+    double childWeight = child->stats.weightSum.load(std::memory_order_acquire);
+    std::pair<double,double> result = getAverageShorttermWLAndScoreErrorHelper(child);
+    wlErrorSum += result.first * childWeight;
+    scoreErrorSum += result.second * childWeight;
+    weightSum += childWeight;
+  }
+
+  return std::make_pair(wlErrorSum/weightSum, wlErrorSum/scoreErrorSum);
 }
 
 
@@ -1448,7 +1501,7 @@ bool Search::getAnalysisJson(
 
     Hash128 thisHash;
     Hash128 symHash;
-    for(int symmetry = 0; symmetry < 8; symmetry++) {
+    for(int symmetry = 0; symmetry < SymmetryHelpers::NUM_SYMMETRIES; symmetry++) {
       Board symBoard = SymmetryHelpers::getSymBoard(board,symmetry);
       Hash128 hash = symBoard.getSitHashWithSimpleKo(rootPla);
       if(symmetry == 0) {

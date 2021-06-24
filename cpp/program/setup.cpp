@@ -234,7 +234,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     int forcedSymmetry = -1;
     if(setupFor != SETUP_FOR_DISTRIBUTED && cfg.contains("nnForcedSymmetry"))
-      forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
+      forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,SymmetryHelpers::NUM_SYMMETRIES-1);
 
     logger.write(
       "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
@@ -498,8 +498,8 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("rootFpuLossProp"+idxStr)) params.rootFpuLossProp = cfg.getDouble("rootFpuLossProp"+idxStr, 0.0, 1.0);
     else if(cfg.contains("rootFpuLossProp"))   params.rootFpuLossProp = cfg.getDouble("rootFpuLossProp",        0.0, 1.0);
     else                                       params.rootFpuLossProp = params.fpuLossProp;
-    if(cfg.contains("rootNumSymmetriesToSample"+idxStr)) params.rootNumSymmetriesToSample = cfg.getInt("rootNumSymmetriesToSample"+idxStr, 1, NNInputs::NUM_SYMMETRY_COMBINATIONS);
-    else if(cfg.contains("rootNumSymmetriesToSample"))   params.rootNumSymmetriesToSample = cfg.getInt("rootNumSymmetriesToSample",        1, NNInputs::NUM_SYMMETRY_COMBINATIONS);
+    if(cfg.contains("rootNumSymmetriesToSample"+idxStr)) params.rootNumSymmetriesToSample = cfg.getInt("rootNumSymmetriesToSample"+idxStr, 1, SymmetryHelpers::NUM_SYMMETRIES);
+    else if(cfg.contains("rootNumSymmetriesToSample"))   params.rootNumSymmetriesToSample = cfg.getInt("rootNumSymmetriesToSample",        1, SymmetryHelpers::NUM_SYMMETRIES);
     else                                                 params.rootNumSymmetriesToSample = 1;
     if(cfg.contains("rootSymmetryPruning"+idxStr)) params.rootSymmetryPruning = cfg.getBool("rootSymmetryPruning"+idxStr);
     else if(cfg.contains("rootSymmetryPruning"))   params.rootSymmetryPruning = cfg.getBool("rootSymmetryPruning");

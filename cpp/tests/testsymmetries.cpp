@@ -7,11 +7,12 @@ using namespace TestCommon;
 
 void Tests::runBasicSymmetryTests() {
   cout << "Running basic symmetries tests" << endl;
-
-  const char* name = "Basic flipping of tensors and boards and locations";
   ostringstream out;
+
   {
-    Board board = Board::parseBoard(7,7,R"%%(
+    const char* name = "Basic flipping of tensors and boards and locations";
+    {
+      Board board = Board::parseBoard(7,7,R"%%(
 .......
 .......
 .xxx...
@@ -20,60 +21,60 @@ void Tests::runBasicSymmetryTests() {
 ....o..
 .......
 )%%");
-    float buf[49] = {
-      0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,
-      0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,
-      0.0f,1.0f,1.0f,1.0f,0.0f,0.0f,0.0f,
-      0.0f,0.0f,0.0f,0.0f,2.0f,0.0f,0.0f,
-      0.0f,0.0f,0.0f,0.0f,2.0f,0.0f,0.0f,
-      0.0f,0.0f,0.0f,0.0f,2.0f,0.0f,0.0f,
-      0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,
-    };
+      float buf[49] = {
+        0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,
+        0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,
+        0.0f,1.0f,1.0f,1.0f,0.0f,0.0f,0.0f,
+        0.0f,0.0f,0.0f,0.0f,2.0f,0.0f,0.0f,
+        0.0f,0.0f,0.0f,0.0f,2.0f,0.0f,0.0f,
+        0.0f,0.0f,0.0f,0.0f,2.0f,0.0f,0.0f,
+        0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,
+      };
 
-    for(int symmetry = 0; symmetry<8; symmetry++) {
-      float dst[49];
-      SymmetryHelpers::copyInputsWithSymmetry(buf,dst,1,7,7,1,true,symmetry);
-      Board symBoard = SymmetryHelpers::getSymBoard(board,symmetry);
-      Loc symLocWithX = SymmetryHelpers::getSymLoc(1,2,board,symmetry);
-      out << "SYMMETRY " << symmetry << endl;
-      out << symBoard << endl;
-      out << Global::boolToString(symBoard.colors[symLocWithX] == P_BLACK) << endl;
-      for(int y = 0; y<7; y++) {
-        for(int x = 0; x<7; x++)
-          out << dst[x+y*7] << " ";
-        out << endl;
+      for(int symmetry = 0; symmetry < SymmetryHelpers::NUM_SYMMETRIES; symmetry++) {
+        float dst[49];
+        SymmetryHelpers::copyInputsWithSymmetry(buf,dst,1,7,7,1,true,symmetry);
+        Board symBoard = SymmetryHelpers::getSymBoard(board,symmetry);
+        Loc symLocWithX = SymmetryHelpers::getSymLoc(1,2,board,symmetry);
+        out << "SYMMETRY " << symmetry << endl;
+        out << symBoard << endl;
+        out << Global::boolToString(symBoard.colors[symLocWithX] == P_BLACK) << endl;
+        for(int y = 0; y<7; y++) {
+          for(int x = 0; x<7; x++)
+            out << dst[x+y*7] << " ";
+          out << endl;
+        }
       }
     }
-  }
 
-  {
-    Board board = Board::parseBoard(7,5,R"%%(
+    {
+      Board board = Board::parseBoard(7,5,R"%%(
 .......
 .x.....
 .x.....
 .oo....
 .......
 )%%");
-    board.setSimpleKoLoc(Location::getLoc(5,0,board.x_size));
+      board.setSimpleKoLoc(Location::getLoc(5,0,board.x_size));
 
-    for(int symmetry = 0; symmetry<8; symmetry++) {
-      Board symBoard = SymmetryHelpers::getSymBoard(board,symmetry);
-      out << "SYMMETRY " << symmetry << endl;
-      out << symBoard << endl;
-      out << symBoard.getSitHashWithSimpleKo(P_BLACK) << endl;
-      Loc symLocWithX = SymmetryHelpers::getSymLoc(1,1,board,symmetry);
-      Loc symLocWithX2 = SymmetryHelpers::getSymLoc(1,2,board,symmetry);
-      Loc symLocWithO = SymmetryHelpers::getSymLoc(1,3,board,symmetry);
-      Loc symLocWithO2 = SymmetryHelpers::getSymLoc(2,3,board,symmetry);
-      out << Global::boolToString(symBoard.colors[symLocWithX] == P_BLACK) << endl;
-      out << Global::boolToString(symBoard.colors[symLocWithX2] == P_BLACK) << endl;
-      out << Global::boolToString(symBoard.colors[symLocWithO] == P_WHITE) << endl;
-      out << Global::boolToString(symBoard.colors[symLocWithO2] == P_WHITE) << endl;
-      out << Global::boolToString(symBoard.ko_loc == SymmetryHelpers::getSymLoc(5,0,board,symmetry)) << endl;
+      for(int symmetry = 0; symmetry < SymmetryHelpers::NUM_SYMMETRIES; symmetry++) {
+        Board symBoard = SymmetryHelpers::getSymBoard(board,symmetry);
+        out << "SYMMETRY " << symmetry << endl;
+        out << symBoard << endl;
+        out << symBoard.getSitHashWithSimpleKo(P_BLACK) << endl;
+        Loc symLocWithX = SymmetryHelpers::getSymLoc(1,1,board,symmetry);
+        Loc symLocWithX2 = SymmetryHelpers::getSymLoc(1,2,board,symmetry);
+        Loc symLocWithO = SymmetryHelpers::getSymLoc(1,3,board,symmetry);
+        Loc symLocWithO2 = SymmetryHelpers::getSymLoc(2,3,board,symmetry);
+        out << Global::boolToString(symBoard.colors[symLocWithX] == P_BLACK) << endl;
+        out << Global::boolToString(symBoard.colors[symLocWithX2] == P_BLACK) << endl;
+        out << Global::boolToString(symBoard.colors[symLocWithO] == P_WHITE) << endl;
+        out << Global::boolToString(symBoard.colors[symLocWithO2] == P_WHITE) << endl;
+        out << Global::boolToString(symBoard.ko_loc == SymmetryHelpers::getSymLoc(5,0,board,symmetry)) << endl;
+      }
     }
-  }
 
-  string expected = R"%%(
+    string expected = R"%%(
 SYMMETRY 0
 HASH: 10536BA4F5B60C6BAEF367A2D60E8EDA
    A B C D E F G
@@ -371,8 +372,411 @@ true
 true
 true
 )%%";
+    expect(name,out,expected);
+  }
 
-  expect(name,out,expected);
+  {
+    const char* name = "Symmetry composition tests";
+    Board board = Board::parseBoard(9,7,R"%%(
+x.......o
+x.xxo....
+..ox....x
+..o..x...
+.o.......
+...xooo..
+.x....x.o
+)%%");
+
+    Loc loc = Location::getLoc(1,2,board.x_size);
+    for(int symmetry1 = 0; symmetry1 < SymmetryHelpers::NUM_SYMMETRIES; symmetry1++) {
+      for(int symmetry2 = 0; symmetry2 < SymmetryHelpers::NUM_SYMMETRIES; symmetry2++) {
+        int symmetryCombined = SymmetryHelpers::combine(symmetry1,symmetry2);
+        Board symBoardComb = SymmetryHelpers::getSymBoard(board,symmetryCombined);
+        Board symBoardCombManual = SymmetryHelpers::getSymBoard(SymmetryHelpers::getSymBoard(board,symmetry1),symmetry2);
+        Loc symLocComb = SymmetryHelpers::getSymLoc(loc,board,symmetryCombined);
+        Loc symLocCombManual = SymmetryHelpers::getSymLoc(SymmetryHelpers::getSymLoc(loc,board,symmetry1),SymmetryHelpers::getSymBoard(board,symmetry1),symmetry2);
+        out << "Symmetry " << symmetry1 << " + " << symmetry2 << " = " << symmetryCombined << endl;
+        testAssert(symBoardCombManual.isEqualForTesting(symBoardComb,true,true));
+        testAssert(symLocComb == symLocCombManual);
+      }
+    }
+
+    string expected = R"%%(
+Symmetry 0 + 0 = 0
+Symmetry 0 + 1 = 1
+Symmetry 0 + 2 = 2
+Symmetry 0 + 3 = 3
+Symmetry 0 + 4 = 4
+Symmetry 0 + 5 = 5
+Symmetry 0 + 6 = 6
+Symmetry 0 + 7 = 7
+Symmetry 1 + 0 = 1
+Symmetry 1 + 1 = 0
+Symmetry 1 + 2 = 3
+Symmetry 1 + 3 = 2
+Symmetry 1 + 4 = 5
+Symmetry 1 + 5 = 4
+Symmetry 1 + 6 = 7
+Symmetry 1 + 7 = 6
+Symmetry 2 + 0 = 2
+Symmetry 2 + 1 = 3
+Symmetry 2 + 2 = 0
+Symmetry 2 + 3 = 1
+Symmetry 2 + 4 = 6
+Symmetry 2 + 5 = 7
+Symmetry 2 + 6 = 4
+Symmetry 2 + 7 = 5
+Symmetry 3 + 0 = 3
+Symmetry 3 + 1 = 2
+Symmetry 3 + 2 = 1
+Symmetry 3 + 3 = 0
+Symmetry 3 + 4 = 7
+Symmetry 3 + 5 = 6
+Symmetry 3 + 6 = 5
+Symmetry 3 + 7 = 4
+Symmetry 4 + 0 = 4
+Symmetry 4 + 1 = 6
+Symmetry 4 + 2 = 5
+Symmetry 4 + 3 = 7
+Symmetry 4 + 4 = 0
+Symmetry 4 + 5 = 2
+Symmetry 4 + 6 = 1
+Symmetry 4 + 7 = 3
+Symmetry 5 + 0 = 5
+Symmetry 5 + 1 = 7
+Symmetry 5 + 2 = 4
+Symmetry 5 + 3 = 6
+Symmetry 5 + 4 = 1
+Symmetry 5 + 5 = 3
+Symmetry 5 + 6 = 0
+Symmetry 5 + 7 = 2
+Symmetry 6 + 0 = 6
+Symmetry 6 + 1 = 4
+Symmetry 6 + 2 = 7
+Symmetry 6 + 3 = 5
+Symmetry 6 + 4 = 2
+Symmetry 6 + 5 = 0
+Symmetry 6 + 6 = 3
+Symmetry 6 + 7 = 1
+Symmetry 7 + 0 = 7
+Symmetry 7 + 1 = 5
+Symmetry 7 + 2 = 6
+Symmetry 7 + 3 = 4
+Symmetry 7 + 4 = 3
+Symmetry 7 + 5 = 1
+Symmetry 7 + 6 = 2
+Symmetry 7 + 7 = 0
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Symmetry inverse tests";
+    for(int symmetry1 = 0; symmetry1 < SymmetryHelpers::NUM_SYMMETRIES; symmetry1++) {
+      for(int symmetry2 = 0; symmetry2 < SymmetryHelpers::NUM_SYMMETRIES; symmetry2++) {
+        out << "Symmetry " << symmetry1 << " : " << symmetry2 << " inverses " << Global::boolToString(SymmetryHelpers::getInverse(symmetry1) == symmetry2) << endl;
+        testAssert((SymmetryHelpers::combine(symmetry1,symmetry2) == 0) == (SymmetryHelpers::getInverse(symmetry1) == symmetry2));
+      }
+    }
+    string expected = R"%%(
+Symmetry 0 : 0 inverses true
+Symmetry 0 : 1 inverses false
+Symmetry 0 : 2 inverses false
+Symmetry 0 : 3 inverses false
+Symmetry 0 : 4 inverses false
+Symmetry 0 : 5 inverses false
+Symmetry 0 : 6 inverses false
+Symmetry 0 : 7 inverses false
+Symmetry 1 : 0 inverses false
+Symmetry 1 : 1 inverses true
+Symmetry 1 : 2 inverses false
+Symmetry 1 : 3 inverses false
+Symmetry 1 : 4 inverses false
+Symmetry 1 : 5 inverses false
+Symmetry 1 : 6 inverses false
+Symmetry 1 : 7 inverses false
+Symmetry 2 : 0 inverses false
+Symmetry 2 : 1 inverses false
+Symmetry 2 : 2 inverses true
+Symmetry 2 : 3 inverses false
+Symmetry 2 : 4 inverses false
+Symmetry 2 : 5 inverses false
+Symmetry 2 : 6 inverses false
+Symmetry 2 : 7 inverses false
+Symmetry 3 : 0 inverses false
+Symmetry 3 : 1 inverses false
+Symmetry 3 : 2 inverses false
+Symmetry 3 : 3 inverses true
+Symmetry 3 : 4 inverses false
+Symmetry 3 : 5 inverses false
+Symmetry 3 : 6 inverses false
+Symmetry 3 : 7 inverses false
+Symmetry 4 : 0 inverses false
+Symmetry 4 : 1 inverses false
+Symmetry 4 : 2 inverses false
+Symmetry 4 : 3 inverses false
+Symmetry 4 : 4 inverses true
+Symmetry 4 : 5 inverses false
+Symmetry 4 : 6 inverses false
+Symmetry 4 : 7 inverses false
+Symmetry 5 : 0 inverses false
+Symmetry 5 : 1 inverses false
+Symmetry 5 : 2 inverses false
+Symmetry 5 : 3 inverses false
+Symmetry 5 : 4 inverses false
+Symmetry 5 : 5 inverses false
+Symmetry 5 : 6 inverses true
+Symmetry 5 : 7 inverses false
+Symmetry 6 : 0 inverses false
+Symmetry 6 : 1 inverses false
+Symmetry 6 : 2 inverses false
+Symmetry 6 : 3 inverses false
+Symmetry 6 : 4 inverses false
+Symmetry 6 : 5 inverses true
+Symmetry 6 : 6 inverses false
+Symmetry 6 : 7 inverses false
+Symmetry 7 : 0 inverses false
+Symmetry 7 : 1 inverses false
+Symmetry 7 : 2 inverses false
+Symmetry 7 : 3 inverses false
+Symmetry 7 : 4 inverses false
+Symmetry 7 : 5 inverses false
+Symmetry 7 : 6 inverses false
+Symmetry 7 : 7 inverses true
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Symmetry and move commute";
+    Board board = Board::parseBoard(9,7,R"%%(
+x.......o
+x.xxo....
+..ox....x
+..o..x...
+.o.......
+...xooo..
+.x....x.o
+)%%");
+
+    Loc loc = Location::getLoc(8,4,board.x_size);
+    for(int symmetry = 0; symmetry < SymmetryHelpers::NUM_SYMMETRIES; symmetry++) {
+      Board boardA = SymmetryHelpers::getSymBoard(board,symmetry);
+      boardA.playMove(SymmetryHelpers::getSymLoc(loc,board,symmetry), P_BLACK, true);
+
+      Board boardB = board;
+      boardB.playMove(loc, P_BLACK, true);
+      boardB = SymmetryHelpers::getSymBoard(boardB,symmetry);
+
+      out << "SYMMETRY " << symmetry << endl;
+      out << boardA << endl;
+      out << boardB << endl;
+      testAssert(boardA.isEqualForTesting(boardB,true,true));
+    }
+    string expected = R"%%(
+SYMMETRY 0
+HASH: 56798EFB369AAD4E774C248FD652F95E
+   A B C D E F G H J
+ 7 X . . . . . . . O
+ 6 X . X X O . . . .
+ 5 . . O X . . . . X
+ 4 . . O . . X . . .
+ 3 . O . . . . . . X
+ 2 . . . X O O O . .
+ 1 . X . . . . X . O
+
+
+HASH: 56798EFB369AAD4E774C248FD652F95E
+   A B C D E F G H J
+ 7 X . . . . . . . O
+ 6 X . X X O . . . .
+ 5 . . O X . . . . X
+ 4 . . O . . X . . .
+ 3 . O . . . . . . X
+ 2 . . . X O O O . .
+ 1 . X . . . . X . O
+
+
+SYMMETRY 1
+HASH: 28D390F7DAAD7ACC2DC345898255355C
+   A B C D E F G H J
+ 7 . X . . . . X . O
+ 6 . . . X O O O . .
+ 5 . O . . . . . . X
+ 4 . . O . . X . . .
+ 3 . . O X . . . . X
+ 2 X . X X O . . . .
+ 1 X . . . . . . . O
+
+
+HASH: 28D390F7DAAD7ACC2DC345898255355C
+   A B C D E F G H J
+ 7 . X . . . . X . O
+ 6 . . . X O O O . .
+ 5 . O . . . . . . X
+ 4 . . O . . X . . .
+ 3 . . O X . . . . X
+ 2 X . X X O . . . .
+ 1 X . . . . . . . O
+
+
+SYMMETRY 2
+HASH: 4A4757278AA22029B01A83FE170F9D65
+   A B C D E F G H J
+ 7 O . . . . . . . X
+ 6 . . . . O X X . X
+ 5 X . . . . X O . .
+ 4 . . . X . . O . .
+ 3 X . . . . . . O .
+ 2 . . O O O X . . .
+ 1 O . X . . . . X .
+
+
+HASH: 4A4757278AA22029B01A83FE170F9D65
+   A B C D E F G H J
+ 7 O . . . . . . . X
+ 6 . . . . O X X . X
+ 5 X . . . . X O . .
+ 4 . . . X . . O . .
+ 3 X . . . . . . O .
+ 2 . . O O O X . . .
+ 1 O . X . . . . X .
+
+
+SYMMETRY 3
+HASH: EE186B4F08581E0E604B679A44526705
+   A B C D E F G H J
+ 7 O . X . . . . X .
+ 6 . . O O O X . . .
+ 5 X . . . . . . O .
+ 4 . . . X . . O . .
+ 3 X . . . . X O . .
+ 2 . . . . O X X . X
+ 1 O . . . . . . . X
+
+
+HASH: EE186B4F08581E0E604B679A44526705
+   A B C D E F G H J
+ 7 O . X . . . . X .
+ 6 . . O O O X . . .
+ 5 X . . . . . . O .
+ 4 . . . X . . O . .
+ 3 X . . . . X O . .
+ 2 . . . . O X X . X
+ 1 O . . . . . . . X
+
+
+SYMMETRY 4
+HASH: EA1BA453DFA10B913CCF8E53D4550EC3
+   A B C D E F G
+ 9 X X . . . . .
+ 8 . . . . O . X
+ 7 . X O O . . .
+ 6 . X X . . X .
+ 5 . O . . . O .
+ 4 . . . X . O .
+ 3 . . . . . O X
+ 2 . . . . . . .
+ 1 O . X . X . O
+
+
+HASH: EA1BA453DFA10B913CCF8E53D4550EC3
+   A B C D E F G
+ 9 X X . . . . .
+ 8 . . . . O . X
+ 7 . X O O . . .
+ 6 . X X . . X .
+ 5 . O . . . O .
+ 4 . . . X . O .
+ 3 . . . . . O X
+ 2 . . . . . . .
+ 1 O . X . X . O
+
+
+SYMMETRY 5
+HASH: BB69F761E815818D4A4A508377B7F0A9
+   A B C D E F G
+ 9 . . . . . X X
+ 8 X . O . . . .
+ 7 . . . O O X .
+ 6 . X . . X X .
+ 5 . O . . . O .
+ 4 . O . X . . .
+ 3 X O . . . . .
+ 2 . . . . . . .
+ 1 O . X . X . O
+
+
+HASH: BB69F761E815818D4A4A508377B7F0A9
+   A B C D E F G
+ 9 . . . . . X X
+ 8 X . O . . . .
+ 7 . . . O O X .
+ 6 . X . . X X .
+ 5 . O . . . O .
+ 4 . O . X . . .
+ 3 X O . . . . .
+ 2 . . . . . . .
+ 1 O . X . X . O
+
+
+SYMMETRY 6
+HASH: 4618413C04A4D83A49F924616E3821B7
+   A B C D E F G
+ 9 O . X . X . O
+ 8 . . . . . . .
+ 7 . . . . . O X
+ 6 . . . X . O .
+ 5 . O . . . O .
+ 4 . X X . . X .
+ 3 . X O O . . .
+ 2 . . . . O . X
+ 1 X X . . . . .
+
+
+HASH: 4618413C04A4D83A49F924616E3821B7
+   A B C D E F G
+ 9 O . X . X . O
+ 8 . . . . . . .
+ 7 . . . . . O X
+ 6 . . . X . O .
+ 5 . O . . . O .
+ 4 . X X . . X .
+ 3 . X O O . . .
+ 2 . . . . O . X
+ 1 X X . . . . .
+
+
+SYMMETRY 7
+HASH: 8E86BD1078F74D5BA0A8DCAD3D8E6BCC
+   A B C D E F G
+ 9 O . X . X . O
+ 8 . . . . . . .
+ 7 X O . . . . .
+ 6 . O . X . . .
+ 5 . O . . . O .
+ 4 . X . . X X .
+ 3 . . . O O X .
+ 2 X . O . . . .
+ 1 . . . . . X X
+
+
+HASH: 8E86BD1078F74D5BA0A8DCAD3D8E6BCC
+   A B C D E F G
+ 9 O . X . X . O
+ 8 . . . . . . .
+ 7 X O . . . . .
+ 6 . O . X . . .
+ 5 . O . . . O .
+ 4 . X . . X X .
+ 3 . . . O O X .
+ 2 X . O . . . .
+ 1 . . . . . X X
+
+)%%";
+    expect(name,out,expected);
+  }
+
 }
 
 void Tests::runBoardSymmetryTests() {

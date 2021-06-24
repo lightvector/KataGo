@@ -477,6 +477,8 @@ struct Search {
   //If node is not providied, defaults to using the root node.
   std::vector<double> getAverageTreeOwnership(double minWeight, const SearchNode* node = NULL) const;
 
+  std::pair<double,double> getAverageShorttermWLAndScoreError(const SearchNode* node = NULL) const;
+
   //Get ownership map as json
   nlohmann::json getJsonOwnershipMap(
     const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight, int symmetry
@@ -658,6 +660,8 @@ private:
     std::ostream& out, const SearchNode* node, const PrintTreeOptions& options,
     std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
   ) const;
+
+  std::pair<double,double> getAverageShorttermWLAndScoreErrorHelper(const SearchNode* node) const;
 
   double getAverageTreeOwnershipHelper(std::vector<double>& accum, double minWeight, double desiredWeight, const SearchNode* node) const;
 

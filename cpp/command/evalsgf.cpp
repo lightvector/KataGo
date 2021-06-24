@@ -34,6 +34,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool printScoreNow;
   bool printRootEndingBonus;
   bool printLead;
+  bool printAvgShorttermError;
   int printMaxDepth;
   bool rawNN;
   try {
@@ -60,6 +61,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::SwitchArg printScoreNowArg("","print-score-now","Print score now");
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
     TCLAP::SwitchArg printLeadArg("","print-lead","Compute and print lead");
+    TCLAP::SwitchArg printAvgShorttermErrorArg("","print-avg-shortterm-error","Compute and print avgShorttermError");
     TCLAP::ValueArg<int> printMaxDepthArg("","print-max-depth","How deep to print",false,1,"DEPTH");
     TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
     cmd.add(sgfFileArg);
@@ -85,6 +87,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printScoreNowArg);
     cmd.add(printRootEndingBonusArg);
     cmd.add(printLeadArg);
+    cmd.add(printAvgShorttermErrorArg);
     cmd.add(printMaxDepthArg);
     cmd.add(rawNNArg);
     cmd.parse(argc,argv);
@@ -108,6 +111,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     printScoreNow = printScoreNowArg.getValue();
     printRootEndingBonus = printRootEndingBonusArg.getValue();
     printLead = printLeadArg.getValue();
+    printAvgShorttermError = printAvgShorttermErrorArg.getValue();
     printMaxDepth = printMaxDepthArg.getValue();
     rawNN = rawNNArg.getValue();
 
@@ -186,7 +190,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   options = options.maxDepth(printMaxDepth);
   if(printBranch.length() > 0)
     options = options.onlyBranch(board,printBranch);
-
+  options = options.printAvgShorttermError(printAvgShorttermError);
 
   //Load neural net and start bot------------------------------------------
 

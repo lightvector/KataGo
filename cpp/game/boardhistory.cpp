@@ -1085,6 +1085,70 @@ bool BoardHistory::hasBlackPassOrWhiteFirst() const {
   return false;
 }
 
+Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite) {
+  int xSize = board.x_size;
+  int ySize = board.y_size;
+
+  //Note that board.pos_hash also incorporates the size of the board.
+  Hash128 hash = board.pos_hash;
+  hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
+
+  assert(hist.encorePhase >= 0 && hist.encorePhase <= 2);
+  hash ^= Board::ZOBRIST_ENCORE_HASH[hist.encorePhase];
+
+  if(hist.encorePhase == 0) {
+    if(board.ko_loc != Board::NULL_LOC)
+      hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
+        if(hist.superKoBanned[loc] && loc != board.ko_loc)
+          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
+      }
+    }
+  }
+  else {
+    for(int y = 0; y<ySize; y++) {
+      for(int x = 0; x<xSize; x++) {
+        Loc loc = Location::getLoc(x,y,xSize);
+        if(hist.superKoBanned[loc])
+          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
+        if(hist.koRecapBlocked[loc])
+          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_BLACK] ^ Board::ZOBRIST_KO_MARK_HASH[loc][P_WHITE];
+      }
+    }
+    if(hist.encorePhase == 2) {
+      for(int y = 0; y<ySize; y++) {
+        for(int x = 0; x<xSize; x++) {
+          Loc loc = Location::getLoc(x,y,xSize);
+          Color c = hist.secondEncoreStartColors[loc];
+          if(c != C_EMPTY)
+            hash ^= Board::ZOBRIST_SECOND_ENCORE_START_HASH[loc][c];
+        }
+      }
+    }
+  }
+
+  float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
+
+  //Discretize the komi for the purpose of matching hash
+  int64_t komiDiscretized = (int64_t)(selfKomi*256.0f);
+  uint64_t komiHash = Hash::murmurMix((uint64_t)komiDiscretized);
+  hash.hash0 ^= komiHash;
+  hash.hash1 ^= Hash::basicLCong(komiHash);
+
+  //Fold in the ko, scoring, and suicide rules
+  hash ^= Rules::ZOBRIST_KO_RULE_HASH[hist.rules.koRule];
+  hash ^= Rules::ZOBRIST_SCORING_RULE_HASH[hist.rules.scoringRule];
+  hash ^= Rules::ZOBRIST_TAX_RULE_HASH[hist.rules.taxRule];
+  if(hist.rules.multiStoneSuicideLegal)
+    hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
+  if(hist.hasButton)
+    hash ^= Rules::ZOBRIST_BUTTON_HASH;
+
+  return hash;
+}
+
 
 
 KoHashTable::KoHashTable()

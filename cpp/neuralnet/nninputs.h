@@ -28,10 +28,6 @@ namespace NNPos {
 namespace NNInputs {
   constexpr int SYMMETRY_NOTSPECIFIED = -1;
   constexpr int SYMMETRY_ALL = -2;
-
-  constexpr int NUM_SYMMETRY_BOOLS = 3;
-  constexpr int NUM_SYMMETRY_COMBINATIONS = 8;
-  constexpr int NUM_SYMMETRIES_WITHOUT_TRANSPOSE = 4;
 }
 
 struct MiscNNInputParams {
@@ -151,13 +147,26 @@ struct NNOutput {
 };
 
 namespace SymmetryHelpers {
+  //A symmetry is 3 bits flipY(bit 0), flipX(bit 1), transpose(bit 2). They are applied in that order.
+  constexpr int NUM_SYMMETRIES = 8;
+  constexpr int NUM_SYMMETRIES_WITHOUT_TRANSPOSE = 4;
 
+  //These two IGNORE transpose if hSize and wSize do not match. So non-square transposes are disallowed.
+  //copyOutputsWithSymmetry performs the inverse of symmetry.
   void copyInputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry);
   void copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry);
 
+  //Applies a symmetry to a location
   Loc getSymLoc(int x, int y, const Board& board, int symmetry);
   Loc getSymLoc(Loc loc, const Board& board, int symmetry);
+
+  //Applies a symmetry to a board
   Board getSymBoard(const Board& board, int symmetry);
+
+  //Get the inverse of the specified symmetry
+  int getInverse(int symmetry);
+  //Get the symmetry equivalent to first applying firstSymmetry and then applying nextSymmetry.
+  int combine(int firstSymmetry, int nextSymmetry);
 
   inline bool isTranspose(int symmetry) { return (symmetry & 0x4) != 0; }
   inline bool isFlipX(int symmetry) { return (symmetry & 0x2) != 0; }

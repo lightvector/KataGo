@@ -25,6 +25,7 @@ Hash128 Board::ZOBRIST_PLAYER_HASH[4];
 Hash128 Board::ZOBRIST_KO_LOC_HASH[MAX_ARR_SIZE];
 Hash128 Board::ZOBRIST_KO_MARK_HASH[MAX_ARR_SIZE][4];
 Hash128 Board::ZOBRIST_ENCORE_HASH[3];
+Hash128 Board::ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
 Hash128 Board::ZOBRIST_SECOND_ENCORE_START_HASH[MAX_ARR_SIZE][4];
 const Hash128 Board::ZOBRIST_PASS_ENDS_PHASE = //Based on sha256 hash of Board::ZOBRIST_PASS_ENDS_PHASE
   Hash128(0x853E097C279EBF4EULL, 0xE3153DEF9E14A62CULL);
@@ -167,10 +168,8 @@ void Board::initHash()
 
   //Do this second so that the player and encore hashes are not
   //afffected by the size of the board we compile with.
-  for(int i = 0; i<MAX_ARR_SIZE; i++)
-  {
-    for(Color j = 0; j<4; j++)
-    {
+  for(int i = 0; i<MAX_ARR_SIZE; i++) {
+    for(Color j = 0; j<4; j++) {
       if(j == C_EMPTY || j == C_WALL)
         ZOBRIST_BOARD_HASH[i][j] = Hash128();
       else
@@ -187,10 +186,8 @@ void Board::initHash()
   //Reseed the random number generator so that these hashes are also
   //not affected by the size of the board we compile with
   rand.init("Board::initHash() for ZOBRIST_SECOND_ENCORE_START hashes");
-  for(int i = 0; i<MAX_ARR_SIZE; i++)
-  {
-    for(Color j = 0; j<4; j++)
-    {
+  for(int i = 0; i<MAX_ARR_SIZE; i++) {
+    for(Color j = 0; j<4; j++) {
       if(j == C_EMPTY || j == C_WALL)
         ZOBRIST_SECOND_ENCORE_START_HASH[i][j] = Hash128();
       else
@@ -204,6 +201,16 @@ void Board::initHash()
   for(int i = 0; i<MAX_LEN+1; i++) {
     ZOBRIST_SIZE_X_HASH[i] = nextHash();
     ZOBRIST_SIZE_Y_HASH[i] = nextHash();
+  }
+
+  //Reseed and compute one more set of zobrist hashes, mixed a bit differently
+  rand.init("Board::initHash() for second set of ZOBRIST hashes");
+  for(int i = 0; i<MAX_ARR_SIZE; i++) {
+    for(Color j = 0; j<4; j++) {
+      ZOBRIST_BOARD_HASH2[i][j] = nextHash();
+      ZOBRIST_BOARD_HASH2[i][j].hash0 = Hash::murmurMix(ZOBRIST_BOARD_HASH2[i][j].hash0);
+      ZOBRIST_BOARD_HASH2[i][j].hash1 = Hash::splitMix64(ZOBRIST_BOARD_HASH2[i][j].hash1);
+    }
   }
 
   IS_ZOBRIST_INITALIZED = true;
@@ -2633,10 +2640,77 @@ Board Board::parseBoard(int xSize, int ySize, const string& s, char lineDelimite
 
 bool Board::isAdjacentToPlaHead(Player pla, Loc loc, Loc plaHead) const {
   FOREACHADJ(
-      Loc adj = loc + ADJOFFSET;
-      if(colors[adj] == pla && chain_head[adj] == plaHead)
-        return true;
+    Loc adj = loc + ADJOFFSET;
+    if(colors[adj] == pla && chain_head[adj] == plaHead)
+      return true;
   );
   return false;
 }
 
+//Count empty spaces in the connected empty region containing initialLoc (which must be empty)
+//not counting where emptyCounted == true, incrementing count each time and marking emptyCounted.
+//Return early and true if count > bound. Return false otherwise.
+bool Board::countEmptyHelper(bool* emptyCounted, Loc initialLoc, int& count, int bound) const {
+  if(emptyCounted[initialLoc])
+    return false;
+  count += 1;
+  emptyCounted[initialLoc] = true;
+  if(count > bound)
+    return true;
+
+  int numLeft = 0;
+  int numExpanded = 0;
+  int toExpand[MAX_ARR_SIZE];
+  toExpand[numLeft++] = initialLoc;
+  while(numExpanded < numLeft) {
+    Loc loc = toExpand[numExpanded++];
+    FOREACHADJ(
+      Loc adj = loc + ADJOFFSET;
+      if(colors[adj] == C_EMPTY && !emptyCounted[adj]) {
+        count += 1;
+        emptyCounted[adj] = true;
+        if(count > bound)
+          return true;
+        toExpand[numLeft++] = adj;
+      }
+    );
+  }
+  return false;
+}
+
+bool Board::simpleRepetitionBoundGt(Loc loc, int bound) const {
+  if(loc == NULL_LOC || loc == PASS_LOC)
+    return false;
+
+  int count = 0;
+
+  if(colors[loc] != C_EMPTY) {
+    count += chain_data[chain_head[loc]].num_locs;
+    //Fast quitout
+    if(count + chain_data[chain_head[loc]].num_liberties > bound)
+      return true;
+  }
+
+  bool emptyCounted[MAX_ARR_SIZE];
+  memset(emptyCounted, false, sizeof(emptyCounted[0])*MAX_ARR_SIZE);
+
+  //Suicide - return just the count of the empty spaces in the region
+  if(colors[loc] == C_EMPTY) {
+    return countEmptyHelper(emptyCounted, loc, count, bound);
+  }
+  else {
+    Loc cur = loc;
+    do {
+      for(int i = 0; i < 4; i++) {
+        Loc lib = cur + adj_offsets[i];
+        if(colors[lib] == C_EMPTY) {
+          if(countEmptyHelper(emptyCounted, lib, count, bound))
+            return true;
+        }
+      }
+      cur = next_in_chain[cur];
+    } while (cur != loc);
+  }
+
+  return false;
+}

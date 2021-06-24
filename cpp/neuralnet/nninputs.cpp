@@ -597,6 +597,20 @@ void SymmetryHelpers::copyOutputsWithSymmetry(const float* src, float* dst, int 
   copyWithSymmetry(src, dst, nSize, hSize, wSize, 1, false, symmetry, true);
 }
 
+int SymmetryHelpers::getInverse(int symmetry) {
+  if(symmetry == 5)
+    return 6;
+  if(symmetry == 6)
+    return 5;
+  return symmetry;
+}
+
+int SymmetryHelpers::combine(int firstSymmetry, int nextSymmetry) {
+  if(isTranspose(firstSymmetry))
+    nextSymmetry = (nextSymmetry & 0x4) | ((nextSymmetry & 0x2) >> 1) | ((nextSymmetry & 0x1) << 1);
+  return firstSymmetry ^ nextSymmetry;
+}
+
 Loc SymmetryHelpers::getSymLoc(int x, int y, const Board& board, int symmetry) {
   bool transpose = (symmetry & 0x4) != 0;
   bool flipX = (symmetry & 0x2) != 0;
@@ -646,7 +660,7 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
 void SymmetryHelpers::markDuplicateMoveLocs(const Board& board, const BoardHistory& hist, bool* isSymDupLoc, std::vector<int>& validSymmetries) {
   std::fill(isSymDupLoc, isSymDupLoc + Board::MAX_ARR_SIZE, false);
   validSymmetries.clear();
-  validSymmetries.reserve(NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
+  validSymmetries.reserve(SymmetryHelpers::NUM_SYMMETRIES);
   validSymmetries.push_back(0);
 
   //The board should never be considered symmetric if any moves are banned by ko or superko
@@ -660,7 +674,7 @@ void SymmetryHelpers::markDuplicateMoveLocs(const Board& board, const BoardHisto
   }
 
   //If board has different sizes of x and y, we will not search symmetries involved with transpose.
-  int symmetrySearchUpperBound = board.x_size == board.y_size ? NNInputs::NUM_SYMMETRY_COMBINATIONS : NNInputs::NUM_SYMMETRIES_WITHOUT_TRANSPOSE;
+  int symmetrySearchUpperBound = board.x_size == board.y_size ? SymmetryHelpers::NUM_SYMMETRIES : SymmetryHelpers::NUM_SYMMETRIES_WITHOUT_TRANSPOSE;
 
   for(int symmetry = 1; symmetry < symmetrySearchUpperBound; symmetry++) {
     bool isBoardSym = true;
@@ -781,65 +795,7 @@ Hash128 NNInputs::getHash(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
   const MiscNNInputParams& nnInputParams
 ) {
-  int xSize = board.x_size;
-  int ySize = board.y_size;
-
-  //Note that board.pos_hash also incorporates the size of the board.
-  Hash128 hash = board.pos_hash;
-  hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
-
-  assert(hist.encorePhase >= 0 && hist.encorePhase <= 2);
-  hash ^= Board::ZOBRIST_ENCORE_HASH[hist.encorePhase];
-
-  if(hist.encorePhase == 0) {
-    if(board.ko_loc != Board::NULL_LOC)
-      hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
-        Loc loc = Location::getLoc(x,y,xSize);
-        if(hist.superKoBanned[loc] && loc != board.ko_loc)
-          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
-      }
-    }
-  }
-  else {
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
-        Loc loc = Location::getLoc(x,y,xSize);
-        if(hist.superKoBanned[loc])
-          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
-        if(hist.koRecapBlocked[loc])
-          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_BLACK] ^ Board::ZOBRIST_KO_MARK_HASH[loc][P_WHITE];
-      }
-    }
-    if(hist.encorePhase == 2) {
-      for(int y = 0; y<ySize; y++) {
-        for(int x = 0; x<xSize; x++) {
-          Loc loc = Location::getLoc(x,y,xSize);
-          Color c = hist.secondEncoreStartColors[loc];
-          if(c != C_EMPTY)
-            hash ^= Board::ZOBRIST_SECOND_ENCORE_START_HASH[loc][c];
-        }
-      }
-    }
-  }
-
-  float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
-
-  //Discretize the komi for the purpose of matching hash, so that extremely close effective komi we just reuse nn cache hits
-  int64_t komiDiscretized = (int64_t)(selfKomi*256.0f);
-  uint64_t komiHash = Hash::murmurMix((uint64_t)komiDiscretized);
-  hash.hash0 ^= komiHash;
-  hash.hash1 ^= Hash::basicLCong(komiHash);
-
-  //Fold in the ko, scoring, and suicide rules
-  hash ^= Rules::ZOBRIST_KO_RULE_HASH[hist.rules.koRule];
-  hash ^= Rules::ZOBRIST_SCORING_RULE_HASH[hist.rules.scoringRule];
-  hash ^= Rules::ZOBRIST_TAX_RULE_HASH[hist.rules.taxRule];
-  if(hist.rules.multiStoneSuicideLegal)
-    hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
-  if(hist.hasButton)
-    hash ^= Rules::ZOBRIST_BUTTON_HASH;
+  Hash128 hash = BoardHistory::getSituationRulesAndKoHash(board, hist, nextPlayer, nnInputParams.drawEquivalentWinsForWhite);
 
   //Fold in whether a pass ends this phase
   bool passEndsPhase = hist.passWouldEndPhase(board,nextPlayer);
