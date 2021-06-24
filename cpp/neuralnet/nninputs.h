@@ -148,6 +148,7 @@ struct NNOutput {
 
 namespace SymmetryHelpers {
   //A symmetry is 3 bits flipY(bit 0), flipX(bit 1), transpose(bit 2). They are applied in that order.
+  //The first four symmetries only reflect, and do not transpose X and Y.
   constexpr int NUM_SYMMETRIES = 8;
   constexpr int NUM_SYMMETRIES_WITHOUT_TRANSPOSE = 4;
 
@@ -159,14 +160,17 @@ namespace SymmetryHelpers {
   //Applies a symmetry to a location
   Loc getSymLoc(int x, int y, const Board& board, int symmetry);
   Loc getSymLoc(Loc loc, const Board& board, int symmetry);
+  Loc getSymLoc(int x, int y, int xSize, int ySize, int symmetry);
+  Loc getSymLoc(Loc loc, int xSize, int ySize, int symmetry);
 
   //Applies a symmetry to a board
   Board getSymBoard(const Board& board, int symmetry);
 
   //Get the inverse of the specified symmetry
-  int getInverse(int symmetry);
+  int invert(int symmetry);
   //Get the symmetry equivalent to first applying firstSymmetry and then applying nextSymmetry.
-  int combine(int firstSymmetry, int nextSymmetry);
+  int compose(int firstSymmetry, int nextSymmetry);
+  int compose(int firstSymmetry, int nextSymmetry, int nextNextSymmetry);
 
   inline bool isTranspose(int symmetry) { return (symmetry & 0x4) != 0; }
   inline bool isFlipX(int symmetry) { return (symmetry & 0x2) != 0; }

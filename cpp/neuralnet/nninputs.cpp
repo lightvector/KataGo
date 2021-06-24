@@ -597,7 +597,7 @@ void SymmetryHelpers::copyOutputsWithSymmetry(const float* src, float* dst, int 
   copyWithSymmetry(src, dst, nSize, hSize, wSize, 1, false, symmetry, true);
 }
 
-int SymmetryHelpers::getInverse(int symmetry) {
+int SymmetryHelpers::invert(int symmetry) {
   if(symmetry == 5)
     return 6;
   if(symmetry == 6)
@@ -605,22 +605,30 @@ int SymmetryHelpers::getInverse(int symmetry) {
   return symmetry;
 }
 
-int SymmetryHelpers::combine(int firstSymmetry, int nextSymmetry) {
+int SymmetryHelpers::compose(int firstSymmetry, int nextSymmetry) {
   if(isTranspose(firstSymmetry))
     nextSymmetry = (nextSymmetry & 0x4) | ((nextSymmetry & 0x2) >> 1) | ((nextSymmetry & 0x1) << 1);
   return firstSymmetry ^ nextSymmetry;
 }
 
-Loc SymmetryHelpers::getSymLoc(int x, int y, const Board& board, int symmetry) {
+int SymmetryHelpers::compose(int firstSymmetry, int nextSymmetry, int nextNextSymmetry) {
+  return compose(compose(firstSymmetry,nextSymmetry),nextNextSymmetry);
+}
+
+Loc SymmetryHelpers::getSymLoc(int x, int y, int xSize, int ySize, int symmetry) {
   bool transpose = (symmetry & 0x4) != 0;
   bool flipX = (symmetry & 0x2) != 0;
   bool flipY = (symmetry & 0x1) != 0;
-  if(flipX) { x = board.x_size - x - 1; }
-  if(flipY) { y = board.y_size - y - 1; }
+  if(flipX) { x = xSize - x - 1; }
+  if(flipY) { y = ySize - y - 1; }
 
   if(transpose)
     std::swap(x,y);
-  return Location::getLoc(x,y,transpose ? board.y_size : board.x_size);
+  return Location::getLoc(x,y,transpose ? ySize : xSize);
+}
+
+Loc SymmetryHelpers::getSymLoc(int x, int y, const Board& board, int symmetry) {
+  return getSymLoc(x,y,board.x_size,board.y_size,symmetry);
 }
 
 Loc SymmetryHelpers::getSymLoc(Loc loc, const Board& board, int symmetry) {
@@ -628,6 +636,13 @@ Loc SymmetryHelpers::getSymLoc(Loc loc, const Board& board, int symmetry) {
     return loc;
   return getSymLoc(Location::getX(loc,board.x_size), Location::getY(loc,board.x_size), board, symmetry);
 }
+
+Loc SymmetryHelpers::getSymLoc(Loc loc, int xSize, int ySize, int symmetry) {
+  if(loc == Board::NULL_LOC || loc == Board::PASS_LOC)
+    return loc;
+  return getSymLoc(Location::getX(loc,xSize), Location::getY(loc,xSize), xSize, ySize, symmetry);
+}
+
 
 Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
   bool transpose = (symmetry & 0x4) != 0;

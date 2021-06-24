@@ -376,6 +376,23 @@ true
   }
 
   {
+    Board board = Board::parseBoard(12,7,R"%%(
+............
+.x..........
+.x..........
+.oo.........
+............
+............
+............
+)%%");
+    for(int symmetry = 0; symmetry < SymmetryHelpers::NUM_SYMMETRIES; symmetry++) {
+      testAssert(SymmetryHelpers::getSymLoc(1,2,board,symmetry) == SymmetryHelpers::getSymLoc(Location::getLoc(1,2,board.x_size),board,symmetry));
+      testAssert(SymmetryHelpers::getSymLoc(1,2,board,symmetry) == SymmetryHelpers::getSymLoc(Location::getLoc(1,2,board.x_size),12,7,symmetry));
+      testAssert(SymmetryHelpers::getSymLoc(1,2,board,symmetry) == SymmetryHelpers::getSymLoc(1,2,12,7,symmetry));
+    }
+  }
+
+  {
     const char* name = "Symmetry composition tests";
     Board board = Board::parseBoard(9,7,R"%%(
 x.......o
@@ -390,12 +407,12 @@ x.xxo....
     Loc loc = Location::getLoc(1,2,board.x_size);
     for(int symmetry1 = 0; symmetry1 < SymmetryHelpers::NUM_SYMMETRIES; symmetry1++) {
       for(int symmetry2 = 0; symmetry2 < SymmetryHelpers::NUM_SYMMETRIES; symmetry2++) {
-        int symmetryCombined = SymmetryHelpers::combine(symmetry1,symmetry2);
-        Board symBoardComb = SymmetryHelpers::getSymBoard(board,symmetryCombined);
+        int symmetryComposed = SymmetryHelpers::compose(symmetry1,symmetry2);
+        Board symBoardComb = SymmetryHelpers::getSymBoard(board,symmetryComposed);
         Board symBoardCombManual = SymmetryHelpers::getSymBoard(SymmetryHelpers::getSymBoard(board,symmetry1),symmetry2);
-        Loc symLocComb = SymmetryHelpers::getSymLoc(loc,board,symmetryCombined);
+        Loc symLocComb = SymmetryHelpers::getSymLoc(loc,board,symmetryComposed);
         Loc symLocCombManual = SymmetryHelpers::getSymLoc(SymmetryHelpers::getSymLoc(loc,board,symmetry1),SymmetryHelpers::getSymBoard(board,symmetry1),symmetry2);
-        out << "Symmetry " << symmetry1 << " + " << symmetry2 << " = " << symmetryCombined << endl;
+        out << "Symmetry " << symmetry1 << " + " << symmetry2 << " = " << symmetryComposed << endl;
         testAssert(symBoardCombManual.isEqualForTesting(symBoardComb,true,true));
         testAssert(symLocComb == symLocCombManual);
       }
@@ -474,8 +491,8 @@ Symmetry 7 + 7 = 0
     const char* name = "Symmetry inverse tests";
     for(int symmetry1 = 0; symmetry1 < SymmetryHelpers::NUM_SYMMETRIES; symmetry1++) {
       for(int symmetry2 = 0; symmetry2 < SymmetryHelpers::NUM_SYMMETRIES; symmetry2++) {
-        out << "Symmetry " << symmetry1 << " : " << symmetry2 << " inverses " << Global::boolToString(SymmetryHelpers::getInverse(symmetry1) == symmetry2) << endl;
-        testAssert((SymmetryHelpers::combine(symmetry1,symmetry2) == 0) == (SymmetryHelpers::getInverse(symmetry1) == symmetry2));
+        out << "Symmetry " << symmetry1 << " : " << symmetry2 << " inverses " << Global::boolToString(SymmetryHelpers::invert(symmetry1) == symmetry2) << endl;
+        testAssert((SymmetryHelpers::compose(symmetry1,symmetry2) == 0) == (SymmetryHelpers::invert(symmetry1) == symmetry2));
       }
     }
     string expected = R"%%(
