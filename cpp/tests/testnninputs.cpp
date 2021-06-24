@@ -1349,7 +1349,7 @@ void Tests::runBoardSymmetryTests() {
     SymmetryHelpers::maskSymmetricDuplicativeLoc(board,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
-  
+
   string expected = R"%%(
 xxxxxxxx.
 xxxxxxx..
