@@ -1128,11 +1128,10 @@ void Tests::runBoardSymmetryTests() {
     for(int y = 0; y < board.y_size; y++) {
       for(int x = 0; x < board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
-        if (isSymDupLoc[loc]) {
+        if (isSymDupLoc[loc])
           out << 'x';
-        } else {
+        else
           out << '.';
-        }
       }
       out << endl;
     }
@@ -1152,12 +1151,11 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
   {
-    bool markDuplicate[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(9,9,R"%%(
 .........
 .........
@@ -1169,12 +1167,11 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
   {
-    bool markDuplicate[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(9,9,R"%%(
 .........
 .........
@@ -1186,12 +1183,11 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
   {
-    bool markDuplicate[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(9,9,R"%%(
 .........
 .........
@@ -1203,13 +1199,12 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
 
   {
-    bool markDuplicate[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(9,9,R"%%(
 .........
 .........
@@ -1221,12 +1216,11 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
   {
-    bool markDuplicate[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(9,9,R"%%(
 .........
 .........
@@ -1238,12 +1232,11 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
   {
-    bool markDuplicate[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(9,9,R"%%(
 .........
 .O.......
@@ -1255,12 +1248,11 @@ void Tests::runBoardSymmetryTests() {
 .......O.
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
   {
-    bool markDuplicate[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(9,9,R"%%(
 .........
 .........
@@ -1272,12 +1264,11 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
   {
-    bool markDuplicate[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(5,7,R"%%(
 .....
 .....
@@ -1287,12 +1278,11 @@ void Tests::runBoardSymmetryTests() {
 .....
 .....
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
   {
-    bool markDuplicate[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(5,7,R"%%(
 .....
 .....
@@ -1302,12 +1292,11 @@ void Tests::runBoardSymmetryTests() {
 .X.X.
 .....
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
   {
-    bool markDuplicate[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(5,7,R"%%(
 .....
 .X...
@@ -1317,12 +1306,11 @@ void Tests::runBoardSymmetryTests() {
 .X...
 .....
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
   {
-    bool markDuplicate[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(5,7,R"%%(
 .....
 ...X.
@@ -1332,12 +1320,11 @@ void Tests::runBoardSymmetryTests() {
 .X...
 .....
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
   {
-    bool markDuplicate[Board::MAX_ARR_SIZE];
     Board board = Board::parseBoard(5,7,R"%%(
 .....
 .....
@@ -1347,7 +1334,7 @@ void Tests::runBoardSymmetryTests() {
 .X...
 .....
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 

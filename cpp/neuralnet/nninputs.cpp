@@ -641,22 +641,24 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
   return symBoard;
 }
 
-void SymmetryHelpers::maskSymmetricDuplicativeLoc(const Board& board, const BoardHistory& hist, bool* const isSymDupLoc) {
+void SymmetryHelpers::markDuplicateMoveLocs(const Board& board, const BoardHistory& hist, bool* isSymDupLoc) {
   std::fill(isSymDupLoc, isSymDupLoc + Board::MAX_ARR_SIZE, false);
 
   //the board should never be considered symmetric if ko or superko location  is not empty
-  if (board.ko_loc != Board::NULL_LOC) return;
+  if (board.ko_loc != Board::NULL_LOC)
+    return;
   for(int x = 0; x < board.x_size; x++) {
     for (int y = 0; y < board.y_size; y++) {
-      if (hist.superKoBanned[Location::getLoc(x, y, board.x_size)]) return;
+      if (hist.superKoBanned[Location::getLoc(x, y, board.x_size)])
+        return;
     }
   }
 
-  vector<int> symTypes;
-  symTypes.reserve(NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
+  vector<int> validSymmetries;
+  validSymmetries.reserve(NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
 
   //If board has different sizes of x and y, we will not search symmetries involved with transpose.
-  int symmetrySearchUpperBound = board.x_size == board.y_size ? NNInputs::NUM_SYMMETRY_COMBINATIONS : SYMMETRY_TRONSPOSE;
+  int symmetrySearchUpperBound = board.x_size == board.y_size ? NNInputs::NUM_SYMMETRY_COMBINATIONS : NNInputs::NUM_SYMMETRIES_WITHOUT_TRANSPOSE;
 
   for (int symmetry = 1; symmetry < symmetrySearchUpperBound; symmetry++) {
     bool isBoardSym = true;
@@ -670,21 +672,24 @@ void SymmetryHelpers::maskSymmetricDuplicativeLoc(const Board& board, const Boar
         if ((!isStoneSym) || (!isKoRecapBlockedSym) || (!isSecondEncoreStartColorsSym)) {
           isBoardSym = false;
           break;
-        };
+        }
       }
-      if (!isBoardSym) break;
+      if (!isBoardSym)
+        break;
     }
-    if (isBoardSym) symTypes.push_back(symmetry);
+    if (isBoardSym)
+      validSymmetries.push_back(symmetry);
   }
 
   //The way we iterate is to achieve https://senseis.xmp.net/?PlayingTheFirstMoveInTheUpperRightCorner%2FDiscussion
 
   for(int x = board.x_size-1; x >= 0; x--) {
     for(int y = 0; y < board.y_size; y++) {
-      for (int symType: symTypes) {
+      for (int symType: validSymmetries) {
         Loc loc = Location::getLoc(x, y, board.x_size);
         Loc symLoc = getSymLoc(x, y, board, symType);
-        if (!isSymDupLoc[loc] && loc != symLoc) isSymDupLoc[symLoc] = true;
+        if (!isSymDupLoc[loc] && loc != symLoc)
+          isSymDupLoc[symLoc] = true;
       }
     }
   }

@@ -1276,8 +1276,8 @@ void Search::beginSearch(bool pondering) {
       rootNode->patternBonusHash = Hash128();
   }
 
-  if (searchParams.rootSymmetryPruning){
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(rootBoard,rootHistory,isSymDupLoc);
+  if (searchParams.rootSymmetryPruning) {
+    SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,isSymDupLoc);
   }
 
   SearchThread dummyThread(-1, *this);
