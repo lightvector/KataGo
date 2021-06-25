@@ -1122,6 +1122,7 @@ void Tests::runBasicSymmetryTests() {
 void Tests::runBoardSymmetryTests() {
   cout << "Running board Symmetry tests" << endl;
   ostringstream out;
+  BoardHistory hist;
 //============================================================================
   auto printMarkedSymDupArea = [&out](const Board& board, const bool* isSymDupLoc){
     for(int y = 0; y < board.y_size; y++) {
@@ -1151,7 +1152,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,isSymDupLoc);
+    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -1168,7 +1169,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,isSymDupLoc);
+    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -1185,7 +1186,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,isSymDupLoc);
+    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -1202,7 +1203,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,isSymDupLoc);
+    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -1220,7 +1221,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,isSymDupLoc);
+    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -1237,7 +1238,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,isSymDupLoc);
+    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -1254,7 +1255,7 @@ void Tests::runBoardSymmetryTests() {
 .......O.
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,isSymDupLoc);
+    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -1271,7 +1272,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,isSymDupLoc);
+    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -1286,7 +1287,7 @@ void Tests::runBoardSymmetryTests() {
 .....
 .....
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,isSymDupLoc);
+    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -1301,7 +1302,7 @@ void Tests::runBoardSymmetryTests() {
 .X.X.
 .....
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,isSymDupLoc);
+    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -1316,7 +1317,7 @@ void Tests::runBoardSymmetryTests() {
 .X...
 .....
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,isSymDupLoc);
+    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -1331,7 +1332,7 @@ void Tests::runBoardSymmetryTests() {
 .X...
 .....
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,isSymDupLoc);
+    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 
@@ -1346,7 +1347,7 @@ void Tests::runBoardSymmetryTests() {
 .X...
 .....
 )%%");
-    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,isSymDupLoc);
+    SymmetryHelpers::maskSymmetricDuplicativeLoc(board,hist,isSymDupLoc);
     printMarkedSymDupArea(board,isSymDupLoc);
   }
 

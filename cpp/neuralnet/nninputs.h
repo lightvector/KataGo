@@ -163,7 +163,7 @@ namespace SymmetryHelpers {
   inline bool isFlipX(int symmetry) { return (symmetry & 0x2) != 0; }
   inline bool isFlipY(int symmetry) { return (symmetry & 0x1) != 0; }
 
-  void maskSymmetricDuplicativeLoc(const Board& board, bool* const isSymDupLoc);
+  void maskSymmetricDuplicativeLoc(const Board& board, const BoardHistory& hist, bool* const isSymDupLoc);
 }
 
 //Utility functions for computing the "scoreValue", the unscaled utility of various numbers of points, prior to multiplication by

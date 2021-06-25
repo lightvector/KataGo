@@ -641,8 +641,17 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
   return symBoard;
 }
 
-void SymmetryHelpers::maskSymmetricDuplicativeLoc(const Board& board, bool* const isSymDupLoc) {
+void SymmetryHelpers::maskSymmetricDuplicativeLoc(const Board& board, const BoardHistory& hist, bool* const isSymDupLoc) {
   std::fill(isSymDupLoc, isSymDupLoc + Board::MAX_ARR_SIZE, false);
+
+  //the board should never be considered symmetric if ko or superko location  is not empty
+  if (board.ko_loc != Board::NULL_LOC) return;
+  for(int x = 0; x < board.x_size; x++) {
+    for (int y = 0; y < board.y_size; y++) {
+      if (hist.superKoBanned[Location::getLoc(x, y, board.x_size)]) return;
+    }
+  }
+
   vector<int> symTypes;
   symTypes.reserve(NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
 
@@ -653,8 +662,12 @@ void SymmetryHelpers::maskSymmetricDuplicativeLoc(const Board& board, bool* cons
     bool isBoardSym = true;
     for (int y = 0; y < board.y_size; y++) {
       for (int x = 0; x < board.x_size; x++) {
-        Loc loc = getSymLoc(x, y, board,symmetry);
-        if (board.colors[loc] != board.colors[Location::getLoc(x, y, board.x_size)]) {
+        Loc loc = Location::getLoc(x, y, board.x_size);
+        Loc symLoc = getSymLoc(x, y, board,symmetry);
+        bool isStoneSym = (board.colors[loc] == board.colors[symLoc]);
+        bool isKoRecapBlockedSym = hist.encorePhase > 0 ? true : hist.koRecapBlocked[loc] == hist.koRecapBlocked[symLoc];
+        bool isSecondEncoreStartColorsSym = hist.encorePhase == 2 ? true : hist.secondEncoreStartColors[loc] == hist.secondEncoreStartColors[symLoc];
+        if ((!isStoneSym) || (!isKoRecapBlockedSym) || (!isSecondEncoreStartColorsSym)) {
           isBoardSym = false;
           break;
         };

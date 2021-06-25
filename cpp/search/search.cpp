@@ -1276,18 +1276,8 @@ void Search::beginSearch(bool pondering) {
       rootNode->patternBonusHash = Hash128();
   }
 
-  if (searchParams.rootSymmetryPruning && rootBoard.ko_loc != Board::NULL_LOC){
-    bool shouldMask = true;
-    for(int x = 0; x < rootBoard.x_size; x++) {
-      for(int y = 0; y < rootBoard.y_size; y++) {
-        if (rootHistory.superKoBanned[Location::getLoc(x, y, rootBoard.x_size)]) {
-          shouldMask = false;
-          break;
-        }
-      }
-      if(!shouldMask) break;
-    }
-    if(shouldMask) SymmetryHelpers::maskSymmetricDuplicativeLoc(rootBoard,isSymDupLoc);
+  if (searchParams.rootSymmetryPruning){
+    SymmetryHelpers::maskSymmetricDuplicativeLoc(rootBoard,rootHistory,isSymDupLoc);
   }
 
   SearchThread dummyThread(-1, *this);
