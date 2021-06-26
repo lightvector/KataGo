@@ -667,8 +667,8 @@ void SymmetryHelpers::markDuplicateMoveLocs(const Board& board, const BoardHisto
         Loc loc = Location::getLoc(x, y, board.x_size);
         Loc symLoc = getSymLoc(x, y, board,symmetry);
         bool isStoneSym = (board.colors[loc] == board.colors[symLoc]);
-        bool isKoRecapBlockedSym = hist.encorePhase > 0 ? true : hist.koRecapBlocked[loc] == hist.koRecapBlocked[symLoc];
-        bool isSecondEncoreStartColorsSym = hist.encorePhase == 2 ? true : hist.secondEncoreStartColors[loc] == hist.secondEncoreStartColors[symLoc];
+        bool isKoRecapBlockedSym = hist.encorePhase > 0 ? hist.koRecapBlocked[loc] == hist.koRecapBlocked[symLoc] : true;
+        bool isSecondEncoreStartColorsSym = hist.encorePhase == 2 ? hist.secondEncoreStartColors[loc] == hist.secondEncoreStartColors[symLoc] : true;
         if ((!isStoneSym) || (!isKoRecapBlockedSym) || (!isSecondEncoreStartColorsSym)) {
           isBoardSym = false;
           break;
