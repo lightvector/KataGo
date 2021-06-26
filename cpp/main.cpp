@@ -117,6 +117,8 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::samplesgfs(argc-1,&argv[1]);
   else if(subcommand == "dataminesgfs")
     return MainCmds::dataminesgfs(argc-1,&argv[1]);
+  else if(subcommand == "genbook")
+    return MainCmds::genbook(argc-1,&argv[1]);
   else if(subcommand == "trystartposes")
     return MainCmds::trystartposes(argc-1,&argv[1]);
   else if(subcommand == "viewstartposes")

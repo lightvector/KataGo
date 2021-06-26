@@ -32,6 +32,7 @@ namespace MainCmds {
 
   int samplesgfs(int argc, const char* const* argv);
   int dataminesgfs(int argc, const char* const* argv);
+  int genbook(int argc, const char* const* argv);
 
   int trystartposes(int argc, const char* const* argv);
   int viewstartposes(int argc, const char* const* argv);
