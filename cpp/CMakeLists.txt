@@ -289,6 +289,7 @@ add_executable(katago
   tests/testrules.cpp
   tests/testscore.cpp
   tests/testsgf.cpp
+  tests/testsymmetries.cpp
   tests/testnninputs.cpp
   tests/testownership.cpp
   tests/testsearch.cpp

@@ -259,8 +259,8 @@ struct Search {
   std::vector<int> avoidMoveUntilByLocWhite;
 
   //Precomputed values at the root
-  //If the board is symmetric, mask all the equivalent copies at root but leave one.
-  bool isSymDupLoc[Board::MAX_ARR_SIZE];
+  //If the board is symmetric, mask all the equivalent copies of each move except one.
+  bool rootSymDupLoc[Board::MAX_ARR_SIZE];
   Color* rootSafeArea;
   //Used to center for dynamic scorevalue
   double recentScoreCenter;

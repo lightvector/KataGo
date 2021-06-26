@@ -1276,8 +1276,12 @@ void Search::beginSearch(bool pondering) {
       rootNode->patternBonusHash = Hash128();
   }
 
-  if (searchParams.rootSymmetryPruning) {
-    SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,isSymDupLoc);
+  if(searchParams.rootSymmetryPruning) {
+    SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,rootSymDupLoc);
+  }
+  else {
+    //Just in case, don't leave the values undefined.
+    std::fill(rootSymDupLoc,rootSymDupLoc+Board::MAX_ARR_SIZE, false);
   }
 
   SearchThread dummyThread(-1, *this);
@@ -2054,7 +2058,7 @@ bool Search::isAllowedRootMove(Loc moveLoc) const {
       return false;
   }
 
-  if(searchParams.rootSymmetryPruning && moveLoc != Board::PASS_LOC && isSymDupLoc[moveLoc]) {
+  if(searchParams.rootSymmetryPruning && moveLoc != Board::PASS_LOC && rootSymDupLoc[moveLoc]) {
     return false;
   }
 

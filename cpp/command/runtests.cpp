@@ -46,6 +46,8 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   Tests::runBoardStressTest();
 
   Tests::runSgfTests();
+  Tests::runBasicSymmetryTests();
+  Tests::runBoardSymmetryTests();
 
   ScoreValue::freeTables();
 
@@ -64,8 +66,6 @@ int MainCmds::runoutputtests(int argc, const char* const* argv) {
   Tests::runTrainingWriteTests();
   Tests::runTimeControlsTests();
   Tests::runScoreTests();
-  Tests::runBasicSymmetryTests();
-  Tests::runBoardSymmetryTests();
   Tests::runNNSymmetryTests();
   Tests::runSgfFileTests();
 
