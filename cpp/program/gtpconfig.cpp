@@ -96,6 +96,10 @@ resignConsecTurns = 3
 
 # Misc Behavior --------------------
 
+# If the board is symmetric, search only one copy of each equivalent move.
+# Uncomment and set to false to disable this.
+# rootSymmetryPruning = true
+
 # Uncomment and set to true to make KataGo avoid a particular joseki that some KataGo nets misevaluate,
 # and also to improve opening diversity versus some particular other bots that like to play it all the time.
 # avoidMYTDaggerHack = false

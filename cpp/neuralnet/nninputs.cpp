@@ -641,8 +641,11 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
   return symBoard;
 }
 
-void SymmetryHelpers::markDuplicateMoveLocs(const Board& board, const BoardHistory& hist, bool* isSymDupLoc) {
+void SymmetryHelpers::markDuplicateMoveLocs(const Board& board, const BoardHistory& hist, bool* isSymDupLoc, std::vector<int>& validSymmetries) {
   std::fill(isSymDupLoc, isSymDupLoc + Board::MAX_ARR_SIZE, false);
+  validSymmetries.clear();
+  validSymmetries.reserve(NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
+  validSymmetries.push_back(0);
 
   //The board should never be considered symmetric if any moves are banned by ko or superko
   if(board.ko_loc != Board::NULL_LOC)
@@ -653,9 +656,6 @@ void SymmetryHelpers::markDuplicateMoveLocs(const Board& board, const BoardHisto
         return;
     }
   }
-
-  vector<int> validSymmetries;
-  validSymmetries.reserve(NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
 
   //If board has different sizes of x and y, we will not search symmetries involved with transpose.
   int symmetrySearchUpperBound = board.x_size == board.y_size ? NNInputs::NUM_SYMMETRY_COMBINATIONS : NNInputs::NUM_SYMMETRIES_WITHOUT_TRANSPOSE;
@@ -684,9 +684,11 @@ void SymmetryHelpers::markDuplicateMoveLocs(const Board& board, const BoardHisto
   //The way we iterate is to achieve https://senseis.xmp.net/?PlayingTheFirstMoveInTheUpperRightCorner%2FDiscussion
   for(int x = board.x_size-1; x >= 0; x--) {
     for(int y = 0; y < board.y_size; y++) {
-      for(int symmmetry: validSymmetries) {
+      for(int symmetry: validSymmetries) {
+        if(symmetry == 0)
+          continue;
         Loc loc = Location::getLoc(x, y, board.x_size);
-        Loc symLoc = getSymLoc(x, y, board, symmmetry);
+        Loc symLoc = getSymLoc(x, y, board, symmetry);
         if(!isSymDupLoc[loc] && loc != symLoc)
           isSymDupLoc[symLoc] = true;
       }

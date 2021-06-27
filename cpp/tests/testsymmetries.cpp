@@ -379,7 +379,11 @@ void Tests::runBoardSymmetryTests() {
   cout << "Running board symmetry tests" << endl;
 
   ostringstream out;
-  auto printMarkedSymDupArea = [&out](const Board& board, const bool* isSymDupLoc){
+  auto printMarkedSymDupArea = [&out](const Board& board, const bool* isSymDupLoc, const vector<int>& validSymmetries){
+    out << "Symmetries: ";
+    for(int symmetry: validSymmetries)
+      out << symmetry << " ";
+    out << endl;
     for(int y = 0; y < board.y_size; y++) {
       for(int x = 0; x < board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
@@ -396,9 +400,10 @@ void Tests::runBoardSymmetryTests() {
   auto computeAndPrintMarkedSymDupArea = [&out,&printMarkedSymDupArea](const Board& board) {
     BoardHistory hist(board,P_BLACK,Rules::getTrompTaylorish(),0);
     bool isSymDupLoc[Board::MAX_ARR_SIZE];
-    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc);
+    vector<int> validSymmetries;
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc,validSymmetries);
     out << board << endl;
-    printMarkedSymDupArea(board,isSymDupLoc);
+    printMarkedSymDupArea(board,isSymDupLoc,validSymmetries);
   };
 
   const char* name = "Testing SymmetryHelpers::markDuplicateMoveLocs";
@@ -694,6 +699,7 @@ HASH: 9F0B2D702FC8448C75410E097F089AEB
  1 . . . . . . . . .
 
 
+Symmetries: 0 1 2 3 4 5 6 7
 xxxxxxxx.
 xxxxxxx..
 xxxxxx...
@@ -718,6 +724,7 @@ HASH: AC45122339406741350EF7164F7537BA
  1 . . . . . . . . .
 
 
+Symmetries: 0 2
 xxxx.....
 xxxx.....
 xxxx.....
@@ -742,6 +749,7 @@ HASH: 5E99A27FD0F9F1F5CE83F28467EC0A20
  1 . . . . . . . . .
 
 
+Symmetries: 0 1
 .........
 .........
 .........
@@ -766,6 +774,7 @@ HASH: B7760937ABCCDDEB7806FB3350688799
  1 . . . . . . . . .
 
 
+Symmetries: 0 3 4 7
 xxxxxxxx.
 xxxxxxx..
 xxxxxx...
@@ -790,6 +799,7 @@ HASH: 6D5019C791BAB0D7E9D8E41D4F90487D
  1 . . . . . . . . .
 
 
+Symmetries: 0 3
 xxxx.....
 xxxx.....
 xxxx.....
@@ -814,6 +824,7 @@ HASH: 800DA33B7624879BE7EA5FDB80A3BCA0
  1 . . . . . . . . .
 
 
+Symmetries: 0 1 2 3
 xxxx.....
 xxxx.....
 xxxx.....
@@ -838,6 +849,7 @@ HASH: 6DD79D2CC671D2388ECC0B9B5791A771
  1 . . . . . . . . .
 
 
+Symmetries: 0 3 4 7
 xxxxxxxx.
 xxxxxxx..
 xxxxxx...
@@ -862,6 +874,7 @@ HASH: C187B4A7C45ADFEC2010F47B431E6ABC
  1 . . . . . . . . .
 
 
+Symmetries: 0 3
 xxxx.....
 xxxx.....
 xxxx.....
@@ -886,6 +899,7 @@ HASH: 9A99D63A6BCF4A80259685FCC27D968C
  1 . . . . . . . . .
 
 
+Symmetries: 0 3 5 6
 xxxxxxxx.
 xxxxxxx..
 xxxxxx...
@@ -910,6 +924,7 @@ HASH: B58EB39FCBE4BB347271756E0404D59E
  1 . . . . . . . . .
 
 
+Symmetries: 0 7
 xxxxxxxx.
 xxxxxxx..
 xxxxxx...
@@ -934,6 +949,7 @@ HASH: 599EAB2B3EFFA546F09C5912E678BF76
  1 . . . . . . . . .
 
 
+Symmetries: 0 4
 .........
 x........
 xx.......
@@ -958,6 +974,7 @@ HASH: 3ABD04808F9C1524634579C78A198436
  1 . . . . . . . . .
 
 
+Symmetries: 0
 .........
 .........
 .........
@@ -980,6 +997,7 @@ HASH: 1F1DB4700ED476F6F9783C1E9C3A563A
  1 . . . . .
 
 
+Symmetries: 0 1 2 3
 xx...
 xx...
 xx...
@@ -1000,6 +1018,7 @@ HASH: 53E2C35DAB4280F5F678CBC9207C87EC
  1 . . O . .
 
 
+Symmetries: 0 1 2 3
 xx...
 xx...
 xx...
@@ -1020,6 +1039,7 @@ HASH: 3A7FF58A0936DC8EF710C7A589001C63
  1 . . . . .
 
 
+Symmetries: 0 2
 xx...
 xx...
 xx...
@@ -1040,6 +1060,7 @@ HASH: 7D78242056062482634520C44021A007
  1 . . . . .
 
 
+Symmetries: 0 1
 .....
 .....
 .....
@@ -1060,6 +1081,7 @@ HASH: 7A1C4D8F92C366AB477354585AAE5710
  1 . . . . .
 
 
+Symmetries: 0 3
 xx...
 xx...
 xx...
@@ -1080,6 +1102,7 @@ HASH: 35099DA736AFB3AE345C49821CE3F188
  1 . . . . .
 
 
+Symmetries: 0
 .....
 .....
 .....

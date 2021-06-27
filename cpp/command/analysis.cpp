@@ -257,7 +257,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     ret["isDuringSearch"] = isDuringSearch;
 
     bool success = search->getAnalysisJson(
-      request->perspective, request->board, request->hist,
+      request->perspective,
       request->analysisPVLen, ownershipMinVisits, preventEncore, request->includePolicy,
       request->includeOwnership,request->includeMovesOwnership,request->includePVVisits,
       ret

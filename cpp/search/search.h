@@ -258,9 +258,12 @@ struct Search {
   std::vector<int> avoidMoveUntilByLocBlack;
   std::vector<int> avoidMoveUntilByLocWhite;
 
-  //Precomputed values at the root
-  //If the board is symmetric, mask all the equivalent copies of each move except one.
+  //If rootSymmetryPruning==true and the board is symmetric, mask all the equivalent copies of each move except one.
   bool rootSymDupLoc[Board::MAX_ARR_SIZE];
+  //If rootSymmetryPruning==true and symmetries under which the root board and history are invariant, including some heuristics for ko and encore-related state.
+  std::vector<int> rootSymmetries;
+
+  //Strictly pass-alive areas in the root board position
   Color* rootSafeArea;
   //Used to center for dynamic scorevalue
   double recentScoreCenter;
@@ -474,7 +477,7 @@ struct Search {
   nlohmann::json getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight) const;
   //Fill json with analysis engine format information about search results
   bool getAnalysisJson(
-    const Player perspective, const Board& board, const BoardHistory& hist,
+    const Player perspective,
     int analysisPVLen, double ownershipMinWeight, bool preventEncore, bool includePolicy,
     bool includeOwnership, bool includeMovesOwnership, bool includePVVisits,
     nlohmann::json& ret

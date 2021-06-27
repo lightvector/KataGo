@@ -22,6 +22,7 @@
 : Config override: nnRandomize = false
 : Config override: numSearchThreads = 1
 : Config override: openclUseFP16 = false
+: Config override: rootSymmetryPruning = false
 : Config override: searchRandSeed = forTesting
 : Model name: g170-b6c96-s175395328-d26788732
 : GTP ready, beginning main protocol loop

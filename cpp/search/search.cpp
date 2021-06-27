@@ -1277,11 +1277,13 @@ void Search::beginSearch(bool pondering) {
   }
 
   if(searchParams.rootSymmetryPruning) {
-    SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,rootSymDupLoc);
+    SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,rootSymDupLoc,rootSymmetries);
   }
   else {
     //Just in case, don't leave the values undefined.
     std::fill(rootSymDupLoc,rootSymDupLoc+Board::MAX_ARR_SIZE, false);
+    rootSymmetries.clear();
+    rootSymmetries.push_back(0);
   }
 
   SearchThread dummyThread(-1, *this);

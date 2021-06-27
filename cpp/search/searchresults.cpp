@@ -1296,8 +1296,6 @@ json Search::getJsonOwnershipMap(const Player pla, const Player perspective, con
 
 bool Search::getAnalysisJson(
   const Player perspective,
-  const Board& board,
-  const BoardHistory& hist,
   int analysisPVLen,
   double ownershipMinWeight,
   bool preventEncore,
@@ -1309,6 +1307,9 @@ bool Search::getAnalysisJson(
 ) const {
   vector<AnalysisData> buf;
   static constexpr int minMoves = 0;
+
+  const Board& board = rootBoard;
+  const BoardHistory& hist = rootHistory;
 
   getAnalysisData(buf, minMoves, false, analysisPVLen);
 
@@ -1409,6 +1410,11 @@ bool Search::getAnalysisJson(
     }
     rootInfo["thisHash"] = Global::uint64ToHexString(thisHash.hash1) + Global::uint64ToHexString(thisHash.hash0);
     rootInfo["symHash"] = Global::uint64ToHexString(symHash.hash1) + Global::uint64ToHexString(symHash.hash0);
+
+    if(searchParams.rootSymmetryPruning) {
+      rootInfo["symmetriesUsed"] = rootSymmetries;
+    }
+
     rootInfo["currentPlayer"] = PlayerIO::playerToStringShort(rootPla);
 
     ret["rootInfo"] = rootInfo;

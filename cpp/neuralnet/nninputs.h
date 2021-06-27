@@ -164,9 +164,10 @@ namespace SymmetryHelpers {
   inline bool isFlipY(int symmetry) { return (symmetry & 0x1) != 0; }
 
   //Fill isSymDupLoc with true on all but one copy of each symmetrically equivalent move, and false everywhere else.
-  //isSymDupLocs hould be an array of size Board::MAX_ARR_SIZE
+  //isSymDupLocs should be an array of size Board::MAX_ARR_SIZE
+  //validSymmetries will be filled with all symmetries of the current board, including using history for checking ko/superko and some encore-related state.
   //This implementation is dependent on specific order of the symmetries (i.e. transpose is coded as 0x4)
-  void markDuplicateMoveLocs(const Board& board, const BoardHistory& hist, bool* isSymDupLoc);
+  void markDuplicateMoveLocs(const Board& board, const BoardHistory& hist, bool* isSymDupLoc, std::vector<int>& validSymmetries);
 }
 
 //Utility functions for computing the "scoreValue", the unscaled utility of various numbers of points, prior to multiplication by

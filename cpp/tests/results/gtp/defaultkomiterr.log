@@ -25,6 +25,7 @@
 : Config override: nnRandomize = false
 : Config override: numSearchThreads = 1
 : Config override: openclUseFP16 = false
+: Config override: rootSymmetryPruning = false
 : Config override: rules = 
 : Config override: scoringRule = TERRITORY
 : Config override: searchRandSeed = forTesting
