@@ -1414,7 +1414,7 @@ void Search::applyRecursivelyPostOrderMulithreaded(const vector<SearchNode*>& no
         applyRecursivelyPostOrderMulithreadedHelper(nodes[i],threadIdx,rand,f);
     }
     else {
-      int offset = ((int)rand->nextUInt() + threadIdx) % numChildren;
+      int offset = (int)((rand->nextUInt() + (uint32_t)threadIdx) % numChildren);
       for(int i = offset; i<numChildren; i++)
         applyRecursivelyPostOrderMulithreadedHelper(nodes[i],threadIdx,rand,f);
       for(int i = 0; i<offset; i++)
