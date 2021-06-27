@@ -155,7 +155,7 @@ struct OpenCLTuneParams {
 namespace OpenCLTuner {
   constexpr int DEFAULT_X_SIZE = NNPos::MAX_BOARD_LEN;
   constexpr int DEFAULT_Y_SIZE = NNPos::MAX_BOARD_LEN;
-  constexpr int DEFAULT_BATCH_SIZE = 2;
+  constexpr int DEFAULT_BATCH_SIZE = 4;
   constexpr int DEFAULT_WINOGRAD_3X3_TILE_SIZE = 4;
 
   struct ModelInfoForTuning {
