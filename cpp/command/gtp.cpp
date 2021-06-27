@@ -653,7 +653,8 @@ struct GTPEngine {
       //asynchronously and called after we return
       callback = [args,pla,this](const Search* search) {
         vector<AnalysisData> buf;
-        search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
+        bool duplicateForSymmetries = true;
+        search->getAnalysisData(buf,args.minMoves,false,analysisPVLen,duplicateForSymmetries);
         if(buf.size() > args.maxMoves)
           buf.resize(args.maxMoves);
         if(buf.size() <= 0)
@@ -697,7 +698,8 @@ struct GTPEngine {
     else {
       callback = [args,pla,this](const Search* search) {
         vector<AnalysisData> buf;
-        search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
+        bool duplicateForSymmetries = true;
+        search->getAnalysisData(buf,args.minMoves,false,analysisPVLen,duplicateForSymmetries);
         if(buf.size() > args.maxMoves)
           buf.resize(args.maxMoves);
         if(buf.size() <= 0)
@@ -749,6 +751,8 @@ struct GTPEngine {
           out << " prior " << data.policyPrior;
           out << " lcb " << lcb;
           out << " utilityLcb " << utilityLcb;
+          if(data.isSymmetryOf != Board::NULL_LOC)
+            out << " isSymmetryOf " << Location::toString(data.isSymmetryOf,board);
           out << " order " << data.order;
           out << " pv ";
           if(preventEncore && data.pvContainsPass())

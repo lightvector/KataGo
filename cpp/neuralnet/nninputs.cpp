@@ -610,6 +610,8 @@ Loc SymmetryHelpers::getSymLoc(int x, int y, const Board& board, int symmetry) {
 }
 
 Loc SymmetryHelpers::getSymLoc(Loc loc, const Board& board, int symmetry) {
+  if(loc == Board::NULL_LOC || loc == Board::PASS_LOC)
+    return loc;
   return getSymLoc(Location::getX(loc,board.x_size), Location::getY(loc,board.x_size), board, symmetry);
 }
 

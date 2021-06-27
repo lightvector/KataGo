@@ -77,7 +77,8 @@ static void writeLine(
   vector<AnalysisData> buf;
   if(!baseHist.isGameFinished) {
     int minMovesToTryToGet = 0; //just get the default number
-    search->getAnalysisData(buf,minMovesToTryToGet,false,9);
+    bool duplicateForSymmetries = true;
+    search->getAnalysisData(buf,minMovesToTryToGet,false,9,duplicateForSymmetries);
   }
   cout << buf.size() << " ";
   for(int i = 0; i<buf.size(); i++) {

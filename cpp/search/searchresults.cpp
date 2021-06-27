@@ -845,16 +845,16 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
 }
 
 void Search::getAnalysisData(
-  vector<AnalysisData>& buf,int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth
+  vector<AnalysisData>& buf,int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth, bool duplicateForSymmetries
 ) const {
   buf.clear();
   if(rootNode == NULL)
     return;
-  getAnalysisData(*rootNode, buf, minMovesToTryToGet, includeWeightFactors, maxPVDepth);
+  getAnalysisData(*rootNode, buf, minMovesToTryToGet, includeWeightFactors, maxPVDepth, duplicateForSymmetries);
 }
 
 void Search::getAnalysisData(
-  const SearchNode& node, vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth
+  const SearchNode& node, vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth, bool duplicateForSymmetries
 ) const {
   buf.clear();
   vector<const SearchNode*> children;
@@ -1014,6 +1014,30 @@ void Search::getAnalysisData(
   }
   std::stable_sort(buf.begin(),buf.end());
 
+  if(duplicateForSymmetries && searchParams.rootSymmetryPruning && rootSymmetries.size() > 1) {
+    vector<AnalysisData> newBuf;
+    std::set<Loc> isDone;
+    for(int i = 0; i<buf.size(); i++) {
+      const AnalysisData& data = buf[i];
+      for(int symmetry : rootSymmetries) {
+        Loc symMove = SymmetryHelpers::getSymLoc(data.move, rootBoard, symmetry);
+        if(contains(isDone,symMove))
+          continue;
+        isDone.insert(symMove);
+        newBuf.push_back(data);
+        //Replace the fields that need to be adjusted for symmetry
+        AnalysisData& newData = newBuf.back();
+        newData.move = symMove;
+        if(symmetry != 0)
+          newData.isSymmetryOf = data.move;
+        newData.symmetry = symmetry;
+        for(int j = 0; j<newData.pv.size(); j++)
+          newData.pv[j] = SymmetryHelpers::getSymLoc(newData.pv[j], rootBoard, symmetry);
+      }
+    }
+    buf = std::move(newBuf);
+  }
+
   for(int i = 0; i<buf.size(); i++)
     buf[i].order = i;
 }
@@ -1160,7 +1184,8 @@ void Search::printTreeHelper(
   }
 
   vector<AnalysisData> analysisData;
-  getAnalysisData(node,analysisData,0,true,options.maxPVDepth_);
+  bool duplicateForSymmetries = false;
+  getAnalysisData(node,analysisData,0,true,options.maxPVDepth_,duplicateForSymmetries);
 
   int numChildren = analysisData.size();
 
@@ -1277,21 +1302,26 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWe
   return desiredWeight;
 }
 
-json Search::getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight) const {
+json Search::getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight, int symmetry) const {
   vector<double> ownership = getAverageTreeOwnership(ownershipMinWeight, node);
-  json ownerships = json::array();
+  vector<double> ownershipToOutput(board.y_size * board.x_size, 0.0);
+
   for(int y = 0; y < board.y_size; y++) {
     for(int x = 0; x < board.x_size; x++) {
       int pos = NNPos::xyToPos(x, y, nnXLen);
+      Loc symLoc = SymmetryHelpers::getSymLoc(x, y, board, symmetry);
+      int symPos = Location::getY(symLoc, board.x_size) * board.x_size + Location::getX(symLoc, board.x_size);
+      assert(symPos >= 0 && symPos < board.y_size * board.x_size);
+
       double o;
       if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
         o = -ownership[pos];
       else
         o = ownership[pos];
-      ownerships.push_back(o);
+      ownershipToOutput[symPos] = o;
     }
   }
-  return ownerships;
+  return json(ownershipToOutput);
 }
 
 bool Search::getAnalysisJson(
@@ -1310,8 +1340,8 @@ bool Search::getAnalysisJson(
 
   const Board& board = rootBoard;
   const BoardHistory& hist = rootHistory;
-
-  getAnalysisData(buf, minMoves, false, analysisPVLen);
+  bool duplicateForSymmetries = true;
+  getAnalysisData(buf, minMoves, false, analysisPVLen, duplicateForSymmetries);
 
   // Stats for all the individual moves
   json moveInfos = json::array();
@@ -1345,6 +1375,8 @@ bool Search::getAnalysisJson(
     moveInfo["lcb"] = lcb;
     moveInfo["utilityLcb"] = utilityLcb;
     moveInfo["order"] = data.order;
+    if(data.isSymmetryOf != Board::NULL_LOC)
+      moveInfo["isSymmetryOf"] = Location::toString(data.isSymmetryOf, board);
 
     json pv = json::array();
     int pvLen =
@@ -1362,7 +1394,7 @@ bool Search::getAnalysisJson(
     }
 
     if(includeMovesOwnership)
-      moveInfo["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, data.node, ownershipMinWeight);
+      moveInfo["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, data.node, ownershipMinWeight, data.symmetry);
     moveInfos.push_back(moveInfo);
   }
   ret["moveInfos"] = moveInfos;
@@ -1410,11 +1442,6 @@ bool Search::getAnalysisJson(
     }
     rootInfo["thisHash"] = Global::uint64ToHexString(thisHash.hash1) + Global::uint64ToHexString(thisHash.hash0);
     rootInfo["symHash"] = Global::uint64ToHexString(symHash.hash1) + Global::uint64ToHexString(symHash.hash0);
-
-    if(searchParams.rootSymmetryPruning) {
-      rootInfo["symmetriesUsed"] = rootSymmetries;
-    }
-
     rootInfo["currentPlayer"] = PlayerIO::playerToStringShort(rootPla);
 
     ret["rootInfo"] = rootInfo;
@@ -1440,8 +1467,10 @@ bool Search::getAnalysisJson(
   }
 
   // Average tree ownership
-  if(includeOwnership)
-    ret["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, rootNode, ownershipMinWeight);
+  if(includeOwnership) {
+    int symmetry = 0;
+    ret["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, rootNode, ownershipMinWeight, symmetry);
+  }
   return true;
 }
 

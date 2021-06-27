@@ -124,6 +124,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
             * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility.
             * `lcb` - The [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move's winrate, as a float in [0,1].
             * `utilityLcb` - The LCB of the move's utility.
+            * `isSymmetryOf` - Another legal move. Possibly present if KataGo is configured to avoid searching some moves due to symmetry (`rootSymmetryPruning=true`). If present, this move was not actually searched, and all of its stats and PV are copied symmetrically from that other move.
             * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
             * `pv` - The principal variation following this move. May be of variable length or even empty.
             * `pvVisits` - The number of visits for each move in `pv`. Exists only if `pvVisits true` was requested.

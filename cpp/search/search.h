@@ -458,8 +458,12 @@ struct Search {
   void printRootEndingScoreValueBonus(std::ostream& out) const;
 
   //Get detailed analysis data, designed for lz-analyze and kata-analyze commands.
-  void getAnalysisData(std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
-  void getAnalysisData(const SearchNode& node, std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
+  void getAnalysisData(
+    std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth, bool duplicateForSymmetries
+  ) const;
+  void getAnalysisData(
+    const SearchNode& node, std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth, bool duplicateForSymmetries
+  ) const;
 
   //Append the PV from node n onward (not including node n's move)
   void appendPV(std::vector<Loc>& buf, std::vector<int64_t>& visitsBuf, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues, const SearchNode* n, int maxDepth) const;
@@ -474,7 +478,9 @@ struct Search {
   std::vector<double> getAverageTreeOwnership(double minWeight, const SearchNode* node = NULL) const;
 
   //Get ownership map as json
-  nlohmann::json getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight) const;
+  nlohmann::json getJsonOwnershipMap(
+    const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight, int symmetry
+  ) const;
   //Fill json with analysis engine format information about search results
   bool getAnalysisJson(
     const Player perspective,
