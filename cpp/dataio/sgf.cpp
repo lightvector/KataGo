@@ -317,8 +317,8 @@ static void checkNonEmpty(const vector<SgfNode*>& nodes) {
 
 XYSize Sgf::getXYSize() const {
   checkNonEmpty(nodes);
-  int xSize;
-  int ySize;
+  int xSize = 0; //Initialize to 0 to suppress spurious clang compiler warning.
+  int ySize = 0; //Initialize to 0 to suppress spurious clang compiler warning.
   if(!nodes[0]->hasProperty("SZ"))
     return XYSize(19,19); //Some SGF files don't specify, in that case assume 19
 
