@@ -397,8 +397,8 @@ void Tests::runBoardSymmetryTests() {
     out << endl;
   };
 
-  auto computeAndPrintMarkedSymDupArea = [&out,&printMarkedSymDupArea](const Board& board) {
-    BoardHistory hist(board,P_BLACK,Rules::getTrompTaylorish(),0);
+  auto computeAndPrintMarkedSymDupArea = [&out,&printMarkedSymDupArea](const Board& board, Player pla) {
+    BoardHistory hist(board,pla,Rules::getTrompTaylorish(),0);
     bool isSymDupLoc[Board::MAX_ARR_SIZE];
     vector<int> validSymmetries;
     SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc,validSymmetries);
@@ -420,7 +420,23 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+  }
+
+  {
+    out << "Fully symmetric board white next" << endl;
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+)%%");
+    computeAndPrintMarkedSymDupArea(board,P_WHITE);
   }
 
   {
@@ -436,7 +452,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
   }
 
   {
@@ -452,7 +468,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
   }
 
   {
@@ -468,7 +484,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
   }
 
 
@@ -485,7 +501,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
   }
 
   {
@@ -501,7 +517,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
   }
 
   {
@@ -517,7 +533,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
   }
 
   {
@@ -533,7 +549,7 @@ void Tests::runBoardSymmetryTests() {
 .......O.
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
   }
 
   {
@@ -549,7 +565,23 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+  }
+
+  {
+    out << "4 fold-rotational symmetry white next" << endl;
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.....X...
+..X......
+.........
+......X..
+...X.....
+.........
+.........
+)%%");
+    computeAndPrintMarkedSymDupArea(board,P_WHITE);
   }
 
   {
@@ -565,7 +597,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
   }
 
   {
@@ -581,7 +613,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
   }
 
   {
@@ -597,7 +629,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
   }
 
   {
@@ -611,7 +643,7 @@ void Tests::runBoardSymmetryTests() {
 .....
 .....
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
   }
 
   {
@@ -625,7 +657,7 @@ O.X.O
 .....
 ..O..
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
   }
 
   {
@@ -639,7 +671,7 @@ O.X.O
 .X.X.
 .....
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
   }
 
   {
@@ -653,7 +685,7 @@ O.X.O
 .X...
 .....
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
   }
 
   {
@@ -667,7 +699,21 @@ O.X.O
 .X...
 .....
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+  }
+
+  {
+    out << "Both-flip rectangular board white next" << endl;
+    Board board = Board::parseBoard(5,7,R"%%(
+.....
+...X.
+.....
+.....
+.....
+.X...
+.....
+)%%");
+    computeAndPrintMarkedSymDupArea(board,P_WHITE);
   }
 
   {
@@ -681,7 +727,7 @@ O.X.O
 .X...
 .....
 )%%");
-    computeAndPrintMarkedSymDupArea(board);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK);
   }
 
   string expected = R"%%(
@@ -709,6 +755,31 @@ xxxxxxxxx
 xxxxxxxxx
 xxxxxxxxx
 xxxxxxxxx
+
+Fully symmetric board white next
+HASH: 9F0B2D702FC8448C75410E097F089AEB
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Symmetries: 0 1 2 3 4 5 6 7
+xxxxxxxxx
+xxxxxxxxx
+xxxxxxxxx
+xxxxxxxxx
+.....xxxx
+....xxxxx
+...xxxxxx
+..xxxxxxx
+.xxxxxxxx
 
 X-flip symmetry
 HASH: AC45122339406741350EF7164F7537BA
@@ -910,6 +981,31 @@ xxxxxxx..
 xxxxxxxx.
 xxxxxxxxx
 
+4 fold-rotational symmetry white next
+HASH: 9A99D63A6BCF4A80259685FCC27D968C
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . X . . .
+ 6 . . X . . . . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . X . .
+ 3 . . . X . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Symmetries: 0 3 5 6
+xxxxxxxxx
+.xxxxxxxx
+..xxxxxxx
+...xxxxxx
+.....xxxx
+....xxxxx
+...xxxxxx
+..xxxxxxx
+.xxxxxxxx
+
 UR-only diagonal flip symmetry
 HASH: B58EB39FCBE4BB347271756E0404D59E
    A B C D E F G H J
@@ -1089,6 +1185,27 @@ xx...
 xxx..
 xxx..
 xxx..
+
+Both-flip rectangular board white next
+HASH: 7A1C4D8F92C366AB477354585AAE5710
+   A B C D E
+ 7 . . . . .
+ 6 . . . X .
+ 5 . . . . .
+ 4 . . . . .
+ 3 . . . . .
+ 2 . X . . .
+ 1 . . . . .
+
+
+Symmetries: 0 3
+..xxx
+..xxx
+..xxx
+...xx
+...xx
+...xx
+...xx
 
 Not symmetric
 HASH: 35099DA736AFB3AE345C49821CE3F188

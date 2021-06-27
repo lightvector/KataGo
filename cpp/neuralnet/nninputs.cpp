@@ -682,15 +682,33 @@ void SymmetryHelpers::markDuplicateMoveLocs(const Board& board, const BoardHisto
   }
 
   //The way we iterate is to achieve https://senseis.xmp.net/?PlayingTheFirstMoveInTheUpperRightCorner%2FDiscussion
-  for(int x = board.x_size-1; x >= 0; x--) {
-    for(int y = 0; y < board.y_size; y++) {
-      for(int symmetry: validSymmetries) {
-        if(symmetry == 0)
-          continue;
-        Loc loc = Location::getLoc(x, y, board.x_size);
-        Loc symLoc = getSymLoc(x, y, board, symmetry);
-        if(!isSymDupLoc[loc] && loc != symLoc)
-          isSymDupLoc[symLoc] = true;
+  //Reverse the iteration order for white, so that natural openings result in white on the left and black on the right
+  //as is common now in SGFs
+  if(hist.presumedNextMovePla == P_BLACK) {
+    for(int x = board.x_size-1; x >= 0; x--) {
+      for(int y = 0; y < board.y_size; y++) {
+        for(int symmetry: validSymmetries) {
+          if(symmetry == 0)
+            continue;
+          Loc loc = Location::getLoc(x, y, board.x_size);
+          Loc symLoc = getSymLoc(x, y, board, symmetry);
+          if(!isSymDupLoc[loc] && loc != symLoc)
+            isSymDupLoc[symLoc] = true;
+        }
+      }
+    }
+  }
+  else {
+    for(int x = 0; x < board.x_size; x++) {
+      for(int y = board.y_size-1; y >= 0; y--) {
+        for(int symmetry: validSymmetries) {
+          if(symmetry == 0)
+            continue;
+          Loc loc = Location::getLoc(x, y, board.x_size);
+          Loc symLoc = getSymLoc(x, y, board, symmetry);
+          if(!isSymDupLoc[loc] && loc != symLoc)
+            isSymDupLoc[symLoc] = true;
+        }
       }
     }
   }
