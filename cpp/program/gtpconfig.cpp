@@ -96,7 +96,7 @@ resignConsecTurns = 3
 
 # Misc Behavior --------------------
 
-# If the board is symmetric, search only one copy of each equivalent move.
+# If the board is symmetric, search only one copy of each equivalent move. Attempts to also account for ko/superko, will not theoretically perfect for superko.
 # Uncomment and set to false to disable this.
 # rootSymmetryPruning = true
 

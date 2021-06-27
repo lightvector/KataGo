@@ -795,6 +795,7 @@ static void extractPolicyTarget(
   double scaleMaxToAtLeast = 10.0;
 
   assert(node != NULL);
+  assert(!toMoveBot->searchParams.rootSymmetryPruning);
   bool allowDirectPolicyMoves = false;
   bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,NULL,scaleMaxToAtLeast,allowDirectPolicyMoves);
   assert(success);
