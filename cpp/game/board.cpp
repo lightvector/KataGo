@@ -2639,3 +2639,4 @@ bool Board::isAdjacentToPlaHead(Player pla, Loc loc, Loc plaHead) const {
   );
   return false;
 }
+

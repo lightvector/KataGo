@@ -31,6 +31,7 @@ namespace NNInputs {
 
   constexpr int NUM_SYMMETRY_BOOLS = 3;
   constexpr int NUM_SYMMETRY_COMBINATIONS = 8;
+  constexpr int NUM_SYMMETRIES_WITHOUT_TRANSPOSE = 4;
 }
 
 struct MiscNNInputParams {
@@ -150,6 +151,7 @@ struct NNOutput {
 };
 
 namespace SymmetryHelpers {
+
   void copyInputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry);
   void copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry);
 
@@ -160,6 +162,11 @@ namespace SymmetryHelpers {
   inline bool isTranspose(int symmetry) { return (symmetry & 0x4) != 0; }
   inline bool isFlipX(int symmetry) { return (symmetry & 0x2) != 0; }
   inline bool isFlipY(int symmetry) { return (symmetry & 0x1) != 0; }
+
+  //Fill isSymDupLoc with true on all but one copy of each symmetrically equivalent move, and false everywhere else.
+  //isSymDupLocs hould be an array of size Board::MAX_ARR_SIZE
+  //This implementation is dependent on specific order of the symmetries (i.e. transpose is coded as 0x4)
+  void markDuplicateMoveLocs(const Board& board, const BoardHistory& hist, bool* isSymDupLoc);
 }
 
 //Utility functions for computing the "scoreValue", the unscaled utility of various numbers of points, prior to multiplication by

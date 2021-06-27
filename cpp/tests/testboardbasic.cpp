@@ -1935,3 +1935,4 @@ Caps 4420 4335
 )%%";
   expect("Board stress test move counts",out,expected);
 }
+
