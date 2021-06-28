@@ -204,7 +204,7 @@ Basically, the neural net not only produces a winrate and score, but also an est
 
 From manual observations by hand this uncertainty prediction behaves almost exactly as one would hope. It is low in calm positions and smooth positions where there are lots of moves that are all reasonable choices with similar values, such as in many openings. It spikes up when fights break out and in the middle of unresolved tactics, then falls again when the tactic resolves.
 
-Combined with the method above, KataGo as of 1.9.0 release seems to be about 75 Elo stronger than the preceding release, and about 50 Elo stronger than the preceding release if the cPUCT for the preceding release is optimally tuned (with the latest networks, apparently about 25 Elo could be gained by tuning a better *constant* cPUCT).
+Combined with the method above, KataGo as of 1.9.0 release seems to be about 75 Elo stronger than the preceding release, and about 50 Elo stronger than the preceding release if the cPUCT for the preceding release is optimally tuned (with the latest networks, apparently about 25 Elo could be gained by tuning a better constant cPUCT).
 
 
 
