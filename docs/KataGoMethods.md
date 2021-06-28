@@ -164,3 +164,47 @@ The intuition behind all of this is to correct for persistent biases in the neur
 By only averaging errors in a bucket rather than absolute utilities, we continue to leverage the neural net's overall ability to predict the utility far more accurately than any crude heuristic. Each different place in a search tree that a tactic is visited, changes may have occurred elsewhere on the board that significantly affect the overall expected utility in a way that only a sophisticated net can judge in absolute terms. However, the error in the neural net's evaluation of this local tactic *relative* to that overall level may still be consistent. This is possibly the reason why at least in early testing, this method seems still beneficial, whereas other methods that deal with absolute utlities, like RAVE, are not so useful in modern bots.
 
 
+## Dynamic Variance-Scaled cPUCT
+<sub>(This method was first experimented with in KataGo in early 2021, and released in June 2021 with v1.9.0).</sub>
+
+This method can be motivated and explained by a simple observation. Consider the PUCT formula that controls exploration versus exploration in modern AlphaZero-style MCTS:
+
+<img height="45px" src="https://render.githubusercontent.com/render/math?math=\text{Next action to explore}=\text{argmax}_a Q(a) + c_{\text{PUCT}} P(a) \frac{\sqrt{\sum_b N(b)}}{1 + N(a)}">
+
+Suppose for a given game/subgame/situation/tactic the value of the cPUCT coefficient is k. Then, consider a game/subgame/situation/tactic that is identical except all the differences between all the Q values at every node is doubled (e.g. the differences between the winrates of moves and of the results of playouts are doubled). In this new game, the optimal cPUCT coefficient is now 2k, because a coefficient of 2k is what is needed to exactly replicate the original search behavior given that the differences in Q are all twice as large as before.
+
+In other words, all else equal, if the scale of utility differences between moves changes, the optimal cPUCT coefficient should change proportionally. Since the scale of utility differences, varies across games and situations within a game, using a constant value for cPUCT for the entire game does not make sense.
+
+So, as of mid 2021, KataGo now:
+
+* Keeps track of the empiricial variance of the utility of the playouts for each search node in the tree, mixing in a small prior to get a reasonable variance estimate for nodes with too few playouts.
+* At every node, scales the cPUCT for choosing which children of that node to explore by roughly sqrt(utility variance).
+
+So KataGo now uses cPUCT that dynamically adjusts proportionally with the empirical scale of variations in the utility. Another intuition for why this should give better results:
+
+* If utility of playouts is varying wildly, you should explore more and not overly-exploit the first high-value move you see, since wild variation means other moves have more chance to be better too even if they look worse at first.
+* If utility is varying only a tiny bit and estimates are very stable, you should focus in and optimize more precisely between these fine differences, rather than continuing to invest spreading playouts over a wide range of moves that are consistently performing worse than the best move.
+
+Combined with the method below, KataGo as of 1.9.0 release seems to be about 75 Elo stronger than the preceding release, and about 50 Elo stronger than the preceding release if the cPUCT for the preceding release is optimally tuned (with the latest networks, apparently about 25 Elo could be gained by tuning a better *constant* cPUCT).
+
+
+## Uncertainty-Weighted MCTS Playouts
+
+KataGo now weights different MCTS playouts according to the "confidence" of the neural net's utility estimates for that playout, downweighting playouts where the neural net reporst that its estimate is likely to have high error, and upweighting those that the neural net is confident in.
+
+Specifically on any given turn t in the game, we train the neural net to predict the short-term error between its current output and the values from MCTS from the training data that are treated as the ground truth:
+
+* Predict the squared difference between `stop_gradient(neural net's current value prediction)` and `(1-lambda) sum_{t' >= t} MCTS_value(t) lambda^(t'-t)`
+* Predict the squared difference between `stop_gradient(neural net's current score prediction)` and `(1-lambda) sum_{t' >= t} MCTS_score(t) lambda^(t'-t)`
+
+Where `MCTS_value(t')` and `MCTS_score(t')` are the root value and score from MCTS recorded for turn t' in the training data, and lambda ~= 5/6 is an arbitrary coefficient for computing an exponential weighted average over the subsequent turns. The stop-gradient is so that the neural net attempts to adjust the error prediction heads to match this squared difference, but do not attempt to output the value and score prediction heads to make the squared difference closer to the error prediction head's output. For the loss function, we just use squared error (so, the loss is fourth-power in the underlying values).
+
+Basically, the neural net not only produces a winrate and score, but also an estimate of how uncertain or inaccurate those winrates and scores are relative to what a search would conclude a few turns later. We then simply downweight playouts roughly proportionally to the neural net's reported uncertainty, so that uncertain playouts count as a "fraction of a playout" for the purposes of computing the MCTS average values and for driving the PUCT exploration formula, and highly certain playouts count as "more than one playout" for these.
+
+From manual observations by hand this uncertainty prediction behaves almost exactly as one would hope. It is low in calm positions and smooth positions where there are lots of moves that are all reasonable choices with similar values, such as in many openings. It spikes up when fights break out and in the middle of unresolved tactics, then falls again when the tactic resolves.
+
+Combined with the method above, KataGo as of 1.9.0 release seems to be about 75 Elo stronger than the preceding release, and about 50 Elo stronger than the preceding release if the cPUCT for the preceding release is optimally tuned (with the latest networks, apparently about 25 Elo could be gained by tuning a better *constant* cPUCT).
+
+
+
+
