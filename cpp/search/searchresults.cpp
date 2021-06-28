@@ -1477,7 +1477,8 @@ bool Search::getAnalysisJson(
 //Compute all the stats of the root based on its children, pruning weights such that they are as expected
 //based on policy and utility. This is used to give accurate rootInfo even with a lot of wide root noise
 bool Search::getPrunedRootValues(ReportedSearchValues& values) const {
-  if(rootNode == NULL) return false;
+  if(rootNode == NULL)
+    return false;
   const SearchNode& node = *rootNode;
   int childrenCapacity;
   const SearchChildPointer* children = node.getChildren(childrenCapacity);
@@ -1521,7 +1522,9 @@ bool Search::getPrunedRootValues(ReportedSearchValues& values) const {
   //Also add in the direct evaluation of this node.
   {
     const NNOutput* nnOutput = node.getNNOutput();
-    assert(nnOutput != NULL);
+    //Root might be null if the search was terminated very fast
+    if(nnOutput == NULL)
+      return false;
     double winProb = (double)nnOutput->whiteWinProb;
     double lossProb = (double)nnOutput->whiteLossProb;
     double noResultProb = (double)nnOutput->whiteNoResultProb;
