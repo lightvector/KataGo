@@ -835,6 +835,9 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   auto preDownloadLoop = [&]() {
     if(disablePredownloadLoop)
       return;
+    //Wait a while before starting the download loop, so that it doesn't get confusing with other attempts to
+    //form the intiial connection.
+    std::this_thread::sleep_for(std::chrono::duration<double>(30));
     Rand preDownloadLoopRand;
     while(true) {
       if(shouldStopGracefullyFunc())
