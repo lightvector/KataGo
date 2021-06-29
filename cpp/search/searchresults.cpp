@@ -1302,6 +1302,22 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWe
   return desiredWeight;
 }
 
+static double roundStatic(double x, double inverseScale) {
+  return round(x * inverseScale) / inverseScale;
+}
+static double roundDynamic(double x, int precision) {
+  double absx = abs(x);
+  if(absx <= 1e-60)
+    return x;
+  int orderOfMagnitude = (int)floor(log10(absx));
+  int roundingMagnitude = orderOfMagnitude - precision;
+  if(roundingMagnitude >= 0)
+    return round(x);
+  double inverseScale = pow(10.0,-roundingMagnitude);
+  return roundStatic(x, inverseScale);
+}
+
+
 json Search::getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight, int symmetry) const {
   vector<double> ownership = getAverageTreeOwnership(ownershipMinWeight, node);
   vector<double> ownershipToOutput(board.y_size * board.x_size, 0.0);
@@ -1318,6 +1334,9 @@ json Search::getJsonOwnershipMap(const Player pla, const Player perspective, con
         o = -ownership[pos];
       else
         o = ownership[pos];
+      // Round to 10^-6 to limit the size of output.
+      // No guarantees that the serializer actually outputs something of this length rather than longer due to float wonkiness, but it should usually be true.
+      o = roundStatic(o, 1000000.0);
       ownershipToOutput[symPos] = o;
     }
   }
@@ -1337,6 +1356,7 @@ bool Search::getAnalysisJson(
 ) const {
   vector<AnalysisData> buf;
   static constexpr int minMoves = 0;
+  static constexpr int OUTPUT_PRECISION = 8;
 
   const Board& board = rootBoard;
   const BoardHistory& hist = rootHistory;
@@ -1365,15 +1385,15 @@ bool Search::getAnalysisJson(
     json moveInfo;
     moveInfo["move"] = Location::toString(data.move, board);
     moveInfo["visits"] = data.numVisits;
-    moveInfo["utility"] = utility;
-    moveInfo["winrate"] = winrate;
-    moveInfo["scoreMean"] = lead;
-    moveInfo["scoreSelfplay"] = scoreMean;
-    moveInfo["scoreLead"] = lead;
-    moveInfo["scoreStdev"] = data.scoreStdev;
-    moveInfo["prior"] = data.policyPrior;
-    moveInfo["lcb"] = lcb;
-    moveInfo["utilityLcb"] = utilityLcb;
+    moveInfo["utility"] = roundDynamic(utility,OUTPUT_PRECISION);
+    moveInfo["winrate"] = roundDynamic(winrate,OUTPUT_PRECISION);
+    moveInfo["scoreMean"] = roundDynamic(lead,OUTPUT_PRECISION);
+    moveInfo["scoreSelfplay"] = roundDynamic(scoreMean,OUTPUT_PRECISION);
+    moveInfo["scoreLead"] = roundDynamic(lead,OUTPUT_PRECISION);
+    moveInfo["scoreStdev"] = roundDynamic(data.scoreStdev,OUTPUT_PRECISION);
+    moveInfo["prior"] = roundDynamic(data.policyPrior,OUTPUT_PRECISION);
+    moveInfo["lcb"] = roundDynamic(lcb,OUTPUT_PRECISION);
+    moveInfo["utilityLcb"] = roundDynamic(utilityLcb,OUTPUT_PRECISION);
     moveInfo["order"] = data.order;
     if(data.isSymmetryOf != Board::NULL_LOC)
       moveInfo["isSymmetryOf"] = Location::toString(data.isSymmetryOf, board);
@@ -1420,11 +1440,11 @@ bool Search::getAnalysisJson(
 
     json rootInfo;
     rootInfo["visits"] = rootVals.visits;
-    rootInfo["winrate"] = winrate;
-    rootInfo["scoreSelfplay"] = scoreMean;
-    rootInfo["scoreLead"] = lead;
-    rootInfo["scoreStdev"] = rootVals.expectedScoreStdev;
-    rootInfo["utility"] = utility;
+    rootInfo["winrate"] = roundDynamic(winrate,OUTPUT_PRECISION);
+    rootInfo["scoreSelfplay"] = roundDynamic(scoreMean,OUTPUT_PRECISION);
+    rootInfo["scoreLead"] = roundDynamic(lead,OUTPUT_PRECISION);
+    rootInfo["scoreStdev"] = roundDynamic(rootVals.expectedScoreStdev,OUTPUT_PRECISION);
+    rootInfo["utility"] = roundDynamic(utility,OUTPUT_PRECISION);
 
     Hash128 thisHash;
     Hash128 symHash;
@@ -1457,12 +1477,12 @@ bool Search::getAnalysisJson(
     for(int y = 0; y < board.y_size; y++) {
       for(int x = 0; x < board.x_size; x++) {
         int pos = NNPos::xyToPos(x, y, nnXLen);
-        policy.push_back(policyProbs[pos]);
+        policy.push_back(roundDynamic(policyProbs[pos],OUTPUT_PRECISION));
       }
     }
 
     int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
-    policy.push_back(policyProbs[passPos]);
+    policy.push_back(roundDynamic(policyProbs[passPos],OUTPUT_PRECISION));
     ret["policy"] = policy;
   }
 
