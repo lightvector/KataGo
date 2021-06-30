@@ -1,0 +1,36 @@
+: Analysis Engine starting...
+: KataGo v1.9.0
+: nnRandSeed0 = analysisTest
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Loaded config configs/analysis_example.cfg and/or command-line and query overrides
+: Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: Config override: cudaUseFP16 = false
+: Config override: cudaUseNHWC = false
+: Config override: forDeterministicTesting = true
+: Config override: logAllRequests = true
+: Config override: logAllResponses = true
+: Config override: logDir = 
+: Config override: logFile = tests/results/analysis/badoverride.txt.log
+: Config override: logSearchInfo = true
+: Config override: logTimeStamp = false
+: Config override: maxPlayouts = 10000
+: Config override: maxVisits = 100
+: Config override: nnRandSeed = analysisTest
+: Config override: nnRandomize = false
+: Config override: numAnalysisThreads = 1
+: Config override: numSearchThreadsPerAnalysisThread = 1
+: Config override: openclUseFP16 = false
+: Config override: rootSymmetryPruning = false
+: Analyzing up to 1 positions at at time in parallel
+: Started, ready to begin handling requests
+: Request: {"id":"badoverride","initialStones":[],"moves":[],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"overrideSettings":{"sldjfslkjf":1234}}
+: Response: {"error":"Unknown config params: sldjfslkjf","field":"overrideSettings","id":"badoverride"}
+: tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: NN rows: 0
+: NN batches: 0
+: NN avg batch size: -nan
+: GPU -1 finishing, processed 0 rows 0 batches
+: All cleaned up, quitting
