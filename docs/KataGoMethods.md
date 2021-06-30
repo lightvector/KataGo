@@ -185,7 +185,7 @@ So KataGo now uses cPUCT that dynamically adjusts proportionally with the empiri
 * If utility of playouts is varying wildly, you should explore more and not overly-exploit the first high-value move you see, since wild variation means other moves have more chance to be better too even if they look worse at first.
 * If utility is varying only a tiny bit and estimates are very stable, you should focus in and optimize more precisely between these fine differences, rather than continuing to invest spreading playouts over a wide range of moves that are consistently performing worse than the best move.
 
-Combined with the method below, KataGo as of 1.9.0 release seems to be about 75 Elo stronger than the preceding release, and about 50 Elo stronger than the preceding release if the cPUCT for the preceding release is optimally tuned (with the latest networks, apparently about 25 Elo could be gained by tuning a better constant cPUCT).
+Combined with the uncertainty weighting method below, KataGo as of 1.9.0 release seems to be about 75 Elo stronger than the preceding release, and about 50 Elo stronger than the preceding release if the cPUCT for the preceding release is optimally tuned (with the latest networks, apparently about 25 Elo could be gained by tuning a better constant cPUCT).
 
 
 ## Uncertainty-Weighted MCTS Playouts
@@ -204,7 +204,7 @@ Basically, the neural net not only produces a winrate and score, but also an est
 
 From manual observations by hand this uncertainty prediction behaves almost exactly as one would hope. It is low in calm positions and smooth positions where there are lots of moves that are all reasonable choices with similar values, such as in many openings. It spikes up when fights break out and in the middle of unresolved tactics, then falls again when the tactic resolves.
 
-Combined with the method above, KataGo as of 1.9.0 release seems to be about 75 Elo stronger than the preceding release, and about 50 Elo stronger than the preceding release if the cPUCT for the preceding release is optimally tuned (with the latest networks, apparently about 25 Elo could be gained by tuning a better constant cPUCT).
+Combined with the dynamic cPUCT method above, KataGo as of 1.9.0 release seems to be about 75 Elo stronger than the preceding release, and about 50 Elo stronger than the preceding release if the cPUCT for the preceding release is optimally tuned (with the latest networks, apparently about 25 Elo could be gained by tuning a better constant cPUCT).
 
 
 
