@@ -828,11 +828,10 @@ int MainCmds::analysis(int argc, const char* const* argv) {
             localCfg.overrideKeys(overrideSettings);
             loadParams(localCfg, rbase.params, rbase.perspective, defaultPerspective);
             SearchParams::failIfParamsDifferOnUnchangeableParameter(defaultParams,rbase.params);
-            //Hard failure on unused override keys newly present in the config
+            //Soft failure on unused override keys newly present in the config
             vector<string> unusedKeys = localCfg.unusedKeys();
             if(unusedKeys.size() > 0) {
-              reportErrorForId(rbase.id, "overrideSettings", string("Unknown config params: ") + Global::concat(unusedKeys,","));
-              continue;
+              reportWarningForId(rbase.id, "overrideSettings", string("Unknown config params: ") + Global::concat(unusedKeys,","));
             }
           }
           catch(const StringError& exception) {
