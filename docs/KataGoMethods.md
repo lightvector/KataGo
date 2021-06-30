@@ -177,7 +177,7 @@ In other words, all else equal, if the scale of utility differences between move
 
 So, as of mid 2021, KataGo now:
 
-* Keeps track of the empiricial variance of the utility of the playouts for each search node in the tree, mixing in a small prior to get a reasonable variance estimate for nodes with too few playouts.
+* Keeps track of the empirical variance of the utility of the playouts for each search node in the tree, mixing in a small prior to get a reasonable variance estimate for nodes with too few playouts.
 * At every node, scales the cPUCT for choosing which children of that node to explore by roughly sqrt(utility variance).
 
 So KataGo now uses cPUCT that dynamically adjusts proportionally with the empirical scale of variations in the utility. Another intuition for why this should give better results:
@@ -191,16 +191,16 @@ Combined with the method below, KataGo as of 1.9.0 release seems to be about 75 
 ## Uncertainty-Weighted MCTS Playouts
 <sub>(This method was first experimented with in KataGo in early 2021, and released in June 2021 with v1.9.0).</sub>
 
-KataGo now weights different MCTS playouts according to the "confidence" of the neural net's utility estimates for that playout, downweighting playouts where the neural net reporst that its estimate is likely to have high error, and upweighting those that the neural net is confident in.
+KataGo now weights different MCTS playouts according to the "confidence" of the neural net's utility estimates for that playout, downweighting playouts where the neural net reports that its estimate is likely to have high error, and upweighting those that the neural net is confident in.
 
 Specifically on any given turn t in the game, we train the neural net to predict the short-term error between its current output and the values from MCTS from the training data that are treated as the ground truth:
 
 * Predict the squared difference between `stop_gradient(neural net's current value prediction)` and `(1-lambda) sum_{t' >= t} MCTS_value(t') lambda^(t'-t)`
 * Predict the squared difference between `stop_gradient(neural net's current score prediction)` and `(1-lambda) sum_{t' >= t} MCTS_score(t') lambda^(t'-t)`
 
-Where `MCTS_value(t')` and `MCTS_score(t')` are the root value and score from MCTS recorded for turn t' in the training data, and lambda ~= 5/6 is an arbitrary coefficient for computing an exponential weighted average over the subsequent turns. The stop-gradient is so that the neural net attempts to adjust the error prediction heads to match this squared difference, but do not attempt to output the value and score prediction heads to make the squared difference closer to the error prediction head's output. For the loss function, we also just use squared error, i.e. the loss is fourth-degree in the underlying values. (Actually, we use huber loss, which is basically just squared error but avoiding extreme outliers).
+Where `MCTS_value(t')` and `MCTS_score(t')` are the root value and score from MCTS recorded for turn t' in the training data, and lambda ~= 5/6 is an arbitrary coefficient for computing an exponential weighted average over the subsequent turns. The stop-gradient is so that the neural net attempts to adjust the error prediction heads to match this squared difference, but do not attempt to output the value and score prediction heads to make the squared difference closer to the error prediction head's output. For the loss function, we also just use squared error, i.e. the loss is fourth-degree in the underlying values. (Actually, we use Huber loss, which is basically just squared error but avoiding extreme outliers).
 
-Basically, the neural net not only produces a winrate and score, but also an estimate of how uncertain or inaccurate those winrates and scores are relative to what a search would conclude a few turns later. We then simply downweight playouts roughly proportionally to the neural net's reported uncertainty, so that uncertain playouts count as a "fraction of a playout" for the purposes of computing the MCTS average values and for driving the PUCT exploration formula, and highly certain playouts count as "more than one playout" for these.
+Basically, the neural net not only produces a winrate and score, but also an estimate of how uncertain or inaccurate those winrates and scores are relative to what a search would conclude a few turns later. We then simply downweight playouts roughly proportionally to the neural net's reported uncertainty, so that uncertain playouts count as a "fraction of a playout" for the purposes of computing the MCTS average values and for driving the PUCT exploration formula, and highly certain playouts count as "more than one playout" for these. We add a small minimum baseline uncertainty so as to cap the maximum weight that one single playout can provide.
 
 From manual observations by hand this uncertainty prediction behaves almost exactly as one would hope. It is low in calm positions and smooth positions where there are lots of moves that are all reasonable choices with similar values, such as in many openings. It spikes up when fights break out and in the middle of unresolved tactics, then falls again when the tactic resolves.
 
