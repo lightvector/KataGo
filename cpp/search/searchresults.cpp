@@ -381,6 +381,7 @@ bool Search::getNodeRawNNValues(const SearchNode& node, ReportedSearchValues& va
   if(winLossValue < -1.0) winLossValue = -1.0;
   values.winLossValue = winLossValue;
 
+  values.weight = computeWeightFromNNOutput(nnOutput);
   values.visits = 1;
 
   return true;
@@ -403,8 +404,36 @@ bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values)
 
   if(weightSum <= 0.0)
     return false;
-  values = ReportedSearchValues(*this,winLossValueAvg, noResultValueAvg, scoreMeanAvg, scoreMeanSqAvg, leadAvg, utilityAvg, visits);
+  values = ReportedSearchValues(
+    *this,
+    winLossValueAvg,
+    noResultValueAvg,
+    scoreMeanAvg,
+    scoreMeanSqAvg,
+    leadAvg,
+    utilityAvg,
+    weightSum,
+    visits
+  );
   return true;
+}
+
+const SearchNode* Search::getRootNode() const {
+  return rootNode;
+}
+const SearchNode* Search::getChildForMove(const SearchNode* node, Loc moveLoc) const {
+  if(node == NULL)
+    return NULL;
+  int childrenCapacity;
+  const SearchChildPointer* children = node->getChildren(childrenCapacity);
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
+    if(moveLoc == child->prevMoveLoc)
+      return child;
+  }
+  return NULL;
 }
 
 Loc Search::getChosenMoveLoc() {
@@ -537,15 +566,19 @@ bool Search::shouldSuppressPass(const SearchNode* n) const {
 }
 
 bool Search::getPolicy(float policyProbs[NNPos::MAX_NN_POLICY_SIZE]) const {
-  if(rootNode == NULL)
+  return getPolicy(rootNode, policyProbs);
+}
+bool Search::getPolicy(const SearchNode* node, float policyProbs[NNPos::MAX_NN_POLICY_SIZE]) const {
+  if(node == NULL)
     return false;
-  const NNOutput* nnOutput = rootNode->getNNOutput();
+  const NNOutput* nnOutput = node->getNNOutput();
   if(nnOutput == NULL)
     return false;
 
   std::copy(nnOutput->policyProbs, nnOutput->policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
   return true;
 }
+
 
 //Safe to call concurrently with search
 double Search::getPolicySurprise() const {
@@ -1547,12 +1580,16 @@ bool Search::getAnalysisJson(
   return true;
 }
 
-//Compute all the stats of the root based on its children, pruning weights such that they are as expected
+//Compute all the stats of the node based on its children, pruning weights such that they are as expected
 //based on policy and utility. This is used to give accurate rootInfo even with a lot of wide root noise
 bool Search::getPrunedRootValues(ReportedSearchValues& values) const {
-  if(rootNode == NULL)
+  return getPrunedNodeValues(rootNode,values);
+}
+
+bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues& values) const {
+  if(nodePtr == NULL)
     return false;
-  const SearchNode& node = *rootNode;
+  const SearchNode& node = *nodePtr;
   int childrenCapacity;
   const SearchChildPointer* children = node.getChildren(childrenCapacity);
 
@@ -1595,7 +1632,8 @@ bool Search::getPrunedRootValues(ReportedSearchValues& values) const {
   //Also add in the direct evaluation of this node.
   {
     const NNOutput* nnOutput = node.getNNOutput();
-    //Root might be null if the search was terminated very fast
+    //Root might be null if the search was terminated very fast, or
+    //other nodes if the node was terminal, or other reasons.
     if(nnOutput == NULL)
       return false;
     double winProb = (double)nnOutput->whiteWinProb;
@@ -1619,7 +1657,16 @@ bool Search::getPrunedRootValues(ReportedSearchValues& values) const {
     weightSqSum += weight * weight;
     weightSum += weight;
   }
-  values = ReportedSearchValues(*this, winLossValueSum / weightSum, noResultValueSum / weightSum, scoreMeanSum / weightSum,
-                                scoreMeanSqSum / weightSum, leadSum / weightSum, utilitySum / weightSum, rootNode->stats.visits);
+  values = ReportedSearchValues(
+    *this,
+    winLossValueSum / weightSum,
+    noResultValueSum / weightSum,
+    scoreMeanSum / weightSum,
+    scoreMeanSqSum / weightSum,
+    leadSum / weightSum,
+    utilitySum / weightSum,
+    node.stats.weightSum.load(std::memory_order_acquire),
+    node.stats.visits.load(std::memory_order_acquire)
+  );
   return true;
 }

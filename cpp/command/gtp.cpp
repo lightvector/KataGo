@@ -1500,7 +1500,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   }
 
   //Defaults to 7.5 komi, gtp will generally override this
-  Rules initialRules = Setup::loadSingleRulesExceptForKomi(cfg);
+  const bool loadKomiFromCfg = false;
+  Rules initialRules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
   logger.write("Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this");
   if(startupPrintMessageToStderr && !loggingToStderr) {
     cerr << "Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this" << endl;

@@ -18,8 +18,17 @@ ReportedSearchValues::ReportedSearchValues()
 {}
 ReportedSearchValues::~ReportedSearchValues()
 {}
-ReportedSearchValues::ReportedSearchValues(const Search& search, double winLossValueAvg, double noResultValueAvg, double scoreMeanAvg, double scoreMeanSqAvg,
-                                           double leadAvg, double utilityAvg, int64_t totalVisits) {
+ReportedSearchValues::ReportedSearchValues(
+  const Search& search,
+  double winLossValueAvg,
+  double noResultValueAvg,
+  double scoreMeanAvg,
+  double scoreMeanSqAvg,
+  double leadAvg,
+  double utilityAvg,
+  double totalWeight,
+  int64_t totalVisits
+) {
   winLossValue = winLossValueAvg;
   noResultValue = noResultValueAvg;
   double scoreMean = scoreMeanAvg;
@@ -46,8 +55,9 @@ ReportedSearchValues::ReportedSearchValues(const Search& search, double winLossV
   if(winValue > 1.0) winValue = 1.0;
   if(lossValue < 0.0) lossValue = 0.0;
   if(lossValue > 1.0) lossValue = 1.0;
-  visits = totalVisits;
 
+  weight = totalWeight;
+  visits = totalVisits;
 }
 
 

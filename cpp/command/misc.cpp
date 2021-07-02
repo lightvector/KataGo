@@ -1953,7 +1953,8 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
   AsyncBot* bot = NULL;
   NNEvaluator* nnEval = NULL;
   if(cfg.getFileName() != "") {
-    rules = Setup::loadSingleRulesExceptForKomi(cfg);
+    const bool loadKomiFromCfg = false;
+    rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
     SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
     {
       Setup::initializeSession(cfg);

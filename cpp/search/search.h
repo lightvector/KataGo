@@ -40,11 +40,21 @@ struct ReportedSearchValues {
   double lead;
   double winLossValue;
   double utility;
+  double weight;
   int64_t visits;
 
   ReportedSearchValues();
-  ReportedSearchValues(const Search& search, double winLossValueAvg, double noResultValueAvg, double scoreMeanAvg,
-                       double scoreMeanSqAvg, double leadAvg, double utilityAvg, int64_t totalVisits);
+  ReportedSearchValues(
+    const Search& search,
+    double winLossValueAvg,
+    double noResultValueAvg,
+    double scoreMeanAvg,
+    double scoreMeanSqAvg,
+    double leadAvg,
+    double utilityAvg,
+    double totalWeight,
+    int64_t totalVisits
+  );
   ~ReportedSearchValues();
 };
 
@@ -435,6 +445,10 @@ struct Search {
   //Same, but works on a node within the search, not just the root
   bool getNodeValues(const SearchNode& node, ReportedSearchValues& values) const;
   bool getPrunedRootValues(ReportedSearchValues& values) const;
+  bool getPrunedNodeValues(const SearchNode* node, ReportedSearchValues& values) const;
+
+  const SearchNode* getRootNode() const;
+  const SearchNode* getChildForMove(const SearchNode* node, Loc moveLoc) const;
 
   //Same, but based only on the single raw neural net evaluation.
   bool getRootRawNNValues(ReportedSearchValues& values) const;
@@ -445,6 +459,7 @@ struct Search {
   int64_t getRootVisits() const;
   //Get the root node's policy prediction
   bool getPolicy(float policyProbs[NNPos::MAX_NN_POLICY_SIZE]) const;
+  bool getPolicy(const SearchNode* node, float policyProbs[NNPos::MAX_NN_POLICY_SIZE]) const;
   //Get the surprisingness (kl-divergence) of the search result given the policy prior, as well as the entropy of each.
   //Returns false if could not be computed.
   bool getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntropyRet, double& policyEntropyRet) const;

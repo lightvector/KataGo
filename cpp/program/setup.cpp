@@ -656,8 +656,9 @@ Player Setup::parseReportAnalysisWinrates(
   throw StringError("Could not parse config value for reportAnalysisWinratesAs: " + sOrig);
 }
 
-Rules Setup::loadSingleRulesExceptForKomi(
-  ConfigParser& cfg
+Rules Setup::loadSingleRules(
+  ConfigParser& cfg,
+  bool loadKomi
 ) {
   Rules rules;
 
@@ -721,6 +722,10 @@ Rules Setup::loadSingleRulesExceptForKomi(
       rules.komi = 6.5f;
     else if(rules.hasButton)
       rules.komi = 7.0f;
+  }
+
+  if(loadKomi) {
+    rules.komi = cfg.getFloat("komi",Rules::MIN_USER_KOMI,Rules::MAX_USER_KOMI);
   }
 
   return rules;

@@ -69,8 +69,9 @@ namespace Setup {
   );
 
   //Komi is just set to 7.5 and is not read in from cfg
-  Rules loadSingleRulesExceptForKomi(
-    ConfigParser& cfg
+  Rules loadSingleRules(
+    ConfigParser& cfg,
+    bool loadKomi
   );
 
   std::string loadHomeDataDirOverride(
