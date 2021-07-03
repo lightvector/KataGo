@@ -1,11 +1,15 @@
 
 #include "../book/book.h"
+
+#include <fstream>
+#include "../core/makedir.h"
 #include "../neuralnet/nninputs.h"
 
 using std::vector;
 using std::map;
 using std::cout;
 using std::endl;
+using std::string;
 
 BookHash::BookHash()
 :historyHash(),stateHash()
@@ -568,16 +572,18 @@ Book::Book(
   double cpm,
   double cpucbwl,
   double cpucbsl,
-  double cplp
+  double cplp,
+  double ups
 ) : initialBoard(b),
     initialRules(r),
     initialPla(p),
     repBound(rb),
     errorFactor(sf),
     costPerMove(cpm),
-    costPerUCBWinlossLoss(cpucbwl),
+    costPerUCBWinLossLoss(cpucbwl),
     costPerUCBScoreLoss(cpucbsl),
     costPerLogPolicy(cplp),
+    utilityPerScore(ups),
     initialSymmetry(0),
     root(nullptr),
     nodes(),
@@ -617,12 +623,14 @@ double Book::getErrorFactor() const { return errorFactor; }
 void Book::setErrorFactor(double d) { errorFactor = d; }
 double Book::getCostPerMove() const { return costPerMove; }
 void Book::setCostPerMove(double d) { costPerMove = d; }
-double Book::getCostPerUCBWinlossLoss() const { return costPerUCBWinlossLoss; }
-void Book::setCostPerUCBWinlossLoss(double d) { costPerUCBWinlossLoss = d; }
+double Book::getCostPerUCBWinLossLoss() const { return costPerUCBWinLossLoss; }
+void Book::setCostPerUCBWinLossLoss(double d) { costPerUCBWinLossLoss = d; }
 double Book::getCostPerUCBScoreLoss() const { return costPerUCBScoreLoss; }
 void Book::setCostPerUCBScoreLoss(double d) { costPerUCBScoreLoss = d; }
 double Book::getCostPerLogPolicy() const { return costPerLogPolicy; }
 void Book::setCostPerLogPolicy(double d) { costPerLogPolicy = d; }
+double Book::getUtilityPerScore() const { return utilityPerScore; }
+void Book::setUtilityPerScore(double d) { utilityPerScore = d; }
 
 
 SymBookNode Book::getRoot() {
@@ -960,24 +968,24 @@ void Book::iterateEntireBookPreOrder(
 }
 
 void Book::recomputeNodeValues(BookNode* node) {
-  double winlossValue;
+  double winLossValue;
   double scoreMean;
   double lead;
-  double winlossLCB;
+  double winLossLCB;
   double scoreLCB;
-  double winlossUCB;
+  double winLossUCB;
   double scoreUCB;
   double weight = 0.0;
   int64_t visits = 0;
 
   {
     const BookValues& values = node->thisValuesNotInBook;
-    winlossValue = values.winlossValue;
+    winLossValue = values.winLossValue;
     scoreMean = values.scoreMean;
     lead = values.lead;
-    winlossLCB = values.winlossValue - errorFactor * values.winlossError;
+    winLossLCB = values.winLossValue - errorFactor * values.winLossError;
     scoreLCB = values.scoreMean - errorFactor * values.scoreError;
-    winlossUCB = values.winlossValue + errorFactor * values.winlossError;
+    winLossUCB = values.winLossValue + errorFactor * values.winLossError;
     scoreUCB = values.scoreMean + errorFactor * values.scoreError;
     weight += values.weight;
     visits += values.visits;
@@ -987,23 +995,23 @@ void Book::recomputeNodeValues(BookNode* node) {
     const BookNode* child = get(iter->second.hash);
     const RecursiveBookValues& values = child->recursiveValues;
     if(node->pla == P_WHITE) {
-      winlossValue = std::max(winlossValue, values.winlossValue);
+      winLossValue = std::max(winLossValue, values.winLossValue);
       scoreMean = std::max(scoreMean, values.scoreMean);
       lead = std::max(lead, values.lead);
-      winlossLCB = std::max(winlossLCB, values.winlossLCB);
+      winLossLCB = std::max(winLossLCB, values.winLossLCB);
       scoreLCB = std::max(scoreLCB, values.scoreLCB);
-      winlossUCB = std::max(winlossUCB, values.winlossUCB);
+      winLossUCB = std::max(winLossUCB, values.winLossUCB);
       scoreUCB = std::max(scoreUCB, values.scoreUCB);
       weight += values.weight;
       visits += values.visits;
     }
     else {
-      winlossValue = std::min(winlossValue, values.winlossValue);
+      winLossValue = std::min(winLossValue, values.winLossValue);
       scoreMean = std::min(scoreMean, values.scoreMean);
       lead = std::min(lead, values.lead);
-      winlossLCB = std::min(winlossLCB, values.winlossLCB);
+      winLossLCB = std::min(winLossLCB, values.winLossLCB);
       scoreLCB = std::min(scoreLCB, values.scoreLCB);
-      winlossUCB = std::min(winlossUCB, values.winlossUCB);
+      winLossUCB = std::min(winLossUCB, values.winLossUCB);
       scoreUCB = std::min(scoreUCB, values.scoreUCB);
       weight += values.weight;
       visits += values.visits;
@@ -1011,12 +1019,12 @@ void Book::recomputeNodeValues(BookNode* node) {
   }
 
   RecursiveBookValues& values = node->recursiveValues;
-  values.winlossValue = winlossValue;
+  values.winLossValue = winLossValue;
   values.scoreMean = scoreMean;
   values.lead = lead;
-  values.winlossLCB = winlossLCB;
+  values.winLossLCB = winLossLCB;
   values.scoreLCB = scoreLCB;
-  values.winlossUCB = winlossUCB;
+  values.winLossUCB = winLossUCB;
   values.scoreUCB = scoreUCB;
   values.weight = weight;
   values.visits = visits;
@@ -1029,10 +1037,10 @@ void Book::recomputeNodeCost(BookNode* node) {
     double minCost = 1e100;
     for(std::pair<BookHash,Loc>& parentInfo: node->parents) {
       const BookNode* parent = get(parentInfo.first);
-      double ucbWinlossLoss =
+      double ucbWinLossLoss =
         (parent->pla == P_WHITE) ?
-        parent->recursiveValues.winlossUCB - node->recursiveValues.winlossUCB :
-        node->recursiveValues.winlossLCB - parent->recursiveValues.winlossLCB;
+        parent->recursiveValues.winLossUCB - node->recursiveValues.winLossUCB :
+        node->recursiveValues.winLossLCB - parent->recursiveValues.winLossLCB;
       double ucbScoreLoss =
         (parent->pla == P_WHITE) ?
         parent->recursiveValues.scoreUCB - node->recursiveValues.scoreUCB :
@@ -1044,7 +1052,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       double cost =
         parent->minCostFromRoot
         + costPerMove
-        + ucbWinlossLoss * costPerUCBWinlossLoss
+        + ucbWinLossLoss * costPerUCBWinLossLoss
         + ucbScoreLoss * costPerUCBScoreLoss
         + (-log(rawPolicy + 1e-100) * costPerLogPolicy);
 
@@ -1058,10 +1066,10 @@ void Book::recomputeNodeCost(BookNode* node) {
     node->thisNodeExpansionCost = 1e100;
   }
   else {
-    double ucbWinlossLoss =
+    double ucbWinLossLoss =
       (node->pla == P_WHITE) ?
-      (node->recursiveValues.winlossUCB - (node->thisValuesNotInBook.winlossValue + errorFactor * node->thisValuesNotInBook.winlossError)) :
-      ((node->thisValuesNotInBook.winlossValue - errorFactor * node->thisValuesNotInBook.winlossError) - node->recursiveValues.winlossLCB);
+      (node->recursiveValues.winLossUCB - (node->thisValuesNotInBook.winLossValue + errorFactor * node->thisValuesNotInBook.winLossError)) :
+      ((node->thisValuesNotInBook.winLossValue - errorFactor * node->thisValuesNotInBook.winLossError) - node->recursiveValues.winLossLCB);
     double ucbScoreLoss =
       (node->pla == P_WHITE) ?
       (node->recursiveValues.scoreUCB - (node->thisValuesNotInBook.scoreMean + errorFactor * node->thisValuesNotInBook.scoreError)) :
@@ -1070,8 +1078,170 @@ void Book::recomputeNodeCost(BookNode* node) {
 
     node->thisNodeExpansionCost =
       costPerMove
-      + ucbWinlossLoss * costPerUCBWinlossLoss
+      + ucbWinLossLoss * costPerUCBWinLossLoss
       + ucbScoreLoss * costPerUCBScoreLoss
       + (-log(rawPolicy + 1e-100) * costPerLogPolicy);
   }
+}
+
+
+void Book::exportToHtmlDir(const string& dirName) {
+  MakeDir::make(dirName);
+  const char* hexChars = "0123456789ABCDEF";
+  for(int i = 0; i<16; i++) {
+    for(int j = 0; j<16; j++) {
+      MakeDir::make(dirName + "/" + hexChars[i] + hexChars[j]);
+    }
+  }
+
+  auto getFilePath = [&](BookNode* node, int symmetry, vector<int>& handledSymmetries) {
+    vector<int> equivalentSymmetries;
+    for(int nodeSymmetry: node->symmetries) {
+      int s = SymmetryHelpers::compose(symmetry,nodeSymmetry);
+      equivalentSymmetries.push_back(s);
+      handledSymmetries.push_back(s);
+    }
+    std::sort(equivalentSymmetries.begin(),equivalentSymmetries.end());
+    string path = dirName + "/";
+    if(node == root)
+      path += "root";
+    else {
+      string hashStr = node->hash.toString();
+      assert(hashStr.size() > 2);
+      path += hashStr.substr(0,2) + "/" + node->hash.toString();
+    }
+    path += "_";
+    for(int equivalentSymmetry: equivalentSymmetries)
+      path += Global::intToString(equivalentSymmetry);
+    path += ".html";
+    return path;
+  };
+
+  string htmlTemplate = R"%%(
+<html>
+<header>
+<script>
+$$DATA_VARS
+</script>
+<script type="text/javascript" src="../book.js"></script>
+</header>
+<body>
+</body>
+</html>
+)%%";
+
+  std::function<void(BookNode*)> f = [&](BookNode* node) {
+    vector<int> handledSymmetries;
+    int numSymmetries = (initialBoard.x_size != initialBoard.y_size) ? SymmetryHelpers::NUM_SYMMETRIES_WITHOUT_TRANSPOSE : SymmetryHelpers::NUM_SYMMETRIES;
+    for(int symmetry = 0; symmetry < numSymmetries; symmetry++) {
+      if(contains(handledSymmetries,symmetry))
+        return;
+      string filePath = getFilePath(node, symmetry, handledSymmetries);
+      string html = htmlTemplate;
+      auto replace = [&](const string& key, const string& replacement) {
+        size_t pos = html.find(key);
+        assert(pos != string::npos);
+        html.replace(pos, key.size(), replacement);
+      };
+
+      BoardHistory hist;
+      bool suc = SymBookNode(node, symmetry).getBoardHistoryReachingHere(hist);
+      assert(suc);
+      (void)suc;
+      Board board = hist.getRecentBoard(0);
+
+      string dataVarsStr;
+      dataVarsStr += "const boardSizeX = " + Global::intToString(board.x_size) + ";\n";
+      dataVarsStr += "const boardSizeY = " + Global::intToString(board.y_size) + ";\n";
+      dataVarsStr += "const board = [";
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          Loc loc = Location::getLoc(x,y,board.x_size);
+          dataVarsStr += Global::intToString(board.colors[loc]) + ",";
+        }
+      }
+      dataVarsStr += "];\n";
+      dataVarsStr += "const links = [";
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          Loc loc = Location::getLoc(x,y,board.x_size);
+          SymBookNode child = SymBookNode(node, symmetry).follow(loc);
+          if(child.isNull())
+            dataVarsStr += "'',";
+          else {
+            vector<int> handledSymmetriesDummy; // Not actually used, just needed for arg
+            string childPath = getFilePath(child.node, child.symmetryOfNode, handledSymmetriesDummy);
+            dataVarsStr += "'../" + childPath + "',";
+          }
+        }
+      }
+      dataVarsStr += "];\n";
+
+      vector<std::pair<BookMove,RecursiveBookValues>> movesAndValues;
+      for(auto& locMove: node->moves) {
+        SymBookNode child = SymBookNode(node, symmetry).follow(locMove.first);
+        movesAndValues.push_back(std::make_pair(locMove.second, child.node->recursiveValues));
+      }
+      std::sort(
+        movesAndValues.begin(),movesAndValues.end(),
+        [&](const std::pair<BookMove,RecursiveBookValues>& mv0,
+            const std::pair<BookMove,RecursiveBookValues>& mv1) {
+          return mv0.second.winLossValue + mv0.second.scoreMean * utilityPerScore >
+            mv1.second.winLossValue + mv1.second.scoreMean * utilityPerScore;
+        }
+      );
+
+      dataVarsStr += "const moves = [";
+      for(auto& moveAndValue: movesAndValues) {
+        dataVarsStr += "{";
+        if(moveAndValue.first.move != Board::PASS_LOC) {
+          dataVarsStr += "'x':'" + Global::intToString(Location::getX(moveAndValue.first.move, initialBoard.x_size)) + "',";
+          dataVarsStr += "'y':'" + Global::intToString(Location::getY(moveAndValue.first.move, initialBoard.x_size)) + "',";
+        }
+        dataVarsStr += "'move':'" + Location::toString(moveAndValue.first.move, initialBoard) + "',";
+        dataVarsStr += "'policy':" + Global::doubleToString(moveAndValue.first.rawPolicy) + ",";
+        dataVarsStr += "'winLossValue':" + Global::doubleToString(moveAndValue.second.winLossValue) + ",";
+        dataVarsStr += "'winLossUCB':" + Global::doubleToString(moveAndValue.second.winLossUCB) + ",";
+        dataVarsStr += "'winLossLCB':" + Global::doubleToString(moveAndValue.second.winLossLCB) + ",";
+        dataVarsStr += "'scoreMean':" + Global::doubleToString(moveAndValue.second.scoreMean) + ",";
+        dataVarsStr += "'lead':" + Global::doubleToString(moveAndValue.second.lead) + ",";
+        dataVarsStr += "'scoreUCB':" + Global::doubleToString(moveAndValue.second.scoreUCB) + ",";
+        dataVarsStr += "'scoreLCB':" + Global::doubleToString(moveAndValue.second.scoreLCB) + ",";
+        dataVarsStr += "'weight':" + Global::doubleToString(moveAndValue.second.weight) + ",";
+        dataVarsStr += "'visits':" + Global::doubleToString(moveAndValue.second.visits) + ",";
+        dataVarsStr += "},";
+      }
+      {
+        BookValues& values = node->thisValuesNotInBook;
+        if(values.maxPolicy > 0.0) {
+          double winLossValueUCB = values.winLossValue + errorFactor * values.winLossError;
+          double winLossValueLCB = values.winLossValue - errorFactor * values.winLossError;
+          double scoreUCB = values.scoreMean + errorFactor * values.scoreError;
+          double scoreLCB = values.scoreMean - errorFactor * values.scoreError;
+
+          dataVarsStr += "{";
+          dataVarsStr += "'move':'other'";
+          dataVarsStr += "'policy':" + Global::doubleToString(values.maxPolicy) + ",";
+          dataVarsStr += "'winLossValue':" + Global::doubleToString(values.winLossValue) + ",";
+          dataVarsStr += "'winLossValueUCB':" + Global::doubleToString(winLossValueUCB) + ",";
+          dataVarsStr += "'winLossValueLCB':" + Global::doubleToString(winLossValueLCB) + ",";
+          dataVarsStr += "'scoreMean':" + Global::doubleToString(values.scoreMean) + ",";
+          dataVarsStr += "'lead':" + Global::doubleToString(values.lead) + ",";
+          dataVarsStr += "'scoreUCB':" + Global::doubleToString(scoreUCB) + ",";
+          dataVarsStr += "'scoreLCB':" + Global::doubleToString(scoreLCB) + ",";
+          dataVarsStr += "'weight':" + Global::doubleToString(values.weight) + ",";
+          dataVarsStr += "'visits':" + Global::doubleToString(values.visits) + ",";
+          dataVarsStr += "},";
+        }
+      }
+      dataVarsStr += "];\n";
+
+      replace("$$DATA_VARS",dataVarsStr);
+
+      std::ofstream out(filePath);
+      out << html;
+      out.close();
+    }
+  };
+  iterateEntireBookPreOrder(f);
 }

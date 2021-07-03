@@ -71,9 +71,10 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   const int repBound = cfg.getInt("repBound",3,1000);
   const double errorFactor = cfg.getDouble("errorFactor",0.0,100.0);
   const double costPerMove = cfg.getDouble("costPerMove",0.0,1000000.0);
-  const double costPerUCBWinlossLoss = cfg.getDouble("costPerUCBWinlossLoss",0.0,1000000.0);
+  const double costPerUCBWinLossLoss = cfg.getDouble("costPerUCBWinLossLoss",0.0,1000000.0);
   const double costPerUCBScoreLoss = cfg.getDouble("costPerUCBScoreLoss",0.0,1000000.0);
   const double costPerLogPolicy = cfg.getDouble("costPerLogPolicy",0.0,1000000.0);
+  const double utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
   NNEvaluator* nnEval;
@@ -107,9 +108,10 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     repBound,
     errorFactor,
     costPerMove,
-    costPerUCBWinlossLoss,
+    costPerUCBWinLossLoss,
     costPerUCBScoreLoss,
-    costPerLogPolicy
+    costPerLogPolicy,
+    utilityPerScore
   );
 
   if(!std::atomic_is_lock_free(&shouldStop))
@@ -208,11 +210,11 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         (void)getSuc;
 
         // Record those values to the book
-        childValues.winlossValue = childSearchValues.winLossValue;
+        childValues.winLossValue = childSearchValues.winLossValue;
         childValues.scoreMean = childSearchValues.expectedScore;
         childValues.lead = childSearchValues.lead;
         std::pair<double,double> errors = search->getAverageShorttermWLAndScoreError(childSearchNode);
-        childValues.winlossError = errors.first;
+        childValues.winLossError = errors.first;
         childValues.scoreError = errors.second;
 
         // Could return false if child is terminal, or otherwise has no nn eval.
@@ -229,16 +231,16 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       if(!findNewMoves(avoidMoveUntilByLoc)) {
         BookValues& nodeValues = node.thisValuesNotInBook();
         if(node.pla() == P_WHITE) {
-          nodeValues.winlossValue = -1e20;
+          nodeValues.winLossValue = -1e20;
           nodeValues.scoreMean = -1e20;
           nodeValues.lead =  -1e20;
         }
         else {
-          nodeValues.winlossValue = 1e20;
+          nodeValues.winLossValue = 1e20;
           nodeValues.scoreMean = 1e20;
           nodeValues.lead =  1e20;
         }
-        nodeValues.winlossError = 0.0;
+        nodeValues.winLossError = 0.0;
         nodeValues.scoreError = 0.0;
         nodeValues.maxPolicy = 0.0;
         nodeValues.weight = 0.0;
@@ -268,11 +270,11 @@ int MainCmds::genbook(int argc, const char* const* argv) {
 
         // Record those values to the book
         BookValues& nodeValues = node.thisValuesNotInBook();
-        nodeValues.winlossValue = remainingSearchValues.winLossValue;
+        nodeValues.winLossValue = remainingSearchValues.winLossValue;
         nodeValues.scoreMean = remainingSearchValues.expectedScore;
         nodeValues.lead = remainingSearchValues.lead;
         std::pair<double,double> errors = search->getAverageShorttermWLAndScoreError(search->getRootNode());
-        nodeValues.winlossError = errors.first;
+        nodeValues.winLossError = errors.first;
         nodeValues.scoreError = errors.second;
 
         // Just in case, handle failure case with policySuc2
@@ -300,9 +302,12 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     book->recompute(newAndChangedNodes);
   }
 
+  book->exportToHtmlDir("tmpbook");
+
   delete search;
   delete nnEval;
   delete book;
   ScoreValue::freeTables();
   return 0;
 }
+

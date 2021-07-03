@@ -54,13 +54,13 @@ struct BookMove {
 
 struct BookValues {
   // All values for which the player perspective matters are from white's perspective.
-  double winlossValue = 0.0;
+  double winLossValue = 0.0;
   double scoreMean = 0.0;
   double lead = 0.0;
 
   // Average short term error of nodes in the search. Probably correlated with the confidence
   // of this node, but not necessarily being a meaningful measure of it directly.
-  double winlossError = 0.0;
+  double winLossError = 0.0;
   double scoreError = 0.0;
 
   double maxPolicy = 0.0;
@@ -69,12 +69,12 @@ struct BookValues {
 };
 struct RecursiveBookValues {
   // Recursively computed via minimax
-  double winlossValue = 0.0;
+  double winLossValue = 0.0;
   double scoreMean = 0.0;
   double lead = 0.0;
-  double winlossLCB = 0.0; // minimaxing winlossValue - winlossError * errorFactor
+  double winLossLCB = 0.0; // minimaxing winLossValue - winLossError * errorFactor
   double scoreLCB = 0.0;   // minimaxing scoreMean - scoreError * errorFactor
-  double winlossUCB = 0.0; // minimaxing winlossValue + winlossError * errorFactor
+  double winLossUCB = 0.0; // minimaxing winLossValue + winLossError * errorFactor
   double scoreUCB = 0.0;   // minimaxing scoreMean + scoreError * errorFactor
 
   // Weighted by sum
@@ -216,9 +216,10 @@ class Book {
  private:
   double errorFactor;
   double costPerMove;
-  double costPerUCBWinlossLoss;
+  double costPerUCBWinLossLoss;
   double costPerUCBScoreLoss;
   double costPerLogPolicy;
+  double utilityPerScore; //Currently just for sorting
 
   int initialSymmetry; // The symmetry that needs to be applied to initialBoard to align it with rootNode. (initialspace -> rootnodespace)
   BookNode* root;
@@ -232,9 +233,10 @@ class Book {
     int repBound,
     double errorFactor,
     double costPerMove,
-    double costPerUCBWinlossLoss,
+    double costPerUCBWinLossLoss,
     double costPerUCBScoreLoss,
-    double costPerLogPolicy
+    double costPerLogPolicy,
+    double utilityPerScore
   );
   ~Book();
 
@@ -251,12 +253,14 @@ class Book {
   void setErrorFactor(double d);
   double getCostPerMove() const;
   void setCostPerMove(double d);
-  double getCostPerUCBWinlossLoss() const;
-  void setCostPerUCBWinlossLoss(double d);
+  double getCostPerUCBWinLossLoss() const;
+  void setCostPerUCBWinLossLoss(double d);
   double getCostPerUCBScoreLoss() const;
   void setCostPerUCBScoreLoss(double d);
   double getCostPerLogPolicy() const;
   void setCostPerLogPolicy(double d);
+  double getUtilityPerScore() const;
+  void setUtilityPerScore(double d);
 
   // Gets the root node, in the orientation of the initial board.
   SymBookNode getRoot();
@@ -270,6 +274,8 @@ class Book {
   void recompute(const std::vector<SymBookNode>& newAndChangedNodes);
   void recomputeEverything();
   std::vector<SymBookNode> getNextNToExpand(int n);
+
+  void exportToHtmlDir(const std::string& dirName);
 
  private:
   BookNode* get(BookHash hash);
