@@ -329,16 +329,14 @@ void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNo
 }
 
 bool Search::getRootValues(ReportedSearchValues& values) const {
-  if(rootNode == NULL)
-    return false;
-  return getNodeValues(*rootNode,values);
+  return getNodeValues(rootNode,values);
 }
 
 ReportedSearchValues Search::getRootValuesRequireSuccess() const {
   ReportedSearchValues values;
   if(rootNode == NULL)
     throw StringError("Bug? Bot search root was null");
-  bool success = getNodeValues(*rootNode,values);
+  bool success = getNodeValues(rootNode,values);
   if(!success)
     throw StringError("Bug? Bot search returned no root values");
   return values;
@@ -396,22 +394,30 @@ bool Search::getNodeRawNNValues(const SearchNode& node, ReportedSearchValues& va
 }
 
 
-bool Search::getNodeValues(const SearchNode& node, ReportedSearchValues& values) const {
-  const NNOutput* nnOutput = node.getNNOutput();
-  if(nnOutput == NULL)
+bool Search::getNodeValues(const SearchNode* node, ReportedSearchValues& values) const {
+  if(node == NULL)
     return false;
-
-  int64_t visits = node.stats.visits.load(std::memory_order_acquire);
-  double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
-  double winLossValueAvg = node.stats.winLossValueAvg.load(std::memory_order_acquire);
-  double noResultValueAvg = node.stats.noResultValueAvg.load(std::memory_order_acquire);
-  double scoreMeanAvg = node.stats.scoreMeanAvg.load(std::memory_order_acquire);
-  double scoreMeanSqAvg = node.stats.scoreMeanSqAvg.load(std::memory_order_acquire);
-  double leadAvg = node.stats.leadAvg.load(std::memory_order_acquire);
-  double utilityAvg = node.stats.utilityAvg.load(std::memory_order_acquire);
+  int64_t visits = node->stats.visits.load(std::memory_order_acquire);
+  double weightSum = node->stats.weightSum.load(std::memory_order_acquire);
+  double winLossValueAvg = node->stats.winLossValueAvg.load(std::memory_order_acquire);
+  double noResultValueAvg = node->stats.noResultValueAvg.load(std::memory_order_acquire);
+  double scoreMeanAvg = node->stats.scoreMeanAvg.load(std::memory_order_acquire);
+  double scoreMeanSqAvg = node->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
+  double leadAvg = node->stats.leadAvg.load(std::memory_order_acquire);
+  double utilityAvg = node->stats.utilityAvg.load(std::memory_order_acquire);
 
   if(weightSum <= 0.0)
     return false;
+  assert(visits >= 0);
+  if(node == rootNode) {
+    //For terminal nodes, we may have no nnoutput and yet we have legitimate visits and terminal evals.
+    //But for the root, the root is never treated as a terminal node and always gets an nneval, so if
+    //it has visits and weight, it has an nnoutput unless something has gone wrong.
+    const NNOutput* nnOutput = node->getNNOutput();
+    assert(nnOutput != NULL);
+    (void)nnOutput;
+  }
+
   values = ReportedSearchValues(
     *this,
     winLossValueAvg,
@@ -1606,7 +1612,13 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
   bool allowDirectPolicyMoves = false;
   bool alwaysComputeLcb = false;
   bool neverUseLcb = true;
-  getPlaySelectionValues(node,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,neverUseLcb,NULL,NULL);
+  bool suc = getPlaySelectionValues(node,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,neverUseLcb,NULL,NULL);
+  //If there are no children, or otherwise values could not be computed,
+  //then fall back to the normal case and just listen to the values on the node rather than trying
+  //to recompute things.
+  if(!suc) {
+    return getNodeValues(nodePtr,values);
+  }
 
   double winLossValueSum = 0.0;
   double noResultValueSum = 0.0;
@@ -1640,8 +1652,7 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
   //Also add in the direct evaluation of this node.
   {
     const NNOutput* nnOutput = node.getNNOutput();
-    //Root might be null if the search was terminated very fast, or
-    //other nodes if the node was terminal, or other reasons.
+    //If somehow the nnOutput is still null here, skip
     if(nnOutput == NULL)
       return false;
     double winProb = (double)nnOutput->whiteWinProb;

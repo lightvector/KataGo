@@ -445,7 +445,7 @@ struct Search {
   //Same, same, but throws an exception if no values could be obtained
   ReportedSearchValues getRootValuesRequireSuccess() const;
   //Same, but works on a node within the search, not just the root
-  bool getNodeValues(const SearchNode& node, ReportedSearchValues& values) const;
+  bool getNodeValues(const SearchNode* node, ReportedSearchValues& values) const;
   bool getPrunedRootValues(ReportedSearchValues& values) const;
   bool getPrunedNodeValues(const SearchNode* node, ReportedSearchValues& values) const;
 

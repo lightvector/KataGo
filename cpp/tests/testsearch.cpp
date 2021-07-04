@@ -3570,7 +3570,7 @@ xxxxxxxxx
       const SearchNode* node = search->getRootNode();
       if(node != NULL && (node = search->getChildForMove(node, Board::PASS_LOC)) != NULL)
       {
-        suc = search->getNodeValues(*node, values);
+        suc = search->getNodeValues(node, values);
         cout << "getNodeValues for pass child success: " << suc << endl;
         if(suc)
           cout << values.visits << " " << values.weight << " " << values.winLossValue << endl;

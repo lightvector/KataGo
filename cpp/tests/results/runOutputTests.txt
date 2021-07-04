@@ -14235,8 +14235,10 @@ getRootValues success: 1
 1000 1000 0.967025
 getPrunedRootValues success: 1
 1000 1000 0.987034
-getNodeValues for pass child success: 0
-getPrunedNodeValues for pass child success: 0
+getNodeValues for pass child success: 1
+906 906 1
+getPrunedNodeValues for pass child success: 1
+906 906 1
 getPlaySelectionValues success: 1
 B7 3
 C1 2
