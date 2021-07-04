@@ -203,7 +203,7 @@ bool Search::getPlaySelectionValues(
 
   //If we have no children, then use the policy net directly. Only for the root, though, if calling this on any subtree
   //then just require that we have children, for implementation simplicity (since it requires that we have a board and a boardhistory too)
-  //(and we also use isAllowedRootMove)
+  //(and we also use isAllowedRootMove and avoidMoveUntilByLoc)
   if(numChildren == 0) {
     if(nnOutput == NULL || &node != rootNode || !allowDirectPolicyMoves)
       return false;
@@ -216,6 +216,13 @@ bool Search::getPlaySelectionValues(
         double policyProb = policyProbs[movePos];
         if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb < 0 || (obeyAllowedRootMove && !isAllowedRootMove(moveLoc)))
           continue;
+        const std::vector<int>& avoidMoveUntilByLoc = rootPla == P_BLACK ? avoidMoveUntilByLocBlack : avoidMoveUntilByLocWhite;
+        if(avoidMoveUntilByLoc.size() > 0) {
+          assert(avoidMoveUntilByLoc.size() >= Board::MAX_ARR_SIZE);
+          int untilDepth = avoidMoveUntilByLoc[moveLoc];
+          if(untilDepth > 0)
+            continue;
+        }
         locs.push_back(moveLoc);
         playSelectionValues.push_back(policyProb);
         numChildren++;
@@ -231,6 +238,7 @@ bool Search::getPlaySelectionValues(
 
   //Might happen absurdly rarely if we both have no children and don't properly have an nnOutput
   //but have a hash collision or something so we "found" an nnOutput anyways.
+  //Could also happen if we have avoidMoveUntilByLoc pruning all the allowed moves.
   if(numChildren == 0)
     return false;
 

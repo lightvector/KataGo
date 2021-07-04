@@ -415,11 +415,13 @@ struct Search {
   //They are NOT safe to call in parallel with any of the other top level-functions besides the search.
 
   //Choose a move at the root of the tree, with randomization, if possible.
-  //Might return Board::NULL_LOC if there is no root.
+  //Might return Board::NULL_LOC if there is no root, or no legal moves that aren't forcibly pruned, etc.
   Loc getChosenMoveLoc();
   //Get the vector of values (e.g. modified visit counts) used to select a move.
   //Does take into account chosenMoveSubtract but does NOT apply temperature.
   //If somehow the max value is less than scaleMaxToAtLeast, scale it to at least that value.
+  //Always returns false in the case where no actual legal moves are found or there is no nnOutput or no root node.
+  //If returning true, the is at least one loc and playSelectionValue.
   bool getPlaySelectionValues(
     std::vector<Loc>& locs, std::vector<double>& playSelectionValues, double scaleMaxToAtLeast
   ) const;
