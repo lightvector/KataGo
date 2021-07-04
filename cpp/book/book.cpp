@@ -507,10 +507,10 @@ SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc mo
 }
 
 
-bool SymBookNode::getBoardHistoryReachingHere(BoardHistory& ret) {
-  return ConstSymBookNode(*this).getBoardHistoryReachingHere(ret);
+bool SymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet) {
+  return ConstSymBookNode(*this).getBoardHistoryReachingHere(ret,moveHistoryRet);
 }
-bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret) {
+bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet) {
   assert(node != nullptr);
   const Book* book = node->book;
   vector<const BookNode*> pathFromRoot;
@@ -547,6 +547,7 @@ bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret) {
   // Start out with a board permuted with this symmetry so that the initial stones all end up in the right orientation
   BoardHistory hist = node->book->getInitialHist(symmetryAcc);
   Board board = hist.getRecentBoard(0);
+  moveHistoryRet.clear();
 
   // Invariant: during loop iteration i, symmetryPathNodeToHist is the transform from pathFromRoot[i] space to hist space.
   // symmetryAcc is the map from initialSpace -> histSpace
@@ -557,6 +558,7 @@ bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret) {
     auto iter = pathFromRoot[i]->moves.find(movesFromRoot[i]);
     // Convert move into space of hist and play it
     Loc symMove = SymmetryHelpers::getSymLoc(movesFromRoot[i], node->book->initialBoard, symmetryPathNodeToHist);
+    moveHistoryRet.push_back(symMove);
 
     // Use tolerant rules so that if something weird happens regarding superko in cycles, we just plow through.
     if(!hist.isLegalTolerant(board, symMove, pathFromRoot[i]->pla)) {
@@ -1113,7 +1115,7 @@ $$DATA_VARS
 )%%";
 
 
-void Book::exportToHtmlDir(const string& dirName) {
+void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
   MakeDir::make(dirName);
   const char* hexChars = "0123456789ABCDEF";
   for(int i = 0; i<16; i++) {
@@ -1173,9 +1175,19 @@ void Book::exportToHtmlDir(const string& dirName) {
       SymBookNode symNode(node, symmetry);
 
       BoardHistory hist;
-      bool suc = symNode.getBoardHistoryReachingHere(hist);
-      assert(suc);
-      (void)suc;
+      vector<Loc> moveHistory;
+      bool suc = symNode.getBoardHistoryReachingHere(hist,moveHistory);
+      if(!suc) {
+        logger.write("WARNING: Failed to get board history reaching node when trying to export to html, probably there is some bug");
+        logger.write("or else some hash collision or something else is wrong.");
+        logger.write("BookHash of node unable to export: " + symNode.hash().toString());
+        std::ostringstream movesOut;
+        for(Loc move: moveHistory)
+          movesOut << Location::toString(move,initialBoard) << " ";
+        logger.write("Moves:");
+        logger.write(movesOut.str());
+        return;
+      }
       Board board = hist.getRecentBoard(0);
 
       string dataVarsStr;

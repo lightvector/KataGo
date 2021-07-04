@@ -61,6 +61,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
 
   Rand rand;
   Logger logger;
+  // TODO also add a log file
   logger.setLogToStdout(true);
 
   const bool loadKomiFromCfg = true;
@@ -129,9 +130,21 @@ int MainCmds::genbook(int argc, const char* const* argv) {
 
     for(SymBookNode node: nodesToExpand) {
       BoardHistory hist;
-      bool suc = node.getBoardHistoryReachingHere(hist);
-      assert(suc);
-      (void)suc;
+      std::vector<Loc> moveHistory;
+      bool suc = node.getBoardHistoryReachingHere(hist,moveHistory);
+      if(!suc) {
+        logger.write("WARNING: Failed to get board history reaching node when trying to export to expand book, probably there is some bug");
+        logger.write("or else some hash collision or something else is wrong.");
+        logger.write("BookHash of node unable to expand: " + node.hash().toString());
+        ostringstream movesOut;
+        for(Loc move: moveHistory)
+          movesOut << Location::toString(move,book->initialBoard) << " ";
+        logger.write("Moves:");
+        logger.write(movesOut.str());
+        logger.write("Marking node as done so we don't try to expand it again, but something is probably wrong.");
+        node.canExpand() = false;
+        continue;
+      }
 
       // Terminal node!
       if(hist.isGameFinished || hist.isPastNormalPhaseEnd || hist.encorePhase > 0) {
@@ -182,6 +195,16 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         break;
 
       Loc bestLoc = search->getChosenMoveLoc();
+      if(bestLoc == Board::NULL_LOC) {
+        logger.write("WARNING: Could not expand since search obtained no results, despite earlier checks about legal moves existing not yet in book");
+        logger.write("BookHash of node unable to expand: " + node.hash().toString());
+        ostringstream debugOut;
+        hist.printDebugInfo(debugOut,board);
+        logger.write(debugOut.str());
+        logger.write("Marking node as done so we don't try to expand it again, but something is probably wrong.");
+        node.canExpand() = false;
+        continue;
+      }
       assert(!node.isMoveInBook(bestLoc));
 
       search->printTree(cout, search->rootNode, options, perspective);
@@ -199,6 +222,18 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         BoardHistory nextHist = hist;
         double rawPolicy = policyProbs[search->getPos(bestLoc)];
         child = node.playAndAddMove(nextBoard, nextHist, bestLoc, rawPolicy);
+        // Somehow child was illegal?
+        if(child.isNull()) {
+          logger.write("WARNING: Illegal move " + Location::toString(bestLoc, nextBoard));
+          ostringstream debugOut;
+          nextHist.printDebugInfo(debugOut,nextBoard);
+          logger.write(debugOut.str());
+          logger.write("BookHash of parent: " + node.hash().toString());
+          logger.write("Marking node as done so we don't try to expand it again, but something is probably wrong.");
+          node.canExpand() = false;
+          continue;
+        }
+
         newAndChangedNodes.push_back(child);
         BookValues& childValues = child.thisValuesNotInBook();
 
@@ -302,7 +337,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     book->recompute(newAndChangedNodes);
   }
 
-  book->exportToHtmlDir("tmpbook");
+  book->exportToHtmlDir("tmpbook",logger);
 
   delete search;
   delete nnEval;

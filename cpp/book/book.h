@@ -4,6 +4,7 @@
 
 #include "../core/global.h"
 #include "../core/hash.h"
+#include "../core/logger.h"
 #include "../game/boardhistory.h"
 
 struct BookHash {
@@ -156,8 +157,9 @@ class SymBookNode {
   SymBookNode playAndAddMove(Board& board, BoardHistory& hist, Loc move, double rawPolicy);
 
   // Returns false and does not modify ret if playing the moves in the book to reach here hit an illegal move.
+  // Fills moveHistoryRet with the sequence of moves played. If there is an illegal move, includes the illegal move.
   // This should only happen if a book was loaded from disk that is corrupted, or else only astronomically rarely on hash collisions.
-  bool getBoardHistoryReachingHere(BoardHistory& ret);
+  bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet);
 
   friend class ConstSymBookNode;
   friend class Book;
@@ -199,7 +201,7 @@ class ConstSymBookNode {
 
   // Returns false and does not modify ret if playing the moves in the book to reach here hit an illegal move.
   // This should only happen if a book was loaded from disk that is corrupted, or else only astronomically rarely on hash collisions.
-  bool getBoardHistoryReachingHere(BoardHistory& ret);
+  bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet);
 
   friend class Book;
 };
@@ -281,7 +283,7 @@ class Book {
   void recomputeEverything();
   std::vector<SymBookNode> getNextNToExpand(int n);
 
-  void exportToHtmlDir(const std::string& dirName);
+  void exportToHtmlDir(const std::string& dirName, Logger& logger);
 
  private:
   BookNode* get(BookHash hash);

@@ -22,6 +22,10 @@ const std::string Book::BOOK_CSS = R"%%(
   background-color: #cccccc;
 }
 
+.stoneShadow {
+  display: none;
+}
+
 )%%";
 
 const std::string Book::BOOK_JS = R"%%(
@@ -163,6 +167,9 @@ let svgNS = "http://www.w3.org/2000/svg";
 
       let shadowGroup = document.createElementNS(svgNS, "g");
       shadowGroup.setAttribute("opacity",0.65);
+      shadowGroup.setAttribute("moveX",x);
+      shadowGroup.setAttribute("moveY",y);
+      shadowGroup.classList.add("stoneShadow");
 
       let stoneShadow = document.createElementNS(svgNS, "circle");
       let stoneShadowBorder = document.createElementNS(svgNS, "circle");
@@ -181,7 +188,7 @@ let svgNS = "http://www.w3.org/2000/svg";
         stoneShadow.setAttribute("fill",stoneWhiteFill);
       shadowGroup.appendChild(stoneShadowBorder);
       shadowGroup.appendChild(stoneShadow);
-      //boardSvg.appendChild(shadowGroup);
+      boardSvg.appendChild(shadowGroup);
 
       let markerLink = document.createElementNS(svgNS, "a");
       markerLink.setAttribute("href",links[pos]);
