@@ -3548,6 +3548,213 @@ xxxxxxxxx
     delete nnEval;
   }
 
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Search results at 0, 1, 2 visits, and at terminal position" << endl;
+    cout << "===================================================================" << endl;
+
+    auto printResults = [](Search* search, bool allowDirectPolicyMoves) {
+      ReportedSearchValues values;
+      cout << "getRootVisits " << search->getRootVisits() << endl;
+      bool suc = search->getRootValues(values);
+      cout << "getRootValues success: " << suc << endl;
+      if(suc)
+        cout << values.visits << " " << values.weight << " " << values.winLossValue << endl;
+
+      suc = search->getPrunedRootValues(values);
+      cout << "getPrunedRootValues success: " << suc << endl;
+      if(suc)
+        cout << values.visits << " " << values.weight << " " << values.winLossValue << endl;
+
+      const SearchNode* node = search->getRootNode();
+      if(node != NULL && (node = search->getChildForMove(node, Board::PASS_LOC)) != NULL)
+      {
+        suc = search->getNodeValues(*node, values);
+        cout << "getNodeValues for pass child success: " << suc << endl;
+        if(suc)
+          cout << values.visits << " " << values.weight << " " << values.winLossValue << endl;
+
+        suc = search->getPrunedNodeValues(node, values);
+        cout << "getPrunedNodeValues for pass child success: " << suc << endl;
+        if(suc)
+          cout << values.visits << " " << values.weight << " " << values.winLossValue << endl;
+      }
+
+      vector<double> playSelectionValues;
+      vector<Loc> locs; // not used
+      if(allowDirectPolicyMoves)
+        suc = search->getPlaySelectionValues(locs,playSelectionValues,NULL,1.0);
+      else {
+        if(search->rootNode == NULL)
+          suc = false;
+        else
+          suc = search->getPlaySelectionValues(*(search->rootNode),locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves);
+      }
+      cout << "getPlaySelectionValues success: " << suc << endl;
+      if(suc) {
+        for(size_t i = 0; i<playSelectionValues.size(); i++) {
+          cout << Location::toString(locs[i],search->getRootBoard()) << " " << playSelectionValues[i] << endl;
+        }
+      }
+      nlohmann::json json;
+      Player perspective = P_WHITE;
+      int analysisPVLen = 2;
+      int ownershipMinVisits = 1;
+      bool preventEncore = true;
+      bool includePolicy = true;
+      bool includeOwnership = false;
+      bool includeMovesOwnership = false;
+      bool includePVVisits = true;
+      suc = search->getAnalysisJson(
+        perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+        includePolicy, includeOwnership, includeMovesOwnership, includePVVisits,
+        json
+      );
+      cout << "getAnalysisJson success: " << suc << endl;
+      cout << json << endl;
+    };
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,9,0,true,false,false,true,false);
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(7,7,R"%%(
+.......
+.......
+..O....
+....O..
+..X.X..
+.......
+.......
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    {
+      SearchParams params;
+      params.maxVisits = 1;
+      Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+      search->setPosition(nextPla,board,hist);
+      search->beginSearch(false);
+
+      cout << "Testing 0 visits allowDirectPolicyMoves false..." << endl;
+      bool allowDirectPolicyMoves = false;
+      printResults(search,allowDirectPolicyMoves);
+      delete search;
+    }
+    {
+      SearchParams params;
+      params.maxVisits = 1;
+      Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+      search->setPosition(nextPla,board,hist);
+      search->beginSearch(false);
+
+      cout << "Testing 0 visits allowDirectPolicyMoves true..." << endl;
+      bool allowDirectPolicyMoves = true;
+      printResults(search,allowDirectPolicyMoves);
+      delete search;
+    }
+    {
+      SearchParams params;
+      params.maxVisits = 1;
+      Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+      search->setPosition(nextPla,board,hist);
+      search->runWholeSearch(nextPla);
+
+      cout << "Testing 1 visits allowDirectPolicyMoves false..." << endl;
+      bool allowDirectPolicyMoves = false;
+      printResults(search,allowDirectPolicyMoves);
+      delete search;
+    }
+    {
+      SearchParams params;
+      params.maxVisits = 1;
+      Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+      search->setPosition(nextPla,board,hist);
+      search->runWholeSearch(nextPla);
+
+      cout << "Testing 1 visits allowDirectPolicyMoves true..." << endl;
+      bool allowDirectPolicyMoves = true;
+      printResults(search,allowDirectPolicyMoves);
+      delete search;
+    }
+    {
+      SearchParams params;
+      params.maxVisits = 2;
+      Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+      search->setPosition(nextPla,board,hist);
+      search->runWholeSearch(nextPla);
+
+      cout << "Testing 2 visits allowDirectPolicyMoves false..." << endl;
+      bool allowDirectPolicyMoves = false;
+      printResults(search,allowDirectPolicyMoves);
+      delete search;
+    }
+    {
+      SearchParams params;
+      params.maxVisits = 2;
+      Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+      search->setPosition(nextPla,board,hist);
+      search->runWholeSearch(nextPla);
+
+      cout << "Testing 2 visits allowDirectPolicyMoves true..." << endl;
+      bool allowDirectPolicyMoves = true;
+      printResults(search,allowDirectPolicyMoves);
+      delete search;
+    }
+    {
+      SearchParams params;
+      params.maxVisits = 2;
+      Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+      search->setPosition(nextPla,board,hist);
+      search->makeMove(Board::PASS_LOC,P_BLACK);
+      search->makeMove(Board::PASS_LOC,P_WHITE);
+      search->runWholeSearch(nextPla);
+
+      cout << "Testing 2 visits terminal position allowDirectPolicyMoves false..." << endl;
+      bool allowDirectPolicyMoves = false;
+      printResults(search,allowDirectPolicyMoves);
+      delete search;
+    }
+    {
+      SearchParams params;
+      params.maxVisits = 2;
+      Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+      search->setPosition(nextPla,board,hist);
+      search->makeMove(Board::PASS_LOC,P_BLACK);
+      search->makeMove(Board::PASS_LOC,P_WHITE);
+      search->runWholeSearch(nextPla);
+
+      cout << "Testing 2 visits terminal position allowDirectPolicyMoves true..." << endl;
+      bool allowDirectPolicyMoves = true;
+      printResults(search,allowDirectPolicyMoves);
+      delete search;
+    }
+    {
+      SearchParams params;
+      params.maxVisits = 1000;
+      Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+      search->setPosition(nextPla,board,hist);
+      search->makeMove(Board::PASS_LOC,P_BLACK);
+      search->setRootHintLoc(Board::PASS_LOC);
+      search->runWholeSearch(P_WHITE);
+
+      cout << "Testing 1000 visits just before terminal position allowDirectPolicyMoves false..." << endl;
+      bool allowDirectPolicyMoves = false;
+      printResults(search,allowDirectPolicyMoves);
+
+      cout << "Testing 1000 visits just before terminal position, then playing the pass and having tree reuse. allowDirectPolicyMoves false..." << endl;
+      search->makeMove(Board::PASS_LOC,P_WHITE);
+      printResults(search,allowDirectPolicyMoves);
+
+      delete search;
+    }
+
+    delete nnEval;
+  }
+
   NeuralNet::globalCleanup();
 }
 
