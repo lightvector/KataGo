@@ -307,6 +307,20 @@ BookHash ConstSymBookNode::hash() {
   return node->hash;
 }
 
+vector<int> SymBookNode::getSymmetries() {
+  vector<int> symmetries;
+  for(int symmetry: node->symmetries)
+    symmetries.push_back(SymmetryHelpers::compose(invSymmetryOfNode, symmetry, symmetryOfNode));
+  return symmetries;
+}
+vector<int> ConstSymBookNode::getSymmetries() {
+  vector<int> symmetries;
+  for(int symmetry: node->symmetries)
+    symmetries.push_back(SymmetryHelpers::compose(invSymmetryOfNode, symmetry, symmetryOfNode));
+  return symmetries;
+}
+
+
 bool SymBookNode::isMoveInBook(Loc move) {
   return ConstSymBookNode(*this).isMoveInBook(move);
 }
@@ -1084,6 +1098,20 @@ void Book::recomputeNodeCost(BookNode* node) {
   }
 }
 
+static const string HTML_TEMPLATE = R"%%(
+<html>
+<header>
+<link rel="stylesheet" href="../book.css">
+<script>
+$$DATA_VARS
+</script>
+<script type="text/javascript" src="../book.js"></script>
+</header>
+<body>
+</body>
+</html>
+)%%";
+
 
 void Book::exportToHtmlDir(const string& dirName) {
   MakeDir::make(dirName);
@@ -1093,8 +1121,19 @@ void Book::exportToHtmlDir(const string& dirName) {
       MakeDir::make(dirName + "/" + hexChars[i] + hexChars[j]);
     }
   }
+  MakeDir::make(dirName + "/root");
+  {
+    std::ofstream out(dirName + "/book.js");
+    out << Book::BOOK_JS;
+    out.close();
+  }
+  {
+    std::ofstream out(dirName + "/book.css");
+    out << Book::BOOK_CSS;
+    out.close();
+  }
 
-  auto getFilePath = [&](BookNode* node, int symmetry, vector<int>& handledSymmetries) {
+  auto getFilePath = [&](BookNode* node, int symmetry, vector<int>& handledSymmetries, bool relative) {
     vector<int> equivalentSymmetries;
     for(int nodeSymmetry: node->symmetries) {
       int s = SymmetryHelpers::compose(symmetry,nodeSymmetry);
@@ -1102,9 +1141,9 @@ void Book::exportToHtmlDir(const string& dirName) {
       handledSymmetries.push_back(s);
     }
     std::sort(equivalentSymmetries.begin(),equivalentSymmetries.end());
-    string path = dirName + "/";
+    string path = relative ? "" : dirName + "/";
     if(node == root)
-      path += "root";
+      path += "root/root";
     else {
       string hashStr = node->hash.toString();
       assert(hashStr.size() > 2);
@@ -1117,40 +1156,30 @@ void Book::exportToHtmlDir(const string& dirName) {
     return path;
   };
 
-  string htmlTemplate = R"%%(
-<html>
-<header>
-<script>
-$$DATA_VARS
-</script>
-<script type="text/javascript" src="../book.js"></script>
-</header>
-<body>
-</body>
-</html>
-)%%";
-
   std::function<void(BookNode*)> f = [&](BookNode* node) {
     vector<int> handledSymmetries;
     int numSymmetries = (initialBoard.x_size != initialBoard.y_size) ? SymmetryHelpers::NUM_SYMMETRIES_WITHOUT_TRANSPOSE : SymmetryHelpers::NUM_SYMMETRIES;
     for(int symmetry = 0; symmetry < numSymmetries; symmetry++) {
       if(contains(handledSymmetries,symmetry))
         return;
-      string filePath = getFilePath(node, symmetry, handledSymmetries);
-      string html = htmlTemplate;
+      string filePath = getFilePath(node, symmetry, handledSymmetries, false);
+      string html = HTML_TEMPLATE;
       auto replace = [&](const string& key, const string& replacement) {
         size_t pos = html.find(key);
         assert(pos != string::npos);
         html.replace(pos, key.size(), replacement);
       };
 
+      SymBookNode symNode(node, symmetry);
+
       BoardHistory hist;
-      bool suc = SymBookNode(node, symmetry).getBoardHistoryReachingHere(hist);
+      bool suc = symNode.getBoardHistoryReachingHere(hist);
       assert(suc);
       (void)suc;
       Board board = hist.getRecentBoard(0);
 
       string dataVarsStr;
+      dataVarsStr += "const nextPlayer = " + Global::intToString(node->pla) + ";\n";
       dataVarsStr += "const boardSizeX = " + Global::intToString(board.x_size) + ";\n";
       dataVarsStr += "const boardSizeY = " + Global::intToString(board.y_size) + ";\n";
       dataVarsStr += "const board = [";
@@ -1165,12 +1194,12 @@ $$DATA_VARS
       for(int y = 0; y<board.y_size; y++) {
         for(int x = 0; x<board.x_size; x++) {
           Loc loc = Location::getLoc(x,y,board.x_size);
-          SymBookNode child = SymBookNode(node, symmetry).follow(loc);
+          SymBookNode child = symNode.follow(loc);
           if(child.isNull())
             dataVarsStr += "'',";
           else {
             vector<int> handledSymmetriesDummy; // Not actually used, just needed for arg
-            string childPath = getFilePath(child.node, child.symmetryOfNode, handledSymmetriesDummy);
+            string childPath = getFilePath(child.node, child.symmetryOfNode, handledSymmetriesDummy, true);
             dataVarsStr += "'../" + childPath + "',";
           }
         }
@@ -1178,25 +1207,45 @@ $$DATA_VARS
       dataVarsStr += "];\n";
 
       vector<std::pair<BookMove,RecursiveBookValues>> movesAndValues;
-      for(auto& locMove: node->moves) {
-        SymBookNode child = SymBookNode(node, symmetry).follow(locMove.first);
-        movesAndValues.push_back(std::make_pair(locMove.second, child.node->recursiveValues));
+      vector<BookMove> uniqueMovesInBook = symNode.getUniqueMovesInBook();
+      for(BookMove& bookMove: uniqueMovesInBook) {
+        SymBookNode child = symNode.follow(bookMove.move);
+        movesAndValues.push_back(std::make_pair(bookMove, child.node->recursiveValues));
       }
       std::sort(
         movesAndValues.begin(),movesAndValues.end(),
         [&](const std::pair<BookMove,RecursiveBookValues>& mv0,
             const std::pair<BookMove,RecursiveBookValues>& mv1) {
-          return mv0.second.winLossValue + mv0.second.scoreMean * utilityPerScore >
-            mv1.second.winLossValue + mv1.second.scoreMean * utilityPerScore;
+          return node->pla == P_WHITE ?
+            (mv0.second.winLossValue + mv0.second.scoreMean * utilityPerScore >
+             mv1.second.winLossValue + mv1.second.scoreMean * utilityPerScore)
+            :
+            (mv0.second.winLossValue + mv0.second.scoreMean * utilityPerScore <
+             mv1.second.winLossValue + mv1.second.scoreMean * utilityPerScore)
+            ;
         }
       );
+
+      vector<int> equivalentSymmetries = symNode.getSymmetries();
+      std::set<Loc> locsHandled;
 
       dataVarsStr += "const moves = [";
       for(auto& moveAndValue: movesAndValues) {
         dataVarsStr += "{";
         if(moveAndValue.first.move != Board::PASS_LOC) {
-          dataVarsStr += "'x':'" + Global::intToString(Location::getX(moveAndValue.first.move, initialBoard.x_size)) + "',";
-          dataVarsStr += "'y':'" + Global::intToString(Location::getY(moveAndValue.first.move, initialBoard.x_size)) + "',";
+          dataVarsStr += "'xy':[";
+          for(int s: equivalentSymmetries) {
+            Loc symMove = SymmetryHelpers::getSymLoc(moveAndValue.first.move,initialBoard,s);
+            if(contains(locsHandled, symMove))
+              continue;
+            locsHandled.insert(symMove);
+            dataVarsStr += "[";
+            dataVarsStr += Global::intToString(Location::getX(symMove, initialBoard.x_size));
+            dataVarsStr += ",";
+            dataVarsStr += Global::intToString(Location::getY(symMove, initialBoard.x_size));
+            dataVarsStr += "],";
+          }
+          dataVarsStr += "],";
         }
         dataVarsStr += "'move':'" + Location::toString(moveAndValue.first.move, initialBoard) + "',";
         dataVarsStr += "'policy':" + Global::doubleToString(moveAndValue.first.rawPolicy) + ",";
@@ -1220,11 +1269,11 @@ $$DATA_VARS
           double scoreLCB = values.scoreMean - errorFactor * values.scoreError;
 
           dataVarsStr += "{";
-          dataVarsStr += "'move':'other'";
+          dataVarsStr += "'move':'other',";
           dataVarsStr += "'policy':" + Global::doubleToString(values.maxPolicy) + ",";
           dataVarsStr += "'winLossValue':" + Global::doubleToString(values.winLossValue) + ",";
-          dataVarsStr += "'winLossValueUCB':" + Global::doubleToString(winLossValueUCB) + ",";
-          dataVarsStr += "'winLossValueLCB':" + Global::doubleToString(winLossValueLCB) + ",";
+          dataVarsStr += "'winLossUCB':" + Global::doubleToString(winLossValueUCB) + ",";
+          dataVarsStr += "'winLossLCB':" + Global::doubleToString(winLossValueLCB) + ",";
           dataVarsStr += "'scoreMean':" + Global::doubleToString(values.scoreMean) + ",";
           dataVarsStr += "'lead':" + Global::doubleToString(values.lead) + ",";
           dataVarsStr += "'scoreUCB':" + Global::doubleToString(scoreUCB) + ",";

@@ -141,6 +141,8 @@ class SymBookNode {
 
   Player pla();
   BookHash hash();
+  std::vector<int> getSymmetries();
+
   BookValues& thisValuesNotInBook();
   bool& canExpand();
   const RecursiveBookValues& recursiveValues();
@@ -181,6 +183,8 @@ class ConstSymBookNode {
 
   Player pla();
   BookHash hash();
+  std::vector<int> getSymmetries();
+
   bool isMoveInBook(Loc move);
   std::vector<BookMove> getUniqueMovesInBook();
 
@@ -206,6 +210,8 @@ class ConstSymBookNode {
 // rectangular boards in the wrong orientation, it's up to the user to manually do that.
 class Book {
   static constexpr size_t NUM_HASH_BUCKETS = 2048;
+  static const std::string BOOK_JS;
+  static const std::string BOOK_CSS;
 
  public:
   const Board initialBoard;
