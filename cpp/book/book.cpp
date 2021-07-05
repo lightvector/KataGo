@@ -454,6 +454,11 @@ SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc mo
 
   // Find the symmetry for move that prefers the upper right corner if possible.
   // Maximize x first, then minimize y next
+  // Although, this will only work politely for the initial empty board. Past that, it will really be just whatever orientation gets
+  // chosen canonically for the board. Which is fine, I guess.
+  // Even if the symmetry equivalence code isn't perfect, this should never choose an outright illegal move except for true hash
+  // collisions because the state hash accounts for all ko and superko prohibitions, so at worst we'll be
+  // just playing the wrong child node out.
   Loc bestLoc = symMove;
   int bestSymmetry = 0;
   for(int symmetry: node->symmetries) {

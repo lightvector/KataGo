@@ -155,6 +155,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       Player pla = hist.presumedNextMovePla;
       Board board = hist.getRecentBoard(0);
       search->setPosition(pla,board,hist);
+      search->setRootSymmetryPruningOnly(node.getSymmetries());
 
       Board::printBoard(cout, board, Board::NULL_LOC, NULL);
       cout << endl;
@@ -300,6 +301,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         // Get root values
         ReportedSearchValues remainingSearchValues;
         bool getSuc = search->getPrunedRootValues(remainingSearchValues);
+        // Something is bad if this is false, since we should be searching with positive visits and getting an nneval
+        // and we know node is not a terminal node.
         assert(getSuc);
         (void)getSuc;
 
