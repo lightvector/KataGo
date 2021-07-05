@@ -75,6 +75,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   const double costPerUCBWinLossLoss = cfg.getDouble("costPerUCBWinLossLoss",0.0,1000000.0);
   const double costPerUCBScoreLoss = cfg.getDouble("costPerUCBScoreLoss",0.0,1000000.0);
   const double costPerLogPolicy = cfg.getDouble("costPerLogPolicy",0.0,1000000.0);
+  const double costPerMovesExpanded = cfg.getDouble("costPerMovesExpanded",0.0,1000000.0);
+  const double costPerSquaredMovesExpanded = cfg.getDouble("costPerSquaredMovesExpanded",0.0,1000000.0);
   const double utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
@@ -112,6 +114,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     costPerUCBWinLossLoss,
     costPerUCBScoreLoss,
     costPerLogPolicy,
+    costPerMovesExpanded,
+    costPerSquaredMovesExpanded,
     utilityPerScore
   );
 
@@ -125,7 +129,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     if(shouldStop.load(std::memory_order_acquire))
       break;
 
-    std::vector<SymBookNode> nodesToExpand = book->getNextNToExpand(numToExpand);
+    std::vector<SymBookNode> nodesToExpand = book->getNextNToExpand(std::min(1+rep/2,numToExpand));
     std::vector<SymBookNode> newAndChangedNodes = nodesToExpand;
 
     for(SymBookNode node: nodesToExpand) {

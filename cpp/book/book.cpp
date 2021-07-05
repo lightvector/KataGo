@@ -594,6 +594,8 @@ Book::Book(
   double cpucbwl,
   double cpucbsl,
   double cplp,
+  double cpme,
+  double cpsme,
   double ups
 ) : initialBoard(b),
     initialRules(r),
@@ -604,6 +606,8 @@ Book::Book(
     costPerUCBWinLossLoss(cpucbwl),
     costPerUCBScoreLoss(cpucbsl),
     costPerLogPolicy(cplp),
+    costPerMovesExpanded(cpme),
+    costPerSquaredMovesExpanded(cpsme),
     utilityPerScore(ups),
     initialSymmetry(0),
     root(nullptr),
@@ -650,6 +654,10 @@ double Book::getCostPerUCBScoreLoss() const { return costPerUCBScoreLoss; }
 void Book::setCostPerUCBScoreLoss(double d) { costPerUCBScoreLoss = d; }
 double Book::getCostPerLogPolicy() const { return costPerLogPolicy; }
 void Book::setCostPerLogPolicy(double d) { costPerLogPolicy = d; }
+double Book::getCostPerMovesExpanded() const { return costPerMovesExpanded; }
+void Book::setCostPerMovesExpanded(double d) { costPerMovesExpanded = d; }
+double Book::getCostPerSquaredMovesExpanded() const { return costPerSquaredMovesExpanded; }
+void Book::setCostPerSquaredMovesExpanded(double d) { costPerSquaredMovesExpanded = d; }
 double Book::getUtilityPerScore() const { return utilityPerScore; }
 void Book::setUtilityPerScore(double d) { utilityPerScore = d; }
 
@@ -1101,7 +1109,9 @@ void Book::recomputeNodeCost(BookNode* node) {
       costPerMove
       + ucbWinLossLoss * costPerUCBWinLossLoss
       + ucbScoreLoss * costPerUCBScoreLoss
-      + (-log(rawPolicy + 1e-100) * costPerLogPolicy);
+      + (-log(rawPolicy + 1e-100) * costPerLogPolicy)
+      + node->moves.size() * costPerMovesExpanded
+      + node->moves.size() * node->moves.size() * costPerSquaredMovesExpanded;
   }
 }
 
@@ -1140,10 +1150,14 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
     out.close();
   }
 
+  //Symmetry should be the map from nodeSpace -> displaySpace
   auto getFilePath = [&](BookNode* node, int symmetry, vector<int>& handledSymmetries, bool relative) {
     vector<int> equivalentSymmetries;
     for(int nodeSymmetry: node->symmetries) {
-      int s = SymmetryHelpers::compose(symmetry,nodeSymmetry);
+      //symmetry is the map from nodeSpace -> displaySpace
+      //nodeSymmetry is the map from nodeSpace -> nodeSpace that leaves the node eqivalent.
+      //So composing them this way gives is equivelnt maps from nodeSpace -> displaySpace
+      int s = SymmetryHelpers::compose(nodeSymmetry,symmetry);
       equivalentSymmetries.push_back(s);
       handledSymmetries.push_back(s);
     }
@@ -1168,7 +1182,7 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
     int numSymmetries = (initialBoard.x_size != initialBoard.y_size) ? SymmetryHelpers::NUM_SYMMETRIES_WITHOUT_TRANSPOSE : SymmetryHelpers::NUM_SYMMETRIES;
     for(int symmetry = 0; symmetry < numSymmetries; symmetry++) {
       if(contains(handledSymmetries,symmetry))
-        return;
+        continue;
       string filePath = getFilePath(node, symmetry, handledSymmetries, false);
       string html = HTML_TEMPLATE;
       auto replace = [&](const string& key, const string& replacement) {
@@ -1186,12 +1200,13 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
         logger.write("WARNING: Failed to get board history reaching node when trying to export to html, probably there is some bug");
         logger.write("or else some hash collision or something else is wrong.");
         logger.write("BookHash of node unable to export: " + symNode.hash().toString());
+        logger.write("On symmetry: " + Global::intToString(symmetry));
         std::ostringstream movesOut;
         for(Loc move: moveHistory)
           movesOut << Location::toString(move,initialBoard) << " ";
         logger.write("Moves:");
         logger.write(movesOut.str());
-        return;
+        continue;
       }
       Board board = hist.getRecentBoard(0);
 
@@ -1223,22 +1238,26 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
       }
       dataVarsStr += "];\n";
 
-      vector<std::pair<BookMove,RecursiveBookValues>> movesAndValues;
       vector<BookMove> uniqueMovesInBook = symNode.getUniqueMovesInBook();
+      vector<RecursiveBookValues> uniqueChildValues;
+      vector<double> uniqueChildCosts;
+      vector<size_t> uniqueMoveIdxs;
       for(BookMove& bookMove: uniqueMovesInBook) {
         SymBookNode child = symNode.follow(bookMove.move);
-        movesAndValues.push_back(std::make_pair(bookMove, child.node->recursiveValues));
+        uniqueChildValues.push_back(child.node->recursiveValues);
+        uniqueChildCosts.push_back(child.node->minCostFromRoot);
+        uniqueMoveIdxs.push_back(uniqueMoveIdxs.size());
       }
       std::sort(
-        movesAndValues.begin(),movesAndValues.end(),
-        [&](const std::pair<BookMove,RecursiveBookValues>& mv0,
-            const std::pair<BookMove,RecursiveBookValues>& mv1) {
+        uniqueMoveIdxs.begin(),uniqueMoveIdxs.end(),
+        [&](const size_t& idx0,
+            const size_t& idx1) {
           return node->pla == P_WHITE ?
-            (mv0.second.winLossValue + mv0.second.scoreMean * utilityPerScore >
-             mv1.second.winLossValue + mv1.second.scoreMean * utilityPerScore)
+            (uniqueChildValues[idx0].winLossValue + uniqueChildValues[idx0].scoreMean * utilityPerScore >
+             uniqueChildValues[idx1].winLossValue + uniqueChildValues[idx1].scoreMean * utilityPerScore)
             :
-            (mv0.second.winLossValue + mv0.second.scoreMean * utilityPerScore <
-             mv1.second.winLossValue + mv1.second.scoreMean * utilityPerScore)
+            (uniqueChildValues[idx0].winLossValue + uniqueChildValues[idx0].scoreMean * utilityPerScore <
+             uniqueChildValues[idx1].winLossValue + uniqueChildValues[idx1].scoreMean * utilityPerScore)
             ;
         }
       );
@@ -1247,12 +1266,12 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
       std::set<Loc> locsHandled;
 
       dataVarsStr += "const moves = [";
-      for(auto& moveAndValue: movesAndValues) {
+      for(int idx: uniqueMoveIdxs) {
         dataVarsStr += "{";
-        if(moveAndValue.first.move != Board::PASS_LOC) {
+        if(uniqueMovesInBook[idx].move != Board::PASS_LOC) {
           dataVarsStr += "'xy':[";
           for(int s: equivalentSymmetries) {
-            Loc symMove = SymmetryHelpers::getSymLoc(moveAndValue.first.move,initialBoard,s);
+            Loc symMove = SymmetryHelpers::getSymLoc(uniqueMovesInBook[idx].move,initialBoard,s);
             if(contains(locsHandled, symMove))
               continue;
             locsHandled.insert(symMove);
@@ -1264,17 +1283,18 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
           }
           dataVarsStr += "],";
         }
-        dataVarsStr += "'move':'" + Location::toString(moveAndValue.first.move, initialBoard) + "',";
-        dataVarsStr += "'policy':" + Global::doubleToString(moveAndValue.first.rawPolicy) + ",";
-        dataVarsStr += "'winLossValue':" + Global::doubleToString(moveAndValue.second.winLossValue) + ",";
-        dataVarsStr += "'winLossUCB':" + Global::doubleToString(moveAndValue.second.winLossUCB) + ",";
-        dataVarsStr += "'winLossLCB':" + Global::doubleToString(moveAndValue.second.winLossLCB) + ",";
-        dataVarsStr += "'scoreMean':" + Global::doubleToString(moveAndValue.second.scoreMean) + ",";
-        dataVarsStr += "'lead':" + Global::doubleToString(moveAndValue.second.lead) + ",";
-        dataVarsStr += "'scoreUCB':" + Global::doubleToString(moveAndValue.second.scoreUCB) + ",";
-        dataVarsStr += "'scoreLCB':" + Global::doubleToString(moveAndValue.second.scoreLCB) + ",";
-        dataVarsStr += "'weight':" + Global::doubleToString(moveAndValue.second.weight) + ",";
-        dataVarsStr += "'visits':" + Global::doubleToString(moveAndValue.second.visits) + ",";
+        dataVarsStr += "'move':'" + Location::toString(uniqueMovesInBook[idx].move, initialBoard) + "',";
+        dataVarsStr += "'policy':" + Global::doubleToString(uniqueMovesInBook[idx].rawPolicy) + ",";
+        dataVarsStr += "'winLossValue':" + Global::doubleToString(uniqueChildValues[idx].winLossValue) + ",";
+        dataVarsStr += "'winLossUCB':" + Global::doubleToString(uniqueChildValues[idx].winLossUCB) + ",";
+        dataVarsStr += "'winLossLCB':" + Global::doubleToString(uniqueChildValues[idx].winLossLCB) + ",";
+        dataVarsStr += "'scoreMean':" + Global::doubleToString(uniqueChildValues[idx].scoreMean) + ",";
+        dataVarsStr += "'lead':" + Global::doubleToString(uniqueChildValues[idx].lead) + ",";
+        dataVarsStr += "'scoreUCB':" + Global::doubleToString(uniqueChildValues[idx].scoreUCB) + ",";
+        dataVarsStr += "'scoreLCB':" + Global::doubleToString(uniqueChildValues[idx].scoreLCB) + ",";
+        dataVarsStr += "'weight':" + Global::doubleToString(uniqueChildValues[idx].weight) + ",";
+        dataVarsStr += "'visits':" + Global::doubleToString(uniqueChildValues[idx].visits) + ",";
+        dataVarsStr += "'cost':" + Global::doubleToString(uniqueChildCosts[idx]) + ",";
         dataVarsStr += "},";
       }
       {
@@ -1297,6 +1317,7 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
           dataVarsStr += "'scoreLCB':" + Global::doubleToString(scoreLCB) + ",";
           dataVarsStr += "'weight':" + Global::doubleToString(values.weight) + ",";
           dataVarsStr += "'visits':" + Global::doubleToString(values.visits) + ",";
+          dataVarsStr += "'cost':" + Global::doubleToString(node->thisNodeExpansionCost) + ",";
           dataVarsStr += "},";
         }
       }

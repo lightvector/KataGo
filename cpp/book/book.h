@@ -227,6 +227,8 @@ class Book {
   double costPerUCBWinLossLoss;
   double costPerUCBScoreLoss;
   double costPerLogPolicy;
+  double costPerMovesExpanded;
+  double costPerSquaredMovesExpanded;
   double utilityPerScore; //Currently just for sorting
 
   int initialSymmetry; // The symmetry that needs to be applied to initialBoard to align it with rootNode. (initialspace -> rootnodespace)
@@ -244,6 +246,8 @@ class Book {
     double costPerUCBWinLossLoss,
     double costPerUCBScoreLoss,
     double costPerLogPolicy,
+    double costPerMovesExpanded,
+    double costPerSquaredMovesExpanded,
     double utilityPerScore
   );
   ~Book();
@@ -267,6 +271,10 @@ class Book {
   void setCostPerUCBScoreLoss(double d);
   double getCostPerLogPolicy() const;
   void setCostPerLogPolicy(double d);
+  double getCostPerMovesExpanded() const;
+  void setCostPerMovesExpanded(double d);
+  double getCostPerSquaredMovesExpanded() const;
+  void setCostPerSquaredMovesExpanded(double d);
   double getUtilityPerScore() const;
   void setUtilityPerScore(double d);
 
