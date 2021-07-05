@@ -672,7 +672,13 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
   return symBoard;
 }
 
-void SymmetryHelpers::markDuplicateMoveLocs(const Board& board, const BoardHistory& hist, bool* isSymDupLoc, std::vector<int>& validSymmetries) {
+void SymmetryHelpers::markDuplicateMoveLocs(
+  const Board& board,
+  const BoardHistory& hist,
+  const std::vector<int>* onlySymmetries,
+  bool* isSymDupLoc,
+  std::vector<int>& validSymmetries
+) {
   std::fill(isSymDupLoc, isSymDupLoc + Board::MAX_ARR_SIZE, false);
   validSymmetries.clear();
   validSymmetries.reserve(SymmetryHelpers::NUM_SYMMETRIES);
@@ -692,6 +698,9 @@ void SymmetryHelpers::markDuplicateMoveLocs(const Board& board, const BoardHisto
   int symmetrySearchUpperBound = board.x_size == board.y_size ? SymmetryHelpers::NUM_SYMMETRIES : SymmetryHelpers::NUM_SYMMETRIES_WITHOUT_TRANSPOSE;
 
   for(int symmetry = 1; symmetry < symmetrySearchUpperBound; symmetry++) {
+    if(onlySymmetries != NULL && !contains(*onlySymmetries,symmetry))
+      continue;
+
     bool isBoardSym = true;
     for(int y = 0; y < board.y_size; y++) {
       for(int x = 0; x < board.x_size; x++) {

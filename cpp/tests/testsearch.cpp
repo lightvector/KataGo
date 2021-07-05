@@ -3182,6 +3182,90 @@ o..o.oo
 
   {
     cout << "===================================================================" << endl;
+    cout << "Testing pruning of search tree at root node due to symmetries, allowing only diagonal flips: empty board" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,9,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 5000;
+    params.rootSymmetryPruning = true;
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::getTrompTaylorish();
+    TestSearchOptions opts;
+
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    search->setPosition(nextPla,board,hist);
+    search->setRootSymmetryPruningOnly({0,3,4,7});
+    search->runWholeSearch(nextPla);
+
+    cout << search->rootBoard << endl;
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Testing pruning of search tree at root node due to symmetries, allowing only diagonal flips: only one diagonal possible" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,9,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 5000;
+    params.rootSymmetryPruning = true;
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::getTrompTaylorish();
+    TestSearchOptions opts;
+
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.........
+.........
+....o....
+.........
+..x......
+.........
+.........
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    search->setPosition(nextPla,board,hist);
+    search->setRootSymmetryPruningOnly({0,3,4,7});
+    search->runWholeSearch(nextPla);
+
+    cout << search->rootBoard << endl;
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
     cout << "Non-square board search" << endl;
     cout << "===================================================================" << endl;
 

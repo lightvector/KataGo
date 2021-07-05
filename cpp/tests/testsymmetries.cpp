@@ -818,11 +818,11 @@ void Tests::runBoardSymmetryTests() {
     out << endl;
   };
 
-  auto computeAndPrintMarkedSymDupArea = [&out,&printMarkedSymDupArea](const Board& board, Player pla) {
+  auto computeAndPrintMarkedSymDupArea = [&out,&printMarkedSymDupArea](const Board& board, Player pla, const std::vector<int>* onlySymmetries) {
     BoardHistory hist(board,pla,Rules::getTrompTaylorish(),0);
     bool isSymDupLoc[Board::MAX_ARR_SIZE];
     vector<int> validSymmetries;
-    SymmetryHelpers::markDuplicateMoveLocs(board,hist,isSymDupLoc,validSymmetries);
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,onlySymmetries,isSymDupLoc,validSymmetries);
     out << board << endl;
     printMarkedSymDupArea(board,isSymDupLoc,validSymmetries);
   };
@@ -841,7 +841,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -857,7 +857,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_WHITE);
+    computeAndPrintMarkedSymDupArea(board,P_WHITE,NULL);
   }
 
   {
@@ -873,7 +873,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -889,7 +889,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -905,7 +905,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
 
@@ -922,7 +922,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -938,7 +938,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -954,7 +954,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -970,7 +970,7 @@ void Tests::runBoardSymmetryTests() {
 .......O.
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -986,7 +986,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -1002,7 +1002,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_WHITE);
+    computeAndPrintMarkedSymDupArea(board,P_WHITE,NULL);
   }
 
   {
@@ -1018,7 +1018,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -1034,7 +1034,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -1050,7 +1050,7 @@ void Tests::runBoardSymmetryTests() {
 .........
 .........
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -1064,7 +1064,7 @@ void Tests::runBoardSymmetryTests() {
 .....
 .....
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -1078,7 +1078,7 @@ O.X.O
 .....
 ..O..
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -1092,7 +1092,7 @@ O.X.O
 .X.X.
 .....
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -1106,7 +1106,7 @@ O.X.O
 .X...
 .....
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -1120,7 +1120,7 @@ O.X.O
 .X...
 .....
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
   }
 
   {
@@ -1134,7 +1134,7 @@ O.X.O
 .X...
 .....
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_WHITE);
+    computeAndPrintMarkedSymDupArea(board,P_WHITE,NULL);
   }
 
   {
@@ -1148,7 +1148,58 @@ O.X.O
 .X...
 .....
 )%%");
-    computeAndPrintMarkedSymDupArea(board,P_BLACK);
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,NULL);
+  }
+
+  {
+    out << "4 fold-rotational symmetry, no 5 6" << endl;
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.....X...
+..X......
+.........
+......X..
+...X.....
+.........
+.........
+)%%");
+    vector<int> onlySymmetries = {0,1,2,3,4,7};
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,&onlySymmetries);
+  }
+
+  {
+    out << "Empty board, no 1,2,4,7" << endl;
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+)%%");
+    vector<int> onlySymmetries = {0,3,5,6};
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,&onlySymmetries);
+  }
+
+  {
+    out << "Empty board, only hflip" << endl;
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+.........
+)%%");
+    vector<int> onlySymmetries = {0,2};
+    computeAndPrintMarkedSymDupArea(board,P_BLACK,&onlySymmetries);
   }
 
   string expected = R"%%(
@@ -1648,6 +1699,82 @@ Symmetries: 0
 .....
 .....
 .....
+
+4 fold-rotational symmetry, no 5 6
+HASH: 9A99D63A6BCF4A80259685FCC27D968C
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . X . . .
+ 6 . . X . . . . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . X . .
+ 3 . . . X . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Symmetries: 0 3
+xxxx.....
+xxxx.....
+xxxx.....
+xxxx.....
+xxxx.....
+xxxxx....
+xxxxx....
+xxxxx....
+xxxxx....
+
+Empty board, no 1,2,4,7
+HASH: 9F0B2D702FC8448C75410E097F089AEB
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Symmetries: 0 3 5 6
+xxxxxxxx.
+xxxxxxx..
+xxxxxx...
+xxxxx....
+xxxx.....
+xxxxxx...
+xxxxxxx..
+xxxxxxxx.
+xxxxxxxxx
+
+Empty board, only hflip
+HASH: 9F0B2D702FC8448C75410E097F089AEB
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+Symmetries: 0 2
+xxxx.....
+xxxx.....
+xxxx.....
+xxxx.....
+xxxx.....
+xxxx.....
+xxxx.....
+xxxx.....
+xxxx.....
+
 )%%";
 
   expect(name,out,expected);

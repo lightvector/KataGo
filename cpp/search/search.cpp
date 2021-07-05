@@ -429,6 +429,8 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
   :rootPla(P_BLACK),
    rootBoard(),rootHistory(),rootHintLoc(Board::NULL_LOC),
    avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),
+   rootSymmetries(),
+   rootPruneOnlySymmetries(),
    rootSafeArea(NULL),
    recentScoreCenter(0.0),
    mirroringPla(C_EMPTY),
@@ -670,6 +672,14 @@ void Search::setAlwaysIncludeOwnerMap(bool b) {
     clearSearch();
   alwaysIncludeOwnerMap = b;
 }
+
+void Search::setRootSymmetryPruningOnly(const std::vector<int>& v) {
+  if(rootPruneOnlySymmetries == v)
+    return;
+  clearSearch();
+  rootPruneOnlySymmetries = v;
+}
+
 
 void Search::setParams(SearchParams params) {
   clearSearch();
@@ -1287,7 +1297,10 @@ void Search::beginSearch(bool pondering) {
   }
 
   if(searchParams.rootSymmetryPruning) {
-    SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,rootSymDupLoc,rootSymmetries);
+    if(rootPruneOnlySymmetries.size() > 0)
+      SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,&rootPruneOnlySymmetries,rootSymDupLoc,rootSymmetries);
+    else
+      SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,NULL,rootSymDupLoc,rootSymmetries);
   }
   else {
     //Just in case, don't leave the values undefined.

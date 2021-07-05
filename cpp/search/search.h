@@ -270,8 +270,9 @@ struct Search {
 
   //If rootSymmetryPruning==true and the board is symmetric, mask all the equivalent copies of each move except one.
   bool rootSymDupLoc[Board::MAX_ARR_SIZE];
-  //If rootSymmetryPruning==true and symmetries under which the root board and history are invariant, including some heuristics for ko and encore-related state.
+  //If rootSymmetryPruning==true, symmetries under which the root board and history are invariant, including some heuristics for ko and encore-related state.
   std::vector<int> rootSymmetries;
+  std::vector<int> rootPruneOnlySymmetries;
 
   //Strictly pass-alive areas in the root board position
   Color* rootSafeArea;
@@ -365,6 +366,7 @@ struct Search {
   void setRootHintLoc(Loc hintLoc);
   void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
   void setAlwaysIncludeOwnerMap(bool b);
+  void setRootSymmetryPruningOnly(const std::vector<int>& rootPruneOnlySymmetries);
   void setParams(SearchParams params);
   void setParamsNoClearing(SearchParams params); //Does not clear search
   void setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table);
