@@ -507,7 +507,6 @@ SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc mo
     rawPolicy
   );
   node->moves[bestLoc] = newBookMove;
-
   return SymBookNode(child,SymmetryHelpers::invert(symmetryToAlignToChild));
 }
 
@@ -693,6 +692,7 @@ void Book::recompute(const vector<SymBookNode>& newAndChangedNodes) {
   // Walk up from all changed nodes and mark all parents dirty recursively.
   std::set<BookHash> dirtyNodes;
   std::function<DFSAction(BookNode*)> markDirty = [&dirtyNodes](BookNode* node) {
+    // cout << "Mark dirty " << node->hash << " " << node << endl;
     if(contains(dirtyNodes, node->hash))
       return DFSAction::skip;
     dirtyNodes.insert(node->hash);
@@ -1022,6 +1022,7 @@ void Book::recomputeNodeValues(BookNode* node) {
 
   for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
     const BookNode* child = get(iter->second.hash);
+    // cout << "pulling values from child " << child << " hash " << child->hash << endl;
     const RecursiveBookValues& values = child->recursiveValues;
     if(node->pla == P_WHITE) {
       winLossValue = std::max(winLossValue, values.winLossValue);
@@ -1057,12 +1058,17 @@ void Book::recomputeNodeValues(BookNode* node) {
   values.scoreUCB = scoreUCB;
   values.weight = weight;
   values.visits = visits;
+
+  // cout << "Setting " << node->hash << " values" << endl;
+  // cout << "Values " << values.winLossLCB << " " << values.winLossValue << " " << values.winLossUCB << endl;
+  // cout << "Score " << values.scoreLCB << " " << values.scoreMean << " " << values.scoreUCB << endl;
 }
 
 void Book::recomputeNodeCost(BookNode* node) {
   if(node == root)
     node->minCostFromRoot = 0.0;
   else {
+    // cout << "Recomputing cost " << node->hash << endl;
     double minCost = 1e100;
     for(std::pair<BookHash,Loc>& parentInfo: node->parents) {
       const BookNode* parent = get(parentInfo.first);
@@ -1075,6 +1081,7 @@ void Book::recomputeNodeCost(BookNode* node) {
         parent->recursiveValues.scoreUCB - node->recursiveValues.scoreUCB :
         node->recursiveValues.scoreLCB - parent->recursiveValues.scoreLCB;
       auto parentLocAndBookMove = parent->moves.find(parentInfo.second);
+      // cout << "Recompute node cost parent " << parent << " " << parentInfo.first << " " << parent->moves.size() << endl;
       assert(parentLocAndBookMove != parent->moves.end());
       double rawPolicy = parentLocAndBookMove->second.rawPolicy;
 
@@ -1085,6 +1092,9 @@ void Book::recomputeNodeCost(BookNode* node) {
         + ucbScoreLoss * costPerUCBScoreLoss
         + (-log(rawPolicy + 1e-100) * costPerLogPolicy);
 
+      // cout << "Cost parent " << parent->hash << " " << Location::toString(parentInfo.second,initialBoard) << endl;
+      // cout << "Cost stats " << ucbWinLossLoss << " " << ucbScoreLoss << " " << rawPolicy << endl;
+      // cout << "Cost path " << parent->minCostFromRoot << " " << costPerMove << " " << ucbWinLossLoss * costPerUCBWinLossLoss << " " << ucbScoreLoss * costPerUCBScoreLoss << " " << (-log(rawPolicy + 1e-100) * costPerLogPolicy) << endl;
       if(cost < minCost)
         minCost = cost;
     }
@@ -1105,6 +1115,23 @@ void Book::recomputeNodeCost(BookNode* node) {
       ((node->thisValuesNotInBook.scoreMean - errorFactor * node->thisValuesNotInBook.scoreError) - node->recursiveValues.scoreLCB);
     double rawPolicy = node->thisValuesNotInBook.maxPolicy;
 
+    // cout << "Expansion thisValues " <<
+    //   node->thisValuesNotInBook.winLossValue - errorFactor * node->thisValuesNotInBook.winLossError << " " <<
+    //   node->thisValuesNotInBook.winLossValue << " " <<
+    //   node->thisValuesNotInBook.winLossValue + errorFactor * node->thisValuesNotInBook.winLossError << endl;
+    // cout << "Expansion thisScores " <<
+    //   node->thisValuesNotInBook.scoreMean - errorFactor * node->thisValuesNotInBook.scoreError << " " <<
+    //   node->thisValuesNotInBook.scoreMean << " " <<
+    //   node->thisValuesNotInBook.scoreMean + errorFactor * node->thisValuesNotInBook.scoreError << endl;
+    // cout << "Recursive values " <<
+    //   node->recursiveValues.winLossLCB << " " <<
+    //   node->recursiveValues.winLossValue << " " <<
+    //   node->recursiveValues.winLossUCB << endl;
+    // cout << "Recursive scores " <<
+    //   node->recursiveValues.scoreLCB << " " <<
+    //   node->recursiveValues.scoreMean << " " <<
+    //   node->recursiveValues.scoreUCB << endl;
+    // cout << "Expansion stats " << ucbWinLossLoss << " " << ucbScoreLoss << " " << rawPolicy << endl;
     node->thisNodeExpansionCost =
       costPerMove
       + ucbWinLossLoss * costPerUCBWinLossLoss
@@ -1113,6 +1140,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       + node->moves.size() * costPerMovesExpanded
       + node->moves.size() * node->moves.size() * costPerSquaredMovesExpanded;
   }
+  // cout << "Setting cost " << node->hash << " " << node->minCostFromRoot << " " << node->thisNodeExpansionCost << endl;
 }
 
 static const string HTML_TEMPLATE = R"%%(
@@ -1156,8 +1184,10 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
       path += "root/root";
     else {
       string hashStr = node->hash.toString();
-      assert(hashStr.size() > 2);
-      path += hashStr.substr(0,2) + "/" + node->hash.toString();
+      assert(hashStr.size() > 10);
+      // Pull from the middle of the string, to avoid the fact that the hashes are
+      // biased towards small hashes due to finding the minimum of the 8 symmetries.
+      path += hashStr.substr(8,2) + "/" + node->hash.toString();
     }
     path += ".html";
     return path;

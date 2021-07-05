@@ -42,17 +42,25 @@ int MainCmds::genbook(int argc, const char* const* argv) {
 
   ConfigParser cfg;
   string modelFile;
+  string htmlDir;
+  string logFile;
   try {
     KataGoCommandLine cmd("View startposes");
     cmd.addConfigFileArg("","",true);
     cmd.addModelFileArg();
     cmd.addOverrideConfigArg();
 
+    TCLAP::ValueArg<string> htmlDirArg("","html-dir","HTML directory to export to",true,string(),"DIR");
+    TCLAP::ValueArg<string> logFileArg("","log-file","Log file to write to",true,string(),"DIR");
+    cmd.add(htmlDirArg);
+    cmd.add(logFileArg);
+
     cmd.parse(argc,argv);
 
-    cmd.getConfigAllowEmpty(cfg);
-    if(cfg.getFileName() != "")
-      modelFile = cmd.getModelFile();
+    cmd.getConfig(cfg);
+    modelFile = cmd.getModelFile();
+    htmlDir = htmlDirArg.getValue();
+    logFile = logFileArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -61,8 +69,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
 
   Rand rand;
   Logger logger;
-  // TODO also add a log file
   logger.setLogToStdout(true);
+  logger.addFile(logFile);
 
   const bool loadKomiFromCfg = true;
   Rules rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
@@ -78,6 +86,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   const double costPerMovesExpanded = cfg.getDouble("costPerMovesExpanded",0.0,1000000.0);
   const double costPerSquaredMovesExpanded = cfg.getDouble("costPerSquaredMovesExpanded",0.0,1000000.0);
   const double utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
+  const bool logSearchInfo = cfg.getBool("logSearchInfo");
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
   NNEvaluator* nnEval;
@@ -104,6 +113,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   // Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
+  MakeDir::make(htmlDir);
+
   Book* book = new Book(
     Board(boardSizeX,boardSizeY),
     rules,
@@ -124,15 +135,17 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
-  const int numToExpand = 2;
-  for(int rep = 0; rep < 3; rep++) {
+  const int numToExpand = 16;
+  for(int rep = 0; rep < 400; rep++) {
     if(shouldStop.load(std::memory_order_acquire))
       break;
+    logger.write("BEGINNING BOOK EXPANSION ITERATION " + Global::intToString(rep));
 
     std::vector<SymBookNode> nodesToExpand = book->getNextNToExpand(std::min(1+rep/2,numToExpand));
     std::vector<SymBookNode> newAndChangedNodes = nodesToExpand;
 
     for(SymBookNode node: nodesToExpand) {
+      logger.write("Expanding " + node.hash().toString());
       BoardHistory hist;
       std::vector<Loc> moveHistory;
       bool suc = node.getBoardHistoryReachingHere(hist,moveHistory);
@@ -161,8 +174,11 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       search->setPosition(pla,board,hist);
       search->setRootSymmetryPruningOnly(node.getSymmetries());
 
-      Board::printBoard(cout, board, Board::NULL_LOC, NULL);
-      cout << endl;
+      {
+        ostringstream out;
+        Board::printBoard(out, board, Board::NULL_LOC, NULL);
+        logger.write(out.str());
+      }
 
       // Avoid all moves that are currently in the book on this node, only search new stuff.
       auto findNewMoves = [&](std::vector<int>& avoidMoveUntilByLoc) {
@@ -212,7 +228,12 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       }
       assert(!node.isMoveInBook(bestLoc));
 
-      search->printTree(cout, search->rootNode, options, perspective);
+      if(logSearchInfo) {
+        ostringstream out;
+        search->printTree(out, search->rootNode, options, perspective);
+        logger.write("Search result");
+        logger.write(out.str());
+      }
 
       // Record the values for the move determined to be best
       SymBookNode child;
@@ -240,6 +261,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         }
 
         newAndChangedNodes.push_back(child);
+        logger.write("Adding " + child.hash().toString() + " move " + Location::toString(bestLoc,board));
         BookValues& childValues = child.thisValuesNotInBook();
 
         // Find child node from search and its values
@@ -300,7 +322,12 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         if(shouldStop.load(std::memory_order_acquire))
           break;
 
-        search->printTree(cout, search->rootNode, options, perspective);
+        if(logSearchInfo) {
+          logger.write("Quick search on remainimg moves");
+          ostringstream out;
+          search->printTree(out, search->rootNode, options, perspective);
+          logger.write(out.str());
+        }
 
         // Get root values
         ReportedSearchValues remainingSearchValues;
@@ -344,12 +371,14 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     book->recompute(newAndChangedNodes);
   }
 
-  book->exportToHtmlDir("tmpbook",logger);
+  logger.write("WRITING BOOK TO " + htmlDir);
+  book->exportToHtmlDir(htmlDir,logger);
 
   delete search;
   delete nnEval;
   delete book;
   ScoreValue::freeTables();
+  logger.write("DONE");
   return 0;
 }
 
