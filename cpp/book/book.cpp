@@ -1150,18 +1150,7 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
     out.close();
   }
 
-  //Symmetry should be the map from nodeSpace -> displaySpace
-  auto getFilePath = [&](BookNode* node, int symmetry, vector<int>& handledSymmetries, bool relative) {
-    vector<int> equivalentSymmetries;
-    for(int nodeSymmetry: node->symmetries) {
-      //symmetry is the map from nodeSpace -> displaySpace
-      //nodeSymmetry is the map from nodeSpace -> nodeSpace that leaves the node eqivalent.
-      //So composing them this way gives is equivelnt maps from nodeSpace -> displaySpace
-      int s = SymmetryHelpers::compose(nodeSymmetry,symmetry);
-      equivalentSymmetries.push_back(s);
-      handledSymmetries.push_back(s);
-    }
-    std::sort(equivalentSymmetries.begin(),equivalentSymmetries.end());
+  auto getFilePath = [&](BookNode* node, bool relative) {
     string path = relative ? "" : dirName + "/";
     if(node == root)
       path += "root/root";
@@ -1170,165 +1159,162 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
       assert(hashStr.size() > 2);
       path += hashStr.substr(0,2) + "/" + node->hash.toString();
     }
-    path += "_";
-    for(int equivalentSymmetry: equivalentSymmetries)
-      path += Global::intToString(equivalentSymmetry);
     path += ".html";
     return path;
   };
 
   std::function<void(BookNode*)> f = [&](BookNode* node) {
-    vector<int> handledSymmetries;
-    int numSymmetries = (initialBoard.x_size != initialBoard.y_size) ? SymmetryHelpers::NUM_SYMMETRIES_WITHOUT_TRANSPOSE : SymmetryHelpers::NUM_SYMMETRIES;
-    for(int symmetry = 0; symmetry < numSymmetries; symmetry++) {
-      if(contains(handledSymmetries,symmetry))
-        continue;
-      string filePath = getFilePath(node, symmetry, handledSymmetries, false);
-      string html = HTML_TEMPLATE;
-      auto replace = [&](const string& key, const string& replacement) {
-        size_t pos = html.find(key);
-        assert(pos != string::npos);
-        html.replace(pos, key.size(), replacement);
-      };
+    string filePath = getFilePath(node, false);
+    string html = HTML_TEMPLATE;
+    auto replace = [&](const string& key, const string& replacement) {
+      size_t pos = html.find(key);
+      assert(pos != string::npos);
+      html.replace(pos, key.size(), replacement);
+    };
 
-      SymBookNode symNode(node, symmetry);
+    const int symmetry = 0;
+    SymBookNode symNode(node, symmetry);
 
-      BoardHistory hist;
-      vector<Loc> moveHistory;
-      bool suc = symNode.getBoardHistoryReachingHere(hist,moveHistory);
-      if(!suc) {
-        logger.write("WARNING: Failed to get board history reaching node when trying to export to html, probably there is some bug");
-        logger.write("or else some hash collision or something else is wrong.");
-        logger.write("BookHash of node unable to export: " + symNode.hash().toString());
-        logger.write("On symmetry: " + Global::intToString(symmetry));
-        std::ostringstream movesOut;
-        for(Loc move: moveHistory)
-          movesOut << Location::toString(move,initialBoard) << " ";
-        logger.write("Moves:");
-        logger.write(movesOut.str());
-        continue;
+    BoardHistory hist;
+    vector<Loc> moveHistory;
+    bool suc = symNode.getBoardHistoryReachingHere(hist,moveHistory);
+    if(!suc) {
+      logger.write("WARNING: Failed to get board history reaching node when trying to export to html, probably there is some bug");
+      logger.write("or else some hash collision or something else is wrong.");
+      logger.write("BookHash of node unable to export: " + symNode.hash().toString());
+      std::ostringstream movesOut;
+      for(Loc move: moveHistory)
+        movesOut << Location::toString(move,initialBoard) << " ";
+      logger.write("Moves:");
+      logger.write(movesOut.str());
+      return;
+    }
+    Board board = hist.getRecentBoard(0);
+
+    string dataVarsStr;
+    dataVarsStr += "const nextPlayer = " + Global::intToString(node->pla) + ";\n";
+    dataVarsStr += "const boardSizeX = " + Global::intToString(board.x_size) + ";\n";
+    dataVarsStr += "const boardSizeY = " + Global::intToString(board.y_size) + ";\n";
+    dataVarsStr += "const board = [";
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        dataVarsStr += Global::intToString(board.colors[loc]) + ",";
       }
-      Board board = hist.getRecentBoard(0);
-
-      string dataVarsStr;
-      dataVarsStr += "const nextPlayer = " + Global::intToString(node->pla) + ";\n";
-      dataVarsStr += "const boardSizeX = " + Global::intToString(board.x_size) + ";\n";
-      dataVarsStr += "const boardSizeY = " + Global::intToString(board.y_size) + ";\n";
-      dataVarsStr += "const board = [";
-      for(int y = 0; y<board.y_size; y++) {
-        for(int x = 0; x<board.x_size; x++) {
-          Loc loc = Location::getLoc(x,y,board.x_size);
-          dataVarsStr += Global::intToString(board.colors[loc]) + ",";
+    }
+    dataVarsStr += "];\n";
+    dataVarsStr += "const links = [";
+    string linkSymmetriesStr = "const linkSymmetries = [";
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        SymBookNode child = symNode.follow(loc);
+        if(child.isNull()) {
+          dataVarsStr += "'',";
+          linkSymmetriesStr += "0,";
+        }
+        else {
+          string childPath = getFilePath(child.node, true);
+          dataVarsStr += "'../" + childPath + "',";
+          linkSymmetriesStr += Global::intToString(child.symmetryOfNode) + ",";
         }
       }
-      dataVarsStr += "];\n";
-      dataVarsStr += "const links = [";
-      for(int y = 0; y<board.y_size; y++) {
-        for(int x = 0; x<board.x_size; x++) {
-          Loc loc = Location::getLoc(x,y,board.x_size);
-          SymBookNode child = symNode.follow(loc);
-          if(child.isNull())
-            dataVarsStr += "'',";
-          else {
-            vector<int> handledSymmetriesDummy; // Not actually used, just needed for arg
-            string childPath = getFilePath(child.node, child.symmetryOfNode, handledSymmetriesDummy, true);
-            dataVarsStr += "'../" + childPath + "',";
-          }
-        }
+    }
+    dataVarsStr += "];\n";
+    linkSymmetriesStr += "];\n";
+    dataVarsStr += linkSymmetriesStr;
+
+    vector<BookMove> uniqueMovesInBook = symNode.getUniqueMovesInBook();
+    vector<RecursiveBookValues> uniqueChildValues;
+    vector<double> uniqueChildCosts;
+    vector<size_t> uniqueMoveIdxs;
+    for(BookMove& bookMove: uniqueMovesInBook) {
+      SymBookNode child = symNode.follow(bookMove.move);
+      uniqueChildValues.push_back(child.node->recursiveValues);
+      uniqueChildCosts.push_back(child.node->minCostFromRoot);
+      uniqueMoveIdxs.push_back(uniqueMoveIdxs.size());
+    }
+    std::sort(
+      uniqueMoveIdxs.begin(),uniqueMoveIdxs.end(),
+      [&](const size_t& idx0,
+          const size_t& idx1) {
+        return node->pla == P_WHITE ?
+        (uniqueChildValues[idx0].winLossValue + uniqueChildValues[idx0].scoreMean * utilityPerScore >
+         uniqueChildValues[idx1].winLossValue + uniqueChildValues[idx1].scoreMean * utilityPerScore)
+        :
+        (uniqueChildValues[idx0].winLossValue + uniqueChildValues[idx0].scoreMean * utilityPerScore <
+         uniqueChildValues[idx1].winLossValue + uniqueChildValues[idx1].scoreMean * utilityPerScore)
+        ;
       }
-      dataVarsStr += "];\n";
+    );
 
-      vector<BookMove> uniqueMovesInBook = symNode.getUniqueMovesInBook();
-      vector<RecursiveBookValues> uniqueChildValues;
-      vector<double> uniqueChildCosts;
-      vector<size_t> uniqueMoveIdxs;
-      for(BookMove& bookMove: uniqueMovesInBook) {
-        SymBookNode child = symNode.follow(bookMove.move);
-        uniqueChildValues.push_back(child.node->recursiveValues);
-        uniqueChildCosts.push_back(child.node->minCostFromRoot);
-        uniqueMoveIdxs.push_back(uniqueMoveIdxs.size());
-      }
-      std::sort(
-        uniqueMoveIdxs.begin(),uniqueMoveIdxs.end(),
-        [&](const size_t& idx0,
-            const size_t& idx1) {
-          return node->pla == P_WHITE ?
-            (uniqueChildValues[idx0].winLossValue + uniqueChildValues[idx0].scoreMean * utilityPerScore >
-             uniqueChildValues[idx1].winLossValue + uniqueChildValues[idx1].scoreMean * utilityPerScore)
-            :
-            (uniqueChildValues[idx0].winLossValue + uniqueChildValues[idx0].scoreMean * utilityPerScore <
-             uniqueChildValues[idx1].winLossValue + uniqueChildValues[idx1].scoreMean * utilityPerScore)
-            ;
-        }
-      );
+    vector<int> equivalentSymmetries = symNode.getSymmetries();
+    std::set<Loc> locsHandled;
 
-      vector<int> equivalentSymmetries = symNode.getSymmetries();
-      std::set<Loc> locsHandled;
-
-      dataVarsStr += "const moves = [";
-      for(int idx: uniqueMoveIdxs) {
-        dataVarsStr += "{";
-        if(uniqueMovesInBook[idx].move != Board::PASS_LOC) {
-          dataVarsStr += "'xy':[";
-          for(int s: equivalentSymmetries) {
-            Loc symMove = SymmetryHelpers::getSymLoc(uniqueMovesInBook[idx].move,initialBoard,s);
-            if(contains(locsHandled, symMove))
-              continue;
-            locsHandled.insert(symMove);
-            dataVarsStr += "[";
-            dataVarsStr += Global::intToString(Location::getX(symMove, initialBoard.x_size));
-            dataVarsStr += ",";
-            dataVarsStr += Global::intToString(Location::getY(symMove, initialBoard.x_size));
-            dataVarsStr += "],";
-          }
+    dataVarsStr += "const moves = [";
+    for(int idx: uniqueMoveIdxs) {
+      dataVarsStr += "{";
+      if(uniqueMovesInBook[idx].move != Board::PASS_LOC) {
+        dataVarsStr += "'xy':[";
+        for(int s: equivalentSymmetries) {
+          Loc symMove = SymmetryHelpers::getSymLoc(uniqueMovesInBook[idx].move,initialBoard,s);
+          if(contains(locsHandled, symMove))
+            continue;
+          locsHandled.insert(symMove);
+          dataVarsStr += "[";
+          dataVarsStr += Global::intToString(Location::getX(symMove, initialBoard.x_size));
+          dataVarsStr += ",";
+          dataVarsStr += Global::intToString(Location::getY(symMove, initialBoard.x_size));
           dataVarsStr += "],";
         }
+        dataVarsStr += "],";
+      }
+      if(uniqueMovesInBook[idx].move == Board::PASS_LOC)
         dataVarsStr += "'move':'" + Location::toString(uniqueMovesInBook[idx].move, initialBoard) + "',";
-        dataVarsStr += "'policy':" + Global::doubleToString(uniqueMovesInBook[idx].rawPolicy) + ",";
-        dataVarsStr += "'winLossValue':" + Global::doubleToString(uniqueChildValues[idx].winLossValue) + ",";
-        dataVarsStr += "'winLossUCB':" + Global::doubleToString(uniqueChildValues[idx].winLossUCB) + ",";
-        dataVarsStr += "'winLossLCB':" + Global::doubleToString(uniqueChildValues[idx].winLossLCB) + ",";
-        dataVarsStr += "'scoreMean':" + Global::doubleToString(uniqueChildValues[idx].scoreMean) + ",";
-        dataVarsStr += "'lead':" + Global::doubleToString(uniqueChildValues[idx].lead) + ",";
-        dataVarsStr += "'scoreUCB':" + Global::doubleToString(uniqueChildValues[idx].scoreUCB) + ",";
-        dataVarsStr += "'scoreLCB':" + Global::doubleToString(uniqueChildValues[idx].scoreLCB) + ",";
-        dataVarsStr += "'weight':" + Global::doubleToString(uniqueChildValues[idx].weight) + ",";
-        dataVarsStr += "'visits':" + Global::doubleToString(uniqueChildValues[idx].visits) + ",";
-        dataVarsStr += "'cost':" + Global::doubleToString(uniqueChildCosts[idx]) + ",";
+      dataVarsStr += "'policy':" + Global::doubleToString(uniqueMovesInBook[idx].rawPolicy) + ",";
+      dataVarsStr += "'winLossValue':" + Global::doubleToString(uniqueChildValues[idx].winLossValue) + ",";
+      dataVarsStr += "'winLossUCB':" + Global::doubleToString(uniqueChildValues[idx].winLossUCB) + ",";
+      dataVarsStr += "'winLossLCB':" + Global::doubleToString(uniqueChildValues[idx].winLossLCB) + ",";
+      dataVarsStr += "'scoreMean':" + Global::doubleToString(uniqueChildValues[idx].scoreMean) + ",";
+      dataVarsStr += "'lead':" + Global::doubleToString(uniqueChildValues[idx].lead) + ",";
+      dataVarsStr += "'scoreUCB':" + Global::doubleToString(uniqueChildValues[idx].scoreUCB) + ",";
+      dataVarsStr += "'scoreLCB':" + Global::doubleToString(uniqueChildValues[idx].scoreLCB) + ",";
+      dataVarsStr += "'weight':" + Global::doubleToString(uniqueChildValues[idx].weight) + ",";
+      dataVarsStr += "'visits':" + Global::doubleToString(uniqueChildValues[idx].visits) + ",";
+      dataVarsStr += "'cost':" + Global::doubleToString(uniqueChildCosts[idx]) + ",";
+      dataVarsStr += "},";
+    }
+    {
+      BookValues& values = node->thisValuesNotInBook;
+      if(values.maxPolicy > 0.0) {
+        double winLossValueUCB = values.winLossValue + errorFactor * values.winLossError;
+        double winLossValueLCB = values.winLossValue - errorFactor * values.winLossError;
+        double scoreUCB = values.scoreMean + errorFactor * values.scoreError;
+        double scoreLCB = values.scoreMean - errorFactor * values.scoreError;
+
+        dataVarsStr += "{";
+        dataVarsStr += "'move':'other',";
+        dataVarsStr += "'policy':" + Global::doubleToString(values.maxPolicy) + ",";
+        dataVarsStr += "'winLossValue':" + Global::doubleToString(values.winLossValue) + ",";
+        dataVarsStr += "'winLossUCB':" + Global::doubleToString(winLossValueUCB) + ",";
+        dataVarsStr += "'winLossLCB':" + Global::doubleToString(winLossValueLCB) + ",";
+        dataVarsStr += "'scoreMean':" + Global::doubleToString(values.scoreMean) + ",";
+        dataVarsStr += "'lead':" + Global::doubleToString(values.lead) + ",";
+        dataVarsStr += "'scoreUCB':" + Global::doubleToString(scoreUCB) + ",";
+        dataVarsStr += "'scoreLCB':" + Global::doubleToString(scoreLCB) + ",";
+        dataVarsStr += "'weight':" + Global::doubleToString(values.weight) + ",";
+        dataVarsStr += "'visits':" + Global::doubleToString(values.visits) + ",";
+        dataVarsStr += "'cost':" + Global::doubleToString(node->minCostFromRoot + node->thisNodeExpansionCost) + ",";
         dataVarsStr += "},";
       }
-      {
-        BookValues& values = node->thisValuesNotInBook;
-        if(values.maxPolicy > 0.0) {
-          double winLossValueUCB = values.winLossValue + errorFactor * values.winLossError;
-          double winLossValueLCB = values.winLossValue - errorFactor * values.winLossError;
-          double scoreUCB = values.scoreMean + errorFactor * values.scoreError;
-          double scoreLCB = values.scoreMean - errorFactor * values.scoreError;
-
-          dataVarsStr += "{";
-          dataVarsStr += "'move':'other',";
-          dataVarsStr += "'policy':" + Global::doubleToString(values.maxPolicy) + ",";
-          dataVarsStr += "'winLossValue':" + Global::doubleToString(values.winLossValue) + ",";
-          dataVarsStr += "'winLossUCB':" + Global::doubleToString(winLossValueUCB) + ",";
-          dataVarsStr += "'winLossLCB':" + Global::doubleToString(winLossValueLCB) + ",";
-          dataVarsStr += "'scoreMean':" + Global::doubleToString(values.scoreMean) + ",";
-          dataVarsStr += "'lead':" + Global::doubleToString(values.lead) + ",";
-          dataVarsStr += "'scoreUCB':" + Global::doubleToString(scoreUCB) + ",";
-          dataVarsStr += "'scoreLCB':" + Global::doubleToString(scoreLCB) + ",";
-          dataVarsStr += "'weight':" + Global::doubleToString(values.weight) + ",";
-          dataVarsStr += "'visits':" + Global::doubleToString(values.visits) + ",";
-          dataVarsStr += "'cost':" + Global::doubleToString(node->thisNodeExpansionCost) + ",";
-          dataVarsStr += "},";
-        }
-      }
-      dataVarsStr += "];\n";
-
-      replace("$$DATA_VARS",dataVarsStr);
-
-      std::ofstream out(filePath);
-      out << html;
-      out.close();
     }
+    dataVarsStr += "];\n";
+
+    replace("$$DATA_VARS",dataVarsStr);
+
+    std::ofstream out(filePath);
+    out << html;
+    out.close();
   };
   iterateEntireBookPreOrder(f);
 }
