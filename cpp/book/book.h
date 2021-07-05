@@ -46,6 +46,9 @@ struct BookMove {
   // The policy prior of this move from the neural net.
   double rawPolicy;
 
+  // Computed and filled in dynamically when costs are computed/recomputed.
+  double costFromRoot;
+
   BookMove();
   BookMove(Loc move, int symmetryToAlign, BookHash hash, double rawPolicy);
 
@@ -229,7 +232,8 @@ class Book {
   double costPerLogPolicy;
   double costPerMovesExpanded;
   double costPerSquaredMovesExpanded;
-  double utilityPerScore; //Currently just for sorting
+  double utilityPerScore;
+  double policyBoostSoftUtilityScale;
 
   int initialSymmetry; // The symmetry that needs to be applied to initialBoard to align it with rootNode. (initialspace -> rootnodespace)
   BookNode* root;
@@ -248,7 +252,8 @@ class Book {
     double costPerLogPolicy,
     double costPerMovesExpanded,
     double costPerSquaredMovesExpanded,
-    double utilityPerScore
+    double utilityPerScore,
+    double policyBoostSoftUtilityScale
   );
   ~Book();
 
@@ -327,6 +332,8 @@ class Book {
 
   void recomputeNodeValues(BookNode* node);
   void recomputeNodeCost(BookNode* node);
+
+  double getUtility(const RecursiveBookValues& values) const;
 
   friend class BookNode;
   friend class SymBookNode;

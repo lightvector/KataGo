@@ -357,6 +357,7 @@ function textCell(text) {
   headerRow.appendChild(textCell("Weight"));
   headerRow.appendChild(textCell("Visits"));
   headerRow.appendChild(textCell("Cost"));
+  headerRow.appendChild(textCell("CostFromRoot"));
   table.appendChild(headerRow);
 
   for(let i = 0; i<moves.length; i++) {
@@ -401,6 +402,7 @@ function textCell(text) {
     dataRow.appendChild(textCell(moveData["weight"].toFixed(1)));
     dataRow.appendChild(textCell(moveData["visits"]));
     dataRow.appendChild(textCell(moveData["cost"]));
+    dataRow.appendChild(textCell(moveData["costFromRoot"]));
     table.appendChild(dataRow);
   }
 

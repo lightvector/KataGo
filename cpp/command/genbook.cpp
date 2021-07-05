@@ -86,6 +86,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   const double costPerMovesExpanded = cfg.getDouble("costPerMovesExpanded",0.0,1000000.0);
   const double costPerSquaredMovesExpanded = cfg.getDouble("costPerSquaredMovesExpanded",0.0,1000000.0);
   const double utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
+  const double policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
@@ -127,7 +128,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     costPerLogPolicy,
     costPerMovesExpanded,
     costPerSquaredMovesExpanded,
-    utilityPerScore
+    utilityPerScore,
+    policyBoostSoftUtilityScale
   );
 
   if(!std::atomic_is_lock_free(&shouldStop))

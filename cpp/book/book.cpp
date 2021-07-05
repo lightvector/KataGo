@@ -188,14 +188,16 @@ BookMove::BookMove()
   :move(Board::NULL_LOC),
    symmetryToAlign(0),
    hash(),
-   rawPolicy(0.0)
+   rawPolicy(0.0),
+   costFromRoot(0.0)
 {}
 
 BookMove::BookMove(Loc mv, int s, BookHash h, double rp)
   :move(mv),
    symmetryToAlign(s),
    hash(h),
-   rawPolicy(rp)
+   rawPolicy(rp),
+   costFromRoot(0.0)
 {}
 
 BookMove BookMove::getSymBookMove(int symmetry, int xSize, int ySize) {
@@ -209,6 +211,7 @@ BookMove BookMove::getSymBookMove(int symmetry, int xSize, int ySize) {
     hash,
     rawPolicy
   );
+  ret.costFromRoot = costFromRoot;
   return ret;
 }
 
@@ -595,7 +598,8 @@ Book::Book(
   double cplp,
   double cpme,
   double cpsme,
-  double ups
+  double ups,
+  double pbsus
 ) : initialBoard(b),
     initialRules(r),
     initialPla(p),
@@ -608,6 +612,7 @@ Book::Book(
     costPerMovesExpanded(cpme),
     costPerSquaredMovesExpanded(cpsme),
     utilityPerScore(ups),
+    policyBoostSoftUtilityScale(pbsus),
     initialSymmetry(0),
     root(nullptr),
     nodes(),
@@ -1064,7 +1069,12 @@ void Book::recomputeNodeValues(BookNode* node) {
   // cout << "Score " << values.scoreLCB << " " << values.scoreMean << " " << values.scoreUCB << endl;
 }
 
+double Book::getUtility(const RecursiveBookValues& values) const {
+  return values.winLossValue + values.scoreMean * utilityPerScore;
+}
+
 void Book::recomputeNodeCost(BookNode* node) {
+  // Update this node's minCostFromRoot based on cost for moves from parents.
   if(node == root)
     node->minCostFromRoot = 0.0;
   else {
@@ -1072,33 +1082,66 @@ void Book::recomputeNodeCost(BookNode* node) {
     double minCost = 1e100;
     for(std::pair<BookHash,Loc>& parentInfo: node->parents) {
       const BookNode* parent = get(parentInfo.first);
-      double ucbWinLossLoss =
-        (parent->pla == P_WHITE) ?
-        parent->recursiveValues.winLossUCB - node->recursiveValues.winLossUCB :
-        node->recursiveValues.winLossLCB - parent->recursiveValues.winLossLCB;
-      double ucbScoreLoss =
-        (parent->pla == P_WHITE) ?
-        parent->recursiveValues.scoreUCB - node->recursiveValues.scoreUCB :
-        node->recursiveValues.scoreLCB - parent->recursiveValues.scoreLCB;
       auto parentLocAndBookMove = parent->moves.find(parentInfo.second);
-      // cout << "Recompute node cost parent " << parent << " " << parentInfo.first << " " << parent->moves.size() << endl;
       assert(parentLocAndBookMove != parent->moves.end());
-      double rawPolicy = parentLocAndBookMove->second.rawPolicy;
-
-      double cost =
-        parent->minCostFromRoot
-        + costPerMove
-        + ucbWinLossLoss * costPerUCBWinLossLoss
-        + ucbScoreLoss * costPerUCBScoreLoss
-        + (-log(rawPolicy + 1e-100) * costPerLogPolicy);
-
-      // cout << "Cost parent " << parent->hash << " " << Location::toString(parentInfo.second,initialBoard) << endl;
-      // cout << "Cost stats " << ucbWinLossLoss << " " << ucbScoreLoss << " " << rawPolicy << endl;
-      // cout << "Cost path " << parent->minCostFromRoot << " " << costPerMove << " " << ucbWinLossLoss * costPerUCBWinLossLoss << " " << ucbScoreLoss * costPerUCBScoreLoss << " " << (-log(rawPolicy + 1e-100) * costPerLogPolicy) << endl;
+      double cost = parentLocAndBookMove->second.costFromRoot;
       if(cost < minCost)
         minCost = cost;
     }
     node->minCostFromRoot = minCost;
+  }
+
+  // Look at other children whose policy is higher, and if this is better than those by a lot
+  // softly boost the policy of this move.
+  auto boostLogRawPolicy = [&](double logRawPolicy, double childUtility, double rawPolicy) {
+    double boostedLogRawPolicy = logRawPolicy;
+    for(auto& otherLocAndBookMove: node->moves) {
+      if(otherLocAndBookMove.second.rawPolicy <= rawPolicy)
+        continue;
+      const BookNode* otherChild = get(otherLocAndBookMove.second.hash);
+      double otherChildUtility = getUtility(otherChild->recursiveValues);
+      double gainOverOtherChild =
+        (node->pla == P_WHITE) ?
+        childUtility - otherChildUtility :
+        otherChildUtility - childUtility;
+      double policyBoostFactor = 1.0/(1.0 + exp(-gainOverOtherChild / policyBoostSoftUtilityScale + 1.0));
+      double otherLogRawPolicy = log(otherLocAndBookMove.second.rawPolicy + 1e-100);
+      double p = logRawPolicy + policyBoostFactor * (otherLogRawPolicy - logRawPolicy);
+      if(p > boostedLogRawPolicy)
+        boostedLogRawPolicy = p;
+      // cout << "Boosting policy " << logRawPolicy << " " << otherLogRawPolicy << " " << p << " " << gainOverOtherChild << endl;
+      return boostedLogRawPolicy;
+    }
+    return logRawPolicy;
+  };
+
+  // Update cost for moves for children to reference.
+  double smallestCostFromUCB = 1e100;
+  for(auto& locAndBookMove: node->moves) {
+    const BookNode* child = get(locAndBookMove.second.hash);
+    double ucbWinLossLoss =
+      (node->pla == P_WHITE) ?
+      node->recursiveValues.winLossUCB - child->recursiveValues.winLossUCB :
+      child->recursiveValues.winLossLCB - node->recursiveValues.winLossLCB;
+    double ucbScoreLoss =
+      (node->pla == P_WHITE) ?
+      node->recursiveValues.scoreUCB - child->recursiveValues.scoreUCB :
+      child->recursiveValues.scoreLCB - node->recursiveValues.scoreLCB;
+    double logRawPolicy = log(locAndBookMove.second.rawPolicy + 1e-100);
+    double boostedLogRawPolicy = boostLogRawPolicy(logRawPolicy, getUtility(child->recursiveValues), locAndBookMove.second.rawPolicy);
+    double cost =
+      node->minCostFromRoot
+      + costPerMove
+      + ucbWinLossLoss * costPerUCBWinLossLoss
+      + ucbScoreLoss * costPerUCBScoreLoss
+      + (-boostedLogRawPolicy * costPerLogPolicy);
+    locAndBookMove.second.costFromRoot = cost;
+
+    double costFromUCB =
+      ucbWinLossLoss * costPerUCBWinLossLoss
+      + ucbScoreLoss * costPerUCBScoreLoss;
+    if(costFromUCB < smallestCostFromUCB)
+      smallestCostFromUCB = costFromUCB;
   }
 
   if(!node->canExpand) {
@@ -1113,7 +1156,9 @@ void Book::recomputeNodeCost(BookNode* node) {
       (node->pla == P_WHITE) ?
       (node->recursiveValues.scoreUCB - (node->thisValuesNotInBook.scoreMean + errorFactor * node->thisValuesNotInBook.scoreError)) :
       ((node->thisValuesNotInBook.scoreMean - errorFactor * node->thisValuesNotInBook.scoreError) - node->recursiveValues.scoreLCB);
-    double rawPolicy = node->thisValuesNotInBook.maxPolicy;
+    double logRawPolicy = log(node->thisValuesNotInBook.maxPolicy + 1e-100);
+    double notInBookUtility = node->thisValuesNotInBook.winLossValue + node->thisValuesNotInBook.scoreMean * utilityPerScore;
+    double boostedLogRawPolicy = boostLogRawPolicy(logRawPolicy, notInBookUtility, node->thisValuesNotInBook.maxPolicy);
 
     // cout << "Expansion thisValues " <<
     //   node->thisValuesNotInBook.winLossValue - errorFactor * node->thisValuesNotInBook.winLossError << " " <<
@@ -1136,7 +1181,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       costPerMove
       + ucbWinLossLoss * costPerUCBWinLossLoss
       + ucbScoreLoss * costPerUCBScoreLoss
-      + (-log(rawPolicy + 1e-100) * costPerLogPolicy)
+      + (-boostedLogRawPolicy * costPerLogPolicy)
       + node->moves.size() * costPerMovesExpanded
       + node->moves.size() * node->moves.size() * costPerSquaredMovesExpanded;
   }
@@ -1311,7 +1356,8 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
       dataVarsStr += "'scoreLCB':" + Global::doubleToString(uniqueChildValues[idx].scoreLCB) + ",";
       dataVarsStr += "'weight':" + Global::doubleToString(uniqueChildValues[idx].weight) + ",";
       dataVarsStr += "'visits':" + Global::doubleToString(uniqueChildValues[idx].visits) + ",";
-      dataVarsStr += "'cost':" + Global::doubleToString(uniqueChildCosts[idx]) + ",";
+      dataVarsStr += "'cost':" + Global::doubleToString(uniqueMovesInBook[idx].costFromRoot - node->minCostFromRoot) + ",";
+      dataVarsStr += "'costFromRoot':" + Global::doubleToString(uniqueChildCosts[idx]) + ",";
       dataVarsStr += "},";
     }
     {
@@ -1334,7 +1380,8 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
         dataVarsStr += "'scoreLCB':" + Global::doubleToString(scoreLCB) + ",";
         dataVarsStr += "'weight':" + Global::doubleToString(values.weight) + ",";
         dataVarsStr += "'visits':" + Global::doubleToString(values.visits) + ",";
-        dataVarsStr += "'cost':" + Global::doubleToString(node->minCostFromRoot + node->thisNodeExpansionCost) + ",";
+        dataVarsStr += "'cost':" + Global::doubleToString(node->thisNodeExpansionCost) + ",";
+        dataVarsStr += "'costFromRoot':" + Global::doubleToString(node->minCostFromRoot + node->thisNodeExpansionCost) + ",";
         dataVarsStr += "},";
       }
     }
