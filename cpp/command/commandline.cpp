@@ -15,7 +15,12 @@ using namespace std;
 
 static bool doesPathExist(const string& path) {
   try {
-    gfs::path gfsPath(path);
+    #ifdef _WIN32
+    std::wstring wpath = gfs::detail::fromUtf8<std::wstring>(path);
+    gfs::path gfsPath(wpath);
+    #else
+      gfs::path gfsPath(path);
+    #endif
     return gfs::exists(gfsPath);
   }
   catch(const gfs::filesystem_error&) {
