@@ -69,6 +69,7 @@ namespace Global
   std::string intToString(int x);
   std::string floatToString(float x);
   std::string doubleToString(double x);
+  std::string doubleToStringHighPrecision(double x);
   std::string int64ToString(int64_t x);
   std::string uint32ToString(uint32_t x);
   std::string uint64ToString(uint64_t x);

@@ -69,7 +69,7 @@ struct BookValues {
 
   double maxPolicy = 0.0;
   double weight = 0.0;
-  int64_t visits = 0;
+  double visits = 0.0;
 };
 struct RecursiveBookValues {
   // Recursively computed via minimax
@@ -83,7 +83,7 @@ struct RecursiveBookValues {
 
   // Weighted by sum
   double weight = 0.0;
-  int64_t visits = 0;
+  double visits = 0.0;
 };
 
 class SymBookNode;
@@ -232,8 +232,10 @@ class Book {
   double costPerLogPolicy;
   double costPerMovesExpanded;
   double costPerSquaredMovesExpanded;
+  double costWhenPassFavored;
   double utilityPerScore;
   double policyBoostSoftUtilityScale;
+  double utilityPerPolicyForSorting;
 
   int initialSymmetry; // The symmetry that needs to be applied to initialBoard to align it with rootNode. (initialspace -> rootnodespace)
   BookNode* root;
@@ -252,8 +254,10 @@ class Book {
     double costPerLogPolicy,
     double costPerMovesExpanded,
     double costPerSquaredMovesExpanded,
+    double costWhenPassFavored,
     double utilityPerScore,
-    double policyBoostSoftUtilityScale
+    double policyBoostSoftUtilityScale,
+    double utilityPerPolicyForSorting
   );
   ~Book();
 
@@ -278,10 +282,16 @@ class Book {
   void setCostPerLogPolicy(double d);
   double getCostPerMovesExpanded() const;
   void setCostPerMovesExpanded(double d);
+  double getCostWhenPassFavored() const;
+  void setCostWhenPassFavored(double d);
   double getCostPerSquaredMovesExpanded() const;
   void setCostPerSquaredMovesExpanded(double d);
   double getUtilityPerScore() const;
   void setUtilityPerScore(double d);
+  double getPolicyBoostSoftUtilityScale() const;
+  void setPolicyBoostSoftUtilityScale(double d);
+  double getUtilityPerPolicyForSorting() const;
+  void setUtilityPerPolicyForSorting(double d);
 
   // Gets the root node, in the orientation of the initial board.
   SymBookNode getRoot();
