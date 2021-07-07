@@ -1214,7 +1214,23 @@ void Book::recomputeNodeCost(BookNode* node) {
       + node->moves.size() * costPerMovesExpanded
       + node->moves.size() * node->moves.size() * costPerSquaredMovesExpanded
       + (passFavored ? costWhenPassFavored : 0.0);
+
+    double costFromUCB =
+      ucbWinLossLoss * costPerUCBWinLossLoss
+      + ucbScoreLoss * costPerUCBScoreLoss;
+    if(costFromUCB < smallestCostFromUCB)
+      smallestCostFromUCB = costFromUCB;
   }
+
+  // Partly replenish moves based on ucb cost conficting, since cost conflicting probably means actually the node is
+  // interesting for further expansion.
+  if(smallestCostFromUCB > 1e-100) {
+    for(auto& locAndBookMove: node->moves) {
+      locAndBookMove.second.costFromRoot -= 0.5 * smallestCostFromUCB;
+    }
+    node->thisNodeExpansionCost -= 0.5 * smallestCostFromUCB;
+  }
+
   // cout << "Setting cost " << node->hash << " " << node->minCostFromRoot << " " << node->thisNodeExpansionCost << endl;
 }
 
@@ -1323,6 +1339,20 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
           dataVarsStr += "'../" + childPath + "',";
           linkSymmetriesStr += Global::intToString(child.symmetryOfNode) + ",";
         }
+      }
+    }
+    // Also handle pass, pass gets stuck at the end of the array.
+    {
+      Loc loc = Board::PASS_LOC;
+      SymBookNode child = symNode.follow(loc);
+      if(child.isNull()) {
+        dataVarsStr += "'',";
+        linkSymmetriesStr += "0,";
+      }
+      else {
+        string childPath = getFilePath(child.node, true);
+        dataVarsStr += "'../" + childPath + "',";
+        linkSymmetriesStr += Global::intToString(child.symmetryOfNode) + ",";
       }
     }
     dataVarsStr += "];\n";
