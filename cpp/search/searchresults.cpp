@@ -1303,8 +1303,11 @@ std::pair<double,double> Search::getAverageShorttermWLAndScoreError(const Search
 
 std::pair<double,double> Search::getAverageShorttermWLAndScoreErrorHelper(const SearchNode* node) const {
   const NNOutput* nnOutput = node->getNNOutput();
-  if(nnOutput == NULL)
+  if(nnOutput == NULL) {
+    //This will also be correct for terminal nodes, which have no uncertainty.
+    //The caller will scale by weightSum, so this all works as intended.
     return std::make_pair(0.0,0.0);
+  }
 
   int childrenCapacity;
   const SearchChildPointer* children = node->getChildren(childrenCapacity);
@@ -1337,7 +1340,7 @@ std::pair<double,double> Search::getAverageShorttermWLAndScoreErrorHelper(const 
     weightSum += childWeight;
   }
 
-  return std::make_pair(wlErrorSum/weightSum, wlErrorSum/scoreErrorSum);
+  return std::make_pair(wlErrorSum/weightSum, scoreErrorSum/weightSum);
 }
 
 
