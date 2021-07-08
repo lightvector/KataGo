@@ -2,14 +2,17 @@
 #include "../book/book.h"
 
 #include <fstream>
+#include <thread>
 #include "../core/makedir.h"
 #include "../neuralnet/nninputs.h"
+#include "../external/nlohmann_json/json.hpp"
 
 using std::vector;
 using std::map;
 using std::cout;
 using std::endl;
 using std::string;
+using nlohmann::json;
 
 BookHash::BookHash()
 :historyHash(),stateHash()
@@ -83,6 +86,14 @@ std::ostream& operator<<(std::ostream& out, const BookHash other)
 
 std::string BookHash::toString() const {
   return stateHash.toString() + historyHash.toString();
+}
+
+BookHash BookHash::ofString(const string& s) {
+  if(s.size() != 64)
+    throw IOError("Could not parse as BookHash: " + s);
+  Hash128 stateHash = Hash128::ofString(s.substr(0,32));
+  Hash128 historyHash = Hash128::ofString(s.substr(32,32));
+  return BookHash(historyHash,stateHash);
 }
 
 // Just to fill out the extra 128 bits we have with another independent zobrist
@@ -650,6 +661,10 @@ BoardHistory Book::getInitialHist() const {
 BoardHistory Book::getInitialHist(int symmetry) const {
   int initialEncorePhase = 0;
   return BoardHistory(SymmetryHelpers::getSymBoard(initialBoard,symmetry), initialPla, initialRules, initialEncorePhase);
+}
+
+size_t Book::size() const {
+  return nodes.size();
 }
 
 double Book::getErrorFactor() const { return errorFactor; }
@@ -1453,3 +1468,189 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
   };
   iterateEntireBookPreOrder(f);
 }
+
+static const int SAVE_FILE_VERSION = 1;
+static const char BOARD_LINE_DELIMITER = '|';
+
+void Book::saveToFile(const string& fileName) const {
+  string tmpFileName = fileName + ".tmp";
+  std::ofstream out(tmpFileName);
+
+  {
+    json params;
+    params["version"] = SAVE_FILE_VERSION;
+    params["initialBoard"] = Board::toJson(initialBoard);
+    params["initialRules"] = initialRules.toJson();
+    params["initialPla"] = PlayerIO::playerToString(initialPla);
+    params["repBound"] = repBound;
+    params["errorFactor"] = errorFactor;
+    params["costPerMove"] = costPerMove;
+    params["costPerUCBWinLossLoss"] = costPerUCBWinLossLoss;
+    params["costPerUCBScoreLoss"] = costPerUCBScoreLoss;
+    params["costPerLogPolicy"] = costPerLogPolicy;
+    params["costPerMovesExpanded"] = costPerMovesExpanded;
+    params["costPerSquaredMovesExpanded"] = costPerSquaredMovesExpanded;
+    params["costWhenPassFavored"] = costWhenPassFavored;
+    params["utilityPerScore"] = utilityPerScore;
+    params["policyBoostSoftUtilityScale"] = policyBoostSoftUtilityScale;
+    params["utilityPerPolicyForSorting"] = utilityPerPolicyForSorting;
+    params["initialSymmetry"] = initialSymmetry;
+    out << params.dump() << endl;
+  }
+
+  for(BookNode* node: nodes) {
+    json nodeData = json::object();
+    nodeData["hash"] = node->hash.toString();
+    nodeData["pla"] = PlayerIO::playerToString(node->pla);
+    nodeData["symmetries"] = node->symmetries;
+    nodeData["winLossValue"] = node->thisValuesNotInBook.winLossValue;
+    nodeData["scoreMean"] = node->thisValuesNotInBook.scoreMean;
+    nodeData["lead"] = node->thisValuesNotInBook.lead;
+    nodeData["winLossError"] = node->thisValuesNotInBook.winLossError;
+    nodeData["scoreError"] = node->thisValuesNotInBook.scoreError;
+    nodeData["maxPolicy"] = node->thisValuesNotInBook.maxPolicy;
+    nodeData["weight"] = node->thisValuesNotInBook.weight;
+    nodeData["visits"] = node->thisValuesNotInBook.visits;
+    nodeData["canExpand"] = node->canExpand;
+
+    nodeData["moves"] = json::array();
+    for(auto& locAndBookMove: node->moves) {
+      json moveData;
+      moveData["move"] = Location::toString(locAndBookMove.second.move,initialBoard);
+      moveData["symmetryToAlign"] = locAndBookMove.second.symmetryToAlign;
+      moveData["hash"] = locAndBookMove.second.hash.toString();
+      moveData["rawPolicy"] = locAndBookMove.second.rawPolicy;
+      nodeData["moves"].push_back(moveData);
+    }
+    nodeData["parents"] = json::array();
+    for(auto& hashAndLoc: node->parents) {
+      json parentData;
+      parentData["hash"] = hashAndLoc.first.toString();
+      parentData["loc"] = Location::toString(hashAndLoc.second,initialBoard);
+      nodeData["parents"].push_back(parentData);
+    }
+    out << nodeData << endl;
+  }
+  out.close();
+
+  // Just in case, avoid any possible racing for file system
+  std::this_thread::sleep_for(std::chrono::duration<double>(1));
+  std::rename(tmpFileName.c_str(),fileName.c_str());
+}
+
+Book* Book::loadFromFile(const std::string& fileName) {
+  std::ifstream in(fileName);
+  std::string line;
+  Book* ret = NULL;
+  try {
+    getline(in,line);
+    if(!in)
+      throw IOError("Could not load initial metadata line");
+    auto assertContains = [&](const json& data, const string& key) {
+      if(!data.contains(key))
+        throw IOError("Could not parse json or find expected key " + key);
+    };
+
+    std::unique_ptr<Book> book;
+    {
+      json params = json::parse(line);
+      assertContains(params,"version");
+      int version = params["version"].get<int>();
+      if(version != 1)
+        throw IOError("Unsupported book version: " + Global::intToString(version));
+
+      assertContains(params,"initialBoard");
+      Board initialBoard = Board::ofJson(params["initialBoard"]);
+      assertContains(params,"initialRules");
+      Rules initialRules = Rules::parseRules(params["initialRules"].dump());
+      Player initialPla = PlayerIO::parsePlayer(params["initialPla"].get<string>());
+      int repBound = params["repBound"].get<int>();
+      double errorFactor = params["errorFactor"].get<double>();
+      double costPerMove = params["costPerMove"].get<double>();
+      double costPerUCBWinLossLoss = params["costPerUCBWinLossLoss"].get<double>();
+      double costPerUCBScoreLoss = params["costPerUCBScoreLoss"].get<double>();
+      double costPerLogPolicy = params["costPerLogPolicy"].get<double>();
+      double costPerMovesExpanded = params["costPerMovesExpanded"].get<double>();
+      double costPerSquaredMovesExpanded = params["costPerSquaredMovesExpanded"].get<double>();
+      double costWhenPassFavored = params["costWhenPassFavored"].get<double>();
+      double utilityPerScore = params["utilityPerScore"].get<double>();
+      double policyBoostSoftUtilityScale = params["policyBoostSoftUtilityScale"].get<double>();
+      double utilityPerPolicyForSorting = params["utilityPerPolicyForSorting"].get<double>();
+
+      book = std::make_unique<Book>(
+        initialBoard,
+        initialRules,
+        initialPla,
+        repBound,
+        errorFactor,
+        costPerMove,
+        costPerUCBWinLossLoss,
+        costPerUCBScoreLoss,
+        costPerLogPolicy,
+        costPerMovesExpanded,
+        costPerSquaredMovesExpanded,
+        costWhenPassFavored,
+        utilityPerScore,
+        policyBoostSoftUtilityScale,
+        utilityPerPolicyForSorting
+      );
+
+      int initialSymmetry = params["initialSymmetry"].get<int>();
+      if(book->initialSymmetry != initialSymmetry)
+        throw IOError("Inconsistent initial symmetry with initialization");
+    }
+
+    while(getline(in,line)) {
+      if(line.size() <= 0)
+        break;
+      json nodeData = json::parse(line);
+      BookHash hash = BookHash::ofString(nodeData["hash"].get<string>());
+      Player pla = PlayerIO::parsePlayer(nodeData["pla"].get<string>());
+      vector<int> symmetries = nodeData["symmetries"].get<vector<int>>();
+
+      BookNode* node = book->get(hash);
+      if(node != NULL) {
+        if(node->hash != hash) throw IOError("Inconsistent hash for root node with initialization");
+        if(node->pla != pla) throw IOError("Inconsistent pla for root node with initialization");
+        if(node->symmetries != symmetries) throw IOError("Inconsistent symmetries for root node with initialization");
+      }
+      else {
+        node = new BookNode(hash, book.get(), pla, symmetries);
+        book->add(hash, node);
+      }
+
+      node->thisValuesNotInBook.winLossValue = nodeData["winLossValue"].get<double>();
+      node->thisValuesNotInBook.scoreMean = nodeData["scoreMean"].get<double>();
+      node->thisValuesNotInBook.lead = nodeData["lead"].get<double>();
+      node->thisValuesNotInBook.winLossError = nodeData["winLossError"].get<double>();
+      node->thisValuesNotInBook.scoreError = nodeData["scoreError"].get<double>();
+      node->thisValuesNotInBook.maxPolicy = nodeData["maxPolicy"].get<double>();
+      node->thisValuesNotInBook.weight = nodeData["weight"].get<double>();
+      node->thisValuesNotInBook.visits = nodeData["visits"].get<double>();
+      node->canExpand = nodeData["canExpand"].get<bool>();
+
+      for(json& moveData: nodeData["moves"]) {
+        BookMove move;
+        move.move = Location::ofString(moveData["move"].get<string>(),book->initialBoard);
+        move.symmetryToAlign = moveData["symmetryToAlign"].get<int>();
+        move.hash = BookHash::ofString(moveData["hash"].get<string>());
+        move.rawPolicy = moveData["rawPolicy"].get<double>();
+        node->moves[move.move] = move;
+      }
+
+      for(json& parentData: nodeData["parents"]) {
+        BookHash parentHash = BookHash::ofString(parentData["hash"].get<string>());
+        Loc loc = Location::ofString(parentData["loc"].get<string>(),book->initialBoard);
+        node->parents.push_back(std::make_pair(parentHash,loc));
+      }
+    }
+    book->recomputeEverything();
+    ret = book.release();
+  }
+  catch(const std::exception& e) {
+    throw IOError("When parsing book file " + fileName + ": " + e.what() + "\nFurthest line read was:\n" + line.substr(0,10000));
+  }
+  return ret;
+}
+
+

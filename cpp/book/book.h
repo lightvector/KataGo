@@ -34,6 +34,7 @@ struct BookHash {
 
   friend std::ostream& operator<<(std::ostream& out, const BookHash other);
   std::string toString() const;
+  static BookHash ofString(const std::string& s);
 };
 
 struct BookMove {
@@ -270,6 +271,8 @@ class Book {
   // Get the initial history, with symmetry applied
   BoardHistory getInitialHist(int symmetry) const;
 
+  size_t size() const;
+
   double getErrorFactor() const;
   void setErrorFactor(double d);
   double getCostPerMove() const;
@@ -307,6 +310,9 @@ class Book {
   std::vector<SymBookNode> getNextNToExpand(int n);
 
   void exportToHtmlDir(const std::string& dirName, Logger& logger);
+
+  void saveToFile(const std::string& fileName) const;
+  static Book* loadFromFile(const std::string& fileName);
 
  private:
   BookNode* get(BookHash hash);

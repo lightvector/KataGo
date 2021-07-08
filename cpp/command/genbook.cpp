@@ -43,24 +43,44 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   ConfigParser cfg;
   string modelFile;
   string htmlDir;
+  string bookFile;
   string logFile;
+  int numIterations;
+  int numToExpandPerIteration;
+  int saveEveryIterations;
+  bool allowChangingBookParams;
   try {
     KataGoCommandLine cmd("View startposes");
     cmd.addConfigFileArg("","",true);
     cmd.addModelFileArg();
     cmd.addOverrideConfigArg();
 
-    TCLAP::ValueArg<string> htmlDirArg("","html-dir","HTML directory to export to",true,string(),"DIR");
+    TCLAP::ValueArg<string> htmlDirArg("","html-dir","HTML directory to export to",false,string(),"DIR");
+    TCLAP::ValueArg<string> bookFileArg("","book-file","Book file to write to or continue expanding",true,string(),"FILE");
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to write to",true,string(),"DIR");
+    TCLAP::ValueArg<int> numIterationsArg("","num-iters","Number of iterations to expand book",true,0,"N");
+    TCLAP::ValueArg<int> numToExpandPerIterationArg("","num-per-iter","Number of nodes per iteration",true,0,"N");
+    TCLAP::ValueArg<int> saveEveryIterationsArg("","save-every","Number of iterations per save",true,0,"N");
+    TCLAP::SwitchArg allowChangingBookParamsArg("","allow-changing-book-params","Allow changing book params");
     cmd.add(htmlDirArg);
+    cmd.add(bookFileArg);
     cmd.add(logFileArg);
+    cmd.add(numIterationsArg);
+    cmd.add(numToExpandPerIterationArg);
+    cmd.add(saveEveryIterationsArg);
+    cmd.add(allowChangingBookParamsArg);
 
     cmd.parse(argc,argv);
 
     cmd.getConfig(cfg);
     modelFile = cmd.getModelFile();
     htmlDir = htmlDirArg.getValue();
+    bookFile = bookFileArg.getValue();
     logFile = logFileArg.getValue();
+    numIterations = numIterationsArg.getValue();
+    numToExpandPerIteration = numToExpandPerIterationArg.getValue();
+    saveEveryIterations = saveEveryIterationsArg.getValue();
+    allowChangingBookParams = allowChangingBookParamsArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -116,38 +136,83 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   // Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
-  MakeDir::make(htmlDir);
+  if(htmlDir != "")
+    MakeDir::make(htmlDir);
 
-  Book* book = new Book(
-    Board(boardSizeX,boardSizeY),
-    rules,
-    P_BLACK,
-    repBound,
-    errorFactor,
-    costPerMove,
-    costPerUCBWinLossLoss,
-    costPerUCBScoreLoss,
-    costPerLogPolicy,
-    costPerMovesExpanded,
-    costPerSquaredMovesExpanded,
-    costWhenPassFavored,
-    utilityPerScore,
-    policyBoostSoftUtilityScale,
-    utilityPerPolicyForSorting
-  );
+  Book* book;
+  bool bookFileExists;
+  {
+    std::ifstream infile(bookFile);
+    bookFileExists = infile.good();
+  }
+  if(bookFileExists) {
+    book = Book::loadFromFile(bookFile);
+    if(
+      boardSizeX != book->getInitialHist().getRecentBoard(0).x_size ||
+      boardSizeY != book->getInitialHist().getRecentBoard(0).y_size ||
+      repBound != book->repBound ||
+      rules != book->getInitialHist().rules
+    ) {
+      throw StringError("Book parameters do not match");
+    }
+    if(!allowChangingBookParams) {
+      if(
+        errorFactor != book->getErrorFactor() ||
+        costPerMove != book->getCostPerMove() ||
+        costPerUCBWinLossLoss != book->getCostPerUCBWinLossLoss() ||
+        costPerUCBScoreLoss != book->getCostPerUCBScoreLoss() ||
+        costPerLogPolicy != book->getCostPerLogPolicy() ||
+        costPerMovesExpanded != book->getCostPerMovesExpanded() ||
+        costPerSquaredMovesExpanded != book->getCostPerSquaredMovesExpanded() ||
+        costWhenPassFavored != book->getCostWhenPassFavored() ||
+        utilityPerScore != book->getUtilityPerScore() ||
+        policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale() ||
+        utilityPerPolicyForSorting != book->getUtilityPerPolicyForSorting()
+      ) {
+        throw StringError("Book parameters do not match");
+      }
+    }
+    logger.write("Loaded preexisting book with " + Global::uint64ToString(book->size()) + " nodes from " + bookFile);
+  }
+  else {
+    book = new Book(
+      Board(boardSizeX,boardSizeY),
+      rules,
+      P_BLACK,
+      repBound,
+      errorFactor,
+      costPerMove,
+      costPerUCBWinLossLoss,
+      costPerUCBScoreLoss,
+      costPerLogPolicy,
+      costPerMovesExpanded,
+      costPerSquaredMovesExpanded,
+      costWhenPassFavored,
+      utilityPerScore,
+      policyBoostSoftUtilityScale,
+      utilityPerPolicyForSorting
+    );
+    logger.write("Creating new book at " + bookFile);
+    book->saveToFile(bookFile);
+  }
 
   if(!std::atomic_is_lock_free(&shouldStop))
     throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
-  const int numToExpand = 16;
-  for(int rep = 0; rep < 400; rep++) {
+  for(int iteration = 0; iteration < numIterations; iteration++) {
     if(shouldStop.load(std::memory_order_acquire))
       break;
-    logger.write("BEGINNING BOOK EXPANSION ITERATION " + Global::intToString(rep));
 
-    std::vector<SymBookNode> nodesToExpand = book->getNextNToExpand(std::min(1+rep/2,numToExpand));
+    if(iteration % saveEveryIterations == 0 && iteration != 0) {
+      logger.write("SAVING TO FILE " + bookFile);
+      book->saveToFile(bookFile);
+    }
+
+    logger.write("BEGINNING BOOK EXPANSION ITERATION " + Global::intToString(iteration));
+
+    std::vector<SymBookNode> nodesToExpand = book->getNextNToExpand(std::min(1+iteration/2,numToExpandPerIteration));
     std::vector<SymBookNode> newAndChangedNodes = nodesToExpand;
 
     for(SymBookNode node: nodesToExpand) {
@@ -377,8 +442,15 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     book->recompute(newAndChangedNodes);
   }
 
-  logger.write("WRITING BOOK TO " + htmlDir);
-  book->exportToHtmlDir(htmlDir,logger);
+  if(numIterations > 0) {
+    logger.write("SAVING TO FILE " + bookFile);
+    book->saveToFile(bookFile);
+  }
+
+  if(htmlDir != "") {
+    logger.write("EXPORTING HTML TO " + htmlDir);
+    book->exportToHtmlDir(htmlDir,logger);
+  }
 
   delete search;
   delete nnEval;

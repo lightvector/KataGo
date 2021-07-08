@@ -374,7 +374,7 @@ function textCell(text) {
       dataRow.setAttribute("href",getLinkForPos(pos));
     }
     else if(moveData["move"] && moveData["move"] == "pass") {
-      let pos = boardYSize * boardSizeX;
+      let pos = boardSizeY * boardSizeX;
       dataRow.setAttribute("href",getLinkForPos(pos));
     }
 
