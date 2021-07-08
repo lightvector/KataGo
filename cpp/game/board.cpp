@@ -2489,8 +2489,20 @@ bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& resul
   }
 }
 
+bool Location::tryOfStringAllowNull(const string& str, int x_size, int y_size, Loc& result) {
+  if(str == "null") {
+    result = Board::NULL_LOC;
+    return true;
+  }
+  return tryOfString(str, x_size, y_size, result);
+}
+
 bool Location::tryOfString(const string& str, const Board& b, Loc& result) {
   return tryOfString(str,b.x_size,b.y_size,result);
+}
+
+bool Location::tryOfStringAllowNull(const string& str, const Board& b, Loc& result) {
+  return tryOfStringAllowNull(str,b.x_size,b.y_size,result);
 }
 
 Loc Location::ofString(const string& str, int x_size, int y_size) {
@@ -2500,8 +2512,20 @@ Loc Location::ofString(const string& str, int x_size, int y_size) {
   throw StringError("Could not parse board location: " + str);
 }
 
+Loc Location::ofStringAllowNull(const string& str, int x_size, int y_size) {
+  Loc result;
+  if(tryOfStringAllowNull(str,x_size,y_size,result))
+    return result;
+  throw StringError("Could not parse board location: " + str);
+}
+
 Loc Location::ofString(const string& str, const Board& b) {
   return ofString(str,b.x_size,b.y_size);
+}
+
+
+Loc Location::ofStringAllowNull(const string& str, const Board& b) {
+  return ofStringAllowNull(str,b.x_size,b.y_size);
 }
 
 vector<Loc> Location::parseSequence(const string& str, const Board& board) {
@@ -2637,6 +2661,28 @@ Board Board::parseBoard(int xSize, int ySize, const string& s, char lineDelimite
   }
   return board;
 }
+
+nlohmann::json Board::toJson(const Board& board) {
+  nlohmann::json data;
+  data["xSize"] = board.x_size;
+  data["ySize"] = board.y_size;
+  data["stones"] = Board::toStringSimple(board,'|');
+  data["koLoc"] = Location::toString(board.ko_loc,board);
+  data["numBlackCaptures"] = board.numBlackCaptures;
+  data["numWhiteCaptures"] = board.numWhiteCaptures;
+  return data;
+}
+
+Board Board::ofJson(const nlohmann::json& data) {
+  int xSize = data["xSize"].get<int>();
+  int ySize = data["ySize"].get<int>();
+  Board board = Board::parseBoard(xSize,ySize,data["stones"].get<string>(),'|');
+  board.setSimpleKoLoc(Location::ofStringAllowNull(data["koLoc"].get<string>(),board));
+  board.numBlackCaptures = data["numBlackCaptures"].get<int>();
+  board.numWhiteCaptures = data["numWhiteCaptures"].get<int>();
+  return board;
+}
+
 
 bool Board::isAdjacentToPlaHead(Player pla, Loc loc, Loc plaHead) const {
   FOREACHADJ(

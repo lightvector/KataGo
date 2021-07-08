@@ -162,3 +162,19 @@ ostream& operator<<(ostream& out, const Hash128 other)
 string Hash128::toString() const {
   return Global::uint64ToHexString(hash1) + Global::uint64ToHexString(hash0);
 }
+
+Hash128 Hash128::ofString(const string& s) {
+  if(s.size() != 32)
+    throw IOError("Could not parse as Hash128: " + s);
+  for(char c: s) {
+    if(!(c >= '0' && c <= '9') &&
+       !(c >= 'A' && c <= 'F') &&
+       !(c >= 'a' && c <= 'f')
+    ) {
+      throw IOError("Could not parse as Hash128: " + s);
+    }
+  }
+  uint64_t h1 = Global::stringToUInt64(s.substr(0,16));
+  uint64_t h0 = Global::stringToUInt64(s.substr(16,16));
+  return Hash128(h0,h1);
+}

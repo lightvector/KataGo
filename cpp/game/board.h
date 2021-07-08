@@ -9,6 +9,7 @@
 
 #include "../core/global.h"
 #include "../core/hash.h"
+#include "../external/nlohmann_json/json.hpp"
 
 #ifndef COMPILE_MAX_BOARD_LEN
 #define COMPILE_MAX_BOARD_LEN 19
@@ -69,6 +70,12 @@ namespace Location
   bool tryOfString(const std::string& str, const Board& b, Loc& result);
   Loc ofString(const std::string& str, int x_size, int y_size);
   Loc ofString(const std::string& str, const Board& b);
+
+  //Same, but will parse "null" as Board::NULL_LOC
+  bool tryOfStringAllowNull(const std::string& str, int x_size, int y_size, Loc& result);
+  bool tryOfStringAllowNull(const std::string& str, const Board& b, Loc& result);
+  Loc ofStringAllowNull(const std::string& str, int x_size, int y_size);
+  Loc ofStringAllowNull(const std::string& str, const Board& b);
 
   std::vector<Loc> parseSequence(const std::string& str, const Board& b);
 }
@@ -280,6 +287,8 @@ struct Board
   static Board parseBoard(int xSize, int ySize, const std::string& s, char lineDelimiter);
   static void printBoard(std::ostream& out, const Board& board, Loc markLoc, const std::vector<Move>* hist);
   static std::string toStringSimple(const Board& board, char lineDelimiter);
+  static nlohmann::json toJson(const Board& board);
+  static Board ofJson(const nlohmann::json& data);
 
   //Data--------------------------------------------
 

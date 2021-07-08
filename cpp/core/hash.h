@@ -60,6 +60,7 @@ struct Hash128
 
   friend std::ostream& operator<<(std::ostream& out, const Hash128 other);
   std::string toString() const;
+  static Hash128 ofString(const std::string& s);
 };
 
 inline Hash128::Hash128()

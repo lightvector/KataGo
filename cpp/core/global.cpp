@@ -196,10 +196,9 @@ bool Global::tryStringToUInt64(const string& str, uint64_t& x)
 
 uint64_t Global::stringToUInt64(const string& str)
 {
-  uint64_t val = 0;
-  istringstream in(trim(str));
-  in >> val;
-  if(in.fail() || in.peek() != EOF)
+  uint64_t val;
+  bool suc = tryStringToUInt64(str,val);
+  if(!suc)
     throw IOError(string("could not parse uint64: ") + str);
   return val;
 }
