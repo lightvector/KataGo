@@ -353,6 +353,8 @@ function textCell(text) {
   headerRow.appendChild(textCell("Win%UCB"));
   headerRow.appendChild(textCell("ScoreLCB"));
   headerRow.appendChild(textCell("ScoreUCB"));
+  headerRow.appendChild(textCell("ScoreFinalLCB"));
+  headerRow.appendChild(textCell("ScoreFinalUCB"));
   headerRow.appendChild(textCell("Policy%"));
   headerRow.appendChild(textCell("Weight"));
   headerRow.appendChild(textCell("Visits"));
@@ -402,6 +404,8 @@ function textCell(text) {
     dataRow.appendChild(textCell((100.0 * (0.5*(1.0-moveData["winLossLCB"]))).toFixed(1)+"%"));
     dataRow.appendChild(textCell((-moveData["scoreUCB"]).toFixed(2)));
     dataRow.appendChild(textCell((-moveData["scoreLCB"]).toFixed(2)));
+    dataRow.appendChild(textCell((-moveData["scoreFinalUCB"]).toFixed(2)));
+    dataRow.appendChild(textCell((-moveData["scoreFinalLCB"]).toFixed(2)));
     dataRow.appendChild(textCell((100.0 * moveData["policy"]).toFixed(2)+"%"));
     dataRow.appendChild(textCell(moveData["weight"].toFixed(1)));
     dataRow.appendChild(textCell(moveData["visits"]));

@@ -172,6 +172,19 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         throw StringError("Book parameters do not match");
       }
     }
+    else {
+      if(errorFactor != book->getErrorFactor()) { logger.write("Changing errorFactor from " + Global::doubleToString(book->getErrorFactor()) + " to " + Global::doubleToString(errorFactor)); book->setErrorFactor(errorFactor); }
+      if(costPerMove != book->getCostPerMove()) { logger.write("Changing costPerMove from " + Global::doubleToString(book->getCostPerMove()) + " to " + Global::doubleToString(costPerMove)); book->setCostPerMove(costPerMove); }
+      if(costPerUCBWinLossLoss != book->getCostPerUCBWinLossLoss()) { logger.write("Changing costPerUCBWinLossLoss from " + Global::doubleToString(book->getCostPerUCBWinLossLoss()) + " to " + Global::doubleToString(costPerUCBWinLossLoss)); book->setCostPerUCBWinLossLoss(costPerUCBWinLossLoss); }
+      if(costPerUCBScoreLoss != book->getCostPerUCBScoreLoss()) { logger.write("Changing costPerUCBScoreLoss from " + Global::doubleToString(book->getCostPerUCBScoreLoss()) + " to " + Global::doubleToString(costPerUCBScoreLoss)); book->setCostPerUCBScoreLoss(costPerUCBScoreLoss); }
+      if(costPerLogPolicy != book->getCostPerLogPolicy()) { logger.write("Changing costPerLogPolicy from " + Global::doubleToString(book->getCostPerLogPolicy()) + " to " + Global::doubleToString(costPerLogPolicy)); book->setCostPerLogPolicy(costPerLogPolicy); }
+      if(costPerMovesExpanded != book->getCostPerMovesExpanded()) { logger.write("Changing costPerMovesExpanded from " + Global::doubleToString(book->getCostPerMovesExpanded()) + " to " + Global::doubleToString(costPerMovesExpanded)); book->setCostPerMovesExpanded(costPerMovesExpanded); }
+      if(costPerSquaredMovesExpanded != book->getCostPerSquaredMovesExpanded()) { logger.write("Changing costPerSquaredMovesExpanded from " + Global::doubleToString(book->getCostPerSquaredMovesExpanded()) + " to " + Global::doubleToString(costPerSquaredMovesExpanded)); book->setCostPerSquaredMovesExpanded(costPerSquaredMovesExpanded); }
+      if(costWhenPassFavored != book->getCostWhenPassFavored()) { logger.write("Changing costWhenPassFavored from " + Global::doubleToString(book->getCostWhenPassFavored()) + " to " + Global::doubleToString(costWhenPassFavored)); book->setCostWhenPassFavored(costWhenPassFavored); }
+      if(utilityPerScore != book->getUtilityPerScore()) { logger.write("Changing utilityPerScore from " + Global::doubleToString(book->getUtilityPerScore()) + " to " + Global::doubleToString(utilityPerScore)); book->setUtilityPerScore(utilityPerScore); }
+      if(policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale()) { logger.write("Changing policyBoostSoftUtilityScale from " + Global::doubleToString(book->getPolicyBoostSoftUtilityScale()) + " to " + Global::doubleToString(policyBoostSoftUtilityScale)); book->setPolicyBoostSoftUtilityScale(policyBoostSoftUtilityScale); }
+      if(utilityPerPolicyForSorting != book->getUtilityPerPolicyForSorting()) { logger.write("Changing utilityPerPolicyForSorting from " + Global::doubleToString(book->getUtilityPerPolicyForSorting()) + " to " + Global::doubleToString(utilityPerPolicyForSorting)); book->setUtilityPerPolicyForSorting(utilityPerPolicyForSorting); }
+    }
     logger.write("Loaded preexisting book with " + Global::uint64ToString(book->size()) + " nodes from " + bookFile);
   }
   else {
@@ -355,6 +368,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         std::pair<double,double> errors = search->getAverageShorttermWLAndScoreError(childSearchNode);
         childValues.winLossError = errors.first;
         childValues.scoreError = errors.second;
+        childValues.scoreStdev = childSearchValues.expectedScoreStdev;
 
         // Could return false if child is terminal, or otherwise has no nn eval.
         bool policySuc2 = search->getPolicy(childSearchNode, policyProbs);
@@ -381,6 +395,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         }
         nodeValues.winLossError = 0.0;
         nodeValues.scoreError = 0.0;
+        nodeValues.scoreStdev = 0.0;
         nodeValues.maxPolicy = 0.0;
         nodeValues.weight = 0.0;
         nodeValues.visits = 0;
@@ -422,6 +437,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         std::pair<double,double> errors = search->getAverageShorttermWLAndScoreError(search->getRootNode());
         nodeValues.winLossError = errors.first;
         nodeValues.scoreError = errors.second;
+        nodeValues.scoreStdev = remainingSearchValues.expectedScoreStdev;
 
         // Just in case, handle failure case with policySuc2
         float policyProbs[NNPos::MAX_NN_POLICY_SIZE];

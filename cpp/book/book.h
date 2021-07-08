@@ -67,6 +67,8 @@ struct BookValues {
   // of this node, but not necessarily being a meaningful measure of it directly.
   double winLossError = 0.0;
   double scoreError = 0.0;
+  // Stdev to the end of the whole game.
+  double scoreStdev = 0.0;
 
   double maxPolicy = 0.0;
   double weight = 0.0;
@@ -79,8 +81,10 @@ struct RecursiveBookValues {
   double lead = 0.0;
   double winLossLCB = 0.0; // minimaxing winLossValue - winLossError * errorFactor
   double scoreLCB = 0.0;   // minimaxing scoreMean - scoreError * errorFactor
+  double scoreFinalLCB = 0.0;   // minimaxing scoreMean - scoreStdev * errorFactor
   double winLossUCB = 0.0; // minimaxing winLossValue + winLossError * errorFactor
   double scoreUCB = 0.0;   // minimaxing scoreMean + scoreError * errorFactor
+  double scoreFinalUCB = 0.0;   // minimaxing scoreMean + scoreError * errorFactor
 
   // Weighted by sum
   double weight = 0.0;

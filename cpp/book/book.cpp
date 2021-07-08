@@ -1032,8 +1032,10 @@ void Book::recomputeNodeValues(BookNode* node) {
   double lead;
   double winLossLCB;
   double scoreLCB;
+  double scoreFinalLCB;
   double winLossUCB;
   double scoreUCB;
+  double scoreFinalUCB;
   double weight = 0.0;
   double visits = 0.0;
 
@@ -1044,8 +1046,10 @@ void Book::recomputeNodeValues(BookNode* node) {
     lead = values.lead;
     winLossLCB = values.winLossValue - errorFactor * values.winLossError;
     scoreLCB = values.scoreMean - errorFactor * values.scoreError;
+    scoreFinalLCB = values.scoreMean - errorFactor * values.scoreStdev;
     winLossUCB = values.winLossValue + errorFactor * values.winLossError;
     scoreUCB = values.scoreMean + errorFactor * values.scoreError;
+    scoreFinalUCB = values.scoreMean + errorFactor * values.scoreStdev;
     weight += values.weight;
     visits += values.visits;
   }
@@ -1060,8 +1064,10 @@ void Book::recomputeNodeValues(BookNode* node) {
       lead = std::max(lead, values.lead);
       winLossLCB = std::max(winLossLCB, values.winLossLCB);
       scoreLCB = std::max(scoreLCB, values.scoreLCB);
+      scoreFinalLCB = std::max(scoreFinalLCB, values.scoreFinalLCB);
       winLossUCB = std::max(winLossUCB, values.winLossUCB);
       scoreUCB = std::max(scoreUCB, values.scoreUCB);
+      scoreFinalUCB = std::max(scoreFinalUCB, values.scoreFinalUCB);
       weight += values.weight;
       visits += values.visits;
     }
@@ -1071,8 +1077,10 @@ void Book::recomputeNodeValues(BookNode* node) {
       lead = std::min(lead, values.lead);
       winLossLCB = std::min(winLossLCB, values.winLossLCB);
       scoreLCB = std::min(scoreLCB, values.scoreLCB);
+      scoreFinalLCB = std::min(scoreFinalLCB, values.scoreFinalLCB);
       winLossUCB = std::min(winLossUCB, values.winLossUCB);
       scoreUCB = std::min(scoreUCB, values.scoreUCB);
+      scoreFinalUCB = std::min(scoreFinalUCB, values.scoreFinalUCB);
       weight += values.weight;
       visits += values.visits;
     }
@@ -1084,8 +1092,10 @@ void Book::recomputeNodeValues(BookNode* node) {
   values.lead = lead;
   values.winLossLCB = winLossLCB;
   values.scoreLCB = scoreLCB;
+  values.scoreFinalLCB = scoreFinalLCB;
   values.winLossUCB = winLossUCB;
   values.scoreUCB = scoreUCB;
+  values.scoreFinalUCB = scoreFinalUCB;
   values.weight = weight;
   values.visits = visits;
 
@@ -1427,6 +1437,8 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
       dataVarsStr += "'lead':" + Global::doubleToString(uniqueChildValues[idx].lead) + ",";
       dataVarsStr += "'scoreUCB':" + Global::doubleToString(uniqueChildValues[idx].scoreUCB) + ",";
       dataVarsStr += "'scoreLCB':" + Global::doubleToString(uniqueChildValues[idx].scoreLCB) + ",";
+      dataVarsStr += "'scoreFinalUCB':" + Global::doubleToString(uniqueChildValues[idx].scoreFinalUCB) + ",";
+      dataVarsStr += "'scoreFinalLCB':" + Global::doubleToString(uniqueChildValues[idx].scoreFinalLCB) + ",";
       dataVarsStr += "'weight':" + Global::doubleToStringHighPrecision(uniqueChildValues[idx].weight) + ",";
       dataVarsStr += "'visits':" + Global::doubleToStringHighPrecision(uniqueChildValues[idx].visits) + ",";
       dataVarsStr += "'cost':" + Global::doubleToString(uniqueMovesInBook[idx].costFromRoot - node->minCostFromRoot) + ",";
@@ -1440,6 +1452,8 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
         double winLossValueLCB = values.winLossValue - errorFactor * values.winLossError;
         double scoreUCB = values.scoreMean + errorFactor * values.scoreError;
         double scoreLCB = values.scoreMean - errorFactor * values.scoreError;
+        double scoreFinalUCB = values.scoreMean + errorFactor * values.scoreStdev;
+        double scoreFinalLCB = values.scoreMean - errorFactor * values.scoreStdev;
 
         dataVarsStr += "{";
         dataVarsStr += "'move':'other',";
@@ -1451,6 +1465,8 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
         dataVarsStr += "'lead':" + Global::doubleToString(values.lead) + ",";
         dataVarsStr += "'scoreUCB':" + Global::doubleToString(scoreUCB) + ",";
         dataVarsStr += "'scoreLCB':" + Global::doubleToString(scoreLCB) + ",";
+        dataVarsStr += "'scoreFinalUCB':" + Global::doubleToString(scoreFinalUCB) + ",";
+        dataVarsStr += "'scoreFinalLCB':" + Global::doubleToString(scoreFinalLCB) + ",";
         dataVarsStr += "'weight':" + Global::doubleToStringHighPrecision(values.weight) + ",";
         dataVarsStr += "'visits':" + Global::doubleToStringHighPrecision(values.visits) + ",";
         dataVarsStr += "'cost':" + Global::doubleToString(node->thisNodeExpansionCost) + ",";
@@ -1508,6 +1524,7 @@ void Book::saveToFile(const string& fileName) const {
     nodeData["lead"] = node->thisValuesNotInBook.lead;
     nodeData["winLossError"] = node->thisValuesNotInBook.winLossError;
     nodeData["scoreError"] = node->thisValuesNotInBook.scoreError;
+    nodeData["scoreStdev"] = node->thisValuesNotInBook.scoreStdev;
     nodeData["maxPolicy"] = node->thisValuesNotInBook.maxPolicy;
     nodeData["weight"] = node->thisValuesNotInBook.weight;
     nodeData["visits"] = node->thisValuesNotInBook.visits;
@@ -1624,6 +1641,7 @@ Book* Book::loadFromFile(const std::string& fileName) {
       node->thisValuesNotInBook.lead = nodeData["lead"].get<double>();
       node->thisValuesNotInBook.winLossError = nodeData["winLossError"].get<double>();
       node->thisValuesNotInBook.scoreError = nodeData["scoreError"].get<double>();
+      node->thisValuesNotInBook.scoreStdev = nodeData["scoreStdev"].get<double>();
       node->thisValuesNotInBook.maxPolicy = nodeData["maxPolicy"].get<double>();
       node->thisValuesNotInBook.weight = nodeData["weight"].get<double>();
       node->thisValuesNotInBook.visits = nodeData["visits"].get<double>();
