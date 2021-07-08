@@ -194,6 +194,9 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     );
     logger.write("Creating new book at " + bookFile);
     book->saveToFile(bookFile);
+    ofstream out(bookFile + ".cfg");
+    out << cfg.getContents() << endl;
+    out.close();
   }
 
   if(!std::atomic_is_lock_free(&shouldStop))
@@ -208,6 +211,9 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     if(iteration % saveEveryIterations == 0 && iteration != 0) {
       logger.write("SAVING TO FILE " + bookFile);
       book->saveToFile(bookFile);
+      ofstream out(bookFile + ".cfg");
+      out << cfg.getContents() << endl;
+      out.close();
     }
 
     logger.write("BEGINNING BOOK EXPANSION ITERATION " + Global::intToString(iteration));
@@ -445,6 +451,9 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   if(numIterations > 0) {
     logger.write("SAVING TO FILE " + bookFile);
     book->saveToFile(bookFile);
+    ofstream out(bookFile + ".cfg");
+    out << cfg.getContents() << endl;
+    out.close();
   }
 
   if(htmlDir != "") {
