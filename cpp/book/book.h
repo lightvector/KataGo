@@ -238,6 +238,8 @@ class Book {
   double costPerMovesExpanded;
   double costPerSquaredMovesExpanded;
   double costWhenPassFavored;
+  double bonusPerWinLossError;
+  double scoreLossCap;
   double utilityPerScore;
   double policyBoostSoftUtilityScale;
   double utilityPerPolicyForSorting;
@@ -260,6 +262,8 @@ class Book {
     double costPerMovesExpanded,
     double costPerSquaredMovesExpanded,
     double costWhenPassFavored,
+    double bonusPerWinLossError,
+    double scoreLossCap,
     double utilityPerScore,
     double policyBoostSoftUtilityScale,
     double utilityPerPolicyForSorting
@@ -289,10 +293,14 @@ class Book {
   void setCostPerLogPolicy(double d);
   double getCostPerMovesExpanded() const;
   void setCostPerMovesExpanded(double d);
-  double getCostWhenPassFavored() const;
-  void setCostWhenPassFavored(double d);
   double getCostPerSquaredMovesExpanded() const;
   void setCostPerSquaredMovesExpanded(double d);
+  double getCostWhenPassFavored() const;
+  void setCostWhenPassFavored(double d);
+  double getBonusPerWinLossError() const;
+  void setBonusPerWinLossError(double d);
+  double getScoreLossCap() const;
+  void setScoreLossCap(double d);
   double getUtilityPerScore() const;
   void setUtilityPerScore(double d);
   double getPolicyBoostSoftUtilityScale() const;
