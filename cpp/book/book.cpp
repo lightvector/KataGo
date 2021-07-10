@@ -1037,7 +1037,7 @@ void Book::iterateEntireBookPreOrder(
 void Book::recomputeNodeValues(BookNode* node) {
   double winLossValue;
   double scoreMean;
-  double lead;
+  double sharpScoreMean;
   double winLossLCB;
   double scoreLCB;
   double scoreFinalLCB;
@@ -1051,7 +1051,7 @@ void Book::recomputeNodeValues(BookNode* node) {
     const BookValues& values = node->thisValuesNotInBook;
     winLossValue = values.winLossValue;
     scoreMean = values.scoreMean;
-    lead = values.lead;
+    sharpScoreMean = values.sharpScoreMean;
     winLossLCB = values.winLossValue - errorFactor * values.winLossError;
     scoreLCB = values.scoreMean - errorFactor * values.scoreError;
     scoreFinalLCB = values.scoreMean - errorFactor * values.scoreStdev;
@@ -1069,7 +1069,7 @@ void Book::recomputeNodeValues(BookNode* node) {
     if(node->pla == P_WHITE) {
       winLossValue = std::max(winLossValue, values.winLossValue);
       scoreMean = std::max(scoreMean, values.scoreMean);
-      lead = std::max(lead, values.lead);
+      sharpScoreMean = std::max(sharpScoreMean, values.sharpScoreMean);
       winLossLCB = std::max(winLossLCB, values.winLossLCB);
       scoreLCB = std::max(scoreLCB, values.scoreLCB);
       scoreFinalLCB = std::max(scoreFinalLCB, values.scoreFinalLCB);
@@ -1082,7 +1082,7 @@ void Book::recomputeNodeValues(BookNode* node) {
     else {
       winLossValue = std::min(winLossValue, values.winLossValue);
       scoreMean = std::min(scoreMean, values.scoreMean);
-      lead = std::min(lead, values.lead);
+      sharpScoreMean = std::min(sharpScoreMean, values.sharpScoreMean);
       winLossLCB = std::min(winLossLCB, values.winLossLCB);
       scoreLCB = std::min(scoreLCB, values.scoreLCB);
       scoreFinalLCB = std::min(scoreFinalLCB, values.scoreFinalLCB);
@@ -1097,7 +1097,7 @@ void Book::recomputeNodeValues(BookNode* node) {
   RecursiveBookValues& values = node->recursiveValues;
   values.winLossValue = winLossValue;
   values.scoreMean = scoreMean;
-  values.lead = lead;
+  values.sharpScoreMean = sharpScoreMean;
   values.winLossLCB = winLossLCB;
   values.scoreLCB = scoreLCB;
   values.scoreFinalLCB = scoreFinalLCB;
@@ -1463,7 +1463,7 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
       dataVarsStr += "'winLossUCB':" + Global::doubleToString(uniqueChildValues[idx].winLossUCB) + ",";
       dataVarsStr += "'winLossLCB':" + Global::doubleToString(uniqueChildValues[idx].winLossLCB) + ",";
       dataVarsStr += "'scoreMean':" + Global::doubleToString(uniqueChildValues[idx].scoreMean) + ",";
-      dataVarsStr += "'lead':" + Global::doubleToString(uniqueChildValues[idx].lead) + ",";
+      dataVarsStr += "'sharpScoreMean':" + Global::doubleToString(uniqueChildValues[idx].sharpScoreMean) + ",";
       dataVarsStr += "'scoreUCB':" + Global::doubleToString(uniqueChildValues[idx].scoreUCB) + ",";
       dataVarsStr += "'scoreLCB':" + Global::doubleToString(uniqueChildValues[idx].scoreLCB) + ",";
       dataVarsStr += "'scoreFinalUCB':" + Global::doubleToString(uniqueChildValues[idx].scoreFinalUCB) + ",";
@@ -1491,7 +1491,7 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
         dataVarsStr += "'winLossUCB':" + Global::doubleToString(winLossValueUCB) + ",";
         dataVarsStr += "'winLossLCB':" + Global::doubleToString(winLossValueLCB) + ",";
         dataVarsStr += "'scoreMean':" + Global::doubleToString(values.scoreMean) + ",";
-        dataVarsStr += "'lead':" + Global::doubleToString(values.lead) + ",";
+        dataVarsStr += "'sharpScoreMean':" + Global::doubleToString(values.sharpScoreMean) + ",";
         dataVarsStr += "'scoreUCB':" + Global::doubleToString(scoreUCB) + ",";
         dataVarsStr += "'scoreLCB':" + Global::doubleToString(scoreLCB) + ",";
         dataVarsStr += "'scoreFinalUCB':" + Global::doubleToString(scoreFinalUCB) + ",";
@@ -1552,7 +1552,7 @@ void Book::saveToFile(const string& fileName) const {
     nodeData["symmetries"] = node->symmetries;
     nodeData["winLossValue"] = node->thisValuesNotInBook.winLossValue;
     nodeData["scoreMean"] = node->thisValuesNotInBook.scoreMean;
-    nodeData["lead"] = node->thisValuesNotInBook.lead;
+    nodeData["sharpScoreMean"] = node->thisValuesNotInBook.sharpScoreMean;
     nodeData["winLossError"] = node->thisValuesNotInBook.winLossError;
     nodeData["scoreError"] = node->thisValuesNotInBook.scoreError;
     nodeData["scoreStdev"] = node->thisValuesNotInBook.scoreStdev;
@@ -1673,7 +1673,7 @@ Book* Book::loadFromFile(const std::string& fileName) {
 
       node->thisValuesNotInBook.winLossValue = nodeData["winLossValue"].get<double>();
       node->thisValuesNotInBook.scoreMean = nodeData["scoreMean"].get<double>();
-      node->thisValuesNotInBook.lead = nodeData["lead"].get<double>();
+      node->thisValuesNotInBook.sharpScoreMean = nodeData["sharpScoreMean"].get<double>();
       node->thisValuesNotInBook.winLossError = nodeData["winLossError"].get<double>();
       node->thisValuesNotInBook.scoreError = nodeData["scoreError"].get<double>();
       node->thisValuesNotInBook.scoreStdev = nodeData["scoreStdev"].get<double>();

@@ -368,11 +368,15 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         bool getSuc = search->getPrunedNodeValues(childSearchNode,childSearchValues);
         assert(getSuc);
         (void)getSuc;
+        double sharpScore = 0.0;
+        getSuc = search->getSharpScore(NULL,sharpScore);
+        assert(getSuc);
+        (void)getSuc;
 
         // Record those values to the book
         childValues.winLossValue = childSearchValues.winLossValue;
         childValues.scoreMean = childSearchValues.expectedScore;
-        childValues.lead = childSearchValues.lead;
+        childValues.sharpScoreMean = sharpScore;
         std::pair<double,double> errors = search->getAverageShorttermWLAndScoreError(childSearchNode);
         childValues.winLossError = errors.first;
         childValues.scoreError = errors.second;
@@ -394,12 +398,12 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         if(node.pla() == P_WHITE) {
           nodeValues.winLossValue = -1e20;
           nodeValues.scoreMean = -1e20;
-          nodeValues.lead =  -1e20;
+          nodeValues.sharpScoreMean =  -1e20;
         }
         else {
           nodeValues.winLossValue = 1e20;
           nodeValues.scoreMean = 1e20;
-          nodeValues.lead =  1e20;
+          nodeValues.sharpScoreMean =  1e20;
         }
         nodeValues.winLossError = 0.0;
         nodeValues.scoreError = 0.0;
@@ -436,12 +440,16 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         // and we know node is not a terminal node.
         assert(getSuc);
         (void)getSuc;
+        double sharpScore = 0.0;
+        getSuc = search->getSharpScore(NULL,sharpScore);
+        assert(getSuc);
+        (void)getSuc;
 
         // Record those values to the book
         BookValues& nodeValues = node.thisValuesNotInBook();
         nodeValues.winLossValue = remainingSearchValues.winLossValue;
         nodeValues.scoreMean = remainingSearchValues.expectedScore;
-        nodeValues.lead = remainingSearchValues.lead;
+        nodeValues.sharpScoreMean = sharpScore;
         std::pair<double,double> errors = search->getAverageShorttermWLAndScoreError(search->getRootNode());
         nodeValues.winLossError = errors.first;
         nodeValues.scoreError = errors.second;

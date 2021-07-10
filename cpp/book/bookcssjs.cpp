@@ -500,8 +500,8 @@ function textCell(text) {
   headerRow.appendChild(textCell("Index"));
   headerRow.appendChild(textCell("Move"));
   headerRow.appendChild(textCell("Black Win%"));
-  headerRow.appendChild(textCell("Black Score"));
-  headerRow.appendChild(textCell("Lead"));
+  headerRow.appendChild(textCell("Black Raw Score"));
+  headerRow.appendChild(textCell("Black Sharp Score"));
   headerRow.appendChild(textCell("Win%LCB"));
   headerRow.appendChild(textCell("Win%UCB"));
   headerRow.appendChild(textCell("ScoreLCB"));
@@ -564,7 +564,7 @@ function textCell(text) {
 
     dataRow.appendChild(textCell((100.0 * (0.5*(1.0-moveData["winLossValue"]))).toFixed(1)+"%"));
     dataRow.appendChild(textCell((-moveData["scoreMean"]).toFixed(2)));
-    dataRow.appendChild(textCell((-moveData["lead"]).toFixed(2)));
+    dataRow.appendChild(textCell((-moveData["sharpScoreMean"]).toFixed(2)));
     dataRow.appendChild(textCell((100.0 * (0.5*(1.0-moveData["winLossUCB"]))).toFixed(1)+"%"));
     dataRow.appendChild(textCell((100.0 * (0.5*(1.0-moveData["winLossLCB"]))).toFixed(1)+"%"));
     dataRow.appendChild(textCell((-moveData["scoreUCB"]).toFixed(2)));

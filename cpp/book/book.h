@@ -61,7 +61,7 @@ struct BookValues {
   // All values for which the player perspective matters are from white's perspective.
   double winLossValue = 0.0;
   double scoreMean = 0.0;
-  double lead = 0.0;
+  double sharpScoreMean = 0.0;
 
   // Average short term error of nodes in the search. Probably correlated with the confidence
   // of this node, but not necessarily being a meaningful measure of it directly.
@@ -78,7 +78,7 @@ struct RecursiveBookValues {
   // Recursively computed via minimax
   double winLossValue = 0.0;
   double scoreMean = 0.0;
-  double lead = 0.0;
+  double sharpScoreMean = 0.0;
   double winLossLCB = 0.0; // minimaxing winLossValue - winLossError * errorFactor
   double scoreLCB = 0.0;   // minimaxing scoreMean - scoreError * errorFactor
   double scoreFinalLCB = 0.0;   // minimaxing scoreMean - scoreStdev * errorFactor
