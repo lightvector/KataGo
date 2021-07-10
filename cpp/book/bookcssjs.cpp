@@ -1,29 +1,80 @@
 #include "../book/book.h"
 
 const std::string Book::BOOK_CSS = R"%%(
+
+h1 {
+  margin-top:10px;
+  margin-bottom:10px;
+}
+
+.backLink {
+  margin-top:6px;
+  margin-bottom:6px;
+}
+
 .moveTable {
   display: table;
+  border-style: solid;
+  border-width: 1px;
+  border-collapse: collapse;
 }
 
 .moveTableHeader {
   display: table-row;
+  font-weight: bold;
+  /*
+  border-style: solid;
+  border-width: 1px;
+  border-color: black;
+  */
 }
 
 .moveTableRow {
   display: table-row;
+  /*
+  border-style: solid;
+  border-width: 1px;
+  border-color: black;
+  */
 }
+
+.moveTableRow:link { text-decoration: none; }
+.moveTableRow:visited { text-decoration: none; }
+.moveTableRow:hover { text-decoration: none; }
+.moveTableRow:active { text-decoration: none; }
 
 .moveTableCell {
   display: table-cell;
   padding: 10px;
+  text-decoration:none;
 }
 
 .moveTableRow:hover {
-  background-color: #cccccc;
+  outline-style: solid;
+  outline-width: 1px;
+  outline-color: black;
+}
+.moveTableRow.moveHovered {
+  outline-style: solid;
+  outline-width: 1px;
+  outline-color: black;
+}
+
+#whoToPlay {
+  padding:10px;
 }
 
 .stoneShadow {
-  display: none;
+  display: block;
+  opacity: 0.001;
+}
+.stoneShadow.tableHovered {
+  display: block;
+  opacity: 0.3;
+}
+.stoneShadow:hover {
+  display: block;
+  opacity: 0.3;
 }
 
 )%%";
@@ -34,6 +85,45 @@ let url = new URL(window.location.href);
 let sym = url.searchParams.get("symmetry");
 if(!sym)
   sym = 0;
+
+const badnessColors = [
+  [0.00, [100,255,245]],
+  [0.12, [120,235,130]],
+  [0.30, [205,235,60]],
+  [0.70, [255,100,0]],
+  [1.00, [220,0,0]],
+  [2.00, [100,0,0]],
+];
+
+function rgba(values,alpha) {
+  return "rgba(" + values.join(",") + "," + alpha + ")";
+}
+
+function getBadnessColor(bestWinLossValue, winLossDiff, scoreDiff, sqrtPolicyDiff, alpha) {
+  let x = (nextPlayer == 1 ? 1 : -1) * (winLossDiff*0.8 + scoreDiff * 0.06) - 0.05 * sqrtPolicyDiff;
+  x += Math.max(0.0, (nextPlayer == 1 ? 1 : -1) * 0.5 * bestWinLossValue);
+
+  for(let i = 0; i<badnessColors.length; i++) {
+    [x1,c1] = badnessColors[i];
+    if(x < x1) {
+      if(i <= 0)
+        return rgba(c1,alpha);
+      [x0,c0] = badnessColors[i-1];
+      interp = (x-x0)/(x1-x0);
+      return rgba([c0[0] + (c1[0]-c0[0])*interp, c0[1] + (c1[1]-c0[1])*interp, c0[2] + (c1[2]-c0[2])*interp],alpha);
+    }
+  }
+  return rgba(badnessColors[badnessColors.length-1][1],alpha);
+}
+
+function getBadnessColorOfMoveIdx(idx, alpha) {
+  let moveData = moves[idx];
+  let winLossDiff = moveData["winLossValue"] - moves[0]["winLossValue"];
+  let scoreDiff = moveData["scoreMean"] - moves[0]["scoreMean"];
+  let sqrtPolicyDiff = Math.sqrt(moveData["policy"]) - Math.sqrt(moves[0]["policy"]);
+  let moveValueColor = getBadnessColor(moves[0]["winLossValue"], winLossDiff, scoreDiff, sqrtPolicyDiff, alpha);
+  return moveValueColor;
+}
 
 function getSymPos(pos) {
   let y = Math.floor(pos / boardSizeX);
@@ -81,6 +171,22 @@ function getLinkForPos(pos) {
 
 let body = document.getElementsByTagName("body")[0];
 const coordChars = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
+
+let hoverShadowEltsByMove = {};
+let hoverTableEltsByMove = {};
+
+{
+  let title = document.createElement("h1");
+  title.appendChild(document.createTextNode("KataGo Opening Book " + boardSizeX + " x " + boardSizeY + ""));
+  title.id = "title";
+  body.appendChild(title);
+}
+{
+  let link = document.createElement("div");
+  link.classList.add("backLink");
+  link.innerHTML = '<a href="/">Back to home page</a> <br/> <a href="../root/root.html">Back to root position</a>';
+  body.appendChild(link);
+}
 
 let svgNS = "http://www.w3.org/2000/svg";
 {
@@ -215,7 +321,8 @@ let svgNS = "http://www.w3.org/2000/svg";
     let moveData = moves[i];
     if(moveData["move"] == "other" || moveData["move"] == "pass")
       continue;
-    for(const xy of moveData["xy"]) {
+    for(let j = 0; j<moveData["xy"].length; j++) {
+      let xy = moveData["xy"][j];
       let x = xy[0];
       let y = xy[1];
       let pos = y * boardSizeX + x;
@@ -225,44 +332,48 @@ let svgNS = "http://www.w3.org/2000/svg";
 
       // Background-colored circle to mask out the gridlines so that text isn't fighting
       // it for contrast.
-      let lineMask = document.createElementNS(svgNS, "circle");
-      lineMask.setAttribute("cx",symX);
-      lineMask.setAttribute("cy",symY);
-      lineMask.setAttribute("r",stoneRadius);
-      lineMask.setAttribute("stroke","none");
-      lineMask.setAttribute("fill",backgroundColor);
-      boardSvg.appendChild(lineMask);
+      // let lineMask = document.createElementNS(svgNS, "circle");
+      // lineMask.setAttribute("cx",symX);
+      // lineMask.setAttribute("cy",symY);
+      // lineMask.setAttribute("r",stoneRadius);
+      // lineMask.setAttribute("stroke","none");
+      // lineMask.setAttribute("fill",backgroundColor);
+      // boardSvg.appendChild(lineMask);
 
-      // Group layered stones so that they share the opacity compositely
-      let shadowGroup = document.createElementNS(svgNS, "g");
-      shadowGroup.setAttribute("opacity",0.65);
-      shadowGroup.setAttribute("moveX",symX);
-      shadowGroup.setAttribute("moveY",symY);
-      shadowGroup.classList.add("stoneShadow");
-      let stoneShadow = document.createElementNS(svgNS, "circle");
-      let stoneShadowBorder = document.createElementNS(svgNS, "circle");
-      stoneShadow.setAttribute("cx",symX);
-      stoneShadow.setAttribute("cy",symY);
-      stoneShadow.setAttribute("r",stoneInnerRadius);
-      stoneShadowBorder.setAttribute("cx",symX);
-      stoneShadowBorder.setAttribute("cy",symY);
-      stoneShadowBorder.setAttribute("r",stoneRadius);
-      stoneShadow.setAttribute("stroke","none");
-      stoneShadowBorder.setAttribute("stroke","none");
-      stoneShadowBorder.setAttribute("fill","black");
-      if(nextPlayer == 1)
-        stoneShadow.setAttribute("fill",stoneBlackFill);
-      else
-        stoneShadow.setAttribute("fill",stoneWhiteFill);
-      shadowGroup.appendChild(stoneShadowBorder);
-      shadowGroup.appendChild(stoneShadow);
-      boardSvg.appendChild(shadowGroup);
+      // Colored circle based on move value.
+      let moveValueGroup = document.createElementNS(svgNS, "g");
+      moveValueGroup.setAttribute("opacity",0.85);
+      let moveValueColor = getBadnessColorOfMoveIdx(i,1.0);
 
-      // Create the clickable marker link
-      let markerLink = document.createElementNS(svgNS, "a");
-      markerLink.setAttribute("href",getLinkForPos(pos));
+      let moveValueBigCircle = document.createElementNS(svgNS, "circle");
+      moveValueBigCircle.setAttribute("cx",symX);
+      moveValueBigCircle.setAttribute("cy",symY);
+      moveValueBigCircle.setAttribute("r",0.5*(stoneRadius+stoneRadius));
+      moveValueBigCircle.setAttribute("stroke","none");
+      moveValueBigCircle.setAttribute("fill",moveValueColor);
+      moveValueGroup.appendChild(moveValueBigCircle);
 
-      // Text inside marker link, centered.
+      let moveValueCircleBorder = document.createElementNS(svgNS, "circle");
+      moveValueCircleBorder.setAttribute("cx",symX);
+      moveValueCircleBorder.setAttribute("cy",symY);
+      moveValueCircleBorder.setAttribute("r",0.5*(stoneRadius+stoneRadius));
+      moveValueCircleBorder.setAttribute("stroke","none");
+      moveValueCircleBorder.setAttribute("fill",nextPlayer == 1 ? "white" : "white");
+      moveValueCircleBorder.setAttribute("opacity",0.5);
+      moveValueGroup.appendChild(moveValueCircleBorder);
+
+      let moveValueCircle = document.createElementNS(svgNS, "circle");
+      moveValueCircle.setAttribute("cx",symX);
+      moveValueCircle.setAttribute("cy",symY);
+      moveValueCircle.setAttribute("r",stoneInnerRadius);
+      moveValueCircle.setAttribute("stroke","none");
+      moveValueCircle.setAttribute("opacity",0.95);
+      moveValueCircle.setAttribute("fill",moveValueColor);
+      moveValueGroup.appendChild(moveValueCircle);
+
+      boardSvg.appendChild(moveValueGroup);
+
+      // Text for marker, centered.
       let marker = document.createElementNS(svgNS, "text");
       marker.textContent = ""+(i+1);
       marker.setAttribute("x",symX);
@@ -270,13 +381,48 @@ let svgNS = "http://www.w3.org/2000/svg";
       marker.setAttribute("font-size",markerFontSize);
       marker.setAttribute("dominant-baseline","central");
       marker.setAttribute("text-anchor","middle");
-      if(nextPlayer == 1)
-        marker.setAttribute("fill","black");
-      else
-        marker.setAttribute("fill","white");
+      marker.setAttribute("fill",nextPlayer == 1 ? "black" : "white");
+      boardSvg.appendChild(marker);
 
-      markerLink.appendChild(marker);
-      boardSvg.appendChild(markerLink);
+      // Group for hover shadow
+      let shadowGroup = document.createElementNS(svgNS, "g");
+      shadowGroup.setAttribute("opacity",0.65);
+      shadowGroup.setAttribute("moveX",symX);
+      shadowGroup.setAttribute("moveY",symY);
+      shadowGroup.classList.add("stoneShadow");
+      let stoneShadow = document.createElementNS(svgNS, "circle");
+      stoneShadow.setAttribute("cx",symX);
+      stoneShadow.setAttribute("cy",symY);
+      stoneShadow.setAttribute("r",stoneRadius);
+      stoneShadow.setAttribute("stroke","none");
+      if(nextPlayer == 1)
+        stoneShadow.setAttribute("fill",stoneBlackFill);
+      else
+        stoneShadow.setAttribute("fill",stoneWhiteFill);
+      shadowGroup.appendChild(stoneShadow);
+
+      shadowGroup.setAttribute("x",symX);
+      shadowGroup.setAttribute("y",symY);
+      if(j == 0)
+        hoverShadowEltsByMove[i] = shadowGroup;
+
+      shadowGroup.addEventListener("mouseover",(event) => {
+        for(let j = 0; j<moves.length; j++) {
+          if(j in hoverTableEltsByMove)
+            hoverTableEltsByMove[j].classList.remove("moveHovered");
+        }
+        if(i in hoverTableEltsByMove)
+          hoverTableEltsByMove[i].classList.add("moveHovered");
+      });
+      shadowGroup.addEventListener("mouseout",(event) => {
+        if(i in hoverTableEltsByMove)
+          hoverTableEltsByMove[i].classList.remove("moveHovered");
+      });
+
+      let shadowGroupLink = document.createElementNS(svgNS, "a");
+      shadowGroupLink.setAttribute("href",getLinkForPos(pos));
+      shadowGroupLink.appendChild(shadowGroup);
+      boardSvg.appendChild(shadowGroupLink);
     }
   }
 
@@ -329,6 +475,13 @@ let svgNS = "http://www.w3.org/2000/svg";
   body.appendChild(boardSvg);
 }
 
+{
+  let whoToPlay = document.createElement("div");
+  whoToPlay.appendChild(document.createTextNode((nextPlayer == 1 ? "Black" : "White") + " to play!"));
+  whoToPlay.id = "whoToPlay";
+  body.appendChild(whoToPlay);
+}
+
 function textCell(text) {
   let cell = document.createElement("div");
   cell.classList.add("moveTableCell");
@@ -346,8 +499,8 @@ function textCell(text) {
   headerRow.classList.add("moveTableHeader");
   headerRow.appendChild(textCell("Index"));
   headerRow.appendChild(textCell("Move"));
-  headerRow.appendChild(textCell("Win%"));
-  headerRow.appendChild(textCell("Score"));
+  headerRow.appendChild(textCell("Black Win%"));
+  headerRow.appendChild(textCell("Black Score"));
   headerRow.appendChild(textCell("Lead"));
   headerRow.appendChild(textCell("Win%LCB"));
   headerRow.appendChild(textCell("Win%UCB"));
@@ -367,6 +520,18 @@ function textCell(text) {
     let dataRow = document.createElement("a");
     dataRow.classList.add("moveTableRow");
     dataRow.setAttribute("role","row");
+    dataRow.addEventListener("mouseover",(event) => {
+      for(let j = 0; j<moves.length; j++) {
+        if(j in hoverShadowEltsByMove)
+          hoverShadowEltsByMove[j].classList.remove("tableHovered");
+      }
+      if(i in hoverShadowEltsByMove)
+        hoverShadowEltsByMove[i].classList.add("tableHovered");
+    });
+    dataRow.addEventListener("mouseout",(event) => {
+      if(i in hoverShadowEltsByMove)
+        hoverShadowEltsByMove[i].classList.remove("tableHovered");
+    });
 
     if(moveData["xy"]) {
       let xy = moveData["xy"][0];
@@ -411,11 +576,14 @@ function textCell(text) {
     dataRow.appendChild(textCell(moveData["visits"]));
     dataRow.appendChild(textCell(moveData["cost"]));
     dataRow.appendChild(textCell(moveData["costFromRoot"]));
+
+    dataRow.style.background = getBadnessColorOfMoveIdx(i,0.35);
+
     table.appendChild(dataRow);
+    hoverTableEltsByMove[i] = dataRow;
   }
 
   body.appendChild(table);
 }
-
 
 )%%";
