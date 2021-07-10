@@ -36,6 +36,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool printRootEndingBonus;
   bool printLead;
   bool printAvgShorttermError;
+  bool printSharpScore;
   int printMaxDepth;
   bool rawNN;
   try {
@@ -64,6 +65,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
     TCLAP::SwitchArg printLeadArg("","print-lead","Compute and print lead");
     TCLAP::SwitchArg printAvgShorttermErrorArg("","print-avg-shortterm-error","Compute and print avgShorttermError");
+    TCLAP::SwitchArg printSharpScoreArg("","print-sharp-score","Compute and print sharp weighted score");
     TCLAP::ValueArg<int> printMaxDepthArg("","print-max-depth","How deep to print",false,1,"DEPTH");
     TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
     cmd.add(sgfFileArg);
@@ -91,6 +93,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printRootEndingBonusArg);
     cmd.add(printLeadArg);
     cmd.add(printAvgShorttermErrorArg);
+    cmd.add(printSharpScoreArg);
     cmd.add(printMaxDepthArg);
     cmd.add(rawNNArg);
     cmd.parse(argc,argv);
@@ -116,6 +119,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     printRootEndingBonus = printRootEndingBonusArg.getValue();
     printLead = printLeadArg.getValue();
     printAvgShorttermError = printAvgShorttermErrorArg.getValue();
+    printSharpScore = printSharpScoreArg.getValue();
     printMaxDepth = printMaxDepthArg.getValue();
     rawNN = rawNNArg.getValue();
 
@@ -366,6 +370,14 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
       cout << "White score mean " << nnOutput->whiteScoreMean << endl;
       cout << "White score stdev " << sqrt(max(0.0,(double)nnOutput->whiteScoreMeanSq - nnOutput->whiteScoreMean*nnOutput->whiteScoreMean)) << endl;
     }
+  }
+
+  if(printSharpScore) {
+    double ret = 0.0;
+    bool suc = search->getSharpScore(NULL,ret);
+    assert(suc);
+    (void)suc;
+    cout << "White sharp score " << ret << endl;
   }
 
   if(printPolicy) {

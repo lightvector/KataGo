@@ -1343,6 +1343,106 @@ std::pair<double,double> Search::getAverageShorttermWLAndScoreErrorHelper(const 
   return std::make_pair(wlErrorSum/weightSum, scoreErrorSum/weightSum);
 }
 
+bool Search::getSharpScore(const SearchNode* node, double& ret) const {
+  if(node == NULL)
+    node = rootNode;
+  if(node == NULL)
+    return false;
+
+  if(node != rootNode) {
+    ret = getSharpScoreHelper(node);
+    return true;
+  }
+
+  vector<double> playSelectionValues;
+  vector<Loc> locs; // not used
+  bool allowDirectPolicyMoves = false;
+  bool alwaysComputeLcb = false;
+  bool neverUseLcb = true;
+  bool suc = getPlaySelectionValues(*node,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,neverUseLcb,NULL,NULL);
+  //If there are no children, or otherwise values could not be computed, then fall back to the normal case
+  if(!suc) {
+    ReportedSearchValues values;
+    if(getNodeValues(node,values)) {
+      ret = values.expectedScore;
+      return true;
+    }
+    return false;
+  }
+
+  int childrenCapacity;
+  const SearchChildPointer* children = node->getChildren(childrenCapacity);
+
+  double scoreMeanSum = 0.0;
+  double scoreWeightSum = 0.0;
+  double childWeightSum = 0.0;
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
+    NodeStats stats = NodeStats(child->stats);
+    if(stats.visits <= 0 || stats.weightSum <= 0.0)
+      continue;
+    double weight = playSelectionValues[i];
+    scoreMeanSum += weight * weight * weight * getSharpScoreHelper(child);
+    scoreWeightSum += weight * weight * weight;
+    childWeightSum += weight;
+  }
+
+  //Also add in the direct evaluation of this node.
+  {
+    const NNOutput* nnOutput = node->getNNOutput();
+    //If somehow the nnOutput is still null here, skip
+    if(nnOutput == NULL)
+      return false;
+    double scoreMean = (double)nnOutput->whiteScoreMean;
+    double thisNodeWeight = computeWeightFromNNOutput(nnOutput);
+    double desiredScoreWeight = (scoreWeightSum < 1e-50 || childWeightSum < 1e-50) ? thisNodeWeight : thisNodeWeight * (scoreWeightSum / childWeightSum);
+    scoreMeanSum += scoreMean * desiredScoreWeight;
+    scoreWeightSum += desiredScoreWeight;
+  }
+  ret = scoreMeanSum / scoreWeightSum;
+  return true;
+}
+
+double Search::getSharpScoreHelper(const SearchNode* node) const {
+  if(node == NULL)
+    return 0.0;
+  const NNOutput* nnOutput = node->getNNOutput();
+  if(nnOutput == NULL) {
+    NodeStats stats = NodeStats(node->stats);
+    return stats.scoreMeanAvg;
+  }
+
+  int childrenCapacity;
+  const SearchChildPointer* children = node->getChildren(childrenCapacity);
+
+  double scoreMeanSum = 0.0;
+  double scoreWeightSum = 0.0;
+  double childWeightSum = 0.0;
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
+    NodeStats stats = NodeStats(child->stats);
+    if(stats.visits <= 0 || stats.weightSum <= 0.0)
+      continue;
+    double weight = stats.weightSum;
+    scoreMeanSum += weight * weight * weight * getSharpScoreHelper(child);
+    scoreWeightSum += weight * weight * weight;
+    childWeightSum += weight;
+  }
+
+  //Also add in the direct evaluation of this node.
+  {
+    double scoreMean = (double)nnOutput->whiteScoreMean;
+    double thisNodeWeight = computeWeightFromNNOutput(nnOutput);
+    double desiredScoreWeight = (scoreWeightSum < 1e-50 || childWeightSum < 1e-50) ? thisNodeWeight : thisNodeWeight * (scoreWeightSum / childWeightSum);
+    scoreMeanSum += scoreMean * desiredScoreWeight;
+    scoreWeightSum += desiredScoreWeight;
+  }
+  return scoreMeanSum / scoreWeightSum;
+}
 
 vector<double> Search::getAverageTreeOwnership(double minWeight, const SearchNode* node) const {
   if(node == NULL)
@@ -1653,7 +1753,7 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
     leadSum += weight * stats.leadAvg;
     utilitySum += weight * stats.utilityAvg;
     utilitySqSum += weight * stats.utilitySqAvg;
-    weightSqSum += weight * weight;
+    weightSqSum += weight * weight; // TODO not quite right
     weightSum += weight;
   }
 
@@ -1673,7 +1773,7 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
       getResultUtility(winProb-lossProb, noResultProb)
       + getScoreUtility(scoreMean, scoreMeanSq);
 
-    double weight = 1.0;
+    double weight = 1.0; // TODO also not quite right
     winLossValueSum += (winProb - lossProb) * weight;
     noResultValueSum += noResultProb * weight;
     scoreMeanSum += scoreMean * weight;
