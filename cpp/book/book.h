@@ -243,6 +243,7 @@ class Book {
   double utilityPerScore;
   double policyBoostSoftUtilityScale;
   double utilityPerPolicyForSorting;
+  std::map<BookHash,double> bonusByHash;
 
   int initialSymmetry; // The symmetry that needs to be applied to initialBoard to align it with rootNode. (initialspace -> rootnodespace)
   BookNode* root;
@@ -307,6 +308,8 @@ class Book {
   void setPolicyBoostSoftUtilityScale(double d);
   double getUtilityPerPolicyForSorting() const;
   void setUtilityPerPolicyForSorting(double d);
+  std::map<BookHash,double> getBonusByHash() const;
+  void setBonusByHash(const std::map<BookHash,double>& d);
 
   // Gets the root node, in the orientation of the initial board.
   SymBookNode getRoot();
@@ -321,7 +324,7 @@ class Book {
   void recomputeEverything();
   std::vector<SymBookNode> getNextNToExpand(int n);
 
-  void exportToHtmlDir(const std::string& dirName, Logger& logger);
+  void exportToHtmlDir(const std::string& dirName, const std::string& rulesLabel, Logger& logger);
 
   void saveToFile(const std::string& fileName) const;
   static Book* loadFromFile(const std::string& fileName);

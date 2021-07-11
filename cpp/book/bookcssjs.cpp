@@ -184,7 +184,7 @@ let hoverTableEltsByMove = {};
 {
   let link = document.createElement("div");
   link.classList.add("backLink");
-  link.innerHTML = '<a href="/">Back to home page</a> <br/> <a href="../root/root.html">Back to root position</a>';
+  link.innerHTML = '<a href="https://lightvector.github.io/KataGo/rules.html">'+rulesLabel+'</a> <br/> <a href="/">Back to home page</a> <br/> <a href="../root/root.html">Back to root position</a>';
   body.appendChild(link);
 }
 

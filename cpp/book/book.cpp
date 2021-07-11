@@ -697,6 +697,8 @@ double Book::getPolicyBoostSoftUtilityScale() const { return policyBoostSoftUtil
 void Book::setPolicyBoostSoftUtilityScale(double d) { policyBoostSoftUtilityScale = d; }
 double Book::getUtilityPerPolicyForSorting() const { return utilityPerPolicyForSorting; }
 void Book::setUtilityPerPolicyForSorting(double d) { utilityPerPolicyForSorting = d; }
+std::map<BookHash,double> Book::getBonusByHash() const { return bonusByHash; }
+void Book::setBonusByHash(const std::map<BookHash,double>& d) { bonusByHash = d; }
 
 
 SymBookNode Book::getRoot() {
@@ -1134,6 +1136,12 @@ void Book::recomputeNodeCost(BookNode* node) {
     node->minCostFromRoot = minCost;
   }
 
+  // Apply user-specified bonuses
+  if(contains(bonusByHash, node->hash)) {
+    double bonus = bonusByHash[node->hash];
+    node->minCostFromRoot -= bonus;
+  }
+
   // Look at other children whose policy is higher, and if this is better than those by a lot
   // softly boost the policy of this move.
   auto boostLogRawPolicy = [&](double logRawPolicy, double childUtility, double rawPolicy) {
@@ -1180,10 +1188,11 @@ void Book::recomputeNodeCost(BookNode* node) {
       child->recursiveValues.scoreLCB - node->recursiveValues.scoreLCB;
     if(ucbScoreLoss > scoreLossCap)
       ucbScoreLoss = scoreLossCap;
-    double logRawPolicy = log(locAndBookMove.second.rawPolicy + 1e-100);
+    double rawPolicy = locAndBookMove.second.rawPolicy;
+    double logRawPolicy = log(rawPolicy + 1e-100);
     double childUtility = getUtility(child->recursiveValues);
     double boostedLogRawPolicy = boostLogRawPolicy(logRawPolicy, childUtility, locAndBookMove.second.rawPolicy);
-    bool passFavored = passPolicy > 0.5 && (
+    bool passFavored = passPolicy > 0.15 && passPolicy > rawPolicy * 0.8 && (
       (node->pla == P_WHITE && passUtility > childUtility - 0.02) ||
       (node->pla == P_BLACK && passUtility < childUtility + 0.02)
     );
@@ -1218,10 +1227,11 @@ void Book::recomputeNodeCost(BookNode* node) {
       ((node->thisValuesNotInBook.scoreMean - errorFactor * node->thisValuesNotInBook.scoreError) - node->recursiveValues.scoreLCB);
     if(ucbScoreLoss > scoreLossCap)
       ucbScoreLoss = scoreLossCap;
-    double logRawPolicy = log(node->thisValuesNotInBook.maxPolicy + 1e-100);
+    double rawPolicy = node->thisValuesNotInBook.maxPolicy;
+    double logRawPolicy = log(rawPolicy + 1e-100);
     double notInBookUtility = node->thisValuesNotInBook.winLossValue + node->thisValuesNotInBook.scoreMean * utilityPerScore;
     double boostedLogRawPolicy = boostLogRawPolicy(logRawPolicy, notInBookUtility, node->thisValuesNotInBook.maxPolicy);
-    bool passFavored = passPolicy > 0.5 && (
+    bool passFavored = passPolicy > 0.15 && passPolicy > rawPolicy * 0.8 && (
       (node->pla == P_WHITE && passUtility > notInBookUtility - 0.02) ||
       (node->pla == P_BLACK && passUtility < notInBookUtility + 0.02)
     );
@@ -1268,20 +1278,20 @@ void Book::recomputeNodeCost(BookNode* node) {
     node->thisNodeExpansionCost -= 0.5 * smallestCostFromUCB;
   }
 
-  // Apply bonuses to moves now, limited at 0.5 of the cost.
+  // Apply bonuses to moves now, limited at 0.75 of the cost.
   for(auto& locAndBookMove: node->moves) {
     const BookNode* child = get(locAndBookMove.second.hash);
     double winLossError = fabs(child->recursiveValues.winLossUCB - child->recursiveValues.winLossLCB) / errorFactor / 2.0;
     double bonus = bonusPerWinLossError * winLossError;
-    if(bonus > locAndBookMove.second.costFromRoot * 0.5)
-      bonus = locAndBookMove.second.costFromRoot * 0.5;
+    if(bonus > (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * 0.75)
+      bonus = (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * 0.75;
     locAndBookMove.second.costFromRoot -= bonus;
   }
   {
     double winLossError = node->thisValuesNotInBook.winLossError;
     double bonus = bonusPerWinLossError * winLossError;
-    if(bonus > node->thisNodeExpansionCost * 0.5)
-      bonus = node->thisNodeExpansionCost * 0.5;
+    if(bonus > node->thisNodeExpansionCost * 0.75)
+      bonus = node->thisNodeExpansionCost * 0.75;
     node->thisNodeExpansionCost -= bonus;
   }
 
@@ -1303,7 +1313,7 @@ $$DATA_VARS
 )%%";
 
 
-void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
+void Book::exportToHtmlDir(const string& dirName, const string& rulesLabel, Logger& logger) {
   MakeDir::make(dirName);
   const char* hexChars = "0123456789ABCDEF";
   for(int i = 0; i<16; i++) {
@@ -1366,7 +1376,10 @@ void Book::exportToHtmlDir(const string& dirName, Logger& logger) {
     }
     Board board = hist.getRecentBoard(0);
 
+    if(contains(rulesLabel,'"') || contains(rulesLabel,'\n'))
+      throw StringError("rulesLabel cannot contain quotes or newlines");
     string dataVarsStr;
+    dataVarsStr += "const rulesLabel = \"" + rulesLabel + "\";\n";
     dataVarsStr += "const nextPlayer = " + Global::intToString(node->pla) + ";\n";
     dataVarsStr += "const boardSizeX = " + Global::intToString(board.x_size) + ";\n";
     dataVarsStr += "const boardSizeY = " + Global::intToString(board.y_size) + ";\n";

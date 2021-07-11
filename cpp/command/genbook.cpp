@@ -45,6 +45,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   string htmlDir;
   string bookFile;
   string logFile;
+  string bonusFile;
   int numIterations;
   int numToExpandPerIteration;
   int saveEveryIterations;
@@ -58,6 +59,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> htmlDirArg("","html-dir","HTML directory to export to",false,string(),"DIR");
     TCLAP::ValueArg<string> bookFileArg("","book-file","Book file to write to or continue expanding",true,string(),"FILE");
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to write to",true,string(),"DIR");
+    TCLAP::ValueArg<string> bonusFileArg("","bonus-file","SGF of bonuses marked",false,string(),"DIR");
     TCLAP::ValueArg<int> numIterationsArg("","num-iters","Number of iterations to expand book",true,0,"N");
     TCLAP::ValueArg<int> numToExpandPerIterationArg("","num-per-iter","Number of nodes per iteration",true,0,"N");
     TCLAP::ValueArg<int> saveEveryIterationsArg("","save-every","Number of iterations per save",true,0,"N");
@@ -65,6 +67,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     cmd.add(htmlDirArg);
     cmd.add(bookFileArg);
     cmd.add(logFileArg);
+    cmd.add(bonusFileArg);
     cmd.add(numIterationsArg);
     cmd.add(numToExpandPerIterationArg);
     cmd.add(saveEveryIterationsArg);
@@ -77,6 +80,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     htmlDir = htmlDirArg.getValue();
     bookFile = bookFileArg.getValue();
     logFile = logFileArg.getValue();
+    bonusFile = bonusFileArg.getValue();
     numIterations = numIterationsArg.getValue();
     numToExpandPerIteration = numToExpandPerIterationArg.getValue();
     saveEveryIterations = saveEveryIterationsArg.getValue();
@@ -112,6 +116,38 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   const double policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);
   const double utilityPerPolicyForSorting = cfg.getDouble("utilityPerPolicyForSorting",0.0,1000000.0);
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
+  const string rulesLabel = cfg.getString("rulesLabel");
+
+  std::map<BookHash,double> bonusByHash;
+  if(bonusFile != "") {
+    Sgf* sgf = Sgf::loadFile(bonusFile);
+    std::set<Hash128> uniqueHashes;
+    bool hashComments = true;
+    bool hashParent = true;
+    bool flipIfPassOrWFirst = false;
+    Rand seedRand("bonusByHash");
+    sgf->iterAllUniquePositions(
+      uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
+        (void)unusedSample;
+        if(comments.size() > 0 && comments.find("BONUS") != string::npos) {
+          BoardHistory hist(sgfHist.initialBoard, sgfHist.initialPla, rules, sgfHist.initialEncorePhase);
+          Board board = hist.initialBoard;
+          for(size_t i = 0; i<sgfHist.moveHistory.size(); i++) {
+            bool suc = hist.makeBoardMoveTolerant(board, sgfHist.moveHistory[i].loc, sgfHist.moveHistory[i].pla);
+            if(!suc)
+              return;
+          }
+          BookHash hashRet;
+          int symmetryToAlignRet;
+          vector<int> symmetriesRet;
+          BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet);
+          double bonus = Global::stringToDouble(Global::trim(comments.substr(comments.find("BONUS")+5)));
+          bonusByHash[hashRet] = bonus;
+          logger.write("Adding bonus " + Global::doubleToString(bonus) + " to hash " + hashRet.toString());
+        }
+      }
+    );
+  }
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
   NNEvaluator* nnEval;
@@ -219,6 +255,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     out << cfg.getContents() << endl;
     out.close();
   }
+
+  book->setBonusByHash(bonusByHash);
 
   if(!std::atomic_is_lock_free(&shouldStop))
     throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
@@ -490,7 +528,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
 
   if(htmlDir != "") {
     logger.write("EXPORTING HTML TO " + htmlDir);
-    book->exportToHtmlDir(htmlDir,logger);
+    book->exportToHtmlDir(htmlDir,rulesLabel,logger);
   }
 
   delete search;
