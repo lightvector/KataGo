@@ -257,6 +257,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   }
 
   book->setBonusByHash(bonusByHash);
+  book->recomputeEverything();
 
   if(!std::atomic_is_lock_free(&shouldStop))
     throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
