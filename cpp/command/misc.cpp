@@ -1542,15 +1542,28 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     }
 
     MiscNNInputParams nnInputParams;
-    NNResultBuf buf;
     bool skipCache = true; //Always ignore cache so that we get more entropy on repeated board positions due to symmetries
     bool includeOwnerMap = false;
-    nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
 
-    shared_ptr<NNOutput>& nnOutput = buf.result;
+    double policyProb = 0.0;
+    {
+      // Take 1.1 * the geometric mean of a few samples, so as to greatly upweight the importance of anomalous low values.
+      double acc = 0.0;
+      int count = 0;
+      for(int samples = 0; samples < 4; samples++) {
+        NNResultBuf buf;
+        nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
+        shared_ptr<NNOutput>& nnOutput = buf.result;
+        int pos = NNPos::locToPos(sample.hintLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
+        double prob = nnOutput->policyProbs[pos];
+        assert(prob >= 0.0);
+        acc += log(prob + 1e-30);
+        count += 1;
+      }
+      assert(count > 0);
+      policyProb = 1.1 * exp(acc / count);
+    }
 
-    int pos = NNPos::locToPos(sample.hintLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
-    double policyProb = nnOutput->policyProbs[pos];
     if(policyProb > maxPolicy)
       return;
     double weight = surpriseWeight(policyProb,rand,markedAsHintPos);
