@@ -1440,11 +1440,12 @@ void Book::exportToHtmlDir(const string& dirName, const string& rulesLabel, Logg
       uniqueMoveIdxs.begin(),uniqueMoveIdxs.end(),
       [&](const size_t& idx0,
           const size_t& idx1) {
-        double u0 = uniqueChildValues[idx0].winLossValue + uniqueChildValues[idx0].scoreMean * utilityPerScore
+        double plaFactor = node->pla == P_WHITE ? 1.0 : -1.0;
+        double u0 = plaFactor * (uniqueChildValues[idx0].winLossValue + uniqueChildValues[idx0].sharpScoreMean * utilityPerScore)
         + utilityPerPolicyForSorting * uniqueMovesInBook[idx0].rawPolicy;
-        double u1 = uniqueChildValues[idx1].winLossValue + uniqueChildValues[idx1].scoreMean * utilityPerScore
+        double u1 = plaFactor * (uniqueChildValues[idx1].winLossValue + uniqueChildValues[idx1].sharpScoreMean * utilityPerScore)
         + utilityPerPolicyForSorting * uniqueMovesInBook[idx1].rawPolicy;
-        return node->pla == P_WHITE ? (u0 > u1): (u0 < u1);
+        return u0 > u1;
       }
     );
 
