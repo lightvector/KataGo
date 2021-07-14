@@ -408,7 +408,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         assert(getSuc);
         (void)getSuc;
         double sharpScore = 0.0;
-        getSuc = search->getSharpScore(NULL,sharpScore);
+        getSuc = search->getSharpScore(childSearchNode,sharpScore);
         assert(getSuc);
         (void)getSuc;
 
