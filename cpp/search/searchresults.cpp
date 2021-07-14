@@ -1349,8 +1349,9 @@ bool Search::getSharpScore(const SearchNode* node, double& ret) const {
   if(node == NULL)
     return false;
 
+  double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
   if(node != rootNode) {
-    ret = getSharpScoreHelper(node);
+    ret = getSharpScoreHelper(node,policyProbsBuf);
     return true;
   }
 
@@ -1384,8 +1385,9 @@ bool Search::getSharpScore(const SearchNode* node, double& ret) const {
     if(stats.visits <= 0 || stats.weightSum <= 0.0)
       continue;
     double weight = playSelectionValues[i];
-    scoreMeanSum += weight * weight * weight * getSharpScoreHelper(child);
-    scoreWeightSum += weight * weight * weight;
+    double sharpWeight = weight * weight * weight;
+    scoreMeanSum += sharpWeight * getSharpScoreHelper(child, policyProbsBuf);
+    scoreWeightSum += sharpWeight;
     childWeightSum += weight;
   }
 
@@ -1405,7 +1407,7 @@ bool Search::getSharpScore(const SearchNode* node, double& ret) const {
   return true;
 }
 
-double Search::getSharpScoreHelper(const SearchNode* node) const {
+double Search::getSharpScoreHelper(const SearchNode* node, double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE]) const {
   if(node == NULL)
     return 0.0;
   const NNOutput* nnOutput = node->getNNOutput();
@@ -1417,19 +1419,52 @@ double Search::getSharpScoreHelper(const SearchNode* node) const {
   int childrenCapacity;
   const SearchChildPointer* children = node->getChildren(childrenCapacity);
 
-  double scoreMeanSum = 0.0;
-  double scoreWeightSum = 0.0;
-  double childWeightSum = 0.0;
+  vector<MoreNodeStats> statsBuf;
   for(int i = 0; i<childrenCapacity; i++) {
     const SearchNode* child = children[i].getIfAllocated();
     if(child == NULL)
       break;
-    NodeStats stats = NodeStats(child->stats);
-    if(stats.visits <= 0 || stats.weightSum <= 0.0)
+    MoreNodeStats stats;
+    while(child->statsLock.test_and_set(std::memory_order_acquire));
+    stats.stats = child->stats;
+    child->statsLock.clear(std::memory_order_release);
+    stats.selfUtility = node->nextPla == P_WHITE ? stats.stats.utilityAvg : -stats.stats.utilityAvg;
+    stats.weightAdjusted = stats.stats.weightSum;
+    stats.prevMoveLoc = child->prevMoveLoc;
+    statsBuf.push_back(stats);
+  }
+  int numChildren = (int)statsBuf.size();
+
+  //Find all children and compute weighting of the children based on their values
+  {
+    double totalChildWeight = 0.0;
+    for(int i = 0; i<numChildren; i++) {
+      totalChildWeight += statsBuf[i].weightAdjusted;
+    }
+    const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+    if(searchParams.useNoisePruning) {
+      for(int i = 0; i<numChildren; i++)
+        policyProbsBuf[i] = std::max(1e-30, (double)policyProbs[getPos(statsBuf[i].prevMoveLoc)]);
+      totalChildWeight = pruneNoiseWeight(statsBuf, numChildren, totalChildWeight, policyProbsBuf);
+    }
+    double amountToSubtract = 0.0;
+    double amountToPrune = 0.0;
+    downweightBadChildrenAndNormalizeWeight(
+      numChildren, totalChildWeight, totalChildWeight,
+      amountToSubtract, amountToPrune, statsBuf
+    );
+  }
+
+  double scoreMeanSum = 0.0;
+  double scoreWeightSum = 0.0;
+  double childWeightSum = 0.0;
+  for(int i = 0; i<numChildren; i++) {
+    if(statsBuf[i].stats.visits <= 0 || statsBuf[i].stats.weightSum <= 0.0)
       continue;
-    double weight = stats.weightSum;
-    scoreMeanSum += weight * weight * weight * getSharpScoreHelper(child);
-    scoreWeightSum += weight * weight * weight;
+    double weight = statsBuf[i].weightAdjusted;
+    double sharpWeight = weight * weight * weight;
+    scoreMeanSum += sharpWeight * getSharpScoreHelper(children[i].getIfAllocated(),policyProbsBuf);
+    scoreWeightSum += sharpWeight;
     childWeightSum += weight;
   }
 
