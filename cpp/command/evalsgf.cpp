@@ -22,6 +22,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   int moveNum;
   string printBranch;
   string extraMoves;
+  string avoidMoves;
   string hintLoc;
   int64_t maxVisits;
   int numThreads;
@@ -49,6 +50,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> printArg("p","print","Alias for -print-branch",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> extraMovesArg("","extra-moves","Extra moves to force-play before doing search",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> extraArg("e","extra","Alias for -extra-moves",false,string(),"MOVE MOVE ...");
+    TCLAP::ValueArg<string> avoidMovesArg("","avoid-moves","Avoid moves in search",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> hintLocArg("","hint-loc","Hint loc",false,string(),"MOVE");
     TCLAP::ValueArg<long> visitsArg("v","visits","Set the number of visits",false,-1,"VISITS");
     TCLAP::ValueArg<int> threadsArg("t","threads","Set the number of threads",false,-1,"THREADS");
@@ -75,6 +77,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printArg);
     cmd.add(extraMovesArg);
     cmd.add(extraArg);
+    cmd.add(avoidMovesArg);
     cmd.add(hintLocArg);
     cmd.add(visitsArg);
     cmd.add(threadsArg);
@@ -99,6 +102,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     string print = printArg.getValue();
     extraMoves = extraMovesArg.getValue();
     string extra = extraArg.getValue();
+    avoidMoves = avoidMovesArg.getValue();
     hintLoc = hintLocArg.getValue();
     maxVisits = (int64_t)visitsArg.getValue();
     numThreads = threadsArg.getValue();
@@ -301,6 +305,14 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bot->setPosition(nextPla,board,hist);
   if(hintLoc != "") {
     bot->setRootHintLoc(Location::ofString(hintLoc,board));
+  }
+
+  if(avoidMoves != "") {
+    vector<Loc> avoidMoveLocs = Location::parseSequence(avoidMoves,board);
+    vector<int> avoidMoveUntilByLoc(Board::MAX_ARR_SIZE,0);
+    for(Loc loc: avoidMoveLocs)
+      avoidMoveUntilByLoc[loc] = 1;
+    bot->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc,avoidMoveUntilByLoc);
   }
 
   //Print initial state----------------------------------------------------------------
