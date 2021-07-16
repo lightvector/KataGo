@@ -81,6 +81,8 @@ h1 {
 
 const std::string Book::BOOK_JS = R"%%(
 
+
+
 let url = new URL(window.location.href);
 let sym = url.searchParams.get("symmetry");
 if(!sym)
@@ -91,17 +93,27 @@ const badnessColors = [
   [0.12, [120,235,130]],
   [0.30, [205,235,60]],
   [0.70, [255,100,0]],
-  [1.00, [220,0,0]],
-  [2.00, [100,0,0]],
+  [1.00, [200,0,0]],
+  [2.00, [50,0,0]],
 ];
 
 function rgba(values,alpha) {
   return "rgba(" + values.join(",") + "," + alpha + ")";
 }
 
+function clamp(x,x0,x1) {
+  return Math.min(Math.max(x,x0),x1);
+}
+
 function getBadnessColor(bestWinLossValue, winLossDiff, scoreDiff, sqrtPolicyDiff, alpha) {
-  let x = (nextPlayer == 1 ? 1 : -1) * (winLossDiff*0.8 + scoreDiff * 0.06) - 0.05 * sqrtPolicyDiff;
-  x += Math.max(0.0, (nextPlayer == 1 ? 1 : -1) * 0.5 * bestWinLossValue);
+  winLossDiff = (nextPlayer == 1 ? 1 : -1) * winLossDiff;
+  scoreDiff = (nextPlayer == 1 ? 1 : -1) * scoreDiff;
+  let scoreDiffScaled = scoreDiff < 0 ? scoreDiff : Math.sqrt(8*scoreDiff + 16) - 4;
+  if(scoreDiffScaled < 0 && winLossDiff > 0)
+    scoreDiffScaled = Math.max(scoreDiffScaled, -0.2/winLossDiff);
+  let x = winLossDiff*0.8 + scoreDiffScaled * 0.1 - 0.05 * sqrtPolicyDiff;
+  let losingness = Math.max(0.0, (nextPlayer == 1 ? 1 : -1) * 0.5 * bestWinLossValue);
+  x += losingness * 0.6 + (x * 1.25 * losingness);
 
   for(let i = 0; i<badnessColors.length; i++) {
     [x1,c1] = badnessColors[i];
@@ -119,7 +131,7 @@ function getBadnessColor(bestWinLossValue, winLossDiff, scoreDiff, sqrtPolicyDif
 function getBadnessColorOfMoveIdx(idx, alpha) {
   let moveData = moves[idx];
   let winLossDiff = moveData["winLossValue"] - moves[0]["winLossValue"];
-  let scoreDiff = moveData["scoreMean"] - moves[0]["scoreMean"];
+  let scoreDiff = moveData["sharpScoreMean"] - moves[0]["sharpScoreMean"];
   let sqrtPolicyDiff = Math.sqrt(moveData["policy"]) - Math.sqrt(moves[0]["policy"]);
   let moveValueColor = getBadnessColor(moves[0]["winLossValue"], winLossDiff, scoreDiff, sqrtPolicyDiff, alpha);
   return moveValueColor;
