@@ -611,6 +611,7 @@ Book::Book(
   double cpsme,
   double cwpf,
   double bpwle,
+  double bpssd,
   double slc,
   double ups,
   double pbsus,
@@ -628,6 +629,7 @@ Book::Book(
     costPerSquaredMovesExpanded(cpsme),
     costWhenPassFavored(cwpf),
     bonusPerWinLossError(bpwle),
+    bonusPerSharpScoreDiscrepancy(bpssd),
     scoreLossCap(slc),
     utilityPerScore(ups),
     policyBoostSoftUtilityScale(pbsus),
@@ -689,6 +691,8 @@ double Book::getCostWhenPassFavored() const { return costWhenPassFavored; }
 void Book::setCostWhenPassFavored(double d) { costWhenPassFavored = d; }
 double Book::getBonusPerWinLossError() const { return bonusPerWinLossError; }
 void Book::setBonusPerWinLossError(double d) { bonusPerWinLossError = d; }
+double Book::getBonusPerSharpScoreDiscrepancy() const { return bonusPerSharpScoreDiscrepancy; }
+void Book::setBonusPerSharpScoreDiscrepancy(double d) { bonusPerSharpScoreDiscrepancy = d; }
 double Book::getScoreLossCap() const { return scoreLossCap; }
 void Book::setScoreLossCap(double d) { scoreLossCap = d; }
 double Book::getUtilityPerScore() const { return utilityPerScore; }
@@ -1282,14 +1286,16 @@ void Book::recomputeNodeCost(BookNode* node) {
   for(auto& locAndBookMove: node->moves) {
     const BookNode* child = get(locAndBookMove.second.hash);
     double winLossError = fabs(child->recursiveValues.winLossUCB - child->recursiveValues.winLossLCB) / errorFactor / 2.0;
-    double bonus = bonusPerWinLossError * winLossError;
+    double sharpScoreDiscrepancy = fabs(child->recursiveValues.sharpScoreMean - child->recursiveValues.scoreMean);
+    double bonus = bonusPerWinLossError * winLossError + bonusPerSharpScoreDiscrepancy * sharpScoreDiscrepancy;
     if(bonus > (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * 0.75)
       bonus = (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * 0.75;
     locAndBookMove.second.costFromRoot -= bonus;
   }
   {
     double winLossError = node->thisValuesNotInBook.winLossError;
-    double bonus = bonusPerWinLossError * winLossError;
+    double sharpScoreDiscrepancy = fabs(node->thisValuesNotInBook.sharpScoreMean - node->thisValuesNotInBook.scoreMean);
+    double bonus = bonusPerWinLossError * winLossError + bonusPerSharpScoreDiscrepancy * sharpScoreDiscrepancy;
     if(bonus > node->thisNodeExpansionCost * 0.75)
       bonus = node->thisNodeExpansionCost * 0.75;
     node->thisNodeExpansionCost -= bonus;
@@ -1551,6 +1557,7 @@ void Book::saveToFile(const string& fileName) const {
     params["costPerSquaredMovesExpanded"] = costPerSquaredMovesExpanded;
     params["costWhenPassFavored"] = costWhenPassFavored;
     params["bonusPerWinLossError"] = bonusPerWinLossError;
+    params["bonusPerSharpScoreDiscrepancy"] = bonusPerSharpScoreDiscrepancy;
     params["scoreLossCap"] = scoreLossCap;
     params["utilityPerScore"] = utilityPerScore;
     params["policyBoostSoftUtilityScale"] = policyBoostSoftUtilityScale;
@@ -1636,6 +1643,7 @@ Book* Book::loadFromFile(const std::string& fileName) {
       double costPerSquaredMovesExpanded = params["costPerSquaredMovesExpanded"].get<double>();
       double costWhenPassFavored = params["costWhenPassFavored"].get<double>();
       double bonusPerWinLossError = params["bonusPerWinLossError"].get<double>();
+      double bonusPerSharpScoreDiscrepancy = params.contains("bonusPerSharpScoreDiscrepancy") ? params["bonusPerSharpScoreDiscrepancy"].get<double>() : 0.0;
       double scoreLossCap = params["scoreLossCap"].get<double>();
       double utilityPerScore = params["utilityPerScore"].get<double>();
       double policyBoostSoftUtilityScale = params["policyBoostSoftUtilityScale"].get<double>();
@@ -1655,6 +1663,7 @@ Book* Book::loadFromFile(const std::string& fileName) {
         costPerSquaredMovesExpanded,
         costWhenPassFavored,
         bonusPerWinLossError,
+        bonusPerSharpScoreDiscrepancy,
         scoreLossCap,
         utilityPerScore,
         policyBoostSoftUtilityScale,
