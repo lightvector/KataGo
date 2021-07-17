@@ -329,10 +329,14 @@ class Book {
   // Returns a null SymBookNode if hist goes off the end of the book.
   SymBookNode get(const BoardHistory& hist);
   ConstSymBookNode get(const BoardHistory& hist) const;
+  SymBookNode getByHash(BookHash hash);
+  ConstSymBookNode getByHash(BookHash hash) const;
 
   void recompute(const std::vector<SymBookNode>& newAndChangedNodes);
   void recomputeEverything();
+
   std::vector<SymBookNode> getNextNToExpand(int n);
+  std::vector<SymBookNode> getAllLeaves();
 
   void exportToHtmlDir(
     const std::string& dirName,

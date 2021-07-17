@@ -840,6 +840,15 @@ vector<SymBookNode> Book::getNextNToExpand(int n) {
   return ret;
 }
 
+vector<SymBookNode> Book::getAllLeaves() {
+  vector<SymBookNode> ret;
+  for(BookNode* node: nodes) {
+    if(node->moves.size() <= 0)
+      ret.push_back(SymBookNode(node,0));
+  }
+  return ret;
+}
+
 BookNode* Book::get(BookHash hash) {
   map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
   auto iter = nodeIdxMap.find(hash);
@@ -854,6 +863,20 @@ const BookNode* Book::get(BookHash hash) const {
     return nullptr;
   return nodes[iter->second];
 }
+
+SymBookNode Book::getByHash(BookHash hash) {
+  BookNode* node = get(hash);
+  if(node == nullptr)
+    return SymBookNode(nullptr);
+  return SymBookNode(node,0);
+}
+ConstSymBookNode Book::getByHash(BookHash hash) const {
+  const BookNode* node = get(hash);
+  if(node == nullptr)
+    return ConstSymBookNode(nullptr);
+  return ConstSymBookNode(node,0);
+}
+
 
 bool Book::add(BookHash hash, BookNode* node) {
   map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];

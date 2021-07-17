@@ -45,6 +45,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   string modelFile;
   string htmlDir;
   string bookFile;
+  string traceBookFile;
   string logFile;
   string bonusFile;
   int numIterations;
@@ -59,15 +60,16 @@ int MainCmds::genbook(int argc, const char* const* argv) {
 
     TCLAP::ValueArg<string> htmlDirArg("","html-dir","HTML directory to export to",false,string(),"DIR");
     TCLAP::ValueArg<string> bookFileArg("","book-file","Book file to write to or continue expanding",true,string(),"FILE");
-    TCLAP::ValueArg<string> traceBookFileArg("","trace-book-file","Other book file we should copy all the lines from",true,string(),"FILE");
+    TCLAP::ValueArg<string> traceBookFileArg("","trace-book-file","Other book file we should copy all the lines from",false,string(),"FILE");
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to write to",true,string(),"DIR");
     TCLAP::ValueArg<string> bonusFileArg("","bonus-file","SGF of bonuses marked",false,string(),"DIR");
-    TCLAP::ValueArg<int> numIterationsArg("","num-iters","Number of iterations to expand book",true,0,"N");
+    TCLAP::ValueArg<int> numIterationsArg("","num-iters","Number of iterations to expand book",false,0,"N");
     TCLAP::ValueArg<int> saveEveryIterationsArg("","save-every","Number of iterations per save",true,0,"N");
     TCLAP::SwitchArg allowChangingBookParamsArg("","allow-changing-book-params","Allow changing book params");
     TCLAP::SwitchArg htmlDevModeArg("","html-dev-mode","Denser debug output for html");
     cmd.add(htmlDirArg);
     cmd.add(bookFileArg);
+    cmd.add(traceBookFileArg);
     cmd.add(logFileArg);
     cmd.add(bonusFileArg);
     cmd.add(numIterationsArg);
@@ -81,6 +83,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     modelFile = cmd.getModelFile();
     htmlDir = htmlDirArg.getValue();
     bookFile = bookFileArg.getValue();
+    traceBookFile = traceBookFileArg.getValue();
     logFile = logFileArg.getValue();
     bonusFile = bonusFileArg.getValue();
     numIterations = numIterationsArg.getValue();
@@ -264,6 +267,13 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     ofstream out(bookFile + ".cfg");
     out << cfg.getContents() << endl;
     out.close();
+  }
+
+  Book* traceBook = NULL;
+  if(traceBookFile.size() > 0) {
+    if(numIterations > 0)
+      throw StringError("Cannot specify iterations and trace book at the same time");
+    traceBook = Book::loadFromFile(traceBookFile);
   }
 
   book->setBonusByHash(bonusByHash);
@@ -712,59 +722,161 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     updateNodeThisValues(search,hist,node);
   };
 
+  if(traceBook != NULL) {
+    std::set<BookHash> nodesHashesToUpdate;
+    {
+      ThreadSafeQueue<SymBookNode> positionsToTrace;
+      std::vector<SymBookNode> allNodes = traceBook->getAllLeaves();
+      std::atomic<int64_t> variationsAdded(0);
+      auto loopAddingVariations = [&](int gameThreadIdx) {
+        while(true) {
+          if(shouldStop.load(std::memory_order_acquire))
+            return;
+          SymBookNode node;
+          bool suc = positionsToTrace.tryPop(node);
+          if(!suc)
+            return;
+          BoardHistory hist;
+          std::vector<Loc> moveHistory;
+          suc = node.getBoardHistoryReachingHere(hist, moveHistory);
+          assert(suc);
+          (void)suc;
+          addVariationToBookWithoutUpdate(gameThreadIdx, hist, nodesHashesToUpdate);
+          int64_t currentVariationsAdded = variationsAdded.fetch_add(1) + 1;
+          if(currentVariationsAdded % 100 == 0) {
+            logger.write(
+              "Tracing book, currentVariationsAdded " +
+              Global::int64ToString(currentVariationsAdded) + "/" + Global::uint64ToString(allNodes.size())
+            );
+          }
+        }
+      };
 
-
-  ThreadSafeQueue<SymBookNode> positionsToSearch;
-
-  for(int iteration = 0; iteration < numIterations; iteration++) {
-    if(shouldStop.load(std::memory_order_acquire))
-      break;
-
-    if(iteration % saveEveryIterations == 0 && iteration != 0) {
-      logger.write("SAVING TO FILE " + bookFile);
-      book->saveToFile(bookFile);
-      ofstream out(bookFile + ".cfg");
-      out << cfg.getContents() << endl;
-      out.close();
-    }
-
-    logger.write("BEGINNING BOOK EXPANSION ITERATION " + Global::intToString(iteration));
-
-    std::vector<SymBookNode> nodesToExpand = book->getNextNToExpand(std::min(1+iteration/2,numToExpandPerIteration));
-    for(SymBookNode node: nodesToExpand) {
-      bool suc = positionsToSearch.forcePush(node);
-      assert(suc);
-      (void)suc;
-    }
-
-    std::vector<SymBookNode> newAndChangedNodes = nodesToExpand;
-
-    auto loopExpandingNodes = [&](int gameThreadIdx) {
-      while(true) {
-        if(shouldStop.load(std::memory_order_acquire))
-          return;
-        SymBookNode node;
-        bool suc = positionsToSearch.tryPop(node);
-        if(!suc)
-          return;
-        expandNode(gameThreadIdx, node, newAndChangedNodes);
+      for(SymBookNode node: allNodes)
+        positionsToTrace.forcePush(node);
+      vector<std::thread> threads;
+      for(int gameThreadIdx = 0; gameThreadIdx<numGameThreads; gameThreadIdx++) {
+        threads.push_back(std::thread(loopAddingVariations, gameThreadIdx));
       }
-    };
-
-    vector<std::thread> threads;
-    for(int gameThreadIdx = 0; gameThreadIdx<numGameThreads; gameThreadIdx++) {
-      threads.push_back(std::thread(loopExpandingNodes, gameThreadIdx));
+      for(int gameThreadIdx = 0; gameThreadIdx<numGameThreads; gameThreadIdx++) {
+        threads[gameThreadIdx].join();
+      }
+      int64_t currentVariationsAdded = variationsAdded.load();
+      logger.write(
+        "Tracing book, currentVariationsAdded " +
+        Global::int64ToString(currentVariationsAdded) + "/" + Global::uint64ToString(allNodes.size())
+      );
     }
-    for(int gameThreadIdx = 0; gameThreadIdx<numGameThreads; gameThreadIdx++) {
-      threads[gameThreadIdx].join();
+    {
+      ThreadSafeQueue<BookHash> hashesToUpdate;
+      std::atomic<int64_t> hashesUpdated(0);
+      auto loopUpdatingHashes = [&](int gameThreadIdx) {
+        while(true) {
+          if(shouldStop.load(std::memory_order_acquire))
+            return;
+          BookHash hash;
+          bool suc = hashesToUpdate.tryPop(hash);
+          if(!suc)
+            return;
+          SymBookNode node;
+          BoardHistory hist;
+          {
+            std::lock_guard<std::mutex> lock(bookMutex);
+            node = book->getByHash(hash);
+            assert(!node.isNull());
+            std::vector<Loc> moveHistory;
+            suc = node.getBoardHistoryReachingHere(hist,moveHistory);
+            if(!suc) {
+              logger.write("WARNING: Failed to get board history reaching node when trying to export to trace book, probably there is some bug");
+              logger.write("or else some hash collision or something else is wrong.");
+              logger.write("BookHash of node unable to expand: " + node.hash().toString());
+              throw StringError("Terminating since there's not a good way to put the book back into a good state with this node unupdated");
+            }
+          }
+          Search* search = searches[gameThreadIdx];
+          updateNodeThisValues(search, hist, node);
+          int64_t currentHashesUpdated = hashesUpdated.fetch_add(1) + 1;
+          logger.write(
+            "Updating book, currentHashesUpdated " +
+            Global::int64ToString(currentHashesUpdated) + "/" + Global::uint64ToString(nodesHashesToUpdate.size())
+          );
+        }
+      };
+
+      for(BookHash hash: nodesHashesToUpdate)
+        hashesToUpdate.forcePush(hash);
+      vector<std::thread> threads;
+      for(int gameThreadIdx = 0; gameThreadIdx<numGameThreads; gameThreadIdx++) {
+        threads.push_back(std::thread(loopUpdatingHashes, gameThreadIdx));
+      }
+      for(int gameThreadIdx = 0; gameThreadIdx<numGameThreads; gameThreadIdx++) {
+        threads[gameThreadIdx].join();
+      }
+      int64_t currentHashesUpdated = hashesUpdated.load();
+      logger.write(
+        "Tracing book, currentHashesUpdated " +
+        Global::int64ToString(currentHashesUpdated) + "/" + Global::uint64ToString(nodesHashesToUpdate.size())
+      );
     }
 
-    book->recompute(newAndChangedNodes);
-    if(shouldStop.load(std::memory_order_acquire))
-      break;
+    if(shouldStop.load(std::memory_order_acquire)) {
+      logger.write("Trace book incomplete, exiting without saving");
+      throw StringError("Trace book incomplete, exiting without saving");
+    }
+  }
+  else {
+    ThreadSafeQueue<SymBookNode> positionsToSearch;
+
+    for(int iteration = 0; iteration < numIterations; iteration++) {
+      if(shouldStop.load(std::memory_order_acquire))
+        break;
+
+      if(iteration % saveEveryIterations == 0 && iteration != 0) {
+        logger.write("SAVING TO FILE " + bookFile);
+        book->saveToFile(bookFile);
+        ofstream out(bookFile + ".cfg");
+        out << cfg.getContents() << endl;
+        out.close();
+      }
+
+      logger.write("BEGINNING BOOK EXPANSION ITERATION " + Global::intToString(iteration));
+
+      std::vector<SymBookNode> nodesToExpand = book->getNextNToExpand(std::min(1+iteration/2,numToExpandPerIteration));
+      for(SymBookNode node: nodesToExpand) {
+        bool suc = positionsToSearch.forcePush(node);
+        assert(suc);
+        (void)suc;
+      }
+
+      std::vector<SymBookNode> newAndChangedNodes = nodesToExpand;
+
+      auto loopExpandingNodes = [&](int gameThreadIdx) {
+        while(true) {
+          if(shouldStop.load(std::memory_order_acquire))
+            return;
+          SymBookNode node;
+          bool suc = positionsToSearch.tryPop(node);
+          if(!suc)
+            return;
+          expandNode(gameThreadIdx, node, newAndChangedNodes);
+        }
+      };
+
+      vector<std::thread> threads;
+      for(int gameThreadIdx = 0; gameThreadIdx<numGameThreads; gameThreadIdx++) {
+        threads.push_back(std::thread(loopExpandingNodes, gameThreadIdx));
+      }
+      for(int gameThreadIdx = 0; gameThreadIdx<numGameThreads; gameThreadIdx++) {
+        threads[gameThreadIdx].join();
+      }
+
+      book->recompute(newAndChangedNodes);
+      if(shouldStop.load(std::memory_order_acquire))
+        break;
+    }
   }
 
-  if(numIterations > 0) {
+  if(traceBook != NULL || numIterations > 0) {
     logger.write("SAVING TO FILE " + bookFile);
     book->saveToFile(bookFile);
     ofstream out(bookFile + ".cfg");
@@ -781,6 +893,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     delete searches[i];
   delete nnEval;
   delete book;
+  delete traceBook;
   ScoreValue::freeTables();
   logger.write("DONE");
   return 0;
