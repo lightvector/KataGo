@@ -165,7 +165,7 @@ class SymBookNode {
   // Returns NULL if the move is not legal OR the move is not in the book.
   SymBookNode playMove(Board& board, BoardHistory& hist, Loc move);
   // Returns NULL if the move is not legal. The move *must* not be in the book.
-  SymBookNode playAndAddMove(Board& board, BoardHistory& hist, Loc move, double rawPolicy);
+  SymBookNode playAndAddMove(Board& board, BoardHistory& hist, Loc move, double rawPolicy, bool& childIsTransposing);
 
   // Returns false and does not modify ret if playing the moves in the book to reach here hit an illegal move.
   // Fills moveHistoryRet with the sequence of moves played. If there is an illegal move, includes the illegal move.

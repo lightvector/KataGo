@@ -337,6 +337,8 @@ let svgNS = "http://www.w3.org/2000/svg";
     let moveData = moves[i];
     if(moveData["move"] == "other" || moveData["move"] == "pass")
       continue;
+    if(moveData["v"] <= 0.0)
+      continue;
     for(let j = 0; j<moveData["xy"].length; j++) {
       let xy = moveData["xy"][j];
       let x = xy[0];
@@ -540,6 +542,8 @@ function textCell(text) {
 
   for(let i = 0; i<moves.length; i++) {
     let moveData = moves[i];
+    if(moveData["v"] <= 0.0)
+      continue;
     let dataRow = document.createElement("a");
     dataRow.classList.add("moveTableRow");
     dataRow.setAttribute("role","row");

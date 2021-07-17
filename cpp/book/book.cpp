@@ -484,9 +484,10 @@ ConstSymBookNode ConstSymBookNode::playMove(Board& board, BoardHistory& hist, Lo
   return ret;
 }
 
-SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc move, double rawPolicy) {
+SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc move, double rawPolicy, bool& childIsTransposing) {
   assert(node != nullptr);
   assert(!isMoveInBook(move));
+  childIsTransposing = false;
 
   if(!hist.isLegal(board,move,node->pla))
     return SymBookNode(nullptr);
@@ -542,6 +543,10 @@ SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc mo
     bool suc = node->book->add(childHash,child);
     assert(suc);
     (void)suc;
+    childIsTransposing = false;
+  }
+  else {
+    childIsTransposing = true;
   }
   child->parents.push_back(std::make_pair(node->hash, bestLoc));
 
