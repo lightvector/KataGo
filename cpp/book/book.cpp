@@ -400,6 +400,37 @@ double ConstSymBookNode::minCostFromRoot() {
   return node->minCostFromRoot;
 }
 
+SymBookNode SymBookNode::canonicalParent() {
+  if(node->parents.size() <= 0)
+    return SymBookNode(nullptr);
+  BookNode* parent =node->book->get(node->parents[0].first);
+  if(parent == nullptr)
+    return SymBookNode(nullptr);
+  auto iter = parent->moves.find(node->parents[0].second);
+  if(iter == parent->moves.end())
+    return SymBookNode(nullptr);
+  const BookMove& moveFromParent = iter->second;
+  // moveFromParent.symmetryToAlign is the map parentspace -> nodespace
+  // symmetryOfNode is the map nodespace -> displayspace
+  // For the constructor, we need the map parentspace -> displayspace
+  return SymBookNode(parent,SymmetryHelpers::compose(moveFromParent.symmetryToAlign,symmetryOfNode));
+}
+ConstSymBookNode ConstSymBookNode::canonicalParent() {
+  if(node->parents.size() <= 0)
+    return ConstSymBookNode(nullptr);
+  const BookNode* parent =node->book->get(node->parents[0].first);
+  if(parent == nullptr)
+    return ConstSymBookNode(nullptr);
+  auto iter = parent->moves.find(node->parents[0].second);
+  if(iter == parent->moves.end())
+    return ConstSymBookNode(nullptr);
+  const BookMove& moveFromParent = iter->second;
+  // moveFromParent.symmetryToAlign is the map parentspace -> nodespace
+  // symmetryOfNode is the map nodespace -> displayspace
+  // For the constructor, we need the map parentspace -> displayspace
+  return ConstSymBookNode(parent,SymmetryHelpers::compose(moveFromParent.symmetryToAlign,symmetryOfNode));
+}
+
 SymBookNode SymBookNode::follow(Loc move) {
   assert(node != nullptr);
   for(int symmetry: node->symmetries) {
@@ -1325,7 +1356,13 @@ $$DATA_VARS
 )%%";
 
 
-void Book::exportToHtmlDir(const string& dirName, const string& rulesLabel, Logger& logger) {
+void Book::exportToHtmlDir(
+  const string& dirName,
+  const string& rulesLabel,
+  const string& rulesLink,
+  bool devMode,
+  Logger& logger
+) {
   MakeDir::make(dirName);
   const char* hexChars = "0123456789ABCDEF";
   for(int i = 0; i<16; i++) {
@@ -1344,6 +1381,20 @@ void Book::exportToHtmlDir(const string& dirName, const string& rulesLabel, Logg
     out << Book::BOOK_CSS;
     out.close();
   }
+
+  char toStringBuf[1024];
+  auto doubleToStringFourDigits = [&](double x) {
+    std::sprintf(toStringBuf,"%.4f",x);
+    return string(toStringBuf);
+  };
+  auto doubleToStringTwoDigits = [&](double x) {
+    std::sprintf(toStringBuf,"%.2f",x);
+    return string(toStringBuf);
+  };
+  auto doubleToStringZeroDigits = [&](double x) {
+    std::sprintf(toStringBuf,"%.0f",x);
+    return string(toStringBuf);
+  };
 
   auto getFilePath = [&](BookNode* node, bool relative) {
     string path = relative ? "" : dirName + "/";
@@ -1390,11 +1441,27 @@ void Book::exportToHtmlDir(const string& dirName, const string& rulesLabel, Logg
 
     if(contains(rulesLabel,'"') || contains(rulesLabel,'\n'))
       throw StringError("rulesLabel cannot contain quotes or newlines");
+    if(contains(rulesLink,'"') || contains(rulesLink,'\n'))
+      throw StringError("rulesLink cannot contain quotes or newlines");
     string dataVarsStr;
     dataVarsStr += "const rulesLabel = \"" + rulesLabel + "\";\n";
-    dataVarsStr += "const nextPlayer = " + Global::intToString(node->pla) + ";\n";
-    dataVarsStr += "const boardSizeX = " + Global::intToString(board.x_size) + ";\n";
-    dataVarsStr += "const boardSizeY = " + Global::intToString(board.y_size) + ";\n";
+    dataVarsStr += "const rulesLink = \"" + rulesLink + "\";\n";
+    dataVarsStr += "const devMode = " + (devMode ? string("true") : string("false")) + ";\n";
+    dataVarsStr += "const nextPla = " + Global::intToString(node->pla) + ";\n";
+    dataVarsStr += "const bSizeX = " + Global::intToString(board.x_size) + ";\n";
+    dataVarsStr += "const bSizeY = " + Global::intToString(board.y_size) + ";\n";
+    {
+      SymBookNode parent = symNode.canonicalParent();
+      if(parent.isNull()) {
+        dataVarsStr += "const pLink = '';\n";
+        dataVarsStr += "const pSym = 0;\n";
+      }
+      else {
+        string parentPath = getFilePath(parent.node, true);
+        dataVarsStr += "const pLink = '../" + parentPath + "';\n";
+        dataVarsStr += "const pSym = " + Global::intToString(parent.symmetryOfNode) + ";\n";
+      }
+    }
     dataVarsStr += "const board = [";
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
@@ -1404,7 +1471,7 @@ void Book::exportToHtmlDir(const string& dirName, const string& rulesLabel, Logg
     }
     dataVarsStr += "];\n";
     dataVarsStr += "const links = [";
-    string linkSymmetriesStr = "const linkSymmetries = [";
+    string linkSymmetriesStr = "const linkSyms = [";
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
@@ -1484,20 +1551,26 @@ void Book::exportToHtmlDir(const string& dirName, const string& rulesLabel, Logg
       }
       if(uniqueMovesInBook[idx].move == Board::PASS_LOC)
         dataVarsStr += "'move':'" + Location::toString(uniqueMovesInBook[idx].move, initialBoard) + "',";
-      dataVarsStr += "'policy':" + Global::doubleToString(uniqueMovesInBook[idx].rawPolicy) + ",";
-      dataVarsStr += "'winLossValue':" + Global::doubleToString(uniqueChildValues[idx].winLossValue) + ",";
-      dataVarsStr += "'winLossUCB':" + Global::doubleToString(uniqueChildValues[idx].winLossUCB) + ",";
-      dataVarsStr += "'winLossLCB':" + Global::doubleToString(uniqueChildValues[idx].winLossLCB) + ",";
-      dataVarsStr += "'scoreMean':" + Global::doubleToString(uniqueChildValues[idx].scoreMean) + ",";
-      dataVarsStr += "'sharpScoreMean':" + Global::doubleToString(uniqueChildValues[idx].sharpScoreMean) + ",";
-      dataVarsStr += "'scoreUCB':" + Global::doubleToString(uniqueChildValues[idx].scoreUCB) + ",";
-      dataVarsStr += "'scoreLCB':" + Global::doubleToString(uniqueChildValues[idx].scoreLCB) + ",";
-      dataVarsStr += "'scoreFinalUCB':" + Global::doubleToString(uniqueChildValues[idx].scoreFinalUCB) + ",";
-      dataVarsStr += "'scoreFinalLCB':" + Global::doubleToString(uniqueChildValues[idx].scoreFinalLCB) + ",";
-      dataVarsStr += "'weight':" + Global::doubleToStringHighPrecision(uniqueChildValues[idx].weight) + ",";
-      dataVarsStr += "'visits':" + Global::doubleToStringHighPrecision(uniqueChildValues[idx].visits) + ",";
-      dataVarsStr += "'cost':" + Global::doubleToString(uniqueMovesInBook[idx].costFromRoot - node->minCostFromRoot) + ",";
-      dataVarsStr += "'costFromRoot':" + Global::doubleToString(uniqueChildCosts[idx]) + ",";
+      dataVarsStr += "'p':" + doubleToStringTwoDigits(uniqueMovesInBook[idx].rawPolicy) + ",";
+      dataVarsStr += "'wl':" + doubleToStringFourDigits(uniqueChildValues[idx].winLossValue) + ",";
+      if(devMode) {
+        dataVarsStr += "'wlUCB':" + doubleToStringFourDigits(uniqueChildValues[idx].winLossUCB) + ",";
+        dataVarsStr += "'wlLCB':" + doubleToStringFourDigits(uniqueChildValues[idx].winLossLCB) + ",";
+        dataVarsStr += "'sM':" + doubleToStringTwoDigits(uniqueChildValues[idx].scoreMean) + ",";
+        dataVarsStr += "'ssM':" + doubleToStringTwoDigits(uniqueChildValues[idx].sharpScoreMean) + ",";
+        dataVarsStr += "'sUCB':" + doubleToStringTwoDigits(uniqueChildValues[idx].scoreUCB) + ",";
+        dataVarsStr += "'sLCB':" + doubleToStringTwoDigits(uniqueChildValues[idx].scoreLCB) + ",";
+        dataVarsStr += "'w':" + doubleToStringZeroDigits(uniqueChildValues[idx].weight) + ",";
+        dataVarsStr += "'v':" + doubleToStringZeroDigits(uniqueChildValues[idx].visits) + ",";
+        dataVarsStr += "'cost':" + doubleToStringFourDigits(uniqueMovesInBook[idx].costFromRoot - node->minCostFromRoot) + ",";
+        dataVarsStr += "'costRoot':" + doubleToStringFourDigits(uniqueChildCosts[idx]) + ",";
+      }
+      else {
+        dataVarsStr += "'ssM':" + doubleToStringTwoDigits(uniqueChildValues[idx].sharpScoreMean) + ",";
+        dataVarsStr += "'wlRad':" + doubleToStringFourDigits(0.5*(uniqueChildValues[idx].winLossUCB - uniqueChildValues[idx].winLossLCB)) + ",";
+        dataVarsStr += "'sRad':" + doubleToStringTwoDigits(0.5*(uniqueChildValues[idx].scoreUCB - uniqueChildValues[idx].scoreLCB)) + ",";
+        dataVarsStr += "'v':" + doubleToStringZeroDigits(uniqueChildValues[idx].visits) + ",";
+      }
       dataVarsStr += "},";
     }
     {
@@ -1507,25 +1580,31 @@ void Book::exportToHtmlDir(const string& dirName, const string& rulesLabel, Logg
         double winLossValueLCB = values.winLossValue - errorFactor * values.winLossError;
         double scoreUCB = values.scoreMean + errorFactor * values.scoreError;
         double scoreLCB = values.scoreMean - errorFactor * values.scoreError;
-        double scoreFinalUCB = values.scoreMean + errorFactor * values.scoreStdev;
-        double scoreFinalLCB = values.scoreMean - errorFactor * values.scoreStdev;
+        // double scoreFinalUCB = values.scoreMean + errorFactor * values.scoreStdev;
+        // double scoreFinalLCB = values.scoreMean - errorFactor * values.scoreStdev;
 
         dataVarsStr += "{";
         dataVarsStr += "'move':'other',";
-        dataVarsStr += "'policy':" + Global::doubleToString(values.maxPolicy) + ",";
-        dataVarsStr += "'winLossValue':" + Global::doubleToString(values.winLossValue) + ",";
-        dataVarsStr += "'winLossUCB':" + Global::doubleToString(winLossValueUCB) + ",";
-        dataVarsStr += "'winLossLCB':" + Global::doubleToString(winLossValueLCB) + ",";
-        dataVarsStr += "'scoreMean':" + Global::doubleToString(values.scoreMean) + ",";
-        dataVarsStr += "'sharpScoreMean':" + Global::doubleToString(values.sharpScoreMean) + ",";
-        dataVarsStr += "'scoreUCB':" + Global::doubleToString(scoreUCB) + ",";
-        dataVarsStr += "'scoreLCB':" + Global::doubleToString(scoreLCB) + ",";
-        dataVarsStr += "'scoreFinalUCB':" + Global::doubleToString(scoreFinalUCB) + ",";
-        dataVarsStr += "'scoreFinalLCB':" + Global::doubleToString(scoreFinalLCB) + ",";
-        dataVarsStr += "'weight':" + Global::doubleToStringHighPrecision(values.weight) + ",";
-        dataVarsStr += "'visits':" + Global::doubleToStringHighPrecision(values.visits) + ",";
-        dataVarsStr += "'cost':" + Global::doubleToString(node->thisNodeExpansionCost) + ",";
-        dataVarsStr += "'costFromRoot':" + Global::doubleToString(node->minCostFromRoot + node->thisNodeExpansionCost) + ",";
+        dataVarsStr += "'p':" + doubleToStringTwoDigits(values.maxPolicy) + ",";
+        dataVarsStr += "'wl':" + doubleToStringFourDigits(values.winLossValue) + ",";
+        if(devMode) {
+          dataVarsStr += "'wlUCB':" + doubleToStringFourDigits(winLossValueUCB) + ",";
+          dataVarsStr += "'wlLCB':" + doubleToStringFourDigits(winLossValueLCB) + ",";
+          dataVarsStr += "'sM':" + doubleToStringTwoDigits(values.scoreMean) + ",";
+          dataVarsStr += "'ssM':" + doubleToStringTwoDigits(values.sharpScoreMean) + ",";
+          dataVarsStr += "'sUCB':" + doubleToStringTwoDigits(scoreUCB) + ",";
+          dataVarsStr += "'sLCB':" + doubleToStringTwoDigits(scoreLCB) + ",";
+          dataVarsStr += "'w':" + doubleToStringZeroDigits(values.weight) + ",";
+          dataVarsStr += "'v':" + doubleToStringZeroDigits(values.visits) + ",";
+          dataVarsStr += "'cost':" + doubleToStringFourDigits(node->thisNodeExpansionCost) + ",";
+          dataVarsStr += "'costRoot':" + doubleToStringFourDigits(node->minCostFromRoot + node->thisNodeExpansionCost) + ",";
+        }
+        else {
+          dataVarsStr += "'ssM':" + doubleToStringTwoDigits(values.sharpScoreMean) + ",";
+          dataVarsStr += "'wlRad':" + doubleToStringFourDigits(0.5*(winLossValueUCB-winLossValueLCB)) + ",";
+          dataVarsStr += "'sRad':" + doubleToStringTwoDigits(0.5*(scoreUCB-scoreLCB)) + ",";
+          dataVarsStr += "'v':" + doubleToStringZeroDigits(values.visits) + ",";
+        }
         dataVarsStr += "},";
       }
     }

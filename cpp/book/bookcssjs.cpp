@@ -81,8 +81,6 @@ h1 {
 
 const std::string Book::BOOK_JS = R"%%(
 
-
-
 let url = new URL(window.location.href);
 let sym = url.searchParams.get("symmetry");
 if(!sym)
@@ -106,13 +104,13 @@ function clamp(x,x0,x1) {
 }
 
 function getBadnessColor(bestWinLossValue, winLossDiff, scoreDiff, sqrtPolicyDiff, alpha) {
-  winLossDiff = (nextPlayer == 1 ? 1 : -1) * winLossDiff;
-  scoreDiff = (nextPlayer == 1 ? 1 : -1) * scoreDiff;
+  winLossDiff = (nextPla == 1 ? 1 : -1) * winLossDiff;
+  scoreDiff = (nextPla == 1 ? 1 : -1) * scoreDiff;
   let scoreDiffScaled = scoreDiff < 0 ? scoreDiff : Math.sqrt(8*scoreDiff + 16) - 4;
   if(scoreDiffScaled < 0 && winLossDiff > 0)
     scoreDiffScaled = Math.max(scoreDiffScaled, -0.2/winLossDiff);
   let x = winLossDiff*0.8 + scoreDiffScaled * 0.1 - 0.05 * sqrtPolicyDiff;
-  let losingness = Math.max(0.0, (nextPlayer == 1 ? 1 : -1) * 0.5 * bestWinLossValue);
+  let losingness = Math.max(0.0, (nextPla == 1 ? 1 : -1) * 0.5 * bestWinLossValue);
   x += losingness * 0.6 + (x * 1.25 * losingness);
 
   for(let i = 0; i<badnessColors.length; i++) {
@@ -138,32 +136,32 @@ function getBadnessColorOfMoveIdx(idx, alpha) {
 }
 
 function getSymPos(pos) {
-  let y = Math.floor(pos / boardSizeX);
-  let x = pos % boardSizeX;
+  let y = Math.floor(pos / bSizeX);
+  let x = pos % bSizeX;
   if(sym & 1)
-    y = boardSizeY-1-y;
+    y = bSizeY-1-y;
   if(sym & 2)
-    x = boardSizeX-1-x;
-  if(sym >= 4 && boardSizeX == boardSizeY) {
+    x = bSizeX-1-x;
+  if(sym >= 4 && bSizeX == bSizeY) {
     let tmp = x;
     x = y;
     y = tmp;
   }
-  return x + y*boardSizeX;
+  return x + y*bSizeX;
 }
 function getInvSymPos(pos) {
-  let y = Math.floor(pos / boardSizeX);
-  let x = pos % boardSizeX;
-  if(sym >= 4 && boardSizeX == boardSizeY) {
+  let y = Math.floor(pos / bSizeX);
+  let x = pos % bSizeX;
+  if(sym >= 4 && bSizeX == bSizeY) {
     let tmp = x;
     x = y;
     y = tmp;
   }
   if(sym & 1)
-    y = boardSizeY-1-y;
+    y = bSizeY-1-y;
   if(sym & 2)
-    x = boardSizeX-1-x;
-  return x + y*boardSizeX;
+    x = bSizeX-1-x;
+  return x + y*bSizeX;
 }
 
 function compose(sym1,sym2) {
@@ -175,7 +173,7 @@ function compose(sym1,sym2) {
 function getLinkForPos(pos) {
   let linkPath = links[pos];
   // This is the symmetry we need to add as a GET parameter in the URL for the linked position.
-  let symmetryToAlign = linkSymmetries[pos];
+  let symmetryToAlign = linkSyms[pos];
   // Except we need to composite it with our current symmetry too.
   symmetryToAlign = compose(symmetryToAlign, sym);
   return linkPath + "?symmetry=" + symmetryToAlign;
@@ -189,20 +187,26 @@ let hoverTableEltsByMove = {};
 
 {
   let title = document.createElement("h1");
-  title.appendChild(document.createTextNode("KataGo Opening Book " + boardSizeX + " x " + boardSizeY + ""));
+  title.appendChild(document.createTextNode("KataGo Opening Book " + bSizeX + " x " + bSizeY + ""));
   title.id = "title";
   body.appendChild(title);
 }
 {
   let link = document.createElement("div");
   link.classList.add("backLink");
-  link.innerHTML = '<a href="https://lightvector.github.io/KataGo/rules.html">'+rulesLabel+'</a> <br/> <a href="/">Back to home page</a> <br/> <a href="../root/root.html">Back to root position</a>';
+  let innerHtml = '';
+  innerHtml += '<a href="'+rulesLink+'">'+rulesLabel+'</a> <br/> ';
+  innerHtml += '<a href="/">Back to home page</a> <br/> ';
+  innerHtml += '<a href="../root/root.html">Back to root position</a>';
+  if(pLink != '')
+    innerHtml += '&emsp;<a href="'+pLink+'?symmetry='+pSym+'">Canonical parent</a>';
+  link.innerHTML = innerHtml;
   body.appendChild(link);
 }
 
 let svgNS = "http://www.w3.org/2000/svg";
 {
-  const pixelsPerTile = 50.0 * Math.sqrt(Math.sqrt((boardSizeX-1)*(boardSizeY-1)) / 8);
+  const pixelsPerTile = 50.0 * Math.sqrt(Math.sqrt((bSizeX-1)*(bSizeY-1)) / 8);
   const borderTiles = 0.9;
   const strokeWidth = 0.05;
   const stoneRadius = 0.5;
@@ -215,23 +219,23 @@ let svgNS = "http://www.w3.org/2000/svg";
   const backgroundColor = "#DCB35C";
 
   let boardSvg = document.createElementNS(svgNS, "svg");
-  boardSvg.setAttribute("width", pixelsPerTile * (2 * borderTiles + boardSizeX-1));
-  boardSvg.setAttribute("height", pixelsPerTile * (2 * borderTiles + boardSizeY-1));
-  boardSvg.setAttribute("viewBox", "-" + borderTiles + " -" + borderTiles + " " + (2 * borderTiles + boardSizeX-1) + " " + (2 * borderTiles + boardSizeY-1));
+  boardSvg.setAttribute("width", pixelsPerTile * (2 * borderTiles + bSizeX-1));
+  boardSvg.setAttribute("height", pixelsPerTile * (2 * borderTiles + bSizeY-1));
+  boardSvg.setAttribute("viewBox", "-" + borderTiles + " -" + borderTiles + " " + (2 * borderTiles + bSizeX-1) + " " + (2 * borderTiles + bSizeY-1));
 
   // Draw background color
   let background = document.createElementNS(svgNS, "rect");
   background.setAttribute("style", "fill:"+backgroundColor);
-  background.setAttribute("width", pixelsPerTile * (2 * borderTiles + boardSizeX-1));
-  background.setAttribute("height", pixelsPerTile * (2 * borderTiles + boardSizeY-1));
+  background.setAttribute("width", pixelsPerTile * (2 * borderTiles + bSizeX-1));
+  background.setAttribute("height", pixelsPerTile * (2 * borderTiles + bSizeY-1));
   background.setAttribute("x", -borderTiles);
   background.setAttribute("y", -borderTiles);
   boardSvg.appendChild(background);
 
   // Draw border of board
   let border = document.createElementNS(svgNS, "rect");
-  border.setAttribute("width", boardSizeX-1);
-  border.setAttribute("height", boardSizeY-1);
+  border.setAttribute("width", bSizeX-1);
+  border.setAttribute("height", bSizeY-1);
   border.setAttribute("x", 0);
   border.setAttribute("y", 0);
   border.setAttribute("stroke","black");
@@ -240,43 +244,43 @@ let svgNS = "http://www.w3.org/2000/svg";
   boardSvg.appendChild(border);
 
   // Draw internal gridlines of board
-  for(let y = 1; y < boardSizeY-1; y++) {
+  for(let y = 1; y < bSizeY-1; y++) {
     let stroke = document.createElementNS(svgNS, "path");
     stroke.setAttribute("stroke","black");
     stroke.setAttribute("stroke-width",strokeWidth);
     stroke.setAttribute("fill","none");
-    stroke.setAttribute("d","M0,"+y+"h"+(boardSizeX-1));
+    stroke.setAttribute("d","M0,"+y+"h"+(bSizeX-1));
     boardSvg.appendChild(stroke);
   }
-  for(let x = 1; x < boardSizeX-1; x++) {
+  for(let x = 1; x < bSizeX-1; x++) {
     let stroke = document.createElementNS(svgNS, "path");
     stroke.setAttribute("stroke","black");
     stroke.setAttribute("stroke-width",strokeWidth);
     stroke.setAttribute("fill","none");
-    stroke.setAttribute("d","M"+x+",0v"+(boardSizeY-1));
+    stroke.setAttribute("d","M"+x+",0v"+(bSizeY-1));
     boardSvg.appendChild(stroke);
   }
 
   // Draw star points
   var xStars = [];
   var yStars = [];
-  if(boardSizeX < 9)
+  if(bSizeX < 9)
     xStars = [];
-  else if(boardSizeX == 9)
-    xStars = [2,boardSizeX-3];
-  else if(boardSizeX % 2 == 0)
-    xStars = [3,boardSizeX-4];
+  else if(bSizeX == 9)
+    xStars = [2,bSizeX-3];
+  else if(bSizeX % 2 == 0)
+    xStars = [3,bSizeX-4];
   else
-    xStars = [3,(boardSizeX-1)/2,boardSizeX-4];
+    xStars = [3,(bSizeX-1)/2,bSizeX-4];
 
-  if(boardSizeY < 9)
+  if(bSizeY < 9)
     yStars = [];
-  else if(boardSizeY == 9)
-    yStars = [2,boardSizeY-3];
-  else if(boardSizeY % 2 == 0)
-    yStars = [3,boardSizeY-4];
+  else if(bSizeY == 9)
+    yStars = [2,bSizeY-3];
+  else if(bSizeY % 2 == 0)
+    yStars = [3,bSizeY-4];
   else
-    yStars = [3,(boardSizeY-1)/2,boardSizeY-4];
+    yStars = [3,(bSizeY-1)/2,bSizeY-4];
 
   let stars = [];
   for(let y = 0; y<yStars.length; y++) {
@@ -284,7 +288,7 @@ let svgNS = "http://www.w3.org/2000/svg";
       stars.push([xStars[x],yStars[y]]);
     }
   }
-  if(boardSizeY == 9 && boardSizeX == 9) {
+  if(bSizeY == 9 && bSizeX == 9) {
     stars.push([4,4]);
   }
 
@@ -298,9 +302,9 @@ let svgNS = "http://www.w3.org/2000/svg";
   }
 
   // Draw stones
-  for(let y = 0; y<boardSizeY; y++) {
-    for(let x = 0; x<boardSizeX; x++) {
-      let pos = y * boardSizeX + x;
+  for(let y = 0; y<bSizeY; y++) {
+    for(let x = 0; x<bSizeX; x++) {
+      let pos = y * bSizeX + x;
       // We need to draw the stones with the given symmetry applied, so for looking up
       // the stone of a position we need to use the inverse symmetry.
       let invSymPos = getInvSymPos(pos);
@@ -337,10 +341,10 @@ let svgNS = "http://www.w3.org/2000/svg";
       let xy = moveData["xy"][j];
       let x = xy[0];
       let y = xy[1];
-      let pos = y * boardSizeX + x;
+      let pos = y * bSizeX + x;
       let symPos = getSymPos(pos);
-      let symX = symPos % boardSizeX;
-      let symY = Math.floor(symPos / boardSizeX);
+      let symX = symPos % bSizeX;
+      let symY = Math.floor(symPos / bSizeX);
 
       // Background-colored circle to mask out the gridlines so that text isn't fighting
       // it for contrast.
@@ -370,7 +374,7 @@ let svgNS = "http://www.w3.org/2000/svg";
       moveValueCircleBorder.setAttribute("cy",symY);
       moveValueCircleBorder.setAttribute("r",0.5*(stoneRadius+stoneRadius));
       moveValueCircleBorder.setAttribute("stroke","none");
-      moveValueCircleBorder.setAttribute("fill",nextPlayer == 1 ? "white" : "white");
+      moveValueCircleBorder.setAttribute("fill",nextPla == 1 ? "white" : "white");
       moveValueCircleBorder.setAttribute("opacity",0.5);
       moveValueGroup.appendChild(moveValueCircleBorder);
 
@@ -393,7 +397,7 @@ let svgNS = "http://www.w3.org/2000/svg";
       marker.setAttribute("font-size",markerFontSize);
       marker.setAttribute("dominant-baseline","central");
       marker.setAttribute("text-anchor","middle");
-      marker.setAttribute("fill",nextPlayer == 1 ? "black" : "white");
+      marker.setAttribute("fill",nextPla == 1 ? "black" : "white");
       boardSvg.appendChild(marker);
 
       // Group for hover shadow
@@ -407,7 +411,7 @@ let svgNS = "http://www.w3.org/2000/svg";
       stoneShadow.setAttribute("cy",symY);
       stoneShadow.setAttribute("r",stoneRadius);
       stoneShadow.setAttribute("stroke","none");
-      if(nextPlayer == 1)
+      if(nextPla == 1)
         stoneShadow.setAttribute("fill",stoneBlackFill);
       else
         stoneShadow.setAttribute("fill",stoneWhiteFill);
@@ -439,9 +443,9 @@ let svgNS = "http://www.w3.org/2000/svg";
   }
 
   // Draw board coordinate labels
-  for(let y = 0; y < boardSizeY; y++) {
+  for(let y = 0; y < bSizeY; y++) {
     let label = document.createElementNS(svgNS, "text");
-    label.textContent = "" + (boardSizeY-y);
+    label.textContent = "" + (bSizeY-y);
     label.setAttribute("x",-coordSpacing);
     label.setAttribute("y",y);
     label.setAttribute("font-size",coordFontSize);
@@ -450,10 +454,10 @@ let svgNS = "http://www.w3.org/2000/svg";
     label.setAttribute("fill","black");
     boardSvg.appendChild(label);
   }
-  for(let y = 0; y < boardSizeY; y++) {
+  for(let y = 0; y < bSizeY; y++) {
     let label = document.createElementNS(svgNS, "text");
-    label.textContent = "" + (boardSizeY-y);
-    label.setAttribute("x",boardSizeX-1+coordSpacing);
+    label.textContent = "" + (bSizeY-y);
+    label.setAttribute("x",bSizeX-1+coordSpacing);
     label.setAttribute("y",y);
     label.setAttribute("font-size",coordFontSize);
     label.setAttribute("dominant-baseline","central");
@@ -461,7 +465,7 @@ let svgNS = "http://www.w3.org/2000/svg";
     label.setAttribute("fill","black");
     boardSvg.appendChild(label);
   }
-  for(let x = 0; x < boardSizeX; x++) {
+  for(let x = 0; x < bSizeX; x++) {
     let label = document.createElementNS(svgNS, "text");
     label.textContent = "" + coordChars[x];
     label.setAttribute("x",x);
@@ -472,11 +476,11 @@ let svgNS = "http://www.w3.org/2000/svg";
     label.setAttribute("fill","black");
     boardSvg.appendChild(label);
   }
-  for(let x = 0; x < boardSizeX; x++) {
+  for(let x = 0; x < bSizeX; x++) {
     let label = document.createElementNS(svgNS, "text");
     label.textContent = "" + coordChars[x];
     label.setAttribute("x",x);
-    label.setAttribute("y",boardSizeY-1+coordSpacing);
+    label.setAttribute("y",bSizeY-1+coordSpacing);
     label.setAttribute("font-size",coordFontSize);
     label.setAttribute("dominant-baseline","central");
     label.setAttribute("text-anchor","middle");
@@ -489,7 +493,7 @@ let svgNS = "http://www.w3.org/2000/svg";
 
 {
   let whoToPlay = document.createElement("div");
-  whoToPlay.appendChild(document.createTextNode((nextPlayer == 1 ? "Black" : "White") + " to play!"));
+  whoToPlay.appendChild(document.createTextNode((nextPla == 1 ? "Black" : "White") + " to play!"));
   whoToPlay.id = "whoToPlay";
   body.appendChild(whoToPlay);
 }
@@ -512,19 +516,26 @@ function textCell(text) {
   headerRow.appendChild(textCell("Index"));
   headerRow.appendChild(textCell("Move"));
   headerRow.appendChild(textCell("Black Win%"));
-  headerRow.appendChild(textCell("Black Raw Score"));
-  headerRow.appendChild(textCell("Black Sharp Score"));
-  headerRow.appendChild(textCell("Win%LCB"));
-  headerRow.appendChild(textCell("Win%UCB"));
-  headerRow.appendChild(textCell("ScoreLCB"));
-  headerRow.appendChild(textCell("ScoreUCB"));
-  headerRow.appendChild(textCell("ScoreFinalLCB"));
-  headerRow.appendChild(textCell("ScoreFinalUCB"));
-  headerRow.appendChild(textCell("Policy%"));
-  headerRow.appendChild(textCell("Weight"));
-  headerRow.appendChild(textCell("Visits"));
-  headerRow.appendChild(textCell("Cost"));
-  headerRow.appendChild(textCell("CostFromRoot"));
+  if(devMode) {
+    headerRow.appendChild(textCell("Black Raw Score"));
+    headerRow.appendChild(textCell("Black Sharp Score"));
+    headerRow.appendChild(textCell("Win%LCB"));
+    headerRow.appendChild(textCell("Win%UCB"));
+    headerRow.appendChild(textCell("ScoreLCB"));
+    headerRow.appendChild(textCell("ScoreUCB"));
+    headerRow.appendChild(textCell("Prior%"));
+    headerRow.appendChild(textCell("Weight"));
+    headerRow.appendChild(textCell("Visits"));
+    headerRow.appendChild(textCell("Cost"));
+    headerRow.appendChild(textCell("CostFromRoot"));
+  }
+  else {
+    headerRow.appendChild(textCell("Black Score"));
+    headerRow.appendChild(textCell("Win% Uncertainty"));
+    headerRow.appendChild(textCell("Score Uncertainty"));
+    headerRow.appendChild(textCell("Prior%"));
+    headerRow.appendChild(textCell("Visits"));
+  }
   table.appendChild(headerRow);
 
   for(let i = 0; i<moves.length; i++) {
@@ -549,11 +560,11 @@ function textCell(text) {
       let xy = moveData["xy"][0];
       let x = xy[0];
       let y = xy[1];
-      let pos = y * boardSizeX + x;
+      let pos = y * bSizeX + x;
       dataRow.setAttribute("href",getLinkForPos(pos));
     }
     else if(moveData["move"] && moveData["move"] == "pass") {
-      let pos = boardSizeY * boardSizeX;
+      let pos = bSizeY * bSizeX;
       dataRow.setAttribute("href",getLinkForPos(pos));
     }
 
@@ -564,30 +575,37 @@ function textCell(text) {
       let xy = moveData["xy"][0];
       let x = xy[0];
       let y = xy[1];
-      let pos = y * boardSizeX + x;
+      let pos = y * bSizeX + x;
       let symPos = getSymPos(pos);
-      let symX = symPos % boardSizeX;
-      let symY = Math.floor(symPos / boardSizeX);
-      let coord = coordChars[symX] + "" + (boardSizeY-symY);
+      let symX = symPos % bSizeX;
+      let symY = Math.floor(symPos / bSizeX);
+      let coord = coordChars[symX] + "" + (bSizeY-symY);
       dataRow.appendChild(textCell(coord));
     }
     else
       dataRow.appendChild(textCell(""));
 
-    dataRow.appendChild(textCell((100.0 * (0.5*(1.0-moveData["winLossValue"]))).toFixed(1)+"%"));
-    dataRow.appendChild(textCell((-moveData["scoreMean"]).toFixed(2)));
-    dataRow.appendChild(textCell((-moveData["sharpScoreMean"]).toFixed(2)));
-    dataRow.appendChild(textCell((100.0 * (0.5*(1.0-moveData["winLossUCB"]))).toFixed(1)+"%"));
-    dataRow.appendChild(textCell((100.0 * (0.5*(1.0-moveData["winLossLCB"]))).toFixed(1)+"%"));
-    dataRow.appendChild(textCell((-moveData["scoreUCB"]).toFixed(2)));
-    dataRow.appendChild(textCell((-moveData["scoreLCB"]).toFixed(2)));
-    dataRow.appendChild(textCell((-moveData["scoreFinalUCB"]).toFixed(2)));
-    dataRow.appendChild(textCell((-moveData["scoreFinalLCB"]).toFixed(2)));
-    dataRow.appendChild(textCell((100.0 * moveData["policy"]).toFixed(2)+"%"));
-    dataRow.appendChild(textCell(moveData["weight"].toFixed(1)));
-    dataRow.appendChild(textCell(moveData["visits"]));
-    dataRow.appendChild(textCell(moveData["cost"]));
-    dataRow.appendChild(textCell(moveData["costFromRoot"]));
+    dataRow.appendChild(textCell((100.0 * (0.5*(1.0-moveData["wl"]))).toFixed(1)+"%"));
+    if(devMode) {
+      dataRow.appendChild(textCell((-moveData["sM"]).toFixed(2)));
+      dataRow.appendChild(textCell((-moveData["ssM"]).toFixed(2)));
+      dataRow.appendChild(textCell((100.0 * (0.5*(1.0-moveData["wlUCB"]))).toFixed(1)+"%"));
+      dataRow.appendChild(textCell((100.0 * (0.5*(1.0-moveData["wlLCB"]))).toFixed(1)+"%"));
+      dataRow.appendChild(textCell((-moveData["sUCB"]).toFixed(2)));
+      dataRow.appendChild(textCell((-moveData["sLCB"]).toFixed(2)));
+      dataRow.appendChild(textCell((100.0 * moveData["p"]).toFixed(2)+"%"));
+      dataRow.appendChild(textCell(Math.round(moveData["w"]).toLocaleString()));
+      dataRow.appendChild(textCell(Math.round(moveData["v"]).toLocaleString()));
+      dataRow.appendChild(textCell(moveData["cost"].toFixed(3)));
+      dataRow.appendChild(textCell(moveData["costRoot"].toFixed(3)));
+    }
+    else {
+      dataRow.appendChild(textCell((-moveData["ssM"]).toFixed(2)));
+      dataRow.appendChild(textCell((100.0 * 0.5 * moveData["wlRad"]).toFixed(1)+"%"));
+      dataRow.appendChild(textCell((moveData["sRad"]).toFixed(1)+"%"));
+      dataRow.appendChild(textCell((100.0 * moveData["p"]).toFixed(2)+"%"));
+      dataRow.appendChild(textCell(Math.round(moveData["v"]).toLocaleString()));
+    }
 
     dataRow.style.background = getBadnessColorOfMoveIdx(i,0.35);
 

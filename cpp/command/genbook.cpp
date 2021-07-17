@@ -50,6 +50,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   int numIterations;
   int saveEveryIterations;
   bool allowChangingBookParams;
+  bool htmlDevMode;
   try {
     KataGoCommandLine cmd("View startposes");
     cmd.addConfigFileArg("","",true);
@@ -63,6 +64,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     TCLAP::ValueArg<int> numIterationsArg("","num-iters","Number of iterations to expand book",true,0,"N");
     TCLAP::ValueArg<int> saveEveryIterationsArg("","save-every","Number of iterations per save",true,0,"N");
     TCLAP::SwitchArg allowChangingBookParamsArg("","allow-changing-book-params","Allow changing book params");
+    TCLAP::SwitchArg htmlDevModeArg("","html-dev-mode","Denser debug output for html");
     cmd.add(htmlDirArg);
     cmd.add(bookFileArg);
     cmd.add(logFileArg);
@@ -70,6 +72,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     cmd.add(numIterationsArg);
     cmd.add(saveEveryIterationsArg);
     cmd.add(allowChangingBookParamsArg);
+    cmd.add(htmlDevModeArg);
 
     cmd.parse(argc,argv);
 
@@ -82,6 +85,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     numIterations = numIterationsArg.getValue();
     saveEveryIterations = saveEveryIterationsArg.getValue();
     allowChangingBookParams = allowChangingBookParamsArg.getValue();
+    htmlDevMode = htmlDevModeArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -115,6 +119,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   const double utilityPerPolicyForSorting = cfg.getDouble("utilityPerPolicyForSorting",0.0,1000000.0);
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
   const string rulesLabel = cfg.getString("rulesLabel");
+  const string rulesLink = cfg.getString("rulesLink");
 
   const int numGameThreads = cfg.getInt("numGameThreads",1,1000);
   const int numToExpandPerIteration = cfg.getInt("numToExpandPerIteration",1,10000000);
@@ -583,7 +588,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
 
   if(htmlDir != "") {
     logger.write("EXPORTING HTML TO " + htmlDir);
-    book->exportToHtmlDir(htmlDir,rulesLabel,logger);
+    book->exportToHtmlDir(htmlDir,rulesLabel,rulesLink,htmlDevMode,logger);
   }
 
   for(int i = 0; i<numGameThreads; i++)

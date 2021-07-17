@@ -157,6 +157,9 @@ class SymBookNode {
   const RecursiveBookValues& recursiveValues();
   double minCostFromRoot();
 
+  // Returns NULL for the root or if somehow a parent is not found
+  SymBookNode canonicalParent();
+
   SymBookNode follow(Loc move);
 
   // Returns NULL if the move is not legal OR the move is not in the book.
@@ -202,6 +205,9 @@ class ConstSymBookNode {
   bool canExpand();
   const RecursiveBookValues& recursiveValues();
   double minCostFromRoot();
+
+  // Returns NULL for the root or if somehow a parent is not found
+  ConstSymBookNode canonicalParent();
 
   ConstSymBookNode follow(Loc move);
   // Returns NULL if the move is not legal OR the move is not in the book.
@@ -328,7 +334,13 @@ class Book {
   void recomputeEverything();
   std::vector<SymBookNode> getNextNToExpand(int n);
 
-  void exportToHtmlDir(const std::string& dirName, const std::string& rulesLabel, Logger& logger);
+  void exportToHtmlDir(
+    const std::string& dirName,
+    const std::string& rulesLabel,
+    const std::string& rulesLink,
+    bool devMode,
+    Logger& logger
+  );
 
   void saveToFile(const std::string& fileName) const;
   static Book* loadFromFile(const std::string& fileName);
