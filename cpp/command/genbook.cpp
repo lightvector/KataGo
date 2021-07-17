@@ -273,7 +273,126 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
+  const PrintTreeOptions options;
+  const Player perspective = P_WHITE;
+  const bool pondering = false;
+
   std::mutex bookMutex;
+
+  // Avoid all moves that are currently in the book on this node, mark avoidMoveUntilByLoc to be passed to
+  // search so that we only search new stuff.
+  auto findNewMoves = [&](const BoardHistory& hist, ConstSymBookNode constNode, std::vector<int>& avoidMoveUntilByLoc) {
+    avoidMoveUntilByLoc = std::vector<int>(Board::MAX_ARR_SIZE,0);
+    Player pla = hist.presumedNextMovePla;
+    Board board = hist.getRecentBoard(0);
+    bool hasAtLeastOneLegalNewMove = false;
+    for(Loc moveLoc = 0; moveLoc < Board::MAX_ARR_SIZE; moveLoc++) {
+      if(hist.isLegal(board,moveLoc,pla)) {
+        if(constNode.isMoveInBook(moveLoc))
+          avoidMoveUntilByLoc[moveLoc] = 1;
+        else
+          hasAtLeastOneLegalNewMove = true;
+      }
+    }
+    return hasAtLeastOneLegalNewMove;
+  };
+
+  // Update the thisValuesNotInBook for a node
+  auto updateNodeThisValues = [&](Search* search, const BoardHistory& hist, SymBookNode node) {
+    ConstSymBookNode constNode(node);
+    Player pla = hist.presumedNextMovePla;
+    Board board = hist.getRecentBoard(0);
+    search->setPosition(pla,board,hist);
+    search->setRootSymmetryPruningOnly(constNode.getSymmetries());
+
+    std::vector<int> avoidMoveUntilByLoc;
+    if(!findNewMoves(hist,constNode,avoidMoveUntilByLoc)) {
+      std::lock_guard<std::mutex> lock(bookMutex);
+      BookValues& nodeValues = node.thisValuesNotInBook();
+      if(node.pla() == P_WHITE) {
+        nodeValues.winLossValue = -1e20;
+        nodeValues.scoreMean = -1e20;
+        nodeValues.sharpScoreMean =  -1e20;
+      }
+      else {
+        nodeValues.winLossValue = 1e20;
+        nodeValues.scoreMean = 1e20;
+        nodeValues.sharpScoreMean =  1e20;
+      }
+      nodeValues.winLossError = 0.0;
+      nodeValues.scoreError = 0.0;
+      nodeValues.scoreStdev = 0.0;
+      nodeValues.maxPolicy = 0.0;
+      nodeValues.weight = 0.0;
+      nodeValues.visits = 0;
+
+      node.canExpand() = false;
+    }
+    else {
+      search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc, avoidMoveUntilByLoc);
+
+      // Do a half-cost search on the remaining moves at the node
+      {
+        double searchFactor = 0.5;
+        std::atomic<bool> searchShouldStopNow(false);
+        search->runWholeSearch(searchShouldStopNow, NULL, pondering, TimeControls(), searchFactor);
+      }
+
+      if(logSearchInfo) {
+        std::lock_guard<std::mutex> lock(bookMutex);
+        logger.write("Quick search on remainimg moves");
+        ostringstream out;
+        search->printTree(out, search->rootNode, options, perspective);
+        logger.write(out.str());
+      }
+
+      // Get root values
+      ReportedSearchValues remainingSearchValues;
+      bool getSuc = search->getPrunedRootValues(remainingSearchValues);
+      // Something is bad if this is false, since we should be searching with positive visits and getting an nneval
+      // and we know node is not a terminal node.
+      assert(getSuc);
+      (void)getSuc;
+      double sharpScore = 0.0;
+      getSuc = search->getSharpScore(NULL,sharpScore);
+      assert(getSuc);
+      (void)getSuc;
+
+      std::pair<double,double> errors = search->getAverageShorttermWLAndScoreError(search->getRootNode());
+
+      float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+      bool policySuc2 = search->getPolicy(policyProbs);
+      // Zero out all the policies for moves we already have, we want the max *remaining* policy
+      for(Loc loc = 0; loc<Board::MAX_ARR_SIZE; loc++) {
+        if(avoidMoveUntilByLoc[loc] > 0) {
+          int pos = search->getPos(loc);
+          assert(pos >= 0 && pos < NNPos::MAX_NN_POLICY_SIZE);
+          policyProbs[pos] = -1;
+        }
+      }
+      // Just in case, handle failure case with policySuc2
+      double maxPolicy = policySuc2 ? getMaxPolicy(policyProbs) : 1.0;
+      assert(maxPolicy >= 0.0);
+
+      // LOCK BOOK AND UPDATE -------------------------------------------------------
+      std::lock_guard<std::mutex> lock(bookMutex);
+
+      // Record those values to the book
+      BookValues& nodeValues = node.thisValuesNotInBook();
+      nodeValues.winLossValue = remainingSearchValues.winLossValue;
+      nodeValues.scoreMean = remainingSearchValues.expectedScore;
+      nodeValues.sharpScoreMean = sharpScore;
+      nodeValues.winLossError = errors.first;
+      nodeValues.scoreError = errors.second;
+      nodeValues.scoreStdev = remainingSearchValues.expectedScoreStdev;
+
+      nodeValues.maxPolicy = maxPolicy;
+      nodeValues.weight = remainingSearchValues.weight;
+      nodeValues.visits = remainingSearchValues.visits;
+    }
+  };
+
+
   auto expandNode = [&](int gameThreadIdx, SymBookNode node, std::vector<SymBookNode>& newAndChangedNodes) {
     ConstSymBookNode constNode(node);
 
@@ -316,33 +435,14 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       logger.write(out.str());
     }
 
-    // Avoid all moves that are currently in the book on this node, only search new stuff.
-    auto findNewMoves = [&](std::vector<int>& avoidMoveUntilByLoc) {
-      avoidMoveUntilByLoc = std::vector<int>(Board::MAX_ARR_SIZE,0);
-      bool hasAtLeastOneLegalNewMove = false;
-      for(Loc moveLoc = 0; moveLoc < Board::MAX_ARR_SIZE; moveLoc++) {
-        if(hist.isLegal(board,moveLoc,pla)) {
-          if(constNode.isMoveInBook(moveLoc))
-            avoidMoveUntilByLoc[moveLoc] = 1;
-          else
-            hasAtLeastOneLegalNewMove = true;
-        }
-      }
-      return hasAtLeastOneLegalNewMove;
-    };
-
     std::vector<int> avoidMoveUntilByLoc;
-    if(!findNewMoves(avoidMoveUntilByLoc)) {
+    if(!findNewMoves(hist,constNode,avoidMoveUntilByLoc)) {
       std::lock_guard<std::mutex> lock(bookMutex);
       node.canExpand() = false;
       return;
     }
 
     search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc, avoidMoveUntilByLoc);
-
-    const PrintTreeOptions options;
-    const Player perspective = P_WHITE;
-    const bool pondering = false;
 
     {
       double searchFactor = 1.0;
@@ -437,95 +537,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       childValues.visits = childSearchValues.visits;
     }
 
-    // Now that the child is in the book, see if there are more moves left
-    // If there are none left, we need to set the thisValuesNotInBook appropriately.
-    if(!findNewMoves(avoidMoveUntilByLoc)) {
-      std::lock_guard<std::mutex> lock(bookMutex);
-      BookValues& nodeValues = node.thisValuesNotInBook();
-      if(node.pla() == P_WHITE) {
-        nodeValues.winLossValue = -1e20;
-        nodeValues.scoreMean = -1e20;
-        nodeValues.sharpScoreMean =  -1e20;
-      }
-      else {
-        nodeValues.winLossValue = 1e20;
-        nodeValues.scoreMean = 1e20;
-        nodeValues.sharpScoreMean =  1e20;
-      }
-      nodeValues.winLossError = 0.0;
-      nodeValues.scoreError = 0.0;
-      nodeValues.scoreStdev = 0.0;
-      nodeValues.maxPolicy = 0.0;
-      nodeValues.weight = 0.0;
-      nodeValues.visits = 0;
-
-      node.canExpand() = false;
-    }
-    else {
-      search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc, avoidMoveUntilByLoc);
-
-      // Do a half-cost search on the remaining moves at the node
-      {
-        double searchFactor = 0.5;
-        std::atomic<bool> searchShouldStopNow(false);
-        search->runWholeSearch(searchShouldStopNow, NULL, pondering, TimeControls(), searchFactor);
-      }
-      // Do NOT stop here, since we do need to make sure the book stats are updated if we've already added a child.
-      //if(shouldStop.load(std::memory_order_acquire))
-      //  return;
-
-      if(logSearchInfo) {
-        std::lock_guard<std::mutex> lock(bookMutex);
-        logger.write("Quick search on remainimg moves");
-        ostringstream out;
-        search->printTree(out, search->rootNode, options, perspective);
-        logger.write(out.str());
-      }
-
-      // Get root values
-      ReportedSearchValues remainingSearchValues;
-      bool getSuc = search->getPrunedRootValues(remainingSearchValues);
-      // Something is bad if this is false, since we should be searching with positive visits and getting an nneval
-      // and we know node is not a terminal node.
-      assert(getSuc);
-      (void)getSuc;
-      double sharpScore = 0.0;
-      getSuc = search->getSharpScore(NULL,sharpScore);
-      assert(getSuc);
-      (void)getSuc;
-
-      std::pair<double,double> errors = search->getAverageShorttermWLAndScoreError(search->getRootNode());
-
-      float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
-      bool policySuc2 = search->getPolicy(policyProbs);
-      // Zero out all the policies for moves we already have, we want the max *remaining* policy
-      for(Loc loc = 0; loc<Board::MAX_ARR_SIZE; loc++) {
-        if(avoidMoveUntilByLoc[loc] > 0) {
-          int pos = search->getPos(loc);
-          assert(pos >= 0 && pos < NNPos::MAX_NN_POLICY_SIZE);
-          policyProbs[pos] = -1;
-        }
-      }
-      // Just in case, handle failure case with policySuc2
-      double maxPolicy = policySuc2 ? getMaxPolicy(policyProbs) : 1.0;
-      assert(maxPolicy >= 0.0);
-
-      // LOCK BOOK AND UPDATE -------------------------------------------------------
-      std::lock_guard<std::mutex> lock(bookMutex);
-
-      // Record those values to the book
-      BookValues& nodeValues = node.thisValuesNotInBook();
-      nodeValues.winLossValue = remainingSearchValues.winLossValue;
-      nodeValues.scoreMean = remainingSearchValues.expectedScore;
-      nodeValues.sharpScoreMean = sharpScore;
-      nodeValues.winLossError = errors.first;
-      nodeValues.scoreError = errors.second;
-      nodeValues.scoreStdev = remainingSearchValues.expectedScoreStdev;
-
-      nodeValues.maxPolicy = maxPolicy;
-      nodeValues.weight = remainingSearchValues.weight;
-      nodeValues.visits = remainingSearchValues.visits;
-    }
+    // And immediately do a search to update this node again now that we added a child.
+    updateNodeThisValues(search,hist,node);
   };
 
   ThreadSafeQueue<SymBookNode> positionsToSearch;
