@@ -1240,6 +1240,12 @@ void Book::recomputeNodeCost(BookNode* node) {
       (node->pla == P_BLACK && passUtility < notInBookUtility + 0.02)
     );
 
+    // If we have more than 1/N of unexpanded policy, we cap the penalty for expanded moves at N.
+    double movesExpanded = node->moves.size();
+    if(movesExpanded > 1.0 / (rawPolicy + 1e-30)) {
+      movesExpanded = 1.0 / (rawPolicy + 1e-30);
+    }
+
     // cout << "Expansion thisValues " <<
     //   node->thisValuesNotInBook.winLossValue - errorFactor * node->thisValuesNotInBook.winLossError << " " <<
     //   node->thisValuesNotInBook.winLossValue << " " <<
@@ -1262,8 +1268,8 @@ void Book::recomputeNodeCost(BookNode* node) {
       + ucbWinLossLoss * costPerUCBWinLossLoss
       + ucbScoreLoss * costPerUCBScoreLoss
       + (-boostedLogRawPolicy * costPerLogPolicy)
-      + node->moves.size() * costPerMovesExpanded
-      + node->moves.size() * node->moves.size() * costPerSquaredMovesExpanded
+      + movesExpanded * costPerMovesExpanded
+      + movesExpanded * movesExpanded * costPerSquaredMovesExpanded
       + (passFavored ? costWhenPassFavored : 0.0);
 
     double costFromUCB =
