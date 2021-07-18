@@ -246,6 +246,7 @@ class Book {
   double costWhenPassFavored;
   double bonusPerWinLossError;
   double bonusPerSharpScoreDiscrepancy;
+  double bonusPerExcessUnexpandedPolicy;
   double scoreLossCap;
   double utilityPerScore;
   double policyBoostSoftUtilityScale;
@@ -272,6 +273,7 @@ class Book {
     double costWhenPassFavored,
     double bonusPerWinLossError,
     double bonusPerSharpScoreDiscrepancy,
+    double bonusPerExcessUnexpandedPolicy,
     double scoreLossCap,
     double utilityPerScore,
     double policyBoostSoftUtilityScale,
@@ -310,6 +312,8 @@ class Book {
   void setBonusPerWinLossError(double d);
   double getBonusPerSharpScoreDiscrepancy() const;
   void setBonusPerSharpScoreDiscrepancy(double d);
+  double getBonusPerExcessUnexpandedPolicy() const;
+  void setBonusPerExcessUnexpandedPolicy(double d);
   double getScoreLossCap() const;
   void setScoreLossCap(double d);
   double getUtilityPerScore() const;

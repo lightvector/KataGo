@@ -117,6 +117,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   const double costWhenPassFavored = cfg.getDouble("costWhenPassFavored",0.0,1000000.0);
   const double bonusPerWinLossError = cfg.getDouble("bonusPerWinLossError",0.0,1000000.0);
   const double bonusPerSharpScoreDiscrepancy = cfg.getDouble("bonusPerSharpScoreDiscrepancy",0.0,1000000.0);
+  const double bonusPerExcessUnexpandedPolicy = cfg.getDouble("bonusPerExcessUnexpandedPolicy",0.0,1000000.0);
   const double scoreLossCap = cfg.getDouble("scoreLossCap",0.0,1000000.0);
   const double utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
   const double policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);
@@ -215,6 +216,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         costWhenPassFavored != book->getCostWhenPassFavored() ||
         bonusPerWinLossError != book->getBonusPerWinLossError() ||
         bonusPerSharpScoreDiscrepancy != book->getBonusPerSharpScoreDiscrepancy() ||
+        bonusPerExcessUnexpandedPolicy != book->getBonusPerExcessUnexpandedPolicy() ||
         scoreLossCap != book->getScoreLossCap() ||
         utilityPerScore != book->getUtilityPerScore() ||
         policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale() ||
@@ -234,6 +236,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       if(costWhenPassFavored != book->getCostWhenPassFavored()) { logger.write("Changing costWhenPassFavored from " + Global::doubleToString(book->getCostWhenPassFavored()) + " to " + Global::doubleToString(costWhenPassFavored)); book->setCostWhenPassFavored(costWhenPassFavored); }
       if(bonusPerWinLossError != book->getBonusPerWinLossError()) { logger.write("Changing bonusPerWinLossError from " + Global::doubleToString(book->getBonusPerWinLossError()) + " to " + Global::doubleToString(bonusPerWinLossError)); book->setBonusPerWinLossError(bonusPerWinLossError); }
       if(bonusPerSharpScoreDiscrepancy != book->getBonusPerSharpScoreDiscrepancy()) { logger.write("Changing bonusPerSharpScoreDiscrepancy from " + Global::doubleToString(book->getBonusPerSharpScoreDiscrepancy()) + " to " + Global::doubleToString(bonusPerSharpScoreDiscrepancy)); book->setBonusPerSharpScoreDiscrepancy(bonusPerSharpScoreDiscrepancy); }
+      if(bonusPerExcessUnexpandedPolicy != book->getBonusPerExcessUnexpandedPolicy()) { logger.write("Changing bonusPerExcessUnexpandedPolicy from " + Global::doubleToString(book->getBonusPerExcessUnexpandedPolicy()) + " to " + Global::doubleToString(bonusPerExcessUnexpandedPolicy)); book->setBonusPerExcessUnexpandedPolicy(bonusPerExcessUnexpandedPolicy); }
       if(scoreLossCap != book->getScoreLossCap()) { logger.write("Changing scoreLossCap from " + Global::doubleToString(book->getScoreLossCap()) + " to " + Global::doubleToString(scoreLossCap)); book->setScoreLossCap(scoreLossCap); }
       if(utilityPerScore != book->getUtilityPerScore()) { logger.write("Changing utilityPerScore from " + Global::doubleToString(book->getUtilityPerScore()) + " to " + Global::doubleToString(utilityPerScore)); book->setUtilityPerScore(utilityPerScore); }
       if(policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale()) { logger.write("Changing policyBoostSoftUtilityScale from " + Global::doubleToString(book->getPolicyBoostSoftUtilityScale()) + " to " + Global::doubleToString(policyBoostSoftUtilityScale)); book->setPolicyBoostSoftUtilityScale(policyBoostSoftUtilityScale); }
@@ -257,6 +260,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       costWhenPassFavored,
       bonusPerWinLossError,
       bonusPerSharpScoreDiscrepancy,
+      bonusPerExcessUnexpandedPolicy,
       scoreLossCap,
       utilityPerScore,
       policyBoostSoftUtilityScale,
