@@ -827,6 +827,9 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       logger.write("Trace book incomplete, exiting without saving");
       throw StringError("Trace book incomplete, exiting without saving");
     }
+
+    logger.write("Recomputing recursive values for entire book");
+    book->recomputeEverything();
   }
   else {
     ThreadSafeQueue<SymBookNode> positionsToSearch;
