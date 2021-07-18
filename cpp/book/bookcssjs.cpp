@@ -215,7 +215,7 @@ let hoverTableEltsByMove = {};
   innerHtml += '<a href="/">Back to home page</a> <br/> ';
   innerHtml += '<a href="../root/root.html">Back to root position</a>';
   if(pLink != '')
-    innerHtml += '&emsp;<a href="'+pLink+'?symmetry='+pSym+'">Canonical parent</a>';
+    innerHtml += '&emsp;<a href="'+pLink+'?symmetry='+compose(pSym,sym)+'">Canonical parent</a>';
   link.innerHTML = innerHtml;
   body.appendChild(link);
 }
