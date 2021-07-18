@@ -2,6 +2,22 @@
 
 const std::string Book::BOOK_CSS = R"%%(
 
+
+body {
+  font-family: BlinkMacSystemFont,-apple-system,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Fira Sans","Droid Sans","Helvetica Neue",Helvetica,Arial,sans-serif;
+  font-weight:500;
+}
+
+a:link { text-decoration: none; color:#485fc7 }
+a:visited { text-decoration: none; color:rgb(85, 26, 139) }
+a:hover { text-decoration: none; color:#000000 }
+a:active { text-decoration: none; color:#ff0055 }
+
+svg {
+  font-family:sans-serif;
+  font-weight:400;
+}
+
 h1 {
   margin-top:10px;
   margin-bottom:10px;
@@ -38,10 +54,10 @@ h1 {
   */
 }
 
-.moveTableRow:link { text-decoration: none; }
-.moveTableRow:visited { text-decoration: none; }
+.moveTableRow:link { text-decoration: none; color: rgb(0, 0, 238) }
+.moveTableRow:visited { text-decoration: none; color: rgb(85, 26, 139) }
 .moveTableRow:hover { text-decoration: none; }
-.moveTableRow:active { text-decoration: none; }
+.moveTableRow:active { text-decoration: none; color:#ff0000 }
 
 .moveTableCell {
   display: table-cell;

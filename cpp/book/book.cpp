@@ -1416,6 +1416,11 @@ void Book::exportToHtmlDir(
   MakeDir::make(dirName + "/root");
   {
     std::ofstream out(dirName + "/book.js");
+    out << "const rulesLabel = \"" + rulesLabel + "\";\n";
+    out << "const rulesLink = \"" + rulesLink + "\";\n";
+    out << "const devMode = " + (devMode ? string("true") : string("false")) + ";\n";
+    out << "const bSizeX = " + Global::intToString(initialBoard.x_size) + ";\n";
+    out << "const bSizeY = " + Global::intToString(initialBoard.y_size) + ";\n";
     out << Book::BOOK_JS;
     out.close();
   }
@@ -1487,12 +1492,7 @@ void Book::exportToHtmlDir(
     if(contains(rulesLink,'"') || contains(rulesLink,'\n'))
       throw StringError("rulesLink cannot contain quotes or newlines");
     string dataVarsStr;
-    dataVarsStr += "const rulesLabel = \"" + rulesLabel + "\";\n";
-    dataVarsStr += "const rulesLink = \"" + rulesLink + "\";\n";
-    dataVarsStr += "const devMode = " + (devMode ? string("true") : string("false")) + ";\n";
     dataVarsStr += "const nextPla = " + Global::intToString(node->pla) + ";\n";
-    dataVarsStr += "const bSizeX = " + Global::intToString(board.x_size) + ";\n";
-    dataVarsStr += "const bSizeY = " + Global::intToString(board.y_size) + ";\n";
     {
       SymBookNode parent = symNode.canonicalParent();
       if(parent.isNull()) {
@@ -1513,39 +1513,31 @@ void Book::exportToHtmlDir(
       }
     }
     dataVarsStr += "];\n";
-    dataVarsStr += "const links = [";
-    string linkSymmetriesStr = "const linkSyms = [";
+    dataVarsStr += "const links = {";
+    string linkSymmetriesStr = "const linkSyms = {";
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
         SymBookNode child = symNode.follow(loc);
-        if(child.isNull()) {
-          dataVarsStr += "'',";
-          linkSymmetriesStr += "0,";
-        }
-        else {
+        if(!child.isNull()) {
           string childPath = getFilePath(child.node, true);
-          dataVarsStr += "'../" + childPath + "',";
-          linkSymmetriesStr += Global::intToString(child.symmetryOfNode) + ",";
+          dataVarsStr += Global::intToString(x+y*board.x_size) + ":'../" + childPath + "',";
+          linkSymmetriesStr += Global::intToString(x+y*board.x_size) + ":" + Global::intToString(child.symmetryOfNode) + ",";
         }
       }
     }
-    // Also handle pass, pass gets stuck at the end of the array.
+    // Also handle pass, pass get indexed one after the legal moves
     {
       Loc loc = Board::PASS_LOC;
       SymBookNode child = symNode.follow(loc);
-      if(child.isNull()) {
-        dataVarsStr += "'',";
-        linkSymmetriesStr += "0,";
-      }
-      else {
+      if(!child.isNull()) {
         string childPath = getFilePath(child.node, true);
-        dataVarsStr += "'../" + childPath + "',";
-        linkSymmetriesStr += Global::intToString(child.symmetryOfNode) + ",";
+        dataVarsStr += Global::intToString(board.y_size*board.x_size) + ":'../" + childPath + "',";
+        linkSymmetriesStr += Global::intToString(board.y_size*board.x_size) + ":" + Global::intToString(child.symmetryOfNode) + ",";
       }
     }
-    dataVarsStr += "];\n";
-    linkSymmetriesStr += "];\n";
+    dataVarsStr += "};\n";
+    linkSymmetriesStr += "};\n";
     dataVarsStr += linkSymmetriesStr;
 
     vector<BookMove> uniqueMovesInBook = symNode.getUniqueMovesInBook();
