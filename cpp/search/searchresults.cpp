@@ -1242,11 +1242,30 @@ vector<double> Search::getAverageTreeOwnership(double minWeight, const SearchNod
   if(!alwaysIncludeOwnerMap)
     throw StringError("Called Search::getAverageTreeOwnership when alwaysIncludeOwnerMap is false");
   vector<double> vec(nnXLen*nnYLen,0.0);
-  getAverageTreeOwnershipHelper(vec,minWeight,1.0,node);
+  traverseTreeWithOwnershipAndSelfWeight([&vec](int pos, double ownership, double selfWeight) {
+    vec[pos] += selfWeight * ownership;
+  },minWeight,1.0,node);
   return vec;
 }
 
-double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWeight, double desiredWeight, const SearchNode* node) const {
+tuple<vector<double>,vector<double>> Search::getAverageAndStandardDeviationTreeOwnership(double minWeight, const SearchNode* node) const {
+  if(node == NULL)
+    node = rootNode;
+  vector<double> average(nnXLen*nnYLen,0.0);
+  vector<double> stdev(nnXLen*nnYLen,0.0);
+  traverseTreeWithOwnershipAndSelfWeight([&average,&stdev](int pos, double ownership, double selfWeight) {
+    average[pos] += selfWeight * ownership;
+    stdev[pos] += selfWeight * ownership * ownership;
+  },minWeight,1.0,node);
+  for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
+    const double avg = average[pos];
+    stdev[pos] = sqrt(max(stdev[pos] - avg * avg, 0.0));
+  }
+  return make_tuple(average, stdev);
+}
+
+template<typename Func>
+double Search::traverseTreeWithOwnershipAndSelfWeight(Func&& averaging, double minWeight, double desiredWeight, const SearchNode* node) const {
   if(node == NULL)
     return 0;
 
@@ -1290,14 +1309,14 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, double minWe
     const SearchNode* child = children[i].getIfAllocated();
     assert(child != NULL);
     double desiredWeightFromChild = (double)childWeight * childWeight / relativeChildrenWeightSum * desiredWeightFromChildren;
-    actualWeightFromChildren += getAverageTreeOwnershipHelper(accum,minWeight,desiredWeightFromChild,child);
+    actualWeightFromChildren += traverseTreeWithOwnershipAndSelfWeight(averaging,minWeight,desiredWeightFromChild,child);
   }
 
   double selfWeight = desiredWeight - actualWeightFromChildren;
   float* ownerMap = nnOutput->whiteOwnerMap;
   assert(ownerMap != NULL);
   for(int pos = 0; pos<nnXLen*nnYLen; pos++)
-    accum[pos] += selfWeight * ownerMap[pos];
+    averaging(pos, ownerMap[pos], selfWeight);
 
   return desiredWeight;
 }

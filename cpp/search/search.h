@@ -476,6 +476,7 @@ struct Search {
   //or changing parameters or clearing search.
   //If node is not providied, defaults to using the root node.
   std::vector<double> getAverageTreeOwnership(double minWeight, const SearchNode* node = NULL) const;
+  std::tuple<std::vector<double>,std::vector<double>> getAverageAndStandardDeviationTreeOwnership(double minWeight, const SearchNode* node = NULL) const;
 
   //Get ownership map as json
   nlohmann::json getJsonOwnershipMap(
@@ -659,7 +660,8 @@ private:
     std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
   ) const;
 
-  double getAverageTreeOwnershipHelper(std::vector<double>& accum, double minWeight, double desiredWeight, const SearchNode* node) const;
+  template<typename Func>
+  double traverseTreeWithOwnershipAndSelfWeight(Func&& averaging, double minWeight, double desiredWeight, const SearchNode* node) const;
 
 };
 
