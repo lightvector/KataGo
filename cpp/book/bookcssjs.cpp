@@ -128,10 +128,10 @@ function getBadnessColor(bestWinLossValue, winLossDiff, scoreDiff, sqrtPolicyDif
 
 function getBadnessColorOfMoveIdx(idx, alpha) {
   let moveData = moves[idx];
-  let winLossDiff = moveData["winLossValue"] - moves[0]["winLossValue"];
-  let scoreDiff = moveData["sharpScoreMean"] - moves[0]["sharpScoreMean"];
-  let sqrtPolicyDiff = Math.sqrt(moveData["policy"]) - Math.sqrt(moves[0]["policy"]);
-  let moveValueColor = getBadnessColor(moves[0]["winLossValue"], winLossDiff, scoreDiff, sqrtPolicyDiff, alpha);
+  let winLossDiff = moveData["wl"] - moves[0]["wl"];
+  let scoreDiff = moveData["ssM"] - moves[0]["ssM"];
+  let sqrtPolicyDiff = Math.sqrt(moveData["p"]) - Math.sqrt(moves[0]["p"]);
+  let moveValueColor = getBadnessColor(moves[0]["wl"], winLossDiff, scoreDiff, sqrtPolicyDiff, alpha);
   return moveValueColor;
 }
 
@@ -606,7 +606,7 @@ function textCell(text) {
     else {
       dataRow.appendChild(textCell((-moveData["ssM"]).toFixed(2)));
       dataRow.appendChild(textCell((100.0 * 0.5 * moveData["wlRad"]).toFixed(1)+"%"));
-      dataRow.appendChild(textCell((moveData["sRad"]).toFixed(1)+"%"));
+      dataRow.appendChild(textCell((moveData["sRad"]).toFixed(2)));
       dataRow.appendChild(textCell((100.0 * moveData["p"]).toFixed(2)+"%"));
       dataRow.appendChild(textCell(Math.round(moveData["v"]).toLocaleString()));
     }

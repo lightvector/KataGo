@@ -403,7 +403,7 @@ double ConstSymBookNode::minCostFromRoot() {
 SymBookNode SymBookNode::canonicalParent() {
   if(node->parents.size() <= 0)
     return SymBookNode(nullptr);
-  BookNode* parent =node->book->get(node->parents[0].first);
+  BookNode* parent = node->book->get(node->parents[0].first);
   if(parent == nullptr)
     return SymBookNode(nullptr);
   auto iter = parent->moves.find(node->parents[0].second);
@@ -418,7 +418,7 @@ SymBookNode SymBookNode::canonicalParent() {
 ConstSymBookNode ConstSymBookNode::canonicalParent() {
   if(node->parents.size() <= 0)
     return ConstSymBookNode(nullptr);
-  const BookNode* parent =node->book->get(node->parents[0].first);
+  const BookNode* parent = node->book->get(node->parents[0].first);
   if(parent == nullptr)
     return ConstSymBookNode(nullptr);
   auto iter = parent->moves.find(node->parents[0].second);
@@ -1594,7 +1594,7 @@ void Book::exportToHtmlDir(
       }
       if(uniqueMovesInBook[idx].move == Board::PASS_LOC)
         dataVarsStr += "'move':'" + Location::toString(uniqueMovesInBook[idx].move, initialBoard) + "',";
-      dataVarsStr += "'p':" + doubleToStringTwoDigits(uniqueMovesInBook[idx].rawPolicy) + ",";
+      dataVarsStr += "'p':" + doubleToStringFourDigits(uniqueMovesInBook[idx].rawPolicy) + ",";
       dataVarsStr += "'wl':" + doubleToStringFourDigits(uniqueChildValues[idx].winLossValue) + ",";
       if(devMode) {
         dataVarsStr += "'wlUCB':" + doubleToStringFourDigits(uniqueChildValues[idx].winLossUCB) + ",";
@@ -1628,7 +1628,7 @@ void Book::exportToHtmlDir(
 
         dataVarsStr += "{";
         dataVarsStr += "'move':'other',";
-        dataVarsStr += "'p':" + doubleToStringTwoDigits(values.maxPolicy) + ",";
+        dataVarsStr += "'p':" + doubleToStringFourDigits(values.maxPolicy) + ",";
         dataVarsStr += "'wl':" + doubleToStringFourDigits(values.winLossValue) + ",";
         if(devMode) {
           dataVarsStr += "'wlUCB':" + doubleToStringFourDigits(winLossValueUCB) + ",";
