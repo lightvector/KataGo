@@ -1351,7 +1351,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     node->thisNodeExpansionCost -= 0.5 * smallestCostFromUCB;
   }
 
-  // Apply bonuses to moves now, limited at 0.75 of the cost.
+  // Apply bonuses to moves now. Apply fully up to 0.75 of the cost, then only 1/5 as much up to 95% of cost.
   for(auto& locAndBookMove: node->moves) {
     const BookNode* child = get(locAndBookMove.second.hash);
     double winLossError = fabs(child->recursiveValues.winLossUCB - child->recursiveValues.winLossLCB) / errorFactor / 2.0;
@@ -1359,8 +1359,10 @@ void Book::recomputeNodeCost(BookNode* node) {
     double bonus =
       bonusPerWinLossError * winLossError +
       bonusPerSharpScoreDiscrepancy * sharpScoreDiscrepancy;
-    if(bonus > (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * 0.75)
-      bonus = (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * 0.75;
+    double bonusCap1 = (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * 0.75;
+    double bonusCap2 = (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * 0.95;
+    if(bonus > bonusCap1)
+      bonus = std::min(bonusCap2, bonusCap1 + 0.2 * (bonus - bonusCap1));
     locAndBookMove.second.costFromRoot -= bonus;
   }
   {
@@ -1376,8 +1378,10 @@ void Book::recomputeNodeCost(BookNode* node) {
       bonusPerWinLossError * winLossError +
       bonusPerSharpScoreDiscrepancy * sharpScoreDiscrepancy +
       bonusPerExcessUnexpandedPolicy * excessUnexpandedPolicy;
-    if(bonus > node->thisNodeExpansionCost * 0.75)
-      bonus = node->thisNodeExpansionCost * 0.75;
+    double bonusCap1 = node->thisNodeExpansionCost * 0.75;
+    double bonusCap2 = node->thisNodeExpansionCost * 0.95;
+    if(bonus > bonusCap1)
+      bonus = std::min(bonusCap2, bonusCap1 + 0.2 * (bonus - bonusCap1));
     node->thisNodeExpansionCost -= bonus;
   }
 
