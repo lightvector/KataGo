@@ -3,6 +3,8 @@
 #include <cmath>
 #include <fstream>
 #include <sstream>
+#include <ghc/filesystem.hpp>
+namespace gfs = ghc::filesystem;
 
 using namespace std;
 
@@ -42,7 +44,12 @@ ConfigParser::ConfigParser(const ConfigParser& source) {
 void ConfigParser::initialize(const string& fname) {
   if(initialized)
     throw StringError("ConfigParser already initialized, cannot initialize again");
-  ifstream in(fname);
+  #ifdef _WIN32
+    std::wstring wfname = gfs::detail::fromUtf8<std::wstring>(fname);
+    gfs::ifstream in(wfname);
+  #else
+    ifstream in(fname);
+  #endif
   if(!in.is_open())
     throw IOError("Could not open config file: " + fname);
   fileName = fname;

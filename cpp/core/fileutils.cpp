@@ -5,11 +5,17 @@
 
 #include "../core/global.h"
 #include "../core/sha2.h"
-
+#include <ghc/filesystem.hpp>
+namespace gfs = ghc::filesystem;
 using namespace std;
 
 void FileUtils::loadFileIntoString(const string& filename, const string& expectedSha256, string& str) {
-  ifstream in(filename.c_str(), ios::in | ios::binary | ios::ate);
+  #ifdef _WIN32
+    std::wstring wfilename = gfs::detail::fromUtf8<std::wstring>(filename);
+    gfs::ifstream in(wfilename, ios::in | ios::binary | ios::ate);
+  #else
+    ifstream in(filename.c_str(), ios::in | ios::binary | ios::ate);
+  #endif
   if(!in.good())
     throw StringError("Could not open file - does not exist or invalid permissions?");
 
