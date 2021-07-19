@@ -167,7 +167,8 @@ By only averaging errors in a bucket rather than absolute utilities, we continue
 ## Dynamic Variance-Scaled cPUCT
 <sub>(This method was first experimented with in KataGo in early 2021, and released in June 2021 with v1.9.0).</sub>
 
-This method can be motivated and explained by a simple observation. Consider the PUCT formula that controls exploration versus exploration in modern AlphaZero-style MCTS:
+This method can be motivated and explained by a simple observation. Consider the PUCT formula that controls 
+exploitation versus exploration in modern AlphaZero-style MCTS:
 
 <img height="45px" src="https://render.githubusercontent.com/render/math?math=\text{Next action to explore}=\text{argmax}_a \, Q(a) %2B c_{\text{PUCT}} P(a) \frac{\sqrt{\sum_b N(b)}}{1 %2B N(a)}">
 
