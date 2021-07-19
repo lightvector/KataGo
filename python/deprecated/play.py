@@ -265,7 +265,7 @@ def run_gtp(session):
 
   layerdict = dict(model.outputs_by_layer)
   weightdict = dict()
-  for v in tf.trainable_variables():
+  for v in tf.compat.v1.trainable_variables():
     weightdict[v.name] = v
 
   rank_policy_command_lookup = dict()
@@ -528,12 +528,12 @@ def run_gtp(session):
       print('?%s ???\n\n' % (cmdid,), end='')
     sys.stdout.flush()
 
-saver = tf.train.Saver(
+saver = tf.compat.v1.train.Saver(
   max_to_keep = 10000,
   save_relative_paths = True,
 )
 
-with tf.Session() as session:
+with tf.compat.v1.Session() as session:
   saver.restore(session, modelpath)
   run_gtp(session)
 
