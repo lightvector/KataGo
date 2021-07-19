@@ -251,6 +251,7 @@ class Book {
   double utilityPerScore;
   double policyBoostSoftUtilityScale;
   double utilityPerPolicyForSorting;
+  double sharpScoreOutlierCap;
   std::map<BookHash,double> bonusByHash;
 
   int initialSymmetry; // The symmetry that needs to be applied to initialBoard to align it with rootNode. (initialspace -> rootnodespace)
@@ -277,7 +278,8 @@ class Book {
     double scoreLossCap,
     double utilityPerScore,
     double policyBoostSoftUtilityScale,
-    double utilityPerPolicyForSorting
+    double utilityPerPolicyForSorting,
+    double sharpScoreOutlierCap
   );
   ~Book();
 
@@ -351,7 +353,7 @@ class Book {
   );
 
   void saveToFile(const std::string& fileName) const;
-  static Book* loadFromFile(const std::string& fileName);
+  static Book* loadFromFile(const std::string& fileName, double sharpScoreOutlierCap);
 
  private:
   BookNode* get(BookHash hash);

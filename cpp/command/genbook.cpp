@@ -122,6 +122,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   const double utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
   const double policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);
   const double utilityPerPolicyForSorting = cfg.getDouble("utilityPerPolicyForSorting",0.0,1000000.0);
+  const double sharpScoreOutlierCap = cfg.getDouble("sharpScoreOutlierCap",0.0,1000000.0);
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
   const string rulesLabel = cfg.getString("rulesLabel");
   const string rulesLink = cfg.getString("rulesLink");
@@ -195,7 +196,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     bookFileExists = infile.good();
   }
   if(bookFileExists) {
-    book = Book::loadFromFile(bookFile);
+    book = Book::loadFromFile(bookFile,sharpScoreOutlierCap);
     if(
       boardSizeX != book->getInitialHist().getRecentBoard(0).x_size ||
       boardSizeY != book->getInitialHist().getRecentBoard(0).y_size ||
@@ -264,7 +265,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       scoreLossCap,
       utilityPerScore,
       policyBoostSoftUtilityScale,
-      utilityPerPolicyForSorting
+      utilityPerPolicyForSorting,
+      sharpScoreOutlierCap
     );
     logger.write("Creating new book at " + bookFile);
     book->saveToFile(bookFile);
@@ -277,7 +279,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   if(traceBookFile.size() > 0) {
     if(numIterations > 0)
       throw StringError("Cannot specify iterations and trace book at the same time");
-    traceBook = Book::loadFromFile(traceBookFile);
+    traceBook = Book::loadFromFile(traceBookFile,sharpScoreOutlierCap);
+    traceBook->recomputeEverything();
   }
 
   book->setBonusByHash(bonusByHash);

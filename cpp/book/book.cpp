@@ -652,7 +652,8 @@ Book::Book(
   double slc,
   double ups,
   double pbsus,
-  double uppfs
+  double uppfs,
+  double ssoc
 ) : initialBoard(b),
     initialRules(r),
     initialPla(p),
@@ -672,6 +673,7 @@ Book::Book(
     utilityPerScore(ups),
     policyBoostSoftUtilityScale(pbsus),
     utilityPerPolicyForSorting(uppfs),
+    sharpScoreOutlierCap(ssoc),
     initialSymmetry(0),
     root(nullptr),
     nodes(),
@@ -1129,6 +1131,16 @@ void Book::recomputeNodeValues(BookNode* node) {
     scoreFinalUCB = values.scoreMean + errorFactor * values.scoreStdev;
     weight += values.weight;
     visits += values.visits;
+
+    // A quick hack to limit the issue of outliers from sharpScore, and adjust the LCB/UCB to reflect the uncertainty
+    if(sharpScoreMean > scoreUCB)
+      scoreUCB = sharpScoreMean;
+    if(sharpScoreMean < scoreLCB)
+      scoreLCB = sharpScoreMean;
+    if(sharpScoreMean > scoreMean + sharpScoreOutlierCap)
+      sharpScoreMean = scoreMean + sharpScoreOutlierCap;
+    if(sharpScoreMean < scoreMean - sharpScoreOutlierCap)
+      sharpScoreMean = scoreMean - sharpScoreOutlierCap;
   }
 
   for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
@@ -1370,18 +1382,21 @@ void Book::recomputeNodeCost(BookNode* node) {
     double sharpScoreDiscrepancy = fabs(node->thisValuesNotInBook.sharpScoreMean - node->thisValuesNotInBook.scoreMean);
 
     // If there's an unusually large share of the policy not expanded, add a mild bonus for it.
+    // For the final node expansion cost, sharp score discrepancy beyond 1 point is not capped, to encourage expanding the
+    // search to better resolve the difference, since sharp score can have some weird outliers.
     double movesExpanded = node->moves.size();
     double excessUnexpandedPolicy = 0.0;
     if(movesExpanded > 0 && node->thisValuesNotInBook.maxPolicy > 1.0 / movesExpanded)
       excessUnexpandedPolicy = node->thisValuesNotInBook.maxPolicy - 1.0 / movesExpanded;
     double bonus =
       bonusPerWinLossError * winLossError +
-      bonusPerSharpScoreDiscrepancy * sharpScoreDiscrepancy +
+      bonusPerSharpScoreDiscrepancy * std::min(sharpScoreDiscrepancy, 1.0) +
       bonusPerExcessUnexpandedPolicy * excessUnexpandedPolicy;
     double bonusCap1 = node->thisNodeExpansionCost * 0.75;
     double bonusCap2 = node->thisNodeExpansionCost * 0.95;
     if(bonus > bonusCap1)
       bonus = std::min(bonusCap2, bonusCap1 + 0.2 * (bonus - bonusCap1));
+    bonus += bonusPerSharpScoreDiscrepancy * std::max(0.0, sharpScoreDiscrepancy - 1.0);
     node->thisNodeExpansionCost -= bonus;
   }
 
@@ -1732,7 +1747,7 @@ void Book::saveToFile(const string& fileName) const {
   std::rename(tmpFileName.c_str(),fileName.c_str());
 }
 
-Book* Book::loadFromFile(const std::string& fileName) {
+Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCap) {
   std::ifstream in(fileName);
   std::string line;
   Book* ret = NULL;
@@ -1794,7 +1809,8 @@ Book* Book::loadFromFile(const std::string& fileName) {
         scoreLossCap,
         utilityPerScore,
         policyBoostSoftUtilityScale,
-        utilityPerPolicyForSorting
+        utilityPerPolicyForSorting,
+        sharpScoreOutlierCap
       );
 
       int initialSymmetry = params["initialSymmetry"].get<int>();
