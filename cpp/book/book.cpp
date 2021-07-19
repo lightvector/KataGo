@@ -1479,6 +1479,10 @@ void Book::exportToHtmlDir(
   };
 
   std::function<void(BookNode*)> f = [&](BookNode* node) {
+    // Entirely omit exporting nodes that are simply leaves, to save on the number of files we have to produce and serve.
+    if(node != root && node->moves.size() == 0)
+      return;
+
     string filePath = getFilePath(node, false);
     string html = HTML_TEMPLATE;
     auto replace = [&](const string& key, const string& replacement) {
@@ -1538,7 +1542,8 @@ void Book::exportToHtmlDir(
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
         SymBookNode child = symNode.follow(loc);
-        if(!child.isNull()) {
+        // Entirely omit linking children that are simply leaves, to save on the number of files we have to produce and serve.
+        if(!child.isNull() && child.node->moves.size() > 0) {
           string childPath = getFilePath(child.node, true);
           dataVarsStr += Global::intToString(x+y*board.x_size) + ":'../" + childPath + "',";
           linkSymmetriesStr += Global::intToString(x+y*board.x_size) + ":" + Global::intToString(child.symmetryOfNode) + ",";
@@ -1549,7 +1554,8 @@ void Book::exportToHtmlDir(
     {
       Loc loc = Board::PASS_LOC;
       SymBookNode child = symNode.follow(loc);
-      if(!child.isNull()) {
+      // Entirely omit linking children that are simply leaves, to save on the number of files we have to produce and serve.
+      if(!child.isNull() && child.node->moves.size() > 0) {
         string childPath = getFilePath(child.node, true);
         dataVarsStr += Global::intToString(board.y_size*board.x_size) + ":'../" + childPath + "',";
         linkSymmetriesStr += Global::intToString(board.y_size*board.x_size) + ":" + Global::intToString(child.symmetryOfNode) + ",";

@@ -88,6 +88,14 @@ h1 {
   display: block;
   opacity: 0.3;
 }
+.stoneShadowUnhoverable {
+  display: block;
+  opacity: 0.001;
+}
+.stoneShadowUnhoverable.tableHovered {
+  display: block;
+  opacity: 0.3;
+}
 .stoneShadow:hover {
   display: block;
   opacity: 0.3;
@@ -187,7 +195,11 @@ function compose(sym1,sym2) {
 }
 
 function getLinkForPos(pos) {
+  if(!(pos in links))
+    return null;
   let linkPath = links[pos];
+  if(linkPath.length == 0)
+    return null;
   // This is the symmetry we need to add as a GET parameter in the URL for the linked position.
   let symmetryToAlign = linkSyms[pos];
   // Except we need to composite it with our current symmetry too.
@@ -418,12 +430,17 @@ let svgNS = "http://www.w3.org/2000/svg";
       marker.setAttribute("fill",nextPla == 1 ? "black" : "white");
       boardSvg.appendChild(marker);
 
+      let linkForPos = getLinkForPos(pos);
+
       // Group for hover shadow
       let shadowGroup = document.createElementNS(svgNS, "g");
       shadowGroup.setAttribute("opacity",0.65);
       shadowGroup.setAttribute("moveX",symX);
       shadowGroup.setAttribute("moveY",symY);
-      shadowGroup.classList.add("stoneShadow");
+      if(linkForPos)
+        shadowGroup.classList.add("stoneShadow");
+      else
+        shadowGroup.classList.add("stoneShadowUnhoverable");
       let stoneShadow = document.createElementNS(svgNS, "circle");
       stoneShadow.setAttribute("cx",symX);
       stoneShadow.setAttribute("cy",symY);
@@ -453,10 +470,15 @@ let svgNS = "http://www.w3.org/2000/svg";
           hoverTableEltsByMove[i].classList.remove("moveHovered");
       });
 
-      let shadowGroupLink = document.createElementNS(svgNS, "a");
-      shadowGroupLink.setAttribute("href",getLinkForPos(pos));
-      shadowGroupLink.appendChild(shadowGroup);
-      boardSvg.appendChild(shadowGroupLink);
+      if(linkForPos) {
+        let shadowGroupLink = document.createElementNS(svgNS, "a");
+        shadowGroupLink.setAttribute("href",linkForPos);
+        shadowGroupLink.appendChild(shadowGroup);
+        boardSvg.appendChild(shadowGroupLink);
+      }
+      else {
+        boardSvg.appendChild(shadowGroup);
+      }
     }
   }
 
@@ -560,7 +582,29 @@ function textCell(text) {
     let moveData = moves[i];
     if(moveData["v"] <= 0.0)
       continue;
-    let dataRow = document.createElement("a");
+
+    let linkForPos = null;
+    if(moveData["xy"]) {
+      let xy = moveData["xy"][0];
+      let x = xy[0];
+      let y = xy[1];
+      let pos = y * bSizeX + x;
+      linkForPos = getLinkForPos(pos);
+    }
+    else if(moveData["move"] && moveData["move"] == "pass") {
+      let pos = bSizeY * bSizeX;
+      linkForPos = getLinkForPos(pos);
+    }
+
+    let dataRow = null;
+    if(linkForPos) {
+      dataRow = document.createElement("a");
+      dataRow.setAttribute("href",linkForPos);
+    }
+    else {
+      dataRow = document.createElement("span");
+    }
+
     dataRow.classList.add("moveTableRow");
     dataRow.setAttribute("role","row");
     dataRow.addEventListener("mouseover",(event) => {
@@ -575,18 +619,6 @@ function textCell(text) {
       if(i in hoverShadowEltsByMove)
         hoverShadowEltsByMove[i].classList.remove("tableHovered");
     });
-
-    if(moveData["xy"]) {
-      let xy = moveData["xy"][0];
-      let x = xy[0];
-      let y = xy[1];
-      let pos = y * bSizeX + x;
-      dataRow.setAttribute("href",getLinkForPos(pos));
-    }
-    else if(moveData["move"] && moveData["move"] == "pass") {
-      let pos = bSizeY * bSizeX;
-      dataRow.setAttribute("href",getLinkForPos(pos));
-    }
 
     dataRow.appendChild(textCell(i+1));
     if(moveData["move"])
