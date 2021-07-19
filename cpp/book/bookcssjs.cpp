@@ -54,10 +54,10 @@ h1 {
   */
 }
 
-.moveTableRow:link { text-decoration: none; color: rgb(0, 0, 238) }
-.moveTableRow:visited { text-decoration: none; color: rgb(85, 26, 139) }
-.moveTableRow:hover { text-decoration: none; }
-.moveTableRow:active { text-decoration: none; color:#ff0000 }
+.moveTableRowLinked:link { text-decoration: none; color: rgb(0, 0, 238) }
+.moveTableRowLinked:visited { text-decoration: none; color: rgb(85, 26, 139) }
+.moveTableRowLinked:hover { text-decoration: none; }
+.moveTableRowLinked:active { text-decoration: none; color:#ff0000 }
 
 .moveTableCell {
   display: table-cell;
@@ -600,9 +600,11 @@ function textCell(text) {
     if(linkForPos) {
       dataRow = document.createElement("a");
       dataRow.setAttribute("href",linkForPos);
+      dataRow.classList.add("moveTableRowLinked");
     }
     else {
       dataRow = document.createElement("span");
+      dataRow.classList.add("moveTableRowLinked");
     }
 
     dataRow.classList.add("moveTableRow");

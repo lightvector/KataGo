@@ -1363,7 +1363,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     node->thisNodeExpansionCost -= 0.5 * smallestCostFromUCB;
   }
 
-  // Apply bonuses to moves now. Apply fully up to 0.75 of the cost, then only 1/5 as much up to 95% of cost.
+  // Apply bonuses to moves now. Apply fully up to 0.75 of the cost.
   for(auto& locAndBookMove: node->moves) {
     const BookNode* child = get(locAndBookMove.second.hash);
     double winLossError = fabs(child->recursiveValues.winLossUCB - child->recursiveValues.winLossLCB) / errorFactor / 2.0;
@@ -1372,9 +1372,8 @@ void Book::recomputeNodeCost(BookNode* node) {
       bonusPerWinLossError * winLossError +
       bonusPerSharpScoreDiscrepancy * sharpScoreDiscrepancy;
     double bonusCap1 = (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * 0.75;
-    double bonusCap2 = (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * 0.95;
     if(bonus > bonusCap1)
-      bonus = std::min(bonusCap2, bonusCap1 + 0.2 * (bonus - bonusCap1));
+      bonus = bonusCap1;
     locAndBookMove.second.costFromRoot -= bonus;
   }
   {
@@ -1393,9 +1392,8 @@ void Book::recomputeNodeCost(BookNode* node) {
       bonusPerSharpScoreDiscrepancy * std::min(sharpScoreDiscrepancy, 1.0) +
       bonusPerExcessUnexpandedPolicy * excessUnexpandedPolicy;
     double bonusCap1 = node->thisNodeExpansionCost * 0.75;
-    double bonusCap2 = node->thisNodeExpansionCost * 0.95;
     if(bonus > bonusCap1)
-      bonus = std::min(bonusCap2, bonusCap1 + 0.2 * (bonus - bonusCap1));
+      bonus = bonusCap1;
     bonus += bonusPerSharpScoreDiscrepancy * std::max(0.0, sharpScoreDiscrepancy - 1.0);
     node->thisNodeExpansionCost -= bonus;
   }
@@ -1480,8 +1478,8 @@ void Book::exportToHtmlDir(
 
   std::function<void(BookNode*)> f = [&](BookNode* node) {
     // Entirely omit exporting nodes that are simply leaves, to save on the number of files we have to produce and serve.
-    if(node != root && node->moves.size() == 0)
-      return;
+    // if(node != root && node->moves.size() == 0)
+    //   return;
 
     string filePath = getFilePath(node, false);
     string html = HTML_TEMPLATE;
@@ -1543,7 +1541,8 @@ void Book::exportToHtmlDir(
         Loc loc = Location::getLoc(x,y,board.x_size);
         SymBookNode child = symNode.follow(loc);
         // Entirely omit linking children that are simply leaves, to save on the number of files we have to produce and serve.
-        if(!child.isNull() && child.node->moves.size() > 0) {
+        // if(!child.isNull() && child.node->moves.size() > 0) {
+        if(!child.isNull()) {
           string childPath = getFilePath(child.node, true);
           dataVarsStr += Global::intToString(x+y*board.x_size) + ":'../" + childPath + "',";
           linkSymmetriesStr += Global::intToString(x+y*board.x_size) + ":" + Global::intToString(child.symmetryOfNode) + ",";
@@ -1555,7 +1554,8 @@ void Book::exportToHtmlDir(
       Loc loc = Board::PASS_LOC;
       SymBookNode child = symNode.follow(loc);
       // Entirely omit linking children that are simply leaves, to save on the number of files we have to produce and serve.
-      if(!child.isNull() && child.node->moves.size() > 0) {
+      // if(!child.isNull() && child.node->moves.size() > 0) {
+      if(!child.isNull()) {
         string childPath = getFilePath(child.node, true);
         dataVarsStr += Global::intToString(board.y_size*board.x_size) + ":'../" + childPath + "',";
         linkSymmetriesStr += Global::intToString(board.y_size*board.x_size) + ":" + Global::intToString(child.symmetryOfNode) + ",";
