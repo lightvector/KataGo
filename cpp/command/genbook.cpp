@@ -633,7 +633,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       ostringstream out;
       Board::printBoard(out, board, Board::NULL_LOC, NULL);
       std::lock_guard<std::mutex> lock(bookMutex);
-      logger.write("Expanding " + node.hash().toString());
+      logger.write("Expanding " + node.hash().toString() + " cost " + Global::doubleToString(node.totalExpansionCost()));
       logger.write(out.str());
     }
 

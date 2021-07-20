@@ -399,6 +399,14 @@ double ConstSymBookNode::minCostFromRoot() {
   assert(node != nullptr);
   return node->minCostFromRoot;
 }
+double SymBookNode::totalExpansionCost() {
+  assert(node != nullptr);
+  return node->minCostFromRoot + node->thisNodeExpansionCost;
+}
+double ConstSymBookNode::totalExpansionCost() {
+  assert(node != nullptr);
+  return node->minCostFromRoot + node->thisNodeExpansionCost;
+}
 
 SymBookNode SymBookNode::canonicalParent() {
   if(node->parents.size() <= 0)

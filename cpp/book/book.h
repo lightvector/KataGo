@@ -156,6 +156,7 @@ class SymBookNode {
   bool& canExpand();
   const RecursiveBookValues& recursiveValues();
   double minCostFromRoot();
+  double totalExpansionCost();
 
   // Returns NULL for the root or if somehow a parent is not found
   SymBookNode canonicalParent();
@@ -205,6 +206,7 @@ class ConstSymBookNode {
   bool canExpand();
   const RecursiveBookValues& recursiveValues();
   double minCostFromRoot();
+  double totalExpansionCost();
 
   // Returns NULL for the root or if somehow a parent is not found
   ConstSymBookNode canonicalParent();
