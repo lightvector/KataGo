@@ -519,8 +519,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         // UNLOCK for performing expensive symmetry computations
         lock.unlock();
 
-        // To avoid oddities in positions where the rules mismatch, expand every move with at least as
-        // high of a raw policy, modulo a small buffer.
+        // To avoid oddities in positions where the rules mismatch, expand every move with a noticeably higher raw policy
         // Average all 8 symmetries
         vector<std::shared_ptr<NNOutput>> ptrs;
         for(int sym = 0; sym<SymmetryHelpers::NUM_SYMMETRIES; sym++) {
@@ -541,7 +540,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
           Loc loc = NNPos::posToLoc(pos, board.x_size, board.y_size, result->nnXLen, result->nnYLen);
           if(loc == Board::NULL_LOC || loc == moveLoc)
             continue;
-          if(policyProbs[pos] > 0.0 && policyProbs[pos] > 1.1 * moveLocPolicy + 0.02f)
+          if(policyProbs[pos] > 0.0 && policyProbs[pos] > 1.5 * moveLocPolicy + 0.05f)
             extraMoveLocsToExpand.push_back(std::make_pair(loc,policyProbs[pos]));
         }
         std::sort(
@@ -804,10 +803,12 @@ int MainCmds::genbook(int argc, const char* const* argv) {
           Search* search = searches[gameThreadIdx];
           updateNodeThisValues(search, hist, node);
           int64_t currentHashesUpdated = hashesUpdated.fetch_add(1) + 1;
-          logger.write(
-            "Updating book, currentHashesUpdated " +
-            Global::int64ToString(currentHashesUpdated) + "/" + Global::uint64ToString(nodesHashesToUpdate.size())
-          );
+          if(currentHashesUpdated % 100 == 0) {
+            logger.write(
+              "Updating book, currentHashesUpdated " +
+              Global::int64ToString(currentHashesUpdated) + "/" + Global::uint64ToString(nodesHashesToUpdate.size())
+            );
+          }
         }
       };
 
