@@ -281,6 +281,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       throw StringError("Cannot specify iterations and trace book at the same time");
     traceBook = Book::loadFromFile(traceBookFile,sharpScoreOutlierCap);
     traceBook->recomputeEverything();
+    logger.write("Loaded trace book with " + Global::uint64ToString(book->size()) + " nodes from " + traceBookFile);
   }
 
   book->setBonusByHash(bonusByHash);
@@ -496,13 +497,10 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     for(auto& move: targetHist.moveHistory) {
       // Make sure we don't walk off the edge under this ruleset.
       if(hist.isGameFinished || hist.isPastNormalPhaseEnd || hist.encorePhase > 0) {
+        logger.write("Skipping trace variation at this book hash " + node.hash().toString() + " since game over");
         node.canExpand() = false;
         break;
       }
-
-      // If this node in this book or under this ruleset is nonexpandable, then we can't follow any further.
-      if(!node.canExpand())
-        break;
 
       Loc moveLoc = move.loc;
       Player movePla = move.pla;
@@ -512,10 +510,19 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         throw StringError("Target board history to add player got out of sync with node");
 
       // Illegal move, possibly due to rules mismatch between the books. In that case, we just stop where we are.
-      if(!hist.isLegal(board,moveLoc,movePla))
+      if(!hist.isLegal(board,moveLoc,movePla)) {
+        logger.write("Skipping trace variation at this book hash " + node.hash().toString() + " since illegal");
         break;
+      }
 
       if(!node.isMoveInBook(moveLoc)) {
+        // If this node in this book or under this ruleset is nonexpandable, then although we can
+        // follow existing moves, we can't add any moves.
+        if(!node.canExpand()) {
+          logger.write("Skipping trace variation at this book hash " + node.hash().toString() + " since nonexpandable");
+          break;
+        }
+
         // UNLOCK for performing expensive symmetry computations
         lock.unlock();
 
@@ -750,7 +757,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
           (void)suc;
           addVariationToBookWithoutUpdate(gameThreadIdx, hist, nodesHashesToUpdate);
           int64_t currentVariationsAdded = variationsAdded.fetch_add(1) + 1;
-          if(currentVariationsAdded % 100 == 0) {
+          if(currentVariationsAdded % 400 == 0) {
             logger.write(
               "Tracing book, currentVariationsAdded " +
               Global::int64ToString(currentVariationsAdded) + "/" + Global::uint64ToString(allNodes.size())
