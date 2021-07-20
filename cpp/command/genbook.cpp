@@ -480,6 +480,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     BoardHistory hist = book->getInitialHist();
     Player pla = hist.presumedNextMovePla;
     Board board = hist.getRecentBoard(0);
+    search->setPosition(pla,board,hist);
 
     // Run some basic error checking
     if(
@@ -540,7 +541,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
           Loc loc = NNPos::posToLoc(pos, board.x_size, board.y_size, result->nnXLen, result->nnYLen);
           if(loc == Board::NULL_LOC || loc == moveLoc)
             continue;
-          if(policyProbs[pos] > 0.0 && policyProbs[pos] > moveLocPolicy + 0.01f)
+          if(policyProbs[pos] > 0.0 && policyProbs[pos] > 1.1 * moveLocPolicy + 0.02f)
             extraMoveLocsToExpand.push_back(std::make_pair(loc,policyProbs[pos]));
         }
         std::sort(
@@ -559,25 +560,25 @@ int MainCmds::genbook(int argc, const char* const* argv) {
 
         {
           // Possibly another thread added it, so we need to check again.
-          if(node.isMoveInBook(moveLoc))
-            continue;
-          Board boardCopy = board;
-          BoardHistory histCopy = hist;
-          bool childIsTransposing;
-          SymBookNode child = node.playAndAddMove(boardCopy,histCopy,moveLoc,moveLocPolicy,childIsTransposing);
-          if(!child.isNull() && !childIsTransposing)
-            nodesHashesToUpdate.insert(child.hash());
+          if(!node.isMoveInBook(moveLoc)) {
+            Board boardCopy = board;
+            BoardHistory histCopy = hist;
+            bool childIsTransposing;
+            SymBookNode child = node.playAndAddMove(boardCopy,histCopy,moveLoc,moveLocPolicy,childIsTransposing);
+            if(!child.isNull() && !childIsTransposing)
+              nodesHashesToUpdate.insert(child.hash());
+          }
         }
         for(std::pair<Loc,float>& extraMoveLocToExpand: extraMoveLocsToExpand) {
           // Possibly we added it via symmetry, or maybe even another thread, so we need to check again.
-          if(node.isMoveInBook(extraMoveLocToExpand.first))
-            continue;
-          Board boardCopy = board;
-          BoardHistory histCopy = hist;
-          bool childIsTransposing;
-          SymBookNode child = node.playAndAddMove(boardCopy,histCopy,extraMoveLocToExpand.first,extraMoveLocToExpand.second,childIsTransposing);
-          if(!child.isNull() && !childIsTransposing)
-            nodesHashesToUpdate.insert(child.hash());
+          if(!node.isMoveInBook(extraMoveLocToExpand.first)) {
+            Board boardCopy = board;
+            BoardHistory histCopy = hist;
+            bool childIsTransposing;
+            SymBookNode child = node.playAndAddMove(boardCopy,histCopy,extraMoveLocToExpand.first,extraMoveLocToExpand.second,childIsTransposing);
+            if(!child.isNull() && !childIsTransposing)
+              nodesHashesToUpdate.insert(child.hash());
+          }
         }
       }
 
