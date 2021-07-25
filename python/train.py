@@ -430,6 +430,8 @@ def model_fn(features,labels,mode,params):
           name = v.name.split(":")[0] # drop the ":0" at the end of each var
           if name in varname_in_checkpoint:
             assignment_mapping[name] = v
+          elif ("swa_model/"+name) in varname_in_checkpoint:
+            assignment_mapping[("swa_model/"+name)] = v
 
         tf.compat.v1.train.init_from_checkpoint(checkpoint_path, assignment_mapping)
         initial_weights_already_loaded = True
