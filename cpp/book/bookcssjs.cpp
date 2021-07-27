@@ -670,4 +670,30 @@ function textCell(text) {
   body.appendChild(table);
 }
 
+function textItem(label,text) {
+  let item = document.createElement("li");
+  item.classList.add("legendItem");
+  let labelSpan = document.createElement("span");
+  let textSpan = document.createElement("span");
+  labelSpan.appendChild(document.createTextNode(label + ": "));
+  textSpan.appendChild(document.createTextNode(text));
+  textSpan.classList.add("legendItemText");
+  item.appendChild(labelSpan);
+  item.appendChild(textSpan);
+  return item;
+}
+
+{
+  let legend = document.createElement("div");
+  let legendList = document.createElement("ul");
+  legendList.appendChild(textItem("Black Win%","Minimax of MCTS winrate from Black's perspective."));
+  legendList.appendChild(textItem("Black Score","Minimax of sharpened MCTS score from Black's perspective."));
+  legendList.appendChild(textItem("Win% Uncertainty","Measure of uncertainty in Win%. Does NOT correspond to any standard well-defined statistical metric, this is purely a heuristic indicator. Browse the book to get a feel for its scaling and what it means."));
+  legendList.appendChild(textItem("Score Uncertainty","Measure of uncertainty in Score. Does NOT correspond to any standard well-defined statistical metric, this is purely a heuristic indicator. Browse the book to get a feel for its scaling and what it means."));
+  legendList.appendChild(textItem("Prior%","Raw policy prior of neural net"));
+  legendList.appendChild(textItem("Visits","Total number of visits, multi-counting transpositions (i.e., number of visits to produce this book if there were no transposition handling)."));
+  legend.appendChild(legendList);
+  body.appendChild(legend);
+}
+
 )%%";

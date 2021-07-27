@@ -1651,6 +1651,18 @@ void Book::exportToHtmlDir(
         // double scoreFinalUCB = values.scoreMean + errorFactor * values.scoreStdev;
         // double scoreFinalLCB = values.scoreMean - errorFactor * values.scoreStdev;
 
+        // A quick hack to limit the issue of outliers from sharpScore, and adjust the LCB/UCB to reflect the uncertainty
+        double scoreMean = values.scoreMean;
+        double sharpScoreMean = values.sharpScoreMean;
+        if(sharpScoreMean > scoreUCB)
+          scoreUCB = sharpScoreMean;
+        if(sharpScoreMean < scoreLCB)
+          scoreLCB = sharpScoreMean;
+        if(sharpScoreMean > scoreMean + sharpScoreOutlierCap)
+          sharpScoreMean = scoreMean + sharpScoreOutlierCap;
+        if(sharpScoreMean < scoreMean - sharpScoreOutlierCap)
+          sharpScoreMean = scoreMean - sharpScoreOutlierCap;
+
         dataVarsStr += "{";
         dataVarsStr += "'move':'other',";
         dataVarsStr += "'p':" + doubleToStringFourDigits(values.maxPolicy) + ",";
@@ -1658,8 +1670,8 @@ void Book::exportToHtmlDir(
         if(devMode) {
           dataVarsStr += "'wlUCB':" + doubleToStringFourDigits(winLossValueUCB) + ",";
           dataVarsStr += "'wlLCB':" + doubleToStringFourDigits(winLossValueLCB) + ",";
-          dataVarsStr += "'sM':" + doubleToStringTwoDigits(values.scoreMean) + ",";
-          dataVarsStr += "'ssM':" + doubleToStringTwoDigits(values.sharpScoreMean) + ",";
+          dataVarsStr += "'sM':" + doubleToStringTwoDigits(scoreMean) + ",";
+          dataVarsStr += "'ssM':" + doubleToStringTwoDigits(sharpScoreMean) + ",";
           dataVarsStr += "'sUCB':" + doubleToStringTwoDigits(scoreUCB) + ",";
           dataVarsStr += "'sLCB':" + doubleToStringTwoDigits(scoreLCB) + ",";
           dataVarsStr += "'w':" + doubleToStringZeroDigits(values.weight) + ",";
@@ -1668,7 +1680,7 @@ void Book::exportToHtmlDir(
           dataVarsStr += "'costRoot':" + doubleToStringFourDigits(node->minCostFromRoot + node->thisNodeExpansionCost) + ",";
         }
         else {
-          dataVarsStr += "'ssM':" + doubleToStringTwoDigits(values.sharpScoreMean) + ",";
+          dataVarsStr += "'ssM':" + doubleToStringTwoDigits(sharpScoreMean) + ",";
           dataVarsStr += "'wlRad':" + doubleToStringFourDigits(0.5*(winLossValueUCB-winLossValueLCB)) + ",";
           dataVarsStr += "'sRad':" + doubleToStringTwoDigits(0.5*(scoreUCB-scoreLCB)) + ",";
           dataVarsStr += "'v':" + doubleToStringZeroDigits(values.visits) + ",";
