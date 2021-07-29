@@ -348,6 +348,10 @@ struct GTPEngine {
 
   double genmoveTimeSum;
 
+  ClockTimer gameTimer;
+  double gameGenmoveTimeSum;
+  double friendlyMaxVisitsFactor;
+
   GTPEngine(
     const string& modelFile, SearchParams initialParams, Rules initialRules,
     bool assumeMultiBlackHandicap, bool prevtEncore,
@@ -357,7 +361,8 @@ struct GTPEngine {
     double genmoveWRN, double analysisWRN,
     bool genmoveAntiMir, bool analysisAntiMir,
     Player persp, int pvLen,
-    std::unique_ptr<PatternBonusTable>&& pbTable
+    std::unique_ptr<PatternBonusTable>&& pbTable,
+    double friendlyMaxVisitsFact
   )
     :nnModelFile(modelFile),
      assumeMultipleStartingBlackMovesAreHandicap(assumeMultiBlackHandicap),
@@ -387,7 +392,9 @@ struct GTPEngine {
      avoidMYTDaggerHack(avoidDagger),
      patternBonusTable(std::move(pbTable)),
      perspective(persp),
-     genmoveTimeSum(0.0)
+     genmoveTimeSum(0.0),
+     gameGenmoveTimeSum(0.0),
+     friendlyMaxVisitsFactor(friendlyMaxVisitsFact)
   {
   }
 
@@ -406,7 +413,8 @@ struct GTPEngine {
   }
 
   void clearStatsForNewGame() {
-    //Currently nothing
+    gameTimer.reset();
+    gameGenmoveTimeSum = 0.0;
   }
 
   //Specify -1 for the sizes for a default
@@ -861,6 +869,19 @@ struct GTPEngine {
     double searchFactor = PlayUtils::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,pla);
     lastSearchFactor = searchFactor;
 
+    //Adjust to opponent's playing speed
+    if (friendlyMaxVisitsFactor > 0.0) {
+        double opponentMoveCount = round(moveHistory.size() / 2.0);
+        if (opponentMoveCount > 0) {
+            double timeSpentOpponent = (gameTimer.getSeconds() - gameGenmoveTimeSum);
+            params.maxVisits = lround(timeSpentOpponent / opponentMoveCount * friendlyMaxVisitsFactor);
+        } else {
+            // KataGo plays the very first move of the game, take 1s
+            params.maxVisits = lround(friendlyMaxVisitsFactor);
+        }
+        bot->setParams(params);
+    }
+
     Loc moveLoc;
     bot->setAvoidMoveUntilByLoc(args.avoidMoveUntilByLocBlack,args.avoidMoveUntilByLocWhite);
     if(args.analyzing) {
@@ -914,6 +935,7 @@ struct GTPEngine {
     //output of various things.
     double timeTaken = timer.getSeconds();
     genmoveTimeSum += timeTaken;
+    gameGenmoveTimeSum += timeTaken;
 
     //Chatting and logging ----------------------------
 
@@ -1550,6 +1572,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const double normalAvoidRepeatedPatternUtility = initialParams.avoidRepeatedPatternUtility;
   const double handicapAvoidRepeatedPatternUtility = (cfg.contains("avoidRepeatedPatternUtility") || cfg.contains("avoidRepeatedPatternUtility0")) ?
     initialParams.avoidRepeatedPatternUtility : 0.005;
+  const double friendlyMaxVisitsFactor = cfg.contains("friendlyMaxVisitsFactor") ? cfg.getDouble("friendlyMaxVisitsFactor", 0.0, 1e10) : 0.0;
 
   const int defaultBoardXSize =
     cfg.contains("defaultBoardXSize") ? cfg.getInt("defaultBoardXSize",2,Board::MAX_LEN) :
@@ -1591,12 +1614,13 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     genmoveWideRootNoise,analysisWideRootNoise,
     genmoveAntiMirror,analysisAntiMirror,
     perspective,analysisPVLen,
-    std::move(patternBonusTable)
+    std::move(patternBonusTable),
+    friendlyMaxVisitsFactor
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize);
 
   //If nobody specified any time limit in any way, then assume a relatively fast time control
-  if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime")) {
+  if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime") && !cfg.contains("friendlyMaxVisitsFactor")) {
     double mainTime = 1.0;
     double byoYomiTime = 5.0;
     int byoYomiPeriods = 5;
