@@ -652,6 +652,8 @@ private:
 
   template<typename Func>
   double traverseTreeWithOwnershipAndSelfWeight(Func&& averaging, double minWeight, double desiredWeight, const SearchNode* node) const;
+  template<typename Func>
+  double traverseTreeWithOwnershipAndSelfWeightHeler(Func&& averaging, double minWeight, double desiredWeight, double thisNodeWeight, const SearchChildPointer* children, double* childWeightBuf, int childrenCapacity) const;
 
 };
 

@@ -1217,8 +1217,9 @@ vector<double> Search::getAverageTreeOwnership(double minWeight, const SearchNod
   if(!alwaysIncludeOwnerMap)
     throw StringError("Called Search::getAverageTreeOwnership when alwaysIncludeOwnerMap is false");
   vector<double> vec(nnXLen*nnYLen,0.0);
-  traverseTreeWithOwnershipAndSelfWeight([&vec](int pos, double ownership, double selfWeight) {
-    vec[pos] += selfWeight * ownership;
+  traverseTreeWithOwnershipAndSelfWeight([&vec,this](float* ownership, double selfWeight){
+    for (int pos = 0; pos < nnXLen*nnYLen; pos++)
+      vec[pos] += selfWeight * ownership[pos];
   },minWeight,1.0,node);
   return vec;
 }
@@ -1228,9 +1229,12 @@ tuple<vector<double>,vector<double>> Search::getAverageAndStandardDeviationTreeO
     node = rootNode;
   vector<double> average(nnXLen*nnYLen,0.0);
   vector<double> stdev(nnXLen*nnYLen,0.0);
-  traverseTreeWithOwnershipAndSelfWeight([&average,&stdev](int pos, double ownership, double selfWeight) {
-    average[pos] += selfWeight * ownership;
-    stdev[pos] += selfWeight * ownership * ownership;
+  traverseTreeWithOwnershipAndSelfWeight([&average,&stdev,this](float* ownership, double selfWeight) {
+    for (int pos = 0; pos < nnXLen*nnYLen; pos++) {
+      const double value = ownership[pos];
+      average[pos] += selfWeight * value;
+      stdev[pos] += selfWeight * value * value;
+    }
   },minWeight,1.0,node);
   for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
     const double avg = average[pos];
@@ -1251,8 +1255,25 @@ double Search::traverseTreeWithOwnershipAndSelfWeight(Func&& averaging, double m
   int childrenCapacity;
   const SearchChildPointer* children = node->getChildren(childrenCapacity);
 
-  vector<double> childWeightBuf(childrenCapacity);
+  double actualWeightFromChildren;
   double thisNodeWeight = computeWeightFromNNOutput(nnOutput);
+  if (childrenCapacity <= 8) {
+    double childWeightBuf[8];
+    actualWeightFromChildren = traverseTreeWithOwnershipAndSelfWeightHeler(averaging, minWeight, desiredWeight, thisNodeWeight, children, childWeightBuf, childrenCapacity);
+  } else {
+    vector<double> childWeightBuf(childrenCapacity);
+    actualWeightFromChildren = traverseTreeWithOwnershipAndSelfWeightHeler(averaging, minWeight, desiredWeight, thisNodeWeight, children, &childWeightBuf[0], childrenCapacity);
+  }
+
+  double selfWeight = desiredWeight - actualWeightFromChildren;
+  float* ownerMap = nnOutput->whiteOwnerMap;
+  assert(ownerMap != NULL);
+  averaging(ownerMap, selfWeight);
+  return desiredWeight;
+}
+
+template<typename Func>
+double Search::traverseTreeWithOwnershipAndSelfWeightHeler(Func&& averaging, double minWeight, double desiredWeight, double thisNodeWeight, const SearchChildPointer* children, double* childWeightBuf, int childrenCapacity) const {
   int numChildren = 0;
   for(int i = 0; i<childrenCapacity; i++) {
     const SearchNode* child = children[i].getIfAllocated();
@@ -1286,14 +1307,8 @@ double Search::traverseTreeWithOwnershipAndSelfWeight(Func&& averaging, double m
     double desiredWeightFromChild = (double)childWeight * childWeight / relativeChildrenWeightSum * desiredWeightFromChildren;
     actualWeightFromChildren += traverseTreeWithOwnershipAndSelfWeight(averaging,minWeight,desiredWeightFromChild,child);
   }
-
-  double selfWeight = desiredWeight - actualWeightFromChildren;
-  float* ownerMap = nnOutput->whiteOwnerMap;
-  assert(ownerMap != NULL);
-  for(int pos = 0; pos<nnXLen*nnYLen; pos++)
-    averaging(pos, ownerMap[pos], selfWeight);
-
-  return desiredWeight;
+  
+  return actualWeightFromChildren;
 }
 
 json Search::getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight) const {
