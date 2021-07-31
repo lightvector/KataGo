@@ -1366,9 +1366,9 @@ void Book::recomputeNodeCost(BookNode* node) {
   // interesting for further expansion.
   if(smallestCostFromUCB > 1e-100) {
     for(auto& locAndBookMove: node->moves) {
-      locAndBookMove.second.costFromRoot -= 0.5 * smallestCostFromUCB;
+      locAndBookMove.second.costFromRoot -= 0.8 * smallestCostFromUCB;
     }
-    node->thisNodeExpansionCost -= 0.5 * smallestCostFromUCB;
+    node->thisNodeExpansionCost -= 0.8 * smallestCostFromUCB;
   }
 
   // Apply bonuses to moves now. Apply fully up to 0.75 of the cost.
