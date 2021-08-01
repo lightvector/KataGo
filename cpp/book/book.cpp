@@ -1371,6 +1371,43 @@ void Book::recomputeNodeCost(BookNode* node) {
     node->thisNodeExpansionCost -= 0.8 * smallestCostFromUCB;
   }
 
+  // For each move, in order, if its plain winrate is a lot better than the winrate of other moves, then its cost can't be too much worse.
+  for(auto& locAndBookMove: node->moves) {
+    const BookNode* child = get(locAndBookMove.second.hash);
+    double winLoss = (node->pla == P_WHITE) ? child->recursiveValues.winLossValue : -child->recursiveValues.winLossValue;
+    double bestOtherCostFromRoot = locAndBookMove.second.costFromRoot;
+    for(auto& locAndBookMoveOther: node->moves) {
+      if(locAndBookMoveOther.second.costFromRoot < bestOtherCostFromRoot) {
+        const BookNode* otherChild = get(locAndBookMoveOther.second.hash);
+        double winLossOther = (node->pla == P_WHITE) ? otherChild->recursiveValues.winLossValue : -otherChild->recursiveValues.winLossValue;
+        // At least 1.5% better
+        if(winLoss > winLossOther + 0.03)
+          bestOtherCostFromRoot = locAndBookMoveOther.second.costFromRoot;
+      }
+    }
+    if(bestOtherCostFromRoot < locAndBookMove.second.costFromRoot) {
+      // Reduce 50% of cost towards the move that we're better than.
+      locAndBookMove.second.costFromRoot += 0.50 * (bestOtherCostFromRoot - locAndBookMove.second.costFromRoot);
+    }
+  }
+  {
+    double winLoss = (node->pla == P_WHITE) ? node->thisValuesNotInBook.winLossValue : -node->thisValuesNotInBook.winLossValue;
+    double bestOtherCostFromRoot = node->thisNodeExpansionCost + node->minCostFromRoot;
+    for(auto& locAndBookMoveOther: node->moves) {
+      if(locAndBookMoveOther.second.costFromRoot < bestOtherCostFromRoot) {
+        const BookNode* otherChild = get(locAndBookMoveOther.second.hash);
+        double winLossOther = (node->pla == P_WHITE) ? otherChild->recursiveValues.winLossValue : -otherChild->recursiveValues.winLossValue;
+        // At least 1.5% better
+        if(winLoss > winLossOther + 0.03)
+          bestOtherCostFromRoot = locAndBookMoveOther.second.costFromRoot;
+      }
+    }
+    if(bestOtherCostFromRoot - node->minCostFromRoot < node->thisNodeExpansionCost) {
+      // Reduce 50% of cost towards the move that we're better than.
+      node->thisNodeExpansionCost += 0.50 * (bestOtherCostFromRoot - node->minCostFromRoot - node->thisNodeExpansionCost);
+    }
+  }
+
   // Apply bonuses to moves now. Apply fully up to 0.75 of the cost.
   for(auto& locAndBookMove: node->moves) {
     const BookNode* child = get(locAndBookMove.second.hash);
