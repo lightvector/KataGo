@@ -73,6 +73,8 @@ struct BookValues {
   double maxPolicy = 0.0;
   double weight = 0.0;
   double visits = 0.0;
+
+  double getAdjustedScoreError(const Rules& rules) const;
 };
 struct RecursiveBookValues {
   // Recursively computed via minimax

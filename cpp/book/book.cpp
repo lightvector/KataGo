@@ -193,6 +193,24 @@ void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHa
   }
 }
 
+double BookValues::getAdjustedScoreError(const Rules& rules) const {
+  if(rules.gameResultWillBeInteger()) {
+    double scoreVariance = scoreStdev * scoreStdev;
+    // KataGo's formalization of the score variance in draw-allowed games will be systematically too high by 0.25
+    // due to blurring of the score on the half-integer gridpoints.
+    // Assumes drawEquivalentWinsForWhite = 0.5.
+    double adjustedScoreVariance = scoreVariance - 0.25;
+    // Make sure we don't go smaller than some tiny values
+    if(adjustedScoreVariance < scoreVariance * 0.05)
+      adjustedScoreVariance = scoreVariance * 0.05;
+    return std::min(sqrt(adjustedScoreVariance),scoreError);
+  }
+  else {
+    return std::min(scoreStdev,scoreError);
+  }
+}
+
+
 // -----------------------------------------------------------------------------------------------------------
 
 BookMove::BookMove()
@@ -1128,14 +1146,15 @@ void Book::recomputeNodeValues(BookNode* node) {
 
   {
     const BookValues& values = node->thisValuesNotInBook;
+    double scoreError = values.getAdjustedScoreError(node->book->initialRules);
     winLossValue = values.winLossValue;
     scoreMean = values.scoreMean;
     sharpScoreMean = values.sharpScoreMean;
     winLossLCB = values.winLossValue - errorFactor * values.winLossError;
-    scoreLCB = values.scoreMean - errorFactor * values.scoreError;
+    scoreLCB = values.scoreMean - errorFactor * scoreError;
     scoreFinalLCB = values.scoreMean - errorFactor * values.scoreStdev;
     winLossUCB = values.winLossValue + errorFactor * values.winLossError;
-    scoreUCB = values.scoreMean + errorFactor * values.scoreError;
+    scoreUCB = values.scoreMean + errorFactor * scoreError;
     scoreFinalUCB = values.scoreMean + errorFactor * values.scoreStdev;
     weight += values.weight;
     visits += values.visits;
@@ -1304,14 +1323,15 @@ void Book::recomputeNodeCost(BookNode* node) {
     node->thisNodeExpansionCost = 1e100;
   }
   else {
+    double scoreError = node->thisValuesNotInBook.getAdjustedScoreError(node->book->initialRules);
     double ucbWinLossLoss =
       (node->pla == P_WHITE) ?
       (node->recursiveValues.winLossUCB - (node->thisValuesNotInBook.winLossValue + errorFactor * node->thisValuesNotInBook.winLossError)) :
       ((node->thisValuesNotInBook.winLossValue - errorFactor * node->thisValuesNotInBook.winLossError) - node->recursiveValues.winLossLCB);
     double ucbScoreLoss =
       (node->pla == P_WHITE) ?
-      (node->recursiveValues.scoreUCB - (node->thisValuesNotInBook.scoreMean + errorFactor * node->thisValuesNotInBook.scoreError)) :
-      ((node->thisValuesNotInBook.scoreMean - errorFactor * node->thisValuesNotInBook.scoreError) - node->recursiveValues.scoreLCB);
+      (node->recursiveValues.scoreUCB - (node->thisValuesNotInBook.scoreMean + errorFactor * scoreError)) :
+      ((node->thisValuesNotInBook.scoreMean - errorFactor * scoreError) - node->recursiveValues.scoreLCB);
     if(ucbScoreLoss > scoreLossCap)
       ucbScoreLoss = scoreLossCap;
     double rawPolicy = node->thisValuesNotInBook.maxPolicy;
@@ -1334,9 +1354,9 @@ void Book::recomputeNodeCost(BookNode* node) {
     //   node->thisValuesNotInBook.winLossValue << " " <<
     //   node->thisValuesNotInBook.winLossValue + errorFactor * node->thisValuesNotInBook.winLossError << endl;
     // cout << "Expansion thisScores " <<
-    //   node->thisValuesNotInBook.scoreMean - errorFactor * node->thisValuesNotInBook.scoreError << " " <<
+    //   node->thisValuesNotInBook.scoreMean - errorFactor * scoreError << " " <<
     //   node->thisValuesNotInBook.scoreMean << " " <<
-    //   node->thisValuesNotInBook.scoreMean + errorFactor * node->thisValuesNotInBook.scoreError << endl;
+    //   node->thisValuesNotInBook.scoreMean + errorFactor * scoreError << endl;
     // cout << "Recursive values " <<
     //   node->recursiveValues.winLossLCB << " " <<
     //   node->recursiveValues.winLossValue << " " <<
@@ -1681,10 +1701,11 @@ void Book::exportToHtmlDir(
     {
       BookValues& values = node->thisValuesNotInBook;
       if(values.maxPolicy > 0.0) {
+        double scoreError = values.getAdjustedScoreError(node->book->initialRules);
         double winLossValueUCB = values.winLossValue + errorFactor * values.winLossError;
         double winLossValueLCB = values.winLossValue - errorFactor * values.winLossError;
-        double scoreUCB = values.scoreMean + errorFactor * values.scoreError;
-        double scoreLCB = values.scoreMean - errorFactor * values.scoreError;
+        double scoreUCB = values.scoreMean + errorFactor * scoreError;
+        double scoreLCB = values.scoreMean - errorFactor * scoreError;
         // double scoreFinalUCB = values.scoreMean + errorFactor * values.scoreStdev;
         // double scoreFinalLCB = values.scoreMean - errorFactor * values.scoreStdev;
 
