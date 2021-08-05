@@ -130,18 +130,22 @@ AnalysisData& AnalysisData::operator=(AnalysisData&& other) noexcept {
 }
 
 bool operator<(const AnalysisData& a0, const AnalysisData& a1) {
+  // Sort all 0-visit moves to the end.
+  if(a0.numVisits > 0 && a1.numVisits == 0)
+    return true;
+  if(a1.numVisits > 0 && a0.numVisits == 0)
+    return false;
+  // Then sort by play selection value, the normal value for chosing moves to play.
   if(a0.playSelectionValue > a1.playSelectionValue)
     return true;
-  else if(a0.playSelectionValue < a1.playSelectionValue)
+  if(a0.playSelectionValue < a1.playSelectionValue)
     return false;
+  // Then by visits
   if(a0.numVisits > a1.numVisits)
     return true;
-  else if(a0.numVisits < a1.numVisits)
+  if(a0.numVisits < a1.numVisits)
     return false;
-  // else if(a0.utility > a1.utility)
-  //   return true;
-  // else if(a0.utility < a1.utility)
-  //   return false;
+  // Then just by raw policy
   else
     return a0.policyPrior > a1.policyPrior;
 }

@@ -645,6 +645,17 @@ struct GTPEngine {
     vector<int> avoidMoveUntilByLocWhite;
   };
 
+  void filterZeroVisitMoves(const AnalyzeArgs& args, vector<AnalysisData> buf) {
+    //Avoid printing moves that have 0 visits, unless we need them
+    //These should already be sorted so that 0-visit moves only appear at the end.
+    int keptMoves = 0;
+    for(int i = 0; i<buf.size(); i++) {
+      if(buf[i].numVisits > 0 || keptMoves < args.minMoves)
+        buf[keptMoves++] = buf[i];
+    }
+    buf.resize(keptMoves);
+  }
+
   std::function<void(const Search* search)> getAnalyzeCallback(Player pla, AnalyzeArgs args) {
     std::function<void(const Search* search)> callback;
     //lz-analyze
@@ -655,6 +666,7 @@ struct GTPEngine {
         vector<AnalysisData> buf;
         bool duplicateForSymmetries = true;
         search->getAnalysisData(buf,args.minMoves,false,analysisPVLen,duplicateForSymmetries);
+        filterZeroVisitMoves(args,buf);
         if(buf.size() > args.maxMoves)
           buf.resize(args.maxMoves);
         if(buf.size() <= 0)
@@ -700,6 +712,7 @@ struct GTPEngine {
         vector<AnalysisData> buf;
         bool duplicateForSymmetries = true;
         search->getAnalysisData(buf,args.minMoves,false,analysisPVLen,duplicateForSymmetries);
+        filterZeroVisitMoves(args,buf);
         if(buf.size() > args.maxMoves)
           buf.resize(args.maxMoves);
         if(buf.size() <= 0)

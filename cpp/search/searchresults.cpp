@@ -814,6 +814,11 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     data.scoreUtility = getScoreUtility(parentScoreMean,parentScoreMean*parentScoreMean+parentScoreStdev*parentScoreStdev);
     data.resultUtility = fpuValue - data.scoreUtility;
     data.winLossValue = searchParams.winLossUtilityFactor == 1.0 ? parentWinLossValue + (fpuValue - parentUtility) : 0.0;
+    // Make sure winloss values due to FPU don't go out of bounds for purposes of reporting to UI
+    if(data.winLossValue < -1.0)
+      data.winLossValue = -1.0;
+    if(data.winLossValue > 1.0)
+      data.winLossValue = 1.0;
     data.scoreMean = parentScoreMean;
     data.scoreStdev = parentScoreStdev;
     data.lead = parentLead;
