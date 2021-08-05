@@ -159,7 +159,7 @@ class GameResultSummary:
       sgfs_strings = f.readlines()
 
     for sgf in sgfs_strings:
-      self._add_a_single_sgf_string(sgf)
+      self._add_a_single_sgf_string(sgf, sgfs_file_name)
 
   def _add_one_sgf_file_to_result(self, sgf_file_name):
     """Add a single sgf file."""
@@ -169,15 +169,15 @@ class GameResultSummary:
     with open(sgf_file_name, "rb") as f:
       sgf = f.read()
 
-    self._add_a_single_sgf_string(sgf)
+    self._add_a_single_sgf_string(sgf, sgf_file_name)
 
-  def _add_a_single_sgf_string(self, sgf_string):
+  def _add_a_single_sgf_string(self, sgf_string, debug_source = None):
     """add a single game in a sgf string save the results in self.results."""
     try:
       game = sgf.Sgf_game.from_bytes(sgf_string)
       winner = game.get_winner()
-    except:
-      print ("A sgf string is damaged, and its record has been skipped!")
+    except ValueError:
+      print ('\033[91m'+f"A sgf string is damaged in {debug_source}, and its record has been skipped!"+ '\x1b[0m')
       return
     pla_black = game.get_player_name('b')
     pla_white = game.get_player_name('w')
