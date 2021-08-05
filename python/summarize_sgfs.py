@@ -173,8 +173,12 @@ class GameResultSummary:
 
   def _add_a_single_sgf_string(self, sgf_string):
     """add a single game in a sgf string save the results in self.results."""
-    game = sgf.Sgf_game.from_bytes(sgf_string)
-    winner = game.get_winner()
+    try:
+      game = sgf.Sgf_game.from_bytes(sgf_string)
+      winner = game.get_winner()
+    except:
+      print ("A sgf string is damaged, and its record has been skipped!")
+      return
     pla_black = game.get_player_name('b')
     pla_white = game.get_player_name('w')
     if (game.get_handicap() is not None) or game.get_komi() < 5.5 or game.get_komi() > 7.5:
