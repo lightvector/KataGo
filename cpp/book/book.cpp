@@ -1645,10 +1645,12 @@ void Book::exportToHtmlDir(
       [&](const size_t& idx0,
           const size_t& idx1) {
         double plaFactor = node->pla == P_WHITE ? 1.0 : -1.0;
-        double u0 = plaFactor * (uniqueChildValues[idx0].winLossValue + uniqueChildValues[idx0].sharpScoreMean * utilityPerScore)
-        + utilityPerPolicyForSorting * uniqueMovesInBook[idx0].rawPolicy;
-        double u1 = plaFactor * (uniqueChildValues[idx1].winLossValue + uniqueChildValues[idx1].sharpScoreMean * utilityPerScore)
-        + utilityPerPolicyForSorting * uniqueMovesInBook[idx1].rawPolicy;
+        double u0 = plaFactor * (uniqueChildValues[idx0].winLossValue + uniqueChildValues[idx0].sharpScoreMean * utilityPerScore * 0.5)
+        + plaFactor * (node->pla == P_WHITE ? uniqueChildValues[idx0].scoreLCB : uniqueChildValues[idx0].scoreUCB) * 0.5 * utilityPerScore
+        + utilityPerPolicyForSorting * (0.75 * uniqueMovesInBook[idx0].rawPolicy + 0.5 * log10(uniqueMovesInBook[idx0].rawPolicy + 0.0001)/4.0);
+        double u1 = plaFactor * (uniqueChildValues[idx1].winLossValue + uniqueChildValues[idx1].sharpScoreMean * utilityPerScore * 0.5)
+        + plaFactor * (node->pla == P_WHITE ? uniqueChildValues[idx1].scoreLCB : uniqueChildValues[idx1].scoreUCB) * 0.5 * utilityPerScore
+        + utilityPerPolicyForSorting * (0.75 * uniqueMovesInBook[idx1].rawPolicy + 0.5 * log10(uniqueMovesInBook[idx1].rawPolicy + 0.0001)/4.0);
         return u0 > u1;
       }
     );
