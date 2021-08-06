@@ -101,6 +101,13 @@ h1 {
   opacity: 0.3;
 }
 
+.legend {
+  padding-top:10px;
+}
+.legend ul {
+  margin-top:0.5em;
+}
+
 )%%";
 
 const std::string Book::BOOK_JS = R"%%(
@@ -685,7 +692,10 @@ function textItem(label,text) {
 
 {
   let legend = document.createElement("div");
+  legend.classList.add("legend");
+  legend.appendChild(document.createTextNode("Explanation of metrics:"));
   let legendList = document.createElement("ul");
+  legendList.appendChild(textItem("Index","Order of preference of moves. Trades off between multiple considerations (e.g. win% vs score vs uncertainty vs prior). Other orderings may be better depending on your goal. For example if you care only about likely win-loss-draw optimality and not score, ignore this ordering and pick based on the appropriate metrics directly."));
   legendList.appendChild(textItem("Black Win%","Minimax of MCTS winrate from Black's perspective."));
   legendList.appendChild(textItem("Black Score","Minimax of sharpened MCTS score from Black's perspective."));
   legendList.appendChild(textItem("Win% Uncertainty","Measure of uncertainty in Win%. Does NOT correspond to any standard well-defined statistical metric, this is purely a heuristic indicator. Browse the book to get a feel for its scaling and what it means."));
