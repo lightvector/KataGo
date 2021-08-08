@@ -18,8 +18,17 @@ ReportedSearchValues::ReportedSearchValues()
 {}
 ReportedSearchValues::~ReportedSearchValues()
 {}
-ReportedSearchValues::ReportedSearchValues(const Search& search, double winLossValueAvg, double noResultValueAvg, double scoreMeanAvg, double scoreMeanSqAvg,
-                                           double leadAvg, double utilityAvg, int64_t totalVisits) {
+ReportedSearchValues::ReportedSearchValues(
+  const Search& search,
+  double winLossValueAvg,
+  double noResultValueAvg,
+  double scoreMeanAvg,
+  double scoreMeanSqAvg,
+  double leadAvg,
+  double utilityAvg,
+  double totalWeight,
+  int64_t totalVisits
+) {
   winLossValue = winLossValueAvg;
   noResultValue = noResultValueAvg;
   double scoreMean = scoreMeanAvg;
@@ -46,8 +55,9 @@ ReportedSearchValues::ReportedSearchValues(const Search& search, double winLossV
   if(winValue > 1.0) winValue = 1.0;
   if(lossValue < 0.0) lossValue = 0.0;
   if(lossValue > 1.0) lossValue = 1.0;
-  visits = totalVisits;
 
+  weight = totalWeight;
+  visits = totalVisits;
 }
 
 
@@ -3167,10 +3177,10 @@ bool Search::initNodeNNOutput(
   std::shared_ptr<NNOutput>* result;
   if(isRoot && searchParams.rootNumSymmetriesToSample > 1) {
     vector<shared_ptr<NNOutput>> ptrs;
-    std::array<int, NNInputs::NUM_SYMMETRY_COMBINATIONS> symmetryIndexes;
+    std::array<int, SymmetryHelpers::NUM_SYMMETRIES> symmetryIndexes;
     std::iota(symmetryIndexes.begin(), symmetryIndexes.end(), 0);
     for(int i = 0; i<searchParams.rootNumSymmetriesToSample; i++) {
-      std::swap(symmetryIndexes[i], symmetryIndexes[thread.rand.nextInt(i,NNInputs::NUM_SYMMETRY_COMBINATIONS-1)]);
+      std::swap(symmetryIndexes[i], symmetryIndexes[thread.rand.nextInt(i,SymmetryHelpers::NUM_SYMMETRIES-1)]);
       nnInputParams.symmetry = symmetryIndexes[i];
       bool skipCacheThisIteration = true; //Skip cache since there's no guarantee which symmetry is in the cache
       nnEvaluator->evaluate(

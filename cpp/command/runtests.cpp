@@ -388,7 +388,8 @@ int MainCmds::runbeginsearchspeedtest(int argc, const char* const* argv) {
   logger.setLogToStdout(true);
 
   NNEvaluator* nnEval = NULL;
-  Rules rules = Setup::loadSingleRulesExceptForKomi(cfg);
+  const bool loadKomiFromCfg = false;
+  Rules rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
   {
     Setup::initializeSession(cfg);

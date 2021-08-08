@@ -826,7 +826,7 @@ static void extractPolicyTarget(
 
 static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, const SearchNode* node) {
   ReportedSearchValues values;
-  bool success = toMoveBot->getNodeValues(*node,values);
+  bool success = toMoveBot->getNodeValues(node,values);
   assert(success);
   (void)success; //Avoid warning when asserts are disabled
 
