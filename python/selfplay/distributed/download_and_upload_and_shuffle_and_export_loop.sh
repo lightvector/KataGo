@@ -1,9 +1,9 @@
 #!/bin/bash -eu
 set -o pipefail
 {
-if [[ $# -lt 7 ]]
+if [[ $# -lt 8 ]]
 then
-    echo "Usage: $0 RUNNAME BASEDIR CONNECTION_CONFIG DOWNLOAD_SCRIPT TMPDIR NTHREADS BATCHSIZE"
+    echo "Usage: $0 RUNNAME BASEDIR CONNECTION_CONFIG DOWNLOAD_SCRIPT TMPDIR NTHREADS BATCHSIZE RATING_ONLY"
     echo "Currently expects to be run from within the 'python' directory of the KataGo repo, or otherwise in the same dir as export_model.py."
     echo "RUNNAME should match what the server uses as the run name, try to pick something globally unique. Will prefix model names in uploaded files."
     echo "BASEDIR containing selfplay data and models and related directories"
@@ -12,6 +12,7 @@ then
     echo "TMPDIR scratch space, ideally on fast local disk, unique to this loop"
     echo "NTHREADS number of parallel threads/processes to use in shuffle"
     echo "BATCHSIZE number of samples to concat together per batch for training, must match training"
+    echo "RATING_ONLY if 1, upload for rating only, else upload for selfplay too"
     exit 0
 fi
 RUNNAME="$1"
@@ -27,6 +28,8 @@ shift
 NTHREADS="$1"
 shift
 BATCHSIZE="$1"
+shift
+RATING_ONLY="$1"
 shift
 
 #We're not really using gating, but the upload script expects them to be where gating would put them
@@ -55,7 +58,7 @@ cp -r "$GITROOTDIR"/python/selfplay "$DATED_ARCHIVE"
     cd "$basedir"/scripts
     while true
     do
-        ./upload_model_for_selfplay.sh "$RUNNAME" "$basedir" connection.cfg
+        ./upload_model_for_selfplay.sh "$RUNNAME" "$basedir" connection.cfg "$RATING_ONLY"
         sleep 20
     done
 ) >> "$basedir"/logs/outupload.txt 2>&1 & disown
