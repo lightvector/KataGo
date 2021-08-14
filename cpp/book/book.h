@@ -243,6 +243,8 @@ class Book {
   double errorFactor;
   double costPerMove;
   double costPerUCBWinLossLoss;
+  double costPerUCBWinLossLossPow3;
+  double costPerUCBWinLossLossPow7;
   double costPerUCBScoreLoss;
   double costPerLogPolicy;
   double costPerMovesExpanded;
@@ -271,6 +273,8 @@ class Book {
     double errorFactor,
     double costPerMove,
     double costPerUCBWinLossLoss,
+    double costPerUCBWinLossLossPow3,
+    double costPerUCBWinLossLossPow7,
     double costPerUCBScoreLoss,
     double costPerLogPolicy,
     double costPerMovesExpanded,
@@ -304,6 +308,10 @@ class Book {
   void setCostPerMove(double d);
   double getCostPerUCBWinLossLoss() const;
   void setCostPerUCBWinLossLoss(double d);
+  double getCostPerUCBWinLossLossPow3() const;
+  void setCostPerUCBWinLossLossPow3(double d);
+  double getCostPerUCBWinLossLossPow7() const;
+  void setCostPerUCBWinLossLossPow7(double d);
   double getCostPerUCBScoreLoss() const;
   void setCostPerUCBScoreLoss(double d);
   double getCostPerLogPolicy() const;

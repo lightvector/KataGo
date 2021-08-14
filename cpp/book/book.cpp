@@ -667,6 +667,8 @@ Book::Book(
   double sf,
   double cpm,
   double cpucbwl,
+  double cpucbwlp3,
+  double cpucbwlp7,
   double cpucbsl,
   double cplp,
   double cpme,
@@ -687,6 +689,8 @@ Book::Book(
     errorFactor(sf),
     costPerMove(cpm),
     costPerUCBWinLossLoss(cpucbwl),
+    costPerUCBWinLossLossPow3(cpucbwlp3),
+    costPerUCBWinLossLossPow7(cpucbwlp7),
     costPerUCBScoreLoss(cpucbsl),
     costPerLogPolicy(cplp),
     costPerMovesExpanded(cpme),
@@ -745,6 +749,10 @@ double Book::getCostPerMove() const { return costPerMove; }
 void Book::setCostPerMove(double d) { costPerMove = d; }
 double Book::getCostPerUCBWinLossLoss() const { return costPerUCBWinLossLoss; }
 void Book::setCostPerUCBWinLossLoss(double d) { costPerUCBWinLossLoss = d; }
+double Book::getCostPerUCBWinLossLossPow3() const { return costPerUCBWinLossLossPow3; }
+void Book::setCostPerUCBWinLossLossPow3(double d) { costPerUCBWinLossLossPow3 = d; }
+double Book::getCostPerUCBWinLossLossPow7() const { return costPerUCBWinLossLossPow7; }
+void Book::setCostPerUCBWinLossLossPow7(double d) { costPerUCBWinLossLossPow7 = d; }
 double Book::getCostPerUCBScoreLoss() const { return costPerUCBScoreLoss; }
 void Book::setCostPerUCBScoreLoss(double d) { costPerUCBScoreLoss = d; }
 double Book::getCostPerLogPolicy() const { return costPerLogPolicy; }
@@ -1220,6 +1228,14 @@ void Book::recomputeNodeValues(BookNode* node) {
   // cout << "Score " << values.scoreLCB << " " << values.scoreMean << " " << values.scoreUCB << endl;
 }
 
+static double pow3(double x) {
+  return x * x * x;
+}
+static double pow7(double x) {
+  double cube = x * x * x;
+  return cube * cube * x;
+}
+
 double Book::getUtility(const RecursiveBookValues& values) const {
   return values.winLossValue + values.scoreMean * utilityPerScore;
 }
@@ -1288,6 +1304,14 @@ void Book::recomputeNodeCost(BookNode* node) {
       (node->pla == P_WHITE) ?
       node->recursiveValues.winLossUCB - child->recursiveValues.winLossUCB :
       child->recursiveValues.winLossLCB - node->recursiveValues.winLossLCB;
+    double ucbWinLossLossPow3 =
+      (node->pla == P_WHITE) ?
+      pow3(node->recursiveValues.winLossUCB) - pow3(child->recursiveValues.winLossUCB) :
+      pow3(child->recursiveValues.winLossLCB) - pow3(node->recursiveValues.winLossLCB);
+    double ucbWinLossLossPow7 =
+      (node->pla == P_WHITE) ?
+      pow7(node->recursiveValues.winLossUCB) - pow7(child->recursiveValues.winLossUCB) :
+      pow7(child->recursiveValues.winLossLCB) - pow7(node->recursiveValues.winLossLCB);
     double ucbScoreLoss =
       (node->pla == P_WHITE) ?
       node->recursiveValues.scoreUCB - child->recursiveValues.scoreUCB :
@@ -1303,18 +1327,20 @@ void Book::recomputeNodeCost(BookNode* node) {
       (node->pla == P_BLACK && passUtility < childUtility + 0.02)
     );
 
+    double costFromUCB =
+      ucbWinLossLoss * costPerUCBWinLossLoss
+      + ucbWinLossLossPow3 * costPerUCBWinLossLossPow3
+      + ucbWinLossLossPow7 * costPerUCBWinLossLossPow7
+      + ucbScoreLoss * costPerUCBScoreLoss;
+
     double cost =
       node->minCostFromRoot
       + costPerMove
-      + ucbWinLossLoss * costPerUCBWinLossLoss
-      + ucbScoreLoss * costPerUCBScoreLoss
+      + costFromUCB
       + (-boostedLogRawPolicy * costPerLogPolicy)
       + (passFavored ? costWhenPassFavored : 0.0);
     locAndBookMove.second.costFromRoot = cost;
 
-    double costFromUCB =
-      ucbWinLossLoss * costPerUCBWinLossLoss
-      + ucbScoreLoss * costPerUCBScoreLoss;
     if(costFromUCB < smallestCostFromUCB)
       smallestCostFromUCB = costFromUCB;
   }
@@ -1328,6 +1354,14 @@ void Book::recomputeNodeCost(BookNode* node) {
       (node->pla == P_WHITE) ?
       (node->recursiveValues.winLossUCB - (node->thisValuesNotInBook.winLossValue + errorFactor * node->thisValuesNotInBook.winLossError)) :
       ((node->thisValuesNotInBook.winLossValue - errorFactor * node->thisValuesNotInBook.winLossError) - node->recursiveValues.winLossLCB);
+    double ucbWinLossLossPow3 =
+      (node->pla == P_WHITE) ?
+      (pow3(node->recursiveValues.winLossUCB) - pow3(node->thisValuesNotInBook.winLossValue + errorFactor * node->thisValuesNotInBook.winLossError)) :
+      (pow3(node->thisValuesNotInBook.winLossValue - errorFactor * node->thisValuesNotInBook.winLossError) - pow3(node->recursiveValues.winLossLCB));
+    double ucbWinLossLossPow7 =
+      (node->pla == P_WHITE) ?
+      (pow7(node->recursiveValues.winLossUCB) - pow7(node->thisValuesNotInBook.winLossValue + errorFactor * node->thisValuesNotInBook.winLossError)) :
+      (pow7(node->thisValuesNotInBook.winLossValue - errorFactor * node->thisValuesNotInBook.winLossError) - pow7(node->recursiveValues.winLossLCB));
     double ucbScoreLoss =
       (node->pla == P_WHITE) ?
       (node->recursiveValues.scoreUCB - (node->thisValuesNotInBook.scoreMean + errorFactor * scoreError)) :
@@ -1366,18 +1400,21 @@ void Book::recomputeNodeCost(BookNode* node) {
     //   node->recursiveValues.scoreMean << " " <<
     //   node->recursiveValues.scoreUCB << endl;
     // cout << "Expansion stats " << ucbWinLossLoss << " " << ucbScoreLoss << " " << rawPolicy << endl;
+
+    double costFromUCB =
+      ucbWinLossLoss * costPerUCBWinLossLoss
+      + ucbWinLossLossPow3 * costPerUCBWinLossLossPow3
+      + ucbWinLossLossPow7 * costPerUCBWinLossLossPow7
+      + ucbScoreLoss * costPerUCBScoreLoss;
+
     node->thisNodeExpansionCost =
       costPerMove
-      + ucbWinLossLoss * costPerUCBWinLossLoss
-      + ucbScoreLoss * costPerUCBScoreLoss
+      + costFromUCB
       + (-boostedLogRawPolicy * costPerLogPolicy)
       + movesExpanded * costPerMovesExpanded
       + movesExpanded * movesExpanded * costPerSquaredMovesExpanded
       + (passFavored ? costWhenPassFavored : 0.0);
 
-    double costFromUCB =
-      ucbWinLossLoss * costPerUCBWinLossLoss
-      + ucbScoreLoss * costPerUCBScoreLoss;
     if(costFromUCB < smallestCostFromUCB)
       smallestCostFromUCB = costFromUCB;
   }
@@ -1776,6 +1813,8 @@ void Book::saveToFile(const string& fileName) const {
     params["errorFactor"] = errorFactor;
     params["costPerMove"] = costPerMove;
     params["costPerUCBWinLossLoss"] = costPerUCBWinLossLoss;
+    params["costPerUCBWinLossLossPow3"] = costPerUCBWinLossLossPow3;
+    params["costPerUCBWinLossLossPow7"] = costPerUCBWinLossLossPow7;
     params["costPerUCBScoreLoss"] = costPerUCBScoreLoss;
     params["costPerLogPolicy"] = costPerLogPolicy;
     params["costPerMovesExpanded"] = costPerMovesExpanded;
@@ -1863,6 +1902,8 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
       double errorFactor = params["errorFactor"].get<double>();
       double costPerMove = params["costPerMove"].get<double>();
       double costPerUCBWinLossLoss = params["costPerUCBWinLossLoss"].get<double>();
+      double costPerUCBWinLossLossPow3 = params.contains("costPerUCBWinLossLossPow3") ? params["costPerUCBWinLossLossPow3"].get<double>() : 0.0;
+      double costPerUCBWinLossLossPow7 = params.contains("costPerUCBWinLossLossPow7") ? params["costPerUCBWinLossLossPow7"].get<double>() : 0.0;
       double costPerUCBScoreLoss = params["costPerUCBScoreLoss"].get<double>();
       double costPerLogPolicy = params["costPerLogPolicy"].get<double>();
       double costPerMovesExpanded = params["costPerMovesExpanded"].get<double>();
@@ -1884,6 +1925,8 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
         errorFactor,
         costPerMove,
         costPerUCBWinLossLoss,
+        costPerUCBWinLossLossPow3,
+        costPerUCBWinLossLossPow7,
         costPerUCBScoreLoss,
         costPerLogPolicy,
         costPerMovesExpanded,

@@ -110,6 +110,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   const double errorFactor = cfg.getDouble("errorFactor",0.0,100.0);
   const double costPerMove = cfg.getDouble("costPerMove",0.0,1000000.0);
   const double costPerUCBWinLossLoss = cfg.getDouble("costPerUCBWinLossLoss",0.0,1000000.0);
+  const double costPerUCBWinLossLossPow3 = cfg.getDouble("costPerUCBWinLossLossPow3",0.0,1000000.0);
+  const double costPerUCBWinLossLossPow7 = cfg.getDouble("costPerUCBWinLossLossPow7",0.0,1000000.0);
   const double costPerUCBScoreLoss = cfg.getDouble("costPerUCBScoreLoss",0.0,1000000.0);
   const double costPerLogPolicy = cfg.getDouble("costPerLogPolicy",0.0,1000000.0);
   const double costPerMovesExpanded = cfg.getDouble("costPerMovesExpanded",0.0,1000000.0);
@@ -210,6 +212,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         errorFactor != book->getErrorFactor() ||
         costPerMove != book->getCostPerMove() ||
         costPerUCBWinLossLoss != book->getCostPerUCBWinLossLoss() ||
+        costPerUCBWinLossLossPow3 != book->getCostPerUCBWinLossLossPow3() ||
+        costPerUCBWinLossLossPow7 != book->getCostPerUCBWinLossLossPow7() ||
         costPerUCBScoreLoss != book->getCostPerUCBScoreLoss() ||
         costPerLogPolicy != book->getCostPerLogPolicy() ||
         costPerMovesExpanded != book->getCostPerMovesExpanded() ||
@@ -230,6 +234,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       if(errorFactor != book->getErrorFactor()) { logger.write("Changing errorFactor from " + Global::doubleToString(book->getErrorFactor()) + " to " + Global::doubleToString(errorFactor)); book->setErrorFactor(errorFactor); }
       if(costPerMove != book->getCostPerMove()) { logger.write("Changing costPerMove from " + Global::doubleToString(book->getCostPerMove()) + " to " + Global::doubleToString(costPerMove)); book->setCostPerMove(costPerMove); }
       if(costPerUCBWinLossLoss != book->getCostPerUCBWinLossLoss()) { logger.write("Changing costPerUCBWinLossLoss from " + Global::doubleToString(book->getCostPerUCBWinLossLoss()) + " to " + Global::doubleToString(costPerUCBWinLossLoss)); book->setCostPerUCBWinLossLoss(costPerUCBWinLossLoss); }
+      if(costPerUCBWinLossLossPow3 != book->getCostPerUCBWinLossLossPow3()) { logger.write("Changing costPerUCBWinLossLossPow3 from " + Global::doubleToString(book->getCostPerUCBWinLossLossPow3()) + " to " + Global::doubleToString(costPerUCBWinLossLossPow3)); book->setCostPerUCBWinLossLossPow3(costPerUCBWinLossLossPow3); }
+      if(costPerUCBWinLossLossPow7 != book->getCostPerUCBWinLossLossPow7()) { logger.write("Changing costPerUCBWinLossLossPow7 from " + Global::doubleToString(book->getCostPerUCBWinLossLossPow7()) + " to " + Global::doubleToString(costPerUCBWinLossLossPow7)); book->setCostPerUCBWinLossLossPow7(costPerUCBWinLossLossPow7); }
       if(costPerUCBScoreLoss != book->getCostPerUCBScoreLoss()) { logger.write("Changing costPerUCBScoreLoss from " + Global::doubleToString(book->getCostPerUCBScoreLoss()) + " to " + Global::doubleToString(costPerUCBScoreLoss)); book->setCostPerUCBScoreLoss(costPerUCBScoreLoss); }
       if(costPerLogPolicy != book->getCostPerLogPolicy()) { logger.write("Changing costPerLogPolicy from " + Global::doubleToString(book->getCostPerLogPolicy()) + " to " + Global::doubleToString(costPerLogPolicy)); book->setCostPerLogPolicy(costPerLogPolicy); }
       if(costPerMovesExpanded != book->getCostPerMovesExpanded()) { logger.write("Changing costPerMovesExpanded from " + Global::doubleToString(book->getCostPerMovesExpanded()) + " to " + Global::doubleToString(costPerMovesExpanded)); book->setCostPerMovesExpanded(costPerMovesExpanded); }
@@ -254,6 +260,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       errorFactor,
       costPerMove,
       costPerUCBWinLossLoss,
+      costPerUCBWinLossLossPow3,
+      costPerUCBWinLossLossPow7,
       costPerUCBScoreLoss,
       costPerLogPolicy,
       costPerMovesExpanded,
