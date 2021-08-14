@@ -9,6 +9,7 @@ import zipfile
 import json
 import datetime
 import dateutil.parser
+import shutil
 
 import multiprocessing
 
@@ -33,6 +34,9 @@ def get_numpy_npz_headers(filename):
       return None
     return npzheaders
 
+def is_temp_npz_like(filename):
+  return "_" in filename
+
 def summarize_dir(dirpath):
   filenames = [filename for filename in os.listdir(dirpath) if filename.endswith('.npz')]
 
@@ -42,9 +46,24 @@ def summarize_dir(dirpath):
     filepath = os.path.join(dirpath,filename)
     mtime = os.path.getmtime(filepath)
 
-    npheaders = get_numpy_npz_headers(filepath)
-    if npheaders is None or len(npheaders) <= 0:
+    # Files that look like they are temp files should be recorded and warned
+    if is_temp_npz_like(filename):
+      print("WARNING: file looks like a temp file: ", filepath)
+      filename_mtime_num_rowss.append((filename,mtime,None))
       continue
+
+    try:
+      npheaders = get_numpy_npz_headers(filepath)
+    except PermissionError:
+      print("WARNING: No permissions for reading file: ", filepath)
+      filename_mtime_num_rowss.append((filename,mtime,None))
+      continue
+
+    if npheaders is None or len(npheaders) <= 0:
+      print("WARNING: bad npz headers for file: ", filepath)
+      filename_mtime_num_rowss.append((filename,mtime,None))
+      continue
+
     (shape, is_fortran, dtype) = npheaders["binaryInputNCHWPacked"]
     num_rows = shape[0]
     num_rows_this_dir += num_rows
@@ -134,11 +153,15 @@ if __name__ == '__main__':
       num_total_rows += num_rows_this_dir
       summary_data_by_dirpath[os.path.abspath(dirpath)] = filename_mtime_num_rowss
 
-  with TimeStuff("Writing result"):
-    with open(new_summary_file,"w") as fp:
-      json.dump(summary_data_by_dirpath,fp)
-  print("Summary file written adding %d additional rows: %s" % (num_total_rows,new_summary_file),flush=True)
+  if len(dirs_to_handle) == 0 and old_summary_file_to_assume_correct is not None and os.path.exists(old_summary_file_to_assume_correct):
+    shutil.copy(old_summary_file_to_assume_correct,new_summary_file)
+    print("Not writing any new summary, no results, just copying old file")
+  else:
+    with TimeStuff("Writing result"):
+      with open(new_summary_file,"w") as fp:
+        json.dump(summary_data_by_dirpath,fp)
+    print("Summary file written adding %d additional rows: %s" % (num_total_rows,new_summary_file),flush=True)
 
-  print("Done computing data",flush=True)
+  print("Done computing new summary",flush=True)
   sys.stdout.flush()
 
