@@ -2373,7 +2373,7 @@ int MainCmds::gtp(const vector<string>& args) {
     else if(command == "genmove_analyze" || command == "lz-genmove_analyze" || command == "kata-genmove_analyze") {
       Player pla = engine->bot->getRootPla();
       bool parseFailed = false;
-      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
+      GTPEngine::AnalyzeArgs analyzeArgs = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
       if(parseFailed) {
         responseIsError = true;
         response = "Could not parse genmove_analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
@@ -2395,7 +2395,7 @@ int MainCmds::gtp(const vector<string>& args) {
           allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
           logSearchInfo,debug,playChosenMove,
           response,responseIsError,maybeStartPondering,
-          args
+          analyzeArgs
         );
         //And manually handle the result as well. In case of error, don't report any play.
         suppressResponse = true;
@@ -2715,7 +2715,7 @@ int MainCmds::gtp(const vector<string>& args) {
     else if(command == "analyze" || command == "lz-analyze" || command == "kata-analyze") {
       Player pla = engine->bot->getRootPla();
       bool parseFailed = false;
-      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
+      GTPEngine::AnalyzeArgs analyzeArgs = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
 
       if(parseFailed) {
         responseIsError = true;
@@ -2728,7 +2728,7 @@ int MainCmds::gtp(const vector<string>& args) {
         else
           cout << "=" << endl;
 
-        engine->analyze(pla, args);
+        engine->analyze(pla, analyzeArgs);
 
         //No response - currentlyAnalyzing will make sure we get a newline at the appropriate time, when stopped.
         suppressResponse = true;
