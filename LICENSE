@@ -1,5 +1,5 @@
 The code in this repository currently relies on several other libraries, parts of libraries,
-or external files: clblast, filesystem-1.3.6, half-2.1.0, httplib, mozilla-cacerts, nlohmann_json,
+or external files: clblast, filesystem-1.5.8, half-2.1.0, httplib, mozilla-cacerts, nlohmann_json,
 sgfmill, and tclap-1.2.2. For the licenses for those libraries and/or files, see the
 individual readmes and/or license files for each one within their respective subdirectories within
 cpp/external. Additionally, cpp/core/sha2.cpp derives from another piece of external code
