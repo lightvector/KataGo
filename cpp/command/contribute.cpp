@@ -1,6 +1,7 @@
 #include "../core/global.h"
 #include "../core/config_parser.h"
 #include "../core/datetime.h"
+#include "../core/fileutils.h"
 #include "../core/timer.h"
 #include "../core/makedir.h"
 #include "../core/os.h"
@@ -265,7 +266,8 @@ static void runAndUploadSingleGame(
       sgfOutputDir = sgfsDir + "/" + nnEvalBlack->getModelName();
     string sgfFile = sgfOutputDir + "/" + gameIdString + ".sgf";
 
-    ofstream out(sgfFile);
+    ofstream out;
+    FileUtils::open(out,sgfFile);
     WriteSgf::writeSgf(out,gameData->bName,gameData->wName,gameData->endHist,gameData,false,true);
     out.close();
     if(outputEachMove != nullptr) {
@@ -419,9 +421,9 @@ int MainCmds::contribute(const vector<string>& args) {
 
     bool foundCaCerts = false;
     for(const string& path: possiblePaths) {
-      std::ifstream infile(path);
-      bool pathExists = infile.good();
-      if(pathExists) {
+      std::ifstream infile;
+      bool couldOpen = FileUtils::tryOpen(infile,path);
+      if(couldOpen) {
         foundCaCerts = true;
         caCertsFile = path;
         break;
@@ -438,9 +440,9 @@ int MainCmds::contribute(const vector<string>& args) {
   }
   else {
     if(caCertsFile != "/dev/null") {
-      std::ifstream infile(caCertsFile);
-      bool pathExists = infile.good();
-      if(!pathExists) {
+      std::ifstream infile;
+      bool couldOpen = FileUtils::tryOpen(infile,caCertsFile);
+      if(!couldOpen) {
         throw StringError("cacerts file was not found or could not be opened: " + caCertsFile);
       }
     }
@@ -668,6 +670,7 @@ int MainCmds::contribute(const vector<string>& args) {
     std::unique_ptr<std::ostream> outputEachMove = nullptr;
     std::function<void()> flushOutputEachMove = nullptr;
     if(gameLoopThreadIdx == 0 && watchOngoingGameInFile) {
+      // TODO someday - doesn't handle non-ascii paths. 
 #ifdef OS_IS_WINDOWS
       FILE* file = NULL;
       fopen_s(&file, watchOngoingGameInFileName.c_str(), "a");

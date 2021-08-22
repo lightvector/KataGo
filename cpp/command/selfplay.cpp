@@ -1,5 +1,6 @@
 #include "../core/global.h"
 #include "../core/datetime.h"
+#include "../core/fileutils.h"
 #include "../core/makedir.h"
 #include "../core/config_parser.h"
 #include "../dataio/sgf.h"
@@ -197,7 +198,8 @@ int MainCmds::selfplay(const vector<string>& args) {
     }
 
     {
-      ofstream out(modelOutputDir + "/" + "selfplay-" + Global::uint64ToHexString(rand.nextUInt64()) + ".cfg");
+      ofstream out;
+      FileUtils::open(out,modelOutputDir + "/" + "selfplay-" + Global::uint64ToHexString(rand.nextUInt64()) + ".cfg");
       out << cfg.getContents();
       out.close();
     }
@@ -208,7 +210,11 @@ int MainCmds::selfplay(const vector<string>& args) {
       tdataOutputDir, inputsVersion, maxRowsPerTrainFile, firstFileRandMinProp, dataBoardLen, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
     TrainingDataWriter* vdataWriter = new TrainingDataWriter(
       vdataOutputDir, inputsVersion, maxRowsPerValFile, firstFileRandMinProp, dataBoardLen, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
-    ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs")) : NULL;
+    ofstream* sgfOut = NULL;
+    if(sgfOutputDir.length() > 0) {
+      sgfOut = new ofstream();
+      FileUtils::open(*sgfOut, sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs");
+    }
 
     logger.write("Model loading loop thread loaded new neural net " + nnEval->getModelName());
     manager->loadModelAndStartDataWriting(nnEval, tdataWriter, vdataWriter, sgfOut);

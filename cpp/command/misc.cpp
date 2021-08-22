@@ -1,4 +1,5 @@
 #include "../core/global.h"
+#include "../core/fileutils.h"
 #include "../core/makedir.h"
 #include "../core/config_parser.h"
 #include "../core/timer.h"
@@ -698,7 +699,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
           out->close();
           delete out;
         }
-        out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + ".startposes.txt");
+        out = new ofstream();
+        FileUtils::open(*out, outDir + "/" + Global::intToString(fileCounter) + ".startposes.txt");
         fileCounter += 1;
         numWrittenThisFile = 0;
       }
@@ -1065,10 +1067,13 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
           out->close();
           delete out;
         }
+        string fileNameToWrite;
         if(sgfSplitCount > 1)
-          out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + "." + Global::intToString(sgfSplitIdx) + ".hintposes.txt");
+          fileNameToWrite = outDir + "/" + Global::intToString(fileCounter) + "." + Global::intToString(sgfSplitIdx) + ".hintposes.txt";
         else
-          out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + ".hintposes.txt");
+          fileNameToWrite = outDir + "/" + Global::intToString(fileCounter) + ".hintposes.txt";        
+        out = new ofstream();
+        FileUtils::open(*out,fileNameToWrite);
         fileCounter += 1;
         numWrittenThisFile = 0;
       }
@@ -1836,7 +1841,7 @@ int MainCmds::trystartposes(const vector<string>& args) {
   vector<Sgf::PositionSample> startPoses;
   for(size_t i = 0; i<startPosesFiles.size(); i++) {
     const string& startPosesFile = startPosesFiles[i];
-    vector<string> lines = Global::readFileLines(startPosesFile,'\n');
+    vector<string> lines = FileUtils::readFileLines(startPosesFile,'\n');
     for(size_t j = 0; j<lines.size(); j++) {
       string line = Global::trim(lines[j]);
       if(line.size() > 0) {
@@ -1994,7 +1999,7 @@ int MainCmds::viewstartposes(const vector<string>& args) {
   vector<Sgf::PositionSample> startPoses;
   for(size_t i = 0; i<startPosesFiles.size(); i++) {
     const string& startPosesFile = startPosesFiles[i];
-    vector<string> lines = Global::readFileLines(startPosesFile,'\n');
+    vector<string> lines = FileUtils::readFileLines(startPosesFile,'\n');
     for(size_t j = 0; j<lines.size(); j++) {
       string line = Global::trim(lines[j]);
       if(line.size() > 0) {

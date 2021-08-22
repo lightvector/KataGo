@@ -1,5 +1,6 @@
 #include "../core/global.h"
 #include "../core/config_parser.h"
+#include "../core/fileutils.h"
 #include "../core/timer.h"
 #include "../dataio/sgf.h"
 #include "../search/asyncbot.h"
@@ -919,7 +920,8 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
   cout << "DONE" << endl;
   cout << endl;
   cout << "Writing new config file to " << outputFile << endl;
-  ofstream out(outputFile, ofstream::out | ofstream::trunc);
+  ofstream out;
+  FileUtils::open(out, outputFile, ofstream::out | ofstream::trunc);
   out << configFileContents;
   out.close();
 

@@ -1,4 +1,5 @@
 #include "../core/global.h"
+#include "../core/fileutils.h"
 #include "../core/makedir.h"
 #include "../core/config_parser.h"
 #include "../core/timer.h"
@@ -210,7 +211,11 @@ int MainCmds::match(const vector<string>& args) {
   ](
     uint64_t threadHash
   ) {
-    ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(threadHash) + ".sgfs")) : NULL;
+    ofstream* sgfOut = NULL;
+    if(sgfOutputDir.length() > 0) {
+      sgfOut = new ofstream();
+      FileUtils::open(*sgfOut, sgfOutputDir + "/" + Global::uint64ToHexString(threadHash) + ".sgfs");
+    }
     auto shouldStopFunc = []() {
       return shouldStop.load();
     };

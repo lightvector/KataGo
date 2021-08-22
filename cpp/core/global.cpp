@@ -17,7 +17,6 @@
 #include <iomanip>
 #include <sstream>
 #include <sys/types.h>
-#include <ghc/filesystem.hpp>
 
 using namespace std;
 
@@ -650,80 +649,6 @@ uint64_t Global::readMem(const char* str)
 {
   return readMem(string(str));
 }
-
-
-//IO-------------------------------------
-
-//Read entire file whole
-string Global::readFile(const char* filename)
-{
-  ifstream ifs(filename);
-  if(!ifs.good())
-    throw IOError(string("File not found: ") + filename);
-  string str((istreambuf_iterator<char>(ifs)), istreambuf_iterator<char>());
-  return str;
-}
-
-string Global::readFile(const string& filename)
-{
-  return readFile(filename.c_str());
-}
-
-string Global::readFileBinary(const char* filename)
-{
-  ifstream ifs(filename, ios::binary);
-  if(!ifs.good())
-    throw IOError(string("File not found: ") + filename);
-  string str((istreambuf_iterator<char>(ifs)), istreambuf_iterator<char>());
-  return str;
-}
-
-string Global::readFileBinary(const string& filename)
-{
-  return readFileBinary(filename.c_str());
-}
-
-//Read file into separate lines, using the specified delimiter character(s).
-//The delimiter characters are NOT included.
-vector<string> Global::readFileLines(const char* filename, char delimiter)
-{
-  ifstream ifs(filename);
-  if(!ifs.good())
-    throw IOError(string("File not found: ") + filename);
-
-  vector<string> vec;
-  string line;
-  while(getline(ifs,line,delimiter))
-    vec.push_back(line);
-  return vec;
-}
-
-vector<string> Global::readFileLines(const string& filename, char delimiter)
-{
-  return readFileLines(filename.c_str(), delimiter);
-}
-
-void Global::collectFiles(const string& dirname, std::function<bool(const string&)> fileFilter, vector<string>& collected)
-{
-  namespace gfs = ghc::filesystem;
-  try {
-    for(const gfs::directory_entry& entry: gfs::recursive_directory_iterator(dirname)) {
-      if(!gfs::is_directory(entry.status())) {
-        const gfs::path& path = entry.path();
-        string fileName = path.filename().string();
-        if(fileFilter(fileName)) {
-          collected.push_back(path.string());
-        }
-      }
-    }
-  }
-  catch(const gfs::filesystem_error& e) {
-    cerr << "Error recursively collecting files: " << e.what() << endl;
-    throw StringError(string("Error recursively collecting files: ") + e.what());
-  }
-}
-
-//USER IO----------------------------
 
 void Global::pauseForKey()
 {

@@ -1,5 +1,6 @@
 #include "../dataio/files.h"
-#include "../dataio/files.h"
+
+#include "../core/fileutils.h"
 
 #include <ghc/filesystem.hpp>
 
@@ -13,7 +14,7 @@ static bool sgfFilter(const string& name) {
 }
 
 void FileHelpers::collectSgfsFromDir(const std::string& dir, std::vector<std::string>& collected) {
-  Global::collectFiles(dir, &sgfFilter, collected);
+  FileUtils::collectFiles(dir, &sgfFilter, collected);
 }
 
 void FileHelpers::collectSgfsFromDirOrFile(const std::string& dirOrFile, std::vector<std::string>& collected) {

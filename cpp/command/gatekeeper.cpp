@@ -1,5 +1,6 @@
 #include "../core/global.h"
 #include "../core/datetime.h"
+#include "../core/fileutils.h"
 #include "../core/makedir.h"
 #include "../core/config_parser.h"
 #include "../core/timer.h"
@@ -382,12 +383,17 @@ int MainCmds::gatekeeper(const vector<string>& args) {
     string sgfOutputDirThisModel = sgfOutputDir + "/" + testModelName;
     MakeDir::make(sgfOutputDirThisModel);
     {
-      ofstream out(sgfOutputDirThisModel + "/" + "gatekeeper-" + Global::uint64ToHexString(rand.nextUInt64()) + ".cfg");
+      ofstream out;
+      FileUtils::open(out, sgfOutputDirThisModel + "/" + "gatekeeper-" + Global::uint64ToHexString(rand.nextUInt64()) + ".cfg");
       out << cfg.getContents();
       out.close();
     }
 
-    ofstream* sgfOut = sgfOutputDirThisModel.length() > 0 ? (new ofstream(sgfOutputDirThisModel + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs")) : NULL;
+    ofstream* sgfOut = NULL;
+    if(sgfOutputDirThisModel.length() > 0) {
+      sgfOut = new ofstream();
+      FileUtils::open(*sgfOut, sgfOutputDirThisModel + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs");
+    }
     NetAndStuff* newNet = new NetAndStuff(cfg, acceptedModelName, testModelName, testModelDir, acceptedNNEval, testNNEval, sgfOut);
 
     //Check for unused config keys

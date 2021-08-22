@@ -1,5 +1,6 @@
 #include "../core/global.h"
 #include "../core/config_parser.h"
+#include "../core/fileutils.h"
 #include "../core/timer.h"
 #include "../core/datetime.h"
 #include "../core/makedir.h"
@@ -2698,10 +2699,16 @@ int MainCmds::gtp(const vector<string>& args) {
         response = out.str();
       }
       else {
-        ofstream out(pieces[0]);
-        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
-        out.close();
-        response = "";
+        ofstream out;
+        if(FileUtils::tryOpen(out,pieces[0])) {
+          WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
+          out.close();
+          response = "";
+        }
+        else {
+          responseIsError = true;
+          response = "Could not open or write to file: " + pieces[0];
+        }
       }
     }
 
