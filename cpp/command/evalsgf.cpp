@@ -11,7 +11,7 @@
 
 using namespace std;
 
-int MainCmds::evalsgf(int argc, const char* const* argv) {
+int MainCmds::evalsgf(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -93,7 +93,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printAvgShorttermErrorArg);
     cmd.add(printMaxDepthArg);
     cmd.add(rawNNArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
     sgfFile = sgfFileArg.getValue();

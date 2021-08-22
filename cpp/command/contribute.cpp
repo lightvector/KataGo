@@ -19,9 +19,8 @@
 
 #ifndef BUILD_DISTRIBUTED
 
-int MainCmds::contribute(int argc, const char* const* argv) {
-  (void)argc;
-  (void)argv;
+int MainCmds::contribute(const vector<string>& args) {
+  (void)args;
   std::cout << "This version of KataGo was NOT compiled with support for distributed training." << std::endl;
   std::cout << "Compile with -DBUILD_DISTRIBUTED=1 in CMake, and/or see notes at https://github.com/lightvector/KataGo#compiling-katago" << std::endl;
   return 0;
@@ -331,7 +330,7 @@ static void runAndUploadSingleGame(
 }
 
 
-int MainCmds::contribute(int argc, const char* const* argv) {
+int MainCmds::contribute(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -359,7 +358,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     cmd.add(userConfigFileArg);
     cmd.add(overrideUserConfigArg);
     cmd.add(caCertsFileArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
     baseDir = baseDirArg.getValue();
     deleteUnusedModelsAfterDays = deleteUnusedModelsAfterDaysArg.getValue();
     userConfigFile = userConfigFileArg.getValue();

@@ -397,7 +397,7 @@ namespace {
 }
 
 
-int MainCmds::matchauto(int argc, const char* const* argv) {
+int MainCmds::matchauto(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -420,7 +420,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
     cmd.setShortUsageArgLimit();
     cmd.addOverrideConfigArg();
 
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     logFile = logFileArg.getValue();
     sgfOutputDir = sgfOutputDirArg.getValue();

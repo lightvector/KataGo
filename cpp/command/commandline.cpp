@@ -199,6 +199,12 @@ string KataGoCommandLine::defaultGtpConfigFileName() {
   return "default_gtp.cfg";
 }
 
+void KataGoCommandLine::parseArgs(const vector<string>& args) {
+  vector<string> mutableCopy = args;
+  // Call the underlying tclap parse(vector<string>&);
+  return parse(mutableCopy);
+}
+
 void KataGoCommandLine::setShortUsageArgLimit() {
   helpOutput->setShortUsageArgLimit((int)_argList.size() - numBuiltInArgs);
 }

@@ -1449,7 +1449,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
 }
 
 
-int MainCmds::gtp(int argc, const char* const* argv) {
+int MainCmds::gtp(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -1466,7 +1466,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
     TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
     cmd.add(overrideVersionArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
     nnModelFile = cmd.getModelFile();
     overrideVersion = overrideVersionArg.getValue();
 

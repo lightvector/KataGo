@@ -31,7 +31,7 @@ static void signalHandler(int signal)
 //-----------------------------------------------------------------------------------------
 
 
-int MainCmds::selfplay(int argc, const char* const* argv) {
+int MainCmds::selfplay(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -50,7 +50,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     cmd.add(modelsDirArg);
     cmd.add(outputDirArg);
     cmd.add(maxGamesTotalArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     modelsDir = modelsDirArg.getValue();
     outputDir = outputDirArg.getValue();

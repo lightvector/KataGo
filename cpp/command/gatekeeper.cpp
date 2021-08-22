@@ -204,7 +204,7 @@ namespace {
 //-----------------------------------------------------------------------------------------
 
 
-int MainCmds::gatekeeper(int argc, const char* const* argv) {
+int MainCmds::gatekeeper(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -236,7 +236,7 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     cmd.setShortUsageArgLimit();
     cmd.add(noAutoRejectOldModelsArg);
     cmd.add(quitIfNoNetsToTestArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     testModelsDir = testModelsDirArg.getValue();
     sgfOutputDir = sgfOutputDirArg.getValue();

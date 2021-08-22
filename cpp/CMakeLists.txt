@@ -241,6 +241,7 @@ add_executable(katago
   core/fileutils.cpp
   core/hash.cpp
   core/logger.cpp
+  core/mainargs.cpp
   core/makedir.cpp
   core/md5.cpp
   core/multithread.cpp
