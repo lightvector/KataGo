@@ -2736,11 +2736,9 @@ void Search::selectBestChildToDescend(
       //     out << "ouch" << "\n";
       //   }
       // }
-      if(selectionValue > maxSelectionValue) {
-        maxSelectionValue = selectionValue;
-        bestChildIdx = i;
-        bestChildMoveLoc = moveLoc;
-      }
+      maxSelectionValue = selectionValue;
+      bestChildIdx = i;
+      bestChildMoveLoc = moveLoc;
     }
 
     posesWithChildBuf[getPos(moveLoc)] = true;
