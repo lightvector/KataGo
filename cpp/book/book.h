@@ -49,6 +49,7 @@ struct BookMove {
 
   // Computed and filled in dynamically when costs are computed/recomputed.
   double costFromRoot;
+  bool isWLPV;
 
   BookMove();
   BookMove(Loc move, int symmetryToAlign, BookHash hash, double rawPolicy);
@@ -117,7 +118,9 @@ class BookNode {
 
   RecursiveBookValues recursiveValues;  // Based on minimaxing over the book nodes
   double minCostFromRoot;  // Minimum sum of BookMove cost to reach this node from root
-  double thisNodeExpansionCost;  //The cost for picking this node to expand further.
+  double thisNodeExpansionCost;  // The cost for picking this node to expand further.
+  double minCostFromRootWLPV;  // minCostFromRoot of the cheapest node that this node is the winLoss pv of.
+  bool expansionIsWLPV; // True if the winloss PV for this node is to expand it, rather than an existing child.
 
   BookNode(BookHash hash, Book* book, Player pla, const std::vector<int>& symmetries);
   ~BookNode();
@@ -230,7 +233,9 @@ class ConstSymBookNode {
 // rectangular boards in the wrong orientation, it's up to the user to manually do that.
 class Book {
   static constexpr size_t NUM_HASH_BUCKETS = 2048;
-  static const std::string BOOK_JS;
+  static const std::string BOOK_JS1;
+  static const std::string BOOK_JS2;
+  static const std::string BOOK_JS3;
   static const std::string BOOK_CSS;
 
  public:
@@ -253,6 +258,8 @@ class Book {
   double bonusPerWinLossError;
   double bonusPerSharpScoreDiscrepancy;
   double bonusPerExcessUnexpandedPolicy;
+  double bonusForWLPV1;
+  double bonusForWLPV2;
   double scoreLossCap;
   double utilityPerScore;
   double policyBoostSoftUtilityScale;
@@ -283,6 +290,8 @@ class Book {
     double bonusPerWinLossError,
     double bonusPerSharpScoreDiscrepancy,
     double bonusPerExcessUnexpandedPolicy,
+    double bonusForWLPV1,
+    double bonusForWLPV2,
     double scoreLossCap,
     double utilityPerScore,
     double policyBoostSoftUtilityScale,
@@ -328,6 +337,10 @@ class Book {
   void setBonusPerSharpScoreDiscrepancy(double d);
   double getBonusPerExcessUnexpandedPolicy() const;
   void setBonusPerExcessUnexpandedPolicy(double d);
+  double getBonusForWLPV1() const;
+  void setBonusForWLPV1(double d);
+  double getBonusForWLPV2() const;
+  void setBonusForWLPV2(double d);
   double getScoreLossCap() const;
   void setScoreLossCap(double d);
   double getUtilityPerScore() const;

@@ -120,6 +120,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   const double bonusPerWinLossError = cfg.getDouble("bonusPerWinLossError",0.0,1000000.0);
   const double bonusPerSharpScoreDiscrepancy = cfg.getDouble("bonusPerSharpScoreDiscrepancy",0.0,1000000.0);
   const double bonusPerExcessUnexpandedPolicy = cfg.getDouble("bonusPerExcessUnexpandedPolicy",0.0,1000000.0);
+  const double bonusForWLPV1 = cfg.getDouble("bonusForWLPV1",0.0,1000000.0);
+  const double bonusForWLPV2 = cfg.getDouble("bonusForWLPV2",0.0,1000000.0);
   const double scoreLossCap = cfg.getDouble("scoreLossCap",0.0,1000000.0);
   const double utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
   const double policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);
@@ -222,6 +224,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         bonusPerWinLossError != book->getBonusPerWinLossError() ||
         bonusPerSharpScoreDiscrepancy != book->getBonusPerSharpScoreDiscrepancy() ||
         bonusPerExcessUnexpandedPolicy != book->getBonusPerExcessUnexpandedPolicy() ||
+        bonusForWLPV1 != book->getBonusForWLPV1() ||
+        bonusForWLPV2 != book->getBonusForWLPV2() ||
         scoreLossCap != book->getScoreLossCap() ||
         utilityPerScore != book->getUtilityPerScore() ||
         policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale() ||
@@ -244,6 +248,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       if(bonusPerWinLossError != book->getBonusPerWinLossError()) { logger.write("Changing bonusPerWinLossError from " + Global::doubleToString(book->getBonusPerWinLossError()) + " to " + Global::doubleToString(bonusPerWinLossError)); book->setBonusPerWinLossError(bonusPerWinLossError); }
       if(bonusPerSharpScoreDiscrepancy != book->getBonusPerSharpScoreDiscrepancy()) { logger.write("Changing bonusPerSharpScoreDiscrepancy from " + Global::doubleToString(book->getBonusPerSharpScoreDiscrepancy()) + " to " + Global::doubleToString(bonusPerSharpScoreDiscrepancy)); book->setBonusPerSharpScoreDiscrepancy(bonusPerSharpScoreDiscrepancy); }
       if(bonusPerExcessUnexpandedPolicy != book->getBonusPerExcessUnexpandedPolicy()) { logger.write("Changing bonusPerExcessUnexpandedPolicy from " + Global::doubleToString(book->getBonusPerExcessUnexpandedPolicy()) + " to " + Global::doubleToString(bonusPerExcessUnexpandedPolicy)); book->setBonusPerExcessUnexpandedPolicy(bonusPerExcessUnexpandedPolicy); }
+      if(bonusForWLPV1 != book->getBonusForWLPV1()) { logger.write("Changing bonusForWLPV1 from " + Global::doubleToString(book->getBonusForWLPV1()) + " to " + Global::doubleToString(bonusForWLPV1)); book->setBonusForWLPV1(bonusForWLPV1); }
+      if(bonusForWLPV2 != book->getBonusForWLPV2()) { logger.write("Changing bonusForWLPV2 from " + Global::doubleToString(book->getBonusForWLPV2()) + " to " + Global::doubleToString(bonusForWLPV2)); book->setBonusForWLPV2(bonusForWLPV2); }
       if(scoreLossCap != book->getScoreLossCap()) { logger.write("Changing scoreLossCap from " + Global::doubleToString(book->getScoreLossCap()) + " to " + Global::doubleToString(scoreLossCap)); book->setScoreLossCap(scoreLossCap); }
       if(utilityPerScore != book->getUtilityPerScore()) { logger.write("Changing utilityPerScore from " + Global::doubleToString(book->getUtilityPerScore()) + " to " + Global::doubleToString(utilityPerScore)); book->setUtilityPerScore(utilityPerScore); }
       if(policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale()) { logger.write("Changing policyBoostSoftUtilityScale from " + Global::doubleToString(book->getPolicyBoostSoftUtilityScale()) + " to " + Global::doubleToString(policyBoostSoftUtilityScale)); book->setPolicyBoostSoftUtilityScale(policyBoostSoftUtilityScale); }
@@ -270,6 +276,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       bonusPerWinLossError,
       bonusPerSharpScoreDiscrepancy,
       bonusPerExcessUnexpandedPolicy,
+      bonusForWLPV1,
+      bonusForWLPV2,
       scoreLossCap,
       utilityPerScore,
       policyBoostSoftUtilityScale,

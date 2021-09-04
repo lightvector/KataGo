@@ -110,7 +110,7 @@ h1 {
 
 )%%";
 
-const std::string Book::BOOK_JS = R"%%(
+const std::string Book::BOOK_JS1 = R"%%(
 
 let url = new URL(window.location.href);
 let sym = url.searchParams.get("symmetry");
@@ -238,6 +238,9 @@ let hoverTableEltsByMove = {};
   link.innerHTML = innerHtml;
   body.appendChild(link);
 }
+
+)%%";
+const std::string Book::BOOK_JS2 = R"%%(
 
 let svgNS = "http://www.w3.org/2000/svg";
 {
@@ -538,6 +541,9 @@ let svgNS = "http://www.w3.org/2000/svg";
   body.appendChild(boardSvg);
 }
 
+)%%";
+const std::string Book::BOOK_JS3 = R"%%(
+
 {
   let whoToPlay = document.createElement("div");
   whoToPlay.appendChild(document.createTextNode((nextPla == 1 ? "Black" : "White") + " to play!"));
@@ -571,10 +577,11 @@ function textCell(text) {
     headerRow.appendChild(textCell("ScoreLCB"));
     headerRow.appendChild(textCell("ScoreUCB"));
     headerRow.appendChild(textCell("Prior%"));
-    headerRow.appendChild(textCell("Weight"));
+    // headerRow.appendChild(textCell("Weight"));
     headerRow.appendChild(textCell("Visits"));
     headerRow.appendChild(textCell("Cost"));
     headerRow.appendChild(textCell("CostFromRoot"));
+    headerRow.appendChild(textCell("CostWLPV"));
   }
   else {
     headerRow.appendChild(textCell("Black Score"));
@@ -655,10 +662,11 @@ function textCell(text) {
       dataRow.appendChild(textCell((-moveData["sUCB"]).toFixed(2)));
       dataRow.appendChild(textCell((-moveData["sLCB"]).toFixed(2)));
       dataRow.appendChild(textCell((100.0 * moveData["p"]).toFixed(2)+"%"));
-      dataRow.appendChild(textCell(Math.round(moveData["w"]).toLocaleString()));
+      // dataRow.appendChild(textCell(Math.round(moveData["w"]).toLocaleString()));
       dataRow.appendChild(textCell(Math.round(moveData["v"]).toLocaleString()));
       dataRow.appendChild(textCell(moveData["cost"].toFixed(3)));
       dataRow.appendChild(textCell(moveData["costRoot"].toFixed(3)));
+      dataRow.appendChild(textCell(moveData["costWLPV"].toFixed(3)));
     }
     else {
       dataRow.appendChild(textCell((-moveData["ssM"]).toFixed(2)));
