@@ -582,6 +582,8 @@ if max_train_bucket_per_new_data is not None and "train_bucket_level" not in tra
   trainhistory["train_bucket_level"] = samples_per_epoch
 if "train_steps_since_last_reload" not in trainhistory:
   trainhistory["train_steps_since_last_reload"] = 0
+if "export_cycle_counter" not in trainhistory:
+  trainhistory["export_cycle_counter"] = 0
 
 def save_history(global_step_value):
   global trainhistory
@@ -770,6 +772,16 @@ while True:
 
   #END SUB EPOCH LOOP ------------
   num_epochs_this_instance += 1
+  trainhistory["export_cycle_counter"] += 1
+  trainlog("Export cycle counter = " + str(trainhistory["export_cycle_counter"]))
+
+  is_time_to_export = False
+  if trainhistory["export_cycle_counter"] >= epochs_per_export:
+    if no_export:
+      trainhistory["export_cycle_counter"] = epochs_per_export
+    else:
+      trainhistory["export_cycle_counter"] = 0
+      is_time_to_export = True
 
   globalstep = int(estimator.get_variable_value("global_step:0"))
 
@@ -779,7 +791,7 @@ while True:
       skip_export_this_time = True
       trainlog("Skipping export model this time")
 
-  if not no_export and num_epochs_this_instance % epochs_per_export == 0 and not skip_export_this_time:
+  if not no_export and is_time_to_export and not skip_export_this_time:
     #Export a model for testing, unless somehow it already exists
     modelname = "%s-s%d-d%d" % (
       exportprefix,
