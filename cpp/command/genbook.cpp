@@ -120,8 +120,8 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   const double bonusPerWinLossError = cfg.getDouble("bonusPerWinLossError",0.0,1000000.0);
   const double bonusPerSharpScoreDiscrepancy = cfg.getDouble("bonusPerSharpScoreDiscrepancy",0.0,1000000.0);
   const double bonusPerExcessUnexpandedPolicy = cfg.getDouble("bonusPerExcessUnexpandedPolicy",0.0,1000000.0);
-  const double bonusForWLPV1 = cfg.getDouble("bonusForWLPV1",0.0,1000000.0);
-  const double bonusForWLPV2 = cfg.getDouble("bonusForWLPV2",0.0,1000000.0);
+  const double bonusForWLPV1 = cfg.contains("bonusForWLPV1") ? cfg.getDouble("bonusForWLPV1",0.0,1000000.0) : 0.0;
+  const double bonusForWLPV2 = cfg.contains("bonusForWLPV2") ? cfg.getDouble("bonusForWLPV2",0.0,1000000.0) : 0.0;
   const double scoreLossCap = cfg.getDouble("scoreLossCap",0.0,1000000.0);
   const double utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
   const double policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);

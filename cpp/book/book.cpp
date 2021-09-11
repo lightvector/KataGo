@@ -1531,6 +1531,15 @@ void Book::recomputeNodeCost(BookNode* node) {
     if(bonus > bonusCap1)
       bonus = bonusCap1;
     locAndBookMove.second.costFromRoot -= bonus;
+
+    if(locAndBookMove.second.isWLPV) {
+      double wlPVBonusScale = (locAndBookMove.second.costFromRoot - node->minCostFromRoot);
+      if(wlPVBonusScale > 0.0) {
+        double factor1 = std::max(0.0, 1.0 - square(child->recursiveValues.winLossValue));
+        double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - fabs(child->recursiveValues.winLossValue)));
+        locAndBookMove.second.costFromRoot -= wlPVBonusScale * tanh(factor1 * bonusForWLPV1 + factor2 * bonusForWLPV2);
+      }
+    }
   }
   {
     double winLossError = node->thisValuesNotInBook.winLossError;
@@ -1552,14 +1561,17 @@ void Book::recomputeNodeCost(BookNode* node) {
       bonus = bonusCap1;
     bonus += bonusPerSharpScoreDiscrepancy * std::max(0.0, sharpScoreDiscrepancy - 1.0);
 
+    node->thisNodeExpansionCost -= bonus;
+
     if(node->expansionIsWLPV) {
-      double pvCost = fabs(node->minCostFromRootWLPV - node->minCostFromRoot);
-      double factor1 = std::max(0.0, 1.0 - square(node->thisValuesNotInBook.winLossValue));
-      double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - fabs(node->thisValuesNotInBook.winLossValue)));
-      bonus += pvCost * tanh(factor1 * bonusForWLPV1 + factor2 * bonusForWLPV2);
+      double wlPVBonusScale = node->thisNodeExpansionCost;
+      if(wlPVBonusScale > 0.0) {
+        double factor1 = std::max(0.0, 1.0 - square(node->thisValuesNotInBook.winLossValue));
+        double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - fabs(node->thisValuesNotInBook.winLossValue)));
+        node->thisNodeExpansionCost -= wlPVBonusScale * tanh(factor1 * bonusForWLPV1 + factor2 * bonusForWLPV2);
+      }
     }
 
-    node->thisNodeExpansionCost -= bonus;
   }
 
   // cout << "Setting cost " << node->hash << " " << node->minCostFromRoot << " " << node->thisNodeExpansionCost << endl;
