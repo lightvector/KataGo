@@ -1535,6 +1535,10 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     assert(treeHist.moveHistory[hintIdx].pla == pla);
     assert(treeHist.moveHistory[hintIdx].loc == sample.hintLoc);
 
+    //And make sure it's legal under our randomized rules.
+    if(!hist.isLegal(board,sample.hintLoc,pla))
+      return;
+
     if(autoKomi) {
       const int64_t numVisits = 10;
       OtherGameProperties props;
