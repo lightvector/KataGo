@@ -715,13 +715,19 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
   bool userCfgWarnedYet = false;
 
+  ClockTimer invalidModelErrorTimer;
+  double invalidModelErrorEwms = 0.0;
+  double lastInvalidModelErrorTime = invalidModelErrorTimer.getSeconds();
+  std::mutex invalidModelErrorMutex;
+
   auto loadNeuralNetIntoManager =
-    [&runParams,&tdataDir,&sgfsDir,&logger,&userCfg,maxSimultaneousGames,maxSimultaneousRatingGamesPossible,&userCfgWarnedYet](
+    [&runParams,&tdataDir,&sgfsDir,&logger,&userCfg,maxSimultaneousGames,maxSimultaneousRatingGamesPossible,&userCfgWarnedYet,
+     &invalidModelErrorTimer,&invalidModelErrorEwms,&lastInvalidModelErrorTime,&invalidModelErrorMutex](
       SelfplayManager* manager, const Client::ModelInfo modelInfo, const string& modelFile, bool isRatingManager
     ) {
     const string& modelName = modelInfo.name;
     if(manager->hasModel(modelName))
-      return;
+      return true;
 
     logger.write("Found new neural net " + modelName);
 
@@ -735,9 +741,29 @@ int MainCmds::contribute(int argc, const char* const* argv) {
       //must have been valid at download time), but also rename the file out of the way so that if we restart the program, the next try
       //will do a fresh download.
       string newName = modelFile + ".invalid";
-      logger.write("Model file modified or corrupted on disk, sha256 no longer matches? Moving it to " + newName + " and failing.");
+      logger.write("Model file modified or corrupted on disk, sha256 no longer matches? Moving it to " + newName + " and trying again later.");
       std::rename(modelFile.c_str(),newName.c_str());
-      throw;
+
+      {
+        std::lock_guard<std::mutex> lock(invalidModelErrorMutex);
+        double now = invalidModelErrorTimer.getSeconds();
+        double elapsed = std::max(0.0, now - lastInvalidModelErrorTime);
+        // Ignore errors happening consecutively in a short time due to one corruption
+        if(elapsed > 10.0) {
+          //Tolerate a mis-download rate of 5 over about 24 hours. Tolerance here ensures we don't hammer the server with repeated downloads
+          //if there is a true mismatch between hash and file, or some other issue that reliably corrupts the file on disk.
+          invalidModelErrorEwms *= exp(-elapsed / (60 * 60 * 24));
+          invalidModelErrorEwms += 1.0;
+          lastInvalidModelErrorTime = now;
+
+          if(invalidModelErrorEwms > 5.0) {
+            throw;
+          }
+        }
+      }
+      // Wait a little and try again.
+      std::this_thread::sleep_for(std::chrono::duration<double>(10));
+      return false;
     }
 
     int maxSimultaneousGamesThisNet = isRatingManager ? maxSimultaneousRatingGamesPossible : maxSimultaneousGames;
@@ -781,6 +807,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
     logger.write("Loaded new neural net " + nnEval->getModelName());
     manager->loadModelNoDataWritingLoop(nnEval, tdataWriter, vdataWriter, sgfOut);
+    return true;
   };
 
   //-----------------------------------------------------------------------------------------------------------------
@@ -836,7 +863,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     if(disablePredownloadLoop)
       return;
     //Wait a while before starting the download loop, so that it doesn't get confusing with other attempts to
-    //form the intiial connection.
+    //form the initial connection.
     std::this_thread::sleep_for(std::chrono::duration<double>(30));
     Rand preDownloadLoopRand;
     while(true) {
@@ -1010,8 +1037,12 @@ int MainCmds::contribute(int argc, const char* const* argv) {
         whiteManager = selfplayManager;
       }
 
-      loadNeuralNetIntoManager(blackManager,task.modelBlack,modelFileBlack,task.isRatingGame);
-      loadNeuralNetIntoManager(whiteManager,task.modelWhite,modelFileWhite,task.isRatingGame);
+      suc = loadNeuralNetIntoManager(blackManager,task.modelBlack,modelFileBlack,task.isRatingGame);
+      if(!suc)
+        continue;
+      suc = loadNeuralNetIntoManager(whiteManager,task.modelWhite,modelFileWhite,task.isRatingGame);
+      if(!suc)
+        continue;
       if(shouldStopGracefullyFunc())
         break;
 

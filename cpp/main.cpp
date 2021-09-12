@@ -127,8 +127,10 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::sampleinitializations(argc-1,&argv[1]);
   else if(subcommand == "runbeginsearchspeedtest")
     return MainCmds::runbeginsearchspeedtest(argc-1,&argv[1]);
-  else if(subcommand == "printclockinfo")
-    return MainCmds::printclockinfo(argc-1,&argv[1]);
+  else if(subcommand == "runbeginsearchspeedtest")
+    return MainCmds::runbeginsearchspeedtest(argc-1,&argv[1]);
+  else if(subcommand == "runsleeptest")
+    return MainCmds::runsleeptest(argc-1,&argv[1]);
   else if(subcommand == "sandbox")
     return MainCmds::sandbox();
   else if(subcommand == "version") {
