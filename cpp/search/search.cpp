@@ -435,7 +435,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    recentScoreCenter(0.0),
    mirroringPla(C_EMPTY),
    mirrorAdvantage(0.0),
-   mirrorCenterIsSymmetric(false),
+   mirrorCenterSymmetryError(1e10),
    alwaysIncludeOwnerMap(false),
    searchParams(params),numSearchesBegun(0),searchNodeAge(0),
    plaThatSearchIsFor(C_EMPTY),plaThatSearchIsForLastSearch(C_EMPTY),
@@ -1274,7 +1274,7 @@ void Search::beginSearch(bool pondering) {
   maybeRecomputeNormToTApproxTable();
 
   //Prepare value bias table if we need it
-  if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable == NULL)
+  if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable == NULL && !(searchParams.antiMirror && mirroringPla != C_EMPTY))
     subtreeValueBiasTable = new SubtreeValueBiasTable(searchParams.subtreeValueBiasTableNumShards);
 
   //Refresh pattern bonuses if needed
@@ -1804,7 +1804,7 @@ void Search::computeRootValues() {
   Player opponentWasMirroringPla = mirroringPla;
   mirroringPla = C_EMPTY;
   mirrorAdvantage = 0.0;
-  mirrorCenterIsSymmetric = false;
+  mirrorCenterSymmetryError = 1e10;
   if(searchParams.antiMirror) {
     const Board& board = rootBoard;
     const BoardHistory& hist = rootHistory;
@@ -1849,25 +1849,36 @@ void Search::computeRootValues() {
     }
 
     if(board.x_size >= 7 && board.y_size >= 7) {
-      mirrorCenterIsSymmetric = true;
+      mirrorCenterSymmetryError = 0.0;
       int halfX = board.x_size / 2;
       int halfY = board.y_size / 2;
+      int unmatchedMirrorPlaStones = 0;
       for(int dy = -3; dy <= 3; dy++) {
         for(int dx = -3; dx <= 3; dx++) {
           Loc loc = Location::getLoc(halfX+dx,halfY+dy,board.x_size);
           Loc mirrorLoc = Location::getMirrorLoc(loc,board.x_size,board.y_size);
           if(loc == mirrorLoc)
             continue;
-          Color c = board.colors[mirrorLoc] != C_EMPTY ? getOpp(board.colors[mirrorLoc]) : C_EMPTY;
-          if(board.colors[loc] != c)
-            mirrorCenterIsSymmetric = false;
+          Color c0 = board.colors[loc];
+          Color c1 = board.colors[mirrorLoc];
+          if(c0 == getOpp(mirroringPla) && c1 != mirroringPla)
+            mirrorCenterSymmetryError += 1.0;
+          if(c0 == mirroringPla && c1 == C_EMPTY)
+            unmatchedMirrorPlaStones += 1;
         }
       }
+      if(mirrorCenterSymmetryError > 0.0)
+        mirrorCenterSymmetryError += 0.2 * unmatchedMirrorPlaStones;
+      if(mirrorCenterSymmetryError >= 1.0)
+        mirrorCenterSymmetryError = 0.5 * mirrorCenterSymmetryError * (1.0 + mirrorCenterSymmetryError);
     }
   }
   //Clear search if opponent mirror status changed, so that our tree adjusts appropriately
-  if(opponentWasMirroringPla != mirroringPla)
+  if(opponentWasMirroringPla != mirroringPla) {
     clearSearch();
+    delete subtreeValueBiasTable;
+    subtreeValueBiasTable = NULL;
+  }
 }
 
 int64_t Search::getRootVisits() const {
@@ -2334,8 +2345,15 @@ static void maybeApplyWideRootNoise(
   }
 }
 
-static double square(double x) {
-  return x * x;
+
+static bool isMirroringSinceSearchStart(const BoardHistory& rootHistory, const BoardHistory& threadHistory, int skipRecent) {
+  int xSize = threadHistory.initialBoard.x_size;
+  int ySize = threadHistory.initialBoard.y_size;
+  for(size_t i = rootHistory.moveHistory.size()+1; i+skipRecent < threadHistory.moveHistory.size(); i += 2) {
+    if(threadHistory.moveHistory[i].loc != Location::getMirrorLoc(threadHistory.moveHistory[i-1].loc,xSize,ySize))
+      return false;
+  }
+  return true;
 }
 
 static void maybeApplyAntiMirrorPolicy(
@@ -2348,6 +2366,9 @@ static void maybeApplyAntiMirrorPolicy(
 ) {
   int xSize = thread->board.x_size;
   int ySize = thread->board.y_size;
+
+  double weight = 0.0;
+
   //Put significant prior probability on the opponent continuing to mirror, at least for the next few turns.
   if(movePla == getOpp(search->rootPla) && thread->history.moveHistory.size() > 0) {
     Loc prevLoc = thread->history.moveHistory[thread->history.moveHistory.size()-1].loc;
@@ -2357,27 +2378,41 @@ static void maybeApplyAntiMirrorPolicy(
     if(policyProbs[search->getPos(mirrorLoc)] < 0)
       mirrorLoc = Board::PASS_LOC;
     if(moveLoc == mirrorLoc) {
-      float weight = (float)(0.5 / (1.0 + sqrt(thread->history.moveHistory.size() - search->rootHistory.moveHistory.size())));
-      nnPolicyProb = nnPolicyProb + (1.0f - nnPolicyProb) * weight;
+      weight = 1.0;
+      Loc centerLoc = Location::getCenterLoc(xSize,ySize);
+      bool isDifficult = centerLoc != Board::NULL_LOC && thread->board.colors[centerLoc] == search->mirroringPla && search->mirrorAdvantage >= -0.5;
+      if(isDifficult)
+        weight *= 3.0;
     }
   }
   //Put a small prior on playing the center or attaching to center, bonusing moves that are relatively more likely.
   else if(movePla == search->rootPla && moveLoc != Board::PASS_LOC) {
-    if(Location::isCentral(moveLoc,xSize,ySize)) {
-      float weight = (float)(1.0/square(1.0-log10(nnPolicyProb+1e-30)));
-      nnPolicyProb = nnPolicyProb + (1.0f - nnPolicyProb) * weight;
-    }
+    if(Location::isCentral(moveLoc,xSize,ySize))
+      weight = 0.3;
     else {
+      if(Location::isNearCentral(moveLoc,xSize,ySize))
+        weight = 0.05;
+
       Loc centerLoc = Location::getCenterLoc(xSize,ySize);
       if(centerLoc != Board::NULL_LOC) {
         if(search->rootBoard.colors[centerLoc] == getOpp(movePla)) {
-          if(thread->board.isAdjacentToChain(moveLoc,centerLoc) || Location::euclideanDistanceSquared(moveLoc,centerLoc,xSize) <= 2) {
-            float weight = (float)(1.0/square(1.0-log10(nnPolicyProb+1e-30)));
-            nnPolicyProb = nnPolicyProb + (1.0f - nnPolicyProb) * weight;
+          if(thread->board.isAdjacentToChain(moveLoc,centerLoc))
+            weight = 0.05;
+          else {
+            int distanceSq = Location::euclideanDistanceSquared(moveLoc,centerLoc,xSize);
+            if(distanceSq <= 2)
+              weight = 0.05;
+            else if(distanceSq <= 4)
+              weight = 0.03;
           }
         }
       }
     }
+  }
+
+  if(weight > 0) {
+    weight = weight / (1.0 + sqrt(thread->history.moveHistory.size() - search->rootHistory.moveHistory.size()));
+    nnPolicyProb = nnPolicyProb + (1.0f - nnPolicyProb) * (float)weight;
   }
 }
 
@@ -2385,6 +2420,7 @@ static void maybeApplyAntiMirrorPolicy(
 //to have bad values, and also tolerate us playing certain countering moves even if their values are a bit worse.
 static void maybeApplyAntiMirrorForcedExplore(
   double& childUtility,
+  double parentUtility,
   Loc moveLoc,
   const float* policyProbs,
   double thisChildWeight,
@@ -2404,8 +2440,9 @@ static void maybeApplyAntiMirrorForcedExplore(
   //In such a case, we're going to have a hard time.
   //Technically there are other configurations (like if the opponent makes a diamond around tengen)
   //but we're not going to worry about breaking that.
-  bool isDifficult = centerLoc != Board::NULL_LOC && thread->board.colors[centerLoc] == search->mirroringPla && search->mirrorAdvantage >= 0.0;
-  bool isSemiDifficult = !isDifficult && search->mirrorAdvantage >= 6.5;
+  bool isDifficult = centerLoc != Board::NULL_LOC && thread->board.colors[centerLoc] == search->mirroringPla && search->mirrorAdvantage >= -0.5;
+  // bool isSemiDifficult = !isDifficult && search->mirrorAdvantage >= 6.5;
+  bool isRoot = &parent == search->rootNode;
 
   //Force mirroring pla to dump playouts down mirror moves
   if(movePla == mirroringPla && thread->history.moveHistory.size() > 0) {
@@ -2416,43 +2453,92 @@ static void maybeApplyAntiMirrorForcedExplore(
     if(policyProbs[search->getPos(mirrorLoc)] < 0)
       mirrorLoc = Board::PASS_LOC;
     if(moveLoc == mirrorLoc) {
-      //Check that the player has also been mirroring since the start of search
-      for(size_t i = search->rootHistory.moveHistory.size()+1; i < thread->history.moveHistory.size(); i += 2) {
-        if(thread->history.moveHistory[i].loc != Location::getMirrorLoc(thread->history.moveHistory[i-1].loc,xSize,ySize))
-          return;
-      }
-
-      double bonus = 0.02;
+      double proportionToDump = 0.0;
+      double proportionToBias = 0.0;
       if(isDifficult) {
-        if(mirrorLoc != Board::PASS_LOC && search->mirrorCenterIsSymmetric) {
-          double factor = 0.75 + 0.5 * sqrt(Location::euclideanDistanceSquared(centerLoc,mirrorLoc,xSize));
-          if(thisChildWeight * factor < totalChildWeight && mirrorLoc != Board::PASS_LOC) {
-            bonus = 1.0;
-          }
+        proportionToDump = 0.20;
+        if(mirrorLoc != Board::PASS_LOC) {
+          proportionToDump = std::max(
+            proportionToDump,
+            1.0 / (0.75 + 0.5 * sqrt(Location::euclideanDistanceSquared(centerLoc,mirrorLoc,xSize)))
+            / std::max(1.0,search->mirrorCenterSymmetryError)
+          );
         }
-        if(thisChildWeight * 5 < totalChildWeight)
-          bonus = 1.0;
+        proportionToBias = 0.75;
       }
-      else if(isSemiDifficult && search->mirrorAdvantage >= 8.5) {
-        if(thisChildWeight * 5 < totalChildWeight)
-          bonus = 1.0;
+      else if(search->mirrorAdvantage >= 5.0) {
+        proportionToDump = 0.15;
+        proportionToBias = 0.50;
       }
-      else if(isSemiDifficult) {
-        if(thisChildWeight * 8 < totalChildWeight)
-          bonus = 1.0;
+      else if(search->mirrorAdvantage >= -5.0) {
+        proportionToDump = 0.10 + search->mirrorAdvantage;
+        proportionToBias = 0.30 + search->mirrorAdvantage * 4;
       }
       else {
-        if(thisChildWeight * 20 < totalChildWeight)
-          bonus = 0.2;
+        proportionToDump = 0.05;
+        proportionToBias = 0.10;
       }
-      bonus *= (float)(2.0 / (1.0 + sqrt(thread->history.moveHistory.size() - search->rootHistory.moveHistory.size())));
-      childUtility += (parent.nextPla == P_WHITE ? bonus : -bonus);
+
+      if(mirrorLoc == Board::PASS_LOC)
+        proportionToDump *= (moveLoc == centerLoc ? 0.35 : 0.35 / std::max(1.0,sqrt(search->mirrorCenterSymmetryError)));
+      if(search->mirrorCenterSymmetryError >= 1.0) {
+        proportionToDump /= search->mirrorCenterSymmetryError;
+        proportionToBias /= search->mirrorCenterSymmetryError;
+      }
+
+      if(thisChildWeight < proportionToDump * totalChildWeight) {
+        childUtility += (parent.nextPla == P_WHITE ? 100.0 : -100.0);
+      }
+      if(thisChildWeight < proportionToBias * totalChildWeight) {
+        childUtility += (parent.nextPla == P_WHITE ? 0.18 : -0.18) * std::max(0.3, 1.0 - 0.7 * parentUtility * parentUtility);
+      }
+      if(thisChildWeight < 0.5 * proportionToBias * totalChildWeight) {
+        childUtility += (parent.nextPla == P_WHITE ? 0.36 : -0.36) * std::max(0.3, 1.0 - 0.7 * parentUtility * parentUtility);
+      }
     }
   }
   //Encourage us to find refuting moves, even if they look a little bad, in the difficult case
+  //Force us to dump playouts down tengen if possible, to encourage us to make tengen into a good move.
   else if(movePla == search->rootPla && moveLoc != Board::PASS_LOC) {
-    if(isDifficult && thread->board.isAdjacentToChain(moveLoc,centerLoc))
-      childUtility += (parent.nextPla == P_WHITE ? 0.10 : -0.10);
+    double proportionToDump = 0.0;
+    if(isDifficult) {
+      if(thread->board.isAdjacentToChain(moveLoc,centerLoc)) {
+        childUtility += (parent.nextPla == P_WHITE ? 0.75 : -0.75) / (1.0 + thread->board.getNumLiberties(centerLoc))
+          / std::max(1.0,search->mirrorCenterSymmetryError) * std::max(0.3, 1.0 - 0.7 * parentUtility * parentUtility);
+        proportionToDump = 0.10 / thread->board.getNumLiberties(centerLoc);
+      }
+      int distanceSq = Location::euclideanDistanceSquared(moveLoc,centerLoc,xSize);
+      if(distanceSq <= 2)
+        proportionToDump = std::max(proportionToDump, 0.010);
+      else if(distanceSq <= 4)
+        proportionToDump = std::max(proportionToDump, 0.005);
+
+      //proportionToDump *= (1.0 / (1.0 + sqrt(thread->history.moveHistory.size() - search->rootHistory.moveHistory.size())));
+    }
+    if(moveLoc == centerLoc) {
+      if(isRoot)
+        proportionToDump = 0.06;
+      else
+        proportionToDump = 0.12;
+    }
+
+    double utilityLoss = (parent.nextPla == P_WHITE) ? parentUtility - childUtility : childUtility - parentUtility;
+    if(utilityLoss > 0 && utilityLoss * proportionToDump > 0.03)
+      proportionToDump += 0.5 * (0.03 / utilityLoss - proportionToDump);
+
+    if(parent.prevMoveLoc != Board::NULL_LOC) {
+      int centerDistanceSquared = Location::euclideanDistanceSquared(centerLoc,parent.prevMoveLoc,xSize);
+      if(centerDistanceSquared <= 16)
+        proportionToDump *= 0.900;
+      if(centerDistanceSquared <= 5)
+        proportionToDump *= 0.825;
+      if(centerDistanceSquared <= 2)
+        proportionToDump *= 0.750;
+    }
+
+    if(thisChildWeight < proportionToDump * totalChildWeight) {
+      childUtility += (parent.nextPla == P_WHITE ? 100.0 : -100.0);
+    }
   }
 }
 
@@ -2461,7 +2547,7 @@ double Search::getExploreSelectionValue(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
   double totalChildWeight, double fpuValue,
   double parentUtility, double parentWeightPerVisit, double parentUtilityStdevFactor,
-  bool isDuringSearch, double maxChildWeight, SearchThread* thread
+  bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
 ) const {
   (void)parentUtility;
   Loc moveLoc = child->prevMoveLoc;
@@ -2542,9 +2628,9 @@ double Search::getExploreSelectionValue(
       maybeApplyWideRootNoise(childUtility, nnPolicyProb, searchParams, thread, parent);
     }
   }
-  if(isDuringSearch && searchParams.antiMirror && mirroringPla != C_EMPTY) {
+  if(isDuringSearch && antiMirror) {
     maybeApplyAntiMirrorPolicy(nnPolicyProb, moveLoc, parentPolicyProbs, parent.nextPla, thread, this);
-    maybeApplyAntiMirrorForcedExplore(childUtility, moveLoc, parentPolicyProbs, childWeight, totalChildWeight, parent.nextPla, thread, this, parent);
+    maybeApplyAntiMirrorForcedExplore(childUtility, parentUtility, moveLoc, parentPolicyProbs, childWeight, totalChildWeight, parent.nextPla, thread, this, parent);
   }
 
   return getExploreSelectionValue(nnPolicyProb,totalChildWeight,childWeight,childUtility,parentUtilityStdevFactor,parent.nextPla);
@@ -2713,6 +2799,7 @@ void Search::selectBestChildToDescend(
   );
 
   std::fill(posesWithChildBuf,posesWithChildBuf+NNPos::MAX_NN_POLICY_SIZE,false);
+  bool antiMirror = searchParams.antiMirror && mirroringPla != C_EMPTY && isMirroringSinceSearchStart(rootHistory,thread.history,0);
 
   //Try all existing children
   //Also count how many children we actually find
@@ -2728,7 +2815,7 @@ void Search::selectBestChildToDescend(
     double selectionValue = getExploreSelectionValue(
       node,policyProbs,child,totalChildWeight,fpuValue,
       parentUtility,parentWeightPerVisit,parentUtilityStdevFactor,
-      isDuringSearch,maxChildWeight,&thread
+      isDuringSearch,antiMirror,maxChildWeight,&thread
     );
     if(selectionValue > maxSelectionValue) {
       // if(child->state.load(std::memory_order_seq_cst) == SearchNode::STATE_EVALUATING) {
@@ -2774,7 +2861,7 @@ void Search::selectBestChildToDescend(
     }
 
     float nnPolicyProb = policyProbs[movePos];
-    if(searchParams.antiMirror && mirroringPla != C_EMPTY) {
+    if(antiMirror) {
       maybeApplyAntiMirrorPolicy(nnPolicyProb, moveLoc, policyProbs, node.nextPla, &thread, this);
     }
 
@@ -2903,7 +2990,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   double currentTotalChildWeight = origTotalChildWeight;
   double desiredTotalChildWeight = origTotalChildWeight;
 
-  if(searchParams.useNoisePruning && numGoodChildren > 0) {
+  if(searchParams.useNoisePruning && numGoodChildren > 0 && !(searchParams.antiMirror && mirroringPla != C_EMPTY)) {
     double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
     {
       const NNOutput* nnOutput = node.getNNOutput();
@@ -3174,6 +3261,14 @@ bool Search::initNodeNNOutput(
   bool isRoot, bool skipCache, bool isReInit
 ) {
   bool includeOwnerMap = isRoot || alwaysIncludeOwnerMap;
+  bool antiMirrorDifficult = false;
+  if(searchParams.antiMirror && mirroringPla != C_EMPTY && mirrorAdvantage >= -0.5 &&
+     Location::getCenterLoc(thread.board) != Board::NULL_LOC && thread.board.colors[Location::getCenterLoc(thread.board)] == getOpp(rootPla) &&
+     isMirroringSinceSearchStart(rootHistory,thread.history,4) // skip recent 4 ply to be a bit tolerant
+  ) {
+    includeOwnerMap = true;
+    antiMirrorDifficult = true;
+  }
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
   nnInputParams.conservativePass = searchParams.conservativePass;
@@ -3211,6 +3306,26 @@ bool Search::initNodeNNOutput(
       thread.nnResultBuf, skipCache, includeOwnerMap
     );
     result = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
+  }
+
+  if(antiMirrorDifficult) {
+    // Copy
+    shared_ptr<NNOutput>* newNNOutputSharedPtr = new shared_ptr<NNOutput>(new NNOutput(**result));
+    std::shared_ptr<NNOutput>* tmp = result;
+    result = newNNOutputSharedPtr;
+    delete tmp;
+    // Root player gets a bonus/penalty based on the strength of the center.
+    int centerPos = getPos(Location::getCenterLoc(thread.board));
+    double totalWLProb = (*result)->whiteWinProb + (*result)->whiteLossProb;
+    double ownScale = mirrorCenterSymmetryError <= 0.0 ? 0.7 : 0.3;
+    double wl = ((*result)->whiteWinProb - (*result)->whiteLossProb) / (totalWLProb+1e-10);
+    wl = std::min(std::max(wl,-1.0+1e-15),1.0-1e-15);
+    wl = tanh(atanh(wl) + ownScale * (*result)->whiteOwnerMap[centerPos]);
+    double whiteNewWinProb = 0.5 + 0.5 * wl;
+    whiteNewWinProb = totalWLProb * whiteNewWinProb;
+
+    (*result)->whiteWinProb = (float)whiteNewWinProb;
+    (*result)->whiteLossProb = (float)(totalWLProb - whiteNewWinProb);
   }
 
   assert((*result)->noisedPolicyProbs == NULL);
@@ -3416,9 +3531,8 @@ bool Search::playoutDescend(
       child = new SearchNode(thread.pla,bestChildMoveLoc,&node);
       child->virtualLosses.fetch_add(1,std::memory_order_release);
 
-      if(searchParams.subtreeValueBiasFactor != 0) {
+      if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL) {
         if(node.prevMoveLoc != Board::NULL_LOC) {
-          assert(subtreeValueBiasTable != NULL);
           child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(thread.pla, node.prevMoveLoc, child->prevMoveLoc, thread.board);
         }
       }

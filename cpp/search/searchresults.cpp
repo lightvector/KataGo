@@ -135,7 +135,7 @@ bool Search::getPlaySelectionValues(
     double bestChildExploreSelectionValue = getExploreSelectionValue(
       node,policyProbs,bestChild,totalChildWeight,fpuValue,
       parentUtility,parentWeightPerVisit,parentUtilityStdevFactor,
-      isDuringSearch,maxChildWeight,NULL
+      isDuringSearch,false,maxChildWeight,NULL
     );
 
     for(int i = 0; i<numChildren; i++) {

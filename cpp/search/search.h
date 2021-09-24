@@ -282,7 +282,7 @@ struct Search {
   //If the opponent is mirroring, then the color of that opponent, for countering mirroring
   Player mirroringPla;
   double mirrorAdvantage; //Number of points the opponent wins by if mirror holds indefinitely.
-  bool mirrorCenterIsSymmetric;
+  double mirrorCenterSymmetryError;
 
   bool alwaysIncludeOwnerMap;
 
@@ -601,7 +601,7 @@ private:
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     double totalChildWeight, double fpuValue,
     double parentUtility, double parentWeightPerVisit, double parentUtilityStdevFactor,
-    bool isDuringSearch, double maxChildWeight, SearchThread* thread
+    bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
   ) const;
   double getNewExploreSelectionValue(
     const SearchNode& parent, float nnPolicyProb,
