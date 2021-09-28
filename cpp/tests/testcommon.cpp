@@ -64,14 +64,23 @@ string TestCommon::getBenchmarkSGFData(int boardSize) {
 }
 
 
-void TestCommon::overrideForOpenCL(bool& inputsNHWC, bool& useNHWC) {
-#ifdef USE_OPENCL_BACKEND
+void TestCommon::overrideForBackends(bool& inputsNHWC, bool& useNHWC) {
+#if defined(USE_OPENCL_BACKEND)
   if(inputsNHWC != false) {
     cout << "Backend is opencl, ignoring args and forcing inputsNHWC=false" << endl;
     inputsNHWC = false;
   }
   if(useNHWC != false) {
     cout << "Backend is opencl, ignoring args and forcing useNHWC=false" << endl;
+    useNHWC = false;
+  }
+#elif defined(USE_TENSORRT_BACKEND)
+  if(inputsNHWC != false) {
+    cout << "Backend is TensorRT, ignoring args and forcing inputsNHWC=false" << endl;
+    inputsNHWC = false;
+  }
+  if(useNHWC != false) {
+    cout << "Backend is TensorRT, ignoring args and forcing useNHWC=false" << endl;
     useNHWC = false;
   }
 #else

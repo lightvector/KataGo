@@ -52,6 +52,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
   #if defined(USE_CUDA_BACKEND)
   string backendPrefix = "cuda";
+  #elif defined(USE_TENSORRT_BACKEND)
+  string backendPrefix = "trt";
   #elif defined(USE_OPENCL_BACKEND)
   string backendPrefix = "opencl";
   #elif defined(USE_EIGEN_BACKEND)
@@ -64,6 +66,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   //for those options
   if(backendPrefix != "cuda")
     cfg.markAllKeysUsedWithPrefix("cuda");
+  if(backendPrefix != "trt")
+    cfg.markAllKeysUsedWithPrefix("trt");
   if(backendPrefix != "opencl")
     cfg.markAllKeysUsedWithPrefix("opencl");
   if(backendPrefix != "eigen")
@@ -113,7 +117,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         requireExactNNLen = cfg.getBool("requireMaxBoardSize");
     }
 
-    bool inputsUseNHWC = backendPrefix == "opencl" ? false : true;
+    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" ? false : true;
     if(cfg.contains(backendPrefix+"InputsUseNHWC"+idxStr))
       inputsUseNHWC = cfg.getBool(backendPrefix+"InputsUseNHWC"+idxStr);
     else if(cfg.contains("inputsUseNHWC"+idxStr))

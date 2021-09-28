@@ -63,7 +63,7 @@ static NNEvaluator* startNNEval(
 void Tests::runTrainingWriteTests() {
   bool inputsNHWC = true;
   bool useNHWC = false;
-  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
+  TestCommon::overrideForBackends(inputsNHWC, useNHWC);
 
   cout << "Running training write tests" << endl;
   NeuralNet::globalInitialize();
@@ -192,7 +192,7 @@ void Tests::runTrainingWriteTests() {
 void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
   bool inputsNHWC = true;
   bool useNHWC = false;
-  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
+  TestCommon::overrideForBackends(inputsNHWC, useNHWC);
 
   cout << "Running test for selfplay initialization with NN" << endl;
   NeuralNet::globalInitialize();
@@ -358,7 +358,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
 void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
   bool inputsNHWC = true;
   bool useNHWC = false;
-  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
+  TestCommon::overrideForBackends(inputsNHWC, useNHWC);
 
   cout << "Running more tests for selfplay" << endl;
   NeuralNet::globalInitialize();
@@ -1046,7 +1046,7 @@ xxxxxxxx.
 void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
   bool inputsNHWC = true;
   bool useNHWC = false;
-  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
+  TestCommon::overrideForBackends(inputsNHWC, useNHWC);
 
   cout << "Running 10b tests for selfplay" << endl;
   NeuralNet::globalInitialize();
@@ -1871,7 +1871,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
 void Tests::runSekiTrainWriteTests(const string& modelFile) {
   bool inputsNHWC = true;
   bool useNHWC = false;
-  TestCommon::overrideForOpenCL(inputsNHWC, useNHWC);
+  TestCommon::overrideForBackends(inputsNHWC, useNHWC);
 
   cout << "Running test for how a seki gets recorded" << endl;
   NeuralNet::globalInitialize();

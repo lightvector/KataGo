@@ -279,6 +279,9 @@ string GTPConfig::makeConfig(
 #ifdef USE_CUDA_BACKEND
       replacement += "cudaDeviceToUseThread" + Global::intToString(i) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
 #endif
+#ifdef USE_TENSORRT_BACKEND
+      replacement += "trtDeviceToUseThread" + Global::intToString(i) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
+#endif
 #ifdef USE_OPENCL_BACKEND
       replacement += "openclDeviceToUseThread" + Global::intToString(i) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
 #endif

@@ -197,6 +197,8 @@ string Version::getKataGoVersionFullInfo() {
 #define STRINGIFY2(x) STRINGIFY(x)
   out << "Compiled with CUDA version " << STRINGIFY2(CUDA_TARGET_VERSION) << endl;
 #endif
+#elif defined(USE_TENSORRT_BACKEND)
+  out << "Using TensorRT backend" << endl;
 #elif defined(USE_OPENCL_BACKEND)
   out << "Using OpenCL backend" << endl;
 #elif defined(USE_EIGEN_BACKEND)
