@@ -67,12 +67,12 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
   string binaryData;
   decodeBase64(base64Data, binaryData);
 
-  const string tmpModelFile = baseDir + "/" + "tmpTinyModel.bin.gz";
+  Rand rand;
+  const string tmpModelFile = baseDir + "/" + "tmpTinyModel_" + Global::uint64ToHexString(rand.nextUInt64()) + ".bin.gz";
   ofstream outModel(tmpModelFile.c_str(),ios::binary);
   outModel << binaryData;
   outModel.close();
 
-  Rand rand;
   const int maxConcurrentEvals = 8;
   const int expectedConcurrentEvals = 1;
   int maxBatchSize = 8;

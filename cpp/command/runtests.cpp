@@ -482,3 +482,46 @@ int MainCmds::runbeginsearchspeedtest(int argc, const char* const* argv) {
   ScoreValue::freeTables();
   return 0;
 }
+
+int MainCmds::runsleeptest(int argc, const char* const* argv) {
+  (void)argc;
+  (void)argv;
+  ClockTimer timer;
+  {
+    cout << "Attempting to sleep for 5 seconds" << endl;
+    timer.reset();
+    std::this_thread::sleep_for(std::chrono::duration<double>(5));
+    double elapsed = timer.getSeconds();
+    cout << "Time slept: " << elapsed << endl;
+  }
+  {
+    cout << "Attempting to sleep for 1.5 seconds" << endl;
+    timer.reset();
+    std::this_thread::sleep_for(std::chrono::duration<double>(1.5));
+    double elapsed = timer.getSeconds();
+    cout << "Time slept: " << elapsed << endl;
+  }
+  {
+    cout << "Attempting to sleep for 0.5 seconds" << endl;
+    timer.reset();
+    std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
+    double elapsed = timer.getSeconds();
+    cout << "Time slept: " << elapsed << endl;
+  }
+  {
+    cout << "Attempting to sleep for 0.05 seconds" << endl;
+    timer.reset();
+    std::this_thread::sleep_for(std::chrono::duration<double>(0.05));
+    double elapsed = timer.getSeconds();
+    cout << "Time slept: " << elapsed << endl;
+  }
+  {
+    cout << "Attempting to sleep for 0.0 seconds" << endl;
+    timer.reset();
+    std::this_thread::sleep_for(std::chrono::duration<double>(0.0));
+    double elapsed = timer.getSeconds();
+    cout << "Time slept: " << elapsed << endl;
+  }
+  return 0;
+
+}

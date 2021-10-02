@@ -29,6 +29,7 @@ namespace MainCmds {
   int runownershiptests(int argc, const char* const* argv);
   int runtinynntests(int argc, const char* const* argv);
   int runbeginsearchspeedtest(int argc, const char* const* argv);
+  int runsleeptest(int argc, const char* const* argv);
 
   int samplesgfs(int argc, const char* const* argv);
   int dataminesgfs(int argc, const char* const* argv);
