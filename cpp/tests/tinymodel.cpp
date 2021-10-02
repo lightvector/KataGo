@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 
+#include "../core/fileutils.h"
 #include "../core/rand.h"
 #include "../game/boardhistory.h"
 #include "../neuralnet/nneval.h"
@@ -69,7 +70,8 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
 
   Rand rand;
   const string tmpModelFile = baseDir + "/" + "tmpTinyModel_" + Global::uint64ToHexString(rand.nextUInt64()) + ".bin.gz";
-  ofstream outModel(tmpModelFile.c_str(),ios::binary);
+  ofstream outModel;
+  FileUtils::open(outModel,tmpModelFile.c_str(),ios::binary);
   outModel << binaryData;
   outModel.close();
 

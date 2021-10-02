@@ -1,5 +1,7 @@
 #include "../core/config_parser.h"
 
+#include "../core/fileutils.h"
+
 #include <cmath>
 #include <fstream>
 #include <sstream>
@@ -42,9 +44,8 @@ ConfigParser::ConfigParser(const ConfigParser& source) {
 void ConfigParser::initialize(const string& fname) {
   if(initialized)
     throw StringError("ConfigParser already initialized, cannot initialize again");
-  ifstream in(fname);
-  if(!in.is_open())
-    throw IOError("Could not open config file: " + fname);
+  ifstream in;
+  FileUtils::open(in,fname);
   fileName = fname;
   initializeInternal(in);
   initialized = true;

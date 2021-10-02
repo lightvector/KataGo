@@ -1,5 +1,6 @@
 #include "../core/global.h"
 #include "../core/config_parser.h"
+#include "../core/fileutils.h"
 #include "../core/timer.h"
 #include "../dataio/sgf.h"
 #include "../search/asyncbot.h"
@@ -51,7 +52,7 @@ static const int64_t defaultMaxVisits = 800;
 static constexpr double defaultSecondsPerGameMove = 5.0;
 static const int ternarySearchInitialMax = 32;
 
-int MainCmds::benchmark(int argc, const char* const* argv) {
+int MainCmds::benchmark(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
 
@@ -99,7 +100,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     cmd.add(boardSizeArg);
     cmd.add(autoTuneThreadsArg);
     cmd.add(secondsPerGameMoveArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
     sgfFile = sgfFileArg.getValue();
@@ -499,7 +500,7 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
 }
 
 
-int MainCmds::genconfig(int argc, const char* const* argv, const char* firstCommand) {
+int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) {
   Board::initHash();
   ScoreValue::initTables();
 
@@ -512,7 +513,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
 
     TCLAP::ValueArg<string> outputFileArg("","output","Path to write new config (default gtp.cfg)",false,string("gtp.cfg"),"FILE");
     cmd.add(outputFileArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     outputFile = outputFileArg.getValue();
     modelFile = cmd.getModelFile();
@@ -919,7 +920,8 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
   cout << "DONE" << endl;
   cout << endl;
   cout << "Writing new config file to " << outputFile << endl;
-  ofstream out(outputFile, ofstream::out | ofstream::trunc);
+  ofstream out;
+  FileUtils::open(out, outputFile, ofstream::out | ofstream::trunc);
   out << configFileContents;
   out.close();
 

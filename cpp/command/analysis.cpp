@@ -51,7 +51,7 @@ struct AnalyzeRequest {
 };
 
 
-int MainCmds::analysis(int argc, const char* const* argv) {
+int MainCmds::analysis(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -73,7 +73,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     TCLAP::SwitchArg quitWithoutWaitingArg("","quit-without-waiting","When stdin is closed, quit quickly without waiting for queued tasks");
     cmd.add(numAnalysisThreadsArg);
     cmd.add(quitWithoutWaitingArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
     numAnalysisThreadsCmdlineSpecified = numAnalysisThreadsArg.isSet();

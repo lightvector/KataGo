@@ -1,6 +1,7 @@
 #include "../core/global.h"
 #include "../core/config_parser.h"
 #include "../core/datetime.h"
+#include "../core/fileutils.h"
 #include "../core/timer.h"
 #include "../core/makedir.h"
 #include "../core/os.h"
@@ -19,9 +20,8 @@
 
 #ifndef BUILD_DISTRIBUTED
 
-int MainCmds::contribute(int argc, const char* const* argv) {
-  (void)argc;
-  (void)argv;
+int MainCmds::contribute(const vector<string>& args) {
+  (void)args;
   std::cout << "This version of KataGo was NOT compiled with support for distributed training." << std::endl;
   std::cout << "Compile with -DBUILD_DISTRIBUTED=1 in CMake, and/or see notes at https://github.com/lightvector/KataGo#compiling-katago" << std::endl;
   return 0;
@@ -266,7 +266,8 @@ static void runAndUploadSingleGame(
       sgfOutputDir = sgfsDir + "/" + nnEvalBlack->getModelName();
     string sgfFile = sgfOutputDir + "/" + gameIdString + ".sgf";
 
-    ofstream out(sgfFile);
+    ofstream out;
+    FileUtils::open(out,sgfFile);
     WriteSgf::writeSgf(out,gameData->bName,gameData->wName,gameData->endHist,gameData,false,true);
     out.close();
     if(outputEachMove != nullptr) {
@@ -331,7 +332,7 @@ static void runAndUploadSingleGame(
 }
 
 
-int MainCmds::contribute(int argc, const char* const* argv) {
+int MainCmds::contribute(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -359,7 +360,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     cmd.add(userConfigFileArg);
     cmd.add(overrideUserConfigArg);
     cmd.add(caCertsFileArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
     baseDir = baseDirArg.getValue();
     deleteUnusedModelsAfterDays = deleteUnusedModelsAfterDaysArg.getValue();
     userConfigFile = userConfigFileArg.getValue();
@@ -420,9 +421,9 @@ int MainCmds::contribute(int argc, const char* const* argv) {
 
     bool foundCaCerts = false;
     for(const string& path: possiblePaths) {
-      std::ifstream infile(path);
-      bool pathExists = infile.good();
-      if(pathExists) {
+      std::ifstream infile;
+      bool couldOpen = FileUtils::tryOpen(infile,path);
+      if(couldOpen) {
         foundCaCerts = true;
         caCertsFile = path;
         break;
@@ -439,9 +440,9 @@ int MainCmds::contribute(int argc, const char* const* argv) {
   }
   else {
     if(caCertsFile != "/dev/null") {
-      std::ifstream infile(caCertsFile);
-      bool pathExists = infile.good();
-      if(!pathExists) {
+      std::ifstream infile;
+      bool couldOpen = FileUtils::tryOpen(infile,caCertsFile);
+      if(!couldOpen) {
         throw StringError("cacerts file was not found or could not be opened: " + caCertsFile);
       }
     }
@@ -669,6 +670,7 @@ int MainCmds::contribute(int argc, const char* const* argv) {
     std::unique_ptr<std::ostream> outputEachMove = nullptr;
     std::function<void()> flushOutputEachMove = nullptr;
     if(gameLoopThreadIdx == 0 && watchOngoingGameInFile) {
+      // TODO someday - doesn't handle non-ascii paths. 
 #ifdef OS_IS_WINDOWS
       FILE* file = NULL;
       fopen_s(&file, watchOngoingGameInFileName.c_str(), "a");

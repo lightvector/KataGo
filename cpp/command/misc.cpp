@@ -1,4 +1,5 @@
 #include "../core/global.h"
+#include "../core/fileutils.h"
 #include "../core/makedir.h"
 #include "../core/config_parser.h"
 #include "../core/timer.h"
@@ -362,7 +363,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
 }
 
 
-int MainCmds::demoplay(int argc, const char* const* argv) {
+int MainCmds::demoplay(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -378,7 +379,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",false,string(),"FILE");
     cmd.add(logFileArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
     logFile = logFileArg.getValue();
@@ -558,9 +559,8 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 
 }
 
-int MainCmds::printclockinfo(int argc, const char* const* argv) {
-  (void)argc;
-  (void)argv;
+int MainCmds::printclockinfo(const vector<string>& args) {
+  (void)args;
 #ifdef OS_IS_WINDOWS
   cout << "Does nothing on windows, disabled" << endl;
 #endif
@@ -572,7 +572,7 @@ int MainCmds::printclockinfo(int argc, const char* const* argv) {
 }
 
 
-int MainCmds::samplesgfs(int argc, const char* const* argv) {
+int MainCmds::samplesgfs(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -621,7 +621,7 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
     cmd.add(requiredPlayerNameArg);
     cmd.add(maxHandicapArg);
     cmd.add(maxKomiArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
     sgfDirs = sgfDirArg.getValue();
     outDir = outDirArg.getValue();
     excludeHashesFiles = excludeHashesArg.getValue();
@@ -646,8 +646,8 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
   Logger logger;
   logger.setLogToStdout(true);
   logger.addFile(outDir + "/" + "log.log");
-  for(int i = 0; i < argc; i++)
-    logger.write(string("Command: ") + argv[i]);
+  for(const string& arg: args)
+    logger.write(string("Command: ") + arg);
 
   vector<string> sgfFiles;
   FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
@@ -699,7 +699,8 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
           out->close();
           delete out;
         }
-        out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + ".startposes.txt");
+        out = new ofstream();
+        FileUtils::open(*out, outDir + "/" + Global::intToString(fileCounter) + ".startposes.txt");
         fileCounter += 1;
         numWrittenThisFile = 0;
       }
@@ -870,7 +871,7 @@ struct PosQueueEntry {
   bool markedAsHintPos;
 };
 
-int MainCmds::dataminesgfs(int argc, const char* const* argv) {
+int MainCmds::dataminesgfs(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -951,7 +952,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     cmd.add(maxKomiArg);
     cmd.add(maxAutoKomiArg);
     cmd.add(maxPolicyArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     nnModelFile = cmd.getModelFile();
     sgfDirs = sgfDirArg.getValue();
@@ -992,8 +993,8 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   Logger logger;
   logger.setLogToStdout(true);
   logger.addFile(outDir + "/" + "log.log");
-  for(int i = 0; i < argc; i++)
-    logger.write(string("Command: ") + argv[i]);
+  for(const string& arg: args)
+    logger.write(string("Command: ") + arg);
   logger.write("Git revision " + Version::getGitRevision());
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_ANALYSIS);
@@ -1066,10 +1067,13 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
           out->close();
           delete out;
         }
+        string fileNameToWrite;
         if(sgfSplitCount > 1)
-          out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + "." + Global::intToString(sgfSplitIdx) + ".hintposes.txt");
+          fileNameToWrite = outDir + "/" + Global::intToString(fileCounter) + "." + Global::intToString(sgfSplitIdx) + ".hintposes.txt";
         else
-          out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + ".hintposes.txt");
+          fileNameToWrite = outDir + "/" + Global::intToString(fileCounter) + ".hintposes.txt";        
+        out = new ofstream();
+        FileUtils::open(*out,fileNameToWrite);
         fileCounter += 1;
         numWrittenThisFile = 0;
       }
@@ -1776,7 +1780,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
 
 
-int MainCmds::trystartposes(int argc, const char* const* argv) {
+int MainCmds::trystartposes(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -1795,7 +1799,7 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
     TCLAP::ValueArg<double> minWeightArg("","min-weight","Minimum weight of startpos to try",false,0.0,"WEIGHT");
     cmd.add(startPosesFileArg);
     cmd.add(minWeightArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
     nnModelFile = cmd.getModelFile();
     startPosesFiles = startPosesFileArg.getValue();
     minWeight = minWeightArg.getValue();
@@ -1841,7 +1845,7 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
   vector<Sgf::PositionSample> startPoses;
   for(size_t i = 0; i<startPosesFiles.size(); i++) {
     const string& startPosesFile = startPosesFiles[i];
-    vector<string> lines = Global::readFileLines(startPosesFile,'\n');
+    vector<string> lines = FileUtils::readFileLines(startPosesFile,'\n');
     for(size_t j = 0; j<lines.size(); j++) {
       string line = Global::trim(lines[j]);
       if(line.size() > 0) {
@@ -1931,7 +1935,7 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
 }
 
 
-int MainCmds::viewstartposes(int argc, const char* const* argv) {
+int MainCmds::viewstartposes(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
 
@@ -1949,7 +1953,7 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
     TCLAP::ValueArg<double> minWeightArg("","min-weight","Min weight of startpos to view",false,0.0,"WEIGHT");
     cmd.add(startPosesFileArg);
     cmd.add(minWeightArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
     startPosesFiles = startPosesFileArg.getValue();
     minWeight = minWeightArg.getValue();
 
@@ -1999,7 +2003,7 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
   vector<Sgf::PositionSample> startPoses;
   for(size_t i = 0; i<startPosesFiles.size(); i++) {
     const string& startPosesFile = startPosesFiles[i];
-    vector<string> lines = Global::readFileLines(startPosesFile,'\n');
+    vector<string> lines = FileUtils::readFileLines(startPosesFile,'\n');
     for(size_t j = 0; j<lines.size(); j++) {
       string line = Global::trim(lines[j]);
       if(line.size() > 0) {
@@ -2077,7 +2081,7 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
 }
 
 
-int MainCmds::sampleinitializations(int argc, const char* const* argv) {
+int MainCmds::sampleinitializations(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
 
@@ -2095,7 +2099,7 @@ int MainCmds::sampleinitializations(int argc, const char* const* argv) {
     TCLAP::SwitchArg evaluateArg("","evaluate","Print out values and scores on the inited poses");
     cmd.add(numToGenArg);
     cmd.add(evaluateArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
     numToGen = numToGenArg.getValue();
     evaluate = evaluateArg.getValue();
 

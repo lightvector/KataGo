@@ -1,5 +1,6 @@
 #include "../core/global.h"
 #include "../core/config_parser.h"
+#include "../core/fileutils.h"
 #include "../core/timer.h"
 #include "../core/datetime.h"
 #include "../core/makedir.h"
@@ -1449,7 +1450,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
 }
 
 
-int MainCmds::gtp(int argc, const char* const* argv) {
+int MainCmds::gtp(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -1466,7 +1467,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
     TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
     cmd.add(overrideVersionArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
     nnModelFile = cmd.getModelFile();
     overrideVersion = overrideVersionArg.getValue();
 
@@ -2372,7 +2373,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     else if(command == "genmove_analyze" || command == "lz-genmove_analyze" || command == "kata-genmove_analyze") {
       Player pla = engine->bot->getRootPla();
       bool parseFailed = false;
-      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
+      GTPEngine::AnalyzeArgs analyzeArgs = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
       if(parseFailed) {
         responseIsError = true;
         response = "Could not parse genmove_analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
@@ -2394,7 +2395,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
           logSearchInfo,debug,playChosenMove,
           response,responseIsError,maybeStartPondering,
-          args
+          analyzeArgs
         );
         //And manually handle the result as well. In case of error, don't report any play.
         suppressResponse = true;
@@ -2698,17 +2699,23 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = out.str();
       }
       else {
-        ofstream out(pieces[0]);
-        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
-        out.close();
-        response = "";
+        ofstream out;
+        if(FileUtils::tryOpen(out,pieces[0])) {
+          WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
+          out.close();
+          response = "";
+        }
+        else {
+          responseIsError = true;
+          response = "Could not open or write to file: " + pieces[0];
+        }
       }
     }
 
     else if(command == "analyze" || command == "lz-analyze" || command == "kata-analyze") {
       Player pla = engine->bot->getRootPla();
       bool parseFailed = false;
-      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
+      GTPEngine::AnalyzeArgs analyzeArgs = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
 
       if(parseFailed) {
         responseIsError = true;
@@ -2721,7 +2728,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         else
           cout << "=" << endl;
 
-        engine->analyze(pla, args);
+        engine->analyze(pla, analyzeArgs);
 
         //No response - currentlyAnalyzing will make sure we get a newline at the appropriate time, when stopped.
         suppressResponse = true;

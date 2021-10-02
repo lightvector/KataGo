@@ -1,5 +1,6 @@
 #include "../dataio/sgf.h"
 
+#include "../core/fileutils.h"
 #include "../core/sha2.h"
 
 #include "../external/nlohmann_json/json.hpp"
@@ -817,7 +818,7 @@ set<Hash128> Sgf::readExcludes(const vector<string>& files) {
     string excludeHashesFile = Global::trim(files[i]);
     if(excludeHashesFile.size() <= 0)
       continue;
-    vector<string> hashes = Global::readFileLines(excludeHashesFile,'\n');
+    vector<string> hashes = FileUtils::readFileLines(excludeHashesFile,'\n');
     for(int64_t j = 0; j < hashes.size(); j++) {
       const string& hash128 = Global::trim(Global::stripComments(hashes[j]));
       if(hash128.length() <= 0)
@@ -1132,7 +1133,7 @@ Sgf* Sgf::parse(const string& str) {
 }
 
 Sgf* Sgf::loadFile(const string& file) {
-  Sgf* sgf = parse(Global::readFile(file));
+  Sgf* sgf = parse(FileUtils::readFile(file));
   if(sgf != NULL)
     sgf->fileName = file;
   return sgf;
@@ -1164,7 +1165,7 @@ vector<Sgf*> Sgf::loadFiles(const vector<string>& files) {
 
 vector<Sgf*> Sgf::loadSgfsFile(const string& file) {
   vector<Sgf*> sgfs;
-  vector<string> lines = Global::readFileLines(file,'\n');
+  vector<string> lines = FileUtils::readFileLines(file,'\n');
   try {
     for(size_t i = 0; i<lines.size(); i++) {
       string line = Global::trim(lines[i]);

@@ -1,4 +1,5 @@
 #include "../core/global.h"
+#include "../core/fileutils.h"
 #include "../core/makedir.h"
 #include "../core/config_parser.h"
 #include "../core/timer.h"
@@ -260,7 +261,7 @@ namespace {
           continue;
         string file = dirPath.string();
         if(Global::isSuffix(file,".results.csv")) {
-          vector<string> lines = Global::readFileLines(file,'\n');
+          vector<string> lines = FileUtils::readFileLines(file,'\n');
           for(int i = 0; i<lines.size(); i++) {
             string s = Global::trim(lines[i]);
             if(s.length() == 0)
@@ -397,7 +398,7 @@ namespace {
 }
 
 
-int MainCmds::matchauto(int argc, const char* const* argv) {
+int MainCmds::matchauto(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -420,7 +421,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
     cmd.setShortUsageArgLimit();
     cmd.addOverrideConfigArg();
 
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     logFile = logFileArg.getValue();
     sgfOutputDir = sgfOutputDirArg.getValue();
@@ -513,14 +514,19 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
   std::signal(SIGTERM, signalHandler);
 
   std::mutex resultLock;
-  ofstream* resultOut = new ofstream(resultsDir + "/" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".results.csv");
+  ofstream* resultOut = new ofstream();
+  FileUtils::open(*resultOut, resultsDir + "/" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".results.csv");
 
   auto runMatchLoop = [
     &gameRunner,&autoMatchPairer,&sgfOutputDir,&logger,&resultLock,&resultOut,&manager,&gameSeedBase
   ](
     uint64_t threadHash
   ) {
-    ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(threadHash) + ".sgfs")) : NULL;
+    ofstream* sgfOut = NULL;
+    if(sgfOutputDir.length() > 0) {
+      sgfOut = new ofstream();
+      FileUtils::open(*sgfOut, sgfOutputDir + "/" + Global::uint64ToHexString(threadHash) + ".sgfs");
+    }
     auto shouldStopFunc = []() {
       return shouldStop.load();
     };

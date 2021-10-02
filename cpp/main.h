@@ -1,45 +1,45 @@
 #include "core/global.h"
 
 namespace MainCmds {
-  int analysis(int argc, const char* const* argv);
-  int benchmark(int argc, const char* const* argv);
-  int contribute(int argc, const char* const* argv);
-  int evalsgf(int argc, const char* const* argv);
-  int gatekeeper(int argc, const char* const* argv);
-  int genconfig(int argc, const char* const* argv, const char* firstCommand);
-  int gtp(int argc, const char* const* argv);
-  int tuner(int argc, const char* const* argv);
-  int match(int argc, const char* const* argv);
-  int matchauto(int argc, const char* const* argv);
-  int selfplay(int argc, const char* const* argv);
+  int analysis(const std::vector<std::string>& args);
+  int benchmark(const std::vector<std::string>& args);
+  int contribute(const std::vector<std::string>& args);
+  int evalsgf(const std::vector<std::string>& args);
+  int gatekeeper(const std::vector<std::string>& args);
+  int genconfig(const std::vector<std::string>& args, const std::string& firstCommand);
+  int gtp(const std::vector<std::string>& args);
+  int tuner(const std::vector<std::string>& args);
+  int match(const std::vector<std::string>& args);
+  int matchauto(const std::vector<std::string>& args);
+  int selfplay(const std::vector<std::string>& args);
 
-  int runtests(int argc, const char* const* argv);
-  int runnnlayertests(int argc, const char* const* argv);
-  int runnnontinyboardtest(int argc, const char* const* argv);
-  int runnnsymmetriestest(int argc, const char* const* argv);
-  int runoutputtests(int argc, const char* const* argv);
-  int runsearchtests(int argc, const char* const* argv);
-  int runsearchtestsv3(int argc, const char* const* argv);
-  int runsearchtestsv8(int argc, const char* const* argv);
-  int runselfplayinittests(int argc, const char* const* argv);
-  int runselfplayinitstattests(int argc, const char* const* argv);
-  int runsekitrainwritetests(int argc, const char* const* argv);
-  int runnnonmanyposestest(int argc, const char* const* argv);
-  int runnnbatchingtest(int argc, const char* const* argv);
-  int runownershiptests(int argc, const char* const* argv);
-  int runtinynntests(int argc, const char* const* argv);
-  int runbeginsearchspeedtest(int argc, const char* const* argv);
-  int runsleeptest(int argc, const char* const* argv);
+  int runtests(const std::vector<std::string>& args);
+  int runnnlayertests(const std::vector<std::string>& args);
+  int runnnontinyboardtest(const std::vector<std::string>& args);
+  int runnnsymmetriestest(const std::vector<std::string>& args);
+  int runoutputtests(const std::vector<std::string>& args);
+  int runsearchtests(const std::vector<std::string>& args);
+  int runsearchtestsv3(const std::vector<std::string>& args);
+  int runsearchtestsv8(const std::vector<std::string>& args);
+  int runselfplayinittests(const std::vector<std::string>& args);
+  int runselfplayinitstattests(const std::vector<std::string>& args);
+  int runsekitrainwritetests(const std::vector<std::string>& args);
+  int runnnonmanyposestest(const std::vector<std::string>& args);
+  int runnnbatchingtest(const std::vector<std::string>& args);
+  int runownershiptests(const std::vector<std::string>& args);
+  int runtinynntests(const std::vector<std::string>& args);
+  int runbeginsearchspeedtest(const std::vector<std::string>& args);
+  int runsleeptest(const std::vector<std::string>& args);
 
-  int samplesgfs(int argc, const char* const* argv);
-  int dataminesgfs(int argc, const char* const* argv);
+  int samplesgfs(const std::vector<std::string>& args);
+  int dataminesgfs(const std::vector<std::string>& args);
 
-  int trystartposes(int argc, const char* const* argv);
-  int viewstartposes(int argc, const char* const* argv);
+  int trystartposes(const std::vector<std::string>& args);
+  int viewstartposes(const std::vector<std::string>& args);
 
-  int demoplay(int argc, const char* const* argv);
-  int printclockinfo(int argc, const char* const* argv);
-  int sampleinitializations(int argc, const char* const* argv);
+  int demoplay(const std::vector<std::string>& args);
+  int printclockinfo(const std::vector<std::string>& args);
+  int sampleinitializations(const std::vector<std::string>& args);
 
   int sandbox();
 }

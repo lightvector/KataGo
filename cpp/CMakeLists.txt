@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 14)
 
 include_directories(external)
 include_directories(external/tclap-1.2.2/include)
-include_directories(SYSTEM external/filesystem-1.3.6/include) #SYSTEM suppresses a few warnings
+include_directories(SYSTEM external/filesystem-1.5.8/include) #SYSTEM suppresses a few warnings
 
 if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.18.0")
   # Suppress a warning message for setting cuda flags that still works fine for now
@@ -241,6 +241,7 @@ add_executable(katago
   core/fileutils.cpp
   core/hash.cpp
   core/logger.cpp
+  core/mainargs.cpp
   core/makedir.cpp
   core/md5.cpp
   core/multithread.cpp

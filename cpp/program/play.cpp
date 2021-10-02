@@ -1,6 +1,7 @@
 #include "../program/play.h"
 
 #include "../core/global.h"
+#include "../core/fileutils.h"
 #include "../program/playutils.h"
 #include "../program/setup.h"
 #include "../search/asyncbot.h"
@@ -255,11 +256,11 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     for(int i = 0; i<dirs.size(); i++) {
       string dir = Global::trim(dirs[i]);
       if(dir.size() > 0)
-        Global::collectFiles(dir, fileFilter, files);
+        FileUtils::collectFiles(dir, fileFilter, files);
     }
 
     for(size_t i = 0; i<files.size(); i++) {
-      vector<string> lines = Global::readFileLines(files[i],'\n');
+      vector<string> lines = FileUtils::readFileLines(files[i],'\n');
       for(size_t j = 0; j<lines.size(); j++) {
         string line = Global::trim(lines[j]);
         if(line.size() > 0) {
