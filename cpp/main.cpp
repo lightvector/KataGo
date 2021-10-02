@@ -121,6 +121,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::samplesgfs(subArgs);
   else if(subcommand == "dataminesgfs")
     return MainCmds::dataminesgfs(subArgs);
+  else if(subcommand == "genbook")
+    return MainCmds::genbook(subArgs);
   else if(subcommand == "trystartposes")
     return MainCmds::trystartposes(subArgs);
   else if(subcommand == "viewstartposes")

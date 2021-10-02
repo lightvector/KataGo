@@ -70,6 +70,14 @@ string Global::doubleToString(double x)
   return ss.str();
 }
 
+string Global::doubleToStringHighPrecision(double x)
+{
+  stringstream ss;
+  ss.precision(16);
+  ss << x;
+  return ss.str();
+}
+
 string Global::int64ToString(int64_t x)
 {
   stringstream ss;
