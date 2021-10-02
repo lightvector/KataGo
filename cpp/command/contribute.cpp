@@ -577,7 +577,8 @@ int MainCmds::contribute(const vector<string>& args) {
   logger.write(string("Git revision: ") + Version::getGitRevision());
 
   {
-    NNEvaluator* tinyNNEval = TinyModelTest::runTinyModelTest(baseDir, logger, *userCfg);
+    const bool randFileName = true;
+    NNEvaluator* tinyNNEval = TinyModelTest::runTinyModelTest(baseDir, logger, *userCfg, randFileName);
     //Before we delete the tinyNNEval, it conveniently has all the info about what gpuidxs the user wants from the config, so
     //use it to tune everything.
 #ifdef USE_OPENCL_BACKEND
@@ -670,7 +671,7 @@ int MainCmds::contribute(const vector<string>& args) {
     std::unique_ptr<std::ostream> outputEachMove = nullptr;
     std::function<void()> flushOutputEachMove = nullptr;
     if(gameLoopThreadIdx == 0 && watchOngoingGameInFile) {
-      // TODO someday - doesn't handle non-ascii paths. 
+      // TODO someday - doesn't handle non-ascii paths.
 #ifdef OS_IS_WINDOWS
       FILE* file = NULL;
       fopen_s(&file, watchOngoingGameInFileName.c_str(), "a");

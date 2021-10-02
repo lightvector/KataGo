@@ -348,10 +348,12 @@ int MainCmds::runtinynntests(const vector<string>& args) {
     cfg.initialize(in);
   }
 
+  const bool randFileName = false;
   TinyModelTest::runTinyModelTest(
     args[1],
     logger,
-    cfg
+    cfg,
+    randFileName
   );
 
   ScoreValue::freeTables();

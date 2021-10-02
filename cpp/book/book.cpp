@@ -1369,8 +1369,8 @@ void Book::recomputeNodeCost(BookNode* node) {
   // Figure out whether pass is the favored move
   double passPolicy = 0.0;
   double passUtility = node->pla == P_WHITE ? -1e100 : 1e100;
-  if(node->moves.find(Board::PASS_LOC) != node->moves.end()) {
-    const Loc passLoc = Board::PASS_LOC;
+  const Loc passLoc = Board::PASS_LOC;
+  if(node->moves.find(passLoc) != node->moves.end()) {
     passPolicy = node->moves[passLoc].rawPolicy;
     passUtility = getUtility(get(node->moves[passLoc].hash)->recursiveValues);
   }

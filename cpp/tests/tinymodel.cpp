@@ -53,7 +53,7 @@ static void requireApproxEqual(double x, double expected, double scale, const NN
   }
 }
 
-NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logger, ConfigParser& cfg) {
+NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logger, ConfigParser& cfg, bool randFileName) {
   logger.write("Running tiny net to sanity-check that GPU is working");
 
   namespace gfs = ghc::filesystem;
@@ -69,7 +69,10 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
   decodeBase64(base64Data, binaryData);
 
   Rand rand;
-  const string tmpModelFile = baseDir + "/" + "tmpTinyModel_" + Global::uint64ToHexString(rand.nextUInt64()) + ".bin.gz";
+  const string tmpModelFile =
+    randFileName ?
+    (baseDir + "/" + "tmpTinyModel_" + Global::uint64ToHexString(rand.nextUInt64()) + ".bin.gz") :
+    (baseDir + "/" + "tmpTinyModel.bin.gz");
   ofstream outModel;
   FileUtils::open(outModel,tmpModelFile.c_str(),ios::binary);
   outModel << binaryData;
