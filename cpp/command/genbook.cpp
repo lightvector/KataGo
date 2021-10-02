@@ -50,6 +50,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   string bonusFile;
   int numIterations;
   int saveEveryIterations;
+  double traceBookMinVisits;
   bool allowChangingBookParams;
   bool htmlDevMode;
   try {
@@ -65,6 +66,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> bonusFileArg("","bonus-file","SGF of bonuses marked",false,string(),"DIR");
     TCLAP::ValueArg<int> numIterationsArg("","num-iters","Number of iterations to expand book",false,0,"N");
     TCLAP::ValueArg<int> saveEveryIterationsArg("","save-every","Number of iterations per save",true,0,"N");
+    TCLAP::ValueArg<double> traceBookMinVisitsArg("","trace-book-min-visits","Require >= this many visits for copying from traceBookFile",false,0.0,"N");
     TCLAP::SwitchArg allowChangingBookParamsArg("","allow-changing-book-params","Allow changing book params");
     TCLAP::SwitchArg htmlDevModeArg("","html-dev-mode","Denser debug output for html");
     cmd.add(htmlDirArg);
@@ -74,6 +76,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     cmd.add(bonusFileArg);
     cmd.add(numIterationsArg);
     cmd.add(saveEveryIterationsArg);
+    cmd.add(traceBookMinVisitsArg);
     cmd.add(allowChangingBookParamsArg);
     cmd.add(htmlDevModeArg);
 
@@ -88,6 +91,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     bonusFile = bonusFileArg.getValue();
     numIterations = numIterationsArg.getValue();
     saveEveryIterations = saveEveryIterationsArg.getValue();
+    traceBookMinVisits = traceBookMinVisitsArg.getValue();
     allowChangingBookParams = allowChangingBookParamsArg.getValue();
     htmlDevMode = htmlDevModeArg.getValue();
   }
@@ -122,6 +126,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
   const double bonusPerExcessUnexpandedPolicy = cfg.getDouble("bonusPerExcessUnexpandedPolicy",0.0,1000000.0);
   const double bonusForWLPV1 = cfg.contains("bonusForWLPV1") ? cfg.getDouble("bonusForWLPV1",0.0,1000000.0) : 0.0;
   const double bonusForWLPV2 = cfg.contains("bonusForWLPV2") ? cfg.getDouble("bonusForWLPV2",0.0,1000000.0) : 0.0;
+  const double bonusForBiggestWLCost = cfg.contains("bonusForBiggestWLCost") ? cfg.getDouble("bonusForBiggestWLCost",0.0,1000000.0) : 0.0;
   const double scoreLossCap = cfg.getDouble("scoreLossCap",0.0,1000000.0);
   const double utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
   const double policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);
@@ -226,6 +231,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
         bonusPerExcessUnexpandedPolicy != book->getBonusPerExcessUnexpandedPolicy() ||
         bonusForWLPV1 != book->getBonusForWLPV1() ||
         bonusForWLPV2 != book->getBonusForWLPV2() ||
+        bonusForBiggestWLCost != book->getBonusForBiggestWLCost() ||
         scoreLossCap != book->getScoreLossCap() ||
         utilityPerScore != book->getUtilityPerScore() ||
         policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale() ||
@@ -250,6 +256,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       if(bonusPerExcessUnexpandedPolicy != book->getBonusPerExcessUnexpandedPolicy()) { logger.write("Changing bonusPerExcessUnexpandedPolicy from " + Global::doubleToString(book->getBonusPerExcessUnexpandedPolicy()) + " to " + Global::doubleToString(bonusPerExcessUnexpandedPolicy)); book->setBonusPerExcessUnexpandedPolicy(bonusPerExcessUnexpandedPolicy); }
       if(bonusForWLPV1 != book->getBonusForWLPV1()) { logger.write("Changing bonusForWLPV1 from " + Global::doubleToString(book->getBonusForWLPV1()) + " to " + Global::doubleToString(bonusForWLPV1)); book->setBonusForWLPV1(bonusForWLPV1); }
       if(bonusForWLPV2 != book->getBonusForWLPV2()) { logger.write("Changing bonusForWLPV2 from " + Global::doubleToString(book->getBonusForWLPV2()) + " to " + Global::doubleToString(bonusForWLPV2)); book->setBonusForWLPV2(bonusForWLPV2); }
+      if(bonusForBiggestWLCost != book->getBonusForBiggestWLCost()) { logger.write("Changing bonusForBiggestWLCost from " + Global::doubleToString(book->getBonusForBiggestWLCost()) + " to " + Global::doubleToString(bonusForBiggestWLCost)); book->setBonusForBiggestWLCost(bonusForBiggestWLCost); }
       if(scoreLossCap != book->getScoreLossCap()) { logger.write("Changing scoreLossCap from " + Global::doubleToString(book->getScoreLossCap()) + " to " + Global::doubleToString(scoreLossCap)); book->setScoreLossCap(scoreLossCap); }
       if(utilityPerScore != book->getUtilityPerScore()) { logger.write("Changing utilityPerScore from " + Global::doubleToString(book->getUtilityPerScore()) + " to " + Global::doubleToString(utilityPerScore)); book->setUtilityPerScore(utilityPerScore); }
       if(policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale()) { logger.write("Changing policyBoostSoftUtilityScale from " + Global::doubleToString(book->getPolicyBoostSoftUtilityScale()) + " to " + Global::doubleToString(policyBoostSoftUtilityScale)); book->setPolicyBoostSoftUtilityScale(policyBoostSoftUtilityScale); }
@@ -278,6 +285,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
       bonusPerExcessUnexpandedPolicy,
       bonusForWLPV1,
       bonusForWLPV2,
+      bonusForBiggestWLCost,
       scoreLossCap,
       utilityPerScore,
       policyBoostSoftUtilityScale,
@@ -298,6 +306,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     traceBook = Book::loadFromFile(traceBookFile,sharpScoreOutlierCap);
     traceBook->recomputeEverything();
     logger.write("Loaded trace book with " + Global::uint64ToString(book->size()) + " nodes from " + traceBookFile);
+    logger.write("traceBookMinVisits = " + Global::doubleToString(traceBookMinVisits));
   }
 
   book->setBonusByHash(bonusByHash);
@@ -756,7 +765,7 @@ int MainCmds::genbook(int argc, const char* const* argv) {
     std::set<BookHash> nodesHashesToUpdate;
     {
       ThreadSafeQueue<SymBookNode> positionsToTrace;
-      std::vector<SymBookNode> allNodes = traceBook->getAllLeaves();
+      std::vector<SymBookNode> allNodes = traceBook->getAllLeaves(traceBookMinVisits);
       std::atomic<int64_t> variationsAdded(0);
       auto loopAddingVariations = [&](int gameThreadIdx) {
         while(true) {

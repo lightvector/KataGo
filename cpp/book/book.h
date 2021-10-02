@@ -49,7 +49,8 @@ struct BookMove {
 
   // Computed and filled in dynamically when costs are computed/recomputed.
   double costFromRoot;
-  bool isWLPV;
+  bool isWLPV; // Is this node the best winloss move from its parent?
+  double biggestWLCostFromRoot; // Largest single cost due to winloss during path from root
 
   BookMove();
   BookMove(Loc move, int symmetryToAlign, BookHash hash, double rawPolicy);
@@ -121,6 +122,7 @@ class BookNode {
   double thisNodeExpansionCost;  // The cost for picking this node to expand further.
   double minCostFromRootWLPV;  // minCostFromRoot of the cheapest node that this node is the winLoss pv of.
   bool expansionIsWLPV; // True if the winloss PV for this node is to expand it, rather than an existing child.
+  double biggestWLCostFromRoot; // Largest single cost due to winloss during path from root
 
   BookNode(BookHash hash, Book* book, Player pla, const std::vector<int>& symmetries);
   ~BookNode();
@@ -260,6 +262,7 @@ class Book {
   double bonusPerExcessUnexpandedPolicy;
   double bonusForWLPV1;
   double bonusForWLPV2;
+  double bonusForBiggestWLCost;
   double scoreLossCap;
   double utilityPerScore;
   double policyBoostSoftUtilityScale;
@@ -292,6 +295,7 @@ class Book {
     double bonusPerExcessUnexpandedPolicy,
     double bonusForWLPV1,
     double bonusForWLPV2,
+    double bonusForBiggestWLCost,
     double scoreLossCap,
     double utilityPerScore,
     double policyBoostSoftUtilityScale,
@@ -341,6 +345,8 @@ class Book {
   void setBonusForWLPV1(double d);
   double getBonusForWLPV2() const;
   void setBonusForWLPV2(double d);
+  double getBonusForBiggestWLCost() const;
+  void setBonusForBiggestWLCost(double d);
   double getScoreLossCap() const;
   void setScoreLossCap(double d);
   double getUtilityPerScore() const;
@@ -367,7 +373,7 @@ class Book {
   void recomputeEverything();
 
   std::vector<SymBookNode> getNextNToExpand(int n);
-  std::vector<SymBookNode> getAllLeaves();
+  std::vector<SymBookNode> getAllLeaves(double minVisits);
 
   void exportToHtmlDir(
     const std::string& dirName,

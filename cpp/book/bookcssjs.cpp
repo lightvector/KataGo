@@ -568,10 +568,10 @@ function textCell(text) {
   headerRow.classList.add("moveTableHeader");
   headerRow.appendChild(textCell("Index"));
   headerRow.appendChild(textCell("Move"));
-  headerRow.appendChild(textCell("Black Win%"));
+  headerRow.appendChild(textCell("BWin%"));
   if(devMode) {
-    headerRow.appendChild(textCell("Black Raw Score"));
-    headerRow.appendChild(textCell("Black Sharp Score"));
+    headerRow.appendChild(textCell("BRawScore"));
+    headerRow.appendChild(textCell("BSharpScore"));
     headerRow.appendChild(textCell("Win%LCB"));
     headerRow.appendChild(textCell("Win%UCB"));
     headerRow.appendChild(textCell("ScoreLCB"));
@@ -580,8 +580,9 @@ function textCell(text) {
     // headerRow.appendChild(textCell("Weight"));
     headerRow.appendChild(textCell("Visits"));
     headerRow.appendChild(textCell("Cost"));
-    headerRow.appendChild(textCell("CostFromRoot"));
+    headerRow.appendChild(textCell("TotalCost"));
     headerRow.appendChild(textCell("CostWLPV"));
+    headerRow.appendChild(textCell("BigWLC"));
   }
   else {
     headerRow.appendChild(textCell("Black Score"));
@@ -667,6 +668,7 @@ function textCell(text) {
       dataRow.appendChild(textCell(moveData["cost"].toFixed(3)));
       dataRow.appendChild(textCell(moveData["costRoot"].toFixed(3)));
       dataRow.appendChild(textCell(moveData["costWLPV"].toFixed(3)));
+      dataRow.appendChild(textCell(moveData["bigWLC"].toFixed(3)));
     }
     else {
       dataRow.appendChild(textCell((-moveData["ssM"]).toFixed(2)));
