@@ -26,6 +26,7 @@
 : Config override: openclUseFP16 = false
 : Config override: rootSymmetryPruning = false
 : Config override: searchRandSeed = forTesting
+: Config override: trtUseFP16 = false
 : Model name: g170-b6c96-s175395328-d26788732
 : GTP ready, beginning main protocol loop
 : Controller: kata-get-rules

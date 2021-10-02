@@ -26,6 +26,7 @@
 : Config override: openclUseFP16 = false
 : Config override: reportAnalysisWinratesAs = SIDETOMOVE
 : Config override: rootSymmetryPruning = false
+: Config override: trtUseFP16 = false
 : Analyzing up to 1 positions at at time in parallel
 : Started, ready to begin handling requests
 : Request: {"id":"foo","initialStones":[["B","Q4"],["B","C4"]],"moves":[["W","P5"],["B","P6"]],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"analyzeTurns":[2],"overrideSettings":{"maxVisits":10}}

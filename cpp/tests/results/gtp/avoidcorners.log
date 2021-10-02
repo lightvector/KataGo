@@ -35,6 +35,7 @@
 : Config override: rootPolicyTemperature = 1.5
 : Config override: rootSymmetryPruning = false
 : Config override: searchRandSeed = forTesting
+: Config override: trtUseFP16 = false
 : Model name: g170-b6c96-s175395328-d26788732
 : GTP ready, beginning main protocol loop
 : Controller: genmove_debug b
