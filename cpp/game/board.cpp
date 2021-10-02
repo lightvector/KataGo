@@ -74,10 +74,20 @@ Loc Location::getCenterLoc(int x_size, int y_size) {
   return getLoc(x_size / 2, y_size / 2, x_size);
 }
 
+Loc Location::getCenterLoc(const Board& b) {
+  return getCenterLoc(b.x_size,b.y_size);
+}
+
 bool Location::isCentral(Loc loc, int x_size, int y_size) {
   int x = getX(loc,x_size);
   int y = getY(loc,x_size);
   return x >= (x_size-1)/2 && x <= x_size/2 && y >= (y_size-1)/2 && y <= y_size/2;
+}
+
+bool Location::isNearCentral(Loc loc, int x_size, int y_size) {
+  int x = getX(loc,x_size);
+  int y = getY(loc,x_size);
+  return x >= (x_size-1)/2-1 && x <= x_size/2+1 && y >= (y_size-1)/2-1 && y <= y_size/2+1;
 }
 
 

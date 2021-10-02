@@ -57,7 +57,9 @@ namespace Location
   bool isAdjacent(Loc loc0, Loc loc1, int x_size);
   Loc getMirrorLoc(Loc loc, int x_size, int y_size);
   Loc getCenterLoc(int x_size, int y_size);
+  Loc getCenterLoc(const Board& b);
   bool isCentral(Loc loc, int x_size, int y_size);
+  bool isNearCentral(Loc loc, int x_size, int y_size);
   int distance(Loc loc0, Loc loc1, int x_size);
   int euclideanDistanceSquared(Loc loc0, Loc loc1, int x_size);
 

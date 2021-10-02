@@ -2756,7 +2756,30 @@ int MainCmds::gtp(const vector<string>& args) {
       }
     }
 
-
+    else if(command == "debug_moves") {
+      PrintTreeOptions options;
+      options = options.maxDepth(1);
+      string printBranch;
+      for(size_t i = 0; i<pieces.size(); i++) {
+        if(i > 0)
+          printBranch += " ";
+        printBranch += pieces[i];
+      }
+      try {
+        if(printBranch.length() > 0)
+          options = options.onlyBranch(engine->bot->getRootBoard(),printBranch);
+      }
+      catch(const StringError& e) {
+        responseIsError = true;
+        response = "Invalid move sequence";
+      }
+      if(!responseIsError) {
+        Search* search = engine->bot->getSearchStopAndWait();
+        ostringstream sout;
+        search->printTree(sout, search->rootNode, options, perspective);
+        response = sout.str();
+      }
+    }
     else if(command == "cputime" || command == "gomill-cpu_time") {
       response = Global::doubleToString(engine->genmoveTimeSum);
     }
