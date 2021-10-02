@@ -2770,6 +2770,7 @@ int MainCmds::gtp(const vector<string>& args) {
           options = options.onlyBranch(engine->bot->getRootBoard(),printBranch);
       }
       catch(const StringError& e) {
+        (void)e;
         responseIsError = true;
         response = "Invalid move sequence";
       }
