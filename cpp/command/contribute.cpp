@@ -20,7 +20,7 @@
 
 #ifndef BUILD_DISTRIBUTED
 
-int MainCmds::contribute(const vector<string>& args) {
+int MainCmds::contribute(const std::vector<std::string>& args) {
   (void)args;
   std::cout << "This version of KataGo was NOT compiled with support for distributed training." << std::endl;
   std::cout << "Compile with -DBUILD_DISTRIBUTED=1 in CMake, and/or see notes at https://github.com/lightvector/KataGo#compiling-katago" << std::endl;
