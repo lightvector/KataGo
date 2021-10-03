@@ -158,7 +158,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
   }
   else {
     if(boardSize == -1)
-      boardSize = TestCommon::DEFAULT_BENCHMARK_SGF_DATA_SIZE;
+      boardSize = cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize") : TestCommon::DEFAULT_BENCHMARK_SGF_DATA_SIZE;
 
     string sgfData = TestCommon::getBenchmarkSGFData(boardSize);
     sgf = CompactSgf::parse(sgfData);
