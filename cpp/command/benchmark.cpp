@@ -153,21 +153,25 @@ int MainCmds::benchmark(const vector<string>& args) {
     return 1;
   }
 
+  Logger logger;
+  logger.setLogToStdout(true);
+  logger.write("Loading model and initializing benchmark...");
+
   CompactSgf* sgf;
   if(sgfFile != "") {
     sgf = CompactSgf::loadFile(sgfFile);
   }
   else {
-    if(boardSize == -1)
-      boardSize = cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize") : TestCommon::DEFAULT_BENCHMARK_SGF_DATA_SIZE;
-
+    if(boardSize == -1) {
+      int defaultBoardXSize = TestCommon::DEFAULT_BENCHMARK_SGF_DATA_SIZE;
+      int defaultBoardYSize = TestCommon::DEFAULT_BENCHMARK_SGF_DATA_SIZE;
+      Setup::loadDefaultBoardXYSize(cfg,logger,defaultBoardXSize,defaultBoardYSize);
+      boardSize = std::max(defaultBoardXSize,defaultBoardYSize);
+    }
+    logger.write("Testing with default positions for board size: " + Global::intToString(boardSize));
     string sgfData = TestCommon::getBenchmarkSGFData(boardSize);
     sgf = CompactSgf::parse(sgfData);
   }
-
-  Logger logger;
-  logger.setLogToStdout(true);
-  logger.write("Loading model and initializing benchmark...");
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_BENCHMARK);
   params.maxVisits = maxVisits;

@@ -733,6 +733,31 @@ Rules Setup::loadSingleRules(
   return rules;
 }
 
+bool Setup::loadDefaultBoardXYSize(
+  ConfigParser& cfg,
+  Logger& logger,
+  int& defaultBoardXSizeRet,
+  int& defaultBoardYSizeRet
+) {
+  const int defaultBoardXSize =
+    cfg.contains("defaultBoardXSize") ? cfg.getInt("defaultBoardXSize",2,Board::MAX_LEN) :
+    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
+    -1;
+  const int defaultBoardYSize =
+    cfg.contains("defaultBoardYSize") ? cfg.getInt("defaultBoardYSize",2,Board::MAX_LEN) :
+    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
+    -1;
+  if((defaultBoardXSize == -1) != (defaultBoardYSize == -1))
+    logger.write("Warning: Config specified only one of defaultBoardXSize or defaultBoardYSize and no other board size parameter, ignoring it");
+
+  if(defaultBoardXSize == -1 || defaultBoardYSize == -1) {
+    return false;
+  }
+  defaultBoardXSizeRet = defaultBoardXSize;
+  defaultBoardYSizeRet = defaultBoardYSize;
+  return true;
+}
+
 vector<pair<set<string>,set<string>>> Setup::getMutexKeySets() {
   vector<pair<set<string>,set<string>>> mutexKeySets = {
     std::make_pair<set<string>,set<string>>(

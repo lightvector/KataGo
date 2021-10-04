@@ -76,6 +76,14 @@ namespace Setup {
     bool loadKomi
   );
 
+  //Returns true if the user's config specified the size, false if it did not. If false, does not set defaultBoardXSizeRet or defaultBoardYSizeRet.
+  bool loadDefaultBoardXYSize(
+    ConfigParser& cfg,
+    Logger& logger,
+    int& defaultBoardXSizeRet,
+    int& defaultBoardYSizeRet
+  );
+
   std::string loadHomeDataDirOverride(
     ConfigParser& cfg
   );

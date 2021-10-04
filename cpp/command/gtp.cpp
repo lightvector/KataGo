@@ -457,6 +457,7 @@ struct GTPEngine {
       boardXSize = nnEval->getNNXLen();
       boardYSize = nnEval->getNNYLen();
     }
+    logger.write("Initializing board with boardXSize " + Global::intToString(boardXSize) + " boardYSize " + Global::intToString(boardYSize));
 
     string searchRandSeed;
     if(cfg.contains("searchRandSeed"))
@@ -1567,14 +1568,10 @@ int MainCmds::gtp(const vector<string>& args) {
   const double handicapAvoidRepeatedPatternUtility = (cfg.contains("avoidRepeatedPatternUtility") || cfg.contains("avoidRepeatedPatternUtility0")) ?
     initialParams.avoidRepeatedPatternUtility : 0.005;
 
-  const int defaultBoardXSize =
-    cfg.contains("defaultBoardXSize") ? cfg.getInt("defaultBoardXSize",2,Board::MAX_LEN) :
-    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
-    -1;
-  const int defaultBoardYSize =
-    cfg.contains("defaultBoardYSize") ? cfg.getInt("defaultBoardYSize",2,Board::MAX_LEN) :
-    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
-    -1;
+  int defaultBoardXSize = -1;
+  int defaultBoardYSize = -1;
+  Setup::loadDefaultBoardXYSize(cfg,logger,defaultBoardXSize,defaultBoardYSize);
+
   const bool forDeterministicTesting =
     cfg.contains("forDeterministicTesting") ? cfg.getBool("forDeterministicTesting") : false;
 
