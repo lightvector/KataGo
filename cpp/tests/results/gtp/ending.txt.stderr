@@ -1,9 +1,11 @@
 KataGo v1.9.1
 Using TrompTaylor rules initially, unless GTP/GUI overrides this
+Initializing board with boardXSize 19 boardYSize 19
 Loaded config configs/gtp_example.cfg and/or command-line and query overrides
 Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
 Model name: g170-b6c96-s175395328-d26788732
 GTP ready, beginning main protocol loop
+Initializing board with boardXSize 7 boardYSize 7
 Changed rules to Chinese
 MoveNum: 0 HASH: 534D5F4EAEDAD476890520B7CAD26FA0
    A B C D E F G
@@ -24,11 +26,11 @@ NN batches: 40
 NN avg batch size: 1
 PV: C1 A3 A1 D4 F4 A5 pass pass
 Tree:
-: T  12.85c W  19.49c S  -2.53c ( +0.2 L  +0.1) N     100  --  C1 A3 A1 D4 F4 A5 pass
+: T  12.85c W  19.50c S  -2.53c ( +0.2 L  +0.1) N     100  --  C1 A3 A1 D4 F4 A5 pass
 ---Black(^)---
 C1  : T  10.47c W  16.46c S  -2.58c ( +0.2 L  +0.1) LCB  -12.38c P 59.48% WF  52.9 PSV      54 N      54  --  C1 A3 A1 D4 F4 A5 pass pass
 D4  : T  14.98c W  21.88c S  -2.68c ( +0.1 L  +0.1) LCB  -15.62c P 28.54% WF  41.3 PSV      40 N      40  --  D4 A3 C1 A1 F4 A5 pass pass
-F4  : T   7.16c W  20.55c S  -1.69c ( +0.4 L  +0.1) LCB -497.68c P  7.31% WF   4.8 PSV       5 N       5  --  F4 D4 C1 A3
+F4  : T   7.16c W  20.55c S  -1.69c ( +0.4 L  +0.1) LCB -497.67c P  7.31% WF   4.8 PSV       5 N       5  --  F4 D4 C1 A3
 MoveNum: 1 HASH: 34B1D3797D2FA8D00BC2EF049CF46025
    A B C D E F G
  7 . . . O X X .
@@ -52,7 +54,7 @@ Tree:
 ---White(^)---
 A3  : T  -9.33c W -11.77c S   0.03c ( -0.1 L  -0.1) LCB  -25.52c P 61.75% WF  96.5 PSV      95 N      95  --  A3 A1 D4 F4 A5 pass pass
 D4  : T -78.32c W -72.72c S  -3.37c ( -1.0 L  -0.8) LCB -280.00c P 21.86% WF   1.2 PSV       2 N       2  --  D4 A1
-F5  : T -80.20c W -75.03c S  -5.17c ( -1.6 L  -1.6) LCB -280.00c P  2.29% WF   0.7 PSV       0 N       1  --  F5
+F5  : T -80.20c W -75.04c S  -5.17c ( -1.6 L  -1.6) LCB -280.00c P  2.29% WF   0.7 PSV       0 N       1  --  F5
 A5  : T -97.40c W -92.22c S  -5.18c ( -1.5 L  -1.4) LCB -280.00c P  1.99% WF   0.6 PSV       0 N       1  --  A5
 MoveNum: 2 HASH: DB228B71F0B041370F00D96E211C8706
    A B C D E F G
@@ -309,7 +311,7 @@ PV: F4 A5 pass pass
 Tree:
 : T   4.28c W   8.48c S  -1.68c ( +0.1 L  +0.1) N      50  --  F4 A5 pass pass
 ---Black(^)---
-F4  : T   7.27c W   9.84c S  -1.68c ( +0.1 L  +0.1) LCB  -14.32c P 55.57% WF  43.2 PSV      42 N      42  --  F4 A5 pass pass
+F4  : T   7.27c W   9.84c S  -1.69c ( +0.1 L  +0.1) LCB  -14.32c P 55.57% WF  43.2 PSV      42 N      42  --  F4 A5 pass pass
 F5  : T -26.31c W  -5.84c S  -1.60c ( +0.1 L  -0.0) LCB -280.00c P  7.24% WF   1.6 PSV       0 N       2  --  F5 A5
 G5  : T -43.83c W -19.43c S  -2.81c ( -0.2 L  -0.2) LCB -280.00c P  5.49% WF   1.4 PSV       0 N       2  --  G5 A5
 G4  : T -14.52c W   1.14c S  -1.39c ( +0.2 L  +0.1) LCB -280.00c P  4.50% WF   1.8 PSV       0 N       2  --  G4 A5

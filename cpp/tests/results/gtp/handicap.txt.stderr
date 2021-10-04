@@ -1,5 +1,6 @@
 KataGo v1.9.1
 Using TrompTaylor rules initially, unless GTP/GUI overrides this
+Initializing board with boardXSize 19 boardYSize 19
 Loaded config configs/gtp_example.cfg and/or command-line and query overrides
 Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
 Model name: g170-b6c96-s175395328-d26788732
@@ -39,14 +40,14 @@ Tree:
 : T -94.45c W -85.19c S  -8.56c (-30.2 L -29.6) N     100  --  D6 F3 D12 F17
 ---White(^)---
 D6  : T -93.50c W -84.50c S  -8.27c (-29.9 L -29.3) LCB  -98.61c P  2.25% WF  18.2 PSV      33 N      18  --  D6 F3 D12 F17
-D12 : T -94.10c W -85.34c S  -8.34c (-29.9 L -29.3) LCB -100.12c P  6.09% WF  23.1 PSV      23 N      23  --  D12 D7 F17 F16 G16 E17
-O17 : T -94.75c W -85.21c S  -8.79c (-30.5 L -29.8) LCB -116.03c P  5.49% WF  11.0 PSV      11 N      11  --  O17 Q13 C14 F17 D8
+D12 : T -94.10c W -85.34c S  -8.34c (-29.9 L -29.3) LCB -100.11c P  6.09% WF  23.1 PSV      23 N      23  --  D12 D7 F17 F16 G16 E17
+O17 : T -94.75c W -85.21c S  -8.79c (-30.4 L -29.8) LCB -116.03c P  5.49% WF  11.0 PSV      11 N      11  --  O17 Q13 C14 F17 D8
 O16 : T -93.77c W -84.73c S  -8.32c (-29.8 L -29.2) LCB -119.96c P  2.71% WF   9.0 PSV       9 N       9  --  O16 Q13 C14 F17 D8
 Q12 : T -94.13c W -84.77c S  -8.25c (-29.8 L -29.3) LCB -127.29c P  5.45% WF   8.0 PSV       8 N       8  --  Q12 Q7 O16 Q14 O12
 R12 : T -94.21c W -85.00c S  -8.64c (-30.3 L -29.9) LCB -123.98c P  3.29% WF   8.0 PSV       8 N       8  --  R12 Q7 O16 R14
 F16 : T -96.04c W -86.30c S  -9.23c (-31.1 L -30.5) LCB -119.45c P  5.43% WF   7.9 PSV       7 N       8  --  F16 C13 R14 O17
 F17 : T -96.71c W -85.63c S  -9.17c (-31.0 L -30.4) LCB -139.60c P  4.99% WF   5.9 PSV       5 N       6  --  F17 C13 R14
-D8  : T -95.12c W -85.81c S  -8.76c (-30.4 L -29.7) LCB -139.50c P  2.39% WF   5.0 PSV       4 N       5  --  D8 D13 F3
+D8  : T -95.12c W -85.81c S  -8.76c (-30.4 L -29.7) LCB -139.51c P  2.39% WF   5.0 PSV       4 N       5  --  D8 D13 F3
 R17 : T -99.89c W -89.02c S -10.87c (-33.1 L -31.8) LCB -280.00c P  2.69% WF   1.0 PSV       1 N       1  --  R17
 MoveNum: 0 HASH: 31C5C7E1B1B3BA804B970B13D0FAC7AF
    A B C D E F G H J K L M N O P Q R S T
@@ -123,10 +124,10 @@ Tree:
 ---White(^)---
 R15 : T   1.76c W   2.00c S  -0.25c ( -0.2 L  -0.4) LCB   -0.82c P 20.29% WF  51.7 PSV      51 N      51  --  R15 R5 P16 P17 O16 N17 D4 D3
 Q5  : T   0.05c W   0.73c S  -0.63c ( -0.8 L  -0.8) LCB   -5.66c P 12.95% WF  14.9 PSV      13 N      15  --  Q5 Q15 E3 D3 E4 D6
-Q16 : T  -2.08c W  -0.81c S  -0.65c ( -0.8 L  -1.0) LCB  -13.86c P 18.14% WF  10.7 PSV      11 N      11  --  Q16 R16 R15 R17 Q15 O17
+Q16 : T  -2.07c W  -0.81c S  -0.65c ( -0.8 L  -1.0) LCB  -13.86c P 18.14% WF  10.7 PSV      11 N      11  --  Q16 R16 R15 R17 Q15 O17
 Q15 : T   0.51c W   1.21c S  -0.43c ( -0.5 L  -0.7) LCB   -5.95c P  7.82% WF  11.0 PSV       9 N      11  --  Q15 Q4 R4 R5 R3
 D4  : T  -2.64c W  -1.59c S  -0.81c ( -1.0 L  -1.2) LCB  -12.43c P 15.43% WF   7.8 PSV       8 N       8  --  D4 D3 C5 C3
-E3  : T  -2.92c W  -1.77c S  -0.99c ( -1.3 L  -1.6) LCB  -58.39c P  4.90% WF   2.9 PSV       2 N       3  --  E3 Q15 D5
+E3  : T  -2.93c W  -1.77c S  -0.99c ( -1.3 L  -1.6) LCB  -58.46c P  4.90% WF   2.9 PSV       2 N       3  --  E3 Q15 D5
 MoveNum: 4 HASH: 76B39503983B748D2483B1D5CEF9C2ED
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -161,7 +162,7 @@ PV: Q5 R16 Q15 O17 R11 K4 C17 C16 D17
 Tree:
 : T  31.41c W  29.36c S   2.36c ( +7.2 L  +7.3) N     100  --  Q5 R16 Q15 O17 R11 K4 C17
 ---White(^)---
-Q5  : T  32.39c W  30.09c S   2.43c ( +7.3 L  +7.4) LCB   27.97c P 33.18% WF  70.7 PSV      70 N      70  --  Q5 R16 Q15 O17 R11 K4 C17 C16
+Q5  : T  32.39c W  30.08c S   2.43c ( +7.3 L  +7.4) LCB   27.97c P 33.19% WF  70.7 PSV      70 N      70  --  Q5 R16 Q15 O17 R11 K4 C17 C16
 P16 : T  29.07c W  28.07c S   2.20c ( +7.0 L  +7.1) LCB   17.97c P 27.00% WF  21.4 PSV      20 N      22  --  P16 P17 O16 N17 Q5 N16 R12 K3
 C17 : T  29.85c W  27.04c S   2.29c ( +7.2 L  +7.1) LCB   -0.84c P  7.64% WF   6.9 PSV       6 N       7  --  C17 C16 D17 E16
 MoveNum: 6 HASH: 1A76A81A096EC32DA7CA1C2F74351579
@@ -201,11 +202,11 @@ Tree:
 J4  : T  62.31c W  58.85c S   3.81c (+15.2 L +15.0) LCB   59.02c P  8.71% WF  42.6 PSV      71 N      42  --  J4 R16 Q15 O17 Q11 L3 C17
 P16 : T  59.36c W  56.30c S   3.30c (+14.4 L +14.3) LCB   55.35c P 28.76% WF  26.5 PSV      27 N      27  --  P16 P17 O16 N17 J4 N16 N15 M15
 J3  : T  62.18c W  58.33c S   3.79c (+15.1 L +14.8) LCB   57.49c P  5.89% WF  17.2 PSV      17 N      17  --  J3 R16 Q15 O16 R11 K4
-C17 : T  56.89c W  53.52c S   3.24c (+14.4 L +14.3) LCB   40.26c P 11.48% WF   5.8 PSV       6 N       6  --  C17 C16 D17 E17
-D5  : T  56.96c W  54.51c S   3.03c (+14.0 L +14.0) LCB -113.09c P  6.05% WF   2.9 PSV       3 N       3  --  D5 D4
-K4  : T  58.30c W  56.14c S   2.99c (+13.9 L +13.8) LCB -280.00c P  3.08% WF   2.0 PSV       2 N       2  --  K4 R16
+C17 : T  56.89c W  53.52c S   3.24c (+14.4 L +14.3) LCB   40.25c P 11.48% WF   5.8 PSV       6 N       6  --  C17 C16 D17 E17
+D5  : T  56.96c W  54.51c S   3.03c (+14.0 L +14.0) LCB -113.14c P  6.05% WF   2.9 PSV       3 N       3  --  D5 D4
+K4  : T  58.30c W  56.13c S   2.99c (+13.9 L +13.8) LCB -280.00c P  3.08% WF   2.0 PSV       2 N       2  --  K4 R16
 N17 : T  56.89c W  54.17c S   2.72c (+13.6 L +12.7) LCB -280.00c P  3.41% WF   1.0 PSV       1 N       1  --  N17
-O17 : T  57.17c W  54.31c S   2.86c (+13.8 L +12.8) LCB -280.00c P  3.15% WF   1.0 PSV       1 N       1  --  O17
+O17 : T  57.17c W  54.32c S   2.86c (+13.8 L +12.8) LCB -280.00c P  3.15% WF   1.0 PSV       1 N       1  --  O17
 MoveNum: 1 HASH: 1AF8E45BE7BCD0CF2B21050C98540B8D
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -236,16 +237,17 @@ NN rows: 98
 NN batches: 98
 NN avg batch size: 1
 PlayoutDoublingAdvantage: -1.125
-PV: D15 E3 D3 E4 C6 J4 R3 Q3 R4
+PV: D15 E3 D3 E4 C6 J4 R3 Q3 R4 Q5
 Tree:
-: T  47.48c W  45.44c S   2.72c (+12.6 L +13.0) N     100  --  D15 E3 D3 E4 C6 J4 R3
+: T  47.47c W  45.39c S   2.74c (+12.7 L +13.0) N     100  --  D15 E3 D3 E4 C6 J4 R3
 ---Black(^)---
-D15 : T  47.62c W  45.14c S   2.67c (+12.6 L +13.1) LCB   40.43c P 30.12% WF  34.1 PSV      37 N      34  --  D15 E3 D3 E4 C6 J4 R3 Q3
-E4  : T  46.00c W  44.03c S   2.45c (+12.2 L +12.7) LCB   36.80c P 28.63% WF  22.7 PSV      22 N      23  --  E4 C15 E16 C12 C16 D15
-C15 : T  47.74c W  45.76c S   2.76c (+12.7 L +13.0) LCB   33.18c P 10.75% WF  14.0 PSV      12 N      14  --  C15 E3 D3 E4 C6 J4 R3
-E3  : T  48.90c W  47.10c S   2.95c (+13.0 L +13.3) LCB   40.32c P  5.95% WF  15.2 PSV      11 N      15  --  E3 C15 C16 D15 F17 R17 Q17
-C14 : T  48.73c W  47.08c S   3.07c (+13.2 L +13.3) LCB   35.74c P  3.72% WF  11.1 PSV       6 N      11  --  C14 E3 D3 E4 C6 J4 R3
+D15 : T  47.87c W  45.14c S   2.69c (+12.6 L +13.1) LCB   41.77c P 30.12% WF  39.2 PSV      41 N      39  --  D15 E3 D3 E4 C6 J4 R3 Q3
+E4  : T  44.84c W  43.42c S   2.42c (+12.2 L +12.7) LCB   34.06c P 28.63% WF  17.6 PSV      18 N      18  --  E4 C15 C16 D15 F17 E16 E17
+C15 : T  47.74c W  45.76c S   2.76c (+12.7 L +13.0) LCB   33.19c P 10.75% WF  14.0 PSV      13 N      14  --  C15 E3 D3 E4 C6 J4 R3
+E3  : T  48.90c W  47.10c S   2.95c (+13.0 L +13.3) LCB   40.32c P  5.95% WF  15.2 PSV      12 N      15  --  E3 C15 C16 D15 F17 R17 Q17
+C14 : T  48.81c W  47.08c S   3.07c (+13.2 L +13.3) LCB   36.34c P  3.72% WF  11.1 PSV       7 N      11  --  C14 E3 D3 E4 C6 J4 R3
 R3  : T  41.98c W  42.58c S   2.72c (+12.6 L +12.8) LCB -280.00c P  6.98% WF   1.9 PSV       2 N       2  --  R3 D4
+Initializing board with boardXSize 13 boardYSize 13
 MoveNum: 1 HASH: 29B4CBD3782FFC0779C046875E5F2DAE
    A B C D E F G H J K L M N
 13 . . . . . . . . . . . . .
