@@ -411,7 +411,7 @@ struct GTPEngine {
   }
 
   //Specify -1 for the sizes for a default
-  void setOrResetBoardSize(ConfigParser& cfg, Logger& logger, Rand& seedRand, int boardXSize, int boardYSize) {
+  void setOrResetBoardSize(ConfigParser& cfg, Logger& logger, Rand& seedRand, int boardXSize, int boardYSize, bool loggingToStderr) {
     if(nnEval != NULL && boardXSize == nnEval->getNNXLen() && boardYSize == nnEval->getNNYLen())
       return;
     if(nnEval != NULL) {
@@ -458,6 +458,8 @@ struct GTPEngine {
       boardYSize = nnEval->getNNYLen();
     }
     logger.write("Initializing board with boardXSize " + Global::intToString(boardXSize) + " boardYSize " + Global::intToString(boardYSize));
+    if(!loggingToStderr)
+      cerr << ("Initializing board with boardXSize " + Global::intToString(boardXSize) + " boardYSize " + Global::intToString(boardYSize)) << endl;
 
     string searchRandSeed;
     if(cfg.contains("searchRandSeed"))
@@ -1606,7 +1608,7 @@ int MainCmds::gtp(const vector<string>& args) {
     perspective,analysisPVLen,
     std::move(patternBonusTable)
   );
-  engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize);
+  engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize,loggingToStderr);
 
   //If nobody specified any time limit in any way, then assume a relatively fast time control
   if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime")) {
@@ -1791,7 +1793,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = Global::strprintf("unacceptable size (Board::MAX_LEN is %d, consider increasing and recompiling)",(int)Board::MAX_LEN);
       }
       else {
-        engine->setOrResetBoardSize(cfg,logger,seedRand,newXSize,newYSize);
+        engine->setOrResetBoardSize(cfg,logger,seedRand,newXSize,newYSize,loggingToStderr);
       }
     }
 
