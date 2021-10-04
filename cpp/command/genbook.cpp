@@ -204,8 +204,7 @@ int MainCmds::genbook(const vector<string>& args) {
   bool bookFileExists;
   {
     std::ifstream infile;
-    FileUtils::open(infile,bookFile);
-    bookFileExists = infile.good();
+    bookFileExists = FileUtils::tryOpen(infile,bookFile);
   }
   if(bookFileExists) {
     book = Book::loadFromFile(bookFile,sharpScoreOutlierCap);
