@@ -4,6 +4,7 @@
 #include <NvInfer.h>
 #include <cuda_runtime_api.h>
 
+#include "../core/fileutils.h"
 #include "../core/makedir.h"
 #include "../core/sha2.h"
 #include "../dataio/homedata.h"
@@ -919,7 +920,7 @@ struct ComputeHandle {
 
       string timingCacheBlob;
       try {
-        timingCacheBlob = Global::readFileBinary(timingCacheFile);
+        timingCacheBlob = FileUtils::readFileBinary(timingCacheFile);
       } catch(const StringError& e) {
         (void)e;
       };
