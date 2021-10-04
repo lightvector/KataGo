@@ -70,6 +70,10 @@ namespace {
     Rand seedRand;
     int maxConcurrentEvals;
     int expectedConcurrentEvals;
+    int minBoardXSizeUsed;
+    int minBoardYSizeUsed;
+    int maxBoardXSizeUsed;
+    int maxBoardYSizeUsed;
 
     map<string, NetAndStuff*> loadedNets;
 
@@ -79,12 +83,20 @@ namespace {
     NetManager(
       ConfigParser* c,
       int maxConcurrentEvs,
-      int expectedConcurrentEvs
+      int expectedConcurrentEvs,
+      int minBoardXSize,
+      int minBoardYSize,
+      int maxBoardXSize,
+      int maxBoardYSize
     )
       :cfg(c),
        seedRand(),
        maxConcurrentEvals(maxConcurrentEvs),
        expectedConcurrentEvals(expectedConcurrentEvs),
+       minBoardXSizeUsed(minBoardXSize),
+       minBoardYSizeUsed(minBoardYSize),
+       maxBoardXSizeUsed(maxBoardXSize),
+       maxBoardYSizeUsed(maxBoardYSize),
        loadedNets()
     {
     }
@@ -102,11 +114,12 @@ namespace {
       auto iter = loadedNets.find(nnModelFile);
       NetAndStuff* netAndStuff;
       if(iter == loadedNets.end()) {
-        int defaultMaxBatchSize = -1;
-        string expectedSha256 = "";
+        const int defaultMaxBatchSize = -1;
+        const bool defaultRequireExactNNLen = minBoardXSizeUsed == maxBoardXSizeUsed && minBoardYSizeUsed == maxBoardYSizeUsed;
+        const string expectedSha256 = "";
         NNEvaluator* nnEval = Setup::initializeNNEvaluator(
           nnModelFile,nnModelFile,expectedSha256,*cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-          NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+          maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,
           Setup::SETUP_FOR_MATCH
         );
         netAndStuff = new NetAndStuff(nnEval);
@@ -488,14 +501,18 @@ int MainCmds::matchauto(const vector<string>& args) {
   //Initialize neural net inference engine globals, and set up model manager
   Setup::initializeSession(cfg);
 
-  NetManager* manager = new NetManager(&cfg,maxConcurrentEvals,expectedConcurrentEvals);
-
-  //Initialize object for randomly pairing bots
-  AutoMatchPairer* autoMatchPairer = new AutoMatchPairer(cfg,resultsDir,numBots,botNames,nnModelFilesByBot,paramss);
-
   //Initialize object for randomizing game settings and running games
   PlaySettings playSettings = PlaySettings::loadForMatch(cfg);
   GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
+  const int minBoardXSizeUsed = gameRunner->getGameInitializer()->getMinBoardXSize();
+  const int minBoardYSizeUsed = gameRunner->getGameInitializer()->getMinBoardYSize();
+  const int maxBoardXSizeUsed = gameRunner->getGameInitializer()->getMaxBoardXSize();
+  const int maxBoardYSizeUsed = gameRunner->getGameInitializer()->getMaxBoardYSize();
+
+  NetManager* manager = new NetManager(&cfg,maxConcurrentEvals,expectedConcurrentEvals,minBoardXSizeUsed,minBoardYSizeUsed,maxBoardXSizeUsed,maxBoardYSizeUsed);
+
+  //Initialize object for randomly pairing bots
+  AutoMatchPairer* autoMatchPairer = new AutoMatchPairer(cfg,resultsDir,numBots,botNames,nnModelFilesByBot,paramss);
 
 
   //Done loading!

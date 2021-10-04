@@ -145,31 +145,20 @@ int MainCmds::match(const vector<string>& args) {
   //Initialize object for randomizing game settings and running games
   PlaySettings playSettings = PlaySettings::loadForMatch(cfg);
   GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
-  int maxBoardSizeUsed = 0;
-  {
-    vector<int> allowedBSizes = gameRunner->getGameInitializer()->getAllowedBSizes();
-    for(size_t i = 0; i<allowedBSizes.size(); i++) {
-      if(maxBoardSizeUsed < allowedBSizes[i])
-        maxBoardSizeUsed = allowedBSizes[i];
-    }
-    if(maxBoardSizeUsed <= 0)
-      maxBoardSizeUsed = NNPos::MAX_BOARD_LEN;
-    if(maxBoardSizeUsed > NNPos::MAX_BOARD_LEN)
-      throw StringError(
-        "Max board size used is greater than the largest size supported by the neural net: "
-        + Global::intToString(maxBoardSizeUsed) + " > " + Global::intToString(NNPos::MAX_BOARD_LEN)
-      );
-    logger.write("Initializing neural net buffer to be size " + Global::intToString(maxBoardSizeUsed) + " since that's the largest board size tested");
-  }
+  const int minBoardXSizeUsed = gameRunner->getGameInitializer()->getMinBoardXSize();
+  const int minBoardYSizeUsed = gameRunner->getGameInitializer()->getMinBoardYSize();
+  const int maxBoardXSizeUsed = gameRunner->getGameInitializer()->getMaxBoardXSize();
+  const int maxBoardYSizeUsed = gameRunner->getGameInitializer()->getMaxBoardYSize();
 
   //Initialize neural net inference engine globals, and load models
   Setup::initializeSession(cfg);
   const vector<string>& nnModelNames = nnModelFiles;
-  int defaultMaxBatchSize = -1;
+  const int defaultMaxBatchSize = -1;
+  const bool defaultRequireExactNNLen = minBoardXSizeUsed == maxBoardXSizeUsed && minBoardYSizeUsed == maxBoardYSizeUsed;
   const vector<string> expectedSha256s;
   vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
     nnModelNames,nnModelFiles,expectedSha256s,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-    maxBoardSizeUsed,maxBoardSizeUsed,defaultMaxBatchSize,
+    maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,
     Setup::SETUP_FOR_MATCH
   );
   logger.write("Loaded neural net");

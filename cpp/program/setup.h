@@ -31,6 +31,7 @@ namespace Setup {
     int defaultNNXLen,
     int defaultNNYLen,
     int defaultMaxBatchSize,
+    bool defaultRequireExactNNLen,
     setup_for_t setupFor
   );
 
@@ -46,6 +47,7 @@ namespace Setup {
     int defaultNNXLen,
     int defaultNNYLen,
     int defaultMaxBatchSize,
+    bool defaultRequireExactNNLen,
     setup_for_t setupFor
   );
 

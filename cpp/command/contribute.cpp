@@ -769,10 +769,11 @@ int MainCmds::contribute(const vector<string>& args) {
       return false;
     }
 
-    int maxSimultaneousGamesThisNet = isRatingManager ? maxSimultaneousRatingGamesPossible : maxSimultaneousGames;
-    int maxConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGamesThisNet * 2 + 16;
-    int expectedConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGamesThisNet;
-    int defaultMaxBatchSize = maxSimultaneousGamesThisNet;
+    const int maxSimultaneousGamesThisNet = isRatingManager ? maxSimultaneousRatingGamesPossible : maxSimultaneousGames;
+    const int maxConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGamesThisNet * 2 + 16;
+    const int expectedConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGamesThisNet;
+    const bool defaultRequireExactNNLen = false;
+    const int defaultMaxBatchSize = maxSimultaneousGamesThisNet;
 
     //Unlike local self-play, which waits to accumulate a fixed number of rows before writing, distributed selfplay writes
     //training data game by game. So we set a buffer size here large enough to always hold all the rows of a game.
@@ -783,7 +784,7 @@ int MainCmds::contribute(const vector<string>& args) {
     Rand rand;
     NNEvaluator* nnEval = Setup::initializeNNEvaluator(
       modelName,modelFile,modelInfo.sha256,*userCfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
       Setup::SETUP_FOR_DISTRIBUTED
     );
     assert(!nnEval->isNeuralNetLess() || modelFile == "/dev/null");

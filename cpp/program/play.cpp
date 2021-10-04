@@ -294,6 +294,23 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   if(allowedBSizes.size() != allowedBSizeRelProbs.size())
     throw IOError("bSizes and bSizeRelProbs must have same number of values in " + cfg.getFileName());
 
+  minBoardXSize = allowedBSizes[0];
+  minBoardYSize = allowedBSizes[0];
+  maxBoardXSize = allowedBSizes[0];
+  maxBoardYSize = allowedBSizes[0];
+  for(int bSize: allowedBSizes) {
+    minBoardXSize = std::min(minBoardXSize, bSize);
+    minBoardYSize = std::min(minBoardYSize, bSize);
+    maxBoardXSize = std::max(maxBoardXSize, bSize);
+    maxBoardYSize = std::max(maxBoardYSize, bSize);
+  }
+  for(const Sgf::PositionSample& pos : hintPoses) {
+    minBoardXSize = std::min(minBoardXSize, pos.board.x_size);
+    minBoardYSize = std::min(minBoardYSize, pos.board.y_size);
+    maxBoardXSize = std::max(maxBoardXSize, pos.board.x_size);
+    maxBoardYSize = std::max(maxBoardYSize, pos.board.y_size);
+  }
+
   noResultStdev = cfg.contains("noResultStdev") ? cfg.getDouble("noResultStdev",0.0,1.0) : 0.0;
   numExtraBlackFixed = cfg.contains("numExtraBlackFixed") ? cfg.getInt("numExtraBlackFixed",1,18) : 0;
   drawRandRadius = cfg.contains("drawRandRadius") ? cfg.getDouble("drawRandRadius",0.0,1.0) : 0.0;
@@ -371,7 +388,18 @@ bool GameInitializer::isAllowedBSize(int xSize, int ySize) {
 std::vector<int> GameInitializer::getAllowedBSizes() const {
   return allowedBSizes;
 }
-
+int GameInitializer::getMinBoardXSize() const {
+  return minBoardXSize;
+}
+int GameInitializer::getMinBoardYSize() const {
+  return minBoardYSize;
+}
+int GameInitializer::getMaxBoardXSize() const {
+  return maxBoardXSize;
+}
+int GameInitializer::getMaxBoardYSize() const {
+  return maxBoardYSize;
+}
 
 Rules GameInitializer::createRules() {
   lock_guard<std::mutex> lock(createGameMutex);

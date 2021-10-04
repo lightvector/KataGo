@@ -21,12 +21,13 @@ NNEvaluator* Setup::initializeNNEvaluator(
   int defaultNNXLen,
   int defaultNNYLen,
   int defaultMaxBatchSize,
+  bool defaultRequireExactNNLen,
   setup_for_t setupFor
 ) {
   vector<NNEvaluator*> nnEvals =
     initializeNNEvaluators(
       {nnModelName},{nnModelFile},{expectedSha256},
-      cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,defaultNNXLen,defaultNNYLen,defaultMaxBatchSize,setupFor
+      cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,defaultNNXLen,defaultNNYLen,defaultMaxBatchSize,defaultRequireExactNNLen,setupFor
     );
   assert(nnEvals.size() == 1);
   return nnEvals[0];
@@ -44,6 +45,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   int defaultNNXLen,
   int defaultNNYLen,
   int defaultMaxBatchSize,
+  bool defaultRequireExactNNLen,
   setup_for_t setupFor
 ) {
   vector<NNEvaluator*> nnEvals;
@@ -105,7 +107,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         nnYLen = cfg.getInt("maxBoardSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
     }
 
-    bool requireExactNNLen = false;
+    bool requireExactNNLen = defaultRequireExactNNLen;
     if(setupFor != SETUP_FOR_DISTRIBUTED) {
       if(cfg.contains("requireMaxBoardSize" + idxStr))
         requireExactNNLen = cfg.getBool("requireMaxBoardSize" + idxStr);

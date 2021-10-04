@@ -130,6 +130,14 @@ NNEvaluator::NNEvaluator(
   if(gpuIdxByServerThread.size() != numThreads)
     throw StringError("gpuIdxByServerThread.size() != numThreads");
 
+  if(logger != NULL) {
+    logger->write(
+      "Initializing neural net buffer to be size " +
+      Global::intToString(nnXLen) + " * " + Global::intToString(nnYLen) +
+      (requireExactNNLen ? " exactly" : " allowing smaller boards")
+    );
+  }
+
   //Add three, just to give a bit of extra headroom, and make it a power of two
   numResultBufss = maxConcurrentEvals / maxBatchSize + 3;
   {

@@ -109,6 +109,10 @@ class GameInitializer {
   bool isAllowedBSize(int xSize, int ySize);
 
   std::vector<int> getAllowedBSizes() const;
+  int getMinBoardXSize() const;
+  int getMinBoardYSize() const;
+  int getMaxBoardXSize() const;
+  int getMaxBoardYSize() const;
 
  private:
   void initShared(ConfigParser& cfg, Logger& logger);
@@ -162,6 +166,11 @@ class GameInitializer {
   std::vector<Sgf::PositionSample> hintPoses;
   std::vector<double> hintPosCumProbs;
   double hintPosesProb;
+
+  int minBoardXSize;
+  int minBoardYSize;
+  int maxBoardXSize;
+  int maxBoardYSize;
 };
 
 
