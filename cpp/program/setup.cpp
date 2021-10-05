@@ -191,8 +191,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"DeviceToUseThread"+threadIdxStr,0,1023));
       else if(cfg.contains(backendPrefix+"GpuToUseThread"+threadIdxStr))
         gpuIdxByServerThread.push_back(cfg.getInt(backendPrefix+"GpuToUseThread"+threadIdxStr,0,1023));
-      else if(cfg.contains("deviceToUseThread"+threadIdxStr))
-        gpuIdxByServerThread.push_back(cfg.getInt("deviceToUseThread"+threadIdxStr,0,1023));
+      else if(cfg.contains("cudaDeviceToUseThread"+threadIdxStr))
+        gpuIdxByServerThread.push_back(cfg.getInt("cudaDeviceToUseThread"+threadIdxStr,0,1023));
       else if(cfg.contains("gpuToUseThread"+threadIdxStr))
         gpuIdxByServerThread.push_back(cfg.getInt("gpuToUseThread"+threadIdxStr,0,1023));
       else if(cfg.contains(backendPrefix+"DeviceToUse"))

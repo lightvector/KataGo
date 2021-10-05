@@ -881,70 +881,50 @@ struct ComputeHandle {
       throw StringError("TensorRT backend: failed to create network definition");
     }
 
+    builder->setMaxBatchSize(maxBatchSize);
+
     vector<unique_ptr<float[]>> extraWeights;
     auto modelParser = make_unique<ModelParser>();
     auto model = modelParser->parse(move(network), loadedModel, ctx->nnXLen, ctx->nnYLen, requireExactNNLen);
 
-    bool saveTimingCache;
-    string timingCacheFile;
+    string savedTrtFile;
     unique_ptr<ITimingCache> timingCache;
     {
       string cacheDir = HomeData::getHomeDataDir(true, ctx->homeDataDirOverride);
       cacheDir += "/trtcache";
       MakeDir::make(cacheDir);
 
-      char uuid[sizeof(prop->uuid.bytes) * 2 + 1];
-      for(int i = 0; i < sizeof(prop->uuid.bytes); i++) {
-        sprintf(uuid + i * 2, "%02x", static_cast<unsigned char>(prop->uuid.bytes[i]));
-      }
-      uuid[sizeof(uuid) - 1] = 0;
-
-      // Truncated to 4 bytes
-      char tuneHash[4 * 2 + 1];
-      for(int i = 0; i < 4; i++) {
-        sprintf(tuneHash + i * 2, "%02x", static_cast<unsigned char>(model->tuneHash[i]));
-      }
-      tuneHash[sizeof(tuneHash) - 1] = 0;
-
-      timingCacheFile = Global::strprintf(
-        "%s/gpu-%s_tune-%s_%dx%d%s_batch%d_fp%d",
+      savedTrtFile = Global::strprintf(
+        "%s/gpu-%s_%s_batch%d_fp%d",
         cacheDir.c_str(),
-        uuid,
-        tuneHash,
-        ctx->nnYLen,
-        ctx->nnXLen,
-        requireExactNNLen ? "-exact" : "",
+        to_string(prop->major).c_str(),
+        to_string(prop->minor).c_str(),
         maxBatchSize,
         usingFP16 ? 16 : 32);
 
-      string timingCacheBlob;
+      string modelCacheBlob;
       try {
-        timingCacheBlob = Global::readFileBinary(timingCacheFile);
+          modelCacheBlob = Global::readFileBinary(savedTrtFile);
+          engine.reset(runtime->deserializeCudaEngine(modelCacheBlob.data(), modelCacheBlob.size()));
+          if(!engine) {
+              throw StringError("TensorRT backend: failed to create cuda engine");
+          }
       } catch(const StringError& e) {
-        (void)e;
+        std::cout << e.message << ": start to generate file" <<std::endl;
+        auto plan = unique_ptr<IHostMemory>(builder->buildSerializedNetwork(*model->network, *config));
+        if(!plan) {
+          throw StringError("TensorRT backend: failed to create plan");
+        }
+        engine.reset(runtime->deserializeCudaEngine(plan->data(), plan->size()));
+        if(!engine) {
+            throw StringError("TensorRT backend: failed to create cuda engine");
+        }
+        auto trtModelStream = engine->serialize();
+        ofstream ofs(savedTrtFile, ios::out | ios::binary);
+        ofs.write(static_cast<char*>(trtModelStream->data()), trtModelStream->size());
+        ofs.close();
       };
-      timingCache.reset(config->createTimingCache(timingCacheBlob.data(), timingCacheBlob.size()));
-      saveTimingCache = !config->setTimingCache(*timingCache, false) || !timingCacheBlob.size();
-
       config->setProfileStream(cudaStreamPerThread);
-    }
-
-    builder->setMaxBatchSize(maxBatchSize);
-    auto plan = unique_ptr<IHostMemory>(builder->buildSerializedNetwork(*model->network, *config));
-    if(!plan) {
-      throw StringError("TensorRT backend: failed to create plan");
-    }
-
-    if(saveTimingCache) {
-      auto serializedTimingCache = config->getTimingCache()->serialize();
-      ofstream ofs(timingCacheFile, ios::out | ios::binary);
-      ofs.write(static_cast<char*>(serializedTimingCache->data()), serializedTimingCache->size());
-      ofs.close();
-    }
-
-    engine.reset(runtime->deserializeCudaEngine(plan->data(), plan->size()));
-    if(!engine) {
-      throw StringError("TensorRT backend: failed to create cuda engine");
     }
     exec.reset(engine->createExecutionContext());
     if(!exec) {
@@ -1058,6 +1038,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
   // Use whatever CUDA believes GPU 0 to be.
   if(gpuIdxForThisThread == -1)
     gpuIdxForThisThread = 0;
+
+
   CUDA_ERR("createComputeHandle", cudaSetDevice(gpuIdxForThisThread));
 
   cudaDeviceProp prop;
