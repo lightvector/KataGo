@@ -895,8 +895,9 @@ struct ComputeHandle {
       MakeDir::make(cacheDir);
 
       savedTrtFile = Global::strprintf(
-        "%s/gpu-%s_%s_batch%d_fp%d",
+        "%s/%s_gpu_%s%s_batch%d_fp%d",
         cacheDir.c_str(),
+        loadedModel->modelDesc.name.c_str(),
         to_string(prop->major).c_str(),
         to_string(prop->minor).c_str(),
         maxBatchSize,
