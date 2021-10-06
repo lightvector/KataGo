@@ -112,7 +112,7 @@ int MainCmds::genbook(const vector<string>& args) {
   const int boardSizeX = cfg.getInt("boardSizeX",2,Board::MAX_LEN);
   const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN);
   const int repBound = cfg.getInt("repBound",3,1000);
-  const double errorFactor = cfg.getDouble("errorFactor",0.0,100.0);
+  const double errorFactor = cfg.getDouble("errorFactor",0.01,100.0);
   const double costPerMove = cfg.getDouble("costPerMove",0.0,1000000.0);
   const double costPerUCBWinLossLoss = cfg.getDouble("costPerUCBWinLossLoss",0.0,1000000.0);
   const double costPerUCBWinLossLossPow3 = cfg.getDouble("costPerUCBWinLossLossPow3",0.0,1000000.0);
