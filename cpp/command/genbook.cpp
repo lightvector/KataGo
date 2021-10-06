@@ -123,6 +123,7 @@ int MainCmds::genbook(const vector<string>& args) {
   const double costPerSquaredMovesExpanded = cfg.getDouble("costPerSquaredMovesExpanded",0.0,1000000.0);
   const double costWhenPassFavored = cfg.getDouble("costWhenPassFavored",0.0,1000000.0);
   const double bonusPerWinLossError = cfg.getDouble("bonusPerWinLossError",0.0,1000000.0);
+  const double bonusPerScoreError = cfg.getDouble("bonusPerScoreError",0.0,1000000.0);
   const double bonusPerSharpScoreDiscrepancy = cfg.getDouble("bonusPerSharpScoreDiscrepancy",0.0,1000000.0);
   const double bonusPerExcessUnexpandedPolicy = cfg.getDouble("bonusPerExcessUnexpandedPolicy",0.0,1000000.0);
   const double bonusForWLPV1 = cfg.contains("bonusForWLPV1") ? cfg.getDouble("bonusForWLPV1",0.0,1000000.0) : 0.0;
@@ -229,6 +230,7 @@ int MainCmds::genbook(const vector<string>& args) {
         costPerSquaredMovesExpanded != book->getCostPerSquaredMovesExpanded() ||
         costWhenPassFavored != book->getCostWhenPassFavored() ||
         bonusPerWinLossError != book->getBonusPerWinLossError() ||
+        bonusPerScoreError != book->getBonusPerScoreError() ||
         bonusPerSharpScoreDiscrepancy != book->getBonusPerSharpScoreDiscrepancy() ||
         bonusPerExcessUnexpandedPolicy != book->getBonusPerExcessUnexpandedPolicy() ||
         bonusForWLPV1 != book->getBonusForWLPV1() ||
@@ -254,6 +256,7 @@ int MainCmds::genbook(const vector<string>& args) {
       if(costPerSquaredMovesExpanded != book->getCostPerSquaredMovesExpanded()) { logger.write("Changing costPerSquaredMovesExpanded from " + Global::doubleToString(book->getCostPerSquaredMovesExpanded()) + " to " + Global::doubleToString(costPerSquaredMovesExpanded)); book->setCostPerSquaredMovesExpanded(costPerSquaredMovesExpanded); }
       if(costWhenPassFavored != book->getCostWhenPassFavored()) { logger.write("Changing costWhenPassFavored from " + Global::doubleToString(book->getCostWhenPassFavored()) + " to " + Global::doubleToString(costWhenPassFavored)); book->setCostWhenPassFavored(costWhenPassFavored); }
       if(bonusPerWinLossError != book->getBonusPerWinLossError()) { logger.write("Changing bonusPerWinLossError from " + Global::doubleToString(book->getBonusPerWinLossError()) + " to " + Global::doubleToString(bonusPerWinLossError)); book->setBonusPerWinLossError(bonusPerWinLossError); }
+      if(bonusPerScoreError != book->getBonusPerScoreError()) { logger.write("Changing bonusPerScoreError from " + Global::doubleToString(book->getBonusPerScoreError()) + " to " + Global::doubleToString(bonusPerScoreError)); book->setBonusPerScoreError(bonusPerScoreError); }
       if(bonusPerSharpScoreDiscrepancy != book->getBonusPerSharpScoreDiscrepancy()) { logger.write("Changing bonusPerSharpScoreDiscrepancy from " + Global::doubleToString(book->getBonusPerSharpScoreDiscrepancy()) + " to " + Global::doubleToString(bonusPerSharpScoreDiscrepancy)); book->setBonusPerSharpScoreDiscrepancy(bonusPerSharpScoreDiscrepancy); }
       if(bonusPerExcessUnexpandedPolicy != book->getBonusPerExcessUnexpandedPolicy()) { logger.write("Changing bonusPerExcessUnexpandedPolicy from " + Global::doubleToString(book->getBonusPerExcessUnexpandedPolicy()) + " to " + Global::doubleToString(bonusPerExcessUnexpandedPolicy)); book->setBonusPerExcessUnexpandedPolicy(bonusPerExcessUnexpandedPolicy); }
       if(bonusForWLPV1 != book->getBonusForWLPV1()) { logger.write("Changing bonusForWLPV1 from " + Global::doubleToString(book->getBonusForWLPV1()) + " to " + Global::doubleToString(bonusForWLPV1)); book->setBonusForWLPV1(bonusForWLPV1); }
@@ -283,6 +286,7 @@ int MainCmds::genbook(const vector<string>& args) {
       costPerSquaredMovesExpanded,
       costWhenPassFavored,
       bonusPerWinLossError,
+      bonusPerScoreError,
       bonusPerSharpScoreDiscrepancy,
       bonusPerExcessUnexpandedPolicy,
       bonusForWLPV1,
@@ -524,7 +528,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
     for(auto& move: targetHist.moveHistory) {
       // Make sure we don't walk off the edge under this ruleset.
-      if(hist.isGameFinished || hist.isPastNormalPhaseEnd || hist.encorePhase > 0) {
+      if(hist.isGameFinished || hist.isPastNormalPhaseEnd) {
         logger.write("Skipping trace variation at this book hash " + node.hash().toString() + " since game over");
         node.canExpand() = false;
         break;
@@ -652,7 +656,7 @@ int MainCmds::genbook(const vector<string>& args) {
     }
 
     // Terminal node!
-    if(hist.isGameFinished || hist.isPastNormalPhaseEnd || hist.encorePhase > 0) {
+    if(hist.isGameFinished || hist.isPastNormalPhaseEnd) {
       std::lock_guard<std::mutex> lock(bookMutex);
       node.canExpand() = false;
       return;

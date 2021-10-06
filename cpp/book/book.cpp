@@ -683,6 +683,7 @@ Book::Book(
   double cpsme,
   double cwpf,
   double bpwle,
+  double bpse,
   double bpssd,
   double bpeup,
   double bfwlpv1,
@@ -708,6 +709,7 @@ Book::Book(
     costPerSquaredMovesExpanded(cpsme),
     costWhenPassFavored(cwpf),
     bonusPerWinLossError(bpwle),
+    bonusPerScoreError(bpse),
     bonusPerSharpScoreDiscrepancy(bpssd),
     bonusPerExcessUnexpandedPolicy(bpeup),
     bonusForWLPV1(bfwlpv1),
@@ -779,6 +781,8 @@ double Book::getCostWhenPassFavored() const { return costWhenPassFavored; }
 void Book::setCostWhenPassFavored(double d) { costWhenPassFavored = d; }
 double Book::getBonusPerWinLossError() const { return bonusPerWinLossError; }
 void Book::setBonusPerWinLossError(double d) { bonusPerWinLossError = d; }
+double Book::getBonusPerScoreError() const { return bonusPerScoreError; }
+void Book::setBonusPerScoreError(double d) { bonusPerScoreError = d; }
 double Book::getBonusPerSharpScoreDiscrepancy() const { return bonusPerSharpScoreDiscrepancy; }
 void Book::setBonusPerSharpScoreDiscrepancy(double d) { bonusPerSharpScoreDiscrepancy = d; }
 double Book::getBonusPerExcessUnexpandedPolicy() const { return bonusPerExcessUnexpandedPolicy; }
@@ -1557,9 +1561,11 @@ void Book::recomputeNodeCost(BookNode* node) {
   for(auto& locAndBookMove: node->moves) {
     const BookNode* child = get(locAndBookMove.second.hash);
     double winLossError = fabs(child->recursiveValues.winLossUCB - child->recursiveValues.winLossLCB) / errorFactor / 2.0;
+    double scoreError = fabs(child->recursiveValues.scoreUCB - child->recursiveValues.scoreLCB) / errorFactor / 2.0;
     double sharpScoreDiscrepancy = fabs(child->recursiveValues.sharpScoreMean - child->recursiveValues.scoreMean);
     double bonus =
       bonusPerWinLossError * winLossError +
+      bonusPerScoreError * scoreError +
       bonusPerSharpScoreDiscrepancy * sharpScoreDiscrepancy;
     double bonusCap1 = (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * 0.75;
     if(bonus > bonusCap1)
@@ -1577,6 +1583,7 @@ void Book::recomputeNodeCost(BookNode* node) {
   }
   {
     double winLossError = node->thisValuesNotInBook.winLossError;
+    double scoreError = node->thisValuesNotInBook.scoreError;
     double sharpScoreDiscrepancy = fabs(node->thisValuesNotInBook.sharpScoreMean - node->thisValuesNotInBook.scoreMean);
 
     // If there's an unusually large share of the policy not expanded, add a mild bonus for it.
@@ -1588,6 +1595,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       excessUnexpandedPolicy = node->thisValuesNotInBook.maxPolicy - 1.0 / movesExpanded;
     double bonus =
       bonusPerWinLossError * winLossError +
+      bonusPerScoreError * scoreError +
       bonusPerSharpScoreDiscrepancy * std::min(sharpScoreDiscrepancy, 1.0) +
       bonusPerExcessUnexpandedPolicy * excessUnexpandedPolicy;
     double bonusCap1 = node->thisNodeExpansionCost * 0.75;
@@ -1720,6 +1728,11 @@ void Book::exportToHtmlDir(
       logger.write(movesOut.str());
       return;
     }
+
+    // Omit exporting nodes that are past the normal game end.
+    if(hist.encorePhase > 0)
+      return;
+
     Board board = hist.getRecentBoard(0);
 
     if(contains(rulesLabel,'"') || contains(rulesLabel,'\n'))
@@ -1766,13 +1779,16 @@ void Book::exportToHtmlDir(
     // Also handle pass, pass get indexed one after the legal moves
     {
       Loc loc = Board::PASS_LOC;
-      SymBookNode child = symNode.follow(loc);
-      // Entirely omit linking children that are simply leaves, to save on the number of files we have to produce and serve.
-      // if(!child.isNull() && child.node->moves.size() > 0) {
-      if(!child.isNull()) {
-        string childPath = getFilePath(child.node, true);
-        dataVarsStr += Global::intToString(board.y_size*board.x_size) + ":'../" + childPath + "',";
-        linkSymmetriesStr += Global::intToString(board.y_size*board.x_size) + ":" + Global::intToString(child.symmetryOfNode) + ",";
+      // Avoid linking children that would end the phase
+      if(!hist.passWouldEndPhase(board,node->pla)) {
+        SymBookNode child = symNode.follow(loc);
+        // Entirely omit linking children that are simply leaves, to save on the number of files we have to produce and serve.
+        // if(!child.isNull() && child.node->moves.size() > 0) {
+        if(!child.isNull()) {
+          string childPath = getFilePath(child.node, true);
+          dataVarsStr += Global::intToString(board.y_size*board.x_size) + ":'../" + childPath + "',";
+          linkSymmetriesStr += Global::intToString(board.y_size*board.x_size) + ":" + Global::intToString(child.symmetryOfNode) + ",";
+        }
       }
     }
     dataVarsStr += "};\n";
@@ -1944,6 +1960,7 @@ void Book::saveToFile(const string& fileName) const {
     params["costPerSquaredMovesExpanded"] = costPerSquaredMovesExpanded;
     params["costWhenPassFavored"] = costWhenPassFavored;
     params["bonusPerWinLossError"] = bonusPerWinLossError;
+    params["bonusPerScoreError"] = bonusPerScoreError;
     params["bonusPerSharpScoreDiscrepancy"] = bonusPerSharpScoreDiscrepancy;
     params["bonusPerExcessUnexpandedPolicy"] = bonusPerExcessUnexpandedPolicy;
     params["bonusForWLPV1"] = bonusForWLPV1;
@@ -2037,6 +2054,7 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
       double costPerSquaredMovesExpanded = params["costPerSquaredMovesExpanded"].get<double>();
       double costWhenPassFavored = params["costWhenPassFavored"].get<double>();
       double bonusPerWinLossError = params["bonusPerWinLossError"].get<double>();
+      double bonusPerScoreError = params.contains("bonusPerScoreError") ? params["bonusPerScoreError"].get<double>() : 0.0;
       double bonusPerSharpScoreDiscrepancy = params.contains("bonusPerSharpScoreDiscrepancy") ? params["bonusPerSharpScoreDiscrepancy"].get<double>() : 0.0;
       double bonusPerExcessUnexpandedPolicy = params.contains("bonusPerExcessUnexpandedPolicy") ? params["bonusPerExcessUnexpandedPolicy"].get<double>() : 0.0;
       double bonusForWLPV1 = params.contains("bonusForWLPV1") ? params["bonusForWLPV1"].get<double>() : 0.0;
@@ -2063,6 +2081,7 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
         costPerSquaredMovesExpanded,
         costWhenPassFavored,
         bonusPerWinLossError,
+        bonusPerScoreError,
         bonusPerSharpScoreDiscrepancy,
         bonusPerExcessUnexpandedPolicy,
         bonusForWLPV1,
@@ -2108,7 +2127,7 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
       node->thisValuesNotInBook.maxPolicy = nodeData["maxPolicy"].get<double>();
       node->thisValuesNotInBook.weight = nodeData["weight"].get<double>();
       node->thisValuesNotInBook.visits = nodeData["visits"].get<double>();
-      node->canExpand = nodeData["canExpand"].get<bool>();
+      node->canExpand = true; // nodeData["canExpand"].get<bool>(); //TODO
 
       for(json& moveData: nodeData["moves"]) {
         BookMove move;
