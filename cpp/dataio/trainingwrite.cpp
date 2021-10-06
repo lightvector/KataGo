@@ -1,4 +1,6 @@
 #include "../dataio/trainingwrite.h"
+
+#include "../core/fileutils.h"
 #include "../neuralnet/modelversion.h"
 
 using namespace std;
@@ -864,7 +866,7 @@ bool TrainingDataWriter::flushIfNonempty(string& resultingFilename) {
     string tmpFilename = resultingFilename + ".tmp";
     writeBuffers->writeToZipFile(tmpFilename);
     writeBuffers->clear();
-    std::rename(tmpFilename.c_str(),resultingFilename.c_str());
+    FileUtils::rename(tmpFilename,resultingFilename);
   }
   return true;
 }

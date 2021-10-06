@@ -2012,7 +2012,7 @@ void Book::saveToFile(const string& fileName) const {
 
   // Just in case, avoid any possible racing for file system
   std::this_thread::sleep_for(std::chrono::duration<double>(1));
-  std::rename(tmpFileName.c_str(),fileName.c_str());
+  FileUtils::rename(tmpFileName,fileName);
 }
 
 Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCap) {

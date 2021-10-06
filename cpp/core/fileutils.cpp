@@ -55,10 +55,33 @@ void FileUtils::open(ofstream& out, const string& filename, std::ios_base::openm
   open(out, filename.c_str(), mode);
 }
 
+bool FileUtils::tryRename(const std::string& src, const std::string& dst) {
+  gfs::path srcPath(gfs::u8path(src));
+  gfs::path dstPath(gfs::u8path(dst));
+  try {
+    gfs::rename(srcPath,dstPath);
+  }
+  catch(const gfs::filesystem_error&) {
+    return false;
+  }
+  return true;
+}
+void FileUtils::rename(const std::string& src, const std::string& dst) {
+  gfs::path srcPath(gfs::u8path(src));
+  gfs::path dstPath(gfs::u8path(dst));
+  try {
+    gfs::rename(srcPath,dstPath);
+  }
+  catch(const gfs::filesystem_error& e) {
+    throw IOError("Could not rename " + src + " to " + dst + " error was: " + e.what());
+  }
+}
+
+
 void FileUtils::loadFileIntoString(const string& filename, const string& expectedSha256, string& str) {
   ifstream in;
   open(in, filename, std::ios::in | std::ios::binary | std::ios::ate);
-  
+
   ifstream::pos_type fileSize = in.tellg();
   if(fileSize < 0)
     throw StringError("tellg failed to determine size");

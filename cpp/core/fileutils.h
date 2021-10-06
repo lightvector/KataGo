@@ -16,9 +16,12 @@ namespace FileUtils {
   void open(std::ofstream& out, const char* filename, std::ios_base::openmode mode = std::ios_base::out);
   void open(std::ifstream& in, const std::string& filename, std::ios_base::openmode mode = std::ios_base::in);
   void open(std::ofstream& out, const std::string& filename, std::ios_base::openmode mode = std::ios_base::out);
-  
+
   void loadFileIntoString(const std::string& filename, const std::string& expectedSha256, std::string& buf);
   void uncompressAndLoadFileIntoString(const std::string& filename, const std::string& expectedSha256, std::string& buf);
+
+  bool tryRename(const std::string& src, const std::string& dst);
+  void rename(const std::string& src, const std::string& dst);
 
   // Read entire file whole
   std::string readFile(const char* filename);

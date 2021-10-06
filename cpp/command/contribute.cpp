@@ -745,7 +745,7 @@ int MainCmds::contribute(const vector<string>& args) {
       //will do a fresh download.
       string newName = modelFile + ".invalid";
       logger.write("Model file modified or corrupted on disk, sha256 no longer matches? Moving it to " + newName + " and trying again later.");
-      std::rename(modelFile.c_str(),newName.c_str());
+      FileUtils::rename(modelFile,newName);
 
       {
         std::lock_guard<std::mutex> lock(invalidModelErrorMutex);

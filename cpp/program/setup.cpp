@@ -85,26 +85,26 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") :
       debugSkipNeuralNetDefault;
 
-    int nnXLen = std::max(defaultNNXLen,7);
-    int nnYLen = std::max(defaultNNYLen,7);
+    int nnXLen = std::max(defaultNNXLen,2);
+    int nnYLen = std::max(defaultNNYLen,2);
     if(setupFor != SETUP_FOR_DISTRIBUTED) {
       if(cfg.contains("maxBoardXSizeForNNBuffer" + idxStr))
-        nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+        nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN);
       else if(cfg.contains("maxBoardXSizeForNNBuffer"))
-        nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+        nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN);
       else if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
-        nnXLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+        nnXLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN);
       else if(cfg.contains("maxBoardSizeForNNBuffer"))
-        nnXLen = cfg.getInt("maxBoardSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+        nnXLen = cfg.getInt("maxBoardSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN);
 
       if(cfg.contains("maxBoardYSizeForNNBuffer" + idxStr))
-        nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+        nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN);
       else if(cfg.contains("maxBoardYSizeForNNBuffer"))
-        nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+        nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN);
       else if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
-        nnYLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+        nnYLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN);
       else if(cfg.contains("maxBoardSizeForNNBuffer"))
-        nnYLen = cfg.getInt("maxBoardSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+        nnYLen = cfg.getInt("maxBoardSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN);
     }
 
     bool requireExactNNLen = defaultRequireExactNNLen;

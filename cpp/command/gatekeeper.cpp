@@ -361,7 +361,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
       string renameDest = rejectedModelsDir + "/" + testModelName;
       logger.write("Rejecting " + testModelDir + " automatically since older than best accepted model");
       logger.write("Moving " + testModelDir + " to " + renameDest);
-      std::rename(testModelDir.c_str(),renameDest.c_str());
+      FileUtils::rename(testModelDir,renameDest);
       return NULL;
     }
 
@@ -538,7 +538,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
 
       string renameDest = rejectedModelsDir + "/" + netAndStuff->modelNameCandidate;
       logger.write("Moving " + netAndStuff->testModelDir + " to " + renameDest);
-      std::rename(netAndStuff->testModelDir.c_str(),renameDest.c_str());
+      FileUtils::rename(netAndStuff->testModelDir,renameDest);
     }
     else {
       logger.write(
@@ -565,7 +565,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
 
       string renameDest = acceptedModelsDir + "/" + netAndStuff->modelNameCandidate;
       logger.write("Moving " + netAndStuff->testModelDir + " to " + renameDest);
-      std::rename(netAndStuff->testModelDir.c_str(),renameDest.c_str());
+      FileUtils::rename(netAndStuff->testModelDir,renameDest);
     }
 
     //Clean up
