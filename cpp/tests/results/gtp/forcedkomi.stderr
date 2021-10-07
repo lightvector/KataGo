@@ -1,5 +1,6 @@
 KataGo v1.9.1
 Using koPOSITIONALscoreAREAtaxNONEsui0button1 rules initially, unless GTP/GUI overrides this
+Initializing board with boardXSize 19 boardYSize 19
 Loaded config configs/gtp_example.cfg and/or command-line and query overrides
 Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
 Model name: g170-b6c96-s175395328-d26788732
@@ -44,8 +45,8 @@ C4  : T   4.99c W   4.22c S   0.52c ( +1.4 L  +1.4) LCB   -3.96c P  8.65% WF  11
 C16 : T   5.86c W   4.96c S   0.62c ( +1.6 L  +1.5) LCB   -2.98c P  8.25% WF  11.1 PSV      11 N      11  --  C16 R16 D3 Q3
 R4  : T   4.61c W   4.47c S   0.39c ( +1.2 L  +1.4) LCB   -2.81c P  8.97% WF  10.0 PSV      10 N      10  --  R4 R16 D3 D17
 D17 : T   4.74c W   3.94c S   0.47c ( +1.3 L  +1.3) LCB   -7.01c P  8.17% WF  10.0 PSV       9 N      10  --  D17 R16 D3 Q3
-D3  : T   4.55c W   4.37c S   0.52c ( +1.4 L  +1.4) LCB  -14.68c P  8.45% WF   8.0 PSV       8 N       8  --  D3 R16 D17 Q3
-Q4  : T   3.04c W   2.77c S   0.27c ( +1.0 L  +1.1) LCB  -73.29c P  5.55% WF   3.9 PSV       3 N       4  --  Q4 D3 D17
+D3  : T   4.55c W   4.37c S   0.52c ( +1.4 L  +1.4) LCB  -14.69c P  8.45% WF   8.0 PSV       8 N       8  --  D3 R16 D17 Q3
+Q4  : T   3.04c W   2.77c S   0.27c ( +1.0 L  +1.1) LCB  -73.28c P  5.55% WF   3.9 PSV       3 N       4  --  Q4 D3 D17
 D16 : T   2.09c W   1.94c S   0.15c ( +0.9 L  +0.8) LCB -280.00c P  4.75% WF   2.0 PSV       2 N       2  --  D16 D3
 MoveNum: 1 HASH: F19857B2A2B00E3CA2C67ECEB0719FCA
    A B C D E F G H J K L M N O P Q R S T
@@ -82,13 +83,13 @@ Tree:
 ---White(^)---
 D3  : T  -4.42c W  -4.22c S  -0.25c ( -1.2 L  -1.2) LCB   -7.13c P 14.85% WF  20.1 PSV      22 N      20  --  D3 Q17 D17 Q15 D15
 R16 : T  -4.35c W  -4.03c S  -0.19c ( -1.1 L  -1.2) LCB   -7.34c P 15.06% WF  19.1 PSV      19 N      19  --  R16 D3 D17 D5
-Q17 : T  -4.45c W  -4.37c S  -0.20c ( -1.1 L  -1.1) LCB   -8.03c P 10.42% WF  13.0 PSV      13 N      13  --  Q17 C4 D17 E4
+Q17 : T  -4.45c W  -4.36c S  -0.20c ( -1.1 L  -1.1) LCB   -8.03c P 10.42% WF  13.0 PSV      13 N      13  --  Q17 C4 D17 E4
 C16 : T  -4.32c W  -4.41c S  -0.32c ( -1.3 L  -1.3) LCB  -11.03c P  8.07% WF  11.0 PSV      11 N      11  --  C16 Q17 D3 Q15
 C4  : T  -4.97c W  -4.93c S  -0.42c ( -1.4 L  -1.5) LCB  -12.44c P  9.23% WF  10.0 PSV      10 N      10  --  C4 Q17 D17 Q15
 D17 : T  -5.21c W  -5.12c S  -0.38c ( -1.4 L  -1.4) LCB  -15.58c P  9.93% WF   9.0 PSV       9 N       9  --  D17 D3 Q17 D5
 Q4  : T  -5.29c W  -4.10c S  -0.48c ( -1.5 L  -1.8) LCB  -34.86c P  5.56% WF   6.0 PSV       5 N       6  --  Q4 Q3 D3 C16
 Q16 : T  -6.25c W  -5.24c S  -0.41c ( -1.4 L  -1.5) LCB  -63.06c P  6.03% WF   4.0 PSV       4 N       4  --  Q16 D3 D17
-D4  : T  -6.15c W  -5.40c S  -0.52c ( -1.6 L  -1.6) LCB  -78.87c P  5.16% WF   4.0 PSV       4 N       4  --  D4 C16 Q17
+D4  : T  -6.15c W  -5.40c S  -0.52c ( -1.6 L  -1.6) LCB  -78.86c P  5.16% WF   4.0 PSV       4 N       4  --  D4 C16 Q17
 D16 : T  -5.62c W  -4.77c S  -0.47c ( -1.5 L  -1.7) LCB -223.33c P  4.64% WF   3.0 PSV       3 N       3  --  D16 D3 Q17
 MoveNum: 0 HASH: CDCBC1F514D7E680FACD226074256633
    A B C D E F G H J K L M N O P Q R S T
@@ -130,8 +131,8 @@ C4  : T   4.99c W   4.22c S   0.52c ( +1.4 L  +1.4) LCB   -3.96c P  8.65% WF  11
 C16 : T   5.86c W   4.96c S   0.62c ( +1.6 L  +1.5) LCB   -2.98c P  8.25% WF  11.1 PSV      11 N      11  --  C16 R16 D3 Q3
 R4  : T   4.61c W   4.47c S   0.39c ( +1.2 L  +1.4) LCB   -2.81c P  8.97% WF  10.0 PSV      10 N      10  --  R4 R16 D3 D17
 D17 : T   4.74c W   3.94c S   0.47c ( +1.3 L  +1.3) LCB   -7.01c P  8.17% WF  10.0 PSV       9 N      10  --  D17 R16 D3 Q3
-D3  : T   4.55c W   4.37c S   0.52c ( +1.4 L  +1.4) LCB  -14.68c P  8.45% WF   8.0 PSV       8 N       8  --  D3 R16 D17 Q3
-Q4  : T   3.04c W   2.77c S   0.27c ( +1.0 L  +1.1) LCB  -73.29c P  5.55% WF   3.9 PSV       3 N       4  --  Q4 D3 D17
+D3  : T   4.55c W   4.37c S   0.52c ( +1.4 L  +1.4) LCB  -14.69c P  8.45% WF   8.0 PSV       8 N       8  --  D3 R16 D17 Q3
+Q4  : T   3.04c W   2.77c S   0.27c ( +1.0 L  +1.1) LCB  -73.28c P  5.55% WF   3.9 PSV       3 N       4  --  Q4 D3 D17
 D16 : T   2.09c W   1.94c S   0.15c ( +0.9 L  +0.8) LCB -280.00c P  4.75% WF   2.0 PSV       2 N       2  --  D16 D3
 Changed rules to Chinese
 MoveNum: 1 HASH: 5CAAD553F3A4AF0F47459C51E40D103A
@@ -170,7 +171,7 @@ Tree:
 D3  : T  -4.63c W  -4.95c S   0.10c ( -1.4 L  -1.4) LCB   -7.41c P 13.72% WF  17.1 PSV      23 N      17  --  D3 Q17 Q3 Q15
 R16 : T  -4.60c W  -4.77c S   0.13c ( -1.4 L  -1.4) LCB   -7.93c P 13.35% WF  17.1 PSV      17 N      17  --  R16 C4 Q3 E4
 Q3  : T  -4.63c W  -5.01c S   0.10c ( -1.4 L  -1.4) LCB   -8.25c P 11.77% WF  14.0 PSV      14 N      14  --  Q3 Q17 C4 Q15
-Q17 : T  -4.80c W  -5.03c S   0.11c ( -1.4 L  -1.4) LCB   -8.75c P 11.10% WF  14.0 PSV      13 N      14  --  Q17 Q3 C4 Q5
+Q17 : T  -4.80c W  -5.03c S   0.11c ( -1.4 L  -1.4) LCB   -8.76c P 11.10% WF  14.0 PSV      13 N      14  --  Q17 Q3 C4 Q5
 R4  : T  -5.34c W  -5.64c S  -0.04c ( -1.6 L  -1.6) LCB  -10.59c P 12.09% WF  11.0 PSV      11 N      11  --  R4 C4 Q17 E4
 C4  : T  -5.04c W  -5.36c S  -0.04c ( -1.6 L  -1.6) LCB  -16.06c P  8.26% WF   8.0 PSV       8 N       8  --  C4 R16 Q3 E16
 D16 : T  -6.25c W  -4.60c S   0.13c ( -1.4 L  -1.6) LCB  -39.96c P  6.13% WF   5.9 PSV       4 N       6  --  D16 D17 E17 C17

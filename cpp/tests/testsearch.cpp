@@ -4,6 +4,7 @@
 #include <iterator>
 #include <iomanip>
 
+#include "../core/fileutils.h"
 #include "../dataio/sgf.h"
 #include "../neuralnet/nninputs.h"
 #include "../search/asyncbot.h"
@@ -3981,7 +3982,8 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool useN
       cout << policyProbs[i] << endl;
   }
   else {
-    ifstream in(comparisonFile);
+    ifstream in;
+    FileUtils::open(in,comparisonFile);
     double d;
     double winProbSquerr = 0.0;
     for(int i = 0; i<winProbs.size(); i++)

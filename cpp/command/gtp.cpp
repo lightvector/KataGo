@@ -1,5 +1,6 @@
 #include "../core/global.h"
 #include "../core/config_parser.h"
+#include "../core/fileutils.h"
 #include "../core/timer.h"
 #include "../core/datetime.h"
 #include "../core/makedir.h"
@@ -410,7 +411,7 @@ struct GTPEngine {
   }
 
   //Specify -1 for the sizes for a default
-  void setOrResetBoardSize(ConfigParser& cfg, Logger& logger, Rand& seedRand, int boardXSize, int boardYSize) {
+  void setOrResetBoardSize(ConfigParser& cfg, Logger& logger, Rand& seedRand, int boardXSize, int boardYSize, bool loggingToStderr) {
     if(nnEval != NULL && boardXSize == nnEval->getNNXLen() && boardYSize == nnEval->getNNYLen())
       return;
     if(nnEval != NULL) {
@@ -430,13 +431,14 @@ struct GTPEngine {
       wasDefault = true;
     }
 
-    int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    int expectedConcurrentEvals = params.numThreads;
-    int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
-    string expectedSha256 = "";
+    const int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    const int expectedConcurrentEvals = params.numThreads;
+    const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+    const bool defaultRequireExactNNLen = true;
+    const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      boardXSize,boardYSize,defaultMaxBatchSize,
+      boardXSize,boardYSize,defaultMaxBatchSize,defaultRequireExactNNLen,
       Setup::SETUP_FOR_GTP
     );
     logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
@@ -455,6 +457,9 @@ struct GTPEngine {
       boardXSize = nnEval->getNNXLen();
       boardYSize = nnEval->getNNYLen();
     }
+    logger.write("Initializing board with boardXSize " + Global::intToString(boardXSize) + " boardYSize " + Global::intToString(boardYSize));
+    if(!loggingToStderr)
+      cerr << ("Initializing board with boardXSize " + Global::intToString(boardXSize) + " boardYSize " + Global::intToString(boardYSize)) << endl;
 
     string searchRandSeed;
     if(cfg.contains("searchRandSeed"))
@@ -1449,7 +1454,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
 }
 
 
-int MainCmds::gtp(int argc, const char* const* argv) {
+int MainCmds::gtp(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -1466,7 +1471,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
     TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
     cmd.add(overrideVersionArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
     nnModelFile = cmd.getModelFile();
     overrideVersion = overrideVersionArg.getValue();
 
@@ -1565,14 +1570,10 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   const double handicapAvoidRepeatedPatternUtility = (cfg.contains("avoidRepeatedPatternUtility") || cfg.contains("avoidRepeatedPatternUtility0")) ?
     initialParams.avoidRepeatedPatternUtility : 0.005;
 
-  const int defaultBoardXSize =
-    cfg.contains("defaultBoardXSize") ? cfg.getInt("defaultBoardXSize",2,Board::MAX_LEN) :
-    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
-    -1;
-  const int defaultBoardYSize =
-    cfg.contains("defaultBoardYSize") ? cfg.getInt("defaultBoardYSize",2,Board::MAX_LEN) :
-    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
-    -1;
+  int defaultBoardXSize = -1;
+  int defaultBoardYSize = -1;
+  Setup::loadDefaultBoardXYSize(cfg,logger,defaultBoardXSize,defaultBoardYSize);
+
   const bool forDeterministicTesting =
     cfg.contains("forDeterministicTesting") ? cfg.getBool("forDeterministicTesting") : false;
 
@@ -1607,7 +1608,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     perspective,analysisPVLen,
     std::move(patternBonusTable)
   );
-  engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize);
+  engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize,loggingToStderr);
 
   //If nobody specified any time limit in any way, then assume a relatively fast time control
   if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime")) {
@@ -1792,7 +1793,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = Global::strprintf("unacceptable size (Board::MAX_LEN is %d, consider increasing and recompiling)",(int)Board::MAX_LEN);
       }
       else {
-        engine->setOrResetBoardSize(cfg,logger,seedRand,newXSize,newYSize);
+        engine->setOrResetBoardSize(cfg,logger,seedRand,newXSize,newYSize,loggingToStderr);
       }
     }
 
@@ -2372,7 +2373,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     else if(command == "genmove_analyze" || command == "lz-genmove_analyze" || command == "kata-genmove_analyze") {
       Player pla = engine->bot->getRootPla();
       bool parseFailed = false;
-      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
+      GTPEngine::AnalyzeArgs analyzeArgs = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
       if(parseFailed) {
         responseIsError = true;
         response = "Could not parse genmove_analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
@@ -2394,7 +2395,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
           logSearchInfo,debug,playChosenMove,
           response,responseIsError,maybeStartPondering,
-          args
+          analyzeArgs
         );
         //And manually handle the result as well. In case of error, don't report any play.
         suppressResponse = true;
@@ -2698,17 +2699,23 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = out.str();
       }
       else {
-        ofstream out(pieces[0]);
-        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
-        out.close();
-        response = "";
+        ofstream out;
+        if(FileUtils::tryOpen(out,pieces[0])) {
+          WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
+          out.close();
+          response = "";
+        }
+        else {
+          responseIsError = true;
+          response = "Could not open or write to file: " + pieces[0];
+        }
       }
     }
 
     else if(command == "analyze" || command == "lz-analyze" || command == "kata-analyze") {
       Player pla = engine->bot->getRootPla();
       bool parseFailed = false;
-      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
+      GTPEngine::AnalyzeArgs analyzeArgs = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
 
       if(parseFailed) {
         responseIsError = true;
@@ -2721,7 +2728,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         else
           cout << "=" << endl;
 
-        engine->analyze(pla, args);
+        engine->analyze(pla, analyzeArgs);
 
         //No response - currentlyAnalyzing will make sure we get a newline at the appropriate time, when stopped.
         suppressResponse = true;
@@ -2749,7 +2756,31 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
-
+    else if(command == "debug_moves") {
+      PrintTreeOptions options;
+      options = options.maxDepth(1);
+      string printBranch;
+      for(size_t i = 0; i<pieces.size(); i++) {
+        if(i > 0)
+          printBranch += " ";
+        printBranch += pieces[i];
+      }
+      try {
+        if(printBranch.length() > 0)
+          options = options.onlyBranch(engine->bot->getRootBoard(),printBranch);
+      }
+      catch(const StringError& e) {
+        (void)e;
+        responseIsError = true;
+        response = "Invalid move sequence";
+      }
+      if(!responseIsError) {
+        Search* search = engine->bot->getSearchStopAndWait();
+        ostringstream sout;
+        search->printTree(sout, search->rootNode, options, perspective);
+        response = sout.str();
+      }
+    }
     else if(command == "cputime" || command == "gomill-cpu_time") {
       response = Global::doubleToString(engine->genmoveTimeSum);
     }

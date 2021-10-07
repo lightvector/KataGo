@@ -4,10 +4,12 @@
 : Using 1 CPU thread(s) for search
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: Initializing neural net buffer to be size 19 * 19 exactly
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
 : Loaded neural net with nnXLen 19 nnYLen 19
+: Initializing board with boardXSize 19 boardYSize 19
 : Loaded config configs/gtp_example.cfg and/or command-line and query overrides
 : Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
 : Config override: cudaUseFP16 = false
@@ -73,7 +75,7 @@ Q3  : T   1.52c W   1.21c S   0.32c ( +0.5 L  +0.6) LCB   -4.67c P  9.03% WF  11
 R4  : T   0.96c W   0.87c S   0.15c ( +0.2 L  +0.3) LCB   -5.62c P  9.07% WF  10.0 PSV      10 N      10  --  R4 R16 D3 D17
 D17 : T   1.21c W   0.62c S   0.14c ( +0.2 L  +0.2) LCB   -9.99c P  8.03% WF  10.0 PSV      10 N      10  --  D17 R16 D3 Q3
 R16 : T   0.98c W   0.72c S   0.24c ( +0.4 L  +0.4) LCB  -10.51c P  7.52% WF   9.0 PSV       8 N       9  --  R16 D3 D17 Q3
-C4  : T  -0.59c W  -0.55c S   0.02c ( +0.0 L  +0.1) LCB  -54.49c P  8.66% WF   4.9 PSV       5 N       5  --  C4 R16 D17 Q3
+C4  : T  -0.59c W  -0.56c S   0.02c ( +0.0 L  +0.1) LCB  -54.50c P  8.66% WF   4.9 PSV       5 N       5  --  C4 R16 D17 Q3
 Q4  : T  -0.90c W  -0.78c S   0.03c ( +0.0 L  +0.1) LCB  -70.43c P  5.57% WF   3.9 PSV       3 N       4  --  Q4 D3 D17
 D16 : T  -1.39c W  -1.18c S  -0.21c ( -0.3 L  -0.3) LCB -280.00c P  4.57% WF   2.0 PSV       2 N       2  --  D16 D3
 

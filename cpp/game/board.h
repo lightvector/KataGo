@@ -57,7 +57,9 @@ namespace Location
   bool isAdjacent(Loc loc0, Loc loc1, int x_size);
   Loc getMirrorLoc(Loc loc, int x_size, int y_size);
   Loc getCenterLoc(int x_size, int y_size);
+  Loc getCenterLoc(const Board& b);
   bool isCentral(Loc loc, int x_size, int y_size);
+  bool isNearCentral(Loc loc, int x_size, int y_size);
   int distance(Loc loc0, Loc loc1, int x_size);
   int euclideanDistanceSquared(Loc loc0, Loc loc1, int x_size);
 
@@ -236,7 +238,7 @@ struct Board
   Hash128 getPosHashAfterMove(Loc loc, Player pla) const;
 
   //Returns true if, for a move just played at loc, the sum of the number of stones in loc's group and the sizes of the empty regions it touches
-  //are greater than bound.
+  //are greater than bound. See also https://senseis.xmp.net/?Cycle for some interesting test cases for thinking about this bound.
   //Returns false for passes.
   bool simpleRepetitionBoundGt(Loc loc, int bound) const;
 

@@ -1,4 +1,5 @@
 Running search tests
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 5 useFP16 = false useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s103408384-d26419149
@@ -408,7 +409,7 @@ PV: S10 S11 M9 M10 C13 C14 P8 O8 Q8
 Tree:
 : T  26.63c W  24.38c S   2.27c ( +5.7 L  +5.7) N     200  --  S10 S11 M9 M10 C13 C14 P8
 ---White(^)---
-S10 : T  25.62c W  23.47c S   2.17c ( +5.5 L  +5.5) LCB   17.09c P 51.59% WF  96.6 PSV      98 N      98  --  S10 S11 M9 M10 C13 C14 P8 O8
+S10 : T  25.63c W  23.47c S   2.17c ( +5.5 L  +5.5) LCB   17.09c P 51.59% WF  96.6 PSV      98 N      98  --  S10 S11 M9 M10 C13 C14 P8 O8
 M9  : T  32.03c W  29.23c S   2.83c ( +7.2 L  +7.2) LCB   19.96c P  2.92% WF  53.0 PSV      43 N      50  --  M9 M10 S10 S11 P8 O8 Q8 O7
 C13 : T  28.60c W  26.28c S   2.34c ( +5.9 L  +5.9) LCB    1.88c P  4.18% WF  16.2 PSV      13 N      16  --  C13 C14 S10 S11 P8 O8 Q8 O7
 P8  : T  22.98c W  21.19c S   1.80c ( +4.5 L  +4.5) LCB  -11.17c P  6.63% WF  10.6 PSV       9 N      11  --  P8 O8 Q8 O7 S10 S11 L7
@@ -455,7 +456,7 @@ Tree:
 : T  20.26c W  19.44c S   0.80c ( +1.8 L  +1.8) N     200  --  J1 L1 G1 A15 A17 H1 F2
 ---White(^)---
 J1  : T  19.16c W  18.43c S   0.73c ( +1.6 L  +1.6) LCB    5.08c P 67.13% WF 114.4 PSV     116 N     116  --  J1 L1 G1 A15 A17 H1 F2 O10
-F2  : T  21.90c W  20.97c S   0.91c ( +2.1 L  +2.1) LCB    5.01c P 17.39% WF  83.0 PSV      45 N      81  --  F2 A15 A17 F3 J1 L1 F2 C17
+F2  : T  21.90c W  20.97c S   0.91c ( +2.1 L  +2.1) LCB    5.01c P 17.39% WF  82.9 PSV      45 N      81  --  F2 A15 A17 F3 J1 L1 F2 C17
 B15 : T -15.05c W -14.01c S  -1.04c ( -2.5 L  -2.5) LCB -260.00c P  4.55% WF   0.8 PSV       1 N       1  --  B15
 P2  : T -26.30c W -24.83c S  -1.47c ( -3.5 L  -3.5) LCB -260.00c P  2.39% WF   0.8 PSV       0 N       1  --  P2
 MoveNum: 197 HASH: C909137C34FEA1A517D78D36C3D3F5DD
@@ -1112,13 +1113,13 @@ H7  : T  37.02c W  33.38c S   3.60c ( +9.7 L  +9.7) LCB  260.00c P  2.13% WF   1
 M6  : T  37.29c W  33.37c S   3.93c (+10.9 L +10.9) LCB  260.00c P  1.93% WF   1.9 PSV       2 N       2  --  M6 O5
 D17 : T  30.65c W  27.72c S   2.91c ( +8.0 L  +8.0) LCB  260.00c P  1.62% WF   2.0 PSV       2 N       2  --  D17 C17
 Q5  : T  31.29c W  28.13c S   3.14c ( +8.6 L  +8.6) LCB  260.00c P  1.12% WF   2.0 PSV       2 N       2  --  Q5 R6
-D18 : T  29.10c W  26.30c S   2.77c ( +7.5 L  +7.5) LCB  260.00c P  1.01% WF   2.0 PSV       2 N       2  --  D18 R2
+D18 : T  29.10c W  26.31c S   2.77c ( +7.5 L  +7.5) LCB  260.00c P  1.01% WF   2.0 PSV       2 N       2  --  D18 R2
 Q9  : T  30.27c W  27.31c S   2.93c ( +7.9 L  +7.9) LCB  260.00c P  0.94% WF   2.0 PSV       2 N       2  --  Q9 R2
 K7  : T  37.05c W  33.27c S   3.77c (+10.4 L +10.4) LCB  260.00c P  1.74% WF   1.9 PSV       1 N       2  --  K7 O5
 C12 : T  36.15c W  32.59c S   3.55c ( +9.9 L  +9.9) LCB  260.00c P  1.08% WF   1.9 PSV       1 N       2  --  C12 C10
 N5  : T  31.39c W  28.22c S   3.16c ( +8.8 L  +8.8) LCB  260.00c P  0.83% WF   2.0 PSV       1 N       2  --  N5 O5
 Q6  : T  31.69c W  28.48c S   3.18c ( +8.7 L  +8.7) LCB  260.00c P  0.79% WF   2.0 PSV       1 N       2  --  Q6 R7
-F1  : T  35.17c W  31.99c S   3.18c ( +8.6 L  +8.6) LCB  260.00c P  0.85% WF   1.0 PSV       1 N       1  --  F1
+F1  : T  35.17c W  31.98c S   3.18c ( +8.6 L  +8.6) LCB  260.00c P  0.85% WF   1.0 PSV       1 N       1  --  F1
 P18 : T  44.97c W  40.40c S   4.55c (+12.5 L +12.5) LCB  260.00c P  1.23% WF   1.8 PSV       0 N       2  --  P18 P14
 K12 : T  43.99c W  39.73c S   4.21c (+11.5 L +11.5) LCB  260.00c P  1.16% WF   1.8 PSV       0 N       2  --  K12 P14
 M3  : T  43.63c W  38.90c S   4.74c (+13.0 L +13.0) LCB  260.00c P  1.01% WF   1.8 PSV       0 N       2  --  M3 M2

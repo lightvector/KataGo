@@ -1,4 +1,5 @@
 Running search tests
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 : Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
 : Cuda backend thread 0: Model version 3 useFP16 = false useNHWC = true
 : Cuda backend thread 0: Model name: s67105280-d24430742-b6c96
@@ -363,7 +364,7 @@ B16 : T  13.84c W  12.61c S   1.23c ( +2.5 L  +2.5) LCB   20.79c P  4.38% WF  25
 E10 : T  30.18c W  27.46c S   2.71c ( +5.5 L  +5.5) LCB   38.98c P 27.36% WF  17.3 PSV      20 N      20  --  E10 E11 F11 F12 G11 G12 H12 G13
 Q8  : T  18.71c W  17.04c S   1.68c ( +3.4 L  +3.4) LCB   27.56c P  8.27% WF  15.6 PSV      15 N      16  --  Q8 R8 P8 S10 E10 E11 F11 F12
 F17 : T  18.48c W  16.84c S   1.65c ( +3.3 L  +3.3) LCB   34.26c P  3.76% WF   7.9 PSV       7 N       8  --  F17 F18 E18 E17 F16
-D4  : T  24.09c W  21.99c S   2.10c ( +4.2 L  +4.2) LCB   64.49c P  4.36% WF   4.7 PSV       4 N       5  --  D4 B3 P8 C2
+D4  : T  24.08c W  21.99c S   2.10c ( +4.2 L  +4.2) LCB   64.49c P  4.36% WF   4.7 PSV       4 N       5  --  D4 B3 P8 C2
 B3  : T  27.62c W  25.21c S   2.41c ( +4.8 L  +4.8) LCB  260.00c P  3.26% WF   1.9 PSV       2 N       2  --  B3 P8
 Q3  : T  36.08c W  32.69c S   3.39c ( +6.8 L  +6.8) LCB  260.00c P  2.32% WF   0.9 PSV       1 N       1  --  Q3
 Q15 : T  34.99c W  31.79c S   3.20c ( +6.4 L  +6.4) LCB  260.00c P  1.77% WF   0.9 PSV       1 N       1  --  Q15
@@ -519,8 +520,8 @@ H10 : T  32.88c W  32.46c S   0.42c ( +0.8 L  +0.8) LCB   93.92c P  5.26% WF  10
 N3  : T  28.01c W  27.50c S   0.50c ( +1.0 L  +1.0) LCB   70.39c P  1.67% WF  11.2 PSV       8 N      11  --  N3 pass O4 pass H10 pass
 P5  : T  28.33c W  27.93c S   0.40c ( +0.8 L  +0.8) LCB   65.96c P  1.71% WF  15.2 PSV       7 N      15  --  P5 pass N4 pass H10 pass
 O2  : T  34.84c W  34.37c S   0.47c ( +0.9 L  +0.9) LCB   87.21c P  2.93% WF  11.5 PSV       4 N      12  --  O2 pass H10 pass N4 pass pass
-K12 : T  35.11c W  34.61c S   0.49c ( +1.0 L  +1.0) LCB   94.27c P  2.86% WF  10.5 PSV       4 N      11  --  K12 pass H10 pass N4 pass pass
-F16 : T  30.48c W  29.81c S   0.67c ( +1.3 L  +1.3) LCB   69.89c P  1.60% WF   6.0 PSV       4 N       6  --  F16 C19 N4 pass
+K12 : T  35.10c W  34.61c S   0.49c ( +1.0 L  +1.0) LCB   94.27c P  2.86% WF  10.5 PSV       4 N      11  --  K12 pass H10 pass N4 pass pass
+F16 : T  30.47c W  29.81c S   0.67c ( +1.3 L  +1.3) LCB   69.89c P  1.60% WF   6.0 PSV       4 N       6  --  F16 C19 N4 pass
 G10 : T  34.74c W  34.31c S   0.43c ( +0.9 L  +0.9) LCB  224.85c P  2.76% WF   4.8 PSV       4 N       5  --  G10 pass N4 pass pass
 C19 : T  40.28c W  39.74c S   0.54c ( +1.1 L  +1.1) LCB  219.74c P  2.36% WF   4.6 PSV       2 N       5  --  C19 B19 N4 pass pass
 O3  : T  37.41c W  36.89c S   0.52c ( +1.0 L  +1.0) LCB  218.95c P  2.29% WF   4.7 PSV       2 N       5  --  O3 pass N4 pass pass
@@ -567,7 +568,7 @@ O2  : T   3.53c W   3.30c S   0.23c ( +0.5 L  +0.5) LCB   21.84c P  2.90% WF   8
 G10 : T   2.98c W   2.85c S   0.13c ( +0.3 L  +0.3) LCB   23.25c P  2.76% WF   8.9 PSV       7 N       9  --  G10 pass N4 pass pass
 N2  : T   2.12c W   1.90c S   0.22c ( +0.4 L  +0.4) LCB   20.17c P  2.13% WF   7.0 PSV       6 N       7  --  N2 pass O2 pass N4
 O3  : T   4.65c W   4.37c S   0.28c ( +0.6 L  +0.6) LCB   70.05c P  2.22% WF   3.9 PSV       4 N       4  --  O3 pass N4 pass
-N3  : T   3.16c W   2.91c S   0.25c ( +0.5 L  +0.5) LCB   74.17c P  1.66% WF   4.0 PSV       4 N       4  --  N3 pass N4 pass
+N3  : T   3.16c W   2.90c S   0.25c ( +0.5 L  +0.5) LCB   74.17c P  1.66% WF   4.0 PSV       4 N       4  --  N3 pass N4 pass
 C19 : T   7.50c W   7.23c S   0.26c ( +0.5 L  +0.5) LCB  100.25c P  2.30% WF   3.8 PSV       3 N       4  --  C19 B19 N4 pass
 P1  : T   3.72c W   3.53c S   0.19c ( +0.4 L  +0.4) LCB   69.72c P  1.59% WF   3.0 PSV       3 N       3  --  P1 pass N4
 F16 : T   4.08c W   3.91c S   0.17c ( +0.3 L  +0.3) LCB   80.74c P  1.58% WF   3.0 PSV       3 N       3  --  F16 pass N4
@@ -617,8 +618,8 @@ H10 : T  32.88c W  32.46c S   0.42c ( +0.8 L  +0.8) LCB   93.92c P  5.26% WF  10
 N3  : T  28.01c W  27.50c S   0.50c ( +1.0 L  +1.0) LCB   70.39c P  1.67% WF  11.2 PSV       8 N      11  --  N3 pass O4 pass H10 pass
 P5  : T  28.33c W  27.93c S   0.40c ( +0.8 L  +0.8) LCB   65.96c P  1.71% WF  15.2 PSV       7 N      15  --  P5 pass N4 pass H10 pass
 O2  : T  34.84c W  34.37c S   0.47c ( +0.9 L  +0.9) LCB   87.21c P  2.93% WF  11.5 PSV       4 N      12  --  O2 pass H10 pass N4 pass pass
-K12 : T  35.11c W  34.61c S   0.49c ( +1.0 L  +1.0) LCB   94.27c P  2.86% WF  10.5 PSV       4 N      11  --  K12 pass H10 pass N4 pass pass
-F16 : T  30.48c W  29.81c S   0.67c ( +1.3 L  +1.3) LCB   69.89c P  1.60% WF   6.0 PSV       4 N       6  --  F16 C19 N4 pass
+K12 : T  35.10c W  34.61c S   0.49c ( +1.0 L  +1.0) LCB   94.27c P  2.86% WF  10.5 PSV       4 N      11  --  K12 pass H10 pass N4 pass pass
+F16 : T  30.47c W  29.81c S   0.67c ( +1.3 L  +1.3) LCB   69.89c P  1.60% WF   6.0 PSV       4 N       6  --  F16 C19 N4 pass
 G10 : T  34.74c W  34.31c S   0.43c ( +0.9 L  +0.9) LCB  224.85c P  2.76% WF   4.8 PSV       4 N       5  --  G10 pass N4 pass pass
 C19 : T  40.28c W  39.74c S   0.54c ( +1.1 L  +1.1) LCB  219.74c P  2.36% WF   4.6 PSV       2 N       5  --  C19 B19 N4 pass pass
 O3  : T  37.41c W  36.89c S   0.52c ( +1.0 L  +1.0) LCB  218.95c P  2.29% WF   4.7 PSV       2 N       5  --  O3 pass N4 pass pass
@@ -936,7 +937,7 @@ B11 : T   6.31c W   5.37c S   0.94c ( +1.9 L  +1.9) LCB   12.86c P 11.24% WF  34
 H15 : T   4.01c W   3.40c S   0.61c ( +1.2 L  +1.2) LCB   15.29c P  5.72% WF  24.1 PSV      24 N      24  --  H15 J15 G15 J14 J16 E16 E15 D16
 D2  : T   3.51c W   2.96c S   0.55c ( +1.1 L  +1.1) LCB   15.30c P  3.71% WF  20.2 PSV      20 N      20  --  D2 E2 K9 K8 L10 M10
 D18 : T  17.55c W  15.46c S   2.09c ( +4.2 L  +4.2) LCB   31.24c P 17.41% WF  14.9 PSV      17 N      17  --  D18 E16 E15 D16 C17 C15 C14 B15
-M12 : T  11.18c W   9.79c S   1.39c ( +2.8 L  +2.8) LCB   37.40c P  3.78% WF   5.7 PSV       6 N       6  --  M12 N11 E16 D18
+M12 : T  11.18c W   9.79c S   1.39c ( +2.8 L  +2.8) LCB   37.41c P  3.78% WF   5.7 PSV       6 N       6  --  M12 N11 E16 D18
 B13 : T  12.51c W  10.87c S   1.64c ( +3.3 L  +3.3) LCB  260.00c P  1.54% WF   1.9 PSV       2 N       2  --  B13 B12
 E4  : T  44.69c W  40.31c S   4.38c ( +8.9 L  +8.9) LCB  260.00c P  2.28% WF   0.8 PSV       0 N       1  --  E4
 Just after move

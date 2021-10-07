@@ -11,7 +11,7 @@
 
 using namespace std;
 
-int MainCmds::evalsgf(int argc, const char* const* argv) {
+int MainCmds::evalsgf(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -36,6 +36,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool printRootEndingBonus;
   bool printLead;
   bool printAvgShorttermError;
+  bool printSharpScore;
   int printMaxDepth;
   bool rawNN;
   try {
@@ -64,6 +65,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
     TCLAP::SwitchArg printLeadArg("","print-lead","Compute and print lead");
     TCLAP::SwitchArg printAvgShorttermErrorArg("","print-avg-shortterm-error","Compute and print avgShorttermError");
+    TCLAP::SwitchArg printSharpScoreArg("","print-sharp-score","Compute and print sharp weighted score");
     TCLAP::ValueArg<int> printMaxDepthArg("","print-max-depth","How deep to print",false,1,"DEPTH");
     TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
     cmd.add(sgfFileArg);
@@ -91,9 +93,10 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printRootEndingBonusArg);
     cmd.add(printLeadArg);
     cmd.add(printAvgShorttermErrorArg);
+    cmd.add(printSharpScoreArg);
     cmd.add(printMaxDepthArg);
     cmd.add(rawNNArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
     sgfFile = sgfFileArg.getValue();
@@ -116,6 +119,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     printRootEndingBonus = printRootEndingBonusArg.getValue();
     printLead = printLeadArg.getValue();
     printAvgShorttermError = printAvgShorttermErrorArg.getValue();
+    printSharpScore = printSharpScoreArg.getValue();
     printMaxDepth = printMaxDepthArg.getValue();
     rawNN = rawNNArg.getValue();
 
@@ -231,10 +235,11 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     int expectedConcurrentEvals = params.numThreads;
     int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+    bool defaultRequireExactNNLen = true;
     string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      board.x_size,board.y_size,defaultMaxBatchSize,
+      board.x_size,board.y_size,defaultMaxBatchSize,defaultRequireExactNNLen,
       Setup::SETUP_FOR_GTP
     );
   }
@@ -366,6 +371,14 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
       cout << "White score mean " << nnOutput->whiteScoreMean << endl;
       cout << "White score stdev " << sqrt(max(0.0,(double)nnOutput->whiteScoreMeanSq - nnOutput->whiteScoreMean*nnOutput->whiteScoreMean)) << endl;
     }
+  }
+
+  if(printSharpScore) {
+    double ret = 0.0;
+    bool suc = search->getSharpScore(NULL,ret);
+    assert(suc);
+    (void)suc;
+    cout << "White sharp score " << ret << endl;
   }
 
   if(printPolicy) {

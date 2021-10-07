@@ -1,6 +1,9 @@
 KataGo v1.9.1
 Using TrompTaylor rules initially, unless GTP/GUI overrides this
+Initializing board with boardXSize 19 boardYSize 19
 Loaded config configs/gtp_example.cfg and/or command-line and query overrides
 Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
 Model name: g170-b6c96-s175395328-d26788732
 GTP ready, beginning main protocol loop
+Initializing board with boardXSize 13 boardYSize 13
+Initializing board with boardXSize 3 boardYSize 3

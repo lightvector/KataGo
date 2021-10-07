@@ -1,23 +1,92 @@
 #include "../core/fileutils.h"
 
 #include <fstream>
+#include <iomanip>
 #include <zlib.h>
+#include <ghc/filesystem.hpp>
 
 #include "../core/global.h"
 #include "../core/sha2.h"
 
-using namespace std;
+namespace gfs = ghc::filesystem;
+
+//------------------------
+#include "../core/using.h"
+//------------------------
+
+bool FileUtils::exists(const string& path) {
+  try {
+    gfs::path gfsPath(gfs::u8path(path));
+    return gfs::exists(gfsPath);
+  }
+  catch(const gfs::filesystem_error&) {
+    return false;
+  }
+}
+
+bool FileUtils::tryOpen(ifstream& in, const char* filename, std::ios_base::openmode mode) {
+  in.open(gfs::u8path(filename), mode);
+  return in.good();
+}
+bool FileUtils::tryOpen(ofstream& out, const char* filename, std::ios_base::openmode mode) {
+  out.open(gfs::u8path(filename), mode);
+  return out.good();
+}
+bool FileUtils::tryOpen(ifstream& in, const string& filename, std::ios_base::openmode mode) {
+  return tryOpen(in, filename.c_str(), mode);
+}
+bool FileUtils::tryOpen(ofstream& out, const string& filename, std::ios_base::openmode mode) {
+  return tryOpen(out, filename.c_str(), mode);
+}
+void FileUtils::open(ifstream& in, const char* filename, std::ios_base::openmode mode) {
+  in.open(gfs::u8path(filename), mode);
+  if(!in.good())
+    throw IOError("Could not open file " + string(filename) + " - does not exist or invalid permissions?");
+}
+void FileUtils::open(ofstream& out, const char* filename, std::ios_base::openmode mode) {
+  out.open(gfs::u8path(filename), mode);
+  if(!out.good())
+    throw IOError("Could not write to file " + string(filename) + " - invalid path or permissions?");
+}
+void FileUtils::open(ifstream& in, const string& filename, std::ios_base::openmode mode) {
+  open(in, filename.c_str(), mode);
+}
+void FileUtils::open(ofstream& out, const string& filename, std::ios_base::openmode mode) {
+  open(out, filename.c_str(), mode);
+}
+
+bool FileUtils::tryRename(const std::string& src, const std::string& dst) {
+  gfs::path srcPath(gfs::u8path(src));
+  gfs::path dstPath(gfs::u8path(dst));
+  try {
+    gfs::rename(srcPath,dstPath);
+  }
+  catch(const gfs::filesystem_error&) {
+    return false;
+  }
+  return true;
+}
+void FileUtils::rename(const std::string& src, const std::string& dst) {
+  gfs::path srcPath(gfs::u8path(src));
+  gfs::path dstPath(gfs::u8path(dst));
+  try {
+    gfs::rename(srcPath,dstPath);
+  }
+  catch(const gfs::filesystem_error& e) {
+    throw IOError("Could not rename " + src + " to " + dst + " error was: " + e.what());
+  }
+}
+
 
 void FileUtils::loadFileIntoString(const string& filename, const string& expectedSha256, string& str) {
-  ifstream in(filename.c_str(), ios::in | ios::binary | ios::ate);
-  if(!in.good())
-    throw StringError("Could not open file - does not exist or invalid permissions?");
+  ifstream in;
+  open(in, filename, std::ios::in | std::ios::binary | std::ios::ate);
 
   ifstream::pos_type fileSize = in.tellg();
   if(fileSize < 0)
     throw StringError("tellg failed to determine size");
 
-  in.seekg(0, ios::beg);
+  in.seekg(0, std::ios::beg);
   str.resize(fileSize);
   in.read(&str[0], fileSize);
   in.close();
@@ -90,4 +159,71 @@ void FileUtils::uncompressAndLoadFileIntoString(const string& filename, const st
   uncompressed.resize(uncompressed.size()-zs.avail_out);
   //Clean up
   (void)inflateEnd(&zs);
+}
+
+
+//TODO someday there's a bit of duplication of funtionality here versus above, if at some point we care to clean it up.
+string FileUtils::readFile(const char* filename)
+{
+  ifstream ifs;
+  open(ifs,filename);
+  string str((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+  return str;
+}
+
+string FileUtils::readFile(const string& filename)
+{
+  return readFile(filename.c_str());
+}
+
+string FileUtils::readFileBinary(const char* filename)
+{
+  ifstream ifs;
+  open(ifs,filename,std::ios::binary);
+  string str((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+  return str;
+}
+
+string FileUtils::readFileBinary(const string& filename)
+{
+  return readFileBinary(filename.c_str());
+}
+
+//Read file into separate lines, using the specified delimiter character(s).
+//The delimiter characters are NOT included.
+vector<string> FileUtils::readFileLines(const char* filename, char delimiter)
+{
+  ifstream ifs;
+  open(ifs,filename);
+
+  vector<string> vec;
+  string line;
+  while(getline(ifs,line,delimiter))
+    vec.push_back(line);
+  return vec;
+}
+
+vector<string> FileUtils::readFileLines(const string& filename, char delimiter)
+{
+  return readFileLines(filename.c_str(), delimiter);
+}
+
+void FileUtils::collectFiles(const string& dirname, std::function<bool(const string&)> fileFilter, vector<string>& collected)
+{
+  namespace gfs = ghc::filesystem;
+  try {
+    for(const gfs::directory_entry& entry: gfs::recursive_directory_iterator(dirname)) {
+      if(!gfs::is_directory(entry.status())) {
+        const gfs::path& path = entry.path();
+        string fileName = path.filename().string();
+        if(fileFilter(fileName)) {
+          collected.push_back(path.string());
+        }
+      }
+    }
+  }
+  catch(const gfs::filesystem_error& e) {
+    cerr << "Error recursively collecting files: " << e.what() << endl;
+    throw StringError(string("Error recursively collecting files: ") + e.what());
+  }
 }

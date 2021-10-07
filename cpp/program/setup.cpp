@@ -21,12 +21,13 @@ NNEvaluator* Setup::initializeNNEvaluator(
   int defaultNNXLen,
   int defaultNNYLen,
   int defaultMaxBatchSize,
+  bool defaultRequireExactNNLen,
   setup_for_t setupFor
 ) {
   vector<NNEvaluator*> nnEvals =
     initializeNNEvaluators(
       {nnModelName},{nnModelFile},{expectedSha256},
-      cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,defaultNNXLen,defaultNNYLen,defaultMaxBatchSize,setupFor
+      cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,defaultNNXLen,defaultNNYLen,defaultMaxBatchSize,defaultRequireExactNNLen,setupFor
     );
   assert(nnEvals.size() == 1);
   return nnEvals[0];
@@ -44,6 +45,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   int defaultNNXLen,
   int defaultNNYLen,
   int defaultMaxBatchSize,
+  bool defaultRequireExactNNLen,
   setup_for_t setupFor
 ) {
   vector<NNEvaluator*> nnEvals;
@@ -87,29 +89,29 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.contains("debugSkipNeuralNet") ? cfg.getBool("debugSkipNeuralNet") :
       debugSkipNeuralNetDefault;
 
-    int nnXLen = std::max(defaultNNXLen,7);
-    int nnYLen = std::max(defaultNNYLen,7);
+    int nnXLen = std::max(defaultNNXLen,2);
+    int nnYLen = std::max(defaultNNYLen,2);
     if(setupFor != SETUP_FOR_DISTRIBUTED) {
       if(cfg.contains("maxBoardXSizeForNNBuffer" + idxStr))
-        nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+        nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN);
       else if(cfg.contains("maxBoardXSizeForNNBuffer"))
-        nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+        nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN);
       else if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
-        nnXLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+        nnXLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN);
       else if(cfg.contains("maxBoardSizeForNNBuffer"))
-        nnXLen = cfg.getInt("maxBoardSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+        nnXLen = cfg.getInt("maxBoardSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN);
 
       if(cfg.contains("maxBoardYSizeForNNBuffer" + idxStr))
-        nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+        nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN);
       else if(cfg.contains("maxBoardYSizeForNNBuffer"))
-        nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+        nnYLen = cfg.getInt("maxBoardYSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN);
       else if(cfg.contains("maxBoardSizeForNNBuffer" + idxStr))
-        nnYLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
+        nnYLen = cfg.getInt("maxBoardSizeForNNBuffer" + idxStr, 2, NNPos::MAX_BOARD_LEN);
       else if(cfg.contains("maxBoardSizeForNNBuffer"))
-        nnYLen = cfg.getInt("maxBoardSizeForNNBuffer", 7, NNPos::MAX_BOARD_LEN);
+        nnYLen = cfg.getInt("maxBoardSizeForNNBuffer", 2, NNPos::MAX_BOARD_LEN);
     }
 
-    bool requireExactNNLen = false;
+    bool requireExactNNLen = defaultRequireExactNNLen;
     if(setupFor != SETUP_FOR_DISTRIBUTED) {
       if(cfg.contains("requireMaxBoardSize" + idxStr))
         requireExactNNLen = cfg.getBool("requireMaxBoardSize" + idxStr);
@@ -733,6 +735,31 @@ Rules Setup::loadSingleRules(
   }
 
   return rules;
+}
+
+bool Setup::loadDefaultBoardXYSize(
+  ConfigParser& cfg,
+  Logger& logger,
+  int& defaultBoardXSizeRet,
+  int& defaultBoardYSizeRet
+) {
+  const int defaultBoardXSize =
+    cfg.contains("defaultBoardXSize") ? cfg.getInt("defaultBoardXSize",2,Board::MAX_LEN) :
+    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
+    -1;
+  const int defaultBoardYSize =
+    cfg.contains("defaultBoardYSize") ? cfg.getInt("defaultBoardYSize",2,Board::MAX_LEN) :
+    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
+    -1;
+  if((defaultBoardXSize == -1) != (defaultBoardYSize == -1))
+    logger.write("Warning: Config specified only one of defaultBoardXSize or defaultBoardYSize and no other board size parameter, ignoring it");
+
+  if(defaultBoardXSize == -1 || defaultBoardYSize == -1) {
+    return false;
+  }
+  defaultBoardXSizeRet = defaultBoardXSize;
+  defaultBoardYSizeRet = defaultBoardYSize;
+  return true;
 }
 
 vector<pair<set<string>,set<string>>> Setup::getMutexKeySets() {

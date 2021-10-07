@@ -13383,6 +13383,7 @@ Running neuralnetless search tests
 ===================================================================
 Basic search with debugSkipNeuralNet and chosen move randomization
 ===================================================================
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 : T   0.00c W  -0.16c S   0.19c ( +0.3 L  +0.3) N     100  --  H4 G9 D6 E8 C2 E2 H2
 ---Black(v)---
 H4  : T  -3.22c W  -3.56c S   0.30c ( +0.4 L  +0.4) LCB    9.78c P  2.84% WF  16.4 PSV      16 N      16  --  H4 G9 D6 E8 C2 E2 H2
@@ -13456,6 +13457,7 @@ B2 14
 ===================================================================
 Testing preservation of search tree across moves
 ===================================================================
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 First perform a basic search.
 HASH: 789548A29FD33F9C049C3A737607888D
    A B C D E F G
@@ -13514,6 +13516,7 @@ G7  : T  -2.15c W  -0.96c S  -1.26c ( -1.5 L  -1.5) LCB -260.00c P  4.46% WF   1
 Testing pruning of search tree across moves due to root restrictions
 ===================================================================
 First with no pruning
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 HASH: 269412C054E5BA6290AD61553B8F8108
    A B C D E F G
  7 . . X X . . X
@@ -13541,6 +13544,7 @@ pss : T 104.68c W 100.00c S   4.68c ( +3.5 L  +3.5) LCB  260.00c P  7.70% WF   0
 : GPU 0 finishing, processed 0 rows 0 batches
 
 Next, with rootPruneUselessMoves
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 HASH: 269412C054E5BA6290AD61553B8F8108
    A B C D E F G
  7 . . X X . . X
@@ -13560,6 +13564,7 @@ pss : T 104.68c W 100.00c S   4.68c ( +3.5 L  +3.5) LCB  260.00c P  7.70% WF   0
 
 Progress the game, having black fill space while white passes...
 Searching on the opponent, the move before
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 HASH: 33F4313EACDE81621E771839A6568A32
    A B C D E F G
  7 X . X X X X X
@@ -13648,6 +13653,7 @@ pss : T 104.68c W 100.00c S   4.68c ( +3.5 L  +3.5) LCB  260.00c P  1.10% WF   0
 Testing search tree update near terminal positions
 ===================================================================
 First with no pruning
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 HASH: A444DB8641C37FEF9E22EA6E9FD086CE
    A B C D E F G
  7 X . X X . X X
@@ -13687,6 +13693,7 @@ E7  : T  20.00c W  13.60c S   5.44c ( +0.9 L  +0.9) LCB  126.58c P 10.79% WF   7
 ===================================================================
 Testing pruning of search tree at root node due to symmetries: empty board
 ===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
 HASH: 9F0B2D702FC8448C75410E097F089AEB
    A B C D E F G H J
  9 . . . . . . . . .
@@ -13723,6 +13730,7 @@ J5  : T  15.39c W  16.88c S  -1.50c ( -1.9 L  -1.9) LCB  260.00c P  0.20% WF   0
 ===================================================================
 Testing pruning of search tree at root node due to symmetries: asymmetry board
 ===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
 HASH: D3E1F455C62BC6B1615C689C7E649609
    A B C D E F G H J
  9 . . . . . . . . .
@@ -13804,6 +13812,7 @@ B7  : T  14.80c W  17.09c S  -2.29c ( -3.1 L  -3.1) LCB  260.00c P  0.58% WF   0
 ===================================================================
 Testing pruning of search tree at root node due to symmetries, allowing only diagonal flips: empty board
 ===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
 HASH: 9F0B2D702FC8448C75410E097F089AEB
    A B C D E F G H J
  9 . . . . . . . . .
@@ -13849,6 +13858,7 @@ G7  : T  21.89c W  17.31c S   4.58c ( +5.9 L  +5.9) LCB  260.00c P  0.21% WF   0
 ===================================================================
 Testing pruning of search tree at root node due to symmetries, allowing only diagonal flips: only one diagonal possible
 ===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
 HASH: E28E79B74616D7787AA4486CD32D8875
    A B C D E F G H J
  9 . . . . . . . . .
@@ -13908,6 +13918,7 @@ pss : T  19.56c W  10.15c S   9.41c (+12.7 L +12.7) LCB  260.00c P  0.46% WF   0
 ===================================================================
 Non-square board search
 ===================================================================
+: Initializing neural net buffer to be size 7 * 17 allowing smaller boards
 HASH: 5DED86D03DDCC114C06F73CED6F98E16
    A B C D E F G
 17 . . . . . . .
@@ -13985,6 +13996,7 @@ Visualize dirichlet noise
 ===================================================================
 Search tolerates moving past game end
 ===================================================================
+: Initializing neural net buffer to be size 7 * 7 allowing smaller boards
 HASH: E59E1C6BA7D63B920A8DB7C62C60381C
    A B C D E F G
  7 . X O . O . O
@@ -14079,6 +14091,7 @@ pss : T  -3.11c W   1.47c S  -4.60c ( -4.9 L  -4.9) LCB -138.91c P  6.32% WF   3
 ===================================================================
 Integrity of value bias, mem safety and updates
 ===================================================================
+: Initializing neural net buffer to be size 7 * 7 allowing smaller boards
 HASH: E2262B2CF009F23B5DC105C6F196A50B
    A B C D E F G
  7 X . X X X X .
@@ -14194,6 +14207,7 @@ E2  : T  -1.96c W   0.08c S   0.72c ( +0.8 L  +0.8) LCB  -12.64c P 12.24% WF  35
 ===================================================================
 Analysis json
 ===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
 : T   0.64c W   1.89c S  -0.42c ( -0.5 L  -0.5) N      10  --  F4 E4 B1 D1
 ---Black(v)---
 F4  : T  -5.00c W  -3.72c S  -0.18c ( -0.2 L  -0.2) LCB   37.29c P  5.19% WF   7.2 PSV       7 N       7  --  F4 E4 B1 D1
@@ -14204,6 +14218,7 @@ A6  : T  11.55c W  13.38c S  -1.83c ( -1.8 L  -1.8) LCB  260.00c P  4.86% WF   0
 ===================================================================
 Analysis json 2
 ===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
 : T   3.74c W   2.78c S   2.21c ( +2.6 L  +2.6) N      10  --  H6 E6 D6 B3
 ---Black(v)---
 H6  : T  -5.84c W  -4.70c S   1.19c ( +1.4 L  +1.4) LCB   49.34c P 12.55% WF   5.2 PSV       5 N       5  --  H6 E6 D6 B3
@@ -14215,6 +14230,7 @@ J3  : T  27.71c W  20.93c S   6.79c ( +8.2 L  +8.2) LCB  260.00c P  9.59% WF   0
 ===================================================================
 Search results at 0, 1, 2 visits, and at terminal position
 ===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
 Testing 0 visits allowDirectPolicyMoves false...
 getRootVisits 0
 getRootValues success: 0
@@ -14390,6 +14406,7 @@ getAnalysisJson success: 0
 {"moveInfos":[]}
 : GPU 0 finishing, processed 0 rows 0 batches
 Running training write tests
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-tt
 HASH: 67277BB4C5452970ADAEDA0847614349
    A B C D E
@@ -14497,6 +14514,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-jp
 HASH: 097728B63273902562856D7E7FCD78F5
    A B C D E
@@ -14610,6 +14628,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-gooddraws
 HASH: FBE16917FFBF22C1CD6D3A1EEB1FC363
    A B C D E
@@ -14699,6 +14718,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-tt-v5
 HASH: FBE16917FFBF22C1CD6D3A1EEB1FC363
    A B C D E
@@ -14806,6 +14826,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-rect-v4
 HASH: 18595744BEA73A272F0A1AEDA4D97B92
    A B C D E F G
@@ -14873,6 +14894,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-taxall-v3
 HASH: FBE16917FFBF22C1CD6D3A1EEB1FC363
    A B C D E
@@ -14986,6 +15008,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-taxall-v3-a
 HASH: B6FB8D92BE031880CABE17B44587FFCF
    A B C D E
@@ -15087,6 +15110,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-taxall-v3-c
 HASH: 150B527D3B094A5F13FAB68BC2210ED5
    A B C D E
@@ -15194,6 +15218,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-simpleterritory-sgf-c
 HASH: 3151AD50EB954407A0D4D7AE1FD6C389
    A B C D E F G H J

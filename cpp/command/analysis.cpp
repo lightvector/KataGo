@@ -51,7 +51,7 @@ struct AnalyzeRequest {
 };
 
 
-int MainCmds::analysis(int argc, const char* const* argv) {
+int MainCmds::analysis(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -73,7 +73,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     TCLAP::SwitchArg quitWithoutWaitingArg("","quit-without-waiting","When stdin is closed, quit quickly without waiting for queued tasks");
     cmd.add(numAnalysisThreadsArg);
     cmd.add(quitWithoutWaitingArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
     numAnalysisThreadsCmdlineSpecified = numAnalysisThreadsArg.isSet();
@@ -154,13 +154,14 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
-    int maxConcurrentEvals = numAnalysisThreads * defaultParams.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    int expectedConcurrentEvals = numAnalysisThreads * defaultParams.numThreads;
-    int defaultMaxBatchSize = -1;
-    string expectedSha256 = "";
+    const int maxConcurrentEvals = numAnalysisThreads * defaultParams.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    const int expectedConcurrentEvals = numAnalysisThreads * defaultParams.numThreads;
+    const bool defaultRequireExactNNLen = false;
+    const int defaultMaxBatchSize = -1;
+    const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
       Setup::SETUP_FOR_ANALYSIS
     );
   }

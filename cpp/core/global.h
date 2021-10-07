@@ -69,6 +69,7 @@ namespace Global
   std::string intToString(int x);
   std::string floatToString(float x);
   std::string doubleToString(double x);
+  std::string doubleToStringHighPrecision(double x);
   std::string int64ToString(int64_t x);
   std::string uint32ToString(uint32_t x);
   std::string uint64ToString(uint64_t x);
@@ -146,25 +147,6 @@ namespace Global
   //Read a memory value, like 16G or 256K.
   uint64_t readMem(const char* str);
   uint64_t readMem(const std::string& str);
-
-  //IO-------------------------------------
-
-  //Read entire file whole
-  std::string readFile(const char* filename);
-  std::string readFile(const std::string& filename);
-  std::string readFileBinary(const char* filename);
-  std::string readFileBinary(const std::string& filename);
-
-  //Read file into separate lines, using the specified delimiter character(s).
-  //The delimiter characters are NOT included.
-  std::vector<std::string> readFileLines(const char* filename, char delimiter);
-  std::vector<std::string> readFileLines(const std::string& filename, char delimiter);
-
-  //Recursively walk a directory and find all the files that match fileFilter.
-  //fileFilter receives just the file name and not the full path, but collected contains the paths.
-  void collectFiles(const std::string& dirname, std::function<bool(const std::string&)> fileFilter, std::vector<std::string>& collected);
-
-  //USER IO----------------------------
 
   //Display a message and ask the user to press a key to continue
   void pauseForKey();
