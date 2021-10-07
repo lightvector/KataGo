@@ -60,13 +60,13 @@ int MainCmds::genbook(const vector<string>& args) {
     cmd.addModelFileArg();
     cmd.addOverrideConfigArg();
 
-    TCLAP::ValueArg<string> htmlDirArg("","html-dir","HTML directory to export to",false,string(),"DIR");
+    TCLAP::ValueArg<string> htmlDirArg("","html-dir","HTML directory to export to, at the end of -num-iters",false,string(),"DIR");
     TCLAP::ValueArg<string> bookFileArg("","book-file","Book file to write to or continue expanding",true,string(),"FILE");
     TCLAP::ValueArg<string> traceBookFileArg("","trace-book-file","Other book file we should copy all the lines from",false,string(),"FILE");
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to write to",true,string(),"DIR");
     TCLAP::ValueArg<string> bonusFileArg("","bonus-file","SGF of bonuses marked",false,string(),"DIR");
-    TCLAP::ValueArg<int> numIterationsArg("","num-iters","Number of iterations to expand book",false,0,"N");
-    TCLAP::ValueArg<int> saveEveryIterationsArg("","save-every","Number of iterations per save",true,0,"N");
+    TCLAP::ValueArg<int> numIterationsArg("","num-iters","Number of iterations to expand book",true,0,"N");
+    TCLAP::ValueArg<int> saveEveryIterationsArg("","save-every","Number of iterations per save to book file",true,0,"N");
     TCLAP::ValueArg<double> traceBookMinVisitsArg("","trace-book-min-visits","Require >= this many visits for copying from traceBookFile",false,0.0,"N");
     TCLAP::SwitchArg allowChangingBookParamsArg("","allow-changing-book-params","Allow changing book params");
     TCLAP::SwitchArg htmlDevModeArg("","html-dev-mode","Denser debug output for html");
