@@ -927,7 +927,8 @@ struct ComputeHandle {
       timingCache.reset(config->createTimingCache(timingCacheBlob.data(), timingCacheBlob.size()));
       saveTimingCache = !config->setTimingCache(*timingCache, false) || !timingCacheBlob.size();
 
-      config->setProfileStream(cudaStreamPerThread);
+      // So that there are no concurrent kernel executions probably from other parts of code
+      config->setProfileStream(cudaStreamLegacy);
     }
 
     builder->setMaxBatchSize(maxBatchSize);
