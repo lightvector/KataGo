@@ -942,7 +942,8 @@ struct ComputeHandle {
 
     if(saveTimingCache) {
       auto serializedTimingCache = unique_ptr<IHostMemory>(config->getTimingCache()->serialize());
-      ofstream ofs(timingCacheFile, ios::out | ios::binary);
+      ofstream ofs;
+      FileUtils::open(ofs, timingCacheFile, ios::out | ios::binary);
       ofs.write(static_cast<char*>(serializedTimingCache->data()), serializedTimingCache->size());
       ofs.close();
     }
