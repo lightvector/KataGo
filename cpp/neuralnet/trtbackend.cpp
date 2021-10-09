@@ -925,7 +925,12 @@ struct ComputeHandle {
         (void)e;
       };
       timingCache.reset(config->createTimingCache(timingCacheBlob.data(), timingCacheBlob.size()));
-      saveTimingCache = !config->setTimingCache(*timingCache, false) || !timingCacheBlob.size();
+      bool invalidTimingCache = !config->setTimingCache(*timingCache, false);
+      if(invalidTimingCache) {
+        timingCache.reset(config->createTimingCache(nullptr, 0));
+        config->setTimingCache(*timingCache, false);
+      }
+      saveTimingCache = invalidTimingCache || !timingCacheBlob.size();
 
       // So that there are no concurrent kernel executions probably from other parts of code
       config->setProfileStream(cudaStreamLegacy);
