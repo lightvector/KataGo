@@ -829,16 +829,17 @@ struct ModelParser {
 };
 
 struct ComputeHandle {
+  ComputeContext* ctx;
+
   bool usingFP16;
   int modelVersion;
-  ComputeContext* ctx;
+  vector<pair<string, Dims>> debugOutputs;
 
   unique_ptr<ICudaEngine> engine;
   unique_ptr<IExecutionContext> exec;
   vector<void*> buffers;
   vector<size_t> bufferBytes;
   vector<size_t> bufferRowElts;
-  vector<pair<string, Dims>> debugOutputs;
 
   ComputeHandle(
     const cudaDeviceProp* prop,
@@ -854,37 +855,30 @@ struct ComputeHandle {
     if(!builder) {
       throw StringError("TensorRT backend: failed to create builder");
     }
-    auto runtime = unique_ptr<IRuntime>(createInferRuntime(ctx->trtLogger));
-    if(!runtime) {
-      throw StringError("TensorRT backend: failed to create runtime");
-    }
-
     auto config = unique_ptr<IBuilderConfig>(builder->createBuilderConfig());
     if(!config) {
       throw StringError("TensorRT backend: failed to create builder config");
     }
 
-    {
-      usingFP16 = false;
-      if(builder->platformHasFastFp16()) {
-        if(ctx->useFP16Mode == enabled_t::True || ctx->useFP16Mode == enabled_t::Auto) {
-          config->setFlag(BuilderFlag::kFP16);
-          usingFP16 = true;
-        }
-      } else if(ctx->useFP16Mode == enabled_t::True) {
-        throw StringError("CUDA device does not support useFP16=true");
+    usingFP16 = false;
+    if(builder->platformHasFastFp16()) {
+      if(ctx->useFP16Mode == enabled_t::True || ctx->useFP16Mode == enabled_t::Auto) {
+        config->setFlag(BuilderFlag::kFP16);
+        usingFP16 = true;
       }
-      config->setFlag(BuilderFlag::kSTRICT_TYPES);
+    } else if(ctx->useFP16Mode == enabled_t::True) {
+      throw StringError("CUDA device does not support useFP16=true");
     }
+    config->setFlag(BuilderFlag::kSTRICT_TYPES);
 
     auto network = unique_ptr<INetworkDefinition>(builder->createNetworkV2(0U));
     if(!network) {
       throw StringError("TensorRT backend: failed to create network definition");
     }
-
-    vector<unique_ptr<float[]>> extraWeights;
     auto modelParser = make_unique<ModelParser>();
     auto model = modelParser->parse(move(network), loadedModel, ctx->nnXLen, ctx->nnYLen, requireExactNNLen);
+
+    debugOutputs = model->debugOutputs;
 
     bool saveTimingCache;
     string timingCacheFile;
@@ -931,22 +925,31 @@ struct ComputeHandle {
         config->setTimingCache(*timingCache, false);
       }
       saveTimingCache = invalidTimingCache || !timingCacheBlob.size();
-
-      // So that there are no concurrent kernel executions probably from other parts of code
-      config->setProfileStream(cudaStreamLegacy);
     }
 
+    // So that there are no concurrent kernel executions probably from other parts of code
+    config->setProfileStream(cudaStreamLegacy);
+
+    // Typical runtime allocation is much less than the 1 GiB specified below
+    config->setMaxWorkspaceSize(1U << 30);
+
     builder->setMaxBatchSize(maxBatchSize);
+
     auto plan = unique_ptr<IHostMemory>(builder->buildSerializedNetwork(*model->network, *config));
     if(!plan) {
       throw StringError("TensorRT backend: failed to create plan");
     }
 
     if(saveTimingCache) {
-      auto serializedTimingCache = config->getTimingCache()->serialize();
+      auto serializedTimingCache = unique_ptr<IHostMemory>(config->getTimingCache()->serialize());
       ofstream ofs(timingCacheFile, ios::out | ios::binary);
       ofs.write(static_cast<char*>(serializedTimingCache->data()), serializedTimingCache->size());
       ofs.close();
+    }
+
+    auto runtime = unique_ptr<IRuntime>(createInferRuntime(ctx->trtLogger));
+    if(!runtime) {
+      throw StringError("TensorRT backend: failed to create runtime");
     }
 
     engine.reset(runtime->deserializeCudaEngine(plan->data(), plan->size()));
@@ -958,26 +961,23 @@ struct ComputeHandle {
       throw StringError("TensorRT backend: failed to create execution context");
     }
 
-    {
-      int numBindings = engine->getNbBindings();
-      buffers.resize(numBindings, nullptr);
-      bufferBytes.resize(numBindings, 0);
-      bufferRowElts.resize(numBindings, 0);
-      for(int i = 0; i < numBindings; i++) {
-        auto dims = engine->getBindingDimensions(i);
-        size_t elts = accumulate(dims.d, dims.d + dims.nbDims, 1, std::multiplies<int>());
-        size_t bytes = maxBatchSize * elts * sizeof(float);
-        bufferRowElts[i] = elts;
-        bufferBytes[i] = bytes;
-        CUDA_ERR("ComputeHandle", cudaMalloc(&buffers[i], bytes));
-      }
-      debugOutputs = model->debugOutputs;
+    int numBindings = engine->getNbBindings();
+    buffers.resize(numBindings, nullptr);
+    bufferBytes.resize(numBindings, 0);
+    bufferRowElts.resize(numBindings, 0);
+    for(int i = 0; i < numBindings; i++) {
+      auto dims = engine->getBindingDimensions(i);
+      size_t elts = accumulate(dims.d, dims.d + dims.nbDims, 1, std::multiplies<int>());
+      size_t bytes = maxBatchSize * elts * sizeof(float);
+      bufferRowElts[i] = elts;
+      bufferBytes[i] = bytes;
+      CUDA_ERR("ComputeHandle", cudaMalloc(&buffers[i], bytes));
     }
   }
 
   ~ComputeHandle() {
     for(auto ptr: buffers) {
-      cudaFree(ptr);
+      CUDA_ERR("~ComputeHandle", cudaFree(ptr));
     }
   }
 
@@ -1016,7 +1016,9 @@ struct ComputeHandle {
       string name = "DBG" + to_string(hash<string>{}(debugOutput.first));
 
       vector<float> values(batchSize * getBufferRowElts(name.c_str()));
-      cudaMemcpy(values.data(), getBuffer(name.c_str()), values.size() * sizeof(float), cudaMemcpyDeviceToHost);
+      CUDA_ERR(
+        "printDebugOutput",
+        cudaMemcpy(values.data(), getBuffer(name.c_str()), values.size() * sizeof(float), cudaMemcpyDeviceToHost));
 
       cout << "=========================================================" << endl;
       cout << desc << endl;
@@ -1068,7 +1070,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   CUDA_ERR("createComputeHandle", cudaSetDevice(gpuIdxForThisThread));
 
   cudaDeviceProp prop;
-  cudaGetDeviceProperties(&prop, gpuIdxForThisThread);
+  CUDA_ERR("createComputeHandle", cudaGetDeviceProperties(&prop, gpuIdxForThisThread));
 
   if(logger != NULL) {
     logger->write(
@@ -1099,10 +1101,10 @@ void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
 
 void NeuralNet::printDevices() {
   int numDevices = 0;
-  cudaGetDeviceCount(&numDevices);
+  CUDA_ERR("printDevices", cudaGetDeviceCount(&numDevices));
   for(int i = 0; i < numDevices; i++) {
     cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, i);
+    CUDA_ERR("printDevices", cudaGetDeviceProperties(&prop, i));
     cout << "Found GPU device " << i << ": " << prop.name << endl;
   }
 }
