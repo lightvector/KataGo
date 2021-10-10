@@ -76,6 +76,8 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
     options = options.maxDepth(20);
   else if(opts.printMore)
     options = options.minVisitsPropToExpand(0.1).maxDepth(2);
+  if(opts.printOwnership)
+    bot->setAlwaysIncludeOwnerMap(true);
 
   for(int i = 0; i<opts.numMovesInARow; i++) {
 
@@ -99,7 +101,15 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
       search->printRootPolicyMap(cout);
     }
     if(opts.printOwnership) {
-      search->printRootOwnershipMap(cout, P_BLACK);
+      std::vector<double> ownership = search->getAverageTreeOwnership(2.0);
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          int pos = NNPos::xyToPos(x,y,search->nnXLen);
+          cout << Global::strprintf("%6.1f ", ownership[pos]*100);
+        }
+        cout << endl;
+      }
+      cout << endl;
     }
     if(opts.printEndingScoreValueBonus) {
       search->printRootOwnershipMap(cout, P_WHITE);
