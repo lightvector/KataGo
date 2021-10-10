@@ -1297,10 +1297,11 @@ void Search::beginSearch(bool pondering) {
   }
 
   if(searchParams.rootSymmetryPruning) {
+    const std::vector<int>& avoidMoveUntilByLoc = rootPla == P_BLACK ? avoidMoveUntilByLocBlack : avoidMoveUntilByLocWhite;
     if(rootPruneOnlySymmetries.size() > 0)
-      SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,&rootPruneOnlySymmetries,rootSymDupLoc,rootSymmetries);
+      SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,&rootPruneOnlySymmetries,avoidMoveUntilByLoc,rootSymDupLoc,rootSymmetries);
     else
-      SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,NULL,rootSymDupLoc,rootSymmetries);
+      SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,NULL,avoidMoveUntilByLoc,rootSymDupLoc,rootSymmetries);
   }
   else {
     //Just in case, don't leave the values undefined.

@@ -181,7 +181,15 @@ namespace SymmetryHelpers {
   //If onlySymmetries is not NULL, will only consider the symmetries specified there.
   //validSymmetries will be filled with all symmetries of the current board, including using history for checking ko/superko and some encore-related state.
   //This implementation is dependent on specific order of the symmetries (i.e. transpose is coded as 0x4)
-  void markDuplicateMoveLocs(const Board& board, const BoardHistory& hist, const std::vector<int>* onlySymmetries, bool* isSymDupLoc, std::vector<int>& validSymmetries);
+  //Will pretend moves that have a nonzero value in avoidMoves do not exist.
+  void markDuplicateMoveLocs(
+    const Board& board,
+    const BoardHistory& hist,
+    const std::vector<int>* onlySymmetries,
+    const std::vector<int>& avoidMoves,
+    bool* isSymDupLoc,
+    std::vector<int>& validSymmetries
+  );
 }
 
 //Utility functions for computing the "scoreValue", the unscaled utility of various numbers of points, prior to multiplication by

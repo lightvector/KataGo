@@ -13932,26 +13932,30 @@ HASH: 9F0B2D702FC8448C75410E097F089AEB
  1 . . . . . . . . .
 
 
-: T   0.27c W   0.27c S   0.00c ( +0.0 L  +0.0) N    5000  --  J1 B7 F1 J3 J2 G5 A6
+: T   0.89c W   0.79c S   0.09c ( +0.1 L  +0.1) N    5000  --  J2 A5 D1 G4 A1 H9 F3
 ---Black(v)---
-J1  : T  -0.13c W  -0.09c S  -0.03c ( -0.0 L  -0.0) LCB    1.55c P  0.13% WF 1112.1 PSV    1101 N    1101  --  J1 B7 F1 J3 J2 G5 A6 H4
-J8  : T   0.16c W   0.06c S   0.11c ( +0.1 L  +0.1) LCB    1.94c P  1.81% WF 996.6 PSV     436 N     994  --  J8 E3 D1 B2 H8 A7 E7 A8
-H8  : T   0.44c W   0.40c S   0.04c ( +0.0 L  +0.0) LCB    2.19c P  1.91% WF 1042.2 PSV     234 N    1047  --  H8 H3 J7 C6 C4 A4 A2 E9
-J2  : T   0.36c W   0.38c S  -0.02c ( -0.0 L  -0.0) LCB    2.45c P  0.95% WF 736.2 PSV     134 N     738  --  J2 G3 H2 F1 G9 B6 E3 F4
-J9  : T   0.45c W   0.46c S  -0.01c ( -0.0 L  -0.0) LCB    2.20c P  0.31% WF 1025.1 PSV      37 N    1030  --  J9 C7 D9 D4 G2 H1 G1 B6
-pss : T   1.97c W   2.66c S  -0.67c ( -0.9 L  -0.9) LCB    8.80c P  0.44% WF  86.9 PSV      14 N      89  --  pass C1 D1 D3 G1 H8 G2
+J2  : T   0.07c W   0.20c S  -0.13c ( -0.2 L  -0.2) LCB    2.18c P  0.95% WF 733.8 PSV     718 N     718  --  J2 A5 D1 G4 A1 H9 F3 A6
+J9  : T  -0.55c W  -0.46c S  -0.08c ( -0.1 L  -0.1) LCB    1.80c P  0.31% WF 591.4 PSV     572 N     572  --  J9 D5 C8 J2 A7 B1 J8
+H8  : T   0.11c W   0.20c S  -0.10c ( -0.1 L  -0.1) LCB    2.40c P  1.91% WF 580.4 PSV     569 N     569  --  H8 J5 G5 E4 G6 H6 E9 B7
+F3  : T  -0.03c W   0.04c S  -0.07c ( -0.1 L  -0.1) LCB    2.35c P  0.77% WF 547.0 PSV     535 N     535  --  F3 D1 G5 A6 G9 H6 B9 C4
+J8  : T   0.94c W   0.85c S   0.08c ( +0.1 L  +0.1) LCB    3.01c P  1.81% WF 686.4 PSV     132 N     685  --  J8 D9 G2 D5 F9 J5 H6 D8
+B8  : T   0.50c W   0.09c S   0.42c ( +0.5 L  +0.5) LCB    3.07c P  0.32% WF 533.0 PSV      43 N     527  --  B8 C3 A9 G3 B3 D2 G1 D5
+E6  : T   0.39c W  -0.05c S   0.43c ( +0.6 L  +0.6) LCB    3.22c P  0.23% WF 493.4 PSV      39 N     487  --  E6 H7 D4 A4 A3 E3 G4
+J1  : T   0.50c W   0.47c S   0.04c ( +0.0 L  +0.0) LCB    3.13c P  0.13% WF 502.5 PSV      17 N     497  --  J1 A1 C5 J8 F3 B3 H7 F4
+pss : T   9.99c W   9.34c S   0.51c ( +0.7 L  +0.7) LCB   16.63c P  0.44% WF 331.1 PSV       3 N     409  --  pass E7 F2 G9 J7 F8 B5
+{"moveInfos":[{"lcb":0.509106307,"move":"J2","order":0,"prior":0.00953233615,"pv":["J2","A5","D1"],"scoreLead":-0.167641079,"scoreMean":-0.167641079,"scoreSelfplay":-0.167641079,"scoreStdev":14.7157529,"utility":0.000685141232,"utilityLcb":0.0217675138,"visits":718,"winrate":0.500997702},{"isSymmetryOf":"J2","lcb":0.509106307,"move":"A8","order":1,"prior":0.00953233615,"pv":["A8","J5","F9"],"scoreLead":-0.167641079,"scoreMean":-0.167641079,"scoreSelfplay":-0.167641079,"scoreStdev":14.7157529,"utility":0.000685141232,"utilityLcb":0.0217675138,"visits":718,"winrate":0.500997702},{"isSymmetryOf":"J2","lcb":0.509106307,"move":"H1","order":2,"prior":0.00953233615,"pv":["H1","E9","J6"],"scoreLead":-0.167641079,"scoreMean":-0.167641079,"scoreSelfplay":-0.167641079,"scoreStdev":14.7157529,"utility":0.000685141232,"utilityLcb":0.0217675138,"visits":718,"winrate":0.500997702},{"lcb":0.506749963,"move":"J9","order":3,"prior":0.00306673371,"pv":["J9","D5","C8"],"scoreLead":-0.108390044,"scoreMean":-0.108390044,"scoreSelfplay":-0.108390044,"scoreStdev":14.3838684,"utility":-0.00547923176,"utilityLcb":0.0180230668,"visits":572,"winrate":0.497710617},{"lcb":0.509855991,"move":"H8","order":4,"prior":0.0191100538,"pv":["H8","J5","G5"],"scoreLead":-0.132959012,"scoreMean":-0.132959012,"scoreSelfplay":-0.132959012,"scoreStdev":14.6546172,"utility":0.001062414,"utilityLcb":0.0240391493,"visits":569,"winrate":0.501018785},{"isSymmetryOf":"H8","lcb":0.509855991,"move":"B2","order":5,"prior":0.0191100538,"pv":["B2","A5","C5"],"scoreLead":-0.132959012,"scoreMean":-0.132959012,"scoreSelfplay":-0.132959012,"scoreStdev":14.6546172,"utility":0.001062414,"utilityLcb":0.0240391493,"visits":569,"winrate":0.501018785},{"lcb":0.509332677,"move":"F3","order":6,"prior":0.00772941997,"pv":["F3","D1","G5"],"scoreLead":-0.0895611691,"scoreMean":-0.0895611691,"scoreSelfplay":-0.0895611691,"scoreStdev":14.5911578,"utility":-0.000252411024,"utilityLcb":0.0235353382,"visits":535,"winrate":0.500183542},{"lcb":0.512249679,"move":"J8","order":7,"prior":0.0181004629,"pv":["J8","D9","G2"],"scoreLead":0.107994758,"scoreMean":0.107994758,"scoreSelfplay":0.107994758,"scoreStdev":14.6203314,"utility":0.00937822681,"utilityLcb":0.0301432825,"visits":685,"winrate":0.504263119},{"isSymmetryOf":"J8","lcb":0.512249679,"move":"A2","order":8,"prior":0.0181004629,"pv":["A2","F1","C8"],"scoreLead":0.107994758,"scoreMean":0.107994758,"scoreSelfplay":0.107994758,"scoreStdev":14.6203314,"utility":0.00937822681,"utilityLcb":0.0301432825,"visits":685,"winrate":0.504263119},{"isSymmetryOf":"J8","lcb":0.512249679,"move":"H9","order":9,"prior":0.0181004629,"pv":["H9","J4","B7"],"scoreLead":0.107994758,"scoreMean":0.107994758,"scoreSelfplay":0.107994758,"scoreStdev":14.6203314,"utility":0.00937822681,"utilityLcb":0.0301432825,"visits":685,"winrate":0.504263119},{"lcb":0.510352887,"move":"B8","order":10,"prior":0.0032065073,"pv":["B8","C3","A9"],"scoreLead":0.54571155,"scoreMean":0.54571155,"scoreSelfplay":0.54571155,"scoreStdev":14.7107324,"utility":0.00496809065,"utilityLcb":0.0306871283,"visits":527,"winrate":0.50046095},{"lcb":0.510594649,"move":"E6","order":11,"prior":0.00231208978,"pv":["E6","H7","D4"],"scoreLead":0.559857949,"scoreMean":0.559857949,"scoreSelfplay":0.559857949,"scoreStdev":14.4790482,"utility":0.00393693149,"utilityLcb":0.0321604762,"visits":487,"winrate":0.49973944},{"lcb":0.512456797,"move":"J1","order":12,"prior":0.0012882523,"pv":["J1","A1","C5"],"scoreLead":0.0490453835,"scoreMean":0.0490453835,"scoreSelfplay":0.0490453835,"scoreStdev":14.7723992,"utility":0.00503646003,"utilityLcb":0.0313387081,"visits":497,"winrate":0.502340547},{"lcb":0.572225894,"move":"pass","order":13,"prior":0.0044304342,"pv":["pass","E7","F2"],"scoreLead":0.655047385,"scoreMean":0.655047385,"scoreSelfplay":0.655047385,"scoreStdev":14.093627,"utility":0.0999387258,"utilityLcb":0.166283556,"visits":409,"winrate":0.546708651}],"rootInfo":{"currentPlayer":"B","scoreLead":-0.0945945072,"scoreSelfplay":-0.0945945072,"scoreStdev":14.5965524,"symHash":"1521075FDD85FFE1B074F776AFC4E49D","thisHash":"1521075FDD85FFE1B074F776AFC4E49D","utility":-0.000113487546,"visits":5000,"winrate":0.500304316}}
 : GPU 0 finishing, processed 0 rows 0 batches
 
 ===================================================================
 Testing pruning of search tree at root node due to symmetries, allowing only diagonal flips: only one diagonal possible, with avoid moves
 ===================================================================
 : Initializing neural net buffer to be size 9 * 9 allowing smaller boards
-HASH: 1F962AE3F425CD796F00BD82D9B57987
+HASH: EB655B89523ECA86574C13166550DA21
    A B C D E F G H J
  9 . . . . . . . . .
  8 . . . . . . . . .
  7 . . . . . . . . .
- 6 . . . O . . . . .
+ 6 . . . . . O . . .
  5 . . . . O . . . .
  4 . . . . . . . . .
  3 . . . . . . . . .
@@ -13959,17 +13963,21 @@ HASH: 1F962AE3F425CD796F00BD82D9B57987
  1 . . . . . . . . .
 
 
-: T   0.11c W   0.12c S   0.00c ( +0.0 L  +0.0) N    5000  --  H9 B9 E6 B5 G2 H3 D5
+: T  -0.14c W  -0.13c S  -0.01c ( -0.0 L  -0.0) N    5000  --  B2 A8 C9 A3 D7 C1 G2
 ---Black(v)---
-H9  : T  -0.02c W   0.00c S  -0.02c ( -0.0 L  -0.0) LCB    0.86c P  3.13% WF 4247.3 PSV    4238 N    4238  --  H9 B9 E6 B5 G2 H3 D5 A9
-H8  : T   1.16c W   1.17c S  -0.00c ( -0.0 L  -0.0) LCB    5.78c P  2.00% WF 139.3 PSV     115 N     142  --  H8 E3 B5 E4 pass F6 B6 H1
-J8  : T   1.36c W   1.53c S  -0.20c ( -0.3 L  -0.3) LCB    6.82c P  1.89% WF 105.8 PSV      93 N     108  --  J8 G5 B5 G8 E8 H1 B4
-J1  : T   0.06c W  -0.12c S   0.17c ( +0.2 L  +0.2) LCB    3.46c P  0.13% WF 299.6 PSV      76 N     300  --  J1 J3 C5 G7 B6 E4 H9 G3
-J2  : T   0.85c W   1.30c S  -0.45c ( -0.6 L  -0.6) LCB    6.84c P  1.00% WF  92.8 PSV      76 N      94  --  J2 E7 H5 D9 H4 B4 C6
-B8  : T   0.64c W   0.40c S   0.24c ( +0.3 L  +0.3) LCB    9.61c P  0.33% WF  46.6 PSV      33 N      47  --  B8 D9 E1 F2 B1 G4 J8 G9
-J9  : T   0.75c W   0.81c S  -0.02c ( -0.0 L  -0.0) LCB   10.42c P  0.32% WF  31.7 PSV      27 N      32  --  J9 G7 J5 H2 A8 C9
-pss : T   4.61c W   3.58c S   2.10c ( +3.4 L  +3.4) LCB   25.12c P  0.46% WF  34.1 PSV       6 N      36  --  pass H3 F6 D7 G9 B7
-E6  : T   6.31c W   4.76c S   1.55c ( +2.0 L  +2.0) LCB  260.00c P  0.24% WF   1.9 PSV       2 N       2  --  E6 A9
+B2  : T  -0.27c W  -0.25c S  -0.02c ( -0.0 L  -0.0) LCB    0.55c P  3.00% WF 4661.2 PSV    4653 N    4653  --  B2 A8 C9 A3 D7 C1 G2 B4
+H8  : T   1.19c W   0.89c S   0.29c ( +0.4 L  +0.4) LCB    7.21c P  2.01% WF 100.7 PSV      94 N     103  --  H8 E3 D4 C4 G1 F4 B5 B3
+J8  : T   2.06c W   2.20c S  -0.15c ( -0.2 L  -0.2) LCB    7.92c P  1.90% WF  73.5 PSV      56 N      76  --  J8 J3 F7 H9 A2 G9
+pss : T   0.31c W   0.31c S  -0.00c ( -0.0 L  -0.0) LCB    9.57c P  0.47% WF  56.5 PSV      52 N      57  --  pass B3 H5 G4 D3 B7 C4
+F3  : T   0.99c W   1.39c S  -0.40c ( -0.5 L  -0.5) LCB   10.38c P  0.81% WF  43.3 PSV      43 N      44  --  F3 E1 H3 D8 H6 H9 B2
+J2  : T   1.69c W   1.09c S   0.58c ( +0.8 L  +0.8) LCB   10.98c P  1.00% WF  41.0 PSV      35 N      42  --  J2 pass G6 A2 J7 C8
+J9  : T   1.96c W   1.39c S   0.56c ( +0.7 L  +0.7) LCB   26.63c P  0.32% WF  12.7 PSV      10 N      13  --  J9 A7 A6 F3 H9
+A2  : T  13.35c W  11.49c S   1.84c ( +2.4 L  +2.4) LCB  148.77c P  0.67% WF   3.6 PSV       3 N       4  --  A2 C5 C1 J3
+H1  : T  10.42c W  11.19c S  -0.69c ( -0.9 L  -0.9) LCB  114.16c P  0.57% WF   3.7 PSV       3 N       4  --  H1 F5 B8
+B8  : T  19.04c W  16.82c S   2.23c ( +2.8 L  +2.8) LCB  260.00c P  0.34% WF   0.9 PSV       1 N       1  --  B8
+J1  : T   4.65c W   7.07c S  -2.41c ( -3.1 L  -3.1) LCB  260.00c P  0.14% WF   1.0 PSV       1 N       1  --  J1
+E6  : T  36.50c W  37.29c S  -0.79c ( -1.0 L  -1.0) LCB  260.00c P  0.24% WF   0.8 PSV       0 N       1  --  E6
+{"moveInfos":[{"lcb":0.501920216,"move":"B2","order":0,"prior":0.029950859,"pv":["B2","A8","C9"],"scoreLead":-0.0271377201,"scoreMean":-0.0271377201,"scoreSelfplay":-0.0271377201,"scoreStdev":14.6146881,"utility":-0.0026918095,"utilityLcb":0.00554841687,"visits":4653,"winrate":0.498750898},{"lcb":0.527650318,"move":"H8","order":1,"prior":0.0200923719,"pv":["H8","E3","D4"],"scoreLead":0.375398618,"scoreMean":0.375398618,"scoreSelfplay":0.375398618,"scoreStdev":14.4006812,"utility":0.0118695385,"utilityLcb":0.0721418747,"visits":103,"winrate":0.50446865},{"lcb":0.533551303,"move":"J8","order":2,"prior":0.0190308858,"pv":["J8","J3","F7"],"scoreLead":-0.194793588,"scoreMean":-0.194793588,"scoreSelfplay":-0.194793588,"scoreStdev":14.6544964,"utility":0.0205537303,"utilityLcb":0.0791787447,"visits":76,"winrate":0.51100322},{"isSymmetryOf":"J8","lcb":0.533551303,"move":"H9","order":3,"prior":0.0190308858,"pv":["H9","C9","G6"],"scoreLead":-0.194793588,"scoreMean":-0.194793588,"scoreSelfplay":-0.194793588,"scoreStdev":14.6544964,"utility":0.0205537303,"utilityLcb":0.0791787447,"visits":76,"winrate":0.51100322},{"lcb":0.537163558,"move":"pass","order":4,"prior":0.00465817284,"pv":["pass","B3","H5"],"scoreLead":-0.00341014716,"scoreMean":-0.00341014716,"scoreSelfplay":-0.00341014716,"scoreStdev":14.2893373,"utility":0.00308669213,"utilityLcb":0.0956799168,"visits":57,"winrate":0.50155078},{"lcb":0.543027882,"move":"F3","order":5,"prior":0.00812673662,"pv":["F3","E1","H3"],"scoreLead":-0.535822119,"scoreMean":-0.535822119,"scoreSelfplay":-0.535822119,"scoreStdev":15.2700042,"utility":0.00992310119,"utilityLcb":0.103777714,"visits":44,"winrate":0.506929954},{"lcb":0.541172215,"move":"J2","order":6,"prior":0.0100223292,"pv":["J2","pass","G6"],"scoreLead":0.771158214,"scoreMean":0.771158214,"scoreSelfplay":0.771158214,"scoreStdev":15.0209527,"utility":0.0168586292,"utilityLcb":0.109792049,"visits":42,"winrate":0.505428592},{"lcb":0.601853135,"move":"J9","order":7,"prior":0.00322437356,"pv":["J9","A7","A6"],"scoreLead":0.727085698,"scoreMean":0.727085698,"scoreSelfplay":0.727085698,"scoreStdev":14.466026,"utility":0.0196166304,"utilityLcb":0.266334754,"visits":13,"winrate":0.506961549},{"lcb":1.07831287,"move":"A2","order":8,"prior":0.00666697044,"pv":["A2","C5","C1"],"scoreLead":2.39972025,"scoreMean":2.39972025,"scoreSelfplay":2.39972025,"scoreStdev":14.3470556,"utility":0.133472621,"utilityLcb":1.48772514,"visits":4,"winrate":0.557446513},{"lcb":0.954974849,"move":"H1","order":9,"prior":0.00566810137,"pv":["H1","F5","B8"],"scoreLead":-0.920062361,"scoreMean":-0.920062361,"scoreSelfplay":-0.920062361,"scoreStdev":15.272227,"utility":0.104153988,"utilityLcb":1.14163166,"visits":4,"winrate":0.555944973},{"isSymmetryOf":"H1","lcb":0.954974849,"move":"A8","order":10,"prior":0.00566810137,"pv":["A8","E6","H2"],"scoreLead":-0.920062361,"scoreMean":-0.920062361,"scoreSelfplay":-0.920062361,"scoreStdev":15.272227,"utility":0.104153988,"utilityLcb":1.14163166,"visits":4,"winrate":0.555944973},{"lcb":1.58409144,"move":"B8","order":11,"prior":0.00337133207,"pv":["B8"],"scoreLead":2.81668282,"scoreMean":2.81668282,"scoreSelfplay":2.81668282,"scoreStdev":13.2270377,"utility":0.190447081,"utilityLcb":2.6,"visits":1,"winrate":0.58409144},{"lcb":1.53534186,"move":"J1","order":12,"prior":0.0013544726,"pv":["J1"],"scoreLead":-3.10366964,"scoreMean":-3.10366964,"scoreSelfplay":-3.10366964,"scoreStdev":13.7766328,"utility":0.0465341326,"utilityLcb":2.6,"visits":1,"winrate":0.535341859},{"lcb":1.6864468,"move":"E6","order":13,"prior":0.00243093865,"pv":["E6"],"scoreLead":-1.02523935,"scoreMean":-1.02523935,"scoreSelfplay":-1.02523935,"scoreStdev":14.4113205,"utility":0.36503436,"utilityLcb":2.6,"visits":1,"winrate":0.686446801}],"rootInfo":{"currentPlayer":"B","scoreLead":-0.018539179,"scoreSelfplay":-0.018539179,"scoreStdev":14.6162129,"symHash":"614F71A6A07371EB9279EA69B59CA457","thisHash":"614F71A6A07371EB9279EA69B59CA457","utility":-0.00162583538,"visits":5000,"winrate":0.499249808}}
 : GPU 0 finishing, processed 0 rows 0 batches
 
 ===================================================================

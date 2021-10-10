@@ -1075,6 +1075,10 @@ void Search::getAnalysisData(
         Loc symMove = SymmetryHelpers::getSymLoc(data.move, rootBoard, symmetry);
         if(contains(isDone,symMove))
           continue;
+        const std::vector<int>& avoidMoveUntilByLoc = rootPla == P_BLACK ? avoidMoveUntilByLocBlack : avoidMoveUntilByLocWhite;
+        if(avoidMoveUntilByLoc.size() > 0 && avoidMoveUntilByLoc[symMove] > 0)
+          continue;
+
         isDone.insert(symMove);
         newBuf.push_back(data);
         //Replace the fields that need to be adjusted for symmetry
