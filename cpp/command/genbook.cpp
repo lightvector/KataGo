@@ -142,6 +142,8 @@ int MainCmds::genbook(const vector<string>& args) {
   const int numToExpandPerIteration = cfg.getInt("numToExpandPerIteration",1,10000000);
 
   std::map<BookHash,double> bonusByHash;
+  Board bonusInitialBoard(boardSizeX,boardSizeY);
+  Player bonusInitialPla = P_BLACK;
   if(bonusFile != "") {
     Sgf* sgf = Sgf::loadFile(bonusFile);
     std::set<Hash128> uniqueHashes;
@@ -170,6 +172,16 @@ int MainCmds::genbook(const vector<string>& args) {
         }
       }
     );
+
+    XYSize xySize = sgf->getXYSize();
+    if(boardSizeX != xySize.x || boardSizeY != xySize.y)
+      throw StringError("Board size in config does not match the board size of the bonus file");
+    vector<Move> placements;
+    sgf->getPlacements(placements,boardSizeX,boardSizeY);
+    for(const Move& move: placements) {
+      bonusInitialBoard.setStone(move.loc,move.pla);
+    }
+    bonusInitialPla = sgf->getFirstPlayerColor();
   }
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
@@ -217,6 +229,21 @@ int MainCmds::genbook(const vector<string>& args) {
     ) {
       throw StringError("Book parameters do not match");
     }
+    if(bonusFile != "") {
+      if(!bonusInitialBoard.isEqualForTesting(book->getInitialHist().getRecentBoard(0), false, false))
+        throw StringError(
+          "Book initial board and initial board in bonus sgf file do not match\n" +
+          Board::toStringSimple(book->getInitialHist().getRecentBoard(0),'\n') + "\n" +
+          Board::toStringSimple(bonusInitialBoard,'\n')
+        );
+      if(bonusInitialPla != book->initialPla)
+        throw StringError(
+          "Book initial player and initial player in bonus sgf file do not match\n" +
+          PlayerIO::playerToString(book->initialPla) + " book \n" +
+          PlayerIO::playerToString(bonusInitialPla) + " bonus"
+        );
+    }
+
     if(!allowChangingBookParams) {
       if(
         errorFactor != book->getErrorFactor() ||
@@ -270,10 +297,15 @@ int MainCmds::genbook(const vector<string>& args) {
     logger.write("Loaded preexisting book with " + Global::uint64ToString(book->size()) + " nodes from " + bookFile);
   }
   else {
+    {
+      ostringstream bout;
+      Board::printBoard(bout, bonusInitialBoard, Board::NULL_LOC, NULL);
+      logger.write("Initializing new book with starting position:\n" + bout.str());
+    }
     book = new Book(
-      Board(boardSizeX,boardSizeY),
+      bonusInitialBoard,
       rules,
-      P_BLACK,
+      bonusInitialPla,
       repBound,
       errorFactor,
       costPerMove,
