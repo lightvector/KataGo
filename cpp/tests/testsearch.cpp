@@ -101,11 +101,21 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
       search->printRootPolicyMap(cout);
     }
     if(opts.printOwnership) {
-      std::vector<double> ownership = search->getAverageTreeOwnership(2.0);
+      std::tuple<std::vector<double>,std::vector<double>> ownershipAndStdev = search->getAverageAndStandardDeviationTreeOwnership(2.0);
+      std::vector<double> ownership = std::get<0>(ownershipAndStdev);
+      std::vector<double> ownershipStdev = std::get<1>(ownershipAndStdev);
       for(int y = 0; y<board.y_size; y++) {
         for(int x = 0; x<board.x_size; x++) {
           int pos = NNPos::xyToPos(x,y,search->nnXLen);
           cout << Global::strprintf("%6.1f ", ownership[pos]*100);
+        }
+        cout << endl;
+      }
+      cout << endl;
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          int pos = NNPos::xyToPos(x,y,search->nnXLen);
+          cout << Global::strprintf("%6.1f ", ownershipStdev[pos]*100);
         }
         cout << endl;
       }
