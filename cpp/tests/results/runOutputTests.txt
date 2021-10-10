@@ -13916,6 +13916,63 @@ pss : T  19.56c W  10.15c S   9.41c (+12.7 L +12.7) LCB  260.00c P  0.46% WF   0
 : GPU 0 finishing, processed 0 rows 0 batches
 
 ===================================================================
+Testing pruning of search tree at root node due to symmetries, allowing only diagonal flips: empty board, with avoid moves
+===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
+HASH: 9F0B2D702FC8448C75410E097F089AEB
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+: T   0.27c W   0.27c S   0.00c ( +0.0 L  +0.0) N    5000  --  J1 B7 F1 J3 J2 G5 A6
+---Black(v)---
+J1  : T  -0.13c W  -0.09c S  -0.03c ( -0.0 L  -0.0) LCB    1.55c P  0.13% WF 1112.1 PSV    1101 N    1101  --  J1 B7 F1 J3 J2 G5 A6 H4
+J8  : T   0.16c W   0.06c S   0.11c ( +0.1 L  +0.1) LCB    1.94c P  1.81% WF 996.6 PSV     436 N     994  --  J8 E3 D1 B2 H8 A7 E7 A8
+H8  : T   0.44c W   0.40c S   0.04c ( +0.0 L  +0.0) LCB    2.19c P  1.91% WF 1042.2 PSV     234 N    1047  --  H8 H3 J7 C6 C4 A4 A2 E9
+J2  : T   0.36c W   0.38c S  -0.02c ( -0.0 L  -0.0) LCB    2.45c P  0.95% WF 736.2 PSV     134 N     738  --  J2 G3 H2 F1 G9 B6 E3 F4
+J9  : T   0.45c W   0.46c S  -0.01c ( -0.0 L  -0.0) LCB    2.20c P  0.31% WF 1025.1 PSV      37 N    1030  --  J9 C7 D9 D4 G2 H1 G1 B6
+pss : T   1.97c W   2.66c S  -0.67c ( -0.9 L  -0.9) LCB    8.80c P  0.44% WF  86.9 PSV      14 N      89  --  pass C1 D1 D3 G1 H8 G2
+: GPU 0 finishing, processed 0 rows 0 batches
+
+===================================================================
+Testing pruning of search tree at root node due to symmetries, allowing only diagonal flips: only one diagonal possible, with avoid moves
+===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
+HASH: 1F962AE3F425CD796F00BD82D9B57987
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . O . . . . .
+ 5 . . . . O . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+: T   0.11c W   0.12c S   0.00c ( +0.0 L  +0.0) N    5000  --  H9 B9 E6 B5 G2 H3 D5
+---Black(v)---
+H9  : T  -0.02c W   0.00c S  -0.02c ( -0.0 L  -0.0) LCB    0.86c P  3.13% WF 4247.3 PSV    4238 N    4238  --  H9 B9 E6 B5 G2 H3 D5 A9
+H8  : T   1.16c W   1.17c S  -0.00c ( -0.0 L  -0.0) LCB    5.78c P  2.00% WF 139.3 PSV     115 N     142  --  H8 E3 B5 E4 pass F6 B6 H1
+J8  : T   1.36c W   1.53c S  -0.20c ( -0.3 L  -0.3) LCB    6.82c P  1.89% WF 105.8 PSV      93 N     108  --  J8 G5 B5 G8 E8 H1 B4
+J1  : T   0.06c W  -0.12c S   0.17c ( +0.2 L  +0.2) LCB    3.46c P  0.13% WF 299.6 PSV      76 N     300  --  J1 J3 C5 G7 B6 E4 H9 G3
+J2  : T   0.85c W   1.30c S  -0.45c ( -0.6 L  -0.6) LCB    6.84c P  1.00% WF  92.8 PSV      76 N      94  --  J2 E7 H5 D9 H4 B4 C6
+B8  : T   0.64c W   0.40c S   0.24c ( +0.3 L  +0.3) LCB    9.61c P  0.33% WF  46.6 PSV      33 N      47  --  B8 D9 E1 F2 B1 G4 J8 G9
+J9  : T   0.75c W   0.81c S  -0.02c ( -0.0 L  -0.0) LCB   10.42c P  0.32% WF  31.7 PSV      27 N      32  --  J9 G7 J5 H2 A8 C9
+pss : T   4.61c W   3.58c S   2.10c ( +3.4 L  +3.4) LCB   25.12c P  0.46% WF  34.1 PSV       6 N      36  --  pass H3 F6 D7 G9 B7
+E6  : T   6.31c W   4.76c S   1.55c ( +2.0 L  +2.0) LCB  260.00c P  0.24% WF   1.9 PSV       2 N       2  --  E6 A9
+: GPU 0 finishing, processed 0 rows 0 batches
+
+===================================================================
 Non-square board search
 ===================================================================
 : Initializing neural net buffer to be size 7 * 17 allowing smaller boards
