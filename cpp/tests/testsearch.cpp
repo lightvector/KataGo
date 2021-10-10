@@ -1252,6 +1252,105 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
     nnEval->spawnServerThreads();
   }
 
+  {
+    cout << "AntiMirror white ==========================================================================" << endl;
+
+    string sgfStr = "(;KM[7.5]SZ[19];B[pd];W[dp];B[pp];W[dd];B[cc];W[qq];B[dc];W[pq];B[op];W[ed];B[qp];W[cd];B[ec];W[oq];B[nq];W[fc];B[mp];W[gd];B[rp];W[bd];B[fq];W[nc];B[pi];W[dk];B[fe];W[no];B[cq];W[qc];B[pc];W[dq];B[cp];W[qd];B[do];W[pe];B[oe];W[eo];B[en];W[of];B[nf];W[fn];B[fd];W[np];B[mo];W[ge];B[fo];W[ne];B[od];W[ep];B[gn];W[mf];B[ng];W[fm];B[dn];W[pf];B[ff];W[nn];B[nd];W[fp];B[go];W[me];B[mr];W[gb];B[md];W[gp];B[gm];W[mg];B[mh];W[gl];B[hp];W[ld];B[lc];W[hq];B[fl];W[nh];B[gq];W[mc];B[pb];W[dr];B[hr];W[lb];B[kc];W[iq];B[ir];W[kb];B[hc];W[lq];B[og];W[em];B[hl];W[lh];B[mi];W[gk];B[le];W[ho];B[in];W[kf];B[jq];W[jc];B[pg];W[dm];B[kd];W[ip];B[mq];W[gc];B[bn];W[rf];B[cm];W[qg];B[qh];W[cl];B[rg];W[bm];B[cn];W[qf];B[li];W[hk];B[il];W[kh];B[rh];W[bl];B[bo];W[re];B[ik];W[ki];B[kj];W[ij];B[jj])";
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+    {
+      Board board;
+      Player nextPla;
+      BoardHistory hist;
+      Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
+      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 24);
+      SearchParams params = SearchParams::forTestsV1();
+      params.maxVisits = 200;
+      params.antiMirror = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "antimirrortest");
+
+      TestSearchOptions opts;
+      runBotOnPosition(bot,board,nextPla,hist,opts);
+      delete bot;
+    }
+    {
+      Board board;
+      Player nextPla;
+      BoardHistory hist;
+      Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
+      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 32);
+      SearchParams params = SearchParams::forTestsV1();
+      params.maxVisits = 200;
+      params.antiMirror = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "antimirrortest");
+
+      TestSearchOptions opts;
+      runBotOnPosition(bot,board,nextPla,hist,opts);
+      delete bot;
+    }
+    {
+      Board board;
+      Player nextPla;
+      BoardHistory hist;
+      Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
+      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 124);
+      SearchParams params = SearchParams::forTestsV1();
+      params.maxVisits = 200;
+      params.antiMirror = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "antimirrortest");
+
+      TestSearchOptions opts;
+      runBotOnPosition(bot,board,nextPla,hist,opts);
+      delete bot;
+    }
+
+    cout << endl << endl;
+
+    delete sgf;
+  }
+
+  {
+    cout << "AntiMirror black negkomi ==========================================================================" << endl;
+
+    string sgfStr = "(;SZ[19]KM[-3.50];B[jj];W[pd];B[dp];W[dd];B[pp];W[cn];B[qf];W[nq];B[fc];W[qn];B[cf];W[df];B[pn];W[pm];B[dg];W[po];B[de];W[fd];B[np];W[mp];B[gd];W[ed];B[op];W[on];B[ef];W[gc];B[mq];W[lq];B[hc];W[jk];B[ji];W[ik];B[ki];W[ij];B[kj];W[gb];B[mr];W[ic];B[kq];W[pf];B[dn];W[do];B[pe];W[qe];B[co];W[lp];B[hd];W[eo];B[oe];W[qg];B[cm];W[bn];B[rf];W[qd];B[cp];W[hb];B[lr];W[bm];B[rg];W[of];B[en];W[fn];B[nf];W[qh];B[cl];W[ck];B[qi];W[ne];B[fo];W[ep];B[od];W[ng];B[fm];W[gn];B[mf];W[mg];B[gm];W[lf];B[hn];W[rh];B[bl];W[me];B[go];W[ii];B[kk];W[kl])";
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+    {
+      Board board;
+      Player nextPla;
+      BoardHistory hist;
+      Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
+      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 29);
+      SearchParams params = SearchParams::forTestsV1();
+      params.maxVisits = 200;
+      params.antiMirror = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "antimirrortest");
+
+      TestSearchOptions opts;
+      runBotOnPosition(bot,board,nextPla,hist,opts);
+      delete bot;
+    }
+    {
+      Board board;
+      Player nextPla;
+      BoardHistory hist;
+      Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
+      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 83);
+      SearchParams params = SearchParams::forTestsV1();
+      params.maxVisits = 200;
+      params.antiMirror = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "antimirrortest");
+
+      TestSearchOptions opts;
+      runBotOnPosition(bot,board,nextPla,hist,opts);
+      delete bot;
+    }
+
+    cout << endl << endl;
+
+    delete sgf;
+  }
+
 }
 
 static void runMoreV8Tests(NNEvaluator* nnEval, Logger& logger)
