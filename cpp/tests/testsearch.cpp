@@ -21,6 +21,7 @@ static string getSearchRandSeed() {
 struct TestSearchOptions {
   int numMovesInARow;
   bool printRootPolicy;
+  bool printOwnership;
   bool printEndingScoreValueBonus;
   bool printPlaySelectionValues;
   bool noClearBot;
@@ -32,6 +33,7 @@ struct TestSearchOptions {
   TestSearchOptions()
     :numMovesInARow(1),
      printRootPolicy(false),
+     printOwnership(false),
      printEndingScoreValueBonus(false),
      printPlaySelectionValues(false),
      noClearBot(false),
@@ -95,6 +97,9 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
 
     if(opts.printRootPolicy) {
       search->printRootPolicyMap(cout);
+    }
+    if(opts.printOwnership) {
+      search->printRootOwnershipMap(cout, P_BLACK);
     }
     if(opts.printEndingScoreValueBonus) {
       search->printRootOwnershipMap(cout, P_WHITE);
@@ -216,7 +221,6 @@ static void runBasicPositions(NNEvaluator* nnEval, Logger& logger)
       cout << endl;
 
       string sgfStr = "(;SZ[19]FF[3]PW[An Seong-chun]WR[6d]PB[Chen Yaoye]BR[9d]DT[2016-07-02]KM[7.5]RU[Chinese]RE[B+R];B[qd];W[dc];B[pq];W[dp];B[nc];W[po];B[qo];W[qn];B[qp];W[pm];B[nq];W[qi];B[qg];W[oi];B[cn];W[ck];B[fp];W[co];B[dn];W[eo];B[cq];W[dq];B[bo];W[cp];B[bp];W[bq];B[fn];W[bm];B[bn];W[fo];B[go];W[cr];B[en];W[gn];B[ho];W[gm];B[er];W[dr];B[ek];W[di];B[in];W[gk];B[cl];W[dk];B[ej];W[dl];B[el];W[gi];B[fi];W[ch];B[gh];W[hi];B[hh];W[ii];B[eh];W[df];B[ih];W[ji];B[kg];W[fg];B[ff];W[gf];B[eg];W[ef];B[fe];W[ge];B[fd];W[gg];B[fh];W[gd];B[cg];W[dg];B[dh];W[bg];B[bh];W[cf];B[ci];W[qc];B[pc];W[mp];B[on];W[mn];B[om];W[iq];B[pn];W[ol];B[qm];W[pl];B[rn];W[gq];B[kn];W[jo];B[ko];W[jp];B[jn];W[li];B[mo];W[pb];B[rc];W[oc];B[qb];W[od];B[cg];W[pd];B[dd];W[fc];B[ec];W[eb];B[ed];W[cd];B[fb];W[gc];B[db];W[cc];B[ea];W[gb];B[cb];W[bb];B[be];W[ce];B[bf];W[bd];B[ag];W[ca];B[jc];W[qe];B[ep];W[do];B[gp];W[fr];B[qc];W[nb];B[ib];W[je];B[re];W[kd];B[ba];W[aa];B[lc];W[ha];B[ld];W[le];B[me];W[mb];B[ie];W[id];B[kc];W[if];B[lf];W[ke];B[nd];W[of];B[jh];W[qf];B[rf];W[pg];B[mh];W[mq];B[mi];W[mj];B[hl];W[kh];B[jf];W[gl];B[lo];W[np];B[nr];W[kq];B[no];W[he];B[mf];W[rg];B[kk];W[jk];B[kj];W[ki];B[kl];W[lj];B[qk];W[ml];B[pa];W[ob];B[hb];W[ga];B[op];W[mr];B[ms];W[ls];B[ns];W[lq];B[pj];W[oj];B[ng];W[qh];B[eq];W[es];B[rj];W[im];B[jj];W[ik];B[jl];W[il];B[hn];W[hm];B[nm];W[mm];B[nl];W[nk];B[sf];W[ri];B[ql];W[ok];B[qj];W[lb];B[hq];W[hr];B[hp])";
-
 
       runBotOnSgf(bot, sgfStr, rules, 20, 7.5, opts);
       runBotOnSgf(bot, sgfStr, rules, 40, 7.5, opts);
@@ -395,6 +399,14 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
 
     nnEvalPTemp->clearCache();
     nnEvalPTemp->clearStats();
+    cout << endl << endl;
+
+    SearchParams params;
+    params.maxVisits = 200;
+    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "seed");
+    TestSearchOptions opts;
+    opts.printOwnership = true;
+    runBotOnSgf(bot, sgfStr, initialRules, 40, 7.5, opts);
     cout << endl << endl;
 
     delete sgf;
