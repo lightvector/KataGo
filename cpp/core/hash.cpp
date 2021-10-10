@@ -55,6 +55,31 @@ uint64_t Hash::splitMix64(uint64_t x)
   return x ^ (x >> 31);
 }
 
+static uint64_t rotateRight(uint64_t x, int r) {
+  return (x >> r) | (x << (64 - r));
+}
+
+//algorithm from Pelle Evensen https://mostlymangling.blogspot.com/
+uint64_t Hash::rrmxmx(uint64_t x)
+{
+  x ^= rotateRight(x,49) ^ rotateRight(x,24);
+  x *= 0x9fb21c651e98df25ULL;
+  x ^= x >> 28;
+  x *= 0x9fb21c651e98df25ULL;
+  return x ^ (x >> 28);
+}
+//algorithm from Pelle Evensen https://mostlymangling.blogspot.com/
+uint64_t Hash::nasam(uint64_t x)
+{
+  x ^= rotateRight(x,25) ^ rotateRight(x,47);
+  x *= 0x9e6c63d0676a9a99ULL;
+  x ^= (x >> 23) ^ (x >> 51);
+  x *= 0x9e6d62d06f6a9a9bULL;
+  x ^= (x >> 23) ^ (x >> 51);
+  return x;
+}
+
+
 //Robert Jenkins' 96 bit Mix Function
 uint32_t Hash::jenkinsMixSingle(uint32_t a, uint32_t b, uint32_t c)
 {
@@ -136,4 +161,20 @@ ostream& operator<<(ostream& out, const Hash128 other)
 
 string Hash128::toString() const {
   return Global::uint64ToHexString(hash1) + Global::uint64ToHexString(hash0);
+}
+
+Hash128 Hash128::ofString(const string& s) {
+  if(s.size() != 32)
+    throw IOError("Could not parse as Hash128: " + s);
+  for(char c: s) {
+    if(!(c >= '0' && c <= '9') &&
+       !(c >= 'A' && c <= 'F') &&
+       !(c >= 'a' && c <= 'f')
+    ) {
+      throw IOError("Could not parse as Hash128: " + s);
+    }
+  }
+  uint64_t h1 = Global::stringToUInt64(s.substr(0,16));
+  uint64_t h0 = Global::stringToUInt64(s.substr(16,16));
+  return Hash128(h0,h1);
 }

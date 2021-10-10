@@ -13,11 +13,10 @@
 
 using namespace std;
 
-int MainCmds::tuner(int argc, const char* const* argv) {
+int MainCmds::tuner(const vector<string>& args) {
 #ifndef USE_OPENCL_BACKEND
   cout << "Currently this command only does anything for the OpenCL version of KataGo" << endl;
-  (void)argc;
-  (void)argv;
+  (void)args;
   return 0;
 #else
 
@@ -75,7 +74,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     cmd.add(fullArg);
     cmd.add(verboseErrorsArg);
     cmd.add(verboseTunerArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
     outputFile = outputFileArg.getValue();

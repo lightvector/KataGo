@@ -18,8 +18,17 @@ ReportedSearchValues::ReportedSearchValues()
 {}
 ReportedSearchValues::~ReportedSearchValues()
 {}
-ReportedSearchValues::ReportedSearchValues(const Search& search, double winLossValueAvg, double noResultValueAvg, double scoreMeanAvg, double scoreMeanSqAvg,
-                                           double leadAvg, double utilityAvg, int64_t totalVisits) {
+ReportedSearchValues::ReportedSearchValues(
+  const Search& search,
+  double winLossValueAvg,
+  double noResultValueAvg,
+  double scoreMeanAvg,
+  double scoreMeanSqAvg,
+  double leadAvg,
+  double utilityAvg,
+  double totalWeight,
+  int64_t totalVisits
+) {
   winLossValue = winLossValueAvg;
   noResultValue = noResultValueAvg;
   double scoreMean = scoreMeanAvg;
@@ -46,8 +55,9 @@ ReportedSearchValues::ReportedSearchValues(const Search& search, double winLossV
   if(winValue > 1.0) winValue = 1.0;
   if(lossValue < 0.0) lossValue = 0.0;
   if(lossValue > 1.0) lossValue = 1.0;
-  visits = totalVisits;
 
+  weight = totalWeight;
+  visits = totalVisits;
 }
 
 
@@ -419,6 +429,8 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
   :rootPla(P_BLACK),
    rootBoard(),rootHistory(),rootHintLoc(Board::NULL_LOC),
    avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),
+   rootSymmetries(),
+   rootPruneOnlySymmetries(),
    rootSafeArea(NULL),
    recentScoreCenter(0.0),
    mirroringPla(C_EMPTY),
@@ -660,6 +672,14 @@ void Search::setAlwaysIncludeOwnerMap(bool b) {
     clearSearch();
   alwaysIncludeOwnerMap = b;
 }
+
+void Search::setRootSymmetryPruningOnly(const std::vector<int>& v) {
+  if(rootPruneOnlySymmetries == v)
+    return;
+  clearSearch();
+  rootPruneOnlySymmetries = v;
+}
+
 
 void Search::setParams(SearchParams params) {
   clearSearch();
@@ -1276,6 +1296,19 @@ void Search::beginSearch(bool pondering) {
       rootNode->patternBonusHash = Hash128();
   }
 
+  if(searchParams.rootSymmetryPruning) {
+    if(rootPruneOnlySymmetries.size() > 0)
+      SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,&rootPruneOnlySymmetries,rootSymDupLoc,rootSymmetries);
+    else
+      SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,NULL,rootSymDupLoc,rootSymmetries);
+  }
+  else {
+    //Just in case, don't leave the values undefined.
+    std::fill(rootSymDupLoc,rootSymDupLoc+Board::MAX_ARR_SIZE, false);
+    rootSymmetries.clear();
+    rootSymmetries.push_back(0);
+  }
+
   SearchThread dummyThread(-1, *this);
 
   if(rootNode == NULL) {
@@ -1404,7 +1437,7 @@ void Search::applyRecursivelyPostOrderMulithreaded(const vector<SearchNode*>& no
         applyRecursivelyPostOrderMulithreadedHelper(nodes[i],threadIdx,rand,f);
     }
     else {
-      int offset = ((int)rand->nextUInt() + threadIdx) % numChildren;
+      int offset = (int)((rand->nextUInt() + (uint32_t)threadIdx) % numChildren);
       for(int i = offset; i<numChildren; i++)
         applyRecursivelyPostOrderMulithreadedHelper(nodes[i],threadIdx,rand,f);
       for(int i = 0; i<offset; i++)
@@ -2049,6 +2082,11 @@ bool Search::isAllowedRootMove(Loc moveLoc) const {
        (rootSafeArea[moveLoc] == opp || rootSafeArea[moveLoc] == rootPla))
       return false;
   }
+
+  if(searchParams.rootSymmetryPruning && moveLoc != Board::PASS_LOC && rootSymDupLoc[moveLoc]) {
+    return false;
+  }
+
   return true;
 }
 
@@ -2698,11 +2736,9 @@ void Search::selectBestChildToDescend(
       //     out << "ouch" << "\n";
       //   }
       // }
-      if(selectionValue > maxSelectionValue) {
-        maxSelectionValue = selectionValue;
-        bestChildIdx = i;
-        bestChildMoveLoc = moveLoc;
-      }
+      maxSelectionValue = selectionValue;
+      bestChildIdx = i;
+      bestChildMoveLoc = moveLoc;
     }
 
     posesWithChildBuf[getPos(moveLoc)] = true;
@@ -3152,10 +3188,10 @@ bool Search::initNodeNNOutput(
   std::shared_ptr<NNOutput>* result;
   if(isRoot && searchParams.rootNumSymmetriesToSample > 1) {
     vector<shared_ptr<NNOutput>> ptrs;
-    std::array<int, NNInputs::NUM_SYMMETRY_COMBINATIONS> symmetryIndexes;
+    std::array<int, SymmetryHelpers::NUM_SYMMETRIES> symmetryIndexes;
     std::iota(symmetryIndexes.begin(), symmetryIndexes.end(), 0);
     for(int i = 0; i<searchParams.rootNumSymmetriesToSample; i++) {
-      std::swap(symmetryIndexes[i], symmetryIndexes[thread.rand.nextInt(i,NNInputs::NUM_SYMMETRY_COMBINATIONS-1)]);
+      std::swap(symmetryIndexes[i], symmetryIndexes[thread.rand.nextInt(i,SymmetryHelpers::NUM_SYMMETRIES-1)]);
       nnInputParams.symmetry = symmetryIndexes[i];
       bool skipCacheThisIteration = true; //Skip cache since there's no guarantee which symmetry is in the cache
       nnEvaluator->evaluate(
@@ -3382,7 +3418,7 @@ bool Search::playoutDescend(
       if(searchParams.subtreeValueBiasFactor != 0) {
         if(node.prevMoveLoc != Board::NULL_LOC) {
           assert(subtreeValueBiasTable != NULL);
-          child->subtreeValueBiasTableEntry = std::move(subtreeValueBiasTable->get(thread.pla, node.prevMoveLoc, child->prevMoveLoc, thread.board));
+          child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(thread.pla, node.prevMoveLoc, child->prevMoveLoc, thread.board);
         }
       }
 

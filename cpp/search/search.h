@@ -40,11 +40,21 @@ struct ReportedSearchValues {
   double lead;
   double winLossValue;
   double utility;
+  double weight;
   int64_t visits;
 
   ReportedSearchValues();
-  ReportedSearchValues(const Search& search, double winLossValueAvg, double noResultValueAvg, double scoreMeanAvg,
-                       double scoreMeanSqAvg, double leadAvg, double utilityAvg, int64_t totalVisits);
+  ReportedSearchValues(
+    const Search& search,
+    double winLossValueAvg,
+    double noResultValueAvg,
+    double scoreMeanAvg,
+    double scoreMeanSqAvg,
+    double leadAvg,
+    double utilityAvg,
+    double totalWeight,
+    int64_t totalVisits
+  );
   ~ReportedSearchValues();
 };
 
@@ -258,7 +268,13 @@ struct Search {
   std::vector<int> avoidMoveUntilByLocBlack;
   std::vector<int> avoidMoveUntilByLocWhite;
 
-  //Precomputed values at the root
+  //If rootSymmetryPruning==true and the board is symmetric, mask all the equivalent copies of each move except one.
+  bool rootSymDupLoc[Board::MAX_ARR_SIZE];
+  //If rootSymmetryPruning==true, symmetries under which the root board and history are invariant, including some heuristics for ko and encore-related state.
+  std::vector<int> rootSymmetries;
+  std::vector<int> rootPruneOnlySymmetries;
+
+  //Strictly pass-alive areas in the root board position
   Color* rootSafeArea;
   //Used to center for dynamic scorevalue
   double recentScoreCenter;
@@ -350,6 +366,7 @@ struct Search {
   void setRootHintLoc(Loc hintLoc);
   void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
   void setAlwaysIncludeOwnerMap(bool b);
+  void setRootSymmetryPruningOnly(const std::vector<int>& rootPruneOnlySymmetries);
   void setParams(SearchParams params);
   void setParamsNoClearing(SearchParams params); //Does not clear search
   void setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table);
@@ -400,11 +417,13 @@ struct Search {
   //They are NOT safe to call in parallel with any of the other top level-functions besides the search.
 
   //Choose a move at the root of the tree, with randomization, if possible.
-  //Might return Board::NULL_LOC if there is no root.
+  //Might return Board::NULL_LOC if there is no root, or no legal moves that aren't forcibly pruned, etc.
   Loc getChosenMoveLoc();
   //Get the vector of values (e.g. modified visit counts) used to select a move.
   //Does take into account chosenMoveSubtract but does NOT apply temperature.
   //If somehow the max value is less than scaleMaxToAtLeast, scale it to at least that value.
+  //Always returns false in the case where no actual legal moves are found or there is no nnOutput or no root node.
+  //If returning true, the is at least one loc and playSelectionValue.
   bool getPlaySelectionValues(
     std::vector<Loc>& locs, std::vector<double>& playSelectionValues, double scaleMaxToAtLeast
   ) const;
@@ -428,8 +447,12 @@ struct Search {
   //Same, same, but throws an exception if no values could be obtained
   ReportedSearchValues getRootValuesRequireSuccess() const;
   //Same, but works on a node within the search, not just the root
-  bool getNodeValues(const SearchNode& node, ReportedSearchValues& values) const;
+  bool getNodeValues(const SearchNode* node, ReportedSearchValues& values) const;
   bool getPrunedRootValues(ReportedSearchValues& values) const;
+  bool getPrunedNodeValues(const SearchNode* node, ReportedSearchValues& values) const;
+
+  const SearchNode* getRootNode() const;
+  const SearchNode* getChildForMove(const SearchNode* node, Loc moveLoc) const;
 
   //Same, but based only on the single raw neural net evaluation.
   bool getRootRawNNValues(ReportedSearchValues& values) const;
@@ -440,6 +463,7 @@ struct Search {
   int64_t getRootVisits() const;
   //Get the root node's policy prediction
   bool getPolicy(float policyProbs[NNPos::MAX_NN_POLICY_SIZE]) const;
+  bool getPolicy(const SearchNode* node, float policyProbs[NNPos::MAX_NN_POLICY_SIZE]) const;
   //Get the surprisingness (kl-divergence) of the search result given the policy prior, as well as the entropy of each.
   //Returns false if could not be computed.
   bool getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntropyRet, double& policyEntropyRet) const;
@@ -453,8 +477,12 @@ struct Search {
   void printRootEndingScoreValueBonus(std::ostream& out) const;
 
   //Get detailed analysis data, designed for lz-analyze and kata-analyze commands.
-  void getAnalysisData(std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
-  void getAnalysisData(const SearchNode& node, std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth) const;
+  void getAnalysisData(
+    std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth, bool duplicateForSymmetries
+  ) const;
+  void getAnalysisData(
+    const SearchNode& node, std::vector<AnalysisData>& buf, int minMovesToTryToGet, bool includeWeightFactors, int maxPVDepth, bool duplicateForSymmetries
+  ) const;
 
   //Append the PV from node n onward (not including node n's move)
   void appendPV(std::vector<Loc>& buf, std::vector<int64_t>& visitsBuf, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues, const SearchNode* n, int maxDepth) const;
@@ -469,11 +497,16 @@ struct Search {
   std::vector<double> getAverageTreeOwnership(double minWeight, const SearchNode* node = NULL) const;
   std::tuple<std::vector<double>,std::vector<double>> getAverageAndStandardDeviationTreeOwnership(double minWeight, const SearchNode* node = NULL) const;
 
+  std::pair<double,double> getAverageShorttermWLAndScoreError(const SearchNode* node = NULL) const;
+  bool getSharpScore(const SearchNode* node, double& ret) const;
+
   //Get ownership map as json
-  nlohmann::json getJsonOwnershipMap(const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight) const;
+  nlohmann::json getJsonOwnershipMap(
+    const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight, int symmetry
+  ) const;
   //Fill json with analysis engine format information about search results
   bool getAnalysisJson(
-    const Player perspective, const Board& board, const BoardHistory& hist,
+    const Player perspective,
     int analysisPVLen, double ownershipMinWeight, bool preventEncore, bool includePolicy,
     bool includeOwnership, bool includeMovesOwnership, bool includePVVisits,
     nlohmann::json& ret
@@ -508,7 +541,6 @@ private:
   int findTopNPolicy(const SearchNode* node, int n, PolicySortEntry* sortedPolicyBuf) const;
 
   std::shared_ptr<NNOutput>* maybeAddPolicyNoiseAndTemp(SearchThread& thread, bool isRoot, NNOutput* oldNNOutput) const;
-
   bool isAllowedRootMove(Loc moveLoc) const;
 
   void computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap);
@@ -649,6 +681,10 @@ private:
     std::ostream& out, const SearchNode* node, const PrintTreeOptions& options,
     std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
   ) const;
+
+  double getSharpScoreHelper(const SearchNode* node, double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE]) const;
+
+  std::pair<double,double> getAverageShorttermWLAndScoreErrorHelper(const SearchNode* node) const;
 
   template<typename Func>
   double traverseTreeWithOwnershipAndSelfWeight(Func&& averaging, double minWeight, double desiredWeight, const SearchNode* node) const;

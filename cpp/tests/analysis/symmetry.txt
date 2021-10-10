@@ -1,0 +1,7 @@
+{"id":"empty","initialStones":[],"moves":[],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"overrideSettings":{"maxVisits":10}}
+{"id":"diag","initialStones":[],"moves":[["B","D4"]],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"overrideSettings":{"maxVisits":10}}
+{"id":"nosym","initialStones":[],"moves":[["B","D3"]],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"overrideSettings":{"maxVisits":10}}
+{"id":"rect","initialStones":[],"moves":[],"rules":"tromp-taylor","komi":7.5,"boardXSize":13,"boardYSize":7,"overrideSettings":{"maxVisits":10},"includeMovesOwnership":true,"includeOwnership":true}
+{"id":"rect2","initialStones":[],"moves":[],"rules":"tromp-taylor","komi":7.5,"boardXSize":7,"boardYSize":13,"overrideSettings":{"maxVisits":10},"includeMovesOwnership":true,"includeOwnership":true}
+
+

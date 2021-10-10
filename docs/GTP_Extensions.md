@@ -108,7 +108,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
       * Same as `lz-analyze` except a slightly different output format and some additional options and fields.
       * Additional possible key-value pairs:
          * `ownership true` - Output the predicted final ownership of every point on the board.
-         * `pvVisits true` - Output the number of visits spend on each move each prinicpal variation.
+         * `pvVisits true` - Output the number of visits spend on each move each principal variation.
       * Output format:
          * Outputted lines look like `info move E4 visits 487 utility -0.0408357 winrate 0.480018 scoreMean -0.611848 scoreStdev 24.7058 scoreLead -0.611848 scoreSelfplay -0.515178 prior 0.221121 lcb 0.477221 utilityLcb -0.0486664 order 0 pv E4 E3 F3 D3 F4 P4 P3 O3 Q3 O4 K3 Q6 S6 E16 E17 info move P16 visits 470 utility -0.0414945 winrate 0.479712 scoreMean -0.63075 scoreStdev 24.7179 scoreLead -0.63075 scoreSelfplay -0.5221 prior 0.220566 lcb 0.47657 utilityLcb -0.0502929 order 1 pv P16 P17 O17 Q17 O16 E17 H17 D15 C15 D14 C13 D13 C12 D12 info move E16 visits 143 utility -0.0534071 winrate 0.474509 scoreMean -0.729858 scoreStdev 24.7991 scoreLead -0.729858 scoreSelfplay -0.735747 prior 0.104652 lcb 0.470674 utilityLcb -0.0641425 order 2 pv E16 P4 P3 O3 Q3 O4 E3 H3 D5 C5`
          * `info` - Indicates the start of information for a new possible move, followed by key-value pairs. Current key-value pairs:
@@ -124,6 +124,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
             * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility.
             * `lcb` - The [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move's winrate, as a float in [0,1].
             * `utilityLcb` - The LCB of the move's utility.
+            * `isSymmetryOf` - Another legal move. Possibly present if KataGo is configured to avoid searching some moves due to symmetry (`rootSymmetryPruning=true`). If present, this move was not actually searched, and all of its stats and PV are copied symmetrically from that other move.
             * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
             * `pv` - The principal variation following this move. May be of variable length or even empty.
             * `pvVisits` - The number of visits for each move in `pv`. Exists only if `pvVisits true` was requested.
@@ -152,6 +153,8 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      whiteLead (1 float) - predicted number of points that white is ahead by (this is the preferred score value for user display).
      whiteScoreSelfplay (1 float) - predicted mean score that would result from low-playout noisy selfplay (may be biased, Kata isn't fully score-maximizing).
      whiteScoreSelfplaySq (1 float) - predicted mean square of score that would result via low-playout noisy selfplay
+     shorttermWinlossError (1 float) - predicted square root of the mean squared difference between (whiteWin-whiteLoss) and the MCTS (whiteWin-whiteLoss) in low-playout noisy selfplay after a few turns.
+     shorttermScoreError (1 float) - predicted square root of the mean difference between whiteScoreSelfplay and the MCTS score in low-playout noisy selfplay after a few turns.
      policy (boardXSize * boardYSize floats, including possibly NAN for illegal moves) - policy distribution for next move
      policyPass (1 floats) - policy probability for the pass move
      whiteOwnership (boardXSize * boardYSize floats) - predicted ownership by white (from -1 to 1).

@@ -102,7 +102,6 @@ class AsyncBot {
 
  private:
   Search* search;
-  Logger* logger;
 
   std::mutex controlMutex;
   std::condition_variable threadWaitingToSearch;

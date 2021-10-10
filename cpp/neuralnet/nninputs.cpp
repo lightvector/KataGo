@@ -597,21 +597,52 @@ void SymmetryHelpers::copyOutputsWithSymmetry(const float* src, float* dst, int 
   copyWithSymmetry(src, dst, nSize, hSize, wSize, 1, false, symmetry, true);
 }
 
-Loc SymmetryHelpers::getSymLoc(int x, int y, const Board& board, int symmetry) {
+int SymmetryHelpers::invert(int symmetry) {
+  if(symmetry == 5)
+    return 6;
+  if(symmetry == 6)
+    return 5;
+  return symmetry;
+}
+
+int SymmetryHelpers::compose(int firstSymmetry, int nextSymmetry) {
+  if(isTranspose(firstSymmetry))
+    nextSymmetry = (nextSymmetry & 0x4) | ((nextSymmetry & 0x2) >> 1) | ((nextSymmetry & 0x1) << 1);
+  return firstSymmetry ^ nextSymmetry;
+}
+
+int SymmetryHelpers::compose(int firstSymmetry, int nextSymmetry, int nextNextSymmetry) {
+  return compose(compose(firstSymmetry,nextSymmetry),nextNextSymmetry);
+}
+
+Loc SymmetryHelpers::getSymLoc(int x, int y, int xSize, int ySize, int symmetry) {
   bool transpose = (symmetry & 0x4) != 0;
   bool flipX = (symmetry & 0x2) != 0;
   bool flipY = (symmetry & 0x1) != 0;
-  if(flipX) { x = board.x_size - x - 1; }
-  if(flipY) { y = board.y_size - y - 1; }
+  if(flipX) { x = xSize - x - 1; }
+  if(flipY) { y = ySize - y - 1; }
 
   if(transpose)
     std::swap(x,y);
-  return Location::getLoc(x,y,transpose ? board.y_size : board.x_size);
+  return Location::getLoc(x,y,transpose ? ySize : xSize);
+}
+
+Loc SymmetryHelpers::getSymLoc(int x, int y, const Board& board, int symmetry) {
+  return getSymLoc(x,y,board.x_size,board.y_size,symmetry);
 }
 
 Loc SymmetryHelpers::getSymLoc(Loc loc, const Board& board, int symmetry) {
+  if(loc == Board::NULL_LOC || loc == Board::PASS_LOC)
+    return loc;
   return getSymLoc(Location::getX(loc,board.x_size), Location::getY(loc,board.x_size), board, symmetry);
 }
+
+Loc SymmetryHelpers::getSymLoc(Loc loc, int xSize, int ySize, int symmetry) {
+  if(loc == Board::NULL_LOC || loc == Board::PASS_LOC)
+    return loc;
+  return getSymLoc(Location::getX(loc,xSize), Location::getY(loc,xSize), xSize, ySize, symmetry);
+}
+
 
 Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
   bool transpose = (symmetry & 0x4) != 0;
@@ -639,6 +670,88 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
   if(symKoLoc != Board::NULL_LOC)
     symBoard.setSimpleKoLoc(symKoLoc);
   return symBoard;
+}
+
+void SymmetryHelpers::markDuplicateMoveLocs(
+  const Board& board,
+  const BoardHistory& hist,
+  const std::vector<int>* onlySymmetries,
+  bool* isSymDupLoc,
+  std::vector<int>& validSymmetries
+) {
+  std::fill(isSymDupLoc, isSymDupLoc + Board::MAX_ARR_SIZE, false);
+  validSymmetries.clear();
+  validSymmetries.reserve(SymmetryHelpers::NUM_SYMMETRIES);
+  validSymmetries.push_back(0);
+
+  //The board should never be considered symmetric if any moves are banned by ko or superko
+  if(board.ko_loc != Board::NULL_LOC)
+    return;
+  for(int y = 0; y < board.y_size; y++) {
+    for(int x = 0; x < board.x_size; x++) {
+      if(hist.superKoBanned[Location::getLoc(x, y, board.x_size)])
+        return;
+    }
+  }
+
+  //If board has different sizes of x and y, we will not search symmetries involved with transpose.
+  int symmetrySearchUpperBound = board.x_size == board.y_size ? SymmetryHelpers::NUM_SYMMETRIES : SymmetryHelpers::NUM_SYMMETRIES_WITHOUT_TRANSPOSE;
+
+  for(int symmetry = 1; symmetry < symmetrySearchUpperBound; symmetry++) {
+    if(onlySymmetries != NULL && !contains(*onlySymmetries,symmetry))
+      continue;
+
+    bool isBoardSym = true;
+    for(int y = 0; y < board.y_size; y++) {
+      for(int x = 0; x < board.x_size; x++) {
+        Loc loc = Location::getLoc(x, y, board.x_size);
+        Loc symLoc = getSymLoc(x, y, board,symmetry);
+        bool isStoneSym = (board.colors[loc] == board.colors[symLoc]);
+        bool isKoRecapBlockedSym = hist.encorePhase > 0 ? hist.koRecapBlocked[loc] == hist.koRecapBlocked[symLoc] : true;
+        bool isSecondEncoreStartColorsSym = hist.encorePhase == 2 ? hist.secondEncoreStartColors[loc] == hist.secondEncoreStartColors[symLoc] : true;
+        if(!isStoneSym || !isKoRecapBlockedSym || !isSecondEncoreStartColorsSym) {
+          isBoardSym = false;
+          break;
+        }
+      }
+      if(!isBoardSym)
+        break;
+    }
+    if(isBoardSym)
+      validSymmetries.push_back(symmetry);
+  }
+
+  //The way we iterate is to achieve https://senseis.xmp.net/?PlayingTheFirstMoveInTheUpperRightCorner%2FDiscussion
+  //Reverse the iteration order for white, so that natural openings result in white on the left and black on the right
+  //as is common now in SGFs
+  if(hist.presumedNextMovePla == P_BLACK) {
+    for(int x = board.x_size-1; x >= 0; x--) {
+      for(int y = 0; y < board.y_size; y++) {
+        for(int symmetry: validSymmetries) {
+          if(symmetry == 0)
+            continue;
+          Loc loc = Location::getLoc(x, y, board.x_size);
+          Loc symLoc = getSymLoc(x, y, board, symmetry);
+          if(!isSymDupLoc[loc] && loc != symLoc)
+            isSymDupLoc[symLoc] = true;
+        }
+      }
+    }
+  }
+  else {
+    for(int x = 0; x < board.x_size; x++) {
+      for(int y = board.y_size-1; y >= 0; y--) {
+        for(int symmetry: validSymmetries) {
+          if(symmetry == 0)
+            continue;
+          Loc loc = Location::getLoc(x, y, board.x_size);
+          Loc symLoc = getSymLoc(x, y, board, symmetry);
+          if(!isSymDupLoc[loc] && loc != symLoc)
+            isSymDupLoc[symLoc] = true;
+        }
+      }
+    }
+  }
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -706,65 +819,7 @@ Hash128 NNInputs::getHash(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
   const MiscNNInputParams& nnInputParams
 ) {
-  int xSize = board.x_size;
-  int ySize = board.y_size;
-
-  //Note that board.pos_hash also incorporates the size of the board.
-  Hash128 hash = board.pos_hash;
-  hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
-
-  assert(hist.encorePhase >= 0 && hist.encorePhase <= 2);
-  hash ^= Board::ZOBRIST_ENCORE_HASH[hist.encorePhase];
-
-  if(hist.encorePhase == 0) {
-    if(board.ko_loc != Board::NULL_LOC)
-      hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
-        Loc loc = Location::getLoc(x,y,xSize);
-        if(hist.superKoBanned[loc] && loc != board.ko_loc)
-          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
-      }
-    }
-  }
-  else {
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
-        Loc loc = Location::getLoc(x,y,xSize);
-        if(hist.superKoBanned[loc])
-          hash ^= Board::ZOBRIST_KO_LOC_HASH[loc];
-        if(hist.koRecapBlocked[loc])
-          hash ^= Board::ZOBRIST_KO_MARK_HASH[loc][P_BLACK] ^ Board::ZOBRIST_KO_MARK_HASH[loc][P_WHITE];
-      }
-    }
-    if(hist.encorePhase == 2) {
-      for(int y = 0; y<ySize; y++) {
-        for(int x = 0; x<xSize; x++) {
-          Loc loc = Location::getLoc(x,y,xSize);
-          Color c = hist.secondEncoreStartColors[loc];
-          if(c != C_EMPTY)
-            hash ^= Board::ZOBRIST_SECOND_ENCORE_START_HASH[loc][c];
-        }
-      }
-    }
-  }
-
-  float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
-
-  //Discretize the komi for the purpose of matching hash, so that extremely close effective komi we just reuse nn cache hits
-  int64_t komiDiscretized = (int64_t)(selfKomi*256.0f);
-  uint64_t komiHash = Hash::murmurMix((uint64_t)komiDiscretized);
-  hash.hash0 ^= komiHash;
-  hash.hash1 ^= Hash::basicLCong(komiHash);
-
-  //Fold in the ko, scoring, and suicide rules
-  hash ^= Rules::ZOBRIST_KO_RULE_HASH[hist.rules.koRule];
-  hash ^= Rules::ZOBRIST_SCORING_RULE_HASH[hist.rules.scoringRule];
-  hash ^= Rules::ZOBRIST_TAX_RULE_HASH[hist.rules.taxRule];
-  if(hist.rules.multiStoneSuicideLegal)
-    hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
-  if(hist.hasButton)
-    hash ^= Rules::ZOBRIST_BUTTON_HASH;
+  Hash128 hash = BoardHistory::getSituationRulesAndKoHash(board, hist, nextPlayer, nnInputParams.drawEquivalentWinsForWhite);
 
   //Fold in whether a pass ends this phase
   bool passEndsPhase = hist.passWouldEndPhase(board,nextPlayer);

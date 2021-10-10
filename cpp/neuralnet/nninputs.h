@@ -28,9 +28,6 @@ namespace NNPos {
 namespace NNInputs {
   constexpr int SYMMETRY_NOTSPECIFIED = -1;
   constexpr int SYMMETRY_ALL = -2;
-
-  constexpr int NUM_SYMMETRY_BOOLS = 3;
-  constexpr int NUM_SYMMETRY_COMBINATIONS = 8;
 }
 
 struct MiscNNInputParams {
@@ -150,16 +147,41 @@ struct NNOutput {
 };
 
 namespace SymmetryHelpers {
+  //A symmetry is 3 bits flipY(bit 0), flipX(bit 1), transpose(bit 2). They are applied in that order.
+  //The first four symmetries only reflect, and do not transpose X and Y.
+  constexpr int NUM_SYMMETRIES = 8;
+  constexpr int NUM_SYMMETRIES_WITHOUT_TRANSPOSE = 4;
+
+  //These two IGNORE transpose if hSize and wSize do not match. So non-square transposes are disallowed.
+  //copyOutputsWithSymmetry performs the inverse of symmetry.
   void copyInputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry);
   void copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry);
 
+  //Applies a symmetry to a location
   Loc getSymLoc(int x, int y, const Board& board, int symmetry);
   Loc getSymLoc(Loc loc, const Board& board, int symmetry);
+  Loc getSymLoc(int x, int y, int xSize, int ySize, int symmetry);
+  Loc getSymLoc(Loc loc, int xSize, int ySize, int symmetry);
+
+  //Applies a symmetry to a board
   Board getSymBoard(const Board& board, int symmetry);
+
+  //Get the inverse of the specified symmetry
+  int invert(int symmetry);
+  //Get the symmetry equivalent to first applying firstSymmetry and then applying nextSymmetry.
+  int compose(int firstSymmetry, int nextSymmetry);
+  int compose(int firstSymmetry, int nextSymmetry, int nextNextSymmetry);
 
   inline bool isTranspose(int symmetry) { return (symmetry & 0x4) != 0; }
   inline bool isFlipX(int symmetry) { return (symmetry & 0x2) != 0; }
   inline bool isFlipY(int symmetry) { return (symmetry & 0x1) != 0; }
+
+  //Fill isSymDupLoc with true on all but one copy of each symmetrically equivalent move, and false everywhere else.
+  //isSymDupLocs should be an array of size Board::MAX_ARR_SIZE
+  //If onlySymmetries is not NULL, will only consider the symmetries specified there.
+  //validSymmetries will be filled with all symmetries of the current board, including using history for checking ko/superko and some encore-related state.
+  //This implementation is dependent on specific order of the symmetries (i.e. transpose is coded as 0x4)
+  void markDuplicateMoveLocs(const Board& board, const BoardHistory& hist, const std::vector<int>* onlySymmetries, bool* isSymDupLoc, std::vector<int>& validSymmetries);
 }
 
 //Utility functions for computing the "scoreValue", the unscaled utility of various numbers of points, prior to multiplication by

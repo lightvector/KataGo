@@ -1083,7 +1083,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
       FileUtils::loadFileIntoString(fileName,expectedSha256,uncompressed);
       NonCopyingStreamBuf uncompressedStreamBuf(uncompressed);
       std::istream uncompressedIn(&uncompressedStreamBuf);
-      descBuf = std::move(ModelDesc(uncompressedIn,binaryFloats));
+      descBuf = ModelDesc(uncompressedIn,binaryFloats);
     }
     else if(Global::isSuffix(lower,".bin")) {
       bool binaryFloats = true;
@@ -1091,7 +1091,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
       FileUtils::loadFileIntoString(fileName,expectedSha256,uncompressed);
       NonCopyingStreamBuf uncompressedStreamBuf(uncompressed);
       std::istream uncompressedIn(&uncompressedStreamBuf);
-      descBuf = std::move(ModelDesc(uncompressedIn,binaryFloats));
+      descBuf = ModelDesc(uncompressedIn,binaryFloats);
     }
     else if(Global::isSuffix(lower,".txt.gz") || Global::isSuffix(lower,".bin.gz") || Global::isSuffix(lower,".gz")) {
       string uncompressed;
@@ -1103,7 +1103,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
         NonCopyingStreamBuf uncompressedStreamBuf(uncompressed);
         std::istream uncompressedIn(&uncompressedStreamBuf);
         //And read in the model desc
-        descBuf = std::move(ModelDesc(uncompressedIn,binaryFloats));
+        descBuf = ModelDesc(uncompressedIn,binaryFloats);
       }
       catch(const StringError& e) {
         //On failure, try again to read as a .txt.gz file if the extension was ambiguous
@@ -1115,7 +1115,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
           try {
             NonCopyingStreamBuf uncompressedStreamBuf(uncompressed);
             std::istream uncompressedIn(&uncompressedStreamBuf);
-            descBuf = std::move(ModelDesc(uncompressedIn,binaryFloats));
+            descBuf = ModelDesc(uncompressedIn,binaryFloats);
           }
           catch(const StringError& e2) {
             throw StringError(string("Could neither parse .gz model as .txt.gz model nor as .bin.gz model, errors were:\n") + e2.what() + "\n" + e.what());

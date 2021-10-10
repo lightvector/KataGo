@@ -1,4 +1,5 @@
 #include "../core/global.h"
+#include "../core/fileutils.h"
 #include "../core/makedir.h"
 #include "../core/config_parser.h"
 #include "../core/timer.h"
@@ -69,6 +70,10 @@ namespace {
     Rand seedRand;
     int maxConcurrentEvals;
     int expectedConcurrentEvals;
+    int minBoardXSizeUsed;
+    int minBoardYSizeUsed;
+    int maxBoardXSizeUsed;
+    int maxBoardYSizeUsed;
 
     map<string, NetAndStuff*> loadedNets;
 
@@ -78,12 +83,20 @@ namespace {
     NetManager(
       ConfigParser* c,
       int maxConcurrentEvs,
-      int expectedConcurrentEvs
+      int expectedConcurrentEvs,
+      int minBoardXSize,
+      int minBoardYSize,
+      int maxBoardXSize,
+      int maxBoardYSize
     )
       :cfg(c),
        seedRand(),
        maxConcurrentEvals(maxConcurrentEvs),
        expectedConcurrentEvals(expectedConcurrentEvs),
+       minBoardXSizeUsed(minBoardXSize),
+       minBoardYSizeUsed(minBoardYSize),
+       maxBoardXSizeUsed(maxBoardXSize),
+       maxBoardYSizeUsed(maxBoardYSize),
        loadedNets()
     {
     }
@@ -101,11 +114,12 @@ namespace {
       auto iter = loadedNets.find(nnModelFile);
       NetAndStuff* netAndStuff;
       if(iter == loadedNets.end()) {
-        int defaultMaxBatchSize = -1;
-        string expectedSha256 = "";
+        const int defaultMaxBatchSize = -1;
+        const bool defaultRequireExactNNLen = minBoardXSizeUsed == maxBoardXSizeUsed && minBoardYSizeUsed == maxBoardYSizeUsed;
+        const string expectedSha256 = "";
         NNEvaluator* nnEval = Setup::initializeNNEvaluator(
           nnModelFile,nnModelFile,expectedSha256,*cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-          NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+          maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,
           Setup::SETUP_FOR_MATCH
         );
         netAndStuff = new NetAndStuff(nnEval);
@@ -260,7 +274,7 @@ namespace {
           continue;
         string file = dirPath.string();
         if(Global::isSuffix(file,".results.csv")) {
-          vector<string> lines = Global::readFileLines(file,'\n');
+          vector<string> lines = FileUtils::readFileLines(file,'\n');
           for(int i = 0; i<lines.size(); i++) {
             string s = Global::trim(lines[i]);
             if(s.length() == 0)
@@ -397,7 +411,7 @@ namespace {
 }
 
 
-int MainCmds::matchauto(int argc, const char* const* argv) {
+int MainCmds::matchauto(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -420,7 +434,7 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
     cmd.setShortUsageArgLimit();
     cmd.addOverrideConfigArg();
 
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     logFile = logFileArg.getValue();
     sgfOutputDir = sgfOutputDirArg.getValue();
@@ -487,14 +501,18 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
   //Initialize neural net inference engine globals, and set up model manager
   Setup::initializeSession(cfg);
 
-  NetManager* manager = new NetManager(&cfg,maxConcurrentEvals,expectedConcurrentEvals);
-
-  //Initialize object for randomly pairing bots
-  AutoMatchPairer* autoMatchPairer = new AutoMatchPairer(cfg,resultsDir,numBots,botNames,nnModelFilesByBot,paramss);
-
   //Initialize object for randomizing game settings and running games
   PlaySettings playSettings = PlaySettings::loadForMatch(cfg);
   GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
+  const int minBoardXSizeUsed = gameRunner->getGameInitializer()->getMinBoardXSize();
+  const int minBoardYSizeUsed = gameRunner->getGameInitializer()->getMinBoardYSize();
+  const int maxBoardXSizeUsed = gameRunner->getGameInitializer()->getMaxBoardXSize();
+  const int maxBoardYSizeUsed = gameRunner->getGameInitializer()->getMaxBoardYSize();
+
+  NetManager* manager = new NetManager(&cfg,maxConcurrentEvals,expectedConcurrentEvals,minBoardXSizeUsed,minBoardYSizeUsed,maxBoardXSizeUsed,maxBoardYSizeUsed);
+
+  //Initialize object for randomly pairing bots
+  AutoMatchPairer* autoMatchPairer = new AutoMatchPairer(cfg,resultsDir,numBots,botNames,nnModelFilesByBot,paramss);
 
 
   //Done loading!
@@ -513,14 +531,19 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
   std::signal(SIGTERM, signalHandler);
 
   std::mutex resultLock;
-  ofstream* resultOut = new ofstream(resultsDir + "/" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".results.csv");
+  ofstream* resultOut = new ofstream();
+  FileUtils::open(*resultOut, resultsDir + "/" + Global::uint64ToHexString(seedRand.nextUInt64()) + ".results.csv");
 
   auto runMatchLoop = [
     &gameRunner,&autoMatchPairer,&sgfOutputDir,&logger,&resultLock,&resultOut,&manager,&gameSeedBase
   ](
     uint64_t threadHash
   ) {
-    ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(threadHash) + ".sgfs")) : NULL;
+    ofstream* sgfOut = NULL;
+    if(sgfOutputDir.length() > 0) {
+      sgfOut = new ofstream();
+      FileUtils::open(*sgfOut, sgfOutputDir + "/" + Global::uint64ToHexString(threadHash) + ".sgfs");
+    }
     auto shouldStopFunc = []() {
       return shouldStop.load();
     };

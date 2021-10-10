@@ -21,9 +21,8 @@
 
 using namespace std;
 
-int MainCmds::runtests(int argc, const char* const* argv) {
-  (void)argc;
-  (void)argv;
+int MainCmds::runtests(const vector<string>& args) {
+  (void)args;
   testAssert(sizeof(size_t) == 8);
   Board::initHash();
   ScoreValue::initTables();
@@ -36,6 +35,7 @@ int MainCmds::runtests(int argc, const char* const* argv) {
 
   Tests::runBoardIOTests();
   Tests::runBoardBasicTests();
+
   Tests::runBoardAreaTests();
 
   Tests::runRulesTests();
@@ -45,6 +45,8 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   Tests::runBoardStressTest();
 
   Tests::runSgfTests();
+  Tests::runBasicSymmetryTests();
+  Tests::runBoardSymmetryTests();
 
   ScoreValue::freeTables();
 
@@ -52,9 +54,8 @@ int MainCmds::runtests(int argc, const char* const* argv) {
   return 0;
 }
 
-int MainCmds::runoutputtests(int argc, const char* const* argv) {
-  (void)argc;
-  (void)argv;
+int MainCmds::runoutputtests(const vector<string>& args) {
+  (void)args;
   Board::initHash();
   ScoreValue::initTables();
 
@@ -63,7 +64,6 @@ int MainCmds::runoutputtests(int argc, const char* const* argv) {
   Tests::runTrainingWriteTests();
   Tests::runTimeControlsTests();
   Tests::runScoreTests();
-  Tests::runBasicSymmetryTests();
   Tests::runNNSymmetryTests();
   Tests::runSgfFileTests();
 
@@ -72,20 +72,20 @@ int MainCmds::runoutputtests(int argc, const char* const* argv) {
   return 0;
 }
 
-int MainCmds::runsearchtests(int argc, const char* const* argv) {
+int MainCmds::runsearchtests(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
 
-  if(argc != 6) {
+  if(args.size() != 6) {
     cerr << "Must supply exactly five arguments: MODEL_FILE INPUTSNHWC CUDANHWC SYMMETRY FP16" << endl;
     return 1;
   }
   Tests::runSearchTests(
-    string(argv[1]),
-    Global::stringToBool(argv[2]),
-    Global::stringToBool(argv[3]),
-    Global::stringToInt(argv[4]),
-    Global::stringToBool(argv[5])
+    args[1],
+    Global::stringToBool(args[2]),
+    Global::stringToBool(args[3]),
+    Global::stringToInt(args[4]),
+    Global::stringToBool(args[5])
   );
 
   ScoreValue::freeTables();
@@ -93,20 +93,20 @@ int MainCmds::runsearchtests(int argc, const char* const* argv) {
   return 0;
 }
 
-int MainCmds::runsearchtestsv3(int argc, const char* const* argv) {
+int MainCmds::runsearchtestsv3(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
 
-  if(argc != 6) {
+  if(args.size() != 6) {
     cerr << "Must supply exactly five arguments: MODEL_FILE INPUTSNHWC CUDANHWC SYMMETRY FP16" << endl;
     return 1;
   }
   Tests::runSearchTestsV3(
-    string(argv[1]),
-    Global::stringToBool(argv[2]),
-    Global::stringToBool(argv[3]),
-    Global::stringToInt(argv[4]),
-    Global::stringToBool(argv[5])
+    args[1],
+    Global::stringToBool(args[2]),
+    Global::stringToBool(args[3]),
+    Global::stringToInt(args[4]),
+    Global::stringToBool(args[5])
   );
 
   ScoreValue::freeTables();
@@ -114,19 +114,19 @@ int MainCmds::runsearchtestsv3(int argc, const char* const* argv) {
   return 0;
 }
 
-int MainCmds::runsearchtestsv8(int argc, const char* const* argv) {
+int MainCmds::runsearchtestsv8(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
 
-  if(argc != 5) {
+  if(args.size() != 5) {
     cerr << "Must supply exactly four arguments: MODEL_FILE INPUTSNHWC CUDANHWC FP16" << endl;
     return 1;
   }
   Tests::runSearchTestsV8(
-    string(argv[1]),
-    Global::stringToBool(argv[2]),
-    Global::stringToBool(argv[3]),
-    Global::stringToBool(argv[4])
+    args[1],
+    Global::stringToBool(args[2]),
+    Global::stringToBool(args[3]),
+    Global::stringToBool(args[4])
   );
 
   ScoreValue::freeTables();
@@ -134,8 +134,8 @@ int MainCmds::runsearchtestsv8(int argc, const char* const* argv) {
   return 0;
 }
 
-int MainCmds::runselfplayinittests(int argc, const char* const* argv) {
-  if(argc != 2) {
+int MainCmds::runselfplayinittests(const vector<string>& args) {
+  if(args.size() != 2) {
     cerr << "Must supply exactly one argument: MODEL_FILE" << endl;
     return 1;
   }
@@ -144,10 +144,10 @@ int MainCmds::runselfplayinittests(int argc, const char* const* argv) {
   ScoreValue::initTables();
 
   Tests::runSelfplayInitTestsWithNN(
-    string(argv[1])
+    args[1]
   );
   Tests::runMoreSelfplayTestsWithNN(
-    string(argv[1])
+    args[1]
   );
 
   ScoreValue::freeTables();
@@ -155,8 +155,8 @@ int MainCmds::runselfplayinittests(int argc, const char* const* argv) {
   return 0;
 }
 
-int MainCmds::runselfplayinitstattests(int argc, const char* const* argv) {
-  if(argc != 2) {
+int MainCmds::runselfplayinitstattests(const vector<string>& args) {
+  if(args.size() != 2) {
     cerr << "Must supply exactly one argument: MODEL_FILE" << endl;
     return 1;
   }
@@ -165,7 +165,7 @@ int MainCmds::runselfplayinitstattests(int argc, const char* const* argv) {
   ScoreValue::initTables();
 
   Tests::runSelfplayStatTestsWithNN(
-    string(argv[1])
+    args[1]
   );
 
   ScoreValue::freeTables();
@@ -173,8 +173,8 @@ int MainCmds::runselfplayinitstattests(int argc, const char* const* argv) {
   return 0;
 }
 
-int MainCmds::runsekitrainwritetests(int argc, const char* const* argv) {
-  if(argc != 2) {
+int MainCmds::runsekitrainwritetests(const vector<string>& args) {
+  if(args.size() != 2) {
     cerr << "Must supply exactly one argument: MODEL_FILE" << endl;
     return 1;
   }
@@ -183,7 +183,7 @@ int MainCmds::runsekitrainwritetests(int argc, const char* const* argv) {
   ScoreValue::initTables();
 
   Tests::runSekiTrainWriteTests(
-    string(argv[1])
+    args[1]
   );
 
   ScoreValue::freeTables();
@@ -191,15 +191,14 @@ int MainCmds::runsekitrainwritetests(int argc, const char* const* argv) {
   return 0;
 }
 
-int MainCmds::runnnlayertests(int argc, const char* const* argv) {
-  (void)argc;
-  (void)argv;
+int MainCmds::runnnlayertests(const vector<string>& args) {
+  (void)args;
   Tests::runNNLayerTests();
   return 0;
 }
 
-int MainCmds::runnnontinyboardtest(int argc, const char* const* argv) {
-  if(argc != 6) {
+int MainCmds::runnnontinyboardtest(const vector<string>& args) {
+  if(args.size() != 6) {
     cerr << "Must supply exactly five arguments: MODEL_FILE INPUTSNHWC CUDANHWC SYMMETRY FP16" << endl;
     return 1;
   }
@@ -207,11 +206,11 @@ int MainCmds::runnnontinyboardtest(int argc, const char* const* argv) {
   ScoreValue::initTables();
 
   Tests::runNNOnTinyBoard(
-    string(argv[1]),
-    Global::stringToBool(argv[2]),
-    Global::stringToBool(argv[3]),
-    Global::stringToInt(argv[4]),
-    Global::stringToBool(argv[5])
+    args[1],
+    Global::stringToBool(args[2]),
+    Global::stringToBool(args[3]),
+    Global::stringToInt(args[4]),
+    Global::stringToBool(args[5])
   );
 
   ScoreValue::freeTables();
@@ -219,8 +218,8 @@ int MainCmds::runnnontinyboardtest(int argc, const char* const* argv) {
   return 0;
 }
 
-int MainCmds::runnnsymmetriestest(int argc, const char* const* argv) {
-  if(argc != 5) {
+int MainCmds::runnnsymmetriestest(const vector<string>& args) {
+  if(args.size() != 5) {
     cerr << "Must supply exactly four arguments: MODEL_FILE INPUTSNHWC CUDANHWC FP16" << endl;
     return 1;
   }
@@ -228,10 +227,10 @@ int MainCmds::runnnsymmetriestest(int argc, const char* const* argv) {
   ScoreValue::initTables();
 
   Tests::runNNSymmetries(
-    string(argv[1]),
-    Global::stringToBool(argv[2]),
-    Global::stringToBool(argv[3]),
-    Global::stringToBool(argv[4])
+    args[1],
+    Global::stringToBool(args[2]),
+    Global::stringToBool(args[3]),
+    Global::stringToBool(args[4])
   );
 
   ScoreValue::freeTables();
@@ -239,32 +238,32 @@ int MainCmds::runnnsymmetriestest(int argc, const char* const* argv) {
   return 0;
 }
 
-int MainCmds::runnnonmanyposestest(int argc, const char* const* argv) {
-  if(argc != 6 && argc != 7) {
+int MainCmds::runnnonmanyposestest(const vector<string>& args) {
+  if(args.size() != 6 && args.size() != 7) {
     cerr << "Must supply five or six arguments: MODEL_FILE INPUTSNHWC CUDANHWC SYMMETRY FP16 [COMPARISONFILE]" << endl;
     return 1;
   }
   Board::initHash();
   ScoreValue::initTables();
 
-  if(argc == 6) {
+  if(args.size() == 6) {
     Tests::runNNOnManyPoses(
-      string(argv[1]),
-      Global::stringToBool(argv[2]),
-      Global::stringToBool(argv[3]),
-      Global::stringToInt(argv[4]),
-      Global::stringToBool(argv[5]),
+      args[1],
+      Global::stringToBool(args[2]),
+      Global::stringToBool(args[3]),
+      Global::stringToInt(args[4]),
+      Global::stringToBool(args[5]),
       ""
     );
   }
-  else if(argc == 7) {
+  else if(args.size() == 7) {
     Tests::runNNOnManyPoses(
-      string(argv[1]),
-      Global::stringToBool(argv[2]),
-      Global::stringToBool(argv[3]),
-      Global::stringToInt(argv[4]),
-      Global::stringToBool(argv[5]),
-      string(argv[6])
+      args[1],
+      Global::stringToBool(args[2]),
+      Global::stringToBool(args[3]),
+      Global::stringToInt(args[4]),
+      Global::stringToBool(args[5]),
+      args[6]
     );
   }
 
@@ -273,8 +272,8 @@ int MainCmds::runnnonmanyposestest(int argc, const char* const* argv) {
   return 0;
 }
 
-int MainCmds::runnnbatchingtest(int argc, const char* const* argv) {
-  if(argc != 5) {
+int MainCmds::runnnbatchingtest(const vector<string>& args) {
+  if(args.size() != 5) {
     cerr << "Must supply exactly four arguments: MODEL_FILE INPUTSNHWC CUDANHWC FP16" << endl;
     return 1;
   }
@@ -282,10 +281,10 @@ int MainCmds::runnnbatchingtest(int argc, const char* const* argv) {
   ScoreValue::initTables();
 
   Tests::runNNBatchingTest(
-    string(argv[1]),
-    Global::stringToBool(argv[2]),
-    Global::stringToBool(argv[3]),
-    Global::stringToBool(argv[4])
+    args[1],
+    Global::stringToBool(args[2]),
+    Global::stringToBool(args[3]),
+    Global::stringToBool(args[4])
   );
 
   ScoreValue::freeTables();
@@ -294,8 +293,8 @@ int MainCmds::runnnbatchingtest(int argc, const char* const* argv) {
 }
 
 
-int MainCmds::runownershiptests(int argc, const char* const* argv) {
-  if(argc != 3) {
+int MainCmds::runownershiptests(const vector<string>& args) {
+  if(args.size() != 3) {
     cerr << "Must supply exactly two arguments: GTP_CONFIG MODEL_FILE" << endl;
     return 1;
   }
@@ -303,8 +302,8 @@ int MainCmds::runownershiptests(int argc, const char* const* argv) {
   ScoreValue::initTables();
 
   Tests::runOwnershipTests(
-    string(argv[1]),
-    string(argv[2])
+    args[1],
+    args[2]
   );
 
   ScoreValue::freeTables();
@@ -312,8 +311,8 @@ int MainCmds::runownershiptests(int argc, const char* const* argv) {
 }
 
 
-int MainCmds::runtinynntests(int argc, const char* const* argv) {
-  if(argc != 2) {
+int MainCmds::runtinynntests(const vector<string>& args) {
+  if(args.size() != 2) {
     cerr << "Must supply exactly one arguments: TMPDIR" << endl;
     return 1;
   }
@@ -349,17 +348,19 @@ int MainCmds::runtinynntests(int argc, const char* const* argv) {
     cfg.initialize(in);
   }
 
+  const bool randFileName = false;
   TinyModelTest::runTinyModelTest(
-    string(argv[1]),
+    args[1],
     logger,
-    cfg
+    cfg,
+    randFileName
   );
 
   ScoreValue::freeTables();
   return 0;
 }
 
-int MainCmds::runbeginsearchspeedtest(int argc, const char* const* argv) {
+int MainCmds::runbeginsearchspeedtest(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
 
@@ -371,7 +372,7 @@ int MainCmds::runbeginsearchspeedtest(int argc, const char* const* argv) {
     cmd.addModelFileArg();
     cmd.addOverrideConfigArg();
 
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     cmd.getConfig(cfg);
     modelFile = cmd.getModelFile();
@@ -386,17 +387,19 @@ int MainCmds::runbeginsearchspeedtest(int argc, const char* const* argv) {
   logger.setLogToStdout(true);
 
   NNEvaluator* nnEval = NULL;
-  Rules rules = Setup::loadSingleRulesExceptForKomi(cfg);
+  const bool loadKomiFromCfg = false;
+  Rules rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
   {
     Setup::initializeSession(cfg);
-    int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    int expectedConcurrentEvals = params.numThreads;
-    int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
-    string expectedSha256 = "";
+    const int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    const int expectedConcurrentEvals = params.numThreads;
+    const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+    const bool defaultRequireExactNNLen = false;
+    const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
-      Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,
+      Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
       Setup::SETUP_FOR_GTP
     );
   }
@@ -478,4 +481,46 @@ int MainCmds::runbeginsearchspeedtest(int argc, const char* const* argv) {
 
   ScoreValue::freeTables();
   return 0;
+}
+
+int MainCmds::runsleeptest(const vector<string>& args) {
+  (void)args;
+  ClockTimer timer;
+  {
+    cout << "Attempting to sleep for 5 seconds" << endl;
+    timer.reset();
+    std::this_thread::sleep_for(std::chrono::duration<double>(5));
+    double elapsed = timer.getSeconds();
+    cout << "Time slept: " << elapsed << endl;
+  }
+  {
+    cout << "Attempting to sleep for 1.5 seconds" << endl;
+    timer.reset();
+    std::this_thread::sleep_for(std::chrono::duration<double>(1.5));
+    double elapsed = timer.getSeconds();
+    cout << "Time slept: " << elapsed << endl;
+  }
+  {
+    cout << "Attempting to sleep for 0.5 seconds" << endl;
+    timer.reset();
+    std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
+    double elapsed = timer.getSeconds();
+    cout << "Time slept: " << elapsed << endl;
+  }
+  {
+    cout << "Attempting to sleep for 0.05 seconds" << endl;
+    timer.reset();
+    std::this_thread::sleep_for(std::chrono::duration<double>(0.05));
+    double elapsed = timer.getSeconds();
+    cout << "Time slept: " << elapsed << endl;
+  }
+  {
+    cout << "Attempting to sleep for 0.0 seconds" << endl;
+    timer.reset();
+    std::this_thread::sleep_for(std::chrono::duration<double>(0.0));
+    double elapsed = timer.getSeconds();
+    cout << "Time slept: " << elapsed << endl;
+  }
+  return 0;
+
 }

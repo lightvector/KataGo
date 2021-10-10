@@ -11,7 +11,7 @@
 
 using namespace std;
 
-int MainCmds::evalsgf(int argc, const char* const* argv) {
+int MainCmds::evalsgf(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -22,6 +22,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   int moveNum;
   string printBranch;
   string extraMoves;
+  string avoidMoves;
   string hintLoc;
   int64_t maxVisits;
   int numThreads;
@@ -34,6 +35,8 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   bool printScoreNow;
   bool printRootEndingBonus;
   bool printLead;
+  bool printAvgShorttermError;
+  bool printSharpScore;
   int printMaxDepth;
   bool rawNN;
   try {
@@ -48,6 +51,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::ValueArg<string> printArg("p","print","Alias for -print-branch",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> extraMovesArg("","extra-moves","Extra moves to force-play before doing search",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> extraArg("e","extra","Alias for -extra-moves",false,string(),"MOVE MOVE ...");
+    TCLAP::ValueArg<string> avoidMovesArg("","avoid-moves","Avoid moves in search",false,string(),"MOVE MOVE ...");
     TCLAP::ValueArg<string> hintLocArg("","hint-loc","Hint loc",false,string(),"MOVE");
     TCLAP::ValueArg<long> visitsArg("v","visits","Set the number of visits",false,-1,"VISITS");
     TCLAP::ValueArg<int> threadsArg("t","threads","Set the number of threads",false,-1,"THREADS");
@@ -60,6 +64,8 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     TCLAP::SwitchArg printScoreNowArg("","print-score-now","Print score now");
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
     TCLAP::SwitchArg printLeadArg("","print-lead","Compute and print lead");
+    TCLAP::SwitchArg printAvgShorttermErrorArg("","print-avg-shortterm-error","Compute and print avgShorttermError");
+    TCLAP::SwitchArg printSharpScoreArg("","print-sharp-score","Compute and print sharp weighted score");
     TCLAP::ValueArg<int> printMaxDepthArg("","print-max-depth","How deep to print",false,1,"DEPTH");
     TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
     cmd.add(sgfFileArg);
@@ -73,6 +79,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printArg);
     cmd.add(extraMovesArg);
     cmd.add(extraArg);
+    cmd.add(avoidMovesArg);
     cmd.add(hintLocArg);
     cmd.add(visitsArg);
     cmd.add(threadsArg);
@@ -85,9 +92,11 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     cmd.add(printScoreNowArg);
     cmd.add(printRootEndingBonusArg);
     cmd.add(printLeadArg);
+    cmd.add(printAvgShorttermErrorArg);
+    cmd.add(printSharpScoreArg);
     cmd.add(printMaxDepthArg);
     cmd.add(rawNNArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
     sgfFile = sgfFileArg.getValue();
@@ -96,6 +105,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     string print = printArg.getValue();
     extraMoves = extraMovesArg.getValue();
     string extra = extraArg.getValue();
+    avoidMoves = avoidMovesArg.getValue();
     hintLoc = hintLocArg.getValue();
     maxVisits = (int64_t)visitsArg.getValue();
     numThreads = threadsArg.getValue();
@@ -108,6 +118,8 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     printScoreNow = printScoreNowArg.getValue();
     printRootEndingBonus = printRootEndingBonusArg.getValue();
     printLead = printLeadArg.getValue();
+    printAvgShorttermError = printAvgShorttermErrorArg.getValue();
+    printSharpScore = printSharpScoreArg.getValue();
     printMaxDepth = printMaxDepthArg.getValue();
     rawNN = rawNNArg.getValue();
 
@@ -186,7 +198,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   options = options.maxDepth(printMaxDepth);
   if(printBranch.length() > 0)
     options = options.onlyBranch(board,printBranch);
-
+  options = options.printAvgShorttermError(printAvgShorttermError);
 
   //Load neural net and start bot------------------------------------------
 
@@ -223,10 +235,11 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
     int expectedConcurrentEvals = params.numThreads;
     int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+    bool defaultRequireExactNNLen = true;
     string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      board.x_size,board.y_size,defaultMaxBatchSize,
+      board.x_size,board.y_size,defaultMaxBatchSize,defaultRequireExactNNLen,
       Setup::SETUP_FOR_GTP
     );
   }
@@ -299,6 +312,14 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
     bot->setRootHintLoc(Location::ofString(hintLoc,board));
   }
 
+  if(avoidMoves != "") {
+    vector<Loc> avoidMoveLocs = Location::parseSequence(avoidMoves,board);
+    vector<int> avoidMoveUntilByLoc(Board::MAX_ARR_SIZE,0);
+    for(Loc loc: avoidMoveLocs)
+      avoidMoveUntilByLoc[loc] = 1;
+    bot->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc,avoidMoveUntilByLoc);
+  }
+
   //Print initial state----------------------------------------------------------------
   const Search* search = bot->getSearchStopAndWait();
   ostringstream sout;
@@ -350,6 +371,14 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
       cout << "White score mean " << nnOutput->whiteScoreMean << endl;
       cout << "White score stdev " << sqrt(max(0.0,(double)nnOutput->whiteScoreMeanSq - nnOutput->whiteScoreMean*nnOutput->whiteScoreMean)) << endl;
     }
+  }
+
+  if(printSharpScore) {
+    double ret = 0.0;
+    bool suc = search->getSharpScore(NULL,ret);
+    assert(suc);
+    (void)suc;
+    cout << "White sharp score " << ret << endl;
   }
 
   if(printPolicy) {

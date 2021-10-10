@@ -24,6 +24,8 @@ struct AnalysisData {
   double ess; //Effective sample size taking into account weighting, could be somewhat smaller than visits
   double weightFactor; //Due to child value weighting
   int order; //Preference order of the moves, 0 is best
+  Loc isSymmetryOf; //If not Board::NULL_LOC, this move is a duplicate analysis data reflected from isSymmetryOf
+  int symmetry; //The symmetry applied to isSymmetryOf to get move, or 0.
   std::vector<Loc> pv;
   std::vector<int64_t> pvVisits;
 

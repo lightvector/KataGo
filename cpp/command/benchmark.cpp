@@ -1,5 +1,6 @@
 #include "../core/global.h"
 #include "../core/config_parser.h"
+#include "../core/fileutils.h"
 #include "../core/timer.h"
 #include "../dataio/sgf.h"
 #include "../search/asyncbot.h"
@@ -51,7 +52,7 @@ static const int64_t defaultMaxVisits = 800;
 static constexpr double defaultSecondsPerGameMove = 5.0;
 static const int ternarySearchInitialMax = 32;
 
-int MainCmds::benchmark(int argc, const char* const* argv) {
+int MainCmds::benchmark(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
 
@@ -99,7 +100,7 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     cmd.add(boardSizeArg);
     cmd.add(autoTuneThreadsArg);
     cmd.add(secondsPerGameMoveArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
     sgfFile = sgfFileArg.getValue();
@@ -152,21 +153,25 @@ int MainCmds::benchmark(int argc, const char* const* argv) {
     return 1;
   }
 
+  Logger logger;
+  logger.setLogToStdout(true);
+  logger.write("Loading model and initializing benchmark...");
+
   CompactSgf* sgf;
   if(sgfFile != "") {
     sgf = CompactSgf::loadFile(sgfFile);
   }
   else {
-    if(boardSize == -1)
-      boardSize = TestCommon::DEFAULT_BENCHMARK_SGF_DATA_SIZE;
-
+    if(boardSize == -1) {
+      int defaultBoardXSize = TestCommon::DEFAULT_BENCHMARK_SGF_DATA_SIZE;
+      int defaultBoardYSize = TestCommon::DEFAULT_BENCHMARK_SGF_DATA_SIZE;
+      Setup::loadDefaultBoardXYSize(cfg,logger,defaultBoardXSize,defaultBoardYSize);
+      boardSize = std::max(defaultBoardXSize,defaultBoardYSize);
+    }
+    logger.write("Testing with default positions for board size: " + Global::intToString(boardSize));
     string sgfData = TestCommon::getBenchmarkSGFData(boardSize);
     sgf = CompactSgf::parse(sgfData);
   }
-
-  Logger logger;
-  logger.setLogToStdout(true);
-  logger.write("Loading model and initializing benchmark...");
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_BENCHMARK);
   params.maxVisits = maxVisits;
@@ -277,9 +282,9 @@ static void warmStartNNEval(const CompactSgf* sgf, Logger& logger, const SearchP
 }
 
 static NNEvaluator* createNNEval(int maxNumThreads, CompactSgf* sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params) {
-  int maxConcurrentEvals = maxNumThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+  const int maxConcurrentEvals = maxNumThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
   int expectedConcurrentEvals = maxNumThreads;
-  int defaultMaxBatchSize = std::max(8,((maxNumThreads+3)/4)*4);
+  const int defaultMaxBatchSize = std::max(8,((maxNumThreads+3)/4)*4);
 
   Rand seedRand;
 
@@ -290,10 +295,11 @@ static NNEvaluator* createNNEval(int maxNumThreads, CompactSgf* sgf, const strin
     expectedConcurrentEvals = 2;
 #endif
 
-  string expectedSha256 = "";
+  const bool defaultRequireExactNNLen = true;
+  const string expectedSha256 = "";
   NNEvaluator* nnEval = Setup::initializeNNEvaluator(
     modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-    sgf->xSize,sgf->ySize,defaultMaxBatchSize,
+    sgf->xSize,sgf->ySize,defaultMaxBatchSize,defaultRequireExactNNLen,
     Setup::SETUP_FOR_BENCHMARK
   );
 
@@ -499,7 +505,7 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
 }
 
 
-int MainCmds::genconfig(int argc, const char* const* argv, const char* firstCommand) {
+int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) {
   Board::initHash();
   ScoreValue::initTables();
 
@@ -512,7 +518,7 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
 
     TCLAP::ValueArg<string> outputFileArg("","output","Path to write new config (default gtp.cfg)",false,string("gtp.cfg"),"FILE");
     cmd.add(outputFileArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     outputFile = outputFileArg.getValue();
     modelFile = cmd.getModelFile();
@@ -919,7 +925,8 @@ int MainCmds::genconfig(int argc, const char* const* argv, const char* firstComm
   cout << "DONE" << endl;
   cout << endl;
   cout << "Writing new config file to " << outputFile << endl;
-  ofstream out(outputFile, ofstream::out | ofstream::trunc);
+  ofstream out;
+  FileUtils::open(out, outputFile, ofstream::out | ofstream::trunc);
   out << configFileContents;
   out.close();
 

@@ -66,6 +66,9 @@ password = config_parser["DEFAULT"]["password"]
 sslVerificationHost = None
 if "sslVerificationHost" in config_parser["DEFAULT"]:
   sslVerificationHost = config_parser["DEFAULT"]["sslVerificationHost"]
+sslVerifyPemPath = None
+if "sslVerifyPemPath" in config_parser["DEFAULT"]:
+  sslVerifyPemPath = config_parser["DEFAULT"]["sslVerifyPemPath"]
 
 log("now" + ": " + str(datetime.datetime.now()))
 log("run_name" + ": " + run_name)
@@ -147,9 +150,15 @@ with open(model_file,"rb") as model_file_handle:
     if sslVerificationHost is not None:
       sess = requests.Session()
       sess.mount('https://', host_header_ssl.HostHeaderSSLAdapter())
-      result = sess.post(url, files=data, auth=HTTPBasicAuth(username,password), headers={"Host": sslVerificationHost})
+      if sslVerifyPemPath is not None:
+        result = sess.post(url, files=data, auth=HTTPBasicAuth(username,password), headers={"Host": sslVerificationHost}, verify=sslVerifyPemPath)
+      else:
+        result = sess.post(url, files=data, auth=HTTPBasicAuth(username,password), headers={"Host": sslVerificationHost})
     else:
-      result = requests.post(url,files=data,auth=HTTPBasicAuth(username,password))
+      if sslVerifyPemPath is not None:
+        result = requests.post(url, files=data, auth=HTTPBasicAuth(username,password), verify=sslVerifyPemPath)
+      else:
+        result = requests.post(url,files=data,auth=HTTPBasicAuth(username,password))
 
 log("Post status code: " + str(result.status_code))
 log("Post result: " + str(result.text))

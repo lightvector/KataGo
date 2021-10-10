@@ -1,5 +1,6 @@
 #include "../core/global.h"
 #include "../core/datetime.h"
+#include "../core/fileutils.h"
 #include "../core/makedir.h"
 #include "../core/config_parser.h"
 #include "../dataio/sgf.h"
@@ -31,7 +32,7 @@ static void signalHandler(int signal)
 //-----------------------------------------------------------------------------------------
 
 
-int MainCmds::selfplay(int argc, const char* const* argv) {
+int MainCmds::selfplay(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -50,7 +51,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     cmd.add(modelsDirArg);
     cmd.add(outputDirArg);
     cmd.add(maxGamesTotalArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     modelsDir = modelsDirArg.getValue();
     outputDir = outputDirArg.getValue();
@@ -115,6 +116,11 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   bool autoCleanupAllButLatestIfUnused = true;
   SelfplayManager* manager = new SelfplayManager(validationProp, maxDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
 
+  const int minBoardXSizeUsed = gameRunner->getGameInitializer()->getMinBoardXSize();
+  const int minBoardYSizeUsed = gameRunner->getGameInitializer()->getMinBoardYSize();
+  const int maxBoardXSizeUsed = gameRunner->getGameInitializer()->getMaxBoardXSize();
+  const int maxBoardYSizeUsed = gameRunner->getGameInitializer()->getMaxBoardYSize();
+
   Setup::initializeSession(cfg);
 
   //Done loading!
@@ -132,7 +138,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   //Returns true if a new net was loaded.
   auto loadLatestNeuralNetIntoManager =
     [inputsVersion,&manager,maxRowsPerTrainFile,maxRowsPerValFile,firstFileRandMinProp,dataBoardLen,
-     &modelsDir,&outputDir,&logger,&cfg,numGameThreads](const string* lastNetName) -> bool {
+     &modelsDir,&outputDir,&logger,&cfg,numGameThreads,
+     minBoardXSizeUsed,maxBoardXSizeUsed,minBoardYSizeUsed,maxBoardYSizeUsed](const string* lastNetName) -> bool {
 
     string modelName;
     string modelFile;
@@ -147,15 +154,16 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     logger.write("Found new neural net " + modelName);
 
     // * 2 + 16 just in case to have plenty of room
-    int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
-    int expectedConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads;
-    int defaultMaxBatchSize = -1;
+    const int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
+    const int expectedConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads;
+    const bool defaultRequireExactNNLen = minBoardXSizeUsed == maxBoardXSizeUsed && minBoardYSizeUsed == maxBoardYSizeUsed;
+    const int defaultMaxBatchSize = -1;
+    const string expectedSha256 = "";
 
     Rand rand;
-    string expectedSha256 = "";
-    NNEvaluator* nnEval = Setup::initializeNNEvaluator(
+     NNEvaluator* nnEval = Setup::initializeNNEvaluator(
       modelName,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+      maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,
       Setup::SETUP_FOR_OTHER
     );
     logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
@@ -197,7 +205,8 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     }
 
     {
-      ofstream out(modelOutputDir + "/" + "selfplay-" + Global::uint64ToHexString(rand.nextUInt64()) + ".cfg");
+      ofstream out;
+      FileUtils::open(out,modelOutputDir + "/" + "selfplay-" + Global::uint64ToHexString(rand.nextUInt64()) + ".cfg");
       out << cfg.getContents();
       out.close();
     }
@@ -208,7 +217,11 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
       tdataOutputDir, inputsVersion, maxRowsPerTrainFile, firstFileRandMinProp, dataBoardLen, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
     TrainingDataWriter* vdataWriter = new TrainingDataWriter(
       vdataOutputDir, inputsVersion, maxRowsPerValFile, firstFileRandMinProp, dataBoardLen, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
-    ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs")) : NULL;
+    ofstream* sgfOut = NULL;
+    if(sgfOutputDir.length() > 0) {
+      sgfOut = new ofstream();
+      FileUtils::open(*sgfOut, sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs");
+    }
 
     logger.write("Model loading loop thread loaded new neural net " + nnEval->getModelName());
     manager->loadModelAndStartDataWriting(nnEval, tdataWriter, vdataWriter, sgfOut);

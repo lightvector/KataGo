@@ -1,5 +1,6 @@
 #include "../dataio/sgf.h"
 
+#include "../core/fileutils.h"
 #include "../core/sha2.h"
 
 #include "../external/nlohmann_json/json.hpp"
@@ -317,8 +318,8 @@ static void checkNonEmpty(const vector<SgfNode*>& nodes) {
 
 XYSize Sgf::getXYSize() const {
   checkNonEmpty(nodes);
-  int xSize;
-  int ySize;
+  int xSize = 0; //Initialize to 0 to suppress spurious clang compiler warning.
+  int ySize = 0; //Initialize to 0 to suppress spurious clang compiler warning.
   if(!nodes[0]->hasProperty("SZ"))
     return XYSize(19,19); //Some SGF files don't specify, in that case assume 19
 
@@ -338,8 +339,8 @@ XYSize Sgf::getXYSize() const {
     ySize = xSize;
   }
 
-  if(xSize <= 0 || ySize <= 0)
-    propertyFail("Board size in sgf is <= 0: " + s);
+  if(xSize <= 1 || ySize <= 1)
+    propertyFail("Board size in sgf is <= 1: " + s);
   if(xSize > Board::MAX_LEN || ySize > Board::MAX_LEN)
     propertyFail(
       "Board size in sgf is > Board::MAX_LEN = " + Global::intToString((int)Board::MAX_LEN) +
@@ -382,6 +383,8 @@ float Sgf::getKomi() const {
       komi = 7.0f;
     else if(komi == 0)
       komi = 0.0f;
+    else if(komi == 6.5 || komi == 7.5 || komi == 7)
+    {}
     else
       propertyFail("Currently no case implemented for foxwq komi: " + Global::floatToString(komi));
   }
@@ -418,6 +421,20 @@ Rules Sgf::getRulesOrFail() const {
 Player Sgf::getSgfWinner() const {
   checkNonEmpty(nodes);
   return nodes[0]->getSgfWinner();
+}
+
+Color Sgf::getFirstPlayerColor() const {
+  Color plColor = nodes[0]->getPLSpecifiedColor();
+  if(plColor == C_BLACK || plColor == C_WHITE)
+    return plColor;
+  XYSize size = getXYSize();
+  int xSize = size.x;
+  int ySize = size.y;
+  vector<Move> moves;
+  getMoves(moves,xSize,ySize);
+  if(moves.size() > 0)
+    return moves[0].pla;
+  return C_BLACK;
 }
 
 int Sgf::getRank(Player pla) const {
@@ -815,7 +832,7 @@ set<Hash128> Sgf::readExcludes(const vector<string>& files) {
     string excludeHashesFile = Global::trim(files[i]);
     if(excludeHashesFile.size() <= 0)
       continue;
-    vector<string> hashes = Global::readFileLines(excludeHashesFile,'\n');
+    vector<string> hashes = FileUtils::readFileLines(excludeHashesFile,'\n');
     for(int64_t j = 0; j < hashes.size(); j++) {
       const string& hash128 = Global::trim(Global::stripComments(hashes[j]));
       if(hash128.length() <= 0)
@@ -1130,7 +1147,7 @@ Sgf* Sgf::parse(const string& str) {
 }
 
 Sgf* Sgf::loadFile(const string& file) {
-  Sgf* sgf = parse(Global::readFile(file));
+  Sgf* sgf = parse(FileUtils::readFile(file));
   if(sgf != NULL)
     sgf->fileName = file;
   return sgf;
@@ -1162,7 +1179,7 @@ vector<Sgf*> Sgf::loadFiles(const vector<string>& files) {
 
 vector<Sgf*> Sgf::loadSgfsFile(const string& file) {
   vector<Sgf*> sgfs;
-  vector<string> lines = Global::readFileLines(file,'\n');
+  vector<string> lines = FileUtils::readFileLines(file,'\n');
   try {
     for(size_t i = 0; i<lines.size(); i++) {
       string line = Global::trim(lines[i]);

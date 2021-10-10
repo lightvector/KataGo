@@ -16,7 +16,7 @@ class Record:
 
 class GameResultSummary:
   """
-  Summrize Go games results in sgf file format under a directory (optionally recursively in subdirs).
+  Summrize Go games results in sgf file format under a list of directories (optionally recursively in subdirs).
   Also supports katago "sgfs" file, which is simply a bunch of sgf files (with no newlines) concatenated one per line.
 
   Example:
@@ -26,8 +26,10 @@ class GameResultSummary:
     call it by other function:
     import summarize_sgfs
     elo_prior_games = 4
-    game_result_summary = summarize_sgfs.GameResultSummary(elo_prior_games)
-    game_result_summary.add_game_files(input_file_or_dir)
+    estimate_first_player_advantage = False
+    game_result_summary = summarize_sgfs.GameResultSummary(elo_prior_games, estimate_first_player_advantage)
+    game_result_summary.add_games(input_file_or_dir)
+    game_result_summary.print_game_results()
     game_result_summary.print_elos()
   """
 
@@ -157,7 +159,7 @@ class GameResultSummary:
       sgfs_strings = f.readlines()
 
     for sgf in sgfs_strings:
-      self._add_a_single_sgf_string(sgf)
+      self._add_a_single_sgf_string(sgf, sgfs_file_name)
 
   def _add_one_sgf_file_to_result(self, sgf_file_name):
     """Add a single sgf file."""
@@ -167,12 +169,16 @@ class GameResultSummary:
     with open(sgf_file_name, "rb") as f:
       sgf = f.read()
 
-    self._add_a_single_sgf_string(sgf)
+    self._add_a_single_sgf_string(sgf, sgf_file_name)
 
-  def _add_a_single_sgf_string(self, sgf_string):
+  def _add_a_single_sgf_string(self, sgf_string, debug_source = None):
     """add a single game in a sgf string save the results in self.results."""
-    game = sgf.Sgf_game.from_bytes(sgf_string)
-    winner = game.get_winner()
+    try:
+      game = sgf.Sgf_game.from_bytes(sgf_string)
+      winner = game.get_winner()
+    except ValueError:
+      print ('\033[91m'+f"A sgf string is damaged in {debug_source}, and its record has been skipped!"+ '\x1b[0m')
+      return
     pla_black = game.get_player_name('b')
     pla_white = game.get_player_name('w')
     if (game.get_handicap() is not None) or game.get_komi() < 5.5 or game.get_komi() > 7.5:

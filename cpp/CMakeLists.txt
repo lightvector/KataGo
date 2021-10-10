@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 14)
 
 include_directories(external)
 include_directories(external/tclap-1.2.2/include)
-include_directories(SYSTEM external/filesystem-1.3.6/include) #SYSTEM suppresses a few warnings
+include_directories(SYSTEM external/filesystem-1.5.8/include) #SYSTEM suppresses a few warnings
 
 if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.18.0")
   # Suppress a warning message for setting cuda flags that still works fine for now
@@ -241,6 +241,7 @@ add_executable(katago
   core/fileutils.cpp
   core/hash.cpp
   core/logger.cpp
+  core/mainargs.cpp
   core/makedir.cpp
   core/md5.cpp
   core/multithread.cpp
@@ -265,6 +266,8 @@ add_executable(katago
   neuralnet/nneval.cpp
   neuralnet/desc.cpp
   ${NEURALNET_BACKEND_SOURCES}
+  book/book.cpp
+  book/bookcssjs.cpp
   search/timecontrols.cpp
   search/searchparams.cpp
   search/mutexpool.cpp
@@ -289,6 +292,7 @@ add_executable(katago
   tests/testrules.cpp
   tests/testscore.cpp
   tests/testsgf.cpp
+  tests/testsymmetries.cpp
   tests/testnninputs.cpp
   tests/testownership.cpp
   tests/testsearch.cpp
@@ -304,6 +308,7 @@ add_executable(katago
   command/contribute.cpp
   command/evalsgf.cpp
   command/gatekeeper.cpp
+  command/genbook.cpp
   command/gtp.cpp
   command/match.cpp
   command/matchauto.cpp
@@ -334,7 +339,7 @@ elseif(USE_BACKEND STREQUAL "OPENCL")
   target_link_libraries (katago ${OpenCL_LIBRARY})
 elseif(USE_BACKEND STREQUAL "EIGEN")
   target_compile_definitions(katago PRIVATE USE_EIGEN_BACKEND)
-  if(NOT MSVC)
+  if(NOT (MSVC OR MINGW))
     find_package(Eigen3 REQUIRED)
     include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS})
     message(STATUS "Found Eigen3 at ${EIGEN3_INCLUDE_DIRS}")
@@ -411,6 +416,7 @@ endif()
 # add_compile_definitions(NDEBUG)
 
 if(MSVC)
+  message(STATUS "Setting up build for MSVC.")
   # Suppress min and max macros on windows
   # Also define a few other things for windows
   target_compile_definitions(katago PRIVATE NOMINMAX)
@@ -428,7 +434,8 @@ if(MSVC)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCC)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+  message(STATUS "Setting up build for GNU or Clang.")
   if(NOT (${CMAKE_SYSTEM_PROCESSOR} MATCHES "(arm|aarch32|aarch64)"))
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse")
   endif()
@@ -445,10 +452,21 @@ if(CMAKE_COMPILER_IS_GNUCC)
     target_link_libraries(katago Threads::Threads)
   endif()
 
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O2 -pedantic -Wall -Wextra -Wno-sign-compare -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wnoexcept -Woverloaded-virtual -Wredundant-decls -Wshadow -Wstrict-null-sentinel -Wstrict-overflow=1 -Wswitch-default -Wfloat-conversion -Wunused")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O2 -pedantic -Wall -Wextra -Wno-sign-compare -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Wmissing-declarations -Wmissing-include-dirs -Woverloaded-virtual -Wredundant-decls -Wshadow -Wstrict-overflow=1 -Wswitch-default -Wfloat-conversion -Wunused")
 
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 6.1)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnull-dereference -Walloc-zero -Wduplicated-branches -Wduplicated-cond -Wdangling-else -Wrestrict")
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    message(STATUS "Enabling GNU-specific build options.")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wlogical-op -Wnoexcept -Wstrict-null-sentinel")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 6.1)
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnull-dereference -Walloc-zero -Wduplicated-branches -Wduplicated-cond -Wdangling-else -Wrestrict")
+    endif()
+  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    message(STATUS "Enabling AppleClang-specific build options.")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnull-dereference -Wdangling-else")
+  else()
+    message(STATUS "Enabling Clang-specific build options.")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnull-dereference -Wdangling-else")
+    target_link_libraries(katago "atomic")
   endif()
 
   if(USE_TCMALLOC)

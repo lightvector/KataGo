@@ -51,7 +51,7 @@ struct AnalyzeRequest {
 };
 
 
-int MainCmds::analysis(int argc, const char* const* argv) {
+int MainCmds::analysis(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -73,7 +73,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     TCLAP::SwitchArg quitWithoutWaitingArg("","quit-without-waiting","When stdin is closed, quit quickly without waiting for queued tasks");
     cmd.add(numAnalysisThreadsArg);
     cmd.add(quitWithoutWaitingArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
     numAnalysisThreadsCmdlineSpecified = numAnalysisThreadsArg.isSet();
@@ -154,13 +154,14 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
-    int maxConcurrentEvals = numAnalysisThreads * defaultParams.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    int expectedConcurrentEvals = numAnalysisThreads * defaultParams.numThreads;
-    int defaultMaxBatchSize = -1;
-    string expectedSha256 = "";
+    const int maxConcurrentEvals = numAnalysisThreads * defaultParams.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    const int expectedConcurrentEvals = numAnalysisThreads * defaultParams.numThreads;
+    const bool defaultRequireExactNNLen = false;
+    const int defaultMaxBatchSize = -1;
+    const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
       Setup::SETUP_FOR_ANALYSIS
     );
   }
@@ -257,7 +258,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
     ret["isDuringSearch"] = isDuringSearch;
 
     bool success = search->getAnalysisJson(
-      request->perspective, request->board, request->hist,
+      request->perspective,
       request->analysisPVLen, ownershipMinVisits, preventEncore, request->includePolicy,
       request->includeOwnership,request->includeMovesOwnership,request->includePVVisits,
       ret
@@ -269,7 +270,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   };
 
   auto analysisLoop = [
-    &logger,&toAnalyzeQueue,&toWriteQueue,&preventEncore,&reportAnalysis,&reportNoAnalysis,&logSearchInfo,&nnEval,&openRequestsMutex,&openRequests
+    &logger,&toAnalyzeQueue,&reportAnalysis,&reportNoAnalysis,&logSearchInfo,&nnEval,&openRequestsMutex,&openRequests
   ](AsyncBot* bot, int threadIdx) {
     while(true) {
       std::pair<std::pair<int64_t,int64_t>,AnalyzeRequest*> analysisItem;
@@ -828,11 +829,10 @@ int MainCmds::analysis(int argc, const char* const* argv) {
             localCfg.overrideKeys(overrideSettings);
             loadParams(localCfg, rbase.params, rbase.perspective, defaultPerspective);
             SearchParams::failIfParamsDifferOnUnchangeableParameter(defaultParams,rbase.params);
-            //Hard failure on unused override keys newly present in the config
+            //Soft failure on unused override keys newly present in the config
             vector<string> unusedKeys = localCfg.unusedKeys();
             if(unusedKeys.size() > 0) {
-              reportErrorForId(rbase.id, "overrideSettings", string("Unknown config params: ") + Global::concat(unusedKeys,","));
-              continue;
+              reportWarningForId(rbase.id, "overrideSettings", string("Unknown config params: ") + Global::concat(unusedKeys,","));
             }
           }
           catch(const StringError& exception) {

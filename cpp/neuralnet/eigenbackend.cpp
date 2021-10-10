@@ -756,7 +756,7 @@ struct ResidualBlock final : public ResidualBlockIntf {
       midBN(desc.midBN),
       finalConv(desc.finalConv,nnX,nnY) {}
 
-  size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
+  size_t requiredConvWorkspaceElts(size_t maxBatchSize) const override {
     return std::max(
       regularConv.requiredConvWorkspaceElts(maxBatchSize),
       finalConv.requiredConvWorkspaceElts(maxBatchSize)
@@ -827,7 +827,7 @@ struct GlobalPoolingResidualBlock final : public ResidualBlockIntf {
       midActivation(desc.midActivation),
       finalConv(desc.finalConv,nnX,nnY) {}
 
-  size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
+  size_t requiredConvWorkspaceElts(size_t maxBatchSize) const override {
     size_t maxElts = 0;
     maxElts = std::max(maxElts,regularConv.requiredConvWorkspaceElts(maxBatchSize));
     maxElts = std::max(maxElts,gpoolConv.requiredConvWorkspaceElts(maxBatchSize));

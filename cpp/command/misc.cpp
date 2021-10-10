@@ -1,4 +1,5 @@
 #include "../core/global.h"
+#include "../core/fileutils.h"
 #include "../core/makedir.h"
 #include "../core/config_parser.h"
 #include "../core/timer.h"
@@ -77,7 +78,8 @@ static void writeLine(
   vector<AnalysisData> buf;
   if(!baseHist.isGameFinished) {
     int minMovesToTryToGet = 0; //just get the default number
-    search->getAnalysisData(buf,minMovesToTryToGet,false,9);
+    bool duplicateForSymmetries = true;
+    search->getAnalysisData(buf,minMovesToTryToGet,false,9,duplicateForSymmetries);
   }
   cout << buf.size() << " ";
   for(int i = 0; i<buf.size(); i++) {
@@ -361,7 +363,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
 }
 
 
-int MainCmds::demoplay(int argc, const char* const* argv) {
+int MainCmds::demoplay(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -377,7 +379,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",false,string(),"FILE");
     cmd.add(logFileArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
     logFile = logFileArg.getValue();
@@ -401,13 +403,14 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
-    int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    int expectedConcurrentEvals = params.numThreads;
-    int defaultMaxBatchSize = -1;
-    string expectedSha256 = "";
+    const int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    const int expectedConcurrentEvals = params.numThreads;
+    const int defaultMaxBatchSize = -1;
+    const bool defaultRequireExactNNLen = false;
+    const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
       Setup::SETUP_FOR_OTHER
     );
   }
@@ -557,9 +560,8 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 
 }
 
-int MainCmds::printclockinfo(int argc, const char* const* argv) {
-  (void)argc;
-  (void)argv;
+int MainCmds::printclockinfo(const vector<string>& args) {
+  (void)args;
 #ifdef OS_IS_WINDOWS
   cout << "Does nothing on windows, disabled" << endl;
 #endif
@@ -571,7 +573,7 @@ int MainCmds::printclockinfo(int argc, const char* const* argv) {
 }
 
 
-int MainCmds::samplesgfs(int argc, const char* const* argv) {
+int MainCmds::samplesgfs(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -620,7 +622,7 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
     cmd.add(requiredPlayerNameArg);
     cmd.add(maxHandicapArg);
     cmd.add(maxKomiArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
     sgfDirs = sgfDirArg.getValue();
     outDir = outDirArg.getValue();
     excludeHashesFiles = excludeHashesArg.getValue();
@@ -645,8 +647,8 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
   Logger logger;
   logger.setLogToStdout(true);
   logger.addFile(outDir + "/" + "log.log");
-  for(int i = 0; i < argc; i++)
-    logger.write(string("Command: ") + argv[i]);
+  for(const string& arg: args)
+    logger.write(string("Command: ") + arg);
 
   vector<string> sgfFiles;
   FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
@@ -698,7 +700,8 @@ int MainCmds::samplesgfs(int argc, const char* const* argv) {
           out->close();
           delete out;
         }
-        out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + ".startposes.txt");
+        out = new ofstream();
+        FileUtils::open(*out, outDir + "/" + Global::intToString(fileCounter) + ".startposes.txt");
         fileCounter += 1;
         numWrittenThisFile = 0;
       }
@@ -869,7 +872,7 @@ struct PosQueueEntry {
   bool markedAsHintPos;
 };
 
-int MainCmds::dataminesgfs(int argc, const char* const* argv) {
+int MainCmds::dataminesgfs(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -950,7 +953,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     cmd.add(maxKomiArg);
     cmd.add(maxAutoKomiArg);
     cmd.add(maxPolicyArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
 
     nnModelFile = cmd.getModelFile();
     sgfDirs = sgfDirArg.getValue();
@@ -991,8 +994,8 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   Logger logger;
   logger.setLogToStdout(true);
   logger.addFile(outDir + "/" + "log.log");
-  for(int i = 0; i < argc; i++)
-    logger.write(string("Command: ") + argv[i]);
+  for(const string& arg: args)
+    logger.write(string("Command: ") + arg);
   logger.write("Git revision " + Version::getGitRevision());
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_ANALYSIS);
@@ -1012,13 +1015,14 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
-    int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    int expectedConcurrentEvals = params.numThreads;
-    int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
-    string expectedSha256 = "";
+    const int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    const int expectedConcurrentEvals = params.numThreads;
+    const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+    const bool defaultRequireExactNNLen = false;
+    const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
       Setup::SETUP_FOR_ANALYSIS
     );
   }
@@ -1065,10 +1069,13 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
           out->close();
           delete out;
         }
+        string fileNameToWrite;
         if(sgfSplitCount > 1)
-          out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + "." + Global::intToString(sgfSplitIdx) + ".hintposes.txt");
+          fileNameToWrite = outDir + "/" + Global::intToString(fileCounter) + "." + Global::intToString(sgfSplitIdx) + ".hintposes.txt";
         else
-          out = new ofstream(outDir + "/" + Global::intToString(fileCounter) + ".hintposes.txt");
+          fileNameToWrite = outDir + "/" + Global::intToString(fileCounter) + ".hintposes.txt";
+        out = new ofstream();
+        FileUtils::open(*out,fileNameToWrite);
         fileCounter += 1;
         numWrittenThisFile = 0;
       }
@@ -1244,7 +1251,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
   // ---------------------------------------------------------------------------------------------------
   //SGF MODE
 
-  auto processSgfGame = [&logger,&excludeHashes,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy](
+  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy](
     Search* search, Rand& rand, const string& fileName, CompactSgf* sgf, bool blackOkay, bool whiteOkay
   ) {
     //Don't use the SGF rules - randomize them for a bit more entropy
@@ -1534,6 +1541,10 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     assert(treeHist.moveHistory[hintIdx].pla == pla);
     assert(treeHist.moveHistory[hintIdx].loc == sample.hintLoc);
 
+    //And make sure it's legal under our randomized rules.
+    if(!hist.isLegal(board,sample.hintLoc,pla))
+      return;
+
     if(autoKomi) {
       const int64_t numVisits = 10;
       OtherGameProperties props;
@@ -1541,15 +1552,28 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
     }
 
     MiscNNInputParams nnInputParams;
-    NNResultBuf buf;
     bool skipCache = true; //Always ignore cache so that we get more entropy on repeated board positions due to symmetries
     bool includeOwnerMap = false;
-    nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
 
-    shared_ptr<NNOutput>& nnOutput = buf.result;
+    double policyProb = 0.0;
+    {
+      // Take 1.1 * the geometric mean of a few samples, so as to greatly upweight the importance of anomalous low values.
+      double acc = 0.0;
+      int count = 0;
+      for(int samples = 0; samples < 4; samples++) {
+        NNResultBuf buf;
+        nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
+        shared_ptr<NNOutput>& nnOutput = buf.result;
+        int pos = NNPos::locToPos(sample.hintLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
+        double prob = nnOutput->policyProbs[pos];
+        assert(prob >= 0.0);
+        acc += log(prob + 1e-30);
+        count += 1;
+      }
+      assert(count > 0);
+      policyProb = 1.1 * exp(acc / count);
+    }
 
-    int pos = NNPos::locToPos(sample.hintLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
-    double policyProb = nnOutput->policyProbs[pos];
     if(policyProb > maxPolicy)
       return;
     double weight = surpriseWeight(policyProb,rand,markedAsHintPos);
@@ -1758,7 +1782,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
 
 
-int MainCmds::trystartposes(int argc, const char* const* argv) {
+int MainCmds::trystartposes(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -1777,7 +1801,7 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
     TCLAP::ValueArg<double> minWeightArg("","min-weight","Minimum weight of startpos to try",false,0.0,"WEIGHT");
     cmd.add(startPosesFileArg);
     cmd.add(minWeightArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
     nnModelFile = cmd.getModelFile();
     startPosesFiles = startPosesFileArg.getValue();
     minWeight = minWeightArg.getValue();
@@ -1808,13 +1832,14 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
-    int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    int expectedConcurrentEvals = params.numThreads;
-    int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
-    string expectedSha256 = "";
+    const int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    const int expectedConcurrentEvals = params.numThreads;
+    const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+    const bool defaultRequireExactNNLen = false;
+    const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
       Setup::SETUP_FOR_ANALYSIS
     );
   }
@@ -1823,7 +1848,7 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
   vector<Sgf::PositionSample> startPoses;
   for(size_t i = 0; i<startPosesFiles.size(); i++) {
     const string& startPosesFile = startPosesFiles[i];
-    vector<string> lines = Global::readFileLines(startPosesFile,'\n');
+    vector<string> lines = FileUtils::readFileLines(startPosesFile,'\n');
     for(size_t j = 0; j<lines.size(); j++) {
       string line = Global::trim(lines[j]);
       if(line.size() > 0) {
@@ -1913,7 +1938,7 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
 }
 
 
-int MainCmds::viewstartposes(int argc, const char* const* argv) {
+int MainCmds::viewstartposes(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
 
@@ -1931,7 +1956,7 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
     TCLAP::ValueArg<double> minWeightArg("","min-weight","Min weight of startpos to view",false,0.0,"WEIGHT");
     cmd.add(startPosesFileArg);
     cmd.add(minWeightArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
     startPosesFiles = startPosesFileArg.getValue();
     minWeight = minWeightArg.getValue();
 
@@ -1952,17 +1977,19 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
   AsyncBot* bot = NULL;
   NNEvaluator* nnEval = NULL;
   if(cfg.getFileName() != "") {
-    rules = Setup::loadSingleRulesExceptForKomi(cfg);
+    const bool loadKomiFromCfg = false;
+    rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
     SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
     {
       Setup::initializeSession(cfg);
-      int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-      int expectedConcurrentEvals = params.numThreads;
-      int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
-      string expectedSha256 = "";
+      const int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+      const int expectedConcurrentEvals = params.numThreads;
+      const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+      const bool defaultRequireExactNNLen = false;
+      const string expectedSha256 = "";
       nnEval = Setup::initializeNNEvaluator(
         modelFile,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
-        Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,
+        Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
         Setup::SETUP_FOR_GTP
       );
     }
@@ -1980,7 +2007,7 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
   vector<Sgf::PositionSample> startPoses;
   for(size_t i = 0; i<startPosesFiles.size(); i++) {
     const string& startPosesFile = startPosesFiles[i];
-    vector<string> lines = Global::readFileLines(startPosesFile,'\n');
+    vector<string> lines = FileUtils::readFileLines(startPosesFile,'\n');
     for(size_t j = 0; j<lines.size(); j++) {
       string line = Global::trim(lines[j]);
       if(line.size() > 0) {
@@ -2058,7 +2085,7 @@ int MainCmds::viewstartposes(int argc, const char* const* argv) {
 }
 
 
-int MainCmds::sampleinitializations(int argc, const char* const* argv) {
+int MainCmds::sampleinitializations(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
 
@@ -2076,7 +2103,7 @@ int MainCmds::sampleinitializations(int argc, const char* const* argv) {
     TCLAP::SwitchArg evaluateArg("","evaluate","Print out values and scores on the inited poses");
     cmd.add(numToGenArg);
     cmd.add(evaluateArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
     numToGen = numToGenArg.getValue();
     evaluate = evaluateArg.getValue();
 
@@ -2098,13 +2125,14 @@ int MainCmds::sampleinitializations(int argc, const char* const* argv) {
     SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
     {
       Setup::initializeSession(cfg);
-      int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-      int expectedConcurrentEvals = params.numThreads;
-      int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
-      string expectedSha256 = "";
+      const int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+      const int expectedConcurrentEvals = params.numThreads;
+      const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+      const bool defaultRequireExactNNLen = false;
+      const string expectedSha256 = "";
       nnEval = Setup::initializeNNEvaluator(
         modelFile,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
-        Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,
+        Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
         Setup::SETUP_FOR_GTP
       );
     }

@@ -18,6 +18,7 @@ namespace Tests {
   void runBoardHandicapTest();
   void runBoardStressTest();
 
+
   //testboardarea.cpp
   void runBoardAreaTests();
 
@@ -34,6 +35,7 @@ namespace Tests {
   //testnninputs.cpp
   void runNNInputsV3V4Tests();
   void runBasicSymmetryTests();
+  void runBoardSymmetryTests();
 
   //testsearch.cpp
   void runNNLessSearchTests();

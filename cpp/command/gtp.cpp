@@ -1,5 +1,6 @@
 #include "../core/global.h"
 #include "../core/config_parser.h"
+#include "../core/fileutils.h"
 #include "../core/timer.h"
 #include "../core/datetime.h"
 #include "../core/makedir.h"
@@ -161,6 +162,13 @@ static double initialBlackAdvantage(const BoardHistory& hist) {
   return stoneValue * extraBlackStones + (7.0 - hist.rules.komi - whiteHandicapBonus);
 }
 
+static double getBoardSizeScaling(const Board& board) {
+  return pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.75);
+}
+static double getPointsThresholdForHandicapGame(double boardSizeScaling) {
+  return std::max(4.0 / boardSizeScaling, 2.0);
+}
+
 static bool noWhiteStonesOnBoard(const Board& board) {
   for(int y = 0; y < board.y_size; y++) {
     for(int x = 0; x < board.x_size; x++) {
@@ -183,8 +191,8 @@ static void updateDynamicPDAHelper(
     desiredDynamicPDAForWhite = 0.0;
   }
   else {
-    double boardSizeScaling = pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.75);
-    double pdaScalingStartPoints = std::max(4.0 / boardSizeScaling, 2.0);
+    double boardSizeScaling = getBoardSizeScaling(board);
+    double pdaScalingStartPoints = getPointsThresholdForHandicapGame(boardSizeScaling);
     double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
     Player disadvantagedPla = initialBlackAdvantageInPoints >= 0 ? P_WHITE : P_BLACK;
     double initialAdvantageInPoints = abs(initialBlackAdvantageInPoints);
@@ -307,6 +315,9 @@ struct GTPEngine {
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead;
   double staticPlayoutDoublingAdvantage;
   bool staticPDATakesPrecedence;
+  double normalAvoidRepeatedPatternUtility;
+  double handicapAvoidRepeatedPatternUtility;
+
   double genmoveWideRootNoise;
   double analysisWideRootNoise;
   bool genmoveAntiMirror;
@@ -342,6 +353,7 @@ struct GTPEngine {
     const string& modelFile, SearchParams initialParams, Rules initialRules,
     bool assumeMultiBlackHandicap, bool prevtEncore,
     double dynamicPDACapPerOppLead, double staticPDA, bool staticPDAPrecedence,
+    double normAvoidRepeatedPatternUtility, double hcapAvoidRepeatedPatternUtility,
     bool avoidDagger,
     double genmoveWRN, double analysisWRN,
     bool genmoveAntiMir, bool analysisAntiMir,
@@ -355,6 +367,8 @@ struct GTPEngine {
      dynamicPlayoutDoublingAdvantageCapPerOppLead(dynamicPDACapPerOppLead),
      staticPlayoutDoublingAdvantage(staticPDA),
      staticPDATakesPrecedence(staticPDAPrecedence),
+     normalAvoidRepeatedPatternUtility(normAvoidRepeatedPatternUtility),
+     handicapAvoidRepeatedPatternUtility(hcapAvoidRepeatedPatternUtility),
      genmoveWideRootNoise(genmoveWRN),
      analysisWideRootNoise(analysisWRN),
      genmoveAntiMirror(genmoveAntiMir),
@@ -397,7 +411,7 @@ struct GTPEngine {
   }
 
   //Specify -1 for the sizes for a default
-  void setOrResetBoardSize(ConfigParser& cfg, Logger& logger, Rand& seedRand, int boardXSize, int boardYSize) {
+  void setOrResetBoardSize(ConfigParser& cfg, Logger& logger, Rand& seedRand, int boardXSize, int boardYSize, bool loggingToStderr) {
     if(nnEval != NULL && boardXSize == nnEval->getNNXLen() && boardYSize == nnEval->getNNYLen())
       return;
     if(nnEval != NULL) {
@@ -417,13 +431,14 @@ struct GTPEngine {
       wasDefault = true;
     }
 
-    int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
-    int expectedConcurrentEvals = params.numThreads;
-    int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
-    string expectedSha256 = "";
+    const int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    const int expectedConcurrentEvals = params.numThreads;
+    const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+    const bool defaultRequireExactNNLen = true;
+    const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
-      boardXSize,boardYSize,defaultMaxBatchSize,
+      boardXSize,boardYSize,defaultMaxBatchSize,defaultRequireExactNNLen,
       Setup::SETUP_FOR_GTP
     );
     logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
@@ -442,6 +457,9 @@ struct GTPEngine {
       boardXSize = nnEval->getNNXLen();
       boardYSize = nnEval->getNNYLen();
     }
+    logger.write("Initializing board with boardXSize " + Global::intToString(boardXSize) + " boardYSize " + Global::intToString(boardYSize));
+    if(!loggingToStderr)
+      cerr << ("Initializing board with boardXSize " + Global::intToString(boardXSize) + " boardYSize " + Global::intToString(boardYSize)) << endl;
 
     string searchRandSeed;
     if(cfg.contains("searchRandSeed"))
@@ -633,6 +651,17 @@ struct GTPEngine {
     vector<int> avoidMoveUntilByLocWhite;
   };
 
+  void filterZeroVisitMoves(const AnalyzeArgs& args, vector<AnalysisData> buf) {
+    //Avoid printing moves that have 0 visits, unless we need them
+    //These should already be sorted so that 0-visit moves only appear at the end.
+    int keptMoves = 0;
+    for(int i = 0; i<buf.size(); i++) {
+      if(buf[i].numVisits > 0 || keptMoves < args.minMoves)
+        buf[keptMoves++] = buf[i];
+    }
+    buf.resize(keptMoves);
+  }
+
   std::function<void(const Search* search)> getAnalyzeCallback(Player pla, AnalyzeArgs args) {
     std::function<void(const Search* search)> callback;
     //lz-analyze
@@ -641,7 +670,9 @@ struct GTPEngine {
       //asynchronously and called after we return
       callback = [args,pla,this](const Search* search) {
         vector<AnalysisData> buf;
-        search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
+        bool duplicateForSymmetries = true;
+        search->getAnalysisData(buf,args.minMoves,false,analysisPVLen,duplicateForSymmetries);
+        filterZeroVisitMoves(args,buf);
         if(buf.size() > args.maxMoves)
           buf.resize(args.maxMoves);
         if(buf.size() <= 0)
@@ -685,7 +716,9 @@ struct GTPEngine {
     else {
       callback = [args,pla,this](const Search* search) {
         vector<AnalysisData> buf;
-        search->getAnalysisData(buf,args.minMoves,false,analysisPVLen);
+        bool duplicateForSymmetries = true;
+        search->getAnalysisData(buf,args.minMoves,false,analysisPVLen,duplicateForSymmetries);
+        filterZeroVisitMoves(args,buf);
         if(buf.size() > args.maxMoves)
           buf.resize(args.maxMoves);
         if(buf.size() <= 0)
@@ -744,6 +777,8 @@ struct GTPEngine {
           out << " prior " << data.policyPrior;
           out << " lcb " << lcb;
           out << " utilityLcb " << utilityLcb;
+          if(data.isSymmetryOf != Board::NULL_LOC)
+            out << " isSymmetryOf " << Location::toString(data.isSymmetryOf,board);
           out << " order " << data.order;
           out << " pv ";
           if(preventEncore && data.pvContainsPass())
@@ -846,6 +881,19 @@ struct GTPEngine {
     if(params.antiMirror != genmoveAntiMirror) {
       params.antiMirror = genmoveAntiMirror;
       bot->setParams(params);
+    }
+
+    {
+      double avoidRepeatedPatternUtility = normalAvoidRepeatedPatternUtility;
+      if(!args.analyzing) {
+        double initialOppAdvantage = initialBlackAdvantage(bot->getRootHist()) * (pla == P_WHITE ? 1 : -1);
+        if(initialOppAdvantage > getPointsThresholdForHandicapGame(getBoardSizeScaling(bot->getRootBoard())))
+          avoidRepeatedPatternUtility = handicapAvoidRepeatedPatternUtility;
+      }
+      if(params.avoidRepeatedPatternUtility != avoidRepeatedPatternUtility) {
+        params.avoidRepeatedPatternUtility = avoidRepeatedPatternUtility;
+        bot->setParams(params);
+      }
     }
 
     //Play faster when winning
@@ -1188,7 +1236,7 @@ struct GTPEngine {
       return "";
     ostringstream out;
 
-    for(int symmetry = 0; symmetry < NNInputs::NUM_SYMMETRY_COMBINATIONS; symmetry++) {
+    for(int symmetry = 0; symmetry < SymmetryHelpers::NUM_SYMMETRIES; symmetry++) {
       if(whichSymmetry == NNInputs::SYMMETRY_ALL || whichSymmetry == symmetry) {
         Board board = bot->getRootBoard();
         BoardHistory hist = bot->getRootHist();
@@ -1433,7 +1481,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
 }
 
 
-int MainCmds::gtp(int argc, const char* const* argv) {
+int MainCmds::gtp(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
@@ -1450,7 +1498,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
     TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
     cmd.add(overrideVersionArg);
-    cmd.parse(argc,argv);
+    cmd.parseArgs(args);
     nnModelFile = cmd.getModelFile();
     overrideVersion = overrideVersionArg.getValue();
 
@@ -1497,7 +1545,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   }
 
   //Defaults to 7.5 komi, gtp will generally override this
-  Rules initialRules = Setup::loadSingleRulesExceptForKomi(cfg);
+  const bool loadKomiFromCfg = false;
+  Rules initialRules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
   logger.write("Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this");
   if(startupPrintMessageToStderr && !loggingToStderr) {
     cerr << "Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this" << endl;
@@ -1544,15 +1593,14 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   double staticPlayoutDoublingAdvantage = initialParams.playoutDoublingAdvantage;
   const bool staticPDATakesPrecedence = cfg.contains("playoutDoublingAdvantage") && !cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead");
   const bool avoidMYTDaggerHack = cfg.contains("avoidMYTDaggerHack") ? cfg.getBool("avoidMYTDaggerHack") : false;
+  const double normalAvoidRepeatedPatternUtility = initialParams.avoidRepeatedPatternUtility;
+  const double handicapAvoidRepeatedPatternUtility = (cfg.contains("avoidRepeatedPatternUtility") || cfg.contains("avoidRepeatedPatternUtility0")) ?
+    initialParams.avoidRepeatedPatternUtility : 0.005;
 
-  const int defaultBoardXSize =
-    cfg.contains("defaultBoardXSize") ? cfg.getInt("defaultBoardXSize",2,Board::MAX_LEN) :
-    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
-    -1;
-  const int defaultBoardYSize =
-    cfg.contains("defaultBoardYSize") ? cfg.getInt("defaultBoardYSize",2,Board::MAX_LEN) :
-    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
-    -1;
+  int defaultBoardXSize = -1;
+  int defaultBoardYSize = -1;
+  Setup::loadDefaultBoardXYSize(cfg,logger,defaultBoardXSize,defaultBoardYSize);
+
   const bool forDeterministicTesting =
     cfg.contains("forDeterministicTesting") ? cfg.getBool("forDeterministicTesting") : false;
 
@@ -1561,9 +1609,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   const double genmoveWideRootNoise = initialParams.wideRootNoise;
   const double analysisWideRootNoise =
-    cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : genmoveWideRootNoise;
-  const double analysisAntiMirror = initialParams.antiMirror;
-  const double genmoveAntiMirror =
+    cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE;
+  const bool analysisAntiMirror = initialParams.antiMirror;
+  const bool genmoveAntiMirror =
     cfg.contains("genmoveAntiMirror") ? cfg.getBool("genmoveAntiMirror") : cfg.contains("antiMirror") ? cfg.getBool("antiMirror") : true;
 
   std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;
@@ -1580,13 +1628,14 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     assumeMultipleStartingBlackMovesAreHandicap,preventEncore,
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
     staticPlayoutDoublingAdvantage,staticPDATakesPrecedence,
+    normalAvoidRepeatedPatternUtility, handicapAvoidRepeatedPatternUtility,
     avoidMYTDaggerHack,
     genmoveWideRootNoise,analysisWideRootNoise,
     genmoveAntiMirror,analysisAntiMirror,
     perspective,analysisPVLen,
     std::move(patternBonusTable)
   );
-  engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize);
+  engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize,loggingToStderr);
 
   //If nobody specified any time limit in any way, then assume a relatively fast time control
   if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime")) {
@@ -1771,7 +1820,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = Global::strprintf("unacceptable size (Board::MAX_LEN is %d, consider increasing and recompiling)",(int)Board::MAX_LEN);
       }
       else {
-        engine->setOrResetBoardSize(cfg,logger,seedRand,newXSize,newYSize);
+        engine->setOrResetBoardSize(cfg,logger,seedRand,newXSize,newYSize,loggingToStderr);
       }
     }
 
@@ -2351,7 +2400,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     else if(command == "genmove_analyze" || command == "lz-genmove_analyze" || command == "kata-genmove_analyze") {
       Player pla = engine->bot->getRootPla();
       bool parseFailed = false;
-      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
+      GTPEngine::AnalyzeArgs analyzeArgs = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
       if(parseFailed) {
         responseIsError = true;
         response = "Could not parse genmove_analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
@@ -2373,7 +2422,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
           logSearchInfo,debug,playChosenMove,
           response,responseIsError,maybeStartPondering,
-          args
+          analyzeArgs
         );
         //And manually handle the result as well. In case of error, don't report any play.
         suppressResponse = true;
@@ -2677,17 +2726,23 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = out.str();
       }
       else {
-        ofstream out(pieces[0]);
-        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
-        out.close();
-        response = "";
+        ofstream out;
+        if(FileUtils::tryOpen(out,pieces[0])) {
+          WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
+          out.close();
+          response = "";
+        }
+        else {
+          responseIsError = true;
+          response = "Could not open or write to file: " + pieces[0];
+        }
       }
     }
 
     else if(command == "analyze" || command == "lz-analyze" || command == "kata-analyze") {
       Player pla = engine->bot->getRootPla();
       bool parseFailed = false;
-      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
+      GTPEngine::AnalyzeArgs analyzeArgs = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
 
       if(parseFailed) {
         responseIsError = true;
@@ -2700,7 +2755,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         else
           cout << "=" << endl;
 
-        engine->analyze(pla, args);
+        engine->analyze(pla, analyzeArgs);
 
         //No response - currentlyAnalyzing will make sure we get a newline at the appropriate time, when stopped.
         suppressResponse = true;
@@ -2715,7 +2770,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         string s = Global::trim(Global::toLower(pieces[0]));
         if(s == "all")
           parsed = true;
-        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= NNInputs::NUM_SYMMETRY_COMBINATIONS-1)
+        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= SymmetryHelpers::NUM_SYMMETRIES-1)
           parsed = true;
       }
 
@@ -2728,7 +2783,31 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
-
+    else if(command == "debug_moves") {
+      PrintTreeOptions options;
+      options = options.maxDepth(1);
+      string printBranch;
+      for(size_t i = 0; i<pieces.size(); i++) {
+        if(i > 0)
+          printBranch += " ";
+        printBranch += pieces[i];
+      }
+      try {
+        if(printBranch.length() > 0)
+          options = options.onlyBranch(engine->bot->getRootBoard(),printBranch);
+      }
+      catch(const StringError& e) {
+        (void)e;
+        responseIsError = true;
+        response = "Invalid move sequence";
+      }
+      if(!responseIsError) {
+        Search* search = engine->bot->getSearchStopAndWait();
+        ostringstream sout;
+        search->printTree(sout, search->rootNode, options, perspective);
+        response = sout.str();
+      }
+    }
     else if(command == "cputime" || command == "gomill-cpu_time") {
       response = Global::doubleToString(engine->genmoveTimeSum);
     }

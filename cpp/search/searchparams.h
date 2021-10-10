@@ -49,7 +49,7 @@ struct SearchParams {
   double rootFpuReductionMax; //Same as fpuReductionMax, but at root
   double rootFpuLossProp; //Same as fpuLossProp, but at root
   int rootNumSymmetriesToSample; //For the root node, sample this many random symmetries (WITHOUT replacement) and average the results together.
-
+  bool rootSymmetryPruning; //For the root node, search only one copy of each symmetrically equivalent move.
   //We use the min of these two together, and also excess visits get pruned if the value turns out bad.
   double rootDesiredPerChildVisitsCoeff; //Funnel sqrt(this * policy prob * total visits) down any given child that receives any visits at all at the root
 

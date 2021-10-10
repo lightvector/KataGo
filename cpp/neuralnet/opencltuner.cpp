@@ -4,6 +4,7 @@
 #include "../neuralnet/opencltuner.h"
 #include "../neuralnet/openclkernels.h"
 #include "../neuralnet/modelversion.h"
+#include "../core/fileutils.h"
 #include "../core/rand.h"
 #include "../core/makedir.h"
 #include "../dataio/homedata.h"
@@ -495,9 +496,8 @@ int OpenCLTuneParams::getXGemmKPaddingMult(bool usingFP16Compute, bool usingFP16
 static const int TUNER_VERSION = 8;
 static const char* TUNEPARAMS_VERSION_LINE = "VERSION=8";
 void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& config) {
-  ofstream out(filename);
-  if(out.fail())
-    throw IOError("Could not create file: " + filename);
+  ofstream out;
+  FileUtils::open(out,filename);
   out << TUNEPARAMS_VERSION_LINE << "\n";
   out << "#shouldUseFP16Storage" << "\n";
   out << config.shouldUseFP16Storage << "\n";
@@ -525,7 +525,7 @@ void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& conf
 
 
 OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
-  vector<string> lines = Global::readFileLines(filename, '\n');
+  vector<string> lines = FileUtils::readFileLines(filename, '\n');
   vector<string> filteredLines;
   for(size_t i = 0; i<lines.size(); i++) {
     string line = Global::stripComments(lines[i]);

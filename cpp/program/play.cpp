@@ -1,6 +1,7 @@
 #include "../program/play.h"
 
 #include "../core/global.h"
+#include "../core/fileutils.h"
 #include "../program/playutils.h"
 #include "../program/setup.h"
 #include "../search/asyncbot.h"
@@ -255,11 +256,11 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     for(int i = 0; i<dirs.size(); i++) {
       string dir = Global::trim(dirs[i]);
       if(dir.size() > 0)
-        Global::collectFiles(dir, fileFilter, files);
+        FileUtils::collectFiles(dir, fileFilter, files);
     }
 
     for(size_t i = 0; i<files.size(); i++) {
-      vector<string> lines = Global::readFileLines(files[i],'\n');
+      vector<string> lines = FileUtils::readFileLines(files[i],'\n');
       for(size_t j = 0; j<lines.size(); j++) {
         string line = Global::trim(lines[j]);
         if(line.size() > 0) {
@@ -292,6 +293,23 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     throw IOError("bSizes must have at least one value in " + cfg.getFileName());
   if(allowedBSizes.size() != allowedBSizeRelProbs.size())
     throw IOError("bSizes and bSizeRelProbs must have same number of values in " + cfg.getFileName());
+
+  minBoardXSize = allowedBSizes[0];
+  minBoardYSize = allowedBSizes[0];
+  maxBoardXSize = allowedBSizes[0];
+  maxBoardYSize = allowedBSizes[0];
+  for(int bSize: allowedBSizes) {
+    minBoardXSize = std::min(minBoardXSize, bSize);
+    minBoardYSize = std::min(minBoardYSize, bSize);
+    maxBoardXSize = std::max(maxBoardXSize, bSize);
+    maxBoardYSize = std::max(maxBoardYSize, bSize);
+  }
+  for(const Sgf::PositionSample& pos : hintPoses) {
+    minBoardXSize = std::min(minBoardXSize, pos.board.x_size);
+    minBoardYSize = std::min(minBoardYSize, pos.board.y_size);
+    maxBoardXSize = std::max(maxBoardXSize, pos.board.x_size);
+    maxBoardYSize = std::max(maxBoardYSize, pos.board.y_size);
+  }
 
   noResultStdev = cfg.contains("noResultStdev") ? cfg.getDouble("noResultStdev",0.0,1.0) : 0.0;
   numExtraBlackFixed = cfg.contains("numExtraBlackFixed") ? cfg.getInt("numExtraBlackFixed",1,18) : 0;
@@ -370,7 +388,18 @@ bool GameInitializer::isAllowedBSize(int xSize, int ySize) {
 std::vector<int> GameInitializer::getAllowedBSizes() const {
   return allowedBSizes;
 }
-
+int GameInitializer::getMinBoardXSize() const {
+  return minBoardXSize;
+}
+int GameInitializer::getMinBoardYSize() const {
+  return minBoardYSize;
+}
+int GameInitializer::getMaxBoardXSize() const {
+  return maxBoardXSize;
+}
+int GameInitializer::getMaxBoardYSize() const {
+  return maxBoardYSize;
+}
 
 Rules GameInitializer::createRules() {
   lock_guard<std::mutex> lock(createGameMutex);
@@ -795,6 +824,7 @@ static void extractPolicyTarget(
   double scaleMaxToAtLeast = 10.0;
 
   assert(node != NULL);
+  assert(!toMoveBot->searchParams.rootSymmetryPruning);
   bool allowDirectPolicyMoves = false;
   bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,NULL,scaleMaxToAtLeast,allowDirectPolicyMoves);
   assert(success);
@@ -825,7 +855,7 @@ static void extractPolicyTarget(
 
 static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, const SearchNode* node) {
   ReportedSearchValues values;
-  bool success = toMoveBot->getNodeValues(*node,values);
+  bool success = toMoveBot->getNodeValues(node,values);
   assert(success);
   (void)success; //Avoid warning when asserts are disabled
 

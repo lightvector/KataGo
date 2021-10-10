@@ -42,6 +42,8 @@ parser.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated devi
 parser.add_argument('-gpu-memory-frac', help='Fraction of gpu memory to use', type=float, required=True)
 parser.add_argument('-model-kind', help='String name for what model to use', required=True)
 parser.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
+parser.add_argument('-lr-scale-before-export', help='LR multiplier on the hardcoded schedule just before export', type=float, required=False)
+parser.add_argument('-lr-scale-before-export-epochs', help='Number of epochs for -lr-scale-before-export', type=int, required=False)
 parser.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
 parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, required=True)
 parser.add_argument('-epochs-per-export', help='Export model once every this many epochs', type=int, required=False)
@@ -51,6 +53,7 @@ parser.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between ep
 parser.add_argument('-swa-sub-epoch-scale', help='Number of sub-epochs to average in expectation together for SWA', type=float, required=False)
 parser.add_argument('-max-train-bucket-per-new-data', help='When data added, add this many train rows per data row to bucket', type=float, required=False)
 parser.add_argument('-max-train-bucket-size', help='Approx total number of train rows allowed if data stops', type=float, required=False)
+parser.add_argument('-max-train-steps-since-last-reload', help='Approx total of training allowed if shuffling stops', type=float, required=False)
 parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
 parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
 args = vars(parser.parse_args())
@@ -66,6 +69,8 @@ multi_gpus = args["multi_gpus"]
 gpu_memory_frac = args["gpu_memory_frac"]
 model_kind = args["model_kind"]
 lr_scale = args["lr_scale"]
+lr_scale_before_export = args["lr_scale_before_export"]
+lr_scale_before_export_epochs = args["lr_scale_before_export_epochs"]
 gnorm_clip_scale = args["gnorm_clip_scale"]
 sub_epochs = args["sub_epochs"]
 epochs_per_export = args["epochs_per_export"]
@@ -75,6 +80,7 @@ sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
 swa_sub_epoch_scale = args["swa_sub_epoch_scale"]
 max_train_bucket_per_new_data = args["max_train_bucket_per_new_data"]
 max_train_bucket_size = args["max_train_bucket_size"]
+max_train_steps_since_last_reload = args["max_train_steps_since_last_reload"]
 verbose = args["verbose"]
 no_export = args["no_export"]
 logfilemode = "a"
@@ -84,6 +90,12 @@ if samples_per_epoch is None:
 
 if max_train_bucket_size is None:
   max_train_bucket_size = 1.0e30
+
+if lr_scale_before_export is None:
+  lr_scale_before_export = lr_scale
+
+if lr_scale_before_export_epochs is None:
+  lr_scale_before_export_epochs = 1
 
 if not os.path.exists(traindir):
   os.makedirs(traindir)
@@ -214,6 +226,7 @@ class CustomLoggingHook(tf.estimator.LoggingTensorHook):
       self.handle_logging_values(run_values.results)
     super().after_run(run_context, run_values)
 
+num_epochs_this_instance = 0
 global_latest_extra_stats = {}
 def update_global_latest_extra_stats(results):
   global global_latest_extra_stats
@@ -221,12 +234,17 @@ def update_global_latest_extra_stats(results):
     global_latest_extra_stats[key] = results[key].item()
 
 def model_fn(features,labels,mode,params):
+  global num_epochs_this_instance
   global printed_model_yet
   global initial_weights_already_loaded
 
   print_model = not printed_model_yet
 
-  built = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,batch_size,lr_scale,gnorm_clip_scale,num_gpus_used)
+  lr_scale_to_use = lr_scale
+  if (num_epochs_this_instance + lr_scale_before_export_epochs) % epochs_per_export <= num_epochs_this_instance % epochs_per_export:
+    lr_scale_to_use = lr_scale_before_export
+
+  built = ModelUtils.build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,batch_size,lr_scale_to_use,gnorm_clip_scale,num_gpus_used)
 
   if mode == tf.estimator.ModeKeys.PREDICT:
     model = built
@@ -412,6 +430,8 @@ def model_fn(features,labels,mode,params):
           name = v.name.split(":")[0] # drop the ":0" at the end of each var
           if name in varname_in_checkpoint:
             assignment_mapping[name] = v
+          elif ("swa_model/"+name) in varname_in_checkpoint:
+            assignment_mapping[("swa_model/"+name)] = v
 
         tf.compat.v1.train.init_from_checkpoint(checkpoint_path, assignment_mapping)
         initial_weights_already_loaded = True
@@ -560,6 +580,8 @@ else:
 
 if max_train_bucket_per_new_data is not None and "train_bucket_level" not in trainhistory:
   trainhistory["train_bucket_level"] = samples_per_epoch
+if "train_steps_since_last_reload" not in trainhistory:
+  trainhistory["train_steps_since_last_reload"] = 0
 
 def save_history(global_step_value):
   global trainhistory
@@ -584,6 +606,8 @@ def maybe_reload_training_data():
 
   while True:
     curdatadir = os.path.realpath(datadir)
+
+    # Different directory - new shuffle
     if curdatadir != last_curdatadir:
       if not os.path.exists(curdatadir):
         trainlog("Shuffled data path does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % curdatadir)
@@ -620,6 +644,9 @@ def maybe_reload_training_data():
             trainhistory["train_bucket_level"] = cap
           trainlog("New rows in bucket: %.0f" % trainhistory["train_bucket_level"])
 
+      trainlog("Train steps since last reload: %.0f -> 0" % trainhistory["train_steps_since_last_reload"])
+      trainhistory["train_steps_since_last_reload"] = 0
+
       # Remove legacy value from this dictionary
       if "files" in trainhistory:
         del trainhistory["files"]
@@ -641,6 +668,18 @@ def maybe_reload_training_data():
       trainfilegenerator = train_files_gen()
 
       vdatadir = os.path.join(curdatadir,"val")
+
+    # Same directory as before, no new shuffle
+    else:
+      if max_train_steps_since_last_reload is not None:
+        if trainhistory["train_steps_since_last_reload"] + 0.99 * samples_per_epoch/sub_epochs > max_train_steps_since_last_reload:
+          trainlog(
+            "Too many train steps since last reload, waiting 5m and retrying (current %f)" %
+            trainhistory["train_steps_since_last_reload"]
+          )
+          time.sleep(300)
+          continue
+
     break
 
 # TRAIN! -----------------------------------------------------------------------------------
@@ -648,7 +687,6 @@ def maybe_reload_training_data():
 #Tensorflow doesn't offer a good way to save checkpoints more sparsely, so we have to manually do it.
 last_longterm_checkpoint_save_time = datetime.datetime.now()
 
-num_epochs_this_instance = 0
 globalstep = None
 try:
   globalstep = int(estimator.get_variable_value("global_step:0"))
@@ -725,6 +763,7 @@ while True:
       ]
     )
     trainlog("Finished training subepoch!")
+    trainhistory["train_steps_since_last_reload"] += num_batches_per_subepoch * batch_size
 
     if swa_sub_epoch_scale is not None:
       accumulate_swa(estimator)

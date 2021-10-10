@@ -130,6 +130,14 @@ NNEvaluator::NNEvaluator(
   if(gpuIdxByServerThread.size() != numThreads)
     throw StringError("gpuIdxByServerThread.size() != numThreads");
 
+  if(logger != NULL) {
+    logger->write(
+      "Initializing neural net buffer to be size " +
+      Global::intToString(nnXLen) + " * " + Global::intToString(nnYLen) +
+      (requireExactNNLen ? " exactly" : " allowing smaller boards")
+    );
+  }
+
   //Add three, just to give a bit of extra headroom, and make it a power of two
   numResultBufss = maxConcurrentEvals / maxBatchSize + 3;
   {
@@ -508,9 +516,9 @@ void NNEvaluator::serve(
       for(int row = 0; row<numRows; row++) {
         if(buf.resultBufs[row]->symmetry == NNInputs::SYMMETRY_NOTSPECIFIED) {
           if(doRandomize)
-            buf.resultBufs[row]->symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
+            buf.resultBufs[row]->symmetry = rand.nextUInt(SymmetryHelpers::NUM_SYMMETRIES);
           else {
-            assert(defaultSymmetry >= 0 && defaultSymmetry <= NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
+            assert(defaultSymmetry >= 0 && defaultSymmetry <= SymmetryHelpers::NUM_SYMMETRIES-1);
             buf.resultBufs[row]->symmetry = defaultSymmetry;
           }
         }

@@ -9,6 +9,7 @@
 
 #include "../core/global.h"
 #include "../core/hash.h"
+#include "../external/nlohmann_json/json.hpp"
 
 #ifndef COMPILE_MAX_BOARD_LEN
 #define COMPILE_MAX_BOARD_LEN 19
@@ -56,7 +57,9 @@ namespace Location
   bool isAdjacent(Loc loc0, Loc loc1, int x_size);
   Loc getMirrorLoc(Loc loc, int x_size, int y_size);
   Loc getCenterLoc(int x_size, int y_size);
+  Loc getCenterLoc(const Board& b);
   bool isCentral(Loc loc, int x_size, int y_size);
+  bool isNearCentral(Loc loc, int x_size, int y_size);
   int distance(Loc loc0, Loc loc1, int x_size);
   int euclideanDistanceSquared(Loc loc0, Loc loc1, int x_size);
 
@@ -69,6 +72,12 @@ namespace Location
   bool tryOfString(const std::string& str, const Board& b, Loc& result);
   Loc ofString(const std::string& str, int x_size, int y_size);
   Loc ofString(const std::string& str, const Board& b);
+
+  //Same, but will parse "null" as Board::NULL_LOC
+  bool tryOfStringAllowNull(const std::string& str, int x_size, int y_size, Loc& result);
+  bool tryOfStringAllowNull(const std::string& str, const Board& b, Loc& result);
+  Loc ofStringAllowNull(const std::string& str, int x_size, int y_size);
+  Loc ofStringAllowNull(const std::string& str, const Board& b);
 
   std::vector<Loc> parseSequence(const std::string& str, const Board& b);
 }
@@ -104,6 +113,7 @@ struct Board
   static Hash128 ZOBRIST_SIZE_X_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
+  static Hash128 ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
   static Hash128 ZOBRIST_PLAYER_HASH[4];
   static Hash128 ZOBRIST_KO_LOC_HASH[MAX_ARR_SIZE];
   static Hash128 ZOBRIST_KO_MARK_HASH[MAX_ARR_SIZE][4];
@@ -227,6 +237,11 @@ struct Board
   //Assumes the move is on an empty location.
   Hash128 getPosHashAfterMove(Loc loc, Player pla) const;
 
+  //Returns true if, for a move just played at loc, the sum of the number of stones in loc's group and the sizes of the empty regions it touches
+  //are greater than bound. See also https://senseis.xmp.net/?Cycle for some interesting test cases for thinking about this bound.
+  //Returns false for passes.
+  bool simpleRepetitionBoundGt(Loc loc, int bound) const;
+
   //Get a random legal move that does not fill a simple eye.
   /* Loc getRandomMCLegal(Player pla); */
 
@@ -274,6 +289,8 @@ struct Board
   static Board parseBoard(int xSize, int ySize, const std::string& s, char lineDelimiter);
   static void printBoard(std::ostream& out, const Board& board, Loc markLoc, const std::vector<Move>* hist);
   static std::string toStringSimple(const Board& board, char lineDelimiter);
+  static nlohmann::json toJson(const Board& board);
+  static Board ofJson(const nlohmann::json& data);
 
   //Data--------------------------------------------
 
@@ -332,6 +349,8 @@ struct Board
     Color* result,
     int& whiteMinusBlackIndependentLifeRegionCount
   ) const;
+
+  bool countEmptyHelper(bool* emptyCounted, Loc initialLoc, int& count, int bound) const;
 
   //static void monteCarloOwner(Player player, Board* board, int mc_counts[]);
 };

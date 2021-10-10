@@ -13383,6 +13383,7 @@ Running neuralnetless search tests
 ===================================================================
 Basic search with debugSkipNeuralNet and chosen move randomization
 ===================================================================
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 : T   0.00c W  -0.16c S   0.19c ( +0.3 L  +0.3) N     100  --  H4 G9 D6 E8 C2 E2 H2
 ---Black(v)---
 H4  : T  -3.22c W  -3.56c S   0.30c ( +0.4 L  +0.4) LCB    9.78c P  2.84% WF  16.4 PSV      16 N      16  --  H4 G9 D6 E8 C2 E2 H2
@@ -13456,6 +13457,7 @@ B2 14
 ===================================================================
 Testing preservation of search tree across moves
 ===================================================================
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 First perform a basic search.
 HASH: 789548A29FD33F9C049C3A737607888D
    A B C D E F G
@@ -13514,6 +13516,7 @@ G7  : T  -2.15c W  -0.96c S  -1.26c ( -1.5 L  -1.5) LCB -260.00c P  4.46% WF   1
 Testing pruning of search tree across moves due to root restrictions
 ===================================================================
 First with no pruning
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 HASH: 269412C054E5BA6290AD61553B8F8108
    A B C D E F G
  7 . . X X . . X
@@ -13541,6 +13544,7 @@ pss : T 104.68c W 100.00c S   4.68c ( +3.5 L  +3.5) LCB  260.00c P  7.70% WF   0
 : GPU 0 finishing, processed 0 rows 0 batches
 
 Next, with rootPruneUselessMoves
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 HASH: 269412C054E5BA6290AD61553B8F8108
    A B C D E F G
  7 . . X X . . X
@@ -13560,6 +13564,7 @@ pss : T 104.68c W 100.00c S   4.68c ( +3.5 L  +3.5) LCB  260.00c P  7.70% WF   0
 
 Progress the game, having black fill space while white passes...
 Searching on the opponent, the move before
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 HASH: 33F4313EACDE81621E771839A6568A32
    A B C D E F G
  7 X . X X X X X
@@ -13648,6 +13653,7 @@ pss : T 104.68c W 100.00c S   4.68c ( +3.5 L  +3.5) LCB  260.00c P  1.10% WF   0
 Testing search tree update near terminal positions
 ===================================================================
 First with no pruning
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 HASH: A444DB8641C37FEF9E22EA6E9FD086CE
    A B C D E F G
  7 X . X X . X X
@@ -13685,8 +13691,234 @@ E7  : T  20.00c W  13.60c S   5.44c ( +0.9 L  +0.9) LCB  126.58c P 10.79% WF   7
 : GPU 0 finishing, processed 0 rows 0 batches
 
 ===================================================================
+Testing pruning of search tree at root node due to symmetries: empty board
+===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
+HASH: 9F0B2D702FC8448C75410E097F089AEB
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+: T  -0.08c W  -0.10c S   0.02c ( +0.0 L  +0.0) N    5000  --  J8 C1 F3 pass A5 A2 D5
+---Black(v)---
+J8  : T  -0.37c W  -0.42c S   0.05c ( +0.1 L  +0.1) LCB    0.63c P  1.81% WF 3335.1 PSV    3316 N    3316  --  J8 C1 F3 pass A5 A2 D5 C6
+J6  : T  -0.07c W  -0.06c S  -0.00c ( -0.0 L  -0.0) LCB    2.11c P  2.29% WF 690.0 PSV     483 N     693  --  J6 H4 D4 A5 G8 G5 A3 pass
+F6  : T   0.22c W   0.27c S  -0.05c ( -0.1 L  -0.1) LCB    3.11c P  2.72% WF 348.5 PSV     308 N     352  --  F6 E3 E9 D2 A6 G5 G6 G7
+H7  : T   0.26c W   0.41c S  -0.15c ( -0.2 L  -0.2) LCB    3.49c P  2.49% WF 296.9 PSV     264 N     300  --  H7 B9 B3 D2 F3 E3 C4 F6
+H6  : T   0.10c W  -0.25c S   0.37c ( +0.5 L  +0.5) LCB    5.14c P  0.60% WF 117.2 PSV      84 N     118  --  H6 E9 G6 F7 D9 B9 A7
+H8  : T   1.68c W   2.46c S  -0.75c ( -1.0 L  -1.0) LCB    9.05c P  1.91% WF  63.3 PSV      64 N      65  --  H8 E5 A9 E3 B9 A6 D1
+F5  : T   1.27c W   1.80c S  -0.54c ( -0.7 L  -0.7) LCB    8.98c P  1.12% WF  47.0 PSV      47 N      48  --  F5 F9 G1 E8 C2 D4 A3 J5
+J7  : T   8.79c W   7.76c S   0.97c ( +1.3 L  +1.3) LCB   18.49c P  3.20% WF  21.7 PSV      24 N      24  --  J7 G2 J6 C6 C3 C1
+E5  : T   6.61c W   6.64c S  -0.03c ( -0.0 L  -0.0) LCB   21.06c P  2.17% WF  19.5 PSV      21 N      21  --  E5 F5 F1 G2 B9 A2 C8
+G5  : T   5.25c W   4.80c S   0.42c ( +0.5 L  +0.5) LCB   17.73c P  1.74% WF  19.8 PSV      21 N      21  --  G5 H4 A1 J2 B8 H5
+J9  : T   0.76c W   1.39c S  -0.69c ( -0.9 L  -0.9) LCB   12.00c P  0.31% WF  30.6 PSV      18 N      31  --  J9 G2 F3 F7 F2 A2 E3
+H5  : T   6.02c W   6.08c S  -0.08c ( -0.1 L  -0.1) LCB   39.48c P  0.50% WF   4.8 PSV       5 N       5  --  H5 G2 D7 H3
+G6  : T  13.76c W  12.73c S   0.95c ( +1.3 L  +1.3) LCB  260.00c P  0.54% WF   1.8 PSV       2 N       2  --  G6 F8
+pss : T  17.84c W  12.93c S   4.91c ( +6.5 L  +6.5) LCB  260.00c P  0.44% WF   0.9 PSV       1 N       1  --  pass
+G7  : T  11.04c W  15.14c S  -4.10c ( -5.6 L  -5.6) LCB  260.00c P  0.21% WF   0.9 PSV       1 N       1  --  G7
+J5  : T  15.39c W  16.88c S  -1.50c ( -1.9 L  -1.9) LCB  260.00c P  0.20% WF   0.9 PSV       0 N       1  --  J5
+: GPU 0 finishing, processed 0 rows 0 batches
+
+===================================================================
+Testing pruning of search tree at root node due to symmetries: asymmetry board
+===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
+HASH: D3E1F455C62BC6B1615C689C7E649609
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . . . . O .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . X . . . . .
+ 1 . . . . . . . . .
+
+
+: T   0.39c W   0.14c S   0.24c ( +0.3 L  +0.3) N    2000  --  J4 H2 A6 E1 E3 F4
+---Black(v)---
+J4  : T  -1.23c W  -1.52c S   0.28c ( +0.4 L  +0.4) LCB    3.71c P  1.38% WF 148.2 PSV     145 N     145  --  J4 H2 A6 E1 E3 F4
+J6  : T  -0.95c W  -1.01c S   0.05c ( +0.1 L  +0.1) LCB    3.91c P  2.30% WF 128.1 PSV     126 N     126  --  J6 C3 H7 G9 A1 G8 F1
+D5  : T  -0.70c W  -0.12c S  -0.57c ( -0.7 L  -0.7) LCB    4.72c P  2.60% WF 104.3 PSV     103 N     103  --  D5 E1 H3 G5 J6 G3 A2 F4
+G2  : T  -0.79c W  -0.85c S   0.06c ( +0.1 L  +0.1) LCB    5.40c P  1.79% WF  90.2 PSV      89 N      89  --  G2 E6 D1 B5 B1 E5
+B2  : T  -0.29c W  -0.56c S   0.30c ( +0.4 L  +0.4) LCB    5.23c P  2.87% WF  87.5 PSV      87 N      87  --  B2 J3 D1 E9 B9 A4
+E1  : T  -0.54c W  -0.78c S   0.23c ( +0.3 L  +0.3) LCB    4.90c P  2.03% WF  83.8 PSV      81 N      83  --  E1 C4 A4 F6 E4 J4 D4
+E5  : T  -0.50c W  -0.70c S   0.21c ( +0.3 L  +0.3) LCB    5.76c P  2.19% WF  74.6 PSV      74 N      74  --  E5 G1 C6 J6 F3 H4 B4 J7
+C8  : T   0.32c W  -0.29c S   0.62c ( +0.8 L  +0.8) LCB    7.26c P  3.36% WF  70.8 PSV      71 N      71  --  C8 G2 E5 B4 D1 E8 D9 A6
+F6  : T   0.05c W   0.87c S  -0.78c ( -1.0 L  -1.0) LCB    6.32c P  2.73% WF  68.1 PSV      68 N      68  --  F6 G4 H3 C2 D6 B5
+G3  : T  -0.27c W  -0.85c S   0.58c ( +0.8 L  +0.8) LCB    6.72c P  2.35% WF  68.4 PSV      68 N      68  --  G3 G1 H4 B1 D8 H3 A6 D1
+H2  : T  -0.70c W  -1.19c S   0.52c ( +0.7 L  +0.7) LCB    7.35c P  1.45% WF  76.8 PSV      67 N      76  --  H2 G5 A9 D1 B6 B4 F7
+J8  : T  -0.48c W  -1.42c S   0.95c ( +1.2 L  +1.2) LCB    6.31c P  1.82% WF  66.5 PSV      66 N      66  --  J8 F4 C9 B1 J6 E8 C3
+A6  : T  -0.23c W  -0.22c S   0.02c ( +0.0 L  +0.0) LCB    8.07c P  1.92% WF  53.2 PSV      53 N      53  --  A6 E2 E1 F5 J2 F7 A9 G5
+A3  : T  -0.33c W  -1.01c S   0.72c ( +0.9 L  +0.9) LCB    7.69c P  1.44% WF  50.3 PSV      48 N      50  --  A3 A8 C8 G7 F3 B2 E8 A9
+J7  : T   1.42c W   1.04c S   0.38c ( +0.5 L  +0.5) LCB   10.01c P  3.22% WF  49.2 PSV      46 N      50  --  J7 E3 D1 J2 E4
+D1  : T  -0.17c W  -0.08c S  -0.07c ( -0.1 L  -0.1) LCB    8.27c P  1.68% WF  45.1 PSV      45 N      45  --  D1 C4 F6 C6 H8 H9 C8
+A7  : T  -0.76c W  -1.22c S   0.43c ( +0.6 L  +0.6) LCB    7.43c P  0.86% WF  46.5 PSV      42 N      46  --  A7 F5 J2 A5 G6 D1 H8
+B1  : T  -0.12c W  -0.80c S   0.69c ( +0.9 L  +0.9) LCB    9.82c P  1.52% WF  41.1 PSV      41 N      41  --  B1 E6 B7 G1 G2 E3 A2
+D8  : T  -0.30c W  -0.48c S   0.21c ( +0.3 L  +0.3) LCB   10.29c P  1.26% WF  39.2 PSV      39 N      39  --  D8 D7 F8 G9 G2 A5 J6
+G9  : T  -0.53c W  -0.60c S   0.07c ( +0.1 L  +0.1) LCB    9.32c P  0.95% WF  46.3 PSV      38 N      46  --  G9 H3 A4 G3 B9 D1
+H7  : T   1.24c W   0.96c S   0.27c ( +0.4 L  +0.4) LCB   10.91c P  2.50% WF  40.5 PSV      38 N      41  --  H7 B1 H3 F3 F7 E6
+J2  : T  -0.55c W  -0.55c S  -0.01c ( -0.0 L  -0.0) LCB   10.38c P  0.96% WF  33.2 PSV      33 N      33  --  J2 J6 F8 F5 H8 A4 A9
+J3  : T   0.23c W  -0.51c S   0.74c ( +1.0 L  +1.0) LCB    9.14c P  1.37% WF  35.9 PSV      32 N      36  --  J3 G4 C5 D4 F1 F9
+H9  : T   2.64c W   1.95c S   0.70c ( +0.9 L  +0.9) LCB   12.10c P  3.01% WF  34.0 PSV      31 N      35  --  H9 B6 C2 G5 F1 F7 B9
+G5  : T   0.89c W   1.58c S  -0.65c ( -0.9 L  -0.9) LCB   12.27c P  1.75% WF  31.7 PSV      30 N      32  --  G5 A4 D3 F8 E1 B1 B8
+D6  : T   1.43c W   1.15c S   0.27c ( +0.3 L  +0.3) LCB   12.04c P  2.08% WF  30.6 PSV      30 N      31  --  D6 B5 D1 B4 D4 C2 H7
+G4  : T  -0.23c W  -0.51c S   0.30c ( +0.4 L  +0.4) LCB    9.62c P  1.23% WF  29.1 PSV      29 N      29  --  G4 D7 H8 D1 A2 D8
+F5  : T   0.16c W  -0.43c S   0.56c ( +0.7 L  +0.7) LCB    8.74c P  1.12% WF  35.0 PSV      27 N      35  --  F5 J6 C4 C5 J4 C8 G2
+G8  : T   1.68c W   0.31c S   1.37c ( +1.8 L  +1.8) LCB   15.03c P  2.18% WF  26.6 PSV      27 N      27  --  G8 B2 G9 G6 J8 F8
+F7  : T   1.54c W   1.12c S   0.48c ( +0.7 L  +0.7) LCB   14.79c P  1.95% WF  26.6 PSV      27 N      27  --  F7 F8 J2 G9 A1 H2 B1 B6
+C9  : T   3.52c W   3.81c S  -0.28c ( -0.4 L  -0.4) LCB   16.42c P  2.90% WF  24.1 PSV      25 N      25  --  C9 H4 H6 B3 E7 A6 G6
+H8  : T   2.95c W   2.15c S   0.75c ( +1.0 L  +1.0) LCB   18.52c P  1.92% WF  17.5 PSV      18 N      18  --  H8 H3 H7 E1 D8 J6 C8
+B4  : T   2.01c W   2.13c S  -0.14c ( -0.2 L  -0.2) LCB   16.64c P  1.52% WF  17.7 PSV      18 N      18  --  B4 A4 H7 F1 A7
+A1  : T   0.64c W   0.80c S  -0.19c ( -0.3 L  -0.3) LCB   14.73c P  0.98% WF  17.9 PSV      18 N      18  --  A1 B3 J2 J1 H4 A7 pass
+C7  : T   1.78c W   3.65c S  -1.87c ( -2.5 L  -2.5) LCB   20.76c P  1.36% WF  15.7 PSV      16 N      16  --  C7 D3 J4 B4 H6 J9
+C2  : T   1.57c W   1.48c S   0.09c ( +0.1 L  +0.1) LCB   25.08c P  0.98% WF  13.8 PSV      13 N      14  --  C2 B5 A6 F3 H9 D3 B3
+F2  : T   4.25c W   4.49c S  -0.22c ( -0.3 L  -0.3) LCB   25.59c P  1.76% WF  11.6 PSV      12 N      12  --  F2 E3 J7 E8 B5
+H4  : T   7.67c W   8.25c S  -0.55c ( -0.7 L  -0.7) LCB   45.54c P  2.54% WF  10.3 PSV      11 N      11  --  H4 A4 G9 C4 A9 D8 H6
+C6  : T   2.77c W   2.81c S  -0.03c ( -0.0 L  -0.0) LCB   35.55c P  1.19% WF  10.7 PSV      11 N      11  --  C6 H6 C7 A2 A1
+D3  : T   8.97c W   7.04c S   1.96c ( +2.6 L  +2.6) LCB   28.21c P  2.30% WF  10.2 PSV       9 N      11  --  D3 E1 B6 C1 E8
+B6  : T   7.03c W   5.36c S   1.61c ( +2.0 L  +2.0) LCB   33.05c P  1.85% WF   9.4 PSV       9 N      10  --  B6 B7 B9 E7 J7
+F3  : T   1.93c W   0.10c S   1.74c ( +2.2 L  +2.2) LCB   24.18c P  0.78% WF   9.8 PSV       9 N      10  --  F3 D9 A9 H4 H6 E1 B4
+D9  : T   2.78c W   3.55c S  -0.83c ( -1.1 L  -1.1) LCB   31.69c P  0.86% WF   9.8 PSV       8 N      10  --  D9 C6 D1 C5 E1 G9
+A2  : T   2.33c W   1.81c S   0.44c ( +0.6 L  +0.6) LCB   35.43c P  0.64% WF  10.8 PSV       7 N      11  --  A2 F1 F9 B9 H4 B3
+E3  : T   8.60c W   5.13c S   3.48c ( +4.6 L  +4.6) LCB   42.01c P  1.66% WF   6.5 PSV       7 N       7  --  E3 F3 J7 G5 H4
+A5  : T  11.82c W   8.81c S   3.03c ( +3.9 L  +3.9) LCB  122.15c P  1.31% WF   3.7 PSV       4 N       4  --  A5 B2 F4
+B5  : T   9.01c W   6.82c S   2.25c ( +2.8 L  +2.8) LCB  143.79c P  1.01% WF   3.8 PSV       4 N       4  --  B5 E1 G7
+H3  : T   9.97c W  10.35c S  -0.19c ( -0.3 L  -0.3) LCB   70.05c P  1.02% WF   5.6 PSV       3 N       6  --  H3 A8 B5 A4
+C3  : T   7.06c W   6.81c S   0.23c ( +0.3 L  +0.3) LCB   79.99c P  0.72% WF   4.8 PSV       3 N       5  --  C3 F3 E3
+A9  : T  12.79c W  14.67c S  -1.70c ( -2.2 L  -2.2) LCB  270.00c P  1.14% WF   2.8 PSV       3 N       3  --  A9 G2 B9
+C5  : T   8.55c W   8.64c S  -0.14c ( -0.2 L  -0.2) LCB  287.45c P  0.71% WF   2.8 PSV       3 N       3  --  C5 E5 J2
+F8  : T  14.03c W  14.82c S  -0.78c ( -1.0 L  -1.0) LCB  168.49c P  0.82% WF   3.6 PSV       2 N       4  --  F8 H1 F4 B9
+C1  : T  12.42c W  11.41c S   1.17c ( +1.6 L  +1.6) LCB  302.87c P  0.73% WF   3.7 PSV       2 N       4  --  C1 G5 C8 H4
+G6  : T   9.93c W   8.13c S   1.81c ( +2.5 L  +2.5) LCB  286.20c P  0.54% WF   2.8 PSV       2 N       3  --  G6 A1 H8
+H6  : T   9.09c W   9.39c S  -0.30c ( -0.4 L  -0.4) LCB  260.00c P  0.60% WF   1.9 PSV       2 N       2  --  H6 F5
+H1  : T  15.95c W  13.20c S   2.71c ( +3.5 L  +3.5) LCB  260.00c P  0.54% WF   1.8 PSV       1 N       2  --  H1 D3
+B3  : T  35.10c W  35.40c S  -0.29c ( -0.4 L  -0.4) LCB  260.00c P  1.22% WF   0.8 PSV       1 N       1  --  B3
+G1  : T  31.63c W  31.57c S   0.06c ( +0.1 L  +0.1) LCB  260.00c P  1.12% WF   0.9 PSV       1 N       1  --  G1
+D4  : T  18.40c W  10.77c S   7.63c ( +9.6 L  +9.6) LCB  260.00c P  0.71% WF   0.9 PSV       1 N       1  --  D4
+E8  : T  12.68c W  10.14c S   2.54c ( +3.1 L  +3.1) LCB  260.00c P  0.61% WF   0.9 PSV       1 N       1  --  E8
+B7  : T  14.80c W  17.09c S  -2.29c ( -3.1 L  -3.1) LCB  260.00c P  0.58% WF   0.9 PSV       1 N       1  --  B7
+: GPU 0 finishing, processed 0 rows 0 batches
+
+===================================================================
+Testing pruning of search tree at root node due to symmetries, allowing only diagonal flips: empty board
+===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
+HASH: 9F0B2D702FC8448C75410E097F089AEB
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+: T  -0.25c W  -0.19c S  -0.07c ( -0.1 L  -0.1) N    5000  --  E5 A9 A4 C1 B2 D7 E8
+---Black(v)---
+E5  : T  -0.60c W  -0.55c S  -0.04c ( -0.1 L  -0.1) LCB    1.06c P  2.17% WF 1170.9 PSV    1163 N    1163  --  E5 A9 A4 C1 B2 D7 E8
+J2  : T  -0.89c W  -0.76c S  -0.13c ( -0.2 L  -0.2) LCB    1.60c P  0.95% WF 569.6 PSV     563 N     563  --  J2 C5 B8 G8 C3 H5 B7 A3
+G6  : T  -0.65c W  -0.57c S  -0.07c ( -0.1 L  -0.1) LCB    1.50c P  0.54% WF 679.7 PSV     500 N     675  --  G6 B1 B6 F2 F7 D6 G7 H8
+J7  : T  -0.19c W  -0.13c S  -0.06c ( -0.1 L  -0.1) LCB    2.44c P  3.20% WF 421.5 PSV     417 N     423  --  J7 G2 C7 D6 G8 A9 J6 E6
+G3  : T  -0.25c W  -0.03c S  -0.23c ( -0.3 L  -0.3) LCB    2.88c P  2.34% WF 352.2 PSV     342 N     353  --  G3 D4 E1 H3 G6 G1 J4
+H7  : T  -0.21c W  -0.27c S   0.06c ( +0.1 L  +0.1) LCB    2.87c P  2.49% WF 343.0 PSV     340 N     344  --  H7 H4 D5 B4 H3 B9 J7
+J6  : T  -0.12c W  -0.27c S   0.13c ( +0.2 L  +0.2) LCB    3.32c P  2.29% WF 269.7 PSV     264 N     271  --  J6 C9 G2 A1 E3 D2 G6 C3
+F5  : T  -0.41c W  -0.33c S  -0.06c ( -0.1 L  -0.1) LCB    3.04c P  1.12% WF 250.1 PSV     242 N     250  --  F5 H5 H4 A2 A6 B8 F6 E4
+J4  : T  -0.29c W  -0.45c S   0.15c ( +0.2 L  +0.2) LCB    3.74c P  1.37% WF 217.6 PSV     218 N     218  --  J4 D6 G3 E1 C4 B1 J5
+H8  : T   0.39c W   0.77c S  -0.39c ( -0.5 L  -0.5) LCB    5.75c P  1.91% WF 127.4 PSV     120 N     129  --  H8 J4 H4 C8 G9 A6 D1 B1
+H4  : T   1.01c W   1.13c S  -0.10c ( -0.1 L  -0.1) LCB    6.92c P  2.53% WF 100.9 PSV     102 N     103  --  H4 E5 B1 F9 A5 J9 G6 A6
+H3  : T   0.22c W   0.69c S  -0.44c ( -0.6 L  -0.6) LCB    6.28c P  1.02% WF  75.3 PSV      75 N      76  --  H3 E6 B7 D6 D3 A6 D9 F1
+F6  : T   1.87c W   1.84c S   0.03c ( +0.0 L  +0.0) LCB    8.53c P  2.72% WF  72.7 PSV      73 N      75  --  F6 E3 G4 J5 D6 B9 A9 C3
+F4  : T  -0.30c W  -0.59c S   0.27c ( +0.4 L  +0.4) LCB    5.52c P  0.42% WF  93.8 PSV      69 N      94  --  F4 E8 A2 G5 C7 J9 C1 A5
+G5  : T   1.34c W   0.93c S   0.39c ( +0.5 L  +0.5) LCB    7.56c P  1.74% WF  61.6 PSV      59 N      63  --  G5 G8 A9 B2 C8 E8 E7
+H2  : T   1.31c W   1.93c S  -0.59c ( -0.8 L  -0.8) LCB    7.90c P  1.44% WF  57.7 PSV      49 N      59  --  H2 C1 B4 C7 C3 F7 E3 G4
+J8  : T   1.93c W   1.74c S   0.18c ( +0.2 L  +0.2) LCB   10.79c P  1.81% WF  53.4 PSV      48 N      55  --  J8 E7 B1 G1 G2 J3 B6 G4
+G4  : T   1.95c W   2.89c S  -0.94c ( -1.2 L  -1.2) LCB   11.74c P  1.23% WF  34.1 PSV      32 N      35  --  G4 A2 J6 J1 A9 H9 J7
+J3  : T   4.24c W   4.59c S  -0.36c ( -0.5 L  -0.5) LCB   16.36c P  1.36% WF  18.1 PSV      19 N      19  --  J3 pass H9 F3 E9
+H6  : T   3.38c W   4.05c S  -0.61c ( -0.8 L  -0.8) LCB   23.30c P  0.60% WF  10.6 PSV      10 N      11  --  H6 D2 E7 A1 H8 D3 H5
+H5  : T   4.88c W   3.58c S   1.25c ( +1.7 L  +1.7) LCB   42.24c P  0.50% WF   5.8 PSV       6 N       6  --  H5 F4 B4 H9
+pss : T   5.96c W   6.76c S  -0.77c ( -1.0 L  -1.0) LCB   37.52c P  0.44% WF   7.6 PSV       4 N       8  --  pass F5 B4 B8 D6
+J5  : T   2.64c W   5.57c S  -2.96c ( -3.8 L  -3.8) LCB  132.04c P  0.20% WF   3.9 PSV       4 N       4  --  J5 H3 C6 C1
+J9  : T  13.45c W  19.23c S  -5.78c ( -6.9 L  -6.9) LCB  260.00c P  0.31% WF   0.9 PSV       1 N       1  --  J9
+G7  : T  21.89c W  17.31c S   4.58c ( +5.9 L  +5.9) LCB  260.00c P  0.21% WF   0.9 PSV       0 N       1  --  G7
+: GPU 0 finishing, processed 0 rows 0 batches
+
+===================================================================
+Testing pruning of search tree at root node due to symmetries, allowing only diagonal flips: only one diagonal possible
+===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
+HASH: E28E79B74616D7787AA4486CD32D8875
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . O . . . .
+ 4 . . . . . . . . .
+ 3 . . X . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+: T  -0.26c W  -0.23c S  -0.04c ( -0.0 L  -0.0) N    5000  --  F2 B4 H3 A2 H9 B9 B5
+---Black(v)---
+F2  : T  -0.81c W  -0.72c S  -0.09c ( -0.1 L  -0.1) LCB    1.30c P  1.80% WF 717.5 PSV     711 N     711  --  F2 B4 H3 A2 H9 B9 B5 H6
+G5  : T  -1.24c W  -1.06c S  -0.20c ( -0.3 L  -0.3) LCB    1.14c P  1.79% WF 528.0 PSV     519 N     519  --  G5 H4 B5 B1 C2 C9 D8
+B1  : T  -0.76c W  -0.95c S   0.18c ( +0.2 L  +0.2) LCB    1.86c P  1.55% WF 512.6 PSV     488 N     509  --  B1 J3 A4 E4 A2 F3 B3 B8
+H4  : T  -0.60c W  -0.40c S  -0.19c ( -0.3 L  -0.3) LCB    2.08c P  2.60% WF 462.6 PSV     461 N     461  --  H4 C4 A9 G7 H3 C6 H8 A6
+G3  : T  -0.57c W  -0.72c S   0.15c ( +0.2 L  +0.2) LCB    2.40c P  2.41% WF 387.0 PSV     386 N     386  --  G3 F6 A3 F4 A2 D7 F7
+F3  : T  -0.80c W  -0.44c S  -0.35c ( -0.5 L  -0.5) LCB    2.44c P  0.80% WF 299.9 PSV     298 N     298  --  F3 J8 pass G9 C2 D3 D8 D9
+F1  : T  -0.94c W  -1.02c S   0.08c ( +0.1 L  +0.1) LCB    2.48c P  0.27% WF 300.7 PSV     298 N     298  --  F1 B7 A7 A9 A6 B5 F2 G2
+D1  : T  -0.49c W  -0.32c S  -0.17c ( -0.2 L  -0.2) LCB    3.15c P  1.72% WF 245.1 PSV     245 N     245  --  D1 J2 G9 F2 G3 E1 A8 F9
+F6  : T  -0.06c W   0.08c S  -0.13c ( -0.2 L  -0.2) LCB    3.85c P  2.80% WF 203.6 PSV     205 N     205  --  F6 B6 C2 F9 D5 D7 J9 C9
+H8  : T  -0.27c W  -0.62c S   0.36c ( +0.5 L  +0.5) LCB    3.64c P  1.97% WF 191.3 PSV     192 N     192  --  H8 E1 A9 C1 B3 H5 F5 A8
+J3  : T  -0.46c W  -0.60c S   0.12c ( +0.2 L  +0.2) LCB    3.50c P  1.40% WF 177.9 PSV     178 N     178  --  J3 F6 D4 B1 B3 G3 D3 C1
+G2  : T   0.05c W   0.81c S  -0.74c ( -1.0 L  -1.0) LCB    5.29c P  1.83% WF 120.0 PSV     121 N     121  --  G2 C6 G1 F8 E6 D2 D5
+F5  : T  -0.21c W  -0.27c S   0.07c ( +0.1 L  +0.1) LCB    5.18c P  1.15% WF 123.5 PSV     104 N     124  --  F5 G3 F6 E7 F2 G1 C8 E4
+J7  : T   1.53c W   1.64c S  -0.14c ( -0.2 L  -0.2) LCB    6.55c P  3.29% WF  89.4 PSV      92 N      92  --  J7 C4 H7 F1 D6 C2
+D3  : T   1.21c W   0.87c S   0.34c ( +0.4 L  +0.4) LCB    8.12c P  2.36% WF  70.3 PSV      72 N      72  --  D3 B1 F5 H6 H7 C7 G5
+B2  : T   2.02c W   1.88c S   0.16c ( +0.2 L  +0.2) LCB    8.73c P  2.93% WF  70.5 PSV      69 N      73  --  B2 C9 H9 C5 D8 H6 G8
+J2  : T   0.09c W   0.19c S  -0.09c ( -0.1 L  -0.1) LCB    8.18c P  0.98% WF  60.5 PSV      61 N      61  --  J2 C6 A9 G7 C1 E4 F3
+E3  : T   1.02c W   0.28c S   0.73c ( +1.0 L  +1.0) LCB    7.72c P  1.70% WF  56.9 PSV      58 N      58  --  E3 D6 J7 E7 H5 D1 H7 D2
+G1  : T   0.75c W   1.22c S  -0.48c ( -0.6 L  -0.6) LCB    8.57c P  1.14% WF  50.2 PSV      46 N      51  --  G1 C9 B7 J7 B2 E4
+H1  : T  -0.15c W  -0.09c S  -0.05c ( -0.1 L  -0.1) LCB    8.01c P  0.56% WF  45.8 PSV      46 N      46  --  H1 A1 G2 B1 D1 pass
+J4  : T   1.63c W   1.57c S   0.06c ( +0.1 L  +0.1) LCB   11.43c P  1.41% WF  37.1 PSV      38 N      38  --  J4 H8 F5 D9 C4 H4
+J6  : T   3.73c W   4.27c S  -0.54c ( -0.7 L  -0.7) LCB   13.06c P  2.36% WF  35.2 PSV      35 N      37  --  J6 D9 A1 F6 B4 F4 B6 C6
+J8  : T   2.82c W   2.94c S  -0.11c ( -0.1 L  -0.1) LCB   12.01c P  1.86% WF  31.8 PSV      33 N      33  --  J8 A4 A7 D8 B4 G6 G1
+H2  : T   2.68c W   2.65c S   0.02c ( +0.0 L  +0.0) LCB   16.01c P  1.48% WF  28.0 PSV      28 N      29  --  H2 H4 E1 A7 C5 J4 F3 D5
+H7  : T   6.38c W   6.80c S  -0.44c ( -0.6 L  -0.6) LCB   18.31c P  2.56% WF  21.4 PSV      23 N      23  --  H7 J3 C4 E4 G2 G9 A8
+H3  : T   2.48c W   2.36c S   0.09c ( +0.1 L  +0.1) LCB   16.53c P  1.05% WF  26.1 PSV      21 N      27  --  H3 J7 J5 H7 J4 A5 D9
+E1  : T   6.89c W   5.45c S   1.48c ( +1.9 L  +1.9) LCB   24.62c P  2.07% WF  18.5 PSV      18 N      20  --  E1 C1 F3 G4 E2 H7 B9
+A1  : T   3.61c W   2.89c S   0.72c ( +0.9 L  +0.9) LCB   21.83c P  1.00% WF  15.4 PSV      15 N      16  --  A1 D4 C4 A5 B3 J6 J3
+D4  : T   2.88c W   2.12c S   0.75c ( +0.9 L  +0.9) LCB   21.07c P  0.72% WF  13.6 PSV      13 N      14  --  D4 A7 D9 A3 F1
+C2  : T   4.86c W   3.55c S   1.34c ( +1.8 L  +1.8) LCB   27.76c P  1.00% WF  13.3 PSV      12 N      14  --  C2 D7 F8 G9 H9 D9
+E4  : T   1.05c W   1.83c S  -0.78c ( -1.0 L  -1.0) LCB   22.13c P  0.23% WF  11.8 PSV       7 N      12  --  E4 G5 H9 B9 J7 pass B5
+H5  : T   4.09c W   4.27c S  -0.20c ( -0.3 L  -0.3) LCB   62.32c P  0.51% WF   5.8 PSV       6 N       6  --  H5 E3 C1 C4 F8
+G6  : T   5.51c W   5.44c S   0.12c ( +0.2 L  +0.2) LCB  147.85c P  0.55% WF   4.8 PSV       5 N       5  --  G6 G5 C8 H4
+F4  : T   5.65c W   6.03c S  -0.35c ( -0.5 L  -0.5) LCB   65.21c P  0.43% WF   5.7 PSV       4 N       6  --  F4 D6 C5 H5 J7
+J9  : T   4.31c W   3.22c S   1.09c ( +1.5 L  +1.5) LCB   85.24c P  0.32% WF   4.8 PSV       4 N       5  --  J9 G6 E9
+G4  : T  20.98c W  20.24c S   0.79c ( +1.0 L  +1.0) LCB  139.41c P  1.26% WF   3.4 PSV       4 N       4  --  G4 H4 G5 J2
+H6  : T  10.62c W  12.53c S  -1.88c ( -2.6 L  -2.6) LCB   69.41c P  0.62% WF   4.6 PSV       3 N       5  --  H6 D7 D9 F9
+C1  : T  17.84c W  17.28c S   0.56c ( +0.7 L  +0.7) LCB  127.30c P  0.74% WF   3.5 PSV       2 N       4  --  C1 D9 G6 B4
+pss : T  19.56c W  10.15c S   9.41c (+12.7 L +12.7) LCB  260.00c P  0.46% WF   0.9 PSV       1 N       1  --  pass
+: GPU 0 finishing, processed 0 rows 0 batches
+
+===================================================================
 Non-square board search
 ===================================================================
+: Initializing neural net buffer to be size 7 * 17 allowing smaller boards
 HASH: 5DED86D03DDCC114C06F73CED6F98E16
    A B C D E F G
 17 . . . . . . .
@@ -13764,6 +13996,7 @@ Visualize dirichlet noise
 ===================================================================
 Search tolerates moving past game end
 ===================================================================
+: Initializing neural net buffer to be size 7 * 7 allowing smaller boards
 HASH: E59E1C6BA7D63B920A8DB7C62C60381C
    A B C D E F G
  7 . X O . O . O
@@ -13858,6 +14091,7 @@ pss : T  -3.11c W   1.47c S  -4.60c ( -4.9 L  -4.9) LCB -138.91c P  6.32% WF   3
 ===================================================================
 Integrity of value bias, mem safety and updates
 ===================================================================
+: Initializing neural net buffer to be size 7 * 7 allowing smaller boards
 HASH: E2262B2CF009F23B5DC105C6F196A50B
    A B C D E F G
  7 X . X X X X .
@@ -13973,25 +14207,206 @@ E2  : T  -1.96c W   0.08c S   0.72c ( +0.8 L  +0.8) LCB  -12.64c P 12.24% WF  35
 ===================================================================
 Analysis json
 ===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
 : T   0.64c W   1.89c S  -0.42c ( -0.5 L  -0.5) N      10  --  F4 E4 B1 D1
 ---Black(v)---
 F4  : T  -5.00c W  -3.72c S  -0.18c ( -0.2 L  -0.2) LCB   37.29c P  5.19% WF   7.2 PSV       7 N       7  --  F4 E4 B1 D1
 E6  : T  22.64c W  24.10c S  -1.46c ( -1.5 L  -1.5) LCB  260.00c P  5.42% WF   0.9 PSV       0 N       1  --  E6
 A6  : T  11.55c W  13.38c S  -1.83c ( -1.8 L  -1.8) LCB  260.00c P  4.86% WF   0.9 PSV       0 N       1  --  A6
-{"moveInfos":[{"lcb":0.6440636320331363,"move":"F4","order":0,"prior":0.051896724849939346,"pv":["F4","E4","B1"],"pvVisits":[7,4,2],"scoreLead":-0.20635694460346535,"scoreMean":-0.20635694460346535,"scoreSelfplay":-0.20635694460346535,"scoreStdev":15.403131933442012,"utility":-0.04998559658529058,"utilityLcb":0.3729482520879363,"visits":7,"winrate":0.48139676715881835},{"lcb":1.620522603392601,"move":"E6","order":1,"prior":0.05415373295545578,"pv":["E6"],"pvVisits":[1],"scoreLead":-1.536834716796875,"scoreMean":-1.536834716796875,"scoreSelfplay":-1.536834716796875,"scoreStdev":12.230462562499465,"utility":0.22644891437573753,"utilityLcb":2.6,"visits":1,"winrate":0.620522603392601},{"lcb":1.5669077634811401,"move":"A6","order":2,"prior":0.048611000180244446,"pv":["A6"],"pvVisits":[1],"scoreLead":-1.8396354913711548,"scoreMean":-1.8396354913711548,"scoreSelfplay":-1.8396354913711548,"scoreStdev":10.892128423581944,"utility":0.11550096612401159,"utilityLcb":2.6,"visits":1,"winrate":0.5669077634811401}],"ownership":[0.08033461221033597,0.006375448181403488,-0.06022539176616596,0.034443828459281275,-0.023230274746523158,0.08188338189615925,0.01560929888223901,-0.035302237109226316,0.07153083897951774,0.07746756800088814,0.011433504936887974,-0.014527424383251102,-0.0017949176316752,0.05512778248331127,0.11163203786269711,-0.07650110141670004,0.1350298050306737,0.022793378502130483,0.09903471785170195,-0.021244695145308072,-0.038516888343236015,-0.03254186444598087,-0.09559208046973627,-0.003591616127201722,-0.08843335662650714,-0.023158145342679556,-0.024366132244686846,0.07248525622662375,0.03313344774252791,-0.027013894843403274,-0.027248758939040107,-0.0180819994188188,0.05548785100044572,-0.06103067051137198,-0.12211547324674976,-0.039002778859261164,0.10570420637376164,-0.07099390647604185,-0.05847837572851602,-0.10419966002137343,-0.05980434873513875,-0.05638072828751273,-0.014739360078292735,-0.08837361239510422,0.001646002441425501,-0.006916413770221618,0.048010697266196514,0.010763555743676798,0.03157323254864004],"policy":[0.018451817333698273,0.0011210383381694555,0.04673032835125923,0.013948675245046616,0.005133325699716806,0.006729338318109512,0.01532159186899662,0.048611000180244446,0.004978736396878958,0.006619152147322893,0.005205654073506594,0.05415373295545578,0.020309720188379288,0.009834248572587967,0.01320248655974865,0.03518170863389969,0.031024513766169548,0.029385479167103767,0.013828763738274574,0.009360465221107006,0.021884337067604065,0.0034017637372016907,0.005611063912510872,0.03154199570417404,0.0034030696842819452,0.04038996621966362,0.051896724849939346,0.03102273866534233,0.029861897230148315,0.019158853217959404,0.03358069062232971,0.003753598313778639,0.04410634934902191,0.008710562251508236,0.009752878919243813,0.037147730588912964,0.021167848259210587,0.016357233747839928,0.011437823995947838,0.041953105479478836,0.03526492789387703,0.018127523362636566,0.028240211308002472,0.008058277890086174,0.0032199006527662277,0.007629928179085255,0.024607211351394653,0.00457583274692297,0.011410634964704514,0.0035935817286372185],"rootInfo":{"scoreLead":-0.2118888067378596,"scoreSelfplay":-0.2118888067378596,"scoreStdev":14.954976406367411,"symHash":"B2E696E1682166C81CE6B98730C14F74","thisHash":"B2E696E1682166C81CE6B98730C14F74","utility":-0.029425521351822245,"visits":10,"winrate":0.4910318837335439}}
+{"moveInfos":[{"lcb":0.644063632,"move":"F4","order":0,"prior":0.0518967248,"pv":["F4","E4","B1"],"pvVisits":[7,4,2],"scoreLead":-0.206356945,"scoreMean":-0.206356945,"scoreSelfplay":-0.206356945,"scoreStdev":15.4031319,"utility":-0.0499855966,"utilityLcb":0.372948252,"visits":7,"winrate":0.481396767},{"lcb":1.6205226,"move":"E6","order":1,"prior":0.054153733,"pv":["E6"],"pvVisits":[1],"scoreLead":-1.53683472,"scoreMean":-1.53683472,"scoreSelfplay":-1.53683472,"scoreStdev":12.2304626,"utility":0.226448914,"utilityLcb":2.6,"visits":1,"winrate":0.620522603},{"lcb":1.56690776,"move":"A6","order":2,"prior":0.0486110002,"pv":["A6"],"pvVisits":[1],"scoreLead":-1.83963549,"scoreMean":-1.83963549,"scoreSelfplay":-1.83963549,"scoreStdev":10.8921284,"utility":0.115500966,"utilityLcb":2.6,"visits":1,"winrate":0.566907763}],"ownership":[0.080335,0.006375,-0.060225,0.034444,-0.02323,0.081883,0.015609,-0.035302,0.071531,0.077468,0.011434,-0.014527,-0.001795,0.055128,0.111632,-0.076501,0.13503,0.022793,0.099035,-0.021245,-0.038517,-0.032542,-0.095592,-0.003592,-0.088433,-0.023158,-0.024366,0.072485,0.033133,-0.027014,-0.027249,-0.018082,0.055488,-0.061031,-0.122115,-0.039003,0.105704,-0.070994,-0.058478,-0.1042,-0.059804,-0.056381,-0.014739,-0.088374,0.001646,-0.006916,0.048011,0.010764,0.031573],"policy":[0.0184518173,0.00112103834,0.0467303284,0.0139486752,0.0051333257,0.00672933832,0.0153215919,0.0486110002,0.0049787364,0.00661915215,0.00520565407,0.054153733,0.0203097202,0.00983424857,0.0132024866,0.0351817086,0.0310245138,0.0293854792,0.0138287637,0.00936046522,0.0218843371,0.00340176374,0.00561106391,0.0315419957,0.00340306968,0.0403899662,0.0518967248,0.0310227387,0.0298618972,0.0191588532,0.0335806906,0.00375359831,0.0441063493,0.00871056225,0.00975287892,0.0371477306,0.0211678483,0.0163572337,0.011437824,0.0419531055,0.0352649279,0.0181275234,0.0282402113,0.00805827789,0.00321990065,0.00762992818,0.0246072114,0.00457583275,0.011410635,0.00359358173],"rootInfo":{"currentPlayer":"B","scoreLead":-0.211888807,"scoreSelfplay":-0.211888807,"scoreStdev":14.9549764,"symHash":"B2E696E1682166C81CE6B98730C14F74","thisHash":"B2E696E1682166C81CE6B98730C14F74","utility":-0.0294255214,"visits":10,"winrate":0.491031884}}
 : GPU 0 finishing, processed 0 rows 0 batches
 ===================================================================
 Analysis json 2
 ===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
 : T   3.74c W   2.78c S   2.21c ( +2.6 L  +2.6) N      10  --  H6 E6 D6 B3
 ---Black(v)---
 H6  : T  -5.84c W  -4.70c S   1.19c ( +1.4 L  +1.4) LCB   49.34c P 12.55% WF   5.2 PSV       5 N       5  --  H6 E6 D6 B3
 D2  : T   2.59c W   1.44c S   1.31c ( +1.5 L  +1.5) LCB  260.00c P 10.83% WF   2.0 PSV       2 N       2  --  D2 C6
 C6  : T  26.24c W  22.77c S   3.47c ( +3.9 L  +3.9) LCB  260.00c P 12.06% WF   0.9 PSV       0 N       1  --  C6
 J3  : T  27.71c W  20.93c S   6.79c ( +8.2 L  +8.2) LCB  260.00c P  9.59% WF   0.9 PSV       0 N       1  --  J3
-{"moveInfos":[{"lcb":0.6887419071315741,"move":"H6","order":0,"prior":0.12548233568668365,"pv":["H6","E6","D6"],"scoreLead":1.3664488413090843,"scoreMean":1.3664488413090843,"scoreSelfplay":1.3664488413090843,"scoreStdev":14.05810200620645,"utility":-0.058371878644380336,"utilityLcb":0.4934203097356932,"visits":5,"winrate":0.4765141423700074},{"lcb":1.5071908608078957,"move":"D2","order":1,"prior":0.10829593241214752,"pv":["D2","C6"],"scoreLead":1.5049453377723694,"scoreMean":1.5049453377723694,"scoreSelfplay":1.5049453377723694,"scoreStdev":14.091161711613996,"utility":0.025867490600443098,"utilityLcb":2.6,"visits":2,"winrate":0.5071908608078957},{"lcb":1.6138460040092468,"move":"C6","order":2,"prior":0.12062764167785645,"pv":["C6"],"scoreLead":3.9428088665008545,"scoreMean":3.9428088665008545,"scoreSelfplay":3.9428088665008545,"scoreStdev":13.500488989084458,"utility":0.2624057080906941,"utilityLcb":2.6,"visits":1,"winrate":0.6138460040092468},{"lcb":1.6046339869499207,"move":"J3","order":3,"prior":0.0958915427327156,"pv":["J3"],"scoreLead":8.195317268371582,"scoreMean":8.195317268371582,"scoreSelfplay":8.195317268371582,"scoreStdev":14.841282112861512,"utility":0.27712908603885095,"utilityLcb":2.6,"visits":1,"winrate":0.6046339869499207}],"policy":[0.04763072356581688,0.002893800148740411,0.12062764167785645,0.03600650653243065,0.013250946998596191,0.01737082004547119,0.03955049440264702,0.12548233568668365,0.012851892970502377,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,0.08008076250553131,0.07708421349525452,-1.0,-1.0,-1.0,-1.0,-1.0,0.025175662711262703,0.0958915427327156,-1.0,-1.0,-1.0,0.10829593241214752,0.09103136509656906,0.04679360240697861,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,0.059981781989336014],"rootInfo":{"scoreLead":1.8170331628468719,"scoreSelfplay":1.8170331628468719,"scoreStdev":13.923751654464148,"symHash":"57CE82D9148A8EA0EFF15EA5BF213C32","thisHash":"A65F76856D962C3C296D3BDBFC088727","utility":-0.010859782494240654,"visits":10,"winrate":0.49403548961864285}}
+{"moveInfos":[{"lcb":0.688741907,"move":"H6","order":0,"prior":0.125482336,"pv":["H6","E6","D6"],"scoreLead":1.36644884,"scoreMean":1.36644884,"scoreSelfplay":1.36644884,"scoreStdev":14.058102,"utility":-0.0583718786,"utilityLcb":0.49342031,"visits":5,"winrate":0.476514142},{"lcb":1.50719086,"move":"D2","order":1,"prior":0.108295932,"pv":["D2","C6"],"scoreLead":1.50494534,"scoreMean":1.50494534,"scoreSelfplay":1.50494534,"scoreStdev":14.0911617,"utility":0.0258674906,"utilityLcb":2.6,"visits":2,"winrate":0.507190861},{"lcb":1.613846,"move":"C6","order":2,"prior":0.120627642,"pv":["C6"],"scoreLead":3.94280887,"scoreMean":3.94280887,"scoreSelfplay":3.94280887,"scoreStdev":13.500489,"utility":0.262405708,"utilityLcb":2.6,"visits":1,"winrate":0.613846004},{"lcb":1.60463399,"move":"J3","order":3,"prior":0.0958915427,"pv":["J3"],"scoreLead":8.19531727,"scoreMean":8.19531727,"scoreSelfplay":8.19531727,"scoreStdev":14.8412821,"utility":0.277129086,"utilityLcb":2.6,"visits":1,"winrate":0.604633987}],"policy":[0.0476307236,0.00289380015,0.120627642,0.0360065065,0.013250947,0.01737082,0.0395504944,0.125482336,0.012851893,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,0.0800807625,0.0770842135,-1.0,-1.0,-1.0,-1.0,-1.0,0.0251756627,0.0958915427,-1.0,-1.0,-1.0,0.108295932,0.0910313651,0.0467936024,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,0.059981782],"rootInfo":{"currentPlayer":"B","scoreLead":1.81703316,"scoreSelfplay":1.81703316,"scoreStdev":13.9237517,"symHash":"57CE82D9148A8EA0EFF15EA5BF213C32","thisHash":"A65F76856D962C3C296D3BDBFC088727","utility":-0.0108597825,"visits":10,"winrate":0.49403549}}
+: GPU 0 finishing, processed 0 rows 0 batches
+===================================================================
+Search results at 0, 1, 2 visits, and at terminal position
+===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
+Testing 0 visits allowDirectPolicyMoves false...
+getRootVisits 0
+getRootValues success: 0
+getPrunedRootValues success: 0
+getPlaySelectionValues success: 0
+getAnalysisJson success: 0
+{"moveInfos":[]}
+Testing 0 visits allowDirectPolicyMoves true...
+getRootVisits 0
+getRootValues success: 0
+getPrunedRootValues success: 0
+getPlaySelectionValues success: 0
+getAnalysisJson success: 0
+{"moveInfos":[]}
+Testing 1 visits allowDirectPolicyMoves false...
+getRootVisits 1
+getRootValues success: 1
+1 1 0.116955
+getPrunedRootValues success: 1
+1 1 0.116955
+getPlaySelectionValues success: 0
+getAnalysisJson success: 1
+{"moveInfos":[],"policy":[0.0216850992,0.00131747604,0.054918807,0.0163928792,0.0060328301,0.00790850911,0.0180063695,0.0571290292,0.00585115235,0.00777901569,0.00611783238,0.063643001,0.0238685589,0.0115574878,0.0155159375,0.0413465425,-1.0,0.0345346481,0.0162519552,0.0110006845,0.0257190932,0.0039978493,0.00659428164,0.0370690487,0.00399938412,-1.0,0.0609905049,0.0364588052,0.0350945517,0.0225160271,-1.0,0.0044113351,-1.0,0.0102369003,0.0114618596,0.0436570644,0.0248770565,0.0192234851,0.0134420553,0.0493044816,0.0414443463,0.0213039797,0.033188697,0.00947031658,0.00378411845,0.00896690879,0.0289190914,0.00537764886,0.0134101016,0.00422327919],"rootInfo":{"currentPlayer":"B","scoreLead":-0.250611842,"scoreSelfplay":-0.250611842,"scoreStdev":11.3319693,"symHash":"11524EB2FC5292743FA046F3599C3BAD","thisHash":"F82C9E3283DBB3DC4D81B261EDEA86C6","utility":0.114495005,"visits":1,"winrate":0.5584777}}
+Testing 1 visits allowDirectPolicyMoves true...
+getRootVisits 1
+getRootValues success: 1
+1 1 0.116955
+getPrunedRootValues success: 1
+1 1 0.116955
+getPlaySelectionValues success: 1
+A7 0.34073
+B7 0.020701
+C7 0.86292
+D7 0.257576
+E7 0.0947917
+F7 0.124264
+G7 0.282928
+A6 0.897648
+B6 0.0919371
+C6 0.122229
+D6 0.0961273
+E6 1
+F6 0.375038
+G6 0.181599
+A5 0.243796
+B5 0.649664
+D5 0.542631
+E5 0.255361
+F5 0.17285
+G5 0.404115
+A4 0.0628168
+B4 0.103614
+C4 0.582453
+D4 0.0628409
+F4 0.958322
+G4 0.572864
+A3 0.551428
+B3 0.353786
+D3 0.0693138
+F3 0.160849
+G3 0.180096
+A2 0.685968
+B2 0.390884
+C2 0.302052
+D2 0.21121
+E2 0.774704
+F2 0.6512
+G2 0.334742
+A1 0.521482
+B1 0.148804
+C1 0.0594585
+D1 0.140894
+E1 0.454395
+F1 0.0844971
+G1 0.210708
+pass 0.0663589
+getAnalysisJson success: 1
+{"moveInfos":[],"policy":[0.0216850992,0.00131747604,0.054918807,0.0163928792,0.0060328301,0.00790850911,0.0180063695,0.0571290292,0.00585115235,0.00777901569,0.00611783238,0.063643001,0.0238685589,0.0115574878,0.0155159375,0.0413465425,-1.0,0.0345346481,0.0162519552,0.0110006845,0.0257190932,0.0039978493,0.00659428164,0.0370690487,0.00399938412,-1.0,0.0609905049,0.0364588052,0.0350945517,0.0225160271,-1.0,0.0044113351,-1.0,0.0102369003,0.0114618596,0.0436570644,0.0248770565,0.0192234851,0.0134420553,0.0493044816,0.0414443463,0.0213039797,0.033188697,0.00947031658,0.00378411845,0.00896690879,0.0289190914,0.00537764886,0.0134101016,0.00422327919],"rootInfo":{"currentPlayer":"B","scoreLead":-0.250611842,"scoreSelfplay":-0.250611842,"scoreStdev":11.3319693,"symHash":"11524EB2FC5292743FA046F3599C3BAD","thisHash":"F82C9E3283DBB3DC4D81B261EDEA86C6","utility":0.114495005,"visits":1,"winrate":0.5584777}}
+Testing 2 visits allowDirectPolicyMoves false...
+getRootVisits 2
+getRootValues success: 1
+2 2 0.0630991
+getPrunedRootValues success: 1
+2 2 0.0630991
+getPlaySelectionValues success: 1
+E6 1
+getAnalysisJson success: 1
+{"moveInfos":[{"lcb":1.50462143,"move":"E6","order":0,"prior":0.063643001,"pv":["E6"],"pvVisits":[1],"scoreLead":2.13045025,"scoreMean":2.13045025,"scoreSelfplay":2.13045025,"scoreStdev":10.2940983,"utility":0.0308925899,"utilityLcb":2.6,"visits":1,"winrate":0.504621431}],"policy":[0.0216850992,0.00131747604,0.054918807,0.0163928792,0.0060328301,0.00790850911,0.0180063695,0.0571290292,0.00585115235,0.00777901569,0.00611783238,0.063643001,0.0238685589,0.0115574878,0.0155159375,0.0413465425,-1.0,0.0345346481,0.0162519552,0.0110006845,0.0257190932,0.0039978493,0.00659428164,0.0370690487,0.00399938412,-1.0,0.0609905049,0.0364588052,0.0350945517,0.0225160271,-1.0,0.0044113351,-1.0,0.0102369003,0.0114618596,0.0436570644,0.0248770565,0.0192234851,0.0134420553,0.0493044816,0.0414443463,0.0213039797,0.033188697,0.00947031658,0.00378411845,0.00896690879,0.0289190914,0.00537764886,0.0134101016,0.00422327919],"rootInfo":{"currentPlayer":"B","scoreLead":0.939919204,"scoreSelfplay":0.939919204,"scoreStdev":10.8907464,"symHash":"11524EB2FC5292743FA046F3599C3BAD","thisHash":"F82C9E3283DBB3DC4D81B261EDEA86C6","utility":0.0726937976,"visits":2,"winrate":0.531549565}}
+Testing 2 visits allowDirectPolicyMoves true...
+getRootVisits 2
+getRootValues success: 1
+2 2 0.0630991
+getPrunedRootValues success: 1
+2 2 0.0630991
+getPlaySelectionValues success: 1
+E6 1
+getAnalysisJson success: 1
+{"moveInfos":[{"lcb":1.50462143,"move":"E6","order":0,"prior":0.063643001,"pv":["E6"],"pvVisits":[1],"scoreLead":2.13045025,"scoreMean":2.13045025,"scoreSelfplay":2.13045025,"scoreStdev":10.2940983,"utility":0.0308925899,"utilityLcb":2.6,"visits":1,"winrate":0.504621431}],"policy":[0.0216850992,0.00131747604,0.054918807,0.0163928792,0.0060328301,0.00790850911,0.0180063695,0.0571290292,0.00585115235,0.00777901569,0.00611783238,0.063643001,0.0238685589,0.0115574878,0.0155159375,0.0413465425,-1.0,0.0345346481,0.0162519552,0.0110006845,0.0257190932,0.0039978493,0.00659428164,0.0370690487,0.00399938412,-1.0,0.0609905049,0.0364588052,0.0350945517,0.0225160271,-1.0,0.0044113351,-1.0,0.0102369003,0.0114618596,0.0436570644,0.0248770565,0.0192234851,0.0134420553,0.0493044816,0.0414443463,0.0213039797,0.033188697,0.00947031658,0.00378411845,0.00896690879,0.0289190914,0.00537764886,0.0134101016,0.00422327919],"rootInfo":{"currentPlayer":"B","scoreLead":0.939919204,"scoreSelfplay":0.939919204,"scoreStdev":10.8907464,"symHash":"11524EB2FC5292743FA046F3599C3BAD","thisHash":"F82C9E3283DBB3DC4D81B261EDEA86C6","utility":0.0726937976,"visits":2,"winrate":0.531549565}}
+Testing 2 visits terminal position allowDirectPolicyMoves false...
+getRootVisits 2
+getRootValues success: 1
+2 2 0.0737005
+getPrunedRootValues success: 1
+2 2 0.0737005
+getPlaySelectionValues success: 1
+D6 1
+getAnalysisJson success: 1
+{"moveInfos":[{"lcb":1.66053776,"move":"D6","order":0,"prior":0.0805731565,"pv":["D6"],"pvVisits":[1],"scoreLead":-6.88759232,"scoreMean":-6.88759232,"scoreSelfplay":-6.88759232,"scoreStdev":14.360424,"utility":0.261316235,"utilityLcb":2.6,"visits":1,"winrate":0.660537764}],"policy":[0.0113568939,0.0127214501,0.0163128916,0.0453371629,0.0096026957,0.00457855361,0.0597451814,0.00437190803,0.00877344608,0.00415390963,0.0805731565,0.0204176251,0.00751597248,0.00542262942,0.027850749,0.00166150322,-1.0,0.0154511109,0.0656256303,0.0238938667,0.00735671865,0.0172311496,0.0716111138,0.0351528414,0.0165597219,-1.0,0.00748334918,0.00830021687,0.0370344594,0.0103493305,-1.0,0.0259802192,-1.0,0.0237596314,0.010240511,0.0481577292,0.0155898128,0.00344799063,0.0118677747,0.0182346553,0.0205486137,0.0352850594,0.00904700253,0.0204579104,0.0719678849,0.00615574094,0.0113435155,0.00710157957,0.01913324,0.0052359486],"rootInfo":{"currentPlayer":"B","scoreLead":-3.13391134,"scoreSelfplay":-3.13391134,"scoreStdev":14.543271,"symHash":"11524EB2FC5292743FA046F3599C3BAD","thisHash":"F82C9E3283DBB3DC4D81B261EDEA86C6","utility":0.0466173576,"visits":2,"winrate":0.536850266}}
+Testing 2 visits terminal position allowDirectPolicyMoves true...
+getRootVisits 2
+getRootValues success: 1
+2 2 0.0737005
+getPrunedRootValues success: 1
+2 2 0.0737005
+getPlaySelectionValues success: 1
+D6 1
+getAnalysisJson success: 1
+{"moveInfos":[{"lcb":1.66053776,"move":"D6","order":0,"prior":0.0805731565,"pv":["D6"],"pvVisits":[1],"scoreLead":-6.88759232,"scoreMean":-6.88759232,"scoreSelfplay":-6.88759232,"scoreStdev":14.360424,"utility":0.261316235,"utilityLcb":2.6,"visits":1,"winrate":0.660537764}],"policy":[0.0113568939,0.0127214501,0.0163128916,0.0453371629,0.0096026957,0.00457855361,0.0597451814,0.00437190803,0.00877344608,0.00415390963,0.0805731565,0.0204176251,0.00751597248,0.00542262942,0.027850749,0.00166150322,-1.0,0.0154511109,0.0656256303,0.0238938667,0.00735671865,0.0172311496,0.0716111138,0.0351528414,0.0165597219,-1.0,0.00748334918,0.00830021687,0.0370344594,0.0103493305,-1.0,0.0259802192,-1.0,0.0237596314,0.010240511,0.0481577292,0.0155898128,0.00344799063,0.0118677747,0.0182346553,0.0205486137,0.0352850594,0.00904700253,0.0204579104,0.0719678849,0.00615574094,0.0113435155,0.00710157957,0.01913324,0.0052359486],"rootInfo":{"currentPlayer":"B","scoreLead":-3.13391134,"scoreSelfplay":-3.13391134,"scoreStdev":14.543271,"symHash":"11524EB2FC5292743FA046F3599C3BAD","thisHash":"F82C9E3283DBB3DC4D81B261EDEA86C6","utility":0.0466173576,"visits":2,"winrate":0.536850266}}
+Testing 1000 visits just before terminal position allowDirectPolicyMoves false...
+getRootVisits 1000
+getRootValues success: 1
+1000 1000 0.967025
+getPrunedRootValues success: 1
+1000 1000 0.987034
+getNodeValues for pass child success: 1
+906 906 1
+getPrunedNodeValues for pass child success: 1
+906 906 1
+getPlaySelectionValues success: 1
+B7 3
+C1 2
+F4 2
+D6 1
+G4 1
+D2 1
+G2 0
+F3 0
+D3 0
+pass 906
+A4 1
+B5 0
+E5 0
+G1 0
+A7 0
+C6 0
+B4 0
+F7 0
+D7 0
+A5 0
+F6 0
+B3 0
+G6 0
+D1 0
+E6 0
+D4 0
+C2 0
+G3 0
+B1 0
+A2 0
+F2 0
+B6 0
+E7 0
+F1 0
+C7 0
+getAnalysisJson success: 1
+{"moveInfos":[{"lcb":0.999994846,"move":"pass","order":0,"prior":0.0267566573,"pv":["pass"],"pvVisits":[906],"scoreLead":7.5,"scoreMean":7.5,"scoreSelfplay":7.5,"scoreStdev":0.0,"utility":1.09389138,"utilityLcb":1.09387798,"visits":906,"winrate":1.0},{"lcb":0.378903484,"move":"B7","order":1,"prior":0.108957194,"pv":["B7","E6","G4"],"pvVisits":[8,5,4],"scoreLead":-0.452201866,"scoreMean":-0.452201866,"scoreSelfplay":-0.452201866,"scoreStdev":13.6679498,"utility":-0.0458442026,"utilityLcb":-0.306649805,"visits":8,"winrate":0.479213331},{"lcb":0.470285319,"move":"F4","order":2,"prior":0.0925141424,"pv":["F4","D5","F6"],"pvVisits":[28,13,9],"scoreLead":0.43239058,"scoreMean":0.43239058,"scoreSelfplay":0.43239058,"scoreStdev":14.8276796,"utility":0.0401441104,"utilityLcb":-0.0846511705,"visits":28,"winrate":0.518283504},{"lcb":0.405577535,"move":"C1","order":3,"prior":0.103472881,"pv":["C1","A7","D3"],"pvVisits":[13,6,4],"scoreLead":-0.213781805,"scoreMean":-0.213781805,"scoreSelfplay":-0.213781805,"scoreStdev":14.5825223,"utility":-0.00720365705,"utilityLcb":-0.24390832,"visits":13,"winrate":0.49661779},{"lcb":-0.0330433707,"move":"D6","order":4,"prior":0.0538563356,"pv":["D6","E1","C1"],"pvVisits":[3,2,1],"scoreLead":1.46311701,"scoreMean":1.46311701,"scoreSelfplay":1.46311701,"scoreStdev":17.3728067,"utility":-0.0677096686,"utilityLcb":-1.35003591,"visits":3,"winrate":0.460159029},{"lcb":-0.0241034293,"move":"D2","order":5,"prior":0.042333778,"pv":["D2","G1"],"pvVisits":[3,1],"scoreLead":2.03082994,"scoreMean":2.03082994,"scoreSelfplay":2.03082994,"scoreStdev":13.4253627,"utility":-0.056946755,"utilityLcb":-1.32121726,"visits":3,"winrate":0.462154459},{"lcb":-0.582105517,"move":"G4","order":6,"prior":0.0454893596,"pv":["G4"],"pvVisits":[1],"scoreLead":-2.41899276,"scoreMean":-2.41899276,"scoreSelfplay":-2.41899276,"scoreStdev":18.3778383,"utility":-0.182970053,"utilityLcb":-2.6,"visits":1,"winrate":0.417894483},{"lcb":-0.320148751,"move":"A4","order":7,"prior":0.0257601105,"pv":["A4"],"pvVisits":[1],"scoreLead":-0.423040569,"scoreMean":-0.423040569,"scoreSelfplay":-0.423040569,"scoreStdev":11.3044907,"utility":0.355545676,"utilityLcb":-2.6,"visits":1,"winrate":0.679851249},{"lcb":0.41409146,"move":"D3","order":8,"prior":0.0280630924,"pv":["D3","F3","D1"],"pvVisits":[10,4,2],"scoreLead":-1.35561913,"scoreMean":-1.35561913,"scoreSelfplay":-1.35561913,"scoreStdev":14.8113579,"utility":0.0547197296,"utilityLcb":-0.255057575,"visits":10,"winrate":0.533236577},{"lcb":-0.608120397,"move":"G2","order":9,"prior":0.0401407406,"pv":["G2"],"pvVisits":[1],"scoreLead":-8.13513947,"scoreMean":-8.13513947,"scoreSelfplay":-8.13513947,"scoreStdev":17.1638994,"utility":-0.280555968,"utilityLcb":-2.6,"visits":1,"winrate":0.391879603},{"lcb":-0.617713809,"move":"F3","order":10,"prior":0.0343262143,"pv":["F3"],"pvVisits":[1],"scoreLead":-4.4156909,"scoreMean":-4.4156909,"scoreSelfplay":-4.4156909,"scoreStdev":13.3077044,"utility":-0.275527652,"utilityLcb":-2.6,"visits":1,"winrate":0.382286191},{"lcb":-0.45052059,"move":"B5","order":11,"prior":0.0241834763,"pv":["B5"],"pvVisits":[1],"scoreLead":-1.94136608,"scoreMean":-1.94136608,"scoreSelfplay":-1.94136608,"scoreStdev":11.0384707,"utility":0.0797399223,"utilityLcb":-2.6,"visits":1,"winrate":0.54947941},{"lcb":-0.470333993,"move":"E5","order":12,"prior":0.0235510767,"pv":["E5"],"pvVisits":[1],"scoreLead":-2.23548865,"scoreMean":-2.23548865,"scoreSelfplay":-2.23548865,"scoreStdev":11.1729005,"utility":0.0373227114,"utilityLcb":-2.6,"visits":1,"winrate":0.529666007},{"lcb":-0.485336721,"move":"G1","order":13,"prior":0.0231797062,"pv":["G1"],"pvVisits":[1],"scoreLead":1.6493516,"scoreMean":1.6493516,"scoreSelfplay":1.6493516,"scoreStdev":12.0436538,"utility":0.0450924486,"utilityLcb":-2.6,"visits":1,"winrate":0.514663279},{"lcb":-0.621654391,"move":"A7","order":14,"prior":0.023037767,"pv":["A7"],"pvVisits":[1],"scoreLead":0.201416776,"scoreMean":0.201416776,"scoreSelfplay":0.201416776,"scoreStdev":14.2735718,"utility":-0.241523643,"utilityLcb":-2.6,"visits":1,"winrate":0.378345609},{"lcb":-0.477681875,"move":"C6","order":15,"prior":0.0196214598,"pv":["C6"],"pvVisits":[1],"scoreLead":-0.593473494,"scoreMean":-0.593473494,"scoreSelfplay":-0.593473494,"scoreStdev":11.9572619,"utility":0.0389398571,"utilityLcb":-2.6,"visits":1,"winrate":0.522318125},{"lcb":-0.591936171,"move":"B4","order":16,"prior":0.0175980292,"pv":["B4"],"pvVisits":[1],"scoreLead":-3.61603451,"scoreMean":-3.61603451,"scoreSelfplay":-3.61603451,"scoreStdev":15.447127,"utility":-0.214546524,"utilityLcb":-2.6,"visits":1,"winrate":0.408063829},{"lcb":-0.549118116,"move":"F7","order":17,"prior":0.0167276822,"pv":["F7"],"pvVisits":[1],"scoreLead":5.46525478,"scoreMean":5.46525478,"scoreSelfplay":5.46525478,"scoreStdev":15.1280164,"utility":-0.0516657978,"utilityLcb":-2.6,"visits":1,"winrate":0.450881884},{"lcb":-0.568134427,"move":"D7","order":18,"prior":0.0166767947,"pv":["D7"],"pvVisits":[1],"scoreLead":0.17714031,"scoreMean":0.17714031,"scoreSelfplay":0.17714031,"scoreStdev":10.9155486,"utility":-0.134503669,"utilityLcb":-2.6,"visits":1,"winrate":0.431865573},{"lcb":-0.477649033,"move":"A5","order":19,"prior":0.0162116271,"pv":["A5"],"pvVisits":[1],"scoreLead":4.97783756,"scoreMean":4.97783756,"scoreSelfplay":4.97783756,"scoreStdev":15.9157989,"utility":0.0861367006,"utilityLcb":-2.6,"visits":1,"winrate":0.522350967},{"lcb":-0.593791947,"move":"F6","order":20,"prior":0.0135199474,"pv":["F6"],"pvVisits":[1],"scoreLead":-0.962040663,"scoreMean":-0.962040663,"scoreSelfplay":-0.962040663,"scoreStdev":11.0435798,"utility":-0.19712064,"utilityLcb":-2.6,"visits":1,"winrate":0.406208053},{"lcb":-0.428370297,"move":"B3","order":21,"prior":0.0134181418,"pv":["B3"],"pvVisits":[1],"scoreLead":2.62922955,"scoreMean":2.62922955,"scoreSelfplay":2.62922955,"scoreStdev":11.2586112,"utility":0.169045187,"utilityLcb":-2.6,"visits":1,"winrate":0.571629703},{"lcb":-0.438171089,"move":"G6","order":22,"prior":0.0134012671,"pv":["G6"],"pvVisits":[1],"scoreLead":-0.00761539582,"scoreMean":-0.00761539582,"scoreSelfplay":-0.00761539582,"scoreStdev":14.1180993,"utility":0.123589976,"utilityLcb":-2.6,"visits":1,"winrate":0.561828911},{"lcb":-0.528036013,"move":"D1","order":23,"prior":0.0128883459,"pv":["D1"],"pvVisits":[1],"scoreLead":-0.817905903,"scoreMean":-0.817905903,"scoreSelfplay":-0.817905903,"scoreStdev":11.9975522,"utility":-0.0639104824,"utilityLcb":-2.6,"visits":1,"winrate":0.471963987},{"lcb":-0.653361395,"move":"E6","order":24,"prior":0.0122029847,"pv":["E6"],"pvVisits":[1],"scoreLead":-3.20298624,"scoreMean":-3.20298624,"scoreSelfplay":-3.20298624,"scoreStdev":16.8876726,"utility":-0.33269934,"utilityLcb":-2.6,"visits":1,"winrate":0.346638605},{"lcb":-0.492777452,"move":"D4","order":25,"prior":0.0116710598,"pv":["D4"],"pvVisits":[1],"scoreLead":-4.45838833,"scoreMean":-4.45838833,"scoreSelfplay":-4.45838833,"scoreStdev":12.7415499,"utility":-0.0268207266,"utilityLcb":-2.6,"visits":1,"winrate":0.507222548},{"lcb":-0.484597147,"move":"C2","order":26,"prior":0.0112887733,"pv":["C2"],"pvVisits":[1],"scoreLead":-6.1088295,"scoreMean":-6.1088295,"scoreSelfplay":-6.1088295,"scoreStdev":11.9326947,"utility":-0.0268331596,"utilityLcb":-2.6,"visits":1,"winrate":0.515402853},{"lcb":-0.595548019,"move":"G3","order":27,"prior":0.010668627,"pv":["G3"],"pvVisits":[1],"scoreLead":-4.08164597,"scoreMean":-4.08164597,"scoreSelfplay":-4.08164597,"scoreStdev":12.0329266,"utility":-0.229866795,"utilityLcb":-2.6,"visits":1,"winrate":0.404451981},{"lcb":-0.615414158,"move":"B1","order":28,"prior":0.0106605925,"pv":["B1"],"pvVisits":[1],"scoreLead":-1.91456211,"scoreMean":-1.91456211,"scoreSelfplay":-1.91456211,"scoreStdev":12.6626826,"utility":-0.248730031,"utilityLcb":-2.6,"visits":1,"winrate":0.384585842},{"lcb":-0.527746722,"move":"A2","order":29,"prior":0.00996070914,"pv":["A2"],"pvVisits":[1],"scoreLead":-3.8207674,"scoreMean":-3.8207674,"scoreSelfplay":-3.8207674,"scoreStdev":11.1643893,"utility":-0.0929312724,"utilityLcb":-2.6,"visits":1,"winrate":0.472253278},{"lcb":-0.56376338,"move":"F2","order":30,"prior":0.00981387682,"pv":["F2"],"pvVisits":[1],"scoreLead":-5.90230179,"scoreMean":-5.90230179,"scoreSelfplay":-5.90230179,"scoreStdev":12.0864718,"utility":-0.182994387,"utilityLcb":-2.6,"visits":1,"winrate":0.43623662},{"lcb":-0.420346677,"move":"B6","order":31,"prior":0.00969476346,"pv":["B6"],"pvVisits":[1],"scoreLead":-0.384832323,"scoreMean":-0.384832323,"scoreSelfplay":-0.384832323,"scoreStdev":15.470792,"utility":0.156029457,"utilityLcb":-2.6,"visits":1,"winrate":0.579653323},{"lcb":-0.559431151,"move":"E7","order":32,"prior":0.00916466024,"pv":["E7"],"pvVisits":[1],"scoreLead":-1.81033957,"scoreMean":-1.81033957,"scoreSelfplay":-1.81033957,"scoreStdev":12.4636146,"utility":-0.135910422,"utilityLcb":-2.6,"visits":1,"winrate":0.440568849},{"lcb":-0.450777411,"move":"F1","order":33,"prior":0.00890589878,"pv":["F1"],"pvVisits":[1],"scoreLead":-1.26920867,"scoreMean":-1.26920867,"scoreSelfplay":-1.26920867,"scoreStdev":15.56131,"utility":0.0876746666,"utilityLcb":-2.6,"visits":1,"winrate":0.549222589},{"lcb":-0.544370353,"move":"C7","order":34,"prior":0.00772598386,"pv":["C7"],"pvVisits":[1],"scoreLead":-5.01950264,"scoreMean":-5.01950264,"scoreSelfplay":-5.01950264,"scoreStdev":11.1089683,"utility":-0.137742005,"utilityLcb":-2.6,"visits":1,"winrate":0.455629647}],"policy":[0.0235079248,0.111180805,0.00788365677,0.0170171373,0.00935169403,0.0170690622,0.00462053902,0.00727971876,0.00989261549,0.0200218968,0.0549554452,0.012452025,0.0137958648,0.0136747621,0.0165424757,0.0246770158,-1.0,0.00375841185,0.0240317099,0.00442621671,0.00528967427,0.0262858272,0.0179571714,0.00336868456,0.0119092446,-1.0,0.0944021866,0.0464177132,0.00340908277,0.0136919813,-1.0,0.0286358073,-1.0,0.0350267477,0.0108863534,0.0101639889,0.00657224748,0.0115191564,0.0431977324,0.00355449319,0.0100141596,0.0409599394,0.00423132582,0.010878155,0.105584569,0.0131513728,0.007118396,0.00908765197,0.0236527603,0.00689455029],"rootInfo":{"currentPlayer":"W","scoreLead":7.39977702,"scoreSelfplay":7.39977702,"scoreStdev":1.88201058,"symHash":"0374F1E328EA91D152F3E97DF072D02D","thisHash":"A1C7752F91A2D401B1940EFBF5FF45C3","utility":1.07968168,"visits":1000,"winrate":0.993516913}}
+Testing 1000 visits just before terminal position, then playing the pass and having tree reuse. allowDirectPolicyMoves false...
+getRootVisits 0
+getRootValues success: 0
+getPrunedRootValues success: 0
+getPlaySelectionValues success: 0
+getAnalysisJson success: 0
+{"moveInfos":[]}
 : GPU 0 finishing, processed 0 rows 0 batches
 Running training write tests
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-tt
 HASH: 67277BB4C5452970ADAEDA0847614349
    A B C D E
@@ -14099,6 +14514,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-jp
 HASH: 097728B63273902562856D7E7FCD78F5
    A B C D E
@@ -14212,6 +14628,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-gooddraws
 HASH: FBE16917FFBF22C1CD6D3A1EEB1FC363
    A B C D E
@@ -14301,6 +14718,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-tt-v5
 HASH: FBE16917FFBF22C1CD6D3A1EEB1FC363
    A B C D E
@@ -14408,6 +14826,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-rect-v4
 HASH: 18595744BEA73A272F0A1AEDA4D97B92
    A B C D E F G
@@ -14475,6 +14894,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-taxall-v3
 HASH: FBE16917FFBF22C1CD6D3A1EEB1FC363
    A B C D E
@@ -14588,6 +15008,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-taxall-v3-a
 HASH: B6FB8D92BE031880CABE17B44587FFCF
    A B C D E
@@ -14689,6 +15110,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-taxall-v3-c
 HASH: 150B527D3B094A5F13FAB68BC2210ED5
    A B C D E
@@ -14796,6 +15218,7 @@ valueTargetsNCHW
 
 : GPU 0 finishing, processed 0 rows 0 batches
 
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 seedBase: testtrainingwrite-simpleterritory-sgf-c
 HASH: 3151AD50EB954407A0D4D7AE1FD6C389
    A B C D E F G H J
@@ -15732,304 +16155,6 @@ center 5 scale 2 x 19 y 19
 -0.207 -0.199 -0.192 -0.184 -0.177 -0.169 -0.161 -0.153 -0.146 -0.138 -0.130 -0.122 -0.114 -0.106 -0.098 -0.090 -0.082 -0.074 -0.066 -0.057 -0.049 -0.041 -0.033 -0.025 -0.016 -0.008 0.000 0.008 0.016 0.025 0.033 0.041 0.049 
 
 
-------------------------------------
-Testing basic symmetries!
-SYMMETRY 0
-HASH: 10536BA4F5B60C6BAEF367A2D60E8EDA
-   A B C D E F G
- 7 . . . . . . .
- 6 . . . . . . .
- 5 . X X X . . .
- 4 . . . . O . .
- 3 . . . . O . .
- 2 . . . . O . .
- 1 . . . . . . .
-
-
-true
-0 0 0 0 0 0 0 
-0 0 0 0 0 0 0 
-0 1 1 1 0 0 0 
-0 0 0 0 2 0 0 
-0 0 0 0 2 0 0 
-0 0 0 0 2 0 0 
-0 0 0 0 0 0 0 
-SYMMETRY 1
-HASH: 4A73C1FBB96574A1EBBB05C4FBC6128B
-   A B C D E F G
- 7 . . . . . . .
- 6 . . . . O . .
- 5 . . . . O . .
- 4 . . . . O . .
- 3 . X X X . . .
- 2 . . . . . . .
- 1 . . . . . . .
-
-
-true
-0 0 0 0 0 0 0 
-0 0 0 0 2 0 0 
-0 0 0 0 2 0 0 
-0 0 0 0 2 0 0 
-0 1 1 1 0 0 0 
-0 0 0 0 0 0 0 
-0 0 0 0 0 0 0 
-SYMMETRY 2
-HASH: B595E477F1130F9C23C544E9362BBB81
-   A B C D E F G
- 7 . . . . . . .
- 6 . . . . . . .
- 5 . . . X X X .
- 4 . . O . . . .
- 3 . . O . . . .
- 2 . . O . . . .
- 1 . . . . . . .
-
-
-true
-0 0 0 0 0 0 0 
-0 0 0 0 0 0 0 
-0 0 0 1 1 1 0 
-0 0 2 0 0 0 0 
-0 0 2 0 0 0 0 
-0 0 2 0 0 0 0 
-0 0 0 0 0 0 0 
-SYMMETRY 3
-HASH: E837B93887D00B87590FE32DF7EACF34
-   A B C D E F G
- 7 . . . . . . .
- 6 . . O . . . .
- 5 . . O . . . .
- 4 . . O . . . .
- 3 . . . X X X .
- 2 . . . . . . .
- 1 . . . . . . .
-
-
-true
-0 0 0 0 0 0 0 
-0 0 2 0 0 0 0 
-0 0 2 0 0 0 0 
-0 0 2 0 0 0 0 
-0 0 0 1 1 1 0 
-0 0 0 0 0 0 0 
-0 0 0 0 0 0 0 
-SYMMETRY 4
-HASH: 2C091C7336C956E4190AEB8C971593BE
-   A B C D E F G
- 7 . . . . . . .
- 6 . . X . . . .
- 5 . . X . . . .
- 4 . . X . . . .
- 3 . . . O O O .
- 2 . . . . . . .
- 1 . . . . . . .
-
-
-true
-0 0 0 0 0 0 0 
-0 0 1 0 0 0 0 
-0 0 1 0 0 0 0 
-0 0 1 0 0 0 0 
-0 0 0 2 2 2 0 
-0 0 0 0 0 0 0 
-0 0 0 0 0 0 0 
-SYMMETRY 5
-HASH: 34A1589420527491B8CEA75DC1B6F48E
-   A B C D E F G
- 7 . . . . . . .
- 6 . . . . X . .
- 5 . . . . X . .
- 4 . . . . X . .
- 3 . O O O . . .
- 2 . . . . . . .
- 1 . . . . . . .
-
-
-true
-0 0 0 0 0 0 0 
-0 0 0 0 1 0 0 
-0 0 0 0 1 0 0 
-0 0 0 0 1 0 0 
-0 2 2 2 0 0 0 
-0 0 0 0 0 0 0 
-0 0 0 0 0 0 0 
-SYMMETRY 6
-HASH: 075AEB9CF818D878D220B3FB43D8BCBE
-   A B C D E F G
- 7 . . . . . . .
- 6 . . . . . . .
- 5 . . . O O O .
- 4 . . X . . . .
- 3 . . X . . . .
- 2 . . X . . . .
- 1 . . . . . . .
-
-
-true
-0 0 0 0 0 0 0 
-0 0 0 0 0 0 0 
-0 0 0 2 2 2 0 
-0 0 1 0 0 0 0 
-0 0 1 0 0 0 0 
-0 0 1 0 0 0 0 
-0 0 0 0 0 0 0 
-SYMMETRY 7
-HASH: 2398D7EE75668E65C5AAA3C650096162
-   A B C D E F G
- 7 . . . . . . .
- 6 . . . . . . .
- 5 . O O O . . .
- 4 . . . . X . .
- 3 . . . . X . .
- 2 . . . . X . .
- 1 . . . . . . .
-
-
-true
-0 0 0 0 0 0 0 
-0 0 0 0 0 0 0 
-0 2 2 2 0 0 0 
-0 0 0 0 1 0 0 
-0 0 0 0 1 0 0 
-0 0 0 0 1 0 0 
-0 0 0 0 0 0 0 
-SYMMETRY 0
-HASH: A5352E294DBE4F6B2B4599F80D25B366
-   A B C D E F G
- 5 . . . . . . .
- 4 . X . . . . .
- 3 . X . . . . .
- 2 . O O . . . .
- 1 . . . . . . .
-
-
-A45A5C8D2DE8346394278209E73A926D
-true
-true
-true
-true
-true
-SYMMETRY 1
-HASH: A8FACF75A64B6A8DD514DF4D7712A63A
-   A B C D E F G
- 5 . . . . . . .
- 4 . O O . . . .
- 3 . X . . . . .
- 2 . X . . . . .
- 1 . . . . . . .
-
-
-BFCD2A6D21BF86A61F34AE48DCB8AEC6
-true
-true
-true
-true
-true
-SYMMETRY 2
-HASH: AD610645C81C5509EAF0A92125D6C782
-   A B C D E F G
- 5 . . . . . . .
- 4 . . . . . X .
- 3 . . . . . X .
- 2 . . . . O O .
- 1 . . . . . . .
-
-
-973F598CDF7EC20C5F33A53CD7924EAA
-true
-true
-true
-true
-true
-SYMMETRY 3
-HASH: EEE84256E41FD211A4B352EEF5C7CC7B
-   A B C D E F G
- 5 . . . . . . .
- 4 . . . . O O .
- 3 . . . . . X .
- 2 . . . . . X .
- 1 . . . . . . .
-
-
-625DFB8C14A84F5F6E6FA9A59DD301DA
-true
-true
-true
-true
-true
-SYMMETRY 4
-HASH: 1EA67062B2A515A834C9974D7E15A768
-   A B C D E
- 7 . . . . .
- 6 . X X O .
- 5 . . . O .
- 4 . . . . .
- 3 . . . . .
- 2 . . . . .
- 1 . . . . .
-
-
-5DDD312C75F3DD542351ED3B73563B91
-true
-true
-true
-true
-true
-SYMMETRY 5
-HASH: F007BED32BD9CF351C98DA163AA05887
-   A B C D E
- 7 . . . . .
- 6 . O X X .
- 5 . O . . .
- 4 . . . . .
- 3 . . . . .
- 2 . . . . .
- 1 . . . . .
-
-
-E640978A901DA2740E21EA68A4905384
-true
-true
-true
-true
-true
-SYMMETRY 6
-HASH: ED57525FF5D510A172D3B280505FDF53
-   A B C D E
- 7 . . . . .
- 6 . . . . .
- 5 . . . . .
- 4 . . . . .
- 3 . . . O .
- 2 . X X O .
- 1 . . . . .
-
-
-3FBCDFE3BC7356387800B6F220F9C2F9
-true
-true
-true
-true
-true
-SYMMETRY 7
-HASH: 0FBBCE35DF09E50C13EB9BF65F27A7C3
-   A B C D E
- 7 . . . . .
- 6 . . . . .
- 5 . . . . .
- 4 . . . . .
- 3 . O . . .
- 2 . O X X .
- 1 . . . . .
-
-
-3D4B8867677FB2EBC1C1608C14BD9D5F
-true
-true
-true
-true
-true
 Symmetry 3-1-3-3 useNHWC 0 0
 0 1 2 3 4 5 6 7 8 3 0 4 0 5 0 0 6 0 1 0 0 1 1 1 1 0 1 
 Symmetry 3-1-3-3 useNHWC 0 1
