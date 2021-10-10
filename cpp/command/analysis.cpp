@@ -29,7 +29,9 @@ struct AnalyzeRequest {
   Player perspective;
   int analysisPVLen;
   bool includeOwnership;
+  bool includeOwnershipStdev;
   bool includeMovesOwnership;
+  bool includeMovesOwnershipStdev;
   bool includePolicy;
   bool includePVVisits;
 
@@ -260,7 +262,9 @@ int MainCmds::analysis(const vector<string>& args) {
     bool success = search->getAnalysisJson(
       request->perspective,
       request->analysisPVLen, ownershipMinVisits, preventEncore, request->includePolicy,
-      request->includeOwnership,request->includeMovesOwnership,request->includePVVisits,
+      request->includeOwnership,request->includeOwnershipStdev,
+      request->includeMovesOwnership,request->includeMovesOwnershipStdev,
+      request->includePVVisits,
       ret
     );
 
@@ -286,7 +290,7 @@ int MainCmds::analysis(const vector<string>& args) {
       //Else, the request is live and we marked it as popped
       else {
         bot->setPosition(request->nextPla,request->board,request->hist);
-        bot->setAlwaysIncludeOwnerMap(request->includeOwnership || request->includeMovesOwnership);
+        bot->setAlwaysIncludeOwnerMap(request->includeOwnership || request->includeOwnershipStdev || request->includeMovesOwnership || request->includeMovesOwnershipStdev);
         bot->setParams(request->params);
         bot->setAvoidMoveUntilByLoc(request->avoidMoveUntilByLocBlack,request->avoidMoveUntilByLocWhite);
 
@@ -488,7 +492,9 @@ int MainCmds::analysis(const vector<string>& args) {
       rbase.perspective = defaultPerspective;
       rbase.analysisPVLen = analysisPVLen;
       rbase.includeOwnership = false;
+      rbase.includeOwnershipStdev = false;
       rbase.includeMovesOwnership = false;
+      rbase.includeMovesOwnershipStdev = false;
       rbase.includePolicy = false;
       rbase.includePVVisits = false;
       rbase.reportDuringSearch = false;
@@ -872,8 +878,18 @@ int MainCmds::analysis(const vector<string>& args) {
         if(!suc)
           continue;
       }
+      if(input.find("includeMovesOwnershipStdev") != input.end()) {
+        bool suc = parseBoolean(input, "includeMovesOwnershipStdev", rbase.includeMovesOwnershipStdev, "Must be a boolean");
+        if(!suc)
+          continue;
+      }
       if(input.find("includeOwnership") != input.end()) {
         bool suc = parseBoolean(input, "includeOwnership", rbase.includeOwnership, "Must be a boolean");
+        if(!suc)
+          continue;
+      }
+      if(input.find("includeOwnershipStdev") != input.end()) {
+        bool suc = parseBoolean(input, "includeOwnershipStdev", rbase.includeOwnershipStdev, "Must be a boolean");
         if(!suc)
           continue;
       }
@@ -1012,7 +1028,9 @@ int MainCmds::analysis(const vector<string>& args) {
           newRequest->perspective = rbase.perspective;
           newRequest->analysisPVLen = rbase.analysisPVLen;
           newRequest->includeOwnership = rbase.includeOwnership;
+          newRequest->includeOwnershipStdev = rbase.includeOwnershipStdev;
           newRequest->includeMovesOwnership = rbase.includeMovesOwnership;
+          newRequest->includeMovesOwnershipStdev = rbase.includeMovesOwnershipStdev;
           newRequest->includePolicy = rbase.includePolicy;
           newRequest->includePVVisits = rbase.includePVVisits;
           newRequest->reportDuringSearch = rbase.reportDuringSearch;

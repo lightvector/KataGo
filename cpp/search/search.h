@@ -504,11 +504,14 @@ struct Search {
   nlohmann::json getJsonOwnershipMap(
     const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight, int symmetry
   ) const;
+  std::pair<nlohmann::json,nlohmann::json> getJsonOwnershipAndStdevMap(
+    const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight, int symmetry
+  ) const;
   //Fill json with analysis engine format information about search results
   bool getAnalysisJson(
     const Player perspective,
     int analysisPVLen, double ownershipMinWeight, bool preventEncore, bool includePolicy,
-    bool includeOwnership, bool includeMovesOwnership, bool includePVVisits,
+    bool includeOwnership, bool includeOwnershipStdev, bool includeMovesOwnership, bool includeMovesOwnershipStdev, bool includePVVisits,
     nlohmann::json& ret
   ) const;
 
@@ -687,9 +690,22 @@ private:
   std::pair<double,double> getAverageShorttermWLAndScoreErrorHelper(const SearchNode* node) const;
 
   template<typename Func>
-  double traverseTreeWithOwnershipAndSelfWeight(Func&& averaging, double minWeight, double desiredWeight, const SearchNode* node) const;
+  double traverseTreeWithOwnershipAndSelfWeight(
+    double minWeight,
+    double desiredWeight,
+    const SearchNode* node,
+    Func& averaging
+  ) const;
   template<typename Func>
-  double traverseTreeWithOwnershipAndSelfWeightHeler(Func&& averaging, double minWeight, double desiredWeight, double thisNodeWeight, const SearchChildPointer* children, double* childWeightBuf, int childrenCapacity) const;
+  double traverseTreeWithOwnershipAndSelfWeightHelper(
+    double minWeight,
+    double desiredWeight,
+    double thisNodeWeight,
+    const SearchChildPointer* children,
+    double* childWeightBuf,
+    int childrenCapacity,
+    Func& averaging
+  ) const;
 
 };
 
