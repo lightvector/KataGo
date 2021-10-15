@@ -44,7 +44,16 @@ void Logger::addFile(const string& file) {
   if(file == "")
     return;
   ofstream* out = new ofstream();
-  FileUtils::open(*out, file, ofstream::app);
+  try {
+    FileUtils::open(*out, file, ofstream::app);
+  }
+  catch(const StringError& e) {
+    write(string("WARNING: could not open file for logging: ") + e.what());
+    cerr << "WARNING: could not open file for logging: " << e.what() << endl;
+    out->close();
+    delete out;
+    return;
+  }
   files.push_back(out);
 }
 

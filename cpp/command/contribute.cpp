@@ -267,7 +267,17 @@ static void runAndUploadSingleGame(
     string sgfFile = sgfOutputDir + "/" + gameIdString + ".sgf";
 
     ofstream out;
-    FileUtils::open(out,sgfFile);
+    try {
+      FileUtils::open(out,sgfFile);
+    }
+    catch(const StringError& e) {
+      logger.write("WARNING: Terminating game " + Global::int64ToString(gameIdx) + ", error writing SGF file, skipping and not uploading this game, " + e.what());
+      out.close();
+      delete gameData;
+      delete gameRunner;
+      return;
+    }
+
     WriteSgf::writeSgf(out,gameData->bName,gameData->wName,gameData->endHist,gameData,false,true);
     out.close();
     if(outputEachMove != nullptr) {

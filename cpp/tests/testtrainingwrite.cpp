@@ -1028,6 +1028,8 @@ xxxxxxxx.
           nullptr
         );
         gameData->printDebug(cout);
+        delete gameData;
+        delete bot;
       }
 
       bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla);
