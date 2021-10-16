@@ -241,7 +241,7 @@ static void runAndUploadSingleGame(
 
       // Usual analysis response fields
       ret["turnNumber"] = hist.moveHistory.size();
-      search->getAnalysisJson(perspective,analysisPVLen,ownershipMinVisits,preventEncore,true,alwaysIncludeOwnership,false,false,ret);
+      search->getAnalysisJson(perspective,analysisPVLen,ownershipMinVisits,preventEncore,true,alwaysIncludeOwnership,false,false,false,false,ret);
       std::cout << ret.dump() + "\n" << std::flush; // no endl due to race conditions
     }
 
@@ -267,7 +267,17 @@ static void runAndUploadSingleGame(
     string sgfFile = sgfOutputDir + "/" + gameIdString + ".sgf";
 
     ofstream out;
-    FileUtils::open(out,sgfFile);
+    try {
+      FileUtils::open(out,sgfFile);
+    }
+    catch(const StringError& e) {
+      logger.write("WARNING: Terminating game " + Global::int64ToString(gameIdx) + ", error writing SGF file, skipping and not uploading this game, " + e.what());
+      out.close();
+      delete gameData;
+      delete gameRunner;
+      return;
+    }
+
     WriteSgf::writeSgf(out,gameData->bName,gameData->wName,gameData->endHist,gameData,false,true);
     out.close();
     if(outputEachMove != nullptr) {

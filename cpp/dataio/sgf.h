@@ -63,6 +63,7 @@ struct Sgf {
   Rules getRulesOrFail() const;
   int getHandicapValue() const;
   Player getSgfWinner() const;
+  Color getFirstPlayerColor() const;
 
   int getRank(Player pla) const; //dan ranks are 1d=0, 2d=1,... 9d=8. Kyu ranks are negative.
   std::string getPlayerName(Player pla) const;

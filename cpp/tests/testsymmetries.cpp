@@ -822,7 +822,8 @@ void Tests::runBoardSymmetryTests() {
     BoardHistory hist(board,pla,Rules::getTrompTaylorish(),0);
     bool isSymDupLoc[Board::MAX_ARR_SIZE];
     vector<int> validSymmetries;
-    SymmetryHelpers::markDuplicateMoveLocs(board,hist,onlySymmetries,isSymDupLoc,validSymmetries);
+    vector<int> avoidMoves;
+    SymmetryHelpers::markDuplicateMoveLocs(board,hist,onlySymmetries,avoidMoves,isSymDupLoc,validSymmetries);
     out << board << endl;
     printMarkedSymDupArea(board,isSymDupLoc,validSymmetries);
   };

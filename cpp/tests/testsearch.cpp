@@ -21,6 +21,7 @@ static string getSearchRandSeed() {
 struct TestSearchOptions {
   int numMovesInARow;
   bool printRootPolicy;
+  bool printOwnership;
   bool printEndingScoreValueBonus;
   bool printPlaySelectionValues;
   bool noClearBot;
@@ -32,6 +33,7 @@ struct TestSearchOptions {
   TestSearchOptions()
     :numMovesInARow(1),
      printRootPolicy(false),
+     printOwnership(false),
      printEndingScoreValueBonus(false),
      printPlaySelectionValues(false),
      noClearBot(false),
@@ -74,6 +76,8 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
     options = options.maxDepth(20);
   else if(opts.printMore)
     options = options.minVisitsPropToExpand(0.1).maxDepth(2);
+  if(opts.printOwnership)
+    bot->setAlwaysIncludeOwnerMap(true);
 
   for(int i = 0; i<opts.numMovesInARow; i++) {
 
@@ -95,6 +99,27 @@ static void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHi
 
     if(opts.printRootPolicy) {
       search->printRootPolicyMap(cout);
+    }
+    if(opts.printOwnership) {
+      std::tuple<std::vector<double>,std::vector<double>> ownershipAndStdev = search->getAverageAndStandardDeviationTreeOwnership(2.0);
+      std::vector<double> ownership = std::get<0>(ownershipAndStdev);
+      std::vector<double> ownershipStdev = std::get<1>(ownershipAndStdev);
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          int pos = NNPos::xyToPos(x,y,search->nnXLen);
+          cout << Global::strprintf("%6.1f ", ownership[pos]*100);
+        }
+        cout << endl;
+      }
+      cout << endl;
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          int pos = NNPos::xyToPos(x,y,search->nnXLen);
+          cout << Global::strprintf("%6.1f ", ownershipStdev[pos]*100);
+        }
+        cout << endl;
+      }
+      cout << endl;
     }
     if(opts.printEndingScoreValueBonus) {
       search->printRootOwnershipMap(cout, P_WHITE);
@@ -216,7 +241,6 @@ static void runBasicPositions(NNEvaluator* nnEval, Logger& logger)
       cout << endl;
 
       string sgfStr = "(;SZ[19]FF[3]PW[An Seong-chun]WR[6d]PB[Chen Yaoye]BR[9d]DT[2016-07-02]KM[7.5]RU[Chinese]RE[B+R];B[qd];W[dc];B[pq];W[dp];B[nc];W[po];B[qo];W[qn];B[qp];W[pm];B[nq];W[qi];B[qg];W[oi];B[cn];W[ck];B[fp];W[co];B[dn];W[eo];B[cq];W[dq];B[bo];W[cp];B[bp];W[bq];B[fn];W[bm];B[bn];W[fo];B[go];W[cr];B[en];W[gn];B[ho];W[gm];B[er];W[dr];B[ek];W[di];B[in];W[gk];B[cl];W[dk];B[ej];W[dl];B[el];W[gi];B[fi];W[ch];B[gh];W[hi];B[hh];W[ii];B[eh];W[df];B[ih];W[ji];B[kg];W[fg];B[ff];W[gf];B[eg];W[ef];B[fe];W[ge];B[fd];W[gg];B[fh];W[gd];B[cg];W[dg];B[dh];W[bg];B[bh];W[cf];B[ci];W[qc];B[pc];W[mp];B[on];W[mn];B[om];W[iq];B[pn];W[ol];B[qm];W[pl];B[rn];W[gq];B[kn];W[jo];B[ko];W[jp];B[jn];W[li];B[mo];W[pb];B[rc];W[oc];B[qb];W[od];B[cg];W[pd];B[dd];W[fc];B[ec];W[eb];B[ed];W[cd];B[fb];W[gc];B[db];W[cc];B[ea];W[gb];B[cb];W[bb];B[be];W[ce];B[bf];W[bd];B[ag];W[ca];B[jc];W[qe];B[ep];W[do];B[gp];W[fr];B[qc];W[nb];B[ib];W[je];B[re];W[kd];B[ba];W[aa];B[lc];W[ha];B[ld];W[le];B[me];W[mb];B[ie];W[id];B[kc];W[if];B[lf];W[ke];B[nd];W[of];B[jh];W[qf];B[rf];W[pg];B[mh];W[mq];B[mi];W[mj];B[hl];W[kh];B[jf];W[gl];B[lo];W[np];B[nr];W[kq];B[no];W[he];B[mf];W[rg];B[kk];W[jk];B[kj];W[ki];B[kl];W[lj];B[qk];W[ml];B[pa];W[ob];B[hb];W[ga];B[op];W[mr];B[ms];W[ls];B[ns];W[lq];B[pj];W[oj];B[ng];W[qh];B[eq];W[es];B[rj];W[im];B[jj];W[ik];B[jl];W[il];B[hn];W[hm];B[nm];W[mm];B[nl];W[nk];B[sf];W[ri];B[ql];W[ok];B[qj];W[lb];B[hq];W[hr];B[hp])";
-
 
       runBotOnSgf(bot, sgfStr, rules, 20, 7.5, opts);
       runBotOnSgf(bot, sgfStr, rules, 40, 7.5, opts);
@@ -395,6 +419,14 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
 
     nnEvalPTemp->clearCache();
     nnEvalPTemp->clearStats();
+    cout << endl << endl;
+
+    SearchParams params;
+    params.maxVisits = 200;
+    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "seed");
+    TestSearchOptions opts;
+    opts.printOwnership = true;
+    runBotOnSgf(bot, sgfStr, initialRules, 40, 7.5, opts);
     cout << endl << endl;
 
     delete sgf;
@@ -1218,6 +1250,105 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
     //Reset random seeds for nnEval
     nnEval->killServerThreads();
     nnEval->spawnServerThreads();
+  }
+
+  {
+    cout << "AntiMirror white ==========================================================================" << endl;
+
+    string sgfStr = "(;KM[7.5]SZ[19];B[pd];W[dp];B[pp];W[dd];B[cc];W[qq];B[dc];W[pq];B[op];W[ed];B[qp];W[cd];B[ec];W[oq];B[nq];W[fc];B[mp];W[gd];B[rp];W[bd];B[fq];W[nc];B[pi];W[dk];B[fe];W[no];B[cq];W[qc];B[pc];W[dq];B[cp];W[qd];B[do];W[pe];B[oe];W[eo];B[en];W[of];B[nf];W[fn];B[fd];W[np];B[mo];W[ge];B[fo];W[ne];B[od];W[ep];B[gn];W[mf];B[ng];W[fm];B[dn];W[pf];B[ff];W[nn];B[nd];W[fp];B[go];W[me];B[mr];W[gb];B[md];W[gp];B[gm];W[mg];B[mh];W[gl];B[hp];W[ld];B[lc];W[hq];B[fl];W[nh];B[gq];W[mc];B[pb];W[dr];B[hr];W[lb];B[kc];W[iq];B[ir];W[kb];B[hc];W[lq];B[og];W[em];B[hl];W[lh];B[mi];W[gk];B[le];W[ho];B[in];W[kf];B[jq];W[jc];B[pg];W[dm];B[kd];W[ip];B[mq];W[gc];B[bn];W[rf];B[cm];W[qg];B[qh];W[cl];B[rg];W[bm];B[cn];W[qf];B[li];W[hk];B[il];W[kh];B[rh];W[bl];B[bo];W[re];B[ik];W[ki];B[kj];W[ij];B[jj])";
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+    {
+      Board board;
+      Player nextPla;
+      BoardHistory hist;
+      Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
+      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 24);
+      SearchParams params = SearchParams::forTestsV1();
+      params.maxVisits = 200;
+      params.antiMirror = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "antimirrortest");
+
+      TestSearchOptions opts;
+      runBotOnPosition(bot,board,nextPla,hist,opts);
+      delete bot;
+    }
+    {
+      Board board;
+      Player nextPla;
+      BoardHistory hist;
+      Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
+      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 32);
+      SearchParams params = SearchParams::forTestsV1();
+      params.maxVisits = 200;
+      params.antiMirror = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "antimirrortest");
+
+      TestSearchOptions opts;
+      runBotOnPosition(bot,board,nextPla,hist,opts);
+      delete bot;
+    }
+    {
+      Board board;
+      Player nextPla;
+      BoardHistory hist;
+      Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
+      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 124);
+      SearchParams params = SearchParams::forTestsV1();
+      params.maxVisits = 200;
+      params.antiMirror = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "antimirrortest");
+
+      TestSearchOptions opts;
+      runBotOnPosition(bot,board,nextPla,hist,opts);
+      delete bot;
+    }
+
+    cout << endl << endl;
+
+    delete sgf;
+  }
+
+  {
+    cout << "AntiMirror black negkomi ==========================================================================" << endl;
+
+    string sgfStr = "(;SZ[19]KM[-3.50];B[jj];W[pd];B[dp];W[dd];B[pp];W[cn];B[qf];W[nq];B[fc];W[qn];B[cf];W[df];B[pn];W[pm];B[dg];W[po];B[de];W[fd];B[np];W[mp];B[gd];W[ed];B[op];W[on];B[ef];W[gc];B[mq];W[lq];B[hc];W[jk];B[ji];W[ik];B[ki];W[ij];B[kj];W[gb];B[mr];W[ic];B[kq];W[pf];B[dn];W[do];B[pe];W[qe];B[co];W[lp];B[hd];W[eo];B[oe];W[qg];B[cm];W[bn];B[rf];W[qd];B[cp];W[hb];B[lr];W[bm];B[rg];W[of];B[en];W[fn];B[nf];W[qh];B[cl];W[ck];B[qi];W[ne];B[fo];W[ep];B[od];W[ng];B[fm];W[gn];B[mf];W[mg];B[gm];W[lf];B[hn];W[rh];B[bl];W[me];B[go];W[ii];B[kk];W[kl])";
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+
+    {
+      Board board;
+      Player nextPla;
+      BoardHistory hist;
+      Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
+      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 29);
+      SearchParams params = SearchParams::forTestsV1();
+      params.maxVisits = 200;
+      params.antiMirror = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "antimirrortest");
+
+      TestSearchOptions opts;
+      runBotOnPosition(bot,board,nextPla,hist,opts);
+      delete bot;
+    }
+    {
+      Board board;
+      Player nextPla;
+      BoardHistory hist;
+      Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
+      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 83);
+      SearchParams params = SearchParams::forTestsV1();
+      params.maxVisits = 200;
+      params.antiMirror = true;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "antimirrortest");
+
+      TestSearchOptions opts;
+      runBotOnPosition(bot,board,nextPla,hist,opts);
+      delete bot;
+    }
+
+    cout << endl << endl;
+
+    delete sgf;
   }
 
 }
@@ -3267,6 +3398,237 @@ o..o.oo
 
   {
     cout << "===================================================================" << endl;
+    cout << "Testing pruning of search tree at root node due to symmetries, allowing only diagonal flips: empty board, with avoid moves" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,9,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 5000;
+    params.rootSymmetryPruning = true;
+    params.wideRootNoise = 0.05;
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::getTrompTaylorish();
+    TestSearchOptions opts;
+
+    Board board = Board::parseBoard(9,9,R"%%(
+.......xx
+xx.....xx
+.........
+....x....
+.........
+.........
+.....x...
+xx......x
+.......xx
+)%%");
+
+    vector<int> avoidMoveUntilByLoc(Board::MAX_ARR_SIZE);
+    for(int y = 0; y < board.y_size; y++) {
+      for(int x = 0; x < board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == C_BLACK) {
+          avoidMoveUntilByLoc[loc] = 0;
+          board.setStone(loc,C_EMPTY);
+        }
+        else
+          avoidMoveUntilByLoc[loc] = (y % 2 == 0 ? 1 : 2);
+      }
+    }
+
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    search->setPosition(nextPla,board,hist);
+    search->setRootSymmetryPruningOnly({0,3,4,7});
+    search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc,avoidMoveUntilByLoc);
+    search->runWholeSearch(nextPla);
+
+    cout << search->rootBoard << endl;
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    nlohmann::json json;
+    Player perspective = P_WHITE;
+    int analysisPVLen = 2;
+    int ownershipMinVisits = 1;
+    bool preventEncore = true;
+    bool includePolicy = false;
+    bool includeOwnership = false;
+    bool includeOwnershipStdev = false;
+    bool includeMovesOwnership = false;
+    bool includeMovesOwnershipStdev = false;
+    bool includePVVisits = false;
+    bool suc = search->getAnalysisJson(
+      perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+      includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+      json
+    );
+    testAssert(suc);
+    cout << json << endl;
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Testing pruning of search tree at root node due to symmetries, allowing only diagonal flips: only one diagonal possible, with avoid moves" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,9,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 5000;
+    params.rootSymmetryPruning = true;
+    params.wideRootNoise = 0.05;
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::getTrompTaylorish();
+    TestSearchOptions opts;
+
+    Board board = Board::parseBoard(9,9,R"%%(
+.......xx
+xx.....xx
+.........
+....xo...
+....o....
+.........
+.....x...
+xx......x
+.......xx
+)%%");
+
+    vector<int> avoidMoveUntilByLoc(Board::MAX_ARR_SIZE);
+    for(int y = 0; y < board.y_size; y++) {
+      for(int x = 0; x < board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == C_BLACK) {
+          avoidMoveUntilByLoc[loc] = 0;
+          board.setStone(loc,C_EMPTY);
+        }
+        else
+          avoidMoveUntilByLoc[loc] = (y % 2 == 0 ? 1 : 2);
+      }
+    }
+
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    search->setPosition(nextPla,board,hist);
+    search->setRootSymmetryPruningOnly({0,3,4,7});
+    search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc,avoidMoveUntilByLoc);
+    search->runWholeSearch(nextPla);
+
+    cout << search->rootBoard << endl;
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    nlohmann::json json;
+    Player perspective = P_WHITE;
+    int analysisPVLen = 2;
+    int ownershipMinVisits = 1;
+    bool preventEncore = true;
+    bool includePolicy = false;
+    bool includeOwnership = false;
+    bool includeOwnershipStdev = false;
+    bool includeMovesOwnership = false;
+    bool includeMovesOwnershipStdev = false;
+    bool includePVVisits = false;
+    bool suc = search->getAnalysisJson(
+      perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+      includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+      json
+    );
+    testAssert(suc);
+    cout << json << endl;
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Testing pruning of search tree at root node, no symmetries, with avoid moves" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",9,9,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 5000;
+    params.rootSymmetryPruning = false;
+    params.wideRootNoise = 0.05;
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::getTrompTaylorish();
+    TestSearchOptions opts;
+
+    Board board = Board::parseBoard(9,9,R"%%(
+.......xx
+xx.....xx
+.........
+....xo...
+....o....
+.........
+.....x...
+xx......x
+.......xx
+)%%");
+
+    vector<int> avoidMoveUntilByLoc(Board::MAX_ARR_SIZE);
+    for(int y = 0; y < board.y_size; y++) {
+      for(int x = 0; x < board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] == C_BLACK) {
+          avoidMoveUntilByLoc[loc] = 0;
+          board.setStone(loc,C_EMPTY);
+        }
+        else
+          avoidMoveUntilByLoc[loc] = (y % 2 == 0 ? 1 : 2);
+      }
+    }
+
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    search->setPosition(nextPla,board,hist);
+    search->setRootSymmetryPruningOnly({0,3,4,7});
+    search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc,avoidMoveUntilByLoc);
+    search->runWholeSearch(nextPla);
+
+    cout << search->rootBoard << endl;
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    nlohmann::json json;
+    Player perspective = P_WHITE;
+    int analysisPVLen = 2;
+    int ownershipMinVisits = 1;
+    bool preventEncore = true;
+    bool includePolicy = false;
+    bool includeOwnership = false;
+    bool includeOwnershipStdev = false;
+    bool includeMovesOwnership = false;
+    bool includeMovesOwnershipStdev = false;
+    bool includePVVisits = false;
+    bool suc = search->getAnalysisJson(
+      perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+      includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+      json
+    );
+    testAssert(suc);
+    cout << json << endl;
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
     cout << "Non-square board search" << endl;
     cout << "===================================================================" << endl;
 
@@ -3568,11 +3930,13 @@ o.oo.oo
     bool preventEncore = true;
     bool includePolicy = true;
     bool includeOwnership = true;
+    bool includeOwnershipStdev = false;
     bool includeMovesOwnership = false;
+    bool includeMovesOwnershipStdev = false;
     bool includePVVisits = true;
     bool suc = search->getAnalysisJson(
       perspective, analysisPVLen, ownershipMinVisits, preventEncore,
-      includePolicy, includeOwnership, includeMovesOwnership, includePVVisits,
+      includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
       json
     );
     testAssert(suc);
@@ -3619,11 +3983,13 @@ xxxxxxxxx
     bool preventEncore = true;
     bool includePolicy = true;
     bool includeOwnership = false;
+    bool includeOwnershipStdev = false;
     bool includeMovesOwnership = false;
+    bool includeMovesOwnershipStdev = false;
     bool includePVVisits = false;
     bool suc = search->getAnalysisJson(
       perspective, analysisPVLen, ownershipMinVisits, preventEncore,
-      includePolicy, includeOwnership, includeMovesOwnership, includePVVisits,
+      includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
       json
     );
     testAssert(suc);
@@ -3689,11 +4055,13 @@ xxxxxxxxx
       bool preventEncore = true;
       bool includePolicy = true;
       bool includeOwnership = false;
+      bool includeOwnershipStdev = false;
       bool includeMovesOwnership = false;
+      bool includeMovesOwnershipStdev = false;
       bool includePVVisits = true;
       suc = search->getAnalysisJson(
         perspective, analysisPVLen, ownershipMinVisits, preventEncore,
-        includePolicy, includeOwnership, includeMovesOwnership, includePVVisits,
+        includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
         json
       );
       cout << "getAnalysisJson success: " << suc << endl;

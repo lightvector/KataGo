@@ -676,6 +676,7 @@ void SymmetryHelpers::markDuplicateMoveLocs(
   const Board& board,
   const BoardHistory& hist,
   const std::vector<int>* onlySymmetries,
+  const std::vector<int>& avoidMoves,
   bool* isSymDupLoc,
   std::vector<int>& validSymmetries
 ) {
@@ -727,10 +728,12 @@ void SymmetryHelpers::markDuplicateMoveLocs(
   if(hist.presumedNextMovePla == P_BLACK) {
     for(int x = board.x_size-1; x >= 0; x--) {
       for(int y = 0; y < board.y_size; y++) {
+        Loc loc = Location::getLoc(x, y, board.x_size);
+        if(avoidMoves.size() > 0 && avoidMoves[loc] > 0)
+          continue;
         for(int symmetry: validSymmetries) {
           if(symmetry == 0)
             continue;
-          Loc loc = Location::getLoc(x, y, board.x_size);
           Loc symLoc = getSymLoc(x, y, board, symmetry);
           if(!isSymDupLoc[loc] && loc != symLoc)
             isSymDupLoc[symLoc] = true;
@@ -741,10 +744,12 @@ void SymmetryHelpers::markDuplicateMoveLocs(
   else {
     for(int x = 0; x < board.x_size; x++) {
       for(int y = board.y_size-1; y >= 0; y--) {
+        Loc loc = Location::getLoc(x, y, board.x_size);
+        if(avoidMoves.size() > 0 && avoidMoves[loc] > 0)
+          continue;
         for(int symmetry: validSymmetries) {
           if(symmetry == 0)
             continue;
-          Loc loc = Location::getLoc(x, y, board.x_size);
           Loc symLoc = getSymLoc(x, y, board, symmetry);
           if(!isSymDupLoc[loc] && loc != symLoc)
             isSymDupLoc[symLoc] = true;

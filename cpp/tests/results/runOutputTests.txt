@@ -13916,6 +13916,107 @@ pss : T  19.56c W  10.15c S   9.41c (+12.7 L +12.7) LCB  260.00c P  0.46% WF   0
 : GPU 0 finishing, processed 0 rows 0 batches
 
 ===================================================================
+Testing pruning of search tree at root node due to symmetries, allowing only diagonal flips: empty board, with avoid moves
+===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
+HASH: 9F0B2D702FC8448C75410E097F089AEB
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . . . . .
+ 5 . . . . . . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+: T   0.89c W   0.79c S   0.09c ( +0.1 L  +0.1) N    5000  --  J2 A5 D1 G4 A1 H9 F3
+---Black(v)---
+J2  : T   0.07c W   0.20c S  -0.13c ( -0.2 L  -0.2) LCB    2.18c P  0.95% WF 733.8 PSV     718 N     718  --  J2 A5 D1 G4 A1 H9 F3 A6
+J9  : T  -0.55c W  -0.46c S  -0.08c ( -0.1 L  -0.1) LCB    1.80c P  0.31% WF 591.4 PSV     572 N     572  --  J9 D5 C8 J2 A7 B1 J8
+H8  : T   0.11c W   0.20c S  -0.10c ( -0.1 L  -0.1) LCB    2.40c P  1.91% WF 580.4 PSV     569 N     569  --  H8 J5 G5 E4 G6 H6 E9 B7
+F3  : T  -0.03c W   0.04c S  -0.07c ( -0.1 L  -0.1) LCB    2.35c P  0.77% WF 547.0 PSV     535 N     535  --  F3 D1 G5 A6 G9 H6 B9 C4
+J8  : T   0.94c W   0.85c S   0.08c ( +0.1 L  +0.1) LCB    3.01c P  1.81% WF 686.4 PSV     132 N     685  --  J8 D9 G2 D5 F9 J5 H6 D8
+B8  : T   0.50c W   0.09c S   0.42c ( +0.5 L  +0.5) LCB    3.07c P  0.32% WF 533.0 PSV      43 N     527  --  B8 C3 A9 G3 B3 D2 G1 D5
+E6  : T   0.39c W  -0.05c S   0.43c ( +0.6 L  +0.6) LCB    3.22c P  0.23% WF 493.4 PSV      39 N     487  --  E6 H7 D4 A4 A3 E3 G4
+J1  : T   0.50c W   0.47c S   0.04c ( +0.0 L  +0.0) LCB    3.13c P  0.13% WF 502.5 PSV      17 N     497  --  J1 A1 C5 J8 F3 B3 H7 F4
+pss : T   9.99c W   9.34c S   0.51c ( +0.7 L  +0.7) LCB   16.63c P  0.44% WF 331.1 PSV       3 N     409  --  pass E7 F2 G9 J7 F8 B5
+{"moveInfos":[{"lcb":0.509106307,"move":"J2","order":0,"prior":0.00953233615,"pv":["J2","A5","D1"],"scoreLead":-0.167641079,"scoreMean":-0.167641079,"scoreSelfplay":-0.167641079,"scoreStdev":14.7157529,"utility":0.000685141232,"utilityLcb":0.0217675138,"visits":718,"winrate":0.500997702},{"isSymmetryOf":"J2","lcb":0.509106307,"move":"A8","order":1,"prior":0.00953233615,"pv":["A8","J5","F9"],"scoreLead":-0.167641079,"scoreMean":-0.167641079,"scoreSelfplay":-0.167641079,"scoreStdev":14.7157529,"utility":0.000685141232,"utilityLcb":0.0217675138,"visits":718,"winrate":0.500997702},{"isSymmetryOf":"J2","lcb":0.509106307,"move":"H1","order":2,"prior":0.00953233615,"pv":["H1","E9","J6"],"scoreLead":-0.167641079,"scoreMean":-0.167641079,"scoreSelfplay":-0.167641079,"scoreStdev":14.7157529,"utility":0.000685141232,"utilityLcb":0.0217675138,"visits":718,"winrate":0.500997702},{"lcb":0.506749963,"move":"J9","order":3,"prior":0.00306673371,"pv":["J9","D5","C8"],"scoreLead":-0.108390044,"scoreMean":-0.108390044,"scoreSelfplay":-0.108390044,"scoreStdev":14.3838684,"utility":-0.00547923176,"utilityLcb":0.0180230668,"visits":572,"winrate":0.497710617},{"lcb":0.509855991,"move":"H8","order":4,"prior":0.0191100538,"pv":["H8","J5","G5"],"scoreLead":-0.132959012,"scoreMean":-0.132959012,"scoreSelfplay":-0.132959012,"scoreStdev":14.6546172,"utility":0.001062414,"utilityLcb":0.0240391493,"visits":569,"winrate":0.501018785},{"isSymmetryOf":"H8","lcb":0.509855991,"move":"B2","order":5,"prior":0.0191100538,"pv":["B2","A5","C5"],"scoreLead":-0.132959012,"scoreMean":-0.132959012,"scoreSelfplay":-0.132959012,"scoreStdev":14.6546172,"utility":0.001062414,"utilityLcb":0.0240391493,"visits":569,"winrate":0.501018785},{"lcb":0.509332677,"move":"F3","order":6,"prior":0.00772941997,"pv":["F3","D1","G5"],"scoreLead":-0.0895611691,"scoreMean":-0.0895611691,"scoreSelfplay":-0.0895611691,"scoreStdev":14.5911578,"utility":-0.000252411024,"utilityLcb":0.0235353382,"visits":535,"winrate":0.500183542},{"lcb":0.512249679,"move":"J8","order":7,"prior":0.0181004629,"pv":["J8","D9","G2"],"scoreLead":0.107994758,"scoreMean":0.107994758,"scoreSelfplay":0.107994758,"scoreStdev":14.6203314,"utility":0.00937822681,"utilityLcb":0.0301432825,"visits":685,"winrate":0.504263119},{"isSymmetryOf":"J8","lcb":0.512249679,"move":"A2","order":8,"prior":0.0181004629,"pv":["A2","F1","C8"],"scoreLead":0.107994758,"scoreMean":0.107994758,"scoreSelfplay":0.107994758,"scoreStdev":14.6203314,"utility":0.00937822681,"utilityLcb":0.0301432825,"visits":685,"winrate":0.504263119},{"isSymmetryOf":"J8","lcb":0.512249679,"move":"H9","order":9,"prior":0.0181004629,"pv":["H9","J4","B7"],"scoreLead":0.107994758,"scoreMean":0.107994758,"scoreSelfplay":0.107994758,"scoreStdev":14.6203314,"utility":0.00937822681,"utilityLcb":0.0301432825,"visits":685,"winrate":0.504263119},{"lcb":0.510352887,"move":"B8","order":10,"prior":0.0032065073,"pv":["B8","C3","A9"],"scoreLead":0.54571155,"scoreMean":0.54571155,"scoreSelfplay":0.54571155,"scoreStdev":14.7107324,"utility":0.00496809065,"utilityLcb":0.0306871283,"visits":527,"winrate":0.50046095},{"lcb":0.510594649,"move":"E6","order":11,"prior":0.00231208978,"pv":["E6","H7","D4"],"scoreLead":0.559857949,"scoreMean":0.559857949,"scoreSelfplay":0.559857949,"scoreStdev":14.4790482,"utility":0.00393693149,"utilityLcb":0.0321604762,"visits":487,"winrate":0.49973944},{"lcb":0.512456797,"move":"J1","order":12,"prior":0.0012882523,"pv":["J1","A1","C5"],"scoreLead":0.0490453835,"scoreMean":0.0490453835,"scoreSelfplay":0.0490453835,"scoreStdev":14.7723992,"utility":0.00503646003,"utilityLcb":0.0313387081,"visits":497,"winrate":0.502340547},{"lcb":0.572225894,"move":"pass","order":13,"prior":0.0044304342,"pv":["pass","E7","F2"],"scoreLead":0.655047385,"scoreMean":0.655047385,"scoreSelfplay":0.655047385,"scoreStdev":14.093627,"utility":0.0999387258,"utilityLcb":0.166283556,"visits":409,"winrate":0.546708651}],"rootInfo":{"currentPlayer":"B","scoreLead":-0.0945945072,"scoreSelfplay":-0.0945945072,"scoreStdev":14.5965524,"symHash":"1521075FDD85FFE1B074F776AFC4E49D","thisHash":"1521075FDD85FFE1B074F776AFC4E49D","utility":-0.000113487546,"visits":5000,"winrate":0.500304316}}
+: GPU 0 finishing, processed 0 rows 0 batches
+
+===================================================================
+Testing pruning of search tree at root node due to symmetries, allowing only diagonal flips: only one diagonal possible, with avoid moves
+===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
+HASH: EB655B89523ECA86574C13166550DA21
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . O . . .
+ 5 . . . . O . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+: T   0.50c W   0.51c S   0.07c ( +0.1 L  +0.1) N    5000  --  B2 B9 C7 A2 F4 B1 C4
+---Black(v)---
+B2  : T   0.19c W   0.19c S   0.02c ( +0.0 L  +0.0) LCB    2.42c P  3.00% WF 645.0 PSV     641 N     641  --  B2 B9 C7 A2 F4 B1 C4 J4
+F3  : T  -0.49c W  -0.31c S  -0.16c ( -0.2 L  -0.2) LCB    1.68c P  0.81% WF 638.2 PSV     625 N     625  --  F3 J9 F8 B3 F7 B2 A7
+H1  : T  -0.25c W  -0.34c S   0.08c ( +0.1 L  +0.1) LCB    2.02c P  0.57% WF 598.2 PSV     589 N     589  --  H1 B3 H6 D8 B5 G6 B2 F3
+J8  : T   0.13c W   0.35c S  -0.22c ( -0.3 L  -0.3) LCB    2.60c P  1.90% WF 491.3 PSV     488 N     488  --  J8 G1 J4 A7 G2 F2 E8 G4
+H8  : T   0.29c W   0.37c S  -0.08c ( -0.1 L  -0.1) LCB    2.67c P  2.01% WF 548.0 PSV     328 N     546  --  H8 C7 D4 C4 F1 H4 C9 G9
+A2  : T   0.14c W   0.14c S   0.00c ( +0.0 L  +0.0) LCB    3.53c P  0.67% WF 285.6 PSV     168 N     284  --  A2 E3 C5 A7 E4 G4 F2 H9
+E6  : T   0.09c W  -0.05c S   0.14c ( +0.2 L  +0.2) LCB    2.58c P  0.24% WF 569.6 PSV      75 N     565  --  E6 A3 D1 H8 B7 A9 E9 G2
+J2  : T   1.40c W   1.64c S  -0.22c ( -0.3 L  -0.3) LCB    4.35c P  1.00% WF 395.3 PSV      45 N     403  --  J2 B5 E2 G5 J4 F9 pass C2
+B8  : T   1.14c W   1.19c S  -0.07c ( -0.1 L  -0.1) LCB    4.73c P  0.34% WF 241.0 PSV      18 N     244  --  B8 J1 G1 F9 A6 H8
+J1  : T   0.71c W   0.86c S  -0.14c ( -0.2 L  -0.2) LCB    3.35c P  0.14% WF 462.5 PSV      11 N     465  --  J1 F5 B8 E9 D6 H9 D7
+J9  : T   7.11c W   5.95c S   1.13c ( +1.5 L  +1.5) LCB   20.91c P  0.32% WF  22.3 PSV       3 N      24  --  J9 B1 H2 J8 F3 G9 G3
+pss : T  12.18c W   9.77c S   4.32c ( +8.2 L  +8.2) LCB   26.64c P  0.47% WF 101.9 PSV       2 N     125  --  pass B8 A1 C9 F7 H8 H7 A8
+{"moveInfos":[{"lcb":0.509517279,"move":"B2","order":0,"prior":0.029950859,"pv":["B2","B9","C7"],"scoreLead":0.0270681087,"scoreMean":0.0270681087,"scoreSelfplay":0.0270681087,"scoreStdev":14.6795152,"utility":0.00189145774,"utilityLcb":0.024165705,"visits":641,"winrate":0.500950261},{"lcb":0.506762743,"move":"F3","order":1,"prior":0.00812673662,"pv":["F3","J9","F8"],"scoreLead":-0.205784154,"scoreMean":-0.205784154,"scoreSelfplay":-0.205784154,"scoreStdev":14.5674534,"utility":-0.00489041062,"utilityLcb":0.016770616,"visits":625,"winrate":0.498431579},{"lcb":0.507051193,"move":"H1","order":2,"prior":0.00566810137,"pv":["H1","B3","H6"],"scoreLead":0.105463495,"scoreMean":0.105463495,"scoreSelfplay":0.105463495,"scoreStdev":14.4547717,"utility":-0.00249283536,"utilityLcb":0.0202485782,"visits":589,"winrate":0.498304495},{"isSymmetryOf":"H1","lcb":0.507051193,"move":"A8","order":3,"prior":0.00566810137,"pv":["A8","C2","F8"],"scoreLead":0.105463495,"scoreMean":0.105463495,"scoreSelfplay":0.105463495,"scoreStdev":14.4547717,"utility":-0.00249283536,"utilityLcb":0.0202485782,"visits":589,"winrate":0.498304495},{"lcb":0.511242848,"move":"J8","order":4,"prior":0.0190308858,"pv":["J8","G1","J4"],"scoreLead":-0.2879311,"scoreMean":-0.2879311,"scoreSelfplay":-0.2879311,"scoreStdev":14.6726813,"utility":0.00134108952,"utilityLcb":0.0260443953,"visits":488,"winrate":0.501741577},{"isSymmetryOf":"J8","lcb":0.511242848,"move":"H9","order":5,"prior":0.0190308858,"pv":["H9","A7","D9"],"scoreLead":-0.2879311,"scoreMean":-0.2879311,"scoreSelfplay":-0.2879311,"scoreStdev":14.6726813,"utility":0.00134108952,"utilityLcb":0.0260443953,"visits":488,"winrate":0.501741577},{"lcb":0.511011617,"move":"H8","order":6,"prior":0.0200923719,"pv":["H8","C7","D4"],"scoreLead":-0.110321291,"scoreMean":-0.110321291,"scoreSelfplay":-0.110321291,"scoreStdev":14.4516972,"utility":0.00291463491,"utilityLcb":0.0267012121,"visits":546,"winrate":0.501862934},{"lcb":0.513743875,"move":"A2","order":7,"prior":0.00666697044,"pv":["A2","E3","C5"],"scoreLead":0.00535498413,"scoreMean":0.00535498413,"scoreSelfplay":0.00535498413,"scoreStdev":14.3754135,"utility":0.0013962327,"utilityLcb":0.035251164,"visits":284,"winrate":0.500722748},{"lcb":0.509344304,"move":"E6","order":8,"prior":0.00243093865,"pv":["E6","A3","D1"],"scoreLead":0.180476944,"scoreMean":0.180476944,"scoreSelfplay":0.180476944,"scoreStdev":14.8736608,"utility":0.000877876689,"utilityLcb":0.025761889,"visits":565,"winrate":0.49977353},{"lcb":0.519513687,"move":"J2","order":9,"prior":0.0100223292,"pv":["J2","B5","E2"],"scoreLead":-0.290517717,"scoreMean":-0.290517717,"scoreSelfplay":-0.290517717,"scoreStdev":14.7047304,"utility":0.0140401053,"utilityLcb":0.0435040702,"visits":403,"winrate":0.508181393},{"lcb":0.519763296,"move":"B8","order":10,"prior":0.00337133207,"pv":["B8","J1","G1"],"scoreLead":-0.0933984446,"scoreMean":-0.0933984446,"scoreSelfplay":-0.0933984446,"scoreStdev":14.6883461,"utility":0.0114062178,"utilityLcb":0.0472946293,"visits":244,"winrate":0.505960061},{"lcb":0.514462615,"move":"J1","order":11,"prior":0.0013544726,"pv":["J1","F5","B8"],"scoreLead":-0.189949782,"scoreMean":-0.189949782,"scoreSelfplay":-0.189949782,"scoreStdev":14.6131895,"utility":0.00711940971,"utilityLcb":0.0334946379,"visits":465,"winrate":0.504318296},{"lcb":0.582800618,"move":"J9","order":12,"prior":0.00322437356,"pv":["J9","B1","H2"],"scoreLead":1.52325587,"scoreMean":1.52325587,"scoreSelfplay":1.52325587,"scoreStdev":15.587923,"utility":0.0711181402,"utilityLcb":0.209057727,"visits":24,"winrate":0.52974693},{"lcb":0.604501774,"move":"pass","order":13,"prior":0.00465817284,"pv":["pass","B8","A1"],"scoreLead":8.15368477,"scoreMean":8.15368477,"scoreSelfplay":8.15368477,"scoreStdev":29.0830709,"utility":0.121755482,"utilityLcb":0.266430101,"visits":125,"winrate":0.54885769}],"rootInfo":{"currentPlayer":"B","scoreLead":-0.0709694412,"scoreSelfplay":-0.0709694412,"scoreStdev":14.5913719,"symHash":"614F71A6A07371EB9279EA69B59CA457","thisHash":"614F71A6A07371EB9279EA69B59CA457","utility":-4.85572321e-05,"visits":5000,"winrate":0.500290082}}
+: GPU 0 finishing, processed 0 rows 0 batches
+
+===================================================================
+Testing pruning of search tree at root node, no symmetries, with avoid moves
+===================================================================
+: Initializing neural net buffer to be size 9 * 9 allowing smaller boards
+HASH: EB655B89523ECA86574C13166550DA21
+   A B C D E F G H J
+ 9 . . . . . . . . .
+ 8 . . . . . . . . .
+ 7 . . . . . . . . .
+ 6 . . . . . O . . .
+ 5 . . . . O . . . .
+ 4 . . . . . . . . .
+ 3 . . . . . . . . .
+ 2 . . . . . . . . .
+ 1 . . . . . . . . .
+
+
+: T   0.57c W   0.45c S   0.22c ( +0.3 L  +0.3) N    5000  --  J9 E1 E8 F3 E3 H2 H9
+---Black(v)---
+J9  : T  -0.62c W  -0.70c S   0.10c ( +0.1 L  +0.1) LCB    1.85c P  0.32% WF 554.4 PSV     541 N     541  --  J9 E1 E8 F3 E3 H2 H9 C1
+B2  : T  -0.09c W   0.23c S  -0.31c ( -0.4 L  -0.4) LCB    2.47c P  3.00% WF 433.5 PSV     371 N     428  --  B2 E3 C9 D1 C5 C4 F5 H8
+H9  : T   0.37c W   0.39c S  -0.02c ( -0.0 L  -0.0) LCB    2.81c P  3.15% WF 531.0 PSV     216 N     529  --  H9 G3 H4 C1 F2 C6 G8
+H8  : T   0.30c W   0.04c S   0.26c ( +0.3 L  +0.3) LCB    2.88c P  2.01% WF 474.4 PSV     147 N     472  --  H8 H7 J4 C6 F1 E9 A6 A9
+J2  : T   0.09c W  -0.25c S   0.34c ( +0.4 L  +0.4) LCB    3.20c P  1.00% WF 385.4 PSV      94 N     382  --  J2 A9 B1 H9 D7 G1 B9 F8
+A2  : T   0.08c W  -0.05c S   0.13c ( +0.2 L  +0.2) LCB    2.56c P  0.67% WF 498.8 PSV      63 N     494  --  A2 C9 C4 E3 J6 E1 C7
+J8  : T   1.84c W   1.85c S  -0.02c ( -0.0 L  -0.0) LCB    4.90c P  1.90% WF 292.6 PSV      53 N     300  --  J8 D1 F3 F2 J7 J3 F9 D4
+H1  : T   0.21c W   0.13c S   0.09c ( +0.1 L  +0.1) LCB    3.32c P  0.57% WF 377.4 PSV      45 N     375  --  H1 C7 G5 A9 A4 C1 E4 A1
+J1  : T  -0.41c W  -0.35c S  -0.05c ( -0.1 L  -0.1) LCB    2.44c P  0.14% WF 419.8 PSV      37 N     412  --  J1 F9 H1 J2 A2 E3 C5 J5
+B8  : T   0.39c W   0.38c S   0.02c ( +0.0 L  +0.0) LCB    3.15c P  0.34% WF 382.1 PSV      22 N     381  --  B8 B1 J4 H6 D6 H8 C8 E2
+F3  : T   2.24c W   2.48c S  -0.26c ( -0.3 L  -0.3) LCB    6.92c P  0.81% WF 158.4 PSV      19 N     163  --  F3 J5 E9 H5 C9 A3 B4
+A8  : T   1.67c W   1.48c S   0.19c ( +0.2 L  +0.2) LCB    5.00c P  0.43% WF 274.1 PSV      12 N     280  --  A8 J9 C8 J2 D3 H6 C4 E7
+E6  : T   1.12c W   0.97c S   0.18c ( +0.2 L  +0.2) LCB    6.72c P  0.24% WF  98.1 PSV       9 N      99  --  E6 D5 G5 A7 E8 E4
+pss : T  10.81c W   8.06c S   4.73c ( +9.2 L  +9.2) LCB   25.12c P  0.47% WF 119.0 PSV       2 N     143  --  pass E7 C6 C7 B8
+{"moveInfos":[{"lcb":0.505990809,"move":"J9","order":0,"prior":0.00322437356,"pv":["J9","E1","E8"],"scoreLead":0.133739607,"scoreMean":0.133739607,"scoreSelfplay":0.133739607,"scoreStdev":14.7549379,"utility":-0.00618720532,"utilityLcb":0.0185378571,"visits":541,"winrate":0.49648117},{"lcb":0.510989362,"move":"B2","order":1,"prior":0.029950859,"pv":["B2","E3","C9"],"scoreLead":-0.401368159,"scoreMean":-0.401368159,"scoreSelfplay":-0.401368159,"scoreStdev":14.5993414,"utility":-0.000902249238,"utilityLcb":0.0247013002,"visits":428,"winrate":0.501141843},{"lcb":0.511330404,"move":"H9","order":2,"prior":0.0314818881,"pv":["H9","G3","H4"],"scoreLead":-0.023355419,"scoreMean":-0.023355419,"scoreSelfplay":-0.023355419,"scoreStdev":14.5248963,"utility":0.00368882826,"utilityLcb":0.0280996329,"visits":529,"winrate":0.501941633},{"lcb":0.510117142,"move":"H8","order":3,"prior":0.0200923719,"pv":["H8","H7","J4"],"scoreLead":0.341848624,"scoreMean":0.341848624,"scoreSelfplay":0.341848624,"scoreStdev":14.5342307,"utility":0.00301057144,"utilityLcb":0.0288488055,"visits":472,"winrate":0.50017936},{"lcb":0.51074738,"move":"J2","order":4,"prior":0.0100223292,"pv":["J2","A9","B1"],"scoreLead":0.448171376,"scoreMean":0.448171376,"scoreSelfplay":0.448171376,"scoreStdev":14.7096733,"utility":0.000898024845,"utilityLcb":0.032032552,"visits":382,"winrate":0.498772561},{"lcb":0.509319785,"move":"A2","order":5,"prior":0.00666697044,"pv":["A2","C9","C4"],"scoreLead":0.16687822,"scoreMean":0.16687822,"scoreSelfplay":0.16687822,"scoreStdev":14.5335631,"utility":0.000771834328,"utilityLcb":0.0256321438,"visits":494,"winrate":0.499758128},{"lcb":0.52101919,"move":"J8","order":6,"prior":0.0190308858,"pv":["J8","D1","F3"],"scoreLead":-0.0218771469,"scoreMean":-0.0218771469,"scoreSelfplay":-0.0218771469,"scoreStdev":14.6492715,"utility":0.0184049971,"utilityLcb":0.0489897731,"visits":300,"winrate":0.509255814},{"lcb":0.512590143,"move":"H1","order":7,"prior":0.00566810137,"pv":["H1","C7","G5"],"scoreLead":0.121226107,"scoreMean":0.121226107,"scoreSelfplay":0.121226107,"scoreStdev":14.6243001,"utility":0.00214573382,"utilityLcb":0.033190842,"visits":375,"winrate":0.500649717},{"lcb":0.509206443,"move":"J1","order":8,"prior":0.0013544726,"pv":["J1","F9","H1"],"scoreLead":-0.0598954133,"scoreMean":-0.0598954133,"scoreSelfplay":-0.0598954133,"scoreStdev":14.6643346,"utility":-0.00408214916,"utilityLcb":0.0243819965,"visits":412,"winrate":0.498258695},{"lcb":0.512488698,"move":"B8","order":9,"prior":0.00337133207,"pv":["B8","B1","J4"],"scoreLead":0.0264015344,"scoreMean":0.0264015344,"scoreSelfplay":0.0264015344,"scoreStdev":14.4954127,"utility":0.00392912228,"utilityLcb":0.0314819608,"visits":381,"winrate":0.501891452},{"lcb":0.530429221,"move":"F3","order":10,"prior":0.00812673662,"pv":["F3","J5","E9"],"scoreLead":-0.338598473,"scoreMean":-0.338598473,"scoreSelfplay":-0.338598473,"scoreStdev":14.7067632,"utility":0.0223713672,"utilityLcb":0.0691826197,"visits":163,"winrate":0.512424893},{"lcb":0.520198726,"move":"A8","order":11,"prior":0.00428675441,"pv":["A8","J9","C8"],"scoreLead":0.249625599,"scoreMean":0.249625599,"scoreSelfplay":0.249625599,"scoreStdev":14.6550474,"utility":0.0167425561,"utilityLcb":0.050022623,"visits":280,"winrate":0.5073987},{"lcb":0.526392979,"move":"E6","order":12,"prior":0.00243093865,"pv":["E6","D5","G5"],"scoreLead":0.230130929,"scoreMean":0.230130929,"scoreSelfplay":0.230130929,"scoreStdev":14.6512592,"utility":0.0112266632,"utilityLcb":0.0671786572,"visits":99,"winrate":0.504872981},{"lcb":0.595337267,"move":"pass","order":13,"prior":0.00465817284,"pv":["pass","E7","C6"],"scoreLead":9.153955119999999,"scoreMean":9.153955119999999,"scoreSelfplay":9.153955119999999,"scoreStdev":30.1841226,"utility":0.108091057,"utilityLcb":0.251170037,"visits":143,"winrate":0.54030689}],"rootInfo":{"currentPlayer":"B","scoreLead":0.0219280851,"scoreSelfplay":0.0219280851,"scoreStdev":14.6774207,"symHash":"614F71A6A07371EB9279EA69B59CA457","thisHash":"614F71A6A07371EB9279EA69B59CA457","utility":-0.000291171809,"visits":5000,"winrate":0.499843394}}
+: GPU 0 finishing, processed 0 rows 0 batches
+
+===================================================================
 Non-square board search
 ===================================================================
 : Initializing neural net buffer to be size 7 * 17 allowing smaller boards

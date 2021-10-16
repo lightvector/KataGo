@@ -339,8 +339,8 @@ XYSize Sgf::getXYSize() const {
     ySize = xSize;
   }
 
-  if(xSize <= 0 || ySize <= 0)
-    propertyFail("Board size in sgf is <= 0: " + s);
+  if(xSize <= 1 || ySize <= 1)
+    propertyFail("Board size in sgf is <= 1: " + s);
   if(xSize > Board::MAX_LEN || ySize > Board::MAX_LEN)
     propertyFail(
       "Board size in sgf is > Board::MAX_LEN = " + Global::intToString((int)Board::MAX_LEN) +
@@ -421,6 +421,20 @@ Rules Sgf::getRulesOrFail() const {
 Player Sgf::getSgfWinner() const {
   checkNonEmpty(nodes);
   return nodes[0]->getSgfWinner();
+}
+
+Color Sgf::getFirstPlayerColor() const {
+  Color plColor = nodes[0]->getPLSpecifiedColor();
+  if(plColor == C_BLACK || plColor == C_WHITE)
+    return plColor;
+  XYSize size = getXYSize();
+  int xSize = size.x;
+  int ySize = size.y;
+  vector<Move> moves;
+  getMoves(moves,xSize,ySize);
+  if(moves.size() > 0)
+    return moves[0].pla;
+  return C_BLACK;
 }
 
 int Sgf::getRank(Player pla) const {

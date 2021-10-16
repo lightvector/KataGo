@@ -282,7 +282,7 @@ struct Search {
   //If the opponent is mirroring, then the color of that opponent, for countering mirroring
   Player mirroringPla;
   double mirrorAdvantage; //Number of points the opponent wins by if mirror holds indefinitely.
-  bool mirrorCenterIsSymmetric;
+  double mirrorCenterSymmetryError;
 
   bool alwaysIncludeOwnerMap;
 
@@ -495,6 +495,7 @@ struct Search {
   //or changing parameters or clearing search.
   //If node is not providied, defaults to using the root node.
   std::vector<double> getAverageTreeOwnership(double minWeight, const SearchNode* node = NULL) const;
+  std::tuple<std::vector<double>,std::vector<double>> getAverageAndStandardDeviationTreeOwnership(double minWeight, const SearchNode* node = NULL) const;
 
   std::pair<double,double> getAverageShorttermWLAndScoreError(const SearchNode* node = NULL) const;
   bool getSharpScore(const SearchNode* node, double& ret) const;
@@ -503,11 +504,14 @@ struct Search {
   nlohmann::json getJsonOwnershipMap(
     const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight, int symmetry
   ) const;
+  std::pair<nlohmann::json,nlohmann::json> getJsonOwnershipAndStdevMap(
+    const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight, int symmetry
+  ) const;
   //Fill json with analysis engine format information about search results
   bool getAnalysisJson(
     const Player perspective,
     int analysisPVLen, double ownershipMinWeight, bool preventEncore, bool includePolicy,
-    bool includeOwnership, bool includeMovesOwnership, bool includePVVisits,
+    bool includeOwnership, bool includeOwnershipStdev, bool includeMovesOwnership, bool includeMovesOwnershipStdev, bool includePVVisits,
     nlohmann::json& ret
   ) const;
 
@@ -597,7 +601,7 @@ private:
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     double totalChildWeight, double fpuValue,
     double parentUtility, double parentWeightPerVisit, double parentUtilityStdevFactor,
-    bool isDuringSearch, double maxChildWeight, SearchThread* thread
+    bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
   ) const;
   double getNewExploreSelectionValue(
     const SearchNode& parent, float nnPolicyProb,
@@ -685,7 +689,23 @@ private:
 
   std::pair<double,double> getAverageShorttermWLAndScoreErrorHelper(const SearchNode* node) const;
 
-  double getAverageTreeOwnershipHelper(std::vector<double>& accum, double minWeight, double desiredWeight, const SearchNode* node) const;
+  template<typename Func>
+  double traverseTreeWithOwnershipAndSelfWeight(
+    double minWeight,
+    double desiredWeight,
+    const SearchNode* node,
+    Func& averaging
+  ) const;
+  template<typename Func>
+  double traverseTreeWithOwnershipAndSelfWeightHelper(
+    double minWeight,
+    double desiredWeight,
+    double thisNodeWeight,
+    const SearchChildPointer* children,
+    double* childWeightBuf,
+    int childrenCapacity,
+    Func& averaging
+  ) const;
 
 };
 
