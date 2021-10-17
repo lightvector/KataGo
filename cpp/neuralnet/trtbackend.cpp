@@ -20,8 +20,8 @@ using namespace nvinfer1;
 static void checkCudaError(const cudaError_t status, const char* opName, const char* file, const char* func, int line) {
   if(status != cudaSuccess)
     throw StringError(
-      std::string("CUDA Error, for ") + opName + " file " + file + ", func " + func + ", line " +
-      Global::intToString(line) + ", error " + cudaGetErrorString(status));
+      string("CUDA Error, for ") + opName + " file " + file + ", func " + func + ", line " + Global::intToString(line) +
+      ", error " + cudaGetErrorString(status));
 }
 #define CUDA_ERR(opName, x) \
   { checkCudaError((x), opName, __FILE__, #x, __LINE__); }
@@ -112,11 +112,13 @@ struct TRTModel {
   int nnYLen;
   bool requireExactNNLen;
 
+  // TensorRT keeps only reference to weights before engine is built
+  const LoadedModel* rawModel;
+  vector<unique_ptr<float[]>> extraWeights;
+
   int version;
   uint8_t tuneHash[32];
-  const LoadedModel* rawModel;
   unique_ptr<INetworkDefinition> network;
-  vector<unique_ptr<float[]>> extraWeights;
   vector<pair<string, Dims>> debugOutputs;
 
   TRTModel() = default;
@@ -137,7 +139,7 @@ struct ModelParser {
   ILayer* maskExtractLinLayer;
   ILayer* maskExtractQuadLayer;
 
-  string tuneDesc;
+  string tuneDesc;  // Serves as a hash of the network architecture specific to tuning
 
   ModelParser() = default;
   ModelParser(const ModelParser&) = delete;
@@ -239,8 +241,7 @@ struct ModelParser {
       throw StringError(
         Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnYLen, NNPos::MAX_BOARD_LEN));
 
-    if(!network->hasImplicitBatchDimension())
-      throw StringError("network must have implicit batch dimention");
+    assert(network->hasImplicitBatchDimension());
 
     inputFeature = network->addInput("InputFeature", DataType::kFLOAT, {3, {numInputChannels, nnYLen, nnXLen}});
     inputFeature->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
@@ -601,6 +602,7 @@ struct ModelParser {
       }
     }
 
+    // Note that FullyConnected expects I/O tensors with 3 dimentions (in addition to batch)
     auto matMulLayer = model->network->addFullyConnected(
       *input,
       desc->outChannels,
@@ -930,7 +932,8 @@ struct ComputeHandle {
       saveTimingCache = invalidTimingCache || !timingCacheBlob.size();
     }
 
-    // So that there are no concurrent kernel executions probably from other parts of code
+    // So that there are no concurrent kernel executions probably from other parts of code while profiling
+    // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
     config->setProfileStream(cudaStreamLegacy);
 
     // Typical runtime allocation is much less than the 1 GiB specified below
@@ -979,7 +982,7 @@ struct ComputeHandle {
     bufferRowElts.resize(numBindings, 0);
     for(int i = 0; i < numBindings; i++) {
       auto dims = engine->getBindingDimensions(i);
-      size_t elts = accumulate(dims.d, dims.d + dims.nbDims, 1, std::multiplies<int>());
+      size_t elts = accumulate(dims.d, dims.d + dims.nbDims, 1, multiplies<int>());
       size_t bytes = maxBatchSize * elts * sizeof(float);
       bufferRowElts[i] = elts;
       bufferBytes[i] = bytes;
@@ -1232,7 +1235,7 @@ void NeuralNet::getOutput(
 
     const float* rowGlobal = inputBufs[nIdx]->rowGlobal;
     const float* rowSpatial = inputBufs[nIdx]->rowSpatial;
-    std::copy(rowGlobal, rowGlobal + numGlobalFeatures, rowGlobalInput);
+    copy(rowGlobal, rowGlobal + numGlobalFeatures, rowGlobalInput);
     SymmetryHelpers::copyInputsWithSymmetry(
       rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, false, inputBufs[nIdx]->symmetry);
   }
@@ -1251,6 +1254,7 @@ void NeuralNet::getOutput(
   assert(inputBuffers->scoreValueResultBufferBytes == gpuHandle->getBufferBytes("OutputScoreValue"));
   assert(inputBuffers->ownershipResultBufferBytes == gpuHandle->getBufferBytes("OutputOwnership"));
 
+  // Transfers from host memory to device memory are asynchronous with respect to the host
   CUDA_ERR(
     "getOutput",
     cudaMemcpyAsync(
