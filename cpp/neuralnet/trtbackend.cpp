@@ -34,30 +34,9 @@ void NeuralNet::globalCleanup() {
   // Empty for TensorRT backend
 }
 
-struct TRTLogger : ILogger {
-  Logger* logger;
-  Severity level;
-
-  TRTLogger() {
-    logger = nullptr;
-    level = Severity::kERROR;
-  }
-
-  TRTLogger(const TRTLogger&) = delete;
-  TRTLogger& operator=(const TRTLogger&) = delete;
-
-  void log(Severity severity, const char* msg) noexcept override {
-    if(logger && severity <= level)
-      logger->write("TensorRT backend: " + string(msg));
-  }
-
-  void setLogger(Logger* externalLogger) { logger = externalLogger; }
-};
-
 struct ComputeContext {
   int nnXLen;
   int nnYLen;
-  TRTLogger trtLogger;
   enabled_t useFP16Mode;
   string homeDataDirOverride;
 };
@@ -74,6 +53,7 @@ ComputeContext* NeuralNet::createComputeContext(
   enabled_t useNHWCMode,
   const LoadedModel* loadedModel) {
   (void)gpuIdxs;
+  (void)logger;
   (void)openCLTunerFile;
   (void)openCLReTunePerBoardSize;
   (void)loadedModel;
@@ -86,7 +66,6 @@ ComputeContext* NeuralNet::createComputeContext(
   context->nnXLen = nnXLen;
   context->nnYLen = nnYLen;
   context->useFP16Mode = useFP16Mode;
-  context->trtLogger.setLogger(logger);
   context->homeDataDirOverride = homeDataDirOverride;
   return context;
 }
@@ -828,6 +807,26 @@ struct ModelParser {
   }
 };
 
+struct TRTLogger : ILogger {
+  Logger* logger;
+  Severity level;
+
+  TRTLogger() {
+    logger = nullptr;
+    level = Severity::kERROR;
+  }
+
+  TRTLogger(const TRTLogger&) = delete;
+  TRTLogger& operator=(const TRTLogger&) = delete;
+
+  void log(Severity severity, const char* msg) noexcept override {
+    if(logger && severity <= level)
+      logger->write("TensorRT backend: " + string(msg));
+  }
+
+  void setLogger(Logger* externalLogger) { logger = externalLogger; }
+};
+
 struct ComputeHandle {
   ComputeContext* ctx;
 
@@ -835,6 +834,7 @@ struct ComputeHandle {
   int modelVersion;
   vector<pair<string, Dims>> debugOutputs;
 
+  TRTLogger trtLogger;
   unique_ptr<ICudaEngine> engine;
   unique_ptr<IExecutionContext> exec;
   vector<void*> buffers;
@@ -842,6 +842,7 @@ struct ComputeHandle {
   vector<size_t> bufferRowElts;
 
   ComputeHandle(
+    Logger* logger,
     const cudaDeviceProp* prop,
     ComputeContext* context,
     const LoadedModel* loadedModel,
@@ -851,7 +852,9 @@ struct ComputeHandle {
 
     modelVersion = loadedModel->modelDesc.version;
 
-    auto builder = unique_ptr<IBuilder>(createInferBuilder(ctx->trtLogger));
+    trtLogger.setLogger(logger);
+
+    auto builder = unique_ptr<IBuilder>(createInferBuilder(trtLogger));
     if(!builder) {
       throw StringError("TensorRT backend: failed to create builder");
     }
@@ -948,9 +951,17 @@ struct ComputeHandle {
       ofs.close();
     }
 
-    auto runtime = unique_ptr<IRuntime>(createInferRuntime(ctx->trtLogger));
+    auto runtime = unique_ptr<IRuntime>(createInferRuntime(trtLogger));
     if(!runtime) {
       throw StringError("TensorRT backend: failed to create runtime");
+    }
+
+    // Certain minor versions of TensorRT uses a global logger, which is bad.
+    // Since TensorRT maintains ABI compatibility between minor versions, a dynamic library mismatch
+    // does not necessarily generate a dynamic link error, therefore, an extra check is required.
+    // Affected version of TensorRT doesn't support the getLogger method and will fail the check below.
+    if(runtime->getLogger() != &trtLogger) {
+      throw StringError("TensorRT backend: detected incompatible version of TensorRT library");
     }
 
     engine.reset(runtime->deserializeCudaEngine(plan->data(), plan->size()));
@@ -1082,7 +1093,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
       "TensorRT backend thread " + Global::intToString(serverThreadIdx) + ": Initializing (may take a long time)");
   }
 
-  auto handle = new ComputeHandle(&prop, context, loadedModel, maxBatchSize, requireExactNNLen);
+  auto handle = new ComputeHandle(logger, &prop, context, loadedModel, maxBatchSize, requireExactNNLen);
 
   if(logger != NULL) {
     logger->write(
@@ -1448,4 +1459,4 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   return false;
 }
 
-#endif  // USE_CUDA_BACKEND
+#endif  // USE_TENSORRT_BACKEND
