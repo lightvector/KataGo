@@ -36,6 +36,7 @@ string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
 set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA OPENCL EIGEN)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
+set(USE_MIMALLOC 0 CACHE BOOL "Use mimalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
 set(USE_AVX2 0 CACHE BOOL "Compile with AVX2")
 set(USE_BIGGER_BOARDS_EXPENSIVE 0 CACHE BOOL "Allow boards up to size 29. Compiling with this will use more memory and slow down KataGo, even when playing on boards of size 19.")
@@ -187,6 +188,22 @@ endif()
 
 # set (Gperftools_DIR "${CMAKE_CURRENT_LIST_DIR}/cmake/")
 # find_package(Gperftools REQUIRED)
+
+#--------------------------- MIMALLOC ----------------------------------------------------------------------------------
+
+if(USE_MIMALLOC)
+  message(STATUS "-DUSE_MIMALLOC=1 is set, using mimalloc as the allocator")
+  set(MIMALLOC_PATH CACHE STRING "mimalloc library location")
+  if(MSVC)
+    find_library(MIMALLOC_LIB mimalloc-override HINTS ${MIMALLOC_PATH})
+  else()
+    find_library(MIMALLOC_LIB mimalloc HINTS /usr ${MIMALLOC_PATH})
+  endif()
+  # find_package(MIMALLOC_LIB REQUIRED HINTS /usr ${MIMALLOC_PATH})
+  if(NOT MIMALLOC_LIB)
+    message(FATAL_ERROR "Could not find mimalloc")
+  endif()
+endif()
 
 #--------------------------- GIT ---------------------------------------------------------------------------------------
 
@@ -401,6 +418,10 @@ endif()
 if(USE_TCMALLOC)
   target_link_libraries(katago ${TCMALLOC_LIB})
 endif(USE_TCMALLOC)
+
+if(USE_MIMALLOC)
+  target_link_libraries(katago ${MIMALLOC_LIB})
+endif(USE_MIMALLOC)
 
 if(BUILD_DISTRIBUTED)
   message(STATUS "-DBUILD_DISTRIBUTED=1 is set, compiling code and dependencies to contribute to distributed training")
