@@ -2614,6 +2614,7 @@ int MainCmds::gtp(const vector<string>& args) {
         int moveNumber = 0;
         if(pieces.size() == 2) {
           bool suc = Global::tryStringToInt(pieces[1],moveNumber);
+          moveNumber--;
           if(!suc || moveNumber < 0 || moveNumber > 10000000)
             parseFailed = true;
           else {
