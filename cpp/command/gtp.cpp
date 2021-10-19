@@ -2709,6 +2709,7 @@ int MainCmds::gtp(const vector<string>& args) {
               if(!loggingToStderr)
                 cerr << out.str() << endl;
             }
+            engine->setOrResetBoardSize(cfg,logger,seedRand,sgfBoard.x_size,sgfBoard.y_size,loggingToStderr);
             engine->setPositionAndRules(sgfNextPla, sgfBoard, sgfHist, sgfInitialBoard, sgfInitialNextPla, sgfHist.moveHistory);
           }
         }
