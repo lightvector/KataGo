@@ -162,8 +162,10 @@ struct ModelParser {
     auto& network = model->network;
     auto modelDesc = &model->rawModel->modelDesc;
 
+    int modelSalt = 1; // Bump this when between katago versions we want to forcibly drop old timing caches.
     tuneDesc = Global::strprintf(
-      R"("model"(%d,%d,%d,%d,%d,%d))",
+      R"("model"(%d,%d,%d,%d,%d,%d,%d))",
+      modelSalt,
       modelDesc->version,
       modelDesc->numInputChannels,
       modelDesc->numInputGlobalChannels,
@@ -923,9 +925,15 @@ struct ComputeHandle {
       } catch(const StringError& e) {
         (void)e;
       };
+      if(timingCacheBlob.size() > 0)
+        logger->write("Using existing timing cache at " + timingCacheFile);
+      else
+        logger->write("Creating new timing cache");
+
       timingCache.reset(config->createTimingCache(timingCacheBlob.data(), timingCacheBlob.size()));
       bool invalidTimingCache = !config->setTimingCache(*timingCache, false);
       if(invalidTimingCache) {
+        logger->write("Invalid timing cache, using new one instead");
         timingCache.reset(config->createTimingCache(nullptr, 0));
         config->setTimingCache(*timingCache, false);
       }
@@ -952,6 +960,7 @@ struct ComputeHandle {
       FileUtils::open(ofs, timingCacheFile, ios::out | ios::binary);
       ofs.write(static_cast<char*>(serializedTimingCache->data()), serializedTimingCache->size());
       ofs.close();
+      logger->write("Saved new timing cache to " + timingCacheFile);
     }
 
     auto runtime = unique_ptr<IRuntime>(createInferRuntime(trtLogger));
