@@ -1,4 +1,5 @@
 #!/bin/bash -eux
+set -o pipefail
 {
 ./katago runsearchtests tests/models/g103-b6c96-s103408384-d26419149.txt.gz true false 0 true | tee tests/results/runSearchTestsFP16-iNHWC-cNCHW.txt
 ./katago runsearchtests tests/models/g103-b6c96-s103408384-d26419149.txt.gz true true 0 true | tee tests/results/runSearchTestsFP16-iNHWC-cNHWC.txt

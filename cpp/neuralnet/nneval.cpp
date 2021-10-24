@@ -189,13 +189,13 @@ NNEvaluator::~NNEvaluator() {
   delete[] m_resultBufss;
   m_resultBufss = NULL;
 
-  if(loadedModel != NULL)
-    NeuralNet::freeLoadedModel(loadedModel);
-  loadedModel = NULL;
-
   if(computeContext != NULL)
     NeuralNet::freeComputeContext(computeContext);
   computeContext = NULL;
+
+  if(loadedModel != NULL)
+    NeuralNet::freeLoadedModel(loadedModel);
+  loadedModel = NULL;
 
   delete nnCacheTable;
 }
