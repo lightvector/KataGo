@@ -20,8 +20,8 @@ using namespace nvinfer1;
 static void checkCudaError(const cudaError_t status, const char* opName, const char* file, const char* func, int line) {
   if(status != cudaSuccess)
     throw StringError(
-      std::string("CUDA Error, for ") + opName + " file " + file + ", func " + func + ", line " +
-      Global::intToString(line) + ", error " + cudaGetErrorString(status));
+      string("CUDA Error, for ") + opName + " file " + file + ", func " + func + ", line " + Global::intToString(line) +
+      ", error " + cudaGetErrorString(status));
 }
 #define CUDA_ERR(opName, x) \
   { checkCudaError((x), opName, __FILE__, #x, __LINE__); }
@@ -34,30 +34,9 @@ void NeuralNet::globalCleanup() {
   // Empty for TensorRT backend
 }
 
-struct TRTLogger : ILogger {
-  Logger* logger;
-  Severity level;
-
-  TRTLogger() {
-    logger = nullptr;
-    level = Severity::kERROR;
-  }
-
-  TRTLogger(const TRTLogger&) = delete;
-  TRTLogger& operator=(const TRTLogger&) = delete;
-
-  void log(Severity severity, const char* msg) noexcept override {
-    if(logger && severity <= level)
-      logger->write("TensorRT backend: " + string(msg));
-  }
-
-  void setLogger(Logger* externalLogger) { logger = externalLogger; }
-};
-
 struct ComputeContext {
   int nnXLen;
   int nnYLen;
-  TRTLogger trtLogger;
   enabled_t useFP16Mode;
   string homeDataDirOverride;
 };
@@ -74,6 +53,7 @@ ComputeContext* NeuralNet::createComputeContext(
   enabled_t useNHWCMode,
   const LoadedModel* loadedModel) {
   (void)gpuIdxs;
+  (void)logger;
   (void)openCLTunerFile;
   (void)openCLReTunePerBoardSize;
   (void)loadedModel;
@@ -86,7 +66,6 @@ ComputeContext* NeuralNet::createComputeContext(
   context->nnXLen = nnXLen;
   context->nnYLen = nnYLen;
   context->useFP16Mode = useFP16Mode;
-  context->trtLogger.setLogger(logger);
   context->homeDataDirOverride = homeDataDirOverride;
   return context;
 }
@@ -133,11 +112,13 @@ struct TRTModel {
   int nnYLen;
   bool requireExactNNLen;
 
+  // TensorRT keeps only reference to weights before engine is built
+  const LoadedModel* rawModel;
+  vector<unique_ptr<float[]>> extraWeights;
+
   int version;
   uint8_t tuneHash[32];
-  const LoadedModel* rawModel;
   unique_ptr<INetworkDefinition> network;
-  vector<unique_ptr<float[]>> extraWeights;
   vector<pair<string, Dims>> debugOutputs;
 
   TRTModel() = default;
@@ -158,7 +139,7 @@ struct ModelParser {
   ILayer* maskExtractLinLayer;
   ILayer* maskExtractQuadLayer;
 
-  string tuneDesc;
+  string tuneDesc;  // Serves as a hash of the network architecture specific to tuning
 
   ModelParser() = default;
   ModelParser(const ModelParser&) = delete;
@@ -260,8 +241,7 @@ struct ModelParser {
       throw StringError(
         Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnYLen, NNPos::MAX_BOARD_LEN));
 
-    if(!network->hasImplicitBatchDimension())
-      throw StringError("network must have implicit batch dimention");
+    assert(network->hasImplicitBatchDimension());
 
     inputFeature = network->addInput("InputFeature", DataType::kFLOAT, {3, {numInputChannels, nnYLen, nnXLen}});
     inputFeature->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
@@ -622,6 +602,7 @@ struct ModelParser {
       }
     }
 
+    // Note that FullyConnected expects I/O tensors with 3 dimentions (in addition to batch)
     auto matMulLayer = model->network->addFullyConnected(
       *input,
       desc->outChannels,
@@ -828,6 +809,26 @@ struct ModelParser {
   }
 };
 
+struct TRTLogger : ILogger {
+  Logger* logger;
+  Severity level;
+
+  TRTLogger() {
+    logger = nullptr;
+    level = Severity::kERROR;
+  }
+
+  TRTLogger(const TRTLogger&) = delete;
+  TRTLogger& operator=(const TRTLogger&) = delete;
+
+  void log(Severity severity, const char* msg) noexcept override {
+    if(logger && severity <= level)
+      logger->write("TensorRT backend: " + string(msg));
+  }
+
+  void setLogger(Logger* externalLogger) { logger = externalLogger; }
+};
+
 struct ComputeHandle {
   ComputeContext* ctx;
 
@@ -835,6 +836,7 @@ struct ComputeHandle {
   int modelVersion;
   vector<pair<string, Dims>> debugOutputs;
 
+  TRTLogger trtLogger;
   unique_ptr<ICudaEngine> engine;
   unique_ptr<IExecutionContext> exec;
   vector<void*> buffers;
@@ -842,6 +844,7 @@ struct ComputeHandle {
   vector<size_t> bufferRowElts;
 
   ComputeHandle(
+    Logger* logger,
     const cudaDeviceProp* prop,
     ComputeContext* context,
     const LoadedModel* loadedModel,
@@ -851,7 +854,9 @@ struct ComputeHandle {
 
     modelVersion = loadedModel->modelDesc.version;
 
-    auto builder = unique_ptr<IBuilder>(createInferBuilder(ctx->trtLogger));
+    trtLogger.setLogger(logger);
+
+    auto builder = unique_ptr<IBuilder>(createInferBuilder(trtLogger));
     if(!builder) {
       throw StringError("TensorRT backend: failed to create builder");
     }
@@ -927,7 +932,8 @@ struct ComputeHandle {
       saveTimingCache = invalidTimingCache || !timingCacheBlob.size();
     }
 
-    // So that there are no concurrent kernel executions probably from other parts of code
+    // So that there are no concurrent kernel executions probably from other parts of code while profiling
+    // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
     config->setProfileStream(cudaStreamLegacy);
 
     // Typical runtime allocation is much less than the 1 GiB specified below
@@ -948,9 +954,17 @@ struct ComputeHandle {
       ofs.close();
     }
 
-    auto runtime = unique_ptr<IRuntime>(createInferRuntime(ctx->trtLogger));
+    auto runtime = unique_ptr<IRuntime>(createInferRuntime(trtLogger));
     if(!runtime) {
       throw StringError("TensorRT backend: failed to create runtime");
+    }
+
+    // Certain minor versions of TensorRT uses a global logger, which is bad.
+    // Since TensorRT maintains ABI compatibility between minor versions, a dynamic library mismatch
+    // does not necessarily generate a dynamic link error, therefore, an extra check is required.
+    // Affected version of TensorRT doesn't support the getLogger method and will fail the check below.
+    if(runtime->getLogger() != &trtLogger) {
+      throw StringError("TensorRT backend: detected incompatible version of TensorRT library");
     }
 
     engine.reset(runtime->deserializeCudaEngine(plan->data(), plan->size()));
@@ -968,7 +982,7 @@ struct ComputeHandle {
     bufferRowElts.resize(numBindings, 0);
     for(int i = 0; i < numBindings; i++) {
       auto dims = engine->getBindingDimensions(i);
-      size_t elts = accumulate(dims.d, dims.d + dims.nbDims, 1, std::multiplies<int>());
+      size_t elts = accumulate(dims.d, dims.d + dims.nbDims, 1, multiplies<int>());
       size_t bytes = maxBatchSize * elts * sizeof(float);
       bufferRowElts[i] = elts;
       bufferBytes[i] = bytes;
@@ -1082,7 +1096,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
       "TensorRT backend thread " + Global::intToString(serverThreadIdx) + ": Initializing (may take a long time)");
   }
 
-  auto handle = new ComputeHandle(&prop, context, loadedModel, maxBatchSize, requireExactNNLen);
+  auto handle = new ComputeHandle(logger, &prop, context, loadedModel, maxBatchSize, requireExactNNLen);
 
   if(logger != NULL) {
     logger->write(
@@ -1221,7 +1235,7 @@ void NeuralNet::getOutput(
 
     const float* rowGlobal = inputBufs[nIdx]->rowGlobal;
     const float* rowSpatial = inputBufs[nIdx]->rowSpatial;
-    std::copy(rowGlobal, rowGlobal + numGlobalFeatures, rowGlobalInput);
+    copy(rowGlobal, rowGlobal + numGlobalFeatures, rowGlobalInput);
     SymmetryHelpers::copyInputsWithSymmetry(
       rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, false, inputBufs[nIdx]->symmetry);
   }
@@ -1240,6 +1254,7 @@ void NeuralNet::getOutput(
   assert(inputBuffers->scoreValueResultBufferBytes == gpuHandle->getBufferBytes("OutputScoreValue"));
   assert(inputBuffers->ownershipResultBufferBytes == gpuHandle->getBufferBytes("OutputOwnership"));
 
+  // Transfers from host memory to device memory are asynchronous with respect to the host
   CUDA_ERR(
     "getOutput",
     cudaMemcpyAsync(
@@ -1448,4 +1463,4 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   return false;
 }
 
-#endif  // USE_CUDA_BACKEND
+#endif  // USE_TENSORRT_BACKEND
