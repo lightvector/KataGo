@@ -30,6 +30,10 @@ set -o pipefail
 ./katago runnnbatchingtest tests/models/g170-b6c96-s175395328-d26788732.bin.gz true false false | tee tests/results/runNNBatchingTestiNHWC.txt
 ./katago runnnbatchingtest tests/models/g170-b6c96-s175395328-d26788732.bin.gz true true false | tee tests/results/runNNBatchingTestNHWC.txt
 
+./katago runnnevalcanarytests configs/gtp_example.cfg tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz 0 | grep -v ': nnRandSeed0 = ' | tee tests/results/runNNCanaryTests.txt
+./katago runnnevalcanarytests configs/gtp_example.cfg tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz 3 | grep -v ': nnRandSeed0 = ' | tee -a tests/results/runNNCanaryTests.txt
+./katago runnnevalcanarytests configs/gtp_example.cfg tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz 6 | grep -v ': nnRandSeed0 = ' | tee -a tests/results/runNNCanaryTests.txt
+
 mkdir -p tests/scratch
 ./katago runtinynntests tests/scratch | grep -v ': nnRandSeed0 = ' | tee tests/results/runTinyNNTests.txt
 

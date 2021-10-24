@@ -28,6 +28,7 @@ namespace MainCmds {
   int runnnbatchingtest(const std::vector<std::string>& args);
   int runownershiptests(const std::vector<std::string>& args);
   int runtinynntests(const std::vector<std::string>& args);
+  int runnnevalcanarytests(const std::vector<std::string>& args);
   int runbeginsearchspeedtest(const std::vector<std::string>& args);
   int runsleeptest(const std::vector<std::string>& args);
 
@@ -50,4 +51,5 @@ namespace Version {
   std::string getKataGoVersionForHelp();
   std::string getKataGoVersionFullInfo();
   std::string getGitRevision();
+  std::string getGitRevisionWithBackend();
 }

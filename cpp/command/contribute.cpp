@@ -15,6 +15,7 @@
 #include "../program/setup.h"
 #include "../program/selfplaymanager.h"
 #include "../tests/tinymodel.h"
+#include "../tests/tests.h"
 #include "../command/commandline.h"
 #include "../main.h"
 
@@ -288,6 +289,8 @@ static void runAndUploadSingleGame(
 
     static constexpr bool retryOnFailure = true;
     if(gameTask.task.doWriteTrainingData) {
+      //Pre-upload, verify that the GPU is okay.
+      Tests::runCanaryTests(nnEvalBlack, NNInputs::SYMMETRY_NOTSPECIFIED, false);
       gameTask.blackManager->withDataWriters(
         nnEvalBlack,
         [gameData,&gameTask,gameIdx,&sgfFile,&connection,&logger,&shouldStopFunc](TrainingDataWriter* tdataWriter, TrainingDataWriter* vdataWriter, std::ofstream* sgfOut) {

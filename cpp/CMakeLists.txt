@@ -199,6 +199,7 @@ add_executable(katago
   tests/testboardarea.cpp
   tests/testboardbasic.cpp
   tests/testcommon.cpp
+  tests/testnnevalcanary.cpp
   tests/testrules.cpp
   tests/testscore.cpp
   tests/testsgf.cpp

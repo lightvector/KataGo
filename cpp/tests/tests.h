@@ -10,6 +10,8 @@
 #include "../game/rules.h"
 #include "../game/boardhistory.h"
 
+class NNEvaluator;
+
 namespace Tests {
   //testboardbasic.cpp
   void runBoardIOTests();
@@ -63,6 +65,9 @@ namespace Tests {
 
   //testownership.cpp
   void runOwnershipTests(const std::string& configFile, const std::string& modelFile);
+
+  //testnnevalcanary.cpp
+  void runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print);
 }
 
 namespace TestCommon {

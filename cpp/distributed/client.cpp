@@ -686,7 +686,7 @@ bool Connection::getNextTask(
 
     while(true) {
       httplib::MultipartFormDataItems items = {
-        { "git_revision", Version::getGitRevision(), "", "" },
+        { "git_revision", Version::getGitRevisionWithBackend(), "", "" },
         { "client_instance_id", clientInstanceId, "", "" },
         { "task_rep_factor", Global::intToString(taskRepFactor), "", ""},
         { "allow_selfplay_task", (allowSelfplayTask ? "true" : "false"), "", ""},

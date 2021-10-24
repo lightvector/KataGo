@@ -360,6 +360,48 @@ int MainCmds::runtinynntests(const vector<string>& args) {
   return 0;
 }
 
+int MainCmds::runnnevalcanarytests(const vector<string>& args) {
+  if(args.size() != 4) {
+    cerr << "Must supply exactly three arguments: GTP_CONFIG MODEL_FILE SYMMETRY" << endl;
+    return 1;
+  }
+  const string& cfgFile = args[1];
+  const string& modelFile = args[2];
+  const int symmetry = Global::stringToInt(args[3]);
+
+  Board::initHash();
+  ScoreValue::initTables();
+
+  Logger logger;
+  logger.setLogToStdout(true);
+  logger.setLogTime(false);
+
+  ConfigParser cfg(cfgFile);
+  Rand seedRand;
+
+  NNEvaluator* nnEval;
+  {
+    Setup::initializeSession(cfg);
+    int maxConcurrentEvals = 2;
+    int expectedConcurrentEvals = 1;
+    int defaultMaxBatchSize = 8;
+    bool defaultRequireExactNNLen = false;
+    string expectedSha256 = "";
+    nnEval = Setup::initializeNNEvaluator(
+      modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
+      Setup::SETUP_FOR_GTP
+    );
+  }
+
+  bool print = true;
+  Tests::runCanaryTests(nnEval,symmetry,print);
+  delete nnEval;
+
+  ScoreValue::freeTables();
+  return 0;
+}
+
 int MainCmds::runbeginsearchspeedtest(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
