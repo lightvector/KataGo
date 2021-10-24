@@ -1,5 +1,5 @@
 : GTP Engine starting...
-: KataGo v1.9.2
+: KataGo v1.10.0
 : Using koPOSITIONALscoreAREAtaxNONEsui0 rules initially, unless GTP/GUI overrides this
 : Using 1 CPU thread(s) for search
 : nnRandSeed0 = forTesting
