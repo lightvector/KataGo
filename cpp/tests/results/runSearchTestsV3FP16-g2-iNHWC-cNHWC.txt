@@ -1404,6 +1404,133 @@ G6  : T  62.09c W  56.41c S   5.68c ( +5.5 L  +5.5) LCB  260.00c P  2.04% WF   0
 H8  : T  69.50c W  63.20c S   6.30c ( +6.2 L  +6.2) LCB  260.00c P  1.76% WF   0.8 PSV       0 N       1  --  H8
 E4  : T  52.64c W  48.11c S   4.53c ( +4.4 L  +4.4) LCB  260.00c P  1.73% WF   0.9 PSV       0 N       1  --  E4
 H7  : T  63.30c W  57.66c S   5.64c ( +5.5 L  +5.5) LCB  260.00c P  1.59% WF   0.8 PSV       0 N       1  --  H7
-: GPU 0 finishing, processed 3848 rows 3848 batches
+GAME 15 ==========================================================================
+Japanese rules endgame, one dame
+
+HASH: 5AF63E0AF830CE859332D16214395C9B
+   A B C D E F G H J
+ 7 . . . . . . . . .
+ 6 O O O O O . O . .
+ 5 O X X X O X . . .
+ 4 X X . . X O O O O
+ 3 . . X X . X . X O
+ 2 . O O X . X X X X
+ 1 . . X . . . O X .
+
+
+
+Win 61.48c
+Loss 38.51c
+NoResult 0.01c
+ScoreMean 0.6
+ScoreMeanSq 0.3
+Lead 0.6
+VarTimeLeft -1.0
+STWinlossError -1.0
+STScoreError -1.0
+Policy
+   1    1    1    1    1    1    1    1    1 
+   -    -    -    -    -    3    -    2    1 
+   -    -    -    -    -    -    8    1    1 
+   -    -    2    8    -    -    -    -    - 
+   2    6    -    -   11    -  449    -    - 
+   2    -    -    -    5    -    -    -    - 
+   2    3    -    5    2    4    -    -    1 
+  987   994   992   989   986   986   981   985   977 
+  999   999   999   998   999   991   999   984   987 
+  996  -999 -1000  -999   998   940   977   984   981 
+ -999 -1000  -998  -997  -999   998   998   997   997 
+ -995  -997 -1000 -1000  -997 -1000  -716 -1000   994 
+ -991  -986  -989  -999  -998 -1000 -1000 -1000 -1000 
+ -989  -994  -996  -992  -995  -997  -997 -1000  -998 
+
+MoveNum: 0 HASH: 5AF63E0AF830CE859332D16214395C9B
+   A B C D E F G H J
+ 7 . . . . . . . . .
+ 6 O O O O O . O . .
+ 5 O X X X O X . . .
+ 4 X X . . X O O O O
+ 3 . . X X . X . X O
+ 2 . O O X . X X X X
+ 1 . . X . . . O X .
+
+Root visits: 200
+New playouts: 200
+NN rows: 148
+NN batches: 148
+NN avg batch size: 1
+PV: G3 pass pass pass pass G5 D4 F6 E2 G7 D1 pass B1
+Tree:
+: T   5.51c W   5.16c S   0.33c ( +0.3 L  +0.3) N     200  --  G3 pass pass pass pass G5 D4
+---Black(v)---
+G3  : T   1.15c W   0.89c S   0.24c ( +0.2 L  +0.2) LCB   13.13c P 44.94% WF 160.6 PSV     150 N     150  --  G3 pass pass pass pass G5 D4 F6
+pss : T  23.30c W  22.57c S   0.73c ( +0.6 L  +0.6) LCB   43.23c P 47.42% WF  38.4 PSV      25 N      49  --  pass G3 pass pass pass pass E2 G5
+: T  -5.51c W  -5.16c S  -0.33c ( -0.3 L  -0.3) N     200  --  G3 pass pass pass pass G5 D4
+GAME 16 ==========================================================================
+Chinese rules endgame, one dame
+
+HASH: 5AF63E0AF830CE859332D16214395C9B
+   A B C D E F G H J
+ 7 . . . . . . . . .
+ 6 O O O O O . O . .
+ 5 O X X X O X . . .
+ 4 X X . . X O O O O
+ 3 . . X X . X . X O
+ 2 . O O X . X X X X
+ 1 . . X . . . O X .
+
+
+
+Win 65.10c
+Loss 34.89c
+NoResult 0.01c
+ScoreMean 1.0
+ScoreMeanSq 1.1
+Lead 1.0
+VarTimeLeft -1.0
+STWinlossError -1.0
+STScoreError -1.0
+Policy
+   2    1    1    1    1    1    1    1    1 
+   -    -    -    -    -    3    -    2    1 
+   -    -    -    -    -    -    7    2    1 
+   -    -    4   14    -    -    -    -    - 
+   4   16    -    -   32    -  785    -    - 
+   5    -    -    -   21    -    -    -    - 
+   3   10    -   20    7   11    -    -    2 
+  986   993   990   987   985   985   979   983   978 
+  999   999   999   998   999   990   999   983   987 
+  996  -999 -1000  -999   998   902   977   986   981 
+ -999 -1000  -998  -998  -999   998   997   997   998 
+ -995  -997 -1000 -1000  -996  -999  -601  -999   995 
+ -989  -983  -985  -999  -997  -999 -1000 -1000  -999 
+ -986  -992  -996  -991  -994  -996  -996  -999  -998 
+
+MoveNum: 0 HASH: 5AF63E0AF830CE859332D16214395C9B
+   A B C D E F G H J
+ 7 . . . . . . . . .
+ 6 O O O O O . O . .
+ 5 O X X X O X . . .
+ 4 X X . . X O O O O
+ 3 . . X X . X . X O
+ 2 . O O X . X X X X
+ 1 . . X . . . O X .
+
+Root visits: 200
+New playouts: 200
+NN rows: 134
+NN batches: 134
+NN avg batch size: 1
+PV: G3 G5 E3 G7 D1 F6 B1 pass A2 pass B3 pass pass
+Tree:
+: T  10.26c W  10.11c S   0.15c ( +0.1 L  +0.1) N     200  --  G3 G5 E3 G7 D1 F6 B1
+---Black(v)---
+G3  : T   9.27c W   9.14c S   0.12c ( +0.1 L  +0.1) LCB   24.42c P 78.49% WF 196.2 PSV     195 N     195  --  G3 G5 E3 G7 D1 F6 B1 pass
+pss : T  85.04c W  82.03c S   3.01c ( +2.5 L  +2.5) LCB  260.00c P  3.98% WF   0.6 PSV       0 N       1  --  pass
+E3  : T  76.65c W  74.84c S   1.82c ( +1.5 L  +1.5) LCB  260.00c P  3.15% WF   0.7 PSV       0 N       1  --  E3
+E2  : T  63.86c W  62.31c S   1.55c ( +1.3 L  +1.3) LCB  260.00c P  2.08% WF   0.7 PSV       0 N       1  --  E2
+D1  : T  67.35c W  65.79c S   1.56c ( +1.3 L  +1.3) LCB  260.00c P  1.96% WF   0.7 PSV       0 N       1  --  D1
+: T -10.26c W -10.11c S  -0.15c ( -0.1 L  -0.1) N     200  --  G3 G5 E3 G7 D1 F6 B1
+: GPU 0 finishing, processed 4130 rows 4130 batches
 : GPU 0 finishing, processed 378 rows 378 batches
 : GPU 0 finishing, processed 1 rows 1 batches

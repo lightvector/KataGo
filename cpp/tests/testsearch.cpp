@@ -804,6 +804,86 @@ xx.o.o.o.
 
     delete bot;
   }
+
+  {
+    cout << "GAME 15 ==========================================================================" << endl;
+    cout << "Japanese rules endgame, one dame" << endl;
+    cout << endl;
+
+    string seed = getSearchRandSeed();
+    Rules rules = Rules::parseRules("Japanese");
+    rules.komi = 6;
+    TestSearchOptions opts;
+    opts.noClearBot = true;
+
+    Player nextPla = P_BLACK;
+    Board board = Board::parseBoard(9,7,R"%%(
+.........
+ooooo.o..
+oxxxox...
+xx..xoooo
+..xx.x.xo
+.oox.xxxx
+..x...ox.
+)%%");
+    board.numWhiteCaptures = 3;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    MiscNNInputParams nnInputParams;
+    NNResultBuf buf;
+    bool skipCache = true;
+    bool includeOwnerMap = true;
+    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+    printPolicyValueOwnership(board,buf);
+
+    SearchParams params;
+    params.maxVisits = 200;
+    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, seed);
+
+    runBotOnPosition(bot,board,nextPla,hist,opts);
+    bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().onlyBranch(board,"G3"), P_BLACK);
+    delete bot;
+  }
+
+  {
+    cout << "GAME 16 ==========================================================================" << endl;
+    cout << "Chinese rules endgame, one dame" << endl;
+    cout << endl;
+
+    string seed = getSearchRandSeed();
+    Rules rules = Rules::parseRules("Chinese");
+    rules.komi = 6;
+    TestSearchOptions opts;
+    opts.noClearBot = true;
+
+    Player nextPla = P_BLACK;
+    Board board = Board::parseBoard(9,7,R"%%(
+.........
+ooooo.o..
+oxxxox...
+xx..xoooo
+..xx.x.xo
+.oox.xxxx
+..x...ox.
+)%%");
+    board.numWhiteCaptures = 3;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    MiscNNInputParams nnInputParams;
+    NNResultBuf buf;
+    bool skipCache = true;
+    bool includeOwnerMap = true;
+    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+    printPolicyValueOwnership(board,buf);
+
+    SearchParams params;
+    params.maxVisits = 200;
+    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, seed);
+
+    runBotOnPosition(bot,board,nextPla,hist,opts);
+    bot->getSearch()->printTree(cout, bot->getSearch()->rootNode, PrintTreeOptions().onlyBranch(board,"G3"), P_BLACK);
+    delete bot;
+  }
 }
 
 static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& logger)
