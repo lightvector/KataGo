@@ -277,6 +277,7 @@ class Book {
   double maxVisitsForReExpansion;
   double sharpScoreOutlierCap;
   std::map<BookHash,double> bonusByHash;
+  std::map<BookHash,double> expandBonusByHash;
 
   int initialSymmetry; // The symmetry that needs to be applied to initialBoard to align it with rootNode. (initialspace -> rootnodespace)
   BookNode* root;
@@ -374,6 +375,8 @@ class Book {
   void setMaxVisitsForReExpansion(double d);
   std::map<BookHash,double> getBonusByHash() const;
   void setBonusByHash(const std::map<BookHash,double>& d);
+  std::map<BookHash,double> getExpandBonusByHash() const;
+  void setExpandBonusByHash(const std::map<BookHash,double>& d);
 
   // Gets the root node, in the orientation of the initial board.
   SymBookNode getRoot();

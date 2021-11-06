@@ -826,6 +826,8 @@ double Book::getMaxVisitsForReExpansion() const { return maxVisitsForReExpansion
 void Book::setMaxVisitsForReExpansion(double d) { maxVisitsForReExpansion = d; }
 std::map<BookHash,double> Book::getBonusByHash() const { return bonusByHash; }
 void Book::setBonusByHash(const std::map<BookHash,double>& d) { bonusByHash = d; }
+std::map<BookHash,double> Book::getExpandBonusByHash() const { return expandBonusByHash; }
+void Book::setExpandBonusByHash(const std::map<BookHash,double>& d) { expandBonusByHash = d; }
 
 
 SymBookNode Book::getRoot() {
@@ -1712,6 +1714,12 @@ void Book::recomputeNodeCost(BookNode* node) {
     }
 
   }
+
+  if(contains(expandBonusByHash, node->hash)) {
+    double bonus = expandBonusByHash[node->hash];
+    node->thisNodeExpansionCost -= bonus;
+  }
+
 
   // cout << "Setting cost " << node->hash << " " << node->minCostFromRoot << " " << node->thisNodeExpansionCost << endl;
   // cout << "TOTAL THIS NODE COST " << node->minCostFromRoot + node->thisNodeExpansionCost << endl;
