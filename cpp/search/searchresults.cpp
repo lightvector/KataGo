@@ -510,11 +510,11 @@ bool Search::shouldSuppressPass(const SearchNode* n) const {
   double passScoreMean;
   double passLead;
   {
-    int64_t numVisits = node.stats.visits.load(std::memory_order_acquire);
-    double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
-    double scoreMeanAvg = node.stats.scoreMeanAvg.load(std::memory_order_acquire);
-    double leadAvg = node.stats.leadAvg.load(std::memory_order_acquire);
-    double utilityAvg = node.stats.utilityAvg.load(std::memory_order_acquire);
+    int64_t numVisits = passNode->stats.visits.load(std::memory_order_acquire);
+    double weightSum = passNode->stats.weightSum.load(std::memory_order_acquire);
+    double scoreMeanAvg = passNode->stats.scoreMeanAvg.load(std::memory_order_acquire);
+    double leadAvg = passNode->stats.leadAvg.load(std::memory_order_acquire);
+    double utilityAvg = passNode->stats.utilityAvg.load(std::memory_order_acquire);
 
     if(numVisits <= 0 || weightSum <= 1e-10)
       return false;
