@@ -808,7 +808,10 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
       {
         int64_t rootVisits = rootNode->stats.visits.load(std::memory_order_acquire);
         int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-        effectiveSearchTimeCarriedOver = effectiveSearchTimeCarriedOver * (double)childVisits / (double)rootVisits * searchParams.treeReuseCarryOverTimeFactor;
+        double visitProportion = (double)childVisits / (double)rootVisits;
+        if(visitProportion > 1)
+          visitProportion = 1;
+        effectiveSearchTimeCarriedOver = effectiveSearchTimeCarriedOver * visitProportion * searchParams.treeReuseCarryOverTimeFactor;
       }
 
       //Eliminate child entry in the array to prevent its deletion along with the root
