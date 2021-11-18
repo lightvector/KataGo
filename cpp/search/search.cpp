@@ -3522,6 +3522,7 @@ bool Search::playoutDescend(
 
   SearchNode* child = NULL;
   while(true) {
+    //TODO skip descent and just increment playouts if edge visits is less than child visits?
     selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
 
     //The absurdly rare case that the move chosen is not legal

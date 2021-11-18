@@ -415,34 +415,34 @@ B8  : T  76.17c W  74.53c S   1.65c ( +1.9 L  +1.9) LCB  260.00c P  0.24% WF   0
  -99.6  -99.6  -99.8  -99.6  -99.7   99.7   99.8  -99.6  -99.4  -99.8  -98.6 
  -99.3  -98.8  -99.9  -38.8   98.0   97.3   99.6  -99.7  -99.7  -99.1  -98.2 
 
-J7 visits 359 utilityNoBonus 33.47c utilityWithBonus 33.47c endingScoreBonus -0.00
-A1 visits 53 utilityNoBonus 35.74c utilityWithBonus 35.74c endingScoreBonus -0.00
-D6 visits 30 utilityNoBonus 39.43c utilityWithBonus 39.68c endingScoreBonus 0.29
-H5 visits 29 utilityNoBonus 35.13c utilityWithBonus 35.13c endingScoreBonus -0.00
-E5 visits 5 utilityNoBonus 46.16c utilityWithBonus 46.37c endingScoreBonus 0.25
-K4 visits 1 utilityNoBonus 50.05c utilityWithBonus 50.05c endingScoreBonus -0.00
-L5 visits 1 utilityNoBonus 48.43c utilityWithBonus 48.43c endingScoreBonus -0.00
-G6 visits 1 utilityNoBonus 52.80c utilityWithBonus 52.80c endingScoreBonus -0.00
-K1 visits 1 utilityNoBonus 65.78c utilityWithBonus 65.78c endingScoreBonus -0.00
-L1 visits 1 utilityNoBonus 63.93c utilityWithBonus 64.21c endingScoreBonus 0.32
-pass visits 1 utilityNoBonus 82.45c utilityWithBonus 82.45c endingScoreBonus -0.00
-L4 visits 1 utilityNoBonus 72.06c utilityWithBonus 72.41c endingScoreBonus 0.41
-L2 visits 1 utilityNoBonus 57.23c utilityWithBonus 57.54c endingScoreBonus 0.36
-K3 visits 1 utilityNoBonus 58.05c utilityWithBonus 58.05c endingScoreBonus -0.00
-E9 visits 1 utilityNoBonus 68.17c utilityWithBonus 68.56c endingScoreBonus 0.45
-F10 visits 1 utilityNoBonus 75.81c utilityWithBonus 76.21c endingScoreBonus 0.47
-E11 visits 1 utilityNoBonus 68.19c utilityWithBonus 68.59c endingScoreBonus 0.46
-L3 visits 1 utilityNoBonus 60.78c utilityWithBonus 61.12c endingScoreBonus 0.39
-J2 visits 1 utilityNoBonus 65.69c utilityWithBonus 65.69c endingScoreBonus -0.00
-A9 visits 1 utilityNoBonus 77.13c utilityWithBonus 77.49c endingScoreBonus 0.42
-D10 visits 1 utilityNoBonus 70.81c utilityWithBonus 71.22c endingScoreBonus 0.47
-A8 visits 1 utilityNoBonus 77.95c utilityWithBonus 78.27c endingScoreBonus 0.37
-G9 visits 1 utilityNoBonus 69.86c utilityWithBonus 70.23c endingScoreBonus 0.43
-D5 visits 1 utilityNoBonus 64.86c utilityWithBonus 65.16c endingScoreBonus 0.35
-A6 visits 1 utilityNoBonus 78.82c utilityWithBonus 79.12c endingScoreBonus 0.35
-B6 visits 1 utilityNoBonus 78.36c utilityWithBonus 78.58c endingScoreBonus 0.25
-B7 visits 1 utilityNoBonus 72.53c utilityWithBonus 72.77c endingScoreBonus 0.29
-B8 visits 1 utilityNoBonus 76.17c utilityWithBonus 76.44c endingScoreBonus 0.31
+J7 visits 359 edgeVisits 359 utilityNoBonus 33.47c utilityWithBonus 33.47c endingScoreBonus -0.00
+A1 visits 53 edgeVisits 53 utilityNoBonus 35.74c utilityWithBonus 35.74c endingScoreBonus -0.00
+D6 visits 30 edgeVisits 30 utilityNoBonus 39.43c utilityWithBonus 39.68c endingScoreBonus 0.29
+H5 visits 29 edgeVisits 29 utilityNoBonus 35.13c utilityWithBonus 35.13c endingScoreBonus -0.00
+E5 visits 5 edgeVisits 5 utilityNoBonus 46.16c utilityWithBonus 46.37c endingScoreBonus 0.25
+K4 visits 1 edgeVisits 1 utilityNoBonus 50.05c utilityWithBonus 50.05c endingScoreBonus -0.00
+L5 visits 1 edgeVisits 1 utilityNoBonus 48.43c utilityWithBonus 48.43c endingScoreBonus -0.00
+G6 visits 1 edgeVisits 1 utilityNoBonus 52.80c utilityWithBonus 52.80c endingScoreBonus -0.00
+K1 visits 1 edgeVisits 1 utilityNoBonus 65.78c utilityWithBonus 65.78c endingScoreBonus -0.00
+L1 visits 1 edgeVisits 1 utilityNoBonus 63.93c utilityWithBonus 64.21c endingScoreBonus 0.32
+pass visits 1 edgeVisits 1 utilityNoBonus 82.45c utilityWithBonus 82.45c endingScoreBonus -0.00
+L4 visits 1 edgeVisits 1 utilityNoBonus 72.06c utilityWithBonus 72.41c endingScoreBonus 0.41
+L2 visits 1 edgeVisits 1 utilityNoBonus 57.23c utilityWithBonus 57.54c endingScoreBonus 0.36
+K3 visits 1 edgeVisits 1 utilityNoBonus 58.05c utilityWithBonus 58.05c endingScoreBonus -0.00
+E9 visits 1 edgeVisits 1 utilityNoBonus 68.17c utilityWithBonus 68.56c endingScoreBonus 0.45
+F10 visits 1 edgeVisits 1 utilityNoBonus 75.81c utilityWithBonus 76.21c endingScoreBonus 0.47
+E11 visits 1 edgeVisits 1 utilityNoBonus 68.19c utilityWithBonus 68.59c endingScoreBonus 0.46
+L3 visits 1 edgeVisits 1 utilityNoBonus 60.78c utilityWithBonus 61.12c endingScoreBonus 0.39
+J2 visits 1 edgeVisits 1 utilityNoBonus 65.69c utilityWithBonus 65.69c endingScoreBonus -0.00
+A9 visits 1 edgeVisits 1 utilityNoBonus 77.13c utilityWithBonus 77.49c endingScoreBonus 0.42
+D10 visits 1 edgeVisits 1 utilityNoBonus 70.81c utilityWithBonus 71.22c endingScoreBonus 0.47
+A8 visits 1 edgeVisits 1 utilityNoBonus 77.95c utilityWithBonus 78.27c endingScoreBonus 0.37
+G9 visits 1 edgeVisits 1 utilityNoBonus 69.86c utilityWithBonus 70.23c endingScoreBonus 0.43
+D5 visits 1 edgeVisits 1 utilityNoBonus 64.86c utilityWithBonus 65.16c endingScoreBonus 0.35
+A6 visits 1 edgeVisits 1 utilityNoBonus 78.82c utilityWithBonus 79.12c endingScoreBonus 0.35
+B6 visits 1 edgeVisits 1 utilityNoBonus 78.36c utilityWithBonus 78.58c endingScoreBonus 0.25
+B7 visits 1 edgeVisits 1 utilityNoBonus 72.53c utilityWithBonus 72.77c endingScoreBonus 0.29
+B8 visits 1 edgeVisits 1 utilityNoBonus 76.17c utilityWithBonus 76.44c endingScoreBonus 0.31
 
 
 With root ending bonus pts one step later===================
@@ -505,29 +505,29 @@ K4  : T -62.32c W -61.23c S  -1.09c ( -1.3 L  -1.3) LCB -260.00c P  0.26% WF   0
  -99.9  -99.3  -99.7  -99.6  -99.5   99.4   98.9  -99.6  -99.3  -99.8  -98.9 
  -99.8  -98.7  -99.9  -64.3   97.5   90.4   99.5  -99.6  -99.7  -98.9  -98.2 
 
-J7 visits 461 utilityNoBonus 50.09c utilityWithBonus 50.09c endingScoreBonus 0.00
-H5 visits 10 utilityNoBonus 4.37c utilityWithBonus 4.37c endingScoreBonus 0.00
-D6 visits 8 utilityNoBonus 18.98c utilityWithBonus 18.98c endingScoreBonus 0.00
-F1 visits 1 utilityNoBonus -0.13c utilityWithBonus -0.13c endingScoreBonus 0.00
-E5 visits 1 utilityNoBonus 7.00c utilityWithBonus 7.00c endingScoreBonus 0.00
-D5 visits 1 utilityNoBonus 3.51c utilityWithBonus 3.51c endingScoreBonus 0.00
-C6 visits 1 utilityNoBonus -5.03c utilityWithBonus -5.03c endingScoreBonus 0.00
-pass visits 1 utilityNoBonus -90.37c utilityWithBonus -90.37c endingScoreBonus 0.00
-K1 visits 1 utilityNoBonus -0.75c utilityWithBonus -1.09c endingScoreBonus -0.39
-B7 visits 1 utilityNoBonus -22.64c utilityWithBonus -22.96c endingScoreBonus -0.37
-A8 visits 1 utilityNoBonus -31.34c utilityWithBonus -31.68c endingScoreBonus -0.39
-B6 visits 1 utilityNoBonus -33.61c utilityWithBonus -33.96c endingScoreBonus -0.40
-D1 visits 1 utilityNoBonus -54.60c utilityWithBonus -54.60c endingScoreBonus 0.00
-F4 visits 1 utilityNoBonus -51.05c utilityWithBonus -51.05c endingScoreBonus 0.00
-B2 visits 1 utilityNoBonus -41.10c utilityWithBonus -41.46c endingScoreBonus -0.43
-B8 visits 1 utilityNoBonus -22.45c utilityWithBonus -22.75c endingScoreBonus -0.35
-B1 visits 1 utilityNoBonus -42.97c utilityWithBonus -43.29c endingScoreBonus -0.37
-A7 visits 1 utilityNoBonus -34.59c utilityWithBonus -34.90c endingScoreBonus -0.36
-K3 visits 1 utilityNoBonus -46.32c utilityWithBonus -46.68c endingScoreBonus -0.41
-A6 visits 1 utilityNoBonus -32.01c utilityWithBonus -32.30c endingScoreBonus -0.34
-L5 visits 1 utilityNoBonus -48.29c utilityWithBonus -48.55c endingScoreBonus -0.30
-A9 visits 1 utilityNoBonus -33.44c utilityWithBonus -33.81c endingScoreBonus -0.43
-K4 visits 1 utilityNoBonus -62.32c utilityWithBonus -62.66c endingScoreBonus -0.39
+J7 visits 461 edgeVisits 461 utilityNoBonus 50.09c utilityWithBonus 50.09c endingScoreBonus 0.00
+H5 visits 10 edgeVisits 10 utilityNoBonus 4.37c utilityWithBonus 4.37c endingScoreBonus 0.00
+D6 visits 8 edgeVisits 8 utilityNoBonus 18.98c utilityWithBonus 18.98c endingScoreBonus 0.00
+F1 visits 1 edgeVisits 1 utilityNoBonus -0.13c utilityWithBonus -0.13c endingScoreBonus 0.00
+E5 visits 1 edgeVisits 1 utilityNoBonus 7.00c utilityWithBonus 7.00c endingScoreBonus 0.00
+D5 visits 1 edgeVisits 1 utilityNoBonus 3.51c utilityWithBonus 3.51c endingScoreBonus 0.00
+C6 visits 1 edgeVisits 1 utilityNoBonus -5.03c utilityWithBonus -5.03c endingScoreBonus 0.00
+pass visits 1 edgeVisits 1 utilityNoBonus -90.37c utilityWithBonus -90.37c endingScoreBonus 0.00
+K1 visits 1 edgeVisits 1 utilityNoBonus -0.75c utilityWithBonus -1.09c endingScoreBonus -0.39
+B7 visits 1 edgeVisits 1 utilityNoBonus -22.64c utilityWithBonus -22.96c endingScoreBonus -0.37
+A8 visits 1 edgeVisits 1 utilityNoBonus -31.34c utilityWithBonus -31.68c endingScoreBonus -0.39
+B6 visits 1 edgeVisits 1 utilityNoBonus -33.61c utilityWithBonus -33.96c endingScoreBonus -0.40
+D1 visits 1 edgeVisits 1 utilityNoBonus -54.60c utilityWithBonus -54.60c endingScoreBonus 0.00
+F4 visits 1 edgeVisits 1 utilityNoBonus -51.05c utilityWithBonus -51.05c endingScoreBonus 0.00
+B2 visits 1 edgeVisits 1 utilityNoBonus -41.10c utilityWithBonus -41.46c endingScoreBonus -0.43
+B8 visits 1 edgeVisits 1 utilityNoBonus -22.45c utilityWithBonus -22.75c endingScoreBonus -0.35
+B1 visits 1 edgeVisits 1 utilityNoBonus -42.97c utilityWithBonus -43.29c endingScoreBonus -0.37
+A7 visits 1 edgeVisits 1 utilityNoBonus -34.59c utilityWithBonus -34.90c endingScoreBonus -0.36
+K3 visits 1 edgeVisits 1 utilityNoBonus -46.32c utilityWithBonus -46.68c endingScoreBonus -0.41
+A6 visits 1 edgeVisits 1 utilityNoBonus -32.01c utilityWithBonus -32.30c endingScoreBonus -0.34
+L5 visits 1 edgeVisits 1 utilityNoBonus -48.29c utilityWithBonus -48.55c endingScoreBonus -0.30
+A9 visits 1 edgeVisits 1 utilityNoBonus -33.44c utilityWithBonus -33.81c endingScoreBonus -0.43
+K4 visits 1 edgeVisits 1 utilityNoBonus -62.32c utilityWithBonus -62.66c endingScoreBonus -0.39
 Without root ending bonus pts later later===================
 
 MoveNum: 96 HASH: 434B1665B6BB8864F5AD865AA86C39C3
@@ -590,31 +590,31 @@ C6  : T  85.93c W  83.99c S   1.94c ( +2.2 L  +2.2) LCB  260.00c P  0.69% WF   0
  -99.8  -99.8  -99.9  -99.8  -99.9   99.9   99.9  -99.9  -99.8  -99.9  -99.4 
  -99.8  -99.4  -99.8  -99.8   99.8   99.8   99.8  -99.9  -99.9  -99.5  -99.0 
 
-L5 visits 27 utilityNoBonus 71.19c utilityWithBonus 71.19c endingScoreBonus -0.00
-K1 visits 61 utilityNoBonus 60.86c utilityWithBonus 60.86c endingScoreBonus -0.00
-L4 visits 40 utilityNoBonus 61.73c utilityWithBonus 61.73c endingScoreBonus -0.00
-pass visits 3 utilityNoBonus 95.51c utilityWithBonus 95.51c endingScoreBonus -0.00
-B1 visits 48 utilityNoBonus 58.54c utilityWithBonus 58.54c endingScoreBonus -0.00
-L3 visits 48 utilityNoBonus 59.46c utilityWithBonus 59.46c endingScoreBonus -0.00
-G6 visits 17 utilityNoBonus 64.65c utilityWithBonus 64.65c endingScoreBonus -0.00
-L2 visits 55 utilityNoBonus 59.12c utilityWithBonus 59.12c endingScoreBonus -0.00
-J2 visits 27 utilityNoBonus 60.84c utilityWithBonus 60.84c endingScoreBonus -0.00
-K3 visits 46 utilityNoBonus 58.73c utilityWithBonus 58.73c endingScoreBonus -0.00
-F10 visits 13 utilityNoBonus 63.32c utilityWithBonus 63.32c endingScoreBonus -0.00
-L1 visits 40 utilityNoBonus 58.62c utilityWithBonus 58.62c endingScoreBonus -0.00
-B2 visits 19 utilityNoBonus 59.83c utilityWithBonus 59.83c endingScoreBonus -0.00
-D10 visits 7 utilityNoBonus 65.27c utilityWithBonus 65.27c endingScoreBonus -0.00
-E9 visits 6 utilityNoBonus 65.96c utilityWithBonus 65.96c endingScoreBonus -0.00
-E11 visits 23 utilityNoBonus 58.77c utilityWithBonus 58.77c endingScoreBonus -0.00
-D6 visits 3 utilityNoBonus 68.08c utilityWithBonus 68.08c endingScoreBonus -0.00
-G9 visits 9 utilityNoBonus 61.04c utilityWithBonus 61.04c endingScoreBonus -0.00
-A6 visits 1 utilityNoBonus 85.01c utilityWithBonus 85.01c endingScoreBonus -0.00
-B8 visits 1 utilityNoBonus 84.53c utilityWithBonus 84.53c endingScoreBonus -0.00
-B7 visits 1 utilityNoBonus 86.52c utilityWithBonus 86.52c endingScoreBonus -0.00
-B6 visits 1 utilityNoBonus 86.24c utilityWithBonus 86.24c endingScoreBonus -0.00
-A7 visits 1 utilityNoBonus 89.57c utilityWithBonus 89.57c endingScoreBonus -0.00
-A3 visits 1 utilityNoBonus 116.40c utilityWithBonus 116.40c endingScoreBonus -0.00
-C6 visits 1 utilityNoBonus 85.93c utilityWithBonus 85.93c endingScoreBonus -0.00
+L5 visits 27 edgeVisits 27 utilityNoBonus 71.19c utilityWithBonus 71.19c endingScoreBonus -0.00
+K1 visits 61 edgeVisits 61 utilityNoBonus 60.86c utilityWithBonus 60.86c endingScoreBonus -0.00
+L4 visits 40 edgeVisits 40 utilityNoBonus 61.73c utilityWithBonus 61.73c endingScoreBonus -0.00
+pass visits 3 edgeVisits 3 utilityNoBonus 95.51c utilityWithBonus 95.51c endingScoreBonus -0.00
+B1 visits 48 edgeVisits 48 utilityNoBonus 58.54c utilityWithBonus 58.54c endingScoreBonus -0.00
+L3 visits 48 edgeVisits 48 utilityNoBonus 59.46c utilityWithBonus 59.46c endingScoreBonus -0.00
+G6 visits 17 edgeVisits 17 utilityNoBonus 64.65c utilityWithBonus 64.65c endingScoreBonus -0.00
+L2 visits 55 edgeVisits 55 utilityNoBonus 59.12c utilityWithBonus 59.12c endingScoreBonus -0.00
+J2 visits 27 edgeVisits 27 utilityNoBonus 60.84c utilityWithBonus 60.84c endingScoreBonus -0.00
+K3 visits 46 edgeVisits 46 utilityNoBonus 58.73c utilityWithBonus 58.73c endingScoreBonus -0.00
+F10 visits 13 edgeVisits 13 utilityNoBonus 63.32c utilityWithBonus 63.32c endingScoreBonus -0.00
+L1 visits 40 edgeVisits 40 utilityNoBonus 58.62c utilityWithBonus 58.62c endingScoreBonus -0.00
+B2 visits 19 edgeVisits 19 utilityNoBonus 59.83c utilityWithBonus 59.83c endingScoreBonus -0.00
+D10 visits 7 edgeVisits 7 utilityNoBonus 65.27c utilityWithBonus 65.27c endingScoreBonus -0.00
+E9 visits 6 edgeVisits 6 utilityNoBonus 65.96c utilityWithBonus 65.96c endingScoreBonus -0.00
+E11 visits 23 edgeVisits 23 utilityNoBonus 58.77c utilityWithBonus 58.77c endingScoreBonus -0.00
+D6 visits 3 edgeVisits 3 utilityNoBonus 68.08c utilityWithBonus 68.08c endingScoreBonus -0.00
+G9 visits 9 edgeVisits 9 utilityNoBonus 61.04c utilityWithBonus 61.04c endingScoreBonus -0.00
+A6 visits 1 edgeVisits 1 utilityNoBonus 85.01c utilityWithBonus 85.01c endingScoreBonus -0.00
+B8 visits 1 edgeVisits 1 utilityNoBonus 84.53c utilityWithBonus 84.53c endingScoreBonus -0.00
+B7 visits 1 edgeVisits 1 utilityNoBonus 86.52c utilityWithBonus 86.52c endingScoreBonus -0.00
+B6 visits 1 edgeVisits 1 utilityNoBonus 86.24c utilityWithBonus 86.24c endingScoreBonus -0.00
+A7 visits 1 edgeVisits 1 utilityNoBonus 89.57c utilityWithBonus 89.57c endingScoreBonus -0.00
+A3 visits 1 edgeVisits 1 utilityNoBonus 116.40c utilityWithBonus 116.40c endingScoreBonus -0.00
+C6 visits 1 edgeVisits 1 utilityNoBonus 85.93c utilityWithBonus 85.93c endingScoreBonus -0.00
 With root ending bonus pts later later===================
 
 MoveNum: 96 HASH: 434B1665B6BB8864F5AD865AA86C39C3
@@ -677,31 +677,31 @@ C6  : T  85.93c W  83.99c S   1.94c ( +2.2 L  +2.2) LCB  260.00c P  0.69% WF   0
  -99.8  -99.8  -99.9  -99.8  -99.9   99.9   99.9  -99.9  -99.8  -99.9  -99.4 
  -99.8  -99.4  -99.8  -99.8   99.8   99.8   99.8  -99.9  -99.9  -99.5  -99.0 
 
-L5 visits 27 utilityNoBonus 71.19c utilityWithBonus 71.19c endingScoreBonus -0.00
-K1 visits 62 utilityNoBonus 61.16c utilityWithBonus 61.16c endingScoreBonus -0.00
-L4 visits 40 utilityNoBonus 61.73c utilityWithBonus 62.12c endingScoreBonus 0.45
-pass visits 3 utilityNoBonus 95.51c utilityWithBonus 95.51c endingScoreBonus -0.00
-B1 visits 46 utilityNoBonus 58.60c utilityWithBonus 58.99c endingScoreBonus 0.44
-L3 visits 48 utilityNoBonus 59.46c utilityWithBonus 59.85c endingScoreBonus 0.45
-G6 visits 17 utilityNoBonus 64.65c utilityWithBonus 64.65c endingScoreBonus -0.00
-L2 visits 55 utilityNoBonus 59.12c utilityWithBonus 59.50c endingScoreBonus 0.44
-J2 visits 27 utilityNoBonus 60.84c utilityWithBonus 60.84c endingScoreBonus -0.00
-K3 visits 47 utilityNoBonus 59.43c utilityWithBonus 59.43c endingScoreBonus -0.00
-F10 visits 13 utilityNoBonus 63.32c utilityWithBonus 63.74c endingScoreBonus 0.49
-L1 visits 40 utilityNoBonus 58.62c utilityWithBonus 58.97c endingScoreBonus 0.40
-B2 visits 19 utilityNoBonus 59.83c utilityWithBonus 60.24c endingScoreBonus 0.48
-D10 visits 7 utilityNoBonus 65.27c utilityWithBonus 65.68c endingScoreBonus 0.49
-E9 visits 6 utilityNoBonus 65.96c utilityWithBonus 66.38c endingScoreBonus 0.48
-E11 visits 23 utilityNoBonus 58.77c utilityWithBonus 59.19c endingScoreBonus 0.48
-D6 visits 3 utilityNoBonus 68.08c utilityWithBonus 68.46c endingScoreBonus 0.44
-G9 visits 9 utilityNoBonus 61.04c utilityWithBonus 61.45c endingScoreBonus 0.47
-A6 visits 1 utilityNoBonus 85.01c utilityWithBonus 85.33c endingScoreBonus 0.37
-B8 visits 1 utilityNoBonus 84.53c utilityWithBonus 84.89c endingScoreBonus 0.42
-B7 visits 1 utilityNoBonus 86.52c utilityWithBonus 86.82c endingScoreBonus 0.35
-B6 visits 1 utilityNoBonus 86.24c utilityWithBonus 86.49c endingScoreBonus 0.30
-A7 visits 1 utilityNoBonus 89.57c utilityWithBonus 89.91c endingScoreBonus 0.39
-A3 visits 1 utilityNoBonus 116.40c utilityWithBonus 116.58c endingScoreBonus 0.49
-C6 visits 1 utilityNoBonus 85.93c utilityWithBonus 86.27c endingScoreBonus 0.40
+L5 visits 27 edgeVisits 27 utilityNoBonus 71.19c utilityWithBonus 71.19c endingScoreBonus -0.00
+K1 visits 62 edgeVisits 62 utilityNoBonus 61.16c utilityWithBonus 61.16c endingScoreBonus -0.00
+L4 visits 40 edgeVisits 40 utilityNoBonus 61.73c utilityWithBonus 62.12c endingScoreBonus 0.45
+pass visits 3 edgeVisits 3 utilityNoBonus 95.51c utilityWithBonus 95.51c endingScoreBonus -0.00
+B1 visits 46 edgeVisits 46 utilityNoBonus 58.60c utilityWithBonus 58.99c endingScoreBonus 0.44
+L3 visits 48 edgeVisits 48 utilityNoBonus 59.46c utilityWithBonus 59.85c endingScoreBonus 0.45
+G6 visits 17 edgeVisits 17 utilityNoBonus 64.65c utilityWithBonus 64.65c endingScoreBonus -0.00
+L2 visits 55 edgeVisits 55 utilityNoBonus 59.12c utilityWithBonus 59.50c endingScoreBonus 0.44
+J2 visits 27 edgeVisits 27 utilityNoBonus 60.84c utilityWithBonus 60.84c endingScoreBonus -0.00
+K3 visits 47 edgeVisits 47 utilityNoBonus 59.43c utilityWithBonus 59.43c endingScoreBonus -0.00
+F10 visits 13 edgeVisits 13 utilityNoBonus 63.32c utilityWithBonus 63.74c endingScoreBonus 0.49
+L1 visits 40 edgeVisits 40 utilityNoBonus 58.62c utilityWithBonus 58.97c endingScoreBonus 0.40
+B2 visits 19 edgeVisits 19 utilityNoBonus 59.83c utilityWithBonus 60.24c endingScoreBonus 0.48
+D10 visits 7 edgeVisits 7 utilityNoBonus 65.27c utilityWithBonus 65.68c endingScoreBonus 0.49
+E9 visits 6 edgeVisits 6 utilityNoBonus 65.96c utilityWithBonus 66.38c endingScoreBonus 0.48
+E11 visits 23 edgeVisits 23 utilityNoBonus 58.77c utilityWithBonus 59.19c endingScoreBonus 0.48
+D6 visits 3 edgeVisits 3 utilityNoBonus 68.08c utilityWithBonus 68.46c endingScoreBonus 0.44
+G9 visits 9 edgeVisits 9 utilityNoBonus 61.04c utilityWithBonus 61.45c endingScoreBonus 0.47
+A6 visits 1 edgeVisits 1 utilityNoBonus 85.01c utilityWithBonus 85.33c endingScoreBonus 0.37
+B8 visits 1 edgeVisits 1 utilityNoBonus 84.53c utilityWithBonus 84.89c endingScoreBonus 0.42
+B7 visits 1 edgeVisits 1 utilityNoBonus 86.52c utilityWithBonus 86.82c endingScoreBonus 0.35
+B6 visits 1 edgeVisits 1 utilityNoBonus 86.24c utilityWithBonus 86.49c endingScoreBonus 0.30
+A7 visits 1 edgeVisits 1 utilityNoBonus 89.57c utilityWithBonus 89.91c endingScoreBonus 0.39
+A3 visits 1 edgeVisits 1 utilityNoBonus 116.40c utilityWithBonus 116.58c endingScoreBonus 0.49
+C6 visits 1 edgeVisits 1 utilityNoBonus 85.93c utilityWithBonus 86.27c endingScoreBonus 0.40
 GAME 8 ==========================================================================
 (Alternate variation of game 7 to test root ending bonus points in territory scoring)
 Without root ending bonus pts===================
@@ -763,28 +763,28 @@ L2  : T -44.17c W -43.10c S  -1.07c ( -1.2 L  -1.2) LCB -260.00c P  0.23% WF   0
  -99.9  -99.5  -99.9  -99.8  -99.6   98.6   98.4  -99.4  -99.4  -99.8  -98.8 
  -99.8  -99.2  -99.9  -67.4   96.3   72.1   99.4  -99.5  -99.7  -99.2  -98.4 
 
-J7 visits 463 utilityNoBonus 42.42c utilityWithBonus 42.42c endingScoreBonus 0.00
-pass visits 14 utilityNoBonus 9.55c utilityWithBonus 9.55c endingScoreBonus 0.00
-E5 visits 2 utilityNoBonus -29.84c utilityWithBonus -29.84c endingScoreBonus 0.00
-D6 visits 2 utilityNoBonus -24.00c utilityWithBonus -24.00c endingScoreBonus 0.00
-K4 visits 1 utilityNoBonus -54.47c utilityWithBonus -54.47c endingScoreBonus 0.00
-F1 visits 1 utilityNoBonus 3.00c utilityWithBonus 3.00c endingScoreBonus 0.00
-D5 visits 1 utilityNoBonus -2.83c utilityWithBonus -2.83c endingScoreBonus 0.00
-K1 visits 1 utilityNoBonus 21.00c utilityWithBonus 21.00c endingScoreBonus 0.00
-K3 visits 1 utilityNoBonus -14.39c utilityWithBonus -14.39c endingScoreBonus 0.00
-C6 visits 1 utilityNoBonus 7.46c utilityWithBonus 7.46c endingScoreBonus 0.00
-L5 visits 1 utilityNoBonus -51.06c utilityWithBonus -51.06c endingScoreBonus 0.00
-A8 visits 1 utilityNoBonus -26.98c utilityWithBonus -26.98c endingScoreBonus 0.00
-F4 visits 1 utilityNoBonus -55.52c utilityWithBonus -55.52c endingScoreBonus 0.00
-A6 visits 1 utilityNoBonus -19.88c utilityWithBonus -19.88c endingScoreBonus 0.00
-B2 visits 1 utilityNoBonus -45.27c utilityWithBonus -45.27c endingScoreBonus 0.00
-B6 visits 1 utilityNoBonus -27.35c utilityWithBonus -27.35c endingScoreBonus 0.00
-B7 visits 1 utilityNoBonus -12.02c utilityWithBonus -12.02c endingScoreBonus 0.00
-L4 visits 1 utilityNoBonus -47.35c utilityWithBonus -47.35c endingScoreBonus 0.00
-D1 visits 1 utilityNoBonus -64.73c utilityWithBonus -64.73c endingScoreBonus 0.00
-B1 visits 1 utilityNoBonus -47.31c utilityWithBonus -47.31c endingScoreBonus 0.00
-A7 visits 1 utilityNoBonus -28.33c utilityWithBonus -28.33c endingScoreBonus 0.00
-L2 visits 1 utilityNoBonus -44.17c utilityWithBonus -44.17c endingScoreBonus 0.00
+J7 visits 463 edgeVisits 463 utilityNoBonus 42.42c utilityWithBonus 42.42c endingScoreBonus 0.00
+pass visits 14 edgeVisits 14 utilityNoBonus 9.55c utilityWithBonus 9.55c endingScoreBonus 0.00
+E5 visits 2 edgeVisits 2 utilityNoBonus -29.84c utilityWithBonus -29.84c endingScoreBonus 0.00
+D6 visits 2 edgeVisits 2 utilityNoBonus -24.00c utilityWithBonus -24.00c endingScoreBonus 0.00
+K4 visits 1 edgeVisits 1 utilityNoBonus -54.47c utilityWithBonus -54.47c endingScoreBonus 0.00
+F1 visits 1 edgeVisits 1 utilityNoBonus 3.00c utilityWithBonus 3.00c endingScoreBonus 0.00
+D5 visits 1 edgeVisits 1 utilityNoBonus -2.83c utilityWithBonus -2.83c endingScoreBonus 0.00
+K1 visits 1 edgeVisits 1 utilityNoBonus 21.00c utilityWithBonus 21.00c endingScoreBonus 0.00
+K3 visits 1 edgeVisits 1 utilityNoBonus -14.39c utilityWithBonus -14.39c endingScoreBonus 0.00
+C6 visits 1 edgeVisits 1 utilityNoBonus 7.46c utilityWithBonus 7.46c endingScoreBonus 0.00
+L5 visits 1 edgeVisits 1 utilityNoBonus -51.06c utilityWithBonus -51.06c endingScoreBonus 0.00
+A8 visits 1 edgeVisits 1 utilityNoBonus -26.98c utilityWithBonus -26.98c endingScoreBonus 0.00
+F4 visits 1 edgeVisits 1 utilityNoBonus -55.52c utilityWithBonus -55.52c endingScoreBonus 0.00
+A6 visits 1 edgeVisits 1 utilityNoBonus -19.88c utilityWithBonus -19.88c endingScoreBonus 0.00
+B2 visits 1 edgeVisits 1 utilityNoBonus -45.27c utilityWithBonus -45.27c endingScoreBonus 0.00
+B6 visits 1 edgeVisits 1 utilityNoBonus -27.35c utilityWithBonus -27.35c endingScoreBonus 0.00
+B7 visits 1 edgeVisits 1 utilityNoBonus -12.02c utilityWithBonus -12.02c endingScoreBonus 0.00
+L4 visits 1 edgeVisits 1 utilityNoBonus -47.35c utilityWithBonus -47.35c endingScoreBonus 0.00
+D1 visits 1 edgeVisits 1 utilityNoBonus -64.73c utilityWithBonus -64.73c endingScoreBonus 0.00
+B1 visits 1 edgeVisits 1 utilityNoBonus -47.31c utilityWithBonus -47.31c endingScoreBonus 0.00
+A7 visits 1 edgeVisits 1 utilityNoBonus -28.33c utilityWithBonus -28.33c endingScoreBonus 0.00
+L2 visits 1 edgeVisits 1 utilityNoBonus -44.17c utilityWithBonus -44.17c endingScoreBonus 0.00
 With root ending bonus pts===================
 
 MoveNum: 91 HASH: CDAEE17AEAD61B0F693D5C82B6B276FD
@@ -844,28 +844,28 @@ L2  : T -44.17c W -43.10c S  -1.07c ( -1.2 L  -1.2) LCB -260.00c P  0.23% WF   0
  -99.9  -99.5  -99.9  -99.8  -99.6   98.6   98.4  -99.4  -99.4  -99.8  -98.8 
  -99.8  -99.2  -99.9  -67.4   96.3   72.1   99.4  -99.5  -99.7  -99.2  -98.4 
 
-J7 visits 463 utilityNoBonus 42.42c utilityWithBonus 42.42c endingScoreBonus 0.00
-pass visits 14 utilityNoBonus 9.55c utilityWithBonus 9.26c endingScoreBonus -0.33
-E5 visits 2 utilityNoBonus -29.84c utilityWithBonus -29.84c endingScoreBonus 0.00
-D6 visits 2 utilityNoBonus -24.00c utilityWithBonus -24.00c endingScoreBonus 0.00
-K4 visits 1 utilityNoBonus -54.47c utilityWithBonus -54.84c endingScoreBonus -0.43
-F1 visits 1 utilityNoBonus 3.00c utilityWithBonus 3.00c endingScoreBonus 0.00
-D5 visits 1 utilityNoBonus -2.83c utilityWithBonus -2.83c endingScoreBonus 0.00
-K1 visits 1 utilityNoBonus 21.00c utilityWithBonus 20.64c endingScoreBonus -0.42
-K3 visits 1 utilityNoBonus -14.39c utilityWithBonus -14.76c endingScoreBonus -0.43
-C6 visits 1 utilityNoBonus 7.46c utilityWithBonus 7.46c endingScoreBonus 0.00
-L5 visits 1 utilityNoBonus -51.06c utilityWithBonus -51.39c endingScoreBonus -0.39
-A8 visits 1 utilityNoBonus -26.98c utilityWithBonus -27.33c endingScoreBonus -0.40
-F4 visits 1 utilityNoBonus -55.52c utilityWithBonus -55.52c endingScoreBonus 0.00
-A6 visits 1 utilityNoBonus -19.88c utilityWithBonus -20.20c endingScoreBonus -0.37
-B2 visits 1 utilityNoBonus -45.27c utilityWithBonus -45.66c endingScoreBonus -0.45
-B6 visits 1 utilityNoBonus -27.35c utilityWithBonus -27.71c endingScoreBonus -0.41
-B7 visits 1 utilityNoBonus -12.02c utilityWithBonus -12.38c endingScoreBonus -0.41
-L4 visits 1 utilityNoBonus -47.35c utilityWithBonus -47.69c endingScoreBonus -0.39
-D1 visits 1 utilityNoBonus -64.73c utilityWithBonus -64.73c endingScoreBonus 0.00
-B1 visits 1 utilityNoBonus -47.31c utilityWithBonus -47.68c endingScoreBonus -0.42
-A7 visits 1 utilityNoBonus -28.33c utilityWithBonus -28.66c endingScoreBonus -0.39
-L2 visits 1 utilityNoBonus -44.17c utilityWithBonus -44.50c endingScoreBonus -0.38
+J7 visits 463 edgeVisits 463 utilityNoBonus 42.42c utilityWithBonus 42.42c endingScoreBonus 0.00
+pass visits 14 edgeVisits 14 utilityNoBonus 9.55c utilityWithBonus 9.26c endingScoreBonus -0.33
+E5 visits 2 edgeVisits 2 utilityNoBonus -29.84c utilityWithBonus -29.84c endingScoreBonus 0.00
+D6 visits 2 edgeVisits 2 utilityNoBonus -24.00c utilityWithBonus -24.00c endingScoreBonus 0.00
+K4 visits 1 edgeVisits 1 utilityNoBonus -54.47c utilityWithBonus -54.84c endingScoreBonus -0.43
+F1 visits 1 edgeVisits 1 utilityNoBonus 3.00c utilityWithBonus 3.00c endingScoreBonus 0.00
+D5 visits 1 edgeVisits 1 utilityNoBonus -2.83c utilityWithBonus -2.83c endingScoreBonus 0.00
+K1 visits 1 edgeVisits 1 utilityNoBonus 21.00c utilityWithBonus 20.64c endingScoreBonus -0.42
+K3 visits 1 edgeVisits 1 utilityNoBonus -14.39c utilityWithBonus -14.76c endingScoreBonus -0.43
+C6 visits 1 edgeVisits 1 utilityNoBonus 7.46c utilityWithBonus 7.46c endingScoreBonus 0.00
+L5 visits 1 edgeVisits 1 utilityNoBonus -51.06c utilityWithBonus -51.39c endingScoreBonus -0.39
+A8 visits 1 edgeVisits 1 utilityNoBonus -26.98c utilityWithBonus -27.33c endingScoreBonus -0.40
+F4 visits 1 edgeVisits 1 utilityNoBonus -55.52c utilityWithBonus -55.52c endingScoreBonus 0.00
+A6 visits 1 edgeVisits 1 utilityNoBonus -19.88c utilityWithBonus -20.20c endingScoreBonus -0.37
+B2 visits 1 edgeVisits 1 utilityNoBonus -45.27c utilityWithBonus -45.66c endingScoreBonus -0.45
+B6 visits 1 edgeVisits 1 utilityNoBonus -27.35c utilityWithBonus -27.71c endingScoreBonus -0.41
+B7 visits 1 edgeVisits 1 utilityNoBonus -12.02c utilityWithBonus -12.38c endingScoreBonus -0.41
+L4 visits 1 edgeVisits 1 utilityNoBonus -47.35c utilityWithBonus -47.69c endingScoreBonus -0.39
+D1 visits 1 edgeVisits 1 utilityNoBonus -64.73c utilityWithBonus -64.73c endingScoreBonus 0.00
+B1 visits 1 edgeVisits 1 utilityNoBonus -47.31c utilityWithBonus -47.68c endingScoreBonus -0.42
+A7 visits 1 edgeVisits 1 utilityNoBonus -28.33c utilityWithBonus -28.66c endingScoreBonus -0.39
+L2 visits 1 edgeVisits 1 utilityNoBonus -44.17c utilityWithBonus -44.50c endingScoreBonus -0.38
 
 
 GAME 9 ==========================================================================

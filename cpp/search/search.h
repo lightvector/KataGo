@@ -582,7 +582,7 @@ private:
   ) const;
 
   //Parent must be locked
-  void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, double& lcbBuf, double& radiusBuf) const;
+  void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, int64_t edgeVisits, double& lcbBuf, double& radiusBuf) const;
 
   double getExploreSelectionValue(
     double nnPolicyProb, double totalChildWeight, double childWeight,
@@ -679,7 +679,7 @@ private:
   bool shouldSuppressPass(const SearchNode* n) const;
 
   AnalysisData getAnalysisDataOfSingleChild(
-    const SearchNode* child, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues,
+    const SearchNode* child, int64_t edgeVisits, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues,
     Loc move, double policyProb, double fpuValue, double parentUtility, double parentWinLossValue,
     double parentScoreMean, double parentScoreStdev, double parentLead, int maxPVDepth
   ) const;
