@@ -838,6 +838,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
   double scoreMeanSqAvg = 0.0;
   double leadAvg = 0.0;
   double utilityAvg = 0.0;
+  double utilitySqAvg = 0.0;
   double weightSum = 0.0;
   double weightSqSum = 0.0;
 
@@ -851,6 +852,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
     leadAvg = child->stats.leadAvg.load(std::memory_order_acquire);
     utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
+    utilitySqAvg = child->stats.utilitySqAvg.load(std::memory_order_acquire);
   }
 
   AnalysisData data;
@@ -870,6 +872,10 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     data.scoreStdev = parentScoreStdev;
     data.lead = parentLead;
     data.ess = 0.0;
+    data.weightSum = 0.0;
+    data.weightSqSum = 0.0;
+    data.utilitySqAvg = data.utility * data.utility;
+    data.scoreMeanSqAvg = parentScoreMean * parentScoreMean + parentScoreStdev * parentScoreStdev;
   }
   else {
     data.utility = utilityAvg;
@@ -880,6 +886,10 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     data.scoreStdev = getScoreStdev(scoreMeanAvg,scoreMeanSqAvg);
     data.lead = leadAvg;
     data.ess = weightSum * weightSum / weightSqSum;
+    data.weightSum = weightSum;
+    data.weightSqSum = weightSqSum;
+    data.utilitySqAvg = utilitySqAvg;
+    data.scoreMeanSqAvg = scoreMeanSqAvg;
   }
 
   data.policyPrior = policyProb;
@@ -1212,11 +1222,7 @@ void Search::printTreeHelper(
     }
 
     if(options.printSqs_) {
-      double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
-      double weightSqSum = node.stats.weightSqSum.load(std::memory_order_acquire);
-      double scoreMeanSqAvg = node.stats.scoreMeanSqAvg.load(std::memory_order_acquire);
-      double utilitySqAvg = node.stats.utilitySqAvg.load(std::memory_order_acquire);
-      sprintf(buf,"SMSQ %5.1f USQ %7.5f W %6.2f WSQ %8.2f ", scoreMeanSqAvg, utilitySqAvg, weightSum, weightSqSum);
+      sprintf(buf,"SMSQ %5.1f USQ %7.5f W %6.2f WSQ %8.2f ", data.scoreMeanSqAvg, data.utilitySqAvg, data.weightSum, data.weightSqSum);
       out << buf;
     }
 
