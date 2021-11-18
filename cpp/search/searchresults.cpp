@@ -794,9 +794,7 @@ void Search::appendPVForMove(vector<Loc>& buf, vector<int64_t>& visitsBuf, vecto
     assert(child != NULL);
     node = child;
 
-    while(node->statsLock.test_and_set(std::memory_order_acquire));
-    int64_t visits = node->stats.visits;
-    node->statsLock.clear(std::memory_order_release);
+    int64_t visits = node->stats.visits.load(std::memory_order_acquire);
 
     buf.push_back(bestChildMoveLoc);
     visitsBuf.push_back(visits);
@@ -1010,9 +1008,7 @@ void Search::getAnalysisData(
     buf.push_back(data);
 
     MoreNodeStats& stats = statsBuf[i];
-    while(child->statsLock.test_and_set(std::memory_order_acquire));
-    stats.stats = child->stats;
-    child->statsLock.clear(std::memory_order_release);
+    stats.stats = NodeStats(child->stats);
     stats.selfUtility = node.nextPla == P_WHITE ? data.utility : -data.utility;
     stats.weightAdjusted = stats.stats.weightSum;
     stats.prevMoveLoc = child->prevMoveLoc;
@@ -1435,9 +1431,7 @@ double Search::getSharpScoreHelper(const SearchNode* node, double policyProbsBuf
     if(child == NULL)
       break;
     MoreNodeStats stats;
-    while(child->statsLock.test_and_set(std::memory_order_acquire));
-    stats.stats = child->stats;
-    child->statsLock.clear(std::memory_order_release);
+    stats.stats = NodeStats(child->stats);
     stats.selfUtility = node->nextPla == P_WHITE ? stats.stats.utilityAvg : -stats.stats.utilityAvg;
     stats.weightAdjusted = stats.stats.weightSum;
     stats.prevMoveLoc = child->prevMoveLoc;
