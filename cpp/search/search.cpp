@@ -3012,14 +3012,16 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
       break;
     MoreNodeStats& stats = statsBuf[numGoodChildren];
 
+    int64_t edgeVisits = children[i].getEdgeVisits();
     stats.stats = NodeStats(child->stats);
 
-    if(stats.stats.visits <= 0 || stats.stats.weightSum <= 0.0)
+    if(stats.stats.visits <= 0 || stats.stats.weightSum <= 0.0 || edgeVisits <= 0)
       continue;
 
+    double childWeight = stats.stats.weightSum * ((double)edgeVisits / (double)stats.stats.visits);
     double childUtility = stats.stats.utilityAvg;
     stats.selfUtility = node.nextPla == P_WHITE ? childUtility : -childUtility;
-    stats.weightAdjusted = stats.stats.weightSum;
+    stats.weightAdjusted = childWeight;
     stats.prevMoveLoc = child->prevMoveLoc;
 
     origTotalChildWeight += stats.weightAdjusted;
@@ -3612,8 +3614,8 @@ bool Search::playoutDescend(
   if(finishedPlayout) {
     int childrenCapacity;
     SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
-    updateStatsAfterPlayout(node,thread,isRoot);
     children[bestChildIdx].addEdgeVisits(1);
+    updateStatsAfterPlayout(node,thread,isRoot);
   }
   child->virtualLosses.fetch_add(-1,std::memory_order_release);
 
