@@ -120,6 +120,7 @@ struct MoreNodeStats {
 struct SearchChildPointer {
 private:
   std::atomic<SearchNode*> data;
+  std::atomic<int64_t> edgeVisits;
 public:
   SearchChildPointer();
   SearchNode* getIfAllocated();
@@ -128,6 +129,12 @@ public:
   void store(SearchNode* node);
   void storeRelaxed(SearchNode* node);
   bool storeIfNull(SearchNode* node);
+
+  int64_t getEdgeVisits() const;
+  int64_t getEdgeVisitsRelaxed() const;
+  void setEdgeVisits(int64_t x);
+  void setEdgeVisitsRelaxed(int64_t x);
+  void addEdgeVisits(int64_t delta);
 };
 
 struct SearchNode {

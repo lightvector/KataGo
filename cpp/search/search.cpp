@@ -136,7 +136,8 @@ double Search::getScoreStdev(double scoreMean, double scoreMeanSq) {
 //-----------------------------------------------------------------------------------------
 
 SearchChildPointer::SearchChildPointer():
-  data(NULL)
+  data(NULL),
+  edgeVisits(0.0)
 {}
 
 SearchNode* SearchChildPointer::getIfAllocated() {
@@ -162,6 +163,22 @@ void SearchChildPointer::storeRelaxed(SearchNode* node) {
 bool SearchChildPointer::storeIfNull(SearchNode* node) {
   SearchNode* expected = NULL;
   return data.compare_exchange_strong(expected, node, std::memory_order_acq_rel);
+}
+
+int64_t SearchChildPointer::getEdgeVisits() const {
+  return edgeVisits.load(std::memory_order_acquire);
+}
+int64_t SearchChildPointer::getEdgeVisitsRelaxed() const {
+  return edgeVisits.load(std::memory_order_relaxed);
+}
+void SearchChildPointer::setEdgeVisits(int64_t x) {
+  edgeVisits.store(x, std::memory_order_release);
+}
+void SearchChildPointer::setEdgeVisitsRelaxed(int64_t x) {
+  edgeVisits.store(x, std::memory_order_relaxed);
+}
+void SearchChildPointer::addEdgeVisits(int64_t delta) {
+  edgeVisits.fetch_add(delta, std::memory_order_acq_rel);
 }
 
 //-----------------------------------------------------------------------------------------
@@ -262,6 +279,9 @@ bool SearchNode::tryExpandingChildrenCapacityAssumeFull(int& stateValue) {
       //Storing relaxed is fine since the array is not visible to other threads yet. The entire array will
       //be released shortly and that will ensure consumers see these childs, with an acquire on the whole array.
       children[i].storeRelaxed(child);
+      //Getting edge visits relaxed on old children might get slightly out of date if other threads are searching
+      //children while we expand, but those should self-correct rapidly with more playouts
+      children[i].setEdgeVisitsRelaxed(oldChildren[i].getEdgeVisitsRelaxed());
     }
     assert(children1 == NULL);
     children1 = children;
@@ -287,6 +307,9 @@ bool SearchNode::tryExpandingChildrenCapacityAssumeFull(int& stateValue) {
       //Storing relaxed is fine since the array is not visible to other threads yet. The entire array will
       //be released shortly and that will ensure consumers see these childs, with an acquire on the whole array.
       children[i].storeRelaxed(child);
+      //Getting weight relaxed on old children might get slightly out of date weights if other threads are searching
+      //children while we expand, but those should self-correct rapidly with more playouts
+      children[i].setEdgeVisitsRelaxed(oldChildren[i].getEdgeVisitsRelaxed());
     }
     assert(children2 == NULL);
     children2 = children;
@@ -1328,13 +1351,16 @@ void Search::beginSearch(bool pondering) {
         int i = 0;
         for(; i<childrenCapacity; i++) {
           SearchNode* child = children[i].getIfAllocated();
+          int64_t edgeVisits = children[i].getEdgeVisits();
           if(child == NULL)
             break;
           //Remove the child from its current spot
           children[i].store(NULL);
+          children[i].setEdgeVisits(0);
           //Maybe add it back
           if(isAllowedRootMove(child->prevMoveLoc)) {
             children[numGoodChildren].store(child);
+            children[numGoodChildren].setEdgeVisits(edgeVisits);
             numGoodChildren++;
           }
           else {
@@ -1358,8 +1384,8 @@ void Search::beginSearch(bool pondering) {
           const SearchNode* child = children[i].getIfAllocated();
           if(child == NULL)
             break;
-          int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-          newNumVisits += childVisits;
+          int64_t edgeVisits = children[i].getEdgeVisits();
+          newNumVisits += edgeVisits;
         }
 
         //Just for cleanliness after filtering - delete the smaller children arrays.
@@ -3567,8 +3593,12 @@ bool Search::playoutDescend(
   //Recurse!
   bool finishedPlayout = playoutDescend(thread,*child,posesWithChildBuf,false);
   //Update this node stats
-  if(finishedPlayout)
+  if(finishedPlayout) {
+    int childrenCapacity;
+    SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
     updateStatsAfterPlayout(node,thread,isRoot);
+    children[bestChildIdx].addEdgeVisits(1);
+  }
   child->virtualLosses.fetch_add(-1,std::memory_order_release);
 
   return finishedPlayout;

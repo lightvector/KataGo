@@ -726,6 +726,7 @@ void Search::printRootEndingScoreValueBonus(ostream& out) const {
     if(child == NULL)
       break;
 
+    int64_t edgeVisits = children[i].getEdgeVisits();
     int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
     double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
     double scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
@@ -737,8 +738,8 @@ void Search::printRootEndingScoreValueBonus(ostream& out) const {
     double utilityWithBonus = utilityNoBonus + utilityDiff;
 
     out << Location::toString(child->prevMoveLoc,rootBoard) << " " << Global::strprintf(
-      "visits %d utilityNoBonus %.2fc utilityWithBonus %.2fc endingScoreBonus %.2f",
-      childVisits, utilityNoBonus*100, utilityWithBonus*100, endingScoreBonus
+      "visits %d edgeVisits %d utilityNoBonus %.2fc utilityWithBonus %.2fc endingScoreBonus %.2f",
+      childVisits, edgeVisits, utilityNoBonus*100, utilityWithBonus*100, endingScoreBonus
     );
     out << endl;
   }
