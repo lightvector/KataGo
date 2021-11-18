@@ -1006,11 +1006,13 @@ void Search::getAnalysisData(
     data.radius = radiusBuf[i];
     buf.push_back(data);
 
-    MoreNodeStats& stats = statsBuf[i];
-    stats.stats = NodeStats(child->stats);
-    stats.selfUtility = node.nextPla == P_WHITE ? data.utility : -data.utility;
-    stats.weightAdjusted = stats.stats.weightSum;
-    stats.prevMoveLoc = child->prevMoveLoc;
+    if(includeWeightFactors) {
+      MoreNodeStats& stats = statsBuf[i];
+      stats.stats = NodeStats(child->stats);
+      stats.selfUtility = node.nextPla == P_WHITE ? data.utility : -data.utility;
+      stats.weightAdjusted = stats.stats.weightSum;
+      stats.prevMoveLoc = child->prevMoveLoc;
+    }
   }
 
   //Find all children and compute weighting of the children based on their values
