@@ -116,6 +116,7 @@ bool Search::getPlaySelectionValues(
   if(&node == rootNode && numChildren > 0) {
 
     const SearchNode* bestChild = children[mostWeightedIdx].getIfAllocated();
+    int64_t bestChildEdgeVisits = children[mostWeightedIdx].getEdgeVisits();
     assert(bestChild != NULL);
     const bool isRoot = true;
     const double policyProbMassVisited = 1.0; //doesn't matter, since fpu value computed from it isn't used here
@@ -133,7 +134,7 @@ bool Search::getPlaySelectionValues(
     assert(nnOutput != NULL);
     const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
     double bestChildExploreSelectionValue = getExploreSelectionValue(
-      node,policyProbs,bestChild,totalChildWeight,fpuValue,
+      node,policyProbs,bestChild,totalChildWeight,bestChildEdgeVisits,fpuValue,
       parentUtility,parentWeightPerVisit,parentUtilityStdevFactor,
       isDuringSearch,false,maxChildWeight,NULL
     );
@@ -145,9 +146,11 @@ bool Search::getPlaySelectionValues(
         continue;
       }
       if(i != mostWeightedIdx) {
+        int64_t edgeVisits = children[i].getEdgeVisits();
         double reduced = getReducedPlaySelectionWeight(
           node, policyProbs, child,
-          totalChildWeight, parentUtilityStdevFactor, bestChildExploreSelectionValue
+          totalChildWeight, edgeVisits,
+          parentUtilityStdevFactor, bestChildExploreSelectionValue
         );
         playSelectionValues[i] = (int64_t)ceil(reduced);
       }

@@ -1484,6 +1484,7 @@ void Search::applyRecursivelyPostOrderSinglethreadedHelper(SearchNode* node, int
   (*f)(node,threadIdx,true);
 }
 
+//TODO handle cycles. Do not need to handle delete.
 //Does NOT handle graphs, only trees.
 int Search::applyRecursivelyPostOrderMulithreadedHelper(SearchNode* node, int threadIdx, PCG32* rand, std::function<void(SearchNode*,int,bool)>* f) {
   //This node and everything beneath it are done, and we were the one who finished it
@@ -1745,6 +1746,7 @@ std::vector<SearchNode*> Search::enumerateTreePostOrder() {
     (void)threadIdx;
     (void)isSingleThreadedSubtree;
     int64_t index = indexCounter.fetch_add(1,std::memory_order_relaxed);
+    //TODO doesn't work if we have graph search - subtree can be bigger than visits due to transpositions
     assert(index >= 0 && index < numVisits);
     nodes[index] = node;
   };
@@ -2567,7 +2569,7 @@ static void maybeApplyAntiMirrorForcedExplore(
 
 double Search::getExploreSelectionValue(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
-  double totalChildWeight, double fpuValue,
+  double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
   double parentUtility, double parentWeightPerVisit, double parentUtilityStdevFactor,
   bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
 ) const {
@@ -2577,11 +2579,13 @@ double Search::getExploreSelectionValue(
   float nnPolicyProb = parentPolicyProbs[movePos];
 
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-  double childWeight = child->stats.weightSum.load(std::memory_order_acquire);
+  double rawChildWeight = child->stats.weightSum.load(std::memory_order_acquire);
   double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
   double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
   double scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
   int32_t childVirtualLosses = child->virtualLosses.load(std::memory_order_acquire);
+
+  double childWeight = rawChildWeight * ((double)childEdgeVisits / (double)std::max(childVisits,(int64_t)1));
 
   //It's possible that childVisits is actually 0 here with multithreading because we're visiting this node while a child has
   //been expanded but its thread not yet finished its first visit.
@@ -2617,10 +2621,11 @@ double Search::getExploreSelectionValue(
   if(isDuringSearch && (&parent == rootNode)) {
     //Futile visits pruning - skip this move if the amount of time we have left to search is too small, assuming
     //its average weight per visit is maintained.
+    //We use childVisits rather than childEdgeVisits for the final estimate since when childEdgeVisits < childVisits, adding new visits is instant.
     if(searchParams.futileVisitsThreshold > 0) {
       double requiredWeight = searchParams.futileVisitsThreshold * maxChildWeight;
       //Avoid divide by 0 by adding a prior equal to the parent's weight per visit
-      double averageVisitsPerWeight = (childVisits + 1.0) / (childWeight + parentWeightPerVisit);
+      double averageVisitsPerWeight = (childEdgeVisits + 1.0) / (childWeight + parentWeightPerVisit);
       double estimatedRequiredVisits = requiredWeight * averageVisitsPerWeight;
       if(childVisits + thread->upperBoundVisitsLeft < estimatedRequiredVisits)
         return FUTILE_VISITS_PRUNE_VALUE;
@@ -2640,7 +2645,10 @@ double Search::getExploreSelectionValue(
         const SearchNode* c = children[i].getIfAllocated();
         if(c == NULL)
           break;
-        double cWeight = c->stats.weightSum.load(std::memory_order_acquire);
+        int64_t cEdgeVisits = children[i].getEdgeVisits();
+        int64_t cVisits = c->stats.visits.load(std::memory_order_acquire);
+        double rawCWeight = c->stats.weightSum.load(std::memory_order_acquire);
+        double cWeight = rawCWeight * ((double)cEdgeVisits / (double)std::max(cVisits,(int64_t)1));
         if(childWeight + averageWeightPerVisit < cWeight * 0.8)
           return 1e20;
       }
@@ -2685,7 +2693,8 @@ double Search::getNewExploreSelectionValue(
 
 double Search::getReducedPlaySelectionWeight(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
-  double totalChildWeight, double parentUtilityStdevFactor, double bestChildExploreSelectionValue
+  double totalChildWeight, int64_t childEdgeVisits,
+  double parentUtilityStdevFactor, double bestChildExploreSelectionValue
 ) const {
   assert(&parent == rootNode);
   Loc moveLoc = child->prevMoveLoc;
@@ -2693,10 +2702,12 @@ double Search::getReducedPlaySelectionWeight(
   float nnPolicyProb = parentPolicyProbs[movePos];
 
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-  double childWeight = child->stats.weightSum.load(std::memory_order_acquire);
+  double rawChildWeight = child->stats.weightSum.load(std::memory_order_acquire);
   double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
   double scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
   double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
+
+  double childWeight = rawChildWeight * ((double)childEdgeVisits / (double)std::max(childVisits,(int64_t)1));
 
   //Child visits may be 0 if this function is called in a multithreaded context, such as during live analysis
   //Child weight may also be 0 if it's out of sync.
@@ -2801,7 +2812,11 @@ void Search::selectBestChildToDescend(
     float nnPolicyProb = policyProbs[movePos];
     policyProbMassVisited += nnPolicyProb;
 
-    double childWeight = child->stats.weightSum.load(std::memory_order_acquire);
+    int64_t edgeVisits = children[i].getEdgeVisits();
+    double rawChildWeight = child->stats.weightSum.load(std::memory_order_acquire);
+    int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
+
+    double childWeight = rawChildWeight * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
 
     totalChildWeight += childWeight;
     if(childWeight > maxChildWeight)
@@ -2831,11 +2846,12 @@ void Search::selectBestChildToDescend(
     if(child == NULL)
       break;
     numChildrenFound++;
+    int64_t childEdgeVisits = children[i].getEdgeVisits();
 
     Loc moveLoc = child->prevMoveLoc;
     bool isDuringSearch = true;
     double selectionValue = getExploreSelectionValue(
-      node,policyProbs,child,totalChildWeight,fpuValue,
+      node,policyProbs,child,totalChildWeight,childEdgeVisits,fpuValue,
       parentUtility,parentWeightPerVisit,parentUtilityStdevFactor,
       isDuringSearch,antiMirror,maxChildWeight,&thread
     );

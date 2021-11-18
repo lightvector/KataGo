@@ -604,7 +604,7 @@ private:
   //Parent must be locked
   double getExploreSelectionValue(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
-    double totalChildWeight, double fpuValue,
+    double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
     double parentUtility, double parentWeightPerVisit, double parentUtilityStdevFactor,
     bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
   ) const;
@@ -618,7 +618,8 @@ private:
   //Parent must be locked
   double getReducedPlaySelectionWeight(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
-    double totalChildWeight, double parentUtilityStdevFactor, double bestChildExploreSelectionValue
+    double totalChildWeight, int64_t childEdgeVisits,
+    double parentUtilityStdevFactor, double bestChildExploreSelectionValue
   ) const;
 
   double getFpuValueForChildrenAssumeVisited(
