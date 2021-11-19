@@ -3522,7 +3522,6 @@ bool Search::playoutDescend(
 
   SearchNode* child = NULL;
   while(true) {
-    //TODO skip descent and just increment playouts if edge visits is less than child visits?
     selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
 
     //The absurdly rare case that the move chosen is not legal
@@ -3608,6 +3607,27 @@ bool Search::playoutDescend(
     break;
   }
 
+  //If edge visits is too much smaller than the child's visits, we can avoid descending.
+  //Instead just add edge visits and return immediately.
+  {
+    //Don't need to do this since we already are pretty recent as of finding the best child.
+    //nodeState = node.state.load(std::memory_order_acquire);
+    int childrenCapacity;
+    SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
+    int64_t edgeVisits = children[bestChildIdx].getEdgeVisits();
+    int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
+    //Behind by more than searchthreads - accumulate edgeVisits without bothering to search the child more.
+    if(edgeVisits + searchParams.numThreads < childVisits) {
+      //TODO
+      //If selfVisits is large enough that we can tolerate chunkier updates of this node, then we can update
+      //more than one visit at a time as we play catch-up here.
+      //int64_t selfVisits = node.stats.visits.load(std::memory_order_acquire);
+      //if behind by n * searchParams.numThreads and n is at most 1%? 0.1%? of selfVisits, add n.
+      children[bestChildIdx].addEdgeVisits(1);
+      return true;
+    }
+  }
+
   //Make the move!
   thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
   thread.pla = getOpp(thread.pla);
@@ -3616,6 +3636,7 @@ bool Search::playoutDescend(
   bool finishedPlayout = playoutDescend(thread,*child,posesWithChildBuf,false);
   //Update this node stats
   if(finishedPlayout) {
+    nodeState = node.state.load(std::memory_order_acquire);
     int childrenCapacity;
     SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
     children[bestChildIdx].addEdgeVisits(1);
