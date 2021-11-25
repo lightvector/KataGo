@@ -295,7 +295,6 @@ double Search::getNormToTApproxForLCB(int64_t numVisits) const {
   return normToTApproxTable[idx];
 }
 
-//Parent must be locked
 void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, double& lcbBuf, double& radiusBuf) const {
   double weightSum = child->stats.weightSum.load(std::memory_order_acquire);
   double weightSqSum = child->stats.weightSqSum.load(std::memory_order_acquire);
