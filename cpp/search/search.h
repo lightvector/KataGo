@@ -92,7 +92,7 @@ struct NodeStats {
   double weightSqSum;
 
   NodeStats();
-  NodeStats(const NodeStatsAtomic& other);
+  explicit NodeStats(const NodeStatsAtomic& other);
   ~NodeStats();
 
   NodeStats(const NodeStats&) = default;

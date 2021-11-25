@@ -793,9 +793,7 @@ void Search::appendPVForMove(vector<Loc>& buf, vector<int64_t>& visitsBuf, vecto
     assert(child != NULL);
     node = child;
 
-    while(node->statsLock.test_and_set(std::memory_order_acquire));
-    int64_t visits = node->stats.visits;
-    node->statsLock.clear(std::memory_order_release);
+    int64_t visits = node->stats.visits.load(std::memory_order_acquire);
 
     buf.push_back(bestChildMoveLoc);
     visitsBuf.push_back(visits);
@@ -837,6 +835,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
   double scoreMeanSqAvg = 0.0;
   double leadAvg = 0.0;
   double utilityAvg = 0.0;
+  double utilitySqAvg = 0.0;
   double weightSum = 0.0;
   double weightSqSum = 0.0;
 
@@ -850,6 +849,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
     leadAvg = child->stats.leadAvg.load(std::memory_order_acquire);
     utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
+    utilitySqAvg = child->stats.utilitySqAvg.load(std::memory_order_acquire);
   }
 
   AnalysisData data;
@@ -869,6 +869,10 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     data.scoreStdev = parentScoreStdev;
     data.lead = parentLead;
     data.ess = 0.0;
+    data.weightSum = 0.0;
+    data.weightSqSum = 0.0;
+    data.utilitySqAvg = data.utility * data.utility;
+    data.scoreMeanSqAvg = parentScoreMean * parentScoreMean + parentScoreStdev * parentScoreStdev;
   }
   else {
     data.utility = utilityAvg;
@@ -879,6 +883,10 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     data.scoreStdev = getScoreStdev(scoreMeanAvg,scoreMeanSqAvg);
     data.lead = leadAvg;
     data.ess = weightSum * weightSum / weightSqSum;
+    data.weightSum = weightSum;
+    data.weightSqSum = weightSqSum;
+    data.utilitySqAvg = utilitySqAvg;
+    data.scoreMeanSqAvg = scoreMeanSqAvg;
   }
 
   data.policyPrior = policyProb;
@@ -999,9 +1007,7 @@ void Search::getAnalysisData(
     buf.push_back(data);
 
     MoreNodeStats& stats = statsBuf[i];
-    while(child->statsLock.test_and_set(std::memory_order_acquire));
-    stats.stats = child->stats;
-    child->statsLock.clear(std::memory_order_release);
+    stats.stats = NodeStats(child->stats);
     stats.selfUtility = node.nextPla == P_WHITE ? data.utility : -data.utility;
     stats.weightAdjusted = stats.stats.weightSum;
     stats.prevMoveLoc = child->prevMoveLoc;
@@ -1211,11 +1217,7 @@ void Search::printTreeHelper(
     }
 
     if(options.printSqs_) {
-      double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
-      double weightSqSum = node.stats.weightSqSum.load(std::memory_order_acquire);
-      double scoreMeanSqAvg = node.stats.scoreMeanSqAvg.load(std::memory_order_acquire);
-      double utilitySqAvg = node.stats.utilitySqAvg.load(std::memory_order_acquire);
-      sprintf(buf,"SMSQ %5.1f USQ %7.5f W %6.2f WSQ %8.2f ", scoreMeanSqAvg, utilitySqAvg, weightSum, weightSqSum);
+      sprintf(buf,"SMSQ %5.1f USQ %7.5f W %6.2f WSQ %8.2f ", data.scoreMeanSqAvg, data.utilitySqAvg, data.weightSum, data.weightSqSum);
       out << buf;
     }
 
@@ -1428,9 +1430,7 @@ double Search::getSharpScoreHelper(const SearchNode* node, double policyProbsBuf
     if(child == NULL)
       break;
     MoreNodeStats stats;
-    while(child->statsLock.test_and_set(std::memory_order_acquire));
-    stats.stats = child->stats;
-    child->statsLock.clear(std::memory_order_release);
+    stats.stats = NodeStats(child->stats);
     stats.selfUtility = node->nextPla == P_WHITE ? stats.stats.utilityAvg : -stats.stats.utilityAvg;
     stats.weightAdjusted = stats.stats.weightSum;
     stats.prevMoveLoc = child->prevMoveLoc;
