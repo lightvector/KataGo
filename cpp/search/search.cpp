@@ -167,10 +167,9 @@ bool SearchChildPointer::storeIfNull(SearchNode* node) {
 //-----------------------------------------------------------------------------------------
 
 //Makes a search node resulting from prevPla playing prevLoc
-SearchNode::SearchNode(Player prevPla, Loc prevLoc, SearchNode* p)
+SearchNode::SearchNode(Player prevPla, Loc prevLoc)
   :nextPla(getOpp(prevPla)),
    prevMoveLoc(prevLoc),
-   parent(p),
    patternBonusHash(),
    state(SearchNode::STATE_UNEVALUATED),
    nnOutput(),
@@ -447,7 +446,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    normToTApproxZ(0.0),
    normToTApproxTable(),
    rootNode(NULL),
-   mutexPool(NULL),
    nnEvaluator(nnEval),
    nnXLen(),
    nnYLen(),
@@ -483,7 +481,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
   );
 
   rootNode = NULL;
-  mutexPool = new MutexPool(params.mutexPoolSize);
 
   rootHistory.clear(rootBoard,rootPla,Rules(),0);
   rootKoHashTable->recompute(rootHistory);
@@ -495,7 +492,6 @@ Search::~Search() {
   delete rootKoHashTable;
   delete valueWeightDistribution;
   delete rootNode;
-  delete mutexPool;
   delete subtreeValueBiasTable;
   delete patternBonusTable;
   killThreads();
@@ -791,8 +787,6 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
         int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
         effectiveSearchTimeCarriedOver = effectiveSearchTimeCarriedOver * (double)childVisits / (double)rootVisits * searchParams.treeReuseCarryOverTimeFactor;
       }
-
-      child->parent = NULL;
 
       //Eliminate child entry in the array to prevent its deletion along with the root
       children[foundChildIdx].store(NULL);
@@ -1316,7 +1310,7 @@ void Search::beginSearch(bool pondering) {
 
   if(rootNode == NULL) {
     Loc prevMoveLoc = rootHistory.moveHistory.size() <= 0 ? Board::NULL_LOC : rootHistory.moveHistory[rootHistory.moveHistory.size()-1].loc;
-    rootNode = new SearchNode(getOpp(rootPla), prevMoveLoc, NULL);
+    rootNode = new SearchNode(getOpp(rootPla), prevMoveLoc);
   }
   else {
     //If the root node has any existing children, then prune things down if there are moves that should not be allowed at the root.
@@ -3529,7 +3523,7 @@ bool Search::playoutDescend(
       int childrenCapacity;
       SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
       assert(childrenCapacity > bestChildIdx);
-      child = new SearchNode(thread.pla,bestChildMoveLoc,&node);
+      child = new SearchNode(thread.pla,bestChildMoveLoc);
       child->virtualLosses.fetch_add(1,std::memory_order_release);
 
       if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL) {

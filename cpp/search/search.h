@@ -137,7 +137,6 @@ struct SearchNode {
   //Constant during search--------------------------------------------------------------
   Player nextPla;
   Loc prevMoveLoc;
-  SearchNode* parent;
   Hash128 patternBonusHash;
 
   //Mutable---------------------------------------------------------------------------
@@ -189,7 +188,7 @@ struct SearchNode {
   std::atomic<int32_t> dirtyCounter;
 
   //--------------------------------------------------------------------------------
-  SearchNode(Player prevPla, Loc prevMoveLoc, SearchNode* parent);
+  SearchNode(Player prevPla, Loc prevMoveLoc);
   ~SearchNode();
 
   SearchNode(const SearchNode&) = delete;
@@ -310,7 +309,6 @@ struct Search {
   SearchNode* rootNode;
 
   //Services--------------------------------------------------------------
-  MutexPool* mutexPool;
   NNEvaluator* nnEvaluator; //externally owned
   int nnXLen;
   int nnYLen;
