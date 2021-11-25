@@ -186,6 +186,7 @@ add_executable(katago
   search/asyncbot.cpp
   search/distributiontable.cpp
   search/localpattern.cpp
+  search/searchnodetable.cpp
   search/subtreevaluebiastable.cpp
   search/patternbonustable.cpp
   search/analysisdata.cpp

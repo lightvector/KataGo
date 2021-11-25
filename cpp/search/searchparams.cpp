@@ -64,7 +64,7 @@ SearchParams::SearchParams()
    subtreeValueBiasTableNumShards(65536),
    subtreeValueBiasFreeProp(0.8),
    subtreeValueBiasWeightExponent(0.5),
-   mutexPoolSize(8192),
+   nodeTableShardsPowerOfTwo(16),
    numVirtualLossesPerThread(3.0),
    numThreads(1),
    maxVisits(((int64_t)1) << 50),
@@ -115,7 +115,7 @@ void SearchParams::failIfParamsDifferOnUnchangeableParameter(const SearchParams&
   if(dynamic.numThreads > initial.numThreads) {
     throw StringError("Cannot increase number of search threads after initialization since this is used to initialize neural net buffer capacity");
   }
-  if(dynamic.mutexPoolSize != initial.mutexPoolSize) {
-    throw StringError("Cannot change mutex pool size after initialization");
+  if(dynamic.nodeTableShardsPowerOfTwo != initial.nodeTableShardsPowerOfTwo) {
+    throw StringError("Cannot change nodeTableShardsPowerOfTwo after initialization");
   }
 }

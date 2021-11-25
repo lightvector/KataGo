@@ -2,6 +2,7 @@
 #define SEARCH_SEARCH_H_
 
 #include <memory>
+#include <unordered_set>
 
 #include "../core/global.h"
 #include "../core/hash.h"
@@ -17,6 +18,7 @@
 #include "../search/mutexpool.h"
 #include "../search/patternbonustable.h"
 #include "../search/subtreevaluebiastable.h"
+#include "../search/searchnodetable.h"
 #include "../search/searchparams.h"
 #include "../search/searchprint.h"
 #include "../search/timecontrols.h"
@@ -143,7 +145,7 @@ struct SearchNode {
 
   //Constant during search--------------------------------------------------------------
   Player nextPla;
-  Loc prevMoveLoc;
+  Loc prevMoveLoc; //TODO cannot have this
   Hash128 patternBonusHash;
 
   //Mutable---------------------------------------------------------------------------
@@ -167,7 +169,6 @@ struct SearchNode {
   //During search, for updating nnOutput when it needs recomputation at the root if it wasn't updated yet.
   //During various other events - for coordinating recursive updates of the tree or subtree value bias cleanup
   std::atomic<uint32_t> nodeAge;
-  std::atomic<uint32_t> nodeAge2;
 
   //During search, each will only ever transition from NULL -> non-NULL.
   //We get progressive resizing of children array simply by moving on to a later array.
@@ -314,6 +315,7 @@ struct Search {
 
   //Mutable---------------------------------------------------------------
   SearchNode* rootNode;
+  SearchNodeTable* nodeTable;
 
   //Services--------------------------------------------------------------
   NNEvaluator* nnEvaluator; //externally owned
@@ -544,6 +546,8 @@ private:
   int numAdditionalThreadsToUseForTasks() const;
   void performTaskWithThreads(std::function<void(int)>* task);
 
+  SearchNode* allocateNode(SearchThread& thread, Player prevPla, Loc prevMoveLoc);
+
   void clearOldNNOutputs();
   void transferOldNNOutputs(SearchThread& thread);
   int findTopNPolicy(const SearchNode* node, int n, PolicySortEntry* sortedPolicyBuf) const;
@@ -633,11 +637,17 @@ private:
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot);
   void recursivelyRecomputeStats(SearchNode& node);
 
-  void recursivelyDelete(SearchNode* node);
-  void recursivelyRemoveSubtreeValueBiasAndDelete(const std::vector<SearchNode*>& nodes);
-  void applyRecursivelyPostOrderMulithreaded(const std::vector<SearchNode*>& nodes, std::function<void(SearchNode*,int,bool)>* f);
-  void applyRecursivelyPostOrderSinglethreadedHelper(SearchNode* node, int threadIdx, std::function<void(SearchNode*,int,bool)>* f);
-  int applyRecursivelyPostOrderMulithreadedHelper(SearchNode* node, int threadIdx, PCG32* rand, std::function<void(SearchNode*,int,bool)>* f);
+  void applyRecursivelyPostOrderMulithreaded(const std::vector<SearchNode*>& nodes, std::function<void(SearchNode*,int)>* f);
+  void applyRecursivelyPostOrderMulithreadedHelper(
+    SearchNode* node, int threadIdx, PCG32* rand, std::unordered_set<SearchNode*>& nodeBuf, std::vector<int>& randBuf, std::function<void(SearchNode*,int)>* f
+  );
+
+  void applyRecursivelyAnyOrderMulithreaded(const std::vector<SearchNode*>& nodes, std::function<void(SearchNode*,int)>* f);
+  void applyRecursivelyAnyOrderMulithreadedHelper(
+    SearchNode* node, int threadIdx, PCG32* rand, std::vector<int>& randBuf, std::function<void(SearchNode*,int)>* f
+  );
+  void deleteAllOldOrAllNewNodesAndSubtreeValueBiasMulithreaded(bool old);
+  void deleteAllNodesMulithreaded();
 
   void maybeRecomputeNormToTApproxTable();
   double getNormToTApproxForLCB(int64_t numVisits) const;

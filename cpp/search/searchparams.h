@@ -87,7 +87,7 @@ struct SearchParams {
   double subtreeValueBiasWeightExponent; //When computing empiricial bias, weight subtree results by childvisits to this power.
 
   //Threading-related
-  uint32_t mutexPoolSize; //Size of mutex pool for synchronizing access to all search nodes
+  int nodeTableShardsPowerOfTwo; //Controls number of shards of node table for graph search transposition lookup
   double numVirtualLossesPerThread; //Number of virtual losses for one thread to add
 
   //Asyncbot
