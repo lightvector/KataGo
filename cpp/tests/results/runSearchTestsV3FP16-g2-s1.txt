@@ -1434,6 +1434,12 @@ Tree:
 G3  : T -10.68c W -10.63c S  -0.05c ( -0.0 L  -0.0) LCB   -0.32c P 63.78% WF 130.7 PSV     131 N     131  --  G3 pass pass pass pass G5 D4 F6
 pss : T -11.22c W -10.99c S  -0.23c ( -0.2 L  -0.2) LCB   -2.31c P 29.14% WF  68.3 PSV      65 N      68  --  pass G3 pass pass pass pass D4 F6
 : T  10.78c W  10.67c S   0.11c ( +0.1 L  +0.1) N     200  --  G3 pass pass pass pass G5 D4
+G3  : T  10.68c W  10.63c S   0.05c ( +0.0 L  +0.0) LCB    0.32c P 63.78% WF 130.7 PSV     131 N     131  --  G3 pass pass pass pass G5 D4 F6
+---White(v)---
+G3  pss : T   8.43c W   8.42c S   0.01c ( +0.0 L  +0.0) LCB   18.87c P 50.39% WF 123.5 PSV     121 N     121  --  pass pass pass pass G5 D4 F6 B3
+G3  G5  : T  52.95c W  52.21c S   0.73c ( +0.6 L  +0.6) LCB   99.54c P 21.50% WF   3.5 PSV       5 N       5  --  G5 pass pass pass pass
+G3  F6  : T  52.38c W  51.58c S   0.79c ( +0.7 L  +0.7) LCB  197.21c P 11.61% WF   2.2 PSV       3 N       3  --  F6 pass pass
+G3  D4  : T  49.15c W  48.11c S   1.03c ( +0.9 L  +0.9) LCB  260.00c P  2.55% WF   0.8 PSV       1 N       1  --  D4
 GAME 16 ==========================================================================
 Chinese rules endgame, one dame
 
@@ -1496,6 +1502,15 @@ Tree:
 G3  : T  13.84c W  13.60c S   0.23c ( +0.2 L  +0.2) LCB   24.08c P 84.07% WF 198.2 PSV     198 N     198  --  G3 G5 D4 F6 D1 pass B1 pass
 E3  : T  51.77c W  51.09c S   0.68c ( +0.6 L  +0.6) LCB  260.00c P  2.39% WF   0.8 PSV       0 N       1  --  E3
 : T -14.04c W -13.81c S  -0.24c ( -0.2 L  -0.2) N     200  --  G3 G5 D4 F6 D1 pass B1
+G3  : T -13.84c W -13.60c S  -0.23c ( -0.2 L  -0.2) LCB  -24.08c P 84.07% WF 198.2 PSV     198 N     198  --  G3 G5 D4 F6 D1 pass B1 pass
+---White(v)---
+G3  G5  : T -16.30c W -16.05c S  -0.26c ( -0.2 L  -0.2) LCB   -4.71c P 39.54% WF 163.0 PSV     159 N     159  --  G5 D4 F6 D1 pass B1 pass E2
+G3  F6  : T  -8.00c W  -7.78c S  -0.22c ( -0.2 L  -0.2) LCB   14.56c P 26.03% WF  30.4 PSV      33 N      33  --  F6 E3 G5 D1 pass B1 pass B3
+G3  pss : T  71.04c W  68.71c S   2.33c ( +1.9 L  +1.9) LCB  260.00c P  4.15% WF   0.6 PSV       1 N       1  --  pass
+G3  H6  : T  28.48c W  28.59c S  -0.10c ( -0.1 L  -0.1) LCB  260.00c P  3.80% WF   0.8 PSV       1 N       1  --  H6
+G3  D4  : T  51.70c W  50.89c S   0.81c ( +0.7 L  +0.7) LCB  260.00c P  3.77% WF   0.7 PSV       1 N       1  --  D4
+G3  H5  : T  33.81c W  33.78c S   0.03c ( +0.0 L  +0.0) LCB  260.00c P  3.68% WF   0.8 PSV       1 N       1  --  H5
+G3  E3  : T  35.45c W  35.07c S   0.38c ( +0.3 L  +0.3) LCB  260.00c P  2.79% WF   0.8 PSV       1 N       1  --  E3
 : GPU 0 finishing, processed 4018 rows 4018 batches
 : GPU 0 finishing, processed 381 rows 381 batches
 : GPU 0 finishing, processed 1 rows 1 batches

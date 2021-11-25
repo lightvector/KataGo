@@ -1466,6 +1466,11 @@ Tree:
 G3  : T   0.97c W   0.72c S   0.23c ( +0.2 L  +0.2) LCB   12.87c P 44.91% WF 161.6 PSV     151 N     151  --  G3 pass pass pass pass G5 D4 F6
 pss : T  23.43c W  22.68c S   0.74c ( +0.6 L  +0.6) LCB   43.84c P 47.45% WF  37.4 PSV      25 N      48  --  pass G3 pass pass pass pass E2 G5
 : T  -5.29c W  -4.95c S  -0.33c ( -0.3 L  -0.3) N     200  --  G3 pass pass pass pass G5 D4
+G3  : T  -0.97c W  -0.72c S  -0.23c ( -0.2 L  -0.2) LCB  -12.87c P 44.91% WF 161.6 PSV     151 N     151  --  G3 pass pass pass pass G5 D4 F6
+---White(v)---
+G3  pss : T  -2.33c W  -2.06c S  -0.25c ( -0.2 L  -0.2) LCB   10.04c P 56.06% WF 142.8 PSV     141 N     141  --  pass pass pass pass G5 D4 F6 E2
+G3  G5  : T  27.75c W  27.56c S   0.18c ( +0.2 L  +0.2) LCB  176.10c P 14.39% WF   3.9 PSV       5 N       5  --  G5 pass pass pass pass
+G3  F6  : T  25.55c W  25.39c S   0.16c ( +0.1 L  +0.1) LCB  112.78c P 12.41% WF   3.3 PSV       4 N       4  --  F6 pass pass pass
 GAME 16 ==========================================================================
 Chinese rules endgame, one dame
 
@@ -1531,6 +1536,15 @@ E3  : T  76.87c W  75.05c S   1.82c ( +1.5 L  +1.5) LCB  260.00c P  3.15% WF   0
 E2  : T  63.58c W  62.04c S   1.54c ( +1.3 L  +1.3) LCB  260.00c P  2.08% WF   0.7 PSV       0 N       1  --  E2
 D1  : T  67.11c W  65.55c S   1.56c ( +1.3 L  +1.3) LCB  260.00c P  1.97% WF   0.7 PSV       0 N       1  --  D1
 : T -10.46c W -10.27c S  -0.19c ( -0.2 L  -0.2) N     200  --  G3 G5 E3 G7 D1 F6 B1
+G3  : T  -9.47c W  -9.31c S  -0.16c ( -0.1 L  -0.1) LCB  -24.35c P 78.49% WF 196.2 PSV     195 N     195  --  G3 G5 E3 G7 D1 F6 B1 pass
+---White(v)---
+G3  G5  : T -14.51c W -14.26c S  -0.24c ( -0.2 L  -0.2) LCB    3.50c P 29.69% WF 146.7 PSV     137 N     137  --  G5 E3 G7 D1 F6 B1 pass A2
+G3  F6  : T   3.24c W   3.16c S   0.08c ( +0.1 L  +0.1) LCB   30.94c P 32.15% WF  43.6 PSV      52 N      52  --  F6 E3 G5 D1 pass B1 pass B3
+G3  H6  : T  37.19c W  37.40c S  -0.21c ( -0.2 L  -0.2) LCB  260.00c P  4.66% WF   0.8 PSV       1 N       1  --  H6
+G3  pss : T  89.44c W  86.09c S   3.36c ( +2.8 L  +2.8) LCB  260.00c P  4.03% WF   0.6 PSV       1 N       1  --  pass
+G3  D4  : T  23.30c W  23.46c S  -0.16c ( -0.1 L  -0.1) LCB  260.00c P  3.83% WF   0.8 PSV       1 N       1  --  D4
+G3  H5  : T  41.89c W  41.89c S  -0.00c ( -0.0 L  -0.0) LCB  260.00c P  3.67% WF   0.7 PSV       1 N       1  --  H5
+G3  E3  : T  42.85c W  42.33c S   0.52c ( +0.4 L  +0.4) LCB  260.00c P  2.58% WF   0.7 PSV       1 N       1  --  E3
 : GPU 0 finishing, processed 4107 rows 4107 batches
 : GPU 0 finishing, processed 377 rows 377 batches
 : GPU 0 finishing, processed 1 rows 1 batches
