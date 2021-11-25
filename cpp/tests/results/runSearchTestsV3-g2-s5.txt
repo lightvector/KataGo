@@ -1541,3 +1541,4 @@ G3  pss : T  55.74c W  54.69c S   1.06c ( +0.9 L  +0.9) LCB  260.00c P  1.87% WF
 : GPU 0 finishing, processed 3873 rows 3873 batches
 : GPU 0 finishing, processed 389 rows 389 batches
 : GPU 0 finishing, processed 1 rows 1 batches
+Done

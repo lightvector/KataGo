@@ -2074,4 +2074,5 @@ xo.ox.xoo
 
   delete nnEval;
   NeuralNet::globalCleanup();
+  cout << "Done" << endl;
 }

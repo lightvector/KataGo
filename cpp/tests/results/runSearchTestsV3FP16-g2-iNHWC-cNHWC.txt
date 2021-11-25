@@ -1548,3 +1548,4 @@ G3  E3  : T  42.79c W  42.28c S   0.52c ( +0.4 L  +0.4) LCB  260.00c P  2.58% WF
 : GPU 0 finishing, processed 4130 rows 4130 batches
 : GPU 0 finishing, processed 378 rows 378 batches
 : GPU 0 finishing, processed 1 rows 1 batches
+Done

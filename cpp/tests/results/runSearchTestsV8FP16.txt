@@ -6697,4 +6697,6 @@ Lead near 1: 1
 Chosen move: F3
 Winloss near 0.05: 1
 Lead near 1: 1
+Post order okay: 16039
 numRowsProcessed as expected: 1
+Done

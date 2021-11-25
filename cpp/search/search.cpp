@@ -815,6 +815,8 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
   rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable,preventEncore);
   rootPla = getOpp(rootPla);
   rootKoHashTable->recompute(rootHistory);
+
+  //Explicitly clear avoid move arrays when we play a move - user needs to respecify them if they want them.
   avoidMoveUntilByLocBlack.clear();
   avoidMoveUntilByLocWhite.clear();
 
@@ -3506,8 +3508,7 @@ bool Search::playoutDescend(
     }
 
     if(bestChildIdx <= -1) {
-      //TODO add test case
-      //This might happen if all moves have been forbidden. The node will just get stuck at 1 visit forever then
+      //This might happen if all moves have been forbidden. The node will just get stuck counting visits without expanding
       //and we won't do any search.
       addCurrentNNOutputAsLeafValue(node,false);
       return true;

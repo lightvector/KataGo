@@ -206,7 +206,12 @@ add_executable(katago
   tests/testsymmetries.cpp
   tests/testnninputs.cpp
   tests/testownership.cpp
+  tests/testsearchcommon.cpp
+  tests/testsearchnonn.cpp
   tests/testsearch.cpp
+  tests/testsearchv3.cpp
+  tests/testsearchv8.cpp
+  tests/testsearchmisc.cpp
   tests/testtime.cpp
   tests/testtrainingwrite.cpp
   tests/testnn.cpp
