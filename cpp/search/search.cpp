@@ -2100,8 +2100,8 @@ bool Search::isAllowedRootMove(Loc moveLoc) const {
 
 void Search::downweightBadChildrenAndNormalizeWeight(
   int numChildren,
-  double currentTotalWeight,
-  double desiredTotalWeight,
+  double currentTotalWeight, //The current sum of statsBuf[i].weightAdjusted
+  double desiredTotalWeight, //What statsBuf[i].weightAdjusted should sum up to after this function is done.
   double amountToSubtract,
   double amountToPrune,
   vector<MoreNodeStats>& statsBuf
@@ -2880,6 +2880,7 @@ void Search::selectBestChildToDescend(
   }
 }
 
+//Returns the new sum of weightAdjusted
 double Search::pruneNoiseWeight(vector<MoreNodeStats>& statsBuf, int numChildren, double totalChildWeight, const double* policyProbsBuf) const {
   if(numChildren <= 1 || totalChildWeight <= 0.00001)
     return totalChildWeight;
@@ -2983,8 +2984,8 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     numGoodChildren++;
   }
 
+  //Always tracks the sum of statsBuf[i].weightAdjusted across the children.
   double currentTotalChildWeight = origTotalChildWeight;
-  double desiredTotalChildWeight = origTotalChildWeight;
 
   if(searchParams.useNoisePruning && numGoodChildren > 0 && !(searchParams.antiMirror && mirroringPla != C_EMPTY)) {
     double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
@@ -2996,25 +2997,26 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
         policyProbsBuf[i] = std::max(1e-30, (double)policyProbs[getPos(statsBuf[i].prevMoveLoc)]);
     }
     currentTotalChildWeight = pruneNoiseWeight(statsBuf, numGoodChildren, currentTotalChildWeight, policyProbsBuf);
-    desiredTotalChildWeight = currentTotalChildWeight;
   }
 
-  double amountToSubtract = 0.0;
-  double amountToPrune = 0.0;
-  if(isRoot && searchParams.rootNoiseEnabled && !searchParams.useNoisePruning) {
-    double maxChildWeight = 0.0;
-    for(int i = 0; i<numGoodChildren; i++) {
-      if(statsBuf[i].weightAdjusted > maxChildWeight)
-        maxChildWeight = statsBuf[i].weightAdjusted;
+  {
+    double amountToSubtract = 0.0;
+    double amountToPrune = 0.0;
+    if(isRoot && searchParams.rootNoiseEnabled && !searchParams.useNoisePruning) {
+      double maxChildWeight = 0.0;
+      for(int i = 0; i<numGoodChildren; i++) {
+        if(statsBuf[i].weightAdjusted > maxChildWeight)
+          maxChildWeight = statsBuf[i].weightAdjusted;
+      }
+      amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxChildWeight/64.0);
+      amountToPrune = std::min(searchParams.chosenMovePrune, maxChildWeight/64.0);
     }
-    amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxChildWeight/64.0);
-    amountToPrune = std::min(searchParams.chosenMovePrune, maxChildWeight/64.0);
-  }
 
-  downweightBadChildrenAndNormalizeWeight(
-    numGoodChildren, currentTotalChildWeight, desiredTotalChildWeight,
-    amountToSubtract, amountToPrune, statsBuf
-  );
+    downweightBadChildrenAndNormalizeWeight(
+      numGoodChildren, currentTotalChildWeight, currentTotalChildWeight,
+      amountToSubtract, amountToPrune, statsBuf
+    );
+  }
 
   double winLossValueSum = 0.0;
   double noResultValueSum = 0.0;
@@ -3024,7 +3026,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   double utilitySum = 0.0;
   double utilitySqSum = 0.0;
   double weightSqSum = 0.0;
-  double weightSum = desiredTotalChildWeight;
+  double weightSum = currentTotalChildWeight;
   for(int i = 0; i<numGoodChildren; i++) {
     const NodeStats& stats = statsBuf[i].stats;
 
@@ -3061,8 +3063,8 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
       double newEntryDeltaUtilitySum;
       double newEntryWeightSum;
 
-      if(desiredTotalChildWeight > 1e-10) {
-        double utilityChildren = utilitySum / desiredTotalChildWeight;
+      if(currentTotalChildWeight > 1e-10) {
+        double utilityChildren = utilitySum / currentTotalChildWeight;
         double subtreeValueBiasWeight = pow(origTotalChildWeight, searchParams.subtreeValueBiasWeightExponent);
         double subtreeValueBiasDeltaSum = (utilityChildren - utility) * subtreeValueBiasWeight;
 
