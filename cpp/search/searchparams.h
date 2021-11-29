@@ -25,6 +25,10 @@ struct SearchParams {
 
   double fpuReductionMax;   //Max amount to reduce fpu value for unexplore children
   double fpuLossProp; //Scale fpu this proportion of the way towards assuming a move is a loss.
+  double fpuReductionVisitedPolicyPow; //What power to raise proportion of visited policy for fpu reduction.
+
+  bool fpuParentWeightByVisitedPolicy; //For fpu, blend between parent average and parent nn value based on proportion of policy visited.
+  double fpuParentWeightByVisitedPolicyPow; //If fpuParentWeightByVisitedPolicy, what power to raise the proportion of policy visited for blending.
   double fpuParentWeight; //For fpu, 0 = use parent average, 1 = use parent nn value, interpolates between.
 
   //Tree value aggregation parameters
@@ -38,6 +42,10 @@ struct SearchParams {
   double uncertaintyCoeff; //The amount of visits weight that an uncertainty of 1 utility is.
   double uncertaintyExponent; //Visits weight scales inversely with this power of the uncertainty
   double uncertaintyMaxWeight; //Add minimum uncertainty so that the most weight a node can have is this
+
+  //Node weighting adjustments based on children
+  double reduceWeightByPolicySumVisits; //Penalize up to this many visits worth of weight by policy sum visited
+  double useUncertaintyCapWeightVisits; //Softly cap weight per visit on nodes with visits less than this rough scale at the raw nn weight per visit at the node.
 
   //Root parameters
   bool rootNoiseEnabled;

@@ -446,10 +446,22 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("fpuLossProp"+idxStr)) params.fpuLossProp = cfg.getDouble("fpuLossProp"+idxStr, 0.0, 1.0);
     else if(cfg.contains("fpuLossProp"))   params.fpuLossProp = cfg.getDouble("fpuLossProp",        0.0, 1.0);
     else                                   params.fpuLossProp = 0.0;
-    if(cfg.contains("fpuParentWeight"+idxStr)) params.fpuParentWeight = cfg.getDouble("fpuParentWeight"+idxStr,        0.0, 1.0);
-    else if(cfg.contains("fpuParentWeight"))   params.fpuParentWeight = cfg.getDouble("fpuParentWeight",        0.0, 1.0);
-    else                                       params.fpuParentWeight = 0.0;
-
+    if(cfg.contains("fpuReductionVisitedPolicyPow"+idxStr)) params.fpuReductionVisitedPolicyPow = cfg.getDouble("fpuReductionVisitedPolicyPow"+idxStr, 0.0, 5.0);
+    else if(cfg.contains("fpuReductionVisitedPolicyPow"))   params.fpuReductionVisitedPolicyPow = cfg.getDouble("fpuReductionVisitedPolicyPow",        0.0, 5.0);
+    else                                                    params.fpuReductionVisitedPolicyPow = 0.5;
+    if(cfg.contains("fpuParentWeightByVisitedPolicy"+idxStr)) params.fpuParentWeightByVisitedPolicy = cfg.getBool("fpuParentWeightByVisitedPolicy");
+    else if(cfg.contains("fpuParentWeightByVisitedPolicy"))   params.fpuParentWeightByVisitedPolicy = cfg.getBool("fpuParentWeightByVisitedPolicy");
+    else                                                      params.fpuParentWeightByVisitedPolicy = false;
+    if(params.fpuParentWeightByVisitedPolicy) {
+      if(cfg.contains("fpuParentWeightByVisitedPolicyPow"+idxStr)) params.fpuParentWeightByVisitedPolicyPow = cfg.getDouble("fpuParentWeightByVisitedPolicyPow"+idxStr, 0.0, 5.0);
+      else if(cfg.contains("fpuParentWeightByVisitedPolicyPow"))   params.fpuParentWeightByVisitedPolicyPow = cfg.getDouble("fpuParentWeightByVisitedPolicyPow",        0.0, 5.0);
+      else                                                         params.fpuParentWeightByVisitedPolicyPow = 1.0;
+    }
+    else {
+      if(cfg.contains("fpuParentWeight"+idxStr)) params.fpuParentWeight = cfg.getDouble("fpuParentWeight"+idxStr,        0.0, 1.0);
+      else if(cfg.contains("fpuParentWeight"))   params.fpuParentWeight = cfg.getDouble("fpuParentWeight",        0.0, 1.0);
+      else                                       params.fpuParentWeight = 0.0;
+    }
 
     if(cfg.contains("valueWeightExponent"+idxStr)) params.valueWeightExponent = cfg.getDouble("valueWeightExponent"+idxStr, 0.0, 1.0);
     else if(cfg.contains("valueWeightExponent")) params.valueWeightExponent = cfg.getDouble("valueWeightExponent", 0.0, 1.0);
@@ -464,6 +476,12 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("noisePruningCap"))   params.noisePruningCap = cfg.getDouble("noisePruningCap", 0.0, 1e50);
     else                                       params.noisePruningCap = 1e50;
 
+    if(cfg.contains("reduceWeightByPolicySumVisits"+idxStr)) params.reduceWeightByPolicySumVisits = cfg.getDouble("reduceWeightByPolicySumVisits"+idxStr, 0.0, 100.0);
+    else if(cfg.contains("reduceWeightByPolicySumVisits"))   params.reduceWeightByPolicySumVisits = cfg.getDouble("reduceWeightByPolicySumVisits", 0.0, 100.0);
+    else                                                     params.reduceWeightByPolicySumVisits = 0.0;
+    if(cfg.contains("useUncertaintyCapWeightVisits"+idxStr)) params.useUncertaintyCapWeightVisits = cfg.getDouble("useUncertaintyCapWeightVisits"+idxStr, 0.0, 1000000.0);
+    else if(cfg.contains("useUncertaintyCapWeightVisits"))   params.useUncertaintyCapWeightVisits = cfg.getDouble("useUncertaintyCapWeightVisits", 0.0, 1000000.0);
+    else                                                     params.useUncertaintyCapWeightVisits = 0.0;
 
     if(cfg.contains("useUncertainty"+idxStr)) params.useUncertainty = cfg.getBool("useUncertainty"+idxStr);
     else if(cfg.contains("useUncertainty"))   params.useUncertainty = cfg.getBool("useUncertainty");

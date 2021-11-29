@@ -2725,8 +2725,13 @@ double Search::getFpuValueForChildrenAssumeVisited(
   }
   parentUtilityStdevFactor = 1.0 + searchParams.cpuctUtilityStdevScale * (parentUtilityStdev / searchParams.cpuctUtilityStdevPrior - 1.0);
 
-  if(searchParams.fpuParentWeight > 0.0) {
-    parentUtility = searchParams.fpuParentWeight * getUtilityFromNN(*(node.getNNOutput())) + (1.0 - searchParams.fpuParentWeight) * parentUtility;
+  double parentUtilityForFPU = parentUtility;
+  if(searchParams.fpuParentWeightByVisitedPolicy) {
+    double avgWeight = std::min(1.0, pow(policyProbMassVisited, searchParams.fpuParentWeightByVisitedPolicyPow));
+    parentUtilityForFPU = avgWeight * parentUtility + (1.0 - avgWeight) * getUtilityFromNN(*(node.getNNOutput()));
+  }
+  else if(searchParams.fpuParentWeight > 0.0) {
+    parentUtilityForFPU = searchParams.fpuParentWeight * getUtilityFromNN(*(node.getNNOutput())) + (1.0 - searchParams.fpuParentWeight) * parentUtility;
   }
 
   double fpuValue;
@@ -2735,8 +2740,13 @@ double Search::getFpuValueForChildrenAssumeVisited(
     double fpuLossProp = isRoot ? searchParams.rootFpuLossProp : searchParams.fpuLossProp;
     double utilityRadius = searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor;
 
-    double reduction = fpuReductionMax * sqrt(policyProbMassVisited);
-    fpuValue = pla == P_WHITE ? parentUtility - reduction : parentUtility + reduction;
+    double reduction;
+    if(searchParams.fpuReductionVisitedPolicyPow == 0.5)
+      reduction = fpuReductionMax * sqrt(policyProbMassVisited);
+    else
+      reduction = fpuReductionMax * pow(policyProbMassVisited,searchParams.fpuReductionVisitedPolicyPow);
+
+    fpuValue = pla == P_WHITE ? parentUtilityForFPU - reduction : parentUtilityForFPU + reduction;
     double lossValue = pla == P_WHITE ? -utilityRadius : utilityRadius;
     fpuValue = fpuValue + (lossValue - fpuValue) * fpuLossProp;
   }
@@ -2963,6 +2973,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
 
   int childrenCapacity;
   const SearchChildPointer* children = node.getChildren(childrenCapacity);
+  int64_t totalChildVisits = 0;
   double origTotalChildWeight = 0.0;
   for(int i = 0; i<childrenCapacity; i++) {
     const SearchNode* child = children[i].getIfAllocated();
@@ -2980,22 +2991,28 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     stats.weightAdjusted = stats.stats.weightSum;
     stats.prevMoveLoc = child->prevMoveLoc;
 
+    totalChildVisits += stats.stats.visits;
     origTotalChildWeight += stats.weightAdjusted;
     numGoodChildren++;
+  }
+
+  double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
+  double totalChildPolicySum = 0.0;
+  {
+    const NNOutput* nnOutput = node.getNNOutput();
+    assert(nnOutput != NULL);
+    const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+    for(int i = 0; i<numGoodChildren; i++) {
+      double thisChildPolicy = std::max(1e-30, (double)policyProbs[getPos(statsBuf[i].prevMoveLoc)]);
+      policyProbsBuf[i] = thisChildPolicy;
+      totalChildPolicySum += thisChildPolicy;
+    }
   }
 
   //Always tracks the sum of statsBuf[i].weightAdjusted across the children.
   double currentTotalChildWeight = origTotalChildWeight;
 
   if(searchParams.useNoisePruning && numGoodChildren > 0 && !(searchParams.antiMirror && mirroringPla != C_EMPTY)) {
-    double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
-    {
-      const NNOutput* nnOutput = node.getNNOutput();
-      assert(nnOutput != NULL);
-      const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
-      for(int i = 0; i<numGoodChildren; i++)
-        policyProbsBuf[i] = std::max(1e-30, (double)policyProbs[getPos(statsBuf[i].prevMoveLoc)]);
-    }
     currentTotalChildWeight = pruneNoiseWeight(statsBuf, numGoodChildren, currentTotalChildWeight, policyProbsBuf);
   }
 
@@ -3044,6 +3061,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   }
 
   //Also add in the direct evaluation of this node.
+  double thisNodeDirectEvalWeight;
   {
     const NNOutput* nnOutput = node.getNNOutput();
     assert(nnOutput != NULL);
@@ -3095,6 +3113,8 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     }
 
     double weight = computeWeightFromNNOutput(nnOutput);
+    thisNodeDirectEvalWeight = weight;
+
     winLossValueSum += (winProb - lossProb) * weight;
     noResultValueSum += noResultProb * weight;
     scoreMeanSum += scoreMean * weight;
@@ -3117,6 +3137,27 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   double oldUtilityAvg = utilityAvg;
   utilityAvg += getPatternBonus(node.patternBonusHash,getOpp(node.nextPla));
   utilitySqAvg = utilitySqAvg + (utilityAvg * utilityAvg - oldUtilityAvg * oldUtilityAvg);
+
+  double childWeightToReport = currentTotalChildWeight;
+  if(searchParams.useUncertaintyCapWeightVisits > 1e-10 && !(searchParams.antiMirror && mirroringPla != C_EMPTY) && totalChildVisits > 0) {
+    double weightPerChildVisit = childWeightToReport / totalChildVisits;
+    if(weightPerChildVisit > thisNodeDirectEvalWeight) {
+      double excessWeightPerVisit = weightPerChildVisit - thisNodeDirectEvalWeight;
+      childWeightToReport = childWeightToReport - (
+        excessWeightPerVisit * searchParams.useUncertaintyCapWeightVisits * (1.0 - exp(-totalChildVisits / searchParams.useUncertaintyCapWeightVisits))
+      );
+      double weightSumToReport = thisNodeDirectEvalWeight + childWeightToReport;
+      weightSqSum *= (weightSumToReport / weightSum) * (weightSumToReport / weightSum);
+      weightSum = weightSumToReport;
+    }
+  }
+  if(searchParams.reduceWeightByPolicySumVisits > 0.0 && !(searchParams.antiMirror && mirroringPla != C_EMPTY) && totalChildVisits > 0) {
+    double effectiveVisits = std::max(0.0, totalChildVisits - searchParams.reduceWeightByPolicySumVisits);
+    childWeightToReport = childWeightToReport * effectiveVisits / totalChildVisits;
+    double weightSumToReport = thisNodeDirectEvalWeight + childWeightToReport;
+    weightSqSum *= (weightSumToReport / weightSum) * (weightSumToReport / weightSum);
+    weightSum = weightSumToReport;
+  }
 
   //TODO statslock may be unnecessary now with the dirtyCounter mechanism?
   while(node.statsLock.test_and_set(std::memory_order_acquire));
