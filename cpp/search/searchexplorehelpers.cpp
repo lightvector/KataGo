@@ -270,8 +270,13 @@ double Search::getFpuValueForChildrenAssumeVisited(
   }
   parentUtilityStdevFactor = 1.0 + searchParams.cpuctUtilityStdevScale * (parentUtilityStdev / searchParams.cpuctUtilityStdevPrior - 1.0);
 
-  if(searchParams.fpuParentWeight > 0.0) {
-    parentUtility = searchParams.fpuParentWeight * getUtilityFromNN(*(node.getNNOutput())) + (1.0 - searchParams.fpuParentWeight) * parentUtility;
+  double parentUtilityForFPU = parentUtility;
+  if(searchParams.fpuParentWeightByVisitedPolicy) {
+    double avgWeight = std::min(1.0, pow(policyProbMassVisited, searchParams.fpuParentWeightByVisitedPolicyPow));
+    parentUtilityForFPU = avgWeight * parentUtility + (1.0 - avgWeight) * getUtilityFromNN(*(node.getNNOutput()));
+  }
+  else if(searchParams.fpuParentWeight > 0.0) {
+    parentUtilityForFPU = searchParams.fpuParentWeight * getUtilityFromNN(*(node.getNNOutput())) + (1.0 - searchParams.fpuParentWeight) * parentUtility;
   }
 
   double fpuValue;
@@ -281,7 +286,7 @@ double Search::getFpuValueForChildrenAssumeVisited(
     double utilityRadius = searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor;
 
     double reduction = fpuReductionMax * sqrt(policyProbMassVisited);
-    fpuValue = pla == P_WHITE ? parentUtility - reduction : parentUtility + reduction;
+    fpuValue = pla == P_WHITE ? parentUtilityForFPU - reduction : parentUtilityForFPU + reduction;
     double lossValue = pla == P_WHITE ? -utilityRadius : utilityRadius;
     fpuValue = fpuValue + (lossValue - fpuValue) * fpuLossProp;
   }

@@ -25,6 +25,9 @@ struct SearchParams {
 
   double fpuReductionMax;   //Max amount to reduce fpu value for unexplore children
   double fpuLossProp; //Scale fpu this proportion of the way towards assuming a move is a loss.
+
+  bool fpuParentWeightByVisitedPolicy; //For fpu, blend between parent average and parent nn value based on proportion of policy visited.
+  double fpuParentWeightByVisitedPolicyPow; //If fpuParentWeightByVisitedPolicy, what power to raise the proportion of policy visited for blending.
   double fpuParentWeight; //For fpu, 0 = use parent average, 1 = use parent nn value, interpolates between.
 
   //Tree value aggregation parameters

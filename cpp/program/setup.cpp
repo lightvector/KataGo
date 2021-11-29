@@ -447,10 +447,19 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("fpuLossProp"+idxStr)) params.fpuLossProp = cfg.getDouble("fpuLossProp"+idxStr, 0.0, 1.0);
     else if(cfg.contains("fpuLossProp"))   params.fpuLossProp = cfg.getDouble("fpuLossProp",        0.0, 1.0);
     else                                   params.fpuLossProp = 0.0;
-    if(cfg.contains("fpuParentWeight"+idxStr)) params.fpuParentWeight = cfg.getDouble("fpuParentWeight"+idxStr,        0.0, 1.0);
-    else if(cfg.contains("fpuParentWeight"))   params.fpuParentWeight = cfg.getDouble("fpuParentWeight",        0.0, 1.0);
-    else                                       params.fpuParentWeight = 0.0;
-
+    if(cfg.contains("fpuParentWeightByVisitedPolicy"+idxStr)) params.fpuParentWeightByVisitedPolicy = cfg.getBool("fpuParentWeightByVisitedPolicy"+idxStr);
+    else if(cfg.contains("fpuParentWeightByVisitedPolicy"))   params.fpuParentWeightByVisitedPolicy = cfg.getBool("fpuParentWeightByVisitedPolicy");
+    else                                                      params.fpuParentWeightByVisitedPolicy = false;
+    if(params.fpuParentWeightByVisitedPolicy) {
+      if(cfg.contains("fpuParentWeightByVisitedPolicyPow"+idxStr)) params.fpuParentWeightByVisitedPolicyPow = cfg.getDouble("fpuParentWeightByVisitedPolicyPow"+idxStr, 0.0, 5.0);
+      else if(cfg.contains("fpuParentWeightByVisitedPolicyPow"))   params.fpuParentWeightByVisitedPolicyPow = cfg.getDouble("fpuParentWeightByVisitedPolicyPow",        0.0, 5.0);
+      else                                                         params.fpuParentWeightByVisitedPolicyPow = 1.0;
+    }
+    else {
+      if(cfg.contains("fpuParentWeight"+idxStr)) params.fpuParentWeight = cfg.getDouble("fpuParentWeight"+idxStr,        0.0, 1.0);
+      else if(cfg.contains("fpuParentWeight"))   params.fpuParentWeight = cfg.getDouble("fpuParentWeight",        0.0, 1.0);
+      else                                       params.fpuParentWeight = 0.0;
+    }
 
     if(cfg.contains("valueWeightExponent"+idxStr)) params.valueWeightExponent = cfg.getDouble("valueWeightExponent"+idxStr, 0.0, 1.0);
     else if(cfg.contains("valueWeightExponent")) params.valueWeightExponent = cfg.getDouble("valueWeightExponent", 0.0, 1.0);
