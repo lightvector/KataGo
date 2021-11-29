@@ -21,6 +21,8 @@ SearchParams::SearchParams()
    cpuctUtilityStdevScale(0.0),
    fpuReductionMax(0.2),
    fpuLossProp(0.0),
+   fpuParentWeightByVisitedPolicy(false),
+   fpuParentWeightByVisitedPolicyPow(1.0),
    fpuParentWeight(0.0),
    valueWeightExponent(0.5),
    useNoisePruning(false),
