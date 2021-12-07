@@ -1326,7 +1326,9 @@ void Search::beginSearch(bool pondering) {
 
   if(rootNode == NULL) {
     Loc prevMoveLoc = rootHistory.moveHistory.size() <= 0 ? Board::NULL_LOC : rootHistory.moveHistory[rootHistory.moveHistory.size()-1].loc;
-    rootNode = allocateNode(dummyThread, getOpp(rootPla), prevMoveLoc);
+    bool isNewlyAllocated;
+    rootNode = allocateOrFindNode(dummyThread, getOpp(rootPla), prevMoveLoc, isNewlyAllocated);
+    assert(isNewlyAllocated);
   }
   else {
     //TODO if the root node was part of a cycle, this will do highly unsound things because
@@ -1444,8 +1446,9 @@ void Search::beginSearch(bool pondering) {
   searchNodeAge++;
 }
 
-SearchNode* Search::allocateNode(SearchThread& thread, Player prevPla, Loc prevMoveLoc) {
+SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player prevPla, Loc prevMoveLoc, bool& isNewlyAllocated) {
   SearchNode* node = new SearchNode(prevPla,prevMoveLoc);
+  isNewlyAllocated = true;
   Hash128 nodeHash = Hash128(thread.rand.nextUInt64(),thread.rand.nextUInt64());
   uint32_t nodeTableIdx = nodeTable->getIndex(nodeHash.hash0);
   std::mutex& mutex = nodeTable->mutexPool->getMutex(nodeTableIdx);
@@ -1540,7 +1543,7 @@ void Search::applyRecursivelyPostOrderMulithreadedHelper(
     return;
   if(f != NULL)
     (*f)(node,threadIdx);
-  node->nodeAge.store(searchNodeAge,std::memory_order_acquire);
+  node->nodeAge.store(searchNodeAge,std::memory_order_release);
 }
 
 
@@ -3588,7 +3591,8 @@ bool Search::playoutDescend(
       int childrenCapacity;
       SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
       assert(childrenCapacity > bestChildIdx);
-      child = allocateNode(thread, thread.pla, bestChildMoveLoc);
+      bool isNewlyAllocated;
+      child = allocateOrFindNode(thread, thread.pla, bestChildMoveLoc, isNewlyAllocated);
       child->virtualLosses.fetch_add(1,std::memory_order_release);
 
       if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL) {
@@ -3603,7 +3607,9 @@ bool Search::playoutDescend(
       suc = children[bestChildIdx].storeIfNull(child);
       if(!suc) {
         //Someone got there ahead of us. Delete and loop again trying to select the best child to explore.
-        delete child;
+        //Actually, don't delete. This node will get cleaned up next time we mark and sweep the node table later.
+        //if(isNewlyAllocated)
+        //  delete child;
         child = NULL;
         std::this_thread::yield();
         nodeState = node.state.load(std::memory_order_acquire);

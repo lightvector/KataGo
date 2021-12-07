@@ -546,7 +546,7 @@ private:
   int numAdditionalThreadsToUseForTasks() const;
   void performTaskWithThreads(std::function<void(int)>* task);
 
-  SearchNode* allocateNode(SearchThread& thread, Player prevPla, Loc prevMoveLoc);
+  SearchNode* allocateOrFindNode(SearchThread& thread, Player prevPla, Loc prevMoveLoc, bool& isNewlyAllocated);
 
   void clearOldNNOutputs();
   void transferOldNNOutputs(SearchThread& thread);
