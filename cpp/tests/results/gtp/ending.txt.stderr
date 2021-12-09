@@ -75,10 +75,10 @@ NN batches: 2
 NN avg batch size: 1
 PV: A1 D4 F4 A5 pass pass
 Tree:
-: T   8.96c W  11.18c S   0.08c ( +0.1 L  +0.1) N     100  --  A1 D4 F4 A5 pass pass
+: T   9.19c W  11.18c S   0.08c ( +0.1 L  +0.1) N     100  --  A1 D4 F4 A5 pass pass
 ---Black(^)---
 A1  : T   7.81c W   9.92c S   0.17c ( +0.1 L  +0.1) LCB  -12.23c P 63.16% WF  57.4 PSV      58 N      58  --  A1 D4 F4 A5 pass pass
-D4  : T  10.65c W  12.55c S  -0.06c ( +0.1 L  +0.0) LCB  -16.60c P 29.09% WF  40.9 PSV      40 N      40  --  D4 A1 F4 A5 pass pass
+D4  : T  10.65c W  12.55c S  -0.06c ( +0.1 L  +0.0) LCB  -16.60c P 29.09% WF  40.9 PSV      39 N      40  --  D4 A1 F4 A5 pass pass
 F4  : T -60.09c W -56.99c S  -3.11c ( -0.8 L  -0.7) LCB -280.00c P  5.22% WF   0.7 PSV       0 N       1  --  F4
 MoveNum: 3 HASH: ACA44018D8C776243C920B1AB2891C47
    A B C D E F G
@@ -99,7 +99,7 @@ NN batches: 9
 NN avg batch size: 1
 PV: D4 F4 A5 pass pass
 Tree:
-: T  -6.56c W  -8.11c S  -0.07c ( -0.1 L  -0.1) N     100  --  D4 F4 A5 pass pass
+: T  -6.76c W  -8.11c S  -0.07c ( -0.1 L  -0.1) N     100  --  D4 F4 A5 pass pass
 ---White(^)---
 D4  : T  -3.56c W  -5.12c S   0.08c ( -0.1 L  -0.0) LCB  -14.83c P 66.25% WF  96.0 PSV      94 N      94  --  D4 F4 A5 pass pass
 A5  : T -89.75c W -86.42c S  -3.34c ( -1.0 L  -0.8) LCB -280.00c P  7.78% WF   0.6 PSV       0 N       1  --  A5
@@ -230,10 +230,10 @@ NN batches: 1
 NN avg batch size: 1
 PV: A1 D4 F4 A5 pass pass
 Tree:
-: T   8.80c W  10.98c S   0.10c ( +0.1 L  +0.1) N     100  --  A1 D4 F4 A5 pass pass
+: T   9.04c W  10.98c S   0.10c ( +0.1 L  +0.1) N     100  --  A1 D4 F4 A5 pass pass
 ---Black(^)---
 A1  : T   7.74c W   9.82c S   0.17c ( +0.1 L  +0.1) LCB  -12.20c P 63.18% WF  57.5 PSV      58 N      58  --  A1 D4 F4 A5 pass pass
-D4  : T  10.38c W  12.23c S  -0.01c ( +0.1 L  +0.1) LCB  -16.53c P 29.12% WF  40.8 PSV      39 N      40  --  D4 A1 F4 A5 pass pass
+D4  : T  10.38c W  12.23c S  -0.01c ( +0.1 L  +0.1) LCB  -16.53c P 29.12% WF  40.8 PSV      38 N      40  --  D4 A1 F4 A5 pass pass
 F4  : T -61.80c W -58.69c S  -3.11c ( -0.8 L  -0.7) LCB -280.00c P  5.18% WF   0.7 PSV       0 N       1  --  F4
 MoveNum: 3 HASH: ACA44018D8C776243C920B1AB2891C47
    A B C D E F G
@@ -254,7 +254,7 @@ NN batches: 8
 NN avg batch size: 1
 PV: D4 F4 A5 pass pass
 Tree:
-: T  -5.92c W  -7.49c S  -0.03c ( -0.1 L  -0.1) N     100  --  D4 F4 A5 pass pass
+: T  -6.12c W  -7.49c S  -0.03c ( -0.1 L  -0.1) N     100  --  D4 F4 A5 pass pass
 ---White(^)---
 D4  : T  -3.48c W  -5.02c S   0.09c ( -0.1 L  -0.0) LCB  -14.57c P 66.48% WF  96.6 PSV      95 N      95  --  D4 F4 A5 pass pass
 A5  : T -89.81c W -86.44c S  -3.37c ( -1.0 L  -0.8) LCB -280.00c P  7.83% WF   0.6 PSV       0 N       1  --  A5

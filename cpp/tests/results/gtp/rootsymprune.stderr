@@ -115,7 +115,7 @@ NN batches: 77
 NN avg batch size: 1
 PV: C16 C4 P16 E4 E16
 Tree:
-: T   0.78c W   0.60c S   0.12c ( +0.4 L  +0.3) N     100  --  C16 C4 P16 E4 E16
+: T   0.77c W   0.60c S   0.12c ( +0.4 L  +0.3) N     100  --  C16 C4 P16 E4 E16
 ---Black(^)---
 C16 : T   1.47c W   1.09c S   0.22c ( +0.6 L  +0.4) LCB    0.19c P 18.58% WF  29.2 PSV      48 N      29  --  C16 C4 P16 E4 E16
 C4  : T   1.06c W   0.79c S   0.12c ( +0.4 L  +0.3) LCB   -0.10c P 18.70% WF  23.0 PSV      23 N      23  --  C4 D17 E4 P4 P16

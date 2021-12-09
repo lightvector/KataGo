@@ -834,6 +834,8 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
 
       //Okay, this is now our new root!
       rootNode = child;
+      //As we promote the root, remove its contribution to subtree value bias. Root never participates in that.
+      removeSubtreeValueBias(rootNode);
       //Sweep over the entire child marking it as good (calling NULL function), and then delete anything unmarked.
       applyRecursivelyAnyOrderMulithreaded({rootNode}, NULL);
       bool old = true;
@@ -1639,6 +1641,19 @@ void Search::applyRecursivelyAnyOrderMulithreadedHelper(
     (*f)(node,threadIdx);
 }
 
+void Search::removeSubtreeValueBias(SearchNode* node) {
+  if(node->subtreeValueBiasTableEntry != nullptr) {
+    double deltaUtilitySumToSubtract = node->lastSubtreeValueBiasDeltaSum * searchParams.subtreeValueBiasFreeProp;
+    double weightSumToSubtract = node->lastSubtreeValueBiasWeight * searchParams.subtreeValueBiasFreeProp;
+
+    SubtreeValueBiasEntry& entry = *(node->subtreeValueBiasTableEntry);
+    while(entry.entryLock.test_and_set(std::memory_order_acquire));
+    entry.deltaUtilitySum -= deltaUtilitySumToSubtract;
+    entry.weightSum -= weightSumToSubtract;
+    entry.entryLock.clear(std::memory_order_release);
+    node->subtreeValueBiasTableEntry = nullptr;
+  }
+}
 
 //Delete ALL nodes where nodeAge < searchNodeAge if old is true, else all nodes where nodeAge >= searchNodeAge
 //Also clears subtreevaluebias for deleted nodes.
@@ -1653,16 +1668,7 @@ void Search::deleteAllOldOrAllNewNodesAndSubtreeValueBiasMulithreaded(bool old) 
       for(auto it = nodeMap.cbegin(); it != nodeMap.cend();) {
         SearchNode* node = it->second;
         if(old == (node->nodeAge.load(std::memory_order_acquire) < searchNodeAge)) {
-          if(node->subtreeValueBiasTableEntry != nullptr) {
-            double deltaUtilitySumToSubtract = node->lastSubtreeValueBiasDeltaSum * searchParams.subtreeValueBiasFreeProp;
-            double weightSumToSubtract = node->lastSubtreeValueBiasWeight * searchParams.subtreeValueBiasFreeProp;
-
-            SubtreeValueBiasEntry& entry = *(node->subtreeValueBiasTableEntry);
-            while(entry.entryLock.test_and_set(std::memory_order_acquire));
-            entry.deltaUtilitySum -= deltaUtilitySumToSubtract;
-            entry.weightSum -= weightSumToSubtract;
-            entry.entryLock.clear(std::memory_order_release);
-          }
+          removeSubtreeValueBias(node);
           delete node;
           it = nodeMap.erase(it);
         }
