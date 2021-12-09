@@ -73,6 +73,18 @@ NodeStatsAtomic::NodeStatsAtomic()
    weightSum(0.0),
    weightSqSum(0.0)
 {}
+NodeStatsAtomic::NodeStatsAtomic(const NodeStatsAtomic& other)
+  :visits(other.visits.load(std::memory_order_acquire)),
+   winLossValueAvg(other.winLossValueAvg.load(std::memory_order_acquire)),
+   noResultValueAvg(other.noResultValueAvg.load(std::memory_order_acquire)),
+   scoreMeanAvg(other.scoreMeanAvg.load(std::memory_order_acquire)),
+   scoreMeanSqAvg(other.scoreMeanSqAvg.load(std::memory_order_acquire)),
+   leadAvg(other.leadAvg.load(std::memory_order_acquire)),
+   utilityAvg(other.utilityAvg.load(std::memory_order_acquire)),
+   utilitySqAvg(other.utilitySqAvg.load(std::memory_order_acquire)),
+   weightSum(other.weightSum.load(std::memory_order_acquire)),
+   weightSqSum(other.weightSqSum.load(std::memory_order_acquire))
+{}
 NodeStatsAtomic::~NodeStatsAtomic()
 {}
 
@@ -141,6 +153,15 @@ SearchChildPointer::SearchChildPointer():
   moveLoc(Board::NULL_LOC)
 {}
 
+void SearchChildPointer::storeAll(const SearchChildPointer& other) {
+  SearchNode* d = other.data.load(std::memory_order_acquire);
+  int64_t e = other.edgeVisits.load(std::memory_order_acquire);
+  Loc m = other.moveLoc.load(std::memory_order_acquire);
+  moveLoc.store(m,std::memory_order_release);
+  edgeVisits.store(e,std::memory_order_release);
+  data.store(d,std::memory_order_release);
+}
+
 SearchNode* SearchChildPointer::getIfAllocated() {
   return data.load(std::memory_order_acquire);
 }
@@ -200,8 +221,8 @@ void SearchChildPointer::setMoveLocRelaxed(Loc loc) {
 //-----------------------------------------------------------------------------------------
 
 //Makes a search node resulting from prevPla playing prevLoc
-SearchNode::SearchNode(Player prevPla, uint32_t mIdx)
-  :nextPla(getOpp(prevPla)),
+SearchNode::SearchNode(Player pla, uint32_t mIdx)
+  :nextPla(pla),
    patternBonusHash(),
    mutexIdx(mIdx),
    state(SearchNode::STATE_UNEVALUATED),
@@ -212,10 +233,53 @@ SearchNode::SearchNode(Player prevPla, uint32_t mIdx)
    children2(NULL),
    stats(),
    virtualLosses(0),
-   lastSubtreeValueBiasDeltaSum(0.0),lastSubtreeValueBiasWeight(0.0),
+   lastSubtreeValueBiasDeltaSum(0.0),
+   lastSubtreeValueBiasWeight(0.0),
    subtreeValueBiasTableEntry(),
    dirtyCounter(0)
 {
+}
+
+SearchNode::SearchNode(const SearchNode& other, bool copySubtreeValueBias)
+  :nextPla(other.nextPla),
+   patternBonusHash(other.patternBonusHash),
+   mutexIdx(other.mutexIdx),
+   state(other.state.load(std::memory_order_acquire)),
+   nnOutput(new std::shared_ptr<NNOutput>(*(other.nnOutput.load(std::memory_order_acquire)))),
+   nodeAge(other.nodeAge.load(std::memory_order_acquire)),
+   children0(NULL),
+   children1(NULL),
+   children2(NULL),
+   stats(other.stats),
+   virtualLosses(other.virtualLosses.load(std::memory_order_acquire)),
+   lastSubtreeValueBiasDeltaSum(0.0),
+   lastSubtreeValueBiasWeight(0.0),
+   subtreeValueBiasTableEntry(),
+   dirtyCounter(other.dirtyCounter.load(std::memory_order_acquire))
+{
+  if(other.children0 != NULL) {
+    children0 = new SearchChildPointer[CHILDREN0SIZE];
+    for(int i = 0; i<CHILDREN0SIZE; i++)
+      children0[i].storeAll(other.children0[i]);
+  }
+  if(other.children1 != NULL) {
+    children1 = new SearchChildPointer[CHILDREN1SIZE];
+    for(int i = 0; i<CHILDREN1SIZE; i++)
+      children1[i].storeAll(other.children1[i]);
+  }
+  if(other.children2 != NULL) {
+    children2 = new SearchChildPointer[CHILDREN2SIZE];
+    for(int i = 0; i<CHILDREN2SIZE; i++)
+      children2[i].storeAll(other.children2[i]);
+  }
+  if(copySubtreeValueBias) {
+    //Currently NOT implemented. If we ever want this, think very carefully about copying subtree value bias since
+    //if we later delete this node we risk double-counting removal of the subtree value bias!
+    assert(false);
+    //lastSubtreeValueBiasDeltaSum = other.lastSubtreeValueBiasDeltaSum;
+    //lastSubtreeValueBiasWeight = other.lastSubtreeValueBiasWeight;
+    //subtreeValueBiasTableEntry = other.subtreeValueBiasTableEntry;
+  }
 }
 
 SearchChildPointer* SearchNode::getChildren(int& childrenCapacity) {
@@ -752,8 +816,12 @@ void Search::setNNEval(NNEvaluator* nnEval) {
 
 void Search::clearSearch() {
   effectiveSearchTimeCarriedOver = 0.0;
-  deleteAllNodesMulithreaded();
-  rootNode = NULL;
+  deleteAllTableNodesMulithreaded();
+  //Root is not stored in node table
+  if(rootNode != NULL) {
+    delete rootNode;
+    rootNode = NULL;
+  }
   clearOldNNOutputs();
   searchNodeAge = 0;
 }
@@ -832,14 +900,13 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
         effectiveSearchTimeCarriedOver = effectiveSearchTimeCarriedOver * visitProportion * searchParams.treeReuseCarryOverTimeFactor;
       }
 
-      //Okay, this is now our new root!
-      rootNode = child;
-      //As we promote the root, remove its contribution to subtree value bias. Root never participates in that.
-      removeSubtreeValueBias(rootNode);
-      //Sweep over the entire child marking it as good (calling NULL function), and then delete anything unmarked.
+      //Okay, this is now our new root! Create a copy so as to keep the root out of the node table.
+      const bool copySubtreeValueBias = false;
+      rootNode = new SearchNode(*child,copySubtreeValueBias);
+      //Sweep over the new root marking it as good (calling NULL function), and then delete anything unmarked.
       applyRecursivelyAnyOrderMulithreaded({rootNode}, NULL);
       bool old = true;
-      deleteAllOldOrAllNewNodesAndSubtreeValueBiasMulithreaded(old);
+      deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(old);
     }
     else {
       clearSearch();
@@ -1353,16 +1420,10 @@ void Search::beginSearch(bool pondering) {
   SearchThread dummyThread(-1, *this);
 
   if(rootNode == NULL) {
-    bool isNewlyAllocated;
-    rootNode = allocateOrFindNode(dummyThread, getOpp(rootPla), isNewlyAllocated);
-    assert(isNewlyAllocated);
+    //Avoid storing the root node in the nodeTable, guarantee that it never is part of a cycle.
+    rootNode = new SearchNode(rootPla, dummyThread.rand.nextUInt() & (mutexPool->getNumMutexes()-1));
   }
   else {
-    //TODO if the root node was part of a cycle, this will do highly unsound things because
-    //a lot of stuff (root noise, isAllowedRootMove, pass behavior, all differ at the root).
-    //We need to make sure NOTHING can ever cycle back to the root, so really we want to make a fresh copy of the root here, or something.
-    //Root should have a unique hash that gets merged into it.
-
     //If the root node has any existing children, then prune things down if there are moves that should not be allowed at the root.
     SearchNode& node = *rootNode;
     int childrenCapacity;
@@ -1372,6 +1433,7 @@ void Search::beginSearch(bool pondering) {
 
       //This filtering, by deleting children, doesn't conform to the normal invariants that hold during search.
       //However nothing else should be running at this time and the search hasn't actually started yet, so this is okay.
+      //Also we can't be affecting the tree since the root node isn't in the table and can't be transposed to.
       int numGoodChildren = 0;
       vector<SearchNode*> filteredNodes;
       {
@@ -1455,7 +1517,7 @@ void Search::beginSearch(bool pondering) {
       if(anyFiltered) {
         //Recursive stats recomputation resulted in us marking all nodes we have. Anything filtered is old now, delete it.
         bool old = true;
-        deleteAllOldOrAllNewNodesAndSubtreeValueBiasMulithreaded(old);
+        deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(old);
       }
     }
     else {
@@ -1463,7 +1525,7 @@ void Search::beginSearch(bool pondering) {
         //Sweep over the entire child marking it as good (calling NULL function), and then delete anything unmarked.
         applyRecursivelyAnyOrderMulithreaded({rootNode}, NULL);
         bool old = true;
-        deleteAllOldOrAllNewNodesAndSubtreeValueBiasMulithreaded(old);
+        deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(old);
       }
     }
   }
@@ -1476,8 +1538,8 @@ void Search::beginSearch(bool pondering) {
   searchNodeAge++;
 }
 
-SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player prevPla, bool& isNewlyAllocated) {
-  SearchNode* node = new SearchNode(prevPla, thread.rand2.nextUInt() & (mutexPool->getNumMutexes()-1));
+SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, bool& isNewlyAllocated) {
+  SearchNode* node = new SearchNode(nextPla, thread.rand2.nextUInt() & (mutexPool->getNumMutexes()-1));
   isNewlyAllocated = true;
   Hash128 nodeHash = Hash128(thread.rand2.nextUInt64(),thread.rand2.nextUInt64());
   uint32_t nodeTableIdx = nodeTable->getIndex(nodeHash.hash0);
@@ -1657,7 +1719,7 @@ void Search::removeSubtreeValueBias(SearchNode* node) {
 
 //Delete ALL nodes where nodeAge < searchNodeAge if old is true, else all nodes where nodeAge >= searchNodeAge
 //Also clears subtreevaluebias for deleted nodes.
-void Search::deleteAllOldOrAllNewNodesAndSubtreeValueBiasMulithreaded(bool old) {
+void Search::deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool old) {
   int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
   assert(numAdditionalThreads >= 0);
   std::function<void(int)> g = [&](int threadIdx) {
@@ -1680,9 +1742,9 @@ void Search::deleteAllOldOrAllNewNodesAndSubtreeValueBiasMulithreaded(bool old) 
   performTaskWithThreads(&g);
 }
 
-//Delete ALL nodes. More efficient than deleteAllOldOrAllNewNodesAndSubtreeValueBiasMulithreaded if deleting everything.
+//Delete ALL nodes. More efficient than deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded if deleting everything.
 //Doesn't clear subtree value bias.
-void Search::deleteAllNodesMulithreaded() {
+void Search::deleteAllTableNodesMulithreaded() {
   int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
   assert(numAdditionalThreads >= 0);
   std::function<void(int)> g = [&](int threadIdx) {
@@ -3631,7 +3693,7 @@ bool Search::playoutDescend(
       SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
       assert(childrenCapacity > bestChildIdx);
       bool isNewlyAllocated;
-      child = allocateOrFindNode(thread, thread.pla, isNewlyAllocated);
+      child = allocateOrFindNode(thread, getOpp(thread.pla), isNewlyAllocated);
       child->virtualLosses.fetch_add(1,std::memory_order_release);
 
       if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL) {

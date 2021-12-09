@@ -73,9 +73,9 @@ struct NodeStatsAtomic {
   std::atomic<double> weightSqSum;
 
   NodeStatsAtomic();
+  explicit NodeStatsAtomic(const NodeStatsAtomic& other);
   ~NodeStatsAtomic();
 
-  NodeStatsAtomic(const NodeStatsAtomic&) = delete;
   NodeStatsAtomic& operator=(const NodeStatsAtomic&) = delete;
   NodeStatsAtomic(NodeStatsAtomic&& other) = delete;
   NodeStatsAtomic& operator=(NodeStatsAtomic&& other) = delete;
@@ -126,6 +126,13 @@ private:
   std::atomic<Loc> moveLoc; // Generally this will be always guarded under release semantics of data or of the array itself.
 public:
   SearchChildPointer();
+
+  SearchChildPointer(const SearchChildPointer&) = delete;
+  SearchChildPointer& operator=(const SearchChildPointer&) = delete;
+  SearchChildPointer(SearchChildPointer&& other) = delete;
+  SearchChildPointer& operator=(SearchChildPointer&& other) = delete;
+
+  void storeAll(const SearchChildPointer& other);
 
   SearchNode* getIfAllocated();
   const SearchNode* getIfAllocated() const;
@@ -205,9 +212,9 @@ struct SearchNode {
 
   //--------------------------------------------------------------------------------
   SearchNode(Player prevPla, uint32_t mutexIdx);
+  SearchNode(const SearchNode&, bool copySubtreeValueBias);
   ~SearchNode();
 
-  SearchNode(const SearchNode&) = delete;
   SearchNode& operator=(const SearchNode&) = delete;
   SearchNode(SearchNode&& other) = delete;
   SearchNode& operator=(SearchNode&& other) = delete;
@@ -556,7 +563,7 @@ private:
   int numAdditionalThreadsToUseForTasks() const;
   void performTaskWithThreads(std::function<void(int)>* task);
 
-  SearchNode* allocateOrFindNode(SearchThread& thread, Player prevPla, bool& isNewlyAllocated);
+  SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, bool& isNewlyAllocated);
 
   void clearOldNNOutputs();
   void transferOldNNOutputs(SearchThread& thread);
@@ -655,8 +662,8 @@ private:
     SearchNode* node, int threadIdx, PCG32* rand, std::vector<int>& randBuf, std::function<void(SearchNode*,int)>* f
   );
   void removeSubtreeValueBias(SearchNode* node);
-  void deleteAllOldOrAllNewNodesAndSubtreeValueBiasMulithreaded(bool old);
-  void deleteAllNodesMulithreaded();
+  void deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool old);
+  void deleteAllTableNodesMulithreaded();
 
   void maybeRecomputeNormToTApproxTable();
   double getNormToTApproxForLCB(int64_t numVisits) const;
