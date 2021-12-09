@@ -123,8 +123,10 @@ struct SearchChildPointer {
 private:
   std::atomic<SearchNode*> data;
   std::atomic<int64_t> edgeVisits;
+  std::atomic<Loc> moveLoc; // Generally this will be always guarded under release semantics of data or of the array itself.
 public:
   SearchChildPointer();
+
   SearchNode* getIfAllocated();
   const SearchNode* getIfAllocated() const;
   SearchNode* getIfAllocatedRelaxed();
@@ -137,6 +139,11 @@ public:
   void setEdgeVisits(int64_t x);
   void setEdgeVisitsRelaxed(int64_t x);
   void addEdgeVisits(int64_t delta);
+
+  Loc getMoveLoc() const;
+  Loc getMoveLocRelaxed() const;
+  void setMoveLoc(Loc loc);
+  void setMoveLocRelaxed(Loc loc);
 };
 
 struct SearchNode {
@@ -144,9 +151,9 @@ struct SearchNode {
   mutable std::atomic_flag statsLock = ATOMIC_FLAG_INIT;
 
   //Constant during search--------------------------------------------------------------
-  Player nextPla;
-  Loc prevMoveLoc; //TODO cannot have this
+  const Player nextPla;
   Hash128 patternBonusHash;
+  const uint32_t mutexIdx; // For lookup into mutex pool
 
   //Mutable---------------------------------------------------------------------------
   //During search, only ever transitions forward.
@@ -172,6 +179,7 @@ struct SearchNode {
 
   //During search, each will only ever transition from NULL -> non-NULL.
   //We get progressive resizing of children array simply by moving on to a later array.
+  //Mutex pool guards insertion of children at a node. Reading of children is always fine.
   SearchChildPointer* children0; //Guaranteed to be non-NULL once state >= STATE_EXPANDED0
   SearchChildPointer* children1; //Guaranteed to be non-NULL once state >= STATE_EXPANDED1
   SearchChildPointer* children2; //Guaranteed to be non-NULL once state >= STATE_EXPANDED2
@@ -196,7 +204,7 @@ struct SearchNode {
   std::atomic<int32_t> dirtyCounter;
 
   //--------------------------------------------------------------------------------
-  SearchNode(Player prevPla, Loc prevMoveLoc);
+  SearchNode(Player prevPla, uint32_t mutexIdx);
   ~SearchNode();
 
   SearchNode(const SearchNode&) = delete;
@@ -319,6 +327,7 @@ struct Search {
   SearchNodeTable* nodeTable;
 
   //Services--------------------------------------------------------------
+  MutexPool* mutexPool;
   NNEvaluator* nnEvaluator; //externally owned
   int nnXLen;
   int nnYLen;
@@ -547,7 +556,7 @@ private:
   int numAdditionalThreadsToUseForTasks() const;
   void performTaskWithThreads(std::function<void(int)>* task);
 
-  SearchNode* allocateOrFindNode(SearchThread& thread, Player prevPla, Loc prevMoveLoc, bool& isNewlyAllocated);
+  SearchNode* allocateOrFindNode(SearchThread& thread, Player prevPla, bool& isNewlyAllocated);
 
   void clearOldNNOutputs();
   void transferOldNNOutputs(SearchThread& thread);
@@ -574,8 +583,7 @@ private:
 
   double getPatternBonus(Hash128 patternBonusHash, Player prevMovePla) const;
 
-  //Parent must be locked
-  double getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNode* child) const;
+  double getEndingWhiteScoreBonus(const SearchNode& parent, Loc moveLoc) const;
 
   void downweightBadChildrenAndNormalizeWeight(
     int numChildren,
@@ -586,8 +594,7 @@ private:
     std::vector<MoreNodeStats>& statsBuf
   ) const;
 
-  //Parent must be locked
-  void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, int64_t edgeVisits, double& lcbBuf, double& radiusBuf) const;
+  void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, int64_t edgeVisits, Loc moveLoc, double& lcbBuf, double& radiusBuf) const;
 
   double getExploreSelectionValue(
     double nnPolicyProb, double totalChildWeight, double childWeight,
@@ -606,9 +613,9 @@ private:
     double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
   ) const;
 
-  //Parent must be locked
   double getExploreSelectionValue(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
+    Loc moveLoc,
     double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
     double parentUtility, double parentWeightPerVisit, double parentUtilityStdevFactor,
     bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
@@ -620,9 +627,9 @@ private:
     double maxChildWeight, SearchThread* thread
   ) const;
 
-  //Parent must be locked
   double getReducedPlaySelectionWeight(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
+    Loc moveLoc,
     double totalChildWeight, int64_t childEdgeVisits,
     double parentUtilityStdevFactor, double bestChildExploreSelectionValue
   ) const;

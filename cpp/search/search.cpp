@@ -137,7 +137,8 @@ double Search::getScoreStdev(double scoreMean, double scoreMeanSq) {
 
 SearchChildPointer::SearchChildPointer():
   data(NULL),
-  edgeVisits(0.0)
+  edgeVisits(0.0),
+  moveLoc(Board::NULL_LOC)
 {}
 
 SearchNode* SearchChildPointer::getIfAllocated() {
@@ -181,13 +182,28 @@ void SearchChildPointer::addEdgeVisits(int64_t delta) {
   edgeVisits.fetch_add(delta, std::memory_order_acq_rel);
 }
 
+
+Loc SearchChildPointer::getMoveLoc() const {
+  return moveLoc.load(std::memory_order_acquire);
+}
+Loc SearchChildPointer::getMoveLocRelaxed() const {
+  return moveLoc.load(std::memory_order_relaxed);
+}
+void SearchChildPointer::setMoveLoc(Loc loc) {
+  moveLoc.store(loc, std::memory_order_release);
+}
+void SearchChildPointer::setMoveLocRelaxed(Loc loc) {
+  moveLoc.store(loc, std::memory_order_relaxed);
+}
+
+
 //-----------------------------------------------------------------------------------------
 
 //Makes a search node resulting from prevPla playing prevLoc
-SearchNode::SearchNode(Player prevPla, Loc prevLoc)
+SearchNode::SearchNode(Player prevPla, uint32_t mIdx)
   :nextPla(getOpp(prevPla)),
-   prevMoveLoc(prevLoc),
    patternBonusHash(),
+   mutexIdx(mIdx),
    state(SearchNode::STATE_UNEVALUATED),
    nnOutput(),
    nodeAge(0),
@@ -281,6 +297,9 @@ bool SearchNode::tryExpandingChildrenCapacityAssumeFull(int& stateValue) {
       //Getting edge visits relaxed on old children might get slightly out of date if other threads are searching
       //children while we expand, but those should self-correct rapidly with more playouts
       children[i].setEdgeVisitsRelaxed(oldChildren[i].getEdgeVisitsRelaxed());
+      //Setting and loading move relaxed is fine because our acquire observation of all the children nodes
+      //ensures all the move locs are released to us, and we're storing this new array with release semantics.
+      children[i].setMoveLocRelaxed(oldChildren[i].getMoveLocRelaxed());
     }
     assert(children1 == NULL);
     children1 = children;
@@ -309,6 +328,9 @@ bool SearchNode::tryExpandingChildrenCapacityAssumeFull(int& stateValue) {
       //Getting weight relaxed on old children might get slightly out of date weights if other threads are searching
       //children while we expand, but those should self-correct rapidly with more playouts
       children[i].setEdgeVisitsRelaxed(oldChildren[i].getEdgeVisitsRelaxed());
+      //Setting and loading move relaxed is fine because our acquire observation of all the children nodes
+      //ensures all the move locs are released to us, and we're storing this new array with release semantics.
+      children[i].setMoveLocRelaxed(oldChildren[i].getMoveLocRelaxed());
     }
     assert(children2 == NULL);
     children2 = children;
@@ -459,6 +481,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    normToTApproxTable(),
    rootNode(NULL),
    nodeTable(NULL),
+   mutexPool(NULL),
    nnEvaluator(nnEval),
    nnXLen(),
    nnYLen(),
@@ -495,6 +518,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
 
   rootNode = NULL;
   nodeTable = new SearchNodeTable(params.nodeTableShardsPowerOfTwo);
+  mutexPool = new MutexPool(nodeTable->mutexPool->getNumMutexes());
 
   rootHistory.clear(rootBoard,rootPla,Rules(),0);
   rootKoHashTable->recompute(rootHistory);
@@ -508,6 +532,7 @@ Search::~Search() {
   delete valueWeightDistribution;
 
   delete nodeTable;
+  delete mutexPool;
   delete subtreeValueBiasTable;
   delete patternBonusTable;
   killThreads();
@@ -776,7 +801,7 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
       if(child == NULL)
         break;
       numChildren++;
-      if(!foundChild && child->prevMoveLoc == moveLoc) {
+      if(!foundChild && children[i].getMoveLocRelaxed() == moveLoc) {
         foundChild = true;
         foundChildIdx = i;
       }
@@ -1326,9 +1351,8 @@ void Search::beginSearch(bool pondering) {
   SearchThread dummyThread(-1, *this);
 
   if(rootNode == NULL) {
-    Loc prevMoveLoc = rootHistory.moveHistory.size() <= 0 ? Board::NULL_LOC : rootHistory.moveHistory[rootHistory.moveHistory.size()-1].loc;
     bool isNewlyAllocated;
-    rootNode = allocateOrFindNode(dummyThread, getOpp(rootPla), prevMoveLoc, isNewlyAllocated);
+    rootNode = allocateOrFindNode(dummyThread, getOpp(rootPla), isNewlyAllocated);
     assert(isNewlyAllocated);
   }
   else {
@@ -1353,15 +1377,18 @@ void Search::beginSearch(bool pondering) {
         for(; i<childrenCapacity; i++) {
           SearchNode* child = children[i].getIfAllocated();
           int64_t edgeVisits = children[i].getEdgeVisits();
+          Loc moveLoc = children[i].getMoveLoc();
           if(child == NULL)
             break;
           //Remove the child from its current spot
           children[i].store(NULL);
           children[i].setEdgeVisits(0);
+          children[i].setMoveLoc(Board::NULL_LOC);
           //Maybe add it back
-          if(isAllowedRootMove(child->prevMoveLoc)) {
+          if(isAllowedRootMove(moveLoc)) {
             children[numGoodChildren].store(child);
             children[numGoodChildren].setEdgeVisits(edgeVisits);
+            children[numGoodChildren].setMoveLoc(moveLoc);
             numGoodChildren++;
           }
           else {
@@ -1447,8 +1474,8 @@ void Search::beginSearch(bool pondering) {
   searchNodeAge++;
 }
 
-SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player prevPla, Loc prevMoveLoc, bool& isNewlyAllocated) {
-  SearchNode* node = new SearchNode(prevPla,prevMoveLoc);
+SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player prevPla, bool& isNewlyAllocated) {
+  SearchNode* node = new SearchNode(prevPla, thread.rand2.nextUInt() & (mutexPool->getNumMutexes()-1));
   isNewlyAllocated = true;
   Hash128 nodeHash = Hash128(thread.rand2.nextUInt64(),thread.rand2.nextUInt64());
   uint32_t nodeTableIdx = nodeTable->getIndex(nodeHash.hash0);
@@ -2297,8 +2324,8 @@ double Search::getExploreSelectionValueInverse(
 }
 
 
-double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNode* child) const {
-  if(&parent != rootNode || child->prevMoveLoc == Board::NULL_LOC)
+double Search::getEndingWhiteScoreBonus(const SearchNode& parent, Loc moveLoc) const {
+  if(&parent != rootNode || moveLoc == Board::NULL_LOC)
     return 0.0;
 
   const NNOutput* nnOutput = parent.getNNOutput();
@@ -2310,7 +2337,6 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
   assert(nnOutput->nnXLen == nnXLen);
   assert(nnOutput->nnYLen == nnYLen);
   float* whiteOwnerMap = nnOutput->whiteOwnerMap;
-  Loc moveLoc = child->prevMoveLoc;
 
   const double extreme = 0.95;
   const double tail = 0.05;
@@ -2573,14 +2599,17 @@ static void maybeApplyAntiMirrorForcedExplore(
     if(utilityLoss > 0 && utilityLoss * proportionToDump > 0.03)
       proportionToDump += 0.5 * (0.03 / utilityLoss - proportionToDump);
 
-    if(parent.prevMoveLoc != Board::NULL_LOC) {
-      int centerDistanceSquared = Location::euclideanDistanceSquared(centerLoc,parent.prevMoveLoc,xSize);
-      if(centerDistanceSquared <= 16)
-        proportionToDump *= 0.900;
-      if(centerDistanceSquared <= 5)
-        proportionToDump *= 0.825;
-      if(centerDistanceSquared <= 2)
-        proportionToDump *= 0.750;
+    if(thread->history.moveHistory.size() > 0) {
+      Loc prevLoc = thread->history.moveHistory[thread->history.moveHistory.size()-1].loc;
+      if(prevLoc != Board::NULL_LOC && prevLoc != Board::PASS_LOC) {
+        int centerDistanceSquared = Location::euclideanDistanceSquared(centerLoc,prevLoc,xSize);
+        if(centerDistanceSquared <= 16)
+          proportionToDump *= 0.900;
+        if(centerDistanceSquared <= 5)
+          proportionToDump *= 0.825;
+        if(centerDistanceSquared <= 2)
+          proportionToDump *= 0.750;
+      }
     }
 
     if(thisChildWeight < proportionToDump * totalChildWeight) {
@@ -2592,12 +2621,12 @@ static void maybeApplyAntiMirrorForcedExplore(
 
 double Search::getExploreSelectionValue(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
+  Loc moveLoc,
   double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
   double parentUtility, double parentWeightPerVisit, double parentUtilityStdevFactor,
   bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
 ) const {
   (void)parentUtility;
-  Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
   float nnPolicyProb = parentPolicyProbs[movePos];
 
@@ -2621,7 +2650,7 @@ double Search::getExploreSelectionValue(
     childUtility = utilityAvg;
 
     //Tiny adjustment for passing
-    double endingScoreBonus = getEndingWhiteScoreBonus(parent,child);
+    double endingScoreBonus = getEndingWhiteScoreBonus(parent,moveLoc);
     if(endingScoreBonus != 0)
       childUtility += getScoreUtilityDiff(scoreMeanAvg, scoreMeanSqAvg, endingScoreBonus);
   }
@@ -2716,11 +2745,11 @@ double Search::getNewExploreSelectionValue(
 
 double Search::getReducedPlaySelectionWeight(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
+  Loc moveLoc,
   double totalChildWeight, int64_t childEdgeVisits,
   double parentUtilityStdevFactor, double bestChildExploreSelectionValue
 ) const {
   assert(&parent == rootNode);
-  Loc moveLoc = child->prevMoveLoc;
   int movePos = getPos(moveLoc);
   float nnPolicyProb = parentPolicyProbs[movePos];
 
@@ -2738,7 +2767,7 @@ double Search::getReducedPlaySelectionWeight(
     return 0;
 
   //Tiny adjustment for passing
-  double endingScoreBonus = getEndingWhiteScoreBonus(parent,child);
+  double endingScoreBonus = getEndingWhiteScoreBonus(parent,moveLoc);
   double childUtility = utilityAvg;
   if(endingScoreBonus != 0)
     childUtility += getScoreUtilityDiff(scoreMeanAvg, scoreMeanSqAvg, endingScoreBonus);
@@ -2830,7 +2859,7 @@ void Search::selectBestChildToDescend(
     const SearchNode* child = children[i].getIfAllocated();
     if(child == NULL)
       break;
-    Loc moveLoc = child->prevMoveLoc;
+    Loc moveLoc = children[i].getMoveLocRelaxed();
     int movePos = getPos(moveLoc);
     float nnPolicyProb = policyProbs[movePos];
     policyProbMassVisited += nnPolicyProb;
@@ -2871,10 +2900,12 @@ void Search::selectBestChildToDescend(
     numChildrenFound++;
     int64_t childEdgeVisits = children[i].getEdgeVisits();
 
-    Loc moveLoc = child->prevMoveLoc;
+    Loc moveLoc = children[i].getMoveLocRelaxed();
     bool isDuringSearch = true;
     double selectionValue = getExploreSelectionValue(
-      node,policyProbs,child,totalChildWeight,childEdgeVisits,fpuValue,
+      node,policyProbs,child,
+      moveLoc,
+      totalChildWeight,childEdgeVisits,fpuValue,
       parentUtility,parentWeightPerVisit,parentUtilityStdevFactor,
       isDuringSearch,antiMirror,maxChildWeight,&thread
     );
@@ -3035,6 +3066,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
       break;
     MoreNodeStats& stats = statsBuf[numGoodChildren];
 
+    Loc moveLoc = children[i].getMoveLocRelaxed();
     int64_t edgeVisits = children[i].getEdgeVisits();
     stats.stats = NodeStats(child->stats);
 
@@ -3045,7 +3077,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     double childUtility = stats.stats.utilityAvg;
     stats.selfUtility = node.nextPla == P_WHITE ? childUtility : -childUtility;
     stats.weightAdjusted = childWeight;
-    stats.prevMoveLoc = child->prevMoveLoc;
+    stats.prevMoveLoc = moveLoc;
 
     origTotalChildWeight += stats.weightAdjusted;
     numGoodChildren++;
@@ -3476,10 +3508,10 @@ bool Search::playoutDescend(
   if(!isRoot && thread.history.isGameFinished &&
      !(searchParams.conservativePass &&
        thread.history.moveHistory.size() == rootHistory.moveHistory.size() + 1 &&
-       node.prevMoveLoc == Board::PASS_LOC)
+       thread.history.moveHistory[thread.history.moveHistory.size()-1].loc == Board::PASS_LOC)
   ) {
     //Avoid running "too fast", by making sure that a leaf evaluation takes roughly the same time as a genuine nn eval
-    //This stops a thread from building a silly number of visits to distort MCTS statistics other threads are stuck on the GPU.
+    //This stops a thread from building a silly number of visits to distort MCTS statistics while other threads are stuck on the GPU.
     nnEvaluator->waitForNextNNEvalIfAny();
     if(thread.history.isNoResult) {
       double winLossValue = 0.0;
@@ -3593,19 +3625,38 @@ bool Search::playoutDescend(
       SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
       assert(childrenCapacity > bestChildIdx);
       bool isNewlyAllocated;
-      child = allocateOrFindNode(thread, thread.pla, bestChildMoveLoc, isNewlyAllocated);
+      child = allocateOrFindNode(thread, thread.pla, isNewlyAllocated);
       child->virtualLosses.fetch_add(1,std::memory_order_release);
 
       if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL) {
-        if(node.prevMoveLoc != Board::NULL_LOC) {
-          child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(thread.pla, node.prevMoveLoc, child->prevMoveLoc, thread.board);
+        //TODO can we make subtree value bias not depend on prev move loc?
+        if(thread.history.moveHistory.size() > 0) {
+          Loc prevMoveLoc = thread.history.moveHistory[thread.history.moveHistory.size()-1].loc;
+          if(prevMoveLoc != Board::NULL_LOC) {
+            child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(thread.pla, prevMoveLoc, bestChildMoveLoc, thread.board);
+          }
         }
       }
 
       if(patternBonusTable != NULL)
         child->patternBonusHash = patternBonusTable->getHash(thread.pla, bestChildMoveLoc, thread.board);
 
-      suc = children[bestChildIdx].storeIfNull(child);
+      {
+        //Lock mutex to store child and move loc in a synchronized way
+        std::lock_guard<std::mutex> lock(mutexPool->getMutex(node.mutexIdx));
+        SearchNode* existingChild = children[bestChildIdx].getIfAllocated();
+        if(existingChild == NULL) {
+          //Set relaxed *first*, then release this value via storing the child. Anyone who load-acquires the child
+          //is guaranteed by release semantics to see the move as well.
+          children[bestChildIdx].setMoveLocRelaxed(bestChildMoveLoc);
+          children[bestChildIdx].store(child);
+          suc = true;
+        }
+        else {
+          suc = false;
+        }
+      }
+
       if(!suc) {
         //Someone got there ahead of us. Delete and loop again trying to select the best child to explore.
         //Actually, don't delete. This node will get cleaned up next time we mark and sweep the node table later.

@@ -945,30 +945,30 @@ static void recordTreePositionsRec(
       continue;
 
     const SearchNode* child = children[i].getIfAllocated();
-    if(child->prevMoveLoc == excludeLoc0 || child->prevMoveLoc == excludeLoc1)
+    Loc moveLoc = children[i].getMoveLoc();
+    if(moveLoc == excludeLoc0 || moveLoc == excludeLoc1)
       continue;
 
-    while(child->statsLock.test_and_set(std::memory_order_acquire));
-    int64_t numVisits = child->stats.visits;
-    child->statsLock.clear(std::memory_order_release);
-
+    int64_t numVisits = child->stats.visits.load(std::memory_order_acquire);
     if(numVisits < minVisitsAtNode)
       continue;
 
-    Board copy = board;
-    BoardHistory histCopy = hist;
-    histCopy.makeBoardMoveAssumeLegal(copy, child->prevMoveLoc, pla, NULL);
-    Player nextPla = getOpp(pla);
-    recordTreePositionsRec(
-      gameData,
-      copy,histCopy,nextPla,
-      toMoveBot,
-      child,depth+1,maxDepth,newPlaAlwaysBest,newOppAlwaysBest,
-      minVisitsAtNode,recordTreeTargetWeight,
-      numNeuralNetChangesSoFar,
-      locsBuf,playSelectionValuesBuf,
-      Board::NULL_LOC,Board::NULL_LOC
-    );
+    if(hist.isLegal(board, moveLoc, pla)) {
+      Board copy = board;
+      BoardHistory histCopy = hist;
+      histCopy.makeBoardMoveAssumeLegal(copy, moveLoc, pla, NULL);
+      Player nextPla = getOpp(pla);
+      recordTreePositionsRec(
+        gameData,
+        copy,histCopy,nextPla,
+        toMoveBot,
+        child,depth+1,maxDepth,newPlaAlwaysBest,newOppAlwaysBest,
+        minVisitsAtNode,recordTreeTargetWeight,
+        numNeuralNetChangesSoFar,
+        locsBuf,playSelectionValuesBuf,
+        Board::NULL_LOC,Board::NULL_LOC
+      );
+    }
   }
 }
 

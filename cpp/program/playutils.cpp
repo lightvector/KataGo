@@ -1100,6 +1100,9 @@ Loc PlayUtils::maybeFriendlyPass(
   const BoardHistory hist = bot->getRootHist();
   assert(oldPla == pla);
 
+  if(!hist.isLegal(board,moveLoc,pla))
+    throw StringError("PlayUtils::maybeFriendlyPass called on illegal move " + Location::toString(moveLoc,board));
+
   vector<double> ownerships;
   vector<bool> isAlive = computeAnticipatedStatusesWithOwnership(bot, board, hist, pla, numVisits, ownerships);
 
