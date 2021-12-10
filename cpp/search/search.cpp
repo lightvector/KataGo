@@ -221,8 +221,9 @@ void SearchChildPointer::setMoveLocRelaxed(Loc loc) {
 //-----------------------------------------------------------------------------------------
 
 //Makes a search node resulting from prevPla playing prevLoc
-SearchNode::SearchNode(Player pla, uint32_t mIdx)
+SearchNode::SearchNode(Player pla, bool fnt, uint32_t mIdx)
   :nextPla(pla),
+   forceNonTerminal(fnt),
    patternBonusHash(),
    mutexIdx(mIdx),
    state(SearchNode::STATE_UNEVALUATED),
@@ -240,8 +241,9 @@ SearchNode::SearchNode(Player pla, uint32_t mIdx)
 {
 }
 
-SearchNode::SearchNode(const SearchNode& other, bool copySubtreeValueBias)
+SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueBias)
   :nextPla(other.nextPla),
+   forceNonTerminal(fnt),
    patternBonusHash(other.patternBonusHash),
    mutexIdx(other.mutexIdx),
    state(other.state.load(std::memory_order_acquire)),
@@ -902,7 +904,8 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
 
       //Okay, this is now our new root! Create a copy so as to keep the root out of the node table.
       const bool copySubtreeValueBias = false;
-      rootNode = new SearchNode(*child,copySubtreeValueBias);
+      const bool forceNonTerminal = true;
+      rootNode = new SearchNode(*child, forceNonTerminal, copySubtreeValueBias);
       //Sweep over the new root marking it as good (calling NULL function), and then delete anything unmarked.
       applyRecursivelyAnyOrderMulithreaded({rootNode}, NULL);
       bool old = true;
@@ -925,16 +928,19 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
   avoidMoveUntilByLocBlack.clear();
   avoidMoveUntilByLocWhite.clear();
 
+  //If we're newly inferring some moves as handicap that we weren't before, clear since score will be wrong.
   if(rootHistory.whiteHandicapBonusScore != oldWhiteHandicapBonusScore)
     clearSearch();
 
   //In the case that we are conservativePass and a pass would end the game, need to clear the search.
   //This is because deeper in the tree, such a node would have been explored as ending the game, but now that
   //it's a root pass, it needs to be treated as if it no longer ends the game.
+  if(searchParams.conservativePass && rootHistory.passWouldEndGame(rootBoard,rootPla))
+    clearSearch();
+
   //In the case that we're preventing encore, and the phase would have ended, we also need to clear the search
   //since the search was conducted on the assumption that we're going into encore now.
-  if((searchParams.conservativePass && rootHistory.passWouldEndGame(rootBoard,rootPla)) ||
-     (preventEncore && rootHistory.passWouldEndPhase(rootBoard,rootPla)))
+  if(preventEncore && rootHistory.passWouldEndPhase(rootBoard,rootPla))
     clearSearch();
 
   return true;
@@ -1420,8 +1426,10 @@ void Search::beginSearch(bool pondering) {
   SearchThread dummyThread(-1, *this);
 
   if(rootNode == NULL) {
-    //Avoid storing the root node in the nodeTable, guarantee that it never is part of a cycle.
-    rootNode = new SearchNode(rootPla, dummyThread.rand.nextUInt() & (mutexPool->getNumMutexes()-1));
+    //Avoid storing the root node in the nodeTable, guarantee that it never is part of a cycle, allocate it directly.
+    //Also force that it is non-terminal.
+    const bool forceNonTerminal = true;
+    rootNode = new SearchNode(rootPla, forceNonTerminal, dummyThread.rand.nextUInt() & (mutexPool->getNumMutexes()-1));
   }
   else {
     //If the root node has any existing children, then prune things down if there are moves that should not be allowed at the root.
@@ -1538,9 +1546,8 @@ void Search::beginSearch(bool pondering) {
   searchNodeAge++;
 }
 
-SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, bool& isNewlyAllocated) {
-  SearchNode* node = new SearchNode(nextPla, thread.rand2.nextUInt() & (mutexPool->getNumMutexes()-1));
-  isNewlyAllocated = true;
+SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, bool forceNonTerminal) {
+  SearchNode* node = new SearchNode(nextPla, forceNonTerminal, thread.rand2.nextUInt() & (mutexPool->getNumMutexes()-1));
   Hash128 nodeHash = Hash128(thread.rand2.nextUInt64(),thread.rand2.nextUInt64());
   uint32_t nodeTableIdx = nodeTable->getIndex(nodeHash.hash0);
   std::mutex& mutex = nodeTable->mutexPool->getMutex(nodeTableIdx);
@@ -3567,17 +3574,12 @@ bool Search::playoutDescend(
   bool isRoot
 ) {
   //Hit terminal node, finish
-  //In the case where we're forcing the search to make another move at the root, don't terminate, actually run search for a move more.
-  //In the case where we're conservativePass and the game just ended due to a root pass, actually let it keep going.
-  //Note that in the second case with tree reuse we can end up with a weird situation where a terminal node becomes nonterminal due
-  //to now being a child of the root! This is okay - subsequent visits to the node will fall through to initNodeNNOutput, and we will
-  //have a weird leaf node with 2 visits worth of mixed terminal and nn values, but further visits will even hit recomputeNodeStats
-  //which should clean it all it.
-  if(!isRoot && thread.history.isGameFinished &&
-     !(searchParams.conservativePass &&
-       thread.history.moveHistory.size() == rootHistory.moveHistory.size() + 1 &&
-       thread.history.moveHistory[thread.history.moveHistory.size()-1].loc == Board::PASS_LOC)
-  ) {
+  //forceNonTerminal marks special nodes where we cannot end the game. This includes the root, since if we are searching a position
+  //we presumably want to actually explore deeper and get a result. Also it includes the node following a pass from the root in
+  //the case where we are conservativePass.
+  //Note that we also carefully clear the search when a pass from the root would be terminal, so nodes should never need to switch
+  //status after tree reuse in the latter case.
+  if(thread.history.isGameFinished && !node.forceNonTerminal) {
     //Avoid running "too fast", by making sure that a leaf evaluation takes roughly the same time as a genuine nn eval
     //This stops a thread from building a silly number of visits to distort MCTS statistics while other threads are stuck on the GPU.
     nnEvaluator->waitForNextNNEvalIfAny();
@@ -3692,8 +3694,9 @@ bool Search::playoutDescend(
       int childrenCapacity;
       SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
       assert(childrenCapacity > bestChildIdx);
-      bool isNewlyAllocated;
-      child = allocateOrFindNode(thread, getOpp(thread.pla), isNewlyAllocated);
+      //If conservative pass, passing from the root is always non-terminal
+      const bool forceNonTerminal = searchParams.conservativePass && (&node == rootNode) && bestChildMoveLoc == Board::PASS_LOC;
+      child = allocateOrFindNode(thread, getOpp(thread.pla), forceNonTerminal);
       child->virtualLosses.fetch_add(1,std::memory_order_release);
 
       if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL) {
@@ -3726,10 +3729,8 @@ bool Search::playoutDescend(
       }
 
       if(!suc) {
-        //Someone got there ahead of us. Delete and loop again trying to select the best child to explore.
-        //Actually, don't delete. This node will get cleaned up next time we mark and sweep the node table later.
-        //if(isNewlyAllocated)
-        //  delete child;
+        //Someone got there ahead of us. Loop again trying to select the best child to explore.
+        //No need to delete the node, it will get cleaned up next time we mark and sweep the node table later.
         child = NULL;
         std::this_thread::yield();
         nodeState = node.state.load(std::memory_order_acquire);

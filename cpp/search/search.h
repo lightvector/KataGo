@@ -159,6 +159,7 @@ struct SearchNode {
 
   //Constant during search--------------------------------------------------------------
   const Player nextPla;
+  const bool forceNonTerminal;
   Hash128 patternBonusHash;
   const uint32_t mutexIdx; // For lookup into mutex pool
 
@@ -211,8 +212,8 @@ struct SearchNode {
   std::atomic<int32_t> dirtyCounter;
 
   //--------------------------------------------------------------------------------
-  SearchNode(Player prevPla, uint32_t mutexIdx);
-  SearchNode(const SearchNode&, bool copySubtreeValueBias);
+  SearchNode(Player prevPla, bool forceNonTerminal, uint32_t mutexIdx);
+  SearchNode(const SearchNode&, bool forceNonTerminal, bool copySubtreeValueBias);
   ~SearchNode();
 
   SearchNode& operator=(const SearchNode&) = delete;
@@ -563,7 +564,7 @@ private:
   int numAdditionalThreadsToUseForTasks() const;
   void performTaskWithThreads(std::function<void(int)>* task);
 
-  SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, bool& isNewlyAllocated);
+  SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, bool forceNonTerminal);
 
   void clearOldNNOutputs();
   void transferOldNNOutputs(SearchThread& thread);
