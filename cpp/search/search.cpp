@@ -1456,8 +1456,9 @@ void Search::beginSearch(bool pondering) {
           children[i].store(NULL);
           children[i].setEdgeVisits(0);
           children[i].setMoveLoc(Board::NULL_LOC);
-          //Maybe add it back
-          if(isAllowedRootMove(moveLoc)) {
+          //Maybe add it back. Specifically check for legality just in case weird graph interaction in the
+          //tree gives wrong legality - ensure that once we are the root, we are strict on legality.
+          if(rootHistory.isLegal(rootBoard,moveLoc,rootPla) && isAllowedRootMove(moveLoc)) {
             children[numGoodChildren].store(child);
             children[numGoodChildren].setEdgeVisits(edgeVisits);
             children[numGoodChildren].setMoveLoc(moveLoc);

@@ -55,9 +55,6 @@ bool Search::getPlaySelectionValues(
   return result;
 }
 
-//TODO make sure root node is unique and specially allocated and never goes into the table. Nothing should
-//be allowed to cycle back to the root.
-//Should also do illegal move filtering in addition to root allowed moves when a node becomes the root.
 bool Search::getPlaySelectionValues(
   const SearchNode& node,
   vector<Loc>& locs, vector<double>& playSelectionValues, vector<double>* retVisitCounts, double scaleMaxToAtLeast,
