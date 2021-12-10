@@ -415,6 +415,7 @@ SearchThread::SearchThread(int tIdx, const Search& search)
    pla(search.rootPla),board(search.rootBoard),
    history(search.rootHistory),
    rand(makeSeed(search,tIdx)),
+   rand2(makeSeed(search,tIdx+9283742)),
    nnResultBuf(),
    statsBuf(),
    upperBoundVisitsLeft(1e30),
@@ -1449,7 +1450,7 @@ void Search::beginSearch(bool pondering) {
 SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player prevPla, Loc prevMoveLoc, bool& isNewlyAllocated) {
   SearchNode* node = new SearchNode(prevPla,prevMoveLoc);
   isNewlyAllocated = true;
-  Hash128 nodeHash = Hash128(thread.rand.nextUInt64(),thread.rand.nextUInt64());
+  Hash128 nodeHash = Hash128(thread.rand2.nextUInt64(),thread.rand2.nextUInt64());
   uint32_t nodeTableIdx = nodeTable->getIndex(nodeHash.hash0);
   std::mutex& mutex = nodeTable->mutexPool->getMutex(nodeTableIdx);
   std::lock_guard<std::mutex> lock(mutex);

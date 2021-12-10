@@ -243,6 +243,7 @@ struct SearchThread {
   BoardHistory history;
 
   Rand rand;
+  Rand rand2;
 
   NNResultBuf nnResultBuf;
 
