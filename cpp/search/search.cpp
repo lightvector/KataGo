@@ -506,7 +506,8 @@ SearchThread::SearchThread(int tIdx, const Search& search)
    nnResultBuf(),
    statsBuf(),
    upperBoundVisitsLeft(1e30),
-   oldNNOutputsToCleanUp()
+   oldNNOutputsToCleanUp(),
+   illegalMoveHashes()
 {
   statsBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
 
@@ -3652,6 +3653,8 @@ bool Search::playoutDescend(
     //The absurdly rare case that the move chosen is not legal
     //(this should only happen either on a bug or where the nnHash doesn't have full legality information or when there's an actual hash collision).
     //Regenerate the neural net call and continue
+    //Could also be true if we have an illegal move due to graph search and we had a cycle and superko interaction, or a true collision
+    //on an older path that results in bad transposition between positions that don't transpose.
     if(bestChildIdx >= 0 && !thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla)) {
       bool isReInit = true;
       initNodeNNOutput(thread,node,isRoot,true,isReInit);
@@ -3659,7 +3662,12 @@ bool Search::playoutDescend(
       {
         NNOutput* nnOutput = node.getNNOutput();
         assert(nnOutput != NULL);
-        logger->write("WARNING: Chosen move not legal so regenerated nn output, nnhash=" + nnOutput->nnHash.toString());
+        Hash128 nnHash = nnOutput->nnHash;
+        //In case of a cycle or bad transposition, this will fire a lot, so limit it to once per thread per search.
+        if(thread.illegalMoveHashes.find(nnHash) == thread.illegalMoveHashes.end()) {
+          thread.illegalMoveHashes.insert(nnHash);
+          logger->write("WARNING: Chosen move not legal so regenerated nn output, nnhash=" + nnHash.toString());
+        }
       }
 
       //As isReInit is true, we don't return, just keep going, since we didn't count this as a true visit in the node stats
@@ -3667,11 +3675,24 @@ bool Search::playoutDescend(
       selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
 
       if(bestChildIdx >= 0) {
-        //In THEORY it might still be illegal this time! This would be the case if when we initialized the NN output, we raced
-        //against someone reInitializing the output to add dirichlet noise or something, who was doing so based on an older cached
-        //nnOutput that still had the illegal move. If so, then just fail this playout and try again.
-        if(!thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla))
-          return false;
+        //New child
+        if(bestChildIdx >= numChildrenFound) {
+          //In THEORY it might still be illegal this time! This would be the case if when we initialized the NN output, we raced
+          //against someone reInitializing the output to add dirichlet noise or something, who was doing so based on an older cached
+          //nnOutput that still had the illegal move. If so, then just fail this playout and try again.
+          if(!thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla))
+            return false;
+        }
+        //Existing child
+        else {
+          //An illegal move should make it into the tree only in case of cycle or bad transposition
+          //We want the search to continue as best it can, so we increment visits so other search branches will still make progress.
+          int childrenCapacity;
+          SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
+          assert(childrenCapacity > bestChildIdx);
+          children[bestChildIdx].addEdgeVisits(1);
+          return true;
+        }
       }
     }
 

@@ -271,6 +271,9 @@ struct SearchThread {
   //it here instead of deleting it, so that pointers and accesses to it remain valid.
   std::vector<std::shared_ptr<NNOutput>*> oldNNOutputsToCleanUp;
 
+  //Just controls some debug output
+  std::set<Hash128> illegalMoveHashes;
+
   SearchThread(int threadIdx, const Search& search);
   ~SearchThread();
 
