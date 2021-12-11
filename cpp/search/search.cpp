@@ -1428,7 +1428,7 @@ void Search::beginSearch(bool pondering) {
     //Avoid storing the root node in the nodeTable, guarantee that it never is part of a cycle, allocate it directly.
     //Also force that it is non-terminal.
     const bool forceNonTerminal = true;
-    rootNode = new SearchNode(rootPla, forceNonTerminal, dummyThread.rand.nextUInt() & (mutexPool->getNumMutexes()-1));
+    rootNode = new SearchNode(rootPla, forceNonTerminal, createMutexIdxForNode(dummyThread));
   }
   else {
     //If the root node has any existing children, then prune things down if there are moves that should not be allowed at the root.
@@ -1546,9 +1546,13 @@ void Search::beginSearch(bool pondering) {
   searchNodeAge++;
 }
 
+uint32_t Search::createMutexIdxForNode(SearchThread& thread) const {
+  return thread.rand.nextUInt() & (mutexPool->getNumMutexes()-1);
+}
+
 SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, bool forceNonTerminal) {
-  SearchNode* node = new SearchNode(nextPla, forceNonTerminal, thread.rand.nextUInt() & (mutexPool->getNumMutexes()-1));
-  Hash128 nodeHash = Hash128(thread.rand.nextUInt64(),thread.rand.nextUInt64());
+  SearchNode* node = new SearchNode(nextPla, forceNonTerminal, createMutexIdxForNode(thread));
+  Hash128 nodeHash = thread.board.pos_hash ^ Hash128(thread.rand.nextUInt64(),thread.rand.nextUInt64());
   uint32_t nodeTableIdx = nodeTable->getIndex(nodeHash.hash0);
   std::mutex& mutex = nodeTable->mutexPool->getMutex(nodeTableIdx);
   std::lock_guard<std::mutex> lock(mutex);
@@ -1635,8 +1639,7 @@ void Search::applyRecursivelyPostOrderMulithreadedHelper(
   }
 
   //Now call postorder function, protected by lock
-  uint32_t mutexPoolIdx = nodeTable->getIndex(Hash::murmurMix((uint64_t)node));
-  std::lock_guard<std::mutex> lock(nodeTable->mutexPool->getMutex(mutexPoolIdx));
+  std::lock_guard<std::mutex> lock(mutexPool->getMutex(node->mutexIdx));
   //Make sure another node didn't get there first.
   if(node->nodeAge.load(std::memory_order_acquire) == searchNodeAge)
     return;

@@ -563,6 +563,7 @@ private:
   int numAdditionalThreadsToUseForTasks() const;
   void performTaskWithThreads(std::function<void(int)>* task);
 
+  uint32_t createMutexIdxForNode(SearchThread& thread) const;
   SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, bool forceNonTerminal);
 
   void clearOldNNOutputs();
