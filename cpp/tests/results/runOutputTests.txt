@@ -14508,6 +14508,205 @@ E2  : T  -1.96c W   0.08c S   0.72c ( +0.8 L  +0.8) LCB  -12.64c P 12.24% WF  35
 : GPU 0 finishing, processed 0 rows 0 batches
 
 ===================================================================
+Value bias with ko
+===================================================================
+: Initializing neural net buffer to be size 14 * 14 allowing smaller boards
+HASH: 0CFB9916390A93E156BCA8478D7748C5
+   A B C D E F G H J K L M N O
+14 . O O . O X . X X X X X X X
+13 O . O O O X X X X X X X X X
+12 X O O X X X X X X X X X X X
+11 . X X X X X X X X X X X X X
+10 X X X X X X X O O O O X X X
+ 9 X X X X X X X O . O X . X .
+ 8 X X X X X X O O O O O X X X
+ 7 X X X X X X O . O O . O X X
+ 6 X X X X X X O O O O O O X X
+ 5 O X X X X X X X X X X X X .
+ 4 . O O O X X X X X X X X X X
+ 3 O O . O X X X X X X X X O O
+ 2 . O O O O O O O O O O O . .
+ 1 O O O O O . O O O O O O O O
+
+
+: T  -1.99c W  -0.16c S   0.03c ( +0.0 L  +0.0) N    2000  --  A4 F1 A11 D14 O5 A2 N2
+---Black(v)---
+A4  : T  -1.97c W   0.03c S   0.01c ( +0.0 L  +0.0) LCB   -0.05c P 23.11% WF 492.3 PSV     492 N     492  --  A4 F1 A11 D14 O5 A2 N2
+N2  : T  -1.00c W   0.04c S  -0.01c ( -0.0 L  -0.0) LCB    0.94c P 32.17% WF 455.8 PSV     465 N     465  --  N2 M9 pass H7 A4 L9 O5 O2
+O5  : T  -1.56c W   0.42c S   0.08c ( +0.1 L  +0.1) LCB    0.45c P 21.81% WF 382.2 PSV     385 N     385  --  O5 N2 A4 L7 A11 F1 A5 J9
+M9  : T  -3.09c W  -0.69c S   0.14c ( +0.2 L  +0.2) LCB   -0.95c P  7.58% WF 359.9 PSV     348 N     352  --  M9 D14 O2 A2 A11 C3 N2 O3
+pss : T  -2.32c W  -0.88c S  -0.12c ( -0.2 L  -0.2) LCB    0.82c P  6.97% WF 178.2 PSV     177 N     177  --  pass L7 O5 pass G14 A11 O9
+G14 : T  -4.56c W  -1.12c S  -0.08c ( -0.1 L  -0.1) LCB    0.09c P  4.42% WF  95.3 PSV      92 N      92  --  G14 A2 A4 L7 O5 A5
+O2  : T  -0.71c W  -0.55c S  -0.15c ( -0.3 L  -0.3) LCB    9.15c P  1.49% WF  18.8 PSV      19 N      19  --  O2 H7 A4 L7 O5
+O9  : T   1.23c W   0.20c S   0.38c ( +0.6 L  +0.6) LCB   10.89c P  2.02% WF  16.5 PSV      17 N      17  --  O9 A4 pass O2
+Making move
+HASH: 1FA240B490AF18378705B77410223557
+   A B C D E F G H J K L M N O
+14 . O O . O X . X X X X X X X
+13 O . O O O X X X X X X X X X
+12 X O O X X X X X X X X X X X
+11 . X X X X X X X X X X X X X
+10 X X X X X X X O O O O X X X
+ 9 X X X X X X X O . O X . X .
+ 8 X X X X X X O O O O O X X X
+ 7 X X X X X X O . O O . O X X
+ 6 X X X X X X O O O O O O X X
+ 5 . X X X X X X X X X X X X .
+ 4 X O O O X X X X X X X X X X
+ 3 O O . O X X X X X X X X O O
+ 2 . O O O O O O O O O O O . .
+ 1 O O O O O . O O O O O O O O
+
+
+: T  -1.97c W   0.03c S   0.01c ( +0.0 L  +0.0) N     492  --  F1 A11 D14 O5 A2 N2
+---White(^)---
+F1  : T  -1.98c W  -0.20c S   0.18c ( +0.3 L  +0.3) LCB   -5.26c P 32.24% WF 156.6 PSV     157 N     157  --  F1 A11 D14 O5 A2 N2
+N2  : T  -0.03c W   0.15c S  -0.11c ( -0.2 L  -0.2) LCB   -4.89c P 12.64% WF  91.1 PSV      89 N      89  --  N2 pass A2 A5 L7 M9 A11
+A2  : T  -1.23c W   1.29c S   0.08c ( +0.1 L  +0.1) LCB   -7.02c P  8.36% WF  50.3 PSV      49 N      50  --  A2 O2 C3 O5 D14 N2 B13
+pss : T  -1.83c W   0.50c S   0.04c ( +0.1 L  +0.1) LCB   -7.38c P  8.70% WF  43.0 PSV      43 N      43  --  pass N2 A5 M9 J9 O5
+C3  : T  -1.87c W  -0.30c S   0.13c ( +0.2 L  +0.2) LCB   -7.29c P  6.66% WF  33.9 PSV      33 N      34  --  C3 N2 pass O5 F1 G14
+B13 : T  -1.41c W   2.44c S  -0.10c ( -0.2 L  -0.2) LCB  -10.14c P  5.09% WF  35.1 PSV      28 N      35  --  B13 O2 F1 O9 N2 A5 A14
+H7  : T  -0.09c W  -0.19c S  -0.41c ( -0.7 L  -0.7) LCB  -10.97c P  2.55% WF  26.4 PSV      21 N      26  --  H7 M9 J9 A5 pass
+A14 : T  -5.64c W  -2.40c S   0.07c ( +0.1 L  +0.1) LCB  -25.44c P  7.08% WF  19.2 PSV      19 N      20  --  A14 O9 A2 O2 J9 A11 M9 A5
+L7  : T  -2.34c W  -0.28c S  -0.20c ( -0.3 L  -0.3) LCB  -16.98c P  3.04% WF  14.9 PSV      13 N      15  --  L7 A11 J9 M9
+D14 : T  -8.05c W  -0.17c S  -0.46c ( -0.8 L  -0.8) LCB  -19.47c P  4.81% WF  10.4 PSV      10 N      11  --  D14 N2 A2 O9
+J9  : T -13.05c W  -7.66c S  -0.31c ( -0.5 L  -0.5) LCB  -29.68c P  2.75% WF   3.7 PSV       3 N       4  --  J9 O9 A14 A11
+A11 : T -13.94c W  -7.73c S  -0.30c ( -0.5 L  -0.5) LCB  -77.63c P  2.24% WF   2.8 PSV       3 N       3  --  A11 A5 F1
+M9  : T -20.54c W  -6.12c S   0.44c ( +0.7 L  +0.7) LCB -137.27c P  2.41% WF   2.6 PSV       2 N       3  --  M9 O5 A11
+O2  : T -20.76c W   8.46c S  -2.32c ( -3.9 L  -3.9) LCB -260.00c P  1.42% WF   0.9 PSV       1 N       1  --  O2
+Searching again
+HASH: 1FA240B490AF18378705B77410223557
+   A B C D E F G H J K L M N O
+14 . O O . O X . X X X X X X X
+13 O . O O O X X X X X X X X X
+12 X O O X X X X X X X X X X X
+11 . X X X X X X X X X X X X X
+10 X X X X X X X O O O O X X X
+ 9 X X X X X X X O . O X . X .
+ 8 X X X X X X O O O O O X X X
+ 7 X X X X X X O . O O . O X X
+ 6 X X X X X X O O O O O O X X
+ 5 . X X X X X X X X X X X X .
+ 4 X O O O X X X X X X X X X X
+ 3 O O . O X X X X X X X X O O
+ 2 . O O O O O O O O O O O . .
+ 1 O O O O O . O O O O O O O O
+
+
+: T  -0.66c W  -0.04c S   0.00c ( +0.0 L  +0.0) N    2000  --  G14 M9 N2 H7 A11 C3 O5
+---Black(v)---
+G14 : T  -1.29c W  -0.34c S   0.03c ( +0.0 L  +0.0) LCB   -0.02c P 41.32% WF 1208.7 PSV    1194 N    1194  --  G14 M9 N2 H7 A11 C3 O5 J9
+pss : T   0.05c W  -0.07c S  -0.08c ( -0.1 L  -0.1) LCB    3.24c P 13.14% WF 202.6 PSV     203 N     206  --  pass O2 A11 J9 O9 B13 pass D14
+O2  : T  -0.54c W  -0.10c S  -0.17c ( -0.3 L  -0.3) LCB    3.23c P  7.45% WF 149.1 PSV     144 N     150  --  O2 pass N2 A5 pass C3 A4
+O9  : T   0.49c W  -0.09c S   0.05c ( +0.1 L  +0.1) LCB    4.12c P  8.47% WF 110.6 PSV     113 N     113  --  O9 B13 O5 N2 A5 F1 A11
+O5  : T   0.95c W   0.50c S   0.02c ( +0.0 L  +0.0) LCB    5.30c P  8.18% WF  93.4 PSV      96 N      96  --  O5 A5 M9 N2 G14 A2 A11
+M9  : T  -1.64c W   0.47c S  -0.02c ( -0.0 L  -0.0) LCB    3.44c P  4.42% WF  96.9 PSV      96 N      96  --  M9 pass A5 N2 A11 O2 O9
+N2  : T   2.07c W   1.60c S   0.02c ( +0.0 L  +0.0) LCB    6.22c P  9.67% WF  83.3 PSV      87 N      87  --  N2 A5 M9 J9 O5 O2
+A5  : T   2.78c W   2.31c S   0.07c ( +0.1 L  +0.1) LCB   10.29c P  5.48% WF  41.1 PSV      43 N      43  --  A5 L7 A11 M9 N2 A14
+A11 : T   3.62c W   3.60c S   0.25c ( +0.4 L  +0.4) LCB   14.84c P  1.87% WF  13.4 PSV      12 N      14  --  A11 F1 O9 L7 M9
+Making move
+HASH: D075D14C8F5E88F66401A7B0AB8FD94F
+   A B C D E F G H J K L M N O
+14 . O O . O X X X X X X X X X
+13 O . O O O X X X X X X X X X
+12 X O O X X X X X X X X X X X
+11 . X X X X X X X X X X X X X
+10 X X X X X X X O O O O X X X
+ 9 X X X X X X X O . O X . X .
+ 8 X X X X X X O O O O O X X X
+ 7 X X X X X X O . O O . O X X
+ 6 X X X X X X O O O O O O X X
+ 5 . X X X X X X X X X X X X .
+ 4 X O O O X X X X X X X X X X
+ 3 O O . O X X X X X X X X O O
+ 2 . O O O O O O O O O O O . .
+ 1 O O O O O . O O O O O O O O
+
+
+: T  -1.29c W  -0.34c S   0.03c ( +0.0 L  +0.0) N    1194  --  M9 N2 H7 A11 C3 O5 J9
+---White(^)---
+M9  : T  -0.95c W   0.35c S  -0.25c ( -0.4 L  -0.4) LCB   -4.09c P 16.93% WF 190.9 PSV     190 N     190  --  M9 N2 H7 A11 C3 O5 J9 pass
+L7  : T  -1.98c W  -0.65c S   0.18c ( +0.3 L  +0.3) LCB   -5.51c P 14.28% WF 134.4 PSV     120 N     136  --  L7 pass O2 A5 B13 O9 pass M9
+A2  : T  -1.46c W  -0.43c S   0.16c ( +0.3 L  +0.3) LCB   -5.51c P 10.08% WF 113.6 PSV      97 N     114  --  A2 pass pass pass J9 O2 F1
+C3  : T  -0.66c W  -0.45c S  -0.17c ( -0.3 L  -0.3) LCB   -5.30c P  7.53% WF 118.0 PSV      93 N     117  --  C3 O5 A5 O2 N2 O9 B13
+pss : T  -0.29c W   0.38c S   0.38c ( +0.6 L  +0.6) LCB   -4.55c P  6.41% WF 126.8 PSV      92 N     125  --  pass pass L7 pass D14 A5 H7
+A11 : T  -0.72c W  -0.49c S  -0.11c ( -0.2 L  -0.2) LCB   -4.38c P  7.59% WF 121.9 PSV      92 N     121  --  A11 O5 B13 pass A5 A12 N2 A11
+A5  : T  -1.60c W  -0.75c S  -0.09c ( -0.2 L  -0.2) LCB   -5.97c P  9.78% WF 104.4 PSV      91 N     105  --  A5 O2 A2 pass M9 O9 A14 N2
+F1  : T  -1.07c W  -0.01c S   0.33c ( +0.6 L  +0.6) LCB   -5.42c P  6.05% WF  80.2 PSV      65 N      80  --  F1 O5 pass O2 pass N2
+D14 : T  -0.38c W  -0.52c S   0.13c ( +0.2 L  +0.2) LCB   -5.93c P  3.74% WF  69.7 PSV      51 N      69  --  D14 N2 O2 A11 H7 O5 pass A5
+B13 : T  -2.68c W   0.50c S  -0.21c ( -0.4 L  -0.4) LCB  -11.59c P  5.42% WF  43.2 PSV      39 N      44  --  B13 A11 A2 M9 O2 A5 J9
+O2  : T  -3.09c W  -1.97c S   0.21c ( +0.4 L  +0.4) LCB  -10.83c P  5.44% WF  38.2 PSV      36 N      39  --  O2 M9 C3 O9 A11 O5
+A14 : T  -4.22c W  -1.81c S   0.21c ( +0.4 L  +0.4) LCB  -16.30c P  3.84% WF  28.1 PSV      20 N      29  --  A14 M9 C3 N2 A5
+N2  : T  -1.62c W  -1.62c S  -0.08c ( -0.1 L  -0.1) LCB  -17.47c P  1.32% WF  15.9 PSV      12 N      16  --  N2 M9 D14 O5 F1 pass
+H7  : T  -6.50c W  -4.59c S  -0.27c ( -0.5 L  -0.5) LCB  -56.28c P  0.76% WF   5.8 PSV       3 N       6  --  H7 A5 A2
+J9  : T -14.68c W   3.69c S  -3.48c ( -6.2 L  -6.2) LCB -260.00c P  0.85% WF   1.9 PSV       1 N       2  --  J9 O2
+Searching again
+HASH: D075D14C8F5E88F66401A7B0AB8FD94F
+   A B C D E F G H J K L M N O
+14 . O O . O X X X X X X X X X
+13 O . O O O X X X X X X X X X
+12 X O O X X X X X X X X X X X
+11 . X X X X X X X X X X X X X
+10 X X X X X X X O O O O X X X
+ 9 X X X X X X X O . O X . X .
+ 8 X X X X X X O O O O O X X X
+ 7 X X X X X X O . O O . O X X
+ 6 X X X X X X O O O O O O X X
+ 5 . X X X X X X X X X X X X .
+ 4 X O O O X X X X X X X X X X
+ 3 O O . O X X X X X X X X O O
+ 2 . O O O O O O O O O O O . .
+ 1 O O O O O . O O O O O O O O
+
+
+: T  -1.13c W   0.38c S   0.06c ( +0.1 L  +0.1) N    2000  --  O5 A2 O2 pass pass D14 M9
+---Black(v)---
+O5  : T  -1.57c W   0.18c S   0.08c ( +0.1 L  +0.1) LCB    0.12c P 32.14% WF 744.9 PSV     738 N     738  --  O5 A2 O2 pass pass D14 M9 pass
+M9  : T  -0.75c W   0.56c S  -0.00c ( -0.0 L  -0.0) LCB    1.19c P 32.96% WF 559.7 PSV     532 N     565  --  M9 A5 O2 D14 A4 B13 pass A11
+N2  : T  -1.61c W   0.47c S   0.00c ( +0.0 L  +0.0) LCB    1.70c P  9.47% WF 243.8 PSV     222 N     242  --  N2 A14 O9 L7 O5 J9 pass
+A5  : T  -1.35c W  -0.42c S   0.20c ( +0.3 L  +0.3) LCB    2.11c P  7.59% WF 176.5 PSV     156 N     176  --  A5 L7 N2 pass A11 B13
+A11 : T   1.67c W   2.50c S   0.11c ( +0.2 L  +0.2) LCB    6.17c P 11.38% WF 102.5 PSV      98 N     107  --  A11 O2 A5 D14 O5 L7 M9 H7
+O9  : T  -1.77c W  -0.22c S   0.36c ( +0.6 L  +0.6) LCB    2.92c P  3.06% WF 100.8 PSV      78 N     100  --  O9 A11 O5 A12 pass A5
+O2  : T  -0.98c W   0.48c S  -0.26c ( -0.4 L  -0.4) LCB    5.60c P  2.52% WF  53.9 PSV      44 N      54  --  O2 J9 O9 C3 N2 pass
+pss : T  -0.50c W  -0.09c S  -0.38c ( -0.6 L  -0.6) LCB   11.67c P  0.87% WF  16.9 PSV      12 N      17  --  pass A5 O2 A2 pass H7
+Making move
+HASH: 6FADF57C8DD05259E0B526ADEECFF9C7
+   A B C D E F G H J K L M N O
+14 . O O . O X X X X X X X X X
+13 O . O O O X X X X X X X X X
+12 X O O X X X X X X X X X X X
+11 . X X X X X X X X X X X X X
+10 X X X X X X X O O O O X X X
+ 9 X X X X X X X O . O X . X .
+ 8 X X X X X X O O O O O X X X
+ 7 X X X X X X O . O O . O X X
+ 6 X X X X X X O O O O O O X X
+ 5 . X X X X X X X X X X X X X
+ 4 X O O O X X X X X X X X X X
+ 3 O O . O X X X X X X X X O O
+ 2 . O O O O O O O O O O O . .
+ 1 O O O O O . O O O O O O O O
+
+
+: T  -1.57c W   0.18c S   0.08c ( +0.1 L  +0.1) N     738  --  A2 O2 pass pass D14 M9 pass
+---White(^)---
+A2  : T  -0.12c W   0.51c S   0.14c ( +0.2 L  +0.2) LCB   -4.33c P 10.89% WF 134.8 PSV     132 N     132  --  A2 O2 pass pass D14 M9 pass
+C3  : T  -2.52c W   0.03c S   0.07c ( +0.1 L  +0.1) LCB   -7.77c P 16.70% WF 100.5 PSV      98 N     102  --  C3 O2 J9 N2 B13 N3
+D14 : T  -3.26c W  -1.26c S   0.33c ( +0.5 L  +0.5) LCB   -7.82c P 18.18% WF  89.7 PSV      92 N      92  --  D14 A11 J9 pass N2 M9 F1 pass
+M9  : T  -1.32c W  -0.66c S   0.19c ( +0.3 L  +0.3) LCB   -6.58c P 10.01% WF  81.2 PSV      79 N      81  --  M9 O9 J9 A11 N2 pass H7
+A11 : T   0.40c W   0.36c S  -0.14c ( -0.2 L  -0.2) LCB   -4.95c P  6.35% WF  68.6 PSV      67 N      67  --  A11 A5 C3 N2 F1 pass
+H7  : T  -1.30c W   0.53c S   0.06c ( +0.1 L  +0.1) LCB   -9.08c P  6.18% WF  52.1 PSV      49 N      52  --  H7 M9 F1 O9 A14 O2 C3 pass
+L7  : T  -1.38c W   0.51c S  -0.27c ( -0.5 L  -0.5) LCB   -8.49c P  6.16% WF  47.1 PSV      47 N      47  --  L7 A5 D14 pass N2 O9 O2
+J9  : T  -1.70c W   0.75c S   0.45c ( +0.8 L  +0.8) LCB   -9.28c P  4.85% WF  40.9 PSV      34 N      41  --  J9 N2 F1 O9 L7 M9 A14
+O2  : T  -2.40c W  -0.23c S   0.12c ( +0.2 L  +0.2) LCB   -9.04c P  5.66% WF  37.6 PSV      34 N      38  --  O2 O9 D14 A11 A2 pass H7
+F1  : T  -1.46c W   3.09c S   0.10c ( +0.2 L  +0.2) LCB   -8.87c P  4.47% WF  36.0 PSV      34 N      36  --  F1 N2 O2 O9 C3 A5
+pss : T  -1.69c W   0.56c S   0.17c ( +0.3 L  +0.3) LCB  -13.73c P  2.87% WF  21.0 PSV      20 N      21  --  pass N2 H7 pass
+A5  : T  -2.13c W   2.55c S  -0.80c ( -1.3 L  -1.3) LCB  -14.45c P  2.74% WF  16.9 PSV      17 N      17  --  A5 N2 B13 pass F1 M9 L7
+B13 : T  -8.00c W   1.01c S  -0.81c ( -1.4 L  -1.4) LCB  -62.41c P  2.73% WF   6.7 PSV       7 N       7  --  B13 A5 L7 pass O2
+A14 : T  -9.00c W  -7.14c S  -0.28c ( -0.5 L  -0.5) LCB -105.68c P  1.63% WF   3.8 PSV       3 N       4  --  A14 pass pass
+: GPU 0 finishing, processed 0 rows 0 batches
+
+===================================================================
 Analysis json
 ===================================================================
 : Initializing neural net buffer to be size 9 * 9 allowing smaller boards

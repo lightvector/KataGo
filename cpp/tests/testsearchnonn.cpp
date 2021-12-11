@@ -1104,6 +1104,77 @@ o.oo.oo
 
   {
     cout << "===================================================================" << endl;
+    cout << "Value bias with ko" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"seeeed",14,14,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 2000;
+    params.subtreeValueBiasFactor = 0.8;
+    params.chosenMoveTemperature = 0;
+    Search* search = new Search(params, nnEval, &logger, "seeeed");
+    Rules rules = Rules::parseRules("japanese");
+    Board board = Board::parseBoard(14,14,R"%%(
+.oo.ox.xxxxxxx
+o.oooxxxxxxxxx
+xooxxxxxxxxxxx
+.xxxxxxxxxxxxx
+xxxxxxxooooxxx
+xxxxxxxo.ox.x.
+xxxxxxoooooxxx
+xxxxxxo.oo.oxx
+xxxxxxooooooxx
+oxxxxxxxxxxxx.
+.oooxxxxxxxxxx
+oo.oxxxxxxxxoo
+.ooooooooooo..
+ooooo.oooooooo
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
     cout << "Analysis json" << endl;
     cout << "===================================================================" << endl;
 
