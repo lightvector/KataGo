@@ -165,6 +165,7 @@ add_executable(katago
   game/board.cpp
   game/rules.cpp
   game/boardhistory.cpp
+  game/graphhash.cpp
   dataio/sgf.cpp
   dataio/numpywrite.cpp
   dataio/trainingwrite.cpp

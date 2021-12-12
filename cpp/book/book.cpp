@@ -5,6 +5,7 @@
 #include <thread>
 #include "../core/makedir.h"
 #include "../core/fileutils.h"
+#include "../game/graphhash.h"
 #include "../neuralnet/nninputs.h"
 #include "../external/nlohmann_json/json.hpp"
 
@@ -109,28 +110,6 @@ static Hash128 getExtraPosHash(const Board& board) {
   return hash;
 }
 
-static Hash128 getStateHash(const BoardHistory& hist) {
-  const Board& board = hist.getRecentBoard(0);
-  Player nextPlayer = hist.presumedNextMovePla;
-  double drawEquivalentWinsForWhite = 0.5;
-  Hash128 hash = BoardHistory::getSituationRulesAndKoHash(board, hist, nextPlayer, drawEquivalentWinsForWhite);
-
-  // Fold in whether a pass ends this phase
-  bool passEndsPhase = hist.passWouldEndPhase(board,nextPlayer);
-  if(passEndsPhase)
-    hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
-  // Fold in whether the game is over or not
-  if(hist.isGameFinished)
-    hash ^= Board::ZOBRIST_GAME_IS_OVER;
-
-  // Fold in consecutive pass count. Probably usually redundant with history tracking. Use some standard LCG constants.
-  static constexpr uint64_t CONSECPASS_MULT0 = 2862933555777941757ULL;
-  static constexpr uint64_t CONSECPASS_MULT1 = 3202034522624059733ULL;
-  hash.hash0 += CONSECPASS_MULT0 * (uint64_t)hist.consecutiveEndingPasses;
-  hash.hash1 += CONSECPASS_MULT1 * (uint64_t)hist.consecutiveEndingPasses;
-  return hash;
-}
-
 void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHash& hashRet, int& symmetryToAlignRet, vector<int>& symmetriesRet) {
   Board boardsBySym[SymmetryHelpers::NUM_SYMMETRIES];
   BoardHistory histsBySym[SymmetryHelpers::NUM_SYMMETRIES];
@@ -174,8 +153,12 @@ void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHa
   }
 
   BookHash hashes[SymmetryHelpers::NUM_SYMMETRIES];
-  for(int symmetry = 0; symmetry < numSymmetries; symmetry++)
-    hashes[symmetry] = BookHash(accums[symmetry] ^ getExtraPosHash(boardsBySym[symmetry]), getStateHash(histsBySym[symmetry]));
+  for(int symmetry = 0; symmetry < numSymmetries; symmetry++) {
+    Player nextPlayer = hist.presumedNextMovePla;
+    constexpr double drawEquivalentWinsForWhite = 0.5;
+    Hash128 stateHash = GraphHash::getStateHash(histsBySym[symmetry],nextPlayer,drawEquivalentWinsForWhite);
+    hashes[symmetry] = BookHash(accums[symmetry] ^ getExtraPosHash(boardsBySym[symmetry]), stateHash);
+  }
 
   // Use the smallest symmetry that gives us the same hash
   int smallestSymmetry = 0;
