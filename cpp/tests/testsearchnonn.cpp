@@ -451,7 +451,7 @@ o..o.oo
     search->printTree(cout, search->rootNode, options.onlyBranch(search->rootBoard,Location::toString(locToDescend,search->rootBoard)), P_WHITE);
 
     //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-    TestSearchCommon::verifyTreePostOrder(search);
+    TestSearchCommon::verifyTreePostOrder(search,-1);
 
     //--------------------------------------
     cout << "Next, make a move, and with no search, print the tree." << endl;
@@ -464,7 +464,7 @@ o..o.oo
     cout << endl;
 
     //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-    TestSearchCommon::verifyTreePostOrder(search);
+    TestSearchCommon::verifyTreePostOrder(search,-1);
 
     //--------------------------------------
     cout << "Begin search but make no additional playouts, print the tree." << endl;
@@ -474,7 +474,7 @@ o..o.oo
     cout << endl;
 
     //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-    TestSearchCommon::verifyTreePostOrder(search);
+    TestSearchCommon::verifyTreePostOrder(search,-1);
 
     delete search;
     delete nnEval;
@@ -1539,7 +1539,7 @@ ooooooo
       cout << endl;
 
       //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-      TestSearchCommon::verifyTreePostOrder(search);
+      TestSearchCommon::verifyTreePostOrder(search,-1);
 
       //--------------------------------------
       cout << "Next, make a move, and with no search, print the tree." << endl;
@@ -1552,7 +1552,7 @@ ooooooo
       cout << endl;
 
       //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-      TestSearchCommon::verifyTreePostOrder(search);
+      TestSearchCommon::verifyTreePostOrder(search,-1);
 
       //--------------------------------------
       cout << "Begin search but make no additional playouts, print the tree." << endl;
@@ -1562,7 +1562,7 @@ ooooooo
       cout << endl;
 
       //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-      TestSearchCommon::verifyTreePostOrder(search);
+      TestSearchCommon::verifyTreePostOrder(search,-1);
     }
 
     delete search;
@@ -1743,6 +1743,207 @@ oo..o..oo
       testAssert(suc);
       cout << json << endl;
     }
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Graph search, opening" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,7,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 1000;
+    params.subtreeValueBiasFactor = 0.5;
+    params.useGraphSearch = true;
+    params.chosenMoveTemperature = 0;
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(7,7,R"%%(
+.......
+.......
+...o...
+..ox...
+..x....
+.......
+.......
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    TestSearchCommon::verifyTreePostOrder(search,-1);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    TestSearchCommon::verifyTreePostOrder(search,-1);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Graph search, 7x7 big fight" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,7,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 1000;
+    params.subtreeValueBiasFactor = 0.5;
+    params.useGraphSearch = true;
+    params.chosenMoveTemperature = 0;
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(7,7,R"%%(
+.....o.
+...oxox
+..ooox.
+.xoxxx.
+.xxo.x.
+..xooox
+.......
+)%%");
+    Player nextPla = P_WHITE;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    TestSearchCommon::verifyTreePostOrder(search,-1);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    TestSearchCommon::verifyTreePostOrder(search,-1);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Graph search, 7x7 endgame kos" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,7,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 1000;
+    params.subtreeValueBiasFactor = 0.5;
+    params.useGraphSearch = true;
+    params.chosenMoveTemperature = 0;
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::parseRules("japanese");
+    Board board = Board::parseBoard(7,7,R"%%(
+.o.x.x.
+o.oxoxo
+xoxxxo.
+xx.xooo
+xxxxox.
+oxooox.
+.ooox.x
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    TestSearchCommon::verifyTreePostOrder(search,-1);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    TestSearchCommon::verifyTreePostOrder(search,-1);
 
     delete search;
     delete nnEval;

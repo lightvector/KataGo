@@ -24,7 +24,8 @@ TestSearchCommon::TestSearchOptions::TestSearchOptions()
    printMore(false),
    printMoreMoreMore(false),
    printAfterBegun(false),
-   ignorePosition(false)
+   ignorePosition(false),
+   printPostOrderNodeCount(false)
 {}
 
 void TestSearchCommon::printPolicyValueOwnership(const Board& board, const NNResultBuf& buf) {
@@ -119,12 +120,18 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
       }
     }
 
+    if(opts.printPostOrderNodeCount)
+      verifyTreePostOrder(bot->getSearchStopAndWait(),-1);
+
     if(i < opts.numMovesInARow-1) {
       bot->makeMove(move, nextPla);
       hist.makeBoardMoveAssumeLegal(board,move,nextPla,NULL);
       cout << "Just after move" << endl;
       search->printTree(cout, search->rootNode, options, P_WHITE);
       nextPla = getOpp(nextPla);
+
+      if(opts.printPostOrderNodeCount)
+        verifyTreePostOrder(bot->getSearchStopAndWait(),-1);
     }
   }
 
@@ -209,7 +216,7 @@ NNEvaluator* TestSearchCommon::startNNEval(
 }
 
 
-void TestSearchCommon::verifyTreePostOrder(Search* search) {
+void TestSearchCommon::verifyTreePostOrder(Search* search, int onlyRequireAtLeast) {
   //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
   std::vector<SearchNode*> nodes = search-> enumerateTreePostOrder();
   std::map<const SearchNode*,size_t> idxOfNode;
@@ -229,5 +236,15 @@ void TestSearchCommon::verifyTreePostOrder(Search* search) {
       testAssert(idxOfNode[child] < i);
     }
   }
-  cout << "Post order okay: " << nodes.size() << endl;
+  if(onlyRequireAtLeast > 0) {
+    if(nodes.size() >= onlyRequireAtLeast)
+      cout << "Post order okay: " << "yes" << endl;
+    else {
+      cout << "Post order got too few nodes " << nodes.size() << " " << onlyRequireAtLeast << endl;
+      testAssert(false);
+    }
+  }
+  else{
+    cout << "Post order okay: " << nodes.size() << endl;
+  }
 }

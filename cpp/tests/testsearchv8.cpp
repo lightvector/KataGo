@@ -1354,6 +1354,42 @@ oooo.o.oo
   }
 
   {
+    cout << "Basic graph search 7x7 fight =========================================" << endl;
+
+    Board board = Board::parseBoard(7,7,R"%%(
+.....o.
+.....ox
+..ooox.
+.xoxxx.
+.xxo.x.
+..xooox
+.......
+)%%");
+    Player nextPla = P_WHITE;
+
+    SearchParams paramsBase = SearchParams::forTestsV1();
+    paramsBase.maxVisits = 1000;
+    paramsBase.useGraphSearch = true;
+    TestSearchOptions opts;
+    opts.numMovesInARow = 3;
+    opts.printPostOrderNodeCount = true;
+
+    {
+      Rules rules = Rules::parseRules("Japanese");
+      rules.komi = 8;
+      BoardHistory hist(board,nextPla,rules,0);
+
+      cout << "===================================================================" << endl;
+      cout << "White to play" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "conservative pass");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+  }
+
+  {
     cout << "Friendly pass =========================================" << endl;
 
     SearchParams paramsBase = SearchParams::forTestsV1();
@@ -1466,7 +1502,7 @@ o....xo..
     paramsBase.maxVisits = 1000;
 
 
-    auto runTest = [&](int64_t numVisits, int numThreads, bool subtreeValueBias) {
+    auto runTest = [&](int64_t numVisits, int numThreads, bool subtreeValueBias, bool graphSearch) {
       Board board = boardBase;
       Player nextPla = nextPlaBase;
       BoardHistory hist = histBase;
@@ -1478,6 +1514,8 @@ o....xo..
         params.subtreeValueBiasWeightExponent = 0.8;
         params.subtreeValueBiasFreeProp = 0.0;
       }
+      if(graphSearch)
+        params.useGraphSearch = true;
 
       nnEval->clearCache(); nnEval->clearStats();
       Search* search = new Search(params, nnEval, &logger, "multithreaded tree updating");
@@ -1513,37 +1551,47 @@ o....xo..
     cout << "===================================================================" << endl;
     cout << "Baseline 1k visits" << endl;
     cout << "===================================================================" << endl;
-    runTest(1000, 1, false);
+    runTest(1000, 1, false, false);
+
+    cout << "===================================================================" << endl;
+    cout << "Baseline 1k visits, graph search" << endl;
+    cout << "===================================================================" << endl;
+    runTest(1000, 1, false, true);
 
     cout << "===================================================================" << endl;
     cout << "4 threads for search updates, 1k visits" << endl;
     cout << "===================================================================" << endl;
-    runTest(1000, 4, false);
+    runTest(1000, 4, false, false);
 
     cout << "===================================================================" << endl;
     cout << "4 threads for search updates, subtree value bias stability (but 0 free prop), 1k visits" << endl;
     cout << "===================================================================" << endl;
-    runTest(1000, 4, true);
+    runTest(1000, 4, true, false);
 
     cout << "===================================================================" << endl;
     cout << "Baseline 8k visits" << endl;
     cout << "===================================================================" << endl;
-    runTest(8000, 1, false);
+    runTest(8000, 1, false, false);
 
     cout << "===================================================================" << endl;
     cout << "4 threads for search updates, 8k visits" << endl;
     cout << "===================================================================" << endl;
-    runTest(8000, 4, false);
+    runTest(8000, 4, false, false);
 
     cout << "===================================================================" << endl;
     cout << "30 threads for search updates, 8k visits" << endl;
     cout << "===================================================================" << endl;
-    runTest(8000, 30, false);
+    runTest(8000, 30, false, false);
+
+    cout << "===================================================================" << endl;
+    cout << "30 threads for search updates, 8k visits, graph search" << endl;
+    cout << "===================================================================" << endl;
+    runTest(8000, 30, false, true);
 
     cout << "===================================================================" << endl;
     cout << "30 threads for search updates, subtree value bias stability (but 0 free prop), 8k visits" << endl;
     cout << "===================================================================" << endl;
-    runTest(8000, 4, true);
+    runTest(8000, 4, true, false);
   }
 
   {
@@ -1859,9 +1907,10 @@ static void runMoreV8TestsRandomizedNNEvals(NNEvaluator* nnEval, Logger& logger)
 
 static void runV8SearchMultithreadTest(NNEvaluator* nnEval, Logger& logger)
 {
-  cout << "Multithreaded search test =========================================" << endl;
+  {
+    cout << "Multithreaded search test =========================================" << endl;
 
-  Board board = Board::parseBoard(19,19,R"%%(
+    Board board = Board::parseBoard(19,19,R"%%(
 ...................
 ...................
 ...................
@@ -1883,70 +1932,154 @@ static void runV8SearchMultithreadTest(NNEvaluator* nnEval, Logger& logger)
 ...................
 )%%");
 
-  Player nextPla = P_BLACK;
-  Rules rules = Rules::parseRules("Japanese");
-  rules.komi = 8.5;
-  BoardHistory hist(board,nextPla,rules,0);
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("Japanese");
+    rules.komi = 8.5;
+    BoardHistory hist(board,nextPla,rules,0);
 
-  SearchParams params = SearchParams::forTestsV1();
-  params.maxVisits = 16000;
-  params.subtreeValueBiasFactor = 0.35;
-  params.subtreeValueBiasWeightExponent = 0.8;
-  params.subtreeValueBiasFreeProp = 0.8;
-  params.chosenMoveTemperature = 0;
-  params.chosenMoveTemperatureEarly = 0;
-  params.useNoisePruning = true;
-  params.numThreads = 40;
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 16000;
+    params.subtreeValueBiasFactor = 0.35;
+    params.subtreeValueBiasWeightExponent = 0.8;
+    params.subtreeValueBiasFreeProp = 0.8;
+    params.chosenMoveTemperature = 0;
+    params.chosenMoveTemperatureEarly = 0;
+    params.useNoisePruning = true;
+    params.numThreads = 40;
 
-  Loc moveLoc;
+    Loc moveLoc;
 
-  Search* search = new Search(params, nnEval, &logger, "multithreaded test");
-  search->setPosition(nextPla,board,hist);
-  search->runWholeSearch(nextPla);
-  moveLoc = search->getChosenMoveLoc();
-  cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
-  cout << "Winloss near 0.05: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
-  cout << "Lead near 1: " << (abs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
+    Search* search = new Search(params, nnEval, &logger, "multithreaded test");
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla);
+    moveLoc = search->getChosenMoveLoc();
+    cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
+    cout << "Winloss near 0.05: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
+    cout << "Lead near 1: " << (abs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
 
-  // PrintTreeOptions options;
-  // options = options.maxDepth(1);
-  // printBasicStuffAfterSearch(board,hist,search,options);
+    // PrintTreeOptions options;
+    // options = options.maxDepth(1);
+    // printBasicStuffAfterSearch(board,hist,search,options);
 
-  search->makeMove(moveLoc,nextPla);
-  hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL);
-  nextPla = getOpp(nextPla);
-  search->runWholeSearch(nextPla);
-  moveLoc = search->getChosenMoveLoc();
-  cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
-  cout << "Winloss near 0.05: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
-  cout << "Lead near 1: " << (abs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
+    search->makeMove(moveLoc,nextPla);
+    hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    search->runWholeSearch(nextPla);
+    moveLoc = search->getChosenMoveLoc();
+    cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
+    cout << "Winloss near 0.05: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
+    cout << "Lead near 1: " << (abs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
 
-  // PrintTreeOptions options;
-  // options = options.maxDepth(1);
-  // printBasicStuffAfterSearch(board,hist,search,options);
+    // PrintTreeOptions options;
+    // options = options.maxDepth(1);
+    // printBasicStuffAfterSearch(board,hist,search,options);
 
-  search->makeMove(moveLoc,nextPla);
-  hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL);
-  nextPla = getOpp(nextPla);
-  search->runWholeSearch(nextPla);
-  moveLoc = search->getChosenMoveLoc();
-  cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
-  cout << "Winloss near 0.05: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
-  cout << "Lead near 1: " << (abs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
+    search->makeMove(moveLoc,nextPla);
+    hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    search->runWholeSearch(nextPla);
+    moveLoc = search->getChosenMoveLoc();
+    cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
+    cout << "Winloss near 0.05: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
+    cout << "Lead near 1: " << (abs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
 
-  // PrintTreeOptions options;
-  // options = options.maxDepth(1);
-  // printBasicStuffAfterSearch(board,hist,search,options);
+    // PrintTreeOptions options;
+    // options = options.maxDepth(1);
+    // printBasicStuffAfterSearch(board,hist,search,options);
 
-  //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-  TestSearchCommon::verifyTreePostOrder(search);
+    //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
+    TestSearchCommon::verifyTreePostOrder(search,16000);
 
-  //With 16000 visits per move and three searches, we very likely have about that many nn evals (this shouldn't be a heavily transposing position)
-  //and despite doing 3x such searches, we should have caching and tree reuse keep it not much more than that.
-  int64_t numRowsProcessed = nnEval->numRowsProcessed();
-  cout << "numRowsProcessed as expected: " << (numRowsProcessed > 14000 && numRowsProcessed < 28000) << endl;
+    //With 16000 visits per move and three searches, we very likely have about that many nn evals (this shouldn't be a heavily transposing position)
+    //and despite doing 3x such searches, we should have caching and tree reuse keep it not much more than that.
+    int64_t numRowsProcessed = nnEval->numRowsProcessed();
+    cout << "numRowsProcessed as expected: " << (numRowsProcessed > 14000 && numRowsProcessed < 28000) << endl;
 
-  delete search;
+    delete search;
+    nnEval->clearCache(); nnEval->clearStats();
+  }
+
+  {
+    cout << "Multithreaded graph search test =========================================" << endl;
+
+    Board board = Board::parseBoard(19,19,R"%%(
+...................
+....x.x......xxoo..
+...xox.....x.o.xo..
+..x.o..........xo..
+..xo...........xx..
+..oo............o..
+...................
+...................
+..o................
+...................
+...................
+...................
+................x..
+...............o...
+.o.............ox..
+o.oo............x..
+xoxxoo........o.x..
+.x.................
+...................
+)%%");
+
+    Player nextPla = P_WHITE;
+    Rules rules = Rules::parseRules("Chinese");
+    rules.komi = 6.5;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 8000;
+    params.useGraphSearch = true;
+    params.subtreeValueBiasFactor = 0.35;
+    params.subtreeValueBiasWeightExponent = 0.8;
+    params.subtreeValueBiasFreeProp = 0.8;
+    params.chosenMoveTemperature = 0;
+    params.chosenMoveTemperatureEarly = 0;
+    params.useNoisePruning = true;
+    params.numThreads = 40;
+
+    Loc moveLoc;
+
+    Search* search = new Search(params, nnEval, &logger, "multithreaded test");
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla);
+    moveLoc = search->getChosenMoveLoc();
+    cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
+    cout << "Winloss near 0.62: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.62)) < 0.08) << endl;
+    cout << "Lead near 15.5: " << (abs(search->getRootValuesRequireSuccess().lead - (15.5)) < 1.0) << endl;
+
+    // PrintTreeOptions options;
+    // options = options.maxDepth(1);
+    // printBasicStuffAfterSearch(board,hist,search,options);
+
+    //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
+    TestSearchCommon::verifyTreePostOrder(search,6500);
+
+    search->makeMove(moveLoc,nextPla);
+    hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    search->runWholeSearch(nextPla);
+    moveLoc = search->getChosenMoveLoc();
+    cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
+    cout << "Winloss near 0.62: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.62)) < 0.08) << endl;
+    cout << "Lead near 15.5: " << (abs(search->getRootValuesRequireSuccess().lead - (15.5)) < 1.0) << endl;
+
+    // PrintTreeOptions options;
+    // options = options.maxDepth(1);
+    // printBasicStuffAfterSearch(board,hist,search,options);
+
+    //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
+    TestSearchCommon::verifyTreePostOrder(search,6500);
+
+    //With 8000 visits per move and 2 searches, we very likely have about that many nn evals
+    int64_t numRowsProcessed = nnEval->numRowsProcessed();
+    cout << "numRowsProcessed as expected: " << (numRowsProcessed > 5000 && numRowsProcessed < 13000) << endl;
+
+    delete search;
+    nnEval->clearCache(); nnEval->clearStats();
+  }
 }
 
 
