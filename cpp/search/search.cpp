@@ -1551,14 +1551,28 @@ uint32_t Search::createMutexIdxForNode(SearchThread& thread) const {
   return thread.rand.nextUInt() & (mutexPool->getNumMutexes()-1);
 }
 
-SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, bool forceNonTerminal) {
-  SearchNode* node = new SearchNode(nextPla, forceNonTerminal, createMutexIdxForNode(thread));
-  Hash128 nodeHash = thread.board.pos_hash ^ Hash128(thread.rand.nextUInt64(),thread.rand.nextUInt64());
-  uint32_t nodeTableIdx = nodeTable->getIndex(nodeHash.hash0);
+SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal) {
+  SearchNode* child = new SearchNode(nextPla, forceNonTerminal, createMutexIdxForNode(thread));
+  Hash128 childHash = thread.board.pos_hash ^ Hash128(thread.rand.nextUInt64(),thread.rand.nextUInt64());
+  uint32_t nodeTableIdx = nodeTable->getIndex(childHash.hash0);
   std::mutex& mutex = nodeTable->mutexPool->getMutex(nodeTableIdx);
   std::lock_guard<std::mutex> lock(mutex);
-  nodeTable->entries[nodeTableIdx].insert(std::make_pair(nodeHash,node));
-  return node;
+  nodeTable->entries[nodeTableIdx].insert(std::make_pair(childHash,child));
+
+  if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL) {
+    //TODO can we make subtree value bias not depend on prev move loc?
+    if(thread.history.moveHistory.size() > 0) {
+      Loc prevMoveLoc = thread.history.moveHistory[thread.history.moveHistory.size()-1].loc;
+      if(prevMoveLoc != Board::NULL_LOC) {
+        child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(thread.pla, prevMoveLoc, bestChildMoveLoc, thread.board);
+      }
+    }
+  }
+
+  if(patternBonusTable != NULL)
+    child->patternBonusHash = patternBonusTable->getHash(thread.pla, bestChildMoveLoc, thread.board);
+
+  return child;
 }
 
 static void maybeAppendShuffledIntRange(int cap, PCG32* rand, std::vector<int>& randBuf) {
@@ -3720,21 +3734,8 @@ bool Search::playoutDescend(
       assert(childrenCapacity > bestChildIdx);
       //If conservative pass, passing from the root is always non-terminal
       const bool forceNonTerminal = searchParams.conservativePass && (&node == rootNode) && bestChildMoveLoc == Board::PASS_LOC;
-      child = allocateOrFindNode(thread, getOpp(thread.pla), forceNonTerminal);
+      child = allocateOrFindNode(thread, getOpp(thread.pla), bestChildMoveLoc, forceNonTerminal);
       child->virtualLosses.fetch_add(1,std::memory_order_release);
-
-      if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL) {
-        //TODO can we make subtree value bias not depend on prev move loc?
-        if(thread.history.moveHistory.size() > 0) {
-          Loc prevMoveLoc = thread.history.moveHistory[thread.history.moveHistory.size()-1].loc;
-          if(prevMoveLoc != Board::NULL_LOC) {
-            child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(thread.pla, prevMoveLoc, bestChildMoveLoc, thread.board);
-          }
-        }
-      }
-
-      if(patternBonusTable != NULL)
-        child->patternBonusHash = patternBonusTable->getHash(thread.pla, bestChildMoveLoc, thread.board);
 
       {
         //Lock mutex to store child and move loc in a synchronized way
@@ -3762,6 +3763,17 @@ bool Search::playoutDescend(
         nodeState = node.state.load(std::memory_order_acquire);
         continue;
       }
+
+      //If edge visits is too much smaller than the child's visits, we can avoid descending.
+      //Instead just add edge visits and return immediately.
+      if(maybeCatchUpEdgeVisits(node, child, nodeState, bestChildIdx)) {
+        child->virtualLosses.fetch_add(-1,std::memory_order_release);
+        return true;
+      }
+
+      //Make the move!
+      thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
+      thread.pla = getOpp(thread.pla);
     }
     //Searching an existing child
     else {
@@ -3771,36 +3783,22 @@ bool Search::playoutDescend(
       assert(child != NULL);
 
       child->virtualLosses.fetch_add(1,std::memory_order_release);
+
+      //If edge visits is too much smaller than the child's visits, we can avoid descending.
+      //Instead just add edge visits and return immediately.
+      if(maybeCatchUpEdgeVisits(node, child, nodeState, bestChildIdx)) {
+        child->virtualLosses.fetch_add(-1,std::memory_order_release);
+        return true;
+      }
+
+      //Make the move!
+      thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
+      thread.pla = getOpp(thread.pla);
     }
 
     break;
   }
 
-  //If edge visits is too much smaller than the child's visits, we can avoid descending.
-  //Instead just add edge visits and return immediately.
-  {
-    //Don't need to do this since we already are pretty recent as of finding the best child.
-    //nodeState = node.state.load(std::memory_order_acquire);
-    int childrenCapacity;
-    SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
-    int64_t edgeVisits = children[bestChildIdx].getEdgeVisits();
-    int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-    //Behind by more than searchthreads - accumulate edgeVisits without bothering to search the child more.
-    if(edgeVisits + searchParams.numThreads < childVisits) {
-      //TODO
-      //If selfVisits is large enough that we can tolerate chunkier updates of this node, then we can update
-      //more than one visit at a time as we play catch-up here.
-      //int64_t selfVisits = node.stats.visits.load(std::memory_order_acquire);
-      //if behind by n * searchParams.numThreads and n is at most 1%? 0.1%? of selfVisits, add n.
-      children[bestChildIdx].addEdgeVisits(1);
-      child->virtualLosses.fetch_add(-1,std::memory_order_release);
-      return true;
-    }
-  }
-
-  //Make the move!
-  thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
-  thread.pla = getOpp(thread.pla);
 
   //Recurse!
   bool finishedPlayout = playoutDescend(thread,*child,posesWithChildBuf,false);
@@ -3815,4 +3813,27 @@ bool Search::playoutDescend(
   child->virtualLosses.fetch_add(-1,std::memory_order_release);
 
   return finishedPlayout;
+}
+
+
+//If edge visits is too much smaller than the child's visits, we can avoid descending.
+//Instead just add edge visits and return immediately.
+bool Search::maybeCatchUpEdgeVisits(SearchNode& node, SearchNode* child, const int& nodeState, const int bestChildIdx) {
+  //Don't need to do this since we already are pretty recent as of finding the best child.
+  //nodeState = node.state.load(std::memory_order_acquire);
+  int childrenCapacity;
+  SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
+  int64_t edgeVisits = children[bestChildIdx].getEdgeVisits();
+  int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
+  //Behind by more than searchthreads - accumulate edgeVisits without bothering to search the child more.
+  if(edgeVisits + searchParams.numThreads < childVisits) {
+    //TODO
+    //If selfVisits is large enough that we can tolerate chunkier updates of this node, then we can update
+    //more than one visit at a time as we play catch-up here.
+    //int64_t selfVisits = node.stats.visits.load(std::memory_order_acquire);
+    //if behind by n * searchParams.numThreads and n is at most 1%? 0.1%? of selfVisits, add n.
+    children[bestChildIdx].addEdgeVisits(1);
+    return true;
+  }
+  return false;
 }

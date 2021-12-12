@@ -567,7 +567,7 @@ private:
   void performTaskWithThreads(std::function<void(int)>* task);
 
   uint32_t createMutexIdxForNode(SearchThread& thread) const;
-  SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, bool forceNonTerminal);
+  SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal);
 
   void clearOldNNOutputs();
   void transferOldNNOutputs(SearchThread& thread);
@@ -705,6 +705,8 @@ private:
     bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
     bool isRoot
   );
+
+  bool maybeCatchUpEdgeVisits(SearchNode& node, SearchNode* child, const int& nodeState, const int bestChildIdx);
 
   bool shouldSuppressPass(const SearchNode* n) const;
 
