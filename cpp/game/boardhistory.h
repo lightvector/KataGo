@@ -106,7 +106,7 @@ struct BoardHistory {
 
   //Clears all history and status and bonus points, sets encore phase and rules
   void clear(const Board& board, Player pla, const Rules& rules, int encorePhase);
-  //Set only the komi field of the rules, does not clear history, but does clear game-over conditions,
+  //Set only the komi field of the rules, does not clear history, does recompute game score if game is over.
   void setKomi(float newKomi);
   //Set the initial turn number. Affects nothing else.
   void setInitialTurnNumber(int n);
