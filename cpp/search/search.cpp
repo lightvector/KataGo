@@ -3755,6 +3755,8 @@ bool Search::playoutDescend(
       if(!suc) {
         //Someone got there ahead of us. Loop again trying to select the best child to explore.
         //No need to delete the node, it will get cleaned up next time we mark and sweep the node table later.
+        //Clean up virtual losses in case the node is a transposition and is being used.
+        child->virtualLosses.fetch_add(1,std::memory_order_release);
         child = NULL;
         std::this_thread::yield();
         nodeState = node.state.load(std::memory_order_acquire);
@@ -3791,6 +3793,7 @@ bool Search::playoutDescend(
       //int64_t selfVisits = node.stats.visits.load(std::memory_order_acquire);
       //if behind by n * searchParams.numThreads and n is at most 1%? 0.1%? of selfVisits, add n.
       children[bestChildIdx].addEdgeVisits(1);
+      child->virtualLosses.fetch_add(-1,std::memory_order_release);
       return true;
     }
   }
