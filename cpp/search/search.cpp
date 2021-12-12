@@ -10,6 +10,7 @@
 
 #include "../core/fancymath.h"
 #include "../core/timer.h"
+#include "../game/graphhash.h"
 #include "../search/distributiontable.h"
 
 using namespace std;
@@ -502,6 +503,7 @@ SearchThread::SearchThread(int tIdx, const Search& search)
   :threadIdx(tIdx),
    pla(search.rootPla),board(search.rootBoard),
    history(search.rootHistory),
+   graphHash(search.rootGraphHash),
    rand(makeSeed(search,tIdx)),
    nnResultBuf(),
    statsBuf(),
@@ -526,7 +528,10 @@ static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
 Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const string& rSeed)
   :rootPla(P_BLACK),
-   rootBoard(),rootHistory(),rootHintLoc(Board::NULL_LOC),
+   rootBoard(),
+   rootHistory(),
+   rootGraphHash(),
+   rootHintLoc(Board::NULL_LOC),
    avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),
    rootSymmetries(),
    rootPruneOnlySymmetries(),
@@ -907,6 +912,7 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
       const bool forceNonTerminal = true;
       rootNode = new SearchNode(*child, forceNonTerminal, copySubtreeValueBias);
       //Sweep over the new root marking it as good (calling NULL function), and then delete anything unmarked.
+      //This will include the old root node and the old copy of the child that we promoted to root.
       applyRecursivelyAnyOrderMulithreaded({rootNode}, NULL);
       bool old = true;
       deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(old);
@@ -1551,26 +1557,56 @@ uint32_t Search::createMutexIdxForNode(SearchThread& thread) const {
   return thread.rand.nextUInt() & (mutexPool->getNumMutexes()-1);
 }
 
-SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal) {
-  SearchNode* child = new SearchNode(nextPla, forceNonTerminal, createMutexIdxForNode(thread));
-  Hash128 childHash = thread.board.pos_hash ^ Hash128(thread.rand.nextUInt64(),thread.rand.nextUInt64());
+//Based on sha256 of "search.cpp FORCE_NON_TERMINAL_HASH"
+static const Hash128 FORCE_NON_TERMINAL_HASH = Hash128(0xd4c31800cb8809e2ULL,0xf75f9d2083f2ffcaULL);
+
+//Must be called AFTER making the bestChildMoveLoc in the thread board and hist.
+SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal, Hash128 graphHash) {
+  //Hash to use as a unique id for this node in the table, for transposition detection.
+  //If this collides, we will be sad, but it should be astronomically rare since our hash is 128 bits.
+  Hash128 childHash;
+  if(searchParams.useGraphSearch) {
+    childHash = graphHash;
+    if(forceNonTerminal)
+      childHash ^= FORCE_NON_TERMINAL_HASH;
+  }
+  else {
+    childHash = thread.board.pos_hash ^ Hash128(thread.rand.nextUInt64(),thread.rand.nextUInt64());
+  }
+
   uint32_t nodeTableIdx = nodeTable->getIndex(childHash.hash0);
   std::mutex& mutex = nodeTable->mutexPool->getMutex(nodeTableIdx);
   std::lock_guard<std::mutex> lock(mutex);
-  nodeTable->entries[nodeTableIdx].insert(std::make_pair(childHash,child));
 
-  if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL) {
-    //TODO can we make subtree value bias not depend on prev move loc?
-    if(thread.history.moveHistory.size() > 0) {
-      Loc prevMoveLoc = thread.history.moveHistory[thread.history.moveHistory.size()-1].loc;
-      if(prevMoveLoc != Board::NULL_LOC) {
-        child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(thread.pla, prevMoveLoc, bestChildMoveLoc, thread.board);
+  SearchNode* child;
+
+  std::map<Hash128,SearchNode*>& nodeMap = nodeTable->entries[nodeTableIdx];
+  auto insertLoc = nodeMap.lower_bound(childHash);
+  if(insertLoc != nodeMap.end() && insertLoc->first == childHash)
+    child = insertLoc->second;
+  else {
+    child = new SearchNode(nextPla, forceNonTerminal, createMutexIdxForNode(thread));
+
+    //Also perform subtree value bias and pattern bonus handling under the mutex. These parameters are no atomic, so
+    //if the node is accessed concurrently by other nodes through the table, we need to make sure these parameters are fully
+    //fully-formed before we make the node accessible to anyone.
+
+    if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL) {
+      //TODO can we make subtree value bias not depend on prev move loc?
+      if(thread.history.moveHistory.size() >= 2) {
+        Loc prevMoveLoc = thread.history.moveHistory[thread.history.moveHistory.size()-2].loc;
+        if(prevMoveLoc != Board::NULL_LOC) {
+          child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(getOpp(thread.pla), prevMoveLoc, bestChildMoveLoc, thread.history.getRecentBoard(1));
+        }
       }
     }
-  }
 
-  if(patternBonusTable != NULL)
-    child->patternBonusHash = patternBonusTable->getHash(thread.pla, bestChildMoveLoc, thread.board);
+    if(patternBonusTable != NULL)
+      child->patternBonusHash = patternBonusTable->getHash(getOpp(thread.pla), bestChildMoveLoc, thread.history.getRecentBoard(1));
+
+    //Insert into map! Use insertLoc as hint.
+    nodeMap.insert(insertLoc, std::make_pair(childHash,child));
+  }
 
   return child;
 }
@@ -1967,6 +2003,12 @@ void Search::computeRootValues() {
     if(recentScoreCenter < expectedScore - cap)
       recentScoreCenter = expectedScore - cap;
   }
+
+  //If we're using graph search, we recompute the graph hash from scratch at the start of search.
+  if(searchParams.useGraphSearch)
+    rootGraphHash = GraphHash::getGraphHashFromScratch(rootHistory, rootPla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite);
+  else
+    rootGraphHash = Hash128();
 
   Player opponentWasMirroringPla = mirroringPla;
   mirroringPla = C_EMPTY;
@@ -3732,9 +3774,18 @@ bool Search::playoutDescend(
       int childrenCapacity;
       SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
       assert(childrenCapacity > bestChildIdx);
+
+      //Make the move! We need to make the move before we create the node so we can see the new state and get the right graphHash.
+      thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
+      thread.pla = getOpp(thread.pla);
+      if(searchParams.useGraphSearch)
+        thread.graphHash = GraphHash::getGraphHash(
+          thread.graphHash, thread.history, thread.pla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite
+        );
+
       //If conservative pass, passing from the root is always non-terminal
       const bool forceNonTerminal = searchParams.conservativePass && (&node == rootNode) && bestChildMoveLoc == Board::PASS_LOC;
-      child = allocateOrFindNode(thread, getOpp(thread.pla), bestChildMoveLoc, forceNonTerminal);
+      child = allocateOrFindNode(thread, thread.pla, bestChildMoveLoc, forceNonTerminal, thread.graphHash);
       child->virtualLosses.fetch_add(1,std::memory_order_release);
 
       {
@@ -3746,22 +3797,14 @@ bool Search::playoutDescend(
           //is guaranteed by release semantics to see the move as well.
           children[bestChildIdx].setMoveLocRelaxed(bestChildMoveLoc);
           children[bestChildIdx].store(child);
-          suc = true;
         }
         else {
-          suc = false;
+          //Someone got there ahead of us. We already made a move so we can't just loop again. Instead just fail this playout and try again.
+          //Even if the node was newly allocated, no need to delete the node, it will get cleaned up next time we mark and sweep the node table later.
+          //Clean up virtual losses in case the node is a transposition and is being used.
+          child->virtualLosses.fetch_add(-1,std::memory_order_release);
+          return false;
         }
-      }
-
-      if(!suc) {
-        //Someone got there ahead of us. Loop again trying to select the best child to explore.
-        //No need to delete the node, it will get cleaned up next time we mark and sweep the node table later.
-        //Clean up virtual losses in case the node is a transposition and is being used.
-        child->virtualLosses.fetch_add(1,std::memory_order_release);
-        child = NULL;
-        std::this_thread::yield();
-        nodeState = node.state.load(std::memory_order_acquire);
-        continue;
       }
 
       //If edge visits is too much smaller than the child's visits, we can avoid descending.
@@ -3770,10 +3813,6 @@ bool Search::playoutDescend(
         child->virtualLosses.fetch_add(-1,std::memory_order_release);
         return true;
       }
-
-      //Make the move!
-      thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
-      thread.pla = getOpp(thread.pla);
     }
     //Searching an existing child
     else {

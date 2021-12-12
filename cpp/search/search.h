@@ -257,6 +257,7 @@ struct SearchThread {
   Player pla;
   Board board;
   BoardHistory history;
+  Hash128 graphHash;
 
   Rand rand;
 
@@ -286,6 +287,7 @@ struct Search {
   Player rootPla;
   Board rootBoard;
   BoardHistory rootHistory;
+  Hash128 rootGraphHash;
   Loc rootHintLoc;
 
   //External user-specified moves that are illegal or that should be nontrivially searched, and the number of turns for which they should
@@ -567,7 +569,7 @@ private:
   void performTaskWithThreads(std::function<void(int)>* task);
 
   uint32_t createMutexIdxForNode(SearchThread& thread) const;
-  SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal);
+  SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal, Hash128 graphHash);
 
   void clearOldNNOutputs();
   void transferOldNNOutputs(SearchThread& thread);

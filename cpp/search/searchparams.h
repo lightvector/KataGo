@@ -39,6 +39,10 @@ struct SearchParams {
   double uncertaintyExponent; //Visits weight scales inversely with this power of the uncertainty
   double uncertaintyMaxWeight; //Add minimum uncertainty so that the most weight a node can have is this
 
+  //Graph search
+  bool useGraphSearch; //Enable graph search instead of tree search?
+  int graphSearchRepBound; //Rep bound to use for graph search transposition safety. Higher will reduce transpositions but be more safe.
+
   //Root parameters
   bool rootNoiseEnabled;
   double rootDirichletNoiseTotalConcentration; //Same as alpha * board size, to match alphazero this might be 0.03 * 361, total number of balls in the urn

@@ -30,6 +30,8 @@ SearchParams::SearchParams()
    uncertaintyCoeff(0.2),
    uncertaintyExponent(1.0),
    uncertaintyMaxWeight(8.0),
+   useGraphSearch(false),
+   graphSearchRepBound(11),
    rootNoiseEnabled(false),
    rootDirichletNoiseTotalConcentration(10.83),
    rootDirichletNoiseWeight(0.25),
