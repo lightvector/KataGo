@@ -149,6 +149,10 @@ void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHa
     accums[symmetry] = Hash128();
   }
 
+  //TODO
+  //This may be buggy with encore phase because the hash doesn't include encore phase or ko marks in the history.
+  //It's kind of tricky to trigger though since it depends on finding a situation in the encore where the current
+  //ko marks aren't sufficient, where the history matters.
   for(size_t i = 0; i<hist.moveHistory.size(); i++) {
     for(int symmetry = 0; symmetry < numSymmetries; symmetry++) {
       Loc moveLoc = SymmetryHelpers::getSymLoc(hist.moveHistory[i].loc, boardsBySym[symmetry], symmetry);
