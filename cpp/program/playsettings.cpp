@@ -92,3 +92,9 @@ PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
 
   return playSettings;
 }
+
+PlaySettings PlaySettings::loadForVictimplay(ConfigParser& cfg) {
+  PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg);
+  playSettings.forVictimPlay = true;
+  return playSettings;
+}

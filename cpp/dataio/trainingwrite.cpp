@@ -931,6 +931,10 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   BoardHistory hist(data.startHist);
   Player nextPlayer = data.startPla;
 
+  // For victimplay, the victim is always named "victim"
+  assert(!skipWriteVictim || data.bName == "victim" || data.wName == "victim");
+  Player victimPlayer = (data.bName == "victim" ? P_BLACK : P_WHITE);
+
   //Write main game rows
   int startTurnIdx = (int)data.startHist.moveHistory.size();
   for(int turnAfterStart = 0; turnAfterStart<numMoves; turnAfterStart++) {
@@ -953,6 +957,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     while(targetWeight > 0.0) {
       if(targetWeight >= 1.0 || rand.nextBool(targetWeight)) {
         if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
+          if (skipWriteVictim && nextPlayer == victimPlayer) break;
           writeBuffers->addRow(
             board,hist,nextPlayer,
             turnIdx,
@@ -1004,6 +1009,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
           bool isSidePosition = true;
           int numNeuralNetsBehindLatest = (int)data.changedNeuralNets.size() - sp->numNeuralNetChangesSoFar;
 
+          if (skipWriteVictim && sp->pla == victimPlayer) break;
           writeBuffers->addRow(
             sp->board,sp->hist,sp->pla,
             turnIdx,

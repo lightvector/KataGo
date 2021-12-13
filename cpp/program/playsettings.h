@@ -70,6 +70,9 @@ struct PlaySettings {
   //Enable full data recording and a variety of other minor tweaks applying only for self-play training.
   bool forSelfPlay;
 
+  // Enabled on top of `forSelfPlay` when we want to do fixed victim training.
+  bool forVictimPlay;
+
   //Asymmetric playouts training
   double handicapAsymmetricPlayoutProb; //Probability of asymmetric playouts on handicap games
   double normalAsymmetricPlayoutProb; //Probability of asymmetric playouts on normal games
@@ -82,6 +85,7 @@ struct PlaySettings {
   static PlaySettings loadForMatch(ConfigParser& cfg);
   static PlaySettings loadForGatekeeper(ConfigParser& cfg);
   static PlaySettings loadForSelfplay(ConfigParser& cfg);
+  static PlaySettings loadForVictimplay(ConfigParser& cfg);
 };
 
 #endif // PROGRAM_PLAYSETTINGS_H_

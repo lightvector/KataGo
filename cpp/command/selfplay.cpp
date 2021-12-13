@@ -42,7 +42,7 @@ int MainCmds::selfplay(const vector<string>& args) {
   string outputDir;
   int64_t maxGamesTotal = ((int64_t)1) << 62;
   try {
-    KataGoCommandLine cmd("Generate training data via self play.");
+    KataGoCommandLine cmd("Generate training data via victim play.");
     cmd.addConfigFileArg("","");
 
     TCLAP::ValueArg<string> modelsDirArg("","models-dir","Dir to poll and load models from",true,string(),"DIR");
@@ -85,7 +85,7 @@ int MainCmds::selfplay(const vector<string>& args) {
   bool logToStdout = cfg.getBool("logToStdout");
   logger.setLogToStdout(logToStdout);
 
-  logger.write("Self Play Engine starting...");
+  logger.write("Victim Play Engine starting...");
   logger.write(string("Git revision: ") + Version::getGitRevision());
 
   //Load runner settings
@@ -111,7 +111,7 @@ int MainCmds::selfplay(const vector<string>& args) {
   const SearchParams baseParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_OTHER);
 
   //Initialize object for randomizing game settings and running games
-  PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg);
+  PlaySettings playSettings = PlaySettings::loadForVictimplay(cfg);
   GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
   bool autoCleanupAllButLatestIfUnused = true;
   SelfplayManager* manager = new SelfplayManager(validationProp, maxDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
@@ -125,9 +125,29 @@ int MainCmds::selfplay(const vector<string>& args) {
 
   //Done loading!
   //------------------------------------------------------------------------------------
-  logger.write("Loaded all config stuff, starting self play");
+  logger.write("Loaded all config stuff, starting victim play");
   if(!logToStdout)
-    cout << "Loaded all config stuff, starting self play" << endl;
+    cout << "Loaded all config stuff, starting victim play" << endl;
+
+  // Load victim neural net
+  NNEvaluator* victimNNEval; {
+    const string modelName = "victim";
+    const string modelFile = cfg.getString("nnVictimFile");
+    const string expectedSha256 = "";
+    Rand rand;
+    const int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
+    const int expectedConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads;
+    const int defaultMaxBatchSize = -1;
+    const bool defaultRequireExactNNLen = minBoardXSizeUsed == maxBoardXSizeUsed && minBoardYSizeUsed == maxBoardYSizeUsed;
+
+    victimNNEval = Setup::initializeNNEvaluator(
+      modelName,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
+      maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,
+      Setup::SETUP_FOR_OTHER
+    );
+
+    logger.write("Loaded victim neural net from: " + modelFile);
+  }
 
   if(!std::atomic_is_lock_free(&shouldStop))
     throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
@@ -194,7 +214,7 @@ int MainCmds::selfplay(const vector<string>& args) {
         break;
       else {
         if(i == maxTries-1) {
-          logger.write("ERROR: Could not make selfplay model directories, is something wrong with the filesystem?");
+          logger.write("ERROR: Could not make victimplay model directories, is something wrong with the filesystem?");
           //Just give up and wait for the next model.
           return false;
         }
@@ -206,7 +226,7 @@ int MainCmds::selfplay(const vector<string>& args) {
 
     {
       ofstream out;
-      FileUtils::open(out,modelOutputDir + "/" + "selfplay-" + Global::uint64ToHexString(rand.nextUInt64()) + ".cfg");
+      FileUtils::open(out,modelOutputDir + "/" + "victimplay-" + Global::uint64ToHexString(rand.nextUInt64()) + ".cfg");
       out << cfg.getContents();
       out.close();
     }
@@ -217,6 +237,8 @@ int MainCmds::selfplay(const vector<string>& args) {
       tdataOutputDir, inputsVersion, maxRowsPerTrainFile, firstFileRandMinProp, dataBoardLen, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
     TrainingDataWriter* vdataWriter = new TrainingDataWriter(
       vdataOutputDir, inputsVersion, maxRowsPerValFile, firstFileRandMinProp, dataBoardLen, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
+    tdataWriter->skipWriteVictim = true;
+    vdataWriter->skipWriteVictim = true;
     ofstream* sgfOut = NULL;
     if(sgfOutputDir.length() > 0) {
       sgfOut = new ofstream();
@@ -250,7 +272,8 @@ int MainCmds::selfplay(const vector<string>& args) {
     &forkData,
     maxGamesTotal,
     &baseParams,
-    &gameSeedBase
+    &gameSeedBase,
+    &victimNNEval
   ](int threadIdx) {
     auto shouldStopFunc = []() {
       return shouldStop.load();
@@ -290,12 +313,21 @@ int MainCmds::selfplay(const vector<string>& args) {
       int64_t gameIdx = numGamesStarted.fetch_add(1,std::memory_order_acq_rel);
       if(gameIdx < maxGamesTotal) {
         manager->countOneGameStarted(nnEval);
-        MatchPairer::BotSpec botSpecB;
-        botSpecB.botIdx = 0;
-        botSpecB.botName = nnEval->getModelName();
-        botSpecB.nnEval = nnEval;
-        botSpecB.baseParams = baseParams;
-        MatchPairer::BotSpec botSpecW = botSpecB;
+
+        MatchPairer::BotSpec victimBotSpec;
+        victimBotSpec.botIdx = 0; // victim is always idx 0
+        victimBotSpec.botName = victimNNEval->getModelName();
+        victimBotSpec.nnEval = victimNNEval;
+        victimBotSpec.baseParams = baseParams;
+
+        MatchPairer::BotSpec adversaryBotSpec;
+        adversaryBotSpec.botIdx = 1; // adversary is always idx 1
+        adversaryBotSpec.botName = nnEval->getModelName();
+        adversaryBotSpec.nnEval = nnEval;
+        adversaryBotSpec.baseParams = baseParams;
+
+        MatchPairer::BotSpec& botSpecB = gameIdx % 2 == 0 ? victimBotSpec : adversaryBotSpec;
+        MatchPairer::BotSpec& botSpecW = gameIdx % 2 == 0 ? adversaryBotSpec : victimBotSpec;
 
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
