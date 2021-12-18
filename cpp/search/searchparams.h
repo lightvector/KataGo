@@ -42,6 +42,8 @@ struct SearchParams {
   //Graph search
   bool useGraphSearch; //Enable graph search instead of tree search?
   int graphSearchRepBound; //Rep bound to use for graph search transposition safety. Higher will reduce transpositions but be more safe.
+  double graphSearchCatchUpLeakProb; //Chance to perform a visit to deepen a branch anyways despite being behind on visit count.
+  //double graphSearchCatchUpProp; //When sufficiently far behind on visits on a transposition, catch up extra by adding up to this fraction of parents visits at once.
 
   //Root parameters
   bool rootNoiseEnabled;

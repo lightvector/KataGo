@@ -146,6 +146,7 @@ public:
   void setEdgeVisits(int64_t x);
   void setEdgeVisitsRelaxed(int64_t x);
   void addEdgeVisits(int64_t delta);
+  bool compexweakEdgeVisits(int64_t& expected, int64_t desired);
 
   Loc getMoveLoc() const;
   Loc getMoveLocRelaxed() const;
@@ -708,7 +709,7 @@ private:
     bool isRoot
   );
 
-  bool maybeCatchUpEdgeVisits(SearchNode& node, SearchNode* child, const int& nodeState, const int bestChildIdx);
+  bool maybeCatchUpEdgeVisits(SearchThread& thread, SearchNode& node, SearchNode* child, const int& nodeState, const int bestChildIdx);
 
   bool shouldSuppressPass(const SearchNode* n) const;
 

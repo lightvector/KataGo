@@ -203,6 +203,9 @@ void SearchChildPointer::setEdgeVisitsRelaxed(int64_t x) {
 void SearchChildPointer::addEdgeVisits(int64_t delta) {
   edgeVisits.fetch_add(delta, std::memory_order_acq_rel);
 }
+bool SearchChildPointer::compexweakEdgeVisits(int64_t& expected, int64_t desired) {
+  return edgeVisits.compare_exchange_weak(expected, desired, std::memory_order_acq_rel);
+}
 
 
 Loc SearchChildPointer::getMoveLoc() const {
@@ -3809,7 +3812,7 @@ bool Search::playoutDescend(
 
       //If edge visits is too much smaller than the child's visits, we can avoid descending.
       //Instead just add edge visits and return immediately.
-      if(maybeCatchUpEdgeVisits(node, child, nodeState, bestChildIdx)) {
+      if(maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
         child->virtualLosses.fetch_add(-1,std::memory_order_release);
         return true;
       }
@@ -3825,7 +3828,7 @@ bool Search::playoutDescend(
 
       //If edge visits is too much smaller than the child's visits, we can avoid descending.
       //Instead just add edge visits and return immediately.
-      if(maybeCatchUpEdgeVisits(node, child, nodeState, bestChildIdx)) {
+      if(maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
         child->virtualLosses.fetch_add(-1,std::memory_order_release);
         return true;
       }
@@ -3857,22 +3860,35 @@ bool Search::playoutDescend(
 
 //If edge visits is too much smaller than the child's visits, we can avoid descending.
 //Instead just add edge visits and return immediately.
-bool Search::maybeCatchUpEdgeVisits(SearchNode& node, SearchNode* child, const int& nodeState, const int bestChildIdx) {
+bool Search::maybeCatchUpEdgeVisits(SearchThread& thread, SearchNode& node, SearchNode* child, const int& nodeState, const int bestChildIdx) {
   //Don't need to do this since we already are pretty recent as of finding the best child.
   //nodeState = node.state.load(std::memory_order_acquire);
   int childrenCapacity;
   SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
-  int64_t edgeVisits = children[bestChildIdx].getEdgeVisits();
+
+  // int64_t maxNumToAdd = 1;
+  // if(searchParams.graphSearchCatchUpProp > 0.0) {
+  //   int64_t parentVisits = node.stats.visits.load(std::memory_order_acquire);
+  //   //Truncate down
+  //   maxNumToAdd = 1 + (int64_t)(searchParams.graphSearchCatchUpProp * parentVisits);
+  // }
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-  //Behind by more than searchthreads - accumulate edgeVisits without bothering to search the child more.
-  if(edgeVisits + searchParams.numThreads < childVisits) {
-    //TODO
-    //If selfVisits is large enough that we can tolerate chunkier updates of this node, then we can update
-    //more than one visit at a time as we play catch-up here.
-    //int64_t selfVisits = node.stats.visits.load(std::memory_order_acquire);
-    //if behind by n * searchParams.numThreads and n is at most 1%? 0.1%? of selfVisits, add n.
-    children[bestChildIdx].addEdgeVisits(1);
-    return true;
-  }
-  return false;
+  int64_t edgeVisits = children[bestChildIdx].getEdgeVisits();
+
+  //If we want to leak through some of the time, then we keep searching the transposition node even if we'd be happy to stop here with
+  //how many visits it has
+  if(searchParams.graphSearchCatchUpLeakProb > 0.0 && edgeVisits < childVisits && thread.rand.nextBool(searchParams.graphSearchCatchUpLeakProb))
+    return false;
+
+  //If the edge visits exceeds the child then we need to search the child more, but as long as that's not the case,
+  //we can add more edge visits.
+  constexpr int64_t numToAdd = 1;
+  // int64_t numToAdd;
+  do {
+    if(edgeVisits >= childVisits)
+      return false;
+    // numToAdd = std::min((childVisits - edgeVisits + 3) / 4, maxNumToAdd);
+  } while(!children[bestChildIdx].compexweakEdgeVisits(edgeVisits, edgeVisits + numToAdd));
+
+  return true;
 }

@@ -484,6 +484,12 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("graphSearchRepBound"+idxStr)) params.graphSearchRepBound = cfg.getInt("graphSearchRepBound"+idxStr, 3, 50);
     else if(cfg.contains("graphSearchRepBound"))   params.graphSearchRepBound = cfg.getInt("graphSearchRepBound",        3, 50);
     else                                           params.graphSearchRepBound = 11;
+    if(cfg.contains("graphSearchCatchUpLeakProb"+idxStr)) params.graphSearchCatchUpLeakProb = cfg.getDouble("graphSearchCatchUpLeakProb"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("graphSearchCatchUpLeakProb"))   params.graphSearchCatchUpLeakProb = cfg.getDouble("graphSearchCatchUpLeakProb", 0.0, 1.0);
+    else                                                  params.graphSearchCatchUpLeakProb = 0.0;
+    // if(cfg.contains("graphSearchCatchUpProp"+idxStr)) params.graphSearchCatchUpProp = cfg.getDouble("graphSearchCatchUpProp"+idxStr, 0.0, 1.0);
+    // else if(cfg.contains("graphSearchCatchUpProp"))   params.graphSearchCatchUpProp = cfg.getDouble("graphSearchCatchUpProp", 0.0, 1.0);
+    // else                                              params.graphSearchCatchUpProp = 0.0;
 
     if(cfg.contains("rootNoiseEnabled"+idxStr)) params.rootNoiseEnabled = cfg.getBool("rootNoiseEnabled"+idxStr);
     else if(cfg.contains("rootNoiseEnabled"))   params.rootNoiseEnabled = cfg.getBool("rootNoiseEnabled");
