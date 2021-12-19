@@ -3811,8 +3811,9 @@ bool Search::playoutDescend(
       }
 
       //If edge visits is too much smaller than the child's visits, we can avoid descending.
-      //Instead just add edge visits and return immediately.
+      //Instead just add edge visits and treat that as a visit.
       if(maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
+        updateStatsAfterPlayout(node,thread,isRoot);
         child->virtualLosses.fetch_add(-1,std::memory_order_release);
         return true;
       }
@@ -3827,8 +3828,9 @@ bool Search::playoutDescend(
       child->virtualLosses.fetch_add(1,std::memory_order_release);
 
       //If edge visits is too much smaller than the child's visits, we can avoid descending.
-      //Instead just add edge visits and return immediately.
+      //Instead just add edge visits and treat that as a visit.
       if(maybeCatchUpEdgeVisits(thread, node, child, nodeState, bestChildIdx)) {
+        updateStatsAfterPlayout(node,thread,isRoot);
         child->virtualLosses.fetch_add(-1,std::memory_order_release);
         return true;
       }

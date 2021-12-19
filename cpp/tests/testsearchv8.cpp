@@ -2047,15 +2047,15 @@ xoxxoo........o.x..
     search->runWholeSearch(nextPla);
     moveLoc = search->getChosenMoveLoc();
     cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
-    cout << "Winloss near 0.62: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.62)) < 0.08) << endl;
-    cout << "Lead near 15.5: " << (abs(search->getRootValuesRequireSuccess().lead - (15.5)) < 1.0) << endl;
+    cout << "Winloss near 0.63: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.63)) < 0.1) << endl;
+    cout << "Lead near 15.5: " << (abs(search->getRootValuesRequireSuccess().lead - (15.8)) < 1.8) << endl;
 
     // PrintTreeOptions options;
     // options = options.maxDepth(1);
     // printBasicStuffAfterSearch(board,hist,search,options);
 
     //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-    TestSearchCommon::verifyTreePostOrder(search,6500);
+    TestSearchCommon::verifyTreePostOrder(search,5000);
 
     search->makeMove(moveLoc,nextPla);
     hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL);
@@ -2063,15 +2063,15 @@ xoxxoo........o.x..
     search->runWholeSearch(nextPla);
     moveLoc = search->getChosenMoveLoc();
     cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
-    cout << "Winloss near 0.62: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.62)) < 0.08) << endl;
-    cout << "Lead near 15.5: " << (abs(search->getRootValuesRequireSuccess().lead - (15.5)) < 1.0) << endl;
+    cout << "Winloss near 0.63: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.63)) < 0.1) << endl;
+    cout << "Lead near 15.5: " << (abs(search->getRootValuesRequireSuccess().lead - (15.8)) < 1.8) << endl;
 
     // PrintTreeOptions options;
     // options = options.maxDepth(1);
     // printBasicStuffAfterSearch(board,hist,search,options);
 
     //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-    TestSearchCommon::verifyTreePostOrder(search,6500);
+    TestSearchCommon::verifyTreePostOrder(search,5000);
 
     //With 8000 visits per move and 2 searches, we very likely have about that many nn evals
     int64_t numRowsProcessed = nnEval->numRowsProcessed();
