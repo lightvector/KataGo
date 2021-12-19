@@ -58,6 +58,10 @@ def summarize_dir(dirpath):
       print("WARNING: No permissions for reading file: ", filepath)
       filename_mtime_num_rowss.append((filename,mtime,None))
       continue
+    except zipfile.BadZipFile:
+      print("WARNING: Bad zip file: ", filepath)
+      filename_mtime_num_rowss.append((filename,mtime,None))
+      continue
 
     if npheaders is None or len(npheaders) <= 0:
       print("WARNING: bad npz headers for file: ", filepath)

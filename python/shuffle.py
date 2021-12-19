@@ -238,6 +238,9 @@ def compute_num_rows(filename):
   except PermissionError:
     print("WARNING: No permissions for reading file: ", filename)
     return (filename,None)
+  except zipfile.BadZipFile:
+    print("WARNING: Bad zip file: ", filename)
+    return (filename,None)
   if npheaders is None or len(npheaders) <= 0:
     print("WARNING: bad npz headers for file: ", filename)
     return (filename,None)
