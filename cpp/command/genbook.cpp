@@ -165,10 +165,13 @@ int MainCmds::genbook(const vector<string>& args) {
           BookHash hashRet;
           int symmetryToAlignRet;
           vector<int> symmetriesRet;
-          BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet);
+
           double bonus = Global::stringToDouble(Global::trim(comments.substr(comments.find("BONUS")+5)));
-          bonusByHash[hashRet] = bonus;
-          logger.write("Adding bonus " + Global::doubleToString(bonus) + " to hash " + hashRet.toString());
+          for(int bookVersion = 1; bookVersion < Book::LATEST_BOOK_VERSION; bookVersion++) {
+            BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
+            bonusByHash[hashRet] = bonus;
+            logger.write("Adding bonus " + Global::doubleToString(bonus) + " to hash " + hashRet.toString());
+          }
         }
       }
     );
@@ -295,6 +298,7 @@ int MainCmds::genbook(const vector<string>& args) {
       if(utilityPerPolicyForSorting != book->getUtilityPerPolicyForSorting()) { logger.write("Changing utilityPerPolicyForSorting from " + Global::doubleToString(book->getUtilityPerPolicyForSorting()) + " to " + Global::doubleToString(utilityPerPolicyForSorting)); book->setUtilityPerPolicyForSorting(utilityPerPolicyForSorting); }
     }
     logger.write("Loaded preexisting book with " + Global::uint64ToString(book->size()) + " nodes from " + bookFile);
+    logger.write("Book version = " + Global::intToString(book->bookVersion));
   }
   else {
     {
@@ -303,6 +307,7 @@ int MainCmds::genbook(const vector<string>& args) {
       logger.write("Initializing new book with starting position:\n" + bout.str());
     }
     book = new Book(
+      Book::LATEST_BOOK_VERSION,
       bonusInitialBoard,
       rules,
       bonusInitialPla,
@@ -685,6 +690,17 @@ int MainCmds::genbook(const vector<string>& args) {
       logger.write("Marking node as done so we don't try to expand it again, but something is probably wrong.");
       node.canExpand() = false;
       return;
+    }
+
+    // Book integrity check
+    {
+      BookHash hashRet;
+      int symmetryToAlignRet;
+      vector<int> symmetriesRet;
+      BookHash::getHashAndSymmetry(hist, book->repBound, hashRet, symmetryToAlignRet, symmetriesRet, book->bookVersion);
+      if(hashRet != node.hash()) {
+        throw StringError("Book failed integrity check, the node with hash " + node.hash().toString() + " when walked to has hash " + hashRet.toString());
+      }
     }
 
     // Terminal node!

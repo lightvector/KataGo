@@ -131,7 +131,7 @@ static Hash128 getStateHash(const BoardHistory& hist) {
   return hash;
 }
 
-void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHash& hashRet, int& symmetryToAlignRet, vector<int>& symmetriesRet) {
+void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHash& hashRet, int& symmetryToAlignRet, vector<int>& symmetriesRet, int bookVersion) {
   Board boardsBySym[SymmetryHelpers::NUM_SYMMETRIES];
   BoardHistory histsBySym[SymmetryHelpers::NUM_SYMMETRIES];
   Hash128 accums[SymmetryHelpers::NUM_SYMMETRIES];
@@ -154,7 +154,14 @@ void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHa
       Loc moveLoc = SymmetryHelpers::getSymLoc(hist.moveHistory[i].loc, boardsBySym[symmetry], symmetry);
       Player movePla = hist.moveHistory[i].pla;
       // Add the next
-      Hash128 nextHash = boardsBySym[symmetry].pos_hash ^ Board::ZOBRIST_PLAYER_HASH[movePla];
+      Hash128 nextHash;
+
+      if(bookVersion >= 2)
+        nextHash = getStateHash(histsBySym[symmetry]);
+      // Old less-rigorous hashing
+      else
+        nextHash = boardsBySym[symmetry].pos_hash ^ Board::ZOBRIST_PLAYER_HASH[movePla];
+
       accums[symmetry].hash0 += nextHash.hash0;
       accums[symmetry].hash1 += nextHash.hash1;
       // Mix it up
@@ -172,6 +179,15 @@ void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHa
   BookHash hashes[SymmetryHelpers::NUM_SYMMETRIES];
   for(int symmetry = 0; symmetry < numSymmetries; symmetry++)
     hashes[symmetry] = BookHash(accums[symmetry] ^ getExtraPosHash(boardsBySym[symmetry]), getStateHash(histsBySym[symmetry]));
+
+  if(bookVersion >= 2) {
+    for(int symmetry = 0; symmetry < numSymmetries; symmetry++) {
+      hashes[symmetry].historyHash.hash0 = Hash::murmurMix(hashes[symmetry].historyHash.hash0);
+      hashes[symmetry].historyHash.hash1 = Hash::murmurMix(hashes[symmetry].historyHash.hash1);
+      hashes[symmetry].stateHash.hash0 = Hash::murmurMix(hashes[symmetry].stateHash.hash0);
+      hashes[symmetry].stateHash.hash1 = Hash::murmurMix(hashes[symmetry].stateHash.hash1);
+    }
+  }
 
   // Use the smallest symmetry that gives us the same hash
   int smallestSymmetry = 0;
@@ -559,7 +575,7 @@ SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc mo
   BookHash childHash;
   int symmetryToAlignToChild;
   vector<int> symmetriesOfChild;
-  BookHash::getHashAndSymmetry(hist, node->book->repBound, childHash, symmetryToAlignToChild, symmetriesOfChild);
+  BookHash::getHashAndSymmetry(hist, node->book->repBound, childHash, symmetryToAlignToChild, symmetriesOfChild, node->book->bookVersion);
 
   // Okay...
   // A: invSymmetryOfNode is the transform from SymBookNode space -> BookNode space
@@ -668,6 +684,7 @@ bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc
 
 
 Book::Book(
+  int bversion,
   const Board& b,
   Rules r,
   Player p,
@@ -694,7 +711,8 @@ Book::Book(
   double pbsus,
   double uppfs,
   double ssoc
-) : initialBoard(b),
+) : bookVersion(bversion),
+    initialBoard(b),
     initialRules(r),
     initialPla(p),
     repBound(rb),
@@ -733,7 +751,7 @@ Book::Book(
 
   int initialEncorePhase = 0;
   BoardHistory initialHist(initialBoard, initialPla, initialRules, initialEncorePhase);
-  BookHash::getHashAndSymmetry(initialHist, repBound, rootHash, symmetryToAlign, rootSymmetries);
+  BookHash::getHashAndSymmetry(initialHist, repBound, rootHash, symmetryToAlign, rootSymmetries, bookVersion);
 
   initialSymmetry = symmetryToAlign;
   root = new BookNode(rootHash, this, initialPla, rootSymmetries);
@@ -1934,7 +1952,6 @@ void Book::exportToHtmlDir(
   iterateEntireBookPreOrder(f);
 }
 
-static const int SAVE_FILE_VERSION = 1;
 static const char BOARD_LINE_DELIMITER = '|';
 
 void Book::saveToFile(const string& fileName) const {
@@ -1944,7 +1961,7 @@ void Book::saveToFile(const string& fileName) const {
 
   {
     json params;
-    params["version"] = SAVE_FILE_VERSION;
+    params["version"] = bookVersion;
     params["initialBoard"] = Board::toJson(initialBoard);
     params["initialRules"] = initialRules.toJson();
     params["initialPla"] = PlayerIO::playerToString(initialPla);
@@ -2033,9 +2050,9 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
     {
       json params = json::parse(line);
       assertContains(params,"version");
-      int version = params["version"].get<int>();
-      if(version != 1)
-        throw IOError("Unsupported book version: " + Global::intToString(version));
+      int bookVersion = params["version"].get<int>();
+      if(bookVersion != 1 && bookVersion != 2)
+        throw IOError("Unsupported book version: " + Global::intToString(bookVersion));
 
       assertContains(params,"initialBoard");
       Board initialBoard = Board::ofJson(params["initialBoard"]);
@@ -2066,6 +2083,7 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
       double utilityPerPolicyForSorting = params["utilityPerPolicyForSorting"].get<double>();
 
       book = std::make_unique<Book>(
+        bookVersion,
         initialBoard,
         initialRules,
         initialPla,
