@@ -41,6 +41,7 @@ cp -r "$GITROOTDIR"/python/selfplay "$DATED_ARCHIVE"
     cd "$basedir"/scripts
     while true
     do
+        rm -f "$basedir"/selfplay.summary.json.tmp
         time python3 ./summarize_old_selfplay_files.py "$basedir"/selfplay/ \
              -old-summary-file-to-assume-correct "$basedir"/selfplay.summary.json \
              -new-summary-file "$basedir"/selfplay.summary.json.tmp

@@ -28,6 +28,9 @@ keys = [
   "valueTargetsNCHW"
 ]
 
+def is_temp_npz_like(filename):
+  return "_" in filename
+
 def joint_shuffle_take_first_n(n,arrs):
   for arr in arrs:
     assert(len(arr) == len(arrs[0]))
@@ -230,9 +233,17 @@ def get_numpy_npz_headers(filename):
 
 
 def compute_num_rows(filename):
-  npheaders = get_numpy_npz_headers(filename)
+  try:
+    npheaders = get_numpy_npz_headers(filename)
+  except PermissionError:
+    print("WARNING: No permissions for reading file: ", filename)
+    return (filename,None)
+  except zipfile.BadZipFile:
+    print("WARNING: Bad zip file: ", filename)
+    return (filename,None)
   if npheaders is None or len(npheaders) <= 0:
-    return (filename,0)
+    print("WARNING: bad npz headers for file: ", filename)
+    return (filename,None)
   (shape, is_fortran, dtype) = npheaders["binaryInputNCHWPacked"]
   num_rows = shape[0]
   return (filename,num_rows)
@@ -250,7 +261,7 @@ class TimeStuff(object):
   def __exit__(self, exception_type, exception_val, trace):
     self.t1 = time.time()
     print("Finished: %s in %s seconds" % (self.taskstr, str(self.t1 - self.t0)), flush=True)
-    return True
+    return False
 
 
 if __name__ == '__main__':
@@ -359,6 +370,7 @@ if __name__ == '__main__':
   all_files = []
   files_with_unknown_num_rows = []
   excluded_count = 0
+  tempfilelike_count = 0
   with TimeStuff("Finding files"):
     for d in dirs:
       for (path,dirnames,filenames) in os.walk(d, followlinks=True):
@@ -370,16 +382,32 @@ if __name__ == '__main__':
             del dirnames[i]
             i -= 1
             for (filename,mtime,num_rows) in filename_mtime_num_rowss:
+              if is_temp_npz_like(filename):
+                #print("WARNING: file looks like a temp file, treating as exclude: ", os.path.join(path,dirname,filename))
+                excluded_count += 1
+                tempfilelike_count += 1
+                continue
               filename = os.path.join(path,dirname,filename)
               if filename in exclude_set:
+                excluded_count += 1
+                continue
+              if num_rows is None:
+                print("WARNING: Skipping bad rowless file, treating as exclude: ", filename)
                 excluded_count += 1
                 continue
               all_files.append((filename,mtime,num_rows))
           i += 1
 
-        filenames = [os.path.join(path,filename) for filename in filenames if filename.endswith('.npz')]
         filtered_filenames = []
         for filename in filenames:
+          if not filename.endswith(".npz"):
+            continue
+          if is_temp_npz_like(filename):
+            # print("WARNING: file looks like a temp file, treating as exclude: ", os.path.join(path,filename))
+            excluded_count += 1
+            tempfilelike_count += 1
+            continue
+          filename = os.path.join(path,filename)
           if filename in exclude_set:
             excluded_count += 1
             continue
@@ -392,6 +420,7 @@ if __name__ == '__main__':
   print("Total number of files: %d" % len(all_files), flush=True)
   print("Total number of files with unknown row count: %d" % len(files_with_unknown_num_rows), flush=True)
   print("Excluded count: %d" % excluded_count, flush=True)
+  print("Excluded count due to looking like temp file: %d" % tempfilelike_count, flush=True)
 
   with TimeStuff("Sorting"):
     all_files.sort(key=(lambda x: x[1]), reverse=False)
@@ -403,7 +432,8 @@ if __name__ == '__main__':
       for i in range(len(all_files)):
         info = all_files[i]
         if len(info) < 3:
-          all_files[i] = (info[0], info[1], results[info[0]])
+          num_rows = results[info[0]]
+          all_files[i] = (info[0], info[1], num_rows)
 
   files_with_row_range = []
   num_rows_total = 0 #Number of data rows
@@ -432,6 +462,9 @@ if __name__ == '__main__':
     return int(scaled_power_law * expand_window_per_row + min_rows)
 
   for (filename,mtime,num_rows) in all_files:
+    if num_rows is None:
+      print("WARNING: Skipping bad file: ", filename)
+      continue
     if num_rows <= 0:
       continue
     row_range = (num_rows_total, num_rows_total + num_rows)
