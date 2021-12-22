@@ -2,6 +2,7 @@
 
 #include "../core/global.h"
 #include "../core/fileutils.h"
+#include "../core/timer.h"
 #include "../program/playutils.h"
 #include "../program/setup.h"
 #include "../search/asyncbot.h"
@@ -1459,6 +1460,8 @@ FinishedGameData* Play::runGame(
   vector<double> policySurpriseByTurn;
   vector<ReportedSearchValues> rawNNValues;
 
+  ClockTimer timer;
+
   //Main play loop
   for(int i = 0; i<maxMovesPerGame; i++) {
     if(doEndGameIfAllPassAlive)
@@ -1473,7 +1476,24 @@ FinishedGameData* Play::runGame(
     SearchLimitsThisMove limits = getSearchLimitsThisMove(
       toMoveBot, pla, playSettings, gameRand, historicalMctsWinLossValues, clearBotBeforeSearch, otherGameProps
     );
-    Loc loc = runBotWithLimits(toMoveBot, pla, playSettings, limits);
+    Loc loc;
+    if(playSettings.recordTimePerMove) {
+      double t0 = timer.getSeconds();
+      loc = runBotWithLimits(toMoveBot, pla, playSettings, limits);
+      double t1 = timer.getSeconds();
+      if(pla == P_BLACK)
+        gameData->bTimeUsed += t1-t0;
+      else
+        gameData->wTimeUsed += t1-t0;
+    }
+    else {
+      loc = runBotWithLimits(toMoveBot, pla, playSettings, limits);
+    }
+
+    if(pla == P_BLACK)
+      gameData->bMoveCount += 1;
+    else
+      gameData->wMoveCount += 1;
 
     if(loc == Board::NULL_LOC || !toMoveBot->isLegalStrict(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);

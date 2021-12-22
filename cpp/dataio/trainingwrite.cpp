@@ -82,7 +82,11 @@ FinishedGameData::FinishedGameData()
    finalWhiteScoring(NULL),
 
    sidePositions(),
-   changedNeuralNets()
+   changedNeuralNets(),
+   bTimeUsed(0.0),
+   wTimeUsed(0.0),
+   bMoveCount(0),
+   wMoveCount(0)
 {
 }
 

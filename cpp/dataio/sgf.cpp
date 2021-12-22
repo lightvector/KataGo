@@ -1581,6 +1581,10 @@ void WriteSgf::writeSgf(
       out << ",newNeuralNetTurn" << gameData->changedNeuralNets[j]->turnIdx
           << "=" << gameData->changedNeuralNets[j]->name;
     }
+    if(gameData->bTimeUsed > 0 || gameData->wTimeUsed > 0) {
+      out << "," << "bTimeUsed=" << gameData->bTimeUsed;
+      out << "," << "wTimeUsed=" << gameData->wTimeUsed;
+    }
     out << "]";
     assert(endHist.moveHistory.size() <= startTurnIdx + gameData->whiteValueTargetsByTurn.size());
   }
