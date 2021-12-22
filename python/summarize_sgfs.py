@@ -78,7 +78,7 @@ class GameResultSummary:
       los_row = []
       for player2 in real_players:
         los = elo_info.get_approx_likelihood_of_superiority(player,player2)
-        los_row.append(f"{los*100:.1f}")
+        los_row.append(f"{los*100:.2f}")
       los_matrix.append(los_row)
     self._print_matrix(real_players,los_matrix)
 
