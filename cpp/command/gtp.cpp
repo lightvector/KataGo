@@ -2820,6 +2820,7 @@ int MainCmds::gtp(const vector<string>& args) {
             allLegal = false;
             break;
           }
+          pla = getOpp(pla);
         }
         if(allLegal) {
           Board::printBoard(sout, board, Board::NULL_LOC, &hist.moveHistory);
