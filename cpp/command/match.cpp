@@ -256,7 +256,7 @@ int MainCmds::match(const vector<string>& args) {
           while(x % 2 == 0 && x > 1) x /= 2;
           if(x == 1 || x == 3 || x == 5) {
             for(auto& pair : timeUsedByBotMap) {
-              cout << "Avg move time used by " << pair.first << pair.second / movesByBotMap[pair.first] << " " << movesByBotMap[pair.first] << " moves" << endl;
+              cout << "Avg move time used by " << pair.first << " " << pair.second / movesByBotMap[pair.first] << " " << movesByBotMap[pair.first] << " moves" << endl;
             }
           }
         }
