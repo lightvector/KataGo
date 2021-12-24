@@ -3381,6 +3381,7 @@ bool Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft)
   thread.pla = rootPla;
   thread.board = rootBoard;
   thread.history = rootHistory;
+  thread.graphHash = rootGraphHash;
 
   return finishedPlayout;
 }
