@@ -667,7 +667,7 @@ private:
 
   void applyRecursivelyAnyOrderMulithreaded(const std::vector<SearchNode*>& nodes, std::function<void(SearchNode*,int)>* f);
   void applyRecursivelyAnyOrderMulithreadedHelper(
-    SearchNode* node, int threadIdx, PCG32* rand, std::vector<int>& randBuf, std::function<void(SearchNode*,int)>* f
+    SearchNode* node, int threadIdx, PCG32* rand, std::unordered_set<SearchNode*>& nodeBuf, std::vector<int>& randBuf, std::function<void(SearchNode*,int)>* f
   );
   void removeSubtreeValueBias(SearchNode* node);
   void deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool old);

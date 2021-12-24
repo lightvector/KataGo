@@ -1732,13 +1732,14 @@ void Search::applyRecursivelyAnyOrderMulithreaded(const vector<SearchNode*>& nod
   std::function<void(int)> g = [&](int threadIdx) {
     assert(threadIdx >= 0 && threadIdx < rands.size());
     PCG32* rand = rands[threadIdx];
+    std::unordered_set<SearchNode*> nodeBuf;
     std::vector<int> randBuf;
 
     size_t randBufStart = randBuf.size();
     maybeAppendShuffledIntRange(numChildren, rand, randBuf);
     for(int i = 0; i<numChildren; i++) {
       int childIdx = rand != NULL ? randBuf[randBufStart+i] : i;
-      applyRecursivelyAnyOrderMulithreadedHelper(nodes[childIdx],threadIdx,rand,randBuf,f);
+      applyRecursivelyAnyOrderMulithreadedHelper(nodes[childIdx],threadIdx,rand,nodeBuf,randBuf,f);
     }
     randBuf.resize(randBufStart);
   };
@@ -1748,10 +1749,13 @@ void Search::applyRecursivelyAnyOrderMulithreaded(const vector<SearchNode*>& nod
 }
 
 void Search::applyRecursivelyAnyOrderMulithreadedHelper(
-  SearchNode* node, int threadIdx, PCG32* rand, std::vector<int>& randBuf, std::function<void(SearchNode*,int)>* f
+  SearchNode* node, int threadIdx, PCG32* rand, std::unordered_set<SearchNode*>& nodeBuf, std::vector<int>& randBuf, std::function<void(SearchNode*,int)>* f
 ) {
   //nodeAge == searchNodeAge means that the node is done.
   if(node->nodeAge.load(std::memory_order_acquire) == searchNodeAge)
+    return;
+  //Cycle! Just consider this node "done" and return.
+  if(nodeBuf.find(node) != nodeBuf.end())
     return;
 
   //Recurse on all children
@@ -1763,11 +1767,13 @@ void Search::applyRecursivelyAnyOrderMulithreadedHelper(
     size_t randBufStart = randBuf.size();
     maybeAppendShuffledIntRange(numChildren, rand, randBuf);
 
+    nodeBuf.insert(node);
     for(int i = 0; i<numChildren; i++) {
       int childIdx = rand != NULL ? randBuf[randBufStart+i] : i;
-      applyRecursivelyAnyOrderMulithreadedHelper(children[childIdx].getIfAllocated(), threadIdx, rand, randBuf, f);
+      applyRecursivelyAnyOrderMulithreadedHelper(children[childIdx].getIfAllocated(), threadIdx, rand, nodeBuf, randBuf, f);
     }
     randBuf.resize(randBufStart);
+    nodeBuf.erase(node);
   }
 
   //The thread that is first to update it wins and does the action.
