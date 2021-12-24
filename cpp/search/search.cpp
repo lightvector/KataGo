@@ -507,6 +507,7 @@ SearchThread::SearchThread(int tIdx, const Search& search)
    pla(search.rootPla),board(search.rootBoard),
    history(search.rootHistory),
    graphHash(search.rootGraphHash),
+   graphPath(),
    rand(makeSeed(search,tIdx)),
    nnResultBuf(),
    statsBuf(),
@@ -515,6 +516,7 @@ SearchThread::SearchThread(int tIdx, const Search& search)
    illegalMoveHashes()
 {
   statsBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
+  graphPath.reserve(256);
 
   //Reserving even this many is almost certainly overkill but should guarantee that we never have hit allocation here.
   oldNNOutputsToCleanUp.reserve(8);
@@ -1581,36 +1583,45 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
   std::mutex& mutex = nodeTable->mutexPool->getMutex(nodeTableIdx);
   std::lock_guard<std::mutex> lock(mutex);
 
-  SearchNode* child;
-
+  SearchNode* child = NULL;
   std::map<Hash128,SearchNode*>& nodeMap = nodeTable->entries[nodeTableIdx];
-  auto insertLoc = nodeMap.lower_bound(childHash);
-  if(insertLoc != nodeMap.end() && insertLoc->first == childHash)
-    child = insertLoc->second;
-  else {
-    child = new SearchNode(nextPla, forceNonTerminal, createMutexIdxForNode(thread));
 
-    //Also perform subtree value bias and pattern bonus handling under the mutex. These parameters are no atomic, so
-    //if the node is accessed concurrently by other nodes through the table, we need to make sure these parameters are fully
-    //fully-formed before we make the node accessible to anyone.
+  while(true) {
+    auto insertLoc = nodeMap.lower_bound(childHash);
 
-    if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL) {
-      //TODO can we make subtree value bias not depend on prev move loc?
-      if(thread.history.moveHistory.size() >= 2) {
-        Loc prevMoveLoc = thread.history.moveHistory[thread.history.moveHistory.size()-2].loc;
-        if(prevMoveLoc != Board::NULL_LOC) {
-          child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(getOpp(thread.pla), prevMoveLoc, bestChildMoveLoc, thread.history.getRecentBoard(1));
+    if(insertLoc != nodeMap.end() && insertLoc->first == childHash) {
+      //Attempt to transpose to invalid node - rerandomize hash and just store this node somewhere arbitrary.
+      if(insertLoc->second->nextPla != nextPla) {
+        childHash = thread.board.pos_hash ^ Hash128(thread.rand.nextUInt64(),thread.rand.nextUInt64());
+        continue;
+      }
+      child = insertLoc->second;
+    }
+    else {
+      child = new SearchNode(nextPla, forceNonTerminal, createMutexIdxForNode(thread));
+
+      //Also perform subtree value bias and pattern bonus handling under the mutex. These parameters are no atomic, so
+      //if the node is accessed concurrently by other nodes through the table, we need to make sure these parameters are fully
+      //fully-formed before we make the node accessible to anyone.
+
+      if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL) {
+        //TODO can we make subtree value bias not depend on prev move loc?
+        if(thread.history.moveHistory.size() >= 2) {
+          Loc prevMoveLoc = thread.history.moveHistory[thread.history.moveHistory.size()-2].loc;
+          if(prevMoveLoc != Board::NULL_LOC) {
+            child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(getOpp(thread.pla), prevMoveLoc, bestChildMoveLoc, thread.history.getRecentBoard(1));
+          }
         }
       }
+
+      if(patternBonusTable != NULL)
+        child->patternBonusHash = patternBonusTable->getHash(getOpp(thread.pla), bestChildMoveLoc, thread.history.getRecentBoard(1));
+
+      //Insert into map! Use insertLoc as hint.
+      nodeMap.insert(insertLoc, std::make_pair(childHash,child));
     }
-
-    if(patternBonusTable != NULL)
-      child->patternBonusHash = patternBonusTable->getHash(getOpp(thread.pla), bestChildMoveLoc, thread.history.getRecentBoard(1));
-
-    //Insert into map! Use insertLoc as hint.
-    nodeMap.insert(insertLoc, std::make_pair(childHash,child));
+    break;
   }
-
   return child;
 }
 
@@ -3382,6 +3393,7 @@ bool Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft)
   thread.board = rootBoard;
   thread.history = rootHistory;
   thread.graphHash = rootGraphHash;
+  thread.graphPath.clear();
 
   return finishedPlayout;
 }
@@ -3844,6 +3856,21 @@ bool Search::playoutDescend(
     break;
   }
 
+  //If somehow we find ourselves in a cycle, increment edge visits and terminate the playout.
+  //Basically if the search likes a cycle... just reinforce playing around the cycle and hope we return something
+  //reasonable in the end of the search.
+  {
+    std::pair<std::unordered_set<SearchNode*>::iterator,bool> result = thread.graphPath.insert(child);
+    //No insertion, child was already there
+    if(!result.second) {
+      int childrenCapacity;
+      SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
+      children[bestChildIdx].addEdgeVisits(1);
+      updateStatsAfterPlayout(node,thread,isRoot);
+      child->virtualLosses.fetch_add(-1,std::memory_order_release);
+      return true;
+    }
+  }
 
   //Recurse!
   bool finishedPlayout = playoutDescend(thread,*child,posesWithChildBuf,false);

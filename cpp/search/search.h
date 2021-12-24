@@ -259,11 +259,12 @@ struct SearchThread {
   Board board;
   BoardHistory history;
   Hash128 graphHash;
+  //The path we trace down the graph as we do a playout
+  std::unordered_set<SearchNode*> graphPath;
 
   Rand rand;
 
   NNResultBuf nnResultBuf;
-
   std::vector<MoreNodeStats> statsBuf;
 
   double upperBoundVisitsLeft;
