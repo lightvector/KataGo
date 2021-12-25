@@ -1,7 +1,6 @@
 #include "../search/reportedsearchvalues.h"
 
 #include "../neuralnet/nninputs.h"
-#include "../search/searchutils.h"
 #include "../search/search.h"
 
 ReportedSearchValues::ReportedSearchValues()

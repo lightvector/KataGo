@@ -185,6 +185,13 @@ add_executable(katago
   search/search.cpp
   search/searchnode.cpp
   search/searchresults.cpp
+  search/searchhelpers.cpp
+  search/searchexplorehelpers.cpp
+  search/searchmirror.cpp
+  search/searchmultithreadhelpers.cpp
+  search/searchnnhelpers.cpp
+  search/searchtimehelpers.cpp
+  search/searchupdatehelpers.cpp
   search/asyncbot.cpp
   search/distributiontable.cpp
   search/localpattern.cpp

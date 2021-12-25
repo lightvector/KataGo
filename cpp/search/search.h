@@ -69,7 +69,10 @@ struct SearchThread {
 };
 
 struct Search {
-  //Constant during search------------------------------------------------
+  //================================================================================================================
+  // Constant/immutable during search
+  //================================================================================================================
+
   Player rootPla;
   Board rootBoard;
   BoardHistory rootHistory;
@@ -120,26 +123,31 @@ struct Search {
   double normToTApproxZ;
   std::vector<double> normToTApproxTable;
 
-  //Mutable---------------------------------------------------------------
-  SearchNode* rootNode;
-  SearchNodeTable* nodeTable;
-
-  //Services--------------------------------------------------------------
-  MutexPool* mutexPool;
-  NNEvaluator* nnEvaluator; //externally owned
-  int nnXLen;
-  int nnYLen;
-  int policySize;
-  Rand nonSearchRand; //only for use not in search, since rand isn't threadsafe
-
-  SubtreeValueBiasTable* subtreeValueBiasTable;
-
   //Pattern bonuses are currently only looked up for shapes completed by the player who the search is for.
   //Implicitly these utility adjustments "assume" the opponent likes the negative of our adjustments.
   PatternBonusTable* patternBonusTable;
   std::unique_ptr<PatternBonusTable> externalPatternBonusTable;
 
+  Rand nonSearchRand; //only for use not in search, since rand isn't threadsafe
+
+  //================================================================================================================
+  // Externally owned values
+  //================================================================================================================
+
   Logger* logger;
+  NNEvaluator* nnEvaluator;
+  int nnXLen;
+  int nnYLen;
+  int policySize;
+
+  //================================================================================================================
+  // Mutated during search
+  //================================================================================================================
+
+  SearchNode* rootNode;
+  SearchNodeTable* nodeTable;
+  MutexPool* mutexPool;
+  SubtreeValueBiasTable* subtreeValueBiasTable;
 
   //Thread pool
   int numThreadsSpawned;
@@ -153,6 +161,11 @@ struct Search {
   std::mutex oldNNOutputsToCleanUpMutex;
   std::vector<std::shared_ptr<NNOutput>*> oldNNOutputsToCleanUp;
 
+  //================================================================================================================
+  // Constructors and Destructors
+  // search.cpp
+  //================================================================================================================
+
   //Note - randSeed controls a few things in the search, but a lot of the randomness actually comes from
   //random symmetries of the neural net evaluations, see nneval.h
   Search(SearchParams params, NNEvaluator* nnEval, Logger* logger, const std::string& randSeed);
@@ -163,14 +176,21 @@ struct Search {
   Search(Search&&) = delete;
   Search& operator=(Search&&) = delete;
 
-  //TOP-LEVEL OUTSIDE-OF-SEARCH CONTROL -----------------------------------------------------------
-  //Functions for setting the board position or other parameters, clearing, and running search.
-  //None of these top-level functions are thread-safe. They should only ever be called sequentially.
+  //================================================================================================================
+  // TOP-LEVEL OUTSIDE-OF-SEARCH CONTROL METHODS
+  // search.cpp
+  //
+  // Functions for setting the board position or other parameters, clearing, and running search.
+  // None of these top-level functions are thread-safe. They should only ever be called sequentially.
+  //================================================================================================================
 
   const Board& getRootBoard() const;
   const BoardHistory& getRootHist() const;
   Player getRootPla() const;
   Player getPlayoutDoublingAdvantagePla() const;
+
+  //Get the NNPos corresponding to a loc, convenience method
+  int getPos(Loc moveLoc) const;
 
   //Clear all results of search and sets a new position or something else
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
@@ -190,6 +210,7 @@ struct Search {
 
   //If the number of threads is reduced, this can free up some excess threads in the thread pool.
   //Calling this is never necessary, it may just reduce some resource use.
+  //searchmultithreadhelpers.cpp
   void respawnThreads();
 
   //Just directly clear search without changing anything
@@ -223,13 +244,23 @@ struct Search {
     double searchFactor
   );
 
-  //SEARCH RESULTS AND TREE INSPECTION -------------------------------------------------------------
-  //All of these functions are safe to call in multithreadedly WHILE the search is ongoing, to print out
-  //intermediate states of the search, so long as the search has initialized itself and actually begun.
-  //In particular, they are allowed to run concurrently with runWholeSearch, so long as searchBegun has
-  //been called-back, continuing up until the next call to any other top-level control function above or
-  //the next runWholeSearch call.
-  //They are NOT safe to call in parallel with any of the other top level-functions besides the search.
+  //Expert manual playout-by-playout interface
+  void beginSearch(bool pondering);
+  bool runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft);
+
+  //================================================================================================================
+  // SEARCH RESULTS AND TREE INSPECTION METHODS
+  // searchresults.cpp
+  //
+  // Functions for analyzing the results of search or getting back scores and analysis.
+  //
+  // All of these functions are safe to call in multithreadedly WHILE the search is ongoing, to print out
+  // intermediate states of the search, so long as the search has initialized itself and actually begun.
+  // In particular, they are allowed to run concurrently with runWholeSearch, so long as searchBegun has
+  // been called-back, continuing up until the next call to any other top-level control function above or
+  // the next runWholeSearch call.
+  // They are NOT safe to call in parallel with any of the other top level-functions besides the search.
+  //================================================================================================================
 
   //Choose a move at the root of the tree, with randomization, if possible.
   //Might return Board::NULL_LOC if there is no root, or no legal moves that aren't forcibly pruned, etc.
@@ -251,11 +282,6 @@ struct Search {
     std::vector<Loc>& locs, std::vector<double>& playSelectionValues, std::vector<double>* retVisitCounts, double scaleMaxToAtLeast,
     bool allowDirectPolicyMoves
   ) const;
-
-  //Useful utility function exposed for outside use
-  static uint32_t chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature);
-  static void computeDirichletAlphaDistribution(int policySize, const float* policyProbs, double* alphaDistr);
-  static void addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs);
 
   //Get the values recorded for the root node, if possible.
   bool getRootValues(ReportedSearchValues& values) const;
@@ -330,69 +356,130 @@ struct Search {
     nlohmann::json& ret
   ) const;
 
-  //Expert manual playout-by-playout interface------------------------------------------------
-  void beginSearch(bool pondering);
-  bool runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft);
 
-  std::vector<SearchNode*> enumerateTreePostOrder();
-
-  //Helpers-----------------------------------------------------------------------
-  int getPos(Loc moveLoc) const;
+  //================================================================================================================
+  // HELPER FUNCTIONS FOR THE SEARCH
+  //================================================================================================================
 
 private:
   static constexpr double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
   static constexpr double FUTILE_VISITS_PRUNE_VALUE = -1e40;
   static constexpr double EVALUATING_SELECTION_VALUE_PENALTY = 1e20;
 
+  //----------------------------------------------------------------------------------------
+  // Dirichlet noise and temperature
+  // searchhelpers.cpp
+  //----------------------------------------------------------------------------------------
+public:
+  static uint32_t chooseIndexWithTemperature(Rand& rand, const double* relativeProbs, int numRelativeProbs, double temperature);
+  static void computeDirichletAlphaDistribution(int policySize, const float* policyProbs, double* alphaDistr);
+  static void addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs);
+private:
+  std::shared_ptr<NNOutput>* maybeAddPolicyNoiseAndTemp(SearchThread& thread, bool isRoot, NNOutput* oldNNOutput) const;
+
+  //----------------------------------------------------------------------------------------
+  // Computing basic utility and scores
+  // searchhelpers.cpp
+  //----------------------------------------------------------------------------------------
   double getResultUtility(double winlossValue, double noResultValue) const;
   double getResultUtilityFromNN(const NNOutput& nnOutput) const;
+  double getScoreUtility(double scoreMeanAvg, double scoreMeanSqAvg) const;
+  double getScoreUtilityDiff(double scoreMeanAvg, double scoreMeanSqAvg, double delta) const;
+  double getApproxScoreUtilityDerivative(double scoreMean) const;
+  double getUtilityFromNN(const NNOutput& nnOutput) const;
+
+  //----------------------------------------------------------------------------------------
+  // Miscellaneous search biasing helpers, root move selection, etc.
+  // searchhelpers.cpp
+  //----------------------------------------------------------------------------------------
+  bool isAllowedRootMove(Loc moveLoc) const;
+  double getPatternBonus(Hash128 patternBonusHash, Player prevMovePla) const;
+  double getEndingWhiteScoreBonus(const SearchNode& parent, Loc moveLoc) const;
+  bool shouldSuppressPass(const SearchNode* n) const;
+
   double interpolateEarly(double halflife, double earlyValue, double value) const;
 
+  // LCB helpers
+  static constexpr int64_t MIN_VISITS_FOR_LCB = 3;
+  void maybeRecomputeNormToTApproxTable();
+  double getNormToTApproxForLCB(int64_t numVisits) const;
+  void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, int64_t edgeVisits, Loc moveLoc, double& lcbBuf, double& radiusBuf) const;
+
+  //----------------------------------------------------------------------------------------
+  // Mirror handling logic
+  // searchmirror.cpp
+  //----------------------------------------------------------------------------------------
+  void updateMirroring();
+  bool isMirroringSinceSearchStart(const BoardHistory& threadHistory, int skipRecent) const;
+  void maybeApplyAntiMirrorPolicy(
+    float& nnPolicyProb,
+    const Loc moveLoc,
+    const float* policyProbs,
+    const Player movePla,
+    const SearchThread* thread
+  ) const;
+  void maybeApplyAntiMirrorForcedExplore(
+    double& childUtility,
+    const double parentUtility,
+    const Loc moveLoc,
+    const float* policyProbs,
+    const double thisChildWeight,
+    const double totalChildWeight,
+    const Player movePla,
+    const SearchThread* thread,
+    const SearchNode& parent
+  ) const;
+  void hackNNOutputForMirror(std::shared_ptr<NNOutput>& result) const;
+
+  //----------------------------------------------------------------------------------------
+  // Recursive graph-walking and thread pooling
+  // searchmultithreadhelpers.cpp
+  //----------------------------------------------------------------------------------------
+  int numAdditionalThreadsToUseForTasks() const;
   void spawnThreadsIfNeeded();
   void killThreads();
-  int numAdditionalThreadsToUseForTasks() const;
   void performTaskWithThreads(std::function<void(int)>* task);
 
-  uint32_t createMutexIdxForNode(SearchThread& thread) const;
-  SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal, Hash128 graphHash);
+  void applyRecursivelyPostOrderMulithreaded(const std::vector<SearchNode*>& nodes, std::function<void(SearchNode*,int)>* f);
+  void applyRecursivelyPostOrderMulithreadedHelper(
+    SearchNode* node, int threadIdx, PCG32* rand, std::unordered_set<SearchNode*>& nodeBuf, std::vector<int>& randBuf, std::function<void(SearchNode*,int)>* f
+  );
+  void applyRecursivelyAnyOrderMulithreaded(const std::vector<SearchNode*>& nodes, std::function<void(SearchNode*,int)>* f);
+  void applyRecursivelyAnyOrderMulithreadedHelper(
+    SearchNode* node, int threadIdx, PCG32* rand, std::unordered_set<SearchNode*>& nodeBuf, std::vector<int>& randBuf, std::function<void(SearchNode*,int)>* f
+  );
 
-  void clearOldNNOutputs();
-  void transferOldNNOutputs(SearchThread& thread);
+public:
+  std::vector<SearchNode*> enumerateTreePostOrder();
+private:
 
-  std::shared_ptr<NNOutput>* maybeAddPolicyNoiseAndTemp(SearchThread& thread, bool isRoot, NNOutput* oldNNOutput) const;
-  bool isAllowedRootMove(Loc moveLoc) const;
-
-  void computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap);
-
-  void computeRootValues();
-
+  //----------------------------------------------------------------------------------------
+  // Time management
+  // searchtimehelpers.cpp
+  //----------------------------------------------------------------------------------------
   double numVisitsNeededToBeNonFutile(double maxVisitsMoveVisits);
   double computeUpperBoundVisitsLeftDueToTime(
     int64_t rootVisits, double timeUsed, double plannedTimeLimit
   );
   double recomputeSearchTimeLimit(const TimeControls& tc, double timeUsed, double searchFactor, int64_t rootVisits);
 
-  double getScoreUtility(double scoreMeanAvg, double scoreMeanSqAvg) const;
-  double getScoreUtilityDiff(double scoreMeanAvg, double scoreMeanSqAvg, double delta) const;
-  double getApproxScoreUtilityDerivative(double scoreMean) const;
-  double getUtilityFromNN(const NNOutput& nnOutput) const;
-  double computeWeightFromNNOutput(const NNOutput* nnOutput) const;
+  //----------------------------------------------------------------------------------------
+  // Neural net queries
+  // searchnnhelpers.cpp
+  //----------------------------------------------------------------------------------------
+  void computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap);
+  bool initNodeNNOutput(
+    SearchThread& thread, SearchNode& node,
+    bool isRoot, bool skipCache, bool isReInit
+  );
+  void maybeRecomputeExistingNNOutput(
+    SearchThread& thread, SearchNode& node, bool isRoot
+  );
 
-  double getPatternBonus(Hash128 patternBonusHash, Player prevMovePla) const;
-
-  double getEndingWhiteScoreBonus(const SearchNode& parent, Loc moveLoc) const;
-
-  void downweightBadChildrenAndNormalizeWeight(
-    int numChildren,
-    double currentTotalWeight,
-    double desiredTotalWeight,
-    double amountToSubtract,
-    double amountToPrune,
-    std::vector<MoreNodeStats>& statsBuf
-  ) const;
-
-  void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, int64_t edgeVisits, Loc moveLoc, double& lcbBuf, double& radiusBuf) const;
-
+  //----------------------------------------------------------------------------------------
+  // Move selection during search
+  // searchexplorehelpers.cpp
+  //----------------------------------------------------------------------------------------
   double getExploreSelectionValue(
     double nnPolicyProb, double totalChildWeight, double childWeight,
     double childUtility, double parentUtilityStdevFactor, Player pla
@@ -401,15 +488,6 @@ private:
     double exploreSelectionValue, double nnPolicyProb, double totalChildWeight,
     double childUtility, double parentUtilityStdevFactor, Player pla
   ) const;
-  double getPassingScoreValueBonus(const SearchNode& parent, const SearchNode* child, double scoreValue) const;
-
-  bool getPlaySelectionValues(
-    const SearchNode& node,
-    std::vector<Loc>& locs, std::vector<double>& playSelectionValues, std::vector<double>* retVisitCounts, double scaleMaxToAtLeast,
-    bool allowDirectPolicyMoves, bool alwaysComputeLcb, bool neverUseLcb,
-    double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
-  ) const;
-
   double getExploreSelectionValue(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     Loc moveLoc,
@@ -423,7 +501,6 @@ private:
     double parentWeightPerVisit, double parentUtilityStdevFactor,
     double maxChildWeight, SearchThread* thread
   ) const;
-
   double getReducedPlaySelectionWeight(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     Loc moveLoc,
@@ -436,34 +513,17 @@ private:
     double& parentUtility, double& parentWeightPerVisit, double& parentUtilityStdevFactor
   ) const;
 
-  double pruneNoiseWeight(std::vector<MoreNodeStats>& statsBuf, int numChildren, double totalChildWeight, const double* policyProbsBuf) const;
-
-  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot);
-  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot);
-  void recursivelyRecomputeStats(SearchNode& node);
-
-  void applyRecursivelyPostOrderMulithreaded(const std::vector<SearchNode*>& nodes, std::function<void(SearchNode*,int)>* f);
-  void applyRecursivelyPostOrderMulithreadedHelper(
-    SearchNode* node, int threadIdx, PCG32* rand, std::unordered_set<SearchNode*>& nodeBuf, std::vector<int>& randBuf, std::function<void(SearchNode*,int)>* f
-  );
-
-  void applyRecursivelyAnyOrderMulithreaded(const std::vector<SearchNode*>& nodes, std::function<void(SearchNode*,int)>* f);
-  void applyRecursivelyAnyOrderMulithreadedHelper(
-    SearchNode* node, int threadIdx, PCG32* rand, std::unordered_set<SearchNode*>& nodeBuf, std::vector<int>& randBuf, std::function<void(SearchNode*,int)>* f
-  );
-  void removeSubtreeValueBias(SearchNode* node);
-  void deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool old);
-  void deleteAllTableNodesMulithreaded();
-
-  void maybeRecomputeNormToTApproxTable();
-  double getNormToTApproxForLCB(int64_t numVisits) const;
-
   void selectBestChildToDescend(
     SearchThread& thread, const SearchNode& node, int nodeState,
     int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc,
     bool posesWithChildBuf[NNPos::MAX_NN_POLICY_SIZE],
     bool isRoot
   ) const;
+
+  //----------------------------------------------------------------------------------------
+  // Update of node values during search
+  // searchupdatehelpers.cpp
+  //----------------------------------------------------------------------------------------
 
   void addLeafValue(
     SearchNode& node,
@@ -478,13 +538,40 @@ private:
   );
   void addCurrentNNOutputAsLeafValue(SearchNode& node, bool assumeNoExistingWeight);
 
-  void maybeRecomputeExistingNNOutput(
-    SearchThread& thread, SearchNode& node, bool isRoot
-  );
-  bool initNodeNNOutput(
-    SearchThread& thread, SearchNode& node,
-    bool isRoot, bool skipCache, bool isReInit
-  );
+  double computeWeightFromNNOutput(const NNOutput* nnOutput) const;
+
+  void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot);
+  void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot);
+
+  void downweightBadChildrenAndNormalizeWeight(
+    int numChildren,
+    double currentTotalWeight,
+    double desiredTotalWeight,
+    double amountToSubtract,
+    double amountToPrune,
+    std::vector<MoreNodeStats>& statsBuf
+  ) const;
+
+  double pruneNoiseWeight(std::vector<MoreNodeStats>& statsBuf, int numChildren, double totalChildWeight, const double* policyProbsBuf) const;
+
+  //----------------------------------------------------------------------------------------
+  // Allocation, search clearing and garbage collection
+  // search.cpp
+  //----------------------------------------------------------------------------------------
+  uint32_t createMutexIdxForNode(SearchThread& thread) const;
+  SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal, Hash128 graphHash);
+  void clearOldNNOutputs();
+  void transferOldNNOutputs(SearchThread& thread);
+  void removeSubtreeValueBias(SearchNode* node);
+  void deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool old);
+  void deleteAllTableNodesMulithreaded();
+
+  //----------------------------------------------------------------------------------------
+  // Initialization and core search logic
+  // search.cpp
+  //----------------------------------------------------------------------------------------
+  void computeRootValues(); // Helper for begin search
+  void recursivelyRecomputeStats(SearchNode& node); // Helper for search initialization
 
   bool playoutDescend(
     SearchThread& thread, SearchNode& node,
@@ -494,7 +581,16 @@ private:
 
   bool maybeCatchUpEdgeVisits(SearchThread& thread, SearchNode& node, SearchNode* child, const int& nodeState, const int bestChildIdx);
 
-  bool shouldSuppressPass(const SearchNode* n) const;
+  //----------------------------------------------------------------------------------------
+  // Private helpers for search results and analysis and top level move selection
+  // searchresults.cpp
+  //----------------------------------------------------------------------------------------
+  bool getPlaySelectionValues(
+    const SearchNode& node,
+    std::vector<Loc>& locs, std::vector<double>& playSelectionValues, std::vector<double>* retVisitCounts, double scaleMaxToAtLeast,
+    bool allowDirectPolicyMoves, bool alwaysComputeLcb, bool neverUseLcb,
+    double lcbBuf[NNPos::MAX_NN_POLICY_SIZE], double radiusBuf[NNPos::MAX_NN_POLICY_SIZE]
+  ) const;
 
   AnalysisData getAnalysisDataOfSingleChild(
     const SearchNode* child, int64_t edgeVisits, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues,
@@ -530,6 +626,7 @@ private:
     int childrenCapacity,
     Func& averaging
   ) const;
+
 
 };
 

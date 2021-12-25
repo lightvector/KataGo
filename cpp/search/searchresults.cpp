@@ -7,14 +7,18 @@
 
 #include <cinttypes>
 
-#include "../core/fancymath.h"
 #include "../program/playutils.h"
 #include "../search/searchnode.h"
 
 using namespace std;
 using nlohmann::json;
 
-static const int64_t MIN_VISITS_FOR_LCB = 3;
+int64_t Search::getRootVisits() const {
+  if(rootNode == NULL)
+    return 0;
+  int64_t n = rootNode->stats.visits.load(std::memory_order_acquire);
+  return n;
+}
 
 bool Search::getPlaySelectionValues(
   vector<Loc>& locs, vector<double>& playSelectionValues, double scaleMaxToAtLeast
@@ -292,58 +296,6 @@ bool Search::getPlaySelectionValues(
   return true;
 }
 
-void Search::maybeRecomputeNormToTApproxTable() {
-  if(normToTApproxZ <= 0.0 || normToTApproxZ != searchParams.lcbStdevs || normToTApproxTable.size() <= 0) {
-    normToTApproxZ = searchParams.lcbStdevs;
-    normToTApproxTable.clear();
-    for(int i = 0; i < 512; i++)
-      normToTApproxTable.push_back(FancyMath::normToTApprox(normToTApproxZ,(double)(i+MIN_VISITS_FOR_LCB)));
-  }
-}
-
-double Search::getNormToTApproxForLCB(int64_t numVisits) const {
-  int64_t idx = numVisits-MIN_VISITS_FOR_LCB;
-  assert(idx >= 0);
-  if(idx >= normToTApproxTable.size())
-    idx = normToTApproxTable.size()-1;
-  return normToTApproxTable[idx];
-}
-
-void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, int64_t edgeVisits, Loc moveLoc, double& lcbBuf, double& radiusBuf) const {
-  int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-  double rawWeightSum = child->stats.weightSum.load(std::memory_order_acquire);
-  double rawWeightSqSum = child->stats.weightSqSum.load(std::memory_order_acquire);
-  double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
-  double scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
-  double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
-  double utilitySqAvg = child->stats.utilitySqAvg.load(std::memory_order_acquire);
-
-  double weightSum = rawWeightSum * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
-  double weightSqSum = rawWeightSqSum * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
-
-  radiusBuf = 2.0 * (searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor);
-  lcbBuf = -radiusBuf;
-  if(childVisits <= 0 || weightSum <= 0.0 || weightSqSum <= 0.0)
-    return;
-
-  double ess = weightSum * weightSum / weightSqSum;
-  int64_t essInt = (int64_t)round(ess);
-  if(essInt < MIN_VISITS_FOR_LCB)
-    return;
-
-  double utilityNoBonus = utilityAvg;
-  double endingScoreBonus = getEndingWhiteScoreBonus(parent,moveLoc);
-  double utilityDiff = getScoreUtilityDiff(scoreMeanAvg, scoreMeanSqAvg, endingScoreBonus);
-  double utilityWithBonus = utilityNoBonus + utilityDiff;
-  double selfUtility = parent.nextPla == P_WHITE ? utilityWithBonus : -utilityWithBonus;
-
-  double utilityVariance = std::max(1e-8, utilitySqAvg - utilityNoBonus * utilityNoBonus);
-  double estimateStdev = sqrt(utilityVariance / ess);
-  double radius = estimateStdev * getNormToTApproxForLCB(essInt);
-
-  lcbBuf = selfUtility - radius;
-  radiusBuf = radius;
-}
 
 bool Search::getRootValues(ReportedSearchValues& values) const {
   return getNodeValues(rootNode,values);
@@ -488,122 +440,6 @@ Loc Search::getChosenMoveLoc() {
   return locs[idxChosen];
 }
 
-//Hack to encourage well-behaved dame filling behavior under territory scoring
-bool Search::shouldSuppressPass(const SearchNode* n) const {
-  if(!searchParams.fillDameBeforePass || n == NULL || n != rootNode)
-    return false;
-  if(rootHistory.rules.scoringRule != Rules::SCORING_TERRITORY || rootHistory.encorePhase > 0)
-    return false;
-
-  const SearchNode& node = *n;
-  const NNOutput* nnOutput = node.getNNOutput();
-  if(nnOutput == NULL)
-    return false;
-  if(nnOutput->whiteOwnerMap == NULL)
-    return false;
-  assert(nnOutput->nnXLen == nnXLen);
-  assert(nnOutput->nnYLen == nnYLen);
-  const float* whiteOwnerMap = nnOutput->whiteOwnerMap;
-
-  //Find the pass move
-  const SearchNode* passNode = NULL;
-  int64_t passEdgeVisits = 0;
-
-  int childrenCapacity;
-  const SearchChildPointer* children = node.getChildren(childrenCapacity);
-  for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
-    if(child == NULL)
-      break;
-    Loc moveLoc = children[i].getMoveLocRelaxed();
-    if(moveLoc == Board::PASS_LOC) {
-      passNode = child;
-      passEdgeVisits = children[i].getEdgeVisits();
-      break;
-    }
-  }
-  if(passNode == NULL)
-    return false;
-
-  double passWeight;
-  double passUtility;
-  double passScoreMean;
-  double passLead;
-  {
-    int64_t childVisits = passNode->stats.visits.load(std::memory_order_acquire);
-    double rawWeightSum = passNode->stats.weightSum.load(std::memory_order_acquire);
-    double scoreMeanAvg = passNode->stats.scoreMeanAvg.load(std::memory_order_acquire);
-    double leadAvg = passNode->stats.leadAvg.load(std::memory_order_acquire);
-    double utilityAvg = passNode->stats.utilityAvg.load(std::memory_order_acquire);
-
-    double weightSum = rawWeightSum * ((double)passEdgeVisits / (double)std::max(childVisits,(int64_t)1));
-
-    if(childVisits <= 0 || weightSum <= 1e-10)
-      return false;
-    passWeight = weightSum;
-    passUtility = utilityAvg;
-    passScoreMean = scoreMeanAvg;
-    passLead = leadAvg;
-  }
-
-  const double extreme = 0.95;
-
-  //Suppress pass if we find a move that is not a spot that the opponent almost certainly owns
-  //or that is adjacent to a pla owned spot, and is not greatly worse than pass.
-  for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
-    if(child == NULL)
-      break;
-    Loc moveLoc = children[i].getMoveLocRelaxed();
-    if(moveLoc == Board::PASS_LOC)
-      continue;
-    int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
-    double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
-    bool oppOwned = plaOwnership < -extreme;
-    bool adjToPlaOwned = false;
-    for(int j = 0; j<4; j++) {
-      Loc adj = moveLoc + rootBoard.adj_offsets[j];
-      int adjPos = NNPos::locToPos(adj,rootBoard.x_size,nnXLen,nnYLen);
-      double adjPlaOwnership = rootPla == P_WHITE ? whiteOwnerMap[adjPos] : -whiteOwnerMap[adjPos];
-      if(adjPlaOwnership > extreme) {
-        adjToPlaOwned = true;
-        break;
-      }
-    }
-    if(oppOwned && !adjToPlaOwned)
-      continue;
-
-    int64_t edgeVisits = children[i].getEdgeVisits();
-
-    int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-    double rawWeightSum = child->stats.weightSum.load(std::memory_order_acquire);
-    double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
-    double leadAvg = child->stats.leadAvg.load(std::memory_order_acquire);
-    double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
-
-    double weightSum = rawWeightSum * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
-
-    //Too few visits - reject move
-    if((edgeVisits <= 500 && weightSum <= 2 * sqrt(passWeight)) || weightSum <= 1e-10)
-      continue;
-
-    double utility = utilityAvg;
-    double scoreMean = scoreMeanAvg;
-    double lead = leadAvg;
-
-    if(rootPla == P_WHITE
-       && utility > passUtility - 0.1
-       && scoreMean > passScoreMean - 0.5
-       && lead > passLead - 0.5)
-      return true;
-    if(rootPla == P_BLACK
-       && utility < passUtility + 0.1
-       && scoreMean < passScoreMean + 0.5
-       && lead < passLead + 0.5)
-      return true;
-  }
-  return false;
-}
 
 bool Search::getPolicy(float policyProbs[NNPos::MAX_NN_POLICY_SIZE]) const {
   return getPolicy(rootNode, policyProbs);
