@@ -86,10 +86,7 @@ bool Search::getPlaySelectionValues(
     Loc moveLoc = children[i].getMoveLocRelaxed();
 
     int64_t edgeVisits = children[i].getEdgeVisits();
-    int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-    double rawChildWeight = child->stats.weightSum.load(std::memory_order_acquire);
-
-    double childWeight = rawChildWeight * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
+    double childWeight = child->stats.getChildWeight(edgeVisits);
 
     locs.push_back(moveLoc);
     totalChildWeight += childWeight;
@@ -706,8 +703,6 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
 
   if(child != NULL) {
     childVisits = child->stats.visits.load(std::memory_order_acquire);
-    double rawWeightSum = child->stats.weightSum.load(std::memory_order_acquire);
-    double rawWeightSqSum = child->stats.weightSqSum.load(std::memory_order_acquire);
     winLossValueAvg = child->stats.winLossValueAvg.load(std::memory_order_acquire);
     noResultValueAvg = child->stats.noResultValueAvg.load(std::memory_order_acquire);
     scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
@@ -715,9 +710,8 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     leadAvg = child->stats.leadAvg.load(std::memory_order_acquire);
     utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
     utilitySqAvg = child->stats.utilitySqAvg.load(std::memory_order_acquire);
-
-    weightSum = rawWeightSum * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
-    weightSqSum = rawWeightSqSum * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
+    weightSum = child->stats.getChildWeight(edgeVisits,childVisits);
+    weightSqSum = child->stats.getChildWeightSq(edgeVisits,childVisits);
   }
 
   AnalysisData data;
@@ -885,7 +879,7 @@ void Search::getAnalysisData(
       MoreNodeStats& stats = statsBuf[i];
       stats.stats = NodeStats(child->stats);
       stats.selfUtility = node.nextPla == P_WHITE ? data.utility : -data.utility;
-      stats.weightAdjusted = stats.stats.weightSum * ((double)edgeVisits / (double)std::max(stats.stats.visits,(int64_t)1));
+      stats.weightAdjusted = stats.stats.getChildWeight(edgeVisits);
       stats.prevMoveLoc = moveLoc;
     }
   }
@@ -1219,9 +1213,7 @@ std::pair<double,double> Search::getAverageShorttermWLAndScoreErrorHelper(const 
     const SearchNode* child = children[i].getIfAllocated();
     assert(child != NULL);
     int64_t edgeVisits = children[i].getEdgeVisits();
-    int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-    double rawChildWeight = child->stats.weightSum.load(std::memory_order_acquire);
-    double childWeight = rawChildWeight * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
+    double childWeight = child->stats.getChildWeight(edgeVisits);
     std::pair<double,double> result = getAverageShorttermWLAndScoreErrorHelper(child);
     wlErrorSum += result.first * childWeight;
     scoreErrorSum += result.second * childWeight;
@@ -1318,7 +1310,7 @@ double Search::getSharpScoreHelper(const SearchNode* node, double policyProbsBuf
     MoreNodeStats stats;
     stats.stats = NodeStats(child->stats);
     stats.selfUtility = node->nextPla == P_WHITE ? stats.stats.utilityAvg : -stats.stats.utilityAvg;
-    stats.weightAdjusted = stats.stats.weightSum * ((double)edgeVisits / (double)std::max(stats.stats.visits,(int64_t)1));
+    stats.weightAdjusted = stats.stats.getChildWeight(edgeVisits);
     stats.prevMoveLoc = moveLoc;
     statsBuf.push_back(stats);
   }
@@ -1457,9 +1449,7 @@ double Search::traverseTreeWithOwnershipAndSelfWeightHelper(
     if(child == NULL)
       break;
     int64_t edgeVisits = children[i].getEdgeVisits();
-    int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-    double rawChildWeight = child->stats.weightSum.load(std::memory_order_acquire);
-    double childWeight = rawChildWeight * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
+    double childWeight = child->stats.getChildWeight(edgeVisits);
     childWeightBuf[i] = childWeight;
     numChildren += 1;
   }

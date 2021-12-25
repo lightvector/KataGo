@@ -162,10 +162,9 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     if(stats.stats.visits <= 0 || stats.stats.weightSum <= 0.0 || edgeVisits <= 0)
       continue;
 
-    double childWeight = stats.stats.weightSum * ((double)edgeVisits / (double)stats.stats.visits);
     double childUtility = stats.stats.utilityAvg;
     stats.selfUtility = node.nextPla == P_WHITE ? childUtility : -childUtility;
-    stats.weightAdjusted = childWeight;
+    stats.weightAdjusted = stats.stats.getChildWeight(edgeVisits);
     stats.prevMoveLoc = moveLoc;
 
     origTotalChildWeight += stats.weightAdjusted;

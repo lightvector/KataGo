@@ -403,17 +403,15 @@ bool Search::shouldSuppressPass(const SearchNode* n) const {
   double passScoreMean;
   double passLead;
   {
-    int64_t childVisits = passNode->stats.visits.load(std::memory_order_acquire);
-    double rawWeightSum = passNode->stats.weightSum.load(std::memory_order_acquire);
+    int64_t passVisits = passNode->stats.visits.load(std::memory_order_acquire);
     double scoreMeanAvg = passNode->stats.scoreMeanAvg.load(std::memory_order_acquire);
     double leadAvg = passNode->stats.leadAvg.load(std::memory_order_acquire);
     double utilityAvg = passNode->stats.utilityAvg.load(std::memory_order_acquire);
+    double childWeight = passNode->stats.getChildWeight(passEdgeVisits,passVisits);
 
-    double weightSum = rawWeightSum * ((double)passEdgeVisits / (double)std::max(childVisits,(int64_t)1));
-
-    if(childVisits <= 0 || weightSum <= 1e-10)
+    if(passVisits <= 0 || childWeight <= 1e-10)
       return false;
-    passWeight = weightSum;
+    passWeight = childWeight;
     passUtility = utilityAvg;
     passScoreMean = scoreMeanAvg;
     passLead = leadAvg;
@@ -448,16 +446,13 @@ bool Search::shouldSuppressPass(const SearchNode* n) const {
 
     int64_t edgeVisits = children[i].getEdgeVisits();
 
-    int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-    double rawWeightSum = child->stats.weightSum.load(std::memory_order_acquire);
     double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
     double leadAvg = child->stats.leadAvg.load(std::memory_order_acquire);
     double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
-
-    double weightSum = rawWeightSum * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
+    double childWeight = child->stats.getChildWeight(edgeVisits);
 
     //Too few visits - reject move
-    if((edgeVisits <= 500 && weightSum <= 2 * sqrt(passWeight)) || weightSum <= 1e-10)
+    if((edgeVisits <= 500 && childWeight <= 2 * sqrt(passWeight)) || childWeight <= 1e-10)
       continue;
 
     double utility = utilityAvg;
@@ -504,15 +499,12 @@ double Search::getNormToTApproxForLCB(int64_t numVisits) const {
 
 void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, int64_t edgeVisits, Loc moveLoc, double& lcbBuf, double& radiusBuf) const {
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-  double rawWeightSum = child->stats.weightSum.load(std::memory_order_acquire);
-  double rawWeightSqSum = child->stats.weightSqSum.load(std::memory_order_acquire);
   double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
   double scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
   double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
   double utilitySqAvg = child->stats.utilitySqAvg.load(std::memory_order_acquire);
-
-  double weightSum = rawWeightSum * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
-  double weightSqSum = rawWeightSqSum * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
+  double weightSum = child->stats.getChildWeight(edgeVisits,childVisits);
+  double weightSqSum = child->stats.getChildWeightSq(edgeVisits,childVisits);
 
   radiusBuf = 2.0 * (searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor);
   lcbBuf = -radiusBuf;

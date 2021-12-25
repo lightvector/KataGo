@@ -30,6 +30,11 @@ struct NodeStatsAtomic {
   NodeStatsAtomic& operator=(const NodeStatsAtomic&) = delete;
   NodeStatsAtomic(NodeStatsAtomic&& other) = delete;
   NodeStatsAtomic& operator=(NodeStatsAtomic&& other) = delete;
+
+  double getChildWeight(int64_t edgeVisits) const;
+  double getChildWeight(int64_t edgeVisits, int64_t childVisits) const;
+  double getChildWeightSq(int64_t edgeVisits) const;
+  double getChildWeightSq(int64_t edgeVisits, int64_t childVisits) const;
 };
 
 struct NodeStats {
@@ -52,7 +57,31 @@ struct NodeStats {
   NodeStats& operator=(const NodeStats&) = default;
   NodeStats(NodeStats&& other) = default;
   NodeStats& operator=(NodeStats&& other) = default;
+
+  inline static double childWeight(int64_t edgeVisits, int64_t childVisits, double rawChildWeight) {
+    return rawChildWeight * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
+  }
+  inline static double childWeightSq(int64_t edgeVisits, int64_t childVisits, double rawChildWeightSq) {
+    return rawChildWeightSq * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
+  }
+  double getChildWeight(int64_t edgeVisits) {
+    return childWeight(edgeVisits, visits, weightSum);
+  }
 };
+
+inline double NodeStatsAtomic::getChildWeight(int64_t edgeVisits) const {
+  return NodeStats::childWeight(edgeVisits, visits.load(std::memory_order_acquire), weightSum.load(std::memory_order_acquire));
+}
+inline double NodeStatsAtomic::getChildWeight(int64_t edgeVisits, int64_t childVisits) const {
+  return NodeStats::childWeight(edgeVisits, childVisits, weightSum.load(std::memory_order_acquire));
+}
+inline double NodeStatsAtomic::getChildWeightSq(int64_t edgeVisits) const {
+  return NodeStats::childWeightSq(edgeVisits, visits.load(std::memory_order_acquire), weightSqSum.load(std::memory_order_acquire));
+}
+inline double NodeStatsAtomic::getChildWeightSq(int64_t edgeVisits, int64_t childVisits) const {
+  return NodeStats::childWeightSq(edgeVisits, childVisits, weightSqSum.load(std::memory_order_acquire));
+}
+
 
 struct MoreNodeStats {
   NodeStats stats;
