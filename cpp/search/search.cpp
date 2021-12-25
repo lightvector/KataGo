@@ -2130,25 +2130,6 @@ struct PolicySortEntry {
   }
 };
 
-//Finds the top n moves, or fewer if there are fewer than that many total legal moves.
-//Returns the number of legal moves found
-int Search::findTopNPolicy(const SearchNode* node, int n, PolicySortEntry* sortedPolicyBuf) const {
-  const std::shared_ptr<NNOutput>* nnOutput = node->nnOutput.load(std::memory_order_acquire);
-  if(nnOutput == NULL)
-    return 0;
-  const float* policyProbs = (*nnOutput)->policyProbs;
-
-  int numLegalMovesFound = 0;
-  for(int pos = 0; pos<policySize; pos++) {
-    if(policyProbs[pos] >= 0.0f) {
-      sortedPolicyBuf[numLegalMovesFound++] = PolicySortEntry(policyProbs[pos],pos);
-    }
-  }
-  int numMovesToReturn = std::min(n,numLegalMovesFound);
-  std::partial_sort(sortedPolicyBuf,sortedPolicyBuf+numMovesToReturn,sortedPolicyBuf+numLegalMovesFound);
-  return numMovesToReturn;
-}
-
 void Search::computeDirichletAlphaDistribution(int policySize, const float* policyProbs, double* alphaDistr) {
   int legalCount = 0;
   for(int i = 0; i<policySize; i++) {

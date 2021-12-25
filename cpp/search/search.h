@@ -29,7 +29,6 @@ struct SearchNode;
 struct SearchThread;
 struct Search;
 struct DistributionTable;
-struct PolicySortEntry;
 
 struct ReportedSearchValues {
   double winValue;
@@ -575,7 +574,6 @@ private:
 
   void clearOldNNOutputs();
   void transferOldNNOutputs(SearchThread& thread);
-  int findTopNPolicy(const SearchNode* node, int n, PolicySortEntry* sortedPolicyBuf) const;
 
   std::shared_ptr<NNOutput>* maybeAddPolicyNoiseAndTemp(SearchThread& thread, bool isRoot, NNOutput* oldNNOutput) const;
   bool isAllowedRootMove(Loc moveLoc) const;
