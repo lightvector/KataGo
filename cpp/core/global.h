@@ -14,7 +14,9 @@
 #include <iostream>
 #include <map>
 #include <set>
-#include <stdint.h>
+#include <cstdint>
+#include <cstdlib>
+#include <cmath>
 #include <string>
 #include <vector>
 #include <memory>

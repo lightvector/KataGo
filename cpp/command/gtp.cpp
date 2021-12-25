@@ -206,7 +206,7 @@ static void updateDynamicPDAHelper(
     double pdaScalingStartPoints = getPointsThresholdForHandicapGame(boardSizeScaling);
     double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
     Player disadvantagedPla = initialBlackAdvantageInPoints >= 0 ? P_WHITE : P_BLACK;
-    double initialAdvantageInPoints = abs(initialBlackAdvantageInPoints);
+    double initialAdvantageInPoints = std::fabs(initialBlackAdvantageInPoints);
     if(initialAdvantageInPoints < pdaScalingStartPoints || board.x_size <= 7 || board.y_size <= 7) {
       desiredDynamicPDAForWhite = 0.0;
     }

@@ -5,7 +5,7 @@
 
 #include "../search/search.h"
 
-#include <inttypes.h>
+#include <cinttypes>
 
 #include "../core/fancymath.h"
 #include "../program/playutils.h"
@@ -1658,7 +1658,7 @@ static double roundStatic(double x, double inverseScale) {
   return round(x * inverseScale) / inverseScale;
 }
 static double roundDynamic(double x, int precision) {
-  double absx = abs(x);
+  double absx = std::fabs(x);
   if(absx <= 1e-60)
     return x;
   int orderOfMagnitude = (int)floor(log10(absx));

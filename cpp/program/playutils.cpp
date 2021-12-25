@@ -460,9 +460,9 @@ static double getNaiveEvenKomiHelper(
     //Shift by the predicted lead
     double shift = -lead;
     //Under no situations should the shift be bigger in absolute value than the last shift
-    if(i > 0 && abs(shift) > abs(lastShift)) {
-      if(shift < 0) shift = -abs(lastShift);
-      else if(shift > 0) shift = abs(lastShift);
+    if(i > 0 && std::fabs(shift) > std::fabs(lastShift)) {
+      if(shift < 0) shift = -std::fabs(lastShift);
+      else if(shift > 0) shift = std::fabs(lastShift);
     }
     lastShift = shift;
 
@@ -475,7 +475,7 @@ static double getNaiveEvenKomiHelper(
     hist.setKomi(fairKomi);
 
     //After a small shift, break out to the binary search.
-    if(abs(shift) < 16.0)
+    if(std::fabs(shift) < 16.0)
       break;
   }
 

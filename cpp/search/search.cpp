@@ -46,7 +46,7 @@ ReportedSearchValues::ReportedSearchValues(
   if(winLossValue < -1.0) winLossValue = -1.0;
   if(winLossValue > 1.0) winLossValue = 1.0;
   if(noResultValue < 0.0) noResultValue = 0.0;
-  if(noResultValue > 1.0-abs(winLossValue)) noResultValue = 1.0-abs(winLossValue);
+  if(noResultValue > 1.0-std::fabs(winLossValue)) noResultValue = 1.0-std::fabs(winLossValue);
 
   winValue = 0.5 * (winLossValue + (1.0 - noResultValue));
   lossValue = 0.5 * (-winLossValue + (1.0 - noResultValue));
@@ -2565,7 +2565,7 @@ static void maybeApplyWideRootNoise(
   //For very large wideRootNoise, go ahead and also smooth out the policy
   nnPolicyProb = (float)pow(nnPolicyProb, 1.0 / (4.0*searchParams.wideRootNoise + 1.0));
   if(thread->rand.nextBool(0.5)) {
-    double bonus = searchParams.wideRootNoise * abs(thread->rand.nextGaussian());
+    double bonus = searchParams.wideRootNoise * std::fabs(thread->rand.nextGaussian());
     if(parent.nextPla == P_WHITE)
       childUtility += bonus;
     else

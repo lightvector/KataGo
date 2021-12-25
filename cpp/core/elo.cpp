@@ -185,7 +185,7 @@ vector<double> ComputeElos::computeElos(
       double newLogGamma = oldLogGamma + logGammaDiff;
       logGammas[x] = newLogGamma;
 
-      double eloDiff = ELO_PER_LOG_GAMMA * abs(logGammaDiff);
+      double eloDiff = ELO_PER_LOG_GAMMA * std::fabs(logGammaDiff);
       maxEloDiff = std::max(eloDiff,maxEloDiff);
     }
     return maxEloDiff;
@@ -268,7 +268,7 @@ vector<double> ComputeElos::computeElos(
 }
 
 static bool approxEqual(double x, double y, double tolerance) {
-  return std::abs(x - y) < tolerance;
+  return std::fabs(x - y) < tolerance;
 }
 
 void ComputeElos::runTests() {

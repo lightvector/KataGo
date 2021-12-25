@@ -1954,8 +1954,8 @@ static void runV8SearchMultithreadTest(NNEvaluator* nnEval, Logger& logger)
     search->runWholeSearch(nextPla);
     moveLoc = search->getChosenMoveLoc();
     cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
-    cout << "Winloss near 0.05: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
-    cout << "Lead near 1: " << (abs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
+    cout << "Winloss near 0.05: " << (std::fabs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
+    cout << "Lead near 1: " << (std::fabs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
 
     // PrintTreeOptions options;
     // options = options.maxDepth(1);
@@ -1967,8 +1967,8 @@ static void runV8SearchMultithreadTest(NNEvaluator* nnEval, Logger& logger)
     search->runWholeSearch(nextPla);
     moveLoc = search->getChosenMoveLoc();
     cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
-    cout << "Winloss near 0.05: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
-    cout << "Lead near 1: " << (abs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
+    cout << "Winloss near 0.05: " << (std::fabs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
+    cout << "Lead near 1: " << (std::fabs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
 
     // PrintTreeOptions options;
     // options = options.maxDepth(1);
@@ -1980,8 +1980,8 @@ static void runV8SearchMultithreadTest(NNEvaluator* nnEval, Logger& logger)
     search->runWholeSearch(nextPla);
     moveLoc = search->getChosenMoveLoc();
     cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
-    cout << "Winloss near 0.05: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
-    cout << "Lead near 1: " << (abs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
+    cout << "Winloss near 0.05: " << (std::fabs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
+    cout << "Lead near 1: " << (std::fabs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
 
     // PrintTreeOptions options;
     // options = options.maxDepth(1);
@@ -2047,8 +2047,8 @@ xoxxoo........o.x..
     search->runWholeSearch(nextPla);
     moveLoc = search->getChosenMoveLoc();
     cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
-    cout << "Winloss near 0.63: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.63)) < 0.1) << endl;
-    cout << "Lead near 15.5: " << (abs(search->getRootValuesRequireSuccess().lead - (15.8)) < 1.8) << endl;
+    cout << "Winloss near 0.63: " << (std::fabs(search->getRootValuesRequireSuccess().winLossValue - (0.63)) < 0.1) << endl;
+    cout << "Lead near 15.5: " << (std::fabs(search->getRootValuesRequireSuccess().lead - (15.8)) < 1.8) << endl;
 
     // PrintTreeOptions options;
     // options = options.maxDepth(1);
@@ -2063,8 +2063,8 @@ xoxxoo........o.x..
     search->runWholeSearch(nextPla);
     moveLoc = search->getChosenMoveLoc();
     cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
-    cout << "Winloss near 0.63: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.63)) < 0.1) << endl;
-    cout << "Lead near 15.5: " << (abs(search->getRootValuesRequireSuccess().lead - (15.8)) < 1.8) << endl;
+    cout << "Winloss near 0.63: " << (std::fabs(search->getRootValuesRequireSuccess().winLossValue - (0.63)) < 0.1) << endl;
+    cout << "Lead near 15.5: " << (std::fabs(search->getRootValuesRequireSuccess().lead - (15.8)) < 1.8) << endl;
 
     // PrintTreeOptions options;
     // options = options.maxDepth(1);

@@ -258,7 +258,7 @@ void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool use
           int pos = NNPos::xyToPos(x,y,nnXLen);
           double ownership = nnOutput.whiteOwnerMap[pos];
           double policy = nnOutput.policyProbs[pos];
-          ownershipResults[i] += abs(ownership);
+          ownershipResults[i] += std::fabs(ownership);
           if(policy >= 0 && policy > maxPolicy)
             maxPolicy = policy;
         }
@@ -290,10 +290,10 @@ void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool use
     // cout << "V " << valueResults[i]-valueResultsSingleThreaded[i] << endl;
     // cout << "S " << scoreResults[i]-scoreResultsSingleThreaded[i] << endl;
     // cout << "O " << ownershipResults[i]-ownershipResultsSingleThreaded[i] << endl;
-    testAssert(abs(policyResults[i]-policyResultsSingleThreaded[i]) < 0.008);
-    testAssert(abs(valueResults[i]-valueResultsSingleThreaded[i]) < 0.015);
-    testAssert(abs(scoreResults[i]-scoreResultsSingleThreaded[i]) < 0.15);
-    testAssert(abs(ownershipResults[i]-ownershipResultsSingleThreaded[i]) < 0.1);
+    testAssert(std::fabs(policyResults[i]-policyResultsSingleThreaded[i]) < 0.008);
+    testAssert(std::fabs(valueResults[i]-valueResultsSingleThreaded[i]) < 0.015);
+    testAssert(std::fabs(scoreResults[i]-scoreResultsSingleThreaded[i]) < 0.15);
+    testAssert(std::fabs(ownershipResults[i]-ownershipResultsSingleThreaded[i]) < 0.1);
   }
 
   delete nnEval;

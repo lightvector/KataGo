@@ -9,14 +9,12 @@
 #include <chrono>
 #include <cstdarg>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <fstream>
-#include <inttypes.h>
+#include <cinttypes>
 #include <iomanip>
 #include <sstream>
-#include <sys/types.h>
 
 using namespace std;
 
