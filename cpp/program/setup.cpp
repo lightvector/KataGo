@@ -1,6 +1,7 @@
 #include "../program/setup.h"
 
 #include "../neuralnet/nninterface.h"
+#include "../search/patternbonustable.h"
 
 using namespace std;
 

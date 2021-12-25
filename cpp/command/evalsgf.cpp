@@ -3,6 +3,7 @@
 #include "../core/timer.h"
 #include "../dataio/sgf.h"
 #include "../search/asyncbot.h"
+#include "../search/searchnode.h"
 #include "../program/setup.h"
 #include "../program/playutils.h"
 #include "../program/play.h"

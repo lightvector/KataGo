@@ -1,6 +1,7 @@
 #include "../tests/testsearchcommon.h"
 
 #include "../dataio/sgf.h"
+#include "../search/searchnode.h"
 #include "../tests/tests.h"
 
 //------------------------

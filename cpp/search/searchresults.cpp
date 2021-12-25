@@ -9,6 +9,7 @@
 
 #include "../core/fancymath.h"
 #include "../program/playutils.h"
+#include "../search/searchnode.h"
 
 using namespace std;
 using nlohmann::json;
@@ -385,7 +386,7 @@ bool Search::getNodeRawNNValues(const SearchNode& node, ReportedSearchValues& va
 
   double scoreMean = nnOutput->whiteScoreMean;
   double scoreMeanSq = nnOutput->whiteScoreMeanSq;
-  double scoreStdev = getScoreStdev(scoreMean,scoreMeanSq);
+  double scoreStdev = ScoreValue::getScoreStdev(scoreMean,scoreMeanSq);
   values.staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
   values.dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
   values.expectedScore = scoreMean;
@@ -911,7 +912,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     data.scoreUtility = getScoreUtility(scoreMeanAvg, scoreMeanSqAvg);
     data.winLossValue = winLossValueAvg;
     data.scoreMean = scoreMeanAvg;
-    data.scoreStdev = getScoreStdev(scoreMeanAvg,scoreMeanSqAvg);
+    data.scoreStdev = ScoreValue::getScoreStdev(scoreMeanAvg,scoreMeanSqAvg);
     data.lead = leadAvg;
     data.ess = weightSum * weightSum / weightSqSum;
     data.weightSum = weightSum;
@@ -1015,7 +1016,7 @@ void Search::getAnalysisData(
 
     parentWinLossValue = winLossValueAvg;
     parentScoreMean = scoreMeanAvg;
-    parentScoreStdev = getScoreStdev(parentScoreMean,scoreMeanSqAvg);
+    parentScoreStdev = ScoreValue::getScoreStdev(parentScoreMean,scoreMeanSqAvg);
     parentLead = leadAvg;
   }
 

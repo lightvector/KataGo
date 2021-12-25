@@ -6,6 +6,7 @@
 #include "../program/playutils.h"
 #include "../program/setup.h"
 #include "../search/asyncbot.h"
+#include "../search/searchnode.h"
 #include "../dataio/files.h"
 
 using namespace std;

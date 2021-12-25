@@ -183,6 +183,7 @@ add_executable(katago
   search/searchparams.cpp
   search/mutexpool.cpp
   search/search.cpp
+  search/searchnode.cpp
   search/searchresults.cpp
   search/asyncbot.cpp
   search/distributiontable.cpp
@@ -191,6 +192,7 @@ add_executable(katago
   search/subtreevaluebiastable.cpp
   search/patternbonustable.cpp
   search/analysisdata.cpp
+  search/reportedsearchvalues.cpp
   program/gtpconfig.cpp
   program/setup.cpp
   program/playutils.cpp

@@ -8,6 +8,7 @@
 #include "../dataio/sgf.h"
 #include "../neuralnet/nninputs.h"
 #include "../search/asyncbot.h"
+#include "../search/searchnode.h"
 #include "../program/playutils.h"
 #include "../tests/testsearchcommon.h"
 

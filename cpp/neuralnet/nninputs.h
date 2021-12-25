@@ -221,6 +221,9 @@ namespace ScoreValue {
   //The expected unscaled utility of the final score difference, given the mean and stdev of the distribution of that difference,
   //assuming roughly a normal distribution.
   double expectedWhiteScoreValue(double whiteScoreMean, double whiteScoreStdev, double center, double scale, const Board& b);
+
+  //Get the standard deviation of score given the E(score) and E(score^2)
+  double getScoreStdev(double scoreMeanAvg, double scoreMeanSqAvg);
 }
 
 #endif  // NEURALNET_NNINPUTS_H_

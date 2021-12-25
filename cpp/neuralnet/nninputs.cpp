@@ -220,6 +220,13 @@ double ScoreValue::expectedWhiteScoreValue(double whiteScoreMean, double whiteSc
   return b0 + lambdaMean*(b1-b0);
 }
 
+double ScoreValue::getScoreStdev(double scoreMean, double scoreMeanSq) {
+  double variance = scoreMeanSq - scoreMean * scoreMean;
+  if(variance <= 0.0)
+    return 0.0;
+  return sqrt(variance);
+}
+
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
 
