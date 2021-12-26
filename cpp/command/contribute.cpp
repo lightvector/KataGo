@@ -883,6 +883,7 @@ int MainCmds::contribute(const vector<string>& args) {
     //form the initial connection.
     std::this_thread::sleep_for(std::chrono::duration<double>(30));
     Rand preDownloadLoopRand;
+    ClockTimer debugTimer;
     while(true) {
       if(shouldStopGracefullyFunc())
         return;
@@ -895,7 +896,19 @@ int MainCmds::contribute(const vector<string>& args) {
         double sleepTime = std::min(sleepTimeTotal, stopPollFrequency);
         if(shouldStopGracefullyFunc())
           return;
+        double t0 = debugTimer.getSeconds();
+        logger.write(
+          "Predownload sleep debug " +
+          Global::doubleToString(sleepTimeTotal) + " " +
+          Global::doubleToString(sleepTime) + " " +
+          Global::doubleToString(stopPollFrequency)
+        );
         std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
+        double t1 = debugTimer.getSeconds();
+        logger.write(
+          "Predownload slept " +
+          Global::doubleToString(t1-t0)
+        );
         sleepTimeTotal -= stopPollFrequency;
       }
     }
