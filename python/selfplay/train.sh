@@ -65,7 +65,7 @@ else
     exit 1
 fi
 
-time python3 "$GITROOTDIR"/python/train.py \
+time python3 "$DATED_ARCHIVE"/train.py \
      -traindir "$BASEDIR"/train/"$TRAININGNAME" \
      -datadir "$BASEDIR"/shuffleddata/current/ \
      -exportdir "$BASEDIR"/"$EXPORT_SUBDIR" \
