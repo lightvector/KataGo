@@ -18,8 +18,6 @@ import numpy as np
 import itertools
 import copy
 
-import data
-from board import Board
 from model import Model, Target_vars, Metrics, ModelUtils
 import modelconfigs
 import tfrecordio

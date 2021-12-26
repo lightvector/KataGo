@@ -4,7 +4,6 @@ import traceback
 import tensorflow as tf
 import numpy as np
 
-from board import Board
 import modelconfigs
 
 #Feature extraction functions-------------------------------------------------------------------
