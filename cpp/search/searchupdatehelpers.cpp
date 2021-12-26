@@ -1,6 +1,7 @@
 #include "../search/search.h"
 
 #include "../search/searchnode.h"
+#include "../search/distributiontable.h"
 
 //------------------------
 #include "../core/using.h"
@@ -318,4 +319,143 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   node.stats.weightSum.store(weightSum,std::memory_order_release);
   node.stats.visits.fetch_add(numVisitsToAdd,std::memory_order_release);
   node.statsLock.clear(std::memory_order_release);
+}
+
+void Search::downweightBadChildrenAndNormalizeWeight(
+  int numChildren,
+  double currentTotalWeight, //The current sum of statsBuf[i].weightAdjusted
+  double desiredTotalWeight, //What statsBuf[i].weightAdjusted should sum up to after this function is done.
+  double amountToSubtract,
+  double amountToPrune,
+  vector<MoreNodeStats>& statsBuf
+) const {
+  if(numChildren <= 0 || currentTotalWeight <= 0.0)
+    return;
+
+  if(searchParams.valueWeightExponent == 0 || mirroringPla != C_EMPTY) {
+    for(int i = 0; i<numChildren; i++) {
+      if(statsBuf[i].weightAdjusted < amountToPrune) {
+        currentTotalWeight -= statsBuf[i].weightAdjusted;
+        statsBuf[i].weightAdjusted = 0.0;
+        continue;
+      }
+      double newWeight = statsBuf[i].weightAdjusted - amountToSubtract;
+      if(newWeight <= 0) {
+        currentTotalWeight -= statsBuf[i].weightAdjusted;
+        statsBuf[i].weightAdjusted = 0.0;
+      }
+      else {
+        currentTotalWeight -= amountToSubtract;
+        statsBuf[i].weightAdjusted = newWeight;
+      }
+    }
+
+    if(currentTotalWeight != desiredTotalWeight) {
+      double factor = desiredTotalWeight / currentTotalWeight;
+      for(int i = 0; i<numChildren; i++)
+        statsBuf[i].weightAdjusted *= factor;
+    }
+    return;
+  }
+
+  assert(numChildren <= NNPos::MAX_NN_POLICY_SIZE);
+  double stdevs[NNPos::MAX_NN_POLICY_SIZE];
+  double simpleValueSum = 0.0;
+  for(int i = 0; i<numChildren; i++) {
+    int64_t numVisits = statsBuf[i].stats.visits;
+    assert(numVisits >= 0);
+    if(numVisits == 0)
+      continue;
+
+    double weight = statsBuf[i].weightAdjusted;
+    double precision = 1.5 * sqrt(weight);
+
+    //Ensure some minimum variance for stability regardless of how we change the above formula
+    static const double minVariance = 0.00000001;
+    stdevs[i] = sqrt(minVariance + 1.0 / precision);
+    simpleValueSum += statsBuf[i].selfUtility * weight;
+  }
+
+  double simpleValue = simpleValueSum / currentTotalWeight;
+
+  double totalNewUnnormWeight = 0.0;
+  for(int i = 0; i<numChildren; i++) {
+    if(statsBuf[i].stats.visits == 0)
+      continue;
+
+    if(statsBuf[i].weightAdjusted < amountToPrune) {
+      currentTotalWeight -= statsBuf[i].weightAdjusted;
+      statsBuf[i].weightAdjusted = 0.0;
+      continue;
+    }
+    double newWeight = statsBuf[i].weightAdjusted - amountToSubtract;
+    if(newWeight <= 0) {
+      currentTotalWeight -= statsBuf[i].weightAdjusted;
+      statsBuf[i].weightAdjusted = 0.0;
+    }
+    else {
+      currentTotalWeight -= amountToSubtract;
+      statsBuf[i].weightAdjusted = newWeight;
+    }
+
+    double z = (statsBuf[i].selfUtility - simpleValue) / stdevs[i];
+    //Also just for numeric sanity, make sure everything has some tiny minimum value.
+    double p = valueWeightDistribution->getCdf(z) + 0.0001;
+    statsBuf[i].weightAdjusted *= pow(p, searchParams.valueWeightExponent);
+    totalNewUnnormWeight += statsBuf[i].weightAdjusted;
+  }
+
+  //Post-process and normalize to sum to the desired weight
+  assert(totalNewUnnormWeight > 0.0);
+  double factor = desiredTotalWeight / totalNewUnnormWeight;
+  for(int i = 0; i<numChildren; i++)
+    statsBuf[i].weightAdjusted *= factor;
+}
+
+
+//Returns the new sum of weightAdjusted
+double Search::pruneNoiseWeight(vector<MoreNodeStats>& statsBuf, int numChildren, double totalChildWeight, const double* policyProbsBuf) const {
+  if(numChildren <= 1 || totalChildWeight <= 0.00001)
+    return totalChildWeight;
+
+  // Children are normally sorted in policy order in KataGo.
+  // But this is not guaranteed, because at the root, we might recompute the nnoutput, or when finding the best new child, we have hacks like antiMirror policy
+  // and other adjustments. For simplicity, we just consider children in sorted order anyways for this pruning, since it will be close.
+
+  // For any child, if its own utility is lower than the weighted average utility of the children before it, it's downweighted if it exceeds much more than a
+  // raw-policy share of the weight.
+  double utilitySumSoFar = 0;
+  double weightSumSoFar = 0;
+  //double rawPolicyUtilitySumSoFar = 0;
+  double rawPolicySumSoFar = 0;
+  for(int i = 0; i<numChildren; i++) {
+    double utility = statsBuf[i].selfUtility;
+    double oldWeight = statsBuf[i].weightAdjusted;
+    double rawPolicy = policyProbsBuf[i];
+
+    double newWeight = oldWeight;
+    if(weightSumSoFar > 0 && rawPolicySumSoFar > 0) {
+      double avgUtilitySoFar = utilitySumSoFar / weightSumSoFar;
+      double utilityGap = avgUtilitySoFar - utility;
+      if(utilityGap > 0) {
+        double weightShareFromRawPolicy = weightSumSoFar * rawPolicy / rawPolicySumSoFar;
+        //If the child is more than double its proper share of the weight
+        double lenientWeightShareFromRawPolicy = 2.0 * weightShareFromRawPolicy;
+        if(oldWeight > lenientWeightShareFromRawPolicy) {
+          double excessWeight = oldWeight - lenientWeightShareFromRawPolicy;
+          double weightToSubtract = excessWeight * (1.0 - exp(-utilityGap / searchParams.noisePruneUtilityScale));
+          if(weightToSubtract > searchParams.noisePruningCap)
+            weightToSubtract = searchParams.noisePruningCap;
+
+          newWeight = oldWeight - weightToSubtract;
+          statsBuf[i].weightAdjusted = newWeight;
+        }
+      }
+    }
+    utilitySumSoFar += utility * newWeight;
+    weightSumSoFar += newWeight;
+    //rawPolicyUtilitySumSoFar += utility * rawPolicy;
+    rawPolicySumSoFar += rawPolicy;
+  }
+  return weightSumSoFar;
 }
