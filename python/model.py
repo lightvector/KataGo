@@ -5,6 +5,7 @@ import tensorflow as tf
 import numpy as np
 
 from board import Board
+import modelconfigs
 
 #Feature extraction functions-------------------------------------------------------------------
 
@@ -16,48 +17,13 @@ class Model:
   NUM_VALUE_SPATIAL_TARGETS = 5
   EXTRA_SCORE_DISTR_RADIUS = 60
 
-  @staticmethod
-  def get_version(config):
-    if "version" in config:
-      return config["version"]
-    return 5 #by default, since this was the version before we put it in the config
-
-  @staticmethod
-  def get_num_bin_input_features(config):
-    version = Model.get_version(config)
-    if version == 4:
-      return 22
-    elif version == 5:
-      return 22
-    elif version == 6:
-      return 13
-    elif version <= 10:
-      return 22
-    else:
-      assert(False)
-
-  @staticmethod
-  def get_num_global_input_features(config):
-    version = Model.get_version(config)
-    if version == 4:
-      return 14
-    elif version == 5:
-      return 14
-    elif version == 6:
-      return 12
-    elif version == 7:
-      return 16
-    elif version <= 10:
-      return 19
-    else:
-      assert(False)
-
-
   def __init__(self,config,pos_len,placeholders,is_training=False):
     self.config = config
     self.pos_len = pos_len
-    self.num_bin_input_features = Model.get_num_bin_input_features(config)
-    self.num_global_input_features = Model.get_num_global_input_features(config)
+    self.version = modelconfigs.get_version(config)
+
+    self.num_bin_input_features = modelconfigs.get_num_bin_input_features(config)
+    self.num_global_input_features = modelconfigs.get_num_global_input_features(config)
 
     self.bin_input_shape = [self.pos_len*self.pos_len,self.num_bin_input_features]
     self.binp_input_shape = [self.num_bin_input_features,(self.pos_len*self.pos_len+7)//8]
@@ -87,8 +53,6 @@ class Model:
     self.ownership_target_weight_shape = []
     self.scoring_target_weight_shape = []
     self.futurepos_target_weight_shape = []
-
-    self.pass_pos = self.pos_len * self.pos_len
 
     self.reg_variables = []
     self.reg_variables_tiny = []
@@ -127,369 +91,6 @@ class Model:
         [int(x.value) for x in tensor.shape] != [int(x) for x in shape]):
       raise Exception("%s should have shape %s but instead it had shape %s" % (
         name, str(shape), str([str(x.value) for x in tensor.shape])))
-
-  def xy_to_tensor_pos(self,x,y):
-    return y * self.pos_len + x
-  def loc_to_tensor_pos(self,loc,board):
-    assert(loc != Board.PASS_LOC)
-    return board.loc_y(loc) * self.pos_len + board.loc_x(loc)
-
-  def tensor_pos_to_loc(self,pos,board):
-    if pos == self.pass_pos:
-      return None
-    pos_len = self.pos_len
-    bsize = board.size
-    assert(self.pos_len >= bsize)
-    x = pos % pos_len
-    y = pos // pos_len
-    if x < 0 or x >= bsize or y < 0 or y >= bsize:
-      return board.loc(-10,-10) #Return an illegal move since this is offboard
-    return board.loc(x,y)
-
-  def sym_tensor_pos(self,pos,symmetry):
-    if pos == self.pass_pos:
-      return pos
-    pos_len = self.pos_len
-    x = pos % pos_len
-    y = pos // pos_len
-    if symmetry >= 4:
-      symmetry -= 4
-      tmp = x
-      x = y
-      y = tmp
-    if symmetry >= 2:
-      symmetry -= 2
-      x = pos_len-x-1
-    if symmetry >= 1:
-      symmetry -= 1
-      y = pos_len-y-1
-    return y * pos_len + x
-
-  #Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
-  def iterLadders(self, board, f):
-    chainHeadsSolved = {}
-    copy = board.copy()
-
-    bsize = board.size
-    assert(self.pos_len >= bsize)
-
-    for y in range(bsize):
-      for x in range(bsize):
-        pos = self.xy_to_tensor_pos(x,y)
-        loc = board.loc(x,y)
-        stone = board.board[loc]
-
-        if stone == Board.BLACK or stone == Board.WHITE:
-          libs = board.num_liberties(loc)
-          if libs == 1 or libs == 2:
-            head = board.group_head[loc]
-            if head in chainHeadsSolved:
-              laddered = chainHeadsSolved[head]
-              if laddered:
-                f(loc,pos,[])
-            else:
-              #Perform search on copy so as not to mess up tracking of solved heads
-              if libs == 1:
-                workingMoves = []
-                laddered = copy.searchIsLadderCaptured(loc,True)
-              else:
-                workingMoves = copy.searchIsLadderCapturedAttackerFirst2Libs(loc)
-                laddered = len(workingMoves) > 0
-
-              chainHeadsSolved[head] = laddered
-              if laddered:
-                f(loc,pos,workingMoves)
-
-
-  #Returns the new idx, which could be the same as idx if this isn't a good training row
-  def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, global_input_data, idx):
-    #Currently only support v4 or v5 or v7-10 MODEL features (inputs version v3 and v4 and v6)
-    assert(self.version == 4 or self.version == 5 or self.version == 7 or self.version == 8 or self.version == 9 or self.version == 10)
-
-    bsize = board.size
-    assert(self.pos_len >= bsize)
-    assert(len(boards) > 0)
-    assert(board.zobrist == boards[move_idx].zobrist)
-
-    for y in range(bsize):
-      for x in range(bsize):
-        pos = self.xy_to_tensor_pos(x,y)
-        bin_input_data[idx,pos,0] = 1.0
-        loc = board.loc(x,y)
-        stone = board.board[loc]
-        if stone == pla:
-          bin_input_data[idx,pos,1] = 1.0
-        elif stone == opp:
-          bin_input_data[idx,pos,2] = 1.0
-
-        if stone == pla or stone == opp:
-          libs = board.num_liberties(loc)
-          if libs == 1:
-            bin_input_data[idx,pos,3] = 1.0
-          elif libs == 2:
-            bin_input_data[idx,pos,4] = 1.0
-          elif libs == 3:
-            bin_input_data[idx,pos,5] = 1.0
-
-    #Python code does NOT handle superko
-    if board.simple_ko_point is not None:
-      pos = self.loc_to_tensor_pos(board.simple_ko_point,board)
-      bin_input_data[idx,pos,6] = 1.0
-    #Python code does NOT handle ko-prohibited encore spots or anything relating to the encore
-    #so features 7 and 8 leave that blank
-
-    if move_idx >= 1 and moves[move_idx-1][0] == opp:
-      prev1_loc = moves[move_idx-1][1]
-      if prev1_loc is not None and prev1_loc != Board.PASS_LOC:
-        pos = self.loc_to_tensor_pos(prev1_loc,board)
-        bin_input_data[idx,pos,9] = 1.0
-      elif prev1_loc == Board.PASS_LOC:
-        global_input_data[idx,0] = 1.0
-
-      if move_idx >= 2 and moves[move_idx-2][0] == pla:
-        prev2_loc = moves[move_idx-2][1]
-        if prev2_loc is not None and prev2_loc != Board.PASS_LOC:
-          pos = self.loc_to_tensor_pos(prev2_loc,board)
-          bin_input_data[idx,pos,10] = 1.0
-        elif prev2_loc == Board.PASS_LOC:
-          global_input_data[idx,1] = 1.0
-
-        if move_idx >= 3 and moves[move_idx-3][0] == opp:
-          prev3_loc = moves[move_idx-3][1]
-          if prev3_loc is not None and prev3_loc != Board.PASS_LOC:
-            pos = self.loc_to_tensor_pos(prev3_loc,board)
-            bin_input_data[idx,pos,11] = 1.0
-          elif prev3_loc == Board.PASS_LOC:
-            global_input_data[idx,2] = 1.0
-
-          if move_idx >= 4 and moves[move_idx-4][0] == pla:
-            prev4_loc = moves[move_idx-4][1]
-            if prev4_loc is not None and prev4_loc != Board.PASS_LOC:
-              pos = self.loc_to_tensor_pos(prev4_loc,board)
-              bin_input_data[idx,pos,12] = 1.0
-            elif prev4_loc == Board.PASS_LOC:
-              global_input_data[idx,3] = 1.0
-
-            if move_idx >= 5 and moves[move_idx-5][0] == opp:
-              prev5_loc = moves[move_idx-5][1]
-              if prev5_loc is not None and prev5_loc != Board.PASS_LOC:
-                pos = self.loc_to_tensor_pos(prev5_loc,board)
-                bin_input_data[idx,pos,13] = 1.0
-              elif prev5_loc == Board.PASS_LOC:
-                global_input_data[idx,4] = 1.0
-
-    def addLadderFeature(loc,pos,workingMoves):
-      assert(board.board[loc] == Board.BLACK or board.board[loc] == Board.WHITE)
-      bin_input_data[idx,pos,14] = 1.0
-      if board.board[loc] == opp and board.num_liberties(loc) > 1:
-        for workingMove in workingMoves:
-          workingPos = self.loc_to_tensor_pos(workingMove,board)
-          bin_input_data[idx,workingPos,17] = 1.0
-
-    self.iterLadders(board, addLadderFeature)
-
-    if move_idx > 0:
-      prevBoard = boards[move_idx-1]
-    else:
-      prevBoard = board
-    def addPrevLadderFeature(loc,pos,workingMoves):
-      assert(prevBoard.board[loc] == Board.BLACK or prevBoard.board[loc] == Board.WHITE)
-      bin_input_data[idx,pos,15] = 1.0
-    self.iterLadders(prevBoard, addPrevLadderFeature)
-
-    if move_idx > 1:
-      prevPrevBoard = boards[move_idx-2]
-    else:
-      prevPrevBoard = prevBoard
-    def addPrevPrevLadderFeature(loc,pos,workingMoves):
-      assert(prevPrevBoard.board[loc] == Board.BLACK or prevPrevBoard.board[loc] == Board.WHITE)
-      bin_input_data[idx,pos,16] = 1.0
-    self.iterLadders(prevPrevBoard, addPrevPrevLadderFeature)
-
-    #Features 18,19 - area
-    area = [0 for i in range(board.arrsize)]
-
-    if self.version <= 6:
-      if rules["scoringRule"] == "SCORING_AREA":
-        nonPassAliveStones = False
-        safeBigTerritories = True
-        unsafeBigTerritories = False
-        if self.version != 5:
-          nonPassAliveStones = True
-          unsafeBigTerritories = True
-        board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules["multiStoneSuicideLegal"])
-      elif rules["scoringRule"] == "SCORING_TERRITORY":
-        nonPassAliveStones = False
-        safeBigTerritories = True
-        unsafeBigTerritories = False
-        board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules["multiStoneSuicideLegal"])
-      else:
-        assert(False)
-    else:
-      if rules["scoringRule"] == "SCORING_AREA" and rules["taxRule"] == "TAX_NONE":
-        safeBigTerritories = True
-        nonPassAliveStones = True
-        unsafeBigTerritories = True
-        board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules["multiStoneSuicideLegal"])
-      else:
-        hasAreaFeature = False
-        keepTerritories = False
-        keepStones = False
-        if rules["scoringRule"] == "SCORING_AREA" and (rules["taxRule"] == "TAX_SEKI" or rules["taxRule"] == "TAX_ALL"):
-          hasAreaFeature = True
-          keepTerritories = False
-          keepStones = True
-        elif rules["scoringRule"] == "SCORING_TERRITORY" and rules["taxRule"] == "TAX_NONE":
-          if rules["encorePhase"] >= 2:
-            hasAreaFeature = True
-            keepTerritories = True
-            keepStones = False
-        elif rules["scoringRule"] == "SCORING_TERRITORY" and (rules["taxRule"] == "TAX_SEKI" or rules["taxRule"] == "TAX_ALL"):
-          if rules["encorePhase"] >= 2:
-            hasAreaFeature = True
-            keepTerritories = False
-            keepStones = False
-        else:
-          assert(False)
-
-        if hasAreaFeature:
-          board.calculateNonDameTouchingArea(
-            area,
-            keepTerritories,
-            keepStones,
-            rules["multiStoneSuicideLegal"]
-          )
-
-    for y in range(bsize):
-      for x in range(bsize):
-        loc = board.loc(x,y)
-        pos = self.xy_to_tensor_pos(x,y)
-
-        if area[loc] == pla:
-          bin_input_data[idx,pos,18] = 1.0
-        elif area[loc] == opp:
-          bin_input_data[idx,pos,19] = 1.0
-
-    #Features 20,21 - second encore phase starting stones, we just set them to the current stones in pythong
-    #since we don't really have a jp rules impl
-    if rules["encorePhase"] >= 2:
-      for y in range(bsize):
-        for x in range(bsize):
-          pos = self.xy_to_tensor_pos(x,y)
-          loc = board.loc(x,y)
-          stone = board.board[loc]
-          if stone == pla:
-            bin_input_data[idx,pos,20] = 1.0
-          elif stone == opp:
-            bin_input_data[idx,pos,21] = 1.0
-
-
-    #Not quite right, japanese rules aren't really implemented in the python
-    bArea = board.size * board.size
-    whiteKomi = rules["whiteKomi"]
-    if rules["scoringRule"] == "SCORING_TERRITORY":
-      selfKomi = (whiteKomi+1 if pla == Board.WHITE else -whiteKomi)
-    else:
-      selfKomi = (whiteKomi if pla == Board.WHITE else -whiteKomi)
-
-    if selfKomi > bArea+1:
-      selfKomi = bArea+1
-    if selfKomi < -bArea-1:
-      selfKomi = -bArea-1
-    if self.version >= 7:
-      global_input_data[idx,5] = selfKomi/20.0
-    else:
-      global_input_data[idx,5] = selfKomi/15.0
-
-    if rules["koRule"] == "KO_SIMPLE":
-      pass
-    elif rules["koRule"] == "KO_POSITIONAL" or rules["koRule"] == "KO_SPIGHT":
-      global_input_data[idx,6] = 1.0
-      global_input_data[idx,7] = 0.5
-    elif rules["koRule"] == "KO_SITUATIONAL":
-      global_input_data[idx,6] = 1.0
-      global_input_data[idx,7] = -0.5
-    else:
-      assert(False)
-
-    if rules["multiStoneSuicideLegal"]:
-      global_input_data[idx,8] = 1.0
-
-    if rules["scoringRule"] == "SCORING_AREA":
-      pass
-    elif rules["scoringRule"] == "SCORING_TERRITORY":
-      global_input_data[idx,9] = 1.0
-    else:
-      assert(False)
-
-    if self.version >= 7:
-      if rules["taxRule"] == "TAX_NONE":
-        pass
-      elif rules["taxRule"] == "TAX_SEKI":
-        global_input_data[idx,10] = 1.0
-      elif rules["taxRule"] == "TAX_ALL":
-        global_input_data[idx,10] = 1.0
-        global_input_data[idx,11] = 1.0
-      else:
-        assert(False)
-
-    if self.version >= 7:
-      if rules["encorePhase"] > 0:
-        global_input_data[idx,12] = 1.0
-      if rules["encorePhase"] > 1:
-        global_input_data[idx,13] = 1.0
-      passWouldEndPhase = rules["passWouldEndPhase"]
-      global_input_data[idx,14] = (1.0 if passWouldEndPhase else 0.0)
-    else:
-      if rules["encorePhase"] > 0:
-        global_input_data[idx,10] = 1.0
-      if rules["encorePhase"] > 1:
-        global_input_data[idx,11] = 1.0
-      passWouldEndPhase = rules["passWouldEndPhase"]
-      global_input_data[idx,12] = (1.0 if passWouldEndPhase else 0.0)
-
-    if self.version >= 8 and "asymPowersOfTwo" in rules:
-      global_input_data[idx,15] = 1.0
-      global_input_data[idx,16] = rules["asymPowersOfTwo"]
-
-    if self.version >= 8:
-      if "hasButton" in rules and rules["hasButton"] and Board.PASS_LOC not in [move[1] for move in moves]:
-        global_input_data[idx,17] = 1.0
-
-    if rules["scoringRule"] == "SCORING_AREA" or rules["encorePhase"] > 1:
-      boardAreaIsEven = (board.size % 2 == 0)
-
-      drawableKomisAreEven = boardAreaIsEven
-
-      if drawableKomisAreEven:
-        komiFloor = math.floor(selfKomi / 2.0) * 2.0
-      else:
-        komiFloor = math.floor((selfKomi-1.0) / 2.0) * 2.0 + 1.0
-
-      delta = selfKomi - komiFloor
-      assert(delta >= -0.0001)
-      assert(delta <= 2.0001)
-      if delta < 0.0:
-        delta = 0.0
-      if delta > 2.0:
-        delta = 2.0
-
-      if delta < 0.5:
-        wave = delta
-      elif delta < 1.5:
-        wave = 1.0-delta
-      else:
-        wave = delta-2.0
-
-      if self.version >= 8:
-        global_input_data[idx,18] = wave
-      elif self.version >= 7:
-        global_input_data[idx,15] = wave
-      else:
-        global_input_data[idx,13] = wave
-
-    return idx+1
-
 
   # Build model -------------------------------------------------------------
 
@@ -822,26 +423,8 @@ class Model:
   def build_model(self,config,placeholders):
     pos_len = self.pos_len
 
-    #Model version-------------------------------------------------------------------------------
-    #This is written out in the model file when it gets built for export
-    #self.version = 0 #V1 features, with old head architecture using crelus (no longer supported)
-    #self.version = 1 #V1 features, with new head architecture, no crelus
-    #self.version = 2 #V2 features, no internal architecture change.
-    #self.version = 3 #V3 features, selfplay-planned features with lots of aux targets
-    #self.version = 4 #V3 features, but supporting belief stdev and dynamic scorevalue
-    #self.version = 5 #V4 features, slightly different pass-alive stones feature
-    #self.version = 6 #V5 features, most higher-level go features removed
-    #self.version = 7 #V6 features, more rules support
-    #self.version = 8 #V7 features, asym, lead, variance time
-    #self.version = 9 #V7 features, shortterm value error prediction, inference actually uses variance time, unsupported now
-    #self.version = 10 #V7 features, shortterm value error prediction done properly
-
-    self.version = Model.get_version(config)
     # These are the only supported versions for training
-    # Version 9 is disabled because it's a total mess to support its partly broken versions of the value error predictions.
-    if self.version == 9:
-      raise ValueError("This is a version 9 model, which is a version that has some slightly buggy mathematical formulation of a training target and is no longer supported. Use an older version of KataGo python code to train it, such as git revision e20d7c29.")
-    assert(self.version == 8 or self.version == 10)
+    assert(self.version == 10)
 
     #Input layer---------------------------------------------------------------------------------
     bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
@@ -876,56 +459,55 @@ class Model:
     #We do this by building a matrix for each batch element, mapping input channels to possibly-turned off channels.
     #This matrix is a sum of hist_matrix_base which always turns off all the channels, and h0, h1, h2,... which perform
     #the modifications to hist_matrix_base to make it turn on channels based on whether we have move0, move1,...
-    if self.version >= 8:
-      hist_matrix_base = np.diag(np.array([
-        1.0, #0
-        1.0, #1
-        1.0, #2
-        1.0, #3
-        1.0, #4
-        1.0, #5
-        1.0, #6
-        1.0, #7
-        1.0, #8
-        0.0, #9
-        0.0, #10
-        0.0, #11
-        0.0, #12
-        0.0, #13
-        1.0, #14
-        0.0, #15
-        0.0, #16
-        1.0, #17
-        1.0, #18
-        1.0, #19
-        1.0, #20
-        1.0, #21
-      ],dtype=np.float32))
-      #Because we have ladder features that express past states rather than past diffs, the most natural encoding when
-      #we have no history is that they were always the same, rather than that they were all zero. So rather than zeroing
-      #them we have no history, we add entries in the matrix to copy them over.
-      #By default, without history, the ladder features 15 and 16 just copy over from 14.
-      hist_matrix_base[14,15] = 1.0
-      hist_matrix_base[14,16] = 1.0
-      #When have the prev move, we enable feature 9 and 15
-      h0 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
-      h0[9,9] = 1.0 #Enable 9 -> 9
-      h0[14,15] = -1.0 #Stop copying 14 -> 15
-      h0[14,16] = -1.0 #Stop copying 14 -> 16
-      h0[15,15] = 1.0 #Enable 15 -> 15
-      h0[15,16] = 1.0 #Start copying 15 -> 16
-      #When have the prevprev move, we enable feature 10 and 16
-      h1 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
-      h1[10,10] = 1.0 #Enable 10 -> 10
-      h1[15,16] = -1.0 #Stop copying 15 -> 16
-      h1[16,16] = 1.0 #Enable 16 -> 16
-      #Further history moves
-      h2 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
-      h2[11,11] = 1.0
-      h3 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
-      h3[12,12] = 1.0
-      h4 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
-      h4[13,13] = 1.0
+    hist_matrix_base = np.diag(np.array([
+      1.0, #0
+      1.0, #1
+      1.0, #2
+      1.0, #3
+      1.0, #4
+      1.0, #5
+      1.0, #6
+      1.0, #7
+      1.0, #8
+      0.0, #9
+      0.0, #10
+      0.0, #11
+      0.0, #12
+      0.0, #13
+      1.0, #14
+      0.0, #15
+      0.0, #16
+      1.0, #17
+      1.0, #18
+      1.0, #19
+      1.0, #20
+      1.0, #21
+    ],dtype=np.float32))
+    #Because we have ladder features that express past states rather than past diffs, the most natural encoding when
+    #we have no history is that they were always the same, rather than that they were all zero. So rather than zeroing
+    #them we have no history, we add entries in the matrix to copy them over.
+    #By default, without history, the ladder features 15 and 16 just copy over from 14.
+    hist_matrix_base[14,15] = 1.0
+    hist_matrix_base[14,16] = 1.0
+    #When have the prev move, we enable feature 9 and 15
+    h0 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+    h0[9,9] = 1.0 #Enable 9 -> 9
+    h0[14,15] = -1.0 #Stop copying 14 -> 15
+    h0[14,16] = -1.0 #Stop copying 14 -> 16
+    h0[15,15] = 1.0 #Enable 15 -> 15
+    h0[15,16] = 1.0 #Start copying 15 -> 16
+    #When have the prevprev move, we enable feature 10 and 16
+    h1 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+    h1[10,10] = 1.0 #Enable 10 -> 10
+    h1[15,16] = -1.0 #Stop copying 15 -> 16
+    h1[16,16] = 1.0 #Enable 16 -> 16
+    #Further history moves
+    h2 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+    h2[11,11] = 1.0
+    h3 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+    h3[12,12] = 1.0
+    h4 = np.zeros([self.num_bin_input_features,self.num_bin_input_features],dtype=np.float32)
+    h4[13,13] = 1.0
 
     hist_matrix_base = tf.reshape(tf.constant(hist_matrix_base),[1,self.num_bin_input_features,self.num_bin_input_features])
     hist_matrix_builder = tf.constant(np.array([h0,h1,h2,h3,h4]))
@@ -1113,12 +695,8 @@ class Model:
     self.other_internal_outputs.append(("mv3",mv3_layer))
 
     mmv3_size = self.moremiscvalues_target_shape[0]
-    if self.version >= 9:
-      mmv3w = self.weight_variable("mmv3/w",[v2_size,mmv3_size],v2_size,mmv3_size)
-      mmv3b = self.weight_variable("mmv3/b",[mmv3_size],v2_size,mmv3_size,scale_initial_weights=0.2,reg="tiny")
-    else:
-      mmv3w = tf.zeros([v2_size,mmv3_size])
-      mmv3b = tf.zeros([mmv3_size])
+    mmv3w = self.weight_variable("mmv3/w",[v2_size,mmv3_size],v2_size,mmv3_size)
+    mmv3b = self.weight_variable("mmv3/b",[mmv3_size],v2_size,mmv3_size,scale_initial_weights=0.2,reg="tiny")
     mmv3_layer = tf.matmul(v2_layer, mmv3w, name='mmvmul') + mmv3b
     self.mmv3_size = mmv3_size
     self.other_internal_outputs.append(("mmv3",mmv3_layer))
@@ -1144,27 +722,24 @@ class Model:
     scorebelief_mid = self.pos_len*self.pos_len+Model.EXTRA_SCORE_DISTR_RADIUS
     assert(scorebelief_len == self.pos_len*self.pos_len*2+Model.EXTRA_SCORE_DISTR_RADIUS*2)
 
-    if self.version >= 8:
-      self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
-      self.score_belief_parity_vector = np.array([0.5-float((i-scorebelief_mid) % 2) for i in range(scorebelief_len)],dtype=np.float32)
-      sbv2_size = config["sbv2_num_channels"]
-      sb2w = self.weight_variable("sb2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
-      sb2b = self.weight_variable("sb2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg="tiny")
-      sb2_layer_partial = tf.matmul(v1_layer_pooled, sb2w) + sb2b
-      sb2_offset_vector = tf.constant(0.05 * self.score_belief_offset_vector, dtype=tf.float32)
-      sb2_parity_vector = tf.reshape(self.score_belief_parity_vector,[1,-1]) * transformed_global_inputs[:,self.num_global_input_features-1:self.num_global_input_features]
-      sb2_offset_w = self.weight_variable("sb2_offset/w",[1,sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.5)
-      sb2_offset_partial = tf.matmul(tf.reshape(sb2_offset_vector,[-1,1]), sb2_offset_w)
-      sb2_parity_w = self.weight_variable("sb2_parity/w",[1,sbv2_size],v1_size*3+1,sbv2_size)
-      sb2_parity_partial = tf.matmul(tf.reshape(sb2_parity_vector,[-1,1]), sb2_parity_w)
-      sb2_layer = (
-        tf.reshape(sb2_layer_partial,[-1,1,sbv2_size]) +
-        tf.reshape(sb2_offset_partial,[1,scorebelief_len,sbv2_size]) +
-        tf.reshape(sb2_parity_partial,[-1,scorebelief_len,sbv2_size])
-      )
-      sb2_layer = self.relu_spatial1d("sb2/relu",sb2_layer)
-    else:
-      assert(False)
+    self.score_belief_offset_vector = np.array([float(i-scorebelief_mid)+0.5 for i in range(scorebelief_len)],dtype=np.float32)
+    self.score_belief_parity_vector = np.array([0.5-float((i-scorebelief_mid) % 2) for i in range(scorebelief_len)],dtype=np.float32)
+    sbv2_size = config["sbv2_num_channels"]
+    sb2w = self.weight_variable("sb2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size)
+    sb2b = self.weight_variable("sb2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg="tiny")
+    sb2_layer_partial = tf.matmul(v1_layer_pooled, sb2w) + sb2b
+    sb2_offset_vector = tf.constant(0.05 * self.score_belief_offset_vector, dtype=tf.float32)
+    sb2_parity_vector = tf.reshape(self.score_belief_parity_vector,[1,-1]) * transformed_global_inputs[:,self.num_global_input_features-1:self.num_global_input_features]
+    sb2_offset_w = self.weight_variable("sb2_offset/w",[1,sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.5)
+    sb2_offset_partial = tf.matmul(tf.reshape(sb2_offset_vector,[-1,1]), sb2_offset_w)
+    sb2_parity_w = self.weight_variable("sb2_parity/w",[1,sbv2_size],v1_size*3+1,sbv2_size)
+    sb2_parity_partial = tf.matmul(tf.reshape(sb2_parity_vector,[-1,1]), sb2_parity_w)
+    sb2_layer = (
+      tf.reshape(sb2_layer_partial,[-1,1,sbv2_size]) +
+      tf.reshape(sb2_offset_partial,[1,scorebelief_len,sbv2_size]) +
+      tf.reshape(sb2_parity_partial,[-1,scorebelief_len,sbv2_size])
+    )
+    sb2_layer = self.relu_spatial1d("sb2/relu",sb2_layer)
 
     sbscale2w = self.weight_variable("sbscale2/w",[v1_size*3,sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.5)
     sbscale2b = self.weight_variable("sbscale2/b",[sbv2_size],v1_size*3+1,sbv2_size,scale_initial_weights=0.2,reg="tiny")
@@ -1657,8 +1232,8 @@ class ModelUtils:
   def build_model_from_tfrecords_features(features,mode,print_model,trainlog,model_config,pos_len,batch_size,lr_scale=None,gnorm_clip_scale=None,num_gpus_used=1):
     trainlog("Building model")
 
-    num_bin_input_features = Model.get_num_bin_input_features(model_config)
-    num_global_input_features = Model.get_num_global_input_features(model_config)
+    num_bin_input_features = modelconfigs.get_num_bin_input_features(model_config)
+    num_global_input_features = modelconfigs.get_num_global_input_features(model_config)
 
     #L2 regularization coefficient
     if model_config["use_fixup"]:

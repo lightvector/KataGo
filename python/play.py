@@ -15,6 +15,7 @@ import numpy as np
 
 from board import Board
 from model import Model
+from features import Features
 import common
 
 description = """
@@ -37,6 +38,8 @@ pos_len = 19
 
 with open(model_config_json) as f:
   model_config = json.load(f)
+
+features = Features(model_config, pos_len)
 
 if name_scope is not None:
   with tf.compat.v1.variable_scope(name_scope):
@@ -83,7 +86,7 @@ def fetch_output(session, gs, rules, fetches):
   pla = gs.board.pla
   opp = Board.get_opp(pla)
   move_idx = len(gs.moves)
-  model.fill_row_features(gs.board,pla,opp,gs.boards,gs.moves,move_idx,rules,bin_input_data,global_input_data,idx=0)
+  features.fill_row_features(gs.board,pla,opp,gs.boards,gs.moves,move_idx,rules,bin_input_data,global_input_data,idx=0)
   outputs = session.run(fetches, feed_dict={
     model.bin_inputs: bin_input_data,
     model.global_inputs: global_input_data,
@@ -139,7 +142,7 @@ def get_outputs(session, gs, rules):
 
   moves_and_probs0 = []
   for i in range(len(policy0)):
-    move = model.tensor_pos_to_loc(i,board)
+    move = features.tensor_pos_to_loc(i,board)
     if i == len(policy0)-1:
       moves_and_probs0.append((Board.PASS_LOC,policy0[i]))
     elif board.would_be_legal(board.pla,move):
@@ -147,79 +150,79 @@ def get_outputs(session, gs, rules):
 
   moves_and_probs1 = []
   for i in range(len(policy1)):
-    move = model.tensor_pos_to_loc(i,board)
+    move = features.tensor_pos_to_loc(i,board)
     if i == len(policy1)-1:
       moves_and_probs1.append((Board.PASS_LOC,policy1[i]))
     elif board.would_be_legal(board.pla,move):
       moves_and_probs1.append((move,policy1[i]))
 
-  ownership_flat = ownership.reshape([model.pos_len * model.pos_len])
+  ownership_flat = ownership.reshape([features.pos_len * features.pos_len])
   ownership_by_loc = []
   board = gs.board
   for y in range(board.size):
     for x in range(board.size):
       loc = board.loc(x,y)
-      pos = model.loc_to_tensor_pos(loc,board)
+      pos = features.loc_to_tensor_pos(loc,board)
       if board.pla == Board.WHITE:
         ownership_by_loc.append((loc,ownership_flat[pos]))
       else:
         ownership_by_loc.append((loc,-ownership_flat[pos]))
 
-  scoring_flat = scoring.reshape([model.pos_len * model.pos_len])
+  scoring_flat = scoring.reshape([features.pos_len * features.pos_len])
   scoring_by_loc = []
   board = gs.board
   for y in range(board.size):
     for x in range(board.size):
       loc = board.loc(x,y)
-      pos = model.loc_to_tensor_pos(loc,board)
+      pos = features.loc_to_tensor_pos(loc,board)
       if board.pla == Board.WHITE:
         scoring_by_loc.append((loc,scoring_flat[pos]))
       else:
         scoring_by_loc.append((loc,-scoring_flat[pos]))
 
-  futurepos0_flat = futurepos[:,:,0].reshape([model.pos_len * model.pos_len])
+  futurepos0_flat = futurepos[:,:,0].reshape([features.pos_len * features.pos_len])
   futurepos0_by_loc = []
   board = gs.board
   for y in range(board.size):
     for x in range(board.size):
       loc = board.loc(x,y)
-      pos = model.loc_to_tensor_pos(loc,board)
+      pos = features.loc_to_tensor_pos(loc,board)
       if board.pla == Board.WHITE:
         futurepos0_by_loc.append((loc,futurepos0_flat[pos]))
       else:
         futurepos0_by_loc.append((loc,-futurepos0_flat[pos]))
 
-  futurepos1_flat = futurepos[:,:,1].reshape([model.pos_len * model.pos_len])
+  futurepos1_flat = futurepos[:,:,1].reshape([features.pos_len * features.pos_len])
   futurepos1_by_loc = []
   board = gs.board
   for y in range(board.size):
     for x in range(board.size):
       loc = board.loc(x,y)
-      pos = model.loc_to_tensor_pos(loc,board)
+      pos = features.loc_to_tensor_pos(loc,board)
       if board.pla == Board.WHITE:
         futurepos1_by_loc.append((loc,futurepos1_flat[pos]))
       else:
         futurepos1_by_loc.append((loc,-futurepos1_flat[pos]))
 
-  seki_flat = seki.reshape([model.pos_len * model.pos_len])
+  seki_flat = seki.reshape([features.pos_len * features.pos_len])
   seki_by_loc = []
   board = gs.board
   for y in range(board.size):
     for x in range(board.size):
       loc = board.loc(x,y)
-      pos = model.loc_to_tensor_pos(loc,board)
+      pos = features.loc_to_tensor_pos(loc,board)
       if board.pla == Board.WHITE:
         seki_by_loc.append((loc,seki_flat[pos]))
       else:
         seki_by_loc.append((loc,-seki_flat[pos]))
 
-  seki_flat2 = seki2.reshape([model.pos_len * model.pos_len])
+  seki_flat2 = seki2.reshape([features.pos_len * features.pos_len])
   seki_by_loc2 = []
   board = gs.board
   for y in range(board.size):
     for x in range(board.size):
       loc = board.loc(x,y)
-      pos = model.loc_to_tensor_pos(loc,board)
+      pos = features.loc_to_tensor_pos(loc,board)
       seki_by_loc2.append((loc,seki_flat2[pos]))
 
   moves_and_probs = sorted(moves_and_probs0, key=lambda moveandprob: moveandprob[1], reverse=True)
@@ -274,12 +277,12 @@ def get_outputs(session, gs, rules):
 def get_layer_values(session, gs, rules, layer, channel):
   board = gs.board
   [layer] = fetch_output(session,gs,rules=rules,fetches=[layer])
-  layer = layer.reshape([model.pos_len * model.pos_len,-1])
+  layer = layer.reshape([features.pos_len * features.pos_len,-1])
   locs_and_values = []
   for y in range(board.size):
     for x in range(board.size):
       loc = board.loc(x,y)
-      pos = model.loc_to_tensor_pos(loc,board)
+      pos = features.loc_to_tensor_pos(loc,board)
       locs_and_values.append((loc,layer[pos,channel]))
   return locs_and_values
 
@@ -290,13 +293,13 @@ def get_input_feature(gs, rules, feature_idx):
   pla = board.pla
   opp = Board.get_opp(pla)
   move_idx = len(gs.moves)
-  model.fill_row_features(board,pla,opp,gs.boards,gs.moves,move_idx,rules,bin_input_data,global_input_data,idx=0)
+  features.fill_row_features(board,pla,opp,gs.boards,gs.moves,move_idx,rules,bin_input_data,global_input_data,idx=0)
 
   locs_and_values = []
   for y in range(board.size):
     for x in range(board.size):
       loc = board.loc(x,y)
-      pos = model.loc_to_tensor_pos(loc,board)
+      pos = features.loc_to_tensor_pos(loc,board)
       locs_and_values.append((loc,bin_input_data[0,pos,feature_idx]))
   return locs_and_values
 
@@ -712,7 +715,7 @@ def run_gtp(session):
 
     ret = ''
     if command[0] == "boardsize":
-      if int(command[1]) > model.pos_len:
+      if int(command[1]) > features.pos_len:
         print("Warning: Trying to set incompatible boardsize %s (!= %d)" % (command[1], N), file=sys.stderr)
         ret = None
       board_size = int(command[1])

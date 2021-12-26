@@ -14,6 +14,7 @@ import numpy as np
 
 from model import Model, ModelUtils
 import common
+import modelconfigs
 
 #Command and args-------------------------------------------------------------------
 
@@ -122,8 +123,8 @@ with tf.compat.v1.Session(config=tfconfig) as session:
 
     writeln(model_name)
     writeln(model.version) #version
-    writeln(model.get_num_bin_input_features(model_config))
-    writeln(model.get_num_global_input_features(model_config))
+    writeln(modelconfigs.get_num_bin_input_features(model_config))
+    writeln(modelconfigs.get_num_global_input_features(model_config))
 
     variables = dict((variable.name,variable) for variable in tf.compat.v1.global_variables())
     def get_weights(name):

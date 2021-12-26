@@ -1,11 +1,12 @@
 import tensorflow as tf
 
 from model import Model
+import modelconfigs
 
 # Construct a dictionary that tensorflow uses to know how to parse a tfrecord
 def make_raw_input_features(model_config,pos_len,batch_size):
-  num_bin_input_features = Model.get_num_bin_input_features(model_config)
-  num_global_input_features = Model.get_num_global_input_features(model_config)
+  num_bin_input_features = modelconfigs.get_num_bin_input_features(model_config)
+  num_global_input_features = modelconfigs.get_num_global_input_features(model_config)
 
   return {
     "binchwp": tf.io.FixedLenFeature([],tf.string),
@@ -19,8 +20,8 @@ def make_raw_input_features(model_config,pos_len,batch_size):
 # Construct a dictionary of placeholders, in case we're using a feed_dict_like way of providing
 # training rows rather than via dataset
 def make_raw_input_feature_placeholders(model_config,pos_len,batch_size):
-  num_bin_input_features = Model.get_num_bin_input_features(model_config)
-  num_global_input_features = Model.get_num_global_input_features(model_config)
+  num_bin_input_features = modelconfigs.get_num_bin_input_features(model_config)
+  num_global_input_features = modelconfigs.get_num_global_input_features(model_config)
 
   return {
     "binchwp": tf.compat.v1.placeholder(tf.uint8,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
@@ -35,8 +36,8 @@ def make_raw_input_feature_placeholders(model_config,pos_len,batch_size):
 # (or rather, the function that transforms an input pipe of tfrecords into a tensor for the outputs
 # to go once the dataset begins running)
 def make_tf_record_parser(model_config,pos_len,batch_size,multi_num_gpus=None):
-  num_bin_input_features = Model.get_num_bin_input_features(model_config)
-  num_global_input_features = Model.get_num_global_input_features(model_config)
+  num_bin_input_features = modelconfigs.get_num_bin_input_features(model_config)
+  num_global_input_features = modelconfigs.get_num_global_input_features(model_config)
   raw_input_features = make_raw_input_features(model_config,pos_len,batch_size)
 
   def parse_input(serialized_example):
