@@ -139,7 +139,7 @@ bool Search::getPlaySelectionValues(
     const NNOutput* nnOutput = node.getNNOutput();
     assert(nnOutput != NULL);
     const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
-    double bestChildExploreSelectionValue = getExploreSelectionValue(
+    double bestChildExploreSelectionValue = getExploreSelectionValueOfChild(
       node,policyProbs,bestChild,
       bestMoveLoc,
       totalChildWeight,bestChildEdgeVisits,fpuValue,

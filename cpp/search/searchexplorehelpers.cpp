@@ -81,7 +81,7 @@ static void maybeApplyWideRootNoise(
 }
 
 
-double Search::getExploreSelectionValue(
+double Search::getExploreSelectionValueOfChild(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
   Loc moveLoc,
   double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
@@ -355,7 +355,7 @@ void Search::selectBestChildToDescend(
 
     Loc moveLoc = children[i].getMoveLocRelaxed();
     bool isDuringSearch = true;
-    double selectionValue = getExploreSelectionValue(
+    double selectionValue = getExploreSelectionValueOfChild(
       node,policyProbs,child,
       moveLoc,
       totalChildWeight,childEdgeVisits,fpuValue,

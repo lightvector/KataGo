@@ -488,7 +488,7 @@ private:
     double exploreSelectionValue, double nnPolicyProb, double totalChildWeight,
     double childUtility, double parentUtilityStdevFactor, Player pla
   ) const;
-  double getExploreSelectionValue(
+  double getExploreSelectionValueOfChild(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     Loc moveLoc,
     double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
