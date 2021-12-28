@@ -1285,6 +1285,10 @@ bool Search::playoutDescend(
       //Make the move!
       thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
       thread.pla = getOpp(thread.pla);
+      if(searchParams.useGraphSearch)
+        thread.graphHash = GraphHash::getGraphHash(
+          thread.graphHash, thread.history, thread.pla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite
+        );
     }
 
     break;
