@@ -942,6 +942,14 @@ vector<SymBookNode> Book::getAllLeaves(double minVisits) {
   return ret;
 }
 
+std::vector<SymBookNode> Book::getAllNodes() {
+  vector<SymBookNode> ret;
+  for(BookNode* node: nodes) {
+    ret.push_back(SymBookNode(node,0));
+  }
+  return ret;
+}
+
 BookNode* Book::get(BookHash hash) {
   map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
   auto iter = nodeIdxMap.find(hash);

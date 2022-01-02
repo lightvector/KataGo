@@ -55,7 +55,7 @@ int MainCmds::genbook(const vector<string>& args) {
   bool allowChangingBookParams;
   bool htmlDevMode;
   try {
-    KataGoCommandLine cmd("View startposes");
+    KataGoCommandLine cmd("Generate opening book");
     cmd.addConfigFileArg("","",true);
     cmd.addModelFileArg();
     cmd.addOverrideConfigArg();
@@ -679,7 +679,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
     if(!suc) {
       std::lock_guard<std::mutex> lock(bookMutex);
-      logger.write("WARNING: Failed to get board history reaching node when trying to export to expand book, probably there is some bug");
+      logger.write("WARNING: Failed to get board history reaching node when trying to expand book, probably there is some bug");
       logger.write("or else some hash collision or something else is wrong.");
       logger.write("BookHash of node unable to expand: " + constNode.hash().toString());
       ostringstream movesOut;
@@ -699,6 +699,13 @@ int MainCmds::genbook(const vector<string>& args) {
       vector<int> symmetriesRet;
       BookHash::getHashAndSymmetry(hist, book->repBound, hashRet, symmetryToAlignRet, symmetriesRet, book->bookVersion);
       if(hashRet != node.hash()) {
+        ostringstream out;
+        Board board = hist.getRecentBoard(0);
+        Board::printBoard(out, board, Board::NULL_LOC, NULL);
+        for(Loc move: moveHistory)
+          out << Location::toString(move,book->initialBoard) << " ";
+        logger.write("Moves:");
+        logger.write(out.str());
         throw StringError("Book failed integrity check, the node with hash " + node.hash().toString() + " when walked to has hash " + hashRet.toString());
       }
     }
@@ -995,6 +1002,100 @@ int MainCmds::genbook(const vector<string>& args) {
   delete nnEval;
   delete book;
   delete traceBook;
+  ScoreValue::freeTables();
+  logger.write("DONE");
+  return 0;
+}
+
+int MainCmds::checkbook(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  string bookFile;
+  try {
+    KataGoCommandLine cmd("Check integrity of opening book");
+
+    TCLAP::ValueArg<string> bookFileArg("","book-file","Book file to write to or continue expanding",true,string(),"FILE");
+    cmd.add(bookFileArg);
+
+    cmd.parseArgs(args);
+
+    bookFile = bookFileArg.getValue();
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  Rand rand;
+  Logger logger;
+  logger.setLogToStdout(true);
+
+  Book* book;
+  {
+    double sharpScoreOutlierCap = 2.0;
+    book = Book::loadFromFile(bookFile,sharpScoreOutlierCap);
+    logger.write("Loaded preexisting book with " + Global::uint64ToString(book->size()) + " nodes from " + bookFile);
+    logger.write("Book version = " + Global::intToString(book->bookVersion));
+  }
+
+  const PrintTreeOptions options;
+
+  auto testNode = [&](SymBookNode node) {
+    ConstSymBookNode constNode(node);
+
+    BoardHistory hist;
+    std::vector<Loc> moveHistory;
+    std::vector<int> symmetries;
+    bool suc;
+    {
+      suc = constNode.getBoardHistoryReachingHere(hist,moveHistory);
+      symmetries = constNode.getSymmetries();
+    }
+
+    if(!suc) {
+      logger.write("WARNING: Failed to get board history reaching node, probably there is some bug");
+      logger.write("or else some hash collision or something else is wrong.");
+      logger.write("BookHash of node unable to expand: " + constNode.hash().toString());
+      ostringstream out;
+      Board board = hist.getRecentBoard(0);
+      Board::printBoard(out, board, Board::NULL_LOC, NULL);
+      for(Loc move: moveHistory)
+        out << Location::toString(move,book->initialBoard) << " ";
+      logger.write("Moves:");
+      logger.write(out.str());
+    }
+
+    // Book integrity check
+    {
+      BookHash hashRet;
+      int symmetryToAlignRet;
+      vector<int> symmetriesRet;
+      BookHash::getHashAndSymmetry(hist, book->repBound, hashRet, symmetryToAlignRet, symmetriesRet, book->bookVersion);
+      if(hashRet != node.hash()) {
+        logger.write("Book failed integrity check, the node with hash " + node.hash().toString() + " when walked to has hash " + hashRet.toString());
+        ostringstream out;
+        Board board = hist.getRecentBoard(0);
+        Board::printBoard(out, board, Board::NULL_LOC, NULL);
+        for(Loc move: moveHistory)
+          out << Location::toString(move,book->initialBoard) << " ";
+        logger.write("Moves:");
+        logger.write(out.str());
+      }
+    }
+  };
+
+  std::vector<SymBookNode> allNodes = book->getAllNodes();
+  logger.write("Checking book...");
+  int64_t numNodesChecked = 0;
+  for(SymBookNode node: allNodes) {
+    testNode(node);
+    numNodesChecked += 1;
+    if(numNodesChecked % 10000 == 0)
+      logger.write("Checked " + Global::int64ToString(numNodesChecked) + "/" + Global::int64ToString((int64_t)allNodes.size()) + " nodes");
+  }
+
+  delete book;
   ScoreValue::freeTables();
   logger.write("DONE");
   return 0;

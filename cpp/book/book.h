@@ -382,6 +382,7 @@ class Book {
 
   std::vector<SymBookNode> getNextNToExpand(int n);
   std::vector<SymBookNode> getAllLeaves(double minVisits);
+  std::vector<SymBookNode> getAllNodes();
 
   void exportToHtmlDir(
     const std::string& dirName,

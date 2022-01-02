@@ -35,6 +35,7 @@ namespace MainCmds {
   int samplesgfs(const std::vector<std::string>& args);
   int dataminesgfs(const std::vector<std::string>& args);
   int genbook(const std::vector<std::string>& args);
+  int checkbook(const std::vector<std::string>& args);
 
   int trystartposes(const std::vector<std::string>& args);
   int viewstartposes(const std::vector<std::string>& args);
