@@ -463,11 +463,15 @@ double Search::getPolicySurprise() const {
   return 0.0;
 }
 
-//Safe to call concurrently with search
 bool Search::getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntropyRet, double& policyEntropyRet) const {
-  if(rootNode == NULL)
+  return getPolicySurpriseAndEntropy(surpriseRet, searchEntropyRet, policyEntropyRet, rootNode);
+}
+
+//Safe to call concurrently with search
+bool Search::getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntropyRet, double& policyEntropyRet, const SearchNode* node) const {
+  if(node == NULL)
     return false;
-  const NNOutput* nnOutput = rootNode->getNNOutput();
+  const NNOutput* nnOutput = node->getNNOutput();
   if(nnOutput == NULL)
     return false;
 
@@ -478,7 +482,7 @@ bool Search::getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntr
   double lcbBuf[NNPos::MAX_NN_POLICY_SIZE];
   double radiusBuf[NNPos::MAX_NN_POLICY_SIZE];
   bool suc = getPlaySelectionValues(
-    *rootNode,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,false,lcbBuf,radiusBuf
+    *node,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,false,lcbBuf,radiusBuf
   );
   if(!suc)
     return false;
@@ -490,12 +494,12 @@ bool Search::getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntr
   }
 
   double sumPlaySelectionValues = 0.0;
-  for(int i = 0; i<playSelectionValues.size(); i++)
+  for(size_t i = 0; i < playSelectionValues.size(); i++)
     sumPlaySelectionValues += playSelectionValues[i];
 
   double surprise = 0.0;
   double searchEntropy = 0.0;
-  for(int i = 0; i<playSelectionValues.size(); i++) {
+  for(size_t i = 0; i < playSelectionValues.size(); i++) {
     int pos = getPos(locs[i]);
     double policy = std::max((double)policyProbsFromNNBuf[pos],1e-100);
     double target = playSelectionValues[i] / sumPlaySelectionValues;

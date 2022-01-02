@@ -308,6 +308,7 @@ struct Search {
   //Get the surprisingness (kl-divergence) of the search result given the policy prior, as well as the entropy of each.
   //Returns false if could not be computed.
   bool getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntropyRet, double& policyEntropyRet) const;
+  bool getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntropyRet, double& policyEntropyRet, const SearchNode* node) const;
   double getPolicySurprise() const;
 
   void printPV(std::ostream& out, const SearchNode* node, int maxDepth) const;
