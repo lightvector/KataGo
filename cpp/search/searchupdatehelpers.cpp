@@ -54,7 +54,13 @@ void Search::addLeafValue(
     node.stats.weightSum.store(weight,std::memory_order_release);
     int64_t oldVisits = node.stats.visits.fetch_add(1,std::memory_order_release);
     node.statsLock.clear(std::memory_order_release);
-    assert(oldVisits == 0);
+    // This should only be possible in the extremely rare case that we transpose to a terminal node from a non-terminal node probably due to
+    // a hash collision, or that we have a graph history interaction that somehow changes whether a particular path ends the game or not, despite
+    // our simpleRepetitionBoundGt logic... such that the node managed to get visits as a terminal node despite not having an nn eval. There's
+    // nothing reasonable to do here once we have such a bad collision, so just at least don't crash.
+    if(oldVisits != 0) {
+      logger->write("WARNING: assumeNoExistingWeight for leaf but leaf already has visits");
+    }
   }
   else {
     while(node.statsLock.test_and_set(std::memory_order_acquire));
