@@ -916,6 +916,15 @@ static void recordTreePositionsRec(
     SidePosition* sp = new SidePosition(board,hist,pla,numNeuralNetChangesSoFar);
     extractPolicyTarget(sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
     extractValueTargets(sp->whiteValueTargets, toMoveBot, node);
+
+    double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
+    bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy, node);
+    assert(success);
+    (void)success; //Avoid warning when asserts are disabled
+    sp->policySurprise = (float)policySurprise;
+    sp->policyEntropy = (float)policyEntropy;
+    sp->searchEntropy = (float)searchEntropy;
+
     sp->nnRawStats = computeNNRawStats(toMoveBot, board, hist, pla);
     sp->targetWeight = recordTreeTargetWeight;
     sp->unreducedNumVisits = toMoveBot->getRootVisits();
@@ -1458,7 +1467,6 @@ FinishedGameData* Play::runGame(
   vector<double> historicalMctsWinLossValues;
   vector<double> historicalMctsLeads;
   vector<double> historicalMctsScoreStdevs;
-  vector<double> policySurpriseByTurn;
   vector<ReportedSearchValues> rawNNValues;
 
   ClockTimer timer;
@@ -1520,7 +1528,15 @@ FinishedGameData* Play::runGame(
       gameData->nnRawStatsByTurn.push_back(computeNNRawStats(toMoveBot, board, hist, pla));
 
       gameData->targetWeightByTurn.push_back(limits.targetWeight);
-      policySurpriseByTurn.push_back(toMoveBot->getPolicySurprise());
+
+      double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
+      bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy);
+      assert(success);
+      (void)success; //Avoid warning when asserts are disabled
+      gameData->policySurpriseByTurn.push_back((float)policySurprise);
+      gameData->policyEntropyByTurn.push_back((float)policyEntropy);
+      gameData->searchEntropyByTurn.push_back((float)searchEntropy);
+
       rawNNValues.push_back(toMoveBot->getRootRawNNValuesRequireSuccess());
 
       //Occasionally fork off some positions to evaluate
@@ -1728,17 +1744,17 @@ FinishedGameData* Play::runGame(
 
     //Compute desired expectation with which to write main game rows
     if(playSettings.policySurpriseDataWeight > 0 || playSettings.valueSurpriseDataWeight > 0) {
-      int numWeights = gameData->targetWeightByTurn.size();
-      assert(numWeights == policySurpriseByTurn.size());
+      size_t numWeights = gameData->targetWeightByTurn.size();
+      assert(numWeights == gameData->policySurpriseByTurn.size());
 
       double sumWeights = 0.0;
       double sumPolicySurpriseWeighted = 0.0;
       double sumValueSurpriseWeighted = 0.0;
-      for(int i = 0; i<numWeights; i++) {
+      for(size_t i = 0; i < numWeights; i++) {
         float targetWeight = gameData->targetWeightByTurn[i];
         assert(targetWeight >= 0.0 && targetWeight <= 1.0);
         sumWeights += targetWeight;
-        double policySurprise = policySurpriseByTurn[i];
+        double policySurprise = gameData->policySurpriseByTurn[i];
         assert(policySurprise >= 0.0);
         double valueSurprise = valueSurpriseByTurn[i];
         assert(valueSurprise >= 0.0);
@@ -1769,7 +1785,7 @@ FinishedGameData* Play::runGame(
         double sumValueSurprisePropValue = 0.0;
         for(int i = 0; i<numWeights; i++) {
           float targetWeight = gameData->targetWeightByTurn[i];
-          double policySurprise = policySurpriseByTurn[i];
+          double policySurprise = gameData->policySurpriseByTurn[i];
           double valueSurprise = valueSurpriseByTurn[i];
           double policySurprisePropValue =
             targetWeight * policySurprise + (1-targetWeight) * std::max(0.0,policySurprise-thresholdToIncludeReduced);
@@ -1785,7 +1801,7 @@ FinishedGameData* Play::runGame(
 
         for(int i = 0; i<numWeights; i++) {
           float targetWeight = gameData->targetWeightByTurn[i];
-          double policySurprise = policySurpriseByTurn[i];
+          double policySurprise = gameData->policySurpriseByTurn[i];
           double valueSurprise = valueSurpriseByTurn[i];
           double policySurprisePropValue =
             targetWeight * policySurprise + (1-targetWeight) * std::max(0.0,policySurprise-thresholdToIncludeReduced);
@@ -1818,6 +1834,15 @@ FinishedGameData* Play::runGame(
 
       extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode);
+
+      double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
+      bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy);
+      assert(success);
+      (void)success; //Avoid warning when asserts are disabled
+      sp->policySurprise = (float)policySurprise;
+      sp->policyEntropy = (float)policyEntropy;
+      sp->searchEntropy = (float)searchEntropy;
+
       sp->nnRawStats = computeNNRawStats(toMoveBot, sp->board, sp->hist, sp->pla);
       sp->targetWeight = 1.0f;
       sp->unreducedNumVisits = toMoveBot->getRootVisits();
