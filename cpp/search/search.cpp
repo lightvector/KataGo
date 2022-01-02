@@ -268,11 +268,13 @@ void Search::setNNEval(NNEvaluator* nnEval) {
 
 void Search::clearSearch() {
   effectiveSearchTimeCarriedOver = 0.0;
-  deleteAllTableNodesMulithreaded();
-  //Root is not stored in node table
   if(rootNode != NULL) {
-    delete rootNode;
-    rootNode = NULL;
+    deleteAllTableNodesMulithreaded();
+    //Root is not stored in node table
+    if(rootNode != NULL) {
+      delete rootNode;
+      rootNode = NULL;
+    }
   }
   clearOldNNOutputs();
   searchNodeAge = 0;
