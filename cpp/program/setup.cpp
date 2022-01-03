@@ -449,7 +449,7 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("fpuReductionVisitedPolicyPow"+idxStr)) params.fpuReductionVisitedPolicyPow = cfg.getDouble("fpuReductionVisitedPolicyPow"+idxStr, 0.0, 5.0);
     else if(cfg.contains("fpuReductionVisitedPolicyPow"))   params.fpuReductionVisitedPolicyPow = cfg.getDouble("fpuReductionVisitedPolicyPow",        0.0, 5.0);
     else                                                    params.fpuReductionVisitedPolicyPow = 0.5;
-    if(cfg.contains("fpuParentWeightByVisitedPolicy"+idxStr)) params.fpuParentWeightByVisitedPolicy = cfg.getBool("fpuParentWeightByVisitedPolicy");
+    if(cfg.contains("fpuParentWeightByVisitedPolicy"+idxStr)) params.fpuParentWeightByVisitedPolicy = cfg.getBool("fpuParentWeightByVisitedPolicy"+idxStr);
     else if(cfg.contains("fpuParentWeightByVisitedPolicy"))   params.fpuParentWeightByVisitedPolicy = cfg.getBool("fpuParentWeightByVisitedPolicy");
     else                                                      params.fpuParentWeightByVisitedPolicy = false;
     if(params.fpuParentWeightByVisitedPolicy) {
