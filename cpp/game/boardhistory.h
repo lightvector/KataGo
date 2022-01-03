@@ -22,7 +22,7 @@ struct BoardHistory {
   std::vector<Hash128> koHashHistory;
   //The index of the first turn for which we have a koHashHistory (since depending on rules, passes may clear it).
   //Index 0 = starting state, index 1 = state after move 0, index 2 = state after move 1, etc...
-  int firstTurnIdxWithKoHistory;
+  size_t firstTurnIdxWithKoHistory;
 
   //The board and player to move as of the very start, before moveHistory.
   Board initialBoard;
@@ -182,7 +182,7 @@ private:
 struct KoHashTable {
   uint32_t* idxTable;
   std::vector<Hash128> koHashHistorySortedByLowBits;
-  int firstTurnIdxWithKoHistory;
+  size_t firstTurnIdxWithKoHistory;
 
   static const int TABLE_SIZE = 1 << 10;
   static const uint64_t TABLE_MASK = TABLE_SIZE-1;

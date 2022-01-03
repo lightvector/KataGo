@@ -643,7 +643,7 @@ double PlayUtils::getSearchFactor(
   double searchFactor = 1.0;
   if(recentWinLossValues.size() >= 3 && params.winLossUtilityFactor - searchFactorWhenWinningThreshold > 1e-10) {
     double recentLeastWinning = pla == P_BLACK ? -params.winLossUtilityFactor : params.winLossUtilityFactor;
-    for(int i = recentWinLossValues.size()-3; i < recentWinLossValues.size(); i++) {
+    for(size_t i = recentWinLossValues.size()-3; i < recentWinLossValues.size(); i++) {
       if(pla == P_BLACK && recentWinLossValues[i] > recentLeastWinning)
         recentLeastWinning = recentWinLossValues[i];
       if(pla == P_WHITE && recentWinLossValues[i] < recentLeastWinning)
@@ -681,7 +681,7 @@ vector<double> PlayUtils::computeOwnership(
   bot->runWholeSearch(pla);
 
   int64_t minVisitsForOwnership = 2;
-  vector<double> ownerships = bot->getAverageTreeOwnership(minVisitsForOwnership);
+  vector<double> ownerships = bot->getAverageTreeOwnership((double)minVisitsForOwnership);
 
   bot->setParams(oldParams);
   bot->setAlwaysIncludeOwnerMap(oldAlwaysIncludeOwnerMap);
@@ -1007,9 +1007,9 @@ Rules PlayUtils::genRandomRules(Rand& rand) {
   vector<int> allowedTaxRules = { Rules::TAX_NONE, Rules::TAX_SEKI, Rules::TAX_ALL };
 
   Rules rules;
-  rules.koRule = allowedKoRules[rand.nextUInt(allowedKoRules.size())];
-  rules.scoringRule = allowedScoringRules[rand.nextUInt(allowedScoringRules.size())];
-  rules.taxRule = allowedTaxRules[rand.nextUInt(allowedTaxRules.size())];
+  rules.koRule = allowedKoRules[rand.nextUInt((uint32_t)allowedKoRules.size())];
+  rules.scoringRule = allowedScoringRules[rand.nextUInt((uint32_t)allowedScoringRules.size())];
+  rules.taxRule = allowedTaxRules[rand.nextUInt((uint32_t)allowedTaxRules.size())];
   rules.multiStoneSuicideLegal = rand.nextBool(0.5);
 
   if(rules.scoringRule == Rules::SCORING_AREA)

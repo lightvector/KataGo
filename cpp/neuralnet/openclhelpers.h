@@ -113,6 +113,7 @@ namespace OpenCLHelpers {
 
   size_t powerOf2ify(size_t size);
   size_t roundUpToMultiple(size_t size, size_t ofThis);
+  int roundUpToMultipleInt(size_t size, size_t ofThis);
 
   cl_int doBatchedXGemm_KM_KN_NM(
     cl_kernel kernel,

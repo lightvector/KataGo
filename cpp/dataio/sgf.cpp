@@ -290,7 +290,7 @@ int64_t Sgf::depth() const {
     if(childDepth > maxChildDepth)
       maxChildDepth = childDepth;
   }
-  return maxChildDepth + nodes.size();
+  return maxChildDepth + (int64_t)nodes.size();
 }
 
 int64_t Sgf::nodeCount() const {
@@ -307,7 +307,7 @@ int64_t Sgf::branchCount() const {
     count += children[i]->branchCount();
   }
   if(children.size() > 1)
-    count += children.size()-1;
+    count += (int64_t)children.size()-1;
   return count;
 }
 
@@ -828,13 +828,13 @@ static uint64_t parseHex64(const string& str) {
 
 set<Hash128> Sgf::readExcludes(const vector<string>& files) {
   set<Hash128> excludeHashes;
-  for(int i = 0; i<files.size(); i++) {
-    string excludeHashesFile = Global::trim(files[i]);
+  for(const string& file: files) {
+    string excludeHashesFile = Global::trim(file);
     if(excludeHashesFile.size() <= 0)
       continue;
     vector<string> hashes = FileUtils::readFileLines(excludeHashesFile,'\n');
-    for(int64_t j = 0; j < hashes.size(); j++) {
-      const string& hash128 = Global::trim(Global::stripComments(hashes[j]));
+    for(const string& hashStr: hashes) {
+      string hash128 = Global::trim(Global::stripComments(hashStr));
       if(hash128.length() <= 0)
         continue;
       if(hash128.length() != 32)
@@ -1395,7 +1395,7 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
 }
 
 void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const {
-  if(turnIdx < 0 || turnIdx > moves.size())
+  if(turnIdx < 0 || turnIdx > (int64_t)moves.size())
     throw StringError(
       Global::strprintf(
         "Attempting to set up position from SGF for invalid turn idx %lld, valid values are %lld to %lld",
@@ -1410,7 +1410,7 @@ void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistor
 }
 
 void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool preventEncore) const {
-  if(turnIdx < 0 || turnIdx > moves.size())
+  if(turnIdx < 0 || turnIdx > (int64_t)moves.size())
     throw StringError(
       Global::strprintf(
         "Attempting to set up position from SGF for invalid turn idx %lld, valid values are %lld to %lld",

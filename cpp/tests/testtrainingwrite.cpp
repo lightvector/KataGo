@@ -480,7 +480,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     }
     if(testHint) {
       otherGameProps.isHintPos = true;
-      otherGameProps.hintTurn = initialHist.moveHistory.size();
+      otherGameProps.hintTurn = (int)initialHist.moveHistory.size();
       otherGameProps.hintPosHash = initialBoard.pos_hash;
       otherGameProps.hintLoc = Location::ofString("A1",initialBoard);
       otherGameProps.allowPolicyInit = false;
@@ -1916,7 +1916,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     extraBlackAndKomi.extraBlack = 0;
     extraBlackAndKomi.komiMean = rules.komi;
     extraBlackAndKomi.komiStdev = 0;
-    int turnIdx = sgf->moves.size();
+    int turnIdx = (int)sgf->moves.size();
     sgf->setupBoardAndHistAssumeLegal(rules,initialBoard,initialPla,initialHist,turnIdx);
 
     bool doEndGameIfAllPassAlive = true;

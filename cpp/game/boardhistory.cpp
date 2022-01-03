@@ -315,7 +315,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
     int netWhiteCaptures = board.numWhiteCaptures - board.numBlackCaptures;
     whiteBonusScore -= (float)netWhiteCaptures;
   }
-  whiteHandicapBonusScore = computeWhiteHandicapBonus();
+  whiteHandicapBonusScore = (float)computeWhiteHandicapBonus();
 }
 
 void BoardHistory::setInitialTurnNumber(int n) {
@@ -324,7 +324,7 @@ void BoardHistory::setInitialTurnNumber(int n) {
 
 void BoardHistory::setAssumeMultipleStartingBlackMovesAreHandicap(bool b) {
   assumeMultipleStartingBlackMovesAreHandicap = b;
-  whiteHandicapBonusScore = computeWhiteHandicapBonus();
+  whiteHandicapBonusScore = (float)computeWhiteHandicapBonus();
 }
 
 static int numHandicapStonesOnBoardHelper(const Board& board, int blackNonPassTurnsToStart) {
@@ -1006,7 +1006,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   if(movePla == P_WHITE && moveLoc != Board::PASS_LOC)
     whiteHasMoved = true;
   if(assumeMultipleStartingBlackMovesAreHandicap && !whiteHasMoved && movePla == P_BLACK && rules.whiteHandicapBonusRule != Rules::WHB_ZERO) {
-    whiteHandicapBonusScore = computeWhiteHandicapBonus();
+    whiteHandicapBonusScore = (float)computeWhiteHandicapBonus();
   }
 
   //Phase transitions and game end

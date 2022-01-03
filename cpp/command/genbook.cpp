@@ -428,7 +428,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
     nodeValues.maxPolicy = maxPolicy;
     nodeValues.weight = remainingSearchValues.weight;
-    nodeValues.visits = remainingSearchValues.visits;
+    nodeValues.visits = (double)remainingSearchValues.visits;
   };
 
 
