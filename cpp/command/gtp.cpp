@@ -9,6 +9,7 @@
 #include "../program/setup.h"
 #include "../program/playutils.h"
 #include "../program/play.h"
+#include "../tests/tests.h"
 #include "../command/commandline.h"
 #include "../main.h"
 
@@ -86,6 +87,7 @@ static const vector<string> knownCommands = {
   //Misc other stuff
   "cputime",
   "gomill-cpu_time",
+  "benchmark",
 
   //Some debug commands
   "kata-debug-print-tc",
@@ -2831,6 +2833,71 @@ int MainCmds::gtp(const vector<string>& args) {
     }
     else if(command == "cputime" || command == "gomill-cpu_time") {
       response = Global::doubleToString(engine->genmoveTimeSum);
+    }
+
+    else if(command == "benchmark") {
+      bool parsed = false;
+      int64_t numVisits = 0;
+      if(pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected one argument for benchmark but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        bool suc = Global::tryStringToInt64(pieces[0],numVisits);
+        if(!suc) {
+          responseIsError = true;
+          response = "Could not parse number of visits: " + pieces[0];
+        }
+        parsed = true;
+      }
+
+      if(parsed) {
+        engine->stopAndWait();
+
+        int boardSizeX = engine->bot->getRootBoard().x_size;
+        int boardSizeY = engine->bot->getRootBoard().y_size;
+        if(boardSizeX != boardSizeY) {
+          responseIsError = true;
+          response =
+            "Current board size is " + Global::intToString(boardSizeX) + "x" + Global::intToString(boardSizeY) +
+            ", no built-in benchmarks for rectangular boards";
+        }
+        else {
+          CompactSgf* sgf = NULL;
+          try {
+            string sgfData = TestCommon::getBenchmarkSGFData(boardSizeX);
+            sgf = CompactSgf::parse(sgfData);
+          }
+          catch(const StringError& e) {
+            responseIsError = true;
+            response = e.what();
+          }
+          if(sgf != NULL) {
+            const PlayUtils::BenchmarkResults* baseline = NULL;
+            const double secondsPerGameMove = 1.0;
+            const bool printElo = false;
+            SearchParams params = engine->getParams();
+            params.maxTime = 1.0e20;
+            params.maxPlayouts = ((int64_t)1) << 50;
+            params.maxVisits = numVisits;
+            PlayUtils::BenchmarkResults results = PlayUtils::benchmarkSearchOnPositionsAndPrint(
+              params,
+              sgf,
+              10,
+              engine->nnEval,
+              baseline,
+              secondsPerGameMove,
+              printElo
+            );
+            (void)results;
+            delete sgf;
+            //Act of benchmarking will write to stdout with a newline at the end, so we just need one more newline ourselves
+            //to complete GTP protocol.
+            suppressResponse = true;
+            cout << endl;
+          }
+        }
+      }
     }
 
     else if(command == "stop") {
