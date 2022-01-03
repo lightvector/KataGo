@@ -396,6 +396,7 @@ class Book {
   static Book* loadFromFile(const std::string& fileName, double sharpScoreOutlierCap);
 
  private:
+  int64_t getIdx(BookHash hash) const;
   BookNode* get(BookHash hash);
   const BookNode* get(BookHash hash) const;
   bool add(BookHash hash, BookNode* node);
