@@ -692,8 +692,9 @@ int MainCmds::genbook(const vector<string>& args) {
       return;
     }
 
-    // Book integrity check
-    {
+    // Book integrity check, only for later versions since older versions had a bug that gets them permanently with
+    // hashes stuck to be bad.
+    if(book->bookVersion >= 2) {
       BookHash hashRet;
       int symmetryToAlignRet;
       vector<int> symmetriesRet;

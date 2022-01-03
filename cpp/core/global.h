@@ -80,12 +80,14 @@ namespace Global
   int stringToInt(const std::string& str);
   int64_t stringToInt64(const std::string& str);
   uint64_t stringToUInt64(const std::string& str);
+  uint64_t hexStringToUInt64(const std::string& str);
   float stringToFloat(const std::string& str);
   double stringToDouble(const std::string& str);
   bool stringToBool(const std::string& str);
   bool tryStringToInt(const std::string& str, int& x);
   bool tryStringToInt64(const std::string& str, int64_t& x);
   bool tryStringToUInt64(const std::string& str, uint64_t& x);
+  bool tryHexStringToUInt64(const std::string& str, uint64_t& x);
   bool tryStringToFloat(const std::string& str, float& x);
   bool tryStringToDouble(const std::string& str, double& x);
   bool tryStringToBool(const std::string& str, bool& x);
