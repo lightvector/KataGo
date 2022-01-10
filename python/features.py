@@ -3,10 +3,10 @@ import numpy as np
 from typing import Callable, List
 
 from board import Board, Loc, Pos, Player
-from modelconfigs import ModelConfig
+import modelconfigs
 
 class Features:
-  def __init__(self, config: ModelConfig, pos_len: int):
+  def __init__(self, config: modelconfigs.ModelConfig, pos_len: int):
     self.config = config
     self.pos_len = pos_len
     self.version = modelconfigs.get_version(config)

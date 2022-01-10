@@ -36,9 +36,7 @@ b2c16 = {
   "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
-  "use_scoremean_as_lead":False,
-  "use_initial_conv_3":False,
-  "use_fixed_sbscaling":True,
+  "use_initial_conv_3":True,
   "trunk_num_channels":16,
   "mid_num_channels":16,
   "regular_num_channels":8,
@@ -52,6 +50,7 @@ b2c16 = {
   "g1_num_channels":8,
   "v1_num_channels":8,
   "sbv2_num_channels":12,
+  "num_scorebeliefs":2,
   "v2_size":12
 }
 
@@ -59,9 +58,7 @@ b4c32 = {
   "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
-  "use_scoremean_as_lead":False,
-  "use_initial_conv_3":False,
-  "use_fixed_sbscaling":True,
+  "use_initial_conv_3":True,
   "trunk_num_channels":32,
   "mid_num_channels":32,
   "regular_num_channels":16,
@@ -77,6 +74,7 @@ b4c32 = {
   "g1_num_channels":12,
   "v1_num_channels":12,
   "sbv2_num_channels":24,
+  "num_scorebeliefs":4,
   "v2_size":24
 }
 
@@ -84,9 +82,7 @@ b6c96 = {
   "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
-  "use_scoremean_as_lead":False,
   "use_initial_conv_3":True,
-  "use_fixed_sbscaling":True,
   "trunk_num_channels":96,
   "mid_num_channels":96,
   "regular_num_channels":64,
@@ -104,6 +100,7 @@ b6c96 = {
   "g1_num_channels":32,
   "v1_num_channels":32,
   "sbv2_num_channels":48,
+  "num_scorebeliefs":4,
   "v2_size":64
 }
 
@@ -111,9 +108,7 @@ b10c128 = {
   "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
-  "use_scoremean_as_lead":False,
   "use_initial_conv_3":True,
-  "use_fixed_sbscaling":True,
   "trunk_num_channels":128,
   "mid_num_channels":128,
   "regular_num_channels":96,
@@ -135,6 +130,7 @@ b10c128 = {
   "g1_num_channels":32,
   "v1_num_channels":32,
   "sbv2_num_channels":64,
+  "num_scorebeliefs":6,
   "v2_size":80
 }
 
@@ -142,9 +138,7 @@ b15c192 = {
   "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
-  "use_scoremean_as_lead":False,
   "use_initial_conv_3":True,
-  "use_fixed_sbscaling":True,
   "trunk_num_channels":192,
   "mid_num_channels":192,
   "regular_num_channels":128,
@@ -171,6 +165,7 @@ b15c192 = {
   "g1_num_channels":32,
   "v1_num_channels":32,
   "sbv2_num_channels":80,
+  "num_scorebeliefs":8,
   "v2_size":96
 }
 
@@ -178,9 +173,7 @@ b20c256 = {
   "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
-  "use_scoremean_as_lead":False,
   "use_initial_conv_3":True,
-  "use_fixed_sbscaling":True,
   "trunk_num_channels":256,
   "mid_num_channels":256,
   "regular_num_channels":192,
@@ -212,6 +205,7 @@ b20c256 = {
   "g1_num_channels":48,
   "v1_num_channels":48,
   "sbv2_num_channels":96,
+  "num_scorebeliefs":8,
   "v2_size":112
 }
 
@@ -219,9 +213,7 @@ b30c320 = {
   "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
-  "use_scoremean_as_lead":False,
   "use_initial_conv_3":True,
-  "use_fixed_sbscaling":True,
   "trunk_num_channels":320,
   "mid_num_channels":320,
   "regular_num_channels":224,
@@ -263,6 +255,7 @@ b30c320 = {
   "g1_num_channels":48,
   "v1_num_channels":48,
   "sbv2_num_channels":112,
+  "num_scorebeliefs":8,
   "v2_size":128
 }
 
@@ -270,9 +263,7 @@ b40c256 = {
   "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
-  "use_scoremean_as_lead":False,
   "use_initial_conv_3":True,
-  "use_fixed_sbscaling":True,
   "trunk_num_channels":256,
   "mid_num_channels":256,
   "regular_num_channels":192,
@@ -324,6 +315,7 @@ b40c256 = {
   "g1_num_channels":48,
   "v1_num_channels":48,
   "sbv2_num_channels":112,
+  "num_scorebeliefs":8,
   "v2_size":128
 }
 
@@ -331,9 +323,7 @@ b40c384 = {
   "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
-  "use_scoremean_as_lead":False,
   "use_initial_conv_3":True,
-  "use_fixed_sbscaling":True,
   "trunk_num_channels":384,
   "mid_num_channels":384,
   "regular_num_channels":256,
@@ -385,6 +375,7 @@ b40c384 = {
   "g1_num_channels":64,
   "v1_num_channels":64,
   "sbv2_num_channels":128,
+  "num_scorebeliefs":8,
   "v2_size":144
 }
 
@@ -393,9 +384,7 @@ b60c320 = {
   "version":10,
   "support_japanese_rules":True,
   "use_fixup":True,
-  "use_scoremean_as_lead":False,
   "use_initial_conv_3":True,
-  "use_fixed_sbscaling":True,
   "trunk_num_channels":320,
   "mid_num_channels":320,
   "regular_num_channels":224,
@@ -467,6 +456,7 @@ b60c320 = {
   "g1_num_channels":64,
   "v1_num_channels":64,
   "sbv2_num_channels":128,
+  "num_scorebeliefs":8,
   "v2_size":144
 }
 
