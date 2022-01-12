@@ -36,12 +36,12 @@ class Metrics:
         self.moving_unowned_proportion_sum = 0.0
         self.moving_unowned_proportion_weight = 0.0
 
-    def state_dict():
+    def state_dict(self):
         return dict(
             moving_unowned_proportion_sum = self.moving_unowned_proportion_sum,
             moving_unowned_proportion_weight = self.moving_unowned_proportion_weight,
         )
-    def load_state_dict(state_dict: Dict[str,Any]):
+    def load_state_dict(self, state_dict: Dict[str,Any]):
         self.moving_unowned_proportion_sum = state_dict["moving_unowned_proportion_sum"]
         self.moving_unowned_proportion_weight = state_dict["moving_unowned_proportion_weight"]
 
@@ -207,7 +207,7 @@ class Metrics:
             dim=1
         ))
         loss = huber_loss(pred, stdev_of_belief, delta = 10.0)
-        return 0.004 * global_weight * loss
+        return 0.001 * global_weight * loss
 
     def loss_lead_samplewise(self, pred, target, weight, global_weight):
         # Huber will incentivize this to not actually converge to the mean,

@@ -209,7 +209,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         for i in reversed(range(NUM_SHORTTERM_CHECKPOINTS_TO_KEEP-1)):
           if os.path.exists(get_checkpoint_prev_path(i)):
             os.replace(get_checkpoint_prev_path(i), get_checkpoint_prev_path(i+1))
-        shutil.copy(get_checkpoint_path(), get_checkpoint_prev_path(0))
+        if os.path.exists(get_checkpoint_path()):
+          shutil.copy(get_checkpoint_path(), get_checkpoint_prev_path(0))
         torch.save(state_dict, get_checkpoint_path() + ".tmp")
         os.replace(get_checkpoint_path() + ".tmp", get_checkpoint_path())
 
