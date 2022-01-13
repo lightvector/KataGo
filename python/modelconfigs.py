@@ -35,7 +35,7 @@ def get_num_global_input_features(config: ModelConfig):
 b2c16 = {
   "version":10,
   "support_japanese_rules":True,
-  "use_fixup":True,
+  "norm_kind":"bnorm",
   "use_initial_conv_3":True,
   "trunk_num_channels":16,
   "mid_num_channels":16,
@@ -57,7 +57,7 @@ b2c16 = {
 b4c32 = {
   "version":10,
   "support_japanese_rules":True,
-  "use_fixup":True,
+  "norm_kind":"bnorm",
   "use_initial_conv_3":True,
   "trunk_num_channels":32,
   "mid_num_channels":32,
@@ -81,7 +81,7 @@ b4c32 = {
 b6c96 = {
   "version":10,
   "support_japanese_rules":True,
-  "use_fixup":True,
+  "norm_kind":"bnorm",
   "use_initial_conv_3":True,
   "trunk_num_channels":96,
   "mid_num_channels":96,
@@ -107,7 +107,7 @@ b6c96 = {
 b10c128 = {
   "version":10,
   "support_japanese_rules":True,
-  "use_fixup":True,
+  "norm_kind":"bnorm",
   "use_initial_conv_3":True,
   "trunk_num_channels":128,
   "mid_num_channels":128,
@@ -137,7 +137,7 @@ b10c128 = {
 b15c192 = {
   "version":10,
   "support_japanese_rules":True,
-  "use_fixup":True,
+  "norm_kind":"bnorm",
   "use_initial_conv_3":True,
   "trunk_num_channels":192,
   "mid_num_channels":192,
@@ -172,7 +172,7 @@ b15c192 = {
 b20c256 = {
   "version":10,
   "support_japanese_rules":True,
-  "use_fixup":True,
+  "norm_kind":"bnorm",
   "use_initial_conv_3":True,
   "trunk_num_channels":256,
   "mid_num_channels":256,
@@ -212,7 +212,7 @@ b20c256 = {
 b30c320 = {
   "version":10,
   "support_japanese_rules":True,
-  "use_fixup":True,
+  "norm_kind":"bnorm",
   "use_initial_conv_3":True,
   "trunk_num_channels":320,
   "mid_num_channels":320,
@@ -262,7 +262,7 @@ b30c320 = {
 b40c256 = {
   "version":10,
   "support_japanese_rules":True,
-  "use_fixup":True,
+  "norm_kind":"bnorm",
   "use_initial_conv_3":True,
   "trunk_num_channels":256,
   "mid_num_channels":256,
@@ -322,7 +322,7 @@ b40c256 = {
 b40c384 = {
   "version":10,
   "support_japanese_rules":True,
-  "use_fixup":True,
+  "norm_kind":"bnorm",
   "use_initial_conv_3":True,
   "trunk_num_channels":384,
   "mid_num_channels":384,
@@ -383,7 +383,7 @@ b40c384 = {
 b60c320 = {
   "version":10,
   "support_japanese_rules":True,
-  "use_fixup":True,
+  "norm_kind":"bnorm",
   "use_initial_conv_3":True,
   "trunk_num_channels":320,
   "mid_num_channels":320,

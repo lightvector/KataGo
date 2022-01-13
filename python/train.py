@@ -218,7 +218,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     reg_dict : Dict[str,List] = {}
     model.add_reg_dict(reg_dict)
     param_groups = []
-    if model.get_use_fixup():
+    if model.get_norm_kind() == "fixup":
       param_groups.append({
         "params": reg_dict["normal"],
         "weight_decay": 0.000001 * world_size * batch_size / 256.0,
@@ -370,7 +370,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   # EPOCHS AND LR ---------------------------------------------------------------------
 
   def update_and_return_lr():
-    per_sample_lr = (0.00003 if model_config["use_fixup"] else 0.00006) * (1.0 if lr_scale is None else lr_scale)
+    per_sample_lr = (0.00003 if model_config["norm_kind"] == "fixup" else 0.00006) * (1.0 if lr_scale is None else lr_scale)
 
     # Warmup for initial training
     if train_state["global_step_samples"] < 5000000:
@@ -632,7 +632,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         # Now we have the reduced gradients
         loss.backward()
 
-        gnorm_cap = (2500.0 if model_config["use_fixup"] else 4000.0) * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
+        gnorm_cap = (2500.0 if model_config["norm_kind"] == "fixup" else 4000.0) * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
         #Loosen gradient clipping as we shift to smaller learning rates
         gnorm_cap = gnorm_cap / math.sqrt(1.0 if lr_scale is None else max(0.0000001,lr_scale))
 

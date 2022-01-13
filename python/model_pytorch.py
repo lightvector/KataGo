@@ -58,6 +58,7 @@ class NormMask(torch.nn.Module):
         self.epsilon = epsilon
         self.running_avg_momentum = running_avg_momentum
         self.fixup_use_gamma = fixup_use_gamma
+        self.c_in = c_in
 
         if norm_kind == "bnorm":
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
@@ -90,6 +91,7 @@ class NormMask(torch.nn.Module):
         """
 
         if self.norm_kind == "bnorm":
+            assert x.shape[1] == self.c_in
             if self.training:
                 # This is the mean, computed only over exactly the areas of the mask, weighting each spot equally,
                 # even across different elements in the batch that might have different board sizes.
@@ -99,12 +101,12 @@ class NormMask(torch.nn.Module):
                 var = torch.sum(torch.square(zeromean_x * mask),dim=(0,2,3),keepdim=True) / mask_sum
                 std = torch.sqrt(var + self.epsilon)
 
-                self.running_mean += self.running_avg_momentum * (mean.detach() - self.running_mean)
-                self.running_std += self.running_avg_momentum * (std.detach() - self.running_std)
+                self.running_mean += self.running_avg_momentum * (mean.view(self.c_in).detach() - self.running_mean)
+                self.running_std += self.running_avg_momentum * (std.view(self.c_in).detach() - self.running_std)
 
                 return (zeromean_x / std + self.beta) * mask
             else:
-                return ((x - self.running_mean) / self.running_std + self.beta) * mask
+                return ((x - self.running_mean.view(1,self.c_in,1,1)) / self.running_std.view(1,self.c_in,1,1) + self.beta) * mask
 
         elif self.norm_kind == "fixup":
             return (x + self.beta) * mask
@@ -541,7 +543,7 @@ class Model(torch.nn.Module):
         super(Model, self).__init__()
 
         self.config = config
-        self.use_fixup = config["use_fixup"]
+        self.norm_kind = config["norm_kind"]
         self.block_kind = config["block_kind"]
         self.c_trunk = config["trunk_num_channels"]
         self.c_mid = config["mid_num_channels"]
@@ -561,10 +563,6 @@ class Model(torch.nn.Module):
         assert config["support_japanese_rules"], "support_jp_rules must be true"
 
         self.activation = "relu"
-        if self.use_fixup:
-            self.norm_kind = "fixup"
-        else:
-            self.norm_kind = "bnorm"
 
         self.conv_spatial = torch.nn.Conv2d(22, self.c_trunk, kernel_size=3, padding="same", bias=False)
         self.linear_global = torch.nn.Linear(19, self.c_trunk, bias=False)
@@ -628,8 +626,8 @@ class Model(torch.nn.Module):
             self.policy_head.initialize()
             self.value_head.initialize()
 
-    def get_use_fixup(self) -> bool:
-        return self.use_fixup
+    def get_norm_kind(self) -> bool:
+        return self.norm_kind
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         reg_dict["normal"] = []
