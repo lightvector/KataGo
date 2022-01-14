@@ -234,7 +234,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     else:
       param_groups.append({
         "params": reg_dict["normal"],
-        "weight_decay": 0.0003 * world_size * batch_size / 256.0 * math.sqrt(lr_scale),
+        "weight_decay": 0.001 * world_size * batch_size / 256.0 * lr_scale,
       })
       param_groups.append({
         "params": reg_dict["output"],
@@ -373,8 +373,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     per_sample_lr = (0.00003 if model_config["norm_kind"] == "fixup" else 0.00006) * (1.0 if lr_scale is None else lr_scale)
 
     # Warmup for initial training
-    if train_state["global_step_samples"] < 5000000:
-      per_sample_lr = per_sample_lr / 3.0
+    if model_config["norm_kind"] == "fixup":
+      if train_state["global_step_samples"] < 5000000:
+        per_sample_lr = per_sample_lr / 3.0
+    else:
+      if train_state["global_step_samples"] < 500000:
+        per_sample_lr = per_sample_lr / 3.0
 
     for param_group in optimizer.param_groups:
       param_group['lr'] = per_sample_lr
