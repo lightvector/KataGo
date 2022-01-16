@@ -126,6 +126,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   verbose = args["verbose"]
   no_export = args["no_export"]
 
+  if lr_scale is None:
+    lr_scale = 1.0
+
   if samples_per_epoch is None:
     samples_per_epoch = 1000000
   if max_train_bucket_size is None:
@@ -214,38 +217,73 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         torch.save(state_dict, get_checkpoint_path() + ".tmp")
         os.replace(get_checkpoint_path() + ".tmp", get_checkpoint_path())
 
-  def get_param_groups(model):
+  def get_weight_decay(model, lr_scale, warmup_scale, train_state, running_metrics, group_name):
+    if model.get_norm_kind() == "fixup":
+      if group_name == "normal":
+        return 0.000001 * world_size * batch_size / 256.0
+      elif group_name == "output":
+        return 0.000001 * world_size * batch_size / 256.0
+      elif group_name == "noreg":
+        return 0.0
+      elif group_name == "output_noreg":
+        return 0.0
+      else:
+        assert False
+    else:
+      if group_name == "normal":
+        adaptive_scale = 1.0
+        if "norm_normal_batch" in running_metrics["sums"]:
+          norm_normal_batch = running_metrics["sums"]["norm_normal_batch"] / running_metrics["weights"]["norm_normal_batch"]
+          baseline = train_state["modelnorm_normal_baseline"]
+          ratio = norm_normal_batch / (baseline + 1e-30)
+          # Adaptive weight decay keeping model norm around the baseline level so that batchnorm effective lr is held constant
+          # throughout training, covering a range of 16x from bottom to top.
+          adaptive_scale = math.pow(2.0, 2.0 * math.tanh(math.log(ratio+1e-30) * 1.5))
+
+        # The theoretical scaling for keeping us confined to a surface of equal model norm should go proportionally with lr_scale.
+        # because the strength of drift away from that surface goes as lr^2 and weight decay itself is scaled by lr, so we need
+        # one more factor of lr to make weight decay strength equal drift strength.
+        # However, at low lr it tends to be the case that gradient norm increases slightly
+        # while at high lr it tends to be the case that gradient norm decreases, which means drift strength scales a bit slower
+        # than expected.
+        # So we scale sublinearly with lr_scale so as to slightly preadjust to this effect.
+        # Adaptive scale should then help keep us there thereafter.
+        return 0.002 * world_size * batch_size / 256.0 * math.pow(lr_scale,0.9) * warmup_scale * adaptive_scale
+      elif group_name == "output":
+        return 0.000001 * world_size * batch_size / 256.0
+      elif group_name == "noreg":
+        return 0.0
+      elif group_name == "output_noreg":
+        return 0.0
+      else:
+        assert False
+
+  def get_param_groups(model,train_state,running_metrics):
     reg_dict : Dict[str,List] = {}
     model.add_reg_dict(reg_dict)
     param_groups = []
-    if model.get_norm_kind() == "fixup":
-      param_groups.append({
-        "params": reg_dict["normal"],
-        "weight_decay": 0.000001 * world_size * batch_size / 256.0,
-      })
-      param_groups.append({
-        "params": reg_dict["output"],
-        "weight_decay": 0.000001 * world_size * batch_size / 256.0,
-      })
-      param_groups.append({
-        "params": reg_dict["noreg"],
-        "weight_decay": 0.0,
-      })
-    else:
-      param_groups.append({
-        "params": reg_dict["normal"],
-        "weight_decay": 0.001 * world_size * batch_size / 256.0 * lr_scale,
-      })
-      param_groups.append({
-        "params": reg_dict["output"],
-        "weight_decay": 0.000001 * world_size * batch_size / 256.0,
-      })
-      param_groups.append({
-        "params": reg_dict["noreg"],
-        "weight_decay": 0.0,
-      })
+    param_groups.append({
+      "params": reg_dict["normal"],
+      "weight_decay": get_weight_decay(model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal"),
+      "group_name": "normal",
+    })
+    param_groups.append({
+      "params": reg_dict["output"],
+      "weight_decay": get_weight_decay(model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output"),
+      "group_name": "output",
+    })
+    param_groups.append({
+      "params": reg_dict["noreg"],
+      "weight_decay": get_weight_decay(model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="noreg"),
+      "group_name": "noreg",
+    })
+    param_groups.append({
+      "params": reg_dict["output_noreg"],
+      "weight_decay": get_weight_decay(model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output_noreg"),
+      "group_name": "output_noreg",
+    })
     num_params = len(list(model.parameters()))
-    num_reg_dict_params = len(reg_dict["normal"]) + len(reg_dict["output"]) + len(reg_dict["noreg"])
+    num_reg_dict_params = len(reg_dict["normal"]) + len(reg_dict["output"]) + len(reg_dict["noreg"]) + len(reg_dict["output_noreg"])
     assert num_params == num_reg_dict_params, "Reg dict does not have entries for all params in model"
     return param_groups
 
@@ -282,10 +320,17 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         ema_avg = lambda avg_param, cur_param, num_averaged: (1.0 - new_factor) * avg_param + new_factor * cur_param
         swa_model = AveragedModel(model, avg_fn=ema_avg)
 
-      optimizer = torch.optim.SGD(get_param_groups(model), lr=1.0, momentum=0.9)
       metrics_obj = Metrics(batch_size,model)
       running_metrics = {}
       train_state = {}
+
+      with torch.no_grad():
+        (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = metrics_obj.get_model_norms(model)
+        modelnorm_normal_baseline = modelnorm_normal.detach().cpu().item()
+        train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
+
+      optimizer = torch.optim.SGD(get_param_groups(model,train_state,running_metrics), lr=1.0, momentum=0.9)
+
       return (model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
     else:
       state_dict = torch.load(path_to_load_from)
@@ -310,13 +355,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         ema_avg = lambda avg_param, cur_param, num_averaged: (1.0 - new_factor) * avg_param + new_factor * cur_param
         swa_model = AveragedModel(model, avg_fn=ema_avg)
         if "swa_model" in state_dict:
-          swa_model.load_state_dict(state_dict["model"])
-
-      optimizer = torch.optim.SGD(get_param_groups(model), lr=1.0, momentum=0.9)
-      if "optimizer" in state_dict:
-        optimizer.load_state_dict(state_dict["optimizer"])
-      else:
-        logging.info("WARNING: Optimizer not found in state dict, using fresh optimizer")
+          swa_model.load_state_dict(state_dict["swa_model"])
 
       metrics_obj = Metrics(batch_size,model)
       if "metrics" in state_dict:
@@ -335,6 +374,16 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         train_state = state_dict["train_state"]
       else:
         logging.info("WARNING: Train state not found in state dict, using fresh train state")
+        with torch.no_grad():
+          (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = metrics_obj.get_model_norms(model)
+          modelnorm_normal_baseline = modelnorm_normal.detach().cpu().item()
+          train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
+
+      optimizer = torch.optim.SGD(get_param_groups(model,train_state,running_metrics), lr=1.0, momentum=0.9)
+      if "optimizer" in state_dict:
+        optimizer.load_state_dict(state_dict["optimizer"])
+      else:
+        logging.info("WARNING: Optimizer not found in state dict, using fresh optimizer")
 
       return (model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
 
@@ -370,19 +419,57 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   # EPOCHS AND LR ---------------------------------------------------------------------
 
   def update_and_return_lr():
-    per_sample_lr = (0.00003 if model_config["norm_kind"] == "fixup" else 0.00006) * (1.0 if lr_scale is None else lr_scale)
+    per_sample_lr = (0.00003 if model_config["norm_kind"] == "fixup" else 0.00006) * lr_scale
 
     # Warmup for initial training
+    warmup_scale = 1.0
     if model_config["norm_kind"] == "fixup":
       if train_state["global_step_samples"] < 5000000:
-        per_sample_lr = per_sample_lr / 3.0
+        warmup_scale = 1.0 / 3.0
     else:
-      if train_state["global_step_samples"] < 500000:
-        per_sample_lr = per_sample_lr / 3.0
+      if train_state["global_step_samples"] < 250000:
+        warmup_scale = 1.0 / 20.0
+      elif train_state["global_step_samples"] < 500000:
+        warmup_scale = 1.0 / 14.0
+      elif train_state["global_step_samples"] < 750000:
+        warmup_scale = 1.0 / 10.0
+      elif train_state["global_step_samples"] < 1000000:
+        warmup_scale = 1.0 / 7.0
+      elif train_state["global_step_samples"] < 1250000:
+        warmup_scale = 1.0 / 5.0
+      elif train_state["global_step_samples"] < 1500000:
+        warmup_scale = 1.0 / 3.0
+      elif train_state["global_step_samples"] < 1750000:
+        warmup_scale = 1.0 / 2.0
+      elif train_state["global_step_samples"] < 2000000:
+        warmup_scale = 1.0 / 1.4
+      else:
+        warmup_scale = 1.0 / 1.0
 
     for param_group in optimizer.param_groups:
-      param_group['lr'] = per_sample_lr
-    return per_sample_lr
+      group_name = param_group["group_name"]
+      if group_name == "normal":
+        group_scale = 1.0
+      elif group_name == "output":
+        group_scale = 0.5
+      elif group_name == "noreg":
+        group_scale = 1.0
+      elif group_name == "output_noreg":
+        group_scale = 0.5
+      else:
+        assert False
+
+      param_group["lr"] = per_sample_lr * warmup_scale * group_scale
+      param_group["weight_decay"] = get_weight_decay(
+        model,
+        lr_scale,
+        warmup_scale=warmup_scale,
+        train_state=train_state,
+        running_metrics=running_metrics,
+        group_name=param_group["group_name"]
+      )
+
+    return per_sample_lr * warmup_scale
 
   # DATA RELOADING GENERATOR AND TRAINHISTORY ------------------------------------------------------------
 
@@ -532,8 +619,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         metrics_to_print[metric[:-4]] = metric_sums[metric] / metric_weights[metric]
       elif metric.endswith("_batch"):
         metrics_to_print[metric] = metric_sums[metric] / metric_weights[metric]
-        metric_sums[metric] = 0.0
-        metric_weights[metric] = 0.0
+        metric_sums[metric] *= 0.001
+        metric_weights[metric] *= 0.001
       else:
         metrics_to_print[metric] = metric_sums[metric]
     for metric in metrics:
@@ -545,8 +632,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
       metrics_out.write(json.dumps(metrics_to_print) + "\n")
       metrics_out.flush()
 
-  train_metrics_out = open(os.path.join(traindir,"metrics_train.json"),"w+")
-  val_metrics_out = open(os.path.join(traindir,"metrics_val.json"),"w+")
+  train_metrics_out = open(os.path.join(traindir,"metrics_train.json"),"a")
+  val_metrics_out = open(os.path.join(traindir,"metrics_val.json"),"a")
 
   # TRAIN! -----------------------------------------------------------------------------------
 
@@ -554,8 +641,14 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   num_epochs_this_instance = 0
   print_train_loss_every_batches = 100
 
-  running_metrics["sums"] = defaultdict(float)
-  running_metrics["weights"] = defaultdict(float)
+  if "sums" not in running_metrics:
+    running_metrics["sums"] = defaultdict(float)
+  else:
+    running_metrics["sums"] = defaultdict(float,running_metrics["sums"])
+  if "weights" not in running_metrics:
+    running_metrics["weights"] = defaultdict(float)
+  else:
+    running_metrics["weights"] = defaultdict(float,running_metrics["weights"])
 
   torch.backends.cudnn.benchmark = True
 
@@ -564,7 +657,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     logging.info("GC collect")
     gc.collect()
 
-    lr_this_epoch = update_and_return_lr()
+    lr_right_now = update_and_return_lr()
 
     logging.info("=========================================================================")
     logging.info("BEGINNING NEXT EPOCH " + str(num_epochs_this_instance))
@@ -622,7 +715,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
 
       logging.info("Beginning training subepoch!")
       logging.info("Currently up to data row " + str(last_datainfo_row))
-      train_steps_this_subepoch = 0
       for batch in data_processing_pytorch.read_npz_training_data(
           train_files_to_use, batch_size, pos_len, device, randomize_symmetries=True, model_config=model_config
       ):
@@ -638,18 +730,19 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
 
         gnorm_cap = (2500.0 if model_config["norm_kind"] == "fixup" else 4000.0) * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
         #Loosen gradient clipping as we shift to smaller learning rates
-        gnorm_cap = gnorm_cap / math.sqrt(1.0 if lr_scale is None else max(0.0000001,lr_scale))
+        gnorm_cap = gnorm_cap / math.sqrt(max(0.0000001,lr_scale))
 
         gnorm = torch.nn.utils.clip_grad_norm_(model.parameters(), gnorm_cap).detach().cpu().item()
         metrics["gnorm_batch"] = gnorm
         exgnorm = max(0.0, gnorm - gnorm_cap)
         metrics["exgnorm_sum"] = exgnorm * batch_size
 
-        metrics["pslr_batch"] = lr_this_epoch
+        metrics["pslr_batch"] = lr_right_now
 
         optimizer.step()
-        train_steps_this_subepoch += batch_size
         batch_count_this_epoch += 1
+        train_state["train_steps_since_last_reload"] += batch_size
+        train_state["global_step_samples"] += batch_size
 
         metrics = detensorify_metrics(metrics)
         accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=0.999)
@@ -660,9 +753,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
           metrics["time_since_last_print"] = timediff
           log_metrics(running_metrics["sums"], running_metrics["weights"], metrics, train_metrics_out)
 
+        # Update LR more frequently at the start for smoother warmup ramp and wd adjustment
+        if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 10 == 0:
+          lr_right_now = update_and_return_lr()
+
       logging.info("Finished training subepoch!")
-      train_state["train_steps_since_last_reload"] += train_steps_this_subepoch
-      train_state["global_step_samples"] += train_steps_this_subepoch
 
       if swa_model is not None and swa_sub_epoch_scale is not None:
         swa_model.update_parameters(model)

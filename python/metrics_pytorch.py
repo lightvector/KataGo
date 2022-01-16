@@ -250,6 +250,32 @@ class Metrics:
     def square_value(self, value_logits, global_weight):
         return torch.sum(global_weight * torch.sum(torch.softmax(value_logits,dim=1) * constant_like([1,-1,0],global_weight), dim=1))
 
+    def get_model_norms(self,model):
+        reg_dict : Dict[str,List] = {}
+        model.add_reg_dict(reg_dict)
+
+        device = reg_dict["normal"][0].device
+        dtype = torch.float32
+
+        modelnorm_normal = torch.zeros([],device=device,dtype=dtype)
+        modelnorm_output = torch.zeros([],device=device,dtype=dtype)
+        modelnorm_noreg = torch.zeros([],device=device,dtype=dtype)
+        modelnorm_output_noreg = torch.zeros([],device=device,dtype=dtype)
+        for tensor in reg_dict["normal"]:
+            modelnorm_normal += torch.sum(tensor * tensor)
+        for tensor in reg_dict["output"]:
+            modelnorm_output += torch.sum(tensor * tensor)
+        for tensor in reg_dict["noreg"]:
+            modelnorm_noreg += torch.sum(tensor * tensor)
+        for tensor in reg_dict["output_noreg"]:
+            modelnorm_output_noreg += torch.sum(tensor * tensor)
+        modelnorm_normal *= 0.5
+        modelnorm_output *= 0.5
+        modelnorm_noreg *= 0.5
+        modelnorm_output_noreg *= 0.5
+        return (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg)
+
+
     def metrics_dict_batchwise(self,model,model_output_postprocessed,batch,is_training):
         (
             policy_logits,
@@ -453,20 +479,7 @@ class Metrics:
         )
         square_value = self.square_value(value_logits, global_weight)
 
-        modelnorm_normal = torch.zeros_like(loss_policy_player)
-        modelnorm_output = torch.zeros_like(loss_policy_player)
-        modelnorm_noreg = torch.zeros_like(loss_policy_player)
-        reg_dict : Dict[str,List] = {}
-        model.add_reg_dict(reg_dict)
-        for tensor in reg_dict["normal"]:
-            modelnorm_normal += torch.sum(tensor * tensor)
-        for tensor in reg_dict["output"]:
-            modelnorm_output += torch.sum(tensor * tensor)
-        for tensor in reg_dict["noreg"]:
-            modelnorm_noreg += torch.sum(tensor * tensor)
-        modelnorm_normal *= 0.5
-        modelnorm_output *= 0.5
-        modelnorm_noreg *= 0.5
+        (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = self.get_model_norms(model)
 
         return {
             "p0loss_sum": loss_policy_player,
@@ -496,6 +509,7 @@ class Metrics:
             "norm_normal_batch": modelnorm_normal,
             "norm_output_batch": modelnorm_output,
             "norm_noreg_batch": modelnorm_noreg,
+            "norm_output_noreg_batch": modelnorm_output_noreg,
         }
 
 

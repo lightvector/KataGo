@@ -75,10 +75,13 @@ class NormMask(torch.nn.Module):
         else:
             assert False, f"Unimplemented norm_kind: {norm_kind}"
 
-    def add_reg_dict(self, reg_dict:Dict[str,List]):
+    def add_reg_dict(self, reg_dict:Dict[str,List], is_last_batchnorm=False):
         if self.norm_kind == "fixup" and self.fixup_use_gamma:
             reg_dict["normal"].append(self.gamma)
-        reg_dict["noreg"].append(self.beta)
+        if is_last_batchnorm:
+            reg_dict["output_noreg"].append(self.beta)
+        else:
+            reg_dict["noreg"].append(self.beta)
 
     def forward(self, x, mask, mask_sum: float):
         """
@@ -354,8 +357,8 @@ class PolicyHead(torch.nn.Module):
         reg_dict["normal"].append(self.linear_g.weight)
         reg_dict["output"].append(self.linear_pass.weight)
         reg_dict["output"].append(self.conv2p.weight)
-        self.normg.add_reg_dict(reg_dict)
-        self.norm2.add_reg_dict(reg_dict)
+        self.normg.add_reg_dict(reg_dict,is_last_batchnorm=True)
+        self.norm2.add_reg_dict(reg_dict,is_last_batchnorm=True)
 
     def forward(self, x, mask, mask_sum_hw, mask_sum:float):
         outp = self.conv1p(x)
@@ -468,26 +471,26 @@ class ValueHead(torch.nn.Module):
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         reg_dict["normal"].append(self.conv1.weight)
         reg_dict["output"].append(self.linear2.weight)
-        reg_dict["noreg"].append(self.linear2.bias)
+        reg_dict["output_noreg"].append(self.linear2.bias)
         reg_dict["output"].append(self.linear_valuehead.weight)
-        reg_dict["noreg"].append(self.linear_valuehead.bias)
+        reg_dict["output_noreg"].append(self.linear_valuehead.bias)
         reg_dict["output"].append(self.linear_miscvaluehead.weight)
-        reg_dict["noreg"].append(self.linear_miscvaluehead.bias)
+        reg_dict["output_noreg"].append(self.linear_miscvaluehead.bias)
         reg_dict["output"].append(self.linear_moremiscvaluehead.weight)
-        reg_dict["noreg"].append(self.linear_moremiscvaluehead.bias)
+        reg_dict["output_noreg"].append(self.linear_moremiscvaluehead.bias)
         reg_dict["output"].append(self.conv_ownership.weight)
         reg_dict["output"].append(self.conv_scoring.weight)
         reg_dict["output"].append(self.conv_futurepos.weight)
         reg_dict["output"].append(self.conv_seki.weight)
         reg_dict["output"].append(self.linear_s2.weight)
-        reg_dict["noreg"].append(self.linear_s2.bias)
+        reg_dict["output_noreg"].append(self.linear_s2.bias)
         reg_dict["output"].append(self.linear_s2off.weight)
         reg_dict["output"].append(self.linear_s2par.weight)
         reg_dict["output"].append(self.linear_s3.weight)
-        reg_dict["noreg"].append(self.linear_s3.bias)
+        reg_dict["output_noreg"].append(self.linear_s3.bias)
         reg_dict["output"].append(self.linear_smix.weight)
-        reg_dict["noreg"].append(self.linear_smix.bias)
-        self.norm1.add_reg_dict(reg_dict)
+        reg_dict["output_noreg"].append(self.linear_smix.bias)
+        self.norm1.add_reg_dict(reg_dict,is_last_batchnorm=True)
 
     def forward(self, x, mask, mask_sum_hw, mask_sum:float, input_global):
         outv1 = x
@@ -633,6 +636,7 @@ class Model(torch.nn.Module):
         reg_dict["normal"] = []
         reg_dict["output"] = []
         reg_dict["noreg"] = []
+        reg_dict["output_noreg"] = []
 
         reg_dict["normal"].append(self.conv_spatial.weight)
         reg_dict["normal"].append(self.linear_global.weight)
