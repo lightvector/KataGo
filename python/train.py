@@ -232,7 +232,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     else:
       if group_name == "normal":
         adaptive_scale = 1.0
-        if "norm_normal_batch" in running_metrics["sums"]:
+        if "sums" in running_metrics and "norm_normal_batch" in running_metrics["sums"]:
           norm_normal_batch = running_metrics["sums"]["norm_normal_batch"] / running_metrics["weights"]["norm_normal_batch"]
           baseline = train_state["modelnorm_normal_baseline"]
           ratio = norm_normal_batch / (baseline + 1e-30)
@@ -248,7 +248,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         # than expected.
         # So we scale sublinearly with lr_scale so as to slightly preadjust to this effect.
         # Adaptive scale should then help keep us there thereafter.
-        return 0.002 * world_size * batch_size / 256.0 * math.pow(lr_scale,0.9) * warmup_scale * adaptive_scale
+        return 0.002 * world_size * batch_size / 256.0 * math.pow(lr_scale * warmup_scale,0.9) * adaptive_scale
       elif group_name == "output":
         return 0.000001 * world_size * batch_size / 256.0
       elif group_name == "noreg":
@@ -418,7 +418,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
 
   # EPOCHS AND LR ---------------------------------------------------------------------
 
-  def update_and_return_lr():
+  def update_and_return_lr_and_wd():
     per_sample_lr = (0.00003 if model_config["norm_kind"] == "fixup" else 0.00006) * lr_scale
 
     # Warmup for initial training
@@ -446,6 +446,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
       else:
         warmup_scale = 1.0 / 1.0
 
+    normal_weight_decay = 0.0
     for param_group in optimizer.param_groups:
       group_name = param_group["group_name"]
       if group_name == "normal":
@@ -466,10 +467,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         warmup_scale=warmup_scale,
         train_state=train_state,
         running_metrics=running_metrics,
-        group_name=param_group["group_name"]
+        group_name=group_name,
       )
+      if group_name == "normal":
+        normal_weight_decay = param_group["weight_decay"]
 
-    return per_sample_lr * warmup_scale
+    return per_sample_lr * warmup_scale, normal_weight_decay
 
   # DATA RELOADING GENERATOR AND TRAINHISTORY ------------------------------------------------------------
 
@@ -657,7 +660,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     logging.info("GC collect")
     gc.collect()
 
-    lr_right_now = update_and_return_lr()
+    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
 
     logging.info("=========================================================================")
     logging.info("BEGINNING NEXT EPOCH " + str(num_epochs_this_instance))
@@ -738,6 +741,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         metrics["exgnorm_sum"] = exgnorm * batch_size
 
         metrics["pslr_batch"] = lr_right_now
+        metrics["wdnormal_batch"] = normal_weight_decay_right_now
 
         optimizer.step()
         batch_count_this_epoch += 1
@@ -755,7 +759,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
 
         # Update LR more frequently at the start for smoother warmup ramp and wd adjustment
         if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 10 == 0:
-          lr_right_now = update_and_return_lr()
+          lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
 
       logging.info("Finished training subepoch!")
 
