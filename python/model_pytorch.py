@@ -66,6 +66,30 @@ class NormMask(torch.nn.Module):
             self.register_buffer(
                 "running_std", torch.ones(c_in, dtype=torch.float)
             )
+        elif norm_kind == "brenorm":
+            self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
+            self.register_buffer(
+                "running_mean", torch.zeros(c_in, dtype=torch.float)
+            )
+            self.register_buffer(
+                "running_std", torch.ones(c_in, dtype=torch.float)
+            )
+            self.register_buffer(
+                "renorm_running_mean", torch.zeros(c_in, dtype=torch.float)
+            )
+            self.register_buffer(
+                "renorm_running_std", torch.ones(c_in, dtype=torch.float)
+            )
+            self.register_buffer(
+                "renorm_upper_rclippage", torch.zeros((), dtype=torch.float)
+            )
+            self.register_buffer(
+                "renorm_lower_rclippage", torch.zeros((), dtype=torch.float)
+            )
+            self.register_buffer(
+                "renorm_dclippage", torch.zeros((), dtype=torch.float)
+            )
+
         elif norm_kind == "fixup":
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
             if fixup_use_gamma:
@@ -81,6 +105,26 @@ class NormMask(torch.nn.Module):
         else:
             reg_dict["noreg"].append(self.beta)
 
+    def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
+        self.renorm_avg_momentum = renorm_avg_momentum
+        self.rmax = rmax
+        self.dmax = dmax
+
+    def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
+        upper_rclippage.append(self.renorm_upper_rclippage.cpu().item())
+        lower_rclippage.append(self.renorm_lower_rclippage.cpu().item())
+        dclippage.append(self.renorm_dclippage.cpu().item())
+
+    def _compute_bnorm_values(self, x, mask, mask_sum: float):
+        # This is the mean, computed only over exactly the areas of the mask, weighting each spot equally,
+        # even across different elements in the batch that might have different board sizes.
+        mean = torch.sum(x * mask, dim=(0,2,3),keepdim=True) / mask_sum
+        zeromean_x = x - mean
+        # Similarly, the variance computed exactly only over those spots
+        var = torch.sum(torch.square(zeromean_x * mask),dim=(0,2,3),keepdim=True) / mask_sum
+        std = torch.sqrt(var + self.epsilon)
+        return zeromean_x, mean, std
+
     def forward(self, x, mask, mask_sum: float):
         """
         Parameters:
@@ -94,18 +138,48 @@ class NormMask(torch.nn.Module):
         if self.norm_kind == "bnorm":
             assert x.shape[1] == self.c_in
             if self.training:
-                # This is the mean, computed only over exactly the areas of the mask, weighting each spot equally,
-                # even across different elements in the batch that might have different board sizes.
-                mean = torch.sum(x * mask, dim=(0,2,3),keepdim=True) / mask_sum
-                zeromean_x = x - mean
-                # Similarly, the variance computed exactly only over those spots
-                var = torch.sum(torch.square(zeromean_x * mask),dim=(0,2,3),keepdim=True) / mask_sum
-                std = torch.sqrt(var + self.epsilon)
+                zeromean_x, mean, std = self._compute_bnorm_values(x, mask, mask_sum)
 
-                self.running_mean += self.running_avg_momentum * (mean.view(self.c_in).detach() - self.running_mean)
-                self.running_std += self.running_avg_momentum * (std.view(self.c_in).detach() - self.running_std)
+                detached_mean = mean.view(self.c_in).detach()
+                detached_std = std.view(self.c_in).detach()
+                with torch.no_grad():
+                    self.running_mean += self.running_avg_momentum * (detached_mean - self.running_mean)
+                    self.running_std += self.running_avg_momentum * (detached_std - self.running_std)
 
                 return (zeromean_x / std + self.beta) * mask
+            else:
+                return ((x - self.running_mean.view(1,self.c_in,1,1)) / self.running_std.view(1,self.c_in,1,1) + self.beta) * mask
+
+        elif self.norm_kind == "brenorm":
+            assert x.shape[1] == self.c_in
+            if self.training:
+                zeromean_x, mean, std = self._compute_bnorm_values(x, mask, mask_sum)
+
+                detached_mean = mean.view(self.c_in).detach()
+                detached_std = std.view(self.c_in).detach()
+                with torch.no_grad():
+                    unclipped_r = detached_std / self.renorm_running_std
+                    unclipped_d = (detached_mean - self.renorm_running_mean) / self.renorm_running_std
+                    r = unclipped_r.clamp_(1.0 / self.rmax, self.rmax)
+                    d = unclipped_d.clamp_(-self.dmax, self.dmax)
+
+                    self.renorm_running_mean += self.renorm_avg_momentum * (detached_mean - self.renorm_running_mean)
+                    self.renorm_running_std += self.renorm_avg_momentum * (detached_std - self.renorm_running_std)
+                    self.running_mean += self.running_avg_momentum * (detached_mean - self.running_mean)
+                    self.running_std += self.running_avg_momentum * (detached_std - self.running_std)
+
+                    upper_rclippage = torch.mean(torch.nn.ReLU(torch.log(unclipped_r / r)))
+                    lower_rclippage = torch.mean(torch.nn.ReLU(-torch.log(unclipped_r / r)))
+                    dclippage = torch.mean(torch.abs(unclipped_d - d))
+                    self.renorm_upper_rclippage += 0.001 * (upper_rclippage - self.renorm_upper_rclippage)
+                    self.renorm_lower_rclippage += 0.001 * (lower_rclippage - self.renorm_lower_rclippage)
+                    self.renorm_dclippage += 0.001 * (dclippage - self.renorm_dclippage)
+
+                if self.rmax > 1.00000001 or self.dmax > 0.00000001:
+                    return (zeromean_x / std * r.detach().view(1,self.c_in,1,1) + d.detach().view(1,self.c_in,1,1) + self.beta) * mask
+                else:
+                    return (zeromean_x / std + self.beta) * mask
+
             else:
                 return ((x - self.running_mean.view(1,self.c_in,1,1)) / self.running_std.view(1,self.c_in,1,1) + self.beta) * mask
 
@@ -203,6 +277,14 @@ class ResBlock(torch.nn.Module):
         self.norm1.add_reg_dict(reg_dict)
         self.norm2.add_reg_dict(reg_dict)
 
+    def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
+        self.norm1.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.norm2.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+
+    def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
+        self.norm1.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.norm2.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+
     def forward(self, x, mask, mask_sum_hw, mask_sum: float):
         """
         Parameters:
@@ -277,6 +359,17 @@ class GPoolResBlock(torch.nn.Module):
         self.norm1.add_reg_dict(reg_dict)
         self.normg.add_reg_dict(reg_dict)
         self.norm2.add_reg_dict(reg_dict)
+
+    def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
+        self.norm1.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.normg.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.norm2.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+
+    def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
+        self.norm1.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.normg.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.norm2.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+
 
     def forward(self, x, mask, mask_sum_hw, mask_sum:float):
         """
@@ -357,6 +450,14 @@ class PolicyHead(torch.nn.Module):
         reg_dict["output"].append(self.conv2p.weight)
         self.normg.add_reg_dict(reg_dict,is_last_batchnorm=True)
         self.norm2.add_reg_dict(reg_dict,is_last_batchnorm=True)
+
+    def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
+        self.normg.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.norm2.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+
+    def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
+        self.normg.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.norm2.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
     def forward(self, x, mask, mask_sum_hw, mask_sum:float):
         outp = self.conv1p(x)
@@ -489,6 +590,12 @@ class ValueHead(torch.nn.Module):
         reg_dict["output"].append(self.linear_smix.weight)
         reg_dict["output_noreg"].append(self.linear_smix.bias)
         self.norm1.add_reg_dict(reg_dict,is_last_batchnorm=True)
+
+    def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
+        self.norm1.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+
+    def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
+        self.norm1.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
     def forward(self, x, mask, mask_sum_hw, mask_sum:float, input_global):
         outv1 = x
@@ -643,6 +750,22 @@ class Model(torch.nn.Module):
         self.norm_trunkfinal.add_reg_dict(reg_dict)
         self.policy_head.add_reg_dict(reg_dict)
         self.value_head.add_reg_dict(reg_dict)
+
+
+    def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
+        for block in self.blocks:
+            block.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.norm_trunkfinal.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.policy_head.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.value_head.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+
+    def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
+        for block in self.blocks:
+            block.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.norm_trunkfinal.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.policy_head.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.value_head.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+
 
     def forward(self, input_spatial, input_global):
         mask = input_spatial[:, 0:1, :, :].contiguous()

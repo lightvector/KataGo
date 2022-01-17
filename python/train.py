@@ -67,7 +67,14 @@ if __name__ == "__main__":
   parser.add_argument('-max-train-steps-since-last-reload', help='Approx total of training allowed if shuffling stops', type=float, required=False)
   parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
   parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
+
+  parser.add_argument('-brenorm-avg-momentum', type=float, help='Set brenorm running avg rate to this value', required=False)
+  parser.add_argument('-brenorm-target-rmax', type=float, help='Gradually adjust brenorm rmax to this value', required=False)
+  parser.add_argument('-brenorm-target-dmax', type=float, help='Gradually adjust brenorm dmax to this value', required=False)
+  parser.add_argument('-brenorm-adjustment-scale', type=float, help='How many samples to adjust brenorm params all but 1/e of the way to target', required=False)
+
   args = vars(parser.parse_args())
+
 
 def get_longterm_checkpoints_dir(traindir):
   return os.path.join(traindir,"longterm_checkpoints")
@@ -125,6 +132,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   max_train_steps_since_last_reload = args["max_train_steps_since_last_reload"]
   verbose = args["verbose"]
   no_export = args["no_export"]
+
+  brenorm_target_rmax = args["brenorm_target_rmax"]
+  brenorm_target_dmax = args["brenorm_target_dmax"]
+  brenorm_avg_momentum = args["brenorm_avg_momentum"]
+  brenorm_adjustment_scale = args["brenorm_adjusment_scale"]
 
   if lr_scale is None:
     lr_scale = 1.0
@@ -476,6 +488,24 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
 
     return per_sample_lr * warmup_scale, normal_weight_decay
 
+  last_brenorm_update_samples_this_instance = train_state["global_step_samples"]
+  def maybe_update_brenorm_params():
+    nonlocal last_brenorm_update_samples_this_instance
+
+    if model_config["norm_kind"] == "brenorm":
+      if "brenorm_rmax" not in train_state:
+        train_state["brenorm_rmax"] = 1.0
+      if "brenorm_dmax" not in train_state:
+        train_state["brenorm_dmax"] = 0.0
+
+      num_samples_elapsed = train_state["global_step_samples"] - last_brenorm_update_samples_this_instance
+      factor = math.exp(-num_samples_elapsed / brenorm_adjustment_scale)
+      train_state["brenorm_rmax"] = train_state["brenorm_rmax"] + (1.0 - factor) * (brenorm_target_rmax - train_state["brenorm_rmax"])
+      train_state["brenorm_dmax"] = train_state["brenorm_dmax"] + (1.0 - factor) * (brenorm_target_dmax - train_state["brenorm_dmax"])
+
+      model.set_brenorm_params(brenorm_avg_momentum, train_state["brenorm_rmax"], train_state["brenorm_dmax"])
+      last_brenorm_update_samples_this_instance = train_state["global_step_samples"]
+
   # DATA RELOADING GENERATOR AND TRAINHISTORY ------------------------------------------------------------
 
   # Some globals
@@ -663,6 +693,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     gc.collect()
 
     lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
+    maybe_update_brenorm_params()
 
     logging.info("=========================================================================")
     logging.info("BEGINNING NEXT EPOCH " + str(num_epochs_this_instance))
@@ -753,6 +784,19 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         metrics = detensorify_metrics(metrics)
         accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=0.999)
         if batch_count_this_epoch % print_train_loss_every_batches == 0:
+
+          if model_config["norm_kind"] == "brenorm":
+            metrics["brn_rmax"] = train_state["brenorm_rmax"]
+            metrics["brn_dmax"] = train_state["brenorm_dmax"]
+            metrics["brn_mmnt"] = brenorm_avg_momentum
+            upper_rclippage = []
+            lower_rclippage = []
+            dclippage = []
+            model.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+            metrics["brn_ruclip"] = sum(upper_rclippage) / max(len(upper_rclippage),1.0)
+            metrics["brn_rlclip"] = sum(lower_rclippage) / max(len(lower_rclippage),1.0)
+            metrics["brn_dclip"] = sum(dclippage) / max(len(dclippage),1.0)
+
           t1 = time.perf_counter()
           timediff = t1 - last_train_stats_time
           last_train_stats_time = t1
@@ -762,6 +806,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         # Update LR more frequently at the start for smoother warmup ramp and wd adjustment
         if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 10 == 0:
           lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
+
+        # Update batch renorm parameters
+        if batch_count_this_epoch % 500 == 0:
+          maybe_update_brenorm_params()
 
       logging.info("Finished training subepoch!")
 
