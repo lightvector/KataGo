@@ -154,20 +154,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
 
   logging.info(str(sys.argv))
 
-  # LOAD MODEL CONFIG -------------------------------------------------------------
-
-  if os.path.exists(os.path.join(traindir,"model.config.json")):
-    logging.info("Loading existing model config at %s" % os.path.join(traindir,"model.config.json"))
-    with open(os.path.join(traindir,"model.config.json"),"r") as f:
-      model_config = json.load(f)
-  else:
-    model_config = modelconfigs.config_of_name[model_kind]
-    logging.info("Initializing with new model config")
-    with open(os.path.join(traindir,"model.config.json"),"w") as f:
-      json.dump(model_config,f)
-
-  logging.info(str(model_config))
-
   # FIGURE OUT MULTIGPU ------------------------------------------------------------
   if world_size > 1:
     multiprocessing_setup(rank, world_size)
@@ -305,6 +291,22 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     else:
       path_to_load_from = get_checkpoint_path()
 
+    # Load model config
+    if os.path.exists(os.path.join(traindir,"model.config.json")):
+      logging.info("Loading existing model config at %s" % os.path.join(traindir,"model.config.json"))
+      with open(os.path.join(traindir,"model.config.json"),"r") as f:
+        model_config = json.load(f)
+      if path_to_load_from is None:
+        logging.warning("WARNING: No existing model but loading params from existing model.config.json!")
+    else:
+      model_config = modelconfigs.config_of_name[model_kind]
+      logging.info("Initializing with new model config")
+      assert path_to_load_from is None, "Found existing model but no existing model.config.json?"
+      with open(os.path.join(traindir,"model.config.json"),"w") as f:
+        json.dump(model_config,f)
+
+    logging.info(str(model_config))
+
     if path_to_load_from is None:
       logging.info("Initializing new model!")
       model = Model(model_config,pos_len)
@@ -385,9 +387,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
       else:
         logging.info("WARNING: Optimizer not found in state dict, using fresh optimizer")
 
-      return (model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
+      return (model_config, model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
 
-  (model, swa_model, optimizer, metrics_obj, running_metrics, train_state) = load()
+  (model_config, model, swa_model, optimizer, metrics_obj, running_metrics, train_state) = load()
 
 
   if "global_step_samples" not in train_state:

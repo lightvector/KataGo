@@ -48,15 +48,13 @@ class NormMask(torch.nn.Module):
     def __init__(
         self,
         c_in,
-        norm_kind,
+        config: modelconfigs.ModelConfig,
         fixup_use_gamma,
-        epsilon=1e-4,
-        running_avg_momentum=0.002,
     ):
         super(NormMask, self).__init__()
-        self.norm_kind = norm_kind
-        self.epsilon = epsilon
-        self.running_avg_momentum = running_avg_momentum
+        self.norm_kind = config["norm_kind"]
+        self.epsilon = config["bnorm_epsilon"]
+        self.running_avg_momentum = config["bnorm_running_avg_momentum"]
         self.fixup_use_gamma = fixup_use_gamma
         self.c_in = c_in
 
@@ -170,22 +168,22 @@ class KataValueHeadGPool(torch.nn.Module):
         return out
 
 class ResBlock(torch.nn.Module):
-    def __init__(self, name, c_in, c_mid, norm_kind, activation, num_total_blocks):
+    def __init__(self, name, c_in, c_mid, config, activation, num_total_blocks):
         super(ResBlock, self).__init__()
         self.name = name
-        self.norm_kind = norm_kind
+        self.norm_kind = config["norm_kind"]
         self.activation = activation
         self.num_total_blocks = num_total_blocks
         self.norm1 = NormMask(
             c_in,
-            norm_kind=norm_kind,
+            config=config,
             fixup_use_gamma=False,
         )
         self.act1 = act(activation, inplace=True)
         self.conv1 = torch.nn.Conv2d(c_in, c_mid, kernel_size=3, padding="same", bias=False)
         self.norm2 = NormMask(
             c_mid,
-            norm_kind=norm_kind,
+            config=config,
             fixup_use_gamma=True,
         )
         self.act2 = act(activation, inplace=True)
@@ -226,15 +224,15 @@ class ResBlock(torch.nn.Module):
 
 
 class GPoolResBlock(torch.nn.Module):
-    def __init__(self, name, c_in, c_regular, c_gpool, norm_kind, activation, num_total_blocks):
+    def __init__(self, name, c_in, c_regular, c_gpool, config, activation, num_total_blocks):
         super(GPoolResBlock, self).__init__()
         self.name = name
-        self.norm_kind = norm_kind
+        self.norm_kind = config["norm_kind"]
         self.activation = activation
         self.num_total_blocks = num_total_blocks
         self.norm1 = NormMask(
             c_in,
-            norm_kind=norm_kind,
+            config=config,
             fixup_use_gamma=False,
         )
         self.act1 = act(activation, inplace=True)
@@ -242,7 +240,7 @@ class GPoolResBlock(torch.nn.Module):
         self.conv1g = torch.nn.Conv2d(c_in, c_gpool, kernel_size=3, padding="same", bias=False)
         self.normg = NormMask(
             c_gpool,
-            norm_kind=norm_kind,
+            config=config,
             fixup_use_gamma=False,
         )
         self.actg = act(activation, inplace=True)
@@ -250,7 +248,7 @@ class GPoolResBlock(torch.nn.Module):
         self.linear_g = torch.nn.Linear(3 * c_gpool, c_regular, bias=False)
         self.norm2 = NormMask(
             c_regular,
-            norm_kind=norm_kind,
+            config=config,
             fixup_use_gamma=True,
         )
         self.act2 = act(activation, inplace=True)
@@ -311,9 +309,9 @@ class GPoolResBlock(torch.nn.Module):
 
 
 class PolicyHead(torch.nn.Module):
-    def __init__(self, c_in, c_p1, c_g1, norm_kind, activation):
+    def __init__(self, c_in, c_p1, c_g1, config, activation):
         super(PolicyHead, self).__init__()
-        self.norm_kind = norm_kind
+        self.norm_kind = config["norm_kind"]
         self.activation = activation
 
         self.conv1p = torch.nn.Conv2d(c_in, c_p1, kernel_size=1, padding="same", bias=False)
@@ -321,7 +319,7 @@ class PolicyHead(torch.nn.Module):
 
         self.normg = NormMask(
             c_g1,
-            norm_kind=norm_kind,
+            config=config,
             fixup_use_gamma=False,
         )
         self.actg = act(activation)
@@ -332,7 +330,7 @@ class PolicyHead(torch.nn.Module):
 
         self.norm2 = NormMask(
             c_p1,
-            norm_kind=norm_kind,
+            config=config,
             fixup_use_gamma=False,
         )
         self.act2 = act(activation)
@@ -384,13 +382,13 @@ class PolicyHead(torch.nn.Module):
 
 
 class ValueHead(torch.nn.Module):
-    def __init__(self, c_in, c_v1, c_v2, c_sv2, num_scorebeliefs, norm_kind, activation, pos_len):
+    def __init__(self, c_in, c_v1, c_v2, c_sv2, num_scorebeliefs, config, activation, pos_len):
         super(ValueHead, self).__init__()
         self.activation = activation
         self.conv1 = torch.nn.Conv2d(c_in, c_v1, kernel_size=1, padding="same", bias=False)
         self.norm1 = NormMask(
             c_v1,
-            norm_kind=norm_kind,
+            config=config,
             fixup_use_gamma=False,
         )
         self.act1 = act(activation)
@@ -579,7 +577,7 @@ class Model(torch.nn.Module):
                     name=block_name,
                     c_in=self.c_trunk,
                     c_mid=self.c_mid,
-                    norm_kind=self.norm_kind,
+                    config=self.config,
                     activation=self.activation,
                     num_total_blocks=self.num_total_blocks,
                 ))
@@ -589,21 +587,21 @@ class Model(torch.nn.Module):
                     c_in=self.c_trunk,
                     c_regular=self.c_regular,
                     c_gpool=self.c_gpool,
-                    norm_kind=self.norm_kind,
+                    config=self.config,
                     activation=self.activation,
                     num_total_blocks=self.num_total_blocks,
                 ))
             else:
                 assert False
 
-        self.norm_trunkfinal = NormMask(self.c_trunk, self.norm_kind, fixup_use_gamma=False)
+        self.norm_trunkfinal = NormMask(self.c_trunk, self.config, fixup_use_gamma=False)
         self.act_trunkfinal = act(self.activation)
 
         self.policy_head = PolicyHead(
             self.c_trunk,
             self.c_p1,
             self.c_g1,
-            self.norm_kind,
+            self.config,
             self.activation,
         )
         self.value_head = ValueHead(
@@ -612,7 +610,7 @@ class Model(torch.nn.Module):
             self.c_v2,
             self.c_sv2,
             self.num_scorebeliefs,
-            self.norm_kind,
+            self.config,
             self.activation,
             self.pos_len,
         )
