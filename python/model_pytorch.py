@@ -407,6 +407,8 @@ class PolicyHead(torch.nn.Module):
         self.norm_kind = config["norm_kind"]
         self.activation = activation
 
+        self.num_policy_outputs = 2
+
         self.conv1p = torch.nn.Conv2d(c_in, c_p1, kernel_size=1, padding="same", bias=False)
         self.conv1g = torch.nn.Conv2d(c_in, c_g1, kernel_size=1, padding="same", bias=False)
 
@@ -419,7 +421,7 @@ class PolicyHead(torch.nn.Module):
         self.gpool = KataGPool()
 
         self.linear_g = torch.nn.Linear(3 * c_g1, c_p1, bias=False)
-        self.linear_pass = torch.nn.Linear(3 * c_g1, 2, bias=False)
+        self.linear_pass = torch.nn.Linear(3 * c_g1, self.num_policy_outputs, bias=False)
 
         self.norm2 = NormMask(
             c_p1,
@@ -427,7 +429,7 @@ class PolicyHead(torch.nn.Module):
             fixup_use_gamma=False,
         )
         self.act2 = act(activation)
-        self.conv2p = torch.nn.Conv2d(c_p1, 2, kernel_size=1, padding="same", bias=False)
+        self.conv2p = torch.nn.Conv2d(c_p1, self.num_policy_outputs, kernel_size=1, padding="same", bias=False)
 
 
     def initialize(self):

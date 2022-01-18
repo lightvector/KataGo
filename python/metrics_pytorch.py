@@ -306,6 +306,10 @@ class Metrics:
         target_policy_player /= torch.sum(target_policy_player, dim=1, keepdim=True)
         target_policy_opponent = target_policy_ncmove[:, 1, :]
         target_policy_opponent /= torch.sum(target_policy_opponent, dim=1, keepdim=True)
+        # target_policy_player_soft = torch.pow(target_policy_ncmove[:, 0, :], 0.25)
+        # target_policy_player_soft /= torch.sum(target_policy_player_soft, dim=1, keepdim=True)
+        # target_policy_opponent_soft = torch.pow(target_policy_ncmove[:, 1, :], 0.25)
+        # target_policy_opponent_soft /= torch.sum(target_policy_opponent_soft, dim=1, keepdim=True)
 
         target_weight_policy_player = target_global_nc[:, 26]
         target_weight_policy_opponent = target_global_nc[:, 28]
@@ -348,6 +352,20 @@ class Metrics:
             target_weight_policy_opponent,
             global_weight,
         ).sum()
+
+        # loss_policy_player_soft = self.loss_policy_player_samplewise(
+        #     policy_logits[:, 2, :],
+        #     target_policy_player_soft,
+        #     target_weight_policy_player,
+        #     global_weight,
+        # ).sum()
+        # loss_policy_opponent_soft = self.loss_policy_opponent_samplewise(
+        #     policy_logits[:, 3, :],
+        #     target_policy_opponent_soft,
+        #     target_weight_policy_opponent,
+        #     global_weight,
+        # ).sum()
+
         loss_value = self.loss_value_samplewise(
             value_logits, target_value, global_weight
         ).sum()
@@ -447,6 +465,8 @@ class Metrics:
         loss_sum = (
             loss_policy_player
             + loss_policy_opponent
+            # + loss_policy_player_soft
+            # + loss_policy_opponent_soft
             + loss_value
             + loss_td_value
             + loss_td_score
@@ -484,6 +504,8 @@ class Metrics:
         return {
             "p0loss_sum": loss_policy_player,
             "p1loss_sum": loss_policy_opponent,
+            # "p0softloss_sum": loss_policy_player_soft,
+            # "p1softloss_sum": loss_policy_opponent_soft,
             "vloss_sum": loss_value,
             "tdvloss_sum": loss_td_value,
             "tdsloss_sum": loss_td_score,
