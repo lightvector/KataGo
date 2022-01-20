@@ -407,7 +407,7 @@ class PolicyHead(torch.nn.Module):
         self.norm_kind = config["norm_kind"]
         self.activation = activation
 
-        self.num_policy_outputs = 2
+        self.num_policy_outputs = 4
 
         self.conv1p = torch.nn.Conv2d(c_in, c_p1, kernel_size=1, padding="same", bias=False)
         self.conv1g = torch.nn.Conv2d(c_in, c_g1, kernel_size=1, padding="same", bias=False)
