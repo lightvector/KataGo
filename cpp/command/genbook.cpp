@@ -7,6 +7,7 @@
 #include "../dataio/sgf.h"
 #include "../dataio/files.h"
 #include "../book/book.h"
+#include "../search/searchnode.h"
 #include "../search/asyncbot.h"
 #include "../program/setup.h"
 #include "../program/playutils.h"
@@ -138,6 +139,10 @@ int MainCmds::genbook(const vector<string>& args) {
   const string rulesLabel = cfg.getString("rulesLabel");
   const string rulesLink = cfg.getString("rulesLink");
 
+  const int64_t minTreeVisitsToRecord = cfg.getInt64("minTreeVisitsToRecord", (int64_t)1, (int64_t)1 << 50);
+  const int maxDepthToRecord = cfg.getInt("maxDepthToRecord", 1, 100);
+  const int64_t maxVisitsForLeaves = cfg.getInt64("maxVisitsForLeaves", (int64_t)1, (int64_t)1 << 50);
+
   const int numGameThreads = cfg.getInt("numGameThreads",1,1000);
   const int numToExpandPerIteration = cfg.getInt("numToExpandPerIteration",1,10000000);
 
@@ -189,7 +194,7 @@ int MainCmds::genbook(const vector<string>& args) {
     bonusInitialPla = sgf->getFirstPlayerColor();
   }
 
-  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+  const SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
@@ -366,7 +371,6 @@ int MainCmds::genbook(const vector<string>& args) {
 
   const PrintTreeOptions options;
   const Player perspective = P_WHITE;
-  const bool pondering = false;
 
   std::mutex bookMutex;
 
@@ -388,6 +392,66 @@ int MainCmds::genbook(const vector<string>& args) {
     return hasAtLeastOneLegalNewMove;
   };
 
+  auto setNodeThisValuesNoMoves = [&](SymBookNode node) {
+    std::lock_guard<std::mutex> lock(bookMutex);
+    BookValues& nodeValues = node.thisValuesNotInBook();
+    if(node.pla() == P_WHITE) {
+      nodeValues.winLossValue = -1e20;
+      nodeValues.scoreMean = -1e20;
+      nodeValues.sharpScoreMean =  -1e20;
+    }
+    else {
+      nodeValues.winLossValue = 1e20;
+      nodeValues.scoreMean = 1e20;
+      nodeValues.sharpScoreMean =  1e20;
+    }
+    nodeValues.winLossError = 0.0;
+    nodeValues.scoreError = 0.0;
+    nodeValues.scoreStdev = 0.0;
+    nodeValues.maxPolicy = 0.0;
+    nodeValues.weight = 0.0;
+    nodeValues.visits = 0.0;
+
+    node.canExpand() = false;
+  };
+
+  auto setNodeThisValuesTerminal = [&](SymBookNode node, const BoardHistory& hist) {
+    assert(hist.isGameFinished);
+
+    std::lock_guard<std::mutex> lock(bookMutex);
+    BookValues& nodeValues = node.thisValuesNotInBook();
+    if(hist.isNoResult) {
+      nodeValues.winLossValue = 0.0;
+      nodeValues.scoreMean = 0.0;
+      nodeValues.sharpScoreMean = 0.0;
+    }
+    else {
+      if(hist.winner == P_WHITE) {
+        assert(hist.finalWhiteMinusBlackScore > 0.0);
+        nodeValues.winLossValue = 1.0;
+      }
+      else if(hist.winner == P_BLACK) {
+        assert(hist.finalWhiteMinusBlackScore < 0.0);
+        nodeValues.winLossValue = -1.0;
+      }
+      else {
+        assert(hist.finalWhiteMinusBlackScore == 0.0);
+        nodeValues.winLossValue = 0.0;
+      }
+      nodeValues.scoreMean = hist.finalWhiteMinusBlackScore;
+      nodeValues.sharpScoreMean = hist.finalWhiteMinusBlackScore;
+    }
+
+    nodeValues.winLossError = 0.0;
+    nodeValues.scoreError = 0.0;
+    nodeValues.scoreStdev = 0.0;
+    nodeValues.maxPolicy = 1.0;
+    double visits = maxVisitsForLeaves;
+    nodeValues.weight = visits;
+    nodeValues.visits = visits;
+
+    node.canExpand() = false;
+  };
 
   auto setNodeThisValuesFromFinishedSearch = [&](SymBookNode node, Search* search, const SearchNode* searchNode, const std::vector<int>& avoidMoveUntilByLoc) {
     // Get root values
@@ -440,12 +504,21 @@ int MainCmds::genbook(const vector<string>& args) {
   };
 
 
-  // Update the thisValuesNotInBook for a node
-  auto updateNodeThisValues = [&](Search* search, const BoardHistory& hist, SymBookNode node) {
+  // Perform a short search and update thisValuesNotInBook for a node
+  auto searchAndUpdateNodeThisValues = [&](Search* search, SymBookNode node) {
     ConstSymBookNode constNode(node);
+    BoardHistory hist;
     std::vector<int> symmetries;
     {
       std::lock_guard<std::mutex> lock(bookMutex);
+      std::vector<Loc> moveHistory;
+      bool suc = node.getBoardHistoryReachingHere(hist,moveHistory);
+      if(!suc) {
+        logger.write("WARNING: Failed to get board history reaching node when trying to export to trace book, probably there is some bug");
+        logger.write("or else some hash collision or something else is wrong.");
+        logger.write("BookHash of node unable to expand: " + node.hash().toString());
+        throw StringError("Terminating since there's not a good way to put the book back into a good state with this node unupdated");
+      }
       symmetries = constNode.getSymmetries();
     }
 
@@ -456,40 +529,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
     // Directly set the values for a terminal position
     if(hist.isGameFinished) {
-      std::lock_guard<std::mutex> lock(bookMutex);
-      BookValues& nodeValues = node.thisValuesNotInBook();
-      if(hist.isNoResult) {
-        nodeValues.winLossValue = 0.0;
-        nodeValues.scoreMean = 0.0;
-        nodeValues.sharpScoreMean = 0.0;
-      }
-      else {
-        if(hist.winner == P_WHITE) {
-          assert(hist.finalWhiteMinusBlackScore > 0.0);
-          nodeValues.winLossValue = 1.0;
-        }
-        else if(hist.winner == P_BLACK) {
-          assert(hist.finalWhiteMinusBlackScore < 0.0);
-          nodeValues.winLossValue = -1.0;
-        }
-        else {
-          assert(hist.finalWhiteMinusBlackScore == 0.0);
-          nodeValues.winLossValue = 0.0;
-        }
-        nodeValues.scoreMean = hist.finalWhiteMinusBlackScore;
-        nodeValues.sharpScoreMean = hist.finalWhiteMinusBlackScore;
-      }
-
-      nodeValues.winLossError = 0.0;
-      nodeValues.scoreError = 0.0;
-      nodeValues.scoreStdev = 0.0;
-      nodeValues.maxPolicy = 1.0;
-      // Treat it as if we did a fast search with the 0.5 searchfactor, clamped to reasonable bounds, with every playout weight 1.
-      double visits = std::max(1.0,std::min(100000.0,(double)std::min(params.maxVisits,params.maxPlayouts)));
-      nodeValues.weight = visits;
-      nodeValues.visits = visits;
-
-      node.canExpand() = false;
+      setNodeThisValuesTerminal(node,hist);
       return;
     }
 
@@ -501,35 +541,16 @@ int MainCmds::genbook(const vector<string>& args) {
     }
 
     if(!foundNewMoves) {
-      std::lock_guard<std::mutex> lock(bookMutex);
-      BookValues& nodeValues = node.thisValuesNotInBook();
-      if(node.pla() == P_WHITE) {
-        nodeValues.winLossValue = -1e20;
-        nodeValues.scoreMean = -1e20;
-        nodeValues.sharpScoreMean =  -1e20;
-      }
-      else {
-        nodeValues.winLossValue = 1e20;
-        nodeValues.scoreMean = 1e20;
-        nodeValues.sharpScoreMean =  1e20;
-      }
-      nodeValues.winLossError = 0.0;
-      nodeValues.scoreError = 0.0;
-      nodeValues.scoreStdev = 0.0;
-      nodeValues.maxPolicy = 0.0;
-      nodeValues.weight = 0.0;
-      nodeValues.visits = 0;
-
-      node.canExpand() = false;
+      setNodeThisValuesNoMoves(node);
     }
     else {
       search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc, avoidMoveUntilByLoc);
 
-      // Do a half-cost search on the remaining moves at the node
       {
-        double searchFactor = 0.5;
-        std::atomic<bool> searchShouldStopNow(false);
-        search->runWholeSearch(searchShouldStopNow, NULL, pondering, TimeControls(), searchFactor);
+        SearchParams thisParams = params;
+        thisParams.maxVisits = std::min(params.maxVisits, maxVisitsForLeaves);
+        search->setParams(thisParams);
+        search->runWholeSearch(search->rootPla);
       }
 
       if(logSearchInfo) {
@@ -667,6 +688,135 @@ int MainCmds::genbook(const vector<string>& args) {
     }
   };
 
+  // Returns true if any child was added directly to this node (doesn't count recursive stuff).
+  std::function<bool(
+    Search*, const SearchNode*, SymBookNode,
+    const Board&, const BoardHistory&, int,
+    std::set<BookHash>&, std::set<BookHash>&
+  )> expandFromSearchResultRecursively;
+  expandFromSearchResultRecursively = [&](
+    Search* search, const SearchNode* searchNode, SymBookNode node,
+    const Board& board, const BoardHistory& hist, int maxDepth,
+    std::set<BookHash>& nodesHashesToSearch, std::set<BookHash>& nodesHashesToUpdate
+  ) {
+    if(maxDepth <= 0)
+      return false;
+
+    assert(searchNode != NULL);
+    assert(searchNode->nextPla == node.pla());
+
+    vector<Loc> locs;
+    vector<double> playSelectionValues;
+    const double scaleMaxToAtLeast = 0.0;
+    const bool allowDirectPolicyMoves = false;
+    bool suc = search->getPlaySelectionValues(*searchNode, locs, playSelectionValues, NULL, scaleMaxToAtLeast, allowDirectPolicyMoves);
+    assert(suc);
+    // Possible if this was a terminal node
+    if(!suc)
+      return false;
+
+    // Find best move
+    double bestValue = playSelectionValues[0];
+    int bestIdx = 0;
+    for(int i = 1; i<playSelectionValues.size(); i++) {
+      if(playSelectionValues[i] > bestValue) {
+        bestValue = playSelectionValues[i];
+        bestIdx = i;
+      }
+    }
+    Loc bestLoc = locs[bestIdx];
+
+    int childrenCapacity;
+    const SearchChildPointer* children = searchNode->getChildren(childrenCapacity);
+    int numChildren = SearchNode::iterateAndCountChildrenInArray(children,childrenCapacity);
+
+    const NNOutput* nnOutput = searchNode->getNNOutput();
+    if(numChildren <= 0 || nnOutput == nullptr)
+      return false;
+    const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+
+    bool anyRecursion = false;
+    bool anythingAdded = false;
+    for(int i = 0; i<numChildren; i++) {
+      const SearchNode* childSearchNode = children[i].getIfAllocated();
+      Loc moveLoc = children[i].getMoveLoc();
+      double rawPolicy = policyProbs[search->getPos(bestLoc)];
+      int64_t childVisits = childSearchNode->stats.visits.load(std::memory_order_acquire);
+
+      // Add any child nodes that have enough visits or are the best move, if present.
+      if(moveLoc == bestLoc || childVisits >= minTreeVisitsToRecord) {
+        SymBookNode child;
+        Board nextBoard = board;
+        BoardHistory nextHist = hist;
+
+        {
+          std::unique_lock<std::mutex> lock(bookMutex);
+
+          if(node.isMoveInBook(moveLoc)) {
+            child = node.follow(moveLoc);
+            if(!nextHist.isLegal(nextBoard,moveLoc,node.pla())) {
+              logger.write("WARNING: Illegal move " + Location::toString(moveLoc, nextBoard));
+              ostringstream debugOut;
+              nextHist.printDebugInfo(debugOut,nextBoard);
+              logger.write(debugOut.str());
+              logger.write("BookHash of parent: " + node.hash().toString());
+              logger.write("Marking node as done so we don't try to expand it again, but something is probably wrong.");
+              node.canExpand() = false;
+            }
+            nextHist.makeBoardMoveAssumeLegal(nextBoard,moveLoc,node.pla(),nullptr);
+          }
+          else {
+            // Lock book to add the best child to the book
+            bool childIsTransposing;
+            {
+              assert(!node.isMoveInBook(moveLoc));
+              child = node.playAndAddMove(nextBoard, nextHist, moveLoc, rawPolicy, childIsTransposing);
+              // Somehow child was illegal?
+              if(child.isNull()) {
+                logger.write("WARNING: Illegal move " + Location::toString(moveLoc, nextBoard));
+                ostringstream debugOut;
+                nextHist.printDebugInfo(debugOut,nextBoard);
+                logger.write(debugOut.str());
+                logger.write("BookHash of parent: " + node.hash().toString());
+                logger.write("Marking node as done so we don't try to expand it again, but something is probably wrong.");
+                node.canExpand() = false;
+              }
+              nodesHashesToUpdate.insert(child.hash());
+              logger.write("Adding " + node.hash().toString() + " -> " + child.hash().toString() + " move " + Location::toString(moveLoc,board));
+              anythingAdded = true;
+            }
+
+            // No longer need lock here, setNodeThisValuesFromFinishedSearch will lock on its own.
+            lock.unlock();
+
+            // Stick all the new values into the child node, UNLESS the child already had its own search (i.e. we're just transposing)
+            if(!childIsTransposing) {
+              // Carefully use an empty vector for the avoidMoveUntilByLoc, since the child didn't avoid any moves.
+              std::vector<int> childAvoidMoveUntilByLoc;
+              setNodeThisValuesFromFinishedSearch(child, search, childSearchNode, childAvoidMoveUntilByLoc);
+            }
+          }
+        }
+
+        // Recursively record children with enough visits
+        if(maxDepth > 0 && childVisits >= minTreeVisitsToRecord) {
+          anyRecursion = true;
+          expandFromSearchResultRecursively(search, childSearchNode, child, nextBoard, nextHist, maxDepth-1, nodesHashesToSearch, nodesHashesToUpdate);
+        }
+      }
+    }
+
+    // This node's values need to be recomputed at the end if it changed or anything under it changed.
+    if(anythingAdded || anyRecursion)
+      nodesHashesToUpdate.insert(node.hash());
+
+    // This node needs to be searched with its new avoid moves if any move was added to update its thisnodevalues.
+    if(anythingAdded)
+      nodesHashesToSearch.insert(node.hash());
+
+    return anythingAdded;
+  };
+
   auto expandNode = [&](int gameThreadIdx, SymBookNode node, std::vector<SymBookNode>& newAndChangedNodes) {
     ConstSymBookNode constNode(node);
 
@@ -747,28 +897,13 @@ int MainCmds::genbook(const vector<string>& args) {
       return;
     }
 
+    SearchParams thisParams = params;
+    search->setParams(thisParams);
     search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc, avoidMoveUntilByLoc);
+    search->runWholeSearch(search->rootPla);
 
-    {
-      double searchFactor = 1.0;
-      std::atomic<bool> searchShouldStopNow(false);
-      search->runWholeSearch(searchShouldStopNow, NULL, pondering, TimeControls(), searchFactor);
-    }
     if(shouldStop.load(std::memory_order_acquire))
       return;
-
-    Loc bestLoc = search->getChosenMoveLoc();
-    if(bestLoc == Board::NULL_LOC) {
-      std::lock_guard<std::mutex> lock(bookMutex);
-      logger.write("WARNING: Could not expand since search obtained no results, despite earlier checks about legal moves existing not yet in book");
-      logger.write("BookHash of node unable to expand: " + constNode.hash().toString());
-      ostringstream debugOut;
-      hist.printDebugInfo(debugOut,board);
-      logger.write(debugOut.str());
-      logger.write("Marking node as done so we don't try to expand it again, but something is probably wrong.");
-      node.canExpand() = false;
-      return;
-    }
 
     if(logSearchInfo) {
       std::lock_guard<std::mutex> lock(bookMutex);
@@ -778,53 +913,44 @@ int MainCmds::genbook(const vector<string>& args) {
       logger.write(out.str());
     }
 
-    // Record the values for the move determined to be best
-    SymBookNode child;
-    {
-      // Find policy probs from search
-      float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
-      bool policySuc = search->getPolicy(policyProbs);
-      assert(policySuc);
-      (void)policySuc;
-      double rawPolicy = policyProbs[search->getPos(bestLoc)];
+    std::set<BookHash> nodesHashesToSearch;
+    std::set<BookHash> nodesHashesToUpdate;
+    bool anythingAdded = expandFromSearchResultRecursively(search, search->rootNode, node, board, hist, maxDepthToRecord, nodesHashesToSearch, nodesHashesToUpdate);
 
-      // Find child node from search
-      const SearchNode* childSearchNode = search->getChildForMove(search->getRootNode(), bestLoc);
-
-      // Lock book to add the best child to the book
-      bool childIsTransposing;
-      {
-        std::lock_guard<std::mutex> lock(bookMutex);
-        Board nextBoard = board;
-        BoardHistory nextHist = hist;
-        assert(!constNode.isMoveInBook(bestLoc));
-        child = node.playAndAddMove(nextBoard, nextHist, bestLoc, rawPolicy, childIsTransposing);
-        // Somehow child was illegal?
-        if(child.isNull()) {
-          logger.write("WARNING: Illegal move " + Location::toString(bestLoc, nextBoard));
-          ostringstream debugOut;
-          nextHist.printDebugInfo(debugOut,nextBoard);
-          logger.write(debugOut.str());
-          logger.write("BookHash of parent: " + constNode.hash().toString());
-          logger.write("Marking node as done so we don't try to expand it again, but something is probably wrong.");
-          node.canExpand() = false;
-          return;
-        }
-
-        newAndChangedNodes.push_back(child);
-        logger.write("Adding " + child.hash().toString() + " move " + Location::toString(bestLoc,board));
-      }
-
-      // Stick all the new values into the child node, UNLESS the child already had its own search (i.e. we're just transposing)
-      if(!childIsTransposing) {
-        // Carefully use an empty vector for the avoidMoveUntilByLoc, since the child didn't avoid any moves.
-        std::vector<int> childAvoidMoveUntilByLoc;
-        setNodeThisValuesFromFinishedSearch(child, search, childSearchNode, childAvoidMoveUntilByLoc);
-      }
+    if(!anythingAdded) {
+      std::lock_guard<std::mutex> lock(bookMutex);
+      logger.write("WARNING: Could not expand since search obtained no new moves, despite earlier checks about legal moves existing not yet in book");
+      logger.write("BookHash of node unable to expand: " + constNode.hash().toString());
+      ostringstream debugOut;
+      hist.printDebugInfo(debugOut,board);
+      logger.write(debugOut.str());
+      logger.write("Marking node as done so we don't try to expand it again, but something is probably wrong.");
+      node.canExpand() = false;
+      return;
     }
 
-    // And immediately do a search to update this node again now that we added a child.
-    updateNodeThisValues(search,hist,node);
+    // We should always be newly leaf searching and updating this node since we added something to it.
+    assert(nodesHashesToSearch.find(node.hash()) != nodesHashesToSearch.end());
+    assert(nodesHashesToUpdate.find(node.hash()) != nodesHashesToUpdate.end());
+
+    // And immediately do a search to update each node we need to.
+    for(const BookHash& hash: nodesHashesToSearch) {
+      SymBookNode nodeToSearch;
+      {
+        std::lock_guard<std::mutex> lock(bookMutex);
+        nodeToSearch = book->getByHash(hash);
+      }
+      searchAndUpdateNodeThisValues(search,nodeToSearch);
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(bookMutex);
+      for(const BookHash& hash: nodesHashesToUpdate) {
+        SymBookNode nodeToUpdate;
+        nodeToUpdate = book->getByHash(hash);
+        newAndChangedNodes.push_back(nodeToUpdate);
+      }
+    }
   };
 
   if(traceBook != NULL) {
@@ -884,22 +1010,13 @@ int MainCmds::genbook(const vector<string>& args) {
           if(!suc)
             return;
           SymBookNode node;
-          BoardHistory hist;
           {
             std::lock_guard<std::mutex> lock(bookMutex);
             node = book->getByHash(hash);
             assert(!node.isNull());
-            std::vector<Loc> moveHistory;
-            suc = node.getBoardHistoryReachingHere(hist,moveHistory);
-            if(!suc) {
-              logger.write("WARNING: Failed to get board history reaching node when trying to export to trace book, probably there is some bug");
-              logger.write("or else some hash collision or something else is wrong.");
-              logger.write("BookHash of node unable to expand: " + node.hash().toString());
-              throw StringError("Terminating since there's not a good way to put the book back into a good state with this node unupdated");
-            }
           }
           Search* search = searches[gameThreadIdx];
-          updateNodeThisValues(search, hist, node);
+          searchAndUpdateNodeThisValues(search, node);
           int64_t currentHashesUpdated = hashesUpdated.fetch_add(1) + 1;
           if(currentHashesUpdated % 100 == 0) {
             logger.write(
