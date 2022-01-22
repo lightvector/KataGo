@@ -16,6 +16,7 @@ SearchParams::SearchParams()
    cpuctExploration(1.0),
    cpuctExplorationLog(0.0),
    cpuctExplorationBase(500),
+   cpuctOscillationFactor(1.0),
    cpuctUtilityStdevPrior(0.25),
    cpuctUtilityStdevPriorWeight(1.0),
    cpuctUtilityStdevScale(0.0),

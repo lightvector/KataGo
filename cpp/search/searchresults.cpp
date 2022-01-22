@@ -133,6 +133,7 @@ bool Search::getPlaySelectionValues(
       node, rootPla, isRoot, policyProbMassVisited,
       parentUtility, parentWeightPerVisit, parentUtilityStdevFactor
     );
+    double parentCpuctScaleFactor = parentUtilityStdevFactor;
 
     bool isDuringSearch = false;
 
@@ -143,7 +144,7 @@ bool Search::getPlaySelectionValues(
       node,policyProbs,bestChild,
       bestMoveLoc,
       totalChildWeight,bestChildEdgeVisits,fpuValue,
-      parentUtility,parentWeightPerVisit,parentUtilityStdevFactor,
+      parentUtility,parentWeightPerVisit,parentCpuctScaleFactor,
       isDuringSearch,false,maxChildWeight,NULL
     );
 
@@ -160,7 +161,7 @@ bool Search::getPlaySelectionValues(
           node, policyProbs, child,
           moveLoc,
           totalChildWeight, edgeVisits,
-          parentUtilityStdevFactor, bestChildExploreSelectionValue
+          parentCpuctScaleFactor, bestChildExploreSelectionValue
         );
         playSelectionValues[i] = (int64_t)ceil(reduced);
       }
@@ -857,6 +858,7 @@ void Search::getAnalysisData(
     node, node.nextPla, true, policyProbMassVisited,
     parentUtility, parentWeightPerVisit, parentUtilityStdevFactor
   );
+  // double parentCpuctScaleFactor = parentUtilityStdevFactor;
 
   vector<MoreNodeStats> statsBuf(numChildren);
   for(int i = 0; i<numChildren; i++) {

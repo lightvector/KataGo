@@ -18,6 +18,7 @@ struct SearchParams {
   double cpuctExploration;  //Constant factor on exploration, should also scale up linearly with magnitude of utility
   double cpuctExplorationLog; //Constant factor on log-scaling exploration, should also scale up linearly with magnitude of utility
   double cpuctExplorationBase; //Scale of number of visits at which log behavior starts having an effect
+  double cpuctOscillationFactor; //Alternate between searches with cpuct multiplied and divided by this factor.
 
   double cpuctUtilityStdevPrior;
   double cpuctUtilityStdevPriorWeight;

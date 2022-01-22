@@ -482,30 +482,30 @@ private:
   //----------------------------------------------------------------------------------------
   double getExploreSelectionValue(
     double nnPolicyProb, double totalChildWeight, double childWeight,
-    double childUtility, double parentUtilityStdevFactor, Player pla
+    double childUtility, double parentCpuctScaleFactor, Player pla
   ) const;
   double getExploreSelectionValueInverse(
     double exploreSelectionValue, double nnPolicyProb, double totalChildWeight,
-    double childUtility, double parentUtilityStdevFactor, Player pla
+    double childUtility, double parentCpuctScaleFactor, Player pla
   ) const;
   double getExploreSelectionValueOfChild(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     Loc moveLoc,
     double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
-    double parentUtility, double parentWeightPerVisit, double parentUtilityStdevFactor,
+    double parentUtility, double parentWeightPerVisit, double parentCpuctScaleFactor,
     bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
   ) const;
   double getNewExploreSelectionValue(
     const SearchNode& parent, float nnPolicyProb,
     double totalChildWeight, double fpuValue,
-    double parentWeightPerVisit, double parentUtilityStdevFactor,
+    double parentWeightPerVisit, double parentCpuctScaleFactor,
     double maxChildWeight, SearchThread* thread
   ) const;
   double getReducedPlaySelectionWeight(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     Loc moveLoc,
     double totalChildWeight, int64_t childEdgeVisits,
-    double parentUtilityStdevFactor, double bestChildExploreSelectionValue
+    double parentCpuctScaleFactor, double bestChildExploreSelectionValue
   ) const;
 
   double getFpuValueForChildrenAssumeVisited(
