@@ -136,7 +136,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   brenorm_target_rmax = args["brenorm_target_rmax"]
   brenorm_target_dmax = args["brenorm_target_dmax"]
   brenorm_avg_momentum = args["brenorm_avg_momentum"]
-  brenorm_adjustment_scale = args["brenorm_adjusment_scale"]
+  brenorm_adjustment_scale = args["brenorm_adjustment_scale"]
 
   if lr_scale is None:
     lr_scale = 1.0
@@ -345,7 +345,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
 
       optimizer = torch.optim.SGD(get_param_groups(model,train_state,running_metrics), lr=1.0, momentum=0.9)
 
-      return (model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
+      return (model_config, model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
     else:
       state_dict = torch.load(path_to_load_from)
       model = Model(model_config,pos_len)

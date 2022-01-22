@@ -58,7 +58,7 @@ class NormMask(torch.nn.Module):
         self.fixup_use_gamma = fixup_use_gamma
         self.c_in = c_in
 
-        if norm_kind == "bnorm":
+        if self.norm_kind == "bnorm":
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
             self.register_buffer(
                 "running_mean", torch.zeros(c_in, dtype=torch.float)
@@ -66,7 +66,7 @@ class NormMask(torch.nn.Module):
             self.register_buffer(
                 "running_std", torch.ones(c_in, dtype=torch.float)
             )
-        elif norm_kind == "brenorm":
+        elif self.norm_kind == "brenorm":
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
             self.register_buffer(
                 "running_mean", torch.zeros(c_in, dtype=torch.float)
@@ -90,12 +90,12 @@ class NormMask(torch.nn.Module):
                 "renorm_dclippage", torch.zeros((), dtype=torch.float)
             )
 
-        elif norm_kind == "fixup":
+        elif self.norm_kind == "fixup":
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
             if fixup_use_gamma:
                 self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))
         else:
-            assert False, f"Unimplemented norm_kind: {norm_kind}"
+            assert False, f"Unimplemented norm_kind: {self.norm_kind}"
 
     def add_reg_dict(self, reg_dict:Dict[str,List], is_last_batchnorm=False):
         if self.norm_kind == "fixup" and self.fixup_use_gamma:
@@ -160,16 +160,16 @@ class NormMask(torch.nn.Module):
                 with torch.no_grad():
                     unclipped_r = detached_std / self.renorm_running_std
                     unclipped_d = (detached_mean - self.renorm_running_mean) / self.renorm_running_std
-                    r = unclipped_r.clamp_(1.0 / self.rmax, self.rmax)
-                    d = unclipped_d.clamp_(-self.dmax, self.dmax)
+                    r = unclipped_r.clamp(1.0 / self.rmax, self.rmax)
+                    d = unclipped_d.clamp(-self.dmax, self.dmax)
 
                     self.renorm_running_mean += self.renorm_avg_momentum * (detached_mean - self.renorm_running_mean)
                     self.renorm_running_std += self.renorm_avg_momentum * (detached_std - self.renorm_running_std)
                     self.running_mean += self.running_avg_momentum * (detached_mean - self.running_mean)
                     self.running_std += self.running_avg_momentum * (detached_std - self.running_std)
 
-                    upper_rclippage = torch.mean(torch.nn.ReLU(torch.log(unclipped_r / r)))
-                    lower_rclippage = torch.mean(torch.nn.ReLU(-torch.log(unclipped_r / r)))
+                    upper_rclippage = torch.mean(torch.nn.functional.relu(torch.log(unclipped_r / r)))
+                    lower_rclippage = torch.mean(torch.nn.functional.relu(-torch.log(unclipped_r / r)))
                     dclippage = torch.mean(torch.abs(unclipped_d - d))
                     self.renorm_upper_rclippage += 0.001 * (upper_rclippage - self.renorm_upper_rclippage)
                     self.renorm_lower_rclippage += 0.001 * (lower_rclippage - self.renorm_lower_rclippage)

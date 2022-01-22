@@ -35,7 +35,7 @@ def get_num_global_input_features(config: ModelConfig):
 b2c16 = {
   "version":10,
   "support_japanese_rules":True,
-  "norm_kind":"bnorm",
+  "norm_kind":"brenorm",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "use_initial_conv_3":True,
@@ -59,7 +59,7 @@ b2c16 = {
 b4c32 = {
   "version":10,
   "support_japanese_rules":True,
-  "norm_kind":"bnorm",
+  "norm_kind":"brenorm",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "use_initial_conv_3":True,
@@ -85,7 +85,7 @@ b4c32 = {
 b6c96 = {
   "version":10,
   "support_japanese_rules":True,
-  "norm_kind":"bnorm",
+  "norm_kind":"brenorm",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "use_initial_conv_3":True,
@@ -113,7 +113,7 @@ b6c96 = {
 b10c128 = {
   "version":10,
   "support_japanese_rules":True,
-  "norm_kind":"bnorm",
+  "norm_kind":"brenorm",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "use_initial_conv_3":True,
@@ -145,7 +145,7 @@ b10c128 = {
 b15c192 = {
   "version":10,
   "support_japanese_rules":True,
-  "norm_kind":"bnorm",
+  "norm_kind":"brenorm",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "use_initial_conv_3":True,
@@ -182,7 +182,7 @@ b15c192 = {
 b20c256 = {
   "version":10,
   "support_japanese_rules":True,
-  "norm_kind":"bnorm",
+  "norm_kind":"brenorm",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "use_initial_conv_3":True,
@@ -224,7 +224,7 @@ b20c256 = {
 b30c320 = {
   "version":10,
   "support_japanese_rules":True,
-  "norm_kind":"bnorm",
+  "norm_kind":"brenorm",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "use_initial_conv_3":True,
@@ -276,7 +276,7 @@ b30c320 = {
 b40c256 = {
   "version":10,
   "support_japanese_rules":True,
-  "norm_kind":"bnorm",
+  "norm_kind":"brenorm",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "use_initial_conv_3":True,
@@ -338,7 +338,7 @@ b40c256 = {
 b40c384 = {
   "version":10,
   "support_japanese_rules":True,
-  "norm_kind":"bnorm",
+  "norm_kind":"brenorm",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "use_initial_conv_3":True,
@@ -401,7 +401,7 @@ b40c384 = {
 b60c320 = {
   "version":10,
   "support_japanese_rules":True,
-  "norm_kind":"bnorm",
+  "norm_kind":"brenorm",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "use_initial_conv_3":True,
