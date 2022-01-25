@@ -276,7 +276,7 @@ class Metrics:
         return (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg)
 
 
-    def metrics_dict_batchwise(self,model,model_output_postprocessed,batch,is_training):
+    def metrics_dict_batchwise(self,model,model_output_postprocessed,batch,is_training,soft_policy_weight_scale):
         (
             policy_logits,
             value_logits,
@@ -465,8 +465,8 @@ class Metrics:
         loss_sum = (
             loss_policy_player
             + loss_policy_opponent
-            + loss_policy_player_soft
-            + loss_policy_opponent_soft
+            + loss_policy_player_soft * soft_policy_weight_scale
+            + loss_policy_opponent_soft * soft_policy_weight_scale
             + loss_value
             + loss_td_value
             + loss_td_score
@@ -494,6 +494,11 @@ class Metrics:
         )
         policy_target_entropy = self.target_entropy(
             target_policy_player,
+            target_weight_policy_player,
+            global_weight,
+        )
+        soft_policy_target_entropy = self.target_entropy(
+            target_policy_player_soft,
             target_weight_policy_player,
             global_weight,
         )
@@ -526,6 +531,7 @@ class Metrics:
             "nsamp": nsamples,
             "pacc1_sum": policy_acc1,
             "ptentr_sum": policy_target_entropy,
+            "ptsoftentr_sum": soft_policy_target_entropy,
             "vsquare_sum": square_value,
             "sekiweightscale_sum": seki_weight_scale * weight,
             "norm_normal_batch": modelnorm_normal,

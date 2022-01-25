@@ -171,9 +171,9 @@ class NormMask(torch.nn.Module):
                     upper_rclippage = torch.mean(torch.nn.functional.relu(torch.log(unclipped_r / r)))
                     lower_rclippage = torch.mean(torch.nn.functional.relu(-torch.log(unclipped_r / r)))
                     dclippage = torch.mean(torch.abs(unclipped_d - d))
-                    self.renorm_upper_rclippage += 0.001 * (upper_rclippage - self.renorm_upper_rclippage)
-                    self.renorm_lower_rclippage += 0.001 * (lower_rclippage - self.renorm_lower_rclippage)
-                    self.renorm_dclippage += 0.001 * (dclippage - self.renorm_dclippage)
+                    self.renorm_upper_rclippage += 0.01 * (upper_rclippage - self.renorm_upper_rclippage)
+                    self.renorm_lower_rclippage += 0.01 * (lower_rclippage - self.renorm_lower_rclippage)
+                    self.renorm_dclippage += 0.01 * (dclippage - self.renorm_dclippage)
 
                 if self.rmax > 1.00000001 or self.dmax > 0.00000001:
                     return (zeromean_x / std * r.detach().view(1,self.c_in,1,1) + d.detach().view(1,self.c_in,1,1) + self.beta) * mask
