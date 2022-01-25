@@ -221,6 +221,48 @@ b20c256 = {
   "v2_size":112
 }
 
+b20c384bt = {
+  "version":10,
+  "support_japanese_rules":True,
+  "norm_kind":"brenorm",
+  "bnorm_epsilon": 1e-4,
+  "bnorm_running_avg_momentum": 0.001,
+  "use_initial_conv_3":True,
+  "trunk_num_channels":384,
+  "mid_num_channels":192,
+  "regular_num_channels":128,
+  "dilated_num_channels":64,
+  "gpool_num_channels":64,
+  "block_kind": [
+    ["rconv1","bottle"],
+    ["rconv2","bottle"],
+    ["rconv3","bottle"],
+    ["rconv4","bottle"],
+    ["rconv5","bottle"],
+    ["rconv6","bottlegpool"],
+    ["rconv7","bottle"],
+    ["rconv8","bottle"],
+    ["rconv9","bottle"],
+    ["rconv10","bottle"],
+    ["rconv11","bottlegpool"],
+    ["rconv12","bottle"],
+    ["rconv13","bottle"],
+    ["rconv14","bottle"],
+    ["rconv15","bottle"],
+    ["rconv16","bottlegpool"],
+    ["rconv17","bottle"],
+    ["rconv18","bottle"],
+    ["rconv19","bottle"],
+    ["rconv20","bottle"]
+  ],
+  "p1_num_channels":48,
+  "g1_num_channels":48,
+  "v1_num_channels":48,
+  "sbv2_num_channels":96,
+  "num_scorebeliefs":8,
+  "v2_size":112
+}
+
 b30c320 = {
   "version":10,
   "support_japanese_rules":True,
@@ -487,6 +529,7 @@ config_of_name = {
   "b10c128": b10c128,
   "b15c192": b15c192,
   "b20c256": b20c256,
+  "b20c384bt": b20c384bt,
   "b30c320": b30c320,
   "b40c256": b40c256,
   "b40c384": b40c384,
