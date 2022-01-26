@@ -52,7 +52,6 @@ if __name__ == "__main__":
   parser.add_argument('-batch-size', help='Batch size to use for training', type=int, required=True)
   parser.add_argument('-samples-per-epoch', help='Number of data samples to consider as one epoch', type=int, required=False)
   parser.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
-  parser.add_argument('-gpu-memory-frac', help='Fraction of gpu memory to use', type=float, required=True)
   parser.add_argument('-model-kind', help='String name for what model to use', required=True)
   parser.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
   parser.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
@@ -65,7 +64,6 @@ if __name__ == "__main__":
   parser.add_argument('-max-train-bucket-per-new-data', help='When data added, add this many train rows per data row to bucket', type=float, required=False)
   parser.add_argument('-max-train-bucket-size', help='Approx total number of train rows allowed if data stops', type=float, required=False)
   parser.add_argument('-max-train-steps-since-last-reload', help='Approx total of training allowed if shuffling stops', type=float, required=False)
-  parser.add_argument('-verbose', help='verbose', required=False, action='store_true')
   parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
 
   parser.add_argument('-brenorm-avg-momentum', type=float, help='Set brenorm running avg rate to this value', required=False)
@@ -119,7 +117,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   pos_len = args["pos_len"]
   batch_size = args["batch_size"]
   samples_per_epoch = args["samples_per_epoch"]
-  gpu_memory_frac = args["gpu_memory_frac"]
   model_kind = args["model_kind"]
   lr_scale = args["lr_scale"]
   gnorm_clip_scale = args["gnorm_clip_scale"]
@@ -132,7 +129,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   max_train_bucket_per_new_data = args["max_train_bucket_per_new_data"]
   max_train_bucket_size = args["max_train_bucket_size"]
   max_train_steps_since_last_reload = args["max_train_steps_since_last_reload"]
-  verbose = args["verbose"]
   no_export = args["no_export"]
 
   brenorm_target_rmax = args["brenorm_target_rmax"]

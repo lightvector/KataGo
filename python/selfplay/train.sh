@@ -72,7 +72,6 @@ time python3 "$DATED_ARCHIVE"/train.py \
      -exportprefix "$TRAININGNAME" \
      -pos-len 19 \
      -batch-size "$BATCHSIZE" \
-     -gpu-memory-frac 0.6 \
      -model-kind "$MODELKIND" \
      -sub-epochs 4 \
      -swa-sub-epoch-scale 4 \
