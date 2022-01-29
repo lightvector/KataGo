@@ -31,10 +31,11 @@ if __name__ == "__main__":
 
   parser = argparse.ArgumentParser(description=description)
   parser.add_argument('-npzdir', help='Directory with npz data', required=True)
-  parser.add_argument('-config', help='Path to model.config.json', required=True)
-  parser.add_argument('-checkpoint', help='Checkpoint to test', required=True)
+  parser.add_argument('-model-kind', help='If specified, use this model kind instead of config', required=False)
+  parser.add_argument('-config', help='Path to model.config.json', required=False)
+  parser.add_argument('-checkpoint', help='Checkpoint to test', required=False)
   parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
-  parser.add_argument('-batch-size', help='Batch size to use for training', type=int, required=True)
+  parser.add_argument('-batch-size', help='Batch size to use for testing', type=int, required=True)
   parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
   parser.add_argument('-max-batches', help='Maximum number of batches for testing', type=int, required=False)
 
@@ -42,6 +43,7 @@ if __name__ == "__main__":
 
 def main(args):
   npzdir = args["npzdir"]
+  model_kind = args["model_kind"]
   config_file = args["config"]
   checkpoint_file = args["checkpoint"]
   pos_len = args["pos_len"]
@@ -58,7 +60,6 @@ def main(args):
     level=logging.INFO,
     format="%(message)s",
     handlers=[
-      logging.FileHandler(os.path.join(traindir,f"train{rank}.log"), mode="a"),
       logging.StreamHandler()
     ],
   )
@@ -69,38 +70,51 @@ def main(args):
   # FIGURE OUT GPU ------------------------------------------------------------
   if True or torch.cuda.is_available():
     logging.info("Using GPU device: " + torch.cuda.get_device_name())
-    device = torch.device("cuda", my_gpu_id)
+    device = torch.device("cuda")
   else:
     logging.warning("WARNING: No GPU, using CPU")
     device = torch.device("cpu")
 
   # LOAD MODEL ---------------------------------------------------------------------
-  with open(config_file,"r") as f:
-    model_config = json.load(f)
+  assert (model_kind is None) != (config_file is None), "Must provide exactly one of -model-kind and -config"
+
+  if model_kind is not None:
+    model_config = modelconfigs.config_of_name[model_kind]
+  else:
+    with open(config_file,"r") as f:
+      model_config = json.load(f)
   logging.info(str(model_config))
 
-  state_dict = torch.load(checkpoint_file)
-  model = Model(model_config,pos_len)
+  state_dict = None
+  if checkpoint_file is None:
+    logging.info("Initializing new model since no checkpoint provided")
+    model = Model(model_config,pos_len)
+    model.initialize()
+  else:
+    state_dict = torch.load(checkpoint_file)
+    model = Model(model_config,pos_len)
+    # Strip off any "module." from when the model was saved with DDP or other things
+    model_state_dict = {}
+    for key in state_dict["model"]:
+      old_key = key
+      while key.startswith("module."):
+        key = key[:7]
+      model_state_dict[key] = state_dict["model"][old_key]
+    model.load_state_dict(model_state_dict)
 
-  # Strip off any "module." from when the model was saved with DDP or other things
-  model_state_dict = {}
-  for key in state_dict["model"]:
-    old_key = key
-    while key.startswith("module."):
-      key = key[:7]
-    model_state_dict[key] = state_dict["model"][old_key]
-  model.load_state_dict(model_state_dict)
   model.to(device)
 
   swa_model = None
   if use_swa:
+    if state_dict is None:
+      raise Exception("Cannot use swa without a trained model")
     if "swa_model" not in state_dict:
       raise Exception("Checkpoint doesn't contain swa_model")
     swa_model = AveragedModel(model, device=device)
     swa_model.load_state_dict(state_dict["swa_model"])
 
   metrics_obj = Metrics(batch_size,model)
-  if "metrics" in state_dict:
+  if state_dict is not None and "metrics" in state_dict:
     metrics_obj.load_state_dict(state_dict["metrics"])
   else:
     logging.info("WARNING: Metrics not found in state dict, using fresh metrics")
@@ -183,36 +197,52 @@ def main(args):
     num_batches_tested = 0
     num_samples_tested = 0
     total_inference_time = 0.0
+    is_first_batch = True
     for batch in data_processing_pytorch.read_npz_training_data(val_files, batch_size, pos_len, device, randomize_symmetries=True, model_config=model_config):
       if num_batches_tested >= max_batches:
         break
 
-      t0 = time.perf_counter()
+      start = torch.cuda.Event(enable_timing=True)
+      end = torch.cuda.Event(enable_timing=True)
+
+      start.record()
       if swa_model is not None:
         model_outputs = swa_model(batch["binaryInputNCHW"],batch["globalInputNC"])
       else:
         model_outputs = model(batch["binaryInputNCHW"],batch["globalInputNC"])
-      t1 = time.perf_counter()
+      end.record()
+      torch.cuda.synchronize()
+      time_elapsed = start.elapsed_time(end) / 1000.0
+
       postprocessed = model.postprocess_output(model_outputs)
       metrics = metrics_obj.metrics_dict_batchwise(model,postprocessed,batch,is_training=False,soft_policy_weight_scale=soft_policy_weight_scale)
       metrics = detensorify_metrics(metrics)
+
+      # Ignore first batch, treat as a warmup so timings are a bit more accurate.
+      if is_first_batch:
+        is_first_batch = False
+        continue
+
       accumulate_metrics(val_metric_sums, val_metric_weights, metrics, batch_size, decay=1.0)
 
       num_batches_tested += 1
       num_samples_tested += batch_size
-      total_inference_time += t1-t0
+      total_inference_time += time_elapsed
 
-      remainder = num_batches_tested
-      while remainder > 1 and remainder % 2 == 0:
-        remainder = remainder // 2
-      if remainder in [1,3,5,7,9]:
-        metrics["num_batches"] = num_batches_tested
-        metrics["num_samples"] = num_samples_tested
-        metrics["time/1ksamp"] = total_inference_time / num_samples_tested * 1000.0
-        log_metrics("STATS SO FAR: ", val_metric_sums, val_metric_weights, metrics, None)
+      if num_batches_tested % 5 == 0:
+        remainder = num_batches_tested // 5
+        while remainder > 1 and remainder % 2 == 0:
+          remainder = remainder // 2
+        if remainder in [1,3,5,7,9]:
+          metrics["num_batches"] = num_batches_tested
+          metrics["num_samples"] = num_samples_tested
+          metrics["inferencetime"] = total_inference_time
+          metrics["time/1ksamp"] = total_inference_time / num_samples_tested * 1000.0
+          log_metrics("STATS SO FAR: ", val_metric_sums, val_metric_weights, metrics, None)
 
     metrics["num_batches"] = num_batches_tested
     metrics["num_samples"] = num_samples_tested
+    metrics["inferencetime"] = total_inference_time
     metrics["time/1ksamp"] = total_inference_time / num_samples_tested * 1000.0
     log_metrics("FINAL: ", val_metric_sums, val_metric_weights, metrics, None)
 

@@ -248,7 +248,7 @@ class Metrics:
         return torch.sum(global_weight * weight * -torch.sum(target_probs * torch.log(target_probs + 1e-30), dim=-1))
 
     def square_value(self, value_logits, global_weight):
-        return torch.sum(global_weight * torch.sum(torch.softmax(value_logits,dim=1) * constant_like([1,-1,0],global_weight), dim=1))
+        return torch.sum(global_weight * torch.square(torch.sum(torch.softmax(value_logits,dim=1) * constant_like([1,-1,0],global_weight), dim=1)))
 
     def get_model_norms(self,model):
         reg_dict : Dict[str,List] = {}
@@ -411,7 +411,7 @@ class Metrics:
             is_training,
         )
         loss_seki = loss_seki.sum()
-        seki_weight_scale = seki_weight_scale.sum()
+        seki_weight_scale = seki_weight_scale.sum() if not isinstance(seki_weight_scale,float) else seki_weight_scale
         loss_scoremean = self.loss_scoremean_samplewise(
             pred_scoremean,
             target_scoremean,

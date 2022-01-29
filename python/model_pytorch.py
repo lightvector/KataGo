@@ -311,13 +311,92 @@ class BottleneckResBlock(torch.nn.Module):
         self.norm_kind = config["norm_kind"]
         self.activation = activation
         self.num_total_blocks = num_total_blocks
-        self.norm0 = NormMask(
+        self.normp = NormMask(
             c_in,
             config=config,
             fixup_use_gamma=False,
         )
-        self.act0 = act(activation, inplace=True)
-        self.conv0 = torch.nn.Conv2d(c_in, c_mid, kernel_size=1, padding="same", bias=False)
+        self.actp = act(activation, inplace=True)
+        self.convp = torch.nn.Conv2d(c_in, c_mid, kernel_size=1, padding="same", bias=False)
+        self.norm1 = NormMask(
+            c_mid,
+            config=config,
+            fixup_use_gamma=False,
+        )
+        self.act1 = act(activation, inplace=True)
+        self.conv1 = torch.nn.Conv2d(c_mid, c_mid, kernel_size=3, padding="same", bias=False)
+        self.normq = NormMask(
+            c_mid,
+            config=config,
+            fixup_use_gamma=True,
+        )
+        self.actq = act(activation, inplace=True)
+        self.convq = torch.nn.Conv2d(c_mid, c_in, kernel_size=1, padding="same", bias=False)
+
+    def initialize(self):
+        if self.norm_kind == "fixup":
+            init_weights(self.convp.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 4.0))
+            init_weights(self.conv1.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 4.0))
+            init_weights(self.convq.weight, self.activation, 0.0)
+        else:
+            init_weights(self.convp.weight, self.activation, scale=1.0)
+            init_weights(self.conv1.weight, self.activation, scale=1.0)
+            init_weights(self.convq.weight, self.activation, scale=1.0)
+
+    def add_reg_dict(self, reg_dict:Dict[str,List]):
+        reg_dict["normal"].append(self.convp.weight)
+        reg_dict["normal"].append(self.conv1.weight)
+        reg_dict["normal"].append(self.convq.weight)
+        self.normp.add_reg_dict(reg_dict)
+        self.norm1.add_reg_dict(reg_dict)
+        self.normq.add_reg_dict(reg_dict)
+
+    def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
+        self.normp.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.norm1.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.normq.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+
+    def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
+        self.normp.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.norm1.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.normq.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+
+    def forward(self, x, mask, mask_sum_hw, mask_sum: float):
+        """
+        Parameters:
+        x: NCHW
+        mask: N1HW
+        mask_sum_hw: N111
+        mask_sum: scalar
+
+        Returns: NCHW
+        """
+        out = x
+        out = self.normp(out, mask=mask, mask_sum=mask_sum)
+        out = self.actp(out)
+        out = self.convp(out)
+        out = self.norm1(out, mask=mask, mask_sum=mask_sum)
+        out = self.act1(out)
+        out = self.conv1(out)
+        out = self.normq(out, mask=mask, mask_sum=mask_sum)
+        out = self.actq(out)
+        out = self.convq(out)
+        return x + out
+
+class LongBottleneckResBlock(torch.nn.Module):
+    def __init__(self, name, c_in, c_mid, config, activation, num_total_blocks):
+        super(LongBottleneckResBlock, self).__init__()
+        self.name = name
+        self.norm_kind = config["norm_kind"]
+        self.activation = activation
+        self.num_total_blocks = num_total_blocks
+        self.normp = NormMask(
+            c_in,
+            config=config,
+            fixup_use_gamma=False,
+        )
+        self.actp = act(activation, inplace=True)
+        self.convp = torch.nn.Conv2d(c_in, c_mid, kernel_size=1, padding="same", bias=False)
         self.norm1 = NormMask(
             c_mid,
             config=config,
@@ -332,47 +411,47 @@ class BottleneckResBlock(torch.nn.Module):
         )
         self.act2 = act(activation, inplace=True)
         self.conv2 = torch.nn.Conv2d(c_mid, c_mid, kernel_size=3, padding="same", bias=False)
-        self.norm3 = NormMask(
+        self.normq = NormMask(
             c_mid,
             config=config,
             fixup_use_gamma=True,
         )
-        self.act3 = act(activation, inplace=True)
-        self.conv3 = torch.nn.Conv2d(c_mid, c_in, kernel_size=1, padding="same", bias=False)
+        self.actq = act(activation, inplace=True)
+        self.convq = torch.nn.Conv2d(c_mid, c_in, kernel_size=1, padding="same", bias=False)
 
     def initialize(self):
         if self.norm_kind == "fixup":
-            init_weights(self.conv0.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 6.0))
+            init_weights(self.convp.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 6.0))
             init_weights(self.conv1.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 6.0))
             init_weights(self.conv2.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 6.0))
-            init_weights(self.conv3.weight, self.activation, 0.0)
+            init_weights(self.convq.weight, self.activation, 0.0)
         else:
-            init_weights(self.conv0.weight, self.activation, scale=1.0)
+            init_weights(self.convp.weight, self.activation, scale=1.0)
             init_weights(self.conv1.weight, self.activation, scale=1.0)
             init_weights(self.conv2.weight, self.activation, scale=1.0)
-            init_weights(self.conv3.weight, self.activation, scale=1.0)
+            init_weights(self.convq.weight, self.activation, scale=1.0)
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
-        reg_dict["normal"].append(self.conv0.weight)
+        reg_dict["normal"].append(self.convp.weight)
         reg_dict["normal"].append(self.conv1.weight)
         reg_dict["normal"].append(self.conv2.weight)
-        reg_dict["normal"].append(self.conv3.weight)
-        self.norm0.add_reg_dict(reg_dict)
+        reg_dict["normal"].append(self.convq.weight)
+        self.normp.add_reg_dict(reg_dict)
         self.norm1.add_reg_dict(reg_dict)
         self.norm2.add_reg_dict(reg_dict)
-        self.norm3.add_reg_dict(reg_dict)
+        self.normq.add_reg_dict(reg_dict)
 
     def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
-        self.norm0.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.normp.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
         self.norm1.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
         self.norm2.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
-        self.norm3.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.normq.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
 
     def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
-        self.norm0.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.normp.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.norm1.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.norm2.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
-        self.norm3.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.normq.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
     def forward(self, x, mask, mask_sum_hw, mask_sum: float):
         """
@@ -385,18 +464,18 @@ class BottleneckResBlock(torch.nn.Module):
         Returns: NCHW
         """
         out = x
-        out = self.norm0(out, mask=mask, mask_sum=mask_sum)
-        out = self.act0(out)
-        out = self.conv0(out)
+        out = self.normp(out, mask=mask, mask_sum=mask_sum)
+        out = self.actp(out)
+        out = self.convp(out)
         out = self.norm1(out, mask=mask, mask_sum=mask_sum)
         out = self.act1(out)
         out = self.conv1(out)
         out = self.norm2(out, mask=mask, mask_sum=mask_sum)
         out = self.act2(out)
         out = self.conv2(out)
-        out = self.norm3(out, mask=mask, mask_sum=mask_sum)
-        out = self.act3(out)
-        out = self.conv3(out)
+        out = self.normq(out, mask=mask, mask_sum=mask_sum)
+        out = self.actq(out)
+        out = self.convq(out)
         return x + out
 
 
@@ -503,13 +582,127 @@ class BottleneckGPoolResBlock(torch.nn.Module):
         self.norm_kind = config["norm_kind"]
         self.activation = activation
         self.num_total_blocks = num_total_blocks
-        self.norm0 = NormMask(
+        self.normp = NormMask(
             c_in,
             config=config,
             fixup_use_gamma=False,
         )
-        self.act0 = act(activation, inplace=True)
-        self.conv0 = torch.nn.Conv2d(c_in, c_regular+c_gpool, kernel_size=1, padding="same", bias=False)
+        self.actp = act(activation, inplace=True)
+        self.convp = torch.nn.Conv2d(c_in, c_regular+c_gpool, kernel_size=1, padding="same", bias=False)
+        self.norm1 = NormMask(
+            c_regular+c_gpool,
+            config=config,
+            fixup_use_gamma=False,
+        )
+        self.act1 = act(activation, inplace=True)
+        self.conv1r = torch.nn.Conv2d(c_regular+c_gpool, c_regular, kernel_size=3, padding="same", bias=False)
+        self.conv1g = torch.nn.Conv2d(c_regular+c_gpool, c_gpool, kernel_size=3, padding="same", bias=False)
+        self.normg = NormMask(
+            c_gpool,
+            config=config,
+            fixup_use_gamma=False,
+        )
+        self.actg = act(activation, inplace=True)
+        self.gpool = KataGPool()
+        self.linear_g = torch.nn.Linear(3 * c_gpool, c_regular, bias=False)
+        self.normq = NormMask(
+            c_regular,
+            config=config,
+            fixup_use_gamma=True,
+        )
+        self.actq = act(activation, inplace=True)
+        self.convq = torch.nn.Conv2d(c_regular, c_in, kernel_size=1, padding="same", bias=False)
+
+    def initialize(self):
+        # Scaling so that variance on the r and g branches adds up to 1.0
+        r_scale = 0.8
+        g_scale = 0.6
+        if self.norm_kind == "fixup":
+            init_weights(self.convp.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 4.0))
+            init_weights(self.conv1r.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 4.0) * r_scale)
+            init_weights(self.conv1g.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 8.0) * math.sqrt(g_scale))
+            init_weights(self.linear_g.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 8.0) * math.sqrt(g_scale))
+            init_weights(self.convq.weight, self.activation, 0.0)
+        else:
+            init_weights(self.convp.weight, self.activation, scale=1.0)
+            init_weights(self.conv1r.weight, self.activation, scale=r_scale)
+            init_weights(self.conv1g.weight, self.activation, scale=1.0)
+            init_weights(self.linear_g.weight, self.activation, scale=g_scale)
+            init_weights(self.convq.weight, self.activation, scale=1.0)
+
+    def add_reg_dict(self, reg_dict:Dict[str,List]):
+        reg_dict["normal"].append(self.convp.weight)
+        reg_dict["normal"].append(self.conv1r.weight)
+        reg_dict["normal"].append(self.conv1g.weight)
+        reg_dict["normal"].append(self.linear_g.weight)
+        reg_dict["normal"].append(self.convq.weight)
+        self.normp.add_reg_dict(reg_dict)
+        self.norm1.add_reg_dict(reg_dict)
+        self.normg.add_reg_dict(reg_dict)
+        self.normq.add_reg_dict(reg_dict)
+
+    def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
+        self.normp.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.norm1.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.normg.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.normq.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+
+    def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
+        self.normp.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.norm1.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.normg.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.normq.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+
+
+    def forward(self, x, mask, mask_sum_hw, mask_sum:float):
+        """
+        Parameters:
+        x: NCHW
+        mask: N1HW
+        mask_sum_hw: N111
+        mask_sum: scalar
+
+        Returns: NCHW
+        """
+        out = x
+
+        out = self.normp(out, mask=mask, mask_sum=mask_sum)
+        out = self.actp(out)
+        out = self.convp(out)
+
+        out = self.norm1(out, mask=mask, mask_sum=mask_sum)
+        out = self.act1(out)
+
+        outr = self.conv1r(out)
+        outg = self.conv1g(out)
+
+        outg = self.normg(outg, mask=mask, mask_sum=mask_sum)
+        outg = self.actg(outg)
+        outg = self.gpool(outg, mask=mask, mask_sum_hw=mask_sum_hw).squeeze(-1).squeeze(-1)
+        outg = self.linear_g(outg).unsqueeze(-1).unsqueeze(-1)
+
+        out = outr + outg
+
+        out = self.normq(out, mask=mask, mask_sum=mask_sum)
+        out = self.actq(out)
+        out = self.convq(out)
+        return x + out
+
+
+class LongBottleneckGPoolResBlock(torch.nn.Module):
+    def __init__(self, name, c_in, c_regular, c_gpool, config, activation, num_total_blocks):
+        super(LongBottleneckGPoolResBlock, self).__init__()
+        self.name = name
+        self.norm_kind = config["norm_kind"]
+        self.activation = activation
+        self.num_total_blocks = num_total_blocks
+        self.normp = NormMask(
+            c_in,
+            config=config,
+            fixup_use_gamma=False,
+        )
+        self.actp = act(activation, inplace=True)
+        self.convp = torch.nn.Conv2d(c_in, c_regular+c_gpool, kernel_size=1, padding="same", bias=False)
         self.norm1 = NormMask(
             c_regular+c_gpool,
             config=config,
@@ -533,59 +726,59 @@ class BottleneckGPoolResBlock(torch.nn.Module):
         )
         self.act2 = act(activation, inplace=True)
         self.conv2 = torch.nn.Conv2d(c_regular, c_regular+c_gpool, kernel_size=3, padding="same", bias=False)
-        self.norm3 = NormMask(
+        self.normq = NormMask(
             c_regular+c_gpool,
             config=config,
             fixup_use_gamma=True,
         )
-        self.act3 = act(activation, inplace=True)
-        self.conv3 = torch.nn.Conv2d(c_regular+c_gpool, c_in, kernel_size=1, padding="same", bias=False)
+        self.actq = act(activation, inplace=True)
+        self.convq = torch.nn.Conv2d(c_regular+c_gpool, c_in, kernel_size=1, padding="same", bias=False)
 
     def initialize(self):
         # Scaling so that variance on the r and g branches adds up to 1.0
         r_scale = 0.8
         g_scale = 0.6
         if self.norm_kind == "fixup":
-            init_weights(self.conv0.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 6.0))
-            init_weights(self.conv1r.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 12.0) * r_scale)
+            init_weights(self.convp.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 6.0))
+            init_weights(self.conv1r.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 6.0) * r_scale)
             init_weights(self.conv1g.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 12.0) * math.sqrt(g_scale))
             init_weights(self.linear_g.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 12.0) * math.sqrt(g_scale))
             init_weights(self.conv2.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 6.0))
-            init_weights(self.conv3.weight, self.activation, 0.0)
+            init_weights(self.convq.weight, self.activation, 0.0)
         else:
-            init_weights(self.conv0.weight, self.activation, scale=1.0)
+            init_weights(self.convp.weight, self.activation, scale=1.0)
             init_weights(self.conv1r.weight, self.activation, scale=r_scale)
             init_weights(self.conv1g.weight, self.activation, scale=1.0)
             init_weights(self.linear_g.weight, self.activation, scale=g_scale)
             init_weights(self.conv2.weight, self.activation, scale=1.0)
-            init_weights(self.conv3.weight, self.activation, scale=1.0)
+            init_weights(self.convq.weight, self.activation, scale=1.0)
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
-        reg_dict["normal"].append(self.conv0.weight)
+        reg_dict["normal"].append(self.convp.weight)
         reg_dict["normal"].append(self.conv1r.weight)
         reg_dict["normal"].append(self.conv1g.weight)
         reg_dict["normal"].append(self.linear_g.weight)
         reg_dict["normal"].append(self.conv2.weight)
-        reg_dict["normal"].append(self.conv3.weight)
-        self.norm0.add_reg_dict(reg_dict)
+        reg_dict["normal"].append(self.convq.weight)
+        self.normp.add_reg_dict(reg_dict)
         self.norm1.add_reg_dict(reg_dict)
         self.normg.add_reg_dict(reg_dict)
         self.norm2.add_reg_dict(reg_dict)
-        self.norm3.add_reg_dict(reg_dict)
+        self.normq.add_reg_dict(reg_dict)
 
     def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
-        self.norm0.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.normp.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
         self.norm1.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
         self.normg.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
         self.norm2.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
-        self.norm3.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.normq.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
 
     def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
-        self.norm0.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.normp.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.norm1.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.normg.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.norm2.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
-        self.norm3.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.normq.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
 
     def forward(self, x, mask, mask_sum_hw, mask_sum:float):
@@ -600,9 +793,9 @@ class BottleneckGPoolResBlock(torch.nn.Module):
         """
         out = x
 
-        out = self.norm0(out, mask=mask, mask_sum=mask_sum)
-        out = self.act0(out)
-        out = self.conv0(out)
+        out = self.normp(out, mask=mask, mask_sum=mask_sum)
+        out = self.actp(out)
+        out = self.convp(out)
 
         out = self.norm1(out, mask=mask, mask_sum=mask_sum)
         out = self.act1(out)
@@ -621,9 +814,9 @@ class BottleneckGPoolResBlock(torch.nn.Module):
         out = self.act2(out)
         out = self.conv2(out)
 
-        out = self.norm3(out, mask=mask, mask_sum=mask_sum)
-        out = self.act3(out)
-        out = self.conv3(out)
+        out = self.normq(out, mask=mask, mask_sum=mask_sum)
+        out = self.actq(out)
+        out = self.convq(out)
         return x + out
 
 
@@ -896,9 +1089,6 @@ class Model(torch.nn.Module):
         self.num_total_blocks = len(self.block_kind)
         self.pos_len = pos_len
 
-        assert config["use_initial_conv_3"], "use_initial_conv_3 must be true"
-        assert config["support_japanese_rules"], "support_jp_rules must be true"
-
         self.activation = "relu"
 
         self.conv_spatial = torch.nn.Conv2d(22, self.c_trunk, kernel_size=3, padding="same", bias=False)
@@ -926,6 +1116,15 @@ class Model(torch.nn.Module):
                     activation=self.activation,
                     num_total_blocks=self.num_total_blocks,
                 ))
+            elif block_config[1] == "longbottle":
+                self.blocks.append(LongBottleneckResBlock(
+                    name=block_name,
+                    c_in=self.c_trunk,
+                    c_mid=self.c_mid,
+                    config=self.config,
+                    activation=self.activation,
+                    num_total_blocks=self.num_total_blocks,
+                ))
             elif block_config[1] == "gpool":
                 self.blocks.append(GPoolResBlock(
                     block_name,
@@ -938,6 +1137,16 @@ class Model(torch.nn.Module):
                 ))
             elif block_config[1] == "bottlegpool":
                 self.blocks.append(BottleneckGPoolResBlock(
+                    block_name,
+                    c_in=self.c_trunk,
+                    c_regular=self.c_regular,
+                    c_gpool=self.c_gpool,
+                    config=self.config,
+                    activation=self.activation,
+                    num_total_blocks=self.num_total_blocks,
+                ))
+            elif block_config[1] == "longbottlegpool":
+                self.blocks.append(LongBottleneckGPoolResBlock(
                     block_name,
                     c_in=self.c_trunk,
                     c_regular=self.c_regular,
