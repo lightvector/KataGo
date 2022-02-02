@@ -731,7 +731,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         with open(jsonfilename) as f:
           trainfileinfo = json.load(f)
 
-        num_batches_this_file = trainfileinfo["num_batches"]
+        num_batches_this_file = trainfileinfo["num_rows"] // batch_size
         if num_batches_this_file <= 0:
           continue
 

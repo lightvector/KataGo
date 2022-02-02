@@ -344,6 +344,37 @@ b20c384bt = {
 }
 
 
+b10c512lbt = {
+  "version":10,
+  "norm_kind":"brenorm",
+  "bnorm_epsilon": 1e-4,
+  "bnorm_running_avg_momentum": 0.001,
+  "trunk_num_channels":512,
+  "mid_num_channels":256,
+  "regular_num_channels":128,
+  "dilated_num_channels":128,
+  "gpool_num_channels":128,
+  "block_kind": [
+    ["rconv1","longbottle"],
+    ["rconv2","longbottle"],
+    ["rconv3","longbottle"],
+    ["rconv4","longbottlegpool"],
+    ["rconv5","longbottle"],
+    ["rconv6","longbottle"],
+    ["rconv7","longbottle"],
+    ["rconv8","longbottlegpool"],
+    ["rconv9","longbottle"],
+    ["rconv10","longbottle"],
+  ],
+  "p1_num_channels":48,
+  "g1_num_channels":48,
+  "v1_num_channels":48,
+  "sbv2_num_channels":96,
+  "num_scorebeliefs":8,
+  "v2_size":112,
+}
+
+
 b15c384lbt = {
   "version":10,
   "norm_kind":"brenorm",
@@ -416,6 +447,82 @@ b18c320lbt = {
   "num_scorebeliefs":8,
   "v2_size":112,
 }
+
+b23c256lbt = {
+  "version":10,
+  "norm_kind":"brenorm",
+  "bnorm_epsilon": 1e-4,
+  "bnorm_running_avg_momentum": 0.001,
+  "trunk_num_channels":256,
+  "mid_num_channels":128,
+  "regular_num_channels":64,
+  "dilated_num_channels":64,
+  "gpool_num_channels":64,
+  "block_kind": [
+    ["rconv1","longbottle"],
+    ["rconv2","longbottle"],
+    ["rconv3","longbottle"],
+    ["rconv4","longbottle"],
+    ["rconv5","longbottle"],
+    ["rconv6","longbottlegpool"],
+    ["rconv7","longbottle"],
+    ["rconv8","longbottle"],
+    ["rconv9","longbottle"],
+    ["rconv10","longbottle"],
+    ["rconv11","longbottle"],
+    ["rconv12","longbottlegpool"],
+    ["rconv13","longbottle"],
+    ["rconv14","longbottle"],
+    ["rconv15","longbottle"],
+    ["rconv16","longbottle"],
+    ["rconv17","longbottle"],
+    ["rconv18","longbottlegpool"],
+    ["rconv19","longbottle"],
+    ["rconv20","longbottle"],
+    ["rconv21","longbottle"],
+    ["rconv22","longbottle"],
+    ["rconv23","longbottle"],
+  ],
+  "p1_num_channels":48,
+  "g1_num_channels":48,
+  "v1_num_channels":48,
+  "sbv2_num_channels":96,
+  "num_scorebeliefs":8,
+  "v2_size":112,
+}
+
+b12c384llbt = {
+  "version":10,
+  "norm_kind":"brenorm",
+  "bnorm_epsilon": 1e-4,
+  "bnorm_running_avg_momentum": 0.001,
+  "trunk_num_channels":384,
+  "mid_num_channels":192,
+  "regular_num_channels":128,
+  "dilated_num_channels":64,
+  "gpool_num_channels":64,
+  "block_kind": [
+    ["rconv1","longlongbottle"],
+    ["rconv2","longlongbottle"],
+    ["rconv3","longlongbottle"],
+    ["rconv4","longlongbottlegpool"],
+    ["rconv5","longlongbottle"],
+    ["rconv6","longlongbottle"],
+    ["rconv7","longlongbottlegpool"],
+    ["rconv8","longlongbottle"],
+    ["rconv9","longlongbottle"],
+    ["rconv10","longlongbottlegpool"],
+    ["rconv11","longlongbottle"],
+    ["rconv12","longlongbottle"],
+  ],
+  "p1_num_channels":48,
+  "g1_num_channels":48,
+  "v1_num_channels":48,
+  "sbv2_num_channels":96,
+  "num_scorebeliefs":8,
+  "v2_size":112,
+}
+
 
 b20c384lbt = {
   "version":10,
@@ -761,8 +868,11 @@ config_of_name = {
   "b30c256bt": b30c256bt,
   "b24c320bt": b24c320bt,
   "b20c384bt": b20c384bt,
+  "b23c256lbt": b23c256lbt,
   "b18c320lbt": b18c320lbt,
   "b15c384lbt": b15c384lbt,
+  "b10c512lbt": b10c512lbt,
+  "b12c384llbt": b12c384llbt,
 
   "b20c384lbt": b20c384lbt,
 
