@@ -34,7 +34,7 @@ def get_num_global_input_features(config: ModelConfig):
 
 b2c16 = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":16,
@@ -42,6 +42,8 @@ b2c16 = {
   "regular_num_channels":8,
   "dilated_num_channels":8,
   "gpool_num_channels":8,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":2,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","gpool"],
@@ -56,7 +58,7 @@ b2c16 = {
 
 b4c32 = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":32,
@@ -64,6 +66,8 @@ b4c32 = {
   "regular_num_channels":16,
   "dilated_num_channels":16,
   "gpool_num_channels":16,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -80,7 +84,7 @@ b4c32 = {
 
 b6c96 = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":96,
@@ -88,6 +92,8 @@ b6c96 = {
   "regular_num_channels":64,
   "dilated_num_channels":32,
   "gpool_num_channels":32,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -106,7 +112,7 @@ b6c96 = {
 
 b10c128 = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":128,
@@ -114,6 +120,8 @@ b10c128 = {
   "regular_num_channels":96,
   "dilated_num_channels":32,
   "gpool_num_channels":32,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -136,7 +144,7 @@ b10c128 = {
 
 b15c192 = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":192,
@@ -144,6 +152,8 @@ b15c192 = {
   "regular_num_channels":128,
   "dilated_num_channels":64,
   "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -169,9 +179,42 @@ b15c192 = {
   "v2_size":96,
 }
 
+b11c384llbt = {
+  "version":10,
+  "norm_kind":"fixup",
+  "bnorm_epsilon": 1e-4,
+  "bnorm_running_avg_momentum": 0.001,
+  "trunk_num_channels":384,
+  "mid_num_channels":192,
+  "regular_num_channels":128,
+  "dilated_num_channels":64,
+  "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
+  "block_kind": [
+    ["rconv1","longlongbottle"],
+    ["rconv2","longlongbottle"],
+    ["rconv4","longlongbottlegpool"],
+    ["rconv5","longlongbottle"],
+    ["rconv6","longlongbottle"],
+    ["rconv7","longlongbottlegpool"],
+    ["rconv8","longlongbottle"],
+    ["rconv9","longlongbottle"],
+    ["rconv10","longlongbottlegpool"],
+    ["rconv11","longlongbottle"],
+    ["rconv12","longlongbottle"],
+  ],
+  "p1_num_channels":48,
+  "g1_num_channels":48,
+  "v1_num_channels":48,
+  "sbv2_num_channels":96,
+  "num_scorebeliefs":8,
+  "v2_size":112,
+}
+
 b20c256 = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":256,
@@ -179,6 +222,8 @@ b20c256 = {
   "regular_num_channels":192,
   "dilated_num_channels":64,
   "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -211,7 +256,7 @@ b20c256 = {
 
 b30c256bt = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":256,
@@ -219,6 +264,8 @@ b30c256bt = {
   "regular_num_channels":64,
   "dilated_num_channels":64,
   "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv0","bottle"],
     ["rconv1","bottle"],
@@ -261,7 +308,7 @@ b30c256bt = {
 
 b24c320bt = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":320,
@@ -269,6 +316,8 @@ b24c320bt = {
   "regular_num_channels":96,
   "dilated_num_channels":64,
   "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","bottle"],
     ["rconv2","bottle"],
@@ -305,7 +354,7 @@ b24c320bt = {
 
 b20c384bt = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":384,
@@ -313,6 +362,8 @@ b20c384bt = {
   "regular_num_channels":128,
   "dilated_num_channels":64,
   "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","bottle"],
     ["rconv2","bottle"],
@@ -346,7 +397,7 @@ b20c384bt = {
 
 b10c512lbt = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":512,
@@ -354,6 +405,8 @@ b10c512lbt = {
   "regular_num_channels":128,
   "dilated_num_channels":128,
   "gpool_num_channels":128,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","longbottle"],
     ["rconv2","longbottle"],
@@ -377,7 +430,7 @@ b10c512lbt = {
 
 b15c384lbt = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":384,
@@ -385,6 +438,8 @@ b15c384lbt = {
   "regular_num_channels":128,
   "dilated_num_channels":64,
   "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","longbottle"],
     ["rconv2","longbottle"],
@@ -412,7 +467,7 @@ b15c384lbt = {
 
 b18c320lbt = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":320,
@@ -420,6 +475,8 @@ b18c320lbt = {
   "regular_num_channels":96,
   "dilated_num_channels":64,
   "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","longbottle"],
     ["rconv2","longbottle"],
@@ -450,7 +507,7 @@ b18c320lbt = {
 
 b23c256lbt = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":256,
@@ -458,6 +515,8 @@ b23c256lbt = {
   "regular_num_channels":64,
   "dilated_num_channels":64,
   "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","longbottle"],
     ["rconv2","longbottle"],
@@ -493,7 +552,7 @@ b23c256lbt = {
 
 b12c384llbt = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":384,
@@ -501,6 +560,8 @@ b12c384llbt = {
   "regular_num_channels":128,
   "dilated_num_channels":64,
   "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","longlongbottle"],
     ["rconv2","longlongbottle"],
@@ -526,7 +587,7 @@ b12c384llbt = {
 
 b20c384lbt = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":384,
@@ -534,6 +595,8 @@ b20c384lbt = {
   "regular_num_channels":128,
   "dilated_num_channels":64,
   "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","longbottle"],
     ["rconv2","longbottle"],
@@ -567,7 +630,7 @@ b20c384lbt = {
 
 b30c320 = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":320,
@@ -575,6 +638,8 @@ b30c320 = {
   "regular_num_channels":224,
   "dilated_num_channels":96,
   "gpool_num_channels":96,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -617,7 +682,7 @@ b30c320 = {
 
 b40c256 = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":256,
@@ -625,6 +690,8 @@ b40c256 = {
   "regular_num_channels":192,
   "dilated_num_channels":64,
   "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -677,7 +744,7 @@ b40c256 = {
 
 b40c384 = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":384,
@@ -685,6 +752,8 @@ b40c384 = {
   "regular_num_channels":256,
   "dilated_num_channels":128,
   "gpool_num_channels":128,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -738,7 +807,7 @@ b40c384 = {
 
 b60c320 = {
   "version":10,
-  "norm_kind":"brenorm",
+  "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
   "bnorm_running_avg_momentum": 0.001,
   "trunk_num_channels":320,
@@ -746,6 +815,8 @@ b60c320 = {
   "regular_num_channels":224,
   "dilated_num_channels":96,
   "gpool_num_channels":96,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -826,6 +897,8 @@ sandbox = {
   "regular_num_channels":192,
   "dilated_num_channels":64,
   "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -857,12 +930,14 @@ sandbox = {
 }
 
 
-config_of_name = {
+base_config_of_name = {
   "b2c16": b2c16,
   "b4c32": b4c32,
   "b6c96": b6c96,
   "b10c128": b10c128,
   "b15c192": b15c192,
+
+  "b11c384llbt": b11c384llbt,
 
   "b20c256": b20c256,
   "b30c256bt": b30c256bt,
@@ -883,3 +958,36 @@ config_of_name = {
 
   "sandbox": sandbox,
 }
+
+config_of_name = {}
+for name, base_config in base_config_of_name.items():
+  config = base_config.copy()
+  config["norm_kind"] = "fixup"
+  config_of_name[name+""] = config
+
+  config = base_config.copy()
+  config["norm_kind"] = "bnorm"
+  config_of_name[name+"-bn"] = config
+
+  config = base_config.copy()
+  config["norm_kind"] = "brenorm"
+  config_of_name[name+"-brn"] = config
+
+
+  config = base_config.copy()
+  config["norm_kind"] = "fixup"
+  config["use_attention_pool"] = True
+  config_of_name[name+"-ap"] = config
+
+  config = base_config.copy()
+  config["norm_kind"] = "bnorm"
+  config["use_attention_pool"] = True
+  config_of_name[name+"-bn-ap"] = config
+
+  config = base_config.copy()
+  config["norm_kind"] = "brenorm"
+  config["use_attention_pool"] = True
+  config_of_name[name+"-brn-ap"] = config
+
+
+
