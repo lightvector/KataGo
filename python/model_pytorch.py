@@ -1329,6 +1329,91 @@ class LongLongBottleneckGPoolResBlock(torch.nn.Module):
         return x + out
 
 
+class NestedBottleneckResBlock(torch.nn.Module):
+    def __init__(self, name, c_in, c_mid, c_regular, c_gpool, config, activation, num_total_blocks, use_gpool):
+        super(NestedBottleneckResBlock, self).__init__()
+        self.name = name
+        self.norm_kind = config["norm_kind"]
+        self.activation = activation
+        self.num_total_blocks = num_total_blocks
+        self.normp = NormMask(
+            c_in,
+            config=config,
+            fixup_use_gamma=False,
+        )
+        self.actp = act(activation, inplace=True)
+        self.convp = torch.nn.Conv2d(c_in, c_mid, kernel_size=1, padding="same", bias=False)
+
+        if use_gpool:
+            self.subblock1 = GPoolResBlock(name+"-sub1", c_mid, c_regular, c_gpool, config, activation, self.num_total_blocks * 3)
+        else:
+            self.subblock1 = ResBlock(name+"-sub1", c_mid, c_mid, config, activation, self.num_total_blocks * 3)
+        self.subblock2 = ResBlock(name+"-sub2", c_mid, c_mid, config, activation, self.num_total_blocks * 3)
+
+        self.normq = NormMask(
+            c_mid,
+            config=config,
+            fixup_use_gamma=True,
+        )
+        self.actq = act(activation, inplace=True)
+        self.convq = torch.nn.Conv2d(c_mid, c_in, kernel_size=1, padding="same", bias=False)
+
+    def initialize(self):
+        if self.norm_kind == "fixup":
+            init_weights(self.convp.weight, self.activation, scale=1.0/math.pow(self.num_total_blocks, 1.0 / 6.0))
+            self.subblock1.initialize()
+            self.subblock2.initialize()
+            init_weights(self.convq.weight, self.activation, 0.0)
+        else:
+            init_weights(self.convp.weight, self.activation, scale=1.0)
+            self.subblock1.initialize()
+            self.subblock2.initialize()
+            init_weights(self.convq.weight, self.activation, scale=1.0)
+
+    def add_reg_dict(self, reg_dict:Dict[str,List]):
+        reg_dict["normal"].append(self.convp.weight)
+        reg_dict["normal"].append(self.convq.weight)
+        self.normp.add_reg_dict(reg_dict)
+        self.subblock1.add_reg_dict(reg_dict)
+        self.subblock2.add_reg_dict(reg_dict)
+        self.normq.add_reg_dict(reg_dict)
+
+    def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
+        self.normp.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.subblock1.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.subblock2.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        self.normq.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+
+    def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
+        self.normp.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.subblock1.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.subblock2.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        self.normq.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+
+    def forward(self, x, mask, mask_sum_hw, mask_sum: float):
+        """
+        Parameters:
+        x: NCHW
+        mask: N1HW
+        mask_sum_hw: N111
+        mask_sum: scalar
+
+        Returns: NCHW
+        """
+        out = x
+        out = self.normp(out, mask=mask, mask_sum=mask_sum)
+        out = self.actp(out)
+        out = self.convp(out)
+
+        out = self.subblock1(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+        out = self.subblock2(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+
+        out = self.normq(out, mask=mask, mask_sum=mask_sum)
+        out = self.actq(out)
+        out = self.convq(out)
+        return x + out
+
+
 class PolicyHead(torch.nn.Module):
     def __init__(self, c_in, c_p1, c_g1, config, activation):
         super(PolicyHead, self).__init__()
@@ -1597,6 +1682,13 @@ class Model(torch.nn.Module):
         self.num_total_blocks = len(self.block_kind)
         self.pos_len = pos_len
 
+        if "has_intermediate_head" in config and config["has_intermediate_head"]:
+            self.has_intermediate_head = True
+            self.intermediate_head_blocks = config["intermediate_head_blocks"]
+        else:
+            self.has_intermediate_head = False
+            self.intermediate_head_blocks = 0
+
         self.activation = "relu"
 
         self.conv_spatial = torch.nn.Conv2d(22, self.c_trunk, kernel_size=3, padding="same", bias=False)
@@ -1642,6 +1734,18 @@ class Model(torch.nn.Module):
                     activation=self.activation,
                     num_total_blocks=self.num_total_blocks,
                 ))
+            elif block_config[1] == "nestedbottle":
+                self.blocks.append(NestedBottleneckResBlock(
+                    name=block_name,
+                    c_in=self.c_trunk,
+                    c_mid=self.c_mid,
+                    c_regular=self.c_regular,
+                    c_gpool=self.c_gpool,
+                    config=self.config,
+                    activation=self.activation,
+                    num_total_blocks=self.num_total_blocks,
+                    use_gpool=False,
+                ))
             elif block_config[1] == "gpool":
                 self.blocks.append(GPoolResBlock(
                     block_name,
@@ -1682,6 +1786,18 @@ class Model(torch.nn.Module):
                     activation=self.activation,
                     num_total_blocks=self.num_total_blocks,
                 ))
+            elif block_config[1] == "nestedbottlegpool":
+                self.blocks.append(NestedBottleneckResBlock(
+                    name=block_name,
+                    c_in=self.c_trunk,
+                    c_mid=self.c_mid,
+                    c_regular=self.c_regular,
+                    c_gpool=self.c_gpool,
+                    config=self.config,
+                    activation=self.activation,
+                    num_total_blocks=self.num_total_blocks,
+                    use_gpool=True,
+                ))
             else:
                 assert False
 
@@ -1705,6 +1821,27 @@ class Model(torch.nn.Module):
             self.activation,
             self.pos_len,
         )
+        if self.has_intermediate_head:
+            self.norm_intermediate_trunkfinal = NormMask(self.c_trunk, self.config, fixup_use_gamma=False)
+            self.act_intermediate_trunkfinal = act(self.activation)
+            self.intermediate_policy_head = PolicyHead(
+                self.c_trunk,
+                self.c_p1,
+                self.c_g1,
+                self.config,
+                self.activation,
+            )
+            self.intermediate_value_head = ValueHead(
+                self.c_trunk,
+                self.c_v1,
+                self.c_v2,
+                self.c_sv2,
+                self.num_scorebeliefs,
+                self.config,
+                self.activation,
+                self.pos_len,
+            )
+
 
     def initialize(self):
         with torch.no_grad():
@@ -1717,9 +1854,15 @@ class Model(torch.nn.Module):
                 block.initialize()
             self.policy_head.initialize()
             self.value_head.initialize()
+            if self.has_intermediate_head:
+                self.intermediate_policy_head.initialize()
+                self.intermediate_value_head.initialize()
 
     def get_norm_kind(self) -> bool:
         return self.norm_kind
+
+    def get_has_intermediate_head(self) -> bool:
+        return self.has_intermediate_head
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         reg_dict["normal"] = []
@@ -1734,6 +1877,10 @@ class Model(torch.nn.Module):
         self.norm_trunkfinal.add_reg_dict(reg_dict)
         self.policy_head.add_reg_dict(reg_dict)
         self.value_head.add_reg_dict(reg_dict)
+        if self.has_intermediate_head:
+            self.norm_intermediate_trunkfinal.add_reg_dict(reg_dict)
+            self.intermediate_policy_head.add_reg_dict(reg_dict)
+            self.intermediate_value_head.add_reg_dict(reg_dict)
 
 
     def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
@@ -1742,6 +1889,10 @@ class Model(torch.nn.Module):
         self.norm_trunkfinal.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
         self.policy_head.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
         self.value_head.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        if self.has_intermediate_head:
+            self.norm_intermediate_trunkfinal.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+            self.intermediate_policy_head.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+            self.intermediate_value_head.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
 
     def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
         for block in self.blocks:
@@ -1749,8 +1900,15 @@ class Model(torch.nn.Module):
         self.norm_trunkfinal.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.policy_head.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.value_head.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        if self.has_intermediate_head:
+            self.norm_intermediate_trunkfinal.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+            self.intermediate_policy_head.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+            self.intermediate_value_head.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
-
+    # Returns a tuple of tuples of outputs
+    # The outer tuple indexes different sets of heads, such as if the net also computes intermediate heads for self-distillation.
+    #   0 is the main output, 1 is intermediate.
+    # The inner tuple ranges over the outputs of a set of heads (policy, value, etc).
     def forward(self, input_spatial, input_global):
         mask = input_spatial[:, 0:1, :, :].contiguous()
         mask_sum_hw = torch.sum(mask,dim=(2,3),keepdim=True)
@@ -1760,14 +1918,36 @@ class Model(torch.nn.Module):
         x_global = self.linear_global(input_global).unsqueeze(-1).unsqueeze(-1)
         out = x_spatial + x_global
 
-        for block in self.blocks:
-            out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+        if self.has_intermediate_head:
+            for block in self.blocks[:self.intermediate_head_blocks]:
+                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+
+            iout = out
+            iout = self.norm_intermediate_trunkfinal(iout, mask=mask, mask_sum=mask_sum)
+            iout = self.act_intermediate_trunkfinal(iout)
+            iout_policy = self.intermediate_policy_head(iout, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+            (
+                iout_value,
+                iout_miscvalue,
+                iout_moremiscvalue,
+                iout_ownership,
+                iout_scoring,
+                iout_futurepos,
+                iout_seki,
+                iout_scorebelief_logprobs,
+            ) = self.intermediate_value_head(iout, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, input_global=input_global)
+
+            for block in self.blocks[self.intermediate_head_blocks:]:
+                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+
+        else:
+            for block in self.blocks:
+                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
 
         out = self.norm_trunkfinal(out, mask=mask, mask_sum=mask_sum)
         out = self.act_trunkfinal(out)
 
         out_policy = self.policy_head(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
-
         (
             out_value,
             out_miscvalue,
@@ -1779,20 +1959,48 @@ class Model(torch.nn.Module):
             out_scorebelief_logprobs,
         ) = self.value_head(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, input_global=input_global)
 
-        return (
-            out_policy,
-            out_value,
-            out_miscvalue,
-            out_moremiscvalue,
-            out_ownership,
-            out_scoring,
-            out_futurepos,
-            out_seki,
-            out_scorebelief_logprobs,
-        )
+        if self.has_intermediate_head:
+            return (
+                (
+                    out_policy,
+                    out_value,
+                    out_miscvalue,
+                    out_moremiscvalue,
+                    out_ownership,
+                    out_scoring,
+                    out_futurepos,
+                    out_seki,
+                    out_scorebelief_logprobs,
+                ),
+                (
+                    iout_policy,
+                    iout_value,
+                    iout_miscvalue,
+                    iout_moremiscvalue,
+                    iout_ownership,
+                    iout_scoring,
+                    iout_futurepos,
+                    iout_seki,
+                    iout_scorebelief_logprobs,
+                ),
+            )
+        else:
+            return ((
+                out_policy,
+                out_value,
+                out_miscvalue,
+                out_moremiscvalue,
+                out_ownership,
+                out_scoring,
+                out_futurepos,
+                out_seki,
+                out_scorebelief_logprobs,
+            ),)
 
+    def postprocess_output(self, outputs_byheads):
+        return tuple(self.postprocess_single_heads_output(outputs) for outputs in outputs_byheads)
 
-    def postprocess_output(self, outputs):
+    def postprocess_single_heads_output(self, outputs):
         (
             out_policy,
             out_value,
@@ -1822,20 +2030,20 @@ class Model(torch.nn.Module):
         scorebelief_logits = out_scorebelief_logprobs
 
         return (
-            policy_logits,
-            value_logits,
-            td_value_logits,
-            pred_td_score,
-            ownership_pretanh,
-            pred_scoring,
-            futurepos_pretanh,
-            seki_logits,
-            pred_scoremean,
-            pred_scorestdev,
-            pred_lead,
-            pred_variance_time,
-            pred_shortterm_value_error,
-            pred_shortterm_score_error,
-            scorebelief_logits,
+            policy_logits,      # N, num_policy_outputs, move
+            value_logits,       # N, {win,loss,noresult}
+            td_value_logits,    # N, {long, mid, short} {win,loss,noresult}
+            pred_td_score,      # N, {long, mid, short}
+            ownership_pretanh,  # N, 1, y, x
+            pred_scoring,       # N, 1, y, x
+            futurepos_pretanh,  # N, 1, y, x
+            seki_logits,        # N, 1, y, x
+            pred_scoremean,     # N
+            pred_scorestdev,    # N
+            pred_lead,          # N
+            pred_variance_time, # N
+            pred_shortterm_value_error, # N
+            pred_shortterm_score_error, # N
+            scorebelief_logits, # N, 2 * (self.pos_len*self.pos_len + EXTRA_SCORE_DISTR_RADIUS)
         )
 

@@ -215,7 +215,15 @@ def main(args):
       time_elapsed = start.elapsed_time(end) / 1000.0
 
       postprocessed = model.postprocess_output(model_outputs)
-      metrics = metrics_obj.metrics_dict_batchwise(model,postprocessed,batch,is_training=False,soft_policy_weight_scale=soft_policy_weight_scale)
+      metrics = metrics_obj.metrics_dict_batchwise(
+        model,
+        postprocessed,
+        batch,
+        is_training=False,
+        soft_policy_weight_scale=soft_policy_weight_scale,
+        intermediate_loss_scale=None,
+        intermediate_distill_scale=None,
+      )
       metrics = detensorify_metrics(metrics)
 
       # Ignore first batch, treat as a warmup so timings are a bit more accurate.

@@ -123,7 +123,7 @@ class Metrics:
         return 0.25 * global_weight * weight * loss
 
 
-    def loss_seki_samplewise(self, pred_logits, target, target_ownership, weight, mask, mask_sum_hw, global_weight, is_training):
+    def loss_seki_samplewise(self, pred_logits, target, target_ownership, weight, mask, mask_sum_hw, global_weight, is_training, skip_moving_update):
         assert self.num_seki_logits == 4
         assert pred_logits.shape == (self.n, self.num_seki_logits, self.pos_len, self.pos_len)
         assert target.shape == (self.n, self.pos_len, self.pos_len)
@@ -136,10 +136,11 @@ class Metrics:
         unowned_proportion = torch.sum(unowned_target * mask, dim=(1, 2)) / (1.0 + mask_sum_hw)
         unowned_proportion = torch.mean(unowned_proportion * weight)
         if is_training:
-            self.moving_unowned_proportion_sum *= 0.998
-            self.moving_unowned_proportion_weight *= 0.998
-            self.moving_unowned_proportion_sum += unowned_proportion
-            self.moving_unowned_proportion_weight += 1.0
+            if not skip_moving_update:
+                self.moving_unowned_proportion_sum *= 0.998
+                self.moving_unowned_proportion_weight *= 0.998
+                self.moving_unowned_proportion_sum += unowned_proportion
+                self.moving_unowned_proportion_weight += 1.0
             moving_unowned_proportion = self.moving_unowned_proportion_sum / self.moving_unowned_proportion_weight
             seki_weight_scale = 8.0 * 0.005 / (0.005 + moving_unowned_proportion)
         else:
@@ -276,7 +277,65 @@ class Metrics:
         return (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg)
 
 
-    def metrics_dict_batchwise(self,model,model_output_postprocessed,batch,is_training,soft_policy_weight_scale):
+    def metrics_dict_batchwise(
+        self,
+        model,
+        model_output_postprocessed_byheads,
+        batch,
+        is_training,
+        soft_policy_weight_scale,
+        intermediate_loss_scale,
+        intermediate_distill_scale,
+    ):
+        results = self.metrics_dict_batchwise_single_heads_output(
+            model,
+            model_output_postprocessed_byheads[0],
+            batch,
+            is_training,
+            soft_policy_weight_scale,
+            is_intermediate=False
+        )
+        if model.get_has_intermediate_head():
+            assert len(model_output_postprocessed_byheads) > 1
+            assert intermediate_loss_scale is not None or intermediate_distill_scale is not None
+
+            if intermediate_loss_scale is not None:
+                iresults = self.metrics_dict_batchwise_single_heads_output(
+                    model,
+                    model_output_postprocessed_byheads[1],
+                    batch,
+                    is_training,
+                    soft_policy_weight_scale,
+                    is_intermediate=True
+                )
+                for key,value in iresults.items():
+                    if key != "loss_sum":
+                        results["I"+key] = value
+                results["loss_sum"] = results["loss_sum"] + intermediate_loss_scale * iresults["loss_sum"]
+            if intermediate_distill_scale is not None:
+                iresults = self.metrics_dict_self_distill(
+                    model_output_postprocessed_byheads[0],
+                    model_output_postprocessed_byheads[1],
+                    batch,
+                    soft_policy_weight_scale,
+                )
+                for key,value in iresults.items():
+                    if key != "loss_sum":
+                        results["SD"+key] = value
+                results["loss_sum"] = results["loss_sum"] + intermediate_loss_scale * iresults["loss_sum"]
+
+        return results
+
+
+    def metrics_dict_batchwise_single_heads_output(
+        self,
+        model,
+        model_output_postprocessed,
+        batch,
+        is_training,
+        soft_policy_weight_scale,
+        is_intermediate,
+    ):
         (
             policy_logits,
             value_logits,
@@ -409,6 +468,7 @@ class Metrics:
             mask_sum_hw,
             global_weight,
             is_training,
+            skip_moving_update=is_intermediate,
         )
         loss_seki = loss_seki.sum()
         seki_weight_scale = seki_weight_scale.sum() if not isinstance(seki_weight_scale,float) else seki_weight_scale
@@ -484,29 +544,15 @@ class Metrics:
             + loss_shortterm_score_error
         )
 
-        weight = global_weight.sum()
-        nsamples = int(global_weight.shape[0])
         policy_acc1 = self.accuracy1(
             policy_logits[:, 0, :],
             target_policy_player,
             target_weight_policy_player,
             global_weight,
         )
-        policy_target_entropy = self.target_entropy(
-            target_policy_player,
-            target_weight_policy_player,
-            global_weight,
-        )
-        soft_policy_target_entropy = self.target_entropy(
-            target_policy_player_soft,
-            target_weight_policy_player,
-            global_weight,
-        )
         square_value = self.square_value(value_logits, global_weight)
 
-        (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = self.get_model_norms(model)
-
-        return {
+        results = {
             "p0loss_sum": loss_policy_player,
             "p1loss_sum": loss_policy_opponent,
             "p0softloss_sum": loss_policy_player_soft,
@@ -527,18 +573,255 @@ class Metrics:
             "evstloss_sum": loss_shortterm_value_error,
             "esstloss_sum": loss_shortterm_score_error,
             "loss_sum": loss_sum,
-            "wsum": weight,
-            "nsamp": nsamples,
             "pacc1_sum": policy_acc1,
-            "ptentr_sum": policy_target_entropy,
-            "ptsoftentr_sum": soft_policy_target_entropy,
             "vsquare_sum": square_value,
-            "sekiweightscale_sum": seki_weight_scale * weight,
-            "norm_normal_batch": modelnorm_normal,
-            "norm_output_batch": modelnorm_output,
-            "norm_noreg_batch": modelnorm_noreg,
-            "norm_output_noreg_batch": modelnorm_output_noreg,
         }
 
+        if is_intermediate:
+            return results
+        else:
+            weight = global_weight.sum()
+            nsamples = int(global_weight.shape[0])
+            policy_target_entropy = self.target_entropy(
+                target_policy_player,
+                target_weight_policy_player,
+                global_weight,
+            )
+            soft_policy_target_entropy = self.target_entropy(
+                target_policy_player_soft,
+                target_weight_policy_player,
+                global_weight,
+            )
+
+            (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = self.get_model_norms(model)
+
+            extra_results = {
+                "wsum": weight,
+                "nsamp": nsamples,
+                "ptentr_sum": policy_target_entropy,
+                "ptsoftentr_sum": soft_policy_target_entropy,
+                "sekiweightscale_sum": seki_weight_scale * weight,
+                "norm_normal_batch": modelnorm_normal,
+                "norm_output_batch": modelnorm_output,
+                "norm_noreg_batch": modelnorm_noreg,
+                "norm_output_noreg_batch": modelnorm_output_noreg,
+            }
+            for key,value in extra_results.items():
+                results[key] = value
+            return results
 
 
+    def metrics_dict_self_distill(
+        self,
+        model_output_postprocessed_main,
+        model_output_postprocessed_inter,
+        batch,
+        soft_policy_weight_scale,
+    ):
+        (
+            policy_logits,
+            value_logits,
+            td_value_logits,
+            pred_td_score,
+            ownership_pretanh,
+            pred_scoring,
+            futurepos_pretanh,
+            _seki_logits,
+            pred_scoremean,
+            pred_scorestdev,
+            pred_lead,
+            pred_variance_time,
+            _pred_shortterm_value_error,
+            _pred_shortterm_score_error,
+            scorebelief_logits,
+        ) = model_output_postprocessed_inter
+
+        model_output_postprocessed_main = tuple(tensor.detach() for tensor in model_output_postprocessed_main)
+        (
+            target_policy_logits,
+            target_value_logits,
+            target_td_value_logits,
+            target_pred_td_score,
+            target_ownership_pretanh,
+            target_pred_scoring,
+            target_futurepos_pretanh,
+            _target_seki_logits,
+            target_pred_scoremean,
+            _target_pred_scorestdev,
+            target_pred_lead,
+            target_pred_variance_time,
+            _target_pred_shortterm_value_error,
+            _target_pred_shortterm_score_error,
+            target_scorebelief_logits,
+        ) = model_output_postprocessed_main
+
+        input_binary_nchw = batch["binaryInputNCHW"]
+        target_global_nc = batch["globalTargetsNC"]
+
+        target_policy_probs = torch.nn.functional.softmax(target_policy_logits, dim=2)
+        target_policy_player = target_policy_probs[:, 0, :]
+        target_policy_opponent = target_policy_probs[:, 1, :]
+        target_policy_player_soft = target_policy_probs[:, 2, :]
+        target_policy_opponent_soft = target_policy_probs[:, 3, :]
+
+        target_weight_policy_player = target_global_nc[:, 26]
+        target_weight_policy_opponent = target_global_nc[:, 28]
+
+        target_value = torch.nn.functional.softmax(target_value_logits, dim=1)
+        target_scoremean = target_pred_scoremean
+        target_td_value = torch.nn.functional.softmax(target_td_value_logits, dim=2)
+        target_td_score = target_pred_td_score
+
+        target_lead = target_pred_lead
+        target_variance_time = target_pred_variance_time
+        global_weight = target_global_nc[:, 25]
+        target_weight_ownership = target_global_nc[:, 27]
+        target_weight_lead = target_global_nc[:, 29]
+        target_weight_futurepos = target_global_nc[:, 33]
+        target_weight_scoring = target_global_nc[:, 34]
+
+        target_score_distribution = torch.nn.functional.softmax(target_scorebelief_logits, dim=1)
+
+        target_ownership = torch.tanh(target_ownership_pretanh).squeeze(1)
+        target_futurepos = torch.tanh(target_futurepos_pretanh).squeeze(1)
+        target_scoring = target_pred_scoring.squeeze(1)
+
+        mask = input_binary_nchw[:, 0, :, :].contiguous()
+        mask_sum_hw = torch.sum(mask,dim=(1,2))
+
+        loss_policy_player = self.loss_policy_player_samplewise(
+            policy_logits[:, 0, :],
+            target_policy_player,
+            target_weight_policy_player,
+            global_weight,
+        ).sum()
+        loss_policy_opponent = self.loss_policy_opponent_samplewise(
+            policy_logits[:, 1, :],
+            target_policy_opponent,
+            target_weight_policy_opponent,
+            global_weight,
+        ).sum()
+
+        loss_policy_player_soft = self.loss_policy_player_samplewise(
+            policy_logits[:, 2, :],
+            target_policy_player_soft,
+            target_weight_policy_player,
+            global_weight,
+        ).sum()
+        loss_policy_opponent_soft = self.loss_policy_opponent_samplewise(
+            policy_logits[:, 3, :],
+            target_policy_opponent_soft,
+            target_weight_policy_opponent,
+            global_weight,
+        ).sum()
+
+        loss_value = self.loss_value_samplewise(
+            value_logits, target_value, global_weight
+        ).sum()
+        loss_td_value = self.loss_td_value_samplewise(
+            td_value_logits, target_td_value, global_weight
+        ).sum()
+        loss_td_score = self.loss_td_score_samplewise(
+            pred_td_score, target_td_score, target_weight_ownership, global_weight
+        ).sum()
+
+        loss_ownership = self.loss_ownership_samplewise(
+            ownership_pretanh,
+            target_ownership,
+            target_weight_ownership,
+            mask,
+            mask_sum_hw,
+            global_weight,
+        ).sum()
+        loss_scoring = self.loss_scoring_samplewise(
+            pred_scoring,
+            target_scoring,
+            target_weight_scoring,
+            mask,
+            mask_sum_hw,
+            global_weight,
+        ).sum()
+        loss_futurepos = self.loss_futurepos_samplewise(
+            futurepos_pretanh,
+            target_futurepos,
+            target_weight_futurepos,
+            mask,
+            mask_sum_hw,
+            global_weight,
+        ).sum()
+        loss_scoremean = self.loss_scoremean_samplewise(
+            pred_scoremean,
+            target_scoremean,
+            target_weight_ownership,
+            global_weight,
+        ).sum()
+        loss_scorebelief_cdf = self.loss_scorebelief_cdf_samplewise(
+            scorebelief_logits,
+            target_score_distribution,
+            target_weight_ownership,
+            global_weight,
+        ).sum()
+        loss_scorebelief_pdf = self.loss_scorebelief_pdf_samplewise(
+            scorebelief_logits,
+            target_score_distribution,
+            target_weight_ownership,
+            global_weight,
+        ).sum()
+        loss_scorestdev = self.loss_scorestdev_samplewise(
+            pred_scorestdev,
+            target_scorebelief_logits, # pred_scorestdev chases stdev of MAIN head's score belief
+            global_weight,
+        ).sum()
+        loss_lead = self.loss_lead_samplewise(
+            pred_lead,
+            target_lead,
+            target_weight_lead,
+            global_weight,
+        ).sum()
+        loss_variance_time = self.loss_variance_time_samplewise(
+            pred_variance_time,
+            target_variance_time,
+            target_weight_ownership,
+            global_weight,
+        ).sum()
+
+        loss_sum = (
+            loss_policy_player
+            + loss_policy_opponent
+            + loss_policy_player_soft * soft_policy_weight_scale
+            + loss_policy_opponent_soft * soft_policy_weight_scale
+            + loss_value
+            + loss_td_value
+            + loss_td_score
+            + loss_ownership
+            + loss_scoring
+            + loss_futurepos
+            + loss_scoremean
+            + loss_scorebelief_cdf
+            + loss_scorebelief_pdf
+            + loss_scorestdev
+            + loss_lead
+            + loss_variance_time
+        )
+
+        results = {
+            "p0loss_sum": loss_policy_player,
+            "p1loss_sum": loss_policy_opponent,
+            "p0softloss_sum": loss_policy_player_soft,
+            "p1softloss_sum": loss_policy_opponent_soft,
+            "vloss_sum": loss_value,
+            "tdvloss_sum": loss_td_value,
+            "tdsloss_sum": loss_td_score,
+            "oloss_sum": loss_ownership,
+            "sloss_sum": loss_scoring,
+            "fploss_sum": loss_futurepos,
+            "smloss_sum": loss_scoremean,
+            "sbcdfloss_sum": loss_scorebelief_cdf,
+            "sbpdfloss_sum": loss_scorebelief_pdf,
+            "sdregloss_sum": loss_scorestdev,
+            "leadloss_sum": loss_lead,
+            "vtimeloss_sum": loss_variance_time,
+            "loss_sum": loss_sum,
+        }
+
+        return results

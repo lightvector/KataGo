@@ -179,39 +179,6 @@ b15c192 = {
   "v2_size":96,
 }
 
-b11c384llbt = {
-  "version":10,
-  "norm_kind":"fixup",
-  "bnorm_epsilon": 1e-4,
-  "bnorm_running_avg_momentum": 0.001,
-  "trunk_num_channels":384,
-  "mid_num_channels":192,
-  "regular_num_channels":128,
-  "dilated_num_channels":64,
-  "gpool_num_channels":64,
-  "use_attention_pool":False,
-  "num_attention_pool_heads":8,
-  "block_kind": [
-    ["rconv1","longlongbottle"],
-    ["rconv2","longlongbottle"],
-    ["rconv4","longlongbottlegpool"],
-    ["rconv5","longlongbottle"],
-    ["rconv6","longlongbottle"],
-    ["rconv7","longlongbottlegpool"],
-    ["rconv8","longlongbottle"],
-    ["rconv9","longlongbottle"],
-    ["rconv10","longlongbottlegpool"],
-    ["rconv11","longlongbottle"],
-    ["rconv12","longlongbottle"],
-  ],
-  "p1_num_channels":48,
-  "g1_num_channels":48,
-  "v1_num_channels":48,
-  "sbv2_num_channels":96,
-  "num_scorebeliefs":8,
-  "v2_size":112,
-}
-
 b20c256 = {
   "version":10,
   "norm_kind":"fixup",
@@ -585,6 +552,39 @@ b12c384llbt = {
 }
 
 
+b10c384nbt = {
+  "version":10,
+  "norm_kind":"fixup",
+  "bnorm_epsilon": 1e-4,
+  "bnorm_running_avg_momentum": 0.001,
+  "trunk_num_channels":384,
+  "mid_num_channels":192,
+  "regular_num_channels":128,
+  "dilated_num_channels":64,
+  "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":8,
+  "block_kind": [
+    ["rconv1","nestedbottle"],
+    ["rconv2","nestedbottle"],
+    ["rconv3","nestedbottlegpool"],
+    ["rconv4","nestedbottle"],
+    ["rconv5","nestedbottle"],
+    ["rconv6","nestedbottlegpool"],
+    ["rconv7","nestedbottle"],
+    ["rconv8","nestedbottle"],
+    ["rconv9","nestedbottlegpool"],
+    ["rconv10","nestedbottle"],
+  ],
+  "p1_num_channels":48,
+  "g1_num_channels":48,
+  "v1_num_channels":48,
+  "sbv2_num_channels":96,
+  "num_scorebeliefs":8,
+  "v2_size":112,
+}
+
+
 b20c384lbt = {
   "version":10,
   "norm_kind":"fixup",
@@ -937,8 +937,6 @@ base_config_of_name = {
   "b10c128": b10c128,
   "b15c192": b15c192,
 
-  "b11c384llbt": b11c384llbt,
-
   "b20c256": b20c256,
   "b30c256bt": b30c256bt,
   "b24c320bt": b24c320bt,
@@ -948,6 +946,7 @@ base_config_of_name = {
   "b15c384lbt": b15c384lbt,
   "b10c512lbt": b10c512lbt,
   "b12c384llbt": b12c384llbt,
+  "b10c384nbt": b10c384nbt,
 
   "b20c384lbt": b20c384lbt,
 
