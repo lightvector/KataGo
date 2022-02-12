@@ -65,7 +65,7 @@ b4c32 = {
   "mid_num_channels":32,
   "gpool_num_channels":16,
   "use_attention_pool":False,
-  "num_attention_pool_heads":4,
+  "num_attention_pool_heads":2,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -90,7 +90,7 @@ b6c96 = {
   "mid_num_channels":96,
   "gpool_num_channels":32,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -117,7 +117,7 @@ b10c128 = {
   "mid_num_channels":128,
   "gpool_num_channels":32,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -148,7 +148,7 @@ b15c192 = {
   "mid_num_channels":192,
   "gpool_num_channels":64,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -184,7 +184,7 @@ b20c256 = {
   "mid_num_channels":256,
   "gpool_num_channels":64,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -225,7 +225,7 @@ b30c256bt = {
   "mid_num_channels":128,
   "gpool_num_channels":64,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv0","bottle"],
     ["rconv1","bottle"],
@@ -276,7 +276,7 @@ b24c320bt = {
   "mid_num_channels":160,
   "gpool_num_channels":64,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","bottle"],
     ["rconv2","bottle"],
@@ -321,7 +321,7 @@ b20c384bt = {
   "mid_num_channels":192,
   "gpool_num_channels":64,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","bottle"],
     ["rconv2","bottle"],
@@ -363,7 +363,7 @@ b10c512lbt = {
   "mid_num_channels":256,
   "gpool_num_channels":128,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","bottle2"],
     ["rconv2","bottle2"],
@@ -395,7 +395,7 @@ b15c384lbt = {
   "mid_num_channels":192,
   "gpool_num_channels":64,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","bottle2"],
     ["rconv2","bottle2"],
@@ -431,7 +431,7 @@ b18c320lbt = {
   "mid_num_channels":160,
   "gpool_num_channels":64,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","bottle2"],
     ["rconv2","bottle2"],
@@ -470,7 +470,7 @@ b23c256lbt = {
   "mid_num_channels":128,
   "gpool_num_channels":64,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","bottle2"],
     ["rconv2","bottle2"],
@@ -514,7 +514,7 @@ b12c384llbt = {
   "mid_num_channels":192,
   "gpool_num_channels":64,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","bottle3"],
     ["rconv2","bottle3"],
@@ -548,7 +548,7 @@ b10c384nbt = {
   "mid_num_channels":192,
   "gpool_num_channels":64,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","bottlenest2"],
     ["rconv2","bottlenest2"],
@@ -580,7 +580,7 @@ b10c480nb3t = {
   "mid_num_channels":160,
   "gpool_num_channels":64,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","bottlenest2"],
     ["rconv2","bottlenest2"],
@@ -602,6 +602,34 @@ b10c480nb3t = {
 }
 
 
+b7c384lnbt = {
+  "version":10,
+  "norm_kind":"fixup",
+  "bnorm_epsilon": 1e-4,
+  "bnorm_running_avg_momentum": 0.001,
+  "initial_conv_1x1": False,
+  "trunk_num_channels":384,
+  "mid_num_channels":192,
+  "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":4,
+  "block_kind": [
+    ["rconv1","bottlenest3"],
+    ["rconv3","bottlenest3gpool"],
+    ["rconv5","bottlenest3"],
+    ["rconv6","bottlenest3gpool"],
+    ["rconv8","bottlenest3"],
+    ["rconv9","bottlenest3gpool"],
+    ["rconv10","bottlenest3"],
+  ],
+  "p1_num_channels":48,
+  "g1_num_channels":48,
+  "v1_num_channels":48,
+  "sbv2_num_channels":96,
+  "num_scorebeliefs":8,
+  "v2_size":112,
+}
+
 b5c512nnbt = {
   "version":10,
   "norm_kind":"fixup",
@@ -613,7 +641,7 @@ b5c512nnbt = {
   "mid_num_channels":128,
   "gpool_num_channels":64,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","bottlenest2bottlenest2"],
     ["rconv2","bottlenest2bottlenest2gpool"],
@@ -640,7 +668,7 @@ b20c384lbt = {
   "mid_num_channels":192,
   "gpool_num_channels":64,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","bottle2"],
     ["rconv2","bottle2"],
@@ -682,7 +710,7 @@ b30c320 = {
   "mid_num_channels":320,
   "gpool_num_channels":96,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -733,7 +761,7 @@ b40c256 = {
   "mid_num_channels":256,
   "gpool_num_channels":64,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -794,7 +822,7 @@ b40c384 = {
   "mid_num_channels":384,
   "gpool_num_channels":128,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -856,7 +884,7 @@ b60c320 = {
   "mid_num_channels":320,
   "gpool_num_channels":96,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -937,7 +965,7 @@ sandbox = {
   "mid_num_channels":256,
   "gpool_num_channels":64,
   "use_attention_pool":False,
-  "num_attention_pool_heads":8,
+  "num_attention_pool_heads":4,
   "block_kind": [
     ["rconv1","regular"],
     ["rconv2","regular"],
@@ -987,6 +1015,7 @@ base_config_of_name = {
   "b12c384llbt": b12c384llbt,
   "b10c384nbt": b10c384nbt,
   "b10c480nb3t": b10c480nb3t,
+  "b7c384lnbt": b7c384lnbt,
   "b5c512nnbt": b5c512nnbt,
 
   "b20c384lbt": b20c384lbt,
