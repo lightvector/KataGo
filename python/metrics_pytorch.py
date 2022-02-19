@@ -322,7 +322,7 @@ class Metrics:
                 for key,value in iresults.items():
                     if key != "loss_sum":
                         results["SD"+key] = value
-                results["loss_sum"] = results["loss_sum"] + intermediate_loss_scale * iresults["loss_sum"]
+                results["loss_sum"] = results["loss_sum"] + intermediate_distill_scale * iresults["loss_sum"]
 
         return results
 
@@ -361,13 +361,24 @@ class Metrics:
         score_distribution_ns = batch["scoreDistrN"]
         target_value_nchw = batch["valueTargetsNCHW"]
 
+        mask = input_binary_nchw[:, 0, :, :].contiguous()
+        mask_sum_hw = torch.sum(mask,dim=(1,2))
+
+        n = input_binary_nchw.shape[0]
+        h = input_binary_nchw.shape[2]
+        w = input_binary_nchw.shape[3]
+
+        policymask = torch.cat((mask.view(n,h*w),mask.new_ones((n,1))),dim=1)
+
         target_policy_player = target_policy_ncmove[:, 0, :]
-        target_policy_player /= torch.sum(target_policy_player, dim=1, keepdim=True)
+        target_policy_player = target_policy_player / torch.sum(target_policy_player, dim=1, keepdim=True)
         target_policy_opponent = target_policy_ncmove[:, 1, :]
-        target_policy_opponent /= torch.sum(target_policy_opponent, dim=1, keepdim=True)
-        target_policy_player_soft = torch.pow(target_policy_ncmove[:, 0, :], 0.25)
+        target_policy_opponent = target_policy_opponent / torch.sum(target_policy_opponent, dim=1, keepdim=True)
+        target_policy_player_soft = (target_policy_player + 1e-7) * policymask
+        target_policy_player_soft = torch.pow(target_policy_player_soft, 0.25)
         target_policy_player_soft /= torch.sum(target_policy_player_soft, dim=1, keepdim=True)
-        target_policy_opponent_soft = torch.pow(target_policy_ncmove[:, 1, :], 0.25)
+        target_policy_opponent_soft = (target_policy_opponent + 1e-7) * policymask
+        target_policy_opponent_soft = torch.pow(target_policy_opponent_soft, 0.25)
         target_policy_opponent_soft /= torch.sum(target_policy_opponent_soft, dim=1, keepdim=True)
 
         target_weight_policy_player = target_global_nc[:, 26]
@@ -395,9 +406,6 @@ class Metrics:
         target_seki = target_value_nchw[:, 1, :, :]
         target_futurepos = target_value_nchw[:, 2:4, :, :]
         target_scoring = target_value_nchw[:, 4, :, :] / 120.0
-
-        mask = input_binary_nchw[:, 0, :, :].contiguous()
-        mask_sum_hw = torch.sum(mask,dim=(1,2))
 
         loss_policy_player = self.loss_policy_player_samplewise(
             policy_logits[:, 0, :],

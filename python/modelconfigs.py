@@ -1042,21 +1042,13 @@ for name, base_config in base_config_of_name.items():
   config["norm_kind"] = "brenorm"
   config_of_name[name+"-brn"] = config
 
-
+for name, base_config in list(config_of_name.items()):
   config = base_config.copy()
-  config["norm_kind"] = "fixup"
   config["use_attention_pool"] = True
   config_of_name[name+"-ap"] = config
 
+for name, base_config in list(config_of_name.items()):
   config = base_config.copy()
-  config["norm_kind"] = "bnorm"
-  config["use_attention_pool"] = True
-  config_of_name[name+"-bn-ap"] = config
-
-  config = base_config.copy()
-  config["norm_kind"] = "brenorm"
-  config["use_attention_pool"] = True
-  config_of_name[name+"-brn-ap"] = config
-
-
-
+  config["has_intermediate_head"] = True
+  config["intermediate_head_blocks"] = len(config["block_kind"]) // 2
+  config_of_name[name+"-ih"] = config

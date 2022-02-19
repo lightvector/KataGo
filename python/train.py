@@ -419,6 +419,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   if "export_cycle_counter" not in train_state:
     train_state["export_cycle_counter"] = 0
 
+  if intermediate_distill_scale is not None or intermediate_loss_scale is not None:
+    assert model.get_has_intermediate_head(), "Model must have intermediate head to use intermediate distill or loss"
+
 
   # Print all model parameters just to get a summary
   total_num_params = 0
@@ -707,6 +710,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     logging.info("Current time: " + str(datetime.datetime.now()))
     logging.info("Global step: %d samples" % (train_state["global_step_samples"]))
     logging.info("Currently up to data row " + str(last_datainfo_row))
+    logging.info(f"Training dir: {traindir}")
+    logging.info(f"Export dir: {exportdir}")
 
     if max_train_bucket_per_new_data is not None:
       if train_state["train_bucket_level"] > 0.99 * samples_per_epoch:

@@ -359,7 +359,6 @@ class KataConvAndAttentionPool(torch.nn.Module):
     def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
         self.normg.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
-
     def forward(self, x, mask, mask_sum_hw, mask_sum:float):
         """
         Parameters:
@@ -377,28 +376,67 @@ class KataConvAndAttentionPool(torch.nn.Module):
         out = x
         outr = self.conv1r(out)
         outg = self.conv1g(out)
-        outk = self.conv1k(out) - (1.0 - mask) * 5000.0
-        outq = self.conv1q(out)
-
-        outk = outk.view(n*self.c_apheads, self.c_gpool//self.c_apheads, h*w)
-        outq = outq.view(n*self.c_apheads, self.c_gpool//self.c_apheads, h*w)
-
-        mask_sum_hw_sqrt_offset = torch.sqrt(mask_sum_hw) - 14.0
+        outk = self.conv1k(out).view(n*self.c_apheads, self.c_gpool//self.c_apheads, h*w)
+        outq = self.conv1q(out).view(n*self.c_apheads, self.c_gpool//self.c_apheads, h*w)
+        attention_logits = torch.bmm(torch.transpose(outk,1,2), outq) # n*heads, src h*w, dst h*w
+        attention_logits = attention_logits.view(n, self.c_apheads, h*w, h*w)
+        attention_logits = attention_logits - (1.0 - mask.view(n,1,h*w,1)) * 6000.0
+        attention_logits = attention_logits.view(n * self.c_apheads, h*w, h*w)
+        attention = torch.nn.functional.softmax(attention_logits, dim=1)
+        attention_scale = 0.1 / torch.sqrt(torch.sum(torch.square(attention), dim=1, keepdim=True)) # n*heads, 1, h*w
 
         outg = self.normg(outg, mask=mask, mask_sum=mask_sum)
         outg = self.actg(outg).view(n*self.c_apheads, self.c_gpool//self.c_apheads, h*w)
-        # Shen et al. Efficient Attention: Attention with Linear Complexities
-        outg = torch.bmm(outg, torch.transpose(torch.nn.functional.softmax(outk,dim=2),1,2))
-        outg = torch.bmm(outg, torch.nn.functional.softmax(outq,dim=1))
-        outg = outg.view(n, self.c_gpool, h, w) * mask
-        outg = torch.cat((
-            outg,
-            outg * (mask_sum_hw_sqrt_offset / 10.0)
-        ),dim=1)
 
+        out_pool1 = torch.bmm(outg, attention)
+        out_pool2 = out_pool1 * attention_scale
+        out_pool1 = out_pool1.view(n, self.c_gpool, h*w)
+        out_pool2 = out_pool2.view(n, self.c_gpool, h*w)
+
+        outg = torch.cat((out_pool1, out_pool2), dim=1).view(n, 2 * self.c_gpool, h, w) * mask
         outg = self.conv_mix(outg)
         out = outr + outg
         return out
+
+    # def forward(self, x, mask, mask_sum_hw, mask_sum:float):
+    #     """
+    #     Parameters:
+    #     x: NCHW
+    #     mask: N1HW
+    #     mask_sum_hw: N111
+    #     mask_sum: scalar
+
+    #     Returns: NCHW
+    #     """
+    #     n = x.shape[0]
+    #     h = x.shape[2]
+    #     w = x.shape[3]
+
+    #     out = x
+    #     outr = self.conv1r(out)
+    #     outg = self.conv1g(out)
+    #     outk = self.conv1k(out) - (1.0 - mask) * 5000.0
+    #     outq = self.conv1q(out)
+
+    #     outk = outk.view(n*self.c_apheads, self.c_gpool//self.c_apheads, h*w)
+    #     outq = outq.view(n*self.c_apheads, self.c_gpool//self.c_apheads, h*w)
+
+    #     mask_sum_hw_sqrt_offset = torch.sqrt(mask_sum_hw) - 14.0
+
+    #     outg = self.normg(outg, mask=mask, mask_sum=mask_sum)
+    #     outg = self.actg(outg).view(n*self.c_apheads, self.c_gpool//self.c_apheads, h*w)
+    #     # Shen et al. Efficient Attention: Attention with Linear Complexities
+    #     outg = torch.bmm(outg, torch.transpose(torch.nn.functional.softmax(outk,dim=2),1,2))
+    #     outg = torch.bmm(outg, torch.nn.functional.softmax(outq,dim=1))
+    #     outg = outg.view(n, self.c_gpool, h, w) * mask
+    #     outg = torch.cat((
+    #         outg,
+    #         outg * (mask_sum_hw_sqrt_offset / 10.0)
+    #     ),dim=1)
+
+    #     outg = self.conv_mix(outg)
+    #     out = outr + outg
+    #     return out
 
 
 class NormActConv(torch.nn.Module):
