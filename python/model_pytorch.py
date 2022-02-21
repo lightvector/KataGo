@@ -49,16 +49,25 @@ class NormMask(torch.nn.Module):
         self,
         c_in,
         config: modelconfigs.ModelConfig,
-        fixup_use_gamma,
+        fixup_use_gamma: bool,
+        force_use_gamma: bool = False,
     ):
         super(NormMask, self).__init__()
         self.norm_kind = config["norm_kind"]
         self.epsilon = config["bnorm_epsilon"]
         self.running_avg_momentum = config["bnorm_running_avg_momentum"]
         self.fixup_use_gamma = fixup_use_gamma
+        self.use_gamma = (
+            ("bnorm_use_gamma" in config and config["bnorm_use_gamma"]) or
+            (self.norm_kind == "fixup" and fixup_use_gamma) or
+            force_use_gamma
+        )
         self.c_in = c_in
 
+        self.gamma = None
         if self.norm_kind == "bnorm":
+            if self.use_gamma:
+                self.gamma = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
             self.register_buffer(
                 "running_mean", torch.zeros(c_in, dtype=torch.float)
@@ -67,6 +76,8 @@ class NormMask(torch.nn.Module):
                 "running_std", torch.ones(c_in, dtype=torch.float)
             )
         elif self.norm_kind == "brenorm":
+            if self.use_gamma:
+                self.gamma = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
             self.register_buffer(
                 "running_mean", torch.zeros(c_in, dtype=torch.float)
@@ -92,13 +103,13 @@ class NormMask(torch.nn.Module):
 
         elif self.norm_kind == "fixup":
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
-            if fixup_use_gamma:
+            if self.use_gamma:
                 self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))
         else:
             assert False, f"Unimplemented norm_kind: {self.norm_kind}"
 
     def add_reg_dict(self, reg_dict:Dict[str,List], is_last_batchnorm=False):
-        if self.norm_kind == "fixup" and self.fixup_use_gamma:
+        if self.gamma is not None:
             reg_dict["normal"].append(self.gamma)
         if is_last_batchnorm:
             reg_dict["output_noreg"].append(self.beta)
@@ -146,9 +157,15 @@ class NormMask(torch.nn.Module):
                     self.running_mean += self.running_avg_momentum * (detached_mean - self.running_mean)
                     self.running_std += self.running_avg_momentum * (detached_std - self.running_std)
 
-                return (zeromean_x / std + self.beta) * mask
+                if self.gamma is not None:
+                    return (zeromean_x / std * self.gamma + self.beta) * mask
+                else:
+                    return (zeromean_x / std + self.beta) * mask
             else:
-                return ((x - self.running_mean.view(1,self.c_in,1,1)) / self.running_std.view(1,self.c_in,1,1) + self.beta) * mask
+                if self.gamma is not None:
+                    return ((x - self.running_mean.view(1,self.c_in,1,1)) / self.running_std.view(1,self.c_in,1,1) * self.gamma + self.beta) * mask
+                else:
+                    return ((x - self.running_mean.view(1,self.c_in,1,1)) / self.running_std.view(1,self.c_in,1,1) + self.beta) * mask
 
         elif self.norm_kind == "brenorm":
             assert x.shape[1] == self.c_in
@@ -176,14 +193,22 @@ class NormMask(torch.nn.Module):
                     self.renorm_dclippage += 0.01 * (dclippage - self.renorm_dclippage)
 
                 if self.rmax > 1.00000001 or self.dmax > 0.00000001:
-                    return (zeromean_x / std * r.detach().view(1,self.c_in,1,1) + d.detach().view(1,self.c_in,1,1) + self.beta) * mask
+                    if self.gamma is not None:
+                        return (zeromean_x / std * r.detach().view(1,self.c_in,1,1) + d.detach().view(1,self.c_in,1,1) * self.gamma + self.beta) * mask
+                    else:
+                        return (zeromean_x / std * r.detach().view(1,self.c_in,1,1) + d.detach().view(1,self.c_in,1,1) + self.beta) * mask
                 else:
-                    return (zeromean_x / std + self.beta) * mask
+                    if self.gamma is not None:
+                        return (zeromean_x / std * self.gamma + self.beta) * mask
+                    else:
+                        return (zeromean_x / std + self.beta) * mask
 
             else:
                 return ((x - self.running_mean.view(1,self.c_in,1,1)) / self.running_std.view(1,self.c_in,1,1) + self.beta) * mask
 
         elif self.norm_kind == "fixup":
+            if self.gamma is not None:
+                return (x * self.gamma + self.beta) * mask
             return (x + self.beta) * mask
 
         else:
@@ -473,18 +498,27 @@ class NormActConv(torch.nn.Module):
             self.conv = torch.nn.Conv2d(c_in, c_out, kernel_size=kernel_size, padding="same", bias=False)
             self.convpool = None
 
+        self.conv1x1 = None
+        if self.conv is not None and "use_repvgg_linear" in config and config["use_repvgg_linear"]:
+            self.conv1x1 = torch.nn.Conv2d(c_in, c_out, kernel_size=1, padding="same", bias=False)
 
     def initialize(self, scale):
         if self.convpool is not None:
             self.convpool.initialize(scale=scale)
         else:
-            init_weights(self.conv.weight, self.activation, scale=scale)
+            if self.conv1x1 is not None:
+                init_weights(self.conv1x1.weight, self.activation, scale=scale*0.6)
+                init_weights(self.conv.weight, self.activation, scale=scale*0.8)
+            else:
+                init_weights(self.conv.weight, self.activation, scale=scale)
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         self.norm.add_reg_dict(reg_dict)
         if self.convpool is not None:
             self.convpool.add_reg_dict(reg_dict)
         else:
+            if self.conv1x1 is not None:
+                reg_dict["normal"].append(self.conv1x1.weight)
             reg_dict["normal"].append(self.conv.weight)
 
     def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
@@ -513,7 +547,10 @@ class NormActConv(torch.nn.Module):
         if self.convpool is not None:
             out = self.convpool(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
         else:
-            out = self.conv(out)
+            if self.conv1x1 is not None:
+                out = self.conv(out) + self.conv1x1(out)
+            else:
+                out = self.conv(out)
         return out
 
 
