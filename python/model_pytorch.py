@@ -67,7 +67,7 @@ class NormMask(torch.nn.Module):
         self.gamma = None
         if self.norm_kind == "bnorm":
             if self.use_gamma:
-                self.gamma = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
+                self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
             self.register_buffer(
                 "running_mean", torch.zeros(c_in, dtype=torch.float)
@@ -77,7 +77,7 @@ class NormMask(torch.nn.Module):
             )
         elif self.norm_kind == "brenorm":
             if self.use_gamma:
-                self.gamma = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
+                self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
             self.register_buffer(
                 "running_mean", torch.zeros(c_in, dtype=torch.float)
@@ -486,6 +486,7 @@ class NormActConv(torch.nn.Module):
         )
         self.activation = activation
         self.act = act(activation, inplace=True)
+        self.use_repvgg_init = kernel_size > 1 and "use_repvgg_init" in config and config["use_repvgg_init"]
 
         if c_gpool is not None:
             if config["use_attention_pool"]:
@@ -499,7 +500,7 @@ class NormActConv(torch.nn.Module):
             self.convpool = None
 
         self.conv1x1 = None
-        if self.conv is not None and "use_repvgg_linear" in config and config["use_repvgg_linear"]:
+        if self.conv is not None and kernel_size > 1 and "use_repvgg_linear" in config and config["use_repvgg_linear"]:
             self.conv1x1 = torch.nn.Conv2d(c_in, c_out, kernel_size=1, padding="same", bias=False)
 
     def initialize(self, scale):
@@ -510,7 +511,14 @@ class NormActConv(torch.nn.Module):
                 init_weights(self.conv1x1.weight, self.activation, scale=scale*0.6)
                 init_weights(self.conv.weight, self.activation, scale=scale*0.8)
             else:
-                init_weights(self.conv.weight, self.activation, scale=scale)
+                if self.use_repvgg_init:
+                    init_weights(self.conv.weight, self.activation, scale=scale*0.8)
+                    center_bonus = self.conv.weight.new_zeros((self.conv.weight.shape[0],self.conv.weight.shape[1]),requires_grad=False)
+                    init_weights(center_bonus, self.activation, scale=scale*0.6)
+                    self.conv.weight[:,:,1,1] += center_bonus
+                else:
+                    init_weights(self.conv.weight, self.activation, scale=scale)
+
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         self.norm.add_reg_dict(reg_dict)

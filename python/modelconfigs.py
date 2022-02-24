@@ -1042,12 +1042,26 @@ for name, base_config in base_config_of_name.items():
   config["norm_kind"] = "brenorm"
   config_of_name[name+"-brn"] = config
 
+  config = base_config.copy()
+  config["norm_kind"] = "bnorm"
+  config["bnorm_use_gamma"] = True
+  config_of_name[name+"-bng"] = config
+
+  config = base_config.copy()
+  config["norm_kind"] = "brenorm"
+  config["bnorm_use_gamma"] = True
+  config_of_name[name+"-brng"] = config
+
 for name, base_config in list(config_of_name.items()):
   config = base_config.copy()
   config["use_attention_pool"] = True
   config_of_name[name+"-ap"] = config
 
 for name, base_config in list(config_of_name.items()):
+  config = base_config.copy()
+  config["use_repvgg_init"] = True
+  config_of_name[name+"-rvgi"] = config
+
   config = base_config.copy()
   config["use_repvgg_linear"] = True
   config_of_name[name+"-rvgl"] = config
