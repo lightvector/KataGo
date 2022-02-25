@@ -1054,6 +1054,19 @@ for name, base_config in base_config_of_name.items():
 
 for name, base_config in list(config_of_name.items()):
   config = base_config.copy()
+  config["activation"] = "elu"
+  config_of_name[name+"-elu"] = config
+
+  config = base_config.copy()
+  config["activation"] = "gelu"
+  config_of_name[name+"-gelu"] = config
+
+  config = base_config.copy()
+  config["activation"] = "mish"
+  config_of_name[name+"-mish"] = config
+
+for name, base_config in list(config_of_name.items()):
+  config = base_config.copy()
   config["use_attention_pool"] = True
   config_of_name[name+"-ap"] = config
 

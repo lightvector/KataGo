@@ -13,6 +13,12 @@ EXTRA_SCORE_DISTR_RADIUS = 60
 def act(activation, inplace=False):
     if activation == "relu":
         return torch.nn.ReLU(inplace=inplace)
+    if activation == "elu":
+        return torch.nn.ELU(inplace=inplace)
+    if activation == "mish":
+        return torch.nn.Mish(inplace=inplace)
+    if activation == "gelu":
+        return torch.nn.GELU(inplace=inplace)
     if activation == "hardswish":
         if packaging.version.parse(torch.__version__) > packaging.version.parse("1.6.0"):
             return torch.nn.Hardswish(inplace=inplace)
@@ -25,6 +31,12 @@ def act(activation, inplace=False):
 def init_weights(tensor, activation, scale, fan_tensor=None):
     if activation == "relu" or activation == "hardswish":
         gain = math.sqrt(2.0)
+    elif activation == "elu":
+        gain = math.sqrt(1.55052)
+    elif activation == "mish":
+        gain = math.sqrt(2.210277)
+    elif activation == "gelu":
+        gain = math.sqrt(2.351718)
     elif activation == "identity":
         gain = 1.0
     else:
@@ -271,6 +283,7 @@ class KataConvAndGPool(torch.nn.Module):
         super(KataConvAndGPool, self).__init__()
         self.norm_kind = config["norm_kind"]
         self.activation = activation
+        self.activation_pregpool = "relu"
         self.conv1r = torch.nn.Conv2d(c_in, c_out, kernel_size=3, padding="same", bias=False)
         self.conv1g = torch.nn.Conv2d(c_in, c_gpool, kernel_size=3, padding="same", bias=False)
         self.normg = NormMask(
@@ -278,7 +291,7 @@ class KataConvAndGPool(torch.nn.Module):
             config=config,
             fixup_use_gamma=False,
         )
-        self.actg = act(activation, inplace=True)
+        self.actg = act(self.activation_pregpool, inplace=True)
         self.gpool = KataGPool()
         self.linear_g = torch.nn.Linear(3 * c_gpool, c_out, bias=False)
 
@@ -288,12 +301,12 @@ class KataConvAndGPool(torch.nn.Module):
         g_scale = 0.6
         if self.norm_kind == "fixup":
             init_weights(self.conv1r.weight, self.activation, scale=scale * r_scale)
-            init_weights(self.conv1g.weight, self.activation, scale=math.sqrt(scale) * math.sqrt(g_scale))
-            init_weights(self.linear_g.weight, self.activation, scale=math.sqrt(scale) * math.sqrt(g_scale))
+            init_weights(self.conv1g.weight, self.activation_pregpool, scale=math.sqrt(scale) * math.sqrt(g_scale))
+            init_weights(self.linear_g.weight, self.activation_pregpool, scale=math.sqrt(scale) * math.sqrt(g_scale))
         else:
             init_weights(self.conv1r.weight, self.activation, scale=scale*r_scale)
-            init_weights(self.conv1g.weight, self.activation, scale=math.sqrt(scale) * 1.0)
-            init_weights(self.linear_g.weight, self.activation, scale=math.sqrt(scale) * g_scale)
+            init_weights(self.conv1g.weight, self.activation_pregpool, scale=math.sqrt(scale) * 1.0)
+            init_weights(self.linear_g.weight, self.activation_pregpool, scale=math.sqrt(scale) * g_scale)
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         reg_dict["normal"].append(self.conv1r.weight)
@@ -937,6 +950,7 @@ class PolicyHead(torch.nn.Module):
         super(PolicyHead, self).__init__()
         self.norm_kind = config["norm_kind"]
         self.activation = activation
+        self.activation_pregpool = "relu"
 
         self.num_policy_outputs = 4
 
@@ -948,7 +962,7 @@ class PolicyHead(torch.nn.Module):
             config=config,
             fixup_use_gamma=False,
         )
-        self.actg = act(activation)
+        self.actg = act(self.activation_pregpool)
         self.gpool = KataGPool()
 
         self.linear_g = torch.nn.Linear(3 * c_g1, c_p1, bias=False)
@@ -970,8 +984,8 @@ class PolicyHead(torch.nn.Module):
         # Extra scaling for outputs
         scale_output = 0.3
         init_weights(self.conv1p.weight, self.activation, scale=p_scale)
-        init_weights(self.conv1g.weight, self.activation, scale=1.0)
-        init_weights(self.linear_g.weight, self.activation, scale=g_scale)
+        init_weights(self.conv1g.weight, self.activation_pregpool, scale=1.0)
+        init_weights(self.linear_g.weight, self.activation_pregpool, scale=g_scale)
         init_weights(self.linear_pass.weight, "identity", scale=scale_output)
         init_weights(self.conv2p.weight, "identity", scale=scale_output)
 
@@ -1206,7 +1220,7 @@ class Model(torch.nn.Module):
             self.has_intermediate_head = False
             self.intermediate_head_blocks = 0
 
-        self.activation = "relu"
+        self.activation = "relu" if "activation" not in config else config["activation"]
 
         if config["initial_conv_1x1"]:
             self.conv_spatial = torch.nn.Conv2d(22, self.c_trunk, kernel_size=1, padding="same", bias=False)
