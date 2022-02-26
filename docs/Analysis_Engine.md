@@ -83,6 +83,7 @@ Explanation of fields (including some optional fields not present in the above q
    * `maxVisits (integer)`: Optional. The maximum number of visits to use. If not specified, defaults to the value in the analysis config file. If specified, overrides it.
    * `rootPolicyTemperature (float)`: Optional. Set this to a value > 1 to make KataGo do a wider search.
    * `rootFpuReductionMax (float)`: Optional. Set this to 0 to make KataGo more willing to try a variety of moves.
+   * `analysisPVLen`: Optional. The length of the PV to send for each move (not including the first move).
    * `includeOwnership (boolean)`: Optional. If true, report ownership prediction as a result. Will double memory usage and reduce performance slightly.
    * `includeOwnershipStdev (boolean)`: Optional. If true, report standard deviation of ownership predictions across the search as well.
    * `includeMovesOwnership (boolean)`: Optional. If true, report ownership prediction for every individual move too.
