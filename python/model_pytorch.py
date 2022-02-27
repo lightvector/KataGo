@@ -243,7 +243,9 @@ class KataGPool(torch.nn.Module):
         mask_sum_hw_sqrt_offset = torch.sqrt(mask_sum_hw) - 14.0
 
         layer_mean = torch.sum(x, dim=(2, 3), keepdim=True) / mask_sum_hw
-        (layer_max,_argmax) = torch.max(x.view(x.shape[0],x.shape[1],-1), dim=2)
+        # All activation functions we use right now are always greater than -1.0, and map 0 -> 0.
+        # So off-board areas will equal 0, and then this max is mask-safe if we assign -1.0 to off-board areas.
+        (layer_max,_argmax) = torch.max((x+(mask-1.0)).view(x.shape[0],x.shape[1],-1), dim=2)
         layer_max = layer_max.view(x.shape[0],x.shape[1],1,1)
 
         out_pool1 = layer_mean
@@ -283,7 +285,6 @@ class KataConvAndGPool(torch.nn.Module):
         super(KataConvAndGPool, self).__init__()
         self.norm_kind = config["norm_kind"]
         self.activation = activation
-        self.activation_pregpool = "relu"
         self.conv1r = torch.nn.Conv2d(c_in, c_out, kernel_size=3, padding="same", bias=False)
         self.conv1g = torch.nn.Conv2d(c_in, c_gpool, kernel_size=3, padding="same", bias=False)
         self.normg = NormMask(
@@ -291,7 +292,7 @@ class KataConvAndGPool(torch.nn.Module):
             config=config,
             fixup_use_gamma=False,
         )
-        self.actg = act(self.activation_pregpool, inplace=True)
+        self.actg = act(self.activation, inplace=True)
         self.gpool = KataGPool()
         self.linear_g = torch.nn.Linear(3 * c_gpool, c_out, bias=False)
 
@@ -301,12 +302,12 @@ class KataConvAndGPool(torch.nn.Module):
         g_scale = 0.6
         if self.norm_kind == "fixup":
             init_weights(self.conv1r.weight, self.activation, scale=scale * r_scale)
-            init_weights(self.conv1g.weight, self.activation_pregpool, scale=math.sqrt(scale) * math.sqrt(g_scale))
-            init_weights(self.linear_g.weight, self.activation_pregpool, scale=math.sqrt(scale) * math.sqrt(g_scale))
+            init_weights(self.conv1g.weight, self.activation, scale=math.sqrt(scale) * math.sqrt(g_scale))
+            init_weights(self.linear_g.weight, self.activation, scale=math.sqrt(scale) * math.sqrt(g_scale))
         else:
             init_weights(self.conv1r.weight, self.activation, scale=scale*r_scale)
-            init_weights(self.conv1g.weight, self.activation_pregpool, scale=math.sqrt(scale) * 1.0)
-            init_weights(self.linear_g.weight, self.activation_pregpool, scale=math.sqrt(scale) * g_scale)
+            init_weights(self.conv1g.weight, self.activation, scale=math.sqrt(scale) * 1.0)
+            init_weights(self.linear_g.weight, self.activation, scale=math.sqrt(scale) * g_scale)
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         reg_dict["normal"].append(self.conv1r.weight)
@@ -950,7 +951,6 @@ class PolicyHead(torch.nn.Module):
         super(PolicyHead, self).__init__()
         self.norm_kind = config["norm_kind"]
         self.activation = activation
-        self.activation_pregpool = "relu"
 
         self.num_policy_outputs = 4
 
@@ -962,7 +962,7 @@ class PolicyHead(torch.nn.Module):
             config=config,
             fixup_use_gamma=False,
         )
-        self.actg = act(self.activation_pregpool)
+        self.actg = act(self.activation)
         self.gpool = KataGPool()
 
         self.linear_g = torch.nn.Linear(3 * c_g1, c_p1, bias=False)
@@ -984,8 +984,8 @@ class PolicyHead(torch.nn.Module):
         # Extra scaling for outputs
         scale_output = 0.3
         init_weights(self.conv1p.weight, self.activation, scale=p_scale)
-        init_weights(self.conv1g.weight, self.activation_pregpool, scale=1.0)
-        init_weights(self.linear_g.weight, self.activation_pregpool, scale=g_scale)
+        init_weights(self.conv1g.weight, self.activation, scale=1.0)
+        init_weights(self.linear_g.weight, self.activation, scale=g_scale)
         init_weights(self.linear_pass.weight, "identity", scale=scale_output)
         init_weights(self.conv2p.weight, "identity", scale=scale_output)
 
