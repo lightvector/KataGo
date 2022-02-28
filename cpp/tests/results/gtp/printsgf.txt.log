@@ -5,7 +5,7 @@
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 19 * 19 exactly
-: Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
 : Loaded neural net with nnXLen 19 nnYLen 19
@@ -37,7 +37,7 @@
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 9 * 9 exactly
-: Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
 : Loaded neural net with nnXLen 9 nnYLen 9
@@ -62,7 +62,7 @@
 : nnRandSeed0 = forTesting
 : After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 9 * 13 exactly
-: Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
 : Loaded neural net with nnXLen 9 nnYLen 13
@@ -100,12 +100,12 @@ NN avg batch size: 1
 PlayoutDoublingAdvantage: 2.625
 PV: F4 F3 F10 F11 G11 E11
 Tree:
-: T -82.35c W -77.64c S  -3.83c (-10.1 L -10.3) N     100  --  F4 F3 F10 F11 G11 E11
+: T -82.34c W -77.63c S  -3.83c (-10.1 L -10.3) N     100  --  F4 F3 F10 F11 G11 E11
 ---White(^)---
-F4  : T -82.12c W -77.16c S  -3.86c (-10.1 L -10.2) LCB  -88.68c P 55.51% WF  65.2 PSV      65 N      65  --  F4 F3 F10 F11 G11 E11
-E4  : T -83.40c W -78.72c S  -3.91c (-10.2 L -10.5) LCB  -99.36c P 14.40% WF  11.9 PSV      12 N      12  --  E4 D3 E3 E5
-F10 : T -84.67c W -79.42c S  -3.91c (-10.1 L -10.5) LCB -101.65c P 14.68% WF  10.8 PSV      10 N      11  --  F10 F11 G11 E11 F4 F9
-F3  : T -80.89c W -78.12c S  -3.43c ( -9.8 L -10.3) LCB -103.37c P  4.74% WF  11.1 PSV       8 N      11  --  F3 F4 G4 F5 G5
+F4  : T -82.11c W -77.15c S  -3.87c (-10.1 L -10.2) LCB  -88.68c P 55.50% WF  65.2 PSV      65 N      65  --  F4 F3 F10 F11 G11 E11
+E4  : T -83.40c W -78.72c S  -3.91c (-10.2 L -10.5) LCB  -99.36c P 14.42% WF  11.9 PSV      12 N      12  --  E4 D3 E3 E5
+F10 : T -84.67c W -79.41c S  -3.91c (-10.1 L -10.5) LCB -101.65c P 14.66% WF  10.8 PSV      10 N      11  --  F10 F11 G11 E11 F4 F9
+F3  : T -80.88c W -78.11c S  -3.43c ( -9.8 L -10.3) LCB -103.37c P  4.74% WF  11.1 PSV       8 N      11  --  F3 F4 G4 F5 G5
 
 : = F4
 : Controller: printsgf
