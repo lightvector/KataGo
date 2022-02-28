@@ -30,7 +30,7 @@ struct BookHash {
 
   // Get book hash, and the symmetry to apply so that hist aligns with book nodes for its current position, (histspace -> nodespace)
   // and the list of symmetries such that book node is invariant under those symmetries.
-  static void getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHash& hashRet, int& symmetryToAlignRet, std::vector<int>& symmetriesRet);
+  static void getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHash& hashRet, int& symmetryToAlignRet, std::vector<int>& symmetriesRet, int bookVersion);
 
   friend std::ostream& operator<<(std::ostream& out, const BookHash other);
   std::string toString() const;
@@ -241,6 +241,7 @@ class Book {
   static const std::string BOOK_CSS;
 
  public:
+  const int bookVersion;
   const Board initialBoard;
   const Rules initialRules;
   const Player initialPla;
@@ -277,6 +278,7 @@ class Book {
   std::map<BookHash,int64_t>* nodeIdxMapsByHash;
  public:
   Book(
+    int bookVersion,
     const Board& board,
     Rules rules,
     Player initialPla,
@@ -305,6 +307,8 @@ class Book {
     double sharpScoreOutlierCap
   );
   ~Book();
+
+  static constexpr int LATEST_BOOK_VERSION = 2;
 
   Book(const Book&) = delete;
   Book& operator=(const Book&) = delete;
@@ -378,6 +382,7 @@ class Book {
 
   std::vector<SymBookNode> getNextNToExpand(int n);
   std::vector<SymBookNode> getAllLeaves(double minVisits);
+  std::vector<SymBookNode> getAllNodes();
 
   void exportToHtmlDir(
     const std::string& dirName,
@@ -391,6 +396,7 @@ class Book {
   static Book* loadFromFile(const std::string& fileName, double sharpScoreOutlierCap);
 
  private:
+  int64_t getIdx(BookHash hash) const;
   BookNode* get(BookHash hash);
   const BookNode* get(BookHash hash) const;
   bool add(BookHash hash, BookNode* node);
