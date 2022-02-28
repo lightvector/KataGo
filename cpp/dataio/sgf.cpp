@@ -1436,28 +1436,23 @@ void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& boa
   playMovesTolerant(board, nextPla, hist, turnIdx, preventEncore);
 }
 
-void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist) {
+
+void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist)
+{
+  printGameResult(out,hist,std::numeric_limits<double>::quiet_NaN());
+}
+void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist, double overrideFinishedWhiteScore) {
   if(hist.isGameFinished) {
     out << "RE[";
-    if(hist.isNoResult)
-      out << "Void";
-    else if(hist.isResignation && hist.winner == C_BLACK)
-      out << "B+R";
-    else if(hist.isResignation && hist.winner == C_WHITE)
-      out << "W+R";
-    else if(hist.winner == C_BLACK)
-      out << "B+" << (-hist.finalWhiteMinusBlackScore);
-    else if(hist.winner == C_WHITE)
-      out << "W+" << hist.finalWhiteMinusBlackScore;
-    else if(hist.winner == C_EMPTY)
-      out << "0";
-    else
-      ASSERT_UNREACHABLE;
+    out << WriteSgf::gameResultNoSgfTag(hist, overrideFinishedWhiteScore);
     out << "]";
   }
 }
 
 string WriteSgf::gameResultNoSgfTag(const BoardHistory& hist) {
+  return gameResultNoSgfTag(hist,std::numeric_limits<double>::quiet_NaN());
+}
+string WriteSgf::gameResultNoSgfTag(const BoardHistory& hist, double overrideFinishedWhiteScore) {
   if(!hist.isGameFinished)
     return "";
   else if(hist.isNoResult)
@@ -1466,23 +1461,52 @@ string WriteSgf::gameResultNoSgfTag(const BoardHistory& hist) {
     return "B+R";
   else if(hist.isResignation && hist.winner == C_WHITE)
     return "W+R";
-  else if(hist.winner == C_BLACK)
-    return "B+" + Global::doubleToString(-hist.finalWhiteMinusBlackScore);
-  else if(hist.winner == C_WHITE)
-    return "W+" + Global::doubleToString(hist.finalWhiteMinusBlackScore);
-  else if(hist.winner == C_EMPTY)
-    return "0";
-  else
-    ASSERT_UNREACHABLE;
+
+  if(!std::isnan(overrideFinishedWhiteScore)) {
+    if(overrideFinishedWhiteScore < 0)
+      return "B+" + Global::doubleToString(-overrideFinishedWhiteScore);
+    else if(overrideFinishedWhiteScore > 0)
+      return "W+" + Global::doubleToString(overrideFinishedWhiteScore);
+    else
+      return "0";
+  }
+  else {
+    if(hist.winner == C_BLACK)
+      return "B+" + Global::doubleToString(-hist.finalWhiteMinusBlackScore);
+    else if(hist.winner == C_WHITE)
+      return "W+" + Global::doubleToString(hist.finalWhiteMinusBlackScore);
+    else if(hist.winner == C_EMPTY)
+      return "0";
+    else
+      ASSERT_UNREACHABLE;
+  }
   return "";
 }
-
 void WriteSgf::writeSgf(
   ostream& out, const string& bName, const string& wName,
   const BoardHistory& endHist,
   const FinishedGameData* gameData,
   bool tryNicerRulesString,
   bool omitResignPlayerMove
+) {
+  writeSgf(
+    out,
+    bName,
+    wName,
+    endHist,
+    gameData,
+    tryNicerRulesString,
+    omitResignPlayerMove,
+    std::numeric_limits<double>::quiet_NaN()
+  );
+}
+void WriteSgf::writeSgf(
+  ostream& out, const string& bName, const string& wName,
+  const BoardHistory& endHist,
+  const FinishedGameData* gameData,
+  bool tryNicerRulesString,
+  bool omitResignPlayerMove,
+  double overrideFinishedWhiteScore
 ) {
   const Board& initialBoard = endHist.initialBoard;
   const Rules& rules = endHist.rules;
@@ -1509,7 +1533,7 @@ void WriteSgf::writeSgf(
 
   out << "KM[" << rules.komi << "]";
   out << "RU[" << (tryNicerRulesString ? rules.toStringNoKomiMaybeNice() : rules.toStringNoKomi()) << "]";
-  printGameResult(out,endHist);
+  printGameResult(out,endHist,overrideFinishedWhiteScore);
 
   bool hasAB = false;
   for(int y = 0; y<ySize; y++) {
@@ -1660,7 +1684,7 @@ void WriteSgf::writeSgf(
     if(endHist.isGameFinished && i+1 == endHist.moveHistory.size()) {
       if(comment.length() > 0)
         comment += " ";
-      comment += "result=" + WriteSgf::gameResultNoSgfTag(endHist);
+      comment += "result=" + WriteSgf::gameResultNoSgfTag(endHist,overrideFinishedWhiteScore);
     }
 
     if(comment.length() > 0)

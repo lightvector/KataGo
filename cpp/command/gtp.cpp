@@ -2727,21 +2727,34 @@ int MainCmds::gtp(const vector<string>& args) {
         responseIsError = true;
         response = "Expected zero or one argument for print but got '" + Global::concat(pieces," ") + "'";
       }
-      else if(pieces.size() == 0 || pieces[0] == "-") {
-        ostringstream out;
-        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
-        response = out.str();
-      }
       else {
-        ofstream out;
-        if(FileUtils::tryOpen(out,pieces[0])) {
-          WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
-          out.close();
-          response = "";
+        auto writeSgfToStream = [&](ostream& out) {
+          double overrideFinalScore = std::numeric_limits<double>::quiet_NaN();
+          if(engine->bot->getRootHist().isGameFinished) {
+            Player winner = C_EMPTY;
+            double finalWhiteMinusBlackScore = 0.0;
+            engine->computeAnticipatedWinnerAndScore(winner,finalWhiteMinusBlackScore);
+            overrideFinalScore = finalWhiteMinusBlackScore;
+          }
+          WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false,overrideFinalScore);
+        };
+
+        if(pieces.size() == 0 || pieces[0] == "-") {
+          ostringstream out;
+          writeSgfToStream(out);
+          response = out.str();
         }
         else {
-          responseIsError = true;
-          response = "Could not open or write to file: " + pieces[0];
+          ofstream out;
+          if(FileUtils::tryOpen(out,pieces[0])) {
+            writeSgfToStream(out);
+            out.close();
+            response = "";
+          }
+          else {
+            responseIsError = true;
+            response = "Could not open or write to file: " + pieces[0];
+          }
         }
       }
     }
