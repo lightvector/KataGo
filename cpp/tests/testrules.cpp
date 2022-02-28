@@ -3414,7 +3414,7 @@ HASH: 5C26A060FA78FD93FFF559C72BD7C6A4
     Board board;
     BoardHistory hist;
     Player nextPla = P_BLACK;
-    int turnIdxToSetup = sgf->moves.size();
+    int turnIdxToSetup = (int)sgf->moves.size();
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
 
     sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdxToSetup);

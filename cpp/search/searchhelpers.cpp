@@ -490,8 +490,9 @@ void Search::maybeRecomputeNormToTApproxTable() {
 }
 
 double Search::getNormToTApproxForLCB(int64_t numVisits) const {
-  int64_t idx = numVisits-MIN_VISITS_FOR_LCB;
-  assert(idx >= 0);
+  assert(numVisits >= MIN_VISITS_FOR_LCB);
+  uint64_t idx = (uint64_t)(numVisits - MIN_VISITS_FOR_LCB);
+  assert(normToTApproxTable.size() > 0);
   if(idx >= normToTApproxTable.size())
     idx = normToTApproxTable.size()-1;
   return normToTApproxTable[idx];

@@ -653,8 +653,8 @@ static void shuffleConfigs(
   Rand rand;
   if(configs.size() == 0)
     return;
-  for(int i = configs.size()-1; i > 0; i--) {
-    int j = rand.nextUInt(i+1);
+  for(size_t i = configs.size()-1; i > 0; i--) {
+    size_t j = (size_t)rand.nextUInt64(i+1);
     std::swap(configs[i],configs[j]);
   }
 }
@@ -1113,9 +1113,9 @@ static bool tuneXGemm(
     maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
     maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
 
-    int numTilesTotalPadded = roundUpToMultiple(numTilesTotal,cfg.xGemm.MWG);
-    int maxOutChannelsPadded = roundUpToMultiple(maxChannels,cfg.xGemm.NWG);
-    int maxInChannelsPadded = roundUpToMultiple(maxChannels,cfg.xGemm.KWG);
+    int numTilesTotalPadded = roundUpToMultipleInt(numTilesTotal,cfg.xGemm.MWG);
+    int maxOutChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm.NWG);
+    int maxInChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm.KWG);
 
     int outNumFloats = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
     cl_mem input;
@@ -1152,8 +1152,8 @@ static bool tuneXGemm(
       default: ASSERT_UNREACHABLE; break;
       }
 
-      int outChannelsPadded = roundUpToMultiple(outChannels, cfg.xGemm.NWG);
-      int inChannelsPadded = roundUpToMultiple(inChannels, cfg.xGemm.KWG);
+      int outChannelsPadded = roundUpToMultipleInt(outChannels, cfg.xGemm.NWG);
+      int inChannelsPadded = roundUpToMultipleInt(inChannels, cfg.xGemm.KWG);
 
       cl_event event;
       err = doBatchedXGemm_KM_KN_NM(
@@ -1342,9 +1342,9 @@ static bool tuneXGemm16(
     maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
     maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
 
-    int numTilesTotalPadded = roundUpToMultiple(numTilesTotal,cfg.xGemm16.MWG);
-    int maxOutChannelsPadded = roundUpToMultiple(maxChannels,cfg.xGemm16.NWG);
-    int maxInChannelsPadded = roundUpToMultiple(maxChannels,cfg.xGemm16.KWG);
+    int numTilesTotalPadded = roundUpToMultipleInt(numTilesTotal,cfg.xGemm16.MWG);
+    int maxOutChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm16.NWG);
+    int maxInChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm16.KWG);
 
     int outNumFloats = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
     cl_mem input = randomReadOnly3dPaddedBufferHalf(
@@ -1369,8 +1369,8 @@ static bool tuneXGemm16(
       default: ASSERT_UNREACHABLE; break;
       }
 
-      int outChannelsPadded = roundUpToMultiple(outChannels, cfg.xGemm16.NWG);
-      int inChannelsPadded = roundUpToMultiple(inChannels, cfg.xGemm16.KWG);
+      int outChannelsPadded = roundUpToMultipleInt(outChannels, cfg.xGemm16.NWG);
+      int inChannelsPadded = roundUpToMultipleInt(inChannels, cfg.xGemm16.KWG);
 
       cl_event event;
       err = doBatchedXGemm_KM_KN_NM(
@@ -1539,9 +1539,9 @@ static bool tuneHGemmWmma(
     maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
     maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
 
-    int numTilesTotalPadded = roundUpToMultiple(numTilesTotal,cfg.hGemmWmma.MWG);
-    int maxOutChannelsPadded = roundUpToMultiple(maxChannels,cfg.hGemmWmma.NWG);
-    int maxInChannelsPadded = roundUpToMultiple(maxChannels,cfg.hGemmWmma.KWG);
+    int numTilesTotalPadded = roundUpToMultipleInt(numTilesTotal,cfg.hGemmWmma.MWG);
+    int maxOutChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.hGemmWmma.NWG);
+    int maxInChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.hGemmWmma.KWG);
 
     int outNumFloats = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
     cl_mem input = randomReadOnly3dPaddedBufferHalf(
@@ -1566,8 +1566,8 @@ static bool tuneHGemmWmma(
       default: ASSERT_UNREACHABLE; break;
       }
 
-      int outChannelsPadded = roundUpToMultiple(outChannels, cfg.hGemmWmma.NWG);
-      int inChannelsPadded = roundUpToMultiple(inChannels, cfg.hGemmWmma.KWG);
+      int outChannelsPadded = roundUpToMultipleInt(outChannels, cfg.hGemmWmma.NWG);
+      int inChannelsPadded = roundUpToMultipleInt(inChannels, cfg.hGemmWmma.KWG);
 
       cl_event event;
       err = doBatchedHGemmWmma_KM_KN_NM(
@@ -1710,7 +1710,7 @@ static void tuneTransform(
     int kPaddingMult = cfg.getXGemmKPaddingMult(cfg.shouldUseFP16Compute, cfg.shouldUseFP16TensorCores);
 
     int inputNumFloats = batchSize * nnXLen * nnYLen * maxChannels;
-    int outputNumFloats = roundUpToMultiple(numTilesTotal,mPaddingMult) * roundUpToMultiple(maxChannels,kPaddingMult) * inTileXSize * inTileYSize;
+    int outputNumFloats = roundUpToMultipleInt(numTilesTotal,mPaddingMult) * roundUpToMultipleInt(maxChannels,kPaddingMult) * inTileXSize * inTileYSize;
 
     cl_mem input;
     cl_mem output;
@@ -1873,7 +1873,7 @@ static void tuneUntransform(
     int nPaddingMult = cfg.getXGemmNPaddingMult(cfg.shouldUseFP16Compute, cfg.shouldUseFP16TensorCores);
     //int kPaddingMult = cfg.getXGemmKPaddingMult(cfg.shouldUseFP16Compute, cfg.shouldUseFP16TensorCores);
 
-    int inputNumFloats = roundUpToMultiple(numTilesTotal,mPaddingMult) * roundUpToMultiple(maxChannels,nPaddingMult) * inTileXSize * inTileYSize;
+    int inputNumFloats = roundUpToMultipleInt(numTilesTotal,mPaddingMult) * roundUpToMultipleInt(maxChannels,nPaddingMult) * inTileXSize * inTileYSize;
     int outputNumFloats = batchSize * nnXLen * nnYLen * maxChannels;
 
     cl_mem input;

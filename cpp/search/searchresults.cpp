@@ -104,7 +104,7 @@ bool Search::getPlaySelectionValues(
     }
   }
 
-  int numChildren = playSelectionValues.size();
+  int numChildren = (int)playSelectionValues.size();
 
   //Find the best child by weight
   int mostWeightedIdx = 0;
@@ -433,7 +433,7 @@ Loc Search::getChosenMoveLoc() {
     searchParams.chosenMoveTemperatureHalflife, searchParams.chosenMoveTemperatureEarly, searchParams.chosenMoveTemperature
   );
 
-  uint32_t idxChosen = chooseIndexWithTemperature(nonSearchRand, playSelectionValues.data(), playSelectionValues.size(), temperature);
+  uint32_t idxChosen = chooseIndexWithTemperature(nonSearchRand, playSelectionValues.data(), (int)playSelectionValues.size(), temperature);
   return locs[idxChosen];
 }
 
@@ -802,7 +802,7 @@ void Search::getAnalysisData(
       childrenEdgeVisits.push_back(childrenArr[i].getEdgeVisits());
       childrenMoveLocs.push_back(childrenArr[i].getMoveLocRelaxed());
     }
-    numChildren = children.size();
+    numChildren = (int)children.size();
 
     if(numChildren <= 0)
       return;
@@ -1123,7 +1123,7 @@ void Search::printTreeHelper(
   bool duplicateForSymmetries = false;
   getAnalysisData(node,analysisData,0,true,options.maxPVDepth_,duplicateForSymmetries);
 
-  int numChildren = analysisData.size();
+  int numChildren = (int)analysisData.size();
 
   //Apply filtering conditions, but include children that don't match the filtering condition
   //but where there are children afterward that do, in case we ever use something more complex

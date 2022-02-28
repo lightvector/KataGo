@@ -507,8 +507,8 @@ void Rand::runTests() {
     out << Hash::murmurMix(12345) << endl;
     out << Hash::murmurMix(298174913) << endl;
     out << Hash::splitMix64(1234567) << endl;
-    out << Hash::splitMix64(1234567 + (uint64_t)0x9e3779b97f4a7c15ULL) << endl;
-    out << Hash::splitMix64(1234567 + 2*(uint64_t)0x9e3779b97f4a7c15ULL) << endl;
+    out << Hash::splitMix64((uint64_t)1234567 + (uint64_t)0x9e3779b97f4a7c15ULL) << endl;
+    out << Hash::splitMix64((uint64_t)1234567 + (uint64_t)2*(uint64_t)0x9e3779b97f4a7c15ULL) << endl;
     out << Global::uint64ToHexString(Hash::rrmxmx(0)) << endl;
     out << Global::uint64ToHexString(Hash::rrmxmx(1)) << endl;
     out << Global::uint64ToHexString(Hash::rrmxmx(0x0123456789abcdefULL)) << endl;

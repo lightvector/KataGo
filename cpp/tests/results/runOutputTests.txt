@@ -15009,32 +15009,32 @@ B3  : T  -7.63c W  -8.30c S   0.67c ( +0.7 L  +0.7) LCB  -13.65c P  3.92% WF  19
 B3  A3  : T  -8.86c W  -9.54c S   0.69c ( +0.7 L  +0.7) LCB   -8.85c P 30.47% WF  19.0 PSV      19 N      19  --  A3
 {"moveInfos":[{"lcb":0.484488133,"move":"A3","order":0,"prior":0.0579594336,"pv":["A3","B3"],"scoreLead":-0.130015191,"scoreMean":-0.130015191,"scoreSelfplay":-0.130015191,"scoreStdev":14.7464874,"utility":-0.0250213854,"utilityLcb":-0.0343427081,"visits":79,"winrate":0.488073257},{"lcb":0.435374993,"move":"B3","order":1,"prior":0.0392317958,"pv":["B3","A3"],"scoreLead":0.689448193,"scoreMean":0.689448193,"scoreSelfplay":0.689448193,"scoreStdev":12.4489151,"utility":-0.0763304699,"utilityLcb":-0.136481199,"visits":20,"winrate":0.458509888}],"rootInfo":{"currentPlayer":"W","scoreLead":-0.0147626334,"scoreSelfplay":-0.0147626334,"scoreStdev":14.5762516,"symHash":"447A9402D7F6628755F926E252A76CA3","thisHash":"6441E518E7F5AB90D51D77D953A49272","utility":-0.0261299644,"visits":100,"winrate":0.486961349}}
 Next, make a move, and with no search, print the tree.
-HASH: B780242A07C17720EC3D323C9B7D2F01
+HASH: 889AABAA57046DBC99E7A1BBE7F807A3
    A B C D E F G H J
  5 X X . . X . . X X
  4 X X X X X X X X X
- 3 . . . . O X O X O
+ 3 . O . . O X O X O
  2 O O O O O O O O O
  1 O O . . O . . O O
 
 
-: T  -3.27c W  -3.35c S   0.07c ( +0.1 L  +0.1) N     100  --  A3 B3
----White(^)---
-A3  : T  -2.50c W  -2.39c S  -0.12c ( -0.1 L  -0.1) LCB   -3.43c P  5.80% WF  79.9 PSV      79 N      79  --  A3 B3
-B3  : T  -7.63c W  -8.30c S   0.67c ( +0.7 L  +0.7) LCB  -13.65c P  3.92% WF  19.1 PSV       6 N      20  --  B3 A3
+: T  -7.63c W  -8.30c S   0.67c ( +0.7 L  +0.7) N      20  --  A3
+---Black(v)---
+A3  : T  -8.86c W  -9.54c S   0.69c ( +0.7 L  +0.7) LCB   -8.85c P 30.47% WF  19.0 PSV      19 N      19  --  A3
 
 Then continue the search to complete 100 visits.
-: T   0.58c W   0.15c S   0.45c ( +0.5 L  +0.5) N     100  --  G5 A3 D5 D1 pass
+: T   5.27c W   4.87c S   0.32c ( +0.4 L  +0.4) N     100  --  A3 D1 G5 D5 pass C3
 ---Black(v)---
-G5  : T  -1.58c W  -2.69c S   1.08c ( +1.2 L  +1.2) LCB    8.76c P 19.45% WF  27.6 PSV      27 N      27  --  G5 A3 D5 D1 pass
-pss : T  -2.42c W  -3.04c S   0.66c ( +0.7 L  +0.7) LCB   15.26c P 11.71% WF  19.5 PSV      19 N      19  --  pass C5 F5 G1 pass F1
-B3  : T   7.87c W   7.06c S   0.90c ( +1.0 L  +1.0) LCB   26.91c P 28.05% WF  15.9 PSV      17 N      17  --  B3 D5 F1 G1 D3
-F5  : T  -3.88c W  -2.09c S  -1.73c ( -1.9 L  -1.9) LCB   22.05c P  4.61% WF   9.3 PSV       9 N       9  --  F5 pass C3 C1 C5
-D5  : T   2.63c W   2.98c S  -0.33c ( -0.4 L  -0.4) LCB   33.51c P  9.66% WF   8.9 PSV       8 N       9  --  D5 G5 A3 C1
-D3  : T  -2.17c W  -3.03c S   0.87c ( +0.9 L  +0.9) LCB   30.22c P  4.29% WF   7.1 PSV       6 N       7  --  D3 pass A3 G5 pass
-D1  : T   4.52c W   5.11c S  -0.64c ( -0.7 L  -0.7) LCB   60.85c P  6.63% WF   4.9 PSV       5 N       5  --  D1 C5 pass F5
-A3  : T   7.75c W   9.42c S  -1.65c ( -1.8 L  -1.8) LCB  128.09c P  5.93% WF   3.8 PSV       3 N       4  --  A3 D5 D1 C5
-G1  : T   1.35c W  -3.88c S   5.22c ( +5.7 L  +5.7) LCB  260.00c P  3.00% WF   2.0 PSV       2 N       2  --  G1 D3
+A3  : T  12.64c W  10.11c S   2.22c ( +2.4 L  +2.4) LCB   61.91c P 30.47% WF  14.9 PSV      16 N      34  --  A3 D1 G5 D5 pass C3
+F5  : T  -0.41c W  -0.03c S  -0.33c ( -0.4 L  -0.4) LCB   17.55c P  6.97% WF  16.8 PSV      16 N      16  --  F5 G1 D5 D1 G5
+G5  : T   4.41c W   4.62c S  -0.22c ( -0.2 L  -0.2) LCB   16.92c P 13.36% WF  15.1 PSV      15 N      15  --  G5 D5 C5 A3
+G1  : T   2.77c W   2.95c S  -0.26c ( -0.3 L  -0.3) LCB   28.37c P  8.10% WF  11.2 PSV      11 N      11  --  G1 pass D5 A3 D1
+pss : T   6.83c W   7.58c S  -0.80c ( -0.9 L  -0.9) LCB   35.55c P 12.12% WF   9.9 PSV      10 N      10  --  pass G1 D5 pass
+D5  : T   4.09c W   5.08c S  -0.99c ( -1.1 L  -1.1) LCB   42.96c P  6.16% WF   6.1 PSV       6 N       6  --  D5 G5 F1
+C3  : T  -5.03c W  -7.68c S   2.60c ( +2.9 L  +2.9) LCB  166.37c P  4.47% WF   4.3 PSV       4 N       4  --  C3 G1 G5 F1
+F1  : T  24.66c W  22.58c S   2.09c ( +2.4 L  +2.4) LCB  260.00c P  5.28% WF   0.9 PSV       1 N       1  --  F1
+D1  : T  17.84c W  16.65c S   1.19c ( +1.4 L  +1.4) LCB  260.00c P  4.23% WF   0.9 PSV       1 N       1  --  D1
+C1  : T  30.05c W  24.37c S   5.68c ( +6.0 L  +6.0) LCB  260.00c P  3.82% WF   0.9 PSV       1 N       1  --  C1
 
 Avoid all moves for both players, including passing
 HASH: B780242A07C17720EC3D323C9B7D2F01
@@ -15059,20 +15059,21 @@ HASH: B780242A07C17720EC3D323C9B7D2F01
  1 O O . . O . . O O
 
 
-: T   6.97c W   7.56c S  -0.66c ( -0.7 L  -0.7) N     100  --  B3
+: T   8.10c W   7.75c S   0.30c ( +0.3 L  +0.3) N     100  --  B3
 ---White(^)---
-B3  : T  15.63c W  15.36c S   0.27c ( +0.3 L  +0.3) LCB   15.62c P  3.92% WF  42.3 PSV      39 N      39  --  B3
-C5  : T  -3.33c W  -5.33c S   2.00c ( +2.3 L  +2.3) LCB   -3.35c P 19.59% WF  10.0 PSV       9 N      11  --  C5
-D1  : T  -4.03c W   1.45c S  -5.48c ( -6.2 L  -6.2) LCB   -4.05c P 17.58% WF   8.1 PSV       8 N       9  --  D1
-C1  : T  10.11c W  13.50c S  -3.39c ( -3.9 L  -3.9) LCB   10.10c P  4.79% WF  20.4 PSV       7 N      20  --  C1
-G1  : T  -3.77c W  -5.50c S   1.73c ( +1.9 L  +1.9) LCB   -3.81c P 11.84% WF   5.5 PSV       5 N       6  --  G1
-G5  : T   0.02c W  -4.64c S   4.65c ( +5.1 L  +5.1) LCB   -0.04c P  6.42% WF   4.7 PSV       3 N       5  --  G5
-F1  : T  -7.92c W  -3.64c S  -4.28c ( -5.2 L  -5.2) LCB   -8.12c P  7.60% WF   2.7 PSV       3 N       3  --  F1
-C3  : T -24.66c W -22.58c S  -2.09c ( -2.4 L  -2.4) LCB -260.00c P  9.17% WF   1.6 PSV       2 N       2  --  C3
-D5  : T -11.60c W -13.17c S   1.57c ( +1.7 L  +1.7) LCB -260.00c P  5.85% WF   1.8 PSV       2 N       2  --  D5
+B3  : T  15.63c W  15.36c S   0.27c ( +0.3 L  +0.3) LCB   15.62c P  3.92% WF  41.8 PSV      39 N      39  --  B3
+C3  : T   8.51c W   5.41c S   3.10c ( +3.6 L  +3.6) LCB    8.50c P  9.17% WF  12.9 PSV      11 N      13  --  C3
+G5  : T  10.64c W   8.10c S   2.54c ( +2.7 L  +2.7) LCB   10.63c P  6.42% WF  17.3 PSV      10 N      17  --  G5
+D1  : T  -0.97c W  -0.21c S  -0.76c ( -0.8 L  -0.8) LCB   -0.99c P 17.58% WF   8.3 PSV       9 N       9  --  D1
+C5  : T -12.73c W -13.75c S   1.02c ( +1.1 L  +1.1) LCB  -12.78c P 19.59% WF   5.0 PSV       6 N       6  --  C5
+G1  : T  -9.05c W  -5.51c S  -3.54c ( -4.1 L  -4.1) LCB   -9.14c P 11.84% WF   3.5 PSV       4 N       4  --  G1
+F1  : T  -1.66c W   3.52c S  -5.18c ( -5.9 L  -5.9) LCB   -1.75c P  7.60% WF   3.7 PSV       4 N       4  --  F1
+D5  : T  -0.55c W   7.55c S  -8.11c ( -9.7 L  -9.7) LCB   -0.75c P  5.85% WF   2.8 PSV       3 N       3  --  D5
 A3  : T -19.82c W -18.90c S  -0.92c ( -0.9 L  -0.9) LCB -260.00c P  5.80% WF   0.9 PSV       1 N       1  --  A3
-pss : T  -3.76c W  -4.31c S   0.54c ( +0.7 L  +0.7) LCB -260.00c P  3.20% WF   0.9 PSV       1 N       1  --  pass
-{"moveInfos":[{"lcb":0.576766363,"move":"B3","order":0,"prior":0.0392317958,"pv":["B3"],"scoreLead":0.264948845,"scoreMean":0.264948845,"scoreSelfplay":0.264948845,"scoreStdev":10.9598805,"utility":0.156292122,"utilityLcb":0.156220348,"visits":39,"winrate":0.576793969},{"lcb":0.473255316,"move":"C5","order":1,"prior":0.195857227,"pv":["C5"],"scoreLead":2.32194161,"scoreMean":2.32194161,"scoreSelfplay":2.32194161,"scoreStdev":15.6906178,"utility":-0.033342471,"utilityLcb":-0.0335314743,"visits":11,"winrate":0.473328009},{"lcb":0.507156675,"move":"D1","order":2,"prior":0.17583482,"pv":["D1"],"scoreLead":-6.20414495,"scoreMean":-6.20414495,"scoreSelfplay":-6.20414495,"scoreStdev":14.5822608,"utility":-0.0402758454,"utilityLcb":-0.0405108097,"visits":9,"winrate":0.507247046},{"lcb":0.56743781,"move":"C1","order":3,"prior":0.0479384698,"pv":["C1"],"scoreLead":-3.86359906,"scoreMean":-3.86359906,"scoreSelfplay":-3.86359906,"scoreStdev":15.043304,"utility":0.101068168,"utilityLcb":0.100955457,"visits":20,"winrate":0.56748116},{"lcb":0.472346561,"move":"G1","order":4,"prior":0.118361019,"pv":["G1"],"scoreLead":1.91169453,"scoreMean":1.91169453,"scoreSelfplay":1.91169453,"scoreStdev":14.2510187,"utility":-0.0376887126,"utilityLcb":-0.0380987647,"visits":6,"winrate":0.472504273},{"lcb":0.476590719,"move":"G5","order":5,"prior":0.064216204,"pv":["G5"],"scoreLead":5.0861616100000004,"scoreMean":5.0861616100000004,"scoreSelfplay":5.0861616100000004,"scoreStdev":13.6665875,"utility":0.000156181304,"utilityLcb":-0.000410523663,"visits":5,"winrate":0.476808682},{"lcb":0.481051032,"move":"F1","order":6,"prior":0.075976491,"pv":["F1"],"scoreLead":-5.22413635,"scoreMean":-5.22413635,"scoreSelfplay":-5.22413635,"scoreStdev":16.9909265,"utility":-0.0791813564,"utilityLcb":-0.0811874192,"visits":3,"winrate":0.481822595},{"lcb":-0.61288859,"move":"C3","order":7,"prior":0.0917221382,"pv":["C3"],"scoreLead":-2.40982318,"scoreMean":-2.40982318,"scoreSelfplay":-2.40982318,"scoreStdev":15.5404123,"utility":-0.246636168,"utilityLcb":-2.6,"visits":2,"winrate":0.38711141},{"lcb":-0.565858975,"move":"D5","order":8,"prior":0.0584620088,"pv":["D5"],"scoreLead":1.670807,"scoreMean":1.670807,"scoreSelfplay":1.670807,"scoreStdev":13.2378859,"utility":-0.116043109,"utilityLcb":-2.6,"visits":2,"winrate":0.434141025},{"lcb":-0.594501868,"move":"A3","order":9,"prior":0.0579594336,"pv":["A3"],"scoreLead":-0.935352087,"scoreMean":-0.935352087,"scoreSelfplay":-0.935352087,"scoreStdev":12.065106,"utility":-0.198164068,"utilityLcb":-2.6,"visits":1,"winrate":0.405498132},{"lcb":-0.521529257,"move":"pass","order":10,"prior":0.0319787301,"pv":["pass"],"scoreLead":0.683719754,"scoreMean":0.683719754,"scoreSelfplay":0.683719754,"scoreStdev":18.3381367,"utility":-0.0376433452,"utilityLcb":-2.6,"visits":1,"winrate":0.478470743}],"rootInfo":{"currentPlayer":"W","scoreLead":-0.409482289,"scoreSelfplay":-0.409482289,"scoreStdev":13.4935488,"symHash":"447A9402D7F6628755F926E252A76CA3","thisHash":"6441E518E7F5AB90D51D77D953A49272","utility":0.0614986569,"visits":100,"winrate":0.532345428}}
+C1  : T -11.29c W  -9.38c S  -1.91c ( -2.0 L  -2.0) LCB -260.00c P  4.79% WF   0.9 PSV       1 N       1  --  C1
+pss : T   0.77c W   5.22c S  -4.45c ( -5.9 L  -5.9) LCB -260.00c P  3.20% WF   1.0 PSV       1 N       1  --  pass
+F5  : T -21.28c W -18.01c S  -3.27c ( -3.7 L  -3.7) LCB -260.00c P  2.82% WF   0.9 PSV       0 N       1  --  F5
+{"moveInfos":[{"lcb":0.576766363,"move":"B3","order":0,"prior":0.0392317958,"pv":["B3"],"scoreLead":0.264948845,"scoreMean":0.264948845,"scoreSelfplay":0.264948845,"scoreStdev":10.9598805,"utility":0.156292122,"utilityLcb":0.156220348,"visits":39,"winrate":0.576793969},{"lcb":0.526993426,"move":"C3","order":1,"prior":0.0917221382,"pv":["C3"],"scoreLead":3.56599593,"scoreMean":3.56599593,"scoreSelfplay":3.56599593,"scoreStdev":15.3245204,"utility":0.0851228502,"utilityLcb":0.0849619572,"visits":13,"winrate":0.527055308},{"lcb":0.54047358,"move":"G5","order":2,"prior":0.064216204,"pv":["G5"],"scoreLead":2.67913246,"scoreMean":2.67913246,"scoreSelfplay":2.67913246,"scoreStdev":12.880595,"utility":0.106447746,"utilityLcb":0.106319893,"visits":17,"winrate":0.540522754},{"lcb":0.498854701,"move":"D1","order":3,"prior":0.17583482,"pv":["D1"],"scoreLead":-0.843966603,"scoreMean":-0.843966603,"scoreSelfplay":-0.843966603,"scoreStdev":14.4860125,"utility":-0.00969618633,"utilityLcb":-0.00993115056,"visits":9,"winrate":0.498945072},{"lcb":0.43108231,"move":"C5","order":4,"prior":0.195857227,"pv":["C5"],"scoreLead":1.05214083,"scoreMean":1.05214083,"scoreSelfplay":1.05214083,"scoreStdev":12.4085096,"utility":-0.127342892,"utilityLcb":-0.127752944,"visits":6,"winrate":0.431240022},{"lcb":0.472075332,"move":"G1","order":5,"prior":0.118361019,"pv":["G1"],"scoreLead":-4.1060214,"scoreMean":-4.1060214,"scoreSelfplay":-4.1060214,"scoreStdev":15.5620331,"utility":-0.0905165256,"utilityLcb":-0.0914338726,"visits":4,"winrate":0.472428158},{"lcb":0.517263029,"move":"F1","order":6,"prior":0.075976491,"pv":["F1"],"scoreLead":-5.87578964,"scoreMean":-5.87578964,"scoreSelfplay":-5.87578964,"scoreStdev":14.6678569,"utility":-0.0165727152,"utilityLcb":-0.0174900623,"visits":4,"winrate":0.517615855},{"lcb":0.536997219,"move":"D5","order":7,"prior":0.0584620088,"pv":["D5"],"scoreLead":-9.65634823,"scoreMean":-9.65634823,"scoreSelfplay":-9.65634823,"scoreStdev":15.528142,"utility":-0.0055351422,"utilityLcb":-0.007541205,"visits":3,"winrate":0.537768781},{"lcb":-0.594501868,"move":"A3","order":8,"prior":0.0579594336,"pv":["A3"],"scoreLead":-0.935352087,"scoreMean":-0.935352087,"scoreSelfplay":-0.935352087,"scoreStdev":12.065106,"utility":-0.198164068,"utilityLcb":-2.6,"visits":1,"winrate":0.405498132},{"lcb":-0.546920404,"move":"C1","order":9,"prior":0.0479384698,"pv":["C1"],"scoreLead":-2.02184296,"scoreMean":-2.02184296,"scoreSelfplay":-2.02184296,"scoreStdev":13.0494932,"utility":-0.112923736,"utilityLcb":-2.6,"visits":1,"winrate":0.453079596},{"lcb":-0.473919928,"move":"pass","order":10,"prior":0.0319787301,"pv":["pass"],"scoreLead":-5.89711857,"scoreMean":-5.89711857,"scoreSelfplay":-5.89711857,"scoreStdev":19.6234276,"utility":0.00765073038,"utilityLcb":-2.6,"visits":1,"winrate":0.526080072},{"lcb":-0.590037525,"move":"F5","order":11,"prior":0.0282041542,"pv":["F5"],"scoreLead":-3.69390368,"scoreMean":-3.69390368,"scoreSelfplay":-3.69390368,"scoreStdev":14.7882568,"utility":-0.212770093,"utilityLcb":-2.6,"visits":1,"winrate":0.409962475}],"rootInfo":{"currentPlayer":"W","scoreLead":0.0242416925,"scoreSelfplay":0.0242416925,"scoreStdev":13.2934046,"symHash":"447A9402D7F6628755F926E252A76CA3","thisHash":"6441E518E7F5AB90D51D77D953A49272","utility":0.0742666046,"visits":100,"winrate":0.536707957}}
 : GPU 0 finishing, processed 0 rows 0 batches
 
 ===================================================================

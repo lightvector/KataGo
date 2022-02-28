@@ -1641,7 +1641,7 @@ oo..o..oo
       //--------------------------------------
       cout << "Next, make a move, and with no search, print the tree." << endl;
 
-      Loc locToDescend = Location::ofString("B2",search->rootBoard);
+      Loc locToDescend = Location::ofString("B3",search->rootBoard);
       search->makeMove(locToDescend,nextPla);
       nextPla = getOpp(nextPla);
 

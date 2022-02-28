@@ -1,0 +1,32 @@
+printsgf
+boardsize 7
+komi 0
+play b d7
+play w e7
+play b d6
+play w e6
+play b d5
+play w e5
+play b d4
+play w e4
+play b d3
+play w e3
+play b d2
+play w e2
+play b d1
+play w e1
+play b b3
+play w f4
+play b f5
+play w f6
+play b b5
+play w pass
+kata-set-rules tromp-taylor
+printsgf -
+kata-set-rules chinese
+printsgf -
+play b pass
+kata-set-rules tromp-taylor
+printsgf -
+kata-set-rules chinese
+printsgf -

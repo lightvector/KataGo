@@ -188,8 +188,12 @@ void Search::setPlayerAndClearHistory(Player pla) {
   rootHistory.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
 
   rootKoHashTable->recompute(rootHistory);
-  avoidMoveUntilByLocBlack.clear();
-  avoidMoveUntilByLocWhite.clear();
+
+  //If changing the player alone, don't clear these, leave the user's setting - the user may have tried
+  //to adjust the player or will be calling runWholeSearchAndGetMove with a different player and will
+  //still want avoid moves to apply.
+  //avoidMoveUntilByLocBlack.clear();
+  //avoidMoveUntilByLocWhite.clear();
 }
 
 void Search::setPlayerIfNew(Player pla) {

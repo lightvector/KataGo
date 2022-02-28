@@ -1453,7 +1453,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     );
 
     // If we have more than 1/N of unexpanded policy, we cap the penalty for expanded moves at N.
-    double movesExpanded = node->moves.size();
+    double movesExpanded = (double)node->moves.size();
     if(movesExpanded > 1.0 / (rawPolicy + 1e-30)) {
       movesExpanded = 1.0 / (rawPolicy + 1e-30);
     }
@@ -1576,7 +1576,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     // If there's an unusually large share of the policy not expanded, add a mild bonus for it.
     // For the final node expansion cost, sharp score discrepancy beyond 1 point is not capped, to encourage expanding the
     // search to better resolve the difference, since sharp score can have some weird outliers.
-    double movesExpanded = node->moves.size();
+    double movesExpanded = (double)node->moves.size();
     double excessUnexpandedPolicy = 0.0;
     if(movesExpanded > 0 && node->thisValuesNotInBook.maxPolicy > 1.0 / movesExpanded)
       excessUnexpandedPolicy = node->thisValuesNotInBook.maxPolicy - 1.0 / movesExpanded;
@@ -1815,7 +1815,7 @@ void Book::exportToHtmlDir(
     std::set<Loc> locsHandled;
 
     dataVarsStr += "const moves = [";
-    for(int idx: uniqueMoveIdxs) {
+    for(size_t idx: uniqueMoveIdxs) {
       dataVarsStr += "{";
       const Loc passLoc = Board::PASS_LOC;
       if(uniqueMovesInBook[idx].move != passLoc) {

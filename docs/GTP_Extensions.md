@@ -156,8 +156,8 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      whiteLead (1 float) - predicted number of points that white is ahead by (this is the preferred score value for user display).
      whiteScoreSelfplay (1 float) - predicted mean score that would result from low-playout noisy selfplay (may be biased, Kata isn't fully score-maximizing).
      whiteScoreSelfplaySq (1 float) - predicted mean square of score that would result via low-playout noisy selfplay
-     shorttermWinlossError (1 float) - predicted square root of the mean squared difference between (whiteWin-whiteLoss) and the MCTS (whiteWin-whiteLoss) in low-playout noisy selfplay after a few turns.
-     shorttermScoreError (1 float) - predicted square root of the mean difference between whiteScoreSelfplay and the MCTS score in low-playout noisy selfplay after a few turns.
+     shorttermWinlossError (1 float) - predicted square root of the mean squared difference between (whiteWin-whiteLoss) and the MCTS (whiteWin-whiteLoss) in low-playout noisy selfplay after a few turns. Generally unavailable for nets prior to December 2020, in which case this value will always equal -1.
+     shorttermScoreError (1 float) - predicted square root of the mean difference between whiteScoreSelfplay and the MCTS score in low-playout noisy selfplay after a few turns.  Generally unavailable for nets prior to December 2020, in which case this value will always equal -1.
      policy (boardXSize * boardYSize floats, including possibly NAN for illegal moves) - policy distribution for next move
      policyPass (1 floats) - policy probability for the pass move
      whiteOwnership (boardXSize * boardYSize floats) - predicted ownership by white (from -1 to 1).
@@ -174,3 +174,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
   * `cputime`, `gomill-cpu_time`
      * Returns the approximate total wall-clock-time spent during the handling of `genmove` or the various flavors of `genmove_analyze` commands described above so far during the entire current instance of the engine, as a floating point number of seconds. Does NOT currently count time spent during pondering or during the various `lz-analyze`, `kata-analyze`, etc.
      * Note: Gomill specifies that its variant of the command should return the total time summed across CPUs. For KataGo, this time is both unuseful and hard to measure because much of the time is spent waiting on the GPU, not on the CPU, and with different threads sometimes blocking each other through the multitheading and often exceeding the number of cores on a user's system, time spent on CPUs is hard to make sense of. So instead we report wall-clock-time, which is far more useful to record and should correspond more closely to what users may want to know for actual practical benchmarking and performance.
+  * `benchmark NVISITS`
+     * Run a benchmark using exactly the current search settings and board size except for any visit or playout or time limits ignored, instead using NVISITS visits.
+     * Prints the result, in some user-readable format.
+     * Will halt any ongoing search, may have the side effect of clearing the nn cache.
