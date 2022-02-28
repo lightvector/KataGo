@@ -1,0 +1,4 @@
+: Loaded preexisting book with 1890 nodes from tests/data/test.katabook
+: Book version = 2
+: Checking book...
+: DONE

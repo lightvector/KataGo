@@ -1031,6 +1031,7 @@ int MainCmds::checkbook(const vector<string>& args) {
   Rand rand;
   Logger logger;
   logger.setLogToStdout(true);
+  logger.setLogTime(false);
 
   Book* book;
   {
