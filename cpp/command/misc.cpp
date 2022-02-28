@@ -1273,7 +1273,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     const bool preventEncore = true;
     const vector<Move>& sgfMoves = sgf->moves;
 
-    if(sgfMoves.size() > maxDepth) {
+    if((int64_t)sgfMoves.size() > maxDepth) {
       numFilteredSgfs.fetch_add(1);
       return;
     }

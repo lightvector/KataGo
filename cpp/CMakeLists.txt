@@ -365,6 +365,10 @@ if(MSVC)
   # core/rand.cpp uses winsock for a gethostname
   target_link_libraries(katago ws2_32)
 
+  # Go ahead and suppress some MSVC warnings about sprintf and similar
+  # things. They might be useful in some cases, but also are noisy.
+  target_compile_definitions(katago PRIVATE _CRT_SECURE_NO_WARNINGS)
+
   if(USE_AVX2)
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} /arch:AVX2 -D__FMA__")
     target_compile_definitions(katago PRIVATE USE_AVX2)

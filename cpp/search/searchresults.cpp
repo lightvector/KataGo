@@ -99,7 +99,7 @@ bool Search::getPlaySelectionValues(
     }
   }
 
-  int numChildren = playSelectionValues.size();
+  int numChildren = (int)playSelectionValues.size();
 
   //Find the best child by weight
   int mostWeightedIdx = 0;
@@ -288,8 +288,9 @@ void Search::maybeRecomputeNormToTApproxTable() {
 }
 
 double Search::getNormToTApproxForLCB(int64_t numVisits) const {
-  int64_t idx = numVisits-MIN_VISITS_FOR_LCB;
-  assert(idx >= 0);
+  assert(numVisits >= MIN_VISITS_FOR_LCB);
+  uint64_t idx = (uint64_t)(numVisits - MIN_VISITS_FOR_LCB);
+  assert(normToTApproxTable.size() > 0);
   if(idx >= normToTApproxTable.size())
     idx = normToTApproxTable.size()-1;
   return normToTApproxTable[idx];
@@ -465,7 +466,7 @@ Loc Search::getChosenMoveLoc() {
     searchParams.chosenMoveTemperatureHalflife, searchParams.chosenMoveTemperatureEarly, searchParams.chosenMoveTemperature
   );
 
-  uint32_t idxChosen = chooseIndexWithTemperature(nonSearchRand, playSelectionValues.data(), playSelectionValues.size(), temperature);
+  uint32_t idxChosen = chooseIndexWithTemperature(nonSearchRand, playSelectionValues.data(), (int)playSelectionValues.size(), temperature);
   return locs[idxChosen];
 }
 
@@ -934,7 +935,7 @@ void Search::getAnalysisData(
         break;
       children.push_back(child);
     }
-    numChildren = children.size();
+    numChildren = (int)children.size();
 
     if(numChildren <= 0)
       return;
@@ -1252,7 +1253,7 @@ void Search::printTreeHelper(
   bool duplicateForSymmetries = false;
   getAnalysisData(node,analysisData,0,true,options.maxPVDepth_,duplicateForSymmetries);
 
-  int numChildren = analysisData.size();
+  int numChildren = (int)analysisData.size();
 
   //Apply filtering conditions, but include children that don't match the filtering condition
   //but where there are children afterward that do, in case we ever use something more complex

@@ -156,6 +156,7 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
 
 int main(int argc, const char* const* argv) {
   vector<string> args = MainArgs::getCommandLineArgsUTF8(argc,argv);
+  MainArgs::makeCoutAndCerrAcceptUTF8();
 
   if(args.size() < 2) {
     printHelp(args);

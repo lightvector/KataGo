@@ -84,6 +84,8 @@ static void checkBufferSize(int batchSize, int nnXLen, int nnYLen, int channels)
 //---------------------------------------------------------------------------------------------------------
 
 void NeuralNet::globalInitialize() {
+  // If int is only 2 bytes, this implementation won't work right now.
+  static_assert(sizeof(int) >= 4, "");
 }
 
 void NeuralNet::globalCleanup() {
@@ -855,8 +857,8 @@ struct ConvLayer {
       int outTileXSize = convXSize == 3 ? handle->tuneParams.conv3x3.OUTTILE_XSIZE : handle->tuneParams.conv5x5.OUTTILE_XSIZE;
       int outTileYSize = convYSize == 3 ? handle->tuneParams.conv3x3.OUTTILE_YSIZE : handle->tuneParams.conv5x5.OUTTILE_YSIZE;
 
-      int outChannelsPadded = roundUpToMultiple(outChannels, handle->getXGemmNPaddingMult());
-      int inChannelsPadded = roundUpToMultiple(inChannels, handle->getXGemmKPaddingMult());
+      int outChannelsPadded = roundUpToMultipleInt(outChannels, handle->getXGemmNPaddingMult());
+      int inChannelsPadded = roundUpToMultipleInt(inChannels, handle->getXGemmKPaddingMult());
 
       numTilesX = (nnXLen + outTileXSize - 1) / outTileXSize;
       numTilesY = (nnYLen + outTileYSize - 1) / outTileYSize;
@@ -964,9 +966,9 @@ struct ConvLayer {
   }
 
   ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
-    int numTilesTotalPadded = roundUpToMultiple(maxBatchSize * numTilesX * numTilesY, handle->getXGemmMPaddingMult());
-    int outChannelsPadded = roundUpToMultiple(outChannels, handle->getXGemmNPaddingMult());
-    int inChannelsPadded = roundUpToMultiple(inChannels, handle->getXGemmKPaddingMult());
+    int numTilesTotalPadded = roundUpToMultipleInt(maxBatchSize * numTilesX * numTilesY, handle->getXGemmMPaddingMult());
+    int outChannelsPadded = roundUpToMultipleInt(outChannels, handle->getXGemmNPaddingMult());
+    int inChannelsPadded = roundUpToMultipleInt(inChannels, handle->getXGemmKPaddingMult());
     return
       ConvWorkspaceEltsNeeded(
         numTilesTotalPadded * inChannelsPadded * inTileXYSize,
@@ -1020,9 +1022,9 @@ struct ConvLayer {
       }
 
       {
-        int numTilesTotalPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, handle->getXGemmMPaddingMult());
-        int outChannelsPadded = roundUpToMultiple(outChannels, handle->getXGemmNPaddingMult());
-        int inChannelsPadded = roundUpToMultiple(inChannels, handle->getXGemmKPaddingMult());
+        int numTilesTotalPadded = roundUpToMultipleInt(batchSize * numTilesX * numTilesY, handle->getXGemmMPaddingMult());
+        int outChannelsPadded = roundUpToMultipleInt(outChannels, handle->getXGemmNPaddingMult());
+        int inChannelsPadded = roundUpToMultipleInt(inChannels, handle->getXGemmKPaddingMult());
 
         cl_int err;
         MAYBE_EVENT;
@@ -1159,9 +1161,9 @@ struct ConvLayer {
       }
 
       {
-        int numTilesTotalPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, handle->getXGemmMPaddingMult());
-        int outChannelsPadded = roundUpToMultiple(outChannels, handle->getXGemmNPaddingMult());
-        int inChannelsPadded = roundUpToMultiple(inChannels, handle->getXGemmKPaddingMult());
+        int numTilesTotalPadded = roundUpToMultipleInt(batchSize * numTilesX * numTilesY, handle->getXGemmMPaddingMult());
+        int outChannelsPadded = roundUpToMultipleInt(outChannels, handle->getXGemmNPaddingMult());
+        int inChannelsPadded = roundUpToMultipleInt(inChannels, handle->getXGemmKPaddingMult());
 
         cl_int err;
         MAYBE_EVENT;

@@ -38,8 +38,9 @@ const InitialPosition* ForkData::get(Rand& rand) {
   std::lock_guard<std::mutex> lock(mutex);
   if(forks.size() <= 0)
     return NULL;
-  int r = rand.nextUInt(forks.size());
-  int last = forks.size()-1;
+  assert(forks.size() < 0xFFFFffff);
+  uint32_t r = rand.nextUInt((uint32_t)forks.size());
+  size_t last = forks.size()-1;
   const InitialPosition* pos = forks[r];
   forks[r] = forks[last];
   forks.resize(forks.size()-1);
@@ -49,7 +50,8 @@ const InitialPosition* ForkData::get(Rand& rand) {
 void ForkData::addSeki(const InitialPosition* pos, Rand& rand) {
   std::unique_lock<std::mutex> lock(mutex);
   if(sekiForks.size() >= 1000) {
-    int r = rand.nextUInt(sekiForks.size());
+    assert(sekiForks.size() < 0xFFFFffff);
+    uint32_t r = rand.nextUInt((uint32_t)sekiForks.size());
     const InitialPosition* oldPos = sekiForks[r];
     sekiForks[r] = pos;
     lock.unlock();
@@ -63,8 +65,9 @@ const InitialPosition* ForkData::getSeki(Rand& rand) {
   std::lock_guard<std::mutex> lock(mutex);
   if(sekiForks.size() <= 0)
     return NULL;
-  int r = rand.nextUInt(sekiForks.size());
-  int last = sekiForks.size()-1;
+  assert(sekiForks.size() < 0xFFFFffff);
+  uint32_t r = rand.nextUInt(sekiForks.size());
+  size_t last = sekiForks.size()-1;
   const InitialPosition* pos = sekiForks[r];
   sekiForks[r] = sekiForks[last];
   sekiForks.resize(sekiForks.size()-1);
@@ -364,11 +367,11 @@ void GameInitializer::createGame(
 }
 
 Rules GameInitializer::randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const {
-  rules.scoringRule = allowedScoringRules[randToUse.nextUInt(allowedScoringRules.size())];
-  rules.taxRule = allowedTaxRules[randToUse.nextUInt(allowedTaxRules.size())];
+  rules.scoringRule = allowedScoringRules[randToUse.nextUInt((uint32_t)allowedScoringRules.size())];
+  rules.taxRule = allowedTaxRules[randToUse.nextUInt((uint32_t)allowedTaxRules.size())];
 
   if(rules.scoringRule == Rules::SCORING_AREA)
-    rules.hasButton = allowedButtons[randToUse.nextUInt(allowedButtons.size())];
+    rules.hasButton = allowedButtons[randToUse.nextUInt((uint32_t)allowedButtons.size())];
   else
     rules.hasButton = false;
 
@@ -408,13 +411,13 @@ Rules GameInitializer::createRules() {
 
 Rules GameInitializer::createRulesUnsynchronized() {
   Rules rules;
-  rules.koRule = allowedKoRules[rand.nextUInt(allowedKoRules.size())];
-  rules.scoringRule = allowedScoringRules[rand.nextUInt(allowedScoringRules.size())];
-  rules.taxRule = allowedTaxRules[rand.nextUInt(allowedTaxRules.size())];
-  rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[rand.nextUInt(allowedMultiStoneSuicideLegals.size())];
+  rules.koRule = allowedKoRules[rand.nextUInt((uint32_t)allowedKoRules.size())];
+  rules.scoringRule = allowedScoringRules[rand.nextUInt((uint32_t)allowedScoringRules.size())];
+  rules.taxRule = allowedTaxRules[rand.nextUInt((uint32_t)allowedTaxRules.size())];
+  rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[rand.nextUInt((uint32_t)allowedMultiStoneSuicideLegals.size())];
 
   if(rules.scoringRule == Rules::SCORING_AREA)
-    rules.hasButton = allowedButtons[rand.nextUInt(allowedButtons.size())];
+    rules.hasButton = allowedButtons[rand.nextUInt((uint32_t)allowedButtons.size())];
   else
     rules.hasButton = false;
   return rules;
@@ -1511,7 +1514,7 @@ FinishedGameData* Play::runGame(
         Loc banMove = loc;
         sidePositionForkLoc = chooseRandomForkingMove(nnOutput, board, hist, pla, gameRand, banMove);
         if(sidePositionForkLoc != Board::NULL_LOC) {
-          SidePosition* sp = new SidePosition(board,hist,pla,gameData->changedNeuralNets.size());
+          SidePosition* sp = new SidePosition(board,hist,pla,(int)gameData->changedNeuralNets.size());
           sp->hist.makeBoardMoveAssumeLegal(sp->board,sidePositionForkLoc,sp->pla,NULL);
           sp->pla = getOpp(sp->pla);
           if(sp->hist.isGameFinished) delete sp;
@@ -1529,7 +1532,7 @@ FinishedGameData* Play::runGame(
           board,hist,pla,
           toMoveBot,
           playSettings.recordTreeThreshold,playSettings.recordTreeTargetWeight,
-          gameData->changedNeuralNets.size(),
+          (int)gameData->changedNeuralNets.size(),
           locsBuf,playSelectionValuesBuf,
           loc,sidePositionForkLoc
         );
@@ -1687,7 +1690,7 @@ FinishedGameData* Play::runGame(
       double winValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].win;
       double lossValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].loss;
       double noResultValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].noResult;
-      for(int i = rawNNValues.size()-1; i >= 0; i--) {
+      for(int i = (int)rawNNValues.size()-1; i >= 0; i--) {
         winValue = winValue + nowFactor * (whiteValueTargetsByTurn[i].win - winValue);
         lossValue = lossValue + nowFactor * (whiteValueTargetsByTurn[i].loss - lossValue);
         noResultValue = noResultValue + nowFactor * (whiteValueTargetsByTurn[i].noResult - noResultValue);
@@ -1800,7 +1803,7 @@ FinishedGameData* Play::runGame(
       sp->nnRawStats = computeNNRawStats(toMoveBot, sp->board, sp->hist, sp->pla);
       sp->targetWeight = 1.0f;
       sp->unreducedNumVisits = toMoveBot->getRootVisits();
-      sp->numNeuralNetChangesSoFar = gameData->changedNeuralNets.size();
+      sp->numNeuralNetChangesSoFar = (int)gameData->changedNeuralNets.size();
 
       gameData->sidePositions.push_back(sp);
 
@@ -1813,7 +1816,7 @@ FinishedGameData* Play::runGame(
           sp->board,sp->hist,sp->pla,
           toMoveBot,
           playSettings.recordTreeThreshold,playSettings.recordTreeTargetWeight,
-          gameData->changedNeuralNets.size(),
+          (int)gameData->changedNeuralNets.size(),
           locsBuf,playSelectionValuesBuf,
           Board::NULL_LOC, Board::NULL_LOC
         );
@@ -1825,7 +1828,7 @@ FinishedGameData* Play::runGame(
         if(responseLoc == Board::NULL_LOC || !sp->hist.isLegal(sp->board,responseLoc,sp->pla))
           failIllegalMove(toMoveBot,logger,sp->board,responseLoc);
 
-        SidePosition* sp2 = new SidePosition(sp->board,sp->hist,sp->pla,gameData->changedNeuralNets.size());
+        SidePosition* sp2 = new SidePosition(sp->board,sp->hist,sp->pla,(int)gameData->changedNeuralNets.size());
         sp2->hist.makeBoardMoveAssumeLegal(sp2->board,responseLoc,sp2->pla,NULL);
         sp2->pla = getOpp(sp2->pla);
         if(sp2->hist.isGameFinished)
@@ -2013,7 +2016,7 @@ void Play::maybeForkGame(
     );
   }
   else if(lateFork) {
-    moveIdx = finishedGameData->endHist.moveHistory.size() <= 0 ? 0 : (int)gameRand.nextUInt(finishedGameData->endHist.moveHistory.size());
+    moveIdx = finishedGameData->endHist.moveHistory.size() <= 0 ? 0 : (int)gameRand.nextUInt((uint32_t)finishedGameData->endHist.moveHistory.size());
   }
   else {
     ASSERT_UNREACHABLE;
@@ -2101,7 +2104,7 @@ void Play::maybeSekiForkGame(
       if(moveIdx < 0)
         moveIdx = 0;
       if(moveIdx > endHist.moveHistory.size())
-        moveIdx = endHist.moveHistory.size();
+        moveIdx = (int)endHist.moveHistory.size();
 
       //Randomly permute the rules
       Rules rules = finishedGameData->startHist.rules;
