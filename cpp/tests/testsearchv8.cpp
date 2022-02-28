@@ -15,8 +15,43 @@ using namespace std;
 using namespace TestCommon;
 using namespace TestSearchCommon;
 
+static void runV8TestsSize9(NNEvaluator* nnEval, NNEvaluator* nnEval9, NNEvaluator* nnEval9Exact, Logger& logger)
+{
+  {
+    cout << "TEST EXACT (NO MASKING) VS MASKED 9x9 ==========================================================================" << endl;
+    string sgfStr = "(;FF[4]GM[1]SZ[9]HA[0]KM[7]RU[stonescoring];B[ef];W[ed];B[ge])";
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
-static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& logger)
+    Board board;
+    Player nextPla;
+    BoardHistory hist;
+    Rules initialRules = sgf->getRulesOrFail();
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 3);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 200;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "test exact again");
+    AsyncBot* botB = new AsyncBot(params, nnEval9, &logger, "test exact again");
+    AsyncBot* botC = new AsyncBot(params, nnEval9Exact, &logger, "test exact again");
+
+    TestSearchOptions opts;
+    cout << "BASIC" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "BASIC9" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+    cout << "EXACT" << endl;
+    runBotOnPosition(botC,board,nextPla,hist,opts);
+
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete botC;
+    delete sgf;
+  }
+}
+
+static void runV8TestsRandomSym(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& logger)
 {
   {
     cout << "TEST EXACT (NO MASKING) VS MASKED ==========================================================================" << endl;
@@ -112,6 +147,9 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
     AsyncBot* botA = new AsyncBot(paramsA, nnEval, &logger, "test exact");
     AsyncBot* botB = new AsyncBot(paramsB, nnEval, &logger, "test exact");
     AsyncBot* botC = new AsyncBot(paramsC, nnEval, &logger, "test exact");
+    AsyncBot* botA2 = new AsyncBot(paramsA, nnEval19Exact, &logger, "test exact");
+    AsyncBot* botB2 = new AsyncBot(paramsB, nnEval19Exact, &logger, "test exact");
+    AsyncBot* botC2 = new AsyncBot(paramsC, nnEval19Exact, &logger, "test exact");
 
     TestSearchOptions opts;
     opts.printMore = true;
@@ -119,20 +157,45 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
     nnEval->clearStats();
     opts.noClearCache = true;
     cout << "BASELINE" << endl;
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
+    nnEval19Exact->killServerThreads();
+    nnEval19Exact->spawnServerThreads();
     runBotOnPosition(botA,board,nextPla,hist,opts);
+    runBotOnPosition(botA2,board,nextPla,hist,opts);
+
     cout << "TEMP 1.5" << endl;
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
+    nnEval19Exact->killServerThreads();
+    nnEval19Exact->spawnServerThreads();
     runBotOnPosition(botB,board,nextPla,hist,opts);
+    runBotOnPosition(botB2,board,nextPla,hist,opts);
+
     cout << "TEMP 0.5" << endl;
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
+    nnEval19Exact->killServerThreads();
+    nnEval19Exact->spawnServerThreads();
     runBotOnPosition(botC,board,nextPla,hist,opts);
+    runBotOnPosition(botC2,board,nextPla,hist,opts);
     cout << endl << endl;
 
     delete botA;
     delete botB;
     delete botC;
+    delete botA2;
+    delete botB2;
+    delete botC2;
     delete sgf;
   }
+}
 
-
+static void runV8Tests(NNEvaluator* nnEval, Logger& logger)
+{
   {
     cout << "===================================================================" << endl;
     cout << "Testing PDA + pondering, p200 v400" << endl;
@@ -2093,17 +2156,39 @@ void Tests::runSearchTestsV8(const string& modelFile, bool inputsNHWC, bool useN
   logger.setLogTime(false);
 
   NNEvaluator* nnEval;
+  NNEvaluator* nnEval9;
   NNEvaluator* nnEval19Exact;
+  NNEvaluator* nnEval9Exact;
+
+  nnEval = startNNEval(
+    modelFile,logger,"v8seed",19,19,1,inputsNHWC,useNHWC,useFP16,false,false);
+  nnEval9 = startNNEval(
+    modelFile,logger,"v8seed",9,9,1,inputsNHWC,useNHWC,useFP16,false,false);
+  nnEval9Exact = startNNEval(
+    modelFile,logger,"v8seed",9,9,1,inputsNHWC,useNHWC,useFP16,false,true);
+  runV8TestsSize9(nnEval,nnEval9,nnEval9Exact,logger);
+  delete nnEval;
+  delete nnEval9;
+  delete nnEval9Exact;
+  nnEval = NULL;
+  nnEval9 = NULL;
+  nnEval9Exact = NULL;
 
   nnEval = startNNEval(
     modelFile,logger,"v8seed",19,19,-1,inputsNHWC,useNHWC,useFP16,false,false);
   nnEval19Exact = startNNEval(
     modelFile,logger,"v8seed",19,19,-1,inputsNHWC,useNHWC,useFP16,false,true);
-  runV8Tests(nnEval,nnEval19Exact,logger);
+  runV8TestsRandomSym(nnEval,nnEval19Exact,logger);
   delete nnEval;
   delete nnEval19Exact;
   nnEval = NULL;
   nnEval19Exact = NULL;
+
+  nnEval = startNNEval(
+    modelFile,logger,"v8seed",19,19,2,inputsNHWC,useNHWC,useFP16,false,false);
+  runV8Tests(nnEval,logger);
+  delete nnEval;
+  nnEval = NULL;
 
   nnEval = startNNEval(
     modelFile,logger,"v8seed",19,19,5,inputsNHWC,useNHWC,useFP16,false,false);
