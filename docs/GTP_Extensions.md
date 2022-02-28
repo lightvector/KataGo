@@ -156,8 +156,8 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      whiteLead (1 float) - predicted number of points that white is ahead by (this is the preferred score value for user display).
      whiteScoreSelfplay (1 float) - predicted mean score that would result from low-playout noisy selfplay (may be biased, Kata isn't fully score-maximizing).
      whiteScoreSelfplaySq (1 float) - predicted mean square of score that would result via low-playout noisy selfplay
-     shorttermWinlossError (1 float) - predicted square root of the mean squared difference between (whiteWin-whiteLoss) and the MCTS (whiteWin-whiteLoss) in low-playout noisy selfplay after a few turns.
-     shorttermScoreError (1 float) - predicted square root of the mean difference between whiteScoreSelfplay and the MCTS score in low-playout noisy selfplay after a few turns.
+     shorttermWinlossError (1 float) - predicted square root of the mean squared difference between (whiteWin-whiteLoss) and the MCTS (whiteWin-whiteLoss) in low-playout noisy selfplay after a few turns. Generally unavailable for nets prior to December 2020, in which case this value will always equal -1.
+     shorttermScoreError (1 float) - predicted square root of the mean difference between whiteScoreSelfplay and the MCTS score in low-playout noisy selfplay after a few turns.  Generally unavailable for nets prior to December 2020, in which case this value will always equal -1.
      policy (boardXSize * boardYSize floats, including possibly NAN for illegal moves) - policy distribution for next move
      policyPass (1 floats) - policy probability for the pass move
      whiteOwnership (boardXSize * boardYSize floats) - predicted ownership by white (from -1 to 1).
