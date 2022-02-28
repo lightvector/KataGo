@@ -533,6 +533,36 @@ C337A528D7E42497
     TestCommon::expect(name,out,expected);
   }
 
+  for(int i = -10000; i<10000; i++) {
+    {
+      testAssert(i == Global::stringToInt(Global::intToString(i)));
+    }
+    {
+      int64_t x = (int64_t)i;
+      testAssert(x == Global::stringToInt64(Global::int64ToString(x)));
+    }
+    {
+      uint64_t x = (uint64_t)i;
+      testAssert(x == Global::stringToUInt64(Global::uint64ToString(x)));
+    }
+    {
+      uint64_t x = (uint64_t)i;
+      testAssert(x == Global::hexStringToUInt64(Global::uint64ToHexString(x)));
+    }
+    {
+      float x = (float)i / 100.0f;
+      testAssert(x == Global::stringToFloat(Global::floatToString(x)));
+    }
+    {
+      double x = (double)i / 100.0;
+      testAssert(x == Global::stringToDouble(Global::doubleToString(x)));
+    }
+    {
+      double x = (double)i / 1739.3;
+      testAssert(x == Global::stringToDouble(Global::doubleToStringHighPrecision(x)));
+    }
+  }
+
   {
     const char* name = "Rand tests";
     Rand rand("abc");

@@ -71,7 +71,7 @@ string Global::doubleToString(double x)
 string Global::doubleToStringHighPrecision(double x)
 {
   stringstream ss;
-  ss.precision(16);
+  ss.precision(17);
   ss << x;
   return ss.str();
 }
@@ -184,17 +184,32 @@ bool Global::stringToBool(const string& str)
 bool Global::tryStringToUInt64(const string& str, uint64_t& x)
 {
   uint64_t val = 0;
-  istringstream in(trim(str));
+  string s = trim(str);
+  if(s.size() > 0 && s[0] == '-')
+    return false;
+  istringstream in(s);
   in >> val;
   if(in.fail() || in.peek() != EOF)
-  {
-    istringstream inhex(trim(str));
-    inhex >> hex >> val;
-    if(inhex.fail() || inhex.peek() != EOF)
+    return false;
+  x = val;
+  return true;
+}
+
+bool Global::tryHexStringToUInt64(const string& str, uint64_t& x)
+{
+  uint64_t val = 0;
+  for(char c: str) {
+    if(!(c >= '0' && c <= '9') &&
+       !(c >= 'A' && c <= 'F') &&
+       !(c >= 'a' && c <= 'f')
+    ) {
       return false;
-    x = val;
-    return true;
+    }
   }
+  istringstream in(str);
+  in >> std::hex >> val;
+  if(in.fail() || in.peek() != EOF)
+    return false;
   x = val;
   return true;
 }
@@ -205,6 +220,15 @@ uint64_t Global::stringToUInt64(const string& str)
   bool suc = tryStringToUInt64(str,val);
   if(!suc)
     throw IOError(string("could not parse uint64: ") + str);
+  return val;
+}
+
+uint64_t Global::hexStringToUInt64(const string& str)
+{
+  uint64_t val;
+  bool suc = tryHexStringToUInt64(str,val);
+  if(!suc)
+    throw IOError(string("could not parse uint64 from hex: ") + str);
   return val;
 }
 
