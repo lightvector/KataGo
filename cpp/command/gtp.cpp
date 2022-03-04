@@ -658,6 +658,8 @@ struct GTPEngine {
     int maxMoves = 10000000;
     bool showOwnership = false;
     bool showOwnershipStdev = false;
+    bool showMovesOwnership = false;
+    bool showMovesOwnershipStdev = false;
     bool showPVVisits = false;
     double secondsPerReport = TimeControls::UNLIMITED_TIME_DEFAULT;
     vector<int> avoidMoveUntilByLocBlack;
@@ -805,6 +807,46 @@ struct GTPEngine {
             else
               data.writePVVisits(out);
           }
+          vector<double> movesOwnership, movesOwnershipStdev;
+          if(args.showMovesOwnershipStdev) {
+          static constexpr int64_t movesOwnershipStdevMinVisits = 3;
+          tuple<vector<double>,vector<double>> movesOwnershipAverageAndStdev;
+          movesOwnershipAverageAndStdev = search->getAverageAndStandardDeviationTreeOwnership(movesOwnershipStdevMinVisits,data.node);
+          movesOwnership = std::get<0>(movesOwnershipAverageAndStdev);
+          movesOwnershipStdev = std::get<1>(movesOwnershipAverageAndStdev);
+
+        }
+        else if(args.showMovesOwnership) {
+          static constexpr int64_t movesOwnershipMinVisits = 3;
+          movesOwnership = search->getAverageTreeOwnership(movesOwnershipMinVisits,data.node);           
+        }
+           if(args.showMovesOwnership) {
+          out << " ";
+
+          out << "movesOwnership";
+          int nnXLen = search->nnXLen;
+          for(int y = 0; y<board.y_size; y++) {
+            for(int x = 0; x<board.x_size; x++) {
+              int pos = NNPos::xyToPos(x,y,nnXLen);
+              if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
+                out << " " << -movesOwnership[pos];
+              else
+                out << " " << movesOwnership[pos];
+            }
+          }
+        }
+        if(args.showMovesOwnershipStdev) {
+          out << " ";
+
+          out << "movesOwnershipStdev";
+          int nnXLen = search->nnXLen;
+          for(int y = 0; y<board.y_size; y++) {
+            for(int x = 0; x<board.x_size; x++) {
+              int pos = NNPos::xyToPos(x,y,nnXLen);
+              out << " " << movesOwnershipStdev[pos];
+            }
+          }
+        }
         }
 
         if(args.showOwnership) {
@@ -917,7 +959,7 @@ struct GTPEngine {
     bot->setAvoidMoveUntilByLoc(args.avoidMoveUntilByLocBlack,args.avoidMoveUntilByLocWhite);
     if(args.analyzing) {
       std::function<void(const Search* search)> callback = getAnalyzeCallback(pla,args);
-      if(args.showOwnership || args.showOwnershipStdev)
+      if(args.showOwnership || args.showOwnershipStdev || args.showMovesOwnership || args.showMovesOwnershipStdev)
         bot->setAlwaysIncludeOwnerMap(true);
       else
         bot->setAlwaysIncludeOwnerMap(false);
@@ -1150,7 +1192,7 @@ struct GTPEngine {
 
     std::function<void(const Search* search)> callback = getAnalyzeCallback(pla,args);
     bot->setAvoidMoveUntilByLoc(args.avoidMoveUntilByLocBlack,args.avoidMoveUntilByLocWhite);
-    if(args.showOwnership || args.showOwnershipStdev)
+    if(args.showOwnership || args.showOwnershipStdev || args.showMovesOwnership || args.showMovesOwnershipStdev)
       bot->setAlwaysIncludeOwnerMap(true);
     else
       bot->setAlwaysIncludeOwnerMap(false);
@@ -1343,7 +1385,9 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   int minMoves = 0;
   int maxMoves = 10000000;
   bool showOwnership = false;
-  bool showOwnershipStdev = false;
+  bool showOwnershipStdev = false; 
+  bool showMovesOwnership = false;
+  bool showMovesOwnershipStdev = false;
   bool showPVVisits = false;
   vector<int> avoidMoveUntilByLocBlack;
   vector<int> avoidMoveUntilByLocWhite;
@@ -1468,8 +1512,14 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
     }
     else if(isKata && key == "ownershipStdev" && Global::tryStringToBool(value,showOwnershipStdev)) {
       continue;
+    }    
+    else if(isKata && key == "movesOwnership" && Global::tryStringToBool(value,showMovesOwnership)) {
+      continue;
     }
-    else if(isKata && key == "pvVisits" && Global::tryStringToBool(value,showPVVisits)) {
+     else if(isKata && key == "movesOwnershipStdev" && Global::tryStringToBool(value,showMovesOwnershipStdev)) {
+      continue;
+    }
+     else if(isKata && key == "pvVisits" && Global::tryStringToBool(value,showPVVisits)) {
       continue;
     }
 
@@ -1487,6 +1537,8 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   args.maxMoves = maxMoves;
   args.showOwnership = showOwnership;
   args.showOwnershipStdev = showOwnershipStdev;
+  args.showMovesOwnership = showMovesOwnership;
+  args.showMovesOwnershipStdev = showMovesOwnershipStdev;
   args.showPVVisits = showPVVisits;
   args.avoidMoveUntilByLocBlack = avoidMoveUntilByLocBlack;
   args.avoidMoveUntilByLocWhite = avoidMoveUntilByLocWhite;
