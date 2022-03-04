@@ -1516,10 +1516,10 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
     else if(isKata && key == "movesOwnership" && Global::tryStringToBool(value,showMovesOwnership)) {
       continue;
     }
-     else if(isKata && key == "movesOwnershipStdev" && Global::tryStringToBool(value,showMovesOwnershipStdev)) {
+    else if(isKata && key == "movesOwnershipStdev" && Global::tryStringToBool(value,showMovesOwnershipStdev)) {
       continue;
     }
-     else if(isKata && key == "pvVisits" && Global::tryStringToBool(value,showPVVisits)) {
+    else if(isKata && key == "pvVisits" && Global::tryStringToBool(value,showPVVisits)) {
       continue;
     }
 
