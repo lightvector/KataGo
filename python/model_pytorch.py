@@ -76,6 +76,7 @@ class NormMask(torch.nn.Module):
         )
         self.c_in = c_in
 
+        self.scale = None
         self.gamma = None
         if self.norm_kind == "bnorm":
             if self.use_gamma:
@@ -120,6 +121,9 @@ class NormMask(torch.nn.Module):
         else:
             assert False, f"Unimplemented norm_kind: {self.norm_kind}"
 
+    def set_scale(self, scale: Optional[float]):
+        self.scale = scale
+
     def add_reg_dict(self, reg_dict:Dict[str,List], is_last_batchnorm=False):
         if self.gamma is not None:
             reg_dict["normal"].append(self.gamma)
@@ -148,6 +152,19 @@ class NormMask(torch.nn.Module):
         std = torch.sqrt(var + self.epsilon)
         return zeromean_x, mean, std
 
+    def apply_gamma_beta_scale_mask(self, x, mask):
+        if self.scale is not None:
+            if self.gamma is not None:
+                return (x * (self.gamma * self.scale) + self.beta) * mask
+            else:
+                return (x * self.scale + self.beta) * mask
+        else:
+            if self.gamma is not None:
+                return (x * self.gamma + self.beta) * mask
+            else:
+                return (x + self.beta) * mask
+
+
     def forward(self, x, mask, mask_sum: float):
         """
         Parameters:
@@ -169,15 +186,9 @@ class NormMask(torch.nn.Module):
                     self.running_mean += self.running_avg_momentum * (detached_mean - self.running_mean)
                     self.running_std += self.running_avg_momentum * (detached_std - self.running_std)
 
-                if self.gamma is not None:
-                    return (zeromean_x / std * self.gamma + self.beta) * mask
-                else:
-                    return (zeromean_x / std + self.beta) * mask
+                return self.apply_gamma_beta_scale_mask(zeromean_x / std, mask)
             else:
-                if self.gamma is not None:
-                    return ((x - self.running_mean.view(1,self.c_in,1,1)) / self.running_std.view(1,self.c_in,1,1) * self.gamma + self.beta) * mask
-                else:
-                    return ((x - self.running_mean.view(1,self.c_in,1,1)) / self.running_std.view(1,self.c_in,1,1) + self.beta) * mask
+                return self.apply_gamma_beta_scale_mask((x - self.running_mean.view(1,self.c_in,1,1)) / self.running_std.view(1,self.c_in,1,1), mask)
 
         elif self.norm_kind == "brenorm":
             assert x.shape[1] == self.c_in
@@ -205,23 +216,15 @@ class NormMask(torch.nn.Module):
                     self.renorm_dclippage += 0.01 * (dclippage - self.renorm_dclippage)
 
                 if self.rmax > 1.00000001 or self.dmax > 0.00000001:
-                    if self.gamma is not None:
-                        return (zeromean_x / std * r.detach().view(1,self.c_in,1,1) + d.detach().view(1,self.c_in,1,1) * self.gamma + self.beta) * mask
-                    else:
-                        return (zeromean_x / std * r.detach().view(1,self.c_in,1,1) + d.detach().view(1,self.c_in,1,1) + self.beta) * mask
+                    return self.apply_gamma_beta_scale_mask(zeromean_x / std * r.detach().view(1,self.c_in,1,1) + d.detach().view(1,self.c_in,1,1), mask)
                 else:
-                    if self.gamma is not None:
-                        return (zeromean_x / std * self.gamma + self.beta) * mask
-                    else:
-                        return (zeromean_x / std + self.beta) * mask
+                    return self.apply_gamma_beta_scale_mask(zeromean_x / std, mask)
 
             else:
-                return ((x - self.running_mean.view(1,self.c_in,1,1)) / self.running_std.view(1,self.c_in,1,1) + self.beta) * mask
+                return self.apply_gamma_beta_scale_mask((x - self.running_mean.view(1,self.c_in,1,1)) / self.running_std.view(1,self.c_in,1,1), mask)
 
         elif self.norm_kind == "fixup":
-            if self.gamma is not None:
-                return (x * self.gamma + self.beta) * mask
-            return (x + self.beta) * mask
+            return self.apply_gamma_beta_scale_mask(x, mask)
 
         else:
             assert False
@@ -706,12 +709,12 @@ class BottleneckResBlock(torch.nn.Module):
         if self.norm_kind == "fixup":
             self.normactconvp.initialize(scale=math.pow(fixup_scale, 1.0 / (1.0 + self.internal_length)))
             for i in range(self.internal_length):
-                self.normactconvstack[i].initialize(fixup_scale=math.pow(fixup_scale, 1.0 / (1.0 + self.internal_length)))
+                self.normactconvstack[i].initialize(scale=math.pow(fixup_scale, 1.0 / (1.0 + self.internal_length)))
             self.normactconvq.initialize(scale=0.0)
         else:
             self.normactconvp.initialize(scale=1.0)
             for i in range(self.internal_length):
-                self.normactconvstack[i].initialize(fixup_scale=1.0)
+                self.normactconvstack[i].initialize(scale=1.0)
             self.normactconvq.initialize(scale=1.0)
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):

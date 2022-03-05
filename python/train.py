@@ -447,8 +447,14 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     # Warmup for initial training
     warmup_scale = 1.0
     if model_config["norm_kind"] == "fixup":
-      if train_state["global_step_samples"] < 5000000:
+      if train_state["global_step_samples"] < 1000000:
+        warmup_scale = 1.0 / 5.0
+      elif train_state["global_step_samples"] < 2000000:
         warmup_scale = 1.0 / 3.0
+      elif train_state["global_step_samples"] < 4000000:
+        warmup_scale = 1.0 / 2.0
+      elif train_state["global_step_samples"] < 6000000:
+        warmup_scale = 1.0 / 1.4
     else:
       if train_state["global_step_samples"] < 250000:
         warmup_scale = 1.0 / 20.0

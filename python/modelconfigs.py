@@ -1031,6 +1031,11 @@ base_config_of_name = {
 config_of_name = {}
 for name, base_config in base_config_of_name.items():
   config = base_config.copy()
+  config_of_name[name] = config
+
+
+for name, base_config in list(config_of_name.items()):
+  config = base_config.copy()
   config["norm_kind"] = "fixup"
   config_of_name[name+""] = config
 
