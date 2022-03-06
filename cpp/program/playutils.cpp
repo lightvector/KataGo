@@ -680,8 +680,7 @@ vector<double> PlayUtils::computeOwnership(
   bot->setPosition(pla,board,hist);
   bot->runWholeSearch(pla);
 
-  int64_t minVisitsForOwnership = 2;
-  vector<double> ownerships = bot->getAverageTreeOwnership((double)minVisitsForOwnership);
+  vector<double> ownerships = bot->getAverageTreeOwnership();
 
   bot->setParams(oldParams);
   bot->setAlwaysIncludeOwnerMap(oldAlwaysIncludeOwnerMap);

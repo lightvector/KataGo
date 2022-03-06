@@ -334,24 +334,24 @@ struct Search {
   //Must have ownership present on all neural net evals.
   //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
   //or changing parameters or clearing search.
-  //If node is not providied, defaults to using the root node.
-  std::vector<double> getAverageTreeOwnership(double minWeight, const SearchNode* node = NULL) const;
-  std::tuple<std::vector<double>,std::vector<double>> getAverageAndStandardDeviationTreeOwnership(double minWeight, const SearchNode* node = NULL) const;
+  //If node is not provided, defaults to using the root node.
+  std::vector<double> getAverageTreeOwnership(const SearchNode* node = NULL) const;
+  std::tuple<std::vector<double>,std::vector<double>> getAverageAndStandardDeviationTreeOwnership(const SearchNode* node = NULL) const;
 
   std::pair<double,double> getAverageShorttermWLAndScoreError(const SearchNode* node = NULL) const;
   bool getSharpScore(const SearchNode* node, double& ret) const;
 
   //Get ownership map as json
   nlohmann::json getJsonOwnershipMap(
-    const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight, int symmetry
+    const Player pla, const Player perspective, const Board& board, const SearchNode* node, int symmetry
   ) const;
   std::pair<nlohmann::json,nlohmann::json> getJsonOwnershipAndStdevMap(
-    const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight, int symmetry
+    const Player pla, const Player perspective, const Board& board, const SearchNode* node, int symmetry
   ) const;
   //Fill json with analysis engine format information about search results
   bool getAnalysisJson(
     const Player perspective,
-    int analysisPVLen, double ownershipMinWeight, bool preventEncore, bool includePolicy,
+    int analysisPVLen, bool preventEncore, bool includePolicy,
     bool includeOwnership, bool includeOwnershipStdev, bool includeMovesOwnership, bool includeMovesOwnershipStdev, bool includePVVisits,
     nlohmann::json& ret
   ) const;
@@ -605,25 +605,33 @@ private:
     std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
   ) const;
 
-  double getSharpScoreHelper(const SearchNode* node, double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE]) const;
+  double getSharpScoreHelper(
+    const SearchNode* node,
+    std::unordered_set<const SearchNode*>& graphPath,
+    double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE]
+  ) const;
 
   std::pair<double,double> getAverageShorttermWLAndScoreErrorHelper(const SearchNode* node) const;
 
   template<typename Func>
-  double traverseTreeWithOwnershipAndSelfWeight(
-    double minWeight,
-    double desiredWeight,
+  void traverseTreeForOwnership(
+    double minProp,
+    double pruneProp,
+    double desiredProp,
     const SearchNode* node,
+    std::unordered_set<const SearchNode*>& graphPath,
     Func& averaging
   ) const;
   template<typename Func>
-  double traverseTreeWithOwnershipAndSelfWeightHelper(
-    double minWeight,
-    double desiredWeight,
+  double traverseTreeForOwnershipChildren(
+    double minProp,
+    double pruneProp,
+    double desiredProp,
     double thisNodeWeight,
     const SearchChildPointer* children,
     double* childWeightBuf,
     int childrenCapacity,
+    std::unordered_set<const SearchNode*>& graphPath,
     Func& averaging
   ) const;
 

@@ -1229,9 +1229,11 @@ bool Search::getSharpScore(const SearchNode* node, double& ret) const {
   if(node == NULL)
     return false;
 
+  std::unordered_set<const SearchNode*> graphPath;
+
   double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
   if(node != rootNode) {
-    ret = getSharpScoreHelper(node,policyProbsBuf);
+    ret = getSharpScoreHelper(node,graphPath,policyProbsBuf);
     return true;
   }
 
@@ -1254,6 +1256,8 @@ bool Search::getSharpScore(const SearchNode* node, double& ret) const {
   int childrenCapacity;
   const SearchChildPointer* children = node->getChildren(childrenCapacity);
 
+  graphPath.insert(node);
+
   double scoreMeanSum = 0.0;
   double scoreWeightSum = 0.0;
   double childWeightSum = 0.0;
@@ -1267,10 +1271,12 @@ bool Search::getSharpScore(const SearchNode* node, double& ret) const {
       continue;
     double weight = playSelectionValues[i];
     double sharpWeight = weight * weight * weight;
-    scoreMeanSum += sharpWeight * getSharpScoreHelper(child, policyProbsBuf);
+    scoreMeanSum += sharpWeight * getSharpScoreHelper(child, graphPath, policyProbsBuf);
     scoreWeightSum += sharpWeight;
     childWeightSum += weight;
   }
+
+  graphPath.erase(node);
 
   //Also add in the direct evaluation of this node.
   {
@@ -1288,7 +1294,11 @@ bool Search::getSharpScore(const SearchNode* node, double& ret) const {
   return true;
 }
 
-double Search::getSharpScoreHelper(const SearchNode* node, double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE]) const {
+double Search::getSharpScoreHelper(
+  const SearchNode* node,
+  std::unordered_set<const SearchNode*>& graphPath,
+  double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE]
+) const {
   if(node == NULL)
     return 0.0;
   const NNOutput* nnOutput = node->getNNOutput();
@@ -1299,6 +1309,19 @@ double Search::getSharpScoreHelper(const SearchNode* node, double policyProbsBuf
 
   int childrenCapacity;
   const SearchChildPointer* children = node->getChildren(childrenCapacity);
+
+  if(childrenCapacity <= 0) {
+    double scoreMean = (double)nnOutput->whiteScoreMean;
+    return scoreMean;
+  }
+
+  std::pair<std::unordered_set<const SearchNode*>::iterator,bool> result = graphPath.insert(node);
+  //No insertion, node was already there, this means we hit a cycle in the graph
+  if(!result.second) {
+    //Just treat it as base case and immediately terminate.
+    double scoreMean = (double)nnOutput->whiteScoreMean;
+    return scoreMean;
+  }
 
   vector<MoreNodeStats> statsBuf;
   for(int i = 0; i<childrenCapacity; i++) {
@@ -1344,10 +1367,12 @@ double Search::getSharpScoreHelper(const SearchNode* node, double policyProbsBuf
       continue;
     double weight = statsBuf[i].weightAdjusted;
     double sharpWeight = weight * weight * weight;
-    scoreMeanSum += sharpWeight * getSharpScoreHelper(children[i].getIfAllocated(),policyProbsBuf);
+    scoreMeanSum += sharpWeight * getSharpScoreHelper(children[i].getIfAllocated(),graphPath,policyProbsBuf);
     scoreWeightSum += sharpWeight;
     childWeightSum += weight;
   }
+
+  graphPath.erase(node);
 
   //Also add in the direct evaluation of this node.
   {
@@ -1360,33 +1385,47 @@ double Search::getSharpScoreHelper(const SearchNode* node, double policyProbsBuf
   return scoreMeanSum / scoreWeightSum;
 }
 
-vector<double> Search::getAverageTreeOwnership(double minWeight, const SearchNode* node) const {
+vector<double> Search::getAverageTreeOwnership(const SearchNode* node) const {
   if(node == NULL)
     node = rootNode;
   if(!alwaysIncludeOwnerMap)
     throw StringError("Called Search::getAverageTreeOwnership when alwaysIncludeOwnerMap is false");
   vector<double> vec(nnXLen*nnYLen,0.0);
-  auto accumulate = [&vec,this](float* ownership, double selfWeight){
+  auto accumulate = [&vec,this](float* ownership, double selfProp){
     for (int pos = 0; pos < nnXLen*nnYLen; pos++)
-      vec[pos] += selfWeight * ownership[pos];
+      vec[pos] += selfProp * ownership[pos];
   };
-  traverseTreeWithOwnershipAndSelfWeight(minWeight,1.0,node,accumulate);
+  int64_t visits = node->stats.visits.load(std::memory_order_acquire);
+  //Stop deepening when we hit a node whose proportion in the final average would be less than this.
+  //Sublinear in visits so that the cost of this grows more slowly than overall search depth.
+  double minProp = 1.0 / pow(visits,0.75) / 4.0;
+  //Entirely drop a node with weight less than this
+  double pruneProp = minProp * 0.005;
+  std::unordered_set<const SearchNode*> graphPath;
+  traverseTreeForOwnership(minProp,pruneProp,1.0,node,graphPath,accumulate);
   return vec;
 }
 
-tuple<vector<double>,vector<double>> Search::getAverageAndStandardDeviationTreeOwnership(double minWeight, const SearchNode* node) const {
+tuple<vector<double>,vector<double>> Search::getAverageAndStandardDeviationTreeOwnership(const SearchNode* node) const {
   if(node == NULL)
     node = rootNode;
   vector<double> average(nnXLen*nnYLen,0.0);
   vector<double> stdev(nnXLen*nnYLen,0.0);
-  auto accumulate = [&average,&stdev,this](float* ownership, double selfWeight) {
+  auto accumulate = [&average,&stdev,this](float* ownership, double selfProp) {
     for (int pos = 0; pos < nnXLen*nnYLen; pos++) {
       const double value = ownership[pos];
-      average[pos] += selfWeight * value;
-      stdev[pos] += selfWeight * value * value;
+      average[pos] += selfProp * value;
+      stdev[pos] += selfProp * value * value;
     }
   };
-  traverseTreeWithOwnershipAndSelfWeight(minWeight,1.0,node,accumulate);
+  int64_t visits = node->stats.visits.load(std::memory_order_acquire);
+  //Stop deepening when we hit a node whose proportion in the final average would be less than this.
+  //Sublinear in visits so that the cost of this grows more slowly than overall search depth.
+  double minProp = 1.0 / pow(visits,0.75) / 4.0;
+  //Entirely drop a node with weight less than this
+  double pruneProp = minProp * 0.005;
+  std::unordered_set<const SearchNode*> graphPath;
+  traverseTreeForOwnership(minProp,pruneProp,1.0,node,graphPath,accumulate);
   for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
     const double avg = average[pos];
     stdev[pos] = sqrt(max(stdev[pos] - avg * avg, 0.0));
@@ -1395,52 +1434,83 @@ tuple<vector<double>,vector<double>> Search::getAverageAndStandardDeviationTreeO
 }
 
 template<typename Func>
-double Search::traverseTreeWithOwnershipAndSelfWeight(
-  double minWeight,
-  double desiredWeight,
+void Search::traverseTreeForOwnership(
+  double minProp,
+  double pruneProp,
+  double desiredProp,
   const SearchNode* node,
+  std::unordered_set<const SearchNode*>& graphPath,
   Func& accumulate
 ) const {
   if(node == NULL)
-    return 0;
+    return;
 
   const NNOutput* nnOutput = node->getNNOutput();
   if(nnOutput == NULL)
-    return 0;
+    return;
+
+  //Base case
+  if(desiredProp < minProp) {
+    float* ownerMap = nnOutput->whiteOwnerMap;
+    assert(ownerMap != NULL);
+    accumulate(ownerMap, desiredProp);
+    return;
+  }
 
   int childrenCapacity;
   const SearchChildPointer* children = node->getChildren(childrenCapacity);
 
-  double actualWeightFromChildren;
-  double thisNodeWeight = computeWeightFromNNOutput(nnOutput);
-  if(childrenCapacity <= 8) {
-    double childWeightBuf[8];
-    actualWeightFromChildren = traverseTreeWithOwnershipAndSelfWeightHelper(
-      minWeight, desiredWeight, thisNodeWeight, children, childWeightBuf, childrenCapacity, accumulate
+  if(childrenCapacity <= 0) {
+    float* ownerMap = nnOutput->whiteOwnerMap;
+    assert(ownerMap != NULL);
+    accumulate(ownerMap, desiredProp);
+    return;
+  }
+
+  std::pair<std::unordered_set<const SearchNode*>::iterator,bool> result = graphPath.insert(node);
+  //No insertion, node was already there, this means we hit a cycle in the graph
+  if(!result.second) {
+    //Just treat it as base case and immediately terminate.
+    float* ownerMap = nnOutput->whiteOwnerMap;
+    assert(ownerMap != NULL);
+    accumulate(ownerMap, desiredProp);
+  }
+
+  double selfProp;
+  double parentNNWeight = computeWeightFromNNOutput(nnOutput);
+  if(childrenCapacity <= SearchNode::CHILDREN0SIZE) {
+    double childWeightBuf[SearchNode::CHILDREN0SIZE];
+    selfProp = traverseTreeForOwnershipChildren(
+      minProp, pruneProp, desiredProp, parentNNWeight, children, childWeightBuf, childrenCapacity, graphPath, accumulate
     );
   }
   else {
     vector<double> childWeightBuf(childrenCapacity);
-    actualWeightFromChildren = traverseTreeWithOwnershipAndSelfWeightHelper(
-      minWeight, desiredWeight, thisNodeWeight, children, &childWeightBuf[0], childrenCapacity, accumulate
+    selfProp = traverseTreeForOwnershipChildren(
+      minProp, pruneProp, desiredProp, parentNNWeight, children, &childWeightBuf[0], childrenCapacity, graphPath, accumulate
     );
   }
 
-  double selfWeight = desiredWeight - actualWeightFromChildren;
+  graphPath.erase(node);
+
   float* ownerMap = nnOutput->whiteOwnerMap;
   assert(ownerMap != NULL);
-  accumulate(ownerMap, selfWeight);
-  return desiredWeight;
+  accumulate(ownerMap, selfProp);
+  return;
 }
 
+// Returns the prop that the parent node should be weighted.
+// Not guaranteed to be <= the parent's weightsum due to multithreading.
 template<typename Func>
-double Search::traverseTreeWithOwnershipAndSelfWeightHelper(
-  double minWeight,
-  double desiredWeight,
-  double thisNodeWeight,
+double Search::traverseTreeForOwnershipChildren(
+  double minProp,
+  double pruneProp,
+  double desiredProp,
+  double parentNNWeight,
   const SearchChildPointer* children,
   double* childWeightBuf,
   int childrenCapacity,
+  std::unordered_set<const SearchNode*>& graphPath,
   Func& accumulate
 ) const {
   int numChildren = 0;
@@ -1454,31 +1524,34 @@ double Search::traverseTreeWithOwnershipAndSelfWeightHelper(
     numChildren += 1;
   }
 
+  //What we actually weight the children by for averaging ownership, sharper than the plain weight.
   double relativeChildrenWeightSum = 0.0;
-  double usedChildrenWeightSum = 0;
+  //What the weights of the children sum to from the search.
+  double childrenWeightSum = 0;
   for(int i = 0; i<numChildren; i++) {
     double childWeight = childWeightBuf[i];
-    if(childWeight < minWeight)
-      continue;
     relativeChildrenWeightSum += (double)childWeight * childWeight;
-    usedChildrenWeightSum += childWeight;
+    childrenWeightSum += childWeight;
   }
 
-  double desiredWeightFromChildren = desiredWeight * usedChildrenWeightSum / (usedChildrenWeightSum + thisNodeWeight);
+  double desiredPropFromChildren = desiredProp * childrenWeightSum / (childrenWeightSum + parentNNWeight);
 
   //Recurse
-  double actualWeightFromChildren = 0.0;
+  double extraParentProp = 0.0;
   for(int i = 0; i<numChildren; i++) {
     double childWeight = childWeightBuf[i];
-    if(childWeight < minWeight)
-      continue;
     const SearchNode* child = children[i].getIfAllocated();
     assert(child != NULL);
-    double desiredWeightFromChild = (double)childWeight * childWeight / relativeChildrenWeightSum * desiredWeightFromChildren;
-    actualWeightFromChildren += traverseTreeWithOwnershipAndSelfWeight(minWeight,desiredWeightFromChild,child,accumulate);
+    double desiredPropFromChild = (double)childWeight * childWeight / relativeChildrenWeightSum * desiredPropFromChildren;
+    if(desiredPropFromChild < pruneProp)
+      extraParentProp += desiredPropFromChild;
+    else
+      traverseTreeForOwnership(minProp,pruneProp,desiredPropFromChild,child,graphPath,accumulate);
   }
 
-  return actualWeightFromChildren;
+  double selfProp = extraParentProp + desiredProp * parentNNWeight / (childrenWeightSum + parentNNWeight);
+
+  return selfProp;
 }
 
 static double roundStatic(double x, double inverseScale) {
@@ -1498,9 +1571,9 @@ static double roundDynamic(double x, int precision) {
 
 
 json Search::getJsonOwnershipMap(
-  const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight, int symmetry
+  const Player pla, const Player perspective, const Board& board, const SearchNode* node, int symmetry
 ) const {
-  vector<double> ownership = getAverageTreeOwnership(ownershipMinWeight, node);
+  vector<double> ownership = getAverageTreeOwnership(node);
   vector<double> ownershipToOutput(board.y_size * board.x_size, 0.0);
 
   for(int y = 0; y < board.y_size; y++) {
@@ -1525,9 +1598,9 @@ json Search::getJsonOwnershipMap(
 }
 
 std::pair<json,json> Search::getJsonOwnershipAndStdevMap(
-  const Player pla, const Player perspective, const Board& board, const SearchNode* node, double ownershipMinWeight, int symmetry
+  const Player pla, const Player perspective, const Board& board, const SearchNode* node, int symmetry
 ) const {
-  const tuple<vector<double>,vector<double>> ownershipAverageAndStdev = getAverageAndStandardDeviationTreeOwnership(ownershipMinWeight, node);
+  const tuple<vector<double>,vector<double>> ownershipAverageAndStdev = getAverageAndStandardDeviationTreeOwnership(node);
   const vector<double>& ownership = std::get<0>(ownershipAverageAndStdev);
   const vector<double>& ownershipStdev = std::get<1>(ownershipAverageAndStdev);
   vector<double> ownershipToOutput(board.y_size * board.x_size, 0.0);
@@ -1558,7 +1631,6 @@ std::pair<json,json> Search::getJsonOwnershipAndStdevMap(
 bool Search::getAnalysisJson(
   const Player perspective,
   int analysisPVLen,
-  double ownershipMinWeight,
   bool preventEncore,
   bool includePolicy,
   bool includeOwnership,
@@ -1628,16 +1700,16 @@ bool Search::getAnalysisJson(
     }
 
     if(includeMovesOwnership && includeMovesOwnershipStdev) {
-      std::pair<json,json> ownershipAndStdev = getJsonOwnershipAndStdevMap(rootPla, perspective, board, data.node, ownershipMinWeight, data.symmetry);
+      std::pair<json,json> ownershipAndStdev = getJsonOwnershipAndStdevMap(rootPla, perspective, board, data.node, data.symmetry);
       moveInfo["ownership"] = ownershipAndStdev.first;
       moveInfo["ownershipStdev"] = ownershipAndStdev.second;
     }
     else if(includeMovesOwnershipStdev) {
-      std::pair<json,json> ownershipAndStdev = getJsonOwnershipAndStdevMap(rootPla, perspective, board, data.node, ownershipMinWeight, data.symmetry);
+      std::pair<json,json> ownershipAndStdev = getJsonOwnershipAndStdevMap(rootPla, perspective, board, data.node, data.symmetry);
       moveInfo["ownershipStdev"] = ownershipAndStdev.second;
     }
     else if(includeMovesOwnership) {
-      moveInfo["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, data.node, ownershipMinWeight, data.symmetry);
+      moveInfo["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, data.node, data.symmetry);
     }
 
     moveInfos.push_back(moveInfo);
@@ -1714,18 +1786,18 @@ bool Search::getAnalysisJson(
   // Average tree ownership
   if(includeOwnership && includeOwnershipStdev) {
     int symmetry = 0;
-    std::pair<json,json> ownershipAndStdev = getJsonOwnershipAndStdevMap(rootPla, perspective, board, rootNode, ownershipMinWeight, symmetry);
+    std::pair<json,json> ownershipAndStdev = getJsonOwnershipAndStdevMap(rootPla, perspective, board, rootNode, symmetry);
     ret["ownership"] = ownershipAndStdev.first;
     ret["ownershipStdev"] = ownershipAndStdev.second;
   }
   else if(includeOwnershipStdev) {
     int symmetry = 0;
-    std::pair<json,json> ownershipAndStdev = getJsonOwnershipAndStdevMap(rootPla, perspective, board, rootNode, ownershipMinWeight, symmetry);
+    std::pair<json,json> ownershipAndStdev = getJsonOwnershipAndStdevMap(rootPla, perspective, board, rootNode, symmetry);
     ret["ownershipStdev"] = ownershipAndStdev.second;
   }
   else if(includeOwnership) {
     int symmetry = 0;
-    ret["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, rootNode, ownershipMinWeight, symmetry);
+    ret["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, rootNode, symmetry);
   }
 
   return true;

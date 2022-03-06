@@ -85,7 +85,7 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
       search->printRootPolicyMap(cout);
     }
     if(opts.printOwnership) {
-      std::tuple<std::vector<double>,std::vector<double>> ownershipAndStdev = search->getAverageAndStandardDeviationTreeOwnership(2.0);
+      std::tuple<std::vector<double>,std::vector<double>> ownershipAndStdev = search->getAverageAndStandardDeviationTreeOwnership();
       std::vector<double> ownership = std::get<0>(ownershipAndStdev);
       std::vector<double> ownershipStdev = std::get<1>(ownershipAndStdev);
       for(int y = 0; y<board.y_size; y++) {

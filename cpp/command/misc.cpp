@@ -92,8 +92,7 @@ static void writeLine(
     cout << data.policyPrior << " ";
   }
 
-  int minVisits = 3;
-  vector<double> ownership = search->getAverageTreeOwnership(minVisits);
+  vector<double> ownership = search->getAverageTreeOwnership();
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,nnXLen);

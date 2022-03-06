@@ -663,7 +663,6 @@ xx......x
     nlohmann::json json;
     Player perspective = P_WHITE;
     int analysisPVLen = 2;
-    int ownershipMinVisits = 1;
     bool preventEncore = true;
     bool includePolicy = false;
     bool includeOwnership = false;
@@ -672,7 +671,7 @@ xx......x
     bool includeMovesOwnershipStdev = false;
     bool includePVVisits = false;
     bool suc = search->getAnalysisJson(
-      perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+      perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
       json
     );
@@ -740,7 +739,6 @@ xx......x
     nlohmann::json json;
     Player perspective = P_WHITE;
     int analysisPVLen = 2;
-    int ownershipMinVisits = 1;
     bool preventEncore = true;
     bool includePolicy = false;
     bool includeOwnership = false;
@@ -749,7 +747,7 @@ xx......x
     bool includeMovesOwnershipStdev = false;
     bool includePVVisits = false;
     bool suc = search->getAnalysisJson(
-      perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+      perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
       json
     );
@@ -817,7 +815,6 @@ xx......x
     nlohmann::json json;
     Player perspective = P_WHITE;
     int analysisPVLen = 2;
-    int ownershipMinVisits = 1;
     bool preventEncore = true;
     bool includePolicy = false;
     bool includeOwnership = false;
@@ -826,7 +823,7 @@ xx......x
     bool includeMovesOwnershipStdev = false;
     bool includePVVisits = false;
     bool suc = search->getAnalysisJson(
-      perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+      perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
       json
     );
@@ -1208,7 +1205,6 @@ ooooo.oooooooo
     nlohmann::json json;
     Player perspective = P_WHITE;
     int analysisPVLen = 2;
-    int ownershipMinVisits = 1;
     bool preventEncore = true;
     bool includePolicy = true;
     bool includeOwnership = true;
@@ -1217,7 +1213,7 @@ ooooo.oooooooo
     bool includeMovesOwnershipStdev = false;
     bool includePVVisits = true;
     bool suc = search->getAnalysisJson(
-      perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+      perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
       json
     );
@@ -1261,7 +1257,6 @@ xxxxxxxxx
     nlohmann::json json;
     Player perspective = P_WHITE;
     int analysisPVLen = 2;
-    int ownershipMinVisits = 1;
     bool preventEncore = true;
     bool includePolicy = true;
     bool includeOwnership = false;
@@ -1270,7 +1265,7 @@ xxxxxxxxx
     bool includeMovesOwnershipStdev = false;
     bool includePVVisits = false;
     bool suc = search->getAnalysisJson(
-      perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+      perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
       json
     );
@@ -1333,7 +1328,6 @@ xxxxxxxxx
       nlohmann::json json;
       Player perspective = P_WHITE;
       int analysisPVLen = 2;
-      int ownershipMinVisits = 1;
       bool preventEncore = true;
       bool includePolicy = true;
       bool includeOwnership = false;
@@ -1342,7 +1336,7 @@ xxxxxxxxx
       bool includeMovesOwnershipStdev = false;
       bool includePVVisits = true;
       suc = search->getAnalysisJson(
-        perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+        perspective, analysisPVLen, preventEncore,
         includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
         json
       );
@@ -1622,7 +1616,6 @@ oo..o..oo
       nlohmann::json json;
       Player perspective = P_WHITE;
       int analysisPVLen = 2;
-      int ownershipMinVisits = 1;
       bool preventEncore = true;
       bool includePolicy = false;
       bool includeOwnership = false;
@@ -1631,7 +1624,7 @@ oo..o..oo
       bool includeMovesOwnershipStdev = false;
       bool includePVVisits = false;
       bool suc = search->getAnalysisJson(
-        perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+        perspective, analysisPVLen, preventEncore,
         includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
         json
       );
@@ -1685,7 +1678,6 @@ oo..o..oo
       nlohmann::json json;
       Player perspective = P_WHITE;
       int analysisPVLen = 2;
-      int ownershipMinVisits = 1;
       bool preventEncore = true;
       bool includePolicy = false;
       bool includeOwnership = false;
@@ -1694,7 +1686,7 @@ oo..o..oo
       bool includeMovesOwnershipStdev = false;
       bool includePVVisits = false;
       bool suc = search->getAnalysisJson(
-        perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+        perspective, analysisPVLen, preventEncore,
         includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
         json
       );
@@ -1728,7 +1720,6 @@ oo..o..oo
       nlohmann::json json;
       Player perspective = P_WHITE;
       int analysisPVLen = 2;
-      int ownershipMinVisits = 1;
       bool preventEncore = true;
       bool includePolicy = false;
       bool includeOwnership = false;
@@ -1737,7 +1728,7 @@ oo..o..oo
       bool includeMovesOwnershipStdev = false;
       bool includePVVisits = false;
       bool suc = search->getAnalysisJson(
-        perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+        perspective, analysisPVLen, preventEncore,
         includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
         json
       );

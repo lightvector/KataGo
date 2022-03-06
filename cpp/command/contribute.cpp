@@ -205,7 +205,6 @@ static void runAndUploadSingleGame(
       int analysisPVLen = 15;
       const Player perspective = P_BLACK;
       bool preventEncore = true;
-      static constexpr int ownershipMinVisits = 3;
 
       // output format is a mix between an analysis query and response
       json ret;
@@ -242,7 +241,7 @@ static void runAndUploadSingleGame(
 
       // Usual analysis response fields
       ret["turnNumber"] = hist.moveHistory.size();
-      search->getAnalysisJson(perspective,analysisPVLen,ownershipMinVisits,preventEncore,true,alwaysIncludeOwnership,false,false,false,false,ret);
+      search->getAnalysisJson(perspective,analysisPVLen,preventEncore,true,alwaysIncludeOwnership,false,false,false,false,ret);
       std::cout << ret.dump() + "\n" << std::flush; // no endl due to race conditions
     }
 

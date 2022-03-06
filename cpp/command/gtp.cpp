@@ -740,15 +740,13 @@ struct GTPEngine {
 
         vector<double> ownership, ownershipStdev;
         if(args.showOwnershipStdev) {
-          static constexpr int64_t ownershipStdevMinVisits = 3;
           tuple<vector<double>,vector<double>> ownershipAverageAndStdev;
-          ownershipAverageAndStdev = search->getAverageAndStandardDeviationTreeOwnership(ownershipStdevMinVisits);
+          ownershipAverageAndStdev = search->getAverageAndStandardDeviationTreeOwnership();
           ownership = std::get<0>(ownershipAverageAndStdev);
           ownershipStdev = std::get<1>(ownershipAverageAndStdev);
         }
         else if(args.showOwnership) {
-          static constexpr int64_t ownershipMinVisits = 3;
-          ownership = search->getAverageTreeOwnership(ownershipMinVisits);
+          ownership = search->getAverageTreeOwnership();
         }
 
         ostringstream out;
