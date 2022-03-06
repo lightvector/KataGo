@@ -526,6 +526,136 @@ int MainCmds::runbeginsearchspeedtest(const vector<string>& args) {
   return 0;
 }
 
+int MainCmds::runownershipspeedtest(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  ConfigParser cfg;
+  string modelFile;
+  try {
+    KataGoCommandLine cmd("Begin search speed test");
+    cmd.addConfigFileArg("","");
+    cmd.addModelFileArg();
+    cmd.addOverrideConfigArg();
+
+    cmd.parseArgs(args);
+
+    cmd.getConfig(cfg);
+    modelFile = cmd.getModelFile();
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  Rand rand;
+  Logger logger;
+  logger.setLogToStdout(true);
+
+  NNEvaluator* nnEval = NULL;
+  const bool loadKomiFromCfg = false;
+  Rules rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+  {
+    Setup::initializeSession(cfg);
+    const int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    const int expectedConcurrentEvals = params.numThreads;
+    const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+    const bool defaultRequireExactNNLen = false;
+    const string expectedSha256 = "";
+    nnEval = Setup::initializeNNEvaluator(
+      modelFile,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
+      Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,
+      Setup::SETUP_FOR_GTP
+    );
+  }
+  logger.write("Loaded neural net");
+  string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
+  AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+
+  Board board = Board::parseBoard(19,19,R"%%(
+...................
+...................
+...o............o..
+...............x...
+..x................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...................
+...o............x..
+..x...........o....
+...................
+...................
+)%%");
+
+  Player nextPla = P_BLACK;
+  rules.komi = 7.0;
+  BoardHistory hist(board,nextPla,rules,0);
+
+  bot->setPosition(nextPla,board,hist);
+  bot->setAlwaysIncludeOwnerMap(true);
+
+  double time;
+  ClockTimer timer;
+
+  Loc moveLoc = bot->genMoveSynchronous(bot->getSearch()->rootPla,TimeControls());
+  time = timer.getSeconds();
+
+  Search* search = bot->getSearchStopAndWait();
+  PrintTreeOptions options;
+
+  Player perspective = P_WHITE;
+  Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
+  search->printTree(cout, search->rootNode, options, perspective);
+
+  cout << "Move: " << Location::toString(moveLoc,board) << endl;
+  cout << "Time taken for search: " << time << endl;
+
+  double sum;
+  std::vector<double> ownership;
+
+  timer.reset();
+  ownership = search->getAverageTreeOwnership();
+  sum = 0.0;
+  for(double o: ownership)
+    sum += o;
+  time = timer.getSeconds();
+  cout << "Time taken for getAverageTreeOwnership: " << time << endl;
+  cout << "Avg ownership: " << (sum/ownership.size()) << endl;
+
+  timer.reset();
+  ownership = search->getAverageTreeOwnership();
+  sum = 0.0;
+  for(double o: ownership)
+    sum += o;
+  time = timer.getSeconds();
+  cout << "Time taken for getAverageTreeOwnership: " << time << endl;
+  cout << "Avg ownership: " << (sum/ownership.size()) << endl;
+
+  timer.reset();
+  std::tuple<std::vector<double>,std::vector<double>> result = search->getAverageAndStandardDeviationTreeOwnership();
+  const vector<double>& ownershipStdev = std::get<1>(result);
+  sum = 0.0;
+  for(double o: ownershipStdev)
+    sum += o;
+  time = timer.getSeconds();
+  cout << "Time taken for getAverageAndStandardDeviationTreeOwnership: " << time << endl;
+  cout << "Avg ownership stdev: " << (sum/ownershipStdev.size()) << endl;
+
+  delete bot;
+  delete nnEval;
+
+  ScoreValue::freeTables();
+  return 0;
+}
+
 int MainCmds::runsleeptest(const vector<string>& args) {
   (void)args;
   ClockTimer timer;

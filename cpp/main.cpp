@@ -137,6 +137,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::sampleinitializations(subArgs);
   else if(subcommand == "runbeginsearchspeedtest")
     return MainCmds::runbeginsearchspeedtest(subArgs);
+  else if(subcommand == "runownershipspeedtest")
+    return MainCmds::runownershipspeedtest(subArgs);
   else if(subcommand == "runsleeptest")
     return MainCmds::runsleeptest(subArgs);
   else if(subcommand == "printclockinfo")

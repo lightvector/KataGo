@@ -30,6 +30,7 @@ namespace MainCmds {
   int runtinynntests(const std::vector<std::string>& args);
   int runnnevalcanarytests(const std::vector<std::string>& args);
   int runbeginsearchspeedtest(const std::vector<std::string>& args);
+  int runownershipspeedtest(const std::vector<std::string>& args);
   int runsleeptest(const std::vector<std::string>& args);
 
   int samplesgfs(const std::vector<std::string>& args);
