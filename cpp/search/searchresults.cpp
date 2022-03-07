@@ -1398,7 +1398,7 @@ vector<double> Search::getAverageTreeOwnership(const SearchNode* node) const {
   int64_t visits = node->stats.visits.load(std::memory_order_acquire);
   //Stop deepening when we hit a node whose proportion in the final average would be less than this.
   //Sublinear in visits so that the cost of this grows more slowly than overall search depth.
-  double minProp = 0.5 / pow(visits,0.75);
+  double minProp = 0.5 / pow(std::max(1.0,(double)visits),0.75);
   //Entirely drop a node with weight less than this
   double pruneProp = minProp * 0.01;
   std::unordered_set<const SearchNode*> graphPath;
@@ -1421,7 +1421,7 @@ tuple<vector<double>,vector<double>> Search::getAverageAndStandardDeviationTreeO
   int64_t visits = node->stats.visits.load(std::memory_order_acquire);
   //Stop deepening when we hit a node whose proportion in the final average would be less than this.
   //Sublinear in visits so that the cost of this grows more slowly than overall search depth.
-  double minProp = 0.5 / pow(visits,0.75);
+  double minProp = 0.5 / pow(std::max(1.0,(double)visits),0.75);
   //Entirely drop a node with weight less than this
   double pruneProp = minProp * 0.01;
   std::unordered_set<const SearchNode*> graphPath;
@@ -1536,21 +1536,29 @@ double Search::traverseTreeForOwnershipChildren(
     childrenWeightSum += childWeight;
   }
 
+  //Just in case
+  parentNNWeight = std::max(parentNNWeight,1e-10);
   double desiredPropFromChildren = desiredProp * childrenWeightSum / (childrenWeightSum + parentNNWeight);
 
   //Recurse
   double extraParentProp = 0.0;
-  for(int i = 0; i<numChildren; i++) {
-    double childWeight = childWeightBuf[i];
-    const SearchNode* child = children[i].getIfAllocated();
-    assert(child != NULL);
-    double desiredPropFromChild = (double)childWeight * childWeight / relativeChildrenWeightSum * desiredPropFromChildren;
-    if(desiredPropFromChild < pruneProp)
-      extraParentProp += desiredPropFromChild;
-    else {
-      bool accumulated = traverseTreeForOwnership(minProp,pruneProp,desiredPropFromChild,child,graphPath,accumulate);
-      if(!accumulated)
+  //In multithreading we may sometimes have children but with no weight at all yet, in that case just use parent alone.
+  if(desiredPropFromChildren <= 0.0 || relativeChildrenWeightSum <= 0.0) {
+    extraParentProp += desiredPropFromChildren;
+  }
+  else {
+    for(int i = 0; i<numChildren; i++) {
+      double childWeight = childWeightBuf[i];
+      const SearchNode* child = children[i].getIfAllocated();
+      assert(child != NULL);
+      double desiredPropFromChild = (double)childWeight * childWeight / relativeChildrenWeightSum * desiredPropFromChildren;
+      if(desiredPropFromChild < pruneProp)
         extraParentProp += desiredPropFromChild;
+      else {
+        bool accumulated = traverseTreeForOwnership(minProp,pruneProp,desiredPropFromChild,child,graphPath,accumulate);
+        if(!accumulated)
+          extraParentProp += desiredPropFromChild;
+      }
     }
   }
 
