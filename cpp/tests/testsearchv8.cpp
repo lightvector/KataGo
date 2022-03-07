@@ -1873,7 +1873,38 @@ o....xo..
 
     delete bot0;
   }
+}
 
+static void runMoreV8Tests2(NNEvaluator* nnEval, Logger& logger)
+{
+  {
+    cout << "TEST ownership endgame ==========================================================================" << endl;
+
+    Player nextPla = P_WHITE;
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(7,9,R"%%(
+x.ooo.x
+xxxxxxx
+oooooxx
+.o..oo.
+ooooooo
+.oxxxxx
+ooox..o
+oxxxxxx
+xx.....
+)%%");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 100;
+    params.futileVisitsThreshold = 0.4;
+    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "Endgame ownership test");
+
+    TestSearchOptions opts;
+    opts.printOwnership = true;
+    runBotOnPosition(bot,board,nextPla,hist,opts);
+    delete bot;
+  }
 }
 
 static void runMoreV8TestsRandomizedNNEvals(NNEvaluator* nnEval, Logger& logger)
@@ -2193,6 +2224,12 @@ void Tests::runSearchTestsV8(const string& modelFile, bool inputsNHWC, bool useN
   nnEval = startNNEval(
     modelFile,logger,"v8seed",19,19,5,inputsNHWC,useNHWC,useFP16,false,false);
   runMoreV8Tests(nnEval,logger);
+  delete nnEval;
+  nnEval = NULL;
+
+  nnEval = startNNEval(
+    modelFile,logger,"v8seed",19,19,5,inputsNHWC,useNHWC,useFP16,false,false);
+  runMoreV8Tests2(nnEval,logger);
   delete nnEval;
   nnEval = NULL;
 

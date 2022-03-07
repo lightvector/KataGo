@@ -614,7 +614,7 @@ private:
   std::pair<double,double> getAverageShorttermWLAndScoreErrorHelper(const SearchNode* node) const;
 
   template<typename Func>
-  void traverseTreeForOwnership(
+  bool traverseTreeForOwnership(
     double minProp,
     double pruneProp,
     double desiredProp,

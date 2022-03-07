@@ -1398,9 +1398,9 @@ vector<double> Search::getAverageTreeOwnership(const SearchNode* node) const {
   int64_t visits = node->stats.visits.load(std::memory_order_acquire);
   //Stop deepening when we hit a node whose proportion in the final average would be less than this.
   //Sublinear in visits so that the cost of this grows more slowly than overall search depth.
-  double minProp = 1.0 / pow(visits,0.75) / 4.0;
+  double minProp = 0.5 / pow(visits,0.75);
   //Entirely drop a node with weight less than this
-  double pruneProp = minProp * 0.005;
+  double pruneProp = minProp * 0.01;
   std::unordered_set<const SearchNode*> graphPath;
   traverseTreeForOwnership(minProp,pruneProp,1.0,node,graphPath,accumulate);
   return vec;
@@ -1421,9 +1421,9 @@ tuple<vector<double>,vector<double>> Search::getAverageAndStandardDeviationTreeO
   int64_t visits = node->stats.visits.load(std::memory_order_acquire);
   //Stop deepening when we hit a node whose proportion in the final average would be less than this.
   //Sublinear in visits so that the cost of this grows more slowly than overall search depth.
-  double minProp = 1.0 / pow(visits,0.75) / 4.0;
+  double minProp = 0.5 / pow(visits,0.75);
   //Entirely drop a node with weight less than this
-  double pruneProp = minProp * 0.005;
+  double pruneProp = minProp * 0.01;
   std::unordered_set<const SearchNode*> graphPath;
   traverseTreeForOwnership(minProp,pruneProp,1.0,node,graphPath,accumulate);
   for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
@@ -1433,8 +1433,9 @@ tuple<vector<double>,vector<double>> Search::getAverageAndStandardDeviationTreeO
   return std::make_tuple(average, stdev);
 }
 
+// Returns true if anything was accumulated, false otherwise.
 template<typename Func>
-void Search::traverseTreeForOwnership(
+bool Search::traverseTreeForOwnership(
   double minProp,
   double pruneProp,
   double desiredProp,
@@ -1443,18 +1444,18 @@ void Search::traverseTreeForOwnership(
   Func& accumulate
 ) const {
   if(node == NULL)
-    return;
+    return false;
 
   const NNOutput* nnOutput = node->getNNOutput();
   if(nnOutput == NULL)
-    return;
+    return false;
 
   //Base case
   if(desiredProp < minProp) {
     float* ownerMap = nnOutput->whiteOwnerMap;
     assert(ownerMap != NULL);
     accumulate(ownerMap, desiredProp);
-    return;
+    return true;
   }
 
   int childrenCapacity;
@@ -1464,7 +1465,7 @@ void Search::traverseTreeForOwnership(
     float* ownerMap = nnOutput->whiteOwnerMap;
     assert(ownerMap != NULL);
     accumulate(ownerMap, desiredProp);
-    return;
+    return true;
   }
 
   std::pair<std::unordered_set<const SearchNode*>::iterator,bool> result = graphPath.insert(node);
@@ -1474,6 +1475,7 @@ void Search::traverseTreeForOwnership(
     float* ownerMap = nnOutput->whiteOwnerMap;
     assert(ownerMap != NULL);
     accumulate(ownerMap, desiredProp);
+    return true;
   }
 
   double selfProp;
@@ -1496,7 +1498,7 @@ void Search::traverseTreeForOwnership(
   float* ownerMap = nnOutput->whiteOwnerMap;
   assert(ownerMap != NULL);
   accumulate(ownerMap, selfProp);
-  return;
+  return true;
 }
 
 // Returns the prop that the parent node should be weighted.
@@ -1545,8 +1547,11 @@ double Search::traverseTreeForOwnershipChildren(
     double desiredPropFromChild = (double)childWeight * childWeight / relativeChildrenWeightSum * desiredPropFromChildren;
     if(desiredPropFromChild < pruneProp)
       extraParentProp += desiredPropFromChild;
-    else
-      traverseTreeForOwnership(minProp,pruneProp,desiredPropFromChild,child,graphPath,accumulate);
+    else {
+      bool accumulated = traverseTreeForOwnership(minProp,pruneProp,desiredPropFromChild,child,graphPath,accumulate);
+      if(!accumulated)
+        extraParentProp += desiredPropFromChild;
+    }
   }
 
   double selfProp = extraParentProp + desiredProp * parentNNWeight / (childrenWeightSum + parentNNWeight);

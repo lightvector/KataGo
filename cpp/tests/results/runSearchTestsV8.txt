@@ -7024,6 +7024,61 @@ L4  : T -84.24c W -77.03c S  -7.22c (-23.5 L -21.9) LCB -280.00c P  0.31% WF   1
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732
+TEST ownership endgame ==========================================================================
+MoveNum: 0 HASH: 1C3E2CFF3462D0A28CEC88C4DAA5C529
+   A B C D E F G
+ 9 X . O O O . X
+ 8 X X X X X X X
+ 7 O O O O O X X
+ 6 . O . . O O .
+ 5 O O O O O O O
+ 4 . O X X X X X
+ 3 O O O X . . O
+ 2 O X X X X X X
+ 1 X X . . . . .
+
+Root visits: 100
+New playouts: 100
+NN rows: 71
+NN batches: 71
+NN avg batch size: 1
+PV: G6 pass pass
+Tree:
+: T  91.33c W  87.16c S   4.15c ( +3.4 L  +3.0) N     100  --  G6 pass pass
+---White(^)---
+G6  : T  94.31c W  89.87c S   4.44c ( +3.5 L  +3.1) LCB   85.03c P 39.16% WF  93.1 PSV      91 N      91  --  G6 pass pass
+pss : T  64.07c W  63.59c S   0.44c ( +2.0 L  +1.7) LCB -280.00c P 12.13% WF   1.7 PSV       2 N       2  --  pass G6
+D6  : T  55.87c W  54.31c S   1.55c ( +2.4 L  +2.4) LCB -280.00c P 10.56% WF   0.8 PSV       1 N       1  --  D6
+C6  : T  53.93c W  52.73c S   1.20c ( +2.2 L  +2.3) LCB -280.00c P 10.17% WF   0.8 PSV       1 N       1  --  C6
+A6  : T  63.76c W  61.39c S   2.37c ( +2.7 L  +2.6) LCB -280.00c P  7.52% WF   0.8 PSV       1 N       1  --  A6
+A4  : T  65.22c W  62.72c S   2.50c ( +2.7 L  +2.6) LCB -280.00c P  6.78% WF   0.9 PSV       1 N       1  --  A4
+F9  : T  -8.11c W  -4.64c S  -3.47c ( +0.1 L  +0.6) LCB -280.00c P  3.36% WF   0.5 PSV       0 N       1  --  F9
+B9  : T -44.96c W -35.67c S  -9.28c ( -2.0 L  -1.9) LCB -280.00c P  2.58% WF   0.4 PSV       0 N       1  --  B9
+ -65.8  -11.4   88.1   83.5   81.0    1.6  -71.6 
+ -80.7  -84.1  -80.4  -83.2  -88.5  -92.7  -86.3 
+  98.9   99.5   99.5   99.4   99.5  -91.8  -92.6 
+  99.6   99.9   98.8   99.5   99.6   99.7   99.2 
+  99.9   99.8   99.6   99.7   99.7   99.7   99.8 
+  99.7   99.8  -99.8  -99.9  -99.9  -99.9  -99.7 
+  99.8   99.7   99.8  -99.8  -99.8  -99.7  -99.9 
+  99.7  -99.8  -99.8  -99.9  -99.9  -99.9  -99.9 
+ -99.5  -99.9  -99.8  -99.8  -99.8  -99.8  -99.8 
+
+  23.9   11.1    6.8    4.6    8.6   25.0    9.8 
+  12.0   11.0   13.0   12.2    6.7    4.1    4.6 
+   0.8    0.2    0.1    0.3    0.2    5.9    5.0 
+   0.5    0.1    3.1    0.7    0.5    0.3    3.1 
+   0.1    0.1    0.2    0.2    0.2    0.1    0.1 
+   0.3    0.1    0.2    0.0    0.0    0.0    0.2 
+   0.1    0.1    0.1    0.0    0.1    0.2    0.1 
+   0.1    0.1    0.1    0.0    0.0    0.0    0.0 
+   0.1    0.0    0.2    0.2    0.2    0.2    0.2 
+
+: GPU 0 finishing, processed 71 rows 71 batches
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: b6c96-s175395328-d26788732
 TEST sampled symmetries ==========================================================================
 ===================================================================
 Repeatedly run bot with 8 root symmetries sampled, should be deterministic (except for scoreUtility due to dynamic score centering)

@@ -695,10 +695,10 @@ dda.a....
     W    W    W    W    W    W    W    W  +98
     W    W    W    W    W    W    W    W  -98
     B    B    B    B    B    B    B    B    B
-  -98    B    B    B    B    B    B    B    B
+  -97    B    B    B    B    B    B    B    B
     B  -97    B    B    B    B    B    B    B
   -97  -97    B    B    B    B    B    B    B
-  -98  -95    B    B    B    B    B    B    B
+  -98  -96    B    B    B    B    B    B    B
 
 Search assumes White first
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
@@ -730,10 +730,10 @@ dda.a....
     W    W    W    W    W    W    W    W    W
     W    W    W    W    W    W    W    W    W
     B    B    B    B    B    B    B    B  +96
-    B    B    B    B    B    B    B    B    B
-    B    B    B    B    B    B    B    B    B
-  -98  -98    B    B    B    B    B    B    B
+  -98    B    B    B    B    B    B    B    B
+    B  -98    B    B    B    B    B    B    B
   -98  -97    B    B    B    B    B    B    B
+  -98  -96    B    B    B    B    B    B    B
 
 Search assumes White first
 Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
@@ -760,15 +760,15 @@ aaaaa.a..
 aa.aa.aaa
 .aaaa.aa.
 
-  +16   +3  +47   -5  -72  -75  -42  -74  -50
-  +30  +50  +59  +77  +86  -68  -74  -74  -71
-    B    B    B    B  -98    W    W    W    W
-  -97  -97  -96  -95    B  +98  +98  +98  +97
-    B    B    B  -95  +93    W    W    W  +97
-  +59  +64  -98    B    B  +76    W  +98  +96
-  -17  +56  +68  +56    B  +84    W  +97  +96
-  -32  +46   +7  +57  -98  -83  -98  +97  +97
-  -15  -46  -41  +57  -98  -94  -98  -97  -57
+   +5   -5  +40  -11  -70  -73  -42  -72  -47
+  +21  +43  +55  +75  +85  -65  -71  -71  -70
+    B    B    B    B  -97    W    W    W    W
+  -97  -97  -95  -95    B  +97  +98  +98  +97
+    B    B    B  -94  +92    W  +98    W  +97
+  +66  +68  -98    B    B  +76    W  +97  +96
+   -5  +62  +73  +66    B  +83    W  +95  +95
+  -29  +58  +24  +68  -98  -82  -98  +95  +96
+  -16  -36  -24  +70  -98  -94  -98  -97  -58
 
 Search assumes White first
 Rules koSIMPLEscoreTERRITORYtaxSEKIsui0komi6.5
@@ -795,15 +795,15 @@ ddaaa.a..
 ad.da.aaa
 .aada.aa.
 
-  -28  -43  -10  -49  -79  -79  -65  -60  -52
-  -25   +0   +2  +21  +38  -75  -78  -88  -67
-    B    B    B    B  -98    W    W    W    W
-  -97  -97  -95  -92  -98  +41  +93  +95  +95
-    B    B    B  -88   +0    W  +94    W  +95
-  -11   +4    B    B    B  +25    W  +96  +94
-  -47   -9   +3   +7  -98  +56    W  +97  +94
-  -62  -22  -35   -4  -96  -51  -96  +98  +98
-  -55  -73  -67   +1  -98  -86  -95  -94  +10
+  -30  -46  -15  -47  -78  -78  -69  -63  -55
+  -28   -7   -8  +16  +33  -78  -80  -90  -69
+    B    B    B    B    B    W    W    W    W
+  -97  -96  -94  -89  -98  +44  +92  +95  +95
+    B    B    B  -83   +4    W  +94    W  +95
+   -7   +9    B    B  -98  +24    W  +95  +94
+  -44   -9   +9  +20  -98  +54    W  +97  +94
+  -54  -16  -29   +4  -96  -48  -94  +97  +98
+  -43  -68  -65  +11  -97  -85  -94  -92  +20
 
 ==============================================================
 : GPU 0 finishing, processed 775 rows 775 batches
