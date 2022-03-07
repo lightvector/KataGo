@@ -1040,6 +1040,10 @@ for name, base_config in list(config_of_name.items()):
   config_of_name[name+""] = config
 
   config = base_config.copy()
+  config["norm_kind"] = "fixscale"
+  config_of_name[name+"-fs"] = config
+
+  config = base_config.copy()
   config["norm_kind"] = "bnorm"
   config_of_name[name+"-bn"] = config
 
