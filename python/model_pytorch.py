@@ -88,7 +88,7 @@ class NormMask(torch.nn.Module):
             self.register_buffer(
                 "running_std", torch.ones(c_in, dtype=torch.float)
             )
-        elif self.norm_kind == "brenorm":
+        elif self.norm_kind == "brenorm" or self.norm_kind == "fixbrenorm":
             if self.use_gamma:
                 self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
@@ -190,7 +190,7 @@ class NormMask(torch.nn.Module):
             else:
                 return self.apply_gamma_beta_scale_mask((x - self.running_mean.view(1,self.c_in,1,1)) / self.running_std.view(1,self.c_in,1,1), mask)
 
-        elif self.norm_kind == "brenorm":
+        elif self.norm_kind == "brenorm" or self.norm_kind == "fixbrenorm":
             assert x.shape[1] == self.c_in
             if self.training:
                 zeromean_x, mean, std = self._compute_bnorm_values(x, mask, mask_sum)
@@ -303,7 +303,7 @@ class KataConvAndGPool(torch.nn.Module):
         # Scaling so that variance on the r and g branches adds up to 1.0
         r_scale = 0.8
         g_scale = 0.6
-        if self.norm_kind == "fixup" or self.norm_kind == "fixscale":
+        if self.norm_kind == "fixup" or self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm":
             init_weights(self.conv1r.weight, self.activation, scale=scale * r_scale)
             init_weights(self.conv1g.weight, self.activation, scale=math.sqrt(scale) * math.sqrt(g_scale))
             init_weights(self.linear_g.weight, self.activation, scale=math.sqrt(scale) * math.sqrt(g_scale))
@@ -374,7 +374,7 @@ class KataConvAndAttentionPool(torch.nn.Module):
         # Scaling so that variance on the r and g branches adds up to 1.0
         r_scale = 0.8
         g_scale = 0.6
-        if self.norm_kind == "fixup" or self.norm_kind == "fixscale":
+        if self.norm_kind == "fixup" or self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm":
             init_weights(self.conv1r.weight, self.activation, scale=scale * r_scale)
             init_weights(self.conv1g.weight, self.activation, scale=math.sqrt(scale) * math.sqrt(g_scale))
             init_weights(self.conv1k.weight, "identity", scale=math.sqrt(2.0))
@@ -616,7 +616,7 @@ class ResBlock(torch.nn.Module):
         if self.norm_kind == "fixup":
             self.normactconv1.initialize(scale=fixup_scale)
             self.normactconv2.initialize(scale=0.0)
-        elif self.norm_kind == "fixscale":
+        elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm":
             self.normactconv1.initialize(scale=1.0, norm_scale=fixup_scale)
             self.normactconv2.initialize(scale=1.0)
         else:
@@ -715,7 +715,7 @@ class BottleneckResBlock(torch.nn.Module):
             for i in range(self.internal_length):
                 self.normactconvstack[i].initialize(scale=math.pow(fixup_scale, 1.0 / (1.0 + self.internal_length)))
             self.normactconvq.initialize(scale=0.0)
-        elif self.norm_kind == "fixscale":
+        elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm":
             self.normactconvp.initialize(scale=1.0, norm_scale=fixup_scale)
             for i in range(self.internal_length):
                 self.normactconvstack[i].initialize(scale=1.0)
@@ -816,7 +816,7 @@ class NestedBottleneckResBlock(torch.nn.Module):
             for i in range(self.internal_length):
                 self.blockstack[i].initialize(fixup_scale=math.pow(fixup_scale, 1.0 / (1.0 + self.internal_length)))
             self.normactconvq.initialize(scale=0.0)
-        elif self.norm_kind == "fixscale":
+        elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm":
             self.normactconvp.initialize(scale=1.0, norm_scale=fixup_scale)
             for i in range(self.internal_length):
                 self.blockstack[i].initialize(fixup_scale=1.0 / math.sqrt(i+1.0))
@@ -921,7 +921,7 @@ class NestedNestedBottleneckResBlock(torch.nn.Module):
             for i in range(self.internal_length):
                 self.blockstack[i].initialize(fixup_scale=math.pow(fixup_scale, 1.0 / (1.0 + self.internal_length)))
             self.normactconvq.initialize(scale=0.0)
-        elif self.norm_kind == "fixscale":
+        elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm":
             self.normactconvp.initialize(scale=1.0, norm_scale=fixup_scale)
             for i in range(self.internal_length):
                 self.blockstack[i].initialize(fixup_scale=1.0 / math.sqrt(i+1.0))
@@ -1386,7 +1386,7 @@ class Model(torch.nn.Module):
                 fixup_scale = 1.0 / math.sqrt(self.num_total_blocks)
                 for block in self.blocks:
                     block.initialize(fixup_scale=fixup_scale)
-            elif self.norm_kind == "fixscale":
+            elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm":
                 for i, block in enumerate(self.blocks):
                     block.initialize(fixup_scale=1.0 / math.sqrt(i+1.0))
                 self.norm_trunkfinal.set_scale(1.0 / math.sqrt(self.num_total_blocks+1.0))

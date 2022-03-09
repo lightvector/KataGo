@@ -1052,6 +1052,10 @@ for name, base_config in list(config_of_name.items()):
   config_of_name[name+"-brn"] = config
 
   config = base_config.copy()
+  config["norm_kind"] = "fixbrenorm"
+  config_of_name[name+"-fbrn"] = config
+
+  config = base_config.copy()
   config["norm_kind"] = "bnorm"
   config["bnorm_use_gamma"] = True
   config_of_name[name+"-bng"] = config
@@ -1060,6 +1064,11 @@ for name, base_config in list(config_of_name.items()):
   config["norm_kind"] = "brenorm"
   config["bnorm_use_gamma"] = True
   config_of_name[name+"-brng"] = config
+
+  config = base_config.copy()
+  config["norm_kind"] = "fixbrenorm"
+  config["bnorm_use_gamma"] = True
+  config_of_name[name+"-fbrng"] = config
 
 for name, base_config in list(config_of_name.items()):
   config = base_config.copy()

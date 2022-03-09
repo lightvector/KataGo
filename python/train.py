@@ -233,7 +233,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         return 0.0
       else:
         assert False
-    elif model.get_norm_kind() == "bnorm" or model.get_norm_kind() == "brenorm":
+    elif model.get_norm_kind() == "bnorm" or model.get_norm_kind() == "brenorm" or model.get_norm_kind() == "fixbrenorm":
       if group_name == "normal":
         adaptive_scale = 1.0
         if "sums" in running_metrics and "norm_normal_batch" in running_metrics["sums"]:
@@ -357,6 +357,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     else:
       state_dict = torch.load(path_to_load_from)
       model = Model(model_config,pos_len)
+      model.initialize()
 
       # Strip off any "module." from when the model was saved with DDP or other things
       model_state_dict = {}
@@ -446,7 +447,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   def update_and_return_lr_and_wd():
     if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale":
       per_sample_lr = 0.00003 * lr_scale
-    elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm":
+    elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
       per_sample_lr = 0.00006 * lr_scale
     else:
       assert False
@@ -462,7 +463,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         warmup_scale = 1.0 / 2.0
       elif train_state["global_step_samples"] < 6000000:
         warmup_scale = 1.0 / 1.4
-    elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm":
+    elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
       if train_state["global_step_samples"] < 250000:
         warmup_scale = 1.0 / 20.0
       elif train_state["global_step_samples"] < 500000:
@@ -516,7 +517,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   def maybe_update_brenorm_params():
     nonlocal last_brenorm_update_samples_this_instance
 
-    if model_config["norm_kind"] == "brenorm":
+    if model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
       if "brenorm_rmax" not in train_state:
         train_state["brenorm_rmax"] = 1.0
       if "brenorm_dmax" not in train_state:
@@ -800,7 +801,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
 
         if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale":
           gnorm_cap = 2500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
-        elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm":
+        elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
           gnorm_cap = 4000.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
         else:
           assert False
@@ -825,7 +826,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=0.999)
         if batch_count_this_epoch % print_train_loss_every_batches == 0:
 
-          if model_config["norm_kind"] == "brenorm":
+          if model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
             metrics["brn_rmax"] = train_state["brenorm_rmax"]
             metrics["brn_dmax"] = train_state["brenorm_dmax"]
             metrics["brn_mmnt"] = brenorm_avg_momentum
