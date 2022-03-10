@@ -233,7 +233,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         return 0.0
       else:
         assert False
-    elif model.get_norm_kind() == "bnorm" or model.get_norm_kind() == "brenorm" or model.get_norm_kind() == "fixbrenorm":
+    elif model.get_norm_kind() == "bnorm" or model.get_norm_kind() == "brenorm" or model.get_norm_kind() == "fixbrenorm" or model.get_norm_kind() == "fixscaleonenorm":
       if group_name == "normal":
         adaptive_scale = 1.0
         if "sums" in running_metrics and "norm_normal_batch" in running_metrics["sums"]:
@@ -252,7 +252,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         # than expected.
         # So we scale sublinearly with lr_scale so as to slightly preadjust to this effect.
         # Adaptive scale should then help keep us there thereafter.
-        return 0.002 * world_size * batch_size / 256.0 * math.pow(lr_scale * warmup_scale,0.9) * adaptive_scale
+        return 0.00145 * world_size * batch_size / 256.0 * math.pow(lr_scale * warmup_scale,0.75) * adaptive_scale
       elif group_name == "output":
         return 0.000001 * world_size * batch_size / 256.0
       elif group_name == "noreg":
@@ -445,16 +445,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   # EPOCHS AND LR ---------------------------------------------------------------------
 
   def update_and_return_lr_and_wd():
-    if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale":
-      per_sample_lr = 0.00003 * lr_scale
-    elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
-      per_sample_lr = 0.00006 * lr_scale
-    else:
-      assert False
+    per_sample_lr = 0.00003 * lr_scale
 
     # Warmup for initial training
     warmup_scale = 1.0
-    if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale":
+    if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
       if train_state["global_step_samples"] < 1000000:
         warmup_scale = 1.0 / 5.0
       elif train_state["global_step_samples"] < 2000000:
@@ -799,10 +794,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         # Now we have the reduced gradients
         loss.backward()
 
-        if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale":
+        if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
           gnorm_cap = 2500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
         elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
-          gnorm_cap = 4000.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
+          gnorm_cap = 5500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
         else:
           assert False
 

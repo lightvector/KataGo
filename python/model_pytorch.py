@@ -55,6 +55,35 @@ def init_weights(tensor, activation, scale, fan_tensor=None):
     else:
         torch.nn.init.trunc_normal_(tensor, mean=0.0, std=std, a=-2.0*std, b=2.0*std)
 
+class BiasMask(torch.nn.Module):
+    def __init__(
+        self,
+        c_in,
+        config: modelconfigs.ModelConfig,
+        is_after_batchnorm: bool = False,
+    ):
+        super(BiasMask, self).__init__()
+        self.c_in = c_in
+        self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
+        self.is_after_batchnorm = is_after_batchnorm
+
+    def add_reg_dict(self, reg_dict:Dict[str,List]):
+        if self.is_after_batchnorm:
+            reg_dict["output_noreg"].append(self.beta)
+        else:
+            reg_dict["noreg"].append(self.beta)
+
+    def forward(self, x, mask, mask_sum: float):
+        """
+        Parameters:
+        x: NCHW
+        mask: N1HW
+        mask_sum: scalar
+
+        Returns: NCHW
+        """
+        return (x + self.beta) * mask
+
 
 class NormMask(torch.nn.Module):
     def __init__(
@@ -63,22 +92,24 @@ class NormMask(torch.nn.Module):
         config: modelconfigs.ModelConfig,
         fixup_use_gamma: bool,
         force_use_gamma: bool = False,
+        is_last_batchnorm: bool = False,
     ):
         super(NormMask, self).__init__()
         self.norm_kind = config["norm_kind"]
         self.epsilon = config["bnorm_epsilon"]
         self.running_avg_momentum = config["bnorm_running_avg_momentum"]
         self.fixup_use_gamma = fixup_use_gamma
+        self.is_last_batchnorm = is_last_batchnorm
         self.use_gamma = (
             ("bnorm_use_gamma" in config and config["bnorm_use_gamma"]) or
-            ((self.norm_kind == "fixup" or self.norm_kind == "fixscale") and fixup_use_gamma) or
+            ((self.norm_kind == "fixup" or self.norm_kind == "fixscale" or self.norm_kind == "fixscaleonenorm") and fixup_use_gamma) or
             force_use_gamma
         )
         self.c_in = c_in
 
         self.scale = None
         self.gamma = None
-        if self.norm_kind == "bnorm":
+        if self.norm_kind == "bnorm" or (self.norm_kind == "fixscaleonenorm" and self.is_last_batchnorm):
             if self.use_gamma:
                 self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
@@ -114,7 +145,7 @@ class NormMask(torch.nn.Module):
                 "renorm_dclippage", torch.zeros((), dtype=torch.float)
             )
 
-        elif self.norm_kind == "fixup" or self.norm_kind == "fixscale":
+        elif self.norm_kind == "fixup" or self.norm_kind == "fixscale" or (self.norm_kind == "fixscaleonenorm" and not self.is_last_batchnorm):
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
             if self.use_gamma:
                 self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))
@@ -124,12 +155,14 @@ class NormMask(torch.nn.Module):
     def set_scale(self, scale: Optional[float]):
         self.scale = scale
 
-    def add_reg_dict(self, reg_dict:Dict[str,List], is_last_batchnorm=False):
-        if self.gamma is not None:
-            reg_dict["normal"].append(self.gamma)
-        if is_last_batchnorm:
+    def add_reg_dict(self, reg_dict:Dict[str,List]):
+        if self.is_last_batchnorm:
+            if self.gamma is not None:
+                reg_dict["normal"].append(self.gamma)
             reg_dict["output_noreg"].append(self.beta)
         else:
+            if self.gamma is not None:
+                reg_dict["output"].append(self.gamma)
             reg_dict["noreg"].append(self.beta)
 
     def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
@@ -175,7 +208,7 @@ class NormMask(torch.nn.Module):
         Returns: NCHW
         """
 
-        if self.norm_kind == "bnorm":
+        if self.norm_kind == "bnorm" or (self.norm_kind == "fixscaleonenorm" and self.is_last_batchnorm):
             assert x.shape[1] == self.c_in
             if self.training:
                 zeromean_x, mean, std = self._compute_bnorm_values(x, mask, mask_sum)
@@ -223,7 +256,7 @@ class NormMask(torch.nn.Module):
             else:
                 return self.apply_gamma_beta_scale_mask((x - self.running_mean.view(1,self.c_in,1,1)) / self.running_std.view(1,self.c_in,1,1), mask)
 
-        elif self.norm_kind == "fixup" or self.norm_kind == "fixscale":
+        elif self.norm_kind == "fixup" or self.norm_kind == "fixscale" or (self.norm_kind == "fixscaleonenorm" and not self.is_last_batchnorm):
             return self.apply_gamma_beta_scale_mask(x, mask)
 
         else:
@@ -303,7 +336,7 @@ class KataConvAndGPool(torch.nn.Module):
         # Scaling so that variance on the r and g branches adds up to 1.0
         r_scale = 0.8
         g_scale = 0.6
-        if self.norm_kind == "fixup" or self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm":
+        if self.norm_kind == "fixup" or self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm" or self.norm_kind == "fixscaleonenorm":
             init_weights(self.conv1r.weight, self.activation, scale=scale * r_scale)
             init_weights(self.conv1g.weight, self.activation, scale=math.sqrt(scale) * math.sqrt(g_scale))
             init_weights(self.linear_g.weight, self.activation, scale=math.sqrt(scale) * math.sqrt(g_scale))
@@ -374,7 +407,7 @@ class KataConvAndAttentionPool(torch.nn.Module):
         # Scaling so that variance on the r and g branches adds up to 1.0
         r_scale = 0.8
         g_scale = 0.6
-        if self.norm_kind == "fixup" or self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm":
+        if self.norm_kind == "fixup" or self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm" or self.norm_kind == "fixscaleonenorm":
             init_weights(self.conv1r.weight, self.activation, scale=scale * r_scale)
             init_weights(self.conv1g.weight, self.activation, scale=math.sqrt(scale) * math.sqrt(g_scale))
             init_weights(self.conv1k.weight, "identity", scale=math.sqrt(2.0))
@@ -616,7 +649,7 @@ class ResBlock(torch.nn.Module):
         if self.norm_kind == "fixup":
             self.normactconv1.initialize(scale=fixup_scale)
             self.normactconv2.initialize(scale=0.0)
-        elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm":
+        elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm" or self.norm_kind == "fixscaleonenorm":
             self.normactconv1.initialize(scale=1.0, norm_scale=fixup_scale)
             self.normactconv2.initialize(scale=1.0)
         else:
@@ -715,7 +748,7 @@ class BottleneckResBlock(torch.nn.Module):
             for i in range(self.internal_length):
                 self.normactconvstack[i].initialize(scale=math.pow(fixup_scale, 1.0 / (1.0 + self.internal_length)))
             self.normactconvq.initialize(scale=0.0)
-        elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm":
+        elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm" or self.norm_kind == "fixscaleonenorm":
             self.normactconvp.initialize(scale=1.0, norm_scale=fixup_scale)
             for i in range(self.internal_length):
                 self.normactconvstack[i].initialize(scale=1.0)
@@ -816,7 +849,7 @@ class NestedBottleneckResBlock(torch.nn.Module):
             for i in range(self.internal_length):
                 self.blockstack[i].initialize(fixup_scale=math.pow(fixup_scale, 1.0 / (1.0 + self.internal_length)))
             self.normactconvq.initialize(scale=0.0)
-        elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm":
+        elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm" or self.norm_kind == "fixscaleonenorm":
             self.normactconvp.initialize(scale=1.0, norm_scale=fixup_scale)
             for i in range(self.internal_length):
                 self.blockstack[i].initialize(fixup_scale=1.0 / math.sqrt(i+1.0))
@@ -921,7 +954,7 @@ class NestedNestedBottleneckResBlock(torch.nn.Module):
             for i in range(self.internal_length):
                 self.blockstack[i].initialize(fixup_scale=math.pow(fixup_scale, 1.0 / (1.0 + self.internal_length)))
             self.normactconvq.initialize(scale=0.0)
-        elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm":
+        elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm" or self.norm_kind == "fixscaleonenorm":
             self.normactconvp.initialize(scale=1.0, norm_scale=fixup_scale)
             for i in range(self.internal_length):
                 self.blockstack[i].initialize(fixup_scale=1.0 / math.sqrt(i+1.0))
@@ -971,7 +1004,6 @@ class NestedNestedBottleneckResBlock(torch.nn.Module):
 class PolicyHead(torch.nn.Module):
     def __init__(self, c_in, c_p1, c_g1, config, activation):
         super(PolicyHead, self).__init__()
-        self.norm_kind = config["norm_kind"]
         self.activation = activation
 
         self.num_policy_outputs = 4
@@ -979,10 +1011,10 @@ class PolicyHead(torch.nn.Module):
         self.conv1p = torch.nn.Conv2d(c_in, c_p1, kernel_size=1, padding="same", bias=False)
         self.conv1g = torch.nn.Conv2d(c_in, c_g1, kernel_size=1, padding="same", bias=False)
 
-        self.normg = NormMask(
+        self.biasg = BiasMask(
             c_g1,
             config=config,
-            fixup_use_gamma=False,
+            is_after_batchnorm=True,
         )
         self.actg = act(self.activation)
         self.gpool = KataGPool()
@@ -990,10 +1022,10 @@ class PolicyHead(torch.nn.Module):
         self.linear_g = torch.nn.Linear(3 * c_g1, c_p1, bias=False)
         self.linear_pass = torch.nn.Linear(3 * c_g1, self.num_policy_outputs, bias=False)
 
-        self.norm2 = NormMask(
+        self.bias2 = BiasMask(
             c_p1,
             config=config,
-            fixup_use_gamma=False,
+            is_after_batchnorm=True,
         )
         self.act2 = act(activation)
         self.conv2p = torch.nn.Conv2d(c_p1, self.num_policy_outputs, kernel_size=1, padding="same", bias=False)
@@ -1012,27 +1044,25 @@ class PolicyHead(torch.nn.Module):
         init_weights(self.conv2p.weight, "identity", scale=scale_output)
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
-        reg_dict["normal"].append(self.conv1p.weight)
-        reg_dict["normal"].append(self.conv1g.weight)
-        reg_dict["normal"].append(self.linear_g.weight)
+        reg_dict["output"].append(self.conv1p.weight)
+        reg_dict["output"].append(self.conv1g.weight)
+        reg_dict["output"].append(self.linear_g.weight)
         reg_dict["output"].append(self.linear_pass.weight)
         reg_dict["output"].append(self.conv2p.weight)
-        self.normg.add_reg_dict(reg_dict,is_last_batchnorm=True)
-        self.norm2.add_reg_dict(reg_dict,is_last_batchnorm=True)
+        self.biasg.add_reg_dict(reg_dict)
+        self.bias2.add_reg_dict(reg_dict)
 
     def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
-        self.normg.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
-        self.norm2.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        pass
 
     def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
-        self.normg.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
-        self.norm2.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        pass
 
     def forward(self, x, mask, mask_sum_hw, mask_sum:float):
         outp = self.conv1p(x)
         outg = self.conv1g(x)
 
-        outg = self.normg(outg, mask=mask, mask_sum=mask_sum)
+        outg = self.biasg(outg, mask=mask, mask_sum=mask_sum)
         outg = self.actg(outg)
         outg = self.gpool(outg, mask=mask, mask_sum_hw=mask_sum_hw).squeeze(-1).squeeze(-1) # NC
 
@@ -1040,7 +1070,7 @@ class PolicyHead(torch.nn.Module):
         outg = self.linear_g(outg).unsqueeze(-1).unsqueeze(-1) # NCHW
 
         outp = outp + outg
-        outp = self.norm2(outp, mask=mask, mask_sum=mask_sum)
+        outp = self.bias2(outp, mask=mask, mask_sum=mask_sum)
         outp = self.act2(outp)
         outp = self.conv2p(outp)
         outpolicy = outp
@@ -1056,10 +1086,10 @@ class ValueHead(torch.nn.Module):
         super(ValueHead, self).__init__()
         self.activation = activation
         self.conv1 = torch.nn.Conv2d(c_in, c_v1, kernel_size=1, padding="same", bias=False)
-        self.norm1 = NormMask(
+        self.bias1 = BiasMask(
             c_v1,
             config=config,
-            fixup_use_gamma=False,
+            is_after_batchnorm=True,
         )
         self.act1 = act(activation)
         self.gpool = KataValueHeadGPool()
@@ -1137,7 +1167,7 @@ class ValueHead(torch.nn.Module):
         init_weights(self.linear_smix.bias, "identity", scale=bias_scale, fan_tensor=self.linear_smix.weight)
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
-        reg_dict["normal"].append(self.conv1.weight)
+        reg_dict["output"].append(self.conv1.weight)
         reg_dict["output"].append(self.linear2.weight)
         reg_dict["output_noreg"].append(self.linear2.bias)
         reg_dict["output"].append(self.linear_valuehead.weight)
@@ -1158,18 +1188,18 @@ class ValueHead(torch.nn.Module):
         reg_dict["output_noreg"].append(self.linear_s3.bias)
         reg_dict["output"].append(self.linear_smix.weight)
         reg_dict["output_noreg"].append(self.linear_smix.bias)
-        self.norm1.add_reg_dict(reg_dict,is_last_batchnorm=True)
+        self.bias1.add_reg_dict(reg_dict)
 
     def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
-        self.norm1.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        pass
 
     def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
-        self.norm1.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        pass
 
     def forward(self, x, mask, mask_sum_hw, mask_sum:float, input_global):
         outv1 = x
         outv1 = self.conv1(outv1)
-        outv1 = self.norm1(outv1, mask=mask, mask_sum=mask_sum)
+        outv1 = self.bias1(outv1, mask=mask, mask_sum=mask_sum)
         outv1 = self.act1(outv1)
 
         outpooled = self.gpool(outv1, mask=mask, mask_sum_hw=mask_sum_hw).squeeze(-1).squeeze(-1)
@@ -1333,7 +1363,7 @@ class Model(torch.nn.Module):
             else:
                 assert False, f"Unknown block kind: {block_config[1]}"
 
-        self.norm_trunkfinal = NormMask(self.c_trunk, self.config, fixup_use_gamma=False)
+        self.norm_trunkfinal = NormMask(self.c_trunk, self.config, fixup_use_gamma=False, is_last_batchnorm=True)
         self.act_trunkfinal = act(self.activation)
 
         self.policy_head = PolicyHead(
@@ -1386,7 +1416,7 @@ class Model(torch.nn.Module):
                 fixup_scale = 1.0 / math.sqrt(self.num_total_blocks)
                 for block in self.blocks:
                     block.initialize(fixup_scale=fixup_scale)
-            elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm":
+            elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm" or self.norm_kind == "fixscaleonenorm":
                 for i, block in enumerate(self.blocks):
                     block.initialize(fixup_scale=1.0 / math.sqrt(i+1.0))
                 self.norm_trunkfinal.set_scale(1.0 / math.sqrt(self.num_total_blocks+1.0))

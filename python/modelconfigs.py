@@ -1070,6 +1070,11 @@ for name, base_config in list(config_of_name.items()):
   config["bnorm_use_gamma"] = True
   config_of_name[name+"-fbrng"] = config
 
+  config = base_config.copy()
+  config["norm_kind"] = "fixscaleonenorm"
+  config["bnorm_use_gamma"] = True
+  config_of_name[name+"-fson"] = config
+
 for name, base_config in list(config_of_name.items()):
   config = base_config.copy()
   config["activation"] = "elu"
