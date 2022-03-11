@@ -66,12 +66,22 @@ class BiasMask(torch.nn.Module):
         self.c_in = c_in
         self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
         self.is_after_batchnorm = is_after_batchnorm
+        self.scale = None
+
+    def set_scale(self, scale: Optional[float]):
+        self.scale = scale
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         if self.is_after_batchnorm:
             reg_dict["output_noreg"].append(self.beta)
         else:
             reg_dict["noreg"].append(self.beta)
+
+    def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
+        pass
+
+    def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
+        pass
 
     def forward(self, x, mask, mask_sum: float):
         """
@@ -82,7 +92,10 @@ class BiasMask(torch.nn.Module):
 
         Returns: NCHW
         """
-        return (x + self.beta) * mask
+        if self.scale is not None:
+            return (x * self.scale + self.beta) * mask
+        else:
+            return (x + self.beta) * mask
 
 
 class NormMask(torch.nn.Module):
@@ -1265,6 +1278,8 @@ class Model(torch.nn.Module):
         self.num_total_blocks = len(self.block_kind)
         self.pos_len = pos_len
 
+        self.trunk_normless = "trunk_normless" in config and config["trunk_normless"]
+
         if "has_intermediate_head" in config and config["has_intermediate_head"]:
             self.has_intermediate_head = True
             self.intermediate_head_blocks = config["intermediate_head_blocks"]
@@ -1363,7 +1378,10 @@ class Model(torch.nn.Module):
             else:
                 assert False, f"Unknown block kind: {block_config[1]}"
 
-        self.norm_trunkfinal = NormMask(self.c_trunk, self.config, fixup_use_gamma=False, is_last_batchnorm=True)
+        if self.trunk_normless:
+            self.norm_trunkfinal = BiasMask(self.c_trunk, self.config, is_after_batchnorm=True)
+        else:
+            self.norm_trunkfinal = NormMask(self.c_trunk, self.config, fixup_use_gamma=False, is_last_batchnorm=True)
         self.act_trunkfinal = act(self.activation)
 
         self.policy_head = PolicyHead(
@@ -1384,7 +1402,7 @@ class Model(torch.nn.Module):
             self.pos_len,
         )
         if self.has_intermediate_head:
-            self.norm_intermediate_trunkfinal = NormMask(self.c_trunk, self.config, fixup_use_gamma=False)
+            self.norm_intermediate_trunkfinal = NormMask(self.c_trunk, self.config, fixup_use_gamma=False, is_last_batchnorm=True)
             self.act_intermediate_trunkfinal = act(self.activation)
             self.intermediate_policy_head = PolicyHead(
                 self.c_trunk,

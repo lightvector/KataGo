@@ -284,6 +284,7 @@ class Metrics:
         batch,
         is_training,
         soft_policy_weight_scale,
+        main_loss_scale,
         intermediate_loss_scale,
         intermediate_distill_scale,
     ):
@@ -295,6 +296,9 @@ class Metrics:
             soft_policy_weight_scale,
             is_intermediate=False
         )
+        if main_loss_scale is not None:
+            results["loss_sum"] = main_loss_scale * results["loss_sum"]
+
         if model.get_has_intermediate_head():
             assert len(model_output_postprocessed_byheads) > 1
             assert intermediate_loss_scale is not None or intermediate_distill_scale is not None

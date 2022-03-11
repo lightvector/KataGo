@@ -73,6 +73,7 @@ if __name__ == "__main__":
 
   parser.add_argument('-soft-policy-weight-scale', type=float, default=1.0, help='Soft policy loss coeff', required=False)
 
+  parser.add_argument('-main-loss-scale', type=float, help='Loss factor scale for main head', required=False)
   parser.add_argument('-intermediate-loss-scale', type=float, help='Loss factor scale for intermediate head', required=False)
   parser.add_argument('-intermediate-distill-scale', type=float, help='Distill factor scale for intermediate head', required=False)
 
@@ -141,6 +142,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   brenorm_adjustment_scale = args["brenorm_adjustment_scale"]
   soft_policy_weight_scale = args["soft_policy_weight_scale"]
 
+  main_loss_scale = args["main_loss_scale"]
   intermediate_loss_scale = args["intermediate_loss_scale"]
   intermediate_distill_scale = args["intermediate_distill_scale"]
 
@@ -785,6 +787,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
           batch,
           is_training=True,
           soft_policy_weight_scale=soft_policy_weight_scale,
+          main_loss_scale=main_loss_scale,
           intermediate_loss_scale=intermediate_loss_scale,
           intermediate_distill_scale=intermediate_distill_scale,
         )
@@ -926,6 +929,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
               batch,
               is_training=False,
               soft_policy_weight_scale=soft_policy_weight_scale,
+              main_loss_scale=main_loss_scale,
               intermediate_loss_scale=intermediate_loss_scale,
               intermediate_distill_scale=intermediate_distill_scale,
             )

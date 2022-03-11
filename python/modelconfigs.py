@@ -1107,3 +1107,10 @@ for name, base_config in list(config_of_name.items()):
   config["has_intermediate_head"] = True
   config["intermediate_head_blocks"] = len(config["block_kind"]) // 2
   config_of_name[name+"-ih"] = config
+
+for name, base_config in list(config_of_name.items()):
+  config = base_config.copy()
+  config["has_intermediate_head"] = True
+  config["intermediate_head_blocks"] = len(config["block_kind"])
+  config["trunk_normless"] = True
+  config_of_name[name+"-bnh"] = config
