@@ -1234,6 +1234,7 @@ FinishedGameData* Play::runGame(
   bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, const std::function<bool()>& shouldStop,
+  const WaitableFlag* shouldPause,
   const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
   std::function<NNEvaluator*()> checkForNewNNEval,
@@ -1257,6 +1258,7 @@ FinishedGameData* Play::runGame(
     doEndGameIfAllPassAlive, clearBotBeforeSearch,
     logger, logSearchInfo, logMoves,
     maxMovesPerGame, shouldStop,
+    shouldPause,
     playSettings, otherGameProps,
     gameRand,
     checkForNewNNEval,
@@ -1277,6 +1279,7 @@ FinishedGameData* Play::runGame(
   bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, const std::function<bool()>& shouldStop,
+  const WaitableFlag* shouldPause,
   const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
   std::function<NNEvaluator*()> checkForNewNNEval,
@@ -1472,6 +1475,8 @@ FinishedGameData* Play::runGame(
       hist.endGameIfAllPassAlive(board);
     if(hist.isGameFinished)
       break;
+    if(shouldPause != nullptr)
+      shouldPause->waitUntilFalse();
     if(shouldStop != nullptr && shouldStop())
       break;
 
@@ -1808,6 +1813,8 @@ FinishedGameData* Play::runGame(
     for(int i = 0; i<sidePositionsToSearch.size(); i++) {
       SidePosition* sp = sidePositionsToSearch[i];
 
+      if(shouldPause != nullptr)
+        shouldPause->waitUntilFalse();
       if(shouldStop != nullptr && shouldStop()) {
         delete sp;
         continue;
@@ -1927,6 +1934,11 @@ FinishedGameData* Play::runGame(
            gameData->whiteValueTargetsByTurn[turnAfterStart].noResult < 0.3 &&
            gameRand.nextBool(playSettings.estimateLeadProb)
         ) {
+          if(shouldPause != nullptr)
+            shouldPause->waitUntilFalse();
+          if(shouldStop != nullptr && shouldStop())
+            break;
+
           gameData->whiteValueTargetsByTurn[turnAfterStart].lead =
             PlayUtils::computeLead(botB,botW,board,hist,pla,playSettings.estimateLeadVisits,otherGameProps);
           gameData->whiteValueTargetsByTurn[turnAfterStart].hasLead = true;
@@ -1943,6 +1955,11 @@ FinishedGameData* Play::runGame(
            sp->whiteValueTargets.noResult < 0.3 &&
            gameRand.nextBool(playSettings.estimateLeadProb)
         ) {
+          if(shouldPause != nullptr)
+            shouldPause->waitUntilFalse();
+          if(shouldStop != nullptr && shouldStop())
+            break;
+
           sp->whiteValueTargets.lead =
             PlayUtils::computeLead(botB,botW,sp->board,sp->hist,sp->pla,playSettings.estimateLeadVisits,otherGameProps);
           sp->whiteValueTargets.hasLead = true;
@@ -2227,6 +2244,7 @@ FinishedGameData* GameRunner::runGame(
   const Sgf::PositionSample* startPosSample,
   Logger& logger,
   const std::function<bool()>& shouldStop,
+  const WaitableFlag* shouldPause,
   std::function<NNEvaluator*()> checkForNewNNEval,
   std::function<void(const MatchPairer::BotSpec&, Search*)> afterInitialization,
   std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
@@ -2315,6 +2333,7 @@ FinishedGameData* GameRunner::runGame(
     doEndGameIfAllPassAlive,clearBotBeforeSearchThisGame,
     logger,logSearchInfo,logMoves,
     maxMovesPerGame,shouldStop,
+    shouldPause,
     playSettings,otherGameProps,
     gameRand,
     checkForNewNNEval, //Note that if this triggers, botSpecB and botSpecW will get updated, for use in maybeForkGame

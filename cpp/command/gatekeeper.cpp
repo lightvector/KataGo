@@ -422,6 +422,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
     auto shouldStopFunc = [&netAndStuff]() {
       return shouldStop.load() || netAndStuff->terminated.load();
     };
+    WaitableFlag* shouldPause = nullptr;
 
     Rand thisLoopSeedRand;
     while(true) {
@@ -438,7 +439,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
           seed, botSpecB, botSpecW, NULL, NULL, logger,
-          shouldStopFunc, nullptr, nullptr, nullptr
+          shouldStopFunc, shouldPause, nullptr, nullptr, nullptr
         );
       }
 

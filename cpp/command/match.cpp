@@ -216,6 +216,7 @@ int MainCmds::match(const vector<string>& args) {
     auto shouldStopFunc = []() {
       return shouldStop.load();
     };
+    WaitableFlag* shouldPause = nullptr;
 
     Rand thisLoopSeedRand;
     while(true) {
@@ -234,7 +235,7 @@ int MainCmds::match(const vector<string>& args) {
         };
         gameData = gameRunner->runGame(
           seed, botSpecB, botSpecW, NULL, NULL, logger,
-          shouldStopFunc, nullptr, afterInitialization, nullptr
+          shouldStopFunc, shouldPause, nullptr, afterInitialization, nullptr
         );
       }
 
