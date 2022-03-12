@@ -1942,6 +1942,162 @@ oxooox.
     cout << endl;
   }
 
+  {
+    cout << "===================================================================" << endl;
+    cout << "FPU parent weight by visited policy false" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"seeed",7,7,0,true,false,false,true,false);
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 1000;
+    params.fpuParentWeightByVisitedPolicy = false;
+    params.fpuParentWeightByVisitedPolicyPow = 1.0;
+
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::parseRules("japanese");
+    Board board = Board::parseBoard(7,7,R"%%(
+.o.x.x.
+o.oxoxo
+xoxxxo.
+xx.xooo
+xxxxox.
+oxooox.
+.ooox.x
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "FPU parent weight by visited policy 1.0" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"seeed",7,7,0,true,false,false,true,false);
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 1000;
+    params.fpuParentWeightByVisitedPolicy = true;
+    params.fpuParentWeightByVisitedPolicyPow = 1.0;
+
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::parseRules("japanese");
+    Board board = Board::parseBoard(7,7,R"%%(
+.o.x.x.
+o.oxoxo
+xoxxxo.
+xx.xooo
+xxxxox.
+oxooox.
+.ooox.x
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "FPU parent weight by visited policy 2.5" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"seeed",7,7,0,true,false,false,true,false);
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 1000;
+    params.fpuParentWeightByVisitedPolicy = true;
+    params.fpuParentWeightByVisitedPolicyPow = 2.5;
+
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::parseRules("japanese");
+    Board board = Board::parseBoard(7,7,R"%%(
+.o.x.x.
+o.oxoxo
+xoxxxo.
+xx.xooo
+xxxxox.
+oxooox.
+.ooox.x
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "FPU parent weight by visited policy 0.5" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"seeed",7,7,0,true,false,false,true,false);
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 1000;
+    params.fpuParentWeightByVisitedPolicy = true;
+    params.fpuParentWeightByVisitedPolicyPow = 0.5;
+
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::parseRules("japanese");
+    Board board = Board::parseBoard(7,7,R"%%(
+.o.x.x.
+o.oxoxo
+xoxxxo.
+xx.xooo
+xxxxox.
+oxooox.
+.ooox.x
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
   NeuralNet::globalCleanup();
   cout << "Done" << endl;
 }
