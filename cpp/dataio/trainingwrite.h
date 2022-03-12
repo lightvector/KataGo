@@ -36,9 +36,9 @@ struct SidePosition {
   Player pla;
   int64_t unreducedNumVisits;
   std::vector<PolicyTargetMove> policyTarget;
-  float policySurprise;
-  float policyEntropy;
-  float searchEntropy;
+  double policySurprise;
+  double policyEntropy;
+  double searchEntropy;
   ValueTargets whiteValueTargets;
   NNRawStats nnRawStats;
   float targetWeight;
@@ -85,9 +85,9 @@ struct FinishedGameData {
   std::vector<float> targetWeightByTurn;
   std::vector<float> targetWeightByTurnUnrounded;
   std::vector<PolicyTarget> policyTargetsByTurn;
-  std::vector<float> policySurpriseByTurn;
-  std::vector<float> policyEntropyByTurn;
-  std::vector<float> searchEntropyByTurn;
+  std::vector<double> policySurpriseByTurn;
+  std::vector<double> policyEntropyByTurn;
+  std::vector<double> searchEntropyByTurn;
   std::vector<ValueTargets> whiteValueTargetsByTurn; //Except this one, we may have some of
   std::vector<NNRawStats> nnRawStatsByTurn;
   Color* finalFullArea;
@@ -239,9 +239,9 @@ struct TrainingWriteBuffers {
     int64_t unreducedNumVisits,
     const std::vector<PolicyTargetMove>* policyTarget0, //can be null
     const std::vector<PolicyTargetMove>* policyTarget1, //can be null
-    float policySurprise,
-    float policyEntropy,
-    float searchEntropy,
+    double policySurprise,
+    double policyEntropy,
+    double searchEntropy,
     const std::vector<ValueTargets>& whiteValueTargets,
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
     const NNRawStats& nnRawStats,

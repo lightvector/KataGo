@@ -354,9 +354,9 @@ void TrainingWriteBuffers::addRow(
   int64_t unreducedNumVisits,
   const vector<PolicyTargetMove>* policyTarget0, //can be null
   const vector<PolicyTargetMove>* policyTarget1, //can be null
-  float policySurprise,
-  float policyEntropy,
-  float searchEntropy,
+  double policySurprise,
+  double policyEntropy,
+  double searchEntropy,
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
   const NNRawStats& nnRawStats,
@@ -492,9 +492,9 @@ void TrainingWriteBuffers::addRow(
   //Unused
   rowGlobal[23] = 0.0f;
   rowGlobal[24] = 0.0f;
-  rowGlobal[30] = policySurprise;
-  rowGlobal[31] = policyEntropy;
-  rowGlobal[32] = searchEntropy;
+  rowGlobal[30] = (float)policySurprise;
+  rowGlobal[31] = (float)policyEntropy;
+  rowGlobal[32] = (float)searchEntropy;
   rowGlobal[35] = 0.0f;
 
   //Fill in whether we should use history or not

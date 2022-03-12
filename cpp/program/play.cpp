@@ -924,9 +924,9 @@ static void recordTreePositionsRec(
     bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy, node);
     assert(success);
     (void)success; //Avoid warning when asserts are disabled
-    sp->policySurprise = (float)policySurprise;
-    sp->policyEntropy = (float)policyEntropy;
-    sp->searchEntropy = (float)searchEntropy;
+    sp->policySurprise = policySurprise;
+    sp->policyEntropy = policyEntropy;
+    sp->searchEntropy = searchEntropy;
 
     sp->nnRawStats = computeNNRawStats(toMoveBot, board, hist, pla);
     sp->targetWeight = recordTreeTargetWeight;
@@ -1536,9 +1536,9 @@ FinishedGameData* Play::runGame(
       bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy);
       assert(success);
       (void)success; //Avoid warning when asserts are disabled
-      gameData->policySurpriseByTurn.push_back((float)policySurprise);
-      gameData->policyEntropyByTurn.push_back((float)policyEntropy);
-      gameData->searchEntropyByTurn.push_back((float)searchEntropy);
+      gameData->policySurpriseByTurn.push_back(policySurprise);
+      gameData->policyEntropyByTurn.push_back(policyEntropy);
+      gameData->searchEntropyByTurn.push_back(searchEntropy);
 
       rawNNValues.push_back(toMoveBot->getRootRawNNValuesRequireSuccess());
 
@@ -1842,9 +1842,9 @@ FinishedGameData* Play::runGame(
       bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy);
       assert(success);
       (void)success; //Avoid warning when asserts are disabled
-      sp->policySurprise = (float)policySurprise;
-      sp->policyEntropy = (float)policyEntropy;
-      sp->searchEntropy = (float)searchEntropy;
+      sp->policySurprise = policySurprise;
+      sp->policyEntropy = policyEntropy;
+      sp->searchEntropy = searchEntropy;
 
       sp->nnRawStats = computeNNRawStats(toMoveBot, sp->board, sp->hist, sp->pla);
       sp->targetWeight = 1.0f;
