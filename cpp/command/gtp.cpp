@@ -721,6 +721,11 @@ struct GTPEngine {
               data.writePVVisitsUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
             else
               data.writePVVisits(cout);
+            cout << " pvEdgeVisits ";
+            if(preventEncore && data.pvContainsPass())
+              data.writePVEdgeVisitsUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
+            else
+              data.writePVEdgeVisits(cout);
           }
         }
         cout << endl;
@@ -803,6 +808,11 @@ struct GTPEngine {
               data.writePVVisitsUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
             else
               data.writePVVisits(out);
+            out << " pvEdgeVisits ";
+            if(preventEncore && data.pvContainsPass())
+              data.writePVEdgeVisitsUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
+            else
+              data.writePVEdgeVisits(out);
           }
         }
 

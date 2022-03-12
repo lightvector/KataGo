@@ -32,6 +32,7 @@ struct AnalysisData {
   int symmetry; //The symmetry applied to isSymmetryOf to get move, or 0.
   std::vector<Loc> pv;
   std::vector<int64_t> pvVisits;
+  std::vector<int64_t> pvEdgeVisits;
 
   const SearchNode* node; //ONLY valid so long as search is not cleared
 
@@ -46,8 +47,10 @@ struct AnalysisData {
   bool pvContainsPass() const;
   void writePV(std::ostream& out, const Board& board) const;
   void writePVVisits(std::ostream& out) const;
+  void writePVEdgeVisits(std::ostream& out) const;
   void writePVUpToPhaseEnd(std::ostream& out, const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const;
   void writePVVisitsUpToPhaseEnd(std::ostream& out, const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const;
+  void writePVEdgeVisitsUpToPhaseEnd(std::ostream& out, const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const;
   int getPVLenUpToPhaseEnd(const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const;
 };
 

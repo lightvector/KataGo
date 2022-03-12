@@ -610,11 +610,28 @@ void Search::printRootEndingScoreValueBonus(ostream& out) const {
   }
 }
 
-void Search::appendPV(vector<Loc>& buf, vector<int64_t>& visitsBuf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* node, int maxDepth) const {
-  appendPVForMove(buf,visitsBuf,scratchLocs,scratchValues,node,Board::NULL_LOC,maxDepth);
+void Search::appendPV(
+  vector<Loc>& buf,
+  vector<int64_t>& visitsBuf,
+  vector<int64_t>& edgeVisitsBuf,
+  vector<Loc>& scratchLocs,
+  vector<double>& scratchValues,
+  const SearchNode* node,
+  int maxDepth
+) const {
+  appendPVForMove(buf,visitsBuf,edgeVisitsBuf,scratchLocs,scratchValues,node,Board::NULL_LOC,maxDepth);
 }
 
-void Search::appendPVForMove(vector<Loc>& buf, vector<int64_t>& visitsBuf, vector<Loc>& scratchLocs, vector<double>& scratchValues, const SearchNode* node, Loc move, int maxDepth) const {
+void Search::appendPVForMove(
+  vector<Loc>& buf,
+  vector<int64_t>& visitsBuf,
+  vector<int64_t>& edgeVisitsBuf,
+  vector<Loc>& scratchLocs,
+  vector<double>& scratchValues,
+  const SearchNode* node,
+  Loc move,
+  int maxDepth
+) const {
   if(node == NULL)
     return;
 
@@ -660,9 +677,11 @@ void Search::appendPVForMove(vector<Loc>& buf, vector<int64_t>& visitsBuf, vecto
     node = child;
 
     int64_t visits = node->stats.visits.load(std::memory_order_acquire);
+    int64_t edgeVisits = children[bestChildIdx].getEdgeVisits();
 
     buf.push_back(bestChildMoveLoc);
     visitsBuf.push_back(visits);
+    edgeVisitsBuf.push_back(edgeVisits);
   }
 }
 
@@ -670,9 +689,10 @@ void Search::appendPVForMove(vector<Loc>& buf, vector<int64_t>& visitsBuf, vecto
 void Search::printPV(ostream& out, const SearchNode* n, int maxDepth) const {
   vector<Loc> buf;
   vector<int64_t> visitsBuf;
+  vector<int64_t> edgeVisitsBuf;
   vector<Loc> scratchLocs;
   vector<double> scratchValues;
-  appendPV(buf,visitsBuf,scratchLocs,scratchValues,n,maxDepth);
+  appendPV(buf,visitsBuf,edgeVisitsBuf,scratchLocs,scratchValues,n,maxDepth);
   printPV(out,buf);
 }
 
@@ -762,7 +782,9 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
   data.pv.push_back(move);
   data.pvVisits.clear();
   data.pvVisits.push_back(childVisits);
-  appendPV(data.pv, data.pvVisits, scratchLocs, scratchValues, child, maxPVDepth);
+  data.pvEdgeVisits.clear();
+  data.pvEdgeVisits.push_back(edgeVisits);
+  appendPV(data.pv, data.pvVisits, data.pvEdgeVisits, scratchLocs, scratchValues, child, maxPVDepth);
 
   data.node = child;
 
@@ -981,9 +1003,10 @@ void Search::getAnalysisData(
 void Search::printPVForMove(ostream& out, const SearchNode* n, Loc move, int maxDepth) const {
   vector<Loc> buf;
   vector<int64_t> visitsBuf;
+  vector<int64_t> edgeVisitsBuf;
   vector<Loc> scratchLocs;
   vector<double> scratchValues;
-  appendPVForMove(buf,visitsBuf,scratchLocs,scratchValues,n,move,maxDepth);
+  appendPVForMove(buf,visitsBuf,edgeVisitsBuf,scratchLocs,scratchValues,n,move,maxDepth);
   for(int i = 0; i<buf.size(); i++) {
     if(i > 0)
       out << " ";
@@ -1714,6 +1737,12 @@ bool Search::getAnalysisJson(
       for(int j = 0; j < pvLen; j++)
         pvVisits.push_back(data.pvVisits[j]);
       moveInfo["pvVisits"] = pvVisits;
+
+      assert(data.pvEdgeVisits.size() >= pvLen);
+      json pvEdgeVisits = json::array();
+      for(int j = 0; j < pvLen; j++)
+        pvEdgeVisits.push_back(data.pvEdgeVisits[j]);
+      moveInfo["pvEdgeVisits"] = pvEdgeVisits;
     }
 
     if(includeMovesOwnership && includeMovesOwnershipStdev) {

@@ -1,0 +1,67 @@
+: Analysis Engine starting...
+: KataGo v1.10.0
+: nnRandSeed0 = analysisTest
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25434652672 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Loaded config configs/analysis_example.cfg and/or command-line and query overrides
+: Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: Config override: cudaUseFP16 = false
+: Config override: cudaUseNHWC = false
+: Config override: forDeterministicTesting = true
+: Config override: logAllRequests = true
+: Config override: logAllResponses = true
+: Config override: logDir = 
+: Config override: logFile = tests/results/analysis/pvvisits.txt.log
+: Config override: logSearchInfo = true
+: Config override: logTimeStamp = false
+: Config override: maxPlayouts = 10000
+: Config override: maxVisits = 100
+: Config override: nnRandSeed = analysisTest
+: Config override: nnRandomize = false
+: Config override: numAnalysisThreads = 1
+: Config override: numSearchThreadsPerAnalysisThread = 1
+: Config override: openclUseFP16 = false
+: Config override: rootSymmetryPruning = false
+: Config override: trtUseFP16 = false
+: Analyzing up to 1 positions at at time in parallel
+: Started, ready to begin handling requests
+: Request: {"id":"pvvisittest","initialStones":[],"moves":[["B","D4"],["W","D5"],["B","C5"],["W","E4"],["B","D3"],["W","C6"],["B","E5"],["W","D6"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":1000},"includePVVisits":true}
+: MoveNum: 8 HASH: 68923BD112145D32565C85CE0EF9CB35
+   A B C D E F G
+ 7 . . . . . . .
+ 6 . . O1O3. . .
+ 5 . . X O X2. .
+ 4 . . . X O . .
+ 3 . . . X . . .
+ 2 . . . . . . .
+ 1 . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi9
+Root visits: 1000
+New playouts: 1000
+NN rows: 755
+NN batches: 755
+NN avg batch size: 1
+PV: F5 C4 B5 C3 C2 D2 E3 E2 F3 B2 B3 C1 B4
+Tree:
+: T   6.92c W  14.15c S  -4.69c ( +0.7 L  +0.6) N    1000  --  F5 C4 B5 C3 C2 D2 E3
+---Black(^)---
+F5  : T  13.30c W  19.68c S  -3.84c ( +1.1 L  +1.0) LCB    0.64c P 18.75% WF 478.5 PSV     423 N     424  --  F5 C4 B5 C3 C2 D2 E3 E2
+F4  : T  -8.04c W  -0.63c S  -5.57c ( +0.2 L  +0.1) LCB  -28.74c P 36.13% WF 111.4 PSV      85 N     144  --  F4 C4 C3 B5 B4 F5 E3 E6
+E6  : T -22.83c W -12.59c S  -5.27c ( -1.0 L  -1.2) LCB  -49.63c P 40.37% WF  48.7 PSV      58 N      80  --  E6 E3 E2 F2 D2 F5 F6 F4
+E3  : T   7.49c W  15.37c S  -5.88c ( +0.6 L  +0.6) LCB   -7.41c P  3.98% WF 357.0 PSV      27 N     347  --  E3 F4 F5 F6 F3 C4 B3 E6
+B5  : T -87.06c W -72.12c S -14.94c ( -5.4 L  -5.0) LCB -280.00c P  0.44% WF   0.6 PSV       0 N       1  --  B5
+B4  : T -101.20c W -82.91c S -18.30c ( -7.0 L  -5.8) LCB -280.00c P  0.08% WF   0.5 PSV       0 N       1  --  B4
+B6  : T -83.49c W -69.80c S -13.69c ( -5.5 L  -3.4) LCB -280.00c P  0.07% WF   0.6 PSV       0 N       1  --  B6
+F6  : T -60.84c W -52.24c S  -8.61c ( -3.2 L  -2.9) LCB -280.00c P  0.04% WF   0.5 PSV       0 N       1  --  F6
+
+: Response: {"id":"pvvisittest","isDuringSearch":false,"moveInfos":[{"lcb":0.553219974,"move":"F5","order":0,"prior":0.18750371,"pv":["F5","C4","B5","C3","C2","D2","E3","E2","F3","B2","B3","C1","B4"],"pvEdgeVisits":[424,170,59,36,23,21,20,9,8,7,3,2,1],"pvVisits":[424,170,59,36,23,21,20,9,8,7,3,2,1],"scoreLead":0.972663252,"scoreMean":0.972663252,"scoreSelfplay":1.10570348,"scoreStdev":8.90481454,"utility":0.132973809,"utilityLcb":0.00642014457,"visits":424,"winrate":0.598417711},{"lcb":0.422917355,"move":"F4","order":1,"prior":0.361343056,"pv":["F4","C4","C3","B5","B4","F5","E3","E6","C5","E4","B6","C4","E5"],"pvEdgeVisits":[144,119,107,102,79,19,15,12,5,4,3,2,1],"pvVisits":[144,119,107,102,79,19,15,12,5,4,3,2,1],"scoreLead":0.138924612,"scoreMean":0.138924612,"scoreSelfplay":0.177975235,"scoreStdev":9.41322549,"utility":-0.0803668466,"utilityLcb":-0.287380846,"visits":144,"winrate":0.496850926},{"lcb":0.34137787,"move":"E6","order":2,"prior":0.403681099,"pv":["E6","E3","E2","F2","D2","F5","F6","F4","B6","B5","C4","B7","A6"],"pvEdgeVisits":[80,59,26,22,12,10,9,7,5,4,3,2,1],"pvVisits":[80,59,26,22,12,10,9,7,5,4,3,2,1],"scoreLead":-1.21029443,"scoreMean":-1.21029443,"scoreSelfplay":-0.956673626,"scoreStdev":16.7219793,"utility":-0.228323439,"utilityLcb":-0.496270001,"visits":80,"winrate":0.43707307},{"lcb":0.523625635,"move":"E3","order":3,"prior":0.0397898182,"pv":["E3","F4","F5","F6","F3","C4","B3","E6","B5","B6","A5","G5","G3","A6"],"pvEdgeVisits":[347,227,219,179,142,97,44,38,24,11,5,4,2,1],"pvVisits":[347,227,219,179,142,97,44,38,24,11,5,4,2,1],"scoreLead":0.595878512,"scoreMean":0.595878512,"scoreSelfplay":0.637637169,"scoreStdev":6.30340126,"utility":0.074907187,"utilityLcb":-0.0741390107,"visits":347,"winrate":0.576856419},{"lcb":-0.860603757,"move":"B5","order":4,"prior":0.00439723395,"pv":["B5"],"pvEdgeVisits":[1],"pvVisits":[1],"scoreLead":-4.95396185,"scoreMean":-4.95396185,"scoreSelfplay":-5.44648409,"scoreStdev":10.5671071,"utility":-0.870644001,"utilityLcb":-2.8,"visits":1,"winrate":0.139396243},{"lcb":-0.914547265,"move":"B4","order":5,"prior":0.000787151512,"pv":["B4"],"pvEdgeVisits":[1],"pvVisits":[1],"scoreLead":-5.81449413,"scoreMean":-5.81449413,"scoreSelfplay":-6.96907425,"scoreStdev":9.32004386,"utility":-1.0120462,"utilityLcb":-2.8,"visits":1,"winrate":0.0854527354},{"lcb":-0.849019535,"move":"B6","order":6,"prior":0.000691668538,"pv":["B6"],"pvEdgeVisits":[1],"pvVisits":[1],"scoreLead":-3.44325447,"scoreMean":-3.44325447,"scoreSelfplay":-5.49600983,"scoreStdev":12.4498331,"utility":-0.834932505,"utilityLcb":-2.8,"visits":1,"winrate":0.150980465},{"lcb":-0.761181042,"move":"F6","order":7,"prior":0.000391213922,"pv":["F6"],"pvEdgeVisits":[1],"pvVisits":[1],"scoreLead":-2.90896773,"scoreMean":-2.90896773,"scoreSelfplay":-3.19876814,"scoreStdev":15.9262033,"utility":-0.60843763,"utilityLcb":-2.8,"visits":1,"winrate":0.238818958}],"rootInfo":{"currentPlayer":"B","scoreLead":0.625985212,"scoreSelfplay":0.755933343,"scoreStdev":9.94252727,"symHash":"10155F672C0B5682E08EB339027AD849","thisHash":"E2B811FEE059E65F93697CB1DE35B543","utility":0.0654397674,"visits":1000,"winrate":0.56752577},"turnNumber":8}
+: tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: NN rows: 755
+: NN batches: 755
+: NN avg batch size: 1
+: GPU -1 finishing, processed 755 rows 755 batches
+: All cleaned up, quitting

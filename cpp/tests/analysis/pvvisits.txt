@@ -1,0 +1,1 @@
+{"id":"pvvisittest","initialStones":[],"moves":[["B","D4"],["W","D5"],["B","C5"],["W","E4"],["B","D3"],["W","C6"],["B","E5"],["W","D6"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":1000},"includePVVisits":true}
