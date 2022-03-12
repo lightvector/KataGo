@@ -127,8 +127,9 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
             * `utilityLcb` - The LCB of the move's utility.
             * `isSymmetryOf` - Another legal move. Possibly present if KataGo is configured to avoid searching some moves due to symmetry (`rootSymmetryPruning=true`). If present, this move was not actually searched, and all of its stats and PV are copied symmetrically from that other move.
             * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
-            * `pv` - The principal variation following this move. May be of variable length or even empty.
-            * `pvVisits` - The number of visits for each move in `pv`. Exists only if `pvVisits true` was requested.
+            * `pv` - The principal variation ("PV") following this move. May be of variable length or even empty.
+            * `pvVisits` - The number of visits used to explore the position resulting from each move in `pv`. Exists only if `includePVVisits` was requested.
+            * `pvEdgeVisits` - The number of visits used to explore each move in `pv`. Exists only if `includePVVisits` was requested. Differs from pvVisits when doing graph search and multiple move sequences lead to the same position - pvVisits will count the total number of visits for the position at that point in the PV, pvEdgeVisits will count only the visits reaching the position using the move in the PV from the preceding position.
          * `ownership` - Alternatively to `info`, this indicates the start of information about predicted board ownership, which applies to every location on the board rather than only legal moves. Only present if `ownership true` was provided.
             * Following is BoardHeight*BoardWidth many consecutive floats in [-1,1] separated by spaces, predicting the final ownership of every board location from the perspective of the current player. Floats are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
          * `ownershipStdev` - The standard deviation of the ownership across the search. Only present if `ownershipStdev true` was provided.
