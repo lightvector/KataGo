@@ -662,6 +662,7 @@ struct GTPEngine {
     bool showMovesOwnership = false;
     bool showMovesOwnershipStdev = false;
     bool showPVVisits = false;
+    bool showPVEdgeVisits = false;
     double secondsPerReport = TimeControls::UNLIMITED_TIME_DEFAULT;
     vector<int> avoidMoveUntilByLocBlack;
     vector<int> avoidMoveUntilByLocWhite;
@@ -723,6 +724,8 @@ struct GTPEngine {
               data.writePVVisitsUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
             else
               data.writePVVisits(cout);
+          }
+          if(args.showPVEdgeVisits) {
             cout << " pvEdgeVisits ";
             if(preventEncore && data.pvContainsPass())
               data.writePVEdgeVisitsUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
@@ -810,6 +813,8 @@ struct GTPEngine {
               data.writePVVisitsUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
             else
               data.writePVVisits(out);
+          }
+          if(args.showPVEdgeVisits) {
             out << " pvEdgeVisits ";
             if(preventEncore && data.pvContainsPass())
               data.writePVEdgeVisitsUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
@@ -818,44 +823,42 @@ struct GTPEngine {
           }
           vector<double> movesOwnership, movesOwnershipStdev;
           if(args.showMovesOwnershipStdev) {
-          static constexpr int64_t movesOwnershipStdevMinVisits = 3;
-          tuple<vector<double>,vector<double>> movesOwnershipAverageAndStdev;
-          movesOwnershipAverageAndStdev = search->getAverageAndStandardDeviationTreeOwnership(movesOwnershipStdevMinVisits,data.node);
-          movesOwnership = std::get<0>(movesOwnershipAverageAndStdev);
-          movesOwnershipStdev = std::get<1>(movesOwnershipAverageAndStdev);
+            tuple<vector<double>,vector<double>> movesOwnershipAverageAndStdev;
+            movesOwnershipAverageAndStdev = search->getAverageAndStandardDeviationTreeOwnership(data.node);
+            movesOwnership = std::get<0>(movesOwnershipAverageAndStdev);
+            movesOwnershipStdev = std::get<1>(movesOwnershipAverageAndStdev);
 
-        }
-        else if(args.showMovesOwnership) {
-          static constexpr int64_t movesOwnershipMinVisits = 3;
-          movesOwnership = search->getAverageTreeOwnership(movesOwnershipMinVisits,data.node);           
-        }
-           if(args.showMovesOwnership) {
-          out << " ";
+          }
+          else if(args.showMovesOwnership) {
+            movesOwnership = search->getAverageTreeOwnership(data.node);
+          }
+          if(args.showMovesOwnership) {
+            out << " ";
 
-          out << "movesOwnership";
-          int nnXLen = search->nnXLen;
-          for(int y = 0; y<board.y_size; y++) {
-            for(int x = 0; x<board.x_size; x++) {
-              int pos = NNPos::xyToPos(x,y,nnXLen);
-              if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
-                out << " " << -movesOwnership[pos];
-              else
-                out << " " << movesOwnership[pos];
+            out << "movesOwnership";
+            int nnXLen = search->nnXLen;
+            for(int y = 0; y<board.y_size; y++) {
+              for(int x = 0; x<board.x_size; x++) {
+                int pos = NNPos::xyToPos(x,y,nnXLen);
+                if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
+                  out << " " << -movesOwnership[pos];
+                else
+                  out << " " << movesOwnership[pos];
+              }
             }
           }
-        }
-        if(args.showMovesOwnershipStdev) {
-          out << " ";
+          if(args.showMovesOwnershipStdev) {
+            out << " ";
 
-          out << "movesOwnershipStdev";
-          int nnXLen = search->nnXLen;
-          for(int y = 0; y<board.y_size; y++) {
-            for(int x = 0; x<board.x_size; x++) {
-              int pos = NNPos::xyToPos(x,y,nnXLen);
-              out << " " << movesOwnershipStdev[pos];
+            out << "movesOwnershipStdev";
+            int nnXLen = search->nnXLen;
+            for(int y = 0; y<board.y_size; y++) {
+              for(int x = 0; x<board.x_size; x++) {
+                int pos = NNPos::xyToPos(x,y,nnXLen);
+                out << " " << movesOwnershipStdev[pos];
+              }
             }
           }
-        }
         }
 
         if(args.showOwnership) {
@@ -1394,10 +1397,11 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   int minMoves = 0;
   int maxMoves = 10000000;
   bool showOwnership = false;
-  bool showOwnershipStdev = false; 
+  bool showOwnershipStdev = false;
   bool showMovesOwnership = false;
   bool showMovesOwnershipStdev = false;
   bool showPVVisits = false;
+  bool showPVEdgeVisits = false;
   vector<int> avoidMoveUntilByLocBlack;
   vector<int> avoidMoveUntilByLocWhite;
   bool gotAvoidMovesBlack = false;
@@ -1418,6 +1422,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   //ownership <bool whether to show ownership or not>
   //ownershipStdev <bool whether to show ownershipStdev or not>
   //pvVisits <bool whether to show pvVisits or not>
+  //pvEdgeVisits <bool whether to show pvEdgeVisits or not>
 
   //Parse optional player
   if(pieces.size() > numArgsParsed && PlayerIO::tryParsePlayer(pieces[numArgsParsed],pla))
@@ -1521,7 +1526,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
     }
     else if(isKata && key == "ownershipStdev" && Global::tryStringToBool(value,showOwnershipStdev)) {
       continue;
-    }    
+    }
     else if(isKata && key == "movesOwnership" && Global::tryStringToBool(value,showMovesOwnership)) {
       continue;
     }
@@ -1529,6 +1534,9 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
       continue;
     }
     else if(isKata && key == "pvVisits" && Global::tryStringToBool(value,showPVVisits)) {
+      continue;
+    }
+    else if(isKata && key == "pvEdgeVisits" && Global::tryStringToBool(value,showPVEdgeVisits)) {
       continue;
     }
 
@@ -1549,6 +1557,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   args.showMovesOwnership = showMovesOwnership;
   args.showMovesOwnershipStdev = showMovesOwnershipStdev;
   args.showPVVisits = showPVVisits;
+  args.showPVEdgeVisits = showPVEdgeVisits;
   args.avoidMoveUntilByLocBlack = avoidMoveUntilByLocBlack;
   args.avoidMoveUntilByLocWhite = avoidMoveUntilByLocWhite;
   return args;
