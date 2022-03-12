@@ -42,7 +42,10 @@ class Metrics:
             moving_unowned_proportion_weight = self.moving_unowned_proportion_weight,
         )
     def load_state_dict(self, state_dict: Dict[str,Any]):
-        self.moving_unowned_proportion_sum = state_dict["moving_unowned_proportion_sum"]
+        if isinstance(state_dict["moving_unowned_proportion_sum"],torch.Tensor):
+            self.moving_unowned_proportion_sum = state_dict["moving_unowned_proportion_sum"].item()
+        else:
+            self.moving_unowned_proportion_sum = state_dict["moving_unowned_proportion_sum"]
         self.moving_unowned_proportion_weight = state_dict["moving_unowned_proportion_weight"]
 
     def loss_policy_player_samplewise(self, pred_logits, target_probs, weight, global_weight):
@@ -139,7 +142,7 @@ class Metrics:
             if not skip_moving_update:
                 self.moving_unowned_proportion_sum *= 0.998
                 self.moving_unowned_proportion_weight *= 0.998
-                self.moving_unowned_proportion_sum += unowned_proportion
+                self.moving_unowned_proportion_sum += unowned_proportion.item()
                 self.moving_unowned_proportion_weight += 1.0
             moving_unowned_proportion = self.moving_unowned_proportion_sum / self.moving_unowned_proportion_weight
             seki_weight_scale = 8.0 * 0.005 / (0.005 + moving_unowned_proportion)

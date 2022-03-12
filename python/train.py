@@ -357,7 +357,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
 
       return (model_config, model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
     else:
-      state_dict = torch.load(path_to_load_from)
+      state_dict = torch.load(path_to_load_from, map_location=device)
       model = Model(model_config,pos_len)
       model.initialize()
 
