@@ -832,18 +832,35 @@ struct GTPEngine {
           else if(args.showMovesOwnership) {
             movesOwnership = search->getAverageTreeOwnership(data.node);
           }
+          vector<double> ownershipToOutput(board.y_size * board.x_size, 0.0);
+          vector<double> ownershipStdevToOutput(board.y_size * board.x_size, 0.0);
+          int nnXLen = search->nnXLen;
+          for(int y = 0; y < board.y_size; y++) {
+            for(int x = 0; x < board.x_size; x++) {
+              int pos = NNPos::xyToPos(x, y, nnXLen);
+              Loc symLoc = SymmetryHelpers::getSymLoc(x, y, board, data.symmetry);
+              int symPos = Location::getY(symLoc, board.x_size) * board.x_size + Location::getX(symLoc, board.x_size);
+              assert(symPos >= 0 && symPos < board.y_size * board.x_size);
+
+              double o;
+              if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
+                o = -movesOwnership[pos];
+              else
+                o = movesOwnership[pos];
+              ownershipToOutput[symPos] = o;
+              if(args.showMovesOwnershipStdev) {
+                ownershipStdevToOutput[symPos] = movesOwnershipStdev[pos];
+              }
+            }
+          }
           if(args.showMovesOwnership) {
             out << " ";
 
             out << "movesOwnership";
-            int nnXLen = search->nnXLen;
             for(int y = 0; y<board.y_size; y++) {
               for(int x = 0; x<board.x_size; x++) {
                 int pos = NNPos::xyToPos(x,y,nnXLen);
-                if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
-                  out << " " << -movesOwnership[pos];
-                else
-                  out << " " << movesOwnership[pos];
+                out << " " << ownershipToOutput[pos];
               }
             }
           }
@@ -851,11 +868,10 @@ struct GTPEngine {
             out << " ";
 
             out << "movesOwnershipStdev";
-            int nnXLen = search->nnXLen;
             for(int y = 0; y<board.y_size; y++) {
               for(int x = 0; x<board.x_size; x++) {
                 int pos = NNPos::xyToPos(x,y,nnXLen);
-                out << " " << movesOwnershipStdev[pos];
+                out << " " << ownershipStdevToOutput[pos];
               }
             }
           }
