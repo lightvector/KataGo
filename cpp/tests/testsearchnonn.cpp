@@ -1226,6 +1226,113 @@ ooooo.oooooooo
 
   {
     cout << "===================================================================" << endl;
+    cout << "Analysis json with moves ownership and stdev" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"movesown",9,9,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 4;
+    params.subtreeValueBiasFactor = 0.5;
+    params.chosenMoveTemperature = 0;
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    search->setAlwaysIncludeOwnerMap(true);
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(7,7,R"%%(
+.......
+.......
+.......
+.......
+.......
+.......
+.......
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    nlohmann::json json;
+    Player perspective = P_WHITE;
+    int analysisPVLen = 2;
+    bool preventEncore = true;
+    bool includePolicy = false;
+    bool includeOwnership = true;
+    bool includeOwnershipStdev = true;
+    bool includeMovesOwnership = true;
+    bool includeMovesOwnershipStdev = true;
+    bool includePVVisits = false;
+    bool suc = search->getAnalysisJson(
+      perspective, analysisPVLen, preventEncore,
+      includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+      json
+    );
+    testAssert(suc);
+    cout << json << endl;
+
+    delete search;
+    delete nnEval;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Analysis json with moves ownership and stdev and symmetry" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"movesown",9,9,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 4;
+    params.subtreeValueBiasFactor = 0.5;
+    params.chosenMoveTemperature = 0;
+    params.rootSymmetryPruning = true;
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    search->setAlwaysIncludeOwnerMap(true);
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(7,7,R"%%(
+.......
+.......
+.......
+.......
+.......
+.......
+.......
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    nlohmann::json json;
+    Player perspective = P_WHITE;
+    int analysisPVLen = 2;
+    bool preventEncore = true;
+    bool includePolicy = false;
+    bool includeOwnership = true;
+    bool includeOwnershipStdev = true;
+    bool includeMovesOwnership = true;
+    bool includeMovesOwnershipStdev = true;
+    bool includePVVisits = false;
+    bool suc = search->getAnalysisJson(
+      perspective, analysisPVLen, preventEncore,
+      includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+      json
+    );
+    testAssert(suc);
+    cout << json << endl;
+
+    delete search;
+    delete nnEval;
+  }
+
+  {
+    cout << "===================================================================" << endl;
     cout << "Analysis json 2" << endl;
     cout << "===================================================================" << endl;
 

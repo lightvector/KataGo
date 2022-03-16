@@ -1433,7 +1433,7 @@ vector<double> Search::getAverageTreeOwnership(const SearchNode* node) const {
   return vec;
 }
 
-tuple<vector<double>,vector<double>> Search::getAverageAndStandardDeviationTreeOwnership(const SearchNode* node) const {
+std::pair<vector<double>,vector<double>> Search::getAverageAndStandardDeviationTreeOwnership(const SearchNode* node) const {
   if(node == NULL)
     node = rootNode;
   vector<double> average(nnXLen*nnYLen,0.0);
@@ -1457,7 +1457,7 @@ tuple<vector<double>,vector<double>> Search::getAverageAndStandardDeviationTreeO
     const double avg = average[pos];
     stdev[pos] = sqrt(max(stdev[pos] - avg * avg, 0.0));
   }
-  return std::make_tuple(average, stdev);
+  return std::make_pair(average, stdev);
 }
 
 // Returns true if anything was accumulated, false otherwise.
@@ -1594,26 +1594,13 @@ double Search::traverseTreeForOwnershipChildren(
   return selfProp;
 }
 
-static double roundStatic(double x, double inverseScale) {
-  return round(x * inverseScale) / inverseScale;
-}
-static double roundDynamic(double x, int precision) {
-  double absx = std::fabs(x);
-  if(absx <= 1e-60)
-    return x;
-  int orderOfMagnitude = (int)floor(log10(absx));
-  int roundingMagnitude = orderOfMagnitude - precision;
-  if(roundingMagnitude >= 0)
-    return round(x);
-  double inverseScale = pow(10.0,-roundingMagnitude);
-  return roundStatic(x, inverseScale);
-}
-
-
-json Search::getJsonOwnershipMap(
-  const Player pla, const Player perspective, const Board& board, const SearchNode* node, int symmetry
+std::vector<double> Search::getAverageTreeOwnership(
+  const Player perspective,
+  const SearchNode* node,
+  int symmetry
 ) const {
-  vector<double> ownership = getAverageTreeOwnership(node);
+  const vector<double> ownership = getAverageTreeOwnership(node);
+  const Board& board = rootBoard;
   vector<double> ownershipToOutput(board.y_size * board.x_size, 0.0);
 
   for(int y = 0; y < board.y_size; y++) {
@@ -1624,23 +1611,25 @@ json Search::getJsonOwnershipMap(
       assert(symPos >= 0 && symPos < board.y_size * board.x_size);
 
       double o;
-      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
+      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK))
         o = -ownership[pos];
       else
         o = ownership[pos];
       // Round to 10^-6 to limit the size of output.
       // No guarantees that the serializer actually outputs something of this length rather than longer due to float wonkiness, but it should usually be true.
-      o = roundStatic(o, 1000000.0);
-      ownershipToOutput[symPos] = o;
+      ownershipToOutput[symPos] = Global::roundStatic(o, 1000000.0);
     }
   }
-  return json(ownershipToOutput);
+  return ownershipToOutput;
 }
 
-std::pair<json,json> Search::getJsonOwnershipAndStdevMap(
-  const Player pla, const Player perspective, const Board& board, const SearchNode* node, int symmetry
+std::pair<std::vector<double>,std::vector<double>> Search::getAverageAndStandardDeviationTreeOwnership(
+  const Player perspective,
+  const SearchNode* node,
+  int symmetry
 ) const {
-  const tuple<vector<double>,vector<double>> ownershipAverageAndStdev = getAverageAndStandardDeviationTreeOwnership(node);
+  const std::pair<vector<double>,vector<double>> ownershipAverageAndStdev = getAverageAndStandardDeviationTreeOwnership(node);
+  const Board& board = rootBoard;
   const vector<double>& ownership = std::get<0>(ownershipAverageAndStdev);
   const vector<double>& ownershipStdev = std::get<1>(ownershipAverageAndStdev);
   vector<double> ownershipToOutput(board.y_size * board.x_size, 0.0);
@@ -1654,19 +1643,19 @@ std::pair<json,json> Search::getJsonOwnershipAndStdevMap(
       assert(symPos >= 0 && symPos < board.y_size * board.x_size);
 
       double o;
-      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
+      if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK))
         o = -ownership[pos];
       else
         o = ownership[pos];
       // Round to 10^-6 to limit the size of output.
       // No guarantees that the serializer actually outputs something of this length rather than longer due to float wonkiness, but it should usually be true.
-      o = roundStatic(o, 1000000.0);
-      ownershipToOutput[symPos] = o;
-      ownershipStdevToOutput[symPos] = roundStatic(ownershipStdev[pos], 1000000.0);
+      ownershipToOutput[symPos] = Global::roundStatic(o, 1000000.0);
+      ownershipStdevToOutput[symPos] = Global::roundStatic(ownershipStdev[pos], 1000000.0);
     }
   }
-  return std::make_pair(json(ownershipToOutput), json(ownershipStdevToOutput));
+  return std::make_pair(ownershipToOutput, ownershipStdevToOutput);
 }
+
 
 bool Search::getAnalysisJson(
   const Player perspective,
@@ -1711,15 +1700,15 @@ bool Search::getAnalysisJson(
     json moveInfo;
     moveInfo["move"] = Location::toString(data.move, board);
     moveInfo["visits"] = data.numVisits;
-    moveInfo["utility"] = roundDynamic(utility,OUTPUT_PRECISION);
-    moveInfo["winrate"] = roundDynamic(winrate,OUTPUT_PRECISION);
-    moveInfo["scoreMean"] = roundDynamic(lead,OUTPUT_PRECISION);
-    moveInfo["scoreSelfplay"] = roundDynamic(scoreMean,OUTPUT_PRECISION);
-    moveInfo["scoreLead"] = roundDynamic(lead,OUTPUT_PRECISION);
-    moveInfo["scoreStdev"] = roundDynamic(data.scoreStdev,OUTPUT_PRECISION);
-    moveInfo["prior"] = roundDynamic(data.policyPrior,OUTPUT_PRECISION);
-    moveInfo["lcb"] = roundDynamic(lcb,OUTPUT_PRECISION);
-    moveInfo["utilityLcb"] = roundDynamic(utilityLcb,OUTPUT_PRECISION);
+    moveInfo["utility"] = Global::roundDynamic(utility,OUTPUT_PRECISION);
+    moveInfo["winrate"] = Global::roundDynamic(winrate,OUTPUT_PRECISION);
+    moveInfo["scoreMean"] = Global::roundDynamic(lead,OUTPUT_PRECISION);
+    moveInfo["scoreSelfplay"] = Global::roundDynamic(scoreMean,OUTPUT_PRECISION);
+    moveInfo["scoreLead"] = Global::roundDynamic(lead,OUTPUT_PRECISION);
+    moveInfo["scoreStdev"] = Global::roundDynamic(data.scoreStdev,OUTPUT_PRECISION);
+    moveInfo["prior"] = Global::roundDynamic(data.policyPrior,OUTPUT_PRECISION);
+    moveInfo["lcb"] = Global::roundDynamic(lcb,OUTPUT_PRECISION);
+    moveInfo["utilityLcb"] = Global::roundDynamic(utilityLcb,OUTPUT_PRECISION);
     moveInfo["order"] = data.order;
     if(data.isSymmetryOf != Board::NULL_LOC)
       moveInfo["isSymmetryOf"] = Location::toString(data.isSymmetryOf, board);
@@ -1746,16 +1735,16 @@ bool Search::getAnalysisJson(
     }
 
     if(includeMovesOwnership && includeMovesOwnershipStdev) {
-      std::pair<json,json> ownershipAndStdev = getJsonOwnershipAndStdevMap(rootPla, perspective, board, data.node, data.symmetry);
-      moveInfo["ownership"] = ownershipAndStdev.first;
-      moveInfo["ownershipStdev"] = ownershipAndStdev.second;
+      std::pair<std::vector<double>,std::vector<double>> ownershipAndStdev = getAverageAndStandardDeviationTreeOwnership(perspective, data.node, data.symmetry);
+      moveInfo["ownership"] = json(ownershipAndStdev.first);
+      moveInfo["ownershipStdev"] = json(ownershipAndStdev.second);
     }
     else if(includeMovesOwnershipStdev) {
-      std::pair<json,json> ownershipAndStdev = getJsonOwnershipAndStdevMap(rootPla, perspective, board, data.node, data.symmetry);
-      moveInfo["ownershipStdev"] = ownershipAndStdev.second;
+      std::pair<std::vector<double>,std::vector<double>> ownershipAndStdev = getAverageAndStandardDeviationTreeOwnership(perspective, data.node, data.symmetry);
+      moveInfo["ownershipStdev"] = json(ownershipAndStdev.second);
     }
     else if(includeMovesOwnership) {
-      moveInfo["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, data.node, data.symmetry);
+      moveInfo["ownership"] = json(getAverageTreeOwnership(perspective, data.node, data.symmetry));
     }
 
     moveInfos.push_back(moveInfo);
@@ -1783,11 +1772,11 @@ bool Search::getAnalysisJson(
 
     json rootInfo;
     rootInfo["visits"] = rootVals.visits;
-    rootInfo["winrate"] = roundDynamic(winrate,OUTPUT_PRECISION);
-    rootInfo["scoreSelfplay"] = roundDynamic(scoreMean,OUTPUT_PRECISION);
-    rootInfo["scoreLead"] = roundDynamic(lead,OUTPUT_PRECISION);
-    rootInfo["scoreStdev"] = roundDynamic(rootVals.expectedScoreStdev,OUTPUT_PRECISION);
-    rootInfo["utility"] = roundDynamic(utility,OUTPUT_PRECISION);
+    rootInfo["winrate"] = Global::roundDynamic(winrate,OUTPUT_PRECISION);
+    rootInfo["scoreSelfplay"] = Global::roundDynamic(scoreMean,OUTPUT_PRECISION);
+    rootInfo["scoreLead"] = Global::roundDynamic(lead,OUTPUT_PRECISION);
+    rootInfo["scoreStdev"] = Global::roundDynamic(rootVals.expectedScoreStdev,OUTPUT_PRECISION);
+    rootInfo["utility"] = Global::roundDynamic(utility,OUTPUT_PRECISION);
 
     Hash128 thisHash;
     Hash128 symHash;
@@ -1820,30 +1809,30 @@ bool Search::getAnalysisJson(
     for(int y = 0; y < board.y_size; y++) {
       for(int x = 0; x < board.x_size; x++) {
         int pos = NNPos::xyToPos(x, y, nnXLen);
-        policy.push_back(roundDynamic(policyProbs[pos],OUTPUT_PRECISION));
+        policy.push_back(Global::roundDynamic(policyProbs[pos],OUTPUT_PRECISION));
       }
     }
 
     int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
-    policy.push_back(roundDynamic(policyProbs[passPos],OUTPUT_PRECISION));
+    policy.push_back(Global::roundDynamic(policyProbs[passPos],OUTPUT_PRECISION));
     ret["policy"] = policy;
   }
 
   // Average tree ownership
   if(includeOwnership && includeOwnershipStdev) {
     int symmetry = 0;
-    std::pair<json,json> ownershipAndStdev = getJsonOwnershipAndStdevMap(rootPla, perspective, board, rootNode, symmetry);
-    ret["ownership"] = ownershipAndStdev.first;
-    ret["ownershipStdev"] = ownershipAndStdev.second;
+    std::pair<std::vector<double>,std::vector<double>> ownershipAndStdev = getAverageAndStandardDeviationTreeOwnership(perspective, rootNode, symmetry);
+    ret["ownership"] = json(ownershipAndStdev.first);
+    ret["ownershipStdev"] = json(ownershipAndStdev.second);
   }
   else if(includeOwnershipStdev) {
     int symmetry = 0;
-    std::pair<json,json> ownershipAndStdev = getJsonOwnershipAndStdevMap(rootPla, perspective, board, rootNode, symmetry);
-    ret["ownershipStdev"] = ownershipAndStdev.second;
+    std::pair<std::vector<double>,std::vector<double>> ownershipAndStdev = getAverageAndStandardDeviationTreeOwnership(perspective, rootNode, symmetry);
+    ret["ownershipStdev"] = json(ownershipAndStdev.second);
   }
   else if(includeOwnership) {
     int symmetry = 0;
-    ret["ownership"] = getJsonOwnershipMap(rootPla, perspective, board, rootNode, symmetry);
+    ret["ownership"] = json(getAverageTreeOwnership(perspective, rootNode, symmetry));
   }
 
   return true;

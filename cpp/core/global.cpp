@@ -685,3 +685,18 @@ void Global::pauseForKey()
   cout << "Press any key to continue..." << endl;
   cin.get();
 }
+
+double Global::roundStatic(double x, double inverseScale) {
+  return round(x * inverseScale) / inverseScale;
+}
+double Global::roundDynamic(double x, int precision) {
+  double absx = std::fabs(x);
+  if(absx <= 1e-60)
+    return x;
+  int orderOfMagnitude = (int)floor(log10(absx));
+  int roundingMagnitude = orderOfMagnitude - precision;
+  if(roundingMagnitude >= 0)
+    return round(x);
+  double inverseScale = pow(10.0,-roundingMagnitude);
+  return roundStatic(x, inverseScale);
+}

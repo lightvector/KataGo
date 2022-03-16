@@ -824,13 +824,13 @@ struct GTPEngine {
           vector<double> movesOwnership, movesOwnershipStdev;
           if(args.showMovesOwnershipStdev) {
             tuple<vector<double>,vector<double>> movesOwnershipAverageAndStdev;
-            movesOwnershipAverageAndStdev = search->getAverageAndStandardDeviationTreeOwnership(data.node);
+            movesOwnershipAverageAndStdev = search->getAverageAndStandardDeviationTreeOwnership(perspective,data.node,data.symmetry);
             movesOwnership = std::get<0>(movesOwnershipAverageAndStdev);
             movesOwnershipStdev = std::get<1>(movesOwnershipAverageAndStdev);
 
           }
           else if(args.showMovesOwnership) {
-            movesOwnership = search->getAverageTreeOwnership(data.node);
+            movesOwnership = search->getAverageTreeOwnership(perspective,data.node,data.symmetry);
           }
           if(args.showMovesOwnership) {
             out << " ";
@@ -840,10 +840,7 @@ struct GTPEngine {
             for(int y = 0; y<board.y_size; y++) {
               for(int x = 0; x<board.x_size; x++) {
                 int pos = NNPos::xyToPos(x,y,nnXLen);
-                if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
-                  out << " " << -movesOwnership[pos];
-                else
-                  out << " " << movesOwnership[pos];
+                out << " " << movesOwnership[pos]; // perspective already handled by getAverageAndStandardDeviationTreeOwnership
               }
             }
           }

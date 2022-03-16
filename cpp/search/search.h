@@ -354,18 +354,24 @@ struct Search {
   //or changing parameters or clearing search.
   //If node is not provided, defaults to using the root node.
   std::vector<double> getAverageTreeOwnership(const SearchNode* node = NULL) const;
-  std::tuple<std::vector<double>,std::vector<double>> getAverageAndStandardDeviationTreeOwnership(const SearchNode* node = NULL) const;
+  std::pair<std::vector<double>,std::vector<double>> getAverageAndStandardDeviationTreeOwnership(const SearchNode* node = NULL) const;
+
+  //Same, but applies symmetry and perspective
+  std::vector<double> getAverageTreeOwnership(
+    const Player perspective,
+    const SearchNode* node,
+    int symmetry
+ ) const;
+  std::pair<std::vector<double>,std::vector<double>> getAverageAndStandardDeviationTreeOwnership(
+    const Player perspective,
+    const SearchNode* node,
+    int symmetry
+  ) const;
+
 
   std::pair<double,double> getAverageShorttermWLAndScoreError(const SearchNode* node = NULL) const;
   bool getSharpScore(const SearchNode* node, double& ret) const;
 
-  //Get ownership map as json
-  nlohmann::json getJsonOwnershipMap(
-    const Player pla, const Player perspective, const Board& board, const SearchNode* node, int symmetry
-  ) const;
-  std::pair<nlohmann::json,nlohmann::json> getJsonOwnershipAndStdevMap(
-    const Player pla, const Player perspective, const Board& board, const SearchNode* node, int symmetry
-  ) const;
   //Fill json with analysis engine format information about search results
   bool getAnalysisJson(
     const Player perspective,

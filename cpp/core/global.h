@@ -154,6 +154,12 @@ namespace Global
 
   //Display a message and ask the user to press a key to continue
   void pauseForKey();
+
+  //Round x to the nearest multiple of 1/inverseScale
+  double roundStatic(double x, double inverseScale);
+  //Round x to this many decimal digits of precision
+  double roundDynamic(double x, int precision);
+
 }
 
 struct StringError : public std::exception {
