@@ -1148,8 +1148,8 @@ int MainCmds::contribute(const vector<string>& args) {
     while(true) {
       logger.write("Type 'pause' and hit enter to pause contribute and CPU and GPU usage.");
       logger.write("Type 'resume' and hit enter to resume contribute and CPU and GPU usage.");
-      logger.write("Type 'quit' to begin shutdown and quit after all current games are done (may take a long while).");
-      logger.write("Type 'forcequit' to begin shutdown and quit more quickly, but lose all unfinished game data.");
+      logger.write("Type 'quit' and hit enter to begin shutdown and quit after all current games are done (may take a long while).");
+      logger.write("Type 'forcequit' and hit enter to begin shutdown and quit more quickly, but lose all unfinished game data.");
 
       getline(cin,line);
       if(!cin)
