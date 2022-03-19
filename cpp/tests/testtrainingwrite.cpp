@@ -110,6 +110,7 @@ void Tests::runTrainingWriteTests() {
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = cheapLongSgf ? 200 : 40;
     auto shouldStop = []() { return false; };
+    WaitableFlag* shouldPause = nullptr;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
@@ -124,6 +125,7 @@ void Tests::runTrainingWriteTests() {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, shouldStop,
+      shouldPause,
       playSettings, otherGameProps,
       rand,
       nullptr,
@@ -239,6 +241,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 1;
     auto shouldStop = []() { return false; };
+    WaitableFlag* shouldPause = nullptr;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
@@ -265,6 +268,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, shouldStop,
+      shouldPause,
       playSettings, otherGameProps,
       rand,
       nullptr,
@@ -436,6 +440,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = testResign ? 10000 : (testLead || testPolicySurpriseWeight || testValueSurpriseWeight) ? 30 : 15;
     auto shouldStop = []() { return false; };
+    WaitableFlag* shouldPause = nullptr;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0.04;
@@ -493,6 +498,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, logSearchInfo, false,
       maxMovesPerGame, shouldStop,
+      shouldPause,
       playSettings, otherGameProps,
       rand,
       nullptr,
@@ -595,6 +601,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 20;
     auto shouldStop = []() { return false; };
+    WaitableFlag* shouldPause = nullptr;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = true;
     playSettings.policyInitAreaProp = 0;
@@ -631,6 +638,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, logSearchInfo, false,
       maxMovesPerGame, shouldStop,
+      shouldPause,
       playSettings, otherGameProps,
       rand,
       nullptr,
@@ -917,9 +925,10 @@ xxxxxxxx.
 
     GameRunner* gameRunner = new GameRunner(cfg, "game init test game seed", playSettings, logger);
     auto shouldStop = []() { return false; };
+    WaitableFlag* shouldPause = nullptr;
     for(int i = 0; i<100; i++) {
       string seed = "game init test search seed:" + Global::int64ToString(i);
-      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, NULL, logger, shouldStop, nullptr, nullptr, nullptr);
+      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, NULL, logger, shouldStop, shouldPause, nullptr, nullptr, nullptr);
       cout << data->startHist.rules << endl;
       cout << "Start moves size " << data->startHist.moveHistory.size()
            << " Start pla " << PlayerIO::playerToString(data->startPla)
@@ -1008,6 +1017,7 @@ xxxxxxxx.
         bool clearBotAfterSearch = true;
         int maxMovesPerGame = 5;
         auto shouldStop = []() { return false; };
+        WaitableFlag* shouldPause = nullptr;
 
         string searchRandSeed = "target testing" + Global::intToString((int)i);
         Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, &logger, searchRandSeed);
@@ -1022,6 +1032,7 @@ xxxxxxxx.
           doEndGameIfAllPassAlive, clearBotAfterSearch,
           logger, logSearchInfo, false,
           maxMovesPerGame, shouldStop,
+          shouldPause,
           playSettings, otherGameProps,
           rand,
           nullptr,
@@ -1076,6 +1087,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
     ForkData* forkData = new ForkData();
     GameRunner* gameRunner = new GameRunner(cfg, "game init stattest1", playSettings, logger);
     auto shouldStop = []() { return false; };
+    WaitableFlag* shouldPause = nullptr;
 
     std::map<float,int> komiDistribution;
     std::map<int,int> bStoneDistribution;
@@ -1083,7 +1095,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
     std::map<string,int> bSizeDistribution;
     for(int i = 0; i<400; i++) {
       string seed = name + Global::int64ToString(i);
-      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, startPosSample, logger, shouldStop, nullptr, nullptr, nullptr);
+      FinishedGameData* data = gameRunner->runGame(seed, botSpec, botSpec, forkData, startPosSample, logger, shouldStop, shouldPause, nullptr, nullptr, nullptr);
       komiDistribution[data->startHist.rules.komi] += 1;
       bStoneDistribution[data->startBoard.numPlaStonesOnBoard(P_BLACK)] += 1;
       wStoneDistribution[data->startBoard.numPlaStonesOnBoard(P_WHITE)] += 1;
@@ -1923,6 +1935,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     bool clearBotAfterSearch = true;
     int maxMovesPerGame = 1;
     auto shouldStop = []() { return false; };
+    WaitableFlag* shouldPause = nullptr;
     PlaySettings playSettings;
     playSettings.initGamesWithPolicy = false;
     playSettings.sidePositionProb = 0;
@@ -1948,6 +1961,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
       doEndGameIfAllPassAlive, clearBotAfterSearch,
       logger, false, false,
       maxMovesPerGame, shouldStop,
+      shouldPause,
       playSettings, otherGameProps,
       rand,
       nullptr,

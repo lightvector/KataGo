@@ -5,6 +5,7 @@
 #include "../core/global.h"
 #include "../core/multithread.h"
 #include "../core/rand.h"
+#include "../core/threadsafecounter.h"
 #include "../core/threadsafequeue.h"
 #include "../dataio/trainingwrite.h"
 #include "../dataio/sgf.h"
@@ -255,6 +256,7 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, const std::function<bool()>& shouldStop,
+    const WaitableFlag* shouldPause,
     const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
     std::function<NNEvaluator*()> checkForNewNNEval,
@@ -269,6 +271,7 @@ namespace Play {
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, const std::function<bool()>& shouldStop,
+    const WaitableFlag* shouldPause,
     const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
     std::function<NNEvaluator*()> checkForNewNNEval,
@@ -326,6 +329,7 @@ public:
     const Sgf::PositionSample* startPosSample,
     Logger& logger,
     const std::function<bool()>& shouldStop,
+    const WaitableFlag* shouldPause,
     std::function<NNEvaluator*()> checkForNewNNEval,
     std::function<void(const MatchPairer::BotSpec&, Search*)> afterInitialization,
     std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove

@@ -144,6 +144,7 @@ add_executable(katago
   core/global.cpp
   core/base64.cpp
   core/bsearch.cpp
+  core/commandloop.cpp
   core/config_parser.cpp
   core/datetime.cpp
   core/elo.cpp
