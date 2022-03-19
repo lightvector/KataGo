@@ -16440,8 +16440,8 @@ cpuctUtilityStdevPriorWeight: 2
 cpuctUtilityStdevScale: 0
 fpuReductionMax: 0.2
 fpuLossProp: 0
-fpuParentWeightByVisitedPolicy: 1
-fpuParentWeightByVisitedPolicyPow: 2
+fpuParentWeightByVisitedPolicy: 0
+fpuParentWeightByVisitedPolicyPow: 1
 fpuParentWeight: 0
 valueWeightExponent: 0.25
 useNoisePruning: 0
@@ -16451,7 +16451,7 @@ useUncertainty: 0
 uncertaintyCoeff: 0.25
 uncertaintyExponent: 1
 uncertaintyMaxWeight: 8
-useGraphSearch: 1
+useGraphSearch: 0
 graphSearchRepBound: 11
 graphSearchCatchUpLeakProb: 0
 rootNoiseEnabled: 0

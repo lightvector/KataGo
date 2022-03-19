@@ -449,7 +449,7 @@ vector<SearchParams> Setup::loadParams(
     else                                   params.fpuLossProp = 0.0;
     if(cfg.contains("fpuParentWeightByVisitedPolicy"+idxStr)) params.fpuParentWeightByVisitedPolicy = cfg.getBool("fpuParentWeightByVisitedPolicy"+idxStr);
     else if(cfg.contains("fpuParentWeightByVisitedPolicy"))   params.fpuParentWeightByVisitedPolicy = cfg.getBool("fpuParentWeightByVisitedPolicy");
-    else                                                      params.fpuParentWeightByVisitedPolicy = true;
+    else                                                      params.fpuParentWeightByVisitedPolicy = (setupFor != SETUP_FOR_DISTRIBUTED);
     if(params.fpuParentWeightByVisitedPolicy) {
       if(cfg.contains("fpuParentWeightByVisitedPolicyPow"+idxStr)) params.fpuParentWeightByVisitedPolicyPow = cfg.getDouble("fpuParentWeightByVisitedPolicyPow"+idxStr, 0.0, 5.0);
       else if(cfg.contains("fpuParentWeightByVisitedPolicyPow"))   params.fpuParentWeightByVisitedPolicyPow = cfg.getDouble("fpuParentWeightByVisitedPolicyPow",        0.0, 5.0);
@@ -490,7 +490,7 @@ vector<SearchParams> Setup::loadParams(
 
     if(cfg.contains("useGraphSearch"+idxStr)) params.useGraphSearch = cfg.getBool("useGraphSearch"+idxStr);
     else if(cfg.contains("useGraphSearch"))   params.useGraphSearch = cfg.getBool("useGraphSearch");
-    else                                      params.useGraphSearch = true;
+    else                                      params.useGraphSearch = (setupFor != SETUP_FOR_DISTRIBUTED);
     if(cfg.contains("graphSearchRepBound"+idxStr)) params.graphSearchRepBound = cfg.getInt("graphSearchRepBound"+idxStr, 3, 50);
     else if(cfg.contains("graphSearchRepBound"))   params.graphSearchRepBound = cfg.getInt("graphSearchRepBound",        3, 50);
     else                                           params.graphSearchRepBound = 11;
@@ -659,7 +659,10 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("futileVisitsThreshold"))   params.futileVisitsThreshold = cfg.getDouble("futileVisitsThreshold",0.01,1.0);
     else                                             params.futileVisitsThreshold = 0.0;
 
-
+    //On distributed, tolerate reading mutexPoolSize since older version configs use it.
+    if(setupFor == SETUP_FOR_DISTRIBUTED)
+      cfg.markAllKeysUsedWithPrefix("mutexPoolSize");
+    
     paramss.push_back(params);
   }
 
