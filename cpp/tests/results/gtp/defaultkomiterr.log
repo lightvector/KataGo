@@ -40,7 +40,7 @@
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
-17 . . . . . . . . . . . . . . . @ . . .
+17 . . . . . . . . . . . . . . . . . . .
 16 . . . . . . . . . . . . . . . . . . .
 15 . . . . . . . . . . . . . . . . . . .
 14 . . . . . . . . . . . . . . . . . . .
@@ -54,7 +54,7 @@
  6 . . . . . . . . . . . . . . . . . . .
  5 . . . . . . . . . . . . . . . . . . .
  4 . . . . . . . . . . . . . . . . . . .
- 3 . . . . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . @ . . .
  2 . . . . . . . . . . . . . . . . . . .
  1 . . . . . . . . . . . . . . . . . . .
 
@@ -62,24 +62,24 @@ koPOSITIONALscoreTERRITORYtaxNONEsui0komi6.5
 Time taken: ###
 Root visits: 100
 New playouts: 100
-NN rows: 92
-NN batches: 92
+NN rows: 90
+NN batches: 90
 NN avg batch size: 1
-PV: C16 D3 Q17 Q3
+PV: C16 D3 Q17 Q3 Q15
 Tree:
-: T   1.25c W   0.36c S   0.37c ( +0.2 L  +0.4) N     100  --  C16 D3 Q17 Q3
+: T   1.39c W   0.23c S   0.38c ( +0.2 L  +0.4) N     100  --  C16 D3 Q17 Q3 Q15
 ---Black(^)---
-C16 : T   3.09c W   1.98c S   0.57c ( +0.5 L  +0.6) LCB   -0.34c P  7.48% WF  24.4 PSV      25 N      24  --  C16 D3 Q17 Q3
-Q17 : T   1.62c W   0.66c S   0.48c ( +0.4 L  +0.5) LCB   -6.04c P  8.75% WF  12.0 PSV      11 N      12  --  Q17 D3 D17 Q3
-Q3  : T   1.04c W   0.22c S   0.40c ( +0.3 L  +0.5) LCB   -6.94c P  8.94% WF  10.0 PSV       9 N      10  --  Q3 Q17 C4 D17
-C4  : T   0.99c W  -0.01c S   0.33c ( +0.2 L  +0.3) LCB  -10.10c P  8.52% WF  10.0 PSV       8 N      10  --  C4 Q3 Q17 D17
-D3  : T   1.07c W   0.24c S   0.38c ( +0.2 L  +0.5) LCB   -9.88c P  8.33% WF  10.0 PSV       8 N      10  --  D3 Q17 Q3 D17
-R4  : T   0.34c W  -0.82c S   0.14c ( -0.1 L  +0.2) LCB  -19.09c P  9.08% WF   6.9 PSV       7 N       7  --  R4 Q17 C4 D17
-D17 : T   0.63c W  -0.24c S   0.29c ( +0.1 L  +0.3) LCB  -20.86c P  7.53% WF   7.0 PSV       6 N       7  --  D17 D3 Q17 Q3
-R16 : T   0.87c W   0.02c S   0.36c ( +0.2 L  +0.4) LCB  -20.67c P  7.10% WF   7.0 PSV       6 N       7  --  R16 D3 D17 Q3
-Q4  : T  -0.62c W  -1.16c S   0.13c ( -0.1 L  +0.2) LCB  -88.38c P  7.11% WF   3.9 PSV       4 N       4  --  Q4 D3 Q17
-D4  : T  -0.21c W  -0.75c S   0.13c ( -0.1 L  +0.3) LCB  -88.91c P  5.73% WF   4.0 PSV       4 N       4  --  D4 D17 Q17
+C16 : T   2.82c W   1.43c S   0.60c ( +0.5 L  +0.6) LCB   -0.50c P  7.48% WF  19.1 PSV      24 N      19  --  C16 D3 Q17 Q3 Q15
+Q3  : T   1.94c W   0.51c S   0.42c ( +0.3 L  +0.4) LCB   -3.00c P  8.94% WF  13.0 PSV      13 N      13  --  Q3 Q17 C4 D17 E4
+Q17 : T   1.77c W   0.66c S   0.48c ( +0.4 L  +0.5) LCB   -3.60c P  8.75% WF  11.0 PSV      11 N      11  --  Q17 D3 D17 Q3 Q15
+R4  : T   1.24c W  -0.65c S   0.21c ( -0.0 L  +0.3) LCB   -6.61c P  9.08% WF  11.0 PSV      10 N      11  --  R4 Q17 C4 D17
+C4  : T   1.34c W   0.45c S   0.38c ( +0.2 L  +0.3) LCB   -7.99c P  8.52% WF  10.0 PSV       9 N      10  --  C4 Q17 D17 Q3 E4
+D3  : T   1.17c W   0.27c S   0.41c ( +0.3 L  +0.5) LCB  -11.84c P  8.33% WF   8.0 PSV       8 N       8  --  D3 Q17 Q3 D17
+R16 : T   1.37c W   0.20c S   0.39c ( +0.2 L  +0.4) LCB  -13.42c P  7.10% WF   8.0 PSV       8 N       8  --  R16 D3 D17 Q3 P16
+D17 : T   0.67c W  -0.39c S   0.30c ( +0.1 L  +0.3) LCB   -8.21c P  7.53% WF   8.0 PSV       6 N       8  --  D17 Q17 C4 Q3 E4
+Q4  : T  -0.59c W  -1.02c S   0.23c ( +0.0 L  +0.4) LCB  -36.81c P  7.11% WF   5.0 PSV       4 N       5  --  Q4 D3 Q17 D17
+D4  : T  -0.02c W  -0.75c S   0.13c ( -0.1 L  +0.3) LCB  -83.98c P  5.73% WF   4.0 PSV       4 N       4  --  D4 D17 Q17
 
-: = Q17
-: GPU -1 finishing, processed 92 rows 92 batches
+: = Q3
+: GPU -1 finishing, processed 90 rows 90 batches
 : All cleaned up, quitting
