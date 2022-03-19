@@ -238,6 +238,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   }
 
   //Also add in the direct evaluation of this node.
+  double thisNodeNNUtility = 0.0;
   {
     const NNOutput* nnOutput = node.getNNOutput();
     assert(nnOutput != NULL);
@@ -288,6 +289,8 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
       //desiredSelfWeight *= weightSum / (1.0-biasFactor) / std::max(0.001, (weightSum + desiredSelfWeight - desiredSelfWeight / (1.0-biasFactor)));
     }
 
+    thisNodeNNUtility = utility;
+
     double weight = computeWeightFromNNOutput(nnOutput);
     winLossValueSum += (winProb - lossProb) * weight;
     noResultValueSum += noResultProb * weight;
@@ -311,6 +314,43 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   double oldUtilityAvg = utilityAvg;
   utilityAvg += getPatternBonus(node.patternBonusHash,getOpp(node.nextPla));
   utilitySqAvg = utilitySqAvg + (utilityAvg * utilityAvg - oldUtilityAvg * oldUtilityAvg);
+
+  //If this node has high variance in utility of the raw policy, also reduce effective weight by a fixed amount.
+  if(searchParams.reduceWeightByPolicyUtilityVariance > 0.0 && numGoodChildren >= 1 && weightSum > 1e-3) {
+    const NNOutput* nnOutput = node.getNNOutput();
+    assert(nnOutput != NULL);
+    const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+
+    double rawPolicySum = 0.0;
+    double rawPolicyUtilitySum = 0.0;
+    double rawPolicyUtilitySqSum = 0.0;
+    for(int i = 0; i<numGoodChildren; i++) {
+      double prob = std::max(0.0, (double)policyProbs[getPos(statsBuf[i].prevMoveLoc)]);
+      const NodeStats& stats = statsBuf[i].stats;
+      double utility = stats.utilityAvg;
+      rawPolicySum += prob;
+      rawPolicyUtilitySum += prob * utility;
+      rawPolicyUtilitySqSum += prob * utility * utility;
+    }
+
+    double missingProb = std::max(0.0, 1.0 - rawPolicySum);
+    rawPolicySum += missingProb;
+    rawPolicyUtilitySum += missingProb * thisNodeNNUtility;
+    rawPolicyUtilitySqSum += missingProb * thisNodeNNUtility * thisNodeNNUtility;
+
+    double rawPolicyUtilityAvg = rawPolicyUtilitySum / rawPolicySum;
+    double rawPolicyUtilitySqAvg = rawPolicyUtilitySqSum / rawPolicySum;
+    double utilityStdev = sqrt(std::max(0.0, rawPolicyUtilitySqAvg - rawPolicyUtilityAvg * rawPolicyUtilityAvg));
+    if(utilityStdev > searchParams.reduceWeightByPolicyUtilityVarianceBase) {
+      double scale = (utilityStdev-searchParams.reduceWeightByPolicyUtilityVarianceBase) * searchParams.reduceWeightByPolicyUtilityVariance;
+      double newWeightSum = weightSum - scale + scale * exp(-0.5 * weightSum / scale);
+      newWeightSum = std::max(weightSum * 0.5, newWeightSum);
+
+      weightSqSum = weightSqSum * newWeightSum / weightSum * newWeightSum / weightSum;
+      weightSum = newWeightSum;
+    }
+  }
+
 
   //TODO statslock may be unnecessary now with the dirtyCounter mechanism?
   while(node.statsLock.test_and_set(std::memory_order_acquire));

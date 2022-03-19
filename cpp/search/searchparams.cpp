@@ -70,6 +70,8 @@ SearchParams::SearchParams()
    subtreeValueBiasTableNumShards(65536),
    subtreeValueBiasFreeProp(0.8),
    subtreeValueBiasWeightExponent(0.5),
+   reduceWeightByPolicyUtilityVariance(0.0),
+   reduceWeightByPolicyUtilityVarianceBase(0.2),
    nodeTableShardsPowerOfTwo(16),
    numVirtualLossesPerThread(3.0),
    numThreads(1),

@@ -624,6 +624,14 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("subtreeValueBiasWeightExponent")) params.subtreeValueBiasWeightExponent = cfg.getDouble("subtreeValueBiasWeightExponent", 0.0, 1.0);
     else params.subtreeValueBiasWeightExponent = 0.8;
 
+    if(cfg.contains("reduceWeightByPolicyUtilityVariance"+idxStr)) params.reduceWeightByPolicyUtilityVariance = cfg.getDouble("reduceWeightByPolicyUtilityVariance"+idxStr, 0.0, 10000.0);
+    else if(cfg.contains("reduceWeightByPolicyUtilityVariance")) params.reduceWeightByPolicyUtilityVariance = cfg.getDouble("reduceWeightByPolicyUtilityVariance", 0.0, 10000.0);
+    else params.reduceWeightByPolicyUtilityVariance = 0.0;
+    if(cfg.contains("reduceWeightByPolicyUtilityVarianceBase"+idxStr)) params.reduceWeightByPolicyUtilityVarianceBase = cfg.getDouble("reduceWeightByPolicyUtilityVarianceBase"+idxStr, 0.0, 10.0);
+    else if(cfg.contains("reduceWeightByPolicyUtilityVarianceBase")) params.reduceWeightByPolicyUtilityVarianceBase = cfg.getDouble("reduceWeightByPolicyUtilityVarianceBase", 0.0, 10.0);
+    else params.reduceWeightByPolicyUtilityVarianceBase = 0.0;
+
+
     if(cfg.contains("nodeTableShardsPowerOfTwo"+idxStr)) params.nodeTableShardsPowerOfTwo = cfg.getInt("nodeTableShardsPowerOfTwo"+idxStr, 8, 24);
     else if(cfg.contains("nodeTableShardsPowerOfTwo"))   params.nodeTableShardsPowerOfTwo = cfg.getInt("nodeTableShardsPowerOfTwo",        8, 24);
     else                                                 params.nodeTableShardsPowerOfTwo = 16;
