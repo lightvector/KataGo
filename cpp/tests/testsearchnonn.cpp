@@ -10,6 +10,7 @@
 #include "../search/asyncbot.h"
 #include "../search/searchnode.h"
 #include "../program/playutils.h"
+#include "../program/setup.h"
 #include "../tests/testsearchcommon.h"
 
 using namespace std;
@@ -2203,6 +2204,69 @@ oxooox.
     delete search;
     delete nnEval;
     cout << endl;
+  }
+
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Uninitialized search params" << endl;
+    cout << "===================================================================" << endl;
+    SearchParams params;
+    params.printParams(cout);
+    cout << endl;
+
+    cout << "===================================================================" << endl;
+    cout << "SearchParams forTestsV1" << endl;
+    cout << "===================================================================" << endl;
+    params = SearchParams::forTestsV1();
+    params.printParams(cout);
+    cout << endl;
+
+    ConfigParser cfg;
+    cfg.overrideKey("numSearchThreads","1");
+
+    cout << "===================================================================" << endl;
+    cout << "SearchParams for GTP" << endl;
+    cout << "===================================================================" << endl;
+    params = Setup::loadSingleParams(cfg, Setup::SETUP_FOR_GTP);
+    params.printParams(cout);
+    cout << endl;
+
+    cout << "===================================================================" << endl;
+    cout << "SearchParams for Analysis" << endl;
+    cout << "===================================================================" << endl;
+    params = Setup::loadSingleParams(cfg, Setup::SETUP_FOR_ANALYSIS);
+    params.printParams(cout);
+    cout << endl;
+
+    cout << "===================================================================" << endl;
+    cout << "SearchParams for Match" << endl;
+    cout << "===================================================================" << endl;
+    params = Setup::loadSingleParams(cfg, Setup::SETUP_FOR_MATCH);
+    params.printParams(cout);
+    cout << endl;
+
+    cout << "===================================================================" << endl;
+    cout << "SearchParams for Benchmark" << endl;
+    cout << "===================================================================" << endl;
+    params = Setup::loadSingleParams(cfg, Setup::SETUP_FOR_BENCHMARK);
+    params.printParams(cout);
+    cout << endl;
+
+    cout << "===================================================================" << endl;
+    cout << "SearchParams for Other" << endl;
+    cout << "===================================================================" << endl;
+    params = Setup::loadSingleParams(cfg, Setup::SETUP_FOR_OTHER);
+    params.printParams(cout);
+    cout << endl;
+
+    cout << "===================================================================" << endl;
+    cout << "SearchParams for Distributed" << endl;
+    cout << "===================================================================" << endl;
+    params = Setup::loadSingleParams(cfg, Setup::SETUP_FOR_DISTRIBUTED);
+    params.printParams(cout);
+    cout << endl;
+
   }
 
   NeuralNet::globalCleanup();

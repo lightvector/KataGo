@@ -125,3 +125,131 @@ void SearchParams::failIfParamsDifferOnUnchangeableParameter(const SearchParams&
     throw StringError("Cannot change nodeTableShardsPowerOfTwo after initialization");
   }
 }
+
+
+#define PRINTPARAM(PARAMNAME) out << #PARAMNAME << ": " << PARAMNAME << std::endl;
+void SearchParams::printParams(std::ostream& out) {
+
+
+  PRINTPARAM(winLossUtilityFactor);
+  PRINTPARAM(staticScoreUtilityFactor);
+  PRINTPARAM(dynamicScoreUtilityFactor);
+  PRINTPARAM(dynamicScoreCenterZeroWeight);
+  PRINTPARAM(dynamicScoreCenterScale);
+  PRINTPARAM(noResultUtilityForWhite);
+  PRINTPARAM(drawEquivalentWinsForWhite);
+
+  PRINTPARAM(cpuctExploration);
+  PRINTPARAM(cpuctExplorationLog);
+  PRINTPARAM(cpuctExplorationBase);
+
+  PRINTPARAM(cpuctUtilityStdevPrior);
+  PRINTPARAM(cpuctUtilityStdevPriorWeight);
+  PRINTPARAM(cpuctUtilityStdevScale);
+
+  PRINTPARAM(fpuReductionMax);
+  PRINTPARAM(fpuLossProp);
+
+  PRINTPARAM(fpuParentWeightByVisitedPolicy);
+  PRINTPARAM(fpuParentWeightByVisitedPolicyPow);
+  PRINTPARAM(fpuParentWeight);
+
+
+  PRINTPARAM(valueWeightExponent);
+  PRINTPARAM(useNoisePruning);
+  PRINTPARAM(noisePruneUtilityScale);
+  PRINTPARAM(noisePruningCap);
+
+
+  PRINTPARAM(useUncertainty);
+  PRINTPARAM(uncertaintyCoeff);
+  PRINTPARAM(uncertaintyExponent);
+  PRINTPARAM(uncertaintyMaxWeight);
+
+
+  PRINTPARAM(useGraphSearch);
+  PRINTPARAM(graphSearchRepBound);
+  PRINTPARAM(graphSearchCatchUpLeakProb);
+
+
+
+  PRINTPARAM(rootNoiseEnabled);
+  PRINTPARAM(rootDirichletNoiseTotalConcentration);
+  PRINTPARAM(rootDirichletNoiseWeight);
+
+  PRINTPARAM(rootPolicyTemperature);
+  PRINTPARAM(rootPolicyTemperatureEarly);
+  PRINTPARAM(rootFpuReductionMax);
+  PRINTPARAM(rootFpuLossProp);
+  PRINTPARAM(rootNumSymmetriesToSample);
+  PRINTPARAM(rootSymmetryPruning);
+
+  PRINTPARAM(rootDesiredPerChildVisitsCoeff);
+
+
+  PRINTPARAM(chosenMoveTemperature);
+  PRINTPARAM(chosenMoveTemperatureEarly);
+  PRINTPARAM(chosenMoveTemperatureHalflife);
+  PRINTPARAM(chosenMoveSubtract);
+  PRINTPARAM(chosenMovePrune);
+
+  PRINTPARAM(useLcbForSelection);
+  PRINTPARAM(lcbStdevs);
+  PRINTPARAM(minVisitPropForLCB);
+  PRINTPARAM(useNonBuggyLcb);
+
+
+  PRINTPARAM(rootEndingBonusPoints);
+  PRINTPARAM(rootPruneUselessMoves);
+  PRINTPARAM(conservativePass);
+  PRINTPARAM(fillDameBeforePass);
+  std::cout << "avoidMYTDaggerHackPla" << ": " << (int)avoidMYTDaggerHackPla << std::endl;
+  PRINTPARAM(wideRootNoise);
+
+  PRINTPARAM(playoutDoublingAdvantage);
+  std::cout << "playoutDoublingAdvantagePla" << ": " << (int)playoutDoublingAdvantagePla << std::endl;
+
+  PRINTPARAM(avoidRepeatedPatternUtility);
+
+  PRINTPARAM(nnPolicyTemperature);
+  PRINTPARAM(antiMirror);
+
+  PRINTPARAM(subtreeValueBiasFactor);
+  PRINTPARAM(subtreeValueBiasTableNumShards);
+  PRINTPARAM(subtreeValueBiasFreeProp);
+  PRINTPARAM(subtreeValueBiasWeightExponent);
+
+
+  PRINTPARAM(nodeTableShardsPowerOfTwo);
+  PRINTPARAM(numVirtualLossesPerThread);
+
+
+  PRINTPARAM(numThreads);
+  PRINTPARAM(maxVisits);
+  PRINTPARAM(maxPlayouts);
+  PRINTPARAM(maxTime);
+
+
+  PRINTPARAM(maxVisitsPondering);
+  PRINTPARAM(maxPlayoutsPondering);
+  PRINTPARAM(maxTimePondering);
+
+
+  PRINTPARAM(lagBuffer);
+
+
+  PRINTPARAM(searchFactorAfterOnePass);
+  PRINTPARAM(searchFactorAfterTwoPass);
+
+
+  PRINTPARAM(treeReuseCarryOverTimeFactor);
+  PRINTPARAM(overallocateTimeFactor);
+  PRINTPARAM(midgameTimeFactor);
+  PRINTPARAM(midgameTurnPeakTime);
+  PRINTPARAM(endgameTurnTimeDecay);
+  PRINTPARAM(obviousMovesTimeFactor);
+  PRINTPARAM(obviousMovesPolicyEntropyTolerance);
+  PRINTPARAM(obviousMovesPolicySurpriseTolerance);
+
+  PRINTPARAM(futileVisitsThreshold);
+}
