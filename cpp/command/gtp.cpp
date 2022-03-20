@@ -2942,6 +2942,12 @@ int MainCmds::gtp(const vector<string>& args) {
             params.maxTime = 1.0e20;
             params.maxPlayouts = ((int64_t)1) << 50;
             params.maxVisits = numVisits;
+            //Make sure the "equals" for GTP is printed out prior to the benchmark line
+            if(hasId)
+              cout << "=" << Global::intToString(id) << endl;
+            else
+              cout << "=" << endl;
+
             PlayUtils::BenchmarkResults results = PlayUtils::benchmarkSearchOnPositionsAndPrint(
               params,
               sgf,
