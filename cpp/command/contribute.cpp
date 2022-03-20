@@ -67,6 +67,8 @@ static void signalHandler(int signal)
 static std::atomic<bool> shouldStopGracefullyPrinted(false);
 static std::atomic<bool> shouldStopPrinted(false);
 
+static std::mutex controlMutex;
+
 
 // Some OSes, like windows, don't have SIGPIPE
 #ifdef SIGPIPE
@@ -637,7 +639,7 @@ int MainCmds::contribute(const vector<string>& args) {
       if(!shouldStopPrinted.exchange(true)) {
         //At the point where we just want to stop ASAP, we never want to pause again.
         shouldPause->setPermanently(false);
-        logger.write("Signal to stop (e.g. ctrl-c) detected, interrupting current games.");
+        logger.write("Signal to stop (e.g. forcequit or ctrl-c) detected, interrupting current games.");
       }
       return true;
     }
@@ -651,7 +653,7 @@ int MainCmds::contribute(const vector<string>& args) {
         //Do a one-time toggle of pausing to false so that a user paused trying to quit won't hang forever
         //unless they deliberately pause again after that.
         shouldPause->set(false);
-        logger.write("Signal to stop (e.g. ctrl-c) detected, KataGo will shut down once all current games are finished. This may take quite a long time. Repeat a second time to stop without finishing current games.");
+        logger.write("Signal to stop (e.g. quit or ctrl-c) detected, KataGo will shut down once all current games are finished. This may take quite a long time. Use forcequit or repeat ctrl-c again to stop without finishing current games.");
       }
       return true;
     }
@@ -1145,19 +1147,39 @@ int MainCmds::contribute(const vector<string>& args) {
 
   auto controlLoop = [&]() {
     string line;
+    // When we interact with logger or other resources, we check under controlMutex whether we should stop.
+    // This mutex ensures that we can't race with someone trying to ensure that we're stopped
+    // and freeing resources like shouldPause or logger.
+
     while(true) {
-      logger.write("Type 'pause' and hit enter to pause contribute and CPU and GPU usage.");
-      logger.write("Type 'resume' and hit enter to resume contribute and CPU and GPU usage.");
-      logger.write("Type 'quit' and hit enter to begin shutdown and quit after all current games are done (may take a long while).");
-      logger.write("Type 'forcequit' and hit enter to begin shutdown and quit more quickly, but lose all unfinished game data.");
+      {
+        std::lock_guard<std::mutex> lock(controlMutex);
+        if(shouldStop.load())
+          break;
+        logger.write("Type 'pause' and hit enter to pause contribute and CPU and GPU usage.");
+        logger.write("Type 'resume' and hit enter to resume contribute and CPU and GPU usage.");
+        logger.write("Type 'quit' and hit enter to begin shutdown and quit after all current games are done (may take a long while).");
+        logger.write("Type 'forcequit' and hit enter to begin shutdown and quit more quickly, but lose all unfinished game data.");
+      }
 
       getline(cin,line);
-      if(!cin)
+      if(!cin) {
+        std::lock_guard<std::mutex> lock(controlMutex);
+        if(shouldStop.load())
+          break;
+        logger.write("Stdin closed, Control loop exiting...");
         break;
-      if(shouldStopGracefully.load() || shouldStop.load())
+      }
+
+      if(shouldStop.load())
         break;
       line = CommandLoop::processSingleCommandLine(line);
       string lowerline = Global::toLower(line);
+
+      std::lock_guard<std::mutex> lock(controlMutex);
+      if(shouldStop.load())
+        break;
+
       if(lowerline == "pause") {
         shouldPause->set(true);
         logger.write("Pausing contribute (note: this may take a minute).");
@@ -1213,8 +1235,12 @@ int MainCmds::contribute(const vector<string>& args) {
   for(int i = 0; i<gameThreads.size(); i++)
     gameThreads[i].join();
 
-  //Make sure we have a true in here
-  shouldStop.store(true);
+  //Make sure we have a true in here. Set it under the control mutex. This guarantees that we can't race with the control loop.
+  //By the time we exit the block, the control loop will no longer be touching any resources, and can only wait on cin or exit.
+  {
+    std::lock_guard<std::mutex> lock(controlMutex);
+    shouldStop.store(true);
+  }
   //This should make sure stuff stops pausing
   shouldPause->setPermanently(false);
 
