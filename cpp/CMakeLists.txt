@@ -162,6 +162,7 @@ add_executable(katago
   core/test.cpp
   core/threadsafecounter.cpp
   core/threadsafequeue.cpp
+  core/threadtest.cpp
   core/timer.cpp
   game/board.cpp
   game/rules.cpp

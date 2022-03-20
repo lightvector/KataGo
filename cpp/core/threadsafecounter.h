@@ -96,8 +96,10 @@ public:
     if(!b)
       return;
     std::unique_lock<std::mutex> lock(mutex);
-    while(b)
+    while(b) {
       falseCondVar.wait(lock);
+      b = get();
+    }
     return;
   }
 
@@ -106,8 +108,10 @@ public:
     if(b)
       return;
     std::unique_lock<std::mutex> lock(mutex);
-    while(!b)
+    while(!b) {
       trueCondVar.wait(lock);
+      b = get();
+    }
     return;
   }
 

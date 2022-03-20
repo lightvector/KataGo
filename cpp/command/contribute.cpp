@@ -1160,7 +1160,7 @@ int MainCmds::contribute(const vector<string>& args) {
       string lowerline = Global::toLower(line);
       if(lowerline == "pause") {
         shouldPause->set(true);
-        logger.write("Pausing contribute...");
+        logger.write("Pausing contribute (note: this may take a minute).");
       }
       else if(lowerline == "resume") {
         shouldPause->set(false);
