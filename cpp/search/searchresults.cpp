@@ -162,7 +162,7 @@ bool Search::getPlaySelectionValues(
           totalChildWeight, edgeVisits,
           parentUtilityStdevFactor, bestChildExploreSelectionValue
         );
-        playSelectionValues[i] = (int64_t)ceil(reduced);
+        playSelectionValues[i] = ceil(reduced);
       }
     }
   }

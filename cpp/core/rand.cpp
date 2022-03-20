@@ -508,7 +508,6 @@ void Rand::runTests() {
     out << Hash::murmurMix(298174913) << endl;
     out << Hash::splitMix64(1234567) << endl;
     out << Hash::splitMix64((uint64_t)1234567 + (uint64_t)0x9e3779b97f4a7c15ULL) << endl;
-    out << Hash::splitMix64((uint64_t)1234567 + (uint64_t)2*(uint64_t)0x9e3779b97f4a7c15ULL) << endl;
     out << Global::uint64ToHexString(Hash::rrmxmx(0)) << endl;
     out << Global::uint64ToHexString(Hash::rrmxmx(1)) << endl;
     out << Global::uint64ToHexString(Hash::rrmxmx(0x0123456789abcdefULL)) << endl;
@@ -521,7 +520,6 @@ void Rand::runTests() {
 8421665786179357259
 6457827717110365317
 3203168211198807973
-9817491932198370423
 0000000000000000
 23085D6F7A569905
 C337A528D7E42497

@@ -75,7 +75,7 @@ MoreNodeStats::~MoreNodeStats()
 
 SearchChildPointer::SearchChildPointer():
   data(NULL),
-  edgeVisits(0.0),
+  edgeVisits(0),
   moveLoc(Board::NULL_LOC)
 {}
 

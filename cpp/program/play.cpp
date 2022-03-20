@@ -9,6 +9,8 @@
 #include "../search/searchnode.h"
 #include "../dataio/files.h"
 
+#include "../core/test.h"
+
 using namespace std;
 
 //----------------------------------------------------------------------------------------------------------
@@ -40,7 +42,7 @@ const InitialPosition* ForkData::get(Rand& rand) {
   std::lock_guard<std::mutex> lock(mutex);
   if(forks.size() <= 0)
     return NULL;
-  assert(forks.size() < 0xFFFFffff);
+  testAssert(forks.size() < 0x1FFFffff);
   uint32_t r = rand.nextUInt((uint32_t)forks.size());
   size_t last = forks.size()-1;
   const InitialPosition* pos = forks[r];
@@ -52,7 +54,7 @@ const InitialPosition* ForkData::get(Rand& rand) {
 void ForkData::addSeki(const InitialPosition* pos, Rand& rand) {
   std::unique_lock<std::mutex> lock(mutex);
   if(sekiForks.size() >= 1000) {
-    assert(sekiForks.size() < 0xFFFFffff);
+    testAssert(sekiForks.size() < 0x1FFFffff);
     uint32_t r = rand.nextUInt((uint32_t)sekiForks.size());
     const InitialPosition* oldPos = sekiForks[r];
     sekiForks[r] = pos;
@@ -67,8 +69,8 @@ const InitialPosition* ForkData::getSeki(Rand& rand) {
   std::lock_guard<std::mutex> lock(mutex);
   if(sekiForks.size() <= 0)
     return NULL;
-  assert(sekiForks.size() < 0xFFFFffff);
-  uint32_t r = rand.nextUInt(sekiForks.size());
+  testAssert(sekiForks.size() < 0x1FFFffff);
+  uint32_t r = rand.nextUInt((uint32_t)sekiForks.size());
   size_t last = sekiForks.size()-1;
   const InitialPosition* pos = sekiForks[r];
   sekiForks[r] = sekiForks[last];
@@ -494,6 +496,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     hist.clear(board,pla,rules,0);
     hist.setInitialTurnNumber(startPos.initialTurnNumber);
     Loc hintLoc = startPos.hintLoc;
+    testAssert(startPos.moves.size() < 0xFFFFFF);
     for(size_t i = 0; i<startPos.moves.size(); i++) {
       bool isLegal = hist.isLegal(board,startPos.moves[i].loc,startPos.moves[i].pla);
       if(!isLegal) {
@@ -520,7 +523,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     otherGameProps.isFork = false;
     otherGameProps.isHintFork = false;
     otherGameProps.hintLoc = hintLoc;
-    otherGameProps.hintTurn = hist.moveHistory.size();
+    otherGameProps.hintTurn = (int)hist.moveHistory.size();
     otherGameProps.hintPosHash = board.pos_hash;
     makeGameFairProb = sgfCompensateKomiProb;
   }
@@ -724,9 +727,11 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 
     if(nextMatchupsBuf.size() <= 0)
       throw StringError("MatchPairer::getMatchupPairUnsynchronized: no matchups generated");
+    if(nextMatchupsBuf.size() > 0xFFFFFF)
+      throw StringError("MatchPairer::getMatchupPairUnsynchronized: too many matchups");
 
     //Shuffle
-    for(int i = nextMatchupsBuf.size()-1; i >= 1; i--) {
+    for(int i = (int)nextMatchupsBuf.size()-1; i >= 1; i--) {
       int j = (int)rand.nextUInt(i+1);
       pair<int,int> tmp = nextMatchupsBuf[i];
       nextMatchupsBuf[i] = nextMatchupsBuf[j];
@@ -1633,7 +1638,8 @@ FinishedGameData* Play::runGame(
       }
     }
 
-    int nextTurnIdx = hist.moveHistory.size();
+    testAssert(hist.moveHistory.size() < 0x1FFFffff);
+    int nextTurnIdx = (int)hist.moveHistory.size();
     maybeCheckForNewNNEval(nextTurnIdx);
 
     pla = getOpp(pla);
@@ -1905,7 +1911,8 @@ FinishedGameData* Play::runGame(
         }
       }
 
-      maybeCheckForNewNNEval(gameData->endHist.moveHistory.size());
+      testAssert(gameData->endHist.moveHistory.size() < 0x1FFFffff);
+      maybeCheckForNewNNEval((int)gameData->endHist.moveHistory.size());
     }
 
     if(playSettings.scaleDataWeight != 1.0) {
@@ -1949,8 +1956,11 @@ FinishedGameData* Play::runGame(
       hist = gameData->startHist;
       pla = gameData->startPla;
 
-      int startTurnIdx = gameData->startHist.moveHistory.size();
-      int numMoves = gameData->endHist.moveHistory.size() - gameData->startHist.moveHistory.size();
+      testAssert(gameData->startHist.moveHistory.size() < 0x1FFFffff);
+      testAssert(gameData->endHist.moveHistory.size() < 0x1FFFffff);
+      testAssert(gameData->endHist.moveHistory.size() >= gameData->startHist.moveHistory.size());
+      int startTurnIdx = (int)gameData->startHist.moveHistory.size();
+      int numMoves = (int)(gameData->endHist.moveHistory.size() - gameData->startHist.moveHistory.size());
       for(int turnAfterStart = 0; turnAfterStart<numMoves; turnAfterStart++) {
         int turnIdx = turnAfterStart + startTurnIdx;
         if(gameData->targetWeightByTurn[turnAfterStart] > 0 &&
@@ -2208,7 +2218,9 @@ void Play::maybeHintForkGame(
   Board board;
   Player pla;
   BoardHistory hist;
-  replayGameUpToMove(finishedGameData, finishedGameData->startHist.moveHistory.size(), finishedGameData->startHist.rules, board, hist, pla);
+  testAssert(finishedGameData->startHist.moveHistory.size() < 0x1FFFffff);
+  int moveIdxToReplayTo = (int)finishedGameData->startHist.moveHistory.size();
+  replayGameUpToMove(finishedGameData, moveIdxToReplayTo, finishedGameData->startHist.rules, board, hist, pla);
   //Just in case if somehow the game is over now, don't actually do anything
   if(hist.isGameFinished)
     return;
