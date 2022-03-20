@@ -117,6 +117,42 @@ SearchParams SearchParams::forTestsV1() {
   return params;
 }
 
+SearchParams SearchParams::forTestsV2() {
+  SearchParams params;
+  params.staticScoreUtilityFactor = 0.1;
+  params.dynamicScoreUtilityFactor = 0.3;
+  params.dynamicScoreCenterZeroWeight = 0.2;
+  params.dynamicScoreCenterScale = 0.75;
+  params.cpuctExploration = 0.9;
+  params.cpuctExplorationLog = 0.4;
+  params.rootFpuReductionMax = 0.1;
+  params.rootPolicyTemperatureEarly = 1.2;
+  params.rootPolicyTemperature = 1.1;
+  params.useLcbForSelection = true;
+  params.lcbStdevs = 5;
+  params.minVisitPropForLCB = 0.15;
+  params.rootEndingBonusPoints = 0.5;
+  params.rootPruneUselessMoves = true;
+  params.conservativePass = true;
+  params.useNonBuggyLcb = true;
+  params.useGraphSearch = true;
+  params.fpuParentWeightByVisitedPolicy = true;
+  params.valueWeightExponent = 0.25;
+  params.useNoisePruning = true;
+  params.useUncertainty = true;
+  params.uncertaintyCoeff = 0.25;
+  params.uncertaintyExponent = 1.0;
+  params.uncertaintyMaxWeight = 8.0;
+  params.cpuctUtilityStdevPrior = 0.40;
+  params.cpuctUtilityStdevPriorWeight = 2.0;
+  params.cpuctUtilityStdevScale = 0.85;
+  params.fillDameBeforePass = true;
+  params.subtreeValueBiasFactor = 0.45;
+  params.subtreeValueBiasFreeProp = 0.8;
+  params.subtreeValueBiasWeightExponent = 0.85;
+  return params;
+}
+
 void SearchParams::failIfParamsDifferOnUnchangeableParameter(const SearchParams& initial, const SearchParams& dynamic) {
   if(dynamic.numThreads > initial.numThreads) {
     throw StringError("Cannot increase number of search threads after initialization since this is used to initialize neural net buffer capacity");

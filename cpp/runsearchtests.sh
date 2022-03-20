@@ -25,6 +25,7 @@ set -o pipefail
 
 ./katago runsearchtestsv8 tests/models/g170-b6c96-s175395328-d26788732.txt.gz false false false | tee tests/results/runSearchTestsV8.txt
 ./katago runsearchtestsv8 tests/models/g170-b6c96-s175395328-d26788732.bin.gz false false false | tee tests/results/runSearchTestsV8Bin.txt
+./katago runsearchtestsv9 tests/models/g170-b6c96-s175395328-d26788732.txt.gz false false false | tee tests/results/runSearchTestsV9.txt
 
 ./katago runnnbatchingtest tests/models/g170-b6c96-s175395328-d26788732.bin.gz false false false | tee tests/results/runNNBatchingTest.txt
 ./katago runnnbatchingtest tests/models/g170-b6c96-s175395328-d26788732.bin.gz true false false | tee tests/results/runNNBatchingTestiNHWC.txt

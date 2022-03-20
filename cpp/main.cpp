@@ -57,6 +57,7 @@ runoutputtests : Run a bunch of things and dump details to stdout
 runsearchtests : Run a bunch of things using a neural net and dump details to stdout
 runsearchtestsv3 : Run a bunch more things using a neural net and dump details to stdout
 runsearchtestsv8 : Run a bunch more things using a neural net and dump details to stdout
+runsearchtestsv9 : Run a bunch more things using a neural net and dump details to stdout
 runselfplayinittests : Run some tests involving selfplay training init using a neural net and dump details to stdout
 runsekitrainwritetests : Run some tests involving seki train output
 
@@ -105,6 +106,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::runsearchtestsv3(subArgs);
   else if(subcommand == "runsearchtestsv8")
     return MainCmds::runsearchtestsv8(subArgs);
+  else if(subcommand == "runsearchtestsv9")
+    return MainCmds::runsearchtestsv9(subArgs);
   else if(subcommand == "runselfplayinittests")
     return MainCmds::runselfplayinittests(subArgs);
   else if(subcommand == "runselfplayinitstattests")

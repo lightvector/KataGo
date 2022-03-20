@@ -224,6 +224,7 @@ add_executable(katago
   tests/testsearch.cpp
   tests/testsearchv3.cpp
   tests/testsearchv8.cpp
+  tests/testsearchv9.cpp
   tests/testsearchmisc.cpp
   tests/testtime.cpp
   tests/testtrainingwrite.cpp
