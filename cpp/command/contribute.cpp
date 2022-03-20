@@ -650,10 +650,9 @@ int MainCmds::contribute(const vector<string>& args) {
       return true;
     if(shouldStopGracefully.load()) {
       if(!shouldStopGracefullyPrinted.exchange(true)) {
-        //Do a one-time toggle of pausing to false so that a user paused trying to quit won't hang forever
-        //unless they deliberately pause again after that.
-        shouldPause->set(false);
         logger.write("Signal to stop (e.g. quit or ctrl-c) detected, KataGo will shut down once all current games are finished. This may take quite a long time. Use forcequit or repeat ctrl-c again to stop without finishing current games.");
+        if(shouldPause->get())
+          logger.write("Also, KataGo is currently paused. In order to finish current games to shutdown, please resume.");
       }
       return true;
     }
@@ -694,12 +693,62 @@ int MainCmds::contribute(const vector<string>& args) {
   std::atomic<int64_t> numRatingGamesActive(0);
   std::atomic<int64_t> numMovesPlayed(0);
 
+  auto allocateGameTask = [&numRatingGamesActive](
+    const Client::Task& task,
+    SelfplayManager* blackManager,
+    SelfplayManager* whiteManager,
+    int repIdx,
+    Rand& taskRand
+  ) {
+    NNEvaluator* nnEvalBlack = blackManager->acquireModel(task.modelBlack.name);
+    NNEvaluator* nnEvalWhite = whiteManager->acquireModel(task.modelWhite.name);
+
+    //Randomly swap black and white per each game in the rep
+    GameTask gameTask;
+    gameTask.task = task;
+    gameTask.repIdx = repIdx;
+
+    if(taskRand.nextBool(0.5)) {
+      gameTask.blackManager = blackManager;
+      gameTask.whiteManager = whiteManager;
+      gameTask.nnEvalBlack = nnEvalBlack;
+      gameTask.nnEvalWhite = nnEvalWhite;
+    }
+    else {
+      //Swap everything
+      gameTask.blackManager = whiteManager;
+      gameTask.whiteManager = blackManager;
+      gameTask.nnEvalBlack = nnEvalWhite;
+      gameTask.nnEvalWhite = nnEvalBlack;
+      //Also swap the model within the task, which is used for data writing
+      gameTask.task.modelBlack = task.modelWhite;
+      gameTask.task.modelWhite = task.modelBlack;
+    }
+
+    if(task.isRatingGame)
+      numRatingGamesActive.fetch_add(1,std::memory_order_acq_rel);
+    return gameTask;
+  };
+
+  //Should be called any time we finish with game task (i.e. we're done with the game task)
+  auto freeGameTask = [&numRatingGamesActive](GameTask& gameTask) {
+    gameTask.blackManager->release(gameTask.nnEvalBlack);
+    gameTask.whiteManager->release(gameTask.nnEvalWhite);
+    gameTask.blackManager->clearUnusedModelCaches();
+    if(gameTask.whiteManager != gameTask.blackManager)
+      gameTask.whiteManager->clearUnusedModelCaches();
+
+    if(gameTask.task.isRatingGame)
+      numRatingGamesActive.fetch_add(-1,std::memory_order_acq_rel);
+  };
+
   auto runGameLoop = [
     &logger,forkData,&gameSeedBase,&gameTaskQueue,&numGamesStarted,&sgfsDir,&connection,
     &numRatingGamesActive,&numMovesPlayed,&watchOngoingGameInFile,&watchOngoingGameInFileName,
     &shouldStopFunc,&shouldStopGracefullyFunc,
     &shouldPause,
-    &logGamesAsJson, &alwaysIncludeOwnership
+    &logGamesAsJson, &alwaysIncludeOwnership,
+    &freeGameTask
   ] (
     int gameLoopThreadIdx
   ) {
@@ -727,8 +776,7 @@ int MainCmds::contribute(const vector<string>& args) {
       bool success = gameTaskQueue.waitPop(gameTask);
       if(!success)
         break;
-      if(shouldPause != nullptr)
-        shouldPause->waitUntilFalse();
+      shouldPause->waitUntilFalse();
       if(!shouldStopGracefullyFunc()) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         int64_t gameIdx = numGamesStarted.fetch_add(1,std::memory_order_acq_rel);
@@ -737,14 +785,7 @@ int MainCmds::contribute(const vector<string>& args) {
           shouldStopFunc,shouldPause,logGamesAsJson,alwaysIncludeOwnership
         );
       }
-      gameTask.blackManager->release(gameTask.nnEvalBlack);
-      gameTask.whiteManager->release(gameTask.nnEvalWhite);
-      gameTask.blackManager->clearUnusedModelCaches();
-      if(gameTask.whiteManager != gameTask.blackManager)
-        gameTask.whiteManager->clearUnusedModelCaches();
-
-      if(gameTask.task.isRatingGame)
-        numRatingGamesActive.fetch_add(-1,std::memory_order_acq_rel);
+      freeGameTask(gameTask);
     }
   };
   auto runGameLoopProtected = [&logger,&runGameLoop](int gameLoopThreadIdx) {
@@ -908,8 +949,7 @@ int MainCmds::contribute(const vector<string>& args) {
     std::this_thread::sleep_for(std::chrono::duration<double>(30));
     Rand preDownloadLoopRand;
     while(true) {
-      if(shouldPause != nullptr)
-        shouldPause->waitUntilFalse();
+      shouldPause->waitUntilFalse();
       if(shouldStopGracefullyFunc())
         return;
 
@@ -920,8 +960,7 @@ int MainCmds::contribute(const vector<string>& args) {
       constexpr double stopPollFrequency = 5.0;
       while(sleepTimeTotal > 0.0) {
         double sleepTime = std::min(sleepTimeTotal, stopPollFrequency);
-        if(shouldPause != nullptr)
-          shouldPause->waitUntilFalse();
+        shouldPause->waitUntilFalse();
         if(shouldStopGracefullyFunc())
           return;
         std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
@@ -949,11 +988,7 @@ int MainCmds::contribute(const vector<string>& args) {
       if(shouldStopGracefullyFunc())
         break;
       std::this_thread::sleep_for(std::chrono::duration<double>(taskRand.nextDouble(taskLoopSleepTime,taskLoopSleepTime*2)));
-      //In the taskloop, unlike elsewhere, we don't do shouldPause->waitUntilFalse because the task loop exiting is what
-      //we depend on to trigger everything else to exit, and the task loop needs to be responsive also to shouldStopGracefullyFunc()
-      //and not miss a should stop while it's waiting on shouldPause.
-      if(shouldPause != nullptr && shouldPause->get())
-        continue;
+      shouldPause->waitUntilFalse();
 
       PriorityLock taskLock(taskLoopMutex);
       taskLock.lockLowPriority();
@@ -1104,37 +1139,15 @@ int MainCmds::contribute(const vector<string>& args) {
       LoadModel::deleteModelsOlderThan(modelsDir,logger,modelFileAgeLimit);
 
       for(int rep = 0; rep < taskRepFactor; rep++) {
-        //Game loop threads are responsible for releasing when done.
-        NNEvaluator* nnEvalBlack = blackManager->acquireModel(task.modelBlack.name);
-        NNEvaluator* nnEvalWhite = whiteManager->acquireModel(task.modelWhite.name);
-
-        //Randomly swap black and white per each game in the rep
-        GameTask gameTask;
-        gameTask.task = task;
-        gameTask.repIdx = rep;
-
-        if(taskRand.nextBool(0.5)) {
-          gameTask.blackManager = blackManager;
-          gameTask.whiteManager = whiteManager;
-          gameTask.nnEvalBlack = nnEvalBlack;
-          gameTask.nnEvalWhite = nnEvalWhite;
-        }
-        else {
-          //Swap everything
-          gameTask.blackManager = whiteManager;
-          gameTask.whiteManager = blackManager;
-          gameTask.nnEvalBlack = nnEvalWhite;
-          gameTask.nnEvalWhite = nnEvalBlack;
-          //Also swap the model within the task, which is used for data writing
-          gameTask.task.modelBlack = task.modelWhite;
-          gameTask.task.modelWhite = task.modelBlack;
-        }
-
-        if(task.isRatingGame)
-          numRatingGamesActive.fetch_add(1,std::memory_order_acq_rel);
+        //Game loop threads are responsible for releasing when done, unless
+        //we fail to push it into the queue.
+        GameTask gameTask = allocateGameTask(task,blackManager,whiteManager,rep,taskRand);
         suc = gameTaskQueue.waitPush(gameTask);
-        (void)suc;
-        assert(suc);
+        //Stop loop exited and we closed the queue in prep for a shutdown.
+        if(!suc) {
+          freeGameTask(gameTask);
+          break;
+        }
         maybePrintPerformanceUnsynchronized();
       }
 
@@ -1143,6 +1156,25 @@ int MainCmds::contribute(const vector<string>& args) {
   };
   auto taskLoopProtected = [&logger,&taskLoop]() {
     Logger::logThreadUncaught("task loop", &logger, taskLoop);
+  };
+
+  //Loop whose purpose is to query shouldStopGracefullyFunc() so that
+  //the user more readily gets a log message when ctrl-c is received, and to quit as soon as
+  //a stop is detected trigger everything else to quit.
+  auto stopGracefullyLoop = [&]() {
+    while(true) {
+      if(shouldStopGracefullyFunc())
+        break;
+      std::this_thread::sleep_for(std::chrono::duration<double>(2.0));
+    }
+  };
+  //This one likewise watches the stricter shouldStop after we should stop gracefully.
+  auto stopLoop = [&]() {
+    while(true) {
+      if(shouldStopFunc())
+        break;
+      std::this_thread::sleep_for(std::chrono::duration<double>(2.0));
+    }
   };
 
   auto controlLoop = [&]() {
@@ -1156,10 +1188,39 @@ int MainCmds::contribute(const vector<string>& args) {
         std::lock_guard<std::mutex> lock(controlMutex);
         if(shouldStop.load())
           break;
-        logger.write("Type 'pause' and hit enter to pause contribute and CPU and GPU usage.");
-        logger.write("Type 'resume' and hit enter to resume contribute and CPU and GPU usage.");
-        logger.write("Type 'quit' and hit enter to begin shutdown and quit after all current games are done (may take a long while).");
-        logger.write("Type 'forcequit' and hit enter to begin shutdown and quit more quickly, but lose all unfinished game data.");
+        if(shouldStopGracefully.load()) {
+          if(shouldPause->get()) {
+            logger.write("--------");
+            logger.write("Currently in the process of quitting after current games are done, but paused.");
+            logger.write("Type 'resume' and hit enter to resume contribute and CPU and GPU usage.");
+            logger.write("Type 'forcequit' and hit enter to begin shutdown and quit more quickly, but lose all unfinished game data.");
+            logger.write("--------");
+          }
+          else {
+            logger.write("--------");
+            logger.write("Currently in the process of quitting after current games are done.");
+            logger.write("Type 'pause' and hit enter to pause contribute and CPU and GPU usage.");
+            logger.write("Type 'forcequit' and hit enter to begin shutdown and quit more quickly, but lose all unfinished game data.");
+            logger.write("--------");
+          }
+        }
+        else {
+          if(shouldPause->get()) {
+            logger.write("--------");
+            logger.write("Currently pausing or paused.");
+            logger.write("Type 'resume' and hit enter to resume contribute and CPU and GPU usage.");
+            logger.write("Type 'quit' and hit enter to begin shutdown, quitting after all current games are done (may take a long while, also need to resume first).");
+            logger.write("Type 'forcequit' and hit enter to shutdown and quit more quickly, but lose all unfinished game data.");
+            logger.write("--------");
+          }
+          else {
+            logger.write("--------");
+            logger.write("Type 'pause' and hit enter to pause contribute and CPU and GPU usage.");
+            logger.write("Type 'quit' and hit enter to begin shutdown, quitting after all current games are done (may take a long while).");
+            logger.write("Type 'forcequit' and hit enter to shutdown and quit more quickly, but lose all unfinished game data.");
+            logger.write("--------");
+          }
+        }
       }
 
       getline(cin,line);
@@ -1167,7 +1228,7 @@ int MainCmds::contribute(const vector<string>& args) {
         std::lock_guard<std::mutex> lock(controlMutex);
         if(shouldStop.load())
           break;
-        logger.write("Stdin closed, Control loop exiting...");
+        logger.write("Stdin closed, no longer listening for commands...");
         break;
       }
 
@@ -1182,17 +1243,27 @@ int MainCmds::contribute(const vector<string>& args) {
 
       if(lowerline == "pause") {
         shouldPause->set(true);
-        logger.write("Pausing contribute (note: this may take a minute).");
+        if(shouldStopGracefully.load()) {
+          logger.write("Pausing contribute. (Note: this may take a minute)");
+          logger.write("(Note: KataGo is currently set to stop after current games, but this cannot happen without resuming)");
+        }
+        else
+          logger.write("Pausing contribute (note: this may take a minute).");
       }
       else if(lowerline == "resume") {
         shouldPause->set(false);
-        logger.write("Resuming contribute...");
+        if(shouldStopGracefully.load())
+          logger.write("Resuming contribute (stopping after current games)...");
+        else
+          logger.write("Resuming contribute...");
       }
       else if(lowerline == "quit") {
         shouldStopGracefully.store(true);
       }
       else if(lowerline == "forcequit" || lowerline == "force_quit") {
         shouldStop.store(true);
+        shouldStopGracefully.store(true);
+        shouldPause->setPermanently(false);
       }
       else {
         logger.write("Warning: unknown command: " + string(line));
@@ -1213,20 +1284,30 @@ int MainCmds::contribute(const vector<string>& args) {
   //Allocate thread using new to make sure its memory lasts beyond main(), and just let it leak as we exit.
   new std::thread(controlLoopProtected);
 
-  //Wait for all task loop threads to stop
-  //Don't join the control loop, that one will potentially just keep waiting for stdin as we exit out.
-  for(int i = 0; i<taskLoopThreads.size(); i++)
-    taskLoopThreads[i].join();
+  //Start loop and wait for it to quit. When it quits, we know we need to stop everything else,
+  //possibly gracefully, possibly immediately.
+  std::thread stopGracefullyThread(stopGracefullyLoop);
+  stopGracefullyThread.join();
+
+  //Start second loop to be responsive to stop immediately indications, while we have stuff exit
+  std::thread stopThread(stopLoop);
 
   maybePrintPerformanceUnsynchronized();
-
-  logger.write("Beginning shutdown");
+  if(shouldPause->get())
+    logger.write("Beginning shutdown (paused)");
+  else
+    logger.write("Beginning shutdown");
 
   //This should trigger game threads to quit
   gameTaskQueue.setReadOnly();
 
-  //Make sure we have a true in here
+  //Make sure we have a true in here just in case
   shouldStopGracefully.store(true);
+
+  //Wait for all task loop threads to stop
+  //Don't join the control loop, that one will potentially just keep waiting for stdin as we exit out.
+  for(int i = 0; i<taskLoopThreads.size(); i++)
+    taskLoopThreads[i].join();
 
   //Wait for download thread to stop
   preDownloadThread.join();
@@ -1243,6 +1324,8 @@ int MainCmds::contribute(const vector<string>& args) {
   }
   //This should make sure stuff stops pausing
   shouldPause->setPermanently(false);
+
+  stopThread.join();
 
   //At this point, nothing else except possibly data write loops are running, within the selfplay manager.
   delete selfplayManager;
