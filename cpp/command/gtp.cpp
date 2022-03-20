@@ -89,7 +89,7 @@ static const vector<string> knownCommands = {
   //Misc other stuff
   "cputime",
   "gomill-cpu_time",
-  "benchmark",
+  "kata-benchmark",
 
   //Some debug commands
   "kata-debug-print-tc",
@@ -2897,12 +2897,12 @@ int MainCmds::gtp(const vector<string>& args) {
       response = Global::doubleToString(engine->genmoveTimeSum);
     }
 
-    else if(command == "benchmark") {
+    else if(command == "kata-benchmark") {
       bool parsed = false;
       int64_t numVisits = 0;
       if(pieces.size() != 1) {
         responseIsError = true;
-        response = "Expected one argument for benchmark but got '" + Global::concat(pieces," ") + "'";
+        response = "Expected one argument for kata-benchmark but got '" + Global::concat(pieces," ") + "'";
       }
       else {
         bool suc = Global::tryStringToInt64(pieces[0],numVisits);
