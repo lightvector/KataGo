@@ -264,7 +264,7 @@ static void runAndUploadSingleGame(
     logger, shouldStopFunc, shouldPause, nullptr, afterInitialization, onEachMove
   );
 
-  if(gameData != NULL) {
+  if(gameData != NULL && !shouldStopFunc()) {
     string sgfOutputDir;
     if(gameTask.task.isRatingGame)
       sgfOutputDir = sgfsDir + "/" + gameTask.task.taskGroup;
