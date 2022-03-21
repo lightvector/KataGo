@@ -19,6 +19,9 @@ struct SearchParams {
   double cpuctExplorationLog; //Constant factor on log-scaling exploration, should also scale up linearly with magnitude of utility
   double cpuctExplorationBase; //Scale of number of visits at which log behavior starts having an effect
 
+  //Estimate the stdev of utility across playouts at a node, regularizing it with this prior with this weight
+  //Scale cpuct linearly with the factor by which stdev of utility exceeds or falls short of prior, where
+  //cpuctUtilityStdevScale interpolates between constant and fully proportional.
   double cpuctUtilityStdevPrior;
   double cpuctUtilityStdevPriorWeight;
   double cpuctUtilityStdevScale;
@@ -95,8 +98,13 @@ struct SearchParams {
   double subtreeValueBiasFreeProp; //When a node is no longer part of the relevant search tree, only decay this proportion of the weight.
   double subtreeValueBiasWeightExponent; //When computing empiricial bias, weight subtree results by childvisits to this power.
 
-  double reduceWeightByPolicyUtilityVariance;
-  double reduceWeightByPolicyUtilityVarianceBase;
+  //Whenever the standard deviation of the utility of raw policy exceeds reduceWeightByPolicyUtilityStdevBase,
+  //take the amount of excess, times reduceWeightByPolicyUtilityStdev, and subtract that much fixed weight from the node.
+  //However, in case the node's weight is already small, smoothly exponentially introduce the subtraction at a rate of at most
+  //reduceWeightByPolicyUtilityStdevRate per unit of original weight of the node.
+  double reduceWeightByPolicyUtilityStdev;
+  double reduceWeightByPolicyUtilityStdevBase;
+  double reduceWeightByPolicyUtilityStdevRate;
 
   //Threading-related
   int nodeTableShardsPowerOfTwo; //Controls number of shards of node table for graph search transposition lookup

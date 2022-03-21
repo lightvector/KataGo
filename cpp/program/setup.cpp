@@ -624,12 +624,15 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("subtreeValueBiasWeightExponent")) params.subtreeValueBiasWeightExponent = cfg.getDouble("subtreeValueBiasWeightExponent", 0.0, 1.0);
     else params.subtreeValueBiasWeightExponent = 0.85;
 
-    if(cfg.contains("reduceWeightByPolicyUtilityVariance"+idxStr)) params.reduceWeightByPolicyUtilityVariance = cfg.getDouble("reduceWeightByPolicyUtilityVariance"+idxStr, 0.0, 10000.0);
-    else if(cfg.contains("reduceWeightByPolicyUtilityVariance")) params.reduceWeightByPolicyUtilityVariance = cfg.getDouble("reduceWeightByPolicyUtilityVariance", 0.0, 10000.0);
-    else params.reduceWeightByPolicyUtilityVariance = 0.0;
-    if(cfg.contains("reduceWeightByPolicyUtilityVarianceBase"+idxStr)) params.reduceWeightByPolicyUtilityVarianceBase = cfg.getDouble("reduceWeightByPolicyUtilityVarianceBase"+idxStr, 0.0, 10.0);
-    else if(cfg.contains("reduceWeightByPolicyUtilityVarianceBase")) params.reduceWeightByPolicyUtilityVarianceBase = cfg.getDouble("reduceWeightByPolicyUtilityVarianceBase", 0.0, 10.0);
-    else params.reduceWeightByPolicyUtilityVarianceBase = 0.0;
+    if(cfg.contains("reduceWeightByPolicyUtilityStdev"+idxStr)) params.reduceWeightByPolicyUtilityStdev = cfg.getDouble("reduceWeightByPolicyUtilityStdev"+idxStr, 0.0, 10000.0);
+    else if(cfg.contains("reduceWeightByPolicyUtilityStdev")) params.reduceWeightByPolicyUtilityStdev = cfg.getDouble("reduceWeightByPolicyUtilityStdev", 0.0, 10000.0);
+    else params.reduceWeightByPolicyUtilityStdev = 0.0;
+    if(cfg.contains("reduceWeightByPolicyUtilityStdevBase"+idxStr)) params.reduceWeightByPolicyUtilityStdevBase = cfg.getDouble("reduceWeightByPolicyUtilityStdevBase"+idxStr, 0.0, 10.0);
+    else if(cfg.contains("reduceWeightByPolicyUtilityStdevBase")) params.reduceWeightByPolicyUtilityStdevBase = cfg.getDouble("reduceWeightByPolicyUtilityStdevBase", 0.0, 10.0);
+    else params.reduceWeightByPolicyUtilityStdevBase = 0.0;
+    if(cfg.contains("reduceWeightByPolicyUtilityStdevRate"+idxStr)) params.reduceWeightByPolicyUtilityStdevRate = cfg.getDouble("reduceWeightByPolicyUtilityStdevRate"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("reduceWeightByPolicyUtilityStdevRate")) params.reduceWeightByPolicyUtilityStdevRate = cfg.getDouble("reduceWeightByPolicyUtilityStdevRate", 0.0, 1.0);
+    else params.reduceWeightByPolicyUtilityStdevRate = 0.5;
 
 
     if(cfg.contains("nodeTableShardsPowerOfTwo"+idxStr)) params.nodeTableShardsPowerOfTwo = cfg.getInt("nodeTableShardsPowerOfTwo"+idxStr, 8, 24);

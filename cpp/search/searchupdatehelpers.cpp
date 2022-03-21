@@ -316,7 +316,7 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   utilitySqAvg = utilitySqAvg + (utilityAvg * utilityAvg - oldUtilityAvg * oldUtilityAvg);
 
   //If this node has high variance in utility of the raw policy, also reduce effective weight by a fixed amount.
-  if(searchParams.reduceWeightByPolicyUtilityVariance > 0.0 && numGoodChildren >= 1 && weightSum > 1e-3) {
+  if(searchParams.reduceWeightByPolicyUtilityStdev > 0.0 && numGoodChildren >= 1 && weightSum > 1e-3) {
     const NNOutput* nnOutput = node.getNNOutput();
     assert(nnOutput != NULL);
     const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
@@ -341,11 +341,13 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     double rawPolicyUtilityAvg = rawPolicyUtilitySum / rawPolicySum;
     double rawPolicyUtilitySqAvg = rawPolicyUtilitySqSum / rawPolicySum;
     double utilityStdev = sqrt(std::max(0.0, rawPolicyUtilitySqAvg - rawPolicyUtilityAvg * rawPolicyUtilityAvg));
-    if(utilityStdev > searchParams.reduceWeightByPolicyUtilityVarianceBase) {
-      double scale = (utilityStdev-searchParams.reduceWeightByPolicyUtilityVarianceBase) * searchParams.reduceWeightByPolicyUtilityVariance;
-      double newWeightSum = weightSum - scale + scale * exp(-0.5 * weightSum / scale);
-      newWeightSum = std::max(weightSum * 0.5, newWeightSum);
-
+    if(utilityStdev > searchParams.reduceWeightByPolicyUtilityStdevBase) {
+      double scale = (utilityStdev-searchParams.reduceWeightByPolicyUtilityStdevBase) * searchParams.reduceWeightByPolicyUtilityStdev;
+      double rate = searchParams.reduceWeightByPolicyUtilityStdevRate;
+      double newWeightSum = weightSum + scale * (-1.0 + exp(-rate * weightSum / scale));
+      //This max shouldn't be necessary, just catch if the above has some numerical precision issue.
+      newWeightSum = std::max(weightSum * (1.0 - rate), newWeightSum);
+      
       weightSqSum = weightSqSum * newWeightSum / weightSum * newWeightSum / weightSum;
       weightSum = newWeightSum;
     }
