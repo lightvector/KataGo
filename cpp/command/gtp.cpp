@@ -1,4 +1,5 @@
 #include "../core/global.h"
+#include "../core/commandloop.h"
 #include "../core/config_parser.h"
 #include "../core/fileutils.h"
 #include "../core/timer.h"
@@ -88,7 +89,7 @@ static const vector<string> knownCommands = {
   //Misc other stuff
   "cputime",
   "gomill-cpu_time",
-  "benchmark",
+  "kata-benchmark",
 
   //Some debug commands
   "kata-debug-print-tc",
@@ -1752,26 +1753,7 @@ int MainCmds::gtp(const vector<string>& args) {
     bool hasId = false;
     int id = 0;
     {
-      //Filter down to only "normal" ascii characters. Also excludes carrage returns.
-      //Newlines are already handled by getline
-      size_t newLen = 0;
-      for(size_t i = 0; i < line.length(); i++)
-        if(((int)line[i] >= 32 && (int)line[i] <= 126) || line[i] == '\t')
-          line[newLen++] = line[i];
-
-      line.erase(line.begin()+newLen, line.end());
-
-      //Remove comments
-      size_t commentPos = line.find("#");
-      if(commentPos != string::npos)
-        line = line.substr(0, commentPos);
-
-      //Convert tabs to spaces
-      for(size_t i = 0; i < line.length(); i++)
-        if(line[i] == '\t')
-          line[i] = ' ';
-
-      line = Global::trim(line);
+      line = CommandLoop::processSingleCommandLine(line);
 
       //Upon any input line at all, stop any analysis and output a newline
       if(currentlyAnalyzing) {
@@ -2915,12 +2897,12 @@ int MainCmds::gtp(const vector<string>& args) {
       response = Global::doubleToString(engine->genmoveTimeSum);
     }
 
-    else if(command == "benchmark") {
+    else if(command == "kata-benchmark") {
       bool parsed = false;
       int64_t numVisits = 0;
       if(pieces.size() != 1) {
         responseIsError = true;
-        response = "Expected one argument for benchmark but got '" + Global::concat(pieces," ") + "'";
+        response = "Expected one argument for kata-benchmark but got '" + Global::concat(pieces," ") + "'";
       }
       else {
         bool suc = Global::tryStringToInt64(pieces[0],numVisits);
@@ -2960,6 +2942,12 @@ int MainCmds::gtp(const vector<string>& args) {
             params.maxTime = 1.0e20;
             params.maxPlayouts = ((int64_t)1) << 50;
             params.maxVisits = numVisits;
+            //Make sure the "equals" for GTP is printed out prior to the benchmark line
+            if(hasId)
+              cout << "=" << Global::intToString(id) << endl;
+            else
+              cout << "=" << endl;
+
             PlayUtils::BenchmarkResults results = PlayUtils::benchmarkSearchOnPositionsAndPrint(
               params,
               sgf,

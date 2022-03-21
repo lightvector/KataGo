@@ -119,6 +119,42 @@ SearchParams SearchParams::forTestsV1() {
   return params;
 }
 
+SearchParams SearchParams::forTestsV2() {
+  SearchParams params;
+  params.staticScoreUtilityFactor = 0.1;
+  params.dynamicScoreUtilityFactor = 0.3;
+  params.dynamicScoreCenterZeroWeight = 0.2;
+  params.dynamicScoreCenterScale = 0.75;
+  params.cpuctExploration = 0.9;
+  params.cpuctExplorationLog = 0.4;
+  params.rootFpuReductionMax = 0.1;
+  params.rootPolicyTemperatureEarly = 1.2;
+  params.rootPolicyTemperature = 1.1;
+  params.useLcbForSelection = true;
+  params.lcbStdevs = 5;
+  params.minVisitPropForLCB = 0.15;
+  params.rootEndingBonusPoints = 0.5;
+  params.rootPruneUselessMoves = true;
+  params.conservativePass = true;
+  params.useNonBuggyLcb = true;
+  params.useGraphSearch = true;
+  params.fpuParentWeightByVisitedPolicy = true;
+  params.valueWeightExponent = 0.25;
+  params.useNoisePruning = true;
+  params.useUncertainty = true;
+  params.uncertaintyCoeff = 0.25;
+  params.uncertaintyExponent = 1.0;
+  params.uncertaintyMaxWeight = 8.0;
+  params.cpuctUtilityStdevPrior = 0.40;
+  params.cpuctUtilityStdevPriorWeight = 2.0;
+  params.cpuctUtilityStdevScale = 0.85;
+  params.fillDameBeforePass = true;
+  params.subtreeValueBiasFactor = 0.45;
+  params.subtreeValueBiasFreeProp = 0.8;
+  params.subtreeValueBiasWeightExponent = 0.85;
+  return params;
+}
+
 void SearchParams::failIfParamsDifferOnUnchangeableParameter(const SearchParams& initial, const SearchParams& dynamic) {
   if(dynamic.numThreads > initial.numThreads) {
     throw StringError("Cannot increase number of search threads after initialization since this is used to initialize neural net buffer capacity");
@@ -126,4 +162,132 @@ void SearchParams::failIfParamsDifferOnUnchangeableParameter(const SearchParams&
   if(dynamic.nodeTableShardsPowerOfTwo != initial.nodeTableShardsPowerOfTwo) {
     throw StringError("Cannot change nodeTableShardsPowerOfTwo after initialization");
   }
+}
+
+
+#define PRINTPARAM(PARAMNAME) out << #PARAMNAME << ": " << PARAMNAME << std::endl;
+void SearchParams::printParams(std::ostream& out) {
+
+
+  PRINTPARAM(winLossUtilityFactor);
+  PRINTPARAM(staticScoreUtilityFactor);
+  PRINTPARAM(dynamicScoreUtilityFactor);
+  PRINTPARAM(dynamicScoreCenterZeroWeight);
+  PRINTPARAM(dynamicScoreCenterScale);
+  PRINTPARAM(noResultUtilityForWhite);
+  PRINTPARAM(drawEquivalentWinsForWhite);
+
+  PRINTPARAM(cpuctExploration);
+  PRINTPARAM(cpuctExplorationLog);
+  PRINTPARAM(cpuctExplorationBase);
+
+  PRINTPARAM(cpuctUtilityStdevPrior);
+  PRINTPARAM(cpuctUtilityStdevPriorWeight);
+  PRINTPARAM(cpuctUtilityStdevScale);
+
+  PRINTPARAM(fpuReductionMax);
+  PRINTPARAM(fpuLossProp);
+
+  PRINTPARAM(fpuParentWeightByVisitedPolicy);
+  PRINTPARAM(fpuParentWeightByVisitedPolicyPow);
+  PRINTPARAM(fpuParentWeight);
+
+
+  PRINTPARAM(valueWeightExponent);
+  PRINTPARAM(useNoisePruning);
+  PRINTPARAM(noisePruneUtilityScale);
+  PRINTPARAM(noisePruningCap);
+
+
+  PRINTPARAM(useUncertainty);
+  PRINTPARAM(uncertaintyCoeff);
+  PRINTPARAM(uncertaintyExponent);
+  PRINTPARAM(uncertaintyMaxWeight);
+
+
+  PRINTPARAM(useGraphSearch);
+  PRINTPARAM(graphSearchRepBound);
+  PRINTPARAM(graphSearchCatchUpLeakProb);
+
+
+
+  PRINTPARAM(rootNoiseEnabled);
+  PRINTPARAM(rootDirichletNoiseTotalConcentration);
+  PRINTPARAM(rootDirichletNoiseWeight);
+
+  PRINTPARAM(rootPolicyTemperature);
+  PRINTPARAM(rootPolicyTemperatureEarly);
+  PRINTPARAM(rootFpuReductionMax);
+  PRINTPARAM(rootFpuLossProp);
+  PRINTPARAM(rootNumSymmetriesToSample);
+  PRINTPARAM(rootSymmetryPruning);
+
+  PRINTPARAM(rootDesiredPerChildVisitsCoeff);
+
+
+  PRINTPARAM(chosenMoveTemperature);
+  PRINTPARAM(chosenMoveTemperatureEarly);
+  PRINTPARAM(chosenMoveTemperatureHalflife);
+  PRINTPARAM(chosenMoveSubtract);
+  PRINTPARAM(chosenMovePrune);
+
+  PRINTPARAM(useLcbForSelection);
+  PRINTPARAM(lcbStdevs);
+  PRINTPARAM(minVisitPropForLCB);
+  PRINTPARAM(useNonBuggyLcb);
+
+
+  PRINTPARAM(rootEndingBonusPoints);
+  PRINTPARAM(rootPruneUselessMoves);
+  PRINTPARAM(conservativePass);
+  PRINTPARAM(fillDameBeforePass);
+  std::cout << "avoidMYTDaggerHackPla" << ": " << (int)avoidMYTDaggerHackPla << std::endl;
+  PRINTPARAM(wideRootNoise);
+
+  PRINTPARAM(playoutDoublingAdvantage);
+  std::cout << "playoutDoublingAdvantagePla" << ": " << (int)playoutDoublingAdvantagePla << std::endl;
+
+  PRINTPARAM(avoidRepeatedPatternUtility);
+
+  PRINTPARAM(nnPolicyTemperature);
+  PRINTPARAM(antiMirror);
+
+  PRINTPARAM(subtreeValueBiasFactor);
+  PRINTPARAM(subtreeValueBiasTableNumShards);
+  PRINTPARAM(subtreeValueBiasFreeProp);
+  PRINTPARAM(subtreeValueBiasWeightExponent);
+
+
+  PRINTPARAM(nodeTableShardsPowerOfTwo);
+  PRINTPARAM(numVirtualLossesPerThread);
+
+
+  PRINTPARAM(numThreads);
+  PRINTPARAM(maxVisits);
+  PRINTPARAM(maxPlayouts);
+  PRINTPARAM(maxTime);
+
+
+  PRINTPARAM(maxVisitsPondering);
+  PRINTPARAM(maxPlayoutsPondering);
+  PRINTPARAM(maxTimePondering);
+
+
+  PRINTPARAM(lagBuffer);
+
+
+  PRINTPARAM(searchFactorAfterOnePass);
+  PRINTPARAM(searchFactorAfterTwoPass);
+
+
+  PRINTPARAM(treeReuseCarryOverTimeFactor);
+  PRINTPARAM(overallocateTimeFactor);
+  PRINTPARAM(midgameTimeFactor);
+  PRINTPARAM(midgameTurnPeakTime);
+  PRINTPARAM(endgameTurnTimeDecay);
+  PRINTPARAM(obviousMovesTimeFactor);
+  PRINTPARAM(obviousMovesPolicyEntropyTolerance);
+  PRINTPARAM(obviousMovesPolicySurpriseTolerance);
+
+  PRINTPARAM(futileVisitsThreshold);
 }

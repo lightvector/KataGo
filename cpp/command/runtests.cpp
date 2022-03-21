@@ -8,6 +8,7 @@
 #include "../core/config_parser.h"
 #include "../core/base64.h"
 #include "../core/timer.h"
+#include "../core/threadtest.h"
 #include "../game/board.h"
 #include "../game/rules.h"
 #include "../game/boardhistory.h"
@@ -32,6 +33,7 @@ int MainCmds::runtests(const vector<string>& args) {
   FancyMath::runTests();
   ComputeElos::runTests();
   Base64::runTests();
+  ThreadTest::runTests();
 
   Tests::runBoardIOTests();
   Tests::runBoardBasicTests();
@@ -124,6 +126,26 @@ int MainCmds::runsearchtestsv8(const vector<string>& args) {
     return 1;
   }
   Tests::runSearchTestsV8(
+    args[1],
+    Global::stringToBool(args[2]),
+    Global::stringToBool(args[3]),
+    Global::stringToBool(args[4])
+  );
+
+  ScoreValue::freeTables();
+
+  return 0;
+}
+
+int MainCmds::runsearchtestsv9(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  if(args.size() != 5) {
+    cerr << "Must supply exactly four arguments: MODEL_FILE INPUTSNHWC CUDANHWC FP16" << endl;
+    return 1;
+  }
+  Tests::runSearchTestsV9(
     args[1],
     Global::stringToBool(args[2]),
     Global::stringToBool(args[3]),

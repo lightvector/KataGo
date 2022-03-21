@@ -26,17 +26,18 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     nnInputParams.symmetry = symmetry;
     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
+    if(print) {
+      cout << board << endl;
+      cout << endl;
+      buf.result->debugPrint(cout,board);
+    }
+
     testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("E16",board),board)] >= 0.95);
     testAssert(buf.result->whiteWinProb > 0.30);
     testAssert(buf.result->whiteWinProb < 0.70);
     testAssert(buf.result->whiteLead > -2.5);
     testAssert(buf.result->whiteLead < 2.5);
 
-    if(print) {
-      cout << board << endl;
-      cout << endl;
-      buf.result->debugPrint(cout,board);
-    }
     delete sgf;
   }
 
@@ -58,17 +59,18 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     nnInputParams.symmetry = symmetry;
     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
+    if(print) {
+      cout << board << endl;
+      cout << endl;
+      buf.result->debugPrint(cout,board);
+    }
+
     testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("P15",board),board)] >= 0.80);
     testAssert(buf.result->whiteWinProb > 0.30);
     testAssert(buf.result->whiteWinProb < 0.70);
     testAssert(buf.result->whiteLead > -2.5);
     testAssert(buf.result->whiteLead < 2.5);
 
-    if(print) {
-      cout << board << endl;
-      cout << endl;
-      buf.result->debugPrint(cout,board);
-    }
     delete sgf;
   }
   {
@@ -89,17 +91,18 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     nnInputParams.symmetry = symmetry;
     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
+    if(print) {
+      cout << board << endl;
+      cout << endl;
+      buf.result->debugPrint(cout,board);
+    }
+
     testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("Q2",board),board)] >= 0.95);
     testAssert(buf.result->whiteWinProb > 0.30);
     testAssert(buf.result->whiteWinProb < 0.70);
     testAssert(buf.result->whiteLead > -2.5);
     testAssert(buf.result->whiteLead < 2.5);
 
-    if(print) {
-      cout << board << endl;
-      cout << endl;
-      buf.result->debugPrint(cout,board);
-    }
     delete sgf;
   }
 
@@ -122,14 +125,15 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     nnInputParams.symmetry = symmetry;
     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
-    testAssert(buf.result->whiteWinProb < 0.1);
-    testAssert(buf.result->whiteLead < -5.0);
-
     if(print) {
       cout << board << endl;
       cout << endl;
       buf.result->debugPrint(cout,board);
     }
+
+    testAssert(buf.result->whiteWinProb < 0.1);
+    testAssert(buf.result->whiteLead < -5.0);
+
     delete sgf;
   }
 
@@ -152,14 +156,15 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     nnInputParams.symmetry = symmetry;
     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
-    testAssert(buf.result->whiteWinProb > 0.9);
-    testAssert(buf.result->whiteLead > 5.0);
-
     if(print) {
       cout << board << endl;
       cout << endl;
       buf.result->debugPrint(cout,board);
     }
+
+    testAssert(buf.result->whiteWinProb > 0.9);
+    testAssert(buf.result->whiteLead > 5.0);
+
     delete sgf;
   }
 }

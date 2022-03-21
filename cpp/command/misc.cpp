@@ -2171,6 +2171,7 @@ int MainCmds::sampleinitializations(const vector<string>& args) {
       nullptr,
       nullptr,
       nullptr,
+      nullptr,
       nullptr
     );
 

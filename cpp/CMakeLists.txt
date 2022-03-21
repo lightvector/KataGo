@@ -144,6 +144,7 @@ add_executable(katago
   core/global.cpp
   core/base64.cpp
   core/bsearch.cpp
+  core/commandloop.cpp
   core/config_parser.cpp
   core/datetime.cpp
   core/elo.cpp
@@ -161,6 +162,7 @@ add_executable(katago
   core/test.cpp
   core/threadsafecounter.cpp
   core/threadsafequeue.cpp
+  core/threadtest.cpp
   core/timer.cpp
   game/board.cpp
   game/rules.cpp
@@ -222,6 +224,7 @@ add_executable(katago
   tests/testsearch.cpp
   tests/testsearchv3.cpp
   tests/testsearchv8.cpp
+  tests/testsearchv9.cpp
   tests/testsearchmisc.cpp
   tests/testtime.cpp
   tests/testtrainingwrite.cpp

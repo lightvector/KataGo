@@ -449,11 +449,11 @@ vector<SearchParams> Setup::loadParams(
     else                                   params.fpuLossProp = 0.0;
     if(cfg.contains("fpuParentWeightByVisitedPolicy"+idxStr)) params.fpuParentWeightByVisitedPolicy = cfg.getBool("fpuParentWeightByVisitedPolicy"+idxStr);
     else if(cfg.contains("fpuParentWeightByVisitedPolicy"))   params.fpuParentWeightByVisitedPolicy = cfg.getBool("fpuParentWeightByVisitedPolicy");
-    else                                                      params.fpuParentWeightByVisitedPolicy = false;
+    else                                                      params.fpuParentWeightByVisitedPolicy = (setupFor != SETUP_FOR_DISTRIBUTED);
     if(params.fpuParentWeightByVisitedPolicy) {
       if(cfg.contains("fpuParentWeightByVisitedPolicyPow"+idxStr)) params.fpuParentWeightByVisitedPolicyPow = cfg.getDouble("fpuParentWeightByVisitedPolicyPow"+idxStr, 0.0, 5.0);
       else if(cfg.contains("fpuParentWeightByVisitedPolicyPow"))   params.fpuParentWeightByVisitedPolicyPow = cfg.getDouble("fpuParentWeightByVisitedPolicyPow",        0.0, 5.0);
-      else                                                         params.fpuParentWeightByVisitedPolicyPow = 1.0;
+      else                                                         params.fpuParentWeightByVisitedPolicyPow = 2.0;
     }
     else {
       if(cfg.contains("fpuParentWeight"+idxStr)) params.fpuParentWeight = cfg.getDouble("fpuParentWeight"+idxStr,        0.0, 1.0);
@@ -463,7 +463,7 @@ vector<SearchParams> Setup::loadParams(
 
     if(cfg.contains("valueWeightExponent"+idxStr)) params.valueWeightExponent = cfg.getDouble("valueWeightExponent"+idxStr, 0.0, 1.0);
     else if(cfg.contains("valueWeightExponent")) params.valueWeightExponent = cfg.getDouble("valueWeightExponent", 0.0, 1.0);
-    else params.valueWeightExponent = 0.5;
+    else params.valueWeightExponent = 0.25;
     if(cfg.contains("useNoisePruning"+idxStr)) params.useNoisePruning = cfg.getBool("useNoisePruning"+idxStr);
     else if(cfg.contains("useNoisePruning"))   params.useNoisePruning = cfg.getBool("useNoisePruning");
     else                                       params.useNoisePruning = (setupFor != SETUP_FOR_DISTRIBUTED && setupFor != SETUP_FOR_OTHER);
@@ -490,7 +490,7 @@ vector<SearchParams> Setup::loadParams(
 
     if(cfg.contains("useGraphSearch"+idxStr)) params.useGraphSearch = cfg.getBool("useGraphSearch"+idxStr);
     else if(cfg.contains("useGraphSearch"))   params.useGraphSearch = cfg.getBool("useGraphSearch");
-    else                                      params.useGraphSearch = false;
+    else                                      params.useGraphSearch = (setupFor != SETUP_FOR_DISTRIBUTED);
     if(cfg.contains("graphSearchRepBound"+idxStr)) params.graphSearchRepBound = cfg.getInt("graphSearchRepBound"+idxStr, 3, 50);
     else if(cfg.contains("graphSearchRepBound"))   params.graphSearchRepBound = cfg.getInt("graphSearchRepBound",        3, 50);
     else                                           params.graphSearchRepBound = 11;
@@ -616,13 +616,13 @@ vector<SearchParams> Setup::loadParams(
 
     if(cfg.contains("subtreeValueBiasFactor"+idxStr)) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor"+idxStr, 0.0, 1.0);
     else if(cfg.contains("subtreeValueBiasFactor")) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor", 0.0, 1.0);
-    else params.subtreeValueBiasFactor = 0.35;
+    else params.subtreeValueBiasFactor = 0.45;
     if(cfg.contains("subtreeValueBiasFreeProp"+idxStr)) params.subtreeValueBiasFreeProp = cfg.getDouble("subtreeValueBiasFreeProp"+idxStr, 0.0, 1.0);
     else if(cfg.contains("subtreeValueBiasFreeProp")) params.subtreeValueBiasFreeProp = cfg.getDouble("subtreeValueBiasFreeProp", 0.0, 1.0);
     else params.subtreeValueBiasFreeProp = 0.8;
     if(cfg.contains("subtreeValueBiasWeightExponent"+idxStr)) params.subtreeValueBiasWeightExponent = cfg.getDouble("subtreeValueBiasWeightExponent"+idxStr, 0.0, 1.0);
     else if(cfg.contains("subtreeValueBiasWeightExponent")) params.subtreeValueBiasWeightExponent = cfg.getDouble("subtreeValueBiasWeightExponent", 0.0, 1.0);
-    else params.subtreeValueBiasWeightExponent = 0.8;
+    else params.subtreeValueBiasWeightExponent = 0.85;
 
     if(cfg.contains("reduceWeightByPolicyUtilityVariance"+idxStr)) params.reduceWeightByPolicyUtilityVariance = cfg.getDouble("reduceWeightByPolicyUtilityVariance"+idxStr, 0.0, 10000.0);
     else if(cfg.contains("reduceWeightByPolicyUtilityVariance")) params.reduceWeightByPolicyUtilityVariance = cfg.getDouble("reduceWeightByPolicyUtilityVariance", 0.0, 10000.0);
@@ -667,7 +667,10 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("futileVisitsThreshold"))   params.futileVisitsThreshold = cfg.getDouble("futileVisitsThreshold",0.01,1.0);
     else                                             params.futileVisitsThreshold = 0.0;
 
-
+    //On distributed, tolerate reading mutexPoolSize since older version configs use it.
+    if(setupFor == SETUP_FOR_DISTRIBUTED)
+      cfg.markAllKeysUsedWithPrefix("mutexPoolSize");
+    
     paramss.push_back(params);
   }
 

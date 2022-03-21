@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "../core/test.h"
+#include "../core/os.h"
 
 using namespace std;
 
@@ -273,7 +274,13 @@ static bool approxEqual(double x, double y, double tolerance) {
 
 void ComputeElos::runTests() {
   ostringstream out;
+  //Avoid complaint on windows about not calling a function with arguments - the point is to ignore the function
+#ifdef OS_IS_WINDOWS
+#pragma warning(suppress:4551)
   (void)computeLocalLogLikelihoodSecondDerivative;
+#else
+  (void)computeLocalLogLikelihoodSecondDerivative;
+#endif
 
   // auto printEloStuff = [&](vector<double>& elos, ComputeElos::WLRecord* winMatrix, int numPlayers, double priorWL) {
   //   vector<double> eloStdevs = ComputeElos::computeApproxEloStdevs(elos,winMatrix,numPlayers,priorWL);

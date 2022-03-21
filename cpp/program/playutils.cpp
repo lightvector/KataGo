@@ -1,7 +1,9 @@
 #include "../program/playutils.h"
-#include "../core/timer.h"
 
 #include <sstream>
+
+#include "../core/timer.h"
+#include "../core/test.h"
 
 using namespace std;
 
@@ -177,10 +179,10 @@ Loc PlayUtils::getGameInitializationMove(
   vector<double> playSelectionValues;
   int nnXLen = nnOutput->nnXLen;
   int nnYLen = nnOutput->nnYLen;
-  assert(nnXLen >= board.x_size);
-  assert(nnYLen >= board.y_size);
-  assert(nnXLen > 0 && nnXLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
-  assert(nnYLen > 0 && nnYLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
+  testAssert(nnXLen >= board.x_size);
+  testAssert(nnYLen >= board.y_size);
+  testAssert(nnXLen > 0 && nnXLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
+  testAssert(nnYLen > 0 && nnYLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
   int policySize = NNPos::getPolicySize(nnXLen,nnYLen);
   for(int movePos = 0; movePos<policySize; movePos++) {
     Loc moveLoc = NNPos::posToLoc(movePos,board.x_size,board.y_size,nnXLen,nnYLen);
@@ -200,7 +202,7 @@ Loc PlayUtils::getGameInitializationMove(
   //add a bit more outlierish variety
   uint32_t idxChosen;
   if(gameRand.nextBool(0.0002))
-    idxChosen = gameRand.nextUInt(playSelectionValues.size());
+    idxChosen = gameRand.nextUInt((uint32_t)playSelectionValues.size());
   else
     idxChosen = gameRand.nextUInt(playSelectionValues.data(),playSelectionValues.size());
   Loc loc = locs[idxChosen];
@@ -886,6 +888,8 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
 ) {
   //Pick random positions from the SGF file, but deterministically
   vector<Move> moves = sgf->moves;
+  if(moves.size() > 0xFFFF)
+    moves.resize(0xFFFF);
   string posSeed = "benchmarkPosSeed|";
   for(int i = 0; i<moves.size(); i++) {
     posSeed += Global::intToString((int)moves[i].loc);
@@ -899,7 +903,7 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
       possiblePositionIdxs.push_back(i);
     }
     if(possiblePositionIdxs.size() > 0) {
-      for(int i = possiblePositionIdxs.size()-1; i > 1; i--) {
+      for(int i = (int)possiblePositionIdxs.size()-1; i > 1; i--) {
         int r = posRand.nextUInt(i);
         int tmp = possiblePositionIdxs[i];
         possiblePositionIdxs[i] = possiblePositionIdxs[r];
@@ -914,7 +918,7 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
 
   BenchmarkResults results;
   results.numThreads = params.numThreads;
-  results.totalPositions = possiblePositionIdxs.size();
+  results.totalPositions = (int)possiblePositionIdxs.size();
 
   nnEval->clearCache();
   nnEval->clearStats();
