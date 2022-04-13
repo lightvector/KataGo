@@ -64,6 +64,7 @@ if __name__ == "__main__":
   parser.add_argument('-max-train-bucket-per-new-data', help='When data added, add this many train rows per data row to bucket', type=float, required=False)
   parser.add_argument('-max-train-bucket-size', help='Approx total number of train rows allowed if data stops', type=float, required=False)
   parser.add_argument('-max-train-steps-since-last-reload', help='Approx total of training allowed if shuffling stops', type=float, required=False)
+  parser.add_argument('-max-val-samples', help='Approx max of validation samples per epoch', type=int, required=False)
   parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
 
   parser.add_argument('-brenorm-avg-momentum', type=float, help='Set brenorm running avg rate to this value', required=False)
@@ -134,6 +135,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   max_train_bucket_per_new_data = args["max_train_bucket_per_new_data"]
   max_train_bucket_size = args["max_train_bucket_size"]
   max_train_steps_since_last_reload = args["max_train_steps_since_last_reload"]
+  max_val_samples = args["max_val_samples"]
   no_export = args["no_export"]
 
   brenorm_target_rmax = args["brenorm_target_rmax"]
@@ -913,6 +915,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
       val_files = []
       if os.path.exists(vdatadir):
         val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".npz")]
+      val_files = sorted(val_files)
       if len(val_files) == 0:
         logging.info("No validation files, skipping validation step")
       else:
@@ -920,6 +923,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
           model.eval()
           val_metric_sums = defaultdict(float)
           val_metric_weights = defaultdict(float)
+          val_samples = 0
+          t0 = time.perf_counter()
           for batch in data_processing_pytorch.read_npz_training_data(val_files, batch_size, pos_len, device, randomize_symmetries=True, model_config=model_config):
             model_outputs = model(batch["binaryInputNCHW"],batch["globalInputNC"])
             postprocessed = model.postprocess_output(model_outputs)
@@ -935,8 +940,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
             )
             metrics = detensorify_metrics(metrics)
             accumulate_metrics(val_metric_sums, val_metric_weights, metrics, batch_size, decay=1.0)
+            val_samples += batch_size
+            if max_val_samples is not None and val_samples > max_val_samples:
+              break
           log_metrics(val_metric_sums, val_metric_weights, metrics, val_metrics_out)
-
+          t1 = time.perf_counter()
+          logging.info(f"Validation took {t1-t0} seconds")
           model.train()
 
     if max_epochs_this_instance is not None and max_epochs_this_instance >= 0 and num_epochs_this_instance >= max_epochs_this_instance:

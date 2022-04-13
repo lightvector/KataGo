@@ -221,6 +221,7 @@ def main(args):
         batch,
         is_training=False,
         soft_policy_weight_scale=soft_policy_weight_scale,
+        main_loss_scale=1.0,
         intermediate_loss_scale=None,
         intermediate_distill_scale=None,
       )
