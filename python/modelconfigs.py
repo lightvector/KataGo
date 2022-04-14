@@ -1030,7 +1030,7 @@ b60c320 = {
 }
 
 
-b38c384nbt = {
+b41c384nbt = {
   "version":10,
   "norm_kind":"fixup",
   "bnorm_epsilon": 1e-4,
@@ -1080,6 +1080,9 @@ b38c384nbt = {
     ["rconv36","bottlenest2gpool"],
     ["rconv37","bottlenest2"],
     ["rconv38","bottlenest2"],
+    ["rconv39","bottlenest2gpool"],
+    ["rconv40","bottlenest2"],
+    ["rconv41","bottlenest2"],
   ],
   "p1_num_channels":64,
   "g1_num_channels":64,
@@ -1305,7 +1308,7 @@ base_config_of_name = {
 
   "b40c384": b40c384,
   "b60c320": b60c320,
-  "b38c384nbt": b38c384nbt,
+  "b41c384nbt": b41c384nbt,
   "b32c448nbt": b32c448nbt,
   "b28c512nbt": b28c512nbt,
   "b20c640nbt": b20c640nbt,
