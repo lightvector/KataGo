@@ -46,6 +46,14 @@ PlaySettings PlaySettings::loadForGatekeeper(ConfigParser& cfg) {
   return playSettings;
 }
 
+
+PlaySettings PlaySettings::loadForRollouts(ConfigParser& cfg) {
+  (void)cfg;
+  PlaySettings playSettings;
+  playSettings.allowResignation = false;
+  return playSettings;
+}
+
 PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
   PlaySettings playSettings;
   playSettings.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");

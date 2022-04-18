@@ -45,6 +45,7 @@ gatekeeper : Poll directory for new nets and match them against the latest net s
 
 ---Testing/debugging subcommands-------------
 evalsgf : Utility/debug tool, analyze a single position of a game from an SGF file.
+generaterollouts : Play a bunch of games from a fixed SGF position.
 
 runtests : Test important board algorithms and datastructures
 runnnlayertests : Test a few subcomponents of the current neural net backend
@@ -134,6 +135,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::trystartposes(subArgs);
   else if(subcommand == "viewstartposes")
     return MainCmds::viewstartposes(subArgs);
+  else if(subcommand == "generaterollouts")
+    return MainCmds::generaterollouts(subArgs);
   else if(subcommand == "demoplay")
     return MainCmds::demoplay(subArgs);
   else if(subcommand == "sampleinitializations")

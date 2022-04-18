@@ -2197,3 +2197,246 @@ int MainCmds::sampleinitializations(const vector<string>& args) {
   ScoreValue::freeTables();
   return 0;
 }
+
+
+int MainCmds::generaterollouts(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+  Rand seedRand;
+
+  ConfigParser cfg;
+  string modelFile;
+  string sgfFile;
+  int moveNum;
+  string outFile;
+  int numGamesToRun;
+  
+  try {
+    KataGoCommandLine cmd("Run a search on a position from an sgf file, for debugging.");
+    cmd.addConfigFileArg("","gtp_example.cfg");
+    cmd.addModelFileArg();
+    TCLAP::UnlabeledValueArg<string> sgfFileArg("","Sgf file to analyze",true,string(),"FILE");
+    TCLAP::ValueArg<int> moveNumArg("m","move-num","Sgf move num to analyze, 1-indexed",true,0,"MOVENUM");
+    TCLAP::ValueArg<string> outFileArg("","output-file","Output file",true,string(),"FILE");
+    TCLAP::ValueArg<int> numGamesArg("","num-games","Number of games to run",true,0,"NGAMES");
+
+    cmd.add(sgfFileArg);
+    cmd.add(moveNumArg);
+    cmd.add(outFileArg);
+    cmd.add(numGamesArg);
+
+    cmd.setShortUsageArgLimit();
+    cmd.addOverrideConfigArg();
+
+    cmd.parseArgs(args);
+
+    modelFile = cmd.getModelFile();
+    sgfFile = sgfFileArg.getValue();
+    moveNum = moveNumArg.getValue();
+    outFile = outFileArg.getValue();
+    numGamesToRun = numGamesArg.getValue();
+
+    cmd.getConfig(cfg);
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  //Parse sgf file and board ------------------------------------------------------------------
+  CompactSgf* sgf = CompactSgf::loadFile(sgfFile);
+  vector<Move>& moves = sgf->moves;
+  if(moveNum < 0)
+    throw StringError("Move num " + Global::intToString(moveNum) + " requested but must be non-negative");
+  if(moveNum > moves.size())
+    throw StringError("Move num " + Global::intToString(moveNum) + " requested but sgf has only " + Global::int64ToString(moves.size()));
+
+  Board board;
+  Player nextPla;
+  BoardHistory hist;
+
+  //Parse rules -------------------------------------------------------------------
+  Rules defaultRules = Rules::getTrompTaylorish();
+  Rules initialRules = sgf->getRulesOrWarn(
+    defaultRules,
+    [](const string& msg) { cout << msg << endl; }
+  );
+
+  sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+  sgf->playMovesTolerant(board,nextPla,hist,moveNum,false);
+
+  //Load neural net and start bot------------------------------------------
+
+  Logger logger;
+  logger.setLogToStdout(true);
+  logger.write("Engine starting...");
+
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+  int numGameThreads = cfg.getInt("numGameThreads",1,4096);
+  logger.write("Running " + Global::intToString(numGameThreads) + " game threads...");
+
+  NNEvaluator* nnEval;
+  {
+    Setup::initializeSession(cfg);
+    int maxConcurrentEvals = numGameThreads * params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    int expectedConcurrentEvals = numGameThreads * params.numThreads;
+    int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+    bool defaultRequireExactNNLen = true;
+    string expectedSha256 = "";
+    nnEval = Setup::initializeNNEvaluator(
+      modelFile,modelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+      board.x_size,board.y_size,defaultMaxBatchSize,defaultRequireExactNNLen,
+      Setup::SETUP_FOR_GTP
+    );
+  }
+  logger.write("Loaded neural net");
+
+  {
+    bool rulesWereSupported;
+    Rules supportedRules = nnEval->getSupportedRules(initialRules,rulesWereSupported);
+    if(!rulesWereSupported) {
+      cout << "Warning: Rules " << initialRules << " from sgf not supported by neural net, using " << supportedRules << " instead" << endl;
+      //Attempt to re-set-up the board using supported rules
+      sgf->setupInitialBoardAndHist(supportedRules, board, nextPla, hist);
+      sgf->playMovesTolerant(board,nextPla,hist,moveNum,false);
+    }
+  }
+
+  PlaySettings playSettings = PlaySettings::loadForRollouts(cfg);
+  
+  //Check for unused config keys
+  cfg.warnUnusedKeys(cerr,&logger);
+
+  
+  if(!std::atomic_is_lock_free(&shouldStop))
+    throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
+  std::signal(SIGINT, signalHandler);
+  std::signal(SIGTERM, signalHandler);
+  
+  std::function<bool()> shouldStopFunc = []() {
+    return shouldStop.load(std::memory_order_acquire);
+  };
+
+  ThreadSafeQueue<FinishedGameData*> writeQueue;
+  auto writeLoop = [&logger, &writeQueue, &outFile]() {
+    ofstream out;
+    FileUtils::open(out, outFile);
+    while(true) {
+      FinishedGameData* game;
+      bool success = writeQueue.waitPop(game);
+      if(!success)
+        break;
+      if(game == NULL)
+        continue;
+      bool tryNicerRulesString = true;
+      bool omitResignPlayerMove = true;
+      WriteSgf::writeSgf(out, game->bName, game->wName, game->endHist, game, tryNicerRulesString, omitResignPlayerMove);
+      out << endl;
+      delete game;
+    }
+    out.close();
+  };
+  
+  ThreadSafeQueue<uint64_t> gameQueue;
+  std::atomic<int64_t> numGamesBegun(0);
+  std::atomic<int64_t> numGamesDone(0);
+
+  auto gameLoop = [
+    &logger,&gameQueue,&numGamesBegun,&numGamesDone,&numGamesToRun,&nnEval,&board,&nextPla,&hist,&params,&playSettings,&shouldStopFunc,&writeQueue
+  ]() {
+    while(true) {
+      if(shouldStop.load(std::memory_order_acquire))
+        break;
+
+      uint64_t seedVal;
+      bool success = gameQueue.waitPop(seedVal);
+      if(!success)
+        break;
+
+      int64_t gamesBegun = numGamesBegun.fetch_add(1) + 1;
+      logger.write(Global::int64ToString(gamesBegun) + "/" + Global::intToString(numGamesToRun) + " games begun");
+
+      ExtraBlackAndKomi extraBlackAndKomi;
+      extraBlackAndKomi.komiMean = hist.rules.komi;
+      extraBlackAndKomi.komiStdev = 0.0f;
+
+      MatchPairer::BotSpec botSpec;
+      botSpec.botIdx = 0;
+      botSpec.botName = "KataGo rollout";
+      botSpec.nnEval = nnEval;
+      botSpec.baseParams = params;
+
+      string seed = "rollout-" + Global::uint64ToHexString(seedVal);
+      Rand rand(seed);
+      string searchRandSeed = seed + "-search";
+      
+      bool doEndGameIfAllPassAlive = true;
+      bool clearBotBeforeSearch = false;
+
+      bool logSearchInfo = false;
+      bool logMoves = false;
+
+      int maxMovesPerGame = 1600;
+      WaitableFlag* shouldPause = NULL;
+
+      OtherGameProperties otherGameProps;
+      otherGameProps.isSgfPos = true;
+      otherGameProps.allowPolicyInit = false;
+      
+      FinishedGameData* game = Play::runGame(
+        board, nextPla, hist, extraBlackAndKomi,
+        botSpec, botSpec,
+        searchRandSeed,
+        doEndGameIfAllPassAlive, clearBotBeforeSearch,
+        logger, logSearchInfo, logMoves,
+        maxMovesPerGame, shouldStopFunc,
+        shouldPause,
+        playSettings, otherGameProps,
+        rand,
+        nullptr,
+        nullptr
+      );
+
+      if(shouldStop.load(std::memory_order_acquire)) {
+        delete game;
+        break;
+      }
+
+      int64_t gamesDone = numGamesDone.fetch_add(1) + 1;
+      logger.write(Global::int64ToString(gamesDone) + "/" + Global::intToString(numGamesToRun) + " games done");
+
+      writeQueue.forcePush(game);
+    }
+  };
+
+  auto writeLoopProtected = [&logger, &writeLoop]() {
+    Logger::logThreadUncaught("write loop", &logger, writeLoop);
+  };
+  auto gameLoopProtected = [&logger, &gameLoop]() {
+    Logger::logThreadUncaught("game loop", &logger, gameLoop);
+  };
+
+  for(int i = 0; i<numGamesToRun; i++) {
+    gameQueue.forcePush(seedRand.nextUInt64());
+  }
+  gameQueue.setReadOnly();
+  
+  std::thread writeThread(writeLoopProtected);
+  
+  std::vector<std::thread> gameThreads;
+  for(size_t i = 0; i<numGameThreads; i++)
+    gameThreads.push_back(std::thread(gameLoopProtected));
+
+  for(size_t i = 0; i<numGameThreads; i++)
+    gameThreads[i].join();
+
+  writeQueue.setReadOnly();
+  writeThread.join();
+  
+  delete nnEval;
+  NeuralNet::globalCleanup();
+  delete sgf;
+  ScoreValue::freeTables();
+
+  return 0;
+}
