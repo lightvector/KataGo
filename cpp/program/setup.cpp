@@ -1,5 +1,7 @@
 #include "../program/setup.h"
 
+#include "../core/datetime.h"
+#include "../core/makedir.h"
 #include "../neuralnet/nninterface.h"
 #include "../search/patternbonustable.h"
 
@@ -838,4 +840,24 @@ std::vector<std::unique_ptr<PatternBonusTable>> Setup::loadAvoidSgfPatternBonusT
     tables.push_back(std::move(patternBonusTable));
   }
   return tables;
+}
+
+void Setup::initializeLoggerFromConfig(ConfigParser& cfg, Logger& logger, Rand& seedRand) {
+  if((int)cfg.contains("logFile") + (int)cfg.contains("logDir") + (int)cfg.contains("logDirDated") > 1)
+    throw StringError("Cannot specify more than one of logFile and logDir and logDirDated in config");
+  else if(cfg.contains("logFile"))
+    logger.addFile(cfg.getString("logFile"));
+  else if(cfg.contains("logDir")) {
+    MakeDir::make(cfg.getString("logDir"));
+    logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(seedRand.nextUInt()) + ".log");
+  }
+  else if(cfg.contains("logDirDated")) {
+    MakeDir::make(cfg.getString("logDirDated"));
+    MakeDir::make(cfg.getString("logDirDated") + "/" + DateTime::getCompactDateTimeString());
+    logger.addFile(cfg.getString("logDirDated") + "/" + DateTime::getCompactDateTimeString() + "/" + Global::uint32ToHexString(seedRand.nextUInt()) + ".log");
+  }
+
+  const bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
+  if(!logTimeStamp)
+    logger.setLogTime(false);
 }

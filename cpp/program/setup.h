@@ -88,6 +88,8 @@ namespace Setup {
     ConfigParser& cfg
   );
 
+  void initializeLoggerFromConfig(ConfigParser& cfg, Logger& logger, Rand& seedRand);
+  
   //Get sets of options that are mutually exclusive. Intended for use in configParser
   std::vector<std::pair<std::set<std::string>,std::set<std::string>>> getMutexKeySets();
 
