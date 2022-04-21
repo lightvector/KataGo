@@ -250,6 +250,22 @@ add_executable(katago
   main.cpp
   )
 
+add_executable(unittest
+  core/datetime.h
+  core/datetime.cpp
+  core/global.h
+  core/global.cpp
+  core/fileutils.h
+  core/fileutils.cpp
+  core/logger.h
+  core/logger.cpp
+  core/sha2.h
+  core/sha2.cpp
+  core/config_parser.h
+  core/config_parser.cpp
+  tests/testconfig.cpp
+)
+
 if(USE_BACKEND STREQUAL "CUDA")
   target_compile_definitions(katago PRIVATE USE_CUDA_BACKEND)
   target_compile_definitions(katago PRIVATE CUDA_TARGET_VERSION=${CMAKE_CUDA_COMPILER_VERSION})
@@ -325,6 +341,7 @@ find_package(ZLIB)
 if(ZLIB_FOUND)
   include_directories(${ZLIB_INCLUDE_DIRS})
   target_link_libraries(katago ${ZLIB_LIBRARIES})
+  target_link_libraries(unittest ${ZLIB_LIBRARIES})
 else()
   set(ZLIB_INCLUDE_DIR ${ZLIB_INCLUDE_DIR} CACHE PATH "Path to directory with zlib.h and other header files")
   set(ZLIB_LIBRARY ${ZLIB_LIBRARY} CACHE FILEPATH "Path to 'libz.so' on Linux or 'libz.lib' on Windows")
