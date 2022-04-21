@@ -78,8 +78,7 @@ void ConfigParser::initializeInternal(istream& in) {
   readStreamContent(in);
 }
 
-void ConfigParser::processIncludedFile(const std::string &fname)
-{
+void ConfigParser::processIncludedFile(const std::string &fname) {
   if(fname == fileName || find(includedFiles.begin(), includedFiles.end(), fname) != includedFiles.end()) {
     throw IOError("Circular or multiple inclusion of the same file: '" + fname + "'" + lineAndFileInfo());
   }
@@ -150,8 +149,7 @@ void ConfigParser::readStreamContent(istream& in) {
   contents += contentStream.str();
 }
 
-string ConfigParser::lineAndFileInfo()
-{
+string ConfigParser::lineAndFileInfo() const {
   return ", line " + Global::intToString(curLineNum) + " in '" + curFilename + "'";
 }
 
@@ -166,8 +164,7 @@ string ConfigParser::getContents() const {
   return contents;
 }
 
-string ConfigParser::getAllKeyVals() const
-{
+string ConfigParser::getAllKeyVals() const {
   ostringstream ost;
   for(auto it = keyValues.begin(); it != keyValues.end(); ++it) {
     ost << it->first + " = " + it->second << endl;

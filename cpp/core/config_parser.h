@@ -110,7 +110,7 @@ class ConfigParser {
   void initializeInternal(std::istream& in);
   void processIncludedFile(const std::string& fname);
   void readStreamContent(std::istream& in);
-  std::string lineAndFileInfo();
+  std::string lineAndFileInfo() const;
 };
 
 
