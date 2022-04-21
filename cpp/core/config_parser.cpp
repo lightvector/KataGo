@@ -18,8 +18,12 @@ ConfigParser::ConfigParser(const string& fname)
   initialize(fname);
 }
 
-ConfigParser::ConfigParser(istream& in)
-  :initialized(false),fileName(),contents(),keyValues(),usedKeysMutex(),usedKeys()
+ConfigParser::ConfigParser(const char* fname, bool keysOverride)
+  : ConfigParser(std::string(fname), keysOverride)
+{}
+
+ConfigParser::ConfigParser(istream& in, bool keysOverride)
+  :initialized(false),fileName(),contents(),keyValues(),keysOverrideEnabled(keysOverride),usedKeysMutex(),usedKeys()
 {
   initialize(in);
 }
@@ -68,13 +72,32 @@ void ConfigParser::initialize(const map<string, string>& kvs) {
 
 
 void ConfigParser::initializeInternal(istream& in) {
-  int lineNum = 0;
+  keyValues.clear();
+  contents.clear();
+  curFilename = fileName;
+  readStreamContent(in);
+}
+
+void ConfigParser::processIncludedFile(const std::string &fname)
+{
+  if(fname == fileName || find(includedFiles.begin(), includedFiles.end(), fname) != includedFiles.end()) {
+    throw IOError("Circular or multiple inclusion of the same file: '" + fname + "'" + lineAndFileInfo());
+  }
+  includedFiles.push_back(fname);
+  curFilename = fname;
+  ifstream in;
+  FileUtils::open(in,fname);
+  readStreamContent(in);
+}
+
+void ConfigParser::readStreamContent(istream& in) {
+  curLineNum = 0;
   string line;
   ostringstream contentStream;
   keyValues.clear();
   while(getline(in,line)) {
     contentStream << line << "\n";
-    lineNum += 1;
+    curLineNum += 1;
     line = Global::trim(line);
     if(line.length() <= 0 || line[0] == '#')
       continue;
@@ -83,17 +106,50 @@ void ConfigParser::initializeInternal(istream& in) {
     if(commentPos != string::npos)
       line = line.substr(0, commentPos);
 
+    if(line[0] == '@') {
+      if(line.size() < 9) {
+        throw IOError("Unsupported @ directive" + lineAndFileInfo());
+      }
+      size_t pos0 =line.find_first_of(" \t\v\f=");
+      if(pos0 == string::npos)
+        throw IOError("@ directive without value (key-val separator is not found)" + lineAndFileInfo());
+
+      string key = Global::trim(line.substr(0,pos0));
+
+      string value = line.substr(pos0+1);
+      size_t pos1 =value.find_first_not_of(" \t\v\f=");
+      if(pos1 == string::npos)
+        throw IOError("@ directive without value (value after key-val separator is not found)" + lineAndFileInfo());
+
+       value = Global::trim(value.substr(pos1));
+       value = Global::trim(value, "'");  // remove single quotes for filename
+       value = Global::trim(value, "\"");  // remove double quotes for filename
+
+       int lineNum = curLineNum;
+       processIncludedFile(value);
+       curLineNum = lineNum;
+    }
+
     size_t pos = line.find("=");
     if(pos == string::npos)
-      throw IOError("Could not parse kv pair, line " + Global::intToString(lineNum) + " does not have a non-commented '=' in " + fileName);
+      throw IOError("Could not parse kv pair, line does not have a non-commented '='" + lineAndFileInfo());
 
     string key = Global::trim(line.substr(0,pos));
     string value = Global::trim(line.substr(pos+1));
-    if(keyValues.find(key) != keyValues.end())
-      throw IOError("Key '" + key + "' + was specified multiple times in " + fileName + ", you probably didn't mean to do this, please delete one of them");
+    if(keyValues.find(key) != keyValues.end()) {
+      if(!keysOverrideEnabled)
+        throw IOError("Key '" + key + "' + was specified multiple times in " + curFilename + ", you probably didn't mean to do this, please delete one of them");
+      else
+        logMessages.push_back("Key '" + key + "' + was overriden by new value '" + value + "'" + lineAndFileInfo());
+    }
     keyValues[key] = value;
   }
-  contents = contentStream.str();
+  contents += contentStream.str();
+}
+
+string ConfigParser::lineAndFileInfo()
+{
+  return ", line " + Global::intToString(curLineNum) + " in '" + curFilename + "'";
 }
 
 ConfigParser::~ConfigParser()

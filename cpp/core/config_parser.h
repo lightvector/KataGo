@@ -18,9 +18,10 @@ baz = yay
 
 class ConfigParser {
  public:
-  ConfigParser();
-  ConfigParser(const std::string& file);
-  ConfigParser(std::istream& in);
+  ConfigParser(bool keysOverride = false);
+  ConfigParser(const std::string& file, bool keysOverride = false);
+  ConfigParser(const char *file, bool keysOverride = false);
+  ConfigParser(std::istream& in, bool keysOverride = false);
   ConfigParser(const std::map<std::string, std::string>& kvs);
   ConfigParser(const ConfigParser& source);
   ~ConfigParser();
@@ -91,10 +92,24 @@ class ConfigParser {
   std::string contents;
   std::map<std::string, std::string> keyValues;
 
+  // options
+  bool keysOverrideEnabled;
+
+  // current reading state variables
+  // current filename being processed (can differ from fileName in calse of using @include directive)
+  int curLineNum = 0;
+  std::string curFilename;
+  std::vector<std::string> includedFiles;
+
+  std::vector<std::string> logMessages;
+
   mutable std::mutex usedKeysMutex;
   std::set<std::string> usedKeys;
 
   void initializeInternal(std::istream& in);
+  void processIncludedFile(const std::string& fname);
+  void readStreamContent(std::istream& in);
+  std::string lineAndFileInfo();
 };
 
 
