@@ -115,6 +115,8 @@ void ConfigParser::readStreamContent(istream& in) {
         throw IOError("@ directive without value (key-val separator is not found)" + lineAndFileInfo());
 
       string key = Global::trim(line.substr(0,pos0));
+      if(key!="@include")
+        throw IOError("Unsupported @ directive '" + key + "'" + lineAndFileInfo());
 
       string value = line.substr(pos0+1);
       size_t pos1 =value.find_first_not_of(" \t\v\f=");
