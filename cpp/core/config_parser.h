@@ -48,6 +48,7 @@ class ConfigParser {
   std::vector<std::string> unusedKeys() const;
   std::string getFileName() const;
   std::string getContents() const;
+  std::string getAllKeyVals() const;
 
   bool contains(const std::string& key) const;
   bool containsAny(const std::vector<std::string>& possibleKeys) const;

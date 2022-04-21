@@ -7,6 +7,7 @@ using namespace TestCommon;
 
 void Tests::runConfigTests() {
   ConfigParser parser("data/test.cfg", true);
+  cout << parser.getAllKeyVals();
 }
 
 int main(int, char *argv[]) {

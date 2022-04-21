@@ -128,6 +128,7 @@ void ConfigParser::readStreamContent(istream& in) {
        int lineNum = curLineNum;
        processIncludedFile(value);
        curLineNum = lineNum;
+       continue;
     }
 
     size_t pos = line.find("=");
@@ -161,6 +162,15 @@ string ConfigParser::getFileName() const {
 
 string ConfigParser::getContents() const {
   return contents;
+}
+
+string ConfigParser::getAllKeyVals() const
+{
+  ostringstream ost;
+  for(auto it = keyValues.begin(); it != keyValues.end(); ++it) {
+    ost << it->first + " = " + it->second << endl;
+  }
+  return ost.str();
 }
 
 void ConfigParser::unsetUsedKey(const string& key) {
