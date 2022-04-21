@@ -328,12 +328,16 @@ void KataGoCommandLine::getConfig(ConfigParser& cfg) const {
   string configFile = getConfigFile();
   cfg.initialize(configFile);
   maybeApplyOverrideConfigArg(cfg);
+  cout << "Current configuration:\n";
+  cout << cfg.getAllKeyVals();
 }
 
 void KataGoCommandLine::getConfigAllowEmpty(ConfigParser& cfg) const {
   if(configFileArg->getValue().empty() && defaultConfigFileName.empty()) {
     cfg.initialize(std::map<string,string>());
     maybeApplyOverrideConfigArg(cfg);
+    cout << "Current configuration:\n";
+    cout << cfg.getAllKeyVals();
   }
   else {
     getConfig(cfg);
