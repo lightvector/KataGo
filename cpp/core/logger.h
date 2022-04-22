@@ -11,6 +11,7 @@ class LogBuf;
 
 class Logger {
  public:
+  // TODO: Logger(ConfigFile) for proper setup and values logging
   Logger();
   ~Logger();
 

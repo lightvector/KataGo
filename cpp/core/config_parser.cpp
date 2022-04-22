@@ -201,6 +201,10 @@ void ConfigParser::overrideKey(const std::string& key, const std::string& value)
     keyValues[key] = value;
 }
 
+void ConfigParser::overrideKeys(const std::string& fname) {
+  processIncludedFile(fname);
+}
+
 void ConfigParser::overrideKeys(const map<string, string>& newkvs) {
   for(auto iter = newkvs.begin(); iter != newkvs.end(); ++iter) {
     //Assume zero-length values mean to delete a key

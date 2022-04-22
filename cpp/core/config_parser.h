@@ -35,6 +35,7 @@ class ConfigParser {
   void initialize(const std::map<std::string, std::string>& kvs);
 
   void overrideKey(const std::string& key, const std::string& value);
+  void overrideKeys(const std::string& fname);
   void overrideKeys(const std::map<std::string, std::string>& newkvs);
   //mutexKeySets: For each pair of sets (A,B), if newkvs contains anything in A, erase every existing key that overlaps with B, and vice versa.
   void overrideKeys(const std::map<std::string, std::string>& newkvs, const std::vector<std::pair<std::set<std::string>,std::set<std::string>>>& mutexKeySets);
