@@ -78,7 +78,7 @@ namespace Tests {
   void runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print);
 
   //testconfig.cpp
-  void runConfigTests();
+  void runConfigTests(const std::vector<std::string>& args);
 }
 
 namespace TestCommon {
