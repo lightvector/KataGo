@@ -8,11 +8,12 @@
 #include "../core/multithread.h"
 
 class LogBuf;
+class ConfigParser;
 
 class Logger {
  public:
   // TODO: Logger(ConfigFile) for proper setup and values logging
-  Logger();
+  Logger(ConfigParser *cfg, bool logToStdout = false, bool logToStderr = false, bool logTime = true);
   ~Logger();
 
   Logger(const Logger& other) = delete;
@@ -21,11 +22,11 @@ class Logger {
   bool isLoggingToStdout() const;
   bool isLoggingToStderr() const;
 
-  void setLogToStdout(bool b);
-  void setLogToStderr(bool b);
+  void setLogToStdout(bool b, bool afterCreation = true);
+  void setLogToStderr(bool b, bool afterCreation = true);
   void setLogTime(bool b);
-  void addOStream(std::ostream& out); //User responsible for cleaning up the ostream, logger does not take ownership
-  void addFile(const std::string& file);
+  void addOStream(std::ostream& out, bool afterCreation = true); //User responsible for cleaning up the ostream, logger does not take ownership
+  void addFile(const std::string& file, bool afterCreation = true);
 
   //write and ostreams returned are synchronized with other calls to write and other ostream calls
   //The lifetime of the Logger must exceed the lifetimes of any of the ostreams created from it.
@@ -43,9 +44,11 @@ class Logger {
   std::vector<std::ostream*> ostreams;
   std::vector<std::ofstream*> files;
   std::vector<LogBuf*> logBufs;
+  std::string logHeader;
   std::mutex mutex;
 
   void write(const std::string& str, bool endLine);
+  void writeLocked(const std::string& str, bool endLine, std::ostream& out, const time_t& time);
 };
 
 class LogBuf final : public std::stringbuf {

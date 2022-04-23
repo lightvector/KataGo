@@ -9,8 +9,7 @@ using namespace std;
 
 void Tests::runOwnershipTests(const string& configFile, const string& modelFile) {
   ConfigParser cfg(configFile);
-  Logger logger;
-  logger.setLogToStderr(true);
+  Logger logger(&cfg, false, true);
   Rand seedRand;
 
   Rules ttRules = Rules::parseRules("tromp-taylor");

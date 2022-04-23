@@ -1590,24 +1590,11 @@ int MainCmds::gtp(const vector<string>& args) {
     return 1;
   }
 
-  Logger logger;
-  if(cfg.contains("logFile") && cfg.contains("logDir"))
-    throw StringError("Cannot specify both logFile and logDir in config");
-  else if(cfg.contains("logFile"))
-    logger.addFile(cfg.getString("logFile"));
-  else if(cfg.contains("logDir")) {
-    MakeDir::make(cfg.getString("logDir"));
-    Rand rand;
-    logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(rand.nextUInt()) + ".log");
-  }
+  Logger logger(&cfg);
 
   const bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
   bool loggingToStderr = false;
-
-  const bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
-  if(!logTimeStamp)
-    logger.setLogTime(false);
 
   bool startupPrintMessageToStderr = true;
   if(cfg.contains("startupPrintMessageToStderr"))
@@ -1615,7 +1602,6 @@ int MainCmds::gtp(const vector<string>& args) {
 
   if(cfg.contains("logToStderr") && cfg.getBool("logToStderr")) {
     loggingToStderr = true;
-    logger.setLogToStderr(true);
   }
 
   logger.write("GTP Engine starting...");

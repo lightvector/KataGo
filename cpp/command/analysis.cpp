@@ -103,22 +103,9 @@ int MainCmds::analysis(const vector<string>& args) {
   if(forDeterministicTesting)
     seedRand.init("forDeterministicTesting");
 
-  Logger logger;
-  if(cfg.contains("logFile") && cfg.contains("logDir"))
-    throw StringError("Cannot specify both logFile and logDir in config");
-  else if(cfg.contains("logFile"))
-    logger.addFile(cfg.getString("logFile"));
-  else if(cfg.contains("logDir")) {
-    MakeDir::make(cfg.getString("logDir"));
-    logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(seedRand.nextUInt()) + ".log");
-  }
+  Logger logger(&cfg);
 
   const bool logToStderr = cfg.contains("logToStderr") ? cfg.getBool("logToStderr") : true;
-  if(logToStderr)
-    logger.setLogToStderr(true);
-  const bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
-  if(!logTimeStamp)
-    logger.setLogTime(false);
 
   logger.write("Analysis Engine starting...");
   logger.write(Version::getKataGoVersionForHelp());

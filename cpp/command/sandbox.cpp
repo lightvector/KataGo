@@ -16,8 +16,7 @@ using namespace std;
 // int MainCmds::sandbox() {
 //   Board::initHash();
 
-//   Logger logger;
-//   logger.setLogToStdout(true);
+//   Logger logger(nullptr, true);
 //   logger.addFile("tmp.txt");
 
 //   string tensorflowGpuVisibleDeviceList = ""; //use default
@@ -214,8 +213,7 @@ int MainCmds::sandbox() {
 
 //   Board::initHash();
 
-//   Logger logger;
-//   logger.setLogToStdout(true);
+//   Logger logger(nullptr, true);
 //   logger.addFile("tmp.txt");
 
 //   NeuralNet::globalInitialize();
@@ -332,8 +330,7 @@ int MainCmds::sandbox() {
 // int MainCmds::sandbox() {
 //   Board::initHash();
 
-//   Logger logger;
-//   logger.setLogToStdout(true);
+//   Logger logger(nullptr, true);
 
 //   cudaSetDevice(0);
 
@@ -418,8 +415,7 @@ int MainCmds::sandbox() {
 // int MainCmds::sandbox() {
 //   Board::initHash();
 
-//   Logger logger;
-//   logger.setLogToStdout(true);
+//   Logger logger(nullptr, true);
 
 //   cudaSetDevice(0);
 
@@ -507,8 +503,7 @@ int MainCmds::sandbox() {
 // int MainCmds::sandbox() {
 //   Board::initHash();
 
-//   Logger logger;
-//   logger.setLogToStdout(true);
+//   Logger logger(nullptr, true);
 
 //   cudaSetDevice(0);
 
@@ -595,8 +590,7 @@ int MainCmds::sandbox() {
 // int MainCmds::sandbox() {
 //   Board::initHash();
 
-//   Logger logger;
-//   logger.setLogToStdout(true);
+//   Logger logger(nullptr, true);
 
 //   cudaSetDevice(0);
 
@@ -681,8 +675,7 @@ int MainCmds::sandbox() {
 // int MainCmds::sandbox() {
 //   Board::initHash();
 
-//   Logger logger;
-//   logger.setLogToStdout(true);
+//   Logger logger(nullptr, true);
 
 //   cudaSetDevice(0);
 
@@ -835,8 +828,7 @@ int MainCmds::sandbox() {
 // int MainCmds::sandbox() {
 //   Board::initHash();
 
-//   Logger logger;
-//   logger.setLogToStdout(true);
+//   Logger logger(nullptr, true);
 
 //   CUDA_ERR(cudaSetDevice(0));
 
@@ -913,8 +905,7 @@ int MainCmds::sandbox() {
 // int MainCmds::sandbox() {
 //   Board::initHash();
 
-//   Logger logger;
-//   logger.setLogToStdout(true);
+//   Logger logger(nullptr, true);
 
 //   checkCudaErrors(cudaSetDevice(0));
 
@@ -966,8 +957,7 @@ int MainCmds::sandbox() {
 // int MainCmds::sandbox() {
 //   Board::initHash();
 
-//   Logger logger;
-//   logger.setLogToStdout(true);
+//   Logger logger(nullptr, true);
 
 //   checkCudaErrors(cudaSetDevice(0));
 
@@ -1019,8 +1009,7 @@ int MainCmds::sandbox() {
 // int MainCmds::sandbox() {
 //   Board::initHash();
 
-//   Logger logger;
-//   logger.setLogToStdout(true);
+//   Logger logger(nullptr, true);
 
 //   checkCudaErrors(cudaSetDevice(0));
 
@@ -1334,8 +1323,7 @@ int MainCmds::sandbox() {
 // int MainCmds::sandbox() {
 //   Board::initHash();
 
-//   Logger logger;
-//   logger.setLogToStdout(true);
+//   Logger logger(nullptr, true);
 //   logger.addFile("tmp.txt");
 
 //   Session* session;
@@ -1461,8 +1449,7 @@ int MainCmds::sandbox() {
 // int MainCmds::sandbox() {
 //   Board::initHash();
 
-//   Logger logger;
-//   logger.setLogToStdout(true);
+//   Logger logger(nullptr, true);
 //   logger.addFile("tmp.txt");
 
 //   int maxBatchSize = 8;

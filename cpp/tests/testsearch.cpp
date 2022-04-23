@@ -179,9 +179,7 @@ void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool useNHW
   cout << "Running search tests" << endl;
   NeuralNet::globalInitialize();
 
-  Logger logger;
-  logger.setLogToStdout(true);
-  logger.setLogTime(false);
+  Logger logger(nullptr, true, false, false);
 
   NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
   runBasicPositions(nnEval, logger);
