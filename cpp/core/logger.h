@@ -13,7 +13,7 @@ class ConfigParser;
 class Logger {
  public:
   // TODO: Logger(ConfigFile) for proper setup and values logging
-  Logger(ConfigParser *cfg, bool logToStdout = false, bool logToStderr = false, bool logTime = true);
+  Logger(ConfigParser *cfg = nullptr, bool logToStdout = false, bool logToStderr = false, bool logTime = true);
   ~Logger();
 
   Logger(const Logger& other) = delete;
