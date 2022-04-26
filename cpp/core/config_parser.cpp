@@ -48,6 +48,7 @@ ConfigParser::ConfigParser(const ConfigParser& source) {
   std::lock_guard<std::mutex> lock(source.usedKeysMutex);
   initialized = source.initialized;
   fileName = source.fileName;
+  baseDirs = source.baseDirs;
   contents = source.contents;
   keyValues = source.keyValues;
   keysOverrideEnabled = source.keysOverrideEnabled;
@@ -61,6 +62,9 @@ void ConfigParser::initialize(const string& fname) {
   ifstream in;
   FileUtils::open(in,fname);
   fileName = fname;
+  string baseDir = extractBaseDir(fname);
+  if (!baseDir.empty())
+    baseDirs.push_back(baseDir);
   initializeInternal(in);
   initialized = true;
 }
@@ -92,9 +96,26 @@ void ConfigParser::processIncludedFile(const std::string &fname) {
   }
   includedFiles.push_back(fname);
   curFilename = fname;
+
+  string fpath;
+  for(const auto &p: baseDirs) {
+    fpath += p;
+  }
+  fpath += fname;
+
+  string baseDir = extractBaseDir(fname);
+  if(!baseDir.empty()) {
+    if(baseDir[0] == '\\' || baseDir[0] == '/')
+      throw IOError("Absolute paths in the included files are not supported yet");
+    baseDirs.push_back(baseDir);
+  }
+
   ifstream in;
-  FileUtils::open(in,fname);
+  FileUtils::open(in,fpath);
   readStreamContent(in);
+
+  if(!baseDir.empty())
+    baseDirs.pop_back();
 }
 
 void ConfigParser::readStreamContent(istream& in) {
@@ -168,6 +189,14 @@ void ConfigParser::readStreamContent(istream& in) {
 
 string ConfigParser::lineAndFileInfo() const {
   return ", line " + Global::intToString(curLineNum) + " in '" + curFilename + "'";
+}
+
+string ConfigParser::extractBaseDir(const std::string &fname) {
+  size_t slash = fname.find_last_of("/\\");
+  if(slash != string::npos)
+    return fname.substr(0, slash + 1);
+  else
+    return std::string();
 }
 
 ConfigParser::~ConfigParser()

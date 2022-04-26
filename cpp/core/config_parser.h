@@ -91,6 +91,7 @@ class ConfigParser {
  private:
   bool initialized;
   std::string fileName;
+  std::vector<std::string> baseDirs;
   std::string contents;
   std::map<std::string, std::string> keyValues;
 
@@ -117,6 +118,7 @@ class ConfigParser {
   void processIncludedFile(const std::string& fname);
   void readStreamContent(std::istream& in);
   std::string lineAndFileInfo() const;
+  std::string extractBaseDir(const std::string &fname);
 };
 
 
