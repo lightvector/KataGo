@@ -18,6 +18,8 @@ void Tests::runConfigTests(const vector<string>& args) {
     cmd.parseArgs(args);
 
     cmd.getConfig(cfg);
+
+    Logger logger(&cfg, true);
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
