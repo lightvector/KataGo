@@ -8,28 +8,36 @@
 
 using namespace std;
 
-ConfigParser::ConfigParser()
-  :initialized(false),fileName(),contents(),keyValues(),usedKeysMutex(),usedKeys()
+ConfigParser::ConfigParser(bool keysOverride, bool keysOverrideFromIncludes_)
+  :initialized(false),fileName(),contents(),keyValues(),
+    keysOverrideEnabled(keysOverride),keysOverrideFromIncludes(keysOverrideFromIncludes_),
+    usedKeysMutex(),usedKeys()
 {}
 
-ConfigParser::ConfigParser(const string& fname)
-  :initialized(false),fileName(),contents(),keyValues(),usedKeysMutex(),usedKeys()
+ConfigParser::ConfigParser(const string& fname, bool keysOverride, bool keysOverrideFromIncludes_)
+  :initialized(false),fileName(),contents(),keyValues(),
+    keysOverrideEnabled(keysOverride),keysOverrideFromIncludes(keysOverrideFromIncludes_),
+    usedKeysMutex(),usedKeys()
 {
   initialize(fname);
 }
 
-ConfigParser::ConfigParser(const char* fname, bool keysOverride)
-  : ConfigParser(std::string(fname), keysOverride)
+ConfigParser::ConfigParser(const char* fname, bool keysOverride, bool keysOverrideFromIncludes_)
+  : ConfigParser(std::string(fname), keysOverride, keysOverrideFromIncludes_)
 {}
 
-ConfigParser::ConfigParser(istream& in, bool keysOverride)
-  :initialized(false),fileName(),contents(),keyValues(),keysOverrideEnabled(keysOverride),usedKeysMutex(),usedKeys()
+ConfigParser::ConfigParser(istream& in, bool keysOverride, bool keysOverrideFromIncludes_)
+  :initialized(false),fileName(),contents(),keyValues(),
+    keysOverrideEnabled(keysOverride),keysOverrideFromIncludes(keysOverrideFromIncludes_),
+    usedKeysMutex(),usedKeys()
 {
   initialize(in);
 }
 
 ConfigParser::ConfigParser(const map<string, string>& kvs)
-  :initialized(false),fileName(),contents(),keyValues(),usedKeysMutex(),usedKeys()
+  :initialized(false),fileName(),contents(),keyValues(),
+    keysOverrideEnabled(false),keysOverrideFromIncludes(true),
+    usedKeysMutex(),usedKeys()
 {
   initialize(kvs);
 }
@@ -42,6 +50,8 @@ ConfigParser::ConfigParser(const ConfigParser& source) {
   fileName = source.fileName;
   contents = source.contents;
   keyValues = source.keyValues;
+  keysOverrideEnabled = source.keysOverrideEnabled;
+  keysOverrideFromIncludes = source.keysOverrideFromIncludes;
   usedKeys = source.usedKeys;
 }
 
@@ -69,8 +79,6 @@ void ConfigParser::initialize(const map<string, string>& kvs) {
   initialized = true;
 }
 
-
-
 void ConfigParser::initializeInternal(istream& in) {
   keyValues.clear();
   contents.clear();
@@ -93,7 +101,7 @@ void ConfigParser::readStreamContent(istream& in) {
   curLineNum = 0;
   string line;
   ostringstream contentStream;
-  keyValues.clear();
+  set<string> curFileKeys;
   while(getline(in,line)) {
     contentStream << line << "\n";
     curLineNum += 1;
@@ -122,14 +130,14 @@ void ConfigParser::readStreamContent(istream& in) {
       if(pos1 == string::npos)
         throw IOError("@ directive without value (value after key-val separator is not found)" + lineAndFileInfo());
 
-       value = Global::trim(value.substr(pos1));
-       value = Global::trim(value, "'");  // remove single quotes for filename
-       value = Global::trim(value, "\"");  // remove double quotes for filename
+      value = Global::trim(value.substr(pos1));
+      value = Global::trim(value, "'");  // remove single quotes for filename
+      value = Global::trim(value, "\"");  // remove double quotes for filename
 
-       int lineNum = curLineNum;
-       processIncludedFile(value);
-       curLineNum = lineNum;
-       continue;
+      int lineNum = curLineNum;
+      processIncludedFile(value);
+      curLineNum = lineNum;
+      continue;
     }
 
     size_t pos = line.find("=");
@@ -138,13 +146,22 @@ void ConfigParser::readStreamContent(istream& in) {
 
     string key = Global::trim(line.substr(0,pos));
     string value = Global::trim(line.substr(pos+1));
-    if(keyValues.find(key) != keyValues.end()) {
+    if(curFileKeys.find(key) != curFileKeys.end()) {
       if(!keysOverrideEnabled)
-        throw IOError("Key '" + key + "' + was specified multiple times in " + curFilename + ", you probably didn't mean to do this, please delete one of them");
+        throw IOError("Key '" + key + "' + was specified multiple times in " +
+                      curFilename + ", you probably didn't mean to do this, please delete one of them");
+      else
+        logMessages.push_back("Key '" + key + "' + was overriden by new value '" + value + "'" + lineAndFileInfo());
+    }
+    if(keyValues.find(key) != keyValues.end()) {
+      if(!keysOverrideFromIncludes)
+        throw IOError("Key '" + key + "' + was specified multiple times in " +
+                      curFilename + " or its included files, and keys overriding is disabled");
       else
         logMessages.push_back("Key '" + key + "' + was overriden by new value '" + value + "'" + lineAndFileInfo());
     }
     keyValues[key] = value;
+    curFileKeys.insert(key);
   }
   contents += contentStream.str();
 }

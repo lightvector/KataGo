@@ -18,10 +18,10 @@ baz = yay
 
 class ConfigParser {
  public:
-  ConfigParser(bool keysOverride = false);
-  ConfigParser(const std::string& file, bool keysOverride = false);
-  ConfigParser(const char *file, bool keysOverride = false);
-  ConfigParser(std::istream& in, bool keysOverride = false);
+  ConfigParser(bool keysOverride = false, bool keysOverrideFromIncludes = true);
+  ConfigParser(const std::string& file, bool keysOverride = false, bool keysOverrideFromIncludes = true);
+  ConfigParser(const char *file, bool keysOverride = false, bool keysOverrideFromIncludes = true);
+  ConfigParser(std::istream& in, bool keysOverride = false, bool keysOverrideFromIncludes = true);
   ConfigParser(const std::map<std::string, std::string>& kvs);
   ConfigParser(const ConfigParser& source);
   ~ConfigParser();
@@ -95,7 +95,12 @@ class ConfigParser {
   std::map<std::string, std::string> keyValues;
 
   // options
+
+  // key overriding within the same file (disabled by default)
   bool keysOverrideEnabled;
+
+  // if true (default), keys from included files overriding is possible
+  bool keysOverrideFromIncludes;
 
   // current reading state variables
   // current filename being processed (can differ from fileName in calse of using @include directive)
