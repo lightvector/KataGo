@@ -120,6 +120,7 @@ url = base_server_url + "api/networks/"
 
 with open(model_file,"rb") as model_file_handle:
   with open(model_zip,"rb") as model_zip_handle:
+    log_gamma_offset = -1.0 if network_size == "b60c320" else 0.0
     data = {
       "run": (None, base_server_url + "api/runs/" + run_name + "/"),
       "name": (None, model_name),
@@ -130,6 +131,7 @@ with open(model_file,"rb") as model_file_handle:
       "model_file_sha256": (None, model_file_sha256),
       "training_games_enabled": (None, ("false" if (not_enabled or rating_only != 0) else "true")),
       "rating_games_enabled": (None, ("false" if not_enabled else "true")),
+      "log_gamma_offset": (None, str(log_gamma_offset)),
       "model_zip_file": (model_name + ".zip", model_zip_handle, "application/octet-stream"),
     }
 
