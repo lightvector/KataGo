@@ -10,6 +10,7 @@ import zipfile
 import shutil
 import psutil
 import json
+import hashlib
 
 import multiprocessing
 
@@ -127,11 +128,14 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
     )
   return num_out_files
 
-def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_batch_multiple):
+def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_batch_multiple, output_npz):
   np.random.seed([int.from_bytes(os.urandom(4), byteorder='little') for i in range(5)])
 
-  tfoptions = TFRecordOptions(TFRecordCompressionType.ZLIB)
-  record_writer = TFRecordWriter(filename,tfoptions)
+  if output_npz:
+    record_writer = None
+  else:
+    tfoptions = TFRecordOptions(TFRecordCompressionType.ZLIB)
+    record_writer = TFRecordWriter(filename,tfoptions)
 
   binaryInputNCHWPackeds = []
   globalInputNCs = []
@@ -189,27 +193,41 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
 
   #Just truncate and lose the batch at the end, it's fine
   num_batches = (num_rows // (batch_size * ensure_batch_multiple)) * ensure_batch_multiple
-  for i in range(num_batches):
-    start = i*batch_size
-    stop = (i+1)*batch_size
-
-    example = tfrecordio.make_tf_record_example(
-      binaryInputNCHWPacked,
-      globalInputNC,
-      policyTargetsNCMove,
-      globalTargetsNC,
-      scoreDistrN,
-      valueTargetsNCHW,
-      start,
-      stop
+  if output_npz:
+    start = 0
+    stop = num_batches*batch_size
+    np.savez_compressed(
+      filename,
+      binaryInputNCHWPacked = binaryInputNCHWPacked[start:stop],
+      globalInputNC = globalInputNC[start:stop],
+      policyTargetsNCMove = policyTargetsNCMove[start:stop],
+      globalTargetsNC = globalTargetsNC[start:stop],
+      scoreDistrN = scoreDistrN[start:stop],
+      valueTargetsNCHW = valueTargetsNCHW[start:stop]
     )
-    record_writer.write(example.SerializeToString())
+  else:
+    for i in range(num_batches):
+      start = i*batch_size
+      stop = (i+1)*batch_size
+
+      example = tfrecordio.make_tf_record_example(
+        binaryInputNCHWPacked,
+        globalInputNC,
+        policyTargetsNCMove,
+        globalTargetsNC,
+        scoreDistrN,
+        valueTargetsNCHW,
+        start,
+        stop
+      )
+      record_writer.write(example.SerializeToString())
 
   jsonfilename = os.path.splitext(filename)[0] + ".json"
   with open(jsonfilename,"w") as f:
     json.dump({"num_rows":num_rows,"num_batches":num_batches},f)
 
-  record_writer.close()
+  if record_writer is not None:
+    record_writer.close()
   return num_batches * batch_size
 
 def get_numpy_npz_headers(filename):
@@ -281,9 +299,12 @@ if __name__ == '__main__':
   parser.add_argument('-num-processes', type=int, required=True, help='Number of multiprocessing processes')
   parser.add_argument('-batch-size', type=int, required=True, help='Batch size to write training examples in')
   parser.add_argument('-ensure-batch-multiple', type=int, required=False, help='Ensure each file is a multiple of this many batches')
-  parser.add_argument('-worker-group-size', type=int, required=False, help='Internally, target having many rows per parallel sharding worker')
+  parser.add_argument('-worker-group-size', type=int, required=False, help='Internally, target having many rows per parallel sharding worker (doesnt affect merge)')
   parser.add_argument('-exclude', required=False, help='Text file with npzs to ignore, one per line')
   parser.add_argument('-exclude-prefix', required=False, help='Prefix to concat to lines in exclude to produce the full file path')
+  parser.add_argument('-only-include-md5-path-prop-lbound', type=float, required=False, help='Just before sharding, include only filepaths hashing to float >= this')
+  parser.add_argument('-only-include-md5-path-prop-ubound', type=float, required=False, help='Just before sharding, include only filepaths hashing to float < this')
+  parser.add_argument('-output-npz', action="store_true", required=False, help='Output results as npz files')
 
   args = parser.parse_args()
   dirs = args.dirs
@@ -310,6 +331,9 @@ if __name__ == '__main__':
   exclude_prefix = args.exclude_prefix
   if exclude_prefix is None:
     exclude_prefix = ""
+  only_include_md5_path_prop_lbound = args.only_include_md5_path_prop_lbound
+  only_include_md5_path_prop_ubound = args.only_include_md5_path_prop_ubound
+  output_npz = args.output_npz
 
   if min_rows is None:
     print("NOTE: -min-rows was not specified, defaulting to requiring 250K rows before shuffling.")
@@ -505,8 +529,8 @@ if __name__ == '__main__':
   print("Desired num rows: %d / %d" % (desired_num_rows,num_rows_total))
 
   desired_input_files = []
-  desired_input_files_with_row_range = []
-  num_rows_total = 0
+  desired_input_row_range = []
+  num_rows_used = 0
   len_files_with_row_range = len(files_with_row_range)
   print_stride = 1 + len(files_with_row_range) // 40
   with TimeStuff("Computing desired rows"):
@@ -518,26 +542,33 @@ if __name__ == '__main__':
         continue
 
       desired_input_files.append((filename,end_row-start_row))
-      desired_input_files_with_row_range.append((filename,(start_row,end_row)))
+      desired_input_row_range.append((start_row,end_row))
 
-      num_rows_total += (end_row - start_row)
-      if i % print_stride == 0 or num_rows_total >= desired_num_rows or i == len_files_with_row_range - 1:
-        print("Using: %s (%d-%d) (%d/%d desired rows)" % (filename,start_row,end_row,num_rows_total,desired_num_rows))
-      if num_rows_total >= desired_num_rows:
+      num_rows_used += (end_row - start_row)
+      if i % print_stride == 0 or num_rows_used >= desired_num_rows:
+        print("Using: %s (%d-%d) (%d/%d desired rows)" % (filename,start_row,end_row,num_rows_used,desired_num_rows))
+      if num_rows_used >= desired_num_rows:
         break
+
+  min_start_row = min(start_row for (start_row,end_row) in desired_input_row_range)
+  max_end_row = max(end_row for (start_row,end_row) in desired_input_row_range)
+  print("Finally, using: (%d-%d) (%d/%d desired rows)" % (min_start_row,max_end_row,num_rows_used,desired_num_rows))
 
   np.random.seed()
   np.random.shuffle(desired_input_files)
 
-  approx_rows_to_keep = num_rows_total
+  approx_rows_to_keep = num_rows_used
   if keep_target_rows is not None:
     approx_rows_to_keep = min(approx_rows_to_keep, keep_target_rows)
-  keep_prob = approx_rows_to_keep / num_rows_total
+  keep_prob = approx_rows_to_keep / num_rows_used
 
   num_out_files = int(round(approx_rows_to_keep / approx_rows_per_out_file))
   num_out_files = max(num_out_files,1)
 
-  out_files = [os.path.join(out_dir, "data%d.tfrecord" % i) for i in range(num_out_files)]
+  if output_npz:
+    out_files = [os.path.join(out_dir, "data%d.npz" % i) for i in range(num_out_files)]
+  else:
+    out_files = [os.path.join(out_dir, "data%d.tfrecord" % i) for i in range(num_out_files)]
   out_tmp_dirs = [os.path.join(out_tmp_dir, "tmp.shuf%d" % i) for i in range(num_out_files)]
   print("Writing %d output files with %d kept / %d desired rows" % (num_out_files, approx_rows_to_keep, desired_num_rows))
 
@@ -551,6 +582,25 @@ if __name__ == '__main__':
   for tmp_dir in out_tmp_dirs:
     os.mkdir(tmp_dir)
 
+  if only_include_md5_path_prop_lbound is not None or only_include_md5_path_prop_ubound is not None:
+    new_desired_input_files = []
+    for (input_file,num_rows_in_file) in desired_input_files:
+      input_file_base = os.path.basename(input_file)
+      hashfloat = int("0x"+hashlib.md5(str(input_file_base).encode('utf-8')).hexdigest()[:13],16) / 2 ** 52
+      ok = True
+      if only_include_md5_path_prop_lbound is not None and hashfloat < only_include_md5_path_prop_lbound:
+        ok = False
+      if only_include_md5_path_prop_ubound is not None and hashfloat >= only_include_md5_path_prop_ubound:
+        ok = False
+      if ok:
+        new_desired_input_files.append((input_file,num_rows_in_file))
+    print("Due to only_include_md5, filtering down to %d/%d files" % (len(new_desired_input_files),len(desired_input_files)))
+    desired_input_files = new_desired_input_files
+    del desired_input_row_range # this array is not consistent with new_desired_input_files
+
+  # Clump files into sharding groups. More efficient if shuffling a ton of small npz files
+  # since we aren't doing separate tasks for every individual file but rather handling a bunch
+  # of files at once, and also makes chunkier shards on disk when it comes time to shuffle.
   desired_input_file_groups = []
   group_size_so_far = 0
   group_so_far = []
@@ -578,7 +628,7 @@ if __name__ == '__main__':
     with TimeStuff("Merging"):
       num_shards_to_merge = len(desired_input_file_groups)
       merge_results = pool.starmap(merge_shards, [
-        (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size,ensure_batch_multiple) for idx in range(len(out_files))
+        (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size,ensure_batch_multiple,output_npz) for idx in range(len(out_files))
       ])
     print("Mumber of rows by output file:",flush=True)
     print(list(zip(out_files,merge_results)),flush=True)
@@ -587,8 +637,7 @@ if __name__ == '__main__':
   clean_tmp_dirs()
 
   dump_value = {
-    "range": (min(start_row for (filename,(start_row,end_row)) in desired_input_files_with_row_range),
-              max(end_row for (filename,(start_row,end_row)) in desired_input_files_with_row_range))
+    "range": (min_start_row, max_end_row)
   }
 
   with open(out_dir + ".json", 'w') as f:
