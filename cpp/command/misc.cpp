@@ -6,6 +6,7 @@
 #include "../core/test.h"
 #include "../dataio/sgf.h"
 #include "../dataio/files.h"
+#include "../search/localpattern.h"
 #include "../search/asyncbot.h"
 #include "../program/setup.h"
 #include "../program/playutils.h"
@@ -2212,7 +2213,7 @@ int MainCmds::generaterollouts(const vector<string>& args) {
   int numGamesToRun;
   
   try {
-    KataGoCommandLine cmd("Run a search on a position from an sgf file, for debugging.");
+    KataGoCommandLine cmd("Generate rollouts.");
     cmd.addConfigFileArg("","gtp_example.cfg");
     cmd.addModelFileArg();
     TCLAP::UnlabeledValueArg<string> sgfFileArg("","Sgf file to analyze",true,string(),"FILE");
@@ -2438,5 +2439,217 @@ int MainCmds::generaterollouts(const vector<string>& args) {
   delete sgf;
   ScoreValue::freeTables();
 
+  return 0;
+}
+
+struct RolloutData {
+  int64_t count = 0;
+  int64_t countWithStats = 0;
+  double sumWinlossIn = 0.0;
+  double sumWinlossOut = 0.0;
+  double sumScoreIn = 0.0;
+  double sumScoreOut = 0.0;
+  int sumTurnNumber = 0;
+  vector<int64_t> sumBlackStones;
+  vector<int64_t> sumWhiteStones;
+};
+
+int MainCmds::summarizerollouts(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+  Rand seedRand;
+
+  string sgfsFile;
+  // string outFile;
+  
+  try {
+    KataGoCommandLine cmd("Generate rollouts.");
+    TCLAP::UnlabeledValueArg<string> sgfsFileArg("","Sgfs file to analyze",true,string(),"FILE");
+    // TCLAP::ValueArg<string> outFileArg("","output-file","Output file",true,string(),"FILE");
+
+    cmd.add(sgfsFileArg);
+    // cmd.add(outFileArg);
+
+    cmd.setShortUsageArgLimit();
+
+    cmd.parseArgs(args);
+
+    sgfsFile = sgfsFileArg.getValue();
+    // outFile = outFileArg.getValue();
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  LocalPatternHasher patternHasher;
+  patternHasher.init(7, 7, seedRand);
+  
+  vector<Sgf*> sgfs = Sgf::loadSgfsFile(sgfsFile);
+  if(sgfs.size() <= 0)
+    throw StringError("No sgfs found");
+
+  std::map<Hash128,RolloutData> rDatas;
+  std::vector<Hash128> longestCommonHashes;
+  bool hasLongestCommonHashes = false;
+
+  int64_t numSgfsProcessed = 0;
+  for(Sgf* sgf: sgfs) {
+    std::vector<Hash128> hashesThisSgf;
+    std::vector<Hash128> hashesThisSgfWithStats;
+    bool hasLastStats = false;
+    double lastWinLoss = 0.0;
+    double lastScore = 0.0;
+    
+    std::function<void(Sgf::PositionSample&,const BoardHistory&,const string&)> f = [
+      &seedRand,&patternHasher,&rDatas,
+      &hashesThisSgf,&hashesThisSgfWithStats,
+      &lastWinLoss,&lastScore,&hasLastStats
+    ](Sgf::PositionSample& sample, const BoardHistory& hist, const string& comments) {
+      (void)sample;
+
+      if(hist.moveHistory.size() <= 0)
+        return;
+      
+      vector<string> pieces = Global::split(comments);
+      bool hasStats = false;
+      double winChance = 0.0;
+      double loseChance = 0.0;
+      double score = 0.0;
+      if(pieces.size() >= 4) {
+        try {
+          winChance = Global::stringToDouble(pieces[0]);
+          loseChance = Global::stringToDouble(pieces[1]);
+          score = Global::stringToDouble(pieces[3]);
+          hasStats = true;
+        }
+        catch(const StringError& e) {
+          (void)e;
+          hasStats = false;
+        }
+      }
+
+      Move prevMove = hist.moveHistory[hist.moveHistory.size()-1];
+      const Board& prevBoard = hist.getRecentBoard(1);
+      Hash128 hash = patternHasher.getHash(prevBoard, prevMove.loc, prevMove.pla);
+      hash ^= Board::ZOBRIST_BOARD_HASH2[prevMove.loc][0];
+      hashesThisSgf.push_back(hash);
+      RolloutData& rData = rDatas[hash];
+      rData.count += 1;
+      if(hasStats) {
+        hashesThisSgfWithStats.push_back(hash);
+        rData.countWithStats += 1;
+        rData.sumWinlossIn += winChance - loseChance;
+        rData.sumScoreIn += score;
+        rData.sumTurnNumber += hist.moveHistory.size();
+        if(rData.sumBlackStones.size() < prevBoard.y_size * prevBoard.x_size)
+          rData.sumBlackStones.resize(prevBoard.y_size * prevBoard.x_size);
+        if(rData.sumWhiteStones.size() < prevBoard.y_size * prevBoard.x_size)
+          rData.sumWhiteStones.resize(prevBoard.y_size * prevBoard.x_size);
+        for(int y = 0; y<prevBoard.y_size; y++) {
+          for(int x = 0; x<prevBoard.x_size; x++) {
+            Loc loc = Location::getLoc(x,y,prevBoard.x_size);
+            if(prevBoard.colors[loc] == C_BLACK)
+              rData.sumBlackStones[y*prevBoard.x_size+x] += 1;
+            else if(prevBoard.colors[loc] == C_WHITE)
+              rData.sumWhiteStones[y*prevBoard.x_size+x] += 1;
+          }
+        }
+        lastWinLoss = winChance - loseChance;
+        lastScore = score;
+        hasLastStats = true;
+      }
+    };
+    
+    std::set<Hash128> uniqueHashes;
+    const bool hashComments = false;
+    const bool hashParent = true;
+    const bool flipIfPassOrWFirst = false;
+    sgf->iterAllUniquePositions(
+      uniqueHashes,
+      hashComments,
+      hashParent,
+      flipIfPassOrWFirst,
+      &seedRand,
+      f
+    );
+
+    if(hasLastStats) {
+      for(const Hash128 hash: hashesThisSgfWithStats) {
+        RolloutData& rData = rDatas[hash];
+        rData.sumWinlossOut += lastWinLoss;
+        rData.sumScoreIn += lastScore;
+      }
+    }
+
+    if(!hasLongestCommonHashes) {
+      longestCommonHashes = hashesThisSgf;
+      hasLongestCommonHashes = true;
+    }
+    else {
+      for(size_t i = 0; i<longestCommonHashes.size(); i++) {
+        if(i >= hashesThisSgf.size() || hashesThisSgf[i] != longestCommonHashes[i]) {
+          longestCommonHashes.resize(i);
+          break;
+        }
+      }
+    }
+
+    numSgfsProcessed += 1;
+    if(numSgfsProcessed % 100 == 0 || numSgfsProcessed == sgfs.size())
+      cout << "Processed " << numSgfsProcessed << "/" << sgfs.size() << " sgfs" << endl;
+  }
+
+  cout << "Rollouts have commmon hash up to: " << longestCommonHashes.size() << endl;
+
+  CompactSgf csgf(sgfs[0]);
+  Board board;
+  BoardHistory hist;
+  Player nextPla;
+  const bool preventEncore = true;
+  csgf.setupBoardAndHistTolerant(csgf.getRulesOrFail(), board, nextPla, hist, (int64_t)longestCommonHashes.size(), preventEncore);
+
+
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      if(board.colors[loc] == C_BLACK) {
+        cout << "X ";
+      }
+      else if(board.colors[loc] == C_WHITE) {
+        cout << "O ";
+      }
+      else {
+        Hash128 hash = patternHasher.getHash(board, loc, C_BLACK);
+        hash ^= Board::ZOBRIST_BOARD_HASH2[loc][0];
+        cout << rDatas[hash].count << " ";
+      }
+    }
+    cout << endl;
+  }
+  cout << endl;
+
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x,y,board.x_size);
+      if(board.colors[loc] == C_BLACK) {
+        cout << "X ";
+      }
+      else if(board.colors[loc] == C_WHITE) {
+        cout << "O ";
+      }
+      else {
+        Hash128 hash = patternHasher.getHash(board, loc, C_WHITE);
+        hash ^= Board::ZOBRIST_BOARD_HASH2[loc][0];
+        cout << rDatas[hash].count << " ";
+      }
+    }
+    cout << endl;
+  }
+  cout << endl;
+  
+  for(Sgf* sgf: sgfs) {
+    delete sgf;
+  }
   return 0;
 }

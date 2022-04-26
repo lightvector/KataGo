@@ -137,6 +137,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::viewstartposes(subArgs);
   else if(subcommand == "generaterollouts")
     return MainCmds::generaterollouts(subArgs);
+  else if(subcommand == "summarizerollouts")
+    return MainCmds::summarizerollouts(subArgs);
   else if(subcommand == "demoplay")
     return MainCmds::demoplay(subArgs);
   else if(subcommand == "sampleinitializations")
