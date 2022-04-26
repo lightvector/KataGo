@@ -473,7 +473,7 @@ int MainCmds::contribute(const vector<string>& args) {
     }
   }
 
-  Logger logger(nullptr, true);
+  Logger logger(userCfg, true);
 
   logger.write("Distributed Self Play Engine starting...");
 

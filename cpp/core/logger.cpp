@@ -12,7 +12,7 @@ Logger::Logger(ConfigParser *cfg, bool logToStdout_, bool logToStderr_, bool log
   :logToStdout(logToStdout_),logToStderr(logToStderr_),logTime(logTime_),ostreams(),files()
 {
   if(cfg) {
-    logHeader = cfg->getAllKeyVals();
+    logHeader = "Running with following config:\n" + cfg->getAllKeyVals();
     if(cfg->contains("logToStdout"))
       logToStdout = cfg->getBool("logToStdout");
 

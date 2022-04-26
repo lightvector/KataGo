@@ -1594,20 +1594,15 @@ int MainCmds::gtp(const vector<string>& args) {
 
   const bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
-  bool loggingToStderr = false;
 
   bool startupPrintMessageToStderr = true;
   if(cfg.contains("startupPrintMessageToStderr"))
     startupPrintMessageToStderr = cfg.getBool("startupPrintMessageToStderr");
 
-  if(cfg.contains("logToStderr") && cfg.getBool("logToStderr")) {
-    loggingToStderr = true;
-  }
-
   logger.write("GTP Engine starting...");
   logger.write(Version::getKataGoVersionForHelp());
   //Also check loggingToStderr so that we don't duplicate the message from the log file
-  if(startupPrintMessageToStderr && !loggingToStderr) {
+  if(startupPrintMessageToStderr && !logger.isLoggingToStderr()) {
     cerr << Version::getKataGoVersionForHelp() << endl;
   }
 
@@ -1615,7 +1610,7 @@ int MainCmds::gtp(const vector<string>& args) {
   const bool loadKomiFromCfg = false;
   Rules initialRules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
   logger.write("Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this");
-  if(startupPrintMessageToStderr && !loggingToStderr) {
+  if(startupPrintMessageToStderr && !logger.isLoggingToStderr()) {
     cerr << "Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this" << endl;
   }
   bool isForcingKomi = false;
@@ -1702,7 +1697,7 @@ int MainCmds::gtp(const vector<string>& args) {
     perspective,analysisPVLen,
     std::move(patternBonusTable)
   );
-  engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize,loggingToStderr);
+  engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize,logger.isLoggingToStderr());
 
   //If nobody specified any time limit in any way, then assume a relatively fast time control
   if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime")) {
@@ -1723,7 +1718,7 @@ int MainCmds::gtp(const vector<string>& args) {
   logger.write("Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()));
   logger.write("GTP ready, beginning main protocol loop");
   //Also check loggingToStderr so that we don't duplicate the message from the log file
-  if(startupPrintMessageToStderr && !loggingToStderr) {
+  if(startupPrintMessageToStderr && !logger.isLoggingToStderr()) {
     cerr << "Loaded config " << cfg.getFileName() << endl;
     cerr << "Loaded model " << nnModelFile << endl;
     cerr << "Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()) << endl;
@@ -1868,7 +1863,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = Global::strprintf("unacceptable size (Board::MAX_LEN is %d, consider increasing and recompiling)",(int)Board::MAX_LEN);
       }
       else {
-        engine->setOrResetBoardSize(cfg,logger,seedRand,newXSize,newYSize,loggingToStderr);
+        engine->setOrResetBoardSize(cfg,logger,seedRand,newXSize,newYSize,logger.isLoggingToStderr());
       }
     }
 
@@ -1933,7 +1928,7 @@ int MainCmds::gtp(const vector<string>& args) {
           response = error;
         }
         logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
-        if(!loggingToStderr)
+        if(!logger.isLoggingToStderr())
           cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
       }
     }
@@ -1963,7 +1958,7 @@ int MainCmds::gtp(const vector<string>& args) {
             response = error;
           }
           logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
-          if(!loggingToStderr)
+          if(!logger.isLoggingToStderr())
             cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
         }
       }
@@ -2007,7 +2002,7 @@ int MainCmds::gtp(const vector<string>& args) {
           response = error;
         }
         logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
-        if(!loggingToStderr)
+        if(!logger.isLoggingToStderr())
           cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
       }
     }
@@ -2480,7 +2475,7 @@ int MainCmds::gtp(const vector<string>& args) {
         }
         else {
           cout << endl;
-          if(!loggingToStderr)
+          if(!logger.isLoggingToStderr())
             cerr << response << endl;
         }
       }
@@ -2696,7 +2691,7 @@ int MainCmds::gtp(const vector<string>& args) {
                 out << "WARNING: Rules " << sgfRules.toJsonStringNoKomi()
                     << " from sgf not supported by neural net, using " << supportedRules.toJsonStringNoKomi() << " instead";
                 logger.write(out.str());
-                if(!loggingToStderr)
+                if(!logger.isLoggingToStderr())
                   cerr << out.str() << endl;
                 sgfRules = supportedRules;
               }
@@ -2713,7 +2708,7 @@ int MainCmds::gtp(const vector<string>& args) {
                 ostringstream out;
                 out << "Changing rules to " << sgfRules.toJsonStringNoKomi();
                 logger.write(out.str());
-                if(!loggingToStderr)
+                if(!logger.isLoggingToStderr())
                   cerr << out.str() << endl;
               }
             }
@@ -2747,10 +2742,10 @@ int MainCmds::gtp(const vector<string>& args) {
               ostringstream out;
               out << "Changing komi to " << sgfRules.komi;
               logger.write(out.str());
-              if(!loggingToStderr)
+              if(!logger.isLoggingToStderr())
                 cerr << out.str() << endl;
             }
-            engine->setOrResetBoardSize(cfg,logger,seedRand,sgfBoard.x_size,sgfBoard.y_size,loggingToStderr);
+            engine->setOrResetBoardSize(cfg,logger,seedRand,sgfBoard.x_size,sgfBoard.y_size,logger.isLoggingToStderr());
             engine->setPositionAndRules(sgfNextPla, sgfBoard, sgfHist, sgfInitialBoard, sgfInitialNextPla, sgfHist.moveHistory);
           }
         }

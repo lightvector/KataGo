@@ -153,7 +153,7 @@ int MainCmds::benchmark(const vector<string>& args) {
     return 1;
   }
 
-  Logger logger(nullptr, true);
+  Logger logger(&cfg, true);
   logger.write("Loading model and initializing benchmark...");
 
   CompactSgf* sgf;
@@ -854,7 +854,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
     istringstream inConfig(configFileContents);
     ConfigParser cfg(inConfig);
 
-    Logger logger(nullptr, true);
+    Logger logger(&cfg, true);
     logger.write("Loading model and initializing benchmark...");
 
     SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_BENCHMARK);

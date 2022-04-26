@@ -222,7 +222,7 @@ void KataGoCommandLine::addConfigFileArg(const string& defaultCfgFileName, const
   assert(configFileArg == NULL);
   defaultConfigFileName = defaultCfgFileName;
 
-  string helpDesc = "Config file(s) to use, can be one or multiple comma-separated files";
+  string helpDesc = "Config file(s) to use, can be one or multiple files";
   if(!exampleConfigFile.empty())
     helpDesc += " (see " + exampleConfigFile + " or configs/" + exampleConfigFile + ")";
   helpDesc += ".";
@@ -334,8 +334,6 @@ void KataGoCommandLine::getConfig(ConfigParser& cfg) const {
     }
   }
   maybeApplyOverrideConfigArg(cfg);
-  cout << "Current configuration:\n";
-  cout << cfg.getAllKeyVals();
 }
 
 void KataGoCommandLine::getConfigAllowEmpty(ConfigParser& cfg) const {

@@ -449,7 +449,6 @@ int MainCmds::matchauto(const vector<string>& args) {
 
   Logger logger(&cfg);
   logger.addFile(logFile);
-  bool logToStdout = cfg.getBool("logToStdout");
 
   logger.write("Auto Match Engine starting...");
   logger.write(string("Git revision: ") + Version::getGitRevision());
@@ -517,7 +516,7 @@ int MainCmds::matchauto(const vector<string>& args) {
   //Done loading!
   //------------------------------------------------------------------------------------
   logger.write("Loaded all config stuff, starting matches");
-  if(!logToStdout)
+  if(!logger.isLoggingToStdout())
     cout << "Loaded all config stuff, starting matches" << endl;
 
   if(sgfOutputDir != string())

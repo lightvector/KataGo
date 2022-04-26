@@ -342,8 +342,6 @@ int MainCmds::runtinynntests(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
 
-  Logger logger(nullptr, true, false, false);
-
   ConfigParser cfg;
   {
     //Dummy parameters
@@ -369,6 +367,8 @@ int MainCmds::runtinynntests(const vector<string>& args) {
     cfg.initialize(in);
   }
 
+  Logger logger(&cfg, true, false, false);
+
   const bool randFileName = false;
   TinyModelTest::runTinyModelTest(
     args[1],
@@ -393,9 +393,8 @@ int MainCmds::runnnevalcanarytests(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
 
-  Logger logger(nullptr, true, false, false);
-
   ConfigParser cfg(cfgFile);
+  Logger logger(&cfg, true, false, false);
   Rand seedRand;
 
   NNEvaluator* nnEval;
@@ -444,7 +443,7 @@ int MainCmds::runbeginsearchspeedtest(const vector<string>& args) {
   }
 
   Rand rand;
-  Logger logger(nullptr, true);
+  Logger logger(&cfg, true);
 
   NNEvaluator* nnEval = NULL;
   const bool loadKomiFromCfg = false;
