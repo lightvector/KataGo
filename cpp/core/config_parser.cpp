@@ -177,7 +177,7 @@ void ConfigParser::readStreamContent(istream& in) {
     if(keyValues.find(key) != keyValues.end()) {
       if(!keysOverrideFromIncludes)
         throw IOError("Key '" + key + "' + was specified multiple times in " +
-                      curFilename + " or its included files, and keys overriding is disabled");
+                      curFilename + " or its included files, and key overriding is disabled");
       else
         logMessages.push_back("Key '" + key + "' + was overriden by new value '" + value + "'" + lineAndFileInfo());
     }

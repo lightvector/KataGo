@@ -97,10 +97,10 @@ class ConfigParser {
 
   // options
 
-  // key overriding within the same file (disabled by default)
+  // if true, overriding keys within the same file is possible
   bool keysOverrideEnabled;
 
-  // if true (default), keys from included files overriding is possible
+  // if true (default), overriding keys from included files is possible
   bool keysOverrideFromIncludes;
 
   // current reading state variables
