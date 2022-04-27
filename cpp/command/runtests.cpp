@@ -715,6 +715,12 @@ int MainCmds::runsleeptest(const vector<string>& args) {
 }
 
 int MainCmds::runconfigtests(const vector<string>& args) {
-  Tests::runConfigTests(args);
+  try {
+    Tests::runConfigTests(args);
+  } catch (const StringError &e) {
+    cout << "runconfigtests: " << e.what() << endl;
+    return -1;
+  }
+
   return 0;
 }

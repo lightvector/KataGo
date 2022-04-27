@@ -248,6 +248,8 @@ void ConfigParser::overrideKey(const std::string& key, const std::string& value)
 }
 
 void ConfigParser::overrideKeys(const std::string& fname) {
+  // it's a new config file, so baseDir is not relevant anymore
+  baseDirs.clear();
   processIncludedFile(fname);
 }
 
