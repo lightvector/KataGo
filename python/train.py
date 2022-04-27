@@ -943,6 +943,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
             val_samples += batch_size
             if max_val_samples is not None and val_samples > max_val_samples:
               break
+            val_metric_sums["nsamp_train"] = running_metrics["sums"]["nsamp"]
+            val_metric_weights["nsamp_train"] = running_metrics["weights"]["nsamp"]
+            val_metric_sums["wsum_train"] = running_metrics["sums"]["wsum"]
+            val_metric_weights["wsum_train"] = running_metrics["weights"]["wsum"]
           log_metrics(val_metric_sums, val_metric_weights, metrics, val_metrics_out)
           t1 = time.perf_counter()
           logging.info(f"Validation took {t1-t0} seconds")
