@@ -92,7 +92,7 @@ void ConfigParser::initializeInternal(istream& in) {
 
 void ConfigParser::processIncludedFile(const std::string &fname) {
   if(fname == fileName || find(includedFiles.begin(), includedFiles.end(), fname) != includedFiles.end()) {
-    throw IOError("Circular or multiple inclusion of the same file: '" + fname + "'" + lineAndFileInfo());
+    throw ConfigParsingError("Circular or multiple inclusion of the same file: '" + fname + "'" + lineAndFileInfo());
   }
   includedFiles.push_back(fname);
   curFilename = fname;
@@ -106,7 +106,7 @@ void ConfigParser::processIncludedFile(const std::string &fname) {
   string baseDir = extractBaseDir(fname);
   if(!baseDir.empty()) {
     if(baseDir[0] == '\\' || baseDir[0] == '/')
-      throw IOError("Absolute paths in the included files are not supported yet");
+      throw ConfigParsingError("Absolute paths in the included files are not supported yet");
     baseDirs.push_back(baseDir);
   }
 
@@ -136,20 +136,20 @@ void ConfigParser::readStreamContent(istream& in) {
 
     if(line[0] == '@') {
       if(line.size() < 9) {
-        throw IOError("Unsupported @ directive" + lineAndFileInfo());
+        throw ConfigParsingError("Unsupported @ directive" + lineAndFileInfo());
       }
       size_t pos0 =line.find_first_of(" \t\v\f=");
       if(pos0 == string::npos)
-        throw IOError("@ directive without value (key-val separator is not found)" + lineAndFileInfo());
+        throw ConfigParsingError("@ directive without value (key-val separator is not found)" + lineAndFileInfo());
 
       string key = Global::trim(line.substr(0,pos0));
-      if(key!="@include")
-        throw IOError("Unsupported @ directive '" + key + "'" + lineAndFileInfo());
+      if(key != "@include")
+        throw ConfigParsingError("Unsupported @ directive '" + key + "'" + lineAndFileInfo());
 
       string value = line.substr(pos0+1);
       size_t pos1 =value.find_first_not_of(" \t\v\f=");
       if(pos1 == string::npos)
-        throw IOError("@ directive without value (value after key-val separator is not found)" + lineAndFileInfo());
+        throw ConfigParsingError("@ directive without value (value after key-val separator is not found)" + lineAndFileInfo());
 
       value = Global::trim(value.substr(pos1));
       value = Global::trim(value, "'");  // remove single quotes for filename
@@ -163,20 +163,20 @@ void ConfigParser::readStreamContent(istream& in) {
 
     size_t pos = line.find("=");
     if(pos == string::npos)
-      throw IOError("Could not parse kv pair, line does not have a non-commented '='" + lineAndFileInfo());
+      throw ConfigParsingError("Could not parse kv pair, line does not have a non-commented '='" + lineAndFileInfo());
 
     string key = Global::trim(line.substr(0,pos));
     string value = Global::trim(line.substr(pos+1));
     if(curFileKeys.find(key) != curFileKeys.end()) {
       if(!keysOverrideEnabled)
-        throw IOError("Key '" + key + "' + was specified multiple times in " +
+        throw ConfigParsingError("Key '" + key + "' + was specified multiple times in " +
                       curFilename + ", you probably didn't mean to do this, please delete one of them");
       else
         logMessages.push_back("Key '" + key + "' + was overriden by new value '" + value + "'" + lineAndFileInfo());
     }
     if(keyValues.find(key) != keyValues.end()) {
       if(!keysOverrideFromIncludes)
-        throw IOError("Key '" + key + "' + was specified multiple times in " +
+        throw ConfigParsingError("Key '" + key + "' + was specified multiple times in " +
                       curFilename + " or its included files, and key overriding is disabled");
       else
         logMessages.push_back("Key '" + key + "' + was overriden by new value '" + value + "'" + lineAndFileInfo());
@@ -307,7 +307,7 @@ map<string,string> ConfigParser::parseCommaSeparated(const string& commaSeparate
       continue;
     size_t pos = s.find("=");
     if(pos == string::npos)
-      throw IOError("Could not parse kv pair, could not find '=' in:" + s);
+      throw ConfigParsingError("Could not parse kv pair, could not find '=' in:" + s);
 
     string key = Global::trim(s.substr(0,pos));
     string value = Global::trim(s.substr(pos+1));

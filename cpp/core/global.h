@@ -176,7 +176,9 @@ struct StringError : public std::exception {
 };
 
 //Common exception for IO
-struct IOError final : public StringError { IOError(const char* msg):StringError(msg) {}; IOError(const std::string& msg):StringError(msg) {}; };
+struct IOError : public StringError { IOError(const char* msg):StringError(msg) {}; IOError(const std::string& msg):StringError(msg) {}; };
+//Exception for config parsing
+struct ConfigParsingError final : public IOError { ConfigParsingError(const char* msg):IOError(msg) {}; ConfigParsingError(const std::string& msg):IOError(msg) {}; };
 //Common exception for parameter values
 struct ValueError final : public StringError { ValueError(const char* msg):StringError(msg) {}; ValueError(const std::string& msg):StringError(msg) {}; };
 //Common exception for command line argument handling

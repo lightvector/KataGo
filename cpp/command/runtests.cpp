@@ -53,6 +53,8 @@ int MainCmds::runtests(const vector<string>& args) {
 
   ScoreValue::freeTables();
 
+  Tests::runConfigTests({});
+
   cout << "All tests passed" << endl;
   return 0;
 }
@@ -715,12 +717,6 @@ int MainCmds::runsleeptest(const vector<string>& args) {
 }
 
 int MainCmds::runconfigtests(const vector<string>& args) {
-  try {
-    Tests::runConfigTests(args);
-  } catch (const StringError &e) {
-    cout << "runconfigtests: " << e.what() << endl;
-    return -1;
-  }
-
+  Tests::runConfigTests(args);
   return 0;
 }
