@@ -108,6 +108,11 @@ void Tests::runConfigTests(const vector<string>& args) {
       Global::fatalError("Wrong command-line parameters");
     }
 
+    if (!cfg.contains("logDir"))
+      Global::fatalError("logDir param reading error from analysis_example.cfg "
+                         "while reading multiple configs from command line "
+                         "(data/analysis_example.cfg and data/test2.cfg)");
+
     if(cfg.getInt("nnMaxBatchSize") != 100)
       Global::fatalError("nnMaxBatchSize param overriding error while reading "
                          "multiple configs from command line "
