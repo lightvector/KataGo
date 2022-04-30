@@ -45,7 +45,7 @@ void Tests::runConfigTests(const vector<string>& args) {
     try {
       ConfigParser cfg(dataPath + "test-duplicate.cfg");
       Global::fatalError("Duplicate param logDir should trigger a error in data/test-duplicate.cfg");
-    } catch (const IOError&) {
+    } catch (const ConfigParsingError&) {
       // expected behaviour, do nothing here
       cout << "Config duplicate param error triggering OK\n";
     }
@@ -63,7 +63,7 @@ void Tests::runConfigTests(const vector<string>& args) {
       ConfigParser cfg(dataPath + "test.cfg", false, false);
       Global::fatalError("Overriden param should trigger a error "
                          "when key overriding is disabled in data/test.cfg");
-    } catch (const IOError&) {
+    } catch (const ConfigParsingError&) {
       // expected behaviour, do nothing here
       cout << "Config overriding error triggering OK\n";
     }
@@ -82,6 +82,29 @@ void Tests::runConfigTests(const vector<string>& args) {
     if(cfg.getInt("nnMaxBatchSize") != 100500)
       Global::fatalError("nnMaxBatchSize param overriding error in data/test.cfg");
     cout << "Config overriding test OK\n";
+  }
+
+  // circular dependency test
+  {
+    try {
+      ConfigParser cfg(dataPath + "test-circular0.cfg");
+      Global::fatalError("Config circular inclusion should trigger a error "
+                         "in data/test-circular0.cfg");
+    } catch (const ConfigParsingError&) {
+      // expected behaviour, do nothing here
+      cout << "Config circular inclusion error triggering OK\n";
+    }
+  }
+
+  // config from parent dir inclusion test
+  {
+    ConfigParser cfg(dataPath + "folded/test-parent.cfg");
+    if(cfg.getString("param") != "value")
+      Global::fatalError("Config reading error from "
+                         "data/folded/test-parent.cfg");
+    if(cfg.getString("logDir") != "more_logs")
+      Global::fatalError("logDir param reading error in data/test.cfg");
+    cout << "Config inclusion from parent dir OK\n";
   }
 
   // multiple config files from command line
