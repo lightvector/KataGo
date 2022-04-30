@@ -15,9 +15,7 @@ ConfigParser::ConfigParser(bool keysOverride, bool keysOverrideFromIncludes_)
 {}
 
 ConfigParser::ConfigParser(const string& fname, bool keysOverride, bool keysOverrideFromIncludes_)
-  :initialized(false),fileName(),contents(),keyValues(),
-    keysOverrideEnabled(keysOverride),keysOverrideFromIncludes(keysOverrideFromIncludes_),
-    usedKeysMutex(),usedKeys()
+  :ConfigParser(keysOverride, keysOverrideFromIncludes_)
 {
   initialize(fname);
 }
@@ -27,17 +25,13 @@ ConfigParser::ConfigParser(const char* fname, bool keysOverride, bool keysOverri
 {}
 
 ConfigParser::ConfigParser(istream& in, bool keysOverride, bool keysOverrideFromIncludes_)
-  :initialized(false),fileName(),contents(),keyValues(),
-    keysOverrideEnabled(keysOverride),keysOverrideFromIncludes(keysOverrideFromIncludes_),
-    usedKeysMutex(),usedKeys()
+  :ConfigParser(keysOverride, keysOverrideFromIncludes_)
 {
   initialize(in);
 }
 
 ConfigParser::ConfigParser(const map<string, string>& kvs)
-  :initialized(false),fileName(),contents(),keyValues(),
-    keysOverrideEnabled(false),keysOverrideFromIncludes(true),
-    usedKeysMutex(),usedKeys()
+  :ConfigParser(false, true)
 {
   initialize(kvs);
 }
