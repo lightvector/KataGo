@@ -30,7 +30,7 @@ void Tests::runConfigTests(const vector<string>& args) {
     return;
   }
 
-  std::string dataPath("cpp/tests/data/");
+  std::string dataPath("cpp/tests/data/configs/");
 
   cout << "Running config tests" << endl;
   // unit-tests
