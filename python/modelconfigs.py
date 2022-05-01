@@ -1279,12 +1279,14 @@ sandbox = {
 
 
 base_config_of_name = {
+  # Small nets
   "b2c16": b2c16,
   "b4c32": b4c32,
   "b6c96": b6c96,
   "b10c128": b10c128,
   "b15c192": b15c192,
 
+  # Configs not too different in inference cost from b20c256
   "b20c256": b20c256,
   "b30c256bt": b30c256bt,
   "b24c320bt": b24c320bt,
@@ -1299,13 +1301,16 @@ base_config_of_name = {
   "b7c384lnbt": b7c384lnbt,
   "b5c512nnbt": b5c512nnbt,
 
+  # Oddball config
   "b20c384lbt": b20c384lbt,
 
+  # Configs not too different in inference cost from b40c256
   "b30c320": b30c320,
   "b40c256": b40c256,
   "b18c384nbt": b18c384nbt,
   "b14c448nbt": b14c448nbt,
 
+  # Configs not too different in inference cost from b60c320
   "b40c384": b40c384,
   "b60c320": b60c320,
   "b41c384nbt": b41c384nbt,
@@ -1323,41 +1328,50 @@ for name, base_config in base_config_of_name.items():
 
 
 for name, base_config in list(config_of_name.items()):
+  # Fixup initialization
   config = base_config.copy()
   config["norm_kind"] = "fixup"
   config_of_name[name+""] = config
 
+  # Fixed scaling normalization
   config = base_config.copy()
   config["norm_kind"] = "fixscale"
   config_of_name[name+"-fs"] = config
 
+  # Batchnorm without gamma terms
   config = base_config.copy()
   config["norm_kind"] = "bnorm"
   config_of_name[name+"-bn"] = config
 
+  # Batchrenorm without gamma terms
   config = base_config.copy()
   config["norm_kind"] = "brenorm"
   config_of_name[name+"-brn"] = config
 
+  # Fixed scaling normalization + Batchrenorm without gamma terms
   config = base_config.copy()
   config["norm_kind"] = "fixbrenorm"
   config_of_name[name+"-fbrn"] = config
 
+  # Batchnorm with gamma terms
   config = base_config.copy()
   config["norm_kind"] = "bnorm"
   config["bnorm_use_gamma"] = True
   config_of_name[name+"-bng"] = config
 
+  # Batchrenorm with gamma terms
   config = base_config.copy()
   config["norm_kind"] = "brenorm"
   config["bnorm_use_gamma"] = True
   config_of_name[name+"-brng"] = config
 
+  # Fixed scaling normalization + Batchrenorm with gamma terms
   config = base_config.copy()
   config["norm_kind"] = "fixbrenorm"
   config["bnorm_use_gamma"] = True
   config_of_name[name+"-fbrng"] = config
 
+  # Fixed scaling normalization + ONE batch norm layer in the entire net.
   config = base_config.copy()
   config["norm_kind"] = "fixscaleonenorm"
   config["bnorm_use_gamma"] = True
@@ -1391,12 +1405,14 @@ for name, base_config in list(config_of_name.items()):
   config_of_name[name+"-rvgl"] = config
 
 for name, base_config in list(config_of_name.items()):
+  # Add intermediate heads, for use with self-distillation or embedding small net in big one.
   config = base_config.copy()
   config["has_intermediate_head"] = True
   config["intermediate_head_blocks"] = len(config["block_kind"]) // 2
   config_of_name[name+"-ih"] = config
 
-for name, base_config in list(config_of_name.items()):
+  # Add parallel heads that uses the final trunk batchnorm.
+  # The original normal heads disables the final trunk batchnorm
   config = base_config.copy()
   config["has_intermediate_head"] = True
   config["intermediate_head_blocks"] = len(config["block_kind"])

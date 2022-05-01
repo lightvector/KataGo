@@ -107,6 +107,18 @@ class NormMask(torch.nn.Module):
         force_use_gamma: bool = False,
         is_last_batchnorm: bool = False,
     ):
+        """Various kinds of normalization.
+
+        bnorm - batch norm
+        brenorm - batch renorm
+        fixup - fixup initialization https://arxiv.org/abs/1901.09321
+        fixscale - fixed scaling initialization. Normalization layers simply multiply a constant scalar according
+          to what batchnorm *would* do if all inputs were unit variance and all linear layers or convolutions
+          preserved variance.
+        fixbrenorm - fixed scaling normalization PLUS batch renorm.
+        fixscaleonenorm - fixed scaling normalization PLUS only have one batch norm layer in the entire net, at the end of the residual trunk.
+        """
+
         super(NormMask, self).__init__()
         self.norm_kind = config["norm_kind"]
         self.epsilon = config["bnorm_epsilon"]

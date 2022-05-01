@@ -21,7 +21,7 @@ Michael Reilly ("OmnipotentEntity") - minor workaround for CUDA on some cmake ve
 Hiraoka ("kaorahi") - for help optimizing Eigen backend
 Akita Noek ("anoek") - for some minor performance and api suggestions, minor cuda work
 Harald Han - for some work on CUDNN8 support
-"inbae" - for removing boost filesystem dependencies
+"inbae" - for removing boost filesystem dependencies, major contributions to pytorch training
 "rimathia" - for a minor bugfix
 "Jonathan_Go" - for help with client proxy support
 Jonathan Roy ("roy7") - for various search refactors
@@ -36,3 +36,4 @@ Separately from the authors of the content in this repo, additional special than
 Junyan Xu ("alreadydone") - for much testing and troubleshooting for Windows support
 "petgo3" - for bugfinding and advice on supporting KGS api
 "sbbdms" - for much testing of cpuct and uncertainty parameters
+"Medwin", "shengke" and others - for many tests and ideas and parameters
