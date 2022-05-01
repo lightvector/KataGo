@@ -4,6 +4,7 @@
 #include "../core/datetime.h"
 #include "../core/makedir.h"
 #include "../search/asyncbot.h"
+#include "../search/patternbonustable.h"
 #include "../program/setup.h"
 #include "../program/playutils.h"
 #include "../program/play.h"
@@ -103,21 +104,11 @@ int MainCmds::analysis(const vector<string>& args) {
     seedRand.init("forDeterministicTesting");
 
   Logger logger;
-  if(cfg.contains("logFile") && cfg.contains("logDir"))
-    throw StringError("Cannot specify both logFile and logDir in config");
-  else if(cfg.contains("logFile"))
-    logger.addFile(cfg.getString("logFile"));
-  else if(cfg.contains("logDir")) {
-    MakeDir::make(cfg.getString("logDir"));
-    logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(seedRand.nextUInt()) + ".log");
-  }
+  Setup::initializeLoggerFromConfig(cfg, logger, seedRand);
 
   const bool logToStderr = cfg.contains("logToStderr") ? cfg.getBool("logToStderr") : true;
   if(logToStderr)
     logger.setLogToStderr(true);
-  const bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
-  if(!logTimeStamp)
-    logger.setLogTime(false);
 
   logger.write("Analysis Engine starting...");
   logger.write(Version::getKataGoVersionForHelp());
@@ -253,7 +244,6 @@ int MainCmds::analysis(const vector<string>& args) {
 
   //Returns false if no analysis was reportable due to there being no root node or search results.
   auto reportAnalysis = [&preventEncore,&pushToWrite](const AnalyzeRequest* request, const Search* search, bool isDuringSearch) {
-    static constexpr int ownershipMinVisits = 3;
     json ret;
     ret["id"] = request->id;
     ret["turnNumber"] = request->turnNumber;
@@ -261,7 +251,7 @@ int MainCmds::analysis(const vector<string>& args) {
 
     bool success = search->getAnalysisJson(
       request->perspective,
-      request->analysisPVLen, ownershipMinVisits, preventEncore, request->includePolicy,
+      request->analysisPVLen, preventEncore, request->includePolicy,
       request->includeOwnership,request->includeOwnershipStdev,
       request->includeMovesOwnership,request->includeMovesOwnershipStdev,
       request->includePVVisits,

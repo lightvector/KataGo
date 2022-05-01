@@ -1,6 +1,9 @@
 #include "../program/setup.h"
 
+#include "../core/datetime.h"
+#include "../core/makedir.h"
 #include "../neuralnet/nninterface.h"
+#include "../search/patternbonustable.h"
 
 using namespace std;
 
@@ -446,14 +449,23 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("fpuLossProp"+idxStr)) params.fpuLossProp = cfg.getDouble("fpuLossProp"+idxStr, 0.0, 1.0);
     else if(cfg.contains("fpuLossProp"))   params.fpuLossProp = cfg.getDouble("fpuLossProp",        0.0, 1.0);
     else                                   params.fpuLossProp = 0.0;
-    if(cfg.contains("fpuParentWeight"+idxStr)) params.fpuParentWeight = cfg.getDouble("fpuParentWeight"+idxStr,        0.0, 1.0);
-    else if(cfg.contains("fpuParentWeight"))   params.fpuParentWeight = cfg.getDouble("fpuParentWeight",        0.0, 1.0);
-    else                                       params.fpuParentWeight = 0.0;
-
+    if(cfg.contains("fpuParentWeightByVisitedPolicy"+idxStr)) params.fpuParentWeightByVisitedPolicy = cfg.getBool("fpuParentWeightByVisitedPolicy"+idxStr);
+    else if(cfg.contains("fpuParentWeightByVisitedPolicy"))   params.fpuParentWeightByVisitedPolicy = cfg.getBool("fpuParentWeightByVisitedPolicy");
+    else                                                      params.fpuParentWeightByVisitedPolicy = (setupFor != SETUP_FOR_DISTRIBUTED);
+    if(params.fpuParentWeightByVisitedPolicy) {
+      if(cfg.contains("fpuParentWeightByVisitedPolicyPow"+idxStr)) params.fpuParentWeightByVisitedPolicyPow = cfg.getDouble("fpuParentWeightByVisitedPolicyPow"+idxStr, 0.0, 5.0);
+      else if(cfg.contains("fpuParentWeightByVisitedPolicyPow"))   params.fpuParentWeightByVisitedPolicyPow = cfg.getDouble("fpuParentWeightByVisitedPolicyPow",        0.0, 5.0);
+      else                                                         params.fpuParentWeightByVisitedPolicyPow = 2.0;
+    }
+    else {
+      if(cfg.contains("fpuParentWeight"+idxStr)) params.fpuParentWeight = cfg.getDouble("fpuParentWeight"+idxStr,        0.0, 1.0);
+      else if(cfg.contains("fpuParentWeight"))   params.fpuParentWeight = cfg.getDouble("fpuParentWeight",        0.0, 1.0);
+      else                                       params.fpuParentWeight = 0.0;
+    }
 
     if(cfg.contains("valueWeightExponent"+idxStr)) params.valueWeightExponent = cfg.getDouble("valueWeightExponent"+idxStr, 0.0, 1.0);
     else if(cfg.contains("valueWeightExponent")) params.valueWeightExponent = cfg.getDouble("valueWeightExponent", 0.0, 1.0);
-    else params.valueWeightExponent = 0.5;
+    else params.valueWeightExponent = 0.25;
     if(cfg.contains("useNoisePruning"+idxStr)) params.useNoisePruning = cfg.getBool("useNoisePruning"+idxStr);
     else if(cfg.contains("useNoisePruning"))   params.useNoisePruning = cfg.getBool("useNoisePruning");
     else                                       params.useNoisePruning = (setupFor != SETUP_FOR_DISTRIBUTED && setupFor != SETUP_FOR_OTHER);
@@ -478,6 +490,18 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("uncertaintyMaxWeight"))   params.uncertaintyMaxWeight = cfg.getDouble("uncertaintyMaxWeight", 1.0, 100.0);
     else                                            params.uncertaintyMaxWeight = 8.0;
 
+    if(cfg.contains("useGraphSearch"+idxStr)) params.useGraphSearch = cfg.getBool("useGraphSearch"+idxStr);
+    else if(cfg.contains("useGraphSearch"))   params.useGraphSearch = cfg.getBool("useGraphSearch");
+    else                                      params.useGraphSearch = (setupFor != SETUP_FOR_DISTRIBUTED);
+    if(cfg.contains("graphSearchRepBound"+idxStr)) params.graphSearchRepBound = cfg.getInt("graphSearchRepBound"+idxStr, 3, 50);
+    else if(cfg.contains("graphSearchRepBound"))   params.graphSearchRepBound = cfg.getInt("graphSearchRepBound",        3, 50);
+    else                                           params.graphSearchRepBound = 11;
+    if(cfg.contains("graphSearchCatchUpLeakProb"+idxStr)) params.graphSearchCatchUpLeakProb = cfg.getDouble("graphSearchCatchUpLeakProb"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("graphSearchCatchUpLeakProb"))   params.graphSearchCatchUpLeakProb = cfg.getDouble("graphSearchCatchUpLeakProb", 0.0, 1.0);
+    else                                                  params.graphSearchCatchUpLeakProb = 0.0;
+    // if(cfg.contains("graphSearchCatchUpProp"+idxStr)) params.graphSearchCatchUpProp = cfg.getDouble("graphSearchCatchUpProp"+idxStr, 0.0, 1.0);
+    // else if(cfg.contains("graphSearchCatchUpProp"))   params.graphSearchCatchUpProp = cfg.getDouble("graphSearchCatchUpProp", 0.0, 1.0);
+    // else                                              params.graphSearchCatchUpProp = 0.0;
 
     if(cfg.contains("rootNoiseEnabled"+idxStr)) params.rootNoiseEnabled = cfg.getBool("rootNoiseEnabled"+idxStr);
     else if(cfg.contains("rootNoiseEnabled"))   params.rootNoiseEnabled = cfg.getBool("rootNoiseEnabled");
@@ -594,17 +618,17 @@ vector<SearchParams> Setup::loadParams(
 
     if(cfg.contains("subtreeValueBiasFactor"+idxStr)) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor"+idxStr, 0.0, 1.0);
     else if(cfg.contains("subtreeValueBiasFactor")) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor", 0.0, 1.0);
-    else params.subtreeValueBiasFactor = 0.35;
+    else params.subtreeValueBiasFactor = 0.45;
     if(cfg.contains("subtreeValueBiasFreeProp"+idxStr)) params.subtreeValueBiasFreeProp = cfg.getDouble("subtreeValueBiasFreeProp"+idxStr, 0.0, 1.0);
     else if(cfg.contains("subtreeValueBiasFreeProp")) params.subtreeValueBiasFreeProp = cfg.getDouble("subtreeValueBiasFreeProp", 0.0, 1.0);
     else params.subtreeValueBiasFreeProp = 0.8;
     if(cfg.contains("subtreeValueBiasWeightExponent"+idxStr)) params.subtreeValueBiasWeightExponent = cfg.getDouble("subtreeValueBiasWeightExponent"+idxStr, 0.0, 1.0);
     else if(cfg.contains("subtreeValueBiasWeightExponent")) params.subtreeValueBiasWeightExponent = cfg.getDouble("subtreeValueBiasWeightExponent", 0.0, 1.0);
-    else params.subtreeValueBiasWeightExponent = 0.8;
+    else params.subtreeValueBiasWeightExponent = 0.85;
 
-    if(cfg.contains("mutexPoolSize"+idxStr)) params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize"+idxStr, 1, 1 << 24);
-    else if(cfg.contains("mutexPoolSize"))   params.mutexPoolSize = (uint32_t)cfg.getInt("mutexPoolSize",        1, 1 << 24);
-    else                                     params.mutexPoolSize = 16384;
+    if(cfg.contains("nodeTableShardsPowerOfTwo"+idxStr)) params.nodeTableShardsPowerOfTwo = cfg.getInt("nodeTableShardsPowerOfTwo"+idxStr, 8, 24);
+    else if(cfg.contains("nodeTableShardsPowerOfTwo"))   params.nodeTableShardsPowerOfTwo = cfg.getInt("nodeTableShardsPowerOfTwo",        8, 24);
+    else                                                 params.nodeTableShardsPowerOfTwo = 16;
     if(cfg.contains("numVirtualLossesPerThread"+idxStr)) params.numVirtualLossesPerThread = cfg.getDouble("numVirtualLossesPerThread"+idxStr, 0.01, 1000.0);
     else if(cfg.contains("numVirtualLossesPerThread"))   params.numVirtualLossesPerThread = cfg.getDouble("numVirtualLossesPerThread",        0.01, 1000.0);
     else                                                 params.numVirtualLossesPerThread = 1.0;
@@ -637,7 +661,10 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("futileVisitsThreshold"))   params.futileVisitsThreshold = cfg.getDouble("futileVisitsThreshold",0.01,1.0);
     else                                             params.futileVisitsThreshold = 0.0;
 
-
+    //On distributed, tolerate reading mutexPoolSize since older version configs use it.
+    if(setupFor == SETUP_FOR_DISTRIBUTED)
+      cfg.markAllKeysUsedWithPrefix("mutexPoolSize");
+    
     paramss.push_back(params);
   }
 
@@ -813,4 +840,24 @@ std::vector<std::unique_ptr<PatternBonusTable>> Setup::loadAvoidSgfPatternBonusT
     tables.push_back(std::move(patternBonusTable));
   }
   return tables;
+}
+
+void Setup::initializeLoggerFromConfig(ConfigParser& cfg, Logger& logger, Rand& seedRand) {
+  if((int)cfg.contains("logFile") + (int)cfg.contains("logDir") + (int)cfg.contains("logDirDated") > 1)
+    throw StringError("Cannot specify more than one of logFile and logDir and logDirDated in config");
+  else if(cfg.contains("logFile"))
+    logger.addFile(cfg.getString("logFile"));
+  else if(cfg.contains("logDir")) {
+    MakeDir::make(cfg.getString("logDir"));
+    logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(seedRand.nextUInt()) + ".log");
+  }
+  else if(cfg.contains("logDirDated")) {
+    MakeDir::make(cfg.getString("logDirDated"));
+    MakeDir::make(cfg.getString("logDirDated") + "/" + DateTime::getCompactDateTimeString());
+    logger.addFile(cfg.getString("logDirDated") + "/" + DateTime::getCompactDateTimeString() + "/" + Global::uint32ToHexString(seedRand.nextUInt()) + ".log");
+  }
+
+  const bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
+  if(!logTimeStamp)
+    logger.setLogTime(false);
 }

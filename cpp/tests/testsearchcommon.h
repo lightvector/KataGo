@@ -22,6 +22,7 @@ namespace TestSearchCommon {
     bool printMoreMoreMore;
     bool printAfterBegun;
     bool ignorePosition;
+    bool printPostOrderNodeCount;
     TestSearchOptions();
   };
 
@@ -39,7 +40,7 @@ namespace TestSearchCommon {
     bool requireExactNNLen
   );
 
-  void verifyTreePostOrder(Search* search);
+  void verifyTreePostOrder(Search* search, int onlyRequireAtLeast);
 }
 
 #endif

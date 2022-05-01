@@ -174,7 +174,7 @@ Hash128 Hash128::ofString(const string& s) {
       throw IOError("Could not parse as Hash128: " + s);
     }
   }
-  uint64_t h1 = Global::stringToUInt64(s.substr(0,16));
-  uint64_t h0 = Global::stringToUInt64(s.substr(16,16));
+  uint64_t h1 = Global::hexStringToUInt64(s.substr(0,16));
+  uint64_t h0 = Global::hexStringToUInt64(s.substr(16,16));
   return Hash128(h0,h1);
 }

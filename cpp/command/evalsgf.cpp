@@ -3,6 +3,7 @@
 #include "../core/timer.h"
 #include "../dataio/sgf.h"
 #include "../search/asyncbot.h"
+#include "../search/searchnode.h"
 #include "../program/setup.h"
 #include "../program/playutils.h"
 #include "../program/play.h"
@@ -37,6 +38,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
   bool printLead;
   bool printAvgShorttermError;
   bool printSharpScore;
+  bool printGraph;
   int printMaxDepth;
   bool rawNN;
   try {
@@ -66,6 +68,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     TCLAP::SwitchArg printLeadArg("","print-lead","Compute and print lead");
     TCLAP::SwitchArg printAvgShorttermErrorArg("","print-avg-shortterm-error","Compute and print avgShorttermError");
     TCLAP::SwitchArg printSharpScoreArg("","print-sharp-score","Compute and print sharp weighted score");
+    TCLAP::SwitchArg printGraphArg("","print-graph","Print graph structure of the search");
     TCLAP::ValueArg<int> printMaxDepthArg("","print-max-depth","How deep to print",false,1,"DEPTH");
     TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
     cmd.add(sgfFileArg);
@@ -94,6 +97,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     cmd.add(printLeadArg);
     cmd.add(printAvgShorttermErrorArg);
     cmd.add(printSharpScoreArg);
+    cmd.add(printGraphArg);
     cmd.add(printMaxDepthArg);
     cmd.add(rawNNArg);
     cmd.parseArgs(args);
@@ -120,6 +124,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     printLead = printLeadArg.getValue();
     printAvgShorttermError = printAvgShorttermErrorArg.getValue();
     printSharpScore = printSharpScoreArg.getValue();
+    printGraph = printGraphArg.getValue();
     printMaxDepth = printMaxDepthArg.getValue();
     rawNN = rawNNArg.getValue();
 
@@ -477,6 +482,8 @@ int MainCmds::evalsgf(const vector<string>& args) {
   sout << "NN rows: " << nnEval->numRowsProcessed() << endl;
   sout << "NN batches: " << nnEval->numBatchesProcessed() << endl;
   sout << "NN avg batch size: " << nnEval->averageProcessedBatchSize() << endl;
+  std::vector<SearchNode*> nodes = bot->getSearchStopAndWait()->enumerateTreePostOrder();
+  sout << "True number of tree nodes: " << nodes.size() << endl;
   sout << "PV: ";
   search->printPV(sout, search->rootNode, 25);
   sout << "\n";
@@ -491,6 +498,26 @@ int MainCmds::evalsgf(const vector<string>& args) {
       20, OtherGameProperties()
     );
     cout << "LEAD: " << lead << endl;
+  }
+
+  if(printGraph) {
+    std::reverse(nodes.begin(),nodes.end());
+    std::map<SearchNode*,size_t> idxOfNode;
+    for(size_t nodeIdx = 0; nodeIdx<nodes.size(); nodeIdx++)
+      idxOfNode[nodes[nodeIdx]] = nodeIdx;
+
+    for(int nodeIdx = 0; nodeIdx<nodes.size(); nodeIdx++) {
+      SearchNode& node = *(nodes[nodeIdx]);
+      int childrenCapacity;
+      SearchChildPointer* children = node.getChildren(childrenCapacity);
+      for(int i = 0; i<childrenCapacity; i++) {
+        SearchNode* child = children[i].getIfAllocated();
+        if(child == NULL)
+          break;
+        cout << nodeIdx << " -> " << idxOfNode[child] << "\n";
+      }
+    }
+    cout << endl;
   }
 
   delete bot;

@@ -76,6 +76,9 @@ struct PlaySettings {
   double maxAsymmetricRatio;
   double minAsymmetricCompensateKomiProb; //Minimum probability to make game fair if asymmetric (other probs will also override)
 
+  //Record time taken per move
+  bool recordTimePerMove;
+
   PlaySettings();
   ~PlaySettings();
 

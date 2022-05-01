@@ -1,5 +1,8 @@
 #include "../tests/tests.h"
 
+#include "../game/graphhash.h"
+#include "../program/playutils.h"
+
 using namespace std;
 using namespace TestCommon;
 
@@ -2224,5 +2227,103 @@ Caps 4420 4335
 
 )%%";
   expect("Board stress test move counts",out,expected);
+}
+
+void Tests::runBoardReplayTest() {
+  cout << "Running board replay test" << endl;
+  Rand rand("runBoardReplayTest");
+
+  Board base = Board::parseBoard(9,5,R"%%(
+.xo.o.ooo
+xo.oooooo
+.xooxxxo.
+oxxxxx.xo
+.o.xx.xo.
+)%%");
+
+  for(int rep = 0; rep<6000; rep++) {
+    Board board(base);
+    Player pla = rand.nextBool(0.5) ? P_BLACK : P_WHITE;
+    int initialEncorePhase = rand.nextBool(0.9) ? 0 : rand.nextBool(0.5) ? 1 : 2;
+    Rules rules = rand.nextBool(0.8) ? Rules::parseRules("japanese") : Rules::parseRules("chinese");
+    if(rules.scoringRule == Rules::SCORING_AREA)
+      initialEncorePhase = 0;
+    if(rand.nextBool(0.1))
+      rules.koRule = rand.nextBool(0.5) ? Rules::KO_SITUATIONAL : Rules::KO_POSITIONAL;
+    if(rand.nextBool(0.2))
+      rules.taxRule = rand.nextBool(0.5) ? Rules::TAX_SEKI : rand.nextBool(0.5) ? Rules::TAX_NONE : Rules::TAX_ALL;
+    BoardHistory hist(board,pla,rules,initialEncorePhase);
+    hist.setInitialTurnNumber(rand.nextInt(0,40));
+    hist.setAssumeMultipleStartingBlackMovesAreHandicap(rand.nextBool(0.5));
+
+    double drawEquivalentWinsForWhite = 0.7;
+    int repBound = rand.nextInt(1,5);
+
+    Hash128 graphHash = GraphHash::getGraphHashFromScratch(hist, pla, repBound, drawEquivalentWinsForWhite);
+
+    bool anyKomiSet = false;
+    double passProb = rand.nextDouble(0.05,0.80);
+    int numSteps = rand.nextInt(6,15);
+    for(int i = 0; i<numSteps; i++) {
+      BoardHistory tmpHist(board,pla,rules,hist.encorePhase);
+      Loc moveLoc;
+      if(rand.nextBool(passProb))
+        moveLoc = Board::PASS_LOC;
+      else {
+        moveLoc = PlayUtils::chooseRandomLegalMove(board,tmpHist,pla,rand,Board::NULL_LOC);
+        //Resample to increase likelihood of capture moves.
+        if(!board.wouldBeCapture(moveLoc,pla))
+          moveLoc = PlayUtils::chooseRandomLegalMove(board,tmpHist,pla,rand,Board::NULL_LOC);
+        //Resample to decrease likelihood of moves not adjacent to opponent
+        if(!board.isAdjacentToPla(moveLoc,getOpp(pla)))
+          moveLoc = PlayUtils::chooseRandomLegalMove(board,tmpHist,pla,rand,Board::NULL_LOC);
+      }
+      bool preventEncore = rand.nextBool(0.5);
+      if(rand.nextBool(0.5)) {
+        // if(!hist.isLegal(board,moveLoc,pla))
+        //   cout << "AAAA" << endl;
+        bool suc = hist.makeBoardMoveTolerant(board, moveLoc, pla, preventEncore);
+        testAssert(suc);
+      }
+      else {
+        if(hist.isLegal(board,moveLoc,pla))
+          hist.makeBoardMoveAssumeLegal(board, moveLoc, pla, NULL, preventEncore);
+        else
+          continue;
+      }
+      pla = getOpp(pla);
+      if(rand.nextBool(0.1))
+        pla = getOpp(pla);
+      if(rand.nextBool(0.025)) {
+        anyKomiSet = true;
+        hist.setKomi(hist.rules.komi + (float)(rand.nextBool(0.5) ? -0.5 : +0.5));
+      }
+
+      graphHash = GraphHash::getGraphHash(graphHash, hist, pla, repBound, drawEquivalentWinsForWhite);
+    }
+
+    BoardHistory histCopy = hist.copyToInitial();
+    Board boardCopy = histCopy.getRecentBoard(0);
+    for(int i = 0; i<hist.moveHistory.size(); i++) {
+      histCopy.makeBoardMoveAssumeLegal(boardCopy, hist.moveHistory[i].loc, hist.moveHistory[i].pla, NULL, hist.preventEncoreHistory[i]);
+    }
+    if(rand.nextBool(0.05))
+      histCopy = hist;
+    //if(rep < 100)
+    //  hist.printDebugInfo(cout,board);
+
+    testAssert(boardCopy.isEqualForTesting(board, true, true));
+    testAssert(boardCopy.isEqualForTesting(histCopy.getRecentBoard(0), true, true));
+    testAssert(histCopy.getRecentBoard(0).isEqualForTesting(hist.getRecentBoard(0), true, true));
+    testAssert(BoardHistory::getSituationRulesAndKoHash(boardCopy,histCopy,pla,drawEquivalentWinsForWhite) == hist.getSituationRulesAndKoHash(board,hist,pla,drawEquivalentWinsForWhite));
+    testAssert(histCopy.currentSelfKomi(P_BLACK, drawEquivalentWinsForWhite) == hist.currentSelfKomi(P_BLACK, drawEquivalentWinsForWhite));
+    testAssert(histCopy.currentSelfKomi(P_WHITE, drawEquivalentWinsForWhite) == hist.currentSelfKomi(P_WHITE, drawEquivalentWinsForWhite));
+    testAssert(histCopy.initialTurnNumber == hist.initialTurnNumber);
+    testAssert(histCopy.presumedNextMovePla == hist.presumedNextMovePla);
+    testAssert(histCopy.assumeMultipleStartingBlackMovesAreHandicap == hist.assumeMultipleStartingBlackMovesAreHandicap);
+    testAssert(GraphHash::getStateHash(histCopy, pla, drawEquivalentWinsForWhite) == GraphHash::getStateHash(hist, pla, drawEquivalentWinsForWhite));
+    testAssert(GraphHash::getGraphHashFromScratch(histCopy, pla, repBound, drawEquivalentWinsForWhite) == GraphHash::getGraphHashFromScratch(hist, pla, repBound, drawEquivalentWinsForWhite));
+    testAssert(anyKomiSet || graphHash == GraphHash::getGraphHashFromScratch(hist, pla, repBound, drawEquivalentWinsForWhite));
+  }
 }
 

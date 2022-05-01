@@ -24,6 +24,9 @@ SidePosition::SidePosition()
    pla(P_BLACK),
    unreducedNumVisits(),
    policyTarget(),
+   policySurprise(),
+   policyEntropy(),
+   searchEntropy(),
    whiteValueTargets(),
    targetWeight(),
    targetWeightUnrounded(),
@@ -36,6 +39,9 @@ SidePosition::SidePosition(const Board& b, const BoardHistory& h, Player p, int 
    pla(p),
    unreducedNumVisits(),
    policyTarget(),
+   policySurprise(),
+   policyEntropy(),
+   searchEntropy(),
    whiteValueTargets(),
    targetWeight(1.0f),
    targetWeightUnrounded(1.0f),
@@ -82,7 +88,11 @@ FinishedGameData::FinishedGameData()
    finalWhiteScoring(NULL),
 
    sidePositions(),
-   changedNeuralNets()
+   changedNeuralNets(),
+   bTimeUsed(0.0),
+   wTimeUsed(0.0),
+   bMoveCount(0),
+   wMoveCount(0)
 {
 }
 
@@ -135,6 +145,13 @@ void FinishedGameData::printDebug(ostream& out) const {
     }
     out << endl;
   }
+  for (int i = 0; i < policySurpriseByTurn.size(); i++)
+    out << "policySurpriseByTurn " << i << " " << policySurpriseByTurn[i] << endl;
+  for (int i = 0; i < policyEntropyByTurn.size(); i++)
+    out << "policyEntropyByTurn " << i << " " << policyEntropyByTurn[i] << endl;
+  for (int i = 0; i < searchEntropyByTurn.size(); i++)
+    out << "searchEntropyByTurn " << i << " " << searchEntropyByTurn[i] << endl;
+
   for(int i = 0; i<whiteValueTargetsByTurn.size(); i++) {
     out << "whiteValueTargetsByTurn " << i << " ";
     out << whiteValueTargetsByTurn[i].win << " ";
@@ -337,6 +354,9 @@ void TrainingWriteBuffers::addRow(
   int64_t unreducedNumVisits,
   const vector<PolicyTargetMove>* policyTarget0, //can be null
   const vector<PolicyTargetMove>* policyTarget1, //can be null
+  double policySurprise,
+  double policyEntropy,
+  double searchEntropy,
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
   const NNRawStats& nnRawStats,
@@ -472,9 +492,9 @@ void TrainingWriteBuffers::addRow(
   //Unused
   rowGlobal[23] = 0.0f;
   rowGlobal[24] = 0.0f;
-  rowGlobal[30] = 0.0f;
-  rowGlobal[31] = 0.0f;
-  rowGlobal[32] = 0.0f;
+  rowGlobal[30] = (float)policySurprise;
+  rowGlobal[31] = (float)policyEntropy;
+  rowGlobal[32] = (float)searchEntropy;
   rowGlobal[35] = 0.0f;
 
   //Fill in whether we should use history or not
@@ -879,6 +899,9 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   assert(data.targetWeightByTurn.size() == numMoves);
   assert(data.targetWeightByTurnUnrounded.size() == numMoves);
   assert(data.policyTargetsByTurn.size() == numMoves);
+  assert(data.policySurpriseByTurn.size() == numMoves);
+  assert(data.policyEntropyByTurn.size() == numMoves);
+  assert(data.searchEntropyByTurn.size() == numMoves);
   assert(data.whiteValueTargetsByTurn.size() == numMoves+1);
   assert(data.nnRawStatsByTurn.size() == numMoves);
 
@@ -960,6 +983,9 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             unreducedNumVisits,
             policyTarget0,
             policyTarget1,
+            data.policySurpriseByTurn[turnAfterStart],
+            data.policyEntropyByTurn[turnAfterStart],
+            data.searchEntropyByTurn[turnAfterStart],
             data.whiteValueTargetsByTurn,
             turnAfterStart,
             data.nnRawStatsByTurn[turnAfterStart],
@@ -1011,6 +1037,9 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             sp->unreducedNumVisits,
             &(sp->policyTarget),
             NULL,
+            sp->policySurprise,
+            sp->policyEntropy,
+            sp->searchEntropy,
             whiteValueTargetsBuf,
             0,
             sp->nnRawStats,

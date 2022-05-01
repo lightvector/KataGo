@@ -1,4 +1,5 @@
 #include "../core/global.h"
+#include "../core/commandloop.h"
 #include "../core/config_parser.h"
 #include "../core/fileutils.h"
 #include "../core/timer.h"
@@ -6,9 +7,11 @@
 #include "../core/makedir.h"
 #include "../dataio/sgf.h"
 #include "../search/asyncbot.h"
+#include "../search/patternbonustable.h"
 #include "../program/setup.h"
 #include "../program/playutils.h"
 #include "../program/play.h"
+#include "../tests/tests.h"
 #include "../command/commandline.h"
 #include "../main.h"
 
@@ -86,6 +89,7 @@ static const vector<string> knownCommands = {
   //Misc other stuff
   "cputime",
   "gomill-cpu_time",
+  "kata-benchmark",
 
   //Some debug commands
   "kata-debug-print-tc",
@@ -206,7 +210,7 @@ static void updateDynamicPDAHelper(
     double pdaScalingStartPoints = getPointsThresholdForHandicapGame(boardSizeScaling);
     double initialBlackAdvantageInPoints = initialBlackAdvantage(hist);
     Player disadvantagedPla = initialBlackAdvantageInPoints >= 0 ? P_WHITE : P_BLACK;
-    double initialAdvantageInPoints = abs(initialBlackAdvantageInPoints);
+    double initialAdvantageInPoints = std::fabs(initialBlackAdvantageInPoints);
     if(initialAdvantageInPoints < pdaScalingStartPoints || board.x_size <= 7 || board.y_size <= 7) {
       desiredDynamicPDAForWhite = 0.0;
     }
@@ -656,7 +660,10 @@ struct GTPEngine {
     int maxMoves = 10000000;
     bool showOwnership = false;
     bool showOwnershipStdev = false;
+    bool showMovesOwnership = false;
+    bool showMovesOwnershipStdev = false;
     bool showPVVisits = false;
+    bool showPVEdgeVisits = false;
     double secondsPerReport = TimeControls::UNLIMITED_TIME_DEFAULT;
     vector<int> avoidMoveUntilByLocBlack;
     vector<int> avoidMoveUntilByLocWhite;
@@ -719,6 +726,13 @@ struct GTPEngine {
             else
               data.writePVVisits(cout);
           }
+          if(args.showPVEdgeVisits) {
+            cout << " pvEdgeVisits ";
+            if(preventEncore && data.pvContainsPass())
+              data.writePVEdgeVisitsUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
+            else
+              data.writePVEdgeVisits(cout);
+          }
         }
         cout << endl;
       };
@@ -737,15 +751,13 @@ struct GTPEngine {
 
         vector<double> ownership, ownershipStdev;
         if(args.showOwnershipStdev) {
-          static constexpr int64_t ownershipStdevMinVisits = 3;
           tuple<vector<double>,vector<double>> ownershipAverageAndStdev;
-          ownershipAverageAndStdev = search->getAverageAndStandardDeviationTreeOwnership(ownershipStdevMinVisits);
+          ownershipAverageAndStdev = search->getAverageAndStandardDeviationTreeOwnership();
           ownership = std::get<0>(ownershipAverageAndStdev);
           ownershipStdev = std::get<1>(ownershipAverageAndStdev);
         }
         else if(args.showOwnership) {
-          static constexpr int64_t ownershipMinVisits = 3;
-          ownership = search->getAverageTreeOwnership(ownershipMinVisits);
+          ownership = search->getAverageTreeOwnership();
         }
 
         ostringstream out;
@@ -802,6 +814,48 @@ struct GTPEngine {
               data.writePVVisitsUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
             else
               data.writePVVisits(out);
+          }
+          if(args.showPVEdgeVisits) {
+            out << " pvEdgeVisits ";
+            if(preventEncore && data.pvContainsPass())
+              data.writePVEdgeVisitsUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
+            else
+              data.writePVEdgeVisits(out);
+          }
+          vector<double> movesOwnership, movesOwnershipStdev;
+          if(args.showMovesOwnershipStdev) {
+            tuple<vector<double>,vector<double>> movesOwnershipAverageAndStdev;
+            movesOwnershipAverageAndStdev = search->getAverageAndStandardDeviationTreeOwnership(perspective,data.node,data.symmetry);
+            movesOwnership = std::get<0>(movesOwnershipAverageAndStdev);
+            movesOwnershipStdev = std::get<1>(movesOwnershipAverageAndStdev);
+
+          }
+          else if(args.showMovesOwnership) {
+            movesOwnership = search->getAverageTreeOwnership(perspective,data.node,data.symmetry);
+          }
+          if(args.showMovesOwnership) {
+            out << " ";
+
+            out << "movesOwnership";
+            int nnXLen = search->nnXLen;
+            for(int y = 0; y<board.y_size; y++) {
+              for(int x = 0; x<board.x_size; x++) {
+                int pos = NNPos::xyToPos(x,y,nnXLen);
+                out << " " << movesOwnership[pos]; // perspective already handled by getAverageAndStandardDeviationTreeOwnership
+              }
+            }
+          }
+          if(args.showMovesOwnershipStdev) {
+            out << " ";
+
+            out << "movesOwnershipStdev";
+            int nnXLen = search->nnXLen;
+            for(int y = 0; y<board.y_size; y++) {
+              for(int x = 0; x<board.x_size; x++) {
+                int pos = NNPos::xyToPos(x,y,nnXLen);
+                out << " " << movesOwnershipStdev[pos];
+              }
+            }
           }
         }
 
@@ -915,7 +969,7 @@ struct GTPEngine {
     bot->setAvoidMoveUntilByLoc(args.avoidMoveUntilByLocBlack,args.avoidMoveUntilByLocWhite);
     if(args.analyzing) {
       std::function<void(const Search* search)> callback = getAnalyzeCallback(pla,args);
-      if(args.showOwnership || args.showOwnershipStdev)
+      if(args.showOwnership || args.showOwnershipStdev || args.showMovesOwnership || args.showMovesOwnershipStdev)
         bot->setAlwaysIncludeOwnerMap(true);
       else
         bot->setAlwaysIncludeOwnerMap(false);
@@ -1148,7 +1202,7 @@ struct GTPEngine {
 
     std::function<void(const Search* search)> callback = getAnalyzeCallback(pla,args);
     bot->setAvoidMoveUntilByLoc(args.avoidMoveUntilByLocBlack,args.avoidMoveUntilByLocWhite);
-    if(args.showOwnership || args.showOwnershipStdev)
+    if(args.showOwnership || args.showOwnershipStdev || args.showMovesOwnership || args.showMovesOwnershipStdev)
       bot->setAlwaysIncludeOwnerMap(true);
     else
       bot->setAlwaysIncludeOwnerMap(false);
@@ -1342,7 +1396,10 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   int maxMoves = 10000000;
   bool showOwnership = false;
   bool showOwnershipStdev = false;
+  bool showMovesOwnership = false;
+  bool showMovesOwnershipStdev = false;
   bool showPVVisits = false;
+  bool showPVEdgeVisits = false;
   vector<int> avoidMoveUntilByLocBlack;
   vector<int> avoidMoveUntilByLocWhite;
   bool gotAvoidMovesBlack = false;
@@ -1363,6 +1420,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   //ownership <bool whether to show ownership or not>
   //ownershipStdev <bool whether to show ownershipStdev or not>
   //pvVisits <bool whether to show pvVisits or not>
+  //pvEdgeVisits <bool whether to show pvEdgeVisits or not>
 
   //Parse optional player
   if(pieces.size() > numArgsParsed && PlayerIO::tryParsePlayer(pieces[numArgsParsed],pla))
@@ -1467,7 +1525,16 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
     else if(isKata && key == "ownershipStdev" && Global::tryStringToBool(value,showOwnershipStdev)) {
       continue;
     }
+    else if(isKata && key == "movesOwnership" && Global::tryStringToBool(value,showMovesOwnership)) {
+      continue;
+    }
+    else if(isKata && key == "movesOwnershipStdev" && Global::tryStringToBool(value,showMovesOwnershipStdev)) {
+      continue;
+    }
     else if(isKata && key == "pvVisits" && Global::tryStringToBool(value,showPVVisits)) {
+      continue;
+    }
+    else if(isKata && key == "pvEdgeVisits" && Global::tryStringToBool(value,showPVEdgeVisits)) {
       continue;
     }
 
@@ -1485,7 +1552,10 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   args.maxMoves = maxMoves;
   args.showOwnership = showOwnership;
   args.showOwnershipStdev = showOwnershipStdev;
+  args.showMovesOwnership = showMovesOwnership;
+  args.showMovesOwnershipStdev = showMovesOwnershipStdev;
   args.showPVVisits = showPVVisits;
+  args.showPVEdgeVisits = showPVEdgeVisits;
   args.avoidMoveUntilByLocBlack = avoidMoveUntilByLocBlack;
   args.avoidMoveUntilByLocWhite = avoidMoveUntilByLocWhite;
   return args;
@@ -1521,23 +1591,11 @@ int MainCmds::gtp(const vector<string>& args) {
   }
 
   Logger logger;
-  if(cfg.contains("logFile") && cfg.contains("logDir"))
-    throw StringError("Cannot specify both logFile and logDir in config");
-  else if(cfg.contains("logFile"))
-    logger.addFile(cfg.getString("logFile"));
-  else if(cfg.contains("logDir")) {
-    MakeDir::make(cfg.getString("logDir"));
-    Rand rand;
-    logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(rand.nextUInt()) + ".log");
-  }
+  Setup::initializeLoggerFromConfig(cfg, logger, seedRand);
 
   const bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
   bool loggingToStderr = false;
-
-  const bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
-  if(!logTimeStamp)
-    logger.setLogTime(false);
 
   bool startupPrintMessageToStderr = true;
   if(cfg.contains("startupPrintMessageToStderr"))
@@ -1683,26 +1741,7 @@ int MainCmds::gtp(const vector<string>& args) {
     bool hasId = false;
     int id = 0;
     {
-      //Filter down to only "normal" ascii characters. Also excludes carrage returns.
-      //Newlines are already handled by getline
-      size_t newLen = 0;
-      for(size_t i = 0; i < line.length(); i++)
-        if(((int)line[i] >= 32 && (int)line[i] <= 126) || line[i] == '\t')
-          line[newLen++] = line[i];
-
-      line.erase(line.begin()+newLen, line.end());
-
-      //Remove comments
-      size_t commentPos = line.find("#");
-      if(commentPos != string::npos)
-        line = line.substr(0, commentPos);
-
-      //Convert tabs to spaces
-      for(size_t i = 0; i < line.length(); i++)
-        if(line[i] == '\t')
-          line[i] = ' ';
-
-      line = Global::trim(line);
+      line = CommandLoop::processSingleCommandLine(line);
 
       //Upon any input line at all, stop any analysis and output a newline
       if(currentlyAnalyzing) {
@@ -2725,21 +2764,34 @@ int MainCmds::gtp(const vector<string>& args) {
         responseIsError = true;
         response = "Expected zero or one argument for print but got '" + Global::concat(pieces," ") + "'";
       }
-      else if(pieces.size() == 0 || pieces[0] == "-") {
-        ostringstream out;
-        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
-        response = out.str();
-      }
       else {
-        ofstream out;
-        if(FileUtils::tryOpen(out,pieces[0])) {
-          WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
-          out.close();
-          response = "";
+        auto writeSgfToStream = [&](ostream& out) {
+          double overrideFinalScore = std::numeric_limits<double>::quiet_NaN();
+          if(engine->bot->getRootHist().isGameFinished) {
+            Player winner = C_EMPTY;
+            double finalWhiteMinusBlackScore = 0.0;
+            engine->computeAnticipatedWinnerAndScore(winner,finalWhiteMinusBlackScore);
+            overrideFinalScore = finalWhiteMinusBlackScore;
+          }
+          WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false,overrideFinalScore);
+        };
+
+        if(pieces.size() == 0 || pieces[0] == "-") {
+          ostringstream out;
+          writeSgfToStream(out);
+          response = out.str();
         }
         else {
-          responseIsError = true;
-          response = "Could not open or write to file: " + pieces[0];
+          ofstream out;
+          if(FileUtils::tryOpen(out,pieces[0])) {
+            writeSgfToStream(out);
+            out.close();
+            response = "";
+          }
+          else {
+            responseIsError = true;
+            response = "Could not open or write to file: " + pieces[0];
+          }
         }
       }
     }
@@ -2820,6 +2872,7 @@ int MainCmds::gtp(const vector<string>& args) {
             allLegal = false;
             break;
           }
+          pla = getOpp(pla);
         }
         if(allLegal) {
           Board::printBoard(sout, board, Board::NULL_LOC, &hist.moveHistory);
@@ -2830,6 +2883,77 @@ int MainCmds::gtp(const vector<string>& args) {
     }
     else if(command == "cputime" || command == "gomill-cpu_time") {
       response = Global::doubleToString(engine->genmoveTimeSum);
+    }
+
+    else if(command == "kata-benchmark") {
+      bool parsed = false;
+      int64_t numVisits = 0;
+      if(pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected one argument for kata-benchmark but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        bool suc = Global::tryStringToInt64(pieces[0],numVisits);
+        if(!suc) {
+          responseIsError = true;
+          response = "Could not parse number of visits: " + pieces[0];
+        }
+        parsed = true;
+      }
+
+      if(parsed) {
+        engine->stopAndWait();
+
+        int boardSizeX = engine->bot->getRootBoard().x_size;
+        int boardSizeY = engine->bot->getRootBoard().y_size;
+        if(boardSizeX != boardSizeY) {
+          responseIsError = true;
+          response =
+            "Current board size is " + Global::intToString(boardSizeX) + "x" + Global::intToString(boardSizeY) +
+            ", no built-in benchmarks for rectangular boards";
+        }
+        else {
+          CompactSgf* sgf = NULL;
+          try {
+            string sgfData = TestCommon::getBenchmarkSGFData(boardSizeX);
+            sgf = CompactSgf::parse(sgfData);
+          }
+          catch(const StringError& e) {
+            responseIsError = true;
+            response = e.what();
+          }
+          if(sgf != NULL) {
+            const PlayUtils::BenchmarkResults* baseline = NULL;
+            const double secondsPerGameMove = 1.0;
+            const bool printElo = false;
+            SearchParams params = engine->getParams();
+            params.maxTime = 1.0e20;
+            params.maxPlayouts = ((int64_t)1) << 50;
+            params.maxVisits = numVisits;
+            //Make sure the "equals" for GTP is printed out prior to the benchmark line
+            if(hasId)
+              cout << "=" << Global::intToString(id) << endl;
+            else
+              cout << "=" << endl;
+
+            PlayUtils::BenchmarkResults results = PlayUtils::benchmarkSearchOnPositionsAndPrint(
+              params,
+              sgf,
+              10,
+              engine->nnEval,
+              baseline,
+              secondsPerGameMove,
+              printElo
+            );
+            (void)results;
+            delete sgf;
+            //Act of benchmarking will write to stdout with a newline at the end, so we just need one more newline ourselves
+            //to complete GTP protocol.
+            suppressResponse = true;
+            cout << endl;
+          }
+        }
+      }
     }
 
     else if(command == "stop") {

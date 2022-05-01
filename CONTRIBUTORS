@@ -17,8 +17,8 @@ Anson Hu ("farmersrice") - frontend features and logic
 Sander Land ("sanderland") - many options for analysis engine, various bugfixes and other work
 Alexander Noack ("shammyx") - minor customization for resign logic
 "yffbit" - minor optimization for benson's algorithm
-Michael Reilly ("OmnipotentEntity") - minor workaround for CUDA on some cmake versions
-Hiraoka ("kaorahi") - for help optimizing Eigen backend
+Michael Reilly ("OmnipotentEntity") - workaround for CUDA on some cmake versions and other work
+Hiraoka ("kaorahi") - for help optimizing Eigen backend and other work
 Akita Noek ("anoek") - for some minor performance and api suggestions, minor cuda work
 Harald Han - for some work on CUDNN8 support
 "inbae" - for removing boost filesystem dependencies, major contributions to pytorch training
@@ -27,10 +27,11 @@ Harald Han - for some work on CUDNN8 support
 Jonathan Roy ("roy7") - for various search refactors
 Kensuke Matsuzaki ("zakki") - catching a buffer overrun bug
 Kuang-che Wu ("kcwu") - minor improvement to distributed logging
-"yzyray" - minor bugfix
+"yzyray" - minor bugfix, improvements to gtp extensions
 "fuhaoda" - code optimizations, testing, and other improvements
 "y-ich" - for GPU optimization suggestions and other minor features
 Yule Hou ("hyln9") - For implementing TensorRT backend and various testing and work.
+"rooklift" - various documentation improvements
 
 Separately from the authors of the content in this repo, additional special thanks to:
 Junyan Xu ("alreadydone") - for much testing and troubleshooting for Windows support

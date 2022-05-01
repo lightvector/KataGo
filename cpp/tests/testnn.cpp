@@ -8,10 +8,10 @@ using namespace std;
 static bool approxEqual(float x, float y, bool useFP16) {
   float tolerance;
   if(useFP16)
-    tolerance = 0.03f * std::max(std::abs(x),std::max(std::abs(y),3.0f));
+    tolerance = 0.03f * std::max(std::fabs(x),std::max(std::fabs(y),3.0f));
   else
-    tolerance = 0.0001f * std::max(std::abs(x),std::max(std::abs(y),1.0f));
-  return std::abs(x - y) < tolerance;
+    tolerance = 0.0001f * std::max(std::fabs(x),std::max(std::fabs(y),1.0f));
+  return std::fabs(x - y) < tolerance;
 }
 
 static void checkApproxEqual(

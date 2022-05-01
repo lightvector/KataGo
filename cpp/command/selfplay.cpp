@@ -255,6 +255,7 @@ int MainCmds::selfplay(const vector<string>& args) {
     auto shouldStopFunc = []() {
       return shouldStop.load();
     };
+    WaitableFlag* shouldPause = nullptr;
 
     string prevModelName;
     Rand thisLoopSeedRand;
@@ -301,6 +302,7 @@ int MainCmds::selfplay(const vector<string>& args) {
         gameData = gameRunner->runGame(
           seed, botSpecB, botSpecW, forkData, NULL, logger,
           shouldStopFunc,
+          shouldPause,
           (switchNetsMidGame ? checkForNewNNEval : nullptr),
           nullptr,
           nullptr

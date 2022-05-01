@@ -83,6 +83,7 @@ Explanation of fields (including some optional fields not present in the above q
    * `maxVisits (integer)`: Optional. The maximum number of visits to use. If not specified, defaults to the value in the analysis config file. If specified, overrides it.
    * `rootPolicyTemperature (float)`: Optional. Set this to a value > 1 to make KataGo do a wider search.
    * `rootFpuReductionMax (float)`: Optional. Set this to 0 to make KataGo more willing to try a variety of moves.
+   * `analysisPVLen (integer)`: Optional. The maximum length of the PV to send for each move (not including the first move).
    * `includeOwnership (boolean)`: Optional. If true, report ownership prediction as a result. Will double memory usage and reduce performance slightly.
    * `includeOwnershipStdev (boolean)`: Optional. If true, report standard deviation of ownership predictions across the search as well.
    * `includeMovesOwnership (boolean)`: Optional. If true, report ownership prediction for every individual move too.
@@ -224,8 +225,9 @@ Current fields are:
       * `utilityLcb` - The LCB of the move's utility.
       * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
       * `isSymmetryOf` - Another legal move. Possibly present if KataGo is configured to avoid searching some moves due to symmetry (`rootSymmetryPruning=true`). If present, this move was not actually searched, and all of its stats and PV are copied symmetrically from that other move.
-      * `pv` - The principal variation following this move. May be of variable length or even empty.
-      * `pvVisits` - The number of visits for each move in `pv`. Exists only if `includePVVisits` is true.
+      * `pv` - The principal variation ("PV") following this move. May be of variable length or even empty.
+      * `pvVisits` - The number of visits used to explore the position resulting from each move in `pv`. Exists only if `includePVVisits` is true.
+      * `pvEdgeVisits` - The number of visits used to explore each move in `pv`. Exists only if `includePVVisits` is true. Differs from pvVisits when doing graph search and multiple move sequences lead to the same position - pvVisits will count the total number of visits for the position at that point in the PV, pvEdgeVisits will count only the visits reaching the position using the move in the PV from the preceding position.
       * `ownership` - If `includeMovesOwnership` was true, then this field will be included. It is a JSON array of length `boardYSize * boardXSize` with values from -1 to 1 indicating the predicted ownership after this move. Values are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
       * `ownershipStdev` - If `includeMovesOwnershipStdev` was true, then this field will be included. It is a JSON array of length `boardYSize * boardXSize` with values from 0 to 1 indicating the per-location standard deviation of predicted ownership in the search tree after this move. Values are in row-major order, starting at the top-left of the board (e.g. A19) and going to the bottom right (e.g. T1).
    * `rootInfo`: A JSON dictionary with fields containing overall statistics for the requested turn itself calculated in the same way as they would be for the next moves. Current fields are: `winrate`, `scoreLead`, `scoreSelfplay`, `utility`, `visits`. And additional fields:

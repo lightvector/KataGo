@@ -100,7 +100,7 @@ cl_program OpenCLHelpers::compileProgram(const string& name, cl_context context,
 
   const string opts = options + " -cl-mad-enable -cl-fast-relaxed-math -cl-no-signed-zeros -cl-denorms-are-zero";
 
-  err = clBuildProgram(program, devices.size(), devices.data(), opts.c_str(), NULL, NULL);
+  err = clBuildProgram(program, (cl_uint)devices.size(), devices.data(), opts.c_str(), NULL, NULL);
   if(err != 0) {
     string s;
     s += OpenCLHelpers::getErrorMessage(err) + string("\n");
@@ -259,7 +259,7 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
   cl_int err;
   cl_uint numPlatforms;
   vector<cl_platform_id> platformIds(maxPlatforms);
-  err = clGetPlatformIDs(platformIds.size(), platformIds.data(), &numPlatforms);
+  err = clGetPlatformIDs((cl_uint)platformIds.size(), platformIds.data(), &numPlatforms);
   CHECK_ERR(err);
   assert(numPlatforms <= platformIds.size());
   platformIds.resize(numPlatforms);
@@ -273,7 +273,7 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
   vector<cl_device_id> deviceIds(maxDevices);
   vector<cl_platform_id> platformIdsForDevices;
   vector<string> platformDescsForDevices;
-  for(int platformIdx = 0; platformIdx < numPlatforms && numDevicesTotal < deviceIds.size(); platformIdx++) {
+  for(cl_uint platformIdx = 0; platformIdx < numPlatforms && numDevicesTotal < deviceIds.size(); platformIdx++) {
     size_t sizeRet;
     cl_platform_id platformId = platformIds[platformIdx];
 
@@ -294,20 +294,20 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
 
     string desc =  name + " (" + vendor + ") (" + version + ")";
     if(logger != NULL)
-      logger->write("Found OpenCL Platform " + Global::intToString(platformIdx) + ": " + desc);
+      logger->write("Found OpenCL Platform " + Global::uint32ToString(platformIdx) + ": " + desc);
 
     cl_uint numDevices;
     err = clGetDeviceIDs(
-      platformId, CL_DEVICE_TYPE_CPU | CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR, deviceIds.size() - numDevicesTotal,
+      platformId, CL_DEVICE_TYPE_CPU | CL_DEVICE_TYPE_GPU | CL_DEVICE_TYPE_ACCELERATOR, (cl_uint)(deviceIds.size() - numDevicesTotal),
       deviceIds.data() + numDevicesTotal, &numDevices);
     //Allow there to be 0 devices on this platform, just move on to the next
     if(err == CL_DEVICE_NOT_FOUND) {
       if(logger != NULL)
-        logger->write("Found 0 device(s) on platform " + Global::intToString(platformIdx) + " with type CPU or GPU or Accelerator, skipping");
+        logger->write("Found 0 device(s) on platform " + Global::uint32ToString(platformIdx) + " with type CPU or GPU or Accelerator, skipping");
       continue;
     }
 
-    for(size_t i = 0; i < numDevices; i++) {
+    for(cl_uint i = 0; i < numDevices; i++) {
       platformIdsForDevices.push_back(platformId);
       platformDescsForDevices.push_back(desc);
     }
@@ -316,7 +316,7 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     numDevicesTotal += numDevices;
     assert(numDevicesTotal <= deviceIds.size());
     if(logger != NULL)
-      logger->write("Found " + Global::intToString(numDevices) + " device(s) on platform " + Global::intToString(platformIdx) + " with type CPU or GPU or Accelerator");
+      logger->write("Found " + Global::uint32ToString(numDevices) + " device(s) on platform " + Global::uint32ToString(platformIdx) + " with type CPU or GPU or Accelerator");
   }
   deviceIds.resize(numDevicesTotal);
 
@@ -493,7 +493,7 @@ DevicesContext::DevicesContext(const vector<DeviceInfo>& allDeviceInfos, const v
     cl_int err;
     initializedPlatform->context = clCreateContext(
       initializedPlatform->properties.data(),
-      initializedPlatform->deviceIdsToUseForThisPlatform.size(),
+      (cl_uint)initializedPlatform->deviceIdsToUseForThisPlatform.size(),
       initializedPlatform->deviceIdsToUseForThisPlatform.data(),
       NULL,
       NULL,
@@ -609,6 +609,12 @@ size_t OpenCLHelpers::powerOf2ify(size_t size) {
 
 size_t OpenCLHelpers::roundUpToMultiple(size_t size, size_t ofThis) {
   return (size + ofThis - 1) / ofThis * ofThis;
+}
+
+int OpenCLHelpers::roundUpToMultipleInt(size_t size, size_t ofThis) {
+  size_t result = (size + ofThis - 1) / ofThis * ofThis;
+  assert(result <= (size_t)0x7FFFffffULL);
+  return (int)result;
 }
 
 cl_int OpenCLHelpers::doBatchedXGemm_KM_KN_NM(
@@ -827,8 +833,8 @@ cl_int OpenCLHelpers::doWinogradTransform(
   int convSize,
   cl_event* eventBuf
 ) {
-  int inChannelsPadded = roundUpToMultiple(inChannels, inChannelsPadMultiple);
-  int batchNumTilesPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, batchNumTilesPadMultiple);
+  int inChannelsPadded = roundUpToMultipleInt(inChannels, inChannelsPadMultiple);
+  int batchNumTilesPadded = roundUpToMultipleInt(batchSize * numTilesX * numTilesY, batchNumTilesPadMultiple);
 
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&convWorkspace);
@@ -871,8 +877,8 @@ cl_int OpenCLHelpers::doWinogradTransformWithBNRelu(
   int convSize,
   cl_event* eventBuf
 ) {
-  int inChannelsPadded = roundUpToMultiple(inChannels, inChannelsPadMultiple);
-  int batchNumTilesPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, batchNumTilesPadMultiple);
+  int inChannelsPadded = roundUpToMultipleInt(inChannels, inChannelsPadMultiple);
+  int batchNumTilesPadded = roundUpToMultipleInt(batchSize * numTilesX * numTilesY, batchNumTilesPadMultiple);
 
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&convWorkspace);
@@ -917,8 +923,8 @@ cl_int OpenCLHelpers::doWinogradUntransform(
   int convSize,
   cl_event* eventBuf
 ) {
-  int outChannelsPadded = roundUpToMultiple(outChannels, outChannelsPadMultiple);
-  int batchNumTilesPadded = roundUpToMultiple(batchSize * numTilesX * numTilesY, batchNumTilesPadMultiple);
+  int outChannelsPadded = roundUpToMultipleInt(outChannels, outChannelsPadMultiple);
+  int batchNumTilesPadded = roundUpToMultipleInt(batchSize * numTilesX * numTilesY, batchNumTilesPadMultiple);
 
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&convWorkspace2);
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&output);

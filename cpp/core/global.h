@@ -14,7 +14,9 @@
 #include <iostream>
 #include <map>
 #include <set>
-#include <stdint.h>
+#include <cstdint>
+#include <cstdlib>
+#include <cmath>
 #include <string>
 #include <vector>
 #include <memory>
@@ -80,12 +82,14 @@ namespace Global
   int stringToInt(const std::string& str);
   int64_t stringToInt64(const std::string& str);
   uint64_t stringToUInt64(const std::string& str);
+  uint64_t hexStringToUInt64(const std::string& str);
   float stringToFloat(const std::string& str);
   double stringToDouble(const std::string& str);
   bool stringToBool(const std::string& str);
   bool tryStringToInt(const std::string& str, int& x);
   bool tryStringToInt64(const std::string& str, int64_t& x);
   bool tryStringToUInt64(const std::string& str, uint64_t& x);
+  bool tryHexStringToUInt64(const std::string& str, uint64_t& x);
   bool tryStringToFloat(const std::string& str, float& x);
   bool tryStringToDouble(const std::string& str, double& x);
   bool tryStringToBool(const std::string& str, bool& x);
@@ -150,6 +154,12 @@ namespace Global
 
   //Display a message and ask the user to press a key to continue
   void pauseForKey();
+
+  //Round x to the nearest multiple of 1/inverseScale
+  double roundStatic(double x, double inverseScale);
+  //Round x to this many decimal digits of precision
+  double roundDynamic(double x, int precision);
+
 }
 
 struct StringError : public std::exception {

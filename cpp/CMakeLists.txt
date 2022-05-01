@@ -144,6 +144,7 @@ add_executable(katago
   core/global.cpp
   core/base64.cpp
   core/bsearch.cpp
+  core/commandloop.cpp
   core/config_parser.cpp
   core/datetime.cpp
   core/elo.cpp
@@ -161,10 +162,12 @@ add_executable(katago
   core/test.cpp
   core/threadsafecounter.cpp
   core/threadsafequeue.cpp
+  core/threadtest.cpp
   core/timer.cpp
   game/board.cpp
   game/rules.cpp
   game/boardhistory.cpp
+  game/graphhash.cpp
   dataio/sgf.cpp
   dataio/numpywrite.cpp
   dataio/trainingwrite.cpp
@@ -182,13 +185,23 @@ add_executable(katago
   search/searchparams.cpp
   search/mutexpool.cpp
   search/search.cpp
+  search/searchnode.cpp
   search/searchresults.cpp
+  search/searchhelpers.cpp
+  search/searchexplorehelpers.cpp
+  search/searchmirror.cpp
+  search/searchmultithreadhelpers.cpp
+  search/searchnnhelpers.cpp
+  search/searchtimehelpers.cpp
+  search/searchupdatehelpers.cpp
   search/asyncbot.cpp
   search/distributiontable.cpp
   search/localpattern.cpp
+  search/searchnodetable.cpp
   search/subtreevaluebiastable.cpp
   search/patternbonustable.cpp
   search/analysisdata.cpp
+  search/reportedsearchvalues.cpp
   program/gtpconfig.cpp
   program/setup.cpp
   program/playutils.cpp
@@ -211,6 +224,7 @@ add_executable(katago
   tests/testsearch.cpp
   tests/testsearchv3.cpp
   tests/testsearchv8.cpp
+  tests/testsearchv9.cpp
   tests/testsearchmisc.cpp
   tests/testtime.cpp
   tests/testtrainingwrite.cpp
@@ -364,6 +378,10 @@ if(MSVC)
   target_compile_definitions(katago PRIVATE BIG_ENDIAN=4321)
   # core/rand.cpp uses winsock for a gethostname
   target_link_libraries(katago ws2_32)
+
+  # Go ahead and suppress some MSVC warnings about sprintf and similar
+  # things. They might be useful in some cases, but also are noisy.
+  target_compile_definitions(katago PRIVATE _CRT_SECURE_NO_WARNINGS)
 
   if(USE_AVX2)
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} /arch:AVX2 -D__FMA__")

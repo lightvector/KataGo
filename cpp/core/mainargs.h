@@ -5,6 +5,8 @@
 
 namespace MainArgs {
   std::vector<std::string> getCommandLineArgsUTF8(int argc, const char* const* argv);
+
+  void makeCoutAndCerrAcceptUTF8();
 }
 
 #endif

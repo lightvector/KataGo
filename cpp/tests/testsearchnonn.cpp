@@ -8,7 +8,9 @@
 #include "../dataio/sgf.h"
 #include "../neuralnet/nninputs.h"
 #include "../search/asyncbot.h"
+#include "../search/searchnode.h"
 #include "../program/playutils.h"
+#include "../program/setup.h"
 #include "../tests/testsearchcommon.h"
 
 using namespace std;
@@ -149,7 +151,7 @@ ooooooo
       const SearchChildPointer* children = search->rootNode->getChildren(childrenCapacity);
       testAssert(childrenCapacity > 1);
       testAssert(children[1].getIfAllocated() != NULL);
-      Loc locToDescend = children[1].getIfAllocated()->prevMoveLoc;
+      Loc locToDescend = children[1].getMoveLoc();
 
       PrintTreeOptions options;
       options = options.maxDepth(1);
@@ -225,7 +227,7 @@ o..oo.x
         const SearchNode* child = children[i].getIfAllocated();
         if(child == NULL)
           break;
-        if(search->rootBoard.isSuicide(child->prevMoveLoc,search->rootPla))
+        if(search->rootBoard.isSuicide(children[i].getMoveLoc(),search->rootPla))
           return true;
       }
       return false;
@@ -237,7 +239,7 @@ o..oo.x
         const SearchNode* child = children[i].getIfAllocated();
         if(child == NULL)
           break;
-        if(search->rootSafeArea[child->prevMoveLoc] != C_EMPTY)
+        if(search->rootSafeArea[children[i].getMoveLoc()] != C_EMPTY)
           return true;
       }
       return false;
@@ -451,7 +453,7 @@ o..o.oo
     search->printTree(cout, search->rootNode, options.onlyBranch(search->rootBoard,Location::toString(locToDescend,search->rootBoard)), P_WHITE);
 
     //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-    TestSearchCommon::verifyTreePostOrder(search);
+    TestSearchCommon::verifyTreePostOrder(search,-1);
 
     //--------------------------------------
     cout << "Next, make a move, and with no search, print the tree." << endl;
@@ -464,7 +466,7 @@ o..o.oo
     cout << endl;
 
     //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-    TestSearchCommon::verifyTreePostOrder(search);
+    TestSearchCommon::verifyTreePostOrder(search,-1);
 
     //--------------------------------------
     cout << "Begin search but make no additional playouts, print the tree." << endl;
@@ -474,7 +476,7 @@ o..o.oo
     cout << endl;
 
     //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-    TestSearchCommon::verifyTreePostOrder(search);
+    TestSearchCommon::verifyTreePostOrder(search,-1);
 
     delete search;
     delete nnEval;
@@ -662,7 +664,6 @@ xx......x
     nlohmann::json json;
     Player perspective = P_WHITE;
     int analysisPVLen = 2;
-    int ownershipMinVisits = 1;
     bool preventEncore = true;
     bool includePolicy = false;
     bool includeOwnership = false;
@@ -671,7 +672,7 @@ xx......x
     bool includeMovesOwnershipStdev = false;
     bool includePVVisits = false;
     bool suc = search->getAnalysisJson(
-      perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+      perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
       json
     );
@@ -739,7 +740,6 @@ xx......x
     nlohmann::json json;
     Player perspective = P_WHITE;
     int analysisPVLen = 2;
-    int ownershipMinVisits = 1;
     bool preventEncore = true;
     bool includePolicy = false;
     bool includeOwnership = false;
@@ -748,7 +748,7 @@ xx......x
     bool includeMovesOwnershipStdev = false;
     bool includePVVisits = false;
     bool suc = search->getAnalysisJson(
-      perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+      perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
       json
     );
@@ -816,7 +816,6 @@ xx......x
     nlohmann::json json;
     Player perspective = P_WHITE;
     int analysisPVLen = 2;
-    int ownershipMinVisits = 1;
     bool preventEncore = true;
     bool includePolicy = false;
     bool includeOwnership = false;
@@ -825,7 +824,7 @@ xx......x
     bool includeMovesOwnershipStdev = false;
     bool includePVVisits = false;
     bool suc = search->getAnalysisJson(
-      perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+      perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
       json
     );
@@ -1104,6 +1103,77 @@ o.oo.oo
 
   {
     cout << "===================================================================" << endl;
+    cout << "Value bias with ko" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"seeeed",14,14,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 2000;
+    params.subtreeValueBiasFactor = 0.8;
+    params.chosenMoveTemperature = 0;
+    Search* search = new Search(params, nnEval, &logger, "seeeed");
+    Rules rules = Rules::parseRules("japanese");
+    Board board = Board::parseBoard(14,14,R"%%(
+.oo.ox.xxxxxxx
+o.oooxxxxxxxxx
+xooxxxxxxxxxxx
+.xxxxxxxxxxxxx
+xxxxxxxooooxxx
+xxxxxxxo.ox.x.
+xxxxxxoooooxxx
+xxxxxxo.oo.oxx
+xxxxxxooooooxx
+oxxxxxxxxxxxx.
+.oooxxxxxxxxxx
+oo.oxxxxxxxxoo
+.ooooooooooo..
+ooooo.oooooooo
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
     cout << "Analysis json" << endl;
     cout << "===================================================================" << endl;
 
@@ -1136,7 +1206,6 @@ o.oo.oo
     nlohmann::json json;
     Player perspective = P_WHITE;
     int analysisPVLen = 2;
-    int ownershipMinVisits = 1;
     bool preventEncore = true;
     bool includePolicy = true;
     bool includeOwnership = true;
@@ -1145,7 +1214,114 @@ o.oo.oo
     bool includeMovesOwnershipStdev = false;
     bool includePVVisits = true;
     bool suc = search->getAnalysisJson(
-      perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+      perspective, analysisPVLen, preventEncore,
+      includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+      json
+    );
+    testAssert(suc);
+    cout << json << endl;
+
+    delete search;
+    delete nnEval;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Analysis json with moves ownership and stdev" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"movesown",9,9,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 4;
+    params.subtreeValueBiasFactor = 0.5;
+    params.chosenMoveTemperature = 0;
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    search->setAlwaysIncludeOwnerMap(true);
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(7,7,R"%%(
+.......
+.......
+.......
+.......
+.......
+.......
+.......
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    nlohmann::json json;
+    Player perspective = P_WHITE;
+    int analysisPVLen = 2;
+    bool preventEncore = true;
+    bool includePolicy = false;
+    bool includeOwnership = true;
+    bool includeOwnershipStdev = true;
+    bool includeMovesOwnership = true;
+    bool includeMovesOwnershipStdev = true;
+    bool includePVVisits = false;
+    bool suc = search->getAnalysisJson(
+      perspective, analysisPVLen, preventEncore,
+      includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+      json
+    );
+    testAssert(suc);
+    cout << json << endl;
+
+    delete search;
+    delete nnEval;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Analysis json with moves ownership and stdev and symmetry" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"movesown",9,9,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 4;
+    params.subtreeValueBiasFactor = 0.5;
+    params.chosenMoveTemperature = 0;
+    params.rootSymmetryPruning = true;
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    search->setAlwaysIncludeOwnerMap(true);
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(7,7,R"%%(
+.......
+.......
+.......
+.......
+.......
+.......
+.......
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla);
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    nlohmann::json json;
+    Player perspective = P_WHITE;
+    int analysisPVLen = 2;
+    bool preventEncore = true;
+    bool includePolicy = false;
+    bool includeOwnership = true;
+    bool includeOwnershipStdev = true;
+    bool includeMovesOwnership = true;
+    bool includeMovesOwnershipStdev = true;
+    bool includePVVisits = false;
+    bool suc = search->getAnalysisJson(
+      perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
       json
     );
@@ -1189,7 +1365,6 @@ xxxxxxxxx
     nlohmann::json json;
     Player perspective = P_WHITE;
     int analysisPVLen = 2;
-    int ownershipMinVisits = 1;
     bool preventEncore = true;
     bool includePolicy = true;
     bool includeOwnership = false;
@@ -1198,7 +1373,7 @@ xxxxxxxxx
     bool includeMovesOwnershipStdev = false;
     bool includePVVisits = false;
     bool suc = search->getAnalysisJson(
-      perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+      perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
       json
     );
@@ -1261,7 +1436,6 @@ xxxxxxxxx
       nlohmann::json json;
       Player perspective = P_WHITE;
       int analysisPVLen = 2;
-      int ownershipMinVisits = 1;
       bool preventEncore = true;
       bool includePolicy = true;
       bool includeOwnership = false;
@@ -1270,7 +1444,7 @@ xxxxxxxxx
       bool includeMovesOwnershipStdev = false;
       bool includePVVisits = true;
       suc = search->getAnalysisJson(
-        perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+        perspective, analysisPVLen, preventEncore,
         includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
         json
       );
@@ -1457,7 +1631,7 @@ ooooooo
       const SearchChildPointer* children = search->rootNode->getChildren(childrenCapacity);
       testAssert(childrenCapacity > 1);
       testAssert(children[1].getIfAllocated() != NULL);
-      Loc locToDescend = children[1].getIfAllocated()->prevMoveLoc;
+      Loc locToDescend = children[1].getMoveLoc();
 
       PrintTreeOptions options;
       options = options.maxDepth(1);
@@ -1468,7 +1642,7 @@ ooooooo
       cout << endl;
 
       //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-      TestSearchCommon::verifyTreePostOrder(search);
+      TestSearchCommon::verifyTreePostOrder(search,-1);
 
       //--------------------------------------
       cout << "Next, make a move, and with no search, print the tree." << endl;
@@ -1481,7 +1655,7 @@ ooooooo
       cout << endl;
 
       //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-      TestSearchCommon::verifyTreePostOrder(search);
+      TestSearchCommon::verifyTreePostOrder(search,-1);
 
       //--------------------------------------
       cout << "Begin search but make no additional playouts, print the tree." << endl;
@@ -1491,7 +1665,7 @@ ooooooo
       cout << endl;
 
       //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-      TestSearchCommon::verifyTreePostOrder(search);
+      TestSearchCommon::verifyTreePostOrder(search,-1);
     }
 
     delete search;
@@ -1550,7 +1724,6 @@ oo..o..oo
       nlohmann::json json;
       Player perspective = P_WHITE;
       int analysisPVLen = 2;
-      int ownershipMinVisits = 1;
       bool preventEncore = true;
       bool includePolicy = false;
       bool includeOwnership = false;
@@ -1559,7 +1732,7 @@ oo..o..oo
       bool includeMovesOwnershipStdev = false;
       bool includePVVisits = false;
       bool suc = search->getAnalysisJson(
-        perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+        perspective, analysisPVLen, preventEncore,
         includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
         json
       );
@@ -1569,7 +1742,7 @@ oo..o..oo
       //--------------------------------------
       cout << "Next, make a move, and with no search, print the tree." << endl;
 
-      Loc locToDescend = Location::ofString("B2",search->rootBoard);
+      Loc locToDescend = Location::ofString("B3",search->rootBoard);
       search->makeMove(locToDescend,nextPla);
       nextPla = getOpp(nextPla);
 
@@ -1613,7 +1786,6 @@ oo..o..oo
       nlohmann::json json;
       Player perspective = P_WHITE;
       int analysisPVLen = 2;
-      int ownershipMinVisits = 1;
       bool preventEncore = true;
       bool includePolicy = false;
       bool includeOwnership = false;
@@ -1622,7 +1794,7 @@ oo..o..oo
       bool includeMovesOwnershipStdev = false;
       bool includePVVisits = false;
       bool suc = search->getAnalysisJson(
-        perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+        perspective, analysisPVLen, preventEncore,
         includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
         json
       );
@@ -1656,7 +1828,6 @@ oo..o..oo
       nlohmann::json json;
       Player perspective = P_WHITE;
       int analysisPVLen = 2;
-      int ownershipMinVisits = 1;
       bool preventEncore = true;
       bool includePolicy = false;
       bool includeOwnership = false;
@@ -1665,7 +1836,7 @@ oo..o..oo
       bool includeMovesOwnershipStdev = false;
       bool includePVVisits = false;
       bool suc = search->getAnalysisJson(
-        perspective, analysisPVLen, ownershipMinVisits, preventEncore,
+        perspective, analysisPVLen, preventEncore,
         includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
         json
       );
@@ -1676,6 +1847,426 @@ oo..o..oo
     delete search;
     delete nnEval;
     cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Graph search, opening" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,7,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 1000;
+    params.subtreeValueBiasFactor = 0.5;
+    params.useGraphSearch = true;
+    params.chosenMoveTemperature = 0;
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(7,7,R"%%(
+.......
+.......
+...o...
+..ox...
+..x....
+.......
+.......
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    TestSearchCommon::verifyTreePostOrder(search,-1);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    TestSearchCommon::verifyTreePostOrder(search,-1);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Graph search, 7x7 big fight" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,7,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 1000;
+    params.subtreeValueBiasFactor = 0.5;
+    params.useGraphSearch = true;
+    params.chosenMoveTemperature = 0;
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(7,7,R"%%(
+.....o.
+...oxox
+..ooox.
+.xoxxx.
+.xxo.x.
+..xooox
+.......
+)%%");
+    Player nextPla = P_WHITE;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    TestSearchCommon::verifyTreePostOrder(search,-1);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    TestSearchCommon::verifyTreePostOrder(search,-1);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Graph search, 7x7 endgame kos" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",7,7,0,true,false,false,true,false);
+    SearchParams params;
+    params.maxVisits = 1000;
+    params.subtreeValueBiasFactor = 0.5;
+    params.useGraphSearch = true;
+    params.chosenMoveTemperature = 0;
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::parseRules("japanese");
+    Board board = Board::parseBoard(7,7,R"%%(
+.o.x.x.
+o.oxoxo
+xoxxxo.
+xx.xooo
+xxxxox.
+oxooox.
+.ooox.x
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+    TestSearchCommon::verifyTreePostOrder(search,-1);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Searching again" << endl;
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    cout << "Making move" << endl;
+    search->makeMove(search->getChosenMoveLoc(),nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    TestSearchCommon::verifyTreePostOrder(search,-1);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "FPU parent weight by visited policy false" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"seeed",7,7,0,true,false,false,true,false);
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 1000;
+    params.fpuParentWeightByVisitedPolicy = false;
+    params.fpuParentWeightByVisitedPolicyPow = 1.0;
+
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::parseRules("japanese");
+    Board board = Board::parseBoard(7,7,R"%%(
+.o.x.x.
+o.oxoxo
+xoxxxo.
+xx.xooo
+xxxxox.
+oxooox.
+.ooox.x
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "FPU parent weight by visited policy 1.0" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"seeed",7,7,0,true,false,false,true,false);
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 1000;
+    params.fpuParentWeightByVisitedPolicy = true;
+    params.fpuParentWeightByVisitedPolicyPow = 1.0;
+
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::parseRules("japanese");
+    Board board = Board::parseBoard(7,7,R"%%(
+.o.x.x.
+o.oxoxo
+xoxxxo.
+xx.xooo
+xxxxox.
+oxooox.
+.ooox.x
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "FPU parent weight by visited policy 2.5" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"seeed",7,7,0,true,false,false,true,false);
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 1000;
+    params.fpuParentWeightByVisitedPolicy = true;
+    params.fpuParentWeightByVisitedPolicyPow = 2.5;
+
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::parseRules("japanese");
+    Board board = Board::parseBoard(7,7,R"%%(
+.o.x.x.
+o.oxoxo
+xoxxxo.
+xx.xooo
+xxxxox.
+oxooox.
+.ooox.x
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "FPU parent weight by visited policy 0.5" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"seeed",7,7,0,true,false,false,true,false);
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 1000;
+    params.fpuParentWeightByVisitedPolicy = true;
+    params.fpuParentWeightByVisitedPolicyPow = 0.5;
+
+    Search* search = new Search(params, nnEval, &logger, "autoSearchRandSeed");
+    Rules rules = Rules::parseRules("japanese");
+    Board board = Board::parseBoard(7,7,R"%%(
+.o.x.x.
+o.oxoxo
+xoxxxo.
+xx.xooo
+xxxxox.
+oxooox.
+.ooox.x
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    PrintTreeOptions options;
+    options = options.maxDepth(1);
+
+    search->setPosition(nextPla,board,hist);
+
+    search->runWholeSearch(nextPla);
+    cout << search->rootBoard << endl;
+    search->printTree(cout, search->rootNode, options, P_WHITE);
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Uninitialized search params" << endl;
+    cout << "===================================================================" << endl;
+    SearchParams params;
+    params.printParams(cout);
+    cout << endl;
+
+    cout << "===================================================================" << endl;
+    cout << "SearchParams forTestsV1" << endl;
+    cout << "===================================================================" << endl;
+    params = SearchParams::forTestsV1();
+    params.printParams(cout);
+    cout << endl;
+
+    ConfigParser cfg;
+    cfg.overrideKey("numSearchThreads","1");
+
+    cout << "===================================================================" << endl;
+    cout << "SearchParams for GTP" << endl;
+    cout << "===================================================================" << endl;
+    params = Setup::loadSingleParams(cfg, Setup::SETUP_FOR_GTP);
+    params.printParams(cout);
+    cout << endl;
+
+    cout << "===================================================================" << endl;
+    cout << "SearchParams for Analysis" << endl;
+    cout << "===================================================================" << endl;
+    params = Setup::loadSingleParams(cfg, Setup::SETUP_FOR_ANALYSIS);
+    params.printParams(cout);
+    cout << endl;
+
+    cout << "===================================================================" << endl;
+    cout << "SearchParams for Match" << endl;
+    cout << "===================================================================" << endl;
+    params = Setup::loadSingleParams(cfg, Setup::SETUP_FOR_MATCH);
+    params.printParams(cout);
+    cout << endl;
+
+    cout << "===================================================================" << endl;
+    cout << "SearchParams for Benchmark" << endl;
+    cout << "===================================================================" << endl;
+    params = Setup::loadSingleParams(cfg, Setup::SETUP_FOR_BENCHMARK);
+    params.printParams(cout);
+    cout << endl;
+
+    cout << "===================================================================" << endl;
+    cout << "SearchParams for Other" << endl;
+    cout << "===================================================================" << endl;
+    params = Setup::loadSingleParams(cfg, Setup::SETUP_FOR_OTHER);
+    params.printParams(cout);
+    cout << endl;
+
+    cout << "===================================================================" << endl;
+    cout << "SearchParams for Distributed" << endl;
+    cout << "===================================================================" << endl;
+    params = Setup::loadSingleParams(cfg, Setup::SETUP_FOR_DISTRIBUTED);
+    params.printParams(cout);
+    cout << endl;
+
   }
 
   NeuralNet::globalCleanup();

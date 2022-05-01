@@ -8,6 +8,7 @@ static const string gtpBase = R"%%(
 
 # Where to output log?
 logDir = gtp_logs    # Each run of KataGo will log to a separate file in this dir
+# logDirDated = gtp_logs  # Use this instead of logDir to also write separate dated subdirs
 # logFile = gtp.log  # Use this instead of logDir to just specify a single file directly
 
 # Logging options
@@ -69,20 +70,21 @@ resignConsecTurns = 3
 
 # Assume that if black makes many moves in a row right at the start of the game, then the game is a handicap game.
 # This is necessary on some servers and for some GUIs and also when initializing from many SGF files, which may
-# set up a handicap games using repeated GTP "play" commands for black rather than GTP "place_free_handicap" commands.
+# set up a handicap game using repeated GTP "play" commands for black rather than GTP "place_free_handicap" commands.
 # However, it may also lead to incorrect understanding of komi if whiteHandicapBonus is used and a server does NOT
 # have such a practice.
 # Defaults to true! Uncomment and set to false to disable this behavior.
 # assumeMultipleStartingBlackMovesAreHandicap = true
 
-# Makes katago dynamically adjust in handicap or altered-komi games to assume it is stronger or weaker than the opponent
-# based on those game settings making sense, greatly improving handicap strength but biasing winrates and scores.
+# Makes katago dynamically adjust in handicap or altered-komi games to assume based on those game settings that it
+# must be stronger or weaker than the opponent and to play accordingly. Greatly improves handicap
+# strength by biasing winrates and scores to favor appropriate safe/aggressive play.
 # Does NOT affect analysis (lz-analyze, kata-analyze, used by programs like Lizzie) so analysis remains unbiased.
 # Uncomment and set this to 0 to disable this and make KataGo play the same always.
 # dynamicPlayoutDoublingAdvantageCapPerOppLead = 0.045
 
 # Instead of a dynamic level, you can uncomment this and set this to a value from -3.0 to 3.0 to set KataGo's aggression to a FIXED level.
-# DOES affect analysis (lz-analyze, kata-analyze, used by programs like Lizzie).
+# DOES affect analysis tools (lz-analyze, kata-analyze, used by programs like Lizzie).
 # Negative makes KataGo behave as if it is much weaker than the opponent, preferring to play defensively.
 # Positive makes KataGo behave as if it is much stronger than the opponent, prefering to play aggressively or even overplay slightly.
 # If this and "dynamicPlayoutDoublingAdvantageCapPerOppLead" are BOTH set then dynamic will be used for all games and this fixed
@@ -110,8 +112,9 @@ resignConsecTurns = 3
 # avoidRepeatedPatternUtility = 0.0
 
 # Experimental logic to make KataGo fight a bit against mirror Go even with unfavorable komi.
-# Disabled by default, uncomment and set to true to enable it.
-# antiMirror = false
+# Enabled by default for GTP play, disabled for GTP analysis (i.e lizzie) and analysis engine.
+# Uncomment and set to true to enable it for analysis, or false to disable it fully.
+# antiMirror = true
 
 # Search limits-----------------------------------------------------------------------------------
 
@@ -127,7 +130,7 @@ $$MAX_TIME
 
 # Ponder on the opponent's turn?
 $$PONDERING
-# Note: you can also set "maxVisitsPondering" or "maxPlayoutsPondering" too.
+# Note: you can set "maxVisitsPondering" or "maxPlayoutsPondering" too.
 
 # Approx number of seconds to buffer for lag for GTP time controls - will move a bit faster assuming there is this much lag per move.
 lagBuffer = 1.0
@@ -163,8 +166,11 @@ $$MULTIPLE_GPUS
 # Internal params------------------------------------------------------------------------------
 # Uncomment and edit any of the below values to change them from their default.
 
-# How big to make the mutex pool for search synchronization
-# mutexPoolSize = 16384
+# Use graph search rather than tree search - identify and share search for transpositions.
+# useGraphSearch = true
+
+# How much to shard the node table for search synchronization
+# nodeTableShardsPowerOfTwo = 16
 
 
 # Avoid SGF Patterns ------------------------------------------------------------------------------

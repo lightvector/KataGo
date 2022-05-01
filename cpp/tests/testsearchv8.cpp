@@ -15,8 +15,43 @@ using namespace std;
 using namespace TestCommon;
 using namespace TestSearchCommon;
 
+static void runV8TestsSize9(NNEvaluator* nnEval, NNEvaluator* nnEval9, NNEvaluator* nnEval9Exact, Logger& logger)
+{
+  {
+    cout << "TEST EXACT (NO MASKING) VS MASKED 9x9 ==========================================================================" << endl;
+    string sgfStr = "(;FF[4]GM[1]SZ[9]HA[0]KM[7]RU[stonescoring];B[ef];W[ed];B[ge])";
+    CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
-static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& logger)
+    Board board;
+    Player nextPla;
+    BoardHistory hist;
+    Rules initialRules = sgf->getRulesOrFail();
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 3);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 200;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "test exact again");
+    AsyncBot* botB = new AsyncBot(params, nnEval9, &logger, "test exact again");
+    AsyncBot* botC = new AsyncBot(params, nnEval9Exact, &logger, "test exact again");
+
+    TestSearchOptions opts;
+    cout << "BASIC" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "BASIC9" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+    cout << "EXACT" << endl;
+    runBotOnPosition(botC,board,nextPla,hist,opts);
+
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete botC;
+    delete sgf;
+  }
+}
+
+static void runV8TestsRandomSym(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& logger)
 {
   {
     cout << "TEST EXACT (NO MASKING) VS MASKED ==========================================================================" << endl;
@@ -112,6 +147,9 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
     AsyncBot* botA = new AsyncBot(paramsA, nnEval, &logger, "test exact");
     AsyncBot* botB = new AsyncBot(paramsB, nnEval, &logger, "test exact");
     AsyncBot* botC = new AsyncBot(paramsC, nnEval, &logger, "test exact");
+    AsyncBot* botA2 = new AsyncBot(paramsA, nnEval19Exact, &logger, "test exact");
+    AsyncBot* botB2 = new AsyncBot(paramsB, nnEval19Exact, &logger, "test exact");
+    AsyncBot* botC2 = new AsyncBot(paramsC, nnEval19Exact, &logger, "test exact");
 
     TestSearchOptions opts;
     opts.printMore = true;
@@ -119,20 +157,45 @@ static void runV8Tests(NNEvaluator* nnEval, NNEvaluator* nnEval19Exact, Logger& 
     nnEval->clearStats();
     opts.noClearCache = true;
     cout << "BASELINE" << endl;
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
+    nnEval19Exact->killServerThreads();
+    nnEval19Exact->spawnServerThreads();
     runBotOnPosition(botA,board,nextPla,hist,opts);
+    runBotOnPosition(botA2,board,nextPla,hist,opts);
+
     cout << "TEMP 1.5" << endl;
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
+    nnEval19Exact->killServerThreads();
+    nnEval19Exact->spawnServerThreads();
     runBotOnPosition(botB,board,nextPla,hist,opts);
+    runBotOnPosition(botB2,board,nextPla,hist,opts);
+
     cout << "TEMP 0.5" << endl;
+    //Reset random seeds for nnEval
+    nnEval->killServerThreads();
+    nnEval->spawnServerThreads();
+    nnEval19Exact->killServerThreads();
+    nnEval19Exact->spawnServerThreads();
     runBotOnPosition(botC,board,nextPla,hist,opts);
+    runBotOnPosition(botC2,board,nextPla,hist,opts);
     cout << endl << endl;
 
     delete botA;
     delete botB;
     delete botC;
+    delete botA2;
+    delete botB2;
+    delete botC2;
     delete sgf;
   }
+}
 
-
+static void runV8Tests(NNEvaluator* nnEval, Logger& logger)
+{
   {
     cout << "===================================================================" << endl;
     cout << "Testing PDA + pondering, p200 v400" << endl;
@@ -1354,6 +1417,42 @@ oooo.o.oo
   }
 
   {
+    cout << "Basic graph search 7x7 fight =========================================" << endl;
+
+    Board board = Board::parseBoard(7,7,R"%%(
+.....o.
+.....ox
+..ooox.
+.xoxxx.
+.xxo.x.
+..xooox
+.......
+)%%");
+    Player nextPla = P_WHITE;
+
+    SearchParams paramsBase = SearchParams::forTestsV1();
+    paramsBase.maxVisits = 1000;
+    paramsBase.useGraphSearch = true;
+    TestSearchOptions opts;
+    opts.numMovesInARow = 3;
+    opts.printPostOrderNodeCount = true;
+
+    {
+      Rules rules = Rules::parseRules("Japanese");
+      rules.komi = 8;
+      BoardHistory hist(board,nextPla,rules,0);
+
+      cout << "===================================================================" << endl;
+      cout << "White to play" << endl;
+      cout << "===================================================================" << endl;
+      SearchParams params = paramsBase;
+      AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "conservative pass");
+      runBotOnPosition(bot, board, nextPla, hist, opts);
+      delete bot;
+    }
+  }
+
+  {
     cout << "Friendly pass =========================================" << endl;
 
     SearchParams paramsBase = SearchParams::forTestsV1();
@@ -1466,7 +1565,7 @@ o....xo..
     paramsBase.maxVisits = 1000;
 
 
-    auto runTest = [&](int64_t numVisits, int numThreads, bool subtreeValueBias) {
+    auto runTest = [&](int64_t numVisits, int numThreads, bool subtreeValueBias, bool graphSearch) {
       Board board = boardBase;
       Player nextPla = nextPlaBase;
       BoardHistory hist = histBase;
@@ -1478,6 +1577,8 @@ o....xo..
         params.subtreeValueBiasWeightExponent = 0.8;
         params.subtreeValueBiasFreeProp = 0.0;
       }
+      if(graphSearch)
+        params.useGraphSearch = true;
 
       nnEval->clearCache(); nnEval->clearStats();
       Search* search = new Search(params, nnEval, &logger, "multithreaded tree updating");
@@ -1513,37 +1614,47 @@ o....xo..
     cout << "===================================================================" << endl;
     cout << "Baseline 1k visits" << endl;
     cout << "===================================================================" << endl;
-    runTest(1000, 1, false);
+    runTest(1000, 1, false, false);
+
+    cout << "===================================================================" << endl;
+    cout << "Baseline 1k visits, graph search" << endl;
+    cout << "===================================================================" << endl;
+    runTest(1000, 1, false, true);
 
     cout << "===================================================================" << endl;
     cout << "4 threads for search updates, 1k visits" << endl;
     cout << "===================================================================" << endl;
-    runTest(1000, 4, false);
+    runTest(1000, 4, false, false);
 
     cout << "===================================================================" << endl;
     cout << "4 threads for search updates, subtree value bias stability (but 0 free prop), 1k visits" << endl;
     cout << "===================================================================" << endl;
-    runTest(1000, 4, true);
+    runTest(1000, 4, true, false);
 
     cout << "===================================================================" << endl;
     cout << "Baseline 8k visits" << endl;
     cout << "===================================================================" << endl;
-    runTest(8000, 1, false);
+    runTest(8000, 1, false, false);
 
     cout << "===================================================================" << endl;
     cout << "4 threads for search updates, 8k visits" << endl;
     cout << "===================================================================" << endl;
-    runTest(8000, 4, false);
+    runTest(8000, 4, false, false);
 
     cout << "===================================================================" << endl;
     cout << "30 threads for search updates, 8k visits" << endl;
     cout << "===================================================================" << endl;
-    runTest(8000, 30, false);
+    runTest(8000, 30, false, false);
+
+    cout << "===================================================================" << endl;
+    cout << "30 threads for search updates, 8k visits, graph search" << endl;
+    cout << "===================================================================" << endl;
+    runTest(8000, 30, false, true);
 
     cout << "===================================================================" << endl;
     cout << "30 threads for search updates, subtree value bias stability (but 0 free prop), 8k visits" << endl;
     cout << "===================================================================" << endl;
-    runTest(8000, 4, true);
+    runTest(8000, 4, true, false);
   }
 
   {
@@ -1762,7 +1873,38 @@ o....xo..
 
     delete bot0;
   }
+}
 
+static void runMoreV8Tests2(NNEvaluator* nnEval, Logger& logger)
+{
+  {
+    cout << "TEST ownership endgame ==========================================================================" << endl;
+
+    Player nextPla = P_WHITE;
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(7,9,R"%%(
+x.ooo.x
+xxxxxxx
+oooooxx
+.o..oo.
+ooooooo
+.oxxxxx
+ooox..o
+oxxxxxx
+xx.....
+)%%");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 100;
+    params.futileVisitsThreshold = 0.4;
+    AsyncBot* bot = new AsyncBot(params, nnEval, &logger, "Endgame ownership test");
+
+    TestSearchOptions opts;
+    opts.printOwnership = true;
+    runBotOnPosition(bot,board,nextPla,hist,opts);
+    delete bot;
+  }
 }
 
 static void runMoreV8TestsRandomizedNNEvals(NNEvaluator* nnEval, Logger& logger)
@@ -1859,9 +2001,10 @@ static void runMoreV8TestsRandomizedNNEvals(NNEvaluator* nnEval, Logger& logger)
 
 static void runV8SearchMultithreadTest(NNEvaluator* nnEval, Logger& logger)
 {
-  cout << "Multithreaded search test =========================================" << endl;
+  {
+    cout << "Multithreaded search test =========================================" << endl;
 
-  Board board = Board::parseBoard(19,19,R"%%(
+    Board board = Board::parseBoard(19,19,R"%%(
 ...................
 ...................
 ...................
@@ -1883,70 +2026,154 @@ static void runV8SearchMultithreadTest(NNEvaluator* nnEval, Logger& logger)
 ...................
 )%%");
 
-  Player nextPla = P_BLACK;
-  Rules rules = Rules::parseRules("Japanese");
-  rules.komi = 8.5;
-  BoardHistory hist(board,nextPla,rules,0);
+    Player nextPla = P_BLACK;
+    Rules rules = Rules::parseRules("Japanese");
+    rules.komi = 8.5;
+    BoardHistory hist(board,nextPla,rules,0);
 
-  SearchParams params = SearchParams::forTestsV1();
-  params.maxVisits = 16000;
-  params.subtreeValueBiasFactor = 0.35;
-  params.subtreeValueBiasWeightExponent = 0.8;
-  params.subtreeValueBiasFreeProp = 0.8;
-  params.chosenMoveTemperature = 0;
-  params.chosenMoveTemperatureEarly = 0;
-  params.useNoisePruning = true;
-  params.numThreads = 40;
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 16000;
+    params.subtreeValueBiasFactor = 0.35;
+    params.subtreeValueBiasWeightExponent = 0.8;
+    params.subtreeValueBiasFreeProp = 0.8;
+    params.chosenMoveTemperature = 0;
+    params.chosenMoveTemperatureEarly = 0;
+    params.useNoisePruning = true;
+    params.numThreads = 40;
 
-  Loc moveLoc;
+    Loc moveLoc;
 
-  Search* search = new Search(params, nnEval, &logger, "multithreaded test");
-  search->setPosition(nextPla,board,hist);
-  search->runWholeSearch(nextPla);
-  moveLoc = search->getChosenMoveLoc();
-  cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
-  cout << "Winloss near 0.05: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
-  cout << "Lead near 1: " << (abs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
+    Search* search = new Search(params, nnEval, &logger, "multithreaded test");
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla);
+    moveLoc = search->getChosenMoveLoc();
+    cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
+    cout << "Winloss near 0.05: " << (std::fabs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
+    cout << "Lead near 1: " << (std::fabs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
 
-  // PrintTreeOptions options;
-  // options = options.maxDepth(1);
-  // printBasicStuffAfterSearch(board,hist,search,options);
+    // PrintTreeOptions options;
+    // options = options.maxDepth(1);
+    // printBasicStuffAfterSearch(board,hist,search,options);
 
-  search->makeMove(moveLoc,nextPla);
-  hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL);
-  nextPla = getOpp(nextPla);
-  search->runWholeSearch(nextPla);
-  moveLoc = search->getChosenMoveLoc();
-  cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
-  cout << "Winloss near 0.05: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
-  cout << "Lead near 1: " << (abs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
+    search->makeMove(moveLoc,nextPla);
+    hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    search->runWholeSearch(nextPla);
+    moveLoc = search->getChosenMoveLoc();
+    cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
+    cout << "Winloss near 0.05: " << (std::fabs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
+    cout << "Lead near 1: " << (std::fabs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
 
-  // PrintTreeOptions options;
-  // options = options.maxDepth(1);
-  // printBasicStuffAfterSearch(board,hist,search,options);
+    // PrintTreeOptions options;
+    // options = options.maxDepth(1);
+    // printBasicStuffAfterSearch(board,hist,search,options);
 
-  search->makeMove(moveLoc,nextPla);
-  hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL);
-  nextPla = getOpp(nextPla);
-  search->runWholeSearch(nextPla);
-  moveLoc = search->getChosenMoveLoc();
-  cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
-  cout << "Winloss near 0.05: " << (abs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
-  cout << "Lead near 1: " << (abs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
+    search->makeMove(moveLoc,nextPla);
+    hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    search->runWholeSearch(nextPla);
+    moveLoc = search->getChosenMoveLoc();
+    cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
+    cout << "Winloss near 0.05: " << (std::fabs(search->getRootValuesRequireSuccess().winLossValue - (0.05)) < 0.05) << endl;
+    cout << "Lead near 1: " << (std::fabs(search->getRootValuesRequireSuccess().lead - (1.0)) < 1.0) << endl;
 
-  // PrintTreeOptions options;
-  // options = options.maxDepth(1);
-  // printBasicStuffAfterSearch(board,hist,search,options);
+    // PrintTreeOptions options;
+    // options = options.maxDepth(1);
+    // printBasicStuffAfterSearch(board,hist,search,options);
 
-  //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
-  TestSearchCommon::verifyTreePostOrder(search);
+    //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
+    TestSearchCommon::verifyTreePostOrder(search,16000);
 
-  //With 16000 visits per move and three searches, we very likely have about that many nn evals (this shouldn't be a heavily transposing position)
-  //and despite doing 3x such searches, we should have caching and tree reuse keep it not much more than that.
-  int64_t numRowsProcessed = nnEval->numRowsProcessed();
-  cout << "numRowsProcessed as expected: " << (numRowsProcessed > 14000 && numRowsProcessed < 28000) << endl;
+    //With 16000 visits per move and three searches, we very likely have about that many nn evals (this shouldn't be a heavily transposing position)
+    //and despite doing 3x such searches, we should have caching and tree reuse keep it not much more than that.
+    int64_t numRowsProcessed = nnEval->numRowsProcessed();
+    cout << "numRowsProcessed as expected: " << (numRowsProcessed > 14000 && numRowsProcessed < 28000) << endl;
 
-  delete search;
+    delete search;
+    nnEval->clearCache(); nnEval->clearStats();
+  }
+
+  {
+    cout << "Multithreaded graph search test =========================================" << endl;
+
+    Board board = Board::parseBoard(19,19,R"%%(
+...................
+....x.x......xxoo..
+...xox.....x.o.xo..
+..x.o..........xo..
+..xo...........xx..
+..oo............o..
+...................
+...................
+..o................
+...................
+...................
+...................
+................x..
+...............o...
+.o.............ox..
+o.oo............x..
+xoxxoo........o.x..
+.x.................
+...................
+)%%");
+
+    Player nextPla = P_WHITE;
+    Rules rules = Rules::parseRules("Chinese");
+    rules.komi = 6.5;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    SearchParams params = SearchParams::forTestsV1();
+    params.maxVisits = 8000;
+    params.useGraphSearch = true;
+    params.subtreeValueBiasFactor = 0.35;
+    params.subtreeValueBiasWeightExponent = 0.8;
+    params.subtreeValueBiasFreeProp = 0.8;
+    params.chosenMoveTemperature = 0;
+    params.chosenMoveTemperatureEarly = 0;
+    params.useNoisePruning = true;
+    params.numThreads = 40;
+
+    Loc moveLoc;
+
+    Search* search = new Search(params, nnEval, &logger, "multithreaded test");
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla);
+    moveLoc = search->getChosenMoveLoc();
+    cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
+    cout << "Winloss near 0.63: " << (std::fabs(search->getRootValuesRequireSuccess().winLossValue - (0.63)) < 0.1) << endl;
+    cout << "Lead near 15.5: " << (std::fabs(search->getRootValuesRequireSuccess().lead - (15.8)) < 1.8) << endl;
+
+    // PrintTreeOptions options;
+    // options = options.maxDepth(1);
+    // printBasicStuffAfterSearch(board,hist,search,options);
+
+    //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
+    TestSearchCommon::verifyTreePostOrder(search,5000);
+
+    search->makeMove(moveLoc,nextPla);
+    hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    search->runWholeSearch(nextPla);
+    moveLoc = search->getChosenMoveLoc();
+    cout << "Chosen move: " << Location::toString(moveLoc,board) << endl;
+    cout << "Winloss near 0.63: " << (std::fabs(search->getRootValuesRequireSuccess().winLossValue - (0.63)) < 0.1) << endl;
+    cout << "Lead near 15.5: " << (std::fabs(search->getRootValuesRequireSuccess().lead - (15.8)) < 1.8) << endl;
+
+    // PrintTreeOptions options;
+    // options = options.maxDepth(1);
+    // printBasicStuffAfterSearch(board,hist,search,options);
+
+    //Enumerate the tree and make sure every node is indeed hit exactly once in postorder.
+    TestSearchCommon::verifyTreePostOrder(search,5000);
+
+    //With 8000 visits per move and 2 searches, we very likely have about that many nn evals
+    int64_t numRowsProcessed = nnEval->numRowsProcessed();
+    cout << "numRowsProcessed as expected: " << (numRowsProcessed > 5000 && numRowsProcessed < 13000) << endl;
+
+    delete search;
+    nnEval->clearCache(); nnEval->clearStats();
+  }
 }
 
 
@@ -1960,21 +2187,49 @@ void Tests::runSearchTestsV8(const string& modelFile, bool inputsNHWC, bool useN
   logger.setLogTime(false);
 
   NNEvaluator* nnEval;
+  NNEvaluator* nnEval9;
   NNEvaluator* nnEval19Exact;
+  NNEvaluator* nnEval9Exact;
+
+  nnEval = startNNEval(
+    modelFile,logger,"v8seed",19,19,1,inputsNHWC,useNHWC,useFP16,false,false);
+  nnEval9 = startNNEval(
+    modelFile,logger,"v8seed",9,9,1,inputsNHWC,useNHWC,useFP16,false,false);
+  nnEval9Exact = startNNEval(
+    modelFile,logger,"v8seed",9,9,1,inputsNHWC,useNHWC,useFP16,false,true);
+  runV8TestsSize9(nnEval,nnEval9,nnEval9Exact,logger);
+  delete nnEval;
+  delete nnEval9;
+  delete nnEval9Exact;
+  nnEval = NULL;
+  nnEval9 = NULL;
+  nnEval9Exact = NULL;
 
   nnEval = startNNEval(
     modelFile,logger,"v8seed",19,19,-1,inputsNHWC,useNHWC,useFP16,false,false);
   nnEval19Exact = startNNEval(
     modelFile,logger,"v8seed",19,19,-1,inputsNHWC,useNHWC,useFP16,false,true);
-  runV8Tests(nnEval,nnEval19Exact,logger);
+  runV8TestsRandomSym(nnEval,nnEval19Exact,logger);
   delete nnEval;
   delete nnEval19Exact;
   nnEval = NULL;
   nnEval19Exact = NULL;
 
   nnEval = startNNEval(
+    modelFile,logger,"v8seed",19,19,2,inputsNHWC,useNHWC,useFP16,false,false);
+  runV8Tests(nnEval,logger);
+  delete nnEval;
+  nnEval = NULL;
+
+  nnEval = startNNEval(
     modelFile,logger,"v8seed",19,19,5,inputsNHWC,useNHWC,useFP16,false,false);
   runMoreV8Tests(nnEval,logger);
+  delete nnEval;
+  nnEval = NULL;
+
+  nnEval = startNNEval(
+    modelFile,logger,"v8seed",19,19,5,inputsNHWC,useNHWC,useFP16,false,false);
+  runMoreV8Tests2(nnEval,logger);
   delete nnEval;
   nnEval = NULL;
 

@@ -5,6 +5,7 @@
 #include <thread>
 #include "../core/makedir.h"
 #include "../core/fileutils.h"
+#include "../game/graphhash.h"
 #include "../neuralnet/nninputs.h"
 #include "../external/nlohmann_json/json.hpp"
 
@@ -109,29 +110,7 @@ static Hash128 getExtraPosHash(const Board& board) {
   return hash;
 }
 
-static Hash128 getStateHash(const BoardHistory& hist) {
-  const Board& board = hist.getRecentBoard(0);
-  Player nextPlayer = hist.presumedNextMovePla;
-  double drawEquivalentWinsForWhite = 0.5;
-  Hash128 hash = BoardHistory::getSituationRulesAndKoHash(board, hist, nextPlayer, drawEquivalentWinsForWhite);
-
-  // Fold in whether a pass ends this phase
-  bool passEndsPhase = hist.passWouldEndPhase(board,nextPlayer);
-  if(passEndsPhase)
-    hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
-  // Fold in whether the game is over or not
-  if(hist.isGameFinished)
-    hash ^= Board::ZOBRIST_GAME_IS_OVER;
-
-  // Fold in consecutive pass count. Probably usually redundant with history tracking. Use some standard LCG constants.
-  static constexpr uint64_t CONSECPASS_MULT0 = 2862933555777941757ULL;
-  static constexpr uint64_t CONSECPASS_MULT1 = 3202034522624059733ULL;
-  hash.hash0 += CONSECPASS_MULT0 * (uint64_t)hist.consecutiveEndingPasses;
-  hash.hash1 += CONSECPASS_MULT1 * (uint64_t)hist.consecutiveEndingPasses;
-  return hash;
-}
-
-void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHash& hashRet, int& symmetryToAlignRet, vector<int>& symmetriesRet) {
+void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHash& hashRet, int& symmetryToAlignRet, vector<int>& symmetriesRet, int bookVersion) {
   Board boardsBySym[SymmetryHelpers::NUM_SYMMETRIES];
   BoardHistory histsBySym[SymmetryHelpers::NUM_SYMMETRIES];
   Hash128 accums[SymmetryHelpers::NUM_SYMMETRIES];
@@ -154,7 +133,16 @@ void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHa
       Loc moveLoc = SymmetryHelpers::getSymLoc(hist.moveHistory[i].loc, boardsBySym[symmetry], symmetry);
       Player movePla = hist.moveHistory[i].pla;
       // Add the next
-      Hash128 nextHash = boardsBySym[symmetry].pos_hash ^ Board::ZOBRIST_PLAYER_HASH[movePla];
+      Hash128 nextHash;
+
+      if(bookVersion >= 2) {
+        constexpr double drawEquivalentWinsForWhite = 0.5;
+        nextHash = GraphHash::getStateHash(histsBySym[symmetry],histsBySym[symmetry].presumedNextMovePla,drawEquivalentWinsForWhite);
+      }
+      // Old less-rigorous hashing
+      else
+        nextHash = boardsBySym[symmetry].pos_hash ^ Board::ZOBRIST_PLAYER_HASH[movePla];
+
       accums[symmetry].hash0 += nextHash.hash0;
       accums[symmetry].hash1 += nextHash.hash1;
       // Mix it up
@@ -170,8 +158,21 @@ void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHa
   }
 
   BookHash hashes[SymmetryHelpers::NUM_SYMMETRIES];
-  for(int symmetry = 0; symmetry < numSymmetries; symmetry++)
-    hashes[symmetry] = BookHash(accums[symmetry] ^ getExtraPosHash(boardsBySym[symmetry]), getStateHash(histsBySym[symmetry]));
+  for(int symmetry = 0; symmetry < numSymmetries; symmetry++) {
+    Player nextPlayer = hist.presumedNextMovePla;
+    constexpr double drawEquivalentWinsForWhite = 0.5;
+    Hash128 stateHash = GraphHash::getStateHash(histsBySym[symmetry],nextPlayer,drawEquivalentWinsForWhite);
+    hashes[symmetry] = BookHash(accums[symmetry] ^ getExtraPosHash(boardsBySym[symmetry]), stateHash);
+  }
+
+  if(bookVersion >= 2) {
+    for(int symmetry = 0; symmetry < numSymmetries; symmetry++) {
+      hashes[symmetry].historyHash.hash0 = Hash::murmurMix(hashes[symmetry].historyHash.hash0);
+      hashes[symmetry].historyHash.hash1 = Hash::murmurMix(hashes[symmetry].historyHash.hash1);
+      hashes[symmetry].stateHash.hash0 = Hash::murmurMix(hashes[symmetry].stateHash.hash0);
+      hashes[symmetry].stateHash.hash1 = Hash::murmurMix(hashes[symmetry].stateHash.hash1);
+    }
+  }
 
   // Use the smallest symmetry that gives us the same hash
   int smallestSymmetry = 0;
@@ -559,7 +560,7 @@ SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc mo
   BookHash childHash;
   int symmetryToAlignToChild;
   vector<int> symmetriesOfChild;
-  BookHash::getHashAndSymmetry(hist, node->book->repBound, childHash, symmetryToAlignToChild, symmetriesOfChild);
+  BookHash::getHashAndSymmetry(hist, node->book->repBound, childHash, symmetryToAlignToChild, symmetriesOfChild, node->book->bookVersion);
 
   // Okay...
   // A: invSymmetryOfNode is the transform from SymBookNode space -> BookNode space
@@ -668,6 +669,7 @@ bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc
 
 
 Book::Book(
+  int bversion,
   const Board& b,
   Rules r,
   Player p,
@@ -694,7 +696,8 @@ Book::Book(
   double pbsus,
   double uppfs,
   double ssoc
-) : initialBoard(b),
+) : bookVersion(bversion),
+    initialBoard(b),
     initialRules(r),
     initialPla(p),
     repBound(rb),
@@ -733,7 +736,7 @@ Book::Book(
 
   int initialEncorePhase = 0;
   BoardHistory initialHist(initialBoard, initialPla, initialRules, initialEncorePhase);
-  BookHash::getHashAndSymmetry(initialHist, repBound, rootHash, symmetryToAlign, rootSymmetries);
+  BookHash::getHashAndSymmetry(initialHist, repBound, rootHash, symmetryToAlign, rootSymmetries, bookVersion);
 
   initialSymmetry = symmetryToAlign;
   root = new BookNode(rootHash, this, initialPla, rootSymmetries);
@@ -924,6 +927,21 @@ vector<SymBookNode> Book::getAllLeaves(double minVisits) {
   return ret;
 }
 
+std::vector<SymBookNode> Book::getAllNodes() {
+  vector<SymBookNode> ret;
+  for(BookNode* node: nodes) {
+    ret.push_back(SymBookNode(node,0));
+  }
+  return ret;
+}
+
+int64_t Book::getIdx(BookHash hash) const {
+  map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
+  auto iter = nodeIdxMap.find(hash);
+  if(iter == nodeIdxMap.end())
+    throw StringError("Node idx not found for hash");
+  return iter->second;
+}
 BookNode* Book::get(BookHash hash) {
   map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
   auto iter = nodeIdxMap.find(hash);
@@ -1466,7 +1484,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     );
 
     // If we have more than 1/N of unexpanded policy, we cap the penalty for expanded moves at N.
-    double movesExpanded = node->moves.size();
+    double movesExpanded = (double)node->moves.size();
     if(movesExpanded > 1.0 / (rawPolicy + 1e-30)) {
       movesExpanded = 1.0 / (rawPolicy + 1e-30);
     }
@@ -1560,9 +1578,9 @@ void Book::recomputeNodeCost(BookNode* node) {
   // Apply bonuses to moves now. Apply fully up to 0.75 of the cost.
   for(auto& locAndBookMove: node->moves) {
     const BookNode* child = get(locAndBookMove.second.hash);
-    double winLossError = fabs(child->recursiveValues.winLossUCB - child->recursiveValues.winLossLCB) / errorFactor / 2.0;
-    double scoreError = fabs(child->recursiveValues.scoreUCB - child->recursiveValues.scoreLCB) / errorFactor / 2.0;
-    double sharpScoreDiscrepancy = fabs(child->recursiveValues.sharpScoreMean - child->recursiveValues.scoreMean);
+    double winLossError = std::fabs(child->recursiveValues.winLossUCB - child->recursiveValues.winLossLCB) / errorFactor / 2.0;
+    double scoreError = std::fabs(child->recursiveValues.scoreUCB - child->recursiveValues.scoreLCB) / errorFactor / 2.0;
+    double sharpScoreDiscrepancy = std::fabs(child->recursiveValues.sharpScoreMean - child->recursiveValues.scoreMean);
     double bonus =
       bonusPerWinLossError * winLossError +
       bonusPerScoreError * scoreError +
@@ -1576,7 +1594,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       double wlPVBonusScale = (locAndBookMove.second.costFromRoot - node->minCostFromRoot);
       if(wlPVBonusScale > 0.0) {
         double factor1 = std::max(0.0, 1.0 - square(child->recursiveValues.winLossValue));
-        double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - fabs(child->recursiveValues.winLossValue)));
+        double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - std::fabs(child->recursiveValues.winLossValue)));
         locAndBookMove.second.costFromRoot -= wlPVBonusScale * tanh(factor1 * bonusForWLPV1 + factor2 * bonusForWLPV2);
       }
     }
@@ -1584,12 +1602,12 @@ void Book::recomputeNodeCost(BookNode* node) {
   {
     double winLossError = node->thisValuesNotInBook.winLossError;
     double scoreError = node->thisValuesNotInBook.scoreError;
-    double sharpScoreDiscrepancy = fabs(node->thisValuesNotInBook.sharpScoreMean - node->thisValuesNotInBook.scoreMean);
+    double sharpScoreDiscrepancy = std::fabs(node->thisValuesNotInBook.sharpScoreMean - node->thisValuesNotInBook.scoreMean);
 
     // If there's an unusually large share of the policy not expanded, add a mild bonus for it.
     // For the final node expansion cost, sharp score discrepancy beyond 1 point is not capped, to encourage expanding the
     // search to better resolve the difference, since sharp score can have some weird outliers.
-    double movesExpanded = node->moves.size();
+    double movesExpanded = (double)node->moves.size();
     double excessUnexpandedPolicy = 0.0;
     if(movesExpanded > 0 && node->thisValuesNotInBook.maxPolicy > 1.0 / movesExpanded)
       excessUnexpandedPolicy = node->thisValuesNotInBook.maxPolicy - 1.0 / movesExpanded;
@@ -1609,7 +1627,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       double wlPVBonusScale = node->thisNodeExpansionCost;
       if(wlPVBonusScale > 0.0) {
         double factor1 = std::max(0.0, 1.0 - square(node->thisValuesNotInBook.winLossValue));
-        double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - fabs(node->thisValuesNotInBook.winLossValue)));
+        double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - std::fabs(node->thisValuesNotInBook.winLossValue)));
         node->thisNodeExpansionCost -= wlPVBonusScale * tanh(factor1 * bonusForWLPV1 + factor2 * bonusForWLPV2);
       }
     }
@@ -1828,7 +1846,7 @@ void Book::exportToHtmlDir(
     std::set<Loc> locsHandled;
 
     dataVarsStr += "const moves = [";
-    for(int idx: uniqueMoveIdxs) {
+    for(size_t idx: uniqueMoveIdxs) {
       dataVarsStr += "{";
       const Loc passLoc = Board::PASS_LOC;
       if(uniqueMovesInBook[idx].move != passLoc) {
@@ -1934,8 +1952,11 @@ void Book::exportToHtmlDir(
   iterateEntireBookPreOrder(f);
 }
 
-static const int SAVE_FILE_VERSION = 1;
 static const char BOARD_LINE_DELIMITER = '|';
+
+static double roundDouble(double x, double invMinPrec) {
+  return round(x * invMinPrec) / invMinPrec;
+}
 
 void Book::saveToFile(const string& fileName) const {
   string tmpFileName = fileName + ".tmp";
@@ -1944,7 +1965,7 @@ void Book::saveToFile(const string& fileName) const {
 
   {
     json params;
-    params["version"] = SAVE_FILE_VERSION;
+    params["version"] = bookVersion;
     params["initialBoard"] = Board::toJson(initialBoard);
     params["initialRules"] = initialRules.toJson();
     params["initialPla"] = PlayerIO::playerToString(initialPla);
@@ -1974,40 +1995,96 @@ void Book::saveToFile(const string& fileName) const {
     out << params.dump() << endl;
   }
 
-  for(BookNode* node: nodes) {
-    json nodeData = json::object();
-    nodeData["hash"] = node->hash.toString();
-    nodeData["pla"] = PlayerIO::playerToString(node->pla);
-    nodeData["symmetries"] = node->symmetries;
-    nodeData["winLossValue"] = node->thisValuesNotInBook.winLossValue;
-    nodeData["scoreMean"] = node->thisValuesNotInBook.scoreMean;
-    nodeData["sharpScoreMean"] = node->thisValuesNotInBook.sharpScoreMean;
-    nodeData["winLossError"] = node->thisValuesNotInBook.winLossError;
-    nodeData["scoreError"] = node->thisValuesNotInBook.scoreError;
-    nodeData["scoreStdev"] = node->thisValuesNotInBook.scoreStdev;
-    nodeData["maxPolicy"] = node->thisValuesNotInBook.maxPolicy;
-    nodeData["weight"] = node->thisValuesNotInBook.weight;
-    nodeData["visits"] = node->thisValuesNotInBook.visits;
-    nodeData["canExpand"] = node->canExpand;
-
-    nodeData["moves"] = json::array();
-    for(auto& locAndBookMove: node->moves) {
-      json moveData;
-      moveData["move"] = Location::toString(locAndBookMove.second.move,initialBoard);
-      moveData["symmetryToAlign"] = locAndBookMove.second.symmetryToAlign;
-      moveData["hash"] = locAndBookMove.second.hash.toString();
-      moveData["rawPolicy"] = locAndBookMove.second.rawPolicy;
-      nodeData["moves"].push_back(moveData);
+  // Interning of hash specific to this save file, to shorten file size and save/load times
+  // We don't rely on nodeIdxs to be constant across different saves and loads, although in practice
+  // they might be unless someone manually edits the save files.
+  if(bookVersion >= 2) {
+    out << nodes.size() << "\n";
+    for(size_t nodeIdx = 0; nodeIdx<nodes.size(); nodeIdx++) {
+      out << nodes[nodeIdx]->hash.toString() << "\n";
     }
-    nodeData["parents"] = json::array();
-    for(auto& hashAndLoc: node->parents) {
-      json parentData;
-      parentData["hash"] = hashAndLoc.first.toString();
-      parentData["loc"] = Location::toString(hashAndLoc.second,initialBoard);
-      nodeData["parents"].push_back(parentData);
-    }
-    out << nodeData << endl;
   }
+  out << std::flush;
+
+  for(size_t nodeIdx = 0; nodeIdx<nodes.size(); nodeIdx++) {
+    const BookNode* node = nodes[nodeIdx];
+    json nodeData = json::object();
+    if(bookVersion >= 2) {
+      nodeData["id"] = nodeIdx;
+      nodeData["pla"] = PlayerIO::playerToStringShort(node->pla);
+      nodeData["syms"] = node->symmetries;
+      nodeData["wl"] = roundDouble(node->thisValuesNotInBook.winLossValue, 100000000);
+      nodeData["sM"] = roundDouble(node->thisValuesNotInBook.scoreMean, 1000000);
+      nodeData["ssM"] = roundDouble(node->thisValuesNotInBook.sharpScoreMean, 1000000);
+      nodeData["wlE"] = roundDouble(node->thisValuesNotInBook.winLossError, 100000000);
+      nodeData["sE"] = roundDouble(node->thisValuesNotInBook.scoreError, 1000000);
+      nodeData["sStd"] = roundDouble(node->thisValuesNotInBook.scoreStdev, 1000000);
+      nodeData["maxP"] = node->thisValuesNotInBook.maxPolicy;
+      nodeData["w"] = roundDouble(node->thisValuesNotInBook.weight, 1000);
+      nodeData["v"] = node->thisValuesNotInBook.visits;
+      nodeData["cEx"] = node->canExpand;
+    }
+    else {
+      nodeData["hash"] = node->hash.toString();
+      nodeData["pla"] = PlayerIO::playerToString(node->pla);
+      nodeData["symmetries"] = node->symmetries;
+      nodeData["winLossValue"] = node->thisValuesNotInBook.winLossValue;
+      nodeData["scoreMean"] = node->thisValuesNotInBook.scoreMean;
+      nodeData["sharpScoreMean"] = node->thisValuesNotInBook.sharpScoreMean;
+      nodeData["winLossError"] = node->thisValuesNotInBook.winLossError;
+      nodeData["scoreError"] = node->thisValuesNotInBook.scoreError;
+      nodeData["scoreStdev"] = node->thisValuesNotInBook.scoreStdev;
+      nodeData["maxPolicy"] = node->thisValuesNotInBook.maxPolicy;
+      nodeData["weight"] = node->thisValuesNotInBook.weight;
+      nodeData["visits"] = node->thisValuesNotInBook.visits;
+      nodeData["canExpand"] = node->canExpand;
+    }
+
+    if(bookVersion >= 2) {
+      nodeData["mvs"] = json::array();
+      for(auto& locAndBookMove: node->moves) {
+        json moveData;
+        moveData["m"] = Location::toString(locAndBookMove.second.move,initialBoard);
+        moveData["sym"] = locAndBookMove.second.symmetryToAlign;
+        moveData["id"] = getIdx(locAndBookMove.second.hash);
+        moveData["rP"] = locAndBookMove.second.rawPolicy;
+        nodeData["mvs"].push_back(moveData);
+      }
+    }
+    else {
+      nodeData["moves"] = json::array();
+      for(auto& locAndBookMove: node->moves) {
+        json moveData;
+        moveData["move"] = Location::toString(locAndBookMove.second.move,initialBoard);
+        moveData["symmetryToAlign"] = locAndBookMove.second.symmetryToAlign;
+        moveData["hash"] = locAndBookMove.second.hash.toString();
+        moveData["rawPolicy"] = locAndBookMove.second.rawPolicy;
+        nodeData["moves"].push_back(moveData);
+      }
+    }
+
+    if(bookVersion >= 2) {
+      nodeData["par"] = json::array();
+      for(auto& hashAndLoc: node->parents) {
+        json parentData;
+        parentData["id"] = getIdx(hashAndLoc.first);
+        parentData["loc"] = Location::toString(hashAndLoc.second,initialBoard);
+        nodeData["par"].push_back(parentData);
+      }
+    }
+    else {
+      nodeData["parents"] = json::array();
+      for(auto& hashAndLoc: node->parents) {
+        json parentData;
+        parentData["hash"] = hashAndLoc.first.toString();
+        parentData["loc"] = Location::toString(hashAndLoc.second,initialBoard);
+        nodeData["parents"].push_back(parentData);
+      }
+    }
+
+    out << nodeData << "\n";
+  }
+  out << std::flush;
   out.close();
 
   // Just in case, avoid any possible racing for file system
@@ -2033,9 +2110,9 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
     {
       json params = json::parse(line);
       assertContains(params,"version");
-      int version = params["version"].get<int>();
-      if(version != 1)
-        throw IOError("Unsupported book version: " + Global::intToString(version));
+      int bookVersion = params["version"].get<int>();
+      if(bookVersion != 1 && bookVersion != 2)
+        throw IOError("Unsupported book version: " + Global::intToString(bookVersion));
 
       assertContains(params,"initialBoard");
       Board initialBoard = Board::ofJson(params["initialBoard"]);
@@ -2066,6 +2143,7 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
       double utilityPerPolicyForSorting = params["utilityPerPolicyForSorting"].get<double>();
 
       book = std::make_unique<Book>(
+        bookVersion,
         initialBoard,
         initialRules,
         initialPla,
@@ -2099,13 +2177,40 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
         throw IOError("Inconsistent initial symmetry with initialization");
     }
 
+    std::vector<BookHash> hashDict;
+    if(book->bookVersion >= 2) {
+      getline(in,line);
+      if(!in)
+        throw IOError("Could not load book hash list size");
+      size_t hashDictSize = Global::stringToUInt64(line);
+      for(size_t nodeIdx = 0; nodeIdx<hashDictSize; nodeIdx++) {
+        getline(in,line);
+        if(!in)
+          throw IOError("Book hash list ended early");
+        hashDict.push_back(BookHash::ofString(line));
+      }
+    }
+
     while(getline(in,line)) {
       if(line.size() <= 0)
         break;
       json nodeData = json::parse(line);
-      BookHash hash = BookHash::ofString(nodeData["hash"].get<string>());
-      Player pla = PlayerIO::parsePlayer(nodeData["pla"].get<string>());
-      vector<int> symmetries = nodeData["symmetries"].get<vector<int>>();
+
+      BookHash hash;
+      Player pla;
+      vector<int> symmetries;
+
+      if(book->bookVersion >= 2) {
+        size_t nodeIdx = nodeData["id"].get<size_t>();
+        hash = hashDict[nodeIdx];
+        pla = PlayerIO::parsePlayer(nodeData["pla"].get<string>());
+        symmetries = nodeData["syms"].get<vector<int>>();
+      }
+      else {
+        hash = BookHash::ofString(nodeData["hash"].get<string>());
+        pla = PlayerIO::parsePlayer(nodeData["pla"].get<string>());
+        symmetries = nodeData["symmetries"].get<vector<int>>();
+      }
 
       BookNode* node = book->get(hash);
       if(node != NULL) {
@@ -2118,30 +2223,73 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
         book->add(hash, node);
       }
 
-      node->thisValuesNotInBook.winLossValue = nodeData["winLossValue"].get<double>();
-      node->thisValuesNotInBook.scoreMean = nodeData["scoreMean"].get<double>();
-      node->thisValuesNotInBook.sharpScoreMean = nodeData["sharpScoreMean"].get<double>();
-      node->thisValuesNotInBook.winLossError = nodeData["winLossError"].get<double>();
-      node->thisValuesNotInBook.scoreError = nodeData["scoreError"].get<double>();
-      node->thisValuesNotInBook.scoreStdev = nodeData["scoreStdev"].get<double>();
-      node->thisValuesNotInBook.maxPolicy = nodeData["maxPolicy"].get<double>();
-      node->thisValuesNotInBook.weight = nodeData["weight"].get<double>();
-      node->thisValuesNotInBook.visits = nodeData["visits"].get<double>();
-      node->canExpand = true; // nodeData["canExpand"].get<bool>(); //TODO
-
-      for(json& moveData: nodeData["moves"]) {
-        BookMove move;
-        move.move = Location::ofString(moveData["move"].get<string>(),book->initialBoard);
-        move.symmetryToAlign = moveData["symmetryToAlign"].get<int>();
-        move.hash = BookHash::ofString(moveData["hash"].get<string>());
-        move.rawPolicy = moveData["rawPolicy"].get<double>();
-        node->moves[move.move] = move;
+      if(book->bookVersion >= 2) {
+        node->thisValuesNotInBook.winLossValue = nodeData["wl"].get<double>();
+        node->thisValuesNotInBook.scoreMean = nodeData["sM"].get<double>();
+        node->thisValuesNotInBook.sharpScoreMean = nodeData["ssM"].get<double>();
+        node->thisValuesNotInBook.winLossError = nodeData["wlE"].get<double>();
+        node->thisValuesNotInBook.scoreError = nodeData["sE"].get<double>();
+        node->thisValuesNotInBook.scoreStdev = nodeData["sStd"].get<double>();
+        node->thisValuesNotInBook.maxPolicy = nodeData["maxP"].get<double>();
+        node->thisValuesNotInBook.weight = nodeData["w"].get<double>();
+        node->thisValuesNotInBook.visits = nodeData["v"].get<double>();
+      }
+      else {
+        node->thisValuesNotInBook.winLossValue = nodeData["winLossValue"].get<double>();
+        node->thisValuesNotInBook.scoreMean = nodeData["scoreMean"].get<double>();
+        node->thisValuesNotInBook.sharpScoreMean = nodeData["sharpScoreMean"].get<double>();
+        node->thisValuesNotInBook.winLossError = nodeData["winLossError"].get<double>();
+        node->thisValuesNotInBook.scoreError = nodeData["scoreError"].get<double>();
+        node->thisValuesNotInBook.scoreStdev = nodeData["scoreStdev"].get<double>();
+        node->thisValuesNotInBook.maxPolicy = nodeData["maxPolicy"].get<double>();
+        node->thisValuesNotInBook.weight = nodeData["weight"].get<double>();
+        node->thisValuesNotInBook.visits = nodeData["visits"].get<double>();
       }
 
-      for(json& parentData: nodeData["parents"]) {
-        BookHash parentHash = BookHash::ofString(parentData["hash"].get<string>());
-        Loc loc = Location::ofString(parentData["loc"].get<string>(),book->initialBoard);
-        node->parents.push_back(std::make_pair(parentHash,loc));
+      // Older versions had some buggy conditions under which they would set this incorrectly, and nodes would be stuck not expanding.
+      // So force it true on old versions.
+      if(book->bookVersion >= 2)
+        node->canExpand = nodeData["cEx"].get<bool>();
+      else
+        node->canExpand = true;
+
+
+      if(book->bookVersion >= 2) {
+        for(json& moveData: nodeData["mvs"]) {
+          BookMove move;
+          move.move = Location::ofString(moveData["m"].get<string>(),book->initialBoard);
+          move.symmetryToAlign = moveData["sym"].get<int>();
+          size_t nodeIdx = moveData["id"].get<size_t>();
+          move.hash = hashDict[nodeIdx];
+          move.rawPolicy = moveData["rP"].get<double>();
+          node->moves[move.move] = move;
+        }
+      }
+      else {
+        for(json& moveData: nodeData["moves"]) {
+          BookMove move;
+          move.move = Location::ofString(moveData["move"].get<string>(),book->initialBoard);
+          move.symmetryToAlign = moveData["symmetryToAlign"].get<int>();
+          move.hash = BookHash::ofString(moveData["hash"].get<string>());
+          move.rawPolicy = moveData["rawPolicy"].get<double>();
+          node->moves[move.move] = move;
+        }
+      }
+
+      if(book->bookVersion >= 2) {
+        for(json& parentData: nodeData["par"]) {
+          size_t nodeIdx = parentData["id"].get<size_t>();
+          BookHash parentHash = hashDict[nodeIdx];
+          Loc loc = Location::ofString(parentData["loc"].get<string>(),book->initialBoard);
+          node->parents.push_back(std::make_pair(parentHash,loc));
+        }
+      }
+      else {
+        for(json& parentData: nodeData["parents"]) {
+          BookHash parentHash = BookHash::ofString(parentData["hash"].get<string>());
+          Loc loc = Location::ofString(parentData["loc"].get<string>(),book->initialBoard);
+          node->parents.push_back(std::make_pair(parentHash,loc));
+        }
       }
     }
     book->recomputeEverything();

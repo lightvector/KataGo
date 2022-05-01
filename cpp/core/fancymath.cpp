@@ -38,7 +38,7 @@ static double evaluateContinuedFractionHelper(const function<double(int)>& numer
     d = 1.0/d;
     double mult = c*d;
     ret = ret * mult;
-    if(fabs(mult - 1.0) <= tolerance)
+    if(std::fabs(mult - 1.0) <= tolerance)
       break;
   }
   return ret;
@@ -137,8 +137,8 @@ double FancyMath::normToTApprox(double z, double degreesOfFreedom) {
 #define APPROX_EQ(x,y,tolerance) testApproxEq((x),(y),(tolerance), #x, #y, __FILE__, __LINE__)
 static void testApproxEq(double x, double y, double tolerance, const char* msgX, const char* msgY, const char *file, int line) {
 
-  double maxDiff = tolerance * std::max(std::abs(x),std::max(std::abs(y),1.0));
-  if(std::abs(x-y) <= maxDiff)
+  double maxDiff = tolerance * std::max(std::fabs(x),std::max(std::fabs(y),1.0));
+  if(std::fabs(x-y) <= maxDiff)
     return;
   Global::fatalError(
     std::string("Failed approx equal: ") + std::string(msgX) + " " + std::string(msgY) + "\n" +

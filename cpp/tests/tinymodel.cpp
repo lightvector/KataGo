@@ -47,7 +47,7 @@ static void decodeBase64(const string& input, string& output) {
 }
 
 static void requireApproxEqual(double x, double expected, double scale, const NNResultBuf& buf, const Board& board) {
-  if(!isfinite(x) || !isfinite(expected) || abs(x-expected) > scale) {
+  if(!std::isfinite(x) || !std::isfinite(expected) || std::fabs(x-expected) > scale) {
     buf.result->debugPrint(cout,board);
     throw StringError("Tiny neural net test got invalid values - is the GPU working?");
   }

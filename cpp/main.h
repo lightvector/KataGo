@@ -21,6 +21,7 @@ namespace MainCmds {
   int runsearchtests(const std::vector<std::string>& args);
   int runsearchtestsv3(const std::vector<std::string>& args);
   int runsearchtestsv8(const std::vector<std::string>& args);
+  int runsearchtestsv9(const std::vector<std::string>& args);
   int runselfplayinittests(const std::vector<std::string>& args);
   int runselfplayinitstattests(const std::vector<std::string>& args);
   int runsekitrainwritetests(const std::vector<std::string>& args);
@@ -30,11 +31,13 @@ namespace MainCmds {
   int runtinynntests(const std::vector<std::string>& args);
   int runnnevalcanarytests(const std::vector<std::string>& args);
   int runbeginsearchspeedtest(const std::vector<std::string>& args);
+  int runownershipspeedtest(const std::vector<std::string>& args);
   int runsleeptest(const std::vector<std::string>& args);
 
   int samplesgfs(const std::vector<std::string>& args);
   int dataminesgfs(const std::vector<std::string>& args);
   int genbook(const std::vector<std::string>& args);
+  int checkbook(const std::vector<std::string>& args);
 
   int trystartposes(const std::vector<std::string>& args);
   int viewstartposes(const std::vector<std::string>& args);

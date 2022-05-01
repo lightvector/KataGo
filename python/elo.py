@@ -64,7 +64,7 @@ class EloInfo:
   def __str__(self) -> str:
     lines = []
     for player in self.players:
-      lines.append(f"{player:20s}: {self.elo[player]:8.3f} +/- {self.elo_stderr[player]:5.3f}")
+      lines.append(f"{player:20s}: {self.elo[player]:8.2f} +/- {self.elo_stderr[player]:5.2f}")
     return "\n".join(lines)
 
 

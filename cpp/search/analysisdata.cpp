@@ -25,6 +25,7 @@ AnalysisData::AnalysisData()
    symmetry(0),
    pv(),
    pvVisits(),
+   pvEdgeVisits(),
    node(NULL)
 {}
 
@@ -53,6 +54,7 @@ AnalysisData::AnalysisData(const AnalysisData& other)
    symmetry(other.symmetry),
    pv(other.pv),
    pvVisits(other.pvVisits),
+   pvEdgeVisits(other.pvEdgeVisits),
    node(other.node)
 {}
 
@@ -81,6 +83,7 @@ AnalysisData::AnalysisData(AnalysisData&& other) noexcept
    symmetry(other.symmetry),
    pv(std::move(other.pv)),
    pvVisits(std::move(other.pvVisits)),
+   pvEdgeVisits(std::move(other.pvEdgeVisits)),
    node(other.node)
 {}
 
@@ -114,6 +117,7 @@ AnalysisData& AnalysisData::operator=(const AnalysisData& other) {
   symmetry = other.symmetry;
   pv = other.pv;
   pvVisits = other.pvVisits;
+  pvEdgeVisits = other.pvEdgeVisits;
   node = other.node;
   return *this;
 }
@@ -145,6 +149,7 @@ AnalysisData& AnalysisData::operator=(AnalysisData&& other) noexcept {
   symmetry = other.symmetry;
   pv = std::move(other.pv);
   pvVisits = std::move(other.pvVisits);
+  pvEdgeVisits = std::move(other.pvEdgeVisits);
   node = other.node;
   return *this;
 }
@@ -192,6 +197,13 @@ void AnalysisData::writePVVisits(std::ostream& out) const {
     out << pvVisits[j];
   }
 }
+void AnalysisData::writePVEdgeVisits(std::ostream& out) const {
+  for(int j = 0; j<pvEdgeVisits.size(); j++) {
+    if(j > 0)
+      out << " ";
+    out << pvEdgeVisits[j];
+  }
+}
 
 int AnalysisData::getPVLenUpToPhaseEnd(const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const {
   Board board(initialBoard);
@@ -232,6 +244,23 @@ void AnalysisData::writePVVisitsUpToPhaseEnd(std::ostream& out, const Board& ini
     if(j > 0)
       out << " ";
     out << pvVisits[j];
+
+    hist.makeBoardMoveAssumeLegal(board,pv[j],nextPla,NULL);
+    nextPla = getOpp(nextPla);
+    if(hist.encorePhase != initialHist.encorePhase)
+      break;
+  }
+}
+
+void AnalysisData::writePVEdgeVisitsUpToPhaseEnd(std::ostream& out, const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const {
+  Board board(initialBoard);
+  BoardHistory hist(initialHist);
+  Player nextPla = initialPla;
+  assert(pv.size() == pvEdgeVisits.size());
+  for(int j = 0; j<pv.size(); j++) {
+    if(j > 0)
+      out << " ";
+    out << pvEdgeVisits[j];
 
     hist.makeBoardMoveAssumeLegal(board,pv[j],nextPla,NULL);
     nextPla = getOpp(nextPla);

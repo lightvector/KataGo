@@ -1,4 +1,4 @@
-KataGo v1.10.0
+KataGo v1.11.0
 Using TrompTaylor rules initially, unless GTP/GUI overrides this
 Initializing board with boardXSize 19 boardYSize 19
 Loaded config configs/gtp_example.cfg and/or command-line and query overrides
@@ -12,307 +12,277 @@ MoveNum: 0 HASH: 534D5F4EAEDAD476890520B7CAD26FA0
  7 . . . O X X .
  6 . O . O O X .
  5 . X O O X . .
- 4 . O O . X . .
+ 4 . O O @ X . .
  3 . X O X X O X
  2 O O X X . X .
- 1 . X @ . . . .
+ 1 . X . . . . .
 
 koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Time taken: ###
 Root visits: 100
 New playouts: 100
-NN rows: 40
-NN batches: 40
+NN rows: 57
+NN batches: 57
 NN avg batch size: 1
-PV: C1 A3 A1 D4 F4 A5 pass pass
+PV: D4 A3 C1 A1 F4 A5 G6 C6 pass pass
 Tree:
-: T  12.85c W  19.50c S  -2.53c ( +0.2 L  +0.1) N     100  --  C1 A3 A1 D4 F4 A5 pass
+: T   8.57c W  18.00c S  -2.70c ( +0.1 L  +0.1) N     100  --  D4 A3 C1 A1 F4 A5 G6
 ---Black(^)---
-C1  : T  10.47c W  16.46c S  -2.58c ( +0.2 L  +0.1) LCB  -12.38c P 59.48% WF  52.9 PSV      54 N      54  --  C1 A3 A1 D4 F4 A5 pass pass
-D4  : T  14.98c W  21.88c S  -2.68c ( +0.1 L  +0.1) LCB  -15.62c P 28.54% WF  41.3 PSV      40 N      40  --  D4 A3 C1 A1 F4 A5 pass pass
-F4  : T   7.16c W  20.55c S  -1.69c ( +0.4 L  +0.1) LCB -497.67c P  7.31% WF   4.8 PSV       5 N       5  --  F4 D4 C1 A3
-MoveNum: 1 HASH: 34B1D3797D2FA8D00BC2EF049CF46025
+D4  : T  12.08c W  19.72c S  -2.88c ( +0.1 L  +0.1) LCB   -7.34c P 28.51% WF  57.4 PSV      75 N      56  --  D4 A3 C1 A1 F4 A5 G6 C6
+C1  : T   1.83c W  13.17c S  -2.67c ( +0.1 L  +0.1) LCB  -24.26c P 59.53% WF  36.7 PSV      35 N      38  --  C1 A3 A1 D4 F4 A5 pass pass
+F4  : T   3.85c W  22.04c S  -1.66c ( +0.4 L  +0.2) LCB -554.70c P  7.30% WF   4.9 PSV       5 N       5  --  F4 D4 C1 A3
+MoveNum: 1 HASH: 52844085B23915A6A066B24E800201DC
    A B C D E F G
  7 . . . O X X .
  6 . O . O O X .
  5 . X O O X . .
- 4 . O O . X . .
+ 4 . O O X1X . .
  3 @ X O X X O X
  2 O O X X . X .
- 1 . X X1. . . .
+ 1 . X . . . . .
 
 koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Time taken: ###
 Root visits: 100
-New playouts: 46
-NN rows: 10
-NN batches: 10
+New playouts: 44
+NN rows: 13
+NN batches: 13
 NN avg batch size: 1
-PV: A3 A1 D4 F4 A5 pass pass
+PV: A3 F4 A1 C1 A5 G6 C6 pass pass
 Tree:
-: T -11.77c W -13.97c S  -0.11c ( -0.1 L  -0.1) N     100  --  A3 A1 D4 F4 A5 pass pass
+: T -12.75c W -17.03c S   0.05c ( -0.0 L  -0.0) N     100  --  A3 F4 A1 C1 A5 G6 C6
 ---White(^)---
-A3  : T  -9.33c W -11.77c S   0.03c ( -0.1 L  -0.1) LCB  -25.52c P 61.75% WF  96.5 PSV      95 N      95  --  A3 A1 D4 F4 A5 pass pass
-D4  : T -78.32c W -72.72c S  -3.37c ( -1.0 L  -0.8) LCB -280.00c P 21.86% WF   1.2 PSV       2 N       2  --  D4 A1
-F5  : T -80.20c W -75.04c S  -5.17c ( -1.6 L  -1.6) LCB -280.00c P  2.29% WF   0.7 PSV       0 N       1  --  F5
-A5  : T -97.40c W -92.22c S  -5.18c ( -1.5 L  -1.4) LCB -280.00c P  1.99% WF   0.6 PSV       0 N       1  --  A5
-MoveNum: 2 HASH: DB228B71F0B041370F00D96E211C8706
+A3  : T -11.49c W -15.91c S   0.11c ( -0.0 L  -0.0) LCB  -23.47c P 58.03% WF  98.2 PSV      98 N      98  --  A3 F4 A1 C1 A5 G6 C6 pass
+C1  : T -90.37c W -86.01c S  -4.35c ( -1.3 L  -1.0) LCB -280.00c P 16.62% WF   0.8 PSV       1 N       1  --  C1
+MoveNum: 2 HASH: BD17188D3FA6FC41A4A484243DEAE6FF
    A B C D E F G
  7 . . . O X X .
  6 . O . O O X .
  5 . X O O X . .
- 4 . O O . X . .
+ 4 . O O X1X @ .
  3 O2. O X X O X
  2 O O X X . X .
- 1 @ X X1. . . .
+ 1 . X . . . . .
 
 koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Time taken: ###
 Root visits: 100
-New playouts: 5
+New playouts: 2
 NN rows: 2
 NN batches: 2
 NN avg batch size: 1
-PV: A1 D4 F4 A5 pass pass
+PV: F4 A1 C1 A5 G6 C6 pass pass
 Tree:
-: T   8.96c W  11.18c S   0.08c ( +0.1 L  +0.1) N     100  --  A1 D4 F4 A5 pass pass
+: T  11.37c W  15.37c S  -0.00c ( +0.0 L  +0.0) N     100  --  F4 A1 C1 A5 G6 C6 pass
 ---Black(^)---
-A1  : T   7.81c W   9.92c S   0.17c ( +0.1 L  +0.1) LCB  -12.23c P 63.16% WF  57.4 PSV      58 N      58  --  A1 D4 F4 A5 pass pass
-D4  : T  10.65c W  12.55c S  -0.06c ( +0.1 L  +0.0) LCB  -16.60c P 29.09% WF  40.9 PSV      40 N      40  --  D4 A1 F4 A5 pass pass
-F4  : T -60.09c W -56.99c S  -3.11c ( -0.8 L  -0.7) LCB -280.00c P  5.22% WF   0.7 PSV       0 N       1  --  F4
-MoveNum: 3 HASH: ACA44018D8C776243C920B1AB2891C47
+F4  : T  15.44c W  19.22c S   0.18c ( +0.1 L  +0.1) LCB   -4.24c P 11.04% WF  33.9 PSV      83 N      33  --  F4 A1 C1 A5 G6 C6 pass pass
+C1  : T   8.66c W  12.90c S  -0.10c ( -0.0 L  -0.0) LCB   -6.79c P 82.16% WF  64.2 PSV      65 N      65  --  C1 A1 F4 A5 G6 C6 pass pass
+F5  : T -25.84c W -23.28c S  -2.56c ( -0.7 L  -0.7) LCB -280.00c P  1.19% WF   0.9 PSV       0 N       1  --  F5
+MoveNum: 3 HASH: 48E6C4158A76372D961D73101CF04419
    A B C D E F G
  7 . . . O X X .
  6 . O . O O X .
  5 . X O O X . .
- 4 . O O @ X . .
- 3 O2. O X X O X
+ 4 . O O X1X X3.
+ 3 O2. O X X . X
  2 O O X X . X .
- 1 X3X X1. . . .
+ 1 @ X . . . . .
 
 koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Time taken: ###
 Root visits: 100
-New playouts: 42
-NN rows: 9
-NN batches: 9
+New playouts: 67
+NN rows: 16
+NN batches: 16
 NN avg batch size: 1
-PV: D4 F4 A5 pass pass
+PV: A1 C1 A5 G6 C6 pass pass
 Tree:
-: T  -6.56c W  -8.11c S  -0.07c ( -0.1 L  -0.1) N     100  --  D4 F4 A5 pass pass
+: T  -9.98c W -12.92c S   0.05c ( -0.0 L  -0.0) N     100  --  A1 C1 A5 G6 C6 pass pass
 ---White(^)---
-D4  : T  -3.56c W  -5.12c S   0.08c ( -0.1 L  -0.0) LCB  -14.83c P 66.25% WF  96.0 PSV      94 N      94  --  D4 F4 A5 pass pass
-A5  : T -89.75c W -86.42c S  -3.34c ( -1.0 L  -0.8) LCB -280.00c P  7.78% WF   0.6 PSV       0 N       1  --  A5
-F5  : T -71.02c W -67.42c S  -3.60c ( -1.1 L  -1.2) LCB -280.00c P  2.64% WF   0.7 PSV       0 N       1  --  F5
-pss : T -101.57c W -95.18c S  -6.38c ( -1.8 L  -1.5) LCB -280.00c P  2.37% WF   0.6 PSV       0 N       1  --  pass
-B3  : T -92.52c W -88.96c S  -3.56c ( -1.0 L  -0.9) LCB -280.00c P  2.34% WF   0.6 PSV       0 N       1  --  B3
-A4  : T -98.49c W -93.39c S  -5.10c ( -1.5 L  -1.3) LCB -280.00c P  2.31% WF   0.6 PSV       0 N       1  --  A4
-MoveNum: 5 HASH: FA804294DA0212079F6C04393DD0BE70
-   A B C D E F G
- 7 . . . O X X .
- 6 . O . O O X .
- 5 @ X O O X . .
- 4 . O O O2X . .
- 3 O . O X X O X
- 2 O O X X . X .
- 1 X1X X . . . .
-
-koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
-Time taken: ###
-Root visits: 50
-New playouts: 50
-NN rows: 15
-NN batches: 15
-NN avg batch size: 1
-PV: A5 F4 pass pass
-Tree:
-: T  -9.00c W  -6.07c S  -1.97c ( -0.0 L  -0.1) N      50  --  A5 F4 pass pass
----White(^)---
-A5  : T  -2.92c W  -0.93c S  -1.92c ( -0.0 L  -0.0) LCB  -10.48c P 29.35% WF  41.0 PSV      39 N      39  --  A5 F4 pass pass
-B3  : T -34.58c W -28.54c S  -1.55c ( +0.0 L  -0.2) LCB -280.00c P  8.76% WF   1.7 PSV       1 N       2  --  B3 F4
-B7  : T -23.15c W -20.41c S  -2.74c ( -0.3 L  -0.3) LCB -280.00c P  8.95% WF   0.9 PSV       1 N       1  --  B7
-A4  : T -23.09c W -20.03c S  -3.06c ( -0.3 L  -0.3) LCB -280.00c P  8.16% WF   0.9 PSV       1 N       1  --  A4
-C6  : T -52.42c W -38.20c S  -2.34c ( -0.2 L  -0.4) LCB -280.00c P  9.41% WF   1.5 PSV       0 N       2  --  C6 F4
-A6  : T -40.72c W -25.91c S  -2.16c ( -0.1 L  -0.3) LCB -280.00c P  5.22% WF   1.6 PSV       0 N       2  --  A6 F4
-A7  : T -74.81c W -70.67c S  -4.14c ( -0.6 L  -0.6) LCB -280.00c P  8.65% WF   0.7 PSV       0 N       1  --  A7
-C7  : T -59.43c W -55.44c S  -4.00c ( -0.6 L  -0.6) LCB -280.00c P  7.65% WF   0.7 PSV       0 N       1  --  C7
-MoveNum: 6 HASH: FA804294DA0212079F6C04393DD0BE70
+A1  : T  -8.56c W -11.43c S   0.13c ( -0.0 L  -0.0) LCB  -19.20c P 66.25% WF  97.4 PSV      97 N      97  --  A1 C1 A5 G6 C6 pass pass
+C1  : T -94.88c W -90.50c S  -4.38c ( -1.2 L  -1.3) LCB -280.00c P 17.02% WF   0.8 PSV       1 N       1  --  C1
+A5  : T -72.78c W -94.00c S  -4.43c ( -1.2 L  -1.2) LCB -280.00c P  5.39% WF   0.8 PSV       0 N       1  --  A5
+MoveNum: 5 HASH: 806A1708DE637B1D9145BE60E7EE7578
    A B C D E F G
  7 . . . O X X .
  6 . O . O O X .
  5 . X O O X . .
- 4 . O O O1X @ .
- 3 O . O X X O X
+ 4 . O O X X X1.
+ 3 O . O X X . X
  2 O O X X . X .
- 1 X X X . . . .
+ 1 O2X @ . . . .
 
 koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
 Time taken: ###
 Root visits: 50
 New playouts: 50
+NN rows: 40
+NN batches: 40
+NN avg batch size: 1
+PV: C1 D1 B1 pass A5 pass pass
+Tree:
+: T 104.49c W  99.90c S   4.25c ( +3.6 L  +3.4) N      50  --  C1 D1 B1 pass A5 pass pass
+---White(^)---
+C1  : T 104.51c W  99.91c S   4.26c ( +3.6 L  +3.4) LCB  103.56c P 96.89% WF  49.0 PSV      49 N      49  --  C1 D1 B1 pass A5 pass pass
+MoveNum: 6 HASH: 9BE87029B630D0B6435D9AE046166F79
+   A B C D E F G
+ 7 . . . O X X .
+ 6 . O . O O X .
+ 5 . X O O X . .
+ 4 . O O X X X .
+ 3 O . O X X . X
+ 2 O O X X . X .
+ 1 O1. O3@ . . .
+
+koSIMPLEscoreAREAtaxNONEsui0whbNfpok1komi5
+Time taken: ###
+Root visits: 100
+New playouts: 100
 NN rows: 0
 NN batches: 0
 NN avg batch size: -nan
-PV: F4 A5 pass pass
+PV: D1 B1 pass A5 pass pass
 Tree:
-: T   4.37c W   8.57c S  -1.69c ( +0.1 L  +0.1) N      50  --  F4 A5 pass pass
+: T -108.01c W -99.93c S  -7.79c ( -3.6 L  -3.4) N     100  --  D1 B1 pass A5 pass pass
 ---Black(^)---
-F4  : T   7.26c W   9.84c S  -1.70c ( +0.1 L  +0.1) LCB  -14.48c P 55.85% WF  43.2 PSV      42 N      42  --  F4 A5 pass pass
-F5  : T -26.11c W  -5.89c S  -1.58c ( +0.1 L  -0.0) LCB -280.00c P  7.21% WF   1.6 PSV       0 N       2  --  F5 A5
-G5  : T -43.27c W -18.84c S  -2.74c ( -0.2 L  -0.2) LCB -280.00c P  5.56% WF   1.5 PSV       0 N       2  --  G5 A5
-G4  : T -14.22c W   1.59c S  -1.37c ( +0.2 L  +0.1) LCB -280.00c P  4.55% WF   1.8 PSV       0 N       2  --  G4 A5
-G2  : T  -8.61c W  -5.67c S  -2.93c ( -0.3 L  -0.1) LCB -280.00c P  3.59% WF   0.9 PSV       0 N       1  --  G2
+D1  : T -108.08c W -99.94c S  -7.85c ( -3.6 L  -3.5) LCB -108.73c P 90.77% WF  99.0 PSV      99 N      99  --  D1 B1 pass A5 pass pass
 Changed rules to TrompTaylor
 MoveNum: 0 HASH: 534D5F4EAEDAD476890520B7CAD26FA0
    A B C D E F G
  7 . . . O X X .
  6 . O . O O X .
  5 . X O O X . .
- 4 . O O . X . .
+ 4 . O O @ X . .
  3 . X O X X O X
  2 O O X X . X .
- 1 . X @ . . . .
+ 1 . X . . . . .
 
 koPOSITIONALscoreAREAtaxNONEsui1komi5
 Time taken: ###
 Root visits: 100
 New playouts: 100
-NN rows: 40
-NN batches: 40
+NN rows: 54
+NN batches: 54
 NN avg batch size: 1
-PV: C1 A3 A1 D4 F4 A5 pass pass
+PV: D4 A3 C1 A1 F4 A5 pass pass
 Tree:
-: T  12.68c W  19.29c S  -2.53c ( +0.2 L  +0.1) N     100  --  C1 A3 A1 D4 F4 A5 pass
+: T   7.57c W  17.06c S  -2.65c ( +0.1 L  +0.1) N     100  --  D4 A3 C1 A1 F4 A5 pass
 ---Black(^)---
-C1  : T  10.01c W  15.92c S  -2.58c ( +0.2 L  +0.1) LCB  -12.18c P 60.02% WF  53.7 PSV      55 N      55  --  C1 A3 A1 D4 F4 A5 pass pass
-D4  : T  15.36c W  22.29c S  -2.66c ( +0.1 L  +0.1) LCB  -15.73c P 28.26% WF  40.5 PSV      39 N      39  --  D4 A3 C1 A1 F4 A5 pass pass
-F4  : T   6.36c W  19.84c S  -1.69c ( +0.4 L  +0.1) LCB -502.38c P  7.07% WF   4.8 PSV       4 N       5  --  F4 D4 C1 A3
-MoveNum: 1 HASH: 34B1D3797D2FA8D00BC2EF049CF46025
+D4  : T  11.43c W  19.18c S  -2.80c ( +0.1 L  +0.1) LCB   -8.86c P 28.23% WF  54.4 PSV      68 N      53  --  D4 A3 C1 A1 F4 A5 pass pass
+C1  : T   1.08c W  12.09c S  -2.67c ( +0.1 L  +0.1) LCB  -22.37c P 60.06% WF  39.5 PSV      34 N      41  --  C1 A3 A1 D4 F4 A5 pass pass
+F4  : T   2.83c W  21.43c S  -1.64c ( +0.4 L  +0.2) LCB -563.23c P  7.07% WF   4.9 PSV       4 N       5  --  F4 D4 C1 A3
+MoveNum: 1 HASH: 52844085B23915A6A066B24E800201DC
    A B C D E F G
  7 . . . O X X .
  6 . O . O O X .
  5 . X O O X . .
- 4 . O O . X . .
+ 4 . O O X1X . .
  3 @ X O X X O X
  2 O O X X . X .
- 1 . X X1. . . .
+ 1 . X . . . . .
 
 koPOSITIONALscoreAREAtaxNONEsui1komi5
 Time taken: ###
 Root visits: 100
-New playouts: 45
-NN rows: 9
-NN batches: 9
-NN avg batch size: 1
-PV: A3 A1 D4 F4 A5 pass pass
-Tree:
-: T -11.02c W -13.21c S  -0.08c ( -0.1 L  -0.1) N     100  --  A3 A1 D4 F4 A5 pass pass
----White(^)---
-A3  : T  -9.11c W -11.50c S   0.03c ( -0.1 L  -0.1) LCB  -25.00c P 62.72% WF  97.1 PSV      96 N      96  --  A3 A1 D4 F4 A5 pass pass
-D4  : T -77.64c W -71.84c S  -3.35c ( -1.0 L  -0.8) LCB -280.00c P 21.57% WF   1.3 PSV       2 N       2  --  D4 A1
-F5  : T -79.59c W -74.51c S  -5.08c ( -1.6 L  -1.6) LCB -280.00c P  2.24% WF   0.7 PSV       0 N       1  --  F5
-MoveNum: 2 HASH: DB228B71F0B041370F00D96E211C8706
-   A B C D E F G
- 7 . . . O X X .
- 6 . O . O O X .
- 5 . X O O X . .
- 4 . O O . X . .
- 3 O2. O X X O X
- 2 O O X X . X .
- 1 @ X X1. . . .
-
-koPOSITIONALscoreAREAtaxNONEsui1komi5
-Time taken: ###
-Root visits: 100
-New playouts: 4
-NN rows: 1
-NN batches: 1
-NN avg batch size: 1
-PV: A1 D4 F4 A5 pass pass
-Tree:
-: T   8.80c W  10.98c S   0.10c ( +0.1 L  +0.1) N     100  --  A1 D4 F4 A5 pass pass
----Black(^)---
-A1  : T   7.74c W   9.82c S   0.17c ( +0.1 L  +0.1) LCB  -12.20c P 63.18% WF  57.5 PSV      58 N      58  --  A1 D4 F4 A5 pass pass
-D4  : T  10.38c W  12.23c S  -0.01c ( +0.1 L  +0.1) LCB  -16.53c P 29.12% WF  40.8 PSV      39 N      40  --  D4 A1 F4 A5 pass pass
-F4  : T -61.80c W -58.69c S  -3.11c ( -0.8 L  -0.7) LCB -280.00c P  5.18% WF   0.7 PSV       0 N       1  --  F4
-MoveNum: 3 HASH: ACA44018D8C776243C920B1AB2891C47
-   A B C D E F G
- 7 . . . O X X .
- 6 . O . O O X .
- 5 . X O O X . .
- 4 . O O @ X . .
- 3 O2. O X X O X
- 2 O O X X . X .
- 1 X3X X1. . . .
-
-koPOSITIONALscoreAREAtaxNONEsui1komi5
-Time taken: ###
-Root visits: 100
-New playouts: 42
-NN rows: 8
-NN batches: 8
-NN avg batch size: 1
-PV: D4 F4 A5 pass pass
-Tree:
-: T  -5.92c W  -7.49c S  -0.03c ( -0.1 L  -0.1) N     100  --  D4 F4 A5 pass pass
----White(^)---
-D4  : T  -3.48c W  -5.02c S   0.09c ( -0.1 L  -0.0) LCB  -14.57c P 66.48% WF  96.6 PSV      95 N      95  --  D4 F4 A5 pass pass
-A5  : T -89.81c W -86.44c S  -3.37c ( -1.0 L  -0.8) LCB -280.00c P  7.83% WF   0.6 PSV       0 N       1  --  A5
-F5  : T -69.44c W -65.99c S  -3.45c ( -1.1 L  -1.2) LCB -280.00c P  2.60% WF   0.7 PSV       0 N       1  --  F5
-pss : T -101.46c W -95.07c S  -6.39c ( -1.8 L  -1.5) LCB -280.00c P  2.49% WF   0.6 PSV       0 N       1  --  pass
-B3  : T -92.05c W -88.55c S  -3.50c ( -1.0 L  -0.9) LCB -280.00c P  2.31% WF   0.6 PSV       0 N       1  --  B3
-MoveNum: 5 HASH: FA804294DA0212079F6C04393DD0BE70
-   A B C D E F G
- 7 . . . O X X .
- 6 . O . O O X .
- 5 @ X O O X . .
- 4 . O O O2X . .
- 3 O . O X X O X
- 2 O O X X . X .
- 1 X1X X . . . .
-
-koPOSITIONALscoreAREAtaxNONEsui1komi5
-Time taken: ###
-Root visits: 50
-New playouts: 50
+New playouts: 47
 NN rows: 15
 NN batches: 15
 NN avg batch size: 1
-PV: A5 F4 pass pass
+PV: A3 F4 A1 C1 A5 pass pass
 Tree:
-: T  -8.92c W  -5.93c S  -2.00c ( -0.0 L  -0.1) N      50  --  A5 F4 pass pass
+: T  -9.03c W -13.30c S   0.12c ( -0.0 L  -0.0) N     100  --  A3 F4 A1 C1 A5 pass pass
 ---White(^)---
-A5  : T  -3.07c W  -1.06c S  -1.95c ( -0.0 L  -0.0) LCB  -10.76c P 30.85% WF  40.9 PSV      39 N      39  --  A5 F4 pass pass
-B3  : T -32.83c W -26.30c S  -1.53c ( +0.1 L  -0.2) LCB -280.00c P  8.44% WF   1.7 PSV       1 N       2  --  B3 F4
-B7  : T -21.52c W -18.83c S  -2.69c ( -0.2 L  -0.3) LCB -280.00c P  8.78% WF   0.9 PSV       1 N       1  --  B7
-A4  : T -24.23c W -21.14c S  -3.09c ( -0.3 L  -0.3) LCB -280.00c P  7.96% WF   0.9 PSV       1 N       1  --  A4
-C6  : T -50.63c W -35.79c S  -2.30c ( -0.1 L  -0.4) LCB -280.00c P  9.21% WF   1.5 PSV       0 N       2  --  C6 F4
-A6  : T -40.16c W -25.38c S  -2.17c ( -0.1 L  -0.3) LCB -280.00c P  5.01% WF   1.6 PSV       0 N       2  --  A6 F4
-A7  : T -74.78c W -70.65c S  -4.13c ( -0.6 L  -0.6) LCB -280.00c P  8.64% WF   0.7 PSV       0 N       1  --  A7
-C7  : T -58.11c W -54.10c S  -4.01c ( -0.6 L  -0.6) LCB -280.00c P  7.43% WF   0.8 PSV       0 N       1  --  C7
-MoveNum: 6 HASH: FA804294DA0212079F6C04393DD0BE70
+A3  : T  -7.72c W -12.12c S   0.19c ( -0.0 L  -0.0) LCB  -18.91c P 59.40% WF  98.2 PSV      98 N      98  --  A3 F4 A1 C1 A5 pass pass
+C1  : T -90.05c W -85.79c S  -4.26c ( -1.2 L  -1.0) LCB -280.00c P 16.19% WF   0.8 PSV       1 N       1  --  C1
+MoveNum: 2 HASH: BD17188D3FA6FC41A4A484243DEAE6FF
    A B C D E F G
  7 . . . O X X .
  6 . O . O O X .
  5 . X O O X . .
- 4 . O O O1X @ .
- 3 O . O X X O X
+ 4 . O O X1X @ .
+ 3 O2. O X X O X
  2 O O X X . X .
- 1 X X X . . . .
+ 1 . X . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi5
+Time taken: ###
+Root visits: 100
+New playouts: 2
+NN rows: 2
+NN batches: 2
+NN avg batch size: 1
+PV: F4 A1 C1 A5 pass pass
+Tree:
+: T   8.00c W  11.79c S  -0.01c ( +0.0 L  +0.0) N     100  --  F4 A1 C1 A5 pass pass
+---Black(^)---
+F4  : T  12.26c W  15.61c S   0.17c ( +0.1 L  +0.1) LCB   -6.00c P 11.03% WF  34.9 PSV      91 N      34  --  F4 A1 C1 A5 pass pass
+C1  : T   4.98c W   9.12c S  -0.11c ( -0.0 L  -0.0) LCB   -9.63c P 82.37% WF  63.2 PSV      64 N      64  --  C1 A1 F4 A5 pass pass
+F5  : T -26.32c W -23.82c S  -2.50c ( -0.7 L  -0.7) LCB -280.00c P  1.15% WF   0.9 PSV       0 N       1  --  F5
+MoveNum: 3 HASH: 48E6C4158A76372D961D73101CF04419
+   A B C D E F G
+ 7 . . . O X X .
+ 6 . O . O O X .
+ 5 . X O O X . .
+ 4 . O O X1X X3.
+ 3 O2. O X X . X
+ 2 O O X X . X .
+ 1 @ X . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi5
+Time taken: ###
+Root visits: 100
+New playouts: 66
+NN rows: 14
+NN batches: 14
+NN avg batch size: 1
+PV: A1 C1 A5 pass pass
+Tree:
+: T  -7.46c W  -9.37c S   0.21c ( +0.0 L  -0.0) N     100  --  A1 C1 A5 pass pass
+---White(^)---
+A1  : T  -6.01c W  -7.82c S   0.29c ( +0.0 L  +0.0) LCB  -16.07c P 66.27% WF  97.4 PSV      97 N      97  --  A1 C1 A5 pass pass
+C1  : T -94.47c W -90.14c S  -4.32c ( -1.2 L  -1.3) LCB -280.00c P 17.18% WF   0.8 PSV       1 N       1  --  C1
+A5  : T -71.97c W -93.77c S  -4.41c ( -1.2 L  -1.1) LCB -280.00c P  5.37% WF   0.8 PSV       0 N       1  --  A5
+MoveNum: 5 HASH: 806A1708DE637B1D9145BE60E7EE7578
+   A B C D E F G
+ 7 . . . O X X .
+ 6 . O . O O X .
+ 5 . X O O X . .
+ 4 . O O X X X1.
+ 3 O . O X X . X
+ 2 O O X X . X .
+ 1 O2X @ . . . .
 
 koPOSITIONALscoreAREAtaxNONEsui1komi5
 Time taken: ###
 Root visits: 50
 New playouts: 50
-NN rows: 2
-NN batches: 2
+NN rows: 39
+NN batches: 39
 NN avg batch size: 1
-PV: F4 A5 pass pass
+PV: C1 D1 B1 pass A5 pass pass
 Tree:
-: T   4.28c W   8.48c S  -1.68c ( +0.1 L  +0.1) N      50  --  F4 A5 pass pass
+: T 104.56c W  99.90c S   4.27c ( +3.6 L  +3.4) N      50  --  C1 D1 B1 pass A5 pass pass
+---White(^)---
+C1  : T 104.59c W  99.91c S   4.28c ( +3.6 L  +3.4) LCB  103.62c P 96.95% WF  49.0 PSV      49 N      49  --  C1 D1 B1 pass A5 pass pass
+MoveNum: 6 HASH: 806A1708DE637B1D9145BE60E7EE7578
+   A B C D E F G
+ 7 . . . O X X .
+ 6 . O . O O X .
+ 5 . X O O X . .
+ 4 . O O X X X .
+ 3 O . O X X . X
+ 2 O O X X . X .
+ 1 O1X @ . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi5
+Time taken: ###
+Root visits: 50
+New playouts: 50
+NN rows: 1
+NN batches: 1
+NN avg batch size: 1
+PV: C1 A5 pass pass
+Tree:
+: T   8.51c W  12.40c S  -1.12c ( +0.0 L  +0.0) N      50  --  C1 A5 pass pass
 ---Black(^)---
-F4  : T   7.27c W   9.84c S  -1.69c ( +0.1 L  +0.1) LCB  -14.32c P 55.57% WF  43.2 PSV      42 N      42  --  F4 A5 pass pass
-F5  : T -26.31c W  -5.84c S  -1.60c ( +0.1 L  -0.0) LCB -280.00c P  7.24% WF   1.6 PSV       0 N       2  --  F5 A5
-G5  : T -43.83c W -19.43c S  -2.81c ( -0.2 L  -0.2) LCB -280.00c P  5.49% WF   1.4 PSV       0 N       2  --  G5 A5
-G4  : T -14.52c W   1.14c S  -1.39c ( +0.2 L  +0.1) LCB -280.00c P  4.50% WF   1.8 PSV       0 N       2  --  G4 A5
-G2  : T -11.29c W  -8.33c S  -2.96c ( -0.3 L  -0.1) LCB -280.00c P  3.59% WF   0.9 PSV       0 N       1  --  G2
+C1  : T   7.78c W  11.77c S  -1.15c ( +0.0 L  +0.0) LCB   -8.01c P 97.04% WF  49.0 PSV      49 N      49  --  C1 A5 pass pass

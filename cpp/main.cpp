@@ -57,6 +57,7 @@ runoutputtests : Run a bunch of things and dump details to stdout
 runsearchtests : Run a bunch of things using a neural net and dump details to stdout
 runsearchtestsv3 : Run a bunch more things using a neural net and dump details to stdout
 runsearchtestsv8 : Run a bunch more things using a neural net and dump details to stdout
+runsearchtestsv9 : Run a bunch more things using a neural net and dump details to stdout
 runselfplayinittests : Run some tests involving selfplay training init using a neural net and dump details to stdout
 runsekitrainwritetests : Run some tests involving seki train output
 
@@ -105,6 +106,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::runsearchtestsv3(subArgs);
   else if(subcommand == "runsearchtestsv8")
     return MainCmds::runsearchtestsv8(subArgs);
+  else if(subcommand == "runsearchtestsv9")
+    return MainCmds::runsearchtestsv9(subArgs);
   else if(subcommand == "runselfplayinittests")
     return MainCmds::runselfplayinittests(subArgs);
   else if(subcommand == "runselfplayinitstattests")
@@ -125,6 +128,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::dataminesgfs(subArgs);
   else if(subcommand == "genbook")
     return MainCmds::genbook(subArgs);
+  else if(subcommand == "checkbook")
+    return MainCmds::checkbook(subArgs);
   else if(subcommand == "trystartposes")
     return MainCmds::trystartposes(subArgs);
   else if(subcommand == "viewstartposes")
@@ -135,6 +140,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::sampleinitializations(subArgs);
   else if(subcommand == "runbeginsearchspeedtest")
     return MainCmds::runbeginsearchspeedtest(subArgs);
+  else if(subcommand == "runownershipspeedtest")
+    return MainCmds::runownershipspeedtest(subArgs);
   else if(subcommand == "runsleeptest")
     return MainCmds::runsleeptest(subArgs);
   else if(subcommand == "printclockinfo")
@@ -156,6 +163,7 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
 
 int main(int argc, const char* const* argv) {
   vector<string> args = MainArgs::getCommandLineArgsUTF8(argc,argv);
+  MainArgs::makeCoutAndCerrAcceptUTF8();
 
   if(args.size() < 2) {
     printHelp(args);
@@ -190,11 +198,11 @@ int main(int argc, const char* const* argv) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.10.0");
+  return string("1.11.0");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.10.0");
+  return string("KataGo v1.11.0");
 }
 
 string Version::getKataGoVersionFullInfo() {

@@ -15,6 +15,8 @@ struct BoardHistory {
 
   //Chronological history of moves
   std::vector<Move> moveHistory;
+  //Chronological history of preventEncore, for ability to replay a board history
+  std::vector<bool> preventEncoreHistory;
   //Chronological history of hashes, including the latest board's hash.
   //Theses are the hashes that determine whether a board is the "same" or not given the rules
   //(e.g. they include the player if situational superko, and not if positional)
@@ -22,7 +24,7 @@ struct BoardHistory {
   std::vector<Hash128> koHashHistory;
   //The index of the first turn for which we have a koHashHistory (since depending on rules, passes may clear it).
   //Index 0 = starting state, index 1 = state after move 0, index 2 = state after move 1, etc...
-  int firstTurnIdxWithKoHistory;
+  size_t firstTurnIdxWithKoHistory;
 
   //The board and player to move as of the very start, before moveHistory.
   Board initialBoard;
@@ -104,12 +106,16 @@ struct BoardHistory {
 
   //Clears all history and status and bonus points, sets encore phase and rules
   void clear(const Board& board, Player pla, const Rules& rules, int encorePhase);
-  //Set only the komi field of the rules, does not clear history, but does clear game-over conditions,
+  //Set only the komi field of the rules, does not clear history, does recompute game score if game is over.
   void setKomi(float newKomi);
   //Set the initial turn number. Affects nothing else.
   void setInitialTurnNumber(int n);
   //Set assumeMultipleStartingBlackMovesAreHandicap and update bonus points accordingly
   void setAssumeMultipleStartingBlackMovesAreHandicap(bool b);
+
+  //Returns a copy of this board history rewound to the initial board, pla, etc, with other fields
+  //(such as setInitialTurnNumber, setAssumeMultipleStartingBlackMovesAreHandicap) set identically.
+  BoardHistory copyToInitial() const;
 
   float whiteKomiAdjustmentForDraws(double drawEquivalentWinsForWhite) const;
   float currentSelfKomi(Player pla, double drawEquivalentWinsForWhite) const;
@@ -182,7 +188,7 @@ private:
 struct KoHashTable {
   uint32_t* idxTable;
   std::vector<Hash128> koHashHistorySortedByLowBits;
-  int firstTurnIdxWithKoHistory;
+  size_t firstTurnIdxWithKoHistory;
 
   static const int TABLE_SIZE = 1 << 10;
   static const uint64_t TABLE_MASK = TABLE_SIZE-1;

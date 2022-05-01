@@ -92,8 +92,7 @@ static void writeLine(
     cout << data.policyPrior << " ";
   }
 
-  int minVisits = 3;
-  vector<double> ownership = search->getAverageTreeOwnership(minVisits);
+  vector<double> ownership = search->getAverageTreeOwnership();
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,nnXLen);
@@ -608,7 +607,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
     TCLAP::ValueArg<int> maxHandicapArg("","max-handicap","Require no more than this big handicap in stones",false,100,"INT");
-    TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require abs(game komi) to be at most this",false,1000,"KOMI");
+    TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require absolute value of game komi to be at most this",false,1000,"KOMI");
     cmd.add(sgfDirArg);
     cmd.add(outDirArg);
     cmd.add(excludeHashesArg);
@@ -672,7 +671,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       return false;
     if(sgf->depth() > maxDepth)
       return false;
-    if(abs(sgf->getKomi()) > maxKomi)
+    if(std::fabs(sgf->getKomi()) > maxKomi)
       return false;
     if(minMinRank != Sgf::RANK_UNKNOWN) {
       if(sgf->getRank(P_BLACK) < minMinRank && sgf->getRank(P_WHITE) < minMinRank)
@@ -928,8 +927,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
     TCLAP::ValueArg<int> maxHandicapArg("","max-handicap","Require no more than this big handicap in stones",false,100,"INT");
-    TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require abs(game komi) to be at most this",false,1000,"KOMI");
-    TCLAP::ValueArg<double> maxAutoKomiArg("","max-auto-komi","If abs(auto komi) would exceed this, skip position",false,1000,"KOMI");
+    TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require absolute value of game komi to be at most this",false,1000,"KOMI");
+    TCLAP::ValueArg<double> maxAutoKomiArg("","max-auto-komi","If absolute value of auto komi would exceed this, skip position",false,1000,"KOMI");
     TCLAP::ValueArg<double> maxPolicyArg("","max-policy","Chop off moves with raw policy more than this",false,1,"POLICY");
     cmd.add(sgfDirArg);
     cmd.add(outDirArg);
@@ -1112,7 +1111,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       return false;
     if(sgf->depth() > maxDepth)
       return false;
-    if(abs(sgf->getKomi()) > maxKomi)
+    if(std::fabs(sgf->getKomi()) > maxKomi)
       return false;
     if(minMinRank != Sgf::RANK_UNKNOWN) {
       if(sgf->getRank(P_BLACK) < minMinRank && sgf->getRank(P_WHITE) < minMinRank)
@@ -1131,7 +1130,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     if(shouldStop.load(std::memory_order_acquire))
       return;
 
-    if(abs(hist.rules.komi) > maxAutoKomi) {
+    if(std::fabs(hist.rules.komi) > maxAutoKomi) {
       numFilteredIndivdualPoses.fetch_add(1);
       return;
     }
@@ -1187,8 +1186,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     // }
 
     Sgf::PositionSample sampleToWrite = sample;
-    sampleToWrite.weight += abs(baseValues.utility - quickValues.utility);
-    sampleToWrite.weight += abs(baseValues.utility - veryQuickValues.utility);
+    sampleToWrite.weight += std::fabs(baseValues.utility - quickValues.utility);
+    sampleToWrite.weight += std::fabs(baseValues.utility - veryQuickValues.utility);
 
     //Bot DOES see the move?
     if(moveLoc == missedLoc) {
@@ -1273,7 +1272,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     const bool preventEncore = true;
     const vector<Move>& sgfMoves = sgf->moves;
 
-    if(sgfMoves.size() > maxDepth) {
+    if((int64_t)sgfMoves.size() > maxDepth) {
       numFilteredSgfs.fetch_add(1);
       return;
     }
@@ -2169,6 +2168,7 @@ int MainCmds::sampleinitializations(const vector<string>& args) {
       NULL,
       NULL,
       logger,
+      nullptr,
       nullptr,
       nullptr,
       nullptr,

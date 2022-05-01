@@ -67,7 +67,7 @@ std::shared_ptr<SubtreeValueBiasEntry> SubtreeValueBiasTable::get(Player pla, Lo
     hash ^= ZOBRIST_KO_BAN[prevBoard.ko_loc];
   }
 
-  auto subMapIdx = hash.hash0 % entries.size();
+  uint32_t subMapIdx = (uint32_t)(hash.hash0 % entries.size());
 
   std::mutex& mutex = mutexPool->getMutex(subMapIdx);
   std::lock_guard<std::mutex> lock(mutex);
