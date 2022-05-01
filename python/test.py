@@ -38,6 +38,7 @@ if __name__ == "__main__":
   parser.add_argument('-batch-size', help='Batch size to use for testing', type=int, required=True)
   parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
   parser.add_argument('-max-batches', help='Maximum number of batches for testing', type=int, required=False)
+  parser.add_argument('-gpu-idx', help='GPU idx', type=int, required=False)
 
   args = vars(parser.parse_args())
 
@@ -50,6 +51,7 @@ def main(args):
   batch_size = args["batch_size"]
   use_swa = args["use_swa"]
   max_batches = args["max_batches"]
+  gpu_idx = args["gpu_idx"]
 
   soft_policy_weight_scale = 1.0
 
@@ -68,7 +70,11 @@ def main(args):
   logging.info(str(sys.argv))
 
   # FIGURE OUT GPU ------------------------------------------------------------
-  if True or torch.cuda.is_available():
+  if gpu_idx is not None:
+    torch.cuda.set_device(gpu_idx)
+    logging.info("Using GPU device: " + torch.cuda.get_device_name())
+    device = torch.device("cuda", gpu_idx)
+  elif torch.cuda.is_available():
     logging.info("Using GPU device: " + torch.cuda.get_device_name())
     device = torch.device("cuda")
   else:
@@ -93,6 +99,8 @@ def main(args):
   else:
     state_dict = torch.load(checkpoint_file)
     model = Model(model_config,pos_len)
+    model.initialize()
+
     # Strip off any "module." from when the model was saved with DDP or other things
     model_state_dict = {}
     for key in state_dict["model"]:
@@ -199,7 +207,7 @@ def main(args):
     total_inference_time = 0.0
     is_first_batch = True
     for batch in data_processing_pytorch.read_npz_training_data(val_files, batch_size, pos_len, device, randomize_symmetries=True, model_config=model_config):
-      if num_batches_tested >= max_batches:
+      if max_batches is not None and num_batches_tested >= max_batches:
         break
 
       start = torch.cuda.Event(enable_timing=True)

@@ -304,7 +304,11 @@ class Metrics:
 
         if model.get_has_intermediate_head():
             assert len(model_output_postprocessed_byheads) > 1
-            assert intermediate_loss_scale is not None or intermediate_distill_scale is not None
+            if model.training:
+                assert intermediate_loss_scale is not None or intermediate_distill_scale is not None
+            else:
+                if intermediate_loss_scale is None and intermediate_distill_scale is None:
+                    intermediate_loss_scale = 1.0
 
             if intermediate_loss_scale is not None:
                 iresults = self.metrics_dict_batchwise_single_heads_output(
