@@ -17,6 +17,7 @@ import tensorflow as tf
 import numpy as np
 import itertools
 import copy
+import tf_slim
 
 import data
 from board import Board
@@ -413,7 +414,7 @@ def model_fn(features,labels,mode,params):
           break
       if checkpoint_path is not None:
         print("Initial weights checkpoint to use found at: " + checkpoint_path)
-        vars_in_checkpoint = tf.contrib.framework.list_variables(checkpoint_path)
+        vars_in_checkpoint = tf_slim.list_variables(checkpoint_path)
         varname_in_checkpoint = {}
         print("Checkpoint contains:")
         for varandshape in vars_in_checkpoint:

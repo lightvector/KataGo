@@ -39,4 +39,9 @@ These are a separate set of scripts that have nothing to do with any of the abov
 * `genboard_run.py`
 * `genboard_train.py`
 
+### Dependencies
+- scipy
+- tf-slim
+- python-dateutil
+- requests-toolbelt
 

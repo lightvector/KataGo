@@ -16,7 +16,7 @@ import multiprocessing
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
+from  tensorflow.compat.v1.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
 
 import tfrecordio
 
