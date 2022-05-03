@@ -173,6 +173,7 @@ if swa_sub_epoch_scale is not None:
     assign_ops = []
     for variable in itertools.chain(tf.compat.v1.model_variables(), tf.compat.v1.trainable_variables()):
       if variable.name.startswith("swa_model/"):
+        tf.compat.v1.disable_v2_behavior()
         placeholder = tf.compat.v1.placeholder(variable.dtype,variable.shape)
         assign_ops.append(tf.compat.v1.assign(variable,placeholder))
         swa_assign_placeholders[variable.name] = placeholder

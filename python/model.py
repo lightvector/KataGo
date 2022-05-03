@@ -844,6 +844,8 @@ class Model:
     assert(self.version == 8 or self.version == 10)
 
     #Input layer---------------------------------------------------------------------------------
+    #tf.compat.v1.disable_eager_execution()   # Important, fix for tensorflow 2.4
+    tf.compat.v1.disable_v2_behavior()
     bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
                   tf.compat.v1.placeholder(tf.float32, [None] + self.bin_input_shape, name="bin_inputs"))
     global_inputs = (placeholders["global_inputs"] if "global_inputs" in placeholders else
@@ -1268,6 +1270,8 @@ class Target_vars:
     shortterm_value_error_prediction = tf.math.softplus(moremiscvalues_output[:,0]) * 0.25
     shortterm_score_error_prediction = tf.math.softplus(moremiscvalues_output[:,1]) * 30.0
 
+    tf.compat.v1.disable_v2_behavior()
+
     #Loss function
     self.policy_target = (placeholders["policy_target"] if "policy_target" in placeholders else
                           tf.compat.v1.placeholder(tf.float32, [None] + model.policy_target_shape))
@@ -1545,6 +1549,7 @@ class Target_vars:
 
     if for_optimization:
       #Prior/Regularization
+      tf.compat.v1.disable_v2_behavior()
       self.l2_reg_coeff = (placeholders["l2_reg_coeff"] if "l2_reg_coeff" in placeholders else
                            tf.compat.v1.placeholder(tf.float32))
       self.reg_loss_per_weight = self.l2_reg_coeff * (

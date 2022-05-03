@@ -22,6 +22,7 @@ def make_raw_input_feature_placeholders(model_config,pos_len,batch_size):
   num_bin_input_features = Model.get_num_bin_input_features(model_config)
   num_global_input_features = Model.get_num_global_input_features(model_config)
 
+  tf.compat.v1.disable_v2_behavior()
   return {
     "binchwp": tf.compat.v1.placeholder(tf.uint8,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
     "ginc": tf.compat.v1.placeholder(tf.float32,[batch_size,num_global_input_features]),
