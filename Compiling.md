@@ -39,10 +39,10 @@ As also mentioned in the instructions below but repeated here for visibility, if
 
 ## Windows
    * Requirements
-      * CMake with a minimum version of 3.10.2, GUI version strongly recommended (https://cmake.org/download/)
+      * CMake with a minimum version of 3.18.2, GUI version strongly recommended (https://cmake.org/download/)
       * Microsoft Visual Studio for C++. Version 15 (2017) has been tested and should work, other versions might work as well.
       * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. But if using CPU, Eigen should be better.
-      * If using the CUDA backend, CUDA 10.2 with CUDNN 7.6.5, or CUDA 11.1 with CUDNN 8.0.4 (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
+      * If using the CUDA backend, CUDA 10.2 with CUDNN 7.6.5, or CUDA 11.0.2 with CUDNN 8.0.4 (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested. (If you do sync selfplay-training on a single machine, you'd better choose CUDA 11.0.2 + CUDNN 8.0.4, for tensorflow_gpu 2.4.0 compatibility.)
       * If using the TensorRT backend, in addition to the dependencies for the CUDA backend, you also need TensorRT (https://developer.nvidia.com/tensorrt) on a version compatible with your CUDA and CUDNN versions.
       * If using the Eigen backend, Eigen3, version 3.3.x. (http://eigen.tuxfamily.org/index.php?title=Main_Page#Download).
       * zlib. The following package might work, https://www.nuget.org/packages/zlib-vc140-static-64/, or alternatively you can build it yourself via something like: https://github.com/kiyolee/zlib-win-build

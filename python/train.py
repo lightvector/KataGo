@@ -262,7 +262,8 @@ def model_fn(features,labels,mode,params):
       synchronization=tf.VariableSynchronization.ON_READ,
       aggregation=tf.VariableAggregation.SUM
     )
-    wsum_op = tf.compat.v1.assign_add(wsum,target_vars.weight_sum)
+    #wsum_op = tf.assign_add(wsum,target_vars.weight_sum)
+    wsum_op = wsum.assign_add(target_vars.weight_sum)
     eval_metric_ops={
       #"wsum": (wsum.read_value(),wsum_op),
       "p0loss": tf.compat.v1.metrics.mean(target_vars.policy_loss_unreduced, weights=target_vars.target_weight_used),
