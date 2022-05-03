@@ -534,10 +534,10 @@ class Model:
 
     #This is the mean, computed only over exactly the areas of the mask, weighting each spot equally,
     #even across different elements in the batch that might have different board sizes.
-    mean = tf.reduce_sum(tensor * mask,axis=[0,1,2]) / mask_sum
+    mean = tf.reduce_sum(input_tensor=tensor * mask,axis=[0,1,2]) / mask_sum
     zmtensor = tensor-mean
     #Similarly, the variance computed exactly only over those spots
-    var = tf.reduce_sum(tf.square(zmtensor * mask),axis=[0,1,2]) / mask_sum
+    var = tf.reduce_sum(input_tensor=tf.square(zmtensor * mask),axis=[0,1,2]) / mask_sum
 
     with tf.compat.v1.variable_scope(name):
       mean_op = tf.keras.backend.moving_average_update(moving_mean,mean,0.998)
@@ -551,7 +551,7 @@ class Model:
     def inference_f():
       return (moving_mean,moving_var)
 
-    use_mean,use_var = tf.cond(self.is_training_tensor,training_f,inference_f)
+    use_mean,use_var = tf.cond(pred=self.is_training_tensor,true_fn=training_f,false_fn=inference_f)
     return tf.nn.batch_normalization(tensor,use_mean,use_var,beta,None,epsilon) * mask
 
   # def batchnorm(self,name,tensor):
@@ -605,7 +605,7 @@ class Model:
     return variable
 
   def conv2d(self, x, w):
-    return tf.nn.conv2d(x, w, strides=[1,1,1,1], padding='SAME')
+    return tf.nn.conv2d(input=x, filters=w, strides=[1,1,1,1], padding='SAME')
 
   def dilated_conv2d(self, x, w, dilation):
     return tf.nn.atrous_conv2d(x, w, rate = dilation, padding='SAME')
@@ -617,31 +617,31 @@ class Model:
 
     if not inverse:
       tensor = tf.cond(
-        ud,
-        lambda: tf.reverse(tensor,[1]),
-        lambda: tensor
+        pred=ud,
+        true_fn=lambda: tf.reverse(tensor,[1]),
+        false_fn=lambda: tensor
       )
       tensor = tf.cond(
-        lr,
-        lambda: tf.reverse(tensor,[2]),
-        lambda: tensor
+        pred=lr,
+        true_fn=lambda: tf.reverse(tensor,[2]),
+        false_fn=lambda: tensor
       )
 
     tensor = tf.cond(
-      transp,
-      lambda: tf.transpose(tensor, [0,2,1,3]),
-      lambda: tensor)
+      pred=transp,
+      true_fn=lambda: tf.transpose(a=tensor, perm=[0,2,1,3]),
+      false_fn=lambda: tensor)
 
     if inverse:
       tensor = tf.cond(
-        ud,
-        lambda: tf.reverse(tensor,[1]),
-        lambda: tensor
+        pred=ud,
+        true_fn=lambda: tf.reverse(tensor,[1]),
+        false_fn=lambda: tensor
       )
       tensor = tf.cond(
-        lr,
-        lambda: tf.reverse(tensor,[2]),
-        lambda: tensor
+        pred=lr,
+        true_fn=lambda: tf.reverse(tensor,[2]),
+        false_fn=lambda: tensor
       )
 
     return tensor
@@ -786,8 +786,8 @@ class Model:
     div = tf.reshape(mask_sum_hw,[-1,1,1,1])
     div_sqrt = tf.reshape(mask_sum_hw_sqrt,[-1,1,1,1])
 
-    layer_raw_mean = tf.reduce_sum(in_layer,axis=[1,2],keepdims=True) / div
-    layer_raw_max = tf.reduce_max(in_layer,axis=[1,2],keepdims=True)
+    layer_raw_mean = tf.reduce_sum(input_tensor=in_layer,axis=[1,2],keepdims=True) / div
+    layer_raw_max = tf.reduce_max(input_tensor=in_layer,axis=[1,2],keepdims=True)
 
     # 1, (x-14)/10, and (x-14)^2/100 - 0.1 are three orthogonal functions over [9,19], the range of reasonable board sizes.
     # We have the 14 in there since it's the midpoint of that range. The /10 is just sort of arbitrary normalization to keep things on the same scale.
@@ -803,7 +803,7 @@ class Model:
     div = tf.reshape(mask_sum_hw,[-1,1])
     div_sqrt = tf.reshape(mask_sum_hw_sqrt,[-1,1])
 
-    layer_raw_mean = tf.reduce_sum(in_layer,axis=[1,2],keepdims=False) / div
+    layer_raw_mean = tf.reduce_sum(input_tensor=in_layer,axis=[1,2],keepdims=False) / div
 
     # 1, (x-14)/10, and (x-14)^2/100 - 0.1 are three orthogonal functions over [9,19], the range of reasonable board sizes.
     # We have the 14 in there since it's the midpoint of that range. The /10 and /100 are just sort of arbitrary normalization to keep things on the same scale
@@ -942,7 +942,7 @@ class Model:
     cur_layer = tf.reshape(cur_layer,[-1,self.pos_len,self.pos_len,self.num_bin_input_features])
 
     assert(include_history.shape[1].value == 5)
-    transformed_global_inputs = global_inputs * tf.pad(include_history, [(0,0),(0,self.num_global_input_features - include_history.shape[1].value)], constant_values=1.0)
+    transformed_global_inputs = global_inputs * tf.pad(tensor=include_history, paddings=[(0,0),(0,self.num_global_input_features - include_history.shape[1].value)], constant_values=1.0)
 
     self.transformed_bin_inputs = cur_layer
     self.transformed_global_inputs = transformed_global_inputs
@@ -963,8 +963,8 @@ class Model:
     self.gpool_num_channels = gpool_num_channels
 
     mask = cur_layer[:,:,:,0:1]
-    mask_sum = tf.reduce_sum(mask) # Global sum
-    mask_sum_hw = tf.reduce_sum(mask,axis=[1,2,3]) # Sum per batch element
+    mask_sum = tf.reduce_sum(input_tensor=mask) # Global sum
+    mask_sum_hw = tf.reduce_sum(input_tensor=mask,axis=[1,2,3]) # Sum per batch element
     mask_sum_hw_sqrt = tf.sqrt(mask_sum_hw)
 
     #Initial convolutional layer-------------------------------------------------------------------------------------
@@ -1138,7 +1138,7 @@ class Model:
       #tf.where has a bug where nan values on the non-chosen side will still propagate nans back in gradients.
       #So we also abs the tensor, so that we never get a log of a negative value
       abstensor = tf.abs(tensor)
-      return tf.where(tensor > 0, 1.0 + tf.math.log(abstensor + 1.0), 1.0 / (1.0 + tf.math.log(abstensor + 1.0)))
+      return tf.compat.v1.where(tensor > 0, 1.0 + tf.math.log(abstensor + 1.0), 1.0 / (1.0 + tf.math.log(abstensor + 1.0)))
 
     scorebelief_len = self.scorebelief_target_shape[0]
     scorebelief_mid = self.pos_len*self.pos_len+Model.EXTRA_SCORE_DISTR_RADIUS
@@ -1240,7 +1240,7 @@ class Model:
 
 def huber_loss(x,y,delta):
   absdiff = tf.abs(x - y)
-  return tf.where(absdiff > delta, (0.5 * delta*delta) + delta * (absdiff - delta), 0.5 * absdiff * absdiff)
+  return tf.compat.v1.where(absdiff > delta, (0.5 * delta*delta) + delta * (absdiff - delta), 0.5 * absdiff * absdiff)
 
 
 class Target_vars:
@@ -1347,42 +1347,42 @@ class Target_vars:
 
 
     self.policy_loss_unreduced = self.policy_target_weight * (
-      tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_target, logits=policy_output[:,:,0])
+      tf.nn.softmax_cross_entropy_with_logits(labels=self.policy_target, logits=policy_output[:,:,0])
     )
     self.policy1_loss_unreduced = self.policy_target_weight1 * 0.15 * (
-      tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.policy_target1, logits=policy_output[:,:,1])
+      tf.nn.softmax_cross_entropy_with_logits(labels=self.policy_target1, logits=policy_output[:,:,1])
     )
 
-    self.value_loss_unreduced = 1.20 * tf.nn.softmax_cross_entropy_with_logits_v2(
+    self.value_loss_unreduced = 1.20 * tf.nn.softmax_cross_entropy_with_logits(
       labels=self.value_target,
       logits=value_output
     )
 
     self.td_value_loss_unreduced = tf.constant([0.55,0.55,0.15],dtype=tf.float32) * (
-      tf.nn.softmax_cross_entropy_with_logits_v2(
+      tf.nn.softmax_cross_entropy_with_logits(
         labels=self.td_value_target,
         logits=td_value_prediction
       ) -
       # Subtract out the entropy, so as to get loss 0 at perfect prediction
-      tf.nn.softmax_cross_entropy_with_logits_v2(
+      tf.nn.softmax_cross_entropy_with_logits(
         labels=self.td_value_target,
         logits=tf.math.log(self.td_value_target + 1.0e-30)
       )
     )
-    self.td_value_loss_unreduced = tf.reduce_sum(self.td_value_loss_unreduced, axis=1)
+    self.td_value_loss_unreduced = tf.reduce_sum(input_tensor=self.td_value_loss_unreduced, axis=1)
 
     self.td_score_loss_unreduced = 0.0004 * self.ownership_target_weight * (
-      tf.reduce_sum(huber_loss(self.td_score_target, td_score_prediction, delta = 12.0), axis=1)
+      tf.reduce_sum(input_tensor=huber_loss(self.td_score_target, td_score_prediction, delta = 12.0), axis=1)
     )
 
     self.scorebelief_cdf_loss_unreduced = 0.020 * self.ownership_target_weight * (
       tf.reduce_sum(
-        tf.square(tf.cumsum(self.scorebelief_target,axis=1) - tf.cumsum(tf.nn.softmax(scorebelief_output,axis=1),axis=1)),
+        input_tensor=tf.square(tf.cumsum(self.scorebelief_target,axis=1) - tf.cumsum(tf.nn.softmax(scorebelief_output,axis=1),axis=1)),
         axis=1
       )
     )
     self.scorebelief_pdf_loss_unreduced = 0.020 * self.ownership_target_weight * (
-      tf.nn.softmax_cross_entropy_with_logits_v2(
+      tf.nn.softmax_cross_entropy_with_logits(
         labels=self.scorebelief_target,
         logits=scorebelief_output
       )
@@ -1393,7 +1393,7 @@ class Target_vars:
     #Not unlike the way that policy and value loss are also equal-weighted by batch element.
     self.ownership_loss_unreduced = 1.5 * self.ownership_target_weight * (
       tf.reduce_sum(
-        tf.nn.softmax_cross_entropy_with_logits_v2(
+        input_tensor=tf.nn.softmax_cross_entropy_with_logits(
           labels=tf.stack([(1+self.ownership_target)/2,(1-self.ownership_target)/2],axis=3),
           logits=tf.stack([ownership_output,-ownership_output],axis=3)
         ) * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
@@ -1403,7 +1403,7 @@ class Target_vars:
 
     self.scoring_loss_unreduced = 1.0 * self.scoring_target_weight * (
       tf.reduce_sum(
-        tf.square(self.scoring_target - scoring_output) * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
+        input_tensor=tf.square(self.scoring_target - scoring_output) * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
         axis=[1,2]
       ) / model.mask_sum_hw
     )
@@ -1421,7 +1421,7 @@ class Target_vars:
     #due to simply being farther in the future, so multiply by [1,0.25].
     self.futurepos_loss_unreduced = 0.25 * self.futurepos_target_weight * (
       tf.reduce_sum(
-        tf.square(tf.tanh(futurepos_output) - self.futurepos_target)
+        input_tensor=tf.square(tf.tanh(futurepos_output) - self.futurepos_target)
         * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len,1])
         * tf.reshape(tf.constant([1,0.25],dtype=tf.float32),[1,1,1,2]),
         axis=[1,2,3]
@@ -1432,10 +1432,10 @@ class Target_vars:
     owned_target = tf.square(self.ownership_target)
     unowned_target = 1.0 - owned_target
     unowned_proportion = (
-      tf.reduce_sum(unowned_target * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),axis=[1,2])
-      / (1.0 + tf.reduce_sum(tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),axis=[1,2]))
+      tf.reduce_sum(input_tensor=unowned_target * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),axis=[1,2])
+      / (1.0 + tf.reduce_sum(input_tensor=tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),axis=[1,2]))
     )
-    unowned_proportion = tf.reduce_mean(unowned_proportion * self.ownership_target_weight)
+    unowned_proportion = tf.reduce_mean(input_tensor=unowned_proportion * self.ownership_target_weight)
     if model.is_training:
       moving_unowned_proportion = tf.compat.v1.get_variable(initializer=1.0,name=("moving_unowned_proportion"),trainable=False)
       moving_unowned_op = tf.keras.backend.moving_average_update(moving_unowned_proportion,unowned_proportion,0.998)
@@ -1446,7 +1446,7 @@ class Target_vars:
 
     self.seki_loss_unreduced = (
       tf.reduce_sum(
-        tf.nn.softmax_cross_entropy_with_logits_v2(
+        input_tensor=tf.nn.softmax_cross_entropy_with_logits(
           labels=tf.stack([1.0-tf.square(self.seki_target), tf.nn.relu(self.seki_target), tf.nn.relu(-self.seki_target)],axis=3),
           logits=seki_output[:,:,:,0:3]
         ) * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
@@ -1455,7 +1455,7 @@ class Target_vars:
     )
     self.seki_loss_unreduced = self.seki_loss_unreduced + 0.5 * (
       tf.reduce_sum(
-        tf.nn.softmax_cross_entropy_with_logits_v2(
+        input_tensor=tf.nn.softmax_cross_entropy_with_logits(
           labels=tf.stack([unowned_target, owned_target],axis=3),
           logits=tf.stack([seki_output[:,:,:,3],tf.zeros_like(self.ownership_target)],axis=3)
         ) * tf.reshape(model.mask_before_symmetry,[-1,model.pos_len,model.pos_len]),
@@ -1466,7 +1466,7 @@ class Target_vars:
     self.seki_weight_scale = seki_weight_scale
 
     #This is conditional upon there being a result
-    expected_score_from_belief = tf.reduce_sum(scorebelief_probs * model.score_belief_offset_vector,axis=1)
+    expected_score_from_belief = tf.reduce_sum(input_tensor=scorebelief_probs * model.score_belief_offset_vector,axis=1)
 
     #Huber will incentivize this to not actually converge to the mean, but rather something meanlike locally and something medianlike
     #for very large possible losses. This seems... okay - it might actually be what users want.
@@ -1475,7 +1475,7 @@ class Target_vars:
     self.variance_time_loss_unreduced = 0.0003 * self.ownership_target_weight * huber_loss(self.variance_time_target, variance_time_prediction, delta = 50.0)
 
     stdev_of_belief = tf.sqrt(0.001 + tf.reduce_sum(
-      scorebelief_probs * tf.square(
+      input_tensor=scorebelief_probs * tf.square(
         tf.reshape(model.score_belief_offset_vector,[1,-1]) - tf.reshape(expected_score_from_belief,[-1,1])
       ),axis=1))
     beliefstdevdiff = stdev_of_belief - scorestdev_prediction
@@ -1521,27 +1521,27 @@ class Target_vars:
       self.scale_reg_loss_unreduced = tf.reshape(0.0004 * tf.add_n([tf.square(variable) for variable in model.prescale_variables]), [-1])
     #self.scale_reg_loss_unreduced = tf.zeros_like(self.winloss_reg_loss_unreduced)
 
-    self.policy_loss = tf.reduce_sum(self.target_weight_used * self.policy_loss_unreduced, name="losses/policy_loss")
-    self.policy1_loss = tf.reduce_sum(self.target_weight_used * self.policy1_loss_unreduced, name="losses/policy1_loss")
-    self.value_loss = tf.reduce_sum(self.target_weight_used * self.value_loss_unreduced, name="losses/value_loss")
-    self.td_value_loss = tf.reduce_sum(self.target_weight_used * self.td_value_loss_unreduced, name="losses/td_value_loss")
-    self.td_score_loss = tf.reduce_sum(self.target_weight_used * self.td_score_loss_unreduced, name="losses/td_score_loss")
-    self.scoremean_loss = tf.reduce_sum(self.target_weight_used * self.scoremean_loss_unreduced, name="losses/scoremean_loss")
-    self.lead_loss = tf.reduce_sum(self.target_weight_used * self.lead_loss_unreduced, name="losses/lead_loss")
-    self.variance_time_loss = tf.reduce_sum(self.target_weight_used * self.variance_time_loss_unreduced, name="losses/variance_time_loss")
-    self.scorebelief_pdf_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_pdf_loss_unreduced, name="losses/scorebelief_pdf_loss")
-    self.scorebelief_cdf_loss = tf.reduce_sum(self.target_weight_used * self.scorebelief_cdf_loss_unreduced, name="losses/scorebelief_cdf_loss")
-    self.ownership_loss = tf.reduce_sum(self.target_weight_used * self.ownership_loss_unreduced, name="losses/ownership_loss")
-    self.scoring_loss = tf.reduce_sum(self.target_weight_used * self.scoring_loss_unreduced, name="losses/scoring_loss")
-    self.futurepos_loss = tf.reduce_sum(self.target_weight_used * self.futurepos_loss_unreduced, name="losses/futurepos_loss")
-    self.seki_loss = tf.reduce_sum(self.target_weight_used * self.seki_loss_unreduced, name="losses/seki_loss")
-    self.scorestdev_reg_loss = tf.reduce_sum(self.target_weight_used * self.scorestdev_reg_loss_unreduced, name="losses/scorestdev_reg_loss")
-    self.shortterm_value_error_loss = tf.reduce_sum(self.target_weight_used * self.shortterm_value_error_loss_unreduced, name="losses/sloss")
-    self.shortterm_score_error_loss = tf.reduce_sum(self.target_weight_used * self.shortterm_score_error_loss_unreduced, name="losses/shortterm_score_error_loss")
+    self.policy_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.policy_loss_unreduced, name="losses/policy_loss")
+    self.policy1_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.policy1_loss_unreduced, name="losses/policy1_loss")
+    self.value_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.value_loss_unreduced, name="losses/value_loss")
+    self.td_value_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.td_value_loss_unreduced, name="losses/td_value_loss")
+    self.td_score_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.td_score_loss_unreduced, name="losses/td_score_loss")
+    self.scoremean_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.scoremean_loss_unreduced, name="losses/scoremean_loss")
+    self.lead_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.lead_loss_unreduced, name="losses/lead_loss")
+    self.variance_time_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.variance_time_loss_unreduced, name="losses/variance_time_loss")
+    self.scorebelief_pdf_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.scorebelief_pdf_loss_unreduced, name="losses/scorebelief_pdf_loss")
+    self.scorebelief_cdf_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.scorebelief_cdf_loss_unreduced, name="losses/scorebelief_cdf_loss")
+    self.ownership_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.ownership_loss_unreduced, name="losses/ownership_loss")
+    self.scoring_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.scoring_loss_unreduced, name="losses/scoring_loss")
+    self.futurepos_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.futurepos_loss_unreduced, name="losses/futurepos_loss")
+    self.seki_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.seki_loss_unreduced, name="losses/seki_loss")
+    self.scorestdev_reg_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.scorestdev_reg_loss_unreduced, name="losses/scorestdev_reg_loss")
+    self.shortterm_value_error_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.shortterm_value_error_loss_unreduced, name="losses/sloss")
+    self.shortterm_score_error_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.shortterm_score_error_loss_unreduced, name="losses/shortterm_score_error_loss")
     # self.winloss_reg_loss = tf.reduce_sum(self.target_weight_used * self.winloss_reg_loss_unreduced, name="losses/winloss_reg_loss")
-    self.scale_reg_loss = tf.reduce_sum(self.target_weight_used * self.scale_reg_loss_unreduced, name="losses/scale_reg_loss")
+    self.scale_reg_loss = tf.reduce_sum(input_tensor=self.target_weight_used * self.scale_reg_loss_unreduced, name="losses/scale_reg_loss")
 
-    self.weight_sum = tf.reduce_sum(self.target_weight_used, name="losses/weight_sum")
+    self.weight_sum = tf.reduce_sum(input_tensor=self.target_weight_used, name="losses/weight_sum")
 
     if for_optimization:
       #Prior/Regularization
@@ -1590,21 +1590,21 @@ class Target_vars:
 class Metrics:
   def __init__(self,model,target_vars,include_debug_stats):
     #Training results
-    policy_target_idxs = tf.argmax(target_vars.policy_target, 1)
-    self.top1_prediction = tf.equal(tf.argmax(model.policy_output[:,:,0], 1), policy_target_idxs)
-    self.top4_prediction = tf.nn.in_top_k(model.policy_output[:,:,0],policy_target_idxs,4)
+    policy_target_idxs = tf.argmax(input=target_vars.policy_target, axis=1)
+    self.top1_prediction = tf.equal(tf.argmax(input=model.policy_output[:,:,0], axis=1), policy_target_idxs)
+    self.top4_prediction = tf.nn.in_top_k(predictions=model.policy_output[:,:,0],targets=policy_target_idxs,k=4)
     self.accuracy1_unreduced = tf.cast(self.top1_prediction, tf.float32)
     self.accuracy4_unreduced = tf.cast(self.top4_prediction, tf.float32)
-    self.value_entropy_unreduced = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.nn.softmax(model.value_output,axis=1), logits=model.value_output)
+    self.value_entropy_unreduced = tf.nn.softmax_cross_entropy_with_logits(labels=tf.nn.softmax(model.value_output,axis=1), logits=model.value_output)
     self.value_conf_unreduced = 4 * tf.square(tf.nn.sigmoid(model.value_output[:,0] - model.value_output[:,1]) - 0.5)
     self.policy_target_entropy_unreduced = target_vars.policy_target_weight * (
-      -tf.reduce_sum(target_vars.policy_target * tf.math.log(target_vars.policy_target+(1e-20)), axis=1)
+      -tf.reduce_sum(input_tensor=target_vars.policy_target * tf.math.log(target_vars.policy_target+(1e-20)), axis=1)
     )
-    self.accuracy1 = tf.reduce_sum(target_vars.target_weight_used * self.accuracy1_unreduced, name="metrics/accuracy1")
-    self.accuracy4 = tf.reduce_sum(target_vars.target_weight_used * self.accuracy4_unreduced, name="metrics/accuracy4")
-    self.value_entropy = tf.reduce_sum(target_vars.target_weight_used * self.value_entropy_unreduced, name="metrics/value_entropy")
-    self.value_conf = tf.reduce_sum(target_vars.target_weight_used * self.value_conf_unreduced, name="metrics/value_conf")
-    self.policy_target_entropy = tf.reduce_sum(target_vars.target_weight_used * self.policy_target_entropy_unreduced, name="metrics/policy_target_entropy")
+    self.accuracy1 = tf.reduce_sum(input_tensor=target_vars.target_weight_used * self.accuracy1_unreduced, name="metrics/accuracy1")
+    self.accuracy4 = tf.reduce_sum(input_tensor=target_vars.target_weight_used * self.accuracy4_unreduced, name="metrics/accuracy4")
+    self.value_entropy = tf.reduce_sum(input_tensor=target_vars.target_weight_used * self.value_entropy_unreduced, name="metrics/value_entropy")
+    self.value_conf = tf.reduce_sum(input_tensor=target_vars.target_weight_used * self.value_conf_unreduced, name="metrics/value_conf")
+    self.policy_target_entropy = tf.reduce_sum(input_tensor=target_vars.target_weight_used * self.policy_target_entropy_unreduced, name="metrics/policy_target_entropy")
 
     # self.shortterm_value_error_mean_unreduced = target_vars.shortterm_diff_value
     # self.shortterm_score_error_mean_unreduced = target_vars.shortterm_diff_score
@@ -1616,24 +1616,24 @@ class Metrics:
     if include_debug_stats:
 
       def reduce_norm(x, axis=None, keepdims=False):
-        return tf.sqrt(tf.reduce_mean(tf.square(x), axis=axis, keepdims=keepdims))
+        return tf.sqrt(tf.reduce_mean(input_tensor=tf.square(x), axis=axis, keepdims=keepdims))
 
       def reduce_stdev(x, axis=None, keepdims=False):
-        m = tf.reduce_mean(x, axis=axis, keepdims=True)
+        m = tf.reduce_mean(input_tensor=x, axis=axis, keepdims=True)
         devs_squared = tf.square(x - m)
-        return tf.sqrt(tf.reduce_mean(devs_squared, axis=axis, keepdims=keepdims))
+        return tf.sqrt(tf.reduce_mean(input_tensor=devs_squared, axis=axis, keepdims=keepdims))
 
       self.activated_prop_by_layer = dict([
-        (name,tf.reduce_mean(tf.count_nonzero(layer,axis=[1,2])/layer.shape[1].value/layer.shape[2].value, axis=0)) for (name,layer) in model.outputs_by_layer
+        (name,tf.reduce_mean(input_tensor=tf.math.count_nonzero(layer,axis=[1,2])/layer.shape[1].value/layer.shape[2].value, axis=0)) for (name,layer) in model.outputs_by_layer
       ])
       self.mean_output_by_layer = dict([
-        (name,tf.reduce_mean(layer,axis=[0,1,2])) for (name,layer) in model.outputs_by_layer
+        (name,tf.reduce_mean(input_tensor=layer,axis=[0,1,2])) for (name,layer) in model.outputs_by_layer
       ])
       self.stdev_output_by_layer = dict([
         (name,reduce_stdev(layer,axis=[0,1,2])) for (name,layer) in model.outputs_by_layer
       ])
       self.mean_weights_by_var = dict([
-        (v.name,tf.reduce_mean(v)) for v in tf.compat.v1.trainable_variables()
+        (v.name,tf.reduce_mean(input_tensor=v)) for v in tf.compat.v1.trainable_variables()
       ])
       self.norm_weights_by_var = dict([
         (v.name,reduce_norm(v)) for v in tf.compat.v1.trainable_variables()
@@ -1673,7 +1673,7 @@ class ModelUtils:
     bitmasks = tf.reshape(tf.constant([128,64,32,16,8,4,2,1],dtype=tf.uint8),[1,1,1,8])
     binchw = tf.reshape(tf.bitwise.bitwise_and(tf.expand_dims(binchwp,axis=3),bitmasks),[-1,num_bin_input_features,((pos_len*pos_len+7)//8)*8])
     binchw = binchw[:,:,:pos_len*pos_len]
-    binhwc = tf.cast(tf.transpose(binchw, [0,2,1]),tf.float32)
+    binhwc = tf.cast(tf.transpose(a=binchw, perm=[0,2,1]),tf.float32)
     binhwc = tf.math.minimum(binhwc,tf.constant(1.0))
 
     placeholders["bin_inputs"] = binhwc
@@ -1688,11 +1688,11 @@ class ModelUtils:
     placeholders["include_history"] = features["gtnc"][:,36:41]
 
     policy_target0 = features["ptncm"][:,0,:]
-    policy_target0 = policy_target0 / tf.reduce_sum(policy_target0,axis=1,keepdims=True)
+    policy_target0 = policy_target0 / tf.reduce_sum(input_tensor=policy_target0,axis=1,keepdims=True)
     placeholders["policy_target"] = policy_target0
     placeholders["policy_target_weight"] = features["gtnc"][:,26]
     policy_target1 = features["ptncm"][:,1,:]
-    policy_target1 = policy_target1 / tf.reduce_sum(policy_target1,axis=1,keepdims=True)
+    policy_target1 = policy_target1 / tf.reduce_sum(input_tensor=policy_target1,axis=1,keepdims=True)
     placeholders["policy_target1"] = policy_target1
     placeholders["policy_target_weight1"] = features["gtnc"][:,28]
 
@@ -1705,7 +1705,7 @@ class ModelUtils:
     placeholders["scorebelief_target"] = features["sdn"] / 100.0
     placeholders["ownership_target"] = features["vtnchw"][:,0]
     placeholders["scoring_target"] = features["vtnchw"][:,4] / 120.0
-    placeholders["futurepos_target"] = tf.transpose(features["vtnchw"][:,2:4], [0,2,3,1])
+    placeholders["futurepos_target"] = tf.transpose(a=features["vtnchw"][:,2:4], perm=[0,2,3,1])
     placeholders["seki_target"] = features["vtnchw"][:,1]
 
     placeholders["target_weight_from_data"] = features["gtnc"][:,25]
