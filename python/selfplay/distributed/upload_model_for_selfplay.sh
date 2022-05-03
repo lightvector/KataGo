@@ -23,6 +23,12 @@ shift
 RATING_ONLY="$1"
 shift
 
+
+PYTHON_BIN=python3
+if [ ${OS} == "Windows_NT" ] && [ ! -z "${CONDA_PYTHON_EXE}" ]; then
+  PYTHON_BIN=python
+fi
+
 #------------------------------------------------------------------------------
 
 mkdir -p "$BASEDIR"/modelstobetested
@@ -84,7 +90,7 @@ function uploadStuff() {
                 do
                     set +e
                     set -x
-                    python3 ./upload_model.py \
+                    ${PYTHON_BIN} ./upload_model.py \
                             -run-name "$RUNNAME" \
                             -model-name "$RUNNAME"-"$NAME" \
                             -model-file "$TMPDST"/"$RUNNAME"-"$NAME".bin.gz \
