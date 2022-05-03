@@ -152,6 +152,9 @@ if multi_gpus is not None:
     multi_gpu_device_ids.append("/GPU:" + str(int(piece)))
   num_gpus_used = len(multi_gpu_device_ids)
 
+# Fix for tensorflow 2.4: Not creating XLA devices, tf_xla_enable_xla_devices not set
+os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices'
+
 
 # MODEL ----------------------------------------------------------------
 printed_model_yet = False
