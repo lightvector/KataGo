@@ -473,7 +473,8 @@ int MainCmds::contribute(const vector<string>& args) {
     }
   }
 
-  Logger logger(userCfg, true);
+  const bool logToStdOut = true;
+  Logger logger(&cfg, logToStdOut);
 
   logger.write("Distributed Self Play Engine starting...");
 

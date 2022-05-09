@@ -333,7 +333,7 @@ void ConfigParser::warnUnusedKeys(ostream& out, Logger* logger) const {
     messages.push_back("--------------");
   }
 
-  if(logger != NULL) {
+  if(logger) {
     for(size_t i = 0; i<messages.size(); i++)
       logger->write(messages[i]);
   }

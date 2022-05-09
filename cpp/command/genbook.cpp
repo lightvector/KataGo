@@ -102,7 +102,8 @@ int MainCmds::genbook(const vector<string>& args) {
   }
 
   Rand rand;
-  Logger logger(&cfg, true);
+  const bool logToStdOut = true;
+  Logger logger(&cfg, logToStdOut);
   logger.addFile(logFile);
 
   const bool loadKomiFromCfg = true;

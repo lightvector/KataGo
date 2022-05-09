@@ -22,7 +22,8 @@ void Tests::runConfigTests(const vector<string>& args) {
 
       cmd.getConfig(cfg);
 
-      Logger logger(&cfg, true);
+      const bool logToStdOut = true;
+      Logger logger(&cfg, logToStdOut);
     } catch (TCLAP::ArgException &e) {
       cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
       Global::fatalError("Wrong command-line parameters");

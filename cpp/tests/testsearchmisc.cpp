@@ -31,9 +31,10 @@ void Tests::runNNOnTinyBoard(const string& modelFile, bool inputsNHWC, bool useN
   Rules rules = Rules::getTrompTaylorish();
   BoardHistory hist(board,nextPla,rules,0);
 
-  Logger logger;
-  logger.setLogToStdout(true);
-  logger.setLogTime(false);
+  const bool logToStdOut = true;
+  const bool logToStdErr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdOut, logToStdErr, logTime);
 
   NNEvaluator* nnEval = startNNEval(modelFile,logger,"",6,6,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
 
@@ -74,9 +75,10 @@ void Tests::runNNSymmetries(const string& modelFile, bool inputsNHWC, bool useNH
   Rules rules = Rules::getTrompTaylorish();
   BoardHistory hist(board,nextPla,rules,0);
 
-  Logger logger;
-  logger.setLogToStdout(true);
-  logger.setLogTime(false);
+  const bool logToStdOut = true;
+  const bool logToStdErr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdOut, logToStdErr, logTime);
 
   NNEvaluator* nnEval = startNNEval(modelFile,logger,"",13,13,0,inputsNHWC,useNHWC,useFP16,false,false);
   for(int symmetry = 0; symmetry<8; symmetry++) {
@@ -108,10 +110,10 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool useN
 
   CompactSgf* sgf = CompactSgf::parse(sgfStr);
 
-  Logger logger;
-  logger.setLogToStdout(false);
-  logger.setLogToStderr(true);
-  logger.setLogTime(false);
+  const bool logToStdOut = false;
+  const bool logToStdErr = true;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdOut, logToStdErr, logTime);
 
   int nnXLen = 19;
   int nnYLen = 19;
@@ -181,10 +183,11 @@ STRUCT_NAMED_TRIPLE(Board,board,BoardHistory,hist,Player,nextPla,NNBatchingTestI
 
 void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool useNHWC, bool useFP16) {
   TestCommon::overrideForBackends(inputsNHWC, useNHWC);
-  Logger logger;
-  logger.setLogToStdout(false);
-  logger.setLogToStderr(true);
-  logger.setLogTime(false);
+
+  const bool logToStdOut = false;
+  const bool logToStdErr = true;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdOut, logToStdErr, logTime);
 
   const int nnXLen = 19;
   const int nnYLen = 19;

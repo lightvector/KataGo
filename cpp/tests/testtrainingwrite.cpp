@@ -72,7 +72,10 @@ void Tests::runTrainingWriteTests() {
   double firstFileMinRandProp = 1.0;
   int debugOnlyWriteEvery = 5;
 
-  Logger logger(nullptr, true, false, false);
+  const bool logToStdOut = true;
+  const bool logToStdErr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdOut, logToStdErr, logTime);
 
   auto run = [&](
     const string& seedBase, const Rules& rules,
@@ -197,7 +200,10 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
   cout << "Running test for selfplay initialization with NN" << endl;
   NeuralNet::globalInitialize();
 
-  Logger logger(nullptr, true, false, false);
+  const bool logToStdOut = true;
+  const bool logToStdErr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdOut, logToStdErr, logTime);
 
   NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,inputsNHWC,useNHWC,false);
 
@@ -363,7 +369,10 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
   cout << "Running more tests for selfplay" << endl;
   NeuralNet::globalInitialize();
 
-  Logger logger(nullptr, true, false, false);
+  const bool logToStdOut = true;
+  const bool logToStdErr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdOut, logToStdErr, logTime);
 
   NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,inputsNHWC,useNHWC,false);
 
@@ -1058,7 +1067,10 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
   cout << "Running 10b tests for selfplay" << endl;
   NeuralNet::globalInitialize();
 
-  Logger logger(nullptr, true, false, false);
+  const bool logToStdOut = true;
+  const bool logToStdErr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdOut, logToStdErr, logTime);
 
   NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,inputsNHWC,useNHWC,false);
 
@@ -1885,7 +1897,10 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
   int nnXLen = 13;
   int nnYLen = 13;
 
-  Logger logger(nullptr, true, false, false);
+  const bool logToStdOut = true;
+  const bool logToStdErr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdOut, logToStdErr, logTime);
 
   NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,inputsNHWC,useNHWC,false);
 

@@ -2182,9 +2182,10 @@ void Tests::runSearchTestsV8(const string& modelFile, bool inputsNHWC, bool useN
   cout << "Running search tests introduced after v8 nets" << endl;
   NeuralNet::globalInitialize();
 
-  Logger logger;
-  logger.setLogToStdout(true);
-  logger.setLogTime(false);
+  const bool logToStdOut = true;
+  const bool logToStdErr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdOut, logToStdErr, logTime);
 
   NNEvaluator* nnEval;
   NNEvaluator* nnEval9;
