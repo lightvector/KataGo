@@ -327,13 +327,15 @@ static void setNumThreads(SearchParams& params, NNEvaluator* nnEval, Logger& log
 #ifdef USE_EIGEN_BACKEND
   //Eigen is a little interesting in that by default, it sets numNNServerThreadsPerModel based on numSearchThreads
   //So, reset the number of threads in the nnEval each time we change the search numthreads
-  logger.setLogToStdout(false);
+  //Also, disable the logger to suppress the kill and respawn messages.
+  logger.setDisabled(true);
   nnEval->killServerThreads();
   nnEval->setNumThreads(vector<int>(numThreads,-1));
   nnEval->spawnServerThreads();
   //Also since we killed and respawned all the threads, re-warm them
   Rand seedRand;
   warmStartNNEval(sgf,logger,params,nnEval,seedRand);
+  logger.setDisabled(false);
 #else
   (void)nnEval;
   (void)logger;

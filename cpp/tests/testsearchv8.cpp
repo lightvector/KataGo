@@ -2243,7 +2243,8 @@ void Tests::runSearchTestsV8(const string& modelFile, bool inputsNHWC, bool useN
   nnEval = startNNEval(
     modelFile,logger,"v8seed",19,19,-1,inputsNHWC,useNHWC,useFP16,false,false);
   runV8SearchMultithreadTest(nnEval,logger);
-  logger.setLogToStdout(false);
+  // Suppress some nondeterministc messages about number of batches
+  logger.setDisabled(true);
   delete nnEval;
   nnEval = NULL;
 

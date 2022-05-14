@@ -8,11 +8,23 @@
 
 using namespace std;
 
-Logger::Logger(ConfigParser *cfg, bool logToStdout_, bool logToStderr_, bool logTime_)
-  :logToStdout(logToStdout_),logToStderr(logToStderr_),logTime(logTime_),ostreams(),files()
+Logger::Logger(
+  ConfigParser* cfg,
+  bool logToStdoutDefault,
+  bool logToStderrDefault,
+  bool logTimeDefault,
+  bool logConfigContents_
+):
+  logToStdout(logToStdoutDefault),
+  logToStderr(logToStderrDefault),
+  logTime(logTimeDefault),
+  logConfigContents(logConfigContents_),
+  header(),
+  ostreams(),
+  files()
 {
   if(cfg) {
-    logHeader = "Running with following config:\n" + cfg->getAllKeyVals();
+    header = "Running with following config:\n" + cfg->getAllKeyVals();
     if(cfg->contains("logToStdout"))
       logToStdout = cfg->getBool("logToStdout");
 
@@ -39,8 +51,8 @@ Logger::Logger(ConfigParser *cfg, bool logToStdout_, bool logToStderr_, bool log
     }
   }
 
-  if(!logHeader.empty()) {
-    write(logHeader);
+  if(!header.empty()) {
+    write(header);
   }
 }
 
@@ -63,32 +75,13 @@ bool Logger::isLoggingToStderr() const {
   return logToStderr;
 }
 
-void Logger::setLogToStdout(bool b, bool afterCreation) {
-  if(afterCreation && b && !logToStdout && !logHeader.empty()) {
-    lock_guard<std::mutex> lock(mutex);
-    time_t time = DateTime::getNow();
-    writeLocked(logHeader, true, cout, time);
-  }
-  logToStdout = b;
-}
-void Logger::setLogToStderr(bool b, bool afterCreation) {
-  if(afterCreation && b && !logToStderr && !logHeader.empty()) {
-    lock_guard<std::mutex> lock(mutex);
-    time_t time = DateTime::getNow();
-    writeLocked(logHeader, true, cerr, time);
-  }
-  logToStderr = b;
-}
-void Logger::setLogTime(bool b) {
-  logTime = b;
-}
 void Logger::addOStream(ostream& out, bool afterCreation) {
+  lock_guard<std::mutex> lock(mutex);
   ostreams.push_back(&out);
 
-  if(afterCreation && !logHeader.empty()) {
-    lock_guard<std::mutex> lock(mutex);
+  if(afterCreation && !header.empty()) {
     time_t time = DateTime::getNow();
-    writeLocked(logHeader, true, out, time);
+    writeLocked(header, true, out, time);
   }
 }
 void Logger::addFile(const string& file, bool afterCreation) {
@@ -105,13 +98,19 @@ void Logger::addFile(const string& file, bool afterCreation) {
     delete out;
     return;
   }
+
+  lock_guard<std::mutex> lock(mutex);
   files.push_back(out);
 
-  if(afterCreation && !logHeader.empty()) {
-    lock_guard<std::mutex> lock(mutex);
+  if(afterCreation && !header.empty()) {
     time_t time = DateTime::getNow();
-    writeLocked(logHeader, true, *out, time);
+    writeLocked(header, true, *out, time);
   }
+}
+
+void Logger::setDisabled(bool b) {
+  lock_guard<std::mutex> lock(mutex);
+  isDisabled = b;
 }
 
 void Logger::write(const string& str, bool endLine) {
@@ -136,11 +135,20 @@ void Logger::write(const string& str, bool endLine) {
 
 void Logger::writeLocked(const std::string &str, bool endLine, std::ostream &out, const time_t& time)
 {
+  if(isDisabled)
+    return;
   const char* timeFormat = "%F %T%z: ";
 
-  if(logTime) {DateTime::writeTimeToStream(out, timeFormat, time); out << str; }
-  else out << ": " << str;
-  if(endLine) out << std::endl; else out << std::flush;
+  if(logTime) {
+    DateTime::writeTimeToStream(out, timeFormat, time);
+    out << str;
+  }
+  else
+    out << ": " << str;
+  if(endLine)
+    out << std::endl;
+  else
+    out << std::flush;
 }
 
 void Logger::write(const string& str) {

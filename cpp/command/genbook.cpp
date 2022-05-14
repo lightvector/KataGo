@@ -102,8 +102,8 @@ int MainCmds::genbook(const vector<string>& args) {
   }
 
   Rand rand;
-  const bool logToStdOut = true;
-  Logger logger(&cfg, logToStdOut);
+  const bool logToStdout = true;
+  Logger logger(&cfg, logToStdout);
   logger.addFile(logFile);
 
   const bool loadKomiFromCfg = true;
@@ -1029,9 +1029,10 @@ int MainCmds::checkbook(const vector<string>& args) {
   }
 
   Rand rand;
-  Logger logger;
-  logger.setLogToStdout(true);
-  logger.setLogTime(false);
+  const bool logToStdout = true;
+  const bool logToStderr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdout, logToStderr, logTime);
 
   Book* book;
   {
