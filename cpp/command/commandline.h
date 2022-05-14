@@ -12,7 +12,7 @@ class Logger;
 class KataGoCommandLine : public TCLAP::CmdLine
 {
   TCLAP::ValueArg<std::string>* modelFileArg;
-  TCLAP::ValueArg<std::string>* configFileArg;
+  TCLAP::MultiArg<std::string>* configFileArg;
   TCLAP::MultiArg<std::string>* overrideConfigArg;
   std::string defaultConfigFileName;
   int numBuiltInArgs;
@@ -44,7 +44,7 @@ class KataGoCommandLine : public TCLAP::CmdLine
   void getConfigAllowEmpty(ConfigParser& cfg) const;
 
  private:
-  std::string getConfigFile() const;
+  std::vector<std::string> getConfigFiles() const;
   void maybeApplyOverrideConfigArg(ConfigParser& cfg) const;
 };
 

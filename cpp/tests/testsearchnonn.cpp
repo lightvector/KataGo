@@ -25,9 +25,10 @@ void Tests::runNNLessSearchTests() {
   //Placeholder, doesn't actually do anything since we have debugSkipNeuralNet = true
   string modelFile = "/dev/null";
 
-  Logger logger;
-  logger.setLogToStdout(false);
-  logger.setLogTime(false);
+  const bool logToStdOut = false;
+  const bool logToStdErr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdOut, logToStdErr, logTime);
   logger.addOStream(cout);
 
   {

@@ -664,7 +664,7 @@ vector<SearchParams> Setup::loadParams(
     //On distributed, tolerate reading mutexPoolSize since older version configs use it.
     if(setupFor == SETUP_FOR_DISTRIBUTED)
       cfg.markAllKeysUsedWithPrefix("mutexPoolSize");
-    
+
     paramss.push_back(params);
   }
 
@@ -840,24 +840,4 @@ std::vector<std::unique_ptr<PatternBonusTable>> Setup::loadAvoidSgfPatternBonusT
     tables.push_back(std::move(patternBonusTable));
   }
   return tables;
-}
-
-void Setup::initializeLoggerFromConfig(ConfigParser& cfg, Logger& logger, Rand& seedRand) {
-  if((int)cfg.contains("logFile") + (int)cfg.contains("logDir") + (int)cfg.contains("logDirDated") > 1)
-    throw StringError("Cannot specify more than one of logFile and logDir and logDirDated in config");
-  else if(cfg.contains("logFile"))
-    logger.addFile(cfg.getString("logFile"));
-  else if(cfg.contains("logDir")) {
-    MakeDir::make(cfg.getString("logDir"));
-    logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(seedRand.nextUInt()) + ".log");
-  }
-  else if(cfg.contains("logDirDated")) {
-    MakeDir::make(cfg.getString("logDirDated"));
-    MakeDir::make(cfg.getString("logDirDated") + "/" + DateTime::getCompactDateTimeString());
-    logger.addFile(cfg.getString("logDirDated") + "/" + DateTime::getCompactDateTimeString() + "/" + Global::uint32ToHexString(seedRand.nextUInt()) + ".log");
-  }
-
-  const bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
-  if(!logTimeStamp)
-    logger.setLogTime(false);
 }
