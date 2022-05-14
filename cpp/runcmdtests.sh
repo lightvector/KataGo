@@ -28,6 +28,7 @@ mkdir -p tests/results/cmd
 rm -f tests/results/cmd/*
 ./katago analysis -help > tests/results/cmd/analysis_help.stdout
 ./katago benchmark -help > tests/results/cmd/benchmark_help.stdout
+./katago contribute -help > tests/results/cmd/contribute_help.stdout
 ./katago genconfig -help > tests/results/cmd/genconfig_help.stdout
 ./katago gtp -help > tests/results/cmd/gtp_help.stdout
 ./katago gatekeeper -help > tests/results/cmd/gatekeeper_help.stdout

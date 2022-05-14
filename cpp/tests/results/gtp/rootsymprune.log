@@ -1,3 +1,33 @@
+: Running with following config:
+allowResignation = true
+cudaUseFP16 = false
+cudaUseNHWC = false
+forDeterministicTesting = true
+lagBuffer = 1.0
+logAllGTPCommunication = true
+logFile = tests/results/gtp/rootsymprune.log
+logSearchInfo = true
+logTimeStamp = false
+logToStderr = false
+maxPlayouts = 10000
+maxTimePondering = 60
+maxVisits = 100
+nnRandSeed = forTesting
+nnRandomize = false
+numSearchThreads = 1
+openclUseFP16 = false
+ponderingEnabled = false
+resignConsecTurns = 3
+resignThreshold = -0.90
+rootSymmetryPruning = true
+rules = tromp-taylor
+searchFactorAfterOnePass = 0.50
+searchFactorAfterTwoPass = 0.25
+searchFactorWhenWinning = 0.40
+searchFactorWhenWinningThreshold = 0.95
+searchRandSeed = forTesting
+trtUseFP16 = false
+
 : GTP Engine starting...
 : KataGo v1.11.0
 : Using TrompTaylor rules initially, unless GTP/GUI overrides this

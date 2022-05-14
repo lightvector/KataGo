@@ -1,0 +1,42 @@
+
+DESCRIPTION: 
+
+   Run KataGo to generate training data for distributed training
+
+USAGE: 
+
+   contribute  [-base-dir <DIR>] [-delete-unused-models-after <DAYS>]
+               [-config <FILE>] [-override-config <KEYVALUEPAIRS>]
+               [-cacerts <FILE>]
+
+
+Where: 
+
+   -base-dir <DIR>
+     Directory to download models, write game results, etc. (default
+     ./katago_contribute)
+
+   -delete-unused-models-after <DAYS>
+     After a model is unused for this many days, delete it from disk
+     (default 30)
+
+   -config <FILE>
+     Config file to use for server connection and/or GPU settings
+
+   -override-config <KEYVALUEPAIRS>
+     Override config parameters. Format: "key=value, key=value,..."
+
+   -cacerts <FILE>
+     CA certificates file for SSL (cacerts.pem, ca-bundle.crt)
+
+   --,  -ignore_rest
+     Ignores the rest of the labeled arguments following this flag.
+
+   -version
+     Displays version information and exits.
+
+   -h,  -help
+     Displays usage information and exits.
+
+
+

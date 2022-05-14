@@ -6,15 +6,15 @@ DESCRIPTION:
 
 USAGE: 
 
-   gatekeeper  -config <FILE> -test-models-dir <DIR> -sgf-output-dir <DIR>
-               -accepted-models-dir <DIR> -rejected-models-dir <DIR>
+   gatekeeper  -config <FILE> ...  -test-models-dir <DIR> -sgf-output-dir
+               <DIR> -accepted-models-dir <DIR> -rejected-models-dir <DIR>
                [-selfplay-dir <DIR>] [...other flags...]
 
 
 Where: 
 
-   -config <FILE>
-     (required)  Config file to use.
+   -config <FILE>  (accepted multiple times)
+     (required)  Config file(s) to use, can be one or multiple files.
 
    -test-models-dir <DIR>
      (required)  Dir to poll and load models from

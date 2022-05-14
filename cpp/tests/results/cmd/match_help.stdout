@@ -6,15 +6,15 @@ DESCRIPTION:
 
 USAGE: 
 
-   match  -config <FILE> [-log-file <FILE>] [-sgf-output-dir <DIR>]
+   match  -config <FILE> ...  [-log-file <FILE>] [-sgf-output-dir <DIR>]
           [...other flags...]
 
 
 Where: 
 
-   -config <FILE>
-     (required)  Config file to use (see match_example.cfg or
-     configs/match_example.cfg).
+   -config <FILE>  (accepted multiple times)
+     (required)  Config file(s) to use, can be one or multiple files (see
+     match_example.cfg or configs/match_example.cfg).
 
    -log-file <FILE>
      Log file to output to

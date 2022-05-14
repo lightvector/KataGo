@@ -1,3 +1,26 @@
+: Running with following config:
+cudaUseFP16 = false
+cudaUseNHWC = false
+forDeterministicTesting = true
+logAllRequests = true
+logAllResponses = true
+logFile = tests/results/analysis/basic.txt.log
+logSearchInfo = true
+logTimeStamp = false
+maxPlayouts = 10000
+maxVisits = 100
+nnCacheSizePowerOfTwo = 23
+nnMaxBatchSize = 64
+nnMutexPoolSizePowerOfTwo = 17
+nnRandSeed = analysisTest
+nnRandomize = false
+numAnalysisThreads = 1
+numSearchThreads = 1
+openclUseFP16 = false
+reportAnalysisWinratesAs = BLACK
+rootSymmetryPruning = false
+trtUseFP16 = false
+
 : Analysis Engine starting...
 : KataGo v1.11.0
 : nnRandSeed0 = analysisTest

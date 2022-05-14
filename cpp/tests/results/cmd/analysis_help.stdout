@@ -5,14 +5,14 @@ DESCRIPTION:
 
 USAGE: 
 
-   analysis  -config <FILE> [-model <FILE>] [...other flags...]
+   analysis  -config <FILE> ...  [-model <FILE>] [...other flags...]
 
 
 Where: 
 
-   -config <FILE>
-     (required)  Config file to use (see analysis_example.cfg or
-     configs/analysis_example.cfg).
+   -config <FILE>  (accepted multiple times)
+     (required)  Config file(s) to use, can be one or multiple files (see
+     analysis_example.cfg or configs/analysis_example.cfg).
 
    -model <FILE>
      Neural net model file. Defaults to: (dir containing katago.exe, or
