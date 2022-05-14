@@ -179,10 +179,10 @@ void Tests::runSearchTests(const string& modelFile, bool inputsNHWC, bool useNHW
   cout << "Running search tests" << endl;
   NeuralNet::globalInitialize();
 
-  const bool logToStdOut = true;
-  const bool logToStdErr = false;
+  const bool logToStdout = true;
+  const bool logToStderr = false;
   const bool logTime = false;
-  Logger logger(nullptr, logToStdOut, logToStdErr, logTime);
+  Logger logger(nullptr, logToStdout, logToStderr, logTime);
 
   NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
   runBasicPositions(nnEval, logger);

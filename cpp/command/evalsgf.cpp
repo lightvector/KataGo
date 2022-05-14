@@ -207,8 +207,8 @@ int MainCmds::evalsgf(const vector<string>& args) {
 
   //Load neural net and start bot------------------------------------------
 
-  const bool logToStdOut = true;
-  Logger logger(&cfg, logToStdOut);
+  const bool logToStdoutDefault = true;
+  Logger logger(&cfg, logToStdoutDefault);
   logger.write("Engine starting...");
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);

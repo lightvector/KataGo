@@ -3,6 +3,7 @@
 using namespace std;
 
 static const string gtpBase = R"%%(
+# Config for KataGo C++ GTP engine, i.e. "./katago.exe gtp"
 
 # Logs and files--------------------------------------------------------------------------
 

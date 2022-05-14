@@ -153,8 +153,8 @@ int MainCmds::benchmark(const vector<string>& args) {
     return 1;
   }
 
-  const bool logToStdOut = true;
-  Logger logger(&cfg, logToStdOut);
+  const bool logToStdoutDefault = true;
+  Logger logger(&cfg, logToStdoutDefault);
   logger.write("Loading model and initializing benchmark...");
 
   CompactSgf* sgf;

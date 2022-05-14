@@ -21,7 +21,10 @@ Logger::Logger(
   logConfigContents(logConfigContents_),
   header(),
   ostreams(),
-  files()
+  files(),
+  logBufs(),
+  mutex(),
+  isDisabled(false)
 {
   if(cfg) {
     header = "Running with following config:\n" + cfg->getAllKeyVals();

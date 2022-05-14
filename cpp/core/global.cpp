@@ -313,12 +313,12 @@ string Global::chopSuffix(const string& s, const string& suffix)
   return s.substr(0,s.size()-suffix.size());
 }
 
-string Global::trim(const std::string &s, const std::string &delimStr)
+string Global::trim(const std::string &s, const char* delims)
 {
-  size_t p2 = s.find_last_not_of(delimStr);
+  size_t p2 = s.find_last_not_of(delims);
   if (p2 == string::npos)
     return string();
-  size_t p1 = s.find_first_not_of(delimStr);
+  size_t p1 = s.find_first_not_of(delims);
   if (p1 == string::npos)
     p1 = 0;
 

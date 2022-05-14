@@ -10,9 +10,9 @@ using namespace std;
 void Tests::runOwnershipTests(const string& configFile, const string& modelFile) {
   ConfigParser cfg(configFile);
 
-  const bool logToStdOut = false;
-  const bool logToStderr = true;
-  Logger logger(&cfg, logToStdOut, logToStderr);
+  const bool logToStdoutDefault = false;
+  const bool logToStderrDefault = true;
+  Logger logger(&cfg, logToStdoutDefault, logToStderrDefault);
 
   Rand seedRand;
 

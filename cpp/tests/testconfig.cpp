@@ -1,6 +1,7 @@
 #include "../tests/tests.h"
 
 #include "../core/config_parser.h"
+#include "../core/fileutils.h"
 #include "../core/mainargs.h"
 #include "../command/commandline.h"
 
@@ -22,8 +23,8 @@ void Tests::runConfigTests(const vector<string>& args) {
 
       cmd.getConfig(cfg);
 
-      const bool logToStdOut = true;
-      Logger logger(&cfg, logToStdOut);
+      const bool logToStdoutDefault = true;
+      Logger logger(&cfg, logToStdoutDefault);
     } catch (TCLAP::ArgException &e) {
       cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
       Global::fatalError("Wrong command-line parameters");
@@ -32,6 +33,8 @@ void Tests::runConfigTests(const vector<string>& args) {
   }
 
   std::string dataPath("cpp/tests/data/configs/");
+  if(!FileUtils::exists("cpp/tests/data/configs/"))
+    dataPath = "tests/data/configs/";
 
   cout << "Running config tests" << endl;
   // unit-tests
@@ -132,7 +135,7 @@ void Tests::runConfigTests(const vector<string>& args) {
       Global::fatalError("Wrong command-line parameters");
     }
 
-    if (!cfg.contains("logDir"))
+    if(!cfg.contains("logDir"))
       Global::fatalError("logDir param reading error from analysis_example.cfg "
                          "while reading multiple configs from command line "
                          "(data/analysis_example.cfg and data/test2.cfg)");

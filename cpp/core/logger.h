@@ -39,7 +39,6 @@ class Logger {
   // The caller is responsible for freeing the ostreams
   void write(const std::string& str);
   void writeNoEndline(const std::string& str);
-  std::ostream* createOStream();
 
   static void logThreadUncaught(const std::string& name, Logger* logger, std::function<void()> f);
 
@@ -63,6 +62,7 @@ class Logger {
 
   void write(const std::string& str, bool endLine);
   void writeLocked(const std::string& str, bool endLine, std::ostream& out, const time_t& time);
+  std::ostream* createOStream();
 };
 
 class LogBuf final : public std::stringbuf {

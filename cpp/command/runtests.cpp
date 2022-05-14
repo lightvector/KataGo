@@ -369,10 +369,10 @@ int MainCmds::runtinynntests(const vector<string>& args) {
     cfg.initialize(in);
   }
 
-  const bool logToStdOut = true;
-  const bool logToStderr = false;
+  const bool logToStdoutDefault = true;
+  const bool logToStderrDefault = false;
   const bool logTime = false;
-  Logger logger(&cfg, logToStdOut, logToStderr, logTime);
+  Logger logger(&cfg, logToStdoutDefault, logToStderrDefault, logTime);
 
   const bool randFileName = false;
   TinyModelTest::runTinyModelTest(
@@ -400,10 +400,10 @@ int MainCmds::runnnevalcanarytests(const vector<string>& args) {
 
   ConfigParser cfg(cfgFile);
 
-  const bool logToStdOut = true;
-  const bool logToStderr = false;
+  const bool logToStdoutDefault = true;
+  const bool logToStderrDefault = false;
   const bool logTime = false;
-  Logger logger(&cfg, logToStdOut, logToStderr, logTime);
+  Logger logger(&cfg, logToStdoutDefault, logToStderrDefault, logTime);
 
   Rand seedRand;
 
@@ -454,8 +454,8 @@ int MainCmds::runbeginsearchspeedtest(const vector<string>& args) {
 
   Rand rand;
 
-  const bool logToStdOut = true;
-  Logger logger(&cfg, logToStdOut);
+  const bool logToStdoutDefault = true;
+  Logger logger(&cfg, logToStdoutDefault);
 
   NNEvaluator* nnEval = NULL;
   const bool loadKomiFromCfg = false;
@@ -578,8 +578,8 @@ int MainCmds::runownershipspeedtest(const vector<string>& args) {
 
   Rand rand;
 
-  const bool logToStdOut = true;
-  Logger logger(&cfg, logToStdOut);
+  const bool logToStdoutDefault = true;
+  Logger logger(&cfg, logToStdoutDefault);
 
   NNEvaluator* nnEval = NULL;
   const bool loadKomiFromCfg = false;

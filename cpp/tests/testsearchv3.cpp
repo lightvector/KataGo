@@ -522,10 +522,10 @@ void Tests::runSearchTestsV3(const string& modelFile, bool inputsNHWC, bool useN
   cout << "Running search tests specifically for v3 or later nets" << endl;
   NeuralNet::globalInitialize();
 
-  const bool logToStdOut = true;
-  const bool logToStdErr = false;
+  const bool logToStdout = true;
+  const bool logToStderr = false;
   const bool logTime = false;
-  Logger logger(nullptr, logToStdOut, logToStdErr, logTime);
+  Logger logger(nullptr, logToStdout, logToStderr, logTime);
 
   NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,symmetry,inputsNHWC,useNHWC,useFP16,false,false);
   NNEvaluator* nnEval11 = startNNEval(modelFile,logger,"",11,11,symmetry,inputsNHWC,useNHWC,useFP16,false,false);

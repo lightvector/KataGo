@@ -10,8 +10,9 @@ using namespace std;
 
 ConfigParser::ConfigParser(bool keysOverride, bool keysOverrideFromIncludes_)
   :initialized(false),fileName(),contents(),keyValues(),
-    keysOverrideEnabled(keysOverride),keysOverrideFromIncludes(keysOverrideFromIncludes_),
-    usedKeysMutex(),usedKeys()
+   keysOverrideEnabled(keysOverride),keysOverrideFromIncludes(keysOverrideFromIncludes_),
+   curLineNum(0),curFilename(),includedFiles(),baseDirs(),logMessages(),
+   usedKeysMutex(),usedKeys()
 {}
 
 ConfigParser::ConfigParser(const string& fname, bool keysOverride, bool keysOverrideFromIncludes_)
@@ -21,7 +22,7 @@ ConfigParser::ConfigParser(const string& fname, bool keysOverride, bool keysOver
 }
 
 ConfigParser::ConfigParser(const char* fname, bool keysOverride, bool keysOverrideFromIncludes_)
-  : ConfigParser(std::string(fname), keysOverride, keysOverrideFromIncludes_)
+  :ConfigParser(std::string(fname), keysOverride, keysOverrideFromIncludes_)
 {}
 
 ConfigParser::ConfigParser(istream& in, bool keysOverride, bool keysOverrideFromIncludes_)
@@ -57,7 +58,7 @@ void ConfigParser::initialize(const string& fname) {
   FileUtils::open(in,fname);
   fileName = fname;
   string baseDir = extractBaseDir(fname);
-  if (!baseDir.empty())
+  if(!baseDir.empty())
     baseDirs.push_back(baseDir);
   initializeInternal(in);
   initialized = true;
@@ -92,7 +93,7 @@ void ConfigParser::processIncludedFile(const std::string &fname) {
   curFilename = fname;
 
   string fpath;
-  for(const auto &p: baseDirs) {
+  for(const std::string& p: baseDirs) {
     fpath += p;
   }
   fpath += fname;
@@ -132,7 +133,7 @@ void ConfigParser::readStreamContent(istream& in) {
       if(line.size() < 9) {
         throw ConfigParsingError("Unsupported @ directive" + lineAndFileInfo());
       }
-      size_t pos0 =line.find_first_of(" \t\v\f=");
+      size_t pos0 = line.find_first_of(" \t\v\f=");
       if(pos0 == string::npos)
         throw ConfigParsingError("@ directive without value (key-val separator is not found)" + lineAndFileInfo());
 
@@ -141,7 +142,7 @@ void ConfigParser::readStreamContent(istream& in) {
         throw ConfigParsingError("Unsupported @ directive '" + key + "'" + lineAndFileInfo());
 
       string value = line.substr(pos0+1);
-      size_t pos1 =value.find_first_not_of(" \t\v\f=");
+      size_t pos1 = value.find_first_not_of(" \t\v\f=");
       if(pos1 == string::npos)
         throw ConfigParsingError("@ directive without value (value after key-val separator is not found)" + lineAndFileInfo());
 
@@ -232,7 +233,7 @@ void ConfigParser::applyAlias(const string& mapThisKey, const string& toThisKey)
 }
 
 void ConfigParser::overrideKey(const std::string& key, const std::string& value) {
-  //Assume zero-length values mean to delete a key
+  // Assume zero-length values mean to delete a key
   if(value.length() <= 0) {
     if(keyValues.find(key) != keyValues.end())
       keyValues.erase(key);
@@ -242,14 +243,14 @@ void ConfigParser::overrideKey(const std::string& key, const std::string& value)
 }
 
 void ConfigParser::overrideKeys(const std::string& fname) {
-  // it's a new config file, so baseDir is not relevant anymore
+  // It's a new config file, so baseDir is not relevant anymore
   baseDirs.clear();
   processIncludedFile(fname);
 }
 
 void ConfigParser::overrideKeys(const map<string, string>& newkvs) {
   for(auto iter = newkvs.begin(); iter != newkvs.end(); ++iter) {
-    //Assume zero-length values mean to delete a key
+    // Assume zero-length values mean to delete a key
     if(iter->second.length() <= 0) {
       if(keyValues.find(iter->first) != keyValues.end())
         keyValues.erase(iter->first);
