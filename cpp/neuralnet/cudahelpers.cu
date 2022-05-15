@@ -822,7 +822,38 @@ void addCBiasInplaceNCHalfKernel(half *buf, const half* biases, int nSize, int c
 }
 #endif
 
-void sharedAddCBiasInplaceNC(void* buf, const void* biases, int nSize, int cSize, bool isHalf) {
+__global__
+void addCBiasInplaceNCKernelRelu(float *buf, const float* biases, int nSize, int cSize)
+{
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int nIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  if(cIdx < cSize && nIdx < nSize) {
+    int idx = nIdx * cSize + cIdx;
+    buf[idx] = fmaxf(buf[idx] + biases[cIdx],0.0f);
+  }
+}
+#ifdef CUDA_SUPPORTS_FP16
+__global__
+void addCBiasInplaceNCHalfKernelRelu(half *buf, const half* biases, int nSize, int cSize)
+{
+  int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
+  int nIdx = blockIdx.y * blockDim.y + threadIdx.y;
+  if(cIdx < cSize && nIdx < nSize) {
+    int idx = nIdx * cSize + cIdx;
+    const half halfzero = __float2half(0.0f);
+    half a = __hadd(buf[idx],biases[cIdx]);
+    buf[idx] = __hgt(a,halfzero) ? a : halfzero;
+  }
+}
+#else
+__global__
+void addCBiasInplaceNCHalfKernelRelu(half *buf, const half* biases, int nSize, int cSize)
+{
+  //Do nothing, FP16 not supported
+}
+#endif
+
+void sharedAddCBiasInplaceNC(void* buf, const void* biases, int nSize, int cSize, bool isHalf, int activation) {
   int cThreads;
   int cBlocks;
   int nThreads;
@@ -835,17 +866,28 @@ void sharedAddCBiasInplaceNC(void* buf, const void* biases, int nSize, int cSize
   dim3 grid(cBlocks,nBlocks,1);
   dim3 threads(cThreads,nThreads,1);
 
-  if(isHalf)
-    addCBiasInplaceNCHalfKernel<<<grid,threads>>>((half*)buf,(const half*)biases,nSize,cSize);
-  else
-    addCBiasInplaceNCKernel<<<grid,threads>>>((float*)buf,(const float*)biases,nSize,cSize);
+  if(activation == ACTIVATION_IDENTITY) {
+    if(isHalf)
+      addCBiasInplaceNCHalfKernel<<<grid,threads>>>((half*)buf,(const half*)biases,nSize,cSize);
+    else
+      addCBiasInplaceNCKernel<<<grid,threads>>>((float*)buf,(const float*)biases,nSize,cSize);
+  }
+  else if(activation == ACTIVATION_RELU) {
+    if(isHalf)
+      addCBiasInplaceNCHalfKernelRelu<<<grid,threads>>>((half*)buf,(const half*)biases,nSize,cSize);
+    else
+      addCBiasInplaceNCKernelRelu<<<grid,threads>>>((float*)buf,(const float*)biases,nSize,cSize);
+  }
+  else {
+    throw std::runtime_error("customCudaAddCBiasInplaceNC: unsupported activation");
+  }
 }
 
-void customCudaAddCBiasInplaceNC(float* buf, const float* biases, int nSize, int cSize) {
-  sharedAddCBiasInplaceNC(buf,biases,nSize,cSize,false);
+void customCudaAddCBiasInplaceNC(float* buf, const float* biases, int nSize, int cSize, int activation) {
+  sharedAddCBiasInplaceNC(buf,biases,nSize,cSize,false,activation);
 }
-void customCudaAddCBiasInplaceNC(half* buf, const half* biases, int nSize, int cSize) {
-  sharedAddCBiasInplaceNC(buf,biases,nSize,cSize,true);
+void customCudaAddCBiasInplaceNC(half* buf, const half* biases, int nSize, int cSize, int activation) {
+  sharedAddCBiasInplaceNC(buf,biases,nSize,cSize,true,activation);
 }
 
 //--------------------------------------------------------------------------------------------------------------

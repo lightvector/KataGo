@@ -11,7 +11,9 @@
 
 #include "../external/half-2.1.0/include/half.hpp"
 
-using namespace std;
+//------------------------
+#include "../core/using.h"
+//------------------------
 
 using half_t = half_float::half;
 
@@ -176,6 +178,94 @@ static void checkBufferSize(int batchSize, int xSize, int ySize, int channels) {
 
 
 //---------------------------------------------------------------------------------
+
+template<typename T>
+struct ByBatchSize {
+  int maxBatchSize;
+  T* data;
+  cudnnStatus_t (*destroyFunc)(T);
+
+  ByBatchSize()
+    : maxBatchSize(0), data(nullptr), destroyFunc(nullptr)
+  {}
+
+  ByBatchSize(
+    int maxBatchSize_,
+    T* data_,
+    cudnnStatus_t (*destroyFunc_)(T)
+  ): maxBatchSize(maxBatchSize_), data(data_), destroyFunc(destroyFunc_) {
+  }
+  ~ByBatchSize() {
+    if(destroyFunc != nullptr && data != nullptr) {
+      for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+        (*destroyFunc)(data[batchSize-1]);
+      }
+    }
+    if(data != nullptr) {
+      delete[] data;
+      data = nullptr;
+    }
+  }
+  T& operator[](int batchSize) {
+    return data[batchSize-1];
+  }
+  const T& operator[](int batchSize) const {
+    return data[batchSize-1];
+  }
+};
+
+//---------------------------------------------------------------------------------
+
+
+//useNHWC, useFP16, channels
+typedef std::tuple<bool, bool, int> CudnnTensorDesc4DKey;
+
+struct CudnnManager {
+  string name;
+  int maxBatchSize;
+  int xSize;
+  int ySize;
+  std::map<CudnnTensorDesc4DKey, ByBatchSize<cudnnTensorDescriptor_t>> tensorDesc4DByBatchSizeByKey;
+
+  CudnnManager(string name_, int maxBatchSize_, int xSize_, int ySize_)
+    :name(name_),
+     maxBatchSize(maxBatchSize_),
+     xSize(xSize_),
+     ySize(ySize_),
+     tensorDesc4DByBatchSizeByKey()
+  {
+  }
+
+  ~CudnnManager() {
+  }
+
+  ByBatchSize<cudnnTensorDescriptor_t> getTensorDesc4DByBatchSize(
+    bool useNHWC, bool useFP16, int channels
+  ) {
+    auto iter = tensorDesc4DByBatchSizeByKey.find({useNHWC, useFP16, channels});
+    if(iter != tensorDesc4DByBatchSizeByKey.end()) {
+      return iter->second;
+    }
+    cudnnTensorDescriptor_t* data = new cudnnTensorDescriptor_t[maxBatchSize];
+    for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+      cudnnTensorDescriptor_t& desc = data[batchSize-1];
+      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&desc));
+      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
+                  desc,
+                  (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
+                  (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
+                  batchSize,
+                  channels,
+                  ySize,
+                  xSize
+                ));
+    }
+    ByBatchSize<cudnnTensorDescriptor_t> result(maxBatchSize, data, cudnnDestroyTensorDescriptor);
+    tensorDesc4DByBatchSizeByKey[{useNHWC, useFP16, channels}] = result;
+    return result;
+  }
+};
+
 
 struct ConvLayer {
   string name;
@@ -686,6 +776,7 @@ struct MatBiasLayer {
   int numChannels;
   void* biasBuf;
   bool usingFP16;
+  int activation;
 
   MatBiasLayer() = delete;
   MatBiasLayer(const MatBiasLayer&) = delete;
@@ -694,12 +785,14 @@ struct MatBiasLayer {
   MatBiasLayer(
     CudaHandles* cudaHandles,
     const MatBiasLayerDesc* desc,
-    bool useFP16
+    bool useFP16,
+    int activation_
   ) {
     (void)cudaHandles;
     name = desc->name;
     numChannels = desc->numChannels;
     usingFP16 = useFP16;
+    activation = activation_;
 
     assert(desc->weights.size() == numChannels);
     mallocAndCopyToDevice(name,desc->weights,biasBuf,useFP16);
@@ -716,11 +809,11 @@ struct MatBiasLayer {
   ) const {
     (void)cudaHandles;
     if(!usingFP16) {
-      customCudaAddCBiasInplaceNC((float*)matBuf,(const float*)biasBuf,batchSize,numChannels);
+      customCudaAddCBiasInplaceNC((float*)matBuf,(const float*)biasBuf,batchSize,numChannels,activation);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
     else {
-      customCudaAddCBiasInplaceNC((half*)matBuf,(const half*)biasBuf,batchSize,numChannels);
+      customCudaAddCBiasInplaceNC((half*)matBuf,(const half*)biasBuf,batchSize,numChannels,activation);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
   }
@@ -732,10 +825,8 @@ struct MatBiasLayer {
 struct ResidualBlock {
   string name;
   BatchNormLayer preBN;
-  ActivationLayer preActivation;
   ConvLayer regularConv;
   BatchNormLayer midBN;
-  ActivationLayer midActivation;
   ConvLayer finalConv;
 
   int xSize;
@@ -759,10 +850,8 @@ struct ResidualBlock {
     bool useNHWC
   ): name(desc->name),
      preBN(cudaHandles,&desc->preBN,xS,yS,useFP16,useNHWC),
-     preActivation(cudaHandles,&desc->preActivation),
      regularConv(cudaHandles,&desc->regularConv,maxBatchSize,trunkDescriptors,midInDescriptors,useFP16,useNHWC),
      midBN(cudaHandles,&desc->midBN,xS,yS,useFP16,useNHWC),
-     midActivation(cudaHandles,&desc->midActivation),
      finalConv(cudaHandles,&desc->finalConv,maxBatchSize,midInDescriptors,trunkDescriptors,useFP16,useNHWC),
      xSize(xS),
      ySize(yS),
@@ -817,11 +906,9 @@ struct ResidualBlock {
 struct DilatedResidualBlock {
   string name;
   BatchNormLayer preBN;
-  ActivationLayer preActivation;
   ConvLayer regularConv;
   ConvLayer dilatedConv;
   BatchNormLayer midBN;
-  ActivationLayer midActivation;
   ConvLayer finalConv;
 
   int xSize;
@@ -849,11 +936,9 @@ struct DilatedResidualBlock {
     bool useNHWC
   ): name(desc->name),
      preBN(cudaHandles,&desc->preBN,xS,yS,useFP16,useNHWC),
-     preActivation(cudaHandles,&desc->preActivation),
      regularConv(cudaHandles,&desc->regularConv,maxBatchSize,trunkDescriptors,regularOutDescriptors,useFP16,useNHWC),
      dilatedConv(cudaHandles,&desc->dilatedConv,maxBatchSize,trunkDescriptors,dilatedOutDescriptors,useFP16,useNHWC),
      midBN(cudaHandles,&desc->midBN,xS,yS,useFP16,useNHWC),
-     midActivation(cudaHandles,&desc->midActivation),
      finalConv(cudaHandles,&desc->finalConv,maxBatchSize,midInDescriptors,trunkDescriptors,useFP16,useNHWC),
      xSize(xS),
      ySize(yS),
@@ -954,14 +1039,11 @@ struct DilatedResidualBlock {
 struct GlobalPoolingResidualBlock {
   string name;
   BatchNormLayer preBN;
-  ActivationLayer preActivation;
   ConvLayer regularConv;
   ConvLayer gpoolConv;
   BatchNormLayer gpoolBN;
-  ActivationLayer gpoolActivation;
   MatMulLayer gpoolToBiasMul;
   BatchNormLayer midBN;
-  ActivationLayer midActivation;
   ConvLayer finalConv;
 
   int xSize;
@@ -988,14 +1070,11 @@ struct GlobalPoolingResidualBlock {
     bool useNHWC
   ): name(desc->name),
      preBN(cudaHandles,&desc->preBN,xS,yS,useFP16,useNHWC),
-     preActivation(cudaHandles,&desc->preActivation),
      regularConv(cudaHandles,&desc->regularConv,maxBatchSize,trunkDescriptors,regularOutDescriptors,useFP16,useNHWC),
      gpoolConv(cudaHandles,&desc->gpoolConv,maxBatchSize,trunkDescriptors,gpoolOutDescriptors,useFP16,useNHWC),
      gpoolBN(cudaHandles,&desc->gpoolBN,xS,yS,useFP16,useNHWC),
-     gpoolActivation(cudaHandles,&desc->gpoolActivation),
      gpoolToBiasMul(cudaHandles,&desc->gpoolToBiasMul,useFP16),
      midBN(cudaHandles,&desc->midBN,xS,yS,useFP16,useNHWC),
-     midActivation(cudaHandles,&desc->midActivation),
      finalConv(cudaHandles,&desc->finalConv,maxBatchSize,regularOutDescriptors,trunkDescriptors,useFP16,useNHWC),
      xSize(xS),
      ySize(yS),
@@ -1122,7 +1201,6 @@ struct Trunk {
   std::unique_ptr<MatMulLayer> initialMatMul;
   vector<pair<int,unique_ptr_void>> blocks;
   std::unique_ptr<BatchNormLayer> trunkTipBN;
-  std::unique_ptr<ActivationLayer> trunkTipActivation;
 
   Trunk() = delete;
   Trunk(const Trunk&) = delete;
@@ -1232,7 +1310,6 @@ struct Trunk {
     initialMatMul = std::make_unique<MatMulLayer>(cudaHandles,&desc->initialMatMul,useFP16);
 
     trunkTipBN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->trunkTipBN,xSize,ySize,useFP16,useNHWC);
-    trunkTipActivation = std::make_unique<ActivationLayer>(cudaHandles,&desc->trunkTipActivation);
 
     assert(desc->blocks.size() == numBlocks);
     for(int i = 0; i<numBlocks; i++) {
@@ -1552,10 +1629,8 @@ struct PolicyHead {
   std::unique_ptr<ConvLayer> p1Conv;
   std::unique_ptr<ConvLayer> g1Conv;
   std::unique_ptr<BatchNormLayer> g1BN;
-  std::unique_ptr<ActivationLayer> g1Activation;
   std::unique_ptr<MatMulLayer> gpoolToBiasMul;
   std::unique_ptr<BatchNormLayer> p1BN;
-  std::unique_ptr<ActivationLayer> p1Activation;
   std::unique_ptr<ConvLayer> p2Conv;
   std::unique_ptr<MatMulLayer> gpoolToPassMul;
 
@@ -1644,10 +1719,8 @@ struct PolicyHead {
     p1Conv = std::make_unique<ConvLayer>(cudaHandles,&desc->p1Conv,maxBatchSize,trunkDescriptors,p1OutDescriptors.get(),useFP16,useNHWC);
     g1Conv = std::make_unique<ConvLayer>(cudaHandles,&desc->g1Conv,maxBatchSize,trunkDescriptors,g1OutDescriptors.get(),useFP16,useNHWC);
     g1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->g1BN,xSize,ySize,useFP16,useNHWC);
-    g1Activation = std::make_unique<ActivationLayer>(cudaHandles,&desc->g1Activation);
     gpoolToBiasMul = std::make_unique<MatMulLayer>(cudaHandles,&desc->gpoolToBiasMul,false);
     p1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->p1BN,xSize,ySize,false,useNHWC);
-    p1Activation = std::make_unique<ActivationLayer>(cudaHandles,&desc->p1Activation);
     p2Conv = std::make_unique<ConvLayer>(cudaHandles,&desc->p2Conv,maxBatchSize,p2InDescriptors.get(),p2OutDescriptors.get(),false,useNHWC);
     gpoolToPassMul = std::make_unique<MatMulLayer>(cudaHandles,&desc->gpoolToPassMul,false);
   }
@@ -1809,15 +1882,12 @@ struct ValueHead {
   bool usingNHWC;
 
   std::unique_ptr<cudnnTensorDescriptor_t[]> v1OutDescriptors;
-  std::unique_ptr<cudnnTensorDescriptor_t[]> v3InDescriptors;
   std::unique_ptr<cudnnTensorDescriptor_t[]> vOwnershipOutDescriptors;
 
   std::unique_ptr<ConvLayer> v1Conv;
   std::unique_ptr<BatchNormLayer> v1BN;
-  std::unique_ptr<ActivationLayer> v1Activation;
   std::unique_ptr<MatMulLayer> v2Mul;
   std::unique_ptr<MatBiasLayer> v2Bias;
-  std::unique_ptr<ActivationLayer> v2Activation;
   std::unique_ptr<MatMulLayer> v3Mul;
   std::unique_ptr<MatBiasLayer> v3Bias;
   std::unique_ptr<MatMulLayer> sv3Mul;
@@ -1852,12 +1922,10 @@ struct ValueHead {
     usingNHWC = useNHWC;
 
     v1OutDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-    v3InDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
     vOwnershipOutDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
 
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       cudnnTensorDescriptor_t& v1OutDescriptor = v1OutDescriptors[batchSize-1];
-      cudnnTensorDescriptor_t& v3InDescriptor = v3InDescriptors[batchSize-1];
 
       CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&v1OutDescriptor));
       CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
@@ -1868,17 +1936,6 @@ struct ValueHead {
         desc->v1Conv.outChannels,
         ySize,
         xSize
-      ));
-
-      CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&v3InDescriptor));
-      CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-        v3InDescriptor,
-        (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-        CUDNN_DATA_FLOAT,
-        batchSize,
-        desc->v2Mul.outChannels,
-        1,
-        1
       ));
 
       cudnnTensorDescriptor_t& vOwnershipOutDescriptor = vOwnershipOutDescriptors[batchSize-1];
@@ -1897,14 +1954,12 @@ struct ValueHead {
 
     v1Conv = std::make_unique<ConvLayer>(cudaHandles,&desc->v1Conv,maxBatchSize,trunkDescriptors,v1OutDescriptors.get(),useFP16,useNHWC);
     v1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->v1BN,xSize,ySize,useFP16,useNHWC);
-    v1Activation = std::make_unique<ActivationLayer>(cudaHandles,&desc->v1Activation);
     v2Mul = std::make_unique<MatMulLayer>(cudaHandles,&desc->v2Mul,false);
-    v2Bias = std::make_unique<MatBiasLayer>(cudaHandles,&desc->v2Bias,false);
-    v2Activation = std::make_unique<ActivationLayer>(cudaHandles,&desc->v2Activation);
+    v2Bias = std::make_unique<MatBiasLayer>(cudaHandles,&desc->v2Bias,false,desc->v2Activation.activation);
     v3Mul = std::make_unique<MatMulLayer>(cudaHandles,&desc->v3Mul,false);
-    v3Bias = std::make_unique<MatBiasLayer>(cudaHandles,&desc->v3Bias,false);
+    v3Bias = std::make_unique<MatBiasLayer>(cudaHandles,&desc->v3Bias,false,ACTIVATION_IDENTITY);
     sv3Mul = std::make_unique<MatMulLayer>(cudaHandles,&desc->sv3Mul,false);
-    sv3Bias = std::make_unique<MatBiasLayer>(cudaHandles,&desc->sv3Bias,false);
+    sv3Bias = std::make_unique<MatBiasLayer>(cudaHandles,&desc->sv3Bias,false,ACTIVATION_IDENTITY);
     vOwnershipConv = std::make_unique<ConvLayer>(cudaHandles,&desc->vOwnershipConv,maxBatchSize,v1OutDescriptors.get(),vOwnershipOutDescriptors.get(),useFP16,useNHWC);
   }
 
@@ -1912,7 +1967,6 @@ struct ValueHead {
   {
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       cudnnDestroyTensorDescriptor(v1OutDescriptors[batchSize-1]);
-      cudnnDestroyTensorDescriptor(v3InDescriptors[batchSize-1]);
       cudnnDestroyTensorDescriptor(vOwnershipOutDescriptors[batchSize-1]);
     }
   }
@@ -1968,7 +2022,6 @@ struct ValueHead {
     size_t workspaceBytes
   ) const {
     const cudnnTensorDescriptor_t& v1OutDescriptor = v1OutDescriptors[batchSize-1];
-    const cudnnTensorDescriptor_t& v3InDescriptor = v3InDescriptors[batchSize-1];
 
     bool applyBNRelu = true;
 
@@ -1992,7 +2045,6 @@ struct ValueHead {
     float one = 1.0f;
     v2Mul->apply(cudaHandles,batchSize,v1MeanBuf,v2OutBuf,&zero,&one,workspaceBuf,workspaceBytes);
     v2Bias->apply(cudaHandles,batchSize,v2OutBuf);
-    v2Activation->apply(cudaHandles,v3InDescriptor,v3InDescriptor,v2OutBuf,v2OutBuf);
     v3Mul->apply(cudaHandles,batchSize,v2OutBuf,valueBuf,&zero,&one,workspaceBuf,workspaceBytes);
     v3Bias->apply(cudaHandles,batchSize,valueBuf);
 

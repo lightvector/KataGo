@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "../game/rules.h"
+#include "../neuralnet/activations.h"
 
 struct ConvLayerDesc {
   std::string name;
@@ -54,6 +55,7 @@ struct BatchNormLayerDesc {
 
 struct ActivationLayerDesc {
   std::string name;
+  int activation;
 
   ActivationLayerDesc();
   ActivationLayerDesc(std::istream& in);

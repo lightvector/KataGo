@@ -221,10 +221,11 @@ BatchNormLayerDesc& BatchNormLayerDesc::operator=(BatchNormLayerDesc&& other) {
 
 //-----------------------------------------------------------------------------
 
-ActivationLayerDesc::ActivationLayerDesc() {}
+ActivationLayerDesc::ActivationLayerDesc() : activation(ACTIVATION_RELU) {}
 
 ActivationLayerDesc::ActivationLayerDesc(istream& in) {
   in >> name;
+  activation = ACTIVATION_RELU;
 }
 
 ActivationLayerDesc::ActivationLayerDesc(ActivationLayerDesc&& other) {
@@ -233,6 +234,7 @@ ActivationLayerDesc::ActivationLayerDesc(ActivationLayerDesc&& other) {
 
 ActivationLayerDesc& ActivationLayerDesc::operator=(ActivationLayerDesc&& other) {
   name = std::move(other.name);
+  activation = other.activation;
   return *this;
 }
 

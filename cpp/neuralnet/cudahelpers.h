@@ -2,6 +2,7 @@
 #define NEURALNET_CUDAHELPERS_H_
 
 #include "../neuralnet/cudaincludes.h"
+#include "../neuralnet/activations.h"
 
 //Given two tensors with shapes inA: [n,cA,h,w] and inB: [n,cB,h,w], that are on the GPU
 //Copy them into a single tensor out: [n,cA+cB,h,w] that is also allocated on the gpu
@@ -34,8 +35,8 @@ void customCudaCopyFromHalf(const half* in, float* out, int n);
 //Given a tensor, add another tensor to it.
 void customCudaAddTensorInplace(half* buf, const half* biases, int n);
 //Given an input with shape [n,c] and biases of shape [c], add the biases in-place.
-void customCudaAddCBiasInplaceNC(float* buf, const float* biases, int n, int c);
-void customCudaAddCBiasInplaceNC(half* buf, const half* biases, int n, int c);
+void customCudaAddCBiasInplaceNC(float* buf, const float* biases, int n, int c, int activation);
+void customCudaAddCBiasInplaceNC(half* buf, const half* biases, int n, int c, int activation);
 //Given an input with shape [n,c,xy] and biases of shape [n,c], add the biases in-place.
 void customCudaAddNCBiasInplaceNCHW(float *buf, const float* biases, int nSize, int cSize, int xySize);
 void customCudaAddNCBiasInplaceNCHW(half *buf, const half* biases, int nSize, int cSize, int xySize);
