@@ -554,7 +554,6 @@ struct BatchNormLayer {
   int xSize;
   int ySize;
 
-  cudnnTensorDescriptor_t bufDescriptor;
   void* meanBuf;
   void* varianceBuf;
   void* scaleBuf;
@@ -588,17 +587,6 @@ struct BatchNormLayer {
     usingFP16 = useFP16;
     usingNHWC = useNHWC;
 
-    CUDNN_ERR(name.c_str(),cudnnCreateTensorDescriptor(&bufDescriptor));
-    CUDNN_ERR(name.c_str(),cudnnSetTensor4dDescriptor(
-      bufDescriptor,
-      CUDNN_TENSOR_NCHW, //Always NCHW since otherwise cudnn is sad
-      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-      1,
-      numChannels,
-      1,
-      1
-    ));
-
     assert(desc->mean.size() == numChannels);
     mallocAndCopyToDevice(name,desc->mean,meanBuf,useFP16);
 
@@ -627,7 +615,6 @@ struct BatchNormLayer {
     cudaFree(biasBuf);
     cudaFree(mergedScaleBuf);
     cudaFree(mergedBiasBuf);
-    cudnnDestroyTensorDescriptor(bufDescriptor);
   }
 
   void apply(
@@ -661,61 +648,6 @@ struct BatchNormLayer {
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
 
-  }
-
-};
-
-
-//---------------------------------------------------------------------------------
-
-struct ActivationLayer {
-  string name;
-  cudnnActivationDescriptor_t activationDescriptor;
-
-  ActivationLayer() = delete;
-  ActivationLayer(const ActivationLayer&) = delete;
-  ActivationLayer& operator=(const ActivationLayer&) = delete;
-
-  ActivationLayer(
-    CudaHandles* cudaHandles,
-    const ActivationLayerDesc* desc
-  ) {
-    (void)cudaHandles;
-    name = desc->name;
-
-    CUDNN_ERR(name.c_str(),cudnnCreateActivationDescriptor(&activationDescriptor));
-    CUDNN_ERR(name.c_str(),cudnnSetActivationDescriptor(
-      activationDescriptor,
-      CUDNN_ACTIVATION_RELU,
-      CUDNN_PROPAGATE_NAN,
-      0.0
-    ));
-  }
-
-  ~ActivationLayer() {
-    cudnnDestroyActivationDescriptor(activationDescriptor);
-  }
-
-  void apply(
-    CudaHandles* cudaHandles,
-    const cudnnTensorDescriptor_t& inputDescriptor,
-    const cudnnTensorDescriptor_t& outputDescriptor,
-    void* inputBuf,
-    void* outputBuf
-  ) const {
-    const float alpha = 1.0f;
-    const float beta = 0.0f;
-
-    CUDNN_ERR(name.c_str(),cudnnActivationForward(
-      cudaHandles->cudnn,
-      activationDescriptor,
-      &alpha,
-      inputDescriptor,
-      inputBuf,
-      &beta,
-      outputDescriptor,
-      outputBuf
-    ));
   }
 
 };
@@ -2661,34 +2593,6 @@ bool NeuralNet::testEvaluateConv(
   mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
 
   int maxBatchSize = desiredBatchSize;
-  std::unique_ptr<cudnnTensorDescriptor_t[]> inputDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-  std::unique_ptr<cudnnTensorDescriptor_t[]> outputDescriptors = std::make_unique<cudnnTensorDescriptor_t[]>(maxBatchSize);
-
-  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
-    cudnnTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize-1];
-    cudnnTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize-1];
-
-    CUDNN_ERR("inputDescriptor",cudnnCreateTensorDescriptor(&inputDescriptor));
-    CUDNN_ERR("inputDescriptor",cudnnSetTensor4dDescriptor(
-      inputDescriptor,
-      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-      batchSize,
-      desc->inChannels,
-      ySize,
-      xSize
-    ));
-    CUDNN_ERR("outputDescriptor",cudnnCreateTensorDescriptor(&outputDescriptor));
-    CUDNN_ERR("outputDescriptor",cudnnSetTensor4dDescriptor(
-      outputDescriptor,
-      (useNHWC ? CUDNN_TENSOR_NHWC : CUDNN_TENSOR_NCHW),
-      (useFP16 ? CUDNN_DATA_HALF : CUDNN_DATA_FLOAT),
-      batchSize,
-      desc->outChannels,
-      ySize,
-      xSize
-    ));
-  }
 
   CudnnManager* manager = new CudnnManager("manager",maxBatchSize,xSize,ySize);
   ConvLayer* convLayer = new ConvLayer(cudaHandles,manager,desc,useFP16,useNHWC);
