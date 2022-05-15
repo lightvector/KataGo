@@ -9,6 +9,8 @@
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/desc.h"
 
+#include "../core/simpleallocator.h"
+
 #include "../external/half-2.1.0/include/half.hpp"
 
 //------------------------
@@ -299,6 +301,59 @@ struct CudnnManager {
   }
 };
 
+//---------------------------------------------------------------------------------
+
+struct ScratchBuffers {
+
+  const size_t batchXYFloatBytes;
+  const size_t batchFloatBytes;
+  const size_t batchXYBytes;
+  const size_t batchBytes;
+
+  SimpleAllocator<void*>* allocator;
+
+  ScratchBuffers() = delete;
+  ScratchBuffers(const ScratchBuffers&) = delete;
+  ScratchBuffers& operator=(const ScratchBuffers&) = delete;
+
+  ScratchBuffers(int maxBatchSize, int xSize, int ySize, bool useFP16)
+    : batchXYFloatBytes((size_t)maxBatchSize * xSize * ySize * sizeof(float)),
+      batchFloatBytes((size_t)maxBatchSize * sizeof(float)),
+      batchXYBytes((size_t)maxBatchSize * xSize * ySize * (useFP16 ? sizeof(half) : sizeof(float))),
+      batchBytes((size_t)maxBatchSize * (useFP16 ? sizeof(half) : sizeof(float)))
+  {
+    std::function<void*(size_t)> allocateFunc = [](size_t size) {
+      void* buf;
+      CUDA_ERR("ScratchBuffers",cudaMalloc(&buf, size));
+      return buf;
+    };
+    std::function<void(void*)> releaseFunc = [](void* buf) {
+      cudaFree(buf);
+    };
+
+    allocator = new SimpleAllocator<void*>(allocateFunc, releaseFunc);
+  }
+  ~ScratchBuffers() {
+    delete allocator;
+  }
+
+  size_t getBufSizeXY(int channels) const {
+    return channels * batchXYBytes;
+  }
+  size_t getBufSizeXYFloat(int channels) const {
+    return channels * batchXYFloatBytes;
+  }
+  size_t getBufSizeFloat(int channels) const {
+    return channels * batchFloatBytes;
+  }
+  size_t getBufSize(int channels) const {
+    return channels * batchBytes;
+  }
+  
+};
+
+
+//---------------------------------------------------------------------------------
 
 struct ConvLayer {
   string name;
@@ -852,20 +907,22 @@ struct ResidualBlock {
 
   void apply(
     CudaHandles* cudaHandles,
+    ScratchBuffers* scratch,
     int batchSize,
     void* trunkBuf,
     void* trunkScratchBuf,
-    void* midInBuf,
-    void* midScratchBuf,
     void* maskBuf,
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
+    SizedBuf<void*> midIn(scratch->allocator, scratch->getBufSizeXY(regularConv.outChannels));
+    SizedBuf<void*> midScratch(scratch->allocator, scratch->getBufSizeXY(regularConv.outChannels));
+
     bool applyBNRelu = true;
     preBN.apply(cudaHandles,batchSize,applyBNRelu,trunkBuf,maskBuf,trunkScratchBuf);
-    regularConv.apply(cudaHandles,batchSize,false,trunkScratchBuf,midInBuf,workspaceBuf,workspaceBytes);
-    midBN.apply(cudaHandles,batchSize,applyBNRelu,midInBuf,maskBuf,midScratchBuf);
-    finalConv.apply(cudaHandles,batchSize,true,midScratchBuf,trunkBuf,workspaceBuf,workspaceBytes);
+    regularConv.apply(cudaHandles,batchSize,false,trunkScratchBuf,midIn.buf,workspaceBuf,workspaceBytes);
+    midBN.apply(cudaHandles,batchSize,applyBNRelu,midIn.buf,maskBuf,midScratch.buf);
+    finalConv.apply(cudaHandles,batchSize,true,midScratch.buf,trunkBuf,workspaceBuf,workspaceBytes);
   }
 
 };
@@ -944,15 +1001,10 @@ struct GlobalPoolingResidualBlock {
 
   void apply(
     CudaHandles* cudaHandles,
+    ScratchBuffers* scratch,
     int batchSize,
     void* trunkBuf,
     void* trunkScratchBuf,
-    void* regularOutBuf,
-    void* regularScratchBuf,
-    void* gpoolOutBuf,
-    void* gpoolOutBuf2,
-    void* gpoolConcatBuf,
-    void* gpoolBiasBuf,
     void* maskBuf,
     float* maskSumBuf,
     const void* zeroBuf,
@@ -960,44 +1012,51 @@ struct GlobalPoolingResidualBlock {
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
+    SizedBuf<void*> regularOut(scratch->allocator, scratch->getBufSizeXY(regularChannels));
+    SizedBuf<void*> regularScratch(scratch->allocator, scratch->getBufSizeXY(regularChannels));
+    SizedBuf<void*> gpoolOut(scratch->allocator, scratch->getBufSizeXY(gpoolChannels));
+    SizedBuf<void*> gpoolOut2(scratch->allocator, scratch->getBufSizeXY(gpoolChannels));
+    SizedBuf<void*> gpoolConcat(scratch->allocator, scratch->getBufSize(gpoolChannels*3));
+    SizedBuf<void*> gpoolBias(scratch->allocator, scratch->getBufSize(regularChannels));
+
     bool applyBNRelu = true;
     preBN.apply(cudaHandles,batchSize,applyBNRelu,trunkBuf,maskBuf,trunkScratchBuf);
-    regularConv.apply(cudaHandles,batchSize,false,trunkScratchBuf,regularOutBuf,workspaceBuf,workspaceBytes);
-    gpoolConv.apply(cudaHandles,batchSize,false,trunkScratchBuf,gpoolOutBuf,workspaceBuf,workspaceBytes);
-    gpoolBN.apply(cudaHandles,batchSize,applyBNRelu,gpoolOutBuf,maskBuf,gpoolOutBuf2);
+    regularConv.apply(cudaHandles,batchSize,false,trunkScratchBuf,regularOut.buf,workspaceBuf,workspaceBytes);
+    gpoolConv.apply(cudaHandles,batchSize,false,trunkScratchBuf,gpoolOut.buf,workspaceBuf,workspaceBytes);
+    gpoolBN.apply(cudaHandles,batchSize,applyBNRelu,gpoolOut.buf,maskBuf,gpoolOut2.buf);
 
     if(!usingFP16) {
       if(!usingNHWC)
-        customCudaPoolRowsGPoolNCHW((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
+        customCudaPoolRowsGPoolNCHW((const float*)gpoolOut2.buf,(float*)gpoolConcat.buf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
       else
-        customCudaPoolRowsGPoolNHWC((const float*)gpoolOutBuf2,(float*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
+        customCudaPoolRowsGPoolNHWC((const float*)gpoolOut2.buf,(float*)gpoolConcat.buf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
     }
     else {
       if(!usingNHWC)
-        customCudaPoolRowsGPoolNCHW((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
+        customCudaPoolRowsGPoolNCHW((const half*)gpoolOut2.buf,(half*)gpoolConcat.buf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
       else
-        customCudaPoolRowsGPoolNHWC((const half*)gpoolOutBuf2,(half*)gpoolConcatBuf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
+        customCudaPoolRowsGPoolNHWC((const half*)gpoolOut2.buf,(half*)gpoolConcat.buf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
     }
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-    gpoolToBiasMul.apply(cudaHandles,batchSize,gpoolConcatBuf,gpoolBiasBuf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
+    gpoolToBiasMul.apply(cudaHandles,batchSize,gpoolConcat.buf,gpoolBias.buf,zeroBuf,oneBuf,workspaceBuf,workspaceBytes);
 
     if(!usingFP16) {
       if(!usingNHWC)
-        customCudaAddNCBiasInplaceNCHW((float*)regularOutBuf,(const float*)gpoolBiasBuf,batchSize,regularChannels,xSize*ySize);
+        customCudaAddNCBiasInplaceNCHW((float*)regularOut.buf,(const float*)gpoolBias.buf,batchSize,regularChannels,xSize*ySize);
       else
-        customCudaAddNCBiasInplaceNHWC((float*)regularOutBuf,(const float*)gpoolBiasBuf,batchSize,xSize*ySize,regularChannels);
+        customCudaAddNCBiasInplaceNHWC((float*)regularOut.buf,(const float*)gpoolBias.buf,batchSize,xSize*ySize,regularChannels);
     }
     else {
       if(!usingNHWC)
-        customCudaAddNCBiasInplaceNCHW((half*)regularOutBuf,(const half*)gpoolBiasBuf,batchSize,regularChannels,xSize*ySize);
+        customCudaAddNCBiasInplaceNCHW((half*)regularOut.buf,(const half*)gpoolBias.buf,batchSize,regularChannels,xSize*ySize);
       else
-        customCudaAddNCBiasInplaceNHWC((half*)regularOutBuf,(const half*)gpoolBiasBuf,batchSize,xSize*ySize,regularChannels);
+        customCudaAddNCBiasInplaceNHWC((half*)regularOut.buf,(const half*)gpoolBias.buf,batchSize,xSize*ySize,regularChannels);
     }
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-    midBN.apply(cudaHandles,batchSize,applyBNRelu,regularOutBuf,maskBuf,regularScratchBuf);
-    finalConv.apply(cudaHandles,batchSize,true,regularScratchBuf,trunkBuf,workspaceBuf,workspaceBytes);
+    midBN.apply(cudaHandles,batchSize,applyBNRelu,regularOut.buf,maskBuf,regularScratch.buf);
+    finalConv.apply(cudaHandles,batchSize,true,regularScratch.buf,trunkBuf,workspaceBuf,workspaceBytes);
   }
 
 };
@@ -1142,6 +1201,7 @@ struct Trunk {
 
   void apply(
     CudaHandles* cudaHandles,
+    ScratchBuffers* scratch,
     int batchSize,
     void* inputBuf,
     void* inputGlobalBuf,
@@ -1149,14 +1209,6 @@ struct Trunk {
     float* maskSumBuf,
     void* trunkBuf,
     void* trunkScratchBuf,
-    void* regularOutBuf,
-    void* regularScratchBuf,
-    void* midInBuf,
-    void* midScratchBuf,
-    void* gpoolOutBuf,
-    void* gpoolOutBuf2,
-    void* gpoolConcatBuf,
-    void* gpoolBiasBuf,
     const void* zeroBuf,
     const void* oneBuf,
     void* workspaceBuf,
@@ -1197,11 +1249,10 @@ struct Trunk {
         ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
         block->apply(
           cudaHandles,
+          scratch,
           batchSize,
           trunkScratchBuf, //Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
           trunkBuf,
-          midInBuf,
-          midScratchBuf,
           maskBuf,
           workspaceBuf,
           workspaceBytes
@@ -1211,15 +1262,10 @@ struct Trunk {
         GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
         block->apply(
           cudaHandles,
+          scratch,
           batchSize,
           trunkScratchBuf, //Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
           trunkBuf,
-          regularOutBuf,
-          regularScratchBuf,
-          gpoolOutBuf,
-          gpoolOutBuf2,
-          gpoolConcatBuf,
-          gpoolBiasBuf,
           maskBuf,
           maskSumBuf,
           zeroBuf,
@@ -1720,6 +1766,7 @@ struct Model {
 
   void apply(
     CudaHandles* cudaHandles,
+    ScratchBuffers* scratch,
     int batchSize,
     bool requireExactNNLen,
 
@@ -1730,14 +1777,6 @@ struct Model {
     float* maskSumBuf,
     void* trunkBuf,
     void* trunkScratchBuf,
-    void* regularOutBuf,
-    void* regularScratchBuf,
-    void* midInBuf,
-    void* midScratchBuf,
-    void* gpoolOutBuf,
-    void* gpoolOutBuf2,
-    void* gpoolConcatBuf,
-    void* gpoolBiasBuf,
 
     void* p1OutBuf,
     void* p1OutBuf2,
@@ -1793,6 +1832,7 @@ struct Model {
 
     trunk->apply(
       cudaHandles,
+      scratch,
       batchSize,
       inputBuf,
       inputGlobalBuf,
@@ -1800,14 +1840,6 @@ struct Model {
       maskSumBuf,
       trunkBuf,
       trunkScratchBuf,
-      regularOutBuf,
-      regularScratchBuf,
-      midInBuf,
-      midScratchBuf,
-      gpoolOutBuf,
-      gpoolOutBuf2,
-      gpoolConcatBuf,
-      gpoolBiasBuf,
       zeroBuf,
       oneBuf,
       workspaceBuf,
@@ -2122,6 +2154,7 @@ struct ComputeHandle {
   std::unique_ptr<CudaHandles> cudaHandles;
   std::unique_ptr<Model> model;
   std::unique_ptr<Buffers> buffers;
+  std::unique_ptr<ScratchBuffers> scratch;
   bool usingFP16;
   int nnXLen;
   int nnYLen;
@@ -2147,6 +2180,7 @@ struct ComputeHandle {
       xLen, yLen, inputsNHWC, useFP16, useNHWC
     );
     buffers = std::make_unique<Buffers>(cudaHandles.get(), *model, useFP16);
+    scratch = std::make_unique<ScratchBuffers>(maxBatchSize, xLen, yLen, useFP16);
     usingFP16 = useFP16;
     nnXLen = xLen;
     nnYLen = yLen;
@@ -2388,6 +2422,7 @@ void NeuralNet::getOutput(
   }
 
   Buffers* buffers = gpuHandle->buffers.get();
+  ScratchBuffers* scratch = gpuHandle->scratch.get();
 
   if(!gpuHandle->usingFP16) {
     assert(inputBuffers->userInputBufferBytes == buffers->inputBufBytes);
@@ -2433,6 +2468,7 @@ void NeuralNet::getOutput(
 
   gpuHandle->model->apply(
     gpuHandle->cudaHandles.get(),
+    scratch,
     batchSize,
     gpuHandle->requireExactNNLen,
 
@@ -2445,14 +2481,6 @@ void NeuralNet::getOutput(
 
     buffers->trunkBuf,
     buffers->trunkScratchBuf,
-    buffers->regularOutBuf,
-    buffers->regularScratchBuf,
-    buffers->midInBuf,
-    buffers->midScratchBuf,
-    buffers->gpoolOutBuf,
-    buffers->gpoolOutBuf2,
-    buffers->gpoolConcatBuf,
-    buffers->gpoolBiasBuf,
 
     buffers->p1OutBuf,
     buffers->p1OutBuf2,
@@ -2706,23 +2734,20 @@ bool NeuralNet::testEvaluateResidualBlock(
 
   size_t numInputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->preBN.numChannels;
   size_t numMaskFloats = (size_t)desiredBatchSize * xSize * ySize;
-  size_t numMidFloats = (size_t)desiredBatchSize * xSize * ySize * desc->finalConv.inChannels;
   size_t numOutputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->finalConv.outChannels;
   if(numInputFloats != inputBuffer.size())
     throw StringError("testEvaluateResidualBlock: unexpected input buffer size");
   if(numMaskFloats != maskBuffer.size())
     throw StringError("testEvaluateResidualBlock: unexpected mask buffer size");
 
+  ScratchBuffers* scratch = new ScratchBuffers(desiredBatchSize, xSize, ySize, useFP16);
+  
   void* deviceInput;
   void* deviceMask;
   void* deviceScratch;
-  void* deviceMidInput;
-  void* deviceMidScratch;
   mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
   mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
   mallocOnDevice("deviceScratch", numInputFloats, deviceScratch, useFP16);
-  mallocOnDevice("deviceMid", numMidFloats, deviceMidInput, useFP16);
-  mallocOnDevice("deviceMidScratch", numMidFloats, deviceMidScratch, useFP16);
 
   int maxBatchSize = desiredBatchSize;
 
@@ -2736,11 +2761,10 @@ bool NeuralNet::testEvaluateResidualBlock(
 
   residualBlock->apply(
     cudaHandles,
+    scratch,
     desiredBatchSize,
     deviceInput,
     deviceScratch,
-    deviceMidInput,
-    deviceMidScratch,
     deviceMask,
     deviceWorkspace,
     workspaceBytes
@@ -2756,8 +2780,7 @@ bool NeuralNet::testEvaluateResidualBlock(
   cudaFree(deviceInput);
   cudaFree(deviceMask);
   cudaFree(deviceScratch);
-  cudaFree(deviceMidInput);
-  cudaFree(deviceMidScratch);
+  delete scratch;
   delete cudaHandles;
 
   return true;
@@ -2783,10 +2806,6 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   size_t numInputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->preBN.numChannels;
   size_t numMaskFloats = (size_t)desiredBatchSize * xSize * ySize;
   size_t numMaskSumFloats = (size_t)desiredBatchSize;
-  size_t numRegularOutFloats = (size_t)desiredBatchSize * xSize * ySize * desc->regularConv.outChannels;
-  size_t numGPoolOutFloats = (size_t)desiredBatchSize * xSize * ySize * desc->gpoolConv.outChannels;
-  size_t numGPoolConcatFloats = (size_t)desiredBatchSize * 3 * desc->gpoolConv.outChannels;
-  size_t numGPoolBiasFloats = (size_t)desiredBatchSize * desc->regularConv.outChannels;
   size_t numOutputFloats = (size_t)desiredBatchSize * xSize * ySize * desc->finalConv.outChannels;
 
   if(numInputFloats != inputBuffer.size())
@@ -2794,18 +2813,14 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   if(numMaskFloats != maskBuffer.size())
     throw StringError("testEvaluateGlobalPoolingResidualBlock: unexpected mask buffer size");
 
+  ScratchBuffers* scratch = new ScratchBuffers(desiredBatchSize, xSize, ySize, useFP16);
+
   void* deviceInput;
   void* deviceMask;
   float* deviceMaskFloatOrig;
   float* deviceMaskFloat;
   float* deviceMaskSum;
   void* deviceScratch;
-  void* deviceRegularOut;
-  void* deviceRegularScratch;
-  void* deviceGPoolOut;
-  void* deviceGPoolOut2;
-  void* deviceGPoolConcat;
-  void* deviceGPoolBias;
 
   mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
   mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
@@ -2813,12 +2828,6 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   CUDA_ERR("deviceMaskSum",cudaMalloc(&deviceMaskSum, numMaskSumFloats * sizeof(float)));
   deviceMaskFloatOrig = deviceMaskFloat;
   mallocOnDevice("deviceScratch", numInputFloats, deviceScratch, useFP16);
-  mallocOnDevice("deviceRegularOut", numRegularOutFloats, deviceRegularOut, useFP16);
-  mallocOnDevice("deviceRegularScratch", numRegularOutFloats, deviceRegularScratch, useFP16);
-  mallocOnDevice("deviceGPoolOut", numGPoolOutFloats, deviceGPoolOut, useFP16);
-  mallocOnDevice("deviceGPoolOut2", numGPoolOutFloats, deviceGPoolOut2, useFP16);
-  mallocOnDevice("deviceGPoolConcat", numGPoolConcatFloats, deviceGPoolConcat, useFP16);
-  mallocOnDevice("deviceGPoolBias", numGPoolBiasFloats, deviceGPoolBias, useFP16);
 
   fillMaskFloatBufAndMaskSumBuf(deviceMask, deviceMaskFloat, deviceMaskSum, useFP16, desiredBatchSize, xSize, ySize);
 
@@ -2843,15 +2852,10 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
 
   residualBlock->apply(
     cudaHandles,
+    scratch,
     desiredBatchSize,
     deviceInput,
     deviceScratch,
-    deviceRegularOut,
-    deviceRegularScratch,
-    deviceGPoolOut,
-    deviceGPoolOut2,
-    deviceGPoolConcat,
-    deviceGPoolBias,
     deviceMask,
     deviceMaskSum,
     zeroBuf,
@@ -2876,12 +2880,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   cudaFree(deviceMaskFloatOrig);
   cudaFree(deviceMaskSum);
   cudaFree(deviceScratch);
-  cudaFree(deviceRegularOut);
-  cudaFree(deviceRegularScratch);
-  cudaFree(deviceGPoolOut);
-  cudaFree(deviceGPoolOut2);
-  cudaFree(deviceGPoolConcat);
-  cudaFree(deviceGPoolBias);
+  delete scratch;
   delete cudaHandles;
 
   return true;
