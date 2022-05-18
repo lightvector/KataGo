@@ -239,7 +239,7 @@ struct ScratchBuffers {
   size_t getBufSize(int channels) const {
     return channels * batchBytes;
   }
-  
+
 };
 
 
@@ -496,6 +496,7 @@ struct BatchNormLayer {
   string name;
   int numChannels;
   float epsilon;
+  int activation;
   int xSize;
   int ySize;
 
@@ -517,6 +518,7 @@ struct BatchNormLayer {
   BatchNormLayer(
     CudaHandles* cudaHandles,
     const BatchNormLayerDesc* desc,
+    const ActivationLayerDesc* actDesc,
     int xS,
     int yS,
     bool useFP16,
@@ -527,6 +529,7 @@ struct BatchNormLayer {
     name = desc->name;
     numChannels = desc->numChannels;
     epsilon = desc->epsilon;
+    activation = actDesc->activation;
     xSize = xS;
     ySize = yS;
     usingFP16 = useFP16;
@@ -565,12 +568,12 @@ struct BatchNormLayer {
   void apply(
     CudaHandles* cudaHandles,
     int batchSize,
-    bool applyRelu,
     void* inputBuf,
     const void* maskBuf, //ok to be null
     void* outputBuf
   ) const {
     (void)cudaHandles;
+    bool applyRelu = activation == ACTIVATION_RELU;
     if(!usingFP16) {
       if(!usingNHWC)
         customCudaApplyCScaleBiasNCHW((const float*)inputBuf,(float*)outputBuf,(const float*)mergedScaleBuf,(const float*)mergedBiasBuf,
@@ -742,17 +745,73 @@ struct MatBiasLayer {
 
 //---------------------------------------------------------------------------------
 
+struct NormActConv {
+  BatchNormLayer norm;
+  ConvLayer conv;
+
+  int inChannels;
+  int outChannels;
+
+  NormActConv() = delete;
+  NormActConv(const NormActConv&) = delete;
+  NormActConv& operator=(const NormActConv&) = delete;
+
+  NormActConv(
+    CudaHandles* cudaHandles,
+    CudnnManager* manager,
+    const BatchNormLayerDesc* normDesc,
+    const ActivationLayerDesc* actDesc,
+    const ConvLayerDesc* convDesc,
+    int xS,
+    int yS,
+    bool useFP16,
+    bool useNHWC
+  ): norm(cudaHandles,normDesc,actDesc,xS,yS,useFP16,useNHWC),
+     conv(cudaHandles,manager,convDesc,useFP16,useNHWC)
+  {
+    inChannels = norm.numChannels;
+    assert(norm.numChannels = conv.inChannels);
+    outChannels = conv.outChannels;
+  }
+
+  ~NormActConv()
+  {}
+
+  size_t requiredWorkspaceBytes(
+    CudaHandles* cudaHandles,
+    int batchSize
+  ) const {
+    size_t bytes = 0;
+    size_t b;
+    b = conv.requiredWorkspaceBytes(cudaHandles,batchSize);
+    bytes = std::max(bytes,b);
+    return bytes;
+  }
+
+  void apply(
+    CudaHandles* cudaHandles,
+    int batchSize,
+    bool accumulate,
+    void* inBuf,
+    void* inScratchBuf,
+    void* outBuf,
+    void* maskBuf,
+    void* workspaceBuf,
+    size_t workspaceBytes
+  ) const {
+    norm.apply(cudaHandles,batchSize,inBuf,maskBuf,inScratchBuf);
+    conv.apply(cudaHandles,batchSize,accumulate,inScratchBuf,outBuf,workspaceBuf,workspaceBytes);
+  }
+
+};
+
+
+//---------------------------------------------------------------------------------
+
 struct ResidualBlock {
   string name;
-  BatchNormLayer preBN;
-  ConvLayer regularConv;
-  BatchNormLayer midBN;
-  ConvLayer finalConv;
-
-  int xSize;
-  int ySize;
-  int regularChannels;
-  bool usingFP16;
+  NormActConv normActConv1;
+  NormActConv normActConv2;
 
   ResidualBlock() = delete;
   ResidualBlock(const ResidualBlock&) = delete;
@@ -767,14 +826,8 @@ struct ResidualBlock {
     bool useFP16,
     bool useNHWC
   ): name(desc->name),
-     preBN(cudaHandles,&desc->preBN,xS,yS,useFP16,useNHWC),
-     regularConv(cudaHandles,manager,&desc->regularConv,useFP16,useNHWC),
-     midBN(cudaHandles,&desc->midBN,xS,yS,useFP16,useNHWC),
-     finalConv(cudaHandles,manager,&desc->finalConv,useFP16,useNHWC),
-     xSize(xS),
-     ySize(yS),
-     regularChannels(desc->regularConv.outChannels),
-     usingFP16(useFP16)
+     normActConv1(cudaHandles,manager,&desc->preBN,&desc->preActivation,&desc->regularConv,xS,yS,useFP16,useNHWC),
+     normActConv2(cudaHandles,manager,&desc->midBN,&desc->midActivation,&desc->finalConv,xS,yS,useFP16,useNHWC)
   {
   }
 
@@ -787,9 +840,9 @@ struct ResidualBlock {
   ) const {
     size_t bytes = 0;
     size_t b;
-    b = regularConv.requiredWorkspaceBytes(cudaHandles,batchSize);
+    b = normActConv1.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
-    b = finalConv.requiredWorkspaceBytes(cudaHandles,batchSize);
+    b = normActConv2.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
     return bytes;
   }
@@ -804,14 +857,10 @@ struct ResidualBlock {
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
-    SizedBuf<void*> midIn(scratch->allocator, scratch->getBufSizeXY(regularConv.outChannels));
-    SizedBuf<void*> midScratch(scratch->allocator, scratch->getBufSizeXY(regularConv.outChannels));
-
-    bool applyBNRelu = true;
-    preBN.apply(cudaHandles,batchSize,applyBNRelu,trunkBuf,maskBuf,trunkScratchBuf);
-    regularConv.apply(cudaHandles,batchSize,false,trunkScratchBuf,midIn.buf,workspaceBuf,workspaceBytes);
-    midBN.apply(cudaHandles,batchSize,applyBNRelu,midIn.buf,maskBuf,midScratch.buf);
-    finalConv.apply(cudaHandles,batchSize,true,midScratch.buf,trunkBuf,workspaceBuf,workspaceBytes);
+    SizedBuf<void*> midIn(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+    SizedBuf<void*> midScratch(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+    normActConv1.apply(cudaHandles,batchSize,false,trunkBuf,trunkScratchBuf,midIn.buf,maskBuf,workspaceBuf,workspaceBytes);
+    normActConv2.apply(cudaHandles,batchSize,true,midIn.buf,midScratch.buf,trunkBuf,maskBuf,workspaceBuf,workspaceBytes);
   }
 
 };
@@ -827,8 +876,7 @@ struct GlobalPoolingResidualBlock {
   ConvLayer gpoolConv;
   BatchNormLayer gpoolBN;
   MatMulLayer gpoolToBiasMul;
-  BatchNormLayer midBN;
-  ConvLayer finalConv;
+  NormActConv normActConv2;
 
   int xSize;
   int ySize;
@@ -850,13 +898,12 @@ struct GlobalPoolingResidualBlock {
     bool useFP16,
     bool useNHWC
   ): name(desc->name),
-     preBN(cudaHandles,&desc->preBN,xS,yS,useFP16,useNHWC),
+     preBN(cudaHandles,&desc->preBN,&desc->preActivation,xS,yS,useFP16,useNHWC),
      regularConv(cudaHandles,manager,&desc->regularConv,useFP16,useNHWC),
      gpoolConv(cudaHandles,manager,&desc->gpoolConv,useFP16,useNHWC),
-     gpoolBN(cudaHandles,&desc->gpoolBN,xS,yS,useFP16,useNHWC),
+     gpoolBN(cudaHandles,&desc->gpoolBN,&desc->gpoolActivation,xS,yS,useFP16,useNHWC),
      gpoolToBiasMul(cudaHandles,&desc->gpoolToBiasMul,useFP16),
-     midBN(cudaHandles,&desc->midBN,xS,yS,useFP16,useNHWC),
-     finalConv(cudaHandles,manager,&desc->finalConv,useFP16,useNHWC),
+     normActConv2(cudaHandles,manager,&desc->midBN,&desc->midActivation,&desc->finalConv,xS,yS,useFP16,useNHWC),
      xSize(xS),
      ySize(yS),
      regularChannels(desc->regularConv.outChannels),
@@ -881,7 +928,7 @@ struct GlobalPoolingResidualBlock {
     bytes = std::max(bytes,b);
     b = gpoolToBiasMul.requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
-    b = finalConv.requiredWorkspaceBytes(cudaHandles,batchSize);
+    b = normActConv2.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
     b = sizeof(float)*batchSize*gpoolChannels*xSize*ySize;
     bytes = std::max(bytes,b);
@@ -906,11 +953,10 @@ struct GlobalPoolingResidualBlock {
     SizedBuf<void*> gpoolConcat(scratch->allocator, scratch->getBufSize(gpoolChannels*3));
     SizedBuf<void*> gpoolBias(scratch->allocator, scratch->getBufSize(regularChannels));
 
-    bool applyBNRelu = true;
-    preBN.apply(cudaHandles,batchSize,applyBNRelu,trunkBuf,maskBuf,trunkScratchBuf);
+    preBN.apply(cudaHandles,batchSize,trunkBuf,maskBuf,trunkScratchBuf);
     regularConv.apply(cudaHandles,batchSize,false,trunkScratchBuf,regularOut.buf,workspaceBuf,workspaceBytes);
     gpoolConv.apply(cudaHandles,batchSize,false,trunkScratchBuf,gpoolOut.buf,workspaceBuf,workspaceBytes);
-    gpoolBN.apply(cudaHandles,batchSize,applyBNRelu,gpoolOut.buf,maskBuf,gpoolOut2.buf);
+    gpoolBN.apply(cudaHandles,batchSize,gpoolOut.buf,maskBuf,gpoolOut2.buf);
 
     if(!usingFP16) {
       if(!usingNHWC)
@@ -942,8 +988,7 @@ struct GlobalPoolingResidualBlock {
     }
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-    midBN.apply(cudaHandles,batchSize,applyBNRelu,regularOut.buf,maskBuf,regularScratch.buf);
-    finalConv.apply(cudaHandles,batchSize,true,regularScratch.buf,trunkBuf,workspaceBuf,workspaceBytes);
+    normActConv2.apply(cudaHandles,batchSize,true,regularOut.buf,regularScratch.buf,trunkBuf,maskBuf,workspaceBuf,workspaceBytes);
   }
 
 };
@@ -1002,7 +1047,7 @@ struct Trunk {
     initialConv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->initialConv,useFP16,inputsUseNHWC,useNHWC);
     initialMatMul = std::make_unique<MatMulLayer>(cudaHandles,&desc->initialMatMul,useFP16);
 
-    trunkTipBN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->trunkTipBN,xSize,ySize,useFP16,useNHWC);
+    trunkTipBN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->trunkTipBN,&desc->trunkTipActivation,xSize,ySize,useFP16,useNHWC);
 
     assert(desc->blocks.size() == numBlocks);
     for(int i = 0; i<numBlocks; i++) {
@@ -1091,7 +1136,7 @@ struct Trunk {
   ) const {
 
     SizedBuf<void*> trunkScratch(scratch->allocator, scratch->getBufSizeXY(trunkNumChannels));
-    
+
     //Feed the conv into trunkScratch.buf, not trunkBuf
     initialConv->apply(cudaHandles,batchSize,false,inputBuf,trunkScratch.buf,workspaceBuf,workspaceBytes);
 
@@ -1156,8 +1201,7 @@ struct Trunk {
     }
 
     //And now with the final BN port it from trunkScratch.buf to trunkBuf.
-    bool applyBNRelu = true;
-    trunkTipBN->apply(cudaHandles,batchSize,applyBNRelu,trunkScratch.buf,maskBuf,trunkBuf);
+    trunkTipBN->apply(cudaHandles,batchSize,trunkScratch.buf,maskBuf,trunkBuf);
     #ifdef DEBUG_INTERMEDIATE_VALUES
     debugPrint4D(string("Trunk tip"), trunkBuf, batchSize, trunkNumChannels, xSize, ySize, usingNHWC, usingFP16);
     #endif
@@ -1228,9 +1272,9 @@ struct PolicyHead {
 
     p1Conv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->p1Conv,useFP16,useNHWC);
     g1Conv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->g1Conv,useFP16,useNHWC);
-    g1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->g1BN,xSize,ySize,useFP16,useNHWC);
+    g1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->g1BN,&desc->g1Activation,xSize,ySize,useFP16,useNHWC);
     gpoolToBiasMul = std::make_unique<MatMulLayer>(cudaHandles,&desc->gpoolToBiasMul,false);
-    p1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->p1BN,xSize,ySize,false,useNHWC);
+    p1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->p1BN,&desc->p1Activation,xSize,ySize,false,useNHWC);
     p2Conv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->p2Conv,false,useNHWC);
     gpoolToPassMul = std::make_unique<MatMulLayer>(cudaHandles,&desc->gpoolToPassMul,false);
   }
@@ -1274,7 +1318,6 @@ struct PolicyHead {
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
-    bool applyBNRelu = true;
 
     SizedBuf<void*> p1Out(scratch->allocator, scratch->getBufSizeXYFloat(p1Channels)); //Need to hold floats, not just halfs
     SizedBuf<void*> p1Out2(scratch->allocator, scratch->getBufSizeXYFloat(p1Channels)); //Need to hold floats, not just halfs
@@ -1284,10 +1327,10 @@ struct PolicyHead {
     SizedBuf<void*> g1Bias(scratch->allocator, scratch->getBufSizeFloat(p1Channels));
     SizedBuf<void*> p2Out(scratch->allocator, scratch->getBufSizeXYFloat(p2Channels));
     SizedBuf<void*> g1Pass(scratch->allocator, scratch->getBufSizeFloat(p2Channels));
-    
+
     p1Conv->apply(cudaHandles,batchSize,false,trunkBuf,p1Out.buf,workspaceBuf,workspaceBytes);
     g1Conv->apply(cudaHandles,batchSize,false,trunkBuf,g1Out.buf,workspaceBuf,workspaceBytes);
-    g1BN->apply(cudaHandles,batchSize,applyBNRelu,g1Out.buf,maskBuf,g1Out2.buf);
+    g1BN->apply(cudaHandles,batchSize,g1Out.buf,maskBuf,g1Out2.buf);
 
     if(!usingFP16) {
       if(!usingNHWC)
@@ -1334,7 +1377,7 @@ struct PolicyHead {
       customCudaAddNCBiasInplaceNHWC(p1OutBufA,(float*)g1Bias.buf,batchSize,xSize*ySize,p1Channels);
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-    p1BN->apply(cudaHandles,batchSize,true,p1OutBufA,maskFloatBuf,p1OutBufB);
+    p1BN->apply(cudaHandles,batchSize,p1OutBufA,maskFloatBuf,p1OutBufB);
     p2Conv->apply(cudaHandles,batchSize,false,p1OutBufB,(float*)p2Out.buf,workspaceBuf,workspaceBytes);
 
     gpoolToPassMul->apply(cudaHandles,scratch,batchSize,g1Concat.buf,g1Pass.buf,workspaceBuf,workspaceBytes);
@@ -1408,7 +1451,7 @@ struct ValueHead {
     usingNHWC = useNHWC;
 
     v1Conv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->v1Conv,useFP16,useNHWC);
-    v1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->v1BN,xSize,ySize,useFP16,useNHWC);
+    v1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->v1BN,&desc->v1Activation,xSize,ySize,useFP16,useNHWC);
     v2Mul = std::make_unique<MatMulLayer>(cudaHandles,&desc->v2Mul,false);
     v2Bias = std::make_unique<MatBiasLayer>(cudaHandles,&desc->v2Bias,false,desc->v2Activation.activation);
     v3Mul = std::make_unique<MatMulLayer>(cudaHandles,&desc->v3Mul,false);
@@ -1468,10 +1511,8 @@ struct ValueHead {
     SizedBuf<void*> v2Out(scratch->allocator, scratch->getBufSizeFloat(v2Channels));
     SizedBuf<void*> ownershipScratch(scratch->allocator, scratch->getBufSizeXYFloat(ownershipChannels));
 
-    bool applyBNRelu = true;
-
     v1Conv->apply(cudaHandles,batchSize,false,trunkBuf,v1Out.buf,workspaceBuf,workspaceBytes);
-    v1BN->apply(cudaHandles,batchSize,applyBNRelu,v1Out.buf,maskBuf,v1Out2.buf);
+    v1BN->apply(cudaHandles,batchSize,v1Out.buf,maskBuf,v1Out2.buf);
 
     void* bufToBePooled = v1Out2.buf;
     if(usingFP16) {
@@ -1640,7 +1681,7 @@ struct Model {
     void* maskBuf = mask.buf;
     float* maskFloatBuf = (float*)maskFloat.buf;
     float* maskSumBuf = (float*)maskSum.buf;
-    
+
     if(!usingFP16) {
       if(inputsUsingNHWC)
         customCudaChannel0ExtractNHWC((const float*)inputBuf, (float*)maskBuf, batchSize, xSize*ySize, numInputChannels);
@@ -1668,7 +1709,7 @@ struct Model {
     }
 
     SizedBuf<void*> trunkBuf(scratch->allocator, scratch->getBufSizeXY(trunk->trunkNumChannels));
-    
+
     trunk->apply(
       cudaHandles,
       scratch,
@@ -2390,6 +2431,9 @@ bool NeuralNet::testEvaluateBatchNorm(
   if(numMaskFloats != maskBuffer.size())
     throw StringError("testEvaluateBatchNorm: unexpected mask buffer size");
 
+  ActivationLayerDesc actDesc;
+  actDesc.activation = ACTIVATION_IDENTITY;
+
   void* deviceInput;
   void* deviceMask;
   void* deviceOutput;
@@ -2397,13 +2441,11 @@ bool NeuralNet::testEvaluateBatchNorm(
   CudaUtils::mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
   CudaUtils::mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
 
-  BatchNormLayer* batchNormLayer = new BatchNormLayer(cudaHandles,desc,xSize,ySize,useFP16,useNHWC);
+  BatchNormLayer* batchNormLayer = new BatchNormLayer(cudaHandles,desc,&actDesc,xSize,ySize,useFP16,useNHWC);
 
-  bool applyRelu = false;
   batchNormLayer->apply(
     cudaHandles,
     desiredBatchSize,
-    applyRelu,
     deviceInput,
     deviceMask,
     deviceOutput
@@ -2449,7 +2491,7 @@ bool NeuralNet::testEvaluateResidualBlock(
     throw StringError("testEvaluateResidualBlock: unexpected mask buffer size");
 
   ScratchBuffers* scratch = new ScratchBuffers(desiredBatchSize, xSize, ySize, useFP16);
-  
+
   void* deviceInput;
   void* deviceMask;
   void* deviceScratch;

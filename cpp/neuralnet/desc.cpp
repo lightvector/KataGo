@@ -487,7 +487,7 @@ NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc(istream& in
   preConv = ConvLayerDesc(in,binaryFloats);
 
   parseResidualBlockStack(in, version, binaryFloats, name, numBlocks, preConv.outChannels, blocks);
-  
+
   postBN = BatchNormLayerDesc(in,binaryFloats);
   postActivation = ActivationLayerDesc(in);
   postConv = ConvLayerDesc(in,binaryFloats);
@@ -621,7 +621,7 @@ static void parseResidualBlockStack(
                    desc.name.c_str(),
                    desc.postConv.outChannels,
                    trunkNumChannels));
-      
+
       blocks.push_back(make_pair(NESTED_BOTTLENECK_BLOCK_KIND, std::move(descPtr)));
     }
     else
