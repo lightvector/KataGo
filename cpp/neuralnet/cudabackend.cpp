@@ -955,9 +955,6 @@ struct Trunk {
   int version;
   int numBlocks;
   int trunkNumChannels;
-  int midNumChannels;
-  int regularNumChannels;
-  int gpoolNumChannels;
 
   int xSize;
   int ySize;
@@ -987,9 +984,9 @@ struct Trunk {
     version = desc->version;
     numBlocks = desc->numBlocks;
     trunkNumChannels = desc->trunkNumChannels;
-    midNumChannels = desc->midNumChannels;
-    regularNumChannels = desc->regularNumChannels;
-    gpoolNumChannels = desc->gpoolNumChannels;
+    int midNumChannels = desc->midNumChannels;
+    int regularNumChannels = desc->regularNumChannels;
+    int gpoolNumChannels = desc->gpoolNumChannels;
 
     xSize = xS;
     ySize = yS;

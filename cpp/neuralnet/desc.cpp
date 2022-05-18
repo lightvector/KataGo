@@ -86,6 +86,21 @@ static void readFloats(istream& in, size_t numFloats, bool binaryFloats, const s
   }
 }
 
+//-----------------------------------------------------------------------------
+
+static void parseResidualBlockStack(
+  std::istream& in,
+  int version,
+  bool binaryFloats,
+  std::string name,
+  int numBlocks,
+  int trunkNumChannels,
+  std::vector<std::pair<int, unique_ptr_void>>& blocks
+);
+
+
+//-----------------------------------------------------------------------------
+
 ConvLayerDesc::ConvLayerDesc()
   : convYSize(0), convXSize(0), inChannels(0), outChannels(0), dilationY(1), dilationX(1) {}
 
@@ -455,6 +470,171 @@ void GlobalPoolingResidualBlockDesc::iterConvLayers(std::function<void(const Con
 
 //-----------------------------------------------------------------------------
 
+NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc() {}
+
+NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc(istream& in, int version, bool binaryFloats) {
+  in >> name;
+  if(in.fail())
+    throw StringError(name + ": res block failed to parse name");
+  in >> numBlocks;
+  if(in.fail())
+    throw StringError(name + ": nested bottleneck res block failed to parse num blocks");
+  if(numBlocks < 1)
+    throw StringError(name + ": nested bottleneck res block num blocks must be positive");
+
+  preBN = BatchNormLayerDesc(in,binaryFloats);
+  preActivation = ActivationLayerDesc(in);
+  preConv = ConvLayerDesc(in,binaryFloats);
+
+  parseResidualBlockStack(in, version, binaryFloats, name, numBlocks, preConv.outChannels, blocks);
+  
+  postBN = BatchNormLayerDesc(in,binaryFloats);
+  postActivation = ActivationLayerDesc(in);
+  postConv = ConvLayerDesc(in,binaryFloats);
+
+  if(preBN.numChannels != preConv.inChannels)
+    throw StringError(
+      name + Global::strprintf(
+               ": preBN.numChannels (%d) != preConv.inChannels (%d)", preBN.numChannels, preConv.inChannels));
+  if(postBN.numChannels != preConv.outChannels)
+    throw StringError(
+      name + Global::strprintf(
+               ": postBN.numChannels (%d) != preConv.outChannels (%d)", postBN.numChannels, preConv.outChannels));
+  if(postBN.numChannels != postConv.inChannels)
+    throw StringError(
+      name + Global::strprintf(
+               ": postBN.numChannels (%d) != postConv.inChannels (%d)", postBN.numChannels, postConv.inChannels));
+
+  if(in.fail())
+    throw StringError(name + ": nested res block parse failure (istream fail() return true)");
+}
+
+NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc(NestedBottleneckResidualBlockDesc&& other) {
+  *this = std::move(other);
+}
+
+NestedBottleneckResidualBlockDesc& NestedBottleneckResidualBlockDesc::operator=(NestedBottleneckResidualBlockDesc&& other) {
+  name = std::move(other.name);
+  numBlocks = other.numBlocks;
+  preBN = std::move(other.preBN);
+  preActivation = std::move(other.preActivation);
+  preConv = std::move(other.preConv);
+  blocks = std::move(other.blocks);
+  postBN = std::move(other.postBN);
+  postActivation = std::move(other.postActivation);
+  postConv = std::move(other.postConv);
+  return *this;
+}
+
+void NestedBottleneckResidualBlockDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
+  f(preConv);
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
+      desc->iterConvLayers(f);
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      desc->iterConvLayers(f);
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      desc->iterConvLayers(f);
+    }
+  }
+  f(postConv);
+}
+
+//-----------------------------------------------------------------------------
+
+static void parseResidualBlockStack(
+  std::istream& in,
+  int version,
+  bool binaryFloats,
+  std::string name,
+  int numBlocks,
+  int trunkNumChannels,
+  std::vector<std::pair<int, unique_ptr_void>>& blocks
+) {
+  string kind;
+  for(int i = 0; i < numBlocks; i++) {
+    in >> kind;
+    if(in.fail())
+      throw StringError(name + ": failed to parse block kind");
+    if(kind == "ordinary_block") {
+      unique_ptr_void descPtr = make_unique_void(new ResidualBlockDesc(in,binaryFloats));
+      ResidualBlockDesc& desc = *((ResidualBlockDesc*)descPtr.get());
+
+      if(desc.preBN.numChannels != trunkNumChannels)
+        throw StringError(
+          name + Global::strprintf(
+                   ": %s preBN.numChannels (%d) != trunkNumChannels (%d)",
+                   desc.name.c_str(),
+                   desc.preBN.numChannels,
+                   trunkNumChannels));
+      if(desc.finalConv.outChannels != trunkNumChannels)
+        throw StringError(
+          name + Global::strprintf(
+                   ": %s finalConv.outChannels (%d) != trunkNumChannels (%d)",
+                   desc.name.c_str(),
+                   desc.finalConv.outChannels,
+                   trunkNumChannels));
+
+      blocks.push_back(make_pair(ORDINARY_BLOCK_KIND, std::move(descPtr)));
+    }
+    else if(kind == "gpool_block") {
+      unique_ptr_void descPtr = make_unique_void(new GlobalPoolingResidualBlockDesc(in, version, binaryFloats));
+      GlobalPoolingResidualBlockDesc& desc = *((GlobalPoolingResidualBlockDesc*)descPtr.get());
+
+      if(desc.preBN.numChannels != trunkNumChannels)
+        throw StringError(
+          name + Global::strprintf(
+                   ": %s preBN.numChannels (%d) != trunkNumChannels (%d)",
+                   desc.name.c_str(),
+                   desc.preBN.numChannels,
+                   trunkNumChannels));
+      if(desc.finalConv.outChannels != trunkNumChannels)
+        throw StringError(
+          name + Global::strprintf(
+                   ": %s finalConv.outChannels (%d) != trunkNumChannels (%d)",
+                   desc.name.c_str(),
+                   desc.finalConv.outChannels,
+                   trunkNumChannels));
+
+      blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND, std::move(descPtr)));
+    }
+    else if(kind == "nested_bottleneck_block") {
+      unique_ptr_void descPtr = make_unique_void(new NestedBottleneckResidualBlockDesc(in,version,binaryFloats));
+      NestedBottleneckResidualBlockDesc& desc = *((NestedBottleneckResidualBlockDesc*)descPtr.get());
+
+      if(desc.preBN.numChannels != trunkNumChannels)
+        throw StringError(
+          name + Global::strprintf(
+                   ": %s preBN.numChannels (%d) != trunkNumChannels (%d)",
+                   desc.name.c_str(),
+                   desc.preBN.numChannels,
+                   trunkNumChannels));
+      if(desc.postConv.outChannels != trunkNumChannels)
+        throw StringError(
+          name + Global::strprintf(
+                   ": %s postConv.outChannels (%d) != trunkNumChannels (%d)",
+                   desc.name.c_str(),
+                   desc.postConv.outChannels,
+                   trunkNumChannels));
+      
+      blocks.push_back(make_pair(NESTED_BOTTLENECK_BLOCK_KIND, std::move(descPtr)));
+    }
+    else
+      throw StringError(name + ": found unknown block kind: " + kind);
+
+    if(in.fail())
+      throw StringError(name + ": trunk istream fail after parsing block");
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+
 TrunkDesc::TrunkDesc()
   : version(-1),
     numBlocks(0),
@@ -482,8 +662,6 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
     trunkNumChannels <= 0 || midNumChannels <= 0 || regularNumChannels <= 0 ||
     gpoolNumChannels <= 0)
     throw StringError(name + ": all numbers of channels must be positive");
-  if(midNumChannels != regularNumChannels + gpoolNumChannels)
-    throw StringError(name + ": midNumChannels != regularNumChannels + gpoolNumChannels");
 
   initialConv = ConvLayerDesc(in,binaryFloats);
   if(initialConv.outChannels != trunkNumChannels)
@@ -503,85 +681,7 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
                initialMatMul.outChannels,
                trunkNumChannels));
 
-  string kind;
-  for(int i = 0; i < numBlocks; i++) {
-    in >> kind;
-    if(in.fail())
-      throw StringError(name + ": failed to parse block kind");
-    if(kind == "ordinary_block") {
-      unique_ptr_void descPtr = make_unique_void(new ResidualBlockDesc(in,binaryFloats));
-      ResidualBlockDesc& desc = *((ResidualBlockDesc*)descPtr.get());
-
-      if(desc.preBN.numChannels != trunkNumChannels)
-        throw StringError(
-          name + Global::strprintf(
-                   ": %s preBN.numChannels (%d) != trunkNumChannels (%d)",
-                   desc.name.c_str(),
-                   desc.preBN.numChannels,
-                   trunkNumChannels));
-      if(desc.regularConv.outChannels != midNumChannels)
-        throw StringError(
-          name + Global::strprintf(
-                   ": %s regularConv.outChannels (%d) != regularNumChannels+gpoolNumChannels (%d)",
-                   desc.name.c_str(),
-                   desc.regularConv.outChannels,
-                   regularNumChannels + gpoolNumChannels));
-      if(desc.regularConv.outChannels != midNumChannels)
-        throw StringError(
-          name + Global::strprintf(
-                   ": %s regularConv.outChannels (%d) != midNumChannels (%d)",
-                   desc.name.c_str(),
-                   desc.regularConv.outChannels,
-                   midNumChannels));
-      if(desc.finalConv.outChannels != trunkNumChannels)
-        throw StringError(
-          name + Global::strprintf(
-                   ": %s finalConv.outChannels (%d) != trunkNumChannels (%d)",
-                   desc.name.c_str(),
-                   desc.finalConv.outChannels,
-                   trunkNumChannels));
-
-      blocks.push_back(make_pair(ORDINARY_BLOCK_KIND, std::move(descPtr)));
-    } else if(kind == "gpool_block") {
-      unique_ptr_void descPtr = make_unique_void(new GlobalPoolingResidualBlockDesc(in, version, binaryFloats));
-      GlobalPoolingResidualBlockDesc& desc = *((GlobalPoolingResidualBlockDesc*)descPtr.get());
-
-      if(desc.preBN.numChannels != trunkNumChannels)
-        throw StringError(
-          name + Global::strprintf(
-                   ": %s preBN.numChannels (%d) != trunkNumChannels (%d)",
-                   desc.name.c_str(),
-                   desc.preBN.numChannels,
-                   trunkNumChannels));
-      if(desc.regularConv.outChannels != regularNumChannels)
-        throw StringError(
-          name + Global::strprintf(
-                   ": %s regularConv.outChannels (%d) != trunkNumChannels (%d)",
-                   desc.name.c_str(),
-                   desc.regularConv.outChannels,
-                   regularNumChannels));
-      if(desc.gpoolConv.outChannels != gpoolNumChannels)
-        throw StringError(
-          name + Global::strprintf(
-                   ": %s gpoolConv.outChannels (%d) != trunkNumChannels (%d)",
-                   desc.name.c_str(),
-                   desc.gpoolConv.outChannels,
-                   gpoolNumChannels));
-      if(desc.finalConv.outChannels != trunkNumChannels)
-        throw StringError(
-          name + Global::strprintf(
-                   ": %s finalConv.outChannels (%d) != trunkNumChannels (%d)",
-                   desc.name.c_str(),
-                   desc.finalConv.outChannels,
-                   trunkNumChannels));
-
-      blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND, std::move(descPtr)));
-    } else
-      throw StringError(name + ": found unknown block kind: " + kind);
-
-    if(in.fail())
-      throw StringError(name + ": trunk istream fail after parsing block");
-  }
+  parseResidualBlockStack(in, version, binaryFloats, name, numBlocks, trunkNumChannels, blocks);
 
   trunkTipBN = BatchNormLayerDesc(in,binaryFloats);
   trunkTipActivation = ActivationLayerDesc(in);
@@ -635,8 +735,13 @@ void TrunkDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f)
     if(blocks[i].first == ORDINARY_BLOCK_KIND) {
       ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
       desc->iterConvLayers(f);
-    } else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
       GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      desc->iterConvLayers(f);
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       desc->iterConvLayers(f);
     }
   }

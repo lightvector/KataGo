@@ -145,8 +145,35 @@ struct GlobalPoolingResidualBlockDesc {
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
 };
 
+struct NestedBottleneckResidualBlockDesc {
+  std::string name;
+  int numBlocks;
+
+  BatchNormLayerDesc preBN;
+  ActivationLayerDesc preActivation;
+  ConvLayerDesc preConv;
+
+  std::vector<std::pair<int, unique_ptr_void>> blocks;
+  
+  BatchNormLayerDesc postBN;
+  ActivationLayerDesc postActivation;
+  ConvLayerDesc postConv;
+
+  NestedBottleneckResidualBlockDesc();
+  NestedBottleneckResidualBlockDesc(std::istream& in, int version, bool binaryFloats);
+  NestedBottleneckResidualBlockDesc(NestedBottleneckResidualBlockDesc&& other);
+
+  NestedBottleneckResidualBlockDesc(const NestedBottleneckResidualBlockDesc&) = delete;
+  NestedBottleneckResidualBlockDesc& operator=(const NestedBottleneckResidualBlockDesc&) = delete;
+
+  NestedBottleneckResidualBlockDesc& operator=(NestedBottleneckResidualBlockDesc&& other);
+
+  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+};
+
 constexpr int ORDINARY_BLOCK_KIND = 0;
 constexpr int GLOBAL_POOLING_BLOCK_KIND = 2;
+constexpr int NESTED_BOTTLENECK_BLOCK_KIND = 3;
 
 struct TrunkDesc {
   std::string name;
