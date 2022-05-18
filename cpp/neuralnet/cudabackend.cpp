@@ -957,7 +957,6 @@ struct Trunk {
   int trunkNumChannels;
   int midNumChannels;
   int regularNumChannels;
-  int dilatedNumChannels;
   int gpoolNumChannels;
 
   int xSize;
@@ -990,7 +989,6 @@ struct Trunk {
     trunkNumChannels = desc->trunkNumChannels;
     midNumChannels = desc->midNumChannels;
     regularNumChannels = desc->regularNumChannels;
-    dilatedNumChannels = desc->dilatedNumChannels;
     gpoolNumChannels = desc->gpoolNumChannels;
 
     xSize = xS;
@@ -1002,7 +1000,6 @@ struct Trunk {
     CudaUtils::checkBufferSize(maxBatchSize,xSize,ySize,trunkNumChannels);
     CudaUtils::checkBufferSize(maxBatchSize,xSize,ySize,midNumChannels);
     CudaUtils::checkBufferSize(maxBatchSize,xSize,ySize,regularNumChannels);
-    CudaUtils::checkBufferSize(maxBatchSize,xSize,ySize,dilatedNumChannels);
     CudaUtils::checkBufferSize(maxBatchSize,xSize,ySize,gpoolNumChannels);
 
     initialConv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->initialConv,useFP16,inputsUseNHWC,useNHWC);
@@ -1026,9 +1023,6 @@ struct Trunk {
           )
         );
         blocks.push_back(make_pair(ORDINARY_BLOCK_KIND,std::move(blockPtr)));
-      }
-      else if(desc->blocks[i].first == DILATED_BLOCK_KIND) {
-        throw StringError("Dilated residual blocks not supported");
       }
       else if(desc->blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
         GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)desc->blocks[i].second.get();

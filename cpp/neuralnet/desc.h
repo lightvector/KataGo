@@ -119,28 +119,6 @@ struct ResidualBlockDesc {
   void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
 };
 
-struct DilatedResidualBlockDesc {
-  std::string name;
-  BatchNormLayerDesc preBN;
-  ActivationLayerDesc preActivation;
-  ConvLayerDesc regularConv;
-  ConvLayerDesc dilatedConv;
-  BatchNormLayerDesc midBN;
-  ActivationLayerDesc midActivation;
-  ConvLayerDesc finalConv;
-
-  DilatedResidualBlockDesc();
-  DilatedResidualBlockDesc(std::istream& in, bool binaryFloats);
-  DilatedResidualBlockDesc(DilatedResidualBlockDesc&& other);
-
-  DilatedResidualBlockDesc(const DilatedResidualBlockDesc&) = delete;
-  DilatedResidualBlockDesc& operator=(const DilatedResidualBlockDesc&) = delete;
-
-  DilatedResidualBlockDesc& operator=(DilatedResidualBlockDesc&& other);
-
-  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
-};
-
 struct GlobalPoolingResidualBlockDesc {
   std::string name;
   int version;
@@ -168,7 +146,6 @@ struct GlobalPoolingResidualBlockDesc {
 };
 
 constexpr int ORDINARY_BLOCK_KIND = 0;
-constexpr int DILATED_BLOCK_KIND = 1;
 constexpr int GLOBAL_POOLING_BLOCK_KIND = 2;
 
 struct TrunkDesc {
@@ -177,8 +154,7 @@ struct TrunkDesc {
   int numBlocks;
   int trunkNumChannels;
   int midNumChannels;      // Currently every plain residual block must have the same number of mid conv channels
-  int regularNumChannels;  // Currently every dilated or gpool residual block must have the same number of regular conv hannels
-  int dilatedNumChannels;  // Currently every dilated residual block must have the same number of dilated conv channels
+  int regularNumChannels;  // Currently every gpool residual block must have the same number of regular conv hannels
   int gpoolNumChannels;    // Currently every gpooling residual block must have the same number of gpooling conv channels
   ConvLayerDesc initialConv;
   MatMulLayerDesc initialMatMul;

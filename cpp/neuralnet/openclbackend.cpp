@@ -1503,7 +1503,6 @@ struct Trunk {
   int trunkNumChannels;
   int midNumChannels;
   int regularNumChannels;
-  int dilatedNumChannels;
   int gpoolNumChannels;
 
   int maxBatchSize;
@@ -1533,7 +1532,6 @@ struct Trunk {
     trunkNumChannels = desc->trunkNumChannels;
     midNumChannels = desc->midNumChannels;
     regularNumChannels = desc->regularNumChannels;
-    dilatedNumChannels = desc->dilatedNumChannels;
     gpoolNumChannels = desc->gpoolNumChannels;
 
     maxBatchSize = maxBatchSz;
@@ -1543,7 +1541,6 @@ struct Trunk {
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,trunkNumChannels);
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,midNumChannels);
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,regularNumChannels);
-    checkBufferSize(maxBatchSize,nnXLen,nnYLen,dilatedNumChannels);
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,gpoolNumChannels);
 
     initialConv = std::make_unique<ConvLayer>(handle,&desc->initialConv,nnXLen,nnYLen,useFP16);
@@ -1565,9 +1562,6 @@ struct Trunk {
           )
         );
         blocks.push_back(make_pair(ORDINARY_BLOCK_KIND,std::move(blockPtr)));
-      }
-      else if(desc->blocks[i].first == DILATED_BLOCK_KIND) {
-        throw StringError("Neural net use dilated convolutions but OpenCL implementation dues not currently support them");
       }
       else if(desc->blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
         GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)desc->blocks[i].second.get();
@@ -1598,9 +1592,6 @@ struct Trunk {
       if(blocks[i].first == ORDINARY_BLOCK_KIND) {
         ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
         maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,block->requiredConvWorkspaceElts(handle,maxBatchSize));
-      }
-      else if(blocks[i].first == DILATED_BLOCK_KIND) {
-        ASSERT_UNREACHABLE;
       }
       else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
         GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
@@ -1660,9 +1651,6 @@ struct Trunk {
           convWorkspace,
           convWorkspace2
         );
-      }
-      else if(blocks[i].first == DILATED_BLOCK_KIND) {
-        ASSERT_UNREACHABLE;
       }
       else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
         GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
@@ -2187,7 +2175,7 @@ struct Buffers {
 
     trunk = createReadWriteBuffer(handle, m.trunk->trunkNumChannels * batchXYElts, useFP16);
     trunkScratch = createReadWriteBuffer(handle, m.trunk->trunkNumChannels * batchXYElts, useFP16);
-    size_t maxMidChannels = std::max(m.trunk->regularNumChannels + m.trunk->dilatedNumChannels, m.trunk->midNumChannels);
+    size_t maxMidChannels = std::max(m.trunk->regularNumChannels + m.trunk->gpoolNumChannels, m.trunk->midNumChannels);
     mid = createReadWriteBuffer(handle, maxMidChannels * batchXYElts, useFP16);
     size_t maxGPoolChannels = std::max(m.trunk->gpoolNumChannels, m.policyHead->g1Channels);
     gpoolOut = createReadWriteBuffer(handle, maxGPoolChannels * batchXYElts, false);

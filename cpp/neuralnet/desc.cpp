@@ -371,68 +371,6 @@ void ResidualBlockDesc::iterConvLayers(std::function<void(const ConvLayerDesc& d
   f(finalConv);
 }
 
-//-----------------------------------------------------------------------------
-
-DilatedResidualBlockDesc::DilatedResidualBlockDesc() {}
-
-DilatedResidualBlockDesc::DilatedResidualBlockDesc(istream& in, bool binaryFloats) {
-  in >> name;
-  if(in.fail())
-    throw StringError(name + ": dilated res block failed to parse name");
-
-  preBN = BatchNormLayerDesc(in,binaryFloats);
-  preActivation = ActivationLayerDesc(in);
-  regularConv = ConvLayerDesc(in,binaryFloats);
-  dilatedConv = ConvLayerDesc(in,binaryFloats);
-  midBN = BatchNormLayerDesc(in,binaryFloats);
-  midActivation = ActivationLayerDesc(in);
-  finalConv = ConvLayerDesc(in,binaryFloats);
-
-  if(preBN.numChannels != regularConv.inChannels)
-    throw StringError(
-      name + Global::strprintf(
-               ": preBN.numChannels (%d) != regularConv.inChannels (%d)", preBN.numChannels, regularConv.inChannels));
-  if(preBN.numChannels != dilatedConv.inChannels)
-    throw StringError(
-      name + Global::strprintf(
-               ": preBN.numChannels (%d) != dilatedConv.inChannels (%d)", preBN.numChannels, dilatedConv.inChannels));
-  if(midBN.numChannels != regularConv.outChannels + dilatedConv.outChannels)
-    throw StringError(
-      name + Global::strprintf(
-               ": midBN.numChannels (%d) != regularConv.outChannels (%d) + dilatedConv.outChannels (%d)",
-               midBN.numChannels,
-               regularConv.outChannels,
-               dilatedConv.outChannels));
-  if(midBN.numChannels != finalConv.inChannels)
-    throw StringError(
-      name + Global::strprintf(
-               ": midBN.numChannels (%d) != finalConv.inChannels (%d)", midBN.numChannels, finalConv.inChannels));
-
-  if(in.fail())
-    throw StringError(name + ": dilated res block parse failure (istream fail() return true)");
-}
-
-DilatedResidualBlockDesc::DilatedResidualBlockDesc(DilatedResidualBlockDesc&& other) {
-  *this = std::move(other);
-}
-
-DilatedResidualBlockDesc& DilatedResidualBlockDesc::operator=(DilatedResidualBlockDesc&& other) {
-  name = std::move(other.name);
-  preBN = std::move(other.preBN);
-  preActivation = std::move(other.preActivation);
-  regularConv = std::move(other.regularConv);
-  dilatedConv = std::move(other.dilatedConv);
-  midBN = std::move(other.midBN);
-  midActivation = std::move(other.midActivation);
-  finalConv = std::move(other.finalConv);
-  return *this;
-}
-
-void DilatedResidualBlockDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
-  f(regularConv);
-  f(dilatedConv);
-  f(finalConv);
-}
 
 //-----------------------------------------------------------------------------
 
@@ -523,7 +461,6 @@ TrunkDesc::TrunkDesc()
     trunkNumChannels(0),
     midNumChannels(0),
     regularNumChannels(0),
-    dilatedNumChannels(0),
     gpoolNumChannels(0) {}
 
 TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
@@ -533,6 +470,7 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
   in >> trunkNumChannels;
   in >> midNumChannels;
   in >> regularNumChannels;
+  int dilatedNumChannels; //unused
   in >> dilatedNumChannels;
   in >> gpoolNumChannels;
 
@@ -541,11 +479,11 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
   if(numBlocks < 1)
     throw StringError(name + ": trunk num blocks must be positive");
   if(
-    trunkNumChannels <= 0 || midNumChannels <= 0 || regularNumChannels <= 0 || dilatedNumChannels <= 0 ||
+    trunkNumChannels <= 0 || midNumChannels <= 0 || regularNumChannels <= 0 ||
     gpoolNumChannels <= 0)
     throw StringError(name + ": all numbers of channels must be positive");
-  if(midNumChannels != regularNumChannels + dilatedNumChannels)
-    throw StringError(name + ": midNumChannels != regularNumChannels + dilatedNumChannels");
+  if(midNumChannels != regularNumChannels + gpoolNumChannels)
+    throw StringError(name + ": midNumChannels != regularNumChannels + gpoolNumChannels");
 
   initialConv = ConvLayerDesc(in,binaryFloats);
   if(initialConv.outChannels != trunkNumChannels)
@@ -584,10 +522,10 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
       if(desc.regularConv.outChannels != midNumChannels)
         throw StringError(
           name + Global::strprintf(
-                   ": %s regularConv.outChannels (%d) != regularNumChannels+dilatedNumChannels (%d)",
+                   ": %s regularConv.outChannels (%d) != regularNumChannels+gpoolNumChannels (%d)",
                    desc.name.c_str(),
                    desc.regularConv.outChannels,
-                   regularNumChannels + dilatedNumChannels));
+                   regularNumChannels + gpoolNumChannels));
       if(desc.regularConv.outChannels != midNumChannels)
         throw StringError(
           name + Global::strprintf(
@@ -604,40 +542,6 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
                    trunkNumChannels));
 
       blocks.push_back(make_pair(ORDINARY_BLOCK_KIND, std::move(descPtr)));
-    } else if(kind == "dilated_block") {
-      unique_ptr_void descPtr = make_unique_void(new DilatedResidualBlockDesc(in,binaryFloats));
-      DilatedResidualBlockDesc& desc = *((DilatedResidualBlockDesc*)descPtr.get());
-
-      if(desc.preBN.numChannels != trunkNumChannels)
-        throw StringError(
-          name + Global::strprintf(
-                   ": %s preBN.numChannels (%d) != trunkNumChannels (%d)",
-                   desc.name.c_str(),
-                   desc.preBN.numChannels,
-                   trunkNumChannels));
-      if(desc.regularConv.outChannels != regularNumChannels)
-        throw StringError(
-          name + Global::strprintf(
-                   ": %s regularConv.outChannels (%d) != trunkNumChannels (%d)",
-                   desc.name.c_str(),
-                   desc.regularConv.outChannels,
-                   regularNumChannels));
-      if(desc.dilatedConv.outChannels != dilatedNumChannels)
-        throw StringError(
-          name + Global::strprintf(
-                   ": %s dilatedConv.outChannels (%d) != trunkNumChannels (%d)",
-                   desc.name.c_str(),
-                   desc.dilatedConv.outChannels,
-                   dilatedNumChannels));
-      if(desc.finalConv.outChannels != trunkNumChannels)
-        throw StringError(
-          name + Global::strprintf(
-                   ": %s finalConv.outChannels (%d) != trunkNumChannels (%d)",
-                   desc.name.c_str(),
-                   desc.finalConv.outChannels,
-                   trunkNumChannels));
-
-      blocks.push_back(make_pair(DILATED_BLOCK_KIND, std::move(descPtr)));
     } else if(kind == "gpool_block") {
       unique_ptr_void descPtr = make_unique_void(new GlobalPoolingResidualBlockDesc(in, version, binaryFloats));
       GlobalPoolingResidualBlockDesc& desc = *((GlobalPoolingResidualBlockDesc*)descPtr.get());
@@ -701,7 +605,6 @@ TrunkDesc::TrunkDesc(TrunkDesc&& other) {
   trunkNumChannels = other.trunkNumChannels;
   midNumChannels = other.midNumChannels;
   regularNumChannels = other.regularNumChannels;
-  dilatedNumChannels = other.dilatedNumChannels;
   gpoolNumChannels = other.gpoolNumChannels;
   initialConv = std::move(other.initialConv);
   initialMatMul = std::move(other.initialMatMul);
@@ -717,7 +620,6 @@ TrunkDesc& TrunkDesc::operator=(TrunkDesc&& other) {
   trunkNumChannels = other.trunkNumChannels;
   midNumChannels = other.midNumChannels;
   regularNumChannels = other.regularNumChannels;
-  dilatedNumChannels = other.dilatedNumChannels;
   gpoolNumChannels = other.gpoolNumChannels;
   initialConv = std::move(other.initialConv);
   initialMatMul = std::move(other.initialMatMul);
@@ -732,9 +634,6 @@ void TrunkDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f)
   for(int i = 0; i < blocks.size(); i++) {
     if(blocks[i].first == ORDINARY_BLOCK_KIND) {
       ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
-      desc->iterConvLayers(f);
-    } else if(blocks[i].first == DILATED_BLOCK_KIND) {
-      DilatedResidualBlockDesc* desc = (DilatedResidualBlockDesc*)blocks[i].second.get();
       desc->iterConvLayers(f);
     } else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
       GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
