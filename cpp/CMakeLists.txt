@@ -44,7 +44,11 @@ if(USE_BACKEND STREQUAL "CUDA")
   enable_language(CUDA)
 
   set(CUDA_STANDARD 11)
-  set(NEURALNET_BACKEND_SOURCES neuralnet/cudabackend.cpp neuralnet/cudahelpers.cu)
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/cudabackend.cpp
+    neuralnet/cudautils.cpp
+    neuralnet/cudahelpers.cu
+  )
 
   if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 11.0)
     set(CMAKE_CUDA_ARCHITECTURES 35 37 50 53 60 61 62 70 72 75 80)

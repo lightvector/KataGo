@@ -3,6 +3,7 @@
 #include "../neuralnet/cudaincludes.h"
 
 #include "../neuralnet/cudahelpers.h"
+#include "../neuralnet/cudautils.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/nninputs.h"
@@ -59,149 +60,6 @@ struct CudaHandles {
   CudaHandles(const CudaHandles&) = delete;
   CudaHandles& operator=(const CudaHandles&) = delete;
 };
-
-//---------------------------------------------------------------------------------
-
-static void mallocOnDevice(const string& name, int numWeights, void*& deviceBuf, bool useFP16) {
-  if(useFP16) {
-    size_t halfBytes = numWeights * sizeof(half);
-    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, halfBytes));
-  }
-  else {
-    size_t floatBytes = numWeights * sizeof(float);
-    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, floatBytes));
-  }
-}
-
-static void mallocAndCopyToDevice(const string& name, const vector<float>& weights, void*& deviceBuf, bool useFP16) {
-  size_t numWeights = weights.size();
-  if(useFP16) {
-    size_t halfBytes = numWeights * sizeof(half);
-    vector<half_t> weightsHalf(weights.size());
-    for(size_t i = 0; i<weights.size(); i++)
-      weightsHalf[i] = half_float::half_cast<half_t>(weights[i]);
-    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, halfBytes));
-    CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weightsHalf.data(), halfBytes, cudaMemcpyHostToDevice));
-  }
-  else {
-    size_t floatBytes = numWeights * sizeof(float);
-    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, floatBytes));
-    CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weights.data(), floatBytes, cudaMemcpyHostToDevice));
-  }
-}
-
-static void mallocAndCopyToDevice(const string& name, const float* weights, int numWeights, void*& deviceBuf, bool useFP16) {
-  if(useFP16) {
-    size_t halfBytes = numWeights * sizeof(half);
-    vector<half_t> weightsHalf(numWeights);
-    for(int i = 0; i<numWeights; i++)
-      weightsHalf[i] = half_float::half_cast<half_t>(weights[i]);
-    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, halfBytes));
-    CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weightsHalf.data(), halfBytes, cudaMemcpyHostToDevice));
-  }
-  else {
-    size_t floatBytes = numWeights * sizeof(float);
-    CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, floatBytes));
-    CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weights, floatBytes, cudaMemcpyHostToDevice));
-  }
-}
-
-//Only use in testing, allocates an intermediate buffer in the case of FP16 which will be very slow.
-static void expensiveCopyFromDevice(const string& name, float* weights, int numWeights, const void* deviceBuf, bool useFP16) {
-  if(useFP16) {
-    vector<half_t> weightsHalf(numWeights);
-    size_t halfBytes = numWeights * sizeof(half);
-    CUDA_ERR(name.c_str(),cudaMemcpy(weightsHalf.data(), deviceBuf, halfBytes, cudaMemcpyDeviceToHost));
-    for(int i = 0; i<numWeights; i++)
-      weights[i] = weightsHalf[i];
-  }
-  else {
-    size_t floatBytes = numWeights * sizeof(float);
-    CUDA_ERR(name.c_str(),cudaMemcpy(weights, deviceBuf, floatBytes, cudaMemcpyDeviceToHost));
-  }
-}
-
-#ifdef DEBUG_INTERMEDIATE_VALUES
-static void debugPrint2D(const string& name, const void* deviceBuf, int batchSize, int cSize, bool useFP16) {
-  vector<float> values(batchSize * cSize);
-  expensiveCopyFromDevice(name, values.data(), values.size(), deviceBuf, useFP16);
-  cout << "=========================================================" << endl;
-  cout << name << endl;
-  int i = 0;
-  for(int n = 0; n<batchSize; n++) {
-    cout << "-(n=" << n << ")--------------------" << endl;
-    for(int c = 0; c<cSize; c++)
-      cout << values[i++] << " ";
-    cout << endl;
-  }
-  cout << endl;
-  cout << "=========================================================" << endl;
-}
-
-static void debugPrint4D(const string& name, const void* deviceBuf, int batchSize, int cSize, int xSize, int ySize, bool useNHWC, bool useFP16) {
-  vector<float> values(batchSize * cSize * xSize * ySize);
-  expensiveCopyFromDevice(name, values.data(), values.size(), deviceBuf, useFP16);
-  cout << "=========================================================" << endl;
-  cout << name << endl;
-  int i = 0;
-  for(int n = 0; n<batchSize; n++) {
-    cout << "-(n=" << n << ")--------------------" << endl;
-    if(useNHWC) {
-      for(int y = 0; y<ySize; y++) {
-        cout << "(y=" << y << ")" << endl;
-        for(int x = 0; x<xSize; x++) {
-          for(int c = 0; c<cSize; c++)
-            cout << values[i++] << " ";
-          cout << endl;
-        }
-        cout << endl;
-      }
-    }
-    else {
-      for(int c = 0; c<cSize; c++) {
-        cout << "(c=" << c << ")" << endl;
-        for(int y = 0; y<ySize; y++) {
-          for(int x = 0; x<xSize; x++)
-            cout << values[i++] << " ";
-          cout << endl;
-        }
-        cout << endl;
-      }
-    }
-  }
-  cout << "=========================================================" << endl;
-}
-#endif
-
-static void checkBufferSize(int batchSize, int xSize, int ySize, int channels) {
-  if((int64_t)batchSize * xSize * ySize * channels >= (int64_t)1 << 31)
-    throw StringError("Batch size too large, resulting GPU buffers might exceed 2^31 entries which is not currently supported");
-}
-
-static void hostMallocZeroOneBufs(void*& zeroBuf, void*& oneBuf, bool useFP16) {
-  if(!useFP16) {
-    zeroBuf = malloc(sizeof(float));
-    oneBuf = malloc(sizeof(float));
-    *((float*)zeroBuf) = 0.0f;
-    *((float*)oneBuf) = 1.0f;
-  }
-  else {
-    //Convert to FP16 on the device, then copy back so we have it in host memory
-    float zero = 0.0f;
-    float one = 1.0f;
-    void* zeroTmp;
-    void* oneTmp;
-    mallocAndCopyToDevice("Buffers",&zero,1,zeroTmp,useFP16);
-    mallocAndCopyToDevice("Buffers",&one,1,oneTmp,useFP16);
-    zeroBuf = malloc(sizeof(half));
-    oneBuf = malloc(sizeof(half));
-    CUDA_ERR("Buffers",cudaMemcpy(zeroBuf,zeroTmp,sizeof(half),cudaMemcpyDeviceToHost));
-    CUDA_ERR("Buffers",cudaMemcpy(oneBuf,oneTmp,sizeof(half),cudaMemcpyDeviceToHost));
-    cudaFree(zeroTmp);
-    cudaFree(oneTmp);
-  }
-}
-
 
 //---------------------------------------------------------------------------------
 
@@ -361,7 +219,7 @@ struct ScratchBuffers {
 
     allocator = new SimpleAllocator<void*>(allocateFunc, releaseFunc);
 
-    hostMallocZeroOneBufs(zeroBuf, oneBuf, useFP16);
+    CudaUtils::hostMallocZeroOneBufs(zeroBuf, oneBuf, useFP16);
   }
   ~ScratchBuffers() {
     delete allocator;
@@ -540,11 +398,11 @@ struct ConvLayer {
           }
         }
       }
-      mallocAndCopyToDevice(name,weightsTransposed,filterBuf,useFP16);
+      CudaUtils::mallocAndCopyToDevice(name,weightsTransposed,filterBuf,useFP16);
       cudaDeviceSynchronize();
     }
     else
-      mallocAndCopyToDevice(name,desc->weights,filterBuf,useFP16);
+      CudaUtils::mallocAndCopyToDevice(name,desc->weights,filterBuf,useFP16);
   }
 
   ~ConvLayer() {
@@ -675,16 +533,16 @@ struct BatchNormLayer {
     usingNHWC = useNHWC;
 
     assert(desc->mean.size() == numChannels);
-    mallocAndCopyToDevice(name,desc->mean,meanBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,desc->mean,meanBuf,useFP16);
 
     assert(desc->variance.size() == numChannels);
-    mallocAndCopyToDevice(name,desc->variance,varianceBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,desc->variance,varianceBuf,useFP16);
 
     assert(desc->scale.size() == numChannels);
-    mallocAndCopyToDevice(name,desc->scale,scaleBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,desc->scale,scaleBuf,useFP16);
 
     assert(desc->bias.size() == numChannels);
-    mallocAndCopyToDevice(name,desc->bias,biasBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,desc->bias,biasBuf,useFP16);
 
     vector<float> mergedScale(numChannels);
     vector<float> mergedBias(numChannels);
@@ -692,8 +550,8 @@ struct BatchNormLayer {
       mergedScale[i] = desc->scale[i] / sqrt(desc->variance[i] + epsilon);
       mergedBias[i] = desc->bias[i] - mergedScale[i] * desc->mean[i];
     }
-    mallocAndCopyToDevice(name,mergedScale,mergedScaleBuf,useFP16);
-    mallocAndCopyToDevice(name,mergedBias,mergedBiasBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,mergedScale,mergedScaleBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,mergedBias,mergedBiasBuf,useFP16);
   }
   ~BatchNormLayer() {
     cudaFree(meanBuf);
@@ -765,7 +623,7 @@ struct MatMulLayer {
     usingFP16 = useFP16;
 
     assert(desc->weights.size() == inChannels * outChannels);
-    mallocAndCopyToDevice(name,desc->weights,matBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,desc->weights,matBuf,useFP16);
   }
 
   ~MatMulLayer() {
@@ -857,7 +715,7 @@ struct MatBiasLayer {
     activation = activation_;
 
     assert(desc->weights.size() == numChannels);
-    mallocAndCopyToDevice(name,desc->weights,biasBuf,useFP16);
+    CudaUtils::mallocAndCopyToDevice(name,desc->weights,biasBuf,useFP16);
   }
 
   ~MatBiasLayer() {
@@ -1141,11 +999,11 @@ struct Trunk {
     usingNHWC = useNHWC;
 
     int maxBatchSize = manager->maxBatchSize;
-    checkBufferSize(maxBatchSize,xSize,ySize,trunkNumChannels);
-    checkBufferSize(maxBatchSize,xSize,ySize,midNumChannels);
-    checkBufferSize(maxBatchSize,xSize,ySize,regularNumChannels);
-    checkBufferSize(maxBatchSize,xSize,ySize,dilatedNumChannels);
-    checkBufferSize(maxBatchSize,xSize,ySize,gpoolNumChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,xSize,ySize,trunkNumChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,xSize,ySize,midNumChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,xSize,ySize,regularNumChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,xSize,ySize,dilatedNumChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,xSize,ySize,gpoolNumChannels);
 
     initialConv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->initialConv,useFP16,inputsUseNHWC,useNHWC);
     initialMatMul = std::make_unique<MatMulLayer>(cudaHandles,&desc->initialMatMul,useFP16);
@@ -1733,11 +1591,11 @@ struct Model {
         numInputGlobalChannels, numGlobalFeatures
       ));
 
-    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numInputChannels);
-    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numInputGlobalChannels);
-    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numValueChannels);
-    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numScoreValueChannels);
-    checkBufferSize(maxBatchSize,nnXLen,nnYLen,numOwnershipChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,nnXLen,nnYLen,numInputChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,nnXLen,nnYLen,numInputGlobalChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,nnXLen,nnYLen,numValueChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,nnXLen,nnYLen,numScoreValueChannels);
+    CudaUtils::checkBufferSize(maxBatchSize,nnXLen,nnYLen,numOwnershipChannels);
 
     manager = std::make_unique<CudnnManager>(name, maxBatchSize, xSize, ySize);
     trunk = std::make_unique<Trunk>(cudaHandles,manager.get(),&desc->trunk,xSize,ySize,inputsUseNHWC,useFP16,useNHWC);
@@ -2476,8 +2334,8 @@ bool NeuralNet::testEvaluateConv(
 
   void* deviceInput;
   void* deviceOutput;
-  mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
-  mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
+  CudaUtils::mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
+  CudaUtils::mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
 
   int maxBatchSize = desiredBatchSize;
 
@@ -2502,7 +2360,7 @@ bool NeuralNet::testEvaluateConv(
   );
 
   outputBuffer.resize(numOutputFloats);
-  expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceOutput, useFP16);
+  CudaUtils::expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceOutput, useFP16);
 
   cudaFree(deviceWorkspace);
 
@@ -2544,9 +2402,9 @@ bool NeuralNet::testEvaluateBatchNorm(
   void* deviceInput;
   void* deviceMask;
   void* deviceOutput;
-  mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
-  mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
-  mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
+  CudaUtils::mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
+  CudaUtils::mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
+  CudaUtils::mallocOnDevice("deviceOutput", numOutputFloats, deviceOutput, useFP16);
 
   BatchNormLayer* batchNormLayer = new BatchNormLayer(cudaHandles,desc,xSize,ySize,useFP16,useNHWC);
 
@@ -2561,7 +2419,7 @@ bool NeuralNet::testEvaluateBatchNorm(
   );
 
   outputBuffer.resize(numOutputFloats);
-  expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceOutput, useFP16);
+  CudaUtils::expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceOutput, useFP16);
 
   delete batchNormLayer;
 
@@ -2604,9 +2462,9 @@ bool NeuralNet::testEvaluateResidualBlock(
   void* deviceInput;
   void* deviceMask;
   void* deviceScratch;
-  mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
-  mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
-  mallocOnDevice("deviceScratch", numInputFloats, deviceScratch, useFP16);
+  CudaUtils::mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
+  CudaUtils::mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
+  CudaUtils::mallocOnDevice("deviceScratch", numInputFloats, deviceScratch, useFP16);
 
   int maxBatchSize = desiredBatchSize;
 
@@ -2630,7 +2488,7 @@ bool NeuralNet::testEvaluateResidualBlock(
   );
 
   outputBuffer.resize(numOutputFloats);
-  expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceInput, useFP16);
+  CudaUtils::expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceInput, useFP16);
 
   cudaFree(deviceWorkspace);
 
@@ -2681,12 +2539,12 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   float* deviceMaskSum;
   void* deviceScratch;
 
-  mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
-  mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
+  CudaUtils::mallocAndCopyToDevice("deviceInput", inputBuffer.data(), numInputFloats, deviceInput, useFP16);
+  CudaUtils::mallocAndCopyToDevice("deviceMask", maskBuffer.data(), numMaskFloats, deviceMask, useFP16);
   CUDA_ERR("deviceMaskFloat",cudaMalloc(&deviceMaskFloat, numMaskFloats * sizeof(float)));
   CUDA_ERR("deviceMaskSum",cudaMalloc(&deviceMaskSum, numMaskSumFloats * sizeof(float)));
   deviceMaskFloatOrig = deviceMaskFloat;
-  mallocOnDevice("deviceScratch", numInputFloats, deviceScratch, useFP16);
+  CudaUtils::mallocOnDevice("deviceScratch", numInputFloats, deviceScratch, useFP16);
 
   fillMaskFloatBufAndMaskSumBuf(deviceMask, deviceMaskFloat, deviceMaskSum, useFP16, desiredBatchSize, xSize, ySize);
 
@@ -2718,7 +2576,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   );
 
   outputBuffer.resize(numOutputFloats);
-  expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceInput, useFP16);
+  CudaUtils::expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceInput, useFP16);
 
   cudaFree(deviceWorkspace);
 
