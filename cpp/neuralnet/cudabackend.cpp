@@ -995,6 +995,288 @@ struct GlobalPoolingResidualBlock {
 
 //------------------------------------------------------------------------------
 
+struct BlockStack {
+  int numBlocks;
+  vector<pair<int,unique_ptr_void>> blocks;
+
+  BlockStack() = delete;
+  BlockStack(const BlockStack&) = delete;
+  BlockStack& operator=(const BlockStack&) = delete;
+
+  BlockStack(
+    CudaHandles* cudaHandles,
+    CudnnManager* manager,
+    int nBlocks,
+    const std::vector<std::pair<int, unique_ptr_void>>& descBlocks,
+    int xS,
+    int yS,
+    bool useFP16,
+    bool useNHWC
+  );
+  ~BlockStack();
+
+  size_t requiredWorkspaceBytes(
+    CudaHandles* cudaHandles,
+    int batchSize
+  ) const;
+
+  void apply(
+    CudaHandles* cudaHandles,
+    ScratchBuffers* scratch,
+    int batchSize,
+    void* maskBuf,
+    float* maskSumBuf,
+    void* trunkBuf,
+    void* trunkScratchBuf,
+    void* workspaceBuf,
+    size_t workspaceBytes
+  ) const;
+
+};
+
+//------------------------------------------------------------------------------
+
+struct NestedBottleneckResidualBlock {
+  string name;
+  NormActConv normActConv1;
+  BlockStack blocks;
+  NormActConv normActConv2;
+
+  NestedBottleneckResidualBlock() = delete;
+  NestedBottleneckResidualBlock(const NestedBottleneckResidualBlock&) = delete;
+  NestedBottleneckResidualBlock& operator=(const NestedBottleneckResidualBlock&) = delete;
+
+  NestedBottleneckResidualBlock(
+    CudaHandles* cudaHandles,
+    CudnnManager* manager,
+    const NestedBottleneckResidualBlockDesc* desc,
+    int xS,
+    int yS,
+    bool useFP16,
+    bool useNHWC
+  ): name(desc->name),
+     normActConv1(cudaHandles,manager,&desc->preBN,&desc->preActivation,&desc->preConv,xS,yS,useFP16,useNHWC),
+     blocks(cudaHandles,manager,desc->numBlocks,desc->blocks,xS,yS,useFP16,useNHWC),
+     normActConv2(cudaHandles,manager,&desc->postBN,&desc->postActivation,&desc->postConv,xS,yS,useFP16,useNHWC)
+  {
+  }
+
+  ~NestedBottleneckResidualBlock()
+  {}
+
+  size_t requiredWorkspaceBytes(
+    CudaHandles* cudaHandles,
+    int batchSize
+  ) const {
+    size_t bytes = 0;
+    size_t b;
+    b = normActConv1.requiredWorkspaceBytes(cudaHandles,batchSize);
+    bytes = std::max(bytes,b);
+    b = blocks.requiredWorkspaceBytes(cudaHandles,batchSize);
+    bytes = std::max(bytes,b);
+    b = normActConv2.requiredWorkspaceBytes(cudaHandles,batchSize);
+    bytes = std::max(bytes,b);
+    return bytes;
+  }
+
+  void apply(
+    CudaHandles* cudaHandles,
+    ScratchBuffers* scratch,
+    int batchSize,
+    void* trunkBuf,
+    void* trunkScratchBuf,
+    void* maskBuf,
+    float* maskSumBuf,
+    void* workspaceBuf,
+    size_t workspaceBytes
+  ) const {
+    SizedBuf<void*> mid(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+    SizedBuf<void*> midScratch(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+    assert(normActConv1.outChannels == normActConv2.inChannels);
+    normActConv1.apply(cudaHandles,batchSize,false,trunkBuf,trunkScratchBuf,mid.buf,maskBuf,workspaceBuf,workspaceBytes);
+    blocks.apply(
+      cudaHandles,
+      scratch,
+      batchSize,
+      maskBuf,
+      maskSumBuf,
+      mid.buf,
+      midScratch.buf,
+      workspaceBuf,
+      workspaceBytes
+    );
+    normActConv2.apply(cudaHandles,batchSize,true,mid.buf,midScratch.buf,trunkBuf,maskBuf,workspaceBuf,workspaceBytes);
+  }
+
+};
+
+//------------------------------------------------------------------------------
+
+BlockStack::BlockStack(
+  CudaHandles* cudaHandles,
+  CudnnManager* manager,
+  int nBlocks,
+  const std::vector<std::pair<int, unique_ptr_void>>& descBlocks,
+  int xS,
+  int yS,
+  bool useFP16,
+  bool useNHWC
+) {
+  int xSize = xS;
+  int ySize = yS;
+  numBlocks = nBlocks;
+  assert(numBlocks == descBlocks.size());
+  for(int i = 0; i<numBlocks; i++) {
+    if(descBlocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)descBlocks[i].second.get();
+      unique_ptr_void blockPtr = make_unique_void(
+        new ResidualBlock(
+          cudaHandles,
+          manager,
+          blockDesc,
+          xSize,
+          ySize,
+          useFP16,
+          useNHWC
+        )
+      );
+      blocks.push_back(make_pair(ORDINARY_BLOCK_KIND,std::move(blockPtr)));
+    }
+    else if(descBlocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)descBlocks[i].second.get();
+      unique_ptr_void blockPtr = make_unique_void(
+        new GlobalPoolingResidualBlock(
+          cudaHandles,
+          manager,
+          blockDesc,
+          xSize,
+          ySize,
+          useFP16,
+          useNHWC
+        )
+      );
+      blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND,std::move(blockPtr)));
+    }
+    else if(descBlocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* blockDesc = (NestedBottleneckResidualBlockDesc*)descBlocks[i].second.get();
+      unique_ptr_void blockPtr = make_unique_void(
+        new NestedBottleneckResidualBlock(
+          cudaHandles,
+          manager,
+          blockDesc,
+          xSize,
+          ySize,
+          useFP16,
+          useNHWC
+        )
+      );
+      blocks.push_back(make_pair(NESTED_BOTTLENECK_BLOCK_KIND,std::move(blockPtr)));
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+}
+BlockStack::~BlockStack() {
+}
+
+size_t BlockStack::requiredWorkspaceBytes(
+  CudaHandles* cudaHandles,
+  int batchSize
+) const {
+  size_t bytes = 0;
+  size_t b;
+
+  for(int i = 0; i<blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
+      b = block->requiredWorkspaceBytes(cudaHandles,batchSize);
+      bytes = std::max(bytes,b);
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
+      b = block->requiredWorkspaceBytes(cudaHandles,batchSize);
+      bytes = std::max(bytes,b);
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlock* block = (NestedBottleneckResidualBlock*)blocks[i].second.get();
+      b = block->requiredWorkspaceBytes(cudaHandles,batchSize);
+      bytes = std::max(bytes,b);
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+  return bytes;
+}
+
+void BlockStack::apply(
+  CudaHandles* cudaHandles,
+  ScratchBuffers* scratch,
+  int batchSize,
+  void* maskBuf,
+  float* maskSumBuf,
+  void* trunkBuf,
+  void* trunkScratchBuf,
+  void* workspaceBuf,
+  size_t workspaceBytes
+) const {
+
+  for(int i = 0; i<blocks.size(); i++) {
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    debugPrint4D(string("Blockstack before block " + Global::intToString(i)), trunkBuf, batchSize, trunkNumChannels, xSize, ySize, usingNHWC, usingFP16);
+#endif
+
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
+      block->apply(
+        cudaHandles,
+        scratch,
+        batchSize,
+        trunkBuf,
+        trunkScratchBuf,
+        maskBuf,
+        workspaceBuf,
+        workspaceBytes
+      );
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
+      block->apply(
+        cudaHandles,
+        scratch,
+        batchSize,
+        trunkBuf,
+        trunkScratchBuf,
+        maskBuf,
+        maskSumBuf,
+        workspaceBuf,
+        workspaceBytes
+      );
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlock* block = (NestedBottleneckResidualBlock*)blocks[i].second.get();
+      block->apply(
+        cudaHandles,
+        scratch,
+        batchSize,
+        trunkBuf,
+        trunkScratchBuf,
+        maskBuf,
+        maskSumBuf,
+        workspaceBuf,
+        workspaceBytes
+      );
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+}
+
+//----------------------------------------------------------------------------
+
+
 struct Trunk {
   string name;
   int version;
@@ -1008,7 +1290,7 @@ struct Trunk {
 
   std::unique_ptr<ConvLayer> initialConv;
   std::unique_ptr<MatMulLayer> initialMatMul;
-  vector<pair<int,unique_ptr_void>> blocks;
+  BlockStack blocks;
   std::unique_ptr<BatchNormLayer> trunkTipBN;
 
   Trunk() = delete;
@@ -1024,7 +1306,8 @@ struct Trunk {
     bool inputsUseNHWC,
     bool useFP16,
     bool useNHWC
-  ) {
+  ) : blocks(cudaHandles,manager,desc->numBlocks,desc->blocks,xS,yS,useFP16,useNHWC)
+  {
     name = desc->name;
     version = desc->version;
     numBlocks = desc->numBlocks;
@@ -1048,43 +1331,7 @@ struct Trunk {
     initialMatMul = std::make_unique<MatMulLayer>(cudaHandles,&desc->initialMatMul,useFP16);
 
     trunkTipBN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->trunkTipBN,&desc->trunkTipActivation,xSize,ySize,useFP16,useNHWC);
-
     assert(desc->blocks.size() == numBlocks);
-    for(int i = 0; i<numBlocks; i++) {
-      if(desc->blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)desc->blocks[i].second.get();
-        unique_ptr_void blockPtr = make_unique_void(
-          new ResidualBlock(
-            cudaHandles,
-            manager,
-            blockDesc,
-            xSize,
-            ySize,
-            useFP16,
-            useNHWC
-          )
-        );
-        blocks.push_back(make_pair(ORDINARY_BLOCK_KIND,std::move(blockPtr)));
-      }
-      else if(desc->blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)desc->blocks[i].second.get();
-        unique_ptr_void blockPtr = make_unique_void(
-          new GlobalPoolingResidualBlock(
-            cudaHandles,
-            manager,
-            blockDesc,
-            xSize,
-            ySize,
-            useFP16,
-            useNHWC
-          )
-        );
-        blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND,std::move(blockPtr)));
-      }
-      else {
-        ASSERT_UNREACHABLE;
-      }
-    }
   }
 
   ~Trunk()
@@ -1104,21 +1351,8 @@ struct Trunk {
     b = initialMatMul->requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
 
-    for(int i = 0; i<blocks.size(); i++) {
-      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
-        b = block->requiredWorkspaceBytes(cudaHandles,batchSize);
-        bytes = std::max(bytes,b);
-      }
-      else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
-        b = block->requiredWorkspaceBytes(cudaHandles,batchSize);
-        bytes = std::max(bytes,b);
-      }
-      else {
-        ASSERT_UNREACHABLE;
-      }
-    }
+    b = blocks.requiredWorkspaceBytes(cudaHandles,batchSize);
+    bytes = std::max(bytes,b);
     return bytes;
   }
 
@@ -1162,43 +1396,18 @@ struct Trunk {
     }
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-    for(int i = 0; i<blocks.size(); i++) {
-      #ifdef DEBUG_INTERMEDIATE_VALUES
-      debugPrint4D(string("Trunk before block " + Global::intToString(i)), trunkScratch.buf, batchSize, trunkNumChannels, xSize, ySize, usingNHWC, usingFP16);
-      #endif
-
-      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
-        block->apply(
-          cudaHandles,
-          scratch,
-          batchSize,
-          trunkScratch.buf, //Flip trunkBuf and trunkScratch.buf so that the result gets accumulated in trunkScratch.buf
-          trunkBuf,
-          maskBuf,
-          workspaceBuf,
-          workspaceBytes
-        );
-      }
-      else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
-        block->apply(
-          cudaHandles,
-          scratch,
-          batchSize,
-          trunkScratch.buf, //Flip trunkBuf and trunkScratch.buf so that the result gets accumulated in trunkScratch.buf
-          trunkBuf,
-          maskBuf,
-          maskSumBuf,
-          workspaceBuf,
-          workspaceBytes
-        );
-      }
-      else {
-        ASSERT_UNREACHABLE;
-      }
-
-    }
+    //Flip trunkBuf and trunkScratch.buf so that the result gets accumulated in trunkScratch.buf
+    blocks.apply(
+      cudaHandles,
+      scratch,
+      batchSize,
+      maskBuf,
+      maskSumBuf,
+      trunkScratch.buf,
+      trunkBuf,
+      workspaceBuf,
+      workspaceBytes
+    );
 
     //And now with the final BN port it from trunkScratch.buf to trunkBuf.
     trunkTipBN->apply(cudaHandles,batchSize,trunkScratch.buf,maskBuf,trunkBuf);
