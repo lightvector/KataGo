@@ -354,10 +354,10 @@ void customCudaPoolRowsGPoolNCHW(const float* in, float* out, int nSize, int cSi
 
 //--------------------------------------------------------------------------------------------------------------
 
-#ifdef CUDA_SUPPORTS_FP16
 __global__
 void gPoolChannelsNCHWHalfKernel(const half* in, half* out, int cSize, int xySize, const float* maskSum, int sharedMemElts)
 {
+#ifdef CUDA_SUPPORTS_FP16
   extern __shared__ float poolNCHWShared[];
   float* sumShared = (float*)poolNCHWShared;
   float* maxShared = (float*)poolNCHWShared + sharedMemElts;
@@ -404,14 +404,10 @@ void gPoolChannelsNCHWHalfKernel(const half* in, half* out, int cSize, int xySiz
     out[cIdx + nIdx * (cSize*3) + cSize] = __float2half(mean * (sqrtdiv - 14.0f) * 0.1f);
     out[cIdx + nIdx * (cSize*3) + cSize*2] = __float2half(maxShared[sharedIdx]);
   }
-}
 #else
-__global__
-void gPoolChannelsNCHWHalfKernel(const half* in, half* out, int cSize, int xySize, const float* maskSum, int sharedMemElts)
-{
   //Do nothing, FP16 not supported
-}
 #endif
+}
 
 void customCudaPoolRowsGPoolNCHW(const half* in, half* out, int nSize, int cSize, int xySize, const float* maskSum) {
   if(nSize > 65536)
@@ -648,10 +644,10 @@ void customCudaPoolRowsGPoolNHWC(const float* in, float* out, int nSize, int xyS
 
 //--------------------------------------------------------------------------------------------------------------
 
-#ifdef CUDA_SUPPORTS_FP16
 __global__
 void gPoolChannelsNHWCHalfKernel(const half* in, half* out, int xySize, int cSize, const float* maskSum, int sharedMemElts)
 {
+#ifdef CUDA_SUPPORTS_FP16
   extern __shared__ float poolNHWCShared[];
   float* sumShared = (float*)poolNHWCShared;
   float* maxShared = (float*)poolNHWCShared + sharedMemElts;
@@ -697,14 +693,10 @@ void gPoolChannelsNHWCHalfKernel(const half* in, half* out, int xySize, int cSiz
     out[cIdx + nIdx * (cSize*3) + cSize] = __float2half(mean * (sqrtdiv - 14.0f) * 0.1f);
     out[cIdx + nIdx * (cSize*3) + cSize*2] = __float2half(maxShared[sharedIdx]);
   }
-}
 #else
-__global__
-void gPoolChannelsNHWCHalfKernel(const half* in, half* out, int xySize, int cSize, const float* maskSum, int sharedMemElts)
-{
   //Do nothing, FP16 not supported
-}
 #endif
+}
 
 void customCudaPoolRowsGPoolNHWC(const half* in, half* out, int nSize, int xySize, int cSize, const float* maskSum) {
   if(nSize > 65536)
@@ -768,22 +760,18 @@ void customCudaCopyFromHalf(const half* in, float* out, int n) {
 //--------------------------------------------------------------------------------------------------------------
 
 
-#ifdef CUDA_SUPPORTS_FP16
 __global__
 void addTensorInplaceHalfKernel(half *buf, const half* biases, int nSize)
 {
+#ifdef CUDA_SUPPORTS_FP16
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if(idx < nSize) {
     buf[idx] = __hadd(buf[idx],biases[idx]);
   }
-}
 #else
-__global__
-void addTensorInplaceHalfKernel(half *buf, const half* biases, int nSize)
-{
   //Do nothing, FP16 not supported
-}
 #endif
+}
 void customCudaAddTensorInplace(half* buf, const half* biases, int nSize) {
   int blockSize = targetNumThreads;
   int numBlocks = (nSize+blockSize-1)/blockSize;
@@ -803,24 +791,20 @@ void addCBiasInplaceNCKernel(float *buf, const float* biases, int nSize, int cSi
     buf[idx] = buf[idx] + biases[cIdx];
   }
 }
-#ifdef CUDA_SUPPORTS_FP16
 __global__
 void addCBiasInplaceNCHalfKernel(half *buf, const half* biases, int nSize, int cSize)
 {
+#ifdef CUDA_SUPPORTS_FP16
   int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
   int nIdx = blockIdx.y * blockDim.y + threadIdx.y;
   if(cIdx < cSize && nIdx < nSize) {
     int idx = nIdx * cSize + cIdx;
     buf[idx] = __hadd(buf[idx],biases[cIdx]);
   }
-}
 #else
-__global__
-void addCBiasInplaceNCHalfKernel(half *buf, const half* biases, int nSize, int cSize)
-{
   //Do nothing, FP16 not supported
-}
 #endif
+}
 
 __global__
 void addCBiasInplaceNCKernelRelu(float *buf, const float* biases, int nSize, int cSize)
@@ -832,10 +816,10 @@ void addCBiasInplaceNCKernelRelu(float *buf, const float* biases, int nSize, int
     buf[idx] = fmaxf(buf[idx] + biases[cIdx],0.0f);
   }
 }
-#ifdef CUDA_SUPPORTS_FP16
 __global__
 void addCBiasInplaceNCHalfKernelRelu(half *buf, const half* biases, int nSize, int cSize)
 {
+#ifdef CUDA_SUPPORTS_FP16
   int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
   int nIdx = blockIdx.y * blockDim.y + threadIdx.y;
   if(cIdx < cSize && nIdx < nSize) {
@@ -844,14 +828,10 @@ void addCBiasInplaceNCHalfKernelRelu(half *buf, const half* biases, int nSize, i
     half a = __hadd(buf[idx],biases[cIdx]);
     buf[idx] = __hgt(a,halfzero) ? a : halfzero;
   }
-}
 #else
-__global__
-void addCBiasInplaceNCHalfKernelRelu(half *buf, const half* biases, int nSize, int cSize)
-{
   //Do nothing, FP16 not supported
-}
 #endif
+}
 
 void sharedAddCBiasInplaceNC(void* buf, const void* biases, int nSize, int cSize, bool isHalf, int activation) {
   int cThreads;
@@ -904,10 +884,10 @@ void addNCBiasInplaceNCHWKernel(float *buf, const float* biases, int cSize, int 
     buf[idx] = buf[idx] + biases[ncIdx];
   }
 }
-#ifdef CUDA_SUPPORTS_FP16
 __global__
 void addNCBiasInplaceNCHWHalfKernel(half *buf, const half* biases, int cSize, int sSize)
 {
+#ifdef CUDA_SUPPORTS_FP16
   int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
   int cIdx = blockIdx.y * blockDim.y + threadIdx.y;
   int nIdx = blockIdx.z;
@@ -916,13 +896,10 @@ void addNCBiasInplaceNCHWHalfKernel(half *buf, const half* biases, int cSize, in
     int idx = ncIdx * sSize + sIdx;
     buf[idx] = __hadd(buf[idx],biases[ncIdx]);
   }
-}
 #else
-__global__
-void addNCBiasInplaceNCHWHalfKernel(half *buf, const half* biases, int cSize, int sSize) {
   //Do nothing, FP16 not supported
-}
 #endif
+}
 
 void sharedAddNCBiasInplaceNCHW(void *buf, const void* biases, int nSize, int cSize, int xySize, bool isHalf) {
   if(nSize > 65536)
@@ -966,10 +943,10 @@ void addNCBiasInplaceNHWCKernel(float *buf, const float* biases, int sSize, int 
     buf[idx] = buf[idx] + biases[ncIdx];
   }
 }
-#ifdef CUDA_SUPPORTS_FP16
 __global__
 void addNCBiasInplaceNHWCHalfKernel(half *buf, const half* biases, int sSize, int cSize)
 {
+#ifdef CUDA_SUPPORTS_FP16
   int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
   int sIdx = blockIdx.y * blockDim.y + threadIdx.y;
   int nIdx = blockIdx.z;
@@ -978,14 +955,10 @@ void addNCBiasInplaceNHWCHalfKernel(half *buf, const half* biases, int sSize, in
     int idx = (nIdx * sSize + sIdx) * cSize + cIdx;
     buf[idx] = __hadd(buf[idx],biases[ncIdx]);
   }
-}
 #else
-__global__
-void addNCBiasInplaceNHWCHalfKernel(half *buf, const half* biases, int sSize, int cSize)
-{
   //Do nothing, FP16 not supported
-}
 #endif
+}
 
 void sharedAddNCBiasInplaceNHWC(void *buf, const void* biases, int nSize, int xySize, int cSize, bool isHalf) {
   if(nSize > 65536)
@@ -1061,10 +1034,10 @@ void applyCScaleBiasNCHWReluMaskKernel(const float *in, float* out, const float*
     out[idx] = fmaxf(in[idx] * scale[cIdx] + biases[cIdx],0.0f) * mask[nIdx*sSize+sIdx];
   }
 }
-#ifdef CUDA_SUPPORTS_FP16
 __global__
 void applyCScaleBiasNCHWHalfKernel(const half *in, half* out, const half* scale, const half* biases, int cSize, int sSize)
 {
+#ifdef CUDA_SUPPORTS_FP16
   int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
   int cIdx = blockIdx.y * blockDim.y + threadIdx.y;
   int nIdx = blockIdx.z;
@@ -1072,10 +1045,14 @@ void applyCScaleBiasNCHWHalfKernel(const half *in, half* out, const half* scale,
     int idx = (nIdx * cSize + cIdx) * sSize + sIdx;
     out[idx] = __hfma(in[idx],scale[cIdx],biases[cIdx]);
   }
+#else
+  //Do nothing, FP16 not supported
+#endif
 }
 __global__
 void applyCScaleBiasNCHWReluHalfKernel(const half *in, half* out, const half* scale, const half* biases, int cSize, int sSize)
 {
+#ifdef CUDA_SUPPORTS_FP16
   int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
   int cIdx = blockIdx.y * blockDim.y + threadIdx.y;
   int nIdx = blockIdx.z;
@@ -1085,10 +1062,14 @@ void applyCScaleBiasNCHWReluHalfKernel(const half *in, half* out, const half* sc
     const half halfzero = __float2half(0.0f);
     out[idx] = __hgt(a,halfzero) ? a : halfzero;
   }
+#else
+  //Do nothing, FP16 not supported
+#endif
 }
 __global__
 void applyCScaleBiasNCHWMaskHalfKernel(const half *in, half* out, const half* scale, const half* biases, const half* mask, int cSize, int sSize)
 {
+#ifdef CUDA_SUPPORTS_FP16
   int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
   int cIdx = blockIdx.y * blockDim.y + threadIdx.y;
   int nIdx = blockIdx.z;
@@ -1096,10 +1077,14 @@ void applyCScaleBiasNCHWMaskHalfKernel(const half *in, half* out, const half* sc
     int idx = (nIdx * cSize + cIdx) * sSize + sIdx;
     out[idx] = __hmul(__hfma(in[idx],scale[cIdx],biases[cIdx]),mask[nIdx*sSize+sIdx]);
   }
+#else
+  //Do nothing, FP16 not supported
+#endif
 }
 __global__
 void applyCScaleBiasNCHWReluMaskHalfKernel(const half *in, half* out, const half* scale, const half* biases, const half* mask, int cSize, int sSize)
 {
+#ifdef CUDA_SUPPORTS_FP16
   int sIdx = blockIdx.x * blockDim.x + threadIdx.x;
   int cIdx = blockIdx.y * blockDim.y + threadIdx.y;
   int nIdx = blockIdx.z;
@@ -1109,29 +1094,10 @@ void applyCScaleBiasNCHWReluMaskHalfKernel(const half *in, half* out, const half
     const half halfzero = __float2half(0.0f);
     out[idx] = __hgt(a,halfzero) ? a : halfzero;
   }
-}
 #else
-__global__
-void applyCScaleBiasNCHWHalfKernel(const half *in, half* out, const half* scale, const half* biases, int cSize, int sSize)
-{
   //Do nothing, FP16 not supported
-}
-__global__
-void applyCScaleBiasNCHWReluHalfKernel(const half *in, half* out, const half* scale, const half* biases, int cSize, int sSize)
-{
-  //Do nothing, FP16 not supported
-}
-__global__
-void applyCScaleBiasNCHWMaskHalfKernel(const half *in, half* out, const half* scale, const half* biases, const half* mask, int cSize, int sSize)
-{
-  //Do nothing, FP16 not supported
-}
-__global__
-void applyCScaleBiasNCHWReluMaskHalfKernel(const half *in, half* out, const half* scale, const half* biases, const half* mask, int cSize, int sSize)
-{
-  //Do nothing, FP16 not supported
-}
 #endif
+}
 
 void sharedApplyCScaleBiasNCHW(const void* in, void* out, const void* scale, const void* biases, const void* mask, int nSize, int cSize, int xySize, bool isHalf, int activation) {
   if(nSize > 65536)
@@ -1238,10 +1204,10 @@ void applyCScaleBiasNHWCReluMaskKernel(const float* in, float* out, const float*
     out[idx] = fmaxf(in[idx] * scale[cIdx] + biases[cIdx],0.0f) * mask[nIdx*sSize+sIdx];
   }
 }
-#ifdef CUDA_SUPPORTS_FP16
 __global__
 void applyCScaleBiasNHWCHalfKernel(const half* in, half* out, const half* scale, const half* biases, int sSize, int cSize)
 {
+#ifdef CUDA_SUPPORTS_FP16
   int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
   int sIdx = blockIdx.y * blockDim.y + threadIdx.y;
   int nIdx = blockIdx.z;
@@ -1249,10 +1215,14 @@ void applyCScaleBiasNHWCHalfKernel(const half* in, half* out, const half* scale,
     int idx = (nIdx * sSize + sIdx) * cSize + cIdx;
     out[idx] = __hfma(in[idx],scale[cIdx],biases[cIdx]);
   }
+#else
+  //Do nothing, FP16 not supported
+#endif
 }
 __global__
 void applyCScaleBiasNHWCReluHalfKernel(const half* in, half* out, const half* scale, const half* biases, int sSize, int cSize)
 {
+#ifdef CUDA_SUPPORTS_FP16
   int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
   int sIdx = blockIdx.y * blockDim.y + threadIdx.y;
   int nIdx = blockIdx.z;
@@ -1262,10 +1232,14 @@ void applyCScaleBiasNHWCReluHalfKernel(const half* in, half* out, const half* sc
     const half halfzero = __float2half(0.0f);
     out[idx] = __hgt(a,halfzero) ? a : halfzero;
   }
+#else
+  //Do nothing, FP16 not supported
+#endif
 }
 __global__
 void applyCScaleBiasNHWCMaskHalfKernel(const half* in, half* out, const half* scale, const half* biases, const half* mask, int sSize, int cSize)
 {
+#ifdef CUDA_SUPPORTS_FP16
   int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
   int sIdx = blockIdx.y * blockDim.y + threadIdx.y;
   int nIdx = blockIdx.z;
@@ -1273,10 +1247,14 @@ void applyCScaleBiasNHWCMaskHalfKernel(const half* in, half* out, const half* sc
     int idx = (nIdx * sSize + sIdx) * cSize + cIdx;
     out[idx] = __hmul(__hfma(in[idx],scale[cIdx],biases[cIdx]),mask[nIdx*sSize+sIdx]);
   }
+#else
+  //Do nothing, FP16 not supported
+#endif
 }
 __global__
 void applyCScaleBiasNHWCReluMaskHalfKernel(const half* in, half* out, const half* scale, const half* biases, const half* mask, int sSize, int cSize)
 {
+#ifdef CUDA_SUPPORTS_FP16
   int cIdx = blockIdx.x * blockDim.x + threadIdx.x;
   int sIdx = blockIdx.y * blockDim.y + threadIdx.y;
   int nIdx = blockIdx.z;
@@ -1286,29 +1264,10 @@ void applyCScaleBiasNHWCReluMaskHalfKernel(const half* in, half* out, const half
     const half halfzero = __float2half(0.0f);
     out[idx] = __hgt(a,halfzero) ? a : halfzero;
   }
-}
 #else
-__global__
-void applyCScaleBiasNHWCHalfKernel(const half* in, half* out, const half* scale, const half* biases, int sSize, int cSize)
-{
   //Do nothing, FP16 not supported
-}
-__global__
-void applyCScaleBiasNHWCReluHalfKernel(const half* in, half* out, const half* scale, const half* biases, int sSize, int cSize)
-{
-  //Do nothing, FP16 not supported
-}
-__global__
-void applyCScaleBiasNHWCMaskHalfKernel(const half* in, half* out, const half* scale, const half* biases, const half* mask, int sSize, int cSize)
-{
-  //Do nothing, FP16 not supported
-}
-__global__
-void applyCScaleBiasNHWCReluMaskHalfKernel(const half* in, half* out, const half* scale, const half* biases, const half* mask, int sSize, int cSize)
-{
-  //Do nothing, FP16 not supported
-}
 #endif
+}
 
 void sharedApplyCScaleBiasNHWC(const void* in, void* out, const void* scale, const void* biases, const void* mask, int nSize, int xySize, int cSize, bool isHalf, int activation) {
   if(nSize > 65536)
