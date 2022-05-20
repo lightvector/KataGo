@@ -573,26 +573,25 @@ struct BatchNormLayer {
     void* outputBuf
   ) const {
     (void)cudaHandles;
-    bool applyRelu = activation == ACTIVATION_RELU;
     if(!usingFP16) {
       if(!usingNHWC)
         customCudaApplyCScaleBiasNCHW((const float*)inputBuf,(float*)outputBuf,(const float*)mergedScaleBuf,(const float*)mergedBiasBuf,
                                       (const float*)maskBuf,
-                                      batchSize,numChannels,xSize*ySize,applyRelu);
+                                      batchSize,numChannels,xSize*ySize,activation);
       else
         customCudaApplyCScaleBiasNHWC((const float*)inputBuf,(float*)outputBuf,(const float*)mergedScaleBuf,(const float*)mergedBiasBuf,
                                       (const float*)maskBuf,
-                                      batchSize,xSize*ySize,numChannels,applyRelu);
+                                      batchSize,xSize*ySize,numChannels,activation);
     }
     else {
       if(!usingNHWC)
         customCudaApplyCScaleBiasNCHW((const half*)inputBuf,(half*)outputBuf,(const half*)mergedScaleBuf,(const half*)mergedBiasBuf,
                                       (const half*)maskBuf,
-                                      batchSize,numChannels,xSize*ySize,applyRelu);
+                                      batchSize,numChannels,xSize*ySize,activation);
       else
         customCudaApplyCScaleBiasNHWC((const half*)inputBuf,(half*)outputBuf,(const half*)mergedScaleBuf,(const half*)mergedBiasBuf,
                                       (const half*)maskBuf,
-                                      batchSize,xSize*ySize,numChannels,applyRelu);
+                                      batchSize,xSize*ySize,numChannels,activation);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
 

@@ -45,15 +45,15 @@ void customCudaAddNCBiasInplaceNHWC(float *buf, const float* biases, int nSize, 
 void customCudaAddNCBiasInplaceNHWC(half *buf, const half* biases, int nSize, int xySize, int cSize);
 
 //Given an input with shape [n,c,xy] and scale and biases of shape [c], multiply by scale and add the biases
-//Optionally also apply relu.
+//Optionally also apply an activation.
 //Optionally also multiply by mask (can be null), with shape [n,xy]
-void customCudaApplyCScaleBiasNCHW(const float* in, float* out, const float* scale, const float* biases, const float* mask, int n, int c, int xy, bool applyRelu);
-void customCudaApplyCScaleBiasNCHW(const half* in, half* out, const half* scale, const half* biases, const half* mask, int n, int c, int xy, bool applyRelu);
+void customCudaApplyCScaleBiasNCHW(const float* in, float* out, const float* scale, const float* biases, const float* mask, int n, int c, int xy, int activation);
+void customCudaApplyCScaleBiasNCHW(const half* in, half* out, const half* scale, const half* biases, const half* mask, int n, int c, int xy, int activation);
 //Given an input with shape [n,xy,c] and scale and biases of shape [c], multiply by scale and add the biases
 //Optionally also apply relu.
 //Optionally also multiply by mask (can be null), with shape [n,xy]
-void customCudaApplyCScaleBiasNHWC(const float* in, float* out, const float* scale, const float* biases, const float* mask, int n, int xy, int c, bool applyRelu);
-void customCudaApplyCScaleBiasNHWC(const half* in, half* out, const half* scale, const half* biases, const half* mask, int n, int xy, int c, bool applyRelu);
+void customCudaApplyCScaleBiasNHWC(const float* in, float* out, const float* scale, const float* biases, const float* mask, int n, int xy, int c, int activation);
+void customCudaApplyCScaleBiasNHWC(const half* in, half* out, const half* scale, const half* biases, const half* mask, int n, int xy, int c, int activation);
 
 
 #endif  // NEURALNET_CUDAHELPERS_H_
