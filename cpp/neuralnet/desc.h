@@ -58,7 +58,7 @@ struct ActivationLayerDesc {
   int activation;
 
   ActivationLayerDesc();
-  ActivationLayerDesc(std::istream& in);
+  ActivationLayerDesc(std::istream& in, int version);
   ActivationLayerDesc(ActivationLayerDesc&& other);
 
   ActivationLayerDesc(const ActivationLayerDesc&) = delete;
@@ -108,7 +108,7 @@ struct ResidualBlockDesc {
   ConvLayerDesc finalConv;
 
   ResidualBlockDesc();
-  ResidualBlockDesc(std::istream& in, bool binaryFloats);
+  ResidualBlockDesc(std::istream& in, int version, bool binaryFloats);
   ResidualBlockDesc(ResidualBlockDesc&& other);
 
   ResidualBlockDesc(const ResidualBlockDesc&) = delete;
@@ -134,7 +134,7 @@ struct GlobalPoolingResidualBlockDesc {
   ConvLayerDesc finalConv;
 
   GlobalPoolingResidualBlockDesc();
-  GlobalPoolingResidualBlockDesc(std::istream& in, int vrsn, bool binaryFloats);
+  GlobalPoolingResidualBlockDesc(std::istream& in, int version, bool binaryFloats);
   GlobalPoolingResidualBlockDesc(GlobalPoolingResidualBlockDesc&& other);
 
   GlobalPoolingResidualBlockDesc(const GlobalPoolingResidualBlockDesc&) = delete;
@@ -154,7 +154,7 @@ struct NestedBottleneckResidualBlockDesc {
   ConvLayerDesc preConv;
 
   std::vector<std::pair<int, unique_ptr_void>> blocks;
-  
+
   BatchNormLayerDesc postBN;
   ActivationLayerDesc postActivation;
   ConvLayerDesc postConv;
@@ -191,7 +191,7 @@ struct TrunkDesc {
 
   TrunkDesc();
   ~TrunkDesc();
-  TrunkDesc(std::istream& in, int vrsn, bool binaryFloats);
+  TrunkDesc(std::istream& in, int version, bool binaryFloats);
   TrunkDesc(TrunkDesc&& other);
 
   TrunkDesc(const TrunkDesc&) = delete;
@@ -217,7 +217,7 @@ struct PolicyHeadDesc {
 
   PolicyHeadDesc();
   ~PolicyHeadDesc();
-  PolicyHeadDesc(std::istream& in, int vrsn, bool binaryFloats);
+  PolicyHeadDesc(std::istream& in, int version, bool binaryFloats);
   PolicyHeadDesc(PolicyHeadDesc&& other);
 
   PolicyHeadDesc(const PolicyHeadDesc&) = delete;
@@ -245,7 +245,7 @@ struct ValueHeadDesc {
 
   ValueHeadDesc();
   ~ValueHeadDesc();
-  ValueHeadDesc(std::istream& in, int vrsn, bool binaryFloats);
+  ValueHeadDesc(std::istream& in, int version, bool binaryFloats);
   ValueHeadDesc(ValueHeadDesc&& other);
 
   ValueHeadDesc(const ValueHeadDesc&) = delete;

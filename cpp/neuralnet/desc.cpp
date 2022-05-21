@@ -238,9 +238,25 @@ BatchNormLayerDesc& BatchNormLayerDesc::operator=(BatchNormLayerDesc&& other) {
 
 ActivationLayerDesc::ActivationLayerDesc() : activation(ACTIVATION_RELU) {}
 
-ActivationLayerDesc::ActivationLayerDesc(istream& in) {
+ActivationLayerDesc::ActivationLayerDesc(istream& in, int version) {
   in >> name;
-  activation = ACTIVATION_RELU;
+  if(version >= 11) {
+    string kind;
+    in >> kind;
+    if(kind == "ACTIVATION_IDENTITY")
+      activation = ACTIVATION_IDENTITY;
+    else if(kind == "ACTIVATION_RELU")
+      activation = ACTIVATION_RELU;
+    else if(kind == "ACTIVATION_MISH")
+      activation = ACTIVATION_MISH;
+    else
+      throw StringError(
+        name + ": unknown activation " + kind
+      );
+  }
+  else {
+    activation = ACTIVATION_RELU;
+  }
 }
 
 ActivationLayerDesc::ActivationLayerDesc(ActivationLayerDesc&& other) {
@@ -337,16 +353,16 @@ MatBiasLayerDesc& MatBiasLayerDesc::operator=(MatBiasLayerDesc&& other) {
 
 ResidualBlockDesc::ResidualBlockDesc() {}
 
-ResidualBlockDesc::ResidualBlockDesc(istream& in, bool binaryFloats) {
+ResidualBlockDesc::ResidualBlockDesc(istream& in, int version, bool binaryFloats) {
   in >> name;
   if(in.fail())
     throw StringError(name + ": res block failed to parse name");
 
   preBN = BatchNormLayerDesc(in,binaryFloats);
-  preActivation = ActivationLayerDesc(in);
+  preActivation = ActivationLayerDesc(in,version);
   regularConv = ConvLayerDesc(in,binaryFloats);
   midBN = BatchNormLayerDesc(in,binaryFloats);
-  midActivation = ActivationLayerDesc(in);
+  midActivation = ActivationLayerDesc(in,version);
   finalConv = ConvLayerDesc(in,binaryFloats);
 
   if(preBN.numChannels != regularConv.inChannels)
@@ -397,14 +413,14 @@ GlobalPoolingResidualBlockDesc::GlobalPoolingResidualBlockDesc(istream& in, int 
     throw StringError(name + ": gpool res block failed to parse name");
   version = vrsn;
   preBN = BatchNormLayerDesc(in,binaryFloats);
-  preActivation = ActivationLayerDesc(in);
+  preActivation = ActivationLayerDesc(in,version);
   regularConv = ConvLayerDesc(in,binaryFloats);
   gpoolConv = ConvLayerDesc(in,binaryFloats);
   gpoolBN = BatchNormLayerDesc(in,binaryFloats);
-  gpoolActivation = ActivationLayerDesc(in);
+  gpoolActivation = ActivationLayerDesc(in,version);
   gpoolToBiasMul = MatMulLayerDesc(in,binaryFloats);
   midBN = BatchNormLayerDesc(in,binaryFloats);
-  midActivation = ActivationLayerDesc(in);
+  midActivation = ActivationLayerDesc(in,version);
   finalConv = ConvLayerDesc(in,binaryFloats);
 
   if(preBN.numChannels != regularConv.inChannels)
@@ -483,13 +499,13 @@ NestedBottleneckResidualBlockDesc::NestedBottleneckResidualBlockDesc(istream& in
     throw StringError(name + ": nested bottleneck res block num blocks must be positive");
 
   preBN = BatchNormLayerDesc(in,binaryFloats);
-  preActivation = ActivationLayerDesc(in);
+  preActivation = ActivationLayerDesc(in,version);
   preConv = ConvLayerDesc(in,binaryFloats);
 
   parseResidualBlockStack(in, version, binaryFloats, name, numBlocks, preConv.outChannels, blocks);
 
   postBN = BatchNormLayerDesc(in,binaryFloats);
-  postActivation = ActivationLayerDesc(in);
+  postActivation = ActivationLayerDesc(in,version);
   postConv = ConvLayerDesc(in,binaryFloats);
 
   if(preBN.numChannels != preConv.inChannels)
@@ -562,7 +578,7 @@ static void parseResidualBlockStack(
     if(in.fail())
       throw StringError(name + ": failed to parse block kind");
     if(kind == "ordinary_block") {
-      unique_ptr_void descPtr = make_unique_void(new ResidualBlockDesc(in,binaryFloats));
+      unique_ptr_void descPtr = make_unique_void(new ResidualBlockDesc(in,version,binaryFloats));
       ResidualBlockDesc& desc = *((ResidualBlockDesc*)descPtr.get());
 
       if(desc.preBN.numChannels != trunkNumChannels)
@@ -684,7 +700,7 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats) {
   parseResidualBlockStack(in, version, binaryFloats, name, numBlocks, trunkNumChannels, blocks);
 
   trunkTipBN = BatchNormLayerDesc(in,binaryFloats);
-  trunkTipActivation = ActivationLayerDesc(in);
+  trunkTipActivation = ActivationLayerDesc(in,version);
 
   if(trunkTipBN.numChannels != trunkNumChannels)
     throw StringError(
@@ -761,10 +777,10 @@ PolicyHeadDesc::PolicyHeadDesc(istream& in, int vrsn, bool binaryFloats) {
   p1Conv = ConvLayerDesc(in,binaryFloats);
   g1Conv = ConvLayerDesc(in,binaryFloats);
   g1BN = BatchNormLayerDesc(in,binaryFloats);
-  g1Activation = ActivationLayerDesc(in);
+  g1Activation = ActivationLayerDesc(in,version);
   gpoolToBiasMul = MatMulLayerDesc(in,binaryFloats);
   p1BN = BatchNormLayerDesc(in,binaryFloats);
-  p1Activation = ActivationLayerDesc(in);
+  p1Activation = ActivationLayerDesc(in,version);
   p2Conv = ConvLayerDesc(in,binaryFloats);
   gpoolToPassMul = MatMulLayerDesc(in,binaryFloats);
 
@@ -846,10 +862,10 @@ ValueHeadDesc::ValueHeadDesc(istream& in, int vrsn, bool binaryFloats) {
 
   v1Conv = ConvLayerDesc(in,binaryFloats);
   v1BN = BatchNormLayerDesc(in,binaryFloats);
-  v1Activation = ActivationLayerDesc(in);
+  v1Activation = ActivationLayerDesc(in,version);
   v2Mul = MatMulLayerDesc(in,binaryFloats);
   v2Bias = MatBiasLayerDesc(in,binaryFloats);
-  v2Activation = ActivationLayerDesc(in);
+  v2Activation = ActivationLayerDesc(in,version);
   v3Mul = MatMulLayerDesc(in,binaryFloats);
   v3Bias = MatBiasLayerDesc(in,binaryFloats);
 
@@ -1140,7 +1156,7 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
 
 
 Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) const {
-  static_assert(NNModelVersion::latestModelVersionImplemented == 10, "");
+  static_assert(NNModelVersion::latestModelVersionImplemented == 11, "");
   Rules rules = desiredRules;
   supported = true;
   if(version <= 6) {
@@ -1161,7 +1177,7 @@ Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) c
       supported = false;
     }
   }
-  else if(version <= 10) {
+  else if(version <= 11) {
     if(rules.koRule == Rules::KO_SPIGHT) {
       rules.koRule = Rules::KO_SITUATIONAL;
       supported = false;
