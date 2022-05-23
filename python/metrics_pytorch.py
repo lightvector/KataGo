@@ -70,9 +70,9 @@ class Metrics:
     def loss_td_value_samplewise(self, pred_logits, target_probs, global_weight):
         assert pred_logits.shape == (self.n, self.num_td_values, self.value_len)
         assert target_probs.shape == (self.n, self.num_td_values, self.value_len)
+        assert global_weight.shape == (self.n,)
         loss = cross_entropy(pred_logits, target_probs, dim=2) - cross_entropy(torch.log(target_probs + 1.0e-30), target_probs, dim=2)
-        loss = torch.sum(loss * constant_like([0.55,0.55,0.15], loss), dim=1)
-        return global_weight * loss
+        return 1.20 * global_weight.unsqueeze(1) * loss
 
     def loss_td_score_samplewise(self, pred, target, weight, global_weight):
         assert pred.shape == (self.n, self.num_td_values)
@@ -287,6 +287,8 @@ class Metrics:
         batch,
         is_training,
         soft_policy_weight_scale,
+        value_loss_scale,
+        td_value_loss_scales,
         main_loss_scale,
         intermediate_loss_scale,
         intermediate_distill_scale,
@@ -295,8 +297,10 @@ class Metrics:
             model,
             model_output_postprocessed_byheads[0],
             batch,
-            is_training,
-            soft_policy_weight_scale,
+            is_training=is_training,
+            soft_policy_weight_scale=soft_policy_weight_scale,
+            value_loss_scale=value_loss_scale,
+            td_value_loss_scales=td_value_loss_scales,
             is_intermediate=False
         )
         if main_loss_scale is not None:
@@ -315,8 +319,10 @@ class Metrics:
                     model,
                     model_output_postprocessed_byheads[1],
                     batch,
-                    is_training,
-                    soft_policy_weight_scale,
+                    is_training=is_training,
+                    soft_policy_weight_scale=soft_policy_weight_scale,
+                    value_loss_scale=value_loss_scale,
+                    td_value_loss_scales=td_value_loss_scales,
                     is_intermediate=True
                 )
                 for key,value in iresults.items():
@@ -328,7 +334,9 @@ class Metrics:
                     model_output_postprocessed_byheads[0],
                     model_output_postprocessed_byheads[1],
                     batch,
-                    soft_policy_weight_scale,
+                    soft_policy_weight_scale=soft_policy_weight_scale,
+                    value_loss_scale=value_loss_scale,
+                    td_value_loss_scales=td_value_loss_scales,
                 )
                 for key,value in iresults.items():
                     if key != "loss_sum":
@@ -345,6 +353,8 @@ class Metrics:
         batch,
         is_training,
         soft_policy_weight_scale,
+        value_loss_scale,
+        td_value_loss_scales,
         is_intermediate,
     ):
         (
@@ -447,9 +457,15 @@ class Metrics:
         loss_value = self.loss_value_samplewise(
             value_logits, target_value, global_weight
         ).sum()
-        loss_td_value = self.loss_td_value_samplewise(
+
+        loss_td_value_unsummed = self.loss_td_value_samplewise(
             td_value_logits, target_td_value, global_weight
-        ).sum()
+        )
+        assert self.num_td_values == 3
+        loss_td_value1 = loss_td_value_unsummed[:,0].sum()
+        loss_td_value2 = loss_td_value_unsummed[:,1].sum()
+        loss_td_value3 = loss_td_value_unsummed[:,2].sum()
+
         loss_td_score = self.loss_td_score_samplewise(
             pred_td_score, target_td_score, target_weight_ownership, global_weight
         ).sum()
@@ -546,8 +562,10 @@ class Metrics:
             + loss_policy_opponent
             + loss_policy_player_soft * soft_policy_weight_scale
             + loss_policy_opponent_soft * soft_policy_weight_scale
-            + loss_value
-            + loss_td_value
+            + loss_value * value_loss_scale
+            + loss_td_value1 * td_value_loss_scales[0]
+            + loss_td_value2 * td_value_loss_scales[1]
+            + loss_td_value3 * td_value_loss_scales[2]
             + loss_td_score
             + loss_ownership
             + loss_scoring
@@ -577,7 +595,9 @@ class Metrics:
             "p0softloss_sum": loss_policy_player_soft,
             "p1softloss_sum": loss_policy_opponent_soft,
             "vloss_sum": loss_value,
-            "tdvloss_sum": loss_td_value,
+            "tdvloss1_sum": loss_td_value1,
+            "tdvloss2_sum": loss_td_value2,
+            "tdvloss3_sum": loss_td_value3,
             "tdsloss_sum": loss_td_score,
             "oloss_sum": loss_ownership,
             "sloss_sum": loss_scoring,
@@ -636,6 +656,8 @@ class Metrics:
         model_output_postprocessed_inter,
         batch,
         soft_policy_weight_scale,
+        value_loss_scale,
+        td_value_loss_scales,
     ):
         (
             policy_logits,
@@ -737,9 +759,15 @@ class Metrics:
         loss_value = self.loss_value_samplewise(
             value_logits, target_value, global_weight
         ).sum()
-        loss_td_value = self.loss_td_value_samplewise(
+
+        loss_td_value_unsummed = self.loss_td_value_samplewise(
             td_value_logits, target_td_value, global_weight
-        ).sum()
+        )
+        assert self.num_td_values == 3
+        loss_td_value1 = loss_td_value_unsummed[:,0].sum()
+        loss_td_value2 = loss_td_value_unsummed[:,1].sum()
+        loss_td_value3 = loss_td_value_unsummed[:,2].sum()
+
         loss_td_score = self.loss_td_score_samplewise(
             pred_td_score, target_td_score, target_weight_ownership, global_weight
         ).sum()
@@ -809,8 +837,10 @@ class Metrics:
             + loss_policy_opponent
             + loss_policy_player_soft * soft_policy_weight_scale
             + loss_policy_opponent_soft * soft_policy_weight_scale
-            + loss_value
-            + loss_td_value
+            + loss_value * value_loss_scale
+            + loss_td_value1 * td_value_loss_scales[0]
+            + loss_td_value2 * td_value_loss_scales[1]
+            + loss_td_value3 * td_value_loss_scales[2]
             + loss_td_score
             + loss_ownership
             + loss_scoring
@@ -829,7 +859,9 @@ class Metrics:
             "p0softloss_sum": loss_policy_player_soft,
             "p1softloss_sum": loss_policy_opponent_soft,
             "vloss_sum": loss_value,
-            "tdvloss_sum": loss_td_value,
+            "tdvloss1_sum": loss_td_value1,
+            "tdvloss2_sum": loss_td_value2,
+            "tdvloss3_sum": loss_td_value3,
             "tdsloss_sum": loss_td_score,
             "oloss_sum": loss_ownership,
             "sloss_sum": loss_scoring,

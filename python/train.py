@@ -73,6 +73,8 @@ if __name__ == "__main__":
   parser.add_argument('-brenorm-adjustment-scale', type=float, help='How many samples to adjust brenorm params all but 1/e of the way to target', required=False)
 
   parser.add_argument('-soft-policy-weight-scale', type=float, default=1.0, help='Soft policy loss coeff', required=False)
+  parser.add_argument('-value-loss-scale', type=float, default=1.0, help='Additional value loss coeff', required=False)
+  parser.add_argument('-td-value-loss-scales', type=str, default="0.4,0.4,0.4", help='Additional td value loss coeffs, 3 comma separated values', required=False)
 
   parser.add_argument('-main-loss-scale', type=float, help='Loss factor scale for main head', required=False)
   parser.add_argument('-intermediate-loss-scale', type=float, help='Loss factor scale for intermediate head', required=False)
@@ -142,7 +144,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   brenorm_target_dmax = args["brenorm_target_dmax"]
   brenorm_avg_momentum = args["brenorm_avg_momentum"]
   brenorm_adjustment_scale = args["brenorm_adjustment_scale"]
+
   soft_policy_weight_scale = args["soft_policy_weight_scale"]
+  value_loss_scale = args["value_loss_scale"]
+  td_value_loss_scales = [float(x) for x in args["td_value_loss_scales"].split(",")]
 
   main_loss_scale = args["main_loss_scale"]
   intermediate_loss_scale = args["intermediate_loss_scale"]
@@ -789,6 +794,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
           batch,
           is_training=True,
           soft_policy_weight_scale=soft_policy_weight_scale,
+          value_loss_scale=value_loss_scale,
+          td_value_loss_scales=td_value_loss_scales,
           main_loss_scale=main_loss_scale,
           intermediate_loss_scale=intermediate_loss_scale,
           intermediate_distill_scale=intermediate_distill_scale,
@@ -934,6 +941,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
               batch,
               is_training=False,
               soft_policy_weight_scale=soft_policy_weight_scale,
+              value_loss_scale=value_loss_scale,
+              td_value_loss_scales=td_value_loss_scales,
               main_loss_scale=main_loss_scale,
               intermediate_loss_scale=intermediate_loss_scale,
               intermediate_distill_scale=intermediate_distill_scale,

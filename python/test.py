@@ -54,6 +54,8 @@ def main(args):
   gpu_idx = args["gpu_idx"]
 
   soft_policy_weight_scale = 1.0
+  value_loss_scale = 1.0
+  td_value_loss_scales = [0.4, 0.4, 0.4]
 
   # SET UP LOGGING -------------------------------------------------------------
 
@@ -229,6 +231,8 @@ def main(args):
         batch,
         is_training=False,
         soft_policy_weight_scale=soft_policy_weight_scale,
+        value_loss_scale=value_loss_scale,
+        td_value_loss_scales=td_value_loss_scales,
         main_loss_scale=1.0,
         intermediate_loss_scale=None,
         intermediate_distill_scale=None,
