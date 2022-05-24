@@ -74,7 +74,7 @@ if __name__ == "__main__":
 
   parser.add_argument('-soft-policy-weight-scale', type=float, default=1.0, help='Soft policy loss coeff', required=False)
   parser.add_argument('-value-loss-scale', type=float, default=1.0, help='Additional value loss coeff', required=False)
-  parser.add_argument('-td-value-loss-scales', type=str, default="0.4,0.4,0.4", help='Additional td value loss coeffs, 3 comma separated values', required=False)
+  parser.add_argument('-td-value-loss-scales', type=str, default="0.4583,0.4583,0.1250", help='Additional td value loss coeffs, 3 comma separated values', required=False)
 
   parser.add_argument('-main-loss-scale', type=float, help='Loss factor scale for main head', required=False)
   parser.add_argument('-intermediate-loss-scale', type=float, help='Loss factor scale for intermediate head', required=False)
