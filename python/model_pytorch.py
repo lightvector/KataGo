@@ -135,6 +135,7 @@ class NormMask(torch.nn.Module):
         self.scale = None
         self.gamma = None
         if self.norm_kind == "bnorm" or (self.norm_kind == "fixscaleonenorm" and self.is_last_batchnorm):
+            self.is_using_batchnorm = True
             if self.use_gamma:
                 self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
@@ -145,6 +146,7 @@ class NormMask(torch.nn.Module):
                 "running_std", torch.ones(c_in, dtype=torch.float)
             )
         elif self.norm_kind == "brenorm" or self.norm_kind == "fixbrenorm":
+            self.is_using_batchnorm = True
             if self.use_gamma:
                 self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
@@ -171,6 +173,7 @@ class NormMask(torch.nn.Module):
             )
 
         elif self.norm_kind == "fixup" or self.norm_kind == "fixscale" or (self.norm_kind == "fixscaleonenorm" and not self.is_last_batchnorm):
+            self.is_using_batchnorm = False
             self.beta = torch.nn.Parameter(torch.zeros(1, c_in, 1, 1))
             if self.use_gamma:
                 self.gamma = torch.nn.Parameter(torch.ones(1, c_in, 1, 1))

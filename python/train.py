@@ -212,6 +212,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
       state_dict["metrics"] = metrics_obj.state_dict()
       state_dict["running_metrics"] = running_metrics
       state_dict["train_state"] = train_state
+      state_dict["config"] = model_config
 
       if swa_model is not None:
         state_dict["swa_model"] = swa_model.state_dict()
