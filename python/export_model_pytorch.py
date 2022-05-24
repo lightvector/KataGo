@@ -129,9 +129,10 @@ def main(args):
 
     writeln(normmask.c_in)
     if hasattr(normmask,"running_std") and normmask.running_std is not None:
-      writeln(normmask.epsilon)
+      epsilon = normmask.epsilon
     else:
-      writeln(1e-20)
+      epsilon = 1e-20
+    writeln(epsilon)
     has_gamma_or_scale = normmask.scale is not None or normmask.gamma is not None
     has_beta = True
     writeln(1 if has_gamma_or_scale else 0)
@@ -148,10 +149,10 @@ def main(args):
     if hasattr(normmask,"running_std") and normmask.running_std is not None:
       assert normmask.is_using_batchnorm
       assert normmask.running_std.shape == (normmask.c_in,)
-      write_weights(normmask.running_std)
+      write_weights(torch.maximum(torch.tensor(1e-20), normmask.running_std * normmask.running_std - epsilon))
     else:
       assert not normmask.is_using_batchnorm
-      write_weights(torch.ones(normmask.c_in, dtype=torch.float))
+      write_weights((1.0-epsilon) * torch.ones(normmask.c_in, dtype=torch.float))
 
     if normmask.scale is not None:
       if normmask.gamma is not None:
@@ -185,7 +186,7 @@ def main(args):
     writeln(1 if has_beta else 0)
 
     write_weights(torch.zeros(biasmask.c_in, dtype=torch.float))
-    write_weights(torch.ones(biasmask.c_in, dtype=torch.float))
+    write_weights((1.0-epsilon) * torch.ones(biasmask.c_in, dtype=torch.float))
 
     if biasmask.scale is not None:
       write_weights(biasmask.scale * torch.ones(biasmask.c_in, dtype=torch.float, device="cpu"))
