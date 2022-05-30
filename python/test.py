@@ -20,6 +20,7 @@ import modelconfigs
 from model_pytorch import Model
 from metrics_pytorch import Metrics
 import data_processing_pytorch
+from load_model import load_model
 
 # HANDLE COMMAND AND ARGS -------------------------------------------------------------------
 
@@ -64,7 +65,7 @@ def main(args):
     level=logging.INFO,
     format="%(message)s",
     handlers=[
-      logging.StreamHandler()
+      logging.StreamHandler(stream=sys.stdout)
     ],
   )
   np.set_printoptions(linewidth=150)
@@ -84,66 +85,26 @@ def main(args):
     device = torch.device("cpu")
 
   # LOAD MODEL ---------------------------------------------------------------------
-  assert (model_kind is None) != (config_file is None), "Must provide exactly one of -model-kind and -config"
 
-  if model_kind is not None:
-    model_config = modelconfigs.config_of_name[model_kind]
-  else:
-    with open(config_file,"r") as f:
-      model_config = json.load(f)
-  logging.info(str(model_config))
-
-  state_dict = None
   if checkpoint_file is None:
     logging.info("Initializing new model since no checkpoint provided")
+    assert (model_kind is None) != (config_file is None), "Must provide exactly one of -model-kind and -config if no checkpoint"
+
+    if model_kind is not None:
+      model_config = modelconfigs.config_of_name[model_kind]
+    else:
+      with open(config_file,"r") as f:
+        model_config = json.load(f)
+    logging.info(str(model_config))
+
     model = Model(model_config,pos_len)
     model.initialize()
+    model.to(device)
   else:
-    state_dict = torch.load(checkpoint_file)
-    model = Model(model_config,pos_len)
-    model.initialize()
-
-    # Strip off any "module." from when the model was saved with DDP or other things
-    model_state_dict = {}
-    for key in state_dict["model"]:
-      old_key = key
-      while key.startswith("module."):
-        key = key[:7]
-      model_state_dict[key] = state_dict["model"][old_key]
-    model.load_state_dict(model_state_dict)
-
-  model.to(device)
-
-  swa_model = None
-  if use_swa:
-    if state_dict is None:
-      raise Exception("Cannot use swa without a trained model")
-    if "swa_model" not in state_dict:
-      raise Exception("Checkpoint doesn't contain swa_model")
-    swa_model = AveragedModel(model, device=device)
-    swa_model.load_state_dict(state_dict["swa_model"])
+    model, swa_model = load_model(checkpoint_file, use_swa, device=device, pos_len=pos_len, verbose=True)
+    model_config = model.config
 
   metrics_obj = Metrics(batch_size,model)
-  if state_dict is not None and "metrics" in state_dict:
-    metrics_obj.load_state_dict(state_dict["metrics"])
-  else:
-    logging.info("WARNING: Metrics not found in state dict, using fresh metrics")
-
-  # Print all model parameters just to get a summary
-  total_num_params = 0
-  total_trainable_params = 0
-  logging.info("Parameters in model:")
-  for name, param in model.named_parameters():
-    product = 1
-    for dim in param.shape:
-      product *= int(dim)
-    if param.requires_grad:
-      total_trainable_params += product
-    total_num_params += product
-    logging.info(f"{name}, {list(param.shape)}, {product} params")
-  logging.info(f"Total num params: {total_num_params}")
-  logging.info(f"Total trainable params: {total_trainable_params}")
-
 
   # METRICS -----------------------------------------------------------------------------------
   def detensorify_metrics(metrics):

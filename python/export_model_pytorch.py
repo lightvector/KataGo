@@ -9,6 +9,7 @@ import time
 import struct
 import json
 import datetime
+import logging
 import numpy as np
 from collections import defaultdict
 from typing import Dict, List
@@ -19,6 +20,7 @@ from torch.optim.swa_utils import AveragedModel
 
 import modelconfigs
 from model_pytorch import Model, ResBlock, NestedBottleneckResBlock
+from load_model import load_model
 
 #Command and args-------------------------------------------------------------------
 
@@ -27,53 +29,41 @@ Export neural net weights to file for KataGo engine.
 """
 
 parser = argparse.ArgumentParser(description=description)
-parser.add_argument('-config', help='Path to model.config.json', required=True)
 parser.add_argument('-checkpoint', help='Checkpoint to test', required=True)
 parser.add_argument('-export-dir', help='model file dir to save to', required=True)
 parser.add_argument('-model-name', help='name to record in model file', required=True)
 parser.add_argument('-filename-prefix', help='filename prefix to save to within dir', required=True)
+parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
 args = vars(parser.parse_args())
 
 
 def main(args):
-  config_file = args["config"]
   checkpoint_file = args["checkpoint"]
   export_dir = args["export_dir"]
   model_name = args["model_name"]
   filename_prefix = args["filename_prefix"]
+  use_swa = args["use_swa"]
 
-  loglines = []
-  def log(s):
-    loglines.append(s)
-    print(s,flush=True)
+  logging.root.handlers = []
+  logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    handlers=[
+      logging.StreamHandler(stream=sys.stdout),
+      logging.FileHandler(export_dir + "/log.txt"),
+    ],
+  )
+  np.set_printoptions(linewidth=150)
 
-  log(str(sys.argv))
-
-  # Shouldn't matter. Needed to initialize scorebelief head.
-  pos_len = 19
+  logging.info(str(sys.argv))
 
   os.makedirs(export_dir,exist_ok=True)
 
   # LOAD MODEL ---------------------------------------------------------------------
-  with open(config_file,"r") as f:
-    model_config = json.load(f)
-  log(str(model_config))
-
-  state_dict = torch.load(checkpoint_file,map_location="cpu")
-  model = Model(model_config,pos_len)
-  model.initialize()
-
-  # Strip off any "module." from when the model was saved with DDP or other things
-  model_state_dict = {}
-  for key in state_dict["model"]:
-    old_key = key
-    while key.startswith("module."):
-      key = key[:7]
-    model_state_dict[key] = state_dict["model"][old_key]
-  model.load_state_dict(model_state_dict)
+  model, swa_model = load_model(checkpoint_file, use_swa, device="cpu", verbose=True)
+  model_config = model.config
 
   # WRITING MODEL ----------------------------------------------------------------
-
   extension = ".bin"
   mode = "wb"
   f = open(export_dir + "/" + filename_prefix + extension, mode)
@@ -82,20 +72,14 @@ def main(args):
   def writestr(s):
     f.write(s.encode(encoding="ascii",errors="backslashreplace"))
 
-  version = 11
+  # Ignore what's in the config if less than 11 since a lot of testing models
+  # are on old version but actually have various new architectures.
+  version = max(model_config["version"],11)
 
   writeln(model_name)
   writeln(version)
   writeln(modelconfigs.get_num_bin_input_features(model_config))
   writeln(modelconfigs.get_num_global_input_features(model_config))
-
-
-  print("Parameters in model:")
-  for name, param in model.named_parameters():
-    product = 1
-    for dim in param.shape:
-      product *= int(dim)
-    print(f"{name}, {list(param.shape)}, {product} params")
 
 
   def write_weights(weights):
@@ -128,10 +112,7 @@ def main(args):
     writeln(name)
 
     writeln(normmask.c_in)
-    if hasattr(normmask,"running_std") and normmask.running_std is not None:
-      epsilon = normmask.epsilon
-    else:
-      epsilon = 1e-20
+    epsilon = 1e-20
     writeln(epsilon)
     has_gamma_or_scale = normmask.scale is not None or normmask.gamma is not None
     has_beta = True
@@ -315,7 +296,8 @@ def main(args):
     write_conv_weight(name+".conv2p", policyhead.conv2p.weight[:1])
     assert policyhead.conv2p.bias is None
 
-    write_matmul(name+".linear_pass", policyhead.linear_pass.weight)
+    assert policyhead.linear_pass.weight.shape[0] == 4
+    write_matmul(name+".linear_pass", policyhead.linear_pass.weight[:1])
     assert policyhead.linear_pass.bias is None
 
   def write_value_head(name, valuehead):
@@ -342,18 +324,19 @@ def main(args):
 
     write_conv(name+".conv_ownership",valuehead.conv_ownership)
 
+  def write_model(model):
+    write_trunk("model",model)
+    write_policy_head("model.policy_head",model.policy_head)
+    write_value_head("model.value_head",model.value_head)
 
-  write_trunk("model",model)
-  write_policy_head("model.policy_head",model.policy_head)
-  write_value_head("model.value_head",model.value_head)
+  if swa_model is not None:
+    write_model(swa_model.module)
+  else:
+    write_model(model)
   f.close()
 
-  log("Exported at: ")
-  log(str(datetime.datetime.utcnow()) + " UTC")
-
-  with open(export_dir + "/log.txt","w") as f:
-    for line in loglines:
-      f.write(line + "\n")
+  logging.info("Exported at: ")
+  logging.info(str(datetime.datetime.utcnow()) + " UTC")
 
   sys.stdout.flush()
   sys.stderr.flush()

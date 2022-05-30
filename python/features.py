@@ -15,7 +15,8 @@ class Features:
   def xy_to_tensor_pos(self,x,y):
     return y * self.pos_len + x
   def loc_to_tensor_pos(self,loc,board):
-    assert(loc != Board.PASS_LOC)
+    if loc == Board.PASS_LOC:
+      return self.pass_pos
     return board.loc_y(loc) * self.pos_len + board.loc_x(loc)
 
   def tensor_pos_to_loc(self,pos,board):
@@ -302,7 +303,7 @@ class Features:
     passWouldEndPhase = rules["passWouldEndPhase"]
     global_input_data[idx,14] = (1.0 if passWouldEndPhase else 0.0)
 
-    global_input_data[idx,15] = 1.0
+    global_input_data[idx,15] = 1.0 if rules["asymPowersOfTwo"] != 0 else 0.0
     global_input_data[idx,16] = rules["asymPowersOfTwo"]
 
     if "hasButton" in rules and rules["hasButton"] and Board.PASS_LOC not in [move[1] for move in moves]:

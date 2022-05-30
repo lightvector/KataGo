@@ -1310,6 +1310,9 @@ class Model(torch.nn.Module):
             self.conv_spatial = torch.nn.Conv2d(22, self.c_trunk, kernel_size=3, padding="same", bias=False)
         self.linear_global = torch.nn.Linear(19, self.c_trunk, bias=False)
 
+        self.bin_input_shape = [22, pos_len, pos_len]
+        self.global_input_shape = [19]
+
         self.blocks = torch.nn.ModuleList()
         for block_config in self.block_kind:
             block_name = block_config[0]
@@ -1641,8 +1644,8 @@ class Model(torch.nn.Module):
             pred_td_score,      # N, {long, mid, short}
             ownership_pretanh,  # N, 1, y, x
             pred_scoring,       # N, 1, y, x
-            futurepos_pretanh,  # N, 1, y, x
-            seki_logits,        # N, 1, y, x
+            futurepos_pretanh,  # N, 2, y, x
+            seki_logits,        # N, 4, y, x
             pred_scoremean,     # N
             pred_scorestdev,    # N
             pred_lead,          # N
