@@ -309,8 +309,17 @@ class KataGPool(torch.nn.Module):
         layer_mean = torch.sum(x, dim=(2, 3), keepdim=True) / mask_sum_hw
         # All activation functions we use right now are always greater than -1.0, and map 0 -> 0.
         # So off-board areas will equal 0, and then this max is mask-safe if we assign -1.0 to off-board areas.
-        (layer_max,_argmax) = torch.max((x+(mask-1.0)).view(x.shape[0],x.shape[1],-1), dim=2)
-        layer_max = layer_max.view(x.shape[0],x.shape[1],1,1)
+        # (layer_max,_argmax) = torch.max((x+(mask-1.0)).view(x.shape[0],x.shape[1],-1), dim=2)
+        # layer_max = layer_max.view(x.shape[0],x.shape[1],1,1)
+
+        # Actually, just so that the mask doesn't have to get involved, lets take the max of this with 0.
+        # Gpool layers follow a mask and activation, and since all activation functions we use map 0 -> 0,
+        # all offboard areas will be 0 post-activation, and therefore can't affect anything since we compute
+        # this maximum assuming we are also taking the max with 0.
+        # This allows us to simply ignore off-board areas since they can't affect us, and in the cuda code
+        # it allows us to compute the max with an accumulator starting at 0, so it's also very nice.
+        (layer_max,_argmax) = torch.max(x.view(x.shape[0],x.shape[1],-1), dim=2)
+        layer_max = torch.nn.functional.relu(layer_max.view(x.shape[0],x.shape[1],1,1))
 
         out_pool1 = layer_mean
         out_pool2 = layer_mean * (mask_sum_hw_sqrt_offset / 10.0)
