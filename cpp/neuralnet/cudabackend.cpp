@@ -750,6 +750,10 @@ struct NormActConv {
 
   int inChannels;
   int outChannels;
+  int xSize;
+  int ySize;
+  bool usingFP16;
+  bool usingNHWC;
 
   NormActConv() = delete;
   NormActConv(const NormActConv&) = delete;
@@ -771,6 +775,10 @@ struct NormActConv {
     inChannels = norm.numChannels;
     assert(norm.numChannels = conv.inChannels);
     outChannels = conv.outChannels;
+    xSize = xS;
+    ySize = yS;
+    usingFP16 = useFP16;
+    usingNHWC = useNHWC;
   }
 
   ~NormActConv()
@@ -799,6 +807,9 @@ struct NormActConv {
     size_t workspaceBytes
   ) const {
     norm.apply(cudaHandles,batchSize,inBuf,maskBuf,inScratchBuf);
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    CudaUtils::debugPrint4D(string("AFTER NORM "), inScratchBuf, batchSize, inChannels, xSize, ySize, usingNHWC, usingFP16);
+#endif
     conv.apply(cudaHandles,batchSize,accumulate,inScratchBuf,outBuf,workspaceBuf,workspaceBytes);
   }
 
@@ -996,6 +1007,11 @@ struct GlobalPoolingResidualBlock {
 
 struct BlockStack {
   int numBlocks;
+  int trunkNumChannels;
+  int xSize;
+  int ySize;
+  bool usingFP16;
+  bool usingNHWC;
   vector<pair<int,unique_ptr_void>> blocks;
 
   BlockStack() = delete;
@@ -1006,6 +1022,7 @@ struct BlockStack {
     CudaHandles* cudaHandles,
     CudnnManager* manager,
     int nBlocks,
+    int trunkChannels,
     const std::vector<std::pair<int, unique_ptr_void>>& descBlocks,
     int xS,
     int yS,
@@ -1055,7 +1072,7 @@ struct NestedBottleneckResidualBlock {
     bool useNHWC
   ): name(desc->name),
      normActConv1(cudaHandles,manager,&desc->preBN,&desc->preActivation,&desc->preConv,xS,yS,useFP16,useNHWC),
-     blocks(cudaHandles,manager,desc->numBlocks,desc->blocks,xS,yS,useFP16,useNHWC),
+     blocks(cudaHandles,manager,desc->numBlocks,desc->preConv.outChannels,desc->blocks,xS,yS,useFP16,useNHWC),
      normActConv2(cudaHandles,manager,&desc->postBN,&desc->postActivation,&desc->postConv,xS,yS,useFP16,useNHWC)
   {
   }
@@ -1115,15 +1132,19 @@ BlockStack::BlockStack(
   CudaHandles* cudaHandles,
   CudnnManager* manager,
   int nBlocks,
+  int trunkChannels,
   const std::vector<std::pair<int, unique_ptr_void>>& descBlocks,
   int xS,
   int yS,
   bool useFP16,
   bool useNHWC
 ) {
-  int xSize = xS;
-  int ySize = yS;
   numBlocks = nBlocks;
+  trunkNumChannels = trunkChannels;
+  xSize = xS;
+  ySize = yS;
+  usingFP16 = useFP16;
+  usingNHWC = useNHWC;
   assert(numBlocks == descBlocks.size());
   for(int i = 0; i<numBlocks; i++) {
     if(descBlocks[i].first == ORDINARY_BLOCK_KIND) {
@@ -1223,7 +1244,7 @@ void BlockStack::apply(
 
   for(int i = 0; i<blocks.size(); i++) {
 #ifdef DEBUG_INTERMEDIATE_VALUES
-    debugPrint4D(string("Blockstack before block " + Global::intToString(i)), trunkBuf, batchSize, trunkNumChannels, xSize, ySize, usingNHWC, usingFP16);
+    CudaUtils::debugPrint4D(string("Blockstack before block " + Global::intToString(i)), trunkBuf, batchSize, trunkNumChannels, xSize, ySize, usingNHWC, usingFP16);
 #endif
 
     if(blocks[i].first == ORDINARY_BLOCK_KIND) {
@@ -1305,7 +1326,7 @@ struct Trunk {
     bool inputsUseNHWC,
     bool useFP16,
     bool useNHWC
-  ) : blocks(cudaHandles,manager,desc->numBlocks,desc->blocks,xS,yS,useFP16,useNHWC)
+  ) : blocks(cudaHandles,manager,desc->numBlocks,desc->trunkNumChannels,desc->blocks,xS,yS,useFP16,useNHWC)
   {
     name = desc->name;
     version = desc->version;
@@ -1374,8 +1395,7 @@ struct Trunk {
     initialConv->apply(cudaHandles,batchSize,false,inputBuf,trunkScratch.buf,workspaceBuf,workspaceBytes);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    debugPrint4D(string("Initial bin features"), inputBuf, batchSize, initialConv->inChannels, xSize, ySize, usingNHWC, usingFP16);
-    debugPrint4D(string("After initial conv"), trunkScratch.buf, batchSize, trunkNumChannels, xSize, ySize, usingNHWC, usingFP16);
+    CudaUtils::debugPrint4D(string("After initial conv"), trunkScratch.buf, batchSize, trunkNumChannels, xSize, ySize, usingNHWC, usingFP16);
     #endif
 
     //Feed the matmul into trunkBuf
@@ -1411,7 +1431,7 @@ struct Trunk {
     //And now with the final BN port it from trunkScratch.buf to trunkBuf.
     trunkTipBN->apply(cudaHandles,batchSize,trunkScratch.buf,maskBuf,trunkBuf);
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    debugPrint4D(string("Trunk tip"), trunkBuf, batchSize, trunkNumChannels, xSize, ySize, usingNHWC, usingFP16);
+    CudaUtils::debugPrint4D(string("Trunk tip"), trunkBuf, batchSize, trunkNumChannels, xSize, ySize, usingNHWC, usingFP16);
     #endif
   }
 
@@ -1560,10 +1580,10 @@ struct PolicyHead {
     gpoolToBiasMul->apply(cudaHandles,scratch,batchSize,g1Concat.buf,g1Bias.buf,workspaceBuf,workspaceBytes);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    debugPrint4D(string("p1 pre-gpool-sum"), p1Out.buf, batchSize, p1Channels, xSize, ySize, usingNHWC, usingFP16);
-    debugPrint4D(string("g1 pre-gpool"), g1Out.buf, batchSize, g1Channels, xSize, ySize, usingNHWC, usingFP16);
-    debugPrint2D(string("g1 pooled"), g1Concat.buf, batchSize, g1Channels*3, usingFP16);
-    debugPrint2D(string("g1 biases"), g1Bias.buf, batchSize, p1Channels, usingFP16);
+    CudaUtils::debugPrint4D(string("p1 pre-gpool-sum"), p1Out.buf, batchSize, p1Channels, xSize, ySize, usingNHWC, usingFP16);
+    CudaUtils::debugPrint4D(string("g1 pre-gpool"), g1Out.buf, batchSize, g1Channels, xSize, ySize, usingNHWC, usingFP16);
+    CudaUtils::debugPrint2D(string("g1 pooled"), g1Concat.buf, batchSize, g1Channels*3, usingFP16);
+    CudaUtils::debugPrint2D(string("g1 biases"), g1Bias.buf, batchSize, p1Channels, usingFP16);
     #endif
 
     float* p1OutBufA;
@@ -1591,9 +1611,9 @@ struct PolicyHead {
     gpoolToPassMul->apply(cudaHandles,scratch,batchSize,g1Concat.buf,g1Pass.buf,workspaceBuf,workspaceBytes);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    debugPrint4D(string("p1 after-gpool-sum"), p1Out.buf, batchSize, p1Channels, xSize, ySize, usingNHWC, usingFP16);
-    debugPrint4D(string("p2"), p2Out.buf, batchSize, p2Channels, xSize, ySize, usingNHWC, usingFP16);
-    debugPrint2D(string("p2pass"), g1Pass.buf, batchSize, 1, usingFP16);
+    CudaUtils::debugPrint4D(string("p1 after-gpool-sum"), p1Out.buf, batchSize, p1Channels, xSize, ySize, usingNHWC, usingFP16);
+    CudaUtils::debugPrint4D(string("p2"), p2Out.buf, batchSize, p2Channels, xSize, ySize, usingNHWC, usingFP16);
+    CudaUtils::debugPrint2D(string("p2pass"), g1Pass.buf, batchSize, 1, usingFP16);
     #endif
 
     customCudaChannelConcat(
@@ -1744,9 +1764,9 @@ struct ValueHead {
     sv3Bias->apply(cudaHandles,batchSize,scoreValueBuf);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    debugPrint4D(string("v1"), v1Out.buf, batchSize, v1Channels, xSize, ySize, usingNHWC, usingFP16);
-    debugPrint2D(string("v1 pooled"), v1Mean.buf, batchSize, v1Channels, usingFP16);
-    debugPrint2D(string("v2"), v2Out.buf, batchSize, v1Channels, usingFP16);
+    CudaUtils::debugPrint4D(string("v1"), v1Out.buf, batchSize, v1Channels, xSize, ySize, usingNHWC, usingFP16);
+    CudaUtils::debugPrint2D(string("v1 pooled"), v1Mean.buf, batchSize, v1Channels, usingFP16);
+    CudaUtils::debugPrint2D(string("v2"), v2Out.buf, batchSize, v1Channels, usingFP16);
     #endif
 
     if(!usingFP16) {
@@ -1776,6 +1796,7 @@ struct Model {
   int numScoreValueChannels;
   int numOwnershipChannels;
   bool usingFP16;
+  bool usingNHWC;
   bool inputsUsingNHWC;
 
   std::unique_ptr<Trunk> trunk;
@@ -1818,6 +1839,7 @@ struct Model {
     numScoreValueChannels = desc->numScoreValueChannels;
     numOwnershipChannels = desc->numOwnershipChannels;
     usingFP16 = useFP16;
+    usingNHWC = useNHWC;
     inputsUsingNHWC = inputsUseNHWC;
 
     int numFeatures = NNModelVersion::getNumSpatialFeatures(version);
@@ -1915,6 +1937,11 @@ struct Model {
       //The global pooling structures need this no matter what, for normalizing based on this and its sqrt.
       //maskSumBuf = NULL;
     }
+
+    #ifdef DEBUG_INTERMEDIATE_VALUES
+    CudaUtils::debugPrint4D(string("Initial bin features"), inputBuf, batchSize, trunk->initialConv->inChannels, xSize, ySize, inputsUsingNHWC, usingFP16);
+    CudaUtils::debugPrint2D(string("Initial global features"), inputGlobalBuf, batchSize, trunk->initialMatMul->inChannels, usingFP16);
+    #endif
 
     SizedBuf<void*> trunkBuf(scratch->allocator, scratch->getBufSizeXY(trunk->trunkNumChannels));
 

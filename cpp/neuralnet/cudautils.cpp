@@ -1,5 +1,6 @@
 #include "../neuralnet/cudautils.h"
 
+#include <iomanip>
 #include "../neuralnet/cudaerrorcheck.h"
 #include "../neuralnet/cudaincludes.h"
 #include "../neuralnet/cudahelpers.h"
@@ -75,7 +76,9 @@ void CudaUtils::debugPrint2D(const string& name, const void* deviceBuf, int batc
   vector<float> values(batchSize * cSize);
   expensiveCopyFromDevice(name, values.data(), values.size(), deviceBuf, useFP16);
   cout << "=========================================================" << endl;
+  cout << "TENSOR" << endl;
   cout << name << endl;
+  cout << std::setprecision(8);
   int i = 0;
   for(int n = 0; n<batchSize; n++) {
     cout << "-(n=" << n << ")--------------------" << endl;
@@ -91,7 +94,9 @@ void CudaUtils::debugPrint4D(const string& name, const void* deviceBuf, int batc
   vector<float> values(batchSize * cSize * xSize * ySize);
   expensiveCopyFromDevice(name, values.data(), values.size(), deviceBuf, useFP16);
   cout << "=========================================================" << endl;
+  cout << "TENSOR" << endl;
   cout << name << endl;
+  cout << std::setprecision(8);
   int i = 0;
   for(int n = 0; n<batchSize; n++) {
     cout << "-(n=" << n << ")--------------------" << endl;
