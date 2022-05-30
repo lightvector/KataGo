@@ -44,6 +44,8 @@ def main(args):
   filename_prefix = args["filename_prefix"]
   use_swa = args["use_swa"]
 
+  os.makedirs(export_dir,exist_ok=True)
+
   logging.root.handlers = []
   logging.basicConfig(
     level=logging.INFO,
@@ -56,8 +58,6 @@ def main(args):
   np.set_printoptions(linewidth=150)
 
   logging.info(str(sys.argv))
-
-  os.makedirs(export_dir,exist_ok=True)
 
   # LOAD MODEL ---------------------------------------------------------------------
   model, swa_model = load_model(checkpoint_file, use_swa, device="cpu", verbose=True)
