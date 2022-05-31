@@ -1296,6 +1296,74 @@ struct GTPEngine {
     return isAlive;
   }
 
+  string rawNNBrief(std::vector<Loc> branch, int whichSymmetry) {
+    if(nnEval == NULL)
+      return "";
+    ostringstream out;
+
+    Player pla = bot->getRootPla();
+    Board board = bot->getRootBoard();
+    BoardHistory hist = bot->getRootHist();
+
+    Player prevPla = pla;
+    Board prevBoard = board;
+    BoardHistory prevHist = hist;
+    Loc prevLoc = Board::NULL_LOC;
+
+    for(Loc loc: branch) {
+      prevPla = pla;
+      prevBoard = board;
+      prevHist = hist;
+      prevLoc = loc;
+      bool suc = hist.makeBoardMoveTolerant(board, loc, pla, false);
+      if(!suc)
+        return "illegal move sequence";
+      pla = getOpp(pla);
+    }
+
+    string policyStr = "Policy: ";
+    string wlStr = "White winloss: ";
+    string leadStr = "White lead: ";
+
+    for(int symmetry = 0; symmetry < SymmetryHelpers::NUM_SYMMETRIES; symmetry++) {
+      if(whichSymmetry == NNInputs::SYMMETRY_ALL || whichSymmetry == symmetry) {
+        {
+          MiscNNInputParams nnInputParams;
+          nnInputParams.playoutDoublingAdvantage =
+            (params.playoutDoublingAdvantagePla == C_EMPTY || params.playoutDoublingAdvantagePla == pla) ?
+            staticPlayoutDoublingAdvantage : -staticPlayoutDoublingAdvantage;
+          nnInputParams.symmetry = symmetry;
+
+          NNResultBuf buf;
+          bool skipCache = true;
+          bool includeOwnerMap = false;
+          nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+          NNOutput* nnOutput = buf.result.get();
+          wlStr += Global::strprintf("%.2fc ", 100.0 * (nnOutput->whiteWinProb - nnOutput->whiteLossProb));
+          leadStr += Global::strprintf("%.2f ", nnOutput->whiteLead);
+        }
+        if(prevLoc != Board::NULL_LOC) {
+          MiscNNInputParams nnInputParams;
+          nnInputParams.playoutDoublingAdvantage =
+            (params.playoutDoublingAdvantagePla == C_EMPTY || params.playoutDoublingAdvantagePla == prevPla) ?
+            staticPlayoutDoublingAdvantage : -staticPlayoutDoublingAdvantage;
+          nnInputParams.symmetry = symmetry;
+
+          NNResultBuf buf;
+          bool skipCache = true;
+          bool includeOwnerMap = false;
+          nnEval->evaluate(prevBoard,prevHist,prevPla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+          NNOutput* nnOutput = buf.result.get();
+          int pos = NNPos::locToPos(prevLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
+          policyStr += Global::strprintf("%.2f%% ", 100.0 * (nnOutput->policyProbs[pos]));
+        }
+      }
+    }
+    return Global::trim(policyStr + "\n" + wlStr + "\n" + leadStr);
+  }
+
   string rawNN(int whichSymmetry) {
     if(nnEval == NULL)
       return "";
@@ -2837,7 +2905,12 @@ int MainCmds::gtp(const vector<string>& args) {
       PrintTreeOptions options;
       options = options.maxDepth(1);
       string printBranch;
+      bool printRawStats = false;
       for(size_t i = 0; i<pieces.size(); i++) {
+        if(pieces[i] == "rawstats") {
+          printRawStats = true;
+          continue;
+        }
         if(i > 0)
           printBranch += " ";
         printBranch += pieces[i];
@@ -2871,6 +2944,9 @@ int MainCmds::gtp(const vector<string>& args) {
           Board::printBoard(sout, board, Board::NULL_LOC, &hist.moveHistory);
         }
         search->printTree(sout, search->rootNode, options, perspective);
+        if(printRawStats) {
+          sout << engine->rawNNBrief(options.branch_, NNInputs::SYMMETRY_ALL);
+        }
         response = filterDoubleNewlines(sout.str());
       }
     }
