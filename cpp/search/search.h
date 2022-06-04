@@ -246,7 +246,7 @@ struct Search {
 
   //Expert manual playout-by-playout interface
   void beginSearch(bool pondering);
-  bool runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft);
+  bool runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft, int64_t lastVisitIdx);
 
   //================================================================================================================
   // SEARCH RESULTS AND TREE INSPECTION METHODS
@@ -504,32 +504,45 @@ private:
   // Move selection during search
   // searchexplorehelpers.cpp
   //----------------------------------------------------------------------------------------
+  double getExploreScaling(
+    double totalChildWeight, double parentUtilityStdevFactor
+  ) const;
   double getExploreSelectionValue(
-    double nnPolicyProb, double totalChildWeight, double childWeight,
-    double childUtility, double parentUtilityStdevFactor, Player pla
+    double exploreScaling,
+    double nnPolicyProb,
+    double childWeight,
+    double childUtility,
+    Player pla
   ) const;
   double getExploreSelectionValueInverse(
-    double exploreSelectionValue, double nnPolicyProb, double totalChildWeight,
-    double childUtility, double parentUtilityStdevFactor, Player pla
+    double exploreScaling,
+    double exploreSelectionValue,
+    double nnPolicyProb,
+    double childUtility,
+    Player pla
   ) const;
   double getExploreSelectionValueOfChild(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     Loc moveLoc,
+    double exploreScaling,
     double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
-    double parentUtility, double parentWeightPerVisit, double parentUtilityStdevFactor,
+    double parentUtility, double parentWeightPerVisit,
     bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
   ) const;
   double getNewExploreSelectionValue(
-    const SearchNode& parent, float nnPolicyProb,
-    double totalChildWeight, double fpuValue,
-    double parentWeightPerVisit, double parentUtilityStdevFactor,
+    const SearchNode& parent,
+    double exploreScaling,
+    float nnPolicyProb,
+    double fpuValue,
+    double parentWeightPerVisit,
     double maxChildWeight, SearchThread* thread
   ) const;
   double getReducedPlaySelectionWeight(
     const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
     Loc moveLoc,
-    double totalChildWeight, int64_t childEdgeVisits,
-    double parentUtilityStdevFactor, double bestChildExploreSelectionValue
+    double exploreScaling,
+    int64_t childEdgeVisits,
+    double bestChildExploreSelectionValue
   ) const;
 
   double getFpuValueForChildrenAssumeVisited(

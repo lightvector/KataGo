@@ -136,14 +136,17 @@ bool Search::getPlaySelectionValues(
 
     bool isDuringSearch = false;
 
+    double exploreScaling = getExploreScaling(totalChildWeight, parentUtilityStdevFactor);
+
     const NNOutput* nnOutput = node.getNNOutput();
     assert(nnOutput != NULL);
     const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
     double bestChildExploreSelectionValue = getExploreSelectionValueOfChild(
       node,policyProbs,bestChild,
       bestMoveLoc,
+      exploreScaling,
       totalChildWeight,bestChildEdgeVisits,fpuValue,
-      parentUtility,parentWeightPerVisit,parentUtilityStdevFactor,
+      parentUtility,parentWeightPerVisit,
       isDuringSearch,false,maxChildWeight,NULL
     );
 
@@ -159,8 +162,9 @@ bool Search::getPlaySelectionValues(
         double reduced = getReducedPlaySelectionWeight(
           node, policyProbs, child,
           moveLoc,
-          totalChildWeight, edgeVisits,
-          parentUtilityStdevFactor, bestChildExploreSelectionValue
+          exploreScaling,
+          edgeVisits,
+          bestChildExploreSelectionValue
         );
         playSelectionValues[i] = ceil(reduced);
       }

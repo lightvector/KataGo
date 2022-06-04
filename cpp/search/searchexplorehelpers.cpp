@@ -15,19 +15,26 @@ static double cpuctExploration(double totalChildWeight, const SearchParams& sear
 //even when visits = 0.
 static constexpr double TOTALCHILDWEIGHT_PUCT_OFFSET = 0.01;
 
+double Search::getExploreScaling(
+  double totalChildWeight, double parentUtilityStdevFactor
+) const {
+  return
+    cpuctExploration(totalChildWeight, searchParams)
+    * sqrt(totalChildWeight + TOTALCHILDWEIGHT_PUCT_OFFSET)
+    * parentUtilityStdevFactor;
+}
+
 double Search::getExploreSelectionValue(
-  double nnPolicyProb, double totalChildWeight, double childWeight,
-  double childUtility, double parentUtilityStdevFactor, Player pla
+  double exploreScaling,
+  double nnPolicyProb,
+  double childWeight,
+  double childUtility,
+  Player pla
 ) const {
   if(nnPolicyProb < 0)
     return POLICY_ILLEGAL_SELECTION_VALUE;
 
-  double exploreComponent =
-    cpuctExploration(totalChildWeight,searchParams)
-    * parentUtilityStdevFactor
-    * nnPolicyProb
-    * sqrt(totalChildWeight + TOTALCHILDWEIGHT_PUCT_OFFSET)
-    / (1.0 + childWeight);
+  double exploreComponent = exploreScaling * nnPolicyProb / (1.0 + childWeight);
 
   //At the last moment, adjust value to be from the player's perspective, so that players prefer values in their favor
   //rather than in white's favor
@@ -38,19 +45,18 @@ double Search::getExploreSelectionValue(
 //Return the childWeight that would make Search::getExploreSelectionValue return the given explore selection value.
 //Or return 0, if it would be less than 0.
 double Search::getExploreSelectionValueInverse(
-  double exploreSelectionValue, double nnPolicyProb, double totalChildWeight,
-  double childUtility, double parentUtilityStdevFactor, Player pla
+  double exploreSelectionValue,
+  double exploreScaling,
+  double nnPolicyProb,
+  double childUtility,
+  Player pla
 ) const {
   if(nnPolicyProb < 0)
     return 0;
   double valueComponent = pla == P_WHITE ? childUtility : -childUtility;
 
   double exploreComponent = exploreSelectionValue - valueComponent;
-  double exploreComponentScaling =
-    cpuctExploration(totalChildWeight,searchParams)
-    * parentUtilityStdevFactor
-    * nnPolicyProb
-    * sqrt(totalChildWeight + TOTALCHILDWEIGHT_PUCT_OFFSET);
+  double exploreComponentScaling = exploreScaling * nnPolicyProb;
 
   //Guard against float weirdness
   if(exploreComponent <= 0)
@@ -84,8 +90,9 @@ static void maybeApplyWideRootNoise(
 double Search::getExploreSelectionValueOfChild(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
   Loc moveLoc,
+  double exploreScaling,
   double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
-  double parentUtility, double parentWeightPerVisit, double parentUtilityStdevFactor,
+  double parentUtility, double parentWeightPerVisit,
   bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
 ) const {
   (void)parentUtility;
@@ -114,10 +121,6 @@ double Search::getExploreSelectionValueOfChild(
     if(endingScoreBonus != 0)
       childUtility += getScoreUtilityDiff(scoreMeanAvg, scoreMeanSqAvg, endingScoreBonus);
   }
-
-  //When multithreading, totalChildWeight could be out of sync with childWeight, so if they provably are, then fix that up
-  if(totalChildWeight < childWeight)
-    totalChildWeight = childWeight;
 
   //Virtual losses to direct threads down different paths
   if(childVirtualLosses > 0) {
@@ -173,13 +176,15 @@ double Search::getExploreSelectionValueOfChild(
     maybeApplyAntiMirrorForcedExplore(childUtility, parentUtility, moveLoc, parentPolicyProbs, childWeight, totalChildWeight, parent.nextPla, thread, parent);
   }
 
-  return getExploreSelectionValue(nnPolicyProb,totalChildWeight,childWeight,childUtility,parentUtilityStdevFactor,parent.nextPla);
+  return getExploreSelectionValue(exploreScaling,nnPolicyProb,childWeight,childUtility,parent.nextPla);
 }
 
 double Search::getNewExploreSelectionValue(
-  const SearchNode& parent, float nnPolicyProb,
-  double totalChildWeight, double fpuValue,
-  double parentWeightPerVisit, double parentUtilityStdevFactor,
+  const SearchNode& parent,
+  double exploreScaling,
+  float nnPolicyProb,
+  double fpuValue,
+  double parentWeightPerVisit,
   double maxChildWeight, SearchThread* thread
 ) const {
   double childWeight = 0;
@@ -198,14 +203,15 @@ double Search::getNewExploreSelectionValue(
       maybeApplyWideRootNoise(childUtility, nnPolicyProb, searchParams, thread, parent);
     }
   }
-  return getExploreSelectionValue(nnPolicyProb,totalChildWeight,childWeight,childUtility,parentUtilityStdevFactor,parent.nextPla);
+  return getExploreSelectionValue(exploreScaling,nnPolicyProb,childWeight,childUtility,parent.nextPla);
 }
 
 double Search::getReducedPlaySelectionWeight(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
   Loc moveLoc,
-  double totalChildWeight, int64_t childEdgeVisits,
-  double parentUtilityStdevFactor, double bestChildExploreSelectionValue
+  double exploreScaling,
+  int64_t childEdgeVisits,
+  double bestChildExploreSelectionValue
 ) const {
   assert(&parent == rootNode);
   int movePos = getPos(moveLoc);
@@ -229,7 +235,7 @@ double Search::getReducedPlaySelectionWeight(
     childUtility += getScoreUtilityDiff(scoreMeanAvg, scoreMeanSqAvg, endingScoreBonus);
 
   double childWeightWeRetrospectivelyWanted = getExploreSelectionValueInverse(
-    bestChildExploreSelectionValue, nnPolicyProb, totalChildWeight, childUtility, parentUtilityStdevFactor, parent.nextPla
+    bestChildExploreSelectionValue, exploreScaling, nnPolicyProb, childUtility, parent.nextPla
   );
   if(childWeight > childWeightWeRetrospectivelyWanted)
     return childWeightWeRetrospectivelyWanted;
@@ -348,6 +354,8 @@ void Search::selectBestChildToDescend(
   std::fill(posesWithChildBuf,posesWithChildBuf+NNPos::MAX_NN_POLICY_SIZE,false);
   bool antiMirror = searchParams.antiMirror && mirroringPla != C_EMPTY && isMirroringSinceSearchStart(thread.history,0);
 
+  double exploreScaling = getExploreScaling(totalChildWeight, parentUtilityStdevFactor);
+
   //Try all existing children
   //Also count how many children we actually find
   numChildrenFound = 0;
@@ -363,8 +371,9 @@ void Search::selectBestChildToDescend(
     double selectionValue = getExploreSelectionValueOfChild(
       node,policyProbs,child,
       moveLoc,
+      exploreScaling,
       totalChildWeight,childEdgeVisits,fpuValue,
-      parentUtility,parentWeightPerVisit,parentUtilityStdevFactor,
+      parentUtility,parentWeightPerVisit,
       isDuringSearch,antiMirror,maxChildWeight,&thread
     );
     if(selectionValue > maxSelectionValue) {
@@ -422,8 +431,10 @@ void Search::selectBestChildToDescend(
   }
   if(bestNewMoveLoc != Board::NULL_LOC) {
     double selectionValue = getNewExploreSelectionValue(
-      node,bestNewNNPolicyProb,totalChildWeight,fpuValue,
-      parentWeightPerVisit,parentUtilityStdevFactor,
+      node,
+      exploreScaling,
+      bestNewNNPolicyProb,fpuValue,
+      parentWeightPerVisit,
       maxChildWeight,&thread
     );
     if(selectionValue > maxSelectionValue) {
