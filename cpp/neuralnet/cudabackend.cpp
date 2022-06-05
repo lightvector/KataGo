@@ -970,15 +970,15 @@ struct GlobalPoolingResidualBlock {
 
     if(!usingFP16) {
       if(!usingNHWC)
-        customCudaPoolRowsGPoolNCHW((const float*)gpoolOut2.buf,(float*)gpoolConcat.buf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
+        customCudaPoolRowsGPoolNCHW((const float*)gpoolOut2.buf,(float*)gpoolConcat.buf,batchSize,gpoolChannels,xSize*ySize,(const float*)maskBuf,maskSumBuf);
       else
-        customCudaPoolRowsGPoolNHWC((const float*)gpoolOut2.buf,(float*)gpoolConcat.buf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
+        customCudaPoolRowsGPoolNHWC((const float*)gpoolOut2.buf,(float*)gpoolConcat.buf,batchSize,xSize*ySize,gpoolChannels,(const float*)maskBuf,maskSumBuf);
     }
     else {
       if(!usingNHWC)
-        customCudaPoolRowsGPoolNCHW((const half*)gpoolOut2.buf,(half*)gpoolConcat.buf,batchSize,gpoolChannels,xSize*ySize,maskSumBuf);
+        customCudaPoolRowsGPoolNCHW((const half*)gpoolOut2.buf,(half*)gpoolConcat.buf,batchSize,gpoolChannels,xSize*ySize,(const half*)maskBuf,maskSumBuf);
       else
-        customCudaPoolRowsGPoolNHWC((const half*)gpoolOut2.buf,(half*)gpoolConcat.buf,batchSize,xSize*ySize,gpoolChannels,maskSumBuf);
+        customCudaPoolRowsGPoolNHWC((const half*)gpoolOut2.buf,(half*)gpoolConcat.buf,batchSize,xSize*ySize,gpoolChannels,(const half*)maskBuf,maskSumBuf);
     }
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
@@ -1562,18 +1562,18 @@ struct PolicyHead {
 
     if(!usingFP16) {
       if(!usingNHWC)
-        customCudaPoolRowsGPoolNCHW((const float*)g1Out2.buf,(float*)g1Concat.buf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
+        customCudaPoolRowsGPoolNCHW((const float*)g1Out2.buf,(float*)g1Concat.buf,batchSize,g1Channels,xSize*ySize,(const float*)maskBuf,maskSumBuf);
       else
-        customCudaPoolRowsGPoolNHWC((const float*)g1Out2.buf,(float*)g1Concat.buf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
+        customCudaPoolRowsGPoolNHWC((const float*)g1Out2.buf,(float*)g1Concat.buf,batchSize,xSize*ySize,g1Channels,(const float*)maskBuf,maskSumBuf);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
     else {
       customCudaCopyFromHalf((const half*)g1Out2.buf,(float*)workspaceBuf,batchSize*g1Channels*xSize*ySize);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
       if(!usingNHWC)
-        customCudaPoolRowsGPoolNCHW((const float*)workspaceBuf,(float*)g1Concat.buf,batchSize,g1Channels,xSize*ySize,maskSumBuf);
+        customCudaPoolRowsGPoolNCHW((const float*)workspaceBuf,(float*)g1Concat.buf,batchSize,g1Channels,xSize*ySize,(const float*)maskBuf,maskSumBuf);
       else
-        customCudaPoolRowsGPoolNHWC((const float*)workspaceBuf,(float*)g1Concat.buf,batchSize,xSize*ySize,g1Channels,maskSumBuf);
+        customCudaPoolRowsGPoolNHWC((const float*)workspaceBuf,(float*)g1Concat.buf,batchSize,xSize*ySize,g1Channels,(const float*)maskBuf,maskSumBuf);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
 

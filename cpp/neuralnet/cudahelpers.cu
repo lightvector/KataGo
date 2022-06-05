@@ -260,12 +260,65 @@ void gPoolChannelsNCHWKernel(const float* in, float* out, int cSize, int xySize,
 
   if(cIdx < cSize) {
     float accSum = 0.0f;
-    float accMax = 0.0f;
+    float accMax = -1.0f;
     int xyIdx = xyId;
     while(xyIdx < xySize) {
       float a = in[xyIdx + cIdx * xySize + nIdx * xycSize];
       accSum += a;
       accMax = fmaxf(accMax, a);
+      xyIdx += xyBlockDim;
+    }
+    sumShared[sharedIdx] = accSum;
+    maxShared[sharedIdx] = accMax;
+  }
+  __syncthreads();
+
+  for(int s = xyBlockDim>>1; s > 0; s >>= 1) {
+    if(xyId < s) {
+      sumShared[sharedIdx] += sumShared[sharedIdx + s];
+      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx], maxShared[sharedIdx + s]);
+    }
+    __syncthreads();
+  }
+  if(xyId == 0 && cIdx < cSize) {
+    float sum = sumShared[sharedIdx];
+    float div = maskSum[nIdx];
+    float sqrtdiv = sqrt(div);
+    float mean = sum/div;
+
+    out[cIdx + nIdx * (cSize*3)] = mean;
+    out[cIdx + nIdx * (cSize*3) + cSize] = mean * (sqrtdiv - 14.0f) * 0.1f;
+    out[cIdx + nIdx * (cSize*3) + cSize*2] = maxShared[sharedIdx];
+  }
+}
+__global__
+void gPoolChannelsNCHWMaskKernel(const float* in, float* out, int cSize, int xySize, const float* mask, const float* maskSum, int sharedMemElts)
+{
+  extern __shared__ float poolNCHWShared[];
+  float* sumShared = (float*)poolNCHWShared;
+  float* maxShared = (float*)poolNCHWShared + sharedMemElts;
+
+  int xyId = threadIdx.x;
+  int xyBlockDim = blockDim.x;
+  int cId = threadIdx.y;
+  int cBlockDim = blockDim.y;
+  int cIdx = blockIdx.y * cBlockDim + cId;
+  int nIdx = blockIdx.z;
+
+  int xycSize = xySize*cSize;
+  int sharedIdx = xyId + cId * xyBlockDim;
+
+  if(cIdx < cSize) {
+    float accSum = 0.0f;
+    float accMax = -1.0f;
+    int xyIdx = xyId;
+    while(xyIdx < xySize) {
+      float a = in[xyIdx + cIdx * xySize + nIdx * xycSize];
+      accSum += a;
+      // Init to -1.0 above and + mask - 1.0 is because it will effectively make all padded space into -1.0
+      // which is lower than the lowest value that any current activation function will produce.
+      // so the max over all valid spaces will the same as the mask over all spaces including padding
+      accMax = fmaxf(accMax, a + (mask[xyIdx + nIdx * xySize] - 1.0f));
       xyIdx += xyBlockDim;
     }
     sumShared[sharedIdx] = accSum;
@@ -336,7 +389,7 @@ void customCudaValueHeadPoolNCHW(const float* in, float* out, int nSize, int cSi
   dim3 threads(xyThreads,cThreads,1);
   valueHeadPoolChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,nSize,cSize,xySize,maskSum);
 }
-void customCudaPoolRowsGPoolNCHW(const float* in, float* out, int nSize, int cSize, int xySize, const float* maskSum) {
+void customCudaPoolRowsGPoolNCHW(const float* in, float* out, int nSize, int cSize, int xySize, const float* mask, const float* maskSum) {
   if(nSize > 65536)
     throw std::runtime_error("customCudaPoolRowsGPoolNCHW: nSize too large");
   if(cSize > 65536)
@@ -360,7 +413,10 @@ void customCudaPoolRowsGPoolNCHW(const float* in, float* out, int nSize, int cSi
 
   dim3 grid(1,cBlocks,nSize);
   dim3 threads(xyThreads,cThreads,1);
-  gPoolChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,maskSum,sharedMemElts);
+  if(mask != NULL)
+    gPoolChannelsNCHWMaskKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,mask,maskSum,sharedMemElts);
+  else
+    gPoolChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,maskSum,sharedMemElts);
 }
 
 //--------------------------------------------------------------------------------------------------------------
@@ -385,7 +441,7 @@ void gPoolChannelsNCHWHalfKernel(const half* in, half* out, int cSize, int xySiz
 
   if(cIdx < cSize) {
     float accSum = 0.0f;
-    float accMax = 0.0f;
+    float accMax = -1.0f;
     int xyIdx = xyId;
     while(xyIdx < xySize) {
       float a = __half2float(in[xyIdx + cIdx * xySize + nIdx * xycSize]);
@@ -419,8 +475,65 @@ void gPoolChannelsNCHWHalfKernel(const half* in, half* out, int cSize, int xySiz
   //Do nothing, FP16 not supported
 #endif
 }
+__global__
+void gPoolChannelsNCHWHalfMaskKernel(const half* in, half* out, int cSize, int xySize, const half* mask, const float* maskSum, int sharedMemElts)
+{
+#ifdef CUDA_SUPPORTS_FP16
+  extern __shared__ float poolNCHWShared[];
+  float* sumShared = (float*)poolNCHWShared;
+  float* maxShared = (float*)poolNCHWShared + sharedMemElts;
 
-void customCudaPoolRowsGPoolNCHW(const half* in, half* out, int nSize, int cSize, int xySize, const float* maskSum) {
+  int xyId = threadIdx.x;
+  int xyBlockDim = blockDim.x;
+  int cId = threadIdx.y;
+  int cBlockDim = blockDim.y;
+  int cIdx = blockIdx.y * cBlockDim + cId;
+  int nIdx = blockIdx.z;
+
+  int xycSize = xySize*cSize;
+  int sharedIdx = xyId + cId * xyBlockDim;
+
+  if(cIdx < cSize) {
+    float accSum = 0.0f;
+    float accMax = -1.0f;
+    int xyIdx = xyId;
+    while(xyIdx < xySize) {
+      float a = __half2float(in[xyIdx + cIdx * xySize + nIdx * xycSize]);
+      accSum += a;
+      // Init to -1.0 above and + mask - 1.0 is because it will effectively make all padded space into -1.0
+      // which is lower than the lowest value that any current activation function will produce.
+      // so the max over all valid spaces will the same as the mask over all spaces including padding
+      accMax = fmaxf(accMax, a + (__half2float(mask[xyIdx + nIdx * xySize]) - 1.0f));
+      xyIdx += xyBlockDim;
+    }
+    sumShared[sharedIdx] = accSum;
+    maxShared[sharedIdx] = accMax;
+  }
+  __syncthreads();
+
+  for(int s = xyBlockDim>>1; s > 0; s >>= 1) {
+    if(xyId < s) {
+      sumShared[sharedIdx] += sumShared[sharedIdx + s];
+      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx], maxShared[sharedIdx + s]);
+    }
+    __syncthreads();
+  }
+  if(xyId == 0 && cIdx < cSize) {
+    float sum = sumShared[sharedIdx];
+    float div = maskSum[nIdx];
+    float sqrtdiv = sqrt(div);
+    float mean = sum/div;
+
+    out[cIdx + nIdx * (cSize*3)] = __float2half(mean);
+    out[cIdx + nIdx * (cSize*3) + cSize] = __float2half(mean * (sqrtdiv - 14.0f) * 0.1f);
+    out[cIdx + nIdx * (cSize*3) + cSize*2] = __float2half(maxShared[sharedIdx]);
+  }
+#else
+  //Do nothing, FP16 not supported
+#endif
+}
+
+void customCudaPoolRowsGPoolNCHW(const half* in, half* out, int nSize, int cSize, int xySize, const half* mask, const float* maskSum) {
   if(nSize > 65536)
     throw std::runtime_error("customCudaPoolRowsGPoolNCHW: nSize too large");
   if(cSize > 65536)
@@ -444,7 +557,10 @@ void customCudaPoolRowsGPoolNCHW(const half* in, half* out, int nSize, int cSize
 
   dim3 grid(1,cBlocks,nSize);
   dim3 threads(xyThreads,cThreads,1);
-  gPoolChannelsNCHWHalfKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,maskSum,sharedMemElts);
+  if(mask != NULL)
+    gPoolChannelsNCHWHalfMaskKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,mask,maskSum,sharedMemElts);
+  else
+    gPoolChannelsNCHWHalfKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,maskSum,sharedMemElts);
 }
 
 
@@ -544,14 +660,66 @@ void gPoolChannelsNHWCKernel(const float* in, float* out, int xySize, int cSize,
   int xycSize = xySize*cSize;
 
   sumShared[sharedIdx] = 0;
-  maxShared[sharedIdx] = 0;
+  maxShared[sharedIdx] = -1.0f;
 
   if(cIdx < cSize) {
     int xyIdx = xyId;
     while(xyIdx < xySize) {
       float a = in[cIdx + xyIdx * cSize + nIdx * xycSize];
       sumShared[sharedIdx] += a;
-      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx],a);
+      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx], a);
+      xyIdx += xyBlockDim;
+    }
+  }
+  __syncthreads();
+
+  for(int s = xyBlockDim>>1; s > 0; s >>= 1) {
+    if(xyId < s) {
+      sumShared[sharedIdx] += sumShared[sharedIdx + cBlockDim * s];
+      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx],maxShared[sharedIdx + cBlockDim * s]);
+    }
+    __syncthreads();
+  }
+  if(xyId == 0 && cIdx < cSize) {
+    float sum = sumShared[sharedIdx];
+    float div = maskSum[nIdx];
+    float sqrtdiv = sqrt(div);
+    float mean = sum/div;
+
+    out[cIdx + nIdx * (cSize*3)] = mean;
+    out[cIdx + nIdx * (cSize*3) + cSize] = mean * (sqrtdiv - 14.0f) * 0.1f;
+    out[cIdx + nIdx * (cSize*3) + cSize*2] = maxShared[sharedIdx];
+  }
+}
+__global__
+void gPoolChannelsNHWCMaskKernel(const float* in, float* out, int xySize, int cSize, const float* mask, const float* maskSum, int sharedMemElts)
+{
+  extern __shared__ float poolNHWCShared[];
+  float* sumShared = (float*)poolNHWCShared;
+  float* maxShared = (float*)poolNHWCShared + sharedMemElts;
+
+  int cId = threadIdx.x;
+  int cBlockDim = blockDim.x;
+  int xyId = threadIdx.y;
+  int xyBlockDim = blockDim.y;
+
+  int cIdx = blockIdx.x * cBlockDim + cId;
+  int nIdx = blockIdx.z;
+  int sharedIdx = cId + cBlockDim * xyId;
+  int xycSize = xySize*cSize;
+
+  sumShared[sharedIdx] = 0;
+  maxShared[sharedIdx] = -1.0f;
+
+  if(cIdx < cSize) {
+    int xyIdx = xyId;
+    while(xyIdx < xySize) {
+      float a = in[cIdx + xyIdx * cSize + nIdx * xycSize];
+      sumShared[sharedIdx] += a;
+      // Init to -1.0 above and + mask - 1.0 is because it will effectively make all padded space into -1.0
+      // which is lower than the lowest value that any current activation function will produce.
+      // so the max over all valid spaces will the same as the mask over all spaces including padding
+      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx], a + (mask[xyIdx + nIdx * xySize] - 1.0f));
       xyIdx += xyBlockDim;
     }
   }
@@ -625,7 +793,7 @@ void customCudaValueHeadPoolNHWC(const float* in, float* out, int nSize, int xyS
   valueHeadPoolChannelsNHWCKernel<<<grid,threads,sharedMemSize>>>(in,out,nSize,xySize,cSize,maskSum);
 }
 
-void customCudaPoolRowsGPoolNHWC(const float* in, float* out, int nSize, int xySize, int cSize, const float* maskSum) {
+void customCudaPoolRowsGPoolNHWC(const float* in, float* out, int nSize, int xySize, int cSize, const float* mask, const float* maskSum) {
   if(nSize > 65536)
     throw std::runtime_error("customCudaPoolRowsGPoolNHWC: nSize too large");
   if(cSize > 65536)
@@ -650,7 +818,10 @@ void customCudaPoolRowsGPoolNHWC(const float* in, float* out, int nSize, int xyS
 
   dim3 grid(cBlocks,1,nSize);
   dim3 threads(cThreads,xyThreads,1);
-  gPoolChannelsNHWCKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize,maskSum,sharedMemElts);
+  if(mask != NULL)
+    gPoolChannelsNHWCMaskKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize,mask,maskSum,sharedMemElts);
+  else
+    gPoolChannelsNHWCKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize,maskSum,sharedMemElts);
 }
 
 //--------------------------------------------------------------------------------------------------------------
@@ -674,14 +845,70 @@ void gPoolChannelsNHWCHalfKernel(const half* in, half* out, int xySize, int cSiz
   int xycSize = xySize*cSize;
 
   sumShared[sharedIdx] = 0;
-  maxShared[sharedIdx] = 0;
+  maxShared[sharedIdx] = -1.0f;
 
   if(cIdx < cSize) {
     int xyIdx = xyId;
     while(xyIdx < xySize) {
       float a = __half2float(in[cIdx + xyIdx * cSize + nIdx * xycSize]);
       sumShared[sharedIdx] += a;
-      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx],a);
+      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx], a);
+      xyIdx += xyBlockDim;
+    }
+  }
+  __syncthreads();
+
+  for(int s = xyBlockDim>>1; s > 0; s >>= 1) {
+    if(xyId < s) {
+      sumShared[sharedIdx] += sumShared[sharedIdx + cBlockDim * s];
+      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx],maxShared[sharedIdx + cBlockDim * s]);
+    }
+    __syncthreads();
+  }
+  if(xyId == 0 && cIdx < cSize) {
+    float sum = sumShared[sharedIdx];
+    float div = maskSum[nIdx];
+    float sqrtdiv = sqrt(div);
+    float mean = sum/div;
+
+    out[cIdx + nIdx * (cSize*3)] = __float2half(mean);
+    out[cIdx + nIdx * (cSize*3) + cSize] = __float2half(mean * (sqrtdiv - 14.0f) * 0.1f);
+    out[cIdx + nIdx * (cSize*3) + cSize*2] = __float2half(maxShared[sharedIdx]);
+  }
+#else
+  //Do nothing, FP16 not supported
+#endif
+}
+__global__
+void gPoolChannelsNHWCHalfMaskKernel(const half* in, half* out, int xySize, int cSize, const half* mask, const float* maskSum, int sharedMemElts)
+{
+#ifdef CUDA_SUPPORTS_FP16
+  extern __shared__ float poolNHWCShared[];
+  float* sumShared = (float*)poolNHWCShared;
+  float* maxShared = (float*)poolNHWCShared + sharedMemElts;
+
+  int cId = threadIdx.x;
+  int cBlockDim = blockDim.x;
+  int xyId = threadIdx.y;
+  int xyBlockDim = blockDim.y;
+
+  int cIdx = blockIdx.x * cBlockDim + cId;
+  int nIdx = blockIdx.z;
+  int sharedIdx = cId + cBlockDim * xyId;
+  int xycSize = xySize*cSize;
+
+  sumShared[sharedIdx] = 0;
+  maxShared[sharedIdx] = -1.0f;
+
+  if(cIdx < cSize) {
+    int xyIdx = xyId;
+    while(xyIdx < xySize) {
+      float a = __half2float(in[cIdx + xyIdx * cSize + nIdx * xycSize]);
+      sumShared[sharedIdx] += a;
+      // Init to -1.0 above and + mask - 1.0 is because it will effectively make all padded space into -1.0
+      // which is lower than the lowest value that any current activation function will produce.
+      // so the max over all valid spaces will the same as the mask over all spaces including padding
+      maxShared[sharedIdx] = fmaxf(maxShared[sharedIdx], a + (__half2float(mask[xyIdx + nIdx * xySize]) - 1.0f));
       xyIdx += xyBlockDim;
     }
   }
@@ -709,7 +936,7 @@ void gPoolChannelsNHWCHalfKernel(const half* in, half* out, int xySize, int cSiz
 #endif
 }
 
-void customCudaPoolRowsGPoolNHWC(const half* in, half* out, int nSize, int xySize, int cSize, const float* maskSum) {
+void customCudaPoolRowsGPoolNHWC(const half* in, half* out, int nSize, int xySize, int cSize, const half* mask, const float* maskSum) {
   if(nSize > 65536)
     throw std::runtime_error("customCudaPoolRowsGPoolNHWC: nSize too large");
   if(cSize > 65536)
@@ -734,7 +961,10 @@ void customCudaPoolRowsGPoolNHWC(const half* in, half* out, int nSize, int xySiz
 
   dim3 grid(cBlocks,1,nSize);
   dim3 threads(cThreads,xyThreads,1);
-  gPoolChannelsNHWCHalfKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize,maskSum,sharedMemElts);
+  if(mask != NULL)
+    gPoolChannelsNHWCHalfMaskKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize,mask,maskSum,sharedMemElts);
+  else
+    gPoolChannelsNHWCHalfKernel<<<grid,threads,sharedMemSize>>>(in,out,xySize,cSize,maskSum,sharedMemElts);
 }
 
 
