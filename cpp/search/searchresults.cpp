@@ -916,22 +916,26 @@ void Search::getAnalysisData(
 
   //Find all children and compute weighting of the children based on their values
   if(includeWeightFactors) {
-    double totalChildWeight = 0.0;
+    double currentTotalChildWeight = 0.0;
+    double rawUtilitySum = 0.0;
+    double rawUtilitySqSum = 0.0;
     for(int i = 0; i<numChildren; i++) {
-      totalChildWeight += statsBuf[i].weightAdjusted;
+      currentTotalChildWeight += statsBuf[i].weightAdjusted;
+      rawUtilitySum += statsBuf[i].stats.utilityAvg * statsBuf[i].weightAdjusted;
+      rawUtilitySqSum += statsBuf[i].stats.utilityAvg * statsBuf[i].stats.utilityAvg * statsBuf[i].weightAdjusted;
     }
-    if(searchParams.useNoisePruning) {
-      double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
-      for(int i = 0; i<numChildren; i++)
-        policyProbsBuf[i] = std::max(1e-30, (double)policyProbs[getPos(statsBuf[i].prevMoveLoc)]);
-      totalChildWeight = pruneNoiseWeight(statsBuf, numChildren, totalChildWeight, policyProbsBuf);
-    }
-    double amountToSubtract = 0.0;
-    double amountToPrune = 0.0;
-    downweightBadChildrenAndNormalizeWeight(
-      numChildren, totalChildWeight, totalChildWeight,
-      amountToSubtract, amountToPrune, statsBuf
+    //TODO
+    bool isRoot = false;
+    getValueWeighting(
+      statsBuf,
+      currentTotalChildWeight,
+      node,
+      numChildren,
+      rawUtilitySum,
+      rawUtilitySqSum,
+      isRoot
     );
+
     for(int i = 0; i<numChildren; i++)
       buf[i].weightFactor = statsBuf[i].weightAdjusted;
   }
@@ -1115,6 +1119,10 @@ void Search::printTreeHelper(
       sprintf(buf,"WF %5.1f ", data.weightFactor);
       out << buf;
     }
+    // if(!isnan(data.weightSum)) {
+    //   sprintf(buf,"W %5.1f ", data.weightSum);
+    //   out << buf;
+    // }
     if(data.playSelectionValue >= 0 && depth > 0) {
       sprintf(buf,"PSV %7.0f ", data.playSelectionValue);
       out << buf;
@@ -1372,21 +1380,24 @@ double Search::getSharpScoreHelper(
 
   //Find all children and compute weighting of the children based on their values
   {
-    double totalChildWeight = 0.0;
+    double currentTotalChildWeight = 0.0;
+    double rawUtilitySum = 0.0;
+    double rawUtilitySqSum = 0.0;
     for(int i = 0; i<numChildren; i++) {
-      totalChildWeight += statsBuf[i].weightAdjusted;
+      currentTotalChildWeight += statsBuf[i].weightAdjusted;
+      rawUtilitySum += statsBuf[i].stats.utilityAvg * statsBuf[i].weightAdjusted;
+      rawUtilitySqSum += statsBuf[i].stats.utilityAvg * statsBuf[i].stats.utilityAvg * statsBuf[i].weightAdjusted;
     }
-    const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
-    if(searchParams.useNoisePruning) {
-      for(int i = 0; i<numChildren; i++)
-        policyProbsBuf[i] = std::max(1e-30, (double)policyProbs[getPos(statsBuf[i].prevMoveLoc)]);
-      totalChildWeight = pruneNoiseWeight(statsBuf, numChildren, totalChildWeight, policyProbsBuf);
-    }
-    double amountToSubtract = 0.0;
-    double amountToPrune = 0.0;
-    downweightBadChildrenAndNormalizeWeight(
-      numChildren, totalChildWeight, totalChildWeight,
-      amountToSubtract, amountToPrune, statsBuf
+    //TODO
+    bool isRoot = false;
+    getValueWeighting(
+      statsBuf,
+      currentTotalChildWeight,
+      *node,
+      numChildren,
+      rawUtilitySum,
+      rawUtilitySqSum,
+      isRoot
     );
   }
 

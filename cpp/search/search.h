@@ -584,6 +584,16 @@ private:
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot);
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot);
 
+  void getValueWeighting(
+    std::vector<MoreNodeStats>& statsBuf,
+    double& currentTotalChildWeight,
+    const SearchNode& node,
+    int numGoodChildren,
+    double rawUtilitySum,
+    double rawUtilitySqSum,
+    bool isRoot
+  ) const;
+
   void downweightBadChildrenAndNormalizeWeight(
     int numChildren,
     double currentTotalWeight,

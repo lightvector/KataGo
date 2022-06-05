@@ -27,8 +27,8 @@ double Search::getExploreScaling(
   }
   else if(getOpp(pla) == verificationPla) {
     assert(thread != NULL);
-    // if(thread->rand.nextBool(0.2))
-    cpuctFactor *= 10.0;
+    if(thread->rand.nextBool(0.2))
+      cpuctFactor *= 10.0;
   }
 
   return
