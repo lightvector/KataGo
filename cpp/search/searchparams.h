@@ -30,7 +30,10 @@ struct SearchParams {
   double fpuParentWeightByVisitedPolicyPow; //If fpuParentWeightByVisitedPolicy, what power to raise the proportion of policy visited for blending.
   double fpuParentWeight; //For fpu, 0 = use parent average, 1 = use parent nn value, interpolates between.
 
+  double verificationPlayoutProp; //Proportion of playouts to verify main lines.
+
   //Tree value aggregation parameters
+  bool smoothUtilityAveraging;
   double valueWeightExponent; //Amount to apply a downweighting of children with very bad values relative to good ones
   bool useNoisePruning; //For computation of value, prune out weight that greatly exceeds what is justified by policy prior
   double noisePruneUtilityScale; //The scale of the utility difference at which useNoisePruning has effect

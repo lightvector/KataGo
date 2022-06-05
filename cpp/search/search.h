@@ -46,6 +46,9 @@ struct SearchThread {
   //The path we trace down the graph as we do a playout
   std::unordered_set<SearchNode*> graphPath;
 
+  //Whether or not we are doing a verification playout
+  Player verificationPla;
+
   Rand rand;
 
   NNResultBuf nnResultBuf;
@@ -505,7 +508,8 @@ private:
   // searchexplorehelpers.cpp
   //----------------------------------------------------------------------------------------
   double getExploreScaling(
-    double totalChildWeight, double parentUtilityStdevFactor
+    double totalChildWeight, double parentUtilityStdevFactor, Player pla, Player verificationPla,
+    SearchThread* thread
   ) const;
   double getExploreSelectionValue(
     double exploreScaling,
@@ -527,7 +531,7 @@ private:
     double exploreScaling,
     double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
     double parentUtility, double parentWeightPerVisit,
-    bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
+    bool isForExploration, bool antiMirror, double maxChildWeight, SearchThread* thread
   ) const;
   double getNewExploreSelectionValue(
     const SearchNode& parent,

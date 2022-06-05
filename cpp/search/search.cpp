@@ -41,6 +41,7 @@ SearchThread::SearchThread(int tIdx, const Search& search)
    history(search.rootHistory),
    graphHash(search.rootGraphHash),
    graphPath(),
+   verificationPla(C_EMPTY),
    rand(makeSeed(search,tIdx)),
    nnResultBuf(),
    statsBuf(),
@@ -502,6 +503,7 @@ void Search::runWholeSearch(
     SearchThread* stbuf = new SearchThread(threadIdx,*this);
 
     int64_t numPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
+    int64_t lastVisitIdx = -1;
     try {
       double lastTimeUsedRecomputingTcLimit = 0.0;
       while(true) {
@@ -546,9 +548,11 @@ void Search::runWholeSearch(
         upperBoundVisitsLeft = std::min(upperBoundVisitsLeft, (double)maxPlayouts - numPlayouts);
         upperBoundVisitsLeft = std::min(upperBoundVisitsLeft, (double)maxVisits - numPlayouts - numNonPlayoutVisits);
 
-        bool finishedPlayout = runSinglePlayout(*stbuf, upperBoundVisitsLeft);
+        bool finishedPlayout = runSinglePlayout(*stbuf, upperBoundVisitsLeft, lastVisitIdx);
         if(finishedPlayout) {
           numPlayouts = numPlayoutsShared.fetch_add((int64_t)1, std::memory_order_relaxed);
+          //Since numPlayoutsShared is atomic, each idx will be seen by only one thread.
+          lastVisitIdx = numPlayouts + numNonPlayoutVisits;
           numPlayouts += 1;
         }
         else {
@@ -1067,7 +1071,7 @@ void Search::computeRootValues() {
 }
 
 
-bool Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft) {
+bool Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft, int64_t lastVisitIdx) {
   //Store this value, used for futile-visit pruning this thread's root children selections.
   thread.upperBoundVisitsLeft = upperBoundVisitsLeft;
 
@@ -1080,6 +1084,16 @@ bool Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft)
   thread.history = rootHistory;
   thread.graphHash = rootGraphHash;
   thread.graphPath.clear();
+
+  thread.verificationPla = C_EMPTY;
+
+  double vProp = lastVisitIdx * searchParams.verificationPlayoutProp;
+  if(vProp >= 1.0) {
+    double prevVProp = (lastVisitIdx-1) * searchParams.verificationPlayoutProp;
+    if(floor(vProp) > floor(prevVProp)) {
+      thread.verificationPla = (int64_t)(floor(vProp)) % 2 == 0 ? rootPla : getOpp(rootPla);
+    }
+  }
 
   return finishedPlayout;
 }

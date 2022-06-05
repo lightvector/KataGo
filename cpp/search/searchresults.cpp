@@ -134,9 +134,9 @@ bool Search::getPlaySelectionValues(
       parentUtility, parentWeightPerVisit, parentUtilityStdevFactor
     );
 
-    bool isDuringSearch = false;
+    bool isForExploration = false;
 
-    double exploreScaling = getExploreScaling(totalChildWeight, parentUtilityStdevFactor);
+    double exploreScaling = getExploreScaling(totalChildWeight, parentUtilityStdevFactor, rootPla, C_EMPTY, NULL);
 
     const NNOutput* nnOutput = node.getNNOutput();
     assert(nnOutput != NULL);
@@ -147,7 +147,7 @@ bool Search::getPlaySelectionValues(
       exploreScaling,
       totalChildWeight,bestChildEdgeVisits,fpuValue,
       parentUtility,parentWeightPerVisit,
-      isDuringSearch,false,maxChildWeight,NULL
+      isForExploration,false,maxChildWeight,NULL
     );
 
     for(int i = 0; i<numChildren; i++) {

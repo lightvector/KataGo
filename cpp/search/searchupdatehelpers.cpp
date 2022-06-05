@@ -156,6 +156,8 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   int childrenCapacity;
   const SearchChildPointer* children = node.getChildren(childrenCapacity);
   double origTotalChildWeight = 0.0;
+  double rawUtilitySum = 0.0;
+  double rawUtilitySqSum = 0.0;
   for(int i = 0; i<childrenCapacity; i++) {
     const SearchNode* child = children[i].getIfAllocated();
     if(child == NULL)
@@ -174,6 +176,9 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     stats.weightAdjusted = stats.stats.getChildWeight(edgeVisits);
     stats.prevMoveLoc = moveLoc;
 
+    rawUtilitySum += childUtility * stats.weightAdjusted;
+    rawUtilitySqSum += childUtility * childUtility * stats.weightAdjusted;
+
     origTotalChildWeight += stats.weightAdjusted;
     numGoodChildren++;
   }
@@ -181,35 +186,97 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   //Always tracks the sum of statsBuf[i].weightAdjusted across the children.
   double currentTotalChildWeight = origTotalChildWeight;
 
-  if(searchParams.useNoisePruning && numGoodChildren > 0 && !(searchParams.antiMirror && mirroringPla != C_EMPTY)) {
-    double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
-    {
-      const NNOutput* nnOutput = node.getNNOutput();
-      assert(nnOutput != NULL);
-      const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
-      for(int i = 0; i<numGoodChildren; i++)
-        policyProbsBuf[i] = std::max(1e-30, (double)policyProbs[getPos(statsBuf[i].prevMoveLoc)]);
-    }
-    currentTotalChildWeight = pruneNoiseWeight(statsBuf, numGoodChildren, currentTotalChildWeight, policyProbsBuf);
-  }
+  if(searchParams.smoothUtilityAveraging && numGoodChildren > 0) {
+    double parentUtilityStdev;
+    if(currentTotalChildWeight <= 1)
+      parentUtilityStdev = searchParams.cpuctUtilityStdevPrior;
+    else {
+      double rawUtilityAvg = rawUtilitySum / currentTotalChildWeight;
+      double rawUtilitySqAvg = rawUtilitySqSum / currentTotalChildWeight;
 
-  {
-    double amountToSubtract = 0.0;
-    double amountToPrune = 0.0;
-    if(isRoot && searchParams.rootNoiseEnabled && !searchParams.useNoisePruning) {
-      double maxChildWeight = 0.0;
-      for(int i = 0; i<numGoodChildren; i++) {
-        if(statsBuf[i].weightAdjusted > maxChildWeight)
-          maxChildWeight = statsBuf[i].weightAdjusted;
+      double variancePrior = searchParams.cpuctUtilityStdevPrior * searchParams.cpuctUtilityStdevPrior;
+      double variancePriorWeight = searchParams.cpuctUtilityStdevPriorWeight;
+
+      double rawUtilitySq = rawUtilityAvg * rawUtilityAvg;
+      //Make sure we're robust to numerical precision issues or threading desync of these values, so we don't observe negative variance
+      if(rawUtilitySqAvg < rawUtilitySq)
+        rawUtilitySqAvg = rawUtilitySq;
+      parentUtilityStdev = sqrt(
+        std::max(
+          0.0,
+          ((rawUtilitySq + variancePrior) * variancePriorWeight + rawUtilitySqAvg * currentTotalChildWeight)
+          / (variancePriorWeight + currentTotalChildWeight - 1.0)
+          - rawUtilitySq
+        )
+      );
+    }
+    double parentUtilityStdevFactor = 1.0 + searchParams.cpuctUtilityStdevScale * (parentUtilityStdev / searchParams.cpuctUtilityStdevPrior - 1.0);
+
+    double exploreScaling = getExploreScaling(currentTotalChildWeight, parentUtilityStdevFactor, node.nextPla, C_EMPTY, &thread);
+
+    double exploreSelectionValueSum = 0.0;
+    const NNOutput* nnOutput = node.getNNOutput();
+    const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+    assert(nnOutput != NULL);
+    for(int i = 0; i<numGoodChildren; i++) {
+      MoreNodeStats& stats = statsBuf[i];
+      int movePos = getPos(stats.prevMoveLoc);
+      float nnPolicyProb = policyProbs[movePos];
+      double exploreSelectionValue = getExploreSelectionValue(exploreScaling,nnPolicyProb,stats.weightAdjusted,stats.stats.utilityAvg,node.nextPla);
+      exploreSelectionValueSum += exploreSelectionValue * stats.weightAdjusted;
+    }
+    double exploreSelectionValueAvg = exploreSelectionValueSum / currentTotalChildWeight;
+
+    double newTotalChildWeight = 0.0;
+    for(int i = 0; i<numGoodChildren; i++) {
+      MoreNodeStats& stats = statsBuf[i];
+      int movePos = getPos(stats.prevMoveLoc);
+      float nnPolicyProb = policyProbs[movePos];
+      double childWeightWeRetrospectivelyWanted = getExploreSelectionValueInverse(
+        exploreSelectionValueAvg,
+        exploreScaling,
+        nnPolicyProb,
+        stats.stats.utilityAvg,
+        node.nextPla
+      );
+      if(childWeightWeRetrospectivelyWanted < stats.weightAdjusted) {
+        stats.weightAdjusted = childWeightWeRetrospectivelyWanted;
       }
-      amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxChildWeight/64.0);
-      amountToPrune = std::min(searchParams.chosenMovePrune, maxChildWeight/64.0);
+      newTotalChildWeight += stats.weightAdjusted;
+    }
+    currentTotalChildWeight = newTotalChildWeight;
+  }
+  else {
+    if(searchParams.useNoisePruning && numGoodChildren > 0 && !(searchParams.antiMirror && mirroringPla != C_EMPTY)) {
+      double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
+      {
+        const NNOutput* nnOutput = node.getNNOutput();
+        assert(nnOutput != NULL);
+        const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+        for(int i = 0; i<numGoodChildren; i++)
+          policyProbsBuf[i] = std::max(1e-30, (double)policyProbs[getPos(statsBuf[i].prevMoveLoc)]);
+      }
+      currentTotalChildWeight = pruneNoiseWeight(statsBuf, numGoodChildren, currentTotalChildWeight, policyProbsBuf);
     }
 
-    downweightBadChildrenAndNormalizeWeight(
-      numGoodChildren, currentTotalChildWeight, currentTotalChildWeight,
-      amountToSubtract, amountToPrune, statsBuf
-    );
+    {
+      double amountToSubtract = 0.0;
+      double amountToPrune = 0.0;
+      if(isRoot && searchParams.rootNoiseEnabled && !searchParams.useNoisePruning) {
+        double maxChildWeight = 0.0;
+        for(int i = 0; i<numGoodChildren; i++) {
+          if(statsBuf[i].weightAdjusted > maxChildWeight)
+            maxChildWeight = statsBuf[i].weightAdjusted;
+        }
+        amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxChildWeight/64.0);
+        amountToPrune = std::min(searchParams.chosenMovePrune, maxChildWeight/64.0);
+      }
+
+      downweightBadChildrenAndNormalizeWeight(
+        numGoodChildren, currentTotalChildWeight, currentTotalChildWeight,
+        amountToSubtract, amountToPrune, statsBuf
+      );
+    }
   }
 
   double winLossValueSum = 0.0;

@@ -463,6 +463,15 @@ vector<SearchParams> Setup::loadParams(
       else                                       params.fpuParentWeight = 0.0;
     }
 
+    if(cfg.contains("verificationPlayoutProp"+idxStr)) params.verificationPlayoutProp = cfg.getDouble("verificationPlayoutProp"+idxStr, 0, 0.9);
+    else if(cfg.contains("verificationPlayoutProp"))   params.verificationPlayoutProp = cfg.getDouble("verificationPlayoutProp",        0, 0.9);
+    else params.verificationPlayoutProp = 0;
+
+
+    if(cfg.contains("smoothUtilityAveraging"+idxStr)) params.smoothUtilityAveraging = cfg.getBool("smoothUtilityAveraging"+idxStr);
+    else if(cfg.contains("smoothUtilityAveraging")) params.smoothUtilityAveraging = cfg.getBool("smoothUtilityAveraging");
+    else params.smoothUtilityAveraging = false;
+
     if(cfg.contains("valueWeightExponent"+idxStr)) params.valueWeightExponent = cfg.getDouble("valueWeightExponent"+idxStr, 0.0, 1.0);
     else if(cfg.contains("valueWeightExponent")) params.valueWeightExponent = cfg.getDouble("valueWeightExponent", 0.0, 1.0);
     else params.valueWeightExponent = 0.25;
