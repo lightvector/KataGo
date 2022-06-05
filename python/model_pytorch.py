@@ -640,6 +640,8 @@ class NormActConv(torch.nn.Module):
         out = x
         out = self.norm(out, mask=mask, mask_sum=mask_sum)
         out = self.act(out)
+        # print("TENSOR AFTER NORMACT")
+        # print(out)
         if self.convpool is not None:
             out = self.convpool(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
         else:
@@ -1534,10 +1536,17 @@ class Model(torch.nn.Module):
         x_spatial = self.conv_spatial(input_spatial)
         x_global = self.linear_global(input_global).unsqueeze(-1).unsqueeze(-1)
         out = x_spatial + x_global
+        # print("TENSOR BEFORE TRUNK")
+        # print(out)
 
         if self.has_intermediate_head:
+            count = 0
             for block in self.blocks[:self.intermediate_head_blocks]:
+                # print("TENSOR BEFORE BLOCK")
+                # print(count)
+                # print(out)
                 out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+                count += 1
 
             iout = out
             iout = self.norm_intermediate_trunkfinal(iout, mask=mask, mask_sum=mask_sum)
@@ -1555,11 +1564,20 @@ class Model(torch.nn.Module):
             ) = self.intermediate_value_head(iout, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, input_global=input_global)
 
             for block in self.blocks[self.intermediate_head_blocks:]:
+                # print("TENSOR BEFORE BLOCK")
+                # print(count)
+                # print(out)
                 out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+                count += 1
 
         else:
+            count = 0
             for block in self.blocks:
+                # print("TENSOR BEFORE BLOCK")
+                # print(count)
+                # print(out)
                 out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+                count += 1
 
         out = self.norm_trunkfinal(out, mask=mask, mask_sum=mask_sum)
         out = self.act_trunkfinal(out)
