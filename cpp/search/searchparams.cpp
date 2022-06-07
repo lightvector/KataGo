@@ -26,6 +26,7 @@ SearchParams::SearchParams()
    fpuParentWeight(0.0),
    verificationPlayoutProp(0),
    smoothUtilityAveraging(false),
+   smoothUtilityRegFactor(1.0),
    valueWeightExponent(0.5),
    useNoisePruning(false),
    noisePruneUtilityScale(0.15),

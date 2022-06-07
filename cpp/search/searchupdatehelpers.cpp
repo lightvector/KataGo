@@ -180,7 +180,7 @@ void Search::getValueWeighting(
     }
     double parentUtilityStdevFactor = 1.0 + searchParams.cpuctUtilityStdevScale * (parentUtilityStdev / searchParams.cpuctUtilityStdevPrior - 1.0);
 
-    double exploreScaling = getExploreScaling(currentTotalChildWeight, parentUtilityStdevFactor, node.nextPla, C_EMPTY, NULL);
+    double exploreScaling = getExploreScaling(currentTotalChildWeight, parentUtilityStdevFactor, node.nextPla, C_EMPTY, NULL) * searchParams.smoothUtilityRegFactor;
 
     double exploreSelectionValueSum = 0.0;
     const NNOutput* nnOutput = node.getNNOutput();
