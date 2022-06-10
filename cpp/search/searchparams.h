@@ -35,6 +35,7 @@ struct SearchParams {
   //Tree value aggregation parameters
   bool smoothUtilityAveraging;
   double smoothUtilityRegFactor;
+  bool smoothUtilityWeightPrune;
   double valueWeightExponent; //Amount to apply a downweighting of children with very bad values relative to good ones
   bool useNoisePruning; //For computation of value, prune out weight that greatly exceeds what is justified by policy prior
   double noisePruneUtilityScale; //The scale of the utility difference at which useNoisePruning has effect

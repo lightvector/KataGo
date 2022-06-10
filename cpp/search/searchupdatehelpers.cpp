@@ -215,10 +215,15 @@ void Search::getValueWeighting(
     }
 
     // Rescale the sum to sum back to the original weight
-    double scaleFactor = currentTotalChildWeight / newTotalChildWeight;
-    for(int i = 0; i<numGoodChildren; i++) {
-      MoreNodeStats& stats = statsBuf[i];
-      stats.weightAdjusted *= scaleFactor;
+    if(!searchParams.smoothUtilityWeightPrune) {
+      double scaleFactor = currentTotalChildWeight / newTotalChildWeight;
+      for(int i = 0; i<numGoodChildren; i++) {
+        MoreNodeStats& stats = statsBuf[i];
+        stats.weightAdjusted *= scaleFactor;
+      }
+    }
+    else {
+      currentTotalChildWeight = newTotalChildWeight;
     }
   }
   else {

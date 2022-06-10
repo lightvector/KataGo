@@ -182,9 +182,9 @@ int MainCmds::match(const vector<string>& args) {
 
   //Done loading!
   //------------------------------------------------------------------------------------
-  logger.write("Loaded all config stuff, starting matches");
+  logger.write("Loaded all config stuff, starting matches for " + Global::intToString(numBots) + " bots");
   if(!logger.isLoggingToStdout())
-    cout << "Loaded all config stuff, starting matches" << endl;
+    cout << "Loaded all config stuff, starting matches for " << numBots << " bots" << endl;
 
   if(sgfOutputDir != string())
     MakeDir::make(sgfOutputDir);

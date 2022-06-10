@@ -27,6 +27,7 @@ SearchParams::SearchParams()
    verificationPlayoutProp(0),
    smoothUtilityAveraging(false),
    smoothUtilityRegFactor(1.0),
+   smoothUtilityWeightPrune(false),
    valueWeightExponent(0.5),
    useNoisePruning(false),
    noisePruneUtilityScale(0.15),
