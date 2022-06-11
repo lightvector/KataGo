@@ -15,10 +15,6 @@ import hashlib
 import multiprocessing
 
 import numpy as np
-import tensorflow as tf
-from tensorflow.python_io import TFRecordOptions,TFRecordCompressionType,TFRecordWriter
-
-import tfrecordio
 
 keys = [
   "binaryInputNCHWPacked",
@@ -134,8 +130,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
   if output_npz:
     record_writer = None
   else:
-    tfoptions = TFRecordOptions(TFRecordCompressionType.ZLIB)
-    record_writer = TFRecordWriter(filename,tfoptions)
+    assert False, "No longer supports outputting tensorflow data"
 
   binaryInputNCHWPackeds = []
   globalInputNCs = []
@@ -206,21 +201,7 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
       valueTargetsNCHW = valueTargetsNCHW[start:stop]
     )
   else:
-    for i in range(num_batches):
-      start = i*batch_size
-      stop = (i+1)*batch_size
-
-      example = tfrecordio.make_tf_record_example(
-        binaryInputNCHWPacked,
-        globalInputNC,
-        policyTargetsNCMove,
-        globalTargetsNC,
-        scoreDistrN,
-        valueTargetsNCHW,
-        start,
-        stop
-      )
-      record_writer.write(example.SerializeToString())
+    assert False, "No longer supports outputting tensorflow data"
 
   jsonfilename = os.path.splitext(filename)[0] + ".json"
   with open(jsonfilename,"w") as f:
@@ -295,7 +276,7 @@ if __name__ == '__main__':
   parser.add_argument('-summary-file', required=False, help='Summary json file for directory contents')
   parser.add_argument('-out-dir', required=True, help='Dir to output training files')
   parser.add_argument('-out-tmp-dir', required=True, help='Dir to use as scratch space')
-  parser.add_argument('-approx-rows-per-out-file', type=int, required=True, help='Number of rows per output tf records file')
+  parser.add_argument('-approx-rows-per-out-file', type=int, required=True, help='Number of rows per output file')
   parser.add_argument('-num-processes', type=int, required=True, help='Number of multiprocessing processes')
   parser.add_argument('-batch-size', type=int, required=True, help='Batch size to write training examples in')
   parser.add_argument('-ensure-batch-multiple', type=int, required=False, help='Ensure each file is a multiple of this many batches')
@@ -572,7 +553,8 @@ if __name__ == '__main__':
   if output_npz:
     out_files = [os.path.join(out_dir, "data%d.npz" % i) for i in range(num_out_files)]
   else:
-    out_files = [os.path.join(out_dir, "data%d.tfrecord" % i) for i in range(num_out_files)]
+    assert False, "No longer supports outputting tensorflow data"
+
   out_tmp_dirs = [os.path.join(out_tmp_dir, "tmp.shuf%d" % i) for i in range(num_out_files)]
   print("Writing %d output files with %d kept / %d desired rows" % (num_out_files, approx_rows_to_keep, desired_num_rows))
 
