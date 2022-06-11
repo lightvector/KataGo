@@ -449,6 +449,10 @@ if __name__ == '__main__':
   with TimeStuff("Sorting"):
     all_files.sort(key=(lambda x: x[1]), reverse=False)
 
+  # Wait a few seconds just in case to limit the chance of filesystem races, now that we know exactly
+  # the set of filenames we want
+  time.sleep(3)
+
   with TimeStuff("Computing rows for unsummarized files"):
     with multiprocessing.Pool(num_processes) as pool:
       results = pool.map(compute_num_rows,files_with_unknown_num_rows)
