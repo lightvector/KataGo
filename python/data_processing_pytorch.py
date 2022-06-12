@@ -25,58 +25,59 @@ def read_npz_training_data(
         with np.load(npz_file) as npz:
             binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
             globalInputNC = npz["globalInputNC"]
-            policyTargetsNCMove = npz["policyTargetsNCMove"]
+            policyTargetsNCMove = npz["policyTargetsNCMove"].astype(np.float32)
             globalTargetsNC = npz["globalTargetsNC"]
-            scoreDistrN = npz["scoreDistrN"]
-            valueTargetsNCHW = npz["valueTargetsNCHW"]
+            scoreDistrN = npz["scoreDistrN"].astype(np.float32)
+            valueTargetsNCHW = npz["valueTargetsNCHW"].astype(np.float32)
+        del npz
 
-            binaryInputNCHW = np.unpackbits(npz["binaryInputNCHWPacked"],axis=2)
-            assert len(binaryInputNCHW.shape) == 3
-            assert binaryInputNCHW.shape[2] == ((pos_len * pos_len + 7) // 8) * 8
-            binaryInputNCHW = binaryInputNCHW[:,:,:pos_len*pos_len]
-            binaryInputNCHW = np.reshape(binaryInputNCHW, (
-                binaryInputNCHW.shape[0], binaryInputNCHW.shape[1], pos_len, pos_len
-            )).astype(np.float32)
+        binaryInputNCHW = np.unpackbits(binaryInputNCHWPacked,axis=2)
+        assert len(binaryInputNCHW.shape) == 3
+        assert binaryInputNCHW.shape[2] == ((pos_len * pos_len + 7) // 8) * 8
+        binaryInputNCHW = binaryInputNCHW[:,:,:pos_len*pos_len]
+        binaryInputNCHW = np.reshape(binaryInputNCHW, (
+            binaryInputNCHW.shape[0], binaryInputNCHW.shape[1], pos_len, pos_len
+        )).astype(np.float32)
 
-            assert binaryInputNCHW.shape[1] == num_bin_features
-            assert globalInputNC.shape[1] == num_global_features
+        assert binaryInputNCHW.shape[1] == num_bin_features
+        assert globalInputNC.shape[1] == num_global_features
 
-            num_samples = binaryInputNCHW.shape[0]
-            num_whole_batches = num_samples // batch_size
-            logging.info(f"Beginning {npz_file} with {num_whole_batches} batches")
-            for n in range(num_whole_batches):
-                start = n * batch_size
-                end = (n+1) * batch_size
+        num_samples = binaryInputNCHW.shape[0]
+        num_whole_batches = num_samples // batch_size
+        logging.info(f"Beginning {npz_file} with {num_whole_batches} batches")
+        for n in range(num_whole_batches):
+            start = n * batch_size
+            end = (n+1) * batch_size
 
-                batch_binaryInputNCHW = torch.from_numpy(binaryInputNCHW[start:end]).to(device)
-                batch_globalInputNC = torch.from_numpy(globalInputNC[start:end]).to(device)
-                batch_policyTargetsNCMove = torch.from_numpy(policyTargetsNCMove[start:end]).to(device)
-                batch_globalTargetsNC = torch.from_numpy(globalTargetsNC[start:end]).to(device)
-                batch_scoreDistrN = torch.from_numpy(scoreDistrN[start:end]).to(device)
-                batch_valueTargetsNCHW = torch.from_numpy(valueTargetsNCHW[start:end]).to(device)
+            batch_binaryInputNCHW = torch.from_numpy(binaryInputNCHW[start:end]).to(device)
+            batch_globalInputNC = torch.from_numpy(globalInputNC[start:end]).to(device)
+            batch_policyTargetsNCMove = torch.from_numpy(policyTargetsNCMove[start:end]).to(device)
+            batch_globalTargetsNC = torch.from_numpy(globalTargetsNC[start:end]).to(device)
+            batch_scoreDistrN = torch.from_numpy(scoreDistrN[start:end]).to(device)
+            batch_valueTargetsNCHW = torch.from_numpy(valueTargetsNCHW[start:end]).to(device)
 
-                (batch_binaryInputNCHW, batch_globalInputNC) = apply_history_matrices(
-                    model_config, batch_binaryInputNCHW, batch_globalInputNC, batch_globalTargetsNC, h_base, h_builder
-                )
+            (batch_binaryInputNCHW, batch_globalInputNC) = apply_history_matrices(
+                model_config, batch_binaryInputNCHW, batch_globalInputNC, batch_globalTargetsNC, h_base, h_builder
+            )
 
-                if randomize_symmetries:
-                    symm = int(rand.integers(0,8))
-                    batch_binaryInputNCHW = apply_symmetry(batch_binaryInputNCHW, symm)
-                    batch_policyTargetsNCMove = apply_symmetry_policy(batch_policyTargetsNCMove, symm, pos_len)
-                    batch_valueTargetsNCHW = apply_symmetry(batch_valueTargetsNCHW, symm)
-                batch_binaryInputNCHW = batch_binaryInputNCHW.contiguous()
-                batch_policyTargetsNCMove = batch_policyTargetsNCMove.contiguous()
-                batch_valueTargetsNCHW = batch_valueTargetsNCHW.contiguous()
+            if randomize_symmetries:
+                symm = int(rand.integers(0,8))
+                batch_binaryInputNCHW = apply_symmetry(batch_binaryInputNCHW, symm)
+                batch_policyTargetsNCMove = apply_symmetry_policy(batch_policyTargetsNCMove, symm, pos_len)
+                batch_valueTargetsNCHW = apply_symmetry(batch_valueTargetsNCHW, symm)
+            batch_binaryInputNCHW = batch_binaryInputNCHW.contiguous()
+            batch_policyTargetsNCMove = batch_policyTargetsNCMove.contiguous()
+            batch_valueTargetsNCHW = batch_valueTargetsNCHW.contiguous()
 
-                batch = dict(
-                    binaryInputNCHW = batch_binaryInputNCHW,
-                    globalInputNC = batch_globalInputNC,
-                    policyTargetsNCMove = batch_policyTargetsNCMove,
-                    globalTargetsNC = batch_globalTargetsNC,
-                    scoreDistrN = batch_scoreDistrN,
-                    valueTargetsNCHW = batch_valueTargetsNCHW,
-                )
-                yield batch
+            batch = dict(
+                binaryInputNCHW = batch_binaryInputNCHW,
+                globalInputNC = batch_globalInputNC,
+                policyTargetsNCMove = batch_policyTargetsNCMove,
+                globalTargetsNC = batch_globalTargetsNC,
+                scoreDistrN = batch_scoreDistrN,
+                valueTargetsNCHW = batch_valueTargetsNCHW,
+            )
+            yield batch
 
 
 def apply_symmetry_policy(tensor, symm, pos_len):

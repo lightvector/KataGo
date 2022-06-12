@@ -146,10 +146,10 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
 
       binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
       globalInputNC = npz["globalInputNC"]
-      policyTargetsNCMove = npz["policyTargetsNCMove"].astype(np.float32)
+      policyTargetsNCMove = npz["policyTargetsNCMove"]
       globalTargetsNC = npz["globalTargetsNC"]
-      scoreDistrN = npz["scoreDistrN"].astype(np.float32)
-      valueTargetsNCHW = npz["valueTargetsNCHW"].astype(np.float32)
+      scoreDistrN = npz["scoreDistrN"]
+      valueTargetsNCHW = npz["valueTargetsNCHW"]
 
       binaryInputNCHWPackeds.append(binaryInputNCHWPacked)
       globalInputNCs.append(globalInputNC)
