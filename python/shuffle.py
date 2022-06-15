@@ -11,6 +11,7 @@ import shutil
 import psutil
 import json
 import hashlib
+import datetime
 
 import multiprocessing
 
@@ -109,7 +110,9 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
   countsums = np.cumsum(counts)
   assert(countsums[len(countsums)-1] == num_rows_to_keep)
 
-  #print("Shardify writing... (mem usage %dMB)" % memusage_mb())
+  # if input_idx % 29 == 0:
+  #   print("%s: Shardify writing... (mem usage %dMB)" % (str(datetime.datetime.now()),memusage_mb()), flush=True)
+
   for out_idx in range(num_out_files):
     start = countsums[out_idx]-counts[out_idx]
     stop = countsums[out_idx]
@@ -185,6 +188,8 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
   assert(globalTargetsNC.shape[0] == num_rows)
   assert(scoreDistrN.shape[0] == num_rows)
   assert(valueTargetsNCHW.shape[0] == num_rows)
+
+  # print("%s: Merge writing... (mem usage %dMB)" % (str(datetime.datetime.now()),memusage_mb()), flush=True)
 
   #Just truncate and lose the batch at the end, it's fine
   num_batches = (num_rows // (batch_size * ensure_batch_multiple)) * ensure_batch_multiple
@@ -283,6 +288,7 @@ if __name__ == '__main__':
   parser.add_argument('-worker-group-size', type=int, required=False, help='Internally, target having many rows per parallel sharding worker (doesnt affect merge)')
   parser.add_argument('-exclude', required=False, help='Text file with npzs to ignore, one per line')
   parser.add_argument('-exclude-prefix', required=False, help='Prefix to concat to lines in exclude to produce the full file path')
+  parser.add_argument('-exclude-basename', required=False, action="store_true", help='Consider an exclude to match if basename matches')
   parser.add_argument('-only-include-md5-path-prop-lbound', type=float, required=False, help='Just before sharding, include only filepaths hashing to float >= this')
   parser.add_argument('-only-include-md5-path-prop-ubound', type=float, required=False, help='Just before sharding, include only filepaths hashing to float < this')
   parser.add_argument('-output-npz', action="store_true", required=False, help='Output results as npz files')
@@ -312,6 +318,7 @@ if __name__ == '__main__':
   exclude_prefix = args.exclude_prefix
   if exclude_prefix is None:
     exclude_prefix = ""
+  exclude_basename = args.exclude_basename
   only_include_md5_path_prop_lbound = args.only_include_md5_path_prop_lbound
   only_include_md5_path_prop_ubound = args.only_include_md5_path_prop_ubound
   output_npz = args.output_npz
@@ -371,10 +378,15 @@ if __name__ == '__main__':
       if not success:
         raise RuntimeError("Could not load summary file")
 
+  # If excluding basenames, also add them to the set
+  if exclude_basename:
+    basenames = [os.path.basename(path) for path in exclude_set]
+    exclude_set.update(basenames)
 
   all_files = []
   files_with_unknown_num_rows = []
   excluded_count = 0
+  excluded_due_to_excludes_count = 0
   tempfilelike_count = 0
   with TimeStuff("Finding files"):
     for d in dirs:
@@ -392,9 +404,14 @@ if __name__ == '__main__':
                 excluded_count += 1
                 tempfilelike_count += 1
                 continue
+              if exclude_basename and os.path.basename(filename) in exclude_set:
+                excluded_count += 1
+                excluded_due_to_excludes_count += 1
+                continue
               filename = os.path.join(path,dirname,filename)
               if filename in exclude_set:
                 excluded_count += 1
+                excluded_due_to_excludes_count += 1
                 continue
               if num_rows is None:
                 print("WARNING: Skipping bad rowless file, treating as exclude: ", filename)
@@ -412,9 +429,14 @@ if __name__ == '__main__':
             excluded_count += 1
             tempfilelike_count += 1
             continue
+          if exclude_basename and os.path.basename(filename) in exclude_set:
+            excluded_count += 1
+            excluded_due_to_excludes_count += 1
+            continue
           filename = os.path.join(path,filename)
           if filename in exclude_set:
             excluded_count += 1
+            excluded_due_to_excludes_count += 1
             continue
           filtered_filenames.append(filename)
         filenames = filtered_filenames
@@ -426,6 +448,7 @@ if __name__ == '__main__':
   print("Total number of files with unknown row count: %d" % len(files_with_unknown_num_rows), flush=True)
   print("Excluded count: %d" % excluded_count, flush=True)
   print("Excluded count due to looking like temp file: %d" % tempfilelike_count, flush=True)
+  print("Excluded count due to cmdline excludes file: %d" % excluded_due_to_excludes_count, flush=True)
 
   with TimeStuff("Sorting"):
     all_files.sort(key=(lambda x: x[1]), reverse=False)
@@ -616,7 +639,7 @@ if __name__ == '__main__':
       merge_results = pool.starmap(merge_shards, [
         (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size,ensure_batch_multiple,output_npz) for idx in range(len(out_files))
       ])
-    print("Mumber of rows by output file:",flush=True)
+    print("Number of rows by output file:",flush=True)
     print(list(zip(out_files,merge_results)),flush=True)
     sys.stdout.flush()
 
