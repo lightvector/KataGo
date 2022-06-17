@@ -474,9 +474,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("smoothUtilityRegFactor"+idxStr)) params.smoothUtilityRegFactor = cfg.getDouble("smoothUtilityRegFactor"+idxStr, 0.001, 1000.0);
     else if(cfg.contains("smoothUtilityRegFactor")) params.smoothUtilityRegFactor = cfg.getDouble("smoothUtilityRegFactor", 0.001, 1000.0);
     else params.smoothUtilityRegFactor = 1.0;
-    if(cfg.contains("smoothUtilityWeightPrune"+idxStr)) params.smoothUtilityWeightPrune = cfg.getBool("smoothUtilityWeightPrune"+idxStr);
-    else if(cfg.contains("smoothUtilityWeightPrune")) params.smoothUtilityWeightPrune = cfg.getBool("smoothUtilityWeightPrune");
-    else params.smoothUtilityWeightPrune = false;
+    if(cfg.contains("smoothUtilityWeightPruneFactor"+idxStr)) params.smoothUtilityWeightPruneFactor = cfg.getDouble("smoothUtilityWeightPruneFactor"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("smoothUtilityWeightPruneFactor")) params.smoothUtilityWeightPruneFactor = cfg.getDouble("smoothUtilityWeightPruneFactor", 0.0, 1.0);
+    else params.smoothUtilityWeightPruneFactor = 0.0;
 
     if(cfg.contains("valueWeightExponent"+idxStr)) params.valueWeightExponent = cfg.getDouble("valueWeightExponent"+idxStr, 0.0, 1.0);
     else if(cfg.contains("valueWeightExponent")) params.valueWeightExponent = cfg.getDouble("valueWeightExponent", 0.0, 1.0);

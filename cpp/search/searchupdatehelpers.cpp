@@ -215,16 +215,13 @@ void Search::getValueWeighting(
     }
 
     // Rescale the sum to sum back to the original weight
-    if(!searchParams.smoothUtilityWeightPrune) {
-      double scaleFactor = currentTotalChildWeight / newTotalChildWeight;
-      for(int i = 0; i<numGoodChildren; i++) {
-        MoreNodeStats& stats = statsBuf[i];
-        stats.weightAdjusted *= scaleFactor;
-      }
+    double scaleFactor = (currentTotalChildWeight + searchParams.smoothUtilityWeightPruneFactor * (newTotalChildWeight - currentTotalChildWeight)) / newTotalChildWeight;
+    for(int i = 0; i<numGoodChildren; i++) {
+      MoreNodeStats& stats = statsBuf[i];
+      stats.weightAdjusted *= scaleFactor;
     }
-    else {
-      currentTotalChildWeight = newTotalChildWeight;
-    }
+    newTotalChildWeight *= scaleFactor;
+    currentTotalChildWeight = newTotalChildWeight;
   }
   else {
     if(searchParams.useNoisePruning && numGoodChildren > 0 && !(searchParams.antiMirror && mirroringPla != C_EMPTY)) {
