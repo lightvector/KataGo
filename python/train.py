@@ -28,6 +28,7 @@ import torch.distributed
 import torch.multiprocessing
 from torch.nn.parallel import DistributedDataParallel
 from torch.optim.swa_utils import AveragedModel
+from torch.cuda.amp import GradScaler, autocast
 
 import modelconfigs
 from model_pytorch import Model
@@ -48,19 +49,23 @@ if __name__ == "__main__":
   parser.add_argument('-exportdir', help='Directory to export models periodically', required=True)
   parser.add_argument('-exportprefix', help='Prefix to append to names of models', required=True)
   parser.add_argument('-initial-checkpoint', help='If no training checkpoint exists, initialize from this checkpoint', required=False)
+
   parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
-  parser.add_argument('-batch-size', help='Batch size to use for training', type=int, required=True)
+  parser.add_argument('-batch-size', help='Per-GPU batch size to use for training', type=int, required=True)
   parser.add_argument('-samples-per-epoch', help='Number of data samples to consider as one epoch', type=int, required=False)
-  parser.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
   parser.add_argument('-model-kind', help='String name for what model to use', required=True)
   parser.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
   parser.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
   parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, required=True)
+  parser.add_argument('-swa-sub-epoch-scale', help='Number of sub-epochs to average in expectation together for SWA', type=float, required=False)
+
+  parser.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
+  parser.add_argument('-use-fp16', help='Use fp16 training', required=False, action='store_true')
+
   parser.add_argument('-epochs-per-export', help='Export model once every this many epochs', type=int, required=False)
   parser.add_argument('-export-prob', help='Export model with this probablity', type=float, required=False)
   parser.add_argument('-max-epochs-this-instance', help='Terminate training after this many more epochs', type=int, required=False)
   parser.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between epochs', type=int, required=False)
-  parser.add_argument('-swa-sub-epoch-scale', help='Number of sub-epochs to average in expectation together for SWA', type=float, required=False)
   parser.add_argument('-max-train-bucket-per-new-data', help='When data added, add this many train rows per data row to bucket', type=float, required=False)
   parser.add_argument('-max-train-bucket-size', help='Approx total number of train rows allowed if data stops', type=float, required=False)
   parser.add_argument('-max-train-steps-since-last-reload', help='Approx total of training allowed if shuffling stops', type=float, required=False)
@@ -79,7 +84,6 @@ if __name__ == "__main__":
   parser.add_argument('-main-loss-scale', type=float, help='Loss factor scale for main head', required=False)
   parser.add_argument('-intermediate-loss-scale', type=float, help='Loss factor scale for intermediate head', required=False)
   parser.add_argument('-intermediate-distill-scale', type=float, help='Distill factor scale for intermediate head', required=False)
-
 
   args = vars(parser.parse_args())
 
@@ -116,12 +120,13 @@ def dump_and_flush_json(data,filename):
     f.flush()
     os.fsync(f.fileno())
 
-def main(rank: int, world_size: int, args, multi_gpu_device_ids):
+def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writepipes, barrier):
   traindir = args["traindir"]
   datadir = args["datadir"]
   exportdir = args["exportdir"]
   exportprefix = args["exportprefix"]
   initial_checkpoint = args["initial_checkpoint"]
+
   pos_len = args["pos_len"]
   batch_size = args["batch_size"]
   samples_per_epoch = args["samples_per_epoch"]
@@ -129,11 +134,14 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   lr_scale = args["lr_scale"]
   gnorm_clip_scale = args["gnorm_clip_scale"]
   sub_epochs = args["sub_epochs"]
+  swa_sub_epoch_scale = args["swa_sub_epoch_scale"]
+
+  use_fp16 = args["use_fp16"]
+
   epochs_per_export = args["epochs_per_export"]
   export_prob = args["export_prob"]
   max_epochs_this_instance = args["max_epochs_this_instance"]
   sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
-  swa_sub_epoch_scale = args["swa_sub_epoch_scale"]
   max_train_bucket_per_new_data = args["max_train_bucket_per_new_data"]
   max_train_bucket_size = args["max_train_bucket_size"]
   max_train_steps_since_last_reload = args["max_train_steps_since_last_reload"]
@@ -163,20 +171,28 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
   if epochs_per_export is None:
     epochs_per_export = 1
 
-  num_batches_per_epoch = int(round(samples_per_epoch / batch_size))
   longterm_checkpoints_dir = get_longterm_checkpoints_dir(traindir)
 
   # SET UP LOGGING -------------------------------------------------------------
 
   logging.root.handlers = []
-  logging.basicConfig(
-    level=logging.INFO,
-    format="%(message)s",
-    handlers=[
-      logging.FileHandler(os.path.join(traindir,f"train{rank}.log"), mode="a"),
-      logging.StreamHandler()
-    ],
-  )
+  if rank == 0:
+    logging.basicConfig(
+      level=logging.INFO,
+      format="%(message)s",
+      handlers=[
+        logging.FileHandler(os.path.join(traindir,f"train{rank}.log"), mode="a"),
+        logging.StreamHandler()
+      ],
+    )
+  else:
+    logging.basicConfig(
+      level=logging.INFO,
+      format="%(message)s",
+      handlers=[
+        logging.FileHandler(os.path.join(traindir,f"train{rank}.log"), mode="a"),
+      ],
+    )
   np.set_printoptions(linewidth=150)
 
   logging.info(str(sys.argv))
@@ -204,10 +220,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     return os.path.join(traindir,f"checkpoint_prev{i}.ckpt")
 
   NUM_SHORTTERM_CHECKPOINTS_TO_KEEP = 4
-  def save(model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=None):
+  def save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=None):
     if rank == 0:
       state_dict = {}
-      state_dict["model"] = model.state_dict()
+      state_dict["model"] = ddp_model.state_dict()
       state_dict["optimizer"] = optimizer.state_dict()
       state_dict["metrics"] = metrics_obj.state_dict()
       state_dict["running_metrics"] = running_metrics
@@ -231,8 +247,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         torch.save(state_dict, get_checkpoint_path() + ".tmp")
         os.replace(get_checkpoint_path() + ".tmp", get_checkpoint_path())
 
-  def get_weight_decay(model, lr_scale, warmup_scale, train_state, running_metrics, group_name):
-    if model.get_norm_kind() == "fixup" or model.get_norm_kind() == "fixscale":
+  def get_weight_decay(raw_model, lr_scale, warmup_scale, train_state, running_metrics, group_name):
+    if raw_model.get_norm_kind() == "fixup" or raw_model.get_norm_kind() == "fixscale":
       if group_name == "normal":
         return 0.000001 * world_size * batch_size / 256.0
       elif group_name == "output":
@@ -243,7 +259,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         return 0.0
       else:
         assert False
-    elif model.get_norm_kind() == "bnorm" or model.get_norm_kind() == "brenorm" or model.get_norm_kind() == "fixbrenorm" or model.get_norm_kind() == "fixscaleonenorm":
+    elif (
+      raw_model.get_norm_kind() == "bnorm" or
+      raw_model.get_norm_kind() == "brenorm" or
+      raw_model.get_norm_kind() == "fixbrenorm" or
+      raw_model.get_norm_kind() == "fixscaleonenorm"
+    ):
       if group_name == "normal":
         adaptive_scale = 1.0
         if "sums" in running_metrics and "norm_normal_batch" in running_metrics["sums"]:
@@ -274,31 +295,31 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     else:
       assert False
 
-  def get_param_groups(model,train_state,running_metrics):
+  def get_param_groups(raw_model,train_state,running_metrics):
     reg_dict : Dict[str,List] = {}
-    model.add_reg_dict(reg_dict)
+    raw_model.add_reg_dict(reg_dict)
     param_groups = []
     param_groups.append({
       "params": reg_dict["normal"],
-      "weight_decay": get_weight_decay(model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal"),
+      "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal"),
       "group_name": "normal",
     })
     param_groups.append({
       "params": reg_dict["output"],
-      "weight_decay": get_weight_decay(model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output"),
+      "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output"),
       "group_name": "output",
     })
     param_groups.append({
       "params": reg_dict["noreg"],
-      "weight_decay": get_weight_decay(model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="noreg"),
+      "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="noreg"),
       "group_name": "noreg",
     })
     param_groups.append({
       "params": reg_dict["output_noreg"],
-      "weight_decay": get_weight_decay(model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output_noreg"),
+      "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output_noreg"),
       "group_name": "output_noreg",
     })
-    num_params = len(list(model.parameters()))
+    num_params = len(list(raw_model.parameters()))
     num_reg_dict_params = len(reg_dict["normal"]) + len(reg_dict["output"]) + len(reg_dict["noreg"]) + len(reg_dict["output_noreg"])
     assert num_params == num_reg_dict_params, "Reg dict does not have entries for all params in model"
     return param_groups
@@ -332,65 +353,71 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
       model_config = modelconfigs.config_of_name[model_kind]
       logging.info("Initializing with new model config")
       assert path_to_load_from is None, "Found existing model but no existing model.config.json?"
-      with open(os.path.join(traindir,"model.config.json"),"w") as f:
-        json.dump(model_config,f)
+      if rank == 0:
+        with open(os.path.join(traindir,"model.config.json"),"w") as f:
+          json.dump(model_config,f)
 
     logging.info(str(model_config))
 
     if path_to_load_from is None:
       logging.info("Initializing new model!")
-      model = Model(model_config,pos_len)
-      model.initialize()
+      raw_model = Model(model_config,pos_len)
+      raw_model.initialize()
 
-      model.to(device)
+      raw_model.to(device)
       if world_size > 1:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[device])
+        ddp_model = torch.nn.parallel.DistributedDataParallel(raw_model, device_ids=[device])
+      else:
+        ddp_model = raw_model
 
       swa_model = None
       if rank == 0 and swa_sub_epoch_scale is not None:
         new_factor = 1.0 / swa_sub_epoch_scale
         ema_avg = lambda avg_param, cur_param, num_averaged: (1.0 - new_factor) * avg_param + new_factor * cur_param
-        swa_model = AveragedModel(model, avg_fn=ema_avg)
+        swa_model = AveragedModel(raw_model, avg_fn=ema_avg)
 
-      metrics_obj = Metrics(batch_size,model)
+      metrics_obj = Metrics(batch_size,world_size,raw_model)
       running_metrics = {}
       train_state = {}
 
       with torch.no_grad():
-        (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = metrics_obj.get_model_norms(model)
+        (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = metrics_obj.get_model_norms(raw_model)
         modelnorm_normal_baseline = modelnorm_normal.detach().cpu().item()
         train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
+        logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
 
-      optimizer = torch.optim.SGD(get_param_groups(model,train_state,running_metrics), lr=1.0, momentum=0.9)
+      optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
 
-      return (model_config, model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
+      return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
     else:
       state_dict = torch.load(path_to_load_from, map_location=device)
-      model = Model(model_config,pos_len)
-      model.initialize()
+      raw_model = Model(model_config,pos_len)
+      raw_model.initialize()
 
       # Strip off any "module." from when the model was saved with DDP or other things
       model_state_dict = {}
       for key in state_dict["model"]:
         old_key = key
         while key.startswith("module."):
-          key = key[:7]
+          key = key[7:]
         model_state_dict[key] = state_dict["model"][old_key]
-      model.load_state_dict(model_state_dict)
+      raw_model.load_state_dict(model_state_dict)
 
-      model.to(device)
+      raw_model.to(device)
       if world_size > 1:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[device])
+        ddp_model = torch.nn.parallel.DistributedDataParallel(raw_model, device_ids=[device])
+      else:
+        ddp_model = raw_model
 
       swa_model = None
       if rank == 0 and swa_sub_epoch_scale is not None:
         new_factor = 1.0 / swa_sub_epoch_scale
         ema_avg = lambda avg_param, cur_param, num_averaged: (1.0 - new_factor) * avg_param + new_factor * cur_param
-        swa_model = AveragedModel(model, avg_fn=ema_avg)
+        swa_model = AveragedModel(raw_model, avg_fn=ema_avg)
         if "swa_model" in state_dict:
           swa_model.load_state_dict(state_dict["swa_model"])
 
-      metrics_obj = Metrics(batch_size,model)
+      metrics_obj = Metrics(batch_size,world_size,raw_model)
       if "metrics" in state_dict:
         metrics_obj.load_state_dict(state_dict["metrics"])
       else:
@@ -408,19 +435,20 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
       else:
         logging.info("WARNING: Train state not found in state dict, using fresh train state")
         with torch.no_grad():
-          (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = metrics_obj.get_model_norms(model)
+          (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = metrics_obj.get_model_norms(raw_model)
           modelnorm_normal_baseline = modelnorm_normal.detach().cpu().item()
           train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
+          logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
 
-      optimizer = torch.optim.SGD(get_param_groups(model,train_state,running_metrics), lr=1.0, momentum=0.9)
+      optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
       if "optimizer" in state_dict:
         optimizer.load_state_dict(state_dict["optimizer"])
       else:
         logging.info("WARNING: Optimizer not found in state dict, using fresh optimizer")
 
-      return (model_config, model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
+      return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
 
-  (model_config, model, swa_model, optimizer, metrics_obj, running_metrics, train_state) = load()
+  (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state) = load()
 
 
   if "global_step_samples" not in train_state:
@@ -433,14 +461,14 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     train_state["export_cycle_counter"] = 0
 
   if intermediate_distill_scale is not None or intermediate_loss_scale is not None:
-    assert model.get_has_intermediate_head(), "Model must have intermediate head to use intermediate distill or loss"
+    assert raw_model.get_has_intermediate_head(), "Model must have intermediate head to use intermediate distill or loss"
 
 
   # Print all model parameters just to get a summary
   total_num_params = 0
   total_trainable_params = 0
   logging.info("Parameters in model:")
-  for name, param in model.named_parameters():
+  for name, param in raw_model.named_parameters():
     product = 1
     for dim in param.shape:
       product *= int(dim)
@@ -506,7 +534,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
 
       param_group["lr"] = per_sample_lr * warmup_scale * group_scale
       param_group["weight_decay"] = get_weight_decay(
-        model,
+        raw_model,
         lr_scale,
         warmup_scale=warmup_scale,
         train_state=train_state,
@@ -533,7 +561,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
       train_state["brenorm_rmax"] = train_state["brenorm_rmax"] + (1.0 - factor) * (brenorm_target_rmax - train_state["brenorm_rmax"])
       train_state["brenorm_dmax"] = train_state["brenorm_dmax"] + (1.0 - factor) * (brenorm_target_dmax - train_state["brenorm_dmax"])
 
-      model.set_brenorm_params(brenorm_avg_momentum, train_state["brenorm_rmax"], train_state["brenorm_dmax"])
+      raw_model.set_brenorm_params(brenorm_avg_momentum, train_state["brenorm_rmax"], train_state["brenorm_dmax"])
       last_brenorm_update_samples_this_instance = train_state["global_step_samples"]
 
   # DATA RELOADING GENERATOR AND TRAINHISTORY ------------------------------------------------------------
@@ -573,9 +601,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     nonlocal num_train_files
     nonlocal vdatadir
 
-    if rank != 0:
-      assert False # TODO need to figure out what to do here and for buckets and such
-      return
+    assert rank == 0, "Helper ddp training processes should not call maybe_reload_training_data"
 
     while True:
       curdatadir = os.path.realpath(datadir)
@@ -652,6 +678,42 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
 
       break
 
+  # Load all the files we should train on during a subepoch
+  def get_files_for_subepoch():
+    nonlocal trainfilegenerator
+
+    assert rank == 0, "Helper ddp training processes should not call get_files_for_subepoch"
+
+    num_batches_per_epoch = int(round(samples_per_epoch / batch_size))
+    num_batches_per_subepoch = num_batches_per_epoch / sub_epochs
+
+    # Pick enough files to get the number of batches we want
+    train_files_to_use = []
+    batches_to_use_so_far = 0
+    for filename in trainfilegenerator:
+      jsonfilename = os.path.splitext(filename)[0] + ".json"
+      with open(jsonfilename) as f:
+        trainfileinfo = json.load(f)
+
+      num_batches_this_file = trainfileinfo["num_rows"] // batch_size
+      if num_batches_this_file <= 0:
+        continue
+
+      if batches_to_use_so_far + num_batches_this_file > num_batches_per_subepoch:
+        # If we're going over the desired amount, randomly skip the file with probability equal to the
+        # proportion of batches over - this makes it so that in expectation, we have the desired number of batches
+        if batches_to_use_so_far > 0 and random.random() >= (batches_to_use_so_far + num_batches_this_file - num_batches_per_subepoch) / num_batches_this_file:
+          break
+
+      train_files_to_use.append(filename)
+      batches_to_use_so_far += num_batches_this_file
+
+      #Sanity check - load a max of 100000 files.
+      if batches_to_use_so_far >= num_batches_per_subepoch or len(train_files_to_use) > 100000:
+        break
+    return train_files_to_use
+
+
   # METRICS -----------------------------------------------------------------------------------
   def detensorify_metrics(metrics):
     ret = {}
@@ -670,12 +732,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
           metric_weights[metric] *= decay
 
     for metric in metrics:
-      if not metric.endswith("_batch"):
-        metric_sums[metric] += metrics[metric]
-        metric_weights[metric] += batch_size
-      else:
+      if metric.endswith("_batch"):
         metric_sums[metric] += metrics[metric]
         metric_weights[metric] += 1
+      else:
+        metric_sums[metric] += metrics[metric]
+        metric_weights[metric] += batch_size
 
   def log_metrics(metric_sums, metric_weights, metrics, metrics_out):
     metrics_to_print = {}
@@ -697,8 +759,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
       metrics_out.write(json.dumps(metrics_to_print) + "\n")
       metrics_out.flush()
 
-  train_metrics_out = open(os.path.join(traindir,"metrics_train.json"),"a")
-  val_metrics_out = open(os.path.join(traindir,"metrics_val.json"),"a")
+  if rank == 0:
+    train_metrics_out = open(os.path.join(traindir,"metrics_train.json"),"a")
+    val_metrics_out = open(os.path.join(traindir,"metrics_val.json"),"a")
+  else:
+    train_metrics_out = open(os.path.join(traindir,f"metrics_train_rank{rank}.json"),"a")
+    val_metrics_out = open(os.path.join(traindir,f"metrics_val_rank{rank}.json"),"a")
 
   # TRAIN! -----------------------------------------------------------------------------------
 
@@ -717,13 +783,40 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
 
   torch.backends.cudnn.benchmark = True
 
+  if use_fp16:
+    logging.info("Training in FP16! Creating scaler")
+    scaler = GradScaler()
+  else:
+    logging.info("Training in FP32.")
+
+  # All ddp threads should be lined up at this point before continuing
+  if barrier is not None:
+    barrier.wait()
+
   while True:
-    maybe_reload_training_data()
+    if rank == 0:
+      maybe_reload_training_data()
+
+      if max_train_bucket_per_new_data is not None:
+        if train_state["train_bucket_level"] > 0.99 * samples_per_epoch:
+          logging.info("Consuming %.0f rows from train bucket (%.0f -> %.0f)" % (
+            samples_per_epoch, train_state["train_bucket_level"], train_state["train_bucket_level"]-samples_per_epoch
+          ))
+          train_state["train_bucket_level"] -= samples_per_epoch
+        else:
+          logging.info(
+            "Exceeding train bucket, not enough new data rows, waiting 5m and retrying (current level %f)" %
+            train_state["train_bucket_level"]
+          )
+          time.sleep(300)
+          continue
+
+    # DDP need to wait on the main process after reloading data and/or training bucket waiting
+    if barrier is not None:
+      barrier.wait()
+
     logging.info("GC collect")
     gc.collect()
-
-    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
-    maybe_update_brenorm_params()
 
     logging.info("=========================================================================")
     logging.info("BEGINNING NEXT EPOCH " + str(num_epochs_this_instance))
@@ -733,64 +826,60 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
     logging.info("Currently up to data row " + str(last_datainfo_row))
     logging.info(f"Training dir: {traindir}")
     logging.info(f"Export dir: {exportdir}")
+    if use_fp16:
+      logging.info(f"Current grad scale: {scaler.get_scale()}")
 
-    if max_train_bucket_per_new_data is not None:
-      if train_state["train_bucket_level"] > 0.99 * samples_per_epoch:
-        logging.info("Consuming %.0f rows from train bucket (%.0f -> %.0f)" % (
-          samples_per_epoch, train_state["train_bucket_level"], train_state["train_bucket_level"]-samples_per_epoch
-        ))
-        train_state["train_bucket_level"] -= samples_per_epoch
-      else:
-        logging.info(
-          "Exceeding train bucket, not enough new data rows, waiting 5m and retrying (current level %f)" %
-          train_state["train_bucket_level"]
-        )
-        time.sleep(300)
-        continue
+    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
+    maybe_update_brenorm_params()
 
     # SUB EPOCH LOOP -----------
     batch_count_this_epoch = 0
     last_train_stats_time = time.perf_counter()
-    num_batches_per_subepoch = num_batches_per_epoch / sub_epochs
     for i in range(sub_epochs):
-      if i != 0:
-        maybe_reload_training_data()
 
-      # Pick enough files to get the number of batches we want
-      train_files_to_use = []
-      batches_to_use_so_far = 0
-      for filename in trainfilegenerator:
-        jsonfilename = os.path.splitext(filename)[0] + ".json"
-        with open(jsonfilename) as f:
-          trainfileinfo = json.load(f)
+      if rank == 0:
+        if i != 0:
+          maybe_reload_training_data()
+        if barrier is not None:
+          barrier.wait()
+        train_files_to_use = get_files_for_subepoch()
+        for wpipe in writepipes:
+          wpipe.send(train_files_to_use)
+        # Wait briefly just in case to reduce chance of races with filesystem or anything else
+        time.sleep(5)
+      else:
+        if barrier is not None:
+          barrier.wait()
+        train_files_to_use = readpipes[rank-1].recv()
 
-        num_batches_this_file = trainfileinfo["num_rows"] // batch_size
-        if num_batches_this_file <= 0:
-          continue
-
-        if batches_to_use_so_far + num_batches_this_file > num_batches_per_subepoch:
-          # If we're going over the desired amount, randomly skip the file with probability equal to the
-          # proportion of batches over - this makes it so that in expectation, we have the desired number of batches
-          if batches_to_use_so_far > 0 and random.random() >= (batches_to_use_so_far + num_batches_this_file - num_batches_per_subepoch) / num_batches_this_file:
-            break
-
-        train_files_to_use.append(filename)
-        batches_to_use_so_far += num_batches_this_file
-
-        #Sanity check - load a max of 100000 files.
-        if batches_to_use_so_far >= num_batches_per_subepoch or len(train_files_to_use) > 100000:
-          break
+      # DDP need to wait on the main process after reloading data and sending files to train with
+      if barrier is not None:
+        barrier.wait()
 
       logging.info("Beginning training subepoch!")
+      logging.info("This subepoch, using files: " + str(train_files_to_use))
       logging.info("Currently up to data row " + str(last_datainfo_row))
       for batch in data_processing_pytorch.read_npz_training_data(
-          train_files_to_use, batch_size, pos_len, device, randomize_symmetries=True, model_config=model_config
+        train_files_to_use,
+        batch_size,
+        world_size,
+        rank,
+        pos_len=pos_len,
+        device=device,
+        randomize_symmetries=True,
+        model_config=model_config
       ):
         optimizer.zero_grad(set_to_none=True)
-        model_outputs = model(batch["binaryInputNCHW"],batch["globalInputNC"])
-        postprocessed = model.postprocess_output(model_outputs)
+        if use_fp16:
+          with autocast():
+            model_outputs = ddp_model(batch["binaryInputNCHW"],batch["globalInputNC"])
+          model_outputs = raw_model.float32ify_output(model_outputs)
+        else:
+          model_outputs = ddp_model(batch["binaryInputNCHW"],batch["globalInputNC"])
+
+        postprocessed = raw_model.postprocess_output(model_outputs)
         metrics = metrics_obj.metrics_dict_batchwise(
-          model,
+          raw_model,
           postprocessed,
           batch,
           is_training=True,
@@ -804,8 +893,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
 
         # DDP averages loss across instances, so to preserve LR as per-sample lr, we scale by world size.
         loss = metrics["loss_sum"] * world_size
-        # Now we have the reduced gradients
-        loss.backward()
+
+        # Reduce gradients across DDP
+        if use_fp16:
+          scaler.scale(loss).backward()
+          scaler.unscale_(optimizer)
+        else:
+          loss.backward()
 
         if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
           gnorm_cap = 2500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
@@ -814,21 +908,28 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         else:
           assert False
 
-        #Loosen gradient clipping as we shift to smaller learning rates
+        # Loosen gradient clipping as we shift to smaller learning rates
         gnorm_cap = gnorm_cap / math.sqrt(max(0.0000001,lr_scale))
 
-        gnorm = torch.nn.utils.clip_grad_norm_(model.parameters(), gnorm_cap).detach().cpu().item()
-        metrics["gnorm_batch"] = gnorm
-        exgnorm = max(0.0, gnorm - gnorm_cap)
-        metrics["exgnorm_sum"] = exgnorm * batch_size
+        gnorm = torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), gnorm_cap).detach().cpu().item()
+
+        if math.isfinite(gnorm) and abs(gnorm < 1e30):
+          metrics["gnorm_batch"] = gnorm
+          exgnorm = max(0.0, gnorm - gnorm_cap)
+          metrics["exgnorm_sum"] = exgnorm * batch_size
 
         metrics["pslr_batch"] = lr_right_now
         metrics["wdnormal_batch"] = normal_weight_decay_right_now
 
-        optimizer.step()
+        if use_fp16:
+          scaler.step(optimizer)
+          scaler.update()
+        else:
+          optimizer.step()
+
         batch_count_this_epoch += 1
-        train_state["train_steps_since_last_reload"] += batch_size
-        train_state["global_step_samples"] += batch_size
+        train_state["train_steps_since_last_reload"] += batch_size * world_size
+        train_state["global_step_samples"] += batch_size * world_size
 
         metrics = detensorify_metrics(metrics)
         accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=0.999)
@@ -841,7 +942,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
             upper_rclippage = []
             lower_rclippage = []
             dclippage = []
-            model.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+            raw_model.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
             metrics["brn_ruclip"] = sum(upper_rclippage) / max(len(upper_rclippage),1.0)
             metrics["brn_rlclip"] = sum(lower_rclippage) / max(len(lower_rclippage),1.0)
             metrics["brn_dclip"] = sum(dclippage) / max(len(dclippage),1.0)
@@ -863,12 +964,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
       logging.info("Finished training subepoch!")
 
       if swa_model is not None and swa_sub_epoch_scale is not None:
-        swa_model.update_parameters(model)
+        swa_model.update_parameters(raw_model)
 
     # END SUB EPOCH LOOP ------------
 
     save_history()
-    save(model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
+    save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
 
     num_epochs_this_instance += 1
 
@@ -905,7 +1006,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
           os.mkdir(savepathtmp)
           logging.info("SAVING MODEL FOR EXPORT TO: " + savepath)
 
-          save(model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=os.path.join(savepathtmp,"model.ckpt"))
+          save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=os.path.join(savepathtmp,"model.ckpt"))
           dump_and_flush_json(trainhistory,os.path.join(savepathtmp,"trainhistory.json"))
           with open(os.path.join(savepathtmp,"model.config.json"),"w") as f:
             json.dump(model_config,f)
@@ -928,16 +1029,25 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
         logging.info("No validation files, skipping validation step")
       else:
         with torch.no_grad():
-          model.eval()
+          ddp_model.eval()
           val_metric_sums = defaultdict(float)
           val_metric_weights = defaultdict(float)
           val_samples = 0
           t0 = time.perf_counter()
-          for batch in data_processing_pytorch.read_npz_training_data(val_files, batch_size, pos_len, device, randomize_symmetries=True, model_config=model_config):
-            model_outputs = model(batch["binaryInputNCHW"],batch["globalInputNC"])
-            postprocessed = model.postprocess_output(model_outputs)
+          for batch in data_processing_pytorch.read_npz_training_data(
+            val_files,
+            batch_size,
+            world_size=1,  # Only the main process validates
+            rank=0,        # Only the main process validates
+            pos_len=pos_len,
+            device=device,
+            randomize_symmetries=True,
+            model_config=model_config
+          ):
+            model_outputs = ddp_model(batch["binaryInputNCHW"],batch["globalInputNC"])
+            postprocessed = raw_model.postprocess_output(model_outputs)
             metrics = metrics_obj.metrics_dict_batchwise(
-              model,
+              raw_model,
               postprocessed,
               batch,
               is_training=False,
@@ -960,7 +1070,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
           log_metrics(val_metric_sums, val_metric_weights, metrics, val_metrics_out)
           t1 = time.perf_counter()
           logging.info(f"Validation took {t1-t0} seconds")
-          model.train()
+          ddp_model.train()
 
     if max_epochs_this_instance is not None and max_epochs_this_instance >= 0 and num_epochs_this_instance >= max_epochs_this_instance:
       logging.info("Hit max epochs this instance, done")
@@ -976,7 +1086,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids):
       if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=12):
         last_longterm_checkpoint_save_time = now
         dated_name = datetime.datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-        save(model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=os.path.join(longterm_checkpoints_dir,f"{dated_name}.ckpt"))
+        save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=os.path.join(longterm_checkpoints_dir,f"{dated_name}.ckpt"))
 
   close(train_metrics_out)
   close(val_metrics_out)
@@ -995,15 +1105,28 @@ if __name__ == "__main__":
     multi_gpu_device_ids = [0]
 
   make_dirs(args)
+
+  readpipes = []
+  writepipes = []
+
   if num_gpus_used > 1:
     torch.multiprocessing.set_start_method("spawn")
-    assert False, "still need to write gradient scaling code, batch splitting, bucket logic, other multiproc handling"
+
+    world_size = num_gpus_used
+    barrier = torch.multiprocessing.Barrier(num_gpus_used)
+
+    for i in range(world_size - 1):
+      rpipe, wpipe = torch.multiprocessing.Pipe()
+      readpipes.append(rpipe)
+      writepipes.append(wpipe)
+
     torch.multiprocessing.spawn(
       main,
       nprocs=num_gpus_used,
-      args=(world_size, args, multi_gpu_device_ids)
+      args=(world_size, args, multi_gpu_device_ids, readpipes, writepipes, barrier)
     )
   else:
     rank = 0
     world_size = 1
-    main(rank, world_size, args, multi_gpu_device_ids)
+    barrier = None
+    main(rank, world_size, args, multi_gpu_device_ids, readpipes, writepipes, barrier)

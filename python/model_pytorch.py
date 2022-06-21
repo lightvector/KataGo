@@ -306,10 +306,10 @@ class KataGPool(torch.nn.Module):
         """
         mask_sum_hw_sqrt_offset = torch.sqrt(mask_sum_hw) - 14.0
 
-        layer_mean = torch.sum(x, dim=(2, 3), keepdim=True) / mask_sum_hw
+        layer_mean = torch.sum(x, dim=(2, 3), keepdim=True, dtype=torch.float32) / mask_sum_hw
         # All activation functions we use right now are always greater than -1.0, and map 0 -> 0.
         # So off-board areas will equal 0, and then this max is mask-safe if we assign -1.0 to off-board areas.
-        (layer_max,_argmax) = torch.max((x+(mask-1.0)).view(x.shape[0],x.shape[1],-1), dim=2)
+        (layer_max,_argmax) = torch.max((x+(mask-1.0)).view(x.shape[0],x.shape[1],-1).to(torch.float32), dim=2)
         layer_max = layer_max.view(x.shape[0],x.shape[1],1,1)
 
         out_pool1 = layer_mean
@@ -335,7 +335,7 @@ class KataValueHeadGPool(torch.nn.Module):
         """
         mask_sum_hw_sqrt_offset = torch.sqrt(mask_sum_hw) - 14.0
 
-        layer_mean = torch.sum(x, dim=(2, 3), keepdim=True) / mask_sum_hw
+        layer_mean = torch.sum(x, dim=(2, 3), keepdim=True, dtype=torch.float32) / mask_sum_hw
 
         out_pool1 = layer_mean
         out_pool2 = layer_mean * (mask_sum_hw_sqrt_offset / 10.0)
@@ -1622,6 +1622,33 @@ class Model(torch.nn.Module):
                 out_seki,
                 out_scorebelief_logprobs,
             ),)
+
+    def float32ify_output(self, outputs_byheads):
+        return tuple(self.float32ify_single_heads_output(outputs) for outputs in outputs_byheads)
+
+    def float32ify_single_heads_output(self, outputs):
+        (
+            out_policy,
+            out_value,
+            out_miscvalue,
+            out_moremiscvalue,
+            out_ownership,
+            out_scoring,
+            out_futurepos,
+            out_seki,
+            out_scorebelief_logprobs,
+        ) = outputs
+        return (
+            out_policy.to(torch.float32),
+            out_value.to(torch.float32),
+            out_miscvalue.to(torch.float32),
+            out_moremiscvalue.to(torch.float32),
+            out_ownership.to(torch.float32),
+            out_scoring.to(torch.float32),
+            out_futurepos.to(torch.float32),
+            out_seki.to(torch.float32),
+            out_scorebelief_logprobs.to(torch.float32),
+        )
 
     def postprocess_output(self, outputs_byheads):
         return tuple(self.postprocess_single_heads_output(outputs) for outputs in outputs_byheads)

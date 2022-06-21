@@ -58,6 +58,9 @@ def main(args):
   value_loss_scale = 1.0
   td_value_loss_scales = [0.4, 0.4, 0.4]
 
+  world_size = 1
+  rank = 0
+
   # SET UP LOGGING -------------------------------------------------------------
 
   logging.root.handlers = []
@@ -104,7 +107,7 @@ def main(args):
     model, swa_model = load_model(checkpoint_file, use_swa, device=device, pos_len=pos_len, verbose=True)
     model_config = model.config
 
-  metrics_obj = Metrics(batch_size,model)
+  metrics_obj = Metrics(batch_size,world_size,model)
 
   # METRICS -----------------------------------------------------------------------------------
   def detensorify_metrics(metrics):
@@ -169,7 +172,16 @@ def main(args):
     num_samples_tested = 0
     total_inference_time = 0.0
     is_first_batch = True
-    for batch in data_processing_pytorch.read_npz_training_data(val_files, batch_size, pos_len, device, randomize_symmetries=True, model_config=model_config):
+    for batch in data_processing_pytorch.read_npz_training_data(
+      val_files,
+      batch_size,
+      world_size,
+      rank,
+      pos_len,
+      device,
+      randomize_symmetries=True,
+      model_config=model_config,
+    ):
       if max_batches is not None and num_batches_tested >= max_batches:
         break
 

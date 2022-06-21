@@ -21,18 +21,19 @@ def constant_like(data, other_tensor):
     return torch.tensor(data, dtype=other_tensor.dtype, device=other_tensor.device, requires_grad=False)
 
 class Metrics:
-    def __init__(self, batch_size: int, model: Model):
+    def __init__(self, batch_size: int, world_size: int, raw_model: Model):
         self.n = batch_size
-        self.pos_len = model.pos_len
-        self.pos_area = model.pos_len * model.pos_len
-        self.policy_len = model.pos_len * model.pos_len + 1
+        self.world_size = world_size
+        self.pos_len = raw_model.pos_len
+        self.pos_area = raw_model.pos_len * raw_model.pos_len
+        self.policy_len = raw_model.pos_len * raw_model.pos_len + 1
         self.value_len = 3
         self.num_td_values = 3
         self.num_futurepos_values = 2
         self.num_seki_logits = 4
         self.scorebelief_len = 2 * (self.pos_len*self.pos_len + EXTRA_SCORE_DISTR_RADIUS)
 
-        self.score_belief_offset_vector = model.value_head.score_belief_offset_vector
+        self.score_belief_offset_vector = raw_model.value_head.score_belief_offset_vector
         self.moving_unowned_proportion_sum = 0.0
         self.moving_unowned_proportion_weight = 0.0
 
@@ -254,9 +255,9 @@ class Metrics:
     def square_value(self, value_logits, global_weight):
         return torch.sum(global_weight * torch.square(torch.sum(torch.softmax(value_logits,dim=1) * constant_like([1,-1,0],global_weight), dim=1)))
 
-    def get_model_norms(self,model):
+    def get_model_norms(self,raw_model):
         reg_dict : Dict[str,List] = {}
-        model.add_reg_dict(reg_dict)
+        raw_model.add_reg_dict(reg_dict)
 
         device = reg_dict["normal"][0].device
         dtype = torch.float32
@@ -282,7 +283,7 @@ class Metrics:
 
     def metrics_dict_batchwise(
         self,
-        model,
+        raw_model,
         model_output_postprocessed_byheads,
         batch,
         is_training,
@@ -294,7 +295,7 @@ class Metrics:
         intermediate_distill_scale,
     ):
         results = self.metrics_dict_batchwise_single_heads_output(
-            model,
+            raw_model,
             model_output_postprocessed_byheads[0],
             batch,
             is_training=is_training,
@@ -306,9 +307,9 @@ class Metrics:
         if main_loss_scale is not None:
             results["loss_sum"] = main_loss_scale * results["loss_sum"]
 
-        if model.get_has_intermediate_head():
+        if raw_model.get_has_intermediate_head():
             assert len(model_output_postprocessed_byheads) > 1
-            if model.training:
+            if raw_model.training:
                 assert intermediate_loss_scale is not None or intermediate_distill_scale is not None
             else:
                 if intermediate_loss_scale is None and intermediate_distill_scale is None:
@@ -316,7 +317,7 @@ class Metrics:
 
             if intermediate_loss_scale is not None:
                 iresults = self.metrics_dict_batchwise_single_heads_output(
-                    model,
+                    raw_model,
                     model_output_postprocessed_byheads[1],
                     batch,
                     is_training=is_training,
@@ -348,7 +349,7 @@ class Metrics:
 
     def metrics_dict_batchwise_single_heads_output(
         self,
-        model,
+        raw_model,
         model_output_postprocessed,
         batch,
         is_training,
@@ -632,11 +633,11 @@ class Metrics:
                 global_weight,
             )
 
-            (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = self.get_model_norms(model)
+            (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = self.get_model_norms(raw_model)
 
             extra_results = {
-                "wsum": weight,
-                "nsamp": nsamples,
+                "wsum": weight * self.world_size,
+                "nsamp": nsamples * self.world_size,
                 "ptentr_sum": policy_target_entropy,
                 "ptsoftentr_sum": soft_policy_target_entropy,
                 "sekiweightscale_sum": seki_weight_scale * weight,

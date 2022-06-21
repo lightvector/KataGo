@@ -11,6 +11,8 @@ import modelconfigs
 def read_npz_training_data(
     npz_files,
     batch_size: int,
+    world_size: int,
+    rank: int,
     pos_len: int,
     device,
     randomize_symmetries: bool,
@@ -43,11 +45,13 @@ def read_npz_training_data(
         assert globalInputNC.shape[1] == num_global_features
 
         num_samples = binaryInputNCHW.shape[0]
-        num_whole_batches = num_samples // batch_size
-        logging.info(f"Beginning {npz_file} with {num_whole_batches} batches")
-        for n in range(num_whole_batches):
-            start = n * batch_size
-            end = (n+1) * batch_size
+        # Just discard stuff that doesn't divide evenly
+        num_whole_steps = num_samples // (batch_size * world_size)
+
+        logging.info(f"Beginning {npz_file} with {num_whole_steps * world_size} usable batches, my rank is {rank}")
+        for n in range(num_whole_steps):
+            start = (n * world_size + rank) * batch_size
+            end = start + batch_size
 
             batch_binaryInputNCHW = torch.from_numpy(binaryInputNCHW[start:end]).to(device)
             batch_globalInputNC = torch.from_numpy(globalInputNC[start:end]).to(device)
