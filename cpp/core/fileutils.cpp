@@ -55,6 +55,37 @@ void FileUtils::open(ofstream& out, const string& filename, std::ios_base::openm
   open(out, filename.c_str(), mode);
 }
 
+std::string FileUtils::weaklyCanonical(const std::string& path) {
+  gfs::path srcPath(gfs::u8path(path));
+  try {
+    return gfs::weakly_canonical(srcPath).u8string();
+  }
+  catch(const gfs::filesystem_error&) {
+    return path;
+  }
+}
+
+bool FileUtils::isDirectory(const std::string& filename) {
+  gfs::path srcPath(gfs::u8path(filename));
+  try {
+    return gfs::is_directory(srcPath);
+  }
+  catch(const gfs::filesystem_error&) {
+    return false;
+  }
+}
+
+bool FileUtils::tryRemoveFile(const std::string& filename) {
+  gfs::path srcPath(gfs::u8path(filename));
+  try {
+    gfs::remove(srcPath);
+  }
+  catch(const gfs::filesystem_error&) {
+    return false;
+  }
+  return true;
+}
+
 bool FileUtils::tryRename(const std::string& src, const std::string& dst) {
   gfs::path srcPath(gfs::u8path(src));
   gfs::path dstPath(gfs::u8path(dst));
@@ -212,12 +243,12 @@ void FileUtils::collectFiles(const string& dirname, std::function<bool(const str
 {
   namespace gfs = ghc::filesystem;
   try {
-    for(const gfs::directory_entry& entry: gfs::recursive_directory_iterator(dirname)) {
+    for(const gfs::directory_entry& entry: gfs::recursive_directory_iterator(gfs::u8path(dirname))) {
       if(!gfs::is_directory(entry.status())) {
         const gfs::path& path = entry.path();
-        string fileName = path.filename().string();
+        string fileName = path.filename().u8string();
         if(fileFilter(fileName)) {
-          collected.push_back(path.string());
+          collected.push_back(path.u8string());
         }
       }
     }

@@ -9,8 +9,6 @@
 #include "../neuralnet/nneval.h"
 #include "../program/setup.h"
 
-#include <ghc/filesystem.hpp>
-
 using namespace std;
 
 static void decodeBase64(const string& input, string& output) {
@@ -56,7 +54,6 @@ static void requireApproxEqual(double x, double expected, double scale, const NN
 NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logger, ConfigParser& cfg, bool randFileName) {
   logger.write("Running tiny net to sanity-check that GPU is working");
 
-  namespace gfs = ghc::filesystem;
   string base64Data;
   base64Data += TinyModelTest::tinyModelBase64Part0;
   base64Data += TinyModelTest::tinyModelBase64Part1;
@@ -214,11 +211,8 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
   for(int i = 0; i<4; i++)
     testThreads[i].join();
 
-  try {
-    gfs::remove(tmpModelFile);
-  }
-  catch(gfs::filesystem_error& e) {
-    logger.write("Warning: could not delete " + tmpModelFile + ": " + e.what());
+  if(!FileUtils::tryRemoveFile(tmpModelFile)) {
+    logger.write("Warning: could not delete " + tmpModelFile);
   }
   logger.write("Tiny net sanity check complete");
 

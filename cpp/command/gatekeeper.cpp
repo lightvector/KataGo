@@ -47,6 +47,7 @@ namespace {
     NNEvaluator* nnEvalCandidate;
     MatchPairer* matchPairer;
 
+    string testModelFile;
     string testModelDir;
 
     ThreadSafeQueue<FinishedGameData*> finishedGameQueue;
@@ -65,12 +66,22 @@ namespace {
     std::atomic<bool> terminated;
 
   public:
-    NetAndStuff(ConfigParser& cfg, const string& nameB, const string& nameC, const string& tModelDir, NNEvaluator* nevalB, NNEvaluator* nevalC, ofstream* sOut)
+    NetAndStuff(
+      ConfigParser& cfg,
+      const string& nameB,
+      const string& nameC,
+      const string& tModelFile,
+      const string& tModelDir,
+      NNEvaluator* nevalB,
+      NNEvaluator* nevalC,
+      ofstream* sOut
+    )
       :modelNameBaseline(nameB),
        modelNameCandidate(nameC),
        nnEvalBaseline(nevalB),
        nnEvalCandidate(nevalC),
        matchPairer(NULL),
+       testModelFile(tModelFile),
        testModelDir(tModelDir),
        finishedGameQueue(),
        numGameThreads(0),
@@ -199,6 +210,24 @@ namespace {
     }
 
   };
+}
+
+static void moveModel(const string& modelName, const string& modelFile, const string& modelDir, const string& testModelsDir, const string& intoDir, Logger& logger) {
+  // Was the rejected model rooted in the testModels dir itself?
+  if(FileUtils::weaklyCanonical(modelDir) == FileUtils::weaklyCanonical(testModelsDir)) {
+    string renameDest = intoDir + "/" + modelName;
+    logger.write("Moving " + modelFile + " to " + renameDest);
+    FileUtils::rename(modelFile,renameDest);
+  }
+  // Or was it contained in a subdirectory
+  else if(Global::isPrefix(FileUtils::weaklyCanonical(modelDir), FileUtils::weaklyCanonical(testModelsDir))) {
+    string renameDest = intoDir + "/" + modelName;
+    logger.write("Moving " + modelDir + " to " + renameDest);
+    FileUtils::rename(modelDir,renameDest);
+  }
+  else {
+    throw StringError("Model " + modelDir + " does not appear to be a subdir of " + testModelsDir + " can't figure out where how to move it to accept or reject it");
+  }
 }
 
 
@@ -356,10 +385,8 @@ int MainCmds::gatekeeper(const vector<string>& args) {
     }
 
     if(acceptedModelTime > testModelTime && !noAutoRejectOldModels) {
-      string renameDest = rejectedModelsDir + "/" + testModelName;
-      logger.write("Rejecting " + testModelDir + " automatically since older than best accepted model");
-      logger.write("Moving " + testModelDir + " to " + renameDest);
-      FileUtils::rename(testModelDir,renameDest);
+      logger.write("Rejecting " + testModelName + " automatically since older than best accepted model");
+      moveModel(testModelName, testModelFile, testModelDir, testModelsDir, rejectedModelsDir, logger);
       return NULL;
     }
 
@@ -398,7 +425,16 @@ int MainCmds::gatekeeper(const vector<string>& args) {
       sgfOut = new ofstream();
       FileUtils::open(*sgfOut, sgfOutputDirThisModel + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs");
     }
-    NetAndStuff* newNet = new NetAndStuff(cfg, acceptedModelName, testModelName, testModelDir, acceptedNNEval, testNNEval, sgfOut);
+    NetAndStuff* newNet = new NetAndStuff(
+      cfg,
+      acceptedModelName,
+      testModelName,
+      testModelFile,
+      testModelDir,
+      acceptedNNEval,
+      testNNEval,
+      sgfOut
+    );
 
     //Check for unused config keys
     cfg.warnUnusedKeys(cerr,&logger);
@@ -535,9 +571,14 @@ int MainCmds::gatekeeper(const vector<string>& args) {
         )
       );
 
-      string renameDest = rejectedModelsDir + "/" + netAndStuff->modelNameCandidate;
-      logger.write("Moving " + netAndStuff->testModelDir + " to " + renameDest);
-      FileUtils::rename(netAndStuff->testModelDir,renameDest);
+      moveModel(
+        netAndStuff->modelNameCandidate,
+        netAndStuff->testModelFile,
+        netAndStuff->testModelDir,
+        testModelsDir,
+        rejectedModelsDir,
+        logger
+      );
     }
     else {
       logger.write(
@@ -562,9 +603,14 @@ int MainCmds::gatekeeper(const vector<string>& args) {
       }
       std::this_thread::sleep_for(std::chrono::seconds(2));
 
-      string renameDest = acceptedModelsDir + "/" + netAndStuff->modelNameCandidate;
-      logger.write("Moving " + netAndStuff->testModelDir + " to " + renameDest);
-      FileUtils::rename(netAndStuff->testModelDir,renameDest);
+      moveModel(
+        netAndStuff->modelNameCandidate,
+        netAndStuff->testModelFile,
+        netAndStuff->testModelDir,
+        testModelsDir,
+        acceptedModelsDir,
+        logger
+      );
     }
 
     //Clean up

@@ -23,9 +23,6 @@
 #include <sstream>
 #include <chrono>
 
-#include <ghc/filesystem.hpp>
-namespace gfs = ghc::filesystem;
-
 using namespace std;
 using json = nlohmann::json;
 
@@ -850,7 +847,7 @@ bool Connection::isModelPresent(
 
   const string path = getModelPath(modelInfo,modelDir);
   //Model already exists
-  if(gfs::exists(gfs::path(path)))
+  if(FileUtils::exists(path))
     return true;
   return false;
 }
@@ -867,7 +864,7 @@ bool Connection::downloadModelIfNotPresent(
   std::unique_lock<std::mutex> lock(downloadStateMutex);
   while(true) {
     //Model already exists
-    if(gfs::exists(gfs::path(path)))
+    if(FileUtils::exists(path))
       return true;
     if(shouldStop())
       return false;

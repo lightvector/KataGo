@@ -16,9 +16,6 @@
 #include <sstream>
 #include <fstream>
 
-#include <ghc/filesystem.hpp>
-namespace gfs = ghc::filesystem;
-
 using namespace std;
 
 static NNEvaluator* createNNEval(int maxNumThreads, CompactSgf* sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params);
@@ -571,7 +568,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
       throw StringError("Please answer y or n");
   };
 
-  if(gfs::exists(gfs::path(outputFile))) {
+  if(FileUtils::exists(outputFile)) {
     bool b = false;
     promptAndParseInput("File " + outputFile + " already exists, okay to overwrite it with an entirely new config (y/n)?\n", [&](const string& line) { parseYN(line,b); });
     if(!b) {
@@ -783,7 +780,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
   cout << "PERFORMANCE TUNING" << endl;
 
   bool skipThreadTuning = false;
-  if(gfs::exists(gfs::path(outputFile))) {
+  if(FileUtils::exists(outputFile)) {
     int oldConfigNumSearchThreads = -1;
     try {
       ConfigParser oldCfg(outputFile);
