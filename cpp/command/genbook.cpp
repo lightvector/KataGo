@@ -196,6 +196,8 @@ int MainCmds::genbook(const vector<string>& args) {
   }
 
   const SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+  const double wideRootNoiseBookExplore = cfg.contains("wideRootNoiseBookExplore") ? cfg.getDouble("wideRootNoiseBookExplore",0.0,5.0) : params.wideRootNoise;
+  const double cpuctExplorationLogBookExplore = cfg.contains("cpuctExplorationLogBookExplore") ? cfg.getDouble("cpuctExplorationLogBookExplore",0.0,10.0) : params.cpuctExplorationLog;
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);
@@ -904,6 +906,8 @@ int MainCmds::genbook(const vector<string>& args) {
     }
 
     SearchParams thisParams = params;
+    thisParams.wideRootNoise = wideRootNoiseBookExplore;
+    thisParams.cpuctExplorationLog = cpuctExplorationLogBookExplore;
     search->setParams(thisParams);
     search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc, avoidMoveUntilByLoc);
     search->runWholeSearch(search->rootPla);
