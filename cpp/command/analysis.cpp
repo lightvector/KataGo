@@ -38,6 +38,7 @@ struct AnalyzeRequest {
 
   bool reportDuringSearch;
   double reportDuringSearchEvery;
+  double firstReportDuringSearchAfter;
 
   vector<int> avoidMoveUntilByLocBlack;
   vector<int> avoidMoveUntilByLocWhite;
@@ -301,7 +302,11 @@ int MainCmds::analysis(const vector<string>& args) {
             const bool isDuringSearch = true;
             reportAnalysis(request,search,isDuringSearch);
           };
-          bot->genMoveSynchronousAnalyze(pla, TimeControls(), searchFactor, request->reportDuringSearchEvery, callback, onSearchBegun);
+          bot->genMoveSynchronousAnalyze(
+            pla, TimeControls(), searchFactor,
+            request->reportDuringSearchEvery, request->firstReportDuringSearchAfter,
+            callback, onSearchBegun
+          );
         }
         else {
           bot->genMoveSynchronous(pla, TimeControls(), searchFactor, onSearchBegun);
@@ -486,7 +491,8 @@ int MainCmds::analysis(const vector<string>& args) {
       rbase.includePolicy = false;
       rbase.includePVVisits = false;
       rbase.reportDuringSearch = false;
-      rbase.reportDuringSearchEvery = 1.0;
+      rbase.reportDuringSearchEvery = 1e30;
+      rbase.firstReportDuringSearchAfter = 1e30;
       rbase.priority = 0;
       rbase.avoidMoveUntilByLocBlack.clear();
       rbase.avoidMoveUntilByLocWhite.clear();
@@ -896,6 +902,13 @@ int MainCmds::analysis(const vector<string>& args) {
         if(!suc)
           continue;
         rbase.reportDuringSearch = true;
+        rbase.firstReportDuringSearchAfter = rbase.reportDuringSearchEvery;
+      }
+      if(input.find("firstReportDuringSearchAfter") != input.end()) {
+        bool suc = parseDouble(input, "firstReportDuringSearchAfter", rbase.firstReportDuringSearchAfter, 0.001, 1000000.0, "Must be number of seconds from 0.001 to 1000000.0");
+        if(!suc)
+          continue;
+        rbase.reportDuringSearch = true;
       }
       if(input.find("priority") != input.end()) {
         if(input.find("priorities") != input.end()) {
@@ -1023,6 +1036,7 @@ int MainCmds::analysis(const vector<string>& args) {
           newRequest->includePVVisits = rbase.includePVVisits;
           newRequest->reportDuringSearch = rbase.reportDuringSearch;
           newRequest->reportDuringSearchEvery = rbase.reportDuringSearchEvery;
+          newRequest->firstReportDuringSearchAfter = rbase.firstReportDuringSearchAfter;
           newRequest->priority = priority;
           newRequest->avoidMoveUntilByLocBlack = rbase.avoidMoveUntilByLocBlack;
           newRequest->avoidMoveUntilByLocWhite = rbase.avoidMoveUntilByLocWhite;

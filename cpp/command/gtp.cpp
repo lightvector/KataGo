@@ -973,7 +973,7 @@ struct GTPEngine {
         bot->setAlwaysIncludeOwnerMap(true);
       else
         bot->setAlwaysIncludeOwnerMap(false);
-      moveLoc = bot->genMoveSynchronousAnalyze(pla, tc, searchFactor, args.secondsPerReport, callback);
+      moveLoc = bot->genMoveSynchronousAnalyze(pla, tc, searchFactor, args.secondsPerReport, args.secondsPerReport, callback);
       //Make sure callback happens at least once
       callback(bot->getSearch());
     }
@@ -1208,7 +1208,7 @@ struct GTPEngine {
       bot->setAlwaysIncludeOwnerMap(false);
 
     double searchFactor = 1e40; //go basically forever
-    bot->analyzeAsync(pla, searchFactor, args.secondsPerReport, callback);
+    bot->analyzeAsync(pla, searchFactor, args.secondsPerReport, args.secondsPerReport, callback);
   }
 
   void computeAnticipatedWinnerAndScore(Player& winner, double& finalWhiteMinusBlackScore) {
