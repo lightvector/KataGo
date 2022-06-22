@@ -400,6 +400,30 @@ int MainCmds::genbook(const vector<string>& args) {
     return hasAtLeastOneLegalNewMove;
   };
 
+  auto setParamsAndAvoidMovesCompensatingCpuct = [&](Search* search, SearchParams thisParams, const std::vector<int>& avoidMoveUntilByLoc) {
+    Board board = search->getRootBoard();
+    BoardHistory hist = search->getRootHist();
+    Player pla = search->getRootPla();
+    bool includeOwnerMap = false;
+    std::shared_ptr<NNOutput> result = PlayUtils::getFullSymmetryNNOutput(board, hist, pla, includeOwnerMap, search->nnEvaluator);
+    double policySum = 0.0;
+    for(Loc loc = 0; loc<Board::MAX_ARR_SIZE; loc++) {
+      if(avoidMoveUntilByLoc[loc] <= 0) {
+        int pos = search->getPos(loc);
+        if(result->policyProbs[pos] > 0) {
+          policySum += result->policyProbs[pos];
+        }
+      }
+    }
+    policySum = std::max(policySum, 1e-5);
+    policySum = std::min(policySum, 1.0);
+
+    thisParams.cpuctExploration /= policySum;
+    thisParams.cpuctExplorationLog /= policySum;
+    search->setParams(thisParams);
+    search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc, avoidMoveUntilByLoc);
+  };
+
   auto setNodeThisValuesNoMoves = [&](SymBookNode node) {
     std::lock_guard<std::mutex> lock(bookMutex);
     BookValues& nodeValues = node.thisValuesNotInBook();
@@ -552,12 +576,10 @@ int MainCmds::genbook(const vector<string>& args) {
       setNodeThisValuesNoMoves(node);
     }
     else {
-      search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc, avoidMoveUntilByLoc);
-
       {
         SearchParams thisParams = params;
         thisParams.maxVisits = std::min(params.maxVisits, maxVisitsForLeaves);
-        search->setParams(thisParams);
+        setParamsAndAvoidMovesCompensatingCpuct(search,thisParams,avoidMoveUntilByLoc);
         search->runWholeSearch(search->rootPla);
       }
 
@@ -629,17 +651,8 @@ int MainCmds::genbook(const vector<string>& args) {
 
         // To avoid oddities in positions where the rules mismatch, expand every move with a noticeably higher raw policy
         // Average all 8 symmetries
-        vector<std::shared_ptr<NNOutput>> ptrs;
-        for(int sym = 0; sym<SymmetryHelpers::NUM_SYMMETRIES; sym++) {
-          MiscNNInputParams nnInputParams;
-          nnInputParams.symmetry = sym;
-          NNResultBuf buf;
-          bool skipCache = true; //Always ignore cache so that we use the desired symmetry
-          bool includeOwnerMap = false;
-          nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
-          ptrs.push_back(std::move(buf.result));
-        }
-        std::shared_ptr<NNOutput> result(new NNOutput(ptrs));
+        const bool includeOwnerMap = false;
+        std::shared_ptr<NNOutput> result = PlayUtils::getFullSymmetryNNOutput(board, hist, pla, includeOwnerMap, nnEval);
         float* policyProbs = result->policyProbs;
         float moveLocPolicy = policyProbs[search->getPos(moveLoc)];
         assert(moveLocPolicy >= 0);
@@ -917,9 +930,9 @@ int MainCmds::genbook(const vector<string>& args) {
     SearchParams thisParams = params;
     thisParams.wideRootNoise = wideRootNoiseBookExplore;
     thisParams.cpuctExplorationLog = cpuctExplorationLogBookExplore;
-    search->setParams(thisParams);
-    search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc, avoidMoveUntilByLoc);
+    setParamsAndAvoidMovesCompensatingCpuct(search,thisParams,avoidMoveUntilByLoc);
     search->runWholeSearch(search->rootPla);
+
 
     if(shouldStop.load(std::memory_order_acquire))
       return;
