@@ -700,15 +700,21 @@ int MainCmds::genbook(const vector<string>& args) {
   std::function<bool(
     Search*, const SearchNode*, SymBookNode,
     const Board&, const BoardHistory&, int,
-    std::set<BookHash>&, std::set<BookHash>&
+    std::set<BookHash>&, std::set<BookHash>&,
+    std::set<const SearchNode*>&
   )> expandFromSearchResultRecursively;
   expandFromSearchResultRecursively = [&](
     Search* search, const SearchNode* searchNode, SymBookNode node,
     const Board& board, const BoardHistory& hist, int maxDepth,
-    std::set<BookHash>& nodesHashesToSearch, std::set<BookHash>& nodesHashesToUpdate
+    std::set<BookHash>& nodesHashesToSearch, std::set<BookHash>& nodesHashesToUpdate,
+    std::set<const SearchNode*>& searchNodesRecursedOn
   ) {
     if(maxDepth <= 0)
       return false;
+    // Quit out immediately when handling transpositions in graph search
+    if(searchNodesRecursedOn.find(searchNode) != searchNodesRecursedOn.end())
+      return false;
+    searchNodesRecursedOn.insert(searchNode);
 
     assert(searchNode != NULL);
     assert(searchNode->nextPla == node.pla());
@@ -809,7 +815,10 @@ int MainCmds::genbook(const vector<string>& args) {
         // Recursively record children with enough visits
         if(maxDepth > 0 && childVisits >= minTreeVisitsToRecord) {
           anyRecursion = true;
-          expandFromSearchResultRecursively(search, childSearchNode, child, nextBoard, nextHist, maxDepth-1, nodesHashesToSearch, nodesHashesToUpdate);
+          expandFromSearchResultRecursively(
+            search, childSearchNode, child, nextBoard, nextHist, maxDepth-1,
+            nodesHashesToSearch, nodesHashesToUpdate, searchNodesRecursedOn
+          );
         }
       }
     }
@@ -925,7 +934,11 @@ int MainCmds::genbook(const vector<string>& args) {
 
     std::set<BookHash> nodesHashesToSearch;
     std::set<BookHash> nodesHashesToUpdate;
-    bool anythingAdded = expandFromSearchResultRecursively(search, search->rootNode, node, board, hist, maxDepthToRecord, nodesHashesToSearch, nodesHashesToUpdate);
+    std::set<const SearchNode*> searchNodesRecursedOn;
+    bool anythingAdded = expandFromSearchResultRecursively(
+      search, search->rootNode, node, board, hist, maxDepthToRecord,
+      nodesHashesToSearch, nodesHashesToUpdate, searchNodesRecursedOn
+    );
 
     if(!anythingAdded) {
       std::lock_guard<std::mutex> lock(bookMutex);
