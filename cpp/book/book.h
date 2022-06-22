@@ -269,6 +269,7 @@ class Book {
   double utilityPerScore;
   double policyBoostSoftUtilityScale;
   double utilityPerPolicyForSorting;
+  double maxVisitsForReExpansion;
   double sharpScoreOutlierCap;
   std::map<BookHash,double> bonusByHash;
 
@@ -304,6 +305,7 @@ class Book {
     double utilityPerScore,
     double policyBoostSoftUtilityScale,
     double utilityPerPolicyForSorting,
+    double maxVisitsForReExpansion,
     double sharpScoreOutlierCap
   );
   ~Book();
@@ -363,6 +365,8 @@ class Book {
   void setPolicyBoostSoftUtilityScale(double d);
   double getUtilityPerPolicyForSorting() const;
   void setUtilityPerPolicyForSorting(double d);
+  double getMaxVisitsForReExpansion() const;
+  void setMaxVisitsForReExpansion(double d);
   std::map<BookHash,double> getBonusByHash() const;
   void setBonusByHash(const std::map<BookHash,double>& d);
 

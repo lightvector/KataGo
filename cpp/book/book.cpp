@@ -695,6 +695,7 @@ Book::Book(
   double ups,
   double pbsus,
   double uppfs,
+  double mvfre,
   double ssoc
 ) : bookVersion(bversion),
     initialBoard(b),
@@ -722,6 +723,7 @@ Book::Book(
     utilityPerScore(ups),
     policyBoostSoftUtilityScale(pbsus),
     utilityPerPolicyForSorting(uppfs),
+    maxVisitsForReExpansion(mvfre),
     sharpScoreOutlierCap(ssoc),
     initialSymmetry(0),
     root(nullptr),
@@ -804,6 +806,8 @@ double Book::getPolicyBoostSoftUtilityScale() const { return policyBoostSoftUtil
 void Book::setPolicyBoostSoftUtilityScale(double d) { policyBoostSoftUtilityScale = d; }
 double Book::getUtilityPerPolicyForSorting() const { return utilityPerPolicyForSorting; }
 void Book::setUtilityPerPolicyForSorting(double d) { utilityPerPolicyForSorting = d; }
+double Book::getMaxVisitsForReExpansion() const { return maxVisitsForReExpansion; }
+void Book::setMaxVisitsForReExpansion(double d) { maxVisitsForReExpansion = d; }
 std::map<BookHash,double> Book::getBonusByHash() const { return bonusByHash; }
 void Book::setBonusByHash(const std::map<BookHash,double>& d) { bonusByHash = d; }
 
@@ -1454,6 +1458,10 @@ void Book::recomputeNodeCost(BookNode* node) {
   if(!node->canExpand) {
     node->thisNodeExpansionCost = 1e100;
   }
+  else if(node->recursiveValues.visits < maxVisitsForReExpansion) {
+    double m = node->recursiveValues.visits / std::max(1.0, maxVisitsForReExpansion);
+    node->thisNodeExpansionCost = m * costPerMovesExpanded + m * m * costPerSquaredMovesExpanded;
+  }
   else {
     double scoreError = node->thisValuesNotInBook.getAdjustedScoreError(node->book->initialRules);
     double ucbWinLossLoss =
@@ -1991,6 +1999,7 @@ void Book::saveToFile(const string& fileName) const {
     params["utilityPerScore"] = utilityPerScore;
     params["policyBoostSoftUtilityScale"] = policyBoostSoftUtilityScale;
     params["utilityPerPolicyForSorting"] = utilityPerPolicyForSorting;
+    params["maxVisitsForReExpansion"] = maxVisitsForReExpansion;
     params["initialSymmetry"] = initialSymmetry;
     out << params.dump() << endl;
   }
@@ -2141,6 +2150,7 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
       double utilityPerScore = params["utilityPerScore"].get<double>();
       double policyBoostSoftUtilityScale = params["policyBoostSoftUtilityScale"].get<double>();
       double utilityPerPolicyForSorting = params["utilityPerPolicyForSorting"].get<double>();
+      double maxVisitsForReExpansion = params.contains("maxVisitsForReExpansion") ? params["maxVisitsForReExpansion"].get<double>() : 0.0;
 
       book = std::make_unique<Book>(
         bookVersion,
@@ -2169,6 +2179,7 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
         utilityPerScore,
         policyBoostSoftUtilityScale,
         utilityPerPolicyForSorting,
+        maxVisitsForReExpansion,
         sharpScoreOutlierCap
       );
 
@@ -2246,12 +2257,11 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
         node->thisValuesNotInBook.visits = nodeData["visits"].get<double>();
       }
 
-      // Older versions had some buggy conditions under which they would set this incorrectly, and nodes would be stuck not expanding.
-      // So force it true on old versions.
-      if(book->bookVersion >= 2)
-        node->canExpand = nodeData["cEx"].get<bool>();
-      else
-        node->canExpand = true;
+      // Since parameter changes can alter whether a node is expandable or not (e.g. whether it's considered done given all its visits)
+      // we just disregard any stored values about whether nodes are expandable.
+      // If they aren't, we'll just re-discover that.
+      // node->canExpand = nodeData["cEx"].get<bool>();
+      node->canExpand = true;
 
 
       if(book->bookVersion >= 2) {

@@ -134,6 +134,7 @@ int MainCmds::genbook(const vector<string>& args) {
   const double utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
   const double policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);
   const double utilityPerPolicyForSorting = cfg.getDouble("utilityPerPolicyForSorting",0.0,1000000.0);
+  const double maxVisitsForReExpansion = cfg.contains("maxVisitsForReExpansion") ? cfg.getDouble("maxVisitsForReExpansion",0.0,1e50) : 0.0;
   const double sharpScoreOutlierCap = cfg.getDouble("sharpScoreOutlierCap",0.0,1000000.0);
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
   const string rulesLabel = cfg.getString("rulesLabel");
@@ -277,7 +278,8 @@ int MainCmds::genbook(const vector<string>& args) {
         scoreLossCap != book->getScoreLossCap() ||
         utilityPerScore != book->getUtilityPerScore() ||
         policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale() ||
-        utilityPerPolicyForSorting != book->getUtilityPerPolicyForSorting()
+        utilityPerPolicyForSorting != book->getUtilityPerPolicyForSorting() ||
+        maxVisitsForReExpansion != book->getMaxVisitsForReExpansion()
       ) {
         throw StringError("Book parameters do not match");
       }
@@ -304,6 +306,8 @@ int MainCmds::genbook(const vector<string>& args) {
       if(utilityPerScore != book->getUtilityPerScore()) { logger.write("Changing utilityPerScore from " + Global::doubleToString(book->getUtilityPerScore()) + " to " + Global::doubleToString(utilityPerScore)); book->setUtilityPerScore(utilityPerScore); }
       if(policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale()) { logger.write("Changing policyBoostSoftUtilityScale from " + Global::doubleToString(book->getPolicyBoostSoftUtilityScale()) + " to " + Global::doubleToString(policyBoostSoftUtilityScale)); book->setPolicyBoostSoftUtilityScale(policyBoostSoftUtilityScale); }
       if(utilityPerPolicyForSorting != book->getUtilityPerPolicyForSorting()) { logger.write("Changing utilityPerPolicyForSorting from " + Global::doubleToString(book->getUtilityPerPolicyForSorting()) + " to " + Global::doubleToString(utilityPerPolicyForSorting)); book->setUtilityPerPolicyForSorting(utilityPerPolicyForSorting); }
+      if(maxVisitsForReExpansion != book->getMaxVisitsForReExpansion()) { logger.write("Changing maxVisitsForReExpansion from " + Global::doubleToString(book->getMaxVisitsForReExpansion()) + " to " + Global::doubleToString(maxVisitsForReExpansion)); book->setMaxVisitsForReExpansion(maxVisitsForReExpansion); }
+
     }
     logger.write("Loaded preexisting book with " + Global::uint64ToString(book->size()) + " nodes from " + bookFile);
     logger.write("Book version = " + Global::intToString(book->bookVersion));
@@ -341,6 +345,7 @@ int MainCmds::genbook(const vector<string>& args) {
       utilityPerScore,
       policyBoostSoftUtilityScale,
       utilityPerPolicyForSorting,
+      maxVisitsForReExpansion,
       sharpScoreOutlierCap
     );
     logger.write("Creating new book at " + bookFile);
@@ -374,16 +379,17 @@ int MainCmds::genbook(const vector<string>& args) {
 
   std::mutex bookMutex;
 
-  // Avoid all moves that are currently in the book on this node, mark avoidMoveUntilByLoc to be passed to
-  // search so that we only search new stuff.
+  // Avoid all moves that are currently in the book on this node, unless this node qualifies as a node that we're re-searching all
+  // moves freshly. Mark avoidMoveUntilByLoc to be passed to search so that we only search new stuff.
   auto findNewMovesAlreadyLocked = [&](const BoardHistory& hist, ConstSymBookNode constNode, std::vector<int>& avoidMoveUntilByLoc) {
     avoidMoveUntilByLoc = std::vector<int>(Board::MAX_ARR_SIZE,0);
+    bool isReExpansion = constNode.recursiveValues().visits < book->getMaxVisitsForReExpansion();
     Player pla = hist.presumedNextMovePla;
     Board board = hist.getRecentBoard(0);
     bool hasAtLeastOneLegalNewMove = false;
     for(Loc moveLoc = 0; moveLoc < Board::MAX_ARR_SIZE; moveLoc++) {
       if(hist.isLegal(board,moveLoc,pla)) {
-        if(constNode.isMoveInBook(moveLoc))
+        if(!isReExpansion && constNode.isMoveInBook(moveLoc))
           avoidMoveUntilByLoc[moveLoc] = 1;
         else
           hasAtLeastOneLegalNewMove = true;
