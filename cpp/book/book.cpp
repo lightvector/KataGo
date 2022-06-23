@@ -1461,6 +1461,7 @@ void Book::recomputeNodeCost(BookNode* node) {
   else if(node->recursiveValues.visits < maxVisitsForReExpansion) {
     double m = node->recursiveValues.visits / std::max(1.0, maxVisitsForReExpansion);
     node->thisNodeExpansionCost = m * costPerMovesExpanded + m * m * costPerSquaredMovesExpanded;
+    smallestCostFromUCB = 0;
   }
   else {
     double scoreError = node->thisValuesNotInBook.getAdjustedScoreError(node->book->initialRules);
@@ -1665,6 +1666,7 @@ void Book::exportToHtmlDir(
   const string& rulesLabel,
   const string& rulesLink,
   bool devMode,
+  double htmlMinVisits,
   Logger& logger
 ) {
   MakeDir::make(dirName);
@@ -1728,6 +1730,10 @@ void Book::exportToHtmlDir(
     // Entirely omit exporting nodes that are simply leaves, to save on the number of files we have to produce and serve.
     // if(node != root && node->moves.size() == 0)
     //   return;
+
+    // Omit exporting nodes that have too few visits
+    if(node->recursiveValues.visits < htmlMinVisits)
+      return;
 
     string filePath = getFilePath(node, false);
     string html = HTML_TEMPLATE;
@@ -1796,9 +1802,12 @@ void Book::exportToHtmlDir(
         // Entirely omit linking children that are simply leaves, to save on the number of files we have to produce and serve.
         // if(!child.isNull() && child.node->moves.size() > 0) {
         if(!child.isNull()) {
-          string childPath = getFilePath(child.node, true);
-          dataVarsStr += Global::intToString(x+y*board.x_size) + ":'../" + childPath + "',";
-          linkSymmetriesStr += Global::intToString(x+y*board.x_size) + ":" + Global::intToString(child.symmetryOfNode) + ",";
+          // Omit exporting nodes that have too few visits
+          if(child.recursiveValues().visits >= htmlMinVisits) {
+            string childPath = getFilePath(child.node, true);
+            dataVarsStr += Global::intToString(x+y*board.x_size) + ":'../" + childPath + "',";
+            linkSymmetriesStr += Global::intToString(x+y*board.x_size) + ":" + Global::intToString(child.symmetryOfNode) + ",";
+          }
         }
       }
     }
@@ -1811,9 +1820,12 @@ void Book::exportToHtmlDir(
         // Entirely omit linking children that are simply leaves, to save on the number of files we have to produce and serve.
         // if(!child.isNull() && child.node->moves.size() > 0) {
         if(!child.isNull()) {
-          string childPath = getFilePath(child.node, true);
-          dataVarsStr += Global::intToString(board.y_size*board.x_size) + ":'../" + childPath + "',";
-          linkSymmetriesStr += Global::intToString(board.y_size*board.x_size) + ":" + Global::intToString(child.symmetryOfNode) + ",";
+          // Omit exporting nodes that have too few visits
+          if(child.recursiveValues().visits >= htmlMinVisits) {
+            string childPath = getFilePath(child.node, true);
+            dataVarsStr += Global::intToString(board.y_size*board.x_size) + ":'../" + childPath + "',";
+            linkSymmetriesStr += Global::intToString(board.y_size*board.x_size) + ":" + Global::intToString(child.symmetryOfNode) + ",";
+          }
         }
       }
     }

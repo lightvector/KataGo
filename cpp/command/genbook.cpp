@@ -55,6 +55,7 @@ int MainCmds::genbook(const vector<string>& args) {
   double traceBookMinVisits;
   bool allowChangingBookParams;
   bool htmlDevMode;
+  double htmlMinVisits;
   try {
     KataGoCommandLine cmd("Generate opening book");
     cmd.addConfigFileArg("","",true);
@@ -71,6 +72,7 @@ int MainCmds::genbook(const vector<string>& args) {
     TCLAP::ValueArg<double> traceBookMinVisitsArg("","trace-book-min-visits","Require >= this many visits for copying from traceBookFile",false,0.0,"N");
     TCLAP::SwitchArg allowChangingBookParamsArg("","allow-changing-book-params","Allow changing book params");
     TCLAP::SwitchArg htmlDevModeArg("","html-dev-mode","Denser debug output for html");
+    TCLAP::ValueArg<double> htmlMinVisitsArg("","html-min-visits","Require >= this many visits to export a position to html",false,0.0,"N");
     cmd.add(htmlDirArg);
     cmd.add(bookFileArg);
     cmd.add(traceBookFileArg);
@@ -81,6 +83,7 @@ int MainCmds::genbook(const vector<string>& args) {
     cmd.add(traceBookMinVisitsArg);
     cmd.add(allowChangingBookParamsArg);
     cmd.add(htmlDevModeArg);
+    cmd.add(htmlMinVisitsArg);
 
     cmd.parseArgs(args);
 
@@ -96,6 +99,7 @@ int MainCmds::genbook(const vector<string>& args) {
     traceBookMinVisits = traceBookMinVisitsArg.getValue();
     allowChangingBookParams = allowChangingBookParamsArg.getValue();
     htmlDevMode = htmlDevModeArg.getValue();
+    htmlMinVisits = htmlMinVisitsArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -417,6 +421,7 @@ int MainCmds::genbook(const vector<string>& args) {
     }
     policySum = std::max(policySum, 1e-5);
     policySum = std::min(policySum, 1.0);
+    policySum = (float)pow(policySum, 1.0 / (4.0*thisParams.wideRootNoise + 1.0));
 
     thisParams.cpuctExploration /= policySum;
     thisParams.cpuctExplorationLog /= policySum;
@@ -1151,7 +1156,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
   if(htmlDir != "") {
     logger.write("EXPORTING HTML TO " + htmlDir);
-    book->exportToHtmlDir(htmlDir,rulesLabel,rulesLink,htmlDevMode,logger);
+    book->exportToHtmlDir(htmlDir,rulesLabel,rulesLink,htmlDevMode,htmlMinVisits,logger);
   }
 
   for(int i = 0; i<numGameThreads; i++)

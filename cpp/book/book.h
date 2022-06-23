@@ -393,6 +393,7 @@ class Book {
     const std::string& rulesLabel,
     const std::string& rulesLink,
     bool devMode,
+    double htmlMinVisits,
     Logger& logger
   );
 
