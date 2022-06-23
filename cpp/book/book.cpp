@@ -1332,10 +1332,15 @@ void Book::recomputeNodeCost(BookNode* node) {
     node->biggestWLCostFromRoot = bestBiggestWLCostFromRoot;
   }
 
+  // cout << "-----------------------------------------------------------------------" << endl;
+  // cout << "Initial min cost from root " << node->minCostFromRoot << endl;
+
   // Apply user-specified bonuses
   if(contains(bonusByHash, node->hash)) {
     double bonus = bonusByHash[node->hash];
     node->minCostFromRoot -= bonus;
+
+    // cout << "Applying user bonus " << bonus << " cost is now " << node->minCostFromRoot << endl;
   }
 
   if(node->minCostFromRoot < node->minCostFromRootWLPV)
@@ -1451,17 +1456,27 @@ void Book::recomputeNodeCost(BookNode* node) {
     locAndBookMove.second.costFromRoot = cost;
     locAndBookMove.second.biggestWLCostFromRoot = std::max(node->biggestWLCostFromRoot, costFromWL);
 
+    // cout << "Setting child " << (int)locAndBookMove.first << " cost from root, parentMinCostFromRoot " << node->minCostFromRoot
+    //      << " costPerMove " << costPerMove
+    //      << " costFromUCB " << costFromUCB
+    //      << " cost due to log policy (" << rawPolicy << ") " << (-boostedLogRawPolicy * costPerLogPolicy)
+    //      << " passFavored " << (passFavored ? costWhenPassFavored : 0.0)
+    //      << " total " << cost
+    //      << endl;
+
     if(costFromUCB < smallestCostFromUCB)
       smallestCostFromUCB = costFromUCB;
   }
 
   if(!node->canExpand) {
     node->thisNodeExpansionCost = 1e100;
+    // cout << "Can't expand this node" << endl;
   }
   else if(node->recursiveValues.visits < maxVisitsForReExpansion) {
     double m = node->recursiveValues.visits / std::max(1.0, maxVisitsForReExpansion);
     node->thisNodeExpansionCost = m * costPerMovesExpanded + m * m * costPerSquaredMovesExpanded;
     smallestCostFromUCB = 0;
+    // cout << "maxVisitsForReExpansion met, this node expansion cost is free" << endl;
   }
   else {
     double scoreError = node->thisValuesNotInBook.getAdjustedScoreError(node->book->initialRules);
@@ -1534,6 +1549,15 @@ void Book::recomputeNodeCost(BookNode* node) {
       + movesExpanded * movesExpanded * costPerSquaredMovesExpanded
       + (passFavored ? costWhenPassFavored : 0.0);
 
+    // cout << "Setting this node expansion cost "
+    //      << " costPerMove " << costPerMove
+    //      << " costFromUCB " << costFromUCB
+    //      << " cost due to log policy (" << rawPolicy << ") " << (-boostedLogRawPolicy * costPerLogPolicy)
+    //      << " moves expanded cost " << (movesExpanded * costPerMovesExpanded + movesExpanded * movesExpanded * costPerSquaredMovesExpanded)
+    //      << " passFavored " << (passFavored ? costWhenPassFavored : 0.0)
+    //      << " total " << node->thisNodeExpansionCost
+    //      << endl;
+
     if(costFromUCB < smallestCostFromUCB)
       smallestCostFromUCB = costFromUCB;
   }
@@ -1541,9 +1565,15 @@ void Book::recomputeNodeCost(BookNode* node) {
   // Partly replenish moves based on ucb cost conficting, since cost conflicting probably means actually the node is
   // interesting for further expansion.
   if(smallestCostFromUCB > 1e-100) {
+    // cout << "Replenishing due to smallest cost from UCB " << smallestCostFromUCB << endl;
     for(auto& locAndBookMove: node->moves) {
+      // cout << "Child " << (int)locAndBookMove.first
+      //      << " cost " << locAndBookMove.second.costFromRoot
+      //      << " becomes " <<  (locAndBookMove.second.costFromRoot - 0.8 * smallestCostFromUCB) << endl;
       locAndBookMove.second.costFromRoot -= 0.8 * smallestCostFromUCB;
     }
+    // cout << "This node expansion cost " << node->thisNodeExpansionCost
+    //      << " becomes " <<  (node->thisNodeExpansionCost - 0.8 * smallestCostFromUCB) << endl;
     node->thisNodeExpansionCost -= 0.8 * smallestCostFromUCB;
   }
 
@@ -1561,8 +1591,12 @@ void Book::recomputeNodeCost(BookNode* node) {
           bestOtherCostFromRoot = locAndBookMoveOther.second.costFromRoot;
       }
     }
+    // Reduce 50% of cost towards the move that we're better than.
     if(bestOtherCostFromRoot < locAndBookMove.second.costFromRoot) {
-      // Reduce 50% of cost towards the move that we're better than.
+      // cout << "Child " << (int)locAndBookMove.first
+      //      << " cost " << locAndBookMove.second.costFromRoot
+      //      << " reduced best cost of moves it beats " << bestOtherCostFromRoot
+      //      << " becomes " << locAndBookMove.second.costFromRoot + 0.50 * (bestOtherCostFromRoot - locAndBookMove.second.costFromRoot) << endl;
       locAndBookMove.second.costFromRoot += 0.50 * (bestOtherCostFromRoot - locAndBookMove.second.costFromRoot);
     }
   }
@@ -1578,8 +1612,11 @@ void Book::recomputeNodeCost(BookNode* node) {
           bestOtherCostFromRoot = locAndBookMoveOther.second.costFromRoot;
       }
     }
+    // Reduce 50% of cost towards the move that we're better than.
     if(bestOtherCostFromRoot - node->minCostFromRoot < node->thisNodeExpansionCost) {
-      // Reduce 50% of cost towards the move that we're better than.
+      // cout << "This node expansion cost " << node->thisNodeExpansionCost
+      //      << " reduced best cost of moves it beats " << bestOtherCostFromRoot - node->minCostFromRoot
+      //      << " becomes " << node->thisNodeExpansionCost + 0.50 * (bestOtherCostFromRoot - node->minCostFromRoot - node->thisNodeExpansionCost) << endl;
       node->thisNodeExpansionCost += 0.50 * (bestOtherCostFromRoot - node->minCostFromRoot - node->thisNodeExpansionCost);
     }
   }
@@ -1597,6 +1634,11 @@ void Book::recomputeNodeCost(BookNode* node) {
     double bonusCap1 = (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * 0.75;
     if(bonus > bonusCap1)
       bonus = bonusCap1;
+    // cout << "Child " << (int)locAndBookMove.first
+    //      << " cost " << locAndBookMove.second.costFromRoot
+    //      << " errors " << winLossError << " " << scoreError << " " << sharpScoreDiscrepancy
+    //      << " bonus " << bonus
+    //      << " becomes " <<  (locAndBookMove.second.costFromRoot - bonus) << endl;
     locAndBookMove.second.costFromRoot -= bonus;
 
     if(locAndBookMove.second.isWLPV) {
@@ -1604,7 +1646,12 @@ void Book::recomputeNodeCost(BookNode* node) {
       if(wlPVBonusScale > 0.0) {
         double factor1 = std::max(0.0, 1.0 - square(child->recursiveValues.winLossValue));
         double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - std::fabs(child->recursiveValues.winLossValue)));
-        locAndBookMove.second.costFromRoot -= wlPVBonusScale * tanh(factor1 * bonusForWLPV1 + factor2 * bonusForWLPV2);
+        double wlPVBonus = wlPVBonusScale * tanh(factor1 * bonusForWLPV1 + factor2 * bonusForWLPV2);
+        // cout << "Child " << (int)locAndBookMove.first
+        //      << " cost " << locAndBookMove.second.costFromRoot
+        //      << " wlpv factors " << factor1 << " " << factor2
+        //      << " becomes " <<  (locAndBookMove.second.costFromRoot - wlPVBonus) << endl;
+        locAndBookMove.second.costFromRoot -= wlPVBonus;
       }
     }
   }
@@ -1629,7 +1676,10 @@ void Book::recomputeNodeCost(BookNode* node) {
     if(bonus > bonusCap1)
       bonus = bonusCap1;
     bonus += bonusPerSharpScoreDiscrepancy * std::max(0.0, sharpScoreDiscrepancy - 1.0);
-
+    // cout << "This node expansion cost " << node->thisNodeExpansionCost
+    //      << " errors " << winLossError << " " << scoreError << " " << sharpScoreDiscrepancy
+    //      << " bonus " << bonus
+    //      << " becomes " <<  (node->thisNodeExpansionCost - bonus) << endl;
     node->thisNodeExpansionCost -= bonus;
 
     if(node->expansionIsWLPV) {
@@ -1637,13 +1687,18 @@ void Book::recomputeNodeCost(BookNode* node) {
       if(wlPVBonusScale > 0.0) {
         double factor1 = std::max(0.0, 1.0 - square(node->thisValuesNotInBook.winLossValue));
         double factor2 = 4.0 * std::max(0.0, 0.25 - square(0.5 - std::fabs(node->thisValuesNotInBook.winLossValue)));
-        node->thisNodeExpansionCost -= wlPVBonusScale * tanh(factor1 * bonusForWLPV1 + factor2 * bonusForWLPV2);
+        double wlPVBonus = wlPVBonusScale * tanh(factor1 * bonusForWLPV1 + factor2 * bonusForWLPV2);
+        // cout << "This node expansion cost " << node->thisNodeExpansionCost
+        //      << " wlpv factors " << factor1 << " " << factor2
+        //      << " becomes " <<  (node->thisNodeExpansionCost - wlPVBonus) << endl;
+        node->thisNodeExpansionCost -= wlPVBonus;
       }
     }
 
   }
 
   // cout << "Setting cost " << node->hash << " " << node->minCostFromRoot << " " << node->thisNodeExpansionCost << endl;
+  // cout << "TOTAL THIS NODE COST " << node->minCostFromRoot + node->thisNodeExpansionCost << endl;
 }
 
 static const string HTML_TEMPLATE = R"%%(

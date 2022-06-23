@@ -639,10 +639,13 @@ private:
     std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
   ) const;
 
-  double getSharpScoreHelper(
+  bool getSharpScoreHelper(
     const SearchNode* node,
     std::unordered_set<const SearchNode*>& graphPath,
-    double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE]
+    double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE],
+    double minProp,
+    double desiredProp,
+    double& ret
   ) const;
 
   std::pair<double,double> getAverageShorttermWLAndScoreErrorHelper(const SearchNode* node) const;
