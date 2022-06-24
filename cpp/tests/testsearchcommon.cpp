@@ -146,7 +146,7 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
       double sharpScore = 0.0;
       bool suc = search->getSharpScore(search->rootNode,sharpScore);
       testAssert(suc);
-      std::pair<double,double> errors = search->getAverageShorttermWLAndScoreError(search->rootNode);
+      std::pair<double,double> errors = search->getShallowAverageShorttermWLAndScoreError(search->rootNode);
       cout << "getSharpScore " << sharpScore << endl;
       cout << "avg WL error " << errors.first << endl;
       cout << "avg score error " << errors.second << endl;

@@ -369,7 +369,7 @@ struct Search {
   ) const;
 
 
-  std::pair<double,double> getAverageShorttermWLAndScoreError(const SearchNode* node = NULL) const;
+  std::pair<double,double> getShallowAverageShorttermWLAndScoreError(const SearchNode* node = NULL) const;
   bool getSharpScore(const SearchNode* node, double& ret) const;
 
   //Fill json with analysis engine format information about search results
@@ -647,8 +647,15 @@ private:
     double desiredProp,
     double& ret
   ) const;
-
-  std::pair<double,double> getAverageShorttermWLAndScoreErrorHelper(const SearchNode* node) const;
+  void getShallowAverageShorttermWLAndScoreErrorHelper(
+    const SearchNode* node,
+    std::unordered_set<const SearchNode*>& graphPath,
+    double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE],
+    double minProp,
+    double desiredProp,
+    double& wlError,
+    double& scoreError
+  ) const;
 
   template<typename Func>
   bool traverseTreeForOwnership(

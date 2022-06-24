@@ -383,6 +383,7 @@ int MainCmds::genbook(const vector<string>& args) {
   const PrintTreeOptions options;
   const Player perspective = P_WHITE;
 
+  // ClockTimer timer;
   std::mutex bookMutex;
 
   // Avoid all moves that are currently in the book on this node, unless this node qualifies as a node that we're re-searching all
@@ -490,7 +491,14 @@ int MainCmds::genbook(const vector<string>& args) {
     node.canExpand() = false;
   };
 
-  auto setNodeThisValuesFromFinishedSearch = [&](SymBookNode node, Search* search, const SearchNode* searchNode, const std::vector<int>& avoidMoveUntilByLoc) {
+  auto setNodeThisValuesFromFinishedSearch = [&](
+    SymBookNode node,
+    Search* search,
+    const SearchNode* searchNode,
+    const Board& board,
+    const BoardHistory& hist,
+    const std::vector<int>& avoidMoveUntilByLoc
+  ) {
     // Get root values
     ReportedSearchValues remainingSearchValues;
     bool getSuc = search->getPrunedNodeValues(searchNode,remainingSearchValues);
@@ -499,14 +507,24 @@ int MainCmds::genbook(const vector<string>& args) {
     assert(getSuc);
     (void)getSuc;
     double sharpScore = 0.0;
+    // cout << "Calling sharpscore " << timer.getSeconds() << endl;
     getSuc = search->getSharpScore(searchNode,sharpScore);
+    // cout << "Done sharpscore " << timer.getSeconds() << endl;
     assert(getSuc);
     (void)getSuc;
 
-    std::pair<double,double> errors = search->getAverageShorttermWLAndScoreError(searchNode);
+    // cout << "Calling shallowAvg " << timer.getSeconds() << endl;
+    std::pair<double,double> errors = search->getShallowAverageShorttermWLAndScoreError(searchNode);
+    // cout << "Done shallowAvg " << timer.getSeconds() << endl;
 
+    // Use full symmetry for the policy for nodes we record for the book
+    bool includeOwnerMap = false;
+    // cout << "Calling full nn " << timer.getSeconds() << endl;
+    std::shared_ptr<NNOutput> fullSymNNOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, node.pla(), includeOwnerMap, search->nnEvaluator);
     float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
-    bool policySuc = search->getPolicy(searchNode, policyProbs);
+    std::copy(fullSymNNOutput->policyProbs, fullSymNNOutput->policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
+    // cout << "Done full nn " << timer.getSeconds() << endl;
+
     // Zero out all the policies for moves we already have, we want the max *remaining* policy
     if(avoidMoveUntilByLoc.size() > 0) {
       assert(avoidMoveUntilByLoc.size() == Board::MAX_ARR_SIZE);
@@ -518,9 +536,7 @@ int MainCmds::genbook(const vector<string>& args) {
         }
       }
     }
-    // Just in case, handle failure case with policySuc
-    // Could return false if child is terminal, or otherwise has no nn eval.
-    double maxPolicy = policySuc ? getMaxPolicy(policyProbs) : 1.0;
+    double maxPolicy = getMaxPolicy(policyProbs);
     assert(maxPolicy >= 0.0);
 
     // LOCK BOOK AND UPDATE -------------------------------------------------------
@@ -585,7 +601,9 @@ int MainCmds::genbook(const vector<string>& args) {
         SearchParams thisParams = params;
         thisParams.maxVisits = std::min(params.maxVisits, maxVisitsForLeaves);
         setParamsAndAvoidMovesCompensatingCpuct(search,thisParams,avoidMoveUntilByLoc);
+        // cout << "Search and update" << timer.getSeconds() << endl;
         search->runWholeSearch(search->rootPla);
+        // cout << "Search and update done" << timer.getSeconds() << endl;
       }
 
       if(logSearchInfo) {
@@ -597,7 +615,7 @@ int MainCmds::genbook(const vector<string>& args) {
       }
 
       // Stick all the new values into the book node
-      setNodeThisValuesFromFinishedSearch(node, search, search->getRootNode(), avoidMoveUntilByLoc);
+      setNodeThisValuesFromFinishedSearch(node, search, search->getRootNode(), search->getRootBoard(), search->getRootHist(), avoidMoveUntilByLoc);
     }
   };
 
@@ -658,7 +676,7 @@ int MainCmds::genbook(const vector<string>& args) {
         // Average all 8 symmetries
         const bool includeOwnerMap = false;
         std::shared_ptr<NNOutput> result = PlayUtils::getFullSymmetryNNOutput(board, hist, pla, includeOwnerMap, nnEval);
-        float* policyProbs = result->policyProbs;
+        const float* policyProbs = result->policyProbs;
         float moveLocPolicy = policyProbs[search->getPos(moveLoc)];
         assert(moveLocPolicy >= 0);
         vector<std::pair<Loc,float>> extraMoveLocsToExpand;
@@ -727,6 +745,8 @@ int MainCmds::genbook(const vector<string>& args) {
     std::set<BookHash>& nodesHashesToSearch, std::set<BookHash>& nodesHashesToUpdate,
     std::set<const SearchNode*>& searchNodesRecursedOn
   ) {
+    // cout << "Entering expandFromSearchResultRecursively " << timer.getSeconds() << endl;
+
     if(maxDepth <= 0)
       return false;
     // Quit out immediately when handling transpositions in graph search
@@ -765,10 +785,15 @@ int MainCmds::genbook(const vector<string>& args) {
     const NNOutput* nnOutput = searchNode->getNNOutput();
     if(numChildren <= 0 || nnOutput == nullptr)
       return false;
-    const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+
+    // Use full symmetry for the policy for nodes we record for the book
+    bool includeOwnerMap = false;
+    std::shared_ptr<NNOutput> fullSymNNOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, node.pla(), includeOwnerMap, search->nnEvaluator);
+    const float* policyProbs = fullSymNNOutput->policyProbs;
 
     bool anyRecursion = false;
     bool anythingAdded = false;
+    // cout << "expandFromSearchResultRecursively begin loop over children " << timer.getSeconds() << endl;
     for(int i = 0; i<numChildren; i++) {
       const SearchNode* childSearchNode = children[i].getIfAllocated();
       Loc moveLoc = children[i].getMoveLoc();
@@ -815,6 +840,7 @@ int MainCmds::genbook(const vector<string>& args) {
               }
               nodesHashesToUpdate.insert(child.hash());
               logger.write("Adding " + node.hash().toString() + " -> " + child.hash().toString() + " move " + Location::toString(moveLoc,board));
+              // cout << "Adding " << timer.getSeconds() << endl;
               anythingAdded = true;
             }
 
@@ -825,7 +851,9 @@ int MainCmds::genbook(const vector<string>& args) {
             if(!childIsTransposing) {
               // Carefully use an empty vector for the avoidMoveUntilByLoc, since the child didn't avoid any moves.
               std::vector<int> childAvoidMoveUntilByLoc;
-              setNodeThisValuesFromFinishedSearch(child, search, childSearchNode, childAvoidMoveUntilByLoc);
+              // cout << "Calling setNodeThisValuesFromFinishedSearch " << timer.getSeconds() << endl;
+              setNodeThisValuesFromFinishedSearch(child, search, childSearchNode, nextBoard, nextHist, childAvoidMoveUntilByLoc);
+              // cout << "Returned from setNodeThisValuesFromFinishedSearch " << timer.getSeconds() << endl;
             }
           }
         }
@@ -833,10 +861,12 @@ int MainCmds::genbook(const vector<string>& args) {
         // Recursively record children with enough visits
         if(maxDepth > 0 && childVisits >= minTreeVisitsToRecord) {
           anyRecursion = true;
+          // cout << "Calling expandFromSearchResultRecursively " << maxDepth << " " << childVisits << " " << timer.getSeconds() << endl;
           expandFromSearchResultRecursively(
             search, childSearchNode, child, nextBoard, nextHist, maxDepth-1,
             nodesHashesToSearch, nodesHashesToUpdate, searchNodesRecursedOn
           );
+          // cout << "Returned from expandFromSearchResultRecursively " << maxDepth << " " << childVisits << " " << timer.getSeconds() << endl;
         }
       }
     }
@@ -950,6 +980,8 @@ int MainCmds::genbook(const vector<string>& args) {
       logger.write(out.str());
     }
 
+    // cout << "Beginning recurison " << timer.getSeconds() << endl;
+
     std::set<BookHash> nodesHashesToSearch;
     std::set<BookHash> nodesHashesToUpdate;
     std::set<const SearchNode*> searchNodesRecursedOn;
@@ -957,6 +989,8 @@ int MainCmds::genbook(const vector<string>& args) {
       search, search->rootNode, node, board, hist, maxDepthToRecord,
       nodesHashesToSearch, nodesHashesToUpdate, searchNodesRecursedOn
     );
+
+    // cout << "Ending recurison " << timer.getSeconds() << endl;
 
     if(!anythingAdded) {
       std::lock_guard<std::mutex> lock(bookMutex);
@@ -975,6 +1009,7 @@ int MainCmds::genbook(const vector<string>& args) {
     assert(nodesHashesToUpdate.find(node.hash()) != nodesHashesToUpdate.end());
 
     // And immediately do a search to update each node we need to.
+    // cout << "Doing searches to update " << timer.getSeconds() << endl;
     for(const BookHash& hash: nodesHashesToSearch) {
       SymBookNode nodeToSearch;
       {
@@ -983,6 +1018,7 @@ int MainCmds::genbook(const vector<string>& args) {
       }
       searchAndUpdateNodeThisValues(search,nodeToSearch);
     }
+    // cout << "Done searches to update " << timer.getSeconds() << endl;
 
     {
       std::lock_guard<std::mutex> lock(bookMutex);
