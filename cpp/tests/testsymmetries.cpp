@@ -1779,4 +1779,95 @@ xxxx.....
 )%%";
 
   expect(name,out,expected);
+
+}
+
+
+void Tests::runSymmetryDifferenceTests() {
+  cout << "Running symmetry difference tests" << endl;
+  ostringstream out;
+
+  auto testSymmetryDifferences = [&out](const Board& board, const Board& other, double maxDifferenceToReport) {
+    double diffs[SymmetryHelpers::NUM_SYMMETRIES];
+    SymmetryHelpers::getSymmetryDifferences(
+      board, other, maxDifferenceToReport, diffs
+    );
+    out << Global::strprintf("%.1f %.1f %.1f %.1f %.1f %.1f %.1f %.1f", diffs[0], diffs[1], diffs[2], diffs[3], diffs[4], diffs[5], diffs[6], diffs[7]) << endl;
+  };
+
+  {
+    const char* name = "Simple difference tests";
+
+    Board board = Board::parseBoard(5,5,R"%%(
+.....
+..o..
+.xxx.
+..o..
+...x.
+)%%");
+    Board board2 = Board::parseBoard(5,5,R"%%(
+.....
+..x..
+.oxo.
+x.x..
+.....
+)%%");
+    Board board3 = Board::parseBoard(5,5,R"%%(
+.....
+x.x..
+.o.o.
+..x..
+.....
+)%%");
+    Board board4 = Board::parseBoard(5,5,R"%%(
+.x...
+..x..
+.ooo.
+..x..
+.....
+)%%");
+
+    testSymmetryDifferences(board,board,20.0);
+    testSymmetryDifferences(board,board2,20.0);
+    testSymmetryDifferences(board,board3,20.0);
+    testSymmetryDifferences(board,board4,20.0);
+    testSymmetryDifferences(board,board4,7.0);
+
+    string expected = R"%%(
+0.0 2.0 2.0 2.0 14.0 14.0 14.0 14.0
+14.0 14.0 14.0 14.0 2.0 0.0 2.0 2.0
+15.0 15.0 15.0 15.0 3.0 3.0 3.0 1.0
+17.0 17.0 17.0 15.0 5.0 5.0 5.0 5.0
+7.0 7.0 7.0 7.0 5.0 5.0 5.0 5.0
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "All 8 symmetries difference tests";
+
+    Board board5 = Board::parseBoard(5,5,R"%%(
+xo.oo
+.x.o.
+...o.
+xo.x.
+x.x.o
+)%%");
+
+    for(int i = 0; i<8; i++) {
+      Board b = SymmetryHelpers::getSymBoard(board5,i);
+      testSymmetryDifferences(board5,b,99.0);
+    }
+    string expected = R"%%(
+0.0 20.0 28.0 22.0 18.0 29.0 29.0 16.0
+20.0 0.0 22.0 28.0 29.0 16.0 18.0 29.0
+28.0 22.0 0.0 20.0 29.0 18.0 16.0 29.0
+22.0 28.0 20.0 0.0 16.0 29.0 29.0 18.0
+18.0 29.0 29.0 16.0 0.0 20.0 28.0 22.0
+29.0 16.0 18.0 29.0 20.0 0.0 22.0 28.0
+29.0 18.0 16.0 29.0 28.0 22.0 0.0 20.0
+16.0 29.0 29.0 18.0 22.0 28.0 20.0 0.0
+)%%";
+    expect(name,out,expected);
+  }
 }

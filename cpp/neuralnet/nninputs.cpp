@@ -777,6 +777,53 @@ void SymmetryHelpers::markDuplicateMoveLocs(
   }
 }
 
+static double getSymmetryDifference(const Board& board, const Board& other, int symmetry, double maxDifferenceToReport) {
+  double thisDifference = 0.0;
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      Loc loc = Location::getLoc(x, y, board.x_size);
+      Loc symLoc = SymmetryHelpers::getSymLoc(x, y, board, symmetry);
+      // Difference!
+      if(board.colors[loc] != other.colors[symLoc]) {
+        // One of them was empty, the other was a stone
+        if(board.colors[loc] == C_EMPTY || other.colors[symLoc] == C_EMPTY)
+          thisDifference += 1.0;
+        // Differing stones - triple the penalty
+        else
+          thisDifference += 3.0;
+
+        if(thisDifference > maxDifferenceToReport)
+          return maxDifferenceToReport;
+      }
+    }
+  }
+  return thisDifference;
+}
+
+
+// For each symmetry, return a metric about the "amount" of difference that board would have with other
+// if symmetry were applied to board.
+void SymmetryHelpers::getSymmetryDifferences(
+  const Board& board, const Board& other, double maxDifferenceToReport, double symmetryDifferences[SymmetryHelpers::NUM_SYMMETRIES]
+) {
+  for(int symmetry = 0; symmetry<SymmetryHelpers::NUM_SYMMETRIES; symmetry++)
+    symmetryDifferences[symmetry] = maxDifferenceToReport;
+
+  // Don't bother handling ultra-fancy transpose logic
+  if(board.x_size != other.x_size || board.y_size != other.y_size)
+    return;
+
+  int numSymmetries = SymmetryHelpers::NUM_SYMMETRIES;
+  if(board.x_size != board.y_size)
+    numSymmetries = SymmetryHelpers::NUM_SYMMETRIES_WITHOUT_TRANSPOSE;
+
+  for(int symmetry = 0; symmetry<numSymmetries; symmetry++) {
+    symmetryDifferences[symmetry] = getSymmetryDifference(board, other, symmetry, maxDifferenceToReport);
+  }
+}
+
+
+
 //-------------------------------------------------------------------------------------------------------------
 
 static void setRowBin(float* rowBin, int pos, int feature, float value, int posStride, int featureStride) {

@@ -9,11 +9,10 @@
 #include "../neuralnet/nninputs.h"
 #include "../external/nlohmann_json/json.hpp"
 
-using std::vector;
-using std::map;
-using std::cout;
-using std::endl;
-using std::string;
+//------------------------
+#include "../core/using.h"
+//------------------------
+
 using nlohmann::json;
 
 BookHash::BookHash()
@@ -747,7 +746,7 @@ Book::Book(
     nodes(),
     nodeIdxMapsByHash(nullptr)
 {
-  nodeIdxMapsByHash = new map<BookHash,int64_t>[NUM_HASH_BUCKETS];
+  nodeIdxMapsByHash = new std::map<BookHash,int64_t>[NUM_HASH_BUCKETS];
 
   BookHash rootHash;
   int symmetryToAlign;
@@ -957,21 +956,21 @@ std::vector<SymBookNode> Book::getAllNodes() {
 }
 
 int64_t Book::getIdx(BookHash hash) const {
-  map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
+  std::map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
   auto iter = nodeIdxMap.find(hash);
   if(iter == nodeIdxMap.end())
     throw StringError("Node idx not found for hash");
   return iter->second;
 }
 BookNode* Book::get(BookHash hash) {
-  map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
+  std::map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
   auto iter = nodeIdxMap.find(hash);
   if(iter == nodeIdxMap.end())
     return nullptr;
   return nodes[iter->second];
 }
 const BookNode* Book::get(BookHash hash) const {
-  const map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
+  const std::map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
   auto iter = nodeIdxMap.find(hash);
   if(iter == nodeIdxMap.end())
     return nullptr;
@@ -993,7 +992,7 @@ ConstSymBookNode Book::getByHash(BookHash hash) const {
 
 
 bool Book::add(BookHash hash, BookNode* node) {
-  map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
+  std::map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
   auto iter = nodeIdxMap.find(hash);
   if(iter != nodeIdxMap.end())
     return false;
@@ -1140,7 +1139,7 @@ void Book::iterateDirtyNodesPostOrder(
   const std::function<void(BookNode* node)>& f
 ) {
   vector<BookNode*> stack;
-  vector<map<Loc,BookMove>::iterator> nextChildToTry;
+  vector<std::map<Loc,BookMove>::iterator> nextChildToTry;
   std::set<BookHash> visitedHashes;
 
   if(!allDirty && dirtyNodes.size() <= 0)
@@ -1156,7 +1155,7 @@ void Book::iterateDirtyNodesPostOrder(
     while(true) {
       // Try walk to next parent
       BookNode* node = stack.back();
-      map<Loc,BookMove>::iterator iter = nextChildToTry.back();
+      std::map<Loc,BookMove>::iterator iter = nextChildToTry.back();
 
       if(iter != node->moves.end()) {
         BookHash nextChildHash = iter->second.hash;

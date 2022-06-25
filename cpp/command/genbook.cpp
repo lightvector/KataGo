@@ -18,7 +18,9 @@
 #include <chrono>
 #include <csignal>
 
-using namespace std;
+//------------------------
+#include "../core/using.h"
+//------------------------
 
 static std::atomic<bool> sigReceived(false);
 static std::atomic<bool> shouldStop(false);
@@ -36,6 +38,68 @@ static double getMaxPolicy(float policyProbs[NNPos::MAX_NN_POLICY_SIZE]) {
     if(policyProbs[i] > maxPolicy)
       maxPolicy = policyProbs[i];
   return maxPolicy;
+}
+
+static void optimizeSymmetriesInplace(std::vector<SymBookNode>& nodes, Rand* rand) {
+  std::vector<std::unique_ptr<Board>> boards;
+  {
+    BoardHistory histBuf;
+    std::vector<Loc> moveHistoryBuf;
+    for(SymBookNode& node: nodes) {
+      if(node.getBoardHistoryReachingHere(histBuf,moveHistoryBuf)) {
+        boards.push_back(std::make_unique<Board>(histBuf.getRecentBoard(0)));
+      }
+    }
+  }
+
+  assert(nodes.size() < 0x7FFFFFFFU);
+  std::vector<uint32_t> perm(nodes.size());
+  if(rand != nullptr)
+    rand->fillShuffledUIntRange(perm.size(), perm.data());
+  else {
+    for(size_t i = 0; i<perm.size(); i++)
+      perm[i] = (uint32_t)i;
+  }
+
+  double diffBuf[SymmetryHelpers::NUM_SYMMETRIES];
+  double similaritySumBuf[SymmetryHelpers::NUM_SYMMETRIES];
+  const double maxDifferenceToReport = 12;
+
+  // Iterate through all nodes in random order and for each one find its best symmetry
+  std::vector<int> bestSymmetries(nodes.size());
+  for(size_t i = 0; i<perm.size(); i++) {
+    const Board& nodeBoard = *(boards[perm[i]]);
+
+    std::fill(similaritySumBuf, similaritySumBuf+SymmetryHelpers::NUM_SYMMETRIES, 0.0);
+
+    // Iterate over all previously symmetrized nodes, up to at most 100, and accumulate similarity
+    for(size_t j = 0; j<i && j < 100; j++) {
+      const Board& otherBoard = *(boards[perm[j]]);
+      int otherBoardBestSymmetry = bestSymmetries[perm[j]];
+      SymmetryHelpers::getSymmetryDifferences(nodeBoard, otherBoard, maxDifferenceToReport, diffBuf);
+      for(int symmetry = 0; symmetry < SymmetryHelpers::NUM_SYMMETRIES; symmetry++) {
+        // diffBuff[symmetry] has the similarity between nodeBoard * symmetry  and otherBoard.
+        // Which is the same as the similarity between nodeboard * compose(symmetry,otherBoardBestSymmetry) and otherBoard * otherBoardBestSymmetry.
+        // The latter is what we want, since that's what otherBoard will actually end up as after this whole function is done.
+        // For similarity, use quadratic harmonic
+        similaritySumBuf[SymmetryHelpers::compose(symmetry, otherBoardBestSymmetry)] += 1.0 / ((0.01 + diffBuf[symmetry]) * (0.01 + diffBuf[symmetry]));
+      }
+    }
+
+    double bestSimilarity = similaritySumBuf[0];
+    int bestSymmetry = 0;
+    for(int symmetry = 1; symmetry < SymmetryHelpers::NUM_SYMMETRIES; symmetry++) {
+      if(similaritySumBuf[symmetry] > bestSimilarity) {
+        bestSimilarity = similaritySumBuf[symmetry];
+        bestSymmetry = symmetry;
+      }
+    }
+    bestSymmetries[perm[i]] = bestSymmetry;
+  }
+
+  for(size_t i = 0; i<nodes.size(); i++) {
+    nodes[i] = nodes[i].applySymmetry(bestSymmetries[i]);
+  }
 }
 
 
@@ -1017,16 +1081,30 @@ int MainCmds::genbook(const vector<string>& args) {
     assert(nodesHashesToUpdate.find(node.hash()) != nodesHashesToUpdate.end());
 
     // And immediately do a search to update each node we need to.
-    // cout << "Doing searches to update " << timer.getSeconds() << endl;
-    for(const BookHash& hash: nodesHashesToSearch) {
-      SymBookNode nodeToSearch;
-      {
-        std::lock_guard<std::mutex> lock(bookMutex);
-        nodeToSearch = book->getByHash(hash);
+    {
+      std::vector<SymBookNode> nodesToSearch;
+      // Try to make all of the nodes be consistent in symmetry so that they can share cache.
+      // Append the original position itself to the start so that it anchors the symmetries
+      nodesToSearch.push_back(node);
+      for(const BookHash& hash: nodesHashesToSearch) {
+        SymBookNode nodeToSearch;
+        {
+          std::lock_guard<std::mutex> lock(bookMutex);
+          nodeToSearch = book->getByHash(hash);
+        }
+        nodesToSearch.push_back(nodeToSearch);
       }
-      searchAndUpdateNodeThisValues(search,nodeToSearch);
+      optimizeSymmetriesInplace(nodesToSearch, NULL);
+
+      // Pop off the original position itself
+      nodesToSearch.erase(nodesToSearch.begin());
+
+      // cout << "Doing searches to update " << timer.getSeconds() << endl;
+      for(SymBookNode nodeToSearch: nodesToSearch) {
+        searchAndUpdateNodeThisValues(search,nodeToSearch);
+      }
+      // cout << "Done searches to update " << timer.getSeconds() << endl;
     }
-    // cout << "Done searches to update " << timer.getSeconds() << endl;
 
     {
       std::lock_guard<std::mutex> lock(bookMutex);
@@ -1173,6 +1251,10 @@ int MainCmds::genbook(const vector<string>& args) {
       logger.write("BEGINNING BOOK EXPANSION ITERATION " + Global::intToString(iteration));
 
       std::vector<SymBookNode> nodesToExpand = book->getNextNToExpand(std::min(1+iteration/2,numToExpandPerIteration));
+      // Try to make all of the expanded nodes be consistent in symmetry so that they can share cache, in case
+      // many of them are for related board positions.
+      optimizeSymmetriesInplace(nodesToExpand, &rand);
+
       for(SymBookNode node: nodesToExpand) {
         bool suc = positionsToSearch.forcePush(node);
         assert(suc);

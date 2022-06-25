@@ -195,6 +195,12 @@ namespace SymmetryHelpers {
     bool* isSymDupLoc,
     std::vector<int>& validSymmetries
   );
+
+// For each symmetry, return a metric about the "amount" of difference that board would have with other
+// if symmetry were applied to board.
+  void getSymmetryDifferences(
+    const Board& board, const Board& other, double maxDifferenceToReport, double symmetryDifferences[NUM_SYMMETRIES]
+  );
 }
 
 //Utility functions for computing the "scoreValue", the unscaled utility of various numbers of points, prior to multiplication by
