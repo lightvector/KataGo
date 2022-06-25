@@ -386,11 +386,19 @@ int MainCmds::genbook(const vector<string>& args) {
   // ClockTimer timer;
   std::mutex bookMutex;
 
-  // Avoid all moves that are currently in the book on this node, unless this node qualifies as a node that we're re-searching all
-  // moves freshly. Mark avoidMoveUntilByLoc to be passed to search so that we only search new stuff.
-  auto findNewMovesAlreadyLocked = [&](const BoardHistory& hist, ConstSymBookNode constNode, std::vector<int>& avoidMoveUntilByLoc) {
+  // Avoid all moves that are currently in the book on this node,
+  // unless allowReExpansion is true and this node qualifies for the visit threshold for allowReExpansion and
+  // to re-search already searched moves freshly.
+  // Mark avoidMoveUntilByLoc to be passed to search so that we only search new stuff.
+  auto findNewMovesAlreadyLocked = [&](
+    const BoardHistory& hist,
+    ConstSymBookNode constNode,
+    bool allowReExpansion,
+    std::vector<int>& avoidMoveUntilByLoc,
+    bool& isReExpansion
+  ) {
     avoidMoveUntilByLoc = std::vector<int>(Board::MAX_ARR_SIZE,0);
-    bool isReExpansion = constNode.recursiveValues().visits < book->getMaxVisitsForReExpansion();
+    isReExpansion = allowReExpansion && constNode.canReExpand() && constNode.recursiveValues().visits < book->getMaxVisitsForReExpansion();
     Player pla = hist.presumedNextMovePla;
     Board board = hist.getRecentBoard(0);
     bool hasAtLeastOneLegalNewMove = false;
@@ -589,8 +597,10 @@ int MainCmds::genbook(const vector<string>& args) {
     std::vector<int> avoidMoveUntilByLoc;
     bool foundNewMoves;
     {
+      const bool allowReExpansion = false;
+      bool isReExpansion;
       std::lock_guard<std::mutex> lock(bookMutex);
-      foundNewMoves = findNewMovesAlreadyLocked(hist,constNode,avoidMoveUntilByLoc);
+      foundNewMoves = findNewMovesAlreadyLocked(hist,constNode,allowReExpansion,avoidMoveUntilByLoc,isReExpansion);
     }
 
     if(!foundNewMoves) {
@@ -821,6 +831,14 @@ int MainCmds::genbook(const vector<string>& args) {
               node.canExpand() = false;
             }
             nextHist.makeBoardMoveAssumeLegal(nextBoard,moveLoc,node.pla(),nullptr);
+            // Overwrite the child if has no moves yet and we searched it deeper
+            if(child.numUniqueMovesInBook() == 0 && child.recursiveValues().visits < childSearchNode->stats.visits.load(std::memory_order_acquire)) {
+              // No longer need lock here, setNodeThisValuesFromFinishedSearch will lock on its own.
+              lock.unlock();
+              // Carefully use an empty vector for the avoidMoveUntilByLoc, since the child didn't avoid any moves.
+              std::vector<int> childAvoidMoveUntilByLoc;
+              setNodeThisValuesFromFinishedSearch(child, search, childSearchNode, nextBoard, nextHist, childAvoidMoveUntilByLoc);
+            }
           }
           else {
             // Lock book to add the best child to the book
@@ -844,11 +862,11 @@ int MainCmds::genbook(const vector<string>& args) {
               anythingAdded = true;
             }
 
-            // No longer need lock here, setNodeThisValuesFromFinishedSearch will lock on its own.
-            lock.unlock();
-
             // Stick all the new values into the child node, UNLESS the child already had its own search (i.e. we're just transposing)
-            if(!childIsTransposing) {
+            // Unless the child is a leaf and we have more visits than it.
+            if(!childIsTransposing || (child.numUniqueMovesInBook() == 0 && child.recursiveValues().visits < childSearchNode->stats.visits.load(std::memory_order_acquire))) {
+              // No longer need lock here, setNodeThisValuesFromFinishedSearch will lock on its own.
+              lock.unlock();
               // Carefully use an empty vector for the avoidMoveUntilByLoc, since the child didn't avoid any moves.
               std::vector<int> childAvoidMoveUntilByLoc;
               // cout << "Calling setNodeThisValuesFromFinishedSearch " << timer.getSeconds() << endl;
@@ -856,7 +874,7 @@ int MainCmds::genbook(const vector<string>& args) {
               // cout << "Returned from setNodeThisValuesFromFinishedSearch " << timer.getSeconds() << endl;
             }
           }
-        }
+        } // Release lock
 
         // Recursively record children with enough visits
         if(maxDepth > 0 && childVisits >= minTreeVisitsToRecord) {
@@ -952,9 +970,11 @@ int MainCmds::genbook(const vector<string>& args) {
 
     std::vector<int> avoidMoveUntilByLoc;
     bool foundNewMoves;
+    bool isReExpansion;
     {
+      const bool allowReExpansion = true;
       std::lock_guard<std::mutex> lock(bookMutex);
-      foundNewMoves = findNewMovesAlreadyLocked(hist,constNode,avoidMoveUntilByLoc);
+      foundNewMoves = findNewMovesAlreadyLocked(hist,constNode,allowReExpansion,avoidMoveUntilByLoc,isReExpansion);
     }
     if(!foundNewMoves) {
       std::lock_guard<std::mutex> lock(bookMutex);
@@ -990,19 +1010,7 @@ int MainCmds::genbook(const vector<string>& args) {
       nodesHashesToSearch, nodesHashesToUpdate, searchNodesRecursedOn
     );
 
-    // cout << "Ending recurison " << timer.getSeconds() << endl;
-
-    if(!anythingAdded) {
-      std::lock_guard<std::mutex> lock(bookMutex);
-      logger.write("WARNING: Could not expand since search obtained no new moves, despite earlier checks about legal moves existing not yet in book");
-      logger.write("BookHash of node unable to expand: " + constNode.hash().toString());
-      ostringstream debugOut;
-      hist.printDebugInfo(debugOut,board);
-      logger.write(debugOut.str());
-      logger.write("Marking node as done so we don't try to expand it again, but something is probably wrong.");
-      node.canExpand() = false;
-      return;
-    }
+    // cout << "Ending recursion " << timer.getSeconds() << endl;
 
     // We should always be newly leaf searching and updating this node since we added something to it.
     assert(nodesHashesToSearch.find(node.hash()) != nodesHashesToSearch.end());
@@ -1028,6 +1036,24 @@ int MainCmds::genbook(const vector<string>& args) {
         newAndChangedNodes.push_back(nodeToUpdate);
       }
     }
+
+    // Only nodes that have never been expanded on their own (were added from another node's search) are allowed for reexpansion.
+    node.canReExpand() = false;
+    newAndChangedNodes.push_back(node);
+
+    // Make sure to process the nodes to search and updates so the book is in a consistent state, before we do any quitting out.
+    // On non-reexpansions, we expect to always add at least one new move to the book for this node.
+    if(!anythingAdded && !isReExpansion) {
+      std::lock_guard<std::mutex> lock(bookMutex);
+      logger.write("WARNING: Could not expand since search obtained no new moves, despite earlier checks about legal moves existing not yet in book");
+      logger.write("BookHash of node unable to expand: " + constNode.hash().toString());
+      ostringstream debugOut;
+      hist.printDebugInfo(debugOut,board);
+      logger.write(debugOut.str());
+      logger.write("Marking node as done so we don't try to expand it again, but something is probably wrong.");
+      node.canExpand() = false;
+    }
+
   };
 
   if(traceBook != NULL) {

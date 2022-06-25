@@ -260,6 +260,7 @@ BookNode::BookNode(BookHash h, Book* b, Player p, const vector<int>& syms)
    symmetries(syms),
    thisValuesNotInBook(),
    canExpand(true),
+   canReExpand(true),
    moves(),
    parents(),
    recursiveValues(),
@@ -378,6 +379,14 @@ bool ConstSymBookNode::isMoveInBook(Loc move) {
   return false;
 }
 
+int SymBookNode::numUniqueMovesInBook() {
+  return ConstSymBookNode(*this).numUniqueMovesInBook();
+}
+int ConstSymBookNode::numUniqueMovesInBook() {
+  assert(node != nullptr);
+  return (int)(node->moves.size());
+}
+
 vector<BookMove> SymBookNode::getUniqueMovesInBook() {
   return ConstSymBookNode(*this).getUniqueMovesInBook();
 }
@@ -406,6 +415,14 @@ bool& SymBookNode::canExpand() {
 bool ConstSymBookNode::canExpand() {
   assert(node != nullptr);
   return node->canExpand;
+}
+bool& SymBookNode::canReExpand() {
+  assert(node != nullptr);
+  return node->canReExpand;
+}
+bool ConstSymBookNode::canReExpand() {
+  assert(node != nullptr);
+  return node->canReExpand;
 }
 
 
@@ -1472,7 +1489,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     node->thisNodeExpansionCost = 1e100;
     // cout << "Can't expand this node" << endl;
   }
-  else if(node->recursiveValues.visits < maxVisitsForReExpansion) {
+  else if(node->canReExpand && node->recursiveValues.visits < maxVisitsForReExpansion) {
     double m = node->recursiveValues.visits / std::max(1.0, maxVisitsForReExpansion);
     node->thisNodeExpansionCost = m * costPerMovesExpanded + m * m * costPerSquaredMovesExpanded;
     smallestCostFromUCB = 0;
@@ -2324,12 +2341,16 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
         node->thisValuesNotInBook.visits = nodeData["visits"].get<double>();
       }
 
-      // Since parameter changes can alter whether a node is expandable or not (e.g. whether it's considered done given all its visits)
-      // we just disregard any stored values about whether nodes are expandable.
-      // If they aren't, we'll just re-discover that.
-      // node->canExpand = nodeData["cEx"].get<bool>();
-      node->canExpand = true;
-
+      // Older versions had some buggy conditions under which they would set this incorrectly, and nodes would be stuck not expanding.
+      // So force it true on old versions.
+      // Parameter changes can alter whether a node is expandable or not (e.g. whether it's considered done given all its visits)
+      // But it's not much harm to set a node as non-expandable, since except for error cases this only happens when a node
+      // has explored all possible legal moves, in which case we might as well not use this node either for reexpansions,
+      // if reexpansions can only target child nodes, that's fine.
+      if(book->bookVersion >= 2)
+        node->canExpand = nodeData["cEx"].get<bool>();
+      else
+        node->canExpand = true;
 
       if(book->bookVersion >= 2) {
         for(json& moveData: nodeData["mvs"]) {

@@ -110,6 +110,7 @@ class BookNode {
   // -----------------------------------------------------------------------------------------------------------
   BookValues thisValuesNotInBook;  // Based on a search of this node alone, excluding all current book nodes.
   bool canExpand; // Set to false to never attempt to add more children to this node.
+  bool canReExpand; // Set to false to disable reexpansion on this node for this run (not saved for future loads of book).
 
   // -----------------------------------------------------------------------------------------------------------
   // Values maintained by the book
@@ -153,6 +154,7 @@ class SymBookNode {
   SymBookNode applySymmetry(int symmetry);
 
   bool isMoveInBook(Loc move);
+  int numUniqueMovesInBook();
   std::vector<BookMove> getUniqueMovesInBook();
 
   Player pla();
@@ -161,6 +163,7 @@ class SymBookNode {
 
   BookValues& thisValuesNotInBook();
   bool& canExpand();
+  bool& canReExpand();
   const RecursiveBookValues& recursiveValues();
   double minCostFromRoot();
   double totalExpansionCost();
@@ -207,10 +210,12 @@ class ConstSymBookNode {
   std::vector<int> getSymmetries();
 
   bool isMoveInBook(Loc move);
+  int numUniqueMovesInBook();
   std::vector<BookMove> getUniqueMovesInBook();
 
   const BookValues& thisValuesNotInBook();
   bool canExpand();
+  bool canReExpand();
   const RecursiveBookValues& recursiveValues();
   double minCostFromRoot();
   double totalExpansionCost();
