@@ -40,7 +40,7 @@ static double getMaxPolicy(float policyProbs[NNPos::MAX_NN_POLICY_SIZE]) {
   return maxPolicy;
 }
 
-static void optimizeSymmetriesInplace(std::vector<SymBookNode>& nodes, Rand* rand) {
+static void optimizeSymmetriesInplace(std::vector<SymBookNode>& nodes, Rand* rand, Logger& logger) {
   std::vector<std::unique_ptr<Board>> boards;
   {
     BoardHistory histBuf;
@@ -48,6 +48,11 @@ static void optimizeSymmetriesInplace(std::vector<SymBookNode>& nodes, Rand* ran
     for(SymBookNode& node: nodes) {
       if(node.getBoardHistoryReachingHere(histBuf,moveHistoryBuf)) {
         boards.push_back(std::make_unique<Board>(histBuf.getRecentBoard(0)));
+      }
+      else {
+        logger.write("WARNING: Failed to get board history reaching node, probably there is some bug");
+        logger.write("BookHash of node optimizing symmetries: " + node.hash().toString());
+        throw StringError("Terminating");
       }
     }
   }
@@ -871,7 +876,7 @@ int MainCmds::genbook(const vector<string>& args) {
     for(int i = 0; i<numChildren; i++) {
       const SearchNode* childSearchNode = children[i].getIfAllocated();
       Loc moveLoc = children[i].getMoveLoc();
-      double rawPolicy = policyProbs[search->getPos(bestLoc)];
+      double rawPolicy = policyProbs[search->getPos(moveLoc)];
       int64_t childVisits = childSearchNode->stats.visits.load(std::memory_order_acquire);
 
       // Add any child nodes that have enough visits or are the best move, if present.
@@ -1076,25 +1081,21 @@ int MainCmds::genbook(const vector<string>& args) {
 
     // cout << "Ending recursion " << timer.getSeconds() << endl;
 
-    // We should always be newly leaf searching and updating this node since we added something to it.
-    assert(nodesHashesToSearch.find(node.hash()) != nodesHashesToSearch.end());
-    assert(nodesHashesToUpdate.find(node.hash()) != nodesHashesToUpdate.end());
-
     // And immediately do a search to update each node we need to.
     {
       std::vector<SymBookNode> nodesToSearch;
       // Try to make all of the nodes be consistent in symmetry so that they can share cache.
       // Append the original position itself to the start so that it anchors the symmetries
       nodesToSearch.push_back(node);
-      for(const BookHash& hash: nodesHashesToSearch) {
-        SymBookNode nodeToSearch;
-        {
-          std::lock_guard<std::mutex> lock(bookMutex);
+      {
+        std::lock_guard<std::mutex> lock(bookMutex);
+        for(const BookHash& hash: nodesHashesToSearch) {
+          SymBookNode nodeToSearch;
           nodeToSearch = book->getByHash(hash);
+          nodesToSearch.push_back(nodeToSearch);
         }
-        nodesToSearch.push_back(nodeToSearch);
       }
-      optimizeSymmetriesInplace(nodesToSearch, NULL);
+      optimizeSymmetriesInplace(nodesToSearch, NULL, logger);
 
       // Pop off the original position itself
       nodesToSearch.erase(nodesToSearch.begin());
@@ -1253,7 +1254,7 @@ int MainCmds::genbook(const vector<string>& args) {
       std::vector<SymBookNode> nodesToExpand = book->getNextNToExpand(std::min(1+iteration/2,numToExpandPerIteration));
       // Try to make all of the expanded nodes be consistent in symmetry so that they can share cache, in case
       // many of them are for related board positions.
-      optimizeSymmetriesInplace(nodesToExpand, &rand);
+      optimizeSymmetriesInplace(nodesToExpand, &rand, logger);
 
       for(SymBookNode node: nodesToExpand) {
         bool suc = positionsToSearch.forcePush(node);
