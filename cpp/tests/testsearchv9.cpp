@@ -68,11 +68,10 @@ static void runV9Positions(NNEvaluator* nnEval, Logger& logger)
 
     delete bot;
   }
-
+  
   {
     cout << "Pruned root values test ==========================================================================" << endl;
     cout << endl;
-
     Board board = Board::parseBoard(13,13,R"%%(
 .xoxo.o......
 ooox.oxox....
@@ -307,6 +306,59 @@ o.ox..oox
       printLadderFeaturesV7(board, hist, true);
       delete bot;
     }
+  }
+
+  {
+    Player nextPla = P_WHITE;
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+.........
+....x....
+....ox...
+....xo...
+.........
+.........
+.........
+)%%");
+    BoardHistory hist(board,nextPla,rules,0);
+
+    vector<int> avoidMoveUntilByLoc(Board::MAX_ARR_SIZE);
+    avoidMoveUntilByLoc[Location::ofString("D5",board)] = 1;
+    SearchParams params = SearchParams::forTestsV2();
+    params.maxVisits = 200;
+    AsyncBot* botA = new AsyncBot(params, nnEval, &logger, "avoidMoveUntilRescaleRoot test");
+    AsyncBot* botB = new AsyncBot(params, nnEval, &logger, "avoidMoveUntilRescaleRoot test");
+    AsyncBot* botC = new AsyncBot(params, nnEval, &logger, "avoidMoveUntilRescaleRoot test");
+    AsyncBot* botD = new AsyncBot(params, nnEval, &logger, "avoidMoveUntilRescaleRoot test");
+
+    botA->setPosition(nextPla,board,hist);
+    botB->setPosition(nextPla,board,hist);
+    botC->setPosition(nextPla,board,hist);
+    botD->setPosition(nextPla,board,hist);
+
+    botB->setAvoidMoveUntilRescaleRoot(true);
+    botC->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc,avoidMoveUntilByLoc);
+    botD->setAvoidMoveUntilRescaleRoot(true);
+    botD->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc,avoidMoveUntilByLoc);
+
+    TestSearchOptions opts;
+    opts.ignorePosition = true; // Avoid clearing the avoids we set.
+    cout << "Baseline" << endl;
+    runBotOnPosition(botA,board,nextPla,hist,opts);
+    cout << "setAvoidMoveUntilRescaleRoot (should be same)" << endl;
+    runBotOnPosition(botB,board,nextPla,hist,opts);
+    cout << "Banning extend" << endl;
+    runBotOnPosition(botC,board,nextPla,hist,opts);
+    cout << "Banning extend and setAvoidMoveUntilRescaleRoot" << endl;
+    runBotOnPosition(botD,board,nextPla,hist,opts);
+    cout << endl << endl;
+
+    delete botA;
+    delete botB;
+    delete botC;
+    delete botD;
   }
 
   {

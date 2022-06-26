@@ -266,6 +266,7 @@ int MainCmds::genbook(const vector<string>& args) {
     if(!suc)
       throw StringError("Invalid placements in sgf");
     bonusInitialPla = sgf->getFirstPlayerColor();
+    delete sgf;
   }
 
   const SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
@@ -482,29 +483,10 @@ int MainCmds::genbook(const vector<string>& args) {
     return hasAtLeastOneLegalNewMove;
   };
 
-  auto setParamsAndAvoidMovesCompensatingCpuct = [&](Search* search, SearchParams thisParams, const std::vector<int>& avoidMoveUntilByLoc) {
-    Board board = search->getRootBoard();
-    BoardHistory hist = search->getRootHist();
-    Player pla = search->getRootPla();
-    bool includeOwnerMap = false;
-    std::shared_ptr<NNOutput> result = PlayUtils::getFullSymmetryNNOutput(board, hist, pla, includeOwnerMap, search->nnEvaluator);
-    double policySum = 0.0;
-    for(Loc loc = 0; loc<Board::MAX_ARR_SIZE; loc++) {
-      if(avoidMoveUntilByLoc[loc] <= 0) {
-        int pos = search->getPos(loc);
-        if(result->policyProbs[pos] > 0) {
-          policySum += result->policyProbs[pos];
-        }
-      }
-    }
-    policySum = std::max(policySum, 1e-5);
-    policySum = std::min(policySum, 1.0);
-    policySum = (float)pow(policySum, 1.0 / (4.0*thisParams.wideRootNoise + 1.0));
-
-    thisParams.cpuctExploration /= policySum;
-    thisParams.cpuctExplorationLog /= policySum;
+  auto setParamsAndAvoidMoves = [&](Search* search, SearchParams thisParams, const std::vector<int>& avoidMoveUntilByLoc) {
     search->setParams(thisParams);
     search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc, avoidMoveUntilByLoc);
+    search->setAvoidMoveUntilRescaleRoot(true);
   };
 
   auto setNodeThisValuesNoMoves = [&](SymBookNode node) {
@@ -679,7 +661,7 @@ int MainCmds::genbook(const vector<string>& args) {
       {
         SearchParams thisParams = params;
         thisParams.maxVisits = std::min(params.maxVisits, maxVisitsForLeaves);
-        setParamsAndAvoidMovesCompensatingCpuct(search,thisParams,avoidMoveUntilByLoc);
+        setParamsAndAvoidMoves(search,thisParams,avoidMoveUntilByLoc);
         // cout << "Search and update" << timer.getSeconds() << endl;
         search->runWholeSearch(search->rootPla);
         // cout << "Search and update done" << timer.getSeconds() << endl;
@@ -1054,7 +1036,7 @@ int MainCmds::genbook(const vector<string>& args) {
     SearchParams thisParams = params;
     thisParams.wideRootNoise = wideRootNoiseBookExplore;
     thisParams.cpuctExplorationLog = cpuctExplorationLogBookExplore;
-    setParamsAndAvoidMovesCompensatingCpuct(search,thisParams,avoidMoveUntilByLoc);
+    setParamsAndAvoidMoves(search,thisParams,avoidMoveUntilByLoc);
     search->runWholeSearch(search->rootPla);
 
 

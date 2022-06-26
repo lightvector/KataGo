@@ -124,7 +124,12 @@ void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int
 std::shared_ptr<NNOutput>* Search::maybeAddPolicyNoiseAndTemp(SearchThread& thread, bool isRoot, NNOutput* oldNNOutput) const {
   if(!isRoot)
     return NULL;
-  if(!searchParams.rootNoiseEnabled && searchParams.rootPolicyTemperature == 1.0 && searchParams.rootPolicyTemperatureEarly == 1.0 && rootHintLoc == Board::NULL_LOC)
+  if(!searchParams.rootNoiseEnabled &&
+     searchParams.rootPolicyTemperature == 1.0 &&
+     searchParams.rootPolicyTemperatureEarly == 1.0 &&
+     rootHintLoc == Board::NULL_LOC &&
+     !avoidMoveUntilRescaleRoot
+  )
     return NULL;
   if(oldNNOutput == NULL)
     return NULL;
@@ -174,6 +179,29 @@ std::shared_ptr<NNOutput>* Search::maybeAddPolicyNoiseAndTemp(SearchThread& thre
 
   if(searchParams.rootNoiseEnabled) {
     addDirichletNoise(searchParams, thread.rand, policySize, noisedPolicyProbs);
+  }
+
+  if(avoidMoveUntilRescaleRoot) {
+    const std::vector<int>& avoidMoveUntilByLoc = rootPla == P_BLACK ? avoidMoveUntilByLocBlack : avoidMoveUntilByLocWhite;
+    if(avoidMoveUntilByLoc.size() > 0) {
+      assert(avoidMoveUntilByLoc.size() >= Board::MAX_ARR_SIZE);
+      double policySum = 0.0;
+      for(Loc loc = 0; loc<Board::MAX_ARR_SIZE; loc++) {
+        if((rootBoard.isOnBoard(loc) || loc == Board::PASS_LOC) && avoidMoveUntilByLoc[loc] <= 0) {
+          int pos = getPos(loc);
+          if(noisedPolicyProbs[pos] > 0) {
+            policySum += noisedPolicyProbs[pos];
+          }
+        }
+      }
+      if(policySum > 0.0) {
+        for(int i = 0; i<policySize; i++) {
+          if(noisedPolicyProbs[i] > 0) {
+            noisedPolicyProbs[i] = (float)(noisedPolicyProbs[i] / policySum);
+          }
+        }
+      }
+    }
   }
 
   //Move a small amount of policy to the hint move, around the same level that noising it would achieve
