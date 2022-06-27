@@ -438,7 +438,7 @@ int MainCmds::genbook(const vector<string>& args) {
       throw StringError("Cannot specify iterations and trace book at the same time");
     traceBook = Book::loadFromFile(traceBookFile,sharpScoreOutlierCap);
     traceBook->recomputeEverything();
-    logger.write("Loaded trace book with " + Global::uint64ToString(book->size()) + " nodes from " + traceBookFile);
+    logger.write("Loaded trace book with " + Global::uint64ToString(traceBook->size()) + " nodes from " + traceBookFile);
     logger.write("traceBookMinVisits = " + Global::doubleToString(traceBookMinVisits));
   }
 
