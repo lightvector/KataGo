@@ -1317,7 +1317,8 @@ int MainCmds::genbook(const vector<string>& args) {
 
   if(htmlDir != "") {
     logger.write("EXPORTING HTML TO " + htmlDir);
-    book->exportToHtmlDir(htmlDir,rulesLabel,rulesLink,htmlDevMode,htmlMinVisits,logger);
+    int64_t numFilesWritten = book->exportToHtmlDir(htmlDir,rulesLabel,rulesLink,htmlDevMode,htmlMinVisits,logger);
+    logger.write("Done exporting, exported " + Global::int64ToString(numFilesWritten) + " files");
   }
 
   for(int i = 0; i<numGameThreads; i++)

@@ -1740,7 +1740,7 @@ $$DATA_VARS
 )%%";
 
 
-void Book::exportToHtmlDir(
+int64_t Book::exportToHtmlDir(
   const string& dirName,
   const string& rulesLabel,
   const string& rulesLink,
@@ -1804,6 +1804,8 @@ void Book::exportToHtmlDir(
     path += ".html";
     return path;
   };
+
+  int64_t numFilesWritten = 0;
 
   std::function<void(BookNode*)> f = [&](BookNode* node) {
     // Entirely omit exporting nodes that are simply leaves, to save on the number of files we have to produce and serve.
@@ -2047,8 +2049,10 @@ void Book::exportToHtmlDir(
     FileUtils::open(out, filePath);
     out << html;
     out.close();
+    numFilesWritten += 1;
   };
   iterateEntireBookPreOrder(f);
+  return numFilesWritten;
 }
 
 static const char BOARD_LINE_DELIMITER = '|';

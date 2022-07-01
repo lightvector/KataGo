@@ -396,7 +396,8 @@ class Book {
   std::vector<SymBookNode> getAllLeaves(double minVisits);
   std::vector<SymBookNode> getAllNodes();
 
-  void exportToHtmlDir(
+  // Return the number of files written
+  int64_t exportToHtmlDir(
     const std::string& dirName,
     const std::string& rulesLabel,
     const std::string& rulesLink,
