@@ -626,8 +626,9 @@ void Sgf::iterAllUniquePositions(
 
   PositionSample sampleBuf;
   std::vector<std::pair<int64_t,int64_t>> variationTraceNodesBranch;
+  bool isRoot = true;
   iterAllUniquePositionsHelper(
-    board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,rand,variationTraceNodesBranch,f
+    board,hist,nextPla,rules,xSize,ySize,sampleBuf,0,uniqueHashes,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,isRoot,rand,variationTraceNodesBranch,f
   );
 }
 
@@ -641,6 +642,7 @@ void Sgf::iterAllUniquePositionsHelper(
   bool hashParent,
   bool flipIfPassOrWFirst,
   bool allowGameOver,
+  bool isRoot,
   Rand* rand,
   std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
   std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
@@ -651,6 +653,11 @@ void Sgf::iterAllUniquePositionsHelper(
     string comments;
     if(nodes[i]->hasProperty("C"))
       comments = nodes[i]->getSingleProperty("C");
+
+    //Do the root node even if it has no placements since nothing else will do it.
+    if(isRoot && i == 0 && !nodes[i]->hasPlacements()) {
+      samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,comments,f);
+    }
 
     //Handle placements
     if(nodes[i]->hasPlacements()) {
@@ -743,7 +750,7 @@ void Sgf::iterAllUniquePositionsHelper(
     std::unique_ptr<BoardHistory> histCopy = std::make_unique<BoardHistory>(hist);
     variationTraceNodesBranch.push_back(std::make_pair((int64_t)nodes.size(),(int64_t)i));
     children[i]->iterAllUniquePositionsHelper(
-      *copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,rand,variationTraceNodesBranch,f
+      *copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,false,rand,variationTraceNodesBranch,f
     );
     assert(variationTraceNodesBranch.size() > 0);
     variationTraceNodesBranch.erase(variationTraceNodesBranch.begin()+(variationTraceNodesBranch.size()-1));

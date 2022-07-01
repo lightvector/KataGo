@@ -150,6 +150,7 @@ struct Sgf {
     bool hashParent,
     bool flipIfPassOrWFirst,
     bool allowGameOver,
+    bool isRoot,
     Rand* rand,
     std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
