@@ -205,6 +205,8 @@ int MainCmds::genbook(const vector<string>& args) {
   const double bonusForBiggestWLCost = cfg.contains("bonusForBiggestWLCost") ? cfg.getDouble("bonusForBiggestWLCost",0.0,1000000.0) : 0.0;
   const double bonusFileScale = cfg.contains("bonusFileScale") ? cfg.getDouble("bonusFileScale",0.0,1000000.0) : 1.0;
   const double scoreLossCap = cfg.getDouble("scoreLossCap",0.0,1000000.0);
+  const double earlyBookCostReductionFactor = cfg.getDouble("earlyBookCostReductionFactor",0.0,1.0);
+  const double earlyBookCostReductionLambda = cfg.getDouble("earlyBookCostReductionLambda",0.0,1.0);
   const double utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
   const double policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);
   const double utilityPerPolicyForSorting = cfg.getDouble("utilityPerPolicyForSorting",0.0,1000000.0);
@@ -385,6 +387,8 @@ int MainCmds::genbook(const vector<string>& args) {
         bonusForWLPV2 != book->getBonusForWLPV2() ||
         bonusForBiggestWLCost != book->getBonusForBiggestWLCost() ||
         scoreLossCap != book->getScoreLossCap() ||
+        earlyBookCostReductionFactor != book->getEarlyBookCostReductionFactor() ||
+        earlyBookCostReductionLambda != book->getEarlyBookCostReductionLambda() ||
         utilityPerScore != book->getUtilityPerScore() ||
         policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale() ||
         utilityPerPolicyForSorting != book->getUtilityPerPolicyForSorting() ||
@@ -412,6 +416,8 @@ int MainCmds::genbook(const vector<string>& args) {
       if(bonusForWLPV2 != book->getBonusForWLPV2()) { logger.write("Changing bonusForWLPV2 from " + Global::doubleToString(book->getBonusForWLPV2()) + " to " + Global::doubleToString(bonusForWLPV2)); book->setBonusForWLPV2(bonusForWLPV2); }
       if(bonusForBiggestWLCost != book->getBonusForBiggestWLCost()) { logger.write("Changing bonusForBiggestWLCost from " + Global::doubleToString(book->getBonusForBiggestWLCost()) + " to " + Global::doubleToString(bonusForBiggestWLCost)); book->setBonusForBiggestWLCost(bonusForBiggestWLCost); }
       if(scoreLossCap != book->getScoreLossCap()) { logger.write("Changing scoreLossCap from " + Global::doubleToString(book->getScoreLossCap()) + " to " + Global::doubleToString(scoreLossCap)); book->setScoreLossCap(scoreLossCap); }
+      if(earlyBookCostReductionFactor != book->getEarlyBookCostReductionFactor()) { logger.write("Changing earlyBookCostReductionFactor from " + Global::doubleToString(book->getEarlyBookCostReductionFactor()) + " to " + Global::doubleToString(earlyBookCostReductionFactor)); book->setEarlyBookCostReductionFactor(earlyBookCostReductionFactor); }
+      if(earlyBookCostReductionLambda != book->getEarlyBookCostReductionLambda()) { logger.write("Changing earlyBookCostReductionLambda from " + Global::doubleToString(book->getEarlyBookCostReductionLambda()) + " to " + Global::doubleToString(earlyBookCostReductionLambda)); book->setEarlyBookCostReductionLambda(earlyBookCostReductionLambda); }
       if(utilityPerScore != book->getUtilityPerScore()) { logger.write("Changing utilityPerScore from " + Global::doubleToString(book->getUtilityPerScore()) + " to " + Global::doubleToString(utilityPerScore)); book->setUtilityPerScore(utilityPerScore); }
       if(policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale()) { logger.write("Changing policyBoostSoftUtilityScale from " + Global::doubleToString(book->getPolicyBoostSoftUtilityScale()) + " to " + Global::doubleToString(policyBoostSoftUtilityScale)); book->setPolicyBoostSoftUtilityScale(policyBoostSoftUtilityScale); }
       if(utilityPerPolicyForSorting != book->getUtilityPerPolicyForSorting()) { logger.write("Changing utilityPerPolicyForSorting from " + Global::doubleToString(book->getUtilityPerPolicyForSorting()) + " to " + Global::doubleToString(utilityPerPolicyForSorting)); book->setUtilityPerPolicyForSorting(utilityPerPolicyForSorting); }
@@ -451,6 +457,8 @@ int MainCmds::genbook(const vector<string>& args) {
       bonusForWLPV2,
       bonusForBiggestWLCost,
       scoreLossCap,
+      earlyBookCostReductionFactor,
+      earlyBookCostReductionLambda,
       utilityPerScore,
       policyBoostSoftUtilityScale,
       utilityPerPolicyForSorting,

@@ -263,6 +263,7 @@ BookNode::BookNode(BookHash h, Book* b, Player p, const vector<int>& syms)
    moves(),
    parents(),
    recursiveValues(),
+   minDepthFromRoot(0),
    minCostFromRoot(0),
    thisNodeExpansionCost(0),
    minCostFromRootWLPV(0),
@@ -434,6 +435,14 @@ const RecursiveBookValues& ConstSymBookNode::recursiveValues() {
   return node->recursiveValues;
 }
 
+int SymBookNode::minDepthFromRoot() {
+  assert(node != nullptr);
+  return node->minDepthFromRoot;
+}
+int ConstSymBookNode::minDepthFromRoot() {
+  assert(node != nullptr);
+  return node->minDepthFromRoot;
+}
 double SymBookNode::minCostFromRoot() {
   assert(node != nullptr);
   return node->minCostFromRoot;
@@ -708,6 +717,8 @@ Book::Book(
   double bfwlpv2,
   double bfbwlc,
   double slc,
+  double ebcrf,
+  double ebcrd,
   double ups,
   double pbsus,
   double uppfs,
@@ -736,6 +747,8 @@ Book::Book(
     bonusForWLPV2(bfwlpv2),
     bonusForBiggestWLCost(bfbwlc),
     scoreLossCap(slc),
+    earlyBookCostReductionFactor(ebcrf),
+    earlyBookCostReductionLambda(ebcrd),
     utilityPerScore(ups),
     policyBoostSoftUtilityScale(pbsus),
     utilityPerPolicyForSorting(uppfs),
@@ -816,6 +829,10 @@ double Book::getBonusForBiggestWLCost() const { return bonusForBiggestWLCost; }
 void Book::setBonusForBiggestWLCost(double d) { bonusForBiggestWLCost = d; }
 double Book::getScoreLossCap() const { return scoreLossCap; }
 void Book::setScoreLossCap(double d) { scoreLossCap = d; }
+double Book::getEarlyBookCostReductionFactor() const { return earlyBookCostReductionFactor; }
+void Book::setEarlyBookCostReductionFactor(double d) { earlyBookCostReductionFactor = d; }
+double Book::getEarlyBookCostReductionLambda() const { return earlyBookCostReductionLambda; }
+void Book::setEarlyBookCostReductionLambda(double d) { earlyBookCostReductionLambda = d; }
 double Book::getUtilityPerScore() const { return utilityPerScore; }
 void Book::setUtilityPerScore(double d) { utilityPerScore = d; }
 double Book::getPolicyBoostSoftUtilityScale() const { return policyBoostSoftUtilityScale; }
@@ -1321,12 +1338,14 @@ double Book::getUtility(const RecursiveBookValues& values) const {
 void Book::recomputeNodeCost(BookNode* node) {
   // Update this node's minCostFromRoot based on cost for moves from parents.
   if(node == root) {
+    node->minDepthFromRoot = 0;
     node->minCostFromRoot = 0.0;
     node->minCostFromRootWLPV = 0.0;
     node->biggestWLCostFromRoot = 0.0;
   }
   else {
     // cout << "Recomputing cost " << node->hash << endl;
+    int minDepth = 0x3FFFFFFF;
     double minCost = 1e100;
     double minCostWLPV = 1e100;
     double bestBiggestWLCostFromRoot = 1e100;
@@ -1334,6 +1353,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       const BookNode* parent = get(parentInfo.first);
       auto parentLocAndBookMove = parent->moves.find(parentInfo.second);
       assert(parentLocAndBookMove != parent->moves.end());
+      int depth = parent->minDepthFromRoot + 1;
       double cost = parentLocAndBookMove->second.costFromRoot;
       double biggestWLCostFromRoot = parentLocAndBookMove->second.biggestWLCostFromRoot;
       if(cost < minCost) {
@@ -1344,7 +1364,10 @@ void Book::recomputeNodeCost(BookNode* node) {
         if(parent->minCostFromRootWLPV < minCostWLPV)
           minCostWLPV = parent->minCostFromRootWLPV;
       }
+      if(depth < minDepth)
+        minDepth = depth;
     }
+    node->minDepthFromRoot = minDepth;
     node->minCostFromRoot = minCost;
     node->minCostFromRootWLPV = minCostWLPV;
     node->biggestWLCostFromRoot = bestBiggestWLCostFromRoot;
@@ -1712,7 +1735,14 @@ void Book::recomputeNodeCost(BookNode* node) {
         node->thisNodeExpansionCost -= wlPVBonus;
       }
     }
+  }
 
+  double depthFromRootFactor = 1.0 - earlyBookCostReductionFactor * pow(earlyBookCostReductionLambda, node->minDepthFromRoot);
+  for(auto& locAndBookMove: node->moves) {
+    locAndBookMove.second.costFromRoot = node->minCostFromRoot + (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * depthFromRootFactor;
+  }
+  {
+    node->thisNodeExpansionCost = node->thisNodeExpansionCost * depthFromRootFactor;
   }
 
   if(contains(expandBonusByHash, node->hash)) {
@@ -2091,6 +2121,8 @@ void Book::saveToFile(const string& fileName) const {
     params["bonusForWLPV2"] = bonusForWLPV2;
     params["bonusForBiggestWLCost"] = bonusForBiggestWLCost;
     params["scoreLossCap"] = scoreLossCap;
+    params["earlyBookCostReductionFactor"] = earlyBookCostReductionFactor;
+    params["earlyBookCostReductionLambda"] = earlyBookCostReductionLambda;
     params["utilityPerScore"] = utilityPerScore;
     params["policyBoostSoftUtilityScale"] = policyBoostSoftUtilityScale;
     params["utilityPerPolicyForSorting"] = utilityPerPolicyForSorting;
@@ -2242,6 +2274,8 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
       double bonusForWLPV2 = params.contains("bonusForWLPV2") ? params["bonusForWLPV2"].get<double>() : 0.0;
       double bonusForBiggestWLCost = params.contains("bonusForBiggestWLCost") ? params["bonusForBiggestWLCost"].get<double>() : 0.0;
       double scoreLossCap = params["scoreLossCap"].get<double>();
+      double earlyBookCostReductionFactor = params.contains("earlyBookCostReductionFactor") ? params["earlyBookCostReductionFactor"].get<double>() : 0.0;
+      double earlyBookCostReductionLambda = params.contains("earlyBookCostReductionLambda") ? params["earlyBookCostReductionLambda"].get<double>() : 0.0;
       double utilityPerScore = params["utilityPerScore"].get<double>();
       double policyBoostSoftUtilityScale = params["policyBoostSoftUtilityScale"].get<double>();
       double utilityPerPolicyForSorting = params["utilityPerPolicyForSorting"].get<double>();
@@ -2271,6 +2305,8 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
         bonusForWLPV2,
         bonusForBiggestWLCost,
         scoreLossCap,
+        earlyBookCostReductionFactor,
+        earlyBookCostReductionLambda,
         utilityPerScore,
         policyBoostSoftUtilityScale,
         utilityPerPolicyForSorting,

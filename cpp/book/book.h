@@ -119,6 +119,7 @@ class BookNode {
   std::vector<std::pair<BookHash,Loc>> parents; // Locations are in the parent's alignment space
 
   RecursiveBookValues recursiveValues;  // Based on minimaxing over the book nodes
+  int minDepthFromRoot;    // Minimum number of moves to reach this node from root
   double minCostFromRoot;  // Minimum sum of BookMove cost to reach this node from root
   double thisNodeExpansionCost;  // The cost for picking this node to expand further.
   double minCostFromRootWLPV;  // minCostFromRoot of the cheapest node that this node is the winLoss pv of.
@@ -165,6 +166,7 @@ class SymBookNode {
   bool& canExpand();
   bool& canReExpand();
   const RecursiveBookValues& recursiveValues();
+  int minDepthFromRoot();
   double minCostFromRoot();
   double totalExpansionCost();
 
@@ -217,6 +219,7 @@ class ConstSymBookNode {
   bool canExpand();
   bool canReExpand();
   const RecursiveBookValues& recursiveValues();
+  int minDepthFromRoot();
   double minCostFromRoot();
   double totalExpansionCost();
 
@@ -253,28 +256,50 @@ class Book {
   const int repBound;
 
  private:
+  // This times shortterm error is considered the stdev for UCB purposes.
   double errorFactor;
+  // Fixed cost per move
   double costPerMove;
+  // Cost per 1 unit of winloss value that a move's UCB is worse than the best UCB
+  // As well as versions that compare winloss^3 and winloss^7, to emphasize the tails.
   double costPerUCBWinLossLoss;
   double costPerUCBWinLossLossPow3;
   double costPerUCBWinLossLossPow7;
+  // Cost per point of score that a move's UCB is better than the best UCB
   double costPerUCBScoreLoss;
+  // Cost per nat of log policy that a move is less likely than 100%.
   double costPerLogPolicy;
+  // For expanding new moves - extra penalty per move or move squared already expanded at a node.
   double costPerMovesExpanded;
   double costPerSquaredMovesExpanded;
+  // Cost when pass is the favorite move (helps truncate lines that are solved to the end of game)
   double costWhenPassFavored;
+  // Bonuses per difference between UCB and LCB
   double bonusPerWinLossError;
   double bonusPerScoreError;
+  // Bonus per point of score difference between sharp score and plain lead
   double bonusPerSharpScoreDiscrepancy;
+  // Bonus per policy mass that is not expanded at a node, encourage expanding most of the policy mass.
   double bonusPerExcessUnexpandedPolicy;
+  // Bonus if a move is the PV in terms of winloss, if that winloss value is near 0, as a cost reduction factor.
   double bonusForWLPV1;
+  // Bonus if a move is the PV in terms of winloss, if that winloss value is near -0.5 or +0.5, as a cost reduction factor.
   double bonusForWLPV2;
+  // Bonus for the biggest single WL cost on a given path, per unit of cost. (helps favor lines with only 1 mistake but not lines with more than one)
   double bonusForBiggestWLCost;
+  // Cap on how bad UCBScoreLoss can be.
   double scoreLossCap;
+  // Reduce costs near the start of a book. First move costs are reduced by earlyBookCostReductionFactor
+  // and this gets multiplied by by earlyBookCostReductionLambda per move deeper.
+  double earlyBookCostReductionFactor;
+  double earlyBookCostReductionLambda;
+  // Affects html rendering - used for integrating score into sorting of moves.
   double utilityPerScore;
   double policyBoostSoftUtilityScale;
   double utilityPerPolicyForSorting;
+  // Allow re-expanding a node if it has <= this many visits
   double maxVisitsForReExpansion;
+  // When rendering - cap sharp scores that differ by more than this many points from regular score.
   double sharpScoreOutlierCap;
   std::map<BookHash,double> bonusByHash;
   std::map<BookHash,double> expandBonusByHash;
@@ -308,6 +333,8 @@ class Book {
     double bonusForWLPV2,
     double bonusForBiggestWLCost,
     double scoreLossCap,
+    double earlyBookCostReductionFactor,
+    double earlyBookCostReductionLambda,
     double utilityPerScore,
     double policyBoostSoftUtilityScale,
     double utilityPerPolicyForSorting,
@@ -365,6 +392,10 @@ class Book {
   void setBonusForBiggestWLCost(double d);
   double getScoreLossCap() const;
   void setScoreLossCap(double d);
+  double getEarlyBookCostReductionFactor() const;
+  void setEarlyBookCostReductionFactor(double d);
+  double getEarlyBookCostReductionLambda() const;
+  void setEarlyBookCostReductionLambda(double d);
   double getUtilityPerScore() const;
   void setUtilityPerScore(double d);
   double getPolicyBoostSoftUtilityScale() const;
