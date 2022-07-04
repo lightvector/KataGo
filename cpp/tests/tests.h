@@ -79,6 +79,10 @@ namespace Tests {
 
   //testconfig.cpp
   void runConfigTests(const std::vector<std::string>& args);
+
+  //testmisc.cpp
+  void runCollectFilesTests();
+  void runLoadModelTests();
 }
 
 namespace TestCommon {

@@ -19,7 +19,7 @@ void FileHelpers::collectSgfsFromDir(const std::string& dir, std::vector<std::st
 
 void FileHelpers::collectSgfsFromDirOrFile(const std::string& dirOrFile, std::vector<std::string>& collected) {
   try {
-    if(gfs::exists(dirOrFile) && !gfs::is_directory(dirOrFile)) {
+    if(FileUtils::exists(dirOrFile) && !FileUtils::isDirectory(dirOrFile)) {
       if(sgfFilter(dirOrFile))
         collected.push_back(dirOrFile);
       else {
@@ -41,7 +41,7 @@ void FileHelpers::collectSgfsFromDirs(const std::vector<std::string>& dirs, std:
     string trimmed = Global::trim(dirs[i]);
     if(trimmed.size() <= 0)
       continue;
-    if(gfs::exists(dirs[i]))
+    if(FileUtils::exists(dirs[i]))
       collectSgfsFromDir(dirs[i], collected);
     else
       collectSgfsFromDir(trimmed, collected);
@@ -53,7 +53,7 @@ void FileHelpers::collectSgfsFromDirsOrFiles(const std::vector<std::string>& dir
     string trimmed = Global::trim(dirsOrFiles[i]);
     if(trimmed.size() <= 0)
       continue;
-    if(gfs::exists(dirsOrFiles[i]))
+    if(FileUtils::exists(dirsOrFiles[i]))
       collectSgfsFromDirOrFile(dirsOrFiles[i], collected);
     else
       collectSgfsFromDirOrFile(trimmed, collected);
@@ -63,7 +63,7 @@ void FileHelpers::collectSgfsFromDirsOrFiles(const std::vector<std::string>& dir
 void FileHelpers::sortNewestToOldest(std::vector<std::string>& files) {
   vector<std::pair<string, gfs::file_time_type>> filesWithTime;
   for(size_t i = 0; i<files.size(); i++)
-    filesWithTime.push_back(std::make_pair(files[i], gfs::last_write_time(files[i])));
+    filesWithTime.push_back(std::make_pair(files[i], gfs::last_write_time(gfs::u8path(files[i]))));
 
   std::sort(
     filesWithTime.begin(),

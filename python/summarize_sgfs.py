@@ -46,6 +46,7 @@ class GameResultSummary:
     self._elo_prior_games = elo_prior_games # number of games for bayesian prior around Elo 0
     self._estimate_first_player_advantage = estimate_first_player_advantage
     self._elo_info = None
+    self._game_count = 0
 
   def add_games(self, input_file_or_dir: str, recursive=False):
     """Add sgfs found in input_file_or_dir into the results. Repeated paths to the same file will be ignored."""
@@ -193,7 +194,7 @@ class GameResultSummary:
       self.results[(pla_black, pla_white)].lost += 1
     else:
       self.results[(pla_black, pla_white)].draw += 1
-    self._elo_info = None
+    self._game_count += 1
 
   def _estimate_elo(self) -> elo.EloInfo:
     """Estimate and print elo values. This function must be called after add all the sgfs/sgf files"""
@@ -249,6 +250,19 @@ class GameResultSummary:
       print(row_format.format(name, *row))
 
   def _print_result_matrix(self, pla_names):
+    print(f"Total games: {self._game_count}")
+    print("Games by player:")
+    for pla1 in pla_names:
+      total = 0
+      for pla2 in pla_names:
+        if (pla1 == pla2):
+          continue
+        else:
+          pla1_pla2 = self.results[(pla1, pla2)] if (pla1, pla2) in self.results else Record()
+          pla2_pla1 = self.results[(pla2, pla1)] if (pla2, pla1) in self.results else Record()
+          total += pla1_pla2.win + pla2_pla1.win + pla1_pla2.lost + pla2_pla1.lost + pla1_pla2.draw + pla2_pla1.draw
+      print(f"{pla1}: {total:.1f}")
+
     print("Wins by row player against column player:")
     result_matrix = []
     for pla1 in pla_names:

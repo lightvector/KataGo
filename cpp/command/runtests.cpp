@@ -71,6 +71,8 @@ int MainCmds::runoutputtests(const vector<string>& args) {
   Tests::runScoreTests();
   Tests::runNNSymmetryTests();
   Tests::runSgfFileTests();
+  Tests::runCollectFilesTests();
+  Tests::runLoadModelTests();
 
   ScoreValue::freeTables();
 

@@ -148,6 +148,10 @@ int MainCmds::selfplay(const vector<string>& args) {
     //No new neural nets yet
     if(!foundModel || (lastNetName != NULL && *lastNetName == modelName))
       return false;
+    if(modelName == "random" && lastNetName != NULL && *lastNetName != "random") {
+      logger.write("WARNING: " + *lastNetName + " was the previous model, but now no model was found. Continuing with prev model instead of using random");
+      return false;
+    }
 
     logger.write("Found new neural net " + modelName);
 

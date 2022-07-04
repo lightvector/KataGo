@@ -53,7 +53,7 @@ For more details about KataGo's older training runs, including comparisons to ot
 ## Where To Download Stuff
 You can download precompiled executables for KataGo on the [releases page](https://github.com/lightvector/KataGo/releases) for Windows and Linux.
 
-You can download a few selected neural nets from the [releases page](https://github.com/lightvector/KataGo/releases) or download additional other neural nets from [here](https://d3dndmfyhecmj0.cloudfront.net/g170/index.html)). There are two different model formats, indicated by ".txt.gz" versus ".bin.gz". This was due to a model format change starting with v1.3.3 - recent versions of KataGo support both but the latter will be both smaller on disk and faster to load.
+You can download a few selected neural nets from the [releases page](https://github.com/lightvector/KataGo/releases) or download additional other neural nets from [here](https://katagoarchive.org/g170/index.html)). There are two different model formats, indicated by ".txt.gz" versus ".bin.gz". This was due to a model format change starting with v1.3.3 - recent versions of KataGo support both but the latter will be both smaller on disk and faster to load.
 
 ## Setting Up and Running KataGo
 KataGo implements just a GTP engine, which is a simple text protocol that Go software uses. It does NOT have a graphical interface on its own. So generally, you will want to use KataGo along with a GUI or analysis program. A few of them bundle KataGo in their download so that you can get everything from one place rather than downloading separately and managing the file paths and commands.
@@ -199,7 +199,7 @@ then you are using the Mesa drivers. You will need to change your drivers, see f
    * For weaker or mid-range GPUs, try the final 20-block network from [here](https://github.com/lightvector/KataGo/releases/tag/v1.4.5), which is the best of its size.
    * For top-tier GPUs and/or for the highest-quality analysis if you're going to use many thousands and thousands of playouts and long thinking times, try the final 40-block network from [here](https://github.com/lightvector/KataGo/releases/tag/v1.4.5), which is more costly to run but should be the strongest and best overall.
    * If you care a lot about theoretical purity - no outside data, bot learns strictly on its own - use the 20 or 40 block nets from [this release](https://github.com/lightvector/KataGo/releases/tag/v1.4.0), which are pure in this way and still much stronger than Leela Zero, but also not quite as strong as the final nets.
-   * If you want some nets that are much faster to run, and each with their own interesting style of play due to their unique stages of learning, try any of the "b10c128" or "b15c192" Extended Training Nets [here](https://d3dndmfyhecmj0.cloudfront.net/g170/neuralnets/index.html) which are 10 block and 15 block networks from earlier in the run that are much weaker but still pro-level-and-beyond.
+   * If you want some nets that are much faster to run, and each with their own interesting style of play due to their unique stages of learning, try any of the "b10c128" or "b15c192" Extended Training Nets [here](https://katagoarchive.org/g170/neuralnets/index.html) which are 10 block and 15 block networks from earlier in the run that are much weaker but still pro-level-and-beyond.
 
 
 ## Features for Developers

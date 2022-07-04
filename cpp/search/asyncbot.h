@@ -69,24 +69,50 @@ class AsyncBot {
   void ponder(double searchFactor);
 
   //Terminate any existing searches, and then begin pondering while periodically calling the specified callback
-  void analyzeAsync(Player movePla, double searchFactor, double callbackPeriod, const std::function<void(const Search* search)>& callback);
+  void analyzeAsync(
+    Player movePla,
+    double searchFactor,
+    double callbackPeriod,
+    double firstCallbackAfter,
+    const std::function<void(const Search* search)>& callback
+  );
   //Same as genMove but with periodic analyze callbacks
   void genMoveAsyncAnalyze(
-    Player movePla, int searchId, const TimeControls& tc, double searchFactor, const std::function<void(Loc,int)>& onMove,
-    double callbackPeriod, const std::function<void(const Search* search)>& callback
+    Player movePla,
+    int searchId,
+    const TimeControls& tc,
+    double searchFactor,
+    const std::function<void(Loc,int)>& onMove,
+    double callbackPeriod,
+    double firstCallbackAfter,
+    const std::function<void(const Search* search)>& callback
   );
   void genMoveAsyncAnalyze(
-    Player movePla, int searchId, const TimeControls& tc, double searchFactor, const std::function<void(Loc,int)>& onMove,
-    double callbackPeriod, const std::function<void(const Search* search)>& callback,
+    Player movePla,
+    int searchId,
+    const TimeControls& tc,
+    double searchFactor,
+    const std::function<void(Loc,int)>& onMove,
+    double callbackPeriod,
+    double firstCallbackAfter,
+    const std::function<void(const Search* search)>& callback,
     const std::function<void()>& onSearchBegun
   );
   Loc genMoveSynchronousAnalyze(
-    Player movePla, const TimeControls& tc, double searchFactor,
-    double callbackPeriod, const std::function<void(const Search* search)>& callback
+    Player movePla,
+    const TimeControls& tc,
+    double searchFactor,
+    double callbackPeriod,
+    double firstCallbackAfter,
+    const std::function<void(const Search* search)>& callback
   );
   Loc genMoveSynchronousAnalyze(
-    Player movePla, const TimeControls& tc, double searchFactor,
-    double callbackPeriod, const std::function<void(const Search* search)>& callback,
+    Player movePla,
+    const TimeControls& tc,
+    double searchFactor,
+    double callbackPeriod,
+    double firstCallbackAfter,
+    const std::function<void(const Search* search)>& callback,
     const std::function<void()>& onSearchBegun
   );
 
@@ -117,6 +143,7 @@ class AsyncBot {
   TimeControls timeControls;
   double searchFactor;
   double analyzeCallbackPeriod;
+  double analyzeFirstCallbackAfter;
   std::function<void(const Search* search)> analyzeCallback;
   std::function<void()> searchBegunCallback;
 
