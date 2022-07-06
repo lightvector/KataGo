@@ -1054,8 +1054,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         dated_name = datetime.datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
         save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=os.path.join(longterm_checkpoints_dir,f"{dated_name}.ckpt"))
 
-  close(train_metrics_out)
-  close(val_metrics_out)
+  train_metrics_out.close()
+  val_metrics_out.close()
 
 
 if __name__ == "__main__":
