@@ -104,7 +104,7 @@ def main(args):
     model.initialize()
     model.to(device)
   else:
-    model, swa_model = load_model(checkpoint_file, use_swa, device=device, pos_len=pos_len, verbose=True)
+    model, swa_model, _ = load_model(checkpoint_file, use_swa, device=device, pos_len=pos_len, verbose=True)
     model_config = model.config
 
   metrics_obj = Metrics(batch_size,world_size,model)

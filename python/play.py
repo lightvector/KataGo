@@ -53,7 +53,7 @@ logging.basicConfig(
 np.set_printoptions(linewidth=150)
 torch.set_printoptions(precision=7,sci_mode=False,linewidth=100000,edgeitems=1000,threshold=1000000)
 
-model, swa_model = load_model(checkpoint_file, use_swa, device="cpu", pos_len=pos_len, verbose=True)
+model, swa_model, _ = load_model(checkpoint_file, use_swa, device="cpu", pos_len=pos_len, verbose=True)
 model.eval()
 model_config = model.config
 if swa_model is not None:
