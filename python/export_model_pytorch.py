@@ -60,7 +60,7 @@ def main(args):
   logging.info(str(sys.argv))
 
   # LOAD MODEL ---------------------------------------------------------------------
-  model, swa_model = load_model(checkpoint_file, use_swa, device="cpu", verbose=True)
+  model, swa_model, other_state_dict = load_model(checkpoint_file, use_swa, device="cpu", verbose=True)
   model_config = model.config
 
   # WRITING MODEL ----------------------------------------------------------------
@@ -334,6 +334,18 @@ def main(args):
   else:
     write_model(model)
   f.close()
+
+  with open(os.path.join(export_dir,"metadata.json"),"w") as f:
+    train_state = other_state_dict["train_state"]
+    data = {}
+    if "global_step_samples" in train_state:
+      data["global_step_samples"] = train_state["global_step_samples"]
+    if "total_num_data_rows" in train_state:
+      data["total_num_data_rows"] = train_state["total_num_data_rows"]
+    if "running_metrics" in other_state_dict:
+      data["extra_stats"] = other_state_dict["running_metrics"]
+    json.dump(data,f)
+
 
   logging.info("Exported at: ")
   logging.info(str(datetime.datetime.utcnow()) + " UTC")

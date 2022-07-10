@@ -53,7 +53,7 @@ if __name__ == "__main__":
   parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
   parser.add_argument('-batch-size', help='Per-GPU batch size to use for training', type=int, required=True)
   parser.add_argument('-samples-per-epoch', help='Number of data samples to consider as one epoch', type=int, required=False)
-  parser.add_argument('-model-kind', help='String name for what model to use', required=True)
+  parser.add_argument('-model-kind', help='String name for what model config to use', required=True)
   parser.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
   parser.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
   parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, required=True)
@@ -116,11 +116,6 @@ def multiprocessing_setup(rank: int, world_size: int):
 def multiprocessing_cleanup():
   torch.distributed.destroy_process_group()
 
-def dump_and_flush_json(data,filename):
-  with open(filename,"w") as f:
-    json.dump(data,f)
-    f.flush()
-    os.fsync(f.fileno())
 
 def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writepipes, barrier):
   traindir = args["traindir"]
@@ -226,7 +221,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
   NUM_SHORTTERM_CHECKPOINTS_TO_KEEP = 4
   def save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=None):
     if gnorm_stats_debug:
-      assert False
+      logging.warning("Skipping save since debugging gnorm stats")
+      return
     if rank == 0:
       state_dict = {}
       state_dict["model"] = ddp_model.state_dict()
@@ -242,6 +238,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       if path is not None:
         logging.info("Saving checkpoint: " + path)
         torch.save(state_dict, path + ".tmp")
+        time.sleep(1)
         os.replace(path + ".tmp", path)
       else:
         logging.info("Saving checkpoint: " + get_checkpoint_path())
@@ -348,25 +345,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     else:
       path_to_load_from = get_checkpoint_path()
 
-    # Load model config
-    if os.path.exists(os.path.join(traindir,"model.config.json")):
-      logging.info("Loading existing model config at %s" % os.path.join(traindir,"model.config.json"))
-      with open(os.path.join(traindir,"model.config.json"),"r") as f:
-        model_config = json.load(f)
-      if path_to_load_from is None:
-        logging.warning("WARNING: No existing model but loading params from existing model.config.json!")
-    else:
-      model_config = modelconfigs.config_of_name[model_kind]
-      logging.info("Initializing with new model config")
-      assert path_to_load_from is None, "Found existing model but no existing model.config.json?"
-      if rank == 0:
-        with open(os.path.join(traindir,"model.config.json"),"w") as f:
-          json.dump(model_config,f)
-
-    logging.info(str(model_config))
-
     if path_to_load_from is None:
       logging.info("Initializing new model!")
+      model_config = modelconfigs.config_of_name[model_kind]
+      logging.info(str(model_config))
       raw_model = Model(model_config,pos_len)
       raw_model.initialize()
 
@@ -397,6 +379,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
     else:
       state_dict = torch.load(path_to_load_from, map_location=device)
+      model_config = state_dict["model_config"]
+      logging.info(str(model_config))
       raw_model = Model(model_config,pos_len)
       raw_model.initialize()
 
@@ -465,6 +449,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     train_state["train_steps_since_last_reload"] = 0
   if "export_cycle_counter" not in train_state:
     train_state["export_cycle_counter"] = 0
+  if "total_num_data_rows" not in train_state:
+    train_state["total_num_data_rows"] = 0
 
   if intermediate_distill_scale is not None or intermediate_loss_scale is not None:
     assert raw_model.get_has_intermediate_head(), "Model must have intermediate head to use intermediate distill or loss"
@@ -570,41 +556,16 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       raw_model.set_brenorm_params(brenorm_avg_momentum, train_state["brenorm_rmax"], train_state["brenorm_dmax"])
       last_brenorm_update_samples_this_instance = train_state["global_step_samples"]
 
-  # DATA RELOADING GENERATOR AND TRAINHISTORY ------------------------------------------------------------
+  # DATA RELOADING GENERATOR ------------------------------------------------------------
 
   # Some globals
   last_curdatadir = None
-  last_datainfo_row = 0
   trainfilegenerator = None
   num_train_files = 0
   vdatadir = None
 
-  # Purely informational tracking of history of training
-  trainhistory = {
-    "history":[]
-  }
-  if os.path.isfile(os.path.join(traindir,"trainhistory.json")):
-    logging.info("Loading existing training history: " + str(os.path.join(traindir,"trainhistory.json")))
-    with open(os.path.join(traindir,"trainhistory.json")) as f:
-      trainhistory = json.load(f)
-
-  trainhistory["history"].append(("started",str(datetime.datetime.now(timezone.utc))))
-
-  def save_history():
-    if gnorm_stats_debug:
-      assert False
-    if rank == 0:
-      trainhistory["train_state"] = copy.deepcopy(train_state)
-      trainhistory["extra_stats"] = copy.deepcopy(running_metrics)
-      savepath = os.path.join(traindir,"trainhistory.json")
-      savepathtmp = os.path.join(traindir,"trainhistory.json.tmp")
-      dump_and_flush_json(trainhistory,savepathtmp)
-      os.replace(savepathtmp,savepath)
-      logging.info("Wrote " + savepath)
-
   def maybe_reload_training_data():
     nonlocal last_curdatadir
-    nonlocal last_datainfo_row
     nonlocal trainfilegenerator
     nonlocal num_train_files
     nonlocal vdatadir
@@ -632,17 +593,17 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
         with open(trainjsonpath) as f:
           datainfo = json.load(f)
-          last_datainfo_row = datainfo["range"][1]
+          train_state["total_num_data_rows"] = datainfo["range"][1]
 
         if max_train_bucket_per_new_data is not None:
           if "train_bucket_level_at_row" not in train_state:
-            train_state["train_bucket_level_at_row"] = last_datainfo_row
-          if last_datainfo_row > train_state["train_bucket_level_at_row"]:
-            new_row_count = last_datainfo_row - train_state["train_bucket_level_at_row"]
+            train_state["train_bucket_level_at_row"] = train_state["total_num_data_rows"]
+          if train_state["total_num_data_rows"] > train_state["train_bucket_level_at_row"]:
+            new_row_count = train_state["total_num_data_rows"] - train_state["train_bucket_level_at_row"]
             logging.info("Advancing trainbucket row %.0f to %.0f, %.0f new rows" % (
-              train_state["train_bucket_level_at_row"], last_datainfo_row, new_row_count
+              train_state["train_bucket_level_at_row"], train_state["total_num_data_rows"], new_row_count
             ))
-            train_state["train_bucket_level_at_row"] = last_datainfo_row
+            train_state["train_bucket_level_at_row"] = train_state["total_num_data_rows"]
             logging.info("Fill per data %.3f, Max bucket size %.0f" % (max_train_bucket_per_new_data, max_train_bucket_size))
             logging.info("Old rows in bucket: %.0f" % train_state["train_bucket_level"])
             train_state["train_bucket_level"] += new_row_count * max_train_bucket_per_new_data
@@ -653,8 +614,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
         logging.info("Train steps since last reload: %.0f -> 0" % train_state["train_steps_since_last_reload"])
         train_state["train_steps_since_last_reload"] = 0
-
-        trainhistory["history"].append(("newdata",train_state["global_step_samples"],datainfo["range"]))
 
         # Load training data files
         tdatadir = os.path.join(curdatadir,"train")
@@ -835,7 +794,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     logging.info("=========================================================================")
     logging.info("Current time: " + str(datetime.datetime.now()))
     logging.info("Global step: %d samples" % (train_state["global_step_samples"]))
-    logging.info("Currently up to data row " + str(last_datainfo_row))
+    logging.info("Currently up to data row " + str(train_state["total_num_data_rows"]))
     logging.info(f"Training dir: {traindir}")
     logging.info(f"Export dir: {exportdir}")
     if use_fp16:
@@ -870,7 +829,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
       logging.info("Beginning training subepoch!")
       logging.info("This subepoch, using files: " + str(train_files_to_use))
-      logging.info("Currently up to data row " + str(last_datainfo_row))
+      logging.info("Currently up to data row " + str(train_state["total_num_data_rows"]))
       for batch in data_processing_pytorch.read_npz_training_data(
         train_files_to_use,
         batch_size,
@@ -985,7 +944,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
     # END SUB EPOCH LOOP ------------
 
-    save_history()
     save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
 
     num_epochs_this_instance += 1
@@ -1013,7 +971,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         modelname = "%s-s%d-d%d" % (
           exportprefix,
           train_state["global_step_samples"],
-          last_datainfo_row,
+          train_state["total_num_data_rows"],
         )
         savepath = os.path.join(exportdir,modelname)
         savepathtmp = os.path.join(exportdir,modelname+".tmp")
@@ -1022,12 +980,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         else:
           os.mkdir(savepathtmp)
           logging.info("SAVING MODEL FOR EXPORT TO: " + savepath)
-
           save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=os.path.join(savepathtmp,"model.ckpt"))
-          dump_and_flush_json(trainhistory,os.path.join(savepathtmp,"trainhistory.json"))
-          with open(os.path.join(savepathtmp,"model.config.json"),"w") as f:
-            json.dump(model_config,f)
-
           time.sleep(2)
           os.rename(savepathtmp,savepath)
 

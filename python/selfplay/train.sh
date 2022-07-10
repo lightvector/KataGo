@@ -1,11 +1,11 @@
 #!/bin/bash -eu
 set -o pipefail
 {
-#Runs tensorflow training in $BASEDIR/train/$TRAININGNAME
-#Should be run once per persistent training process.
-#Outputs results in tfsavedmodels_toexport/ in an ongoing basis (EXPORTMODE == "main").
-#Or, to tfsavedmodels_toexport_extra/ (EXPORTMODE == "extra").
-#Or just trains without exporting (EXPORTMODE == "trainonly").
+# Runs training in $BASEDIR/train/$TRAININGNAME
+# Should be run once per persistent training process.
+# Outputs results in torchmodels_toexport/ in an ongoing basis (EXPORTMODE == "main").
+# Or, to torchmodels_toexport_extra/ (EXPORTMODE == "extra").
+# Or just trains without exporting (EXPORTMODE == "trainonly").
 
 if [[ $# -lt 5 ]]
 then
@@ -50,15 +50,15 @@ git diff --staged --no-color > "$DATED_ARCHIVE"/diffstaged.txt
 
 if [ "$EXPORTMODE" == "main" ]
 then
-    EXPORT_SUBDIR=tfsavedmodels_toexport
+    EXPORT_SUBDIR=torchmodels_toexport
     EXTRAFLAG=""
 elif [ "$EXPORTMODE" == "extra" ]
 then
-    EXPORT_SUBDIR=tfsavedmodels_toexport_extra
+    EXPORT_SUBDIR=torchmodels_toexport_extra
     EXTRAFLAG=""
 elif [ "$EXPORTMODE" == "trainonly" ]
 then
-    EXPORT_SUBDIR=tfsavedmodels_toexport_extra
+    EXPORT_SUBDIR=torchmodels_toexport_extra
     EXTRAFLAG="-no-export"
 else
     echo "EXPORTMODE was not 'main' or 'extra' or 'trainonly', run with no arguments for usage"
