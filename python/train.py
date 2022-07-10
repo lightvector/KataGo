@@ -72,6 +72,8 @@ if __name__ == "__main__":
   parser.add_argument('-max-val-samples', help='Approx max of validation samples per epoch', type=int, required=False)
   parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
 
+  parser.add_argument('-gnorm-stats-debug', required=False, action='store_true')
+
   parser.add_argument('-brenorm-avg-momentum', type=float, help='Set brenorm running avg rate to this value', required=False)
   parser.add_argument('-brenorm-target-rmax', type=float, help='Gradually adjust brenorm rmax to this value', required=False)
   parser.add_argument('-brenorm-target-dmax', type=float, help='Gradually adjust brenorm dmax to this value', required=False)
@@ -148,6 +150,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
   max_val_samples = args["max_val_samples"]
   no_export = args["no_export"]
 
+  gnorm_stats_debug = args["gnorm_stats_debug"]
+
   brenorm_target_rmax = args["brenorm_target_rmax"]
   brenorm_target_dmax = args["brenorm_target_dmax"]
   brenorm_avg_momentum = args["brenorm_avg_momentum"]
@@ -221,6 +225,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
   NUM_SHORTTERM_CHECKPOINTS_TO_KEEP = 4
   def save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=None):
+    if gnorm_stats_debug:
+      assert False
     if rank == 0:
       state_dict = {}
       state_dict["model"] = ddp_model.state_dict()
@@ -585,6 +591,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
   trainhistory["history"].append(("started",str(datetime.datetime.now(timezone.utc))))
 
   def save_history():
+    if gnorm_stats_debug:
+      assert False
     if rank == 0:
       trainhistory["train_state"] = copy.deepcopy(train_state)
       trainhistory["extra_stats"] = copy.deepcopy(running_metrics)
@@ -627,7 +635,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
           last_datainfo_row = datainfo["range"][1]
 
         if max_train_bucket_per_new_data is not None:
-          if "train_bucket_level_at_row" not in trainhistory:
+          if "train_bucket_level_at_row" not in train_state:
             train_state["train_bucket_level_at_row"] = last_datainfo_row
           if last_datainfo_row > train_state["train_bucket_level_at_row"]:
             new_row_count = last_datainfo_row - train_state["train_bucket_level_at_row"]
@@ -723,6 +731,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       else:
         ret[key] = metrics[key]
     return ret
+
+  # _sum metrics dict entries will get reported as a moving average of their values
+  # _batch metrics dict entries will reported as the average per-batch value over the time since the last log
+  # All other values will get reported as a total sum across the entire run so far.
 
   def accumulate_metrics(metric_sums, metric_weights, metrics, batch_size, decay):
     if decay != 1.0:
@@ -908,6 +920,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         else:
           assert False
 
+        if gnorm_stats_debug:
+          stats = metrics_obj.get_specific_norms_and_gradient_stats(raw_model)
+          for stat, value in stats:
+            metrics[stat] = value
+
         # Loosen gradient clipping as we shift to smaller learning rates
         gnorm_cap = gnorm_cap / math.sqrt(max(0.0000001,lr_scale))
 
@@ -991,7 +1008,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
           skip_export_this_time = True
           logging.info("Skipping export model this time")
 
-      if not no_export and is_time_to_export and not skip_export_this_time:
+      if not no_export and is_time_to_export and not skip_export_this_time and not gnorm_stats_debug:
         # Export a model for testing, unless somehow it already exists
         modelname = "%s-s%d-d%d" % (
           exportprefix,
@@ -1009,10 +1026,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
           save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, path=os.path.join(savepathtmp,"model.ckpt"))
           dump_and_flush_json(trainhistory,os.path.join(savepathtmp,"trainhistory.json"))
           with open(os.path.join(savepathtmp,"model.config.json"),"w") as f:
-            json.dump(model_config,f)
-          with open(os.path.join(savepathtmp,"saved_model","model.config.json"),"w") as f:
-            json.dump(model_config,f)
-          with open(os.path.join(savepathtmp,"non_swa_saved_model","model.config.json"),"w") as f:
             json.dump(model_config,f)
 
           time.sleep(2)

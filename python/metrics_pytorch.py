@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
 
-from model_pytorch import EXTRA_SCORE_DISTR_RADIUS, Model
+from model_pytorch import EXTRA_SCORE_DISTR_RADIUS, Model, compute_gain
 
 import torch
 import torch.nn
@@ -255,6 +255,7 @@ class Metrics:
     def square_value(self, value_logits, global_weight):
         return torch.sum(global_weight * torch.square(torch.sum(torch.softmax(value_logits,dim=1) * constant_like([1,-1,0],global_weight), dim=1)))
 
+    # Returns 0.5 times the sum of squared model weights, for each reg group of model weights
     def get_model_norms(self,raw_model):
         reg_dict : Dict[str,List] = {}
         raw_model.add_reg_dict(reg_dict)
@@ -280,6 +281,66 @@ class Metrics:
         modelnorm_output_noreg *= 0.5
         return (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg)
 
+    def get_specific_norms_and_gradient_stats(self,raw_model):
+        with torch.no_grad():
+            params = {}
+            for name, param in raw_model.named_parameters():
+                params[name] = param
+
+            stats = {}
+            def add_norm_and_grad_stats(name):
+                param = params[name]
+                if name.endswith(".weight"):
+                    fanin = param.shape[1]
+                elif name.endswith(".gamma"):
+                    fanin = 1
+                elif name.endwith(".beta"):
+                    fanin = 1
+                else:
+                    assert False, "unimplemented case to compute stats on parameter"
+
+                # 1.0 means that the average squared magnitude of a parameter in this tensor is around where
+                # it would be at initialization, assuming it uses the activation that the model generally
+                # uses (e.g. relu or mish)
+                param_scale = torch.sqrt(torch.mean(torch.square(param))) / compute_gain(raw_model.activation) * math.sqrt(fanin)
+                stats[f"{name}.SCALE_batch"] = param_scale
+
+                # How large is the gradient, on the same scale?
+                stats[f"{name}.GRADSC_batch"] = torch.sqrt(torch.mean(torch.square(param.grad))) / compute_gain(raw_model.activation) * math.sqrt(fanin)
+
+                # And how large is the component of the gradient that is orthogonal to the overall magnitude of the parameters?
+                orthograd = param.grad - param * (torch.sum(param.grad * param) / (1e-20 + torch.sum(torch.square(param))))
+                stats[f"{name}.OGRADSC_batch"] = torch.sqrt(torch.mean(torch.square(orthograd))) / compute_gain(raw_model.activation) * math.sqrt(fanin)
+
+            add_norm_and_grad_stats("blocks.1.normactconvp.conv.weight")
+            add_norm_and_grad_stats("blocks.1.blockstack.0.normactconv1.conv.weight")
+            add_norm_and_grad_stats("blocks.1.blockstack.0.normactconv2.conv.weight")
+            add_norm_and_grad_stats("blocks.1.blockstack.1.normactconv2.norm.gamma")
+            add_norm_and_grad_stats("blocks.1.normactconvq.conv.weight")
+            add_norm_and_grad_stats("blocks.1.normactconvq.norm.gamma")
+
+            add_norm_and_grad_stats("blocks.6.normactconvp.conv.weight")
+            add_norm_and_grad_stats("blocks.6.blockstack.0.normactconv1.conv.weight")
+            add_norm_and_grad_stats("blocks.6.blockstack.0.normactconv2.conv.weight")
+            add_norm_and_grad_stats("blocks.6.blockstack.1.normactconv2.norm.gamma")
+            add_norm_and_grad_stats("blocks.6.normactconvq.conv.weight")
+            add_norm_and_grad_stats("blocks.6.normactconvq.norm.gamma")
+
+            add_norm_and_grad_stats("blocks.11.normactconvp.conv.weight")
+            add_norm_and_grad_stats("blocks.11.blockstack.0.normactconv1.conv.weight")
+            add_norm_and_grad_stats("blocks.11.blockstack.0.normactconv2.conv.weight")
+            add_norm_and_grad_stats("blocks.11.blockstack.1.normactconv2.norm.gamma")
+            add_norm_and_grad_stats("blocks.11.normactconvq.conv.weight")
+            add_norm_and_grad_stats("blocks.11.normactconvq.norm.gamma")
+
+            add_norm_and_grad_stats("blocks.16.normactconvp.conv.weight")
+            add_norm_and_grad_stats("blocks.16.blockstack.0.normactconv1.conv.weight")
+            add_norm_and_grad_stats("blocks.16.blockstack.0.normactconv2.conv.weight")
+            add_norm_and_grad_stats("blocks.16.blockstack.1.normactconv2.norm.gamma")
+            add_norm_and_grad_stats("blocks.16.normactconvq.conv.weight")
+            add_norm_and_grad_stats("blocks.16.normactconvq.norm.gamma")
+
+        return stats
 
     def metrics_dict_batchwise(
         self,

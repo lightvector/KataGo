@@ -28,7 +28,7 @@ def act(activation, inplace=False):
         return torch.nn.Identity()
     assert False, f"Unknown activation name: {activation}"
 
-def init_weights(tensor, activation, scale, fan_tensor=None):
+def compute_gain(activation):
     if activation == "relu" or activation == "hardswish":
         gain = math.sqrt(2.0)
     elif activation == "elu":
@@ -41,6 +41,10 @@ def init_weights(tensor, activation, scale, fan_tensor=None):
         gain = 1.0
     else:
         assert False, f"Unknown activation name: {activation}"
+    return gain
+
+def init_weights(tensor, activation, scale, fan_tensor=None):
+    gain = compute_gain(activation)
 
     if fan_tensor is not None:
         (fan_in, _) = torch.nn.init._calculate_fan_in_and_fan_out(fan_tensor)
