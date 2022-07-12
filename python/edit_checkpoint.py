@@ -27,7 +27,7 @@ if output_json_to is not None:
   data_to_write = dict(
     running_metrics = data["running_metrics"],
     train_state = data["train_state"],
-    config = data["config"],
+    config = data["config"] if "config" in data else None,
   )
   with open(output_json_to,"w") as f:
     json.dump(data,f,indent=2)
@@ -53,7 +53,7 @@ else:
   data_to_write = dict(
     running_metrics = data["running_metrics"],
     train_state = data["train_state"],
-    config = data["config"],
+    config = data["config"] if "config" in data else None,
   )
   print(json.dumps(data_to_write,indent=2))
 

@@ -1,4 +1,5 @@
 from typing import Any, Dict, List
+import math
 
 from model_pytorch import EXTRA_SCORE_DISTR_RADIUS, Model, compute_gain
 
@@ -326,12 +327,12 @@ class Metrics:
             add_norm_and_grad_stats("blocks.6.normactconvq.conv.weight")
             add_norm_and_grad_stats("blocks.6.normactconvq.norm.gamma")
 
-            add_norm_and_grad_stats("blocks.11.normactconvp.conv.weight")
-            add_norm_and_grad_stats("blocks.11.blockstack.0.normactconv1.conv.weight")
-            add_norm_and_grad_stats("blocks.11.blockstack.0.normactconv2.conv.weight")
-            add_norm_and_grad_stats("blocks.11.blockstack.1.normactconv2.norm.gamma")
-            add_norm_and_grad_stats("blocks.11.normactconvq.conv.weight")
-            add_norm_and_grad_stats("blocks.11.normactconvq.norm.gamma")
+            add_norm_and_grad_stats("blocks.10.normactconvp.conv.weight")
+            add_norm_and_grad_stats("blocks.10.blockstack.0.normactconv1.conv.weight")
+            add_norm_and_grad_stats("blocks.10.blockstack.0.normactconv2.conv.weight")
+            add_norm_and_grad_stats("blocks.10.blockstack.1.normactconv2.norm.gamma")
+            add_norm_and_grad_stats("blocks.10.normactconvq.conv.weight")
+            add_norm_and_grad_stats("blocks.10.normactconvq.norm.gamma")
 
             add_norm_and_grad_stats("blocks.16.normactconvp.conv.weight")
             add_norm_and_grad_stats("blocks.16.blockstack.0.normactconv1.conv.weight")

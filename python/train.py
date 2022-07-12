@@ -46,14 +46,14 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser(description=description)
   parser.add_argument('-traindir', help='Dir to write to for recording training results', required=True)
   parser.add_argument('-datadir', help='Directory with a train and val subdir of npz data', required=True)
-  parser.add_argument('-exportdir', help='Directory to export models periodically', required=True)
-  parser.add_argument('-exportprefix', help='Prefix to append to names of models', required=True)
+  parser.add_argument('-exportdir', help='Directory to export models periodically', required=False)
+  parser.add_argument('-exportprefix', help='Prefix to append to names of models', required=False)
   parser.add_argument('-initial-checkpoint', help='If no training checkpoint exists, initialize from this checkpoint', required=False)
 
   parser.add_argument('-pos-len', help='Spatial length of expected training data', type=int, required=True)
   parser.add_argument('-batch-size', help='Per-GPU batch size to use for training', type=int, required=True)
   parser.add_argument('-samples-per-epoch', help='Number of data samples to consider as one epoch', type=int, required=False)
-  parser.add_argument('-model-kind', help='String name for what model config to use', required=True)
+  parser.add_argument('-model-kind', help='String name for what model config to use', required=False)
   parser.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
   parser.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
   parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, required=True)
@@ -99,7 +99,7 @@ def make_dirs(args):
 
   if not os.path.exists(traindir):
     os.makedirs(traindir)
-  if not os.path.exists(exportdir):
+  if exportdir is not None and not os.path.exists(exportdir):
     os.makedirs(exportdir)
 
   longterm_checkpoints_dir = get_longterm_checkpoints_dir(traindir)
@@ -347,6 +347,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
     if path_to_load_from is None:
       logging.info("Initializing new model!")
+      assert model_kind is not None, "Model kind is none or unspecified but the model is being created fresh"
       model_config = modelconfigs.config_of_name[model_kind]
       logging.info(str(model_config))
       raw_model = Model(model_config,pos_len)
@@ -379,7 +380,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
     else:
       state_dict = torch.load(path_to_load_from, map_location=device)
-      model_config = state_dict["model_config"]
+      model_config = state_dict["config"] if "config" in state_dict else modelconfigs.config_of_name[model_kind]
       logging.info(str(model_config))
       raw_model = Model(model_config,pos_len)
       raw_model.initialize()
@@ -741,7 +742,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
   last_longterm_checkpoint_save_time = datetime.datetime.now()
   num_epochs_this_instance = 0
-  print_train_loss_every_batches = 100
+  print_train_loss_every_batches = 100 if not gnorm_stats_debug else 1000
 
   if "sums" not in running_metrics:
     running_metrics["sums"] = defaultdict(float)
@@ -881,7 +882,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
         if gnorm_stats_debug:
           stats = metrics_obj.get_specific_norms_and_gradient_stats(raw_model)
-          for stat, value in stats:
+          for stat, value in stats.items():
             metrics[stat] = value
 
         # Loosen gradient clipping as we shift to smaller learning rates
@@ -966,7 +967,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
           skip_export_this_time = True
           logging.info("Skipping export model this time")
 
-      if not no_export and is_time_to_export and not skip_export_this_time and not gnorm_stats_debug:
+      if not no_export and is_time_to_export and not skip_export_this_time and exportdir is not None and not gnorm_stats_debug:
         # Export a model for testing, unless somehow it already exists
         modelname = "%s-s%d-d%d" % (
           exportprefix,
