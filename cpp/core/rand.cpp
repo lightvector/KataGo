@@ -322,7 +322,7 @@ size_t Rand::nextIndexCumulative(const double* cumRelProbs, size_t n)
 {
   assert(n > 0);
   assert(n < 0xFFFFFFFF);
-  double_t sum = cumRelProbs[n-1];
+  double sum = cumRelProbs[n-1];
   double d = nextDouble(sum);
   size_t r = BSearch::findFirstGt(cumRelProbs,d,0,n);
   if(r == n)
