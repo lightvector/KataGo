@@ -117,6 +117,7 @@ int MainCmds::genbook(const vector<string>& args) {
   string htmlDir;
   string bookFile;
   string traceBookFile;
+  string traceSgfFile;
   string logFile;
   string bonusFile;
   int numIterations;
@@ -134,6 +135,7 @@ int MainCmds::genbook(const vector<string>& args) {
     TCLAP::ValueArg<string> htmlDirArg("","html-dir","HTML directory to export to, at the end of -num-iters",false,string(),"DIR");
     TCLAP::ValueArg<string> bookFileArg("","book-file","Book file to write to or continue expanding",true,string(),"FILE");
     TCLAP::ValueArg<string> traceBookFileArg("","trace-book-file","Other book file we should copy all the lines from",false,string(),"FILE");
+    TCLAP::ValueArg<string> traceSgfFileArg("","trace-sgf-file","Other sgf file we should copy all the lines from",false,string(),"FILE");
     TCLAP::ValueArg<string> logFileArg("","log-file","Log file to write to",true,string(),"DIR");
     TCLAP::ValueArg<string> bonusFileArg("","bonus-file","SGF of bonuses marked",false,string(),"DIR");
     TCLAP::ValueArg<int> numIterationsArg("","num-iters","Number of iterations to expand book",true,0,"N");
@@ -145,6 +147,7 @@ int MainCmds::genbook(const vector<string>& args) {
     cmd.add(htmlDirArg);
     cmd.add(bookFileArg);
     cmd.add(traceBookFileArg);
+    cmd.add(traceSgfFileArg);
     cmd.add(logFileArg);
     cmd.add(bonusFileArg);
     cmd.add(numIterationsArg);
@@ -161,6 +164,7 @@ int MainCmds::genbook(const vector<string>& args) {
     htmlDir = htmlDirArg.getValue();
     bookFile = bookFileArg.getValue();
     traceBookFile = traceBookFileArg.getValue();
+    traceSgfFile = traceSgfFileArg.getValue();
     logFile = logFileArg.getValue();
     bonusFile = bonusFileArg.getValue();
     numIterations = numIterationsArg.getValue();
@@ -472,6 +476,9 @@ int MainCmds::genbook(const vector<string>& args) {
     out << cfg.getContents() << endl;
     out.close();
   }
+
+  if(traceBookFile.size() > 0 && traceSgfFile.size() > 0)
+    throw StringError("Cannot trace book and sgf at the same time");
 
   Book* traceBook = NULL;
   if(traceBookFile.size() > 0) {
@@ -1159,9 +1166,10 @@ int MainCmds::genbook(const vector<string>& args) {
 
   };
 
-  if(traceBook != NULL) {
+  if(traceBook != NULL || traceSgfFile.size() > 0) {
     std::set<BookHash> nodesHashesToUpdate;
-    {
+
+    if(traceBook != NULL) {
       ThreadSafeQueue<SymBookNode> positionsToTrace;
       std::vector<SymBookNode> allNodes = traceBook->getAllLeaves(traceBookMinVisits);
       std::atomic<int64_t> variationsAdded(0);
@@ -1204,6 +1212,31 @@ int MainCmds::genbook(const vector<string>& args) {
         Global::int64ToString(currentVariationsAdded) + "/" + Global::uint64ToString(allNodes.size())
       );
     }
+    else {
+      assert(traceSgfFile.size() > 0);
+      Sgf* sgf = Sgf::loadFile(traceSgfFile);
+      std::set<Hash128> uniqueHashes;
+      bool hashComments = true;
+      bool hashParent = true;
+      bool flipIfPassOrWFirst = false;
+      Rand seedRand("bonusByHash");
+      int64_t variationsAdded = 0;
+      sgf->iterAllUniquePositions(
+        uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
+          (void)unusedSample;
+          (void)comments;
+          int gameThreadIdx = 0;
+          addVariationToBookWithoutUpdate(gameThreadIdx, sgfHist, nodesHashesToUpdate);
+          variationsAdded += 1;
+        }
+      );
+      logger.write(
+        "Tracing sgf, variationsAdded " +
+        Global::int64ToString(variationsAdded)
+      );
+      delete sgf;
+    }
+
     {
       ThreadSafeQueue<BookHash> hashesToUpdate;
       std::atomic<int64_t> hashesUpdated(0);
@@ -1314,7 +1347,7 @@ int MainCmds::genbook(const vector<string>& args) {
     }
   }
 
-  if(traceBook != NULL || numIterations > 0) {
+  if(traceBook != NULL || traceSgfFile.size() > 0 || numIterations > 0) {
     logger.write("SAVING TO FILE " + bookFile);
     book->saveToFile(bookFile);
     ofstream out;
