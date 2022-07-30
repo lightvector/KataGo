@@ -48,7 +48,9 @@ KataGo's engine also aims to be a useful tool for Go players and developers, and
 
 ## Training History and Research
 
-For more details about KataGo's older training runs, including comparisons to other bots, see [Training History and Research](TrainingHistory.md)! Also if you're looking to ask about general information about KataGo or how it works, or about some past Go bots besides KataGo, consider the computer Go [discord channel](https://discord.gg/bqkZAz3).
+For more details about KataGo's older training runs, including comparisons to other bots, see [Training History and Research](TrainingHistory.md)!
+
+Also if you're looking to ask about general information about KataGo or how it works, or about some past Go bots besides KataGo, consider the computer Go [discord channel](https://discord.gg/bqkZAz3).
 
 ## Where To Download Stuff
 Precompiled executables for KataGo can be found at the [releases page](https://github.com/lightvector/KataGo/releases) for Windows and Linux.
