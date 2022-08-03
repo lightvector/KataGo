@@ -265,11 +265,14 @@ class Metrics:
         dtype = torch.float32
 
         modelnorm_normal = torch.zeros([],device=device,dtype=dtype)
+        modelnorm_normal_gamma = torch.zeros([],device=device,dtype=dtype)
         modelnorm_output = torch.zeros([],device=device,dtype=dtype)
         modelnorm_noreg = torch.zeros([],device=device,dtype=dtype)
         modelnorm_output_noreg = torch.zeros([],device=device,dtype=dtype)
         for tensor in reg_dict["normal"]:
             modelnorm_normal += torch.sum(tensor * tensor)
+        for tensor in reg_dict["normal_gamma"]:
+            modelnorm_normal_gamma += torch.sum(tensor * tensor)
         for tensor in reg_dict["output"]:
             modelnorm_output += torch.sum(tensor * tensor)
         for tensor in reg_dict["noreg"]:
@@ -277,10 +280,11 @@ class Metrics:
         for tensor in reg_dict["output_noreg"]:
             modelnorm_output_noreg += torch.sum(tensor * tensor)
         modelnorm_normal *= 0.5
+        modelnorm_normal_gamma *= 0.5
         modelnorm_output *= 0.5
         modelnorm_noreg *= 0.5
         modelnorm_output_noreg *= 0.5
-        return (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg)
+        return (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg)
 
     def get_specific_norms_and_gradient_stats(self,raw_model):
         with torch.no_grad():
@@ -340,6 +344,11 @@ class Metrics:
             add_norm_and_grad_stats("blocks.16.blockstack.1.normactconv2.norm.gamma")
             add_norm_and_grad_stats("blocks.16.normactconvq.conv.weight")
             add_norm_and_grad_stats("blocks.16.normactconvq.norm.gamma")
+
+            add_norm_and_grad_stats("policy_head.conv1p.weight")
+            add_norm_and_grad_stats("value_head.conv1.weight")
+            add_norm_and_grad_stats("intermediate_policy_head.conv1p.weight")
+            add_norm_and_grad_stats("intermediate_value_head.conv1.weight")
 
         return stats
 
@@ -695,7 +704,7 @@ class Metrics:
                 global_weight,
             )
 
-            (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = self.get_model_norms(raw_model)
+            (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = self.get_model_norms(raw_model)
 
             extra_results = {
                 "wsum": weight * self.world_size,
@@ -704,6 +713,7 @@ class Metrics:
                 "ptsoftentr_sum": soft_policy_target_entropy,
                 "sekiweightscale_sum": seki_weight_scale * weight,
                 "norm_normal_batch": modelnorm_normal,
+                "norm_normal_gamma_batch": modelnorm_normal_gamma,
                 "norm_output_batch": modelnorm_output,
                 "norm_noreg_batch": modelnorm_noreg,
                 "norm_output_noreg_batch": modelnorm_output_noreg,

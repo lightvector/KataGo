@@ -161,7 +161,7 @@ def build_history_matrices(model_config: modelconfigs.ModelConfig, device):
     )
     # Because we have ladder features that express past states rather than past diffs,
     # the most natural encoding when we have no history is that they were always the
-    # same, rather than that they were all zero. So rather than zeroingthem we have no
+    # same, rather than that they were all zero. So rather than zeroing them we have no
     # history, we add entries in the matrix to copy them over.
     # By default, without history, the ladder features 15 and 16 just copy over from 14.
     h_base[14, 15] = 1.0

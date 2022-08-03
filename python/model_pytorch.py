@@ -190,11 +190,11 @@ class NormMask(torch.nn.Module):
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         if self.is_last_batchnorm:
             if self.gamma is not None:
-                reg_dict["normal"].append(self.gamma)
+                reg_dict["output"].append(self.gamma)
             reg_dict["output_noreg"].append(self.beta)
         else:
             if self.gamma is not None:
-                reg_dict["output"].append(self.gamma)
+                reg_dict["normal_gamma"].append(self.gamma)
             reg_dict["noreg"].append(self.beta)
 
     def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
@@ -1480,6 +1480,7 @@ class Model(torch.nn.Module):
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         reg_dict["normal"] = []
+        reg_dict["normal_gamma"] = []
         reg_dict["output"] = []
         reg_dict["noreg"] = []
         reg_dict["output_noreg"] = []

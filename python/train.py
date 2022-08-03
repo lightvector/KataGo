@@ -71,6 +71,7 @@ if __name__ == "__main__":
   parser.add_argument('-max-train-steps-since-last-reload', help='Approx total of training allowed if shuffling stops', type=float, required=False)
   parser.add_argument('-max-val-samples', help='Approx max of validation samples per epoch', type=int, required=False)
   parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
+  parser.add_argument('-no-repeat-files', help='Track what shuffled data was used and do not repeat, even when killed and resumed', required=False, action='store_true')
 
   parser.add_argument('-gnorm-stats-debug', required=False, action='store_true')
 
@@ -144,6 +145,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
   max_train_steps_since_last_reload = args["max_train_steps_since_last_reload"]
   max_val_samples = args["max_val_samples"]
   no_export = args["no_export"]
+  no_repeat_files = args["no_repeat_files"]
 
   gnorm_stats_debug = args["gnorm_stats_debug"]
 
@@ -252,9 +254,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
   def get_weight_decay(raw_model, lr_scale, warmup_scale, train_state, running_metrics, group_name):
     if raw_model.get_norm_kind() == "fixup" or raw_model.get_norm_kind() == "fixscale":
-      if group_name == "normal":
-        return 0.000001 * world_size * batch_size / 256.0
-      elif group_name == "output":
+      if group_name == "normal" or group_name == "normal_gamma" or group_name == "output":
         return 0.000001 * world_size * batch_size / 256.0
       elif group_name == "noreg":
         return 0.0
@@ -268,7 +268,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       raw_model.get_norm_kind() == "fixbrenorm" or
       raw_model.get_norm_kind() == "fixscaleonenorm"
     ):
-      if group_name == "normal":
+      if group_name == "normal" or group_name == "normal_gamma":
         adaptive_scale = 1.0
         if "sums" in running_metrics and "norm_normal_batch" in running_metrics["sums"]:
           norm_normal_batch = running_metrics["sums"]["norm_normal_batch"] / running_metrics["weights"]["norm_normal_batch"]
@@ -278,6 +278,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
           # throughout training, covering a range of 16x from bottom to top.
           adaptive_scale = math.pow(2.0, 2.0 * math.tanh(math.log(ratio+1e-30) * 1.5))
 
+        # Batch norm gammas can be regularized a bit less, doing them just as much empirically seemed to be a bit more unstable
+        gamma_scale = 0.125 if group_name == "normal_gamma" else 1.0
+
         # The theoretical scaling for keeping us confined to a surface of equal model norm should go proportionally with lr_scale.
         # because the strength of drift away from that surface goes as lr^2 and weight decay itself is scaled by lr, so we need
         # one more factor of lr to make weight decay strength equal drift strength.
@@ -286,7 +289,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         # than expected.
         # So we scale sublinearly with lr_scale so as to slightly preadjust to this effect.
         # Adaptive scale should then help keep us there thereafter.
-        return 0.00145 * world_size * batch_size / 256.0 * math.pow(lr_scale * warmup_scale,0.75) * adaptive_scale
+        return 0.00125 * world_size * batch_size / 256.0 * math.pow(lr_scale * warmup_scale,0.75) * adaptive_scale * gamma_scale
       elif group_name == "output":
         return 0.000001 * world_size * batch_size / 256.0
       elif group_name == "noreg":
@@ -307,6 +310,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal"),
       "group_name": "normal",
     })
+    if len(reg_dict["normal_gamma"]) > 0:
+      param_groups.append({
+        "params": reg_dict["normal_gamma"],
+        "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal_gamma"),
+        "group_name": "normal_gamma",
+      })
     param_groups.append({
       "params": reg_dict["output"],
       "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output"),
@@ -323,7 +332,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       "group_name": "output_noreg",
     })
     num_params = len(list(raw_model.parameters()))
-    num_reg_dict_params = len(reg_dict["normal"]) + len(reg_dict["output"]) + len(reg_dict["noreg"]) + len(reg_dict["output_noreg"])
+    num_reg_dict_params = len(reg_dict["normal"]) + len(reg_dict["normal_gamma"]) + len(reg_dict["output"]) + len(reg_dict["noreg"]) + len(reg_dict["output_noreg"])
     assert num_params == num_reg_dict_params, "Reg dict does not have entries for all params in model"
     return param_groups
 
@@ -370,7 +379,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       train_state = {}
 
       with torch.no_grad():
-        (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = metrics_obj.get_model_norms(raw_model)
+        (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = metrics_obj.get_model_norms(raw_model)
         modelnorm_normal_baseline = modelnorm_normal.detach().cpu().item()
         train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
         logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
@@ -426,7 +435,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       else:
         logging.info("WARNING: Train state not found in state dict, using fresh train state")
         with torch.no_grad():
-          (modelnorm_normal, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = metrics_obj.get_model_norms(raw_model)
+          (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = metrics_obj.get_model_norms(raw_model)
           modelnorm_normal_baseline = modelnorm_normal.detach().cpu().item()
           train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
           logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
@@ -452,6 +461,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     train_state["export_cycle_counter"] = 0
   if "total_num_data_rows" not in train_state:
     train_state["total_num_data_rows"] = 0
+  if "old_train_data_dirs" not in train_state:
+    train_state["old_train_data_dirs"] = []
+  if "data_files_used" not in train_state:
+    train_state["data_files_used"] = set()
+
 
   if intermediate_distill_scale is not None or intermediate_loss_scale is not None:
     assert raw_model.get_has_intermediate_head(), "Model must have intermediate head to use intermediate distill or loss"
@@ -512,9 +526,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       assert False
 
     normal_weight_decay = 0.0
+
     for param_group in optimizer.param_groups:
       group_name = param_group["group_name"]
       if group_name == "normal":
+        group_scale = 1.0
+      elif group_name == "normal_gamma":
         group_scale = 1.0
       elif group_name == "output":
         group_scale = 0.5
@@ -596,6 +613,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
           datainfo = json.load(f)
           train_state["total_num_data_rows"] = datainfo["range"][1]
 
+        # Fill the buckets
         if max_train_bucket_per_new_data is not None:
           if "train_bucket_level_at_row" not in train_state:
             train_state["train_bucket_level_at_row"] = train_state["total_num_data_rows"]
@@ -619,7 +637,31 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         # Load training data files
         tdatadir = os.path.join(curdatadir,"train")
         train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir) if fname.endswith(".npz")]
+
+        # Make sure we're not repeating stuff if we're not supposed to repeat stuff
+        if no_repeat_files:
+          old_len = len(train_files)
+          train_files = [path for path in train_files if path not in train_state["data_files_used"]]
+          new_len = len(train_files)
+          logging.info(f"Dropping {old_len-new_len}/{old_len} files in: {tdatadir} as already used")
         num_train_files = len(train_files)
+
+        if len(train_files) <= 0:
+          logging.info(f"No new training files found in: {tdatadir}, waiting 30s and trying again")
+          time.sleep(30)
+          continue
+
+        # Update history of what training data we used
+        if tdatadir not in train_state["old_train_data_dirs"]:
+          train_state["old_train_data_dirs"].append(tdatadir)
+        # Clear out tracking of sufficiently old files
+        while len(train_state["old_train_data_dirs"]) > 20:
+          old_dir = train_state["old_train_data_dirs"][0]
+          train_state["old_train_data_dirs"] = train_state["old_train_data_dirs"][1:]
+          for filename in list(train_state["data_files_used"]):
+            if filename.startswith(old_dir):
+              train_state["data_files_used"].remove(filename)
+
 
         # Filter down to a random subset that will comprise this epoch
         def train_files_gen():
@@ -628,6 +670,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             random.shuffle(train_files_shuffled)
             for filename in train_files_shuffled:
               logging.info("Yielding training file for dataset: " + filename)
+              train_state["data_files_used"].add(filename)
               yield filename
         trainfilegenerator = train_files_gen()
 
