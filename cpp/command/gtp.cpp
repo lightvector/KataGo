@@ -793,6 +793,8 @@ struct GTPEngine {
           out << " visits " << data.numVisits;
           out << " utility " << utility;
           out << " winrate " << winrate;
+          // We report lead for scoreMean here so that a bunch of legacy tools that use KataGo use lead instead, which
+          // is usually a better field for user applications. We report scoreMean instead as scoreSelfplay
           out << " scoreMean " << lead;
           out << " scoreStdev " << data.scoreStdev;
           out << " scoreLead " << lead;

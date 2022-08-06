@@ -1702,6 +1702,8 @@ bool Search::getAnalysisJson(
     moveInfo["visits"] = data.numVisits;
     moveInfo["utility"] = Global::roundDynamic(utility,OUTPUT_PRECISION);
     moveInfo["winrate"] = Global::roundDynamic(winrate,OUTPUT_PRECISION);
+    // We report lead for scoreMean here so that a bunch of legacy tools that use KataGo use lead instead, which
+    // is usually a better field for user applications. We report scoreMean instead as scoreSelfplay
     moveInfo["scoreMean"] = Global::roundDynamic(lead,OUTPUT_PRECISION);
     moveInfo["scoreSelfplay"] = Global::roundDynamic(scoreMean,OUTPUT_PRECISION);
     moveInfo["scoreLead"] = Global::roundDynamic(lead,OUTPUT_PRECISION);
