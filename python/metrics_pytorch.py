@@ -257,7 +257,8 @@ class Metrics:
         return torch.sum(global_weight * torch.square(torch.sum(torch.softmax(value_logits,dim=1) * constant_like([1,-1,0],global_weight), dim=1)))
 
     # Returns 0.5 times the sum of squared model weights, for each reg group of model weights
-    def get_model_norms(self,raw_model):
+    @staticmethod
+    def get_model_norms(raw_model):
         reg_dict : Dict[str,List] = {}
         raw_model.add_reg_dict(reg_dict)
 

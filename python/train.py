@@ -379,7 +379,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       train_state = {}
 
       with torch.no_grad():
-        (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = metrics_obj.get_model_norms(raw_model)
+        (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = Metrics.get_model_norms(raw_model)
         modelnorm_normal_baseline = modelnorm_normal.detach().cpu().item()
         train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
         logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
@@ -394,18 +394,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       raw_model = Model(model_config,pos_len)
       raw_model.initialize()
 
-      metrics_obj = Metrics(batch_size,world_size,raw_model)
-      if "metrics" in state_dict:
-        metrics_obj.load_state_dict(state_dict["metrics"])
-      else:
-        logging.info("WARNING: Metrics not found in state dict, using fresh metrics")
-
-      running_metrics = {}
-      if "running_metrics" in state_dict:
-        running_metrics = state_dict["running_metrics"]
-      else:
-        logging.info("WARNING: Running metrics not found in state dict, using fresh running metrics")
-
       train_state = {}
       if "train_state" in state_dict:
         train_state = state_dict["train_state"]
@@ -416,7 +404,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       if "modelnorm_normal_baseline" not in train_state:
         logging.info("Computing modelnorm_normal_baseline since not in train state")
         with torch.no_grad():
-          (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = metrics_obj.get_model_norms(raw_model)
+          (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = Metrics.get_model_norms(raw_model)
           modelnorm_normal_baseline = modelnorm_normal.detach().cpu().item()
           train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
           logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
@@ -443,6 +431,18 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         swa_model = AveragedModel(raw_model, avg_fn=ema_avg)
         if "swa_model" in state_dict:
           swa_model.load_state_dict(state_dict["swa_model"])
+
+      metrics_obj = Metrics(batch_size,world_size,raw_model)
+      if "metrics" in state_dict:
+        metrics_obj.load_state_dict(state_dict["metrics"])
+      else:
+        logging.info("WARNING: Metrics not found in state dict, using fresh metrics")
+
+      running_metrics = {}
+      if "running_metrics" in state_dict:
+        running_metrics = state_dict["running_metrics"]
+      else:
+        logging.info("WARNING: Running metrics not found in state dict, using fresh running metrics")
 
       optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
       if "optimizer" in state_dict:
