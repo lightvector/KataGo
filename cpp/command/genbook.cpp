@@ -1160,8 +1160,9 @@ int MainCmds::genbook(const vector<string>& args) {
       ostringstream debugOut;
       hist.printDebugInfo(debugOut,board);
       logger.write(debugOut.str());
-      logger.write("Marking node as done so we don't try to expand it again, but something is probably wrong.");
-      node.canExpand() = false;
+      logger.write("Possibly this was simply due to a multi-step expansion of another search getting there first, so logging this but proceeding as normal");
+      // logger.write("Marking node as done so we don't try to expand it again, but something is probably wrong.");
+      // node.canExpand() = false;
     }
 
   };
