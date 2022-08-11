@@ -281,6 +281,8 @@ class Book {
   double bonusPerSharpScoreDiscrepancy;
   // Bonus per policy mass that is not expanded at a node, encourage expanding most of the policy mass.
   double bonusPerExcessUnexpandedPolicy;
+  // Bonus per winloss by which the unexpanded node is better than any of the moves that have been explored.
+  double bonusPerUnexpandedBestWinLoss;
   // Bonus if a move is the PV in terms of winloss, if that winloss value is near 0, as a cost reduction factor.
   double bonusForWLPV1;
   // Bonus if a move is the PV in terms of winloss, if that winloss value is near -0.5 or +0.5, as a cost reduction factor.
@@ -303,6 +305,7 @@ class Book {
   double sharpScoreOutlierCap;
   std::map<BookHash,double> bonusByHash;
   std::map<BookHash,double> expandBonusByHash;
+  std::map<BookHash,double> visitsRequiredByHash;
 
   int initialSymmetry; // The symmetry that needs to be applied to initialBoard to align it with rootNode. (initialspace -> rootnodespace)
   BookNode* root;
@@ -329,6 +332,7 @@ class Book {
     double bonusPerScoreError,
     double bonusPerSharpScoreDiscrepancy,
     double bonusPerExcessUnexpandedPolicy,
+    double bonusPerUnexpandedBestWinLoss,
     double bonusForWLPV1,
     double bonusForWLPV2,
     double bonusForBiggestWLCost,
@@ -384,6 +388,8 @@ class Book {
   void setBonusPerSharpScoreDiscrepancy(double d);
   double getBonusPerExcessUnexpandedPolicy() const;
   void setBonusPerExcessUnexpandedPolicy(double d);
+  double getBonusPerUnexpandedBestWinLoss() const;
+  void setBonusPerUnexpandedBestWinLoss(double d);
   double getBonusForWLPV1() const;
   void setBonusForWLPV1(double d);
   double getBonusForWLPV2() const;
@@ -408,6 +414,8 @@ class Book {
   void setBonusByHash(const std::map<BookHash,double>& d);
   std::map<BookHash,double> getExpandBonusByHash() const;
   void setExpandBonusByHash(const std::map<BookHash,double>& d);
+  std::map<BookHash,double> getVisitsRequiredByHash() const;
+  void setVisitsRequiredByHash(const std::map<BookHash,double>& d);
 
   // Gets the root node, in the orientation of the initial board.
   SymBookNode getRoot();

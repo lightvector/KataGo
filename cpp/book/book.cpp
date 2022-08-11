@@ -713,6 +713,7 @@ Book::Book(
   double bpse,
   double bpssd,
   double bpeup,
+  double bpubwl,
   double bfwlpv1,
   double bfwlpv2,
   double bfbwlc,
@@ -743,6 +744,7 @@ Book::Book(
     bonusPerScoreError(bpse),
     bonusPerSharpScoreDiscrepancy(bpssd),
     bonusPerExcessUnexpandedPolicy(bpeup),
+    bonusPerUnexpandedBestWinLoss(bpubwl),
     bonusForWLPV1(bfwlpv1),
     bonusForWLPV2(bfwlpv2),
     bonusForBiggestWLCost(bfbwlc),
@@ -821,6 +823,8 @@ double Book::getBonusPerSharpScoreDiscrepancy() const { return bonusPerSharpScor
 void Book::setBonusPerSharpScoreDiscrepancy(double d) { bonusPerSharpScoreDiscrepancy = d; }
 double Book::getBonusPerExcessUnexpandedPolicy() const { return bonusPerExcessUnexpandedPolicy; }
 void Book::setBonusPerExcessUnexpandedPolicy(double d) { bonusPerExcessUnexpandedPolicy = d; }
+double Book::getBonusPerUnexpandedBestWinLoss() const { return bonusPerUnexpandedBestWinLoss; }
+void Book::setBonusPerUnexpandedBestWinLoss(double d) { bonusPerUnexpandedBestWinLoss = d; }
 double Book::getBonusForWLPV1() const { return bonusForWLPV1; }
 void Book::setBonusForWLPV1(double d) { bonusForWLPV1 = d; }
 double Book::getBonusForWLPV2() const { return bonusForWLPV2; }
@@ -845,6 +849,8 @@ std::map<BookHash,double> Book::getBonusByHash() const { return bonusByHash; }
 void Book::setBonusByHash(const std::map<BookHash,double>& d) { bonusByHash = d; }
 std::map<BookHash,double> Book::getExpandBonusByHash() const { return expandBonusByHash; }
 void Book::setExpandBonusByHash(const std::map<BookHash,double>& d) { expandBonusByHash = d; }
+std::map<BookHash,double> Book::getVisitsRequiredByHash() const { return visitsRequiredByHash; }
+void Book::setVisitsRequiredByHash(const std::map<BookHash,double>& d) { visitsRequiredByHash = d; }
 
 
 SymBookNode Book::getRoot() {
@@ -1384,6 +1390,13 @@ void Book::recomputeNodeCost(BookNode* node) {
     // cout << "Applying user bonus " << bonus << " cost is now " << node->minCostFromRoot << endl;
   }
 
+  if(contains(visitsRequiredByHash, node->hash)) {
+    double visitsRequired = visitsRequiredByHash[node->hash];
+    if(node->recursiveValues.visits < visitsRequired) {
+      node->minCostFromRoot -= 100.0;
+    }
+  }
+
   if(node->minCostFromRoot < node->minCostFromRootWLPV)
     node->minCostFromRootWLPV = node->minCostFromRoot;
 
@@ -1716,12 +1729,32 @@ void Book::recomputeNodeCost(BookNode* node) {
     double bonusCap1 = node->thisNodeExpansionCost * 0.75;
     if(bonus > bonusCap1)
       bonus = bonusCap1;
+
+    // Sharp score discrepancy is an uncapped bonus
     bonus += bonusPerSharpScoreDiscrepancy * std::max(0.0, sharpScoreDiscrepancy - 1.0);
     // cout << "This node expansion cost " << node->thisNodeExpansionCost
     //      << " errors " << winLossError << " " << scoreError << " " << sharpScoreDiscrepancy
     //      << " bonus " << bonus
     //      << " becomes " <<  (node->thisNodeExpansionCost - bonus) << endl;
     node->thisNodeExpansionCost -= bonus;
+
+    // bonusPerUnexpandedBestWinLoss is an uncapped bonus
+    {
+      double winLoss = (node->pla == P_WHITE) ? node->thisValuesNotInBook.winLossValue : -node->thisValuesNotInBook.winLossValue;
+      bool anyOtherWinLossFound = false;
+      double bestOtherWinLoss = 0.0;
+      for(auto& locAndBookMoveOther: node->moves) {
+        const BookNode* otherChild = get(locAndBookMoveOther.second.hash);
+        double winLossOther = (node->pla == P_WHITE) ? otherChild->recursiveValues.winLossValue : -otherChild->recursiveValues.winLossValue;
+        if(!anyOtherWinLossFound || winLossOther > bestOtherWinLoss) {
+          bestOtherWinLoss = winLossOther;
+          anyOtherWinLossFound = true;
+        }
+      }
+      if(anyOtherWinLossFound && winLoss > bestOtherWinLoss) {
+        node->thisNodeExpansionCost -= bonusPerUnexpandedBestWinLoss * (winLoss - bestOtherWinLoss);
+      }
+    }
 
     if(node->expansionIsWLPV) {
       double wlPVBonusScale = node->thisNodeExpansionCost;
@@ -1749,7 +1782,6 @@ void Book::recomputeNodeCost(BookNode* node) {
     double bonus = expandBonusByHash[node->hash];
     node->thisNodeExpansionCost -= bonus;
   }
-
 
   // cout << "Setting cost " << node->hash << " " << node->minCostFromRoot << " " << node->thisNodeExpansionCost << endl;
   // cout << "TOTAL THIS NODE COST " << node->minCostFromRoot + node->thisNodeExpansionCost << endl;
@@ -2117,6 +2149,7 @@ void Book::saveToFile(const string& fileName) const {
     params["bonusPerScoreError"] = bonusPerScoreError;
     params["bonusPerSharpScoreDiscrepancy"] = bonusPerSharpScoreDiscrepancy;
     params["bonusPerExcessUnexpandedPolicy"] = bonusPerExcessUnexpandedPolicy;
+    params["bonusPerUnexpandedBestWinLoss"] = bonusPerUnexpandedBestWinLoss;
     params["bonusForWLPV1"] = bonusForWLPV1;
     params["bonusForWLPV2"] = bonusForWLPV2;
     params["bonusForBiggestWLCost"] = bonusForBiggestWLCost;
@@ -2270,6 +2303,7 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
       double bonusPerScoreError = params.contains("bonusPerScoreError") ? params["bonusPerScoreError"].get<double>() : 0.0;
       double bonusPerSharpScoreDiscrepancy = params.contains("bonusPerSharpScoreDiscrepancy") ? params["bonusPerSharpScoreDiscrepancy"].get<double>() : 0.0;
       double bonusPerExcessUnexpandedPolicy = params.contains("bonusPerExcessUnexpandedPolicy") ? params["bonusPerExcessUnexpandedPolicy"].get<double>() : 0.0;
+      double bonusPerUnexpandedBestWinLoss = params.contains("bonusPerUnexpandedBestWinLoss") ? params["bonusPerUnexpandedBestWinLoss"].get<double>() : 0.0;
       double bonusForWLPV1 = params.contains("bonusForWLPV1") ? params["bonusForWLPV1"].get<double>() : 0.0;
       double bonusForWLPV2 = params.contains("bonusForWLPV2") ? params["bonusForWLPV2"].get<double>() : 0.0;
       double bonusForBiggestWLCost = params.contains("bonusForBiggestWLCost") ? params["bonusForBiggestWLCost"].get<double>() : 0.0;
@@ -2301,6 +2335,7 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
         bonusPerScoreError,
         bonusPerSharpScoreDiscrepancy,
         bonusPerExcessUnexpandedPolicy,
+        bonusPerUnexpandedBestWinLoss,
         bonusForWLPV1,
         bonusForWLPV2,
         bonusForBiggestWLCost,

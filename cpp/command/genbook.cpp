@@ -204,6 +204,7 @@ int MainCmds::genbook(const vector<string>& args) {
   const double bonusPerScoreError = cfg.getDouble("bonusPerScoreError",0.0,1000000.0);
   const double bonusPerSharpScoreDiscrepancy = cfg.getDouble("bonusPerSharpScoreDiscrepancy",0.0,1000000.0);
   const double bonusPerExcessUnexpandedPolicy = cfg.getDouble("bonusPerExcessUnexpandedPolicy",0.0,1000000.0);
+  const double bonusPerUnexpandedBestWinLoss = cfg.getDouble("bonusPerUnexpandedBestWinLoss",0.0,1000000.0);
   const double bonusForWLPV1 = cfg.contains("bonusForWLPV1") ? cfg.getDouble("bonusForWLPV1",0.0,1000000.0) : 0.0;
   const double bonusForWLPV2 = cfg.contains("bonusForWLPV2") ? cfg.getDouble("bonusForWLPV2",0.0,1000000.0) : 0.0;
   const double bonusForBiggestWLCost = cfg.contains("bonusForBiggestWLCost") ? cfg.getDouble("bonusForBiggestWLCost",0.0,1000000.0) : 0.0;
@@ -229,6 +230,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
   std::map<BookHash,double> bonusByHash;
   std::map<BookHash,double> expandBonusByHash;
+  std::map<BookHash,double> visitsRequiredByHash;
   Board bonusInitialBoard(boardSizeX,boardSizeY);
   Player bonusInitialPla = P_BLACK;
   if(bonusFile != "") {
@@ -243,7 +245,7 @@ int MainCmds::genbook(const vector<string>& args) {
       uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &seedRand,
       [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
         (void)unusedSample;
-        if(comments.size() > 0 && (comments.find("BONUS") != string::npos || comments.find("EXPAND") != string::npos)) {
+        if(comments.size() > 0 && (comments.find("BONUS") != string::npos || comments.find("EXPAND") != string::npos || comments.find("VISITS") != string::npos)) {
           BoardHistory hist(sgfHist.initialBoard, sgfHist.initialPla, rules, sgfHist.initialEncorePhase);
           Board board = hist.initialBoard;
           for(size_t i = 0; i<sgfHist.moveHistory.size(); i++) {
@@ -279,7 +281,7 @@ int MainCmds::genbook(const vector<string>& args) {
             try {
               vector<string> nextWords = Global::split(Global::trim(comments.substr(comments.find("EXPAND")+6)));
               if(nextWords.size() <= 0)
-                throw StringError("Could not parse bonus value");
+                throw StringError("Could not parse expand value");
               bonus = Global::stringToDouble(nextWords[0]);
             }
             catch(const StringError& e) {
@@ -290,6 +292,25 @@ int MainCmds::genbook(const vector<string>& args) {
               BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
               expandBonusByHash[hashRet] = bonus * bonusFileScale;
               logger.write("Adding expand bonus " + Global::doubleToString(bonus * bonusFileScale) + " to hash " + hashRet.toString());
+            }
+          }
+
+          if(comments.find("VISITS") != string::npos) {
+            double bonus;
+            try {
+              vector<string> nextWords = Global::split(Global::trim(comments.substr(comments.find("VISITS")+6)));
+              if(nextWords.size() <= 0)
+                throw StringError("Could not parse visits value");
+              bonus = Global::stringToDouble(nextWords[0]);
+            }
+            catch(const StringError& e) {
+              cerr << board << endl;
+              throw e;
+            }
+            for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
+              BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
+              visitsRequiredByHash[hashRet] = bonus * bonusFileScale;
+              logger.write("Adding required visits " + Global::doubleToString(bonus * bonusFileScale) + " to hash " + hashRet.toString());
             }
           }
         }
@@ -387,6 +408,7 @@ int MainCmds::genbook(const vector<string>& args) {
         bonusPerScoreError != book->getBonusPerScoreError() ||
         bonusPerSharpScoreDiscrepancy != book->getBonusPerSharpScoreDiscrepancy() ||
         bonusPerExcessUnexpandedPolicy != book->getBonusPerExcessUnexpandedPolicy() ||
+        bonusPerUnexpandedBestWinLoss != book->getBonusPerUnexpandedBestWinLoss() ||
         bonusForWLPV1 != book->getBonusForWLPV1() ||
         bonusForWLPV2 != book->getBonusForWLPV2() ||
         bonusForBiggestWLCost != book->getBonusForBiggestWLCost() ||
@@ -416,6 +438,7 @@ int MainCmds::genbook(const vector<string>& args) {
       if(bonusPerScoreError != book->getBonusPerScoreError()) { logger.write("Changing bonusPerScoreError from " + Global::doubleToString(book->getBonusPerScoreError()) + " to " + Global::doubleToString(bonusPerScoreError)); book->setBonusPerScoreError(bonusPerScoreError); }
       if(bonusPerSharpScoreDiscrepancy != book->getBonusPerSharpScoreDiscrepancy()) { logger.write("Changing bonusPerSharpScoreDiscrepancy from " + Global::doubleToString(book->getBonusPerSharpScoreDiscrepancy()) + " to " + Global::doubleToString(bonusPerSharpScoreDiscrepancy)); book->setBonusPerSharpScoreDiscrepancy(bonusPerSharpScoreDiscrepancy); }
       if(bonusPerExcessUnexpandedPolicy != book->getBonusPerExcessUnexpandedPolicy()) { logger.write("Changing bonusPerExcessUnexpandedPolicy from " + Global::doubleToString(book->getBonusPerExcessUnexpandedPolicy()) + " to " + Global::doubleToString(bonusPerExcessUnexpandedPolicy)); book->setBonusPerExcessUnexpandedPolicy(bonusPerExcessUnexpandedPolicy); }
+      if(bonusPerUnexpandedBestWinLoss != book->getBonusPerUnexpandedBestWinLoss()) { logger.write("Changing bonusPerUnexpandedBestWinLoss from " + Global::doubleToString(book->getBonusPerUnexpandedBestWinLoss()) + " to " + Global::doubleToString(bonusPerUnexpandedBestWinLoss)); book->setBonusPerUnexpandedBestWinLoss(bonusPerUnexpandedBestWinLoss); }
       if(bonusForWLPV1 != book->getBonusForWLPV1()) { logger.write("Changing bonusForWLPV1 from " + Global::doubleToString(book->getBonusForWLPV1()) + " to " + Global::doubleToString(bonusForWLPV1)); book->setBonusForWLPV1(bonusForWLPV1); }
       if(bonusForWLPV2 != book->getBonusForWLPV2()) { logger.write("Changing bonusForWLPV2 from " + Global::doubleToString(book->getBonusForWLPV2()) + " to " + Global::doubleToString(bonusForWLPV2)); book->setBonusForWLPV2(bonusForWLPV2); }
       if(bonusForBiggestWLCost != book->getBonusForBiggestWLCost()) { logger.write("Changing bonusForBiggestWLCost from " + Global::doubleToString(book->getBonusForBiggestWLCost()) + " to " + Global::doubleToString(bonusForBiggestWLCost)); book->setBonusForBiggestWLCost(bonusForBiggestWLCost); }
@@ -457,6 +480,7 @@ int MainCmds::genbook(const vector<string>& args) {
       bonusPerScoreError,
       bonusPerSharpScoreDiscrepancy,
       bonusPerExcessUnexpandedPolicy,
+      bonusPerUnexpandedBestWinLoss,
       bonusForWLPV1,
       bonusForWLPV2,
       bonusForBiggestWLCost,
@@ -492,6 +516,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
   book->setBonusByHash(bonusByHash);
   book->setExpandBonusByHash(expandBonusByHash);
+  book->setVisitsRequiredByHash(visitsRequiredByHash);
   book->recomputeEverything();
 
   if(!std::atomic_is_lock_free(&shouldStop))
