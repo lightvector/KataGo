@@ -724,6 +724,7 @@ Book::Book(
   double pbsus,
   double uppfs,
   double mvfre,
+  double vs,
   double ssoc
 ) : bookVersion(bversion),
     initialBoard(b),
@@ -755,6 +756,7 @@ Book::Book(
     policyBoostSoftUtilityScale(pbsus),
     utilityPerPolicyForSorting(uppfs),
     maxVisitsForReExpansion(mvfre),
+    visitsScale(vs),
     sharpScoreOutlierCap(ssoc),
     initialSymmetry(0),
     root(nullptr),
@@ -845,12 +847,16 @@ double Book::getUtilityPerPolicyForSorting() const { return utilityPerPolicyForS
 void Book::setUtilityPerPolicyForSorting(double d) { utilityPerPolicyForSorting = d; }
 double Book::getMaxVisitsForReExpansion() const { return maxVisitsForReExpansion; }
 void Book::setMaxVisitsForReExpansion(double d) { maxVisitsForReExpansion = d; }
+double Book::getVisitsScale() const { return visitsScale; }
+void Book::setVisitsScale(double d) { visitsScale = d; }
 std::map<BookHash,double> Book::getBonusByHash() const { return bonusByHash; }
 void Book::setBonusByHash(const std::map<BookHash,double>& d) { bonusByHash = d; }
 std::map<BookHash,double> Book::getExpandBonusByHash() const { return expandBonusByHash; }
 void Book::setExpandBonusByHash(const std::map<BookHash,double>& d) { expandBonusByHash = d; }
 std::map<BookHash,double> Book::getVisitsRequiredByHash() const { return visitsRequiredByHash; }
 void Book::setVisitsRequiredByHash(const std::map<BookHash,double>& d) { visitsRequiredByHash = d; }
+std::map<BookHash,int> Book::getBranchRequiredByHash() const { return branchRequiredByHash; }
+void Book::setBranchRequiredByHash(const std::map<BookHash,int>& d) { branchRequiredByHash = d; }
 
 
 SymBookNode Book::getRoot() {
@@ -1393,7 +1399,7 @@ void Book::recomputeNodeCost(BookNode* node) {
   if(contains(visitsRequiredByHash, node->hash)) {
     double visitsRequired = visitsRequiredByHash[node->hash];
     if(node->recursiveValues.visits < visitsRequired) {
-      node->minCostFromRoot -= 100.0;
+      node->minCostFromRoot -= 600.0;
     }
   }
 
@@ -1743,16 +1749,75 @@ void Book::recomputeNodeCost(BookNode* node) {
       double winLoss = (node->pla == P_WHITE) ? node->thisValuesNotInBook.winLossValue : -node->thisValuesNotInBook.winLossValue;
       bool anyOtherWinLossFound = false;
       double bestOtherWinLoss = 0.0;
+      double bestOtherVisits = 0.0;
+      double totalOtherVisits = 0.0;
       for(auto& locAndBookMoveOther: node->moves) {
         const BookNode* otherChild = get(locAndBookMoveOther.second.hash);
         double winLossOther = (node->pla == P_WHITE) ? otherChild->recursiveValues.winLossValue : -otherChild->recursiveValues.winLossValue;
         if(!anyOtherWinLossFound || winLossOther > bestOtherWinLoss) {
           bestOtherWinLoss = winLossOther;
+          bestOtherVisits = otherChild->recursiveValues.visits;
           anyOtherWinLossFound = true;
         }
+        totalOtherVisits += otherChild->recursiveValues.visits;
       }
       if(anyOtherWinLossFound && winLoss > bestOtherWinLoss) {
-        node->thisNodeExpansionCost -= bonusPerUnexpandedBestWinLoss * (winLoss - bestOtherWinLoss);
+        double visitsFactor = 0.5 * (
+          std::min(1.0, sqrt(bestOtherVisits / std::max(1.0, visitsScale))) +
+          std::min(1.0, sqrt(totalOtherVisits / std::max(1.0, visitsScale)))
+        );
+        node->thisNodeExpansionCost -= bonusPerUnexpandedBestWinLoss * (winLoss - bestOtherWinLoss) * visitsFactor;
+      }
+    }
+    if(node->moves.size() >= 2) {
+      // Also things eligible for reexpansion should get a bonus if they are way better than other stuff that has a lot of visits.
+      // But it counts 0.5 times as much.
+      const BookNode* bestChild = NULL;
+      double bestWinLoss = 0.0;
+      for(auto& locAndBookMove: node->moves) {
+        const BookNode* child = get(locAndBookMove.second.hash);
+        double winLossChild = (node->pla == P_WHITE) ? child->recursiveValues.winLossValue : -child->recursiveValues.winLossValue;
+        if(bestChild == NULL || winLossChild > bestWinLoss) {
+          bestChild = child;
+          bestWinLoss = winLossChild;
+        }
+      }
+
+      if(bestChild != NULL && bestChild->recursiveValues.visits <= maxVisitsForReExpansion) {
+        bool anyOtherWinLossFound = false;
+        double bestOtherWinLoss = 0.0;
+        double bestOtherVisits = 0.0;
+        double totalOtherVisits = 0.0;
+        for(auto& locAndBookMoveOther: node->moves) {
+          const BookNode* otherChild = get(locAndBookMoveOther.second.hash);
+          if(otherChild != bestChild) {
+            double winLossOther = (node->pla == P_WHITE) ? otherChild->recursiveValues.winLossValue : -otherChild->recursiveValues.winLossValue;
+            if(!anyOtherWinLossFound || winLossOther > bestOtherWinLoss) {
+              bestOtherWinLoss = winLossOther;
+              bestOtherVisits = otherChild->recursiveValues.visits;
+              anyOtherWinLossFound = true;
+            }
+            totalOtherVisits += otherChild->recursiveValues.visits;
+          }
+        }
+
+        // The best child has fewer visits than the second best
+        if(anyOtherWinLossFound && bestWinLoss > bestOtherWinLoss && bestChild->recursiveValues.visits < bestOtherVisits) {
+          double visitsFactor = 0.5 * (
+            std::min(1.0, sqrt(bestOtherVisits / std::max(1.0, visitsScale))) +
+            std::min(1.0, sqrt(totalOtherVisits / std::max(1.0, visitsScale)))
+          );
+          // Subtract off for what was actually explored
+          visitsFactor -= std::min(1.0, sqrt(bestChild->recursiveValues.visits / std::max(1.0, visitsScale)));
+
+          for(auto& locAndBookMove: node->moves) {
+            const BookNode* child = get(locAndBookMove.second.hash);
+            if(child == bestChild) {
+              locAndBookMove.second.costFromRoot -= 0.5 * bonusPerUnexpandedBestWinLoss * (bestWinLoss - bestOtherWinLoss) * visitsFactor;
+              break;
+            }
+          }
+        }
       }
     }
 
@@ -1781,6 +1846,12 @@ void Book::recomputeNodeCost(BookNode* node) {
   if(contains(expandBonusByHash, node->hash)) {
     double bonus = expandBonusByHash[node->hash];
     node->thisNodeExpansionCost -= bonus;
+  }
+  if(contains(branchRequiredByHash, node->hash)) {
+    int requiredBranch = branchRequiredByHash[node->hash];
+    if(node->moves.size() < requiredBranch) {
+      node->thisNodeExpansionCost -= 300.0;
+    }
   }
 
   // cout << "Setting cost " << node->hash << " " << node->minCostFromRoot << " " << node->thisNodeExpansionCost << endl;
@@ -2160,6 +2231,7 @@ void Book::saveToFile(const string& fileName) const {
     params["policyBoostSoftUtilityScale"] = policyBoostSoftUtilityScale;
     params["utilityPerPolicyForSorting"] = utilityPerPolicyForSorting;
     params["maxVisitsForReExpansion"] = maxVisitsForReExpansion;
+    params["visitsScale"] = visitsScale;
     params["initialSymmetry"] = initialSymmetry;
     out << params.dump() << endl;
   }
@@ -2314,6 +2386,7 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
       double policyBoostSoftUtilityScale = params["policyBoostSoftUtilityScale"].get<double>();
       double utilityPerPolicyForSorting = params["utilityPerPolicyForSorting"].get<double>();
       double maxVisitsForReExpansion = params.contains("maxVisitsForReExpansion") ? params["maxVisitsForReExpansion"].get<double>() : 0.0;
+      double visitsScale = params.contains("visitsScale") ? params["visitsScale"].get<double>() : 0.0;
 
       book = std::make_unique<Book>(
         bookVersion,
@@ -2346,6 +2419,7 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
         policyBoostSoftUtilityScale,
         utilityPerPolicyForSorting,
         maxVisitsForReExpansion,
+        visitsScale,
         sharpScoreOutlierCap
       );
 

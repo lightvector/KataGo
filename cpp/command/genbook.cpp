@@ -216,6 +216,7 @@ int MainCmds::genbook(const vector<string>& args) {
   const double policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);
   const double utilityPerPolicyForSorting = cfg.getDouble("utilityPerPolicyForSorting",0.0,1000000.0);
   const double maxVisitsForReExpansion = cfg.contains("maxVisitsForReExpansion") ? cfg.getDouble("maxVisitsForReExpansion",0.0,1e50) : 0.0;
+  const double visitsScale = cfg.contains("visitsScale") ? cfg.getDouble("visitsScale") : cfg.getDouble("maxVisitsForLeaves");
   const double sharpScoreOutlierCap = cfg.getDouble("sharpScoreOutlierCap",0.0,1000000.0);
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
   const string rulesLabel = cfg.getString("rulesLabel");
@@ -231,6 +232,7 @@ int MainCmds::genbook(const vector<string>& args) {
   std::map<BookHash,double> bonusByHash;
   std::map<BookHash,double> expandBonusByHash;
   std::map<BookHash,double> visitsRequiredByHash;
+  std::map<BookHash,int> branchRequiredByHash;
   Board bonusInitialBoard(boardSizeX,boardSizeY);
   Player bonusInitialPla = P_BLACK;
   if(bonusFile != "") {
@@ -245,7 +247,13 @@ int MainCmds::genbook(const vector<string>& args) {
       uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &seedRand,
       [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
         (void)unusedSample;
-        if(comments.size() > 0 && (comments.find("BONUS") != string::npos || comments.find("EXPAND") != string::npos || comments.find("VISITS") != string::npos)) {
+        if(comments.size() > 0 && (
+             comments.find("BONUS") != string::npos ||
+             comments.find("EXPAND") != string::npos ||
+             comments.find("VISITS") != string::npos ||
+             comments.find("BRANCH") != string::npos
+           )
+        ) {
           BoardHistory hist(sgfHist.initialBoard, sgfHist.initialPla, rules, sgfHist.initialEncorePhase);
           Board board = hist.initialBoard;
           for(size_t i = 0; i<sgfHist.moveHistory.size(); i++) {
@@ -253,66 +261,62 @@ int MainCmds::genbook(const vector<string>& args) {
             if(!suc)
               return;
           }
+
+          auto parseCommand = [&comments,&board](const char* commandName, double& ret) {
+            if(comments.find(commandName) != string::npos) {
+              double bonus;
+              try {
+                vector<string> nextWords = Global::split(Global::trim(comments.substr(comments.find(commandName)+std::strlen(commandName))));
+                if(nextWords.size() <= 0)
+                  throw StringError("Could not parse " + string(commandName) + " value");
+                bonus = Global::stringToDouble(nextWords[0]);
+              }
+              catch(const StringError& e) {
+                cerr << board << endl;
+                throw e;
+              }
+              ret = bonus;
+              return true;
+            }
+            return false;
+          };
+
+          double ret = 0.0;
           BookHash hashRet;
           int symmetryToAlignRet;
           vector<int> symmetriesRet;
-
-          if(comments.find("BONUS") != string::npos) {
-            double bonus;
-            try {
-              vector<string> nextWords = Global::split(Global::trim(comments.substr(comments.find("BONUS")+5)));
-              if(nextWords.size() <= 0)
-                throw StringError("Could not parse bonus value");
-              bonus = Global::stringToDouble(nextWords[0]);
-            }
-            catch(const StringError& e) {
-              cerr << board << endl;
-              throw e;
-            }
+          if(parseCommand("BONUS",ret)) {
             for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
               BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
-              bonusByHash[hashRet] = bonus * bonusFileScale;
-              logger.write("Adding bonus " + Global::doubleToString(bonus * bonusFileScale) + " to hash " + hashRet.toString());
+              bonusByHash[hashRet] = ret * bonusFileScale;
+              logger.write("Adding bonus " + Global::doubleToString(ret * bonusFileScale) + " to hash " + hashRet.toString());
             }
           }
 
-          if(comments.find("EXPAND") != string::npos) {
-            double bonus;
-            try {
-              vector<string> nextWords = Global::split(Global::trim(comments.substr(comments.find("EXPAND")+6)));
-              if(nextWords.size() <= 0)
-                throw StringError("Could not parse expand value");
-              bonus = Global::stringToDouble(nextWords[0]);
-            }
-            catch(const StringError& e) {
-              cerr << board << endl;
-              throw e;
-            }
+          if(parseCommand("EXPAND",ret)) {
             for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
               BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
-              expandBonusByHash[hashRet] = bonus * bonusFileScale;
-              logger.write("Adding expand bonus " + Global::doubleToString(bonus * bonusFileScale) + " to hash " + hashRet.toString());
+              expandBonusByHash[hashRet] = ret * bonusFileScale;
+              logger.write("Adding expand bonus " + Global::doubleToString(ret * bonusFileScale) + " to hash " + hashRet.toString());
             }
           }
 
-          if(comments.find("VISITS") != string::npos) {
-            double bonus;
-            try {
-              vector<string> nextWords = Global::split(Global::trim(comments.substr(comments.find("VISITS")+6)));
-              if(nextWords.size() <= 0)
-                throw StringError("Could not parse visits value");
-              bonus = Global::stringToDouble(nextWords[0]);
-            }
-            catch(const StringError& e) {
-              cerr << board << endl;
-              throw e;
-            }
+          if(parseCommand("VISITS",ret)) {
             for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
               BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
-              visitsRequiredByHash[hashRet] = bonus * bonusFileScale;
-              logger.write("Adding required visits " + Global::doubleToString(bonus * bonusFileScale) + " to hash " + hashRet.toString());
+              visitsRequiredByHash[hashRet] = ret * bonusFileScale;
+              logger.write("Adding required visits " + Global::doubleToString(ret * bonusFileScale) + " to hash " + hashRet.toString());
             }
           }
+
+          if(parseCommand("BRANCH",ret)) {
+            for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
+              BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
+              branchRequiredByHash[hashRet] = (int)ret;
+              logger.write("Adding required branching factor " + Global::intToString((int)ret) + " to hash " + hashRet.toString());
+            }
+          }
+
         }
       }
     );
@@ -418,7 +422,8 @@ int MainCmds::genbook(const vector<string>& args) {
         utilityPerScore != book->getUtilityPerScore() ||
         policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale() ||
         utilityPerPolicyForSorting != book->getUtilityPerPolicyForSorting() ||
-        maxVisitsForReExpansion != book->getMaxVisitsForReExpansion()
+        maxVisitsForReExpansion != book->getMaxVisitsForReExpansion() ||
+        visitsScale != book->getVisitsScale()
       ) {
         throw StringError("Book parameters do not match");
       }
@@ -449,6 +454,7 @@ int MainCmds::genbook(const vector<string>& args) {
       if(policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale()) { logger.write("Changing policyBoostSoftUtilityScale from " + Global::doubleToString(book->getPolicyBoostSoftUtilityScale()) + " to " + Global::doubleToString(policyBoostSoftUtilityScale)); book->setPolicyBoostSoftUtilityScale(policyBoostSoftUtilityScale); }
       if(utilityPerPolicyForSorting != book->getUtilityPerPolicyForSorting()) { logger.write("Changing utilityPerPolicyForSorting from " + Global::doubleToString(book->getUtilityPerPolicyForSorting()) + " to " + Global::doubleToString(utilityPerPolicyForSorting)); book->setUtilityPerPolicyForSorting(utilityPerPolicyForSorting); }
       if(maxVisitsForReExpansion != book->getMaxVisitsForReExpansion()) { logger.write("Changing maxVisitsForReExpansion from " + Global::doubleToString(book->getMaxVisitsForReExpansion()) + " to " + Global::doubleToString(maxVisitsForReExpansion)); book->setMaxVisitsForReExpansion(maxVisitsForReExpansion); }
+      if(visitsScale != book->getVisitsScale()) { logger.write("Changing visitsScale from " + Global::doubleToString(book->getVisitsScale()) + " to " + Global::doubleToString(visitsScale)); book->setVisitsScale(visitsScale); }
 
     }
     logger.write("Loaded preexisting book with " + Global::uint64ToString(book->size()) + " nodes from " + bookFile);
@@ -491,6 +497,7 @@ int MainCmds::genbook(const vector<string>& args) {
       policyBoostSoftUtilityScale,
       utilityPerPolicyForSorting,
       maxVisitsForReExpansion,
+      visitsScale,
       sharpScoreOutlierCap
     );
     logger.write("Creating new book at " + bookFile);
@@ -517,6 +524,7 @@ int MainCmds::genbook(const vector<string>& args) {
   book->setBonusByHash(bonusByHash);
   book->setExpandBonusByHash(expandBonusByHash);
   book->setVisitsRequiredByHash(visitsRequiredByHash);
+  book->setBranchRequiredByHash(branchRequiredByHash);
   book->recomputeEverything();
 
   if(!std::atomic_is_lock_free(&shouldStop))

@@ -301,11 +301,14 @@ class Book {
   double utilityPerPolicyForSorting;
   // Allow re-expanding a node if it has <= this many visits
   double maxVisitsForReExpansion;
+  // How many visits such that below this many is considered not many? Used to scale some visit-based cost heuristics.
+  double visitsScale;
   // When rendering - cap sharp scores that differ by more than this many points from regular score.
   double sharpScoreOutlierCap;
   std::map<BookHash,double> bonusByHash;
   std::map<BookHash,double> expandBonusByHash;
   std::map<BookHash,double> visitsRequiredByHash;
+  std::map<BookHash,int> branchRequiredByHash;
 
   int initialSymmetry; // The symmetry that needs to be applied to initialBoard to align it with rootNode. (initialspace -> rootnodespace)
   BookNode* root;
@@ -343,6 +346,7 @@ class Book {
     double policyBoostSoftUtilityScale,
     double utilityPerPolicyForSorting,
     double maxVisitsForReExpansion,
+    double visitsScale,
     double sharpScoreOutlierCap
   );
   ~Book();
@@ -410,12 +414,17 @@ class Book {
   void setUtilityPerPolicyForSorting(double d);
   double getMaxVisitsForReExpansion() const;
   void setMaxVisitsForReExpansion(double d);
+  double getVisitsScale() const;
+  void setVisitsScale(double d);
+
   std::map<BookHash,double> getBonusByHash() const;
   void setBonusByHash(const std::map<BookHash,double>& d);
   std::map<BookHash,double> getExpandBonusByHash() const;
   void setExpandBonusByHash(const std::map<BookHash,double>& d);
   std::map<BookHash,double> getVisitsRequiredByHash() const;
   void setVisitsRequiredByHash(const std::map<BookHash,double>& d);
+  std::map<BookHash,int> getBranchRequiredByHash() const;
+  void setBranchRequiredByHash(const std::map<BookHash,int>& d);
 
   // Gets the root node, in the orientation of the initial board.
   SymBookNode getRoot();
