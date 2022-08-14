@@ -134,18 +134,29 @@ struct Sgf {
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;
 
+  //Same as iterAllUniquePositions, but without the uniqueness. Will re-traverse same positions if they
+  //occur multiple times in the SGF.
+  //f is allowed to mutate and consume sample.
+  void iterAllPositions(
+    bool flipIfPassOrWFirst,
+    bool allowGameOver,
+    Rand* rand,
+    std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
+  ) const;
+
   static std::set<Hash128> readExcludes(const std::vector<std::string>& files);
 
   private:
   void getMovesHelper(std::vector<Move>& moves, int xSize, int ySize) const;
 
 
-  void iterAllUniquePositionsHelper(
+  void iterAllPositionsHelper(
     Board& board, BoardHistory& hist, Player nextPla,
     const Rules& rules, int xSize, int ySize,
     PositionSample& sampleBuf,
     int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
+    bool requireUnique,
     bool hashComments,
     bool hashParent,
     bool flipIfPassOrWFirst,
@@ -155,11 +166,12 @@ struct Sgf {
     std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;
-  void samplePositionIfUniqueHelper(
+  void samplePositionHelper(
     Board& board, BoardHistory& hist, Player nextPla,
     PositionSample& sampleBuf,
     int initialTurnNumber,
     std::set<Hash128>& uniqueHashes,
+    bool requireUnique,
     bool hashComments,
     bool hashParent,
     bool flipIfPassOrWFirst,

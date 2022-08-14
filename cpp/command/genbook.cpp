@@ -237,15 +237,11 @@ int MainCmds::genbook(const vector<string>& args) {
   Player bonusInitialPla = P_BLACK;
   if(bonusFile != "") {
     Sgf* sgf = Sgf::loadFile(bonusFile);
-    std::set<Hash128> uniqueHashes;
-    bool hashComments = true;
-    bool hashParent = true;
     bool flipIfPassOrWFirst = false;
     bool allowGameOver = false;
     Rand seedRand("bonusByHash");
-    sgf->iterAllUniquePositions(
-      uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, &seedRand,
-      [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
+    sgf->iterAllPositions(
+      flipIfPassOrWFirst, allowGameOver, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
         (void)unusedSample;
         if(comments.size() > 0 && (
              comments.find("BONUS") != string::npos ||
@@ -288,7 +284,10 @@ int MainCmds::genbook(const vector<string>& args) {
           if(parseCommand("BONUS",ret)) {
             for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
               BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
-              bonusByHash[hashRet] = ret * bonusFileScale;
+              if(bonusByHash.find(hashRet) != bonusByHash.end())
+                bonusByHash[hashRet] = std::max(bonusByHash[hashRet], ret * bonusFileScale);
+              else
+                bonusByHash[hashRet] = ret * bonusFileScale;
               logger.write("Adding bonus " + Global::doubleToString(ret * bonusFileScale) + " to hash " + hashRet.toString());
             }
           }
@@ -296,7 +295,10 @@ int MainCmds::genbook(const vector<string>& args) {
           if(parseCommand("EXPAND",ret)) {
             for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
               BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
-              expandBonusByHash[hashRet] = ret * bonusFileScale;
+              if(expandBonusByHash.find(hashRet) != expandBonusByHash.end())
+                expandBonusByHash[hashRet] = std::max(expandBonusByHash[hashRet], ret * bonusFileScale);
+              else
+                expandBonusByHash[hashRet] = ret * bonusFileScale;
               logger.write("Adding expand bonus " + Global::doubleToString(ret * bonusFileScale) + " to hash " + hashRet.toString());
             }
           }
@@ -304,7 +306,10 @@ int MainCmds::genbook(const vector<string>& args) {
           if(parseCommand("VISITS",ret)) {
             for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
               BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
-              visitsRequiredByHash[hashRet] = ret * bonusFileScale;
+              if(visitsRequiredByHash.find(hashRet) != visitsRequiredByHash.end())
+                visitsRequiredByHash[hashRet] = std::max(visitsRequiredByHash[hashRet], ret * bonusFileScale);
+              else
+                visitsRequiredByHash[hashRet] = ret * bonusFileScale;
               logger.write("Adding required visits " + Global::doubleToString(ret * bonusFileScale) + " to hash " + hashRet.toString());
             }
           }
@@ -312,7 +317,10 @@ int MainCmds::genbook(const vector<string>& args) {
           if(parseCommand("BRANCH",ret)) {
             for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
               BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
-              branchRequiredByHash[hashRet] = (int)ret;
+              if(branchRequiredByHash.find(hashRet) != branchRequiredByHash.end())
+                branchRequiredByHash[hashRet] = std::max(branchRequiredByHash[hashRet], (int)ret);
+              else
+                branchRequiredByHash[hashRet] = (int)ret;
               logger.write("Adding required branching factor " + Global::intToString((int)ret) + " to hash " + hashRet.toString());
             }
           }
@@ -1249,14 +1257,12 @@ int MainCmds::genbook(const vector<string>& args) {
     else {
       assert(traceSgfFile.size() > 0);
       Sgf* sgf = Sgf::loadFile(traceSgfFile);
-      std::set<Hash128> uniqueHashes;
-      bool hashComments = true;
-      bool hashParent = true;
       bool flipIfPassOrWFirst = false;
+      bool allowGameOver = false;
       Rand seedRand("bonusByHash");
       int64_t variationsAdded = 0;
-      sgf->iterAllUniquePositions(
-        uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
+      sgf->iterAllPositions(
+        flipIfPassOrWFirst, allowGameOver, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
           (void)unusedSample;
           (void)comments;
           int gameThreadIdx = 0;
