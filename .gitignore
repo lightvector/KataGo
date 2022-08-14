@@ -75,3 +75,7 @@ tmpsgf/
 watchgame.txt
 models/
 python/startposesupload.txt
+
+# For Xcode
+xcode/
+
