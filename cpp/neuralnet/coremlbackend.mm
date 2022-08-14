@@ -5,5 +5,5 @@
 void getCoreMLBackendOutput(float* userInputBuffer, float* userInputGlobalBuffer, float* policyResults) {
     NSError *error = nil;
 
-    [[CoreMLBackend shared] getOutputWithBin_inputs: userInputBuffer global_inputs: userInputGlobalBuffer policy_output: policyResults error: &error];
+    [[CoreMLBackend shared] getOutputWithBinInputs: userInputBuffer globalInputs: userInputGlobalBuffer policyOutput: policyResults error: &error];
 }
