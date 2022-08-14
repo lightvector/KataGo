@@ -16,11 +16,11 @@ extension KataGob40c256Input {
         let max_length = 3
         let lengths = swa_model_bin_inputs.shape.map({length in min(length.intValue, max_length)})
 
-        for i in 0..<lengths[0] {
+        for i in 0..<lengths[2] {
             let ii = NSNumber(value: i)
             for j in 0..<lengths[1] {
                 let jj = NSNumber(value: j)
-                for k in 0..<lengths[2] {
+                for k in 0..<lengths[0] {
                     let kk = NSNumber(value: k)
                     print("bin_inputs[\(k)][\(j)][\(i)]=\(swa_model_bin_inputs[[kk, jj, ii]].floatValue)")
                 }
@@ -33,9 +33,9 @@ extension KataGob40c256Input {
     func printGlobalInputs() {
         let lengths = swa_model_global_inputs.shape.map({length in length.intValue})
 
-        for i in 0..<lengths[0] {
+        for i in 0..<lengths[1] {
             let ii = NSNumber(value: i)
-            for j in 0..<lengths[1] {
+            for j in 0..<lengths[0] {
                 let jj = NSNumber(value: j)
                 print("global_inputs[\(j)][\(i)]=\(swa_model_global_inputs[[jj, ii]].floatValue)")
             }
@@ -60,11 +60,11 @@ extension KataGob40c256Output {
 
         let lengths = swa_model_policy_output.shape.map({length in min(length.intValue, 3)})
 
-        for i in 0..<lengths[0] {
+        for i in 0..<lengths[2] {
             let ii = NSNumber(value: i)
             for j in 0..<lengths[1] {
                 let jj = NSNumber(value: j)
-                for k in 0..<lengths[2] {
+                for k in 0..<lengths[0] {
                     let kk = NSNumber(value: k)
                     print("policy_output[\(k)][\(j)][\(i)]=\(swa_model_policy_output[[kk, jj, ii]].floatValue)")
                 }
