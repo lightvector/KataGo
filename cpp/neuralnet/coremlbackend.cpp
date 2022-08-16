@@ -2426,19 +2426,19 @@ struct InputBuffers {
     ownershipResultsHalf = new half_t[(size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels];
 
     // swa_model_policy_output shape: [1, 362, 2]
-    coremlPolicyOutput = new float[(size_t)362 * 2];
+    coremlPolicyOutput = new float[(size_t)maxBatchSize * 1 * 362 * 2];
 
     // swa_model_value_output shape: [1, 3]
-    coremlValueOutput = new float[(size_t)3];
+    coremlValueOutput = new float[(size_t)maxBatchSize * 1 * 3];
 
     // swa_model_ownership_output shape: [1, 19, 19]
-    coremlOwnershipOutput = new float[(size_t)19 * 19];
+    coremlOwnershipOutput = new float[(size_t)maxBatchSize * 1 * 19 * 19];
 
     // swa_model_miscvalues_output shape: [1, 10]
-    coremlMiscValuesOutput = new float[(size_t)10];
+    coremlMiscValuesOutput = new float[(size_t)maxBatchSize * 1 * 10];
 
     // swa_model_moremiscvalues_output shape: [1, 8]
-    coremlMoreMiscValuesOutput = new float[(size_t)8];
+    coremlMoreMiscValuesOutput = new float[(size_t)maxBatchSize * 1 * 8];
   }
 
   ~InputBuffers() {
@@ -2750,25 +2750,37 @@ void NeuralNet::getOutput(
     }
   }
 
-  /// CoreML injection below
-  getCoreMLBackendOutput(inputBuffers->userInputBuffer, inputBuffers->userInputGlobalBuffer, inputBuffers->coremlPolicyOutput, inputBuffers->coremlValueOutput, inputBuffers->coremlOwnershipOutput, inputBuffers->coremlMiscValuesOutput, inputBuffers->coremlMoreMiscValuesOutput);
+  // Get CoreML backend output
+  for(int row = 0; row < batchSize; row++) {
+    float* rowSpatialInput = inputBuffers->userInputBuffer + (inputBuffers->singleInputElts * row);
+    float* rowGlobalInput = inputBuffers->userInputGlobalBuffer + (inputBuffers->singleInputGlobalElts * row);
+    float* policyOutputBuf = inputBuffers->coremlPolicyOutput + (row * ((inputBuffers->singlePolicyResultElts + 1) << 1));
+    int numValueChannels = gpuHandle->model->numValueChannels;
+    assert(numValueChannels == 3);
+    float* valueOutputBuf = inputBuffers->coremlValueOutput + (row * numValueChannels);
+    float* ownershipOutputBuf = inputBuffers->coremlOwnershipOutput + (row * nnXLen * nnYLen);
+    float* miscValuesOutputBuf = inputBuffers->coremlMiscValuesOutput + (row * 10);
+    float* moreMiscValuesOutputBuf = inputBuffers->coremlMoreMiscValuesOutput + (row * 8);
+
+    getCoreMLBackendOutput(rowSpatialInput, rowGlobalInput, policyOutputBuf, valueOutputBuf, ownershipOutputBuf, miscValuesOutputBuf, moreMiscValuesOutputBuf);
+  }
 
   // Replace results by CoreML model output
-  assert(batchSize == 1);
-
   for(int row = 0; row < batchSize; row++) {
     NNOutput* output = outputs[row];
     assert(output->nnXLen == nnXLen);
     assert(output->nnYLen == nnYLen);
 
-    float* policyOutputBuf = inputBuffers->coremlPolicyOutput + row * (inputBuffers->singlePolicyResultElts + 1);
+    int offset = row * ((inputBuffers->singlePolicyResultElts + 1) << 1);
+    assert(offset == (row * 362 * 2));
+    float* policyOutputBuf = inputBuffers->coremlPolicyOutput + offset;
 
     //Extract policy0_output
     for(int i = 0; i < (inputBuffers->singlePolicyResultElts + 1); i++) {
       policyOutputBuf[i] = policyOutputBuf[i << 1];
     }
 
-    const float* policySrcBuf = inputBuffers->coremlPolicyOutput + row * (inputBuffers->singlePolicyResultElts + 1);
+    const float* policySrcBuf = policyOutputBuf;
     float* policyProbs = output->policyProbs;
 
     printf("OpenCL policyProbs[0]: %e\n", output->policyProbs[0]);
@@ -2793,8 +2805,8 @@ void NeuralNet::getOutput(
     int numValueChannels = gpuHandle->model->numValueChannels;
     assert(numValueChannels == 3);
     output->whiteWinProb = inputBuffers->coremlValueOutput[row * numValueChannels];
-    output->whiteLossProb = inputBuffers->coremlValueOutput[row * numValueChannels + 1];
-    output->whiteNoResultProb = inputBuffers->coremlValueOutput[row * numValueChannels + 2];
+    output->whiteLossProb = inputBuffers->coremlValueOutput[(row * numValueChannels) + 1];
+    output->whiteNoResultProb = inputBuffers->coremlValueOutput[(row * numValueChannels) + 2];
 
     printf("CoreML whiteWinProb: %e\n", output->whiteWinProb);
     printf("CoreML whiteLossProb: %e\n", output->whiteLossProb);
@@ -2804,7 +2816,7 @@ void NeuralNet::getOutput(
       printf("OpenCL whiteOwnerMap[0]: %e\n", output->whiteOwnerMap[0]);
       printf("OpenCL whiteOwnerMap[1]: %e\n", output->whiteOwnerMap[1]);
       printf("OpenCL whiteOwnerMap[2]: %e\n", output->whiteOwnerMap[2]);
-      const float* ownershipSrcBuf = inputBuffers->coremlOwnershipOutput + row * nnXLen * nnYLen;
+      const float* ownershipSrcBuf = inputBuffers->coremlOwnershipOutput + (row * nnXLen * nnYLen);
       assert(gpuHandle->model->numOwnershipChannels == 1);
       SymmetryHelpers::copyOutputsWithSymmetry(ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
       printf("CoreML whiteOwnerMap[0]: %e\n", output->whiteOwnerMap[0]);
@@ -2819,40 +2831,35 @@ void NeuralNet::getOutput(
     printf("OpenCL shorttermWinlossError: %e\n", output->shorttermWinlossError);
     printf("OpenCL shorttermScoreError: %e\n", output->shorttermScoreError);
 
+    int numMiscValues = 10;
+    int numMoreMiscValues = 8;
+
     if(version >= 9) {
-      int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
-      assert(numScoreValueChannels == 6);
-      output->whiteScoreMean = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels];
-      output->whiteScoreMeanSq = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels + 1];
-      output->whiteLead = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels + 2];
-      output->varTimeLeft = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels + 3];
-      output->shorttermWinlossError = inputBuffers->coremlMoreMiscValuesOutput[row * numScoreValueChannels];
-      output->shorttermScoreError = inputBuffers->coremlMoreMiscValuesOutput[row * numScoreValueChannels + 1];
+      output->whiteScoreMean = inputBuffers->coremlMiscValuesOutput[row * numMiscValues];
+      output->whiteScoreMeanSq = inputBuffers->coremlMiscValuesOutput[(row * numMiscValues) + 1];
+      output->whiteLead = inputBuffers->coremlMiscValuesOutput[(row * numMiscValues) + 2];
+      output->varTimeLeft = inputBuffers->coremlMiscValuesOutput[(row * numMiscValues) + 3];
+      output->shorttermWinlossError = inputBuffers->coremlMoreMiscValuesOutput[row * numMoreMiscValues];
+      output->shorttermScoreError = inputBuffers->coremlMoreMiscValuesOutput[(row * numMoreMiscValues) + 1];
     }
     else if(version >= 8) {
-      int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
-      assert(numScoreValueChannels == 4);
-      output->whiteScoreMean = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels];
-      output->whiteScoreMeanSq = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels + 1];
-      output->whiteLead = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels + 2];
-      output->varTimeLeft = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels + 3];
+      output->whiteScoreMean = inputBuffers->coremlMiscValuesOutput[row * numMiscValues];
+      output->whiteScoreMeanSq = inputBuffers->coremlMiscValuesOutput[(row * numMiscValues) + 1];
+      output->whiteLead = inputBuffers->coremlMiscValuesOutput[(row * numMiscValues) + 2];
+      output->varTimeLeft = inputBuffers->coremlMiscValuesOutput[(row * numMiscValues) + 3];
       output->shorttermWinlossError = 0;
       output->shorttermScoreError = 0;
     }
     else if(version >= 4) {
-      int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
-      assert(numScoreValueChannels == 2);
-      output->whiteScoreMean = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels];
-      output->whiteScoreMeanSq = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels + 1];
+      output->whiteScoreMean = inputBuffers->coremlMiscValuesOutput[row * numMiscValues];
+      output->whiteScoreMeanSq = inputBuffers->coremlMiscValuesOutput[(row * numMiscValues) + 1];
       output->whiteLead = output->whiteScoreMean;
       output->varTimeLeft = 0;
       output->shorttermWinlossError = 0;
       output->shorttermScoreError = 0;
     }
     else if(version >= 3) {
-      int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
-      assert(numScoreValueChannels == 1);
-      output->whiteScoreMean = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels];
+      output->whiteScoreMean = inputBuffers->coremlMiscValuesOutput[row * numMiscValues];
       //Version 3 neural nets don't have any second moment output, implicitly already folding it in, so we just use the mean squared
       output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
       output->whiteLead = output->whiteScoreMean;
