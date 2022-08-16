@@ -2380,6 +2380,12 @@ struct InputBuffers {
   float* ownershipResults; //Host pointer
   half_t* ownershipResultsHalf; //Host pointer
 
+  float* coremlPolicyOutput;
+  float* coremlValueOutput;
+  float* coremlOwnershipOutput;
+  float* coremlMiscValuesOutput;
+  float* coremlMoreMiscValuesOutput;
+
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
 
@@ -2418,6 +2424,21 @@ struct InputBuffers {
     scoreValueResults = new float[(size_t)maxBatchSize * m.numScoreValueChannels];
     ownershipResults = new float[(size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels];
     ownershipResultsHalf = new half_t[(size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels];
+
+    // swa_model_policy_output shape: [1, 362, 2]
+    coremlPolicyOutput = new float[(size_t)362 * 2];
+
+    // swa_model_value_output shape: [1, 3]
+    coremlValueOutput = new float[(size_t)3];
+
+    // swa_model_ownership_output shape: [1, 19, 19]
+    coremlOwnershipOutput = new float[(size_t)19 * 19];
+
+    // swa_model_miscvalues_output shape: [1, 10]
+    coremlMiscValuesOutput = new float[(size_t)10];
+
+    // swa_model_moremiscvalues_output shape: [1, 8]
+    coremlMoreMiscValuesOutput = new float[(size_t)8];
   }
 
   ~InputBuffers() {
@@ -2455,7 +2476,6 @@ void NeuralNet::getOutput(
   NNResultBuf** inputBufs,
   vector<NNOutput*>& outputs
 ) {
-  getCoreMLBackendOutput(inputBuffers->userInputBuffer, inputBuffers->userInputGlobalBuffer, inputBuffers->policyResults);
   assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
   assert(numBatchEltsFilled > 0);
   int batchSize = numBatchEltsFilled;
@@ -2730,6 +2750,127 @@ void NeuralNet::getOutput(
     }
   }
 
+  /// CoreML injection below
+  getCoreMLBackendOutput(inputBuffers->userInputBuffer, inputBuffers->userInputGlobalBuffer, inputBuffers->coremlPolicyOutput, inputBuffers->coremlValueOutput, inputBuffers->coremlOwnershipOutput, inputBuffers->coremlMiscValuesOutput, inputBuffers->coremlMoreMiscValuesOutput);
+
+  // Replace results by CoreML model output
+  assert(batchSize == 1);
+
+  for(int row = 0; row < batchSize; row++) {
+    NNOutput* output = outputs[row];
+    assert(output->nnXLen == nnXLen);
+    assert(output->nnYLen == nnYLen);
+
+    float* policyOutputBuf = inputBuffers->coremlPolicyOutput + row * (inputBuffers->singlePolicyResultElts + 1);
+
+    //Extract policy0_output
+    for(int i = 0; i < (inputBuffers->singlePolicyResultElts + 1); i++) {
+      policyOutputBuf[i] = policyOutputBuf[i << 1];
+    }
+
+    const float* policySrcBuf = inputBuffers->coremlPolicyOutput + row * (inputBuffers->singlePolicyResultElts + 1);
+    float* policyProbs = output->policyProbs;
+
+    printf("OpenCL policyProbs[0]: %e\n", output->policyProbs[0]);
+    printf("OpenCL policyProbs[1]: %e\n", output->policyProbs[1]);
+    printf("OpenCL policyProbs[2]: %e\n", output->policyProbs[2]);
+    printf("OpenCL policyProbs[361]: %e\n", output->policyProbs[361]);
+
+    //These are not actually correct, the client does the postprocessing to turn them into
+    //policy probabilities and white game outcome probabilities
+    //Also we don't fill in the nnHash here either
+    SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+    policyProbs[inputBuffers->singlePolicyResultElts] = policySrcBuf[inputBuffers->singlePolicyResultElts];
+
+    printf("CoreML policyProbs[0]: %e\n", output->policyProbs[0]);
+    printf("CoreML policyProbs[1]: %e\n", output->policyProbs[1]);
+    printf("CoreML policyProbs[2]: %e\n", output->policyProbs[2]);
+    printf("CoreML policyProbs[361]: %e\n", output->policyProbs[361]);
+    printf("OpenCL whiteWinProb: %e\n", output->whiteWinProb);
+    printf("OpenCL whiteLossProb: %e\n", output->whiteLossProb);
+    printf("OpenCL whiteNoResultProb: %e\n", output->whiteNoResultProb);
+
+    int numValueChannels = gpuHandle->model->numValueChannels;
+    assert(numValueChannels == 3);
+    output->whiteWinProb = inputBuffers->coremlValueOutput[row * numValueChannels];
+    output->whiteLossProb = inputBuffers->coremlValueOutput[row * numValueChannels + 1];
+    output->whiteNoResultProb = inputBuffers->coremlValueOutput[row * numValueChannels + 2];
+
+    printf("CoreML whiteWinProb: %e\n", output->whiteWinProb);
+    printf("CoreML whiteLossProb: %e\n", output->whiteLossProb);
+    printf("CoreML whiteNoResultProb: %e\n", output->whiteNoResultProb);
+
+    if(output->whiteOwnerMap != NULL) {
+      printf("OpenCL whiteOwnerMap[0]: %e\n", output->whiteOwnerMap[0]);
+      printf("OpenCL whiteOwnerMap[1]: %e\n", output->whiteOwnerMap[1]);
+      printf("OpenCL whiteOwnerMap[2]: %e\n", output->whiteOwnerMap[2]);
+      const float* ownershipSrcBuf = inputBuffers->coremlOwnershipOutput + row * nnXLen * nnYLen;
+      assert(gpuHandle->model->numOwnershipChannels == 1);
+      SymmetryHelpers::copyOutputsWithSymmetry(ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+      printf("CoreML whiteOwnerMap[0]: %e\n", output->whiteOwnerMap[0]);
+      printf("CoreML whiteOwnerMap[1]: %e\n", output->whiteOwnerMap[1]);
+      printf("CoreML whiteOwnerMap[2]: %e\n", output->whiteOwnerMap[2]);
+    }
+
+    printf("OpenCL whiteScoreMean: %e\n", output->whiteScoreMean);
+    printf("OpenCL whiteScoreMeanSq: %e\n", output->whiteScoreMeanSq);
+    printf("OpenCL whiteLead: %e\n", output->whiteLead);
+    printf("OpenCL varTimeLeft: %e\n", output->varTimeLeft);
+    printf("OpenCL shorttermWinlossError: %e\n", output->shorttermWinlossError);
+    printf("OpenCL shorttermScoreError: %e\n", output->shorttermScoreError);
+
+    if(version >= 9) {
+      int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
+      assert(numScoreValueChannels == 6);
+      output->whiteScoreMean = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels];
+      output->whiteScoreMeanSq = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels + 1];
+      output->whiteLead = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels + 2];
+      output->varTimeLeft = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels + 3];
+      output->shorttermWinlossError = inputBuffers->coremlMoreMiscValuesOutput[row * numScoreValueChannels];
+      output->shorttermScoreError = inputBuffers->coremlMoreMiscValuesOutput[row * numScoreValueChannels + 1];
+    }
+    else if(version >= 8) {
+      int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
+      assert(numScoreValueChannels == 4);
+      output->whiteScoreMean = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels];
+      output->whiteScoreMeanSq = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels + 1];
+      output->whiteLead = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels + 2];
+      output->varTimeLeft = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels + 3];
+      output->shorttermWinlossError = 0;
+      output->shorttermScoreError = 0;
+    }
+    else if(version >= 4) {
+      int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
+      assert(numScoreValueChannels == 2);
+      output->whiteScoreMean = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels];
+      output->whiteScoreMeanSq = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels + 1];
+      output->whiteLead = output->whiteScoreMean;
+      output->varTimeLeft = 0;
+      output->shorttermWinlossError = 0;
+      output->shorttermScoreError = 0;
+    }
+    else if(version >= 3) {
+      int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
+      assert(numScoreValueChannels == 1);
+      output->whiteScoreMean = inputBuffers->coremlMiscValuesOutput[row * numScoreValueChannels];
+      //Version 3 neural nets don't have any second moment output, implicitly already folding it in, so we just use the mean squared
+      output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
+      output->whiteLead = output->whiteScoreMean;
+      output->varTimeLeft = 0;
+      output->shorttermWinlossError = 0;
+      output->shorttermScoreError = 0;
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+
+    printf("CoreML whiteScoreMean: %e\n", output->whiteScoreMean);
+    printf("CoreML whiteScoreMeanSq: %e\n", output->whiteScoreMeanSq);
+    printf("CoreML whiteLead: %e\n", output->whiteLead);
+    printf("CoreML varTimeLeft: %e\n", output->varTimeLeft);
+    printf("CoreML shorttermWinlossError: %e\n", output->shorttermWinlossError);
+    printf("CoreML shorttermScoreError: %e\n", output->shorttermScoreError);
+  }
 }
 
 

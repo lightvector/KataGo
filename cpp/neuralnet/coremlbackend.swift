@@ -11,87 +11,66 @@ extension UnsafeMutableRawPointer {
     }
 }
 
-extension KataGob40c256Input {
-    func printBinInputs() {
-        let max_length = 3
-        let lengths = swa_model_bin_inputs.shape.map({length in min(length.intValue, max_length)})
-
-        for i in 0..<lengths[2] {
-            let ii = NSNumber(value: i)
-            for j in 0..<lengths[1] {
-                let jj = NSNumber(value: j)
-                for k in 0..<lengths[0] {
-                    let kk = NSNumber(value: k)
-                    print("bin_inputs[\(k)][\(j)][\(i)]=\(swa_model_bin_inputs[[kk, jj, ii]].floatValue)")
-                }
-            }
-        }
-
-        print(swa_model_bin_inputs.strides)
-    }
-
-    func printGlobalInputs() {
-        let lengths = swa_model_global_inputs.shape.map({length in length.intValue})
-
-        for i in 0..<lengths[1] {
-            let ii = NSNumber(value: i)
-            for j in 0..<lengths[0] {
-                let jj = NSNumber(value: j)
-                print("global_inputs[\(j)][\(i)]=\(swa_model_global_inputs[[jj, ii]].floatValue)")
-            }
-        }
-
-        print(swa_model_global_inputs.strides)
-    }
-
-    func printData() {
-        printBinInputs()
-        printGlobalInputs()
-        print(swa_model_include_history)
-        print(swa_model_symmetries)
+extension MLMultiArray {
+    func copyFloat(to output: UnsafeMutableRawPointer) {
+        output.copyMemory(from: dataPointer, byteCount: count * MemoryLayout<Float>.size)
     }
 }
 
-extension KataGob40c256Output {
-    func printData() {
-        for i in 0..<swa_model_policy_output.shape.count {
-            print("policy_output shape[\(i)]=\(swa_model_policy_output.shape[i])")
-        }
+extension KataGoModelInput {
+    func printData(of featureName: String) {
+        let array = featureValue(for: featureName)!.multiArrayValue!
+        let maxPrintCount = 5
+        let printCount = min(array.count, maxPrintCount)
 
-        let lengths = swa_model_policy_output.shape.map({length in min(length.intValue, 3)})
+        print("\(featureName) shape: \(array.shape)")
 
-        for i in 0..<lengths[2] {
-            let ii = NSNumber(value: i)
-            for j in 0..<lengths[1] {
-                let jj = NSNumber(value: j)
-                for k in 0..<lengths[0] {
-                    let kk = NSNumber(value: k)
-                    print("policy_output[\(k)][\(j)][\(i)]=\(swa_model_policy_output[[kk, jj, ii]].floatValue)")
-                }
-            }
+        for i in 0..<printCount {
+            print("\(featureName)[\(i)] = \(array[i].floatValue)")
         }
     }
 
-    func copy(to output: UnsafeMutableRawPointer) {
-        let byteCount = swa_model_policy_output.count * MemoryLayout<Float32>.size
-        output.copyMemory(from: swa_model_policy_output.dataPointer, byteCount: byteCount)
+    func printData() {
+        for featureName in featureNames {
+            printData(of: featureName)
+        }
+    }
+}
+
+extension KataGoModelOutput {
+    func printData(of featureName: String) {
+        let array = featureValue(for: featureName)!.multiArrayValue!
+        let maxPrintCount = 5
+        let printCount = min(array.count, maxPrintCount)
+
+        print("\(featureName) shape: \(array.shape)")
+
+        for i in 0..<printCount {
+            print("\(featureName)[\(i)] = \(array[i].floatValue)")
+        }
+    }
+
+    func printData() {
+        for featureName in featureNames {
+            printData(of: featureName)
+        }
     }
 }
 
 @objc
 class CoreMLBackend: NSObject {
     @objc static let shared = CoreMLBackend()
-    let model: KataGob40c256
+    let model: KataGoModel
     let includeHistory: MLMultiArray
     let symmetries: MLMultiArray
 
     private override init() {
-        model = try! KataGob40c256()
+        model = try! KataGoModel()
         includeHistory = MLMultiArray(MLShapedArray<Float>(scalars: [1, 1, 1, 1, 1], shape: [1, 5]))
         symmetries = try! MLMultiArray([0, 0, 0])
     }
 
-    @objc func getOutput(binInputs: UnsafeMutableRawPointer, globalInputs: UnsafeMutableRawPointer, policyOutput: UnsafeMutableRawPointer) throws {
+    @objc func getOutput(binInputs: UnsafeMutableRawPointer, globalInputs: UnsafeMutableRawPointer, policyOutput: UnsafeMutableRawPointer, valueOutput: UnsafeMutableRawPointer, ownershipOutput: UnsafeMutableRawPointer, miscValuesOutput: UnsafeMutableRawPointer, moreMiscValuesOutput: UnsafeMutableRawPointer) throws {
 
         binInputs.printAsFloat()
         globalInputs.printAsFloat()
@@ -100,7 +79,7 @@ class CoreMLBackend: NSObject {
 
         let global_inputs_array = try MLMultiArray(dataPointer: globalInputs, shape: [1, 19], dataType: MLMultiArrayDataType.float32, strides: [1, 1])
 
-        let input = KataGob40c256Input(
+        let input = KataGoModelInput(
             swa_model_bin_inputs: bin_inputs_array,
             swa_model_global_inputs: global_inputs_array,
             swa_model_include_history: includeHistory,
@@ -108,9 +87,13 @@ class CoreMLBackend: NSObject {
 
         input.printData()
 
-        /* swa_model_policy_output as 1 x 362 x 2 3-dimensional array of floats */
         let output = try model.prediction(input: input)
         output.printData()
-        output.copy(to: policyOutput)
+
+        output.swa_model_policy_output.copyFloat(to: policyOutput)
+        output.swa_model_value_output.copyFloat(to: valueOutput)
+        output.swa_model_ownership_output.copyFloat(to: ownershipOutput)
+        output.swa_model_miscvalues_output.copyFloat(to: miscValuesOutput)
+        output.swa_model_moremiscvalues_output.copyFloat(to: moreMiscValuesOutput)
     }
 }
