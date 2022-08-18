@@ -71,10 +71,6 @@ class CoreMLBackend: NSObject {
     }
 
     @objc func getOutput(binInputs: UnsafeMutableRawPointer, globalInputs: UnsafeMutableRawPointer, policyOutput: UnsafeMutableRawPointer, valueOutput: UnsafeMutableRawPointer, ownershipOutput: UnsafeMutableRawPointer, miscValuesOutput: UnsafeMutableRawPointer, moreMiscValuesOutput: UnsafeMutableRawPointer) throws {
-
-        binInputs.printAsFloat()
-        globalInputs.printAsFloat()
-
         let bin_inputs_array = try MLMultiArray(dataPointer: binInputs, shape: [1, 361, 22], dataType: MLMultiArrayDataType.float32, strides: [1, 1, 361])
 
         let global_inputs_array = try MLMultiArray(dataPointer: globalInputs, shape: [1, 19], dataType: MLMultiArrayDataType.float32, strides: [1, 1])
@@ -85,11 +81,7 @@ class CoreMLBackend: NSObject {
             swa_model_include_history: includeHistory,
             swa_model_symmetries: symmetries)
 
-        input.printData()
-
         let output = try model.prediction(input: input)
-        output.printData()
-
         output.swa_model_policy_output.copyFloat(to: policyOutput)
         output.swa_model_value_output.copyFloat(to: valueOutput)
         output.swa_model_ownership_output.copyFloat(to: ownershipOutput)
