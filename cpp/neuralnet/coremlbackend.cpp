@@ -453,8 +453,11 @@ struct ComputeHandleInternal {
   vector<std::function<void()>> profileCallbacks;
   vector<std::function<void()>> profileResultPrinters;
 
+  int gpuIndex;
+
   ComputeHandleInternal(ComputeContext* ctx, int gpuIdx, bool inputsUseNHWC, bool useNHWC) {
     computeContext = ctx;
+    gpuIndex = gpuIdx;
 
     const InitializedDevice* device = computeContext->devicesContext->findGpuExn(gpuIdx);
     clContext = device->context;
@@ -2372,6 +2375,14 @@ struct InputBuffers {
   half_t* userInputBufferHalf; //Host pointer
   float* userInputGlobalBuffer; //Host pointer
 
+  float* policyPassResults; //Host pointer
+  float* policyResults; //Host pointer
+  half_t* policyResultsHalf; //Host pointer
+  float* valueResults; //Host pointer
+  float* scoreValueResults; //Host pointer
+  float* ownershipResults; //Host pointer
+  half_t* ownershipResultsHalf; //Host pointer
+
   float* coremlPolicyOutput;
   float* coremlValueOutput;
   float* coremlOwnershipOutput;
@@ -2408,6 +2419,15 @@ struct InputBuffers {
     userInputBufferHalf = new half_t[(size_t)m.numInputChannels * maxBatchSize * xSize * ySize];
     userInputGlobalBuffer = new float[(size_t)m.numInputGlobalChannels * maxBatchSize];
 
+    policyPassResults = new float[(size_t)maxBatchSize * 1];
+    policyResults = new float[(size_t)maxBatchSize * xSize * ySize];
+    policyResultsHalf = new half_t[(size_t)maxBatchSize * xSize * ySize];
+    valueResults = new float[(size_t)maxBatchSize * m.numValueChannels];
+
+    scoreValueResults = new float[(size_t)maxBatchSize * m.numScoreValueChannels];
+    ownershipResults = new float[(size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels];
+    ownershipResultsHalf = new half_t[(size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels];
+
     // swa_model_policy_output shape: [1, 362, 2]
     coremlPolicyOutput = new float[(size_t)maxBatchSize * 1 * 362 * 2];
 
@@ -2428,6 +2448,13 @@ struct InputBuffers {
     delete[] userInputBuffer;
     delete[] userInputBufferHalf;
     delete[] userInputGlobalBuffer;
+    delete[] policyPassResults;
+    delete[] policyResults;
+    delete[] policyResultsHalf;
+    delete[] valueResults;
+    delete[] scoreValueResults;
+    delete[] ownershipResults;
+    delete[] ownershipResultsHalf;
     delete[] coremlPolicyOutput;
     delete[] coremlValueOutput;
     delete[] coremlOwnershipOutput;
@@ -2449,14 +2476,11 @@ void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
   delete inputBuffers;
 }
 
-
-void NeuralNet::getOutput(
-  ComputeHandle* gpuHandle,
-  InputBuffers* inputBuffers,
-  int numBatchEltsFilled,
-  NNResultBuf** inputBufs,
-  vector<NNOutput*>& outputs
-) {
+static void getOutputFromCoreML(ComputeHandle* gpuHandle,
+                                InputBuffers* inputBuffers,
+                                int numBatchEltsFilled,
+                                NNResultBuf** inputBufs,
+                                vector<NNOutput*>& outputs) {
   assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
   assert(numBatchEltsFilled > 0);
   int batchSize = numBatchEltsFilled;
@@ -2565,6 +2589,301 @@ void NeuralNet::getOutput(
     else {
       ASSERT_UNREACHABLE;
     }
+  }
+}
+
+static void getOutputFromOpenCL(
+  ComputeHandle* gpuHandle,
+  InputBuffers* inputBuffers,
+  int numBatchEltsFilled,
+  NNResultBuf** inputBufs,
+  vector<NNOutput*>& outputs
+) {
+  assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
+  assert(numBatchEltsFilled > 0);
+  int batchSize = numBatchEltsFilled;
+  int nnXLen = gpuHandle->nnXLen;
+  int nnYLen = gpuHandle->nnYLen;
+  int version = gpuHandle->model->version;
+
+  int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
+  int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
+  assert(numSpatialFeatures == gpuHandle->model->numInputChannels);
+  assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
+  assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
+
+  for(int nIdx = 0; nIdx<batchSize; nIdx++) {
+    float* rowSpatialInput = inputBuffers->userInputBuffer + (inputBuffers->singleInputElts * nIdx);
+    float* rowGlobalInput = inputBuffers->userInputGlobalBuffer + (inputBuffers->singleInputGlobalElts * nIdx);
+
+    const float* rowGlobal = inputBufs[nIdx]->rowGlobal;
+    const float* rowSpatial = inputBufs[nIdx]->rowSpatial;
+    std::copy(rowGlobal,rowGlobal+numGlobalFeatures,rowGlobalInput);
+    SymmetryHelpers::copyInputsWithSymmetry(rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, gpuHandle->inputsUseNHWC, inputBufs[nIdx]->symmetry);
+  }
+
+  Buffers* buffers = gpuHandle->buffers.get();
+
+  assert(inputBuffers->userInputBufferElts == buffers->inputElts);
+  assert(inputBuffers->userInputGlobalBufferElts == buffers->inputGlobalElts);
+  assert(inputBuffers->policyResultBufferElts == buffers->policyElts);
+  assert(inputBuffers->valueResultBufferElts == buffers->valueElts);
+  assert(inputBuffers->singlePolicyResultElts + inputBuffers->singlePolicyPassResultElts == gpuHandle->policySize);
+  assert(inputBuffers->scoreValueResultBufferElts == buffers->scoreValueElts);
+  assert(inputBuffers->ownershipResultBufferElts == buffers->ownershipElts);
+  assert(inputBuffers->singleOwnershipResultElts == nnXLen*nnYLen);
+
+  ComputeHandleInternal* handle = gpuHandle->handle.get();
+  bool useFP16Storage = gpuHandle->usingFP16Storage;
+
+  cl_int err;
+
+  if(useFP16Storage) {
+    size_t numElts = inputBuffers->singleInputElts * batchSize;
+    for(size_t i = 0; i<numElts; i++)
+      inputBuffers->userInputBufferHalf[i] = half_float::half_cast<half_t>(inputBuffers->userInputBuffer[i]);
+
+    err = clEnqueueWriteBuffer(
+      handle->commandQueue,
+      buffers->input,
+      CL_FALSE,
+      0,
+      inputBuffers->singleInputElts * sizeof(half_t) * batchSize,
+      inputBuffers->userInputBufferHalf,
+      0,
+      NULL,
+      NULL
+    );
+    CHECK_ERR(err);
+  }
+  else {
+    err = clEnqueueWriteBuffer(
+      handle->commandQueue,
+      buffers->input,
+      CL_FALSE,
+      0,
+      inputBuffers->singleInputElts * sizeof(float) * batchSize,
+      inputBuffers->userInputBuffer,
+      0,
+      NULL,
+      NULL
+    );
+    CHECK_ERR(err);
+  }
+
+  err = clEnqueueWriteBuffer(
+    handle->commandQueue,
+    buffers->inputGlobal,
+    CL_FALSE,
+    0,
+    inputBuffers->singleInputGlobalElts * sizeof(float) * batchSize,
+    inputBuffers->userInputGlobalBuffer,
+    0,
+    NULL,
+    NULL
+  );
+  CHECK_ERR(err);
+
+  gpuHandle->model->apply(
+    handle,
+    batchSize,
+
+    buffers->input,
+    buffers->inputGlobal,
+
+    buffers->mask,
+    buffers->maskSum,
+
+    buffers->trunk,
+    buffers->trunkScratch,
+    buffers->mid,
+    buffers->gpoolOut,
+    buffers->gpoolConcat,
+    buffers->gpoolBias,
+
+    buffers->p1Out,
+    buffers->policyPass,
+    buffers->policy,
+
+    buffers->v1Out,
+    buffers->v1Mean,
+    buffers->v2Out,
+    buffers->value,
+    buffers->scoreValue,
+    buffers->ownership,
+
+    buffers->convWorkspace,
+    buffers->convWorkspace2
+  );
+
+  cl_bool blocking = CL_TRUE;
+  err = clEnqueueReadBuffer(
+    handle->commandQueue, buffers->policyPass, blocking, 0,
+    inputBuffers->singlePolicyPassResultElts*sizeof(float)*batchSize, inputBuffers->policyPassResults, 0, NULL, NULL
+  );
+  CHECK_ERR(err);
+  if(useFP16Storage) {
+    err = clEnqueueReadBuffer(
+      handle->commandQueue, buffers->policy, blocking, 0,
+      inputBuffers->singlePolicyResultElts*sizeof(half_t)*batchSize, inputBuffers->policyResultsHalf, 0, NULL, NULL
+    );
+    CHECK_ERR(err);
+    size_t numElts = inputBuffers->singlePolicyResultElts * batchSize;
+    for(size_t i = 0; i<numElts; i++)
+      inputBuffers->policyResults[i] = inputBuffers->policyResultsHalf[i];
+  }
+  else {
+    err = clEnqueueReadBuffer(
+      handle->commandQueue, buffers->policy, blocking, 0,
+      inputBuffers->singlePolicyResultElts*sizeof(float)*batchSize, inputBuffers->policyResults, 0, NULL, NULL
+    );
+    CHECK_ERR(err);
+  }
+  err = clEnqueueReadBuffer(
+    handle->commandQueue, buffers->value, blocking, 0,
+    inputBuffers->singleValueResultElts*sizeof(float)*batchSize, inputBuffers->valueResults, 0, NULL, NULL
+  );
+  CHECK_ERR(err);
+  err = clEnqueueReadBuffer(
+    handle->commandQueue, buffers->scoreValue, blocking, 0,
+    inputBuffers->singleScoreValueResultElts*sizeof(float)*batchSize, inputBuffers->scoreValueResults, 0, NULL, NULL
+  );
+  CHECK_ERR(err);
+  if(useFP16Storage) {
+    err = clEnqueueReadBuffer(
+      handle->commandQueue, buffers->ownership, blocking, 0,
+      inputBuffers->singleOwnershipResultElts*sizeof(half_t)*batchSize, inputBuffers->ownershipResultsHalf, 0, NULL, NULL
+    );
+    CHECK_ERR(err);
+    size_t numElts = inputBuffers->singleOwnershipResultElts * batchSize;
+    for(size_t i = 0; i<numElts; i++)
+      inputBuffers->ownershipResults[i] = inputBuffers->ownershipResultsHalf[i];
+  }
+  else {
+    err = clEnqueueReadBuffer(
+      handle->commandQueue, buffers->ownership, blocking, 0,
+      inputBuffers->singleOwnershipResultElts*sizeof(float)*batchSize, inputBuffers->ownershipResults, 0, NULL, NULL
+    );
+    CHECK_ERR(err);
+  }
+
+  #ifdef PROFILE_KERNELS
+  {
+    cl_int profileErr;
+    profileErr = clWaitForEvents(handle->profileEvents.size(), handle->profileEvents.data());
+    CHECK_ERR(profileErr);
+    for(int i = 0; i<handle->profileCallbacks.size(); i++) {
+      handle->profileCallbacks[i]();
+    }
+    for(int i = 0; i<handle->profileEvents.size(); i++) {
+      clReleaseEvent(handle->profileEvents[i]);
+    }
+    handle->profileEvents.clear();
+    handle->profileCallbacks.clear();
+
+    static int profileResultPrintCounter = 0;
+    profileResultPrintCounter += 1;
+    if(profileResultPrintCounter % 100 == 0) {
+      for(int i = 0; i<handle->profileResultPrinters.size(); i++) {
+        handle->profileResultPrinters[i]();
+      }
+    }
+  }
+  #else
+  assert(handle->profileEvents.size() == 0);
+  assert(handle->profileCallbacks.size() == 0);
+  assert(handle->profileResultPrinters.size() == 0);
+  #endif
+
+  assert(outputs.size() == batchSize);
+
+  for(int row = 0; row < batchSize; row++) {
+    NNOutput* output = outputs[row];
+    assert(output->nnXLen == nnXLen);
+    assert(output->nnYLen == nnYLen);
+
+    const float* policySrcBuf = inputBuffers->policyResults + row * inputBuffers->singlePolicyResultElts;
+    float* policyProbs = output->policyProbs;
+
+    //These are not actually correct, the client does the postprocessing to turn them into
+    //policy probabilities and white game outcome probabilities
+    //Also we don't fill in the nnHash here either
+    SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+    policyProbs[inputBuffers->singlePolicyResultElts] = inputBuffers->policyPassResults[row];
+
+    int numValueChannels = gpuHandle->model->numValueChannels;
+    assert(numValueChannels == 3);
+    output->whiteWinProb = inputBuffers->valueResults[row * numValueChannels];
+    output->whiteLossProb = inputBuffers->valueResults[row * numValueChannels + 1];
+    output->whiteNoResultProb = inputBuffers->valueResults[row * numValueChannels + 2];
+
+    //As above, these are NOT actually from white's perspective, but rather the player to move.
+    //As usual the client does the postprocessing.
+    if(output->whiteOwnerMap != NULL) {
+      const float* ownershipSrcBuf = inputBuffers->ownershipResults + row * nnXLen * nnYLen;
+      assert(gpuHandle->model->numOwnershipChannels == 1);
+      SymmetryHelpers::copyOutputsWithSymmetry(ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+    }
+
+    if(version >= 9) {
+      int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
+      assert(numScoreValueChannels == 6);
+      output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
+      output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
+      output->whiteLead = inputBuffers->scoreValueResults[row * numScoreValueChannels + 2];
+      output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
+      output->shorttermWinlossError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 4];
+      output->shorttermScoreError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 5];
+    }
+    else if(version >= 8) {
+      int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
+      assert(numScoreValueChannels == 4);
+      output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
+      output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
+      output->whiteLead = inputBuffers->scoreValueResults[row * numScoreValueChannels + 2];
+      output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
+      output->shorttermWinlossError = 0;
+      output->shorttermScoreError = 0;
+    }
+    else if(version >= 4) {
+      int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
+      assert(numScoreValueChannels == 2);
+      output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
+      output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
+      output->whiteLead = output->whiteScoreMean;
+      output->varTimeLeft = 0;
+      output->shorttermWinlossError = 0;
+      output->shorttermScoreError = 0;
+    }
+    else if(version >= 3) {
+      int numScoreValueChannels = gpuHandle->model->numScoreValueChannels;
+      assert(numScoreValueChannels == 1);
+      output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
+      //Version 3 neural nets don't have any second moment output, implicitly already folding it in, so we just use the mean squared
+      output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
+      output->whiteLead = output->whiteScoreMean;
+      output->varTimeLeft = 0;
+      output->shorttermWinlossError = 0;
+      output->shorttermScoreError = 0;
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+}
+
+void NeuralNet::getOutput(
+  ComputeHandle* gpuHandle,
+  InputBuffers* inputBuffers,
+  int numBatchEltsFilled,
+  NNResultBuf** inputBufs,
+  vector<NNOutput*>& outputs
+) {
+  if (gpuHandle->handle->gpuIndex == 0) {
+    getOutputFromCoreML(gpuHandle, inputBuffers, numBatchEltsFilled, inputBufs, outputs);
+  }
+  else {
+    getOutputFromOpenCL(gpuHandle, inputBuffers, numBatchEltsFilled, inputBufs, outputs);
   }
 }
 
