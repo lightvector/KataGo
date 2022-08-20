@@ -62,13 +62,24 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
     neuralnet/trtbackend.cpp
     )
 elseif(USE_BACKEND STREQUAL "OPENCL")
-  message(STATUS "-DUSE_BACKEND=OPENCL, using OpenCL backend.")
-  set(NEURALNET_BACKEND_SOURCES
-    neuralnet/openclbackend.cpp
-    neuralnet/openclkernels.cpp
-    neuralnet/openclhelpers.cpp
-    neuralnet/opencltuner.cpp
-    )
+  if(APPLE)
+    message(STATUS "-DUSE_BACKEND=OPENCL, using OpenCL+CoreML backend.")
+    set(NEURALNET_BACKEND_SOURCES
+      neuralnet/coremlbackend.cpp
+      neuralnet/coremlbackend.mm
+      neuralnet/openclkernels.cpp
+      neuralnet/openclhelpers.cpp
+      neuralnet/opencltuner.cpp
+      )
+  else()
+    message(STATUS "-DUSE_BACKEND=OPENCL, using OpenCL backend.")
+    set(NEURALNET_BACKEND_SOURCES
+      neuralnet/openclbackend.cpp
+      neuralnet/openclkernels.cpp
+      neuralnet/openclhelpers.cpp
+      neuralnet/opencltuner.cpp
+      )
+  endif()
 elseif(USE_BACKEND STREQUAL "EIGEN")
   message(STATUS "-DUSE_BACKEND=EIGEN, using Eigen CPU backend.")
   if(NOT USE_AVX2)
