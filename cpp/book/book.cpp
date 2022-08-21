@@ -1938,6 +1938,14 @@ int64_t Book::exportToHtmlDir(
     return path;
   };
 
+  // Clamp the score at contradicting the winloss too much for purposes of sorting
+  auto clampScoreForSorting = [](double score, double winLoss) {
+    winLoss = std::max(-1.0, std::min(1.0, winLoss));
+    double scoreLowerBound = (winLoss - 1.0) / (winLoss + 1.0 + 0.0001) * 2;
+    double scoreUpperBound = -(-winLoss - 1.0) / (-winLoss + 1.0 + 0.0001) * 2;
+    return std::max(scoreLowerBound, std::min(scoreUpperBound, score));
+  };
+
   int64_t numFilesWritten = 0;
 
   std::function<void(BookNode*)> f = [&](BookNode* node) {
@@ -2053,6 +2061,7 @@ int64_t Book::exportToHtmlDir(
     vector<double> uniqueChildCostsWLPV;
     vector<double> uniqueChildBiggestWLCost;
     vector<size_t> uniqueMoveIdxs;
+    vector<double> sortingValues;
     for(BookMove& bookMove: uniqueMovesInBook) {
       SymBookNode child = symNode.follow(bookMove.move);
       uniqueChildValues.push_back(child.node->recursiveValues);
@@ -2060,19 +2069,20 @@ int64_t Book::exportToHtmlDir(
       uniqueChildCostsWLPV.push_back(child.node->minCostFromRootWLPV);
       uniqueChildBiggestWLCost.push_back(child.node->biggestWLCostFromRoot);
       uniqueMoveIdxs.push_back(uniqueMoveIdxs.size());
+
+      RecursiveBookValues& vals = child.node->recursiveValues;
+      double plaFactor = node->pla == P_WHITE ? 1.0 : -1.0;
+      double sortingValue = plaFactor * (vals.winLossValue + clampScoreForSorting(vals.sharpScoreMean, vals.winLossValue) * utilityPerScore * 0.5)
+        + plaFactor * clampScoreForSorting(node->pla == P_WHITE ? vals.scoreLCB : vals.scoreUCB, vals.winLossValue) * 0.5 * utilityPerScore
+        + utilityPerPolicyForSorting * (0.75 * bookMove.rawPolicy + 0.5 * log10(bookMove.rawPolicy + 0.0001)/4.0);
+      sortingValues.push_back(sortingValue);
     }
+
     std::sort(
       uniqueMoveIdxs.begin(),uniqueMoveIdxs.end(),
       [&](const size_t& idx0,
           const size_t& idx1) {
-        double plaFactor = node->pla == P_WHITE ? 1.0 : -1.0;
-        double u0 = plaFactor * (uniqueChildValues[idx0].winLossValue + uniqueChildValues[idx0].sharpScoreMean * utilityPerScore * 0.5)
-        + plaFactor * (node->pla == P_WHITE ? uniqueChildValues[idx0].scoreLCB : uniqueChildValues[idx0].scoreUCB) * 0.5 * utilityPerScore
-        + utilityPerPolicyForSorting * (0.75 * uniqueMovesInBook[idx0].rawPolicy + 0.5 * log10(uniqueMovesInBook[idx0].rawPolicy + 0.0001)/4.0);
-        double u1 = plaFactor * (uniqueChildValues[idx1].winLossValue + uniqueChildValues[idx1].sharpScoreMean * utilityPerScore * 0.5)
-        + plaFactor * (node->pla == P_WHITE ? uniqueChildValues[idx1].scoreLCB : uniqueChildValues[idx1].scoreUCB) * 0.5 * utilityPerScore
-        + utilityPerPolicyForSorting * (0.75 * uniqueMovesInBook[idx1].rawPolicy + 0.5 * log10(uniqueMovesInBook[idx1].rawPolicy + 0.0001)/4.0);
-        return u0 > u1;
+        return sortingValues[idx0] > sortingValues[idx1];
       }
     );
 
