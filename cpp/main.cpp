@@ -227,6 +227,8 @@ string Version::getKataGoVersionFullInfo() {
   out << "Using OpenCL backend" << endl;
 #elif defined(USE_EIGEN_BACKEND)
   out << "Using Eigen(CPU) backend" << endl;
+#elif defined(USE_COREML_BACKEND)
+  out << "Using CoreML backend" << endl;
 #else
   out << "Using dummy backend" << endl;
 #endif
@@ -259,6 +261,8 @@ string Version::getGitRevisionWithBackend() {
   s += "-opencl";
 #elif defined(USE_EIGEN_BACKEND)
   s += "-eigen";
+#elif defined(USE_COREML_BACKEND)
+  s += "-coreml";
 #else
   s += "-dummy";
 #endif

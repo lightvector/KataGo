@@ -62,24 +62,13 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
     neuralnet/trtbackend.cpp
     )
 elseif(USE_BACKEND STREQUAL "OPENCL")
-  if(APPLE)
-    message(STATUS "-DUSE_BACKEND=OPENCL, using OpenCL+CoreML backend.")
-    set(NEURALNET_BACKEND_SOURCES
-      neuralnet/coremlbackend.cpp
-      neuralnet/coremlbackend.mm
-      neuralnet/openclkernels.cpp
-      neuralnet/openclhelpers.cpp
-      neuralnet/opencltuner.cpp
-      )
-  else()
-    message(STATUS "-DUSE_BACKEND=OPENCL, using OpenCL backend.")
-    set(NEURALNET_BACKEND_SOURCES
-      neuralnet/openclbackend.cpp
-      neuralnet/openclkernels.cpp
-      neuralnet/openclhelpers.cpp
-      neuralnet/opencltuner.cpp
-      )
-  endif()
+  message(STATUS "-DUSE_BACKEND=OPENCL, using OpenCL backend.")
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/openclbackend.cpp
+    neuralnet/openclkernels.cpp
+    neuralnet/openclhelpers.cpp
+    neuralnet/opencltuner.cpp
+    )
 elseif(USE_BACKEND STREQUAL "EIGEN")
   message(STATUS "-DUSE_BACKEND=EIGEN, using Eigen CPU backend.")
   if(NOT USE_AVX2)
@@ -88,8 +77,14 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/eigenbackend.cpp
     )
+elseif(USE_BACKEND STREQUAL "COREML")
+  message(STATUS "-DUSE_BACKEND=COREML, using CoreML backend.")
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/coremlbackend.cpp
+    neuralnet/coremlbackend.mm
+    )
 elseif(USE_BACKEND STREQUAL "")
-  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN to compile with the respective backend.${ColorReset}")
+  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN or -DUSE_BACKEND=COREML to compile with the respective backend.${ColorReset}")
   set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
 else()
   message(FATAL_ERROR "Unrecognized backend: " ${USE_BACKEND})
@@ -324,6 +319,8 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
       endif()
     endif()
   endif()
+elseif(USE_BACKEND STREQUAL "COREML")
+  target_compile_definitions(katago PRIVATE USE_COREML_BACKEND)
 endif()
 
 if(USE_BIGGER_BOARDS_EXPENSIVE)

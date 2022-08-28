@@ -59,10 +59,20 @@ extension KataGoModelOutput {
 
 @objc
 class CoreMLBackend: NSObject {
-    @objc static let shared = CoreMLBackend()
+    static var models: [Int: CoreMLBackend] = [:]
     let model: KataGoModel
     let includeHistory: MLMultiArray
     let symmetries: MLMultiArray
+
+    @objc class func getModel(at index: Int) -> CoreMLBackend {
+        if let model = models[index] {
+            return model
+        } else {
+            let model = CoreMLBackend()
+            models[index] = model
+            return model
+        }
+    }
 
     private override init() {
         model = try! KataGoModel()

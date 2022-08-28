@@ -63,6 +63,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   string backendPrefix = "opencl";
   #elif defined(USE_EIGEN_BACKEND)
   string backendPrefix = "eigen";
+  #elif defined(USE_COREML_BACKEND)
+  string backendPrefix = "coreml";
   #else
   string backendPrefix = "dummybackend";
   #endif
@@ -77,6 +79,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     cfg.markAllKeysUsedWithPrefix("opencl");
   if(backendPrefix != "eigen")
     cfg.markAllKeysUsedWithPrefix("eigen");
+  if(backendPrefix != "coreml")
+    cfg.markAllKeysUsedWithPrefix("coreml");
   if(backendPrefix != "dummybackend")
     cfg.markAllKeysUsedWithPrefix("dummybackend");
 
@@ -122,7 +126,12 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         requireExactNNLen = cfg.getBool("requireMaxBoardSize");
     }
 
-    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" ? false : true;
+    bool inputsUseNHWC;
+    if((backendPrefix == "opencl") || (backendPrefix == "trt") || (backendPrefix == "coreml"))
+      inputsUseNHWC = false;
+    else
+      inputsUseNHWC = true;
+
     if(cfg.contains(backendPrefix+"InputsUseNHWC"+idxStr))
       inputsUseNHWC = cfg.getBool(backendPrefix+"InputsUseNHWC"+idxStr);
     else if(cfg.contains("inputsUseNHWC"+idxStr))
