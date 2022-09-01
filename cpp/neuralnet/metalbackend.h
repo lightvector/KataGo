@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include "desc.h"
 
 using namespace std;
 
@@ -18,18 +19,7 @@ public:
 
   void init(int nnXLen,
             int nnYLen,
-            int versionIn,
-            int numInputChannels,
-            int numInputGlobalChannels,
-            int numValueChannels,
-            int numScoreValueChannels,
-            int numOwnershipChannels);
-
-  void* placeholderWithShape(int nnXLen,
-                             int nnYLen,
-                             int numInputChannels,
-                             int numInputGlobalChannels,
-                             string name);
+            const ModelDesc* modelDesc);
 
   void apply(float* userInputBuffer,
              float* userInputGlobalBuffer,

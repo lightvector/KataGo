@@ -125,12 +125,7 @@ struct ComputeHandle {
 
     metalHandle->init(context->nnXLen,
                       context->nnYLen,
-                      modelDesc->version,
-                      modelDesc->numInputChannels,
-                      modelDesc->numInputGlobalChannels,
-                      modelDesc->numValueChannels,
-                      modelDesc->numScoreValueChannels,
-                      modelDesc->numOwnershipChannels);
+                      modelDesc);
   }
 
   ~ComputeHandle() {

@@ -3,11 +3,17 @@
 
 @interface KataGoGraph : NSObject {
 @private
+  int nnXLen;
+  int nnYLen;
   id<MTLDevice> device;
   id<MTLCommandQueue> commandQueue;
   dispatch_semaphore_t doubleBufferingSemaphore;
   MPSGraph* graph;
-  MPSGraphTensor* sourcePlaceholderTensor;
+  MPSGraphTensor* bin_inputs;
+  MPSGraphTensor* global_inputs;
+  MPSGraphTensor* symmetries;
+  MPSGraphTensor* include_history;
+  MPSGraphTensor* policy_output;
 }
 
 -(nonnull instancetype) initWithDevice:(nonnull id <MTLDevice>) inputDevice
@@ -24,8 +30,8 @@
 @implementation KataGoGraph
 
 -(nonnull instancetype) initWithDevice:(nonnull id <MTLDevice>) inputDevice
-                                nnXLen:(int)nnXLen
-                                nnYLen:(int)nnYLen
+                                nnXLen:(int)inputXLen
+                                nnYLen:(int)inputYLen
                                version:(int)version
                       numInputChannels:(int)numInputChannels
                 numInputGlobalChannels:(int)numInputGlobalChannels
@@ -34,10 +40,62 @@
                   numOwnershipChannels:(int)numOwnershipChannels {
   self = [super init];
   device = inputDevice;
+  nnXLen = inputXLen;
+  nnYLen = inputYLen;
   commandQueue = [device newCommandQueue];
   doubleBufferingSemaphore = dispatch_semaphore_create(2);
-  graph = [MPSGraph alloc];
+  
+  [self initKataGoGraph:version
+                 nnXLen:nnXLen
+                 nnYLen:nnYLen
+       numInputChannels:numInputChannels
+ numInputGlobalChannels:numInputGlobalChannels
+       numValueChannels:numValueChannels
+  numScoreValueChannels:numScoreValueChannels
+   numOwnershipChannels:numOwnershipChannels];
+  
   return self;
+}
+
+-(void) initKataGoGraph:(int)version
+                 nnXLen:(int)nnXLen
+                 nnYLen:(int)nnYLen
+       numInputChannels:(int)numInputChannels
+ numInputGlobalChannels:(int)numInputGlobalChannels
+       numValueChannels:(int)numValueChannels
+  numScoreValueChannels:(int)numScoreValueChannels
+   numOwnershipChannels:(int)numOwnershipChannels
+{
+  int num_bin_input_features = numInputChannels;
+  int num_global_input_features = numInputGlobalChannels;
+  MPSShape* bin_input_shape = @[@(nnXLen * nnYLen), @(num_bin_input_features)];
+  MPSShape* global_input_shape = @[@(num_global_input_features)];
+  MPSShape* symmetries_shape = @[@(3)];
+  MPSShape* include_history_shape = @[@(5)];
+  
+  MPSShape* shape;
+  
+  graph = [MPSGraph alloc];
+  
+  bin_inputs = [graph placeholderWithShape:bin_input_shape
+                                      name:@"bin_inputs"];
+  
+  global_inputs = [graph placeholderWithShape:global_input_shape
+                                         name:@"global_inputs"];
+  
+  symmetries = [graph placeholderWithShape:symmetries_shape
+                                      name:@"symmetries"];
+  
+  include_history = [graph placeholderWithShape:include_history_shape
+                                           name:@"include_history"];
+  
+  shape = @[@(-1), @(nnXLen * nnYLen), @(num_bin_input_features)];
+  
+  MPSGraphTensor* cur_layer = [graph reshapeTensor:bin_inputs
+                                         withShape:shape
+                                              name:@"model.py:940"];
+  
+  policy_output = cur_layer;
 }
 
 -(void) encodeInferenceBatch:(nonnull float*)userInputBuffer
@@ -48,47 +106,42 @@
             miscValuesOutput:(nonnull float*)miscValuesOutput
         moreMiscValuesOutput:(nonnull float*)moreMiscValuesOutput
 {
-  MPSGraphTensor* labelsPlaceholderTensor = [MPSGraphTensor alloc];
-  MPSGraphTensorData* sourceTensorData = [MPSGraphTensorData alloc];
-  MPSGraphTensorData* labelsTensorData = [MPSGraphTensorData alloc];
-  NSArray<MPSGraphTensor*>* targetTensors = [NSArray alloc];
-  NSArray<MPSGraphOperation*>* targetOperations = [NSArray alloc];
-
+  MPSGraphTensorData* bin_inputs_data = [MPSGraphTensorData alloc];
+  MPSGraphTensorData* global_inputs_data = [MPSGraphTensorData alloc];
+  MPSGraphTensorData* symmetries_data = [MPSGraphTensorData alloc];
+  MPSGraphTensorData* include_history_data = [MPSGraphTensorData alloc];
+  NSArray<MPSGraphTensor*>* targetTensors = @[policy_output];
+  
   dispatch_semaphore_wait(doubleBufferingSemaphore, DISPATCH_TIME_FOREVER);
   MPSCommandBuffer* commandBuffer = [MPSCommandBuffer commandBufferFromCommandQueue:commandQueue];
   MPSGraphExecutionDescriptor* executionDesc = [MPSGraphExecutionDescriptor alloc];
+  
   executionDesc.completionHandler = ^(MPSGraphTensorDataDictionary* resultsDictionary, NSError* error) {
     dispatch_semaphore_signal(doubleBufferingSemaphore);
   };
-
+  
   MPSGraphTensorDataDictionary* feeds = @{
-    sourcePlaceholderTensor : sourceTensorData,
-    labelsPlaceholderTensor : labelsTensorData
+    bin_inputs: bin_inputs_data,
+    global_inputs: global_inputs_data,
+    symmetries: symmetries_data,
+    include_history: include_history_data
   };
-
+  
   MPSGraphTensorDataDictionary* fetch = [graph encodeToCommandBuffer:commandBuffer
                                                                feeds:feeds
                                                        targetTensors:targetTensors
-                                                    targetOperations:targetOperations
+                                                    targetOperations:@[]
                                                  executionDescriptor:executionDesc];
-
+  
   [commandBuffer commit];
   [commandBuffer waitUntilCompleted];
-}
 
--(MPSGraphTensor*) placeholderWithShape:(int)nnXLen
-                                 nnYLen:(int)nnYLen
-                       numInputChannels:(int)numInputChannels
-                 numInputGlobalChannels:(int)numInputGlobalChannels
-                                   name:(nonnull NSString*)name
-{
-  int channels = numInputChannels + numInputGlobalChannels;
-  MPSShape* shape = @[@(-1), @(channels), @(nnYLen), @(nnXLen)];
+  int policySize = (nnXLen * nnYLen) + 1;
 
-  sourcePlaceholderTensor = [graph placeholderWithShape:shape
-                                                   name:name];
-
-  return sourcePlaceholderTensor;
+  for (NSUInteger index = 0; index < policySize; index++) {
+    [[fetch[policy_output] mpsndarray] readBytes:&policyOutput[index]
+                                     strideBytes:nil];
+  }
 }
 
 @end
@@ -104,38 +157,19 @@ MetalHandle::~MetalHandle(void) {}
 
 void MetalHandle::init(int nnXLen,
                        int nnYLen,
-                       int versionIn,
-                       int numInputChannels,
-                       int numInputGlobalChannels,
-                       int numValueChannels,
-                       int numScoreValueChannels,
-                       int numOwnershipChannels) {
-  this->version = versionIn;
+                       const ModelDesc* modelDesc) {
+  version = modelDesc->version;
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();
-
+  
   kataGoGraph = [[KataGoGraph alloc] initWithDevice:device
                                              nnXLen:nnXLen
                                              nnYLen:nnYLen
                                             version:version
-                                   numInputChannels:numInputChannels
-                             numInputGlobalChannels:numInputGlobalChannels
-                                   numValueChannels:numValueChannels
-                              numScoreValueChannels:numScoreValueChannels
-                               numOwnershipChannels:numOwnershipChannels];
-}
-
-void* MetalHandle::placeholderWithShape(int nnXLen,
-                                        int nnYLen,
-                                        int numInputChannels,
-                                        int numInputGlobalChannels,
-                                        string name) {
-  NSString* nsName = [NSString stringWithUTF8String:name.c_str()];
-
-  return [(id)kataGoGraph placeholderWithShape:nnXLen
-                                        nnYLen:nnYLen
-                              numInputChannels:numInputChannels
-                        numInputGlobalChannels:numInputGlobalChannels
-                                          name:nsName];
+                                   numInputChannels:modelDesc->numInputChannels
+                             numInputGlobalChannels:modelDesc->numInputGlobalChannels
+                                   numValueChannels:modelDesc->numValueChannels
+                              numScoreValueChannels:modelDesc->numScoreValueChannels
+                               numOwnershipChannels:modelDesc->numOwnershipChannels];
 }
 
 void MetalHandle::apply(float* userInputBuffer,
