@@ -217,9 +217,15 @@ struct ComputeHandle {
     model = std::make_unique<Model>(&(loadedModel->modelDesc), maxBatchSize, nnXLen, nnYLen);
     policySize = NNPos::getPolicySize(nnXLen, nnYLen);
     inputsUseNHWC = inputsNHWC;
+
+    initCoreMLBackend(handle->gpuIndex);
   }
 
-  ~ComputeHandle() {}
+  ~ComputeHandle() {
+    handle.reset();
+    model.reset();
+    resetCoreMLBackend(handle->gpuIndex);
+  }
 
   ComputeHandle() = delete;
   ComputeHandle(const ComputeHandle&) = delete;
