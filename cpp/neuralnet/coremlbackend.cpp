@@ -201,7 +201,6 @@ struct ComputeHandle {
   std::unique_ptr<Model> model;
   int nnXLen;
   int nnYLen;
-  int policySize;
   bool inputsUseNHWC;
 
   ComputeHandle(
@@ -215,16 +214,15 @@ struct ComputeHandle {
 
     handle = std::make_unique<ComputeHandleInternal>(gpuIdx, inputsNHWC);
     model = std::make_unique<Model>(&(loadedModel->modelDesc), maxBatchSize, nnXLen, nnYLen);
-    policySize = NNPos::getPolicySize(nnXLen, nnYLen);
     inputsUseNHWC = inputsNHWC;
 
     initCoreMLBackend(handle->gpuIndex);
   }
 
   ~ComputeHandle() {
+    resetCoreMLBackend(handle->gpuIndex);
     handle.reset();
     model.reset();
-    resetCoreMLBackend(handle->gpuIndex);
   }
 
   ComputeHandle() = delete;
@@ -319,44 +317,56 @@ struct InputBuffers {
   int maxBatchSize;
   size_t policyResultChannels;
 
+  size_t singleSpatialElts;
   size_t singleInputElts;
   size_t singleInputGlobalElts;
   size_t singlePolicyResultElts;
+  size_t singlePolicyProbsElts;
   size_t singleValueResultElts;
   size_t singleOwnershipResultElts;
+  size_t singleOwnerMapElts;
   size_t singleMiscValuesResultElts;
   size_t singleMoreMiscValuesResultElts;
 
+  size_t rowSpatialBufferElts;
   size_t userInputBufferElts;
   size_t userInputGlobalBufferElts;
   size_t policyResultBufferElts;
+  size_t policyProbsBufferElts;
   size_t valueResultBufferElts;
   size_t ownershipResultBufferElts;
+  size_t ownerMapBufferElts;
   size_t miscValuesResultBufferElts;
   size_t moreMiscValuesResultsBufferElts;
 
+  float* rowSpatialBuffer;
   float* userInputBuffer;        // Host pointer
   float* userInputGlobalBuffer;  // Host pointer
 
   float* policyResults;
+  float* policyProbsBuffer;
   float* valueResults;
   float* ownershipResults;
+  float* ownerMapBuffer;
   float* miscValuesResults;
   float* moreMiscValuesResults;
 
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
 
-    int xSize = nnXLen;
-    int ySize = nnYLen;
+    int xSize = 19;
+    int ySize = 19;
 
     maxBatchSize = maxBatchSz;
     policyResultChannels = 2;
+    singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
     singleInputElts = (size_t)m.numInputChannels * xSize * ySize;
     singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
     singlePolicyResultElts = (size_t)((xSize * ySize) + 1);
+    singlePolicyProbsElts = (size_t)((nnXLen * nnYLen) + 1);
     singleValueResultElts = (size_t)m.numValueChannels;
     singleOwnershipResultElts = (size_t)m.numOwnershipChannels * xSize * ySize;
+    singleOwnerMapElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
     singleMiscValuesResultElts = 10;
     singleMoreMiscValuesResultElts = 8;
 
@@ -368,6 +378,8 @@ struct InputBuffers {
     assert(singleValueResultElts == 3);
     assert(singleOwnershipResultElts == 361);
 
+    rowSpatialBufferElts = (size_t)maxBatchSize * singleSpatialElts;
+
     // swa_model_bin_inputs shape: [1, 361, 22]
     userInputBufferElts = (size_t)maxBatchSize * singleInputElts;
 
@@ -377,11 +389,15 @@ struct InputBuffers {
     // swa_model_policy_output shape: [1, 362, 2]
     policyResultBufferElts = (size_t)maxBatchSize * singlePolicyResultElts * policyResultChannels;
 
+    policyProbsBufferElts = (size_t)maxBatchSize * singlePolicyProbsElts;
+
     // swa_model_value_output shape: [1, 3]
     valueResultBufferElts = (size_t)maxBatchSize * singleValueResultElts;
 
     // swa_model_ownership_output shape: [1, 19, 19]
     ownershipResultBufferElts = (size_t)maxBatchSize * singleOwnershipResultElts;
+
+    ownerMapBufferElts = (size_t)maxBatchSize * singleOwnerMapElts;
 
     // swa_model_miscvalues_output shape: [1, 10]
     miscValuesResultBufferElts = (size_t)maxBatchSize * singleMiscValuesResultElts;
@@ -389,21 +405,27 @@ struct InputBuffers {
     // swa_model_moremiscvalues_output shape: [1, 8]
     moreMiscValuesResultsBufferElts = (size_t)maxBatchSize * singleMoreMiscValuesResultElts;
 
+    rowSpatialBuffer = new float[rowSpatialBufferElts];
     userInputBuffer = new float[userInputBufferElts];
     userInputGlobalBuffer = new float[userInputGlobalBufferElts];
     policyResults = new float[policyResultBufferElts];
+    policyProbsBuffer = new float[policyProbsBufferElts];
     valueResults = new float[valueResultBufferElts];
     ownershipResults = new float[ownershipResultBufferElts];
+    ownerMapBuffer = new float[ownerMapBufferElts];
     miscValuesResults = new float[miscValuesResultBufferElts];
     moreMiscValuesResults = new float[moreMiscValuesResultsBufferElts];
   }
 
   ~InputBuffers() {
+    delete[] rowSpatialBuffer;
     delete[] userInputBuffer;
     delete[] userInputGlobalBuffer;
     delete[] policyResults;
+    delete[] policyProbsBuffer;
     delete[] valueResults;
     delete[] ownershipResults;
+    delete[] ownerMapBuffer;
     delete[] miscValuesResults;
     delete[] moreMiscValuesResults;
   }
@@ -436,15 +458,18 @@ void NeuralNet::getOutput(
   assert(batchSize <= inputBuffers->maxBatchSize);
   assert(batchSize > 0);
   assert(numSpatialFeatures == gpuHandle->model->numInputChannels);
-  assert((numSpatialFeatures * nnXLen * nnYLen) == inputBuffers->singleInputElts);
+  assert((numSpatialFeatures * 19 * 19) == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
 
   size_t policyResultChannels = inputBuffers->policyResultChannels;
+  size_t singleSpatialElts = inputBuffers->singleSpatialElts;
   size_t singleInputElts = inputBuffers->singleInputElts;
   size_t singleInputGlobalElts = inputBuffers->singleInputGlobalElts;
   size_t singlePolicyResultElts = inputBuffers->singlePolicyResultElts;
+  size_t singlePolicyProbsElts = inputBuffers->singlePolicyProbsElts;
   size_t singleValueResultElts = inputBuffers->singleValueResultElts;
   size_t singleOwnershipResultElts = inputBuffers->singleOwnershipResultElts;
+  size_t singleOwnerMapElts = inputBuffers->singleOwnerMapElts;
   size_t singleMiscValuesResultElts = inputBuffers->singleMiscValuesResultElts;
   size_t singleMoreMiscValuesResultElts = inputBuffers->singleMoreMiscValuesResultElts;
 
@@ -459,6 +484,7 @@ void NeuralNet::getOutput(
 
   // Get CoreML backend output
   for(size_t row = 0; row < batchSize; row++) {
+    float* rowSpatialBuffer = &inputBuffers->rowSpatialBuffer[singleSpatialElts * row];
     float* rowSpatialInput = &inputBuffers->userInputBuffer[singleInputElts * row];
     float* rowGlobalInput = &inputBuffers->userInputGlobalBuffer[singleInputGlobalElts * row];
     float* policyOutputBuf = &inputBuffers->policyResults[row * (singlePolicyResultElts * policyResultChannels)];
@@ -476,13 +502,23 @@ void NeuralNet::getOutput(
 
     SymmetryHelpers::copyInputsWithSymmetry(
       rowSpatial,
-      rowSpatialInput,
+      rowSpatialBuffer,
       1,
       nnYLen,
       nnXLen,
       numSpatialFeatures,
       gpuHandle->inputsUseNHWC,
       inputBufs[row]->symmetry);
+
+    for(int c = 0; c < numSpatialFeatures; c++) {
+      for(int y = 0; y < nnYLen; y++) {
+        for(int x = 0; x < nnXLen; x++) {
+          int bufferIdx = (c * nnYLen * nnXLen) + (y * nnXLen) + x;
+          int inputIdx = (c * 19 * 19) + (y * 19) + x;
+          rowSpatialInput[inputIdx] = rowSpatialBuffer[bufferIdx];
+        }
+      }
+    }
 
     getCoreMLBackendOutput(
       rowSpatialInput,
@@ -502,19 +538,28 @@ void NeuralNet::getOutput(
     assert(output->nnYLen == nnYLen);
 
     float* policyOutputBuf = &inputBuffers->policyResults[row * (singlePolicyResultElts * policyResultChannels)];
+    float* policyProbsBuf = &inputBuffers->policyProbsBuffer[row * singlePolicyProbsElts];
 
     // Extract policy0_output
     for(size_t i = 0; i < singlePolicyResultElts; i++) {
       policyOutputBuf[i] = policyOutputBuf[i * policyResultChannels];
     }
 
+    for(int y = 0; y < nnYLen; y++) {
+      for(int x = 0; x < nnXLen; x++) {
+        int outputIdx = (y * 19) + x;
+        int probsIdx = (y * nnXLen) + x;
+        policyProbsBuf[probsIdx] = policyOutputBuf[outputIdx];
+      }
+    }
+
     // These are not actually correct, the client does the postprocessing to turn them into
     // policy probabilities and white game outcome probabilities
     // Also we don't fill in the nnHash here either
     SymmetryHelpers::copyOutputsWithSymmetry(
-      policyOutputBuf, output->policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+      policyProbsBuf, output->policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
 
-    output->policyProbs[singlePolicyResultElts - 1] = policyOutputBuf[singlePolicyResultElts - 1];
+    output->policyProbs[singlePolicyProbsElts - 1] = policyOutputBuf[singlePolicyResultElts - 1];
 
     const float* valueOutputBuf = &inputBuffers->valueResults[row * singleValueResultElts];
 
@@ -524,9 +569,18 @@ void NeuralNet::getOutput(
 
     if(output->whiteOwnerMap != NULL) {
       const float* ownershipOutputBuf = &inputBuffers->ownershipResults[row * singleOwnershipResultElts];
+      float* ownerMapBuf = &inputBuffers->ownerMapBuffer[row * singleOwnerMapElts];
+
+      for (int y = 0; y < nnYLen; y++) {
+        for (int x = 0; x < nnXLen; x++) {
+          int outputIdx = (y * 19) + x;
+          int ownerMapIdx = (y * nnXLen) + x;
+          ownerMapBuf[ownerMapIdx] = ownershipOutputBuf[outputIdx];
+        }
+      }
 
       SymmetryHelpers::copyOutputsWithSymmetry(
-        ownershipOutputBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+        ownerMapBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
     }
 
     const float* miscValuesOutputBuf = &inputBuffers->miscValuesResults[row * singleMiscValuesResultElts];
