@@ -81,9 +81,23 @@
  URL of the underlying .mlmodelc directory.
  */
 + (nullable NSURL *)URLOfModelInThisBundle {
-  NSString *assetPath = [[NSBundle bundleForClass:[self class]] pathForResource:@"KataGoModel" ofType:@"mlmodelc"];
-  if (nil == assetPath) { os_log_error(OS_LOG_DEFAULT, "Could not load KataGoModel.mlmodelc in the bundle resource"); return nil; }
-  return [NSURL fileURLWithPath:assetPath];
+
+  NSString *modelPath = [[NSBundle bundleForClass:[self class]] pathForResource:@"KataGoModel"
+                                                                         ofType:@"mlpackage"];
+
+  if (nil == modelPath) {
+    os_log_error(OS_LOG_DEFAULT,
+                 "Could not load KataGoModel.mlpackage in the bundle resource");
+
+    return nil;
+  }
+
+  NSURL *modelUrl = [NSURL fileURLWithPath:modelPath];
+
+  NSURL *compiledUrl = [MLModel compileModelAtURL:modelUrl
+                                            error:nil];
+
+  return compiledUrl;
 }
 
 
