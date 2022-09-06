@@ -2,7 +2,7 @@
 # Example usage:
 # wget https://media.katagotraining.org/uploaded/networks/zips/kata1/kata1-b40c256-s11840935168-d2898845681.zip
 # unzip kata1-b40c256-s11840935168-d2898845681.zip
-# python python/convert_coreml.py -saved-model-dir kata1-b40c256-s11840935168-d2898845681/saved_model -name-scope swa_model
+# python python/convert_coreml.py -saved-model-dir kata1-b40c256-s11840935168-d2898845681/saved_model -name-scope swa_model -board_size 19
 
 import argparse
 import json
@@ -23,13 +23,15 @@ Convert a trained neural net to a CoreML model.
 parser = argparse.ArgumentParser(description=description)
 common.add_model_load_args(parser)
 parser.add_argument('-name-scope', help='Name scope for model variables', required=False)
+parser.add_argument('-board-size', help='Board size of model', required=False)
 args = vars(parser.parse_args())
 
 (model_variables_prefix, model_config_json) = common.load_model_paths(args)
 name_scope = args["name_scope"]
+pos_len = int(args["board_size"])
 
-#Hardcoded max board size
-pos_len = 19
+if pos_len is None:
+  pos_len = 19
 
 # Model ----------------------------------------------------------------
 
