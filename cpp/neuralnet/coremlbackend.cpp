@@ -17,6 +17,25 @@ static void checkBufferSize(int batchSize, int nnXLen, int nnYLen, int channels)
   }
 }
 
+static void getModelSize(int nnX, int nnY, int& modelXLen, int& modelYLen) {
+  if ((nnX <= 9) && (nnY <= 9)) {
+    modelXLen = 9;
+    modelYLen = 9;
+  } else if((nnX <= 13) && (nnY <= 13)) {
+    modelXLen = 13;
+    modelYLen = 13;
+  } else if ((nnX <= 19) && (nnY <= 19)) {
+    modelXLen = 19;
+    modelYLen = 19;
+  } else if ((nnX <= 23) && (nnY <= 23)) {
+    modelXLen = 23;
+    modelYLen = 23;
+  } else {
+    modelXLen = 29;
+    modelYLen = 29;
+  }
+}
+
 //---------------------------------------------------------------------------------------------------------
 
 void NeuralNet::globalInitialize() {
@@ -64,13 +83,22 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
 struct ComputeContext {
   int nnXLen;
   int nnYLen;
+  int modelXLen;
+  int modelYLen;
+  void* coreMLContext;
 
   ComputeContext(int nnX, int nnY) {
     nnXLen = nnX;
     nnYLen = nnY;
+
+    getModelSize(nnXLen, nnYLen, modelXLen, modelYLen);
+    coreMLContext = createCoreMLModel(modelXLen, modelYLen);
+    assert(coreMLContext != NULL);
   }
 
-  ~ComputeContext() {}
+  ~ComputeContext() {
+    freeCoreMLModel(coreMLContext);
+  }
 
   ComputeContext() = delete;
   ComputeContext(const ComputeContext&) = delete;
@@ -201,6 +229,8 @@ struct ComputeHandle {
   std::unique_ptr<Model> model;
   int nnXLen;
   int nnYLen;
+  int modelXLen;
+  int modelYLen;
   bool inputsUseNHWC;
 
   ComputeHandle(
@@ -211,16 +241,18 @@ struct ComputeHandle {
     bool inputsNHWC) {
     nnXLen = context->nnXLen;
     nnYLen = context->nnYLen;
+    modelXLen = context->modelXLen;
+    modelYLen = context->modelYLen;
 
     handle = std::make_unique<ComputeHandleInternal>(gpuIdx, inputsNHWC);
     model = std::make_unique<Model>(&(loadedModel->modelDesc), maxBatchSize, nnXLen, nnYLen);
     inputsUseNHWC = inputsNHWC;
 
-    initCoreMLBackend(handle->gpuIndex);
+    createCoreMLBackend(context->coreMLContext, handle->gpuIndex, modelXLen, modelYLen);
   }
 
   ~ComputeHandle() {
-    resetCoreMLBackend(handle->gpuIndex);
+    freeCoreMLBackend(handle->gpuIndex);
     handle.reset();
     model.reset();
   }
@@ -291,7 +323,7 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem() {
     DeviceInfo info;
 
     info.gpuIdx = gpuIdx;
-    info.name = "kata1-b40c256-s11840935168-d2898845681 (19x19)";
+    info.name = "KataGo CoreML package";
     info.defaultDesirability = 100;
     allDeviceInfos.push_back(info);
   }
@@ -315,6 +347,9 @@ void NeuralNet::printDevices() {
 
 struct InputBuffers {
   int maxBatchSize;
+  int modelXLen;
+  int modelYLen;
+
   size_t policyResultChannels;
 
   size_t singleSpatialElts;
@@ -354,29 +389,27 @@ struct InputBuffers {
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
 
-    int xSize = 19;
-    int ySize = 19;
+    getModelSize(nnXLen, nnYLen, modelXLen, modelYLen);
 
     maxBatchSize = maxBatchSz;
     policyResultChannels = 2;
     singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
-    singleInputElts = (size_t)m.numInputChannels * xSize * ySize;
+    singleInputElts = (size_t)m.numInputChannels * modelXLen * modelYLen;
     singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
-    singlePolicyResultElts = (size_t)((xSize * ySize) + 1);
+    singlePolicyResultElts = (size_t)((modelXLen * modelYLen) + 1);
     singlePolicyProbsElts = (size_t)((nnXLen * nnYLen) + 1);
     singleValueResultElts = (size_t)m.numValueChannels;
-    singleOwnershipResultElts = (size_t)m.numOwnershipChannels * xSize * ySize;
+    singleOwnershipResultElts = (size_t)m.numOwnershipChannels * modelXLen * modelYLen;
     singleOwnerMapElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
     singleMiscValuesResultElts = 10;
     singleMoreMiscValuesResultElts = 8;
 
     assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
-    assert(singleInputElts == (361 * 22));
+    assert(singleInputElts == (modelXLen * modelYLen * 22));
     assert(singleInputGlobalElts == 19);
-    assert(singlePolicyResultElts == 362);
     assert(singleValueResultElts == 3);
-    assert(singleOwnershipResultElts == 361);
+    assert(singleOwnershipResultElts == (modelXLen * modelYLen));
 
     rowSpatialBufferElts = (size_t)maxBatchSize * singleSpatialElts;
 
@@ -415,6 +448,8 @@ struct InputBuffers {
     ownerMapBuffer = new float[ownerMapBufferElts];
     miscValuesResults = new float[miscValuesResultBufferElts];
     moreMiscValuesResults = new float[moreMiscValuesResultsBufferElts];
+
+    memset(&userInputBuffer[0], 0, userInputBufferElts * sizeof(userInputBuffer[0]));
   }
 
   ~InputBuffers() {
@@ -451,6 +486,8 @@ void NeuralNet::getOutput(
   int batchSize = numBatchEltsFilled;
   int nnXLen = gpuHandle->nnXLen;
   int nnYLen = gpuHandle->nnYLen;
+  int modelXLen = gpuHandle->modelXLen;
+  int modelYLen = gpuHandle->modelYLen;
   int version = gpuHandle->model->version;
   int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
   int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
@@ -458,7 +495,7 @@ void NeuralNet::getOutput(
   assert(batchSize <= inputBuffers->maxBatchSize);
   assert(batchSize > 0);
   assert(numSpatialFeatures == gpuHandle->model->numInputChannels);
-  assert((numSpatialFeatures * 19 * 19) == inputBuffers->singleInputElts);
+  assert((numSpatialFeatures * modelXLen * modelYLen) == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
 
   size_t policyResultChannels = inputBuffers->policyResultChannels;
@@ -474,11 +511,11 @@ void NeuralNet::getOutput(
   size_t singleMoreMiscValuesResultElts = inputBuffers->singleMoreMiscValuesResultElts;
 
   assert(policyResultChannels == 2);
-  assert(singleInputElts == (361 * 22));
+  assert(singleInputElts == (modelXLen * modelYLen * 22));
   assert(singleInputGlobalElts == 19);
-  assert(singlePolicyResultElts == 362);
+  assert(singlePolicyResultElts == ((modelXLen * modelYLen) + 1));
   assert(singleValueResultElts == 3);
-  assert(singleOwnershipResultElts == 361);
+  assert(singleOwnershipResultElts == (modelXLen * modelYLen));
   assert(singleMiscValuesResultElts == 10);
   assert(singleMoreMiscValuesResultElts == 8);
 
@@ -514,7 +551,7 @@ void NeuralNet::getOutput(
       for(int y = 0; y < nnYLen; y++) {
         for(int x = 0; x < nnXLen; x++) {
           int bufferIdx = (c * nnYLen * nnXLen) + (y * nnXLen) + x;
-          int inputIdx = (c * 19 * 19) + (y * 19) + x;
+          int inputIdx = (c * modelYLen * modelXLen) + (y * modelXLen) + x;
           rowSpatialInput[inputIdx] = rowSpatialBuffer[bufferIdx];
         }
       }
@@ -547,7 +584,7 @@ void NeuralNet::getOutput(
 
     for(int y = 0; y < nnYLen; y++) {
       for(int x = 0; x < nnXLen; x++) {
-        int outputIdx = (y * 19) + x;
+        int outputIdx = (y * modelXLen) + x;
         int probsIdx = (y * nnXLen) + x;
         policyProbsBuf[probsIdx] = policyOutputBuf[outputIdx];
       }
@@ -573,7 +610,7 @@ void NeuralNet::getOutput(
 
       for (int y = 0; y < nnYLen; y++) {
         for (int x = 0; x < nnXLen; x++) {
-          int outputIdx = (y * 19) + x;
+          int outputIdx = (y * modelXLen) + x;
           int ownerMapIdx = (y * nnXLen) + x;
           ownerMapBuf[ownerMapIdx] = ownershipOutputBuf[outputIdx];
         }

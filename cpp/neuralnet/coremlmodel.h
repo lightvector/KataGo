@@ -57,6 +57,11 @@ API_AVAILABLE(macos(12.0), ios(15.0), watchos(8.0), tvos(15.0)) __attribute__((v
 @property (readonly, nonatomic, nullable) MLModel * model;
 
 /**
+    Compile the MLModel
+ */
++ (nullable MLModel *)compileMLModelWithXLen:(NSNumber * _Nonnull)xLen yLen:(NSNumber * _Nonnull)yLen;
+
+/**
     URL of the underlying .mlmodelc directory.
 */
 + (nullable NSURL *)URLOfModelInThisBundle;
@@ -165,6 +170,12 @@ NS_ASSUME_NONNULL_END
 /// CoreML model instance
 @property (readonly) KataGoModel * _Nonnull model;
 
+/// Board x length
+@property (readonly) NSNumber * _Nonnull xLen;
+
+/// Board y length
+@property (readonly) NSNumber * _Nonnull yLen;
+
 /// swa_model_include_history
 @property (readonly) MLMultiArray * _Nonnull includeHistory;
 
@@ -180,7 +191,9 @@ NS_ASSUME_NONNULL_END
 /**
     Initialize CoreML backend
 */
-- (nullable instancetype)init;
+- (nullable instancetype)initWithMLModel:(MLModel * _Nonnull)model
+                                    xLen:(NSNumber * _Nonnull)xLen
+                                    yLen:(NSNumber * _Nonnull)yLen;
 
 /**
     Get output from CoreML model

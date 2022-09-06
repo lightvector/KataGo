@@ -76,28 +76,53 @@
 
 @implementation KataGoModel
 
-
 /**
- URL of the underlying .mlmodelc directory.
+ Compile the MLModel
  */
-+ (nullable NSURL *)URLOfModelInThisBundle {
++ (nullable MLModel *)compileMLModelWithXLen:(NSNumber * _Nonnull)xLen yLen:(NSNumber * _Nonnull)yLen {
+  NSString *modelName;
 
-  NSString *modelPath = [[NSBundle bundleForClass:[self class]] pathForResource:@"KataGoModel"
+  if ((xLen.intValue <= 9) && (yLen.intValue <= 9)) {
+    modelName = @"KataGoModel9x9";
+  } else if ((xLen.intValue <= 13) && (yLen.intValue <= 13)) {
+    modelName = @"KataGoModel13x13";
+  } else if ((xLen.intValue <= 19) && (yLen.intValue <= 19)) {
+    modelName = @"KataGoModel19x19";
+  } else if ((xLen.intValue <= 23) && (yLen.intValue <= 23)) {
+    modelName = @"KataGoModel23x23";
+  } else {
+    modelName = @"KataGoModel29x29";
+  }
+
+  NSString *modelPath = [[NSBundle bundleForClass:[self class]] pathForResource:modelName
                                                                          ofType:@"mlpackage"];
 
   if (nil == modelPath) {
-    os_log_error(OS_LOG_DEFAULT,
-                 "Could not load KataGoModel.mlpackage in the bundle resource");
+    NSLog(@"ERROR: Could not load KataGoModel.mlpackage in the bundle resource");
 
     return nil;
   }
 
   NSURL *modelUrl = [NSURL fileURLWithPath:modelPath];
 
+  NSLog(@"INFO: Loading KataGo Model from %@", modelUrl);
+
   NSURL *compiledUrl = [MLModel compileModelAtURL:modelUrl
                                             error:nil];
 
-  return compiledUrl;
+  MLModel *model = [MLModel modelWithContentsOfURL:compiledUrl error:nil];
+
+  return model;
+}
+
+
+/**
+ URL of the underlying .mlmodelc directory.
+ */
++ (nullable NSURL *)URLOfModelInThisBundle {
+  NSString *assetPath = [[NSBundle bundleForClass:[self class]] pathForResource:@"KataGoModel" ofType:@"mlmodelc"];
+  if (nil == assetPath) { os_log_error(OS_LOG_DEFAULT, "Could not load KataGoModel.mlmodelc in the bundle resource"); return nil; }
+  return [NSURL fileURLWithPath:assetPath];
 }
 
 

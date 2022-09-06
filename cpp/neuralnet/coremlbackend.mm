@@ -17,14 +17,17 @@ static NSMutableDictionary * models = [NSMutableDictionary dictionaryWithCapacit
 }
 
 // This is the CoreMLBackend constructor.
-- (nullable instancetype)init {
+- (nullable instancetype)initWithMLModel:(MLModel * _Nonnull)model
+                                    xLen:(NSNumber * _Nonnull)xLen
+                                    yLen:(NSNumber * _Nonnull)yLen {
   self = [super init];
-  NSError *error = nil;
-  _model = [[KataGoModel alloc] init];
+  _model = [[KataGoModel alloc] initWithMLModel:model];
+  _xLen = xLen;
+  _yLen = yLen;
   
   _includeHistory = [[MLMultiArray alloc] initWithShape:@[@1, @5]
                                                dataType:MLMultiArrayDataTypeFloat
-                                                  error:&error];
+                                                  error:nil];
 
   for (int x = 0; x < 5; x++) {
     NSNumber *xSubscript = [NSNumber numberWithInt:x];
@@ -36,7 +39,7 @@ static NSMutableDictionary * models = [NSMutableDictionary dictionaryWithCapacit
 
   _symmetries = [[MLMultiArray alloc] initWithShape:@[@3]
                                            dataType:MLMultiArrayDataTypeFloat
-                                              error:&error];
+                                              error:nil];
 
   for (int x = 0; x < 3; x++) {
     NSNumber *xSubscript = [NSNumber numberWithInt:x];
@@ -58,21 +61,21 @@ static NSMutableDictionary * models = [NSMutableDictionary dictionaryWithCapacit
               miscValuesOutput:(void * _Nonnull)miscValuesOutput
           moreMiscValuesOutput:(void * _Nonnull)moreMiscValuesOutput {
   @autoreleasepool {
-    NSError *error = nil;
+    NSNumber * boardSize = [NSNumber numberWithInt:(_xLen.intValue * _yLen.intValue)];
 
     MLMultiArray * bin_inputs_array = [[MLMultiArray alloc] initWithDataPointer:binInputs
-                                                                          shape:@[@1, @361, @22]
+                                                                          shape:@[@1, boardSize, @22]
                                                                        dataType:MLMultiArrayDataTypeFloat
-                                                                        strides:@[@1, @1, @361]
+                                                                        strides:@[@1, @1, boardSize]
                                                                     deallocator:nil
-                                                                          error:&error];
+                                                                          error:nil];
 
     MLMultiArray * global_inputs_array = [[MLMultiArray alloc] initWithDataPointer:globalInputs
                                                                              shape:@[@1, @19]
                                                                           dataType:MLMultiArrayDataTypeFloat
                                                                            strides:@[@1, @1]
                                                                        deallocator:nil
-                                                                             error:&error];
+                                                                             error:nil];
 
     KataGoModelInput * input =
     [[KataGoModelInput alloc] initWithSwa_model_bin_inputs:bin_inputs_array
@@ -84,7 +87,7 @@ static NSMutableDictionary * models = [NSMutableDictionary dictionaryWithCapacit
 
     KataGoModelOutput * output = [_model predictionFromFeatures:input
                                                         options:options
-                                                          error:&error];
+                                                          error:nil];
 
     // Copy the output to the output pointer.
     for (int i = 0; i < output.swa_model_policy_output.count; i++) {
@@ -117,13 +120,30 @@ static NSMutableDictionary * models = [NSMutableDictionary dictionaryWithCapacit
 
 @end
 
-// Initialize the CoreMLBackend class.
-void initCoreMLBackend(int modelIndex) {
-  NSNumber * index = [NSNumber numberWithInt:modelIndex];
-  models[index] = [[CoreMLBackend alloc] init];
+// Create the CoreML context.
+void* createCoreMLModel(int modelXLen, int modelYLen) {
+  MLModel * context = [KataGoModel compileMLModelWithXLen:[NSNumber numberWithInt:modelXLen]
+                                                     yLen:[NSNumber numberWithInt:modelYLen]];
+
+  return (void*)context;
 }
 
-void resetCoreMLBackend(int modelIndex) {
+// Free the CoreML context.
+void freeCoreMLModel(void* context) {
+  [(MLModel *)context release];
+}
+
+// Create the CoreMLBackend instance.
+void createCoreMLBackend(void* coreMLContext, int modelIndex, int modelXLen, int modelYLen) {
+  NSNumber * index = [NSNumber numberWithInt:modelIndex];
+
+  models[index] = [[CoreMLBackend alloc] initWithMLModel:(MLModel *)coreMLContext
+                                                    xLen:[NSNumber numberWithInt:modelXLen]
+                                                    yLen:[NSNumber numberWithInt:modelYLen]];
+}
+
+// Reset the CoreMLBackend instance.
+void freeCoreMLBackend(int modelIndex) {
   NSNumber * index = [NSNumber numberWithInt:modelIndex];
   [models[index] release];
   models[index] = nil;
