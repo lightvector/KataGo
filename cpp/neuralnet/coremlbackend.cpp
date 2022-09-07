@@ -17,25 +17,6 @@ static void checkBufferSize(int batchSize, int nnXLen, int nnYLen, int channels)
   }
 }
 
-static void getModelSize(int nnX, int nnY, int& modelXLen, int& modelYLen) {
-  if ((nnX <= 9) && (nnY <= 9)) {
-    modelXLen = 9;
-    modelYLen = 9;
-  } else if((nnX <= 13) && (nnY <= 13)) {
-    modelXLen = 13;
-    modelYLen = 13;
-  } else if ((nnX <= 19) && (nnY <= 19)) {
-    modelXLen = 19;
-    modelYLen = 19;
-  } else if ((nnX <= 23) && (nnY <= 23)) {
-    modelXLen = 23;
-    modelYLen = 23;
-  } else {
-    modelXLen = 29;
-    modelYLen = 29;
-  }
-}
-
 //---------------------------------------------------------------------------------------------------------
 
 void NeuralNet::globalInitialize() {
@@ -90,8 +71,8 @@ struct ComputeContext {
   ComputeContext(int nnX, int nnY) {
     nnXLen = nnX;
     nnYLen = nnY;
-
-    getModelSize(nnXLen, nnYLen, modelXLen, modelYLen);
+    modelXLen = COMPILE_MAX_BOARD_LEN;
+    modelYLen = COMPILE_MAX_BOARD_LEN;
     coreMLContext = createCoreMLModel(modelXLen, modelYLen);
     assert(coreMLContext != NULL);
   }
@@ -389,8 +370,8 @@ struct InputBuffers {
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
 
-    getModelSize(nnXLen, nnYLen, modelXLen, modelYLen);
-
+    modelXLen = COMPILE_MAX_BOARD_LEN;
+    modelYLen = COMPILE_MAX_BOARD_LEN;
     maxBatchSize = maxBatchSz;
     policyResultChannels = 2;
     singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;

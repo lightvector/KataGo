@@ -80,19 +80,7 @@
  Compile the MLModel
  */
 + (nullable MLModel *)compileMLModelWithXLen:(NSNumber * _Nonnull)xLen yLen:(NSNumber * _Nonnull)yLen {
-  NSString *modelName;
-
-  if ((xLen.intValue <= 9) && (yLen.intValue <= 9)) {
-    modelName = @"KataGoModel9x9";
-  } else if ((xLen.intValue <= 13) && (yLen.intValue <= 13)) {
-    modelName = @"KataGoModel13x13";
-  } else if ((xLen.intValue <= 19) && (yLen.intValue <= 19)) {
-    modelName = @"KataGoModel19x19";
-  } else if ((xLen.intValue <= 23) && (yLen.intValue <= 23)) {
-    modelName = @"KataGoModel23x23";
-  } else {
-    modelName = @"KataGoModel29x29";
-  }
+  NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%d", xLen.intValue, yLen.intValue];
 
   NSString *modelPath = [[NSBundle bundleForClass:[self class]] pathForResource:modelName
                                                                          ofType:@"mlpackage"];
