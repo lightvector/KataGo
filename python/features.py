@@ -88,7 +88,7 @@ class Features:
 
   #Returns the new idx, which could be the same as idx if this isn't a good training row
   def fill_row_features(self, board, pla, opp, boards, moves, move_idx, rules, bin_input_data, global_input_data, idx):
-    assert(self.version == 10)
+    assert(self.version >= 10)
 
     bsize = board.size
     assert(self.pos_len >= bsize)

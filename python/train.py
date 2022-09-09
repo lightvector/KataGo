@@ -1038,6 +1038,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       val_files = []
       if os.path.exists(vdatadir):
         val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".npz")]
+      # Sort to ensure deterministic order to validation files in case we use only a subset
       val_files = sorted(val_files)
       if len(val_files) == 0:
         logging.info("No validation files, skipping validation step")
