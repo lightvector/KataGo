@@ -24,16 +24,10 @@ void Search::addLeafValue(
     getResultUtility(winLossValue, noResultValue)
     + getScoreUtility(scoreMean, scoreMeanSq);
 
-  if(searchParams.subtreeValueBiasFactor != 0 && !isTerminal && node.subtreeValueBiasTableEntry != nullptr) {
-    SubtreeValueBiasEntry& entry = *(node.subtreeValueBiasTableEntry);
-    while(entry.entryLock.test_and_set(std::memory_order_acquire));
-    double newEntryDeltaUtilitySum = entry.deltaUtilitySum;
-    double newEntryWeightSum = entry.weightSum;
-    entry.entryLock.clear(std::memory_order_release);
+  if(searchParams.subtreeValueBiasFactor != 0 && !isTerminal && node.subtreeValueBiasTableHandle.entry != nullptr) {
     //This is the amount of the direct evaluation of this node that we are going to bias towards the table entry
     const double biasFactor = searchParams.subtreeValueBiasFactor;
-    if(newEntryWeightSum > 0.001)
-      utility += biasFactor * newEntryDeltaUtilitySum / newEntryWeightSum;
+    utility += biasFactor * node.subtreeValueBiasTableHandle.getValue();
   }
 
   utility += getPatternBonus(node.patternBonusHash,getOpp(node.nextPla));
@@ -251,41 +245,19 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
       getResultUtility(winProb-lossProb, noResultProb)
       + getScoreUtility(scoreMean, scoreMeanSq);
 
-    if(searchParams.subtreeValueBiasFactor != 0 && node.subtreeValueBiasTableEntry != nullptr) {
-      SubtreeValueBiasEntry& entry = *(node.subtreeValueBiasTableEntry);
-
-      double newEntryDeltaUtilitySum;
-      double newEntryWeightSum;
-
+    if(searchParams.subtreeValueBiasFactor != 0 && node.subtreeValueBiasTableHandle.entry != nullptr) {
       if(currentTotalChildWeight > 1e-10) {
         double utilityChildren = utilitySum / currentTotalChildWeight;
         double subtreeValueBiasWeight = pow(origTotalChildWeight, searchParams.subtreeValueBiasWeightExponent);
         double subtreeValueBiasDeltaSum = (utilityChildren - utility) * subtreeValueBiasWeight;
 
-        while(entry.entryLock.test_and_set(std::memory_order_acquire));
-        entry.deltaUtilitySum += subtreeValueBiasDeltaSum - node.lastSubtreeValueBiasDeltaSum;
-        entry.weightSum += subtreeValueBiasWeight - node.lastSubtreeValueBiasWeight;
-        newEntryDeltaUtilitySum = entry.deltaUtilitySum;
-        newEntryWeightSum = entry.weightSum;
-        node.lastSubtreeValueBiasDeltaSum = subtreeValueBiasDeltaSum;
-        node.lastSubtreeValueBiasWeight = subtreeValueBiasWeight;
-        entry.entryLock.clear(std::memory_order_release);
+        const double biasFactor = searchParams.subtreeValueBiasFactor;
+        utility += biasFactor * node.subtreeValueBiasTableHandle.updateValue(subtreeValueBiasDeltaSum, subtreeValueBiasWeight);
       }
       else {
-        while(entry.entryLock.test_and_set(std::memory_order_acquire));
-        newEntryDeltaUtilitySum = entry.deltaUtilitySum;
-        newEntryWeightSum = entry.weightSum;
-        entry.entryLock.clear(std::memory_order_release);
+        const double biasFactor = searchParams.subtreeValueBiasFactor;
+        utility += biasFactor * node.subtreeValueBiasTableHandle.getValue();
       }
-
-      //This is the amount of the direct evaluation of this node that we are going to bias towards the table entry
-      const double biasFactor = searchParams.subtreeValueBiasFactor;
-      if(newEntryWeightSum > 0.001)
-        utility += biasFactor * newEntryDeltaUtilitySum / newEntryWeightSum;
-      //This is the amount by which we need to scale desiredSelfWeight such that if the table entry were actually equal to
-      //the current difference between the direct eval and the children, we would perform a no-op... unless a noop is actually impossible
-      //Then we just take what we can get.
-      //desiredSelfWeight *= weightSum / (1.0-biasFactor) / std::max(0.001, (weightSum + desiredSelfWeight - desiredSelfWeight / (1.0-biasFactor)));
     }
 
     double weight = computeWeightFromNNOutput(nnOutput);

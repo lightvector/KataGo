@@ -615,7 +615,7 @@ void Search::beginSearch(bool pondering) {
 
   //Prepare value bias table if we need it
   if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable == NULL && !(searchParams.antiMirror && mirroringPla != C_EMPTY))
-    subtreeValueBiasTable = new SubtreeValueBiasTable(searchParams.subtreeValueBiasTableNumShards);
+    subtreeValueBiasTable = new SubtreeValueBiasTable(searchParams.subtreeValueBiasTableNumShards, this);
 
   //Refresh pattern bonuses if needed
   if(patternBonusTable != NULL) {
@@ -816,7 +816,7 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
     else {
       child = new SearchNode(nextPla, forceNonTerminal, createMutexIdxForNode(thread));
 
-      //Also perform subtree value bias and pattern bonus handling under the mutex. These parameters are no atomic, so
+      //Also perform subtree value bias and pattern bonus handling under the mutex. These parameters are not atomic, so
       //if the node is accessed concurrently by other nodes through the table, we need to make sure these parameters are fully
       //fully-formed before we make the node accessible to anyone.
 
@@ -825,7 +825,7 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
         if(thread.history.moveHistory.size() >= 2) {
           Loc prevMoveLoc = thread.history.moveHistory[thread.history.moveHistory.size()-2].loc;
           if(prevMoveLoc != Board::NULL_LOC) {
-            child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(getOpp(thread.pla), prevMoveLoc, bestChildMoveLoc, thread.history.getRecentBoard(1));
+            subtreeValueBiasTable->get(child->subtreeValueBiasTableHandle, getOpp(thread.pla), prevMoveLoc, bestChildMoveLoc, thread.history.getRecentBoard(1));
           }
         }
       }
@@ -854,21 +854,10 @@ void Search::transferOldNNOutputs(SearchThread& thread) {
 }
 
 void Search::removeSubtreeValueBias(SearchNode* node) {
-  if(node->subtreeValueBiasTableEntry != nullptr) {
-    double deltaUtilitySumToSubtract = node->lastSubtreeValueBiasDeltaSum * searchParams.subtreeValueBiasFreeProp;
-    double weightSumToSubtract = node->lastSubtreeValueBiasWeight * searchParams.subtreeValueBiasFreeProp;
-
-    SubtreeValueBiasEntry& entry = *(node->subtreeValueBiasTableEntry);
-    while(entry.entryLock.test_and_set(std::memory_order_acquire));
-    entry.deltaUtilitySum -= deltaUtilitySumToSubtract;
-    entry.weightSum -= weightSumToSubtract;
-    entry.entryLock.clear(std::memory_order_release);
-    node->subtreeValueBiasTableEntry = nullptr;
-  }
+  node->subtreeValueBiasTableHandle.clear();
 }
 
 //Delete ALL nodes where nodeAge < searchNodeAge if old is true, else all nodes where nodeAge >= searchNodeAge
-//Also clears subtreevaluebias for deleted nodes.
 void Search::deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool old) {
   int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
   assert(numAdditionalThreads >= 0);
@@ -880,7 +869,6 @@ void Search::deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool 
       for(auto it = nodeMap.cbegin(); it != nodeMap.cend();) {
         SearchNode* node = it->second;
         if(old == (node->nodeAge.load(std::memory_order_acquire) < searchNodeAge)) {
-          removeSubtreeValueBias(node);
           delete node;
           it = nodeMap.erase(it);
         }
@@ -893,8 +881,11 @@ void Search::deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool 
 }
 
 //Delete ALL nodes. More efficient than deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded if deleting everything.
-//Doesn't clear subtree value bias.
 void Search::deleteAllTableNodesMulithreaded() {
+  // As an optimization, skip all updating of the table, since we're clearing everything
+  if(subtreeValueBiasTable != nullptr)
+    subtreeValueBiasTable->setFreePropDisabled();
+
   int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
   assert(numAdditionalThreads >= 0);
   std::function<void(int)> g = [&](int threadIdx) {
@@ -909,6 +900,11 @@ void Search::deleteAllTableNodesMulithreaded() {
     }
   };
   performTaskWithThreads(&g);
+
+  if(subtreeValueBiasTable != nullptr) {
+    subtreeValueBiasTable->clearUnusedSynchronous();
+    subtreeValueBiasTable->setFreePropEnabled();
+  }
 }
 
 //This function should NOT ever be called concurrently with any other threads modifying the search tree.

@@ -2,6 +2,7 @@
 
 #include "../core/rand.h"
 #include "../search/localpattern.h"
+#include "../search/search.h"
 
 static std::mutex initMutex;
 static std::atomic<bool> isInited(false);
@@ -35,13 +36,87 @@ static void initIfNeeded() {
   isInited = true;
 }
 
-SubtreeValueBiasTable::SubtreeValueBiasTable(int32_t numShards) {
+
+SubtreeValueBiasHandle::SubtreeValueBiasHandle()
+  : lastSubtreeValueBiasDeltaSum(0.0),
+    lastSubtreeValueBiasWeight(0.0),
+    entry(nullptr),
+    table(nullptr)
+{
+}
+SubtreeValueBiasHandle::~SubtreeValueBiasHandle() {
+  clear();
+}
+
+void SubtreeValueBiasHandle::clear() {
+  if(entry != nullptr) {
+    assert(table != nullptr);
+    if(table->freePropEnabled) {
+      double freeProp = table->search->searchParams.subtreeValueBiasFreeProp;
+      double deltaUtilitySumToSubtract = lastSubtreeValueBiasDeltaSum * freeProp;
+      double weightSumToSubtract = lastSubtreeValueBiasWeight * freeProp;
+
+      SubtreeValueBiasEntry& entry_ = *entry;
+      while(entry_.entryLock.test_and_set(std::memory_order_acquire));
+      entry_.deltaUtilitySum -= deltaUtilitySumToSubtract;
+      entry_.weightSum -= weightSumToSubtract;
+      entry_.entryLock.clear(std::memory_order_release);
+      entry = nullptr;
+      table = nullptr;
+    }
+  }
+}
+
+double SubtreeValueBiasHandle::getValue() const {
+  double newEntryDeltaUtilitySum;
+  double newEntryWeightSum;
+
+  SubtreeValueBiasEntry& entry_ = *entry;
+  while(entry_.entryLock.test_and_set(std::memory_order_acquire));
+  newEntryDeltaUtilitySum = entry_.deltaUtilitySum;
+  newEntryWeightSum = entry_.weightSum;
+  entry_.entryLock.clear(std::memory_order_release);
+
+  if(newEntryWeightSum > 0.001)
+    return newEntryDeltaUtilitySum / newEntryWeightSum;
+  return 0.0;
+}
+
+double SubtreeValueBiasHandle::updateValue(double newDeltaSumThisNode, double newWeightThisNode) {
+  double newEntryDeltaUtilitySum;
+  double newEntryWeightSum;
+
+  SubtreeValueBiasEntry& entry_ = *entry;
+  while(entry_.entryLock.test_and_set(std::memory_order_acquire));
+  entry_.deltaUtilitySum += newDeltaSumThisNode - lastSubtreeValueBiasDeltaSum;
+  entry_.weightSum += newWeightThisNode - lastSubtreeValueBiasWeight;
+  newEntryDeltaUtilitySum = entry_.deltaUtilitySum;
+  newEntryWeightSum = entry_.weightSum;
+  lastSubtreeValueBiasDeltaSum = newDeltaSumThisNode;
+  lastSubtreeValueBiasWeight = newWeightThisNode;
+  entry_.entryLock.clear(std::memory_order_release);
+
+  if(newEntryWeightSum > 0.001)
+    return newEntryDeltaUtilitySum / newEntryWeightSum;
+  return 0.0;
+}
+
+SubtreeValueBiasTable::SubtreeValueBiasTable(int32_t numShards, const Search* _search)
+  :search(_search), freePropEnabled(true)
+{
   initIfNeeded();
   mutexPool = new MutexPool(numShards);
   entries.resize(numShards);
 }
 SubtreeValueBiasTable::~SubtreeValueBiasTable() {
   delete mutexPool;
+}
+
+void SubtreeValueBiasTable::setFreePropEnabled() {
+  freePropEnabled = true;
+}
+void SubtreeValueBiasTable::setFreePropDisabled() {
+  freePropEnabled = false;
 }
 
 void SubtreeValueBiasTable::clearUnusedSynchronous() {
@@ -59,7 +134,15 @@ void SubtreeValueBiasTable::clearUnusedSynchronous() {
   }
 }
 
-std::shared_ptr<SubtreeValueBiasEntry> SubtreeValueBiasTable::get(Player pla, Loc parentPrevMoveLoc, Loc prevMoveLoc, const Board& prevBoard) {
+void SubtreeValueBiasTable::get(
+  SubtreeValueBiasHandle& buf,
+  Player pla,
+  Loc parentPrevMoveLoc,
+  Loc prevMoveLoc,
+  const Board& prevBoard
+) {
+  assert(buf.entry == nullptr);
+
   Hash128 hash = ZOBRIST_MOVE_LOCS[parentPrevMoveLoc][0] ^ ZOBRIST_MOVE_LOCS[prevMoveLoc][1];
 
   hash ^= patternHasher.getHash(prevBoard,prevMoveLoc,pla);
@@ -74,5 +157,9 @@ std::shared_ptr<SubtreeValueBiasEntry> SubtreeValueBiasTable::get(Player pla, Lo
   std::shared_ptr<SubtreeValueBiasEntry>& slot = entries[subMapIdx][hash];
   if(slot == nullptr)
     slot = std::make_shared<SubtreeValueBiasEntry>();
-  return slot;
+
+  buf.lastSubtreeValueBiasDeltaSum = 0.0;
+  buf.lastSubtreeValueBiasWeight = 0.0;
+  buf.entry = slot;
+  buf.table = this;
 }
