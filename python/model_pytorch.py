@@ -1,4 +1,5 @@
 import math
+import numpy as np
 import torch
 import torch.nn
 import torch.nn.functional
@@ -1525,6 +1526,9 @@ class Model(torch.nn.Module):
     #   0 is the main output, 1 is intermediate.
     # The inner tuple ranges over the outputs of a set of heads (policy, value, etc).
     def forward(self, input_spatial, input_global):
+        # float_formatter = "{:.3f}".format
+        # np.set_printoptions(formatter={'float_kind':float_formatter}, threshold=1000000, linewidth=10000)
+
         mask = input_spatial[:, 0:1, :, :].contiguous()
         mask_sum_hw = torch.sum(mask,dim=(2,3),keepdim=True)
         mask_sum = torch.sum(mask)
@@ -1544,6 +1548,7 @@ class Model(torch.nn.Module):
                 out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
                 count += 1
 
+            # print("INTERMEDIATE")
             iout = out
             iout = self.norm_intermediate_trunkfinal(iout, mask=mask, mask_sum=mask_sum)
             iout = self.act_intermediate_trunkfinal(iout)
@@ -1578,6 +1583,7 @@ class Model(torch.nn.Module):
         out = self.norm_trunkfinal(out, mask=mask, mask_sum=mask_sum)
         out = self.act_trunkfinal(out)
 
+        # print("MAIN")
         out_policy = self.policy_head(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
         (
             out_value,
