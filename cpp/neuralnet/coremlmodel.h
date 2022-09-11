@@ -3,6 +3,10 @@
 #include <stdint.h>
 #include <os/log.h>
 
+#if ! __has_feature(objc_arc)
+#error This code must be compiled with Objective-C ARC! Did you compile with -fobjc-arc?
+#endif
+
 NS_ASSUME_NONNULL_BEGIN
 
 
@@ -105,34 +109,6 @@ API_AVAILABLE(macos(12.0), ios(15.0), watchos(8.0), tvos(15.0)) __attribute__((v
 - (nullable instancetype)initWithContentsOfURL:(NSURL *)modelURL configuration:(MLModelConfiguration *)configuration error:(NSError * _Nullable __autoreleasing * _Nullable)error;
 
 /**
-    Construct KataGoModel instance asynchronously with configuration.
-    Model loading may take time when the model content is not immediately available (e.g. encrypted model). Use this factory method especially when the caller is on the main thread.
-
-    @param configuration The model configuration
-    @param handler When the model load completes successfully or unsuccessfully, the completion handler is invoked with a valid KataGoModel instance or NSError object.
-*/
-+ (void)loadWithConfiguration:(MLModelConfiguration *)configuration completionHandler:(void (^)(KataGoModel * _Nullable model, NSError * _Nullable error))handler;
-
-/**
-    Construct KataGoModel instance asynchronously with URL of .mlmodelc directory and optional configuration.
-
-    Model loading may take time when the model content is not immediately available (e.g. encrypted model). Use this factory method especially when the caller is on the main thread.
-
-    @param modelURL The model URL.
-    @param configuration The model configuration
-    @param handler When the model load completes successfully or unsuccessfully, the completion handler is invoked with a valid KataGoModel instance or NSError object.
-*/
-+ (void)loadContentsOfURL:(NSURL *)modelURL configuration:(MLModelConfiguration *)configuration completionHandler:(void (^)(KataGoModel * _Nullable model, NSError * _Nullable error))handler;
-
-/**
-    Make a prediction using the standard interface
-    @param input an instance of KataGoModelInput to predict from
-    @param error If an error occurs, upon return contains an NSError object that describes the problem. If you are not interested in possible errors, pass in NULL.
-    @return the prediction as KataGoModelOutput
-*/
-- (nullable KataGoModelOutput *)predictionFromFeatures:(KataGoModelInput *)input error:(NSError * _Nullable __autoreleasing * _Nullable)error;
-
-/**
     Make a prediction using the standard interface
     @param input an instance of KataGoModelInput to predict from
     @param options prediction options
@@ -141,25 +117,6 @@ API_AVAILABLE(macos(12.0), ios(15.0), watchos(8.0), tvos(15.0)) __attribute__((v
 */
 - (nullable KataGoModelOutput *)predictionFromFeatures:(KataGoModelInput *)input options:(MLPredictionOptions *)options error:(NSError * _Nullable __autoreleasing * _Nullable)error;
 
-/**
-    Make a prediction using the convenience interface
-    @param swa_model_bin_inputs as 1 × 361 × 22 3-dimensional array of floats:
-    @param swa_model_global_inputs as 1 by 19 matrix of floats:
-    @param swa_model_include_history as 1 by 5 matrix of floats:
-    @param swa_model_symmetries as 3 element vector of floats:
-    @param error If an error occurs, upon return contains an NSError object that describes the problem. If you are not interested in possible errors, pass in NULL.
-    @return the prediction as KataGoModelOutput
-*/
-- (nullable KataGoModelOutput *)predictionFromSwa_model_bin_inputs:(MLMultiArray *)swa_model_bin_inputs swa_model_global_inputs:(MLMultiArray *)swa_model_global_inputs swa_model_include_history:(MLMultiArray *)swa_model_include_history swa_model_symmetries:(MLMultiArray *)swa_model_symmetries error:(NSError * _Nullable __autoreleasing * _Nullable)error;
-
-/**
-    Batch prediction
-    @param inputArray array of KataGoModelInput instances to obtain predictions from
-    @param options prediction options
-    @param error If an error occurs, upon return contains an NSError object that describes the problem. If you are not interested in possible errors, pass in NULL.
-    @return the predictions as NSArray<KataGoModelOutput *>
-*/
-- (nullable NSArray<KataGoModelOutput *> *)predictionsFromInputs:(NSArray<KataGoModelInput*> *)inputArray options:(MLPredictionOptions *)options error:(NSError * _Nullable __autoreleasing * _Nullable)error;
 @end
 
 NS_ASSUME_NONNULL_END
@@ -186,7 +143,16 @@ NS_ASSUME_NONNULL_END
     Get CoreML backend with model index
     @param index model index
 */
-+ (CoreMLBackend * _Nonnull)getModelAt:(NSNumber * _Nonnull)index;
++ (CoreMLBackend * _Nonnull)getBackendAt:(NSNumber * _Nonnull)index;
+
+/**
+    Initialize CoreML backend with model index
+    @param xLen x-direction length
+    @param yLen y-direction length
+*/
++ (void)initWithIndex:(NSNumber * _Nonnull)index
+            modelXLen:(NSNumber * _Nonnull)xLen
+            modelYLen:(NSNumber * _Nonnull)yLen;
 
 /**
     Initialize CoreML backend

@@ -2,18 +2,63 @@
 #import <CoreML/MLMultiArray.h>
 #import "coremlmodel.h"
 
-// This is the CoreMLBackend dictionary.
-// It is a singleton object that is used to store the CoreML model.
-// Two threads run with two CoreML models in parallel.
-static NSMutableDictionary * models = [NSMutableDictionary dictionaryWithCapacity:2];
-
 // This is the CoreMLBackend class.
 @implementation CoreMLBackend
 
+// This is the CoreMLBackend dictionary getter method.
+// It is a singleton object that is used to store the CoreML models.
++ (NSMutableDictionary * _Nonnull)getBackends {
+  // This is the CoreMLBackend dictionary.
+  static NSMutableDictionary * backends = nil;
+
+  @synchronized (self) {
+    if (backends == nil) {
+      // Two threads run with two CoreML backends in parallel.
+      backends = [NSMutableDictionary dictionaryWithCapacity:2];
+    }
+  }
+
+  return backends;
+}
+
 // This is the CoreMLBackend getter method.
-// If the model is not in the dictionary, it is initialized.
-+ (CoreMLBackend * _Nonnull)getModelAt:(NSNumber * _Nonnull)index {
-  return models[index];
+// If the backend is not in the dictionary, it is initialized.
++ (CoreMLBackend * _Nonnull)getBackendAt:(NSNumber * _Nonnull)index {
+  NSMutableDictionary * backends = [CoreMLBackend getBackends];
+
+  return backends[index];
+}
+
+// This is the CoreMLBackend factory method.
+// It is used to create a CoreMLBackend object.
+// The CoreMLBackend object is stored in the dictionary.
+// The CoreMLBackend object is initialized with the CoreML model.
++ (void)initWithIndex:(NSNumber * _Nonnull)index
+            modelXLen:(NSNumber * _Nonnull)xLen
+            modelYLen:(NSNumber * _Nonnull)yLen {
+  NSMutableDictionary * backends = [CoreMLBackend getBackends];
+
+  @synchronized (self) {
+    if (backends[index] == nil) {
+      MLModel * mlmodel = [KataGoModel compileMLModelWithXLen:xLen
+                                                         yLen:yLen];
+
+      backends[index] = [[CoreMLBackend alloc] initWithMLModel:mlmodel
+                                                          xLen:xLen
+                                                          yLen:yLen];
+    }
+  }
+}
+
+// This is the CoreMLBackend destruction method.
+// It is used to destroy a CoreMLBackend object.
+// The CoreMLBackend object is removed from the dictionary.
++ (void)releaseWithIndex:(NSNumber * _Nonnull)index {
+  NSMutableDictionary * backends = [CoreMLBackend getBackends];
+
+  @synchronized (self) {
+    backends[index] = nil;
+  }
 }
 
 // This is the CoreMLBackend constructor.
@@ -24,14 +69,14 @@ static NSMutableDictionary * models = [NSMutableDictionary dictionaryWithCapacit
   _model = [[KataGoModel alloc] initWithMLModel:model];
   _xLen = xLen;
   _yLen = yLen;
-  
+
   _includeHistory = [[MLMultiArray alloc] initWithShape:@[@1, @5]
                                                dataType:MLMultiArrayDataTypeFloat
                                                   error:nil];
 
   for (int x = 0; x < 5; x++) {
     NSNumber *xSubscript = [NSNumber numberWithInt:x];
-    
+
     // Set the value of the array at the subscript.
     [_includeHistory setObject:@1.0
              forKeyedSubscript:@[@0, xSubscript]];
@@ -110,43 +155,26 @@ static NSMutableDictionary * models = [NSMutableDictionary dictionaryWithCapacit
       ((float *)moreMiscValuesOutput)[i] = output.swa_model_moremiscvalues_output[i].floatValue;
     }
 
-    [output release];
-    [options release];
-    [input release];
-    [global_inputs_array release];
-    [bin_inputs_array release];
   }
 }
 
 @end
 
-// Create the CoreML context.
-void* createCoreMLModel(int modelXLen, int modelYLen) {
-  MLModel * context = [KataGoModel compileMLModelWithXLen:[NSNumber numberWithInt:modelXLen]
-                                                     yLen:[NSNumber numberWithInt:modelYLen]];
-
-  return (void*)context;
-}
-
-// Free the CoreML context.
-void freeCoreMLModel(void* context) {
-  [(MLModel *)context release];
+// Initialize the CoreMLBackend dictionary.
+void initCoreMLBackends() {
+  (void)[CoreMLBackend getBackends];
 }
 
 // Create the CoreMLBackend instance.
-void createCoreMLBackend(void* coreMLContext, int modelIndex, int modelXLen, int modelYLen) {
-  NSNumber * index = [NSNumber numberWithInt:modelIndex];
-
-  models[index] = [[CoreMLBackend alloc] initWithMLModel:(MLModel *)coreMLContext
-                                                    xLen:[NSNumber numberWithInt:modelXLen]
-                                                    yLen:[NSNumber numberWithInt:modelYLen]];
+void createCoreMLBackend(int modelIndex, int modelXLen, int modelYLen) {
+  [CoreMLBackend initWithIndex:[NSNumber numberWithInt:modelIndex]
+                     modelXLen:[NSNumber numberWithInt:modelXLen]
+                     modelYLen:[NSNumber numberWithInt:modelYLen]];
 }
 
 // Reset the CoreMLBackend instance.
 void freeCoreMLBackend(int modelIndex) {
-  NSNumber * index = [NSNumber numberWithInt:modelIndex];
-  [models[index] release];
-  models[index] = nil;
+  [CoreMLBackend releaseWithIndex:[NSNumber numberWithInt:modelIndex]];
 }
 
 // Get the model's output.
@@ -158,15 +186,13 @@ void getCoreMLBackendOutput(float* userInputBuffer,
                             float* miscValuesOutput,
                             float* moreMiscValuesOutput,
                             int modelIndex) {
-  @autoreleasepool {
-    CoreMLBackend* model = [CoreMLBackend getModelAt:[NSNumber numberWithInt:modelIndex]];
+  CoreMLBackend* model = [CoreMLBackend getBackendAt:[NSNumber numberWithInt:modelIndex]];
 
-    [model getOutputWithBinInputs:userInputBuffer
-                     globalInputs:userInputGlobalBuffer
-                     policyOutput:policyOutput
-                      valueOutput:valueOutput
-                  ownershipOutput:ownershipOutput
-                 miscValuesOutput:miscValuesOutput
-             moreMiscValuesOutput:moreMiscValuesOutput];
-  }
+  [model getOutputWithBinInputs:userInputBuffer
+                   globalInputs:userInputGlobalBuffer
+                   policyOutput:policyOutput
+                    valueOutput:valueOutput
+                ownershipOutput:ownershipOutput
+               miscValuesOutput:miscValuesOutput
+           moreMiscValuesOutput:moreMiscValuesOutput];
 }

@@ -322,6 +322,7 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
   endif()
 elseif(USE_BACKEND STREQUAL "COREML")
   target_compile_definitions(katago PRIVATE USE_COREML_BACKEND)
+  target_compile_options(katago PRIVATE "-fobjc-arc")
   set(CMAKE_EXE_LINKER_FLAGS "-framework Foundation -framework CoreML")
 endif()
 

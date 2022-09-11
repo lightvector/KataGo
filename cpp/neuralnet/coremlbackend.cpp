@@ -20,8 +20,7 @@ static void checkBufferSize(int batchSize, int nnXLen, int nnYLen, int channels)
 //---------------------------------------------------------------------------------------------------------
 
 void NeuralNet::globalInitialize() {
-  // If int is only 2 bytes, this implementation won't work right now.
-  static_assert(sizeof(int) >= 4, "");
+  initCoreMLBackends();
 }
 
 void NeuralNet::globalCleanup() {}
@@ -66,20 +65,15 @@ struct ComputeContext {
   int nnYLen;
   int modelXLen;
   int modelYLen;
-  void* coreMLContext;
 
   ComputeContext(int nnX, int nnY) {
     nnXLen = nnX;
     nnYLen = nnY;
     modelXLen = COMPILE_MAX_BOARD_LEN;
     modelYLen = COMPILE_MAX_BOARD_LEN;
-    coreMLContext = createCoreMLModel(modelXLen, modelYLen);
-    assert(coreMLContext != NULL);
   }
 
-  ~ComputeContext() {
-    freeCoreMLModel(coreMLContext);
-  }
+  ~ComputeContext() {}
 
   ComputeContext() = delete;
   ComputeContext(const ComputeContext&) = delete;
@@ -229,7 +223,7 @@ struct ComputeHandle {
     model = std::make_unique<Model>(&(loadedModel->modelDesc), maxBatchSize, nnXLen, nnYLen);
     inputsUseNHWC = inputsNHWC;
 
-    createCoreMLBackend(context->coreMLContext, handle->gpuIndex, modelXLen, modelYLen);
+    createCoreMLBackend(handle->gpuIndex, modelXLen, modelYLen);
   }
 
   ~ComputeHandle() {
