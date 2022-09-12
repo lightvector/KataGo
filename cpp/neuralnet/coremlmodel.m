@@ -82,11 +82,13 @@
 + (nullable MLModel *)compileMLModelWithXLen:(NSNumber * _Nonnull)xLen yLen:(NSNumber * _Nonnull)yLen {
   NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%d", xLen.intValue, yLen.intValue];
 
+  NSString *typeName = @"mlpackage";
+
   NSString *modelPath = [[NSBundle bundleForClass:[self class]] pathForResource:modelName
-                                                                         ofType:@"mlpackage"];
+                                                                         ofType:typeName];
 
   if (nil == modelPath) {
-    NSLog(@"ERROR: Could not load KataGoModel.mlpackage in the bundle resource");
+    NSLog(@"ERROR: Could not load %@.%@ in the bundle resource", modelName, typeName);
 
     return nil;
   }
