@@ -70,10 +70,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::analysis(subArgs);
   if(subcommand == "benchmark")
     return MainCmds::benchmark(subArgs);
-  if(subcommand == "contribute") {
-    cout << "CoreML does not allow subcommand: " << subcommand << endl;
-    return 1;
-  }
+  if(subcommand == "contribute")
+    return MainCmds::contribute(subArgs);
   if(subcommand == "evalsgf")
     return MainCmds::evalsgf(subArgs);
   else if(subcommand == "gatekeeper")
