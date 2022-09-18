@@ -82,7 +82,7 @@
 + (nullable MLModel *)compileMLModelWithXLen:(NSNumber * _Nonnull)xLen yLen:(NSNumber * _Nonnull)yLen {
   NSString *modelName = [NSString stringWithFormat:@"KataGoModel%dx%d", xLen.intValue, yLen.intValue];
 
-  NSString *typeName = @"mlpackage";
+  NSString *typeName = @"mlmodel";
 
   NSString *modelPath = [[NSBundle bundleForClass:[self class]] pathForResource:modelName
                                                                          ofType:typeName];
@@ -101,6 +101,8 @@
                                             error:nil];
 
   MLModel *model = [MLModel modelWithContentsOfURL:compiledUrl error:nil];
+
+  NSLog(@"Loaded KataGo Model: %@", model.modelDescription.metadata[MLModelDescriptionKey]);
 
   return model;
 }

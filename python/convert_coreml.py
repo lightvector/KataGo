@@ -53,7 +53,7 @@ model_dir = tempfile.mkdtemp()
 graph_def_file = os.path.join(model_dir, 'tf_graph.pb')
 checkpoint_file = os.path.join(model_dir, 'tf_model.ckpt')
 frozen_graph_file = os.path.join(model_dir, 'KataGoModel.pb')
-mlmodel_file = "KataGoModel.mlpackage"
+mlmodel_file = f'KataGoModel{pos_len}x{pos_len}.mlmodel'
 
 output_names = [
   model.policy_output.op.name,
@@ -85,7 +85,9 @@ with tf.compat.v1.Session() as session:
                clear_devices=True,
                initializer_nodes="")
 
-  mlmodel = ct.convert(frozen_graph_file, convert_to="mlprogram")
+  mlmodel = ct.convert(frozen_graph_file)
+  mlmodel.short_description = f'KataGo {pos_len}x{pos_len} model version {model.version} converted from {model_config_json}'
+  mlmodel.version = f'{model.version}'
   mlmodel.save(mlmodel_file)
 
   print("Core ML model saved at {}".format(mlmodel_file))

@@ -2,7 +2,7 @@
 #define coremlbackend_h
 
 void initCoreMLBackends();
-void createCoreMLBackend(int modelIndex, int modelXLen, int modelYLen);
+int createCoreMLBackend(int modelIndex, int modelXLen, int modelYLen);
 void freeCoreMLBackend(int modelIndex);
 
 void getCoreMLBackendOutput(float* userInputBuffer,

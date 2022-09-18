@@ -8,15 +8,6 @@
 
 using namespace std;
 
-//======================================================================================================
-
-static void checkBufferSize(int batchSize, int nnXLen, int nnYLen, int channels) {
-  if((int64_t)batchSize * nnXLen * nnYLen * channels >= (int64_t)1 << 31) {
-    throw StringError(
-      "Batch size too large, resulting GPU buffers might exceed 2^31 entries which is not currently supported");
-  }
-}
-
 //---------------------------------------------------------------------------------------------------------
 
 void NeuralNet::globalInitialize() {
@@ -28,19 +19,31 @@ void NeuralNet::globalCleanup() {}
 //------------------------------------------------------------------------------
 
 struct LoadedModel {
+  int modelXLen;
+  int modelYLen;
   ModelDesc modelDesc;
 
-  LoadedModel(const string& fileName, const string& expectedSha256) {
-    ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
+  LoadedModel() {
+    modelXLen = COMPILE_MAX_BOARD_LEN;
+    modelYLen = COMPILE_MAX_BOARD_LEN;
+    modelDesc.name = "CoreML model";
+    modelDesc.version = createCoreMLBackend(0, COMPILE_MAX_BOARD_LEN, COMPILE_MAX_BOARD_LEN);
+    modelDesc.numInputChannels = 22;
+    modelDesc.numInputGlobalChannels = 19;
+    modelDesc.numValueChannels = 3;
+    modelDesc.numOwnershipChannels = 1;
+    modelDesc.numScoreValueChannels = 18;
   }
 
-  LoadedModel() = delete;
   LoadedModel(const LoadedModel&) = delete;
   LoadedModel& operator=(const LoadedModel&) = delete;
 };
 
 LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expectedSha256) {
-  LoadedModel* loadedModel = new LoadedModel(file, expectedSha256);
+  LoadedModel* loadedModel = new LoadedModel();
+  (void)file;
+  (void)expectedSha256;
+
   return loadedModel;
 }
 
@@ -63,14 +66,10 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
 struct ComputeContext {
   int nnXLen;
   int nnYLen;
-  int modelXLen;
-  int modelYLen;
 
   ComputeContext(int nnX, int nnY) {
     nnXLen = nnX;
     nnYLen = nnY;
-    modelXLen = COMPILE_MAX_BOARD_LEN;
-    modelYLen = COMPILE_MAX_BOARD_LEN;
   }
 
   ~ComputeContext() {}
@@ -112,124 +111,28 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 
 //--------------------------------------------------------------
 
-struct ComputeHandleInternal {
-  int gpuIndex;
-
-  ComputeHandleInternal(int gpuIdx, bool inputsUseNHWC) {
-    gpuIndex = gpuIdx;
-
-    if(inputsUseNHWC != false) {
-      throw StringError("CoreML backend: inputsUseNHWC = false required, other configurations not supported");
-    }
-  }
-
-  ~ComputeHandleInternal() {}
-
-  ComputeHandleInternal() = delete;
-  ComputeHandleInternal(const ComputeHandleInternal&) = delete;
-  ComputeHandleInternal& operator=(const ComputeHandleInternal&) = delete;
-};
-
-//--------------------------------------------------------------
-
-struct Model {
-  string name;
-  int version;
-  int maxBatchSize;
-  int nnXLen;
-  int nnYLen;
-  int numInputChannels;
-  int numInputGlobalChannels;
-  int numValueChannels;
-  int numScoreValueChannels;
-  int numOwnershipChannels;
-
-  Model() = delete;
-  Model(const Model&) = delete;
-  Model& operator=(const Model&) = delete;
-
-  Model(const ModelDesc* desc, int maxBatchSz, int nnX, int nnY) {
-    name = desc->name;
-    version = desc->version;
-    maxBatchSize = maxBatchSz;
-    nnXLen = nnX;
-    nnYLen = nnY;
-
-    if(nnXLen > NNPos::MAX_BOARD_LEN) {
-      throw StringError(
-        Global::strprintf("nnXLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnXLen, NNPos::MAX_BOARD_LEN));
-    }
-
-    if(nnYLen > NNPos::MAX_BOARD_LEN) {
-      throw StringError(
-        Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnYLen, NNPos::MAX_BOARD_LEN));
-    }
-
-    numInputChannels = desc->numInputChannels;
-    numInputGlobalChannels = desc->numInputGlobalChannels;
-    numValueChannels = desc->numValueChannels;
-    numScoreValueChannels = desc->numScoreValueChannels;
-    numOwnershipChannels = desc->numOwnershipChannels;
-
-    int numFeatures = NNModelVersion::getNumSpatialFeatures(version);
-    if(numInputChannels != numFeatures) {
-      throw StringError(Global::strprintf(
-        "Neural net numInputChannels (%d) was not the expected number based on version (%d)",
-        numInputChannels,
-        numFeatures));
-    }
-
-    int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
-    if(numInputGlobalChannels != numGlobalFeatures) {
-      throw StringError(Global::strprintf(
-        "Neural net numInputGlobalChannels (%d) was not the expected number based on version (%d)",
-        numInputGlobalChannels,
-        numGlobalFeatures));
-    }
-
-    checkBufferSize(maxBatchSize, nnXLen, nnYLen, numInputChannels);
-    checkBufferSize(maxBatchSize, nnXLen, nnYLen, numInputGlobalChannels);
-    checkBufferSize(maxBatchSize, nnXLen, nnYLen, numValueChannels);
-    checkBufferSize(maxBatchSize, nnXLen, nnYLen, numScoreValueChannels);
-    checkBufferSize(maxBatchSize, nnXLen, nnYLen, numOwnershipChannels);
-  }
-
-  ~Model() {}
-};
-
-//--------------------------------------------------------------
-
 struct ComputeHandle {
-  std::unique_ptr<ComputeHandleInternal> handle;
-  std::unique_ptr<Model> model;
   int nnXLen;
   int nnYLen;
   int modelXLen;
   int modelYLen;
   bool inputsUseNHWC;
+  int version;
+  int gpuIndex;
 
-  ComputeHandle(
-    ComputeContext* context,
-    const LoadedModel* loadedModel,
-    int maxBatchSize,
-    int gpuIdx,
-    bool inputsNHWC) {
+  ComputeHandle(ComputeContext* context, const LoadedModel* loadedModel, int gpuIdx, bool inputsNHWC) {
     nnXLen = context->nnXLen;
     nnYLen = context->nnYLen;
-    modelXLen = context->modelXLen;
-    modelYLen = context->modelYLen;
-
-    handle = std::make_unique<ComputeHandleInternal>(gpuIdx, inputsNHWC);
-    model = std::make_unique<Model>(&(loadedModel->modelDesc), maxBatchSize, nnXLen, nnYLen);
+    modelXLen = loadedModel->modelXLen;
+    modelYLen = loadedModel->modelYLen;
+    gpuIndex = gpuIdx;
     inputsUseNHWC = inputsNHWC;
 
-    createCoreMLBackend(handle->gpuIndex, modelXLen, modelYLen);
+    version = createCoreMLBackend(gpuIdx, loadedModel->modelXLen, loadedModel->modelYLen);
   }
 
   ~ComputeHandle() {
-    freeCoreMLBackend(handle->gpuIndex);
-    handle.reset();
-    model.reset();
+    freeCoreMLBackend(gpuIndex);
   }
 
   ComputeHandle() = delete;
@@ -254,23 +157,16 @@ ComputeHandle* NeuralNet::createComputeHandle(
     }
   };
 
-  if(logger != NULL) {
-    logger->write(
-      "CoreML backend thread " + Global::intToString(serverThreadIdx) + ":" + deviceStr() + " Model version " +
-      Global::intToString(loadedModel->modelDesc.version));
-
-    logger->write(
-      "CoreML backend thread " + Global::intToString(serverThreadIdx) + ":" + deviceStr() +
-      " Model name: " + loadedModel->modelDesc.name);
-  }
-
   // Current implementation always tolerates excess nn len
   (void)requireExactNNLen;
-  ComputeHandle* handle = new ComputeHandle(context, loadedModel, maxBatchSize, gpuIdxForThisThread, inputsUseNHWC);
+  ComputeHandle* handle = new ComputeHandle(context, loadedModel, gpuIdxForThisThread, inputsUseNHWC);
 
   if(logger != NULL) {
     logger->write("CoreML backend thread " + Global::intToString(serverThreadIdx) + ":" + deviceStr());
   }
+
+  (void)maxBatchSize;
+
   return handle;
 }
 
@@ -463,13 +359,12 @@ void NeuralNet::getOutput(
   int nnYLen = gpuHandle->nnYLen;
   int modelXLen = gpuHandle->modelXLen;
   int modelYLen = gpuHandle->modelYLen;
-  int version = gpuHandle->model->version;
+  int version = gpuHandle->version;
   int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
   int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
 
   assert(batchSize <= inputBuffers->maxBatchSize);
   assert(batchSize > 0);
-  assert(numSpatialFeatures == gpuHandle->model->numInputChannels);
   assert((numSpatialFeatures * modelXLen * modelYLen) == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
 
@@ -540,7 +435,7 @@ void NeuralNet::getOutput(
       ownershipOutputBuf,
       miscValuesOutputBuf,
       moreMiscValuesOutputBuf,
-      gpuHandle->handle->gpuIndex);
+      gpuHandle->gpuIndex);
   }
 
   // Fill results by CoreML model output
@@ -583,8 +478,8 @@ void NeuralNet::getOutput(
       const float* ownershipOutputBuf = &inputBuffers->ownershipResults[row * singleOwnershipResultElts];
       float* ownerMapBuf = &inputBuffers->ownerMapBuffer[row * singleOwnerMapElts];
 
-      for (int y = 0; y < nnYLen; y++) {
-        for (int x = 0; x < nnXLen; x++) {
+      for(int y = 0; y < nnYLen; y++) {
+        for(int x = 0; x < nnXLen; x++) {
           int outputIdx = (y * modelXLen) + x;
           int ownerMapIdx = (y * nnXLen) + x;
           ownerMapBuf[ownerMapIdx] = ownershipOutputBuf[outputIdx];

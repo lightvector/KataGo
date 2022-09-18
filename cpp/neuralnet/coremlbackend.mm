@@ -33,9 +33,10 @@
 // It is used to create a CoreMLBackend object.
 // The CoreMLBackend object is stored in the dictionary.
 // The CoreMLBackend object is initialized with the CoreML model.
-+ (void)initWithIndex:(NSNumber * _Nonnull)index
-            modelXLen:(NSNumber * _Nonnull)xLen
-            modelYLen:(NSNumber * _Nonnull)yLen {
+// The ML model version is returned.
++ (NSNumber * _Nonnull)initWithIndex:(NSNumber * _Nonnull)index
+                           modelXLen:(NSNumber * _Nonnull)xLen
+                           modelYLen:(NSNumber * _Nonnull)yLen {
   NSMutableDictionary * backends = [CoreMLBackend getBackends];
 
   @synchronized (self) {
@@ -48,6 +49,8 @@
                                                           yLen:yLen];
     }
   }
+
+  return ((CoreMLBackend *)backends[index])->_model.model.modelDescription.metadata[MLModelVersionStringKey];
 }
 
 // This is the CoreMLBackend destruction method.
@@ -166,10 +169,13 @@ void initCoreMLBackends() {
 }
 
 // Create the CoreMLBackend instance.
-void createCoreMLBackend(int modelIndex, int modelXLen, int modelYLen) {
-  [CoreMLBackend initWithIndex:[NSNumber numberWithInt:modelIndex]
-                     modelXLen:[NSNumber numberWithInt:modelXLen]
-                     modelYLen:[NSNumber numberWithInt:modelYLen]];
+// The ML model version is returned.
+int createCoreMLBackend(int modelIndex, int modelXLen, int modelYLen) {
+  NSNumber * version = [CoreMLBackend initWithIndex:[NSNumber numberWithInt:modelIndex]
+                                          modelXLen:[NSNumber numberWithInt:modelXLen]
+                                          modelYLen:[NSNumber numberWithInt:modelYLen]];
+
+  return version.intValue;
 }
 
 // Reset the CoreMLBackend instance.

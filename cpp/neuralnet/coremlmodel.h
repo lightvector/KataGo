@@ -147,12 +147,14 @@ NS_ASSUME_NONNULL_END
 
 /**
     Initialize CoreML backend with model index
+    @param index model index
     @param xLen x-direction length
     @param yLen y-direction length
+    @return Model version
 */
-+ (void)initWithIndex:(NSNumber * _Nonnull)index
-            modelXLen:(NSNumber * _Nonnull)xLen
-            modelYLen:(NSNumber * _Nonnull)yLen;
++ (NSNumber * _Nonnull)initWithIndex:(NSNumber * _Nonnull)index
+                           modelXLen:(NSNumber * _Nonnull)xLen
+                           modelYLen:(NSNumber * _Nonnull)yLen;
 
 /**
     Initialize CoreML backend
