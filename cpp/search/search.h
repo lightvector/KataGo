@@ -597,7 +597,6 @@ private:
   SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal, Hash128 graphHash);
   void clearOldNNOutputs();
   void transferOldNNOutputs(SearchThread& thread);
-  void removeSubtreeValueBias(SearchNode* node);
   void deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool old);
   void deleteAllTableNodesMulithreaded();
 

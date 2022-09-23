@@ -853,10 +853,6 @@ void Search::transferOldNNOutputs(SearchThread& thread) {
   thread.oldNNOutputsToCleanUp.resize(0);
 }
 
-void Search::removeSubtreeValueBias(SearchNode* node) {
-  node->subtreeValueBiasTableHandle.clear();
-}
-
 //Delete ALL nodes where nodeAge < searchNodeAge if old is true, else all nodes where nodeAge >= searchNodeAge
 void Search::deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool old) {
   int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
