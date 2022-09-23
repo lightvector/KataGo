@@ -200,11 +200,11 @@ int main(int argc, const char* const* argv) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.11.0");
+  return string("1.11.0-coreml2");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.11.0");
+  return string("KataGo v1.11.0-coreml2");
 }
 
 string Version::getKataGoVersionFullInfo() {
@@ -225,6 +225,8 @@ string Version::getKataGoVersionFullInfo() {
   out << "Using OpenCL backend" << endl;
 #elif defined(USE_EIGEN_BACKEND)
   out << "Using Eigen(CPU) backend" << endl;
+#elif defined(USE_COREML_BACKEND)
+  out << "Using CoreML backend" << endl;
 #else
   out << "Using dummy backend" << endl;
 #endif
@@ -257,6 +259,8 @@ string Version::getGitRevisionWithBackend() {
   s += "-opencl";
 #elif defined(USE_EIGEN_BACKEND)
   s += "-eigen";
+#elif defined(USE_COREML_BACKEND)
+  s += "-coreml";
 #else
   s += "-dummy";
 #endif

@@ -230,6 +230,9 @@ int MainCmds::benchmark(const vector<string>& args) {
 #ifdef USE_EIGEN_BACKEND
   cout << "You are currently using the Eigen (CPU) version of KataGo. Due to having no GPU, it may be slow." << endl;
 #endif
+#ifdef USE_COREML_BACKEND
+  cout << "You are currently using the CoreML version of KataGo." << endl;
+#endif
   cout << endl;
   cout << "Your GTP config is currently set to use numSearchThreads = " << params.numThreads << endl;
 

@@ -83,8 +83,15 @@ elseif(USE_BACKEND STREQUAL "METAL")
     neuralnet/metalbackend.cpp
     neuralnet/metalbackend.mm
   )
+elseif(USE_BACKEND STREQUAL "COREML")
+  message(STATUS "-DUSE_BACKEND=COREML, using CoreML backend.")
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/coremlbackend.cpp
+    neuralnet/coremlbackend.mm
+    neuralnet/coremlmodel.m
+    )
 elseif(USE_BACKEND STREQUAL "")
-  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN to compile with the respective backend.${ColorReset}")
+  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN or -DUSE_BACKEND=COREML to compile with the respective backend.${ColorReset}")
   set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
 else()
   message(FATAL_ERROR "Unrecognized backend: " ${USE_BACKEND})
@@ -322,6 +329,10 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
 elseif(USE_BACKEND STREQUAL "METAL")
   target_compile_definitions(katago PRIVATE USE_METAL_BACKEND)
   set(CMAKE_EXE_LINKER_FLAGS "-framework Foundation -framework Metal -framework MetalPerformanceShaders -framework MetalPerformanceShadersGraph")
+elseif(USE_BACKEND STREQUAL "COREML")
+  target_compile_definitions(katago PRIVATE USE_COREML_BACKEND)
+  target_compile_options(katago PRIVATE "-fobjc-arc")
+  set(CMAKE_EXE_LINKER_FLAGS "-framework Foundation -framework CoreML")
 endif()
 
 if(USE_BIGGER_BOARDS_EXPENSIVE)
@@ -404,7 +415,8 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
   message(STATUS "Setting up build for GNU or Clang.")
-  if(NOT (${CMAKE_SYSTEM_PROCESSOR} MATCHES "(arm|aarch32|aarch64)"))
+  if(NOT (${CMAKE_SYSTEM_PROCESSOR} MATCHES "(arm|arm64|aarch32|aarch64)"))
+    message(STATUS "Enabling single-precision floating-point instructions (SSE)")
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse")
   endif()
   if(USE_AVX2)
