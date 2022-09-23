@@ -7,6 +7,7 @@
 #include "../game/boardhistory.h"
 #include "../neuralnet/nneval.h"
 #include "../search/subtreevaluebiastable.h"
+#include "../search/policybiastable.h"
 
 struct SearchNode;
 struct SearchThread;
@@ -183,6 +184,8 @@ struct SearchNode {
   std::atomic<int32_t> virtualLosses;
 
   SubtreeValueBiasHandle subtreeValueBiasTableHandle;
+
+  std::vector<std::shared_ptr<PolicyBiasEntry>> policyBiasEntries;
 
   std::atomic<int32_t> dirtyCounter;
 

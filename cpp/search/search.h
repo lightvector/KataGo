@@ -33,6 +33,7 @@ struct MoreNodeStats;
 struct ReportedSearchValues;
 struct SearchChildPointer;
 struct SubtreeValueBiasTable;
+struct PolicyBiasTable;
 struct SearchNodeTable;
 
 //Per-thread state

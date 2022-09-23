@@ -215,6 +215,7 @@ add_executable(katago
   search/localpattern.cpp
   search/searchnodetable.cpp
   search/subtreevaluebiastable.cpp
+  search/policybiastable.cpp
   search/patternbonustable.cpp
   search/analysisdata.cpp
   search/reportedsearchvalues.cpp

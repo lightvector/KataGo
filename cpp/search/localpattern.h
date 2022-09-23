@@ -9,14 +9,16 @@
 struct LocalPatternHasher {
   int xSize;
   int ySize;
+  int maxLibertiesToDistinguish;
   std::vector<Hash128> zobristLocalPattern;
   std::vector<Hash128> zobristPla;
-  std::vector<Hash128> zobristAtari;
+  std::vector<Hash128> zobristLiberties;
 
   LocalPatternHasher();
   ~LocalPatternHasher();
 
   void init(int xSize, int ySize, Rand& rand);
+  void init(int xSize, int ySize, int maxLibertiesToDistinguish, Rand& rand);
 
   Hash128 getHash(const Board& board, Loc loc, Player pla) const;
 
