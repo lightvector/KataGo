@@ -330,8 +330,10 @@ def main(args):
     write_value_head("model.value_head",model.value_head)
 
   if swa_model is not None:
+    logging.info("Writing SWA model")
     write_model(swa_model.module)
   else:
+    logging.info("Writing model")
     write_model(model)
   f.close()
 

@@ -73,8 +73,6 @@ time python3 "$DATED_ARCHIVE"/train.py \
      -pos-len 19 \
      -batch-size "$BATCHSIZE" \
      -model-kind "$MODELKIND" \
-     -sub-epochs 4 \
-     -swa-sub-epoch-scale 4 \
      $EXTRAFLAG \
      "$@" \
      2>&1 | tee -a "$BASEDIR"/train/"$TRAININGNAME"/stdout.txt

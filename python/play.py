@@ -57,8 +57,8 @@ model, swa_model, _ = load_model(checkpoint_file, use_swa, device="cpu", pos_len
 model.eval()
 model_config = model.config
 if swa_model is not None:
-  swa_model.eval()
-  model = swa_model
+  model = swa_model.module
+  model.eval()
 
 features = Features(model_config, pos_len)
 

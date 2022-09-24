@@ -56,8 +56,9 @@ if __name__ == "__main__":
   parser.add_argument('-model-kind', help='String name for what model config to use', required=False)
   parser.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
   parser.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
-  parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, required=True)
-  parser.add_argument('-swa-sub-epoch-scale', help='Number of sub-epochs to average in expectation together for SWA', type=float, required=False)
+  parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, default=1, required=False)
+  parser.add_argument('-swa-period-samples', help='How frequently to average an SWA sample, in samples', type=float, required=False)
+  parser.add_argument('-swa-scale', help='Number of samples to average in expectation together for SWA', type=float, required=False)
 
   parser.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
   parser.add_argument('-use-fp16', help='Use fp16 training', required=False, action='store_true')
@@ -132,7 +133,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
   lr_scale = args["lr_scale"]
   gnorm_clip_scale = args["gnorm_clip_scale"]
   sub_epochs = args["sub_epochs"]
-  swa_sub_epoch_scale = args["swa_sub_epoch_scale"]
+  swa_period_samples = args["swa_period_samples"]
+  swa_scale = args["swa_scale"]
 
   use_fp16 = args["use_fp16"]
 
@@ -173,6 +175,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     epochs_per_export = 1
 
   longterm_checkpoints_dir = get_longterm_checkpoints_dir(traindir)
+
+  assert (swa_period_samples is None) == (swa_scale is None)
 
   # SET UP LOGGING -------------------------------------------------------------
 
@@ -369,9 +373,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         ddp_model = raw_model
 
       swa_model = None
-      if rank == 0 and swa_sub_epoch_scale is not None:
-        new_factor = 1.0 / swa_sub_epoch_scale
-        ema_avg = lambda avg_param, cur_param, num_averaged: (1.0 - new_factor) * avg_param + new_factor * cur_param
+      if rank == 0 and swa_scale is not None:
+        new_factor = 1.0 / swa_scale
+        ema_avg = lambda avg_param, cur_param, num_averaged: avg_param + new_factor * (cur_param - avg_param)
         swa_model = AveragedModel(raw_model, avg_fn=ema_avg)
 
       metrics_obj = Metrics(batch_size,world_size,raw_model)
@@ -425,9 +429,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         ddp_model = raw_model
 
       swa_model = None
-      if rank == 0 and swa_sub_epoch_scale is not None:
-        new_factor = 1.0 / swa_sub_epoch_scale
-        ema_avg = lambda avg_param, cur_param, num_averaged: (1.0 - new_factor) * avg_param + new_factor * cur_param
+      if rank == 0 and swa_scale is not None:
+        new_factor = 1.0 / swa_scale
+        ema_avg = lambda avg_param, cur_param, num_averaged: avg_param + new_factor * (cur_param - avg_param)
         swa_model = AveragedModel(raw_model, avg_fn=ema_avg)
         if "swa_model" in state_dict:
           swa_model.load_state_dict(state_dict["swa_model"])
@@ -469,6 +473,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     train_state["old_train_data_dirs"] = []
   if "data_files_used" not in train_state:
     train_state["data_files_used"] = set()
+  if "swa_sample_accum" not in train_state:
+    train_state["swa_sample_accum"] = 0.0
 
 
   if intermediate_distill_scale is not None or intermediate_loss_scale is not None:
@@ -985,10 +991,16 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         if batch_count_this_epoch % 500 == 0:
           maybe_update_brenorm_params()
 
-      logging.info("Finished training subepoch!")
+        # Perform SWA
+        if swa_model is not None and swa_scale is not None:
+          train_state["swa_sample_accum"] += batch_size * world_size
+          # Only snap SWA when lookahead slow params are in sync.
+          if train_state["swa_sample_accum"] >= swa_period_samples and not in_between_lookaheads:
+            train_state["swa_sample_accum"] = 0
+            logging.info("Accumulating SWA")
+            swa_model.update_parameters(raw_model)
 
-      if swa_model is not None and swa_sub_epoch_scale is not None:
-        swa_model.update_parameters(raw_model)
+      logging.info("Finished training subepoch!")
 
     # END SUB EPOCH LOOP ------------
 
