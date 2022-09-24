@@ -63,6 +63,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   string backendPrefix = "opencl";
   #elif defined(USE_EIGEN_BACKEND)
   string backendPrefix = "eigen";
+  #elif defined(USE_METAL_BACKEND)
+  string backendPrefix = "metal";
   #elif defined(USE_COREML_BACKEND)
   string backendPrefix = "coreml";
   #else
@@ -79,6 +81,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     cfg.markAllKeysUsedWithPrefix("opencl");
   if(backendPrefix != "eigen")
     cfg.markAllKeysUsedWithPrefix("eigen");
+  if(backendPrefix != "metal")
+    cfg.markAllKeysUsedWithPrefix("metal");
   if(backendPrefix != "coreml")
     cfg.markAllKeysUsedWithPrefix("coreml");
   if(backendPrefix != "dummybackend")
@@ -127,7 +131,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     }
 
     bool inputsUseNHWC;
-    if((backendPrefix == "opencl") || (backendPrefix == "trt") || (backendPrefix == "coreml"))
+    if((backendPrefix == "opencl") || (backendPrefix == "trt") || (backendPrefix == "metal") || (backendPrefix == "coreml"))
       inputsUseNHWC = false;
     else
       inputsUseNHWC = true;

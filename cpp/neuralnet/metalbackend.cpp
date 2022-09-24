@@ -107,7 +107,7 @@ struct ComputeHandle {
   int maxBatchSize;
   int inputsUseNHWC;
   int gpuIndex;
-  unique_ptr<MetalHandle> metalHandle;
+  int version;
 
   ComputeHandle(ComputeContext* context,
                 const LoadedModel* loadedModel,
@@ -121,16 +121,20 @@ struct ComputeHandle {
     this->maxBatchSize = maxBatchSize;
     this->inputsUseNHWC = inputsUseNHWC;
     gpuIndex = gpuIdx;
-    metalHandle = make_unique<MetalHandle>();
+    version = modelDesc->version;
 
-    metalHandle->init(context->nnXLen,
+    createMetalHandle(gpuIdx,
+                      context->nnXLen,
                       context->nnYLen,
-                      modelDesc);
+                      version,
+                      modelDesc->numInputChannels,
+                      modelDesc->numInputGlobalChannels,
+                      modelDesc->numValueChannels,
+                      modelDesc->numScoreValueChannels,
+                      modelDesc->numOwnershipChannels);
   }
 
-  ~ComputeHandle() {
-    metalHandle.reset();
-  }
+  ~ComputeHandle() {}
 
   void apply(
     float* userInputBuffer,
@@ -141,14 +145,15 @@ struct ComputeHandle {
     float* miscValuesOutput,
     float* moreMiscValuesOutput) {
 
-    metalHandle->apply(
+    getMetalHandleOutput(
       userInputBuffer,
       userInputGlobalBuffer,
       policyOutput,
       valueOutput,
       ownershipOutput,
       miscValuesOutput,
-      moreMiscValuesOutput);
+      moreMiscValuesOutput,
+      gpuIndex);
   }
 
   ComputeHandle() = delete;
@@ -200,7 +205,9 @@ void NeuralNet::freeComputeHandle(ComputeHandle* handle) {
 //------------------------------------------------------------------------------
 
 void NeuralNet::printDevices() {
-  (new MetalDevices())->printDevices();
+  MetalDevices* metalDevices = new MetalDevices();
+  metalDevices->printDevices();
+  delete metalDevices;
 }
 
 //--------------------------------------------------------------
@@ -321,7 +328,7 @@ void NeuralNet::getOutput(
   int batchSize = numBatchEltsFilled;
   int nnXLen = gpuHandle->nnXLen;
   int nnYLen = gpuHandle->nnYLen;
-  int version = gpuHandle->metalHandle->getVersion();
+  int version = gpuHandle->version;
   int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
   int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
 
@@ -465,15 +472,24 @@ bool NeuralNet::testEvaluateConv(
   bool useNHWC,
   const vector<float>& inputBuffer,
   vector<float>& outputBuffer) {
-  (void)desc;
-  (void)batchSize;
-  (void)nnXLen;
-  (void)nnYLen;
-  (void)useFP16;
-  (void)useNHWC;
-  (void)inputBuffer;
-  (void)outputBuffer;
-  return false;
+  size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->outChannels;
+  outputBuffer.resize(numOutputFloats);
+
+  testMetalEvaluateConv(desc->convXSize,
+                        desc->convYSize,
+                        desc->inChannels,
+                        desc->outChannels,
+                        desc->dilationX,
+                        desc->dilationY,
+                        nnXLen,
+                        nnYLen,
+                        batchSize,
+                        useFP16,
+                        useNHWC,
+                        (float*)desc->weights.data(),
+                        (float*)inputBuffer.data(),
+                        (float*)outputBuffer.data());
+  return true;
 }
 
 // Mask should be in 'NHW' format (no "C" channel).

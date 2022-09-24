@@ -12,26 +12,37 @@ public:
   void printDevices();
 };
 
-class MetalHandle {
-public:
-  MetalHandle();
-  ~MetalHandle();
+void createMetalHandle(int gpuIdx,
+                       int nnXLen,
+                       int nnYLen,
+                       int version,
+                       int numInputChannels,
+                       int numInputGlobalChannels,
+                       int numValueChannels,
+                       int numScoreValueChannels,
+                       int numOwnershipChannels);
 
-  void init(int nnXLen,
-            int nnYLen,
-            const ModelDesc* modelDesc);
+void getMetalHandleOutput(
+  float* userInputBuffer,
+  float* userInputGlobalBuffer,
+  float* policyOutput,
+  float* valueOutput,
+  float* ownershipOutput,
+  float* miscValuesOutput,
+  float* moreMiscValuesOutput,
+  int gpuIndex);
 
-  void apply(float* userInputBuffer,
-             float* userInputGlobalBuffer,
-             float* policyOutput,
-             float* valueOutput,
-             float* ownershipOutput,
-             float* miscValuesOutput,
-             float* moreMiscValuesOutput);
-
-  int getVersion() { return version; }
-
-private:
-  int version;
-  void* kataGoGraph;
-};
+void testMetalEvaluateConv(int convXSize,
+                           int convYSize,
+                           int inChannels,
+                           int outChannels,
+                           int dilationX,
+                           int dilationY,
+                           int nnXLen,
+                           int nnYLen,
+                           int batchSize,
+                           bool useFP16,
+                           bool useNHWC,
+                           float* weights,
+                           float* input,
+                           float* output);

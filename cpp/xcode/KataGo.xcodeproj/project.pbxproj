@@ -1,0 +1,1188 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXAggregateTarget section */
+		E13CF66728E1BD87005CB016 /* ALL_BUILDS */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = E13CF66828E1BD87005CB016 /* Build configuration list for PBXAggregateTarget "ALL_BUILDS" */;
+			buildPhases = (
+			);
+			dependencies = (
+				E13CF66E28E1BDA9005CB016 /* PBXTargetDependency */,
+				E13CF67028E1BDA9005CB016 /* PBXTargetDependency */,
+			);
+			name = ALL_BUILDS;
+			productName = ALL_BUILDS;
+		};
+/* End PBXAggregateTarget section */
+
+/* Begin PBXBuildFile section */
+		02CB570808E04A6185080830 /* testsearchv8.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 661A920818694712953495A7 /* testsearchv8.cpp */; };
+		0404DC20E74E428DB305B69D /* matchauto.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4361E3FD2972413FBC0102FB /* matchauto.cpp */; };
+		04D59A65B59E44C2828BF900 /* distributiontable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 32DD1B600C014B49ADDB237E /* distributiontable.cpp */; };
+		06E8573F5BF04E37AE7AD77C /* subtreevaluebiastable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7891834D8FB144E0B13F6E21 /* subtreevaluebiastable.cpp */; };
+		07FA508B28194941A723DCA0 /* modelversion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DDCAE99038794BE8B4BB3962 /* modelversion.cpp */; };
+		0A89F0423CDA469AABF8BBFC /* commandloop.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4BF5823DCA854224809D93A8 /* commandloop.cpp */; };
+		0C4B673ED23D40D3A7973585 /* genbook.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B2460699580B49F689D028D5 /* genbook.cpp */; };
+		0E5C7D2F259F4D12B68FC86F /* tinymodel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE70F73F685D4EDA9977822F /* tinymodel.cpp */; };
+		108880393E2A427996923654 /* testownership.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0F8F91005809465EB2EDD409 /* testownership.cpp */; };
+		1575DA48060847AC82CDD3C2 /* global.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A8748F2EFAAF401DACE6B60A /* global.cpp */; };
+		16309D63113E46768E4057AA /* gtp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AD94201E380643C3985E9D62 /* gtp.cpp */; };
+		1A74A71F99B64C4389A055BE /* testcommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C9D17518AE04398A975E5AE /* testcommon.cpp */; };
+		202EEB4C128A4B50A964025D /* testmisc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 48669007B9164F5FB011F549 /* testmisc.cpp */; };
+		22A36E9712C64648BDC753BD /* testscore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E3F8D82F94E14F11BA0F59E6 /* testscore.cpp */; };
+		22D59DFE6EE149D58F86DCC2 /* base64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D61629242F5143EBB2D9BEC9 /* base64.cpp */; };
+		249560F13EC543BFA1BA988C /* patternbonustable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6A5C095FD31A4636994B5E5A /* patternbonustable.cpp */; };
+		28DBE687D15C4D10BFD19D6A /* sandbox.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 11318DB744F340DCB41F7248 /* sandbox.cpp */; };
+		2A0457F8900742D59C04377A /* mainargs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92F4695F66A84118BDCAA13F /* mainargs.cpp */; };
+		2CF9D5B03B134C43848B842A /* contribute.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D49AE95F1DD947B5BFF58C1F /* contribute.cpp */; };
+		2E9F3824C5D0432FB0436A82 /* datetime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 71DC745C32B543C191262823 /* datetime.cpp */; };
+		390306A1CB9E4DB187CB230A /* timer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EEB543E9A42948748BF883C3 /* timer.cpp */; };
+		415BFA8620DF4BBBB46ACE87 /* testsearchmisc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4BF2B81FB1BB43AC81344E4A /* testsearchmisc.cpp */; };
+		43FDE194FD6A482BB398B596 /* graphhash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 10EB7D2538F94B26BE1B1740 /* graphhash.cpp */; };
+		4492CB2045CD4683A4AD7367 /* threadsafecounter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D645BB8AAF424700A75ED223 /* threadsafecounter.cpp */; };
+		47C878F9D636438A9AF1957E /* nninputs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D41000BDB70543A4820D445A /* nninputs.cpp */; };
+		49C63F2573F3472E846EDED7 /* files.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C31483CD76D48F2A7327613 /* files.cpp */; };
+		547B33ED1B6845E48F3D8174 /* numpywrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F20754875D24724A133A9AE /* numpywrite.cpp */; };
+		54D2F41913A84DF3B3345744 /* localpattern.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD4302F4D69E4EE98EA75B2C /* localpattern.cpp */; };
+		5577BFD673954001910A7811 /* testsearch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0E2F9938E72849F691272AA0 /* testsearch.cpp */; };
+		5A51D49D5BE54A9DB529E738 /* playutils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9FB3A34B1C8D4CBF9997DDA7 /* playutils.cpp */; };
+		5E53993A0EAD4AC08480583E /* desc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D8F26726AAF403C833FBD7F /* desc.cpp */; };
+		5FFF2313E87945CEA625C893 /* testconfig.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 346C96C8324D4BE8A12D1A97 /* testconfig.cpp */; };
+		60190F4640834133BE08FD95 /* play.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3FBACE432776421CAEDF6786 /* play.cpp */; };
+		62518815134045B4B12320DF /* rules.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 727A790F2FEA4DBEA8ABAE85 /* rules.cpp */; };
+		636C02CAD71646F18D80CB0B /* rand.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B8E283A3B8004F289DACCD8A /* rand.cpp */; };
+		63EF83DE2E8D4DA9B1CBBCBD /* board.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8F0B49CAFCB24D31808DB2C1 /* board.cpp */; };
+		6465D59DDBD1405BAAB3461F /* searchexplorehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EC59266A435045C5B84F9105 /* searchexplorehelpers.cpp */; };
+		648714C2B9974FCFB1633F48 /* test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5639F08A96FD467CBD091947 /* test.cpp */; };
+		656598E6051B4FAFADDE710E /* analysis.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E7B41A9FE4124FA1AB3FBEF1 /* analysis.cpp */; };
+		662A126F00664F7E8202201E /* testsearchnonn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BC9F65190B644C969D327CD9 /* testsearchnonn.cpp */; };
+		666D1E70B10A4281AA278416 /* fileutils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CAD1B260FFB74AF9BA66A58A /* fileutils.cpp */; };
+		68EF67E3B7724A07BD58DE15 /* searchparams.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1660F43339464F1F82D603C2 /* searchparams.cpp */; };
+		6C86005D48B64F5E8BF1F6D6 /* elo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59353ECA2B0140FA9365623E /* elo.cpp */; };
+		726CCC7B622745C785157BAC /* testsymmetries.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 84BCAFD2361F4BE8B5025F65 /* testsymmetries.cpp */; };
+		72926E6E5D0348DFB0861F2D /* searchresults.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1BAD528CE45E4D31A6F0F058 /* searchresults.cpp */; };
+		745ED26D7181411AA552F3C1 /* mutexpool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6DA721BDC00F438688E0B241 /* mutexpool.cpp */; };
+		758C5B91AD1342EABCEF819D /* timecontrols.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 888C7B98F8B64150B0903946 /* timecontrols.cpp */; };
+		78977E8E859240489A0C97BB /* config_parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 23D034621365403182419780 /* config_parser.cpp */; };
+		78E589A114464F2BA6BB7B48 /* tinymodeldata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279C4ABB40FE447483F0F975 /* tinymodeldata.cpp */; };
+		7B8E08057CC2462CBC3F5F65 /* benchmark.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 063E4C878E7E43858A863A78 /* benchmark.cpp */; };
+		801FABAA34A9449EAD00BDB2 /* testrules.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2F5B917DA90147ABBAC18571 /* testrules.cpp */; };
+		80317F5FCCFB405285E36FE7 /* match.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 948AF9E88374487D85E846C2 /* match.cpp */; };
+		81679583E2784202B99CDEF2 /* searchnode.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 206727F6853C468F84FC44AE /* searchnode.cpp */; };
+		81F6DE0500F74EBB944BB8FE /* setup.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D104762E63AF4C6A8ADB220E /* setup.cpp */; };
+		84C466F0829F4C92BB8595CD /* searchmirror.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 07DAAE05A9FA46F5B271903E /* searchmirror.cpp */; };
+		87C95CDAA2DA4B92A640CB1B /* searchhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A72EC47D68904D38A5EAE635 /* searchhelpers.cpp */; };
+		89B2F02F17D64127A33A0D63 /* threadsafequeue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 34B63C891D53453F9C258280 /* threadsafequeue.cpp */; };
+		8AED86B0C09548C0AC9C05D0 /* searchupdatehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 73D2A262E3E542FD8063F8DD /* searchupdatehelpers.cpp */; };
+		8AF64609005E440DAA3750D9 /* testtime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A255C9FAA2E145048F33368C /* testtime.cpp */; };
+		8CA61939E46F4A63AF49CEEE /* searchnnhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA6C3E7D4604497D8B94AC50 /* searchnnhelpers.cpp */; };
+		8E05BDEA98A4405EA59722A6 /* sha2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 76F8951F199F416F99B96FE8 /* sha2.cpp */; };
+		8EB05FC5A618473EA72E00FC /* gtpconfig.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5BCE97296A5249A0B49C766F /* gtpconfig.cpp */; };
+		96BC8BC704284EAC91FC3861 /* commandline.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6CD97C1775DC4E678823595E /* commandline.cpp */; };
+		97A3148D4598477FABADA86D /* runtests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5902EDD2F6A74BE7966E2001 /* runtests.cpp */; };
+		984D03A874434D1AAAF1D60F /* loadmodel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8FBE5F0F301A405D85F23D38 /* loadmodel.cpp */; };
+		9A20C862C98E4F58A901626A /* bookcssjs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6DD28F2EE5FB490F906D63BA /* bookcssjs.cpp */; };
+		9AF5FF27590E4F22BA51864A /* homedata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E87CD61EFA340A1AF4B8BCE /* homedata.cpp */; };
+		9F109DE0AA0741ADB001AAC4 /* fancymath.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2626105D31ED44D98E6B9B9D /* fancymath.cpp */; };
+		A2E17F9E778F47708D283698 /* book.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 973B04213D1B4030B35FB01C /* book.cpp */; };
+		A2F73A5004514E958437E9B0 /* searchmultithreadhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BCBCE4A8D83F42FBA4EA0CBE /* searchmultithreadhelpers.cpp */; };
+		A4A49EE81FD841E2BF0E9435 /* md5.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE7F7520CA15440EBDF0A21D /* md5.cpp */; };
+		A86B8866014C4F0A96784563 /* reportedsearchvalues.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 706365E669744784A6A6DE57 /* reportedsearchvalues.cpp */; };
+		A87A01B93B1E45B79F3E05C2 /* searchnodetable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C33571C53ECC4C82B0A9DA7D /* searchnodetable.cpp */; };
+		AAEA722E70B2426DB83D9054 /* client.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 792CF6207CA54AABB0F058C6 /* client.cpp */; };
+		AE51A65C9830494BA2753153 /* logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B2C186FF8B3422CB64E6039 /* logger.cpp */; };
+		B0785A49A15846B1B2A5D53B /* rand_helpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59BC63FBF0804F63A27369AE /* rand_helpers.cpp */; };
+		B3597EE0EEC34FB2A8C0EE18 /* tune.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A241D7415C384D3A81BF73AC /* tune.cpp */; };
+		B374E74B152345FD89BDCB22 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50827347EBFE4467996C3150 /* main.cpp */; };
+		BB835432C27B457AA54D2419 /* hash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BDF52FD481AA424BBC59124D /* hash.cpp */; };
+		BD884D95BAA24E638584486B /* trainingwrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F9788817DEA4417A321C3A0 /* trainingwrite.cpp */; };
+		BE5AF015332D4EC2BD7F0B24 /* analysisdata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF423768A6B74FF18FDC44E7 /* analysisdata.cpp */; };
+		C443176284EE407BB4533B9C /* testboardbasic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F18310A722494DAEACBE09BC /* testboardbasic.cpp */; };
+		C46A5DB69E884975B53770BF /* boardhistory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 540D93E0576C47C789279AF8 /* boardhistory.cpp */; };
+		C58089DDD98E42889304F61B /* testsgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 952F0B54C8BF410C9EA67989 /* testsgf.cpp */; };
+		C5D3DE9AB81F40B7B4517C45 /* testtrainingwrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1DFBE2386CE449D82894520 /* testtrainingwrite.cpp */; };
+		C7DEE94FE40445979626BFE7 /* testnninputs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4B137CD979C7436188D684A7 /* testnninputs.cpp */; };
+		C8AE275917904D2E9723E136 /* misc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 64D3C3432AB3409C942F7A0E /* misc.cpp */; };
+		C93F4511735F4D45976C0825 /* makedir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 63D5831B449B48D1AD132F9F /* makedir.cpp */; };
+		CC2F5DC950454D99A47E909E /* asyncbot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2D4BF5BF0CD446F80DFDACE /* asyncbot.cpp */; };
+		CC82684753F44688909296CD /* testnnevalcanary.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 88BAF51D4B34475A90D1D7CC /* testnnevalcanary.cpp */; };
+		CD9A38ACC81B4DBE80C2BB25 /* bsearch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 176C18FD215D45179B93393C /* bsearch.cpp */; };
+		D60173A1975C47489EEBA61F /* testsearchv9.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1356448A03004176848C790A /* testsearchv9.cpp */; };
+		D7AB712982E542BA862B7972 /* multithread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5185F4BC63B5490AAE4F37CB /* multithread.cpp */; };
+		D846616D5D16489DB42C7721 /* gatekeeper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */; };
+		DAA2DCE9982D45E89E6EB02E /* selfplaymanager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7C7A65C82B4C4AB5B83B1346 /* selfplaymanager.cpp */; };
+		DB00A3EC9AE841BFB70EDED8 /* testnn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41CCB0DF860045E5A8697BDD /* testnn.cpp */; };
+		E13CF5ED28E18813005CB016 /* book.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 973B04213D1B4030B35FB01C /* book.cpp */; };
+		E13CF5EE28E18813005CB016 /* bookcssjs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6DD28F2EE5FB490F906D63BA /* bookcssjs.cpp */; };
+		E13CF5EF28E18813005CB016 /* analysis.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E7B41A9FE4124FA1AB3FBEF1 /* analysis.cpp */; };
+		E13CF5F028E18813005CB016 /* benchmark.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 063E4C878E7E43858A863A78 /* benchmark.cpp */; };
+		E13CF5F128E18813005CB016 /* commandline.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6CD97C1775DC4E678823595E /* commandline.cpp */; };
+		E13CF5F228E18813005CB016 /* contribute.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D49AE95F1DD947B5BFF58C1F /* contribute.cpp */; };
+		E13CF5F328E18813005CB016 /* evalsgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA66CE9038574A0BB16D80B6 /* evalsgf.cpp */; };
+		E13CF5F428E18813005CB016 /* gatekeeper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */; };
+		E13CF5F528E18813005CB016 /* genbook.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B2460699580B49F689D028D5 /* genbook.cpp */; };
+		E13CF5F628E18813005CB016 /* gtp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AD94201E380643C3985E9D62 /* gtp.cpp */; };
+		E13CF5F728E18813005CB016 /* match.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 948AF9E88374487D85E846C2 /* match.cpp */; };
+		E13CF5F828E18813005CB016 /* matchauto.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4361E3FD2972413FBC0102FB /* matchauto.cpp */; };
+		E13CF5F928E18813005CB016 /* misc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 64D3C3432AB3409C942F7A0E /* misc.cpp */; };
+		E13CF5FA28E18813005CB016 /* runtests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5902EDD2F6A74BE7966E2001 /* runtests.cpp */; };
+		E13CF5FB28E18813005CB016 /* sandbox.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 11318DB744F340DCB41F7248 /* sandbox.cpp */; };
+		E13CF5FC28E18813005CB016 /* selfplay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFF33AEBABB1472B9F241A98 /* selfplay.cpp */; };
+		E13CF5FD28E18813005CB016 /* tune.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A241D7415C384D3A81BF73AC /* tune.cpp */; };
+		E13CF5FE28E18813005CB016 /* base64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D61629242F5143EBB2D9BEC9 /* base64.cpp */; };
+		E13CF5FF28E18813005CB016 /* bsearch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 176C18FD215D45179B93393C /* bsearch.cpp */; };
+		E13CF60028E18813005CB016 /* commandloop.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4BF5823DCA854224809D93A8 /* commandloop.cpp */; };
+		E13CF60128E18813005CB016 /* config_parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 23D034621365403182419780 /* config_parser.cpp */; };
+		E13CF60228E18813005CB016 /* datetime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 71DC745C32B543C191262823 /* datetime.cpp */; };
+		E13CF60328E18813005CB016 /* elo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59353ECA2B0140FA9365623E /* elo.cpp */; };
+		E13CF60428E18813005CB016 /* fancymath.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2626105D31ED44D98E6B9B9D /* fancymath.cpp */; };
+		E13CF60528E18813005CB016 /* fileutils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CAD1B260FFB74AF9BA66A58A /* fileutils.cpp */; };
+		E13CF60628E18813005CB016 /* global.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A8748F2EFAAF401DACE6B60A /* global.cpp */; };
+		E13CF60728E18813005CB016 /* hash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BDF52FD481AA424BBC59124D /* hash.cpp */; };
+		E13CF60828E18813005CB016 /* logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B2C186FF8B3422CB64E6039 /* logger.cpp */; };
+		E13CF60928E18813005CB016 /* mainargs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92F4695F66A84118BDCAA13F /* mainargs.cpp */; };
+		E13CF60A28E18813005CB016 /* makedir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 63D5831B449B48D1AD132F9F /* makedir.cpp */; };
+		E13CF60B28E18813005CB016 /* md5.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE7F7520CA15440EBDF0A21D /* md5.cpp */; };
+		E13CF60C28E18813005CB016 /* multithread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5185F4BC63B5490AAE4F37CB /* multithread.cpp */; };
+		E13CF60D28E18813005CB016 /* rand.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B8E283A3B8004F289DACCD8A /* rand.cpp */; };
+		E13CF60E28E18813005CB016 /* rand_helpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59BC63FBF0804F63A27369AE /* rand_helpers.cpp */; };
+		E13CF60F28E18813005CB016 /* sha2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 76F8951F199F416F99B96FE8 /* sha2.cpp */; };
+		E13CF61028E18813005CB016 /* test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5639F08A96FD467CBD091947 /* test.cpp */; };
+		E13CF61128E18813005CB016 /* threadsafecounter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D645BB8AAF424700A75ED223 /* threadsafecounter.cpp */; };
+		E13CF61228E18813005CB016 /* threadsafequeue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 34B63C891D53453F9C258280 /* threadsafequeue.cpp */; };
+		E13CF61328E18813005CB016 /* threadtest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 69300B311DE94520A56A3B5F /* threadtest.cpp */; };
+		E13CF61428E18813005CB016 /* timer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EEB543E9A42948748BF883C3 /* timer.cpp */; };
+		E13CF61528E18813005CB016 /* files.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C31483CD76D48F2A7327613 /* files.cpp */; };
+		E13CF61628E18813005CB016 /* homedata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E87CD61EFA340A1AF4B8BCE /* homedata.cpp */; };
+		E13CF61728E18813005CB016 /* loadmodel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8FBE5F0F301A405D85F23D38 /* loadmodel.cpp */; };
+		E13CF61828E18813005CB016 /* numpywrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F20754875D24724A133A9AE /* numpywrite.cpp */; };
+		E13CF61928E18813005CB016 /* sgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3E097292E4F34AB6806F67E6 /* sgf.cpp */; };
+		E13CF61A28E18813005CB016 /* trainingwrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F9788817DEA4417A321C3A0 /* trainingwrite.cpp */; };
+		E13CF61B28E18813005CB016 /* client.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 792CF6207CA54AABB0F058C6 /* client.cpp */; };
+		E13CF61C28E18813005CB016 /* board.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8F0B49CAFCB24D31808DB2C1 /* board.cpp */; };
+		E13CF61D28E18813005CB016 /* boardhistory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 540D93E0576C47C789279AF8 /* boardhistory.cpp */; };
+		E13CF61E28E18813005CB016 /* graphhash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 10EB7D2538F94B26BE1B1740 /* graphhash.cpp */; };
+		E13CF61F28E18813005CB016 /* rules.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 727A790F2FEA4DBEA8ABAE85 /* rules.cpp */; };
+		E13CF62028E18813005CB016 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50827347EBFE4467996C3150 /* main.cpp */; };
+		E13CF62128E18813005CB016 /* desc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D8F26726AAF403C833FBD7F /* desc.cpp */; };
+		E13CF62428E18813005CB016 /* modelversion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DDCAE99038794BE8B4BB3962 /* modelversion.cpp */; };
+		E13CF62528E18813005CB016 /* nneval.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92C3AF4C79ED491988E9C5BC /* nneval.cpp */; };
+		E13CF62628E18813005CB016 /* nninputs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D41000BDB70543A4820D445A /* nninputs.cpp */; };
+		E13CF62728E18813005CB016 /* gtpconfig.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5BCE97296A5249A0B49C766F /* gtpconfig.cpp */; };
+		E13CF62828E18813005CB016 /* play.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3FBACE432776421CAEDF6786 /* play.cpp */; };
+		E13CF62928E18813005CB016 /* playsettings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7A57BA046921422DB33C7614 /* playsettings.cpp */; };
+		E13CF62A28E18813005CB016 /* playutils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9FB3A34B1C8D4CBF9997DDA7 /* playutils.cpp */; };
+		E13CF62B28E18813005CB016 /* selfplaymanager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7C7A65C82B4C4AB5B83B1346 /* selfplaymanager.cpp */; };
+		E13CF62C28E18813005CB016 /* setup.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D104762E63AF4C6A8ADB220E /* setup.cpp */; };
+		E13CF62D28E18813005CB016 /* analysisdata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF423768A6B74FF18FDC44E7 /* analysisdata.cpp */; };
+		E13CF62E28E18813005CB016 /* asyncbot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2D4BF5BF0CD446F80DFDACE /* asyncbot.cpp */; };
+		E13CF62F28E18813005CB016 /* distributiontable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 32DD1B600C014B49ADDB237E /* distributiontable.cpp */; };
+		E13CF63028E18813005CB016 /* localpattern.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD4302F4D69E4EE98EA75B2C /* localpattern.cpp */; };
+		E13CF63128E18813005CB016 /* mutexpool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6DA721BDC00F438688E0B241 /* mutexpool.cpp */; };
+		E13CF63228E18813005CB016 /* patternbonustable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6A5C095FD31A4636994B5E5A /* patternbonustable.cpp */; };
+		E13CF63328E18813005CB016 /* reportedsearchvalues.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 706365E669744784A6A6DE57 /* reportedsearchvalues.cpp */; };
+		E13CF63428E18813005CB016 /* search.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 93FF01FEC8DA40DB916C4F0A /* search.cpp */; };
+		E13CF63528E18813005CB016 /* searchexplorehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EC59266A435045C5B84F9105 /* searchexplorehelpers.cpp */; };
+		E13CF63628E18813005CB016 /* searchhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A72EC47D68904D38A5EAE635 /* searchhelpers.cpp */; };
+		E13CF63728E18813005CB016 /* searchmirror.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 07DAAE05A9FA46F5B271903E /* searchmirror.cpp */; };
+		E13CF63828E18813005CB016 /* searchmultithreadhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BCBCE4A8D83F42FBA4EA0CBE /* searchmultithreadhelpers.cpp */; };
+		E13CF63928E18813005CB016 /* searchnnhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA6C3E7D4604497D8B94AC50 /* searchnnhelpers.cpp */; };
+		E13CF63A28E18813005CB016 /* searchnode.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 206727F6853C468F84FC44AE /* searchnode.cpp */; };
+		E13CF63B28E18813005CB016 /* searchnodetable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C33571C53ECC4C82B0A9DA7D /* searchnodetable.cpp */; };
+		E13CF63C28E18813005CB016 /* searchparams.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1660F43339464F1F82D603C2 /* searchparams.cpp */; };
+		E13CF63D28E18813005CB016 /* searchresults.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1BAD528CE45E4D31A6F0F058 /* searchresults.cpp */; };
+		E13CF63E28E18813005CB016 /* searchtimehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 77C31BA9C8864C07B491DF1D /* searchtimehelpers.cpp */; };
+		E13CF63F28E18813005CB016 /* searchupdatehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 73D2A262E3E542FD8063F8DD /* searchupdatehelpers.cpp */; };
+		E13CF64028E18813005CB016 /* subtreevaluebiastable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7891834D8FB144E0B13F6E21 /* subtreevaluebiastable.cpp */; };
+		E13CF64128E18813005CB016 /* timecontrols.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 888C7B98F8B64150B0903946 /* timecontrols.cpp */; };
+		E13CF64228E18813005CB016 /* testboardarea.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3D4E9B8ABFBF4DAEB11058E1 /* testboardarea.cpp */; };
+		E13CF64328E18813005CB016 /* testboardbasic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F18310A722494DAEACBE09BC /* testboardbasic.cpp */; };
+		E13CF64428E18813005CB016 /* testcommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C9D17518AE04398A975E5AE /* testcommon.cpp */; };
+		E13CF64528E18813005CB016 /* testconfig.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 346C96C8324D4BE8A12D1A97 /* testconfig.cpp */; };
+		E13CF64628E18813005CB016 /* testmisc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 48669007B9164F5FB011F549 /* testmisc.cpp */; };
+		E13CF64728E18813005CB016 /* testnn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41CCB0DF860045E5A8697BDD /* testnn.cpp */; };
+		E13CF64828E18813005CB016 /* testnnevalcanary.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 88BAF51D4B34475A90D1D7CC /* testnnevalcanary.cpp */; };
+		E13CF64928E18813005CB016 /* testnninputs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4B137CD979C7436188D684A7 /* testnninputs.cpp */; };
+		E13CF64A28E18813005CB016 /* testownership.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0F8F91005809465EB2EDD409 /* testownership.cpp */; };
+		E13CF64B28E18813005CB016 /* testrules.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2F5B917DA90147ABBAC18571 /* testrules.cpp */; };
+		E13CF64C28E18813005CB016 /* testscore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E3F8D82F94E14F11BA0F59E6 /* testscore.cpp */; };
+		E13CF64D28E18813005CB016 /* testsearch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0E2F9938E72849F691272AA0 /* testsearch.cpp */; };
+		E13CF64E28E18813005CB016 /* testsearchcommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0EDC97A2834E434691EA91C1 /* testsearchcommon.cpp */; };
+		E13CF64F28E18813005CB016 /* testsearchmisc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4BF2B81FB1BB43AC81344E4A /* testsearchmisc.cpp */; };
+		E13CF65028E18813005CB016 /* testsearchnonn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BC9F65190B644C969D327CD9 /* testsearchnonn.cpp */; };
+		E13CF65128E18813005CB016 /* testsearchv3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 43CF521030274453B04827E1 /* testsearchv3.cpp */; };
+		E13CF65228E18813005CB016 /* testsearchv8.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 661A920818694712953495A7 /* testsearchv8.cpp */; };
+		E13CF65328E18813005CB016 /* testsearchv9.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1356448A03004176848C790A /* testsearchv9.cpp */; };
+		E13CF65428E18813005CB016 /* testsgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 952F0B54C8BF410C9EA67989 /* testsgf.cpp */; };
+		E13CF65528E18813005CB016 /* testsymmetries.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 84BCAFD2361F4BE8B5025F65 /* testsymmetries.cpp */; };
+		E13CF65628E18813005CB016 /* testtime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A255C9FAA2E145048F33368C /* testtime.cpp */; };
+		E13CF65728E18813005CB016 /* testtrainingwrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1DFBE2386CE449D82894520 /* testtrainingwrite.cpp */; };
+		E13CF65828E18813005CB016 /* tinymodel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE70F73F685D4EDA9977822F /* tinymodel.cpp */; };
+		E13CF65928E18813005CB016 /* tinymodeldata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279C4ABB40FE447483F0F975 /* tinymodeldata.cpp */; };
+		E13CF66428E1896C005CB016 /* coremlbackend.mm in Sources */ = {isa = PBXBuildFile; fileRef = E13CF66128E1896C005CB016 /* coremlbackend.mm */; };
+		E13CF66528E1896C005CB016 /* coremlbackend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E13CF66228E1896C005CB016 /* coremlbackend.cpp */; };
+		E13CF66628E1896C005CB016 /* coremlmodel.m in Sources */ = {isa = PBXBuildFile; fileRef = E13CF66328E1896C005CB016 /* coremlmodel.m */; };
+		E199A6F528E1E6D400A2E051 /* metalbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E199A6F428E1E6D400A2E051 /* metalbackend.swift */; };
+		E1AD404C28E1D59700E41968 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404928E1D59700E41968 /* Metal.framework */; };
+		E1AD404D28E1D59700E41968 /* MetalPerformanceShaders.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404A28E1D59700E41968 /* MetalPerformanceShaders.framework */; };
+		E1AD404E28E1D59700E41968 /* MetalPerformanceShadersGraph.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */; };
+		E1AD405028E1D5A700E41968 /* CoreML.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404F28E1D5A700E41968 /* CoreML.framework */; };
+		E1AD405228E1D76700E41968 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD405128E1D75B00E41968 /* libz.tbd */; };
+		E1AD405328E1D77400E41968 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD405128E1D75B00E41968 /* libz.tbd */; };
+		E53F8BD9FBF146358739F7F6 /* nneval.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92C3AF4C79ED491988E9C5BC /* nneval.cpp */; };
+		E7F54663763C41429C26F7EB /* evalsgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA66CE9038574A0BB16D80B6 /* evalsgf.cpp */; };
+		E8A9D6E6785B4D46A2F9C4DA /* playsettings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7A57BA046921422DB33C7614 /* playsettings.cpp */; };
+		E9FE9147CAC94C9DA9EBBFC0 /* searchtimehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 77C31BA9C8864C07B491DF1D /* searchtimehelpers.cpp */; };
+		ED252AE5A1114DDA85F3946C /* testboardarea.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3D4E9B8ABFBF4DAEB11058E1 /* testboardarea.cpp */; };
+		ED808A292E134917A52637A4 /* sgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3E097292E4F34AB6806F67E6 /* sgf.cpp */; };
+		EDD5F95A1A4D44DDBF74BFB2 /* metalbackend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4845ACCEFC204BA89C033482 /* metalbackend.cpp */; };
+		F0FFD8832AA64966946D3766 /* metalbackend.mm in Sources */ = {isa = PBXBuildFile; fileRef = D555BE954F924C7886538563 /* metalbackend.mm */; };
+		F4327D1CBB0B4DACA90EB53F /* selfplay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFF33AEBABB1472B9F241A98 /* selfplay.cpp */; };
+		F7378781982641DBA7DBB9A6 /* testsearchv3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 43CF521030274453B04827E1 /* testsearchv3.cpp */; };
+		F89861ACEA234EF8A7E74A5F /* search.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 93FF01FEC8DA40DB916C4F0A /* search.cpp */; };
+		F8F8FACA63E340AA92700375 /* testsearchcommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0EDC97A2834E434691EA91C1 /* testsearchcommon.cpp */; };
+		FFD7BF2F6D4140D4BDCAD24B /* threadtest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 69300B311DE94520A56A3B5F /* threadtest.cpp */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		E13CF66D28E1BDA9005CB016 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 91644CF2108748368B902DCE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E13CF5EB28E18813005CB016;
+			remoteInfo = "KataGo-CoreML";
+		};
+		E13CF66F28E1BDA9005CB016 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 91644CF2108748368B902DCE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 28EEEDD45A95496F8B5C834F;
+			remoteInfo = "KataGo-Metal";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		063E4C878E7E43858A863A78 /* benchmark.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = benchmark.cpp; path = command/benchmark.cpp; sourceTree = SOURCE_ROOT; };
+		07DAAE05A9FA46F5B271903E /* searchmirror.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchmirror.cpp; path = search/searchmirror.cpp; sourceTree = SOURCE_ROOT; };
+		0E2F9938E72849F691272AA0 /* testsearch.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearch.cpp; path = tests/testsearch.cpp; sourceTree = SOURCE_ROOT; };
+		0EDC97A2834E434691EA91C1 /* testsearchcommon.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearchcommon.cpp; path = tests/testsearchcommon.cpp; sourceTree = SOURCE_ROOT; };
+		0F8F91005809465EB2EDD409 /* testownership.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testownership.cpp; path = tests/testownership.cpp; sourceTree = SOURCE_ROOT; };
+		10EB7D2538F94B26BE1B1740 /* graphhash.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = graphhash.cpp; path = game/graphhash.cpp; sourceTree = SOURCE_ROOT; };
+		11318DB744F340DCB41F7248 /* sandbox.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = sandbox.cpp; path = command/sandbox.cpp; sourceTree = SOURCE_ROOT; };
+		1356448A03004176848C790A /* testsearchv9.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearchv9.cpp; path = tests/testsearchv9.cpp; sourceTree = SOURCE_ROOT; };
+		1660F43339464F1F82D603C2 /* searchparams.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchparams.cpp; path = search/searchparams.cpp; sourceTree = SOURCE_ROOT; };
+		176C18FD215D45179B93393C /* bsearch.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = bsearch.cpp; path = core/bsearch.cpp; sourceTree = SOURCE_ROOT; };
+		1BAD528CE45E4D31A6F0F058 /* searchresults.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchresults.cpp; path = search/searchresults.cpp; sourceTree = SOURCE_ROOT; };
+		206727F6853C468F84FC44AE /* searchnode.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchnode.cpp; path = search/searchnode.cpp; sourceTree = SOURCE_ROOT; };
+		23D034621365403182419780 /* config_parser.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = config_parser.cpp; path = core/config_parser.cpp; sourceTree = SOURCE_ROOT; };
+		2626105D31ED44D98E6B9B9D /* fancymath.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = fancymath.cpp; path = core/fancymath.cpp; sourceTree = SOURCE_ROOT; };
+		279C4ABB40FE447483F0F975 /* tinymodeldata.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = tinymodeldata.cpp; path = tests/tinymodeldata.cpp; sourceTree = SOURCE_ROOT; };
+		2F5B917DA90147ABBAC18571 /* testrules.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testrules.cpp; path = tests/testrules.cpp; sourceTree = SOURCE_ROOT; };
+		32DD1B600C014B49ADDB237E /* distributiontable.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = distributiontable.cpp; path = search/distributiontable.cpp; sourceTree = SOURCE_ROOT; };
+		346C96C8324D4BE8A12D1A97 /* testconfig.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testconfig.cpp; path = tests/testconfig.cpp; sourceTree = SOURCE_ROOT; };
+		34B63C891D53453F9C258280 /* threadsafequeue.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = threadsafequeue.cpp; path = core/threadsafequeue.cpp; sourceTree = SOURCE_ROOT; };
+		3D4E9B8ABFBF4DAEB11058E1 /* testboardarea.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testboardarea.cpp; path = tests/testboardarea.cpp; sourceTree = SOURCE_ROOT; };
+		3E097292E4F34AB6806F67E6 /* sgf.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = sgf.cpp; path = dataio/sgf.cpp; sourceTree = SOURCE_ROOT; };
+		3FBACE432776421CAEDF6786 /* play.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = play.cpp; path = program/play.cpp; sourceTree = SOURCE_ROOT; };
+		41CCB0DF860045E5A8697BDD /* testnn.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testnn.cpp; path = tests/testnn.cpp; sourceTree = SOURCE_ROOT; };
+		4361E3FD2972413FBC0102FB /* matchauto.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = matchauto.cpp; path = command/matchauto.cpp; sourceTree = SOURCE_ROOT; };
+		43CF521030274453B04827E1 /* testsearchv3.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearchv3.cpp; path = tests/testsearchv3.cpp; sourceTree = SOURCE_ROOT; };
+		4845ACCEFC204BA89C033482 /* metalbackend.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; indentWidth = 2; name = metalbackend.cpp; path = neuralnet/metalbackend.cpp; sourceTree = SOURCE_ROOT; };
+		48669007B9164F5FB011F549 /* testmisc.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testmisc.cpp; path = tests/testmisc.cpp; sourceTree = SOURCE_ROOT; };
+		4B137CD979C7436188D684A7 /* testnninputs.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testnninputs.cpp; path = tests/testnninputs.cpp; sourceTree = SOURCE_ROOT; };
+		4BF2B81FB1BB43AC81344E4A /* testsearchmisc.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearchmisc.cpp; path = tests/testsearchmisc.cpp; sourceTree = SOURCE_ROOT; };
+		4BF5823DCA854224809D93A8 /* commandloop.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = commandloop.cpp; path = core/commandloop.cpp; sourceTree = SOURCE_ROOT; };
+		4F20754875D24724A133A9AE /* numpywrite.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = numpywrite.cpp; path = dataio/numpywrite.cpp; sourceTree = SOURCE_ROOT; };
+		50827347EBFE4467996C3150 /* main.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; path = main.cpp; sourceTree = SOURCE_ROOT; };
+		5185F4BC63B5490AAE4F37CB /* multithread.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = multithread.cpp; path = core/multithread.cpp; sourceTree = SOURCE_ROOT; };
+		540D93E0576C47C789279AF8 /* boardhistory.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = boardhistory.cpp; path = game/boardhistory.cpp; sourceTree = SOURCE_ROOT; };
+		5639F08A96FD467CBD091947 /* test.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = test.cpp; path = core/test.cpp; sourceTree = SOURCE_ROOT; };
+		5902EDD2F6A74BE7966E2001 /* runtests.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = runtests.cpp; path = command/runtests.cpp; sourceTree = SOURCE_ROOT; };
+		59353ECA2B0140FA9365623E /* elo.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = elo.cpp; path = core/elo.cpp; sourceTree = SOURCE_ROOT; };
+		59BC63FBF0804F63A27369AE /* rand_helpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = rand_helpers.cpp; path = core/rand_helpers.cpp; sourceTree = SOURCE_ROOT; };
+		5BCE97296A5249A0B49C766F /* gtpconfig.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = gtpconfig.cpp; path = program/gtpconfig.cpp; sourceTree = SOURCE_ROOT; };
+		5D8F26726AAF403C833FBD7F /* desc.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = desc.cpp; path = neuralnet/desc.cpp; sourceTree = SOURCE_ROOT; };
+		63D5831B449B48D1AD132F9F /* makedir.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = makedir.cpp; path = core/makedir.cpp; sourceTree = SOURCE_ROOT; };
+		64D3C3432AB3409C942F7A0E /* misc.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = misc.cpp; path = command/misc.cpp; sourceTree = SOURCE_ROOT; };
+		661A920818694712953495A7 /* testsearchv8.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearchv8.cpp; path = tests/testsearchv8.cpp; sourceTree = SOURCE_ROOT; };
+		69300B311DE94520A56A3B5F /* threadtest.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = threadtest.cpp; path = core/threadtest.cpp; sourceTree = SOURCE_ROOT; };
+		6A5C095FD31A4636994B5E5A /* patternbonustable.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = patternbonustable.cpp; path = search/patternbonustable.cpp; sourceTree = SOURCE_ROOT; };
+		6CD97C1775DC4E678823595E /* commandline.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = commandline.cpp; path = command/commandline.cpp; sourceTree = SOURCE_ROOT; };
+		6DA721BDC00F438688E0B241 /* mutexpool.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = mutexpool.cpp; path = search/mutexpool.cpp; sourceTree = SOURCE_ROOT; };
+		6DD28F2EE5FB490F906D63BA /* bookcssjs.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = bookcssjs.cpp; path = book/bookcssjs.cpp; sourceTree = SOURCE_ROOT; };
+		6E87CD61EFA340A1AF4B8BCE /* homedata.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = homedata.cpp; path = dataio/homedata.cpp; sourceTree = SOURCE_ROOT; };
+		6F9788817DEA4417A321C3A0 /* trainingwrite.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = trainingwrite.cpp; path = dataio/trainingwrite.cpp; sourceTree = SOURCE_ROOT; };
+		706365E669744784A6A6DE57 /* reportedsearchvalues.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = reportedsearchvalues.cpp; path = search/reportedsearchvalues.cpp; sourceTree = SOURCE_ROOT; };
+		71DC745C32B543C191262823 /* datetime.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = datetime.cpp; path = core/datetime.cpp; sourceTree = SOURCE_ROOT; };
+		727A790F2FEA4DBEA8ABAE85 /* rules.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = rules.cpp; path = game/rules.cpp; sourceTree = SOURCE_ROOT; };
+		73D2A262E3E542FD8063F8DD /* searchupdatehelpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchupdatehelpers.cpp; path = search/searchupdatehelpers.cpp; sourceTree = SOURCE_ROOT; };
+		76F8951F199F416F99B96FE8 /* sha2.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = sha2.cpp; path = core/sha2.cpp; sourceTree = SOURCE_ROOT; };
+		77C31BA9C8864C07B491DF1D /* searchtimehelpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchtimehelpers.cpp; path = search/searchtimehelpers.cpp; sourceTree = SOURCE_ROOT; };
+		7891834D8FB144E0B13F6E21 /* subtreevaluebiastable.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = subtreevaluebiastable.cpp; path = search/subtreevaluebiastable.cpp; sourceTree = SOURCE_ROOT; };
+		792CF6207CA54AABB0F058C6 /* client.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = client.cpp; path = distributed/client.cpp; sourceTree = SOURCE_ROOT; };
+		7A57BA046921422DB33C7614 /* playsettings.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = playsettings.cpp; path = program/playsettings.cpp; sourceTree = SOURCE_ROOT; };
+		7B2C186FF8B3422CB64E6039 /* logger.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = logger.cpp; path = core/logger.cpp; sourceTree = SOURCE_ROOT; };
+		7C7A65C82B4C4AB5B83B1346 /* selfplaymanager.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = selfplaymanager.cpp; path = program/selfplaymanager.cpp; sourceTree = SOURCE_ROOT; };
+		84BCAFD2361F4BE8B5025F65 /* testsymmetries.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsymmetries.cpp; path = tests/testsymmetries.cpp; sourceTree = SOURCE_ROOT; };
+		888C7B98F8B64150B0903946 /* timecontrols.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = timecontrols.cpp; path = search/timecontrols.cpp; sourceTree = SOURCE_ROOT; };
+		88BAF51D4B34475A90D1D7CC /* testnnevalcanary.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testnnevalcanary.cpp; path = tests/testnnevalcanary.cpp; sourceTree = SOURCE_ROOT; };
+		8C31483CD76D48F2A7327613 /* files.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = files.cpp; path = dataio/files.cpp; sourceTree = SOURCE_ROOT; };
+		8C9D17518AE04398A975E5AE /* testcommon.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testcommon.cpp; path = tests/testcommon.cpp; sourceTree = SOURCE_ROOT; };
+		8F0B49CAFCB24D31808DB2C1 /* board.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = board.cpp; path = game/board.cpp; sourceTree = SOURCE_ROOT; };
+		8FBE5F0F301A405D85F23D38 /* loadmodel.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = loadmodel.cpp; path = dataio/loadmodel.cpp; sourceTree = SOURCE_ROOT; };
+		92C3AF4C79ED491988E9C5BC /* nneval.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = nneval.cpp; path = neuralnet/nneval.cpp; sourceTree = SOURCE_ROOT; };
+		92F4695F66A84118BDCAA13F /* mainargs.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = mainargs.cpp; path = core/mainargs.cpp; sourceTree = SOURCE_ROOT; };
+		93FF01FEC8DA40DB916C4F0A /* search.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = search.cpp; path = search/search.cpp; sourceTree = SOURCE_ROOT; };
+		948AF9E88374487D85E846C2 /* match.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = match.cpp; path = command/match.cpp; sourceTree = SOURCE_ROOT; };
+		952F0B54C8BF410C9EA67989 /* testsgf.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsgf.cpp; path = tests/testsgf.cpp; sourceTree = SOURCE_ROOT; };
+		973B04213D1B4030B35FB01C /* book.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = book.cpp; path = book/book.cpp; sourceTree = SOURCE_ROOT; };
+		9FB3A34B1C8D4CBF9997DDA7 /* playutils.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = playutils.cpp; path = program/playutils.cpp; sourceTree = SOURCE_ROOT; };
+		A241D7415C384D3A81BF73AC /* tune.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = tune.cpp; path = command/tune.cpp; sourceTree = SOURCE_ROOT; };
+		A255C9FAA2E145048F33368C /* testtime.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testtime.cpp; path = tests/testtime.cpp; sourceTree = SOURCE_ROOT; };
+		A72EC47D68904D38A5EAE635 /* searchhelpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchhelpers.cpp; path = search/searchhelpers.cpp; sourceTree = SOURCE_ROOT; };
+		A8748F2EFAAF401DACE6B60A /* global.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = global.cpp; path = core/global.cpp; sourceTree = SOURCE_ROOT; };
+		AA6C3E7D4604497D8B94AC50 /* searchnnhelpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchnnhelpers.cpp; path = search/searchnnhelpers.cpp; sourceTree = SOURCE_ROOT; };
+		AB4C92DA620D4F538227B59F /* KataGo-Metal */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; path = "KataGo-Metal"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AD94201E380643C3985E9D62 /* gtp.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = gtp.cpp; path = command/gtp.cpp; sourceTree = SOURCE_ROOT; };
+		AFF33AEBABB1472B9F241A98 /* selfplay.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = selfplay.cpp; path = command/selfplay.cpp; sourceTree = SOURCE_ROOT; };
+		B2460699580B49F689D028D5 /* genbook.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = genbook.cpp; path = command/genbook.cpp; sourceTree = SOURCE_ROOT; };
+		B8E283A3B8004F289DACCD8A /* rand.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = rand.cpp; path = core/rand.cpp; sourceTree = SOURCE_ROOT; };
+		BC9F65190B644C969D327CD9 /* testsearchnonn.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearchnonn.cpp; path = tests/testsearchnonn.cpp; sourceTree = SOURCE_ROOT; };
+		BCBCE4A8D83F42FBA4EA0CBE /* searchmultithreadhelpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchmultithreadhelpers.cpp; path = search/searchmultithreadhelpers.cpp; sourceTree = SOURCE_ROOT; };
+		BDF52FD481AA424BBC59124D /* hash.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = hash.cpp; path = core/hash.cpp; sourceTree = SOURCE_ROOT; };
+		BE70F73F685D4EDA9977822F /* tinymodel.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = tinymodel.cpp; path = tests/tinymodel.cpp; sourceTree = SOURCE_ROOT; };
+		BE7F7520CA15440EBDF0A21D /* md5.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = md5.cpp; path = core/md5.cpp; sourceTree = SOURCE_ROOT; };
+		BF423768A6B74FF18FDC44E7 /* analysisdata.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = analysisdata.cpp; path = search/analysisdata.cpp; sourceTree = SOURCE_ROOT; };
+		C33571C53ECC4C82B0A9DA7D /* searchnodetable.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchnodetable.cpp; path = search/searchnodetable.cpp; sourceTree = SOURCE_ROOT; };
+		CA66CE9038574A0BB16D80B6 /* evalsgf.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = evalsgf.cpp; path = command/evalsgf.cpp; sourceTree = SOURCE_ROOT; };
+		CAD1B260FFB74AF9BA66A58A /* fileutils.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = fileutils.cpp; path = core/fileutils.cpp; sourceTree = SOURCE_ROOT; };
+		D104762E63AF4C6A8ADB220E /* setup.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = setup.cpp; path = program/setup.cpp; sourceTree = SOURCE_ROOT; };
+		D1DFBE2386CE449D82894520 /* testtrainingwrite.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testtrainingwrite.cpp; path = tests/testtrainingwrite.cpp; sourceTree = SOURCE_ROOT; };
+		D41000BDB70543A4820D445A /* nninputs.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = nninputs.cpp; path = neuralnet/nninputs.cpp; sourceTree = SOURCE_ROOT; };
+		D49AE95F1DD947B5BFF58C1F /* contribute.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = contribute.cpp; path = command/contribute.cpp; sourceTree = SOURCE_ROOT; };
+		D555BE954F924C7886538563 /* metalbackend.mm */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; fileEncoding = 4; name = metalbackend.mm; path = neuralnet/metalbackend.mm; sourceTree = SOURCE_ROOT; };
+		D61629242F5143EBB2D9BEC9 /* base64.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = base64.cpp; path = core/base64.cpp; sourceTree = SOURCE_ROOT; };
+		D645BB8AAF424700A75ED223 /* threadsafecounter.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = threadsafecounter.cpp; path = core/threadsafecounter.cpp; sourceTree = SOURCE_ROOT; };
+		D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = gatekeeper.cpp; path = command/gatekeeper.cpp; sourceTree = SOURCE_ROOT; };
+		DD4302F4D69E4EE98EA75B2C /* localpattern.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = localpattern.cpp; path = search/localpattern.cpp; sourceTree = SOURCE_ROOT; };
+		DDCAE99038794BE8B4BB3962 /* modelversion.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = modelversion.cpp; path = neuralnet/modelversion.cpp; sourceTree = SOURCE_ROOT; };
+		E13CF66028E18813005CB016 /* KataGo-CoreML */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "KataGo-CoreML"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E13CF66128E1896C005CB016 /* coremlbackend.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = coremlbackend.mm; path = neuralnet/coremlbackend.mm; sourceTree = "<group>"; };
+		E13CF66228E1896C005CB016 /* coremlbackend.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = coremlbackend.cpp; path = neuralnet/coremlbackend.cpp; sourceTree = "<group>"; };
+		E13CF66328E1896C005CB016 /* coremlmodel.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = coremlmodel.m; path = neuralnet/coremlmodel.m; sourceTree = "<group>"; };
+		E199A6F428E1E6D400A2E051 /* metalbackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = metalbackend.swift; path = neuralnet/metalbackend.swift; sourceTree = SOURCE_ROOT; };
+		E199A6F828E25E8100A2E051 /* metalbridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = metalbridge.h; path = neuralnet/metalbridge.h; sourceTree = "<group>"; };
+		E199A6F928E25EE500A2E051 /* metalbackend.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = metalbackend.h; path = neuralnet/metalbackend.h; sourceTree = "<group>"; };
+		E1AD404928E1D59700E41968 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		E1AD404A28E1D59700E41968 /* MetalPerformanceShaders.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalPerformanceShaders.framework; path = System/Library/Frameworks/MetalPerformanceShaders.framework; sourceTree = SDKROOT; };
+		E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalPerformanceShadersGraph.framework; path = System/Library/Frameworks/MetalPerformanceShadersGraph.framework; sourceTree = SDKROOT; };
+		E1AD404F28E1D5A700E41968 /* CoreML.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreML.framework; path = System/Library/Frameworks/CoreML.framework; sourceTree = SDKROOT; };
+		E1AD405128E1D75B00E41968 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
+		E3F8D82F94E14F11BA0F59E6 /* testscore.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testscore.cpp; path = tests/testscore.cpp; sourceTree = SOURCE_ROOT; };
+		E7B41A9FE4124FA1AB3FBEF1 /* analysis.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = analysis.cpp; path = command/analysis.cpp; sourceTree = SOURCE_ROOT; };
+		EC59266A435045C5B84F9105 /* searchexplorehelpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchexplorehelpers.cpp; path = search/searchexplorehelpers.cpp; sourceTree = SOURCE_ROOT; };
+		EEB543E9A42948748BF883C3 /* timer.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = timer.cpp; path = core/timer.cpp; sourceTree = SOURCE_ROOT; };
+		F18310A722494DAEACBE09BC /* testboardbasic.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testboardbasic.cpp; path = tests/testboardbasic.cpp; sourceTree = SOURCE_ROOT; };
+		F2D4BF5BF0CD446F80DFDACE /* asyncbot.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = asyncbot.cpp; path = search/asyncbot.cpp; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		94408E6084E54E4B99A6ADD7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E1AD404D28E1D59700E41968 /* MetalPerformanceShaders.framework in Frameworks */,
+				E1AD405328E1D77400E41968 /* libz.tbd in Frameworks */,
+				E1AD404C28E1D59700E41968 /* Metal.framework in Frameworks */,
+				E1AD404E28E1D59700E41968 /* MetalPerformanceShadersGraph.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E13CF65A28E18813005CB016 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E1AD405028E1D5A700E41968 /* CoreML.framework in Frameworks */,
+				E1AD405228E1D76700E41968 /* libz.tbd in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		29C8B1F369034337B2CC96EF = {
+			isa = PBXGroup;
+			children = (
+				30DEE4A41280490EA8216883 /* katago */,
+				8218F7988402482BAFDA7E88 /* Products */,
+				E1AD404828E1D59700E41968 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		30DEE4A41280490EA8216883 /* katago */ = {
+			isa = PBXGroup;
+			children = (
+				E42DAD7F6DF94192AED73FF1 /* Source Files */,
+				3B22C5B3776049BD9CC4D5D9 /* Header Files */,
+			);
+			name = katago;
+			sourceTree = "<group>";
+		};
+		3B22C5B3776049BD9CC4D5D9 /* Header Files */ = {
+			isa = PBXGroup;
+			children = (
+				E199A6F928E25EE500A2E051 /* metalbackend.h */,
+				E199A6F828E25E8100A2E051 /* metalbridge.h */,
+			);
+			name = "Header Files";
+			sourceTree = "<group>";
+		};
+		8218F7988402482BAFDA7E88 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AB4C92DA620D4F538227B59F /* KataGo-Metal */,
+				E13CF66028E18813005CB016 /* KataGo-CoreML */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E1AD404828E1D59700E41968 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				E1AD405128E1D75B00E41968 /* libz.tbd */,
+				E1AD404F28E1D5A700E41968 /* CoreML.framework */,
+				E1AD404928E1D59700E41968 /* Metal.framework */,
+				E1AD404A28E1D59700E41968 /* MetalPerformanceShaders.framework */,
+				E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		E42DAD7F6DF94192AED73FF1 /* Source Files */ = {
+			isa = PBXGroup;
+			children = (
+				E7B41A9FE4124FA1AB3FBEF1 /* analysis.cpp */,
+				BF423768A6B74FF18FDC44E7 /* analysisdata.cpp */,
+				F2D4BF5BF0CD446F80DFDACE /* asyncbot.cpp */,
+				D61629242F5143EBB2D9BEC9 /* base64.cpp */,
+				063E4C878E7E43858A863A78 /* benchmark.cpp */,
+				8F0B49CAFCB24D31808DB2C1 /* board.cpp */,
+				540D93E0576C47C789279AF8 /* boardhistory.cpp */,
+				973B04213D1B4030B35FB01C /* book.cpp */,
+				6DD28F2EE5FB490F906D63BA /* bookcssjs.cpp */,
+				176C18FD215D45179B93393C /* bsearch.cpp */,
+				792CF6207CA54AABB0F058C6 /* client.cpp */,
+				6CD97C1775DC4E678823595E /* commandline.cpp */,
+				4BF5823DCA854224809D93A8 /* commandloop.cpp */,
+				23D034621365403182419780 /* config_parser.cpp */,
+				D49AE95F1DD947B5BFF58C1F /* contribute.cpp */,
+				E13CF66228E1896C005CB016 /* coremlbackend.cpp */,
+				E13CF66128E1896C005CB016 /* coremlbackend.mm */,
+				E13CF66328E1896C005CB016 /* coremlmodel.m */,
+				71DC745C32B543C191262823 /* datetime.cpp */,
+				5D8F26726AAF403C833FBD7F /* desc.cpp */,
+				32DD1B600C014B49ADDB237E /* distributiontable.cpp */,
+				59353ECA2B0140FA9365623E /* elo.cpp */,
+				CA66CE9038574A0BB16D80B6 /* evalsgf.cpp */,
+				2626105D31ED44D98E6B9B9D /* fancymath.cpp */,
+				8C31483CD76D48F2A7327613 /* files.cpp */,
+				CAD1B260FFB74AF9BA66A58A /* fileutils.cpp */,
+				D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */,
+				B2460699580B49F689D028D5 /* genbook.cpp */,
+				A8748F2EFAAF401DACE6B60A /* global.cpp */,
+				10EB7D2538F94B26BE1B1740 /* graphhash.cpp */,
+				AD94201E380643C3985E9D62 /* gtp.cpp */,
+				5BCE97296A5249A0B49C766F /* gtpconfig.cpp */,
+				BDF52FD481AA424BBC59124D /* hash.cpp */,
+				6E87CD61EFA340A1AF4B8BCE /* homedata.cpp */,
+				8FBE5F0F301A405D85F23D38 /* loadmodel.cpp */,
+				DD4302F4D69E4EE98EA75B2C /* localpattern.cpp */,
+				7B2C186FF8B3422CB64E6039 /* logger.cpp */,
+				50827347EBFE4467996C3150 /* main.cpp */,
+				92F4695F66A84118BDCAA13F /* mainargs.cpp */,
+				63D5831B449B48D1AD132F9F /* makedir.cpp */,
+				948AF9E88374487D85E846C2 /* match.cpp */,
+				4361E3FD2972413FBC0102FB /* matchauto.cpp */,
+				BE7F7520CA15440EBDF0A21D /* md5.cpp */,
+				4845ACCEFC204BA89C033482 /* metalbackend.cpp */,
+				D555BE954F924C7886538563 /* metalbackend.mm */,
+				E199A6F428E1E6D400A2E051 /* metalbackend.swift */,
+				64D3C3432AB3409C942F7A0E /* misc.cpp */,
+				DDCAE99038794BE8B4BB3962 /* modelversion.cpp */,
+				5185F4BC63B5490AAE4F37CB /* multithread.cpp */,
+				6DA721BDC00F438688E0B241 /* mutexpool.cpp */,
+				92C3AF4C79ED491988E9C5BC /* nneval.cpp */,
+				D41000BDB70543A4820D445A /* nninputs.cpp */,
+				4F20754875D24724A133A9AE /* numpywrite.cpp */,
+				6A5C095FD31A4636994B5E5A /* patternbonustable.cpp */,
+				3FBACE432776421CAEDF6786 /* play.cpp */,
+				7A57BA046921422DB33C7614 /* playsettings.cpp */,
+				9FB3A34B1C8D4CBF9997DDA7 /* playutils.cpp */,
+				59BC63FBF0804F63A27369AE /* rand_helpers.cpp */,
+				B8E283A3B8004F289DACCD8A /* rand.cpp */,
+				706365E669744784A6A6DE57 /* reportedsearchvalues.cpp */,
+				727A790F2FEA4DBEA8ABAE85 /* rules.cpp */,
+				5902EDD2F6A74BE7966E2001 /* runtests.cpp */,
+				11318DB744F340DCB41F7248 /* sandbox.cpp */,
+				93FF01FEC8DA40DB916C4F0A /* search.cpp */,
+				EC59266A435045C5B84F9105 /* searchexplorehelpers.cpp */,
+				A72EC47D68904D38A5EAE635 /* searchhelpers.cpp */,
+				07DAAE05A9FA46F5B271903E /* searchmirror.cpp */,
+				BCBCE4A8D83F42FBA4EA0CBE /* searchmultithreadhelpers.cpp */,
+				AA6C3E7D4604497D8B94AC50 /* searchnnhelpers.cpp */,
+				206727F6853C468F84FC44AE /* searchnode.cpp */,
+				C33571C53ECC4C82B0A9DA7D /* searchnodetable.cpp */,
+				1660F43339464F1F82D603C2 /* searchparams.cpp */,
+				1BAD528CE45E4D31A6F0F058 /* searchresults.cpp */,
+				77C31BA9C8864C07B491DF1D /* searchtimehelpers.cpp */,
+				73D2A262E3E542FD8063F8DD /* searchupdatehelpers.cpp */,
+				AFF33AEBABB1472B9F241A98 /* selfplay.cpp */,
+				7C7A65C82B4C4AB5B83B1346 /* selfplaymanager.cpp */,
+				D104762E63AF4C6A8ADB220E /* setup.cpp */,
+				3E097292E4F34AB6806F67E6 /* sgf.cpp */,
+				76F8951F199F416F99B96FE8 /* sha2.cpp */,
+				7891834D8FB144E0B13F6E21 /* subtreevaluebiastable.cpp */,
+				5639F08A96FD467CBD091947 /* test.cpp */,
+				3D4E9B8ABFBF4DAEB11058E1 /* testboardarea.cpp */,
+				F18310A722494DAEACBE09BC /* testboardbasic.cpp */,
+				8C9D17518AE04398A975E5AE /* testcommon.cpp */,
+				346C96C8324D4BE8A12D1A97 /* testconfig.cpp */,
+				48669007B9164F5FB011F549 /* testmisc.cpp */,
+				41CCB0DF860045E5A8697BDD /* testnn.cpp */,
+				88BAF51D4B34475A90D1D7CC /* testnnevalcanary.cpp */,
+				4B137CD979C7436188D684A7 /* testnninputs.cpp */,
+				0F8F91005809465EB2EDD409 /* testownership.cpp */,
+				2F5B917DA90147ABBAC18571 /* testrules.cpp */,
+				E3F8D82F94E14F11BA0F59E6 /* testscore.cpp */,
+				0E2F9938E72849F691272AA0 /* testsearch.cpp */,
+				0EDC97A2834E434691EA91C1 /* testsearchcommon.cpp */,
+				4BF2B81FB1BB43AC81344E4A /* testsearchmisc.cpp */,
+				BC9F65190B644C969D327CD9 /* testsearchnonn.cpp */,
+				43CF521030274453B04827E1 /* testsearchv3.cpp */,
+				661A920818694712953495A7 /* testsearchv8.cpp */,
+				1356448A03004176848C790A /* testsearchv9.cpp */,
+				952F0B54C8BF410C9EA67989 /* testsgf.cpp */,
+				84BCAFD2361F4BE8B5025F65 /* testsymmetries.cpp */,
+				A255C9FAA2E145048F33368C /* testtime.cpp */,
+				D1DFBE2386CE449D82894520 /* testtrainingwrite.cpp */,
+				D645BB8AAF424700A75ED223 /* threadsafecounter.cpp */,
+				34B63C891D53453F9C258280 /* threadsafequeue.cpp */,
+				69300B311DE94520A56A3B5F /* threadtest.cpp */,
+				888C7B98F8B64150B0903946 /* timecontrols.cpp */,
+				EEB543E9A42948748BF883C3 /* timer.cpp */,
+				BE70F73F685D4EDA9977822F /* tinymodel.cpp */,
+				279C4ABB40FE447483F0F975 /* tinymodeldata.cpp */,
+				6F9788817DEA4417A321C3A0 /* trainingwrite.cpp */,
+				A241D7415C384D3A81BF73AC /* tune.cpp */,
+			);
+			name = "Source Files";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		28EEEDD45A95496F8B5C834F /* KataGo-Metal */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 79F919699BE649B3AB6B745E /* Build configuration list for PBXNativeTarget "KataGo-Metal" */;
+			buildPhases = (
+				A7812312EB0E4B5888439DB2 /* Sources */,
+				94408E6084E54E4B99A6ADD7 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "KataGo-Metal";
+			productName = katago;
+			productReference = AB4C92DA620D4F538227B59F /* KataGo-Metal */;
+			productType = "com.apple.product-type.tool";
+		};
+		E13CF5EB28E18813005CB016 /* KataGo-CoreML */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E13CF65B28E18813005CB016 /* Build configuration list for PBXNativeTarget "KataGo-CoreML" */;
+			buildPhases = (
+				E13CF5EC28E18813005CB016 /* Sources */,
+				E13CF65A28E18813005CB016 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "KataGo-CoreML";
+			productName = katago;
+			productReference = E13CF66028E18813005CB016 /* KataGo-CoreML */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		91644CF2108748368B902DCE /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				DefaultBuildSystemTypeForWorkspace = Latest;
+				LastUpgradeCheck = 1400;
+				TargetAttributes = {
+					28EEEDD45A95496F8B5C834F = {
+						LastSwiftMigration = 1400;
+					};
+					E13CF66728E1BD87005CB016 = {
+						CreatedOnToolsVersion = 14.0;
+					};
+				};
+			};
+			buildConfigurationList = 0838DC7C409844AFA516AAE2 /* Build configuration list for PBXProject "KataGo" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 29C8B1F369034337B2CC96EF;
+			projectDirPath = "/Users/chinchangyang/Code/KataGo-CCY/cpp";
+			projectRoot = "";
+			targets = (
+				E13CF66728E1BD87005CB016 /* ALL_BUILDS */,
+				28EEEDD45A95496F8B5C834F /* KataGo-Metal */,
+				E13CF5EB28E18813005CB016 /* KataGo-CoreML */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A7812312EB0E4B5888439DB2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A2E17F9E778F47708D283698 /* book.cpp in Sources */,
+				9A20C862C98E4F58A901626A /* bookcssjs.cpp in Sources */,
+				656598E6051B4FAFADDE710E /* analysis.cpp in Sources */,
+				7B8E08057CC2462CBC3F5F65 /* benchmark.cpp in Sources */,
+				96BC8BC704284EAC91FC3861 /* commandline.cpp in Sources */,
+				2CF9D5B03B134C43848B842A /* contribute.cpp in Sources */,
+				E7F54663763C41429C26F7EB /* evalsgf.cpp in Sources */,
+				D846616D5D16489DB42C7721 /* gatekeeper.cpp in Sources */,
+				E199A6F528E1E6D400A2E051 /* metalbackend.swift in Sources */,
+				0C4B673ED23D40D3A7973585 /* genbook.cpp in Sources */,
+				16309D63113E46768E4057AA /* gtp.cpp in Sources */,
+				80317F5FCCFB405285E36FE7 /* match.cpp in Sources */,
+				0404DC20E74E428DB305B69D /* matchauto.cpp in Sources */,
+				C8AE275917904D2E9723E136 /* misc.cpp in Sources */,
+				97A3148D4598477FABADA86D /* runtests.cpp in Sources */,
+				28DBE687D15C4D10BFD19D6A /* sandbox.cpp in Sources */,
+				F4327D1CBB0B4DACA90EB53F /* selfplay.cpp in Sources */,
+				B3597EE0EEC34FB2A8C0EE18 /* tune.cpp in Sources */,
+				22D59DFE6EE149D58F86DCC2 /* base64.cpp in Sources */,
+				CD9A38ACC81B4DBE80C2BB25 /* bsearch.cpp in Sources */,
+				0A89F0423CDA469AABF8BBFC /* commandloop.cpp in Sources */,
+				78977E8E859240489A0C97BB /* config_parser.cpp in Sources */,
+				2E9F3824C5D0432FB0436A82 /* datetime.cpp in Sources */,
+				6C86005D48B64F5E8BF1F6D6 /* elo.cpp in Sources */,
+				9F109DE0AA0741ADB001AAC4 /* fancymath.cpp in Sources */,
+				666D1E70B10A4281AA278416 /* fileutils.cpp in Sources */,
+				1575DA48060847AC82CDD3C2 /* global.cpp in Sources */,
+				BB835432C27B457AA54D2419 /* hash.cpp in Sources */,
+				AE51A65C9830494BA2753153 /* logger.cpp in Sources */,
+				2A0457F8900742D59C04377A /* mainargs.cpp in Sources */,
+				C93F4511735F4D45976C0825 /* makedir.cpp in Sources */,
+				A4A49EE81FD841E2BF0E9435 /* md5.cpp in Sources */,
+				D7AB712982E542BA862B7972 /* multithread.cpp in Sources */,
+				636C02CAD71646F18D80CB0B /* rand.cpp in Sources */,
+				B0785A49A15846B1B2A5D53B /* rand_helpers.cpp in Sources */,
+				8E05BDEA98A4405EA59722A6 /* sha2.cpp in Sources */,
+				648714C2B9974FCFB1633F48 /* test.cpp in Sources */,
+				4492CB2045CD4683A4AD7367 /* threadsafecounter.cpp in Sources */,
+				89B2F02F17D64127A33A0D63 /* threadsafequeue.cpp in Sources */,
+				FFD7BF2F6D4140D4BDCAD24B /* threadtest.cpp in Sources */,
+				390306A1CB9E4DB187CB230A /* timer.cpp in Sources */,
+				49C63F2573F3472E846EDED7 /* files.cpp in Sources */,
+				9AF5FF27590E4F22BA51864A /* homedata.cpp in Sources */,
+				984D03A874434D1AAAF1D60F /* loadmodel.cpp in Sources */,
+				547B33ED1B6845E48F3D8174 /* numpywrite.cpp in Sources */,
+				ED808A292E134917A52637A4 /* sgf.cpp in Sources */,
+				BD884D95BAA24E638584486B /* trainingwrite.cpp in Sources */,
+				AAEA722E70B2426DB83D9054 /* client.cpp in Sources */,
+				63EF83DE2E8D4DA9B1CBBCBD /* board.cpp in Sources */,
+				C46A5DB69E884975B53770BF /* boardhistory.cpp in Sources */,
+				43FDE194FD6A482BB398B596 /* graphhash.cpp in Sources */,
+				62518815134045B4B12320DF /* rules.cpp in Sources */,
+				B374E74B152345FD89BDCB22 /* main.cpp in Sources */,
+				5E53993A0EAD4AC08480583E /* desc.cpp in Sources */,
+				EDD5F95A1A4D44DDBF74BFB2 /* metalbackend.cpp in Sources */,
+				F0FFD8832AA64966946D3766 /* metalbackend.mm in Sources */,
+				07FA508B28194941A723DCA0 /* modelversion.cpp in Sources */,
+				E53F8BD9FBF146358739F7F6 /* nneval.cpp in Sources */,
+				47C878F9D636438A9AF1957E /* nninputs.cpp in Sources */,
+				8EB05FC5A618473EA72E00FC /* gtpconfig.cpp in Sources */,
+				60190F4640834133BE08FD95 /* play.cpp in Sources */,
+				E8A9D6E6785B4D46A2F9C4DA /* playsettings.cpp in Sources */,
+				5A51D49D5BE54A9DB529E738 /* playutils.cpp in Sources */,
+				DAA2DCE9982D45E89E6EB02E /* selfplaymanager.cpp in Sources */,
+				81F6DE0500F74EBB944BB8FE /* setup.cpp in Sources */,
+				BE5AF015332D4EC2BD7F0B24 /* analysisdata.cpp in Sources */,
+				CC2F5DC950454D99A47E909E /* asyncbot.cpp in Sources */,
+				04D59A65B59E44C2828BF900 /* distributiontable.cpp in Sources */,
+				54D2F41913A84DF3B3345744 /* localpattern.cpp in Sources */,
+				745ED26D7181411AA552F3C1 /* mutexpool.cpp in Sources */,
+				249560F13EC543BFA1BA988C /* patternbonustable.cpp in Sources */,
+				A86B8866014C4F0A96784563 /* reportedsearchvalues.cpp in Sources */,
+				F89861ACEA234EF8A7E74A5F /* search.cpp in Sources */,
+				6465D59DDBD1405BAAB3461F /* searchexplorehelpers.cpp in Sources */,
+				87C95CDAA2DA4B92A640CB1B /* searchhelpers.cpp in Sources */,
+				84C466F0829F4C92BB8595CD /* searchmirror.cpp in Sources */,
+				A2F73A5004514E958437E9B0 /* searchmultithreadhelpers.cpp in Sources */,
+				8CA61939E46F4A63AF49CEEE /* searchnnhelpers.cpp in Sources */,
+				81679583E2784202B99CDEF2 /* searchnode.cpp in Sources */,
+				A87A01B93B1E45B79F3E05C2 /* searchnodetable.cpp in Sources */,
+				68EF67E3B7724A07BD58DE15 /* searchparams.cpp in Sources */,
+				72926E6E5D0348DFB0861F2D /* searchresults.cpp in Sources */,
+				E9FE9147CAC94C9DA9EBBFC0 /* searchtimehelpers.cpp in Sources */,
+				8AED86B0C09548C0AC9C05D0 /* searchupdatehelpers.cpp in Sources */,
+				06E8573F5BF04E37AE7AD77C /* subtreevaluebiastable.cpp in Sources */,
+				758C5B91AD1342EABCEF819D /* timecontrols.cpp in Sources */,
+				ED252AE5A1114DDA85F3946C /* testboardarea.cpp in Sources */,
+				C443176284EE407BB4533B9C /* testboardbasic.cpp in Sources */,
+				1A74A71F99B64C4389A055BE /* testcommon.cpp in Sources */,
+				5FFF2313E87945CEA625C893 /* testconfig.cpp in Sources */,
+				202EEB4C128A4B50A964025D /* testmisc.cpp in Sources */,
+				DB00A3EC9AE841BFB70EDED8 /* testnn.cpp in Sources */,
+				CC82684753F44688909296CD /* testnnevalcanary.cpp in Sources */,
+				C7DEE94FE40445979626BFE7 /* testnninputs.cpp in Sources */,
+				108880393E2A427996923654 /* testownership.cpp in Sources */,
+				801FABAA34A9449EAD00BDB2 /* testrules.cpp in Sources */,
+				22A36E9712C64648BDC753BD /* testscore.cpp in Sources */,
+				5577BFD673954001910A7811 /* testsearch.cpp in Sources */,
+				F8F8FACA63E340AA92700375 /* testsearchcommon.cpp in Sources */,
+				415BFA8620DF4BBBB46ACE87 /* testsearchmisc.cpp in Sources */,
+				662A126F00664F7E8202201E /* testsearchnonn.cpp in Sources */,
+				F7378781982641DBA7DBB9A6 /* testsearchv3.cpp in Sources */,
+				02CB570808E04A6185080830 /* testsearchv8.cpp in Sources */,
+				D60173A1975C47489EEBA61F /* testsearchv9.cpp in Sources */,
+				C58089DDD98E42889304F61B /* testsgf.cpp in Sources */,
+				726CCC7B622745C785157BAC /* testsymmetries.cpp in Sources */,
+				8AF64609005E440DAA3750D9 /* testtime.cpp in Sources */,
+				C5D3DE9AB81F40B7B4517C45 /* testtrainingwrite.cpp in Sources */,
+				0E5C7D2F259F4D12B68FC86F /* tinymodel.cpp in Sources */,
+				78E589A114464F2BA6BB7B48 /* tinymodeldata.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E13CF5EC28E18813005CB016 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E13CF5ED28E18813005CB016 /* book.cpp in Sources */,
+				E13CF5EE28E18813005CB016 /* bookcssjs.cpp in Sources */,
+				E13CF5EF28E18813005CB016 /* analysis.cpp in Sources */,
+				E13CF5F028E18813005CB016 /* benchmark.cpp in Sources */,
+				E13CF5F128E18813005CB016 /* commandline.cpp in Sources */,
+				E13CF5F228E18813005CB016 /* contribute.cpp in Sources */,
+				E13CF5F328E18813005CB016 /* evalsgf.cpp in Sources */,
+				E13CF5F428E18813005CB016 /* gatekeeper.cpp in Sources */,
+				E13CF5F528E18813005CB016 /* genbook.cpp in Sources */,
+				E13CF5F628E18813005CB016 /* gtp.cpp in Sources */,
+				E13CF5F728E18813005CB016 /* match.cpp in Sources */,
+				E13CF5F828E18813005CB016 /* matchauto.cpp in Sources */,
+				E13CF5F928E18813005CB016 /* misc.cpp in Sources */,
+				E13CF5FA28E18813005CB016 /* runtests.cpp in Sources */,
+				E13CF5FB28E18813005CB016 /* sandbox.cpp in Sources */,
+				E13CF5FC28E18813005CB016 /* selfplay.cpp in Sources */,
+				E13CF5FD28E18813005CB016 /* tune.cpp in Sources */,
+				E13CF5FE28E18813005CB016 /* base64.cpp in Sources */,
+				E13CF5FF28E18813005CB016 /* bsearch.cpp in Sources */,
+				E13CF60028E18813005CB016 /* commandloop.cpp in Sources */,
+				E13CF60128E18813005CB016 /* config_parser.cpp in Sources */,
+				E13CF60228E18813005CB016 /* datetime.cpp in Sources */,
+				E13CF60328E18813005CB016 /* elo.cpp in Sources */,
+				E13CF60428E18813005CB016 /* fancymath.cpp in Sources */,
+				E13CF60528E18813005CB016 /* fileutils.cpp in Sources */,
+				E13CF60628E18813005CB016 /* global.cpp in Sources */,
+				E13CF60728E18813005CB016 /* hash.cpp in Sources */,
+				E13CF60828E18813005CB016 /* logger.cpp in Sources */,
+				E13CF60928E18813005CB016 /* mainargs.cpp in Sources */,
+				E13CF60A28E18813005CB016 /* makedir.cpp in Sources */,
+				E13CF60B28E18813005CB016 /* md5.cpp in Sources */,
+				E13CF60C28E18813005CB016 /* multithread.cpp in Sources */,
+				E13CF60D28E18813005CB016 /* rand.cpp in Sources */,
+				E13CF60E28E18813005CB016 /* rand_helpers.cpp in Sources */,
+				E13CF60F28E18813005CB016 /* sha2.cpp in Sources */,
+				E13CF61028E18813005CB016 /* test.cpp in Sources */,
+				E13CF61128E18813005CB016 /* threadsafecounter.cpp in Sources */,
+				E13CF61228E18813005CB016 /* threadsafequeue.cpp in Sources */,
+				E13CF61328E18813005CB016 /* threadtest.cpp in Sources */,
+				E13CF61428E18813005CB016 /* timer.cpp in Sources */,
+				E13CF61528E18813005CB016 /* files.cpp in Sources */,
+				E13CF61628E18813005CB016 /* homedata.cpp in Sources */,
+				E13CF61728E18813005CB016 /* loadmodel.cpp in Sources */,
+				E13CF61828E18813005CB016 /* numpywrite.cpp in Sources */,
+				E13CF61928E18813005CB016 /* sgf.cpp in Sources */,
+				E13CF61A28E18813005CB016 /* trainingwrite.cpp in Sources */,
+				E13CF61B28E18813005CB016 /* client.cpp in Sources */,
+				E13CF61C28E18813005CB016 /* board.cpp in Sources */,
+				E13CF61D28E18813005CB016 /* boardhistory.cpp in Sources */,
+				E13CF61E28E18813005CB016 /* graphhash.cpp in Sources */,
+				E13CF61F28E18813005CB016 /* rules.cpp in Sources */,
+				E13CF62028E18813005CB016 /* main.cpp in Sources */,
+				E13CF62128E18813005CB016 /* desc.cpp in Sources */,
+				E13CF62428E18813005CB016 /* modelversion.cpp in Sources */,
+				E13CF62528E18813005CB016 /* nneval.cpp in Sources */,
+				E13CF62628E18813005CB016 /* nninputs.cpp in Sources */,
+				E13CF62728E18813005CB016 /* gtpconfig.cpp in Sources */,
+				E13CF62828E18813005CB016 /* play.cpp in Sources */,
+				E13CF62928E18813005CB016 /* playsettings.cpp in Sources */,
+				E13CF62A28E18813005CB016 /* playutils.cpp in Sources */,
+				E13CF62B28E18813005CB016 /* selfplaymanager.cpp in Sources */,
+				E13CF62C28E18813005CB016 /* setup.cpp in Sources */,
+				E13CF62D28E18813005CB016 /* analysisdata.cpp in Sources */,
+				E13CF62E28E18813005CB016 /* asyncbot.cpp in Sources */,
+				E13CF62F28E18813005CB016 /* distributiontable.cpp in Sources */,
+				E13CF63028E18813005CB016 /* localpattern.cpp in Sources */,
+				E13CF63128E18813005CB016 /* mutexpool.cpp in Sources */,
+				E13CF63228E18813005CB016 /* patternbonustable.cpp in Sources */,
+				E13CF63328E18813005CB016 /* reportedsearchvalues.cpp in Sources */,
+				E13CF63428E18813005CB016 /* search.cpp in Sources */,
+				E13CF63528E18813005CB016 /* searchexplorehelpers.cpp in Sources */,
+				E13CF63628E18813005CB016 /* searchhelpers.cpp in Sources */,
+				E13CF63728E18813005CB016 /* searchmirror.cpp in Sources */,
+				E13CF66628E1896C005CB016 /* coremlmodel.m in Sources */,
+				E13CF63828E18813005CB016 /* searchmultithreadhelpers.cpp in Sources */,
+				E13CF63928E18813005CB016 /* searchnnhelpers.cpp in Sources */,
+				E13CF63A28E18813005CB016 /* searchnode.cpp in Sources */,
+				E13CF63B28E18813005CB016 /* searchnodetable.cpp in Sources */,
+				E13CF63C28E18813005CB016 /* searchparams.cpp in Sources */,
+				E13CF63D28E18813005CB016 /* searchresults.cpp in Sources */,
+				E13CF63E28E18813005CB016 /* searchtimehelpers.cpp in Sources */,
+				E13CF63F28E18813005CB016 /* searchupdatehelpers.cpp in Sources */,
+				E13CF64028E18813005CB016 /* subtreevaluebiastable.cpp in Sources */,
+				E13CF64128E18813005CB016 /* timecontrols.cpp in Sources */,
+				E13CF64228E18813005CB016 /* testboardarea.cpp in Sources */,
+				E13CF64328E18813005CB016 /* testboardbasic.cpp in Sources */,
+				E13CF64428E18813005CB016 /* testcommon.cpp in Sources */,
+				E13CF64528E18813005CB016 /* testconfig.cpp in Sources */,
+				E13CF64628E18813005CB016 /* testmisc.cpp in Sources */,
+				E13CF64728E18813005CB016 /* testnn.cpp in Sources */,
+				E13CF64828E18813005CB016 /* testnnevalcanary.cpp in Sources */,
+				E13CF64928E18813005CB016 /* testnninputs.cpp in Sources */,
+				E13CF64A28E18813005CB016 /* testownership.cpp in Sources */,
+				E13CF64B28E18813005CB016 /* testrules.cpp in Sources */,
+				E13CF64C28E18813005CB016 /* testscore.cpp in Sources */,
+				E13CF66428E1896C005CB016 /* coremlbackend.mm in Sources */,
+				E13CF64D28E18813005CB016 /* testsearch.cpp in Sources */,
+				E13CF64E28E18813005CB016 /* testsearchcommon.cpp in Sources */,
+				E13CF64F28E18813005CB016 /* testsearchmisc.cpp in Sources */,
+				E13CF65028E18813005CB016 /* testsearchnonn.cpp in Sources */,
+				E13CF65128E18813005CB016 /* testsearchv3.cpp in Sources */,
+				E13CF65228E18813005CB016 /* testsearchv8.cpp in Sources */,
+				E13CF65328E18813005CB016 /* testsearchv9.cpp in Sources */,
+				E13CF65428E18813005CB016 /* testsgf.cpp in Sources */,
+				E13CF65528E18813005CB016 /* testsymmetries.cpp in Sources */,
+				E13CF66528E1896C005CB016 /* coremlbackend.cpp in Sources */,
+				E13CF65628E18813005CB016 /* testtime.cpp in Sources */,
+				E13CF65728E18813005CB016 /* testtrainingwrite.cpp in Sources */,
+				E13CF65828E18813005CB016 /* tinymodel.cpp in Sources */,
+				E13CF65928E18813005CB016 /* tinymodeldata.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		E13CF66E28E1BDA9005CB016 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E13CF5EB28E18813005CB016 /* KataGo-CoreML */;
+			targetProxy = E13CF66D28E1BDA9005CB016 /* PBXContainerItemProxy */;
+		};
+		E13CF67028E1BDA9005CB016 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 28EEEDD45A95496F8B5C834F /* KataGo-Metal */;
+			targetProxy = E13CF66F28E1BDA9005CB016 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		1517CA31EA3E42D2BD5F866B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_METAL_BACKEND,
+					"$(inherited)",
+				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_NAME = "KataGo-Metal";
+				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
+				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
+			};
+			name = Release;
+		};
+		21D7B48532FF4B628A950893 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					NDEBUG,
+					NO_GIT_REVISION,
+					NO_LIBZIP,
+				);
+				HEADER_SEARCH_PATHS = (
+					external,
+					"external/tclap-1.2.2/include",
+				);
+				OTHER_LDFLAGS = "";
+				SWIFT_VERSION = 5.0;
+				SYSTEM_HEADER_SEARCH_PATHS = "external/filesystem-1.5.8/include";
+				USE_HEADERMAP = NO;
+			};
+			name = Release;
+		};
+		2E758B3F414F42EF9A6AF293 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					NDEBUG,
+					NO_GIT_REVISION,
+					NO_LIBZIP,
+				);
+				HEADER_SEARCH_PATHS = (
+					external,
+					"external/tclap-1.2.2/include",
+				);
+				OTHER_LDFLAGS = "";
+				SWIFT_VERSION = 5.0;
+				SYSTEM_HEADER_SEARCH_PATHS = "external/filesystem-1.5.8/include";
+				USE_HEADERMAP = NO;
+			};
+			name = Debug;
+		};
+		94577FBF6620419F9DEF8C32 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					NDEBUG,
+					NO_GIT_REVISION,
+					NO_LIBZIP,
+				);
+				HEADER_SEARCH_PATHS = (
+					external,
+					"external/tclap-1.2.2/include",
+				);
+				OTHER_LDFLAGS = "";
+				SWIFT_VERSION = 5.0;
+				SYSTEM_HEADER_SEARCH_PATHS = "external/filesystem-1.5.8/include";
+				USE_HEADERMAP = NO;
+			};
+			name = MinSizeRel;
+		};
+		B6ECA3AEEB0C4AF99FEAB026 /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_METAL_BACKEND,
+					"$(inherited)",
+				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_NAME = "KataGo-Metal";
+				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
+				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
+			};
+			name = RelWithDebInfo;
+		};
+		DC5B919756BF4E8EA9889C99 /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					NDEBUG,
+					NO_GIT_REVISION,
+					NO_LIBZIP,
+				);
+				HEADER_SEARCH_PATHS = (
+					external,
+					"external/tclap-1.2.2/include",
+				);
+				OTHER_LDFLAGS = "";
+				SWIFT_VERSION = 5.0;
+				SYSTEM_HEADER_SEARCH_PATHS = "external/filesystem-1.5.8/include";
+				USE_HEADERMAP = NO;
+			};
+			name = RelWithDebInfo;
+		};
+		E01D1210266F4D4DBEB97E59 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_METAL_BACKEND,
+					"$(inherited)",
+				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_NAME = "KataGo-Metal";
+				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
+				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
+			};
+			name = MinSizeRel;
+		};
+		E13CF65C28E18813005CB016 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_COREML_BACKEND,
+					"$(inherited)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		E13CF65D28E18813005CB016 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_COREML_BACKEND,
+					"$(inherited)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		E13CF65E28E18813005CB016 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_COREML_BACKEND,
+					"$(inherited)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = MinSizeRel;
+		};
+		E13CF65F28E18813005CB016 /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_COREML_BACKEND,
+					"$(inherited)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = RelWithDebInfo;
+		};
+		E13CF66928E1BD87005CB016 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		E13CF66A28E1BD87005CB016 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		E13CF66B28E1BD87005CB016 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = MinSizeRel;
+		};
+		E13CF66C28E1BD87005CB016 /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = RelWithDebInfo;
+		};
+		F3CB8E0324FB4002929D38A0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_METAL_BACKEND,
+					"$(inherited)",
+				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_NAME = "KataGo-Metal";
+				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
+				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0838DC7C409844AFA516AAE2 /* Build configuration list for PBXProject "KataGo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2E758B3F414F42EF9A6AF293 /* Debug */,
+				21D7B48532FF4B628A950893 /* Release */,
+				94577FBF6620419F9DEF8C32 /* MinSizeRel */,
+				DC5B919756BF4E8EA9889C99 /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		79F919699BE649B3AB6B745E /* Build configuration list for PBXNativeTarget "KataGo-Metal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F3CB8E0324FB4002929D38A0 /* Debug */,
+				1517CA31EA3E42D2BD5F866B /* Release */,
+				E01D1210266F4D4DBEB97E59 /* MinSizeRel */,
+				B6ECA3AEEB0C4AF99FEAB026 /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E13CF65B28E18813005CB016 /* Build configuration list for PBXNativeTarget "KataGo-CoreML" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E13CF65C28E18813005CB016 /* Debug */,
+				E13CF65D28E18813005CB016 /* Release */,
+				E13CF65E28E18813005CB016 /* MinSizeRel */,
+				E13CF65F28E18813005CB016 /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E13CF66828E1BD87005CB016 /* Build configuration list for PBXAggregateTarget "ALL_BUILDS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E13CF66928E1BD87005CB016 /* Debug */,
+				E13CF66A28E1BD87005CB016 /* Release */,
+				E13CF66B28E1BD87005CB016 /* MinSizeRel */,
+				E13CF66C28E1BD87005CB016 /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 91644CF2108748368B902DCE /* Project object */;
+}

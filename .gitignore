@@ -77,5 +77,4 @@ models/
 python/startposesupload.txt
 
 # For Xcode
-xcode/
-
+xcuserdata/
