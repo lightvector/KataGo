@@ -15,8 +15,13 @@ extension UnsafeMutablePointer<Float32> {
 @objc
 class ConvLayer: NSObject {
     let graph: MPSGraph
+    let sourceType: MPSDataType
+    let sourceShape: [NSNumber]
+    let sourceElements: NSNumber
+    let sourceLayout: MPSGraphTensorNamedDataLayout
     let sourceTensor: MPSGraphTensor
     let sourceTensorData: MPSGraphTensorData
+    let weightsType: MPSDataType
     let weightsTensor: MPSGraphTensor
     let weightsTensorData: MPSGraphTensorData
     let resultTensor: MPSGraphTensor
@@ -31,7 +36,7 @@ class ConvLayer: NSObject {
                     nnXLen: NSNumber,
                     nnYLen: NSNumber,
                     batchSize: NSNumber,
-                    useFB16: NSNumber,
+                    useFP16: NSNumber,
                     useNHWC: NSNumber,
                     weights: UnsafeMutablePointer<Float32>,
                     input: UnsafeMutablePointer<Float32>,
@@ -40,6 +45,7 @@ class ConvLayer: NSObject {
 
         let layer = ConvLayer(device: device,
                               graph: MPSGraph(),
+                              batchSize: batchSize,
                               convXSize: convXSize,
                               convYSize: convYSize,
                               inChannels: inChannels,
@@ -48,20 +54,16 @@ class ConvLayer: NSObject {
                               dilationY: dilationY,
                               nnXLen: nnXLen,
                               nnYLen: nnYLen,
+                              useFP16: useFP16,
+                              useNHWC: useNHWC,
                               weights: weights)
 
-        let numInputElements = inChannels.intValue * nnYLen.intValue * nnXLen.intValue
-        let numOutputElements = outChannels.intValue * nnYLen.intValue * nnXLen.intValue
-
-        for i in 0..<batchSize.intValue {
-            let convInput = input + (i * numInputElements)
-            let convOutput = output + (i * numOutputElements)
-            layer.apply(input: convInput, output: convOutput)
-        }
+        layer.apply(input: input, output: output)
     }
 
     init(device: MPSGraphDevice,
          graph: MPSGraph,
+         batchSize: NSNumber,
          convXSize: NSNumber,
          convYSize: NSNumber,
          inChannels: NSNumber,
@@ -70,15 +72,39 @@ class ConvLayer: NSObject {
          dilationY: NSNumber,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
+         useFP16: NSNumber,
+         useNHWC: NSNumber,
          weights: UnsafeMutablePointer<Float32>) {
         self.graph = graph
+        sourceType = MPSDataType.float32
+        weightsType = MPSDataType.float32
 
-        let sourceShape = [1,
+        if (useNHWC.boolValue == true) {
+            sourceShape = [batchSize.intValue as NSNumber,
+                           nnYLen.intValue as NSNumber,
+                           nnXLen.intValue as NSNumber,
+                           inChannels]
+
+            sourceLayout = MPSGraphTensorNamedDataLayout.NHWC
+        } else {
+            sourceShape = [batchSize.intValue as NSNumber,
                            inChannels,
                            nnYLen.intValue as NSNumber,
                            nnXLen.intValue as NSNumber]
 
+            sourceLayout = MPSGraphTensorNamedDataLayout.NCHW
+        }
+
+        var intSourceElements: Int = 0
+
+        for length in sourceShape {
+            intSourceElements += length.intValue
+        }
+
+        sourceElements = NSNumber(integerLiteral: intSourceElements)
+
         sourceTensor = graph.placeholder(shape: sourceShape,
+                                         dataType: sourceType,
                                          name: nil)
 
         let sourceDescriptor = MPSNDArrayDescriptor(dataType: sourceTensor.dataType,
@@ -94,6 +120,7 @@ class ConvLayer: NSObject {
                             convXSize]
 
         weightsTensor = graph.placeholder(shape: weightsShape,
+                                          dataType: weightsType,
                                           name: nil)
 
         let weightsDescriptor = MPSNDArrayDescriptor(dataType: weightsTensor.dataType,
@@ -109,8 +136,8 @@ class ConvLayer: NSObject {
                                                                dilationRateInX: dilationX.intValue,
                                                                dilationRateInY: dilationY.intValue,
                                                                groups: 1,
-                                                               paddingStyle: .explicit,
-                                                               dataLayout: .NCHW,
+                                                               paddingStyle: .TF_SAME,
+                                                               dataLayout: sourceLayout,
                                                                weightsLayout: .OIHW)!
 
         resultTensor = graph.convolution2D(sourceTensor,
@@ -221,7 +248,7 @@ class KataGoGraph: NSObject {
         symmetriesTensor = graph.constant(0.0, shape: [3], dataType: .float32)
         includeHistoryTensor = graph.constant(1.0, shape: [5], dataType: .float32)
 
-        // Test
+        // FIXME: The followings are test code, to be removed
         let numInputElements = NSNumber(integerLiteral: nnXLen.intValue * nnYLen.intValue * numInputChannels.intValue)
 
         let reshaped = graph.reshape(inputTensor,
@@ -257,7 +284,7 @@ class KataGoGraph: NSObject {
 
         fetch[policyOutputTensor]!.mpsndarray().readBytes(policyOutput, strideBytes: nil)
 
-        // debug
+        // TODO: Debugging, to be removed
         policyOutput.printAsFloat()
     }
 }

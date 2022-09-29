@@ -67,7 +67,7 @@ void testMetalEvaluateConv(int convXSize,
                           nnXLen:[NSNumber numberWithInt:nnXLen]
                           nnYLen:[NSNumber numberWithInt:nnYLen]
                        batchSize:[NSNumber numberWithInt:batchSize]
-                         useFB16:[NSNumber numberWithBool:useFP16]
+                         useFP16:[NSNumber numberWithBool:useFP16]
                          useNHWC:[NSNumber numberWithBool:useNHWC]
                          weights:weights
                            input:input
