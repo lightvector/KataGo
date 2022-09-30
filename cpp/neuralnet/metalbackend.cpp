@@ -503,16 +503,26 @@ bool NeuralNet::testEvaluateBatchNorm(
   const vector<float>& inputBuffer,
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
-  (void)desc;
-  (void)batchSize;
-  (void)nnXLen;
-  (void)nnYLen;
-  (void)useFP16;
-  (void)useNHWC;
-  (void)inputBuffer;
-  (void)maskBuffer;
-  (void)outputBuffer;
-  return false;
+  size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->numChannels;
+  outputBuffer.resize(numOutputFloats);
+
+  testMetalEvaluateBatchNorm(desc->numChannels,
+                             desc->epsilon,
+                             desc->hasScale,
+                             desc->hasBias,
+                             nnXLen,
+                             nnYLen,
+                             batchSize,
+                             useFP16,
+                             useNHWC,
+                             (float*)desc->mean.data(),
+                             (float*)desc->variance.data(),
+                             (float*)desc->scale.data(),
+                             (float*)desc->bias.data(),
+                             (float*)inputBuffer.data(),
+                             (float*)maskBuffer.data(),
+                             (float*)outputBuffer.data());
+  return true;
 }
 
 bool NeuralNet::testEvaluateResidualBlock(

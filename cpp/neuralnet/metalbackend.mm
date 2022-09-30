@@ -73,3 +73,37 @@ void testMetalEvaluateConv(int convXSize,
                            input:input
                           output:output];
 }
+
+void testMetalEvaluateBatchNorm(int numChannels,
+                                float epsilon,
+                                bool hasScale,
+                                bool hasBias,
+                                int nnXLen,
+                                int nnYLen,
+                                int batchSize,
+                                bool useFP16,
+                                bool useNHWC,
+                                float* mean,
+                                float* variance,
+                                float* scale,
+                                float* bias,
+                                float* input,
+                                float* mask,
+                                float* output) {
+    [BatchNormLayer testWithNumChannels:[NSNumber numberWithInt:numChannels]
+                                epsilon:[NSNumber numberWithFloat:epsilon]
+                               hasScale:[NSNumber numberWithBool:hasScale]
+                                hasBias:[NSNumber numberWithBool:hasBias]
+                                 nnXLen:[NSNumber numberWithInt:nnXLen]
+                                 nnYLen:[NSNumber numberWithInt:nnYLen]
+                              batchSize:[NSNumber numberWithInt:batchSize]
+                                useFP16:[NSNumber numberWithBool:useFP16]
+                                useNHWC:[NSNumber numberWithBool:useNHWC]
+                                   mean:mean
+                               variance:variance
+                                  scale:scale
+                                   bias:bias
+                                  input:input
+                                   mask:mask
+                                 output:output];
+}

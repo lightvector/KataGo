@@ -12,12 +12,27 @@ extension UnsafeMutablePointer<Float32> {
     }
 }
 
+extension MPSGraphTensorData {
+    convenience init?(device: MPSGraphDevice, tensor: MPSGraphTensor) {
+        if let metalDevice = device.metalDevice {
+            if let shape = tensor.shape {
+                self.init(MPSNDArray(device: metalDevice,
+                                            descriptor: MPSNDArrayDescriptor(dataType: tensor.dataType,
+                                                                             shape: shape)))
+            } else {
+                return nil
+            }
+        } else {
+            return nil
+        }
+    }
+}
+
 @objc
 class ConvLayer: NSObject {
     let graph: MPSGraph
     let sourceType: MPSDataType
     let sourceShape: [NSNumber]
-    let sourceElements: NSNumber
     let sourceLayout: MPSGraphTensorNamedDataLayout
     let sourceTensor: MPSGraphTensor
     let sourceTensorData: MPSGraphTensorData
@@ -95,24 +110,12 @@ class ConvLayer: NSObject {
             sourceLayout = MPSGraphTensorNamedDataLayout.NCHW
         }
 
-        var intSourceElements: Int = 0
-
-        for length in sourceShape {
-            intSourceElements += length.intValue
-        }
-
-        sourceElements = NSNumber(integerLiteral: intSourceElements)
-
         sourceTensor = graph.placeholder(shape: sourceShape,
                                          dataType: sourceType,
                                          name: nil)
 
-        let sourceDescriptor = MPSNDArrayDescriptor(dataType: sourceTensor.dataType,
-                                                    shape: sourceTensor.shape!)
-
-        let sourceArray = MPSNDArray(device: device.metalDevice!, descriptor: sourceDescriptor)
-
-        sourceTensorData = MPSGraphTensorData(sourceArray)
+        sourceTensorData = MPSGraphTensorData(device: device,
+                                              tensor: sourceTensor)!
 
         let weightsShape = [outChannels,
                             inChannels,
@@ -123,13 +126,10 @@ class ConvLayer: NSObject {
                                           dataType: weightsType,
                                           name: nil)
 
-        let weightsDescriptor = MPSNDArrayDescriptor(dataType: weightsTensor.dataType,
-                                                     shape: weightsTensor.shape!)
+        weightsTensorData = MPSGraphTensorData(device: device,
+                                               tensor: weightsTensor)!
 
-        let weightsArray = MPSNDArray(device: device.metalDevice!, descriptor: weightsDescriptor)
-
-        weightsArray.writeBytes(weights, strideBytes: nil)
-        weightsTensorData = MPSGraphTensorData(weightsArray)
+        weightsTensorData.mpsndarray().writeBytes(weights, strideBytes: nil)
 
         let convDescriptor = MPSGraphConvolution2DOpDescriptor(strideInX: 1,
                                                                strideInY: 1,
@@ -152,6 +152,220 @@ class ConvLayer: NSObject {
 
         let fetch = graph.run(feeds: [sourceTensor: sourceTensorData,
                                      weightsTensor: weightsTensorData],
+                              targetTensors: [resultTensor],
+                              targetOperations: nil)
+
+        fetch[resultTensor]?.mpsndarray().readBytes(output, strideBytes: nil)
+    }
+}
+
+@objc
+class BatchNormLayer: NSObject {
+    let graph: MPSGraph
+    let sourceType: MPSDataType
+    let sourceShape: [NSNumber]
+    let sourceLayout: MPSGraphTensorNamedDataLayout
+    let sourceTensor: MPSGraphTensor
+    let sourceTensorData: MPSGraphTensorData
+    let maskType: MPSDataType
+    let maskShape: [NSNumber]
+    let maskTensor: MPSGraphTensor
+    let maskTensorData: MPSGraphTensorData
+    let meanType: MPSDataType
+    let meanShape: [NSNumber]
+    let meanTensor: MPSGraphTensor
+    let meanTensorData: MPSGraphTensorData
+    let varianceType: MPSDataType
+    let varianceTensor: MPSGraphTensor
+    let varianceTensorData: MPSGraphTensorData
+    let scaleType: MPSDataType
+    let scaleTensor: MPSGraphTensor
+    let scaleTensorData: MPSGraphTensorData
+    let biasType: MPSDataType
+    let biasTensor: MPSGraphTensor
+    let biasTensorData: MPSGraphTensorData
+    let resultTensor: MPSGraphTensor
+
+    @objc
+    class func test(numChannels: NSNumber,
+                    epsilon: NSNumber,
+                    hasScale: NSNumber,
+                    hasBias: NSNumber,
+                    nnXLen: NSNumber,
+                    nnYLen: NSNumber,
+                    batchSize: NSNumber,
+                    useFP16: NSNumber,
+                    useNHWC: NSNumber,
+                    mean: UnsafeMutablePointer<Float32>,
+                    variance: UnsafeMutablePointer<Float32>,
+                    scale: UnsafeMutablePointer<Float32>,
+                    bias: UnsafeMutablePointer<Float32>,
+                    input: UnsafeMutablePointer<Float32>,
+                    mask: UnsafeMutablePointer<Float32>,
+                    output: UnsafeMutablePointer<Float32>) {
+        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+
+        let layer = BatchNormLayer(device: device,
+                                   graph: MPSGraph(),
+                                   numChannels: numChannels,
+                                   epsilon: epsilon,
+                                   hasScale: hasScale,
+                                   hasBias: hasBias,
+                                   nnXLen: nnXLen,
+                                   nnYLen: nnYLen,
+                                   batchSize: batchSize,
+                                   useFP16: useFP16,
+                                   useNHWC: useNHWC,
+                                   mean: mean,
+                                   variance: variance,
+                                   scale: scale,
+                                   bias: bias)
+
+        layer.apply(input: input,
+                    mask: mask,
+                    output: output)
+    }
+
+    init(device: MPSGraphDevice,
+         graph: MPSGraph,
+         numChannels: NSNumber,
+         epsilon: NSNumber,
+         hasScale: NSNumber,
+         hasBias: NSNumber,
+         nnXLen: NSNumber,
+         nnYLen: NSNumber,
+         batchSize: NSNumber,
+         useFP16: NSNumber,
+         useNHWC: NSNumber,
+         mean: UnsafeMutablePointer<Float32>,
+         variance: UnsafeMutablePointer<Float32>,
+         scale: UnsafeMutablePointer<Float32>,
+         bias: UnsafeMutablePointer<Float32>) {
+        self.graph = graph
+        sourceType = MPSDataType.float32
+        maskType = MPSDataType.float32
+        meanType = MPSDataType.float32
+        varianceType = MPSDataType.float32
+        scaleType = MPSDataType.float32
+        biasType = MPSDataType.float32
+
+        if (useNHWC.boolValue == true) {
+            sourceShape = [batchSize.intValue as NSNumber,
+                           nnYLen.intValue as NSNumber,
+                           nnXLen.intValue as NSNumber,
+                           numChannels]
+
+            sourceLayout = MPSGraphTensorNamedDataLayout.NHWC
+
+            meanShape = [1,
+                         1,
+                         1,
+                         numChannels]
+
+            maskShape = [batchSize.intValue as NSNumber,
+                         nnYLen.intValue as NSNumber,
+                         nnXLen.intValue as NSNumber,
+                         1]
+        } else {
+            sourceShape = [batchSize.intValue as NSNumber,
+                           numChannels,
+                           nnYLen.intValue as NSNumber,
+                           nnXLen.intValue as NSNumber]
+
+            sourceLayout = MPSGraphTensorNamedDataLayout.NCHW
+
+            meanShape = [1,
+                         numChannels,
+                         1,
+                         1]
+
+            maskShape = [batchSize.intValue as NSNumber,
+                         1,
+                         nnYLen.intValue as NSNumber,
+                         nnXLen.intValue as NSNumber]
+        }
+
+        sourceTensor = graph.placeholder(shape: sourceShape,
+                                         dataType: sourceType,
+                                         name: nil)
+
+        sourceTensorData = MPSGraphTensorData(device: device,
+                                              tensor: sourceTensor)!
+
+        maskTensor = graph.placeholder(shape: maskShape,
+                                       dataType: maskType,
+                                       name: nil)
+
+        maskTensorData = MPSGraphTensorData(device: device,
+                                            tensor: maskTensor)!
+
+        meanTensor = graph.placeholder(shape: meanShape,
+                                       dataType: meanType,
+                                       name: nil)
+
+        meanTensorData = MPSGraphTensorData(device: device,
+                                            tensor: meanTensor)!
+
+        meanTensorData.mpsndarray().writeBytes(mean, strideBytes: nil)
+
+        let varianceShape = meanShape
+
+        varianceTensor = graph.placeholder(shape: varianceShape,
+                                           dataType: varianceType,
+                                           name: nil)
+
+        varianceTensorData = MPSGraphTensorData(device: device,
+                                                tensor: varianceTensor)!
+
+        varianceTensorData.mpsndarray().writeBytes(variance, strideBytes: nil)
+
+        let scaleShape = meanShape
+
+        scaleTensor = graph.placeholder(shape: scaleShape,
+                                        dataType: scaleType,
+                                        name: nil)
+
+        scaleTensorData = MPSGraphTensorData(device: device,
+                                             tensor: scaleTensor)!
+
+        scaleTensorData.mpsndarray().writeBytes(scale, strideBytes: nil)
+
+        let biasShape = meanShape
+
+        biasTensor = graph.placeholder(shape: biasShape,
+                                       dataType: biasType,
+                                       name: nil)
+
+        biasTensorData = MPSGraphTensorData(device: device,
+                                            tensor: biasTensor)!
+
+        biasTensorData.mpsndarray().writeBytes(bias, strideBytes: nil)
+
+        let normalized = graph.normalize(sourceTensor,
+                                         mean: meanTensor,
+                                         variance: varianceTensor,
+                                         gamma: scaleTensor,
+                                         beta: biasTensor,
+                                         epsilon: epsilon.floatValue,
+                                         name: nil)
+
+        resultTensor = graph.multiplication(normalized,
+                                            maskTensor,
+                                            name: nil)
+    }
+
+    func apply(input: UnsafeMutablePointer<Float32>,
+               mask: UnsafeMutablePointer<Float32>,
+               output: UnsafeMutablePointer<Float32>) {
+        sourceTensorData.mpsndarray().writeBytes(input, strideBytes: nil)
+        maskTensorData.mpsndarray().writeBytes(mask, strideBytes: nil)
+
+        let fetch = graph.run(feeds: [sourceTensor: sourceTensorData,
+                                        maskTensor: maskTensorData,
+                                        meanTensor: meanTensorData,
+                                    varianceTensor: varianceTensorData,
+                                       scaleTensor: scaleTensorData,
+                                        biasTensor: biasTensorData],
                               targetTensors: [resultTensor],
                               targetOperations: nil)
 
