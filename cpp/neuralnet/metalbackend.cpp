@@ -472,21 +472,16 @@ bool NeuralNet::testEvaluateConv(
   bool useNHWC,
   const vector<float>& inputBuffer,
   vector<float>& outputBuffer) {
+
   size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->outChannels;
   outputBuffer.resize(numOutputFloats);
 
-  testMetalEvaluateConv(desc->convXSize,
-                        desc->convYSize,
-                        desc->inChannels,
-                        desc->outChannels,
-                        desc->dilationX,
-                        desc->dilationY,
+  testMetalEvaluateConv(desc,
                         nnXLen,
                         nnYLen,
                         batchSize,
                         useFP16,
                         useNHWC,
-                        (float*)desc->weights.data(),
                         (float*)inputBuffer.data(),
                         (float*)outputBuffer.data());
   return true;
@@ -503,22 +498,16 @@ bool NeuralNet::testEvaluateBatchNorm(
   const vector<float>& inputBuffer,
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
+
   size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->numChannels;
   outputBuffer.resize(numOutputFloats);
 
-  testMetalEvaluateBatchNorm(desc->numChannels,
-                             desc->epsilon,
-                             desc->hasScale,
-                             desc->hasBias,
+  testMetalEvaluateBatchNorm(desc,
                              nnXLen,
                              nnYLen,
                              batchSize,
                              useFP16,
                              useNHWC,
-                             (float*)desc->mean.data(),
-                             (float*)desc->variance.data(),
-                             (float*)desc->scale.data(),
-                             (float*)desc->bias.data(),
                              (float*)inputBuffer.data(),
                              (float*)maskBuffer.data(),
                              (float*)outputBuffer.data());
@@ -535,16 +524,20 @@ bool NeuralNet::testEvaluateResidualBlock(
   const vector<float>& inputBuffer,
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
-  (void)desc;
-  (void)batchSize;
-  (void)nnXLen;
-  (void)nnYLen;
-  (void)useFP16;
-  (void)useNHWC;
-  (void)inputBuffer;
-  (void)maskBuffer;
-  (void)outputBuffer;
-  return false;
+
+  size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->finalConv.outChannels;
+  outputBuffer.resize(numOutputFloats);
+
+  testMetalEvaluateResidualBlock(desc,
+                                 batchSize,
+                                 nnXLen,
+                                 nnYLen,
+                                 useFP16,
+                                 useNHWC,
+                                 (float*)inputBuffer.data(),
+                                 (float*)maskBuffer.data(),
+                                 (float*)outputBuffer.data());
+  return true;
 }
 
 bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
