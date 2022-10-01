@@ -59,6 +59,9 @@ if __name__ == "__main__":
   parser.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, default=1, required=False)
   parser.add_argument('-swa-period-samples', help='How frequently to average an SWA sample, in samples', type=float, required=False)
   parser.add_argument('-swa-scale', help='Number of samples to average in expectation together for SWA', type=float, required=False)
+  parser.add_argument('-lookahead-k', help='Use lookahead optimizer', type=int, required=False)
+  parser.add_argument('-lookahead-alpha', help='Use lookahead optimizer', type=float, required=False)
+  parser.add_argument('-lookahead-print', help='Only print on lookahead syncs', required=False, action='store_true')
 
   parser.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
   parser.add_argument('-use-fp16', help='Use fp16 training', required=False, action='store_true')
@@ -135,6 +138,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
   sub_epochs = args["sub_epochs"]
   swa_period_samples = args["swa_period_samples"]
   swa_scale = args["swa_scale"]
+  lookahead_k = args["lookahead_k"]
+  lookahead_alpha = args["lookahead_alpha"]
+  lookahead_print = args["lookahead_print"]
 
   use_fp16 = args["use_fp16"]
 
@@ -177,6 +183,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
   longterm_checkpoints_dir = get_longterm_checkpoints_dir(traindir)
 
   assert (swa_period_samples is None) == (swa_scale is None)
+  assert (lookahead_k is None) == (lookahead_alpha is None)
 
   # SET UP LOGGING -------------------------------------------------------------
 
@@ -496,6 +503,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
   logging.info(f"Total num params: {total_num_params}")
   logging.info(f"Total trainable params: {total_trainable_params}")
 
+  lookahead_cache = {}
+  if lookahead_k is not None:
+    for param_group in optimizer.param_groups:
+      for param in param_group["params"]:
+        lookahead_cache[param] = torch.zeros_like(param.data)
+        lookahead_cache[param] = lookahead_cache[param].copy_(param.data)
+    logging.info(f"Using lookahead optimizer {lookahead_alpha} {lookahead_k}")
 
   # EPOCHS AND LR ---------------------------------------------------------------------
 
@@ -552,7 +566,14 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       else:
         assert False
 
-      param_group["lr"] = per_sample_lr * warmup_scale * group_scale
+      # For lookahead optimizer, use weight decay appropriate for lr scale,
+      # but tell optimizer to take larger steps so as to maintain the same
+      # effective learning rate after lookahead averaging.
+      if lookahead_alpha is not None:
+        param_group["lr"] = per_sample_lr * warmup_scale * group_scale / lookahead_alpha
+      else:
+        param_group["lr"] = per_sample_lr * warmup_scale * group_scale
+
       param_group["weight_decay"] = get_weight_decay(
         raw_model,
         lr_scale,
@@ -749,7 +770,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
   # _batch metrics dict entries will reported as the average per-batch value over the time since the last log
   # All other values will get reported as a total sum across the entire run so far.
 
-  def accumulate_metrics(metric_sums, metric_weights, metrics, batch_size, decay):
+  def accumulate_metrics(metric_sums, metric_weights, metrics, batch_size, decay, new_weight):
     if decay != 1.0:
       for metric in metric_sums:
         if metric.endswith("_sum"):
@@ -757,12 +778,15 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
           metric_weights[metric] *= decay
 
     for metric in metrics:
-      if metric.endswith("_batch"):
+      if metric.endswith("_sum"):
+        metric_sums[metric] += metrics[metric] * new_weight
+        metric_weights[metric] += batch_size * new_weight
+      elif metric.endswith("_batch"):
         metric_sums[metric] += metrics[metric]
         metric_weights[metric] += 1
       else:
-        metric_sums[metric] += metrics[metric]
-        metric_weights[metric] += batch_size
+        metric_sums[metric] += metrics[metric] * new_weight
+        metric_weights[metric] += batch_size * new_weight
 
   def log_metrics(metric_sums, metric_weights, metrics, metrics_out):
     metrics_to_print = {}
@@ -884,6 +908,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       logging.info("Beginning training subepoch!")
       logging.info("This subepoch, using files: " + str(train_files_to_use))
       logging.info("Currently up to data row " + str(train_state["total_num_data_rows"]))
+      lookahead_counter = 0
       for batch in data_processing_pytorch.read_npz_training_data(
         train_files_to_use,
         batch_size,
@@ -962,7 +987,17 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         train_state["global_step_samples"] += batch_size * world_size
 
         metrics = detensorify_metrics(metrics)
-        accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=0.999)
+
+        if lookahead_k is not None and lookahead_print:
+          # Only accumulate metrics when lookahead is synced if lookahead_print is True
+          if lookahead_counter == 0:
+            accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=math.exp(-0.001 * lookahead_k), new_weight=1.0)
+          else:
+            accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=1.0, new_weight=0.0)
+        else:
+          accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=0.999, new_weight=1.0)
+
+
         if batch_count_this_epoch % print_train_loss_every_batches == 0:
 
           if model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
@@ -991,6 +1026,21 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         if batch_count_this_epoch % 500 == 0:
           maybe_update_brenorm_params()
 
+        # Perform lookahead
+        in_between_lookaheads = False
+        if lookahead_k is not None:
+          lookahead_counter += 1
+          if lookahead_counter >= lookahead_k:
+            for param_group in optimizer.param_groups:
+              for param in param_group["params"]:
+                slow_param_data = lookahead_cache[param]
+                slow_param_data.add_(param.data.detach() - slow_param_data, alpha=lookahead_alpha)
+                param.data.copy_(slow_param_data)
+            lookahead_counter = 0
+            in_between_lookaheads = False
+          else:
+            in_between_lookaheads = True
+
         # Perform SWA
         if swa_model is not None and swa_scale is not None:
           train_state["swa_sample_accum"] += batch_size * world_size
@@ -1003,6 +1053,14 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       logging.info("Finished training subepoch!")
 
     # END SUB EPOCH LOOP ------------
+
+    # Discard the gradient updates from the leftover batches in the sub epoch from lookahead.
+    # This wastes a very tiny bit, but makes it so that we can be in sync and deterministic on ends of subepochs/epochs.
+    if lookahead_k is not None:
+      for param_group in optimizer.param_groups:
+        for param in param_group["params"]:
+          slow_param_data = lookahead_cache[param]
+          param.data.copy_(slow_param_data)
 
     save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state)
 
@@ -1086,7 +1144,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
               intermediate_distill_scale=intermediate_distill_scale,
             )
             metrics = detensorify_metrics(metrics)
-            accumulate_metrics(val_metric_sums, val_metric_weights, metrics, batch_size, decay=1.0)
+            accumulate_metrics(val_metric_sums, val_metric_weights, metrics, batch_size, decay=1.0, new_weight=1.0)
             val_samples += batch_size
             if max_val_samples is not None and val_samples > max_val_samples:
               break
