@@ -782,11 +782,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         metric_sums[metric] += metrics[metric] * new_weight
         metric_weights[metric] += batch_size * new_weight
       elif metric.endswith("_batch"):
-        metric_sums[metric] += metrics[metric]
-        metric_weights[metric] += 1
-      else:
         metric_sums[metric] += metrics[metric] * new_weight
-        metric_weights[metric] += batch_size * new_weight
+        metric_weights[metric] += 1 * new_weight
+      else:
+        metric_sums[metric] += metrics[metric]
+        metric_weights[metric] += batch_size
 
   def log_metrics(metric_sums, metric_weights, metrics, metrics_out):
     metrics_to_print = {}
