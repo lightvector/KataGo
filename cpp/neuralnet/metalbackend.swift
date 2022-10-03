@@ -10,6 +10,15 @@ extension UnsafeMutablePointer<Float32> {
     }
 }
 
+extension MPSNDArray {
+    func dumpFloats(name: String, length: Int) {
+        print(name)
+        let buffer = UnsafeMutablePointer<Float32>.allocate(capacity: length)
+        readBytes(buffer, strideBytes: nil)
+        buffer.printAsFloat(length)
+    }
+}
+
 extension MPSGraphTensorData {
     convenience init?(device: MPSGraphDevice, tensor: MPSGraphTensor) {
         if let metalDevice = device.metalDevice {
@@ -48,8 +57,8 @@ class SWConvLayerDesc: NSObject {
     let convXSize: NSNumber
     let inChannels: NSNumber
     let outChannels: NSNumber
-    let dilationY: NSNumber
-    let dilationX: NSNumber
+    let dilationY: Int
+    let dilationX: Int
     let weights: UnsafeMutablePointer<Float32>
 
     @objc
@@ -57,8 +66,8 @@ class SWConvLayerDesc: NSObject {
          convXSize: NSNumber,
          inChannels: NSNumber,
          outChannels: NSNumber,
-         dilationY: NSNumber,
-         dilationX: NSNumber,
+         dilationY: Int,
+         dilationX: Int,
          weights: UnsafeMutablePointer<Float32>) {
         self.convYSize = convYSize
         self.convXSize = convXSize
@@ -82,8 +91,8 @@ class ConvLayer: NSObject {
                     nnXLen: NSNumber,
                     nnYLen: NSNumber,
                     batchSize: NSNumber,
-                    useFP16: NSNumber,
-                    useNHWC: NSNumber,
+                    useFP16: Bool,
+                    useNHWC: Bool,
                     input: UnsafeMutablePointer<Float32>,
                     output: UnsafeMutablePointer<Float32>) {
         let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
@@ -108,8 +117,8 @@ class ConvLayer: NSObject {
          batchSize: NSNumber,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
-         useFP16: NSNumber,
-         useNHWC: NSNumber) {
+         useFP16: Bool,
+         useNHWC: Bool) {
         // TODO: support useFP16 = 1
 
         let sourceShape: [NSNumber]
@@ -121,26 +130,26 @@ class ConvLayer: NSObject {
                             descriptor.convYSize,
                             descriptor.convXSize]
 
-        if (useNHWC.boolValue == true) {
-            sourceShape = [batchSize.intValue as NSNumber,
-                           nnYLen.intValue as NSNumber,
-                           nnXLen.intValue as NSNumber,
+        if (useNHWC == true) {
+            sourceShape = [batchSize,
+                           nnYLen,
+                           nnXLen,
                            descriptor.inChannels]
 
             sourceLayout = MPSGraphTensorNamedDataLayout.NHWC
         } else {
-            sourceShape = [batchSize.intValue as NSNumber,
+            sourceShape = [batchSize,
                            descriptor.inChannels,
-                           nnYLen.intValue as NSNumber,
-                           nnXLen.intValue as NSNumber]
+                           nnYLen,
+                           nnXLen]
 
             sourceLayout = MPSGraphTensorNamedDataLayout.NCHW
         }
 
         let convDescriptor = MPSGraphConvolution2DOpDescriptor(strideInX: 1,
                                                                strideInY: 1,
-                                                               dilationRateInX: descriptor.dilationX.intValue,
-                                                               dilationRateInY: descriptor.dilationY.intValue,
+                                                               dilationRateInX: descriptor.dilationX,
+                                                               dilationRateInY: descriptor.dilationY,
                                                                groups: 1,
                                                                paddingStyle: .TF_SAME,
                                                                dataLayout: sourceLayout,
@@ -163,10 +172,9 @@ class ConvLayer: NSObject {
         let weightsData = Data(bytes: descriptor.weights,
                                count: weightsShape.asShapeCount(of: dataType))
 
-        let weightsTensor = graph.variable(with: weightsData,
+        let weightsTensor = graph.constant(weightsData,
                                            shape: weightsShape,
-                                           dataType: dataType,
-                                           name: nil)
+                                           dataType: dataType)
 
         resultTensor = graph.convolution2D(self.sourceTensor,
                                            weights: weightsTensor,
@@ -189,7 +197,7 @@ class ConvLayer: NSObject {
 @objc
 class SWBatchNormLayerDesc: NSObject {
     let numChannels: NSNumber
-    let epsilon: NSNumber
+    let epsilon: Float32
     let hasScale: NSNumber
     let hasBias: NSNumber
     let mean: UnsafeMutablePointer<Float32>
@@ -199,7 +207,7 @@ class SWBatchNormLayerDesc: NSObject {
 
     @objc
     init(numChannels: NSNumber,
-         epsilon: NSNumber,
+         epsilon: Float32,
          hasScale: NSNumber,
          hasBias: NSNumber,
          mean: UnsafeMutablePointer<Float32>,
@@ -231,8 +239,8 @@ class BatchNormLayer: NSObject {
                     nnXLen: NSNumber,
                     nnYLen: NSNumber,
                     batchSize: NSNumber,
-                    useFP16: NSNumber,
-                    useNHWC: NSNumber,
+                    useFP16: Bool,
+                    useNHWC: Bool,
                     input: UnsafeMutablePointer<Float32>,
                     mask: UnsafeMutablePointer<Float32>,
                     output: UnsafeMutablePointer<Float32>) {
@@ -263,8 +271,8 @@ class BatchNormLayer: NSObject {
          nnXLen: NSNumber,
          nnYLen: NSNumber,
          batchSize: NSNumber,
-         useFP16: NSNumber,
-         useNHWC: NSNumber) {
+         useFP16: Bool,
+         useNHWC: Bool) {
         // TODO: support useFP16 = 1
 
         let sourceShape: [NSNumber]
@@ -272,15 +280,15 @@ class BatchNormLayer: NSObject {
         let meanShape: [NSNumber]
         let dataType = MPSDataType.float32
 
-        if (useNHWC.boolValue == true) {
-            sourceShape = [batchSize.intValue as NSNumber,
-                           nnYLen.intValue as NSNumber,
-                           nnXLen.intValue as NSNumber,
+        if useNHWC {
+            sourceShape = [batchSize,
+                           nnYLen,
+                           nnXLen,
                            descriptor.numChannels]
 
-            maskShape = [batchSize.intValue as NSNumber,
-                         nnYLen.intValue as NSNumber,
-                         nnXLen.intValue as NSNumber,
+            maskShape = [batchSize,
+                         nnYLen,
+                         nnXLen,
                          1]
 
             meanShape = [1,
@@ -288,15 +296,15 @@ class BatchNormLayer: NSObject {
                          1,
                          descriptor.numChannels]
         } else {
-            sourceShape = [batchSize.intValue as NSNumber,
+            sourceShape = [batchSize,
                            descriptor.numChannels,
-                           nnYLen.intValue as NSNumber,
-                           nnXLen.intValue as NSNumber]
+                           nnYLen,
+                           nnXLen]
 
-            maskShape = [batchSize.intValue as NSNumber,
+            maskShape = [batchSize,
                          1,
-                         nnYLen.intValue as NSNumber,
-                         nnXLen.intValue as NSNumber]
+                         nnYLen,
+                         nnXLen]
 
             meanShape = [1,
                          descriptor.numChannels,
@@ -335,41 +343,37 @@ class BatchNormLayer: NSObject {
         let meanData = Data(bytes: descriptor.mean,
                             count: meanCount)
 
-        let meanTensor = graph.variable(with: meanData,
+        let meanTensor = graph.constant(meanData,
                                         shape: meanShape,
-                                        dataType: dataType,
-                                        name: nil)
+                                        dataType: dataType)
 
         let varianceData = Data(bytes: descriptor.variance,
                                 count: meanCount)
 
-        let varianceTensor = graph.variable(with: varianceData,
+        let varianceTensor = graph.constant(varianceData,
                                             shape: meanShape,
-                                            dataType: dataType,
-                                            name: nil)
+                                            dataType: dataType)
 
         let scaleData = Data(bytes: descriptor.scale,
                              count: meanCount)
 
-        let scaleTensor = graph.variable(with: scaleData,
+        let scaleTensor = graph.constant(scaleData,
                                          shape: meanShape,
-                                         dataType: dataType,
-                                         name: nil)
+                                         dataType: dataType)
 
         let biasData = Data(bytes: descriptor.bias,
                             count: meanCount)
 
-        let biasTensor = graph.variable(with: biasData,
+        let biasTensor = graph.constant(biasData,
                                         shape: meanShape,
-                                        dataType: dataType,
-                                        name: nil)
+                                        dataType: dataType)
 
         let normalized = graph.normalize(self.sourceTensor,
                                          mean: meanTensor,
                                          variance: varianceTensor,
                                          gamma: scaleTensor,
                                          beta: biasTensor,
-                                         epsilon: descriptor.epsilon.floatValue,
+                                         epsilon: descriptor.epsilon,
                                          name: nil)
 
         resultTensor = graph.multiplication(normalized,
@@ -426,17 +430,13 @@ class ResidualBlock: NSObject {
     let maskTensorData: MPSGraphTensorData
     let resultTensor: MPSGraphTensor
 
-    // FIXME: debugging, to be removed
-    let preReLU: MPSGraphTensor
-    let regularConv: ConvLayer
-
     @objc
     class func test(descriptor: SWResidualBlockDesc,
                     batchSize: NSNumber,
                     nnXLen: NSNumber,
                     nnYLen: NSNumber,
-                    useFP16: NSNumber,
-                    useNHWC: NSNumber,
+                    useFP16: Bool,
+                    useNHWC: Bool,
                     input: UnsafeMutablePointer<Float32>,
                     mask: UnsafeMutablePointer<Float32>,
                     output: UnsafeMutablePointer<Float32>) {
@@ -463,34 +463,34 @@ class ResidualBlock: NSObject {
          nnXLen: NSNumber,
          nnYLen: NSNumber,
          batchSize: NSNumber,
-         useFP16: NSNumber,
-         useNHWC: NSNumber) {
+         useFP16: Bool,
+         useNHWC: Bool) {
         // TODO: support useFP16 = 1
 
         let sourceShape: [NSNumber]
         let maskShape: [NSNumber]
         let dataType = MPSDataType.float32
 
-        if (useNHWC.boolValue == true) {
-            sourceShape = [batchSize.intValue as NSNumber,
-                           nnYLen.intValue as NSNumber,
-                           nnXLen.intValue as NSNumber,
+        if useNHWC {
+            sourceShape = [batchSize,
+                           nnYLen,
+                           nnXLen,
                            descriptor.preBN.numChannels]
 
-            maskShape = [batchSize.intValue as NSNumber,
-                         nnYLen.intValue as NSNumber,
-                         nnXLen.intValue as NSNumber,
+            maskShape = [batchSize,
+                         nnYLen,
+                         nnXLen,
                          1]
         } else {
-            sourceShape = [batchSize.intValue as NSNumber,
+            sourceShape = [batchSize,
                            descriptor.preBN.numChannels,
-                           nnYLen.intValue as NSNumber,
-                           nnXLen.intValue as NSNumber]
+                           nnYLen,
+                           nnXLen]
 
-            maskShape = [batchSize.intValue as NSNumber,
+            maskShape = [batchSize,
                          1,
-                         nnYLen.intValue as NSNumber,
-                         nnXLen.intValue as NSNumber]
+                         nnYLen,
+                         nnXLen]
         }
 
         self.graph = graph
@@ -520,17 +520,17 @@ class ResidualBlock: NSObject {
                                    useFP16: useFP16,
                                    useNHWC: useNHWC)
 
-        preReLU = graph.reLU(with: preBN.resultTensor, name: nil)
+        let preReLU = graph.reLU(with: preBN.resultTensor, name: nil)
 
-        regularConv = ConvLayer(device: device,
-                                graph: graph,
-                                sourceTensor: preReLU,
-                                descriptor: descriptor.regularConv,
-                                batchSize: batchSize,
-                                nnXLen: nnXLen,
-                                nnYLen: nnYLen,
-                                useFP16: useFP16,
-                                useNHWC: useNHWC)
+        let regularConv = ConvLayer(device: device,
+                                    graph: graph,
+                                    sourceTensor: preReLU,
+                                    descriptor: descriptor.regularConv,
+                                    batchSize: batchSize,
+                                    nnXLen: nnXLen,
+                                    nnYLen: nnYLen,
+                                    useFP16: useFP16,
+                                    useNHWC: useNHWC)
 
         let midBN = BatchNormLayer(device: device,
                                    graph: graph,
@@ -572,6 +572,410 @@ class ResidualBlock: NSObject {
                               targetOperations: nil)
 
         fetch[resultTensor]?.mpsndarray().readBytes(output, strideBytes: nil)
+    }
+}
+
+class GlobalPoolingLayer: NSObject {
+    let graph: MPSGraph
+    let sourceTensor: MPSGraphTensor
+    let maskSumTensor: MPSGraphTensor
+    let resultTensor: MPSGraphTensor
+
+    init(device: MPSGraphDevice,
+         graph: MPSGraph,
+         sourceTensor: MPSGraphTensor,
+         maskSumTensor: MPSGraphTensor,
+         maskSumSqrtS14M01Tensor: MPSGraphTensor,
+         useFP16: Bool,
+         useNHWC: Bool) {
+        self.graph = graph
+        self.sourceTensor = sourceTensor
+        self.maskSumTensor = maskSumTensor
+
+        let hwAxes: [NSNumber]
+        let channelAxis: Int
+
+        if useNHWC {
+            hwAxes = [1, 2]
+            channelAxis = 3
+        } else {
+            hwAxes = [2, 3]
+            channelAxis = 1
+        }
+
+        let sumTensor = graph.reductionSum(with: sourceTensor,
+                                           axes: hwAxes,
+                                           name: nil)
+
+        let meanTensor = graph.division(sumTensor, maskSumTensor, name: nil)
+
+        let meanMaskTensor = graph.multiplication(meanTensor,
+                                                  maskSumSqrtS14M01Tensor,
+                                                  name: nil)
+
+        let maxTensor = graph.reductionMaximum(with: sourceTensor,
+                                               axes: hwAxes,
+                                               name: nil)
+
+        resultTensor = graph.concatTensors([meanTensor,
+                                            meanMaskTensor,
+                                            maxTensor],
+                                           dimension: channelAxis,
+                                           name: nil)
+    }
+}
+
+@objc
+class SWMatMulLayerDesc: NSObject {
+    let inChannels: Int
+    let outChannels: Int
+    let weights: UnsafeMutablePointer<Float32>
+
+    @objc
+    init(inChannels: Int,
+         outChannels: Int,
+         weights: UnsafeMutablePointer<Float32>) {
+        self.inChannels = inChannels
+        self.outChannels = outChannels
+        self.weights = weights
+    }
+}
+
+class MatMulLayer {
+    let graph: MPSGraph
+    let sourceTensor: MPSGraphTensor
+    let resultTensor: MPSGraphTensor
+
+    init(device: MPSGraphDevice,
+         graph: MPSGraph,
+         descriptor: SWMatMulLayerDesc,
+         sourceTensor: MPSGraphTensor,
+         useFP16: Bool,
+         useNHWC: Bool) {
+        let dataType = MPSDataType.float32
+
+        self.graph = graph
+        self.sourceTensor = sourceTensor
+
+        let weightsShape = [descriptor.inChannels as NSNumber,
+                            descriptor.outChannels as NSNumber]
+
+        let weightsCount = weightsShape.asShapeCount(of: dataType)
+        let weightsData = Data(bytes: descriptor.weights, count: weightsCount)
+
+        let weightsTensor = graph.constant(weightsData,
+                                           shape: weightsShape,
+                                           dataType: .float32)
+
+        let shape = [-1, descriptor.inChannels as NSNumber]
+
+        let reshapedSource = graph.reshape(sourceTensor,
+                                           shape: shape,
+                                           name: nil)
+
+        resultTensor = graph.matrixMultiplication(primary: reshapedSource,
+                                                  secondary: weightsTensor,
+                                                  name: nil)
+    }
+}
+
+@objc
+class SWGlobalPoolingResidualBlockDesc: NSObject {
+    let preBN: SWBatchNormLayerDesc
+    let preActivation: NSString?
+    let regularConv: SWConvLayerDesc
+    let gpoolConv: SWConvLayerDesc
+    let gpoolBN: SWBatchNormLayerDesc
+    let gpoolActivation: NSString?
+    let gpoolToBiasMul: SWMatMulLayerDesc
+    let midBN: SWBatchNormLayerDesc
+    let midActivation: NSString?
+    let finalConv: SWConvLayerDesc
+
+    @objc
+    init(preBN: SWBatchNormLayerDesc,
+         preActivation: NSString?,
+         regularConv: SWConvLayerDesc,
+         gpoolConv: SWConvLayerDesc,
+         gpoolBN: SWBatchNormLayerDesc,
+         gpoolActivation: NSString?,
+         gpoolToBiasMul: SWMatMulLayerDesc,
+         midBN: SWBatchNormLayerDesc,
+         midActivation: NSString?,
+         finalConv: SWConvLayerDesc) {
+        self.preBN = preBN
+        self.preActivation = preActivation
+        self.regularConv = regularConv
+        self.gpoolConv = gpoolConv
+        self.gpoolBN = gpoolBN
+        self.gpoolActivation = gpoolActivation
+        self.gpoolToBiasMul = gpoolToBiasMul
+        self.midBN = midBN
+        self.midActivation = midActivation
+        self.finalConv = finalConv
+    }
+}
+
+@objc
+class GlobalPoolingResidualBlock: NSObject {
+    let graph: MPSGraph
+    let sourceTensor: MPSGraphTensor
+    let sourceTensorData: MPSGraphTensorData
+    let maskTensor: MPSGraphTensor
+    let maskTensorData: MPSGraphTensorData
+    let resultTensor: MPSGraphTensor
+
+    @objc
+    class func test(descriptor: SWGlobalPoolingResidualBlockDesc,
+                    batchSize: NSNumber,
+                    nnXLen: NSNumber,
+                    nnYLen: NSNumber,
+                    useFP16: Bool,
+                    useNHWC: Bool,
+                    input: UnsafeMutablePointer<Float32>,
+                    mask: UnsafeMutablePointer<Float32>,
+                    output: UnsafeMutablePointer<Float32>) {
+
+        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+
+        let layer = GlobalPoolingResidualBlock(device: device,
+                                               graph: MPSGraph(),
+                                               descriptor: descriptor,
+                                               nnXLen: nnXLen,
+                                               nnYLen: nnYLen,
+                                               batchSize: batchSize,
+                                               useFP16: useFP16,
+                                               useNHWC: useNHWC)
+
+        layer.apply(input: input,
+                    mask: mask,
+                    output: output)
+    }
+
+    init(device: MPSGraphDevice,
+         graph: MPSGraph,
+         descriptor: SWGlobalPoolingResidualBlockDesc,
+         nnXLen: NSNumber,
+         nnYLen: NSNumber,
+         batchSize: NSNumber,
+         useFP16: Bool,
+         useNHWC: Bool) {
+        // TODO: support useFP16 = 1
+
+        let sourceShape: [NSNumber]
+        let maskShape: [NSNumber]
+        let hwAxes: [NSNumber]
+        let dataType = MPSDataType.float32
+
+        if useNHWC {
+            sourceShape = [batchSize,
+                           nnYLen,
+                           nnXLen,
+                           descriptor.preBN.numChannels]
+
+            maskShape = [batchSize, nnYLen, nnXLen, 1]
+            hwAxes = [1, 2]
+
+        } else {
+            sourceShape = [batchSize,
+                           descriptor.preBN.numChannels,
+                           nnYLen,
+                           nnXLen]
+
+            maskShape = [batchSize, 1, nnYLen, nnXLen]
+            hwAxes = [2, 3]
+        }
+
+        self.graph = graph
+
+        sourceTensor = graph.placeholder(shape: sourceShape,
+                                         dataType: dataType,
+                                         name: nil)
+
+        sourceTensorData = MPSGraphTensorData(device: device,
+                                              tensor: sourceTensor)!
+
+        maskTensor = graph.placeholder(shape: maskShape,
+                                       dataType: dataType,
+                                       name: nil)
+
+        maskTensorData = MPSGraphTensorData(device: device,
+                                            tensor: maskTensor)!
+
+        let preBN = BatchNormLayer(device: device,
+                                   graph: graph,
+                                   sourceTensor: sourceTensor,
+                                   maskTensor: maskTensor,
+                                   descriptor: descriptor.preBN,
+                                   nnXLen: nnXLen,
+                                   nnYLen: nnYLen,
+                                   batchSize: batchSize,
+                                   useFP16: useFP16,
+                                   useNHWC: useNHWC)
+
+        let preReLU = graph.reLU(with: preBN.resultTensor, name: nil)
+
+        let regularConv = ConvLayer(device: device,
+                                    graph: graph,
+                                    sourceTensor: preReLU,
+                                    descriptor: descriptor.regularConv,
+                                    batchSize: batchSize,
+                                    nnXLen: nnXLen,
+                                    nnYLen: nnYLen,
+                                    useFP16: useFP16,
+                                    useNHWC: useNHWC)
+
+        let gpoolConv = ConvLayer(device: device,
+                                  graph: graph,
+                                  sourceTensor: preReLU,
+                                  descriptor: descriptor.gpoolConv,
+                                  batchSize: batchSize,
+                                  nnXLen: nnXLen,
+                                  nnYLen: nnYLen,
+                                  useFP16: useFP16,
+                                  useNHWC: useNHWC)
+
+        let gpoolBN = BatchNormLayer(device: device,
+                                     graph: graph,
+                                     sourceTensor: gpoolConv.resultTensor,
+                                     maskTensor: maskTensor,
+                                     descriptor: descriptor.gpoolBN,
+                                     nnXLen: nnXLen,
+                                     nnYLen: nnYLen,
+                                     batchSize: batchSize,
+                                     useFP16: useFP16,
+                                     useNHWC: useNHWC)
+
+
+        let gpoolReLU = graph.reLU(with: gpoolBN.resultTensor, name: nil)
+
+        let maskSum = graph.reductionSum(with: maskTensor, axes: hwAxes, name: nil)
+        let sqrtMaskSum = graph.squareRoot(with: maskSum, name: nil)
+
+        let fourTeen = graph.constant(14.0,
+                                      shape: sqrtMaskSum.shape!,
+                                      dataType: .float32)
+
+        let subtracted = graph.subtraction(sqrtMaskSum, fourTeen, name: nil)
+
+        let zeroPointone = graph.constant(0.1,
+                                          shape: sqrtMaskSum.shape!,
+                                          dataType: .float32)
+
+        let maskSumSqrtS14M01 = graph.multiplication(subtracted,
+                                                     zeroPointone,
+                                                     name: nil)
+
+        let gpoolConcat = GlobalPoolingLayer(device: device,
+                                             graph: graph,
+                                             sourceTensor: gpoolReLU,
+                                             maskSumTensor: maskSum,
+                                             maskSumSqrtS14M01Tensor: maskSumSqrtS14M01,
+                                             useFP16: useFP16,
+                                             useNHWC: useNHWC)
+
+        let gpoolToBiasMul = MatMulLayer(device: device,
+                                         graph: graph,
+                                         descriptor: descriptor.gpoolToBiasMul,
+                                         sourceTensor: gpoolConcat.resultTensor,
+                                         useFP16: useFP16,
+                                         useNHWC: useNHWC)
+
+        let shape = [batchSize as NSNumber,
+                     1,
+                     1,
+                     descriptor.gpoolToBiasMul.outChannels as NSNumber]
+
+        let reshapedGoolToBiasMul = graph.reshape(gpoolToBiasMul.resultTensor,
+                                                  shape: shape,
+                                                  name: nil)
+
+        let added = graph.addition(regularConv.resultTensor,
+                                   reshapedGoolToBiasMul,
+                                   name: nil)
+
+        let midBN = BatchNormLayer(device: device,
+                                   graph: graph,
+                                   sourceTensor: added,
+                                   maskTensor: maskTensor,
+                                   descriptor: descriptor.midBN,
+                                   nnXLen: nnXLen,
+                                   nnYLen: nnYLen,
+                                   batchSize: batchSize,
+                                   useFP16: useFP16,
+                                   useNHWC: useNHWC)
+
+        let midReLU = graph.reLU(with: midBN.resultTensor, name: nil)
+
+        let finalConv = ConvLayer(device: device,
+                                  graph: graph,
+                                  sourceTensor: midReLU,
+                                  descriptor: descriptor.finalConv,
+                                  batchSize: batchSize,
+                                  nnXLen: nnXLen,
+                                  nnYLen: nnYLen,
+                                  useFP16: useFP16,
+                                  useNHWC: useNHWC)
+
+        resultTensor = graph.addition(sourceTensor,
+                                      finalConv.resultTensor,
+                                      name: nil)
+    }
+
+    func apply(input: UnsafeMutablePointer<Float32>,
+               mask: UnsafeMutablePointer<Float32>,
+               output: UnsafeMutablePointer<Float32>) {
+        sourceTensorData.mpsndarray().writeBytes(input, strideBytes: nil)
+        maskTensorData.mpsndarray().writeBytes(mask, strideBytes: nil)
+
+        let fetch = graph.run(feeds: [sourceTensor: sourceTensorData,
+                                        maskTensor: maskTensorData],
+                              targetTensors: [resultTensor],
+                              targetOperations: nil)
+
+        fetch[resultTensor]?.mpsndarray().readBytes(output, strideBytes: nil)
+
+#if false // TODO: clean up
+        // Debugging
+        print("sourceTensor: \(sourceTensor.shape!)")
+        input.printAsFloat(24)
+        print("maskTensor: \(maskTensor.shape!)")
+        mask.printAsFloat(24)
+        print("preReLU: \(preReLU.shape!)")
+        fetch[preReLU]?.mpsndarray().dumpFloats(name: "preReLU",
+                                                length: preReLU.shape!.product().intValue)
+
+        print("gpoolConvTensor: \(gpoolConvTensor.shape!)")
+        let gpoolConvLength = gpoolConvTensor.shape!.product().intValue
+        fetch[gpoolConvTensor]?.mpsndarray().dumpFloats(name: "gpoolConvTensor",
+                                                        length: gpoolConvLength)
+
+        // 2 0 0 0
+        // 3 4 0 0
+        // 0 5 0 0
+        print("gpoolReLU: \(gpoolReLU.shape!)")
+        let gpoolReLULength = gpoolReLU.shape!.product().intValue
+        fetch[gpoolReLU]?.mpsndarray().dumpFloats(name: "gpoolReLU",
+                                                  length: gpoolReLULength)
+
+        // [2, 1, 1, 6]
+        // 1.55     0.33
+        // 0.11     0.5
+        // -1.71111 -0.385017
+        // -0.122222 -0.577526
+        //       5         1
+        //       1         3
+        print("gpoolConcatTensor: \(gpoolConcatTensor.shape!)")
+        let gpoolConcatLength = gpoolConcatTensor.shape!.product().intValue
+        fetch[gpoolConcatTensor]?.mpsndarray().dumpFloats(name: "gpoolConcatTensor",
+                                                          length: gpoolConcatLength)
+        // Expect
+        // 33 16.6742
+        print("gpoolToBiasMulTensor: \(gpoolToBiasMulTensor.shape!)")
+        let gpoolToBiasMulLength = gpoolToBiasMulTensor.shape!.product().intValue
+        fetch[gpoolToBiasMulTensor]?.mpsndarray().dumpFloats(name: "gpoolToBiasMulTensor",
+                                                             length: gpoolToBiasMulLength)
+#endif
     }
 }
 
@@ -639,9 +1043,9 @@ class KataGoGraph: NSObject {
         self.numInputGlobalChannels = numInputGlobalChannels
         graph = MPSGraph()
 
-        inputTensor = graph.placeholder(shape: [nnXLen.intValue as NSNumber,
-                                                nnYLen.intValue as NSNumber,
-                                                numInputChannels.intValue as NSNumber],
+        inputTensor = graph.placeholder(shape: [nnXLen,
+                                                nnYLen,
+                                                numInputChannels],
                                         name: "binInputs")
 
         let inputArrayDesc = MPSNDArrayDescriptor(dataType: inputTensor.dataType,
@@ -651,7 +1055,7 @@ class KataGoGraph: NSObject {
 
         inputTensorData = MPSGraphTensorData(inputArray)
 
-        inputGlobalTensor = graph.placeholder(shape: [numInputGlobalChannels.intValue as NSNumber],
+        inputGlobalTensor = graph.placeholder(shape: [numInputGlobalChannels],
                                               name: "globalInputs")
 
         let inputGlobalArrayDesc = MPSNDArrayDescriptor(dataType: inputGlobalTensor.dataType,

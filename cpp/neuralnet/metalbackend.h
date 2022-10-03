@@ -60,3 +60,13 @@ void testMetalEvaluateResidualBlock(const ResidualBlockDesc* desc,
                                     float* input,
                                     float* mask,
                                     float* output);
+
+void testMetalEvaluateGlobalPoolingResidualBlock(const GlobalPoolingResidualBlockDesc* desc,
+                                                 int batchSize,
+                                                 int nnXLen,
+                                                 int nnYLen,
+                                                 bool useFP16,
+                                                 bool useNHWC,
+                                                 float* input,
+                                                 float* mask,
+                                                 float* output);

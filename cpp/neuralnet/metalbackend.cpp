@@ -550,16 +550,20 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   const vector<float>& inputBuffer,
   const vector<float>& maskBuffer,
   vector<float>& outputBuffer) {
-  (void)desc;
-  (void)batchSize;
-  (void)nnXLen;
-  (void)nnYLen;
-  (void)useFP16;
-  (void)useNHWC;
-  (void)inputBuffer;
-  (void)maskBuffer;
-  (void)outputBuffer;
-  return false;
+
+  size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->finalConv.outChannels;
+  outputBuffer.resize(numOutputFloats);
+
+  testMetalEvaluateGlobalPoolingResidualBlock(desc,
+                                              batchSize,
+                                              nnXLen,
+                                              nnYLen,
+                                              useFP16,
+                                              useNHWC,
+                                              (float*)inputBuffer.data(),
+                                              (float*)maskBuffer.data(),
+                                              (float*)outputBuffer.data());
+  return true;
 }
 
 #endif  // USE_METAL_BACKEND
