@@ -571,6 +571,11 @@ struct GTPEngine {
     bot->setParams(params);
     bot->clearSearch();
   }
+  void setMaxVisits(int maxVisits) {
+    params.maxVisits = maxVisits;
+    bot->setParams(params);
+    bot->clearSearch();
+  }
 
   void updateDynamicPDA() {
     updateDynamicPDAHelper(
@@ -2143,6 +2148,14 @@ int MainCmds::gtp(const vector<string>& args) {
           else {
             responseIsError = true;
             response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 1024";
+          }
+        }
+        else if(pieces[0] == "maxVisits") {
+          if(Global::tryStringToInt(pieces[1],i) && i >= 1 && i <= (int64_t)1 << 50)
+            engine->setMaxVisits(i);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
           }
         }
         else {
