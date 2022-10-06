@@ -184,8 +184,7 @@ struct SearchNode {
   std::atomic<int32_t> virtualLosses;
 
   SubtreeValueBiasHandle subtreeValueBiasTableHandle;
-
-  std::vector<std::shared_ptr<PolicyBiasEntry>> policyBiasEntries;
+  PolicyBiasHandle policyBiasHandle;
 
   std::atomic<int32_t> dirtyCounter;
 

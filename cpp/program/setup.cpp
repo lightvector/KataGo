@@ -646,6 +646,10 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("subtreeValueBiasWeightExponent")) params.subtreeValueBiasWeightExponent = cfg.getDouble("subtreeValueBiasWeightExponent", 0.0, 1.0);
     else params.subtreeValueBiasWeightExponent = 0.85;
 
+    if(cfg.contains("policyBiasFactor"+idxStr)) params.policyBiasFactor = cfg.getDouble("policyBiasFactor"+idxStr, 0.0, 1.0);
+    else if(cfg.contains("policyBiasFactor")) params.policyBiasFactor = cfg.getDouble("policyBiasFactor", 0.0, 1.0);
+    else params.policyBiasFactor = 0.0;
+
     if(cfg.contains("nodeTableShardsPowerOfTwo"+idxStr)) params.nodeTableShardsPowerOfTwo = cfg.getInt("nodeTableShardsPowerOfTwo"+idxStr, 8, 24);
     else if(cfg.contains("nodeTableShardsPowerOfTwo"))   params.nodeTableShardsPowerOfTwo = cfg.getInt("nodeTableShardsPowerOfTwo",        8, 24);
     else                                                 params.nodeTableShardsPowerOfTwo = 16;

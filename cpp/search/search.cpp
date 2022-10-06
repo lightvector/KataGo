@@ -16,6 +16,7 @@
 #include "../search/searchnode.h"
 #include "../search/searchnodetable.h"
 #include "../search/subtreevaluebiastable.h"
+#include "../search/policybiastable.h"
 
 using namespace std;
 
@@ -98,6 +99,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    nodeTable(NULL),
    mutexPool(NULL),
    subtreeValueBiasTable(NULL),
+   policyBiasTable(NULL),
    numThreadsSpawned(0),
    threads(NULL),
    threadTasks(NULL),
@@ -141,6 +143,7 @@ Search::~Search() {
   delete nodeTable;
   delete mutexPool;
   delete subtreeValueBiasTable;
+  delete policyBiasTable;
   delete patternBonusTable;
   killThreads();
 }
@@ -616,6 +619,8 @@ void Search::beginSearch(bool pondering) {
   //Prepare value bias table if we need it
   if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable == NULL && !(searchParams.antiMirror && mirroringPla != C_EMPTY))
     subtreeValueBiasTable = new SubtreeValueBiasTable(searchParams.subtreeValueBiasTableNumShards, this);
+  if(searchParams.policyBiasFactor != 0 && policyBiasTable == NULL && !(searchParams.antiMirror && mirroringPla != C_EMPTY))
+    policyBiasTable = new PolicyBiasTable(this);
 
   //Refresh pattern bonuses if needed
   if(patternBonusTable != NULL) {
@@ -748,7 +753,7 @@ void Search::beginSearch(bool pondering) {
 
     //Recursively update all stats in the tree if we have dynamic score values
     //And also to clear out lastResponseBiasDeltaSum and lastResponseBiasWeight
-    if(searchParams.dynamicScoreUtilityFactor != 0 || searchParams.subtreeValueBiasFactor != 0 || patternBonusTable != NULL) {
+    if(searchParams.dynamicScoreUtilityFactor != 0 || searchParams.subtreeValueBiasFactor != 0 || searchParams.policyBiasFactor != 0 || patternBonusTable != NULL) {
       recursivelyRecomputeStats(node);
       if(anyFiltered) {
         //Recursive stats recomputation resulted in us marking all nodes we have. Anything filtered is old now, delete it.
@@ -769,6 +774,8 @@ void Search::beginSearch(bool pondering) {
   //Clear unused stuff in value bias table since we may have pruned rootNode stuff
   if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL)
     subtreeValueBiasTable->clearUnusedSynchronous();
+  if(searchParams.policyBiasFactor != 0 && policyBiasTable != NULL)
+    policyBiasTable->clearUnusedSynchronous();
 
   //Mark all nodes old for the purposes of updating old nnoutputs
   searchNodeAge++;
@@ -819,7 +826,6 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
       //Also perform subtree value bias and pattern bonus handling under the mutex. These parameters are not atomic, so
       //if the node is accessed concurrently by other nodes through the table, we need to make sure these parameters are fully
       //fully-formed before we make the node accessible to anyone.
-
       if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL) {
         //TODO can we make subtree value bias not depend on prev move loc?
         if(thread.history.moveHistory.size() >= 2) {
@@ -828,6 +834,10 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
             subtreeValueBiasTable->get(child->subtreeValueBiasTableHandle, getOpp(thread.pla), prevMoveLoc, bestChildMoveLoc, thread.history.getRecentBoard(1));
           }
         }
+      }
+      if(searchParams.policyBiasFactor != 0 && policyBiasTable != NULL) {
+        assert(bestChildMoveLoc != Board::NULL_LOC);
+        policyBiasTable->get(child->policyBiasHandle, thread.pla, bestChildMoveLoc, nnXLen, nnYLen, thread.history.getRecentBoard(1), thread.history);
       }
 
       if(patternBonusTable != NULL)
@@ -881,6 +891,8 @@ void Search::deleteAllTableNodesMulithreaded() {
   // As an optimization, skip all updating of the table, since we're clearing everything
   if(subtreeValueBiasTable != nullptr)
     subtreeValueBiasTable->setFreePropDisabled();
+  if(policyBiasTable != nullptr)
+    policyBiasTable->setFreePropDisabled();
 
   int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
   assert(numAdditionalThreads >= 0);
@@ -900,6 +912,10 @@ void Search::deleteAllTableNodesMulithreaded() {
   if(subtreeValueBiasTable != nullptr) {
     subtreeValueBiasTable->clearUnusedSynchronous();
     subtreeValueBiasTable->setFreePropEnabled();
+  }
+  if(policyBiasTable != nullptr) {
+    policyBiasTable->clearUnusedSynchronous();
+    policyBiasTable->setFreePropEnabled();
   }
 }
 
@@ -1052,6 +1068,8 @@ void Search::computeRootValues() {
     clearSearch();
     delete subtreeValueBiasTable;
     subtreeValueBiasTable = NULL;
+    delete policyBiasTable;
+    policyBiasTable = NULL;
   }
 }
 

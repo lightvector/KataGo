@@ -149,6 +149,7 @@ struct Search {
   SearchNodeTable* nodeTable;
   MutexPool* mutexPool;
   SubtreeValueBiasTable* subtreeValueBiasTable;
+  PolicyBiasTable* policyBiasTable;
 
   //Thread pool
   int numThreadsSpawned;
