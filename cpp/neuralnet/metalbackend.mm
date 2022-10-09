@@ -223,8 +223,8 @@ void testMetalEvaluateGlobalPoolingResidualBlock(const GlobalPoolingResidualBloc
                                                           scale:(float*)desc->gpoolBN.scale.data()
                                                            bias:(float*)desc->gpoolBN.bias.data()];
 
-    gpoolToBiasMul = [[SWMatMulLayerDesc alloc] initInChannels:desc->gpoolToBiasMul.inChannels
-                                                   outChannels:desc->gpoolToBiasMul.outChannels
+    gpoolToBiasMul = [[SWMatMulLayerDesc alloc] initInChannels:[NSNumber numberWithInt:desc->gpoolToBiasMul.inChannels]
+                                                   outChannels:[NSNumber numberWithInt:desc->gpoolToBiasMul.outChannels]
                                                        weights:(float*)desc->gpoolToBiasMul.weights.data()];
 
     midBN = [[SWBatchNormLayerDesc alloc] initWithNumChannels:[NSNumber numberWithInt:desc->midBN.numChannels]
