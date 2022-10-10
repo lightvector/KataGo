@@ -188,6 +188,32 @@ class MaskSumSqrtS14M01Layer {
     }
 }
 
+class MaskSumSqrtS14M01SquareS01Layer {
+    let tensor: MPSGraphTensor
+
+    init(graph: MPSGraph,
+         tensor: MPSGraphTensor?,
+         maskSumSqrtS14M01: MaskSumSqrtS14M01Layer,
+         useFP16: Bool,
+         useNHWC: Bool) {
+        if let inputTensor = tensor {
+            self.tensor = inputTensor
+        } else {
+            let dataType = MPSDataType.float32
+
+            let squared = graph.square(with: maskSumSqrtS14M01.tensor, name: nil)
+
+            let zeroPointone = graph.constant(0.1,
+                                              shape: squared.shape!,
+                                              dataType: dataType)
+
+            self.tensor = graph.subtraction(squared,
+                                            zeroPointone,
+                                            name: nil)
+        }
+    }
+}
+
 @objc
 class SWConvLayerDesc: NSObject {
     let convYSize: NSNumber
@@ -648,7 +674,7 @@ class ResidualBlock: NSObject {
     }
 }
 
-class GlobalPoolingLayer: NSObject {
+class GlobalPoolingLayer {
     let resultTensor: MPSGraphTensor
 
     init(graph: MPSGraph,
@@ -685,6 +711,49 @@ class GlobalPoolingLayer: NSObject {
         resultTensor = graph.concatTensors([meanTensor,
                                             meanMaskTensor,
                                             maxTensor],
+                                           dimension: channelAxis,
+                                           name: nil)
+    }
+}
+
+class GlobalPoolingValueLayer {
+    let resultTensor: MPSGraphTensor
+
+    init(graph: MPSGraph,
+         sourceTensor: MPSGraphTensor,
+         maskSumTensor: MPSGraphTensor,
+         maskSumSqrtS14M01Tensor: MPSGraphTensor,
+         maskSumSqrtS14M01SquareS01Tensor: MPSGraphTensor,
+         useFP16: Bool,
+         useNHWC: Bool) {
+        let hwAxes: [NSNumber]
+        let channelAxis: Int
+
+        if useNHWC {
+            hwAxes = [1, 2]
+            channelAxis = 3
+        } else {
+            hwAxes = [2, 3]
+            channelAxis = 1
+        }
+
+        let sumTensor = graph.reductionSum(with: sourceTensor,
+                                           axes: hwAxes,
+                                           name: nil)
+
+        let meanTensor = graph.division(sumTensor, maskSumTensor, name: nil)
+
+        let meanMaskTensor = graph.multiplication(meanTensor,
+                                                  maskSumSqrtS14M01Tensor,
+                                                  name: nil)
+
+        let meanMaskSquareTensor = graph.multiplication(meanTensor,
+                                                        maskSumSqrtS14M01SquareS01Tensor,
+                                                        name: nil)
+
+        resultTensor = graph.concatTensors([meanTensor,
+                                            meanMaskTensor,
+                                            meanMaskSquareTensor],
                                            dimension: channelAxis,
                                            name: nil)
     }
@@ -735,6 +804,48 @@ class MatMulLayer {
         resultTensor = graph.matrixMultiplication(primary: reshapedSource,
                                                   secondary: weightsTensor,
                                                   name: nil)
+    }
+}
+
+@objc
+class SWMatBiasLayerDesc: NSObject {
+    let numChannels: NSNumber
+    let weights: UnsafeMutablePointer<Float32>
+
+    @objc
+    init(numChannels: NSNumber,
+         weights: UnsafeMutablePointer<Float32>) {
+        self.numChannels = numChannels
+        self.weights = weights
+    }
+}
+
+class MatBiasLayer {
+    let resultTensor: MPSGraphTensor
+
+    init(graph: MPSGraph,
+         descriptor: SWMatBiasLayerDesc,
+         sourceTensor: MPSGraphTensor,
+         useFP16: Bool,
+         useNHWC: Bool) {
+        let dataType = MPSDataType.float32
+        let weightsShape = [1, descriptor.numChannels]
+        let weightsCount = weightsShape.asShapeCount(of: dataType)
+        let weightsData = Data(bytes: descriptor.weights, count: weightsCount)
+
+        let weightsTensor = graph.constant(weightsData,
+                                           shape: weightsShape,
+                                           dataType: .float32)
+
+        let shape = [-1, descriptor.numChannels]
+
+        let reshapedSource = graph.reshape(sourceTensor,
+                                           shape: shape,
+                                           name: nil)
+
+        resultTensor = graph.addition(reshapedSource,
+                                      weightsTensor,
+                                      name: nil)
     }
 }
 
@@ -873,7 +984,7 @@ class GlobalPoolingResidualBlock: NSObject {
                                    mask: mask,
                                    useNHWC: useNHWC)
 
-        let maskSumSqrtS14M01Tensor = MaskSumSqrtS14M01Layer(graph: graph,
+        let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(graph: graph,
                                                              tensor: maskSumSqrtS14M01Tensor,
                                                              maskSum: maskSum,
                                                              useFP16: useFP16,
@@ -924,7 +1035,7 @@ class GlobalPoolingResidualBlock: NSObject {
         let gpoolConcat = GlobalPoolingLayer(graph: graph,
                                              sourceTensor: gpoolReLU,
                                              maskSumTensor: maskSum.tensor,
-                                             maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor.tensor,
+                                             maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
                                              useFP16: useFP16,
                                              useNHWC: useNHWC)
 
@@ -1233,20 +1344,305 @@ class Trunk {
 
 @objc
 class SWPolicyHeadDesc: NSObject {
+    let version: Int
+    let p1Conv: SWConvLayerDesc
+    let g1Conv: SWConvLayerDesc
+    let g1BN: SWBatchNormLayerDesc
+    let gpoolToBiasMul: SWMatMulLayerDesc
+    let p1BN: SWBatchNormLayerDesc
+    let p2Conv: SWConvLayerDesc
+    let gpoolToPassMul: SWMatMulLayerDesc
 
+    @objc
+    init(version: Int,
+         p1Conv: SWConvLayerDesc,
+         g1Conv: SWConvLayerDesc,
+         g1BN: SWBatchNormLayerDesc,
+         gpoolToBiasMul: SWMatMulLayerDesc,
+         p1BN: SWBatchNormLayerDesc,
+         p2Conv: SWConvLayerDesc,
+         gpoolToPassMul: SWMatMulLayerDesc) {
+        self.version = version
+        self.p1Conv = p1Conv
+        self.g1Conv = g1Conv
+        self.g1BN = g1BN
+        self.gpoolToBiasMul = gpoolToBiasMul
+        self.p1BN = p1BN
+        self.p2Conv = p2Conv
+        self.gpoolToPassMul = gpoolToPassMul
+    }
 }
 
 class PolicyHead {
+    let policyTensor: MPSGraphTensor
+    let policyPassTensor: MPSGraphTensor
 
+    init(graph: MPSGraph,
+         descriptor: SWPolicyHeadDesc,
+         sourceTensor: MPSGraphTensor,
+         maskTensor: MPSGraphTensor?,
+         maskSumTensor: MPSGraphTensor?,
+         maskSumSqrtS14M01Tensor: MPSGraphTensor?,
+         nnXLen: NSNumber,
+         nnYLen: NSNumber,
+         batchSize: NSNumber,
+         useFP16: Bool,
+         useNHWC: Bool) {
+
+        let mask = MaskLayer(graph: graph,
+                             tensor: maskTensor,
+                             batchSize: batchSize,
+                             nnXLen: nnXLen,
+                             nnYLen: nnYLen,
+                             useFP16: useFP16,
+                             useNHWC: useNHWC)
+
+        let maskSum = MaskSumLayer(graph: graph,
+                                   tensor: maskSumTensor,
+                                   mask: mask,
+                                   useNHWC: useNHWC)
+
+        let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(graph: graph,
+                                                       tensor: maskSumSqrtS14M01Tensor,
+                                                       maskSum: maskSum,
+                                                       useFP16: useFP16,
+                                                       useNHWC: useNHWC)
+
+        let p1Conv = ConvLayer(graph: graph,
+                               sourceTensor: sourceTensor,
+                               descriptor: descriptor.p1Conv,
+                               batchSize: batchSize,
+                               nnXLen: nnXLen,
+                               nnYLen: nnYLen,
+                               useFP16: useFP16,
+                               useNHWC: useNHWC)
+
+        let g1Conv = ConvLayer(graph: graph,
+                               sourceTensor: sourceTensor,
+                               descriptor: descriptor.g1Conv,
+                               batchSize: batchSize,
+                               nnXLen: nnXLen,
+                               nnYLen: nnYLen,
+                               useFP16: useFP16,
+                               useNHWC: useNHWC)
+
+        let g1BN = BatchNormLayer(graph: graph,
+                                  sourceTensor: g1Conv.resultTensor,
+                                  maskTensor: mask.tensor,
+                                  descriptor: descriptor.g1BN,
+                                  nnXLen: nnXLen,
+                                  nnYLen: nnYLen,
+                                  batchSize: batchSize,
+                                  useFP16: useFP16,
+                                  useNHWC: useNHWC)
+
+        let g1ReLU = graph.reLU(with: g1BN.resultTensor, name: nil)
+
+        let g1Concat = GlobalPoolingLayer(graph: graph,
+                                          sourceTensor: g1ReLU,
+                                          maskSumTensor: maskSum.tensor,
+                                          maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+                                          useFP16: useFP16,
+                                          useNHWC: useNHWC)
+
+        let gpoolToBiasMul = MatMulLayer(graph: graph,
+                                         descriptor: descriptor.gpoolToBiasMul,
+                                         sourceTensor: g1Concat.resultTensor,
+                                         useFP16: useFP16,
+                                         useNHWC: useNHWC)
+
+        let added = AddNCBiasLayer(graph: graph,
+                                   sourceTensor: p1Conv.resultTensor,
+                                   biasTensor: gpoolToBiasMul.resultTensor,
+                                   batchSize: batchSize,
+                                   numChannels: descriptor.gpoolToBiasMul.outChannels,
+                                   useFP16: useFP16,
+                                   useNHWC: useNHWC)
+
+        let p1BN = BatchNormLayer(graph: graph,
+                                  sourceTensor: added.resultTensor,
+                                  maskTensor: mask.tensor,
+                                  descriptor: descriptor.p1BN,
+                                  nnXLen: nnXLen,
+                                  nnYLen: nnYLen,
+                                  batchSize: batchSize,
+                                  useFP16: useFP16,
+                                  useNHWC: useNHWC)
+
+        let p1ReLU = graph.reLU(with: p1BN.resultTensor, name: nil)
+
+        let p2Conv = ConvLayer(graph: graph,
+                               sourceTensor: p1ReLU,
+                               descriptor: descriptor.p2Conv,
+                               batchSize: batchSize,
+                               nnXLen: nnXLen,
+                               nnYLen: nnYLen,
+                               useFP16: useFP16,
+                               useNHWC: useNHWC)
+
+        let gpoolToPassMul = MatMulLayer(graph: graph,
+                                         descriptor: descriptor.gpoolToPassMul,
+                                         sourceTensor: g1Concat.resultTensor,
+                                         useFP16: useFP16,
+                                         useNHWC: useNHWC)
+
+        policyTensor = p2Conv.resultTensor
+        policyPassTensor = gpoolToPassMul.resultTensor
+    }
 }
 
 @objc
 class SWValueHeadDesc: NSObject {
+    let version: Int
+    let v1Conv: SWConvLayerDesc
+    let v1BN: SWBatchNormLayerDesc
+    let v2Mul: SWMatMulLayerDesc
+    let v2Bias: SWMatBiasLayerDesc
+    let v3Mul: SWMatMulLayerDesc
+    let v3Bias: SWMatBiasLayerDesc
+    let sv3Mul: SWMatMulLayerDesc
+    let sv3Bias: SWMatBiasLayerDesc
+    let vOwnershipConv: SWConvLayerDesc
 
+    init(version: Int, v1Conv: SWConvLayerDesc, v1BN: SWBatchNormLayerDesc, v2Mul: SWMatMulLayerDesc, v2Bias: SWMatBiasLayerDesc, v3Mul: SWMatMulLayerDesc, v3Bias: SWMatBiasLayerDesc, sv3Mul: SWMatMulLayerDesc, sv3Bias: SWMatBiasLayerDesc, vOwnershipConv: SWConvLayerDesc) {
+        self.version = version
+        self.v1Conv = v1Conv
+        self.v1BN = v1BN
+        self.v2Mul = v2Mul
+        self.v2Bias = v2Bias
+        self.v3Mul = v3Mul
+        self.v3Bias = v3Bias
+        self.sv3Mul = sv3Mul
+        self.sv3Bias = sv3Bias
+        self.vOwnershipConv = vOwnershipConv
+    }
 }
 
 class ValueHead {
+    let valueTensor: MPSGraphTensor
+    let scoreValueTensor: MPSGraphTensor
+    let ownershipTensor: MPSGraphTensor
 
+    init(graph: MPSGraph,
+         descriptor: SWValueHeadDesc,
+         sourceTensor: MPSGraphTensor,
+         maskTensor: MPSGraphTensor?,
+         maskSumTensor: MPSGraphTensor?,
+         maskSumSqrtS14M01Tensor: MPSGraphTensor?,
+         maskSumSqrtS14M01SquareS01Tensor: MPSGraphTensor?,
+         nnXLen: NSNumber,
+         nnYLen: NSNumber,
+         batchSize: NSNumber,
+         useFP16: Bool,
+         useNHWC: Bool) {
+
+        let mask = MaskLayer(graph: graph,
+                             tensor: maskTensor,
+                             batchSize: batchSize,
+                             nnXLen: nnXLen,
+                             nnYLen: nnYLen,
+                             useFP16: useFP16,
+                             useNHWC: useNHWC)
+
+        let maskSum = MaskSumLayer(graph: graph,
+                                   tensor: maskSumTensor,
+                                   mask: mask,
+                                   useNHWC: useNHWC)
+
+        let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(graph: graph,
+                                                             tensor: maskSumSqrtS14M01Tensor,
+                                                             maskSum: maskSum,
+                                                             useFP16: useFP16,
+                                                             useNHWC: useNHWC)
+
+        let maskSumSqrtS14M01SquareS01 =
+        MaskSumSqrtS14M01SquareS01Layer(graph: graph,
+                                        tensor: maskSumSqrtS14M01SquareS01Tensor,
+                                        maskSumSqrtS14M01: maskSumSqrtS14M01,
+                                        useFP16: useFP16,
+                                        useNHWC: useNHWC)
+
+        let v1Conv = ConvLayer(graph: graph,
+                               sourceTensor: sourceTensor,
+                               descriptor: descriptor.v1Conv,
+                               batchSize: batchSize,
+                               nnXLen: nnXLen,
+                               nnYLen: nnYLen,
+                               useFP16: useFP16,
+                               useNHWC: useNHWC)
+
+        let v1BN = BatchNormLayer(graph: graph,
+                                  sourceTensor: v1Conv.resultTensor,
+                                  maskTensor: mask.tensor,
+                                  descriptor: descriptor.v1BN,
+                                  nnXLen: nnXLen,
+                                  nnYLen: nnYLen,
+                                  batchSize: batchSize,
+                                  useFP16: useFP16,
+                                  useNHWC: useNHWC)
+
+        let v1ReLU = graph.reLU(with: v1BN.resultTensor, name: nil)
+
+        let v1Mean =
+        GlobalPoolingValueLayer(graph: graph,
+                                sourceTensor: v1ReLU,
+                                maskSumTensor: maskSum.tensor,
+                                maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+                                maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01.tensor,
+                                useFP16: useFP16,
+                                useNHWC: useNHWC)
+
+        let v2Mul = MatMulLayer(graph: graph,
+                                descriptor: descriptor.v2Mul,
+                                sourceTensor: v1Mean.resultTensor,
+                                useFP16: useFP16,
+                                useNHWC: useNHWC)
+
+        let v2Bias = MatBiasLayer(graph: graph,
+                                  descriptor: descriptor.v2Bias,
+                                  sourceTensor: v2Mul.resultTensor,
+                                  useFP16: useFP16,
+                                  useNHWC: useNHWC)
+
+        let v2ReLU = graph.reLU(with: v2Bias.resultTensor, name: nil)
+
+        let v3Mul = MatMulLayer(graph: graph,
+                                descriptor: descriptor.v3Mul,
+                                sourceTensor: v2ReLU,
+                                useFP16: useFP16,
+                                useNHWC: useNHWC)
+
+        let v3Bias = MatBiasLayer(graph: graph,
+                                  descriptor: descriptor.v3Bias,
+                                  sourceTensor: v3Mul.resultTensor,
+                                  useFP16: useFP16,
+                                  useNHWC: useNHWC)
+
+        let sv3Mul = MatMulLayer(graph: graph,
+                                 descriptor: descriptor.sv3Mul,
+                                 sourceTensor: v2ReLU,
+                                 useFP16: useFP16,
+                                 useNHWC: useNHWC)
+
+        let sv3Bias = MatBiasLayer(graph: graph,
+                                   descriptor: descriptor.sv3Bias,
+                                   sourceTensor: sv3Mul.resultTensor,
+                                   useFP16: useFP16,
+                                   useNHWC: useNHWC)
+
+        let vOwnershipConv = ConvLayer(graph: graph,
+                                       sourceTensor: v1ReLU,
+                                       descriptor: descriptor.vOwnershipConv,
+                                       batchSize: batchSize,
+                                       nnXLen: nnXLen,
+                                       nnYLen: nnYLen,
+                                       useFP16: useFP16,
+                                       useNHWC: useNHWC)
+
+        valueTensor = v3Bias.resultTensor
+        scoreValueTensor = sv3Bias.resultTensor
+        ownershipTensor = vOwnershipConv.resultTensor
+    }
 }
 
 @objc
@@ -1283,8 +1679,8 @@ class SWModelDesc : NSObject {
     }
 }
 
-@objc
-class Model: NSObject {
+class Model {
+    let graph: MPSGraph
     let version: Int
     let numInputChannels: NSNumber
     let numInputGlobalChannels: NSNumber
@@ -1296,9 +1692,8 @@ class Model: NSObject {
     let policyHead: PolicyHead
     let valueHead: ValueHead
 
-    @objc
     init(graph: MPSGraph,
-         desc: SWModelDesc,
+         descriptor: SWModelDesc,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
          batchSize: NSNumber,
@@ -1306,12 +1701,13 @@ class Model: NSObject {
          useNHWC: Bool) {
         // TODO: support useFP16 = 1
 
-        self.version = desc.version
-        self.numInputChannels = desc.numInputChannels
-        self.numInputGlobalChannels = desc.numInputGlobalChannels
-        self.numValueChannels = desc.numValueChannels
-        self.numScoreValueChannels = desc.numScoreValueChannels
-        self.numOwnershipChannels = desc.numOwnershipChannels
+        self.graph = graph
+        self.version = descriptor.version
+        self.numInputChannels = descriptor.numInputChannels
+        self.numInputGlobalChannels = descriptor.numInputGlobalChannels
+        self.numValueChannels = descriptor.numValueChannels
+        self.numScoreValueChannels = descriptor.numScoreValueChannels
+        self.numOwnershipChannels = descriptor.numOwnershipChannels
 
         mask = MaskLayer(graph: graph,
                          tensor: nil,
@@ -1333,7 +1729,7 @@ class Model: NSObject {
                                                        useNHWC: useNHWC)
 
         trunk = Trunk(graph: graph,
-                      descriptor: desc.trunk,
+                      descriptor: descriptor.trunk,
                       inputTensor: nil,
                       inputGlobalTensor: nil,
                       maskTensor: mask.tensor,
@@ -1342,13 +1738,196 @@ class Model: NSObject {
                       nnXLen: nnXLen,
                       nnYLen: nnYLen,
                       batchSize: batchSize,
-                      numSpatialFeatures: desc.numInputChannels,
-                      numGlobalFeatures: desc.numInputGlobalChannels,
+                      numSpatialFeatures: descriptor.numInputChannels,
+                      numGlobalFeatures: descriptor.numInputGlobalChannels,
                       useFP16: useFP16,
                       useNHWC: useNHWC)
 
-        policyHead = PolicyHead()
-        valueHead = ValueHead()
+        policyHead = PolicyHead(graph: graph,
+                                descriptor: descriptor.policyHead,
+                                sourceTensor: trunk.resultTensor,
+                                maskTensor: mask.tensor,
+                                maskSumTensor: maskSum.tensor,
+                                maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+                                nnXLen: nnXLen,
+                                nnYLen: nnYLen,
+                                batchSize: batchSize,
+                                useFP16: useFP16,
+                                useNHWC: useNHWC)
+
+        valueHead = ValueHead(graph: graph,
+                              descriptor: descriptor.valueHead,
+                              sourceTensor: trunk.resultTensor,
+                              maskTensor: mask.tensor,
+                              maskSumTensor: maskSum.tensor,
+                              maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+                              maskSumSqrtS14M01SquareS01Tensor: nil,
+                              nnXLen: nnXLen,
+                              nnYLen: nnYLen,
+                              batchSize: batchSize,
+                              useFP16: useFP16,
+                              useNHWC: useNHWC)
+    }
+
+    func apply(device: MPSGraphDevice,
+               input: UnsafeMutablePointer<Float32>,
+               inputGlobal: UnsafeMutablePointer<Float32>,
+               maskPointer: UnsafeMutablePointer<Float32>,
+               policy: UnsafeMutablePointer<Float32>,
+               policyPass: UnsafeMutablePointer<Float32>,
+               value: UnsafeMutablePointer<Float32>,
+               scoreValue: UnsafeMutablePointer<Float32>,
+               ownership: UnsafeMutablePointer<Float32>) {
+        let inputData = MPSGraphTensorData(device: device, tensor: trunk.input.tensor)!
+
+        let inputGlobalData = MPSGraphTensorData(device: device,
+                                                 tensor: trunk.inputGlobal.tensor)!
+
+        let maskData = MPSGraphTensorData(device: device, tensor: mask.tensor)!
+
+        inputData.mpsndarray().writeBytes(input, strideBytes: nil)
+        inputGlobalData.mpsndarray().writeBytes(inputGlobal, strideBytes: nil)
+        maskData.mpsndarray().writeBytes(maskPointer, strideBytes: nil)
+
+        let feeds = [trunk.input.tensor: inputData,
+                     trunk.inputGlobal.tensor: inputGlobalData,
+                     mask.tensor: maskData]
+
+        let targetTensors = [policyHead.policyTensor,
+                             policyHead.policyPassTensor,
+                             valueHead.valueTensor,
+                             valueHead.scoreValueTensor,
+                             valueHead.ownershipTensor]
+
+        let fetch = graph.run(feeds: feeds,
+                              targetTensors: targetTensors,
+                              targetOperations: nil)
+
+        fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policy,
+                                                               strideBytes: nil)
+
+        fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPass,
+                                                                   strideBytes: nil)
+
+        fetch[valueHead.valueTensor]?.mpsndarray().readBytes(value,
+                                                              strideBytes: nil)
+
+        fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValue,
+                                                                   strideBytes: nil)
+
+        fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownership,
+                                                                  strideBytes: nil)
+    }
+}
+
+@objc
+enum SWEnable: Int {
+    case False
+    case True
+    case Auto
+}
+
+@objc
+class ComputeContext: NSObject {
+    static var instance = ComputeContext()
+    let nnXLen: NSNumber
+    let nnYLen: NSNumber
+    let useFP16Mode: SWEnable
+    let useNHWCMode: SWEnable
+
+    @objc
+    class func createInstance(nnXLen: NSNumber,
+                              nnYLen: NSNumber,
+                              useFP16Mode: SWEnable,
+                              useNHWCMode: SWEnable) {
+        objc_sync_enter(self)
+        defer { objc_sync_exit(self) }
+
+        instance = ComputeContext(nnXLen: nnXLen,
+                                  nnYLen: nnYLen,
+                                  useFP16Mode: useFP16Mode,
+                                  useNHWCMode: useNHWCMode)
+    }
+
+    @objc
+    class func getInstance() -> ComputeContext {
+        objc_sync_enter(self)
+        defer { objc_sync_exit(self) }
+        return instance
+    }
+
+    private convenience override init() {
+        self.init(nnXLen: 19, nnYLen: 19, useFP16Mode: .False, useNHWCMode: .False)
+    }
+
+    private init(nnXLen: NSNumber,
+                 nnYLen: NSNumber,
+                 useFP16Mode: SWEnable,
+                 useNHWCMode: SWEnable) {
+        self.nnXLen = nnXLen
+        self.nnYLen = nnYLen
+        self.useFP16Mode = useFP16Mode
+        self.useNHWCMode = useNHWCMode
+    }
+}
+
+@objc
+class ComputeHandle: NSObject {
+    static var handles: [Int: ComputeHandle] = [:]
+    let model: Model
+
+    @objc
+    class func createInstance(at gpuIdxForThisThread: Int,
+                              descriptor: SWModelDesc,
+                              batchSize: NSNumber,
+                              serverThreadIdx: Int) {
+        objc_sync_enter(self)
+        defer { objc_sync_exit(self) }
+        assert(handles[gpuIdxForThisThread] == nil)
+
+        handles[gpuIdxForThisThread] = ComputeHandle(descriptor: descriptor,
+                                                     batchSize: batchSize,
+                                                     gpuIdxForThisThread: gpuIdxForThisThread,
+                                                     serverThreadIdx: serverThreadIdx)
+    }
+
+    @objc
+    class func getInstance(at gpuIdxForThisThread: Int) -> ComputeHandle {
+        objc_sync_enter(self)
+        defer { objc_sync_exit(self) }
+        return handles[gpuIdxForThisThread]!
+    }
+
+    private init(descriptor: SWModelDesc,
+                 batchSize: NSNumber,
+                 gpuIdxForThisThread: Int,
+                 serverThreadIdx: Int) {
+
+        let context = ComputeContext.getInstance()
+        let useFP16: Bool
+        let useNHWC: Bool
+
+        NSLog("ComputeHandle:init(gpuIdxForThisThread=\(gpuIdxForThisThread))")
+
+        // TODO: print device and model information here
+
+        switch context.useFP16Mode {
+        case .False: useFP16 = false
+        default: useFP16 = true
+        }
+
+        switch context.useNHWCMode {
+        case .False: useNHWC = false
+        default: useNHWC = true
+        }
+
+        model = Model(graph: MPSGraph(),
+                      descriptor: descriptor,
+                      nnXLen: context.nnXLen,
+                      nnYLen: context.nnYLen,
+                      batchSize: batchSize,
+                      useFP16: useFP16,
+                      useNHWC: useNHWC)
     }
 }
 

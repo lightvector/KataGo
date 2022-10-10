@@ -2,6 +2,7 @@
 
 #include <string>
 #include "desc.h"
+#include "../core/commontypes.h"
 
 using namespace std;
 
@@ -12,15 +13,15 @@ public:
   void printDevices();
 };
 
-void createMetalHandle(int gpuIdx,
-                       int nnXLen,
-                       int nnYLen,
-                       int version,
-                       int numInputChannels,
-                       int numInputGlobalChannels,
-                       int numValueChannels,
-                       int numScoreValueChannels,
-                       int numOwnershipChannels);
+void createMetalContext(int nnXLen,
+                        int nnYLen,
+                        enabled_t inputUseFP16Mode,
+                        enabled_t inputUseNHWCMode);
+
+void createMetalHandle(int gpuIdxForThisThread,
+                       const ModelDesc* desc,
+                       int batchSize,
+                       int serverThreadIdx);
 
 void getMetalHandleOutput(
   float* userInputBuffer,

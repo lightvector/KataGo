@@ -5,24 +5,40 @@ MetalDevices::MetalDevices(void) {}
 MetalDevices::~MetalDevices(void) {}
 void MetalDevices::printDevices(void) {}
 
-void createMetalHandle(int gpuIdx,
-                       int nnXLen,
-                       int nnYLen,
-                       int version,
-                       int numInputChannels,
-                       int numInputGlobalChannels,
-                       int numValueChannels,
-                       int numScoreValueChannels,
-                       int numOwnershipChannels) {
-    [KataGoGraph initGraphWithGpuIndex:[NSNumber numberWithInt:gpuIdx]
-                                nnXLen:[NSNumber numberWithInt:nnXLen]
-                                nnYLen:[NSNumber numberWithInt:nnYLen]
-                               version:[NSNumber numberWithInt:version]
-                      numInputChannels:[NSNumber numberWithInt:numInputChannels]
-                numInputGlobalChannels:[NSNumber numberWithInt:numInputGlobalChannels]
-                      numValueChannels:[NSNumber numberWithInt:numValueChannels]
-                 numScoreValueChannels:[NSNumber numberWithInt:numScoreValueChannels]
-                  numOwnershipChannels:[NSNumber numberWithInt:numOwnershipChannels]];
+void createMetalContext(int nnXLen,
+                        int nnYLen,
+                        enabled_t inputUseFP16Mode,
+                        enabled_t inputUseNHWCMode) {
+    SWEnable useFP16Mode;
+    SWEnable useNHWCMode;
+
+    if (inputUseFP16Mode == enabled_t::False) {
+        useFP16Mode = SWEnableFalse;
+    } else if (inputUseFP16Mode == enabled_t::True) {
+        useFP16Mode = SWEnableTrue;
+    } else {
+        useFP16Mode = SWEnableAuto;
+    }
+
+    if (inputUseNHWCMode == enabled_t::False) {
+        useNHWCMode = SWEnableFalse;
+    } else if (inputUseNHWCMode == enabled_t::True) {
+        useNHWCMode = SWEnableTrue;
+    } else {
+        useNHWCMode = SWEnableAuto;
+    }
+
+    [ComputeContext createInstanceWithNnXLen:[NSNumber numberWithInt:nnXLen]
+                                      nnYLen:[NSNumber numberWithInt:nnYLen]
+                                 useFP16Mode:useFP16Mode
+                                 useNHWCMode:useNHWCMode];
+}
+
+void createMetalHandle(int gpuIdxForThisThread,
+                       const ModelDesc* desc,
+                       int batchSize,
+                       int serverThreadIdx) {
+    // TODO: to be done
 }
 
 void getMetalHandleOutput(float* userInputBuffer,

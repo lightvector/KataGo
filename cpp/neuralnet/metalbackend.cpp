@@ -88,9 +88,9 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)openCLTunerFile;
   (void)homeDataDirOverride;
   (void)openCLReTunePerBoardSize;
-  (void)useFP16Mode;
-  (void)useNHWCMode;
   (void)loadedModel;
+
+  createMetalContext(nnXLen, nnYLen, useFP16Mode, useNHWCMode);
 
   return new ComputeContext(nnXLen, nnYLen);
 }
@@ -113,7 +113,8 @@ struct ComputeHandle {
                 const LoadedModel* loadedModel,
                 int maxBatchSize,
                 int inputsUseNHWC,
-                int gpuIdx) {
+                int gpuIdx,
+                int serverThreadIdx) {
     const ModelDesc* modelDesc = &loadedModel->modelDesc;
 
     nnXLen = context->nnXLen;
@@ -123,15 +124,7 @@ struct ComputeHandle {
     gpuIndex = gpuIdx;
     version = modelDesc->version;
 
-    createMetalHandle(gpuIdx,
-                      context->nnXLen,
-                      context->nnYLen,
-                      version,
-                      modelDesc->numInputChannels,
-                      modelDesc->numInputGlobalChannels,
-                      modelDesc->numValueChannels,
-                      modelDesc->numScoreValueChannels,
-                      modelDesc->numOwnershipChannels);
+    createMetalHandle(gpuIdx, modelDesc, maxBatchSize, serverThreadIdx);
   }
 
   ~ComputeHandle() {}
@@ -190,7 +183,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
 
   // Current implementation always tolerates excess nn len
   (void)requireExactNNLen;
-  ComputeHandle* handle = new ComputeHandle(context, loadedModel, maxBatchSize, inputsUseNHWC, gpuIdxForThisThread);
+  ComputeHandle* handle = new ComputeHandle(context, loadedModel, maxBatchSize, inputsUseNHWC, gpuIdxForThisThread, serverThreadIdx);
 
   if(logger != NULL) {
     logger->write("Metal backend thread " + Global::intToString(serverThreadIdx) + ":" + deviceStr());
