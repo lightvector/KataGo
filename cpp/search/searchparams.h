@@ -96,6 +96,7 @@ struct SearchParams {
   double subtreeValueBiasWeightExponent; //When computing empiricial bias, weight subtree results by childvisits to this power.
 
   double policyBiasFactor;
+  bool policyBiasDiscountSelf;
 
   //Threading-related
   int nodeTableShardsPowerOfTwo; //Controls number of shards of node table for graph search transposition lookup

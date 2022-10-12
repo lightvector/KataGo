@@ -437,3 +437,84 @@ double Search::pruneNoiseWeight(vector<MoreNodeStats>& statsBuf, int numChildren
   }
   return weightSumSoFar;
 }
+
+void Search::updatePolicyBias(SearchNode& node, int childrenCapacity, SearchChildPointer* children) {
+  int childPoses[NNPos::MAX_NN_POLICY_SIZE];
+  float childProbs[NNPos::MAX_NN_POLICY_SIZE];
+  double childWeights[NNPos::MAX_NN_POLICY_SIZE];
+  double childUtilities[NNPos::MAX_NN_POLICY_SIZE];
+
+  NNOutput* nnOutput = node.getNNOutput();
+  assert(nnOutput != NULL);
+  const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+
+  int numChildren = 0;
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
+    Loc moveLoc = children[i].getMoveLocRelaxed();
+    int movePos = getPos(moveLoc);
+    float nnPolicyProb = policyProbs[movePos];
+
+    int64_t edgeVisits = children[i].getEdgeVisits();
+    double childWeight = child->stats.getChildWeight(edgeVisits);
+
+    if(childWeight < 0.001)
+      continue;
+
+    double childUtility = child->stats.utilityAvg.load(std::memory_order_acquire);
+
+    childPoses[numChildren] = movePos;
+    childProbs[numChildren] = nnPolicyProb;
+    childWeights[numChildren] = childWeight;
+    childUtilities[numChildren] = childUtility;
+    numChildren += 1;
+  }
+
+  double totalChildWeight = 0.0;
+  int highestWeightChildIdx = 0;
+  for(int i = 0; i<numChildren; i++) {
+    totalChildWeight += childWeights[i];
+    if(childWeights[i] > childWeights[highestWeightChildIdx])
+      highestWeightChildIdx = i;
+  }
+
+  if(totalChildWeight < 0.001)
+    return;
+
+  // Take any child whose value is at least as great as the highest weight child
+  // and that is at least as surprising.
+  // Subtract a small constant to penalize low-explored things and make sure that
+  // node really has been explored enough.
+  double weightPenalty = 2.0 + childWeights[highestWeightChildIdx] * 0.02;
+
+  int bestChildIdx;
+  double bestChildSurprise;
+  {
+    int i = highestWeightChildIdx;
+    double posterior = (childWeights[i] - weightPenalty) / totalChildWeight;
+    double surprise = posterior / (childProbs[i] + 0.01);
+    bestChildIdx = i;
+    bestChildSurprise = surprise;
+  }
+
+  for(int i = 0; i<numChildren; i++) {
+    if(i != highestWeightChildIdx && childUtilities[i] > childUtilities[highestWeightChildIdx] && childWeights[i] > weightPenalty) {
+      double posterior = (childWeights[i] - weightPenalty) / totalChildWeight;
+      double surprise = posterior / (childProbs[i] + 0.01);
+      if(surprise > bestChildSurprise) {
+        bestChildIdx = i;
+        bestChildSurprise = surprise;
+      }
+    }
+  }
+
+  int bestChildPos = childPoses[bestChildIdx];
+  if(node.policyBiasHandle.entries[bestChildPos] != nullptr) {
+    assert(node.policyBiasHandle.entries.size() > bestChildPos);
+
+    double logSurprise = bestChildSurprise <= 0.0 ? 0.0 : std::max(0.0, log(bestChildSurprise));
+    node.policyBiasHandle.updateValue(logSurprise * totalChildWeight, totalChildWeight, bestChildPos);
+  }
+}

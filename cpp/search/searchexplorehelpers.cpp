@@ -98,6 +98,9 @@ double Search::getExploreSelectionValueOfChild(
   (void)parentUtility;
   int movePos = getPos(moveLoc);
   float nnPolicyProb = parentPolicyProbs[movePos];
+  if(searchParams.policyBiasFactor > 0) {
+    nnPolicyProb = parent.policyBiasHandle.getUpdatedPolicyProb(nnPolicyProb, movePos, searchParams.policyBiasFactor, searchParams.policyBiasDiscountSelf);
+  }
 
   int32_t childVirtualLosses = child->virtualLosses.load(std::memory_order_acquire);
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
@@ -425,6 +428,10 @@ void Search::selectBestChildToDescend(
     float nnPolicyProb = policyProbs[movePos];
     if(nnPolicyProb < 0)
       continue;
+
+    if(searchParams.policyBiasFactor > 0) {
+      nnPolicyProb = node.policyBiasHandle.getUpdatedPolicyProb(nnPolicyProb, movePos, searchParams.policyBiasFactor, searchParams.policyBiasDiscountSelf);
+    }
 
     if(antiMirror) {
       maybeApplyAntiMirrorPolicy(nnPolicyProb, moveLoc, policyProbs, node.nextPla, &thread);

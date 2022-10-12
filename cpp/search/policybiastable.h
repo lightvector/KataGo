@@ -12,7 +12,7 @@ struct PolicyBiasTable;
 
 struct PolicyBiasEntry {
   std::atomic<double> average;
-  double weightSum;
+  std::atomic<double> weightSum;
   mutable std::atomic_flag entryLock = ATOMIC_FLAG_INIT;
 
   inline PolicyBiasEntry(): average(0.0), weightSum(0.0) {
@@ -32,6 +32,8 @@ struct PolicyBiasHandle {
   PolicyBiasHandle();
   ~PolicyBiasHandle();
   void clear();
+
+  float getUpdatedPolicyProb(float nnPolicyProb, int movePos, double policyBiasFactor, bool policyBiasDiscountSelf) const;
 
   // Update this node's contribution to the sum among all nodes with this entry,
   void updateValue(double newSumThisNode, double newWeightThisNode, int pos);

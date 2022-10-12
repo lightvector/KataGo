@@ -269,6 +269,8 @@ void Search::setNNEval(NNEvaluator* nnEval) {
   assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
   assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
   policySize = NNPos::getPolicySize(nnXLen,nnYLen);
+  policyBiasTable->clearUnusedSynchronous();
+  policyBiasTable->setNNLenAndAssertEmptySynchronous(nnXLen,nnYLen);
 }
 
 void Search::clearSearch() {
@@ -619,8 +621,10 @@ void Search::beginSearch(bool pondering) {
   //Prepare value bias table if we need it
   if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable == NULL && !(searchParams.antiMirror && mirroringPla != C_EMPTY))
     subtreeValueBiasTable = new SubtreeValueBiasTable(searchParams.subtreeValueBiasTableNumShards, this);
-  if(searchParams.policyBiasFactor != 0 && policyBiasTable == NULL && !(searchParams.antiMirror && mirroringPla != C_EMPTY))
+  if(searchParams.policyBiasFactor != 0 && policyBiasTable == NULL && !(searchParams.antiMirror && mirroringPla != C_EMPTY)) {
     policyBiasTable = new PolicyBiasTable(this);
+    policyBiasTable->setNNLenAndAssertEmptySynchronous(nnXLen,nnYLen);
+  }
 
   //Refresh pattern bonuses if needed
   if(patternBonusTable != NULL) {
@@ -1337,6 +1341,10 @@ bool Search::playoutDescend(
     SearchChildPointer* children = node.getChildren(nodeState,childrenCapacity);
     children[bestChildIdx].addEdgeVisits(1);
     updateStatsAfterPlayout(node,thread,isRoot);
+
+    if(searchParams.policyBiasFactor > 0 && node.policyBiasHandle.entries.size() > 0) {
+      updatePolicyBias(node, childrenCapacity, children);
+    }
   }
   child->virtualLosses.fetch_add(-1,std::memory_order_release);
 

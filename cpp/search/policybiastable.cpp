@@ -66,6 +66,30 @@ void PolicyBiasHandle::clear() {
   }
 }
 
+float PolicyBiasHandle::getUpdatedPolicyProb(float nnPolicyProb, int movePos, double policyBiasFactor, bool policyBiasDiscountSelf) const {
+  if(entries.size() > 0 && entries[movePos] != nullptr) {
+    assert(entries.size() > movePos);
+    double policyProbLogSurprise = entries[movePos]->average.load(std::memory_order_acquire);
+    double nnPolicyProbComplement = 1.0 - nnPolicyProb;
+    if(policyProbLogSurprise > 0 && nnPolicyProbComplement > 1e-30) {
+      double desiredLogDelta = policyBiasFactor * policyProbLogSurprise;
+      if(policyBiasDiscountSelf && movePos == lastPos) {
+        double entryWeightSum = entries[movePos]->weightSum.load(std::memory_order_acquire);
+        if(entryWeightSum <= 0.0)
+          desiredLogDelta = 0.0;
+        else 
+          desiredLogDelta *= std::max(0.0, entryWeightSum - lastWeight) / entryWeightSum;
+      }
+      
+      double odds = nnPolicyProb / nnPolicyProbComplement;
+      odds *= exp(desiredLogDelta);
+      return (float)(odds / (1.0 + odds));
+    }
+  }
+  return nnPolicyProb;
+}
+
+
 void PolicyBiasHandle::revertUpdates(double freeProp) {
   if(table != nullptr) {
     if(lastPos != -1) {
@@ -74,33 +98,80 @@ void PolicyBiasHandle::revertUpdates(double freeProp) {
 
       PolicyBiasEntry& entry_ = *(entries[lastPos]);
       while(entry_.entryLock.test_and_set(std::memory_order_acquire));
-      double newSum = entry_.average.load(std::memory_order_acquire) * entry_.weightSum;
-      double newWeight = entry_.weightSum;
+      double average = entry_.average.load(std::memory_order_acquire);
+      double oldWeight = entry_.weightSum.load(std::memory_order_acquire);
+        
+      double newSum = average * oldWeight;
+      double newWeight = oldWeight;
       newSum -= sumToSubtract;
       newWeight -= weightToSubtract;
       if(newWeight < 0.001)
         newSum = 0.0;
+
       entry_.average.store(newSum / newWeight, std::memory_order_release);
-      entry_.weightSum = newWeight;
+      entry_.weightSum.store(newWeight, std::memory_order_release);
+
+      lastSum = 0.0;
+      lastWeight = 0.0;
+      lastPos = -1;
+
       entry_.entryLock.clear(std::memory_order_release);
     }
   }
 }
 
 void PolicyBiasHandle::updateValue(double newSumThisNode, double newWeightThisNode, int pos) {
+  if(lastPos == pos) {
+    PolicyBiasEntry& entry_ = *(entries[pos]);
+    while(entry_.entryLock.test_and_set(std::memory_order_acquire));
+    double average = entry_.average.load(std::memory_order_acquire);
+    double oldWeight = entry_.weightSum.load(std::memory_order_acquire);
+    
+    double newSum = average * oldWeight;
+    double newWeight = oldWeight;
+
+    {
+      double sumToSubtract = lastSum;
+      double weightToSubtract = lastWeight;
+      newSum -= sumToSubtract;
+      newWeight -= weightToSubtract;
+      if(newWeight < 0.001)
+        newSum = 0.0;
+    }
+
+    newSum += newSumThisNode;
+    newWeight += newWeightThisNode;
+
+    entry_.average.store(newSum / newWeight, std::memory_order_release);
+    entry_.weightSum.store(newWeight, std::memory_order_release);
+
+    lastSum = newSumThisNode;
+    lastWeight = newWeightThisNode;
+    lastPos = pos;
+
+    entry_.entryLock.clear(std::memory_order_release);
+    return;
+  }
+
   revertUpdates(1.0);
 
   PolicyBiasEntry& entry_ = *(entries[pos]);
   while(entry_.entryLock.test_and_set(std::memory_order_acquire));
-  double newSum = entry_.average.load(std::memory_order_acquire) * entry_.weightSum;
-  double newWeight = entry_.weightSum;
+  double average = entry_.average.load(std::memory_order_acquire);
+  double oldWeight = entry_.weightSum.load(std::memory_order_acquire);
+
+  double newSum = average * oldWeight;
+  double newWeight = oldWeight;
   newSum += newSumThisNode;
   newWeight += newWeightThisNode;
+
   entry_.average.store(newSum / newWeight, std::memory_order_release);
-  entry_.weightSum = newWeight;
+  entry_.weightSum.store(newWeight, std::memory_order_release);
+  
   lastSum = newSumThisNode;
   lastWeight = newWeightThisNode;
   lastPos = pos;
+  
   entry_.entryLock.clear(std::memory_order_release);
 }
 
@@ -179,7 +250,7 @@ void PolicyBiasTable::get(
   buf.lastWeight = 0.0;
   buf.lastPos = -1;
   buf.table = this;
-  buf.entries = std::vector<std::shared_ptr<PolicyBiasEntry>>(nnXLen * nnYLen, nullptr);
+  buf.entries = std::vector<std::shared_ptr<PolicyBiasEntry>>(nnXLen * nnYLen + 1, nullptr);
   if(prevMoveLoc == Board::NULL_LOC) {
     return;
   }

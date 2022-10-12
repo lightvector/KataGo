@@ -590,6 +590,8 @@ private:
 
   double pruneNoiseWeight(std::vector<MoreNodeStats>& statsBuf, int numChildren, double totalChildWeight, const double* policyProbsBuf) const;
 
+  void updatePolicyBias(SearchNode& node, int childrenCapacity, SearchChildPointer* children);
+
   //----------------------------------------------------------------------------------------
   // Allocation, search clearing and garbage collection
   // search.cpp
