@@ -235,6 +235,8 @@
 		E1AD405028E1D5A700E41968 /* CoreML.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404F28E1D5A700E41968 /* CoreML.framework */; };
 		E1AD405228E1D76700E41968 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD405128E1D75B00E41968 /* libz.tbd */; };
 		E1AD405328E1D77400E41968 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD405128E1D75B00E41968 /* libz.tbd */; };
+		E1E29E1328F5B05300E73FF8 /* metalbackendtest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1E29E1228F5B05300E73FF8 /* metalbackendtest.swift */; };
+		E1E29E1B28F5B42200E73FF8 /* metalbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E199A6F428E1E6D400A2E051 /* metalbackend.swift */; };
 		E53F8BD9FBF146358739F7F6 /* nneval.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92C3AF4C79ED491988E9C5BC /* nneval.cpp */; };
 		E7F54663763C41429C26F7EB /* evalsgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA66CE9038574A0BB16D80B6 /* evalsgf.cpp */; };
 		E8A9D6E6785B4D46A2F9C4DA /* playsettings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7A57BA046921422DB33C7614 /* playsettings.cpp */; };
@@ -264,6 +266,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 28EEEDD45A95496F8B5C834F;
 			remoteInfo = "KataGo-Metal";
+		};
+		E1E29E1928F5B3AF00E73FF8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 91644CF2108748368B902DCE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 28EEEDD45A95496F8B5C834F;
+			remoteInfo = KataGoMetal;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -348,7 +357,7 @@
 		A72EC47D68904D38A5EAE635 /* searchhelpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchhelpers.cpp; path = search/searchhelpers.cpp; sourceTree = SOURCE_ROOT; };
 		A8748F2EFAAF401DACE6B60A /* global.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = global.cpp; path = core/global.cpp; sourceTree = SOURCE_ROOT; };
 		AA6C3E7D4604497D8B94AC50 /* searchnnhelpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchnnhelpers.cpp; path = search/searchnnhelpers.cpp; sourceTree = SOURCE_ROOT; };
-		AB4C92DA620D4F538227B59F /* KataGo-Metal */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; path = "KataGo-Metal"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB4C92DA620D4F538227B59F /* KataGoMetal */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; path = KataGoMetal; sourceTree = BUILT_PRODUCTS_DIR; };
 		AD94201E380643C3985E9D62 /* gtp.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = gtp.cpp; path = command/gtp.cpp; sourceTree = SOURCE_ROOT; };
 		AFF33AEBABB1472B9F241A98 /* selfplay.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = selfplay.cpp; path = command/selfplay.cpp; sourceTree = SOURCE_ROOT; };
 		B2460699580B49F689D028D5 /* genbook.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = genbook.cpp; path = command/genbook.cpp; sourceTree = SOURCE_ROOT; };
@@ -372,7 +381,7 @@
 		D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = gatekeeper.cpp; path = command/gatekeeper.cpp; sourceTree = SOURCE_ROOT; };
 		DD4302F4D69E4EE98EA75B2C /* localpattern.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = localpattern.cpp; path = search/localpattern.cpp; sourceTree = SOURCE_ROOT; };
 		DDCAE99038794BE8B4BB3962 /* modelversion.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = modelversion.cpp; path = neuralnet/modelversion.cpp; sourceTree = SOURCE_ROOT; };
-		E13CF66028E18813005CB016 /* KataGo-CoreML */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "KataGo-CoreML"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E13CF66028E18813005CB016 /* KataGoCoreML */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = KataGoCoreML; sourceTree = BUILT_PRODUCTS_DIR; };
 		E13CF66128E1896C005CB016 /* coremlbackend.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = coremlbackend.mm; path = neuralnet/coremlbackend.mm; sourceTree = "<group>"; };
 		E13CF66228E1896C005CB016 /* coremlbackend.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = coremlbackend.cpp; path = neuralnet/coremlbackend.cpp; sourceTree = "<group>"; };
 		E13CF66328E1896C005CB016 /* coremlmodel.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = coremlmodel.m; path = neuralnet/coremlmodel.m; sourceTree = "<group>"; };
@@ -384,6 +393,8 @@
 		E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalPerformanceShadersGraph.framework; path = System/Library/Frameworks/MetalPerformanceShadersGraph.framework; sourceTree = SDKROOT; };
 		E1AD404F28E1D5A700E41968 /* CoreML.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreML.framework; path = System/Library/Frameworks/CoreML.framework; sourceTree = SDKROOT; };
 		E1AD405128E1D75B00E41968 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
+		E1E29E1028F5B05300E73FF8 /* KataGoMetalTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KataGoMetalTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E1E29E1228F5B05300E73FF8 /* metalbackendtest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = metalbackendtest.swift; sourceTree = "<group>"; };
 		E3F8D82F94E14F11BA0F59E6 /* testscore.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testscore.cpp; path = tests/testscore.cpp; sourceTree = SOURCE_ROOT; };
 		E7B41A9FE4124FA1AB3FBEF1 /* analysis.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = analysis.cpp; path = command/analysis.cpp; sourceTree = SOURCE_ROOT; };
 		EC59266A435045C5B84F9105 /* searchexplorehelpers.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = searchexplorehelpers.cpp; path = search/searchexplorehelpers.cpp; sourceTree = SOURCE_ROOT; };
@@ -413,6 +424,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E1E29E0D28F5B05300E73FF8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -420,6 +438,7 @@
 			isa = PBXGroup;
 			children = (
 				30DEE4A41280490EA8216883 /* katago */,
+				E1E29E1128F5B05300E73FF8 /* KataGoMetalTest */,
 				8218F7988402482BAFDA7E88 /* Products */,
 				E1AD404828E1D59700E41968 /* Frameworks */,
 			);
@@ -446,8 +465,9 @@
 		8218F7988402482BAFDA7E88 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				AB4C92DA620D4F538227B59F /* KataGo-Metal */,
-				E13CF66028E18813005CB016 /* KataGo-CoreML */,
+				AB4C92DA620D4F538227B59F /* KataGoMetal */,
+				E13CF66028E18813005CB016 /* KataGoCoreML */,
+				E1E29E1028F5B05300E73FF8 /* KataGoMetalTest.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -462,6 +482,15 @@
 				E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		E1E29E1128F5B05300E73FF8 /* KataGoMetalTest */ = {
+			isa = PBXGroup;
+			children = (
+				E1E29E1228F5B05300E73FF8 /* metalbackendtest.swift */,
+			);
+			name = KataGoMetalTest;
+			path = xcode/KataGoMetalTest;
 			sourceTree = "<group>";
 		};
 		E42DAD7F6DF94192AED73FF1 /* Source Files */ = {
@@ -587,9 +616,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		28EEEDD45A95496F8B5C834F /* KataGo-Metal */ = {
+		28EEEDD45A95496F8B5C834F /* KataGoMetal */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 79F919699BE649B3AB6B745E /* Build configuration list for PBXNativeTarget "KataGo-Metal" */;
+			buildConfigurationList = 79F919699BE649B3AB6B745E /* Build configuration list for PBXNativeTarget "KataGoMetal" */;
 			buildPhases = (
 				A7812312EB0E4B5888439DB2 /* Sources */,
 				94408E6084E54E4B99A6ADD7 /* Frameworks */,
@@ -598,14 +627,14 @@
 			);
 			dependencies = (
 			);
-			name = "KataGo-Metal";
+			name = KataGoMetal;
 			productName = katago;
-			productReference = AB4C92DA620D4F538227B59F /* KataGo-Metal */;
+			productReference = AB4C92DA620D4F538227B59F /* KataGoMetal */;
 			productType = "com.apple.product-type.tool";
 		};
-		E13CF5EB28E18813005CB016 /* KataGo-CoreML */ = {
+		E13CF5EB28E18813005CB016 /* KataGoCoreML */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = E13CF65B28E18813005CB016 /* Build configuration list for PBXNativeTarget "KataGo-CoreML" */;
+			buildConfigurationList = E13CF65B28E18813005CB016 /* Build configuration list for PBXNativeTarget "KataGoCoreML" */;
 			buildPhases = (
 				E13CF5EC28E18813005CB016 /* Sources */,
 				E13CF65A28E18813005CB016 /* Frameworks */,
@@ -614,10 +643,28 @@
 			);
 			dependencies = (
 			);
-			name = "KataGo-CoreML";
+			name = KataGoCoreML;
 			productName = katago;
-			productReference = E13CF66028E18813005CB016 /* KataGo-CoreML */;
+			productReference = E13CF66028E18813005CB016 /* KataGoCoreML */;
 			productType = "com.apple.product-type.tool";
+		};
+		E1E29E0F28F5B05300E73FF8 /* KataGoMetalTest */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E1E29E1428F5B05300E73FF8 /* Build configuration list for PBXNativeTarget "KataGoMetalTest" */;
+			buildPhases = (
+				E1E29E0C28F5B05300E73FF8 /* Sources */,
+				E1E29E0D28F5B05300E73FF8 /* Frameworks */,
+				E1E29E0E28F5B05300E73FF8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E1E29E1A28F5B3AF00E73FF8 /* PBXTargetDependency */,
+			);
+			name = KataGoMetalTest;
+			productName = KataGoMetalTest;
+			productReference = E1E29E1028F5B05300E73FF8 /* KataGoMetalTest.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -635,6 +682,9 @@
 					E13CF66728E1BD87005CB016 = {
 						CreatedOnToolsVersion = 14.0;
 					};
+					E1E29E0F28F5B05300E73FF8 = {
+						CreatedOnToolsVersion = 14.0.1;
+					};
 				};
 			};
 			buildConfigurationList = 0838DC7C409844AFA516AAE2 /* Build configuration list for PBXProject "KataGo" */;
@@ -650,11 +700,22 @@
 			projectRoot = "";
 			targets = (
 				E13CF66728E1BD87005CB016 /* ALL_BUILDS */,
-				28EEEDD45A95496F8B5C834F /* KataGo-Metal */,
-				E13CF5EB28E18813005CB016 /* KataGo-CoreML */,
+				28EEEDD45A95496F8B5C834F /* KataGoMetal */,
+				E13CF5EB28E18813005CB016 /* KataGoCoreML */,
+				E1E29E0F28F5B05300E73FF8 /* KataGoMetalTest */,
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E1E29E0E28F5B05300E73FF8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A7812312EB0E4B5888439DB2 /* Sources */ = {
@@ -891,18 +952,32 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E1E29E0C28F5B05300E73FF8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E1E29E1B28F5B42200E73FF8 /* metalbackend.swift in Sources */,
+				E1E29E1328F5B05300E73FF8 /* metalbackendtest.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
 		E13CF66E28E1BDA9005CB016 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = E13CF5EB28E18813005CB016 /* KataGo-CoreML */;
+			target = E13CF5EB28E18813005CB016 /* KataGoCoreML */;
 			targetProxy = E13CF66D28E1BDA9005CB016 /* PBXContainerItemProxy */;
 		};
 		E13CF67028E1BDA9005CB016 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 28EEEDD45A95496F8B5C834F /* KataGo-Metal */;
+			target = 28EEEDD45A95496F8B5C834F /* KataGoMetal */;
 			targetProxy = E13CF66F28E1BDA9005CB016 /* PBXContainerItemProxy */;
+		};
+		E1E29E1A28F5B3AF00E73FF8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 28EEEDD45A95496F8B5C834F /* KataGoMetal */;
+			targetProxy = E1E29E1928F5B3AF00E73FF8 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -920,7 +995,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_NAME = "KataGo-Metal";
+				PRODUCT_NAME = KataGoMetal;
 				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
 			};
@@ -941,6 +1016,7 @@
 					"external/tclap-1.2.2/include",
 				);
 				OTHER_LDFLAGS = "";
+				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;
 				SYSTEM_HEADER_SEARCH_PATHS = "external/filesystem-1.5.8/include";
 				USE_HEADERMAP = NO;
@@ -963,6 +1039,8 @@
 					"external/tclap-1.2.2/include",
 				);
 				OTHER_LDFLAGS = "";
+				SDKROOT = macosx;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				SYSTEM_HEADER_SEARCH_PATHS = "external/filesystem-1.5.8/include";
 				USE_HEADERMAP = NO;
@@ -984,6 +1062,7 @@
 					"external/tclap-1.2.2/include",
 				);
 				OTHER_LDFLAGS = "";
+				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;
 				SYSTEM_HEADER_SEARCH_PATHS = "external/filesystem-1.5.8/include";
 				USE_HEADERMAP = NO;
@@ -1003,7 +1082,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_NAME = "KataGo-Metal";
+				PRODUCT_NAME = KataGoMetal;
 				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
 			};
@@ -1024,6 +1103,7 @@
 					"external/tclap-1.2.2/include",
 				);
 				OTHER_LDFLAGS = "";
+				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;
 				SYSTEM_HEADER_SEARCH_PATHS = "external/filesystem-1.5.8/include";
 				USE_HEADERMAP = NO;
@@ -1043,7 +1123,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_NAME = "KataGo-Metal";
+				PRODUCT_NAME = KataGoMetal;
 				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
 			};
@@ -1117,6 +1197,201 @@
 			};
 			name = RelWithDebInfo;
 		};
+		E1E29E1528F5B05300E73FF8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = KataGoMetalTest;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+			};
+			name = Debug;
+		};
+		E1E29E1628F5B05300E73FF8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = KataGoMetalTest;
+			};
+			name = Release;
+		};
+		E1E29E1728F5B05300E73FF8 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = KataGoMetalTest;
+			};
+			name = MinSizeRel;
+		};
+		E1E29E1828F5B05300E73FF8 /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = KataGoMetalTest;
+			};
+			name = RelWithDebInfo;
+		};
 		F3CB8E0324FB4002929D38A0 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1130,7 +1405,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_NAME = "KataGo-Metal";
+				PRODUCT_NAME = KataGoMetal;
 				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
 			};
@@ -1150,7 +1425,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		79F919699BE649B3AB6B745E /* Build configuration list for PBXNativeTarget "KataGo-Metal" */ = {
+		79F919699BE649B3AB6B745E /* Build configuration list for PBXNativeTarget "KataGoMetal" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				F3CB8E0324FB4002929D38A0 /* Debug */,
@@ -1161,7 +1436,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		E13CF65B28E18813005CB016 /* Build configuration list for PBXNativeTarget "KataGo-CoreML" */ = {
+		E13CF65B28E18813005CB016 /* Build configuration list for PBXNativeTarget "KataGoCoreML" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				E13CF65C28E18813005CB016 /* Debug */,
@@ -1179,6 +1454,17 @@
 				E13CF66A28E1BD87005CB016 /* Release */,
 				E13CF66B28E1BD87005CB016 /* MinSizeRel */,
 				E13CF66C28E1BD87005CB016 /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E1E29E1428F5B05300E73FF8 /* Build configuration list for PBXNativeTarget "KataGoMetalTest" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E1E29E1528F5B05300E73FF8 /* Debug */,
+				E1E29E1628F5B05300E73FF8 /* Release */,
+				E1E29E1728F5B05300E73FF8 /* MinSizeRel */,
+				E1E29E1828F5B05300E73FF8 /* RelWithDebInfo */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
