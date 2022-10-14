@@ -1,19 +1,19 @@
 import XCTest
 import MetalPerformanceShadersGraph
 
-final class SourceLayerTest: XCTestCase {
+final class InputLayerTest: XCTestCase {
 
     func testNCHW() {
-        let sourceLayer = SourceLayer(graph: MPSGraph(),
-                                      tensor: nil,
-                                      batchSize: 2,
-                                      nnXLen: 5,
-                                      nnYLen: 4,
-                                      numChannels: 3,
-                                      useFP16: false,
-                                      useNHWC: false)
+        let sourceLayer = InputLayer(graph: MPSGraph(),
+                                     batchSize: 2,
+                                     nnXLen: 5,
+                                     nnYLen: 4,
+                                     numChannels: 3,
+                                     useFP16: false,
+                                     useNHWC: false)
 
         XCTAssert(sourceLayer.tensor.shape == [2, 3, 4, 5])
+        XCTAssert(sourceLayer.tensor.dataType == .float32)
         XCTAssert(sourceLayer.layout == .NCHW)
     }
 
@@ -21,32 +21,41 @@ final class SourceLayerTest: XCTestCase {
         let graph = MPSGraph()
         let tensor = graph.constant(1, shape: [2, 3, 4, 5], dataType: .float32)
 
-        let sourceLayer = SourceLayer(graph: graph,
-                                      tensor: tensor,
-                                      batchSize: 2,
-                                      nnXLen: 5,
-                                      nnYLen: 4,
-                                      numChannels: 3,
-                                      useFP16: false,
-                                      useNHWC: false)
+        let sourceLayer = InputLayer(tensor: tensor,
+                                     useNHWC: false)
 
         XCTAssert(sourceLayer.tensor === tensor)
         XCTAssert(sourceLayer.tensor.shape == [2, 3, 4, 5])
+        XCTAssert(sourceLayer.tensor.dataType == .float32)
         XCTAssert(sourceLayer.layout == .NCHW)
     }
 
     func testNHWC() {
-        let sourceLayer = SourceLayer(graph: MPSGraph(),
-                                      tensor: nil,
-                                      batchSize: 2,
-                                      nnXLen: 5,
-                                      nnYLen: 4,
-                                      numChannels: 3,
-                                      useFP16: false,
-                                      useNHWC: true)
+        let sourceLayer = InputLayer(graph: MPSGraph(),
+                                     batchSize: 2,
+                                     nnXLen: 5,
+                                     nnYLen: 4,
+                                     numChannels: 3,
+                                     useFP16: false,
+                                     useNHWC: true)
 
         XCTAssert(sourceLayer.tensor.shape == [2, 4, 5, 3])
+        XCTAssert(sourceLayer.tensor.dataType == .float32)
         XCTAssert(sourceLayer.layout == .NHWC)
+    }
+
+    func testFP16() {
+        let sourceLayer = InputLayer(graph: MPSGraph(),
+                                     batchSize: 2,
+                                     nnXLen: 5,
+                                     nnYLen: 4,
+                                     numChannels: 3,
+                                     useFP16: true,
+                                     useNHWC: false)
+
+        XCTAssert(sourceLayer.tensor.shape == [2, 3, 4, 5])
+        XCTAssert(sourceLayer.tensor.dataType == .float16)
+        XCTAssert(sourceLayer.layout == .NCHW)
     }
 }
 
@@ -355,7 +364,7 @@ final class MaskSumSqrtS14M01SquareS01LayerTest: XCTestCase {
         let buffer = UnsafeMutablePointer<Float32>.allocate(capacity: length)
 
         fetch[maskSumSqrtS14M01SquareS01Layer.tensor]?.mpsndarray().readBytes(buffer,
-                                                                     strideBytes: nil)
+                                                                              strideBytes: nil)
 
         XCTAssert(maskSumSqrtS14M01SquareS01Layer.tensor.shape == [2, 1, 1, 1])
         XCTAssertEqual(buffer[0], 1.010051547761429, accuracy: 1e-8)
@@ -402,7 +411,7 @@ final class MaskSumSqrtS14M01SquareS01LayerTest: XCTestCase {
         let buffer = UnsafeMutablePointer<Float32>.allocate(capacity: length)
 
         fetch[maskSumSqrtS14M01SquareS01Layer.tensor]?.mpsndarray().readBytes(buffer,
-                                                                     strideBytes: nil)
+                                                                              strideBytes: nil)
 
         XCTAssert(maskSumSqrtS14M01SquareS01Layer.tensor.shape == [2, 1, 1, 1])
         XCTAssertEqual(buffer[0], 1.010051547761429, accuracy: 1e-8)

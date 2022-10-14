@@ -71,21 +71,21 @@ void testMetalEvaluateConv(const ConvLayerDesc* desc,
     SWConvLayerDesc * swDesc;
 
     swDesc = [[SWConvLayerDesc alloc] initWithConvYSize:[NSNumber numberWithInt:desc->convYSize]
-                                                 convXSize:[NSNumber numberWithInt:desc->convXSize]
-                                                inChannels:[NSNumber numberWithInt:desc->inChannels]
-                                               outChannels:[NSNumber numberWithInt:desc->outChannels]
-                                                 dilationY:desc->dilationY
-                                                 dilationX:desc->dilationX
-                                                   weights:(float*)desc->weights.data()];
+                                              convXSize:[NSNumber numberWithInt:desc->convXSize]
+                                             inChannels:[NSNumber numberWithInt:desc->inChannels]
+                                            outChannels:[NSNumber numberWithInt:desc->outChannels]
+                                              dilationY:desc->dilationY
+                                              dilationX:desc->dilationX
+                                                weights:(float*)desc->weights.data()];
 
     [ConvLayer testWithDescriptor:swDesc
-                          nnXLen:[NSNumber numberWithInt:nnXLen]
-                          nnYLen:[NSNumber numberWithInt:nnYLen]
-                       batchSize:[NSNumber numberWithInt:batchSize]
-                         useFP16:useFP16
-                         useNHWC:useNHWC
-                           input:input
-                          output:output];
+                           nnXLen:[NSNumber numberWithInt:nnXLen]
+                           nnYLen:[NSNumber numberWithInt:nnYLen]
+                        batchSize:[NSNumber numberWithInt:batchSize]
+                          useFP16:useFP16
+                          useNHWC:useNHWC
+                            input:input
+                           output:output];
 }
 
 void testMetalEvaluateBatchNorm(const BatchNormLayerDesc* desc,
@@ -100,13 +100,13 @@ void testMetalEvaluateBatchNorm(const BatchNormLayerDesc* desc,
     SWBatchNormLayerDesc * swDesc;
 
     swDesc = [[SWBatchNormLayerDesc alloc] initWithNumChannels:[NSNumber numberWithInt:desc->numChannels]
-                                                          epsilon:desc->epsilon
-                                                         hasScale:[NSNumber numberWithBool:desc->hasScale]
-                                                          hasBias:[NSNumber numberWithBool:desc->hasBias]
-                                                             mean:(float*)desc->mean.data()
-                                                         variance:(float*)desc->variance.data()
-                                                            scale:(float*)desc->scale.data()
-                                                             bias:(float*)desc->bias.data()];
+                                                       epsilon:desc->epsilon
+                                                      hasScale:[NSNumber numberWithBool:desc->hasScale]
+                                                       hasBias:[NSNumber numberWithBool:desc->hasBias]
+                                                          mean:(float*)desc->mean.data()
+                                                      variance:(float*)desc->variance.data()
+                                                         scale:(float*)desc->scale.data()
+                                                          bias:(float*)desc->bias.data()];
 
     [BatchNormLayer testWithDescriptor:swDesc
                                 nnXLen:[NSNumber numberWithInt:nnXLen]

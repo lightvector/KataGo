@@ -437,20 +437,20 @@
 		29C8B1F369034337B2CC96EF = {
 			isa = PBXGroup;
 			children = (
-				30DEE4A41280490EA8216883 /* katago */,
+				30DEE4A41280490EA8216883 /* KataGo */,
 				E1E29E1128F5B05300E73FF8 /* KataGoMetalTest */,
 				8218F7988402482BAFDA7E88 /* Products */,
 				E1AD404828E1D59700E41968 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
-		30DEE4A41280490EA8216883 /* katago */ = {
+		30DEE4A41280490EA8216883 /* KataGo */ = {
 			isa = PBXGroup;
 			children = (
 				E42DAD7F6DF94192AED73FF1 /* Source Files */,
 				3B22C5B3776049BD9CC4D5D9 /* Header Files */,
 			);
-			name = katago;
+			name = KataGo;
 			sourceTree = "<group>";
 		};
 		3B22C5B3776049BD9CC4D5D9 /* Header Files */ = {
@@ -995,6 +995,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = KataGoMetal;
 				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
@@ -1082,6 +1083,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = KataGoMetal;
 				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
@@ -1123,6 +1125,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = KataGoMetal;
 				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
@@ -1405,6 +1408,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = KataGoMetal;
 				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
 				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
