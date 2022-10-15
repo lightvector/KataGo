@@ -614,12 +614,6 @@ class BatchNormLayer: NSObject {
                                             mask.tensor,
                                             name: nil)
     }
-
-    func apply(device: MPSGraphDevice,
-               input: UnsafeMutablePointer<Float32>,
-               maskPointer: UnsafeMutablePointer<Float32>,
-               output: UnsafeMutablePointer<Float32>) {
-    }
 }
 
 @objc
