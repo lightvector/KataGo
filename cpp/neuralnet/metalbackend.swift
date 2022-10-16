@@ -1288,7 +1288,6 @@ class SWTrunkDesc: NSObject {
     let initialMatMul: SWMatMulLayerDesc
     let blocks: [BlockDescriptor]
     let trunkTipBN: SWBatchNormLayerDesc
-    let trunkTipActivation: String
 
     @objc
     init(version: Int,
@@ -1301,8 +1300,7 @@ class SWTrunkDesc: NSObject {
          initialConv: SWConvLayerDesc,
          initialMatMul: SWMatMulLayerDesc,
          blocks: [BlockDescriptor],
-         trunkTipBN: SWBatchNormLayerDesc,
-         trunkTipActivation: String) {
+         trunkTipBN: SWBatchNormLayerDesc) {
         self.version = version
         self.numBlocks = numBlocks
         self.trunkNumChannels = trunkNumChannels
@@ -1314,7 +1312,6 @@ class SWTrunkDesc: NSObject {
         self.initialMatMul = initialMatMul
         self.blocks = blocks
         self.trunkTipBN = trunkTipBN
-        self.trunkTipActivation = trunkTipActivation
     }
 }
 
@@ -1568,6 +1565,7 @@ class SWValueHeadDesc: NSObject {
     let sv3Bias: SWMatBiasLayerDesc
     let vOwnershipConv: SWConvLayerDesc
 
+    @objc
     init(version: Int, v1Conv: SWConvLayerDesc, v1BN: SWBatchNormLayerDesc, v2Mul: SWMatMulLayerDesc, v2Bias: SWMatBiasLayerDesc, v3Mul: SWMatMulLayerDesc, v3Bias: SWMatBiasLayerDesc, sv3Mul: SWMatMulLayerDesc, sv3Bias: SWMatBiasLayerDesc, vOwnershipConv: SWConvLayerDesc) {
         self.version = version
         self.v1Conv = v1Conv
