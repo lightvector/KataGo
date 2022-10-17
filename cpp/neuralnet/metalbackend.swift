@@ -899,8 +899,7 @@ class MatMulLayer {
     init(graph: MPSGraph,
          descriptor: SWMatMulLayerDesc,
          sourceTensor: MPSGraphTensor,
-         useFP16: Bool,
-         useNHWC: Bool) {
+         useFP16: Bool) {
         let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
 
         let weightsShape = [descriptor.inChannels,
@@ -954,8 +953,7 @@ class MatBiasLayer {
     init(graph: MPSGraph,
          descriptor: SWMatBiasLayerDesc,
          sourceTensor: MPSGraphTensor,
-         useFP16: Bool,
-         useNHWC: Bool) {
+         useFP16: Bool) {
         let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
         let weightsShape = [1, descriptor.numChannels]
         let byteCount = weightsShape.asShapeCount(of: dataType)
@@ -1214,8 +1212,7 @@ class GlobalPoolingResidualBlock: NSObject {
         let gpoolToBiasMul = MatMulLayer(graph: graph,
                                          descriptor: descriptor.gpoolToBiasMul,
                                          sourceTensor: gpoolConcat.resultTensor,
-                                         useFP16: useFP16,
-                                         useNHWC: useNHWC)
+                                         useFP16: useFP16)
 
         let added = AddNCBiasLayer(graph: graph,
                                    sourceTensor: regularConv.resultTensor,
@@ -1356,8 +1353,7 @@ class Trunk {
         let initialMatMul = MatMulLayer(graph: graph,
                                         descriptor: descriptor.initialMatMul,
                                         sourceTensor: inputGlobal.tensor,
-                                        useFP16: useFP16,
-                                        useNHWC: useNHWC)
+                                        useFP16: useFP16)
 
         let added = AddNCBiasLayer(graph: graph,
                                    sourceTensor: initialConv.resultTensor,
@@ -1509,8 +1505,7 @@ class PolicyHead {
         let gpoolToBiasMul = MatMulLayer(graph: graph,
                                          descriptor: descriptor.gpoolToBiasMul,
                                          sourceTensor: g1Concat.resultTensor,
-                                         useFP16: useFP16,
-                                         useNHWC: useNHWC)
+                                         useFP16: useFP16)
 
         let added = AddNCBiasLayer(graph: graph,
                                    sourceTensor: p1Conv.resultTensor,
@@ -1544,8 +1539,7 @@ class PolicyHead {
         let gpoolToPassMul = MatMulLayer(graph: graph,
                                          descriptor: descriptor.gpoolToPassMul,
                                          sourceTensor: g1Concat.resultTensor,
-                                         useFP16: useFP16,
-                                         useNHWC: useNHWC)
+                                         useFP16: useFP16)
 
         policyTensor = p2Conv.resultTensor
         policyPassTensor = gpoolToPassMul.resultTensor
@@ -1598,6 +1592,8 @@ class ValueHead {
          useFP16: Bool,
          useNHWC: Bool) {
 
+        precondition(useNHWC, "useNHWC must be true for MatBiasLayer")
+
         let mask = MaskLayer(tensor: maskTensor)
         let maskSum = MaskSumLayer(tensor: maskSumTensor)
         let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(tensor: maskSumSqrtS14M01Tensor)
@@ -1637,40 +1633,34 @@ class ValueHead {
         let v2Mul = MatMulLayer(graph: graph,
                                 descriptor: descriptor.v2Mul,
                                 sourceTensor: v1Mean.resultTensor,
-                                useFP16: useFP16,
-                                useNHWC: useNHWC)
+                                useFP16: useFP16)
 
         let v2Bias = MatBiasLayer(graph: graph,
                                   descriptor: descriptor.v2Bias,
                                   sourceTensor: v2Mul.resultTensor,
-                                  useFP16: useFP16,
-                                  useNHWC: useNHWC)
+                                  useFP16: useFP16)
 
         let v2ReLU = graph.reLU(with: v2Bias.resultTensor, name: nil)
 
         let v3Mul = MatMulLayer(graph: graph,
                                 descriptor: descriptor.v3Mul,
                                 sourceTensor: v2ReLU,
-                                useFP16: useFP16,
-                                useNHWC: useNHWC)
+                                useFP16: useFP16)
 
         let v3Bias = MatBiasLayer(graph: graph,
                                   descriptor: descriptor.v3Bias,
                                   sourceTensor: v3Mul.resultTensor,
-                                  useFP16: useFP16,
-                                  useNHWC: useNHWC)
+                                  useFP16: useFP16)
 
         let sv3Mul = MatMulLayer(graph: graph,
                                  descriptor: descriptor.sv3Mul,
                                  sourceTensor: v2ReLU,
-                                 useFP16: useFP16,
-                                 useNHWC: useNHWC)
+                                 useFP16: useFP16)
 
         let sv3Bias = MatBiasLayer(graph: graph,
                                    descriptor: descriptor.sv3Bias,
                                    sourceTensor: sv3Mul.resultTensor,
-                                   useFP16: useFP16,
-                                   useNHWC: useNHWC)
+                                   useFP16: useFP16)
 
         let vOwnershipConv = ConvLayer(graph: graph,
                                        sourceTensor: v1ReLU,

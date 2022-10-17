@@ -1400,3 +1400,120 @@ final class GlobalPoolingResidualBlockTest: XCTestCase {
         XCTAssertEqual(outputPointer[23], y[23], accuracy: 1e-4)
     }
 }
+
+final class MatBiasLayerTest: XCTestCase {
+
+    func testFP16() {
+        let useFP16 = true
+        let useNHWC = true
+        let numChannels = 2
+        let weights = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
+
+        weights[0] = 1
+        weights[1] = -1
+
+        let descriptor = SWMatBiasLayerDesc(numChannels: numChannels as NSNumber,
+                                            weights: weights)
+
+        let graph = MPSGraph()
+
+        let input = InputLayer(graph: graph,
+                               batchSize: 2,
+                               nnXLen: 2,
+                               nnYLen: 2,
+                               numChannels: 2,
+                               useFP16: useFP16,
+                               useNHWC: useNHWC)
+
+        let matBiasLayer = MatBiasLayer(graph: graph,
+                                        descriptor: descriptor,
+                                        sourceTensor: input.tensor,
+                                        useFP16: useFP16)
+
+        let inputPointer = UnsafeMutablePointer<Float16>.allocate(capacity: 16)
+
+        for i in 0..<16 {
+            inputPointer[i] = Float16(i)
+        }
+
+        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+
+        let inputTensorData = MPSGraphTensorData(device: device,
+                                                 tensor: input.tensor)!
+
+        inputTensorData.mpsndarray().writeBytes(inputPointer,
+                                                strideBytes: nil)
+
+        let fetch = graph.run(feeds: [input.tensor: inputTensorData],
+                              targetTensors: [matBiasLayer.resultTensor],
+                              targetOperations: nil)
+
+        let outputPointer = UnsafeMutablePointer<Float16>.allocate(capacity: 16)
+
+        fetch[matBiasLayer.resultTensor]?.mpsndarray().readBytes(outputPointer,
+                                                                 strideBytes: nil)
+
+        XCTAssertEqual(outputPointer[0], 1, accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[1], 0, accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[2], 3, accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[3], 2, accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[15], 14, accuracy: 1e-4)
+    }
+
+    func testFP32() {
+        let useFP16 = false
+        let useNHWC = true
+        let numChannels = 2
+        let weights = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
+
+        weights[0] = 1
+        weights[1] = -1
+
+        let descriptor = SWMatBiasLayerDesc(numChannels: numChannels as NSNumber,
+                                            weights: weights)
+
+        let graph = MPSGraph()
+
+        let input = InputLayer(graph: graph,
+                               batchSize: 2,
+                               nnXLen: 2,
+                               nnYLen: 2,
+                               numChannels: 2,
+                               useFP16: useFP16,
+                               useNHWC: useNHWC)
+
+        let matBiasLayer = MatBiasLayer(graph: graph,
+                                        descriptor: descriptor,
+                                        sourceTensor: input.tensor,
+                                        useFP16: useFP16)
+
+        let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 16)
+
+        for i in 0..<16 {
+            inputPointer[i] = Float32(i)
+        }
+
+        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+
+        let inputTensorData = MPSGraphTensorData(device: device,
+                                                 tensor: input.tensor)!
+
+        inputTensorData.mpsndarray().writeBytes(inputPointer,
+                                                strideBytes: nil)
+
+        let fetch = graph.run(feeds: [input.tensor: inputTensorData],
+                              targetTensors: [matBiasLayer.resultTensor],
+                              targetOperations: nil)
+
+        let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 16)
+
+        fetch[matBiasLayer.resultTensor]?.mpsndarray().readBytes(outputPointer,
+                                                                 strideBytes: nil)
+
+        XCTAssertEqual(outputPointer[0], 1, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[1], 0, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[2], 3, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[3], 2, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[15], 14, accuracy: 1e-8)
+    }
+}
