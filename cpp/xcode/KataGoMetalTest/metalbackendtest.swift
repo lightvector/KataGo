@@ -1017,3 +1017,386 @@ final class ResidualBlockTest: XCTestCase {
         XCTAssertEqual(outputPointer[23], 1, accuracy: 1e-8)
     }
 }
+
+final class GlobalPoolingResidualBlockTest: XCTestCase {
+
+    func testFP16() {
+        let useFP16 = true
+        let useNHWC = false
+        let batchSize: NSNumber = 2
+        let trunkChannels: NSNumber = 1
+        let regularChannels: NSNumber = 1
+        let gpoolChannels: NSNumber = 2
+        let nnYLen: NSNumber = 3
+        let nnXLen: NSNumber = 4
+
+        let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 24)
+        let x = inputPointer
+
+        x[0] = 1; x[1] = 2; x[2]  = 0; x[3]  = 0
+        x[4] = 0; x[5] = 3; x[6]  = 4; x[7]  = 0
+        x[8] = 0; x[9] = 0; x[10] = 5; x[11] = 0
+
+        x[12] = 0; x[13] = 0; x[14] = 0;  x[15] = 0
+        x[16] = 0; x[17] = 5; x[18] = -3; x[19] = 0
+        x[20] = 0; x[21] = -1; x[22] = 1;  x[23] = 1
+
+        let maskPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 24)
+        let m = maskPointer
+
+        m[0] = 1; m[1] = 1; m[2]  = 1; m[3]  = 0
+        m[4] = 1; m[5] = 1; m[6]  = 1; m[7]  = 0
+        m[8] = 1; m[9] = 1; m[10] = 1; m[11] = 0
+
+        m[12] = 0; m[13] = 0; m[14] = 0; m[15] = 0
+        m[16] = 0; m[17] = 1; m[18] = 1; m[19] = 1
+        m[20] = 0; m[21] = 1; m[22] = 1; m[23] = 1
+
+        let preBN =
+        SWBatchNormLayerDesc(numChannels: trunkChannels,
+                             epsilon: 0.1,
+                             hasScale: true,
+                             hasBias: true,
+                             mean: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
+                             variance: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
+                             scale: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
+                             bias: UnsafeMutablePointer<Float32>.allocate(capacity: 1))
+
+        preBN.mean[0] = 0
+        preBN.variance[0] = 0.9
+        preBN.scale[0] = 1
+        preBN.bias[0] = 0
+
+        let regularConv =
+        SWConvLayerDesc(convYSize: 1,
+                        convXSize: 1,
+                        inChannels: trunkChannels,
+                        outChannels: regularChannels,
+                        dilationY: 1,
+                        dilationX: 1,
+                        weights: UnsafeMutablePointer<Float32>.allocate(capacity: 1))
+
+        regularConv.weights[0] = 2
+
+        let convYSize: NSNumber = 3
+        let convXSize: NSNumber = 3
+        let capacity = convYSize.intValue * convXSize.intValue * gpoolChannels.intValue
+
+        let gpoolConv =
+        SWConvLayerDesc(convYSize: convYSize,
+                        convXSize: convXSize,
+                        inChannels: trunkChannels,
+                        outChannels: gpoolChannels,
+                        dilationY: 1,
+                        dilationX: 1,
+                        weights: UnsafeMutablePointer<Float32>.allocate(capacity: capacity))
+
+        let w = gpoolConv.weights;
+
+        w[0] = 0; w[1] = 0; w[2] = 0
+        w[3] = 0; w[4] = 0; w[5] = 1
+        w[6] = 0; w[7] = 0; w[8] = 0
+
+        w[9] = 0; w[10] = 0; w[11] = 0
+        w[12] = 1; w[13] = 0; w[14] = 0
+        w[15] = 0; w[16] = 0; w[17] = 0
+
+        let gpoolBN =
+        SWBatchNormLayerDesc(numChannels: gpoolChannels,
+                             epsilon: 0.1,
+                             hasScale: false,
+                             hasBias: false,
+                             mean: UnsafeMutablePointer<Float32>.allocate(capacity: 2),
+                             variance: UnsafeMutablePointer<Float32>.allocate(capacity: 2),
+                             scale: UnsafeMutablePointer<Float32>.allocate(capacity: 2),
+                             bias: UnsafeMutablePointer<Float32>.allocate(capacity: 2))
+
+        gpoolBN.mean[0] = 0; gpoolBN.mean[1] = 0
+        gpoolBN.variance[0] = 0.9; gpoolBN.variance[1] = 0.9
+        gpoolBN.scale[0] = 1; gpoolBN.scale[1] = 1
+        gpoolBN.bias[0] = 0; gpoolBN.bias[1] = -2
+
+        let gpoolToBiasMul =
+        SWMatMulLayerDesc(inChannels: 6,
+                          outChannels: 1,
+                          weights: UnsafeMutablePointer<Float32>.allocate(capacity: 6))
+
+        gpoolToBiasMul.weights[0] = 36
+        gpoolToBiasMul.weights[1] = 36
+        gpoolToBiasMul.weights[2] = 18
+        gpoolToBiasMul.weights[3] = 18
+        gpoolToBiasMul.weights[4] = 1
+        gpoolToBiasMul.weights[5] = 1
+
+        let midBN =
+        SWBatchNormLayerDesc(numChannels: 1,
+                             epsilon: 0.1,
+                             hasScale: false,
+                             hasBias: false,
+                             mean: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
+                             variance: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
+                             scale: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
+                             bias: UnsafeMutablePointer<Float32>.allocate(capacity: 1))
+
+        midBN.mean[0] = 0
+        midBN.variance[0] = 0.9
+        midBN.scale[0] = 1
+        midBN.bias[0] = 0
+
+        let finalConv =
+        SWConvLayerDesc(convYSize: 1,
+                        convXSize: 1,
+                        inChannels: 1,
+                        outChannels: 1,
+                        dilationY: 1,
+                        dilationX: 1,
+                        weights: UnsafeMutablePointer<Float32>.allocate(capacity: 1))
+
+        finalConv.weights[0] = 1
+
+        let descriptor = SWGlobalPoolingResidualBlockDesc(preBN: preBN,
+                                                          preActivation: nil,
+                                                          regularConv: regularConv,
+                                                          gpoolConv: gpoolConv,
+                                                          gpoolBN: gpoolBN,
+                                                          gpoolActivation: nil,
+                                                          gpoolToBiasMul: gpoolToBiasMul,
+                                                          midBN: midBN,
+                                                          midActivation: nil,
+                                                          finalConv: finalConv)
+
+        let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 24)
+
+        GlobalPoolingResidualBlock.test(descriptor: descriptor,
+                                        batchSize: batchSize,
+                                        nnXLen: nnXLen,
+                                        nnYLen: nnYLen,
+                                        useFP16: useFP16,
+                                        useNHWC: useNHWC,
+                                        input: inputPointer,
+                                        mask: maskPointer,
+                                        output: outputPointer)
+
+        let y = UnsafeMutablePointer<Float32>.allocate(capacity: 24)
+
+        y[0] = 3; y[1] = 6; y[2] = 0; y[3] = 0
+        y[4] = 0; y[5] = 9; y[6] = 12; y[7] = 0
+        y[8] = 0; y[9] = 0; y[10] = 15; y[11] = 0
+
+        y[12] = 0; y[13] = 0; y[14] = 0; y[15] = 0
+        y[16] = 0; y[17] = 15; y[18] = -3; y[19] = 0
+        y[20] = 0; y[21] = -1; y[22] = 3; y[23] = 3
+
+        for i in 0..<12 {
+            y[i] += 56 + (28 * (-11) * 0.1) + 5 + 4 + (2 * (-11) * 0.1) + 1
+            y[i] *= m[i]
+        }
+
+        for i in 12..<24 {
+            let sqrt6: Float32 = sqrt(6)
+
+            y[i] += 12 + (6 * (sqrt6 - 14) * 0.1) + 1 +
+            18 + (9 * (sqrt6 - 14) * 0.1) + 3
+
+            y[i] *= m[i]
+        }
+
+        XCTAssertEqual(outputPointer[0], y[0], accuracy: 2e-2)
+        XCTAssertEqual(outputPointer[3], y[3], accuracy: 2e-2)
+        XCTAssertEqual(outputPointer[4], y[4], accuracy: 2e-2)
+        XCTAssertEqual(outputPointer[11], y[11], accuracy: 2e-2)
+        XCTAssertEqual(outputPointer[12], y[12], accuracy: 2e-2)
+        XCTAssertEqual(outputPointer[18], y[18], accuracy: 2e-2)
+        XCTAssertEqual(outputPointer[23], y[23], accuracy: 2e-2)
+    }
+
+    func testNHWC() {
+        let useFP16 = false
+        let useNHWC = true
+        let batchSize: NSNumber = 2
+        let trunkChannels: NSNumber = 1
+        let regularChannels: NSNumber = 1
+        let gpoolChannels: NSNumber = 2
+        let nnYLen: NSNumber = 3
+        let nnXLen: NSNumber = 4
+
+        let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 24)
+        let x = inputPointer
+
+        x[0] = 1; x[1] = 2; x[2]  = 0; x[3]  = 0
+        x[4] = 0; x[5] = 3; x[6]  = 4; x[7]  = 0
+        x[8] = 0; x[9] = 0; x[10] = 5; x[11] = 0
+
+        x[12] = 0; x[13] = 0; x[14] = 0;  x[15] = 0
+        x[16] = 0; x[17] = 5; x[18] = -3; x[19] = 0
+        x[20] = 0; x[21] = -1; x[22] = 1; x[23] = 1
+
+        let maskPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 24)
+        let m = maskPointer
+
+        m[0] = 1; m[1] = 1; m[2]  = 1; m[3]  = 0
+        m[4] = 1; m[5] = 1; m[6]  = 1; m[7]  = 0
+        m[8] = 1; m[9] = 1; m[10] = 1; m[11] = 0
+
+        m[12] = 0; m[13] = 0; m[14] = 0; m[15] = 0
+        m[16] = 0; m[17] = 1; m[18] = 1; m[19] = 1
+        m[20] = 0; m[21] = 1; m[22] = 1; m[23] = 1
+
+        let preBN =
+        SWBatchNormLayerDesc(numChannels: trunkChannels,
+                             epsilon: 0.1,
+                             hasScale: true,
+                             hasBias: true,
+                             mean: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
+                             variance: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
+                             scale: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
+                             bias: UnsafeMutablePointer<Float32>.allocate(capacity: 1))
+
+        preBN.mean[0] = 0
+        preBN.variance[0] = 0.9
+        preBN.scale[0] = 1
+        preBN.bias[0] = 0
+
+        let regularConv =
+        SWConvLayerDesc(convYSize: 1,
+                        convXSize: 1,
+                        inChannels: trunkChannels,
+                        outChannels: regularChannels,
+                        dilationY: 1,
+                        dilationX: 1,
+                        weights: UnsafeMutablePointer<Float32>.allocate(capacity: 1))
+
+        regularConv.weights[0] = 2
+
+        let convYSize: NSNumber = 3
+        let convXSize: NSNumber = 3
+        let capacity = convYSize.intValue * convXSize.intValue * gpoolChannels.intValue
+
+        let gpoolConv =
+        SWConvLayerDesc(convYSize: convYSize,
+                        convXSize: convXSize,
+                        inChannels: trunkChannels,
+                        outChannels: gpoolChannels,
+                        dilationY: 1,
+                        dilationX: 1,
+                        weights: UnsafeMutablePointer<Float32>.allocate(capacity: capacity))
+
+        let w = gpoolConv.weights;
+
+        w[0] = 0; w[1] = 0; w[2] = 0
+        w[3] = 0; w[4] = 0; w[5] = 1
+        w[6] = 0; w[7] = 0; w[8] = 0
+
+        w[9] = 0; w[10] = 0; w[11] = 0
+        w[12] = 1; w[13] = 0; w[14] = 0
+        w[15] = 0; w[16] = 0; w[17] = 0
+
+        let gpoolBN =
+        SWBatchNormLayerDesc(numChannels: gpoolChannels,
+                             epsilon: 0.1,
+                             hasScale: false,
+                             hasBias: false,
+                             mean: UnsafeMutablePointer<Float32>.allocate(capacity: 2),
+                             variance: UnsafeMutablePointer<Float32>.allocate(capacity: 2),
+                             scale: UnsafeMutablePointer<Float32>.allocate(capacity: 2),
+                             bias: UnsafeMutablePointer<Float32>.allocate(capacity: 2))
+
+        gpoolBN.mean[0] = 0; gpoolBN.mean[1] = 0
+        gpoolBN.variance[0] = 0.9; gpoolBN.variance[1] = 0.9
+        gpoolBN.scale[0] = 1; gpoolBN.scale[1] = 1
+        gpoolBN.bias[0] = 0; gpoolBN.bias[1] = -2
+
+        let gpoolToBiasMul =
+        SWMatMulLayerDesc(inChannels: 6,
+                          outChannels: 1,
+                          weights: UnsafeMutablePointer<Float32>.allocate(capacity: 6))
+
+        gpoolToBiasMul.weights[0] = 36
+        gpoolToBiasMul.weights[1] = 36
+        gpoolToBiasMul.weights[2] = 18
+        gpoolToBiasMul.weights[3] = 18
+        gpoolToBiasMul.weights[4] = 1
+        gpoolToBiasMul.weights[5] = 1
+
+        let midBN =
+        SWBatchNormLayerDesc(numChannels: 1,
+                             epsilon: 0.1,
+                             hasScale: false,
+                             hasBias: false,
+                             mean: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
+                             variance: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
+                             scale: UnsafeMutablePointer<Float32>.allocate(capacity: 1),
+                             bias: UnsafeMutablePointer<Float32>.allocate(capacity: 1))
+
+        midBN.mean[0] = 0
+        midBN.variance[0] = 0.9
+        midBN.scale[0] = 1
+        midBN.bias[0] = 0
+
+        let finalConv =
+        SWConvLayerDesc(convYSize: 1,
+                        convXSize: 1,
+                        inChannels: 1,
+                        outChannels: 1,
+                        dilationY: 1,
+                        dilationX: 1,
+                        weights: UnsafeMutablePointer<Float32>.allocate(capacity: 1))
+
+        finalConv.weights[0] = 1
+
+        let descriptor = SWGlobalPoolingResidualBlockDesc(preBN: preBN,
+                                                          preActivation: nil,
+                                                          regularConv: regularConv,
+                                                          gpoolConv: gpoolConv,
+                                                          gpoolBN: gpoolBN,
+                                                          gpoolActivation: nil,
+                                                          gpoolToBiasMul: gpoolToBiasMul,
+                                                          midBN: midBN,
+                                                          midActivation: nil,
+                                                          finalConv: finalConv)
+
+        let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 24)
+
+        GlobalPoolingResidualBlock.test(descriptor: descriptor,
+                                        batchSize: batchSize,
+                                        nnXLen: nnXLen,
+                                        nnYLen: nnYLen,
+                                        useFP16: useFP16,
+                                        useNHWC: useNHWC,
+                                        input: inputPointer,
+                                        mask: maskPointer,
+                                        output: outputPointer)
+
+        let y = UnsafeMutablePointer<Float32>.allocate(capacity: 24)
+
+        y[0] = 3; y[1] = 6; y[2] = 0; y[3] = 0
+        y[4] = 0; y[5] = 9; y[6] = 12; y[7] = 0
+        y[8] = 0; y[9] = 0; y[10] = 15; y[11] = 0
+
+        y[12] = 0; y[13] = 0; y[14] = 0; y[15] = 0
+        y[16] = 0; y[17] = 15; y[18] = -3; y[19] = 0
+        y[20] = 0; y[21] = -1; y[22] = 3; y[23] = 3
+
+        for i in 0..<12 {
+            y[i] += 56 + (28 * (-11) * 0.1) + 5 + 4 + (2 * (-11) * 0.1) + 1
+            y[i] *= m[i]
+        }
+
+        for i in 12..<24 {
+            let sqrt6: Float32 = sqrt(6)
+
+            y[i] += 12 + (6 * (sqrt6 - 14) * 0.1) + 1 +
+            18 + (9 * (sqrt6 - 14) * 0.1) + 3
+
+            y[i] *= m[i]
+        }
+
+        XCTAssertEqual(outputPointer[0], y[0], accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[3], y[3], accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[4], y[4], accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[11], y[11], accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[12], y[12], accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[18], y[18], accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[23], y[23], accuracy: 1e-4)
+    }
+}

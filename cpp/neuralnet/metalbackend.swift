@@ -336,7 +336,7 @@ class ConvLayer: NSObject {
         if useFP16 {
             let outLength = batchSize.intValue * descriptor.outChannels.intValue * nnYLen.intValue * nnXLen.intValue
 
-            let outputFP16 = output.toFP16(length: outLength)
+            let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
 
             fetch[conv.resultTensor]?.mpsndarray().readBytes(outputFP16,
                                                              strideBytes: nil)
@@ -509,7 +509,7 @@ class BatchNormLayer: NSObject {
         if useFP16 {
             let outLength = batchSize.intValue * descriptor.numChannels.intValue * nnYLen.intValue * nnXLen.intValue
 
-            let outputFP16 = output.toFP16(length: outLength)
+            let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
 
             fetch[batchNorm.resultTensor]?.mpsndarray().readBytes(outputFP16,
                                                                   strideBytes: nil)
@@ -716,7 +716,7 @@ class ResidualBlock: NSObject {
         if useFP16 {
             let outLength = batchSize.intValue * descriptor.finalConv.outChannels.intValue * nnYLen.intValue * nnXLen.intValue
 
-            let outputFP16 = output.toFP16(length: outLength)
+            let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
 
             fetch[block.resultTensor]?.mpsndarray().readBytes(outputFP16,
                                                               strideBytes: nil)
@@ -1130,7 +1130,7 @@ class GlobalPoolingResidualBlock: NSObject {
         if useFP16 {
             let outLength = batchSize.intValue * descriptor.finalConv.outChannels.intValue * nnYLen.intValue * nnXLen.intValue
 
-            let outputFP16 = output.toFP16(length: outLength)
+            let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
 
             fetch[block.resultTensor]?.mpsndarray().readBytes(outputFP16,
                                                               strideBytes: nil)
