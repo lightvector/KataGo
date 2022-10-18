@@ -894,7 +894,7 @@ class SWMatMulLayerDesc: NSObject {
 }
 
 enum MetalBackendError : Error {
-    case CannotUseNHWC
+    case CannotUseNCHW
 }
 
 class MatMulLayer {
@@ -907,7 +907,7 @@ class MatMulLayer {
          useNHWC: Bool) throws {
 
         guard useNHWC || (descriptor.outChannels == 1) else {
-            throw MetalBackendError.CannotUseNHWC
+            throw MetalBackendError.CannotUseNCHW
         }
 
         let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
@@ -967,7 +967,7 @@ class MatBiasLayer {
          useNHWC: Bool) throws {
 
         guard useNHWC || (descriptor.numChannels == 1) else {
-            throw MetalBackendError.CannotUseNHWC
+            throw MetalBackendError.CannotUseNCHW
         }
 
         let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
@@ -2003,13 +2003,16 @@ class ComputeHandle: NSObject {
                               useFP16: useFP16,
                               useNHWC: useNHWC)
         } catch {
+            print("Error: \(error).")
+            print("Trying to initialize Model with useNHWC:true ...")
+
             model = try! Model(graph: MPSGraph(),
                                descriptor: descriptor,
                                nnXLen: context.nnXLen,
                                nnYLen: context.nnYLen,
                                batchSize: batchSize,
                                useFP16: useFP16,
-                               useNHWC: false)
+                               useNHWC: true)
         }
     }
 }
