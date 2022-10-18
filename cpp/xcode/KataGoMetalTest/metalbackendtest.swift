@@ -1401,6 +1401,222 @@ final class GlobalPoolingResidualBlockTest: XCTestCase {
     }
 }
 
+final class MatMulLayerTest: XCTestCase {
+
+    func testFP16() {
+        let useFP16 = true
+        let useNHWC = true
+        let batchSize = 2
+        let nnXLen = 2
+        let nnYLen = 1
+        let inChannels = 2
+        let outChannels = 3
+        let weightsCount = inChannels * outChannels
+        let weights = UnsafeMutablePointer<Float32>.allocate(capacity: weightsCount)
+
+        for i in 0..<weightsCount {
+            weights[i] = Float32(i)
+        }
+
+        /* weights = {0, 1, 2,
+         *            3, 4, 5}
+         */
+
+        let descriptor = SWMatMulLayerDesc(inChannels: inChannels as NSNumber,
+                                           outChannels: outChannels as NSNumber,
+                                           weights: weights)
+
+        let graph = MPSGraph()
+
+        let input = InputLayer(graph: graph,
+                               batchSize: batchSize as NSNumber,
+                               nnXLen: nnXLen as NSNumber,
+                               nnYLen: nnYLen as NSNumber,
+                               numChannels: inChannels as NSNumber,
+                               useFP16: useFP16,
+                               useNHWC: useNHWC)
+
+        let matMulLayer = try! MatMulLayer(graph: graph,
+                                           descriptor: descriptor,
+                                           sourceTensor: input.tensor,
+                                           useFP16: useFP16,
+                                           useNHWC: useNHWC)
+
+        let inputCount = batchSize * nnXLen * nnYLen * inChannels
+        let inputPointer = UnsafeMutablePointer<Float16>.allocate(capacity: inputCount)
+
+        for i in 0..<inputCount {
+            inputPointer[i] = Float16(i)
+        }
+
+        /* NHWC inputPointer = {0, 1,
+         *                      2, 3,
+         *
+         *                      4, 5,
+         *                      6, 7}
+         */
+
+        /* outputPointer = {3, 9, 15, 21,
+         *                  4, 14, 24, 34,
+         *                  5, 19, 33, 47}
+         */
+
+        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+
+        let inputTensorData = MPSGraphTensorData(device: device,
+                                                 tensor: input.tensor)!
+
+        inputTensorData.mpsndarray().writeBytes(inputPointer,
+                                                strideBytes: nil)
+
+        let fetch = graph.run(feeds: [input.tensor: inputTensorData],
+                              targetTensors: [matMulLayer.resultTensor],
+                              targetOperations: nil)
+
+        let outputCount = batchSize * nnXLen * nnYLen * outChannels
+        let outputPointer = UnsafeMutablePointer<Float16>.allocate(capacity: outputCount)
+
+        fetch[matMulLayer.resultTensor]?.mpsndarray().readBytes(outputPointer,
+                                                                strideBytes: nil)
+
+        XCTAssertEqual(outputPointer[0], 3, accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[1], 4, accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[2], 5, accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[3], 9, accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[4], 14, accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[5], 19, accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[6], 15, accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[7], 24, accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[8], 33, accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[9], 21, accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[10], 34, accuracy: 1e-4)
+        XCTAssertEqual(outputPointer[11], 47, accuracy: 1e-4)
+    }
+
+    func testFP32() {
+        let useFP16 = false
+        let useNHWC = true
+        let batchSize = 2
+        let nnXLen = 2
+        let nnYLen = 1
+        let inChannels = 2
+        let outChannels = 3
+        let weightsCount = inChannels * outChannels
+        let weights = UnsafeMutablePointer<Float32>.allocate(capacity: weightsCount)
+
+        for i in 0..<weightsCount {
+            weights[i] = Float32(i)
+        }
+
+        /* weights = {0, 1, 2,
+         *            3, 4, 5}
+         */
+
+        let descriptor = SWMatMulLayerDesc(inChannels: inChannels as NSNumber,
+                                           outChannels: outChannels as NSNumber,
+                                           weights: weights)
+
+        let graph = MPSGraph()
+
+        let input = InputLayer(graph: graph,
+                               batchSize: batchSize as NSNumber,
+                               nnXLen: nnXLen as NSNumber,
+                               nnYLen: nnYLen as NSNumber,
+                               numChannels: inChannels as NSNumber,
+                               useFP16: useFP16,
+                               useNHWC: useNHWC)
+
+        let matMulLayer = try! MatMulLayer(graph: graph,
+                                           descriptor: descriptor,
+                                           sourceTensor: input.tensor,
+                                           useFP16: useFP16,
+                                           useNHWC: useNHWC)
+
+        let inputCount = batchSize * nnXLen * nnYLen * inChannels
+        let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
+
+        for i in 0..<inputCount {
+            inputPointer[i] = Float32(i)
+        }
+
+        /* NHWC inputPointer = {0, 1,
+         *                      2, 3,
+         *
+         *                      4, 5,
+         *                      6, 7}
+         */
+
+        /* outputPointer = {3, 9, 15, 21,
+         *                  4, 14, 24, 34,
+         *                  5, 19, 33, 47}
+         */
+
+        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+
+        let inputTensorData = MPSGraphTensorData(device: device,
+                                                 tensor: input.tensor)!
+
+        inputTensorData.mpsndarray().writeBytes(inputPointer,
+                                                strideBytes: nil)
+
+        let fetch = graph.run(feeds: [input.tensor: inputTensorData],
+                              targetTensors: [matMulLayer.resultTensor],
+                              targetOperations: nil)
+
+        let outputCount = batchSize * nnXLen * nnYLen * outChannels
+        let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: outputCount)
+
+        fetch[matMulLayer.resultTensor]?.mpsndarray().readBytes(outputPointer,
+                                                                strideBytes: nil)
+
+        XCTAssertEqual(outputPointer[0], 3, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[1], 4, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[2], 5, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[3], 9, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[4], 14, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[5], 19, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[6], 15, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[7], 24, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[8], 33, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[9], 21, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[10], 34, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[11], 47, accuracy: 1e-8)
+    }
+
+    func testInvalid() {
+        let useFP16 = false
+        let useNHWC = false
+        let batchSize = 1
+        let nnXLen = 1
+        let nnYLen = 1
+        let inChannels = 1
+        let outChannels = 2
+        let weightsCount = inChannels * outChannels
+        let weights = UnsafeMutablePointer<Float32>.allocate(capacity: weightsCount)
+
+        let descriptor = SWMatMulLayerDesc(inChannels: inChannels as NSNumber,
+                                           outChannels: outChannels as NSNumber,
+                                           weights: weights)
+
+        let graph = MPSGraph()
+
+        let input = InputLayer(graph: graph,
+                               batchSize: batchSize as NSNumber,
+                               nnXLen: nnXLen as NSNumber,
+                               nnYLen: nnYLen as NSNumber,
+                               numChannels: inChannels as NSNumber,
+                               useFP16: useFP16,
+                               useNHWC: useNHWC)
+
+        XCTAssertThrowsError(try MatMulLayer(graph: graph,
+                                             descriptor: descriptor,
+                                             sourceTensor: input.tensor,
+                                             useFP16: useFP16,
+                                             useNHWC: useNHWC))
+    }
+}
+
+
 final class MatBiasLayerTest: XCTestCase {
 
     func testFP16() {
@@ -1425,10 +1641,11 @@ final class MatBiasLayerTest: XCTestCase {
                                useFP16: useFP16,
                                useNHWC: useNHWC)
 
-        let matBiasLayer = MatBiasLayer(graph: graph,
-                                        descriptor: descriptor,
-                                        sourceTensor: input.tensor,
-                                        useFP16: useFP16)
+        let matBiasLayer = try! MatBiasLayer(graph: graph,
+                                             descriptor: descriptor,
+                                             sourceTensor: input.tensor,
+                                             useFP16: useFP16,
+                                             useNHWC: useNHWC)
 
         let inputPointer = UnsafeMutablePointer<Float16>.allocate(capacity: 16)
 
@@ -1482,10 +1699,11 @@ final class MatBiasLayerTest: XCTestCase {
                                useFP16: useFP16,
                                useNHWC: useNHWC)
 
-        let matBiasLayer = MatBiasLayer(graph: graph,
-                                        descriptor: descriptor,
-                                        sourceTensor: input.tensor,
-                                        useFP16: useFP16)
+        let matBiasLayer = try! MatBiasLayer(graph: graph,
+                                             descriptor: descriptor,
+                                             sourceTensor: input.tensor,
+                                             useFP16: useFP16,
+                                             useNHWC: useNHWC)
 
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 16)
 
@@ -1515,5 +1733,35 @@ final class MatBiasLayerTest: XCTestCase {
         XCTAssertEqual(outputPointer[2], 3, accuracy: 1e-8)
         XCTAssertEqual(outputPointer[3], 2, accuracy: 1e-8)
         XCTAssertEqual(outputPointer[15], 14, accuracy: 1e-8)
+    }
+
+    func testInvalid() {
+        let useFP16 = false
+        let useNHWC = false
+        let batchSize = 1
+        let nnXLen = 1
+        let nnYLen = 1
+        let numChannels = 2
+        let weightsCount = numChannels
+        let weights = UnsafeMutablePointer<Float32>.allocate(capacity: weightsCount)
+
+        let descriptor = SWMatBiasLayerDesc(numChannels: numChannels as NSNumber,
+                                            weights: weights)
+
+        let graph = MPSGraph()
+
+        let input = InputLayer(graph: graph,
+                               batchSize: batchSize as NSNumber,
+                               nnXLen: nnXLen as NSNumber,
+                               nnYLen: nnYLen as NSNumber,
+                               numChannels: numChannels as NSNumber,
+                               useFP16: useFP16,
+                               useNHWC: useNHWC)
+
+        XCTAssertThrowsError(try MatBiasLayer(graph: graph,
+                                              descriptor: descriptor,
+                                              sourceTensor: input.tensor,
+                                              useFP16: useFP16,
+                                              useNHWC: useNHWC))
     }
 }
