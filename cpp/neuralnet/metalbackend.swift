@@ -400,6 +400,8 @@ class ConvLayer: NSObject {
                                            weights: weightsTensor,
                                            descriptor: convDescriptor,
                                            name: nil)
+
+        assert(resultTensor.shape?.count == 4)
     }
 }
 
@@ -613,6 +615,8 @@ class BatchNormLayer: NSObject {
         resultTensor = graph.multiplication(normalized,
                                             mask.tensor,
                                             name: nil)
+
+        assert(resultTensor.shape?.count == 4)
     }
 }
 
@@ -789,6 +793,8 @@ class ResidualBlock: NSObject {
         resultTensor = graph.addition(source.tensor,
                                       finalConv.resultTensor,
                                       name: nil)
+
+        assert(resultTensor.shape?.count == 4)
     }
 }
 
@@ -831,6 +837,12 @@ class GlobalPoolingLayer {
                                             maxTensor],
                                            dimension: channelAxis,
                                            name: nil)
+
+        assert(resultTensor.shape?.count == 4)
+        assert(useNHWC || (resultTensor.shape?[2] == 1))
+        assert(useNHWC || (resultTensor.shape?[3] == 1))
+        assert(!useNHWC || (resultTensor.shape?[1] == 1))
+        assert(!useNHWC || (resultTensor.shape?[2] == 1))
     }
 }
 
@@ -874,6 +886,12 @@ class GlobalPoolingValueLayer {
                                             meanMaskSquareTensor],
                                            dimension: channelAxis,
                                            name: nil)
+
+        assert(resultTensor.shape?.count == 4)
+        assert(useNHWC || (resultTensor.shape?[2] == 1))
+        assert(useNHWC || (resultTensor.shape?[3] == 1))
+        assert(!useNHWC || (resultTensor.shape?[1] == 1))
+        assert(!useNHWC || (resultTensor.shape?[2] == 1))
     }
 }
 
@@ -906,7 +924,9 @@ class MatMulLayer {
          useFP16: Bool,
          useNHWC: Bool) throws {
 
-        guard useNHWC || (descriptor.outChannels == 1) else {
+        guard useNHWC ||
+                (descriptor.outChannels == 1) ||
+                (sourceTensor.shape?[2] == 1) && (sourceTensor.shape?[3] == 1) else {
             throw MetalBackendError.CannotUseNCHW
         }
 
@@ -941,6 +961,8 @@ class MatMulLayer {
         resultTensor = graph.matrixMultiplication(primary: reshapedSource,
                                                   secondary: weightsTensor,
                                                   name: nil)
+
+        assert(resultTensor.shape?.count == 2)
     }
 }
 
@@ -966,7 +988,9 @@ class MatBiasLayer {
          useFP16: Bool,
          useNHWC: Bool) throws {
 
-        guard useNHWC || (descriptor.numChannels == 1) else {
+        guard useNHWC ||
+                (descriptor.numChannels == 1) ||
+                (sourceTensor.shape?[2] == 1) && (sourceTensor.shape?[3] == 1) else {
             throw MetalBackendError.CannotUseNCHW
         }
 
@@ -998,6 +1022,8 @@ class MatBiasLayer {
         resultTensor = graph.addition(reshapedSource,
                                       weightsTensor,
                                       name: nil)
+
+        assert(resultTensor.shape?.count == 2)
     }
 }
 
@@ -1008,6 +1034,8 @@ class AddNCBiasLayer {
          sourceTensor: MPSGraphTensor,
          biasTensor: MPSGraphTensor,
          batchSize: NSNumber,
+         nnXLen: NSNumber,
+         nnYLen: NSNumber,
          numChannels: NSNumber,
          useFP16: Bool,
          useNHWC: Bool) {
@@ -1021,6 +1049,12 @@ class AddNCBiasLayer {
 
         let reshaped = graph.reshape(biasTensor, shape: shape, name: nil)
         resultTensor = graph.addition(sourceTensor, reshaped, name: nil)
+
+        assert(resultTensor.shape?.count == 4)
+        assert(useNHWC || resultTensor.shape?[2] == nnYLen)
+        assert(useNHWC || resultTensor.shape?[3] == nnXLen)
+        assert(!useNHWC || resultTensor.shape?[1] == nnYLen)
+        assert(!useNHWC || resultTensor.shape?[2] == nnXLen)
     }
 }
 
@@ -1063,9 +1097,6 @@ class SWGlobalPoolingResidualBlockDesc: NSObject {
 
 @objc
 class GlobalPoolingResidualBlock: NSObject {
-    let graph: MPSGraph
-    let source: InputLayer
-    let mask: MaskLayer
     let resultTensor: MPSGraphTensor
 
     @objc
@@ -1120,7 +1151,7 @@ class GlobalPoolingResidualBlock: NSObject {
                                                   tensor: source.tensor)!
 
         let maskTensorData = MPSGraphTensorData(device: device,
-                                                tensor: block.mask.tensor)!
+                                                tensor: mask.tensor)!
 
         if useFP16 {
             let inLength = batchSize.intValue * descriptor.preBN.numChannels.intValue * nnYLen.intValue * nnXLen.intValue
@@ -1138,7 +1169,7 @@ class GlobalPoolingResidualBlock: NSObject {
         }
 
         let fetch = graph.run(feeds: [source.tensor: sourceTensorData,
-                                      block.mask.tensor: maskTensorData],
+                                      mask.tensor: maskTensorData],
                               targetTensors: [block.resultTensor],
                               targetOperations: nil)
 
@@ -1170,10 +1201,8 @@ class GlobalPoolingResidualBlock: NSObject {
          batchSize: NSNumber,
          useFP16: Bool,
          useNHWC: Bool) throws {
-        self.graph = graph
-
-        source = InputLayer(tensor: sourceTensor)
-        mask = MaskLayer(tensor: maskTensor)
+        let source = InputLayer(tensor: sourceTensor)
+        let mask = MaskLayer(tensor: maskTensor)
         let maskSum = MaskSumLayer(tensor: maskSumTensor)
         let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(tensor: maskSumSqrtS14M01Tensor)
 
@@ -1236,6 +1265,8 @@ class GlobalPoolingResidualBlock: NSObject {
                                    sourceTensor: regularConv.resultTensor,
                                    biasTensor: gpoolToBiasMul.resultTensor,
                                    batchSize: batchSize,
+                                   nnXLen: nnXLen,
+                                   nnYLen: nnYLen,
                                    numChannels: descriptor.gpoolToBiasMul.outChannels,
                                    useFP16: useFP16,
                                    useNHWC: useNHWC)
@@ -1264,6 +1295,8 @@ class GlobalPoolingResidualBlock: NSObject {
         resultTensor = graph.addition(source.tensor,
                                       finalConv.resultTensor,
                                       name: nil)
+
+        assert(resultTensor.shape?.count == 4)
     }
 }
 
@@ -1378,6 +1411,8 @@ class Trunk {
                                    sourceTensor: initialConv.resultTensor,
                                    biasTensor: initialMatMul.resultTensor,
                                    batchSize: batchSize,
+                                   nnXLen: nnXLen,
+                                   nnYLen: nnYLen,
                                    numChannels: descriptor.initialMatMul.outChannels,
                                    useFP16: useFP16,
                                    useNHWC: useNHWC)
@@ -1431,6 +1466,8 @@ class Trunk {
         let trunkTipReLU = graph.reLU(with: trunkTipBN.resultTensor, name: nil)
 
         resultTensor = trunkTipReLU
+
+        assert(resultTensor.shape?.count == 4)
     }
 }
 
@@ -1532,6 +1569,8 @@ class PolicyHead {
                                    sourceTensor: p1Conv.resultTensor,
                                    biasTensor: gpoolToBiasMul.resultTensor,
                                    batchSize: batchSize,
+                                   nnXLen: nnXLen,
+                                   nnYLen: nnYLen,
                                    numChannels: descriptor.gpoolToBiasMul.outChannels,
                                    useFP16: useFP16,
                                    useNHWC: useNHWC)
@@ -1565,6 +1604,9 @@ class PolicyHead {
 
         policyTensor = p2Conv.resultTensor
         policyPassTensor = gpoolToPassMul.resultTensor
+
+        assert(policyTensor.shape?.count == 4)
+        assert(policyPassTensor.shape?.count == 4)
     }
 }
 
@@ -1699,6 +1741,10 @@ class ValueHead {
         valueTensor = v3Bias.resultTensor
         scoreValueTensor = sv3Bias.resultTensor
         ownershipTensor = vOwnershipConv.resultTensor
+
+        assert(valueTensor.shape?.count == 4)
+        assert(scoreValueTensor.shape?.count == 4)
+        assert(ownershipTensor.shape?.count == 4)
     }
 }
 

@@ -1587,7 +1587,7 @@ final class MatMulLayerTest: XCTestCase {
         let useFP16 = false
         let useNHWC = false
         let batchSize = 1
-        let nnXLen = 1
+        let nnXLen = 2
         let nnYLen = 1
         let inChannels = 1
         let outChannels = 2
@@ -1739,7 +1739,7 @@ final class MatBiasLayerTest: XCTestCase {
         let useFP16 = false
         let useNHWC = false
         let batchSize = 1
-        let nnXLen = 1
+        let nnXLen = 2
         let nnYLen = 1
         let numChannels = 2
         let weightsCount = numChannels
