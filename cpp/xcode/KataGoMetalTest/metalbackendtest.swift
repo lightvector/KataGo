@@ -2133,6 +2133,202 @@ final class TrunkTest: XCTestCase {
     }
 }
 
+final class PolicyHeadTest: XCTestCase {
+
+    func testUnity() {
+        let useFP16 = false
+        let useNHWC = false
+        let batchSize = 2
+        let nnXLen = 2
+        let nnYLen = 2
+        let inChannels = 2
+        let outChannels = 1
+
+        let unityConvWeights = UnsafeMutablePointer<Float32>.allocate(capacity: inChannels * inChannels)
+
+        unityConvWeights[0] = 1
+        unityConvWeights[1] = 0
+        unityConvWeights[2] = 0
+        unityConvWeights[3] = 1
+
+        let unityConv = SWConvLayerDesc(convYSize: 1,
+                                        convXSize: 1,
+                                        inChannels: inChannels as NSNumber,
+                                        outChannels: inChannels as NSNumber,
+                                        dilationY: 1,
+                                        dilationX: 1,
+                                        weights: unityConvWeights)
+
+        let mean = UnsafeMutablePointer<Float32>.allocate(capacity: inChannels)
+
+        mean[0] = 0
+        mean[1] = 0
+
+        let variance = UnsafeMutablePointer<Float32>.allocate(capacity: inChannels)
+
+        variance[0] = 0.9
+        variance[1] = 0.9
+
+        let scale = UnsafeMutablePointer<Float32>.allocate(capacity: inChannels)
+
+        scale[0] = 1
+        scale[1] = 1
+
+        let bias = UnsafeMutablePointer<Float32>.allocate(capacity: inChannels)
+
+        bias[0] = 0
+        bias[1] = 0
+
+        let unityBN = SWBatchNormLayerDesc(numChannels: inChannels as NSNumber,
+                                           epsilon: 0.1,
+                                           hasScale: false,
+                                           hasBias: false,
+                                           mean: mean,
+                                           variance: variance,
+                                           scale: scale,
+                                           bias: bias)
+
+        let gpoolToBiasCount = 3 * inChannels * inChannels
+        let gpoolToBiasMulWeights =
+        UnsafeMutablePointer<Float32>.allocate(capacity: 3 * inChannels * inChannels)
+
+        for i in 0..<gpoolToBiasCount {
+            gpoolToBiasMulWeights[i] = 0
+        }
+
+        let gpoolToBiasMul = SWMatMulLayerDesc(inChannels: (3 * inChannels) as NSNumber,
+                                               outChannels: inChannels as NSNumber,
+                                               weights: gpoolToBiasMulWeights)
+
+        let p2ConvWeights = UnsafeMutablePointer<Float32>.allocate(capacity: inChannels * outChannels)
+
+        p2ConvWeights[0] = 0.5
+        p2ConvWeights[1] = 0.5
+
+        let p2Conv = SWConvLayerDesc(convYSize: 1,
+                                     convXSize: 1,
+                                     inChannels: inChannels as NSNumber,
+                                     outChannels: outChannels as NSNumber,
+                                     dilationY: 1,
+                                     dilationX: 1,
+                                     weights: p2ConvWeights)
+
+        let gpoolToPassCount = 3 * inChannels * outChannels
+        let gpoolToPassMulWeights =
+        UnsafeMutablePointer<Float32>.allocate(capacity: 3 * inChannels * outChannels)
+
+        for i in 0..<gpoolToPassCount {
+            gpoolToPassMulWeights[i] = 1
+        }
+
+        let gpoolToPassMul = SWMatMulLayerDesc(inChannels: (3 * inChannels) as NSNumber,
+                                               outChannels: outChannels as NSNumber,
+                                               weights: gpoolToPassMulWeights)
+
+        let descriptor = SWPolicyHeadDesc(version: 0,
+                                          p1Conv: unityConv,
+                                          g1Conv: unityConv,
+                                          g1BN: unityBN,
+                                          gpoolToBiasMul: gpoolToBiasMul,
+                                          p1BN: unityBN,
+                                          p2Conv: p2Conv,
+                                          gpoolToPassMul: gpoolToPassMul)
+
+        let graph = MPSGraph()
+
+        let input = InputLayer(graph: graph,
+                               batchSize: batchSize as NSNumber,
+                               nnXLen: nnXLen as NSNumber,
+                               nnYLen: nnYLen as NSNumber,
+                               numChannels: inChannels as NSNumber,
+                               useFP16: useFP16,
+                               useNHWC: useNHWC)
+
+        let mask = MaskLayer(graph: graph,
+                             batchSize: batchSize as NSNumber,
+                             nnXLen: nnXLen as NSNumber,
+                             nnYLen: nnYLen as NSNumber,
+                             useFP16: useFP16,
+                             useNHWC: useNHWC)
+
+        let maskSum = MaskSumLayer(graph: graph, mask: mask, useNHWC: useNHWC)
+
+        let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(graph: graph,
+                                                       maskSum: maskSum,
+                                                       useFP16: useFP16)
+
+        let policyHead = try! PolicyHead(graph: graph,
+                                         descriptor: descriptor,
+                                         sourceTensor: input.tensor,
+                                         maskTensor: mask.tensor,
+                                         maskSumTensor: maskSum.tensor,
+                                         maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+                                         nnXLen: nnXLen as NSNumber,
+                                         nnYLen: nnYLen as NSNumber,
+                                         batchSize: batchSize as NSNumber,
+                                         useFP16: useFP16,
+                                         useNHWC: useNHWC)
+
+        let inputCount = batchSize * inChannels * nnXLen * nnYLen
+        let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
+
+        for i in 0..<inputCount {
+            inputPointer[i] = Float32(i)
+        }
+
+        let maskCount = batchSize * nnXLen * nnYLen
+        let maskPointer = UnsafeMutablePointer<Float32>.allocate(capacity: maskCount)
+
+        for i in 0..<maskCount {
+            maskPointer[i] = 1
+        }
+
+        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+
+        let inputTensorData = MPSGraphTensorData(device: device,
+                                                 tensor: input.tensor)!
+
+        inputTensorData.mpsndarray().writeBytes(inputPointer,
+                                                strideBytes: nil)
+
+        let maskTensorData = MPSGraphTensorData(device: device,
+                                                tensor: mask.tensor)!
+
+        maskTensorData.mpsndarray().writeBytes(maskPointer,
+                                               strideBytes: nil)
+
+        let fetch = graph.run(feeds: [input.tensor: inputTensorData,
+                                      mask.tensor: maskTensorData],
+                              targetTensors: [policyHead.policyTensor,
+                                              policyHead.policyPassTensor],
+                              targetOperations: nil)
+
+        let policyCount = batchSize * outChannels * nnXLen * nnYLen
+        let policyPointer = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
+
+        fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policyPointer,
+                                                               strideBytes: nil)
+
+        let policyPassCount = batchSize
+
+        let policyPassPointer = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
+
+        fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPassPointer,
+                                                                   strideBytes: nil)
+
+        XCTAssertEqual(policyPointer[0], 2, accuracy: 1e-8)
+        XCTAssertEqual(policyPointer[1], 3, accuracy: 1e-8)
+        XCTAssertEqual(policyPointer[2], 4, accuracy: 1e-8)
+        XCTAssertEqual(policyPointer[3], 5, accuracy: 1e-8)
+        XCTAssertEqual(policyPointer[4], 10, accuracy: 1e-8)
+        XCTAssertEqual(policyPointer[5], 11, accuracy: 1e-8)
+        XCTAssertEqual(policyPointer[6], 12, accuracy: 1e-8)
+        XCTAssertEqual(policyPointer[7], 13, accuracy: 1e-8)
+        XCTAssertEqual(policyPassPointer[0], 8.6, accuracy: 1e-4)
+        XCTAssertEqual(policyPassPointer[1], 21.4, accuracy: 1e-4)
+    }
+}
+
 final class MetalBackendTest: XCTestCase {
     func testPrintDevices() {
         MetalBackend.printDevices()

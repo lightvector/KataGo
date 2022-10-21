@@ -1600,7 +1600,7 @@ class PolicyHead {
         policyPassTensor = gpoolToPassMul.resultTensor
 
         assert(policyTensor.shape?.count == 4)
-        assert(policyPassTensor.shape?.count == 4)
+        assert(policyPassTensor.shape?.count == 2)
     }
 }
 
