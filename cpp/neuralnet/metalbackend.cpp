@@ -198,9 +198,7 @@ void NeuralNet::freeComputeHandle(ComputeHandle* handle) {
 //------------------------------------------------------------------------------
 
 void NeuralNet::printDevices() {
-  MetalDevices* metalDevices = new MetalDevices();
-  metalDevices->printDevices();
-  delete metalDevices;
+  printMetalDevices();
 }
 
 //--------------------------------------------------------------

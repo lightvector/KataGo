@@ -2132,3 +2132,9 @@ final class TrunkTest: XCTestCase {
         XCTAssertEqual(outputPointer[15], 64, accuracy: 1e-8)
     }
 }
+
+final class MetalBackendTest: XCTestCase {
+    func testPrintDevices() {
+        MetalBackend.printDevices()
+    }
+}

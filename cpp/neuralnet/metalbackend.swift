@@ -2188,3 +2188,15 @@ class KataGoGraph: NSObject {
         policyOutput.printAsFloat(5)
     }
 }
+
+@objc
+class MetalBackend : NSObject {
+    @objc
+    class func printDevices() {
+        let devices = MTLCopyAllDevices()
+
+        for i in 0..<devices.count {
+            print("Found Metal Device \(i): \(devices[i].name) (isLowPower:\(devices[i].isLowPower), isRemovable:\(devices[i].isRemovable))")
+        }
+    }
+}

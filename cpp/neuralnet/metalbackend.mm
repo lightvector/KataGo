@@ -189,9 +189,9 @@ static SWValueHeadDesc * valueHeadDescToSwift(const ValueHeadDesc * valueHead) {
     return swDesc;
 }
 
-MetalDevices::MetalDevices(void) {}
-MetalDevices::~MetalDevices(void) {}
-void MetalDevices::printDevices(void) {}
+void printMetalDevices(void) {
+    [MetalBackend printDevices];
+}
 
 void createMetalContext(int nnXLen,
                         int nnYLen,

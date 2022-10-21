@@ -6,12 +6,7 @@
 
 using namespace std;
 
-class MetalDevices {
-public:
-  MetalDevices();
-  ~MetalDevices();
-  void printDevices();
-};
+void printMetalDevices(void);
 
 void createMetalContext(int nnXLen,
                         int nnYLen,
