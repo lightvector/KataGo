@@ -226,8 +226,11 @@ void createMetalHandle(int gpuIdxForThisThread,
                        const ModelDesc* desc,
                        int batchSize,
                        int serverThreadIdx) {
+    NSString * name = [NSString stringWithUTF8String:desc->name.c_str()];
+
     SWModelDesc * swModelDesc =
     [[SWModelDesc alloc] initWithVersion:desc->version
+                                    name:name
                         numInputChannels:[NSNumber numberWithInt:desc->numInputChannels]
                   numInputGlobalChannels:[NSNumber numberWithInt:desc->numInputGlobalChannels]
                         numValueChannels:[NSNumber numberWithInt:desc->numValueChannels]
@@ -246,21 +249,19 @@ void createMetalHandle(int gpuIdxForThisThread,
 void getMetalHandleOutput(float* userInputBuffer,
                           float* userInputGlobalBuffer,
                           float* policyOutput,
+                          float* policyPassOutput,
                           float* valueOutput,
                           float* ownershipOutput,
-                          float* miscValuesOutput,
-                          float* moreMiscValuesOutput,
+                          float* scoreValueOutput,
                           int gpuIdx) {
-    // FIXME: to be done
-    KataGoGraph* graph = [KataGoGraph getGraphWithGpuIndex:[NSNumber numberWithInt:gpuIdx]];
-
-    [graph runWithUserInputBuffer:userInputBuffer
-            userInputGlobalBuffer:userInputGlobalBuffer
-                     policyOutput:policyOutput
-                      valueOutput:valueOutput
-                  ownershipOutput:ownershipOutput
-                 miscValuesOutput:miscValuesOutput
-             moreMiscValuesOutput:moreMiscValuesOutput];
+    [MetalBackend getOutputWithUserInputBuffer:userInputBuffer
+                         userInputGlobalBuffer:userInputGlobalBuffer
+                                  policyOutput:policyOutput
+                              policyPassOutput:policyPassOutput
+                                   valueOutput:valueOutput
+                               ownershipOutput:ownershipOutput
+                              scoreValueOutput:scoreValueOutput
+                                        gpuIdx:gpuIdx];
 }
 
 void testMetalEvaluateConv(const ConvLayerDesc* desc,

@@ -129,24 +129,22 @@ struct ComputeHandle {
 
   ~ComputeHandle() {}
 
-  void apply(
-    float* userInputBuffer,
-    float* userInputGlobalBuffer,
-    float* policyOutput,
-    float* valueOutput,
-    float* ownershipOutput,
-    float* miscValuesOutput,
-    float* moreMiscValuesOutput) {
+  void apply(float* userInputBuffer,
+             float* userInputGlobalBuffer,
+             float* policyOutput,
+             float* policyPassOutput,
+             float* valueOutput,
+             float* ownershipOutput,
+             float* scoreValueOutput) {
 
-    getMetalHandleOutput(
-      userInputBuffer,
-      userInputGlobalBuffer,
-      policyOutput,
-      valueOutput,
-      ownershipOutput,
-      miscValuesOutput,
-      moreMiscValuesOutput,
-      gpuIndex);
+    getMetalHandleOutput(userInputBuffer,
+                         userInputGlobalBuffer,
+                         policyOutput,
+                         policyPassOutput,
+                         valueOutput,
+                         ownershipOutput,
+                         scoreValueOutput,
+                         gpuIndex);
   }
 
   ComputeHandle() = delete;
@@ -163,31 +161,11 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool inputsUseNHWC,
   int gpuIdxForThisThread,
   int serverThreadIdx) {
-  auto deviceStr = [&]() {
-    if(gpuIdxForThisThread < 0) {
-      return string("");
-    } else {
-      return " Device " + Global::intToString(gpuIdxForThisThread);
-    }
-  };
-
-  if(logger != NULL) {
-    logger->write(
-      "Metal backend thread " + Global::intToString(serverThreadIdx) + ":" + deviceStr() + " Model version " +
-      Global::intToString(loadedModel->modelDesc.version));
-
-    logger->write(
-      "Metal backend thread " + Global::intToString(serverThreadIdx) + ":" + deviceStr() +
-      " Model name: " + loadedModel->modelDesc.name);
-  }
 
   // Current implementation always tolerates excess nn len
   (void)requireExactNNLen;
   ComputeHandle* handle = new ComputeHandle(context, loadedModel, maxBatchSize, inputsUseNHWC, gpuIdxForThisThread, serverThreadIdx);
 
-  if(logger != NULL) {
-    logger->write("Metal backend thread " + Global::intToString(serverThreadIdx) + ":" + deviceStr());
-  }
   return handle;
 }
 
@@ -210,27 +188,27 @@ struct InputBuffers {
   size_t singleInputElts;
   size_t singleInputGlobalElts;
   size_t singlePolicyResultElts;
+  size_t singlePolicyPassResultElts;
   size_t singleValueResultElts;
   size_t singleOwnershipResultElts;
-  size_t singleMiscValuesResultElts;
-  size_t singleMoreMiscValuesResultElts;
+  size_t singleScoreValuesResultElts;
 
   size_t userInputBufferElts;
   size_t userInputGlobalBufferElts;
   size_t policyResultBufferElts;
+  size_t policyPassResultBufferElts;
   size_t valueResultBufferElts;
   size_t ownershipResultBufferElts;
-  size_t miscValuesResultBufferElts;
-  size_t moreMiscValuesResultsBufferElts;
+  size_t scoreValuesResultBufferElts;
 
   float* userInputBuffer;        // Host pointer
   float* userInputGlobalBuffer;  // Host pointer
 
   float* policyResults;
+  float* policyPassResults;
   float* valueResults;
   float* ownershipResults;
-  float* miscValuesResults;
-  float* moreMiscValuesResults;
+  float* scoreValuesResults;
 
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
@@ -239,61 +217,43 @@ struct InputBuffers {
     int ySize = nnYLen;
 
     maxBatchSize = maxBatchSz;
-    policyResultChannels = 2;
+    policyResultChannels = 1;
     singleInputElts = (size_t)m.numInputChannels * xSize * ySize;
     singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
-    singlePolicyResultElts = (size_t)((xSize * ySize) + 1);
+    singlePolicyResultElts = (size_t)(xSize * ySize);
+    singlePolicyPassResultElts = (size_t)1;
     singleValueResultElts = (size_t)m.numValueChannels;
     singleOwnershipResultElts = (size_t)m.numOwnershipChannels * xSize * ySize;
-    singleMiscValuesResultElts = 10;
-    singleMoreMiscValuesResultElts = 8;
+    singleScoreValuesResultElts = 6;
 
     assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
-    assert(singleInputElts == (361 * 22));
-    assert(singleInputGlobalElts == 19);
-    assert(singlePolicyResultElts == 362);
     assert(singleValueResultElts == 3);
-    assert(singleOwnershipResultElts == 361);
 
-    // swa_model_bin_inputs shape: [1, 361, 22]
     userInputBufferElts = (size_t)maxBatchSize * singleInputElts;
-
-    // swa_model_global_inputs shape: [1, 19]
     userInputGlobalBufferElts = (size_t)maxBatchSize * singleInputGlobalElts;
-
-    // swa_model_policy_output shape: [1, 362, 2]
     policyResultBufferElts = (size_t)maxBatchSize * singlePolicyResultElts * policyResultChannels;
-
-    // swa_model_value_output shape: [1, 3]
     valueResultBufferElts = (size_t)maxBatchSize * singleValueResultElts;
-
-    // swa_model_ownership_output shape: [1, 19, 19]
     ownershipResultBufferElts = (size_t)maxBatchSize * singleOwnershipResultElts;
-
-    // swa_model_miscvalues_output shape: [1, 10]
-    miscValuesResultBufferElts = (size_t)maxBatchSize * singleMiscValuesResultElts;
-
-    // swa_model_moremiscvalues_output shape: [1, 8]
-    moreMiscValuesResultsBufferElts = (size_t)maxBatchSize * singleMoreMiscValuesResultElts;
+    scoreValuesResultBufferElts = (size_t)maxBatchSize * singleScoreValuesResultElts;
 
     userInputBuffer = new float[userInputBufferElts];
     userInputGlobalBuffer = new float[userInputGlobalBufferElts];
     policyResults = new float[policyResultBufferElts];
+    policyPassResults = new float[policyPassResultBufferElts];
     valueResults = new float[valueResultBufferElts];
     ownershipResults = new float[ownershipResultBufferElts];
-    miscValuesResults = new float[miscValuesResultBufferElts];
-    moreMiscValuesResults = new float[moreMiscValuesResultsBufferElts];
+    scoreValuesResults = new float[scoreValuesResultBufferElts];
   }
 
   ~InputBuffers() {
     delete[] userInputBuffer;
     delete[] userInputGlobalBuffer;
     delete[] policyResults;
+    delete[] policyPassResults;
     delete[] valueResults;
     delete[] ownershipResults;
-    delete[] miscValuesResults;
-    delete[] moreMiscValuesResults;
+    delete[] scoreValuesResults;
   }
 
   InputBuffers() = delete;
@@ -332,29 +292,18 @@ void NeuralNet::getOutput(
   size_t singleInputElts = inputBuffers->singleInputElts;
   size_t singleInputGlobalElts = inputBuffers->singleInputGlobalElts;
   size_t singlePolicyResultElts = inputBuffers->singlePolicyResultElts;
+  size_t singlePolicyPassResultElts = inputBuffers->singlePolicyPassResultElts;
   size_t singleValueResultElts = inputBuffers->singleValueResultElts;
   size_t singleOwnershipResultElts = inputBuffers->singleOwnershipResultElts;
-  size_t singleMiscValuesResultElts = inputBuffers->singleMiscValuesResultElts;
-  size_t singleMoreMiscValuesResultElts = inputBuffers->singleMoreMiscValuesResultElts;
+  size_t singleScoreValuesResultElts = inputBuffers->singleScoreValuesResultElts;
 
-  assert(policyResultChannels == 2);
-  assert(singleInputElts == (361 * 22));
-  assert(singleInputGlobalElts == 19);
-  assert(singlePolicyResultElts == 362);
+  assert(policyResultChannels == 1);
   assert(singleValueResultElts == 3);
-  assert(singleOwnershipResultElts == 361);
-  assert(singleMiscValuesResultElts == 10);
-  assert(singleMoreMiscValuesResultElts == 8);
+  assert(singleScoreValuesResultElts == 6);
 
   for(size_t row = 0; row < batchSize; row++) {
     float* rowSpatialInput = &inputBuffers->userInputBuffer[singleInputElts * row];
     float* rowGlobalInput = &inputBuffers->userInputGlobalBuffer[singleInputGlobalElts * row];
-    float* policyOutputBuf = &inputBuffers->policyResults[row * (singlePolicyResultElts * policyResultChannels)];
-    float* valueOutputBuf = &inputBuffers->valueResults[row * singleValueResultElts];
-    float* ownershipOutputBuf = &inputBuffers->ownershipResults[row * singleOwnershipResultElts];
-    float* miscValuesOutputBuf = &inputBuffers->miscValuesResults[row * singleMiscValuesResultElts];
-    float* moreMiscValuesOutputBuf = &inputBuffers->moreMiscValuesResults[row * singleMoreMiscValuesResultElts];
-
     const float* rowGlobal = inputBufs[row]->rowGlobal;
     const float* rowSpatial = inputBufs[row]->rowSpatial;
 
@@ -371,16 +320,15 @@ void NeuralNet::getOutput(
       numSpatialFeatures,
       gpuHandle->inputsUseNHWC,
       inputBufs[row]->symmetry);
-
-    gpuHandle->apply(
-      rowSpatialInput,
-      rowGlobalInput,
-      policyOutputBuf,
-      valueOutputBuf,
-      ownershipOutputBuf,
-      miscValuesOutputBuf,
-      moreMiscValuesOutputBuf);
   }
+
+  gpuHandle->apply(inputBuffers->userInputBuffer,
+                   inputBuffers->userInputGlobalBuffer,
+                   inputBuffers->policyResults,
+                   inputBuffers->policyPassResults,
+                   inputBuffers->valueResults,
+                   inputBuffers->ownershipResults,
+                   inputBuffers->scoreValuesResults);
 
   for(size_t row = 0; row < batchSize; row++) {
     NNOutput* output = outputs[row];
@@ -390,18 +338,13 @@ void NeuralNet::getOutput(
 
     float* policyOutputBuf = &inputBuffers->policyResults[row * (singlePolicyResultElts * policyResultChannels)];
 
-    // Extract policy0_output
-    for(size_t i = 0; i < singlePolicyResultElts; i++) {
-      policyOutputBuf[i] = policyOutputBuf[i * policyResultChannels];
-    }
-
     // These are not actually correct, the client does the postprocessing to turn them into
     // policy probabilities and white game outcome probabilities
     // Also we don't fill in the nnHash here either
     SymmetryHelpers::copyOutputsWithSymmetry(
       policyOutputBuf, output->policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
 
-    output->policyProbs[singlePolicyResultElts - 1] = policyOutputBuf[singlePolicyResultElts - 1];
+    output->policyProbs[singlePolicyResultElts] = inputBuffers->policyPassResults[row * singlePolicyPassResultElts];
 
     const float* valueOutputBuf = &inputBuffers->valueResults[row * singleValueResultElts];
 
@@ -416,33 +359,32 @@ void NeuralNet::getOutput(
         ownershipOutputBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
     }
 
-    const float* miscValuesOutputBuf = &inputBuffers->miscValuesResults[row * singleMiscValuesResultElts];
-    const float* moreMiscValuesOutputBuf = &inputBuffers->moreMiscValuesResults[row * singleMoreMiscValuesResultElts];
+    const float* scoreValuesOutputBuf = &inputBuffers->scoreValuesResults[row * singleScoreValuesResultElts];
 
     if(version >= 9) {
-      output->whiteScoreMean = miscValuesOutputBuf[0];
-      output->whiteScoreMeanSq = miscValuesOutputBuf[1];
-      output->whiteLead = miscValuesOutputBuf[2];
-      output->varTimeLeft = miscValuesOutputBuf[3];
-      output->shorttermWinlossError = moreMiscValuesOutputBuf[0];
-      output->shorttermScoreError = moreMiscValuesOutputBuf[1];
+      output->whiteScoreMean = scoreValuesOutputBuf[0];
+      output->whiteScoreMeanSq = scoreValuesOutputBuf[1];
+      output->whiteLead = scoreValuesOutputBuf[2];
+      output->varTimeLeft = scoreValuesOutputBuf[3];
+      output->shorttermWinlossError = scoreValuesOutputBuf[0];
+      output->shorttermScoreError = scoreValuesOutputBuf[1];
     } else if(version >= 8) {
-      output->whiteScoreMean = miscValuesOutputBuf[0];
-      output->whiteScoreMeanSq = miscValuesOutputBuf[1];
-      output->whiteLead = miscValuesOutputBuf[2];
-      output->varTimeLeft = miscValuesOutputBuf[3];
+      output->whiteScoreMean = scoreValuesOutputBuf[0];
+      output->whiteScoreMeanSq = scoreValuesOutputBuf[1];
+      output->whiteLead = scoreValuesOutputBuf[2];
+      output->varTimeLeft = scoreValuesOutputBuf[3];
       output->shorttermWinlossError = 0;
       output->shorttermScoreError = 0;
     } else if(version >= 4) {
-      output->whiteScoreMean = miscValuesOutputBuf[0];
-      output->whiteScoreMeanSq = miscValuesOutputBuf[1];
+      output->whiteScoreMean = scoreValuesOutputBuf[0];
+      output->whiteScoreMeanSq = scoreValuesOutputBuf[1];
       output->whiteLead = output->whiteScoreMean;
       output->varTimeLeft = 0;
       output->shorttermWinlossError = 0;
       output->shorttermScoreError = 0;
     } else {
       assert(version >= 3);
-      output->whiteScoreMean = miscValuesOutputBuf[0];
+      output->whiteScoreMean = scoreValuesOutputBuf[0];
       // Version 3 neural nets don't have any second moment output, implicitly already folding it in, so we just use the
       // mean squared
       output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;

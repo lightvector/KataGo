@@ -1745,6 +1745,7 @@ class ValueHead {
 @objc
 class SWModelDesc : NSObject {
     let version: Int
+    let name: String
     let numInputChannels: NSNumber
     let numInputGlobalChannels: NSNumber
     let numValueChannels: NSNumber
@@ -1756,6 +1757,7 @@ class SWModelDesc : NSObject {
 
     @objc
     init(version: Int,
+         name: String,
          numInputChannels: NSNumber,
          numInputGlobalChannels: NSNumber,
          numValueChannels: NSNumber,
@@ -1765,6 +1767,7 @@ class SWModelDesc : NSObject {
          policyHead: SWPolicyHeadDesc,
          valueHead: SWValueHeadDesc) {
         self.version = version
+        self.name = name
         self.numInputChannels = numInputChannels
         self.numInputGlobalChannels = numInputGlobalChannels
         self.numValueChannels = numValueChannels
@@ -1786,7 +1789,6 @@ class Model {
     let numOwnershipChannels: NSNumber
     let input: InputLayer
     let inputGlobal: InputGlobalLayer
-    let mask: MaskLayer
     let trunk: Trunk
     let policyHead: PolicyHead
     let valueHead: ValueHead
@@ -1820,12 +1822,22 @@ class Model {
                                        useFP16: useFP16,
                                        useNHWC: useNHWC)
 
-        mask = MaskLayer(graph: graph,
-                         batchSize: batchSize,
-                         nnXLen: nnXLen,
-                         nnYLen: nnYLen,
-                         useFP16: useFP16,
-                         useNHWC: useNHWC)
+        let startOfMask: [NSNumber] = [0, 0, 0, 0]
+        let endOfMask: [NSNumber]
+
+        if useNHWC {
+            endOfMask = [batchSize, nnYLen, nnXLen, 1]
+        } else {
+            endOfMask = [batchSize, 1, nnYLen, nnXLen]
+        }
+
+        let maskTensor = graph.sliceTensor(input.tensor,
+                                           starts: startOfMask,
+                                           ends: endOfMask,
+                                           strides: [1, 1, 1, 1],
+                                           name: nil)
+
+        let mask = MaskLayer(tensor: maskTensor)
 
         let maskSum = MaskSumLayer(graph: graph,
                                    mask: mask,
@@ -1883,7 +1895,6 @@ class Model {
     func apply(device: MPSGraphDevice,
                input inputPointer: UnsafeMutablePointer<Float32>,
                inputGlobal inputGlobalPointer: UnsafeMutablePointer<Float32>,
-               mask maskPointer: UnsafeMutablePointer<Float32>,
                policy: UnsafeMutablePointer<Float32>,
                policyPass: UnsafeMutablePointer<Float32>,
                value: UnsafeMutablePointer<Float32>,
@@ -1894,18 +1905,13 @@ class Model {
         let inputGlobalData = MPSGraphTensorData(device: device,
                                                  tensor: inputGlobal.tensor)!
 
-        let maskData = MPSGraphTensorData(device: device, tensor: mask.tensor)!
-
         inputData.mpsndarray().writeBytes(inputPointer, strideBytes: nil)
 
         inputGlobalData.mpsndarray().writeBytes(inputGlobalPointer,
                                                 strideBytes: nil)
 
-        maskData.mpsndarray().writeBytes(maskPointer, strideBytes: nil)
-
         let feeds = [input.tensor: inputData,
-                     inputGlobal.tensor: inputGlobalData,
-                     mask.tensor: maskData]
+                     inputGlobal.tensor: inputGlobalData]
 
         let targetTensors = [policyHead.policyTensor,
                              policyHead.policyPassTensor,
@@ -1988,6 +1994,7 @@ class ComputeContext: NSObject {
 @objc
 class ComputeHandle: NSObject {
     static var handles: [Int: ComputeHandle] = [:]
+    let device: MPSGraphDevice
     let model: Model
 
     @objc
@@ -2014,16 +2021,21 @@ class ComputeHandle: NSObject {
 
     private init(descriptor: SWModelDesc,
                  batchSize: NSNumber,
-                 gpuIdxForThisThread: Int,
-                 serverThreadIdx: Int) {
+                 gpuIdxForThisThread gpuIdx: Int,
+                 serverThreadIdx threadIdx: Int) {
 
         let context = ComputeContext.getInstance()
         let useFP16: Bool
         let useNHWC: Bool
+        let devices = MTLCopyAllDevices()
 
-        NSLog("ComputeHandle:init(gpuIdxForThisThread=\(gpuIdxForThisThread))")
+        precondition(gpuIdx < devices.count)
+        let mtlDevice = devices[gpuIdx]
+        device = MPSGraphDevice(mtlDevice: devices[gpuIdx])
 
-        // TODO: print device and model information here
+        NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) Model version \(descriptor.version)")
+
+        NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) Model name \(descriptor.name)")
 
         switch context.useFP16Mode {
         case .False: useFP16 = false
@@ -2043,6 +2055,8 @@ class ComputeHandle: NSObject {
                               batchSize: batchSize,
                               useFP16: useFP16,
                               useNHWC: useNHWC)
+
+            NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) useFP16=\(useFP16) useNHWC=\(useNHWC)")
         } catch {
             print("Error: \(error).")
             print("Trying to initialize Model with useNHWC:true ...")
@@ -2054,143 +2068,15 @@ class ComputeHandle: NSObject {
                                batchSize: batchSize,
                                useFP16: useFP16,
                                useNHWC: true)
+
+            NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) useFP16=\(useFP16) useNHWC=\(true)")
         }
-    }
-}
-
-@objc
-class KataGoGraph: NSObject {
-    static let graphs = NSMutableDictionary(capacity: 1)
-    let nnXLen: NSNumber
-    let nnYLen: NSNumber
-    let numInputChannels: NSNumber
-    let numInputGlobalChannels: NSNumber
-    let device: MTLDevice
-    let graph: MPSGraph
-    let inputTensor: MPSGraphTensor
-    let inputGlobalTensor: MPSGraphTensor
-    let symmetriesTensor: MPSGraphTensor
-    let includeHistoryTensor: MPSGraphTensor
-    let policyOutputTensor: MPSGraphTensor
-    let inputTensorData: MPSGraphTensorData
-    let inputGlobalTensorData: MPSGraphTensorData
-
-    @objc
-    class func getGraph(gpuIndex: NSNumber) -> KataGoGraph {
-        return graphs[gpuIndex]! as! KataGoGraph
-    }
-
-    @objc
-    class func initGraph(gpuIndex: NSNumber,
-                         nnXLen: NSNumber,
-                         nnYLen: NSNumber,
-                         version: NSNumber,
-                         numInputChannels: NSNumber,
-                         numInputGlobalChannels: NSNumber,
-                         numValueChannels: NSNumber,
-                         numScoreValueChannels: NSNumber,
-                         numOwnershipChannels: NSNumber) {
-        objc_sync_enter(self)
-        defer { objc_sync_exit(self) }
-
-        if (graphs[gpuIndex] == nil) {
-            graphs[gpuIndex] = KataGoGraph(gpuIndex: gpuIndex,
-                                           nnXLen: nnXLen,
-                                           nnYLen: nnYLen,
-                                           version: version,
-                                           numInputChannels: numInputChannels,
-                                           numInputGlobalChannels: numInputGlobalChannels,
-                                           numValueChannels: numValueChannels,
-                                           numScoreValueChannels: numScoreValueChannels,
-                                           numOwnershipChannels: numOwnershipChannels)
-        }
-    }
-
-    private init(gpuIndex: NSNumber,
-                 nnXLen: NSNumber,
-                 nnYLen: NSNumber,
-                 version: NSNumber,
-                 numInputChannels: NSNumber,
-                 numInputGlobalChannels: NSNumber,
-                 numValueChannels: NSNumber,
-                 numScoreValueChannels: NSNumber,
-                 numOwnershipChannels: NSNumber) {
-        // FIXME: Create device with GPU index
-        device = MTLCreateSystemDefaultDevice()!
-        self.nnXLen = nnXLen
-        self.nnYLen = nnYLen
-        self.numInputChannels = numInputChannels
-        self.numInputGlobalChannels = numInputGlobalChannels
-        graph = MPSGraph()
-
-        inputTensor = graph.placeholder(shape: [nnXLen,
-                                                nnYLen,
-                                                numInputChannels],
-                                        name: "binInputs")
-
-        let inputArrayDesc = MPSNDArrayDescriptor(dataType: inputTensor.dataType,
-                                                  shape: inputTensor.shape!)
-
-        let inputArray = MPSNDArray(device: device, descriptor: inputArrayDesc)
-
-        inputTensorData = MPSGraphTensorData(inputArray)
-
-        inputGlobalTensor = graph.placeholder(shape: [numInputGlobalChannels],
-                                              name: "globalInputs")
-
-        let inputGlobalArrayDesc = MPSNDArrayDescriptor(dataType: inputGlobalTensor.dataType,
-                                                        shape: inputGlobalTensor.shape!)
-
-        let inputGlobalArray = MPSNDArray(device: device, descriptor: inputGlobalArrayDesc)
-
-        inputGlobalTensorData = MPSGraphTensorData(inputGlobalArray)
-
-        symmetriesTensor = graph.constant(0.0, shape: [3], dataType: .float32)
-        includeHistoryTensor = graph.constant(1.0, shape: [5], dataType: .float32)
-
-        // FIXME: The followings are test code, to be removed
-        let numInputElements = NSNumber(integerLiteral: nnXLen.intValue * nnYLen.intValue * numInputChannels.intValue)
-
-        let reshaped = graph.reshape(inputTensor,
-                                     shape: [1, numInputElements],
-                                     name: nil)
-
-        let weightTensor = graph.constant(1.0,
-                                          shape: [numInputElements, 1],
-                                          dataType: .float32)
-
-        policyOutputTensor = graph.matrixMultiplication(primary: reshaped,
-                                                        secondary: weightTensor,
-                                                        name: nil)
-    }
-
-    @objc
-    func run(userInputBuffer: UnsafeMutablePointer<Float32>,
-             userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
-             policyOutput: UnsafeMutablePointer<Float32>,
-             valueOutput: UnsafeMutablePointer<Float32>,
-             ownershipOutput: UnsafeMutablePointer<Float32>,
-             miscValuesOutput: UnsafeMutablePointer<Float32>,
-             moreMiscValuesOutput: UnsafeMutablePointer<Float32>) {
-        let feeds = [inputTensor: inputTensorData,
-               inputGlobalTensor: inputGlobalTensorData]
-
-        inputTensorData.mpsndarray().writeBytes(userInputBuffer, strideBytes: nil)
-        inputGlobalTensorData.mpsndarray().writeBytes(userInputGlobalBuffer, strideBytes: nil)
-
-        let fetch = graph.run(feeds: feeds,
-                              targetTensors: [policyOutputTensor],
-                              targetOperations: nil)
-
-        fetch[policyOutputTensor]!.mpsndarray().readBytes(policyOutput, strideBytes: nil)
-
-        // TODO: Debugging, to be removed
-        policyOutput.printAsFloat(5)
     }
 }
 
 @objc
 class MetalBackend : NSObject {
+
     @objc
     class func printDevices() {
         let devices = MTLCopyAllDevices()
@@ -2198,5 +2084,26 @@ class MetalBackend : NSObject {
         for i in 0..<devices.count {
             print("Found Metal Device \(i): \(devices[i].name) (isLowPower:\(devices[i].isLowPower), isRemovable:\(devices[i].isRemovable))")
         }
+    }
+
+    @objc
+    class func getOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
+                         userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
+                         policyOutput: UnsafeMutablePointer<Float32>,
+                         policyPassOutput: UnsafeMutablePointer<Float32>,
+                         valueOutput: UnsafeMutablePointer<Float32>,
+                         ownershipOutput: UnsafeMutablePointer<Float32>,
+                         scoreValueOutput: UnsafeMutablePointer<Float32>,
+                         gpuIdx: Int) {
+        let handle = ComputeHandle.getInstance(at: gpuIdx)
+
+        handle.model.apply(device: handle.device,
+                           input: userInputBuffer,
+                           inputGlobal: userInputGlobalBuffer,
+                           policy: policyOutput,
+                           policyPass: policyPassOutput,
+                           value: valueOutput,
+                           scoreValue: scoreValueOutput,
+                           ownership: ownershipOutput)
     }
 }

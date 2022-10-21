@@ -18,15 +18,14 @@ void createMetalHandle(int gpuIdxForThisThread,
                        int batchSize,
                        int serverThreadIdx);
 
-void getMetalHandleOutput(
-  float* userInputBuffer,
-  float* userInputGlobalBuffer,
-  float* policyOutput,
-  float* valueOutput,
-  float* ownershipOutput,
-  float* miscValuesOutput,
-  float* moreMiscValuesOutput,
-  int gpuIndex);
+void getMetalHandleOutput(float* userInputBuffer,
+                          float* userInputGlobalBuffer,
+                          float* policyOutput,
+                          float* policyPassOutput,
+                          float* valueOutput,
+                          float* ownershipOutput,
+                          float* scoreValueOutput,
+                          int gpuIdx);
 
 void testMetalEvaluateConv(const ConvLayerDesc* desc,
                            int nnXLen,
