@@ -58,11 +58,11 @@ final class InputGlobalLayerTest: XCTestCase {
 
     func testTensor() {
         let graph = MPSGraph()
-        let tensor = graph.constant(1, shape: [2, 3], dataType: .float32)
+        let tensor = graph.constant(1, shape: [2, 3, 1, 1], dataType: .float32)
         let inputGlobalLayer = InputGlobalLayer(tensor: tensor)
 
         XCTAssert(inputGlobalLayer.tensor === tensor)
-        XCTAssert(inputGlobalLayer.tensor.shape == [2, 3])
+        XCTAssert(inputGlobalLayer.tensor.shape == [2, 3, 1, 1])
         XCTAssert(inputGlobalLayer.tensor.dataType == .float32)
     }
 
@@ -70,9 +70,10 @@ final class InputGlobalLayerTest: XCTestCase {
         let inputGlobalLayer = InputGlobalLayer(graph: MPSGraph(),
                                                 batchSize: 2,
                                                 numGlobalFeatures: 3,
-                                                useFP16: false)
+                                                useFP16: false,
+                                                useNHWC: false)
 
-        XCTAssert(inputGlobalLayer.tensor.shape == [2, 3])
+        XCTAssert(inputGlobalLayer.tensor.shape == [2, 3, 1, 1])
         XCTAssert(inputGlobalLayer.tensor.dataType == .float32)
     }
 
@@ -80,9 +81,21 @@ final class InputGlobalLayerTest: XCTestCase {
         let inputGlobalLayer = InputGlobalLayer(graph: MPSGraph(),
                                                 batchSize: 2,
                                                 numGlobalFeatures: 3,
-                                                useFP16: true)
+                                                useFP16: true,
+                                                useNHWC: false)
 
-        XCTAssert(inputGlobalLayer.tensor.shape == [2, 3])
+        XCTAssert(inputGlobalLayer.tensor.shape == [2, 3, 1, 1])
+        XCTAssert(inputGlobalLayer.tensor.dataType == .float16)
+    }
+
+    func testNHWC() {
+        let inputGlobalLayer = InputGlobalLayer(graph: MPSGraph(),
+                                                batchSize: 2,
+                                                numGlobalFeatures: 3,
+                                                useFP16: true,
+                                                useNHWC: true)
+
+        XCTAssert(inputGlobalLayer.tensor.shape == [2, 1, 1, 3])
         XCTAssert(inputGlobalLayer.tensor.dataType == .float16)
     }
 }
@@ -1016,6 +1029,137 @@ final class ResidualBlockTest: XCTestCase {
         XCTAssertEqual(outputPointer[18], -3, accuracy: 1e-8)
         XCTAssertEqual(outputPointer[23], 1, accuracy: 1e-8)
     }
+
+    func testUnity() {
+        let useFP16 = false
+        let useNHWC = false
+        let batchSize = 2
+        let nnXLen = 2
+        let nnYLen = 2
+        let numChannels = 2
+
+        let unityConvWeights = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels * numChannels)
+
+        unityConvWeights[0] = 1
+        unityConvWeights[1] = 0
+        unityConvWeights[2] = 0
+        unityConvWeights[3] = 1
+
+        let unityConv = SWConvLayerDesc(convYSize: 1,
+                                        convXSize: 1,
+                                        inChannels: numChannels as NSNumber,
+                                        outChannels: numChannels as NSNumber,
+                                        dilationY: 1,
+                                        dilationX: 1,
+                                        weights: unityConvWeights)
+
+        let mean = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
+
+        mean[0] = 0
+        mean[1] = 0
+
+        let variance = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
+
+        variance[0] = 0.9
+        variance[1] = 0.9
+
+        let scale = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
+
+        scale[0] = 1
+        scale[1] = 1
+
+        let bias = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
+
+        bias[0] = 0
+        bias[1] = 0
+
+        let unityBN = SWBatchNormLayerDesc(numChannels: numChannels as NSNumber,
+                                           epsilon: 0.1,
+                                           hasScale: false,
+                                           hasBias: false,
+                                           mean: mean,
+                                           variance: variance,
+                                           scale: scale,
+                                           bias: bias)
+
+        let residualBlock = SWResidualBlockDesc(preBN: unityBN,
+                                                preActivation: nil,
+                                                regularConv: unityConv,
+                                                midBN: unityBN,
+                                                midActivation: nil,
+                                                finalConv: unityConv)
+
+        let graph = MPSGraph()
+
+        let input = InputLayer(graph: graph,
+                               batchSize: batchSize as NSNumber,
+                               nnXLen: nnXLen as NSNumber,
+                               nnYLen: nnYLen as NSNumber,
+                               numChannels: numChannels as NSNumber,
+                               useFP16: useFP16,
+                               useNHWC: useNHWC)
+
+        let mask = MaskLayer(graph: graph,
+                             batchSize: batchSize as NSNumber,
+                             nnXLen: nnXLen as NSNumber,
+                             nnYLen: nnYLen as NSNumber,
+                             useFP16: useFP16,
+                             useNHWC: useNHWC)
+
+        let block = ResidualBlock(graph: graph,
+                                  sourceTensor: input.tensor,
+                                  maskTensor: mask.tensor,
+                                  descriptor: residualBlock,
+                                  nnXLen: nnXLen as NSNumber,
+                                  nnYLen: nnYLen as NSNumber,
+                                  batchSize: batchSize as NSNumber,
+                                  useFP16: useFP16,
+                                  useNHWC: useNHWC)
+
+        let inputCount = batchSize * numChannels * nnXLen * nnYLen
+        let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
+
+        for i in 0..<inputCount {
+            inputPointer[i] = Float32(i)
+        }
+
+        let maskCount = batchSize * nnXLen * nnYLen
+        let maskPointer = UnsafeMutablePointer<Float32>.allocate(capacity: maskCount)
+
+        for i in 0..<maskCount {
+            maskPointer[i] = 1
+        }
+
+        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+
+        let inputTensorData = MPSGraphTensorData(device: device,
+                                                 tensor: input.tensor)!
+
+        inputTensorData.mpsndarray().writeBytes(inputPointer,
+                                                strideBytes: nil)
+
+        let maskTensorData = MPSGraphTensorData(device: device,
+                                                tensor: mask.tensor)!
+
+        maskTensorData.mpsndarray().writeBytes(maskPointer,
+                                               strideBytes: nil)
+
+        let fetch = graph.run(feeds: [input.tensor: inputTensorData,
+                                      mask.tensor: maskTensorData],
+                              targetTensors: [block.resultTensor],
+                              targetOperations: nil)
+
+        let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
+
+        fetch[block.resultTensor]?.mpsndarray().readBytes(outputPointer,
+                                                          strideBytes: nil)
+
+        XCTAssertEqual(outputPointer[0], 0, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[1], 2, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[2], 4, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[3], 6, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[15], 30, accuracy: 1e-8)
+    }
 }
 
 final class GlobalPoolingResidualBlockTest: XCTestCase {
@@ -1116,8 +1260,10 @@ final class GlobalPoolingResidualBlockTest: XCTestCase {
         gpoolBN.scale[0] = 1; gpoolBN.scale[1] = 1
         gpoolBN.bias[0] = 0; gpoolBN.bias[1] = -2
 
+        let inChannels = NSNumber(value: gpoolChannels.intValue * 3)
+
         let gpoolToBiasMul =
-        SWMatMulLayerDesc(inChannels: 6,
+        SWMatMulLayerDesc(inChannels: inChannels,
                           outChannels: 1,
                           weights: UnsafeMutablePointer<Float32>.allocate(capacity: 6))
 
@@ -1616,7 +1762,6 @@ final class MatMulLayerTest: XCTestCase {
     }
 }
 
-
 final class MatBiasLayerTest: XCTestCase {
 
     func testFP16() {
@@ -1763,5 +1908,227 @@ final class MatBiasLayerTest: XCTestCase {
                                               sourceTensor: input.tensor,
                                               useFP16: useFP16,
                                               useNHWC: useNHWC))
+    }
+}
+
+final class TrunkTest: XCTestCase {
+
+    func testUnity() {
+        let useFP16 = false
+        let useNHWC = false
+        let batchSize = 2
+        let nnXLen = 2
+        let nnYLen = 2
+        let numChannels = 2
+        let unityConvWeights = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels * numChannels)
+
+        unityConvWeights[0] = 1
+        unityConvWeights[1] = 0
+        unityConvWeights[2] = 0
+        unityConvWeights[3] = 1
+
+        let unityConv = SWConvLayerDesc(convYSize: 1,
+                                        convXSize: 1,
+                                        inChannels: numChannels as NSNumber,
+                                        outChannels: numChannels as NSNumber,
+                                        dilationY: 1,
+                                        dilationX: 1,
+                                        weights: unityConvWeights)
+
+        let initialMatMulWeights =
+        UnsafeMutablePointer<Float32>.allocate(capacity: numChannels * numChannels)
+
+        initialMatMulWeights[0] = 1
+        initialMatMulWeights[1] = 0
+        initialMatMulWeights[2] = 0
+        initialMatMulWeights[3] = 1
+
+        let initialMatMul = SWMatMulLayerDesc(inChannels: numChannels as NSNumber,
+                                              outChannels: numChannels as NSNumber,
+                                              weights: initialMatMulWeights)
+
+        let mean = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
+
+        mean[0] = 0
+        mean[1] = 0
+
+        let variance = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
+
+        variance[0] = 0.9
+        variance[1] = 0.9
+
+        let scale = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
+
+        scale[0] = 1
+        scale[1] = 1
+
+        let bias = UnsafeMutablePointer<Float32>.allocate(capacity: numChannels)
+
+        bias[0] = 0
+        bias[1] = 0
+
+        let unityBN = SWBatchNormLayerDesc(numChannels: numChannels as NSNumber,
+                                           epsilon: 0.1,
+                                           hasScale: false,
+                                           hasBias: false,
+                                           mean: mean,
+                                           variance: variance,
+                                           scale: scale,
+                                           bias: bias)
+
+        let residualBlock = SWResidualBlockDesc(preBN: unityBN,
+                                                preActivation: nil,
+                                                regularConv: unityConv,
+                                                midBN: unityBN,
+                                                midActivation: nil,
+                                                finalConv: unityConv)
+
+        let gpoolToBiasCount = 3 * numChannels * numChannels
+        let gpoolToBiasMulWeights =
+        UnsafeMutablePointer<Float32>.allocate(capacity: 3 * numChannels * numChannels)
+
+        for i in 0..<gpoolToBiasCount {
+            gpoolToBiasMulWeights[i] = 0
+        }
+
+        let gpoolToBiasMul = SWMatMulLayerDesc(inChannels: (3 * numChannels) as NSNumber,
+                                               outChannels: numChannels as NSNumber,
+                                               weights: gpoolToBiasMulWeights)
+
+        let globalPoolingResidualBlock =
+        SWGlobalPoolingResidualBlockDesc(preBN: unityBN,
+                                         preActivation: nil,
+                                         regularConv: unityConv,
+                                         gpoolConv: unityConv,
+                                         gpoolBN: unityBN,
+                                         gpoolActivation: nil,
+                                         gpoolToBiasMul: gpoolToBiasMul,
+                                         midBN: unityBN,
+                                         midActivation: nil,
+                                         finalConv: unityConv)
+
+        let blocks = [
+            BlockDescriptor(kind: BlockKind.ordinary,
+                            ordinary: residualBlock,
+                            globalPooling: nil),
+            BlockDescriptor(kind: BlockKind.globalPooling,
+                            ordinary: nil,
+                            globalPooling: globalPoolingResidualBlock)]
+
+        let descriptor = SWTrunkDesc(version: 0,
+                                     numBlocks: blocks.count,
+                                     trunkNumChannels: numChannels as NSNumber,
+                                     midNumChannels: numChannels as NSNumber,
+                                     regularNumChannels: numChannels as NSNumber,
+                                     dilatedNumChannels: numChannels as NSNumber,
+                                     gpoolNumChannels: numChannels as NSNumber,
+                                     initialConv: unityConv,
+                                     initialMatMul: initialMatMul,
+                                     blocks: blocks,
+                                     trunkTipBN: unityBN)
+
+        let graph = MPSGraph()
+
+        let input = InputLayer(graph: graph,
+                               batchSize: batchSize as NSNumber,
+                               nnXLen: nnXLen as NSNumber,
+                               nnYLen: nnYLen as NSNumber,
+                               numChannels: numChannels as NSNumber,
+                               useFP16: useFP16,
+                               useNHWC: useNHWC)
+
+        let inputGlobal = InputGlobalLayer(graph: graph,
+                                           batchSize: batchSize as NSNumber,
+                                           numGlobalFeatures: numChannels as NSNumber,
+                                           useFP16: useFP16,
+                                           useNHWC: useNHWC)
+
+        let mask = MaskLayer(graph: graph,
+                             batchSize: batchSize as NSNumber,
+                             nnXLen: nnXLen as NSNumber,
+                             nnYLen: nnYLen as NSNumber,
+                             useFP16: useFP16,
+                             useNHWC: useNHWC)
+
+        let maskSum = MaskSumLayer(graph: graph, mask: mask, useNHWC: useNHWC)
+
+        let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(graph: graph,
+                                                       maskSum: maskSum,
+                                                       useFP16: useFP16)
+
+        let trunk = try! Trunk(graph: graph,
+                               descriptor: descriptor,
+                               inputTensor: input.tensor,
+                               inputGlobalTensor: inputGlobal.tensor,
+                               maskTensor: mask.tensor,
+                               maskSumTensor: maskSum.tensor,
+                               maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+                               nnXLen: nnXLen as NSNumber,
+                               nnYLen: nnYLen as NSNumber,
+                               batchSize: batchSize as NSNumber,
+                               numSpatialFeatures: numChannels as NSNumber,
+                               numGlobalFeatures: numChannels as NSNumber,
+                               useFP16: useFP16,
+                               useNHWC: useNHWC)
+
+        let inputCount = batchSize * numChannels * nnXLen * nnYLen
+        let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
+
+        for i in 0..<inputCount {
+            inputPointer[i] = Float32(i)
+        }
+
+        let inputGlobalCount = batchSize * numChannels
+
+        let inputGlobalPointer =
+        UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
+
+        for i in 0..<inputGlobalCount {
+            inputGlobalPointer[i] = 1
+        }
+
+        let maskCount = batchSize * nnXLen * nnYLen
+        let maskPointer = UnsafeMutablePointer<Float32>.allocate(capacity: maskCount)
+
+        for i in 0..<maskCount {
+            maskPointer[i] = 1
+        }
+
+        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+
+        let inputTensorData = MPSGraphTensorData(device: device,
+                                                 tensor: input.tensor)!
+
+        inputTensorData.mpsndarray().writeBytes(inputPointer,
+                                                strideBytes: nil)
+
+        let inputGlobalTensorData = MPSGraphTensorData(device: device,
+                                                       tensor: inputGlobal.tensor)!
+
+        inputGlobalTensorData.mpsndarray().writeBytes(inputGlobalPointer,
+                                                      strideBytes: nil)
+
+        let maskTensorData = MPSGraphTensorData(device: device,
+                                                tensor: mask.tensor)!
+
+        maskTensorData.mpsndarray().writeBytes(maskPointer,
+                                               strideBytes: nil)
+
+        let fetch = graph.run(feeds: [input.tensor: inputTensorData,
+                                      inputGlobal.tensor: inputGlobalTensorData,
+                                      mask.tensor: maskTensorData],
+                              targetTensors: [trunk.resultTensor],
+                              targetOperations: nil)
+
+        let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
+
+        fetch[trunk.resultTensor]?.mpsndarray().readBytes(outputPointer,
+                                                          strideBytes: nil)
+
+        XCTAssertEqual(outputPointer[0], 4, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[1], 8, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[2], 12, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[3], 16, accuracy: 1e-8)
+        XCTAssertEqual(outputPointer[15], 64, accuracy: 1e-8)
     }
 }
