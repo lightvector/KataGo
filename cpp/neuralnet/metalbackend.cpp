@@ -233,6 +233,7 @@ struct InputBuffers {
     userInputBufferElts = (size_t)maxBatchSize * singleInputElts;
     userInputGlobalBufferElts = (size_t)maxBatchSize * singleInputGlobalElts;
     policyResultBufferElts = (size_t)maxBatchSize * singlePolicyResultElts * policyResultChannels;
+    policyPassResultBufferElts = (size_t)maxBatchSize * singlePolicyPassResultElts;
     valueResultBufferElts = (size_t)maxBatchSize * singleValueResultElts;
     ownershipResultBufferElts = (size_t)maxBatchSize * singleOwnershipResultElts;
     scoreValuesResultBufferElts = (size_t)maxBatchSize * singleScoreValuesResultElts;

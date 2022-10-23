@@ -920,11 +920,11 @@ class MatMulLayer {
          useFP16: Bool,
          useNHWC: Bool) throws {
 
-        assert(sourceTensor.shape?.count == 4)
-
         guard useNHWC ||
                 (descriptor.outChannels == 1) ||
-                (sourceTensor.shape?[2] == 1) && (sourceTensor.shape?[3] == 1) else {
+                (sourceTensor.shape?.count == 2) ||
+                ((sourceTensor.shape?.count == 4) &&
+                 (sourceTensor.shape?[2] == 1) && (sourceTensor.shape?[3] == 1)) else {
             throw MetalBackendError.CannotUseNCHW
         }
 
@@ -988,7 +988,9 @@ class MatBiasLayer {
 
         guard useNHWC ||
                 (descriptor.numChannels == 1) ||
-                (sourceTensor.shape?[2] == 1) && (sourceTensor.shape?[3] == 1) else {
+                (sourceTensor.shape?.count == 2) ||
+                ((sourceTensor.shape?.count == 4) &&
+                 (sourceTensor.shape?[2] == 1) && (sourceTensor.shape?[3] == 1)) else {
             throw MetalBackendError.CannotUseNCHW
         }
 
@@ -1736,8 +1738,8 @@ class ValueHead {
         scoreValueTensor = sv3Bias.resultTensor
         ownershipTensor = vOwnershipConv.resultTensor
 
-        assert(valueTensor.shape?.count == 4)
-        assert(scoreValueTensor.shape?.count == 4)
+        assert(valueTensor.shape?.count == 2)
+        assert(scoreValueTensor.shape?.count == 2)
         assert(ownershipTensor.shape?.count == 4)
     }
 }
@@ -1940,26 +1942,31 @@ class Model {
     }
 }
 
-@objc
-enum SWEnable: Int {
+// A enum to represent enabled/disabled/auto option of a feature.
+@objc enum SWEnable: Int {
     case False
     case True
     case Auto
 }
 
-@objc
-class ComputeContext: NSObject {
+/// A class that represents context of GPU devices.
+@objc class ComputeContext: NSObject {
     static var instance = ComputeContext()
     let nnXLen: NSNumber
     let nnYLen: NSNumber
     let useFP16Mode: SWEnable
     let useNHWCMode: SWEnable
 
-    @objc
-    class func createInstance(nnXLen: NSNumber,
-                              nnYLen: NSNumber,
-                              useFP16Mode: SWEnable,
-                              useNHWCMode: SWEnable) {
+    /// Create a context.
+    /// - Parameters:
+    ///   - nnXLen: The width of the input tensor.
+    ///   - nnYLen: The height of the input tensor.
+    ///   - useFP16Mode: use FP16 mode or not.
+    ///   - useNHWCMode: use NHWC mode or not.
+    @objc class func createInstance(nnXLen: NSNumber,
+                                    nnYLen: NSNumber,
+                                    useFP16Mode: SWEnable,
+                                    useNHWCMode: SWEnable) {
         objc_sync_enter(self)
         defer { objc_sync_exit(self) }
 
@@ -1969,17 +1976,25 @@ class ComputeContext: NSObject {
                                   useNHWCMode: useNHWCMode)
     }
 
-    @objc
-    class func getInstance() -> ComputeContext {
+    /// Get the context.
+    /// - Returns: The context.
+    @objc class func getInstance() -> ComputeContext {
         objc_sync_enter(self)
         defer { objc_sync_exit(self) }
         return instance
     }
 
+    /// Initialize a context.
     private convenience override init() {
         self.init(nnXLen: 19, nnYLen: 19, useFP16Mode: .False, useNHWCMode: .False)
     }
 
+    /// Initialize a context.
+    /// - Parameters:
+    ///   - nnXLen: The width of the input tensor.
+    ///   - nnYLen: The height of the input tensor.
+    ///   - useFP16Mode: use FP16 mode or not.
+    ///   - useNHWCMode: use NHWC mode or not.
     private init(nnXLen: NSNumber,
                  nnYLen: NSNumber,
                  useFP16Mode: SWEnable,
@@ -1991,20 +2006,24 @@ class ComputeContext: NSObject {
     }
 }
 
-@objc
-class ComputeHandle: NSObject {
+/// A class that represents a handle of GPU device.
+@objc class ComputeHandle: NSObject {
     static var handles: [Int: ComputeHandle] = [:]
     let device: MPSGraphDevice
     let model: Model
 
-    @objc
-    class func createInstance(at gpuIdxForThisThread: Int,
-                              descriptor: SWModelDesc,
-                              batchSize: NSNumber,
-                              serverThreadIdx: Int) {
+    /// Creates a new handle of GPU device.
+    /// - Parameters:
+    ///   - gpuIdxForThisThread: The index of GPU device.
+    ///   - descriptor: The descriptor of the model.
+    ///   - batchSize: The batch size.
+    ///   - serverThreadIdx: The index of the server thread.
+    @objc class func createInstance(at gpuIdxForThisThread: Int,
+                                    descriptor: SWModelDesc,
+                                    batchSize: NSNumber,
+                                    serverThreadIdx: Int) {
         objc_sync_enter(self)
         defer { objc_sync_exit(self) }
-        assert(handles[gpuIdxForThisThread] == nil)
 
         handles[gpuIdxForThisThread] = ComputeHandle(descriptor: descriptor,
                                                      batchSize: batchSize,
@@ -2012,13 +2031,21 @@ class ComputeHandle: NSObject {
                                                      serverThreadIdx: serverThreadIdx)
     }
 
-    @objc
-    class func getInstance(at gpuIdxForThisThread: Int) -> ComputeHandle {
+    /// Gets the handle of GPU device.
+    /// - Parameter gpuIdxForThisThread: The index of GPU device.
+    /// - Returns: The handle of GPU device.
+    @objc class func getInstance(at gpuIdxForThisThread: Int) -> ComputeHandle {
         objc_sync_enter(self)
         defer { objc_sync_exit(self) }
         return handles[gpuIdxForThisThread]!
     }
 
+    /// Initializes a new instance of the `ComputeHandle` class.
+    /// - Parameters:
+    ///   - descriptor: The descriptor of the model.
+    ///   - batchSize: The batch size.
+    ///   - gpuIdx: The index of GPU device.
+    ///   - threadIdx: The index of the server thread.
     private init(descriptor: SWModelDesc,
                  batchSize: NSNumber,
                  gpuIdxForThisThread gpuIdx: Int,
@@ -2028,25 +2055,34 @@ class ComputeHandle: NSObject {
         let useFP16: Bool
         let useNHWC: Bool
         let devices = MTLCopyAllDevices()
+        let mtlDevice: MTLDevice
 
-        precondition(gpuIdx < devices.count)
-        let mtlDevice = devices[gpuIdx]
-        device = MPSGraphDevice(mtlDevice: devices[gpuIdx])
+        // Select a GPU device.
+        if ((gpuIdx >= 0) && (gpuIdx < devices.count)) {
+            mtlDevice = devices[gpuIdx]
+        } else {
+            mtlDevice = MTLCreateSystemDefaultDevice()!
+        }
+
+        device = MPSGraphDevice(mtlDevice: mtlDevice)
 
         NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) Model version \(descriptor.version)")
 
         NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) Model name \(descriptor.name)")
 
+        // Select useFP16 mode.
         switch context.useFP16Mode {
         case .False: useFP16 = false
         default: useFP16 = true
         }
 
+        // Select useNHWC mode.
         switch context.useNHWCMode {
         case .False: useNHWC = false
         default: useNHWC = true
         }
 
+        // Create a model.
         do {
             model = try Model(graph: MPSGraph(),
                               descriptor: descriptor,
@@ -2061,6 +2097,7 @@ class ComputeHandle: NSObject {
             print("Error: \(error).")
             print("Trying to initialize Model with useNHWC:true ...")
 
+            // Try to initialize a model with useNHWC:true.
             model = try! Model(graph: MPSGraph(),
                                descriptor: descriptor,
                                nnXLen: context.nnXLen,
@@ -2074,11 +2111,11 @@ class ComputeHandle: NSObject {
     }
 }
 
-@objc
-class MetalBackend : NSObject {
+/// A class that represents Metal backend.
+@objc class MetalBackend : NSObject {
 
-    @objc
-    class func printDevices() {
+    /// Print all available devices.
+    @objc class func printDevices() {
         let devices = MTLCopyAllDevices()
 
         for i in 0..<devices.count {
@@ -2086,15 +2123,24 @@ class MetalBackend : NSObject {
         }
     }
 
-    @objc
-    class func getOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
-                         userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
-                         policyOutput: UnsafeMutablePointer<Float32>,
-                         policyPassOutput: UnsafeMutablePointer<Float32>,
-                         valueOutput: UnsafeMutablePointer<Float32>,
-                         ownershipOutput: UnsafeMutablePointer<Float32>,
-                         scoreValueOutput: UnsafeMutablePointer<Float32>,
-                         gpuIdx: Int) {
+    /// Get output data from the model.
+    /// - Parameters:
+    ///   - userInputBuffer: The input data.
+    ///   - userInputGlobalBuffer: The global input data.
+    ///   - policyOutput: The policy output data.
+    ///   - policyPassOutput: The policy pass output data.
+    ///   - valueOutput: The value output data.
+    ///   - ownershipOutput: The ownership output data.
+    ///   - scoreValueOutput: The score value output data.
+    ///   - gpuIdx: The index of the GPU to use.
+    @objc class func getOutput(userInputBuffer: UnsafeMutablePointer<Float32>,
+                               userInputGlobalBuffer: UnsafeMutablePointer<Float32>,
+                               policyOutput: UnsafeMutablePointer<Float32>,
+                               policyPassOutput: UnsafeMutablePointer<Float32>,
+                               valueOutput: UnsafeMutablePointer<Float32>,
+                               ownershipOutput: UnsafeMutablePointer<Float32>,
+                               scoreValueOutput: UnsafeMutablePointer<Float32>,
+                               gpuIdx: Int) {
         let handle = ComputeHandle.getInstance(at: gpuIdx)
 
         handle.model.apply(device: handle.device,

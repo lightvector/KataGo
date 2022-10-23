@@ -56,7 +56,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "runnnlayertests"
+            argument = "benchmark"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
