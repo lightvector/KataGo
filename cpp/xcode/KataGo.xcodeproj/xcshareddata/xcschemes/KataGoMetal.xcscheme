@@ -60,11 +60,11 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "runnnontinyboardtest $HOME/.katago/default_model.bin.gz true true 0 false"
+            argument = "runnnontinyboardtest $HOME/.katago/default_model.bin.gz true true 0 true"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "runnnsymmetriestest $HOME/.katago/default_model.bin.gz true true false"
+            argument = "runnnsymmetriestest $HOME/.katago/default_model.bin.gz true true true"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument

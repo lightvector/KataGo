@@ -20,6 +20,14 @@ extension UnsafeMutablePointer<Float32> {
     }
 }
 
+extension UnsafeMutablePointer<Float16> {
+    func toFP32(_ fp32Pointer: UnsafeMutablePointer<Float32>, length: Int) {
+        for i in 0..<length {
+            fp32Pointer[i] = Float32(self[i])
+        }
+    }
+}
+
 extension MPSNDArray {
     func dumpFloats(name: String?, length: Int) {
         print(name ?? "")
@@ -1783,6 +1791,10 @@ class SWModelDesc : NSObject {
 
 class Model {
     let graph: MPSGraph
+    let nnXLen: NSNumber
+    let nnYLen: NSNumber
+    let batchSize: NSNumber
+    let useFP16: Bool
     let version: Int
     let numInputChannels: NSNumber
     let numInputGlobalChannels: NSNumber
@@ -1803,6 +1815,10 @@ class Model {
          useFP16: Bool,
          useNHWC: Bool) throws {
         self.graph = graph
+        self.nnXLen = nnXLen
+        self.nnYLen = nnYLen
+        self.batchSize = batchSize
+        self.useFP16 = useFP16
         self.version = descriptor.version
         self.numInputChannels = descriptor.numInputChannels
         self.numInputGlobalChannels = descriptor.numInputGlobalChannels
@@ -1907,10 +1923,23 @@ class Model {
         let inputGlobalData = MPSGraphTensorData(device: device,
                                                  tensor: inputGlobal.tensor)!
 
-        inputData.mpsndarray().writeBytes(inputPointer, strideBytes: nil)
+        if useFP16 {
+            let inputCount = input.tensor.shape!.product().intValue
 
-        inputGlobalData.mpsndarray().writeBytes(inputGlobalPointer,
-                                                strideBytes: nil)
+            inputData.mpsndarray().writeBytes(inputPointer.toFP16(length: inputCount),
+                                              strideBytes: nil)
+
+            let inputGlobalCount = inputGlobal.tensor.shape!.product().intValue
+
+            inputGlobalData.mpsndarray().writeBytes(inputGlobalPointer.toFP16(length: inputGlobalCount),
+                                                    strideBytes: nil)
+        } else {
+            inputData.mpsndarray().writeBytes(inputPointer,
+                                              strideBytes: nil)
+
+            inputGlobalData.mpsndarray().writeBytes(inputGlobalPointer,
+                                                    strideBytes: nil)
+        }
 
         let feeds = [input.tensor: inputData,
                      inputGlobal.tensor: inputGlobalData]
@@ -1925,20 +1954,62 @@ class Model {
                               targetTensors: targetTensors,
                               targetOperations: nil)
 
-        fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policy,
-                                                               strideBytes: nil)
+        if useFP16 {
+            let policyCount = policyHead.policyTensor.shape!.product().intValue
+            let policyFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: policyCount)
 
-        fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPass,
+            fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policyFP16,
                                                                    strideBytes: nil)
 
-        fetch[valueHead.valueTensor]?.mpsndarray().readBytes(value,
-                                                             strideBytes: nil)
+            policyFP16.toFP32(policy, length: policyCount)
 
-        fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValue,
-                                                                  strideBytes: nil)
+            let policyPassCount = policyHead.policyPassTensor.shape!.product().intValue
+            let policyPassFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: policyPassCount)
 
-        fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownership,
+            fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPassFP16,
+                                                                       strideBytes: nil)
+
+            policyPassFP16.toFP32(policyPass, length: policyPassCount)
+
+            let valueCount = valueHead.valueTensor.shape!.product().intValue
+            let valueFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: valueCount)
+
+            fetch[valueHead.valueTensor]?.mpsndarray().readBytes(valueFP16,
                                                                  strideBytes: nil)
+
+            valueFP16.toFP32(value, length: valueCount)
+
+            let scoreValueCount = valueHead.scoreValueTensor.shape!.product().intValue
+            let scoreValueFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: scoreValueCount)
+
+            fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValueFP16,
+                                                                      strideBytes: nil)
+
+            scoreValueFP16.toFP32(scoreValue, length: scoreValueCount)
+
+            let ownershipCount = valueHead.ownershipTensor.shape!.product().intValue
+            let ownershipFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: ownershipCount)
+
+            fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownershipFP16,
+                                                                     strideBytes: nil)
+
+            ownershipFP16.toFP32(ownership, length: ownershipCount)
+        } else {
+            fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policy,
+                                                                   strideBytes: nil)
+
+            fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPass,
+                                                                       strideBytes: nil)
+
+            fetch[valueHead.valueTensor]?.mpsndarray().readBytes(value,
+                                                                 strideBytes: nil)
+
+            fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValue,
+                                                                      strideBytes: nil)
+
+            fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownership,
+                                                                     strideBytes: nil)
+        }
     }
 }
 
