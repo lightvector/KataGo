@@ -222,6 +222,14 @@ void createMetalContext(int nnXLen,
                                  useNHWCMode:useNHWCMode];
 }
 
+int getMetalContextXLen(void) {
+    return [MetalBackend getContextXLen];
+}
+
+int getMetalContextYLen(void) {
+    return [MetalBackend getContextYLen];
+}
+
 void createMetalHandle(int gpuIdxForThisThread,
                        const ModelDesc* desc,
                        int batchSize,

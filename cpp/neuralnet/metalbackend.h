@@ -13,6 +13,9 @@ void createMetalContext(int nnXLen,
                         enabled_t inputUseFP16Mode,
                         enabled_t inputUseNHWCMode);
 
+int getMetalContextXLen(void);
+int getMetalContextYLen(void);
+
 void createMetalHandle(int gpuIdxForThisThread,
                        const ModelDesc* desc,
                        int batchSize,

@@ -56,12 +56,8 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
 }
 
 struct ComputeContext {
-  int nnXLen;
-  int nnYLen;
-
-  ComputeContext(int nnX, int nnY) {
-    nnXLen = nnX;
-    nnYLen = nnY;
+  ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode) {
+    createMetalContext(nnX, nnY, useFP16Mode, useNHWCMode);
   }
 
   ~ComputeContext() {}
@@ -90,9 +86,7 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)openCLReTunePerBoardSize;
   (void)loadedModel;
 
-  createMetalContext(nnXLen, nnYLen, useFP16Mode, useNHWCMode);
-
-  return new ComputeContext(nnXLen, nnYLen);
+  return new ComputeContext(nnXLen, nnYLen, useFP16Mode, useNHWCMode);
 }
 
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
@@ -117,8 +111,8 @@ struct ComputeHandle {
                 int serverThreadIdx) {
     const ModelDesc* modelDesc = &loadedModel->modelDesc;
 
-    nnXLen = context->nnXLen;
-    nnYLen = context->nnYLen;
+    nnXLen = getMetalContextXLen();
+    nnYLen = getMetalContextYLen();
     this->maxBatchSize = maxBatchSize;
     this->inputsUseNHWC = inputsUseNHWC;
     gpuIndex = gpuIdx;
@@ -367,8 +361,8 @@ void NeuralNet::getOutput(
       output->whiteScoreMeanSq = scoreValuesOutputBuf[1];
       output->whiteLead = scoreValuesOutputBuf[2];
       output->varTimeLeft = scoreValuesOutputBuf[3];
-      output->shorttermWinlossError = scoreValuesOutputBuf[0];
-      output->shorttermScoreError = scoreValuesOutputBuf[1];
+      output->shorttermWinlossError = scoreValuesOutputBuf[4];
+      output->shorttermScoreError = scoreValuesOutputBuf[5];
     } else if(version >= 8) {
       output->whiteScoreMean = scoreValuesOutputBuf[0];
       output->whiteScoreMeanSq = scoreValuesOutputBuf[1];

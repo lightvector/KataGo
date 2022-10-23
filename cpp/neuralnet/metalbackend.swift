@@ -2123,6 +2123,18 @@ class Model {
         }
     }
 
+    /// Get width of the input tensor.
+    /// - Returns: The width of the input tensor.
+    @objc class func getContextXLen() -> Int {
+        return ComputeContext.getInstance().nnXLen.intValue
+    }
+
+    /// Get height of the input tensor.
+    /// - Returns: The height of the input tensor.
+    @objc class func getContextYLen() -> Int {
+        return ComputeContext.getInstance().nnYLen.intValue
+    }
+
     /// Get output data from the model.
     /// - Parameters:
     ///   - userInputBuffer: The input data.
