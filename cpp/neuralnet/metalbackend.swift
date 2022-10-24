@@ -18,6 +18,12 @@ extension UnsafeMutablePointer<Float32> {
 
         return fp16Pointer
     }
+
+    func toFP16(_ fp16Pointer: UnsafeMutablePointer<Float16>, length: Int) {
+        for i in 0..<length {
+            fp16Pointer[i] = Float16(self[i])
+        }
+    }
 }
 
 extension UnsafeMutablePointer<Float16> {
@@ -1806,8 +1812,27 @@ class Model {
     let trunk: Trunk
     let policyHead: PolicyHead
     let valueHead: ValueHead
+    let inputCount: Int
+    let inputFP16: UnsafeMutablePointer<Float16>?
+    let inputGlobalCount: Int
+    let inputGlobalFP16: UnsafeMutablePointer<Float16>?
+    let policyCount: Int
+    let policyFP16: UnsafeMutablePointer<Float16>?
+    let policyPassCount: Int
+    let policyPassFP16: UnsafeMutablePointer<Float16>?
+    let valueCount: Int
+    let valueFP16: UnsafeMutablePointer<Float16>?
+    let scoreValueCount: Int
+    let scoreValueFP16: UnsafeMutablePointer<Float16>?
+    let ownershipCount: Int
+    let ownershipFP16: UnsafeMutablePointer<Float16>?
+    let inputData: MPSGraphTensorData
+    let inputGlobalData: MPSGraphTensorData
+    let inputArray: MPSNDArray
+    let inputGlobalArray: MPSNDArray
 
-    init(graph: MPSGraph,
+    init(device: MPSGraphDevice,
+         graph: MPSGraph,
          descriptor: SWModelDesc,
          nnXLen: NSNumber,
          nnYLen: NSNumber,
@@ -1908,37 +1933,64 @@ class Model {
                                   batchSize: batchSize,
                                   useFP16: useFP16,
                                   useNHWC: useNHWC)
+
+        inputCount = input.tensor.shape!.product().intValue
+        inputGlobalCount = inputGlobal.tensor.shape!.product().intValue
+        policyCount = policyHead.policyTensor.shape!.product().intValue
+        policyPassCount = policyHead.policyPassTensor.shape!.product().intValue
+        valueCount = valueHead.valueTensor.shape!.product().intValue
+        scoreValueCount = valueHead.scoreValueTensor.shape!.product().intValue
+        ownershipCount = valueHead.ownershipTensor.shape!.product().intValue
+
+        if useFP16 {
+            inputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: inputCount)
+            inputGlobalFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: inputGlobalCount)
+            policyFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: policyCount)
+            policyPassFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: policyPassCount)
+            valueFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: valueCount)
+            scoreValueFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: scoreValueCount)
+            ownershipFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: ownershipCount)
+        } else {
+            inputFP16 = nil
+            inputGlobalFP16 = nil
+            policyFP16 = nil
+            policyPassFP16 = nil
+            valueFP16 = nil
+            scoreValueFP16 = nil
+            ownershipFP16 = nil
+        }
+
+        inputData = MPSGraphTensorData(device: device, tensor: input.tensor)!
+
+        inputArray = inputData.mpsndarray()
+
+        inputGlobalData = MPSGraphTensorData(device: device,
+                                             tensor: inputGlobal.tensor)!
+
+        inputGlobalArray = inputGlobalData.mpsndarray()
     }
 
-    func apply(device: MPSGraphDevice,
-               input inputPointer: UnsafeMutablePointer<Float32>,
+    func apply(input inputPointer: UnsafeMutablePointer<Float32>,
                inputGlobal inputGlobalPointer: UnsafeMutablePointer<Float32>,
                policy: UnsafeMutablePointer<Float32>,
                policyPass: UnsafeMutablePointer<Float32>,
                value: UnsafeMutablePointer<Float32>,
                scoreValue: UnsafeMutablePointer<Float32>,
                ownership: UnsafeMutablePointer<Float32>) {
-        let inputData = MPSGraphTensorData(device: device, tensor: input.tensor)!
-
-        let inputGlobalData = MPSGraphTensorData(device: device,
-                                                 tensor: inputGlobal.tensor)!
-
-        if useFP16 {
-            let inputCount = input.tensor.shape!.product().intValue
-
-            inputData.mpsndarray().writeBytes(inputPointer.toFP16(length: inputCount),
-                                              strideBytes: nil)
-
-            let inputGlobalCount = inputGlobal.tensor.shape!.product().intValue
-
-            inputGlobalData.mpsndarray().writeBytes(inputGlobalPointer.toFP16(length: inputGlobalCount),
-                                                    strideBytes: nil)
+        if let inputFP16 {
+            assert(useFP16)
+            inputPointer.toFP16(inputFP16, length: inputCount)
+            inputArray.writeBytes(inputFP16, strideBytes: nil)
         } else {
-            inputData.mpsndarray().writeBytes(inputPointer,
-                                              strideBytes: nil)
+            assert(!useFP16)
+            inputArray.writeBytes(inputPointer, strideBytes: nil)
+        }
 
-            inputGlobalData.mpsndarray().writeBytes(inputGlobalPointer,
-                                                    strideBytes: nil)
+        if let inputGlobalFP16 {
+            inputGlobalPointer.toFP16(inputGlobalFP16, length: inputGlobalCount)
+            inputGlobalArray.writeBytes(inputGlobalFP16, strideBytes: nil)
+        } else {
+            inputGlobalArray.writeBytes(inputGlobalPointer, strideBytes: nil)
         }
 
         let feeds = [input.tensor: inputData,
@@ -1954,59 +2006,53 @@ class Model {
                               targetTensors: targetTensors,
                               targetOperations: nil)
 
-        if useFP16 {
-            let policyCount = policyHead.policyTensor.shape!.product().intValue
-            let policyFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: policyCount)
-
+        if let policyFP16 {
             fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policyFP16,
                                                                    strideBytes: nil)
 
             policyFP16.toFP32(policy, length: policyCount)
+        } else {
+            fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policy,
+                                                                   strideBytes: nil)
 
-            let policyPassCount = policyHead.policyPassTensor.shape!.product().intValue
-            let policyPassFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: policyPassCount)
+        }
 
+        if let policyPassFP16 {
             fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPassFP16,
                                                                        strideBytes: nil)
 
             policyPassFP16.toFP32(policyPass, length: policyPassCount)
+        } else {
+            fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPass,
+                                                                       strideBytes: nil)
+        }
 
-            let valueCount = valueHead.valueTensor.shape!.product().intValue
-            let valueFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: valueCount)
-
+        if let valueFP16 {
             fetch[valueHead.valueTensor]?.mpsndarray().readBytes(valueFP16,
                                                                  strideBytes: nil)
 
             valueFP16.toFP32(value, length: valueCount)
+        } else {
+            fetch[valueHead.valueTensor]?.mpsndarray().readBytes(value,
+                                                                 strideBytes: nil)
+        }
 
-            let scoreValueCount = valueHead.scoreValueTensor.shape!.product().intValue
-            let scoreValueFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: scoreValueCount)
-
+        if let scoreValueFP16 {
             fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValueFP16,
                                                                       strideBytes: nil)
 
             scoreValueFP16.toFP32(scoreValue, length: scoreValueCount)
+        } else {
+            fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValue,
+                                                                      strideBytes: nil)
+        }
 
-            let ownershipCount = valueHead.ownershipTensor.shape!.product().intValue
-            let ownershipFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: ownershipCount)
-
+        if let ownershipFP16 {
             fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownershipFP16,
                                                                      strideBytes: nil)
 
             ownershipFP16.toFP32(ownership, length: ownershipCount)
         } else {
-            fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policy,
-                                                                   strideBytes: nil)
-
-            fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPass,
-                                                                       strideBytes: nil)
-
-            fetch[valueHead.valueTensor]?.mpsndarray().readBytes(value,
-                                                                 strideBytes: nil)
-
-            fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValue,
-                                                                      strideBytes: nil)
-
             fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownership,
                                                                      strideBytes: nil)
         }
@@ -2080,7 +2126,6 @@ class Model {
 /// A class that represents a handle of GPU device.
 @objc class ComputeHandle: NSObject {
     static var handles: [Int: ComputeHandle] = [:]
-    let device: MPSGraphDevice
     let model: Model
 
     /// Creates a new handle of GPU device.
@@ -2135,7 +2180,7 @@ class Model {
             mtlDevice = MTLCreateSystemDefaultDevice()!
         }
 
-        device = MPSGraphDevice(mtlDevice: mtlDevice)
+        let device = MPSGraphDevice(mtlDevice: mtlDevice)
 
         NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) Model version \(descriptor.version)")
 
@@ -2155,7 +2200,8 @@ class Model {
 
         // Create a model.
         do {
-            model = try Model(graph: MPSGraph(),
+            model = try Model(device: device,
+                              graph: MPSGraph(),
                               descriptor: descriptor,
                               nnXLen: context.nnXLen,
                               nnYLen: context.nnYLen,
@@ -2169,7 +2215,8 @@ class Model {
             print("Trying to initialize Model with useNHWC:true ...")
 
             // Try to initialize a model with useNHWC:true.
-            model = try! Model(graph: MPSGraph(),
+            model = try! Model(device: device,
+                               graph: MPSGraph(),
                                descriptor: descriptor,
                                nnXLen: context.nnXLen,
                                nnYLen: context.nnYLen,
@@ -2224,15 +2271,16 @@ class Model {
                                ownershipOutput: UnsafeMutablePointer<Float32>,
                                scoreValueOutput: UnsafeMutablePointer<Float32>,
                                gpuIdx: Int) {
-        let handle = ComputeHandle.getInstance(at: gpuIdx)
+        autoreleasepool {
+            let handle = ComputeHandle.getInstance(at: gpuIdx)
 
-        handle.model.apply(device: handle.device,
-                           input: userInputBuffer,
-                           inputGlobal: userInputGlobalBuffer,
-                           policy: policyOutput,
-                           policyPass: policyPassOutput,
-                           value: valueOutput,
-                           scoreValue: scoreValueOutput,
-                           ownership: ownershipOutput)
+            handle.model.apply(input: userInputBuffer,
+                               inputGlobal: userInputGlobalBuffer,
+                               policy: policyOutput,
+                               policyPass: policyPassOutput,
+                               value: valueOutput,
+                               scoreValue: scoreValueOutput,
+                               ownership: ownershipOutput)
+        }
     }
 }

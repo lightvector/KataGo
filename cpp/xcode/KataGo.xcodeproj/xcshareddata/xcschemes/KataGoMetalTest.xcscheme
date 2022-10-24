@@ -52,6 +52,18 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "runnnlayertests"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "runnnontinyboardtest $HOME/.katago/default_model.bin.gz true true 0 true"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "runnnsymmetriestest $HOME/.katago/default_model.bin.gz true true true"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "runownershiptests $HOME/.katago/default_gtp.cfg $HOME/.katago/default_model.bin.gz"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
@@ -74,7 +86,8 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <MacroExpansion>
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "28EEEDD45A95496F8B5C834F"
@@ -82,7 +95,7 @@
             BlueprintName = "KataGoMetal"
             ReferencedContainer = "container:xcode/KataGo.xcodeproj">
          </BuildableReference>
-      </MacroExpansion>
+      </BuildableProductRunnable>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">

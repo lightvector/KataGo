@@ -56,19 +56,11 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "runnnlayertests"
+            argument = "benchmark"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "runnnontinyboardtest $HOME/.katago/default_model.bin.gz true true 0 true"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "runnnsymmetriestest $HOME/.katago/default_model.bin.gz true true true"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "runownershiptests $HOME/.katago/default_gtp.cfg $HOME/.katago/default_model.bin.gz"
+            argument = "gtp"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
