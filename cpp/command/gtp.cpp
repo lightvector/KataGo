@@ -817,6 +817,7 @@ struct GTPEngine {
           out << " prior " << data.policyPrior;
           out << " lcb " << lcb;
           out << " utilityLcb " << utilityLcb;
+          out << " weight " << data.weightSum;
           if(data.isSymmetryOf != Board::NULL_LOC)
             out << " isSymmetryOf " << Location::toString(data.isSymmetryOf,board);
           out << " order " << data.order;
