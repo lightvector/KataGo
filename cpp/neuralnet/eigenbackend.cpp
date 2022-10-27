@@ -17,6 +17,7 @@
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/nneval.h"
+#include "../neuralnet/activations.h"
 
 using namespace std;
 using Eigen::Tensor;
@@ -105,7 +106,7 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
 
 static void computeMaskSum(CONSTTENSORMAP3* mask, float* maskSum) {
   for (int n = 0; n < mask->dimension(2); n++) {
-    float s = 0.f;
+    float s = 0.0f;
     for (int h = 0; h < mask->dimension(1); h++) {
       for (int w = 0; w < mask->dimension(0); w++) {
         s += (*mask)(w, h, n);
@@ -129,23 +130,30 @@ static void addNCBiasInplace(TENSORMAP4* in, CONSTTENSORMAP2* bias) {
   }
 }
 
-static void poolRowsGPool(CONSTTENSORMAP4* in, TENSORMAP2* out, const float* maskSum) {
+// in nhwc
+// mask nhw
+static void poolRowsGPool(CONSTTENSORMAP4* in, TENSORMAP2* out, CONSTTENSORMAP3* mask, const float* maskSum) {
   for (int n = 0; n < in->dimension(3); n++) {
     for (int c = 0; c < in->dimension(0); c++) {
-      float s = 0.f;
-      float m = 0.f;
+      float s = 0.0f;
+      float m = -1.0f;
       for (int h = 0; h < in->dimension(2); h++) {
         for (int w = 0; w < in->dimension(1); w++) {
           float x = (*in)(c, w, h, n);
           s += x;
-          m = max(m, x);
+          // Init to -1.0 above and + mask - 1.0 is because it will effectively make all padded space into -1.0
+          // which is lower than the lowest value that any current activation function will produce.
+          // so the max over all valid spaces will the same as the mask over all spaces including padding
+          // We're relying on all padded space being equal to 0 because this gpool only ever follows a BN+Activate with a mask.
+          float maskVal = (*mask)(w, h, n);
+          m = max(m, x + maskVal - 1.0f);
         }
       }
       float div = maskSum[n];
       float sqrtdiv = sqrt(div);
       float mean = s / div;
       (*out)(c, n) = mean;
-      (*out)(c + in->dimension(0), n) = mean * (sqrtdiv - 14.f) * 0.1f;
+      (*out)(c + in->dimension(0), n) = mean * (sqrtdiv - 14.0f) * 0.1f;
       (*out)(c + 2*in->dimension(0), n) = m;
     }
   }
@@ -154,7 +162,7 @@ static void poolRowsGPool(CONSTTENSORMAP4* in, TENSORMAP2* out, const float* mas
 static void poolRowsValueHead(CONSTTENSORMAP4* in, TENSORMAP2* out, const float* maskSum) {
   for (int n = 0; n < in->dimension(3); n++) {
     for (int c = 0; c < in->dimension(0); c++) {
-      float s = 0.f;
+      float s = 0.0f;
       for (int h = 0; h < in->dimension(2); h++) {
         for (int w = 0; w < in->dimension(1); w++) {
           float x = (*in)(c, w, h, n);
@@ -165,7 +173,7 @@ static void poolRowsValueHead(CONSTTENSORMAP4* in, TENSORMAP2* out, const float*
       float sqrtdiv = sqrt(div);
       float mean = s / div;
       (*out)(c, n) = mean;
-      (*out)(c + in->dimension(0), n) = mean * (sqrtdiv - 14.f) * 0.1f;
+      (*out)(c + in->dimension(0), n) = mean * (sqrtdiv - 14.0f) * 0.1f;
       (*out)(c + 2*in->dimension(0), n) = mean * ((sqrtdiv - 14.0f) * (sqrtdiv - 14.0f) * 0.01f - 0.1f);
     }
   }
@@ -609,6 +617,7 @@ struct ConvLayer {
 
 struct BatchNormLayer {
   string name;
+  int activation;
 
   vector<float> mergedScale;
   vector<float> mergedBias;
@@ -617,10 +626,14 @@ struct BatchNormLayer {
   BatchNormLayer(const BatchNormLayer&) = delete;
   BatchNormLayer& operator=(const BatchNormLayer&) = delete;
 
-  BatchNormLayer(const BatchNormLayerDesc& desc) {
+  BatchNormLayer(
+    const BatchNormLayerDesc& desc,
+    const ActivationLayerDesc& actDesc
+  ) {
     name = desc.name;
     int numChannels = desc.numChannels;
     float epsilon = desc.epsilon;
+    activation = actDesc.activation;
 
     mergedScale.resize(numChannels);
     mergedBias.resize(numChannels);
@@ -632,7 +645,6 @@ struct BatchNormLayer {
 
   // Mask should be in 'NHW' format (no "C" channel).
   void apply(
-    bool applyRelu,
     CONSTTENSORMAP4* input,
     TENSORMAP4* output,
     CONSTTENSORMAP3* mask
@@ -641,10 +653,15 @@ struct BatchNormLayer {
       auto inC = input->chip(c, 0);
       auto x = inC * mergedScale[c] + mergedBias[c];
       auto z = TENSOR3(mask->dimension(0), mask->dimension(1), mask->dimension(2)).setZero();
-      if(applyRelu)
-        output->chip(c, 0) = (*mask == 1.f).select(x.cwiseMax(0.f), z);
-      else
-        output->chip(c, 0) = (*mask == 1.f).select(x, z);
+
+    if(activation == ACTIVATION_IDENTITY)
+      output->chip(c, 0) = (*mask == 1.0f).select(x, z);
+    else if(activation == ACTIVATION_RELU)
+      output->chip(c, 0) = (*mask == 1.0f).select(x.cwiseMax(0.0f), z);
+    else if(activation == ACTIVATION_MISH)
+      output->chip(c, 0) = (*mask == 1.0f).select(x * (x.cwiseMin(20.0f).exp().log1p() + (x.cwiseMax(20.0f) - 20.0f)).tanh(), z);
+    else
+      assert(false);
     }
   }
 };
@@ -653,17 +670,35 @@ struct BatchNormLayer {
 
 struct ActivationLayer {
   string name;
+  int activation;
 
   ActivationLayer() = delete;
   ActivationLayer(const ActivationLayer&) = delete;
   ActivationLayer& operator=(const ActivationLayer&) = delete;
 
-  ActivationLayer(const ActivationLayerDesc& desc) { name = desc.name; }
+  ActivationLayer(const ActivationLayerDesc& desc) {
+    name = desc.name;
+    activation = desc.activation;
+  }
 
   template <int N>
-  void apply(const Tensor<SCALAR, N>* input, Tensor<SCALAR, N>* output) const { *output = input->cwiseMax(0.f); }
+  void apply(const Tensor<SCALAR, N>* input, Tensor<SCALAR, N>* output) const {
+    if(activation == ACTIVATION_IDENTITY)
+      *output = *input;
+    else if(activation == ACTIVATION_RELU)
+      *output = input->cwiseMax(0.0f);
+    else if(activation == ACTIVATION_MISH)
+      *output = (*input) * ((input->cwiseMin(20.0f)).exp().log1p() + (input->cwiseMax(20.0f) - 20.0f)).tanh();
+  }
   template <int N>
-  void apply(const TensorMap<Tensor<SCALAR, N>>* input, TensorMap<Tensor<SCALAR, N>>* output) const { *output = input->cwiseMax(0.f); }
+  void apply(const TensorMap<Tensor<SCALAR, N>>* input, TensorMap<Tensor<SCALAR, N>>* output) const {
+    if(activation == ACTIVATION_IDENTITY)
+      *output = *input;
+    else if(activation == ACTIVATION_RELU)
+      *output = input->cwiseMax(0.0f);
+    else if(activation == ACTIVATION_MISH)
+      *output = (*input) * ((input->cwiseMin(20.0f)).exp().log1p() + (input->cwiseMax(20.0f) - 20.0f)).tanh();
+  }
 };
 
 //--------------------------------------------------------------
@@ -751,9 +786,9 @@ struct ResidualBlock final : public ResidualBlockIntf {
 
   ResidualBlock(const ResidualBlockDesc& desc, int nnX, int nnY)
     : name(desc.name),
-      preBN(desc.preBN),
+      preBN(desc.preBN,desc.preActivation),
       regularConv(desc.regularConv,nnX,nnY),
-      midBN(desc.midBN),
+      midBN(desc.midBN,desc.midActivation),
       finalConv(desc.finalConv,nnX,nnY) {}
 
   size_t requiredConvWorkspaceElts(size_t maxBatchSize) const override {
@@ -786,10 +821,9 @@ struct ResidualBlock final : public ResidualBlockIntf {
     (void)gpoolConcat;
     (void)gpoolBias;
     (void)maskSum;
-    const bool applyBNRelu = true;
-    preBN.apply(applyBNRelu, trunk, trunkScratch, mask);
+    preBN.apply(trunk, trunkScratch, mask);
     regularConv.apply(handle, trunkScratch, midIn, convWorkspace, false);
-    midBN.apply(applyBNRelu, midIn, midScratch, mask);
+    midBN.apply(midIn, midScratch, mask);
     finalConv.apply(handle, midScratch, trunk, convWorkspace, true);
   }
 };
@@ -798,14 +832,11 @@ struct ResidualBlock final : public ResidualBlockIntf {
 struct GlobalPoolingResidualBlock final : public ResidualBlockIntf {
   string name;
   BatchNormLayer preBN;
-  ActivationLayer preActivation;
   ConvLayer regularConv;
   ConvLayer gpoolConv;
   BatchNormLayer gpoolBN;
-  ActivationLayer gpoolActivation;
   MatMulLayer gpoolToBiasMul;
   BatchNormLayer midBN;
-  ActivationLayer midActivation;
   ConvLayer finalConv;
 
   GlobalPoolingResidualBlock() = delete;
@@ -816,15 +847,12 @@ struct GlobalPoolingResidualBlock final : public ResidualBlockIntf {
 
   GlobalPoolingResidualBlock(const GlobalPoolingResidualBlockDesc& desc, int nnX, int nnY)
     : name(desc.name),
-      preBN(desc.preBN),
-      preActivation(desc.preActivation),
+      preBN(desc.preBN,desc.preActivation),
       regularConv(desc.regularConv,nnX,nnY),
       gpoolConv(desc.gpoolConv,nnX,nnY),
-      gpoolBN(desc.gpoolBN),
-      gpoolActivation(desc.gpoolActivation),
+      gpoolBN(desc.gpoolBN,desc.gpoolActivation),
       gpoolToBiasMul(desc.gpoolToBiasMul),
-      midBN(desc.midBN),
-      midActivation(desc.midActivation),
+      midBN(desc.midBN,desc.midActivation),
       finalConv(desc.finalConv,nnX,nnY) {}
 
   size_t requiredConvWorkspaceElts(size_t maxBatchSize) const override {
@@ -853,21 +881,20 @@ struct GlobalPoolingResidualBlock final : public ResidualBlockIntf {
   ) const override {
     (void)midIn;
     (void)midScratch;
-    const bool applyBNRelu = true;
     DTENSOR("trunk", trunk);
     DTENSOR("mask", mask);
-    preBN.apply(applyBNRelu, trunk, trunkScratch, mask);
+    preBN.apply(trunk, trunkScratch, mask);
     DTENSOR("trunkScratch", trunkScratch);
     regularConv.apply(handle, trunkScratch, regularOut, convWorkspace, false);
     DTENSOR("regularOut", regularOut);
     gpoolConv.apply(handle, trunkScratch, gpoolOut, convWorkspace, false);
     DTENSOR("gpoolOut", gpoolOut);
-    gpoolBN.apply(applyBNRelu, gpoolOut, gpoolOut2, mask);
+    gpoolBN.apply(gpoolOut, gpoolOut2, mask);
     DTENSOR("gpoolOut2", gpoolOut2);
-    poolRowsGPool(gpoolOut2, gpoolConcat, maskSum);
+    poolRowsGPool(gpoolOut2, gpoolConcat, mask, maskSum);
     gpoolToBiasMul.apply(gpoolConcat, gpoolBias);
     addNCBiasInplace(regularOut, gpoolBias);
-    midBN.apply(applyBNRelu, regularOut, regularScratch, mask);
+    midBN.apply(regularOut, regularScratch, mask);
     finalConv.apply(handle, regularScratch, trunk, convWorkspace, true);
     DSHAPE("trunk", trunk);
     DSHAPE("trunkScratch", trunkScratch);
@@ -889,7 +916,6 @@ struct Trunk {
   MatMulLayer initialMatMul;
   vector<pair<int, std::unique_ptr<ResidualBlockIntf>>> blocks;
   BatchNormLayer trunkTipBN;
-  ActivationLayer trunkTipActivation;
 
   Trunk() = delete;
   Trunk(const Trunk&) = delete;
@@ -901,17 +927,13 @@ struct Trunk {
       numBlocks(desc.numBlocks),
       initialConv(desc.initialConv,nnX,nnY),
       initialMatMul(desc.initialMatMul),
-      trunkTipBN(desc.trunkTipBN),
-      trunkTipActivation(desc.trunkTipActivation)
+      trunkTipBN(desc.trunkTipBN,desc.trunkTipActivation)
   {
     for (int i = 0; i < numBlocks; ++i) {
       if (desc.blocks[i].first == ORDINARY_BLOCK_KIND) {
         ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)desc.blocks[i].second.get();
         std::unique_ptr<ResidualBlockIntf> block = std::make_unique<ResidualBlock>(*blockDesc,nnX,nnY);
         blocks.push_back(make_pair(ORDINARY_BLOCK_KIND, std::move(block)));
-      }
-      else if (desc.blocks[i].first == DILATED_BLOCK_KIND) {
-        throw StringError("Eigen backend: Dilated residual blocks are not supported right now");
       }
       else if (desc.blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
         GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)desc.blocks[i].second.get();
@@ -981,8 +1003,7 @@ struct Trunk {
     }
 
     // And now with the final BN port it from trunkScratchBuf to trunkBuf.
-    const bool applyBNRelu = true;
-    trunkTipBN.apply(applyBNRelu, trunkScratch, trunk, mask);
+    trunkTipBN.apply(trunkScratch, trunk, mask);
   }
 };
 
@@ -993,10 +1014,8 @@ struct PolicyHead {
   ConvLayer p1Conv;
   ConvLayer g1Conv;
   BatchNormLayer g1BN;
-  ActivationLayer g1Activation;
   MatMulLayer gpoolToBiasMul;
   BatchNormLayer p1BN;
-  ActivationLayer p1Activation;
   ConvLayer p2Conv;
   MatMulLayer gpoolToPassMul;
 
@@ -1009,11 +1028,9 @@ struct PolicyHead {
       version(desc.version),
       p1Conv(desc.p1Conv,nnX,nnY),
       g1Conv(desc.g1Conv,nnX,nnY),
-      g1BN(desc.g1BN),
-      g1Activation(desc.g1Activation),
+      g1BN(desc.g1BN,desc.g1Activation),
       gpoolToBiasMul(desc.gpoolToBiasMul),
-      p1BN(desc.p1BN),
-      p1Activation(desc.p1Activation),
+      p1BN(desc.p1BN,desc.p1Activation),
       p2Conv(desc.p2Conv,nnX,nnY),
       gpoolToPassMul(desc.gpoolToPassMul) {}
 
@@ -1040,14 +1057,13 @@ struct PolicyHead {
     const float* maskSum,
     float* convWorkspace
   ) const {
-    const bool applyBNRelu = true;
     p1Conv.apply(handle, trunk, p1Out, convWorkspace, false);
     g1Conv.apply(handle, trunk, g1Out, convWorkspace, false);
-    g1BN.apply(applyBNRelu, g1Out, g1Out2, mask);
-    poolRowsGPool(g1Out2, g1Concat, maskSum);
+    g1BN.apply(g1Out, g1Out2, mask);
+    poolRowsGPool(g1Out2, g1Concat, mask, maskSum);
     gpoolToBiasMul.apply(g1Concat, g1Bias);
     addNCBiasInplace(p1Out, g1Bias);
-    p1BN.apply(true, p1Out, p1Out2, mask);
+    p1BN.apply(p1Out, p1Out2, mask);
     p2Conv.apply(handle, p1Out2, policy, convWorkspace, false);
     gpoolToPassMul.apply(g1Concat, policyPass);
   }
@@ -1059,7 +1075,6 @@ struct ValueHead {
 
   ConvLayer v1Conv;
   BatchNormLayer v1BN;
-  ActivationLayer v1Activation;
   MatMulLayer v2Mul;
   MatBiasLayer v2Bias;
   ActivationLayer v2Activation;
@@ -1077,8 +1092,7 @@ struct ValueHead {
     : name(desc.name),
       version(desc.version),
       v1Conv(desc.v1Conv,nnX,nnY),
-      v1BN(desc.v1BN),
-      v1Activation(desc.v1Activation),
+      v1BN(desc.v1BN,desc.v1Activation),
       v2Mul(desc.v2Mul),
       v2Bias(desc.v2Bias),
       v2Activation(desc.v2Activation),
@@ -1109,9 +1123,8 @@ struct ValueHead {
     const float* maskSum,
     float* convWorkspace
   ) const {
-    bool applyBNRelu = true;
     v1Conv.apply(handle, trunk, v1Out, convWorkspace, false);
-    v1BN.apply(applyBNRelu, v1Out, v1Out2, mask);
+    v1BN.apply(v1Out, v1Out2, mask);
     poolRowsValueHead(v1Out2, v1Mean, maskSum);
     v2Mul.apply(v1Mean, v2Out);
     v2Bias.apply(v2Out);
@@ -1742,13 +1755,17 @@ bool NeuralNet::testEvaluateBatchNorm(
 ) {
   if(!useNHWC || useFP16)
     return false;
-  BatchNormLayer layer(*desc);
+
+  ActivationLayerDesc actDesc;
+  actDesc.activation = ACTIVATION_IDENTITY;
+
+  BatchNormLayer layer(*desc,actDesc);
   TENSORMAP4 inTensor((float*)inputBuffer.data(), desc->numChannels, nnXLen, nnYLen, batchSize);
   TENSORMAP3 mask((float*)maskBuffer.data(), nnXLen, nnYLen, batchSize);
   TENSOR4 outTensorBuf(desc->numChannels, nnXLen, nnYLen, batchSize);
   TENSORMAP4 outTensor(outTensorBuf);
 
-  layer.apply(false, &inTensor, &outTensor, &mask);
+  layer.apply(&inTensor, &outTensor, &mask);
 
   outputBuffer.resize(outTensorBuf.size());
   memcpy(outputBuffer.data(), outTensorBuf.data(), sizeof(SCALAR) * outTensorBuf.size());

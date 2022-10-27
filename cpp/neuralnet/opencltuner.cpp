@@ -2020,12 +2020,12 @@ static void tuneGPool(
     cl_program program;
     string compileError;
     bool compileSuc = tryCompileProgram(
-      "gPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::gPoolChannelsNCHW,
+      "gPoolChannelsNCHWMaskProgram", context, deviceIdsToUse, OpenCLKernels::gPoolChannelsNCHWMask,
       cfg.gPool.compileOptions() + maybeFP16CompileOptions,
       program, compileError
     );
     if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
-    cl_kernel kernel = clCreateKernel(program, "gPoolChannelsNCHW", &err);
+    cl_kernel kernel = clCreateKernel(program, "gPoolChannelsNCHWMask", &err);
     if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
     int inputNumFloats = batchSize * nnXLen * nnYLen * numChannels;
@@ -2037,6 +2037,7 @@ static void tuneGPool(
     else
       input = randomReadOnlyBufferFloat("tuneGPoolInput", context, inputNumFloats, 1.0);
 
+    cl_mem mask = constantReadOnlyBufferFloat(context, batchSize*nnXLen*nnYLen, 1.0f);
     cl_mem maskSum = constantReadOnlyBufferFloat(context, batchSize, (float)(nnXLen*nnYLen));
     cl_mem output = createReadWriteBufferFloat(context, outputNumFloats);
 
@@ -2050,12 +2051,12 @@ static void tuneGPool(
       }
 
       cl_event event;
-      err = performGPool(
+      err = performGPoolMask(
         kernel,
         commandQueue,
         cfg,
         batchSize, numChannels, nnXLen*nnYLen,
-        input,output,maskSum,
+        input,output,mask,maskSum,
         &event
       );
 
@@ -2070,6 +2071,7 @@ static void tuneGPool(
       blockingReadBuffer(commandQueue, output, outputNumFloats, ret);
 
     clReleaseMemObject(input);
+    clReleaseMemObject(mask);
     clReleaseMemObject(maskSum);
     clReleaseMemObject(output);
 
@@ -2622,7 +2624,7 @@ void OpenCLTuner::autoTuneEverything(
   string gpuName = allDeviceInfos[gpuIdxForTuning].name;
 
   //Just hardcodedly tune all the models that KataGo's main run uses.
-  static_assert(NNModelVersion::latestModelVersionImplemented == 10, "");
+  static_assert(NNModelVersion::latestModelVersionImplemented == 11, "");
   vector<ModelInfoForTuning> modelInfos;
   {
     ModelInfoForTuning modelInfo;

@@ -7,6 +7,7 @@
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/openclkernels.h"
 #include "../neuralnet/opencltuner.h"
+#include "../neuralnet/activations.h"
 
 #include "../neuralnet/openclhelpers.h"
 
@@ -141,19 +142,23 @@ struct CompiledPrograms {
   CLProgram conv2dNCHWProgram;
   CLProgram winogradConv3x3NCHWTransformProgram;
   CLProgram winogradConv3x3NCHWBNReluTransformProgram;
+  CLProgram winogradConv3x3NCHWBNMishTransformProgram;
   CLProgram winogradConv3x3NCHWUntransformProgram;
   CLProgram winogradConv5x5NCHWTransformProgram;
   CLProgram winogradConv5x5NCHWBNReluTransformProgram;
+  CLProgram winogradConv5x5NCHWBNMishTransformProgram;
   CLProgram winogradConv5x5NCHWUntransformProgram;
   CLProgram scaleBiasMaskNCHWProgram;
   CLProgram scaleBiasMaskReluNCHWProgram;
+  CLProgram scaleBiasMaskMishNCHWProgram;
   CLProgram addPointWiseProgram;
   CLProgram sumChannelsNCHWProgram;
-  CLProgram gPoolChannelsNCHWProgram;
+  CLProgram gPoolChannelsNCHWMaskProgram;
   CLProgram valueHeadPoolChannelsNCHWProgram;
   CLProgram addChannelBiasesNCHWProgram;
   CLProgram addCBiasesNCProgram;
   CLProgram addCBiasesNCReluProgram;
+  CLProgram addCBiasesNCMishProgram;
   CLProgram extractChannel0NCHWProgram;
   CLProgram xgemmDirectProgram;
   CLProgram xgemmDirectProgramAlwaysFP32;
@@ -188,8 +193,12 @@ struct CompiledPrograms {
       tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions
     );
     winogradConv3x3NCHWBNReluTransformProgram = compileProgram(
-      "winogradConv3x3NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHW,
-      tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions
+      "winogradConv3x3NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNActTransformNCHW,
+      tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions + OpenCLKernels::actReluDefine
+    );
+    winogradConv3x3NCHWBNMishTransformProgram = compileProgram(
+      "winogradConv3x3NCHWBNMishTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNActTransformNCHW,
+      tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions + OpenCLKernels::actMishDefine
     );
     winogradConv3x3NCHWUntransformProgram = compileProgram(
       "winogradConv3x3NCHWUntransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradUntransformNCHW,
@@ -200,8 +209,12 @@ struct CompiledPrograms {
       tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions
     );
     winogradConv5x5NCHWBNReluTransformProgram = compileProgram(
-      "winogradConv5x5NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHW,
-      tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions
+      "winogradConv5x5NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNActTransformNCHW,
+      tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions + OpenCLKernels::actReluDefine
+    );
+    winogradConv5x5NCHWBNMishTransformProgram = compileProgram(
+      "winogradConv5x5NCHWBNMishTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNActTransformNCHW,
+      tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions + OpenCLKernels::actMishDefine
     );
     winogradConv5x5NCHWUntransformProgram = compileProgram(
       "winogradConv5x5NCHWUntransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradUntransformNCHW,
@@ -209,12 +222,16 @@ struct CompiledPrograms {
     );
 
     scaleBiasMaskNCHWProgram = compileProgram(
-      "scaleBiasMaskNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskNCHW,
-      maybeFP16CompileOptions
+      "scaleBiasMaskNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskActNCHW,
+      maybeFP16CompileOptions + OpenCLKernels::actIdenDefine
     );
     scaleBiasMaskReluNCHWProgram = compileProgram(
-      "scaleBiasMaskReluNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskReluNCHW,
-      maybeFP16CompileOptions
+      "scaleBiasMaskReluNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskActNCHW,
+      maybeFP16CompileOptions + OpenCLKernels::actReluDefine
+    );
+    scaleBiasMaskMishNCHWProgram = compileProgram(
+      "scaleBiasMaskMishNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskActNCHW,
+      maybeFP16CompileOptions + OpenCLKernels::actMishDefine
     );
     addPointWiseProgram = compileProgram(
       "addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise,
@@ -224,8 +241,8 @@ struct CompiledPrograms {
       "sumChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::sumChannelsNCHW,
       tuneParams.gPool.compileOptions() + maybeFP16CompileOptions
     );
-    gPoolChannelsNCHWProgram = compileProgram(
-      "gPoolChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::gPoolChannelsNCHW,
+    gPoolChannelsNCHWMaskProgram = compileProgram(
+      "gPoolChannelsNCHWMaskProgram", context, deviceIdsToUse, OpenCLKernels::gPoolChannelsNCHWMask,
       tuneParams.gPool.compileOptions() + maybeFP16CompileOptions
     );
     valueHeadPoolChannelsNCHWProgram = compileProgram(
@@ -237,12 +254,16 @@ struct CompiledPrograms {
       maybeFP16CompileOptions
     );
     addCBiasesNCProgram = compileProgram(
-      "addCBiasesNCProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNC,
-      maybeFP16CompileOptions
+      "addCBiasesNCProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCAct,
+      maybeFP16CompileOptions + OpenCLKernels::actIdenDefine
     );
     addCBiasesNCReluProgram = compileProgram(
-      "addCBiasesNCReluProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCRelu,
-      maybeFP16CompileOptions
+      "addCBiasesNCReluProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCAct,
+      maybeFP16CompileOptions + OpenCLKernels::actReluDefine
+    );
+    addCBiasesNCMishProgram = compileProgram(
+      "addCBiasesNCMishProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCAct,
+      maybeFP16CompileOptions + OpenCLKernels::actMishDefine
     );
     extractChannel0NCHWProgram = compileProgram(
       "extractChannel0NCHWProgram", context, deviceIdsToUse, OpenCLKernels::extractChannel0NCHW,
@@ -430,19 +451,23 @@ struct ComputeHandleInternal {
   CLKernel conv2dNCHWKernel;
   CLKernel winogradConv3x3NCHWTransformKernel;
   CLKernel winogradConv3x3NCHWBNReluTransformKernel;
+  CLKernel winogradConv3x3NCHWBNMishTransformKernel;
   CLKernel winogradConv3x3NCHWUntransformKernel;
   CLKernel winogradConv5x5NCHWTransformKernel;
   CLKernel winogradConv5x5NCHWBNReluTransformKernel;
+  CLKernel winogradConv5x5NCHWBNMishTransformKernel;
   CLKernel winogradConv5x5NCHWUntransformKernel;
   CLKernel scaleBiasMaskNCHWKernel;
   CLKernel scaleBiasMaskReluNCHWKernel;
+  CLKernel scaleBiasMaskMishNCHWKernel;
   CLKernel addPointWiseKernel;
   CLKernel sumChannelsNCHWKernel;
-  CLKernel gPoolChannelsNCHWKernel;
+  CLKernel gPoolChannelsNCHWMaskKernel;
   CLKernel valueHeadPoolChannelsNCHWKernel;
   CLKernel addChannelBiasesNCHWKernel;
   CLKernel addCBiasesNCKernel;
   CLKernel addCBiasesNCReluKernel;
+  CLKernel addCBiasesNCMishKernel;
   CLKernel extractChannel0NCHWKernel;
   CLKernel xgemmDirectBatchedTTKernel;
   CLKernel xgemmDirectStridedBatchedNNKernel;
@@ -477,35 +502,43 @@ struct ComputeHandleInternal {
 
     winogradConv3x3NCHWTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWTransformProgram, "transform", &err);
     CHECK_ERR(err);
-    winogradConv3x3NCHWBNReluTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWBNReluTransformProgram, "bnReluTransform", &err);
+    winogradConv3x3NCHWBNReluTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWBNReluTransformProgram, "bnActTransform", &err);
+    CHECK_ERR(err);
+    winogradConv3x3NCHWBNMishTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWBNMishTransformProgram, "bnActTransform", &err);
     CHECK_ERR(err);
     winogradConv3x3NCHWUntransformKernel = clCreateKernel(progs->winogradConv3x3NCHWUntransformProgram, "untransform", &err);
     CHECK_ERR(err);
 
     winogradConv5x5NCHWTransformKernel = clCreateKernel(progs->winogradConv5x5NCHWTransformProgram, "transform", &err);
     CHECK_ERR(err);
-    winogradConv5x5NCHWBNReluTransformKernel = clCreateKernel(progs->winogradConv5x5NCHWBNReluTransformProgram, "bnReluTransform", &err);
+    winogradConv5x5NCHWBNReluTransformKernel = clCreateKernel(progs->winogradConv5x5NCHWBNReluTransformProgram, "bnActTransform", &err);
+    CHECK_ERR(err);
+    winogradConv5x5NCHWBNMishTransformKernel = clCreateKernel(progs->winogradConv5x5NCHWBNMishTransformProgram, "bnActTransform", &err);
     CHECK_ERR(err);
     winogradConv5x5NCHWUntransformKernel = clCreateKernel(progs->winogradConv5x5NCHWUntransformProgram, "untransform", &err);
     CHECK_ERR(err);
 
-    scaleBiasMaskNCHWKernel = clCreateKernel(progs->scaleBiasMaskNCHWProgram, "scaleBiasMaskNCHW", &err);
+    scaleBiasMaskNCHWKernel = clCreateKernel(progs->scaleBiasMaskNCHWProgram, "scaleBiasMaskActNCHW", &err);
     CHECK_ERR(err);
-    scaleBiasMaskReluNCHWKernel = clCreateKernel(progs->scaleBiasMaskReluNCHWProgram, "scaleBiasMaskReluNCHW", &err);
+    scaleBiasMaskReluNCHWKernel = clCreateKernel(progs->scaleBiasMaskReluNCHWProgram, "scaleBiasMaskActNCHW", &err);
+    CHECK_ERR(err);
+    scaleBiasMaskMishNCHWKernel = clCreateKernel(progs->scaleBiasMaskMishNCHWProgram, "scaleBiasMaskActNCHW", &err);
     CHECK_ERR(err);
     addPointWiseKernel = clCreateKernel(progs->addPointWiseProgram, "addPointWise", &err);
     CHECK_ERR(err);
     sumChannelsNCHWKernel = clCreateKernel(progs->sumChannelsNCHWProgram, "sumChannelsNCHW", &err);
     CHECK_ERR(err);
-    gPoolChannelsNCHWKernel = clCreateKernel(progs->gPoolChannelsNCHWProgram, "gPoolChannelsNCHW", &err);
+    gPoolChannelsNCHWMaskKernel = clCreateKernel(progs->gPoolChannelsNCHWMaskProgram, "gPoolChannelsNCHWMask", &err);
     CHECK_ERR(err);
     valueHeadPoolChannelsNCHWKernel = clCreateKernel(progs->valueHeadPoolChannelsNCHWProgram, "valueHeadPoolChannelsNCHW", &err);
     CHECK_ERR(err);
     addChannelBiasesNCHWKernel = clCreateKernel(progs->addChannelBiasesNCHWProgram, "addChannelBiasesNCHW", &err);
     CHECK_ERR(err);
-    addCBiasesNCKernel = clCreateKernel(progs->addCBiasesNCProgram, "addCBiasesNC", &err);
+    addCBiasesNCKernel = clCreateKernel(progs->addCBiasesNCProgram, "addCBiasesNCAct", &err);
     CHECK_ERR(err);
-    addCBiasesNCReluKernel = clCreateKernel(progs->addCBiasesNCReluProgram, "addCBiasesNCRelu", &err);
+    addCBiasesNCReluKernel = clCreateKernel(progs->addCBiasesNCReluProgram, "addCBiasesNCAct", &err);
+    CHECK_ERR(err);
+    addCBiasesNCMishKernel = clCreateKernel(progs->addCBiasesNCMishProgram, "addCBiasesNCAct", &err);
     CHECK_ERR(err);
     extractChannel0NCHWKernel = clCreateKernel(progs->extractChannel0NCHWProgram, "extractChannel0NCHW", &err);
     CHECK_ERR(err);
@@ -610,19 +643,19 @@ static void addPointWise(ComputeHandleInternal* handle, cl_mem acc, cl_mem value
   MAYBE_FREE_EVENT;
 }
 
-static void performGPool(ComputeHandleInternal* handle, int batchSize, int gpoolChannels, int nnXYLen, cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSum) {
+static void performGPoolMask(ComputeHandleInternal* handle, int batchSize, int gpoolChannels, int nnXYLen, cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem mask, cl_mem maskSum) {
   cl_int err;
   MAYBE_EVENT;
-  err = OpenCLHelpers::performGPool(
-    handle->gPoolChannelsNCHWKernel,
+  err = OpenCLHelpers::performGPoolMask(
+    handle->gPoolChannelsNCHWMaskKernel,
     handle->commandQueue,
     handle->tuneParams,
     batchSize, gpoolChannels, nnXYLen,
-    gpoolConvOut, gpoolConcat, maskSum,
+    gpoolConvOut, gpoolConcat, mask, maskSum,
     MAYBE_EVENTREF
   );
   CHECK_ERR(err);
-  MAYBE_PROFILE("PerformGPool");
+  MAYBE_PROFILE("PerformGPoolMask");
   MAYBE_FREE_EVENT;
 }
 
@@ -717,6 +750,7 @@ struct BatchNormLayer {
   string name;
   int numChannels;
   float epsilon;
+  int activation;
 
   int nnXLen;
   int nnYLen;
@@ -727,10 +761,18 @@ struct BatchNormLayer {
   static constexpr int nKernelDims = 2;
   size_t globalSizes[nKernelDims];
 
-  BatchNormLayer(ComputeHandleInternal* handle, const BatchNormLayerDesc* desc, int nnX, int nnY, bool useFP16) {
+  BatchNormLayer(
+    ComputeHandleInternal* handle,
+    const BatchNormLayerDesc* desc,
+    const ActivationLayerDesc* actDesc,
+    int nnX,
+    int nnY,
+    bool useFP16
+  ) {
     name = desc->name;
     numChannels = desc->numChannels;
     epsilon = desc->epsilon;
+    activation = actDesc->activation;
 
     nnXLen = nnX;
     nnYLen = nnY;
@@ -760,12 +802,16 @@ struct BatchNormLayer {
     clReleaseMemObject(mergedBiasBuf);
   }
 
-  void apply(ComputeHandleInternal* handle, int batchSize, bool applyRelu, cl_mem input, cl_mem output, cl_mem mask) {
+  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem mask) {
     cl_kernel kernel;
-    if(!applyRelu)
+    if(activation == ACTIVATION_IDENTITY)
       kernel = handle->scaleBiasMaskNCHWKernel;
-    else
+    else if(activation == ACTIVATION_RELU)
       kernel = handle->scaleBiasMaskReluNCHWKernel;
+    else if(activation == ACTIVATION_MISH)
+      kernel = handle->scaleBiasMaskMishNCHWKernel;
+    else
+      assert(false);
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&output);
@@ -1130,18 +1176,19 @@ struct ConvLayer {
     }
   }
 
-  void applyWithBNRelu(
+  void applyWithBNAct(
     ComputeHandleInternal* handle, BatchNormLayer* bnLayer, int batchSize,
     cl_mem input, cl_mem output, cl_mem mask, cl_mem convWorkspace, cl_mem convWorkspace2
   ) {
     if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
       {
+        assert(bnLayer->activation == ACTIVATION_RELU || bnLayer->activation == ACTIVATION_MISH);
         cl_int err;
         MAYBE_EVENT;
-        err = doWinogradTransformWithBNRelu(
+        err = doWinogradTransformWithBNAct(
           (convXSize == 3 && convYSize == 3) ?
-          handle->winogradConv3x3NCHWBNReluTransformKernel :
-          handle->winogradConv5x5NCHWBNReluTransformKernel,
+          (bnLayer->activation == ACTIVATION_RELU ? handle->winogradConv3x3NCHWBNReluTransformKernel : handle->winogradConv3x3NCHWBNMishTransformKernel) :
+          (bnLayer->activation == ACTIVATION_RELU ? handle->winogradConv5x5NCHWBNReluTransformKernel : handle->winogradConv5x5NCHWBNMishTransformKernel),
           handle->commandQueue,
           handle->tuneParams,
           input,convWorkspace,
@@ -1219,7 +1266,7 @@ struct ConvLayer {
 
     }
     else {
-      throw StringError("Attempted ConvLayer::applyWithBNRelu on non-3x3 or non-5x5 conv, implementation dues not currently support this");
+      throw StringError("Attempted ConvLayer::applyWithBNAct on non-3x3 or non-5x5 conv, implementation dues not currently support this");
     }
   }
 
@@ -1286,12 +1333,14 @@ struct MatMulLayer {
 struct MatBiasLayer {
   string name;
   int numChannels;
+  int activation;
 
   cl_mem biasBuf;
 
-  MatBiasLayer(ComputeHandleInternal* handle, const MatBiasLayerDesc* desc) {
+  MatBiasLayer(ComputeHandleInternal* handle, const MatBiasLayerDesc* desc, int activation_) {
     name = desc->name;
     numChannels = desc->numChannels;
+    activation = activation_;
 
     assert(desc->weights.size() == numChannels);
     vector<float> weights = desc->weights;
@@ -1304,8 +1353,16 @@ struct MatBiasLayer {
     clReleaseMemObject(biasBuf);
   }
 
-  void apply(ComputeHandleInternal* handle, int batchSize, bool applyRelu, cl_mem input) {
-    cl_kernel kernel = applyRelu ? handle->addCBiasesNCReluKernel : handle->addCBiasesNCKernel;
+  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input) {
+    cl_kernel kernel;
+    if(activation == ACTIVATION_IDENTITY)
+      kernel = handle->addCBiasesNCKernel;
+    else if(activation == ACTIVATION_RELU)
+      kernel = handle->addCBiasesNCReluKernel;
+    else if(activation == ACTIVATION_MISH)
+      kernel = handle->addCBiasesNCMishKernel;
+    else
+      assert(false);
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&biasBuf);
@@ -1349,9 +1406,9 @@ struct ResidualBlock {
     const ResidualBlockDesc* desc,
     int nnX, int nnY, bool useFP16
   ): name(desc->name),
-     preBN(handle,&desc->preBN,nnX,nnY,useFP16),
+     preBN(handle,&desc->preBN,&desc->preActivation,nnX,nnY,useFP16),
      regularConv(handle,&desc->regularConv,nnX,nnY,useFP16),
-     midBN(handle,&desc->midBN,nnX,nnY,useFP16),
+     midBN(handle,&desc->midBN,&desc->midActivation,nnX,nnY,useFP16),
      finalConv(handle,&desc->finalConv,nnX,nnY,useFP16),
      nnXLen(nnX),
      nnYLen(nnY),
@@ -1380,15 +1437,15 @@ struct ResidualBlock {
     cl_mem convWorkspace2
   ) {
     if((regularConv.convXSize == 3 && regularConv.convYSize == 3) || (regularConv.convXSize == 5 && regularConv.convYSize == 5))
-      regularConv.applyWithBNRelu(handle,&preBN,batchSize,trunk,mid,mask,convWorkspace,convWorkspace2);
+      regularConv.applyWithBNAct(handle,&preBN,batchSize,trunk,mid,mask,convWorkspace,convWorkspace2);
     else {
-      preBN.apply(handle,batchSize,true,trunk,trunkScratch,mask);
+      preBN.apply(handle,batchSize,trunk,trunkScratch,mask);
       regularConv.apply(handle,batchSize,trunkScratch,mid,convWorkspace,convWorkspace2);
     }
     if((finalConv.convXSize == 3 && finalConv.convYSize == 3) || (finalConv.convXSize == 5 && finalConv.convYSize == 5))
-      finalConv.applyWithBNRelu(handle,&midBN,batchSize,mid,trunkScratch,mask,convWorkspace,convWorkspace2);
+      finalConv.applyWithBNAct(handle,&midBN,batchSize,mid,trunkScratch,mask,convWorkspace,convWorkspace2);
     else {
-      midBN.apply(handle,batchSize,true,mid,mid,mask);
+      midBN.apply(handle,batchSize,mid,mid,mask);
       finalConv.apply(handle,batchSize,mid,trunkScratch,convWorkspace,convWorkspace2);
     }
     addPointWise(handle, trunk, trunkScratch, batchSize * finalConv.outChannels * nnYLen * nnXLen);
@@ -1423,12 +1480,12 @@ struct GlobalPoolingResidualBlock {
     const GlobalPoolingResidualBlockDesc* desc,
     int nnX, int nnY, bool useFP16
   ): name(desc->name),
-     preBN(handle,&desc->preBN,nnX,nnY,useFP16),
+     preBN(handle,&desc->preBN,&desc->preActivation,nnX,nnY,useFP16),
      regularConv(handle,&desc->regularConv,nnX,nnY,useFP16),
      gpoolConv(handle,&desc->gpoolConv,nnX,nnY,useFP16),
-     gpoolBN(handle,&desc->gpoolBN,nnX,nnY,useFP16),
+     gpoolBN(handle,&desc->gpoolBN,&desc->gpoolActivation,nnX,nnY,useFP16),
      gpoolToBiasMul(handle,&desc->gpoolToBiasMul),
-     midBN(handle,&desc->midBN,nnX,nnY,useFP16),
+     midBN(handle,&desc->midBN,&desc->midActivation,nnX,nnY,useFP16),
      finalConv(handle,&desc->finalConv,nnX,nnY,useFP16),
      nnXLen(nnX),
      nnYLen(nnY),
@@ -1463,12 +1520,12 @@ struct GlobalPoolingResidualBlock {
     cl_mem convWorkspace,
     cl_mem convWorkspace2
   ) {
-    preBN.apply(handle,batchSize,true,trunk,trunkScratch,mask);
+    preBN.apply(handle,batchSize,trunk,trunkScratch,mask);
     regularConv.apply(handle,batchSize,trunkScratch,mid,convWorkspace,convWorkspace2);
     gpoolConv.apply(handle,batchSize,trunkScratch,gpoolOut,convWorkspace,convWorkspace2);
-    gpoolBN.apply(handle,batchSize,true,gpoolOut,gpoolOut,mask);
+    gpoolBN.apply(handle,batchSize,gpoolOut,gpoolOut,mask);
 
-    performGPool(handle, batchSize, gpoolChannels, nnXYLen, gpoolOut, gpoolConcat, maskSum);
+    performGPoolMask(handle, batchSize, gpoolChannels, nnXYLen, gpoolOut, gpoolConcat, mask, maskSum);
 
     gpoolToBiasMul.apply(handle,batchSize,gpoolConcat,gpoolBias);
     addChannelBiases(handle, mid, gpoolBias, batchSize * regularChannels, nnXYLen);
@@ -1480,9 +1537,9 @@ struct GlobalPoolingResidualBlock {
     //   cout << tmp[i] << endl;
 
     if((finalConv.convXSize == 3 && finalConv.convYSize == 3) || (finalConv.convXSize == 5 && finalConv.convYSize == 5))
-      finalConv.applyWithBNRelu(handle,&midBN,batchSize,mid,trunkScratch,mask,convWorkspace,convWorkspace2);
+      finalConv.applyWithBNAct(handle,&midBN,batchSize,mid,trunkScratch,mask,convWorkspace,convWorkspace2);
     else {
-      midBN.apply(handle,batchSize,true,mid,mid,mask);
+      midBN.apply(handle,batchSize,mid,mid,mask);
       finalConv.apply(handle,batchSize,mid,trunkScratch,convWorkspace,convWorkspace2);
     }
     addPointWise(handle, trunk, trunkScratch, batchSize * finalConv.outChannels * nnYLen * nnXLen);
@@ -1546,7 +1603,7 @@ struct Trunk {
     initialConv = std::make_unique<ConvLayer>(handle,&desc->initialConv,nnXLen,nnYLen,useFP16);
     initialMatMul = std::make_unique<MatMulLayer>(handle,&desc->initialMatMul);
 
-    trunkTipBN = std::make_unique<BatchNormLayer>(handle,&desc->trunkTipBN,nnXLen,nnYLen,useFP16);
+    trunkTipBN = std::make_unique<BatchNormLayer>(handle,&desc->trunkTipBN,&desc->trunkTipActivation,nnXLen,nnYLen,useFP16);
 
     assert(desc->blocks.size() == numBlocks);
     for(int i = 0; i<numBlocks; i++) {
@@ -1675,8 +1732,7 @@ struct Trunk {
 
     }
 
-    bool applyBNRelu = true;
-    trunkTipBN->apply(handle,batchSize,applyBNRelu,trunk,trunk,mask);
+    trunkTipBN->apply(handle,batchSize,trunk,trunk,mask);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
     debugPrint4D(string("Trunk tip"), handle, trunk, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
@@ -1725,9 +1781,9 @@ struct PolicyHead {
 
     p1Conv = std::make_unique<ConvLayer>(handle,&desc->p1Conv,nnXLen,nnYLen,useFP16);
     g1Conv = std::make_unique<ConvLayer>(handle,&desc->g1Conv,nnXLen,nnYLen,useFP16);
-    g1BN = std::make_unique<BatchNormLayer>(handle,&desc->g1BN,nnXLen,nnYLen,useFP16);
+    g1BN = std::make_unique<BatchNormLayer>(handle,&desc->g1BN,&desc->g1Activation,nnXLen,nnYLen,useFP16);
     gpoolToBiasMul = std::make_unique<MatMulLayer>(handle,&desc->gpoolToBiasMul);
-    p1BN = std::make_unique<BatchNormLayer>(handle,&desc->p1BN,nnXLen,nnYLen,useFP16);
+    p1BN = std::make_unique<BatchNormLayer>(handle,&desc->p1BN,&desc->p1Activation,nnXLen,nnYLen,useFP16);
     p2Conv = std::make_unique<ConvLayer>(handle,&desc->p2Conv,nnXLen,nnYLen,useFP16);
     gpoolToPassMul = std::make_unique<MatMulLayer>(handle,&desc->gpoolToPassMul);
   }
@@ -1759,12 +1815,11 @@ struct PolicyHead {
     cl_mem convWorkspace2
   ) const {
 
-    bool applyBNRelu = true;
     p1Conv->apply(handle,batchSize,trunk,p1Out,convWorkspace,convWorkspace2);
     g1Conv->apply(handle,batchSize,trunk,gpoolOut,convWorkspace,convWorkspace2);
-    g1BN->apply(handle,batchSize,applyBNRelu,gpoolOut,gpoolOut,mask);
+    g1BN->apply(handle,batchSize,gpoolOut,gpoolOut,mask);
 
-    performGPool(handle, batchSize, g1Channels, nnXLen*nnYLen, gpoolOut, gpoolConcat, maskSum);
+    performGPoolMask(handle, batchSize, g1Channels, nnXLen*nnYLen, gpoolOut, gpoolConcat, mask, maskSum);
 
     gpoolToBiasMul->apply(handle,batchSize,gpoolConcat,gpoolBias);
 
@@ -1778,7 +1833,7 @@ struct PolicyHead {
 
     addChannelBiases(handle, p1Out, gpoolBias, batchSize * p1Channels, nnXLen*nnYLen);
 
-    p1BN->apply(handle,batchSize,true,p1Out,p1Out,mask);
+    p1BN->apply(handle,batchSize,p1Out,p1Out,mask);
     p2Conv->apply(handle,batchSize,p1Out,policy,convWorkspace,convWorkspace2);
     gpoolToPassMul->apply(handle,batchSize,gpoolConcat,policyPass);
 
@@ -1836,13 +1891,13 @@ struct ValueHead {
     ownershipChannels = desc->vOwnershipConv.outChannels;
 
     v1Conv = std::make_unique<ConvLayer>(handle,&desc->v1Conv,nnXLen,nnYLen,useFP16);
-    v1BN = std::make_unique<BatchNormLayer>(handle,&desc->v1BN,nnXLen,nnYLen,useFP16);
+    v1BN = std::make_unique<BatchNormLayer>(handle,&desc->v1BN,&desc->v1Activation,nnXLen,nnYLen,useFP16);
     v2Mul = std::make_unique<MatMulLayer>(handle,&desc->v2Mul);
-    v2Bias = std::make_unique<MatBiasLayer>(handle,&desc->v2Bias);
+    v2Bias = std::make_unique<MatBiasLayer>(handle,&desc->v2Bias,desc->v2Activation.activation);
     v3Mul = std::make_unique<MatMulLayer>(handle,&desc->v3Mul);
-    v3Bias = std::make_unique<MatBiasLayer>(handle,&desc->v3Bias);
+    v3Bias = std::make_unique<MatBiasLayer>(handle,&desc->v3Bias,ACTIVATION_IDENTITY);
     sv3Mul = std::make_unique<MatMulLayer>(handle,&desc->sv3Mul);
-    sv3Bias = std::make_unique<MatBiasLayer>(handle,&desc->sv3Bias);
+    sv3Bias = std::make_unique<MatBiasLayer>(handle,&desc->sv3Bias,ACTIVATION_IDENTITY);
     vOwnershipConv = std::make_unique<ConvLayer>(handle,&desc->vOwnershipConv,nnXLen,nnYLen,useFP16);
   }
 
@@ -1872,19 +1927,18 @@ struct ValueHead {
     cl_mem convWorkspace2
   ) const {
 
-    bool applyBNRelu = true;
     v1Conv->apply(handle,batchSize,trunk,v1Out,convWorkspace,convWorkspace2);
-    v1BN->apply(handle,batchSize,applyBNRelu,v1Out,v1Out,mask);
+    v1BN->apply(handle,batchSize,v1Out,v1Out,mask);
 
     performValueHeadPool(handle, batchSize, v1Channels, nnXLen*nnYLen, v1Out, v1Mean, maskSum);
 
     v2Mul->apply(handle,batchSize,v1Mean,v2Out);
-    v2Bias->apply(handle,batchSize,true,v2Out);
+    v2Bias->apply(handle,batchSize,v2Out);
     v3Mul->apply(handle,batchSize,v2Out,value);
-    v3Bias->apply(handle,batchSize,false,value);
+    v3Bias->apply(handle,batchSize,value);
 
     sv3Mul->apply(handle,batchSize,v2Out,scoreValue);
-    sv3Bias->apply(handle,batchSize,false,scoreValue);
+    sv3Bias->apply(handle,batchSize,scoreValue);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
     bool usingNHWC = false;
@@ -2791,7 +2845,10 @@ bool NeuralNet::testEvaluateBatchNorm(
   ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger, nnXLen, nnYLen, useFP16, useNHWC);
   ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC, useNHWC);
 
-  BatchNormLayer* layer = new BatchNormLayer(handle, desc, nnXLen, nnYLen, useFP16);
+  ActivationLayerDesc actDesc;
+  actDesc.activation = ACTIVATION_IDENTITY;
+
+  BatchNormLayer* layer = new BatchNormLayer(handle, desc, &actDesc, nnXLen, nnYLen, useFP16);
 
   size_t numInputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->numChannels;
   size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->numChannels;
@@ -2806,8 +2863,7 @@ bool NeuralNet::testEvaluateBatchNorm(
 
   cl_mem output = clCreateBuffer(handle->clContext, CL_MEM_WRITE_ONLY, byteSizeofVectorContents(outputBuffer), NULL, &err);
   CHECK_ERR(err);
-  bool applyRelu = false;
-  layer->apply(handle, batchSize, applyRelu, input, output, mask);
+  layer->apply(handle, batchSize, input, output, mask);
 
   blockingReadBuffer(handle->commandQueue, output, numOutputFloats, outputBuffer, useFP16);
 

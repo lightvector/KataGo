@@ -178,7 +178,7 @@ namespace OpenCLHelpers {
     cl_event* eventBuf
   );
 
-  cl_int doWinogradTransformWithBNRelu(
+  cl_int doWinogradTransformWithBNAct(
     cl_kernel kernel,
     cl_command_queue commandQueue,
     const OpenCLTuneParams& tuneParams,
@@ -203,12 +203,12 @@ namespace OpenCLHelpers {
     cl_event* eventBuf
   );
 
-  cl_int performGPool(
+  cl_int performGPoolMask(
     cl_kernel kernel,
     cl_command_queue commandQueue,
     const OpenCLTuneParams& tuneParams,
     int batchSize, int gpoolChannels, int nnXYLen,
-    cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSum,
+    cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem mask, cl_mem maskSum,
     cl_event* eventBuf
   );
 

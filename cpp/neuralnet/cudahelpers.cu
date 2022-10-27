@@ -318,6 +318,7 @@ void gPoolChannelsNCHWMaskKernel(const float* in, float* out, int cSize, int xyS
       // Init to -1.0 above and + mask - 1.0 is because it will effectively make all padded space into -1.0
       // which is lower than the lowest value that any current activation function will produce.
       // so the max over all valid spaces will the same as the mask over all spaces including padding
+      // We're relying on all padded space being equal to 0 because this gpool only ever follows a BN+Activate with a mask.
       accMax = fmaxf(accMax, a + (mask[xyIdx + nIdx * xySize] - 1.0f));
       xyIdx += xyBlockDim;
     }

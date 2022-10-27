@@ -865,7 +865,7 @@ cl_int OpenCLHelpers::doWinogradTransform(
   return err;
 }
 
-cl_int OpenCLHelpers::doWinogradTransformWithBNRelu(
+cl_int OpenCLHelpers::doWinogradTransformWithBNAct(
   cl_kernel kernel,
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
@@ -958,13 +958,12 @@ cl_int OpenCLHelpers::doWinogradUntransform(
 }
 
 
-
-cl_int OpenCLHelpers::performGPool(
+cl_int OpenCLHelpers::performGPoolMask(
   cl_kernel kernel,
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
   int batchSize, int gpoolChannels, int nnXYLen,
-  cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem maskSum,
+  cl_mem gpoolConvOut, cl_mem gpoolConcat, cl_mem mask, cl_mem maskSum,
   cl_event* eventBuf
 ) {
   static constexpr int nKernelDims = 3;
@@ -981,10 +980,11 @@ cl_int OpenCLHelpers::performGPool(
 
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&gpoolConvOut);
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&gpoolConcat);
-  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&maskSum);
-  clSetKernelArg(kernel, 3, sizeof(int), (void *)&batchSize);
-  clSetKernelArg(kernel, 4, sizeof(int), (void *)&gpoolChannels);
-  clSetKernelArg(kernel, 5, sizeof(int), (void *)&nnXYLen);
+  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&mask);
+  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&maskSum);
+  clSetKernelArg(kernel, 4, sizeof(int), (void *)&batchSize);
+  clSetKernelArg(kernel, 5, sizeof(int), (void *)&gpoolChannels);
+  clSetKernelArg(kernel, 6, sizeof(int), (void *)&nnXYLen);
 
   cl_int err;
   err = clEnqueueNDRangeKernel(
