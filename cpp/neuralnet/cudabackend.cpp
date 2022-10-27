@@ -2161,38 +2161,38 @@ struct ComputeHandle {
   std::unique_ptr<Model> model;
   std::unique_ptr<ScratchBuffers> scratch;
   std::unique_ptr<Buffers> buffers;
-  bool usingFP16;
-  int nnXLen;
-  int nnYLen;
-  bool requireExactNNLen;
-  bool inputsUseNHWC;
-  int policySize;
+  const bool usingFP16;
+  const int nnXLen;
+  const int nnYLen;
+  const bool requireExactNNLen;
+  const bool inputsUseNHWC;
+  const int policySize;
 
   ComputeHandle(
+    const ComputeContext* context,
     const LoadedModel* loadedModel,
     int majorComputeCapability,
     int minorComputeCapability,
     int maxBatchSize,
-    int nnX,
-    int nnY,
-    bool rExactNNLen,
-    bool inputsNHWC,
+    bool requireExactNNLen_,
+    bool inputsUseNHWC_,
     bool useFP16,
     bool useNHWC
-  ) {
+  ) :
+    usingFP16(useFP16),
+    nnXLen(context->nnXLen),
+    nnYLen(context->nnYLen),
+    requireExactNNLen(requireExactNNLen_),
+    inputsUseNHWC(inputsUseNHWC_),
+    policySize(NNPos::getPolicySize(context->nnXLen, context->nnYLen))
+  {
     cudaHandles = std::make_unique<CudaHandles>(majorComputeCapability,minorComputeCapability);
     model = std::make_unique<Model>(
       cudaHandles.get(), &(loadedModel->modelDesc), maxBatchSize,
-      nnX, nnY, inputsNHWC, useFP16, useNHWC
+      nnXLen, nnYLen, inputsUseNHWC, useFP16, useNHWC
     );
-    scratch = std::make_unique<ScratchBuffers>(maxBatchSize, nnX, nnY, useFP16);
+    scratch = std::make_unique<ScratchBuffers>(maxBatchSize, nnXLen, nnYLen, useFP16);
     buffers = std::make_unique<Buffers>(cudaHandles.get(), *model, *scratch);
-    usingFP16 = useFP16;
-    nnXLen = nnX;
-    nnYLen = nnY;
-    requireExactNNLen = rExactNNLen;
-    inputsUseNHWC = inputsNHWC;
-    policySize = NNPos::getPolicySize(nnXLen, nnYLen);
 
     //Synchronize after creating buffers and copying all the weights, just in case
     CUDA_ERR("ComputeHandle", cudaDeviceSynchronize());
@@ -2256,8 +2256,6 @@ ComputeHandle* NeuralNet::createComputeHandle(
     if(context->useNHWCMode == enabled_t::True || (context->useNHWCMode == enabled_t::Auto && useFP16))
       useNHWC = true;
   }
-  int nnXLen = context->nnXLen;
-  int nnYLen = context->nnYLen;
 
   if(logger != NULL) {
     logger->write(
@@ -2277,7 +2275,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   }
 
   ComputeHandle* gpuHandle = new ComputeHandle(
-    loadedModel,prop.major,prop.minor,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,useFP16,useNHWC
+    context,loadedModel,prop.major,prop.minor,maxBatchSize,requireExactNNLen,inputsUseNHWC,useFP16,useNHWC
   );
   return gpuHandle;
 }
