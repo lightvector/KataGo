@@ -693,18 +693,18 @@ static void debugPrint2D(const string& name, ComputeHandleInternal* handle, cl_m
   cout << "=========================================================" << endl;
 }
 
-static void debugPrint4D(const string& name, ComputeHandleInternal* handle, cl_mem deviceBuf, int batchSize, int cSize, int xSize, int ySize, bool useNHWC) {
+static void debugPrint4D(const string& name, ComputeHandleInternal* handle, cl_mem deviceBuf, int batchSize, int cSize, int nnXLen, int nnYLen, bool useNHWC) {
   vector<float> values;
-  blockingReadBuffer(handle->commandQueue, deviceBuf, batchSize * cSize * xSize * ySize, values);
+  blockingReadBuffer(handle->commandQueue, deviceBuf, batchSize * cSize * nnXLen * nnYLen, values);
   cout << "=========================================================" << endl;
   cout << name << endl;
   int i = 0;
   for(int n = 0; n<batchSize; n++) {
     cout << "-(n=" << n << ")--------------------" << endl;
     if(useNHWC) {
-      for(int y = 0; y<ySize; y++) {
+      for(int y = 0; y<nnYLen; y++) {
         cout << "(y=" << y << ")" << endl;
-        for(int x = 0; x<xSize; x++) {
+        for(int x = 0; x<nnXLen; x++) {
           for(int c = 0; c<cSize; c++)
             cout << values[i++] << " ";
           cout << endl;
@@ -715,8 +715,8 @@ static void debugPrint4D(const string& name, ComputeHandleInternal* handle, cl_m
     else {
       for(int c = 0; c<cSize; c++) {
         cout << "(c=" << c << ")" << endl;
-        for(int y = 0; y<ySize; y++) {
-          for(int x = 0; x<xSize; x++)
+        for(int y = 0; y<nnYLen; y++) {
+          for(int x = 0; x<nnXLen; x++)
             cout << values[i++] << " ";
           cout << endl;
         }
@@ -2424,41 +2424,38 @@ struct InputBuffers {
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
 
-    int xSize = nnXLen;
-    int ySize = nnYLen;
-
     maxBatchSize = maxBatchSz;
-    singleInputElts = (size_t)m.numInputChannels * xSize * ySize;
+    singleInputElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
     singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
     singlePolicyPassResultElts = (size_t)(1);
-    singlePolicyResultElts = (size_t)(xSize * ySize);
+    singlePolicyResultElts = (size_t)(nnXLen * nnYLen);
     singleValueResultElts = (size_t)m.numValueChannels;
     singleScoreValueResultElts = (size_t)m.numScoreValueChannels;
-    singleOwnershipResultElts = (size_t)m.numOwnershipChannels * xSize * ySize;
+    singleOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
 
     assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
 
-    userInputBufferElts = (size_t)m.numInputChannels * maxBatchSize * xSize * ySize;
+    userInputBufferElts = (size_t)m.numInputChannels * maxBatchSize * nnXLen * nnYLen;
     userInputGlobalBufferElts = (size_t)m.numInputGlobalChannels * maxBatchSize;
     policyPassResultBufferElts = (size_t)maxBatchSize * (1);
-    policyResultBufferElts = (size_t)maxBatchSize * (xSize * ySize);
+    policyResultBufferElts = (size_t)maxBatchSize * (nnXLen * nnYLen);
     valueResultBufferElts = (size_t)maxBatchSize * m.numValueChannels;
     scoreValueResultBufferElts = (size_t)maxBatchSize * m.numScoreValueChannels;
-    ownershipResultBufferElts = (size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels;
+    ownershipResultBufferElts = (size_t)maxBatchSize * nnXLen * nnYLen * m.numOwnershipChannels;
 
-    userInputBuffer = new float[(size_t)m.numInputChannels * maxBatchSize * xSize * ySize];
-    userInputBufferHalf = new half_t[(size_t)m.numInputChannels * maxBatchSize * xSize * ySize];
+    userInputBuffer = new float[(size_t)m.numInputChannels * maxBatchSize * nnXLen * nnYLen];
+    userInputBufferHalf = new half_t[(size_t)m.numInputChannels * maxBatchSize * nnXLen * nnYLen];
     userInputGlobalBuffer = new float[(size_t)m.numInputGlobalChannels * maxBatchSize];
 
     policyPassResults = new float[(size_t)maxBatchSize * 1];
-    policyResults = new float[(size_t)maxBatchSize * xSize * ySize];
-    policyResultsHalf = new half_t[(size_t)maxBatchSize * xSize * ySize];
+    policyResults = new float[(size_t)maxBatchSize * nnXLen * nnYLen];
+    policyResultsHalf = new half_t[(size_t)maxBatchSize * nnXLen * nnYLen];
     valueResults = new float[(size_t)maxBatchSize * m.numValueChannels];
 
     scoreValueResults = new float[(size_t)maxBatchSize * m.numScoreValueChannels];
-    ownershipResults = new float[(size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels];
-    ownershipResultsHalf = new half_t[(size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels];
+    ownershipResults = new float[(size_t)maxBatchSize * nnXLen * nnYLen * m.numOwnershipChannels];
+    ownershipResultsHalf = new half_t[(size_t)maxBatchSize * nnXLen * nnYLen * m.numOwnershipChannels];
   }
 
   ~InputBuffers() {

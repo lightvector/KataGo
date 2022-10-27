@@ -353,8 +353,6 @@ struct ConvLayer {
     assert(input->dimension(1) == nnXLen);
     assert(input->dimension(2) == nnYLen);
     const int batchSize = input->dimension(3);
-    const int xSize = nnXLen;
-    const int ySize = nnYLen;
 
     if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
       constexpr int inTileXSize = 6;
@@ -378,7 +376,7 @@ struct ConvLayer {
                 int x = xTile*outTileXSize+dx+inTileXOffset;
                 int y = yTile*outTileYSize+dy+inTileYOffset;
                 int subTileIdx = dy * inTileXSize + dx;
-                if(x < 0 || y < 0 || x >= xSize || y >= ySize) {
+                if(x < 0 || y < 0 || x >= nnXLen || y >= nnYLen) {
                   std::fill(tile + subTileIdx * inChannels, tile + (subTileIdx+1) * inChannels, 0.0f);
                 }
                 else {
@@ -572,7 +570,7 @@ struct ConvLayer {
                 for(int dx = 0; dx < outTileXSize; dx++) {
                   int x = xTile*outTileXSize+dx;
                   int y = yTile*outTileYSize+dy;
-                  if(!(x < 0 || y < 0 || x >= xSize || y >= ySize)) {
+                  if(!(x < 0 || y < 0 || x >= nnXLen || y >= nnYLen)) {
                     int subTileIdx = dy * inTileXSize + dx;
                     for(int oc = 0; oc < outChannels; oc++) {
                       (*output)(oc,x,y,n) += tile[subTileIdx*outChannels+oc];
@@ -586,7 +584,7 @@ struct ConvLayer {
                 for(int dx = 0; dx < outTileXSize; dx++) {
                   int x = xTile*outTileXSize+dx;
                   int y = yTile*outTileYSize+dy;
-                  if(!(x < 0 || y < 0 || x >= xSize || y >= ySize)) {
+                  if(!(x < 0 || y < 0 || x >= nnXLen || y >= nnYLen)) {
                     int subTileIdx = dy * inTileXSize + dx;
                     for(int oc = 0; oc < outChannels; oc++) {
                       (*output)(oc,x,y,n) = tile[subTileIdx*outChannels+oc];
@@ -600,9 +598,9 @@ struct ConvLayer {
       }
     }
     else {
-      Eigen::array<Eigen::Index, 2> imagePatchColVectorShape = {imagePatchSize, xSize*ySize*batchSize};
+      Eigen::array<Eigen::Index, 2> imagePatchColVectorShape = {imagePatchSize, nnXLen*nnYLen*batchSize};
       Eigen::array<Eigen::IndexPair<int>, 1> contractionDims = {Eigen::IndexPair<int>(1, 0)};
-      Eigen::array<Eigen::Index, 4> outputShape = {outChannels,xSize,ySize,batchSize};
+      Eigen::array<Eigen::Index, 4> outputShape = {outChannels,nnXLen,nnYLen,batchSize};
       auto imagePatches = input->extract_image_patches(convXSize,convYSize).reshape(imagePatchColVectorShape);
       auto convolution = imagePatchKernel.contract(imagePatches, contractionDims).reshape(outputShape);
       if(accumulate)
@@ -1366,23 +1364,20 @@ struct InputBuffers {
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
 
-    int xSize = nnXLen;
-    int ySize = nnYLen;
-
     maxBatchSize = maxBatchSz;
-    singleInputElts = m.numInputChannels * xSize * ySize;
+    singleInputElts = m.numInputChannels * nnXLen * nnYLen;
     singleInputGlobalElts = m.numInputGlobalChannels;
 
     singlePolicyPassResultElts = (size_t)(1);
-    singlePolicyResultElts = (size_t)(xSize * ySize);
+    singlePolicyResultElts = (size_t)(nnXLen * nnYLen);
     singleValueResultElts = (size_t)m.numValueChannels;
     singleScoreValueResultElts = (size_t)m.numScoreValueChannels;
-    singleOwnershipResultElts = (size_t)m.numOwnershipChannels * xSize * ySize;
+    singleOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
 
     assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
 
-    spatialInput = vector<float>(m.numInputChannels * xSize * ySize * maxBatchSize);
+    spatialInput = vector<float>(m.numInputChannels * nnXLen * nnYLen * maxBatchSize);
     globalInput = vector<float>(m.numInputGlobalChannels * maxBatchSize);
   }
 
