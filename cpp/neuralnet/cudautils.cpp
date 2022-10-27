@@ -15,7 +15,7 @@ using half_t = half_float::half;
 
 void CudaUtils::mallocOnDevice(const string& name, int numWeights, void*& deviceBuf, bool useFP16) {
   if(useFP16) {
-    size_t halfBytes = numWeights * sizeof(half);
+    size_t halfBytes = numWeights * sizeof(half_t);
     CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, halfBytes));
   }
   else {
@@ -27,7 +27,7 @@ void CudaUtils::mallocOnDevice(const string& name, int numWeights, void*& device
 void CudaUtils::mallocAndCopyToDevice(const string& name, const vector<float>& weights, void*& deviceBuf, bool useFP16) {
   size_t numWeights = weights.size();
   if(useFP16) {
-    size_t halfBytes = numWeights * sizeof(half);
+    size_t halfBytes = numWeights * sizeof(half_t);
     vector<half_t> weightsHalf(weights.size());
     for(size_t i = 0; i<weights.size(); i++)
       weightsHalf[i] = half_float::half_cast<half_t>(weights[i]);
@@ -43,7 +43,7 @@ void CudaUtils::mallocAndCopyToDevice(const string& name, const vector<float>& w
 
 void CudaUtils::mallocAndCopyToDevice(const string& name, const float* weights, int numWeights, void*& deviceBuf, bool useFP16) {
   if(useFP16) {
-    size_t halfBytes = numWeights * sizeof(half);
+    size_t halfBytes = numWeights * sizeof(half_t);
     vector<half_t> weightsHalf(numWeights);
     for(int i = 0; i<numWeights; i++)
       weightsHalf[i] = half_float::half_cast<half_t>(weights[i]);
@@ -61,7 +61,7 @@ void CudaUtils::mallocAndCopyToDevice(const string& name, const float* weights, 
 void CudaUtils::expensiveCopyFromDevice(const string& name, float* weights, int numWeights, const void* deviceBuf, bool useFP16) {
   if(useFP16) {
     vector<half_t> weightsHalf(numWeights);
-    size_t halfBytes = numWeights * sizeof(half);
+    size_t halfBytes = numWeights * sizeof(half_t);
     CUDA_ERR(name.c_str(),cudaMemcpy(weightsHalf.data(), deviceBuf, halfBytes, cudaMemcpyDeviceToHost));
     for(int i = 0; i<numWeights; i++)
       weights[i] = weightsHalf[i];
@@ -146,10 +146,10 @@ void CudaUtils::hostMallocZeroOneBufs(void*& zeroBuf, void*& oneBuf, bool useFP1
     void* oneTmp;
     mallocAndCopyToDevice("Buffers",&zero,1,zeroTmp,useFP16);
     mallocAndCopyToDevice("Buffers",&one,1,oneTmp,useFP16);
-    zeroBuf = malloc(sizeof(half));
-    oneBuf = malloc(sizeof(half));
-    CUDA_ERR("Buffers",cudaMemcpy(zeroBuf,zeroTmp,sizeof(half),cudaMemcpyDeviceToHost));
-    CUDA_ERR("Buffers",cudaMemcpy(oneBuf,oneTmp,sizeof(half),cudaMemcpyDeviceToHost));
+    zeroBuf = malloc(sizeof(half_t));
+    oneBuf = malloc(sizeof(half_t));
+    CUDA_ERR("Buffers",cudaMemcpy(zeroBuf,zeroTmp,sizeof(half_t),cudaMemcpyDeviceToHost));
+    CUDA_ERR("Buffers",cudaMemcpy(oneBuf,oneTmp,sizeof(half_t),cudaMemcpyDeviceToHost));
     cudaFree(zeroTmp);
     cudaFree(oneTmp);
   }
