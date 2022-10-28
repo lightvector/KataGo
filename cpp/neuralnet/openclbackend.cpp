@@ -11,6 +11,8 @@
 
 #include "../neuralnet/openclhelpers.h"
 
+#include "../core/simpleallocator.h"
+
 using namespace std;
 using namespace OpenCLHelpers;
 
@@ -469,7 +471,7 @@ struct ComputeHandleInternal {
   CLKernel addCBiasesNCReluKernel;
   CLKernel addCBiasesNCMishKernel;
   CLKernel extractChannel0NCHWKernel;
-  CLKernel xgemmDirectBatchedTTKernel;
+  CLKernel xgemmDirectBatchedTTKernelAlwaysFP32;
   CLKernel xgemmDirectStridedBatchedNNKernel;
   CLKernel xgemmBatchedNNKernel;
 
@@ -542,7 +544,7 @@ struct ComputeHandleInternal {
     CHECK_ERR(err);
     extractChannel0NCHWKernel = clCreateKernel(progs->extractChannel0NCHWProgram, "extractChannel0NCHW", &err);
     CHECK_ERR(err);
-    xgemmDirectBatchedTTKernel = clCreateKernel(progs->xgemmDirectProgramAlwaysFP32, "XgemmDirectBatchedTT", &err);
+    xgemmDirectBatchedTTKernelAlwaysFP32 = clCreateKernel(progs->xgemmDirectProgramAlwaysFP32, "XgemmDirectBatchedTT", &err);
     CHECK_ERR(err);
     xgemmDirectStridedBatchedNNKernel = clCreateKernel(progs->xgemmDirectProgram, "XgemmDirectStridedBatchedNN", &err);
     CHECK_ERR(err);
@@ -730,6 +732,57 @@ static void debugPrint4D(const string& name, ComputeHandleInternal* handle, cl_m
 
 //--------------------------------------------------------------
 
+struct ScratchBuffers {
+
+  const size_t batchXYFloatBytes;
+  const size_t batchFloatBytes;
+  const size_t batchXYBytes;
+  const size_t batchBytes;
+
+  ComputeHandleInternal* handle;
+  SimpleAllocator<cl_mem>* allocator;
+
+  ScratchBuffers() = delete;
+  ScratchBuffers(const ScratchBuffers&) = delete;
+  ScratchBuffers& operator=(const ScratchBuffers&) = delete;
+
+  ScratchBuffers(ComputeHandleInternal* handle_, int maxBatchSize, int nnXLen, int nnYLen)
+    : batchXYFloatBytes((size_t)maxBatchSize * nnXLen * nnYLen * sizeof(float)),
+      batchFloatBytes((size_t)maxBatchSize * sizeof(float)),
+      batchXYBytes((size_t)maxBatchSize * nnXLen * nnYLen * (handle_->usingFP16Storage ? sizeof(half_t) : sizeof(float))),
+      batchBytes((size_t)maxBatchSize * (handle_->usingFP16Storage ? sizeof(half_t) : sizeof(float))),
+      handle(handle_)
+  {
+    std::function<cl_mem(size_t)> allocateFunc = [this](size_t size) {
+      return createReadWriteBufferBytes(handle->clContext, size);
+    };
+    std::function<void(cl_mem)> releaseFunc = [this](cl_mem buf) {
+      clReleaseMemObject(buf);
+    };
+
+    allocator = new SimpleAllocator<cl_mem>(allocateFunc, releaseFunc);
+  }
+  ~ScratchBuffers() {
+    delete allocator;
+  }
+
+  size_t getBufSizeXY(int channels) const {
+    return channels * batchXYBytes;
+  }
+  size_t getBufSizeXYFloat(int channels) const {
+    return channels * batchXYFloatBytes;
+  }
+  size_t getBufSizeFloat(int channels) const {
+    return channels * batchFloatBytes;
+  }
+  size_t getBufSize(int channels) const {
+    return channels * batchBytes;
+  }
+
+};
+
+//--------------------------------------------------------------
+
 struct ConvWorkspaceEltsNeeded {
   size_t size1;
   size_t size2;
@@ -862,7 +915,13 @@ struct ConvLayer {
 
   static constexpr int nKernelDims = 3;
 
-  ConvLayer(ComputeHandleInternal* handle, const ConvLayerDesc* desc, int nnX, int nnY, bool useFP16) {
+  ConvLayer(
+    ComputeHandleInternal* handle,
+    const ConvLayerDesc* desc,
+    int nnX,
+    int nnY,
+    bool useFP16
+  ) {
     name = desc->name;
     convYSize = desc->convYSize;
     convXSize = desc->convXSize;
@@ -1176,6 +1235,10 @@ struct ConvLayer {
     }
   }
 
+  bool canApplyWithBNAct() const {
+    return (convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5);
+  }
+
   void applyWithBNAct(
     ComputeHandleInternal* handle, BatchNormLayer* bnLayer, int batchSize,
     cl_mem input, cl_mem output, cl_mem mask, cl_mem convWorkspace, cl_mem convWorkspace2
@@ -1309,7 +1372,7 @@ struct MatMulLayer {
   void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output) {
     MAYBE_EVENT;
     cl_int err = doBatchedXGemmDirect_MK_NK_MN(
-      handle->xgemmDirectBatchedTTKernel,
+      handle->xgemmDirectBatchedTTKernelAlwaysFP32,
       handle->commandQueue,
       handle->tuneParams,
       batchSize, outChannels, inChannels,
@@ -1387,32 +1450,82 @@ struct MatBiasLayer {
   MatBiasLayer& operator=(const MatBiasLayer&) = delete;
 };
 
+//--------------------------------------------------------------
+
+struct NormActConv {
+  BatchNormLayer norm;
+  ConvLayer conv;
+  int inChannels;
+  int outChannels;
+
+  NormActConv(
+    ComputeHandleInternal* handle,
+    const BatchNormLayerDesc* normDesc,
+    const ActivationLayerDesc* actDesc,
+    const ConvLayerDesc* convDesc,
+    int nnX,
+    int nnY,
+    bool useFP16
+  ): norm(handle,normDesc,actDesc,nnX,nnY,useFP16),
+     conv(handle,convDesc,nnX,nnY,useFP16)
+  {
+    inChannels = norm.numChannels;
+    assert(norm.numChannels = conv.inChannels);
+    outChannels = conv.outChannels;
+  }
+
+  ~NormActConv() {
+  }
+
+  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
+    return conv.requiredConvWorkspaceElts(handle,maxBatchSize);
+  }
+
+  void apply(
+    ComputeHandleInternal* handle,
+    int batchSize,
+    cl_mem input,
+    cl_mem inputScratchOrInput, //It's okay if this is the same as input, if it's okay to mutate input.
+    cl_mem output,
+    cl_mem mask,
+    cl_mem convWorkspace,
+    cl_mem convWorkspace2
+  ) {
+    if(conv.canApplyWithBNAct())
+      conv.applyWithBNAct(handle,&norm,batchSize,input,output,mask,convWorkspace,convWorkspace2);
+    else {
+      norm.apply(handle,batchSize,input,inputScratchOrInput,mask);
+      conv.apply(handle,batchSize,inputScratchOrInput,output,convWorkspace,convWorkspace2);
+    }
+  }
+
+  NormActConv() = delete;
+  NormActConv(const NormActConv&) = delete;
+  NormActConv& operator=(const NormActConv&) = delete;
+
+};
+
 
 //--------------------------------------------------------------
 
 struct ResidualBlock {
   string name;
-  BatchNormLayer preBN;
-  ConvLayer regularConv;
-  BatchNormLayer midBN;
-  ConvLayer finalConv;
-
+  NormActConv normActConv1;
+  NormActConv normActConv2;
   int nnXLen;
   int nnYLen;
-  int regularChannels;
 
   ResidualBlock(
     ComputeHandleInternal* handle,
     const ResidualBlockDesc* desc,
-    int nnX, int nnY, bool useFP16
+    int nnX,
+    int nnY,
+    bool useFP16
   ): name(desc->name),
-     preBN(handle,&desc->preBN,&desc->preActivation,nnX,nnY,useFP16),
-     regularConv(handle,&desc->regularConv,nnX,nnY,useFP16),
-     midBN(handle,&desc->midBN,&desc->midActivation,nnX,nnY,useFP16),
-     finalConv(handle,&desc->finalConv,nnX,nnY,useFP16),
+     normActConv1(handle,&desc->preBN,&desc->preActivation,&desc->regularConv,nnX,nnY,useFP16),
+     normActConv2(handle,&desc->midBN,&desc->midActivation,&desc->finalConv,nnX,nnY,useFP16),
      nnXLen(nnX),
-     nnYLen(nnY),
-     regularChannels(desc->regularConv.outChannels)
+     nnYLen(nnY)
   {
   }
 
@@ -1421,34 +1534,25 @@ struct ResidualBlock {
 
   ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
     return ConvWorkspaceEltsNeeded::getMax(
-      regularConv.requiredConvWorkspaceElts(handle,maxBatchSize),
-      finalConv.requiredConvWorkspaceElts(handle,maxBatchSize)
+      normActConv1.requiredConvWorkspaceElts(handle,maxBatchSize),
+      normActConv2.requiredConvWorkspaceElts(handle,maxBatchSize)
     );
   }
 
   void apply(
     ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
     int batchSize,
     cl_mem trunk,
     cl_mem trunkScratch,
-    cl_mem mid,
     cl_mem mask,
     cl_mem convWorkspace,
     cl_mem convWorkspace2
   ) {
-    if((regularConv.convXSize == 3 && regularConv.convYSize == 3) || (regularConv.convXSize == 5 && regularConv.convYSize == 5))
-      regularConv.applyWithBNAct(handle,&preBN,batchSize,trunk,mid,mask,convWorkspace,convWorkspace2);
-    else {
-      preBN.apply(handle,batchSize,trunk,trunkScratch,mask);
-      regularConv.apply(handle,batchSize,trunkScratch,mid,convWorkspace,convWorkspace2);
-    }
-    if((finalConv.convXSize == 3 && finalConv.convYSize == 3) || (finalConv.convXSize == 5 && finalConv.convYSize == 5))
-      finalConv.applyWithBNAct(handle,&midBN,batchSize,mid,trunkScratch,mask,convWorkspace,convWorkspace2);
-    else {
-      midBN.apply(handle,batchSize,mid,mid,mask);
-      finalConv.apply(handle,batchSize,mid,trunkScratch,convWorkspace,convWorkspace2);
-    }
-    addPointWise(handle, trunk, trunkScratch, batchSize * finalConv.outChannels * nnYLen * nnXLen);
+    SizedBuf<cl_mem> mid(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+    normActConv1.apply(handle,batchSize,trunk,trunkScratch,mid.buf,mask,convWorkspace,convWorkspace2);
+    normActConv2.apply(handle,batchSize,mid.buf,mid.buf,trunkScratch,mask,convWorkspace,convWorkspace2);
+    addPointWise(handle, trunk, trunkScratch, batchSize * normActConv2.outChannels * nnYLen * nnXLen);
   }
 
   ResidualBlock() = delete;
@@ -1466,8 +1570,7 @@ struct GlobalPoolingResidualBlock {
   ConvLayer gpoolConv;
   BatchNormLayer gpoolBN;
   MatMulLayer gpoolToBiasMul;
-  BatchNormLayer midBN;
-  ConvLayer finalConv;
+  NormActConv normActConv2;
 
   int nnXLen;
   int nnYLen;
@@ -1485,8 +1588,7 @@ struct GlobalPoolingResidualBlock {
      gpoolConv(handle,&desc->gpoolConv,nnX,nnY,useFP16),
      gpoolBN(handle,&desc->gpoolBN,&desc->gpoolActivation,nnX,nnY,useFP16),
      gpoolToBiasMul(handle,&desc->gpoolToBiasMul),
-     midBN(handle,&desc->midBN,&desc->midActivation,nnX,nnY,useFP16),
-     finalConv(handle,&desc->finalConv,nnX,nnY,useFP16),
+     normActConv2(handle,&desc->midBN,&desc->midActivation,&desc->finalConv,nnX,nnY,useFP16),
      nnXLen(nnX),
      nnYLen(nnY),
      nnXYLen(nnX*nnY),
@@ -1502,33 +1604,35 @@ struct GlobalPoolingResidualBlock {
     ConvWorkspaceEltsNeeded maxElts;
     maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,regularConv.requiredConvWorkspaceElts(handle,maxBatchSize));
     maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,gpoolConv.requiredConvWorkspaceElts(handle,maxBatchSize));
-    maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,finalConv.requiredConvWorkspaceElts(handle,maxBatchSize));
+    maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,normActConv2.requiredConvWorkspaceElts(handle,maxBatchSize));
     return maxElts;
   }
 
   void apply(
     ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
     int batchSize,
     cl_mem trunk,
     cl_mem trunkScratch,
-    cl_mem mid,
-    cl_mem gpoolOut,
-    cl_mem gpoolConcat,
-    cl_mem gpoolBias,
     cl_mem mask,
     cl_mem maskSum,
     cl_mem convWorkspace,
     cl_mem convWorkspace2
   ) {
+    SizedBuf<cl_mem> regularOut(scratch->allocator, scratch->getBufSizeXY(regularChannels));
+    SizedBuf<cl_mem> gpoolOut(scratch->allocator, scratch->getBufSizeXY(gpoolChannels));
+    SizedBuf<cl_mem> gpoolConcat(scratch->allocator, scratch->getBufSizeFloat(gpoolChannels*3));
+    SizedBuf<cl_mem> gpoolBias(scratch->allocator, scratch->getBufSizeFloat(regularChannels));
+
     preBN.apply(handle,batchSize,trunk,trunkScratch,mask);
-    regularConv.apply(handle,batchSize,trunkScratch,mid,convWorkspace,convWorkspace2);
-    gpoolConv.apply(handle,batchSize,trunkScratch,gpoolOut,convWorkspace,convWorkspace2);
-    gpoolBN.apply(handle,batchSize,gpoolOut,gpoolOut,mask);
+    regularConv.apply(handle,batchSize,trunkScratch,regularOut.buf,convWorkspace,convWorkspace2);
+    gpoolConv.apply(handle,batchSize,trunkScratch,gpoolOut.buf,convWorkspace,convWorkspace2);
+    gpoolBN.apply(handle,batchSize,gpoolOut.buf,gpoolOut.buf,mask);
 
-    performGPoolMask(handle, batchSize, gpoolChannels, nnXYLen, gpoolOut, gpoolConcat, mask, maskSum);
+    performGPoolMask(handle, batchSize, gpoolChannels, nnXYLen, gpoolOut.buf, gpoolConcat.buf, mask, maskSum);
 
-    gpoolToBiasMul.apply(handle,batchSize,gpoolConcat,gpoolBias);
-    addChannelBiases(handle, mid, gpoolBias, batchSize * regularChannels, nnXYLen);
+    gpoolToBiasMul.apply(handle,batchSize,gpoolConcat.buf,gpoolBias.buf);
+    addChannelBiases(handle, regularOut.buf, gpoolBias.buf, batchSize * regularChannels, nnXYLen);
 
     // vector<float> tmp(batchSize*regularChannels);
     // clEnqueueReadBuffer(handle->commandQueue, gpoolBias, CL_TRUE, 0, byteSizeofVectorContents(tmp), tmp.data(), 0, NULL, NULL);
@@ -1536,13 +1640,8 @@ struct GlobalPoolingResidualBlock {
     // for(int i = 0; i<tmp.size(); i++)
     //   cout << tmp[i] << endl;
 
-    if((finalConv.convXSize == 3 && finalConv.convYSize == 3) || (finalConv.convXSize == 5 && finalConv.convYSize == 5))
-      finalConv.applyWithBNAct(handle,&midBN,batchSize,mid,trunkScratch,mask,convWorkspace,convWorkspace2);
-    else {
-      midBN.apply(handle,batchSize,mid,mid,mask);
-      finalConv.apply(handle,batchSize,mid,trunkScratch,convWorkspace,convWorkspace2);
-    }
-    addPointWise(handle, trunk, trunkScratch, batchSize * finalConv.outChannels * nnYLen * nnXLen);
+    normActConv2.apply(handle,batchSize,regularOut.buf,regularOut.buf,trunkScratch,mask,convWorkspace,convWorkspace2);
+    addPointWise(handle, trunk, trunkScratch, batchSize * normActConv2.outChannels * nnYLen * nnXLen);
   }
 
   GlobalPoolingResidualBlock() = delete;
@@ -1663,20 +1762,18 @@ struct Trunk {
 
   void apply(
     ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
     int batchSize,
     cl_mem input,
     cl_mem inputGlobal,
     cl_mem trunk,
-    cl_mem trunkScratch,
-    cl_mem mid,
-    cl_mem gpoolOut,
-    cl_mem gpoolConcat,
-    cl_mem gpoolBias,
     cl_mem mask,
     cl_mem maskSum,
     cl_mem convWorkspace,
     cl_mem convWorkspace2
   ) const {
+
+    SizedBuf<cl_mem> trunkScratch(scratch->allocator, scratch->getBufSizeXY(trunkNumChannels));
 
     initialConv->apply(handle,batchSize,input,trunk,convWorkspace,convWorkspace2);
 
@@ -1687,23 +1784,23 @@ struct Trunk {
     #endif
 
     //Feed the matmul into trunkScratch, which will certainly be a big enough buffer
-    initialMatMul->apply(handle,batchSize,inputGlobal,trunkScratch);
+    initialMatMul->apply(handle,batchSize,inputGlobal,trunkScratch.buf);
     //Then accumulate it into trunk, broadcasting during the process
-    addChannelBiases(handle, trunk, trunkScratch, batchSize * trunkNumChannels, nnXLen*nnYLen);
+    addChannelBiases(handle, trunk, trunkScratch.buf, batchSize * trunkNumChannels, nnXLen*nnYLen);
 
     for(int i = 0; i<blocks.size(); i++) {
       #ifdef DEBUG_INTERMEDIATE_VALUES
-      debugPrint4D(string("Trunk before block " + Global::intToString(i)), handle, trunkScratch, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
+      debugPrint4D(string("Trunk before block " + Global::intToString(i)), handle, trunkScratch.buf, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
       #endif
 
       if(blocks[i].first == ORDINARY_BLOCK_KIND) {
         ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
         block->apply(
           handle,
+          scratch,
           batchSize,
           trunk,
-          trunkScratch,
-          mid,
+          trunkScratch.buf,
           mask,
           convWorkspace,
           convWorkspace2
@@ -1713,13 +1810,10 @@ struct Trunk {
         GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
         block->apply(
           handle,
+          scratch,
           batchSize,
           trunk,
-          trunkScratch,
-          mid,
-          gpoolOut,
-          gpoolConcat,
-          gpoolBias,
+          trunkScratch.buf,
           mask,
           maskSum,
           convWorkspace,
@@ -1801,44 +1895,45 @@ struct PolicyHead {
 
   void apply(
     ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
     int batchSize,
     cl_mem mask,
     cl_mem maskSum,
     cl_mem trunk,
-    cl_mem p1Out,
-    cl_mem gpoolOut,
-    cl_mem gpoolConcat,
-    cl_mem gpoolBias,
     cl_mem policyPass,
     cl_mem policy,
     cl_mem convWorkspace,
     cl_mem convWorkspace2
   ) const {
+    SizedBuf<cl_mem> p1Out(scratch->allocator, scratch->getBufSizeXY(p1Channels));
+    SizedBuf<cl_mem> gpoolOut(scratch->allocator, scratch->getBufSizeXY(g1Channels));
+    SizedBuf<cl_mem> gpoolConcat(scratch->allocator, scratch->getBufSizeFloat(g1Channels*3));
+    SizedBuf<cl_mem> gpoolBias(scratch->allocator, scratch->getBufSizeFloat(p1Channels));
 
-    p1Conv->apply(handle,batchSize,trunk,p1Out,convWorkspace,convWorkspace2);
-    g1Conv->apply(handle,batchSize,trunk,gpoolOut,convWorkspace,convWorkspace2);
-    g1BN->apply(handle,batchSize,gpoolOut,gpoolOut,mask);
+    p1Conv->apply(handle,batchSize,trunk,p1Out.buf,convWorkspace,convWorkspace2);
+    g1Conv->apply(handle,batchSize,trunk,gpoolOut.buf,convWorkspace,convWorkspace2);
+    g1BN->apply(handle,batchSize,gpoolOut.buf,gpoolOut.buf,mask);
 
-    performGPoolMask(handle, batchSize, g1Channels, nnXLen*nnYLen, gpoolOut, gpoolConcat, mask, maskSum);
+    performGPoolMask(handle, batchSize, g1Channels, nnXLen*nnYLen, gpoolOut.buf, gpoolConcat.buf, mask, maskSum);
 
-    gpoolToBiasMul->apply(handle,batchSize,gpoolConcat,gpoolBias);
+    gpoolToBiasMul->apply(handle,batchSize,gpoolConcat.buf,gpoolBias.buf);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
     bool usingNHWC = false;
-    debugPrint4D(string("p1 pre-gpool-sum"), handle, p1Out, batchSize, p1Channels, nnXLen, nnYLen, usingNHWC);
-    debugPrint4D(string("g1 pre-gpool"), handle, gpoolOut, batchSize, g1Channels, nnXLen, nnYLen, usingNHWC);
-    debugPrint2D(string("g1 pooled"), handle, gpoolConcat, batchSize, g1Channels*3);
-    debugPrint2D(string("g1 biases"), handle, gpoolBias, batchSize, p1Channels);
+    debugPrint4D(string("p1 pre-gpool-sum"), handle, p1Out.buf, batchSize, p1Channels, nnXLen, nnYLen, usingNHWC);
+    debugPrint4D(string("g1 pre-gpool"), handle, gpoolOut.buf, batchSize, g1Channels, nnXLen, nnYLen, usingNHWC);
+    debugPrint2D(string("g1 pooled"), handle, gpoolConcat.buf, batchSize, g1Channels*3);
+    debugPrint2D(string("g1 biases"), handle, gpoolBias.buf, batchSize, p1Channels);
     #endif
 
-    addChannelBiases(handle, p1Out, gpoolBias, batchSize * p1Channels, nnXLen*nnYLen);
+    addChannelBiases(handle, p1Out.buf, gpoolBias.buf, batchSize * p1Channels, nnXLen*nnYLen);
 
-    p1BN->apply(handle,batchSize,p1Out,p1Out,mask);
-    p2Conv->apply(handle,batchSize,p1Out,policy,convWorkspace,convWorkspace2);
-    gpoolToPassMul->apply(handle,batchSize,gpoolConcat,policyPass);
+    p1BN->apply(handle,batchSize,p1Out.buf,p1Out.buf,mask);
+    p2Conv->apply(handle,batchSize,p1Out.buf,policy,convWorkspace,convWorkspace2);
+    gpoolToPassMul->apply(handle,batchSize,gpoolConcat.buf,policyPass);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    debugPrint4D(string("p1 after-gpool-sum"), handle, p1Out, batchSize, p1Channels, nnXLen, nnYLen, usingNHWC);
+    debugPrint4D(string("p1 after-gpool-sum"), handle, p1Out.buf, batchSize, p1Channels, nnXLen, nnYLen, usingNHWC);
     debugPrint4D(string("p2"), handle, policy, batchSize, p2Channels, nnXLen, nnYLen, usingNHWC);
     debugPrint2D(string("p2pass"), handle, policyPass, batchSize, 1);
     #endif
@@ -1913,41 +2008,42 @@ struct ValueHead {
 
   void apply(
     ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
     int batchSize,
     cl_mem mask,
     cl_mem maskSum,
     cl_mem trunk,
-    cl_mem v1Out,
-    cl_mem v1Mean,
-    cl_mem v2Out,
     cl_mem value,
     cl_mem scoreValue,
     cl_mem ownership,
     cl_mem convWorkspace,
     cl_mem convWorkspace2
   ) const {
+    SizedBuf<cl_mem> v1Out(scratch->allocator, scratch->getBufSizeXY(v1Channels));
+    SizedBuf<cl_mem> v1Mean(scratch->allocator, scratch->getBufSizeFloat(v1Channels*3));
+    SizedBuf<cl_mem> v2Out(scratch->allocator, scratch->getBufSizeFloat(v2Channels));
 
-    v1Conv->apply(handle,batchSize,trunk,v1Out,convWorkspace,convWorkspace2);
-    v1BN->apply(handle,batchSize,v1Out,v1Out,mask);
+    v1Conv->apply(handle,batchSize,trunk,v1Out.buf,convWorkspace,convWorkspace2);
+    v1BN->apply(handle,batchSize,v1Out.buf,v1Out.buf,mask);
 
-    performValueHeadPool(handle, batchSize, v1Channels, nnXLen*nnYLen, v1Out, v1Mean, maskSum);
+    performValueHeadPool(handle, batchSize, v1Channels, nnXLen*nnYLen, v1Out.buf, v1Mean.buf, maskSum);
 
-    v2Mul->apply(handle,batchSize,v1Mean,v2Out);
-    v2Bias->apply(handle,batchSize,v2Out);
-    v3Mul->apply(handle,batchSize,v2Out,value);
+    v2Mul->apply(handle,batchSize,v1Mean.buf,v2Out.buf);
+    v2Bias->apply(handle,batchSize,v2Out.buf);
+    v3Mul->apply(handle,batchSize,v2Out.buf,value);
     v3Bias->apply(handle,batchSize,value);
 
-    sv3Mul->apply(handle,batchSize,v2Out,scoreValue);
+    sv3Mul->apply(handle,batchSize,v2Out.buf,scoreValue);
     sv3Bias->apply(handle,batchSize,scoreValue);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
     bool usingNHWC = false;
-    debugPrint4D(string("v1"), handle, v1Out, batchSize, v1Channels, nnXLen, nnYLen, usingNHWC);
-    debugPrint2D(string("v1 pooled"), handle, v1Mean, batchSize, v1Channels);
-    debugPrint2D(string("v2"), handle, v2Out, batchSize, v1Channels);
+    debugPrint4D(string("v1"), handle, v1Out.buf, batchSize, v1Channels, nnXLen, nnYLen, usingNHWC);
+    debugPrint2D(string("v1 pooled"), handle, v1Mean.buf, batchSize, v1Channels);
+    debugPrint2D(string("v2"), handle, v2Out.buf, batchSize, v1Channels);
     #endif
 
-    vOwnershipConv->apply(handle,batchSize,v1Out,ownership,convWorkspace,convWorkspace2);
+    vOwnershipConv->apply(handle,batchSize,v1Out.buf,ownership,convWorkspace,convWorkspace2);
   }
 
 };
@@ -2008,8 +2104,7 @@ struct Model {
     const ModelDesc* desc,
     int maxBatchSz,
     int nnX,
-    int nnY,
-    bool useFP16
+    int nnY
   ) {
     name = desc->name;
     version = desc->version;
@@ -2049,6 +2144,7 @@ struct Model {
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,numScoreValueChannels);
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,numOwnershipChannels);
 
+    bool useFP16 = handle->usingFP16Storage;
     trunk = std::make_unique<Trunk>(handle,&desc->trunk,maxBatchSize,nnXLen,nnYLen,useFP16);
     policyHead = std::make_unique<PolicyHead>(handle,&desc->policyHead,nnXLen,nnYLen,useFP16);
     valueHead = std::make_unique<ValueHead>(handle,&desc->valueHead,nnXLen,nnYLen,useFP16);
@@ -2069,6 +2165,7 @@ struct Model {
 
   void apply(
     ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
     int batchSize,
 
     cl_mem input,
@@ -2076,19 +2173,10 @@ struct Model {
     cl_mem mask,
     cl_mem maskSum,
     cl_mem trunkBuf,
-    cl_mem trunkScratch,
-    cl_mem mid,
-    cl_mem gpoolOut,
-    cl_mem gpoolConcat,
-    cl_mem gpoolBias,
 
-    cl_mem p1Out,
     cl_mem policyPass,
     cl_mem policy,
 
-    cl_mem v1Out,
-    cl_mem v1Mean,
-    cl_mem v2Out,
     cl_mem value,
     cl_mem scoreValue,
     cl_mem ownership,
@@ -2123,15 +2211,11 @@ struct Model {
 
     trunk->apply(
       handle,
+      scratch,
       batchSize,
       input,
       inputGlobal,
       trunkBuf,
-      trunkScratch,
-      mid,
-      gpoolOut,
-      gpoolConcat,
-      gpoolBias,
       mask,
       maskSum,
       convWorkspace,
@@ -2139,14 +2223,11 @@ struct Model {
     );
     policyHead->apply(
       handle,
+      scratch,
       batchSize,
       mask,
       maskSum,
       trunkBuf,
-      p1Out,
-      gpoolOut,
-      gpoolConcat,
-      gpoolBias,
       policyPass,
       policy,
       convWorkspace,
@@ -2154,13 +2235,11 @@ struct Model {
     );
     valueHead->apply(
       handle,
+      scratch,
       batchSize,
       mask,
       maskSum,
       trunkBuf,
-      v1Out,
-      v1Mean,
-      v2Out,
       value,
       scoreValue,
       ownership,
@@ -2183,21 +2262,12 @@ struct Buffers {
   cl_mem maskSum;
 
   cl_mem trunk;
-  cl_mem trunkScratch;
-  cl_mem mid;
-  cl_mem gpoolOut;
-  cl_mem gpoolConcat;
-  cl_mem gpoolBias;
 
-  cl_mem p1Out;
   cl_mem policyPass;
   cl_mem policy;
   size_t policyPassElts;
   size_t policyElts;
 
-  cl_mem v1Out;
-  cl_mem v1Mean;
-  cl_mem v2Out;
   cl_mem value;
   size_t valueElts;
   cl_mem scoreValue;
@@ -2228,24 +2298,12 @@ struct Buffers {
     maskSum = createReadWriteBuffer(handle, batchElts, false);
 
     trunk = createReadWriteBuffer(handle, m.trunk->trunkNumChannels * batchXYElts, useFP16);
-    trunkScratch = createReadWriteBuffer(handle, m.trunk->trunkNumChannels * batchXYElts, useFP16);
-    size_t maxMidChannels = std::max(m.trunk->regularNumChannels + m.trunk->gpoolNumChannels, m.trunk->midNumChannels);
-    mid = createReadWriteBuffer(handle, maxMidChannels * batchXYElts, useFP16);
-    size_t maxGPoolChannels = std::max(m.trunk->gpoolNumChannels, m.policyHead->g1Channels);
-    gpoolOut = createReadWriteBuffer(handle, maxGPoolChannels * batchXYElts, false);
-    gpoolConcat = createReadWriteBuffer(handle, maxGPoolChannels * batchElts * 3, false);
-    gpoolBias = createReadWriteBuffer(handle, maxMidChannels * batchElts, false);
 
-    p1Out = createReadWriteBuffer(handle, m.policyHead->p1Channels * batchXYElts, useFP16);
     policyPassElts = m.policyHead->p2Channels * batchElts;
     policyPass = createReadWriteBuffer(handle, policyPassElts, false);
     policyElts = m.policyHead->p2Channels * batchXYElts;
     policy = createReadWriteBuffer(handle, policyElts, useFP16);
     assert(m.policyHead->p2Channels == 1);
-
-    v1Out = createReadWriteBuffer(handle, m.valueHead->v1Channels * batchXYElts, useFP16);
-    v1Mean = createReadWriteBuffer(handle, m.valueHead->v1Channels * 3 * batchElts, false);
-    v2Out = createReadWriteBuffer(handle, m.valueHead->v2Channels * batchElts, false);
 
     valueElts = m.valueHead->valueChannels * batchElts;
     value = createReadWriteBuffer(handle, valueElts, false);
@@ -2269,19 +2327,10 @@ struct Buffers {
     clReleaseMemObject(maskSum);
 
     clReleaseMemObject(trunk);
-    clReleaseMemObject(trunkScratch);
-    clReleaseMemObject(mid);
-    clReleaseMemObject(gpoolOut);
-    clReleaseMemObject(gpoolConcat);
-    clReleaseMemObject(gpoolBias);
 
-    clReleaseMemObject(p1Out);
     clReleaseMemObject(policyPass);
     clReleaseMemObject(policy);
 
-    clReleaseMemObject(v1Out);
-    clReleaseMemObject(v1Mean);
-    clReleaseMemObject(v2Out);
     clReleaseMemObject(value);
     clReleaseMemObject(scoreValue);
     clReleaseMemObject(ownership);
@@ -2300,31 +2349,26 @@ struct Buffers {
 struct ComputeHandle {
   std::unique_ptr<ComputeHandleInternal> handle;
   std::unique_ptr<Model> model;
+  std::unique_ptr<ScratchBuffers> scratch;
   std::unique_ptr<Buffers> buffers;
-  int nnXLen;
-  int nnYLen;
-  int policySize;
-  bool inputsUseNHWC;
-  bool usingFP16Storage;
-  bool usingFP16Compute;
-  bool usingFP16TensorCores;
+  const int nnXLen;
+  const int nnYLen;
+  const int policySize;
+  const bool inputsUseNHWC;
 
   ComputeHandle(
-    ComputeContext* context, const LoadedModel* loadedModel, int maxBatchSize, int gpuIdx, bool inputsNHWC
-  ) {
-    nnXLen = context->nnXLen;
-    nnYLen = context->nnYLen;
-
+    ComputeContext* context, const LoadedModel* loadedModel, int maxBatchSize, int gpuIdx, bool inputsUseNHWC_
+  ):
+    nnXLen(context->nnXLen),
+    nnYLen(context->nnYLen),
+    policySize(NNPos::getPolicySize(nnXLen, nnYLen)),
+    inputsUseNHWC(inputsUseNHWC_)
+  {
     bool useNHWC = context->usingNHWCMode == enabled_t::True ? true : false;
-    handle = std::make_unique<ComputeHandleInternal>(context, gpuIdx, inputsNHWC, useNHWC);
-    usingFP16Storage = handle->usingFP16Storage;
-    usingFP16Compute = handle->usingFP16Compute;
-    usingFP16TensorCores = handle->usingFP16TensorCores;
-
-    model = std::make_unique<Model>(handle.get(), &(loadedModel->modelDesc), maxBatchSize, nnXLen, nnYLen, usingFP16Storage);
+    handle = std::make_unique<ComputeHandleInternal>(context, gpuIdx, inputsUseNHWC, useNHWC);
+    model = std::make_unique<Model>(handle.get(), &(loadedModel->modelDesc), maxBatchSize, nnXLen, nnYLen);
+    scratch = std::make_unique<ScratchBuffers>(handle.get(), maxBatchSize, nnXLen, nnYLen);
     buffers = std::make_unique<Buffers>(handle.get(), *model);
-    policySize = NNPos::getPolicySize(nnXLen, nnYLen);
-    inputsUseNHWC = inputsNHWC;
   }
 
   ~ComputeHandle() {
@@ -2363,9 +2407,9 @@ ComputeHandle* NeuralNet::createComputeHandle(
   if(logger != NULL) {
     logger->write(
       "OpenCL backend thread " + Global::intToString(serverThreadIdx) + ":" + deviceStr() +
-      " FP16Storage " + Global::boolToString(handle->usingFP16Storage) +
-      " FP16Compute " + Global::boolToString(handle->usingFP16Compute) +
-      " FP16TensorCores " + Global::boolToString(handle->usingFP16TensorCores)
+      " FP16Storage " + Global::boolToString(handle->handle->usingFP16Storage) +
+      " FP16Compute " + Global::boolToString(handle->handle->usingFP16Compute) +
+      " FP16TensorCores " + Global::boolToString(handle->handle->usingFP16TensorCores)
     );
   }
   return handle;
@@ -2528,7 +2572,7 @@ void NeuralNet::getOutput(
   assert(inputBuffers->singleOwnershipResultElts == nnXLen*nnYLen);
 
   ComputeHandleInternal* handle = gpuHandle->handle.get();
-  bool useFP16Storage = gpuHandle->usingFP16Storage;
+  bool useFP16Storage = gpuHandle->handle->usingFP16Storage;
 
   cl_int err;
 
@@ -2580,6 +2624,7 @@ void NeuralNet::getOutput(
 
   gpuHandle->model->apply(
     handle,
+    gpuHandle->scratch.get(),
     batchSize,
 
     buffers->input,
@@ -2589,19 +2634,10 @@ void NeuralNet::getOutput(
     buffers->maskSum,
 
     buffers->trunk,
-    buffers->trunkScratch,
-    buffers->mid,
-    buffers->gpoolOut,
-    buffers->gpoolConcat,
-    buffers->gpoolBias,
 
-    buffers->p1Out,
     buffers->policyPass,
     buffers->policy,
 
-    buffers->v1Out,
-    buffers->v1Mean,
-    buffers->v2Out,
     buffers->value,
     buffers->scoreValue,
     buffers->ownership,
@@ -2898,34 +2934,34 @@ bool NeuralNet::testEvaluateResidualBlock(
 
   size_t numTrunkFloats = (size_t)batchSize * nnXLen * nnYLen * desc->preBN.numChannels;
   size_t numMaskFloats = (size_t)batchSize * nnXLen * nnYLen;
-  size_t numMidFloats = (size_t)batchSize * nnXLen * nnYLen * desc->finalConv.inChannels;
   if(numTrunkFloats != inputBuffer.size())
     throw StringError("testEvaluateResidualBlock: unexpected input buffer size");
   if(numMaskFloats != maskBuffer.size())
     throw StringError("testEvaluateResidualBlock: unexpected mask buffer size");
   outputBuffer.resize(numTrunkFloats);
 
+  ScratchBuffers* scratch = new ScratchBuffers(handle, batchSize, nnXLen, nnYLen);
+
   vector<float> inputTmp = inputBuffer;
   vector<float> maskTmp = maskBuffer;
   cl_mem trunk = createReadWriteBuffer(handle,inputTmp,useFP16);
   cl_mem mask = createReadOnlyBuffer(handle,maskTmp,useFP16);
   cl_mem trunkScratch = createReadWriteBuffer(handle,numTrunkFloats,useFP16);
-  cl_mem mid = createReadWriteBuffer(handle,numMidFloats,useFP16);
 
   ConvWorkspaceEltsNeeded convWorkspaceElts = layer->requiredConvWorkspaceElts(handle,batchSize);
   cl_mem convWorkspace = createReadWriteBuffer(handle, convWorkspaceElts.size1, useFP16);
   cl_mem convWorkspace2 = createReadWriteBuffer(handle, convWorkspaceElts.size2, useFP16);
 
-  layer->apply(handle, batchSize, trunk, trunkScratch, mid, mask, convWorkspace, convWorkspace2);
+  layer->apply(handle, scratch, batchSize, trunk, trunkScratch, mask, convWorkspace, convWorkspace2);
 
   blockingReadBuffer(handle->commandQueue, trunk, numTrunkFloats, outputBuffer, useFP16);
 
   clReleaseMemObject(trunk);
   clReleaseMemObject(mask);
   clReleaseMemObject(trunkScratch);
-  clReleaseMemObject(mid);
   clReleaseMemObject(convWorkspace);
   clReleaseMemObject(convWorkspace2);
+  delete scratch;
   delete layer;
   delete handle;
   freeComputeContext(context);
@@ -2958,10 +2994,6 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   size_t numTrunkFloats = (size_t)batchSize * nnXLen * nnYLen * desc->preBN.numChannels;
   size_t numMaskFloats = (size_t)batchSize * nnXLen * nnYLen;
   size_t numMaskSumFloats = (size_t)batchSize;
-  size_t numMidFloats = (size_t)batchSize * nnXLen * nnYLen * desc->finalConv.inChannels;
-  size_t numGPoolOutFloats = (size_t)batchSize * nnXLen * nnYLen * desc->gpoolConv.outChannels;
-  size_t numGPoolConcatFloats = (size_t)batchSize * 3 * desc->gpoolConv.outChannels;
-  size_t numGPoolBiasFloats = (size_t)batchSize * desc->regularConv.outChannels;
 
   if(numTrunkFloats != inputBuffer.size())
     throw StringError("testEvaluateResidualBlock: unexpected input buffer size");
@@ -2969,16 +3001,14 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
     throw StringError("testEvaluateResidualBlock: unexpected mask buffer size");
   outputBuffer.resize(numTrunkFloats);
 
+  ScratchBuffers* scratch = new ScratchBuffers(handle, batchSize, nnXLen, nnYLen);
+
   vector<float> inputTmp = inputBuffer;
   vector<float> maskTmp = maskBuffer;
   cl_mem trunk = createReadWriteBuffer(handle,inputTmp,useFP16);
   cl_mem mask = createReadOnlyBuffer(handle,maskTmp,useFP16);
   cl_mem maskSum = createReadWriteBuffer(handle,numMaskSumFloats,false);
   cl_mem trunkScratch = createReadWriteBuffer(handle,numTrunkFloats,useFP16);
-  cl_mem mid = createReadWriteBuffer(handle,numMidFloats,useFP16);
-  cl_mem gpoolOut = createReadWriteBuffer(handle,numGPoolOutFloats,false);
-  cl_mem gpoolConcat = createReadWriteBuffer(handle,numGPoolConcatFloats,false);
-  cl_mem gpoolBias = createReadWriteBuffer(handle,numGPoolBiasFloats,false);
 
   ConvWorkspaceEltsNeeded convWorkspaceElts = layer->requiredConvWorkspaceElts(handle,batchSize);
   cl_mem convWorkspace = createReadWriteBuffer(handle, convWorkspaceElts.size1, useFP16);
@@ -2988,13 +3018,10 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
 
   layer->apply(
     handle,
+    scratch,
     batchSize,
     trunk,
     trunkScratch,
-    mid,
-    gpoolOut,
-    gpoolConcat,
-    gpoolBias,
     mask,
     maskSum,
     convWorkspace,
@@ -3007,12 +3034,9 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   clReleaseMemObject(mask);
   clReleaseMemObject(maskSum);
   clReleaseMemObject(trunkScratch);
-  clReleaseMemObject(mid);
-  clReleaseMemObject(gpoolOut);
-  clReleaseMemObject(gpoolConcat);
-  clReleaseMemObject(gpoolBias);
   clReleaseMemObject(convWorkspace);
   clReleaseMemObject(convWorkspace2);
+  delete scratch;
   delete layer;
   delete handle;
   freeComputeContext(context);

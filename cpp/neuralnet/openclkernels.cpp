@@ -741,7 +741,7 @@ __kernel void untransform(
 string OpenCLKernels::scaleBiasMaskActNCHW = OpenCLKernels::common + R"%%(
 __kernel void scaleBiasMaskActNCHW(
   __global realstore* input,  //N, c, H, W
-  __global realstore* output, //N, c, H, W
+  __global realstore* output, //N, c, H, W, might be the same as input
   __global realstore* scale,  //c
   __global realstore* bias,   //c
   __global realstore* mask,   //N, H, W

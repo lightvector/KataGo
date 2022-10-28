@@ -220,6 +220,22 @@ cl_mem OpenCLHelpers::createReadWriteBufferHalf(cl_context clContext, size_t num
   CHECK_ERR(err);
   return buf;
 }
+cl_mem OpenCLHelpers::createReadWriteBufferBytes(cl_context clContext, size_t numBytes) {
+  //Minimum allocation size, just in case, to avoid allocations of size 0
+  if(numBytes < 64)
+    numBytes = 64;
+
+  cl_int err;
+  cl_mem buf = clCreateBuffer(
+    clContext,
+    CL_MEM_READ_WRITE,
+    numBytes,
+    NULL,
+    &err
+  );
+  CHECK_ERR(err);
+  return buf;
+}
 
 
 void OpenCLHelpers::blockingReadBuffer(cl_command_queue commandQueue, cl_mem srcBuf, size_t numElts, std::vector<float>& dstBuf) {

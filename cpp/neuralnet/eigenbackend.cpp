@@ -19,6 +19,8 @@
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/activations.h"
 
+#include "../core/simpleallocator.h"
+
 using namespace std;
 using Eigen::Tensor;
 using Eigen::TensorMap;
@@ -185,14 +187,77 @@ static size_t roundUpToMultiple(size_t size, size_t ofThis) {
 
 // --------------------------------------------------------------------------------------------------------------
 
+struct ComputeContext {
+  const int nnXLen;
+  const int nnYLen;
+
+  ComputeContext() = delete;
+  ComputeContext(const ComputeContext&) = delete;
+  ComputeContext& operator=(const ComputeContext&) = delete;
+
+  ComputeContext(int nnX, int nnY)
+    : nnXLen(nnX),
+      nnYLen(nnY)
+  {}
+  ~ComputeContext()
+  {}
+};
+
+// --------------------------------------------------------------------------------------------------------------
+
 struct ComputeHandleInternal {
   //static constexpr int numEigenThreads = 2;
   //Eigen::ThreadPool threadPool;
   //Eigen::ThreadPoolDevice device;
 
-  ComputeHandleInternal()
+  const int nnXLen;
+  const int nnYLen;
+
+  ComputeHandleInternal(const ComputeContext* ctx)
+    :
+    nnXLen(ctx->nnXLen),
+    nnYLen(ctx->nnYLen)
+  {}
+};
+
+
+//--------------------------------------------------------------
+
+struct ScratchBuffers {
+
+  const size_t batchXYBytes;
+  const size_t batchBytes;
+
+  SimpleAllocator<float*>* allocator;
+
+  ScratchBuffers() = delete;
+  ScratchBuffers(const ScratchBuffers&) = delete;
+  ScratchBuffers& operator=(const ScratchBuffers&) = delete;
+
+  ScratchBuffers(int maxBatchSize, int nnXLen, int nnYLen)
+    : batchXYBytes((size_t)maxBatchSize * nnXLen * nnYLen * sizeof(float)),
+      batchBytes((size_t)maxBatchSize * sizeof(float))
   {
+    std::function<float*(size_t)> allocateFunc = [this](size_t size) {
+      return new float[size/sizeof(float)];
+    };
+    std::function<void(float*)> releaseFunc = [this](float* buf) {
+      delete[] buf;
+    };
+
+    allocator = new SimpleAllocator<float*>(allocateFunc, releaseFunc);
   }
+  ~ScratchBuffers() {
+    delete allocator;
+  }
+
+  size_t getBufSizeXY(int channels) const {
+    return channels * batchXYBytes;
+  }
+  size_t getBufSize(int channels) const {
+    return channels * batchBytes;
+  }
+
 };
 
 // Layers --------------------------------------------------------------------------------------------------------------
@@ -704,13 +769,17 @@ struct ActivationLayer {
 struct MatMulLayer {
   string name;
   TENSOR2 weights;
+  const int inChannels;
+  const int outChannels;
 
   MatMulLayer() = delete;
   MatMulLayer(const MatMulLayer&) = delete;
   MatMulLayer& operator=(const MatMulLayer&) = delete;
 
   MatMulLayer(const MatMulLayerDesc& desc)
-    : name(desc.name)
+    : name(desc.name),
+      inChannels(desc.inChannels),
+      outChannels(desc.outChannels)
   {
     weights = TENSOR2(desc.outChannels, desc.inChannels);
     memcpy(weights.data(), desc.weights.data(), sizeof(SCALAR) * weights.size());
@@ -743,6 +812,53 @@ struct MatBiasLayer {
   }
 };
 
+// --------------------------------------------------------------------------------------------------------------
+
+struct NormActConv {
+  BatchNormLayer norm;
+  ConvLayer conv;
+  int inChannels;
+  int outChannels;
+
+  NormActConv() = delete;
+  NormActConv(const NormActConv&) = delete;
+  NormActConv& operator=(const NormActConv&) = delete;
+
+  ~NormActConv(){}
+
+  NormActConv(
+    const BatchNormLayerDesc& normDesc,
+    const ActivationLayerDesc& actDesc,
+    const ConvLayerDesc& convDesc,
+    int nnX,
+    int nnY
+  )
+    : norm(normDesc,actDesc),
+      conv(convDesc,nnX,nnY),
+      inChannels(convDesc.inChannels),
+      outChannels(convDesc.outChannels)
+  {}
+
+  size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
+    return conv.requiredConvWorkspaceElts(maxBatchSize);
+  }
+
+  void apply(
+    ComputeHandleInternal* handle,
+    TENSORMAP4* input,
+    TENSORMAP4* inputScratch,
+    TENSORMAP4* output,
+    CONSTTENSORMAP3* mask,
+    float* convWorkspace,
+    bool accumulate
+  ) const {
+    norm.apply(input, inputScratch, mask);
+    conv.apply(handle, inputScratch, output, convWorkspace, accumulate);
+  }
+};
+
+
+
 // Blocks
 // --------------------------------------------------------------------------------------------------------------
 
@@ -751,16 +867,9 @@ struct ResidualBlockIntf {
 
   virtual void apply(
     ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
     TENSORMAP4* trunk,
     TENSORMAP4* trunkScratch,
-    TENSORMAP4* regularOut,
-    TENSORMAP4* regularScratch,
-    TENSORMAP4* midIn,
-    TENSORMAP4* midScratch,
-    TENSORMAP4* gpoolOut,
-    TENSORMAP4* gpoolOut2,
-    TENSORMAP2* gpoolConcat,
-    TENSORMAP2* gpoolBias,
     CONSTTENSORMAP3* mask,
     const float* maskSum,
     float* convWorkspace
@@ -771,10 +880,8 @@ struct ResidualBlockIntf {
 
 struct ResidualBlock final : public ResidualBlockIntf {
   string name;
-  BatchNormLayer preBN;
-  ConvLayer regularConv;
-  BatchNormLayer midBN;
-  ConvLayer finalConv;
+  NormActConv normActConv1;
+  NormActConv normActConv2;
 
   ResidualBlock() = delete;
   ResidualBlock(const ResidualBlock&) = delete;
@@ -784,45 +891,35 @@ struct ResidualBlock final : public ResidualBlockIntf {
 
   ResidualBlock(const ResidualBlockDesc& desc, int nnX, int nnY)
     : name(desc.name),
-      preBN(desc.preBN,desc.preActivation),
-      regularConv(desc.regularConv,nnX,nnY),
-      midBN(desc.midBN,desc.midActivation),
-      finalConv(desc.finalConv,nnX,nnY) {}
+      normActConv1(desc.preBN,desc.preActivation,desc.regularConv,nnX,nnY),
+      normActConv2(desc.midBN,desc.midActivation,desc.finalConv,nnX,nnY)
+  {}
 
   size_t requiredConvWorkspaceElts(size_t maxBatchSize) const override {
     return std::max(
-      regularConv.requiredConvWorkspaceElts(maxBatchSize),
-      finalConv.requiredConvWorkspaceElts(maxBatchSize)
+      normActConv1.requiredConvWorkspaceElts(maxBatchSize),
+      normActConv2.requiredConvWorkspaceElts(maxBatchSize)
     );
   }
 
   void apply(
     ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
     TENSORMAP4* trunk,
     TENSORMAP4* trunkScratch,
-    TENSORMAP4* regularOut,
-    TENSORMAP4* regularScratch,
-    TENSORMAP4* midIn,
-    TENSORMAP4* midScratch,
-    TENSORMAP4* gpoolOut,
-    TENSORMAP4* gpoolOut2,
-    TENSORMAP2* gpoolConcat,
-    TENSORMAP2* gpoolBias,
     CONSTTENSORMAP3* mask,
     const float* maskSum,
     float* convWorkspace
   ) const override {
-    (void)regularOut;
-    (void)regularScratch;
-    (void)gpoolOut;
-    (void)gpoolOut2;
-    (void)gpoolConcat;
-    (void)gpoolBias;
     (void)maskSum;
-    preBN.apply(trunk, trunkScratch, mask);
-    regularConv.apply(handle, trunkScratch, midIn, convWorkspace, false);
-    midBN.apply(midIn, midScratch, mask);
-    finalConv.apply(handle, midScratch, trunk, convWorkspace, true);
+    int batchSize = trunk->dimension(3);
+    SizedBuf<float*> midInBuf(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+    SizedBuf<float*> midScratchBuf(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+    TENSORMAP4 midIn(midInBuf.buf, normActConv1.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
+    TENSORMAP4 midScratch(midScratchBuf.buf, normActConv1.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
+
+    normActConv1.apply(handle, trunk, trunkScratch, &midIn, mask, convWorkspace, false);
+    normActConv2.apply(handle, &midIn, &midScratch, trunk, mask, convWorkspace, true);
   }
 };
 
@@ -834,8 +931,7 @@ struct GlobalPoolingResidualBlock final : public ResidualBlockIntf {
   ConvLayer gpoolConv;
   BatchNormLayer gpoolBN;
   MatMulLayer gpoolToBiasMul;
-  BatchNormLayer midBN;
-  ConvLayer finalConv;
+  NormActConv normActConv2;
 
   GlobalPoolingResidualBlock() = delete;
   GlobalPoolingResidualBlock(const GlobalPoolingResidualBlock&) = delete;
@@ -850,57 +946,62 @@ struct GlobalPoolingResidualBlock final : public ResidualBlockIntf {
       gpoolConv(desc.gpoolConv,nnX,nnY),
       gpoolBN(desc.gpoolBN,desc.gpoolActivation),
       gpoolToBiasMul(desc.gpoolToBiasMul),
-      midBN(desc.midBN,desc.midActivation),
-      finalConv(desc.finalConv,nnX,nnY) {}
+      normActConv2(desc.midBN,desc.midActivation,desc.finalConv,nnX,nnY)
+  {}
 
   size_t requiredConvWorkspaceElts(size_t maxBatchSize) const override {
     size_t maxElts = 0;
     maxElts = std::max(maxElts,regularConv.requiredConvWorkspaceElts(maxBatchSize));
     maxElts = std::max(maxElts,gpoolConv.requiredConvWorkspaceElts(maxBatchSize));
-    maxElts = std::max(maxElts,finalConv.requiredConvWorkspaceElts(maxBatchSize));
+    maxElts = std::max(maxElts,normActConv2.requiredConvWorkspaceElts(maxBatchSize));
     return maxElts;
   }
 
   void apply(
     ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
     TENSORMAP4* trunk,
     TENSORMAP4* trunkScratch,
-    TENSORMAP4* regularOut,
-    TENSORMAP4* regularScratch,
-    TENSORMAP4* midIn,
-    TENSORMAP4* midScratch,
-    TENSORMAP4* gpoolOut,
-    TENSORMAP4* gpoolOut2,
-    TENSORMAP2* gpoolConcat,
-    TENSORMAP2* gpoolBias,
     CONSTTENSORMAP3* mask,
     const float* maskSum,
     float* convWorkspace
   ) const override {
-    (void)midIn;
-    (void)midScratch;
+    int batchSize = trunk->dimension(3);
+    SizedBuf<float*> regularOutBuf(scratch->allocator, scratch->getBufSizeXY(regularConv.outChannels));
+    SizedBuf<float*> regularScratchBuf(scratch->allocator, scratch->getBufSizeXY(regularConv.outChannels));
+    SizedBuf<float*> gpoolOutBuf(scratch->allocator, scratch->getBufSizeXY(gpoolConv.outChannels));
+    SizedBuf<float*> gpoolOut2Buf(scratch->allocator, scratch->getBufSizeXY(gpoolConv.outChannels));
+    SizedBuf<float*> gpoolConcatBuf(scratch->allocator, scratch->getBufSize(gpoolConv.outChannels*3));
+    SizedBuf<float*> gpoolBiasBuf(scratch->allocator, scratch->getBufSize(regularConv.outChannels));
+
+    TENSORMAP4 regularOut(regularOutBuf.buf, regularConv.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
+    TENSORMAP4 regularScratch(regularScratchBuf.buf, regularConv.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
+    TENSORMAP4 gpoolOut(gpoolOutBuf.buf, gpoolConv.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
+    TENSORMAP4 gpoolOut2(gpoolOut2Buf.buf, gpoolConv.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
+    TENSORMAP2 gpoolConcat(gpoolConcatBuf.buf, gpoolConv.outChannels*3, batchSize);
+    TENSORMAP2 gpoolBias(gpoolBiasBuf.buf, regularConv.outChannels, batchSize);
+
     DTENSOR("trunk", trunk);
     DTENSOR("mask", mask);
     preBN.apply(trunk, trunkScratch, mask);
     DTENSOR("trunkScratch", trunkScratch);
-    regularConv.apply(handle, trunkScratch, regularOut, convWorkspace, false);
-    DTENSOR("regularOut", regularOut);
-    gpoolConv.apply(handle, trunkScratch, gpoolOut, convWorkspace, false);
-    DTENSOR("gpoolOut", gpoolOut);
-    gpoolBN.apply(gpoolOut, gpoolOut2, mask);
-    DTENSOR("gpoolOut2", gpoolOut2);
-    poolRowsGPool(gpoolOut2, gpoolConcat, mask, maskSum);
-    gpoolToBiasMul.apply(gpoolConcat, gpoolBias);
-    addNCBiasInplace(regularOut, gpoolBias);
-    midBN.apply(regularOut, regularScratch, mask);
-    finalConv.apply(handle, regularScratch, trunk, convWorkspace, true);
+    regularConv.apply(handle, trunkScratch, &regularOut, convWorkspace, false);
+    DTENSOR("regularOut", &regularOut);
+    gpoolConv.apply(handle, trunkScratch, &gpoolOut, convWorkspace, false);
+    DTENSOR("gpoolOut", &gpoolOut);
+    gpoolBN.apply(&gpoolOut, &gpoolOut2, mask);
+    DTENSOR("gpoolOut2", &gpoolOut2);
+    poolRowsGPool(&gpoolOut2, &gpoolConcat, mask, maskSum);
+    gpoolToBiasMul.apply(&gpoolConcat, &gpoolBias);
+    addNCBiasInplace(&regularOut, &gpoolBias);
+    normActConv2.apply(handle, &regularOut, &regularScratch, trunk, mask, convWorkspace, true);
     DSHAPE("trunk", trunk);
     DSHAPE("trunkScratch", trunkScratch);
-    DSHAPE("regularOut", regularOut);
-    DSHAPE("gpoolOut", gpoolOut);
-    DSHAPE("gpoolOut2", gpoolOut2);
-    DSHAPE("gpoolConcat", gpoolConcat);
-    DSHAPE("gpoolBias", gpoolBias);
+    DSHAPE("regularOut", &regularOut);
+    DSHAPE("gpoolOut", &gpoolOut);
+    DSHAPE("gpoolOut2", &gpoolOut2);
+    DSHAPE("gpoolConcat", &gpoolConcat);
+    DSHAPE("gpoolBias", &gpoolBias);
     DSHAPE("mask", mask);
   }
 };
@@ -957,43 +1058,32 @@ struct Trunk {
 
   void apply(
     ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
     CONSTTENSORMAP4* input,
     CONSTTENSORMAP2* inputGlobal,
-    TENSORMAP2* inputMatMulOut,
     TENSORMAP4* trunk,
-    TENSORMAP4* trunkScratch,
-    TENSORMAP4* regularOut,
-    TENSORMAP4* regularScratch,
-    TENSORMAP4* midIn,
-    TENSORMAP4* midScratch,
-    TENSORMAP4* gpoolOut,
-    TENSORMAP4* gpoolOut2,
-    TENSORMAP2* gpoolConcat,
-    TENSORMAP2* gpoolBias,
     CONSTTENSORMAP3* mask,
     const float* maskSum,
     float* convWorkspace
   ) const {
+    int batchSize = trunk->dimension(3);
+    SizedBuf<float*> trunkScratchBuf(scratch->allocator, scratch->getBufSizeXY(initialConv.outChannels));
+    SizedBuf<float*> inputMatMulOutBuf(scratch->allocator, scratch->getBufSize(initialMatMul.outChannels));
+    TENSORMAP4 trunkScratch(trunkScratchBuf.buf, initialConv.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
+    TENSORMAP2 inputMatMulOut(inputMatMulOutBuf.buf, initialMatMul.outChannels, batchSize);
 
-    initialConv.apply(handle, input, trunkScratch, convWorkspace, false);
-    initialMatMul.apply(inputGlobal, inputMatMulOut);
-    addNCBiasInplace(trunkScratch, inputMatMulOut);
+    initialConv.apply(handle, input, &trunkScratch, convWorkspace, false);
+    initialMatMul.apply(inputGlobal, &inputMatMulOut);
+    addNCBiasInplace(&trunkScratch, &inputMatMulOut);
 
     // apply blocks
     // Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
     for(auto& block : blocks) {
       block.second->apply(
         handle,
-        trunkScratch,
+        scratch,
+        &trunkScratch,
         trunk,
-        regularOut,
-        regularScratch,
-        midIn,
-        midScratch,
-        gpoolOut,
-        gpoolOut2,
-        gpoolConcat,
-        gpoolBias,
         mask,
         maskSum,
         convWorkspace
@@ -1001,7 +1091,7 @@ struct Trunk {
     }
 
     // And now with the final BN port it from trunkScratchBuf to trunkBuf.
-    trunkTipBN.apply(trunkScratch, trunk, mask);
+    trunkTipBN.apply(&trunkScratch, trunk, mask);
   }
 };
 
@@ -1042,28 +1132,37 @@ struct PolicyHead {
 
   void apply(
     ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
     CONSTTENSORMAP4* trunk,
-    TENSORMAP4* p1Out,
-    TENSORMAP4* p1Out2,
-    TENSORMAP4* g1Out,
-    TENSORMAP4* g1Out2,
-    TENSORMAP2* g1Concat,
-    TENSORMAP2* g1Bias,
     TENSORMAP2* policyPass,
     TENSORMAP4* policy,
     CONSTTENSORMAP3* mask,
     const float* maskSum,
     float* convWorkspace
   ) const {
-    p1Conv.apply(handle, trunk, p1Out, convWorkspace, false);
-    g1Conv.apply(handle, trunk, g1Out, convWorkspace, false);
-    g1BN.apply(g1Out, g1Out2, mask);
-    poolRowsGPool(g1Out2, g1Concat, mask, maskSum);
-    gpoolToBiasMul.apply(g1Concat, g1Bias);
-    addNCBiasInplace(p1Out, g1Bias);
-    p1BN.apply(p1Out, p1Out2, mask);
-    p2Conv.apply(handle, p1Out2, policy, convWorkspace, false);
-    gpoolToPassMul.apply(g1Concat, policyPass);
+    int batchSize = trunk->dimension(3);
+    SizedBuf<float*> p1OutBuf(scratch->allocator, scratch->getBufSizeXY(p1Conv.outChannels));
+    SizedBuf<float*> p1Out2Buf(scratch->allocator, scratch->getBufSizeXY(p1Conv.outChannels));
+    SizedBuf<float*> g1OutBuf(scratch->allocator, scratch->getBufSizeXY(g1Conv.outChannels));
+    SizedBuf<float*> g1Out2Buf(scratch->allocator, scratch->getBufSizeXY(g1Conv.outChannels));
+    SizedBuf<float*> g1ConcatBuf(scratch->allocator, scratch->getBufSize(g1Conv.outChannels*3));
+    SizedBuf<float*> g1BiasBuf(scratch->allocator, scratch->getBufSize(p1Conv.outChannels));
+    TENSORMAP4 p1Out(p1OutBuf.buf, p1Conv.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
+    TENSORMAP4 p1Out2(p1Out2Buf.buf, p1Conv.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
+    TENSORMAP4 g1Out(g1OutBuf.buf, g1Conv.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
+    TENSORMAP4 g1Out2(g1Out2Buf.buf, g1Conv.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
+    TENSORMAP2 g1Concat(g1ConcatBuf.buf, g1Conv.outChannels*3, batchSize);
+    TENSORMAP2 g1Bias(g1BiasBuf.buf, p1Conv.outChannels, batchSize);
+
+    p1Conv.apply(handle, trunk, &p1Out, convWorkspace, false);
+    g1Conv.apply(handle, trunk, &g1Out, convWorkspace, false);
+    g1BN.apply(&g1Out, &g1Out2, mask);
+    poolRowsGPool(&g1Out2, &g1Concat, mask, maskSum);
+    gpoolToBiasMul.apply(&g1Concat, &g1Bias);
+    addNCBiasInplace(&p1Out, &g1Bias);
+    p1BN.apply(&p1Out, &p1Out2, mask);
+    p2Conv.apply(handle, &p1Out2, policy, convWorkspace, false);
+    gpoolToPassMul.apply(&g1Concat, policyPass);
   }
 };
 
@@ -1109,11 +1208,8 @@ struct ValueHead {
 
   void apply(
     ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
     CONSTTENSORMAP4* trunk,
-    TENSORMAP4* v1Out,
-    TENSORMAP4* v1Out2,
-    TENSORMAP2* v1Mean,
-    TENSORMAP2* v2Out,
     TENSORMAP2* value,
     TENSORMAP2* scoreValue,
     TENSORMAP4* ownership,
@@ -1121,19 +1217,30 @@ struct ValueHead {
     const float* maskSum,
     float* convWorkspace
   ) const {
-    v1Conv.apply(handle, trunk, v1Out, convWorkspace, false);
-    v1BN.apply(v1Out, v1Out2, mask);
-    poolRowsValueHead(v1Out2, v1Mean, maskSum);
-    v2Mul.apply(v1Mean, v2Out);
-    v2Bias.apply(v2Out);
-    v2Activation.apply(v2Out, v2Out);
-    v3Mul.apply(v2Out, value);
+    int batchSize = trunk->dimension(3);
+    SizedBuf<float*> v1OutBuf(scratch->allocator, scratch->getBufSizeXY(v1Conv.outChannels));
+    SizedBuf<float*> v1Out2Buf(scratch->allocator, scratch->getBufSizeXY(v1Conv.outChannels));
+    SizedBuf<float*> v1MeanBuf(scratch->allocator, scratch->getBufSize(v1Conv.outChannels*3));
+    SizedBuf<float*> v2OutBuf(scratch->allocator, scratch->getBufSize(v2Mul.outChannels));
+
+    TENSORMAP4 v1Out(v1OutBuf.buf, v1Conv.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
+    TENSORMAP4 v1Out2(v1Out2Buf.buf, v1Conv.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
+    TENSORMAP2 v1Mean(v1MeanBuf.buf, v1Conv.outChannels*3, batchSize);
+    TENSORMAP2 v2Out(v2OutBuf.buf, v2Mul.outChannels, batchSize);
+
+    v1Conv.apply(handle, trunk, &v1Out, convWorkspace, false);
+    v1BN.apply(&v1Out, &v1Out2, mask);
+    poolRowsValueHead(&v1Out2, &v1Mean, maskSum);
+    v2Mul.apply(&v1Mean, &v2Out);
+    v2Bias.apply(&v2Out);
+    v2Activation.apply(&v2Out, &v2Out);
+    v3Mul.apply(&v2Out, value);
     v3Bias.apply(value);
 
-    sv3Mul.apply(v2Out, scoreValue);
+    sv3Mul.apply(&v2Out, scoreValue);
     sv3Bias.apply(scoreValue);
 
-    vOwnershipConv.apply(handle, v1Out2, ownership, convWorkspace, false);
+    vOwnershipConv.apply(handle, &v1Out2, ownership, convWorkspace, false);
   }
 };
 
@@ -1177,33 +1284,14 @@ struct Model {
 
   void apply(
     ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
     CONSTTENSORMAP4* input,
     CONSTTENSORMAP2* inputGlobal,
-    TENSORMAP2* inputMatMulOut,
     TENSORMAP4* trunkBuf,
-    TENSORMAP4* trunkScratch,
-    TENSORMAP4* regularOut,
-    TENSORMAP4* regularScratch,
-    TENSORMAP4* midIn,
-    TENSORMAP4* midScratch,
-    TENSORMAP4* gpoolOut,
-    TENSORMAP4* gpoolOut2,
-    TENSORMAP2* gpoolConcat,
-    TENSORMAP2* gpoolBias,
 
-    TENSORMAP4* p1Out,
-    TENSORMAP4* p1Out2,
-    TENSORMAP4* g1Out,
-    TENSORMAP4* g1Out2,
-    TENSORMAP2* g1Concat,
-    TENSORMAP2* g1Bias,
     TENSORMAP2* policyPass,
     TENSORMAP4* policy,
 
-    TENSORMAP4* v1Out,
-    TENSORMAP4* v1Out2,
-    TENSORMAP2* v1Mean,
-    TENSORMAP2* v2Out,
     TENSORMAP2* value,
     TENSORMAP2* scoreValue,
     TENSORMAP4* ownership,
@@ -1217,32 +1305,18 @@ struct Model {
 
     trunk.apply(
       handle,
+      scratch,
       input,
       inputGlobal,
-      inputMatMulOut,
       trunkBuf,
-      trunkScratch,
-      regularOut,
-      regularScratch,
-      midIn,
-      midScratch,
-      gpoolOut,
-      gpoolOut2,
-      gpoolConcat,
-      gpoolBias,
       mask,
       maskSum,
       convWorkspace
     );
     policyHead.apply(
       handle,
+      scratch,
       trunkBuf,
-      p1Out,
-      p1Out2,
-      g1Out,
-      g1Out2,
-      g1Concat,
-      g1Bias,
       policyPass,
       policy,
       mask,
@@ -1251,11 +1325,8 @@ struct Model {
     );
     valueHead.apply(
       handle,
+      scratch,
       trunkBuf,
-      v1Out,
-      v1Out2,
-      v1Mean,
-      v2Out,
       value,
       scoreValue,
       ownership,
@@ -1269,31 +1340,11 @@ struct Model {
 //--------------------------------------------------------------
 
 struct Buffers {
-  TENSOR2 inputMatMulOut;
   TENSOR4 trunk;
-  TENSOR4 trunkScratch;
-  TENSOR4 regularOut;
-  TENSOR4 regularScratch;
-  TENSOR4 midIn;
-  TENSOR4 midScratch;
-  TENSOR4 gpoolOut;
-  TENSOR4 gpoolOut2;
-  TENSOR2 gpoolConcat;
-  TENSOR2 gpoolBias;
 
-  TENSOR4 p1Out;
-  TENSOR4 p1Out2;
-  TENSOR4 g1Out;
-  TENSOR4 g1Out2;
-  TENSOR2 g1Concat;
-  TENSOR2 g1Bias;
   TENSOR2 policyPass;
   TENSOR4 policy;
 
-  TENSOR4 v1Out;
-  TENSOR4 v1Out2;
-  TENSOR2 v1Mean;
-  TENSOR2 v2Out;
   TENSOR2 value;
   TENSOR2 scoreValue;
   TENSOR4 ownership;
@@ -1309,31 +1360,11 @@ struct Buffers {
     int nnXLen,
     int nnYLen
   ) :
-    inputMatMulOut(desc.trunk.trunkNumChannels, maxBatchSize),
     trunk(desc.trunk.trunkNumChannels, nnXLen, nnYLen, maxBatchSize),
-    trunkScratch(desc.trunk.trunkNumChannels, nnXLen, nnYLen, maxBatchSize),
-    regularOut(desc.trunk.regularNumChannels, nnXLen, nnYLen, maxBatchSize),
-    regularScratch(desc.trunk.regularNumChannels, nnXLen, nnYLen, maxBatchSize),
-    midIn(desc.trunk.midNumChannels, nnXLen, nnYLen, maxBatchSize),
-    midScratch(desc.trunk.midNumChannels, nnXLen, nnYLen, maxBatchSize),
-    gpoolOut(desc.trunk.gpoolNumChannels, nnXLen, nnYLen, maxBatchSize),
-    gpoolOut2(desc.trunk.gpoolNumChannels, nnXLen, nnYLen, maxBatchSize),
-    gpoolConcat(desc.trunk.gpoolNumChannels*3, maxBatchSize),
-    gpoolBias(desc.trunk.regularNumChannels, maxBatchSize),
 
-    p1Out(desc.policyHead.p1Conv.outChannels, nnXLen, nnYLen, maxBatchSize),
-    p1Out2(desc.policyHead.p1Conv.outChannels, nnXLen, nnYLen, maxBatchSize),
-    g1Out(desc.policyHead.g1Conv.outChannels, nnXLen, nnYLen, maxBatchSize),
-    g1Out2(desc.policyHead.g1Conv.outChannels, nnXLen, nnYLen, maxBatchSize),
-    g1Concat(desc.policyHead.g1Conv.outChannels*3, maxBatchSize),
-    g1Bias(desc.policyHead.gpoolToBiasMul.outChannels, maxBatchSize),
     policyPass(desc.policyHead.gpoolToPassMul.outChannels, maxBatchSize),
     policy(desc.policyHead.p2Conv.outChannels, nnXLen, nnYLen, maxBatchSize),
 
-    v1Out(desc.valueHead.v1Conv.outChannels, nnXLen, nnYLen, maxBatchSize),
-    v1Out2(desc.valueHead.v1Conv.outChannels, nnXLen, nnYLen, maxBatchSize),
-    v1Mean(desc.valueHead.v1Conv.outChannels*3, maxBatchSize),
-    v2Out(desc.valueHead.v2Mul.outChannels, maxBatchSize),
     value(desc.valueHead.v3Mul.outChannels, maxBatchSize),
     scoreValue(desc.valueHead.sv3Mul.outChannels, maxBatchSize),
     ownership(desc.valueHead.vOwnershipConv.outChannels, nnXLen, nnYLen, maxBatchSize),
@@ -1409,24 +1440,6 @@ void NeuralNet::globalCleanup() {
 
 //------------------------------------------------------------------------------
 
-struct ComputeContext {
-  const int nnXLen;
-  const int nnYLen;
-  const Model model;
-
-  ComputeContext() = delete;
-  ComputeContext(const ComputeContext&) = delete;
-  ComputeContext& operator=(const ComputeContext&) = delete;
-
-  ComputeContext(const LoadedModel& loadedModel, int nnX, int nnY)
-    : nnXLen(nnX),
-      nnYLen(nnY),
-      model(loadedModel.modelDesc,nnX,nnY)
-  {}
-  ~ComputeContext()
-  {}
-};
-
 ComputeContext* NeuralNet::createComputeContext(
   const std::vector<int>& gpuIdxs,
   Logger* logger,
@@ -1444,6 +1457,7 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)openCLTunerFile;
   (void)homeDataDirOverride;
   (void)openCLReTunePerBoardSize;
+  (void)loadedModel;
 
   bool useFP16 = useFP16Mode == enabled_t::True ? true : false;
   bool useNHWC = useNHWCMode == enabled_t::False ? false : true;
@@ -1453,7 +1467,7 @@ ComputeContext* NeuralNet::createComputeContext(
   if(!useNHWC)
     throw StringError("Eigen backend: useNHWC = false not supported");
 
-  ComputeContext* context = new ComputeContext(*loadedModel,nnXLen,nnYLen);
+  ComputeContext* context = new ComputeContext(nnXLen,nnYLen);
   return context;
 }
 
@@ -1465,26 +1479,27 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 
 struct ComputeHandle {
   const ComputeContext* context;
-  int maxBatchSize;
   bool inputsUseNHWC;
-  Buffers* buffers;
   ComputeHandleInternal handleInternal;
+  const Model model;
+  std::unique_ptr<ScratchBuffers> scratch;
+  std::unique_ptr<Buffers> buffers;
 
   ComputeHandle() = delete;
   ComputeHandle(const ComputeHandle&) = delete;
   ComputeHandle& operator=(const ComputeHandle&) = delete;
 
-  ComputeHandle(const ComputeContext* ctx, const LoadedModel& loadedModel, int maxBSize, bool iNHWC)
+  ComputeHandle(const ComputeContext* ctx, const LoadedModel& loadedModel, int maxBatchSize, bool iNHWC)
     : context(ctx),
-      maxBatchSize(maxBSize),
       inputsUseNHWC(iNHWC),
-      handleInternal()
+      handleInternal(ctx),
+      model(loadedModel.modelDesc,ctx->nnXLen,ctx->nnYLen)
   {
-    buffers = new Buffers(loadedModel.modelDesc,context->model,maxBSize,ctx->nnXLen,ctx->nnYLen);
+    scratch = std::make_unique<ScratchBuffers>(maxBatchSize,ctx->nnXLen,ctx->nnYLen);
+    buffers = std::make_unique<Buffers>(loadedModel.modelDesc,model,maxBatchSize,ctx->nnXLen,ctx->nnYLen);
   }
 
   ~ComputeHandle() {
-    delete buffers;
   }
 };
 
@@ -1527,11 +1542,11 @@ void NeuralNet::getOutput(
   int batchSize = numBatchEltsFilled;
   int nnXLen = computeHandle->context->nnXLen;
   int nnYLen = computeHandle->context->nnYLen;
-  int version = computeHandle->context->model.version;
+  int version = computeHandle->model.version;
 
   int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
   int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
-  assert(numSpatialFeatures == computeHandle->context->model.numInputChannels);
+  assert(numSpatialFeatures == computeHandle->model.numInputChannels);
   assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
 
@@ -1554,29 +1569,9 @@ void NeuralNet::getOutput(
 #define MAP3(NAME) TENSORMAP3 NAME(buffers.NAME.data(), buffers.NAME.dimension(0), buffers.NAME.dimension(1), batchSize)
 #define MAP2(NAME) TENSORMAP2 NAME(buffers.NAME.data(), buffers.NAME.dimension(0), batchSize)
 
-  MAP2(inputMatMulOut);
   MAP4(trunk);
-  MAP4(trunkScratch);
-  MAP4(regularOut);
-  MAP4(regularScratch);
-  MAP4(midIn);
-  MAP4(midScratch);
-  MAP4(gpoolOut);
-  MAP4(gpoolOut2);
-  MAP2(gpoolConcat);
-  MAP2(gpoolBias);
-  MAP4(p1Out);
-  MAP4(p1Out2);
-  MAP4(g1Out);
-  MAP4(g1Out2);
-  MAP2(g1Concat);
-  MAP2(g1Bias);
   MAP2(policyPass);
   MAP4(policy);
-  MAP4(v1Out);
-  MAP4(v1Out2);
-  MAP2(v1Mean);
-  MAP2(v2Out);
   MAP2(value);
   MAP2(scoreValue);
   MAP4(ownership);
@@ -1585,33 +1580,14 @@ void NeuralNet::getOutput(
   computeMaskSum(&mask,maskSum.data());
   vector<float>& convWorkspace = buffers.convWorkspace;
 
-  computeHandle->context->model.apply(
+  computeHandle->model.apply(
     &computeHandle->handleInternal,
+    computeHandle->scratch.get(),
     &input,
     &inputGlobal,
-    &inputMatMulOut,
     &trunk,
-    &trunkScratch,
-    &regularOut,
-    &regularScratch,
-    &midIn,
-    &midScratch,
-    &gpoolOut,
-    &gpoolOut2,
-    &gpoolConcat,
-    &gpoolBias,
-    &p1Out,
-    &p1Out2,
-    &g1Out,
-    &g1Out2,
-    &g1Concat,
-    &g1Bias,
     &policyPass,
     &policy,
-    &v1Out,
-    &v1Out2,
-    &v1Mean,
-    &v2Out,
     &value,
     &scoreValue,
     &ownership,
@@ -1642,7 +1618,7 @@ void NeuralNet::getOutput(
     SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
     policyProbs[inputBuffers->singlePolicyResultElts] = policyPassData[row];
 
-    int numValueChannels = computeHandle->context->model.numValueChannels;
+    int numValueChannels = computeHandle->model.numValueChannels;
     assert(numValueChannels == 3);
     output->whiteWinProb = valueData[row * numValueChannels];
     output->whiteLossProb = valueData[row * numValueChannels + 1];
@@ -1652,12 +1628,12 @@ void NeuralNet::getOutput(
     //As usual the client does the postprocessing.
     if(output->whiteOwnerMap != NULL) {
       const float* ownershipSrcBuf = ownershipData + row * nnXLen * nnYLen;
-      assert(computeHandle->context->model.numOwnershipChannels == 1);
+      assert(computeHandle->model.numOwnershipChannels == 1);
       SymmetryHelpers::copyOutputsWithSymmetry(ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
     }
 
     if(version >= 9) {
-      int numScoreValueChannels = computeHandle->context->model.numScoreValueChannels;
+      int numScoreValueChannels = computeHandle->model.numScoreValueChannels;
       assert(numScoreValueChannels == 6);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
       output->whiteScoreMeanSq = scoreValueData[row * numScoreValueChannels + 1];
@@ -1667,7 +1643,7 @@ void NeuralNet::getOutput(
       output->shorttermScoreError = scoreValueData[row * numScoreValueChannels + 5];
     }
     else if(version >= 8) {
-      int numScoreValueChannels = computeHandle->context->model.numScoreValueChannels;
+      int numScoreValueChannels = computeHandle->model.numScoreValueChannels;
       assert(numScoreValueChannels == 4);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
       output->whiteScoreMeanSq = scoreValueData[row * numScoreValueChannels + 1];
@@ -1677,7 +1653,7 @@ void NeuralNet::getOutput(
       output->shorttermScoreError = 0;
     }
     else if(version >= 4) {
-      int numScoreValueChannels = computeHandle->context->model.numScoreValueChannels;
+      int numScoreValueChannels = computeHandle->model.numScoreValueChannels;
       assert(numScoreValueChannels == 2);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
       output->whiteScoreMeanSq = scoreValueData[row * numScoreValueChannels + 1];
@@ -1687,7 +1663,7 @@ void NeuralNet::getOutput(
       output->shorttermScoreError = 0;
     }
     else if(version >= 3) {
-      int numScoreValueChannels = computeHandle->context->model.numScoreValueChannels;
+      int numScoreValueChannels = computeHandle->model.numScoreValueChannels;
       assert(numScoreValueChannels == 1);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
       //Version 3 neural nets don't have any second moment output, implicitly already folding it in, so we just use the mean squared
@@ -1728,7 +1704,8 @@ bool NeuralNet::testEvaluateConv(
   size_t convWorkspaceElts = layer.requiredConvWorkspaceElts(batchSize);
   vector<float> convWorkspace(convWorkspaceElts);
 
-  ComputeHandleInternal handle;
+  ComputeContext ctx(nnXLen,nnYLen);
+  ComputeHandleInternal handle(&ctx);
   layer.apply(&handle, &inTensor, &outTensor, convWorkspace.data(), false);
 
   outputBuffer.resize(outTensorBuf.size());
@@ -1798,19 +1775,14 @@ bool NeuralNet::testEvaluateResidualBlock(
 
   trunk = inTensor;
 
-  ComputeHandleInternal handle;
+  ComputeContext ctx(nnXLen,nnYLen);
+  ComputeHandleInternal handle(&ctx);
+  ScratchBuffers scratch(batchSize, nnXLen, nnYLen);
   block.apply(
     &handle,
+    &scratch,
     &trunk,
     &trunkScratch,
-    NULL,
-    NULL,
-    &mid,
-    &midScratch,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
     &mask,
     NULL,
     convWorkspace.data()
@@ -1864,19 +1836,14 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
 
   trunk = inTensor;
 
-  ComputeHandleInternal handle;
+  ComputeContext ctx(nnXLen,nnYLen);
+  ComputeHandleInternal handle(&ctx);
+  ScratchBuffers scratch(batchSize, nnXLen, nnYLen);
   block.apply(
     &handle,
+    &scratch,
     &trunk,
     &trunkScratch,
-    &regularOut,
-    &regularScratch,
-    NULL,
-    NULL,
-    &gpoolOut,
-    &gpoolOut2,
-    &gpoolConcat,
-    &gpoolBias,
     &mask,
     maskSum.data(),
     convWorkspace.data()
