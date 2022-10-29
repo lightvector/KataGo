@@ -280,9 +280,10 @@ struct ConvLayer {
     bool useFP16,
     bool useNHWCIn,
     bool useNHWCOut
-  ) : name(desc->name),
-      inChannels(desc->inChannels),
-      outChannels(desc->outChannels)
+  ) :
+    name(desc->name),
+    inChannels(desc->inChannels),
+    outChannels(desc->outChannels)
   {
     int convYSize = desc->convYSize;
     int convXSize = desc->convXSize;
@@ -523,14 +524,15 @@ struct BatchNormLayer {
     int nnY,
     bool useFP16,
     bool useNHWC
-  ) : name(desc->name),
-      numChannels(desc->numChannels),
-      epsilon(desc->epsilon),
-      activation(actDesc->activation),
-      nnXLen(nnX),
-      nnYLen(nnY),
-      usingFP16(useFP16),
-      usingNHWC(useNHWC)
+  ) :
+    name(desc->name),
+    numChannels(desc->numChannels),
+    epsilon(desc->epsilon),
+    activation(actDesc->activation),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    usingFP16(useFP16),
+    usingNHWC(useNHWC)
   {
     (void)cudaHandles;
 
@@ -1139,12 +1141,13 @@ BlockStack::BlockStack(
   int nnY,
   bool useFP16,
   bool useNHWC
-) : numBlocks(nBlocks),
-    trunkNumChannels(trunkChannels),
-    nnXLen(nnX),
-    nnYLen(nnY),
-    usingFP16(useFP16),
-    usingNHWC(useNHWC)
+) :
+  numBlocks(nBlocks),
+  trunkNumChannels(trunkChannels),
+  nnXLen(nnX),
+  nnYLen(nnY),
+  usingFP16(useFP16),
+  usingNHWC(useNHWC)
 {
   assert(numBlocks == descBlocks.size());
   for(int i = 0; i<numBlocks; i++) {
@@ -1468,13 +1471,13 @@ struct PolicyHead {
   const bool usingFP16;
   const bool usingNHWC;
 
-  std::unique_ptr<ConvLayer> p1Conv;
-  std::unique_ptr<ConvLayer> g1Conv;
-  std::unique_ptr<BatchNormLayer> g1BN;
-  std::unique_ptr<MatMulLayer> gpoolToBiasMul;
-  std::unique_ptr<BatchNormLayer> p1BN;
-  std::unique_ptr<ConvLayer> p2Conv;
-  std::unique_ptr<MatMulLayer> gpoolToPassMul;
+  const ConvLayer p1Conv;
+  const ConvLayer g1Conv;
+  const BatchNormLayer g1BN;
+  const MatMulLayer gpoolToBiasMul;
+  const BatchNormLayer p1BN;
+  const ConvLayer p2Conv;
+  const MatMulLayer gpoolToPassMul;
 
   PolicyHead() = delete;
   PolicyHead(const PolicyHead&) = delete;
@@ -1497,15 +1500,15 @@ struct PolicyHead {
     g1Channels(desc->g1Conv.outChannels),
     p2Channels(desc->p2Conv.outChannels),
     usingFP16(useFP16),
-    usingNHWC(useNHWC)
+    usingNHWC(useNHWC),
+    p1Conv(cudaHandles,manager,&desc->p1Conv,useFP16,useNHWC),
+    g1Conv(cudaHandles,manager,&desc->g1Conv,useFP16,useNHWC),
+    g1BN(cudaHandles,&desc->g1BN,&desc->g1Activation,nnX,nnY,useFP16,useNHWC),
+    gpoolToBiasMul(cudaHandles,&desc->gpoolToBiasMul,false),
+    p1BN(cudaHandles,&desc->p1BN,&desc->p1Activation,nnX,nnY,false,useNHWC),
+    p2Conv(cudaHandles,manager,&desc->p2Conv,false,useNHWC),
+    gpoolToPassMul(cudaHandles,&desc->gpoolToPassMul,false)
   {
-    p1Conv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->p1Conv,useFP16,useNHWC);
-    g1Conv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->g1Conv,useFP16,useNHWC);
-    g1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->g1BN,&desc->g1Activation,nnXLen,nnYLen,useFP16,useNHWC);
-    gpoolToBiasMul = std::make_unique<MatMulLayer>(cudaHandles,&desc->gpoolToBiasMul,false);
-    p1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->p1BN,&desc->p1Activation,nnXLen,nnYLen,false,useNHWC);
-    p2Conv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->p2Conv,false,useNHWC);
-    gpoolToPassMul = std::make_unique<MatMulLayer>(cudaHandles,&desc->gpoolToPassMul,false);
   }
 
   ~PolicyHead()
@@ -1519,15 +1522,15 @@ struct PolicyHead {
     size_t bytes = 0;
     size_t b;
 
-    b = p1Conv->requiredWorkspaceBytes(cudaHandles,batchSize);
+    b = p1Conv.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
-    b = g1Conv->requiredWorkspaceBytes(cudaHandles,batchSize);
+    b = g1Conv.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
-    b = gpoolToBiasMul->requiredWorkspaceBytes(cudaHandles);
+    b = gpoolToBiasMul.requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
-    b = p2Conv->requiredWorkspaceBytes(cudaHandles,batchSize);
+    b = p2Conv.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
-    b = gpoolToPassMul->requiredWorkspaceBytes(cudaHandles);
+    b = gpoolToPassMul.requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
     b = sizeof(float)*batchSize*g1Channels*nnXLen*nnYLen;
     bytes = std::max(bytes,b);
@@ -1557,9 +1560,9 @@ struct PolicyHead {
     SizedBuf<void*> p2Out(scratch->allocator, scratch->getBufSizeXYFloat(p2Channels));
     SizedBuf<void*> g1Pass(scratch->allocator, scratch->getBufSizeFloat(p2Channels));
 
-    p1Conv->apply(cudaHandles,batchSize,false,trunkBuf,p1Out.buf,workspaceBuf,workspaceBytes);
-    g1Conv->apply(cudaHandles,batchSize,false,trunkBuf,g1Out.buf,workspaceBuf,workspaceBytes);
-    g1BN->apply(cudaHandles,batchSize,g1Out.buf,maskBuf,g1Out2.buf);
+    p1Conv.apply(cudaHandles,batchSize,false,trunkBuf,p1Out.buf,workspaceBuf,workspaceBytes);
+    g1Conv.apply(cudaHandles,batchSize,false,trunkBuf,g1Out.buf,workspaceBuf,workspaceBytes);
+    g1BN.apply(cudaHandles,batchSize,g1Out.buf,maskBuf,g1Out2.buf);
 
     if(!usingFP16) {
       if(!usingNHWC)
@@ -1578,7 +1581,7 @@ struct PolicyHead {
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
 
-    gpoolToBiasMul->apply(cudaHandles,scratch,batchSize,g1Concat.buf,g1Bias.buf,workspaceBuf,workspaceBytes);
+    gpoolToBiasMul.apply(cudaHandles,scratch,batchSize,g1Concat.buf,g1Bias.buf,workspaceBuf,workspaceBytes);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
     CudaUtils::debugPrint4D(string("p1 pre-gpool-sum"), p1Out.buf, batchSize, p1Channels, nnXLen, nnYLen, usingNHWC, usingFP16);
@@ -1606,10 +1609,10 @@ struct PolicyHead {
       customCudaAddNCBiasInplaceNHWC(p1OutBufA,(float*)g1Bias.buf,batchSize,nnXLen*nnYLen,p1Channels);
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-    p1BN->apply(cudaHandles,batchSize,p1OutBufA,maskFloatBuf,p1OutBufB);
-    p2Conv->apply(cudaHandles,batchSize,false,p1OutBufB,(float*)p2Out.buf,workspaceBuf,workspaceBytes);
+    p1BN.apply(cudaHandles,batchSize,p1OutBufA,maskFloatBuf,p1OutBufB);
+    p2Conv.apply(cudaHandles,batchSize,false,p1OutBufB,(float*)p2Out.buf,workspaceBuf,workspaceBytes);
 
-    gpoolToPassMul->apply(cudaHandles,scratch,batchSize,g1Concat.buf,g1Pass.buf,workspaceBuf,workspaceBytes);
+    gpoolToPassMul.apply(cudaHandles,scratch,batchSize,g1Concat.buf,g1Pass.buf,workspaceBuf,workspaceBytes);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
     CudaUtils::debugPrint4D(string("p1 after-gpool-sum"), p1Out.buf, batchSize, p1Channels, nnXLen, nnYLen, usingNHWC, usingFP16);
@@ -1644,15 +1647,15 @@ struct ValueHead {
   const bool usingFP16;
   const bool usingNHWC;
 
-  std::unique_ptr<ConvLayer> v1Conv;
-  std::unique_ptr<BatchNormLayer> v1BN;
-  std::unique_ptr<MatMulLayer> v2Mul;
-  std::unique_ptr<MatBiasLayer> v2Bias;
-  std::unique_ptr<MatMulLayer> v3Mul;
-  std::unique_ptr<MatBiasLayer> v3Bias;
-  std::unique_ptr<MatMulLayer> sv3Mul;
-  std::unique_ptr<MatBiasLayer> sv3Bias;
-  std::unique_ptr<ConvLayer> vOwnershipConv;
+  const ConvLayer v1Conv;
+  const BatchNormLayer v1BN;
+  const MatMulLayer v2Mul;
+  const MatBiasLayer v2Bias;
+  const MatMulLayer v3Mul;
+  const MatBiasLayer v3Bias;
+  const MatMulLayer sv3Mul;
+  const MatBiasLayer sv3Bias;
+  const ConvLayer vOwnershipConv;
 
   ValueHead() = delete;
   ValueHead(const ValueHead&) = delete;
@@ -1677,17 +1680,17 @@ struct ValueHead {
     scoreValueChannels(desc->sv3Mul.outChannels),
     ownershipChannels(desc->vOwnershipConv.outChannels),
     usingFP16(useFP16),
-    usingNHWC(useNHWC)
+    usingNHWC(useNHWC),
+    v1Conv(cudaHandles,manager,&desc->v1Conv,useFP16,useNHWC),
+    v1BN(cudaHandles,&desc->v1BN,&desc->v1Activation,nnX,nnY,useFP16,useNHWC),
+    v2Mul(cudaHandles,&desc->v2Mul,false),
+    v2Bias(cudaHandles,&desc->v2Bias,false,desc->v2Activation.activation),
+    v3Mul(cudaHandles,&desc->v3Mul,false),
+    v3Bias(cudaHandles,&desc->v3Bias,false,ACTIVATION_IDENTITY),
+    sv3Mul(cudaHandles,&desc->sv3Mul,false),
+    sv3Bias(cudaHandles,&desc->sv3Bias,false,ACTIVATION_IDENTITY),
+    vOwnershipConv(cudaHandles,manager,&desc->vOwnershipConv,useFP16,useNHWC)
   {
-    v1Conv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->v1Conv,useFP16,useNHWC);
-    v1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->v1BN,&desc->v1Activation,nnXLen,nnYLen,useFP16,useNHWC);
-    v2Mul = std::make_unique<MatMulLayer>(cudaHandles,&desc->v2Mul,false);
-    v2Bias = std::make_unique<MatBiasLayer>(cudaHandles,&desc->v2Bias,false,desc->v2Activation.activation);
-    v3Mul = std::make_unique<MatMulLayer>(cudaHandles,&desc->v3Mul,false);
-    v3Bias = std::make_unique<MatBiasLayer>(cudaHandles,&desc->v3Bias,false,ACTIVATION_IDENTITY);
-    sv3Mul = std::make_unique<MatMulLayer>(cudaHandles,&desc->sv3Mul,false);
-    sv3Bias = std::make_unique<MatBiasLayer>(cudaHandles,&desc->sv3Bias,false,ACTIVATION_IDENTITY);
-    vOwnershipConv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->vOwnershipConv,useFP16,useNHWC);
   }
 
   ~ValueHead()
@@ -1701,18 +1704,18 @@ struct ValueHead {
     size_t bytes = 0;
     size_t b;
 
-    b = v1Conv->requiredWorkspaceBytes(cudaHandles,batchSize);
+    b = v1Conv.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
-    b = v2Mul->requiredWorkspaceBytes(cudaHandles);
+    b = v2Mul.requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
-    b = v3Mul->requiredWorkspaceBytes(cudaHandles);
+    b = v3Mul.requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
     b = sizeof(float)*batchSize*v1Channels*nnXLen*nnYLen;
     bytes = std::max(bytes,b);
 
-    b = sv3Mul->requiredWorkspaceBytes(cudaHandles);
+    b = sv3Mul.requiredWorkspaceBytes(cudaHandles);
     bytes = std::max(bytes,b);
-    b = vOwnershipConv->requiredWorkspaceBytes(cudaHandles,batchSize);
+    b = vOwnershipConv.requiredWorkspaceBytes(cudaHandles,batchSize);
     bytes = std::max(bytes,b);
     b = sizeof(float)*batchSize*ownershipChannels*nnXLen*nnYLen;
     bytes = std::max(bytes,b);
@@ -1740,8 +1743,8 @@ struct ValueHead {
     SizedBuf<void*> v2Out(scratch->allocator, scratch->getBufSizeFloat(v2Channels));
     SizedBuf<void*> ownershipScratch(scratch->allocator, scratch->getBufSizeXYFloat(ownershipChannels));
 
-    v1Conv->apply(cudaHandles,batchSize,false,trunkBuf,v1Out.buf,workspaceBuf,workspaceBytes);
-    v1BN->apply(cudaHandles,batchSize,v1Out.buf,maskBuf,v1Out2.buf);
+    v1Conv.apply(cudaHandles,batchSize,false,trunkBuf,v1Out.buf,workspaceBuf,workspaceBytes);
+    v1BN.apply(cudaHandles,batchSize,v1Out.buf,maskBuf,v1Out2.buf);
 
     void* bufToBePooled = v1Out2.buf;
     if(usingFP16) {
@@ -1756,13 +1759,13 @@ struct ValueHead {
       customCudaValueHeadPoolNHWC((const float*)bufToBePooled,(float*)v1Mean.buf,batchSize,nnXLen*nnYLen,v1Channels,maskSumBuf);
     CUDA_ERR(name.c_str(),cudaPeekAtLastError());
 
-    v2Mul->apply(cudaHandles,scratch,batchSize,v1Mean.buf,v2Out.buf,workspaceBuf,workspaceBytes);
-    v2Bias->apply(cudaHandles,batchSize,v2Out.buf);
-    v3Mul->apply(cudaHandles,scratch,batchSize,v2Out.buf,valueBuf,workspaceBuf,workspaceBytes);
-    v3Bias->apply(cudaHandles,batchSize,valueBuf);
+    v2Mul.apply(cudaHandles,scratch,batchSize,v1Mean.buf,v2Out.buf,workspaceBuf,workspaceBytes);
+    v2Bias.apply(cudaHandles,batchSize,v2Out.buf);
+    v3Mul.apply(cudaHandles,scratch,batchSize,v2Out.buf,valueBuf,workspaceBuf,workspaceBytes);
+    v3Bias.apply(cudaHandles,batchSize,valueBuf);
 
-    sv3Mul->apply(cudaHandles,scratch,batchSize,v2Out.buf,scoreValueBuf,workspaceBuf,workspaceBytes);
-    sv3Bias->apply(cudaHandles,batchSize,scoreValueBuf);
+    sv3Mul.apply(cudaHandles,scratch,batchSize,v2Out.buf,scoreValueBuf,workspaceBuf,workspaceBytes);
+    sv3Bias.apply(cudaHandles,batchSize,scoreValueBuf);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
     CudaUtils::debugPrint4D(string("v1"), v1Out.buf, batchSize, v1Channels, nnXLen, nnYLen, usingNHWC, usingFP16);
@@ -1771,10 +1774,10 @@ struct ValueHead {
     #endif
 
     if(!usingFP16) {
-      vOwnershipConv->apply(cudaHandles,batchSize,false,v1Out2.buf,ownershipBuf,workspaceBuf,workspaceBytes);
+      vOwnershipConv.apply(cudaHandles,batchSize,false,v1Out2.buf,ownershipBuf,workspaceBuf,workspaceBytes);
     }
     else {
-      vOwnershipConv->apply(cudaHandles,batchSize,false,v1Out2.buf,ownershipScratch.buf,workspaceBuf,workspaceBytes);
+      vOwnershipConv.apply(cudaHandles,batchSize,false,v1Out2.buf,ownershipScratch.buf,workspaceBuf,workspaceBytes);
       customCudaCopyFromHalf((const half*)ownershipScratch.buf,(float*)ownershipBuf,batchSize*ownershipChannels*nnXLen*nnYLen);
       CUDA_ERR("vOwnership copy",cudaPeekAtLastError());
     }

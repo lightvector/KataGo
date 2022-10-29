@@ -135,11 +135,11 @@ Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& 
 using CLProgram = WrappedWithDeleter<cl_program,int,clReleaseProgram>;
 
 struct CompiledPrograms {
-  OpenCLTuneParams tuneParams;
+  const OpenCLTuneParams tuneParams;
 
-  bool usingFP16Storage;
-  bool usingFP16Compute;
-  bool usingFP16TensorCores;
+  const bool usingFP16Storage;
+  const bool usingFP16Compute;
+  const bool usingFP16TensorCores;
 
   CLProgram conv2dNCHWProgram;
   CLProgram winogradConv3x3NCHWTransformProgram;
@@ -173,13 +173,12 @@ struct CompiledPrograms {
     bool useFP16Storage,
     bool useFP16Compute,
     bool useFP16TensorCores
-  ) {
-    tuneParams = tParams;
-
-    usingFP16Storage = useFP16Storage;
-    usingFP16Compute = useFP16Compute;
-    usingFP16TensorCores = useFP16TensorCores;
-
+  ) :
+    tuneParams(tParams),
+    usingFP16Storage(useFP16Storage),
+    usingFP16Compute(useFP16Compute),
+    usingFP16TensorCores(useFP16TensorCores)
+  {
     string maybeFP16CompileOptions = "";
     if(useFP16Storage)
       maybeFP16CompileOptions += OpenCLKernels::fp16StorageDefine;
@@ -310,12 +309,13 @@ struct CompiledPrograms {
 //---------------------------------------------------------------------------------------------------------
 
 struct ComputeContext {
+  const int nnXLen;
+  const int nnYLen;
+  const enabled_t usingFP16Mode;
+  const enabled_t usingNHWCMode;
+
   DevicesContext* devicesContext;
   map<cl_device_id,CompiledPrograms*> compiledProgramsByDeviceId;
-  int nnXLen;
-  int nnYLen;
-  enabled_t usingFP16Mode;
-  enabled_t usingNHWCMode;
 
 #ifdef PROFILE_KERNELS
   static constexpr bool liveProfilingKernels = true;
@@ -331,12 +331,12 @@ struct ComputeContext {
     enabled_t useFP16Mode,
     enabled_t useNHWCMode,
     std::function<OpenCLTuneParams(const string&,int)> getParamsForDeviceName
-  ) {
-    nnXLen = nnX;
-    nnYLen = nnY;
-    usingFP16Mode = useFP16Mode;
-    usingNHWCMode = useNHWCMode;
-
+  ) :
+    nnXLen(nnX),
+    nnYLen(nnY),
+    usingFP16Mode(useFP16Mode),
+    usingNHWCMode(useNHWCMode)
+  {
     vector<DeviceInfo> allDeviceInfos = DeviceInfo::getAllDeviceInfosOnSystem(logger);
     devicesContext = new DevicesContext(allDeviceInfos,gIdxs,logger,liveProfilingKernels);
 
@@ -612,10 +612,10 @@ static void addChannelBiases(ComputeHandleInternal* handle, cl_mem src, cl_mem b
   size_t* localSizes = NULL;
 
   cl_kernel kernel = handle->addChannelBiasesNCHWKernel;
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&src);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&bias);
-  clSetKernelArg(kernel, 2, sizeof(int), (void *)&ncSize);
-  clSetKernelArg(kernel, 3, sizeof(int), (void *)&nnXYLen);
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&src);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&bias);
+  clSetKernelArg(kernel, 2, sizeof(int), (const void *)&ncSize);
+  clSetKernelArg(kernel, 3, sizeof(int), (const void *)&nnXYLen);
 
   MAYBE_EVENT;
   err = clEnqueueNDRangeKernel(
@@ -628,9 +628,9 @@ static void addChannelBiases(ComputeHandleInternal* handle, cl_mem src, cl_mem b
 
 static void addPointWise(ComputeHandleInternal* handle, cl_mem acc, cl_mem value, int totalSize) {
   cl_kernel kernel = handle->addPointWiseKernel;
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&acc);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&value);
-  clSetKernelArg(kernel, 2, sizeof(int), (void *)&totalSize);
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&acc);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&value);
+  clSetKernelArg(kernel, 2, sizeof(int), (const void *)&totalSize);
 
   cl_int err;
   static constexpr int nKernelDims = 1;
@@ -800,14 +800,14 @@ struct ConvWorkspaceEltsNeeded {
 //--------------------------------------------------------------
 
 struct BatchNormLayer {
-  string name;
-  int numChannels;
-  float epsilon;
-  int activation;
+  const string name;
+  const int numChannels;
+  const float epsilon;
+  const int activation;
 
-  int nnXLen;
-  int nnYLen;
-  int nnXYLen;
+  const int nnXLen;
+  const int nnYLen;
+  const int nnXYLen;
   cl_mem mergedScaleBuf;
   cl_mem mergedBiasBuf;
 
@@ -821,16 +821,15 @@ struct BatchNormLayer {
     int nnX,
     int nnY,
     bool useFP16
-  ) {
-    name = desc->name;
-    numChannels = desc->numChannels;
-    epsilon = desc->epsilon;
-    activation = actDesc->activation;
-
-    nnXLen = nnX;
-    nnYLen = nnY;
-    nnXYLen = nnX * nnY;
-
+  ) :
+    name(desc->name),
+    numChannels(desc->numChannels),
+    epsilon(desc->epsilon),
+    activation(actDesc->activation),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    nnXYLen(nnX * nnY)
+  {
     assert(desc->mean.size() == numChannels);
     assert(desc->variance.size() == numChannels);
     assert(desc->scale.size() == numChannels);
@@ -855,7 +854,7 @@ struct BatchNormLayer {
     clReleaseMemObject(mergedBiasBuf);
   }
 
-  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem mask) {
+  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem mask) const {
     cl_kernel kernel;
     if(activation == ACTIVATION_IDENTITY)
       kernel = handle->scaleBiasMaskNCHWKernel;
@@ -866,14 +865,14 @@ struct BatchNormLayer {
     else
       assert(false);
 
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&output);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&mergedScaleBuf);
-    clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&mergedBiasBuf);
-    clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&mask);
-    clSetKernelArg(kernel, 5, sizeof(int), (void *)&batchSize);
-    clSetKernelArg(kernel, 6, sizeof(int), (void *)&numChannels);
-    clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnXYLen);
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&output);
+    clSetKernelArg(kernel, 2, sizeof(cl_mem), (const void *)&mergedScaleBuf);
+    clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&mergedBiasBuf);
+    clSetKernelArg(kernel, 4, sizeof(cl_mem), (const void *)&mask);
+    clSetKernelArg(kernel, 5, sizeof(int), (const void *)&batchSize);
+    clSetKernelArg(kernel, 6, sizeof(int), (const void *)&numChannels);
+    clSetKernelArg(kernel, 7, sizeof(int), (const void *)&nnXYLen);
 
     cl_int err;
     size_t* localSizes = NULL; //TODO actually pick these with tuning? Or fuse with conv untransform?
@@ -894,24 +893,25 @@ struct BatchNormLayer {
 //--------------------------------------------------------------
 
 struct ConvLayer {
-  string name;
-  int convYSize;
-  int convXSize;
-  int convYRadius;
-  int convXRadius;
-  int inChannels;
-  int outChannels;
-  int dilationY;
-  int dilationX;
+  const string name;
+  const int convYSize;
+  const int convXSize;
+  const int convYRadius;
+  const int convXRadius;
+  const int inChannels;
+  const int outChannels;
+  const int dilationY;
+  const int dilationX;
 
-  int nnXLen;
-  int nnYLen;
-  cl_mem filter;
+  const int nnXLen;
+  const int nnYLen;
 
   int numTilesX;
   int numTilesY;
   int inTileXYSize;
   int outTileXYSize;
+
+  cl_mem filter;
 
   static constexpr int nKernelDims = 3;
 
@@ -921,20 +921,19 @@ struct ConvLayer {
     int nnX,
     int nnY,
     bool useFP16
-  ) {
-    name = desc->name;
-    convYSize = desc->convYSize;
-    convXSize = desc->convXSize;
-    convYRadius = convYSize / 2;
-    convXRadius = convXSize / 2;
-    inChannels = desc->inChannels;
-    outChannels = desc->outChannels;
-    dilationY = desc->dilationY;
-    dilationX = desc->dilationX;
-
-    nnXLen = nnX;
-    nnYLen = nnY;
-
+  ) :
+    name(desc->name),
+    convYSize(desc->convYSize),
+    convXSize(desc->convXSize),
+    convYRadius(desc->convYSize / 2),
+    convXRadius(desc->convXSize / 2),
+    inChannels(desc->inChannels),
+    outChannels(desc->outChannels),
+    dilationY(desc->dilationY),
+    dilationX(desc->dilationX),
+    nnXLen(nnX),
+    nnYLen(nnY)
+  {
     assert(convXSize % 2 == 1);
     assert(convYSize % 2 == 1);
     if(dilationX != 1 || dilationY != 1)
@@ -1081,7 +1080,7 @@ struct ConvLayer {
       );
   }
 
-  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem convWorkspace, cl_mem convWorkspace2) {
+  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem convWorkspace, cl_mem convWorkspace2) const {
     if(convXSize == 1 && convYSize == 1) {
       int filterStride = 0; //Reuse same filter for all matrices in batch
       int inputStride = nnXLen*nnYLen * inChannels;
@@ -1187,9 +1186,9 @@ struct ConvLayer {
 
     else {
       cl_kernel kernel = handle->conv2dNCHWKernel;
-      clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
-      clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&filter);
-      clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&output);
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&filter);
+      clSetKernelArg(kernel, 2, sizeof(cl_mem), (const void *)&output);
 
       //TODO throw this all away and just use winograd entirely
       static const size_t TILE_XSIZE = 32;
@@ -1199,13 +1198,13 @@ struct ConvLayer {
       const size_t inputTileYSize = TILE_YSIZE + 2*convYRadius;
       clSetKernelArg(kernel, 3, sizeof(float) * TILE_CHANNELS * inputTileXSize * inputTileYSize, NULL);
       clSetKernelArg(kernel, 4, sizeof(float) * TILE_XSIZE * TILE_YSIZE, NULL);
-      clSetKernelArg(kernel, 5, sizeof(int), (void *)&batchSize);
-      clSetKernelArg(kernel, 6, sizeof(int), (void *)&nnXLen);
-      clSetKernelArg(kernel, 7, sizeof(int), (void *)&nnYLen);
-      clSetKernelArg(kernel, 8, sizeof(int), (void *)&outChannels);
-      clSetKernelArg(kernel, 9, sizeof(int), (void *)&inChannels);
-      clSetKernelArg(kernel, 10, sizeof(int), (void *)&convXRadius);
-      clSetKernelArg(kernel, 11, sizeof(int), (void *)&convYRadius);
+      clSetKernelArg(kernel, 5, sizeof(int), (const void *)&batchSize);
+      clSetKernelArg(kernel, 6, sizeof(int), (const void *)&nnXLen);
+      clSetKernelArg(kernel, 7, sizeof(int), (const void *)&nnYLen);
+      clSetKernelArg(kernel, 8, sizeof(int), (const void *)&outChannels);
+      clSetKernelArg(kernel, 9, sizeof(int), (const void *)&inChannels);
+      clSetKernelArg(kernel, 10, sizeof(int), (const void *)&convXRadius);
+      clSetKernelArg(kernel, 11, sizeof(int), (const void *)&convYRadius);
 
       static const int workPerThreadX = 1;
       static const int workPerThreadY = 1;
@@ -1240,9 +1239,9 @@ struct ConvLayer {
   }
 
   void applyWithBNAct(
-    ComputeHandleInternal* handle, BatchNormLayer* bnLayer, int batchSize,
+    ComputeHandleInternal* handle, const BatchNormLayer* bnLayer, int batchSize,
     cl_mem input, cl_mem output, cl_mem mask, cl_mem convWorkspace, cl_mem convWorkspace2
-  ) {
+  ) const {
     if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
       {
         assert(bnLayer->activation == ACTIVATION_RELU || bnLayer->activation == ACTIVATION_MISH);
@@ -1341,17 +1340,17 @@ struct ConvLayer {
 //--------------------------------------------------------------
 
 struct MatMulLayer {
-  string name;
-  int inChannels;
-  int outChannels;
+  const string name;
+  const int inChannels;
+  const int outChannels;
 
   cl_mem matBuf;
 
-  MatMulLayer(ComputeHandleInternal* handle, const MatMulLayerDesc* desc) {
-    name = desc->name;
-    inChannels = desc->inChannels;
-    outChannels = desc->outChannels;
-
+  MatMulLayer(ComputeHandleInternal* handle, const MatMulLayerDesc* desc)
+    : name(desc->name),
+      inChannels(desc->inChannels),
+      outChannels(desc->outChannels)
+  {
     assert(desc->weights.size() == inChannels * outChannels);
     vector<float> weights(desc->weights.size());
     //Transpose weights, we implemented the opencl kernel to expect oc,ic
@@ -1369,7 +1368,7 @@ struct MatMulLayer {
     clReleaseMemObject(matBuf);
   }
 
-  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output) {
+  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output) const {
     MAYBE_EVENT;
     cl_int err = doBatchedXGemmDirect_MK_NK_MN(
       handle->xgemmDirectBatchedTTKernelAlwaysFP32,
@@ -1394,17 +1393,17 @@ struct MatMulLayer {
 //--------------------------------------------------------------
 
 struct MatBiasLayer {
-  string name;
-  int numChannels;
-  int activation;
+  const string name;
+  const int numChannels;
+  const int activation;
 
   cl_mem biasBuf;
 
-  MatBiasLayer(ComputeHandleInternal* handle, const MatBiasLayerDesc* desc, int activation_) {
-    name = desc->name;
-    numChannels = desc->numChannels;
-    activation = activation_;
-
+  MatBiasLayer(ComputeHandleInternal* handle, const MatBiasLayerDesc* desc, int activation_)
+    : name(desc->name),
+      numChannels(desc->numChannels),
+      activation(activation_)
+  {
     assert(desc->weights.size() == numChannels);
     vector<float> weights = desc->weights;
     //See notes about FP16 conventions at the top of file
@@ -1416,7 +1415,7 @@ struct MatBiasLayer {
     clReleaseMemObject(biasBuf);
   }
 
-  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input) {
+  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input) const {
     cl_kernel kernel;
     if(activation == ACTIVATION_IDENTITY)
       kernel = handle->addCBiasesNCKernel;
@@ -1427,10 +1426,10 @@ struct MatBiasLayer {
     else
       assert(false);
 
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&biasBuf);
-    clSetKernelArg(kernel, 2, sizeof(int), (void *)&batchSize);
-    clSetKernelArg(kernel, 3, sizeof(int), (void *)&numChannels);
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&biasBuf);
+    clSetKernelArg(kernel, 2, sizeof(int), (const void *)&batchSize);
+    clSetKernelArg(kernel, 3, sizeof(int), (const void *)&numChannels);
 
     cl_int err;
     static constexpr int nKernelDims = 2;
@@ -1453,10 +1452,10 @@ struct MatBiasLayer {
 //--------------------------------------------------------------
 
 struct NormActConv {
-  BatchNormLayer norm;
-  ConvLayer conv;
-  int inChannels;
-  int outChannels;
+  const BatchNormLayer norm;
+  const ConvLayer conv;
+  const int inChannels;
+  const int outChannels;
 
   NormActConv(
     ComputeHandleInternal* handle,
@@ -1466,12 +1465,13 @@ struct NormActConv {
     int nnX,
     int nnY,
     bool useFP16
-  ): norm(handle,normDesc,actDesc,nnX,nnY,useFP16),
-     conv(handle,convDesc,nnX,nnY,useFP16)
+  ) :
+    norm(handle,normDesc,actDesc,nnX,nnY,useFP16),
+    conv(handle,convDesc,nnX,nnY,useFP16),
+    inChannels(norm.numChannels),
+    outChannels(conv.outChannels)
   {
-    inChannels = norm.numChannels;
-    assert(norm.numChannels = conv.inChannels);
-    outChannels = conv.outChannels;
+    assert(norm.numChannels == conv.inChannels);
   }
 
   ~NormActConv() {
@@ -1490,7 +1490,7 @@ struct NormActConv {
     cl_mem mask,
     cl_mem convWorkspace,
     cl_mem convWorkspace2
-  ) {
+  ) const {
     if(conv.canApplyWithBNAct())
       conv.applyWithBNAct(handle,&norm,batchSize,input,output,mask,convWorkspace,convWorkspace2);
     else {
@@ -1509,11 +1509,11 @@ struct NormActConv {
 //--------------------------------------------------------------
 
 struct ResidualBlock {
-  string name;
-  NormActConv normActConv1;
-  NormActConv normActConv2;
-  int nnXLen;
-  int nnYLen;
+  const string name;
+  const NormActConv normActConv1;
+  const NormActConv normActConv2;
+  const int nnXLen;
+  const int nnYLen;
 
   ResidualBlock(
     ComputeHandleInternal* handle,
@@ -1521,11 +1521,12 @@ struct ResidualBlock {
     int nnX,
     int nnY,
     bool useFP16
-  ): name(desc->name),
-     normActConv1(handle,&desc->preBN,&desc->preActivation,&desc->regularConv,nnX,nnY,useFP16),
-     normActConv2(handle,&desc->midBN,&desc->midActivation,&desc->finalConv,nnX,nnY,useFP16),
-     nnXLen(nnX),
-     nnYLen(nnY)
+  ) :
+    name(desc->name),
+    normActConv1(handle,&desc->preBN,&desc->preActivation,&desc->regularConv,nnX,nnY,useFP16),
+    normActConv2(handle,&desc->midBN,&desc->midActivation,&desc->finalConv,nnX,nnY,useFP16),
+    nnXLen(nnX),
+    nnYLen(nnY)
   {
   }
 
@@ -1548,7 +1549,7 @@ struct ResidualBlock {
     cl_mem mask,
     cl_mem convWorkspace,
     cl_mem convWorkspace2
-  ) {
+  ) const {
     SizedBuf<cl_mem> mid(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
     normActConv1.apply(handle,batchSize,trunk,trunkScratch,mid.buf,mask,convWorkspace,convWorkspace2);
     normActConv2.apply(handle,batchSize,mid.buf,mid.buf,trunkScratch,mask,convWorkspace,convWorkspace2);
@@ -1564,36 +1565,39 @@ struct ResidualBlock {
 //--------------------------------------------------------------
 
 struct GlobalPoolingResidualBlock {
-  string name;
-  BatchNormLayer preBN;
-  ConvLayer regularConv;
-  ConvLayer gpoolConv;
-  BatchNormLayer gpoolBN;
-  MatMulLayer gpoolToBiasMul;
-  NormActConv normActConv2;
+  const string name;
+  const BatchNormLayer preBN;
+  const ConvLayer regularConv;
+  const ConvLayer gpoolConv;
+  const BatchNormLayer gpoolBN;
+  const MatMulLayer gpoolToBiasMul;
+  const NormActConv normActConv2;
 
-  int nnXLen;
-  int nnYLen;
-  int nnXYLen;
-  int regularChannels;
-  int gpoolChannels;
+  const int nnXLen;
+  const int nnYLen;
+  const int nnXYLen;
+  const int regularChannels;
+  const int gpoolChannels;
 
   GlobalPoolingResidualBlock(
     ComputeHandleInternal* handle,
     const GlobalPoolingResidualBlockDesc* desc,
-    int nnX, int nnY, bool useFP16
-  ): name(desc->name),
-     preBN(handle,&desc->preBN,&desc->preActivation,nnX,nnY,useFP16),
-     regularConv(handle,&desc->regularConv,nnX,nnY,useFP16),
-     gpoolConv(handle,&desc->gpoolConv,nnX,nnY,useFP16),
-     gpoolBN(handle,&desc->gpoolBN,&desc->gpoolActivation,nnX,nnY,useFP16),
-     gpoolToBiasMul(handle,&desc->gpoolToBiasMul),
-     normActConv2(handle,&desc->midBN,&desc->midActivation,&desc->finalConv,nnX,nnY,useFP16),
-     nnXLen(nnX),
-     nnYLen(nnY),
-     nnXYLen(nnX*nnY),
-     regularChannels(desc->regularConv.outChannels),
-     gpoolChannels(desc->gpoolConv.outChannels)
+    int nnX,
+    int nnY,
+    bool useFP16
+  ) :
+    name(desc->name),
+    preBN(handle,&desc->preBN,&desc->preActivation,nnX,nnY,useFP16),
+    regularConv(handle,&desc->regularConv,nnX,nnY,useFP16),
+    gpoolConv(handle,&desc->gpoolConv,nnX,nnY,useFP16),
+    gpoolBN(handle,&desc->gpoolBN,&desc->gpoolActivation,nnX,nnY,useFP16),
+    gpoolToBiasMul(handle,&desc->gpoolToBiasMul),
+    normActConv2(handle,&desc->midBN,&desc->midActivation,&desc->finalConv,nnX,nnY,useFP16),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    nnXYLen(nnX*nnY),
+    regularChannels(desc->regularConv.outChannels),
+    gpoolChannels(desc->gpoolConv.outChannels)
   {
   }
 
@@ -1618,7 +1622,7 @@ struct GlobalPoolingResidualBlock {
     cl_mem maskSum,
     cl_mem convWorkspace,
     cl_mem convWorkspace2
-  ) {
+  ) const {
     SizedBuf<cl_mem> regularOut(scratch->allocator, scratch->getBufSizeXY(regularChannels));
     SizedBuf<cl_mem> gpoolOut(scratch->allocator, scratch->getBufSizeXY(gpoolChannels));
     SizedBuf<cl_mem> gpoolConcat(scratch->allocator, scratch->getBufSizeFloat(gpoolChannels*3));
@@ -1653,22 +1657,23 @@ struct GlobalPoolingResidualBlock {
 //--------------------------------------------------------------
 
 struct Trunk {
-  string name;
-  int version;
-  int numBlocks;
-  int trunkNumChannels;
-  int midNumChannels;
-  int regularNumChannels;
-  int gpoolNumChannels;
+  const string name;
+  const int version;
+  const int numBlocks;
+  const int trunkNumChannels;
+  const int midNumChannels;
+  const int regularNumChannels;
+  const int gpoolNumChannels;
 
-  int maxBatchSize;
-  int nnXLen;
-  int nnYLen;
+  const int maxBatchSize;
+  const int nnXLen;
+  const int nnYLen;
 
   std::unique_ptr<ConvLayer> initialConv;
   std::unique_ptr<MatMulLayer> initialMatMul;
-  vector<pair<int,unique_ptr_void>> blocks;
   std::unique_ptr<BatchNormLayer> trunkTipBN;
+
+  vector<pair<int,unique_ptr_void>> blocks;
 
   Trunk() = delete;
   Trunk(const Trunk&) = delete;
@@ -1681,19 +1686,18 @@ struct Trunk {
     int nnX,
     int nnY,
     bool useFP16
-  ) {
-    name = desc->name;
-    version = desc->version;
-    numBlocks = desc->numBlocks;
-    trunkNumChannels = desc->trunkNumChannels;
-    midNumChannels = desc->midNumChannels;
-    regularNumChannels = desc->regularNumChannels;
-    gpoolNumChannels = desc->gpoolNumChannels;
-
-    maxBatchSize = maxBatchSz;
-    nnXLen = nnX;
-    nnYLen = nnY;
-
+  ) :
+    name(desc->name),
+    version(desc->version),
+    numBlocks(desc->numBlocks),
+    trunkNumChannels(desc->trunkNumChannels),
+    midNumChannels(desc->midNumChannels),
+    regularNumChannels(desc->regularNumChannels),
+    gpoolNumChannels(desc->gpoolNumChannels),
+    maxBatchSize(maxBatchSz),
+    nnXLen(nnX),
+    nnYLen(nnY)
+  {
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,trunkNumChannels);
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,midNumChannels);
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,regularNumChannels);
@@ -1701,7 +1705,6 @@ struct Trunk {
 
     initialConv = std::make_unique<ConvLayer>(handle,&desc->initialConv,nnXLen,nnYLen,useFP16);
     initialMatMul = std::make_unique<MatMulLayer>(handle,&desc->initialMatMul);
-
     trunkTipBN = std::make_unique<BatchNormLayer>(handle,&desc->trunkTipBN,&desc->trunkTipActivation,nnXLen,nnYLen,useFP16);
 
     assert(desc->blocks.size() == numBlocks);
@@ -1838,13 +1841,13 @@ struct Trunk {
 //--------------------------------------------------------------
 
 struct PolicyHead {
-  string name;
-  int version;
-  int nnXLen;
-  int nnYLen;
-  int p1Channels;
-  int g1Channels;
-  int p2Channels;
+  const string name;
+  const int version;
+  const int nnXLen;
+  const int nnYLen;
+  const int p1Channels;
+  const int g1Channels;
+  const int p2Channels;
 
   std::unique_ptr<ConvLayer> p1Conv;
   std::unique_ptr<ConvLayer> g1Conv;
@@ -1864,15 +1867,15 @@ struct PolicyHead {
     int nnX,
     int nnY,
     bool useFP16
-  ) {
-    name = desc->name;
-    version = desc->version;
-    nnXLen = nnX;
-    nnYLen = nnY;
-    p1Channels = desc->p1Conv.outChannels;
-    g1Channels = desc->g1Conv.outChannels;
-    p2Channels = desc->p2Conv.outChannels;
-
+  ) :
+    name(desc->name),
+    version(desc->version),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    p1Channels(desc->p1Conv.outChannels),
+    g1Channels(desc->g1Conv.outChannels),
+    p2Channels(desc->p2Conv.outChannels)
+  {
     p1Conv = std::make_unique<ConvLayer>(handle,&desc->p1Conv,nnXLen,nnYLen,useFP16);
     g1Conv = std::make_unique<ConvLayer>(handle,&desc->g1Conv,nnXLen,nnYLen,useFP16);
     g1BN = std::make_unique<BatchNormLayer>(handle,&desc->g1BN,&desc->g1Activation,nnXLen,nnYLen,useFP16);
@@ -2183,16 +2186,16 @@ struct Model {
 
     cl_mem convWorkspace,
     cl_mem convWorkspace2
-  ) {
+  ) const {
 
     {
       cl_kernel kernel = handle->extractChannel0NCHWKernel;
       int nnXYLen = nnXLen * nnYLen;
-      clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&input);
-      clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&mask);
-      clSetKernelArg(kernel, 2, sizeof(int), (void *)&batchSize);
-      clSetKernelArg(kernel, 3, sizeof(int), (void *)&numInputChannels);
-      clSetKernelArg(kernel, 4, sizeof(int), (void *)&nnXYLen);
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&mask);
+      clSetKernelArg(kernel, 2, sizeof(int), (const void *)&batchSize);
+      clSetKernelArg(kernel, 3, sizeof(int), (const void *)&numInputChannels);
+      clSetKernelArg(kernel, 4, sizeof(int), (const void *)&nnXYLen);
 
       cl_int err;
       static constexpr int nKernelDims = 2;

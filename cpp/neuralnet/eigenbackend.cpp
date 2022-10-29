@@ -264,17 +264,16 @@ struct ScratchBuffers {
 
 // Convolution layer with zero-padding.
 struct ConvLayer {
-  string name;
+  const string name;
+  const int convYSize;
+  const int convXSize;
+  const int inChannels;
+  const int outChannels;
+  const int nnXLen;
+  const int nnYLen;
 
   TENSOR2 imagePatchKernel;
   TENSOR3 winogradKernel;
-  int inChannels;
-  int outChannels;
-
-  int convYSize;
-  int convXSize;
-  int nnXLen;
-  int nnYLen;
 
   int imagePatchSize;
 
@@ -287,12 +286,15 @@ struct ConvLayer {
   ConvLayer(const ConvLayer&) = delete;
   ConvLayer& operator=(const ConvLayer&) = delete;
 
-  ConvLayer(const ConvLayerDesc& desc, int nnX, int nnY) {
-    name = desc.name;
-    convYSize = desc.convYSize;
-    convXSize = desc.convXSize;
-    inChannels = desc.inChannels;
-    outChannels = desc.outChannels;
+  ConvLayer(const ConvLayerDesc& desc, int nnX, int nnY)
+    : name(desc.name),
+      convYSize(desc.convYSize),
+      convXSize(desc.convXSize),
+      inChannels(desc.inChannels),
+      outChannels(desc.outChannels),
+      nnXLen(nnX),
+      nnYLen(nnY)
+  {
     //Currently eigen impl doesn't support dilated convs
     int dilationY = desc.dilationY;
     int dilationX = desc.dilationX;
@@ -302,9 +304,6 @@ struct ConvLayer {
 
     assert(convXSize % 2 == 1);
     assert(convYSize % 2 == 1);
-
-    nnXLen = nnX;
-    nnYLen = nnY;
 
     if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
       imagePatchSize = 0; //not used in this branch
@@ -679,8 +678,8 @@ struct ConvLayer {
 //--------------------------------------------------------------
 
 struct BatchNormLayer {
-  string name;
-  int activation;
+  const string name;
+  const int activation;
 
   vector<float> mergedScale;
   vector<float> mergedBias;
@@ -692,11 +691,12 @@ struct BatchNormLayer {
   BatchNormLayer(
     const BatchNormLayerDesc& desc,
     const ActivationLayerDesc& actDesc
-  ) {
-    name = desc.name;
+  ) :
+    name(desc.name),
+    activation(actDesc.activation)
+  {
     int numChannels = desc.numChannels;
     float epsilon = desc.epsilon;
-    activation = actDesc.activation;
 
     mergedScale.resize(numChannels);
     mergedBias.resize(numChannels);
@@ -732,17 +732,17 @@ struct BatchNormLayer {
 //--------------------------------------------------------------
 
 struct ActivationLayer {
-  string name;
-  int activation;
+  const string name;
+  const int activation;
 
   ActivationLayer() = delete;
   ActivationLayer(const ActivationLayer&) = delete;
   ActivationLayer& operator=(const ActivationLayer&) = delete;
 
-  ActivationLayer(const ActivationLayerDesc& desc) {
-    name = desc.name;
-    activation = desc.activation;
-  }
+  ActivationLayer(const ActivationLayerDesc& desc)
+    : name(desc.name),
+      activation(desc.activation)
+  {}
 
   template <int N>
   void apply(const Tensor<SCALAR, N>* input, Tensor<SCALAR, N>* output) const {
@@ -767,10 +767,11 @@ struct ActivationLayer {
 //--------------------------------------------------------------
 
 struct MatMulLayer {
-  string name;
-  TENSOR2 weights;
+  const string name;
   const int inChannels;
   const int outChannels;
+
+  TENSOR2 weights;
 
   MatMulLayer() = delete;
   MatMulLayer(const MatMulLayer&) = delete;
@@ -792,8 +793,8 @@ struct MatMulLayer {
 };
 
 struct MatBiasLayer {
-  string name;
-  std::vector<float> weights;
+  const string name;
+  const std::vector<float> weights;
 
   MatBiasLayer() = delete;
   MatBiasLayer(const MatBiasLayer&) = delete;
@@ -801,7 +802,8 @@ struct MatBiasLayer {
 
   MatBiasLayer(const MatBiasLayerDesc& desc)
     : name(desc.name),
-      weights(desc.weights) {}
+      weights(desc.weights)
+  {}
 
   void apply(TENSORMAP2* mat) const {
     for(int n = 0; n < mat->dimension(1); n++) {
@@ -815,10 +817,10 @@ struct MatBiasLayer {
 // --------------------------------------------------------------------------------------------------------------
 
 struct NormActConv {
-  BatchNormLayer norm;
-  ConvLayer conv;
-  int inChannels;
-  int outChannels;
+  const BatchNormLayer norm;
+  const ConvLayer conv;
+  const int inChannels;
+  const int outChannels;
 
   NormActConv() = delete;
   NormActConv(const NormActConv&) = delete;
@@ -879,9 +881,9 @@ struct ResidualBlockIntf {
 };
 
 struct ResidualBlock final : public ResidualBlockIntf {
-  string name;
-  NormActConv normActConv1;
-  NormActConv normActConv2;
+  const string name;
+  const NormActConv normActConv1;
+  const NormActConv normActConv2;
 
   ResidualBlock() = delete;
   ResidualBlock(const ResidualBlock&) = delete;
@@ -925,13 +927,13 @@ struct ResidualBlock final : public ResidualBlockIntf {
 
 
 struct GlobalPoolingResidualBlock final : public ResidualBlockIntf {
-  string name;
-  BatchNormLayer preBN;
-  ConvLayer regularConv;
-  ConvLayer gpoolConv;
-  BatchNormLayer gpoolBN;
-  MatMulLayer gpoolToBiasMul;
-  NormActConv normActConv2;
+  const string name;
+  const BatchNormLayer preBN;
+  const ConvLayer regularConv;
+  const ConvLayer gpoolConv;
+  const BatchNormLayer gpoolBN;
+  const MatMulLayer gpoolToBiasMul;
+  const NormActConv normActConv2;
 
   GlobalPoolingResidualBlock() = delete;
   GlobalPoolingResidualBlock(const GlobalPoolingResidualBlock&) = delete;
@@ -1007,14 +1009,15 @@ struct GlobalPoolingResidualBlock final : public ResidualBlockIntf {
 };
 
 struct Trunk {
-  string name;
-  int version;
-  int numBlocks;
+  const string name;
+  const int version;
+  const int numBlocks;
 
-  ConvLayer initialConv;
-  MatMulLayer initialMatMul;
+  const ConvLayer initialConv;
+  const MatMulLayer initialMatMul;
+  const BatchNormLayer trunkTipBN;
+
   vector<pair<int, std::unique_ptr<ResidualBlockIntf>>> blocks;
-  BatchNormLayer trunkTipBN;
 
   Trunk() = delete;
   Trunk(const Trunk&) = delete;
@@ -1096,16 +1099,16 @@ struct Trunk {
 };
 
 struct PolicyHead {
-  string name;
-  int version;
+  const string name;
+  const int version;
 
-  ConvLayer p1Conv;
-  ConvLayer g1Conv;
-  BatchNormLayer g1BN;
-  MatMulLayer gpoolToBiasMul;
-  BatchNormLayer p1BN;
-  ConvLayer p2Conv;
-  MatMulLayer gpoolToPassMul;
+  const ConvLayer p1Conv;
+  const ConvLayer g1Conv;
+  const BatchNormLayer g1BN;
+  const MatMulLayer gpoolToBiasMul;
+  const BatchNormLayer p1BN;
+  const ConvLayer p2Conv;
+  const MatMulLayer gpoolToPassMul;
 
   PolicyHead() = delete;
   PolicyHead(const PolicyHead&) = delete;
@@ -1120,7 +1123,8 @@ struct PolicyHead {
       gpoolToBiasMul(desc.gpoolToBiasMul),
       p1BN(desc.p1BN,desc.p1Activation),
       p2Conv(desc.p2Conv,nnX,nnY),
-      gpoolToPassMul(desc.gpoolToPassMul) {}
+      gpoolToPassMul(desc.gpoolToPassMul)
+  {}
 
   size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
     size_t maxElts = 0;
@@ -1167,19 +1171,19 @@ struct PolicyHead {
 };
 
 struct ValueHead {
-  string name;
-  int version;
+  const string name;
+  const int version;
 
-  ConvLayer v1Conv;
-  BatchNormLayer v1BN;
-  MatMulLayer v2Mul;
-  MatBiasLayer v2Bias;
-  ActivationLayer v2Activation;
-  MatMulLayer v3Mul;
-  MatBiasLayer v3Bias;
-  MatMulLayer sv3Mul;
-  MatBiasLayer sv3Bias;
-  ConvLayer vOwnershipConv;
+  const ConvLayer v1Conv;
+  const BatchNormLayer v1BN;
+  const MatMulLayer v2Mul;
+  const MatBiasLayer v2Bias;
+  const ActivationLayer v2Activation;
+  const MatMulLayer v3Mul;
+  const MatBiasLayer v3Bias;
+  const MatMulLayer sv3Mul;
+  const MatBiasLayer sv3Bias;
+  const ConvLayer vOwnershipConv;
 
   ValueHead() = delete;
   ValueHead(const ValueHead&) = delete;
@@ -1248,31 +1252,34 @@ struct ValueHead {
 // Model and Buffer I/O ------------------------------------------------------------------------------------------------
 
 struct Model {
-  string name;
-  int version;
-  int numInputChannels;
-  int numInputGlobalChannels;
-  int numValueChannels;
-  int numScoreValueChannels;
-  int numOwnershipChannels;
+  const string name;
+  const int version;
+  const int numInputChannels;
+  const int numInputGlobalChannels;
+  const int numValueChannels;
+  const int numScoreValueChannels;
+  const int numOwnershipChannels;
 
-  Trunk trunk;
-  PolicyHead policyHead;
-  ValueHead valueHead;
+  const Trunk trunk;
+  const PolicyHead policyHead;
+  const ValueHead valueHead;
 
   Model() = delete;
   Model(const Model&) = delete;
   Model& operator=(const Model&) = delete;
 
   Model(const ModelDesc& desc, int nnX, int nnY)
-    : name(desc.name), version(desc.version), numInputChannels(desc.numInputChannels),
+    : name(desc.name),
+      version(desc.version),
+      numInputChannels(desc.numInputChannels),
       numInputGlobalChannels(desc.numInputGlobalChannels),
       numValueChannels(desc.numValueChannels),
       numScoreValueChannels(desc.numScoreValueChannels),
       numOwnershipChannels(desc.numOwnershipChannels),
       trunk(desc.trunk,nnX,nnY),
       policyHead(desc.policyHead,nnX,nnY),
-      valueHead(desc.valueHead,nnX,nnY) {}
+      valueHead(desc.valueHead,nnX,nnY)
+  {}
 
   size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
     size_t maxElts = 0;
