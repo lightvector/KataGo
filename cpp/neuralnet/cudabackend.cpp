@@ -34,15 +34,15 @@ void NeuralNet::globalCleanup() {
 struct CudaHandles {
   cublasHandle_t cublas;
   cudnnHandle_t cudnn;
-  int majorComputeCapability;
-  int minorComputeCapability;
+  const int majorComputeCapability;
+  const int minorComputeCapability;
 
-  CudaHandles(int major, int minor) {
+  CudaHandles(int major, int minor)
+    : majorComputeCapability(major),
+      minorComputeCapability(minor)
+  {
     CUBLAS_ERR("CudaHandles",cublasCreate(&cublas));
     CUDNN_ERR("CudaHandles",cudnnCreate(&cudnn));
-
-    majorComputeCapability = major;
-    minorComputeCapability = minor;
   }
 
   ~CudaHandles() {
@@ -65,7 +65,7 @@ struct CudaHandles {
 
 template<typename T>
 struct ByBatchSize {
-  int maxBatchSize;
+  const int maxBatchSize;
   T* data;
   cudnnStatus_t (*destroyFunc)(T);
 
@@ -135,10 +135,10 @@ struct ByBatchSizeView {
 typedef std::tuple<int, bool, bool> CudnnTensorDesc4DKey;
 
 struct CudnnManager {
-  string name;
-  int maxBatchSize;
-  int nnXLen;
-  int nnYLen;
+  const string name;
+  const int maxBatchSize;
+  const int nnXLen;
+  const int nnYLen;
   std::map<CudnnTensorDesc4DKey, ByBatchSize<cudnnTensorDescriptor_t>*> tensorDesc4DByBatchSizeByKey;
 
   CudnnManager(string name_, int maxBatchSize_, int nnXLen_, int nnYLen_)
@@ -246,9 +246,9 @@ struct ScratchBuffers {
 //---------------------------------------------------------------------------------
 
 struct ConvLayer {
-  string name;
-  int inChannels;
-  int outChannels;
+  const string name;
+  const int inChannels;
+  const int outChannels;
   ByBatchSizeView<cudnnTensorDescriptor_t> inputDescriptors;
   ByBatchSizeView<cudnnTensorDescriptor_t> outputDescriptors;
   cudnnFilterDescriptor_t filterDescriptor;
@@ -280,12 +280,12 @@ struct ConvLayer {
     bool useFP16,
     bool useNHWCIn,
     bool useNHWCOut
-  ) {
-    name = desc->name;
+  ) : name(desc->name),
+      inChannels(desc->inChannels),
+      outChannels(desc->outChannels)
+  {
     int convYSize = desc->convYSize;
     int convXSize = desc->convXSize;
-    inChannels = desc->inChannels;
-    outChannels = desc->outChannels;
     int dilationY = desc->dilationY;
     int dilationX = desc->dilationX;
     int paddingX = (convXSize / 2) * dilationX;
@@ -493,12 +493,15 @@ struct ConvLayer {
 //---------------------------------------------------------------------------------
 
 struct BatchNormLayer {
-  string name;
-  int numChannels;
-  float epsilon;
-  int activation;
-  int nnXLen;
-  int nnYLen;
+  const string name;
+  const int numChannels;
+  const float epsilon;
+  const int activation;
+  const int nnXLen;
+  const int nnYLen;
+
+  const bool usingFP16;
+  const bool usingNHWC;
 
   void* meanBuf;
   void* varianceBuf;
@@ -507,9 +510,6 @@ struct BatchNormLayer {
 
   void* mergedScaleBuf;
   void* mergedBiasBuf;
-
-  bool usingFP16;
-  bool usingNHWC;
 
   BatchNormLayer() = delete;
   BatchNormLayer(const BatchNormLayer&) = delete;
@@ -523,17 +523,16 @@ struct BatchNormLayer {
     int nnY,
     bool useFP16,
     bool useNHWC
-  ) {
+  ) : name(desc->name),
+      numChannels(desc->numChannels),
+      epsilon(desc->epsilon),
+      activation(actDesc->activation),
+      nnXLen(nnX),
+      nnYLen(nnY),
+      usingFP16(useFP16),
+      usingNHWC(useNHWC)
+  {
     (void)cudaHandles;
-
-    name = desc->name;
-    numChannels = desc->numChannels;
-    epsilon = desc->epsilon;
-    activation = actDesc->activation;
-    nnXLen = nnX;
-    nnYLen = nnY;
-    usingFP16 = useFP16;
-    usingNHWC = useNHWC;
 
     assert(desc->mean.size() == numChannels);
     CudaUtils::mallocAndCopyToDevice(name,desc->mean,meanBuf,useFP16);
@@ -603,11 +602,11 @@ struct BatchNormLayer {
 //---------------------------------------------------------------------------------
 
 struct MatMulLayer {
-  string name;
-  int inChannels;
-  int outChannels;
+  const string name;
+  const int inChannels;
+  const int outChannels;
+  const bool usingFP16;
   void* matBuf;
-  bool usingFP16;
 
   MatMulLayer() = delete;
   MatMulLayer(const MatMulLayer&) = delete;
@@ -617,12 +616,13 @@ struct MatMulLayer {
     CudaHandles* cudaHandles,
     const MatMulLayerDesc* desc,
     bool useFP16
-  ) {
+  ) :
+    name(desc->name),
+    inChannels(desc->inChannels),
+    outChannels(desc->outChannels),
+    usingFP16(useFP16)
+  {
     (void)cudaHandles;
-    name = desc->name;
-    inChannels = desc->inChannels;
-    outChannels = desc->outChannels;
-    usingFP16 = useFP16;
 
     assert(desc->weights.size() == inChannels * outChannels);
     CudaUtils::mallocAndCopyToDevice(name,desc->weights,matBuf,useFP16);
@@ -694,11 +694,12 @@ struct MatMulLayer {
 //---------------------------------------------------------------------------------
 
 struct MatBiasLayer {
-  string name;
-  int numChannels;
+  const string name;
+  const int numChannels;
+  const bool usingFP16;
+  const int activation;
+
   void* biasBuf;
-  bool usingFP16;
-  int activation;
 
   MatBiasLayer() = delete;
   MatBiasLayer(const MatBiasLayer&) = delete;
@@ -709,13 +710,13 @@ struct MatBiasLayer {
     const MatBiasLayerDesc* desc,
     bool useFP16,
     int activation_
-  ) {
+  ) :
+    name(desc->name),
+    numChannels(desc->numChannels),
+    usingFP16(useFP16),
+    activation(activation_)
+  {
     (void)cudaHandles;
-    name = desc->name;
-    numChannels = desc->numChannels;
-    usingFP16 = useFP16;
-    activation = activation_;
-
     assert(desc->weights.size() == numChannels);
     CudaUtils::mallocAndCopyToDevice(name,desc->weights,biasBuf,useFP16);
   }
@@ -745,15 +746,15 @@ struct MatBiasLayer {
 //---------------------------------------------------------------------------------
 
 struct NormActConv {
-  BatchNormLayer norm;
-  ConvLayer conv;
+  const BatchNormLayer norm;
+  const ConvLayer conv;
 
-  int inChannels;
-  int outChannels;
-  int nnXLen;
-  int nnYLen;
-  bool usingFP16;
-  bool usingNHWC;
+  const int inChannels;
+  const int outChannels;
+  const int nnXLen;
+  const int nnYLen;
+  const bool usingFP16;
+  const bool usingNHWC;
 
   NormActConv() = delete;
   NormActConv(const NormActConv&) = delete;
@@ -770,15 +771,15 @@ struct NormActConv {
     bool useFP16,
     bool useNHWC
   ): norm(cudaHandles,normDesc,actDesc,nnX,nnY,useFP16,useNHWC),
-     conv(cudaHandles,manager,convDesc,useFP16,useNHWC)
+     conv(cudaHandles,manager,convDesc,useFP16,useNHWC),
+     inChannels(norm.numChannels),
+     outChannels(conv.outChannels),
+     nnXLen(nnX),
+     nnYLen(nnY),
+     usingFP16(useFP16),
+     usingNHWC(useNHWC)
   {
-    inChannels = norm.numChannels;
-    assert(norm.numChannels = conv.inChannels);
-    outChannels = conv.outChannels;
-    nnXLen = nnX;
-    nnYLen = nnY;
-    usingFP16 = useFP16;
-    usingNHWC = useNHWC;
+    assert(norm.numChannels == conv.inChannels);
   }
 
   ~NormActConv()
@@ -819,9 +820,9 @@ struct NormActConv {
 //---------------------------------------------------------------------------------
 
 struct ResidualBlock {
-  string name;
-  NormActConv normActConv1;
-  NormActConv normActConv2;
+  const string name;
+  const NormActConv normActConv1;
+  const NormActConv normActConv2;
 
   ResidualBlock() = delete;
   ResidualBlock(const ResidualBlock&) = delete;
@@ -880,20 +881,20 @@ struct ResidualBlock {
 
 
 struct GlobalPoolingResidualBlock {
-  string name;
-  BatchNormLayer preBN;
-  ConvLayer regularConv;
-  ConvLayer gpoolConv;
-  BatchNormLayer gpoolBN;
-  MatMulLayer gpoolToBiasMul;
-  NormActConv normActConv2;
+  const string name;
+  const BatchNormLayer preBN;
+  const ConvLayer regularConv;
+  const ConvLayer gpoolConv;
+  const BatchNormLayer gpoolBN;
+  const MatMulLayer gpoolToBiasMul;
+  const NormActConv normActConv2;
 
-  int nnXLen;
-  int nnYLen;
-  int regularChannels;
-  int gpoolChannels;
-  bool usingFP16;
-  bool usingNHWC;
+  const int nnXLen;
+  const int nnYLen;
+  const int regularChannels;
+  const int gpoolChannels;
+  const bool usingFP16;
+  const bool usingNHWC;
 
   GlobalPoolingResidualBlock() = delete;
   GlobalPoolingResidualBlock(const GlobalPoolingResidualBlock&) = delete;
@@ -1006,12 +1007,12 @@ struct GlobalPoolingResidualBlock {
 //------------------------------------------------------------------------------
 
 struct BlockStack {
-  int numBlocks;
-  int trunkNumChannels;
-  int nnXLen;
-  int nnYLen;
-  bool usingFP16;
-  bool usingNHWC;
+  const int numBlocks;
+  const int trunkNumChannels;
+  const int nnXLen;
+  const int nnYLen;
+  const bool usingFP16;
+  const bool usingNHWC;
   vector<pair<int,unique_ptr_void>> blocks;
 
   BlockStack() = delete;
@@ -1053,10 +1054,10 @@ struct BlockStack {
 //------------------------------------------------------------------------------
 
 struct NestedBottleneckResidualBlock {
-  string name;
-  NormActConv normActConv1;
-  BlockStack blocks;
-  NormActConv normActConv2;
+  const string name;
+  const NormActConv normActConv1;
+  const BlockStack blocks;
+  const NormActConv normActConv2;
 
   NestedBottleneckResidualBlock() = delete;
   NestedBottleneckResidualBlock(const NestedBottleneckResidualBlock&) = delete;
@@ -1138,13 +1139,13 @@ BlockStack::BlockStack(
   int nnY,
   bool useFP16,
   bool useNHWC
-) {
-  numBlocks = nBlocks;
-  trunkNumChannels = trunkChannels;
-  nnXLen = nnX;
-  nnYLen = nnY;
-  usingFP16 = useFP16;
-  usingNHWC = useNHWC;
+) : numBlocks(nBlocks),
+    trunkNumChannels(trunkChannels),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    usingFP16(useFP16),
+    usingNHWC(useNHWC)
+{
   assert(numBlocks == descBlocks.size());
   for(int i = 0; i<numBlocks; i++) {
     if(descBlocks[i].first == ORDINARY_BLOCK_KIND) {
@@ -1298,19 +1299,19 @@ void BlockStack::apply(
 
 
 struct Trunk {
-  string name;
-  int version;
-  int numBlocks;
-  int trunkNumChannels;
+  const string name;
+  const int version;
+  const int numBlocks;
+  const int trunkNumChannels;
 
-  int nnXLen;
-  int nnYLen;
-  bool usingFP16;
-  bool usingNHWC;
+  const int nnXLen;
+  const int nnYLen;
+  const bool usingFP16;
+  const bool usingNHWC;
 
   std::unique_ptr<ConvLayer> initialConv;
   std::unique_ptr<MatMulLayer> initialMatMul;
-  BlockStack blocks;
+  const BlockStack blocks;
   std::unique_ptr<BatchNormLayer> trunkTipBN;
 
   Trunk() = delete;
@@ -1326,20 +1327,20 @@ struct Trunk {
     bool inputsUseNHWC,
     bool useFP16,
     bool useNHWC
-  ) : blocks(cudaHandles,manager,desc->numBlocks,desc->trunkNumChannels,desc->blocks,nnX,nnY,useFP16,useNHWC)
+  ) :
+    name(desc->name),
+    version(desc->version),
+    numBlocks(desc->numBlocks),
+    trunkNumChannels(desc->trunkNumChannels),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    usingFP16(useFP16),
+    usingNHWC(useNHWC),
+    blocks(cudaHandles,manager,desc->numBlocks,desc->trunkNumChannels,desc->blocks,nnX,nnY,useFP16,useNHWC)
   {
-    name = desc->name;
-    version = desc->version;
-    numBlocks = desc->numBlocks;
-    trunkNumChannels = desc->trunkNumChannels;
     int midNumChannels = desc->midNumChannels;
     int regularNumChannels = desc->regularNumChannels;
     int gpoolNumChannels = desc->gpoolNumChannels;
-
-    nnXLen = nnX;
-    nnYLen = nnY;
-    usingFP16 = useFP16;
-    usingNHWC = useNHWC;
 
     int maxBatchSize = manager->maxBatchSize;
     CudaUtils::checkBufferSize(maxBatchSize,nnXLen,nnYLen,trunkNumChannels);
@@ -1457,15 +1458,15 @@ static void fillMaskFloatBufAndMaskSumBuf(void* maskBuf, float*& maskFloatBuf, f
 //------------------------------------------------------------------------------
 
 struct PolicyHead {
-  string name;
-  int version;
-  int nnXLen;
-  int nnYLen;
-  int p1Channels;
-  int g1Channels;
-  int p2Channels;
-  bool usingFP16;
-  bool usingNHWC;
+  const string name;
+  const int version;
+  const int nnXLen;
+  const int nnYLen;
+  const int p1Channels;
+  const int g1Channels;
+  const int p2Channels;
+  const bool usingFP16;
+  const bool usingNHWC;
 
   std::unique_ptr<ConvLayer> p1Conv;
   std::unique_ptr<ConvLayer> g1Conv;
@@ -1487,17 +1488,17 @@ struct PolicyHead {
     int nnY,
     bool useFP16,
     bool useNHWC
-  ) {
-    name = desc->name;
-    version = desc->version;
-    nnXLen = nnX;
-    nnYLen = nnY;
-    p1Channels = desc->p1Conv.outChannels;
-    g1Channels = desc->g1Conv.outChannels;
-    p2Channels = desc->p2Conv.outChannels;
-    usingFP16 = useFP16;
-    usingNHWC = useNHWC;
-
+  ) :
+    name(desc->name),
+    version(desc->version),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    p1Channels(desc->p1Conv.outChannels),
+    g1Channels(desc->g1Conv.outChannels),
+    p2Channels(desc->p2Conv.outChannels),
+    usingFP16(useFP16),
+    usingNHWC(useNHWC)
+  {
     p1Conv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->p1Conv,useFP16,useNHWC);
     g1Conv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->g1Conv,useFP16,useNHWC);
     g1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->g1BN,&desc->g1Activation,nnXLen,nnYLen,useFP16,useNHWC);
@@ -1631,17 +1632,17 @@ struct PolicyHead {
 //------------------------------------------------------------------------------
 
 struct ValueHead {
-  string name;
-  int version;
-  int nnXLen;
-  int nnYLen;
-  int v1Channels;
-  int v2Channels;
-  int valueChannels;
-  int scoreValueChannels;
-  int ownershipChannels;
-  bool usingFP16;
-  bool usingNHWC;
+  const string name;
+  const int version;
+  const int nnXLen;
+  const int nnYLen;
+  const int v1Channels;
+  const int v2Channels;
+  const int valueChannels;
+  const int scoreValueChannels;
+  const int ownershipChannels;
+  const bool usingFP16;
+  const bool usingNHWC;
 
   std::unique_ptr<ConvLayer> v1Conv;
   std::unique_ptr<BatchNormLayer> v1BN;
@@ -1665,19 +1666,19 @@ struct ValueHead {
     int nnY,
     bool useFP16,
     bool useNHWC
-  ) {
-    name = desc->name;
-    version = desc->version;
-    nnXLen = nnX;
-    nnYLen = nnY;
-    v1Channels = desc->v1Conv.outChannels;
-    v2Channels = desc->v2Mul.outChannels;
-    valueChannels = desc->v3Mul.outChannels;
-    scoreValueChannels = desc->sv3Mul.outChannels;
-    ownershipChannels = desc->vOwnershipConv.outChannels;
-    usingFP16 = useFP16;
-    usingNHWC = useNHWC;
-
+  ) :
+    name(desc->name),
+    version(desc->version),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    v1Channels(desc->v1Conv.outChannels),
+    v2Channels(desc->v2Mul.outChannels),
+    valueChannels(desc->v3Mul.outChannels),
+    scoreValueChannels(desc->sv3Mul.outChannels),
+    ownershipChannels(desc->vOwnershipConv.outChannels),
+    usingFP16(useFP16),
+    usingNHWC(useNHWC)
+  {
     v1Conv = std::make_unique<ConvLayer>(cudaHandles,manager,&desc->v1Conv,useFP16,useNHWC);
     v1BN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->v1BN,&desc->v1Activation,nnXLen,nnYLen,useFP16,useNHWC);
     v2Mul = std::make_unique<MatMulLayer>(cudaHandles,&desc->v2Mul,false);
@@ -1785,19 +1786,19 @@ struct ValueHead {
 //------------------------------------------------------------------------------
 
 struct Model {
-  string name;
-  int version;
-  int maxBatchSize;
-  int nnXLen;
-  int nnYLen;
-  int numInputChannels;
-  int numInputGlobalChannels;
-  int numValueChannels;
-  int numScoreValueChannels;
-  int numOwnershipChannels;
-  bool usingFP16;
-  bool usingNHWC;
-  bool inputsUsingNHWC;
+  const string name;
+  const int version;
+  const int maxBatchSize;
+  const int nnXLen;
+  const int nnYLen;
+  const int numInputChannels;
+  const int numInputGlobalChannels;
+  const int numValueChannels;
+  const int numScoreValueChannels;
+  const int numOwnershipChannels;
+  const bool usingFP16;
+  const bool usingNHWC;
+  const bool inputsUsingNHWC;
 
   std::unique_ptr<Trunk> trunk;
   std::unique_ptr<PolicyHead> policyHead;
@@ -1817,13 +1818,21 @@ struct Model {
     bool inputsUseNHWC,
     bool useFP16,
     bool useNHWC
-  ) {
-    name = desc->name;
-    version = desc->version;
-    maxBatchSize = maxBatchSz;
-
-    nnXLen = nnX;
-    nnYLen = nnY;
+  ) :
+    name(desc->name),
+    version(desc->version),
+    maxBatchSize(maxBatchSz),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    numInputChannels(desc->numInputChannels),
+    numInputGlobalChannels(desc->numInputGlobalChannels),
+    numValueChannels(desc->numValueChannels),
+    numScoreValueChannels(desc->numScoreValueChannels),
+    numOwnershipChannels(desc->numOwnershipChannels),
+    usingFP16(useFP16),
+    usingNHWC(useNHWC),
+    inputsUsingNHWC(inputsUseNHWC)
+  {
     if(nnXLen > NNPos::MAX_BOARD_LEN)
       throw StringError(Global::strprintf("nnXLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)",
         nnXLen, NNPos::MAX_BOARD_LEN
@@ -1832,15 +1841,6 @@ struct Model {
       throw StringError(Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)",
         nnYLen, NNPos::MAX_BOARD_LEN
       ));
-
-    numInputChannels = desc->numInputChannels;
-    numInputGlobalChannels = desc->numInputGlobalChannels;
-    numValueChannels = desc->numValueChannels;
-    numScoreValueChannels = desc->numScoreValueChannels;
-    numOwnershipChannels = desc->numOwnershipChannels;
-    usingFP16 = useFP16;
-    usingNHWC = useNHWC;
-    inputsUsingNHWC = inputsUseNHWC;
 
     int numFeatures = NNModelVersion::getNumSpatialFeatures(version);
     if(numInputChannels != numFeatures)
