@@ -60,7 +60,7 @@ trtUseFP16 = false
 : Model name: g170-b6c96-s175395328-d26788732
 : GTP ready, beginning main protocol loop
 : Controller: kata-list-params
-: = playoutDoublingAdvantage analysisWideRootNoise
+: = playoutDoublingAdvantage analysisWideRootNoise maxVisits maxPlayouts maxTime
 : Controller: komi 50.5
 : = 
 : Controller: get_komi

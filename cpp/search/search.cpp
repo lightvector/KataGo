@@ -458,7 +458,7 @@ void Search::runWholeSearch(
   //Compute caps on search
   int64_t maxVisits = pondering ? searchParams.maxVisitsPondering : searchParams.maxVisits;
   int64_t maxPlayouts = pondering ? searchParams.maxPlayoutsPondering : searchParams.maxPlayouts;
-  double_t maxTime = pondering ? searchParams.maxTimePondering : searchParams.maxTime;
+  double maxTime = pondering ? searchParams.maxTimePondering : searchParams.maxTime;
 
   {
     //Possibly reduce computation time, for human friendliness

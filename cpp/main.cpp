@@ -12,7 +12,7 @@
 #include <sstream>
 
 //------------------------
-#include "../core/using.h"
+#include "core/using.h"
 //------------------------
 
 static void printHelp(const vector<string>& args) {

@@ -209,7 +209,7 @@ inline uint32_t Rand::nextUInt(const double* relProbs, size_t n)
 {
   assert(n > 0);
   assert(n < 0xFFFFFFFF);
-  double_t sum = 0;
+  double sum = 0;
   for(uint32_t i = 0; i<n; i++)
   {
     assert(relProbs[i] >= 0);

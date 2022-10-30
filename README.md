@@ -25,7 +25,7 @@
 
 ## Overview
 
-KataGo has begun its first public distributed training run! See https://katagotraining.org/ for more details, to download the latest and strongest neural nets, or to learn how to contribute if you want to help KataGo improve further!
+KataGo has begun its first public distributed training run! See https://katagotraining.org/ for more details, to download the latest and strongest neural nets, or to learn how to contribute if you want to help KataGo improve further! Also check out the computer Go [discord channel](https://discord.gg/bqkZAz3)!
 
 As of January 2021, KataGo is one of the strongest open source Go bots available online. KataGo was trained using an AlphaZero-like process with many enhancements and improvements, and is capable of reaching top levels rapidly and entirely from scratch with no outside data, improving only via self-play. Some of these improvements take advantage of game-specific features and training targets, but also many of the techniques are general and could be applied in other games. As a result, early training is immensely faster than in other self-play-trained bots - with only a few strong GPUs for a few days, any researcher/enthusiast should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board. If tuned well, a training run using only a *single* top-end consumer GPU could possibly train a bot from scratch to superhuman strength within a few months.
 
@@ -50,10 +50,12 @@ KataGo's engine also aims to be a useful tool for Go players and developers, and
 
 For more details about KataGo's older training runs, including comparisons to other bots, see [Training History and Research](TrainingHistory.md)!
 
-## Where To Download Stuff
-You can download precompiled executables for KataGo on the [releases page](https://github.com/lightvector/KataGo/releases) for Windows and Linux.
+Also if you're looking to ask about general information about KataGo or how it works, or about some past Go bots besides KataGo, consider the computer Go [discord channel](https://discord.gg/bqkZAz3).
 
-You can download a few selected neural nets from the [releases page](https://github.com/lightvector/KataGo/releases) or download additional other neural nets from [here](https://katagoarchive.org/g170/index.html)). There are two different model formats, indicated by ".txt.gz" versus ".bin.gz". This was due to a model format change starting with v1.3.3 - recent versions of KataGo support both but the latter will be both smaller on disk and faster to load.
+## Where To Download Stuff
+Precompiled executables for KataGo can be found at the [releases page](https://github.com/lightvector/KataGo/releases) for Windows and Linux.
+
+And the latest neural nets are available at [https://katagotraining.org/](https://katagotraining.org/).
 
 ## Setting Up and Running KataGo
 KataGo implements just a GTP engine, which is a simple text protocol that Go software uses. It does NOT have a graphical interface on its own. So generally, you will want to use KataGo along with a GUI or analysis program. A few of them bundle KataGo in their download so that you can get everything from one place rather than downloading separately and managing the file paths and commands.

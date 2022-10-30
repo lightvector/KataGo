@@ -1700,8 +1700,11 @@ bool Search::getAnalysisJson(
     json moveInfo;
     moveInfo["move"] = Location::toString(data.move, board);
     moveInfo["visits"] = data.numVisits;
+    moveInfo["weight"] = data.weightSum;
     moveInfo["utility"] = Global::roundDynamic(utility,OUTPUT_PRECISION);
     moveInfo["winrate"] = Global::roundDynamic(winrate,OUTPUT_PRECISION);
+    // We report lead for scoreMean here so that a bunch of legacy tools that use KataGo use lead instead, which
+    // is usually a better field for user applications. We report scoreMean instead as scoreSelfplay
     moveInfo["scoreMean"] = Global::roundDynamic(lead,OUTPUT_PRECISION);
     moveInfo["scoreSelfplay"] = Global::roundDynamic(scoreMean,OUTPUT_PRECISION);
     moveInfo["scoreLead"] = Global::roundDynamic(lead,OUTPUT_PRECISION);
@@ -1772,11 +1775,21 @@ bool Search::getAnalysisJson(
 
     json rootInfo;
     rootInfo["visits"] = rootVals.visits;
+    rootInfo["weight"] = rootVals.weight;
     rootInfo["winrate"] = Global::roundDynamic(winrate,OUTPUT_PRECISION);
     rootInfo["scoreSelfplay"] = Global::roundDynamic(scoreMean,OUTPUT_PRECISION);
     rootInfo["scoreLead"] = Global::roundDynamic(lead,OUTPUT_PRECISION);
     rootInfo["scoreStdev"] = Global::roundDynamic(rootVals.expectedScoreStdev,OUTPUT_PRECISION);
     rootInfo["utility"] = Global::roundDynamic(utility,OUTPUT_PRECISION);
+
+    if(rootNode != NULL) {
+      const NNOutput* nnOutput = rootNode->getNNOutput();
+      if(nnOutput != NULL) {
+        rootInfo["rawStWrError"] = Global::roundDynamic(nnOutput->shorttermWinlossError * 0.5,OUTPUT_PRECISION);
+        rootInfo["rawStScoreError"] = Global::roundDynamic(nnOutput->shorttermScoreError,OUTPUT_PRECISION);
+        rootInfo["rawVarTimeLeft"] = Global::roundDynamic(nnOutput->varTimeLeft,OUTPUT_PRECISION);
+      }
+    }
 
     Hash128 thisHash;
     Hash128 symHash;
