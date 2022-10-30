@@ -131,7 +131,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     }
 
     bool inputsUseNHWC;
-    if((backendPrefix == "opencl") || (backendPrefix == "trt") || (backendPrefix == "metal") || (backendPrefix == "coreml"))
+    if((backendPrefix == "opencl") || (backendPrefix == "trt") || (backendPrefix == "coreml"))
       inputsUseNHWC = false;
     else
       inputsUseNHWC = true;

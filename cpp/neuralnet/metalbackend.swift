@@ -2209,7 +2209,7 @@ class Model {
                               useFP16: useFP16,
                               useNHWC: useNHWC)
 
-            NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) useFP16=\(useFP16) useNHWC=\(useNHWC)")
+            NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) useFP16=\(useFP16) useNHWC=\(useNHWC) batchSize=\(batchSize)")
         } catch {
             print("Error: \(error).")
             print("Trying to initialize Model with useNHWC:true ...")
@@ -2224,7 +2224,7 @@ class Model {
                                useFP16: useFP16,
                                useNHWC: true)
 
-            NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) useFP16=\(useFP16) useNHWC=\(true)")
+            NSLog("Metal backend thread \(threadIdx): \(mtlDevice.name) useFP16=\(useFP16) useNHWC=\(true) batchSize=\(batchSize)")
         }
     }
 }
