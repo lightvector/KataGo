@@ -148,7 +148,7 @@ static void poolRowsGPool(CONSTTENSORMAP4* in, TENSORMAP2* out, CONSTTENSORMAP3*
           // so the max over all valid spaces will the same as the mask over all spaces including padding
           // We're relying on all padded space being equal to 0 because this gpool only ever follows a BN+Activate with a mask.
           float maskVal = (*mask)(w, h, n);
-          m = max(m, x + maskVal - 1.0f);
+          m = max(m, x + (maskVal - 1.0f));
         }
       }
       float div = maskSum[n];
