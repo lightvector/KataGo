@@ -861,7 +861,6 @@ struct NormActConv {
 
 
 
-// Blocks
 // --------------------------------------------------------------------------------------------------------------
 
 struct ResidualBlockIntf {
@@ -879,6 +878,8 @@ struct ResidualBlockIntf {
 
   virtual size_t requiredConvWorkspaceElts(size_t maxBatchSize) const = 0;
 };
+
+// --------------------------------------------------------------------------------------------------------------
 
 struct ResidualBlock final : public ResidualBlockIntf {
   const string name;
@@ -925,6 +926,7 @@ struct ResidualBlock final : public ResidualBlockIntf {
   }
 };
 
+// --------------------------------------------------------------------------------------------------------------
 
 struct GlobalPoolingResidualBlock final : public ResidualBlockIntf {
   const string name;
@@ -1008,16 +1010,166 @@ struct GlobalPoolingResidualBlock final : public ResidualBlockIntf {
   }
 };
 
+// --------------------------------------------------------------------------------------------------------------
+
+struct BlockStack {
+  const int numBlocks;
+  vector<pair<int, std::unique_ptr<ResidualBlockIntf>>> blocks;
+
+  BlockStack() = delete;
+  BlockStack(const BlockStack&) = delete;
+  BlockStack& operator=(const BlockStack&) = delete;
+
+  BlockStack(
+    const std::vector<std::pair<int, unique_ptr_void>>& descBlocks,
+    int nBlocks,
+    int nnX,
+    int nnY
+  );
+
+  ~BlockStack();
+
+  size_t requiredConvWorkspaceElts(size_t maxBatchSize) const;
+
+  void apply(
+    ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
+    TENSORMAP4* trunk,
+    TENSORMAP4* trunkScratch,
+    CONSTTENSORMAP3* mask,
+    const float* maskSum,
+    float* convWorkspace
+  ) const;
+};
+
+// --------------------------------------------------------------------------------------------------------------
+
+struct NestedBottleneckResidualBlock final : public ResidualBlockIntf {
+  const string name;
+  const NormActConv normActConv1;
+  const BlockStack blocks;
+  const NormActConv normActConv2;
+
+  NestedBottleneckResidualBlock() = delete;
+  NestedBottleneckResidualBlock(const NestedBottleneckResidualBlock&) = delete;
+  NestedBottleneckResidualBlock& operator=(const NestedBottleneckResidualBlock&) = delete;
+
+  ~NestedBottleneckResidualBlock(){}
+
+  NestedBottleneckResidualBlock(const NestedBottleneckResidualBlockDesc& desc, int nnX, int nnY)
+    : name(desc.name),
+      normActConv1(desc.preBN,desc.preActivation,desc.preConv,nnX,nnY),
+      blocks(desc.blocks,desc.numBlocks,nnX,nnY),
+      normActConv2(desc.postBN,desc.postActivation,desc.postConv,nnX,nnY)
+  {}
+
+  size_t requiredConvWorkspaceElts(size_t maxBatchSize) const override {
+    return std::max(
+      normActConv1.requiredConvWorkspaceElts(maxBatchSize),
+      std::max(
+        blocks.requiredConvWorkspaceElts(maxBatchSize),
+        normActConv2.requiredConvWorkspaceElts(maxBatchSize)
+      )
+    );
+  }
+
+  void apply(
+    ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
+    TENSORMAP4* trunk,
+    TENSORMAP4* trunkScratch,
+    CONSTTENSORMAP3* mask,
+    const float* maskSum,
+    float* convWorkspace
+  ) const override {
+    (void)maskSum;
+    int batchSize = trunk->dimension(3);
+    SizedBuf<float*> midInBuf(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+    SizedBuf<float*> midScratchBuf(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+    TENSORMAP4 midIn(midInBuf.buf, normActConv1.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
+    TENSORMAP4 midScratch(midScratchBuf.buf, normActConv1.outChannels, handle->nnXLen, handle->nnYLen, batchSize);
+
+    normActConv1.apply(handle, trunk, trunkScratch, &midIn, mask, convWorkspace, false);
+    blocks.apply(handle,scratch,&midIn,&midScratch,mask,maskSum,convWorkspace);
+    normActConv2.apply(handle, &midIn, &midScratch, trunk, mask, convWorkspace, true);
+  }
+};
+
+// --------------------------------------------------------------------------------------------------------------
+
+BlockStack::BlockStack(
+  const std::vector<std::pair<int, unique_ptr_void>>& descBlocks,
+  int nBlocks,
+  int nnX,
+  int nnY
+) :
+  numBlocks(nBlocks)
+{
+  for (int i = 0; i < numBlocks; ++i) {
+    if (descBlocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)descBlocks[i].second.get();
+      std::unique_ptr<ResidualBlockIntf> block = std::make_unique<ResidualBlock>(*blockDesc,nnX,nnY);
+      blocks.push_back(make_pair(ORDINARY_BLOCK_KIND, std::move(block)));
+    }
+    else if (descBlocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)descBlocks[i].second.get();
+      std::unique_ptr<GlobalPoolingResidualBlock> block = std::make_unique<GlobalPoolingResidualBlock>(*blockDesc,nnX,nnY);
+      blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND, std::move(block)));
+    }
+    else if (descBlocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* blockDesc = (NestedBottleneckResidualBlockDesc*)descBlocks[i].second.get();
+      std::unique_ptr<NestedBottleneckResidualBlock> block = std::make_unique<NestedBottleneckResidualBlock>(*blockDesc,nnX,nnY);
+      blocks.push_back(make_pair(NESTED_BOTTLENECK_BLOCK_KIND, std::move(block)));
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+}
+
+BlockStack::~BlockStack() {
+}
+
+size_t BlockStack::requiredConvWorkspaceElts(size_t maxBatchSize) const {
+  size_t maxElts = 0;
+  for(int i = 0; i<blocks.size(); i++) {
+    maxElts = std::max(maxElts,blocks[i].second->requiredConvWorkspaceElts(maxBatchSize));
+  }
+  return maxElts;
+}
+
+void BlockStack::apply(
+  ComputeHandleInternal* handle,
+  ScratchBuffers* scratch,
+  TENSORMAP4* trunk,
+  TENSORMAP4* trunkScratch,
+  CONSTTENSORMAP3* mask,
+  const float* maskSum,
+  float* convWorkspace
+) const {
+  for(auto& block : blocks) {
+    block.second->apply(
+      handle,
+      scratch,
+      trunk,
+      trunkScratch,
+      mask,
+      maskSum,
+      convWorkspace
+    );
+  }
+}
+
+// --------------------------------------------------------------------------------------------------------------
+
 struct Trunk {
   const string name;
   const int version;
-  const int numBlocks;
 
   const ConvLayer initialConv;
   const MatMulLayer initialMatMul;
+  const BlockStack blocks;
   const BatchNormLayer trunkTipBN;
-
-  vector<pair<int, std::unique_ptr<ResidualBlockIntf>>> blocks;
 
   Trunk() = delete;
   Trunk(const Trunk&) = delete;
@@ -1026,37 +1178,21 @@ struct Trunk {
   Trunk(const TrunkDesc& desc, int nnX, int nnY)
     : name(desc.name),
       version(desc.version),
-      numBlocks(desc.numBlocks),
       initialConv(desc.initialConv,nnX,nnY),
       initialMatMul(desc.initialMatMul),
+      blocks(desc.blocks,desc.numBlocks,nnX,nnY),
       trunkTipBN(desc.trunkTipBN,desc.trunkTipActivation)
   {
-    for (int i = 0; i < numBlocks; ++i) {
-      if (desc.blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)desc.blocks[i].second.get();
-        std::unique_ptr<ResidualBlockIntf> block = std::make_unique<ResidualBlock>(*blockDesc,nnX,nnY);
-        blocks.push_back(make_pair(ORDINARY_BLOCK_KIND, std::move(block)));
-      }
-      else if (desc.blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)desc.blocks[i].second.get();
-        std::unique_ptr<GlobalPoolingResidualBlock> block = std::make_unique<GlobalPoolingResidualBlock>(*blockDesc,nnX,nnY);
-        blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND, std::move(block)));
-      }
-      else {
-        ASSERT_UNREACHABLE;
-      }
-    }
   }
 
   ~Trunk() {
   }
 
   size_t requiredConvWorkspaceElts(size_t maxBatchSize) const {
-    size_t maxElts = initialConv.requiredConvWorkspaceElts(maxBatchSize);
-    for(int i = 0; i<blocks.size(); i++) {
-      maxElts = std::max(maxElts,blocks[i].second->requiredConvWorkspaceElts(maxBatchSize));
-    }
-    return maxElts;
+    return std::max(
+      initialConv.requiredConvWorkspaceElts(maxBatchSize),
+      blocks.requiredConvWorkspaceElts(maxBatchSize)
+    );
   }
 
   void apply(
@@ -1079,20 +1215,8 @@ struct Trunk {
     initialMatMul.apply(inputGlobal, &inputMatMulOut);
     addNCBiasInplace(&trunkScratch, &inputMatMulOut);
 
-    // apply blocks
     // Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
-    for(auto& block : blocks) {
-      block.second->apply(
-        handle,
-        scratch,
-        &trunkScratch,
-        trunk,
-        mask,
-        maskSum,
-        convWorkspace
-      );
-    }
-
+    blocks.apply(handle,scratch,&trunkScratch,trunk,mask,maskSum,convWorkspace);
     // And now with the final BN port it from trunkScratchBuf to trunkBuf.
     trunkTipBN.apply(&trunkScratch, trunk, mask);
   }

@@ -1656,24 +1656,280 @@ struct GlobalPoolingResidualBlock {
 
 //--------------------------------------------------------------
 
+struct BlockStack {
+  const int numBlocks;
+  const int trunkNumChannels;
+  const int nnXLen;
+  const int nnYLen;
+  vector<pair<int,unique_ptr_void>> blocks;
+
+  BlockStack() = delete;
+  BlockStack(const BlockStack&) = delete;
+  BlockStack& operator=(const BlockStack&) = delete;
+
+  BlockStack(
+    ComputeHandleInternal* handle,
+    const std::vector<std::pair<int, unique_ptr_void>>& descBlocks,
+    int nBlocks,
+    int trunkChannels,
+    int nnX,
+    int nnY,
+    bool useFP16
+  );
+  ~BlockStack();
+
+  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const;
+
+  void apply(
+    ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
+    int batchSize,
+    cl_mem trunk,
+    cl_mem trunkScratch,
+    cl_mem mask,
+    cl_mem maskSum,
+    cl_mem convWorkspace,
+    cl_mem convWorkspace2
+  ) const;
+
+};
+
+//--------------------------------------------------------------
+
+struct NestedBottleneckResidualBlock {
+  const string name;
+  const NormActConv normActConv1;
+  const BlockStack blocks;
+  const NormActConv normActConv2;
+  const int nnXLen;
+  const int nnYLen;
+
+  NestedBottleneckResidualBlock(
+    ComputeHandleInternal* handle,
+    const NestedBottleneckResidualBlockDesc* desc,
+    int nnX,
+    int nnY,
+    bool useFP16
+  ) :
+    name(desc->name),
+    normActConv1(handle,&desc->preBN,&desc->preActivation,&desc->preConv,nnX,nnY,useFP16),
+    blocks(handle,desc->blocks,desc->numBlocks,desc->preConv.outChannels,nnX,nnY,useFP16),
+    normActConv2(handle,&desc->postBN,&desc->postActivation,&desc->postConv,nnX,nnY,useFP16),
+    nnXLen(nnX),
+    nnYLen(nnY)
+  {
+  }
+
+  ~NestedBottleneckResidualBlock() {
+  }
+
+  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
+    return ConvWorkspaceEltsNeeded::getMax(
+      normActConv1.requiredConvWorkspaceElts(handle,maxBatchSize),
+      ConvWorkspaceEltsNeeded::getMax(
+        blocks.requiredConvWorkspaceElts(handle,maxBatchSize),
+        normActConv2.requiredConvWorkspaceElts(handle,maxBatchSize)
+      )
+    );
+  }
+
+  void apply(
+    ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
+    int batchSize,
+    cl_mem trunk,
+    cl_mem trunkScratch,
+    cl_mem mask,
+    cl_mem maskSum,
+    cl_mem convWorkspace,
+    cl_mem convWorkspace2
+  ) const {
+    SizedBuf<cl_mem> mid(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+    SizedBuf<cl_mem> midScratch(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
+    normActConv1.apply(handle,batchSize,trunk,trunkScratch,mid.buf,mask,convWorkspace,convWorkspace2);
+    blocks.apply(handle,scratch,batchSize,mid.buf,midScratch.buf,mask,maskSum,convWorkspace,convWorkspace2);
+    normActConv2.apply(handle,batchSize,mid.buf,mid.buf,trunkScratch,mask,convWorkspace,convWorkspace2);
+    addPointWise(handle, trunk, trunkScratch, batchSize * normActConv2.outChannels * nnYLen * nnXLen);
+  }
+
+  NestedBottleneckResidualBlock() = delete;
+  NestedBottleneckResidualBlock(const NestedBottleneckResidualBlock&) = delete;
+  NestedBottleneckResidualBlock& operator=(const NestedBottleneckResidualBlock&) = delete;
+
+};
+
+//--------------------------------------------------------------
+
+BlockStack::BlockStack(
+  ComputeHandleInternal* handle,
+  const std::vector<std::pair<int, unique_ptr_void>>& descBlocks,
+  int nBlocks,
+  int trunkChannels,
+  int nnX,
+  int nnY,
+  bool useFP16
+) :
+  numBlocks(nBlocks),
+  trunkNumChannels(trunkChannels),
+  nnXLen(nnX),
+  nnYLen(nnY)
+{
+  assert(descBlocks.size() == numBlocks);
+  for(int i = 0; i<numBlocks; i++) {
+    if(descBlocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)descBlocks[i].second.get();
+      unique_ptr_void blockPtr = make_unique_void(
+        new ResidualBlock(
+          handle,
+          blockDesc,
+          nnXLen,
+          nnYLen,
+          useFP16
+        )
+      );
+      blocks.push_back(make_pair(ORDINARY_BLOCK_KIND,std::move(blockPtr)));
+    }
+    else if(descBlocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)descBlocks[i].second.get();
+      unique_ptr_void blockPtr = make_unique_void(
+        new GlobalPoolingResidualBlock(
+          handle,
+          blockDesc,
+          nnXLen,
+          nnYLen,
+          useFP16
+        )
+      );
+      blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND,std::move(blockPtr)));
+    }
+    else if(descBlocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* blockDesc = (NestedBottleneckResidualBlockDesc*)descBlocks[i].second.get();
+      unique_ptr_void blockPtr = make_unique_void(
+        new NestedBottleneckResidualBlock(
+          handle,
+          blockDesc,
+          nnXLen,
+          nnYLen,
+          useFP16
+        )
+      );
+      blocks.push_back(make_pair(NESTED_BOTTLENECK_BLOCK_KIND,std::move(blockPtr)));
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+}
+
+BlockStack::~BlockStack() {
+}
+
+ConvWorkspaceEltsNeeded BlockStack::requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
+  ConvWorkspaceEltsNeeded maxElts;
+
+  for(int i = 0; i<blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
+      maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,block->requiredConvWorkspaceElts(handle,maxBatchSize));
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
+      maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,block->requiredConvWorkspaceElts(handle,maxBatchSize));
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlock* block = (NestedBottleneckResidualBlock*)blocks[i].second.get();
+      maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,block->requiredConvWorkspaceElts(handle,maxBatchSize));
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+  return maxElts;
+}
+
+void BlockStack::apply(
+  ComputeHandleInternal* handle,
+  ScratchBuffers* scratch,
+  int batchSize,
+  cl_mem trunk,
+  cl_mem trunkScratch,
+  cl_mem mask,
+  cl_mem maskSum,
+  cl_mem convWorkspace,
+  cl_mem convWorkspace2
+) const {
+  for(int i = 0; i<blocks.size(); i++) {
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    bool usingNHWC = false;
+    debugPrint4D(string("Blockstack before block " + Global::intToString(i)), handle, trunkScratch, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
+#endif
+
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
+      block->apply(
+        handle,
+        scratch,
+        batchSize,
+        trunk,
+        trunkScratch,
+        mask,
+        convWorkspace,
+        convWorkspace2
+      );
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
+      block->apply(
+        handle,
+        scratch,
+        batchSize,
+        trunk,
+        trunkScratch,
+        mask,
+        maskSum,
+        convWorkspace,
+        convWorkspace2
+      );
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlock* block = (NestedBottleneckResidualBlock*)blocks[i].second.get();
+      block->apply(
+        handle,
+        scratch,
+        batchSize,
+        trunk,
+        trunkScratch,
+        mask,
+        maskSum,
+        convWorkspace,
+        convWorkspace2
+      );
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+
+  }
+}
+
+
+//--------------------------------------------------------------
+
 struct Trunk {
   const string name;
   const int version;
-  const int numBlocks;
   const int trunkNumChannels;
   const int midNumChannels;
   const int regularNumChannels;
   const int gpoolNumChannels;
 
-  const int maxBatchSize;
   const int nnXLen;
   const int nnYLen;
 
   std::unique_ptr<ConvLayer> initialConv;
   std::unique_ptr<MatMulLayer> initialMatMul;
+  const BlockStack blocks;
   std::unique_ptr<BatchNormLayer> trunkTipBN;
-
-  vector<pair<int,unique_ptr_void>> blocks;
 
   Trunk() = delete;
   Trunk(const Trunk&) = delete;
@@ -1682,21 +1938,20 @@ struct Trunk {
   Trunk(
     ComputeHandleInternal* handle,
     const TrunkDesc* desc,
-    int maxBatchSz,
+    int maxBatchSize,
     int nnX,
     int nnY,
     bool useFP16
   ) :
     name(desc->name),
     version(desc->version),
-    numBlocks(desc->numBlocks),
     trunkNumChannels(desc->trunkNumChannels),
     midNumChannels(desc->midNumChannels),
     regularNumChannels(desc->regularNumChannels),
     gpoolNumChannels(desc->gpoolNumChannels),
-    maxBatchSize(maxBatchSz),
     nnXLen(nnX),
-    nnYLen(nnY)
+    nnYLen(nnY),
+    blocks(handle,desc->blocks,desc->numBlocks,desc->trunkNumChannels,nnX,nnY,useFP16)
   {
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,trunkNumChannels);
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,midNumChannels);
@@ -1706,61 +1961,16 @@ struct Trunk {
     initialConv = std::make_unique<ConvLayer>(handle,&desc->initialConv,nnXLen,nnYLen,useFP16);
     initialMatMul = std::make_unique<MatMulLayer>(handle,&desc->initialMatMul);
     trunkTipBN = std::make_unique<BatchNormLayer>(handle,&desc->trunkTipBN,&desc->trunkTipActivation,nnXLen,nnYLen,useFP16);
-
-    assert(desc->blocks.size() == numBlocks);
-    for(int i = 0; i<numBlocks; i++) {
-      if(desc->blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)desc->blocks[i].second.get();
-        unique_ptr_void blockPtr = make_unique_void(
-          new ResidualBlock(
-            handle,
-            blockDesc,
-            nnXLen,
-            nnYLen,
-            useFP16
-          )
-        );
-        blocks.push_back(make_pair(ORDINARY_BLOCK_KIND,std::move(blockPtr)));
-      }
-      else if(desc->blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlockDesc* blockDesc = (GlobalPoolingResidualBlockDesc*)desc->blocks[i].second.get();
-        unique_ptr_void blockPtr = make_unique_void(
-          new GlobalPoolingResidualBlock(
-            handle,
-            blockDesc,
-            nnXLen,
-            nnYLen,
-            useFP16
-          )
-        );
-        blocks.push_back(make_pair(GLOBAL_POOLING_BLOCK_KIND,std::move(blockPtr)));
-      }
-      else {
-        ASSERT_UNREACHABLE;
-      }
-    }
   }
 
   ~Trunk() {
   }
 
-  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle) const {
-    ConvWorkspaceEltsNeeded maxElts = initialConv->requiredConvWorkspaceElts(handle,maxBatchSize);
-
-    for(int i = 0; i<blocks.size(); i++) {
-      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
-        maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,block->requiredConvWorkspaceElts(handle,maxBatchSize));
-      }
-      else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
-        maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,block->requiredConvWorkspaceElts(handle,maxBatchSize));
-      }
-      else {
-        ASSERT_UNREACHABLE;
-      }
-    }
-    return maxElts;
+  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
+    return ConvWorkspaceEltsNeeded::getMax(
+      initialConv->requiredConvWorkspaceElts(handle,maxBatchSize),
+      blocks.requiredConvWorkspaceElts(handle,maxBatchSize)
+    );
   }
 
   void apply(
@@ -1791,44 +2001,7 @@ struct Trunk {
     //Then accumulate it into trunk, broadcasting during the process
     addChannelBiases(handle, trunk, trunkScratch.buf, batchSize * trunkNumChannels, nnXLen*nnYLen);
 
-    for(int i = 0; i<blocks.size(); i++) {
-      #ifdef DEBUG_INTERMEDIATE_VALUES
-      debugPrint4D(string("Trunk before block " + Global::intToString(i)), handle, trunkScratch.buf, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
-      #endif
-
-      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
-        ResidualBlock* block = (ResidualBlock*)blocks[i].second.get();
-        block->apply(
-          handle,
-          scratch,
-          batchSize,
-          trunk,
-          trunkScratch.buf,
-          mask,
-          convWorkspace,
-          convWorkspace2
-        );
-      }
-      else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-        GlobalPoolingResidualBlock* block = (GlobalPoolingResidualBlock*)blocks[i].second.get();
-        block->apply(
-          handle,
-          scratch,
-          batchSize,
-          trunk,
-          trunkScratch.buf,
-          mask,
-          maskSum,
-          convWorkspace,
-          convWorkspace2
-        );
-      }
-      else {
-        ASSERT_UNREACHABLE;
-      }
-
-    }
-
+    blocks.apply(handle,scratch,batchSize,trunk,trunkScratch.buf,mask,maskSum,convWorkspace,convWorkspace2);
     trunkTipBN->apply(handle,batchSize,trunk,trunk,mask);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
@@ -2159,7 +2332,7 @@ struct Model {
 
   ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle) const {
     ConvWorkspaceEltsNeeded maxElts;
-    maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,trunk->requiredConvWorkspaceElts(handle));
+    maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,trunk->requiredConvWorkspaceElts(handle,maxBatchSize));
     maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,policyHead->requiredConvWorkspaceElts(handle,maxBatchSize));
     maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,valueHead->requiredConvWorkspaceElts(handle,maxBatchSize));
     return maxElts;
