@@ -57,7 +57,7 @@ model = Model(model_config)
 policy_probs_output = tf.nn.softmax(model.policy_output)
 
 total_parameters = 0
-for variable in tf.trainable_variables():
+for variable in tf.compat.v1.trainable_variables():
   shape = variable.get_shape()
   variable_parameters = 1
   for dim in shape:
@@ -94,17 +94,17 @@ next_moves_len = 12
 sgfhash_start = next_moves_start + next_moves_len
 sgfhash_len = 8
 
-saver = tf.train.Saver(
+saver = tf.compat.v1.train.Saver(
   max_to_keep = 10000,
   save_relative_paths = True,
 )
 
 #Some tensorflow options
 #tfconfig = tf.ConfigProto(log_device_placement=False,device_count={'GPU': 0})
-tfconfig = tf.ConfigProto(log_device_placement=False)
+tfconfig = tf.compat.v1.ConfigProto(log_device_placement=False)
 #tfconfig.gpu_options.allow_growth = True
 #tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
-with tf.Session(config=tfconfig) as session:
+with tf.compat.v1.Session(config=tfconfig) as session:
   saver.restore(session, model_file)
 
   log("Began session, loaded model")

@@ -54,7 +54,7 @@ def volume(variable):
   return variable_parameters
 
 total_parameters = 0
-for variable in tf.global_variables():
+for variable in tf.compat.v1.global_variables():
   variable_parameters = volume(variable)
   total_parameters += variable_parameters
   log("Model variable %s, %d parameters" % (variable.name,variable_parameters))
@@ -66,17 +66,17 @@ log("Built model, %d total parameters" % total_parameters)
 
 print("Testing", flush=True)
 
-saver = tf.train.Saver(
+saver = tf.compat.v1.train.Saver(
   max_to_keep = 10000,
   save_relative_paths = True,
 )
 
 #Some tensorflow options
 #tfconfig = tf.ConfigProto(log_device_placement=False,device_count={'GPU': 0})
-tfconfig = tf.ConfigProto(log_device_placement=False)
+tfconfig = tf.compat.v1.ConfigProto(log_device_placement=False)
 #tfconfig.gpu_options.allow_growth = True
 #tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
-with tf.Session(config=tfconfig) as session:
+with tf.compat.v1.Session(config=tfconfig) as session:
   saver.restore(session, model_file)
 
   sys.stdout.flush()
@@ -91,7 +91,7 @@ with tf.Session(config=tfconfig) as session:
     return session.run(fetches, feed_dict={})
 
   if dump is not None:
-    variables = dict((variable.name,variable) for variable in tf.trainable_variables())
+    variables = dict((variable.name,variable) for variable in tf.compat.v1.trainable_variables())
     for name in dump.split(","):
       variable = variables[name]
       variable = np.array(variable.eval())
@@ -116,13 +116,13 @@ with tf.Session(config=tfconfig) as session:
                         for x0 in range(variable.shape[0])))
 
   if conv_norm_by_xy is not None:
-    variables = dict((variable.name,variable) for variable in tf.trainable_variables())
+    variables = dict((variable.name,variable) for variable in tf.compat.v1.trainable_variables())
     for name in conv_norm_by_xy.split(","):
       variable = variables[name]
 
       #Should be x,y,in_channels,out_channels
       assert(len(variable.shape) == 4)
-      norms = tf.sqrt(tf.reduce_mean(variable*variable,axis=[2,3]))
+      norms = tf.sqrt(tf.reduce_mean(input_tensor=variable*variable,axis=[2,3]))
       norms = np.array(run(norms))
       print(name + " " + str(volume(variable)) + " parameters")
       for y in range(norms.shape[1]):
@@ -131,7 +131,7 @@ with tf.Session(config=tfconfig) as session:
         print("")
 
   if conv_norm_by_channel is not None:
-    variables = dict((variable.name,variable) for variable in tf.trainable_variables())
+    variables = dict((variable.name,variable) for variable in tf.compat.v1.trainable_variables())
 
     #Each convolution weight variable has a set of channels it takes in as input and a set of channels it produces
     #as output. This is a dictionary of the mapping.
@@ -178,7 +178,7 @@ with tf.Session(config=tfconfig) as session:
 
       #Should be x,y,in_channels,out_channels
       assert(len(variable.shape) == 4)
-      norm = tf.sqrt(tf.reduce_mean(variable*variable,axis=[0,1]))
+      norm = tf.sqrt(tf.reduce_mean(input_tensor=variable*variable,axis=[0,1]))
       norm = np.array(run(norm))
       norms[var_name] = norm
 

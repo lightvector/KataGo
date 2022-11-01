@@ -98,11 +98,11 @@ model = Model(model_config)
 target_vars = Target_vars(model,for_optimization=True,require_last_move=False)
 
 #Training operation
-per_sample_learning_rate = tf.placeholder(tf.float32)
+per_sample_learning_rate = tf.compat.v1.placeholder(tf.float32)
 lr_adjusted_variables = model.lr_adjusted_variables
-update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS) #collect batch norm update operations
+update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS) #collect batch norm update operations
 with tf.control_dependencies(update_ops):
-  optimizer = tf.train.MomentumOptimizer(per_sample_learning_rate, momentum=0.9, use_nesterov=True)
+  optimizer = tf.compat.v1.train.MomentumOptimizer(per_sample_learning_rate, momentum=0.9, use_nesterov=True)
   gradients = optimizer.compute_gradients(target_vars.opt_loss)
   adjusted_gradients = []
   for (grad,x) in gradients:
@@ -118,13 +118,13 @@ with tf.control_dependencies(update_ops):
 metrics = Metrics(model,target_vars,include_debug_stats=True)
 
 def reduce_norm(x, axis=None, keepdims=False):
-  return tf.sqrt(tf.reduce_mean(tf.square(x), axis=axis, keepdims=keepdims))
+  return tf.sqrt(tf.reduce_mean(input_tensor=tf.square(x), axis=axis, keepdims=keepdims))
 relative_update_by_var = dict([
   (v.name,per_sample_learning_rate * reduce_norm(grad) / (1e-10 + reduce_norm(v))) for (grad,v) in adjusted_gradients if grad is not None
 ])
 
 total_parameters = 0
-for variable in tf.trainable_variables():
+for variable in tf.compat.v1.trainable_variables():
   shape = variable.get_shape()
   variable_parameters = 1
   for dim in shape:
@@ -134,7 +134,7 @@ for variable in tf.trainable_variables():
 
 trainlog("Built model, %d total parameters" % total_parameters)
 
-for update_op in tf.get_collection(tf.GraphKeys.UPDATE_OPS):
+for update_op in tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS):
   trainlog("Additional update op on train step: %s" % update_op.name)
 
 # Open H5 file---------------------------------------------------------
@@ -227,20 +227,20 @@ l2_coeff_value = 0.00003
 
 # Training ------------------------------------------------------------
 
-saver = tf.train.Saver(
+saver = tf.compat.v1.train.Saver(
   max_to_keep = 10000,
   save_relative_paths = True,
 )
 
 #Some tensorflow options
-tfconfig = tf.ConfigProto(log_device_placement=False)
+tfconfig = tf.compat.v1.ConfigProto(log_device_placement=False)
 #tfconfig.gpu_options.allow_growth = True
 #tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
-with tf.Session(config=tfconfig) as session:
+with tf.compat.v1.Session(config=tfconfig) as session:
   if restart_file is not None:
     saver.restore(session, restart_file)
   else:
-    session.run(tf.global_variables_initializer())
+    session.run(tf.compat.v1.global_variables_initializer())
 
   sys.stdout.flush()
   sys.stderr.flush()

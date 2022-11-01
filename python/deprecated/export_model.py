@@ -49,7 +49,7 @@ with open(model_file + ".config.json") as f:
 model = Model(model_config)
 
 total_parameters = 0
-for variable in tf.trainable_variables():
+for variable in tf.compat.v1.trainable_variables():
   shape = variable.get_shape()
   variable_parameters = 1
   for dim in shape:
@@ -63,17 +63,17 @@ log("Built model, %d total parameters" % total_parameters)
 
 print("Testing", flush=True)
 
-saver = tf.train.Saver(
+saver = tf.compat.v1.train.Saver(
   max_to_keep = 10000,
   save_relative_paths = True,
 )
 
 #Some tensorflow options
 #tfconfig = tf.ConfigProto(log_device_placement=False,device_count={'GPU': 0})
-tfconfig = tf.ConfigProto(log_device_placement=False)
+tfconfig = tf.compat.v1.ConfigProto(log_device_placement=False)
 #tfconfig.gpu_options.allow_growth = True
 #tfconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
-with tf.Session(config=tfconfig) as session:
+with tf.compat.v1.Session(config=tfconfig) as session:
   saver.restore(session, model_file)
 
   sys.stdout.flush()
@@ -85,7 +85,7 @@ with tf.Session(config=tfconfig) as session:
   sys.stderr.flush()
 
   if not for_cuda:
-    tf.train.write_graph(session.graph_def,export_dir,filename_prefix + ".graph.pb")
+    tf.io.write_graph(session.graph_def,export_dir,filename_prefix + ".graph.pb")
     savepath = export_dir + "/" + filename_prefix
     saver.save(session, savepath + ".weights")
     with open(savepath + ".config.json","w") as f:
@@ -112,7 +112,7 @@ with tf.Session(config=tfconfig) as session:
     writeln(model.max_board_size) #y
     writeln(model.num_input_features)
 
-    variables = dict((variable.name,variable) for variable in tf.global_variables())
+    variables = dict((variable.name,variable) for variable in tf.compat.v1.global_variables())
     def get_weights(name):
       return np.array(variables[name+":0"].eval())
 
