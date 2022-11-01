@@ -571,6 +571,21 @@ struct GTPEngine {
     bot->setParams(params);
     bot->clearSearch();
   }
+  void setMaxVisits(int64_t maxVisits) {
+    params.maxVisits = maxVisits;
+    bot->setParams(params);
+    bot->clearSearch();
+  }
+  void setMaxPlayouts(int64_t maxPlayouts) {
+    params.maxPlayouts = maxPlayouts;
+    bot->setParams(params);
+    bot->clearSearch();
+  }
+  void setMaxTime(double maxTime) {
+    params.maxTime = maxTime;
+    bot->setParams(params);
+    bot->clearSearch();
+  }
 
   void updateDynamicPDA() {
     updateDynamicPDAHelper(
@@ -802,6 +817,7 @@ struct GTPEngine {
           out << " prior " << data.policyPrior;
           out << " lcb " << lcb;
           out << " utilityLcb " << utilityLcb;
+          out << " weight " << data.weightSum;
           if(data.isSymmetryOf != Board::NULL_LOC)
             out << " isSymmetryOf " << Location::toString(data.isSymmetryOf,board);
           out << " order " << data.order;
@@ -2079,7 +2095,7 @@ int MainCmds::gtp(const vector<string>& args) {
 
     else if(command == "kata-list-params") {
       //For now, rootPolicyTemperature is hidden since it's not clear we want to support it
-      response = "playoutDoublingAdvantage analysisWideRootNoise";
+      response = "playoutDoublingAdvantage analysisWideRootNoise maxVisits maxPlayouts maxTime";
     }
 
     else if(command == "kata-get-param") {
@@ -2098,6 +2114,15 @@ int MainCmds::gtp(const vector<string>& args) {
         else if(pieces[0] == "analysisWideRootNoise") {
           response = Global::doubleToString(engine->analysisWideRootNoise);
         }
+        else if(pieces[0] == "maxVisits") {
+          response = Global::int64ToString(params.maxVisits);
+        }
+        else if(pieces[0] == "maxPlayouts") {
+          response = Global::int64ToString(params.maxPlayouts);
+        }
+        else if(pieces[0] == "maxTime") {
+          response = Global::doubleToString(params.maxTime);
+        }
         else {
           responseIsError = true;
           response = "Invalid parameter";
@@ -2105,6 +2130,7 @@ int MainCmds::gtp(const vector<string>& args) {
       }
     }
 
+    // TODO someday maybe make this fully general, like in the analysis engine.
     else if(command == "kata-set-param") {
       if(pieces.size() != 2) {
         responseIsError = true;
@@ -2112,6 +2138,7 @@ int MainCmds::gtp(const vector<string>& args) {
       }
       else {
         int i;
+        int64_t i64;
         double d;
         if(pieces[0] == "playoutDoublingAdvantage") {
           if(Global::tryStringToDouble(pieces[1],d) && d >= -3.0 && d <= 3.0)
@@ -2143,6 +2170,30 @@ int MainCmds::gtp(const vector<string>& args) {
           else {
             responseIsError = true;
             response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 1024";
+          }
+        }
+        else if(pieces[0] == "maxVisits") {
+          if(Global::tryStringToInt64(pieces[1],i64) && i64 >= 1 && i64 <= (int64_t)1 << 50)
+            engine->setMaxVisits(i64);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
+          }
+        }
+        else if(pieces[0] == "maxPlayouts") {
+          if(Global::tryStringToInt64(pieces[1],i64) && i64 >= 1 && i64 <= (int64_t)1 << 50)
+            engine->setMaxPlayouts(i64);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
+          }
+        }
+        else if(pieces[0] == "maxTime") {
+          if(Global::tryStringToDouble(pieces[1],d) && d >= 0 && d <= 1e20)
+            engine->setMaxTime(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be integer from 1 to 2^50";
           }
         }
         else {
