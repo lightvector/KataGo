@@ -74,6 +74,7 @@ if __name__ == "__main__":
   parser.add_argument('-max-train-bucket-size', help='Approx total number of train rows allowed if data stops', type=float, required=False)
   parser.add_argument('-max-train-steps-since-last-reload', help='Approx total of training allowed if shuffling stops', type=float, required=False)
   parser.add_argument('-max-val-samples', help='Approx max of validation samples per epoch', type=int, required=False)
+  parser.add_argument('-randomize-val', help='Randomize order of validation files', required=False, action='store_true')
   parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
   parser.add_argument('-no-repeat-files', help='Track what shuffled data was used and do not repeat, even when killed and resumed', required=False, action='store_true')
 
@@ -152,6 +153,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
   max_train_bucket_size = args["max_train_bucket_size"]
   max_train_steps_since_last_reload = args["max_train_steps_since_last_reload"]
   max_val_samples = args["max_val_samples"]
+  randomize_val = args["randomize_val"]
   no_export = args["no_export"]
   no_repeat_files = args["no_repeat_files"]
 
@@ -1108,8 +1110,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
       val_files = []
       if os.path.exists(vdatadir):
         val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".npz")]
-      # Sort to ensure deterministic order to validation files in case we use only a subset
-      val_files = sorted(val_files)
+      if randomize_val:
+        random.shuffle(val_files)
+      else:
+        # Sort to ensure deterministic order to validation files in case we use only a subset
+        val_files = sorted(val_files)
       if len(val_files) == 0:
         logging.info("No validation files, skipping validation step")
       else:
