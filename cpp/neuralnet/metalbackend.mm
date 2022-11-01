@@ -117,7 +117,6 @@ static SWTrunkDesc * trunkDescToSwift(const TrunkDesc * trunk) {
 
     SWTrunkDesc * swTrunkDesc =
     [[SWTrunkDesc alloc] initWithVersion:trunk->version
-                               numBlocks:trunk->numBlocks
                         trunkNumChannels:[NSNumber numberWithInt:trunk->trunkNumChannels]
                           midNumChannels:[NSNumber numberWithInt:trunk->midNumChannels]
                       regularNumChannels:[NSNumber numberWithInt:trunk->regularNumChannels]

@@ -2234,7 +2234,6 @@ final class TrunkTest: XCTestCase {
                             globalPooling: globalPoolingResidualBlock)]
 
         let descriptor = SWTrunkDesc(version: 0,
-                                     numBlocks: blocks.count,
                                      trunkNumChannels: numChannels as NSNumber,
                                      midNumChannels: numChannels as NSNumber,
                                      regularNumChannels: numChannels as NSNumber,
@@ -2822,6 +2821,687 @@ final class ValueHeadTest: XCTestCase {
         XCTAssertEqual(ownershipPointer[5], 0, accuracy: 1e-8)
         XCTAssertEqual(ownershipPointer[6], 0, accuracy: 1e-8)
         XCTAssertEqual(ownershipPointer[7], 0, accuracy: 1e-8)
+    }
+}
+
+final class ModelTest: XCTestCase {
+
+    func createModelB40C256(batchSize: Int,
+                            nnYLen: Int,
+                            nnXLen: Int,
+                            numInputChannels: Int,
+                            numInputGlobalChannels: Int,
+                            numValueChannels: Int,
+                            numScoreValueChannels: Int,
+                            numOwnershipChannels: Int) -> Model {
+        let version = 10
+        let convCount = 5 * 5 * 256
+        let randomWeights = UnsafeMutablePointer<Float32>.allocate(capacity: convCount)
+        let oneWeights = UnsafeMutablePointer<Float32>.allocate(capacity: convCount)
+
+        for i in 0..<convCount {
+            randomWeights[i] = Float32.random(in: 0.5..<1.0)
+            oneWeights[i] = 1
+        }
+
+        let initialCov = SWConvLayerDesc(convYSize: 5,
+                                         convXSize: 5,
+                                         inChannels: 22,
+                                         outChannels: 256,
+                                         dilationY: 1,
+                                         dilationX: 1,
+                                         weights: randomWeights)
+
+        let initialMatMul = SWMatMulLayerDesc(inChannels: 19,
+                                              outChannels: 256,
+                                              weights: randomWeights)
+
+        let preBN = SWBatchNormLayerDesc(numChannels: 256,
+                                         epsilon: 1e-20,
+                                         hasScale: false,
+                                         hasBias: true,
+                                         mean: randomWeights,
+                                         variance: oneWeights,
+                                         scale: randomWeights,
+                                         bias: randomWeights)
+
+        let regularConv = SWConvLayerDesc(convYSize: 3,
+                                          convXSize: 3,
+                                          inChannels: 256,
+                                          outChannels: 256,
+                                          dilationY: 1,
+                                          dilationX: 1,
+                                          weights: randomWeights)
+
+        let midBN = SWBatchNormLayerDesc(numChannels: 256,
+                                         epsilon: 1e-20,
+                                         hasScale: true,
+                                         hasBias: true,
+                                         mean: randomWeights,
+                                         variance: oneWeights,
+                                         scale: randomWeights,
+                                         bias: randomWeights)
+
+        let finalConv = SWConvLayerDesc(convYSize: 3,
+                                        convXSize: 3,
+                                        inChannels: 256,
+                                        outChannels: 256,
+                                        dilationY: 1,
+                                        dilationX: 1,
+                                        weights: randomWeights)
+
+        let ordinary = SWResidualBlockDesc(preBN: preBN,
+                                           preActivation: nil,
+                                           regularConv: regularConv,
+                                           midBN: midBN,
+                                           midActivation: nil,
+                                           finalConv: finalConv)
+
+        let ordinaryDescriptor = BlockDescriptor(kind: .ordinary,
+                                                 ordinary: ordinary,
+                                                 globalPooling: nil)
+
+        let gRegularConv = SWConvLayerDesc(convYSize: 3,
+                                           convXSize: 3,
+                                           inChannels: 256,
+                                           outChannels: 192,
+                                           dilationY: 1,
+                                           dilationX: 1,
+                                           weights: randomWeights)
+
+        let gpoolConv = SWConvLayerDesc(convYSize: 3,
+                                        convXSize: 3,
+                                        inChannels: 256,
+                                        outChannels: 64,
+                                        dilationY: 1,
+                                        dilationX: 1,
+                                        weights: randomWeights)
+
+        let gpoolBN = SWBatchNormLayerDesc(numChannels: 64,
+                                           epsilon: 1e-20,
+                                           hasScale: false,
+                                           hasBias: true,
+                                           mean: randomWeights,
+                                           variance: oneWeights,
+                                           scale: randomWeights,
+                                           bias: randomWeights)
+
+        let gpoolToBiasMul = SWMatMulLayerDesc(inChannels: 192,
+                                               outChannels: 192,
+                                               weights: randomWeights)
+
+        let gMidBN = SWBatchNormLayerDesc(numChannels: 192,
+                                          epsilon: 1e-20,
+                                          hasScale: true,
+                                          hasBias: true,
+                                          mean: randomWeights,
+                                          variance: oneWeights,
+                                          scale: randomWeights,
+                                          bias: randomWeights)
+
+        let gFinalConv = SWConvLayerDesc(convYSize: 3,
+                                         convXSize: 3,
+                                         inChannels: 192,
+                                         outChannels: 256,
+                                         dilationY: 1,
+                                         dilationX: 1,
+                                         weights: randomWeights)
+
+        let globalPooling =
+        SWGlobalPoolingResidualBlockDesc(preBN: preBN,
+                                         preActivation: nil,
+                                         regularConv: gRegularConv,
+                                         gpoolConv: gpoolConv,
+                                         gpoolBN: gpoolBN,
+                                         gpoolActivation: nil,
+                                         gpoolToBiasMul: gpoolToBiasMul,
+                                         midBN: gMidBN,
+                                         midActivation: nil,
+                                         finalConv: gFinalConv)
+
+        let globalPoolingDescriptor = BlockDescriptor(kind: .globalPooling,
+                                                      ordinary: nil,
+                                                      globalPooling: globalPooling)
+
+        let blocks: [BlockDescriptor] = [ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         globalPoolingDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         globalPoolingDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         globalPoolingDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         globalPoolingDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         globalPoolingDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         globalPoolingDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         globalPoolingDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor,
+                                         ordinaryDescriptor]
+
+        assert(blocks.count == 40)
+
+        let trunkTipBN = SWBatchNormLayerDesc(numChannels: 256,
+                                              epsilon: 1e-20,
+                                              hasScale: false,
+                                              hasBias: true,
+                                              mean: randomWeights,
+                                              variance: oneWeights,
+                                              scale: randomWeights,
+                                              bias: randomWeights)
+
+        let trunkDesc = SWTrunkDesc(version: version,
+                                    trunkNumChannels: 256,
+                                    midNumChannels: 256,
+                                    regularNumChannels: 192,
+                                    dilatedNumChannels: 64,
+                                    gpoolNumChannels: 64,
+                                    initialConv: initialCov,
+                                    initialMatMul: initialMatMul,
+                                    blocks: blocks,
+                                    trunkTipBN: trunkTipBN)
+
+        let p1Conv = SWConvLayerDesc(convYSize: 1,
+                                     convXSize: 1,
+                                     inChannels: 256,
+                                     outChannels: 48,
+                                     dilationY: 1,
+                                     dilationX: 1,
+                                     weights: randomWeights)
+
+        let g1Conv = SWConvLayerDesc(convYSize: 1,
+                                     convXSize: 1,
+                                     inChannels: 256,
+                                     outChannels: 48,
+                                     dilationY: 1,
+                                     dilationX: 1,
+                                     weights: randomWeights)
+
+        let g1BN = SWBatchNormLayerDesc(numChannels: 48,
+                                        epsilon: 1e-20,
+                                        hasScale: false,
+                                        hasBias: true,
+                                        mean: randomWeights,
+                                        variance: oneWeights,
+                                        scale: randomWeights,
+                                        bias: randomWeights)
+
+        let g1PoolToBiasMul = SWMatMulLayerDesc(inChannels: 144,
+                                                outChannels: 48,
+                                                weights: randomWeights)
+
+        let p1BN = SWBatchNormLayerDesc(numChannels: 48,
+                                        epsilon: 1e-20,
+                                        hasScale: false,
+                                        hasBias: true,
+                                        mean: randomWeights,
+                                        variance: oneWeights,
+                                        scale: randomWeights,
+                                        bias: randomWeights)
+
+        let p2Conv = SWConvLayerDesc(convYSize: 1,
+                                     convXSize: 1,
+                                     inChannels: 48,
+                                     outChannels: 1,
+                                     dilationY: 1,
+                                     dilationX: 1,
+                                     weights: randomWeights)
+
+        let gpoolToPassMul = SWMatMulLayerDesc(inChannels: 144,
+                                               outChannels: 1,
+                                               weights: randomWeights)
+
+        let policyHead = SWPolicyHeadDesc(version: version,
+                                          p1Conv: p1Conv,
+                                          g1Conv: g1Conv,
+                                          g1BN: g1BN,
+                                          gpoolToBiasMul: g1PoolToBiasMul,
+                                          p1BN: p1BN,
+                                          p2Conv: p2Conv,
+                                          gpoolToPassMul: gpoolToPassMul)
+
+        let v1Conv = SWConvLayerDesc(convYSize: 1,
+                                     convXSize: 1,
+                                     inChannels: 256,
+                                     outChannels: 48,
+                                     dilationY: 1,
+                                     dilationX: 1,
+                                     weights: randomWeights)
+
+        let v1BN = SWBatchNormLayerDesc(numChannels: 48,
+                                        epsilon: 1e-20,
+                                        hasScale: false,
+                                        hasBias: true,
+                                        mean: randomWeights,
+                                        variance: oneWeights,
+                                        scale: randomWeights,
+                                        bias: randomWeights)
+
+        let v2Mul = SWMatMulLayerDesc(inChannels: 144,
+                                      outChannels: 128,
+                                      weights: randomWeights)
+
+        let v2Bias = SWMatBiasLayerDesc(numChannels: 128, weights: randomWeights)
+        let v3Mul = SWMatMulLayerDesc(inChannels: 128, outChannels: 3, weights: randomWeights)
+        let v3Bias = SWMatBiasLayerDesc(numChannels: 3, weights: randomWeights)
+        let sv3Mul = SWMatMulLayerDesc(inChannels: 128, outChannels: 6, weights: randomWeights)
+        let sv3Bias = SWMatBiasLayerDesc(numChannels: 6, weights: randomWeights)
+
+        let vOwnershipConv = SWConvLayerDesc(convYSize: 1,
+                                             convXSize: 1,
+                                             inChannels: 48,
+                                             outChannels: 1,
+                                             dilationY: 1,
+                                             dilationX: 1,
+                                             weights: randomWeights)
+
+        let valueHead = SWValueHeadDesc(version: version,
+                                        v1Conv: v1Conv,
+                                        v1BN: v1BN,
+                                        v2Mul: v2Mul,
+                                        v2Bias: v2Bias,
+                                        v3Mul: v3Mul,
+                                        v3Bias: v3Bias,
+                                        sv3Mul: sv3Mul,
+                                        sv3Bias: sv3Bias,
+                                        vOwnershipConv: vOwnershipConv)
+
+        let modelDesc = SWModelDesc(version: version,
+                                    name: "test",
+                                    numInputChannels: numInputChannels as NSNumber,
+                                    numInputGlobalChannels: numInputGlobalChannels as NSNumber,
+                                    numValueChannels: numValueChannels as NSNumber,
+                                    numScoreValueChannels: numScoreValueChannels as NSNumber,
+                                    numOwnershipChannels: numOwnershipChannels as NSNumber,
+                                    trunk: trunkDesc,
+                                    policyHead: policyHead,
+                                    valueHead: valueHead)
+
+        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+
+        let model = try! Model(device: device,
+                              graph: MPSGraph(),
+                              descriptor: modelDesc,
+                              nnXLen: nnXLen as NSNumber,
+                              nnYLen: nnYLen as NSNumber,
+                              batchSize: batchSize as NSNumber,
+                              useFP16: true,
+                              useNHWC: true)
+
+        // warm up to spped up later runs
+        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
+        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
+        let inputGlobalCount = batchSize * numInputGlobalChannels
+        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
+        let policyCount = batchSize * nnYLen * nnXLen
+        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
+        let policyPassCount = batchSize
+        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
+        let valueCount = batchSize * numValueChannels
+        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
+        let scoreValueCount = batchSize * numScoreValueChannels
+        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
+        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
+        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+
+        model.apply(input: input,
+                    inputGlobal: inputGlobal,
+                    policy: policyOutput,
+                    policyPass: policyPassOutput,
+                    value: valueOutput,
+                    scoreValue: scoreValueOutput,
+                    ownership: ownershipOutput)
+
+        return model
+    }
+
+    // Test 40 blocks, 256 channels, 8 batches
+    func testB40C256B8() {
+        let batchSize = 8
+        let nnYLen = 19
+        let nnXLen = 19
+        let numInputChannels = 22
+        let numInputGlobalChannels = 19
+        let numValueChannels = 3
+        let numScoreValueChannels = 6
+        let numOwnershipChannels = 1
+
+        let model = createModelB40C256(batchSize: batchSize,
+                                       nnYLen: nnYLen,
+                                       nnXLen: nnXLen,
+                                       numInputChannels: numInputChannels,
+                                       numInputGlobalChannels: numInputGlobalChannels,
+                                       numValueChannels: numValueChannels,
+                                       numScoreValueChannels: numScoreValueChannels,
+                                       numOwnershipChannels: numOwnershipChannels)
+
+        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
+        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
+        let inputGlobalCount = batchSize * numInputGlobalChannels
+        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
+        let policyCount = batchSize * nnYLen * nnXLen
+        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
+        let policyPassCount = batchSize
+        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
+        let valueCount = batchSize * numValueChannels
+        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
+        let scoreValueCount = batchSize * numScoreValueChannels
+        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
+        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
+        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+
+        measure {
+            for i in 0..<inputCount {
+                input[i] = Float32.random(in: 0.5..<1)
+            }
+
+            for i in 0..<inputGlobalCount {
+                inputGlobal[i] = Float32.random(in: 0.5..<1)
+            }
+
+            model.apply(input: input,
+                        inputGlobal: inputGlobal,
+                        policy: policyOutput,
+                        policyPass: policyPassOutput,
+                        value: valueOutput,
+                        scoreValue: scoreValueOutput,
+                        ownership: ownershipOutput)
+        }
+    }
+
+    // Test 40 blocks, 256 channels, 16 batches
+    func testB40C256B16() {
+        let batchSize = 16
+        let nnYLen = 19
+        let nnXLen = 19
+        let numInputChannels = 22
+        let numInputGlobalChannels = 19
+        let numValueChannels = 3
+        let numScoreValueChannels = 6
+        let numOwnershipChannels = 1
+
+        let model = createModelB40C256(batchSize: batchSize,
+                                       nnYLen: nnYLen,
+                                       nnXLen: nnXLen,
+                                       numInputChannels: numInputChannels,
+                                       numInputGlobalChannels: numInputGlobalChannels,
+                                       numValueChannels: numValueChannels,
+                                       numScoreValueChannels: numScoreValueChannels,
+                                       numOwnershipChannels: numOwnershipChannels)
+
+        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
+        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
+        let inputGlobalCount = batchSize * numInputGlobalChannels
+        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
+        let policyCount = batchSize * nnYLen * nnXLen
+        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
+        let policyPassCount = batchSize
+        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
+        let valueCount = batchSize * numValueChannels
+        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
+        let scoreValueCount = batchSize * numScoreValueChannels
+        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
+        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
+        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+
+        measure {
+            for i in 0..<inputCount {
+                input[i] = Float32.random(in: 0.5..<1)
+            }
+
+            for i in 0..<inputGlobalCount {
+                inputGlobal[i] = Float32.random(in: 0.5..<1)
+            }
+
+            model.apply(input: input,
+                        inputGlobal: inputGlobal,
+                        policy: policyOutput,
+                        policyPass: policyPassOutput,
+                        value: valueOutput,
+                        scoreValue: scoreValueOutput,
+                        ownership: ownershipOutput)
+        }
+    }
+
+    // Test 40 blocks, 256 channels, 32 batches
+    func testB40C256B32() {
+        let batchSize = 32
+        let nnYLen = 19
+        let nnXLen = 19
+        let numInputChannels = 22
+        let numInputGlobalChannels = 19
+        let numValueChannels = 3
+        let numScoreValueChannels = 6
+        let numOwnershipChannels = 1
+
+        let model = createModelB40C256(batchSize: batchSize,
+                                       nnYLen: nnYLen,
+                                       nnXLen: nnXLen,
+                                       numInputChannels: numInputChannels,
+                                       numInputGlobalChannels: numInputGlobalChannels,
+                                       numValueChannels: numValueChannels,
+                                       numScoreValueChannels: numScoreValueChannels,
+                                       numOwnershipChannels: numOwnershipChannels)
+
+        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
+        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
+        let inputGlobalCount = batchSize * numInputGlobalChannels
+        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
+        let policyCount = batchSize * nnYLen * nnXLen
+        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
+        let policyPassCount = batchSize
+        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
+        let valueCount = batchSize * numValueChannels
+        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
+        let scoreValueCount = batchSize * numScoreValueChannels
+        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
+        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
+        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+
+        measure {
+            for i in 0..<inputCount {
+                input[i] = Float32.random(in: 0.5..<1)
+            }
+
+            for i in 0..<inputGlobalCount {
+                inputGlobal[i] = Float32.random(in: 0.5..<1)
+            }
+
+            model.apply(input: input,
+                        inputGlobal: inputGlobal,
+                        policy: policyOutput,
+                        policyPass: policyPassOutput,
+                        value: valueOutput,
+                        scoreValue: scoreValueOutput,
+                        ownership: ownershipOutput)
+        }
+    }
+
+    // Test 40 blocks, 256 channels, 64 batches
+    func testB40C256B64() {
+        let batchSize = 64
+        let nnYLen = 19
+        let nnXLen = 19
+        let numInputChannels = 22
+        let numInputGlobalChannels = 19
+        let numValueChannels = 3
+        let numScoreValueChannels = 6
+        let numOwnershipChannels = 1
+
+        let model = createModelB40C256(batchSize: batchSize,
+                                       nnYLen: nnYLen,
+                                       nnXLen: nnXLen,
+                                       numInputChannels: numInputChannels,
+                                       numInputGlobalChannels: numInputGlobalChannels,
+                                       numValueChannels: numValueChannels,
+                                       numScoreValueChannels: numScoreValueChannels,
+                                       numOwnershipChannels: numOwnershipChannels)
+
+        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
+        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
+        let inputGlobalCount = batchSize * numInputGlobalChannels
+        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
+        let policyCount = batchSize * nnYLen * nnXLen
+        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
+        let policyPassCount = batchSize
+        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
+        let valueCount = batchSize * numValueChannels
+        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
+        let scoreValueCount = batchSize * numScoreValueChannels
+        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
+        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
+        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+
+        measure {
+            for i in 0..<inputCount {
+                input[i] = Float32.random(in: 0.5..<1)
+            }
+
+            for i in 0..<inputGlobalCount {
+                inputGlobal[i] = Float32.random(in: 0.5..<1)
+            }
+
+            model.apply(input: input,
+                        inputGlobal: inputGlobal,
+                        policy: policyOutput,
+                        policyPass: policyPassOutput,
+                        value: valueOutput,
+                        scoreValue: scoreValueOutput,
+                        ownership: ownershipOutput)
+        }
+    }
+
+    // Test 40 blocks, 256 channels, 128 batches
+    func testB40C256B128() {
+        let batchSize = 128
+        let nnYLen = 19
+        let nnXLen = 19
+        let numInputChannels = 22
+        let numInputGlobalChannels = 19
+        let numValueChannels = 3
+        let numScoreValueChannels = 6
+        let numOwnershipChannels = 1
+
+        let model = createModelB40C256(batchSize: batchSize,
+                                       nnYLen: nnYLen,
+                                       nnXLen: nnXLen,
+                                       numInputChannels: numInputChannels,
+                                       numInputGlobalChannels: numInputGlobalChannels,
+                                       numValueChannels: numValueChannels,
+                                       numScoreValueChannels: numScoreValueChannels,
+                                       numOwnershipChannels: numOwnershipChannels)
+
+        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
+        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
+        let inputGlobalCount = batchSize * numInputGlobalChannels
+        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
+        let policyCount = batchSize * nnYLen * nnXLen
+        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
+        let policyPassCount = batchSize
+        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
+        let valueCount = batchSize * numValueChannels
+        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
+        let scoreValueCount = batchSize * numScoreValueChannels
+        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
+        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
+        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+
+        measure {
+            for i in 0..<inputCount {
+                input[i] = Float32.random(in: 0.5..<1)
+            }
+
+            for i in 0..<inputGlobalCount {
+                inputGlobal[i] = Float32.random(in: 0.5..<1)
+            }
+
+            model.apply(input: input,
+                        inputGlobal: inputGlobal,
+                        policy: policyOutput,
+                        policyPass: policyPassOutput,
+                        value: valueOutput,
+                        scoreValue: scoreValueOutput,
+                        ownership: ownershipOutput)
+        }
+    }
+
+    // Test 40 blocks, 256 channels, 256 batches
+    func testB40C256B256() {
+        let batchSize = 256
+        let nnYLen = 19
+        let nnXLen = 19
+        let numInputChannels = 22
+        let numInputGlobalChannels = 19
+        let numValueChannels = 3
+        let numScoreValueChannels = 6
+        let numOwnershipChannels = 1
+
+        let model = createModelB40C256(batchSize: batchSize,
+                                       nnYLen: nnYLen,
+                                       nnXLen: nnXLen,
+                                       numInputChannels: numInputChannels,
+                                       numInputGlobalChannels: numInputGlobalChannels,
+                                       numValueChannels: numValueChannels,
+                                       numScoreValueChannels: numScoreValueChannels,
+                                       numOwnershipChannels: numOwnershipChannels)
+
+        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
+        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
+        let inputGlobalCount = batchSize * numInputGlobalChannels
+        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
+        let policyCount = batchSize * nnYLen * nnXLen
+        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
+        let policyPassCount = batchSize
+        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
+        let valueCount = batchSize * numValueChannels
+        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
+        let scoreValueCount = batchSize * numScoreValueChannels
+        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
+        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
+        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+
+        measure {
+            for i in 0..<inputCount {
+                input[i] = Float32.random(in: 0.5..<1)
+            }
+
+            for i in 0..<inputGlobalCount {
+                inputGlobal[i] = Float32.random(in: 0.5..<1)
+            }
+
+            model.apply(input: input,
+                        inputGlobal: inputGlobal,
+                        policy: policyOutput,
+                        policyPass: policyPassOutput,
+                        value: valueOutput,
+                        scoreValue: scoreValueOutput,
+                        ownership: ownershipOutput)
+        }
     }
 }
 

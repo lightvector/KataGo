@@ -1341,7 +1341,6 @@ class BlockDescriptor: NSObject {
 @objc
 class SWTrunkDesc: NSObject {
     let version: Int
-    let numBlocks: Int
     let trunkNumChannels: NSNumber
     let midNumChannels: NSNumber
     let regularNumChannels: NSNumber
@@ -1354,7 +1353,6 @@ class SWTrunkDesc: NSObject {
 
     @objc
     init(version: Int,
-         numBlocks: Int,
          trunkNumChannels: NSNumber,
          midNumChannels: NSNumber,
          regularNumChannels: NSNumber,
@@ -1365,7 +1363,6 @@ class SWTrunkDesc: NSObject {
          blocks: [BlockDescriptor],
          trunkTipBN: SWBatchNormLayerDesc) {
         self.version = version
-        self.numBlocks = numBlocks
         self.trunkNumChannels = trunkNumChannels
         self.midNumChannels = midNumChannels
         self.regularNumChannels = regularNumChannels
