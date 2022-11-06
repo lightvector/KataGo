@@ -1176,6 +1176,11 @@ bool Search::playoutDescend(
         if(thread.illegalMoveHashes.find(nnHash) == thread.illegalMoveHashes.end()) {
           thread.illegalMoveHashes.insert(nnHash);
           logger->write("WARNING: Chosen move not legal so regenerated nn output, nnhash=" + nnHash.toString());
+          ostringstream out;
+          thread.history.printBasicInfo(out,thread.board);
+          thread.history.printDebugInfo(out,thread.board);
+          out << Location::toString(bestChildMoveLoc,thread.board) << endl;
+          logger->write(out.str());
         }
       }
 

@@ -855,7 +855,7 @@ void Search::getAnalysisData(
   double policyProbMassVisited = 0.0;
   {
     for(int i = 0; i<numChildren; i++) {
-      policyProbMassVisited += policyProbs[getPos(childrenMoveLocs[i])];
+      policyProbMassVisited += std::max(0.0, (double)policyProbs[getPos(childrenMoveLocs[i])]);
     }
     //Probability mass should not sum to more than 1, giving a generous allowance
     //for floating point error.
