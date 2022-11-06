@@ -98,7 +98,7 @@ double Search::getExploreSelectionValueOfChild(
   (void)parentUtility;
   int movePos = getPos(moveLoc);
   float nnPolicyProb = parentPolicyProbs[movePos];
-  if(searchParams.policyBiasFactor > 0) {
+  if(searchParams.policyBiasFactor > 0 && nnPolicyProb > 0) {
     nnPolicyProb = parent.policyBiasHandle.getUpdatedPolicyProb(nnPolicyProb, movePos, searchParams.policyBiasFactor, searchParams.policyBiasDiscountSelf);
   }
 

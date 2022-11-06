@@ -514,7 +514,7 @@ void Search::updatePolicyBias(SearchNode& node, int childrenCapacity, SearchChil
   if(node.policyBiasHandle.entries[bestChildPos] != nullptr) {
     assert(node.policyBiasHandle.entries.size() > bestChildPos);
 
-    double logSurprise = bestChildSurprise <= 0.0 ? 0.0 : std::max(0.0, log(bestChildSurprise));
+    double logSurprise = bestChildSurprise <= 1.0 ? 0.0 : std::max(0.0, log(bestChildSurprise));
     node.policyBiasHandle.updateValue(logSurprise * totalChildWeight, totalChildWeight, bestChildPos);
   }
 }

@@ -71,16 +71,16 @@ float PolicyBiasHandle::getUpdatedPolicyProb(float nnPolicyProb, int movePos, do
     assert(entries.size() > movePos);
     double policyProbLogSurprise = entries[movePos]->average.load(std::memory_order_acquire);
     double nnPolicyProbComplement = 1.0 - nnPolicyProb;
-    if(policyProbLogSurprise > 0 && nnPolicyProbComplement > 1e-30) {
+    if(policyProbLogSurprise > 0 && nnPolicyProbComplement > 1e-10) {
       double desiredLogDelta = policyBiasFactor * policyProbLogSurprise;
       if(policyBiasDiscountSelf && movePos == lastPos) {
         double entryWeightSum = entries[movePos]->weightSum.load(std::memory_order_acquire);
         if(entryWeightSum <= 0.0)
           desiredLogDelta = 0.0;
-        else 
+        else
           desiredLogDelta *= std::max(0.0, entryWeightSum - lastWeight) / entryWeightSum;
       }
-      
+
       double odds = nnPolicyProb / nnPolicyProbComplement;
       odds *= exp(desiredLogDelta);
       return (float)(odds / (1.0 + odds));
@@ -100,7 +100,7 @@ void PolicyBiasHandle::revertUpdates(double freeProp) {
       while(entry_.entryLock.test_and_set(std::memory_order_acquire));
       double average = entry_.average.load(std::memory_order_acquire);
       double oldWeight = entry_.weightSum.load(std::memory_order_acquire);
-        
+
       double newSum = average * oldWeight;
       double newWeight = oldWeight;
       newSum -= sumToSubtract;
@@ -126,7 +126,7 @@ void PolicyBiasHandle::updateValue(double newSumThisNode, double newWeightThisNo
     while(entry_.entryLock.test_and_set(std::memory_order_acquire));
     double average = entry_.average.load(std::memory_order_acquire);
     double oldWeight = entry_.weightSum.load(std::memory_order_acquire);
-    
+
     double newSum = average * oldWeight;
     double newWeight = oldWeight;
 
@@ -167,11 +167,11 @@ void PolicyBiasHandle::updateValue(double newSumThisNode, double newWeightThisNo
 
   entry_.average.store(newSum / newWeight, std::memory_order_release);
   entry_.weightSum.store(newWeight, std::memory_order_release);
-  
+
   lastSum = newSumThisNode;
   lastWeight = newWeightThisNode;
   lastPos = pos;
-  
+
   entry_.entryLock.clear(std::memory_order_release);
 }
 
