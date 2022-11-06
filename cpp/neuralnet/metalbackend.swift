@@ -380,9 +380,7 @@ class ConvLayer: NSObject {
          useNHWC: Bool) {
         let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
 
-        let dataLayout = useNHWC ?
-        MPSGraphTensorNamedDataLayout.NHWC :
-        MPSGraphTensorNamedDataLayout.NCHW
+        let dataLayout: MPSGraphTensorNamedDataLayout = useNHWC ? .NHWC : .NCHW
 
         let weightsShape = [descriptor.outChannels,
                             descriptor.inChannels,
@@ -942,6 +940,12 @@ class MatMulLayer {
             throw MetalBackendError.CannotUseNCHW
         }
 
+        assert((sourceTensor.shape?.count == 4) || (sourceTensor.shape?[1] == descriptor.inChannels))
+
+        assert((sourceTensor.shape?.count == 2) || useNHWC || (sourceTensor.shape?[1] == descriptor.inChannels))
+
+        assert((sourceTensor.shape?.count == 2) || (!useNHWC) || (sourceTensor.shape?[3] == descriptor.inChannels))
+
         let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
 
         let weightsShape = [descriptor.inChannels,
@@ -998,15 +1002,9 @@ class MatBiasLayer {
          descriptor: SWMatBiasLayerDesc,
          sourceTensor: MPSGraphTensor,
          useFP16: Bool,
-         useNHWC: Bool) throws {
+         useNHWC: Bool) {
 
-        guard useNHWC ||
-                (descriptor.numChannels == 1) ||
-                (sourceTensor.shape?.count == 2) ||
-                ((sourceTensor.shape?.count == 4) &&
-                 (sourceTensor.shape?[2] == 1) && (sourceTensor.shape?[3] == 1)) else {
-            throw MetalBackendError.CannotUseNCHW
-        }
+        assert((sourceTensor.shape?.count == 2) && (sourceTensor.shape?[1] == descriptor.numChannels))
 
         let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
         let weightsShape = [1, descriptor.numChannels]
@@ -1027,17 +1025,9 @@ class MatBiasLayer {
                                            shape: weightsShape,
                                            dataType: dataType)
 
-        let shape = [-1, descriptor.numChannels]
-
-        let reshapedSource = graph.reshape(sourceTensor,
-                                           shape: shape,
-                                           name: nil)
-
-        resultTensor = graph.addition(reshapedSource,
+        resultTensor = graph.addition(sourceTensor,
                                       weightsTensor,
                                       name: nil)
-
-        assert(resultTensor.shape?.count == 2)
     }
 }
 
@@ -1704,11 +1694,11 @@ class ValueHead {
                                     useFP16: useFP16,
                                     useNHWC: useNHWC)
 
-        let v2Bias = try MatBiasLayer(graph: graph,
-                                      descriptor: descriptor.v2Bias,
-                                      sourceTensor: v2Mul.resultTensor,
-                                      useFP16: useFP16,
-                                      useNHWC: useNHWC)
+        let v2Bias = MatBiasLayer(graph: graph,
+                                  descriptor: descriptor.v2Bias,
+                                  sourceTensor: v2Mul.resultTensor,
+                                  useFP16: useFP16,
+                                  useNHWC: useNHWC)
 
         let v2ReLU = graph.reLU(with: v2Bias.resultTensor, name: nil)
 
@@ -1718,11 +1708,11 @@ class ValueHead {
                                     useFP16: useFP16,
                                     useNHWC: useNHWC)
 
-        let v3Bias = try MatBiasLayer(graph: graph,
-                                      descriptor: descriptor.v3Bias,
-                                      sourceTensor: v3Mul.resultTensor,
-                                      useFP16: useFP16,
-                                      useNHWC: useNHWC)
+        let v3Bias = MatBiasLayer(graph: graph,
+                                  descriptor: descriptor.v3Bias,
+                                  sourceTensor: v3Mul.resultTensor,
+                                  useFP16: useFP16,
+                                  useNHWC: useNHWC)
 
         let sv3Mul = try MatMulLayer(graph: graph,
                                      descriptor: descriptor.sv3Mul,
@@ -1730,11 +1720,11 @@ class ValueHead {
                                      useFP16: useFP16,
                                      useNHWC: useNHWC)
 
-        let sv3Bias = try MatBiasLayer(graph: graph,
-                                       descriptor: descriptor.sv3Bias,
-                                       sourceTensor: sv3Mul.resultTensor,
-                                       useFP16: useFP16,
-                                       useNHWC: useNHWC)
+        let sv3Bias = MatBiasLayer(graph: graph,
+                                   descriptor: descriptor.sv3Bias,
+                                   sourceTensor: sv3Mul.resultTensor,
+                                   useFP16: useFP16,
+                                   useNHWC: useNHWC)
 
         let vOwnershipConv = ConvLayer(graph: graph,
                                        sourceTensor: v1ReLU,
@@ -1823,10 +1813,10 @@ class Model {
     let scoreValueFP16: UnsafeMutablePointer<Float16>?
     let ownershipCount: Int
     let ownershipFP16: UnsafeMutablePointer<Float16>?
-    let inputData: MPSGraphTensorData
-    let inputGlobalData: MPSGraphTensorData
     let inputArray: MPSNDArray
     let inputGlobalArray: MPSNDArray
+    let feeds: [MPSGraphTensor: MPSGraphTensorData]
+    let targets: [MPSGraphTensor]
 
     init(device: MPSGraphDevice,
          graph: MPSGraph,
@@ -1957,14 +1947,23 @@ class Model {
             ownershipFP16 = nil
         }
 
-        inputData = MPSGraphTensorData(device: device, tensor: input.tensor)!
+        let inputData = MPSGraphTensorData(device: device, tensor: input.tensor)!
 
-        inputArray = inputData.mpsndarray()
+        inputArray = MPSGraphTensorData(device: device, tensor: input.tensor)!.mpsndarray()
 
-        inputGlobalData = MPSGraphTensorData(device: device,
-                                             tensor: inputGlobal.tensor)!
+        let inputGlobalData = MPSGraphTensorData(device: device,
+                                                 tensor: inputGlobal.tensor)!
 
         inputGlobalArray = inputGlobalData.mpsndarray()
+
+        feeds = [input.tensor: inputData,
+                 inputGlobal.tensor: inputGlobalData]
+
+        targets = [policyHead.policyTensor,
+                   policyHead.policyPassTensor,
+                   valueHead.valueTensor,
+                   valueHead.scoreValueTensor,
+                   valueHead.ownershipTensor]
     }
 
     func apply(input inputPointer: UnsafeMutablePointer<Float32>,
@@ -1990,17 +1989,8 @@ class Model {
             inputGlobalArray.writeBytes(inputGlobalPointer, strideBytes: nil)
         }
 
-        let feeds = [input.tensor: inputData,
-                     inputGlobal.tensor: inputGlobalData]
-
-        let targetTensors = [policyHead.policyTensor,
-                             policyHead.policyPassTensor,
-                             valueHead.valueTensor,
-                             valueHead.scoreValueTensor,
-                             valueHead.ownershipTensor]
-
         let fetch = graph.run(feeds: feeds,
-                              targetTensors: targetTensors,
+                              targetTensors: targets,
                               targetOperations: nil)
 
         if let policyFP16 {

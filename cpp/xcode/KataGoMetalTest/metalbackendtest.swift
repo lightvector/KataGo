@@ -1936,11 +1936,11 @@ final class MatBiasLayerTest: XCTestCase {
                                useFP16: useFP16,
                                useNHWC: useNHWC)
 
-        let matBiasLayer = try! MatBiasLayer(graph: graph,
-                                             descriptor: descriptor,
-                                             sourceTensor: input.tensor,
-                                             useFP16: useFP16,
-                                             useNHWC: useNHWC)
+        let matBiasLayer = MatBiasLayer(graph: graph,
+                                        descriptor: descriptor,
+                                        sourceTensor: input.tensor,
+                                        useFP16: useFP16,
+                                        useNHWC: useNHWC)
 
         let inputPointer = UnsafeMutablePointer<Float16>.allocate(capacity: 16)
 
@@ -1994,11 +1994,11 @@ final class MatBiasLayerTest: XCTestCase {
                                useFP16: useFP16,
                                useNHWC: useNHWC)
 
-        let matBiasLayer = try! MatBiasLayer(graph: graph,
-                                             descriptor: descriptor,
-                                             sourceTensor: input.tensor,
-                                             useFP16: useFP16,
-                                             useNHWC: useNHWC)
+        let matBiasLayer = MatBiasLayer(graph: graph,
+                                        descriptor: descriptor,
+                                        sourceTensor: input.tensor,
+                                        useFP16: useFP16,
+                                        useNHWC: useNHWC)
 
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 16)
 
@@ -2030,36 +2030,6 @@ final class MatBiasLayerTest: XCTestCase {
         XCTAssertEqual(outputPointer[15], 14, accuracy: 1e-8)
     }
 
-    func testInvalid() {
-        let useFP16 = false
-        let useNHWC = false
-        let batchSize = 1
-        let nnXLen = 2
-        let nnYLen = 1
-        let numChannels = 2
-        let weightsCount = numChannels
-        let weights = UnsafeMutablePointer<Float32>.allocate(capacity: weightsCount)
-
-        let descriptor = SWMatBiasLayerDesc(numChannels: numChannels as NSNumber,
-                                            weights: weights)
-
-        let graph = MPSGraph()
-
-        let input = InputLayer(graph: graph,
-                               batchSize: batchSize as NSNumber,
-                               nnXLen: nnXLen as NSNumber,
-                               nnYLen: nnYLen as NSNumber,
-                               numChannels: numChannels as NSNumber,
-                               useFP16: useFP16,
-                               useNHWC: useNHWC)
-
-        XCTAssertThrowsError(try MatBiasLayer(graph: graph,
-                                              descriptor: descriptor,
-                                              sourceTensor: input.tensor,
-                                              useFP16: useFP16,
-                                              useNHWC: useNHWC))
-    }
-
     func testUnity() {
         let useFP16 = false
         let useNHWC = false
@@ -2087,11 +2057,11 @@ final class MatBiasLayerTest: XCTestCase {
                                             dataType: .float32,
                                             name: nil)
 
-        let matBiasLayer = try! MatBiasLayer(graph: graph,
-                                             descriptor: descriptor,
-                                             sourceTensor: inputTensor,
-                                             useFP16: useFP16,
-                                             useNHWC: useNHWC)
+        let matBiasLayer = MatBiasLayer(graph: graph,
+                                        descriptor: descriptor,
+                                        sourceTensor: inputTensor,
+                                        useFP16: useFP16,
+                                        useNHWC: useNHWC)
 
         let inputCount = batchSize * numChannels
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
@@ -3145,15 +3115,15 @@ final class ModelTest: XCTestCase {
         let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
 
         let model = try! Model(device: device,
-                              graph: MPSGraph(),
-                              descriptor: modelDesc,
-                              nnXLen: nnXLen as NSNumber,
-                              nnYLen: nnYLen as NSNumber,
-                              batchSize: batchSize as NSNumber,
-                              useFP16: true,
-                              useNHWC: true)
+                               graph: MPSGraph(),
+                               descriptor: modelDesc,
+                               nnXLen: nnXLen as NSNumber,
+                               nnYLen: nnYLen as NSNumber,
+                               batchSize: batchSize as NSNumber,
+                               useFP16: true,
+                               useNHWC: true)
 
-        // warm up to spped up later runs
+        // warm up to speed up later runs
         let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
         let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
         let inputGlobalCount = batchSize * numInputGlobalChannels
@@ -3180,6 +3150,38 @@ final class ModelTest: XCTestCase {
         return model
     }
 
+    func createBuffers(batchSize: Int,
+                       nnYLen: Int,
+                       nnXLen: Int,
+                       numInputChannels: Int,
+                       numInputGlobalChannels: Int,
+                       numValueChannels: Int,
+                       numScoreValueChannels: Int,
+                       numOwnershipChannels: Int) -> (UnsafeMutablePointer<Float32>,
+                                                      UnsafeMutablePointer<Float32>,
+                                                      UnsafeMutablePointer<Float32>,
+                                                      UnsafeMutablePointer<Float32>,
+                                                      UnsafeMutablePointer<Float32>,
+                                                      UnsafeMutablePointer<Float32>,
+                                                      UnsafeMutablePointer<Float32>) {
+
+        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
+        let inputGlobalCount = batchSize * numInputGlobalChannels
+        let policyCount = batchSize * nnYLen * nnXLen
+        let policyPassCount = batchSize
+        let valueCount = batchSize * numValueChannels
+        let scoreValueCount = batchSize * numScoreValueChannels
+        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
+
+        return (UnsafeMutablePointer<Float32>.allocate(capacity: inputCount),
+                UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount),
+                UnsafeMutablePointer<Float32>.allocate(capacity: policyCount),
+                UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount),
+                UnsafeMutablePointer<Float32>.allocate(capacity: valueCount),
+                UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount),
+                UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount))
+    }
+
     // Test 40 blocks, 256 channels, 8 batches
     func testB40C256B8() {
         let batchSize = 8
@@ -3190,6 +3192,8 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
+        let numEvals = 256
+        let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
                                        nnYLen: nnYLen,
@@ -3200,37 +3204,26 @@ final class ModelTest: XCTestCase {
                                        numScoreValueChannels: numScoreValueChannels,
                                        numOwnershipChannels: numOwnershipChannels)
 
-        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
-        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
-        let inputGlobalCount = batchSize * numInputGlobalChannels
-        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
-        let policyCount = batchSize * nnYLen * nnXLen
-        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
-        let policyPassCount = batchSize
-        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
-        let valueCount = batchSize * numValueChannels
-        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
-        let scoreValueCount = batchSize * numScoreValueChannels
-        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
-        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
-        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+        let (input, inputGlobal, policy, policyPass, value, scoreValue, ownership) =
+        createBuffers(batchSize: batchSize,
+                      nnYLen: nnYLen,
+                      nnXLen: nnXLen,
+                      numInputChannels: numInputChannels,
+                      numInputGlobalChannels: numInputGlobalChannels,
+                      numValueChannels: numValueChannels,
+                      numScoreValueChannels: numScoreValueChannels,
+                      numOwnershipChannels: numOwnershipChannels)
 
         measure {
-            for i in 0..<inputCount {
-                input[i] = Float32.random(in: 0.5..<1)
+            for _ in 0..<iteration {
+                model.apply(input: input,
+                            inputGlobal: inputGlobal,
+                            policy: policy,
+                            policyPass: policyPass,
+                            value: value,
+                            scoreValue: scoreValue,
+                            ownership: ownership)
             }
-
-            for i in 0..<inputGlobalCount {
-                inputGlobal[i] = Float32.random(in: 0.5..<1)
-            }
-
-            model.apply(input: input,
-                        inputGlobal: inputGlobal,
-                        policy: policyOutput,
-                        policyPass: policyPassOutput,
-                        value: valueOutput,
-                        scoreValue: scoreValueOutput,
-                        ownership: ownershipOutput)
         }
     }
 
@@ -3244,6 +3237,8 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
+        let numEvals = 256
+        let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
                                        nnYLen: nnYLen,
@@ -3254,37 +3249,26 @@ final class ModelTest: XCTestCase {
                                        numScoreValueChannels: numScoreValueChannels,
                                        numOwnershipChannels: numOwnershipChannels)
 
-        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
-        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
-        let inputGlobalCount = batchSize * numInputGlobalChannels
-        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
-        let policyCount = batchSize * nnYLen * nnXLen
-        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
-        let policyPassCount = batchSize
-        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
-        let valueCount = batchSize * numValueChannels
-        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
-        let scoreValueCount = batchSize * numScoreValueChannels
-        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
-        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
-        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+        let (input, inputGlobal, policy, policyPass, value, scoreValue, ownership) =
+        createBuffers(batchSize: batchSize,
+                      nnYLen: nnYLen,
+                      nnXLen: nnXLen,
+                      numInputChannels: numInputChannels,
+                      numInputGlobalChannels: numInputGlobalChannels,
+                      numValueChannels: numValueChannels,
+                      numScoreValueChannels: numScoreValueChannels,
+                      numOwnershipChannels: numOwnershipChannels)
 
         measure {
-            for i in 0..<inputCount {
-                input[i] = Float32.random(in: 0.5..<1)
+            for _ in 0..<iteration {
+                model.apply(input: input,
+                            inputGlobal: inputGlobal,
+                            policy: policy,
+                            policyPass: policyPass,
+                            value: value,
+                            scoreValue: scoreValue,
+                            ownership: ownership)
             }
-
-            for i in 0..<inputGlobalCount {
-                inputGlobal[i] = Float32.random(in: 0.5..<1)
-            }
-
-            model.apply(input: input,
-                        inputGlobal: inputGlobal,
-                        policy: policyOutput,
-                        policyPass: policyPassOutput,
-                        value: valueOutput,
-                        scoreValue: scoreValueOutput,
-                        ownership: ownershipOutput)
         }
     }
 
@@ -3298,6 +3282,8 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
+        let numEvals = 256
+        let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
                                        nnYLen: nnYLen,
@@ -3308,37 +3294,26 @@ final class ModelTest: XCTestCase {
                                        numScoreValueChannels: numScoreValueChannels,
                                        numOwnershipChannels: numOwnershipChannels)
 
-        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
-        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
-        let inputGlobalCount = batchSize * numInputGlobalChannels
-        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
-        let policyCount = batchSize * nnYLen * nnXLen
-        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
-        let policyPassCount = batchSize
-        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
-        let valueCount = batchSize * numValueChannels
-        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
-        let scoreValueCount = batchSize * numScoreValueChannels
-        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
-        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
-        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+        let (input, inputGlobal, policy, policyPass, value, scoreValue, ownership) =
+        createBuffers(batchSize: batchSize,
+                      nnYLen: nnYLen,
+                      nnXLen: nnXLen,
+                      numInputChannels: numInputChannels,
+                      numInputGlobalChannels: numInputGlobalChannels,
+                      numValueChannels: numValueChannels,
+                      numScoreValueChannels: numScoreValueChannels,
+                      numOwnershipChannels: numOwnershipChannels)
 
         measure {
-            for i in 0..<inputCount {
-                input[i] = Float32.random(in: 0.5..<1)
+            for _ in 0..<iteration {
+                model.apply(input: input,
+                            inputGlobal: inputGlobal,
+                            policy: policy,
+                            policyPass: policyPass,
+                            value: value,
+                            scoreValue: scoreValue,
+                            ownership: ownership)
             }
-
-            for i in 0..<inputGlobalCount {
-                inputGlobal[i] = Float32.random(in: 0.5..<1)
-            }
-
-            model.apply(input: input,
-                        inputGlobal: inputGlobal,
-                        policy: policyOutput,
-                        policyPass: policyPassOutput,
-                        value: valueOutput,
-                        scoreValue: scoreValueOutput,
-                        ownership: ownershipOutput)
         }
     }
 
@@ -3352,6 +3327,8 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
+        let numEvals = 256
+        let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
                                        nnYLen: nnYLen,
@@ -3362,37 +3339,26 @@ final class ModelTest: XCTestCase {
                                        numScoreValueChannels: numScoreValueChannels,
                                        numOwnershipChannels: numOwnershipChannels)
 
-        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
-        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
-        let inputGlobalCount = batchSize * numInputGlobalChannels
-        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
-        let policyCount = batchSize * nnYLen * nnXLen
-        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
-        let policyPassCount = batchSize
-        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
-        let valueCount = batchSize * numValueChannels
-        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
-        let scoreValueCount = batchSize * numScoreValueChannels
-        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
-        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
-        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+        let (input, inputGlobal, policy, policyPass, value, scoreValue, ownership) =
+        createBuffers(batchSize: batchSize,
+                      nnYLen: nnYLen,
+                      nnXLen: nnXLen,
+                      numInputChannels: numInputChannels,
+                      numInputGlobalChannels: numInputGlobalChannels,
+                      numValueChannels: numValueChannels,
+                      numScoreValueChannels: numScoreValueChannels,
+                      numOwnershipChannels: numOwnershipChannels)
 
         measure {
-            for i in 0..<inputCount {
-                input[i] = Float32.random(in: 0.5..<1)
+            for _ in 0..<iteration {
+                model.apply(input: input,
+                            inputGlobal: inputGlobal,
+                            policy: policy,
+                            policyPass: policyPass,
+                            value: value,
+                            scoreValue: scoreValue,
+                            ownership: ownership)
             }
-
-            for i in 0..<inputGlobalCount {
-                inputGlobal[i] = Float32.random(in: 0.5..<1)
-            }
-
-            model.apply(input: input,
-                        inputGlobal: inputGlobal,
-                        policy: policyOutput,
-                        policyPass: policyPassOutput,
-                        value: valueOutput,
-                        scoreValue: scoreValueOutput,
-                        ownership: ownershipOutput)
         }
     }
 
@@ -3406,6 +3372,8 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
+        let numEvals = 256
+        let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
                                        nnYLen: nnYLen,
@@ -3416,37 +3384,26 @@ final class ModelTest: XCTestCase {
                                        numScoreValueChannels: numScoreValueChannels,
                                        numOwnershipChannels: numOwnershipChannels)
 
-        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
-        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
-        let inputGlobalCount = batchSize * numInputGlobalChannels
-        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
-        let policyCount = batchSize * nnYLen * nnXLen
-        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
-        let policyPassCount = batchSize
-        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
-        let valueCount = batchSize * numValueChannels
-        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
-        let scoreValueCount = batchSize * numScoreValueChannels
-        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
-        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
-        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+        let (input, inputGlobal, policy, policyPass, value, scoreValue, ownership) =
+        createBuffers(batchSize: batchSize,
+                      nnYLen: nnYLen,
+                      nnXLen: nnXLen,
+                      numInputChannels: numInputChannels,
+                      numInputGlobalChannels: numInputGlobalChannels,
+                      numValueChannels: numValueChannels,
+                      numScoreValueChannels: numScoreValueChannels,
+                      numOwnershipChannels: numOwnershipChannels)
 
         measure {
-            for i in 0..<inputCount {
-                input[i] = Float32.random(in: 0.5..<1)
+            for _ in 0..<iteration {
+                model.apply(input: input,
+                            inputGlobal: inputGlobal,
+                            policy: policy,
+                            policyPass: policyPass,
+                            value: value,
+                            scoreValue: scoreValue,
+                            ownership: ownership)
             }
-
-            for i in 0..<inputGlobalCount {
-                inputGlobal[i] = Float32.random(in: 0.5..<1)
-            }
-
-            model.apply(input: input,
-                        inputGlobal: inputGlobal,
-                        policy: policyOutput,
-                        policyPass: policyPassOutput,
-                        value: valueOutput,
-                        scoreValue: scoreValueOutput,
-                        ownership: ownershipOutput)
         }
     }
 
@@ -3460,6 +3417,8 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
+        let numEvals = 256
+        let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
                                        nnYLen: nnYLen,
@@ -3470,37 +3429,26 @@ final class ModelTest: XCTestCase {
                                        numScoreValueChannels: numScoreValueChannels,
                                        numOwnershipChannels: numOwnershipChannels)
 
-        let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
-        let input = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
-        let inputGlobalCount = batchSize * numInputGlobalChannels
-        let inputGlobal = UnsafeMutablePointer<Float32>.allocate(capacity: inputGlobalCount)
-        let policyCount = batchSize * nnYLen * nnXLen
-        let policyOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
-        let policyPassCount = batchSize
-        let policyPassOutput = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
-        let valueCount = batchSize * numValueChannels
-        let valueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
-        let scoreValueCount = batchSize * numScoreValueChannels
-        let scoreValueOutput = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
-        let ownershipCount = batchSize * nnYLen * nnXLen * numOwnershipChannels
-        let ownershipOutput = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
+        let (input, inputGlobal, policy, policyPass, value, scoreValue, ownership) =
+        createBuffers(batchSize: batchSize,
+                      nnYLen: nnYLen,
+                      nnXLen: nnXLen,
+                      numInputChannels: numInputChannels,
+                      numInputGlobalChannels: numInputGlobalChannels,
+                      numValueChannels: numValueChannels,
+                      numScoreValueChannels: numScoreValueChannels,
+                      numOwnershipChannels: numOwnershipChannels)
 
         measure {
-            for i in 0..<inputCount {
-                input[i] = Float32.random(in: 0.5..<1)
+            for _ in 0..<iteration {
+                model.apply(input: input,
+                            inputGlobal: inputGlobal,
+                            policy: policy,
+                            policyPass: policyPass,
+                            value: value,
+                            scoreValue: scoreValue,
+                            ownership: ownership)
             }
-
-            for i in 0..<inputGlobalCount {
-                inputGlobal[i] = Float32.random(in: 0.5..<1)
-            }
-
-            model.apply(input: input,
-                        inputGlobal: inputGlobal,
-                        policy: policyOutput,
-                        policyPass: policyPassOutput,
-                        value: valueOutput,
-                        scoreValue: scoreValueOutput,
-                        ownership: ownershipOutput)
         }
     }
 }
