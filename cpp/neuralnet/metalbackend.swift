@@ -1813,10 +1813,10 @@ class Model {
     let scoreValueFP16: UnsafeMutablePointer<Float16>?
     let ownershipCount: Int
     let ownershipFP16: UnsafeMutablePointer<Float16>?
+    let inputData: MPSGraphTensorData
+    let inputGlobalData: MPSGraphTensorData
     let inputArray: MPSNDArray
     let inputGlobalArray: MPSNDArray
-    let feeds: [MPSGraphTensor: MPSGraphTensorData]
-    let targets: [MPSGraphTensor]
 
     init(device: MPSGraphDevice,
          graph: MPSGraph,
@@ -1947,23 +1947,14 @@ class Model {
             ownershipFP16 = nil
         }
 
-        let inputData = MPSGraphTensorData(device: device, tensor: input.tensor)!
+        inputData = MPSGraphTensorData(device: device, tensor: input.tensor)!
 
-        inputArray = MPSGraphTensorData(device: device, tensor: input.tensor)!.mpsndarray()
+        inputArray = inputData.mpsndarray()
 
-        let inputGlobalData = MPSGraphTensorData(device: device,
-                                                 tensor: inputGlobal.tensor)!
+        inputGlobalData = MPSGraphTensorData(device: device,
+                                             tensor: inputGlobal.tensor)!
 
         inputGlobalArray = inputGlobalData.mpsndarray()
-
-        feeds = [input.tensor: inputData,
-                 inputGlobal.tensor: inputGlobalData]
-
-        targets = [policyHead.policyTensor,
-                   policyHead.policyPassTensor,
-                   valueHead.valueTensor,
-                   valueHead.scoreValueTensor,
-                   valueHead.ownershipTensor]
     }
 
     func apply(input inputPointer: UnsafeMutablePointer<Float32>,
@@ -1989,8 +1980,17 @@ class Model {
             inputGlobalArray.writeBytes(inputGlobalPointer, strideBytes: nil)
         }
 
+        let feeds = [input.tensor: inputData,
+                     inputGlobal.tensor: inputGlobalData]
+
+        let targetTensors = [policyHead.policyTensor,
+                             policyHead.policyPassTensor,
+                             valueHead.valueTensor,
+                             valueHead.scoreValueTensor,
+                             valueHead.ownershipTensor]
+
         let fetch = graph.run(feeds: feeds,
-                              targetTensors: targets,
+                              targetTensors: targetTensors,
                               targetOperations: nil)
 
         if let policyFP16 {
