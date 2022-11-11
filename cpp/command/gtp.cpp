@@ -93,6 +93,7 @@ static const vector<string> knownCommands = {
 
   //Some debug commands
   "kata-debug-print-tc",
+  "debug_moves",
 
   //Stop any ongoing ponder or analyze
   "stop",
