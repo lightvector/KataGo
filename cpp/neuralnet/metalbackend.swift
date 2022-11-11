@@ -2,6 +2,16 @@ import Foundation
 import MetalPerformanceShaders
 import MetalPerformanceShadersGraph
 
+extension NSNumber {
+    func split(into numParts: Int) -> [NSNumber] {
+        let part = (self.intValue / numParts) as NSNumber
+        var result = Array(repeating: part, count: numParts)
+        let reminder = self.intValue % numParts
+        result[0] = (result[0].intValue + reminder) as NSNumber
+        return result
+    }
+}
+
 extension UnsafeMutablePointer<Float32> {
     func printAsFloat(_ length: Int) {
         for i in 0..<length {
@@ -43,6 +53,27 @@ extension MPSNDArray {
     }
 }
 
+extension MPSGraphTensor {
+    func countElements(batchSize: NSNumber?) -> Int {
+        let n: Int
+        if let batchSize {
+            n = batchSize.intValue
+        } else {
+            n = shape![0].intValue
+        }
+        var result = n
+        for i in 1..<shape!.count {
+            result *= shape![i].intValue
+        }
+
+        return result
+    }
+
+    func countBytes(batchSize: NSNumber?) -> Int {
+        return countElements(batchSize: batchSize) * dataType.toMemoryLayoutSize()
+    }
+}
+
 extension MPSGraphTensorData {
     convenience init?(device: MPSGraphDevice, tensor: MPSGraphTensor) {
         if let metalDevice = device.metalDevice {
@@ -57,6 +88,39 @@ extension MPSGraphTensorData {
             return nil
         }
     }
+
+    convenience init?(device: MPSGraphDevice,
+                      tensor: MPSGraphTensor,
+                      batchSize: NSNumber,
+                      pointer: UnsafeMutableRawPointer) {
+        let data = Data(bytesNoCopy: pointer,
+                        count: tensor.countBytes(batchSize: batchSize),
+                        deallocator: .none)
+
+        if var shape = tensor.shape {
+            shape[0] = batchSize
+            self.init(device: device,
+                      data: data,
+                      shape: shape,
+                      dataType: tensor.dataType)
+        } else {
+            return nil
+        }
+    }
+}
+
+extension MPSDataType {
+    func toMemoryLayoutSize() -> Int {
+        let memoryLayoutSize: Int
+        switch self {
+        case .float16:
+            memoryLayoutSize = MemoryLayout<Float16>.size
+        default:
+            precondition(self == .float32, "The data type must be .float16 or .float32.")
+            memoryLayoutSize = MemoryLayout<Float32>.size
+        }
+        return memoryLayoutSize
+    }
 }
 
 extension Array where Element == NSNumber {
@@ -70,19 +134,16 @@ extension Array where Element == NSNumber {
     }
 
     func asShapeCount(of dataType: MPSDataType) -> Int {
-        let memoryLayoutSize: Int
+        return product().intValue * dataType.toMemoryLayoutSize()
+    }
 
-        precondition((dataType == .float16) || (dataType == .float32),
-                     "The data type must be or .float16 .float32.")
-
-        switch dataType {
-        case .float16:
-            memoryLayoutSize = MemoryLayout<Float16>.size
-        default:
-            memoryLayoutSize = MemoryLayout<Float32>.size
+    func asShapeCount(of dataType: MPSDataType, batchSize: Int) -> Int {
+        var result = batchSize * dataType.toMemoryLayoutSize()
+        for i in 1..<self.count {
+            result *= self[i].intValue
         }
 
-        return product().intValue * memoryLayoutSize
+        return result
     }
 }
 
@@ -404,8 +465,9 @@ class ConvLayer: NSObject {
         if useFP16 {
             let length = weightsShape.product().intValue
 
-            weightsData = Data(bytes: descriptor.weights.toFP16(length: length),
-                               count: byteCount)
+            weightsData = Data(bytesNoCopy: descriptor.weights.toFP16(length: length),
+                               count: byteCount,
+                               deallocator: .free)
         } else {
             weightsData = Data(bytes: descriptor.weights,
                                count: byteCount)
@@ -576,17 +638,21 @@ class BatchNormLayer: NSObject {
         if useFP16 {
             let length = meanShape.product().intValue
 
-            meanData = Data(bytes: descriptor.mean.toFP16(length: length),
-                            count: byteCount)
+            meanData = Data(bytesNoCopy: descriptor.mean.toFP16(length: length),
+                            count: byteCount,
+                            deallocator: .free)
 
-            varianceData = Data(bytes: descriptor.variance.toFP16(length: length),
-                                count: byteCount)
+            varianceData = Data(bytesNoCopy: descriptor.variance.toFP16(length: length),
+                                count: byteCount,
+                                deallocator: .free)
 
-            scaleData = Data(bytes: descriptor.scale.toFP16(length: length),
-                             count: byteCount)
+            scaleData = Data(bytesNoCopy: descriptor.scale.toFP16(length: length),
+                             count: byteCount,
+                             deallocator: .free)
 
-            biasData = Data(bytes: descriptor.bias.toFP16(length: length),
-                            count: byteCount)
+            biasData = Data(bytesNoCopy: descriptor.bias.toFP16(length: length),
+                            count: byteCount,
+                            deallocator: .free)
         } else {
             meanData = Data(bytes: descriptor.mean,
                             count: byteCount)
@@ -957,8 +1023,9 @@ class MatMulLayer {
         if useFP16 {
             let length = weightsShape.product().intValue
 
-            weightsData = Data(bytes: descriptor.weights.toFP16(length: length),
-                               count: byteCount)
+            weightsData = Data(bytesNoCopy: descriptor.weights.toFP16(length: length),
+                               count: byteCount,
+                               deallocator: .free)
         } else {
             weightsData = Data(bytes: descriptor.weights,
                                count: byteCount)
@@ -1014,8 +1081,9 @@ class MatBiasLayer {
         if useFP16 {
             let length = weightsShape.product().intValue
 
-            weightsData = Data(bytes: descriptor.weights.toFP16(length: length),
-                               count: byteCount)
+            weightsData = Data(bytesNoCopy: descriptor.weights.toFP16(length: length),
+                               count: byteCount,
+                               deallocator: .free)
         } else {
             weightsData = Data(bytes: descriptor.weights,
                                count: byteCount)
@@ -1794,6 +1862,7 @@ class Model {
     let numValueChannels: NSNumber
     let numScoreValueChannels: NSNumber
     let numOwnershipChannels: NSNumber
+    let commandQueue: MTLCommandQueue
     let input: InputLayer
     let inputGlobal: InputGlobalLayer
     let trunk: Trunk
@@ -1817,6 +1886,8 @@ class Model {
     let inputGlobalData: MPSGraphTensorData
     let inputArray: MPSNDArray
     let inputGlobalArray: MPSNDArray
+    let feeds: [MPSGraphTensor: MPSGraphTensorData]
+    let targetTensors: [MPSGraphTensor]
 
     init(device: MPSGraphDevice,
          graph: MPSGraph,
@@ -1837,6 +1908,7 @@ class Model {
         self.numValueChannels = descriptor.numValueChannels
         self.numScoreValueChannels = descriptor.numScoreValueChannels
         self.numOwnershipChannels = descriptor.numOwnershipChannels
+        commandQueue = (device.metalDevice?.makeCommandQueue())!
 
         input = InputLayer(graph: graph,
                            batchSize: batchSize,
@@ -1955,6 +2027,15 @@ class Model {
                                              tensor: inputGlobal.tensor)!
 
         inputGlobalArray = inputGlobalData.mpsndarray()
+
+        feeds = [input.tensor: inputData,
+                 inputGlobal.tensor: inputGlobalData]
+
+        targetTensors = [policyHead.policyTensor,
+                         policyHead.policyPassTensor,
+                         valueHead.valueTensor,
+                         valueHead.scoreValueTensor,
+                         valueHead.ownershipTensor]
     }
 
     func apply(input inputPointer: UnsafeMutablePointer<Float32>,
@@ -1980,18 +2061,16 @@ class Model {
             inputGlobalArray.writeBytes(inputGlobalPointer, strideBytes: nil)
         }
 
-        let feeds = [input.tensor: inputData,
-                     inputGlobal.tensor: inputGlobalData]
+        let commandBuffer = MPSCommandBuffer(commandBuffer: commandQueue.makeCommandBuffer()!)
 
-        let targetTensors = [policyHead.policyTensor,
-                             policyHead.policyPassTensor,
-                             valueHead.valueTensor,
-                             valueHead.scoreValueTensor,
-                             valueHead.ownershipTensor]
+        let fetch = graph.encode(to: commandBuffer,
+                                 feeds: feeds,
+                                 targetTensors: targetTensors,
+                                 targetOperations: nil,
+                                 executionDescriptor: nil)
 
-        let fetch = graph.run(feeds: feeds,
-                              targetTensors: targetTensors,
-                              targetOperations: nil)
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
 
         if let policyFP16 {
             fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policyFP16,

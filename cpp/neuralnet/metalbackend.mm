@@ -222,11 +222,11 @@ void createMetalContext(int nnXLen,
 }
 
 int getMetalContextXLen(void) {
-    return [MetalBackend getContextXLen];
+    return (int)[MetalBackend getContextXLen];
 }
 
 int getMetalContextYLen(void) {
-    return [MetalBackend getContextYLen];
+    return (int)[MetalBackend getContextYLen];
 }
 
 void createMetalHandle(int gpuIdxForThisThread,
