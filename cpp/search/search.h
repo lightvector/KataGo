@@ -424,9 +424,6 @@ private:
   double interpolateEarly(double halflife, double earlyValue, double value) const;
 
   // LCB helpers
-  static constexpr int64_t MIN_VISITS_FOR_LCB = 3;
-  void maybeRecomputeNormToTApproxTable();
-  double getNormToTApproxForLCB(int64_t numVisits) const;
   void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, int64_t edgeVisits, Loc moveLoc, double& lcbBuf, double& radiusBuf) const;
 
   //----------------------------------------------------------------------------------------

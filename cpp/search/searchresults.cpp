@@ -178,7 +178,7 @@ bool Search::getPlaySelectionValues(
       getSelfUtilityLCBAndRadius(node,child,edgeVisits,moveLoc,lcbBuf[i],radiusBuf[i]);
       //Check if this node is eligible to be considered for best LCB
       double weight = playSelectionValues[i];
-      if(weight >= MIN_VISITS_FOR_LCB && weight >= searchParams.minVisitPropForLCB * mostWeightedChildWeight) {
+      if(weight > 0 && weight >= searchParams.minVisitPropForLCB * mostWeightedChildWeight) {
         if(lcbBuf[i] > bestLcb) {
           bestLcb = lcbBuf[i];
           bestLcbIndex = i;

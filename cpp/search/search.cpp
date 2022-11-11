@@ -86,8 +86,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    randSeed(rSeed),
    rootKoHashTable(NULL),
    valueWeightDistribution(NULL),
-   normToTApproxZ(0.0),
-   normToTApproxTable(),
    patternBonusTable(NULL),
    externalPatternBonusTable(nullptr),
    nonSearchRand(rSeed + string("$nonSearchRand")),
@@ -614,7 +612,6 @@ void Search::beginSearch(bool pondering) {
 
   clearOldNNOutputs();
   computeRootValues();
-  maybeRecomputeNormToTApproxTable();
 
   //Prepare value bias table if we need it
   if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable == NULL && !(searchParams.antiMirror && mirroringPla != C_EMPTY))
