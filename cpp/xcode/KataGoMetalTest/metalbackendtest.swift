@@ -16,17 +16,6 @@ final class InputLayerTest: XCTestCase {
         XCTAssert(sourceLayer.tensor.dataType == .float32)
     }
 
-    func testTensorNCHW() {
-        let graph = MPSGraph()
-        let tensor = graph.constant(1, shape: [2, 3, 4, 5], dataType: .float32)
-
-        let sourceLayer = InputLayer(tensor: tensor)
-
-        XCTAssert(sourceLayer.tensor === tensor)
-        XCTAssert(sourceLayer.tensor.shape == [2, 3, 4, 5])
-        XCTAssert(sourceLayer.tensor.dataType == .float32)
-    }
-
     func testNHWC() {
         let sourceLayer = InputLayer(graph: MPSGraph(),
                                      batchSize: 2,
@@ -1928,17 +1917,15 @@ final class MatBiasLayerTest: XCTestCase {
 
         let graph = MPSGraph()
 
-        let input = InputLayer(graph: graph,
-                               batchSize: 2,
-                               nnXLen: 2,
-                               nnYLen: 2,
-                               numChannels: 2,
-                               useFP16: useFP16,
-                               useNHWC: useNHWC)
+        let dataType = MPSDataType.init(useFP16: useFP16)
+
+        let inputTensor = graph.placeholder(shape: [8, 2],
+                                            dataType: dataType,
+                                            name: nil)
 
         let matBiasLayer = MatBiasLayer(graph: graph,
                                         descriptor: descriptor,
-                                        sourceTensor: input.tensor,
+                                        sourceTensor: inputTensor,
                                         useFP16: useFP16,
                                         useNHWC: useNHWC)
 
@@ -1951,12 +1938,12 @@ final class MatBiasLayerTest: XCTestCase {
         let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
 
         let inputTensorData = MPSGraphTensorData(device: device,
-                                                 tensor: input.tensor)!
+                                                 tensor: inputTensor)!
 
         inputTensorData.mpsndarray().writeBytes(inputPointer,
                                                 strideBytes: nil)
 
-        let fetch = graph.run(feeds: [input.tensor: inputTensorData],
+        let fetch = graph.run(feeds: [inputTensor: inputTensorData],
                               targetTensors: [matBiasLayer.resultTensor],
                               targetOperations: nil)
 
@@ -1986,17 +1973,15 @@ final class MatBiasLayerTest: XCTestCase {
 
         let graph = MPSGraph()
 
-        let input = InputLayer(graph: graph,
-                               batchSize: 2,
-                               nnXLen: 2,
-                               nnYLen: 2,
-                               numChannels: 2,
-                               useFP16: useFP16,
-                               useNHWC: useNHWC)
+        let dataType = MPSDataType.init(useFP16: useFP16)
+
+        let inputTensor = graph.placeholder(shape: [8, 2],
+                                            dataType: dataType,
+                                            name: nil)
 
         let matBiasLayer = MatBiasLayer(graph: graph,
                                         descriptor: descriptor,
-                                        sourceTensor: input.tensor,
+                                        sourceTensor: inputTensor,
                                         useFP16: useFP16,
                                         useNHWC: useNHWC)
 
@@ -2009,12 +1994,12 @@ final class MatBiasLayerTest: XCTestCase {
         let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
 
         let inputTensorData = MPSGraphTensorData(device: device,
-                                                 tensor: input.tensor)!
+                                                 tensor: inputTensor)!
 
         inputTensorData.mpsndarray().writeBytes(inputPointer,
                                                 strideBytes: nil)
 
-        let fetch = graph.run(feeds: [input.tensor: inputTensorData],
+        let fetch = graph.run(feeds: [inputTensor: inputTensorData],
                               targetTensors: [matBiasLayer.resultTensor],
                               targetOperations: nil)
 
@@ -2796,6 +2781,237 @@ final class ValueHeadTest: XCTestCase {
 
 final class ModelTest: XCTestCase {
 
+    func createMiniModel(useFP16: Bool,
+                         useNHWC: Bool) -> Model {
+        var unityConvWeights = [Float](repeating: 1, count: 1)
+        let unityConv = SWConvLayerDesc(convYSize: 1,
+                                        convXSize: 1,
+                                        inChannels: 1,
+                                        outChannels: 1,
+                                        dilationY: 1,
+                                        dilationX: 1,
+                                        weights: &unityConvWeights)
+
+        var unityMatMulWeights = [Float](repeating: 1, count: 1)
+        let unityMatMul = SWMatMulLayerDesc(inChannels: 1,
+                                            outChannels: 1,
+                                            weights: &unityMatMulWeights)
+
+        var meanWeights = [Float](repeating: 0, count: 1)
+        var varianceWeights = [Float](repeating: 0.9, count: 1)
+        var scaleWeights = [Float](repeating: 1, count: 1)
+        var biasWeights = [Float](repeating: 0, count: 1)
+        let unityBatchNorm = SWBatchNormLayerDesc(numChannels: 1,
+                                                  epsilon: 0.1,
+                                                  hasScale: false,
+                                                  hasBias: false,
+                                                  mean: &meanWeights,
+                                                  variance: &varianceWeights,
+                                                  scale: &scaleWeights,
+                                                  bias: &biasWeights)
+
+        let unityResidual = SWResidualBlockDesc(preBN: unityBatchNorm,
+                                                preActivation: nil,
+                                                regularConv: unityConv,
+                                                midBN: unityBatchNorm,
+                                                midActivation: nil,
+                                                finalConv: unityConv)
+
+        let ordinaryDescriptor = BlockDescriptor(kind: .ordinary,
+                                                 ordinary: unityResidual,
+                                                 globalPooling: nil)
+
+        var gpoolMatMulWeights = [Float](repeating: 3, count: 3)
+        let gpoolMatMul = SWMatMulLayerDesc(inChannels: 3,
+                                            outChannels: 1,
+                                            weights: &gpoolMatMulWeights)
+
+        let globalPooling =
+        SWGlobalPoolingResidualBlockDesc(preBN: unityBatchNorm,
+                                         preActivation: nil,
+                                         regularConv: unityConv,
+                                         gpoolConv: unityConv,
+                                         gpoolBN: unityBatchNorm,
+                                         gpoolActivation: nil,
+                                         gpoolToBiasMul: gpoolMatMul,
+                                         midBN: unityBatchNorm,
+                                         midActivation: nil,
+                                         finalConv: unityConv)
+
+        let globalPoolingDescriptor = BlockDescriptor(kind: .globalPooling,
+                                                      ordinary: nil,
+                                                      globalPooling: globalPooling)
+
+        let blocks: [BlockDescriptor] = [ordinaryDescriptor,
+                                         globalPoolingDescriptor,
+                                         ordinaryDescriptor]
+
+        let trunkDesc = SWTrunkDesc(version: 0,
+                                    trunkNumChannels: 1,
+                                    midNumChannels: 1,
+                                    regularNumChannels: 1,
+                                    dilatedNumChannels: 1,
+                                    gpoolNumChannels: 1,
+                                    initialConv: unityConv,
+                                    initialMatMul: unityMatMul,
+                                    blocks: blocks,
+                                    trunkTipBN: unityBatchNorm)
+
+        let policyHead = SWPolicyHeadDesc(version: 0,
+                                          p1Conv: unityConv,
+                                          g1Conv: unityConv,
+                                          g1BN: unityBatchNorm,
+                                          gpoolToBiasMul: gpoolMatMul,
+                                          p1BN: unityBatchNorm,
+                                          p2Conv: unityConv,
+                                          gpoolToPassMul: gpoolMatMul)
+
+        var zeroMatBiasWeights = [Float](repeating: 0, count: 1)
+        let zeroMatBias = SWMatBiasLayerDesc(numChannels: 1,
+                                             weights: &zeroMatBiasWeights)
+
+        let valueHead = SWValueHeadDesc(version: 0,
+                                        v1Conv: unityConv,
+                                        v1BN: unityBatchNorm,
+                                        v2Mul: gpoolMatMul,
+                                        v2Bias: zeroMatBias,
+                                        v3Mul: unityMatMul,
+                                        v3Bias: zeroMatBias,
+                                        sv3Mul: unityMatMul,
+                                        sv3Bias: zeroMatBias,
+                                        vOwnershipConv: unityConv)
+
+        let modelDesc = SWModelDesc(version: 0,
+                                    name: "test",
+                                    numInputChannels: 1,
+                                    numInputGlobalChannels: 1,
+                                    numValueChannels: 1,
+                                    numScoreValueChannels: 1,
+                                    numOwnershipChannels: 1,
+                                    trunk: trunkDesc,
+                                    policyHead: policyHead,
+                                    valueHead: valueHead)
+
+        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+
+        let model = try! Model(device: device,
+                               graph: MPSGraph(),
+                               descriptor: modelDesc,
+                               nnXLen: 1,
+                               nnYLen: 1,
+                               batchSize: 1,
+                               useFP16: useFP16,
+                               useNHWC: useNHWC)
+
+        var input = [Float](repeating: 1, count: 1)
+        var inputGlobal = [Float](repeating: 1, count: 1)
+        var policyOutput = [Float](repeating: 1, count: 1)
+        var policyPassOutput = [Float](repeating: 1, count: 1)
+        var valueOutput = [Float](repeating: 1, count: 1)
+        var scoreValueOutput = [Float](repeating: 1, count: 1)
+        var ownershipOutput = [Float](repeating: 1, count: 1)
+
+        model.apply(input: &input,
+                    inputGlobal: &inputGlobal,
+                    policy: &policyOutput,
+                    policyPass: &policyPassOutput,
+                    value: &valueOutput,
+                    scoreValue: &scoreValueOutput,
+                    ownership: &ownershipOutput)
+
+        return model
+    }
+
+    func testMiniModel() {
+        let useFP16 = false
+        let useNHWC = false
+
+        let model = createMiniModel(useFP16: useFP16,
+                                    useNHWC: useNHWC)
+
+        var input = [Float](repeating: 1, count: 1)
+        var inputGlobal = [Float](repeating: 1, count: 1)
+        var policyOutput = [Float](repeating: 1, count: 1)
+        var policyPassOutput = [Float](repeating: 1, count: 1)
+        var valueOutput = [Float](repeating: 1, count: 1)
+        var scoreValueOutput = [Float](repeating: 1, count: 1)
+        var ownershipOutput = [Float](repeating: 1, count: 1)
+
+        model.apply(input: &input,
+                    inputGlobal: &inputGlobal,
+                    policy: &policyOutput,
+                    policyPass: &policyPassOutput,
+                    value: &valueOutput,
+                    scoreValue: &scoreValueOutput,
+                    ownership: &ownershipOutput)
+
+        XCTAssertEqual(policyOutput[0], 101.68, accuracy: 1e-4)
+        XCTAssertEqual(policyPassOutput[0], 68.88, accuracy: 1e-4)
+        XCTAssertEqual(valueOutput[0], 126.936, accuracy: 1e-4)
+        XCTAssertEqual(scoreValueOutput[0], 126.936, accuracy: 1e-4)
+        XCTAssertEqual(ownershipOutput[0], 32.8, accuracy: 1e-4)
+    }
+
+    func testMiniModelFP16() {
+        let useFP16 = true
+        let useNHWC = false
+
+        let model = createMiniModel(useFP16: useFP16,
+                                    useNHWC: useNHWC)
+
+        var input = [Float](repeating: 1, count: 1)
+        var inputGlobal = [Float](repeating: 1, count: 1)
+        var policyOutput = [Float](repeating: 1, count: 1)
+        var policyPassOutput = [Float](repeating: 1, count: 1)
+        var valueOutput = [Float](repeating: 1, count: 1)
+        var scoreValueOutput = [Float](repeating: 1, count: 1)
+        var ownershipOutput = [Float](repeating: 1, count: 1)
+
+        model.apply(input: &input,
+                    inputGlobal: &inputGlobal,
+                    policy: &policyOutput,
+                    policyPass: &policyPassOutput,
+                    value: &valueOutput,
+                    scoreValue: &scoreValueOutput,
+                    ownership: &ownershipOutput)
+
+        XCTAssertEqual(policyOutput[0], 101.68, accuracy: 1e-1)
+        XCTAssertEqual(policyPassOutput[0], 68.88, accuracy: 1e-1)
+        XCTAssertEqual(valueOutput[0], 126.936, accuracy: 1e-1)
+        XCTAssertEqual(scoreValueOutput[0], 126.936, accuracy: 1e-1)
+        XCTAssertEqual(ownershipOutput[0], 32.8, accuracy: 1e-1)
+    }
+
+    func testMiniModelNHWC() {
+        let useFP16 = false
+        let useNHWC = true
+
+        let model = createMiniModel(useFP16: useFP16,
+                                    useNHWC: useNHWC)
+
+        var input = [Float](repeating: 1, count: 1)
+        var inputGlobal = [Float](repeating: 1, count: 1)
+        var policyOutput = [Float](repeating: 1, count: 1)
+        var policyPassOutput = [Float](repeating: 1, count: 1)
+        var valueOutput = [Float](repeating: 1, count: 1)
+        var scoreValueOutput = [Float](repeating: 1, count: 1)
+        var ownershipOutput = [Float](repeating: 1, count: 1)
+
+        model.apply(input: &input,
+                    inputGlobal: &inputGlobal,
+                    policy: &policyOutput,
+                    policyPass: &policyPassOutput,
+                    value: &valueOutput,
+                    scoreValue: &scoreValueOutput,
+                    ownership: &ownershipOutput)
+
+        XCTAssertEqual(policyOutput[0], 101.68, accuracy: 1e-4)
+        XCTAssertEqual(policyPassOutput[0], 68.88, accuracy: 1e-4)
+        XCTAssertEqual(valueOutput[0], 126.936, accuracy: 1e-4)
+        XCTAssertEqual(scoreValueOutput[0], 126.936, accuracy: 1e-4)
+        XCTAssertEqual(ownershipOutput[0], 32.8, accuracy: 1e-4)
+    }
+
     func createModelB40C256(batchSize: Int,
                             nnYLen: Int,
                             nnXLen: Int,
@@ -2805,22 +3021,22 @@ final class ModelTest: XCTestCase {
                             numScoreValueChannels: Int,
                             numOwnershipChannels: Int) -> Model {
         let version = 10
-        let convCount = 5 * 5 * 256
+        let convCount = 3 * 3 * 256 * 256
+        let normCount = 256
         let randomWeights = UnsafeMutablePointer<Float32>.allocate(capacity: convCount)
-        let oneWeights = UnsafeMutablePointer<Float32>.allocate(capacity: convCount)
+        let oneWeights = UnsafeMutablePointer<Float32>.allocate(capacity: normCount)
 
-        for i in 0..<convCount {
-            randomWeights[i] = Float32.random(in: 0.5..<1.0)
+        for i in 0..<normCount {
             oneWeights[i] = 1
         }
 
-        let initialCov = SWConvLayerDesc(convYSize: 5,
-                                         convXSize: 5,
-                                         inChannels: 22,
-                                         outChannels: 256,
-                                         dilationY: 1,
-                                         dilationX: 1,
-                                         weights: randomWeights)
+        let initialConv = SWConvLayerDesc(convYSize: 5,
+                                          convXSize: 5,
+                                          inChannels: 22,
+                                          outChannels: 256,
+                                          dilationY: 1,
+                                          dilationX: 1,
+                                          weights: randomWeights)
 
         let initialMatMul = SWMatMulLayerDesc(inChannels: 19,
                                               outChannels: 256,
@@ -2991,7 +3207,7 @@ final class ModelTest: XCTestCase {
                                     regularNumChannels: 192,
                                     dilatedNumChannels: 64,
                                     gpoolNumChannels: 64,
-                                    initialConv: initialCov,
+                                    initialConv: initialConv,
                                     initialMatMul: initialMatMul,
                                     blocks: blocks,
                                     trunkTipBN: trunkTipBN)
@@ -3120,7 +3336,7 @@ final class ModelTest: XCTestCase {
                                nnXLen: nnXLen as NSNumber,
                                nnYLen: nnYLen as NSNumber,
                                batchSize: batchSize as NSNumber,
-                               useFP16: true,
+                               useFP16: false,
                                useNHWC: true)
 
         // warm up to speed up later runs
@@ -3192,7 +3408,7 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
-        let numEvals = 256
+        let numEvals = 128
         let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
@@ -3237,7 +3453,7 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
-        let numEvals = 256
+        let numEvals = 128
         let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
@@ -3282,7 +3498,7 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
-        let numEvals = 256
+        let numEvals = 128
         let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
@@ -3327,7 +3543,7 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
-        let numEvals = 256
+        let numEvals = 128
         let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
@@ -3372,52 +3588,7 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
-        let numEvals = 256
-        let iteration: Int = (numEvals + batchSize - 1) / batchSize
-
-        let model = createModelB40C256(batchSize: batchSize,
-                                       nnYLen: nnYLen,
-                                       nnXLen: nnXLen,
-                                       numInputChannels: numInputChannels,
-                                       numInputGlobalChannels: numInputGlobalChannels,
-                                       numValueChannels: numValueChannels,
-                                       numScoreValueChannels: numScoreValueChannels,
-                                       numOwnershipChannels: numOwnershipChannels)
-
-        let (input, inputGlobal, policy, policyPass, value, scoreValue, ownership) =
-        createBuffers(batchSize: batchSize,
-                      nnYLen: nnYLen,
-                      nnXLen: nnXLen,
-                      numInputChannels: numInputChannels,
-                      numInputGlobalChannels: numInputGlobalChannels,
-                      numValueChannels: numValueChannels,
-                      numScoreValueChannels: numScoreValueChannels,
-                      numOwnershipChannels: numOwnershipChannels)
-
-        measure {
-            for _ in 0..<iteration {
-                model.apply(input: input,
-                            inputGlobal: inputGlobal,
-                            policy: policy,
-                            policyPass: policyPass,
-                            value: value,
-                            scoreValue: scoreValue,
-                            ownership: ownership)
-            }
-        }
-    }
-
-    // Test 40 blocks, 256 channels, 256 batches
-    func testB40C256B256() {
-        let batchSize = 256
-        let nnYLen = 19
-        let nnXLen = 19
-        let numInputChannels = 22
-        let numInputGlobalChannels = 19
-        let numValueChannels = 3
-        let numScoreValueChannels = 6
-        let numOwnershipChannels = 1
-        let numEvals = 256
+        let numEvals = 128
         let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,

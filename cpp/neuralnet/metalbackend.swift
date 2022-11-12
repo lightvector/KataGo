@@ -110,6 +110,14 @@ extension MPSGraphTensorData {
 }
 
 extension MPSDataType {
+    init(useFP16: Bool) {
+        if useFP16 {
+            self.init(rawValue: MPSDataType.float16.rawValue)!
+        } else {
+            self.init(rawValue: MPSDataType.float32.rawValue)!
+        }
+    }
+
     func toMemoryLayoutSize() -> Int {
         let memoryLayoutSize: Int
         switch self {
@@ -147,24 +155,13 @@ extension Array where Element == NSNumber {
     }
 }
 
-class InputLayer {
-    let tensor: MPSGraphTensor
-
-    init(tensor: MPSGraphTensor) {
-        self.tensor = tensor
-        assert(self.tensor.shape?.count == 4)
-    }
-
-    init(graph: MPSGraph,
-         batchSize: NSNumber,
-         nnXLen: NSNumber,
-         nnYLen: NSNumber,
-         numChannels: NSNumber,
-         useFP16: Bool,
-         useNHWC: Bool) {
+class InputShape {
+    class func create(batchSize: NSNumber,
+                      numChannels: NSNumber,
+                      nnYLen: NSNumber,
+                      nnXLen: NSNumber,
+                      useNHWC: Bool) -> [NSNumber] {
         let shape: [NSNumber]
-        let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
-
         if useNHWC {
             shape = [batchSize,
                      nnYLen,
@@ -176,6 +173,27 @@ class InputLayer {
                      nnYLen,
                      nnXLen]
         }
+        return shape
+    }
+}
+
+class InputLayer {
+    let tensor: MPSGraphTensor
+
+    init(graph: MPSGraph,
+         batchSize: NSNumber,
+         nnXLen: NSNumber,
+         nnYLen: NSNumber,
+         numChannels: NSNumber,
+         useFP16: Bool,
+         useNHWC: Bool) {
+        let shape = InputShape.create(batchSize: batchSize,
+                                      numChannels: numChannels,
+                                      nnYLen: nnYLen,
+                                      nnXLen: nnXLen,
+                                      useNHWC: useNHWC)
+
+        let dataType = MPSDataType.init(useFP16: useFP16)
 
         self.tensor = graph.placeholder(shape: shape,
                                         dataType: dataType,
@@ -198,14 +216,13 @@ class InputGlobalLayer {
          numGlobalFeatures: NSNumber,
          useFP16: Bool,
          useNHWC: Bool) {
-        let shape: [NSNumber]
-        let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
+        let shape = InputShape.create(batchSize: batchSize,
+                                      numChannels: numGlobalFeatures,
+                                      nnYLen: 1,
+                                      nnXLen: 1,
+                                      useNHWC: useNHWC)
 
-        if useNHWC {
-            shape = [batchSize, 1, 1, numGlobalFeatures]
-        } else {
-            shape = [batchSize, numGlobalFeatures, 1, 1]
-        }
+        let dataType = MPSDataType.init(useFP16: useFP16)
 
         self.tensor = graph.placeholder(shape: shape,
                                         dataType: dataType,
@@ -229,20 +246,13 @@ class MaskLayer {
          nnYLen: NSNumber,
          useFP16: Bool,
          useNHWC: Bool) {
-        let shape: [NSNumber]
-        let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
+        let shape = InputShape.create(batchSize: batchSize,
+                                      numChannels: 1,
+                                      nnYLen: nnYLen,
+                                      nnXLen: nnXLen,
+                                      useNHWC: useNHWC)
 
-        if useNHWC {
-            shape = [batchSize,
-                     nnYLen,
-                     nnXLen,
-                     1]
-        } else {
-            shape = [batchSize,
-                     1,
-                     nnYLen,
-                     nnXLen]
-        }
+        let dataType = MPSDataType.init(useFP16: useFP16)
 
         self.tensor = graph.placeholder(shape: shape,
                                         dataType: dataType,
@@ -291,7 +301,7 @@ class MaskSumSqrtS14M01Layer {
     init(graph: MPSGraph,
          maskSum: MaskSumLayer,
          useFP16: Bool) {
-        let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
+        let dataType = MPSDataType.init(useFP16: useFP16)
         let sqrtMaskSum = graph.squareRoot(with: maskSum.tensor, name: nil)
 
         let fourTeen = graph.constant(14.0,
@@ -323,7 +333,7 @@ class MaskSumSqrtS14M01SquareS01Layer {
     init(graph: MPSGraph,
          maskSumSqrtS14M01: MaskSumSqrtS14M01Layer,
          useFP16: Bool) {
-        let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
+        let dataType = MPSDataType.init(useFP16: useFP16)
         let squared = graph.square(with: maskSumSqrtS14M01.tensor, name: nil)
 
         let zeroPointone = graph.constant(0.1,
@@ -439,7 +449,7 @@ class ConvLayer: NSObject {
          nnYLen: NSNumber,
          useFP16: Bool,
          useNHWC: Bool) {
-        let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
+        let dataType = MPSDataType.init(useFP16: useFP16)
 
         let dataLayout: MPSGraphTensorNamedDataLayout = useNHWC ? .NHWC : .NCHW
 
@@ -447,8 +457,6 @@ class ConvLayer: NSObject {
                             descriptor.inChannels,
                             descriptor.convYSize,
                             descriptor.convXSize]
-
-        let input = InputLayer(tensor: sourceTensor)
 
         let convDescriptor = MPSGraphConvolution2DOpDescriptor(strideInX: 1,
                                                                strideInY: 1,
@@ -477,7 +485,7 @@ class ConvLayer: NSObject {
                                            shape: weightsShape,
                                            dataType: dataType)
 
-        resultTensor = graph.convolution2D(input.tensor,
+        resultTensor = graph.convolution2D(sourceTensor,
                                            weights: weightsTensor,
                                            descriptor: convDescriptor,
                                            name: nil)
@@ -612,23 +620,14 @@ class BatchNormLayer: NSObject {
          batchSize: NSNumber,
          useFP16: Bool,
          useNHWC: Bool) {
-        let meanShape: [NSNumber]
-        let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
+        let meanShape = InputShape.create(batchSize: 1,
+                                          numChannels: descriptor.numChannels,
+                                          nnYLen: 1,
+                                          nnXLen: 1,
+                                          useNHWC: useNHWC)
 
-        if useNHWC {
-            meanShape = [1,
-                         1,
-                         1,
-                         descriptor.numChannels]
-        } else {
-            meanShape = [1,
-                         descriptor.numChannels,
-                         1,
-                         1]
-        }
+        let dataType = MPSDataType.init(useFP16: useFP16)
 
-        let source = InputLayer(tensor: sourceTensor)
-        let mask = MaskLayer(tensor: maskTensor)
         let byteCount = meanShape.asShapeCount(of: dataType)
         let meanData: Data
         let varianceData: Data
@@ -683,7 +682,7 @@ class BatchNormLayer: NSObject {
                                         shape: meanShape,
                                         dataType: dataType)
 
-        let normalized = graph.normalize(source.tensor,
+        let normalized = graph.normalize(sourceTensor,
                                          mean: meanTensor,
                                          variance: varianceTensor,
                                          gamma: scaleTensor,
@@ -692,7 +691,7 @@ class BatchNormLayer: NSObject {
                                          name: nil)
 
         resultTensor = graph.multiplication(normalized,
-                                            mask.tensor,
+                                            maskTensor,
                                             name: nil)
 
         assert(resultTensor.shape?.count == 4)
@@ -819,11 +818,10 @@ class ResidualBlock: NSObject {
          batchSize: NSNumber,
          useFP16: Bool,
          useNHWC: Bool) {
-        let source = InputLayer(tensor: sourceTensor)
         let mask = MaskLayer(tensor: maskTensor)
 
         let preBN = BatchNormLayer(graph: graph,
-                                   sourceTensor: source.tensor,
+                                   sourceTensor: sourceTensor,
                                    maskTensor: mask.tensor,
                                    descriptor: descriptor.preBN,
                                    nnXLen: nnXLen,
@@ -864,7 +862,7 @@ class ResidualBlock: NSObject {
                                   useFP16: useFP16,
                                   useNHWC: useNHWC)
 
-        resultTensor = graph.addition(source.tensor,
+        resultTensor = graph.addition(sourceTensor,
                                       finalConv.resultTensor,
                                       name: nil)
 
@@ -1012,7 +1010,7 @@ class MatMulLayer {
 
         assert((sourceTensor.shape?.count == 2) || (!useNHWC) || (sourceTensor.shape?[3] == descriptor.inChannels))
 
-        let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
+        let dataType = MPSDataType.init(useFP16: useFP16)
 
         let weightsShape = [descriptor.inChannels,
                             descriptor.outChannels]
@@ -1073,7 +1071,7 @@ class MatBiasLayer {
 
         assert((sourceTensor.shape?.count == 2) && (sourceTensor.shape?[1] == descriptor.numChannels))
 
-        let dataType = useFP16 ? MPSDataType.float16 : MPSDataType.float32
+        let dataType = MPSDataType.init(useFP16: useFP16)
         let weightsShape = [1, descriptor.numChannels]
         let byteCount = weightsShape.asShapeCount(of: dataType)
         let weightsData: Data
@@ -1111,13 +1109,11 @@ class AddNCBiasLayer {
          numChannels: NSNumber,
          useFP16: Bool,
          useNHWC: Bool) {
-        let shape: [NSNumber]
-
-        if useNHWC {
-            shape = [batchSize, 1, 1, numChannels]
-        } else {
-            shape = [batchSize, numChannels, 1, 1]
-        }
+        let shape = InputShape.create(batchSize: batchSize,
+                                      numChannels: numChannels,
+                                      nnYLen: 1,
+                                      nnXLen: 1,
+                                      useNHWC: useNHWC)
 
         assert(biasTensor.shape?.product().intValue == shape.product().intValue)
         let reshaped = graph.reshape(biasTensor, shape: shape, name: nil)
@@ -1274,13 +1270,12 @@ class GlobalPoolingResidualBlock: NSObject {
          batchSize: NSNumber,
          useFP16: Bool,
          useNHWC: Bool) throws {
-        let source = InputLayer(tensor: sourceTensor)
         let mask = MaskLayer(tensor: maskTensor)
         let maskSum = MaskSumLayer(tensor: maskSumTensor)
         let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(tensor: maskSumSqrtS14M01Tensor)
 
         let preBN = BatchNormLayer(graph: graph,
-                                   sourceTensor: source.tensor,
+                                   sourceTensor: sourceTensor,
                                    maskTensor: mask.tensor,
                                    descriptor: descriptor.preBN,
                                    nnXLen: nnXLen,
@@ -1328,6 +1323,9 @@ class GlobalPoolingResidualBlock: NSObject {
                                              useFP16: useFP16,
                                              useNHWC: useNHWC)
 
+        assert(useNHWC || (gpoolConcat.resultTensor.shape?[1] == descriptor.gpoolToBiasMul.inChannels))
+        assert(!useNHWC || (gpoolConcat.resultTensor.shape?[3] == descriptor.gpoolToBiasMul.inChannels))
+
         let gpoolToBiasMul = try MatMulLayer(graph: graph,
                                              descriptor: descriptor.gpoolToBiasMul,
                                              sourceTensor: gpoolConcat.resultTensor,
@@ -1365,7 +1363,7 @@ class GlobalPoolingResidualBlock: NSObject {
                                   useFP16: useFP16,
                                   useNHWC: useNHWC)
 
-        resultTensor = graph.addition(source.tensor,
+        resultTensor = graph.addition(sourceTensor,
                                       finalConv.resultTensor,
                                       name: nil)
 
@@ -1451,14 +1449,13 @@ class Trunk {
          useFP16: Bool,
          useNHWC: Bool) throws {
 
-        let input =  InputLayer(tensor: inputTensor)
         let inputGlobal = InputGlobalLayer(tensor: inputGlobalTensor)
         let mask = MaskLayer(tensor: maskTensor)
         let maskSum = MaskSumLayer(tensor: maskSumTensor)
         let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(tensor: maskSumSqrtS14M01Tensor)
 
         let initialConv = ConvLayer(graph: graph,
-                                    sourceTensor: input.tensor,
+                                    sourceTensor: inputTensor,
                                     descriptor: descriptor.initialConv,
                                     batchSize: batchSize,
                                     nnXLen: nnXLen,
@@ -1624,6 +1621,9 @@ class PolicyHead {
                                           useFP16: useFP16,
                                           useNHWC: useNHWC)
 
+        assert(useNHWC || (g1Concat.resultTensor.shape?[1] == descriptor.gpoolToBiasMul.inChannels))
+        assert(!useNHWC || (g1Concat.resultTensor.shape?[3] == descriptor.gpoolToBiasMul.inChannels))
+
         let gpoolToBiasMul = try MatMulLayer(graph: graph,
                                              descriptor: descriptor.gpoolToBiasMul,
                                              sourceTensor: g1Concat.resultTensor,
@@ -1660,6 +1660,9 @@ class PolicyHead {
                                nnYLen: nnYLen,
                                useFP16: useFP16,
                                useNHWC: useNHWC)
+
+        assert(useNHWC || (g1Concat.resultTensor.shape?[1] == descriptor.gpoolToPassMul.inChannels))
+        assert(!useNHWC || (g1Concat.resultTensor.shape?[3] == descriptor.gpoolToPassMul.inChannels))
 
         let gpoolToPassMul = try MatMulLayer(graph: graph,
                                              descriptor: descriptor.gpoolToPassMul,
@@ -1755,6 +1758,9 @@ class ValueHead {
                                 maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01.tensor,
                                 useFP16: useFP16,
                                 useNHWC: useNHWC)
+
+        assert(useNHWC || (v1Mean.resultTensor.shape?[1] == descriptor.v2Mul.inChannels))
+        assert(!useNHWC || (v1Mean.resultTensor.shape?[3] == descriptor.v2Mul.inChannels))
 
         let v2Mul = try MatMulLayer(graph: graph,
                                     descriptor: descriptor.v2Mul,
@@ -1925,13 +1931,12 @@ class Model {
                                        useNHWC: useNHWC)
 
         let startOfMask: [NSNumber] = [0, 0, 0, 0]
-        let endOfMask: [NSNumber]
 
-        if useNHWC {
-            endOfMask = [batchSize, nnYLen, nnXLen, 1]
-        } else {
-            endOfMask = [batchSize, 1, nnYLen, nnXLen]
-        }
+        let endOfMask = InputShape.create(batchSize: batchSize,
+                                          numChannels: 1,
+                                          nnYLen: nnYLen,
+                                          nnXLen: nnXLen,
+                                          useNHWC: useNHWC)
 
         let maskTensor = graph.sliceTensor(input.tensor,
                                            starts: startOfMask,
