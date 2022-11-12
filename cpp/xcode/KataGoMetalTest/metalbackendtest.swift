@@ -1571,11 +1571,11 @@ final class MatMulLayerTest: XCTestCase {
                                useFP16: useFP16,
                                useNHWC: useNHWC)
 
-        let matMulLayer = try! MatMulLayer(graph: graph,
-                                           descriptor: descriptor,
-                                           sourceTensor: input.tensor,
-                                           useFP16: useFP16,
-                                           useNHWC: useNHWC)
+        let matMulLayer = MatMulLayer(graph: graph,
+                                      descriptor: descriptor,
+                                      sourceTensor: input.tensor,
+                                      useFP16: useFP16,
+                                      useNHWC: useNHWC)
 
         let inputCount = batchSize * nnXLen * nnYLen * inChannels
         let inputPointer = UnsafeMutablePointer<Float16>.allocate(capacity: inputCount)
@@ -1661,11 +1661,11 @@ final class MatMulLayerTest: XCTestCase {
                                useFP16: useFP16,
                                useNHWC: useNHWC)
 
-        let matMulLayer = try! MatMulLayer(graph: graph,
-                                           descriptor: descriptor,
-                                           sourceTensor: input.tensor,
-                                           useFP16: useFP16,
-                                           useNHWC: useNHWC)
+        let matMulLayer = MatMulLayer(graph: graph,
+                                      descriptor: descriptor,
+                                      sourceTensor: input.tensor,
+                                      useFP16: useFP16,
+                                      useNHWC: useNHWC)
 
         let inputCount = batchSize * nnXLen * nnYLen * inChannels
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
@@ -1718,38 +1718,6 @@ final class MatMulLayerTest: XCTestCase {
         XCTAssertEqual(outputPointer[11], 47, accuracy: 1e-8)
     }
 
-    func testInvalid() {
-        let useFP16 = false
-        let useNHWC = false
-        let batchSize = 1
-        let nnXLen = 2
-        let nnYLen = 1
-        let inChannels = 1
-        let outChannels = 2
-        let weightsCount = inChannels * outChannels
-        let weights = UnsafeMutablePointer<Float32>.allocate(capacity: weightsCount)
-
-        let descriptor = SWMatMulLayerDesc(inChannels: inChannels as NSNumber,
-                                           outChannels: outChannels as NSNumber,
-                                           weights: weights)
-
-        let graph = MPSGraph()
-
-        let input = InputLayer(graph: graph,
-                               batchSize: batchSize as NSNumber,
-                               nnXLen: nnXLen as NSNumber,
-                               nnYLen: nnYLen as NSNumber,
-                               numChannels: inChannels as NSNumber,
-                               useFP16: useFP16,
-                               useNHWC: useNHWC)
-
-        XCTAssertThrowsError(try MatMulLayer(graph: graph,
-                                             descriptor: descriptor,
-                                             sourceTensor: input.tensor,
-                                             useFP16: useFP16,
-                                             useNHWC: useNHWC))
-    }
-
     func test2D() {
         let useFP16 = false
         let useNHWC = false
@@ -1781,11 +1749,11 @@ final class MatMulLayerTest: XCTestCase {
                                             dataType: .float32,
                                             name: nil)
 
-        let matMulLayer = try! MatMulLayer(graph: graph,
-                                           descriptor: descriptor,
-                                           sourceTensor: inputTensor,
-                                           useFP16: useFP16,
-                                           useNHWC: useNHWC)
+        let matMulLayer = MatMulLayer(graph: graph,
+                                      descriptor: descriptor,
+                                      sourceTensor: inputTensor,
+                                      useFP16: useFP16,
+                                      useNHWC: useNHWC)
 
         let inputCount = batchSize * inChannels
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
@@ -1859,11 +1827,11 @@ final class MatMulLayerTest: XCTestCase {
                                             dataType: .float32,
                                             name: nil)
 
-        let matMulLayer = try! MatMulLayer(graph: graph,
-                                           descriptor: descriptor,
-                                           sourceTensor: inputTensor,
-                                           useFP16: useFP16,
-                                           useNHWC: useNHWC)
+        let matMulLayer = MatMulLayer(graph: graph,
+                                      descriptor: descriptor,
+                                      sourceTensor: inputTensor,
+                                      useFP16: useFP16,
+                                      useNHWC: useNHWC)
 
         let inputCount = batchSize * inChannels
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
@@ -2228,20 +2196,20 @@ final class TrunkTest: XCTestCase {
                                                        maskSum: maskSum,
                                                        useFP16: useFP16)
 
-        let trunk = try! Trunk(graph: graph,
-                               descriptor: descriptor,
-                               inputTensor: input.tensor,
-                               inputGlobalTensor: inputGlobal.tensor,
-                               maskTensor: mask.tensor,
-                               maskSumTensor: maskSum.tensor,
-                               maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
-                               nnXLen: nnXLen as NSNumber,
-                               nnYLen: nnYLen as NSNumber,
-                               batchSize: batchSize as NSNumber,
-                               numSpatialFeatures: numChannels as NSNumber,
-                               numGlobalFeatures: numChannels as NSNumber,
-                               useFP16: useFP16,
-                               useNHWC: useNHWC)
+        let trunk = Trunk(graph: graph,
+                          descriptor: descriptor,
+                          inputTensor: input.tensor,
+                          inputGlobalTensor: inputGlobal.tensor,
+                          maskTensor: mask.tensor,
+                          maskSumTensor: maskSum.tensor,
+                          maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+                          nnXLen: nnXLen as NSNumber,
+                          nnYLen: nnYLen as NSNumber,
+                          batchSize: batchSize as NSNumber,
+                          numSpatialFeatures: numChannels as NSNumber,
+                          numGlobalFeatures: numChannels as NSNumber,
+                          useFP16: useFP16,
+                          useNHWC: useNHWC)
 
         let inputCount = batchSize * numChannels * nnXLen * nnYLen
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
@@ -2429,17 +2397,17 @@ final class PolicyHeadTest: XCTestCase {
                                                        maskSum: maskSum,
                                                        useFP16: useFP16)
 
-        let policyHead = try! PolicyHead(graph: graph,
-                                         descriptor: descriptor,
-                                         sourceTensor: input.tensor,
-                                         maskTensor: mask.tensor,
-                                         maskSumTensor: maskSum.tensor,
-                                         maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
-                                         nnXLen: nnXLen as NSNumber,
-                                         nnYLen: nnYLen as NSNumber,
-                                         batchSize: batchSize as NSNumber,
-                                         useFP16: useFP16,
-                                         useNHWC: useNHWC)
+        let policyHead = PolicyHead(graph: graph,
+                                    descriptor: descriptor,
+                                    sourceTensor: input.tensor,
+                                    maskTensor: mask.tensor,
+                                    maskSumTensor: maskSum.tensor,
+                                    maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+                                    nnXLen: nnXLen as NSNumber,
+                                    nnYLen: nnYLen as NSNumber,
+                                    batchSize: batchSize as NSNumber,
+                                    useFP16: useFP16,
+                                    useNHWC: useNHWC)
 
         let inputCount = batchSize * inChannels * nnXLen * nnYLen
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
@@ -2698,18 +2666,18 @@ final class ValueHeadTest: XCTestCase {
                                         maskSumSqrtS14M01: maskSumSqrtS14M01,
                                         useFP16: useFP16)
 
-        let valueHead = try! ValueHead(graph: graph,
-                                       descriptor: descriptor,
-                                       sourceTensor: input.tensor,
-                                       maskTensor: mask.tensor,
-                                       maskSumTensor: maskSum.tensor,
-                                       maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
-                                       maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01.tensor,
-                                       nnXLen: nnXLen as NSNumber,
-                                       nnYLen: nnYLen as NSNumber,
-                                       batchSize: batchSize as NSNumber,
-                                       useFP16: useFP16,
-                                       useNHWC: useNHWC)
+        let valueHead = ValueHead(graph: graph,
+                                  descriptor: descriptor,
+                                  sourceTensor: input.tensor,
+                                  maskTensor: mask.tensor,
+                                  maskSumTensor: maskSum.tensor,
+                                  maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+                                  maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01.tensor,
+                                  nnXLen: nnXLen as NSNumber,
+                                  nnYLen: nnYLen as NSNumber,
+                                  batchSize: batchSize as NSNumber,
+                                  useFP16: useFP16,
+                                  useNHWC: useNHWC)
 
         let inputCount = batchSize * inChannels * nnXLen * nnYLen
         let inputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
@@ -2894,14 +2862,14 @@ final class ModelTest: XCTestCase {
 
         let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
 
-        let model = try! Model(device: device,
-                               graph: MPSGraph(),
-                               descriptor: modelDesc,
-                               nnXLen: 1,
-                               nnYLen: 1,
-                               batchSize: 1,
-                               useFP16: useFP16,
-                               useNHWC: useNHWC)
+        let model = Model(device: device,
+                          graph: MPSGraph(),
+                          descriptor: modelDesc,
+                          nnXLen: 1,
+                          nnYLen: 1,
+                          batchSize: 1,
+                          useFP16: useFP16,
+                          useNHWC: useNHWC)
 
         var input = [Float](repeating: 1, count: 1)
         var inputGlobal = [Float](repeating: 1, count: 1)
@@ -3330,14 +3298,14 @@ final class ModelTest: XCTestCase {
 
         let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
 
-        let model = try! Model(device: device,
-                               graph: MPSGraph(),
-                               descriptor: modelDesc,
-                               nnXLen: nnXLen as NSNumber,
-                               nnYLen: nnYLen as NSNumber,
-                               batchSize: batchSize as NSNumber,
-                               useFP16: false,
-                               useNHWC: true)
+        let model = Model(device: device,
+                          graph: MPSGraph(),
+                          descriptor: modelDesc,
+                          nnXLen: nnXLen as NSNumber,
+                          nnYLen: nnYLen as NSNumber,
+                          batchSize: batchSize as NSNumber,
+                          useFP16: false,
+                          useNHWC: true)
 
         // warm up to speed up later runs
         let inputCount = batchSize * nnYLen * nnXLen * numInputChannels
