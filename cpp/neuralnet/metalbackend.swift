@@ -2,23 +2,7 @@ import Foundation
 import MetalPerformanceShaders
 import MetalPerformanceShadersGraph
 
-extension NSNumber {
-    func split(into numParts: Int) -> [NSNumber] {
-        let part = (self.intValue / numParts) as NSNumber
-        var result = Array(repeating: part, count: numParts)
-        let reminder = self.intValue % numParts
-        result[0] = (result[0].intValue + reminder) as NSNumber
-        return result
-    }
-}
-
 extension UnsafeMutablePointer<Float32> {
-    func printAsFloat(_ length: Int) {
-        for i in 0..<length {
-            print("data[\(i)]=\(self[i])")
-        }
-    }
-
     func toFP16(length: Int) -> UnsafeMutablePointer<Float16> {
         let fp16Pointer = UnsafeMutablePointer<Float16>.allocate(capacity: length)
 
@@ -45,67 +29,33 @@ extension UnsafeMutablePointer<Float16> {
 }
 
 extension MPSNDArray {
-    func dumpFloats(name: String?, length: Int) {
-        print(name ?? "")
-        let buffer = UnsafeMutablePointer<Float32>.allocate(capacity: length)
-        readBytes(buffer, strideBytes: nil)
-        buffer.printAsFloat(length)
+    convenience init?(device: MTLDevice, tensor: MPSGraphTensor) {
+        if let shape = tensor.shape {
+            let descriptor = MPSNDArrayDescriptor(dataType: tensor.dataType,
+                                                  shape: shape)
+
+            self.init(device: device, descriptor: descriptor)
+        } else {
+            return nil
+        }
+    }
+
+    func writeBytes(_ buffer: UnsafeMutableRawPointer) {
+        self.writeBytes(buffer, strideBytes: nil)
+    }
+
+    func readBytes(_ buffer: UnsafeMutableRawPointer) {
+        self.readBytes(buffer, strideBytes: nil)
     }
 }
 
 extension MPSGraphTensor {
-    func countElements(batchSize: NSNumber?) -> Int {
-        let n: Int
-        if let batchSize {
-            n = batchSize.intValue
-        } else {
-            n = shape![0].intValue
-        }
-        var result = n
+    func countElements() -> Int {
+        var result = shape![0].intValue
         for i in 1..<shape!.count {
             result *= shape![i].intValue
         }
-
         return result
-    }
-
-    func countBytes(batchSize: NSNumber?) -> Int {
-        return countElements(batchSize: batchSize) * dataType.toMemoryLayoutSize()
-    }
-}
-
-extension MPSGraphTensorData {
-    convenience init?(device: MPSGraphDevice, tensor: MPSGraphTensor) {
-        if let metalDevice = device.metalDevice {
-            if let shape = tensor.shape {
-                self.init(MPSNDArray(device: metalDevice,
-                                     descriptor: MPSNDArrayDescriptor(dataType: tensor.dataType,
-                                                                      shape: shape)))
-            } else {
-                return nil
-            }
-        } else {
-            return nil
-        }
-    }
-
-    convenience init?(device: MPSGraphDevice,
-                      tensor: MPSGraphTensor,
-                      batchSize: NSNumber,
-                      pointer: UnsafeMutableRawPointer) {
-        let data = Data(bytesNoCopy: pointer,
-                        count: tensor.countBytes(batchSize: batchSize),
-                        deallocator: .none)
-
-        if var shape = tensor.shape {
-            shape[0] = batchSize
-            self.init(device: device,
-                      data: data,
-                      shape: shape,
-                      dataType: tensor.dataType)
-        } else {
-            return nil
-        }
     }
 }
 
@@ -124,7 +74,7 @@ extension MPSDataType {
         case .float16:
             memoryLayoutSize = MemoryLayout<Float16>.size
         default:
-            precondition(self == .float32, "The data type must be .float16 or .float32.")
+            precondition(self == .float32)
             memoryLayoutSize = MemoryLayout<Float32>.size
         }
         return memoryLayoutSize
@@ -132,26 +82,16 @@ extension MPSDataType {
 }
 
 extension Array where Element == NSNumber {
-    func product() -> NSNumber {
+    func countElements() -> Int {
         var result = 1.0
         for x in self {
             result *= x.doubleValue
         }
-
-        return result as NSNumber
+        return Int(result)
     }
 
-    func asShapeCount(of dataType: MPSDataType) -> Int {
-        return product().intValue * dataType.toMemoryLayoutSize()
-    }
-
-    func asShapeCount(of dataType: MPSDataType, batchSize: Int) -> Int {
-        var result = batchSize * dataType.toMemoryLayoutSize()
-        for i in 1..<self.count {
-            result *= self[i].intValue
-        }
-
-        return result
+    func countBytes(of dataType: MPSDataType) -> Int {
+        return countElements() * dataType.toMemoryLayoutSize()
     }
 }
 
@@ -174,6 +114,20 @@ class InputShape {
                      nnXLen]
         }
         return shape
+    }
+
+    class func getChannelAxis(useNHWC: Bool) -> Int {
+        return useNHWC ? 3 : 1
+    }
+
+    class func getHWAxes(useNHWC: Bool) -> [NSNumber] {
+        let hwAxes: [NSNumber]
+        if useNHWC {
+            hwAxes = [1, 2]
+        } else {
+            hwAxes = [2, 3]
+        }
+        return hwAxes
     }
 }
 
@@ -274,13 +228,7 @@ class MaskSumLayer {
     init(graph: MPSGraph,
          mask: MaskLayer,
          useNHWC: Bool) {
-        let hwAxes: [NSNumber]
-
-        if useNHWC {
-            hwAxes = [1, 2]
-        } else {
-            hwAxes = [2, 3]
-        }
+        let hwAxes = InputShape.getHWAxes(useNHWC: useNHWC)
 
         self.tensor = graph.reductionSum(with: mask.tensor,
                                          axes: hwAxes,
@@ -409,35 +357,34 @@ class ConvLayer: NSObject {
                              useFP16: useFP16,
                              useNHWC: useNHWC)
 
-        let sourceTensorData = MPSGraphTensorData(device: device,
-                                                  tensor: source.tensor)!
+        let sourceArray = MPSNDArray(device: device.metalDevice!,
+                                     tensor: source.tensor)!
 
         if useFP16 {
-            let inLength = batchSize.intValue * descriptor.inChannels.intValue * nnYLen.intValue * nnXLen.intValue
+            let inLength = source.tensor.countElements()
 
-            sourceTensorData.mpsndarray().writeBytes(input.toFP16(length: inLength),
-                                                     strideBytes: nil)
+            sourceArray.writeBytes(input.toFP16(length: inLength))
         } else {
-            sourceTensorData.mpsndarray().writeBytes(input, strideBytes: nil)
+            sourceArray.writeBytes(input)
         }
+
+        let sourceTensorData = MPSGraphTensorData(sourceArray)
 
         let fetch = graph.run(feeds: [source.tensor: sourceTensorData],
                               targetTensors: [conv.resultTensor],
                               targetOperations: nil)
 
         if useFP16 {
-            let outLength = batchSize.intValue * descriptor.outChannels.intValue * nnYLen.intValue * nnXLen.intValue
-
+            let outLength = conv.resultTensor.countElements()
             let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
 
-            fetch[conv.resultTensor]?.mpsndarray().readBytes(outputFP16,
-                                                             strideBytes: nil)
+            fetch[conv.resultTensor]?.mpsndarray().readBytes(outputFP16)
 
             for i in 0..<outLength {
                 output[i] = Float32(outputFP16[i])
             }
         } else {
-            fetch[conv.resultTensor]?.mpsndarray().readBytes(output, strideBytes: nil)
+            fetch[conv.resultTensor]?.mpsndarray().readBytes(output)
         }
     }
 
@@ -458,20 +405,21 @@ class ConvLayer: NSObject {
                             descriptor.convYSize,
                             descriptor.convXSize]
 
-        let convDescriptor = MPSGraphConvolution2DOpDescriptor(strideInX: 1,
-                                                               strideInY: 1,
-                                                               dilationRateInX: descriptor.dilationX,
-                                                               dilationRateInY: descriptor.dilationY,
-                                                               groups: 1,
-                                                               paddingStyle: .TF_SAME,
-                                                               dataLayout: dataLayout,
-                                                               weightsLayout: .OIHW)!
+        let convDescriptor =
+        MPSGraphConvolution2DOpDescriptor(strideInX: 1,
+                                          strideInY: 1,
+                                          dilationRateInX: descriptor.dilationX,
+                                          dilationRateInY: descriptor.dilationY,
+                                          groups: 1,
+                                          paddingStyle: .TF_SAME,
+                                          dataLayout: dataLayout,
+                                          weightsLayout: .OIHW)!
 
-        let byteCount = weightsShape.asShapeCount(of: dataType)
+        let byteCount = weightsShape.countBytes(of: dataType)
         let weightsData: Data
 
         if useFP16 {
-            let length = weightsShape.product().intValue
+            let length = weightsShape.countElements()
 
             weightsData = Data(bytesNoCopy: descriptor.weights.toFP16(length: length),
                                count: byteCount,
@@ -569,26 +517,26 @@ class BatchNormLayer: NSObject {
                                        useFP16: useFP16,
                                        useNHWC: useNHWC)
 
-        let sourceTensorData = MPSGraphTensorData(device: device,
-                                                  tensor: source.tensor)!
+        let sourceArray = MPSNDArray(device: device.metalDevice!,
+                                     tensor: source.tensor)!
 
-        let maskTensorData = MPSGraphTensorData(device: device,
-                                                tensor: mask.tensor)!
+        let maskArray = MPSNDArray(device: device.metalDevice!,
+                                   tensor: mask.tensor)!
 
         if useFP16 {
-            let inLength = batchSize.intValue * descriptor.numChannels.intValue * nnYLen.intValue * nnXLen.intValue
+            let inLength = source.tensor.countElements()
+            let maskLength = mask.tensor.countElements()
 
-            let maskLength = batchSize.intValue * nnYLen.intValue * nnXLen.intValue
+            sourceArray.writeBytes(input.toFP16(length: inLength))
 
-            sourceTensorData.mpsndarray().writeBytes(input.toFP16(length: inLength),
-                                                     strideBytes: nil)
-
-            maskTensorData.mpsndarray().writeBytes(maskPointer.toFP16(length: maskLength),
-                                                   strideBytes: nil)
+            maskArray.writeBytes(maskPointer.toFP16(length: maskLength))
         } else {
-            sourceTensorData.mpsndarray().writeBytes(input, strideBytes: nil)
-            maskTensorData.mpsndarray().writeBytes(maskPointer, strideBytes: nil)
+            sourceArray.writeBytes(input)
+            maskArray.writeBytes(maskPointer)
         }
+
+        let sourceTensorData = MPSGraphTensorData(sourceArray)
+        let maskTensorData = MPSGraphTensorData(maskArray)
 
         let fetch = graph.run(feeds: [source.tensor: sourceTensorData,
                                       mask.tensor: maskTensorData],
@@ -596,19 +544,16 @@ class BatchNormLayer: NSObject {
                               targetOperations: nil)
 
         if useFP16 {
-            let outLength = batchSize.intValue * descriptor.numChannels.intValue * nnYLen.intValue * nnXLen.intValue
-
+            let outLength = batchNorm.resultTensor.countElements()
             let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
 
-            fetch[batchNorm.resultTensor]?.mpsndarray().readBytes(outputFP16,
-                                                                  strideBytes: nil)
+            fetch[batchNorm.resultTensor]?.mpsndarray().readBytes(outputFP16)
 
             for i in 0..<outLength {
                 output[i] = Float32(outputFP16[i])
             }
         } else {
-            fetch[batchNorm.resultTensor]?.mpsndarray().readBytes(output,
-                                                                  strideBytes: nil)
+            fetch[batchNorm.resultTensor]?.mpsndarray().readBytes(output)
         }
     }
 
@@ -628,15 +573,14 @@ class BatchNormLayer: NSObject {
                                           useNHWC: useNHWC)
 
         let dataType = MPSDataType.init(useFP16: useFP16)
-
-        let byteCount = meanShape.asShapeCount(of: dataType)
+        let byteCount = meanShape.countBytes(of: dataType)
         let meanData: Data
         let varianceData: Data
         let scaleData: Data
         let biasData: Data
 
         if useFP16 {
-            let length = meanShape.product().intValue
+            let length = meanShape.countElements()
 
             meanData = Data(bytesNoCopy: descriptor.mean.toFP16(length: length),
                             count: byteCount,
@@ -771,26 +715,26 @@ class ResidualBlock: NSObject {
                                   useFP16: useFP16,
                                   useNHWC: useNHWC)
 
-        let sourceTensorData = MPSGraphTensorData(device: device,
-                                                  tensor: source.tensor)!
+        let sourceArray = MPSNDArray(device: device.metalDevice!,
+                                     tensor: source.tensor)!
 
-        let maskTensorData = MPSGraphTensorData(device: device,
-                                                tensor: mask.tensor)!
+        let maskArray = MPSNDArray(device: device.metalDevice!,
+                                   tensor: mask.tensor)!
 
         if useFP16 {
-            let inLength = batchSize.intValue * descriptor.preBN.numChannels.intValue * nnYLen.intValue * nnXLen.intValue
+            let inLength = source.tensor.countElements()
+            let maskLength = mask.tensor.countElements()
 
-            let maskLength = batchSize.intValue * nnYLen.intValue * nnXLen.intValue
+            sourceArray.writeBytes(input.toFP16(length: inLength))
 
-            sourceTensorData.mpsndarray().writeBytes(input.toFP16(length: inLength),
-                                                     strideBytes: nil)
-
-            maskTensorData.mpsndarray().writeBytes(maskPointer.toFP16(length: maskLength),
-                                                   strideBytes: nil)
+            maskArray.writeBytes(maskPointer.toFP16(length: maskLength))
         } else {
-            sourceTensorData.mpsndarray().writeBytes(input, strideBytes: nil)
-            maskTensorData.mpsndarray().writeBytes(maskPointer, strideBytes: nil)
+            sourceArray.writeBytes(input)
+            maskArray.writeBytes(maskPointer)
         }
+
+        let sourceTensorData = MPSGraphTensorData(sourceArray)
+        let maskTensorData = MPSGraphTensorData(maskArray)
 
         let fetch = graph.run(feeds: [source.tensor: sourceTensorData,
                                       mask.tensor: maskTensorData],
@@ -798,19 +742,16 @@ class ResidualBlock: NSObject {
                               targetOperations: nil)
 
         if useFP16 {
-            let outLength = batchSize.intValue * descriptor.finalConv.outChannels.intValue * nnYLen.intValue * nnXLen.intValue
-
+            let outLength = block.resultTensor.countElements()
             let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
 
-            fetch[block.resultTensor]?.mpsndarray().readBytes(outputFP16,
-                                                              strideBytes: nil)
+            fetch[block.resultTensor]?.mpsndarray().readBytes(outputFP16)
 
             for i in 0..<outLength {
                 output[i] = Float32(outputFP16[i])
             }
         } else {
-            fetch[block.resultTensor]?.mpsndarray().readBytes(output,
-                                                              strideBytes: nil)
+            fetch[block.resultTensor]?.mpsndarray().readBytes(output)
         }
     }
 
@@ -823,11 +764,9 @@ class ResidualBlock: NSObject {
          batchSize: NSNumber,
          useFP16: Bool,
          useNHWC: Bool) {
-        let mask = MaskLayer(tensor: maskTensor)
-
         let preBN = BatchNormLayer(graph: graph,
                                    sourceTensor: sourceTensor,
-                                   maskTensor: mask.tensor,
+                                   maskTensor: maskTensor,
                                    descriptor: descriptor.preBN,
                                    nnXLen: nnXLen,
                                    nnYLen: nnYLen,
@@ -849,7 +788,7 @@ class ResidualBlock: NSObject {
 
         let midBN = BatchNormLayer(graph: graph,
                                    sourceTensor: regularConv.resultTensor,
-                                   maskTensor: mask.tensor,
+                                   maskTensor: maskTensor,
                                    descriptor: descriptor.midBN,
                                    nnXLen: nnXLen,
                                    nnYLen: nnYLen,
@@ -886,16 +825,8 @@ class GlobalPoolingLayer {
          maskSumSqrtS14M01Tensor: MPSGraphTensor,
          useFP16: Bool,
          useNHWC: Bool) {
-        let hwAxes: [NSNumber]
-        let channelAxis: Int
-
-        if useNHWC {
-            hwAxes = [1, 2]
-            channelAxis = 3
-        } else {
-            hwAxes = [2, 3]
-            channelAxis = 1
-        }
+        let hwAxes = InputShape.getHWAxes(useNHWC: useNHWC)
+        let channelAxis = InputShape.getChannelAxis(useNHWC: useNHWC)
 
         let sumTensor = graph.reductionSum(with: sourceTensor,
                                            axes: hwAxes,
@@ -935,16 +866,8 @@ class GlobalPoolingValueLayer {
          maskSumSqrtS14M01SquareS01Tensor: MPSGraphTensor,
          useFP16: Bool,
          useNHWC: Bool) {
-        let hwAxes: [NSNumber]
-        let channelAxis: Int
-
-        if useNHWC {
-            hwAxes = [1, 2]
-            channelAxis = 3
-        } else {
-            hwAxes = [2, 3]
-            channelAxis = 1
-        }
+        let hwAxes = InputShape.getHWAxes(useNHWC: useNHWC)
+        let channelAxis = InputShape.getChannelAxis(useNHWC: useNHWC)
 
         let sumTensor = graph.reductionSum(with: sourceTensor,
                                            axes: hwAxes,
@@ -1016,11 +939,11 @@ class MatMulLayer {
         let weightsShape = [descriptor.inChannels,
                             descriptor.outChannels]
 
-        let byteCount = weightsShape.asShapeCount(of: dataType)
+        let byteCount = weightsShape.countBytes(of: dataType)
         let weightsData: Data
 
         if useFP16 {
-            let length = weightsShape.product().intValue
+            let length = weightsShape.countElements()
 
             weightsData = Data(bytesNoCopy: descriptor.weights.toFP16(length: length),
                                count: byteCount,
@@ -1075,11 +998,11 @@ class MatBiasLayer {
 
         let dataType = MPSDataType.init(useFP16: useFP16)
         let weightsShape = [1, descriptor.numChannels]
-        let byteCount = weightsShape.asShapeCount(of: dataType)
+        let byteCount = weightsShape.countBytes(of: dataType)
         let weightsData: Data
 
         if useFP16 {
-            let length = weightsShape.product().intValue
+            let length = weightsShape.countElements()
 
             weightsData = Data(bytesNoCopy: descriptor.weights.toFP16(length: length),
                                count: byteCount,
@@ -1118,7 +1041,7 @@ class AddNCBiasLayer {
                                       nnXLen: 1,
                                       useNHWC: useNHWC)
 
-        assert(biasTensor.shape?.product().intValue == shape.product().intValue)
+        assert(biasTensor.countElements() == shape.countElements())
         let reshaped = graph.reshape(biasTensor, shape: shape, name: nil)
         resultTensor = graph.addition(sourceTensor, reshaped, name: nil)
 
@@ -1219,26 +1142,26 @@ class GlobalPoolingResidualBlock: NSObject {
                                    useFP16: useFP16,
                                    useNHWC: useNHWC)
 
-        let sourceTensorData = MPSGraphTensorData(device: device,
-                                                  tensor: source.tensor)!
+        let sourceArray = MPSNDArray(device: device.metalDevice!,
+                                     tensor: source.tensor)!
 
-        let maskTensorData = MPSGraphTensorData(device: device,
-                                                tensor: mask.tensor)!
+        let maskArray = MPSNDArray(device: device.metalDevice!,
+                                   tensor: mask.tensor)!
 
         if useFP16 {
-            let inLength = batchSize.intValue * descriptor.preBN.numChannels.intValue * nnYLen.intValue * nnXLen.intValue
+            let inLength = source.tensor.countElements()
+            let maskLength = mask.tensor.countElements()
 
-            let maskLength = batchSize.intValue * nnYLen.intValue * nnXLen.intValue
+            sourceArray.writeBytes(input.toFP16(length: inLength))
 
-            sourceTensorData.mpsndarray().writeBytes(input.toFP16(length: inLength),
-                                                     strideBytes: nil)
-
-            maskTensorData.mpsndarray().writeBytes(maskPointer.toFP16(length: maskLength),
-                                                   strideBytes: nil)
+            maskArray.writeBytes(maskPointer.toFP16(length: maskLength))
         } else {
-            sourceTensorData.mpsndarray().writeBytes(input, strideBytes: nil)
-            maskTensorData.mpsndarray().writeBytes(maskPointer, strideBytes: nil)
+            sourceArray.writeBytes(input)
+            maskArray.writeBytes(maskPointer)
         }
+
+        let sourceTensorData = MPSGraphTensorData(sourceArray)
+        let maskTensorData = MPSGraphTensorData(maskArray)
 
         let fetch = graph.run(feeds: [source.tensor: sourceTensorData,
                                       mask.tensor: maskTensorData],
@@ -1246,19 +1169,16 @@ class GlobalPoolingResidualBlock: NSObject {
                               targetOperations: nil)
 
         if useFP16 {
-            let outLength = batchSize.intValue * descriptor.finalConv.outChannels.intValue * nnYLen.intValue * nnXLen.intValue
-
+            let outLength = block.resultTensor.countElements()
             let outputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: outLength)
 
-            fetch[block.resultTensor]?.mpsndarray().readBytes(outputFP16,
-                                                              strideBytes: nil)
+            fetch[block.resultTensor]?.mpsndarray().readBytes(outputFP16)
 
             for i in 0..<outLength {
                 output[i] = Float32(outputFP16[i])
             }
         } else {
-            fetch[block.resultTensor]?.mpsndarray().readBytes(output,
-                                                              strideBytes: nil)
+            fetch[block.resultTensor]?.mpsndarray().readBytes(output)
         }
     }
 
@@ -1452,11 +1372,6 @@ class Trunk {
          useFP16: Bool,
          useNHWC: Bool) {
 
-        let inputGlobal = InputGlobalLayer(tensor: inputGlobalTensor)
-        let mask = MaskLayer(tensor: maskTensor)
-        let maskSum = MaskSumLayer(tensor: maskSumTensor)
-        let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(tensor: maskSumSqrtS14M01Tensor)
-
         let initialConv = ConvLayer(graph: graph,
                                     sourceTensor: inputTensor,
                                     descriptor: descriptor.initialConv,
@@ -1468,7 +1383,7 @@ class Trunk {
 
         let initialMatMul = MatMulLayer(graph: graph,
                                         descriptor: descriptor.initialMatMul,
-                                        sourceTensor: inputGlobal.tensor,
+                                        sourceTensor: inputGlobalTensor,
                                         useFP16: useFP16,
                                         useNHWC: useNHWC)
 
@@ -1491,7 +1406,7 @@ class Trunk {
             case .ordinary:
                 let ordinary = ResidualBlock(graph: graph,
                                              sourceTensor: blockInput,
-                                             maskTensor: mask.tensor,
+                                             maskTensor: maskTensor,
                                              descriptor: block.ordinary!,
                                              nnXLen: nnXLen,
                                              nnYLen: nnYLen,
@@ -1504,9 +1419,9 @@ class Trunk {
                 let globalPooling =
                 GlobalPoolingResidualBlock(graph: graph,
                                            sourceTensor: blockInput,
-                                           maskTensor: mask.tensor,
-                                           maskSumTensor: maskSum.tensor,
-                                           maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+                                           maskTensor: maskTensor,
+                                           maskSumTensor: maskSumTensor,
+                                           maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
                                            descriptor: block.globalPooling!,
                                            nnXLen: nnXLen,
                                            nnYLen: nnYLen,
@@ -1520,7 +1435,7 @@ class Trunk {
 
         let trunkTipBN = BatchNormLayer(graph: graph,
                                         sourceTensor: blockInput,
-                                        maskTensor: mask.tensor,
+                                        maskTensor: maskTensor,
                                         descriptor: descriptor.trunkTipBN,
                                         nnXLen: nnXLen,
                                         nnYLen: nnYLen,
@@ -1583,10 +1498,6 @@ class PolicyHead {
          useFP16: Bool,
          useNHWC: Bool) {
 
-        let mask = MaskLayer(tensor: maskTensor)
-        let maskSum = MaskSumLayer(tensor: maskSumTensor)
-        let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(tensor: maskSumSqrtS14M01Tensor)
-
         let p1Conv = ConvLayer(graph: graph,
                                sourceTensor: sourceTensor,
                                descriptor: descriptor.p1Conv,
@@ -1607,7 +1518,7 @@ class PolicyHead {
 
         let g1BN = BatchNormLayer(graph: graph,
                                   sourceTensor: g1Conv.resultTensor,
-                                  maskTensor: mask.tensor,
+                                  maskTensor: maskTensor,
                                   descriptor: descriptor.g1BN,
                                   nnXLen: nnXLen,
                                   nnYLen: nnYLen,
@@ -1619,8 +1530,8 @@ class PolicyHead {
 
         let g1Concat = GlobalPoolingLayer(graph: graph,
                                           sourceTensor: g1ReLU,
-                                          maskSumTensor: maskSum.tensor,
-                                          maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
+                                          maskSumTensor: maskSumTensor,
+                                          maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
                                           useFP16: useFP16,
                                           useNHWC: useNHWC)
 
@@ -1645,7 +1556,7 @@ class PolicyHead {
 
         let p1BN = BatchNormLayer(graph: graph,
                                   sourceTensor: added.resultTensor,
-                                  maskTensor: mask.tensor,
+                                  maskTensor: maskTensor,
                                   descriptor: descriptor.p1BN,
                                   nnXLen: nnXLen,
                                   nnYLen: nnYLen,
@@ -1726,11 +1637,6 @@ class ValueHead {
          batchSize: NSNumber,
          useFP16: Bool,
          useNHWC: Bool) {
-        let mask = MaskLayer(tensor: maskTensor)
-        let maskSum = MaskSumLayer(tensor: maskSumTensor)
-        let maskSumSqrtS14M01 = MaskSumSqrtS14M01Layer(tensor: maskSumSqrtS14M01Tensor)
-        let maskSumSqrtS14M01SquareS01 =
-        MaskSumSqrtS14M01SquareS01Layer(tensor: maskSumSqrtS14M01SquareS01Tensor)
 
         let v1Conv = ConvLayer(graph: graph,
                                sourceTensor: sourceTensor,
@@ -1743,7 +1649,7 @@ class ValueHead {
 
         let v1BN = BatchNormLayer(graph: graph,
                                   sourceTensor: v1Conv.resultTensor,
-                                  maskTensor: mask.tensor,
+                                  maskTensor: maskTensor,
                                   descriptor: descriptor.v1BN,
                                   nnXLen: nnXLen,
                                   nnYLen: nnYLen,
@@ -1756,9 +1662,9 @@ class ValueHead {
         let v1Mean =
         GlobalPoolingValueLayer(graph: graph,
                                 sourceTensor: v1ReLU,
-                                maskSumTensor: maskSum.tensor,
-                                maskSumSqrtS14M01Tensor: maskSumSqrtS14M01.tensor,
-                                maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01.tensor,
+                                maskSumTensor: maskSumTensor,
+                                maskSumSqrtS14M01Tensor: maskSumSqrtS14M01Tensor,
+                                maskSumSqrtS14M01SquareS01Tensor: maskSumSqrtS14M01SquareS01Tensor,
                                 useFP16: useFP16,
                                 useNHWC: useNHWC)
 
@@ -1891,8 +1797,6 @@ class Model {
     let scoreValueFP16: UnsafeMutablePointer<Float16>?
     let ownershipCount: Int
     let ownershipFP16: UnsafeMutablePointer<Float16>?
-    let inputData: MPSGraphTensorData
-    let inputGlobalData: MPSGraphTensorData
     let inputArray: MPSNDArray
     let inputGlobalArray: MPSNDArray
     let feeds: [MPSGraphTensor: MPSGraphTensorData]
@@ -2001,13 +1905,13 @@ class Model {
                               useFP16: useFP16,
                               useNHWC: useNHWC)
 
-        inputCount = input.tensor.shape!.product().intValue
-        inputGlobalCount = inputGlobal.tensor.shape!.product().intValue
-        policyCount = policyHead.policyTensor.shape!.product().intValue
-        policyPassCount = policyHead.policyPassTensor.shape!.product().intValue
-        valueCount = valueHead.valueTensor.shape!.product().intValue
-        scoreValueCount = valueHead.scoreValueTensor.shape!.product().intValue
-        ownershipCount = valueHead.ownershipTensor.shape!.product().intValue
+        inputCount = input.tensor.countElements()
+        inputGlobalCount = inputGlobal.tensor.countElements()
+        policyCount = policyHead.policyTensor.countElements()
+        policyPassCount = policyHead.policyPassTensor.countElements()
+        valueCount = valueHead.valueTensor.countElements()
+        scoreValueCount = valueHead.scoreValueTensor.countElements()
+        ownershipCount = valueHead.ownershipTensor.countElements()
 
         if useFP16 {
             inputFP16 = UnsafeMutablePointer<Float16>.allocate(capacity: inputCount)
@@ -2027,17 +1931,14 @@ class Model {
             ownershipFP16 = nil
         }
 
-        inputData = MPSGraphTensorData(device: device, tensor: input.tensor)!
+        inputArray = MPSNDArray(device: device.metalDevice!,
+                                tensor: input.tensor)!
 
-        inputArray = inputData.mpsndarray()
+        inputGlobalArray = MPSNDArray(device: device.metalDevice!,
+                                      tensor: inputGlobal.tensor)!
 
-        inputGlobalData = MPSGraphTensorData(device: device,
-                                             tensor: inputGlobal.tensor)!
-
-        inputGlobalArray = inputGlobalData.mpsndarray()
-
-        feeds = [input.tensor: inputData,
-                 inputGlobal.tensor: inputGlobalData]
+        feeds = [input.tensor: MPSGraphTensorData(inputArray),
+                 inputGlobal.tensor: MPSGraphTensorData(inputGlobalArray)]
 
         targetTensors = [policyHead.policyTensor,
                          policyHead.policyPassTensor,
@@ -2056,17 +1957,17 @@ class Model {
         if let inputFP16 {
             assert(useFP16)
             inputPointer.toFP16(inputFP16, length: inputCount)
-            inputArray.writeBytes(inputFP16, strideBytes: nil)
+            inputArray.writeBytes(inputFP16)
         } else {
             assert(!useFP16)
-            inputArray.writeBytes(inputPointer, strideBytes: nil)
+            inputArray.writeBytes(inputPointer)
         }
 
         if let inputGlobalFP16 {
             inputGlobalPointer.toFP16(inputGlobalFP16, length: inputGlobalCount)
-            inputGlobalArray.writeBytes(inputGlobalFP16, strideBytes: nil)
+            inputGlobalArray.writeBytes(inputGlobalFP16)
         } else {
-            inputGlobalArray.writeBytes(inputGlobalPointer, strideBytes: nil)
+            inputGlobalArray.writeBytes(inputGlobalPointer)
         }
 
         let commandBuffer = MPSCommandBuffer(commandBuffer: commandQueue.makeCommandBuffer()!)
@@ -2081,54 +1982,44 @@ class Model {
         commandBuffer.waitUntilCompleted()
 
         if let policyFP16 {
-            fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policyFP16,
-                                                                   strideBytes: nil)
+            fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policyFP16)
 
             policyFP16.toFP32(policy, length: policyCount)
         } else {
-            fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policy,
-                                                                   strideBytes: nil)
+            fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policy)
 
         }
 
         if let policyPassFP16 {
-            fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPassFP16,
-                                                                       strideBytes: nil)
+            fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPassFP16)
 
             policyPassFP16.toFP32(policyPass, length: policyPassCount)
         } else {
-            fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPass,
-                                                                       strideBytes: nil)
+            fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPass)
         }
 
         if let valueFP16 {
-            fetch[valueHead.valueTensor]?.mpsndarray().readBytes(valueFP16,
-                                                                 strideBytes: nil)
+            fetch[valueHead.valueTensor]?.mpsndarray().readBytes(valueFP16)
 
             valueFP16.toFP32(value, length: valueCount)
         } else {
-            fetch[valueHead.valueTensor]?.mpsndarray().readBytes(value,
-                                                                 strideBytes: nil)
+            fetch[valueHead.valueTensor]?.mpsndarray().readBytes(value)
         }
 
         if let scoreValueFP16 {
-            fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValueFP16,
-                                                                      strideBytes: nil)
+            fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValueFP16)
 
             scoreValueFP16.toFP32(scoreValue, length: scoreValueCount)
         } else {
-            fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValue,
-                                                                      strideBytes: nil)
+            fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValue)
         }
 
         if let ownershipFP16 {
-            fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownershipFP16,
-                                                                     strideBytes: nil)
+            fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownershipFP16)
 
             ownershipFP16.toFP32(ownership, length: ownershipCount)
         } else {
-            fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownership,
-                                                                     strideBytes: nil)
+            fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownership)
         }
     }
 }

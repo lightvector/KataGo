@@ -156,10 +156,10 @@ final class MaskSumLayerTest: XCTestCase {
                               targetTensors: [maskSumLayer.tensor],
                               targetOperations: nil)
 
-        let length = Int(truncating: shape.product())
+        let length = shape.countElements()
         let buffer = UnsafeMutablePointer<Float32>.allocate(capacity: length)
 
-        fetch[maskSumLayer.tensor]?.mpsndarray().readBytes(buffer, strideBytes: nil)
+        fetch[maskSumLayer.tensor]?.mpsndarray().readBytes(buffer)
 
         XCTAssert(maskSumLayer.tensor.shape == [2, 1, 1, 1])
         XCTAssertEqual(buffer[0], 12)
@@ -183,10 +183,10 @@ final class MaskSumLayerTest: XCTestCase {
                               targetTensors: [maskSumLayer.tensor],
                               targetOperations: nil)
 
-        let length = Int(truncating: shape.product())
+        let length = shape.countElements()
         let buffer = UnsafeMutablePointer<Float32>.allocate(capacity: length)
 
-        fetch[maskSumLayer.tensor]?.mpsndarray().readBytes(buffer, strideBytes: nil)
+        fetch[maskSumLayer.tensor]?.mpsndarray().readBytes(buffer)
 
         XCTAssertEqual(buffer[0], 12)
         XCTAssertEqual(buffer[1], 12)
@@ -209,10 +209,10 @@ final class MaskSumLayerTest: XCTestCase {
                               targetTensors: [maskSumLayer.tensor],
                               targetOperations: nil)
 
-        let length = Int(truncating: shape.product())
+        let length = shape.countElements()
         let buffer = UnsafeMutablePointer<Float32>.allocate(capacity: length)
 
-        fetch[maskSumLayer.tensor]?.mpsndarray().readBytes(buffer, strideBytes: nil)
+        fetch[maskSumLayer.tensor]?.mpsndarray().readBytes(buffer)
 
         XCTAssertEqual(buffer[0], 12)
         XCTAssertEqual(buffer[1], 12)
@@ -235,11 +235,10 @@ final class MaskSumSqrtS14M01LayerTest: XCTestCase {
                               targetTensors: [maskSumSqrtS14M01Layer.tensor],
                               targetOperations: nil)
 
-        let length = Int(truncating: shape.product())
+        let length = shape.countElements()
         let buffer = UnsafeMutablePointer<Float32>.allocate(capacity: length)
 
-        fetch[maskSumSqrtS14M01Layer.tensor]?.mpsndarray().readBytes(buffer,
-                                                                     strideBytes: nil)
+        fetch[maskSumSqrtS14M01Layer.tensor]?.mpsndarray().readBytes(buffer)
 
         XCTAssert(maskSumSqrtS14M01Layer.tensor.shape == [2, 1, 1, 1])
         XCTAssertEqual(buffer[0], -1.053589838486225, accuracy: 1e-8)
@@ -269,11 +268,10 @@ final class MaskSumSqrtS14M01LayerTest: XCTestCase {
                               targetTensors: [maskSumSqrtS14M01Layer.tensor],
                               targetOperations: nil)
 
-        let length = Int(truncating: shape.product())
+        let length = shape.countElements()
         let buffer = UnsafeMutablePointer<Float32>.allocate(capacity: length)
 
-        fetch[maskSumSqrtS14M01Layer.tensor]?.mpsndarray().readBytes(buffer,
-                                                                     strideBytes: nil)
+        fetch[maskSumSqrtS14M01Layer.tensor]?.mpsndarray().readBytes(buffer)
 
         XCTAssert(maskSumSqrtS14M01Layer.tensor.shape == [2, 1, 1, 1])
         XCTAssertEqual(buffer[0], -1.053589838486225, accuracy: 1e-8)
@@ -303,11 +301,10 @@ final class MaskSumSqrtS14M01LayerTest: XCTestCase {
                               targetTensors: [maskSumSqrtS14M01Layer.tensor],
                               targetOperations: nil)
 
-        let length = Int(truncating: shape.product())
+        let length = shape.countElements()
         let buffer = UnsafeMutablePointer<Float16>.allocate(capacity: length)
 
-        fetch[maskSumSqrtS14M01Layer.tensor]?.mpsndarray().readBytes(buffer,
-                                                                     strideBytes: nil)
+        fetch[maskSumSqrtS14M01Layer.tensor]?.mpsndarray().readBytes(buffer)
 
         XCTAssert(maskSumSqrtS14M01Layer.tensor.shape == [2, 1, 1, 1])
         XCTAssertEqual(buffer[0], -1.053589838486225, accuracy: 1e-4)
@@ -331,11 +328,10 @@ final class MaskSumSqrtS14M01SquareS01LayerTest: XCTestCase {
                               targetTensors: [maskSumSqrtS14M01SquareS01Layer.tensor],
                               targetOperations: nil)
 
-        let length = Int(truncating: shape.product())
+        let length = shape.countElements()
         let buffer = UnsafeMutablePointer<Float32>.allocate(capacity: length)
 
-        fetch[maskSumSqrtS14M01SquareS01Layer.tensor]?.mpsndarray().readBytes(buffer,
-                                                                              strideBytes: nil)
+        fetch[maskSumSqrtS14M01SquareS01Layer.tensor]?.mpsndarray().readBytes(buffer)
 
         XCTAssert(maskSumSqrtS14M01SquareS01Layer.tensor.shape == [2, 1, 1, 1])
         XCTAssertEqual(buffer[0], 1.010051547761429, accuracy: 1e-8)
@@ -369,11 +365,10 @@ final class MaskSumSqrtS14M01SquareS01LayerTest: XCTestCase {
                               targetTensors: [maskSumSqrtS14M01SquareS01Layer.tensor],
                               targetOperations: nil)
 
-        let length = Int(truncating: shape.product())
+        let length = shape.countElements()
         let buffer = UnsafeMutablePointer<Float32>.allocate(capacity: length)
 
-        fetch[maskSumSqrtS14M01SquareS01Layer.tensor]?.mpsndarray().readBytes(buffer,
-                                                                              strideBytes: nil)
+        fetch[maskSumSqrtS14M01SquareS01Layer.tensor]?.mpsndarray().readBytes(buffer)
 
         XCTAssert(maskSumSqrtS14M01SquareS01Layer.tensor.shape == [2, 1, 1, 1])
         XCTAssertEqual(buffer[0], 1.010051547761429, accuracy: 1e-8)
@@ -407,11 +402,10 @@ final class MaskSumSqrtS14M01SquareS01LayerTest: XCTestCase {
                               targetTensors: [maskSumSqrtS14M01SquareS01Layer.tensor],
                               targetOperations: nil)
 
-        let length = Int(truncating: shape.product())
+        let length = shape.countElements()
         let buffer = UnsafeMutablePointer<Float16>.allocate(capacity: length)
 
-        fetch[maskSumSqrtS14M01SquareS01Layer.tensor]?.mpsndarray().readBytes(buffer,
-                                                                              strideBytes: nil)
+        fetch[maskSumSqrtS14M01SquareS01Layer.tensor]?.mpsndarray().readBytes(buffer)
 
         XCTAssert(maskSumSqrtS14M01SquareS01Layer.tensor.shape == [2, 1, 1, 1])
         XCTAssertEqual(buffer[0], 1.010051547761429, accuracy: 1e-4)
@@ -1119,19 +1113,19 @@ final class ResidualBlockTest: XCTestCase {
             maskPointer[i] = 1
         }
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let inputArray = MPSNDArray(device: mtlDevice,
+                                    tensor: input.tensor)!
 
-        let inputTensorData = MPSGraphTensorData(device: device,
-                                                 tensor: input.tensor)!
+        inputArray.writeBytes(inputPointer)
 
-        inputTensorData.mpsndarray().writeBytes(inputPointer,
-                                                strideBytes: nil)
+        let maskArray = MPSNDArray(device: mtlDevice,
+                                   tensor: mask.tensor)!
 
-        let maskTensorData = MPSGraphTensorData(device: device,
-                                                tensor: mask.tensor)!
+        maskArray.writeBytes(maskPointer)
 
-        maskTensorData.mpsndarray().writeBytes(maskPointer,
-                                               strideBytes: nil)
+        let inputTensorData = MPSGraphTensorData(inputArray)
+        let maskTensorData = MPSGraphTensorData(maskArray)
 
         let fetch = graph.run(feeds: [input.tensor: inputTensorData,
                                       mask.tensor: maskTensorData],
@@ -1140,8 +1134,7 @@ final class ResidualBlockTest: XCTestCase {
 
         let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
 
-        fetch[block.resultTensor]?.mpsndarray().readBytes(outputPointer,
-                                                          strideBytes: nil)
+        fetch[block.resultTensor]?.mpsndarray().readBytes(outputPointer)
 
         XCTAssertEqual(outputPointer[0], 0, accuracy: 1e-8)
         XCTAssertEqual(outputPointer[1], 2, accuracy: 1e-8)
@@ -1596,13 +1589,12 @@ final class MatMulLayerTest: XCTestCase {
          *                  5, 19, 33, 47}
          */
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let inputArray = MPSNDArray(device: mtlDevice,
+                                    tensor: input.tensor)!
 
-        let inputTensorData = MPSGraphTensorData(device: device,
-                                                 tensor: input.tensor)!
-
-        inputTensorData.mpsndarray().writeBytes(inputPointer,
-                                                strideBytes: nil)
+        inputArray.writeBytes(inputPointer)
+        let inputTensorData = MPSGraphTensorData(inputArray)
 
         let fetch = graph.run(feeds: [input.tensor: inputTensorData],
                               targetTensors: [matMulLayer.resultTensor],
@@ -1611,8 +1603,7 @@ final class MatMulLayerTest: XCTestCase {
         let outputCount = batchSize * nnXLen * nnYLen * outChannels
         let outputPointer = UnsafeMutablePointer<Float16>.allocate(capacity: outputCount)
 
-        fetch[matMulLayer.resultTensor]?.mpsndarray().readBytes(outputPointer,
-                                                                strideBytes: nil)
+        fetch[matMulLayer.resultTensor]?.mpsndarray().readBytes(outputPointer)
 
         XCTAssertEqual(outputPointer[0], 3, accuracy: 1e-4)
         XCTAssertEqual(outputPointer[1], 4, accuracy: 1e-4)
@@ -1686,13 +1677,12 @@ final class MatMulLayerTest: XCTestCase {
          *                  5, 19, 33, 47}
          */
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let inputArray = MPSNDArray(device: mtlDevice,
+                                    tensor: input.tensor)!
 
-        let inputTensorData = MPSGraphTensorData(device: device,
-                                                 tensor: input.tensor)!
-
-        inputTensorData.mpsndarray().writeBytes(inputPointer,
-                                                strideBytes: nil)
+        inputArray.writeBytes(inputPointer)
+        let inputTensorData = MPSGraphTensorData(inputArray)
 
         let fetch = graph.run(feeds: [input.tensor: inputTensorData],
                               targetTensors: [matMulLayer.resultTensor],
@@ -1701,8 +1691,7 @@ final class MatMulLayerTest: XCTestCase {
         let outputCount = batchSize * nnXLen * nnYLen * outChannels
         let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: outputCount)
 
-        fetch[matMulLayer.resultTensor]?.mpsndarray().readBytes(outputPointer,
-                                                                strideBytes: nil)
+        fetch[matMulLayer.resultTensor]?.mpsndarray().readBytes(outputPointer)
 
         XCTAssertEqual(outputPointer[0], 3, accuracy: 1e-8)
         XCTAssertEqual(outputPointer[1], 4, accuracy: 1e-8)
@@ -1770,13 +1759,12 @@ final class MatMulLayerTest: XCTestCase {
          *                  56, 68, 80, 92}
          */
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let inputArray = MPSNDArray(device: mtlDevice,
+                                    tensor: inputTensor)!
 
-        let inputTensorData = MPSGraphTensorData(device: device,
-                                                 tensor: inputTensor)!
-
-        inputTensorData.mpsndarray().writeBytes(inputPointer,
-                                                strideBytes: nil)
+        inputArray.writeBytes(inputPointer)
+        let inputTensorData = MPSGraphTensorData(inputArray)
 
         let fetch = graph.run(feeds: [inputTensor: inputTensorData],
                               targetTensors: [matMulLayer.resultTensor],
@@ -1785,8 +1773,7 @@ final class MatMulLayerTest: XCTestCase {
         let outputCount = batchSize * outChannels
         let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: outputCount)
 
-        fetch[matMulLayer.resultTensor]?.mpsndarray().readBytes(outputPointer,
-                                                                strideBytes: nil)
+        fetch[matMulLayer.resultTensor]?.mpsndarray().readBytes(outputPointer)
 
         XCTAssertEqual(outputPointer[0], 20, accuracy: 1e-8)
         XCTAssertEqual(outputPointer[1], 23, accuracy: 1e-8)
@@ -1846,13 +1833,12 @@ final class MatMulLayerTest: XCTestCase {
         /* outputPointer = {0, 1}
          */
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let inputArray = MPSNDArray(device: mtlDevice,
+                                    tensor: inputTensor)!
 
-        let inputTensorData = MPSGraphTensorData(device: device,
-                                                 tensor: inputTensor)!
-
-        inputTensorData.mpsndarray().writeBytes(inputPointer,
-                                                strideBytes: nil)
+        inputArray.writeBytes(inputPointer)
+        let inputTensorData = MPSGraphTensorData(inputArray)
 
         let fetch = graph.run(feeds: [inputTensor: inputTensorData],
                               targetTensors: [matMulLayer.resultTensor],
@@ -1861,8 +1847,7 @@ final class MatMulLayerTest: XCTestCase {
         let outputCount = batchSize * outChannels
         let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: outputCount)
 
-        fetch[matMulLayer.resultTensor]?.mpsndarray().readBytes(outputPointer,
-                                                                strideBytes: nil)
+        fetch[matMulLayer.resultTensor]?.mpsndarray().readBytes(outputPointer)
 
         XCTAssertEqual(outputPointer[0], 0, accuracy: 1e-8)
         XCTAssertEqual(outputPointer[1], 1, accuracy: 1e-8)
@@ -1903,13 +1888,12 @@ final class MatBiasLayerTest: XCTestCase {
             inputPointer[i] = Float16(i)
         }
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let inputArray = MPSNDArray(device: mtlDevice,
+                                    tensor: inputTensor)!
 
-        let inputTensorData = MPSGraphTensorData(device: device,
-                                                 tensor: inputTensor)!
-
-        inputTensorData.mpsndarray().writeBytes(inputPointer,
-                                                strideBytes: nil)
+        inputArray.writeBytes(inputPointer)
+        let inputTensorData = MPSGraphTensorData(inputArray)
 
         let fetch = graph.run(feeds: [inputTensor: inputTensorData],
                               targetTensors: [matBiasLayer.resultTensor],
@@ -1917,8 +1901,7 @@ final class MatBiasLayerTest: XCTestCase {
 
         let outputPointer = UnsafeMutablePointer<Float16>.allocate(capacity: 16)
 
-        fetch[matBiasLayer.resultTensor]?.mpsndarray().readBytes(outputPointer,
-                                                                 strideBytes: nil)
+        fetch[matBiasLayer.resultTensor]?.mpsndarray().readBytes(outputPointer)
 
         XCTAssertEqual(outputPointer[0], 1, accuracy: 1e-4)
         XCTAssertEqual(outputPointer[1], 0, accuracy: 1e-4)
@@ -1959,13 +1942,12 @@ final class MatBiasLayerTest: XCTestCase {
             inputPointer[i] = Float32(i)
         }
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let inputArray = MPSNDArray(device: mtlDevice,
+                                    tensor: inputTensor)!
 
-        let inputTensorData = MPSGraphTensorData(device: device,
-                                                 tensor: inputTensor)!
-
-        inputTensorData.mpsndarray().writeBytes(inputPointer,
-                                                strideBytes: nil)
+        inputArray.writeBytes(inputPointer)
+        let inputTensorData = MPSGraphTensorData(inputArray)
 
         let fetch = graph.run(feeds: [inputTensor: inputTensorData],
                               targetTensors: [matBiasLayer.resultTensor],
@@ -1973,8 +1955,7 @@ final class MatBiasLayerTest: XCTestCase {
 
         let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: 16)
 
-        fetch[matBiasLayer.resultTensor]?.mpsndarray().readBytes(outputPointer,
-                                                                 strideBytes: nil)
+        fetch[matBiasLayer.resultTensor]?.mpsndarray().readBytes(outputPointer)
 
         XCTAssertEqual(outputPointer[0], 1, accuracy: 1e-8)
         XCTAssertEqual(outputPointer[1], 0, accuracy: 1e-8)
@@ -2029,13 +2010,12 @@ final class MatBiasLayerTest: XCTestCase {
         /* outputPointer = {1, 2}
          */
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let inputArray = MPSNDArray(device: mtlDevice,
+                                    tensor: inputTensor)!
 
-        let inputTensorData = MPSGraphTensorData(device: device,
-                                                 tensor: inputTensor)!
-
-        inputTensorData.mpsndarray().writeBytes(inputPointer,
-                                                strideBytes: nil)
+        inputArray.writeBytes(inputPointer)
+        let inputTensorData = MPSGraphTensorData(inputArray)
 
         let fetch = graph.run(feeds: [inputTensor: inputTensorData],
                               targetTensors: [matBiasLayer.resultTensor],
@@ -2044,8 +2024,7 @@ final class MatBiasLayerTest: XCTestCase {
         let outputCount = batchSize * numChannels
         let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: outputCount)
 
-        fetch[matBiasLayer.resultTensor]?.mpsndarray().readBytes(outputPointer,
-                                                                 strideBytes: nil)
+        fetch[matBiasLayer.resultTensor]?.mpsndarray().readBytes(outputPointer)
 
         XCTAssertEqual(outputPointer[0], 1, accuracy: 1e-8)
         XCTAssertEqual(outputPointer[1], 2, accuracy: 1e-8)
@@ -2234,25 +2213,24 @@ final class TrunkTest: XCTestCase {
             maskPointer[i] = 1
         }
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let inputArray = MPSNDArray(device: mtlDevice,
+                                    tensor: input.tensor)!
 
-        let inputTensorData = MPSGraphTensorData(device: device,
-                                                 tensor: input.tensor)!
+        inputArray.writeBytes(inputPointer)
+        let inputTensorData = MPSGraphTensorData(inputArray)
 
-        inputTensorData.mpsndarray().writeBytes(inputPointer,
-                                                strideBytes: nil)
+        let inputGlobalArray = MPSNDArray(device: mtlDevice,
+                                    tensor: inputGlobal.tensor)!
 
-        let inputGlobalTensorData = MPSGraphTensorData(device: device,
-                                                       tensor: inputGlobal.tensor)!
+        inputGlobalArray.writeBytes(inputGlobalPointer)
+        let inputGlobalTensorData = MPSGraphTensorData(inputGlobalArray)
 
-        inputGlobalTensorData.mpsndarray().writeBytes(inputGlobalPointer,
-                                                      strideBytes: nil)
+        let maskArray = MPSNDArray(device: mtlDevice,
+                                    tensor: mask.tensor)!
 
-        let maskTensorData = MPSGraphTensorData(device: device,
-                                                tensor: mask.tensor)!
-
-        maskTensorData.mpsndarray().writeBytes(maskPointer,
-                                               strideBytes: nil)
+        maskArray.writeBytes(maskPointer)
+        let maskTensorData = MPSGraphTensorData(maskArray)
 
         let fetch = graph.run(feeds: [input.tensor: inputTensorData,
                                       inputGlobal.tensor: inputGlobalTensorData,
@@ -2262,8 +2240,7 @@ final class TrunkTest: XCTestCase {
 
         let outputPointer = UnsafeMutablePointer<Float32>.allocate(capacity: inputCount)
 
-        fetch[trunk.resultTensor]?.mpsndarray().readBytes(outputPointer,
-                                                          strideBytes: nil)
+        fetch[trunk.resultTensor]?.mpsndarray().readBytes(outputPointer)
 
         XCTAssertEqual(outputPointer[0], 4, accuracy: 1e-8)
         XCTAssertEqual(outputPointer[1], 8, accuracy: 1e-8)
@@ -2423,19 +2400,18 @@ final class PolicyHeadTest: XCTestCase {
             maskPointer[i] = 1
         }
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let inputArray = MPSNDArray(device: mtlDevice,
+                                    tensor: input.tensor)!
 
-        let inputTensorData = MPSGraphTensorData(device: device,
-                                                 tensor: input.tensor)!
+        inputArray.writeBytes(inputPointer)
+        let inputTensorData = MPSGraphTensorData(inputArray)
 
-        inputTensorData.mpsndarray().writeBytes(inputPointer,
-                                                strideBytes: nil)
+        let maskArray = MPSNDArray(device: mtlDevice,
+                                    tensor: mask.tensor)!
 
-        let maskTensorData = MPSGraphTensorData(device: device,
-                                                tensor: mask.tensor)!
-
-        maskTensorData.mpsndarray().writeBytes(maskPointer,
-                                               strideBytes: nil)
+        maskArray.writeBytes(maskPointer)
+        let maskTensorData = MPSGraphTensorData(maskArray)
 
         let fetch = graph.run(feeds: [input.tensor: inputTensorData,
                                       mask.tensor: maskTensorData],
@@ -2446,15 +2422,13 @@ final class PolicyHeadTest: XCTestCase {
         let policyCount = batchSize * outChannels * nnXLen * nnYLen
         let policyPointer = UnsafeMutablePointer<Float32>.allocate(capacity: policyCount)
 
-        fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policyPointer,
-                                                               strideBytes: nil)
+        fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policyPointer)
 
         let policyPassCount = batchSize
 
         let policyPassPointer = UnsafeMutablePointer<Float32>.allocate(capacity: policyPassCount)
 
-        fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPassPointer,
-                                                                   strideBytes: nil)
+        fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPassPointer)
 
         XCTAssertEqual(policyPointer[0], 2, accuracy: 1e-8)
         XCTAssertEqual(policyPointer[1], 3, accuracy: 1e-8)
@@ -2494,10 +2468,10 @@ final class ComboLayerTest: XCTestCase {
                                            biasTensor,
                                            name: nil)
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
-
-        let inputTensorData = MPSGraphTensorData(device: device,
-                                                 tensor: inputTensor)!
+        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let inputArray = MPSNDArray(device: mtlDevice,
+                                    tensor: inputTensor)!
+        let inputTensorData = MPSGraphTensorData(inputArray)
 
         graph.run(feeds: [inputTensor: inputTensorData],
                   targetTensors: [matBiasTensor],
@@ -2693,19 +2667,18 @@ final class ValueHeadTest: XCTestCase {
             maskPointer[i] = 1
         }
 
-        let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
+        let mtlDevice = MTLCreateSystemDefaultDevice()!
+        let inputArray = MPSNDArray(device: mtlDevice,
+                                    tensor: input.tensor)!
 
-        let inputTensorData = MPSGraphTensorData(device: device,
-                                                 tensor: input.tensor)!
+        inputArray.writeBytes(inputPointer)
+        let inputTensorData = MPSGraphTensorData(inputArray)
 
-        inputTensorData.mpsndarray().writeBytes(inputPointer,
-                                                strideBytes: nil)
+        let maskArray = MPSNDArray(device: mtlDevice,
+                                    tensor: mask.tensor)!
 
-        let maskTensorData = MPSGraphTensorData(device: device,
-                                                tensor: mask.tensor)!
-
-        maskTensorData.mpsndarray().writeBytes(maskPointer,
-                                               strideBytes: nil)
+        maskArray.writeBytes(maskPointer)
+        let maskTensorData = MPSGraphTensorData(maskArray)
 
         let fetch = graph.run(feeds: [input.tensor: inputTensorData,
                                       mask.tensor: maskTensorData],
@@ -2717,20 +2690,17 @@ final class ValueHeadTest: XCTestCase {
         let valueCount = batchSize * v3OutChannels
         let valuePointer = UnsafeMutablePointer<Float32>.allocate(capacity: valueCount)
 
-        fetch[valueHead.valueTensor]?.mpsndarray().readBytes(valuePointer,
-                                                             strideBytes: nil)
+        fetch[valueHead.valueTensor]?.mpsndarray().readBytes(valuePointer)
 
         let scoreValueCount = batchSize * v3OutChannels
         let scoreValuePointer = UnsafeMutablePointer<Float32>.allocate(capacity: scoreValueCount)
 
-        fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValuePointer,
-                                                                  strideBytes: nil)
+        fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValuePointer)
 
         let ownershipCount = batchSize * nnXLen * nnYLen * v3OutChannels
         let ownershipPointer = UnsafeMutablePointer<Float32>.allocate(capacity: ownershipCount)
 
-        fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownershipPointer,
-                                                                 strideBytes: nil)
+        fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownershipPointer)
 
         XCTAssertEqual(valuePointer[0], 0, accuracy: 1e-8)
         XCTAssertEqual(valuePointer[1], 0, accuracy: 1e-8)
@@ -2871,13 +2841,13 @@ final class ModelTest: XCTestCase {
                           useFP16: useFP16,
                           useNHWC: useNHWC)
 
-        var input = [Float](repeating: 1, count: 1)
-        var inputGlobal = [Float](repeating: 1, count: 1)
-        var policyOutput = [Float](repeating: 1, count: 1)
-        var policyPassOutput = [Float](repeating: 1, count: 1)
-        var valueOutput = [Float](repeating: 1, count: 1)
-        var scoreValueOutput = [Float](repeating: 1, count: 1)
-        var ownershipOutput = [Float](repeating: 1, count: 1)
+        var input = [Float32](repeating: 1, count: 1)
+        var inputGlobal = [Float32](repeating: 1, count: 1)
+        var policyOutput = [Float32](repeating: 1, count: 1)
+        var policyPassOutput = [Float32](repeating: 1, count: 1)
+        var valueOutput = [Float32](repeating: 1, count: 1)
+        var scoreValueOutput = [Float32](repeating: 1, count: 1)
+        var ownershipOutput = [Float32](repeating: 1, count: 1)
 
         model.apply(input: &input,
                     inputGlobal: &inputGlobal,
@@ -2897,13 +2867,13 @@ final class ModelTest: XCTestCase {
         let model = createMiniModel(useFP16: useFP16,
                                     useNHWC: useNHWC)
 
-        var input = [Float](repeating: 1, count: 1)
-        var inputGlobal = [Float](repeating: 1, count: 1)
-        var policyOutput = [Float](repeating: 1, count: 1)
-        var policyPassOutput = [Float](repeating: 1, count: 1)
-        var valueOutput = [Float](repeating: 1, count: 1)
-        var scoreValueOutput = [Float](repeating: 1, count: 1)
-        var ownershipOutput = [Float](repeating: 1, count: 1)
+        var input = [Float32](repeating: 1, count: 1)
+        var inputGlobal = [Float32](repeating: 1, count: 1)
+        var policyOutput = [Float32](repeating: 1, count: 1)
+        var policyPassOutput = [Float32](repeating: 1, count: 1)
+        var valueOutput = [Float32](repeating: 1, count: 1)
+        var scoreValueOutput = [Float32](repeating: 1, count: 1)
+        var ownershipOutput = [Float32](repeating: 1, count: 1)
 
         model.apply(input: &input,
                     inputGlobal: &inputGlobal,
@@ -2927,13 +2897,13 @@ final class ModelTest: XCTestCase {
         let model = createMiniModel(useFP16: useFP16,
                                     useNHWC: useNHWC)
 
-        var input = [Float](repeating: 1, count: 1)
-        var inputGlobal = [Float](repeating: 1, count: 1)
-        var policyOutput = [Float](repeating: 1, count: 1)
-        var policyPassOutput = [Float](repeating: 1, count: 1)
-        var valueOutput = [Float](repeating: 1, count: 1)
-        var scoreValueOutput = [Float](repeating: 1, count: 1)
-        var ownershipOutput = [Float](repeating: 1, count: 1)
+        var input = [Float32](repeating: 1, count: 1)
+        var inputGlobal = [Float32](repeating: 1, count: 1)
+        var policyOutput = [Float32](repeating: 1, count: 1)
+        var policyPassOutput = [Float32](repeating: 1, count: 1)
+        var valueOutput = [Float32](repeating: 1, count: 1)
+        var scoreValueOutput = [Float32](repeating: 1, count: 1)
+        var ownershipOutput = [Float32](repeating: 1, count: 1)
 
         model.apply(input: &input,
                     inputGlobal: &inputGlobal,
@@ -2957,13 +2927,13 @@ final class ModelTest: XCTestCase {
         let model = createMiniModel(useFP16: useFP16,
                                     useNHWC: useNHWC)
 
-        var input = [Float](repeating: 1, count: 1)
-        var inputGlobal = [Float](repeating: 1, count: 1)
-        var policyOutput = [Float](repeating: 1, count: 1)
-        var policyPassOutput = [Float](repeating: 1, count: 1)
-        var valueOutput = [Float](repeating: 1, count: 1)
-        var scoreValueOutput = [Float](repeating: 1, count: 1)
-        var ownershipOutput = [Float](repeating: 1, count: 1)
+        var input = [Float32](repeating: 1, count: 1)
+        var inputGlobal = [Float32](repeating: 1, count: 1)
+        var policyOutput = [Float32](repeating: 1, count: 1)
+        var policyPassOutput = [Float32](repeating: 1, count: 1)
+        var valueOutput = [Float32](repeating: 1, count: 1)
+        var scoreValueOutput = [Float32](repeating: 1, count: 1)
+        var ownershipOutput = [Float32](repeating: 1, count: 1)
 
         model.apply(input: &input,
                     inputGlobal: &inputGlobal,
@@ -3376,7 +3346,7 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
-        let numEvals = 128
+        let numEvals = 64
         let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
@@ -3421,7 +3391,7 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
-        let numEvals = 128
+        let numEvals = 64
         let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
@@ -3466,7 +3436,7 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
-        let numEvals = 128
+        let numEvals = 64
         let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
@@ -3511,52 +3481,7 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
-        let numEvals = 128
-        let iteration: Int = (numEvals + batchSize - 1) / batchSize
-
-        let model = createModelB40C256(batchSize: batchSize,
-                                       nnYLen: nnYLen,
-                                       nnXLen: nnXLen,
-                                       numInputChannels: numInputChannels,
-                                       numInputGlobalChannels: numInputGlobalChannels,
-                                       numValueChannels: numValueChannels,
-                                       numScoreValueChannels: numScoreValueChannels,
-                                       numOwnershipChannels: numOwnershipChannels)
-
-        let (input, inputGlobal, policy, policyPass, value, scoreValue, ownership) =
-        createBuffers(batchSize: batchSize,
-                      nnYLen: nnYLen,
-                      nnXLen: nnXLen,
-                      numInputChannels: numInputChannels,
-                      numInputGlobalChannels: numInputGlobalChannels,
-                      numValueChannels: numValueChannels,
-                      numScoreValueChannels: numScoreValueChannels,
-                      numOwnershipChannels: numOwnershipChannels)
-
-        measure {
-            for _ in 0..<iteration {
-                model.apply(input: input,
-                            inputGlobal: inputGlobal,
-                            policy: policy,
-                            policyPass: policyPass,
-                            value: value,
-                            scoreValue: scoreValue,
-                            ownership: ownership)
-            }
-        }
-    }
-
-    // Test 40 blocks, 256 channels, 128 batches
-    func testB40C256B128() {
-        let batchSize = 128
-        let nnYLen = 19
-        let nnXLen = 19
-        let numInputChannels = 22
-        let numInputGlobalChannels = 19
-        let numValueChannels = 3
-        let numScoreValueChannels = 6
-        let numOwnershipChannels = 1
-        let numEvals = 128
+        let numEvals = 64
         let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
