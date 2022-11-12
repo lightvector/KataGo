@@ -477,8 +477,9 @@ class ConvLayer: NSObject {
                                count: byteCount,
                                deallocator: .free)
         } else {
-            weightsData = Data(bytes: descriptor.weights,
-                               count: byteCount)
+            weightsData = Data(bytesNoCopy: descriptor.weights,
+                               count: byteCount,
+                               deallocator: .none)
         }
 
         let weightsTensor = graph.constant(weightsData,
@@ -653,17 +654,21 @@ class BatchNormLayer: NSObject {
                             count: byteCount,
                             deallocator: .free)
         } else {
-            meanData = Data(bytes: descriptor.mean,
-                            count: byteCount)
+            meanData = Data(bytesNoCopy: descriptor.mean,
+                            count: byteCount,
+                            deallocator: .none)
 
-            varianceData = Data(bytes: descriptor.variance,
-                                count: byteCount)
+            varianceData = Data(bytesNoCopy: descriptor.variance,
+                                count: byteCount,
+                                deallocator: .none)
 
-            scaleData = Data(bytes: descriptor.scale,
-                             count: byteCount)
+            scaleData = Data(bytesNoCopy: descriptor.scale,
+                             count: byteCount,
+                             deallocator: .none)
 
-            biasData = Data(bytes: descriptor.bias,
-                            count: byteCount)
+            biasData = Data(bytesNoCopy: descriptor.bias,
+                            count: byteCount,
+                            deallocator: .none)
         }
 
         let meanTensor = graph.constant(meanData,
@@ -831,6 +836,7 @@ class ResidualBlock: NSObject {
                                    useNHWC: useNHWC)
 
         let preReLU = graph.reLU(with: preBN.resultTensor, name: nil)
+        assert(sourceTensor.shape == preReLU.shape)
 
         let regularConv = ConvLayer(graph: graph,
                                     sourceTensor: preReLU,
@@ -852,6 +858,7 @@ class ResidualBlock: NSObject {
                                    useNHWC: useNHWC)
 
         let midReLU = graph.reLU(with: midBN.resultTensor, name: nil)
+        assert(regularConv.resultTensor.shape == midReLU.shape)
 
         let finalConv = ConvLayer(graph: graph,
                                   sourceTensor: midReLU,
@@ -1019,8 +1026,9 @@ class MatMulLayer {
                                count: byteCount,
                                deallocator: .free)
         } else {
-            weightsData = Data(bytes: descriptor.weights,
-                               count: byteCount)
+            weightsData = Data(bytesNoCopy: descriptor.weights,
+                               count: byteCount,
+                               deallocator: .none)
         }
 
         let weightsTensor = graph.constant(weightsData,
@@ -1077,8 +1085,9 @@ class MatBiasLayer {
                                count: byteCount,
                                deallocator: .free)
         } else {
-            weightsData = Data(bytes: descriptor.weights,
-                               count: byteCount)
+            weightsData = Data(bytesNoCopy: descriptor.weights,
+                               count: byteCount,
+                               deallocator: .none)
         }
 
         let weightsTensor = graph.constant(weightsData,
