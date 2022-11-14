@@ -29,15 +29,13 @@ extension UnsafeMutablePointer<Float16> {
 }
 
 extension MPSNDArray {
-    convenience init?(device: MTLDevice, tensor: MPSGraphTensor) {
-        if let shape = tensor.shape {
-            let descriptor = MPSNDArrayDescriptor(dataType: tensor.dataType,
-                                                  shape: shape)
+    convenience init(device: MTLDevice, tensor: MPSGraphTensor) {
+        // Metal backend uses a fixed batch size,
+        // so every shape is determined at compile time.
+        let descriptor = MPSNDArrayDescriptor(dataType: tensor.dataType,
+                                              shape: tensor.shape!)
 
-            self.init(device: device, descriptor: descriptor)
-        } else {
-            return nil
-        }
+        self.init(device: device, descriptor: descriptor)
     }
 
     func writeBytes(_ buffer: UnsafeMutableRawPointer) {
@@ -358,7 +356,7 @@ class ConvLayer: NSObject {
                              useNHWC: useNHWC)
 
         let sourceArray = MPSNDArray(device: device.metalDevice!,
-                                     tensor: source.tensor)!
+                                     tensor: source.tensor)
 
         if useFP16 {
             let inLength = source.tensor.countElements()
@@ -518,10 +516,10 @@ class BatchNormLayer: NSObject {
                                        useNHWC: useNHWC)
 
         let sourceArray = MPSNDArray(device: device.metalDevice!,
-                                     tensor: source.tensor)!
+                                     tensor: source.tensor)
 
         let maskArray = MPSNDArray(device: device.metalDevice!,
-                                   tensor: mask.tensor)!
+                                   tensor: mask.tensor)
 
         if useFP16 {
             let inLength = source.tensor.countElements()
@@ -716,10 +714,10 @@ class ResidualBlock: NSObject {
                                   useNHWC: useNHWC)
 
         let sourceArray = MPSNDArray(device: device.metalDevice!,
-                                     tensor: source.tensor)!
+                                     tensor: source.tensor)
 
         let maskArray = MPSNDArray(device: device.metalDevice!,
-                                   tensor: mask.tensor)!
+                                   tensor: mask.tensor)
 
         if useFP16 {
             let inLength = source.tensor.countElements()
@@ -1143,10 +1141,10 @@ class GlobalPoolingResidualBlock: NSObject {
                                    useNHWC: useNHWC)
 
         let sourceArray = MPSNDArray(device: device.metalDevice!,
-                                     tensor: source.tensor)!
+                                     tensor: source.tensor)
 
         let maskArray = MPSNDArray(device: device.metalDevice!,
-                                   tensor: mask.tensor)!
+                                   tensor: mask.tensor)
 
         if useFP16 {
             let inLength = source.tensor.countElements()
@@ -1932,10 +1930,10 @@ class Model {
         }
 
         inputArray = MPSNDArray(device: device.metalDevice!,
-                                tensor: input.tensor)!
+                                tensor: input.tensor)
 
         inputGlobalArray = MPSNDArray(device: device.metalDevice!,
-                                      tensor: inputGlobal.tensor)!
+                                      tensor: inputGlobal.tensor)
 
         feeds = [input.tensor: MPSGraphTensorData(inputArray),
                  inputGlobal.tensor: MPSGraphTensorData(inputGlobalArray)]
@@ -2068,7 +2066,7 @@ class Model {
 
     /// Initialize a context.
     private convenience override init() {
-        self.init(nnXLen: 19, nnYLen: 19, useFP16Mode: .False, useNHWCMode: .False)
+        self.init(nnXLen: 19, nnYLen: 19, useFP16Mode: .Auto, useNHWCMode: .Auto)
     }
 
     /// Initialize a context.

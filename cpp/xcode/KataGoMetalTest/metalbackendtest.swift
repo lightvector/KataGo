@@ -1115,12 +1115,12 @@ final class ResidualBlockTest: XCTestCase {
 
         let mtlDevice = MTLCreateSystemDefaultDevice()!
         let inputArray = MPSNDArray(device: mtlDevice,
-                                    tensor: input.tensor)!
+                                    tensor: input.tensor)
 
         inputArray.writeBytes(inputPointer)
 
         let maskArray = MPSNDArray(device: mtlDevice,
-                                   tensor: mask.tensor)!
+                                   tensor: mask.tensor)
 
         maskArray.writeBytes(maskPointer)
 
@@ -1591,7 +1591,7 @@ final class MatMulLayerTest: XCTestCase {
 
         let mtlDevice = MTLCreateSystemDefaultDevice()!
         let inputArray = MPSNDArray(device: mtlDevice,
-                                    tensor: input.tensor)!
+                                    tensor: input.tensor)
 
         inputArray.writeBytes(inputPointer)
         let inputTensorData = MPSGraphTensorData(inputArray)
@@ -1679,7 +1679,7 @@ final class MatMulLayerTest: XCTestCase {
 
         let mtlDevice = MTLCreateSystemDefaultDevice()!
         let inputArray = MPSNDArray(device: mtlDevice,
-                                    tensor: input.tensor)!
+                                    tensor: input.tensor)
 
         inputArray.writeBytes(inputPointer)
         let inputTensorData = MPSGraphTensorData(inputArray)
@@ -1761,7 +1761,7 @@ final class MatMulLayerTest: XCTestCase {
 
         let mtlDevice = MTLCreateSystemDefaultDevice()!
         let inputArray = MPSNDArray(device: mtlDevice,
-                                    tensor: inputTensor)!
+                                    tensor: inputTensor)
 
         inputArray.writeBytes(inputPointer)
         let inputTensorData = MPSGraphTensorData(inputArray)
@@ -1835,7 +1835,7 @@ final class MatMulLayerTest: XCTestCase {
 
         let mtlDevice = MTLCreateSystemDefaultDevice()!
         let inputArray = MPSNDArray(device: mtlDevice,
-                                    tensor: inputTensor)!
+                                    tensor: inputTensor)
 
         inputArray.writeBytes(inputPointer)
         let inputTensorData = MPSGraphTensorData(inputArray)
@@ -1890,7 +1890,7 @@ final class MatBiasLayerTest: XCTestCase {
 
         let mtlDevice = MTLCreateSystemDefaultDevice()!
         let inputArray = MPSNDArray(device: mtlDevice,
-                                    tensor: inputTensor)!
+                                    tensor: inputTensor)
 
         inputArray.writeBytes(inputPointer)
         let inputTensorData = MPSGraphTensorData(inputArray)
@@ -1944,7 +1944,7 @@ final class MatBiasLayerTest: XCTestCase {
 
         let mtlDevice = MTLCreateSystemDefaultDevice()!
         let inputArray = MPSNDArray(device: mtlDevice,
-                                    tensor: inputTensor)!
+                                    tensor: inputTensor)
 
         inputArray.writeBytes(inputPointer)
         let inputTensorData = MPSGraphTensorData(inputArray)
@@ -2012,7 +2012,7 @@ final class MatBiasLayerTest: XCTestCase {
 
         let mtlDevice = MTLCreateSystemDefaultDevice()!
         let inputArray = MPSNDArray(device: mtlDevice,
-                                    tensor: inputTensor)!
+                                    tensor: inputTensor)
 
         inputArray.writeBytes(inputPointer)
         let inputTensorData = MPSGraphTensorData(inputArray)
@@ -2215,19 +2215,19 @@ final class TrunkTest: XCTestCase {
 
         let mtlDevice = MTLCreateSystemDefaultDevice()!
         let inputArray = MPSNDArray(device: mtlDevice,
-                                    tensor: input.tensor)!
+                                    tensor: input.tensor)
 
         inputArray.writeBytes(inputPointer)
         let inputTensorData = MPSGraphTensorData(inputArray)
 
         let inputGlobalArray = MPSNDArray(device: mtlDevice,
-                                    tensor: inputGlobal.tensor)!
+                                          tensor: inputGlobal.tensor)
 
         inputGlobalArray.writeBytes(inputGlobalPointer)
         let inputGlobalTensorData = MPSGraphTensorData(inputGlobalArray)
 
         let maskArray = MPSNDArray(device: mtlDevice,
-                                    tensor: mask.tensor)!
+                                   tensor: mask.tensor)
 
         maskArray.writeBytes(maskPointer)
         let maskTensorData = MPSGraphTensorData(maskArray)
@@ -2402,13 +2402,13 @@ final class PolicyHeadTest: XCTestCase {
 
         let mtlDevice = MTLCreateSystemDefaultDevice()!
         let inputArray = MPSNDArray(device: mtlDevice,
-                                    tensor: input.tensor)!
+                                    tensor: input.tensor)
 
         inputArray.writeBytes(inputPointer)
         let inputTensorData = MPSGraphTensorData(inputArray)
 
         let maskArray = MPSNDArray(device: mtlDevice,
-                                    tensor: mask.tensor)!
+                                   tensor: mask.tensor)
 
         maskArray.writeBytes(maskPointer)
         let maskTensorData = MPSGraphTensorData(maskArray)
@@ -2470,7 +2470,7 @@ final class ComboLayerTest: XCTestCase {
 
         let mtlDevice = MTLCreateSystemDefaultDevice()!
         let inputArray = MPSNDArray(device: mtlDevice,
-                                    tensor: inputTensor)!
+                                    tensor: inputTensor)
         let inputTensorData = MPSGraphTensorData(inputArray)
 
         graph.run(feeds: [inputTensor: inputTensorData],
@@ -2669,13 +2669,13 @@ final class ValueHeadTest: XCTestCase {
 
         let mtlDevice = MTLCreateSystemDefaultDevice()!
         let inputArray = MPSNDArray(device: mtlDevice,
-                                    tensor: input.tensor)!
+                                    tensor: input.tensor)
 
         inputArray.writeBytes(inputPointer)
         let inputTensorData = MPSGraphTensorData(inputArray)
 
         let maskArray = MPSNDArray(device: mtlDevice,
-                                    tensor: mask.tensor)!
+                                   tensor: mask.tensor)
 
         maskArray.writeBytes(maskPointer)
         let maskTensorData = MPSGraphTensorData(maskArray)
@@ -2717,11 +2717,18 @@ final class ValueHeadTest: XCTestCase {
     }
 }
 
-final class ModelTest: XCTestCase {
+final class SWModelDescTest {
 
-    func createMiniModel(useFP16: Bool,
-                         useNHWC: Bool) -> Model {
-        var unityConvWeights = [Float](repeating: 1, count: 1)
+    var unityConvWeights = [Float](repeating: 1, count: 1)
+    var unityMatMulWeights = [Float](repeating: 1, count: 1)
+    var meanWeights = [Float](repeating: 0, count: 1)
+    var varianceWeights = [Float](repeating: 0.9, count: 1)
+    var scaleWeights = [Float](repeating: 1, count: 1)
+    var biasWeights = [Float](repeating: 0, count: 1)
+    var gpoolMatMulWeights = [Float](repeating: 3, count: 3)
+    var zeroMatBiasWeights = [Float](repeating: 0, count: 1)
+
+    func createMiniDesc() -> SWModelDesc {
         let unityConv = SWConvLayerDesc(convYSize: 1,
                                         convXSize: 1,
                                         inChannels: 1,
@@ -2730,15 +2737,11 @@ final class ModelTest: XCTestCase {
                                         dilationX: 1,
                                         weights: &unityConvWeights)
 
-        var unityMatMulWeights = [Float](repeating: 1, count: 1)
         let unityMatMul = SWMatMulLayerDesc(inChannels: 1,
                                             outChannels: 1,
                                             weights: &unityMatMulWeights)
 
-        var meanWeights = [Float](repeating: 0, count: 1)
-        var varianceWeights = [Float](repeating: 0.9, count: 1)
-        var scaleWeights = [Float](repeating: 1, count: 1)
-        var biasWeights = [Float](repeating: 0, count: 1)
+
         let unityBatchNorm = SWBatchNormLayerDesc(numChannels: 1,
                                                   epsilon: 0.1,
                                                   hasScale: false,
@@ -2759,7 +2762,6 @@ final class ModelTest: XCTestCase {
                                                  ordinary: unityResidual,
                                                  globalPooling: nil)
 
-        var gpoolMatMulWeights = [Float](repeating: 3, count: 3)
         let gpoolMatMul = SWMatMulLayerDesc(inChannels: 3,
                                             outChannels: 1,
                                             weights: &gpoolMatMulWeights)
@@ -2804,7 +2806,6 @@ final class ModelTest: XCTestCase {
                                           p2Conv: unityConv,
                                           gpoolToPassMul: gpoolMatMul)
 
-        var zeroMatBiasWeights = [Float](repeating: 0, count: 1)
         let zeroMatBias = SWMatBiasLayerDesc(numChannels: 1,
                                              weights: &zeroMatBiasWeights)
 
@@ -2829,6 +2830,17 @@ final class ModelTest: XCTestCase {
                                     trunk: trunkDesc,
                                     policyHead: policyHead,
                                     valueHead: valueHead)
+
+        return modelDesc
+    }
+}
+
+final class ModelTest: XCTestCase {
+    let swModelDescTest = SWModelDescTest()
+
+    func createMiniModel(useFP16: Bool,
+                         useNHWC: Bool) -> Model {
+        let modelDesc = swModelDescTest.createMiniDesc()
 
         let device = MPSGraphDevice(mtlDevice: MTLCreateSystemDefaultDevice()!)
 
@@ -3517,8 +3529,155 @@ final class ModelTest: XCTestCase {
     }
 }
 
+final class ComputeContextTest: XCTestCase {
+
+    func testCreateInstance() {
+        let nnXLen: NSNumber = 9
+        let nnYLen: NSNumber = 11
+        let useFP16Mode: SWEnable = .False
+        let useNHWCMode: SWEnable = .False
+
+        ComputeContext.createInstance(nnXLen: nnXLen,
+                                      nnYLen: nnYLen,
+                                      useFP16Mode: useFP16Mode,
+                                      useNHWCMode: useNHWCMode)
+
+        let context = ComputeContext.getInstance()
+
+        XCTAssert(context.nnXLen == nnXLen)
+        XCTAssert(context.nnYLen == nnYLen)
+        XCTAssert(context.useFP16Mode == .False)
+        XCTAssert(context.useNHWCMode == .False)
+    }
+}
+
+final class ComputeHandleTest: XCTestCase {
+    let swModelDescTest = SWModelDescTest()
+
+    func testCreateInstance() {
+        ComputeContext.createInstance(nnXLen: 9 as NSNumber,
+                                      nnYLen: 11 as NSNumber,
+                                      useFP16Mode: .False,
+                                      useNHWCMode: .False)
+
+        let gpuIdxForThisThread = 0
+        let swModelDesc = swModelDescTest.createMiniDesc()
+
+        ComputeHandle.createInstance(at: gpuIdxForThisThread,
+                                     descriptor: swModelDesc,
+                                     batchSize: 8 as NSNumber,
+                                     serverThreadIdx: 0)
+
+        let handle = ComputeHandle.getInstance(at: gpuIdxForThisThread)
+        let context = ComputeContext.getInstance()
+
+        XCTAssert(handle.model.nnXLen == context.nnXLen)
+        XCTAssert(handle.model.nnYLen == context.nnYLen)
+        XCTAssert(handle.model.useFP16 == false)
+        XCTAssert(handle.model.version == swModelDesc.version)
+        XCTAssert(handle.model.numInputChannels == swModelDesc.numInputChannels)
+        XCTAssert(handle.model.numInputGlobalChannels == swModelDesc.numInputGlobalChannels)
+        XCTAssert(handle.model.numValueChannels == swModelDesc.numValueChannels)
+        XCTAssert(handle.model.numScoreValueChannels == swModelDesc.numScoreValueChannels)
+        XCTAssert(handle.model.numOwnershipChannels == swModelDesc.numOwnershipChannels)
+    }
+
+    func testCreateInstanceDefaultDevice() {
+        ComputeContext.createInstance(nnXLen: 9 as NSNumber,
+                                      nnYLen: 11 as NSNumber,
+                                      useFP16Mode: .True,
+                                      useNHWCMode: .True)
+
+        let gpuIdxForThisThread = -1
+        let swModelDesc = swModelDescTest.createMiniDesc()
+
+        ComputeHandle.createInstance(at: gpuIdxForThisThread,
+                                     descriptor: swModelDesc,
+                                     batchSize: 8 as NSNumber,
+                                     serverThreadIdx: 0)
+
+        let handle = ComputeHandle.getInstance(at: gpuIdxForThisThread)
+        let context = ComputeContext.getInstance()
+
+        XCTAssert(handle.model.nnXLen == context.nnXLen)
+        XCTAssert(handle.model.nnYLen == context.nnYLen)
+        XCTAssert(handle.model.useFP16 == true)
+        XCTAssert(handle.model.version == swModelDesc.version)
+        XCTAssert(handle.model.numInputChannels == swModelDesc.numInputChannels)
+        XCTAssert(handle.model.numInputGlobalChannels == swModelDesc.numInputGlobalChannels)
+        XCTAssert(handle.model.numValueChannels == swModelDesc.numValueChannels)
+        XCTAssert(handle.model.numScoreValueChannels == swModelDesc.numScoreValueChannels)
+        XCTAssert(handle.model.numOwnershipChannels == swModelDesc.numOwnershipChannels)
+    }
+}
+
 final class MetalBackendTest: XCTestCase {
+    let swModelDescTest = SWModelDescTest()
+
     func testPrintDevices() {
         MetalBackend.printDevices()
+    }
+
+    func testGetContextXLen() {
+        let nnXLen: Int = 9
+        let nnYLen: Int = 11
+
+        ComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
+                                      nnYLen: nnYLen as NSNumber,
+                                      useFP16Mode: .False,
+                                      useNHWCMode: .False)
+
+        XCTAssert(MetalBackend.getContextXLen() == nnXLen)
+    }
+
+    func testGetContextYLen() {
+        let nnXLen: Int = 9
+        let nnYLen: Int = 11
+
+        ComputeContext.createInstance(nnXLen: nnXLen as NSNumber,
+                                      nnYLen: nnYLen as NSNumber,
+                                      useFP16Mode: .False,
+                                      useNHWCMode: .False)
+
+        XCTAssert(MetalBackend.getContextYLen() == nnYLen)
+    }
+
+    func testGetOutput() {
+        let gpuIdx: Int = -1
+
+        ComputeContext.createInstance(nnXLen: 1 as NSNumber,
+                                      nnYLen: 1 as NSNumber,
+                                      useFP16Mode: .False,
+                                      useNHWCMode: .False)
+
+        let swModelDesc = swModelDescTest.createMiniDesc()
+
+        ComputeHandle.createInstance(at: gpuIdx,
+                                     descriptor: swModelDesc,
+                                     batchSize: 1 as NSNumber,
+                                     serverThreadIdx: 0)
+
+        var input = [Float32](repeating: 1, count: 1)
+        var inputGlobal = [Float32](repeating: 1, count: 1)
+        var policyOutput = [Float32](repeating: 1, count: 1)
+        var policyPassOutput = [Float32](repeating: 1, count: 1)
+        var valueOutput = [Float32](repeating: 1, count: 1)
+        var scoreValueOutput = [Float32](repeating: 1, count: 1)
+        var ownershipOutput = [Float32](repeating: 1, count: 1)
+
+        MetalBackend.getOutput(userInputBuffer: &input,
+                               userInputGlobalBuffer: &inputGlobal,
+                               policyOutput: &policyOutput,
+                               policyPassOutput: &policyPassOutput,
+                               valueOutput: &valueOutput,
+                               ownershipOutput: &ownershipOutput,
+                               scoreValueOutput: &scoreValueOutput,
+                               gpuIdx: gpuIdx)
+
+        XCTAssertEqual(policyOutput[0], 101.68, accuracy: 1e-4)
+        XCTAssertEqual(policyPassOutput[0], 68.88, accuracy: 1e-4)
+        XCTAssertEqual(valueOutput[0], 126.936, accuracy: 1e-4)
+        XCTAssertEqual(scoreValueOutput[0], 126.936, accuracy: 1e-4)
+        XCTAssertEqual(ownershipOutput[0], 32.8, accuracy: 1e-4)
     }
 }
