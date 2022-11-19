@@ -6,13 +6,18 @@
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/metalbackend.h"
 
+#ifdef USE_COREML_BACKEND
+#include "../neuralnet/coremlbackend.h"
+#endif
+
 using namespace std;
 
 //---------------------------------------------------------------------------------------------------------
 
 void NeuralNet::globalInitialize() {
-  // Do nothing, calling this is okay even if there is no neural net
-  // as long as we don't attempt to actually load a net file and use one.
+#ifdef USE_COREML_BACKEND
+  initCoreMLBackends();
+#endif
 }
 
 void NeuralNet::globalCleanup() {
@@ -24,6 +29,9 @@ void NeuralNet::globalCleanup() {
 
 struct LoadedModel {
   ModelDesc modelDesc;
+#ifdef USE_COREML_BACKEND
+  CoreMLLoadedModel coreMLLoadedModel;
+#endif
 
   LoadedModel(const string& fileName, const string& expectedSha256) {
     ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
@@ -98,30 +106,53 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 struct ComputeHandle {
   int nnXLen;
   int nnYLen;
-  int maxBatchSize;
-  int inputsUseNHWC;
+  bool inputsUseNHWC;
   int gpuIndex;
   int version;
+
+#ifdef USE_COREML_BACKEND
+  CoreMLComputeHandle* coreMLComputeHandle = NULL;
+#endif
 
   ComputeHandle(ComputeContext* context,
                 const LoadedModel* loadedModel,
                 int maxBatchSize,
-                int inputsUseNHWC,
+                bool inputsUseNHWC,
                 int gpuIdx,
                 int serverThreadIdx) {
     const ModelDesc* modelDesc = &loadedModel->modelDesc;
 
     nnXLen = getMetalContextXLen();
     nnYLen = getMetalContextYLen();
-    this->maxBatchSize = maxBatchSize;
     this->inputsUseNHWC = inputsUseNHWC;
     gpuIndex = gpuIdx;
     version = modelDesc->version;
 
+#ifdef USE_COREML_BACKEND
+    coreMLComputeHandle = new CoreMLComputeHandle(&loadedModel->coreMLLoadedModel,
+                                                  nnXLen,
+                                                  nnYLen,
+                                                  gpuIdx,
+                                                  inputsUseNHWC);
+
+    if(!(coreMLComputeHandle->isCoreML)) {
+      createMetalHandle(gpuIdx, modelDesc, maxBatchSize, serverThreadIdx);
+    }
+#else
     createMetalHandle(gpuIdx, modelDesc, maxBatchSize, serverThreadIdx);
+#endif
+
   }
 
-  ~ComputeHandle() {}
+  ~ComputeHandle() {
+#ifdef USE_COREML_BACKEND
+    freeCoreMLBackend(gpuIndex);
+
+    if(coreMLComputeHandle != NULL) {
+      delete coreMLComputeHandle;
+    }
+#endif
+  }
 
   void apply(float* userInputBuffer,
              float* userInputGlobalBuffer,
@@ -204,6 +235,10 @@ struct InputBuffers {
   float* ownershipResults;
   float* scoreValuesResults;
 
+#ifdef USE_COREML_BACKEND
+  CoreMLInputBuffers* coreMLInputBuffers;
+#endif
+
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
 
@@ -239,6 +274,10 @@ struct InputBuffers {
     valueResults = new float[valueResultBufferElts];
     ownershipResults = new float[ownershipResultBufferElts];
     scoreValuesResults = new float[scoreValuesResultBufferElts];
+
+#ifdef USE_COREML_BACKEND
+    coreMLInputBuffers = new CoreMLInputBuffers(&loadedModel->coreMLLoadedModel, maxBatchSize, nnXLen, nnYLen);
+#endif
   }
 
   ~InputBuffers() {
@@ -249,6 +288,10 @@ struct InputBuffers {
     delete[] valueResults;
     delete[] ownershipResults;
     delete[] scoreValuesResults;
+
+#ifdef USE_COREML_BACKEND
+    delete coreMLInputBuffers;
+#endif
   }
 
   InputBuffers() = delete;
@@ -264,7 +307,7 @@ void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
   delete inputBuffers;
 }
 
-void NeuralNet::getOutput(
+void getMetalHandleOutput(
   ComputeHandle* gpuHandle,
   InputBuffers* inputBuffers,
   int numBatchEltsFilled,
@@ -389,6 +432,28 @@ void NeuralNet::getOutput(
       output->shorttermScoreError = 0;
     }
   }
+}
+
+void NeuralNet::getOutput(
+  ComputeHandle* gpuHandle,
+  InputBuffers* inputBuffers,
+  int numBatchEltsFilled,
+  NNResultBuf** inputBufs,
+  vector<NNOutput*>& outputs) {
+
+#ifdef USE_COREML_BACKEND
+  if (gpuHandle->coreMLComputeHandle->isCoreML) {
+    getCoreMLHandleOutput(gpuHandle->coreMLComputeHandle,
+                          inputBuffers->coreMLInputBuffers,
+                          numBatchEltsFilled,
+                          inputBufs,
+                          outputs);
+  } else {
+    getMetalHandleOutput(gpuHandle, inputBuffers, numBatchEltsFilled, inputBufs, outputs);
+  }
+#else
+  getMetalHandleOutput(gpuHandle, inputBuffers, numBatchEltsFilled, inputBufs, outputs);
+#endif
 }
 
 bool NeuralNet::testEvaluateConv(

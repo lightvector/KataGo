@@ -1,359 +1,124 @@
 #ifdef USE_COREML_BACKEND
 
-#include "../neuralnet/coremlbackend.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/nninterface.h"
+#include "../neuralnet/coremlbackend.h"
+
 
 using namespace std;
 
-//---------------------------------------------------------------------------------------------------------
-
-void NeuralNet::globalInitialize() {
-  initCoreMLBackends();
-}
-
-void NeuralNet::globalCleanup() {}
-
 //------------------------------------------------------------------------------
 
-struct LoadedModel {
-  int modelXLen;
-  int modelYLen;
-  ModelDesc modelDesc;
-
-  LoadedModel() {
-    modelXLen = COMPILE_MAX_BOARD_LEN;
-    modelYLen = COMPILE_MAX_BOARD_LEN;
-    modelDesc.name = "CoreML model";
-    modelDesc.version = createCoreMLBackend(0, COMPILE_MAX_BOARD_LEN, COMPILE_MAX_BOARD_LEN);
-    modelDesc.numInputChannels = 22;
-    modelDesc.numInputGlobalChannels = 19;
-    modelDesc.numValueChannels = 3;
-    modelDesc.numOwnershipChannels = 1;
-    modelDesc.numScoreValueChannels = 18;
-  }
-
-  LoadedModel(const LoadedModel&) = delete;
-  LoadedModel& operator=(const LoadedModel&) = delete;
-};
-
-LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expectedSha256) {
-  LoadedModel* loadedModel = new LoadedModel();
-  (void)file;
-  (void)expectedSha256;
-
-  return loadedModel;
-}
-
-void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
-  delete loadedModel;
-}
-
-string NeuralNet::getModelName(const LoadedModel* loadedModel) {
-  return loadedModel->modelDesc.name;
-}
-
-int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
-  return loadedModel->modelDesc.version;
-}
-
-Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
-  return loadedModel->modelDesc.getSupportedRules(desiredRules, supported);
-}
-
-struct ComputeContext {
-  int nnXLen;
-  int nnYLen;
-
-  ComputeContext(int nnX, int nnY) {
-    nnXLen = nnX;
-    nnYLen = nnY;
-  }
-
-  ~ComputeContext() {}
-
-  ComputeContext() = delete;
-  ComputeContext(const ComputeContext&) = delete;
-  ComputeContext& operator=(const ComputeContext&) = delete;
-};
-
-ComputeContext* NeuralNet::createComputeContext(
-  const std::vector<int>& gpuIdxs,
-  Logger* logger,
-  int nnXLen,
-  int nnYLen,
-  const string& openCLTunerFile,
-  const string& homeDataDirOverride,
-  bool openCLReTunePerBoardSize,
-  enabled_t useFP16Mode,
-  enabled_t useNHWCMode,
-  const LoadedModel* loadedModel) {
-  if(gpuIdxs.size() <= 0) {
-    throw StringError("NeuralNet::createComputeContext - specified no gpus to use");
-  }
-
-  (void)logger;
-  (void)openCLTunerFile;
-  (void)homeDataDirOverride;
-  (void)openCLReTunePerBoardSize;
-  (void)useFP16Mode;
-  (void)useNHWCMode;
-  (void)loadedModel;
-
-  return new ComputeContext(nnXLen, nnYLen);
-}
-
-void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
-  delete computeContext;
+CoreMLLoadedModel::CoreMLLoadedModel() {
+  modelXLen = COMPILE_MAX_BOARD_LEN;
+  modelYLen = COMPILE_MAX_BOARD_LEN;
+  modelDesc.name = "CoreML model";
+  modelDesc.version = createCoreMLBackend(0, COMPILE_MAX_BOARD_LEN, COMPILE_MAX_BOARD_LEN);
+  modelDesc.numInputChannels = 22;
+  modelDesc.numInputGlobalChannels = 19;
+  modelDesc.numValueChannels = 3;
+  modelDesc.numOwnershipChannels = 1;
+  modelDesc.numScoreValueChannels = 18;
 }
 
 //--------------------------------------------------------------
 
-struct ComputeHandle {
-  int nnXLen;
-  int nnYLen;
-  int modelXLen;
-  int modelYLen;
-  bool inputsUseNHWC;
-  int version;
-  int gpuIndex;
+CoreMLComputeHandle::CoreMLComputeHandle(const CoreMLLoadedModel* loadedModel,
+                                         int nnXLen,
+                                         int nnYLen,
+                                         int gpuIdx,
+                                         bool inputsNHWC) {
+  this->nnXLen = nnXLen;
+  this->nnYLen = nnYLen;
+  modelXLen = loadedModel->modelXLen;
+  modelYLen = loadedModel->modelYLen;
+  inputsUseNHWC = inputsNHWC;
 
-  ComputeHandle(ComputeContext* context, const LoadedModel* loadedModel, int gpuIdx, bool inputsNHWC) {
-    nnXLen = context->nnXLen;
-    nnYLen = context->nnYLen;
-    modelXLen = loadedModel->modelXLen;
-    modelYLen = loadedModel->modelYLen;
-    gpuIndex = gpuIdx;
-    inputsUseNHWC = inputsNHWC;
+  if((gpuIdx == 100) || (gpuIdx == 101)) {
+    version = createCoreMLBackend(gpuIdx, modelXLen, modelYLen);
+    isCoreML = true;
+  } else {
+    version = -1;
+    isCoreML = false;
 
-    version = createCoreMLBackend(gpuIdx, loadedModel->modelXLen, loadedModel->modelYLen);
-  }
-
-  ~ComputeHandle() {
-    freeCoreMLBackend(gpuIndex);
-  }
-
-  ComputeHandle() = delete;
-  ComputeHandle(const ComputeHandle&) = delete;
-  ComputeHandle& operator=(const ComputeHandle&) = delete;
-};
-
-ComputeHandle* NeuralNet::createComputeHandle(
-  ComputeContext* context,
-  const LoadedModel* loadedModel,
-  Logger* logger,
-  int maxBatchSize,
-  bool requireExactNNLen,
-  bool inputsUseNHWC,
-  int gpuIdxForThisThread,
-  int serverThreadIdx) {
-  auto deviceStr = [&]() {
-    if(gpuIdxForThisThread < 0) {
-      return string("");
-    } else {
-      return " Device " + Global::intToString(gpuIdxForThisThread);
-    }
-  };
-
-  // Current implementation always tolerates excess nn len
-  (void)requireExactNNLen;
-  ComputeHandle* handle = new ComputeHandle(context, loadedModel, gpuIdxForThisThread, inputsUseNHWC);
-
-  if(logger != NULL) {
-    logger->write("CoreML backend thread " + Global::intToString(serverThreadIdx) + ":" + deviceStr());
-  }
-
-  (void)maxBatchSize;
-
-  return handle;
-}
-
-void NeuralNet::freeComputeHandle(ComputeHandle* handle) {
-  delete handle;
-}
-
-//------------------------------------------------------------------------------
-
-struct DeviceInfo {
-  int gpuIdx;
-  std::string name;
-  int defaultDesirability;
-
-  static std::vector<DeviceInfo> getAllDeviceInfosOnSystem();
-};
-
-//------------------------------------------------------------------------------
-
-vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem() {
-  int numDevicesTotal = 2;
-  vector<DeviceInfo> allDeviceInfos;
-
-  for(int gpuIdx = 0; gpuIdx < numDevicesTotal; gpuIdx++) {
-    DeviceInfo info;
-
-    info.gpuIdx = gpuIdx;
-    info.name = "KataGo CoreML package";
-    info.defaultDesirability = 100;
-    allDeviceInfos.push_back(info);
-  }
-
-  return allDeviceInfos;
-}
-
-//------------------------------------------------------------------------------
-
-void NeuralNet::printDevices() {
-  vector<DeviceInfo> devices = DeviceInfo::getAllDeviceInfosOnSystem();
-  for(int i = 0; i < devices.size(); i++) {
-    const DeviceInfo& device = devices[i];
-    string msg = "Found CoreML Device " + Global::intToString(device.gpuIdx) + ": " + device.name + " (score " +
-                 Global::intToString(device.defaultDesirability) + ")";
-    cout << msg << endl;
   }
 }
 
 //--------------------------------------------------------------
 
-struct InputBuffers {
-  int maxBatchSize;
-  int modelXLen;
-  int modelYLen;
+CoreMLInputBuffers::CoreMLInputBuffers(const CoreMLLoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
+  const ModelDesc& m = loadedModel->modelDesc;
 
-  size_t policyResultChannels;
+  modelXLen = COMPILE_MAX_BOARD_LEN;
+  modelYLen = COMPILE_MAX_BOARD_LEN;
+  maxBatchSize = maxBatchSz;
+  policyResultChannels = 2;
+  singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
+  singleInputElts = (size_t)m.numInputChannels * modelXLen * modelYLen;
+  singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
+  singlePolicyResultElts = (size_t)((modelXLen * modelYLen) + 1);
+  singlePolicyProbsElts = (size_t)((nnXLen * nnYLen) + 1);
+  singleValueResultElts = (size_t)m.numValueChannels;
+  singleOwnershipResultElts = (size_t)m.numOwnershipChannels * modelXLen * modelYLen;
+  singleOwnerMapElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
+  singleMiscValuesResultElts = 10;
+  singleMoreMiscValuesResultElts = 8;
 
-  size_t singleSpatialElts;
-  size_t singleInputElts;
-  size_t singleInputGlobalElts;
-  size_t singlePolicyResultElts;
-  size_t singlePolicyProbsElts;
-  size_t singleValueResultElts;
-  size_t singleOwnershipResultElts;
-  size_t singleOwnerMapElts;
-  size_t singleMiscValuesResultElts;
-  size_t singleMoreMiscValuesResultElts;
+  assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
+  assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
+  assert(singleInputElts == (modelXLen * modelYLen * 22));
+  assert(singleInputGlobalElts == 19);
+  assert(singleValueResultElts == 3);
+  assert(singleOwnershipResultElts == (modelXLen * modelYLen));
 
-  size_t rowSpatialBufferElts;
-  size_t userInputBufferElts;
-  size_t userInputGlobalBufferElts;
-  size_t policyResultBufferElts;
-  size_t policyProbsBufferElts;
-  size_t valueResultBufferElts;
-  size_t ownershipResultBufferElts;
-  size_t ownerMapBufferElts;
-  size_t miscValuesResultBufferElts;
-  size_t moreMiscValuesResultsBufferElts;
+  rowSpatialBufferElts = (size_t)maxBatchSize * singleSpatialElts;
 
-  float* rowSpatialBuffer;
-  float* userInputBuffer;        // Host pointer
-  float* userInputGlobalBuffer;  // Host pointer
+  // swa_model_bin_inputs shape: [1, 361, 22]
+  userInputBufferElts = (size_t)maxBatchSize * singleInputElts;
 
-  float* policyResults;
-  float* policyProbsBuffer;
-  float* valueResults;
-  float* ownershipResults;
-  float* ownerMapBuffer;
-  float* miscValuesResults;
-  float* moreMiscValuesResults;
+  // swa_model_global_inputs shape: [1, 19]
+  userInputGlobalBufferElts = (size_t)maxBatchSize * singleInputGlobalElts;
 
-  InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
-    const ModelDesc& m = loadedModel->modelDesc;
+  // swa_model_policy_output shape: [1, 362, 2]
+  policyResultBufferElts = (size_t)maxBatchSize * singlePolicyResultElts * policyResultChannels;
 
-    modelXLen = COMPILE_MAX_BOARD_LEN;
-    modelYLen = COMPILE_MAX_BOARD_LEN;
-    maxBatchSize = maxBatchSz;
-    policyResultChannels = 2;
-    singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
-    singleInputElts = (size_t)m.numInputChannels * modelXLen * modelYLen;
-    singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
-    singlePolicyResultElts = (size_t)((modelXLen * modelYLen) + 1);
-    singlePolicyProbsElts = (size_t)((nnXLen * nnYLen) + 1);
-    singleValueResultElts = (size_t)m.numValueChannels;
-    singleOwnershipResultElts = (size_t)m.numOwnershipChannels * modelXLen * modelYLen;
-    singleOwnerMapElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
-    singleMiscValuesResultElts = 10;
-    singleMoreMiscValuesResultElts = 8;
+  policyProbsBufferElts = (size_t)maxBatchSize * singlePolicyProbsElts;
 
-    assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
-    assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
-    assert(singleInputElts == (modelXLen * modelYLen * 22));
-    assert(singleInputGlobalElts == 19);
-    assert(singleValueResultElts == 3);
-    assert(singleOwnershipResultElts == (modelXLen * modelYLen));
+  // swa_model_value_output shape: [1, 3]
+  valueResultBufferElts = (size_t)maxBatchSize * singleValueResultElts;
 
-    rowSpatialBufferElts = (size_t)maxBatchSize * singleSpatialElts;
+  // swa_model_ownership_output shape: [1, 19, 19]
+  ownershipResultBufferElts = (size_t)maxBatchSize * singleOwnershipResultElts;
 
-    // swa_model_bin_inputs shape: [1, 361, 22]
-    userInputBufferElts = (size_t)maxBatchSize * singleInputElts;
+  ownerMapBufferElts = (size_t)maxBatchSize * singleOwnerMapElts;
 
-    // swa_model_global_inputs shape: [1, 19]
-    userInputGlobalBufferElts = (size_t)maxBatchSize * singleInputGlobalElts;
+  // swa_model_miscvalues_output shape: [1, 10]
+  miscValuesResultBufferElts = (size_t)maxBatchSize * singleMiscValuesResultElts;
 
-    // swa_model_policy_output shape: [1, 362, 2]
-    policyResultBufferElts = (size_t)maxBatchSize * singlePolicyResultElts * policyResultChannels;
+  // swa_model_moremiscvalues_output shape: [1, 8]
+  moreMiscValuesResultsBufferElts = (size_t)maxBatchSize * singleMoreMiscValuesResultElts;
 
-    policyProbsBufferElts = (size_t)maxBatchSize * singlePolicyProbsElts;
+  rowSpatialBuffer = new float[rowSpatialBufferElts];
+  userInputBuffer = new float[userInputBufferElts];
+  userInputGlobalBuffer = new float[userInputGlobalBufferElts];
+  policyResults = new float[policyResultBufferElts];
+  policyProbsBuffer = new float[policyProbsBufferElts];
+  valueResults = new float[valueResultBufferElts];
+  ownershipResults = new float[ownershipResultBufferElts];
+  ownerMapBuffer = new float[ownerMapBufferElts];
+  miscValuesResults = new float[miscValuesResultBufferElts];
+  moreMiscValuesResults = new float[moreMiscValuesResultsBufferElts];
 
-    // swa_model_value_output shape: [1, 3]
-    valueResultBufferElts = (size_t)maxBatchSize * singleValueResultElts;
-
-    // swa_model_ownership_output shape: [1, 19, 19]
-    ownershipResultBufferElts = (size_t)maxBatchSize * singleOwnershipResultElts;
-
-    ownerMapBufferElts = (size_t)maxBatchSize * singleOwnerMapElts;
-
-    // swa_model_miscvalues_output shape: [1, 10]
-    miscValuesResultBufferElts = (size_t)maxBatchSize * singleMiscValuesResultElts;
-
-    // swa_model_moremiscvalues_output shape: [1, 8]
-    moreMiscValuesResultsBufferElts = (size_t)maxBatchSize * singleMoreMiscValuesResultElts;
-
-    rowSpatialBuffer = new float[rowSpatialBufferElts];
-    userInputBuffer = new float[userInputBufferElts];
-    userInputGlobalBuffer = new float[userInputGlobalBufferElts];
-    policyResults = new float[policyResultBufferElts];
-    policyProbsBuffer = new float[policyProbsBufferElts];
-    valueResults = new float[valueResultBufferElts];
-    ownershipResults = new float[ownershipResultBufferElts];
-    ownerMapBuffer = new float[ownerMapBufferElts];
-    miscValuesResults = new float[miscValuesResultBufferElts];
-    moreMiscValuesResults = new float[moreMiscValuesResultsBufferElts];
-
-    memset(&userInputBuffer[0], 0, userInputBufferElts * sizeof(userInputBuffer[0]));
-  }
-
-  ~InputBuffers() {
-    delete[] rowSpatialBuffer;
-    delete[] userInputBuffer;
-    delete[] userInputGlobalBuffer;
-    delete[] policyResults;
-    delete[] policyProbsBuffer;
-    delete[] valueResults;
-    delete[] ownershipResults;
-    delete[] ownerMapBuffer;
-    delete[] miscValuesResults;
-    delete[] moreMiscValuesResults;
-  }
-
-  InputBuffers() = delete;
-  InputBuffers(const InputBuffers&) = delete;
-  InputBuffers& operator=(const InputBuffers&) = delete;
-};
-
-InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen) {
-  return new InputBuffers(loadedModel, maxBatchSize, nnXLen, nnYLen);
-}
-void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
-  delete inputBuffers;
+  memset(&userInputBuffer[0], 0, userInputBufferElts * sizeof(userInputBuffer[0]));
 }
 
-void NeuralNet::getOutput(
-  ComputeHandle* gpuHandle,
-  InputBuffers* inputBuffers,
-  int numBatchEltsFilled,
-  NNResultBuf** inputBufs,
-  vector<NNOutput*>& outputs) {
+void getCoreMLHandleOutput(CoreMLComputeHandle* gpuHandle,
+                           CoreMLInputBuffers* inputBuffers,
+                           int numBatchEltsFilled,
+                           NNResultBuf** inputBufs,
+                           vector<NNOutput*>& outputs) {
   int batchSize = numBatchEltsFilled;
   int nnXLen = gpuHandle->nnXLen;
   int nnYLen = gpuHandle->nnYLen;
@@ -528,92 +293,6 @@ void NeuralNet::getOutput(
       ASSERT_UNREACHABLE;
     }
   }
-}
-
-bool NeuralNet::testEvaluateConv(
-  const ConvLayerDesc* desc,
-  int batchSize,
-  int nnXLen,
-  int nnYLen,
-  bool useFP16,
-  bool useNHWC,
-  const std::vector<float>& inputBuffer,
-  std::vector<float>& outputBuffer) {
-  (void)desc;
-  (void)batchSize;
-  (void)nnXLen;
-  (void)nnYLen;
-  (void)useFP16;
-  (void)useNHWC;
-  (void)inputBuffer;
-  (void)outputBuffer;
-  return false;
-}
-
-bool NeuralNet::testEvaluateBatchNorm(
-  const BatchNormLayerDesc* desc,
-  int batchSize,
-  int nnXLen,
-  int nnYLen,
-  bool useFP16,
-  bool useNHWC,
-  const std::vector<float>& inputBuffer,
-  const std::vector<float>& maskBuffer,
-  std::vector<float>& outputBuffer) {
-  (void)desc;
-  (void)batchSize;
-  (void)nnXLen;
-  (void)nnYLen;
-  (void)useFP16;
-  (void)useNHWC;
-  (void)inputBuffer;
-  (void)maskBuffer;
-  (void)outputBuffer;
-  return false;
-}
-
-bool NeuralNet::testEvaluateResidualBlock(
-  const ResidualBlockDesc* desc,
-  int batchSize,
-  int nnXLen,
-  int nnYLen,
-  bool useFP16,
-  bool useNHWC,
-  const std::vector<float>& inputBuffer,
-  const std::vector<float>& maskBuffer,
-  std::vector<float>& outputBuffer) {
-  (void)desc;
-  (void)batchSize;
-  (void)nnXLen;
-  (void)nnYLen;
-  (void)useFP16;
-  (void)useNHWC;
-  (void)inputBuffer;
-  (void)maskBuffer;
-  (void)outputBuffer;
-  return false;
-}
-
-bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
-  const GlobalPoolingResidualBlockDesc* desc,
-  int batchSize,
-  int nnXLen,
-  int nnYLen,
-  bool useFP16,
-  bool useNHWC,
-  const std::vector<float>& inputBuffer,
-  const std::vector<float>& maskBuffer,
-  std::vector<float>& outputBuffer) {
-  (void)desc;
-  (void)batchSize;
-  (void)nnXLen;
-  (void)nnYLen;
-  (void)useFP16;
-  (void)useNHWC;
-  (void)inputBuffer;
-  (void)maskBuffer;
-  (void)outputBuffer;
-  return false;
 }
 
 #endif  // USE_COREML_BACKEND

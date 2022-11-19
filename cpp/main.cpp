@@ -227,8 +227,6 @@ string Version::getKataGoVersionFullInfo() {
   out << "Using Eigen(CPU) backend" << endl;
 #elif defined(USE_METAL_BACKEND)
   out << "Using Metal backend" << endl;
-#elif defined(USE_COREML_BACKEND)
-  out << "Using CoreML backend" << endl;
 #else
   out << "Using dummy backend" << endl;
 #endif
@@ -263,8 +261,6 @@ string Version::getGitRevisionWithBackend() {
   s += "-eigen";
 #elif defined(USE_METAL_BACKEND)
   s += "-metal";
-#elif defined(USE_COREML_BACKEND)
-  s += "-coreml";
 #else
   s += "-dummy";
 #endif

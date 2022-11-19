@@ -13,8 +13,8 @@
 			buildPhases = (
 			);
 			dependencies = (
+				E10ACAF72928A7060004AB17 /* PBXTargetDependency */,
 				E172CFAC292846F900433180 /* PBXTargetDependency */,
-				E13CF66E28E1BDA9005CB016 /* PBXTargetDependency */,
 				E13CF67028E1BDA9005CB016 /* PBXTargetDependency */,
 			);
 			name = ALL_BUILDS;
@@ -119,122 +119,128 @@
 		D846616D5D16489DB42C7721 /* gatekeeper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */; };
 		DAA2DCE9982D45E89E6EB02E /* selfplaymanager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7C7A65C82B4C4AB5B83B1346 /* selfplaymanager.cpp */; };
 		DB00A3EC9AE841BFB70EDED8 /* testnn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41CCB0DF860045E5A8697BDD /* testnn.cpp */; };
-		E13CF5ED28E18813005CB016 /* book.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 973B04213D1B4030B35FB01C /* book.cpp */; };
-		E13CF5EE28E18813005CB016 /* bookcssjs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6DD28F2EE5FB490F906D63BA /* bookcssjs.cpp */; };
-		E13CF5EF28E18813005CB016 /* analysis.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E7B41A9FE4124FA1AB3FBEF1 /* analysis.cpp */; };
-		E13CF5F028E18813005CB016 /* benchmark.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 063E4C878E7E43858A863A78 /* benchmark.cpp */; };
-		E13CF5F128E18813005CB016 /* commandline.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6CD97C1775DC4E678823595E /* commandline.cpp */; };
-		E13CF5F228E18813005CB016 /* contribute.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D49AE95F1DD947B5BFF58C1F /* contribute.cpp */; };
-		E13CF5F328E18813005CB016 /* evalsgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA66CE9038574A0BB16D80B6 /* evalsgf.cpp */; };
-		E13CF5F428E18813005CB016 /* gatekeeper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */; };
-		E13CF5F528E18813005CB016 /* genbook.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B2460699580B49F689D028D5 /* genbook.cpp */; };
-		E13CF5F628E18813005CB016 /* gtp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AD94201E380643C3985E9D62 /* gtp.cpp */; };
-		E13CF5F728E18813005CB016 /* match.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 948AF9E88374487D85E846C2 /* match.cpp */; };
-		E13CF5F828E18813005CB016 /* matchauto.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4361E3FD2972413FBC0102FB /* matchauto.cpp */; };
-		E13CF5F928E18813005CB016 /* misc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 64D3C3432AB3409C942F7A0E /* misc.cpp */; };
-		E13CF5FA28E18813005CB016 /* runtests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5902EDD2F6A74BE7966E2001 /* runtests.cpp */; };
-		E13CF5FB28E18813005CB016 /* sandbox.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 11318DB744F340DCB41F7248 /* sandbox.cpp */; };
-		E13CF5FC28E18813005CB016 /* selfplay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFF33AEBABB1472B9F241A98 /* selfplay.cpp */; };
-		E13CF5FD28E18813005CB016 /* tune.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A241D7415C384D3A81BF73AC /* tune.cpp */; };
-		E13CF5FE28E18813005CB016 /* base64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D61629242F5143EBB2D9BEC9 /* base64.cpp */; };
-		E13CF5FF28E18813005CB016 /* bsearch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 176C18FD215D45179B93393C /* bsearch.cpp */; };
-		E13CF60028E18813005CB016 /* commandloop.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4BF5823DCA854224809D93A8 /* commandloop.cpp */; };
-		E13CF60128E18813005CB016 /* config_parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 23D034621365403182419780 /* config_parser.cpp */; };
-		E13CF60228E18813005CB016 /* datetime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 71DC745C32B543C191262823 /* datetime.cpp */; };
-		E13CF60328E18813005CB016 /* elo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59353ECA2B0140FA9365623E /* elo.cpp */; };
-		E13CF60428E18813005CB016 /* fancymath.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2626105D31ED44D98E6B9B9D /* fancymath.cpp */; };
-		E13CF60528E18813005CB016 /* fileutils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CAD1B260FFB74AF9BA66A58A /* fileutils.cpp */; };
-		E13CF60628E18813005CB016 /* global.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A8748F2EFAAF401DACE6B60A /* global.cpp */; };
-		E13CF60728E18813005CB016 /* hash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BDF52FD481AA424BBC59124D /* hash.cpp */; };
-		E13CF60828E18813005CB016 /* logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B2C186FF8B3422CB64E6039 /* logger.cpp */; };
-		E13CF60928E18813005CB016 /* mainargs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92F4695F66A84118BDCAA13F /* mainargs.cpp */; };
-		E13CF60A28E18813005CB016 /* makedir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 63D5831B449B48D1AD132F9F /* makedir.cpp */; };
-		E13CF60B28E18813005CB016 /* md5.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE7F7520CA15440EBDF0A21D /* md5.cpp */; };
-		E13CF60C28E18813005CB016 /* multithread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5185F4BC63B5490AAE4F37CB /* multithread.cpp */; };
-		E13CF60D28E18813005CB016 /* rand.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B8E283A3B8004F289DACCD8A /* rand.cpp */; };
-		E13CF60E28E18813005CB016 /* rand_helpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59BC63FBF0804F63A27369AE /* rand_helpers.cpp */; };
-		E13CF60F28E18813005CB016 /* sha2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 76F8951F199F416F99B96FE8 /* sha2.cpp */; };
-		E13CF61028E18813005CB016 /* test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5639F08A96FD467CBD091947 /* test.cpp */; };
-		E13CF61128E18813005CB016 /* threadsafecounter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D645BB8AAF424700A75ED223 /* threadsafecounter.cpp */; };
-		E13CF61228E18813005CB016 /* threadsafequeue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 34B63C891D53453F9C258280 /* threadsafequeue.cpp */; };
-		E13CF61328E18813005CB016 /* threadtest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 69300B311DE94520A56A3B5F /* threadtest.cpp */; };
-		E13CF61428E18813005CB016 /* timer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EEB543E9A42948748BF883C3 /* timer.cpp */; };
-		E13CF61528E18813005CB016 /* files.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C31483CD76D48F2A7327613 /* files.cpp */; };
-		E13CF61628E18813005CB016 /* homedata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E87CD61EFA340A1AF4B8BCE /* homedata.cpp */; };
-		E13CF61728E18813005CB016 /* loadmodel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8FBE5F0F301A405D85F23D38 /* loadmodel.cpp */; };
-		E13CF61828E18813005CB016 /* numpywrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F20754875D24724A133A9AE /* numpywrite.cpp */; };
-		E13CF61928E18813005CB016 /* sgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3E097292E4F34AB6806F67E6 /* sgf.cpp */; };
-		E13CF61A28E18813005CB016 /* trainingwrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F9788817DEA4417A321C3A0 /* trainingwrite.cpp */; };
-		E13CF61B28E18813005CB016 /* client.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 792CF6207CA54AABB0F058C6 /* client.cpp */; };
-		E13CF61C28E18813005CB016 /* board.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8F0B49CAFCB24D31808DB2C1 /* board.cpp */; };
-		E13CF61D28E18813005CB016 /* boardhistory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 540D93E0576C47C789279AF8 /* boardhistory.cpp */; };
-		E13CF61E28E18813005CB016 /* graphhash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 10EB7D2538F94B26BE1B1740 /* graphhash.cpp */; };
-		E13CF61F28E18813005CB016 /* rules.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 727A790F2FEA4DBEA8ABAE85 /* rules.cpp */; };
-		E13CF62028E18813005CB016 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50827347EBFE4467996C3150 /* main.cpp */; };
-		E13CF62128E18813005CB016 /* desc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D8F26726AAF403C833FBD7F /* desc.cpp */; };
-		E13CF62428E18813005CB016 /* modelversion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DDCAE99038794BE8B4BB3962 /* modelversion.cpp */; };
-		E13CF62528E18813005CB016 /* nneval.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92C3AF4C79ED491988E9C5BC /* nneval.cpp */; };
-		E13CF62628E18813005CB016 /* nninputs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D41000BDB70543A4820D445A /* nninputs.cpp */; };
-		E13CF62728E18813005CB016 /* gtpconfig.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5BCE97296A5249A0B49C766F /* gtpconfig.cpp */; };
-		E13CF62828E18813005CB016 /* play.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3FBACE432776421CAEDF6786 /* play.cpp */; };
-		E13CF62928E18813005CB016 /* playsettings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7A57BA046921422DB33C7614 /* playsettings.cpp */; };
-		E13CF62A28E18813005CB016 /* playutils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9FB3A34B1C8D4CBF9997DDA7 /* playutils.cpp */; };
-		E13CF62B28E18813005CB016 /* selfplaymanager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7C7A65C82B4C4AB5B83B1346 /* selfplaymanager.cpp */; };
-		E13CF62C28E18813005CB016 /* setup.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D104762E63AF4C6A8ADB220E /* setup.cpp */; };
-		E13CF62D28E18813005CB016 /* analysisdata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF423768A6B74FF18FDC44E7 /* analysisdata.cpp */; };
-		E13CF62E28E18813005CB016 /* asyncbot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2D4BF5BF0CD446F80DFDACE /* asyncbot.cpp */; };
-		E13CF62F28E18813005CB016 /* distributiontable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 32DD1B600C014B49ADDB237E /* distributiontable.cpp */; };
-		E13CF63028E18813005CB016 /* localpattern.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD4302F4D69E4EE98EA75B2C /* localpattern.cpp */; };
-		E13CF63128E18813005CB016 /* mutexpool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6DA721BDC00F438688E0B241 /* mutexpool.cpp */; };
-		E13CF63228E18813005CB016 /* patternbonustable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6A5C095FD31A4636994B5E5A /* patternbonustable.cpp */; };
-		E13CF63328E18813005CB016 /* reportedsearchvalues.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 706365E669744784A6A6DE57 /* reportedsearchvalues.cpp */; };
-		E13CF63428E18813005CB016 /* search.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 93FF01FEC8DA40DB916C4F0A /* search.cpp */; };
-		E13CF63528E18813005CB016 /* searchexplorehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EC59266A435045C5B84F9105 /* searchexplorehelpers.cpp */; };
-		E13CF63628E18813005CB016 /* searchhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A72EC47D68904D38A5EAE635 /* searchhelpers.cpp */; };
-		E13CF63728E18813005CB016 /* searchmirror.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 07DAAE05A9FA46F5B271903E /* searchmirror.cpp */; };
-		E13CF63828E18813005CB016 /* searchmultithreadhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BCBCE4A8D83F42FBA4EA0CBE /* searchmultithreadhelpers.cpp */; };
-		E13CF63928E18813005CB016 /* searchnnhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA6C3E7D4604497D8B94AC50 /* searchnnhelpers.cpp */; };
-		E13CF63A28E18813005CB016 /* searchnode.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 206727F6853C468F84FC44AE /* searchnode.cpp */; };
-		E13CF63B28E18813005CB016 /* searchnodetable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C33571C53ECC4C82B0A9DA7D /* searchnodetable.cpp */; };
-		E13CF63C28E18813005CB016 /* searchparams.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1660F43339464F1F82D603C2 /* searchparams.cpp */; };
-		E13CF63D28E18813005CB016 /* searchresults.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1BAD528CE45E4D31A6F0F058 /* searchresults.cpp */; };
-		E13CF63E28E18813005CB016 /* searchtimehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 77C31BA9C8864C07B491DF1D /* searchtimehelpers.cpp */; };
-		E13CF63F28E18813005CB016 /* searchupdatehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 73D2A262E3E542FD8063F8DD /* searchupdatehelpers.cpp */; };
-		E13CF64028E18813005CB016 /* subtreevaluebiastable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7891834D8FB144E0B13F6E21 /* subtreevaluebiastable.cpp */; };
-		E13CF64128E18813005CB016 /* timecontrols.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 888C7B98F8B64150B0903946 /* timecontrols.cpp */; };
-		E13CF64228E18813005CB016 /* testboardarea.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3D4E9B8ABFBF4DAEB11058E1 /* testboardarea.cpp */; };
-		E13CF64328E18813005CB016 /* testboardbasic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F18310A722494DAEACBE09BC /* testboardbasic.cpp */; };
-		E13CF64428E18813005CB016 /* testcommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C9D17518AE04398A975E5AE /* testcommon.cpp */; };
-		E13CF64528E18813005CB016 /* testconfig.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 346C96C8324D4BE8A12D1A97 /* testconfig.cpp */; };
-		E13CF64628E18813005CB016 /* testmisc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 48669007B9164F5FB011F549 /* testmisc.cpp */; };
-		E13CF64728E18813005CB016 /* testnn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41CCB0DF860045E5A8697BDD /* testnn.cpp */; };
-		E13CF64828E18813005CB016 /* testnnevalcanary.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 88BAF51D4B34475A90D1D7CC /* testnnevalcanary.cpp */; };
-		E13CF64928E18813005CB016 /* testnninputs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4B137CD979C7436188D684A7 /* testnninputs.cpp */; };
-		E13CF64A28E18813005CB016 /* testownership.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0F8F91005809465EB2EDD409 /* testownership.cpp */; };
-		E13CF64B28E18813005CB016 /* testrules.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2F5B917DA90147ABBAC18571 /* testrules.cpp */; };
-		E13CF64C28E18813005CB016 /* testscore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E3F8D82F94E14F11BA0F59E6 /* testscore.cpp */; };
-		E13CF64D28E18813005CB016 /* testsearch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0E2F9938E72849F691272AA0 /* testsearch.cpp */; };
-		E13CF64E28E18813005CB016 /* testsearchcommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0EDC97A2834E434691EA91C1 /* testsearchcommon.cpp */; };
-		E13CF64F28E18813005CB016 /* testsearchmisc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4BF2B81FB1BB43AC81344E4A /* testsearchmisc.cpp */; };
-		E13CF65028E18813005CB016 /* testsearchnonn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BC9F65190B644C969D327CD9 /* testsearchnonn.cpp */; };
-		E13CF65128E18813005CB016 /* testsearchv3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 43CF521030274453B04827E1 /* testsearchv3.cpp */; };
-		E13CF65228E18813005CB016 /* testsearchv8.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 661A920818694712953495A7 /* testsearchv8.cpp */; };
-		E13CF65328E18813005CB016 /* testsearchv9.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1356448A03004176848C790A /* testsearchv9.cpp */; };
-		E13CF65428E18813005CB016 /* testsgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 952F0B54C8BF410C9EA67989 /* testsgf.cpp */; };
-		E13CF65528E18813005CB016 /* testsymmetries.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 84BCAFD2361F4BE8B5025F65 /* testsymmetries.cpp */; };
-		E13CF65628E18813005CB016 /* testtime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A255C9FAA2E145048F33368C /* testtime.cpp */; };
-		E13CF65728E18813005CB016 /* testtrainingwrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1DFBE2386CE449D82894520 /* testtrainingwrite.cpp */; };
-		E13CF65828E18813005CB016 /* tinymodel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE70F73F685D4EDA9977822F /* tinymodel.cpp */; };
-		E13CF65928E18813005CB016 /* tinymodeldata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279C4ABB40FE447483F0F975 /* tinymodeldata.cpp */; };
-		E13CF66428E1896C005CB016 /* coremlbackend.mm in Sources */ = {isa = PBXBuildFile; fileRef = E13CF66128E1896C005CB016 /* coremlbackend.mm */; };
-		E13CF66528E1896C005CB016 /* coremlbackend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E13CF66228E1896C005CB016 /* coremlbackend.cpp */; };
-		E13CF66628E1896C005CB016 /* coremlmodel.m in Sources */ = {isa = PBXBuildFile; fileRef = E13CF66328E1896C005CB016 /* coremlmodel.m */; };
+		E10ACA7D2928A6D30004AB17 /* book.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 973B04213D1B4030B35FB01C /* book.cpp */; };
+		E10ACA7E2928A6D30004AB17 /* bookcssjs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6DD28F2EE5FB490F906D63BA /* bookcssjs.cpp */; };
+		E10ACA7F2928A6D30004AB17 /* analysis.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E7B41A9FE4124FA1AB3FBEF1 /* analysis.cpp */; };
+		E10ACA802928A6D30004AB17 /* benchmark.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 063E4C878E7E43858A863A78 /* benchmark.cpp */; };
+		E10ACA812928A6D30004AB17 /* commandline.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6CD97C1775DC4E678823595E /* commandline.cpp */; };
+		E10ACA822928A6D30004AB17 /* contribute.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D49AE95F1DD947B5BFF58C1F /* contribute.cpp */; };
+		E10ACA832928A6D30004AB17 /* evalsgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA66CE9038574A0BB16D80B6 /* evalsgf.cpp */; };
+		E10ACA842928A6D30004AB17 /* gatekeeper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */; };
+		E10ACA852928A6D30004AB17 /* metalbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E199A6F428E1E6D400A2E051 /* metalbackend.swift */; };
+		E10ACA862928A6D30004AB17 /* genbook.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B2460699580B49F689D028D5 /* genbook.cpp */; };
+		E10ACA872928A6D30004AB17 /* gtp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AD94201E380643C3985E9D62 /* gtp.cpp */; };
+		E10ACA882928A6D30004AB17 /* match.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 948AF9E88374487D85E846C2 /* match.cpp */; };
+		E10ACA892928A6D30004AB17 /* matchauto.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4361E3FD2972413FBC0102FB /* matchauto.cpp */; };
+		E10ACA8A2928A6D30004AB17 /* misc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 64D3C3432AB3409C942F7A0E /* misc.cpp */; };
+		E10ACA8B2928A6D30004AB17 /* runtests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5902EDD2F6A74BE7966E2001 /* runtests.cpp */; };
+		E10ACA8C2928A6D30004AB17 /* sandbox.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 11318DB744F340DCB41F7248 /* sandbox.cpp */; };
+		E10ACA8D2928A6D30004AB17 /* selfplay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFF33AEBABB1472B9F241A98 /* selfplay.cpp */; };
+		E10ACA8E2928A6D30004AB17 /* tune.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A241D7415C384D3A81BF73AC /* tune.cpp */; };
+		E10ACA8F2928A6D30004AB17 /* base64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D61629242F5143EBB2D9BEC9 /* base64.cpp */; };
+		E10ACA902928A6D30004AB17 /* bsearch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 176C18FD215D45179B93393C /* bsearch.cpp */; };
+		E10ACA912928A6D30004AB17 /* commandloop.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4BF5823DCA854224809D93A8 /* commandloop.cpp */; };
+		E10ACA922928A6D30004AB17 /* config_parser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 23D034621365403182419780 /* config_parser.cpp */; };
+		E10ACA932928A6D30004AB17 /* datetime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 71DC745C32B543C191262823 /* datetime.cpp */; };
+		E10ACA942928A6D30004AB17 /* elo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59353ECA2B0140FA9365623E /* elo.cpp */; };
+		E10ACA952928A6D30004AB17 /* fancymath.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2626105D31ED44D98E6B9B9D /* fancymath.cpp */; };
+		E10ACA962928A6D30004AB17 /* fileutils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CAD1B260FFB74AF9BA66A58A /* fileutils.cpp */; };
+		E10ACA972928A6D30004AB17 /* global.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A8748F2EFAAF401DACE6B60A /* global.cpp */; };
+		E10ACA982928A6D30004AB17 /* hash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BDF52FD481AA424BBC59124D /* hash.cpp */; };
+		E10ACA992928A6D30004AB17 /* logger.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B2C186FF8B3422CB64E6039 /* logger.cpp */; };
+		E10ACA9A2928A6D30004AB17 /* mainargs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92F4695F66A84118BDCAA13F /* mainargs.cpp */; };
+		E10ACA9B2928A6D30004AB17 /* makedir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 63D5831B449B48D1AD132F9F /* makedir.cpp */; };
+		E10ACA9C2928A6D30004AB17 /* md5.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE7F7520CA15440EBDF0A21D /* md5.cpp */; };
+		E10ACA9D2928A6D30004AB17 /* multithread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5185F4BC63B5490AAE4F37CB /* multithread.cpp */; };
+		E10ACA9E2928A6D30004AB17 /* rand.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B8E283A3B8004F289DACCD8A /* rand.cpp */; };
+		E10ACA9F2928A6D30004AB17 /* rand_helpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59BC63FBF0804F63A27369AE /* rand_helpers.cpp */; };
+		E10ACAA02928A6D30004AB17 /* sha2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 76F8951F199F416F99B96FE8 /* sha2.cpp */; };
+		E10ACAA12928A6D30004AB17 /* test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5639F08A96FD467CBD091947 /* test.cpp */; };
+		E10ACAA22928A6D30004AB17 /* threadsafecounter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D645BB8AAF424700A75ED223 /* threadsafecounter.cpp */; };
+		E10ACAA32928A6D30004AB17 /* threadsafequeue.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 34B63C891D53453F9C258280 /* threadsafequeue.cpp */; };
+		E10ACAA42928A6D30004AB17 /* threadtest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 69300B311DE94520A56A3B5F /* threadtest.cpp */; };
+		E10ACAA52928A6D30004AB17 /* timer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EEB543E9A42948748BF883C3 /* timer.cpp */; };
+		E10ACAA62928A6D30004AB17 /* files.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C31483CD76D48F2A7327613 /* files.cpp */; };
+		E10ACAA72928A6D30004AB17 /* homedata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E87CD61EFA340A1AF4B8BCE /* homedata.cpp */; };
+		E10ACAA82928A6D30004AB17 /* loadmodel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8FBE5F0F301A405D85F23D38 /* loadmodel.cpp */; };
+		E10ACAA92928A6D30004AB17 /* numpywrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4F20754875D24724A133A9AE /* numpywrite.cpp */; };
+		E10ACAAA2928A6D30004AB17 /* sgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3E097292E4F34AB6806F67E6 /* sgf.cpp */; };
+		E10ACAAB2928A6D30004AB17 /* trainingwrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F9788817DEA4417A321C3A0 /* trainingwrite.cpp */; };
+		E10ACAAC2928A6D30004AB17 /* client.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 792CF6207CA54AABB0F058C6 /* client.cpp */; };
+		E10ACAAD2928A6D30004AB17 /* board.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8F0B49CAFCB24D31808DB2C1 /* board.cpp */; };
+		E10ACAAE2928A6D30004AB17 /* boardhistory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 540D93E0576C47C789279AF8 /* boardhistory.cpp */; };
+		E10ACAAF2928A6D30004AB17 /* graphhash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 10EB7D2538F94B26BE1B1740 /* graphhash.cpp */; };
+		E10ACAB02928A6D30004AB17 /* rules.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 727A790F2FEA4DBEA8ABAE85 /* rules.cpp */; };
+		E10ACAB12928A6D30004AB17 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 50827347EBFE4467996C3150 /* main.cpp */; };
+		E10ACAB22928A6D30004AB17 /* desc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5D8F26726AAF403C833FBD7F /* desc.cpp */; };
+		E10ACAB32928A6D30004AB17 /* metalbackend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4845ACCEFC204BA89C033482 /* metalbackend.cpp */; };
+		E10ACAB42928A6D30004AB17 /* metalbackend.mm in Sources */ = {isa = PBXBuildFile; fileRef = D555BE954F924C7886538563 /* metalbackend.mm */; };
+		E10ACAB52928A6D30004AB17 /* modelversion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DDCAE99038794BE8B4BB3962 /* modelversion.cpp */; };
+		E10ACAB62928A6D30004AB17 /* nneval.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 92C3AF4C79ED491988E9C5BC /* nneval.cpp */; };
+		E10ACAB72928A6D30004AB17 /* nninputs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D41000BDB70543A4820D445A /* nninputs.cpp */; };
+		E10ACAB82928A6D30004AB17 /* gtpconfig.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5BCE97296A5249A0B49C766F /* gtpconfig.cpp */; };
+		E10ACAB92928A6D30004AB17 /* play.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3FBACE432776421CAEDF6786 /* play.cpp */; };
+		E10ACABA2928A6D30004AB17 /* playsettings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7A57BA046921422DB33C7614 /* playsettings.cpp */; };
+		E10ACABB2928A6D30004AB17 /* playutils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9FB3A34B1C8D4CBF9997DDA7 /* playutils.cpp */; };
+		E10ACABC2928A6D30004AB17 /* selfplaymanager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7C7A65C82B4C4AB5B83B1346 /* selfplaymanager.cpp */; };
+		E10ACABD2928A6D30004AB17 /* setup.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D104762E63AF4C6A8ADB220E /* setup.cpp */; };
+		E10ACABE2928A6D30004AB17 /* analysisdata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF423768A6B74FF18FDC44E7 /* analysisdata.cpp */; };
+		E10ACABF2928A6D30004AB17 /* asyncbot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2D4BF5BF0CD446F80DFDACE /* asyncbot.cpp */; };
+		E10ACAC02928A6D30004AB17 /* distributiontable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 32DD1B600C014B49ADDB237E /* distributiontable.cpp */; };
+		E10ACAC12928A6D30004AB17 /* localpattern.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD4302F4D69E4EE98EA75B2C /* localpattern.cpp */; };
+		E10ACAC22928A6D30004AB17 /* mutexpool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6DA721BDC00F438688E0B241 /* mutexpool.cpp */; };
+		E10ACAC32928A6D30004AB17 /* patternbonustable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6A5C095FD31A4636994B5E5A /* patternbonustable.cpp */; };
+		E10ACAC42928A6D30004AB17 /* reportedsearchvalues.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 706365E669744784A6A6DE57 /* reportedsearchvalues.cpp */; };
+		E10ACAC52928A6D30004AB17 /* search.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 93FF01FEC8DA40DB916C4F0A /* search.cpp */; };
+		E10ACAC62928A6D30004AB17 /* searchexplorehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EC59266A435045C5B84F9105 /* searchexplorehelpers.cpp */; };
+		E10ACAC72928A6D30004AB17 /* searchhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A72EC47D68904D38A5EAE635 /* searchhelpers.cpp */; };
+		E10ACAC82928A6D30004AB17 /* searchmirror.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 07DAAE05A9FA46F5B271903E /* searchmirror.cpp */; };
+		E10ACAC92928A6D30004AB17 /* searchmultithreadhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BCBCE4A8D83F42FBA4EA0CBE /* searchmultithreadhelpers.cpp */; };
+		E10ACACA2928A6D30004AB17 /* searchnnhelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA6C3E7D4604497D8B94AC50 /* searchnnhelpers.cpp */; };
+		E10ACACB2928A6D30004AB17 /* searchnode.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 206727F6853C468F84FC44AE /* searchnode.cpp */; };
+		E10ACACC2928A6D30004AB17 /* searchnodetable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C33571C53ECC4C82B0A9DA7D /* searchnodetable.cpp */; };
+		E10ACACD2928A6D30004AB17 /* searchparams.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1660F43339464F1F82D603C2 /* searchparams.cpp */; };
+		E10ACACE2928A6D30004AB17 /* searchresults.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1BAD528CE45E4D31A6F0F058 /* searchresults.cpp */; };
+		E10ACACF2928A6D30004AB17 /* searchtimehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 77C31BA9C8864C07B491DF1D /* searchtimehelpers.cpp */; };
+		E10ACAD02928A6D30004AB17 /* searchupdatehelpers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 73D2A262E3E542FD8063F8DD /* searchupdatehelpers.cpp */; };
+		E10ACAD12928A6D30004AB17 /* subtreevaluebiastable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7891834D8FB144E0B13F6E21 /* subtreevaluebiastable.cpp */; };
+		E10ACAD22928A6D30004AB17 /* timecontrols.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 888C7B98F8B64150B0903946 /* timecontrols.cpp */; };
+		E10ACAD32928A6D30004AB17 /* testboardarea.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3D4E9B8ABFBF4DAEB11058E1 /* testboardarea.cpp */; };
+		E10ACAD42928A6D30004AB17 /* testboardbasic.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F18310A722494DAEACBE09BC /* testboardbasic.cpp */; };
+		E10ACAD52928A6D30004AB17 /* testcommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C9D17518AE04398A975E5AE /* testcommon.cpp */; };
+		E10ACAD62928A6D30004AB17 /* testconfig.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 346C96C8324D4BE8A12D1A97 /* testconfig.cpp */; };
+		E10ACAD72928A6D30004AB17 /* testmisc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 48669007B9164F5FB011F549 /* testmisc.cpp */; };
+		E10ACAD82928A6D30004AB17 /* testnn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 41CCB0DF860045E5A8697BDD /* testnn.cpp */; };
+		E10ACAD92928A6D30004AB17 /* testnnevalcanary.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 88BAF51D4B34475A90D1D7CC /* testnnevalcanary.cpp */; };
+		E10ACADA2928A6D30004AB17 /* testnninputs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4B137CD979C7436188D684A7 /* testnninputs.cpp */; };
+		E10ACADB2928A6D30004AB17 /* testownership.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0F8F91005809465EB2EDD409 /* testownership.cpp */; };
+		E10ACADC2928A6D30004AB17 /* testrules.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2F5B917DA90147ABBAC18571 /* testrules.cpp */; };
+		E10ACADD2928A6D30004AB17 /* testscore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E3F8D82F94E14F11BA0F59E6 /* testscore.cpp */; };
+		E10ACADE2928A6D30004AB17 /* testsearch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0E2F9938E72849F691272AA0 /* testsearch.cpp */; };
+		E10ACADF2928A6D30004AB17 /* testsearchcommon.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0EDC97A2834E434691EA91C1 /* testsearchcommon.cpp */; };
+		E10ACAE02928A6D30004AB17 /* testsearchmisc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4BF2B81FB1BB43AC81344E4A /* testsearchmisc.cpp */; };
+		E10ACAE12928A6D30004AB17 /* testsearchnonn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BC9F65190B644C969D327CD9 /* testsearchnonn.cpp */; };
+		E10ACAE22928A6D30004AB17 /* testsearchv3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 43CF521030274453B04827E1 /* testsearchv3.cpp */; };
+		E10ACAE32928A6D30004AB17 /* testsearchv8.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 661A920818694712953495A7 /* testsearchv8.cpp */; };
+		E10ACAE42928A6D30004AB17 /* testsearchv9.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1356448A03004176848C790A /* testsearchv9.cpp */; };
+		E10ACAE52928A6D30004AB17 /* testsgf.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 952F0B54C8BF410C9EA67989 /* testsgf.cpp */; };
+		E10ACAE62928A6D30004AB17 /* testsymmetries.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 84BCAFD2361F4BE8B5025F65 /* testsymmetries.cpp */; };
+		E10ACAE72928A6D30004AB17 /* testtime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A255C9FAA2E145048F33368C /* testtime.cpp */; };
+		E10ACAE82928A6D30004AB17 /* testtrainingwrite.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1DFBE2386CE449D82894520 /* testtrainingwrite.cpp */; };
+		E10ACAE92928A6D30004AB17 /* tinymodel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE70F73F685D4EDA9977822F /* tinymodel.cpp */; };
+		E10ACAEA2928A6D30004AB17 /* tinymodeldata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279C4ABB40FE447483F0F975 /* tinymodeldata.cpp */; };
+		E10ACAEC2928A6D30004AB17 /* MetalPerformanceShaders.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404A28E1D59700E41968 /* MetalPerformanceShaders.framework */; };
+		E10ACAED2928A6D30004AB17 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD405128E1D75B00E41968 /* libz.tbd */; };
+		E10ACAEE2928A6D30004AB17 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404928E1D59700E41968 /* Metal.framework */; };
+		E10ACAEF2928A6D30004AB17 /* MetalPerformanceShadersGraph.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */; };
+		E10ACAFA2928A8D30004AB17 /* coremlbackend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E13CF66228E1896C005CB016 /* coremlbackend.cpp */; };
+		E10ACAFB2928A8D70004AB17 /* coremlbackend.mm in Sources */ = {isa = PBXBuildFile; fileRef = E13CF66128E1896C005CB016 /* coremlbackend.mm */; };
+		E10ACAFC2928A8DB0004AB17 /* coremlmodel.m in Sources */ = {isa = PBXBuildFile; fileRef = E13CF66328E1896C005CB016 /* coremlmodel.m */; };
+		E10ACAFD2928BBF00004AB17 /* CoreML.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404F28E1D5A700E41968 /* CoreML.framework */; };
 		E199A6F528E1E6D400A2E051 /* metalbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E199A6F428E1E6D400A2E051 /* metalbackend.swift */; };
 		E1AD404C28E1D59700E41968 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404928E1D59700E41968 /* Metal.framework */; };
 		E1AD404D28E1D59700E41968 /* MetalPerformanceShaders.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404A28E1D59700E41968 /* MetalPerformanceShaders.framework */; };
 		E1AD404E28E1D59700E41968 /* MetalPerformanceShadersGraph.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */; };
-		E1AD405028E1D5A700E41968 /* CoreML.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD404F28E1D5A700E41968 /* CoreML.framework */; };
-		E1AD405228E1D76700E41968 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD405128E1D75B00E41968 /* libz.tbd */; };
 		E1AD405328E1D77400E41968 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AD405128E1D75B00E41968 /* libz.tbd */; };
 		E1E29E1328F5B05300E73FF8 /* metalbackendtest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1E29E1228F5B05300E73FF8 /* metalbackendtest.swift */; };
 		E1E29E1B28F5B42200E73FF8 /* metalbackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E199A6F428E1E6D400A2E051 /* metalbackend.swift */; };
@@ -254,12 +260,12 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		E13CF66D28E1BDA9005CB016 /* PBXContainerItemProxy */ = {
+		E10ACAF62928A7060004AB17 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 91644CF2108748368B902DCE /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = E13CF5EB28E18813005CB016;
-			remoteInfo = "KataGo-CoreML";
+			remoteGlobalIDString = E10ACA7B2928A6D30004AB17;
+			remoteInfo = KataGoMetalCoreML;
 		};
 		E13CF66F28E1BDA9005CB016 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -316,7 +322,7 @@
 		4BF2B81FB1BB43AC81344E4A /* testsearchmisc.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testsearchmisc.cpp; path = tests/testsearchmisc.cpp; sourceTree = SOURCE_ROOT; };
 		4BF5823DCA854224809D93A8 /* commandloop.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = commandloop.cpp; path = core/commandloop.cpp; sourceTree = SOURCE_ROOT; };
 		4F20754875D24724A133A9AE /* numpywrite.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = numpywrite.cpp; path = dataio/numpywrite.cpp; sourceTree = SOURCE_ROOT; };
-		50827347EBFE4467996C3150 /* main.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; path = main.cpp; sourceTree = SOURCE_ROOT; };
+		50827347EBFE4467996C3150 /* main.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; indentWidth = 2; path = main.cpp; sourceTree = SOURCE_ROOT; };
 		5185F4BC63B5490AAE4F37CB /* multithread.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = multithread.cpp; path = core/multithread.cpp; sourceTree = SOURCE_ROOT; };
 		540D93E0576C47C789279AF8 /* boardhistory.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = boardhistory.cpp; path = game/boardhistory.cpp; sourceTree = SOURCE_ROOT; };
 		5639F08A96FD467CBD091947 /* test.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = test.cpp; path = core/test.cpp; sourceTree = SOURCE_ROOT; };
@@ -389,9 +395,11 @@
 		D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = gatekeeper.cpp; path = command/gatekeeper.cpp; sourceTree = SOURCE_ROOT; };
 		DD4302F4D69E4EE98EA75B2C /* localpattern.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = localpattern.cpp; path = search/localpattern.cpp; sourceTree = SOURCE_ROOT; };
 		DDCAE99038794BE8B4BB3962 /* modelversion.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = modelversion.cpp; path = neuralnet/modelversion.cpp; sourceTree = SOURCE_ROOT; };
-		E13CF66028E18813005CB016 /* KataGoCoreML */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = KataGoCoreML; sourceTree = BUILT_PRODUCTS_DIR; };
+		E10ACAF52928A6D30004AB17 /* KataGoMetalCoreML */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = KataGoMetalCoreML; sourceTree = BUILT_PRODUCTS_DIR; };
+		E10ACAF82928A7F50004AB17 /* coremlmodel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = coremlmodel.h; path = neuralnet/coremlmodel.h; sourceTree = "<group>"; };
+		E10ACAF92928A8160004AB17 /* coremlbackend.h */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = coremlbackend.h; path = neuralnet/coremlbackend.h; sourceTree = "<group>"; tabWidth = 4; };
 		E13CF66128E1896C005CB016 /* coremlbackend.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = coremlbackend.mm; path = neuralnet/coremlbackend.mm; sourceTree = "<group>"; };
-		E13CF66228E1896C005CB016 /* coremlbackend.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = coremlbackend.cpp; path = neuralnet/coremlbackend.cpp; sourceTree = "<group>"; };
+		E13CF66228E1896C005CB016 /* coremlbackend.cpp */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.cpp.cpp; name = coremlbackend.cpp; path = neuralnet/coremlbackend.cpp; sourceTree = "<group>"; };
 		E13CF66328E1896C005CB016 /* coremlmodel.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = coremlmodel.m; path = neuralnet/coremlmodel.m; sourceTree = "<group>"; };
 		E199A6F428E1E6D400A2E051 /* metalbackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = metalbackend.swift; path = neuralnet/metalbackend.swift; sourceTree = SOURCE_ROOT; };
 		E199A6F828E25E8100A2E051 /* metalbridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = metalbridge.h; path = neuralnet/metalbridge.h; sourceTree = "<group>"; };
@@ -423,12 +431,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E13CF65A28E18813005CB016 /* Frameworks */ = {
+		E10ACAEB2928A6D30004AB17 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E1AD405028E1D5A700E41968 /* CoreML.framework in Frameworks */,
-				E1AD405228E1D76700E41968 /* libz.tbd in Frameworks */,
+				E10ACAEC2928A6D30004AB17 /* MetalPerformanceShaders.framework in Frameworks */,
+				E10ACAED2928A6D30004AB17 /* libz.tbd in Frameworks */,
+				E10ACAFD2928BBF00004AB17 /* CoreML.framework in Frameworks */,
+				E10ACAEE2928A6D30004AB17 /* Metal.framework in Frameworks */,
+				E10ACAEF2928A6D30004AB17 /* MetalPerformanceShadersGraph.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -464,6 +475,8 @@
 		3B22C5B3776049BD9CC4D5D9 /* Header Files */ = {
 			isa = PBXGroup;
 			children = (
+				E10ACAF92928A8160004AB17 /* coremlbackend.h */,
+				E10ACAF82928A7F50004AB17 /* coremlmodel.h */,
 				E199A6F928E25EE500A2E051 /* metalbackend.h */,
 				E199A6F828E25E8100A2E051 /* metalbridge.h */,
 			);
@@ -474,8 +487,8 @@
 			isa = PBXGroup;
 			children = (
 				AB4C92DA620D4F538227B59F /* KataGoMetal */,
-				E13CF66028E18813005CB016 /* KataGoCoreML */,
 				E1E29E1028F5B05300E73FF8 /* KataGoMetalTest.xctest */,
+				E10ACAF52928A6D30004AB17 /* KataGoMetalCoreML */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -640,20 +653,20 @@
 			productReference = AB4C92DA620D4F538227B59F /* KataGoMetal */;
 			productType = "com.apple.product-type.tool";
 		};
-		E13CF5EB28E18813005CB016 /* KataGoCoreML */ = {
+		E10ACA7B2928A6D30004AB17 /* KataGoMetalCoreML */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = E13CF65B28E18813005CB016 /* Build configuration list for PBXNativeTarget "KataGoCoreML" */;
+			buildConfigurationList = E10ACAF02928A6D30004AB17 /* Build configuration list for PBXNativeTarget "KataGoMetalCoreML" */;
 			buildPhases = (
-				E13CF5EC28E18813005CB016 /* Sources */,
-				E13CF65A28E18813005CB016 /* Frameworks */,
+				E10ACA7C2928A6D30004AB17 /* Sources */,
+				E10ACAEB2928A6D30004AB17 /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = KataGoCoreML;
+			name = KataGoMetalCoreML;
 			productName = katago;
-			productReference = E13CF66028E18813005CB016 /* KataGoCoreML */;
+			productReference = E10ACAF52928A6D30004AB17 /* KataGoMetalCoreML */;
 			productType = "com.apple.product-type.tool";
 		};
 		E1E29E0F28F5B05300E73FF8 /* KataGoMetalTest */ = {
@@ -709,8 +722,8 @@
 			targets = (
 				E13CF66728E1BD87005CB016 /* ALL_BUILDS */,
 				28EEEDD45A95496F8B5C834F /* KataGoMetal */,
-				E13CF5EB28E18813005CB016 /* KataGoCoreML */,
 				E1E29E0F28F5B05300E73FF8 /* KataGoMetalTest */,
+				E10ACA7B2928A6D30004AB17 /* KataGoMetalCoreML */,
 			);
 		};
 /* End PBXProject section */
@@ -843,120 +856,123 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E13CF5EC28E18813005CB016 /* Sources */ = {
+		E10ACA7C2928A6D30004AB17 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E13CF5ED28E18813005CB016 /* book.cpp in Sources */,
-				E13CF5EE28E18813005CB016 /* bookcssjs.cpp in Sources */,
-				E13CF5EF28E18813005CB016 /* analysis.cpp in Sources */,
-				E13CF5F028E18813005CB016 /* benchmark.cpp in Sources */,
-				E13CF5F128E18813005CB016 /* commandline.cpp in Sources */,
-				E13CF5F228E18813005CB016 /* contribute.cpp in Sources */,
-				E13CF5F328E18813005CB016 /* evalsgf.cpp in Sources */,
-				E13CF5F428E18813005CB016 /* gatekeeper.cpp in Sources */,
-				E13CF5F528E18813005CB016 /* genbook.cpp in Sources */,
-				E13CF5F628E18813005CB016 /* gtp.cpp in Sources */,
-				E13CF5F728E18813005CB016 /* match.cpp in Sources */,
-				E13CF5F828E18813005CB016 /* matchauto.cpp in Sources */,
-				E13CF5F928E18813005CB016 /* misc.cpp in Sources */,
-				E13CF5FA28E18813005CB016 /* runtests.cpp in Sources */,
-				E13CF5FB28E18813005CB016 /* sandbox.cpp in Sources */,
-				E13CF5FC28E18813005CB016 /* selfplay.cpp in Sources */,
-				E13CF5FD28E18813005CB016 /* tune.cpp in Sources */,
-				E13CF5FE28E18813005CB016 /* base64.cpp in Sources */,
-				E13CF5FF28E18813005CB016 /* bsearch.cpp in Sources */,
-				E13CF60028E18813005CB016 /* commandloop.cpp in Sources */,
-				E13CF60128E18813005CB016 /* config_parser.cpp in Sources */,
-				E13CF60228E18813005CB016 /* datetime.cpp in Sources */,
-				E13CF60328E18813005CB016 /* elo.cpp in Sources */,
-				E13CF60428E18813005CB016 /* fancymath.cpp in Sources */,
-				E13CF60528E18813005CB016 /* fileutils.cpp in Sources */,
-				E13CF60628E18813005CB016 /* global.cpp in Sources */,
-				E13CF60728E18813005CB016 /* hash.cpp in Sources */,
-				E13CF60828E18813005CB016 /* logger.cpp in Sources */,
-				E13CF60928E18813005CB016 /* mainargs.cpp in Sources */,
-				E13CF60A28E18813005CB016 /* makedir.cpp in Sources */,
-				E13CF60B28E18813005CB016 /* md5.cpp in Sources */,
-				E13CF60C28E18813005CB016 /* multithread.cpp in Sources */,
-				E13CF60D28E18813005CB016 /* rand.cpp in Sources */,
-				E13CF60E28E18813005CB016 /* rand_helpers.cpp in Sources */,
-				E13CF60F28E18813005CB016 /* sha2.cpp in Sources */,
-				E13CF61028E18813005CB016 /* test.cpp in Sources */,
-				E13CF61128E18813005CB016 /* threadsafecounter.cpp in Sources */,
-				E13CF61228E18813005CB016 /* threadsafequeue.cpp in Sources */,
-				E13CF61328E18813005CB016 /* threadtest.cpp in Sources */,
-				E13CF61428E18813005CB016 /* timer.cpp in Sources */,
-				E13CF61528E18813005CB016 /* files.cpp in Sources */,
-				E13CF61628E18813005CB016 /* homedata.cpp in Sources */,
-				E13CF61728E18813005CB016 /* loadmodel.cpp in Sources */,
-				E13CF61828E18813005CB016 /* numpywrite.cpp in Sources */,
-				E13CF61928E18813005CB016 /* sgf.cpp in Sources */,
-				E13CF61A28E18813005CB016 /* trainingwrite.cpp in Sources */,
-				E13CF61B28E18813005CB016 /* client.cpp in Sources */,
-				E13CF61C28E18813005CB016 /* board.cpp in Sources */,
-				E13CF61D28E18813005CB016 /* boardhistory.cpp in Sources */,
-				E13CF61E28E18813005CB016 /* graphhash.cpp in Sources */,
-				E13CF61F28E18813005CB016 /* rules.cpp in Sources */,
-				E13CF62028E18813005CB016 /* main.cpp in Sources */,
-				E13CF62128E18813005CB016 /* desc.cpp in Sources */,
-				E13CF62428E18813005CB016 /* modelversion.cpp in Sources */,
-				E13CF62528E18813005CB016 /* nneval.cpp in Sources */,
-				E13CF62628E18813005CB016 /* nninputs.cpp in Sources */,
-				E13CF62728E18813005CB016 /* gtpconfig.cpp in Sources */,
-				E13CF62828E18813005CB016 /* play.cpp in Sources */,
-				E13CF62928E18813005CB016 /* playsettings.cpp in Sources */,
-				E13CF62A28E18813005CB016 /* playutils.cpp in Sources */,
-				E13CF62B28E18813005CB016 /* selfplaymanager.cpp in Sources */,
-				E13CF62C28E18813005CB016 /* setup.cpp in Sources */,
-				E13CF62D28E18813005CB016 /* analysisdata.cpp in Sources */,
-				E13CF62E28E18813005CB016 /* asyncbot.cpp in Sources */,
-				E13CF62F28E18813005CB016 /* distributiontable.cpp in Sources */,
-				E13CF63028E18813005CB016 /* localpattern.cpp in Sources */,
-				E13CF63128E18813005CB016 /* mutexpool.cpp in Sources */,
-				E13CF63228E18813005CB016 /* patternbonustable.cpp in Sources */,
-				E13CF63328E18813005CB016 /* reportedsearchvalues.cpp in Sources */,
-				E13CF63428E18813005CB016 /* search.cpp in Sources */,
-				E13CF63528E18813005CB016 /* searchexplorehelpers.cpp in Sources */,
-				E13CF63628E18813005CB016 /* searchhelpers.cpp in Sources */,
-				E13CF63728E18813005CB016 /* searchmirror.cpp in Sources */,
-				E13CF66628E1896C005CB016 /* coremlmodel.m in Sources */,
-				E13CF63828E18813005CB016 /* searchmultithreadhelpers.cpp in Sources */,
-				E13CF63928E18813005CB016 /* searchnnhelpers.cpp in Sources */,
-				E13CF63A28E18813005CB016 /* searchnode.cpp in Sources */,
-				E13CF63B28E18813005CB016 /* searchnodetable.cpp in Sources */,
-				E13CF63C28E18813005CB016 /* searchparams.cpp in Sources */,
-				E13CF63D28E18813005CB016 /* searchresults.cpp in Sources */,
-				E13CF63E28E18813005CB016 /* searchtimehelpers.cpp in Sources */,
-				E13CF63F28E18813005CB016 /* searchupdatehelpers.cpp in Sources */,
-				E13CF64028E18813005CB016 /* subtreevaluebiastable.cpp in Sources */,
-				E13CF64128E18813005CB016 /* timecontrols.cpp in Sources */,
-				E13CF64228E18813005CB016 /* testboardarea.cpp in Sources */,
-				E13CF64328E18813005CB016 /* testboardbasic.cpp in Sources */,
-				E13CF64428E18813005CB016 /* testcommon.cpp in Sources */,
-				E13CF64528E18813005CB016 /* testconfig.cpp in Sources */,
-				E13CF64628E18813005CB016 /* testmisc.cpp in Sources */,
-				E13CF64728E18813005CB016 /* testnn.cpp in Sources */,
-				E13CF64828E18813005CB016 /* testnnevalcanary.cpp in Sources */,
-				E13CF64928E18813005CB016 /* testnninputs.cpp in Sources */,
-				E13CF64A28E18813005CB016 /* testownership.cpp in Sources */,
-				E13CF64B28E18813005CB016 /* testrules.cpp in Sources */,
-				E13CF64C28E18813005CB016 /* testscore.cpp in Sources */,
-				E13CF66428E1896C005CB016 /* coremlbackend.mm in Sources */,
-				E13CF64D28E18813005CB016 /* testsearch.cpp in Sources */,
-				E13CF64E28E18813005CB016 /* testsearchcommon.cpp in Sources */,
-				E13CF64F28E18813005CB016 /* testsearchmisc.cpp in Sources */,
-				E13CF65028E18813005CB016 /* testsearchnonn.cpp in Sources */,
-				E13CF65128E18813005CB016 /* testsearchv3.cpp in Sources */,
-				E13CF65228E18813005CB016 /* testsearchv8.cpp in Sources */,
-				E13CF65328E18813005CB016 /* testsearchv9.cpp in Sources */,
-				E13CF65428E18813005CB016 /* testsgf.cpp in Sources */,
-				E13CF65528E18813005CB016 /* testsymmetries.cpp in Sources */,
-				E13CF66528E1896C005CB016 /* coremlbackend.cpp in Sources */,
-				E13CF65628E18813005CB016 /* testtime.cpp in Sources */,
-				E13CF65728E18813005CB016 /* testtrainingwrite.cpp in Sources */,
-				E13CF65828E18813005CB016 /* tinymodel.cpp in Sources */,
-				E13CF65928E18813005CB016 /* tinymodeldata.cpp in Sources */,
+				E10ACA7D2928A6D30004AB17 /* book.cpp in Sources */,
+				E10ACA7E2928A6D30004AB17 /* bookcssjs.cpp in Sources */,
+				E10ACA7F2928A6D30004AB17 /* analysis.cpp in Sources */,
+				E10ACA802928A6D30004AB17 /* benchmark.cpp in Sources */,
+				E10ACA812928A6D30004AB17 /* commandline.cpp in Sources */,
+				E10ACA822928A6D30004AB17 /* contribute.cpp in Sources */,
+				E10ACA832928A6D30004AB17 /* evalsgf.cpp in Sources */,
+				E10ACA842928A6D30004AB17 /* gatekeeper.cpp in Sources */,
+				E10ACA852928A6D30004AB17 /* metalbackend.swift in Sources */,
+				E10ACA862928A6D30004AB17 /* genbook.cpp in Sources */,
+				E10ACA872928A6D30004AB17 /* gtp.cpp in Sources */,
+				E10ACA882928A6D30004AB17 /* match.cpp in Sources */,
+				E10ACA892928A6D30004AB17 /* matchauto.cpp in Sources */,
+				E10ACA8A2928A6D30004AB17 /* misc.cpp in Sources */,
+				E10ACA8B2928A6D30004AB17 /* runtests.cpp in Sources */,
+				E10ACA8C2928A6D30004AB17 /* sandbox.cpp in Sources */,
+				E10ACA8D2928A6D30004AB17 /* selfplay.cpp in Sources */,
+				E10ACA8E2928A6D30004AB17 /* tune.cpp in Sources */,
+				E10ACAFB2928A8D70004AB17 /* coremlbackend.mm in Sources */,
+				E10ACA8F2928A6D30004AB17 /* base64.cpp in Sources */,
+				E10ACA902928A6D30004AB17 /* bsearch.cpp in Sources */,
+				E10ACA912928A6D30004AB17 /* commandloop.cpp in Sources */,
+				E10ACA922928A6D30004AB17 /* config_parser.cpp in Sources */,
+				E10ACA932928A6D30004AB17 /* datetime.cpp in Sources */,
+				E10ACA942928A6D30004AB17 /* elo.cpp in Sources */,
+				E10ACA952928A6D30004AB17 /* fancymath.cpp in Sources */,
+				E10ACA962928A6D30004AB17 /* fileutils.cpp in Sources */,
+				E10ACA972928A6D30004AB17 /* global.cpp in Sources */,
+				E10ACA982928A6D30004AB17 /* hash.cpp in Sources */,
+				E10ACA992928A6D30004AB17 /* logger.cpp in Sources */,
+				E10ACA9A2928A6D30004AB17 /* mainargs.cpp in Sources */,
+				E10ACA9B2928A6D30004AB17 /* makedir.cpp in Sources */,
+				E10ACA9C2928A6D30004AB17 /* md5.cpp in Sources */,
+				E10ACA9D2928A6D30004AB17 /* multithread.cpp in Sources */,
+				E10ACA9E2928A6D30004AB17 /* rand.cpp in Sources */,
+				E10ACA9F2928A6D30004AB17 /* rand_helpers.cpp in Sources */,
+				E10ACAA02928A6D30004AB17 /* sha2.cpp in Sources */,
+				E10ACAA12928A6D30004AB17 /* test.cpp in Sources */,
+				E10ACAA22928A6D30004AB17 /* threadsafecounter.cpp in Sources */,
+				E10ACAA32928A6D30004AB17 /* threadsafequeue.cpp in Sources */,
+				E10ACAA42928A6D30004AB17 /* threadtest.cpp in Sources */,
+				E10ACAA52928A6D30004AB17 /* timer.cpp in Sources */,
+				E10ACAA62928A6D30004AB17 /* files.cpp in Sources */,
+				E10ACAA72928A6D30004AB17 /* homedata.cpp in Sources */,
+				E10ACAA82928A6D30004AB17 /* loadmodel.cpp in Sources */,
+				E10ACAA92928A6D30004AB17 /* numpywrite.cpp in Sources */,
+				E10ACAAA2928A6D30004AB17 /* sgf.cpp in Sources */,
+				E10ACAAB2928A6D30004AB17 /* trainingwrite.cpp in Sources */,
+				E10ACAAC2928A6D30004AB17 /* client.cpp in Sources */,
+				E10ACAAD2928A6D30004AB17 /* board.cpp in Sources */,
+				E10ACAAE2928A6D30004AB17 /* boardhistory.cpp in Sources */,
+				E10ACAAF2928A6D30004AB17 /* graphhash.cpp in Sources */,
+				E10ACAB02928A6D30004AB17 /* rules.cpp in Sources */,
+				E10ACAB12928A6D30004AB17 /* main.cpp in Sources */,
+				E10ACAB22928A6D30004AB17 /* desc.cpp in Sources */,
+				E10ACAB32928A6D30004AB17 /* metalbackend.cpp in Sources */,
+				E10ACAB42928A6D30004AB17 /* metalbackend.mm in Sources */,
+				E10ACAB52928A6D30004AB17 /* modelversion.cpp in Sources */,
+				E10ACAB62928A6D30004AB17 /* nneval.cpp in Sources */,
+				E10ACAB72928A6D30004AB17 /* nninputs.cpp in Sources */,
+				E10ACAB82928A6D30004AB17 /* gtpconfig.cpp in Sources */,
+				E10ACAB92928A6D30004AB17 /* play.cpp in Sources */,
+				E10ACABA2928A6D30004AB17 /* playsettings.cpp in Sources */,
+				E10ACABB2928A6D30004AB17 /* playutils.cpp in Sources */,
+				E10ACABC2928A6D30004AB17 /* selfplaymanager.cpp in Sources */,
+				E10ACABD2928A6D30004AB17 /* setup.cpp in Sources */,
+				E10ACABE2928A6D30004AB17 /* analysisdata.cpp in Sources */,
+				E10ACABF2928A6D30004AB17 /* asyncbot.cpp in Sources */,
+				E10ACAC02928A6D30004AB17 /* distributiontable.cpp in Sources */,
+				E10ACAC12928A6D30004AB17 /* localpattern.cpp in Sources */,
+				E10ACAC22928A6D30004AB17 /* mutexpool.cpp in Sources */,
+				E10ACAC32928A6D30004AB17 /* patternbonustable.cpp in Sources */,
+				E10ACAC42928A6D30004AB17 /* reportedsearchvalues.cpp in Sources */,
+				E10ACAC52928A6D30004AB17 /* search.cpp in Sources */,
+				E10ACAC62928A6D30004AB17 /* searchexplorehelpers.cpp in Sources */,
+				E10ACAC72928A6D30004AB17 /* searchhelpers.cpp in Sources */,
+				E10ACAC82928A6D30004AB17 /* searchmirror.cpp in Sources */,
+				E10ACAFC2928A8DB0004AB17 /* coremlmodel.m in Sources */,
+				E10ACAC92928A6D30004AB17 /* searchmultithreadhelpers.cpp in Sources */,
+				E10ACACA2928A6D30004AB17 /* searchnnhelpers.cpp in Sources */,
+				E10ACACB2928A6D30004AB17 /* searchnode.cpp in Sources */,
+				E10ACACC2928A6D30004AB17 /* searchnodetable.cpp in Sources */,
+				E10ACACD2928A6D30004AB17 /* searchparams.cpp in Sources */,
+				E10ACACE2928A6D30004AB17 /* searchresults.cpp in Sources */,
+				E10ACACF2928A6D30004AB17 /* searchtimehelpers.cpp in Sources */,
+				E10ACAD02928A6D30004AB17 /* searchupdatehelpers.cpp in Sources */,
+				E10ACAD12928A6D30004AB17 /* subtreevaluebiastable.cpp in Sources */,
+				E10ACAD22928A6D30004AB17 /* timecontrols.cpp in Sources */,
+				E10ACAD32928A6D30004AB17 /* testboardarea.cpp in Sources */,
+				E10ACAD42928A6D30004AB17 /* testboardbasic.cpp in Sources */,
+				E10ACAD52928A6D30004AB17 /* testcommon.cpp in Sources */,
+				E10ACAD62928A6D30004AB17 /* testconfig.cpp in Sources */,
+				E10ACAD72928A6D30004AB17 /* testmisc.cpp in Sources */,
+				E10ACAD82928A6D30004AB17 /* testnn.cpp in Sources */,
+				E10ACAD92928A6D30004AB17 /* testnnevalcanary.cpp in Sources */,
+				E10ACADA2928A6D30004AB17 /* testnninputs.cpp in Sources */,
+				E10ACADB2928A6D30004AB17 /* testownership.cpp in Sources */,
+				E10ACADC2928A6D30004AB17 /* testrules.cpp in Sources */,
+				E10ACADD2928A6D30004AB17 /* testscore.cpp in Sources */,
+				E10ACADE2928A6D30004AB17 /* testsearch.cpp in Sources */,
+				E10ACADF2928A6D30004AB17 /* testsearchcommon.cpp in Sources */,
+				E10ACAE02928A6D30004AB17 /* testsearchmisc.cpp in Sources */,
+				E10ACAE12928A6D30004AB17 /* testsearchnonn.cpp in Sources */,
+				E10ACAE22928A6D30004AB17 /* testsearchv3.cpp in Sources */,
+				E10ACAE32928A6D30004AB17 /* testsearchv8.cpp in Sources */,
+				E10ACAE42928A6D30004AB17 /* testsearchv9.cpp in Sources */,
+				E10ACAE52928A6D30004AB17 /* testsgf.cpp in Sources */,
+				E10ACAE62928A6D30004AB17 /* testsymmetries.cpp in Sources */,
+				E10ACAFA2928A8D30004AB17 /* coremlbackend.cpp in Sources */,
+				E10ACAE72928A6D30004AB17 /* testtime.cpp in Sources */,
+				E10ACAE82928A6D30004AB17 /* testtrainingwrite.cpp in Sources */,
+				E10ACAE92928A6D30004AB17 /* tinymodel.cpp in Sources */,
+				E10ACAEA2928A6D30004AB17 /* tinymodeldata.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -972,10 +988,10 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		E13CF66E28E1BDA9005CB016 /* PBXTargetDependency */ = {
+		E10ACAF72928A7060004AB17 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = E13CF5EB28E18813005CB016 /* KataGoCoreML */;
-			targetProxy = E13CF66D28E1BDA9005CB016 /* PBXContainerItemProxy */;
+			target = E10ACA7B2928A6D30004AB17 /* KataGoMetalCoreML */;
+			targetProxy = E10ACAF62928A7060004AB17 /* PBXContainerItemProxy */;
 		};
 		E13CF67028E1BDA9005CB016 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1262,55 +1278,91 @@
 			};
 			name = MinSizeRel;
 		};
-		E13CF65C28E18813005CB016 /* Debug */ = {
+		E10ACAF12928A6D30004AB17 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "-";
 				DEAD_CODE_STRIPPING = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_METAL_BACKEND,
 					USE_COREML_BACKEND,
 					"$(inherited)",
 				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
+				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
 			};
 			name = Debug;
 		};
-		E13CF65D28E18813005CB016 /* Release */ = {
+		E10ACAF22928A6D30004AB17 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "-";
 				DEAD_CODE_STRIPPING = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_METAL_BACKEND,
 					USE_COREML_BACKEND,
 					"$(inherited)",
 				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
+				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
 			};
 			name = Release;
 		};
-		E13CF65E28E18813005CB016 /* MinSizeRel */ = {
+		E10ACAF32928A6D30004AB17 /* MinSizeRel */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "-";
 				DEAD_CODE_STRIPPING = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_METAL_BACKEND,
 					USE_COREML_BACKEND,
 					"$(inherited)",
 				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
+				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
 			};
 			name = MinSizeRel;
 		};
-		E13CF65F28E18813005CB016 /* RelWithDebInfo */ = {
+		E10ACAF42928A6D30004AB17 /* RelWithDebInfo */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "-";
 				DEAD_CODE_STRIPPING = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					USE_METAL_BACKEND,
 					USE_COREML_BACKEND,
 					"$(inherited)",
 				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = neuralnet/metalbridge.h;
+				SWIFT_OBJC_INTERFACE_HEADER_NAME = metalswift.h;
 			};
 			name = RelWithDebInfo;
 		};
@@ -1586,13 +1638,13 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		E13CF65B28E18813005CB016 /* Build configuration list for PBXNativeTarget "KataGoCoreML" */ = {
+		E10ACAF02928A6D30004AB17 /* Build configuration list for PBXNativeTarget "KataGoMetalCoreML" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				E13CF65C28E18813005CB016 /* Debug */,
-				E13CF65D28E18813005CB016 /* Release */,
-				E13CF65E28E18813005CB016 /* MinSizeRel */,
-				E13CF65F28E18813005CB016 /* RelWithDebInfo */,
+				E10ACAF12928A6D30004AB17 /* Debug */,
+				E10ACAF22928A6D30004AB17 /* Release */,
+				E10ACAF32928A6D30004AB17 /* MinSizeRel */,
+				E10ACAF42928A6D30004AB17 /* RelWithDebInfo */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

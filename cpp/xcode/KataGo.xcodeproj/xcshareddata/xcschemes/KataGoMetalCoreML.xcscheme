@@ -14,9 +14,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "E13CF66728E1BD87005CB016"
-               BuildableName = "ALL_BUILDS"
-               BlueprintName = "ALL_BUILDS"
+               BlueprintIdentifier = "E10ACA7B2928A6D30004AB17"
+               BuildableName = "KataGoMetalCoreML"
+               BlueprintName = "KataGoMetalCoreML"
                ReferencedContainer = "container:xcode/KataGo.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -28,16 +28,6 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES">
       <Testables>
-         <TestableReference
-            skipped = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "E1E29E0F28F5B05300E73FF8"
-               BuildableName = "KataGoMetalTest.xctest"
-               BlueprintName = "KataGoMetalTest"
-               ReferencedContainer = "container:xcode/KataGo.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
@@ -49,7 +39,8 @@
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
-      allowLocationSimulation = "YES">
+      allowLocationSimulation = "YES"
+      viewDebuggingEnabled = "No">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference
@@ -62,8 +53,8 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "gtp"
-            isEnabled = "YES">
+            argument = "runownershiptests $HOME/.katago/default_gtp.cfg $HOME/.katago/default_model.bin.gz"
+            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
    </LaunchAction>
@@ -73,15 +64,16 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <MacroExpansion>
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "E13CF66728E1BD87005CB016"
-            BuildableName = "ALL_BUILDS"
-            BlueprintName = "ALL_BUILDS"
+            BlueprintIdentifier = "E10ACA7B2928A6D30004AB17"
+            BuildableName = "KataGoMetalCoreML"
+            BlueprintName = "KataGoMetalCoreML"
             ReferencedContainer = "container:xcode/KataGo.xcodeproj">
          </BuildableReference>
-      </MacroExpansion>
+      </BuildableProductRunnable>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">

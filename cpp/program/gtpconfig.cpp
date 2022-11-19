@@ -295,9 +295,6 @@ string GTPConfig::makeConfig(
 #ifdef USE_METAL_BACKEND
       replacement += "metalDeviceToUseThread" + Global::intToString(i) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
 #endif
-#ifdef USE_COREML_BACKEND
-      replacement += "coremlDeviceToUseThread" + Global::intToString(i) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
-#endif
     }
     replace("$$MULTIPLE_GPUS", replacement);
   }
