@@ -133,7 +133,8 @@ struct ComputeHandle {
                                                   nnXLen,
                                                   nnYLen,
                                                   gpuIdx,
-                                                  inputsUseNHWC);
+                                                  inputsUseNHWC,
+                                                  serverThreadIdx);
 
     if(!(coreMLComputeHandle->isCoreML)) {
       createMetalHandle(gpuIdx, modelDesc, maxBatchSize, serverThreadIdx);

@@ -170,7 +170,9 @@ void initCoreMLBackends() {
 
 // Create the CoreMLBackend instance.
 // The ML model version is returned.
-int createCoreMLBackend(int modelIndex, int modelXLen, int modelYLen) {
+int createCoreMLBackend(int modelIndex, int modelXLen, int modelYLen, int serverThreadIdx) {
+  NSLog(@"Metal backend thread %d: CoreML-#%d-%dx%d", serverThreadIdx, modelIndex, modelXLen, modelYLen);
+
   NSNumber * version = [CoreMLBackend initWithIndex:[NSNumber numberWithInt:modelIndex]
                                           modelXLen:[NSNumber numberWithInt:modelXLen]
                                           modelYLen:[NSNumber numberWithInt:modelYLen]];

@@ -25,7 +25,8 @@ struct CoreMLComputeHandle {
                       int nnXLen,
                       int nnYLen,
                       int gpuIdx,
-                      bool inputsNHWC);
+                      bool inputsNHWC,
+                      int serverThreadIdx);
   
   CoreMLComputeHandle() = delete;
   CoreMLComputeHandle(const CoreMLComputeHandle&) = delete;
@@ -94,7 +95,7 @@ struct CoreMLInputBuffers {
 };
 
 void initCoreMLBackends();
-int createCoreMLBackend(int modelIndex, int modelXLen, int modelYLen);
+int createCoreMLBackend(int modelIndex, int modelXLen, int modelYLen, int serverThreadIdx);
 void freeCoreMLBackend(int modelIndex);
 
 void getCoreMLBackendOutput(float* userInputBuffer,

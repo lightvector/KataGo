@@ -29,7 +29,8 @@ CoreMLComputeHandle::CoreMLComputeHandle(const CoreMLLoadedModel* loadedModel,
                                          int nnXLen,
                                          int nnYLen,
                                          int gpuIdx,
-                                         bool inputsNHWC) {
+                                         bool inputsNHWC,
+                                         int serverThreadIdx) {
   this->nnXLen = nnXLen;
   this->nnYLen = nnYLen;
   modelXLen = loadedModel->modelXLen;
@@ -37,7 +38,7 @@ CoreMLComputeHandle::CoreMLComputeHandle(const CoreMLLoadedModel* loadedModel,
   inputsUseNHWC = inputsNHWC;
 
   if((gpuIdx == 100) || (gpuIdx == 101)) {
-    version = createCoreMLBackend(gpuIdx, modelXLen, modelYLen);
+    version = createCoreMLBackend(gpuIdx, modelXLen, modelYLen, serverThreadIdx);
     isCoreML = true;
   } else {
     version = -1;
