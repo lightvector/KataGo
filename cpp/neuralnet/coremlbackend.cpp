@@ -15,7 +15,7 @@ CoreMLLoadedModel::CoreMLLoadedModel() {
   modelXLen = COMPILE_MAX_BOARD_LEN;
   modelYLen = COMPILE_MAX_BOARD_LEN;
   modelDesc.name = "CoreML model";
-  modelDesc.version = createCoreMLBackend(0, COMPILE_MAX_BOARD_LEN, COMPILE_MAX_BOARD_LEN);
+  modelDesc.version = createCoreMLBackend(100, COMPILE_MAX_BOARD_LEN, COMPILE_MAX_BOARD_LEN, -1);
   modelDesc.numInputChannels = 22;
   modelDesc.numInputGlobalChannels = 19;
   modelDesc.numValueChannels = 3;
@@ -33,6 +33,7 @@ CoreMLComputeHandle::CoreMLComputeHandle(const CoreMLLoadedModel* loadedModel,
                                          int serverThreadIdx) {
   this->nnXLen = nnXLen;
   this->nnYLen = nnYLen;
+  gpuIndex = gpuIdx;
   modelXLen = loadedModel->modelXLen;
   modelYLen = loadedModel->modelYLen;
   inputsUseNHWC = inputsNHWC;
