@@ -190,7 +190,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
 
   // Current implementation always tolerates excess nn len
   (void)requireExactNNLen;
-  ComputeHandle* handle = new ComputeHandle(context, loadedModel, maxBatchSize, inputsUseNHWC, gpuIdxForThisThread, serverThreadIdx);
+  ComputeHandle* handle = new ComputeHandle(context, loadedModel, 1, inputsUseNHWC, gpuIdxForThisThread, serverThreadIdx);
 
   return handle;
 }
@@ -359,15 +359,21 @@ void getMetalHandleOutput(
       numSpatialFeatures,
       gpuHandle->inputsUseNHWC,
       inputBufs[row]->symmetry);
-  }
 
-  gpuHandle->apply(inputBuffers->userInputBuffer,
-                   inputBuffers->userInputGlobalBuffer,
-                   inputBuffers->policyResults,
-                   inputBuffers->policyPassResults,
-                   inputBuffers->valueResults,
-                   inputBuffers->ownershipResults,
-                   inputBuffers->scoreValuesResults);
+    float* policyOutputBuf = &inputBuffers->policyResults[row * (singlePolicyResultElts * policyResultChannels)];
+    float* policyPassOutputBuf = &inputBuffers->policyPassResults[row * singlePolicyPassResultElts];
+    float* valueOutputBuf = &inputBuffers->valueResults[row * singleValueResultElts];
+    float* ownershipOutputBuf = &inputBuffers->ownershipResults[row * singleOwnershipResultElts];
+    float* scoreValuesOutputBuf = &inputBuffers->scoreValuesResults[row * singleScoreValuesResultElts];
+
+    gpuHandle->apply(rowSpatialInput,
+                     rowGlobalInput,
+                     policyOutputBuf,
+                     policyPassOutputBuf,
+                     valueOutputBuf,
+                     ownershipOutputBuf,
+                     scoreValuesOutputBuf);
+  }
 
   for(size_t row = 0; row < batchSize; row++) {
     NNOutput* output = outputs[row];

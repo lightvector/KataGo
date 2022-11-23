@@ -2151,14 +2151,14 @@ class Model {
 
         // Select useFP16 mode.
         switch context.useFP16Mode {
-        case .False: useFP16 = false
-        default: useFP16 = true
+        case .True: useFP16 = true
+        default: useFP16 = false
         }
 
         // Select useNHWC mode.
         switch context.useNHWCMode {
-        case .False: useNHWC = false
-        default: useNHWC = true
+        case .True: useNHWC = true
+        default: useNHWC = false
         }
 
         // Create a model.
