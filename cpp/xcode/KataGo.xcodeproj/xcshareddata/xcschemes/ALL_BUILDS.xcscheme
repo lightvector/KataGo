@@ -62,6 +62,10 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
+            argument = "benchmark -t 3"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
             argument = "gtp"
             isEnabled = "YES">
          </CommandLineArgument>
@@ -73,15 +77,16 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <MacroExpansion>
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "E13CF66728E1BD87005CB016"
-            BuildableName = "ALL_BUILDS"
-            BlueprintName = "ALL_BUILDS"
+            BlueprintIdentifier = "E10ACA7B2928A6D30004AB17"
+            BuildableName = "KataGoMetalCoreML"
+            BlueprintName = "KataGoMetalCoreML"
             ReferencedContainer = "container:xcode/KataGo.xcodeproj">
          </BuildableReference>
-      </MacroExpansion>
+      </BuildableProductRunnable>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">

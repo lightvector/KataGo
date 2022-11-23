@@ -54,7 +54,7 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "runownershiptests $HOME/.katago/default_gtp.cfg $HOME/.katago/default_model.bin.gz"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
    </LaunchAction>
