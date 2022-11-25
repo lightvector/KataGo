@@ -28,7 +28,7 @@ endif()
 set(BUILD_DISTRIBUTED 0 CACHE BOOL "Build with http support for contributing to distributed training")
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
-set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN METAL)
+set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
@@ -77,21 +77,8 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/eigenbackend.cpp
     )
-elseif(USE_BACKEND STREQUAL "METAL")
-  message(STATUS "-DUSE_BACKEND=METAL, using Metal backend.")
-  set(NEURALNET_BACKEND_SOURCES
-    neuralnet/metalbackend.cpp
-    neuralnet/metalbackend.mm
-  )
-elseif(USE_BACKEND STREQUAL "COREML")
-  message(STATUS "-DUSE_BACKEND=COREML, using CoreML backend.")
-  set(NEURALNET_BACKEND_SOURCES
-    neuralnet/coremlbackend.cpp
-    neuralnet/coremlbackend.mm
-    neuralnet/coremlmodel.m
-    )
 elseif(USE_BACKEND STREQUAL "")
-  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN or -DUSE_BACKEND=COREML or -DUSE_BACKEND=METAL to compile with the respective backend.${ColorReset}")
+  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN to compile with the respective backend.${ColorReset}")
   set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
 else()
   message(FATAL_ERROR "Unrecognized backend: " ${USE_BACKEND})
@@ -326,10 +313,6 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
       endif()
     endif()
   endif()
-elseif(USE_BACKEND STREQUAL "METAL")
-  target_compile_definitions(katago PRIVATE USE_METAL_BACKEND)
-  target_compile_options(katago PRIVATE "-fobjc-arc")
-  set(CMAKE_EXE_LINKER_FLAGS "-framework Foundation -framework Metal -framework MetalPerformanceShaders -framework MetalPerformanceShadersGraph -framework CoreML")
 endif()
 
 if(USE_BIGGER_BOARDS_EXPENSIVE)

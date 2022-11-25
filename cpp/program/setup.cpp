@@ -63,8 +63,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   string backendPrefix = "opencl";
   #elif defined(USE_EIGEN_BACKEND)
   string backendPrefix = "eigen";
-  #elif defined(USE_METAL_BACKEND)
-  string backendPrefix = "metal";
+  #elif defined(USE_COREML_BACKEND)
+  string backendPrefix = "coreml";
   #else
   string backendPrefix = "dummybackend";
   #endif
@@ -79,8 +79,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     cfg.markAllKeysUsedWithPrefix("opencl");
   if(backendPrefix != "eigen")
     cfg.markAllKeysUsedWithPrefix("eigen");
-  if(backendPrefix != "metal")
-    cfg.markAllKeysUsedWithPrefix("metal");
   if(backendPrefix != "coreml")
     cfg.markAllKeysUsedWithPrefix("coreml");
   if(backendPrefix != "dummybackend")
@@ -129,7 +127,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     }
 
     bool inputsUseNHWC;
-    if((backendPrefix == "opencl") || (backendPrefix == "trt") || (backendPrefix == "metal"))
+    if((backendPrefix == "opencl") || (backendPrefix == "trt") || (backendPrefix == "coreml"))
       inputsUseNHWC = false;
     else
       inputsUseNHWC = true;
@@ -280,7 +278,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       setupFor == SETUP_FOR_ANALYSIS ? 17 :
       cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24);
 
-#if !defined(USE_EIGEN_BACKEND) && !defined(USE_METAL_BACKEND)
+#ifndef USE_EIGEN_BACKEND
     int nnMaxBatchSize;
     if(setupFor == SETUP_FOR_BENCHMARK || setupFor == SETUP_FOR_DISTRIBUTED) {
       nnMaxBatchSize = defaultMaxBatchSize;
@@ -293,11 +291,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else {
       nnMaxBatchSize = cfg.getInt("nnMaxBatchSize", 1, 65536);
     }
-#elif defined(USE_METAL_BACKEND)
-    // metal backend uses a fixed batch size
-    int nnMaxBatchSize =
-      cfg.contains("nnMaxBatchSize") ? cfg.getInt("nnMaxBatchSize", 1, 65536) :
-      defaultMaxBatchSize;
 #else // USE_EIGEN_BACKEND is defined
     //Large batches don't really help CPUs the way they do GPUs because a single CPU on its own is single-threaded
     //and doesn't greatly benefit from having a bigger chunk of parallelizable work to do on the large scale.
