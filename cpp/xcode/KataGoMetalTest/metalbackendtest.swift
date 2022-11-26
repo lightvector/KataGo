@@ -3358,7 +3358,7 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
-        let numEvals = 64
+        let numEvals = 16
         let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
@@ -3403,97 +3403,7 @@ final class ModelTest: XCTestCase {
         let numValueChannels = 3
         let numScoreValueChannels = 6
         let numOwnershipChannels = 1
-        let numEvals = 64
-        let iteration: Int = (numEvals + batchSize - 1) / batchSize
-
-        let model = createModelB40C256(batchSize: batchSize,
-                                       nnYLen: nnYLen,
-                                       nnXLen: nnXLen,
-                                       numInputChannels: numInputChannels,
-                                       numInputGlobalChannels: numInputGlobalChannels,
-                                       numValueChannels: numValueChannels,
-                                       numScoreValueChannels: numScoreValueChannels,
-                                       numOwnershipChannels: numOwnershipChannels)
-
-        let (input, inputGlobal, policy, policyPass, value, scoreValue, ownership) =
-        createBuffers(batchSize: batchSize,
-                      nnYLen: nnYLen,
-                      nnXLen: nnXLen,
-                      numInputChannels: numInputChannels,
-                      numInputGlobalChannels: numInputGlobalChannels,
-                      numValueChannels: numValueChannels,
-                      numScoreValueChannels: numScoreValueChannels,
-                      numOwnershipChannels: numOwnershipChannels)
-
-        measure {
-            for _ in 0..<iteration {
-                model.apply(input: input,
-                            inputGlobal: inputGlobal,
-                            policy: policy,
-                            policyPass: policyPass,
-                            value: value,
-                            scoreValue: scoreValue,
-                            ownership: ownership)
-            }
-        }
-    }
-
-    // Test 40 blocks, 256 channels, 32 batches
-    func testB40C256B32() {
-        let batchSize = 32
-        let nnYLen = 19
-        let nnXLen = 19
-        let numInputChannels = 22
-        let numInputGlobalChannels = 19
-        let numValueChannels = 3
-        let numScoreValueChannels = 6
-        let numOwnershipChannels = 1
-        let numEvals = 64
-        let iteration: Int = (numEvals + batchSize - 1) / batchSize
-
-        let model = createModelB40C256(batchSize: batchSize,
-                                       nnYLen: nnYLen,
-                                       nnXLen: nnXLen,
-                                       numInputChannels: numInputChannels,
-                                       numInputGlobalChannels: numInputGlobalChannels,
-                                       numValueChannels: numValueChannels,
-                                       numScoreValueChannels: numScoreValueChannels,
-                                       numOwnershipChannels: numOwnershipChannels)
-
-        let (input, inputGlobal, policy, policyPass, value, scoreValue, ownership) =
-        createBuffers(batchSize: batchSize,
-                      nnYLen: nnYLen,
-                      nnXLen: nnXLen,
-                      numInputChannels: numInputChannels,
-                      numInputGlobalChannels: numInputGlobalChannels,
-                      numValueChannels: numValueChannels,
-                      numScoreValueChannels: numScoreValueChannels,
-                      numOwnershipChannels: numOwnershipChannels)
-
-        measure {
-            for _ in 0..<iteration {
-                model.apply(input: input,
-                            inputGlobal: inputGlobal,
-                            policy: policy,
-                            policyPass: policyPass,
-                            value: value,
-                            scoreValue: scoreValue,
-                            ownership: ownership)
-            }
-        }
-    }
-
-    // Test 40 blocks, 256 channels, 64 batches
-    func testB40C256B64() {
-        let batchSize = 64
-        let nnYLen = 19
-        let nnXLen = 19
-        let numInputChannels = 22
-        let numInputGlobalChannels = 19
-        let numValueChannels = 3
-        let numScoreValueChannels = 6
-        let numOwnershipChannels = 1
-        let numEvals = 64
+        let numEvals = 16
         let iteration: Int = (numEvals + batchSize - 1) / batchSize
 
         let model = createModelB40C256(batchSize: batchSize,
