@@ -291,7 +291,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else {
       nnMaxBatchSize = cfg.getInt("nnMaxBatchSize", 1, 65536);
     }
-#else // USE_EIGEN_BACKEND is defined
+#else
     //Large batches don't really help CPUs the way they do GPUs because a single CPU on its own is single-threaded
     //and doesn't greatly benefit from having a bigger chunk of parallelizable work to do on the large scale.
     //So we just fix a size here that isn't crazy and saves memory, completely ignore what the user would have
