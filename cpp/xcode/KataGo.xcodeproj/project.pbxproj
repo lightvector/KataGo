@@ -563,7 +563,7 @@
 				Base,
 			);
 			mainGroup = 29C8B1F369034337B2CC96EF;
-			projectDirPath = "/Users/chinchangyang/Code/KataGo-CCY/cpp";
+			projectDirPath = ../;
 			projectRoot = "";
 			targets = (
 				E13CF66728E1BD87005CB016 /* ALL_BUILDS */,
@@ -1260,7 +1260,7 @@
 				DC5B919756BF4E8EA9889C99 /* RelWithDebInfo */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
+			defaultConfigurationName = Release;
 		};
 		E10ACAF02928A6D30004AB17 /* Build configuration list for PBXNativeTarget "katago" */ = {
 			isa = XCConfigurationList;
@@ -1271,7 +1271,7 @@
 				E10ACAF42928A6D30004AB17 /* RelWithDebInfo */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
+			defaultConfigurationName = Release;
 		};
 		E13CF66828E1BD87005CB016 /* Build configuration list for PBXAggregateTarget "ALL_BUILDS" */ = {
 			isa = XCConfigurationList;
@@ -1282,7 +1282,7 @@
 				E13CF66C28E1BD87005CB016 /* RelWithDebInfo */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
+			defaultConfigurationName = Release;
 		};
 		E1E29E1428F5B05300E73FF8 /* Build configuration list for PBXNativeTarget "test" */ = {
 			isa = XCConfigurationList;
@@ -1293,7 +1293,7 @@
 				E1E29E1828F5B05300E73FF8 /* RelWithDebInfo */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
