@@ -272,7 +272,7 @@
 		D8710CF2CCA3478EB65063C6 /* gatekeeper.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = gatekeeper.cpp; path = command/gatekeeper.cpp; sourceTree = SOURCE_ROOT; };
 		DD4302F4D69E4EE98EA75B2C /* localpattern.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = localpattern.cpp; path = search/localpattern.cpp; sourceTree = SOURCE_ROOT; };
 		DDCAE99038794BE8B4BB3962 /* modelversion.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = modelversion.cpp; path = neuralnet/modelversion.cpp; sourceTree = SOURCE_ROOT; };
-		E10ACAF52928A6D30004AB17 /* KataGoMetalCoreML */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = KataGoMetalCoreML; sourceTree = BUILT_PRODUCTS_DIR; };
+		E10ACAF52928A6D30004AB17 /* katago */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = katago; sourceTree = BUILT_PRODUCTS_DIR; };
 		E10ACAF82928A7F50004AB17 /* coremlmodel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = coremlmodel.h; path = neuralnet/coremlmodel.h; sourceTree = "<group>"; };
 		E10ACAF92928A8160004AB17 /* coremlbackend.h */ = {isa = PBXFileReference; indentWidth = 2; lastKnownFileType = sourcecode.c.h; name = coremlbackend.h; path = neuralnet/coremlbackend.h; sourceTree = "<group>"; tabWidth = 4; };
 		E13CF66128E1896C005CB016 /* coremlbackend.mm */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.cpp.objcpp; name = coremlbackend.mm; path = neuralnet/coremlbackend.mm; sourceTree = "<group>"; };
@@ -286,7 +286,7 @@
 		E1AD404B28E1D59700E41968 /* MetalPerformanceShadersGraph.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalPerformanceShadersGraph.framework; path = System/Library/Frameworks/MetalPerformanceShadersGraph.framework; sourceTree = SDKROOT; };
 		E1AD404F28E1D5A700E41968 /* CoreML.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreML.framework; path = System/Library/Frameworks/CoreML.framework; sourceTree = SDKROOT; };
 		E1AD405128E1D75B00E41968 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
-		E1E29E1028F5B05300E73FF8 /* KataGoMetalTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KataGoMetalTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E1E29E1028F5B05300E73FF8 /* test.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = test.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E1E29E1228F5B05300E73FF8 /* metalbackendtest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = metalbackendtest.swift; sourceTree = "<group>"; };
 		E3F8D82F94E14F11BA0F59E6 /* testscore.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = testscore.cpp; path = tests/testscore.cpp; sourceTree = SOURCE_ROOT; };
 		E7B41A9FE4124FA1AB3FBEF1 /* analysis.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = analysis.cpp; path = command/analysis.cpp; sourceTree = SOURCE_ROOT; };
@@ -352,8 +352,8 @@
 		8218F7988402482BAFDA7E88 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				E1E29E1028F5B05300E73FF8 /* KataGoMetalTest.xctest */,
-				E10ACAF52928A6D30004AB17 /* KataGoMetalCoreML */,
+				E1E29E1028F5B05300E73FF8 /* test.xctest */,
+				E10ACAF52928A6D30004AB17 /* katago */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -502,9 +502,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		E10ACA7B2928A6D30004AB17 /* KataGoMetalCoreML */ = {
+		E10ACA7B2928A6D30004AB17 /* katago */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = E10ACAF02928A6D30004AB17 /* Build configuration list for PBXNativeTarget "KataGoMetalCoreML" */;
+			buildConfigurationList = E10ACAF02928A6D30004AB17 /* Build configuration list for PBXNativeTarget "katago" */;
 			buildPhases = (
 				E10ACA7C2928A6D30004AB17 /* Sources */,
 				E10ACAEB2928A6D30004AB17 /* Frameworks */,
@@ -513,14 +513,14 @@
 			);
 			dependencies = (
 			);
-			name = KataGoMetalCoreML;
+			name = katago;
 			productName = katago;
-			productReference = E10ACAF52928A6D30004AB17 /* KataGoMetalCoreML */;
+			productReference = E10ACAF52928A6D30004AB17 /* katago */;
 			productType = "com.apple.product-type.tool";
 		};
-		E1E29E0F28F5B05300E73FF8 /* KataGoMetalTest */ = {
+		E1E29E0F28F5B05300E73FF8 /* test */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = E1E29E1428F5B05300E73FF8 /* Build configuration list for PBXNativeTarget "KataGoMetalTest" */;
+			buildConfigurationList = E1E29E1428F5B05300E73FF8 /* Build configuration list for PBXNativeTarget "test" */;
 			buildPhases = (
 				E1E29E0C28F5B05300E73FF8 /* Sources */,
 				E1E29E0D28F5B05300E73FF8 /* Frameworks */,
@@ -531,9 +531,9 @@
 			dependencies = (
 				E1698CEC2931027E003FADF8 /* PBXTargetDependency */,
 			);
-			name = KataGoMetalTest;
+			name = test;
 			productName = KataGoMetalTest;
-			productReference = E1E29E1028F5B05300E73FF8 /* KataGoMetalTest.xctest */;
+			productReference = E1E29E1028F5B05300E73FF8 /* test.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -567,8 +567,8 @@
 			projectRoot = "";
 			targets = (
 				E13CF66728E1BD87005CB016 /* ALL_BUILDS */,
-				E1E29E0F28F5B05300E73FF8 /* KataGoMetalTest */,
-				E10ACA7B2928A6D30004AB17 /* KataGoMetalCoreML */,
+				E1E29E0F28F5B05300E73FF8 /* test */,
+				E10ACA7B2928A6D30004AB17 /* katago */,
 			);
 		};
 /* End PBXProject section */
@@ -718,17 +718,17 @@
 /* Begin PBXTargetDependency section */
 		E10ACAF72928A7060004AB17 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = E10ACA7B2928A6D30004AB17 /* KataGoMetalCoreML */;
+			target = E10ACA7B2928A6D30004AB17 /* katago */;
 			targetProxy = E10ACAF62928A7060004AB17 /* PBXContainerItemProxy */;
 		};
 		E1698CEC2931027E003FADF8 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = E10ACA7B2928A6D30004AB17 /* KataGoMetalCoreML */;
+			target = E10ACA7B2928A6D30004AB17 /* katago */;
 			targetProxy = E1698CEB2931027E003FADF8 /* PBXContainerItemProxy */;
 		};
 		E172CFAC292846F900433180 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = E1E29E0F28F5B05300E73FF8 /* KataGoMetalTest */;
+			target = E1E29E0F28F5B05300E73FF8 /* test */;
 			targetProxy = E172CFAB292846F900433180 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -1099,7 +1099,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
-				PRODUCT_NAME = KataGoMetalTest;
+				PRODUCT_NAME = test;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 			};
 			name = Debug;
@@ -1148,7 +1148,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				PRODUCT_NAME = KataGoMetalTest;
+				PRODUCT_NAME = test;
 			};
 			name = Release;
 		};
@@ -1196,7 +1196,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				PRODUCT_NAME = KataGoMetalTest;
+				PRODUCT_NAME = test;
 			};
 			name = MinSizeRel;
 		};
@@ -1244,7 +1244,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				PRODUCT_NAME = KataGoMetalTest;
+				PRODUCT_NAME = test;
 			};
 			name = RelWithDebInfo;
 		};
@@ -1262,7 +1262,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		E10ACAF02928A6D30004AB17 /* Build configuration list for PBXNativeTarget "KataGoMetalCoreML" */ = {
+		E10ACAF02928A6D30004AB17 /* Build configuration list for PBXNativeTarget "katago" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				E10ACAF12928A6D30004AB17 /* Debug */,
@@ -1284,7 +1284,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		E1E29E1428F5B05300E73FF8 /* Build configuration list for PBXNativeTarget "KataGoMetalTest" */ = {
+		E1E29E1428F5B05300E73FF8 /* Build configuration list for PBXNativeTarget "test" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				E1E29E1528F5B05300E73FF8 /* Debug */,

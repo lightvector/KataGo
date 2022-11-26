@@ -15,8 +15,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "E10ACA7B2928A6D30004AB17"
-               BuildableName = "KataGoMetalCoreML"
-               BlueprintName = "KataGoMetalCoreML"
+               BuildableName = "katago"
+               BlueprintName = "katago"
                ReferencedContainer = "container:xcode/KataGo.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -46,14 +46,14 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "E10ACA7B2928A6D30004AB17"
-            BuildableName = "KataGoMetalCoreML"
-            BlueprintName = "KataGoMetalCoreML"
+            BuildableName = "katago"
+            BlueprintName = "katago"
             ReferencedContainer = "container:xcode/KataGo.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "runownershiptests $HOME/.katago/default_gtp.cfg $HOME/.katago/default_model.bin.gz"
+            argument = "benchmark -t 3"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
@@ -69,8 +69,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "E10ACA7B2928A6D30004AB17"
-            BuildableName = "KataGoMetalCoreML"
-            BlueprintName = "KataGoMetalCoreML"
+            BuildableName = "katago"
+            BlueprintName = "katago"
             ReferencedContainer = "container:xcode/KataGo.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

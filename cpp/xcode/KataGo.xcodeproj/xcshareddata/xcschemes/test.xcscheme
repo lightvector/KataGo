@@ -34,8 +34,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "E1E29E0F28F5B05300E73FF8"
-               BuildableName = "KataGoMetalTest.xctest"
-               BlueprintName = "KataGoMetalTest"
+               BuildableName = "test.xctest"
+               BlueprintName = "test"
                ReferencedContainer = "container:xcode/KataGo.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -58,9 +58,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "28EEEDD45A95496F8B5C834F"
-            BuildableName = "KataGoMetal"
-            BlueprintName = "KataGoMetal"
+            BlueprintIdentifier = "E10ACA7B2928A6D30004AB17"
+            BuildableName = "katago"
+            BlueprintName = "katago"
             ReferencedContainer = "container:xcode/KataGo.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -101,16 +101,15 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <BuildableProductRunnable
-         runnableDebuggingMode = "0">
+      <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "28EEEDD45A95496F8B5C834F"
-            BuildableName = "KataGoMetal"
-            BlueprintName = "KataGoMetal"
+            BlueprintIdentifier = "E10ACA7B2928A6D30004AB17"
+            BuildableName = "katago"
+            BlueprintName = "katago"
             ReferencedContainer = "container:xcode/KataGo.xcodeproj">
          </BuildableReference>
-      </BuildableProductRunnable>
+      </MacroExpansion>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">
