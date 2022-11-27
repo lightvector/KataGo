@@ -3,17 +3,18 @@ from typing import Dict, Any
 
 ModelConfig = Dict[str,Any]
 
-# version = 0 #V1 features, with old head architecture using crelus (no longer supported)
-# version = 1 #V1 features, with new head architecture, no crelus
-# version = 2 #V2 features, no internal architecture change.
-# version = 3 #V3 features, selfplay-planned features with lots of aux targets
-# version = 4 #V3 features, but supporting belief stdev and dynamic scorevalue
-# version = 5 #V4 features, slightly different pass-alive stones feature
-# version = 6 #V5 features, most higher-level go features removed
-# version = 7 #V6 features, more rules support
-# version = 8 #V7 features, asym, lead, variance time
-# version = 9 #V7 features, shortterm value error prediction, inference actually uses variance time, unsupported now
-# version = 10 #V7 features, shortterm value error prediction done properly
+# version = 0 # V1 features, with old head architecture using crelus (no longer supported)
+# version = 1 # V1 features, with new head architecture, no crelus
+# version = 2 # V2 features, no internal architecture change.
+# version = 3 # V3 features, selfplay-planned features with lots of aux targets
+# version = 4 # V3 features, but supporting belief stdev and dynamic scorevalue
+# version = 5 # V4 features, slightly different pass-alive stones feature
+# version = 6 # V5 features, most higher-level go features removed
+# version = 7 # V6 features, more rules support
+# version = 8 # V7 features, asym, lead, variance time
+# version = 9 # V7 features, shortterm value error prediction, inference actually uses variance time, unsupported now
+# version = 10 # V7 features, shortterm value error prediction done properly
+# version = 11 # V7 features, New architectures!
 
 def get_version(config: ModelConfig):
   return config["version"]
