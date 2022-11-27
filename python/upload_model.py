@@ -143,7 +143,7 @@ with open(model_file,"rb") as model_file_handle:
 
     if metadata is not None:
       if "global_step_samples" in metadata:
-        data["global_step_samples"] = (None, metadata["global_step_samples"])
+        data["train_step"] = (None, metadata["global_step_samples"])
       if "total_num_data_rows" in metadata:
         data["total_num_data_rows"] = (None, metadata["total_num_data_rows"])
       if "extra_stats" in metadata:

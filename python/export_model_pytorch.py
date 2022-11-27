@@ -345,7 +345,11 @@ def main(args):
     if "total_num_data_rows" in train_state:
       data["total_num_data_rows"] = train_state["total_num_data_rows"]
     if "running_metrics" in other_state_dict:
-      data["extra_stats"] = other_state_dict["running_metrics"]
+      assert sorted(list(other_state_dict["running_metrics"].keys())) == ["sums", "weights"]
+      data["extra_stats"] = {
+        "sums": { key: value for (key,value) in other_state_dict["running_metrics"]["sums"].items() if "sopt" not in key and "lopt" not in key },
+        "weights": { key: value for (key,value) in other_state_dict["running_metrics"]["weights"].items() if "sopt" not in key and "lopt" not in key },
+      }
     json.dump(data,f)
 
 
