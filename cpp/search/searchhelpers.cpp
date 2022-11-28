@@ -502,9 +502,9 @@ void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNo
   // We'd like to avoid using a T distribution approximation because we actually know a bound on the scale of the utilities
   // involved, namely utilityRangeRadius. So instead add a prior with a small weight that the variance is the largest it can be.
   // This should give a relatively smooth scaling that works for small discrete samples but diminishes for larger playouts.
-  double priorWeight = 1.0 / (ess * ess);
+  double priorWeight = weightSum / (ess * ess * ess);
   utilitySqAvg = std::max(utilitySqAvg, utilityAvg * utilityAvg + 1e-8);
-  utilitySqAvg = (utilitySqAvg * weightSum + utilityRangeRadius * utilityRangeRadius * priorWeight) / (weightSum + priorWeight);
+  utilitySqAvg = (utilitySqAvg * weightSum + (utilitySqAvg + utilityRangeRadius * utilityRangeRadius) * priorWeight) / (weightSum + priorWeight);
   weightSum += priorWeight;
   weightSqSum += priorWeight*priorWeight;
 
