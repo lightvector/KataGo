@@ -311,7 +311,7 @@ class KataGPool(torch.nn.Module):
         """
         mask_sum_hw_sqrt_offset = torch.sqrt(mask_sum_hw) - 14.0
 
-        layer_mean = torch.sum(x, dim=(2, 3), keepdim=True, dtype=torch.float32) / mask_sum_hw
+        layer_mean = torch.sum(x, dim=(2, 3), keepdim=True) / mask_sum_hw
         # All activation functions we use right now are always greater than -1.0, and map 0 -> 0.
         # So off-board areas will equal 0, and then this max is mask-safe if we assign -1.0 to off-board areas.
         (layer_max,_argmax) = torch.max((x+(mask-1.0)).view(x.shape[0],x.shape[1],-1).to(torch.float32), dim=2)
@@ -340,7 +340,7 @@ class KataValueHeadGPool(torch.nn.Module):
         """
         mask_sum_hw_sqrt_offset = torch.sqrt(mask_sum_hw) - 14.0
 
-        layer_mean = torch.sum(x, dim=(2, 3), keepdim=True, dtype=torch.float32) / mask_sum_hw
+        layer_mean = torch.sum(x, dim=(2, 3), keepdim=True) / mask_sum_hw
 
         out_pool1 = layer_mean
         out_pool2 = layer_mean * (mask_sum_hw_sqrt_offset / 10.0)
@@ -1281,7 +1281,7 @@ class ValueHead(torch.nn.Module):
         )
 
 class Model(torch.nn.Module):
-    def __init__(self, config: modelconfigs.ModelConfig, pos_len: int):
+    def __init__(self, config: modelconfigs.ModelConfig, pos_len: int, for_coreml: bool = False):
         super(Model, self).__init__()
 
         self.config = config
@@ -1299,6 +1299,7 @@ class Model(torch.nn.Module):
         self.num_scorebeliefs = config["num_scorebeliefs"]
         self.num_total_blocks = len(self.block_kind)
         self.pos_len = pos_len
+        self.for_coreml = for_coreml
 
         self.trunk_normless = "trunk_normless" in config and config["trunk_normless"]
 
@@ -1538,6 +1539,8 @@ class Model(torch.nn.Module):
         out = x_spatial + x_global
         # print("TENSOR BEFORE TRUNK")
         # print(out)
+
+        self.has_intermediate_head = False if self.for_coreml else self.has_intermediate_head
 
         if self.has_intermediate_head:
             count = 0

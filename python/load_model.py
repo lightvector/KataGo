@@ -8,7 +8,7 @@ from torch.optim.swa_utils import AveragedModel
 import modelconfigs
 from model_pytorch import Model, ResBlock, NestedBottleneckResBlock
 
-def load_model(checkpoint_file, use_swa, device, pos_len=19, verbose=False):
+def load_model(checkpoint_file, use_swa, device, pos_len=19, for_coreml=False, verbose=False):
   state_dict = torch.load(checkpoint_file,map_location="cpu")
 
   if "config" in state_dict:
@@ -20,7 +20,7 @@ def load_model(checkpoint_file, use_swa, device, pos_len=19, verbose=False):
       model_config = json.load(f)
 
   logging.info(str(model_config))
-  model = Model(model_config,pos_len)
+  model = Model(model_config,pos_len,for_coreml=for_coreml)
   model.initialize()
 
   # Strip off any "module." from when the model was saved with DDP or other things
@@ -60,8 +60,8 @@ def load_model(checkpoint_file, use_swa, device, pos_len=19, verbose=False):
 
   # Return other useful stuff in state dict too
   other_state_dict = {}
-  other_state_dict["metrics"] = state_dict["metrics"]
-  other_state_dict["running_metrics"] = state_dict["running_metrics"]
+  other_state_dict["metrics"] = state_dict.get("metrics",None)
+  other_state_dict["running_metrics"] = state_dict.get("running_metrics",None)
   other_state_dict["train_state"] = state_dict["train_state"]
 
   return (model, swa_model, other_state_dict)
