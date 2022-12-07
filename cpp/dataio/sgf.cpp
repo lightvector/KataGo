@@ -923,6 +923,17 @@ Sgf::PositionSample Sgf::PositionSample::getColorFlipped() const {
   return other;
 }
 
+Sgf::PositionSample Sgf::PositionSample::previousPosition(double newWeight) const {
+  Sgf::PositionSample other = *this;
+  if(other.moves.size() > 0) {
+    other.nextPla = other.moves[other.moves.size()-1].pla;
+    other.moves.pop_back();
+    other.hintLoc = Board::NULL_LOC;
+    other.weight = newWeight;
+  }
+  return other;
+}
+
 bool Sgf::PositionSample::isEqualForTesting(const Sgf::PositionSample& other, bool checkNumCaptures, bool checkSimpleKo) const {
   if(!board.isEqualForTesting(other.board,checkNumCaptures,checkSimpleKo))
     return false;
