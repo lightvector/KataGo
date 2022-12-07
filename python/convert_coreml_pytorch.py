@@ -5,6 +5,7 @@ from load_model import load_model
 import coremltools as ct
 from coremltools import _logger as logger
 import coremlmish
+import coremllogsumexp
 
 description = """
 Convert a trained neural net to a CoreML model.
@@ -18,6 +19,9 @@ print(ct.__version__)
 
 # Print coremlmish function
 print(coremlmish.__function__)
+
+# Print coremllogsumexp name
+print(coremllogsumexp.__name__)
 
 # Parse arguments
 
