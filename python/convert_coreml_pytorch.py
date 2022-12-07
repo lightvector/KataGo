@@ -4,13 +4,20 @@ import torch
 from load_model import load_model
 import coremltools as ct
 from coremltools import _logger as logger
+import coremlmish
 
 description = """
 Convert a trained neural net to a CoreML model.
 """
 
+# Print torch version
+print(torch.__version__)
+
 # Print coremltools version
 print(ct.__version__)
+
+# Print coremlmish function
+print(coremlmish.__function__)
 
 # Parse arguments
 
@@ -20,7 +27,7 @@ args = vars(parser.parse_args())
 
 def main(args):
     #logger.setLevel('INFO')
-    checkpoint_file = 'b18c384nbt-uec-20221121b.ckpt'  # args["checkpoint"]
+    checkpoint_file = 'models/b18c384nbt-uec-20221121b.ckpt'  # args["checkpoint"]
     use_swa = True  # args["use_swa"]
     pos_len = 19
     batch_size = 1
