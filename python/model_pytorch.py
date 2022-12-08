@@ -1037,7 +1037,7 @@ class NestedNestedBottleneckResBlock(torch.nn.Module):
 
 
 class PolicyHead(torch.nn.Module):
-    def __init__(self, c_in, c_p1, c_g1, config, activation):
+    def __init__(self, c_in, c_p1, c_g1, config, activation, for_coreml: bool = False):
         super(PolicyHead, self).__init__()
         self.activation = activation
 
@@ -1064,7 +1064,7 @@ class PolicyHead(torch.nn.Module):
         )
         self.act2 = act(activation)
         self.conv2p = torch.nn.Conv2d(c_p1, self.num_policy_outputs, kernel_size=1, padding="same", bias=False)
-
+        self.for_coreml = for_coreml
 
     def initialize(self):
         # Scaling so that variance on the p and g branches adds up to 1.0
@@ -1102,6 +1102,7 @@ class PolicyHead(torch.nn.Module):
         outg = self.gpool(outg, mask=mask, mask_sum_hw=mask_sum_hw).squeeze(-1).squeeze(-1) # NC
 
         outpass = self.linear_pass(outg) # NC
+        outpass = outpass[:, 0:1] if self.for_coreml else outpass
         outg = self.linear_g(outg).unsqueeze(-1).unsqueeze(-1) # NCHW
 
         outp = outp + outg
@@ -1109,6 +1110,7 @@ class PolicyHead(torch.nn.Module):
         outp = self.act2(outp)
         outp = self.conv2p(outp)
         outpolicy = outp
+        outpolicy = outpolicy[:, 0:1, :, :] if self.for_coreml else outpolicy
 
         # mask out parts outside the board by making them a huge neg number, so that they're 0 after softmax
         outpolicy = outpolicy - (1.0 - mask) * 5000.0
@@ -1416,6 +1418,7 @@ class Model(torch.nn.Module):
             self.c_g1,
             self.config,
             self.activation,
+            self.for_coreml,
         )
         self.value_head = ValueHead(
             self.c_trunk,
@@ -1624,6 +1627,14 @@ class Model(torch.nn.Module):
                     iout_scorebelief_logprobs,
                 ),
             )
+        elif self.for_coreml:
+            return ((
+                out_policy,
+                out_value,
+                out_miscvalue,
+                out_moremiscvalue,
+                out_ownership,
+            ),)
         else:
             return ((
                 out_policy,
